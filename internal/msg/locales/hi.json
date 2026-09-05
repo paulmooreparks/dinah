@@ -2529,10 +2529,20 @@
       "context": "One row of a reshape report: a retiring column nothing had to be carried out of.",
       "source": "b21106442a0be2ab"
     },
+    "reshape.partial": {
+      "text": "यह चाल रुकने से पहले लिखना शुरू कर चुकी थी, इसलिए यह वर्कबेंच अपने पुराने और नए आकार के बीच खड़ा है। आगे वही है जो उसने लिखा।",
+      "context": "The first line of a reshape that refused after its write phase had begun, printed where a preview prints the line saying nothing was written and an applied run prints the line saying the shape is on disk. The three openings are different because the three states are, and an operator who is told only which refusal stopped the run cannot tell a half-applied workbench from an untouched one.",
+      "source": "ae9fdb33e82336ba"
+    },
     "reshape.preview": {
       "text": "कुछ नहीं लिखा गया। --yes के साथ चलने पर यह होता।",
       "context": "The first line of a reshape preview, which says at the top that none of the page below has happened.",
       "source": "d930604dbdecd792"
+    },
+    "reshape.retry": {
+      "text": "अस्वीकृति जो बताती है उसे ठीक करें और वही आदेश उसी स्रोत के साथ फिर चलाएँ। ऊपर के चरण दूसरे चलने पर छोड़ दिए जाते हैं और शेष आकार लिख दिया जाता है।",
+      "context": "The closing line of the report for a reshape that stopped part way through, which is what tells the operator the state is finishable and how. Every write-phase step is idempotent, so the second run does what the first did not.",
+      "source": "5ff52d499cdd5db9"
     },
     "reshape.stranded": {
       "text": "ऐसे कॉलम में खड़े कार्ड जिसे यह चाल नहीं जानती: {count}। उनके पहचानकर्ता खोजने के लिए `dinah check` चलाएँ।",
@@ -2543,6 +2553,26 @@
       "text": "नई परिभाषा ने कॉलम {id} को बदला।",
       "context": "One row of a reshape report: a kept column whose anchor the rewrite actually changed, which is what the run recorded a column_updated event for.",
       "source": "21d7c7ccec3eea74"
+    },
+    "reshape.wrote.added": {
+      "text": "नई परिभाषा द्वारा जोड़े गए कॉलम, अब लिखे गए और प्रवाह में: {count}।",
+      "context": "One row of the report for a reshape that stopped part way through, counting the columns write-phase step one had already written.",
+      "source": "2552497602e0ea05"
+    },
+    "reshape.wrote.archived": {
+      "text": "संग्रहित किए गए हटाए जा रहे कॉलम: {count}।",
+      "context": "One row of the report for a reshape that stopped part way through, counting the retiring columns the archive step had already put into the archive.",
+      "source": "79cb0ecdbbb92915"
+    },
+    "reshape.wrote.carried": {
+      "text": "हटाए जा रहे कॉलम से ले जाए गए कार्ड: {count}।",
+      "context": "One row of the report for a reshape that stopped part way through, counting the cards the carry had already moved to their destinations.",
+      "source": "6e230ff4563ae377"
+    },
+    "reshape.wrote.updated": {
+      "text": "नई परिभाषा से फिर लिखे गए रखे हुए कॉलम: {count}।",
+      "context": "One row of the report for a reshape that stopped part way through, counting the kept columns whose anchor the rewrite had already changed.",
+      "source": "cd228857426eace1"
     },
     "show.attachments": {
       "text": "संलग्नक:",

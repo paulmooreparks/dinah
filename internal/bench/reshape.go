@@ -58,9 +58,21 @@ func SourceDigest(data []byte) string {
 //
 // The guarantee is exactly as wide as its inputs. A retry against an edited
 // source hashes differently and derives a different identifier, so it never
-// revisits the crashed attempt's directory; that residue is what
-// Bench.OrphanedColumnDirectories and check.orphaned-column-directory exist
-// to make visible.
+// recognises the earlier attempt's column as its own.
+//
+// What that costs depends on how far the earlier attempt got, and only the
+// narrower of the two cases leaves anything behind. An attempt that died
+// inside step one, between creating the directory and appending the identifier
+// to the workbench's sequence, leaves a directory no sequence names, and that
+// residue is what Bench.OrphanedColumnDirectories and
+// check.orphaned-column-directory exist to make visible. An attempt that got
+// past that append leaves a live column, which is the ordinary case for a run
+// stopped by a refusal in a later step, and a live column the edited
+// definition does not name is simply a retirement: the second run carries out
+// whatever stands in it, archives it, and drops it from the sequence, leaving
+// neither an orphaned directory nor a stranded identifier.
+// verb.TestAnEditedRetryAfterALateRefusalArchivesTheAddedColumn holds the
+// second case.
 func DeriveColumnID(sourceDigest string, position int) string {
 	sum := sha256.Sum256([]byte(sourceDigest + ":" + strconv.Itoa(position)))
 	return hex.EncodeToString(sum[:])[:12]

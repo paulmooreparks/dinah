@@ -985,9 +985,17 @@
       "text": "{id} retires with no card standing in it.",
       "context": "One row of a reshape report: a retiring column nothing had to be carried out of."
     },
+    "reshape.partial": {
+      "text": "This run had already begun writing when it stopped, so this workbench stands part way between its old shape and the new one. What follows is what it wrote.",
+      "context": "The first line of a reshape that refused after its write phase had begun, printed where a preview prints the line saying nothing was written and an applied run prints the line saying the shape is on disk. The three openings are different because the three states are, and an operator who is told only which refusal stopped the run cannot tell a half-applied workbench from an untouched one."
+    },
     "reshape.preview": {
       "text": "Nothing was written. This is what a run carrying --yes would do.",
       "context": "The first line of a reshape preview, which says at the top that none of the page below has happened."
+    },
+    "reshape.retry": {
+      "text": "Clear what the refusal names and run the same command again with the same source. The steps above are skipped on the second run and the rest of the shape is written.",
+      "context": "The closing line of the report for a reshape that stopped part way through, which is what tells the operator the state is finishable and how. Every write-phase step is idempotent, so the second run does what the first did not."
     },
     "reshape.stranded": {
       "text": "Cards standing in a column this run does not know about: {count}. Run `dinah check` to find their identifiers.",
@@ -996,6 +1004,22 @@
     "reshape.updated": {
       "text": "The new definition changed column {id}.",
       "context": "One row of a reshape report: a kept column whose anchor the rewrite actually changed, which is what the run recorded a column_updated event for."
+    },
+    "reshape.wrote.added": {
+      "text": "Columns the new definition adds, now written and in the flow: {count}.",
+      "context": "One row of the report for a reshape that stopped part way through, counting the columns write-phase step one had already written."
+    },
+    "reshape.wrote.archived": {
+      "text": "Retiring columns archived: {count}.",
+      "context": "One row of the report for a reshape that stopped part way through, counting the retiring columns the archive step had already put into the archive."
+    },
+    "reshape.wrote.carried": {
+      "text": "Cards carried out of a retiring column: {count}.",
+      "context": "One row of the report for a reshape that stopped part way through, counting the cards the carry had already moved to their destinations."
+    },
+    "reshape.wrote.updated": {
+      "text": "Kept columns rewritten from the new definition: {count}.",
+      "context": "One row of the report for a reshape that stopped part way through, counting the kept columns whose anchor the rewrite had already changed."
     },
     "tool.workbenches.summary": {
       "text": "the workbenches this server may serve",

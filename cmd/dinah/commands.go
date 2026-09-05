@@ -945,8 +945,16 @@ func runExtract(s *session, parsed *arguments) int {
 // The two forms are check --migrate-vocabulary's, reused rather than invented:
 // without --yes the command validates everything, reports what it would do,
 // and writes nothing at all; with --yes it validates the same way and then
-// applies. A refusal reads the same on either form, because the phase that
-// raises one is the phase both forms run.
+// applies.
+//
+// A refusal raised during validation reads the same on either form, because
+// validation is the phase both forms run. A refusal raised once the write
+// phase has begun does not, and must not: it leaves the workbench part way
+// through the new shape, and an operator who is told only which refusal
+// stopped the run cannot tell that state from a preview that wrote nothing.
+// So the report comes back with the error on that path and is printed before
+// the refusal, naming what the run wrote and what finishes it. Only --yes can
+// reach it, since a preview stops before the write phase begins.
 func runReshape(s *session, parsed *arguments) int {
 	if parsed.value("from") == "" {
 		return s.fail(contract.Usage, "reshape")
@@ -957,7 +965,7 @@ func runReshape(s *session, parsed *arguments) int {
 	return s.withBench(func(l *verb.Library) int {
 		report, err := l.Reshape(req)
 		if err != nil {
-			return s.reportError(err)
+			return s.reportReshapeRefusal(report, err)
 		}
 		if s.format != formatHuman {
 			return s.emitMachine(report)

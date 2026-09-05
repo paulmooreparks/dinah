@@ -62,13 +62,52 @@ type ReshapeRetirement struct {
 	Blocked []string `json:"carried_while_blocked,omitempty"`
 }
 
+// The write-phase steps a report names when a run stopped part way through
+// one. Each is a thing the operator can see in the workbench afterwards,
+// rather than a stage of the code, so the four are the four acts the write
+// phase performs. The reorder is not among them: it is the last step, so a run
+// that reached the end of it applied.
+const (
+	ReshapeWroteAdded    = "added"
+	ReshapeWroteCarried  = "carried"
+	ReshapeWroteArchived = "archived"
+	ReshapeWroteUpdated  = "updated"
+)
+
+// ReshapeWrite is one write-phase step that had already written when the run
+// stopped, and how much of the workbench it wrote.
+type ReshapeWrite struct {
+	// Step is one of added, carried, archived and updated.
+	Step string `json:"step"`
+	// Count is how many columns or cards that step wrote before the run
+	// stopped, which for a step that refused part way through is what it
+	// managed rather than what it set out to do.
+	Count int `json:"count"`
+}
+
 // ReshapeReport is what reshape answers with, preview and apply alike. The
 // preview is this report with Applied false, and the apply is the same report
 // with the counts the write phase actually reached.
+//
+// A run refused after the write phase began answers with this report too,
+// carrying Wrote and Refusal and leaving Applied false, because the caller has
+// to be able to tell that state from a preview and from a refusal raised
+// during validation. See applyReshape for what such a run leaves behind and
+// what finishes it.
 type ReshapeReport struct {
 	// Applied is false for a preview, which wrote nothing at all, and true
 	// for a run that completed its write phase.
 	Applied bool `json:"applied"`
+	// Wrote is what the write phase had written when the run stopped, empty
+	// for a preview, for a run refused during validation, and for a run that
+	// applied, whose Applied says the same thing more directly.
+	Wrote []ReshapeWrite `json:"wrote,omitempty"`
+	// Refusal is the name of the refusal that stopped a run whose write
+	// phase had begun, empty everywhere else. It is carried on the report
+	// because such a run answers with the report rather than with the
+	// ordinary machine refusal, which would say nothing about what was
+	// written.
+	Refusal string `json:"refusal,omitempty"`
 	// Source is the --from the run was given, as the caller wrote it.
 	Source string `json:"source"`
 	// Columns is every column of the run, in the order the new definition
@@ -84,6 +123,24 @@ type ReshapeReport struct {
 	// Updated is the kept columns whose anchor the new definition actually
 	// changed, which is what the run recorded a column_updated event for.
 	Updated []string `json:"updated_columns,omitempty"`
+}
+
+// PartlyApplied reports whether this run wrote part of the new shape and then
+// stopped, which is the one outcome a reader cannot infer from Applied alone:
+// a preview and a half-applied run both carry Applied false, and they are the
+// two states an operator most needs told apart.
+func (r *ReshapeReport) PartlyApplied() bool {
+	return !r.Applied && len(r.Wrote) > 0
+}
+
+// note records what a write-phase step wrote, and records nothing for a step
+// that wrote nothing, so an empty Wrote means the workbench is untouched
+// rather than that nobody looked.
+func (r *ReshapeReport) note(step string, count int) {
+	if count <= 0 {
+		return
+	}
+	r.Wrote = append(r.Wrote, ReshapeWrite{Step: step, Count: count})
 }
 
 // reshapeElement is one element of the new definition, together with the
@@ -208,6 +265,14 @@ func (l *Library) Reshape(req *Request) (*ReshapeReport, error) {
 		return report, nil
 	}
 	if err := l.applyReshape(req, plan, now, report); err != nil {
+		// The report goes back with the error rather than being dropped for
+		// it, because a refusal raised once the write phase has begun leaves
+		// a workbench part way through the new shape and the caller has no
+		// other way to learn that. A refusal from validation reaches here
+		// with nothing recorded, so it reads exactly as it always did.
+		if refusal, ok := err.(*contract.Refusal); ok && len(report.Wrote) > 0 {
+			report.Refusal = refusal.Name
+		}
 		return report, err
 	}
 	report.Applied = true
@@ -661,13 +726,21 @@ func blockedCardIDs(cards []*bench.Card) []string {
 // The windows a reshape's write phase leaves open, named so that a test can
 // say which one it wants a second writer to act in. Each is the interval
 // between two steps, where the run holds no lock and another writer is refused
-// by nothing. The card window is the exception that proves the rule: the carry
-// holds the workbench lock across the whole step, and the window is the one
-// before a single card's own lock is taken, which is where a carry deciding
-// from an earlier read would already have decided.
+// by nothing.
+//
+// The card window is the exception that proves the rule: the carry holds the
+// workbench lock across the whole step, and the window sits inside the loop,
+// before a single card's own lock is taken. What it bounds is a decision taken
+// above this seam and carried across the Acquire below it, which is the shape
+// the carry once had. It does not bound a read written between the seam and
+// that Acquire, and no seam could, because the two statements are adjacent, so
+// a read placed there is the same defect with no window left to construct it
+// in. What guards that is the order stated at Library.Do and repeated at
+// carryOneCard, read by whoever next changes this loop.
 const (
 	reshapeStepCarry   = "carry"
 	reshapeStepCard    = "card"
+	reshapeStepArchive = "archive"
 	reshapeStepRewrite = "rewrite"
 	reshapeStepOrder   = "order"
 )
@@ -687,45 +760,93 @@ func (l *Library) interpose(step string) {
 // Each step takes the locks its own act needs and gives them back, so another
 // writer can act between two of them. Every step therefore asks its own
 // questions again, against a view it opened under the lock that covers what it
-// is about to write, rather than trusting what validation saw. Three of them
-// can refuse at that point: the carry, on a card claimed since, and the kept
-// rewrite, on a column whose kind is flipping under a card claimed since. A
-// refusal there is late, and what it leaves behind is exactly what the earlier
-// steps wrote.
+// is about to write, rather than trusting what validation saw. Three steps can
+// refuse at that point, and the third is the likeliest of them:
+//
+//   - the carry, on a card claimed since validation read the flow, where the
+//     destination takes no work up;
+//   - the kept rewrite, on a column whose kind is flipping under a card
+//     claimed since;
+//   - the archive, on a card another writer moved into a retiring column after
+//     validation listed that column's cards, which is dinah.occupied, and on
+//     any card anywhere in the workbench whose own lock is held while
+//     ColumnOccupied walks, which is dinah.locked. Nothing unusual is needed
+//     for the second of those: an ordinary concurrent claim landing during the
+//     walk is enough, which is why this step refuses more often than the other
+//     two. resolveReshapeDestination gives the same reasoning where it refuses
+//     a retiring destination up front rather than letting the archive meet it
+//     halfway through a run that had already written some of its moves.
+//
+// A refusal from any of them is late, and what it leaves behind is exactly
+// what the earlier steps wrote. The run records that in the report as it goes,
+// so the caller can say which parts landed rather than reporting the workbench
+// as untouched; runReshape prints it, and ReshapeReport.PartlyApplied is how a
+// reader asks.
 //
 // That is survivable rather than merely tolerable, and the reason is the
-// idempotency above. Nothing is rolled back, because a partial reshape is a
-// shape dinah check already describes with findings it already has, and
-// because unwinding a carry would mean writing moves nobody decided, which is
-// the practice this verb exists to end. The operator clears what the refusal
-// names, a released claim in both cases, and runs the same source again: the
-// added columns are live so they sort as kept, the carried cards are skipped
-// by the carry, the archived columns are skipped by the archive, and the run
-// finishes the rest. A run that stops here reports itself as not applied,
-// because it did not apply the shape it was asked for.
+// idempotency above. Nothing is rolled back, because unwinding a carry would
+// mean writing moves nobody decided, which is the practice this verb exists to
+// end. The operator clears what the refusal names, which is a released claim
+// for the carry and the rewrite, a card moved back out for dinah.occupied and
+// nothing at all for dinah.locked, and runs the same source again: the added
+// columns are live so they sort as kept, the carried cards are skipped by the
+// carry, the archived columns are skipped by the archive, and the run finishes
+// the rest.
+//
+// The retry converges even against an edited source, which is more than the
+// idempotency argument alone gives. An added column the stopped run had
+// already appended to the sequence is live, so a second run whose definition
+// no longer names it sorts it as a retirement, finds no card standing in it,
+// and archives it. No orphaned directory and no stranded identifier survive
+// that, which TestAnEditedRetryAfterALateRefusalArchivesTheAddedColumn holds.
+// The residue DeriveColumnID's last paragraph warns about is the narrower
+// case, where the first run died inside step one between writing a column's
+// directory and appending its identifier, so the directory was never live to
+// be retired.
+//
+// A run that stops here reports itself as not applied, because it did not
+// apply the shape it was asked for.
 func (l *Library) applyReshape(req *Request, plan *reshapePlan, now string, report *ReshapeReport) error {
-	if err := l.writeAddedColumns(req, plan, now); err != nil {
+	added, err := l.writeAddedColumns(req, plan, now)
+	report.note(ReshapeWroteAdded, added)
+	if err != nil {
 		return err
 	}
 	l.interpose(reshapeStepCarry)
 	carried, err := l.carryReshapedCards(req, plan, now)
-	if err != nil {
-		return err
-	}
 	for index := range report.Retirements {
 		report.Retirements[index].Cards = carried[report.Retirements[index].ID]
 	}
-	if err := l.archiveRetiredColumns(req, plan, now); err != nil {
+	report.note(ReshapeWroteCarried, totalCarried(carried))
+	if err != nil {
+		return err
+	}
+	l.interpose(reshapeStepArchive)
+	archived, err := l.archiveRetiredColumns(req, plan, now)
+	report.note(ReshapeWroteArchived, archived)
+	if err != nil {
 		return err
 	}
 	l.interpose(reshapeStepRewrite)
 	updated, err := l.rewriteKeptColumns(req, plan, now)
+	report.note(ReshapeWroteUpdated, len(updated))
+	report.Updated = updated
 	if err != nil {
 		return err
 	}
-	report.Updated = updated
 	l.interpose(reshapeStepOrder)
 	return l.writeColumnOrder(req, plan, now)
+}
+
+// totalCarried is how many cards the carry moved across every retirement,
+// which is the one number the operator of a stopped run needs: which columns
+// they came from is in the report's own retirement rows.
+func totalCarried(carried map[string]int) int {
+	total := 0
+	for _, count := range carried {
+		total += count
+	}
+	return total
 }
 
 // writeAddedColumns is write-phase step one: every column the new definition
@@ -746,10 +867,15 @@ func (l *Library) applyReshape(req *Request, plan *reshapePlan, now string, repo
 // would close that gap and open a smaller one, an event for a column not yet
 // in the flow, so the order stands and the loss is stated rather than fixed:
 // what is lost is a journal line about a column the workbench does carry, and
-// dinah check reads the columns rather than the events. No placement-disruption check runs, because that check
+// dinah check reads the columns rather than the events.
+//
+// No placement-disruption check runs, because that check
 // guards a single insertion into a stable flow and a reshape replaces the
 // whole flow at once.
-func (l *Library) writeAddedColumns(req *Request, plan *reshapePlan, now string) error {
+//
+// It answers how many columns it wrote, which is what a run stopped by a later
+// step reports as the part of the new shape that did land.
+func (l *Library) writeAddedColumns(req *Request, plan *reshapePlan, now string) (int, error) {
 	var added []*reshapeElement
 	for _, element := range plan.elements {
 		if element.live == nil {
@@ -757,26 +883,28 @@ func (l *Library) writeAddedColumns(req *Request, plan *reshapePlan, now string)
 		}
 	}
 	if len(added) == 0 {
-		return nil
+		return 0, nil
 	}
 	lock, err := bench.Acquire(l.Bench.Root, req.Actor, now)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	defer lock.Release()
 	fresh, err := bench.Open(l.Bench.Root)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	sequence := fresh.ColumnSequence()
 	present := map[string]bool{}
 	for _, id := range sequence {
 		present[id] = true
 	}
+	written := 0
 	for _, element := range added {
 		if err := bench.WriteColumnFromElement(fresh.Root, element.id, element.slug, element.element); err != nil {
-			return err
+			return written, err
 		}
+		written++
 		if present[element.id] {
 			continue
 		}
@@ -784,17 +912,17 @@ func (l *Library) writeAddedColumns(req *Request, plan *reshapePlan, now string)
 		sequence = append(sequence, element.id)
 	}
 	if err := fresh.SetColumnSequence(sequence); err != nil {
-		return err
+		return written, err
 	}
 	ev := bench.Event{TS: now, Event: contract.EventCreated, Actor: req.Actor}
 	for _, element := range added {
 		ev.Title = element.title()
 		ev.Note = element.id
 		if err := bench.AppendEvent(fresh.JournalPath(), ev); err != nil {
-			return err
+			return written, err
 		}
 	}
-	return nil
+	return written, nil
 }
 
 // carryReshapedCards is write-phase step two: every card standing in a
@@ -829,12 +957,12 @@ func (l *Library) carryReshapedCards(req *Request, plan *reshapePlan, now string
 	carried := map[string]int{}
 	lock, err := bench.Acquire(l.Bench.Root, req.Actor, now)
 	if err != nil {
-		return nil, err
+		return carried, err
 	}
 	defer lock.Release()
 	fresh, err := bench.Open(l.Bench.Root)
 	if err != nil {
-		return nil, err
+		return carried, err
 	}
 	for _, entry := range plan.retirements {
 		if entry.destination == nil {
@@ -842,18 +970,18 @@ func (l *Library) carryReshapedCards(req *Request, plan *reshapePlan, now string
 		}
 		destination := fresh.Column(entry.destination.id)
 		if destination == nil {
-			return nil, contract.Refuse(contract.UnknownColumn, entry.destination.id)
+			return carried, contract.Refuse(contract.UnknownColumn, entry.destination.id)
 		}
 		for _, standing := range entry.cards {
 			l.interpose(reshapeStepCard)
 			cardLock, err := bench.Acquire(standing.Dir, req.Actor, now)
 			if err != nil {
-				return nil, err
+				return carried, err
 			}
 			carriedOne, err := l.carryOneCard(req, entry, destination, standing.ID, fresh, now)
 			cardLock.Release()
 			if err != nil {
-				return nil, err
+				return carried, err
 			}
 			if carriedOne {
 				carried[entry.id]++
@@ -935,7 +1063,11 @@ func reshapeDepartureTitle(entry *reshapeRetirement) string {
 // identifier was orphaned from the sequence by a hand edit before this run
 // began, so there is nothing to archive and nothing to remove from the
 // sequence either.
-func (l *Library) archiveRetiredColumns(req *Request, plan *reshapePlan, now string) error {
+//
+// It answers how many columns it archived, counted as it goes, so a run this
+// step refuses part way through reports the ones that did go rather than none.
+func (l *Library) archiveRetiredColumns(req *Request, plan *reshapePlan, now string) (int, error) {
+	archived := 0
 	for _, entry := range plan.retirements {
 		if entry.column == nil {
 			continue
@@ -946,7 +1078,7 @@ func (l *Library) archiveRetiredColumns(req *Request, plan *reshapePlan, now str
 		}
 		fresh, err := bench.Open(l.Bench.Root)
 		if err != nil {
-			return err
+			return archived, err
 		}
 		act := &bench.StructuralAct{
 			Dir:       dir,
@@ -961,10 +1093,11 @@ func (l *Library) archiveRetiredColumns(req *Request, plan *reshapePlan, now str
 			},
 		}
 		if err := fresh.Run(act); err != nil {
-			return err
+			return archived, err
 		}
+		archived++
 	}
-	return nil
+	return archived, nil
 }
 
 // rewriteKeptColumns is write-phase step four: every column the new definition
@@ -1021,7 +1154,7 @@ func (l *Library) rewriteKeptColumns(req *Request, plan *reshapePlan, now string
 		}
 		before := bench.ColumnAnchorText(l.Bench.Root, element.id)
 		if err := bench.WriteColumnFromElement(l.Bench.Root, element.id, element.slug, element.element); err != nil {
-			return nil, err
+			return updated, err
 		}
 		if bench.ColumnAnchorText(l.Bench.Root, element.id) == before {
 			continue
@@ -1034,7 +1167,7 @@ func (l *Library) rewriteKeptColumns(req *Request, plan *reshapePlan, now string
 	for _, id := range updated {
 		ev := bench.Event{TS: now, Event: contract.EventColumnUpdated, Actor: req.Actor, Note: id}
 		if err := bench.AppendEvent(current.JournalPath(), ev); err != nil {
-			return nil, err
+			return updated, err
 		}
 	}
 	return updated, nil

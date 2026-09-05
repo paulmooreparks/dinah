@@ -249,3 +249,175 @@ func TestARepeatedMapIsReadOccurrenceByOccurrence(t *testing.T) {
 		}
 	}
 }
+
+// withColumnBeforeDone answers the columns with one more work station spliced
+// in ahead of the first done column, which is where a station may legally
+// stand: nothing that is not done stands after a column that is.
+func withColumnBeforeDone(columns []map[string]any, title string) []map[string]any {
+	// The identifier is a label rather than a real one, which is what an
+	// element a definition adds carries: the run derives the identifier the
+	// column is written at from the source and the element's position. The
+	// member itself is required, so the label cannot simply be left out.
+	station := map[string]any{"id": strings.ToLower(title), "title": title, "kind": "work"}
+	built := make([]map[string]any, 0, len(columns)+1)
+	spliced := false
+	for _, column := range columns {
+		if !spliced && column["kind"] == "done" {
+			built = append(built, station)
+			spliced = true
+		}
+		built = append(built, column)
+	}
+	if !spliced {
+		built = append(built, station)
+	}
+	return built
+}
+
+// soleCardDir answers the directory of the one card a workbench holds, which
+// is where its lock file sits.
+func soleCardDir(t *testing.T, root string) string {
+	t.Helper()
+	cards := filepath.Join(soleBenchDir(t, root), "cards")
+	entries, err := os.ReadDir(cards)
+	if err != nil {
+		t.Fatalf("read %s: %v", cards, err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("wanted one card under %s, got %d", cards, len(entries))
+	}
+	return filepath.Join(cards, entries[0].Name())
+}
+
+// TestAReshapeRefusedAfterItHadWrittenSaysSo is the transcript an operator
+// meets when a reshape stops part way through, and it is the whole reason the
+// report comes back with the error rather than being dropped for it.
+//
+// The run here is stopped by a lock another process holds on the one card the
+// carry has to move, which is the likeliest late refusal there is and needs no
+// unusual behaviour from anybody: an ordinary act on that card, in flight while
+// the reshape runs, is enough. By the time the carry meets it, step one has
+// written a column and put it in the flow.
+//
+// What the operator must be able to read off the output is that the workbench
+// was written to, which part of the new shape landed, and that running the same
+// command again finishes the job. A preview says nothing was written and an
+// applied run says the workbench carries the new shape, so neither of those
+// lines may appear here.
+func TestAReshapeRefusedAfterItHadWrittenSaysSo(t *testing.T) {
+	root := newBench(t)
+	if got := runCLI(t, root, "add", "a card the carry cannot take"); got.code != 0 {
+		t.Fatalf("add: %d %s", got.code, got.errw)
+	}
+	carryToDoing(t, root, "fx-1")
+
+	var doingID, intakeID string
+	source := reshapeSourceFrom(t, root, func(columns []map[string]any) []map[string]any {
+		doingID = idOf(t, columns, "Doing")
+		intakeID = idOf(t, columns, "Intake")
+		return withColumnBeforeDone(without(columns, "Doing"), "Triage")
+	})
+
+	// Another process is mid-transaction on the card the carry has to move.
+	// The lock is written by hand because no verb leaves one standing, which
+	// is the same reason the library's own tests plant them.
+	lock := filepath.Join(soleCardDir(t, root), "lock")
+	if err := os.WriteFile(lock, []byte(`{"actor":"brin","pid":4,"ts":"2026-01-01T00:00:00Z"}`+"\n"), 0o644); err != nil {
+		t.Fatalf("plant the lock: %v", err)
+	}
+
+	got := runCLI(t, root, "reshape", "--from", source, "--yes", "--map", doingID+"="+intakeID)
+	if got.code != contract.ExitCode(contract.OutcomeRefused) {
+		t.Fatalf("wanted the refusal exit code, got %d\n%s\n%s", got.code, got.out, got.errw)
+	}
+	// The refusal still leads stderr, which is what every caller reading the
+	// leading token depends on, and the report is on stdout beside it.
+	if !strings.HasPrefix(got.errw, contract.Locked+" ") {
+		t.Errorf("wanted %s to lead stderr, got %q", contract.Locked, got.errw)
+	}
+	for _, want := range []string{"part way between its old shape and the new one", "now written and in the flow: 1", "run the same command again"} {
+		if !strings.Contains(got.out, want) {
+			t.Errorf("the report does not carry %q:\n%s", want, got.out)
+		}
+	}
+	for _, unwanted := range []string{"Nothing was written", "now carries the new shape"} {
+		if strings.Contains(got.out, unwanted) {
+			t.Errorf("the half-applied run printed %q, which is a line for one of the other two states:\n%s", unwanted, got.out)
+		}
+	}
+	// The report is describing something real: the added column is in the
+	// flow, and the retirement the run did not reach is still there.
+	listed := runCLI(t, root, "columns")
+	for _, title := range []string{"Triage", "Doing"} {
+		if !strings.Contains(listed.out, title) {
+			t.Errorf("wanted %s in the flow after the half-applied run:\n%s", title, listed.out)
+		}
+	}
+
+	// Clearing what the refusal names and running the same command again
+	// finishes the rest, which is what the report told the operator to do.
+	if err := os.Remove(lock); err != nil {
+		t.Fatalf("release the lock: %v", err)
+	}
+	finished := runCLI(t, root, "reshape", "--from", source, "--yes", "--map", doingID+"="+intakeID)
+	if finished.code != 0 {
+		t.Fatalf("the second run: %d %s\n%s", finished.code, finished.errw, finished.out)
+	}
+	if !strings.Contains(finished.out, "now carries the new shape") {
+		t.Errorf("the second run does not report the shape as applied:\n%s", finished.out)
+	}
+	if again := runCLI(t, root, "columns"); strings.Contains(again.out, "Doing") {
+		t.Errorf("the second run did not finish the retirement:\n%s", again.out)
+	}
+	if checked := runCLI(t, root, "check"); checked.code != 0 {
+		t.Errorf("the finished workbench does not check clean: %d %s\n%s", checked.code, checked.errw, checked.out)
+	}
+}
+
+// TestTheMachineFormOfAHalfAppliedRunCarriesBothHalves is the same state read
+// by a script rather than by a person. The machine answer is the report rather
+// than the bare refusal, because a refusal document names what stopped the run
+// and says nothing at all about what the run had already done to the workbench.
+func TestTheMachineFormOfAHalfAppliedRunCarriesBothHalves(t *testing.T) {
+	root := newBench(t)
+	if got := runCLI(t, root, "add", "a card the carry cannot take"); got.code != 0 {
+		t.Fatalf("add: %d %s", got.code, got.errw)
+	}
+	carryToDoing(t, root, "fx-1")
+
+	var doingID, intakeID string
+	source := reshapeSourceFrom(t, root, func(columns []map[string]any) []map[string]any {
+		doingID = idOf(t, columns, "Doing")
+		intakeID = idOf(t, columns, "Intake")
+		return withColumnBeforeDone(without(columns, "Doing"), "Triage")
+	})
+	lock := filepath.Join(soleCardDir(t, root), "lock")
+	if err := os.WriteFile(lock, []byte(`{"actor":"brin","pid":4,"ts":"2026-01-01T00:00:00Z"}`+"\n"), 0o644); err != nil {
+		t.Fatalf("plant the lock: %v", err)
+	}
+
+	got := runCLI(t, root, "reshape", "--from", source, "--yes", "--json", "--map", doingID+"="+intakeID)
+	if got.code != contract.ExitCode(contract.OutcomeRefused) {
+		t.Fatalf("wanted the refusal exit code, got %d\n%s\n%s", got.code, got.out, got.errw)
+	}
+	var answer struct {
+		Applied bool   `json:"applied"`
+		Refusal string `json:"refusal"`
+		Wrote   []struct {
+			Step  string `json:"step"`
+			Count int    `json:"count"`
+		} `json:"wrote"`
+	}
+	if err := json.Unmarshal([]byte(got.out), &answer); err != nil {
+		t.Fatalf("read the machine answer: %v\n%s", err, got.out)
+	}
+	if answer.Applied {
+		t.Error("the half-applied run reported itself as applied")
+	}
+	if answer.Refusal != contract.Locked {
+		t.Errorf("wanted the report to name %s, got %q", contract.Locked, answer.Refusal)
+	}
+	if len(answer.Wrote) != 1 || answer.Wrote[0].Step != "added" || answer.Wrote[0].Count != 1 {
+		t.Errorf("wanted one added column recorded, got %+v", answer.Wrote)
+	}
+}

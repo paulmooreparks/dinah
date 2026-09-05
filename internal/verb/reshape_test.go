@@ -1210,3 +1210,183 @@ func TestTheReorderKeepsWhatAnotherWriterDidToTheSequence(t *testing.T) {
 		}
 	})
 }
+
+// TestALateRefusalSaysWhatTheRunHadAlreadyWritten constructs the fourth
+// interleaving, in the window between the carry and the archive, which the
+// three windows the earlier round covered all miss.
+//
+// A second writer moves a card into a retiring column after validation has
+// listed that column's cards. The carry never sees it, because entry.cards is
+// the validation-time list, so the archive meets an occupied column and
+// refuses. By then the run has written a column and moved a card, and the
+// convergence argument for that state is sound: the state is finishable and
+// the next run finishes it.
+//
+// What the operator gets told is the subject here. A preview says nothing was
+// written and an applied run says the workbench carries the new shape, so a
+// run that wrote two steps and then refused has to say something neither of
+// them says. The report is what says it, and it goes back with the error
+// rather than being dropped for it.
+func TestALateRefusalSaysWhatTheRunHadAlreadyWritten(t *testing.T) {
+	h := newHarness(t)
+	carried := h.readyAt("standing where the run can see it", aftercare)
+	intruder := h.add("moved in behind the run")
+	source := h.source(addsTriage)
+	derived := derivedTriageID(t, source)
+
+	h.library.Interpose = func(step string) {
+		if step != reshapeStepArchive {
+			return
+		}
+		h.library.Interpose = nil
+		other := h.second()
+		response := other.Do(&Request{Verb: Move, Actor: "alka", Card: intruder, Column: aftercare})
+		if response.Outcome != contract.OutcomeOK {
+			t.Fatalf("the second writer's move: %s %s", response.Outcome, response.Refusal)
+		}
+	}
+	report, err := h.reshape(source, true, aftercare+"="+review)
+	if got := refusalName(t, err); got != contract.Occupied {
+		t.Fatalf("wanted %s, got %s", contract.Occupied, got)
+	}
+
+	// The report comes back with the refusal, which is the whole of how a
+	// caller learns the workbench was written to at all.
+	if report == nil {
+		t.Fatal("the refusal dropped the report, so nothing says the run had written")
+	}
+	if report.Applied {
+		t.Error("a run that stopped part way through reported itself as applied")
+	}
+	if !report.PartlyApplied() {
+		t.Fatalf("wanted the run reported as part applied, got Wrote %v", report.Wrote)
+	}
+	if report.Refusal != contract.Occupied {
+		t.Errorf("wanted the report to name the refusal that stopped it, got %q", report.Refusal)
+	}
+	want := []ReshapeWrite{
+		{Step: ReshapeWroteAdded, Count: 1},
+		{Step: ReshapeWroteCarried, Count: 1},
+	}
+	if len(report.Wrote) != len(want) {
+		t.Fatalf("wanted %v, got %v", want, report.Wrote)
+	}
+	for i, wrote := range report.Wrote {
+		if wrote != want[i] {
+			t.Errorf("write %d: wanted %+v, got %+v", i, want[i], wrote)
+		}
+	}
+
+	// Each recorded step is a thing on disk, checked rather than trusted.
+	if countIn(h.sequence(), derived) != 1 {
+		t.Errorf("the report counted an added column the sequence does not carry: %v", h.sequence())
+	}
+	if column := h.card(carried).Column; column != review {
+		t.Errorf("the report counted a carried card that stands at %s", column)
+	}
+	// The retiring column is still there, which is what the refusal was
+	// about and what the operator has to clear before running again.
+	if h.library.Bench.Column(aftercare) == nil {
+		t.Error("the archive refused and archived the column anyway")
+	}
+}
+
+// TestAWritePhaseRefusalThatWroteNothingSaysNothingWasWritten is the other side
+// of the same seam, and it is the case that decides whether the record is a
+// record or a rubber stamp.
+//
+// The write phase begins and then refuses at its first act, having written
+// nothing: the definition adds no column, so step one returns without touching
+// the workbench, and the carry cannot take the lock on the one card it has to
+// move. Reaching the write phase is not the question the operator is asking.
+// Whether anything was written is, and here the honest answer is no, so this
+// run has to read exactly as a refusal from validation reads.
+func TestAWritePhaseRefusalThatWroteNothingSaysNothingWasWritten(t *testing.T) {
+	h := newHarness(t)
+	standing := h.readyAt("locked by somebody else", aftercare)
+	lock := h.hold(h.card(standing).Dir, "brin")
+	defer lock.Release()
+	before := h.digest()
+
+	report, err := h.reshape(h.source(dropsAftercare), true, aftercare+"="+review)
+	if got := refusalName(t, err); got != contract.Locked {
+		t.Fatalf("wanted %s, got %s", contract.Locked, got)
+	}
+	if report == nil {
+		t.Fatal("the refusal dropped the report")
+	}
+	if report.PartlyApplied() {
+		t.Errorf("a run that wrote nothing reported itself as part applied: %v", report.Wrote)
+	}
+	if report.Refusal != "" {
+		t.Errorf("a run that wrote nothing named its refusal on the report: %q", report.Refusal)
+	}
+	if after := h.digest(); after != before {
+		t.Error("the run wrote to the workbench before it refused")
+	}
+}
+
+// TestAnEditedRetryAfterALateRefusalArchivesTheAddedColumn is the recovery the
+// late-refusal report promises, run rather than argued, and it is stronger than
+// the idempotency argument alone gives.
+//
+// The retry here is the nastiest one available: the operator clears what the
+// refusal named and then edits the definition before running again, which is
+// the boundary DeriveColumnID's last paragraph warns about. Every unlabelled
+// element derives a different identifier from the edited source, so the second
+// run never recognises the first run's added column as its own.
+//
+// It converges anyway, and for a reason the derivation has nothing to do with.
+// The stopped run had already appended that column to the sequence, so the
+// column is live, and a live column the new definition does not name is a
+// retirement. It carries no card, so it needs no destination, and the archive
+// takes it. Neither of the two findings this card ships survives the second
+// run.
+func TestAnEditedRetryAfterALateRefusalArchivesTheAddedColumn(t *testing.T) {
+	h := newHarness(t)
+	h.readyAt("carried by the first run", aftercare)
+	intruder := h.add("moved in behind the first run")
+	first := h.source(addsTriage)
+	derived := derivedTriageID(t, first)
+
+	h.library.Interpose = func(step string) {
+		if step != reshapeStepArchive {
+			return
+		}
+		h.library.Interpose = nil
+		other := h.second()
+		response := other.Do(&Request{Verb: Move, Actor: "alka", Card: intruder, Column: aftercare})
+		if response.Outcome != contract.OutcomeOK {
+			t.Fatalf("the second writer's move: %s %s", response.Outcome, response.Refusal)
+		}
+	}
+	if _, err := h.reshape(first, true, aftercare+"="+review); refusalName(t, err) != contract.Occupied {
+		t.Fatalf("wanted the late refusal, got %v", err)
+	}
+
+	// The operator clears what the refusal named, and then edits the shape
+	// before running it again. The second source declares no Triage station
+	// at all, so nothing in it names the column the first run added.
+	h.at(intruder, review)
+	if _, err := h.reshape(h.source(dropsAftercare), true, aftercare+"="+review); err != nil {
+		t.Fatalf("the retry: %v", err)
+	}
+
+	if countIn(h.sequence(), derived) != 0 {
+		t.Errorf("the retry left the first run's column in the sequence: %v", h.sequence())
+	}
+	if bench.Exists(filepath.Join(h.root, bench.ColumnsDir, derived)) {
+		t.Errorf("the retry left %s under columns/, which is an orphaned directory", derived)
+	}
+	if !bench.Exists(filepath.Join(h.root, bench.ArchiveDir, bench.ColumnsDir, derived)) {
+		t.Errorf("the retry did not archive %s", derived)
+	}
+	if countIn(h.sequence(), aftercare) != 0 {
+		t.Errorf("the retry did not finish the retirement the first run stopped in: %v", h.sequence())
+	}
+	for _, key := range []string{bench.FindingOrphanedColumnDirectory, bench.FindingStrandedColumn} {
+		if detail, found := finding(h.check(), key); found {
+			t.Errorf("the retry left %s: %s", key, detail)
+		}
+	}
+}
