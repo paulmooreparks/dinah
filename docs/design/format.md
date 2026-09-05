@@ -1919,23 +1919,23 @@ library keeps its state. The CLI keeps its state in the plain-text,
 directory-per-workbench format this document specifies, and Dinah.Team keeps
 its state in whatever a live arbiter for many concurrent writers requires,
 because concurrent multi-seat access is named above under "Storage is the
-filesystem, entirely" as state that text files cannot carry. This format therefore still never
-becomes the hosted product's disk layout, and the hosted product's storage
-is Dinah.Team's own concern rather than a second implementation of anything
-specified here. A mirror or export carries positions as facts as-of a
-moment, never as the live "is"; consumers of a mirror read history,
-consumers of the arbiter read the present.
+filesystem, entirely" as state that text files cannot carry. This format
+therefore still never becomes the hosted product's disk layout, and the
+hosted product's storage is Dinah.Team's own concern rather than a second
+implementation of anything specified here. A mirror or export carries
+positions as facts as-of a moment, never as the live "is"; consumers of a
+mirror read history, consumers of the arbiter read the present.
 
 No question here is settled by consulting a peer implementation, because
-there is no peer. When this document and Dinah's code disagree about what the
-contract requires, the conformance suite decides, because the suite verifies
-Dinah's own code against what this document and the profile that restates it
-say the contract requires. Either the code has a defect against a contract
-it is meant to pass, and the suite is what catches it, or the document is
-wrong about what was decided and the document gets corrected. The contract
-and its suite hold Dinah's behaviour to what Dinah claims, and they keep the
-contract specific enough that somebody could build an independent
-implementation later and verify it against the same suite.
+there is no peer. When this document and Dinah's code disagree about what
+the contract requires, the conformance suite decides, because the suite
+verifies Dinah's own code against what this document and the profile that
+restates it say the contract requires. Either the code has a defect against
+a contract it is meant to pass, and the suite is what catches it, or the
+document is wrong about what was decided and the document gets corrected.
+The contract and its suite hold Dinah's behaviour to what Dinah claims, and
+they keep the contract specific enough that somebody could build an
+independent implementation later and verify it against the same suite.
 
 Moving to one implementation gave something up, and the loss belongs on the
 record here. Two independently coded implementations disagreeing was itself
@@ -1945,20 +1945,20 @@ the conformance suite are written from the same reading of this document, so
 they can share a blind spot, and the case where the document meant one thing
 while both the code and the suite quietly assumed another has nothing
 catching it. Nothing in the project closes that gap today, so the project
-carries it as an accepted limit. The interchange form of section 5.7 of the profile would
-let a reader of a workbench exist that was built independently of Dinah, and
-nobody has built one. A hand-written fixture literal in the test suite is
-typed independently of any generator, but the hand that types it is the hand
-that writes the code it tests, so it can carry the same misreading rather
-than catch it. The compatibility fixtures are captured by replaying input
-through the built binary, so they record the implementation's own reading of
-this document rather than a second one. The conformance report checks that
-every normative statement is named by some test, which finds a statement
-nobody covered but cannot find a test that misread the statement it names.
-Closing the gap would take a reader of the interchange form built
-independently of Dinah's code and of the people who write its tests, or a
-standing practice of someone with no hand in either reading this document
-periodically against what shipped.
+carries it as an accepted limit. The interchange form of section 5.7 of the
+profile would let a reader of a workbench exist that was built independently
+of Dinah, and nobody has built one. A hand-written fixture literal in the
+test suite is typed independently of any generator, but the hand that types
+it is the hand that writes the code it tests, so it can carry the same
+misreading rather than catch it. The compatibility fixtures are captured by
+replaying input through the built binary, so they record the
+implementation's own reading of this document rather than a second one. The
+conformance report checks that every normative statement is named by some
+test, which finds a statement nobody covered but cannot find a test that
+misread the statement it names. Closing the gap would take a reader of the
+interchange form built independently of Dinah's code and of the people who
+write its tests, or a standing practice of someone with no hand in either
+reading this document periodically against what shipped.
 
 ## Verb outcomes and staleness
 
