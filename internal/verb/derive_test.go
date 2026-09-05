@@ -150,18 +150,17 @@ func TestCommandLineQuotesWhatAReaderWouldHaveToType(t *testing.T) {
 // TestLineQuotesOnlyTheCharactersQuotingActuallyHandles holds shellSpecial to
 // what quoteArgument can honestly do with it. Every character the set declares
 // has to survive a round trip through the quoting and back out again, and the
-// four characters a double-quoted token does not render inert have to stay
-// outside the set, since declaring one of them is how Line comes to present a
-// token as handled when retyping it would run something else.
+// characters a double-quoted token does not render inert have to stay outside
+// the set, since declaring one of them is how Line comes to present a token as
+// handled when retyping it would run something else.
 func TestLineQuotesOnlyTheCharactersQuotingActuallyHandles(t *testing.T) {
 	excluded := []struct {
 		char rune
 		why  string
 	}{
 		{'$', "a POSIX shell expands it inside double quotes"},
-		{'`', "a POSIX shell runs a command substitution inside double quotes"},
+		{'`', "a POSIX shell runs a command substitution inside double quotes and PowerShell escapes the character after it"},
 		{'%', "cmd.exe expands a variable inside double quotes"},
-		{'\\', "cmd.exe and PowerShell read it literally inside double quotes, so escaping it doubles every separator of a Windows path"},
 	}
 	for _, out := range excluded {
 		if strings.ContainsRune(shellSpecial, out.char) {
@@ -176,46 +175,278 @@ func TestLineQuotesOnlyTheCharactersQuotingActuallyHandles(t *testing.T) {
 			t.Errorf("a token carrying %q rendered unquoted as %q", special, rendered)
 			continue
 		}
-		if got := readDoubleQuoted(rendered); got != token {
+		if got := splitWindowsCRT(rendered); len(got) != 1 || got[0] != token {
 			t.Errorf("a token carrying %q rendered as %q, which reads back as %q rather than %q", special, rendered, got, token)
 		}
 	}
 
-	// The two excluded characters that reach a real argument get their own
-	// assertion, because what the exclusion buys is visible in the rendering
-	// rather than in the constant.
-	if got := quoteArgument(`C:\Users\paul`); got != `C:\Users\paul` {
-		t.Errorf("a Windows path rendered as %q, so a reader retyping it into cmd.exe or PowerShell gets a different path", got)
+	// The backslash earns its place in the set from the other side, so it gets
+	// its own assertion: a bare token ending in one escapes the space after it
+	// in a POSIX shell, and quoting is what stops that.
+	if got := quoteArgument(`C:\temp\`); got != `"C:\temp\\"` {
+		t.Errorf(`a token ending in a backslash rendered as %s, which does not terminate where it appears to`, got)
 	}
+	// $ is excluded, and what the exclusion buys is visible in the rendering
+	// rather than in the constant: a token whose only trigger is the $ is
+	// printed as it stands rather than dressed up as handled.
 	if got := quoteArgument("$HOME"); got != "$HOME" {
 		t.Errorf("a token carrying $ rendered as %q, which quoting does not make inert and must not appear to", got)
 	}
 }
 
-// readDoubleQuoted reads back one token quoteArgument rendered: it strips the
-// wrapping quotes and undoes the one escape quoteArgument writes. It stops at
-// the first unescaped quote and returns what follows it unread, so a rendering
-// whose quoting ends early comes back as more than the token that went in.
-// The naive version, which stripped the outer characters and unescaped the
-// middle, healed exactly the defect this round trip exists to catch: it read
-// "a"b" back as a"b and reported the missing escape as correct.
-func readDoubleQuoted(rendered string) string {
-	if len(rendered) < 2 || rendered[0] != '"' {
-		return rendered
+// TestLineHoldsItsArgumentBoundaryUnderCombinedTriggers is the guard for the
+// defect a one-character-at-a-time test cannot see. Quoting is triggered by
+// whitespace as well as by shellSpecial, and the two interact: a token quoted
+// for its spaces carries whatever else it holds inside the quoting, and a
+// trailing backslash then lands against the closing delimiter and escapes it.
+// `dir C:\temp\` followed by `next` printed as one argument for exactly that
+// reason, and no single-character row reaches it, because the defect needs a
+// space and a backslash in the same token.
+//
+// So this walks combinations rather than characters. Eighteen fragments, each
+// carrying one trigger or one hazard, are concatenated pairwise into 324
+// tokens, and each token is rendered beside a following argument and read back
+// by three readers: the rule CommandLineToArgvW documents, a POSIX shell's
+// double-quote rules, and PowerShell's. The invariant every reader has to
+// agree on is how many arguments the line describes.
+func TestLineHoldsItsArgumentBoundaryUnderCombinedTriggers(t *testing.T) {
+	fragments := []string{
+		"", "a", "a b", "  ", "\t",
+		`\`, `\\`, `C:\temp`, `C:\temp\`,
+		`"`, `a"b`,
+		"$HOME", "`id`", "%PATH%",
+		"|", "*", "#", "'",
 	}
-	var token strings.Builder
-	for i := 1; i < len(rendered); i++ {
-		switch {
-		case rendered[i] == '\\' && i+1 < len(rendered) && rendered[i+1] == '"':
-			token.WriteByte('"')
-			i++
-		case rendered[i] == '"':
-			return token.String() + rendered[i+1:]
-		default:
-			token.WriteByte(rendered[i])
+
+	// The named rows come first, because a combination sweep says a property
+	// held and a literal expectation says what the rendering actually is. The
+	// first two are the review findings this test was written for.
+	named := []struct {
+		token string
+		line  string
+	}{
+		{`dir C:\temp\`, `add "dir C:\temp\\" next`},
+		{"raise the $HOME limit", `add "raise the $HOME limit" next`},
+		{`C:\Program Files\dinah`, `add "C:\Program Files\dinah" next`},
+		{`C:\temp\`, `add "C:\temp\\" next`},
+		{`a"b`, `add "a\"b" next`},
+		{`a\"b`, `add "a\\\"b" next`},
+		{"", `add "" next`},
+	}
+	for _, row := range named {
+		got := Command{Verb: "add", Args: []string{row.token, "next"}}.Line()
+		if got != row.line {
+			t.Errorf("%q rendered the line %s, want %s", row.token, got, row.line)
 		}
 	}
-	return token.String()
+
+	for _, head := range fragments {
+		for _, tail := range fragments {
+			token := head + tail
+			line := Command{Verb: "add", Args: []string{token, "next"}}.Line()
+			want := []string{"add", token, "next"}
+
+			// The Windows C runtime reads back both the boundary and the
+			// value, because its rule is the one quoteArgument writes to.
+			if got := splitWindowsCRT(line); !reflect.DeepEqual(got, want) {
+				t.Errorf("%q rendered the line %s, which the Windows C runtime reads as %q rather than %q", token, line, got, want)
+				continue
+			}
+
+			// A POSIX shell reads the boundary. It does not always read the
+			// value back, because it drops a backslash standing before another
+			// backslash, a $ or a backtick, which is the residue shellSpecial
+			// records and which no rendering removes.
+			posix := splitPOSIX(line)
+			if len(posix) != 3 || posix[0] != "add" || posix[2] != "next" {
+				t.Errorf("%q rendered the line %s, which a POSIX shell reads as %d arguments, %q", token, line, len(posix), posix)
+			} else if posixReadsBackExactly(token) && posix[1] != token {
+				t.Errorf("%q rendered the line %s, which a POSIX shell reads the first argument of as %q", token, line, posix[1])
+			}
+
+			// PowerShell reads the boundary for every token that carries
+			// neither a double quote nor a backtick. It reads neither back:
+			// it does not undo the \" escape, and a backtick escapes whatever
+			// follows it, including a closing delimiter.
+			if strings.ContainsAny(token, "\"`") {
+				continue
+			}
+			pwsh := splitPowerShell(line)
+			if len(pwsh) != 3 || pwsh[0] != "add" || pwsh[2] != "next" {
+				t.Errorf("%q rendered the line %s, which PowerShell reads as %d arguments, %q", token, line, len(pwsh), pwsh)
+			}
+		}
+	}
+}
+
+// splitWindowsCRT reads a line the way the Windows C runtime's command-line
+// parser documents: a run of backslashes is literal unless a double quote
+// follows it, 2n backslashes and a quote yield n backslashes and a delimiter,
+// and 2n+1 yield n backslashes and a literal quote. It is the rule
+// quoteArgument's doubling is written to, so it reads back both the boundary
+// and the value.
+func splitWindowsCRT(line string) []string {
+	var args []string
+	var cur strings.Builder
+	started, quoted := false, false
+	for i := 0; i < len(line); {
+		switch {
+		case line[i] == '\\':
+			run := 0
+			for i+run < len(line) && line[i+run] == '\\' {
+				run++
+			}
+			if i+run < len(line) && line[i+run] == '"' {
+				cur.WriteString(strings.Repeat(`\`, run/2))
+				if run%2 == 1 {
+					cur.WriteByte('"')
+				} else {
+					quoted = !quoted
+				}
+				i += run + 1
+			} else {
+				cur.WriteString(strings.Repeat(`\`, run))
+				i += run
+			}
+			started = true
+		case line[i] == '"':
+			quoted = !quoted
+			started = true
+			i++
+		case (line[i] == ' ' || line[i] == '\t') && !quoted:
+			if started {
+				args = append(args, cur.String())
+				cur.Reset()
+				started = false
+			}
+			i++
+		default:
+			cur.WriteByte(line[i])
+			started = true
+			i++
+		}
+	}
+	if started {
+		args = append(args, cur.String())
+	}
+	return args
+}
+
+// splitPOSIX reads a line the way a POSIX shell splits words. A double quote
+// opens and closes a quoted run. Outside one a backslash escapes whatever
+// follows it, including the space that would otherwise end the word, which is
+// why a bare token ending in a backslash swallows the argument after it and
+// why the backslash is a quoting trigger. Inside one a backslash escapes only
+// a double quote, another backslash, a $ or a backtick. Everything else,
+// including a backslash before an ordinary character, is literal. Modelling
+// that difference from splitWindowsCRT is the point of having both, since the
+// disagreement between them is what a naive single reader would hide.
+func splitPOSIX(line string) []string {
+	var args []string
+	var cur strings.Builder
+	started, quoted := false, false
+	for i := 0; i < len(line); i++ {
+		switch {
+		case quoted && line[i] == '\\' && i+1 < len(line) && strings.IndexByte("\"\\$`", line[i+1]) >= 0:
+			cur.WriteByte(line[i+1])
+			i++
+			started = true
+		case !quoted && line[i] == '\\' && i+1 < len(line):
+			cur.WriteByte(line[i+1])
+			i++
+			started = true
+		case line[i] == '"':
+			quoted = !quoted
+			started = true
+		case (line[i] == ' ' || line[i] == '\t') && !quoted:
+			if started {
+				args = append(args, cur.String())
+				cur.Reset()
+				started = false
+			}
+		default:
+			cur.WriteByte(line[i])
+			started = true
+		}
+	}
+	if started {
+		args = append(args, cur.String())
+	}
+	return args
+}
+
+// splitPowerShell reads a line the way PowerShell parses one: a backtick
+// escapes the character after it, a double quote opens and closes a quoted
+// run, and a backslash is an ordinary character everywhere. It reads no \"
+// escape, which is why a token carrying a double quote is the one shape whose
+// boundary this rendering cannot hold in every shell.
+func splitPowerShell(line string) []string {
+	var args []string
+	var cur strings.Builder
+	started, quoted := false, false
+	for i := 0; i < len(line); i++ {
+		switch {
+		case line[i] == '`' && i+1 < len(line):
+			cur.WriteByte(line[i+1])
+			i++
+			started = true
+		case line[i] == '"':
+			quoted = !quoted
+			started = true
+		case (line[i] == ' ' || line[i] == '\t') && !quoted:
+			if started {
+				args = append(args, cur.String())
+				cur.Reset()
+				started = false
+			}
+		default:
+			cur.WriteByte(line[i])
+			started = true
+		}
+	}
+	if started {
+		args = append(args, cur.String())
+	}
+	return args
+}
+
+// posixReadsBackExactly says whether a POSIX shell recovers token unchanged
+// from quoteArgument's rendering. It does for almost everything, because a
+// backslash standing before an ordinary character is literal inside POSIX
+// double quotes and a run standing before a double quote is doubled by the
+// rendering, which POSIX pairs back. It does not when a run of two or more
+// backslashes stands before an ordinary character, or when a single backslash
+// stands before a $ or a backtick, because POSIX pairs or consumes those and
+// the rendering leaves them as they are. That is the residue shellSpecial
+// records rather than a defect this test should hide.
+func posixReadsBackExactly(token string) bool {
+	for i := 0; i < len(token); {
+		if token[i] != '\\' {
+			i++
+			continue
+		}
+		run := 0
+		for i+run < len(token) && token[i+run] == '\\' {
+			run++
+		}
+		next := byte(0)
+		if i+run < len(token) {
+			next = token[i+run]
+		}
+		if next != '"' {
+			if run > 1 {
+				return false
+			}
+			if next == '$' || next == '`' {
+				return false
+			}
+		}
+		i += run
+		if next != 0 {
+			i++
+		}
+	}
+	return true
 }
 
 // shellWords counts the words a line reads as, taking a double quote as the

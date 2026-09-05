@@ -586,13 +586,15 @@ type Command struct {
 // Line joins Verb and Args into one printable line, quoting an argument that
 // is empty, that carries whitespace, or that carries one of the characters
 // shellSpecial names, so a reader can see where each argument begins and where
-// it ends. Line is for display and is not a shell-safe rendering: shellSpecial
-// records which characters it makes no claim about, and no one rendering can
-// be retyped unchanged into a POSIX shell, cmd.exe and PowerShell alike.
-// Re-running a command re-parses Args and never this string. It carries no
-// leading program name, because "dinah" is how the displaying surface's own
-// reader invokes the binary rather than something this library asserts about
-// itself.
+// it ends. That boundary is the property Line holds, and it holds in a POSIX
+// shell, in cmd.exe and the Windows C runtime, and in PowerShell, for every
+// token that carries no double quote of its own. Line is not a shell-safe
+// rendering and does not try to be one: shellSpecial's comment says which
+// characters keep their meaning inside the quoting and where a retyped value
+// comes back changed. Re-running a command re-parses Args and never this
+// string. It carries no leading program name, because "dinah" is how the
+// displaying surface's own reader invokes the binary rather than something
+// this library asserts about itself.
 func (c Command) Line() string {
 	parts := make([]string, 0, len(c.Args)+1)
 	parts = append(parts, c.Verb)
@@ -602,30 +604,61 @@ func (c Command) Line() string {
 	return strings.Join(parts, " ")
 }
 
-// shellSpecial is the set of characters Line quotes a token for. Each one is
-// read as something other than part of a plain word by at least one shell, and
-// each one is left alone inside a double-quoted token by all of them, so
-// wrapping the token is a complete answer for the whole set. The double quote
-// is the exception a delimiter always is: it has to be escaped rather than
-// merely wrapped, and quoteArgument escapes it as \", which POSIX shells and
-// the Windows C runtime read back and PowerShell does not.
+// shellSpecial is the set of characters that make Line quote a token. Each one
+// is read as something other than part of a plain word by at least one shell,
+// and each one is inert inside a double-quoted token in all three, so wrapping
+// the token is what answers the set. Two members need their own sentence. The
+// double quote is the delimiter, so quoteArgument escapes it as \", which
+// POSIX shells and the Windows C runtime read back and PowerShell does not,
+// which makes a token carrying a double quote the one shape whose boundary
+// Line cannot hold everywhere. The backslash is here because a bare token
+// ending in one escapes the space after it in a POSIX shell and swallows the
+// argument that follows, and because quoting a backslash costs nothing: inside
+// double quotes cmd.exe and PowerShell read it literally, and a POSIX shell
+// reads it literally too unless a ", a backslash, a $ or a backtick follows it.
 //
-// Four characters a shell reads specially are deliberately outside the set,
-// because quoting does not render them inert and nothing this function could
-// do would. A POSIX shell expands $ and a backtick inside double quotes, and
-// cmd.exe expands %VAR% there, so quoting one of those yields a line that
-// looks handled and is not. A backslash is an escape inside POSIX double
-// quotes and an ordinary character inside cmd.exe's and PowerShell's, so
-// doubling it repairs the line for one shell and doubles every separator of a
-// Windows path for the two this tool is most often used from. A token carrying
-// any of the four is rendered as it stands and Line claims nothing about it;
-// a caller that wants to re-run the call uses Args.
-const shellSpecial = "\"'|&;<>()*?[]#~="
+// The set is a list of triggers rather than a census of the characters a shell
+// treats specially. Some stay out because quoting would not help: a POSIX
+// shell expands $ and runs a backtick substitution inside double quotes, an
+// interactive bash expands ! there, and cmd.exe expands %VAR% there. Others
+// stay out because nobody has needed them yet, which is cmd.exe's escape
+// character ^.
+//
+// Read what leaving a character out does and does not mean, because the
+// obvious reading is wrong. It means no token is quoted on account of that
+// character. It does not mean such a token is printed bare, because whitespace
+// and every character in the set quote a token too, and a card title is
+// usually several words. So `raise the $HOME limit` renders as
+// "raise the $HOME limit", quoted for its spaces, with the $ sitting inside
+// the quoting and its meaning intact. That is the ordinary input rather than a
+// corner, and it is the reason Line promises a readable boundary and nothing
+// about retyping.
+//
+// What quoteArgument escapes, it escapes narrowly. Doubling every backslash
+// would repair a Windows path for a POSIX shell and double every separator of
+// it for the two shells this tool is most often used from, which is the trade
+// the previous version of this rendering got wrong in both directions. So an
+// interior backslash is left alone, and only a run sitting immediately before
+// a double quote is doubled. That is the rule CommandLineToArgvW documents,
+// and a POSIX shell reads it the same way. Without it a token ending in a
+// backslash escapes its own closing delimiter, and `dir C:\temp\` followed by
+// `next` prints as one argument instead of two.
+//
+// The residue is worth stating rather than implying away, because no rendering
+// removes it: the three shells disagree about what a backslash inside quotes
+// means, so a retyped value can come back changed even where the boundary is
+// right. A POSIX shell drops a backslash that precedes another backslash, a $
+// or a backtick. PowerShell keeps both halves of a run this rendering doubled,
+// so a token ending in a backslash comes back from PowerShell carrying one too
+// many. A caller that wants to re-run the call uses Args, which is unquoted
+// and passes through none of this.
+const shellSpecial = "\"'\\|&;<>()*?[]#~="
 
 // quoteArgument renders one token so that a reader can tell where it begins
 // and where it ends. An empty token has no bare spelling at all, so it becomes
-// a pair of quotes. The double quote is escaped because it would otherwise
-// close the quoting, and nothing else is, for the reasons shellSpecial gives.
+// a pair of quotes. Inside the quoting a double quote is escaped, and a run of
+// backslashes is doubled when a double quote follows it and left alone
+// otherwise, for the reasons shellSpecial gives.
 func quoteArgument(arg string) string {
 	if arg == "" {
 		return `""`
@@ -634,7 +667,30 @@ func quoteArgument(arg string) string {
 	if plain && strings.IndexFunc(arg, unicode.IsSpace) < 0 {
 		return arg
 	}
-	return `"` + strings.ReplaceAll(arg, `"`, `\"`) + `"`
+	var quoted strings.Builder
+	quoted.WriteByte('"')
+	// backslashes counts the run currently open. An ordinary byte ends the run
+	// and flushes it as it stands, a double quote ends it and flushes it
+	// doubled, and the end of the token flushes it doubled as well, because
+	// the closing delimiter is the double quote that follows it.
+	backslashes := 0
+	for i := 0; i < len(arg); i++ {
+		switch arg[i] {
+		case '\\':
+			backslashes++
+		case '"':
+			quoted.WriteString(strings.Repeat(`\`, 2*backslashes+1))
+			quoted.WriteByte('"')
+			backslashes = 0
+		default:
+			quoted.WriteString(strings.Repeat(`\`, backslashes))
+			backslashes = 0
+			quoted.WriteByte(arg[i])
+		}
+	}
+	quoted.WriteString(strings.Repeat(`\`, 2*backslashes))
+	quoted.WriteByte('"')
+	return quoted.String()
 }
 
 // durationType is the one non-string scalar a parameter's Request field is
