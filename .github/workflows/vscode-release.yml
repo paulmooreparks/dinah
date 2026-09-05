@@ -19,8 +19,8 @@
 # release.yml's tag is a counter computed before anything is verified, so two
 # runs can compute the same number and a failed run leaves a tag pointing at
 # code that never passed. This workflow's tag is a pure function of the
-# committed version string, and the release is created only after the
-# extension's own checks have already gone green, so neither problem arises.
+# committed version string, and the release is created only after this
+# commit's CI has already passed, so neither problem arises.
 
 name: VS Code extension release
 
@@ -78,69 +78,36 @@ jobs:
           fi
           node scripts/check-version-change.mjs /tmp/after.json "$BEFORE_PATH"
 
-  wait-for-extension-ci:
+  # CI runs as a job of this workflow rather than being polled by SHA and by
+  # check-run name. release.yml moved to this shape in dinah-363, and ci.yml
+  # gained workflow_call in the same commit; ci.yml's own header now says that
+  # nothing reads its three job names by string, so a workflow that matched
+  # those names would be the one file holding a contract the rest of the
+  # repository has dropped. Depending on the nested run instead removes the
+  # name matching, the paged check-run read and the timeout ceiling in one
+  # go, because nothing is polling and nothing is timing.
+  #
+  # The cost, stated rather than minimised: this runs ci.yml's Go test matrix
+  # on a commit whose only artifact is an archive carrying no Go code, and it
+  # runs ci.yml a second time on top of that file's own push trigger. Both are
+  # redundant work. Both are bounded, because this workflow fires only when
+  # the extension's committed version changes, and release.yml already accepts
+  # the same doubling on every release candidate. A commit whose repository is
+  # broken is not one to publish an extension from. See D-7.
+  ci:
     needs: check-version
     if: needs.check-version.outputs.changed == 'true'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      checks: read # documented requirement of the check-runs endpoint below
-    steps:
-      - name: Wait for this commit's own extension checks
-        env:
-          GH_TOKEN: ${{ github.token }}
-          SHA: ${{ github.sha }}
-          REPO: ${{ github.repository }}
-        run: |
-          # The budget is written once and every line below derives from it,
-          # the same shape release.yml's wait-for-ci uses. The two names are
-          # the two legs of ci.yml's own extension matrix. Only those two are
-          # watched: this archive carries no binary, so the CLI's test and
-          # gofmt results say nothing about whether this commit is safe to
-          # ship as an extension.
-          #
-          # The read walks every page rather than asking for a fixed hundred.
-          # A commit carrying more than a page of check runs could otherwise
-          # hide both extension legs behind the boundary, and this loop would
-          # time out reporting nought of two rather than saying what happened.
-          # A commit does not carry a hundred checks today, which is the same
-          # kind of "true for now" the dev-release lookup above rested on.
-          # This filter only selects and maps, so gh applying it once per page
-          # concatenates into the whole collection and nothing more is needed.
-          set -o pipefail
-          ATTEMPTS=180
-          INTERVAL=10
-          BUDGET=$(( ATTEMPTS * INTERVAL / 60 ))
-          echo "Waiting up to $BUDGET minutes for the two extension check runs on $SHA"
-          for attempt in $(seq 1 "$ATTEMPTS"); do
-            if ! RUNS=$(gh api "repos/$REPO/commits/$SHA/check-runs" --paginate \
-              --jq '.check_runs[] | select(.name == "extension (ubuntu-latest)" or .name == "extension (windows-latest)") | .status + ":" + (.conclusion // "none")'); then
-              echo "::error::could not read the check runs for $SHA; the API error is above"
-              exit 1
-            fi
-            BAD=$(printf '%s\n' "$RUNS" | grep '^completed:' | grep -vc ':success$' || true)
-            if [ "$BAD" -gt 0 ]; then
-              echo "::error::an extension CI check on $SHA finished without success; not releasing this commit"
-              printf '%s\n' "$RUNS"
-              exit 1
-            fi
-            GOOD=$(printf '%s\n' "$RUNS" | grep -c '^completed:success$' || true)
-            if [ "$GOOD" -ge 2 ]; then
-              echo "Both extension checks passed."
-              exit 0
-            fi
-            echo "  $GOOD of 2 checks done (attempt $attempt of $ATTEMPTS)"
-            sleep "$INTERVAL"
-          done
-          # The count reached is part of the message. A run that timed out at
-          # one of two was slow, and a run that timed out at zero never had
-          # the checks at all, and those want different answers from whoever
-          # reads the log.
-          echo "::error::timed out after $BUDGET minutes waiting for extension CI on $SHA; $GOOD of 2 checks had passed"
-          exit 1
+    uses: ./.github/workflows/ci.yml
 
+  # The gate names both dependencies' results and requires the literal string
+  # success, rather than leaving the job unconditioned and resting on the
+  # platform's own handling of a dependency that did not succeed. failure,
+  # cancelled and skipped are all refused by the same comparison, so nothing
+  # is packaged or released unless CI plainly passed. This is release.yml's
+  # own shape, and dinah-363 D-4 records why it is written out.
   package-and-release:
-    needs: [check-version, wait-for-extension-ci]
+    needs: [check-version, ci]
+    if: needs.check-version.result == 'success' && needs.ci.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write # creates the release and uploads its asset

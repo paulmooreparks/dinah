@@ -1,0 +1,130 @@
+package main
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+// The design documents argued for years from a premise that no longer holds:
+// that the hosted product was a second, independently coded implementation of
+// the coordination contract, and that Dinah and it were kept apart by a rule
+// against sharing code. Dinah.Team runs on Dinah's own library, so both
+// premises are false, and two passages that reasoned from them were rewritten.
+//
+// This check holds the rewrite. It reads the wording each passage used and
+// fails when that wording returns, which catches the copy an editor restores
+// from an older draft and the sentence a later card writes back out of habit.
+//
+// What it protects is narrow, and reading it wider than this is a mistake. It
+// catches the verbatim return of the wordings listed below, and it is robust
+// only to case, to line wrapping, to whitespace, and to where a writer put the
+// ASCII hyphens in a compound. A compound spelled with U+2011 or any other
+// non-ASCII dash escapes it, and so does a paraphrase of the same claim in
+// words this file has never seen, so the check is a backstop and only a reader
+// catches the general case. Because the match normalises hyphens, each entry
+// below already answers for every hyphenation of its own wording, so the list
+// wants one entry per claim and a second entry spelling the same claim
+// differently only reports one planted sentence twice. The third entry is a
+// wording neither document carried: it is the project's founding
+// self-description, and it is listed because that is the sentence somebody is
+// likeliest to copy back in from older material.
+
+// retiredClaim is one wording the design documents used to carry, together with
+// the reason it may not come back.
+type retiredClaim struct {
+	// wording is written in lower case and matched against the document
+	// after both have been through canonicalHyphens, so neither a rewrap
+	// that moves the words across a line break, nor a return of the claim
+	// at the head of a sentence, nor a compound rehyphenated by whoever
+	// wrote it back escapes the match.
+	wording string
+	// why says what replaced the wording, so a finding explains itself to
+	// somebody who was not here when it was written.
+	why string
+}
+
+// retiredSecondImplementationClaims are the wordings this check refuses, taken
+// from the arbiter rule in format.md, from the language paragraph in
+// surfaces.md, and from the project's founding self-description.
+var retiredSecondImplementationClaims = []retiredClaim{
+	{
+		wording: "the two implementations meet at the contract",
+		why:     "Dinah.Team runs on Dinah's own library, so the arbiter rule is derived from one implementation with two storage backends rather than from two implementations meeting at three named surfaces",
+	},
+	{
+		wording: "no-shared-code rule",
+		why:     "no rule against sharing code exists, and the conformance suite pins Dinah's own behaviour against what the design documents and the profile say the contract requires",
+	},
+	{
+		wording: "kept honest by a shared conformance suite",
+		why:     "this was the project's founding self-description, and although the documents this check reads no longer carry it, the wording survives in older drafts, in card history and in the transcripts this project keeps, so it is the likeliest text somebody copies back into a design document; Dinah.Team shares Dinah's library, so the two are not two implementations kept honest against each other",
+	},
+}
+
+// designDocuments are the documents those claims were argued in, named from the
+// repository root so a finding tells the reader which file to open.
+var designDocuments = []string{
+	filepath.Join("docs", "design", "format.md"),
+	filepath.Join("docs", "design", "surfaces.md"),
+}
+
+// TestTheDesignDocumentsDoNotArgueFromASecondImplementation asserts that no
+// design document carries a wording the second-implementation premise was
+// argued in.
+func TestTheDesignDocumentsDoNotArgueFromASecondImplementation(t *testing.T) {
+	read := 0
+	for _, relative := range designDocuments {
+		raw, err := os.ReadFile(filepath.Join(repositoryRoot, relative))
+		if err != nil {
+			t.Fatalf("%s: %v", relative, err)
+		}
+		flattened := canonicalHyphens(strings.ToLower(string(raw)))
+		if flattened == "" {
+			t.Errorf("%s: the document is empty, so this check read nothing of it", relative)
+			continue
+		}
+		read++
+		for _, claim := range retiredSecondImplementationClaims {
+			wanted := canonicalHyphens(strings.ToLower(claim.wording))
+			at := strings.Index(flattened, wanted)
+			if at < 0 {
+				continue
+			}
+			t.Errorf("%s: the retired claim %q stands in %q, and %s", relative, claim.wording, around(flattened, at, len(wanted)), claim.why)
+		}
+	}
+	if read != len(designDocuments) {
+		t.Errorf("%d of the %d design documents were read, so this check proves less than it claims", read, len(designDocuments))
+	}
+}
+
+// canonicalHyphens rewrites every hyphen as a space and then reduces the text
+// to its words, so that a compound spelled "no-shared-code", "no shared-code"
+// or "no shared code" reduces to one form and one list entry answers for all of
+// them. Enumerating the spellings instead only ever covers the ones somebody
+// thought of. This normalisation belongs to this check rather than to
+// flattenWords, which the wrap-width checks share and which has to leave a
+// hyphen where the author of a guide put it.
+func canonicalHyphens(text string) string {
+	return flattenWords(strings.ReplaceAll(text, "-", " "))
+}
+
+// around returns the run of text a finding quotes, which is the match itself
+// with the words on either side of it, so a reader recognises the sentence
+// without opening the file. The quotation comes back lowered and with its
+// hyphens spaced, because the search that found it reads the document through
+// canonicalHyphens.
+func around(text string, at, length int) string {
+	const margin = 70
+	start := at - margin
+	if start < 0 {
+		start = 0
+	}
+	end := at + length + margin
+	if end > len(text) {
+		end = len(text)
+	}
+	return text[start:end]
+}
