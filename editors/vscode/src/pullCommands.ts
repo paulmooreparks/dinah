@@ -30,7 +30,7 @@ export interface PullCommandContext {
 	readonly root: string;
 	/** What ColumnView.pull_destination named: the column the card lands in. */
 	readonly destination: string;
-	/** The queue's own title, which the empty-pull message falls back to. */
+	/** The queue's own title, which the empty-pull message's upstream half falls back to. */
 	readonly label: string;
 }
 
@@ -109,7 +109,9 @@ export async function pullFromColumn(
 	} else {
 		const answer = outcome.json as PullAnswer;
 		if (answer.card === undefined) {
-			context.host.showInfo(emptyPullMessage(answer, context.label));
+			context.host.showInfo(
+				emptyPullMessage(answer, context.label, context.destination),
+			);
 		}
 	}
 	await context.host.checkpoint(context.folder);
@@ -125,12 +127,22 @@ export async function pullFromColumn(
  * English is composed here rather than read from dinah's message catalog,
  * which is what every other string this extension shows already does.
  *
- * The queue's own title stands in when a value is missing. That answer names a
- * real column the reader can see, where an empty gap in the sentence would
- * name nothing at all.
+ * Each half falls back to what the caller already holds for that half rather
+ * than to one value for both. The clicked queue is the column the pull draws
+ * from, so it stands in for a missing upstream. The destination the argv was
+ * built from stands in for a missing destination, unresolved to a title but
+ * still naming the column the card would land in; columnTooltip falls back to
+ * the same raw reference for the same reason. Falling back to the queue for
+ * both halves would compose "Nothing in Design Queue is ready to pull into
+ * Design Queue.", which tells the reader the card goes back where it already
+ * is.
  */
-export function emptyPullMessage(answer: PullAnswer, label: string): string {
-	const upstream = answer.message_values?.upstream ?? label;
-	const destination = answer.message_values?.destination ?? label;
-	return `Nothing in ${upstream} is ready to pull into ${destination}.`;
+export function emptyPullMessage(
+	answer: PullAnswer,
+	label: string,
+	destination: string,
+): string {
+	const from = answer.message_values?.upstream ?? label;
+	const into = answer.message_values?.destination ?? destination;
+	return `Nothing in ${from} is ready to pull into ${into}.`;
 }

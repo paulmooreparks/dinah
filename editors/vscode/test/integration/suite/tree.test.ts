@@ -45,9 +45,14 @@ suite("the sidebar tree against a real workbench", () => {
 		// downstream takes work up, so it publishes a destination and carries
 		// the suffix. Doing takes work up itself, so it never carries it
 		// whatever it publishes. Done ends the walk, so it publishes nothing.
-		// This is the assertion that proves pull_destination is a field
-		// `dinah --json status` actually emits, rather than a name a JSON
-		// literal in the unit layer agreed with itself about.
+		// The field's name is already pinned on the Go side, by
+		// TestTheColumnsListingSaysWhereAPullWouldLand in
+		// internal/verb/takesnowork_test.go, which marshals each ColumnView
+		// and asserts the key is present exactly when the destination is
+		// non-empty. What this assertion adds is the path between the two
+		// sides: that the binary really emits the field and that the
+		// status/tree join carries it as far as a contextValue, rather than a
+		// name a JSON literal in the unit layer agreed with itself about.
 		//
 		// The bare "dinah.column" fails every row here, which is the point:
 		// that is what a row carries when the status and tree answers

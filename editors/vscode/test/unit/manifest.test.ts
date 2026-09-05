@@ -1107,16 +1107,18 @@ const COLUMN_ATTACH_PATTERN = /^dinah\.column\./;
 const CARD_ATTACH_PATTERN = /^dinah\.card\./;
 
 /**
- * The clause New Card is registered under, which matches the open column and
- * the open pullable queue and nothing else.
+ * The contextValues New Card is offered on: the open column and the open
+ * pullable queue, and nothing else.
  *
  * It was an equality until dinah-375, which is the spelling that would have
  * dropped the item from every queue the moment those queues gained a suffix.
  * Most queues take a card filed directly into them, so keeping New Card there
  * is the behaviour dinah-331 shipped rather than a widening.
  */
-const NEW_CARD_CLAUSE =
-	"view == dinah.workbenchView && viewItem =~ /^dinah\\.column\\.open(\\.pull)?$/";
+const NEW_CARD_PATTERN = /^dinah\.column\.open(\.pull)?$/;
+
+/** The one `when` clause New Card is registered under. */
+const NEW_CARD_CLAUSE = `view == dinah.workbenchView && viewItem =~ /${NEW_CARD_PATTERN.source}/`;
 
 /**
  * Whether a `when` clause taken from the manifest opens on a given viewItem.

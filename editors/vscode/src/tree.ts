@@ -34,7 +34,9 @@ import {
 	CONTEXT_CARD_READY_NONE,
 	CONTEXT_COLUMN,
 	CONTEXT_COLUMN_FULL,
+	CONTEXT_COLUMN_FULL_PULL,
 	CONTEXT_COLUMN_OPEN,
+	CONTEXT_COLUMN_OPEN_PULL,
 	CONTEXT_STATE_GROUP,
 	CONTEXT_WORKBENCH_CANDIDATE,
 	CONTEXT_WORKBENCH_FOREST,
@@ -417,15 +419,15 @@ export function columnActionsFor(view: ColumnView | undefined): string {
 		return CONTEXT_COLUMN;
 	}
 	const capacity = view.capacity ?? 0;
-	const base =
-		capacity > 0 && view.count >= capacity
-			? CONTEXT_COLUMN_FULL
-			: CONTEXT_COLUMN_OPEN;
+	const full = capacity > 0 && view.count >= capacity;
 	const pullable =
 		!view.takes_work_up &&
 		view.pull_destination !== undefined &&
 		view.pull_destination !== "";
-	return pullable ? `${base}.pull` : base;
+	if (full) {
+		return pullable ? CONTEXT_COLUMN_FULL_PULL : CONTEXT_COLUMN_FULL;
+	}
+	return pullable ? CONTEXT_COLUMN_OPEN_PULL : CONTEXT_COLUMN_OPEN;
 }
 
 /** The label a state group carries, title-cased from the axis value. */

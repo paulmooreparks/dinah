@@ -329,6 +329,26 @@ test("an ok pull that took nothing says which column was looked in", async () =>
 	assert.deepEqual(r.checkpoints, [FOLDER]);
 });
 
+test("an ok pull that took nothing names the destination the argv was built from, never the queue twice", async () => {
+	// The values are omitempty on the Go side, so this pins which column the
+	// caller hands each half of the fallback rather than only that the
+	// fallback exists. Passing the queue's own title for both would compose
+	// "Nothing in Design Queue is ready to pull into Design Queue.", which
+	// tells the reader the card goes back where it already is.
+	const r = recorder();
+	r.answer = ok({ outcome: "ok", message: "answer.pull.empty.named" });
+	await pullFromColumn(pullable(r));
+	assert.deepEqual(r.infos, [
+		`Nothing in Design Queue is ready to pull into ${DESTINATION}.`,
+	]);
+	assert.notEqual(
+		r.infos[0],
+		"Nothing in Design Queue is ready to pull into Design Queue.",
+	);
+	assert.deepEqual(r.errors, []);
+	assert.deepEqual(r.checkpoints, [FOLDER]);
+});
+
 test("an ok pull that took a card says nothing at all", async () => {
 	// dinah-375 D-4. Claim, Release, Move and Unblock all report nothing on
 	// success, and the card's arrival in its new column is the trace a pull
@@ -351,17 +371,32 @@ test("Pull opens no prompt of any kind", async () => {
 	assert.deepEqual(r.unused, []);
 });
 
-test("the empty-pull sentence falls back to the queue's own title, never to a gap", () => {
+test("each half of the empty-pull sentence falls back to its own column, never to a gap and never to the other", () => {
 	// The values are omitempty on the Go side, so a future answer could carry
-	// neither. The queue that was clicked is the destination's upstream, which
-	// makes it the honest fallback for the first name and a column the reader
-	// can actually see for the second.
+	// neither. The queue that was clicked is the destination's upstream, so it
+	// is the honest fallback for the first name; the second falls back to the
+	// destination the argv was built from, unresolved to a title but naming
+	// the column the card would land in. Falling back to the queue for both
+	// halves would say the card goes back where it already is, which is the
+	// one sentence this test exists to refuse.
 	assert.equal(
-		emptyPullMessage({}, "Design Queue"),
-		"Nothing in Design Queue is ready to pull into Design Queue.",
+		emptyPullMessage({}, "Design Queue", "spec"),
+		"Nothing in Design Queue is ready to pull into spec.",
 	);
 	assert.equal(
-		emptyPullMessage({ message_values: { upstream: "Intake" } }, "Design Queue"),
-		"Nothing in Intake is ready to pull into Design Queue.",
+		emptyPullMessage(
+			{ message_values: { upstream: "Intake" } },
+			"Design Queue",
+			"spec",
+		),
+		"Nothing in Intake is ready to pull into spec.",
+	);
+	assert.equal(
+		emptyPullMessage(
+			{ message_values: { destination: "Spec" } },
+			"Design Queue",
+			"spec",
+		),
+		"Nothing in Design Queue is ready to pull into Spec.",
 	);
 });
