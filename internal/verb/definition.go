@@ -1,8 +1,12 @@
 package verb
 
 import (
+	"fmt"
+	"reflect"
 	"sort"
 	"strings"
+	"time"
+	"unicode"
 
 	"dinah/internal/bench"
 	"dinah/internal/contract"
@@ -73,19 +77,32 @@ func (p Param) Type() string {
 	return "string"
 }
 
+// spelling is the name a reader meets, which is the parameter's own name
+// unless it accepts two shapes and Display names the pair.
+func (p Param) spelling() string {
+	if p.Display != "" {
+		return p.Display
+	}
+	return p.Name
+}
+
+// flagWord is the "--name" word a flag is typed as, without the placeholder
+// the syntax line shows after a valued one. DeriveCommand renders a real
+// argument rather than a syntax line, so it needs the word alone, and taking
+// it from here keeps the Display-over-Name resolution in one place.
+func (p Param) flagWord() string {
+	return "--" + p.spelling()
+}
+
 // shown is what the syntax line prints for a parameter, without its brackets.
 func (p Param) shown() string {
-	name := p.Name
-	if p.Display != "" {
-		name = p.Display
-	}
 	if !p.Flag {
-		return name
+		return p.spelling()
 	}
 	if p.Marker {
-		return "--" + name
+		return p.flagWord()
 	}
-	return "--" + name + " <" + p.Value + ">"
+	return p.flagWord() + " <" + p.Value + ">"
 }
 
 // Token is how a parameter is spelled wherever a reader meets it: on the
@@ -489,7 +506,7 @@ var params = map[string][]Param{
 	// words and the machine surface off the tool call's own arguments.
 	"workbenches": {
 		{Name: "path"},
-		{Name: "max-depth", Flag: true, Value: "n", Shared: "max-depth", Field: "MaxDepth"},
+		{Name: "max-depth", Flag: true, Value: "n", Shared: "max-depth"},
 	},
 	"version": {
 		{Name: "catalogs", Flag: true, Marker: true},
@@ -543,4 +560,208 @@ func Commands() []string {
 		names = append(names, name)
 	}
 	return names
+}
+
+// Command is the CLI spelling of a call made through a *Request: the words a
+// person would have typed at a terminal to produce the identical request. A
+// surface that wants to show its reader what it just did (DinahVisor's command
+// log, the pages' own panel, an editor extension) derives one from the request
+// it was about to make rather than writing the line out beside every call
+// site, which is the hand-maintained mapping table dinah-282 exists to
+// prevent.
+type Command struct {
+	// Verb is the command name, req.Verb unchanged.
+	Verb string
+	// Args are the argument tokens, in the command's declared order, each
+	// spelled the way the syntax line spells it with the placeholder replaced
+	// by the value the request actually carries. A valued flag contributes
+	// two entries, its "--name" and its value, once per value the field
+	// carries; a positional or a bare marker contributes one. Nothing here is
+	// shell-quoted, so a caller feeds Args straight to the same argument
+	// parser os.Args would reach, with no split-on-whitespace step in
+	// between.
+	Args []string
+}
+
+// Line joins Verb and Args into one printable line, quoting any argument that
+// carries whitespace, a shell metacharacter, or nothing at all, so the result
+// is what a person would have had to type rather than what a naive join
+// prints. Line is for display only; re-running a command re-parses Args, not
+// this string. It carries no leading program name, because "dinah" is how the
+// displaying surface's own reader invokes the binary rather than something
+// this library asserts about itself.
+func (c Command) Line() string {
+	parts := make([]string, 0, len(c.Args)+1)
+	parts = append(parts, c.Verb)
+	for _, arg := range c.Args {
+		parts = append(parts, quoteArgument(arg))
+	}
+	return strings.Join(parts, " ")
+}
+
+// shellSpecial is the set of characters a POSIX-ish shell reads as something
+// other than part of a plain word. A token carrying any of them is quoted by
+// Line, since a reader who retyped the line unquoted would get a different
+// command from the one that ran. The backslash is in the set for the same
+// reason as the rest of it: a Windows path typed bare into such a shell loses
+// its separators.
+const shellSpecial = "\"'$`|&;<>()*?[]#~=%\\"
+
+// quoteArgument renders one token as a reader would have to type it. An empty
+// token has no bare spelling at all, so it becomes a pair of quotes.
+func quoteArgument(arg string) string {
+	if arg == "" {
+		return `""`
+	}
+	plain := !strings.ContainsAny(arg, shellSpecial)
+	if plain && strings.IndexFunc(arg, unicode.IsSpace) < 0 {
+		return arg
+	}
+	escaped := strings.ReplaceAll(arg, `\`, `\\`)
+	escaped = strings.ReplaceAll(escaped, `"`, `\"`)
+	return `"` + escaped + `"`
+}
+
+// durationType is the one non-string scalar a parameter's Request field is
+// declared as today. It is compared by type rather than by kind because a
+// Duration is an int64 underneath, and any other int64 field would render as a
+// bare number ParseDuration refuses.
+var durationType = reflect.TypeOf(time.Duration(0))
+
+// DeriveCommand composes the CLI spelling of req: the command name followed
+// by, for every parameter Params(req.Verb) declares, the token or tokens that
+// parameter's own current value would have been typed as. Each parameter reads
+// its value off the Request field its own Field names, through the same
+// declaration the two heads already resolve their arguments through, so a
+// command gains a log entry by being declared rather than by anybody writing a
+// second table.
+//
+// ok is false in two cases. First, when req is nil, when req.Verb names no
+// command Params declares, or when it names one in derivationExemptions: no
+// Request is ever built for such a command by any head today, so there is
+// nothing here to read a value from, and reason carries that exemption's own
+// text verbatim. Second, when a parameter's Field names a Request field of a
+// type renderParamValue does not know how to render. Rather than guess at a
+// plausible-looking value for a type nobody taught this function, DeriveCommand
+// refuses the whole derivation, because a Command that renders every argument
+// but one wrong is worse than no Command at all, and reason names the command,
+// the parameter and the field's type.
+func DeriveCommand(req *Request) (cmd Command, ok bool, reason string) {
+	if req == nil {
+		return Command{}, false, "there is no request to derive a command from"
+	}
+	if exemption, exempt := derivationExemptions[req.Verb]; exempt {
+		return Command{}, false, exemption
+	}
+	declared, defined := params[req.Verb]
+	if !defined {
+		return Command{}, false, req.Verb + " names no command this library defines"
+	}
+	fields := reflect.ValueOf(req).Elem()
+	var args []string
+	for _, p := range declared {
+		field := fields.FieldByName(p.Field)
+		if p.Marker {
+			if field.Bool() {
+				args = append(args, p.flagWord())
+			}
+			continue
+		}
+		values, known := renderParamValue(field)
+		if !known {
+			unrenderable := "%s's %q parameter declares the field %s of type %s, which DeriveCommand does not know how to render"
+			return Command{}, false, fmt.Sprintf(unrenderable, req.Verb, p.Name, p.Field, field.Type())
+		}
+		if len(values) == 0 {
+			if !p.Required {
+				continue
+			}
+			// A required argument the request arrived without is still
+			// typed, as an empty word, because the verb is what refuses an
+			// incomplete request and a line that quietly dropped the
+			// argument would not reproduce that refusal.
+			values = []string{""}
+		}
+		for _, value := range values {
+			if p.Flag {
+				args = append(args, p.flagWord())
+			}
+			args = append(args, value)
+		}
+	}
+	return Command{Verb: req.Verb, Args: args}, true, ""
+}
+
+// renderParamValue reads one non-marker parameter's resolved value off its
+// Request field and returns the token or tokens it contributes, in the order a
+// caller would have typed them, and whether the field's type is one this
+// function knows how to render at all. ok is false only for a type nobody has
+// taught it, never for an empty value of a known type: an empty string, a zero
+// duration and a zero-length slice all return ok=true and no values, and
+// DeriveCommand's own Required handling decides what that means for the
+// command line.
+//
+// A zero duration counts as an empty value for the same reason an empty string
+// does. Nothing in a Request distinguishes a flag given empty from a flag left
+// out, so a claim that named no lease would otherwise derive a line carrying
+// "--expires 0s", which reproduces the call and is not what anybody typed.
+//
+// Three types are known today: string, time.Duration (rendered as ParseDuration
+// accepts it straight back), and a slice whose element type is string. A
+// repeatable flag like reshape's --map is declared as a []string field for
+// exactly this reason: the flag's own repetition is carried by the slice's
+// length rather than by a second Param.
+func renderParamValue(field reflect.Value) (values []string, ok bool) {
+	if field.Type() == durationType {
+		lease := time.Duration(field.Int())
+		if lease == 0 {
+			return nil, true
+		}
+		return []string{lease.String()}, true
+	}
+	switch field.Kind() {
+	case reflect.String:
+		if field.String() == "" {
+			return nil, true
+		}
+		return []string{field.String()}, true
+	case reflect.Slice:
+		if field.Type().Elem().Kind() != reflect.String {
+			return nil, false
+		}
+		rendered := make([]string, 0, field.Len())
+		for i := 0; i < field.Len(); i++ {
+			rendered = append(rendered, field.Index(i).String())
+		}
+		return rendered, true
+	}
+	return nil, false
+}
+
+// derivationExemptions names every command DeriveCommand cannot compose a
+// spelling for, mapped to why. A command earns its place here the same way a
+// head's own toolExemptions and argumentExemptions do: by somebody writing the
+// reason down, checked by TestEveryCommandDerivesOrIsExempted.
+var derivationExemptions = map[string]string{
+	"config":      "the terminal dispatches config on its own parsed arguments and never builds a Request for it",
+	"edit":        "opens a path in the reader's own editor; the terminal never builds a Request for it",
+	"extract":     "Library.Extract takes a target string, not a *Request; there is no request to read a value from",
+	"guide":       "prints an embedded guide; the terminal never builds a Request for it",
+	"help":        "prints a command's own help; the terminal never builds a Request for it",
+	"init":        "creates a workbench in a directory; the terminal never builds a Request for it",
+	"mcp":         "starts this head; the terminal never builds a Request for it",
+	"path":        "resolves a filesystem path for a shell; the terminal never builds a Request for it",
+	"version":     "runVersion reads catalogs straight off the parsed arguments; no Request carries it",
+	"workbenches": "reaches bench.Enumerate directly rather than through a Library verb (dinah-282); no Request is ever built for it",
+	"export":      "Library.Export takes no arguments at all; there is no request to read a value from",
+}
+
+// DerivationExemptions returns a copy of derivationExemptions, for a caller
+// deciding ahead of a call whether a log entry is possible at all.
+func DerivationExemptions() map[string]string {
+	exempted := make(map[string]string, len(derivationExemptions))
+	for name, reason := range derivationExemptions {
+		exempted[name] = reason
+	}
+	return exempted
 }
