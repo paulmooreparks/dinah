@@ -11,6 +11,12 @@
 // The third assertion is that the derivation is gone. A tag-to-version mapping
 // that came back would be silent: it would produce a plausible number, and
 // only a marketplace that refused an update would ever say so.
+//
+// The fourth is that package-lock.json still carries the number package.json
+// commits to. npm keeps its own copy there and rewrites it from the manifest on
+// any install, so a pair that has drifted apart hands whoever builds the
+// extension a file modified underneath them, and a release build is a bad place
+// to find that out.
 
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -29,6 +35,10 @@ async function versionModule(): Promise<{
 		count?: (repoRoot: string) => string;
 	}) => string;
 	isUnpublishedVersion: (version: string) => boolean;
+	lockfileVersionDrift: (
+		manifest: { version?: string },
+		lock: { version?: string; packages?: Record<string, { version?: string }> },
+	) => string[];
 }> {
 	return (await import(
 		pathToFileURL(join(extensionRoot, "scripts", "version.mjs")).href
@@ -90,6 +100,43 @@ test("every unpublished archive sorts below the published version", async () => 
 		assert.ok(
 			orderedBelow(unpublished, manifest.version),
 			`${unpublished} does not sort below the published ${manifest.version}`,
+		);
+	}
+});
+
+test("package-lock.json carries the version package.json is authoritative for", async () => {
+	const { lockfileVersionDrift } = await versionModule();
+	const manifest = JSON.parse(
+		readFileSync(join(extensionRoot, "package.json"), "utf8"),
+	) as { version: string };
+	const lock = JSON.parse(
+		readFileSync(join(extensionRoot, "package-lock.json"), "utf8"),
+	) as { version?: string; packages?: Record<string, { version?: string }> };
+
+	assert.deepEqual(
+		lockfileVersionDrift(manifest, lock),
+		[],
+		"run `npm install --package-lock-only` in editors/vscode to put the lockfile back on the manifest's number",
+	);
+});
+
+test("the drift check reads both places npm keeps the number", async () => {
+	const { lockfileVersionDrift } = await versionModule();
+	// The assertion above passes on a lockfile that agrees and on a check that
+	// looks nowhere, so the check is driven wrong here and both sites have to
+	// come back. A lockfile carrying neither site counts as drift for the same
+	// reason: npm moving the number would otherwise retire this guard in
+	// silence.
+	const drifted = [
+		{ version: "0.1.0", packages: { "": { version: "0.1.0" } } },
+		{},
+	];
+	for (const lock of drifted) {
+		const problems = lockfileVersionDrift({ version: "1.0.0" }, lock);
+		assert.equal(
+			problems.length,
+			2,
+			`expected both sites to be reported for ${JSON.stringify(lock)}, got ${problems.join("; ")}`,
 		);
 	}
 });
