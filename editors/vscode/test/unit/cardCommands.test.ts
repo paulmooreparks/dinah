@@ -629,3 +629,72 @@ test("the handler's parameter admits the argument the palette does not pass", ()
 		"the flow-command handler no longer declares its element as possibly absent",
 	);
 });
+
+const cardCommandsSource = readFileSync(
+	join(__dirname, "..", "..", "..", "src", "cardCommands.ts"),
+	"utf8",
+);
+
+const DOC_OPEN = "/" + "**";
+const DOC_CLOSE = "*" + "/";
+
+/**
+ * The doc comment sitting immediately above `export function <name>`, if one
+ * is there.
+ *
+ * The text between the declaration and the comment has to be blank, so a
+ * comment separated from the declaration by another comment and a whole
+ * function, which is what dinah-393 found, is not that declaration's comment
+ * and is not returned.
+ */
+function docCommentAbove(source: string, name: string): string | undefined {
+	const declaration = source.indexOf(`export function ${name}`);
+	if (declaration < 0) {
+		return undefined;
+	}
+	const preceding = source.slice(0, declaration).trimEnd();
+	if (!preceding.endsWith(DOC_CLOSE)) {
+		return undefined;
+	}
+	const opener = preceding.lastIndexOf(DOC_OPEN);
+	if (opener < 0) {
+		return undefined;
+	}
+	return preceding.slice(opener + DOC_OPEN.length, preceding.length - DOC_CLOSE.length);
+}
+
+test("each function's doc comment says what that function does", () => {
+	// A check that the file has no two comments stacked on one another passes
+	// on a file with no comments at all, so this pins what each comment says
+	// instead. dinah-335 moved isRow in between contextFor and the comment
+	// describing it, leaving that comment claiming the check happens "by isRow
+	// above" while sitting above isRow, and nothing red went red.
+	const isRowDoc = docCommentAbove(cardCommandsSource, "isRow");
+	const contextForDoc = docCommentAbove(cardCommandsSource, "contextFor");
+	assert.ok(
+		isRowDoc?.includes("The row a command was aimed at"),
+		"isRow no longer carries the comment describing the row guard",
+	);
+	assert.ok(
+		contextForDoc?.includes("The workbench a card's row stands in"),
+		"contextFor no longer carries the comment describing the workbench pin",
+	);
+	assert.ok(
+		!isRowDoc?.includes("The workbench a card's row stands in"),
+		"contextFor's comment has drifted above isRow again",
+	);
+});
+
+test("the comment that says isRow is above it is in fact below isRow", () => {
+	// The self-contradiction is what made the original defect findable, and a
+	// claim about position is only true at one position, so the guard checks
+	// the position rather than the wording.
+	const isRowAt = cardCommandsSource.indexOf("export function isRow");
+	const claimAt = /by isRow\r?\n \* above/.exec(cardCommandsSource)?.index ?? -1;
+	assert.ok(isRowAt >= 0, "isRow is gone, so this check proved nothing");
+	assert.ok(claimAt >= 0, "the claim this guards is gone, so it proved nothing");
+	assert.ok(
+		claimAt > isRowAt,
+		"a comment claims the check happens by isRow above while sitting above isRow",
+	);
+});

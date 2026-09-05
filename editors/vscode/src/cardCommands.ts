@@ -86,21 +86,6 @@ export function refusalMessage(outcome: CliOutcome): string {
 }
 
 /**
- * The workbench a card's row stands in, and the folder its checkpoint is
- * keyed under.
- *
- * A card standing in a forest row belongs to that member workbench rather than
- * to the workspace folder the walk started from, so the verb is pinned to the
- * member's own path while the checkpoint still runs against the folder, whose
- * one merged cursor covers every member beneath it.
- *
- * The absent element is checked before anything is read off it, by isRow
- * above, which is the one place that check lives (dinah-342). This function
- * lives here rather than in extension.ts so the unit layer can reach it: it
- * touches no vscode value, and the guard went six commands deep unexercised
- * while it sat in the one module no test can import.
- */
-/**
  * The row a command was aimed at, when it is a row of the kind the command
  * can act on, and undefined otherwise.
  *
@@ -121,6 +106,21 @@ export function isRow<K extends TreeElement["kind"]>(
 	return element !== undefined && element.kind === kind;
 }
 
+/**
+ * The workbench a card's row stands in, and the folder its checkpoint is
+ * keyed under.
+ *
+ * A card standing in a forest row belongs to that member workbench rather than
+ * to the workspace folder the walk started from, so the verb is pinned to the
+ * member's own path while the checkpoint still runs against the folder, whose
+ * one merged cursor covers every member beneath it.
+ *
+ * The absent element is checked before anything is read off it, by isRow
+ * above, which is the one place that check lives (dinah-342). This function
+ * lives here rather than in extension.ts so the unit layer can reach it: it
+ * touches no vscode value, and the guard went six commands deep unexercised
+ * while it sat in the one module no test can import.
+ */
 export function contextFor(
 	element: TreeElement | undefined,
 	exe: string,
