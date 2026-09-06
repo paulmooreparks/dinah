@@ -1,46 +1,45 @@
-# Attach a marketplace-ready archive to a release of its own whenever the VS
-# Code extension's version changes, and publish it when the operator has said
-# it may be published.
+# Cut a GitHub release carrying a marketplace-ready archive whenever anything
+# under editors/vscode changes on main, and publish it when the operator has
+# said it may be published.
 #
-# The archive has to carry the number editors/vscode/package.json commits to,
-# never a number derived from a dinah release tag. That derivation existed
-# once and it published a dev build as 0.1.42 and then the real release as
-# 0.1.0, which the marketplace read as older and never offered as an update.
+# The archive's number is minted here rather than read out of the manifest.
+# editors/vscode/package.json's version field is a floor: it names a
+# major.minor line, its patch component is always 0, and nobody ships the
+# committed string as read. The compute-version job below reads the release
+# history and takes the next patch on that line, which is what lets every merge
+# cut a release without anybody typing a number. A human still moves the major
+# or the minor by hand when a change earns it.
+#
+# The number must never be derived from a dinah release tag. That derivation
+# existed once and it published a dev build as 0.1.42 and then the real release
+# as 0.1.0, which the marketplace read as older and never offered as an update.
 # editors/vscode/scripts/version.mjs carries that history in its header.
 #
-# The trigger is the version field moving rather than the file changing.
-# package.json also carries the command list, the configuration schema and the
-# npm scripts, so a run keyed to the path alone would cut a duplicate release
-# for a lockfile bump or a renamed command. The check-version job below reads
-# the field at both ends of the push and compares them.
+# The trigger is the path rather than the version field, because there is no
+# version field left to bump. A docs-only or test-only change under
+# editors/vscode cuts a release like any other change: packaging writes the
+# computed version into the archive, so the bytes differ on every run this
+# trigger fires for, and the operator's rule is that a new archive means a new
+# release.
 #
-# release.yml reserves its tag before CI runs and deletes it again on failure,
-# and this workflow deliberately does neither. That discipline exists because
-# release.yml's tag is a counter computed before anything is verified, so two
-# runs can compute the same number and a failed run leaves a tag pointing at
-# code that never passed. This workflow's tag is a pure function of the
-# committed version string, and the release is created only after this
-# commit's CI has already passed, so neither problem arises.
+# The tag is reserved before anything is built, which is release.yml's own
+# discipline and is here for release.yml's own reason. Two pushes landing close
+# together can read the same release list and compute the same next patch. Only
+# the first POST to git/refs succeeds; the second fails with 422 and takes its
+# whole run down, which is the loud answer rather than one run quietly
+# publishing over the other's number. Nothing retries, and a failed run is
+# re-triggered by hand.
 #
-# A manual trigger sits beside the push trigger because a version-change gate
-# cannot cut the first release at a version the manifest already carries. The
-# manifest said 1.0.0 with no release ever cut at that number, so the only way
-# to publish through the push path alone was to bump to 1.0.1 and accept a
-# first published version nobody meant. A dispatched run releases whatever
-# version is currently committed, without comparing it to any earlier commit,
-# because the person dispatching it has already made that decision.
+# A run that reserves a tag and then fails leaves that tag pointing at code
+# that never shipped, so cleanup-tag deletes it again, mirroring release.yml.
 #
-# The two paths part company over a tag that already carries a release, and
-# the operator ruled on 2026-09-06 which way each goes. A dispatched run
-# replaces the release and its tag, since re-cutting a broken release at the
-# same version is what the manual path is for. A push refuses, because the
-# most plausible way a push reaches an already-released version is a revert
-# walking the manifest backwards, and deleting a published release is worth
-# being asked about. That refusal has to be built rather than inherited:
-# softprops/action-gh-release documents that "If a tag already has a GitHub
-# release, the existing release will be updated with the release assets", so
-# the create step below would quietly overwrite on a push if nothing stopped
-# it first.
+# There is no collision handling downstream any more, and its absence is
+# deliberate rather than an oversight. Two steps used to decide what happened
+# when the computed tag already carried a release, one replacing it on a
+# dispatched run and one refusing on a push. They existed because a dispatched
+# run released whatever the manifest currently said, which a push could already
+# have released. compute-version mints an unreserved tag by construction, so
+# neither step can fire and both are gone.
 
 name: VS Code extension release
 
@@ -48,91 +47,59 @@ on:
   push:
     branches: [main]
     paths:
-      - "editors/vscode/package.json"
+      - "editors/vscode/**"
   workflow_dispatch: {}
 
 permissions:
   contents: read
 
 jobs:
-  check-version:
+  # One job answers for both triggers. A dispatched run computes its version
+  # exactly as a push does rather than reading whatever is committed, which is
+  # what lets it cut the very first release with nothing on main to diff
+  # against, and it keeps the repository down to a single numbering rule.
+  compute-version:
     runs-on: ubuntu-latest
-    # Exactly one of the two steps below runs, and the outputs read from
-    # whichever it was. GitHub's own workflow syntax reference documents this
-    # use of the operators by example, at jobs.<job_id>.services.<service_id>
-    # .image, where `${{ options.nginx == true && 'nginx' || '' }}` yields an
-    # operand rather than a boolean. The skipped step contributes no output,
-    # so its side of the expression is empty and the other side answers. That
-    # half is documented too, in GitHub's contexts reference: the steps
-    # context "contains information about the steps in the current job that
-    # have an `id` specified and have already run", and "If you attempt to
-    # dereference a nonexistent property, it will evaluate to an empty
-    # string".
+    permissions:
+      contents: write # creates the tag ref this run reserves
     outputs:
-      changed: ${{ steps.diff.outputs.changed || steps.manual.outputs.changed }}
-      version: ${{ steps.diff.outputs.version || steps.manual.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
 
-      # The comparison is against github.event.before rather than against the
-      # commit's immediate parent. The two agree for the one squashed commit
-      # per card this board merges, and they part company the moment a single
-      # push carries several commits, where the last commit's parent is not
-      # the state the push started from. GitHub documents before as the SHA of
-      # the most recent commit on the ref before the push, which is the
-      # question the trigger is actually asking.
+      # The --jq filter only selects and maps, so it is safe to apply per page:
+      # `gh api --help` states that under --paginate "each page is a separate
+      # JSON array or object", and the pages then concatenate into one stream
+      # carrying every release. A filter that reduced would answer once per page
+      # instead. The arithmetic that turns this list into a single next number
+      # lives in scripts/release-version.mjs, where a unit test drives it,
+      # rather than in a shell reduction nothing can exercise.
       #
-      # Whether there is an earlier commit at all is read off
-      # github.event.created, which GitHub documents as whether this push
-      # created the ref. A push that created the ref has no earlier state to
-      # compare against, and the step below never inspects BEFORE_SHA's value
-      # in that case. The all-zero SHA some pushes carry in that field is not
-      # documented anywhere, so nothing here rests on it.
-      - name: Read the version before and after this push
-        id: diff
-        if: github.event_name == 'push'
+      # The committed floor is read by the same script, which refuses a nonzero
+      # committed patch. So a hand-typed release number in the manifest fails
+      # this job loudly, before anything is packaged or reserved.
+      - name: Compute and reserve the next extension version
+        id: version
         working-directory: editors/vscode
         env:
-          BEFORE_SHA: ${{ github.event.before }}
-          AFTER_SHA: ${{ github.sha }}
-          REF_CREATED: ${{ github.event.created }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
         run: |
           set -e
-          git show "$AFTER_SHA:editors/vscode/package.json" > /tmp/after.json
-          BEFORE_PATH=""
-          if [ "$REF_CREATED" != "true" ] && git cat-file -e "$BEFORE_SHA:editors/vscode/package.json" 2>/dev/null; then
-            git show "$BEFORE_SHA:editors/vscode/package.json" > /tmp/before.json
-            BEFORE_PATH=/tmp/before.json
-          fi
-          node scripts/check-version-change.mjs /tmp/after.json "$BEFORE_PATH"
-
-      # A dispatched run has no earlier state to compare against. It carries no
-      # github.event.before, and github.event.created describes a push rather
-      # than a dispatch, so there is nothing honest to diff and the step above
-      # would report no change and skip every job downstream of it. The version
-      # this run releases is therefore read straight out of the manifest at the
-      # checked-out ref.
-      #
-      # That ref is the one the dispatcher selected. actions/checkout documents
-      # its ref input as defaulting to "the reference or SHA for that event"
-      # when checking out the repository that triggered the workflow, and a
-      # workflow_dispatch event's reference is the branch or tag chosen when
-      # the run was started, so no ref needs naming here.
-      - name: Read the committed version for a manual run
-        id: manual
-        if: github.event_name == 'workflow_dispatch'
-        working-directory: editors/vscode
-        run: |
-          set -e
-          VERSION=$(node -p "require('./package.json').version")
-          echo "Manual run: releasing the version already committed to package.json ($VERSION), without comparing it to any prior commit."
-          echo "changed=true" >> "$GITHUB_OUTPUT"
+          set -o pipefail
+          gh api "repos/$REPO/releases" --paginate --jq '.[] | .tag_name' > /tmp/tags.txt
+          VERSION=$(node scripts/print-next-version.mjs package.json /tmp/tags.txt)
+          TAG="vscode-v$VERSION"
+          echo "This run is $TAG"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          SHA=$(git rev-parse HEAD)
+          echo "Reserving $TAG at $SHA"
+          gh api -X POST "repos/$REPO/git/refs" -f ref="refs/tags/$TAG" -f sha="$SHA"
 
   # CI runs as a job of this workflow rather than being polled by SHA and by
   # check-run name. release.yml moved to this shape in dinah-363, and ci.yml
@@ -146,13 +113,11 @@ jobs:
   # The cost, stated rather than minimised: this runs ci.yml's Go test matrix
   # on a commit whose only artifact is an archive carrying no Go code, and it
   # runs ci.yml a second time on top of that file's own push trigger. Both are
-  # redundant work. Both are bounded, because this workflow fires only when
-  # the extension's committed version changes, and release.yml already accepts
-  # the same doubling on every release candidate. A commit whose repository is
-  # broken is not one to publish an extension from. See D-7.
+  # redundant work, and both are now paid on every extension change rather than
+  # on every version bump, which is what the operator asked for. A commit whose
+  # repository is broken is not one to publish an extension from. See D-7.
   ci:
-    needs: check-version
-    if: needs.check-version.outputs.changed == 'true'
+    needs: compute-version
     uses: ./.github/workflows/ci.yml
 
   # The gate names both dependencies' results and requires the literal string
@@ -162,15 +127,13 @@ jobs:
   # is packaged or released unless CI plainly passed. This is release.yml's
   # own shape, and dinah-363 D-4 records why it is written out.
   package-and-release:
-    needs: [check-version, ci]
-    if: needs.check-version.result == 'success' && needs.ci.result == 'success'
+    needs: [compute-version, ci]
+    if: needs.compute-version.result == 'success' && needs.ci.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write # creates the release and uploads its asset
     env:
       VSCE_PAT: ${{ secrets.VSCE_PAT }}
-    outputs:
-      tag: ${{ steps.tag.outputs.tag }}
     defaults:
       run:
         working-directory: editors/vscode
@@ -235,12 +198,17 @@ jobs:
           echo "Newest dev release is $TAG"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
+      # The version is handed to the packaging script rather than looked up by
+      # it, and nothing after this step may read package.json's version back
+      # out. package.mjs rewrites the manifest to the computed number, packages,
+      # and restores the committed floor in a finally block, so a later read
+      # would find the floor and tag the release with it.
       - name: Package the archive
         env:
           DINAH_PAIRED_RELEASE: ${{ steps.dev-release.outputs.tag }}
         run: |
           npm ci
-          npm run package -- --published
+          npm run package -- --version "${{ needs.compute-version.outputs.version }}"
           npm run verify-package
 
       - name: Confirm exactly one archive was produced
@@ -254,91 +222,16 @@ jobs:
           fi
           echo "One archive, as expected."
 
-      # "vscode-v" rather than "v": every dinah CLI tag this repository mints
-      # starts with "v" followed immediately by a digit (v0.1.126-dev,
-      # v0.1.0-beta, v0.1.0). The extension's version is decoupled from the
-      # CLI's and runs on its own cadence, so the two numbers can meet, and a
-      # shared tag namespace would collide on the day they do. The prefix
-      # keeps the two namespaces disjoint by construction, so nothing here
-      # depends on the two numbers staying apart.
-      - name: Tag this extension version
-        id: tag
-        run: |
-          set -e
-          VERSION=$(node -p "require('./package.json').version")
-          echo "tag=vscode-v$VERSION" >> "$GITHUB_OUTPUT"
-
-      # The next two steps decide what happens when the tag this run computed
-      # already carries a release, and they answer differently per trigger
-      # because the operator ruled that way on 2026-09-06.
-      #
-      # Neither step can be left out on the grounds that the create step
-      # already does the right thing. softprops/action-gh-release's own README
-      # states that "If a tag already has a GitHub release, the existing
-      # release will be updated with the release assets", so with nothing here
-      # a push landing on an already-released version would silently replace
-      # that release's archive. Both halves of the ruling are built.
-      #
-      # Both steps ask the question by listing the releases and testing this
-      # tag for membership, which is the shape the dev-release lookup above
-      # already uses. An earlier round asked it with `gh release view "$TAG"`
-      # and read a non-zero exit as "no release exists", which cannot be
-      # right: `gh help exit-codes` documents 0 for success and 1 for a
-      # command that "fails for any reason", so an absent release and a
-      # lookup that could not answer (an API error, a rate limit, a token
-      # problem) arrive at that step spelled identically. On the second of
-      # those the push step announced that the tag was free and handed the run
-      # to the create step, which is the silent overwrite the ruling exists to
-      # prevent. A list that comes back and does not carry the tag is a
-      # positive answer of absence, and a list that fails is told apart from
-      # it by the same documented exit status, so neither step below rests on
-      # any message text or on any undocumented code.
-      #
-      # The job already holds contents: write for the create step below, which
-      # is also what deleting a release needs, so neither step asks for more.
-      - name: Replace a pre-existing release at this tag on a manual run
-        if: github.event_name == 'workflow_dispatch'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.tag.outputs.tag }}
-          REPO: ${{ github.repository }}
-        run: |
-          set -e
-          set -o pipefail
-          if ! TAGS=$(gh api "repos/$REPO/releases" --paginate --jq '.[] | .tag_name'); then
-            echo "::error::the releases on $REPO could not be listed, so whether $TAG already carries a release is unknown; refusing rather than reporting an answer this step does not have"
-            exit 1
-          fi
-          if printf '%s\n' "$TAGS" | grep -Fxq "$TAG"; then
-            echo "The release list carries $TAG. Deleting that release and its tag so this run recreates both at the current commit."
-            gh release delete "$TAG" --repo "$REPO" --yes --cleanup-tag
-          else
-            echo "The release list came back and carries no $TAG, so there is nothing to replace."
-          fi
-
-      - name: Refuse to overwrite a pre-existing release on a push
-        if: github.event_name == 'push'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.tag.outputs.tag }}
-          REPO: ${{ github.repository }}
-        run: |
-          set -e
-          set -o pipefail
-          if ! TAGS=$(gh api "repos/$REPO/releases" --paginate --jq '.[] | .tag_name'); then
-            echo "::error::the releases on $REPO could not be listed, so whether $TAG already carries a release is unknown; refusing rather than letting this push reach a create step that would replace a release nobody could check for"
-            exit 1
-          fi
-          if printf '%s\n' "$TAGS" | grep -Fxq "$TAG"; then
-            echo "::error::a release already exists at $TAG, so this push reached a version that has already shipped; dispatch this workflow manually if you meant to replace that release"
-            exit 1
-          fi
-          echo "The release list came back and carries no $TAG, so this push is cutting it for the first time."
-
       # The asset list names the one archive and nothing else. vsix/manifest.json
       # is written beside it by package.mjs so that verify-package.mjs and a
       # person reading the directory can correlate target to archive, and it
       # has no reader outside this repository.
+      #
+      # The tag is the one compute-version already reserved, out of the CLI's
+      # tag namespace. Every dinah CLI tag starts with "v" followed immediately
+      # by a digit (v0.1.126-dev, v0.1.0-beta, v0.1.0), and the extension's
+      # number runs on its own cadence, so the two can meet. The vscode-v prefix
+      # keeps the namespaces disjoint by construction.
       #
       # The paths here are repository-relative rather than relative to the
       # job's working directory, because this step is an action rather than a
@@ -346,10 +239,10 @@ jobs:
       - name: Create the GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.tag.outputs.tag }}
-          name: "Dinah for VS Code ${{ needs.check-version.outputs.version }}"
+          tag_name: ${{ needs.compute-version.outputs.tag }}
+          name: "Dinah for VS Code ${{ needs.compute-version.outputs.version }}"
           body: |
-            Dinah for VS Code, version ${{ needs.check-version.outputs.version }}.
+            Dinah for VS Code, version ${{ needs.compute-version.outputs.version }}.
 
             This extension is a companion to the dinah command-line tool and does not carry a copy of it. Install dinah yourself, then install this extension from the Extensions view ("Install from VSIX...") or with `code --install-extension`; the extension finds dinah on your PATH or at the location the `dinah.path` setting names, and tells you where to get it if it finds neither.
           files: editors/vscode/vsix/dinah-universal.vsix
@@ -377,3 +270,25 @@ jobs:
         run: |
           set -e
           node node_modules/@vscode/vsce/vsce publish --pre-release --skip-duplicate --packagePath vsix/dinah-universal.vsix
+
+  # The tag is reserved before anything is verified, so a run that reserves one
+  # and then fails would leave it pointing at code that never shipped and would
+  # burn that patch number permanently. This deletes it again, and it fires only
+  # when compute-version itself succeeded, because a run that never reserved a
+  # tag has nothing to clean up. release.yml carries the same job for the same
+  # reason.
+  cleanup-tag:
+    needs: [compute-version, ci, package-and-release]
+    if: always() && needs.compute-version.result == 'success' && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # deletes the tag ref this run created
+    steps:
+      - name: Delete the tag this run reserved
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ needs.compute-version.outputs.tag }}
+        run: |
+          echo "This run reserved $TAG and then failed, so the tag is being deleted."
+          gh api -X DELETE "repos/$REPO/git/refs/tags/$TAG"

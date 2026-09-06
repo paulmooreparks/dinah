@@ -1,114 +1,240 @@
-// The extension's version scheme, which stopped being a projection of the
-// CLI's.
+// The extension's version scheme, which is computed per release rather than
+// typed into the manifest.
 //
-// Two properties are what the scheme exists for and are what this asserts. An
-// unpublished archive sorts below every published version, so that a build
-// somebody installs by hand is never mistaken for a release. And two
-// unpublished archives never carry the same version, because two archives
-// sharing one is what made an install hang for minutes and then fail without
-// saying why.
+// package.json's version field is a floor. It names a major.minor line, its
+// patch is always zero, and nothing ever ships the committed string as read.
+// Every released patch is minted from the release history instead, so the
+// assertions below are about that arithmetic and about the guard that keeps the
+// floor a floor. A hand-typed patch in the manifest would otherwise release on
+// a line the manifest did not mean, and it would do so silently.
 //
-// The third assertion is that the derivation is gone. A tag-to-version mapping
-// that came back would be silent: it would produce a plausible number, and
-// only a marketplace that refused an update would ever say so.
+// The scheme this replaced numbered local and CI archives on a reserved 0.0.x
+// line so that a hand-installed archive could never outrank a release. That
+// property is inherited rather than dropped: every release takes the next patch
+// on its own line and reserves it as a tag before anything is packaged, so no
+// second numbering space is left for a release to collide with.
 //
-// The fourth is that package-lock.json still carries the number package.json
-// commits to. npm keeps its own copy there and rewrites it from the manifest on
-// any install, so a pair that has drifted apart hands whoever builds the
-// extension a file modified underneath them, and a release build is a bad place
-// to find that out.
+// Two older assertions stay because nothing here reintroduces what they guard.
+// A tag-to-version derivation that came back would be silent, producing a
+// plausible number that only a marketplace refusing an update would report. And
+// package-lock.json still has to carry the number package.json commits to,
+// because npm rewrites its copy from the manifest on any install and a release
+// build is a bad place to discover a file modified underneath you.
 
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { test } from "node:test";
 
 const extensionRoot = join(__dirname, "..", "..", "..");
-const repoRoot = join(extensionRoot, "..", "..");
 
 /** The version module, imported as ESM from a CommonJS test. */
-async function versionModule(): Promise<{
-	unpublishedVersion: (options: {
-		env?: NodeJS.ProcessEnv;
-		repoRoot: string;
-		count?: (repoRoot: string) => string;
-	}) => string;
-	isUnpublishedVersion: (version: string) => boolean;
-	lockfileVersionDrift: (
-		manifest: { version?: string },
-		lock: { version?: string; packages?: Record<string, { version?: string }> },
-	) => string[];
-}> {
+async function versionModule(): Promise<Record<string, unknown>> {
 	return (await import(
 		pathToFileURL(join(extensionRoot, "scripts", "version.mjs")).href
 	)) as never;
 }
 
-/** Compares two versions the way semver orders them. */
-function orderedBelow(lower: string, higher: string): boolean {
-	const parse = (v: string) => v.split(".").map((part) => Number(part));
-	const [a, b] = [parse(lower), parse(higher)];
-	for (let i = 0; i < 3; i += 1) {
-		if (a[i] !== b[i]) {
-			return a[i] < b[i];
-		}
-	}
-	return false;
+/** The release-version module, imported the same way. */
+async function releaseVersionModule(): Promise<{
+	releaseBase: (committedVersion: string) => string;
+	nextPatch: (tags: string[], base: string) => number;
+	nextReleaseVersion: (tags: string[], committedVersion: string) => string;
+	newestReleaseVersion: (tags: string[]) => string | undefined;
+}> {
+	return (await import(
+		pathToFileURL(join(extensionRoot, "scripts", "release-version.mjs")).href
+	)) as never;
 }
 
-test("a CI archive is numbered by the run number, and two runs differ", async () => {
-	const { unpublishedVersion } = await versionModule();
-	const first = unpublishedVersion({ env: { GITHUB_RUN_NUMBER: "17" }, repoRoot });
-	const second = unpublishedVersion({ env: { GITHUB_RUN_NUMBER: "18" }, repoRoot });
-	assert.equal(first, "0.0.17");
-	assert.equal(second, "0.0.18");
-	assert.notEqual(first, second);
+/** package.mjs, whose packaging body does not run on an import. */
+async function packageModule(): Promise<{
+	resolvePackageVersion: (options: { argv: string[]; manifestVersion: string }) => string;
+}> {
+	return (await import(
+		pathToFileURL(join(extensionRoot, "scripts", "package.mjs")).href
+	)) as never;
+}
+
+/** The committed manifest, read off disk. */
+function committedManifest(): { version: string } {
+	return JSON.parse(readFileSync(join(extensionRoot, "package.json"), "utf8")) as {
+		version: string;
+	};
+}
+
+test("the committed version is a floor whose patch is always zero", () => {
+	// The whole scheme rests on this. releaseBase reads the major.minor line off
+	// the committed string and refuses a nonzero patch, so a hand-typed release
+	// number fails the release workflow rather than shipping. This is the same
+	// guard read from the other end: the file itself.
+	const { version } = committedManifest();
+	assert.match(
+		version,
+		/^\d+\.\d+\.0$/u,
+		`package.json carries ${version}, and the committed version is a floor whose patch component is always 0; the released patch is computed per merge and never written back`,
+	);
 });
 
-test("a local archive is numbered by the checkout's commit count", async () => {
-	const { unpublishedVersion } = await versionModule();
-	// The count arrives injected rather than measured, because the unit layer
-	// starts no processes. That the injected function is the one that asks git
-	// for the count is the default in version.mjs, and the packaging run is
-	// what exercises it.
-	assert.equal(unpublishedVersion({ env: {}, repoRoot, count: () => "412" }), "0.0.412");
-	assert.equal(unpublishedVersion({ env: {}, repoRoot, count: () => "413" }), "0.0.413");
+test("the release line is read off the floor and a nonzero committed patch is refused", async () => {
+	const { releaseBase } = await releaseVersionModule();
+	assert.equal(releaseBase("1.2.0"), "1.2");
+	assert.equal(releaseBase("0.7.0"), "0.7");
+	assert.equal(releaseBase("12.30.0"), "12.30");
 	assert.throws(
-		() => unpublishedVersion({ env: {}, repoRoot, count: () => "" }),
-		/no ordinal can be derived/,
-		"an unanswerable commit count produced a version anyway",
+		() => releaseBase("1.2.3"),
+		(err: Error) => /1\.2\.3/u.test(err.message) && /patch/u.test(err.message),
+		"a committed version carrying a nonzero patch was accepted as a release line",
+	);
+	assert.throws(
+		() => releaseBase("1.2"),
+		/1\.2/u,
+		"a committed version that is not major.minor.patch was accepted as a release line",
 	);
 });
 
-test("every unpublished archive sorts below the published version", async () => {
-	const { unpublishedVersion, isUnpublishedVersion } = await versionModule();
-	const manifest = JSON.parse(
-		readFileSync(join(extensionRoot, "package.json"), "utf8"),
-	) as { version: string };
+test("the next patch is counted on its own line and nobody else's", async () => {
+	const { nextPatch, nextReleaseVersion } = await releaseVersionModule();
+	// The fixture mixes lines on purpose. An implementation matching "1.0" as a
+	// prefix without anchoring the patch to the line reads 1.1.0 as a 1.0 tag,
+	// and one that never filters the namespace reads the CLI's tags as its own.
+	const tags = [
+		"vscode-v1.0.0",
+		"vscode-v1.0.1",
+		"vscode-v1.1.0",
+		"dinah-v1.0.5",
+		"v1.0.9",
+		"v0.1.126-dev",
+	];
+	assert.equal(nextPatch(tags, "1.0"), 2);
+	assert.equal(nextPatch(tags, "1.1"), 1);
+	assert.equal(nextPatch(tags, "2.0"), 0, "a line nothing has shipped on does not start at 0");
+	assert.equal(nextPatch([], "1.0"), 0);
+	// The highest wins rather than the last, and ten outranks nine numerically
+	// where it loses lexically.
+	assert.equal(nextPatch(["vscode-v1.0.10", "vscode-v1.0.9"], "1.0"), 11);
+	assert.equal(nextReleaseVersion(tags, "1.0.0"), "1.0.2");
+	assert.equal(nextReleaseVersion(tags, "2.0.0"), "2.0.0");
+});
 
-	assert.ok(
-		!isUnpublishedVersion(manifest.version),
-		`package.json carries ${manifest.version}, which is on the line reserved for unpublished archives`,
+test("the newest release is the highest version rather than the last or the largest string", async () => {
+	const { newestReleaseVersion } = await releaseVersionModule();
+	assert.equal(newestReleaseVersion([]), undefined);
+	assert.equal(
+		newestReleaseVersion(["v1.2.3", "dinah-v1.0.5", "v0.1.0-beta"]),
+		undefined,
+		"a list carrying only CLI tags reported an extension release",
 	);
-	// A run number climbs without limit, so the ordering cannot rest on the
-	// patch. It rests on the major, which is why the published line starts at
-	// 1.0.0 and the unpublished line never leaves 0.0.
-	for (const run of ["1", "999999"]) {
-		const unpublished = unpublishedVersion({ env: { GITHUB_RUN_NUMBER: run }, repoRoot });
-		assert.ok(isUnpublishedVersion(unpublished), `${unpublished} is not on the 0.0.x line`);
-		assert.ok(
-			orderedBelow(unpublished, manifest.version),
-			`${unpublished} does not sort below the published ${manifest.version}`,
+	assert.equal(
+		newestReleaseVersion(["vscode-v1.0.0", "vscode-v2.0.0", "vscode-v1.9.9"]),
+		"2.0.0",
+		"the newest release was read off the list's order rather than off the numbers",
+	);
+	assert.equal(
+		newestReleaseVersion(["vscode-v1.9.0", "vscode-v1.10.0"]),
+		"1.10.0",
+		"the versions were compared as strings, where 1.9.0 outranks 1.10.0",
+	);
+	assert.equal(
+		newestReleaseVersion(["vscode-v1.2.5", "v9.9.9", "vscode-v1.3.0", "vscode-v1.3.0-rc"]),
+		"1.3.0",
+		"a tag outside the vscode-v<major>.<minor>.<patch> shape was compared as if it were a release",
+	);
+});
+
+test("the packaged version is given rather than chosen, and a bad one is refused", async () => {
+	const { resolvePackageVersion } = await packageModule();
+	assert.equal(
+		resolvePackageVersion({ argv: [], manifestVersion: "1.0.0" }),
+		"1.0.0",
+		"packaging with no --version no longer carries the committed version",
+	);
+	// --published used to select the published path. It selects nothing now, so
+	// an old caller still passing it gets the committed version exactly as a
+	// caller passing no flags does.
+	assert.equal(
+		resolvePackageVersion({ argv: ["--published"], manifestVersion: "1.0.0" }),
+		"1.0.0",
+		"--published still steers the version choice",
+	);
+	assert.equal(resolvePackageVersion({ argv: ["--version", "1.4.7"], manifestVersion: "1.0.0" }), "1.4.7");
+	assert.equal(resolvePackageVersion({ argv: ["--version=1.4.7"], manifestVersion: "1.0.0" }), "1.4.7");
+	for (const bad of ["1.4", "v1.4.7", "1.4.7-dev", "", "not-a-version"]) {
+		assert.throws(
+			() => resolvePackageVersion({ argv: ["--version", bad], manifestVersion: "1.0.0" }),
+			(err: Error) => err.message.includes(JSON.stringify(bad)),
+			`--version ${JSON.stringify(bad)} was packaged instead of refused`,
 		);
 	}
+	assert.throws(
+		() => resolvePackageVersion({ argv: ["--version"], manifestVersion: "1.0.0" }),
+		/--version/u,
+		"--version with nothing after it packaged something",
+	);
+});
+
+test("print-newest-version tells an absent release apart from a version", () => {
+	// Both exit paths are driven for real, because the caller is a PowerShell
+	// script that decides on the exit status. A wrapper that always exits zero,
+	// or that reports the empty case as an ordinary version string, would leave
+	// publish-extension.ps1 packaging a number nobody released.
+	const script = join(extensionRoot, "scripts", "print-newest-version.mjs");
+	const dir = mkdtempSync(join(tmpdir(), "dinah-newest-"));
+	try {
+		const none = join(dir, "none.txt");
+		writeFileSync(none, "v1.2.3\ndinah-v1.0.5\n", "utf8");
+		const absent = spawnSync(process.execPath, [script, none], { encoding: "utf8" });
+		assert.notEqual(absent.status, 0, "an absent release exited zero");
+		assert.match(
+			absent.stderr,
+			/no extension release exists yet/iu,
+			"the absent-release path did not say that no extension release exists yet",
+		);
+		assert.equal(absent.stdout.trim(), "", "the absent-release path printed a version anyway");
+
+		const found = spawnSync(process.execPath, [script, "-"], {
+			encoding: "utf8",
+			input: "vscode-v1.2.5\nvscode-v1.3.0\n",
+		});
+		assert.equal(found.status, 0, `reading a release list failed: ${found.stderr}`);
+		assert.equal(found.stdout.trim(), "1.3.0");
+	} finally {
+		rmSync(dir, { recursive: true, force: true });
+	}
+});
+
+test("the unpublished-ordinal machinery is gone and the lockfile check is not", async () => {
+	const module = await versionModule();
+	for (const name of [
+		"UNPUBLISHED_PREFIX",
+		"commitCount",
+		"unpublishedVersion",
+		"isUnpublishedVersion",
+	]) {
+		assert.equal(
+			module[name],
+			undefined,
+			`version.mjs still exports ${name}, so the retired 0.0.x numbering is still reachable`,
+		);
+	}
+	assert.equal(
+		typeof module.lockfileVersionDrift,
+		"function",
+		"version.mjs no longer exports lockfileVersionDrift, which had nothing to do with the retired numbering",
+	);
 });
 
 test("package-lock.json carries the version package.json is authoritative for", async () => {
-	const { lockfileVersionDrift } = await versionModule();
-	const manifest = JSON.parse(
-		readFileSync(join(extensionRoot, "package.json"), "utf8"),
-	) as { version: string };
+	const { lockfileVersionDrift } = (await versionModule()) as unknown as {
+		lockfileVersionDrift: (
+			manifest: { version?: string },
+			lock: { version?: string; packages?: Record<string, { version?: string }> },
+		) => string[];
+	};
+	const manifest = committedManifest();
 	const lock = JSON.parse(
 		readFileSync(join(extensionRoot, "package-lock.json"), "utf8"),
 	) as { version?: string; packages?: Record<string, { version?: string }> };
@@ -121,7 +247,12 @@ test("package-lock.json carries the version package.json is authoritative for", 
 });
 
 test("the drift check reads both places npm keeps the number", async () => {
-	const { lockfileVersionDrift } = await versionModule();
+	const { lockfileVersionDrift } = (await versionModule()) as unknown as {
+		lockfileVersionDrift: (
+			manifest: { version?: string },
+			lock: { version?: string; packages?: Record<string, { version?: string }> },
+		) => string[];
+	};
 	// The assertion above passes on a lockfile that agrees and on a check that
 	// looks nowhere, so the check is driven wrong here and both sites have to
 	// come back. A lockfile carrying neither site counts as drift for the same
@@ -184,12 +315,35 @@ test("the README says the two numbers are unrelated and names what to read inste
 	// README states a problem and offers no answer.
 	const readme = readFileSync(join(extensionRoot, "README.md"), "utf8");
 	assert.ok(
-		/unrelated by design/.test(readme),
+		/unrelated by design/u.test(readme),
 		"the README no longer says the extension's version and the CLI's are unrelated by design",
 	);
 	assert.ok(
-		/profile revision/.test(readme) && /--json version/.test(readme),
+		/profile revision/u.test(readme) && /--json version/u.test(readme),
 		"the README no longer names the profile revision as what a reader checks instead",
+	);
+});
+
+test("the user-facing prose no longer describes the retired 0.0 line", () => {
+	// Both sentences told a reader that an archive numbered 0.0.x is not a
+	// release, and one of them is on the marketplace listing. The line is gone,
+	// so the sentences are false rather than merely stale.
+	const readme = readFileSync(join(extensionRoot, "README.md"), "utf8");
+	assert.ok(
+		!readme.includes("begins `0.0.`") && !readme.includes("0.0.x"),
+		"the extension README still describes the retired 0.0 line",
+	);
+	const releaseDoc = readFileSync(
+		join(extensionRoot, "..", "..", "docs", "release.md"),
+		"utf8",
+	);
+	const section = releaseDoc.slice(
+		releaseDoc.indexOf("## The VS Code extension's numbers are its own"),
+	);
+	const ends = section.indexOf("\n## ", 1);
+	assert.ok(
+		!(ends === -1 ? section : section.slice(0, ends)).includes("0.0.x"),
+		"docs/release.md's extension section still describes the retired 0.0.x line",
 	);
 });
 
@@ -213,7 +367,11 @@ test("nothing derives the extension's version from a dinah release tag", () => {
 		"publish-extension.ps1 still derives a version from the tag's dev counter",
 	);
 	assert.ok(
-		publish.includes("--published"),
-		"publish-extension.ps1 no longer tells the packaging step that these archives are the published ones",
+		!publish.includes("--published"),
+		"publish-extension.ps1 still passes the retired --published flag, which selects nothing and would package the committed floor",
+	);
+	assert.ok(
+		publish.includes("npm run package -- --version $version"),
+		"publish-extension.ps1 no longer packages the version it looked up",
 	);
 });

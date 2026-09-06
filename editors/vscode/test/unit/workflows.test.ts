@@ -13,6 +13,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 
+import { load as loadYaml } from "js-yaml";
+
 const repoRoot = join(__dirname, "..", "..", "..", "..", "..");
 const ci = readFileSync(join(repoRoot, ".github", "workflows", "ci.yml"), "utf8");
 const release = readFileSync(
@@ -31,6 +33,53 @@ const gofmtAction = readFileSync(
 	join(repoRoot, ".github", "actions", "gofmt-check", "action.yml"),
 	"utf8",
 );
+
+// The extension release workflow read as a document rather than as text.
+//
+// Several of the decisions below are about the shape of the file (which paths
+// the trigger names, which jobs exist, what each one depends on) and a text
+// search answers those only by accident. js-yaml is the parser, and it keeps
+// `on` as the string key GitHub means: YAML 1.1 resolved that token as a
+// boolean, and js-yaml 4 implements the YAML 1.2 core schema, whose bool type
+// resolves only true and false.
+//
+// What this still cannot do is run the workflow. A file that parses and carries
+// the right keys can still fail on a real trigger, and nothing in this
+// repository executes a workflow (dinah-401). Each assertion below is a claim
+// about the file, never about a run.
+interface WorkflowJob {
+	needs?: string | string[];
+	if?: string;
+	uses?: string;
+	permissions?: Record<string, string>;
+	outputs?: Record<string, string>;
+	steps?: {
+		name?: string;
+		id?: string;
+		if?: string;
+		uses?: string;
+		run?: string;
+		with?: Record<string, string>;
+		env?: Record<string, string>;
+	}[];
+}
+interface Workflow {
+	on: { push?: { branches?: string[]; paths?: string[] }; workflow_dispatch?: unknown };
+	jobs: Record<string, WorkflowJob>;
+}
+const vscodeReleaseDoc = loadYaml(vscodeRelease) as Workflow;
+
+/** Every step of one job, or an empty list when the job runs no steps of its own. */
+function stepsOf(job: string): NonNullable<WorkflowJob["steps"]> {
+	return vscodeReleaseDoc.jobs[job]?.steps ?? [];
+}
+
+/** Every step name in the whole workflow. */
+function everyStepName(): string[] {
+	return Object.keys(vscodeReleaseDoc.jobs).flatMap((job) =>
+		stepsOf(job).map((step) => step.name ?? ""),
+	);
+}
 
 test("the gofmt check is scoped to the Go trees", () => {
 	// `gofmt -l .` walks into editors/vscode/node_modules/, so an npm
@@ -197,192 +246,191 @@ test("ci.yml carries an extension job on both platforms this code is sensitive t
 // everything in the output directory publishes an internal manifest, and a
 // publish step without its secret gate tries to publish on every run.
 
-test("the extension release fires on main and only for the extension manifest", () => {
-	assert.ok(
-		/^on:\n {2}push:\n {4}branches: \[main\]\n {4}paths:\n {6}- "editors\/vscode\/package\.json"$/m.test(
-			vscodeRelease,
-		),
-		"vscode-release.yml no longer triggers on pushes to main touching only editors/vscode/package.json",
+test("the extension release fires on main for anything under the extension", () => {
+	// The trigger used to name the manifest alone, because the version was a
+	// field somebody typed and a push that did not touch it released nothing.
+	// Nobody types it now, so a code, docs or test change under editors/vscode
+	// produces an archive whose bytes differ, and the operator's rule is that a
+	// new archive means a new release.
+	const push = vscodeReleaseDoc.on.push;
+	assert.deepEqual(push?.branches, ["main"], "the extension release no longer fires on main");
+	assert.deepEqual(
+		push?.paths,
+		["editors/vscode/**"],
+		"the push trigger's paths filter is no longer exactly the extension directory, so it either misses extension changes or fires on pushes outside it",
 	);
 });
 
 test("the extension release can also be started by hand, with nothing to fill in", () => {
-	// A version-change gate cannot cut the first release at the version the
-	// manifest already carries, which is how 1.0.0 became unreleasable. The
-	// dispatch trigger takes no inputs because the manual path always releases
-	// whatever version is currently committed.
+	// The dispatch trigger takes no inputs, because a dispatched run computes
+	// its version exactly as a push does rather than asking anybody for one.
 	assert.ok(
-		/^ {2}workflow_dispatch: \{\}$/m.test(vscodeRelease),
-		"vscode-release.yml can no longer be dispatched by hand, so the version already in the manifest cannot be released",
+		"workflow_dispatch" in vscodeReleaseDoc.on,
+		"vscode-release.yml can no longer be dispatched by hand",
 	);
-	const trigger = vscodeRelease.slice(
-		vscodeRelease.indexOf("\non:"),
-		vscodeRelease.indexOf("\npermissions:"),
-	);
+	const dispatch = vscodeReleaseDoc.on.workflow_dispatch;
 	assert.ok(
-		!/workflow_dispatch:\s*\n\s+inputs:/.test(trigger),
-		"the dispatch trigger asks for an input, so a manual run no longer releases the committed version on its own",
+		dispatch === null || dispatch === undefined || !("inputs" in (dispatch as object)),
+		"the dispatch trigger asks for an input, so a manual run no longer cuts a release on its own",
 	);
 });
 
-test("each trigger reads its version from the step that can answer for it", () => {
-	// A dispatched run carries no github.event.before to diff against, so the
-	// push path's comparison would report no change and skip every job below
-	// it. That is the failure this card exists to prevent, and it looks like a
-	// working trigger from the outside because the run starts and goes green.
-	const job = vscodeRelease.slice(
-		vscodeRelease.indexOf("\n  check-version:"),
-		vscodeRelease.indexOf("\n  ci:"),
-	);
-	const diff = job.slice(
-		job.indexOf("- name: Read the version before and after this push"),
-		job.indexOf("- name: Read the committed version for a manual run"),
-	);
+test("one job computes the version for both triggers", () => {
+	// The workflow used to carry two version-reading steps, one per trigger, and
+	// each was gated on github.event_name. That shape is what made the first
+	// release impossible to cut from a push, and a dispatched run released
+	// whatever the manifest currently said. compute-version answers for both
+	// triggers by computing the next patch from the release history, so nothing
+	// in it branches on which trigger fired.
+	const jobs = Object.keys(vscodeReleaseDoc.jobs);
 	assert.ok(
-		diff.includes("if: github.event_name == 'push'"),
-		"the push comparison no longer restricts itself to pushes, so a dispatched run would diff against a commit that does not exist",
+		!jobs.includes("check-version"),
+		"the job that compared the manifest across the push is still here",
 	);
-	const manual = job.slice(
-		job.indexOf("- name: Read the committed version for a manual run"),
+	assert.ok(jobs.includes("compute-version"), "there is no compute-version job");
+	for (const gone of [
+		"Read the version before and after this push",
+		"Read the committed version for a manual run",
+	]) {
+		assert.ok(
+			!everyStepName().includes(gone),
+			`the step "${gone}" survived, so the per-trigger version reading is still here`,
+		);
+	}
+	const compute = vscodeReleaseDoc.jobs["compute-version"];
+	for (const step of compute.steps ?? []) {
+		assert.equal(
+			step.if,
+			undefined,
+			`compute-version's step "${step.name ?? step.uses ?? "(unnamed)"}" is conditional, so it does not answer for both triggers`,
+		);
+	}
+	assert.deepEqual(
+		compute.outputs,
+		{
+			tag: "${{ steps.version.outputs.tag }}",
+			version: "${{ steps.version.outputs.version }}",
+		},
+		"compute-version no longer publishes both the tag and the version every downstream job reads",
 	);
-	assert.ok(
-		manual.includes("if: github.event_name == 'workflow_dispatch'"),
-		"the manual version read is no longer restricted to dispatched runs",
-	);
-	assert.ok(
-		manual.includes(`node -p "require('./package.json').version"`) &&
-			manual.includes('echo "changed=true" >> "$GITHUB_OUTPUT"'),
-		"the manual step no longer reads the committed version and declares it releasable",
-	);
-	// The job's outputs name steps.manual.outputs.version whether or not the
-	// step ever writes it, and the create step reads that output for both the
-	// release's name and its body. Without this assertion the write can be
-	// deleted and the suite stays green while a dispatched run cuts a release
-	// titled "Dinah for VS Code " with an empty version in it.
-	assert.ok(
-		manual.includes('echo "version=$VERSION" >> "$GITHUB_OUTPUT"'),
-		"the manual step no longer publishes the version it read, so the release it cuts would be named and described with an empty version",
-	);
-	assert.ok(
-		!/github\.event\.(before|created)/.test(manual),
-		"the manual step consults a push-only field, which carries nothing on a dispatched run",
-	);
-	assert.ok(
-		job.includes(
-			"changed: ${{ steps.diff.outputs.changed || steps.manual.outputs.changed }}",
-		) &&
-			job.includes(
-				"version: ${{ steps.diff.outputs.version || steps.manual.outputs.version }}",
-			),
-		"the job's outputs no longer fall back to whichever of the two version steps ran",
-	);
+	// Every job below it reads those outputs rather than recomputing anything.
+	for (const job of ["ci", "package-and-release", "cleanup-tag"]) {
+		const needs = vscodeReleaseDoc.jobs[job].needs;
+		const list = typeof needs === "string" ? [needs] : (needs ?? []);
+		assert.ok(
+			list.includes("compute-version"),
+			`${job} no longer waits on compute-version`,
+		);
+	}
 });
 
-test("a tag that already carries a release is replaced by hand and refused on a push", () => {
-	// softprops/action-gh-release documents that an existing release at the
-	// tag is updated with the run's assets rather than refused, so the push
-	// half of the operator's 2026-09-06 ruling is a step rather than an
-	// absence. Delete that step and a revert walking the manifest back to a
-	// released version silently replaces that release's archive.
-	const replace = vscodeRelease.slice(
-		vscodeRelease.indexOf(
-			"- name: Replace a pre-existing release at this tag on a manual run",
+test("nothing in the release job reads the version back out of the manifest", () => {
+	// This is the trap the redesign has to avoid. package.mjs writes the
+	// computed version into package.json, packages, and restores the committed
+	// floor in a finally block, so any later step reading package.json's version
+	// reads the floor. A run doing that would tag and title every release
+	// 1.0.0 for ever while the archive inside carried the real number.
+	const release = vscodeReleaseDoc.jobs["package-and-release"];
+	for (const step of release.steps ?? []) {
+		const text = JSON.stringify(step);
+		// The quoting varies with how the read is spelled, so the pattern covers
+		// the bare form and both quoted ones rather than one literal substring.
+		// What used to sit here was `node -p "require('./package.json').version"`,
+		// and a check written against `package.json).version` alone walks past it
+		// because of the apostrophe in the middle.
+		assert.ok(
+			!/package\.json(?:\\?['"])?\)\.version/u.test(text),
+			`the step "${step.name ?? "(unnamed)"}" reads package.json's version back out after packaging restored the floor`,
+		);
+		assert.ok(
+			!text.includes("steps.tag.outputs"),
+			`the step "${step.name ?? "(unnamed)"}" reads a tag computed inside this job rather than the one compute-version reserved`,
+		);
+	}
+	const create = (release.steps ?? []).find(
+		(step) => step.name === "Create the GitHub Release",
+	);
+	assert.ok(create !== undefined, "the release is no longer created");
+	assert.equal(create.with?.tag_name, "${{ needs.compute-version.outputs.tag }}");
+	assert.ok(
+		create.with?.name?.includes("${{ needs.compute-version.outputs.version }}"),
+		"the release's title no longer carries the version compute-version minted",
+	);
+	const packaging = (release.steps ?? []).find((step) => step.name === "Package the archive");
+	assert.ok(
+		packaging?.run?.includes(
+			'npm run package -- --version "${{ needs.compute-version.outputs.version }}"',
 		),
-		vscodeRelease.indexOf("- name: Refuse to overwrite a pre-existing release on a push"),
-	);
-	assert.ok(
-		replace.includes("if: github.event_name == 'workflow_dispatch'"),
-		"the delete-and-recreate step is no longer restricted to dispatched runs, so a push could destroy a published release",
-	);
-	assert.ok(
-		replace.includes('gh api "repos/$REPO/releases"') &&
-			replace.includes(`grep -Fxq "$TAG"`) &&
-			replace.includes('gh release delete "$TAG" --repo "$REPO" --yes --cleanup-tag'),
-		"the manual path no longer decides by testing this tag against the release list before deleting",
-	);
-	assert.ok(
-		replace.includes("::error::the releases on $REPO could not be listed") &&
-			replace.includes("exit 1"),
-		"the manual path no longer fails when it cannot list the releases, so a lookup that could not answer reads as a tag with nothing on it",
-	);
-	const refuse = vscodeRelease.slice(
-		vscodeRelease.indexOf("- name: Refuse to overwrite a pre-existing release on a push"),
-		vscodeRelease.indexOf("- name: Create the GitHub Release"),
-	);
-	assert.ok(
-		refuse.includes("if: github.event_name == 'push'"),
-		"the refusal is no longer restricted to pushes, so a manual re-cut would fail on the release it came to replace",
-	);
-	assert.ok(
-		refuse.includes('gh api "repos/$REPO/releases"') &&
-			refuse.includes(`grep -Fxq "$TAG"`) &&
-			refuse.includes("::error::a release already exists at $TAG") &&
-			refuse.includes("exit 1"),
-		"a push reaching an already-released version no longer fails loudly",
-	);
-	// This is the assertion that closes the round-two finding. gh documents
-	// exit code 1 for a command that "fails for any reason", so a lookup
-	// reading absence off a non-zero exit cannot tell a tag with no release
-	// on it from a tag it was unable to ask about, and on the second one this
-	// step would wave the run through to an action documented to update an
-	// existing release in place.
-	assert.ok(
-		refuse.includes("::error::the releases on $REPO could not be listed"),
-		"the push refusal no longer fails when it cannot list the releases, so an API error, a rate limit or a token problem lets the run overwrite a published release",
-	);
-	assert.ok(
-		!refuse.includes("gh release view") && !replace.includes("gh release view"),
-		"a collision step is back to asking gh release view, whose non-zero exit means both 'no such release' and 'could not look'",
-	);
-	assert.ok(
-		!refuse.includes("gh release delete"),
-		"the push path deletes a release, which the operator's ruling reserves for a manual run",
-	);
-	// Both steps have to sit ahead of the create step. Behind it they would
-	// delete or refuse the release this run had already made.
-	assert.ok(
-		vscodeRelease.indexOf(
-			"- name: Replace a pre-existing release at this tag on a manual run",
-		) < vscodeRelease.indexOf("- name: Create the GitHub Release") &&
-			vscodeRelease.indexOf(
-				"- name: Refuse to overwrite a pre-existing release on a push",
-			) < vscodeRelease.indexOf("- name: Create the GitHub Release"),
-		"a pre-existing release is handled after the release is created rather than before it",
-	);
-	assert.ok(
-		vscodeRelease.indexOf("- name: Tag this extension version") <
-			vscodeRelease.indexOf(
-				"- name: Replace a pre-existing release at this tag on a manual run",
-			),
-		"the tag these two steps read is computed after they run",
+		"the packaging step is no longer handed the version compute-version minted",
 	);
 });
 
-test("the release trigger compares the version field rather than the file", () => {
-	// The paths filter says the file changed and says nothing about which
-	// field. Without this comparison a push that renamed a command or edited
-	// the npm scripts cuts a release the marketplace then refuses, because it
-	// already carries that version.
-	const step = vscodeRelease.slice(
-		vscodeRelease.indexOf("- name: Read the version before and after this push"),
-		vscodeRelease.indexOf("\n  ci:"),
+test("the collision steps that only made sense under a typed version are gone", () => {
+	// Both existed because a dispatched run could land on a version a push had
+	// already released. compute-version reserves an unused tag before anything
+	// is built, so neither can fire. The tagging step went with them, because it
+	// read the manifest after packaging had put the floor back.
+	for (const gone of [
+		"Replace a pre-existing release at this tag on a manual run",
+		"Refuse to overwrite a pre-existing release on a push",
+		"Tag this extension version",
+	]) {
+		assert.ok(
+			!everyStepName().includes(gone),
+			`the step "${gone}" survived, so the redesign was layered on the old mechanism instead of replacing it`,
+		);
+	}
+});
+
+test("the tag is reserved before the build and deleted when the run fails", () => {
+	// Two pushes landing close together read the same release list and compute
+	// the same next patch. Only the first POST to git/refs succeeds, so the
+	// reservation is what makes the race loud rather than silent, and it has to
+	// happen before anything is built. A run that reserves and then fails would
+	// otherwise burn that number for ever, which is what cleanup-tag prevents.
+	// release.yml carries the same pair for the same reason.
+	const compute = vscodeReleaseDoc.jobs["compute-version"];
+	const reserve = (compute.steps ?? []).find((step) =>
+		step.run?.includes('gh api -X POST "repos/$REPO/git/refs"'),
 	);
+	assert.ok(reserve !== undefined, "compute-version no longer reserves the tag it minted");
 	assert.ok(
-		step.includes("BEFORE_SHA: ${{ github.event.before }}") &&
-			step.includes("AFTER_SHA: ${{ github.sha }}"),
-		"the version check no longer reads the manifest at both ends of the push",
+		reserve.run?.includes('-f ref="refs/tags/$TAG"'),
+		"the reservation no longer creates the tag ref this run computed",
 	);
-	assert.ok(
-		step.includes("node scripts/check-version-change.mjs /tmp/after.json"),
-		"the version check no longer calls the tested comparison",
+	assert.equal(
+		compute.permissions?.contents,
+		"write",
+		"compute-version cannot create a tag ref without contents: write",
 	);
-	const ciJob = vscodeRelease.slice(
-		vscodeRelease.indexOf("\n  ci:"),
-		vscodeRelease.indexOf("\n  package-and-release:"),
+	// Reserving inside compute-version is what puts it ahead of the build, since
+	// both later jobs wait on this one.
+	for (const job of ["ci", "package-and-release"]) {
+		const needs = vscodeReleaseDoc.jobs[job].needs;
+		const list = typeof needs === "string" ? [needs] : (needs ?? []);
+		assert.ok(list.includes("compute-version"), `${job} does not wait for the reservation`);
+	}
+
+	const cleanup = vscodeReleaseDoc.jobs["cleanup-tag"];
+	assert.ok(cleanup !== undefined, "no job deletes the tag a failed run reserved");
+	assert.deepEqual(
+		cleanup.needs,
+		["compute-version", "ci", "package-and-release"],
+		"cleanup-tag no longer watches every job that can leave the reserved tag orphaned",
 	);
-	assert.ok(
-		ciJob.includes("if: needs.check-version.outputs.changed == 'true'"),
-		"the first job downstream of the version check is no longer gated on the version having changed",
+	assert.equal(
+		cleanup.if,
+		"always() && needs.compute-version.result == 'success' && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'))",
+		"cleanup-tag no longer fires exactly when a reservation succeeded and something after it failed or was cancelled",
+	);
+	const deletion = (cleanup.steps ?? []).find((step) =>
+		step.run?.includes('gh api -X DELETE "repos/$REPO/git/refs/tags/$TAG"'),
+	);
+	assert.ok(deletion !== undefined, "cleanup-tag no longer deletes the tag ref");
+	assert.equal(
+		deletion.env?.TAG,
+		"${{ needs.compute-version.outputs.tag }}",
+		"cleanup-tag deletes a tag other than the one compute-version reserved",
 	);
 });
 
@@ -418,10 +466,19 @@ const REDUCING_JQ = [
 	"| length",
 ];
 
+// A write is not a read, and pagination is meaningless on one. The tag this
+// workflow reserves and the tag a failed run deletes are both single-resource
+// calls that name their method, so they are held out here rather than being
+// made to carry a --paginate flag that would say nothing.
 const ghCommands = vscodeRelease
 	.replace(/\\\n\s*/g, " ")
 	.split("\n")
-	.filter((line) => line.includes("gh api") && !line.trim().startsWith("#"));
+	.filter(
+		(line) =>
+			line.includes("gh api") &&
+			!line.trim().startsWith("#") &&
+			!/-X (?:POST|PATCH|PUT|DELETE)\b/.test(line),
+	);
 
 test("every gh read asks over the whole collection rather than over one page", () => {
 	assert.ok(ghCommands.length > 0, "the workflow no longer calls gh api at all");
@@ -463,19 +520,22 @@ test("every gh read asks over the whole collection rather than over one page", (
 	}
 });
 
-test("a first push to a ref is detected by the field GitHub documents", () => {
-	// The all-zero SHA appears in no GitHub documentation of the push
-	// payload, and the workbench refuses a branch point resting on an
-	// external system's undocumented behaviour. github.event.created answers
-	// the same question as a field GitHub commits to.
-	assert.ok(
-		vscodeRelease.includes("REF_CREATED: ${{ github.event.created }}") &&
-			vscodeRelease.includes('[ "$REF_CREATED" != "true" ]'),
-		"the workflow no longer decides a first push by the documented created field",
-	);
+test("the workflow consults no field only one of its two triggers carries", () => {
+	// The push path used to diff the manifest across github.event.before, which
+	// a dispatched run does not carry, and it decided whether there was an
+	// earlier commit from github.event.created. Neither field exists on both
+	// triggers, and compute-version answers for both, so reading either one
+	// again would reintroduce a path that works under one trigger and silently
+	// skips everything under the other.
+	for (const field of ["github.event.before", "github.event.created"]) {
+		assert.ok(
+			!vscodeRelease.includes(field),
+			`the workflow reads ${field}, which carries nothing on a dispatched run`,
+		);
+	}
 	assert.ok(
 		!/0{20,}/.test(vscodeRelease),
-		"the workflow compares a SHA against an all-zero sentinel again",
+		"the workflow compares a SHA against an all-zero sentinel, which appears in no GitHub documentation of the push payload",
 	);
 });
 
@@ -526,8 +586,10 @@ test("the packaging step carries the paired release the status bar reports", () 
 		"the packaging step no longer carries DINAH_PAIRED_RELEASE",
 	);
 	assert.ok(
-		step.includes("npm run package -- --published"),
-		"the packaging step no longer packages the published version",
+		step.includes(
+			'npm run package -- --version "${{ needs.compute-version.outputs.version }}"',
+		),
+		"the packaging step no longer packages the version compute-version minted, so it would fall back to the committed floor",
 	);
 	assert.ok(
 		step.includes("npm run verify-package"),
@@ -538,7 +600,7 @@ test("the packaging step carries the paired release the status bar reports", () 
 test("the run fails unless exactly one archive was produced", () => {
 	const step = vscodeRelease.slice(
 		vscodeRelease.indexOf("- name: Confirm exactly one archive was produced"),
-		vscodeRelease.indexOf("- name: Tag this extension version"),
+		vscodeRelease.indexOf("- name: Create the GitHub Release"),
 	);
 	assert.ok(
 		step.includes("[ ! -f vsix/dinah-universal.vsix ]") && step.includes('"$FOUND" != "1"'),
@@ -555,8 +617,10 @@ test("the release is tagged out of the CLI's tag namespace and carries one file"
 	// extension's version runs on its own cadence and can reach a number the
 	// CLI reaches too, so the two namespaces are kept disjoint by the prefix
 	// rather than by the numbers not having collided yet.
+	const compute = vscodeReleaseDoc.jobs["compute-version"];
+	const minted = (compute.steps ?? []).find((step) => step.run?.includes("TAG="));
 	assert.ok(
-		vscodeRelease.includes('echo "tag=vscode-v$VERSION" >> "$GITHUB_OUTPUT"'),
+		minted?.run?.includes('TAG="vscode-v$VERSION"'),
 		"the extension release no longer tags itself out of the CLI's tag namespace",
 	);
 	const step = vscodeRelease.slice(
@@ -588,14 +652,14 @@ test("the extension release depends on this commit's CI rather than polling it",
 		),
 		"the extension release no longer calls ci.yml as a reusable workflow",
 	);
-	assert.ok(
-		vscodeRelease.includes("needs: [check-version, ci]"),
+	assert.deepEqual(
+		vscodeReleaseDoc.jobs["package-and-release"].needs,
+		["compute-version", "ci"],
 		"the packaging job no longer waits for CI",
 	);
-	assert.ok(
-		vscodeRelease.includes(
-			"if: needs.check-version.result == 'success' && needs.ci.result == 'success'",
-		),
+	assert.equal(
+		vscodeReleaseDoc.jobs["package-and-release"].if,
+		"needs.compute-version.result == 'success' && needs.ci.result == 'success'",
 		"the packaging job no longer refuses every CI result that is not the literal success",
 	);
 	assert.ok(

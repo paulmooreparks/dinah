@@ -71,6 +71,25 @@ function valueImportOf(mod: string): RegExp {
 	return new RegExp(`^import (?!type )[^\\n]*from "${mod}";?$`, "m");
 }
 
+/**
+ * The unit files allowed to start a process, and what each one buys by it.
+ *
+ * The rule below is otherwise absolute, so every entry here is a decision
+ * somebody has to defend. Both of these check a command-line contract, which is
+ * a claim about what happens when the thing is run, and a file read cannot make
+ * that claim: a wrapper that always exits zero and a script that reports a
+ * failed lookup as an absent release both look right in their own source. The
+ * processes are node, which is already running, and pwsh, which every platform
+ * this suite runs on carries; neither needs a Go toolchain and neither builds
+ * anything, so between them they cost the layer under two seconds.
+ */
+const MAY_START_A_PROCESS: Record<string, string> = {
+	"unit/version-scheme.test.ts":
+		"drives print-newest-version.mjs's two exit paths, which are the contract publish-extension.ps1 reads",
+	"unit/publish-script.test.ts":
+		"runs publish-extension.ps1 against stubbed gh, npm and vsce, which is the only way to tell its three release-lookup outcomes apart",
+};
+
 test("no unit-test file starts a process", () => {
 	// A unit test that shells out to `go build` or to a real dinah is an
 	// integration test filed in the wrong directory, and it takes the whole
@@ -80,18 +99,31 @@ test("no unit-test file starts a process", () => {
 		files.length > 0,
 		"no unit-test file was scanned at all, so this check proved nothing",
 	);
-	const offenders = files.filter((rel) => {
+	const starts = (rel: string): boolean => {
 		const body = readFileSync(join(testRoot, rel), "utf8");
 		return (
 			valueImportOf("node:child_process").test(body) ||
 			valueImportOf("child_process").test(body) ||
 			/require\("(node:)?child_process"\)/.test(body)
 		);
-	});
+	};
+	const offenders = files.filter((rel) => starts(rel) && !(rel in MAY_START_A_PROCESS));
 	assert.deepEqual(
 		offenders,
 		[],
 		`these unit files start a process: ${offenders.join(", ")}`,
+	);
+	// An exemption that has outlived its file, or its reason, widens the rule
+	// without anybody deciding to. Each one has to name a file that exists and
+	// that would otherwise be caught, so deleting the spawn deletes the
+	// exemption too rather than leaving a hole behind it.
+	const stale = Object.keys(MAY_START_A_PROCESS).filter(
+		(rel) => !files.includes(rel) || !starts(rel),
+	);
+	assert.deepEqual(
+		stale,
+		[],
+		`these files are exempted from the no-process rule and no longer need to be: ${stale.join(", ")}`,
 	);
 });
 
