@@ -1,6 +1,7 @@
 package verb
 
 import (
+	"encoding/json"
 	"os"
 	"reflect"
 	"sort"
@@ -88,6 +89,28 @@ func TestShowCarriesTheFieldsTheCallerNamed(t *testing.T) {
 			if detail.Reread != row.ref {
 				t.Errorf("wanted reread %q, got %q", row.ref, detail.Reread)
 			}
+			// The payload is where the criterion is written, because a
+			// member left out and a member carried empty are the same Go
+			// value and only the marshalled answer tells them apart.
+			encoded, err := json.Marshal(detail)
+			if err != nil {
+				t.Fatalf("marshal: %v", err)
+			}
+			var payload map[string]json.RawMessage
+			if err := json.Unmarshal(encoded, &payload); err != nil {
+				t.Fatalf("decode: %v\n%s", err, encoded)
+			}
+			for _, member := range []string{"card", "body", "withheld", "reread"} {
+				if _, ok := payload[member]; !ok {
+					t.Errorf("the payload does not carry %s: %s", member, encoded)
+				}
+			}
+			for _, member := range []string{"links", "attachments", "comments", "path"} {
+				if _, ok := payload[member]; ok {
+					t.Errorf("the payload carries %s, which the field list left out: %s",
+						member, encoded)
+				}
+			}
 		})
 	}
 
@@ -103,6 +126,28 @@ func TestShowCarriesTheFieldsTheCallerNamed(t *testing.T) {
 	if whole.Withheld != nil || whole.Reread != "" {
 		t.Errorf("an unshaped answer withholds nothing and should announce nothing: %v %q",
 			whole.Withheld, whole.Reread)
+	}
+	// The unshaped payload carries every member the type declares, which is
+	// what makes the shaped payload's omissions the caller's doing rather
+	// than this type's.
+	encoded, err := json.Marshal(whole)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var payload map[string]json.RawMessage
+	if err := json.Unmarshal(encoded, &payload); err != nil {
+		t.Fatalf("decode: %v\n%s", err, encoded)
+	}
+	for _, member := range []string{"card", "body", "links", "attachments", "comments", "path"} {
+		if _, ok := payload[member]; !ok {
+			t.Errorf("the unshaped payload does not carry %s: %s", member, encoded)
+		}
+	}
+	for _, member := range []string{"withheld", "reread"} {
+		if _, ok := payload[member]; ok {
+			t.Errorf("the unshaped payload announces %s and it withheld nothing: %s",
+				member, encoded)
+		}
 	}
 }
 

@@ -1,6 +1,7 @@
 package verb
 
 import (
+	"encoding/json"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -339,6 +340,58 @@ type Detail struct {
 	// wants, to be served a withheld member. It is the card's own reference,
 	// and it is present exactly when Withheld is non-empty.
 	Reread string `json:"reread,omitempty"`
+	// selected is the field set this answer was shaped by, nil on an
+	// unshaped answer. It is unexported, so it reaches no payload and no
+	// caller outside this package. MarshalJSON needs it because a member the
+	// caller left out and a member the card carries empty are the same value
+	// once the answer is built, and the payload has to tell them apart.
+	selected detailSelection
+}
+
+// MarshalJSON writes the members this answer carries and no others.
+//
+// Three of Detail's members are absent from a payload whenever they are empty,
+// because their own tags say so. The other three are present whatever they
+// hold: every unshaped answer carries a card view, a body and a path, and a
+// reader of the wire format may rely on that. A shaped answer has to leave a
+// member the caller did not ask for out rather than carry it empty, since
+// carrying it empty is the claim withheld exists to deny, so those three are
+// written through pointers here and a nil pointer is a member this answer does
+// not carry.
+//
+// An unshaped answer sets all three, so its payload is byte for byte the
+// payload this type produced before the field list existed.
+func (d Detail) MarshalJSON() ([]byte, error) {
+	type carried struct {
+		Card        *CardView        `json:"card,omitempty"`
+		Body        *string          `json:"body,omitempty"`
+		Links       []LinkView       `json:"links,omitempty"`
+		Attachments []AttachmentView `json:"attachments,omitempty"`
+		Comments    []CommentView    `json:"comments,omitempty"`
+		Path        *string          `json:"path,omitempty"`
+		Withheld    []string         `json:"withheld,omitempty"`
+		Reread      string           `json:"reread,omitempty"`
+	}
+	answer := carried{
+		Links:       d.Links,
+		Attachments: d.Attachments,
+		Comments:    d.Comments,
+		Withheld:    d.Withheld,
+		Reread:      d.Reread,
+	}
+	if d.selected.carries("card") {
+		card := d.Card
+		answer.Card = &card
+	}
+	if d.selected.carries("body") {
+		body := d.Body
+		answer.Body = &body
+	}
+	if d.selected.carries("path") {
+		path := d.Path
+		answer.Path = &path
+	}
+	return json.Marshal(answer)
 }
 
 // DetailFields are the members of a Detail that show's fields argument may
@@ -546,7 +599,7 @@ func (l *Library) Show(req *Request) (*Detail, string, error) {
 	// reports what the card holds rather than what the caller left out, and
 	// only a built member answers that. The cost is a read of the card's own
 	// directory, which show performs whatever the caller asked for.
-	detail := &Detail{Path: card.AnchorPath()}
+	detail := &Detail{Path: card.AnchorPath(), selected: chosen}
 	if chosen.carries("card") {
 		detail.Card = *l.view(card)
 	}
