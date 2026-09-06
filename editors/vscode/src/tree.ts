@@ -121,6 +121,18 @@ export interface WorkbenchData {
 	readonly slug?: string;
 	readonly refused?: string;
 	readonly unanswered?: string;
+	/**
+	 * The refusal's own detail text, when it carried one, so a reader is
+	 * shown the sentence the CLI composed rather than only the bare name.
+	 */
+	readonly unansweredDetail?: string;
+	/**
+	 * The column this workbench's own read named, when the refusal was about
+	 * one column. It is read from the refusal's declared `column` context
+	 * field and from nothing else, so it is absent on every refusal naming no
+	 * single column and on a CLI predating that field.
+	 */
+	readonly unansweredColumn?: string;
 	readonly columns: ReadonlyMap<string, ColumnView>;
 	readonly cards: ReadonlyMap<string, CardView>;
 	/** The tree's own workbench root node, absent when no tree answered. */
@@ -561,6 +573,34 @@ export function columnTooltip(
 }
 
 /**
+ * A column row's hover text when this is the column the last read named as
+ * broken: the column's own title, what went wrong in one line, then the
+ * refusal's name and detail in the same "name: detail" form every other
+ * refusal this extension shows already uses.
+ *
+ * The text is composed here rather than looked up, on the same terms
+ * cardCommands.ts's refusalMessage composes its own. Nothing the extension
+ * writes reaches internal/msg, so DINAH_LANG on the CLI's side changes
+ * nothing about these words, and dinah-379 is the separate card for the
+ * extension speaking only English while the CLI speaks eight.
+ */
+export function columnBrokenTooltip(
+	view: ColumnView | undefined,
+	data: WorkbenchData | undefined,
+): string {
+	const name = data?.unanswered ?? "";
+	const detail = data?.unansweredDetail ?? "";
+	const sentence =
+		name === "" ? "" : detail === "" ? name : `${name}: ${detail}`;
+	const lines = [
+		view?.title ?? "",
+		"This column's own file could not be read.",
+		sentence,
+	];
+	return lines.filter((line) => line !== "").join("\n");
+}
+
+/**
  * The path of a workbench relative to the workspace folder that produced its
  * row, spelled POSIX-style so two same-titled customers read alike on every
  * platform.
@@ -652,17 +692,22 @@ export function treeItemFor(element: TreeElement): TreeItemSpec {
 			};
 		case "column": {
 			const view = element.view;
+			const named = element.row.data?.unansweredColumn;
+			const broken = named !== undefined && view?.id === named;
 			return {
 				label: view?.title ?? element.node.value ?? "",
-				description: columnDescription(view, element.node),
-				tooltip: columnTooltip(
-					view,
-					element.node,
-					element.nextColumn,
-					element.nextColumnRef,
-				),
+				description: broken ? "damaged" : columnDescription(view, element.node),
+				tooltip: broken
+					? columnBrokenTooltip(view, element.row.data)
+					: columnTooltip(
+							view,
+							element.node,
+							element.nextColumn,
+							element.nextColumnRef,
+						),
 				contextValue: columnActionsFor(view, element.nextColumnRef),
 				collapsibleState: "expanded",
+				icon: broken ? WARNING_ICON : undefined,
 			};
 		}
 		case "group":
@@ -780,10 +825,20 @@ function rootItem(row: RootRow): TreeItemSpec {
 				: row.description;
 
 	const path = data?.path ?? row.candidate?.path ?? "";
+	// A reader who gets no column-level marker, because the refusal named no
+	// column or because the column it named was never cached, still needs
+	// more here than "did not answer".
+	const detail =
+		data?.unanswered !== undefined &&
+		data.unanswered !== "" &&
+		data.unansweredDetail !== undefined &&
+		data.unansweredDetail !== ""
+			? `${data.unanswered}: ${data.unansweredDetail}`
+			: "";
 	return {
 		label,
 		description,
-		tooltip: path,
+		tooltip: detail === "" ? path : `${path}\n${detail}`,
 		contextValue,
 		collapsibleState,
 		icon: WORKBENCH_ICON,
@@ -846,6 +901,13 @@ export async function readWorkbench(
 			path: root,
 			title: statusJson?.workbench ?? held?.title ?? "",
 			unanswered: refusalNameOf(tree),
+			unansweredDetail: tree.kind === "refused" ? tree.detail : undefined,
+			unansweredColumn:
+				tree.kind === "refused" &&
+				typeof tree.context?.column === "string" &&
+				tree.context.column !== ""
+					? tree.context.column
+					: undefined,
 			columns: held?.columns ?? new Map(),
 			cards: held?.cards ?? new Map(),
 			root: held?.root,

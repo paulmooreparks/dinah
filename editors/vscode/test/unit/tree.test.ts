@@ -42,6 +42,7 @@ import {
 	columnDescription,
 	columnRef,
 	columnTooltip,
+	readWorkbench,
 	relativeTo,
 	treeItemFor,
 } from "../../src/tree";
@@ -1729,4 +1730,168 @@ test("a column standing at its declared capacity draws the full suffix through t
 		columns.map((element) => treeItemFor(element).contextValue),
 		[CONTEXT_COLUMN_FULL, CONTEXT_COLUMN_OPEN, CONTEXT_COLUMN_OPEN],
 	);
+});
+
+// ---------------------------------------------------------------------------
+// dinah-366: the column a malformed read named is carried through and marked
+// ---------------------------------------------------------------------------
+
+/** The three columns the marker fixtures below draw, keyed by slug as ever. */
+const DAMAGED_STATUS = {
+	workbench: "Trees",
+	root: "C:\\work\\bench",
+	columns: [
+		column({ id: "b00000000001", slug: "backlog", title: "Backlog", count: 2 }),
+		column({ id: "b00000000002", slug: "doing", title: "Doing", count: 1 }),
+		column({ id: "b00000000003", slug: "done", title: "Done", count: 0 }),
+	],
+};
+
+const DAMAGED_TREE = treeAnswer([
+	columnGroup("backlog", [stateGroup("ready", [leaf("aaa", "One"), leaf("bbb", "Two")])], 2),
+	columnGroup("doing", [stateGroup("active", [leaf("ccc", "Three")])], 1),
+	columnGroup("done", [], 0),
+]);
+
+const DAMAGED_LISTING = {
+	cards: [
+		card({ id: "aaa", ref: "tr-1", title: "One" }),
+		card({ id: "bbb", ref: "tr-2", title: "Two" }),
+		card({ id: "ccc", ref: "tr-3", title: "Three", state: "active", holder: "alka" }),
+	],
+};
+
+/** The refusal envelope a malformed column raises, exit code and all. */
+function malformedColumn(context: Record<string, string>): SpawnOutcome {
+	return {
+		code: 2,
+		stdout: JSON.stringify({
+			outcome: "refused",
+			refusal: "malformed",
+			detail: "column b00000000002",
+			context,
+		}),
+		stderr: "",
+	};
+}
+
+/**
+ * A spawner whose `tree` call refuses over a malformed column while status
+ * and ls answer normally, which is exactly the shape a hand-edited column
+ * file produces: the workbench opens far enough to be listed and the read
+ * that carries the hierarchy is the one that gives up.
+ *
+ * `answering` lets one provider load a good checkpoint first and then decline
+ * the next, so the cached columns the marker attaches to are real rather than
+ * hand-placed.
+ */
+function malformedTreeSpawner(context: Record<string, string>): {
+	spawner: Spawner;
+	answering: { value: boolean };
+} {
+	const answering = { value: true };
+	const spawner: Spawner = async (_exe, argv) => {
+		if (argv.includes("tree")) {
+			return answering.value ? ok(DAMAGED_TREE) : malformedColumn(context);
+		}
+		if (argv.includes("status")) {
+			return ok(DAMAGED_STATUS);
+		}
+		if (argv.includes("ls")) {
+			return ok(DAMAGED_LISTING);
+		}
+		return { code: 2, stdout: JSON.stringify({ refusal: "dinah.no-such-verb" }), stderr: "" };
+	};
+	return { spawner, answering };
+}
+
+const DAMAGED_CONTEXT = {
+	path: "C:\\work\\bench\\columns\\b00000000002\\column.md",
+	workbench: "C:\\work\\bench",
+	column: "b00000000002",
+};
+
+test("a refused tree read carries its detail and the column it named into the row's data", async () => {
+	const { spawner, answering } = malformedTreeSpawner(DAMAGED_CONTEXT);
+	answering.value = false;
+	const data = await readWorkbench(spawner, "dinah", "C:\\work\\bench", () => {}, undefined);
+	assert.equal(data.unanswered, "malformed");
+	assert.equal(data.unansweredDetail, "column b00000000002");
+	// Read from the declared context field and from nothing else: the detail
+	// beside it is composed English and is never parsed for an identifier.
+	assert.equal(data.unansweredColumn, "b00000000002");
+});
+
+test("a refusal whose context names no column leaves the column undefined and the rest intact", async () => {
+	// What an older dinah on the caller's PATH produces, and equally what any
+	// malformed refusal about something other than a column produces.
+	const { spawner, answering } = malformedTreeSpawner({
+		path: "C:\\work\\bench\\workbench.md",
+		workbench: "C:\\work\\bench",
+	});
+	answering.value = false;
+	const data = await readWorkbench(spawner, "dinah", "C:\\work\\bench", () => {}, undefined);
+	assert.equal(data.unanswered, "malformed");
+	assert.equal(data.unansweredDetail, "column b00000000002");
+	assert.equal(data.unansweredColumn, undefined);
+});
+
+test("the marker lands on the column the refusal named and on neither of its neighbours", async () => {
+	// A check that some row shows a warning would pass on a provider that
+	// marked every column, so all three rows are asserted and the two healthy
+	// ones are asserted to be untouched.
+	const { spawner, answering } = malformedTreeSpawner(DAMAGED_CONTEXT);
+	const view = provider(spawner);
+	await view.load([folder({ folder: "C:\\work\\bench" })]);
+	answering.value = false;
+	await view.refresh("C:\\work\\bench");
+
+	const [root] = await view.getChildren();
+	// The workbench row's own note row stands ahead of the columns when a read
+	// declined, so the column rows are selected rather than sliced off by index.
+	const columns = (await view.getChildren(root)).filter(
+		(element) => element.kind === "column",
+	);
+	const items = columns.map((element) => treeItemFor(element));
+	assert.deepEqual(
+		items.map((item) => item.label),
+		["Backlog", "Doing", "Done"],
+	);
+	assert.deepEqual(
+		items.map((item) => item.description),
+		["2", "damaged", "0"],
+	);
+	assert.equal(items[0].icon, undefined);
+	assert.equal(items[2].icon, undefined);
+	assert.deepEqual(items[1].icon, { id: "warning" });
+	// Named, not merely flagged: the hover carries the column's own cached
+	// title, which is what tells a reader which file to open.
+	assert.ok(items[1].tooltip?.includes("Doing"));
+	assert.ok(items[1].tooltip?.includes("malformed: column b00000000002"));
+});
+
+test("a column the last good read never cached leaves the marker off and says so on the workbench row", async () => {
+	// A column added since the last successful read cannot be matched, so no
+	// row is marked at all. The reader is told something is broken and not
+	// where, which is the honest answer rather than a marker on the wrong row.
+	const { spawner, answering } = malformedTreeSpawner({
+		...DAMAGED_CONTEXT,
+		column: "b00000000009",
+	});
+	const view = provider(spawner);
+	await view.load([folder({ folder: "C:\\work\\bench" })]);
+	answering.value = false;
+	await view.refresh("C:\\work\\bench");
+
+	const [root] = await view.getChildren();
+	const columns = (await view.getChildren(root)).filter(
+		(element) => element.kind === "column",
+	);
+	for (const item of columns.map((element) => treeItemFor(element))) {
+		assert.notEqual(item.description, "damaged");
+		assert.equal(item.icon, undefined);
+	}
+	const rootItem = treeItemFor(root);
+	assert.equal(rootItem.description, "did not answer");
+	assert.ok(rootItem.tooltip?.includes("malformed: column b00000000002"));
 });
