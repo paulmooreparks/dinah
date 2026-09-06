@@ -22,6 +22,13 @@ import {
 	unblockCard,
 } from "./cardCommands";
 import type { CheckpointEntry, Watcher } from "./changes";
+import type { DragPayload } from "./dragAndDrop";
+import {
+	applyDropVerdict,
+	classifyDrop,
+	dropColumnFor,
+	offerDrag,
+} from "./dragAndDrop";
 import { CheckpointLoop, systemClock } from "./changes";
 import { runDinah } from "./cli";
 // Two modules export a function named contextForColumn. dinah-331 and
@@ -67,6 +74,7 @@ import {
 	COMMAND_REFRESH,
 	COMMAND_RELEASE,
 	COMMAND_UNBLOCK,
+	DRAG_MIME_TYPE,
 	SETTING_PATH,
 	SETTING_POLL_INTERVAL,
 	SETTING_WATCH_FILES,
@@ -341,12 +349,52 @@ export async function activate(
 	// createTreeView rather than registerTreeDataProvider, because the
 	// checkpoint loop suspends while the view is hidden and TreeView.visible is
 	// the only way to know that it is.
+	//
+	// The drag controller is composed here rather than declared in
+	// package.json, because TreeViewOptions takes it at construction time and
+	// nothing under contributes.views names drag support at all. Both handlers
+	// reach the command host built further down this same function, which
+	// exists by the time a reader can drag a row and would be the only thing
+	// this object needed activation to finish first.
+	const dragAndDropController: vscode.TreeDragAndDropController<TreeElement> = {
+		dragMimeTypes: [DRAG_MIME_TYPE],
+		dropMimeTypes: [DRAG_MIME_TYPE],
+		handleDrag: (source, dataTransfer) => {
+			offerDrag(
+				source,
+				DRAG_MIME_TYPE,
+				dataTransfer,
+				(payload) => new vscode.DataTransferItem(payload),
+			);
+		},
+		handleDrop: async (target, dataTransfer) => {
+			// An entry this controller did not put there, and a drag that
+			// started on a row carrying no card, both arrive as no entry at
+			// all, and neither is this controller's to act on.
+			const payload = dataTransfer.get(DRAG_MIME_TYPE)?.value as
+				| DragPayload
+				| undefined;
+			if (payload === undefined) {
+				return;
+			}
+			const drop = dropColumnFor(target);
+			await applyDropVerdict(
+				classifyDrop(payload, drop),
+				payload,
+				drop,
+				binary.state === "ok" ? binary.path : "",
+				host,
+				nodeSpawner,
+			);
+		},
+	};
 	treeView = vscode.window.createTreeView<TreeElement>(VIEW_ID, {
 		treeDataProvider: {
 			onDidChangeTreeData: emitter.event,
 			getTreeItem: (element) => toTreeItem(provider.getTreeItem(element)),
 			getChildren: (element) => provider.getChildren(element),
 		},
+		dragAndDropController,
 	});
 	context.subscriptions.push(treeView);
 
