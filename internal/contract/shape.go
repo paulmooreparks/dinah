@@ -564,16 +564,28 @@ var Shapes = []Shape{
 		// command word selects the sentence and the ordered-operator clause
 		// stops being unconditional: it is written about the query language's
 		// one ranking field and says nothing a card reader can use.
+		// show carries a variant of its own because the act it refuses is a
+		// third one: a read naming a member of a card's detail that show
+		// cannot select. The reference clause is a conditional fragment
+		// rather than a fourth variant, since it answers a different
+		// question from the base sentence's: the base sentence says which
+		// names show could not select, and the fragment says the reference
+		// had no members to select from at all. reference is filled at one
+		// raise site and is that fragment's own condition, so it is declared
+		// there rather than in Values.
 		Name:     UnknownField,
 		Values:   []string{"fields", "instantField"},
-		Variants: []string{"card"},
+		Variants: []string{"card", "show"},
 		Fragments: []Fragment{
 			{Key: "refusal.dinah.unknown-field.ordered", WhenCommand: "query"},
+			{Key: "refusal.dinah.unknown-field.show.reference", When: "reference"},
 			{Key: "refusal.dinah.unknown-field.card.next", WhenCommand: "card"},
+			{Key: "refusal.dinah.unknown-field.show.next", WhenCommand: "show"},
 			{Key: "refusal.dinah.unknown-field.next"},
 		},
 		NextStep: []string{
 			"refusal.dinah.unknown-field.card.next",
+			"refusal.dinah.unknown-field.show.next",
 			"refusal.dinah.unknown-field.next",
 		},
 	},

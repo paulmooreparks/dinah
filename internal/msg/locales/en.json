@@ -1745,6 +1745,18 @@
       "text": " Only {instantField} accepts >=, <=, > and <.",
       "context": "Spliced onto refusal.dinah.unknown-field unconditionally, because the reader who named a field this tool does not have and the reader who gave a field an operator it does not take cannot be told apart from the sentence. {instantField} is the one field whose values rank and arrives as a filled value. The four operators after it are punctuation a reader types, the same in every language, so leave them as they are."
     },
+    "refusal.dinah.unknown-field.show": {
+      "text": "show could not select {detail}. It selects fields from a card, and the fields a card carries are: {fields}.",
+      "context": "The sentence printed after the refusal name dinah.unknown-field when the show command raised it, which is a read naming a member of a card's detail that show cannot select. {detail} is what the reader asked for: the unrecognised names, sorted, or the whole list where the reference the reader named is not a card. {fields} is the set of members a card's detail carries, read off the tool rather than written here, so a member name is machine vocabulary and is never translated. refusal.dinah.unknown-field.show.reference and refusal.dinah.unknown-field.show.next are spliced on after this one."
+    },
+    "refusal.dinah.unknown-field.show.reference": {
+      "text": " The reference {reference} names something other than a card, and only a card has members to select from.",
+      "context": "Spliced onto refusal.dinah.unknown-field.show where the reader named fields on a reference that is not a card, which is the one case where the names themselves may all be legal. {reference} is the reference the reader typed, and it is a reference rather than prose, so it is never translated."
+    },
+    "refusal.dinah.unknown-field.show.next": {
+      "text": " Name fields from that set, or run `dinah help show` to see what the command takes.",
+      "context": "The next step of refusal.dinah.unknown-field when the show command raised it. It points at that command's own help page where the shared one points at the query's. The command line inside it is syntax and stays as it is."
+    },
     "refusal.dinah.unknown-format": {
       "text": "Dinah writes no output format called {detail}",
       "context": "The opening sentence printed after the refusal name dinah.unknown-format, raised when --format or DINAH_FORMAT carries a name that is neither json nor compact. {detail} is the name the caller wrote. refusal.dinah.unknown-format.next follows as the closing clause naming the way forward."
@@ -2108,6 +2120,14 @@
     "show.links": {
       "text": "Links:",
       "context": "The label above a card's links."
+    },
+    "show.withheld": {
+      "text": "Withheld: {members}",
+      "context": "The heading printed under a card whose answer was shaped by a field list, naming the members the card holds and this answer did not carry. {members} is that list of member names, which is machine vocabulary and is never translated."
+    },
+    "show.reread": {
+      "text": "This card holds those members. Name them in --fields on {reread} to be served them.",
+      "context": "The sentence printed under show.withheld, telling the reader how to be served a member that was held back. {reread} is the card's own reference. The flag spelling inside it is syntax and stays as it is."
     },
     "slot.query": {
       "text": "the query",
@@ -2580,6 +2600,10 @@
     "param.show.card.summary": {
       "text": "a card, or something below a card such as wb-1/comments/1; show does not take this workbench",
       "context": "The meaning of the card argument of `dinah show`, printed in that command's arguments table."
+    },
+    "param.show.fields.summary": {
+      "text": "which members of the card the answer carries, written as a comma-separated list; every member when you name none",
+      "context": "The meaning of the fields argument of `dinah show`, printed in that command's arguments table. The table appends the closed set of member names after this sentence, read off the tool, so the sentence does not spell the set itself."
     },
     "param.version.catalogs.summary": {
       "text": "report every shipped language and how much of each is translated",

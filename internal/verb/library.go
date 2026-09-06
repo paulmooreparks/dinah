@@ -208,6 +208,12 @@ type Request struct {
 	// the new definition drops, and a later entry for the same retirement
 	// wins over an earlier one.
 	Map []string
+	// Fields is show's field list, carried byte for byte as the caller wrote
+	// it, since Library.Show parses it: the request builder never has to know
+	// what any one verb's arguments mean. Empty means every member, which is
+	// what show has always answered, so no head diverges from another on an
+	// unasked question.
+	Fields string
 	// HeldChain is the set of instruction-layer keys this caller's connection
 	// has already been sent and has not yet re-served, each one written
 	// <actor> + "\x00" + <text revision>. The MCP head fills it from its own

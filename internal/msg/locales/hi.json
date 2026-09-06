@@ -2029,6 +2029,21 @@
       "context": "Spliced onto refusal.dinah.unknown-field unconditionally, because the reader who named a field this tool does not have and the reader who gave a field an operator it does not take cannot be told apart from the sentence. {instantField} is the one field whose values rank and arrives as a filled value. The four operators after it are punctuation a reader types, the same in every language, so leave them as they are.",
       "source": "4f6de5e55bbd45d0"
     },
+    "refusal.dinah.unknown-field.show": {
+      "text": "show {detail} को नहीं चुन सका। यह फ़ील्ड एक कार्ड में से चुनता है, और एक कार्ड जो फ़ील्ड रखता है वे हैं: {fields}।",
+      "context": "The sentence printed after the refusal name dinah.unknown-field when the show command raised it, which is a read naming a member of a card's detail that show cannot select. {detail} is what the reader asked for: the unrecognised names, sorted, or the whole list where the reference the reader named is not a card. {fields} is the set of members a card's detail carries, read off the tool rather than written here, so a member name is machine vocabulary and is never translated. refusal.dinah.unknown-field.show.reference and refusal.dinah.unknown-field.show.next are spliced on after this one.",
+      "source": "b81a6881d074fbd5"
+    },
+    "refusal.dinah.unknown-field.show.reference": {
+      "text": " संदर्भ {reference} कार्ड के अलावा किसी और चीज़ का नाम लेता है, और चुनने के लिए सदस्य केवल एक कार्ड के पास होते हैं।",
+      "context": "Spliced onto refusal.dinah.unknown-field.show where the reader named fields on a reference that is not a card, which is the one case where the names themselves may all be legal. {reference} is the reference the reader typed, and it is a reference rather than prose, so it is never translated.",
+      "source": "811bc87c292e0e44"
+    },
+    "refusal.dinah.unknown-field.show.next": {
+      "text": " उस समुच्चय में से फ़ील्ड नाम दें, या यह देखने के लिए कि आदेश क्या लेता है `dinah help show` चलाएँ।",
+      "context": "The next step of refusal.dinah.unknown-field when the show command raised it. It points at that command's own help page where the shared one points at the query's. The command line inside it is syntax and stays as it is.",
+      "source": "d65ba777995c714a"
+    },
     "refusal.dinah.unknown-format": {
       "text": "Dinah {detail} नाम का कोई आउटपुट प्रारूप नहीं लिखता",
       "context": "The opening sentence printed after the refusal name dinah.unknown-format, raised when --format or DINAH_FORMAT carries a name that is neither json nor compact. {detail} is the name the caller wrote. refusal.dinah.unknown-format.next follows as the closing clause naming the way forward.",
@@ -2588,6 +2603,16 @@
       "text": "कड़ियाँ:",
       "context": "The label above a card's links.",
       "source": "914368060e1b797c"
+    },
+    "show.withheld": {
+      "text": "रोके गए: {members}",
+      "context": "The heading printed under a card whose answer was shaped by a field list, naming the members the card holds and this answer did not carry. {members} is that list of member names, which is machine vocabulary and is never translated.",
+      "source": "e7ac88b08489f64b"
+    },
+    "show.reread": {
+      "text": "यह कार्ड वे सदस्य रखता है। उन्हें पाने के लिए {reread} पर --fields में उनका नाम दें।",
+      "context": "The sentence printed under show.withheld, telling the reader how to be served a member that was held back. {reread} is the card's own reference. The flag spelling inside it is syntax and stays as it is.",
+      "source": "f341fc582260bf03"
     },
     "slot.query": {
       "text": "क्वेरी",
@@ -3173,6 +3198,11 @@
       "text": "एक कार्ड, या कार्ड के नीचे कोई चीज़ जैसे wb-1/comments/1; show यह वर्कबेंच नहीं लेता",
       "context": "The meaning of the card argument of `dinah show`, printed in that command's arguments table.",
       "source": "e5e44cefcd5c33f0"
+    },
+    "param.show.fields.summary": {
+      "text": "उत्तर कार्ड के कौन से सदस्य ले जाए, अल्पविराम से अलग की गई सूची के रूप में लिखा; कोई न बताने पर हर सदस्य",
+      "context": "The meaning of the fields argument of `dinah show`, printed in that command's arguments table. The table appends the closed set of member names after this sentence, read off the tool, so the sentence does not spell the set itself.",
+      "source": "d9fd26ca9e82957c"
     },
     "param.version.catalogs.summary": {
       "text": "हर उपलब्ध भाषा और उसका कितना अनुवाद हुआ है, यह बताएँ",

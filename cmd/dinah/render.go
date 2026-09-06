@@ -515,7 +515,12 @@ func (s *session) renderOffers(offers []verb.Offer) {
 	s.table(t)
 }
 
-// renderDetail prints a card, its links, its attachments and its comments.
+// renderDetail prints a card, its links, its attachments and its comments, and
+// then what a shaped answer held back.
+//
+// The announcement is drawn last because it is about the answer rather than
+// about the card, so a reader who asked for one member reads that member first
+// and reads what it cost afterwards.
 func (s *session) renderDetail(detail *verb.Detail) {
 	s.renderCard(&detail.Card)
 	if detail.Body != "" {
@@ -545,6 +550,11 @@ func (s *session) renderDetail(detail *verb.Detail) {
 			comments.rows = append(comments.rows, tableRow{fields: fields, note: comment.Body})
 		}
 		s.table(comments)
+	}
+	if len(detail.Withheld) > 0 {
+		s.line("")
+		s.line(s.r.T("show.withheld", "members", strings.Join(detail.Withheld, ", ")))
+		s.line(s.r.T("show.reread", "reread", detail.Reread))
 	}
 }
 

@@ -47,7 +47,7 @@ READ
                                               contains
   attachments [ref]                         What is attached to an entity of the
                                               workbench
-  show <ref>                                A card, or anything below it
+  show <ref> [--fields <list>]              A card, or anything below it
   log <card>                                The recorded actions of a card,
                                               oldest first
   changes [--since <cursor>]                What has happened on this workbench

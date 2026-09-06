@@ -721,6 +721,7 @@ func emitForest[T any](s *session, build func() (*T, error), render func(*T)) in
 func runShow(s *session, parsed *arguments) int {
 	req := s.request("show", parsed)
 	req.Card = at(parsed.rest(), 0)
+	req.Fields = parsed.value("fields")
 	if req.Card == "" {
 		if rows, ok := s.ambiguousWorkbenches(); ok {
 			return s.emitWorkbenches(rows, "")
