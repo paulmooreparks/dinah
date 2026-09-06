@@ -835,3 +835,374 @@ second card still earns its place in the sequence, because it is what proves the
 across-boundary repeat is gone rather than merely displaced, but the sentence
 the harness prints about it is now stale. That belongs on the same card as the
 residual bound.
+
+## 2026-09-06: the response, cut by letting the caller name the members it wants
+
+dinah-383 gave `show` an optional `fields` argument. A caller names the members
+of a card's detail it wants, as a comma-separated list drawn from a closed set,
+and the answer carries those and no others. A member the card holds and the
+answer left out is named under `detail.withheld`, in the set's own declared
+order, alongside `detail.reread`, which carries the card's own reference and is
+what a caller passes back with the fields it now wants. That is the vocabulary
+dinah-382 minted for the instruction chain, reused rather than reinvented,
+because an agent that has learned to read a withheld layer reads a withheld
+member without learning anything new.
+
+The argument is declared as a parameter of the `show` command rather than as a
+property this head injects into every tool. Three things follow, and each was
+the reason for the placement. The schema generator publishes the property on
+`show` alone, so the tool-definition block grows on one tool instead of on all
+of them and the growth stays attributable. A person at a terminal gains
+`dinah show <ref> --fields <list>` without the MCP head growing an act of its
+own. The selection itself lives in `Library.Show`, so one implementation
+answers both heads and neither head asks for less than the other by default.
+
+This card carried a second job that has nothing to do with the first. The
+operator folded the repair of `scripts/measure_agentic_sequence.py` in here on
+2026-09-06, and that repair landed before any figure below was taken.
+
+### The harness repair, and which figures were taken before it
+
+The harness had stopped exiting zero against a current binary, for two
+independent reasons, and both were caused by dinah-382 succeeding.
+
+The first was a term the reconciliation never counted. Every attributed figure
+is derived from a response payload or from the tool-definition block, and the
+transcript carries text that is neither: the task the sequence opens with, one
+`tool_use` block per round carrying a tool name and its arguments, and the
+framing of every message. None of that reached the sum, so all of it landed in
+the residual, which is why the residual held within a handful of tokens while
+the footprint fell by two fifths. That is the signature of an omission fixed by
+the sequence rather than of a proportional error. The harness now counts it
+directly, as `transcript scaffolding, measured directly`, by building the
+transcript with every tool result emptied and counting that array with the tool
+definitions excluded. It is a direct count of a variant rather than a
+subtraction, on the same terms the response-envelope figure is, so it cannot
+drive the residual to zero by construction.
+
+The second was the check that failed a run when the column layer had repeated
+across no card boundary. dinah-382 removed that repeat by design, so the
+check's premise was gone. The check is rewritten rather than retired, because
+what it guards is still real: the sequence carries two cards precisely so that
+a card boundary exists, and a sequence that lost its second card would silently
+stop testing what the second card is for. The new premise reads the act instead
+of the repeat. At the second card's pull the column layer must be either
+carried in full, which says the boundary exists and the binary serves it, or
+named under `instructions.withheld`, which says the boundary exists and the
+binary withholds it. Neither present is the condition the original check was
+written to catch, and it is what a one-card sequence produces, which is how the
+rewrite is shown still to bite.
+
+The bound was approached in the order the operator's constraint fixes. Counting
+the omission came first, and it alone brought the residual well inside the
+standing share, so nothing had to be widened for a run to go green. The bound
+was then tightened, on the operator's ruling of the same day, because a limit
+set when the residual stood around a thousand tokens no longer described
+anything: after the repair it would have admitted most of a whole
+scaffolding-sized error while the residual sat near zero, and a check that
+would pass an error that size is not a check. `--residual-bound` is replaced by
+`--residual-bound-fraction`, and the residual must now be smaller than half the
+smallest payload-derived attributed figure that stands above zero.
+
+Three properties make that the right expression, and none of them is a property
+of the run that provoked the change. The check exists to catch a figure gone
+missing or counted twice, and an error of that kind moves the residual by at
+least the size of the figure it lost or doubled, so half the smallest figure
+fails on any single one of them. The residual is a property of the sequence
+rather than of the savings, so keying it to the footprint made the limit shrink
+as the workstream succeeded while the thing it bounds did not move. The rule
+tightens on its own for the same reason, because the figures it keys on are the
+figures this workstream exists to shrink.
+
+Leaving out a figure that stands at zero is part of the rule rather than an
+escape from it. A zero carries no information for the question the bound asks,
+since dropping or doubling a zero moves the residual by nothing at all, so a
+limit keyed to one would refuse every run while detecting no error. The repeat
+serves of the instruction chain are exactly that figure on any binary at or
+past dinah-382.
+
+The three residuals this document already records were recomputed against the
+replacement rule, so a reader can see the rule was not chosen to admit one run.
+The recomputation is arithmetic over figures the runs themselves printed, and
+the inputs are quoted beside each answer:
+
+```
+the replacement rule: |residual| < 0.5 x the smallest payload-derived
+attributed figure standing above zero
+
+b54159a, the measurement of record
+  residual                                                          +1076
+  smallest payload-derived figure above zero  response envelope       4474
+  the bound                                                          2237
+  verdict                                                          passes
+
+0b2df2c, the dinah-397 landing run
+  residual                                                          +1076
+  smallest payload-derived figure above zero  response envelope       4474
+  the bound                                                          2237
+  verdict                                                          passes
+
+830d347, the dinah-382 landing run
+  residual                                                          +1090
+  smallest payload-derived figure above zero  JSON re-encoding        2666
+  the bound                                                          1333
+  verdict                                                          passes
+```
+
+The third of those is the one worth reading twice. It passes by a margin
+narrower than the figure it is bounding, which is what a limit that can fail
+looks like, and it is the run the old share-of-the-footprint bound refused.
+
+The order of the figures in this section answers the question the card filed
+about it. Every figure this card quoted while it was being specified was taken
+with the unrepaired harness, and those are the three runs above. Every figure
+below was taken with the repaired harness on both sides of the pair, and no
+figure is ever compared across the repair.
+
+### The reproduction
+
+The comparison is a pair of runs made with two binaries at one commit, for the
+reason the two sections above record: the harness composes its instruction
+layers from committed files read at the commit it is given, so giving both
+binaries the same commit leaves the binary as the only difference. The landing
+commit is `de5558289b0962c50b578fc81b65f856aa9100b3`, and the baseline is
+`93142ba0c8a1278f124007881eb9f8f66ea56877`, the commit this card's branch left.
+Both runs read their layers at the baseline commit, since this card edits none
+of the files those layers are composed from.
+
+```
+BASELINE=93142ba0c8a1278f124007881eb9f8f66ea56877
+go build -o ./dinah-landing ./cmd/dinah
+git worktree add --detach ../dinah-baseline-wt "$BASELINE"
+go build -C ../dinah-baseline-wt -o "$PWD/dinah-baseline" ./cmd/dinah
+python scripts/measure_agentic_sequence.py --dinah ./dinah-baseline \
+    --root <a scratch directory the harness may create and remove> \
+    --counter api --commit "$BASELINE" --per-tool \
+    --api-key-file <the file holding a console API key>
+python scripts/measure_agentic_sequence.py --dinah ./dinah-landing \
+    --root <a scratch directory the harness may create and remove> \
+    --counter api --commit "$BASELINE" --per-tool \
+    --api-key-file <the file holding a console API key>
+```
+
+### The paired runs, verbatim
+
+The per-tool attribution is omitted from the excerpt below except where this
+section quotes it, because every row of it but one is byte-identical between
+the two runs. Everything else each run printed under these headings is
+reproduced as printed.
+
+```
+the baseline binary, built at 93142ba0c8a1278f124007881eb9f8f66ea56877
+
+headline totals, one line per run, with the caching assumption each rests on
+  verb run, context footprint                                       49258 tokens [counter=api model=claude-opus-5] (the final transcript, tool definitions included; invariant to caching)
+  verb run, cumulative billed input                                424654 tokens [counter=api model=claude-opus-5] (13 requests, computed under no caching; an upper bound on what a caching session pays, not a bill)
+  file run, context footprint                                       60526 tokens [counter=api model=claude-opus-5] (the final transcript, tool definitions included; invariant to caching)
+  file run, cumulative billed input                                697355 tokens [counter=api model=claude-opus-5] (19 requests, computed under no caching; an upper bound on what a caching session pays, not a bill)
+
+the shaped run, the same sequence with show naming its fields
+  shaped run                                                   skipped: the binary under test publishes no fields argument on show, so there is no shaped run to perform
+
+the tool-definition block, and the round trips it is paid on
+  tools the MCP head serves                                            36 tools [not a token count]
+  tool-definition block, once                                        8660 tokens [counter=api model=claude-opus-5]
+  verb run, tool-call rounds                                           12 rounds [not a token count]
+  file run, tool-call rounds                                           18 rounds [not a token count]
+  tool block over the verb run's rounds                            103920 tokens [counter=api model=claude-opus-5]
+  tool block over the file run's rounds                            155880 tokens [counter=api model=claude-opus-5]
+  round-trip component, file run less verb run                     +51960 tokens [counter=api model=claude-opus-5]
+
+served instruction chain, per layer, arrivals and repeats
+  global layer, arrival serves (1)                                    408 tokens [counter=api model=claude-opus-5]
+  global layer, repeats within one card's own acts (0)                  0 tokens [counter=api model=claude-opus-5]
+  global layer, repeats across a card boundary (0)                      0 tokens [counter=api model=claude-opus-5]
+  standing layer, arrival serves (1)                                 2791 tokens [counter=api model=claude-opus-5]
+  standing layer, repeats within one card's own acts (0)                0 tokens [counter=api model=claude-opus-5]
+  standing layer, repeats across a card boundary (0)                    0 tokens [counter=api model=claude-opus-5]
+  column layer, arrival serves (2)                                   8080 tokens [counter=api model=claude-opus-5]
+  column layer, repeats within one card's own acts (0)                  0 tokens [counter=api model=claude-opus-5]
+  column layer, repeats across a card boundary (0)                      0 tokens [counter=api model=claude-opus-5]
+  chain, arrival serves, all layers                                 11279 tokens [counter=api model=claude-opus-5]
+  chain, repeat serves, all layers                                      0 tokens [counter=api model=claude-opus-5]
+
+the card boundary, read off the second card's pull
+  the column layer at the second card's pull                   named under instructions.withheld
+
+the attributed figures, as counts rather than as shares
+  arrival serves of the instruction chain                           11279 tokens [counter=api model=claude-opus-5]
+  repeat serves of the instruction chain                                0 tokens [counter=api model=claude-opus-5]
+  JSON re-encoding of the prose members                              2666 tokens [counter=api model=claude-opus-5]
+  response envelope, measured directly                               4551 tokens [counter=api model=claude-opus-5]
+  requested content                                                 21012 tokens [counter=api model=claude-opus-5]
+  transcript scaffolding, measured directly                          1326 tokens [counter=api model=claude-opus-5]
+
+the reconciliation, against the verb run's context footprint
+  sum of the attributed figures, the scaffolding among them, and the tool block once      49494 tokens [counter=api model=claude-opus-5]
+  verb run, context footprint                                       49258 tokens [counter=api model=claude-opus-5]
+  residual                                                           -236 tokens [counter=api model=claude-opus-5]
+  payload-derived figures standing above zero                  arrival serves of the instruction chain, JSON re-encoding of the prose members, response envelope, measured directly, requested content, transcript scaffolding, measured directly
+  smallest of them                                             transcript scaffolding, measured directly
+  that figure                                                        1326 tokens [counter=api model=claude-opus-5]
+  residual bound, 0.5 of it                                    663.0 tokens [derived within one regime]
+  residual as a share of the footprint                             -0.479 %  [derived within one regime]
+
+
+the landing binary, built at de5558289b0962c50b578fc81b65f856aa9100b3
+
+headline totals, one line per run, with the caching assumption each rests on
+  verb run, context footprint                                       49303 tokens [counter=api model=claude-opus-5] (the final transcript, tool definitions included; invariant to caching)
+  verb run, cumulative billed input                                425239 tokens [counter=api model=claude-opus-5] (13 requests, computed under no caching; an upper bound on what a caching session pays, not a bill)
+  file run, context footprint                                       60571 tokens [counter=api model=claude-opus-5] (the final transcript, tool definitions included; invariant to caching)
+  file run, cumulative billed input                                698210 tokens [counter=api model=claude-opus-5] (19 requests, computed under no caching; an upper bound on what a caching session pays, not a bill)
+
+the shaped run, the same sequence with show naming its fields
+  shaped run, context footprint                                     47665 tokens [counter=api model=claude-opus-5]
+  shaped run, cumulative billed input                              412135 tokens [counter=api model=claude-opus-5]
+  shaped run, tool-call rounds                                         12 rounds [not a token count]
+  the field list each show-card act named                      card,body
+  footprint, shaped run less verb run                               -1638 tokens [counter=api model=claude-opus-5]
+  cumulative, shaped run less verb run                             -13104 tokens [counter=api model=claude-opus-5]
+
+the tool-definition block, and the round trips it is paid on
+  tools the MCP head serves                                            36 tools [not a token count]
+  tool-definition block, once                                        8705 tokens [counter=api model=claude-opus-5]
+  verb run, tool-call rounds                                           12 rounds [not a token count]
+  file run, tool-call rounds                                           18 rounds [not a token count]
+  tool block over the verb run's rounds                            104460 tokens [counter=api model=claude-opus-5]
+  tool block over the file run's rounds                            156690 tokens [counter=api model=claude-opus-5]
+  round-trip component, file run less verb run                     +52230 tokens [counter=api model=claude-opus-5]
+
+served instruction chain, per layer, arrivals and repeats
+  global layer, arrival serves (1)                                    408 tokens [counter=api model=claude-opus-5]
+  global layer, repeats within one card's own acts (0)                  0 tokens [counter=api model=claude-opus-5]
+  global layer, repeats across a card boundary (0)                      0 tokens [counter=api model=claude-opus-5]
+  standing layer, arrival serves (1)                                 2791 tokens [counter=api model=claude-opus-5]
+  standing layer, repeats within one card's own acts (0)                0 tokens [counter=api model=claude-opus-5]
+  standing layer, repeats across a card boundary (0)                    0 tokens [counter=api model=claude-opus-5]
+  column layer, arrival serves (2)                                   8080 tokens [counter=api model=claude-opus-5]
+  column layer, repeats within one card's own acts (0)                  0 tokens [counter=api model=claude-opus-5]
+  column layer, repeats across a card boundary (0)                      0 tokens [counter=api model=claude-opus-5]
+  chain, arrival serves, all layers                                 11279 tokens [counter=api model=claude-opus-5]
+  chain, repeat serves, all layers                                      0 tokens [counter=api model=claude-opus-5]
+
+the card boundary, read off the second card's pull
+  the column layer at the second card's pull                   named under instructions.withheld
+
+the attributed figures, as counts rather than as shares
+  arrival serves of the instruction chain                           11279 tokens [counter=api model=claude-opus-5]
+  repeat serves of the instruction chain                                0 tokens [counter=api model=claude-opus-5]
+  JSON re-encoding of the prose members                              2666 tokens [counter=api model=claude-opus-5]
+  response envelope, measured directly                               4551 tokens [counter=api model=claude-opus-5]
+  requested content                                                 21012 tokens [counter=api model=claude-opus-5]
+  transcript scaffolding, measured directly                          1326 tokens [counter=api model=claude-opus-5]
+
+the reconciliation, against the verb run's context footprint
+  sum of the attributed figures, the scaffolding among them, and the tool block once      49539 tokens [counter=api model=claude-opus-5]
+  verb run, context footprint                                       49303 tokens [counter=api model=claude-opus-5]
+  residual                                                           -236 tokens [counter=api model=claude-opus-5]
+  payload-derived figures standing above zero                  arrival serves of the instruction chain, JSON re-encoding of the prose members, response envelope, measured directly, requested content, transcript scaffolding, measured directly
+  smallest of them                                             transcript scaffolding, measured directly
+  that figure                                                        1326 tokens [counter=api model=claude-opus-5]
+  residual bound, 0.5 of it                                    663.0 tokens [derived within one regime]
+  residual as a share of the footprint                             -0.479 %  [derived within one regime]
+```
+
+### What moved, and what did not
+
+The shaped run is the card's own thesis, and the harness performs it only
+against a binary that publishes the argument, which is why the baseline run
+above says it was skipped. It executes the identical sequence with each card
+read naming `card,body`, so its round count equals the verb run's and neither
+of its totals is bought with an extra request. Both differences carry a minus
+sign. The cumulative is the one that matters, because it is net of the
+tool-definition block's rise, which is paid once per round where the payload
+saving is earned once per act.
+
+The tool-definition block did rise, and no criterion pretending otherwise would
+have been honest, since publishing an argument adds text to the block by
+construction. What the pair shows is that the rise is bounded and attributable.
+`tools the MCP head serves` is unchanged, both round counts are unchanged, and
+under `--per-tool` every row but `show` is equal to the token while `show`
+alone accounts for the whole difference the block figure reports:
+
+```
+the tool-definition block, attributed per published tool, the only row that moved
+
+  baseline    show                                                    168 tokens
+  landing     show                                                    213 tokens
+```
+
+Nothing in this card touches the instruction chain, so every line under
+`served instruction chain, per layer, arrivals and repeats` is equal between
+the two runs to the token, including each parenthesised count, and so are
+`arrival serves of the instruction chain` and `repeat serves of the instruction
+chain`. Any inequality there would have been a defect rather than a saving. The
+twelve rows of the per-act check are equal between the two runs as well, which
+is what the scaffolding figure belonging to no act means in practice.
+
+The six coordination-act digests agree across all three runs on the landing
+side, so the verb run, the file run, and the shaped run are one sequence, and
+they agree with the baseline run's digests too.
+
+An unshaped `show` answers exactly what it answered before. That was driven
+outside the harness, by capturing both heads' payloads for one fixture card
+under both binaries and diffing them: the `--json` form and the MCP form are
+each byte-identical across the change.
+
+### The half this card refused, and why the refusal is on the record
+
+The card as filed proposed two things, an opt-in field list and a smaller
+default shape that would withhold the large members from every caller. Only the
+first landed. The second was refused on arithmetic, at Operator Design Review,
+and it is written down here rather than left in a decision record so that a
+later reader can tell it was rejected rather than forgotten.
+
+A withheld member the caller wanted costs one extra tool-call round, and this
+document already measures what an extra round costs on this very sequence. The
+saving available from a smaller default is the envelope members it would hold
+back, multiplied by the requests that carry them afterwards. The two figures do
+not sit close to each other:
+
+```
+the break-even, computed entirely inside the cumulative regime
+
+  cost of one extra round, from dinah-381's measurement of record
+    cumulative, file run less verb run                              +220072
+    extra rounds the file run performed                                   6
+    per extra round                                                   36679
+
+  cost of one extra round, rescaled to the post-dinah-382 footprint   ~20000
+
+  saving available from a smaller default, over this twelve-round sequence
+    members a smaller default would withhold             links, attachments,
+                                                              comments, path
+    tokens removed per card read                                       ~380
+    later requests carrying them, first card and second            11 and 5
+    cumulative saving                                                  6080
+
+  break-even, naive                                            1 call in 6.6
+  break-even, allowing for the saving lost on the returning call
+                                                               1 call in 7.6
+  break-even, redone on dinah-381's own envelope and per-round cost
+                                                              1 call in 12.5
+```
+
+Nothing measured on this workbench supports a recovery rate anywhere near
+those, so a smaller default would very likely cost more than it saves. The
+opt-in half is safe in both counting regimes by construction, because a caller
+that names its fields on the first call spends no extra round at all.
+
+The refusal does not rest on the run the harness declared unquotable. The last
+line of that block redoes the whole chain on dinah-381's measurement of record,
+whose figures the harness certified, and the conclusion is the same and by a
+wider margin.
+
+The question is deferred rather than closed. dinah-411 carries it, and its
+first job is to measure the recovery rate itself, which this card's own
+deliverable is what makes measurable: a shaped read followed by a second read
+of the same card within one hold is countable at the head, and a recovery act
+added to the harness's sequence gives the cost of a recovery round on this
+instrument directly rather than by rescaling. That card also carries the two
+things this workstream has never measured, which are a listing act in the
+sequence and a caching-aware counting regime.
