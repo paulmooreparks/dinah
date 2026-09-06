@@ -156,7 +156,7 @@ export function pinnedArgv(root: string, args: readonly string[]): string[] {
  * under the reader (somebody else claimed the card), so the read that follows
  * is exactly what shows them why.
  */
-async function runVerb(
+export async function runVerb(
 	context: CommandContext,
 	args: readonly string[],
 ): Promise<CliOutcome> {
