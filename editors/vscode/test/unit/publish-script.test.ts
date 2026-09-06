@@ -17,6 +17,12 @@
 //
 // What this does not do is publish anything or reach the network. gh never runs
 // here, and vsce is a stub that records and exits.
+//
+// One run drops -DryRun so that the script's real publish branch executes, and
+// that branch is reached only when an archive exists, so the npm stub plants an
+// empty one. Nothing is published there either, because vsce is the same stub.
+// The run exists to read the argument line the script would have handed a real
+// vsce, which no dry run ever produces.
 
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
@@ -47,15 +53,25 @@ function stub(dir: string, name: string, windowsBody: string, posixBody: string)
 }
 
 /**
- * Whether the log holds a `vsce publish` call.
+ * Every `vsce publish` call in the log, as the full argument line each one was
+ * given.
  *
  * The publisher check calls `vsce ls-publishers` on every run, so a plain search
  * for the word finds that instead and can never fail. Each log line is one
- * command's arguments, so the publish call is a line whose first word is
- * publish.
+ * command's arguments, so a publish call is a line whose first word is publish.
+ * The whole line comes back rather than a yes or no, because the check on the
+ * real publish run reads which flags reached vsce.
  */
+function publishLines(log: string): string[] {
+	return log
+		.split(/\r?\n/u)
+		.map((line) => line.trim())
+		.filter((line) => /^publish\b/u.test(line));
+}
+
+/** Whether the log holds a `vsce publish` call at all. */
 function publishWasCalled(log: string): boolean {
-	return log.split(/\r?\n/u).some((line) => /^publish\b/u.test(line.trim()));
+	return publishLines(log).length > 0;
 }
 
 /** What one run of the script saw and did. */
@@ -78,9 +94,24 @@ interface Run {
  * cases for the script. "silent" is what a repository with no releases at all
  * produces, and it is the only one that feeds an empty capture into the
  * pipeline, which is a PowerShell behaviour rather than a module behaviour.
+ *
+ * `dryRun` decides whether -DryRun is passed. A run with it turned off reaches
+ * the script's publish branch, which iterates the archives it finds under
+ * vsix/, so the npm stub plants one there when packaging is called. That
+ * directory belongs to the checkout rather than to the temporary directory,
+ * because the script derives it from its own location, so whatever was there
+ * before the run is put back afterwards.
  */
-function runPublish(ghMode: "fail" | "empty" | "silent" | "released"): Run {
+function runPublish(
+	ghMode: "fail" | "empty" | "silent" | "released",
+	{ dryRun = true }: { dryRun?: boolean } = {},
+): Run {
 	const dir = mkdtempSync(join(tmpdir(), "dinah-publish-"));
+	const vsixDir = join(extensionRoot, "vsix");
+	const archive = join(vsixDir, "dinah-universal.vsix");
+	const plant = !dryRun;
+	const dirExisted = existsSync(vsixDir);
+	const archiveBefore = existsSync(archive) ? readFileSync(archive) : undefined;
 	try {
 		const log = join(dir, "calls.log");
 		const record = onWindows
@@ -110,11 +141,26 @@ function runPublish(ghMode: "fail" | "empty" | "silent" | "released"): Run {
 		}
 
 		// npm records and succeeds. Nothing here installs, compiles or packages,
-		// so the archive directory stays absent and the script fails after the
-		// packaging call on the released path. That is fine: the question this
-		// answers is which arguments reached npm, and the log holds them whether
-		// the run finished or not.
-		stub(dir, "npm", record, record);
+		// so on a dry run the archive directory stays absent and the script fails
+		// after the packaging call on the released path. That is fine: the question
+		// those runs answer is which arguments reached npm, and the log holds them
+		// whether the run finished or not.
+		//
+		// A planting run puts an empty file where a real packaging call would put
+		// the archive, which is the only way the script's publish loop has anything
+		// to iterate. The stub branches on its second argument the way the vsce
+		// stub below branches on its first, and "npm run package -- ..." puts
+		// package there.
+		stub(
+			dir,
+			"npm",
+			plant
+				? `${record}\r\nif "%2"=="package" md "${vsixDir}" 2>nul\r\nif "%2"=="package" type nul >"${archive}"`
+				: record,
+			plant
+				? `${record}\nif [ "$2" = "package" ]; then mkdir -p "${vsixDir}"; : > "${archive}"; fi`
+				: record,
+		);
 		// vsce answers the publisher check and records everything else. A run
 		// that reached a real publish would show up in the log.
 		stub(
@@ -125,9 +171,13 @@ function runPublish(ghMode: "fail" | "empty" | "silent" | "released"): Run {
 		);
 
 		const shell = onWindows ? "pwsh.exe" : "pwsh";
+		const args = ["-NoProfile", "-NonInteractive", "-File", script, "-Tag", "v0.1.42-dev"];
+		if (dryRun) {
+			args.push("-DryRun");
+		}
 		const result = spawnSync(
 			shell,
-			["-NoProfile", "-NonInteractive", "-File", script, "-Tag", "v0.1.42-dev", "-DryRun"],
+			args,
 			{
 				encoding: "utf8",
 				env: { ...process.env, PATH: `${dir}${delimiter}${process.env.PATH ?? ""}` },
@@ -146,6 +196,16 @@ function runPublish(ghMode: "fail" | "empty" | "silent" | "released"): Run {
 		};
 	} finally {
 		rmSync(dir, { recursive: true, force: true });
+		if (plant) {
+			if (archiveBefore === undefined) {
+				rmSync(archive, { force: true });
+			} else {
+				writeFileSync(archive, archiveBefore);
+			}
+			if (!dirExisted) {
+				rmSync(vsixDir, { recursive: true, force: true });
+			}
+		}
 	}
 }
 
@@ -232,4 +292,27 @@ test("the newest released version reaches the packaging call", () => {
 		!run.log.includes("--published"),
 		"the packaging call still passes the retired --published flag, which selects nothing and packages the committed floor",
 	);
+});
+
+test("the real publish does not stamp the archive as a pre-release", () => {
+	// Every other run here passes -DryRun, so the publish line has never been
+	// executed by a test at all, and an assertion on a line nothing runs cannot
+	// see a flag come back. This run reaches it. vsce is the same recording stub
+	// the other runs use, so nothing leaves the machine.
+	const run = runPublish("released", { dryRun: false });
+	const lines = publishLines(run.log);
+	assert.ok(
+		lines.length > 0,
+		`the script never reached its publish call, so this check saw nothing; the stubs were asked for:\n${run.log}`,
+	);
+	for (const line of lines) {
+		assert.ok(
+			!line.includes("--pre-release"),
+			`the publish call stamps the marketplace publish as a pre-release, so VS Code would refuse to install it as a release: ${line}`,
+		);
+		assert.ok(
+			line.includes("--packagePath"),
+			`the publish call no longer names the archive it publishes: ${line}`,
+		);
+	}
 });

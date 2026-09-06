@@ -269,7 +269,7 @@ jobs:
         if: env.VSCE_PAT != ''
         run: |
           set -e
-          node node_modules/@vscode/vsce/vsce publish --pre-release --skip-duplicate --packagePath vsix/dinah-universal.vsix
+          node node_modules/@vscode/vsce/vsce publish --skip-duplicate --packagePath vsix/dinah-universal.vsix
 
   # The tag is reserved before anything is verified, so a run that reserves one
   # and then fails would leave it pointing at code that never shipped and would

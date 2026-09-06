@@ -101,7 +101,7 @@ try {
     else {
         foreach ($archive in $archives) {
             Write-Output "Publishing $($archive.Name)..."
-            vsce publish --pre-release --packagePath $archive.FullName
+            vsce publish --packagePath $archive.FullName
             if ($LASTEXITCODE -ne 0) { Fail "Publishing $($archive.Name) failed." }
         }
     }
