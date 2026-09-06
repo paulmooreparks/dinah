@@ -957,10 +957,18 @@ func TestEverySchemaPropertyIsDescribedAndNoneCarriesAnEnum(t *testing.T) {
 	if described == 0 {
 		t.Fatal("no property was read, so this test proves nothing")
 	}
-	// workbenches is the one tool that does not carry a workbench property,
-	// so the injected count is three per tool minus the one exception.
-	if beyond != 3*len(listed.Tools)-1 {
-		t.Errorf("read %d injected properties across %d tools, want 3 per tool minus the workbenches exception", beyond, len(listed.Tools))
+	// An injected property is published on exactly the tools that consume it,
+	// so the count is a sum over the three consumer sets rather than three per
+	// tool. actor reaches every tool, workbench reaches every tool but
+	// workbenches, and basis reaches the eight tools whose verb reads it.
+	// The eight are claim, move, release, block, unblock, join_workstream,
+	// leave_workstream and pull, which the inventory in tools_inventory_test.go
+	// names one by one.
+	const basisTools = 8
+	want := 2*len(listed.Tools) - 1 + basisTools
+	if beyond != want {
+		t.Errorf("read %d injected properties across %d tools, want %d, the sum of the three consumer sets",
+			beyond, len(listed.Tools), want)
 	}
 }
 
@@ -1685,11 +1693,17 @@ func TestAnUnrecognizedArgumentIsRefusedAtTheTransport(t *testing.T) {
 		t.Errorf("the refusal carried a result as well as an error: %v", answer.Result)
 	}
 	message := answer.Error.Message
-	wanted := []string{`"list_cards"`, `"sortby"`, "column", "max-depth", "ready", "root", "workbench", "actor", "basis"}
+	wanted := []string{`"list_cards"`, `"sortby"`, "column", "max-depth", "ready", "root", "workbench", "actor"}
 	for _, want := range wanted {
 		if !strings.Contains(message, want) {
 			t.Errorf("the message %q does not carry %s, which an agent correcting its own call needs", message, want)
 		}
+	}
+	// list_cards reads no basis, so the name is neither published nor
+	// accepted, and a message offering it would send a correcting agent to an
+	// argument the next call would be refused for.
+	if strings.Contains(message, "basis") {
+		t.Errorf("the accepted set names basis, which this tool does not take: %q", message)
 	}
 	delete(arguments, "sortby")
 	control := ask(t, library, callLine(t, 2, "list_cards", arguments))
@@ -1746,13 +1760,18 @@ func TestTheWorkbenchesToolRefusesTheNameItsSchemaWithholds(t *testing.T) {
 		t.Errorf("the refusal came back on code %d, want %d", answer.Error.Code, codeInvalidParams)
 	}
 	message := answer.Error.Message
-	for _, want := range []string{`"workbenches"`, `"workbench"`, "path", "max-depth", "actor", "basis"} {
+	for _, want := range []string{`"workbenches"`, `"workbench"`, "path", "max-depth", "actor"} {
 		if !strings.Contains(message, want) {
 			t.Errorf("the message %q does not carry %s", message, want)
 		}
 	}
-	if strings.Contains(message, "it accepts: actor, basis, max-depth, path, workbench") {
+	if strings.Contains(message, "it accepts: actor, max-depth, path, workbench") {
 		t.Errorf("the accepted set names workbench, which this tool does not take: %q", message)
+	}
+	// workbenches reads no basis either, so the accepted set names neither of
+	// the two withheld names.
+	if strings.Contains(message, "basis") {
+		t.Errorf("the accepted set names basis, which this tool does not take: %q", message)
 	}
 	control := askUnderRoot(t, root, library, callLine(t, 2, "workbenches", map[string]any{"path": root}))
 	if control.Error != nil {
@@ -1790,7 +1809,10 @@ func declaredCall(t tool) map[string]any {
 		arguments[name] = ""
 	}
 	for _, param := range verb.Params(t.command) {
-		if param.Marker {
+		// A marker the surface holds back is not part of the declared set, so
+		// sending it here would ask the check to accept a name tools/list never
+		// offered, which is the opposite of what this helper is for.
+		if param.Marker && !exemptArgument(t.name, param.Name) {
 			arguments[param.Name] = false
 		}
 	}

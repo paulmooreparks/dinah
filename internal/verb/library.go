@@ -614,14 +614,6 @@ func (l *Library) FromError(req *Request, err error) *Response {
 		// rather than refuseWith drops the card the library might otherwise
 		// attach.
 		return ComposeRefusal(req, typed)
-	case *contract.Stale:
-		response := &Response{
-			Outcome:     contract.OutcomeStale,
-			Verb:        req.Verb,
-			Basis:       typed.Basis,
-			Affordances: l.affordances(nil),
-		}
-		return response
 	case *contract.Unreachable:
 		return &Response{
 			Outcome:     contract.OutcomeUnreachable,

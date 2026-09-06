@@ -1452,6 +1452,8 @@ def main():
                         help="how many cards the sequence carries through the column")
     parser.add_argument("--residual-bound", type=float, default=2.0,
                         help="the share of the footprint the reconciliation may miss by")
+    parser.add_argument("--per-tool", action="store_true",
+                        help="print the tool-definition block attributed to each published tool")
     args = parser.parse_args()
 
     try:
@@ -1648,6 +1650,21 @@ def measure(args):
     report.figure("tool block over the file run's rounds", file_product)
     report.signed("round-trip component, file run less verb run", file_product - verb_product)
     report.say()
+
+    if args.per_tool:
+        # One tool's share of the block is the difference the block shows when
+        # that tool is taken out of it, which is the same difference method the
+        # block figure itself uses against an empty tool list. The shares do not
+        # sum to the block, because a tokenizer is not additive over a
+        # concatenation, so each figure is what removing that one tool would
+        # save rather than a slice of a partition.
+        probe = [{"role": "user", "content": TOKEN_PROBE_PREFIX}]
+        whole = counter.count(probe, tools)
+        report.say("the tool-definition block, attributed per published tool")
+        for position, definition in enumerate(tools):
+            without = tools[:position] + tools[position + 1:]
+            report.figure(definition["name"], whole - counter.count(probe, without))
+        report.say()
 
     report.say("the reconciliation, against the verb run's context footprint")
     attributed = (arrivals + repeats + attribution.reencoding + attribution.envelope

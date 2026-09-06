@@ -136,7 +136,19 @@ var toolExemptions = map[string]string{
 // found. Publishing them would offer an agent an argument that changes nothing
 // about the answer it gets back, which is the silent drop dinah-362 exists to
 // close, arriving on the other head.
-// new_column is the second case, and it arrives from the other direction.
+//
+// check's ten repair markers are held back for the neighbouring reason, and
+// the operator ruled on them at Operator Design Review on 2026-09-06. Each one
+// selects a one-time repair of an ageing store, and this workbench's own
+// standing rule is that a repair is never run against a live workbench and
+// that a copy is taken first. A repair an agent should never run is an
+// available wrong turn sitting permanently in front of every agent that
+// connects, so the head does not offer it. The markers stay in the verb
+// library and stay reachable at a terminal, where a person is present to take
+// that copy, so this is a decision about what the head publishes rather than a
+// deprecation of store repair.
+//
+// new_column is the third case, and it arrives from the other direction.
 // Its command's action is the first word of `dinah column new`, and new is the
 // only word that command takes, so the tool is that one action and fills the
 // field in itself. Publishing the argument anyway would ask a caller to send a
@@ -148,8 +160,18 @@ var toolExemptions = map[string]string{
 // refuses the name outright.
 var argumentExemptions = map[string]map[string]string{
 	"check": {
-		"root":      "aims the terminal's two repair sweeps at a tree, and this head runs neither sweep",
-		"max-depth": "bounds the walk root names, and this head takes no root for check",
+		"root":                "aims the terminal's two repair sweeps at a tree, and this head runs neither sweep",
+		"max-depth":           "bounds the walk root names, and this head takes no root for check",
+		"finish":              "completes a half-written store repair, which is operator work taken at a terminal against a copy",
+		"remint":              "rewrites the identifier of one of two directories claiming it, which is an irreversible repair an operator decides",
+		"yes":                 "confirms the two repairs whose rewrites have no undo, and this head offers neither of them",
+		"witness":             "rebuilds the witness records of an ageing store, which is a one-time repair rather than a reading of it",
+		"migrate-ordinals":    "rewrites every card's ordinal in place, which is a one-time repair of an ageing store",
+		"migrate-slugs":       "rewrites every column's slug in place, which is a one-time repair of an ageing store",
+		"migrate-columns":     "rewrites the column layout of an ageing store, which is a one-time repair of it",
+		"migrate-vocabulary":  "rewrites the vocabulary of every workbench under a root, and its rewrite has no undo",
+		"migrate-container":   "rewrites the container layout of every workbench under a root, and its rewrite has no undo",
+		"migrate-workstreams": "rewrites the workstream records of an ageing store, which is a one-time repair of it",
 	},
 	"new_column": {
 		"action": "names the first word of `dinah column new`, and this tool is that one action, so the head fills the field in and a published argument would be a value it overwrites",
@@ -231,24 +253,101 @@ func toolList() []map[string]any {
 	return list
 }
 
-// injectedProperties names the schema properties that come from no command's
-// parameter list, mapped to the catalog key describing each. None is a
-// parameter, so each is resolved by name: actor takes the sentence the global
-// flag row already prints, basis takes one written for it, and workbench takes
-// one written for the address space the MCP head binds.
-var injectedProperties = map[string]string{
-	"actor":     "flag.actor.summary",
-	"basis":     "schema.basis.description",
-	"workbench": "schema.workbench.description",
+// injectedProperty is one schema property that comes from no command's
+// parameter list, carrying the catalog key that describes it and the set of
+// tools that consume it.
+//
+// The set is what the declaration exists for. A property published on a tool
+// that never reads it is an argument accepted and dropped without a word,
+// which is the silent drop argumentExemptions was written to close, arriving
+// through the injected-property door rather than the parameter door. So an
+// injected property is published on exactly the tools that consume it, and a
+// tool outside the set refuses the name the way it refuses any name the
+// surface never offered.
+type injectedProperty struct {
+	// name is the property a schema publishes and a call may carry.
+	name string
+	// key is the catalog key whose sentence describes the property.
+	key string
+	// consumers names every tool that reads the property.
+	consumers map[string]bool
+}
+
+// injectedProperties are the three such properties. None is a parameter, so
+// each is resolved by name: actor takes the sentence the global flag row
+// already prints, basis takes one written for it, and workbench takes one
+// written for the address space the MCP head binds.
+//
+// Where each is consumed, and where the consumption is proved:
+//
+// actor is read on every call, because the lapse sweep and the witness writes
+// consult the acting name on a read as well as on a write.
+//
+// basis is read at exactly two sites, the guard in Library.Do at
+// internal/verb/mutate.go and the guard in the pull transaction at
+// internal/verb/pull.go. Library.Do serves the seven contract verbs, so those
+// two sites are the eight tools named below and nothing else. The other
+// twenty-eight tools copied the value onto the request and dropped it, and
+// they now refuse the name instead. TestBasisIsPublishedExactlyWhereItIsConsumed
+// sends an impossible basis to every tool and fails in both directions, so the
+// set below is checked against the code rather than trusted.
+//
+// workbench is read by every tool but workbenches, whose scope argument is the
+// positional path instead, so on that one tool the name would carry a value
+// the tool does not consume. That exception lives here and nowhere else.
+var injectedProperties = []injectedProperty{
+	{name: "actor", key: "flag.actor.summary", consumers: everyTool()},
+	{name: "basis", key: "schema.basis.description", consumers: namedTools(
+		"claim", "move", "release", "block", "unblock",
+		"join_workstream", "leave_workstream", "pull",
+	)},
+	{name: "workbench", key: "schema.workbench.description",
+		consumers: everyToolExcept("workbenches")},
+}
+
+// namedTools is the consumer set of a property only some tools read. Every
+// name must be a tool this head serves, so a rename that leaves a stale name
+// behind stops the package rather than quietly narrowing the surface.
+func namedTools(names ...string) map[string]bool {
+	set := map[string]bool{}
+	for _, name := range names {
+		if _, served := toolsByName[name]; !served {
+			panic("mcp: an injected property names " + name + ", which this head serves no tool for")
+		}
+		set[name] = true
+	}
+	return set
+}
+
+// everyTool is the consumer set of a property every tool reads.
+func everyTool() map[string]bool {
+	return everyToolExcept()
+}
+
+// everyToolExcept is the consumer set of a property every tool but the named
+// ones reads.
+func everyToolExcept(names ...string) map[string]bool {
+	held := map[string]bool{}
+	for _, name := range names {
+		held[name] = true
+	}
+	set := map[string]bool{}
+	for _, t := range tools {
+		if held[t.name] {
+			continue
+		}
+		set[t.name] = true
+	}
+	return set
 }
 
 // declaredArgNames is the set of argument names one tool accepts: every
 // parameter verb.Params declares for its command, plus the injected names
-// above.
+// this tool is a consumer of.
 //
-// The workbench name is held out for workbenches itself, whose scope argument
-// is the positional path instead, so it would otherwise carry a name whose
-// value the tool does not consume. That exception lives here and nowhere else.
+// Which tools consume which injected name is injectedProperties' answer and is
+// argued there, so a reader asking why one tool takes basis and another does
+// not goes to that declaration rather than to this function.
 //
 // The published schema and the check that refuses an unrecognized argument
 // both read this one function, so a caller cannot be refused a name tools/list
@@ -261,11 +360,11 @@ func declaredArgNames(t tool) map[string]bool {
 		}
 		names[param.Name] = true
 	}
-	for name := range injectedProperties {
-		if name == "workbench" && t.name == "workbenches" {
+	for _, injected := range injectedProperties {
+		if !injected.consumers[t.name] {
 			continue
 		}
-		names[name] = true
+		names[injected.name] = true
 	}
 	return names
 }
@@ -297,11 +396,14 @@ func schemaFor(t tool) map[string]any {
 		}
 	}
 	declared := declaredArgNames(t)
-	for name, key := range injectedProperties {
-		if !declared[name] {
+	for _, injected := range injectedProperties {
+		if !declared[injected.name] {
 			continue
 		}
-		properties[name] = map[string]any{"type": "string", "description": catalog.T(key)}
+		properties[injected.name] = map[string]any{
+			"type":        "string",
+			"description": catalog.T(injected.key),
+		}
 	}
 	sort.Strings(required)
 	schema := map[string]any{
