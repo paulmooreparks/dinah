@@ -53,8 +53,50 @@ import { BINARY_KEY_VALUES, WORKBENCH_KEY_VALUES } from "../../src/status";
 
 // This file is compiled to out/test/unit/, so the extension root is three up.
 const extensionRoot = join(__dirname, "..", "..", "..");
-const manifest = JSON.parse(
-	readFileSync(join(extensionRoot, "package.json"), "utf8"),
+
+/**
+ * The base catalogue the manifest's own strings now live in.
+ *
+ * dinah-379 moved every user-facing manifest string into package.nls.json and
+ * left a `%key%` placeholder in package.json, which is how VS Code localises a
+ * manifest. Every assertion in this file is about the English a reader sees,
+ * so the placeholders are resolved once, here, and nothing below has to know
+ * the indirection happened. test/unit/l10n.test.ts is the file that reads the
+ * raw manifest and holds the placeholders and the catalogue to each other.
+ *
+ * Resolving matters beyond the title assertions. The prose guard further down
+ * reads the settings descriptions and the welcome blocks looking for a claim
+ * that the extension carries a dinah binary, and against an unresolved
+ * manifest it would sweep eleven placeholders, find no prose, and pass.
+ */
+const baseCatalog = JSON.parse(
+	readFileSync(join(extensionRoot, "package.nls.json"), "utf8"),
+) as Record<string, string>;
+
+/** Replaces a value that is exactly one `%key%` with that key's English text. */
+function resolveNls(value: unknown): unknown {
+	if (typeof value === "string") {
+		const placeholder = /^%([A-Za-z0-9_.-]+)%$/.exec(value);
+		if (placeholder === null) {
+			return value;
+		}
+		const resolved = baseCatalog[placeholder[1]];
+		assert.ok(resolved !== undefined, `package.nls.json carries no ${value}`);
+		return resolved;
+	}
+	if (Array.isArray(value)) {
+		return value.map(resolveNls);
+	}
+	if (value !== null && typeof value === "object") {
+		return Object.fromEntries(
+			Object.entries(value).map(([key, inner]) => [key, resolveNls(inner)]),
+		);
+	}
+	return value;
+}
+
+const manifest = resolveNls(
+	JSON.parse(readFileSync(join(extensionRoot, "package.json"), "utf8")),
 ) as Record<string, unknown>;
 
 const contributes = manifest.contributes as Record<string, unknown>;

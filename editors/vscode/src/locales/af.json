@@ -1,0 +1,280 @@
+{
+	"tag": "af",
+	"entries": {
+		"dialog.card.copiedRef": {
+			"text": "Copied {ref}",
+			"context": "Toast after Copy Reference. {ref} is the card's own reference.",
+			"skeleton": true
+		},
+		"dialog.block.reasonPrompt": {
+			"text": "Why is this card blocked?",
+			"context": "Prompt of the input box Block raises before it runs dinah block.",
+			"skeleton": true
+		},
+		"dialog.move.noLegalMoves": {
+			"text": "{ref} has no legal moves from where it stands.",
+			"context": "Shown when instructions answered with an empty legal-move list. {ref} is the card's reference.",
+			"skeleton": true
+		},
+		"dialog.move.placeholder": {
+			"text": "Move {ref} to",
+			"context": "Placeholder of the quick pick listing a card's legal destinations. {ref} is the card's reference.",
+			"skeleton": true
+		},
+		"dialog.move.backward": {
+			"text": "backward",
+			"context": "The detail line marking a destination that lies behind the card's current column.",
+			"skeleton": true
+		},
+		"dialog.openOutput.label": {
+			"text": "Open Output",
+			"context": "The button a warning toast offers when the Dinah output channel holds the detail.",
+			"skeleton": true
+		},
+		"dialog.column.instructionsUnreadable.channel": {
+			"text": "{column}: could not open this column's instructions file. {detail}",
+			"context": "Output channel line when Edit Instructions could not resolve the file. {column} is the row's label, {detail} the refusal.",
+			"skeleton": true
+		},
+		"dialog.column.instructionsUnreadable.toast": {
+			"text": "{column}: could not open this column's instructions file. See the Dinah output channel for details.",
+			"context": "Toast beside the channel line above, pointing at the channel. {column} is the row's label.",
+			"skeleton": true
+		},
+		"dialog.workbench.noReport.channel": {
+			"text": "{workbench}: check produced no report the extension could read. {detail}",
+			"context": "Output channel line when check answered with no report this build could read. {workbench} is the row's label, {detail} the refusal.",
+			"skeleton": true
+		},
+		"dialog.workbench.noReport.toast": {
+			"text": "{workbench}: check produced no report the extension could read. See the Dinah output channel for details.",
+			"context": "Toast beside the channel line above, pointing at the channel. {workbench} is the row's label.",
+			"skeleton": true
+		},
+		"dialog.workbench.noBinary": {
+			"text": "No dinah binary was resolved, so nothing ran.",
+			"context": "Channel line naming the binary that answered, when no binary was resolved at all.",
+			"skeleton": true
+		},
+		"dialog.workbench.answeringBinary": {
+			"text": "The binary that answered: {exe}.",
+			"context": "Channel line naming the binary that answered. {exe} is its path.",
+			"skeleton": true
+		},
+		"dialog.workbench.answeringBinaryDescribed": {
+			"text": "The binary that answered: {exe} ({description}).",
+			"context": "As above, with the binary's self-reported version. {exe} is the path, {description} the version line.",
+			"skeleton": true
+		},
+		"dialog.workbench.checkClean": {
+			"text": "{workbench}: check found no defects.",
+			"context": "Toast after a check that found nothing. {workbench} is the row's label.",
+			"skeleton": true
+		},
+		"dialog.workbench.checkFindings.channel": {
+			"text": "{workbench}: check found {count} defect(s):",
+			"context": "Heading above the findings in the output channel. {workbench} is the row's label, {count} the number of findings.",
+			"skeleton": true
+		},
+		"dialog.workbench.checkFindings.toast": {
+			"text": "{workbench}: check found {count} defect(s). See the Dinah output channel for details.",
+			"context": "Toast beside the heading above, pointing at the channel. {workbench} is the row's label, {count} the number of findings.",
+			"skeleton": true
+		},
+		"dialog.workbench.copiedPath": {
+			"text": "Copied {path}",
+			"context": "Toast after Copy Path. {path} is the workbench's own directory.",
+			"skeleton": true
+		},
+		"dialog.workbench.definitionUnreadable.channel": {
+			"text": "{workbench}: could not open the workbench definition file. {detail}",
+			"context": "Output channel line when Edit Definition could not resolve the file. {workbench} is the row's label, {detail} the refusal.",
+			"skeleton": true
+		},
+		"dialog.workbench.definitionUnreadable.toast": {
+			"text": "{workbench}: could not open the workbench definition file. See the Dinah output channel for details.",
+			"context": "Toast beside the channel line above, pointing at the channel. {workbench} is the row's label.",
+			"skeleton": true
+		},
+		"dialog.newCard.titlePrompt": {
+			"text": "Title for the new card in {column}",
+			"context": "Prompt of the input box New Card raises. {column} is the row's label.",
+			"skeleton": true
+		},
+		"dialog.attach.descriptionPrompt": {
+			"text": "Description for this attachment, or leave blank",
+			"context": "Prompt of the input box Attach File raises after the file has been chosen.",
+			"skeleton": true
+		},
+		"dialog.pull.empty": {
+			"text": "Nothing in {from} is ready to pull into {into}.",
+			"context": "Toast after a pull that was allowed and found nothing. {from} is the upstream's title, {into} the destination's.",
+			"skeleton": true
+		},
+		"dialog.drop.crossWorkbench": {
+			"text": "Dinah cannot move {ref} into {destination}, because that column belongs to a different workbench.",
+			"context": "Shown when a card is dragged onto a column of another workbench. {ref} is the card, {destination} the column.",
+			"skeleton": true
+		},
+		"dialog.drop.thatColumn": {
+			"text": "that column",
+			"context": "Stands in for the destination in the message above when the drop resolved no column at all.",
+			"skeleton": true
+		},
+		"tree.column.damaged": {
+			"text": "damaged",
+			"context": "The description on the column row the last read named as unreadable.",
+			"skeleton": true
+		},
+		"tree.column.brokenTooltip.unreadable": {
+			"text": "This column's own file could not be read.",
+			"context": "The hover line saying why the column row carries a warning marker.",
+			"skeleton": true
+		},
+		"tree.column.occupancyWaiting": {
+			"text": "{occupancy}, waiting",
+			"context": "A column row's description when the column waits on somebody outside. {occupancy} is the count, or the count over the capacity.",
+			"skeleton": true
+		},
+		"tree.column.claimedHere": {
+			"text": "Cards are claimed here.",
+			"context": "Hover line on a column that takes work up.",
+			"skeleton": true
+		},
+		"tree.column.pulledOnward": {
+			"text": "A card here waits to be pulled onward.",
+			"context": "Hover line on a queue column, which holds a card rather than taking work up.",
+			"skeleton": true
+		},
+		"tree.column.pullHint": {
+			"text": "Right-click to pull the next ready card into {destination}.",
+			"context": "Hover line telling the reader where the row's Pull would land the card. {destination} is the next column's title.",
+			"skeleton": true
+		},
+		"tree.column.awaitingOutside": {
+			"text": "This column is waiting on somebody outside the workbench.",
+			"context": "Hover line on a column whose cards wait on somebody outside the workbench.",
+			"skeleton": true
+		},
+		"tree.column.operatorOwned": {
+			"text": "Only the operator moves a card out.",
+			"context": "Hover line on a column only the operator moves a card out of.",
+			"skeleton": true
+		},
+		"tree.column.agentMoves": {
+			"text": "An agent moves a card out.",
+			"context": "Hover line on a column an agent moves a card out of.",
+			"skeleton": true
+		},
+		"tree.card.heldBy": {
+			"text": "held by {holder}",
+			"context": "Hover line on an active card. {holder} is the actor holding it.",
+			"skeleton": true
+		},
+		"tree.group.ready": {
+			"text": "Ready",
+			"context": "The heading over the ready cards standing at a column.",
+			"skeleton": true
+		},
+		"tree.group.active": {
+			"text": "Active",
+			"context": "The heading over the active cards standing at a column.",
+			"skeleton": true
+		},
+		"tree.group.blocked": {
+			"text": "Blocked",
+			"context": "The heading over the blocked cards standing at a column.",
+			"skeleton": true
+		},
+		"tree.group.none": {
+			"text": "(none)",
+			"context": "The heading over a group whose axis value the read left empty.",
+			"skeleton": true
+		},
+		"tree.attachments.label": {
+			"text": "Attachments",
+			"context": "The row heading the files attached to a card.",
+			"skeleton": true
+		},
+		"tree.attachment.noLocalFile": {
+			"text": "no local file",
+			"context": "The last hover line on an attachment row whose payload is not on this machine.",
+			"skeleton": true
+		},
+		"tree.root.noWorkbench": {
+			"text": "no workbench",
+			"context": "Stands in for the refusal on a folder row where the walk found nothing and said nothing.",
+			"skeleton": true
+		},
+		"tree.root.deadEnd.noWorkbenchSentence": {
+			"text": "No workbench was found from this folder. Run `dinah init` in a terminal to create one, or set `dinah.workbench` to the directory of one you already have.",
+			"context": "The hover on a folder row the walk found no workbench under, when the walk said so rather than refusing.",
+			"skeleton": true
+		},
+		"tree.root.deadEnd.label": {
+			"text": "{folder}: {refusal}",
+			"context": "The label of a folder row the walk found no workbench under. {folder} is the folder's name, {refusal} what the walk said. Two placeholders and a separator, with no word to translate.",
+			"skeleton": true
+		},
+		"tree.root.unreadable.tooltip": {
+			"text": "The walk could not read this directory: {refusal}",
+			"context": "The hover on a row the walk could not read far enough to name. {refusal} is what it said.",
+			"skeleton": true
+		},
+		"tree.root.wouldNotOpen": {
+			"text": "would not open",
+			"context": "A workbench row's description when the workbench refused to open at all.",
+			"skeleton": true
+		},
+		"tree.root.didNotAnswer": {
+			"text": "did not answer",
+			"context": "A workbench row's description when the workbench opened and declined one question.",
+			"skeleton": true
+		},
+		"status.noBinary.notFound": {
+			"text": "No dinah binary was found. This extension is a companion to the dinah command-line tool and carries no copy of it.",
+			"context": "First hover line on the status bar item when no dinah binary was found.",
+			"skeleton": true
+		},
+		"status.noBinary.install": {
+			"text": "Install it from https://github.com/paulmooreparks/dinah#install, or set dinah.path to a binary you already have.",
+			"context": "Second hover line on the status bar item when no dinah binary was found.",
+			"skeleton": true
+		},
+		"status.ambiguous": {
+			"text": "Several workbenches are reachable from here. Set dinah.workbench to choose one.",
+			"context": "Hover line on the status bar item when several workbenches are reachable.",
+			"skeleton": true
+		},
+		"status.refused": {
+			"text": "dinah refused: {refusal}",
+			"context": "Hover line carrying a refusal the resolution answered with. {refusal} is the refusal's own name.",
+			"skeleton": true
+		},
+		"status.binary.withSource": {
+			"text": "binary: {path} ({source})",
+			"context": "Hover line naming the binary this window drives. {path} is its path, {source} where it was found.",
+			"skeleton": true
+		},
+		"status.binary.plain": {
+			"text": "binary: {path}",
+			"context": "As above, when the source is not known. {path} is the binary's path.",
+			"skeleton": true
+		},
+		"status.pairedWith": {
+			"text": "extension paired with dinah {release}",
+			"context": "Hover line naming the dinah release this build of the extension was cut alongside. {release} is that tag.",
+			"skeleton": true
+		},
+		"status.resolvedBy": {
+			"text": "resolved by {source}",
+			"context": "Hover line saying how the workbench was found. {source} is the resolution's own source.",
+			"skeleton": true
+		},
+		"status.outsideWorkspace": {
+			"text": "This workbench is outside your workspace: {root}",
+			"context": "Leading hover line when the walk climbed past the workspace folder. {root} is the workbench's directory.",
+			"skeleton": true
+		}
+	}
+}

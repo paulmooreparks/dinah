@@ -1,0 +1,281 @@
+{
+	"tag": "de",
+	"entries": {
+		"dialog.card.copiedRef": {
+			"text": "{ref} kopiert",
+			"context": "Toast after Copy Reference. {ref} is the card's own reference.",
+			"source": "44f46ab5f3988104"
+		},
+		"dialog.block.reasonPrompt": {
+			"text": "Warum ist diese Karte blockiert?",
+			"context": "Prompt of the input box Block raises before it runs dinah block.",
+			"source": "fb03728d7bf48a92"
+		},
+		"dialog.move.noLegalMoves": {
+			"text": "{ref} hat von seiner jetzigen Stelle aus keine erlaubten Züge.",
+			"context": "Shown when instructions answered with an empty legal-move list. {ref} is the card's reference.",
+			"source": "9d1898a7a1ef777f"
+		},
+		"dialog.move.placeholder": {
+			"text": "{ref} verschieben nach",
+			"context": "Placeholder of the quick pick listing a card's legal destinations. {ref} is the card's reference.",
+			"source": "8012fdc4b0275f62"
+		},
+		"dialog.move.backward": {
+			"text": "rückwärts",
+			"context": "The detail line marking a destination that lies behind the card's current column.",
+			"source": "22683b5b32659b84"
+		},
+		"dialog.openOutput.label": {
+			"text": "Ausgabe öffnen",
+			"context": "The button a warning toast offers when the Dinah output channel holds the detail.",
+			"source": "2445481cf058f776"
+		},
+		"dialog.column.instructionsUnreadable.channel": {
+			"text": "{column}: Die Anweisungsdatei dieser Spalte konnte nicht geöffnet werden. {detail}",
+			"context": "Output channel line when Edit Instructions could not resolve the file. {column} is the row's label, {detail} the refusal.",
+			"source": "eb0655a989306b21"
+		},
+		"dialog.column.instructionsUnreadable.toast": {
+			"text": "{column}: Die Anweisungsdatei dieser Spalte konnte nicht geöffnet werden. Einzelheiten stehen im Dinah-Ausgabekanal.",
+			"context": "Toast beside the channel line above, pointing at the channel. {column} is the row's label.",
+			"source": "d42fdd9a9e8adaeb"
+		},
+		"dialog.workbench.noReport.channel": {
+			"text": "{workbench}: check hat keinen Bericht geliefert, den die Erweiterung lesen konnte. {detail}",
+			"context": "Output channel line when check answered with no report this build could read. {workbench} is the row's label, {detail} the refusal.",
+			"source": "fe515b00548d51c9"
+		},
+		"dialog.workbench.noReport.toast": {
+			"text": "{workbench}: check hat keinen Bericht geliefert, den die Erweiterung lesen konnte. Einzelheiten stehen im Dinah-Ausgabekanal.",
+			"context": "Toast beside the channel line above, pointing at the channel. {workbench} is the row's label.",
+			"source": "fcddaec9aae08f3"
+		},
+		"dialog.workbench.noBinary": {
+			"text": "Es wurde kein dinah-Programm ermittelt, daher lief nichts.",
+			"context": "Channel line naming the binary that answered, when no binary was resolved at all.",
+			"source": "16107d5fad2974ac"
+		},
+		"dialog.workbench.answeringBinary": {
+			"text": "Das Programm, das geantwortet hat: {exe}.",
+			"context": "Channel line naming the binary that answered. {exe} is its path.",
+			"source": "1ae96eda3b7b2603"
+		},
+		"dialog.workbench.answeringBinaryDescribed": {
+			"text": "Das Programm, das geantwortet hat: {exe} ({description}).",
+			"context": "As above, with the binary's self-reported version. {exe} is the path, {description} the version line.",
+			"source": "d353bb315dd874e2"
+		},
+		"dialog.workbench.checkClean": {
+			"text": "{workbench}: check hat keine Mängel gefunden.",
+			"context": "Toast after a check that found nothing. {workbench} is the row's label.",
+			"source": "f3263e45bbff622d"
+		},
+		"dialog.workbench.checkFindings.channel": {
+			"text": "{workbench}: check hat {count} Mangel/Mängel gefunden:",
+			"context": "Heading above the findings in the output channel. {workbench} is the row's label, {count} the number of findings.",
+			"source": "45ce107924ed4b6e"
+		},
+		"dialog.workbench.checkFindings.toast": {
+			"text": "{workbench}: check hat {count} Mangel/Mängel gefunden. Einzelheiten stehen im Dinah-Ausgabekanal.",
+			"context": "Toast beside the heading above, pointing at the channel. {workbench} is the row's label, {count} the number of findings.",
+			"source": "9b9ab13960b0e4c3"
+		},
+		"dialog.workbench.copiedPath": {
+			"text": "{path} kopiert",
+			"context": "Toast after Copy Path. {path} is the workbench's own directory.",
+			"source": "786471a013e997c2"
+		},
+		"dialog.workbench.definitionUnreadable.channel": {
+			"text": "{workbench}: Die Definitionsdatei der Werkbank konnte nicht geöffnet werden. {detail}",
+			"context": "Output channel line when Edit Definition could not resolve the file. {workbench} is the row's label, {detail} the refusal.",
+			"source": "16568712846e5622"
+		},
+		"dialog.workbench.definitionUnreadable.toast": {
+			"text": "{workbench}: Die Definitionsdatei der Werkbank konnte nicht geöffnet werden. Einzelheiten stehen im Dinah-Ausgabekanal.",
+			"context": "Toast beside the channel line above, pointing at the channel. {workbench} is the row's label.",
+			"source": "637ba59677bf0c4a"
+		},
+		"dialog.newCard.titlePrompt": {
+			"text": "Titel der neuen Karte in {column}",
+			"context": "Prompt of the input box New Card raises. {column} is the row's label.",
+			"source": "769bef8a45e67680"
+		},
+		"dialog.attach.descriptionPrompt": {
+			"text": "Beschreibung für diesen Anhang, oder leer lassen",
+			"context": "Prompt of the input box Attach File raises after the file has been chosen.",
+			"source": "d54d02a4f2d85e47"
+		},
+		"dialog.pull.empty": {
+			"text": "In {from} ist nichts bereit, um nach {into} gezogen zu werden.",
+			"context": "Toast after a pull that was allowed and found nothing. {from} is the upstream's title, {into} the destination's.",
+			"source": "94a25f9c292ee39c"
+		},
+		"dialog.drop.crossWorkbench": {
+			"text": "Dinah kann {ref} nicht nach {destination} verschieben, denn diese Spalte gehört zu einer anderen Werkbank.",
+			"context": "Shown when a card is dragged onto a column of another workbench. {ref} is the card, {destination} the column.",
+			"source": "ab360087359c3619"
+		},
+		"dialog.drop.thatColumn": {
+			"text": "diese Spalte",
+			"context": "Stands in for the destination in the message above when the drop resolved no column at all.",
+			"source": "874ee7e6d1a67fb6"
+		},
+		"tree.column.damaged": {
+			"text": "beschädigt",
+			"context": "The description on the column row the last read named as unreadable.",
+			"source": "28c77fc5af01e3ac"
+		},
+		"tree.column.brokenTooltip.unreadable": {
+			"text": "Die eigene Datei dieser Spalte konnte nicht gelesen werden.",
+			"context": "The hover line saying why the column row carries a warning marker.",
+			"source": "ef230115453bbc4e"
+		},
+		"tree.column.occupancyWaiting": {
+			"text": "{occupancy}, wartet",
+			"context": "A column row's description when the column waits on somebody outside. {occupancy} is the count, or the count over the capacity.",
+			"source": "b9ec04e11d6ac669"
+		},
+		"tree.column.claimedHere": {
+			"text": "Karten werden hier übernommen.",
+			"context": "Hover line on a column that takes work up.",
+			"source": "f5023772323c1a6f"
+		},
+		"tree.column.pulledOnward": {
+			"text": "Eine Karte wartet hier darauf, weitergezogen zu werden.",
+			"context": "Hover line on a queue column, which holds a card rather than taking work up.",
+			"source": "d66986f4d4b2b60d"
+		},
+		"tree.column.pullHint": {
+			"text": "Mit der rechten Maustaste klicken, um die nächste bereite Karte nach {destination} zu ziehen.",
+			"context": "Hover line telling the reader where the row's Pull would land the card. {destination} is the next column's title.",
+			"source": "4f2fda6e35e1a209"
+		},
+		"tree.column.awaitingOutside": {
+			"text": "Diese Spalte wartet auf jemanden außerhalb der Werkbank.",
+			"context": "Hover line on a column whose cards wait on somebody outside the workbench.",
+			"source": "22a2fb606096d840"
+		},
+		"tree.column.operatorOwned": {
+			"text": "Nur der Betreiber bewegt eine Karte heraus.",
+			"context": "Hover line on a column only the operator moves a card out of.",
+			"source": "e568d874616a3c1d"
+		},
+		"tree.column.agentMoves": {
+			"text": "Ein Agent bewegt eine Karte heraus.",
+			"context": "Hover line on a column an agent moves a card out of.",
+			"source": "dcc59fe9efe86d02"
+		},
+		"tree.card.heldBy": {
+			"text": "gehalten von {holder}",
+			"context": "Hover line on an active card. {holder} is the actor holding it.",
+			"source": "2f3fcc79510cf183"
+		},
+		"tree.group.ready": {
+			"text": "Bereit",
+			"context": "The heading over the ready cards standing at a column.",
+			"source": "9c13a2548d254014"
+		},
+		"tree.group.active": {
+			"text": "Aktiv",
+			"context": "The heading over the active cards standing at a column.",
+			"source": "a45a194b58837e4f"
+		},
+		"tree.group.blocked": {
+			"text": "Blockiert",
+			"context": "The heading over the blocked cards standing at a column.",
+			"source": "f59d9197d2e50c93"
+		},
+		"tree.group.none": {
+			"text": "(keine)",
+			"context": "The heading over a group whose axis value the read left empty.",
+			"source": "8c36545f724b9460"
+		},
+		"tree.attachments.label": {
+			"text": "Anhänge",
+			"context": "The row heading the files attached to a card.",
+			"source": "592e7303020349a1"
+		},
+		"tree.attachment.noLocalFile": {
+			"text": "keine lokale Datei",
+			"context": "The last hover line on an attachment row whose payload is not on this machine.",
+			"source": "efaad910e84107e1"
+		},
+		"tree.root.noWorkbench": {
+			"text": "keine Werkbank",
+			"context": "Stands in for the refusal on a folder row where the walk found nothing and said nothing.",
+			"source": "1b4e814a57727fe7"
+		},
+		"tree.root.deadEnd.noWorkbenchSentence": {
+			"text": "Von diesem Ordner aus wurde keine Werkbank gefunden. Führen Sie `dinah init` in einem Terminal aus, um eine anzulegen, oder setzen Sie `dinah.workbench` auf das Verzeichnis einer Werkbank, die Sie bereits haben.",
+			"context": "The hover on a folder row the walk found no workbench under, when the walk said so rather than refusing.",
+			"source": "f56bfbfd982784c7"
+		},
+		"tree.root.deadEnd.label": {
+			"text": "{folder}: {refusal}",
+			"context": "The label of a folder row the walk found no workbench under. {folder} is the folder's name, {refusal} what the walk said. Two placeholders and a separator, with no word to translate.",
+			"verbatim": true,
+			"source": "315e6c6929dc248f"
+		},
+		"tree.root.unreadable.tooltip": {
+			"text": "Der Suchlauf konnte dieses Verzeichnis nicht lesen: {refusal}",
+			"context": "The hover on a row the walk could not read far enough to name. {refusal} is what it said.",
+			"source": "98fa3f4f1e35c3fe"
+		},
+		"tree.root.wouldNotOpen": {
+			"text": "ließ sich nicht öffnen",
+			"context": "A workbench row's description when the workbench refused to open at all.",
+			"source": "69ed8f5a7aec2b55"
+		},
+		"tree.root.didNotAnswer": {
+			"text": "hat nicht geantwortet",
+			"context": "A workbench row's description when the workbench opened and declined one question.",
+			"source": "442e0142730f3a9f"
+		},
+		"status.noBinary.notFound": {
+			"text": "Es wurde kein dinah-Programm gefunden. Diese Erweiterung begleitet das Kommandozeilenwerkzeug dinah und enthält keine Kopie davon.",
+			"context": "First hover line on the status bar item when no dinah binary was found.",
+			"source": "6034e91d33e2c822"
+		},
+		"status.noBinary.install": {
+			"text": "Installieren Sie es von https://github.com/paulmooreparks/dinah#install, oder setzen Sie dinah.path auf ein Programm, das Sie bereits haben.",
+			"context": "Second hover line on the status bar item when no dinah binary was found.",
+			"source": "f784cf0e2cf227bb"
+		},
+		"status.ambiguous": {
+			"text": "Von hier aus sind mehrere Werkbänke erreichbar. Setzen Sie dinah.workbench, um eine zu wählen.",
+			"context": "Hover line on the status bar item when several workbenches are reachable.",
+			"source": "74087a07df89c5a8"
+		},
+		"status.refused": {
+			"text": "dinah hat abgelehnt: {refusal}",
+			"context": "Hover line carrying a refusal the resolution answered with. {refusal} is the refusal's own name.",
+			"source": "3365c07869ba69ab"
+		},
+		"status.binary.withSource": {
+			"text": "Programm: {path} ({source})",
+			"context": "Hover line naming the binary this window drives. {path} is its path, {source} where it was found.",
+			"source": "bfe5c505642ed787"
+		},
+		"status.binary.plain": {
+			"text": "Programm: {path}",
+			"context": "As above, when the source is not known. {path} is the binary's path.",
+			"source": "e3e7ecd371eced67"
+		},
+		"status.pairedWith": {
+			"text": "Erweiterung gepaart mit dinah {release}",
+			"context": "Hover line naming the dinah release this build of the extension was cut alongside. {release} is that tag.",
+			"source": "b55c091576c1e4da"
+		},
+		"status.resolvedBy": {
+			"text": "ermittelt durch {source}",
+			"context": "Hover line saying how the workbench was found. {source} is the resolution's own source.",
+			"source": "ec979ef589c9e2f5"
+		},
+		"status.outsideWorkspace": {
+			"text": "Diese Werkbank liegt außerhalb Ihres Arbeitsbereichs: {root}",
+			"context": "Leading hover line when the walk climbed past the workspace folder. {root} is the workbench's directory.",
+			"source": "51d0ceb69d7b761d"
+		}
+	}
+}

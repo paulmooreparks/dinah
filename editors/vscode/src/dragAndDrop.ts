@@ -23,6 +23,8 @@
 import type { CommandContext, CommandHost } from "./cardCommands";
 import { isRow, runVerb } from "./cardCommands";
 import type { CliOutcome, Spawner } from "./cli";
+import { ENGLISH } from "./l10n";
+import type { Localizer } from "./l10n";
 import type { ColumnView } from "./wire";
 import type { TreeElement } from "./tree";
 import { columnRef } from "./tree";
@@ -201,7 +203,7 @@ export async function applyDropVerdict(
 		return undefined;
 	}
 	if (verdict.kind === "crossWorkbench") {
-		host.showError(crossWorkbenchMessage(payload.ref, drop));
+		host.showError(crossWorkbenchMessage(payload.ref, drop, host.t));
 		return undefined;
 	}
 	const context: CommandContext = {
@@ -232,9 +234,11 @@ export async function applyDropVerdict(
 export function crossWorkbenchMessage(
 	ref: string,
 	drop: DropTarget | undefined,
+	t: Localizer = ENGLISH,
 ): string {
-	const destination = drop === undefined ? "that column" : destinationName(drop.view);
-	return `Dinah cannot move ${ref} into ${destination}, because that column belongs to a different workbench.`;
+	const destination =
+		drop === undefined ? t("dialog.drop.thatColumn") : destinationName(drop.view);
+	return t("dialog.drop.crossWorkbench", { ref, destination });
 }
 
 /**

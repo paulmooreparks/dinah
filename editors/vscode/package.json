@@ -29,7 +29,7 @@
       "activitybar": [
         {
           "id": "dinah",
-          "title": "Dinah",
+          "title": "%manifest.viewsContainers.dinah.title%",
           "icon": "media/dinah.svg"
         }
       ]
@@ -38,7 +38,7 @@
       "dinah": [
         {
           "id": "dinah.workbenchView",
-          "name": "Workbench"
+          "name": "%manifest.views.dinah.workbenchView.name%"
         }
       ]
     },
@@ -46,99 +46,99 @@
       {
         "view": "dinah.workbenchView",
         "when": "dinah.binary == 'missing'",
-        "contents": "Dinah is not installed on this machine. This extension is a companion to the `dinah` command-line tool, and it does not carry a copy of it. Install dinah from [github.com/paulmooreparks/dinah#install](https://github.com/paulmooreparks/dinah#install), or set `dinah.path` to a binary you already have.\n[Open the Dinah settings](command:workbench.action.openSettings?%22dinah%22)"
+        "contents": "%manifest.viewsWelcome.binaryMissing.contents%"
       },
       {
         "view": "dinah.workbenchView",
         "when": "dinah.binary == 'ok' && dinah.workbench == 'none'",
-        "contents": "No workbench was found from this folder. Run `dinah init` in a terminal to create one, or set `dinah.workbench` to the directory of one you already have.\n[Open the Dinah settings](command:workbench.action.openSettings?%22dinah%22)"
+        "contents": "%manifest.viewsWelcome.workbenchNone.contents%"
       },
       {
         "view": "dinah.workbenchView",
         "when": "dinah.binary == 'ok' && dinah.workbench == 'ambiguous'",
-        "contents": "Several workbenches are reachable from here. Set `dinah.workbench` to the one you mean.\n[Open the Dinah settings](command:workbench.action.openSettings?%22dinah%22)"
+        "contents": "%manifest.viewsWelcome.workbenchAmbiguous.contents%"
       },
       {
         "view": "dinah.workbenchView",
         "when": "dinah.binary == 'ok' && dinah.workbench == 'unknown'",
-        "contents": "Dinah has a binary for this window but no workbench to go with it. Open a folder to work from, or open the Dinah output channel to read what `dinah` reported.\n[Open the Dinah settings](command:workbench.action.openSettings?%22dinah%22)"
+        "contents": "%manifest.viewsWelcome.workbenchUnknown.contents%"
       },
       {
         "view": "dinah.workbenchView",
         "when": "dinah.binary == 'ok' && dinah.workbench != 'none' && dinah.workbench != 'ambiguous' && dinah.workbench != 'ok' && dinah.workbench != 'unknown'",
-        "contents": "Dinah found a binary for this window and is still looking for a workbench.\n\nThis text is replaced as soon as Dinah has an answer. If it stays, open the Dinah output channel to see what happened."
+        "contents": "%manifest.viewsWelcome.workbenchSearching.contents%"
       },
       {
         "view": "dinah.workbenchView",
         "when": "dinah.binary != 'missing' && dinah.binary != 'ok'",
-        "contents": "Looking for a dinah binary and a workbench.\n\nThis text is replaced as soon as the extension has an answer. If it stays, open the Dinah output channel to see what happened."
+        "contents": "%manifest.viewsWelcome.binarySearching.contents%"
       }
     ],
     "commands": [
       {
         "command": "dinah.tree.refresh",
-        "title": "Dinah: Refresh",
+        "title": "%manifest.command.dinah.tree.refresh.title%",
         "icon": "$(refresh)"
       },
       {
         "command": "dinah.tree.openCard",
-        "title": "Dinah: Open Card"
+        "title": "%manifest.command.dinah.tree.openCard.title%"
       },
       {
         "command": "dinah.tree.claim",
-        "title": "Claim"
+        "title": "%manifest.command.dinah.tree.claim.title%"
       },
       {
         "command": "dinah.tree.move",
-        "title": "Move..."
+        "title": "%manifest.command.dinah.tree.move.title%"
       },
       {
         "command": "dinah.tree.release",
-        "title": "Release"
+        "title": "%manifest.command.dinah.tree.release.title%"
       },
       {
         "command": "dinah.tree.block",
-        "title": "Block..."
+        "title": "%manifest.command.dinah.tree.block.title%"
       },
       {
         "command": "dinah.tree.unblock",
-        "title": "Unblock"
+        "title": "%manifest.command.dinah.tree.unblock.title%"
       },
       {
         "command": "dinah.tree.copyCardRef",
-        "title": "Copy Reference"
+        "title": "%manifest.command.dinah.tree.copyCardRef.title%"
       },
       {
         "command": "dinah.tree.checkWorkbench",
-        "title": "Check"
+        "title": "%manifest.command.dinah.tree.checkWorkbench.title%"
       },
       {
         "command": "dinah.tree.copyWorkbenchPath",
-        "title": "Copy Path"
+        "title": "%manifest.command.dinah.tree.copyWorkbenchPath.title%"
       },
       {
         "command": "dinah.tree.editWorkbenchDefinition",
-        "title": "Edit Definition"
+        "title": "%manifest.command.dinah.tree.editWorkbenchDefinition.title%"
       },
       {
         "command": "dinah.tree.editColumnInstructions",
-        "title": "Edit Instructions"
+        "title": "%manifest.command.dinah.tree.editColumnInstructions.title%"
       },
       {
         "command": "dinah.tree.openAttachment",
-        "title": "Dinah: Open Attachment"
+        "title": "%manifest.command.dinah.tree.openAttachment.title%"
       },
       {
         "command": "dinah.tree.newCard",
-        "title": "New Card..."
+        "title": "%manifest.command.dinah.tree.newCard.title%"
       },
       {
         "command": "dinah.tree.attachFile",
-        "title": "Attach File..."
+        "title": "%manifest.command.dinah.tree.attachFile.title%"
       },
       {
         "command": "dinah.tree.pull",
-        "title": "Pull"
+        "title": "%manifest.command.dinah.tree.pull.title%"
       }
     ],
     "menus": {
@@ -290,32 +290,32 @@
       ]
     },
     "configuration": {
-      "title": "Dinah",
+      "title": "%manifest.configuration.title%",
       "properties": {
         "dinah.path": {
           "type": "string",
           "default": "",
           "scope": "machine-overridable",
-          "markdownDescription": "Absolute path to the `dinah` binary. Leave empty to use the one on your PATH. A binary path is a property of the machine, so this setting does not travel through settings sync."
+          "markdownDescription": "%manifest.configuration.dinah.path.markdownDescription%"
         },
         "dinah.workbench": {
           "type": "string",
           "default": "",
           "scope": "resource",
-          "markdownDescription": "Directory of the workbench to use for this folder, passed to `dinah` as `--workbench`. Leave empty to let `dinah` discover one by walking up from the folder. Set it when several workbenches are reachable, or when the walk reaches one you did not mean."
+          "markdownDescription": "%manifest.configuration.dinah.workbench.markdownDescription%"
         },
         "dinah.pollIntervalSeconds": {
           "type": "integer",
           "default": 10,
           "minimum": 2,
           "scope": "resource",
-          "markdownDescription": "How often the sidebar tree checks `dinah changes` for updates while visible."
+          "markdownDescription": "%manifest.configuration.dinah.pollIntervalSeconds.markdownDescription%"
         },
         "dinah.watchFiles": {
           "type": "boolean",
           "default": true,
           "scope": "resource",
-          "markdownDescription": "Watch the workbench's Markdown files for changes and check sooner than the poll interval when one is saved."
+          "markdownDescription": "%manifest.configuration.dinah.watchFiles.markdownDescription%"
         }
       }
     }

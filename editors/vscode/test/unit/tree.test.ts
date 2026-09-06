@@ -740,7 +740,7 @@ test("three folders produce one resolved row, two candidate rows and one dead en
 	]);
 
 	const roots = await view.getChildren();
-	const items = roots.map(treeItemFor);
+	const items = roots.map((element) => treeItemFor(element));
 	assert.deepEqual(
 		items.map((item) => item.contextValue),
 		[

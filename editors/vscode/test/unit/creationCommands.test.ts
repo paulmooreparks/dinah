@@ -18,6 +18,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 
+import { ENGLISH } from "../../src/l10n";
+
 import type { CommandHost } from "../../src/cardCommands";
 import type { SpawnOutcome, Spawner } from "../../src/cli";
 import {
@@ -152,6 +154,7 @@ function recorder(typed: (string | undefined)[] = []): Recorder {
 			return state.answer;
 		},
 		host: {
+			t: ENGLISH,
 			showError: (message) => {
 				errors.push(message);
 			},

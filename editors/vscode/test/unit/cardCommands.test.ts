@@ -10,6 +10,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 
+import { ENGLISH } from "../../src/l10n";
+
 import type { SpawnOutcome, Spawner } from "../../src/cli";
 import type { CommandContext, CommandHost, PickItem } from "../../src/cardCommands";
 import {
@@ -96,6 +98,7 @@ function recorder(answers: Record<string, SpawnOutcome> = {}): Recorder {
 	};
 
 	const host: CommandHost = {
+		t: ENGLISH,
 		showError: (message) => errors.push(message),
 		showInfo: (message) => infos.push(message),
 		copyToClipboard: async (text) => {
@@ -445,6 +448,7 @@ test("an attachment with no path opens nothing, calls nothing on the host, and s
 
 /** A host whose calls are recorded nowhere, since contextFor makes none. */
 const silentHost: CommandHost = {
+	t: ENGLISH,
 	showError: () => undefined,
 	showInfo: () => undefined,
 	copyToClipboard: async () => undefined,

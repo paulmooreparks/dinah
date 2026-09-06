@@ -12,6 +12,8 @@ import {
 	NO_WORKBENCH_FOUND,
 } from "./workbench";
 import { describeVersion } from "./version";
+import { ENGLISH } from "./l10n";
+import type { Localizer } from "./l10n";
 
 /** What the status bar shows, or that it shows nothing. */
 export interface StatusView {
@@ -46,19 +48,35 @@ export interface ContextKeys {
 
 const HIDDEN: StatusView = { hidden: true, text: "", tooltip: "" };
 
-/** The lines describing which binary this window is driving. */
-function binaryLines(binary: BinaryState, pairedRelease: string): string[] {
+/**
+ * The lines describing which binary this window is driving.
+ *
+ * describeVersion's own line is left alone. It names the tool's release, its
+ * conformance profile and its storage format, which are machine vocabulary the
+ * CLI spells the same way under every language setting, so translating this
+ * extension's copy of it would show a reader words the CLI never says.
+ */
+function binaryLines(
+	binary: BinaryState,
+	pairedRelease: string,
+	t: Localizer,
+): string[] {
 	const lines: string[] = [];
 	if (binary.state === "ok") {
 		lines.push(describeVersion(binary.version));
-		lines.push(`binary: ${binary.path} (${binary.source})`);
+		lines.push(
+			t("status.binary.withSource", {
+				path: binary.path,
+				source: binary.source,
+			}),
+		);
 	} else if (binary.state !== "no-binary") {
 		lines.push(binary.detail);
 		if (binary.path) {
-			lines.push(`binary: ${binary.path}`);
+			lines.push(t("status.binary.plain", { path: binary.path }));
 		}
 	}
-	lines.push(`extension paired with dinah ${pairedRelease}`);
+	lines.push(t("status.pairedWith", { release: pairedRelease }));
 	return lines;
 }
 
@@ -73,16 +91,17 @@ export function composeStatus(
 	binary: BinaryState,
 	resolution: WorkbenchResolution | undefined,
 	pairedRelease: string,
+	t: Localizer = ENGLISH,
 ): StatusView {
-	const trailer = binaryLines(binary, pairedRelease);
+	const trailer = binaryLines(binary, pairedRelease, t);
 
 	if (binary.state === "no-binary") {
 		return {
 			hidden: false,
 			text: "$(checklist) Dinah $(error)",
 			tooltip: [
-				"No dinah binary was found. This extension is a companion to the dinah command-line tool and carries no copy of it.",
-				"Install it from https://github.com/paulmooreparks/dinah#install, or set dinah.path to a binary you already have.",
+				t("status.noBinary.notFound"),
+				t("status.noBinary.install"),
 				...trailer,
 			].join("\n"),
 		};
@@ -114,7 +133,7 @@ export function composeStatus(
 				hidden: false,
 				text: "$(checklist) Dinah $(warning)",
 				tooltip: [
-					"Several workbenches are reachable from here. Set dinah.workbench to choose one.",
+					t("status.ambiguous"),
 					...candidates,
 					...trailer,
 				].join("\n"),
@@ -124,7 +143,7 @@ export function composeStatus(
 			hidden: false,
 			text: "$(checklist) Dinah $(warning)",
 			tooltip: [
-				`dinah refused: ${resolution.refusal}`,
+				t("status.refused", { refusal: resolution.refusal }),
 				...(resolution.detail ? [resolution.detail] : []),
 				...trailer,
 			].join("\n"),
@@ -132,7 +151,10 @@ export function composeStatus(
 	}
 
 	const title = resolution.title === "" ? "Dinah" : resolution.title;
-	const common = [`resolved by ${resolution.source}`, ...trailer];
+	const common = [
+		t("status.resolvedBy", { source: resolution.source }),
+		...trailer,
+	];
 
 	if (resolution.insideWorkspace) {
 		return {
@@ -147,7 +169,7 @@ export function composeStatus(
 		hidden: false,
 		text: `$(checklist) ${title} $(warning)`,
 		tooltip: [
-			`This workbench is outside your workspace: ${resolution.root}`,
+			t("status.outsideWorkspace", { root: resolution.root }),
 			...common,
 		].join("\n"),
 	};

@@ -17,6 +17,8 @@ import { isRow, pinnedArgv, refusalMessage } from "./cardCommands";
 import type { CliOutcome, Spawner } from "./cli";
 import { runDinah } from "./cli";
 import type { TreeElement } from "./tree";
+import { ENGLISH } from "./l10n";
+import type { Localizer } from "./l10n";
 import type { PullAnswer } from "./wire";
 
 /** What Pull needs: where the workbench stands, and which queue and destination. */
@@ -114,7 +116,12 @@ export async function pullFromColumn(
 		const answer = outcome.json as PullAnswer;
 		if (answer.card === undefined) {
 			context.host.showInfo(
-				emptyPullMessage(answer, context.label, context.destination),
+				emptyPullMessage(
+					answer,
+					context.label,
+					context.destination,
+					context.host.t,
+				),
 			);
 		}
 	}
@@ -128,8 +135,9 @@ export async function pullFromColumn(
  * The two titles are read off the answer's own message_values, which is where
  * okEmpty puts the upstream's title and the destination's, so the reader is
  * told which column was looked in rather than which column was clicked. The
- * English is composed here rather than read from dinah's message catalog,
- * which is what every other string this extension shows already does.
+ * sentence around them comes from the extension's own catalogue rather than
+ * from dinah's, which is what every string this extension shows now does; the
+ * two titles themselves are wire text and travel untranslated.
  *
  * Each half falls back to what the caller already holds for that half rather
  * than to one value for both. The clicked queue is always the true immediate
@@ -147,8 +155,9 @@ export function emptyPullMessage(
 	answer: PullAnswer,
 	label: string,
 	destination: string,
+	t: Localizer = ENGLISH,
 ): string {
 	const from = answer.message_values?.upstream ?? label;
 	const into = answer.message_values?.destination ?? destination;
-	return `Nothing in ${from} is ready to pull into ${into}.`;
+	return t("dialog.pull.empty", { from, into });
 }

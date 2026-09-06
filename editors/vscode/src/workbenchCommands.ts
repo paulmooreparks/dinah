@@ -14,6 +14,8 @@ import type { CliOutcome, Spawner } from "./cli";
 import { runCheck, runDinah } from "./cli";
 import { refusalMessage, isRow } from "./cardCommands";
 import { COMMAND_EDIT_WORKBENCH_DEFINITION } from "./identity";
+import { ENGLISH } from "./l10n";
+import type { Localizer } from "./l10n";
 import type { TreeElement } from "./tree";
 import { treeItemFor } from "./tree";
 import type { CheckAnswer, CheckFinding, PathAnswer } from "./wire";
@@ -21,6 +23,8 @@ import { READ_FINDINGS } from "./wire";
 
 /** The window calls a workbench-row command makes, injected so tests watch them. */
 export interface WorkbenchCommandHost {
+	/** Renders one message in the language the editor is displaying. */
+	readonly t: Localizer;
 	readonly showInfo: (message: string) => void;
 	readonly showWarning: (
 		message: string,
@@ -56,14 +60,16 @@ export interface WorkbenchCommandContext {
 	readonly label: string;
 }
 
-/** The action a toast offers when there is something in the channel to read. */
-export const OPEN_OUTPUT = "Open Output";
-
 /**
- * What the toast and the channel line both say when a check produced nothing
- * this build could read, written once so the two cannot drift apart.
+ * The action a toast offers when there is something in the channel to read.
+ *
+ * columnCommands.ts declares its own, reading the same catalogue key. The
+ * duplication predates this card and is left where it stands rather than
+ * merged into one shared declaration, which is its own change.
  */
-const NO_REPORT = "check produced no report the extension could read.";
+export function openOutputLabel(t: Localizer = ENGLISH): string {
+	return t("dialog.openOutput.label");
+}
 
 /**
  * The context for a workbench-row command, or undefined when the row named is
@@ -108,7 +114,7 @@ export function contextForWorkbench(
 		toolDescription,
 		host,
 		path,
-		label: treeItemFor(element).label,
+		label: treeItemFor(element, host.t).label,
 	};
 }
 
@@ -124,7 +130,9 @@ async function offerOutput(
 	context: WorkbenchCommandContext,
 	message: string,
 ): Promise<void> {
-	const picked = await context.host.showWarning(message, [OPEN_OUTPUT]);
+	const picked = await context.host.showWarning(message, [
+		openOutputLabel(context.host.t),
+	]);
 	if (picked !== undefined) {
 		context.host.revealOutput();
 	}
@@ -144,11 +152,14 @@ async function offerOutput(
  */
 function answeringBinary(context: WorkbenchCommandContext): string {
 	if (context.exe === "") {
-		return "No dinah binary was resolved, so nothing ran.";
+		return context.host.t("dialog.workbench.noBinary");
 	}
 	return context.toolDescription === ""
-		? `The binary that answered: ${context.exe}.`
-		: `The binary that answered: ${context.exe} (${context.toolDescription}).`;
+		? context.host.t("dialog.workbench.answeringBinary", { exe: context.exe })
+		: context.host.t("dialog.workbench.answeringBinaryDescribed", {
+				exe: context.exe,
+				description: context.toolDescription,
+			});
 }
 
 /**
@@ -182,32 +193,52 @@ export async function checkWorkbench(
 		// this build cannot read rather than an absent one. The clause it
 		// replaced said the check could not run, and on that last arm the check
 		// ran and found exactly what it was asked to find.
+		//
+		// The channel line and the toast were one shared English fragment
+		// before dinah-379, so that the two could not drift apart. They are two
+		// catalogue entries now, because a fragment spliced into two sentences
+		// fixes an English word order every other language has to fight, and
+		// the two entries sit adjacent in every catalogue where a translator
+		// reads them together.
 		context.host.appendLines([
-			`${context.label}: ${NO_REPORT} ${refusalMessage(outcome)}`,
+			context.host.t("dialog.workbench.noReport.channel", {
+				workbench: context.label,
+				detail: refusalMessage(outcome),
+			}),
 			answeringBinary(context),
 		]);
 		await offerOutput(
 			context,
-			`${context.label}: ${NO_REPORT} See the Dinah output channel for details.`,
+			context.host.t("dialog.workbench.noReport.toast", {
+				workbench: context.label,
+			}),
 		);
 		return outcome;
 	}
 
 	const answer = outcome.json as CheckAnswer;
 	if (answer.outcome !== READ_FINDINGS) {
-		context.host.showInfo(`${context.label}: check found no defects.`);
+		context.host.showInfo(
+			context.host.t("dialog.workbench.checkClean", { workbench: context.label }),
+		);
 		return outcome;
 	}
 
 	const findings = answer.findings ?? [];
 	const count = String(findings.length);
 	context.host.appendLines([
-		`${context.label}: check found ${count} defect(s):`,
+		context.host.t("dialog.workbench.checkFindings.channel", {
+			workbench: context.label,
+			count,
+		}),
 		...findings.map(findingLine),
 	]);
 	await offerOutput(
 		context,
-		`${context.label}: check found ${count} defect(s). See the Dinah output channel for details.`,
+		context.host.t("dialog.workbench.checkFindings.toast", {
+			workbench: context.label,
+			count,
+		}),
 	);
 	return outcome;
 }
@@ -225,7 +256,9 @@ export async function copyWorkbenchPath(
 	context: WorkbenchCommandContext,
 ): Promise<void> {
 	await context.host.copyToClipboard(context.path);
-	context.host.showInfo(`Copied ${context.path}`);
+	context.host.showInfo(
+		context.host.t("dialog.workbench.copiedPath", { path: context.path }),
+	);
 }
 
 /**
@@ -262,11 +295,16 @@ export async function editWorkbenchDefinition(
 	);
 	if (outcome.kind !== "ok") {
 		context.host.appendLines([
-			`${context.label}: could not open the workbench definition file. ${refusalMessage(outcome)}`,
+			context.host.t("dialog.workbench.definitionUnreadable.channel", {
+				workbench: context.label,
+				detail: refusalMessage(outcome),
+			}),
 		]);
 		await offerOutput(
 			context,
-			`${context.label}: could not open the workbench definition file. See the Dinah output channel for details.`,
+			context.host.t("dialog.workbench.definitionUnreadable.toast", {
+				workbench: context.label,
+			}),
 		);
 		return;
 	}
