@@ -13,6 +13,7 @@ import (
 	"dinah/internal/guide"
 	"dinah/internal/msg"
 	"dinah/internal/profile"
+	"dinah/internal/release"
 	"dinah/internal/verb"
 )
 
@@ -680,24 +681,39 @@ var releaseArtifact = regexp.MustCompile(`dinah-(?:linux|darwin|windows)-(?:amd6
 // The install section teaches a reader to download an artifact by name and to
 // verify it against a checksum file by name, so a renamed artifact would leave
 // that section telling them to fetch something the release does not publish.
-// The check reads the workflow as text, so it holds the names without running
-// a release. The argument grammar of the checksum commands standing beside
-// those names belongs to another tool and stays unguarded.
+// The check holds the names without running a release, and it reads two
+// sources because the workflow now has two kinds of asset. The six platform
+// binaries are named by internal/release.Targets, which release.yml's build
+// matrix and its asset check both read, so the declaration is what a document
+// is held to (dinah-396). Everything else the release attaches, which today is
+// SHA256SUMS.txt, is still spelled in the workflow itself and is read as text.
+// The argument grammar of the checksum commands standing beside those names
+// belongs to another tool and stays unguarded.
 func TestTheGuidesNameOnlyArtifactsTheReleaseBuilds(t *testing.T) {
 	workflow, err := os.ReadFile(filepath.Join(repositoryRoot, ".github", "workflows", "release.yml"))
 	if err != nil {
 		t.Fatalf("read the release workflow: %v", err)
 	}
 	published := string(workflow)
+	built := map[string]bool{}
+	for _, target := range release.Targets {
+		built[target.BinaryName()] = true
+	}
+	if len(built) == 0 {
+		t.Fatal("internal/release declares no platform target, so every binary named below would fail for the wrong reason")
+	}
 	named := 0
 	for _, document := range guardedDocuments(t) {
 		for number, line := range strings.Split(document.text, "\n") {
 			for _, artifact := range releaseArtifact.FindAllString(line, -1) {
 				named++
+				if built[artifact] {
+					continue
+				}
 				if workflowPublishes(published, artifact) {
 					continue
 				}
-				t.Errorf("%s:%d: the document names the release artifact %s, which .github/workflows/release.yml neither builds nor publishes", document.name, number+1, artifact)
+				t.Errorf("%s:%d: the document names the release artifact %s, which internal/release.Targets does not build and .github/workflows/release.yml does not publish", document.name, number+1, artifact)
 			}
 		}
 	}

@@ -14,6 +14,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -35,6 +36,8 @@ func main() {
 		err = cut(os.Args[2:])
 	case "patch":
 		err = patch(os.Args[2:])
+	case "targets":
+		err = targets(os.Args[2:])
 	case "help", "-h", "--help":
 		usage()
 		return
@@ -58,6 +61,13 @@ func usage() {
   patch --channel dev|beta|stable --base 0.1 --tag v0.1.2-beta
       Prints the number the tag carries on that channel and line, and fails
       when the tag belongs to another channel or another line.
+
+  targets --format json|names
+      Prints the platform targets a CLI release builds, in the order
+      internal/release declares them. json prints one line of compact JSON
+      that release.yml's build matrix reads through fromJSON, and names
+      prints one dist/ filename per line, which is what the release job's
+      asset check compares dist/ against.
 
   cut --base 0.1 --cards dinah-1,dinah-2 --links dinah-1>none,dinah-2>dinah-1 [--ref main] [--repo .]
       Resolves the named cards against the tagged commits of the current minor,
@@ -128,6 +138,33 @@ func patch(args []string) error {
 		return fmt.Errorf("%s is not a %s tag on the v%s line, so it cannot be read as one; a %s tag on that line is shaped %s", *tag, c, *base, c, release.Tag(c, *base, 0))
 	}
 	fmt.Println(n)
+	return nil
+}
+
+// targets serves internal/release.Targets to the release workflow in the two
+// shapes that workflow consumes it in. The JSON shape is written on one line
+// because it goes into GITHUB_OUTPUT, whose values are single-line unless the
+// writer opts into the delimiter form, and nothing here needs that form.
+func targets(args []string) error {
+	fs := flag.NewFlagSet("targets", flag.ExitOnError)
+	format := fs.String("format", "", "json or names")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	switch *format {
+	case "json":
+		data, err := json.Marshal(release.Targets)
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(data))
+	case "names":
+		for _, target := range release.Targets {
+			fmt.Println(target.BinaryName())
+		}
+	default:
+		return fmt.Errorf("--format must be json or names, got %q", *format)
+	}
 	return nil
 }
 
