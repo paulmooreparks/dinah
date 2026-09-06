@@ -29,7 +29,7 @@ type PinnedCallSite struct {
 // declaredPinnedCallSites is the reviewed inventory, seeded with the three
 // call sites Agent Code Review found on dinah-245.
 var declaredPinnedCallSites = []PinnedCallSite{
-	{File: "internal/mcp/mcp.go", Line: 202, Reason: "the MCP surface is deliberately pinned to English; dinah-245"},
+	{File: "internal/mcp/mcp.go", Line: 215, Reason: "the MCP surface is deliberately pinned to English; dinah-245"},
 	{File: "internal/mcp/tools.go", Line: 239, Reason: "the MCP surface is deliberately pinned to English; dinah-245"},
 	{File: "internal/mcp/tools.go", Line: 385, Reason: "the MCP surface is deliberately pinned to English; dinah-245"},
 }

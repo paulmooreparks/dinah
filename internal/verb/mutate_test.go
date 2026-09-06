@@ -1,6 +1,7 @@
 package verb
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -436,12 +437,18 @@ func TestOnlyUnblockLeavesBlocked(t *testing.T) {
 	}
 }
 
-// TestInstructionsAreServedAsThreeLayers asserts CORE-INSTR-3, CORE-INSTR-4,
-// CORE-INSTR-5, CORE-INSTR-6 and CORE-INSTR-7
+// TestInstructionsAreServedAsThreeLayers asserts CORE-INSTR-6, CORE-INSTR-7,
+// CORE-INSTR-8, CORE-INSTR-9 and CORE-INSTR-11
 // and the format's user-global layer, with CORE-INSTR-1 and CORE-INSTR-2
 // exercised by the fixture carrying both kinds of prose: three separate
 // layers in the order global, standing, column, with no layer written into another, the legal
 // moves alongside, and an absent global file as an absent layer.
+//
+// Every request here carries a nil held set, which is the connection that has
+// been sent nothing, so CORE-INSTR-8 and CORE-INSTR-9 are driven on their
+// unqualified limb and CORE-INSTR-11 on a response that serves both layers.
+// The withholding limb of all three is driven over the MCP head, where the
+// connection that remembers what it sent lives.
 func TestInstructionsAreServedAsThreeLayers(t *testing.T) {
 	h := newHarness(t)
 	// The card is stood at the review station before the claim, because no
@@ -462,7 +469,10 @@ func TestInstructionsAreServedAsThreeLayers(t *testing.T) {
 		t.Errorf("standing layer: got %q", served.Instructions.Standing)
 	}
 	if !strings.Contains(served.Instructions.Column, "Review instructions") {
-		t.Errorf("column layer: got %q", served.Instructions.Column)
+		t.Errorf("CORE-INSTR-8: wanted the column's instructions, got %q", served.Instructions.Column)
+	}
+	if len(served.Instructions.Withheld) != 0 {
+		t.Errorf("a connection sent nothing withheld %v", served.Instructions.Withheld)
 	}
 	if len(served.LegalMoves) == 0 {
 		t.Fatal("CORE-INSTR-7: wanted the legal moves alongside the instructions")
@@ -488,7 +498,26 @@ func TestInstructionsAreServedAsThreeLayers(t *testing.T) {
 		t.Errorf("an edit to the global layer did not reach the serve: %q", moved.Instructions.Global)
 	}
 	if !strings.Contains(moved.Instructions.Column, "Doing instructions") {
-		t.Errorf("CORE-INSTR-4: wanted the entered column's instructions, got %q", moved.Instructions.Column)
+		t.Errorf("CORE-INSTR-9: wanted the entered column's instructions, got %q", moved.Instructions.Column)
+	}
+	// CORE-INSTR-11 binds a response that serves both layers, and this one
+	// serves both. The order is read off the composed chain rather than off a
+	// rendering, because the two layers travel in separate members and the
+	// order the statement fixes is the order they are composed in.
+	if moved.Instructions.Standing == "" || moved.Instructions.Column == "" {
+		t.Fatalf("CORE-INSTR-11 needs a response serving both layers, got standing %q column %q", moved.Instructions.Standing, moved.Instructions.Column)
+	}
+	encoded, err := json.Marshal(moved.Instructions)
+	if err != nil {
+		t.Fatalf("encode the chain: %v", err)
+	}
+	standingAt := bytes.Index(encoded, []byte(`"`+LayerStanding+`"`))
+	columnAt := bytes.Index(encoded, []byte(`"`+LayerColumn+`"`))
+	if standingAt < 0 || columnAt < 0 {
+		t.Fatalf("CORE-INSTR-11: the encoded chain names neither layer: %s", encoded)
+	}
+	if standingAt > columnAt {
+		t.Errorf("CORE-INSTR-11: wanted the standing layer ahead of the column's, got %s", encoded)
 	}
 
 	// No layer carries another's text, on the serve or on disk.

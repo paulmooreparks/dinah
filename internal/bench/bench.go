@@ -103,7 +103,7 @@ const ContainerFormat = 2
 const (
 	ProfileName  = "dinah-core"
 	ProfileMajor = 0
-	ProfileMinor = 9
+	ProfileMinor = 12
 )
 
 // The oldest profile revision this build opens. dinah-core 0.7 renamed the

@@ -26,7 +26,11 @@
     },
     {
       "directory": "dinah-core-0.9",
-      "digest": "ac0f43f3bbfb9d7c0c9b038ff5c3c347140b8a5eeef5dd89482008156f50ed3f",
+      "digest": "ac0f43f3bbfb9d7c0c9b038ff5c3c347140b8a5eeef5dd89482008156f50ed3f"
+    },
+    {
+      "directory": "dinah-core-0.12",
+      "digest": "740fba22db544b06c45345d76843f68853395a838ba17b2f21f131cab0d86450",
       "sample": true
     }
   ]

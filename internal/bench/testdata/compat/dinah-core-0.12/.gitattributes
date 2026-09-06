@@ -1,0 +1,2 @@
+journal.ndjson merge=union
+*/journal.ndjson merge=union

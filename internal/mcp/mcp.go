@@ -89,7 +89,20 @@ const (
 // resolved at startup and may be nil when discovery did not resolve one, and
 // libraries is the map every per-call dispatch reads against. Serve owns the
 // map and the entries it opens, the way it owns the single library today.
+//
+// Serve also owns the connection's memory of the instruction chain it has
+// already sent. A connection is a process here, because this head reads one
+// stream pair in a strictly sequential scanner loop and cmd/dinah wires that
+// pair to stdin and stdout, so the memory's lifetime is the process's. The day
+// this head grows a transport where a connection is not a process, the memory
+// has to be keyed on something that transport supplies.
 func Serve(root string, defaultLib *verb.Library, libraries map[string]*verb.Library, in io.Reader, out io.Writer) error {
+	return serveWith(root, defaultLib, libraries, in, out, newChainMemory())
+}
+
+// serveWith is Serve over a memory the caller built, which is how a test drives
+// the expiry bounds against an injected clock rather than by sleeping.
+func serveWith(root string, defaultLib *verb.Library, libraries map[string]*verb.Library, in io.Reader, out io.Writer, memory *chainMemory) error {
 	reader := bufio.NewScanner(in)
 	reader.Buffer(make([]byte, 0, 64*1024), 8*1024*1024)
 	encoder := json.NewEncoder(out)
@@ -105,7 +118,7 @@ func Serve(root string, defaultLib *verb.Library, libraries map[string]*verb.Lib
 			}
 			continue
 		}
-		answer := dispatch(root, defaultLib, libraries, &req)
+		answer := dispatch(root, defaultLib, libraries, &req, memory)
 		if answer == nil {
 			continue
 		}
@@ -139,7 +152,7 @@ func malformedLineResponse(err error) *response {
 
 // dispatch answers one request, or returns nil for a notification, which
 // carries no identifier and wants no answer.
-func dispatch(root string, defaultLib *verb.Library, libraries map[string]*verb.Library, req *request) *response {
+func dispatch(root string, defaultLib *verb.Library, libraries map[string]*verb.Library, req *request, memory *chainMemory) *response {
 	if len(req.ID) == 0 {
 		return nil
 	}
@@ -150,7 +163,7 @@ func dispatch(root string, defaultLib *verb.Library, libraries map[string]*verb.
 	case "tools/list":
 		answer.Result = map[string]any{"tools": toolList()}
 	case "tools/call":
-		result, err := call(root, defaultLib, libraries, req.Params)
+		result, err := call(root, defaultLib, libraries, req.Params, memory)
 		if err != nil {
 			answer.Error = &rpcError{Code: codeInvalidParams, Message: err.Error()}
 			return answer
@@ -209,9 +222,24 @@ func workingAgreement(root string, defaultLib *verb.Library) string {
 	b.WriteString("3. Treat the workbench as the authority for where a card stands and who holds it.\n")
 	b.WriteString("4. Do not move a card out of an operator-owned column unless you are the operator.\n\n")
 	b.WriteString("Every response carries an affordances member naming what you may do next. ")
-	b.WriteString("A successful claim or move carries the instructions of the position in three ")
-	b.WriteString("separate layers and the moves the flow allows. Tokens are canonical on this ")
-	b.WriteString("surface and are never translated.\n\n")
+	b.WriteString("A successful claim or move carries the moves the flow allows and the ")
+	b.WriteString("instructions of the position, which travel in three separate layers and are ")
+	b.WriteString("never written into one another. Tokens are canonical on this surface and ")
+	b.WriteString("are never translated.\n\n")
+	b.WriteString("A layer whose current text this connection has already sent you is withheld ")
+	b.WriteString("rather than sent again, and the response names it under instructions.withheld ")
+	b.WriteString("alongside instructions.reread. Ask yourself, for each name listed there, ")
+	b.WriteString("whether you can still see that text. Where you cannot, call instructions with ")
+	b.WriteString("the value of reread as its card argument: that request names a column rather ")
+	b.WriteString("than a card, it never withholds, and it answers with all three layers in full. ")
+	b.WriteString("Its answer carries no legal moves and no loop, because a column named on its ")
+	b.WriteString("own carries no card to compute either for, and you still hold those from the ")
+	b.WriteString("response that withheld the chain. Nothing is lost if you never ask: a withheld ")
+	b.WriteString("layer is served again unasked after fifteen minutes, or after twenty further ")
+	b.WriteString("tool calls on this connection, whichever comes first. This head loads the ")
+	b.WriteString("workbench's standing text and each column's text once, so an edit to either ")
+	b.WriteString("reaches you when the process restarts and not before; the user-global layer ")
+	b.WriteString("is read from disk on every serve.\n\n")
 	switch {
 	case defaultLib != nil && root != "":
 		b.WriteString(catalog.T("mcp.reach", "root", root, "title", defaultLib.Bench.Title))
@@ -287,7 +315,7 @@ func readResource(params json.RawMessage) (map[string]any, error) {
 // Both dispatch paths check the call's argument names against what the tool
 // declares before they act on any of them, so an argument this surface never
 // published is refused rather than read past.
-func call(root string, defaultLib *verb.Library, libraries map[string]*verb.Library, params json.RawMessage) (map[string]any, error) {
+func call(root string, defaultLib *verb.Library, libraries map[string]*verb.Library, params json.RawMessage, memory *chainMemory) (map[string]any, error) {
 	var args struct {
 		Name      string         `json:"name"`
 		Arguments map[string]any `json:"arguments"`
@@ -309,6 +337,13 @@ func call(root string, defaultLib *verb.Library, libraries map[string]*verb.Libr
 		return nil, err
 	}
 	request := request2Args(tool.command, args.Arguments)
+	// The connection's memory of the chain it has already sent is read here,
+	// once, for every tool call this head answers. The read counts the call
+	// against the owner's ceiling and drops every record that has expired, so
+	// what reaches the library is a set that is already true at the moment of
+	// the call. A head with no memory to consult, which is every head but this
+	// one, leaves the set nil and serves the whole chain.
+	request.HeldChain = memory.open(request.Actor)
 	// A root argument makes this a root-scoped read, which answers about every
 	// workbench beneath a directory rather than about one. It is checked ahead
 	// of resolveLibrary because no single workbench is being resolved: the walk
@@ -334,6 +369,10 @@ func call(root string, defaultLib *verb.Library, libraries map[string]*verb.Libr
 	if response, ok := payload.(*verb.Response); ok {
 		response.Affordances = surfaceAffordances(response.Affordances)
 	}
+	// What the act served is recorded after the tool has answered and before
+	// the answer is encoded. A failed encode ends the process, so a record
+	// written here can never outlive an answer the caller never saw.
+	memory.record(request.Actor, chainServed(payload))
 	encoded, err := json.MarshalIndent(payload, "", "  ")
 	if err != nil {
 		return nil, err
