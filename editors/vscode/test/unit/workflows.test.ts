@@ -333,14 +333,24 @@ test("nothing in the release job reads the version back out of the manifest", ()
 	const release = vscodeReleaseDoc.jobs["package-and-release"];
 	for (const step of release.steps ?? []) {
 		const text = JSON.stringify(step);
-		// The quoting varies with how the read is spelled, so the pattern covers
-		// the bare form and both quoted ones rather than one literal substring.
-		// What used to sit here was `node -p "require('./package.json').version"`,
-		// and a check written against `package.json).version` alone walks past it
-		// because of the apostrophe in the middle.
+		// The rule is that no step names the manifest at all, rather than that no
+		// step spells the read one of the ways somebody thought of. An earlier
+		// version of this check matched a regex over three quotings, which is the
+		// same defect one layer out: a bracket-property read and a jq read of the
+		// same file both walk past a pattern anchored on the dotted property.
+		// Reading the manifest is the only reason a step in this job would name
+		// it, so the file name itself is the thing to refuse. The job carries no
+		// legitimate mention today, and a step that later needs one fails loudly
+		// and gets a ruling, which is the direction that fails closed. The
+		// cache-dependency-path setting names package-lock.json, which does not
+		// contain this string.
+		//
+		// The residual hole is a read routed through a helper script, which
+		// mentions no manifest here and reads it once the script runs. No text
+		// rule can see that, and only executing the workflow can (dinah-401).
 		assert.ok(
-			!/package\.json(?:\\?['"])?\)\.version/u.test(text),
-			`the step "${step.name ?? "(unnamed)"}" reads package.json's version back out after packaging restored the floor`,
+			!text.includes("package.json"),
+			`the step "${step.name ?? "(unnamed)"}" names package.json, and the only reason a step in this job would is to read the version back out after packaging restored the floor`,
 		);
 		assert.ok(
 			!text.includes("steps.tag.outputs"),

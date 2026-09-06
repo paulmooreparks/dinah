@@ -46,6 +46,6 @@ than as a wrong answer.
 
 Every version of this extension sits on one line, and the number by itself does
 not say whether an archive was published as a pre-release. The marketplace
-listing says so, because a pre-release is marked as one there. If you have not
-opted into pre-releases, VS Code only offers you the versions published without
-that mark.
+listing says so, because a pre-release is marked as one there. Every archive this
+repository publishes carries that mark, so VS Code offers it only to people who
+have opted into pre-releases.

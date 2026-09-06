@@ -71,10 +71,15 @@ interface Run {
  *
  * `ghMode` decides what the release listing does: "fail" exits non-zero the way
  * a network error, an expired token or a rate limit does, "empty" succeeds and
- * returns a list carrying no extension release, and "released" succeeds and
- * returns two.
+ * returns a list carrying no extension release, "silent" succeeds and returns
+ * nothing at all, and "released" succeeds and returns two.
+ *
+ * "empty" and "silent" are the same case for the version module and different
+ * cases for the script. "silent" is what a repository with no releases at all
+ * produces, and it is the only one that feeds an empty capture into the
+ * pipeline, which is a PowerShell behaviour rather than a module behaviour.
  */
-function runPublish(ghMode: "fail" | "empty" | "released"): Run {
+function runPublish(ghMode: "fail" | "empty" | "silent" | "released"): Run {
 	const dir = mkdtempSync(join(tmpdir(), "dinah-publish-"));
 	try {
 		const log = join(dir, "calls.log");
@@ -91,9 +96,11 @@ function runPublish(ghMode: "fail" | "empty" | "released"): Run {
 			);
 		} else {
 			const tags =
-				ghMode === "empty"
-					? ["v1.2.3", "dinah-v1.0.5"]
-					: ["vscode-v1.2.5", "v1.2.3", "vscode-v1.3.0"];
+				ghMode === "silent"
+					? []
+					: ghMode === "empty"
+						? ["v1.2.3", "dinah-v1.0.5"]
+						: ["vscode-v1.2.5", "v1.2.3", "vscode-v1.3.0"];
 			stub(
 				dir,
 				"gh",
@@ -175,6 +182,32 @@ test("a list carrying no extension release fails the script with its own message
 	assert.ok(
 		!/could not be listed/iu.test(`${run.stdout}${run.stderr}`),
 		"an absent release was reported as a lookup failure",
+	);
+	assert.ok(
+		!run.log.includes("run package"),
+		"the script packaged an archive with no released version to package",
+	);
+	assert.ok(
+		!publishWasCalled(run.log),
+		"the script published with no released version to publish",
+	);
+});
+
+test("a listing that returns nothing at all fails the script with the same message", () => {
+	// A repository with no releases whatever prints no line, so the capture is
+	// empty and PowerShell feeds an empty pipeline into the version script. The
+	// module cannot tell this from a list of non-extension tags, and the script
+	// can: this is the only mode where nothing crosses the pipe.
+	const run = runPublish("silent");
+	assert.notEqual(run.status, 0, "an empty listing let the script carry on");
+	assert.match(
+		`${run.stdout}${run.stderr}`,
+		/no extension release exists yet/iu,
+		"an empty listing did not report that no extension release exists yet",
+	);
+	assert.ok(
+		!/could not be listed/iu.test(`${run.stdout}${run.stderr}`),
+		"an empty listing was reported as a lookup failure",
 	);
 	assert.ok(
 		!run.log.includes("run package"),
