@@ -84,8 +84,16 @@ func Revision(path string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	sum := sha256.Sum256(data)
-	return "sha256:" + hex.EncodeToString(sum[:]), nil
+	return TextRevision(string(data)), nil
+}
+
+// TextRevision is the same opaque revision Revision computes, over a string a
+// caller already holds rather than over a file it has to read. The instruction
+// chain identifies a layer by the revision of the text it serves, and Revision
+// calls this so one function computes both and the two forms can never drift.
+func TextRevision(text string) string {
+	sum := sha256.Sum256([]byte(text))
+	return "sha256:" + hex.EncodeToString(sum[:])
 }
 
 // NewID mints a 12-character lowercase hex identifier.

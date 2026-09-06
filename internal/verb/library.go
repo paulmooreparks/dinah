@@ -208,6 +208,14 @@ type Request struct {
 	// the new definition drops, and a later entry for the same retirement
 	// wins over an earlier one.
 	Map []string
+	// HeldChain is the set of instruction-layer keys this caller's connection
+	// has already been sent and has not yet re-served, each one written
+	// <actor> + "\x00" + <text revision>. The MCP head fills it from its own
+	// connection state, having already dropped every expired record; every
+	// other head leaves it nil, which serves the whole chain. The field is
+	// declared in no Params entry and in no injectedProperties row, so it
+	// reaches no published schema and no caller can supply one.
+	HeldChain map[string]bool
 }
 
 // CardView is the card as a response carries it.
@@ -258,6 +266,16 @@ type CardView struct {
 	BlockingItems int `json:"blocking_items,omitempty"`
 }
 
+// The three names a withheld layer is reported under, general to specific,
+// which is the order CORE-INSTR-11 fixes for a response serving both of the
+// layers the profile names. They are minted here so that no caller and no test
+// spells one by hand.
+const (
+	LayerGlobal   = "global"
+	LayerStanding = "standing"
+	LayerColumn   = "column"
+)
+
 // Instructions are the three layers of the served chain, carried separately
 // so that no layer is ever written into another.
 type Instructions struct {
@@ -267,6 +285,17 @@ type Instructions struct {
 	Standing string `json:"standing,omitempty"`
 	// Column is the station's own instructions.
 	Column string `json:"column,omitempty"`
+	// Withheld names the layers this response did not carry because this
+	// connection has already sent this owner their current text. A name here
+	// is a positive statement rather than a silence: it says the layer's
+	// current text is byte-identical to text this connection already served
+	// this owner. A layer that is neither carried nor named here is empty.
+	Withheld []string `json:"withheld,omitempty"`
+	// Reread is the reference an instructions call names to be served the
+	// withheld layers in full, which is the column's own ref. It is present
+	// exactly when Withheld is non-empty, so an agent that has lost the text
+	// recovers from the marker alone.
+	Reread string `json:"reread,omitempty"`
 }
 
 // Loop reports one card's regressive-departure count against the declared
@@ -367,6 +396,12 @@ type Response struct {
 	// MessageValues are the named values a Message template inserts, and it
 	// is nil for a sentence carrying no slot.
 	MessageValues map[string]string `json:"message_values,omitempty"`
+	// ChainServed carries the instruction-chain keys this act served in full,
+	// which is what a head holding a connection records against the owner. The
+	// tag keeps the member off every payload, so the machine contract section 5
+	// of the profile freezes is untouched and no head has to be told to ignore
+	// it.
+	ChainServed []string `json:"-"`
 }
 
 // view renders a card for a response.
@@ -396,18 +431,68 @@ func (l *Library) view(card *bench.Card) *CardView {
 	return v
 }
 
-// serve composes the instruction chain for a card's current position. Nothing
-// is stored anywhere, so an edit to any layer reaches every reader on the
-// next serve, and no layer carries another's text.
-func (l *Library) serve(card *bench.Card) *Instructions {
-	instructions := &Instructions{
-		Global:   bench.GlobalInstructions(l.Home),
-		Standing: l.Bench.Standing,
+// serve composes the instruction chain for a card's current position, and
+// reports the chain keys the act actually served. A layer whose current text
+// this request's connection has already sent this owner is withheld and named
+// instead, which is the rule CORE-INSTR-8 and CORE-INSTR-9 publish.
+//
+// This function stores nothing and holds no clock. It reads the set the head
+// filled and it answers from the bench it was given, so what an edit reaches
+// depends on the head that calls it. The cli head opens the workbench once per
+// invocation, so every layer it serves is the text on disk. The MCP head opens
+// the library once before it begins serving, so under that head the standing
+// text and the column text are frozen for the life of the process and only the
+// user-global layer is read from disk on each serve.
+func (l *Library) serve(req *Request, card *bench.Card) (*Instructions, []string) {
+	return l.composeChain(req, l.Bench.Column(card.Column), true)
+}
+
+// chainKey is what one served layer is recorded under: the owner it was served
+// to, then the revision of the text that was served. The text is the whole of a
+// layer's identity, so two workbenches whose standing text is byte-identical
+// hold each other's layer. That is correct rather than a loophole, because the
+// owner holds the text and the card on the response says which workbench it
+// came from.
+func chainKey(actor, text string) string {
+	return actor + "\x00" + bench.TextRevision(text)
+}
+
+// composeChain builds the instruction chain for a column and reports the keys
+// it served. withhold says whether the request's held set may suppress a layer.
+// A card-shaped request answers where a card stands and is subject to the rule,
+// and a column-shaped request names the text itself and is the recovery route,
+// so the second serves in full whatever the connection holds.
+//
+// A column this workbench no longer declares withholds nothing, because the
+// marker owes the agent a reference that fetches the layers back and there is
+// no column to name in one.
+func (l *Library) composeChain(req *Request, column *bench.Column, withhold bool) (*Instructions, []string) {
+	if column == nil {
+		withhold = false
 	}
-	if column := l.Bench.Column(card.Column); column != nil {
-		instructions.Column = column.Instructions
+	instructions := &Instructions{}
+	var served []string
+	layer := func(name, text string, into *string) {
+		if text == "" {
+			return
+		}
+		key := chainKey(req.Actor, text)
+		if withhold && req.HeldChain[key] {
+			instructions.Withheld = append(instructions.Withheld, name)
+			return
+		}
+		*into = text
+		served = append(served, key)
 	}
-	return instructions
+	layer(LayerGlobal, bench.GlobalInstructions(l.Home), &instructions.Global)
+	layer(LayerStanding, l.Bench.Standing, &instructions.Standing)
+	if column != nil {
+		layer(LayerColumn, column.Instructions, &instructions.Column)
+	}
+	if len(instructions.Withheld) > 0 {
+		instructions.Reread = columnRef(column)
+	}
+	return instructions, served
 }
 
 // legalMoves reports the departures the workbench allows a card now. A card in

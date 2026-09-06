@@ -78,8 +78,9 @@ into. It is not an error.
 
 Pulling is `claim`. It takes the card into your name, moves it from ready to
 active, and answers with the instructions of the position the card now sits
-at. Read that answer before you work, because the position tells you what
-the workbench expects there.
+at, minus whatever this connection has already sent you. Read that answer
+before you work, because the position tells you what the workbench expects
+there.
 
 ```json
 {"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"claim","arguments":{"card":"proj-3"}}}
@@ -89,10 +90,61 @@ The work that follows the claim is the point of the claim, and each act is
 its own tool call: `comment` to leave a note, `move` to carry the card along
 the flow, `attach` to bind a file, `release` to hand a card back to the
 queue unfinished. A successful `claim` or `move` carries the instructions of
-the new position and the moves the flow allows, so follow the one you need
-rather than guessing the next column's name. `show` returns one card in full,
-its body, its links, and its comments, and that is the call to make before
-you act on a card you have not already met.
+the new position, minus the layers you already hold, and the moves the flow
+allows, so follow the one you need rather than guessing the next column's
+name. The moves are never withheld. `show` returns one card in full, its
+body, its links, and its comments, and that is the call to make before you
+act on a card you have not already met.
+
+## What a withheld layer means, and how you get it back
+
+The chain has three layers: the user-global text, the workbench's standing
+text, and the column's own. Serving all three on every act would send you the
+same prose a dozen times in a session, so the head remembers what it has
+already sent you on this connection and withholds a layer whose current text
+you have already been given.
+
+A response that withholds says so:
+
+```json
+"instructions": {"withheld": ["global", "standing", "column"], "reread": "working"}
+```
+
+`withheld` names the layers, most general first. It is a statement rather than
+a silence: each name says that layer's current text is byte-identical to text
+this connection already sent you in this session. A layer that is neither
+carried nor named is empty, and you may assume nothing about it.
+
+Ask yourself one question per name: can you still see that text? Where the
+answer is yes for every name, carry on. Where it is no for any of them, call
+`instructions` with the value of `reread` as the `card` argument:
+
+```json
+{"jsonrpc":"2.0","id":9,"method":"tools/call","params":{"name":"instructions","arguments":{"card":"working"}}}
+```
+
+That value names a column rather than a card. A column-shaped request never
+withholds, so the answer carries all three layers in full whatever you already
+hold, and one call is the whole of the recovery. There is no window to be
+inside and no digest to compare. Calling it when you did not need to costs one
+arrival and nothing else.
+
+The answer to a column-shaped request is thinner than a claim's in one way you
+should expect rather than read as a fault: it carries no `legal_moves` and no
+`loop`, because a column named on its own carries no card to compute either
+for. You still hold both from the response that withheld the chain.
+
+Nothing is lost if you never ask. A withheld layer is served again unasked
+after fifteen minutes, or after twenty further tool calls on this connection,
+whichever comes first, so an agent that neither notices the marker nor asks is
+sent the whole chain again inside a bounded window.
+
+One thing this head does not do is see an edit you make while it is running.
+It loads the workbench's standing text and each column's text once, at startup,
+so a change to either reaches you when the process restarts and not before.
+The user-global layer is read from disk on every serve, so an edit to that one
+does reach a running session, and it arrives as a `global` layer served in full
+where you expected it withheld.
 
 ## When a call is refused
 

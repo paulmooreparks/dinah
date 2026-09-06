@@ -46,11 +46,13 @@ The contract: CORE-MOVE-4, CORE-MOVE-5, CORE-MOVE-9, CORE-MOVE-10, and CORE-MOVE
 
 A rule you have to go and look for is a rule you read once, on the day somebody told you it existed.
 
-Dinah serves the workbench's standing instructions and then the column's own, most general first, every time you claim a card and every time you move one, and it prints the moves that card may make underneath them. Dinah never copies one of those layers into the other. When you edit the workbench file, the next reader to claim anything gets the new wording, and you do not have to go and find the columns that quoted the old one.
+Dinah serves the workbench's standing instructions and then the column's own, most general first, when you claim a card and when you move one, and it prints the moves that card may make underneath them. Dinah never copies one of those layers into the other. When you edit the workbench file, the next reader to open the workbench gets the new wording, and you do not have to go and find the columns that quoted the old one.
+
+At a terminal that is the whole of it, because each command opens the workbench, serves what applies, and exits. An agent on the MCP surface holds one connection across many acts, and there Dinah serves a layer once and then withholds it while that connection still has it, naming what it withheld and the request that fetches it back. The withheld layer returns unasked inside a bounded window, so an agent that never asks is not left working to text it can no longer read. That surface also loads the workbench's standing text and each column's text once at startup, so an edit to either reaches an agent when its session restarts rather than at its next act; the user-global layer is read afresh on every serve. The guide `mcp` carries the rule in full.
 
 If instead you keep the rules in a document beside the workbench, that document goes stale, and you never learn which reader read which version of it. The reader who got it wrong looks the same as the reader who never opened it.
 
-The contract: CORE-INSTR-5, CORE-INSTR-6, and CORE-INSTR-7.
+The contract: CORE-INSTR-6, CORE-INSTR-7, CORE-INSTR-10, and CORE-INSTR-11.
 
 ## An obstacle is raised where everybody sees it
 

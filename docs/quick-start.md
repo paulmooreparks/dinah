@@ -91,7 +91,7 @@ The leading `$` marks a command line. Do not type it.
 ```console
 $ dinah version
 dinah 0.1.0
-conforms to dinah-core/0.9
+conforms to dinah-core/0.12
 storage format 2
 [exit 0]
 ```
@@ -1218,7 +1218,7 @@ carries, ask:
 ```console
 $ dinah version --catalogs
 dinah 0.1.0
-conforms to dinah-core/0.9
+conforms to dinah-core/0.12
 storage format 2
 
 Catalogs:

@@ -75,8 +75,8 @@ func declaredProfile(t *testing.T, fixture string) string {
 // spellings no build ever stamped are read literally and refused.
 //
 // The published line the window admits runs from the rename dinah-287 raised
-// the floor to up to the claim this build stamps, which dinah-358 moved to
-// 0.9. Every revision below the floor is still published
+// the floor to up to the claim this build stamps, which dinah-382 moved to
+// 0.12. Every revision below the floor is still published
 // and still readable, through the vocabulary migration rather than through
 // this window, and the third table below is the one that says so: a revision
 // in that window meets needs-vocabulary-migration at the gate Open applies,
@@ -86,15 +86,18 @@ func TestAdmitProfileReadsThePublishedLineAndRefusesTheRest(t *testing.T) {
 		"dinah-core/0.7",
 		"dinah-core/0.8",
 		"dinah-core/0.9",
+		"dinah-core/0.10",
+		"dinah-core/0.11",
+		"dinah-core/0.12",
 	}
 	refused := []string{
 		"dinah-core/0.0",
 		// The case CORE-BENCH-4's major-only text could not reach, and the one
 		// CORE-BENCH-5 names: this build's own major, a minor above the
-		// ceiling it implements. The example moved from 0.8 to 0.10 when
-		// dinah-358 raised the claim to 0.9, because a revision this build now
+		// ceiling it implements. The example moved from 0.10 to 0.13 when
+		// dinah-382 raised the claim to 0.12, because a revision this build now
 		// implements cannot stand for one it does not.
-		"dinah-core/0.10",
+		"dinah-core/0.13",
 		"dinah-core/1.1",
 		"dinah-core/2.0",
 		"dinah-core/3.0",

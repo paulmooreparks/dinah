@@ -636,6 +636,9 @@ type Served struct {
 	Loop *Loop `json:"loop,omitempty"`
 	// Column is the column the instructions were served for.
 	Column string `json:"column"`
+	// ChainServed carries the instruction-chain keys this answer served in
+	// full, off the wire for the reason Response.ChainServed is.
+	ChainServed []string `json:"-"`
 }
 
 // instructionColumn answers the column a request names directly, and nil when
@@ -648,15 +651,20 @@ func (l *Library) instructionColumn(req *Request) *bench.Column {
 }
 
 // Instructions serves the chain at a position named by a card or by a column.
+//
+// The two branches part company on withholding, which is CORE-INSTR-10's
+// recovery route. A card-shaped request asks where a card stands and what
+// applies there, so its answer is subject to withholding exactly as a claim's
+// or a move's is. A column-shaped request names the text itself, so it serves
+// every layer in full whatever the connection already holds, and an agent that
+// has lost the chain gets it back in one call.
 func (l *Library) Instructions(req *Request) (*Served, error) {
 	if column := l.instructionColumn(req); column != nil {
+		chain, keys := l.composeChain(req, column, false)
 		served := &Served{
-			Column: column.ID,
-			Instructions: Instructions{
-				Global:   bench.GlobalInstructions(l.Home),
-				Standing: l.Bench.Standing,
-				Column:   column.Instructions,
-			},
+			Column:       column.ID,
+			Instructions: *chain,
+			ChainServed:  keys,
 		}
 		return served, nil
 	}
@@ -668,11 +676,13 @@ func (l *Library) Instructions(req *Request) (*Served, error) {
 	if err != nil {
 		return nil, err
 	}
+	chain, keys := l.serve(req, found.Card)
 	served := &Served{
 		Column:       found.Card.Column,
-		Instructions: *l.serve(found.Card),
+		Instructions: *chain,
 		LegalMoves:   l.legalMoves(found.Card),
 		Loop:         loop,
+		ChainServed:  keys,
 	}
 	return served, nil
 }

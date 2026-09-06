@@ -715,7 +715,7 @@ func TestTheUnsupportedVersionRefusalNamesTheWindow(t *testing.T) {
 	// build stamps, and the clause is composed from the constants rather than
 	// spelled there, so this reads the sentence's shape while naming the two
 	// numbers a later bump moves.
-	wanted := "; this build reads dinah-core 0.7 through dinah-core 0.9"
+	wanted := "; this build reads dinah-core 0.7 through dinah-core 0.12"
 	if !strings.Contains(got.errw, wanted) {
 		t.Errorf("the refusal reads %q, wanted it to carry %q", got.errw, wanted)
 	}

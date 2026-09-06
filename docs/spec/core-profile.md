@@ -1,6 +1,6 @@
 # The core profile
 
-Version identity: `dinah-core 0.11`, maturity channel `dev`.
+Version identity: `dinah-core 0.12`, maturity channel `dev`.
 
 ## 1. Scope and audience
 
@@ -55,7 +55,7 @@ that would bring it in.
 
 ## 2. Version identity and compatibility
 
-This document is version 0.11 of the profile whose identity string is
+This document is version 0.12 of the profile whose identity string is
 `dinah-core`. The version of this profile is a property of this document. It
 is unrelated to the release numbering of any tool, and a tool's own version
 number tells a reader nothing about which profile version that tool
@@ -92,7 +92,7 @@ in the changelog like any other change, and the promise starts to bind at
 that event. The move of this document's own major number from 0 to 1 is a
 named event of the same kind, recorded in the entry that promotes the
 document to `stable`, so no revision is ever `dev` or `beta` and major 1 at
-once. A conformance claim names `dinah-core 0.11` and says nothing about
+once. A conformance claim names `dinah-core 0.12` and says nothing about
 the channel, because the channel belongs to the document's history and the
 number belongs to the contract.
 
@@ -335,6 +335,9 @@ to another and is drawn from whatever set a workbench finds useful.
 
 **Position.** Where a column stands in the flow, which is where it stands in
 the workbench's ordered list of columns.
+
+**Session.** One continuous exchange between a tool and one owner, within
+which a tool can know what it has already served that owner.
 
 **Card.** One unit of work, occupying exactly one column at a time.
 
@@ -620,7 +623,7 @@ with the meanings RFC 8259 gives them.
 
 ```json
 {
-  "profile": "dinah-core/0.11",
+  "profile": "dinah-core/0.12",
   "title": "Wedding",
   "columns": [
     { "id": "s1", "title": "Ideas",   "kind": "intake" },
@@ -1097,37 +1100,51 @@ it at the moment they need it. Serving is what turns a workbench definition
 from a diagram into working guidance.
 
 The workbench carries standing instructions that apply wherever a card is,
-and each column carries the instructions of that position. They are served
-together, most general first, and they are never copied into one another. A tool that wrote the workbench's standing text into
-each column would freeze a copy that stops tracking its source, and every
-later edit would then reach some readers and not others.
+and each column carries the instructions of that position. A response that
+serves both carries them most general first, and no layer is ever copied into
+another. A tool that wrote the workbench's standing text into each column would
+freeze a copy that stops tracking its source, and every later edit would then
+reach some readers and not others.
+
+A response need not carry both layers, or either of them. A tool that has
+already served a layer's text to an owner within the same session may withhold
+it and name it instead, which spares an owner the same prose on every act. The
+withholding tool owes that owner two things, and CORE-INSTR-10 states both: the
+names of the layers it withheld, and a request whose answer carries them in
+full.
 
 This profile fixes the order of those two instruction layers and says nothing
 about how many a tool serves. A tool may compose further instruction layers
 of its own, in any position that leaves the workbench's standing text ahead
-of the column's. CORE-INSTR-5 constrains the order of the two named here and
-nothing else. CORE-INSTR-6 forbids copying the text of one instruction layer
-into another, and that prohibition reaches a tool's own instruction layers
-too.
+of the column's. CORE-INSTR-11 constrains the order of the two named here and
+nothing else, and it binds whichever of them a response serves rather than
+requiring a response to serve both. CORE-INSTR-6 forbids copying the text of
+one instruction layer into another, and that prohibition reaches a tool's own
+instruction layers too.
 
-Instructions are served at the two moments an owner's situation changes: when
-a claim succeeds, and when a move succeeds. Alongside them a tool says which
-moves are legal for that card at that moment, so an owner is never left
-guessing which departures the workbench allows.
+A claim that succeeds and a move that succeeds are the two moments an owner's
+situation changes, and they are the two moments at which a tool serves that
+owner whatever of the chain the owner does not already hold. Alongside the
+chain a tool says which moves are legal for that card at that moment, so an
+owner is never left guessing which departures the workbench allows. The legal
+moves are never withheld, whatever a response does with the instruction
+layers.
 
 [CORE-INSTR-1] A column MAY carry instructions in prose.
 
 [CORE-INSTR-2] A workbench MAY carry standing instructions in prose.
 
-[CORE-INSTR-3] A tool MUST serve the instructions of a card's column to the owner whose claim on that card has just succeeded.
-
-[CORE-INSTR-4] A tool MUST serve the instructions of the column entered to the owner whose move has just succeeded.
-
-[CORE-INSTR-5] A tool MUST serve a workbench's standing instructions ahead of the column's instructions.
-
 [CORE-INSTR-6] A tool MUST NOT write the text of one instruction layer into another.
 
 [CORE-INSTR-7] A tool MUST carry, with served instructions, the moves that are legal for that card at that moment.
+
+[CORE-INSTR-8] A tool MUST serve the instructions of a card's column to the owner whose claim on that card has just succeeded, or, where it has already served that same text to that same owner within the same session, name that layer among the layers it withheld.
+
+[CORE-INSTR-9] A tool MUST serve the instructions of the column entered to the owner whose move has just succeeded, or, where it has already served that same text to that same owner within the same session, name that layer among the layers it withheld.
+
+[CORE-INSTR-10] A tool that withholds an instruction layer MUST name the withheld layers, most general first, alongside a request whose answer carries every named layer in full.
+
+[CORE-INSTR-11] A tool MUST serve a workbench's standing instructions ahead of the column's instructions in a response that serves both.
 
 ## 8. The working agreement
 
@@ -1206,7 +1223,7 @@ quietly.
 | --- | --- | --- | --- | --- |
 | The workbench definition | in | Without a declared flow there is nothing for two tools to agree about, and every other concept hangs off it. | | CORE-BENCH-1, CORE-BENCH-2 |
 | Columns and the moves between them | in | The flow is the thing a board is. A tool that could not say where a card stands would not be coordinating anything. | | CORE-STATE-1, CORE-STATE-2, CORE-STATE-6, CORE-STATE-7, CORE-STATE-8, CORE-STATE-10, CORE-MOVE-1, CORE-MOVE-8 |
-| Per-column instruction serving, with the legal moves alongside | in | A workbench carries its method in prose, and the method is worthless if it does not reach whoever arrives at the position it describes. Saying which moves are legal at the same moment is part of the same service, since an owner told what to do and not where it may go is told half of it. | | CORE-INSTR-1, CORE-INSTR-2, CORE-INSTR-3, CORE-INSTR-4, CORE-INSTR-5, CORE-INSTR-6, CORE-INSTR-7 |
+| Per-column instruction serving, with the legal moves alongside | in | A workbench carries its method in prose, and the method is worthless if it does not reach whoever arrives at the position it describes. Saying which moves are legal at the same moment is part of the same service, since an owner told what to do and not where it may go is told half of it. Serving the same prose again to an owner who already has it is not part of the service, so a tool may withhold what it has already sent provided it says what it withheld and answers a request for it. | | CORE-INSTR-1, CORE-INSTR-2, CORE-INSTR-6, CORE-INSTR-7, CORE-INSTR-8, CORE-INSTR-9, CORE-INSTR-10, CORE-INSTR-11 |
 | The verbs claim, move, release and block | in | These four are the whole of what an owner does to a card, and each has refusals a second tool would otherwise invent differently. | | CORE-VERB-1, CORE-VERB-2, CORE-CLAIM-3, CORE-RELEASE-2, CORE-BLOCK-3 |
 | The four-rule working agreement | in | The discipline is what makes a shared workbench trustworthy, and stating it in the contract keeps it from being reinvented per tool. | | ACTOR-1, ACTOR-2, ACTOR-3, ACTOR-4 |
 | Card identity and required fields | in | A card handed between tools has to survive the trip, and the four required fields are the fewest that keep its position meaningful. | | CORE-CARD-1, CORE-CARD-2, CORE-CARD-3, CORE-CARD-4, CORE-CARD-8, CORE-CARD-9 |
@@ -1502,11 +1519,12 @@ themselves carry meaning.
 | CORE-OUT-7 | must | tool | Where the tool answers whoever invoked it with a number, the number carrying `refused` carries no other outcome the tool reports. |
 | CORE-INSTR-1 | may | tool | A column carrying instructions is accepted. |
 | CORE-INSTR-2 | may | tool | A workbench carrying standing instructions is accepted. |
-| CORE-INSTR-3 | must | tool | The response to a claim that succeeded carries the column's instructions. |
-| CORE-INSTR-4 | must | tool | The response to a move that succeeded carries the entered column's instructions. |
-| CORE-INSTR-5 | must | tool | The served text carries the workbench's standing instructions ahead of the column's. |
 | CORE-INSTR-6 | must not | tool | After serving, neither the workbench's nor the column's stored instructions carry the other's text. |
 | CORE-INSTR-7 | must | tool | The response to a claim or a move carries the moves legal for that card. |
+| CORE-INSTR-8 | must | tool | The response to a claim that succeeded carries the column's instructions, or names the column layer among those it withheld. |
+| CORE-INSTR-9 | must | tool | The response to a move that succeeded carries the entered column's instructions, or names the column layer among those it withheld. |
+| CORE-INSTR-10 | must | tool | A response naming a withheld layer names a request, and that request's answer carries every named layer in full. |
+| CORE-INSTR-11 | must | tool | A response serving both layers carries the workbench's standing instructions ahead of the column's. |
 | ACTOR-1 | must | history | The card's history carries a claim by that owner ahead of any other act by that owner on it. |
 | ACTOR-2 | must not | history | No claim in the history extends past its owner's last act on the card without a release or an expiry. |
 | ACTOR-3 | must | history | No act in the history was taken against a position the workbench did not hold at that time. |
@@ -1517,12 +1535,12 @@ themselves carry meaning.
 | CORE-LAYER-2 | must | tool | A workbench carrying a declared layer the tool does not understand still carries that layer's content after a read and a write. |
 | CORE-LAYER-3 | must | tool | A definition declaring a layer under a name this profile defines is refused with `layer-collision`. |
 
-The index carries 136 rows, which is the number of identifiers an extraction
+The index carries 137 rows, which is the number of identifiers an extraction
 over this revision returns.
 
 ## 12. Changelog
 
-The current revision is `dinah-core 0.11`. Entries below stay in the order
+The current revision is `dinah-core 0.12`. Entries below stay in the order
 they were published rather than in numeric order. The fourth entry renamed
 the first three from `1.0`, `2.0`, and `3.0` to `0.1`, `0.2`, and `0.3`, so
 it reads here as a drop from `3.0` to `0.4` even though nothing was undone.
@@ -1957,3 +1975,36 @@ is one of their number. A tool that stores no structured item sees no change, si
 CORE-ITEM-1 is `may` and nothing this revision adds can trigger on an item
 that was never written. The document sits on the `dev` channel, so nothing
 here binds a caller who has not already opted into `dinah-core 0.11`.
+
+### 0.12, channel `dev`, 2026-09-06
+
+Identifiers affected: CORE-INSTR-3, retired. CORE-INSTR-4, retired.
+CORE-INSTR-5, retired. CORE-INSTR-8, introduced. CORE-INSTR-9, introduced.
+CORE-INSTR-10, introduced. CORE-INSTR-11, introduced.
+
+A tool that serves the whole instruction chain on every act sends an owner
+prose that owner already has, and on a machine surface the repeat is paid in
+the caller's context on every claim, every pull and every move. The three
+retired statements made that repeat obligatory: two of them required the
+column's text on a claim and on a move without qualification, and the third
+required the standing text ahead of the column's on every response, which a
+response carrying the column layer alone cannot satisfy. This revision permits
+a tool to withhold a layer it has already served the same owner within one
+session, and it charges the withholding tool with saying what it withheld and
+with answering a request that returns it.
+
+Consequence for a caller. A caller conforming to an earlier revision was
+entitled to the column's text on every successful claim and on every successful
+move, and to the workbench's standing text ahead of the column's on every
+response that carried instructions. Under `dinah-core 0.12` that caller is
+entitled to the text or to the name of the layer withheld from it together with
+a request that returns the layer in full, and the ordering rule now binds
+whichever of the two layers a response serves rather than requiring both. A
+caller that reads the text it is sent and never inspects the withheld names
+will, in a long session, act on text it no longer holds, so a caller taking up
+this revision reads the withheld names on every response and makes the request
+when it can no longer see a named layer. A tool that never withholds satisfies
+CORE-INSTR-8 and CORE-INSTR-9 exactly as it satisfied the two statements they
+replace, and CORE-INSTR-10 is vacuous for it. The document sits on the `dev`
+channel, so nothing here binds a caller who has not already opted into
+`dinah-core 0.12`.
