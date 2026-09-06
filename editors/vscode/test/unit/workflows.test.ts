@@ -206,6 +206,158 @@ test("the extension release fires on main and only for the extension manifest", 
 	);
 });
 
+test("the extension release can also be started by hand, with nothing to fill in", () => {
+	// A version-change gate cannot cut the first release at the version the
+	// manifest already carries, which is how 1.0.0 became unreleasable. The
+	// dispatch trigger takes no inputs because the manual path always releases
+	// whatever version is currently committed.
+	assert.ok(
+		/^ {2}workflow_dispatch: \{\}$/m.test(vscodeRelease),
+		"vscode-release.yml can no longer be dispatched by hand, so the version already in the manifest cannot be released",
+	);
+	const trigger = vscodeRelease.slice(
+		vscodeRelease.indexOf("\non:"),
+		vscodeRelease.indexOf("\npermissions:"),
+	);
+	assert.ok(
+		!/workflow_dispatch:\s*\n\s+inputs:/.test(trigger),
+		"the dispatch trigger asks for an input, so a manual run no longer releases the committed version on its own",
+	);
+});
+
+test("each trigger reads its version from the step that can answer for it", () => {
+	// A dispatched run carries no github.event.before to diff against, so the
+	// push path's comparison would report no change and skip every job below
+	// it. That is the failure this card exists to prevent, and it looks like a
+	// working trigger from the outside because the run starts and goes green.
+	const job = vscodeRelease.slice(
+		vscodeRelease.indexOf("\n  check-version:"),
+		vscodeRelease.indexOf("\n  ci:"),
+	);
+	const diff = job.slice(
+		job.indexOf("- name: Read the version before and after this push"),
+		job.indexOf("- name: Read the committed version for a manual run"),
+	);
+	assert.ok(
+		diff.includes("if: github.event_name == 'push'"),
+		"the push comparison no longer restricts itself to pushes, so a dispatched run would diff against a commit that does not exist",
+	);
+	const manual = job.slice(
+		job.indexOf("- name: Read the committed version for a manual run"),
+	);
+	assert.ok(
+		manual.includes("if: github.event_name == 'workflow_dispatch'"),
+		"the manual version read is no longer restricted to dispatched runs",
+	);
+	assert.ok(
+		manual.includes(`node -p "require('./package.json').version"`) &&
+			manual.includes('echo "changed=true" >> "$GITHUB_OUTPUT"'),
+		"the manual step no longer reads the committed version and declares it releasable",
+	);
+	// The job's outputs name steps.manual.outputs.version whether or not the
+	// step ever writes it, and the create step reads that output for both the
+	// release's name and its body. Without this assertion the write can be
+	// deleted and the suite stays green while a dispatched run cuts a release
+	// titled "Dinah for VS Code " with an empty version in it.
+	assert.ok(
+		manual.includes('echo "version=$VERSION" >> "$GITHUB_OUTPUT"'),
+		"the manual step no longer publishes the version it read, so the release it cuts would be named and described with an empty version",
+	);
+	assert.ok(
+		!/github\.event\.(before|created)/.test(manual),
+		"the manual step consults a push-only field, which carries nothing on a dispatched run",
+	);
+	assert.ok(
+		job.includes(
+			"changed: ${{ steps.diff.outputs.changed || steps.manual.outputs.changed }}",
+		) &&
+			job.includes(
+				"version: ${{ steps.diff.outputs.version || steps.manual.outputs.version }}",
+			),
+		"the job's outputs no longer fall back to whichever of the two version steps ran",
+	);
+});
+
+test("a tag that already carries a release is replaced by hand and refused on a push", () => {
+	// softprops/action-gh-release documents that an existing release at the
+	// tag is updated with the run's assets rather than refused, so the push
+	// half of the operator's 2026-09-06 ruling is a step rather than an
+	// absence. Delete that step and a revert walking the manifest back to a
+	// released version silently replaces that release's archive.
+	const replace = vscodeRelease.slice(
+		vscodeRelease.indexOf(
+			"- name: Replace a pre-existing release at this tag on a manual run",
+		),
+		vscodeRelease.indexOf("- name: Refuse to overwrite a pre-existing release on a push"),
+	);
+	assert.ok(
+		replace.includes("if: github.event_name == 'workflow_dispatch'"),
+		"the delete-and-recreate step is no longer restricted to dispatched runs, so a push could destroy a published release",
+	);
+	assert.ok(
+		replace.includes('gh api "repos/$REPO/releases"') &&
+			replace.includes(`grep -Fxq "$TAG"`) &&
+			replace.includes('gh release delete "$TAG" --repo "$REPO" --yes --cleanup-tag'),
+		"the manual path no longer decides by testing this tag against the release list before deleting",
+	);
+	assert.ok(
+		replace.includes("::error::the releases on $REPO could not be listed") &&
+			replace.includes("exit 1"),
+		"the manual path no longer fails when it cannot list the releases, so a lookup that could not answer reads as a tag with nothing on it",
+	);
+	const refuse = vscodeRelease.slice(
+		vscodeRelease.indexOf("- name: Refuse to overwrite a pre-existing release on a push"),
+		vscodeRelease.indexOf("- name: Create the GitHub Release"),
+	);
+	assert.ok(
+		refuse.includes("if: github.event_name == 'push'"),
+		"the refusal is no longer restricted to pushes, so a manual re-cut would fail on the release it came to replace",
+	);
+	assert.ok(
+		refuse.includes('gh api "repos/$REPO/releases"') &&
+			refuse.includes(`grep -Fxq "$TAG"`) &&
+			refuse.includes("::error::a release already exists at $TAG") &&
+			refuse.includes("exit 1"),
+		"a push reaching an already-released version no longer fails loudly",
+	);
+	// This is the assertion that closes the round-two finding. gh documents
+	// exit code 1 for a command that "fails for any reason", so a lookup
+	// reading absence off a non-zero exit cannot tell a tag with no release
+	// on it from a tag it was unable to ask about, and on the second one this
+	// step would wave the run through to an action documented to update an
+	// existing release in place.
+	assert.ok(
+		refuse.includes("::error::the releases on $REPO could not be listed"),
+		"the push refusal no longer fails when it cannot list the releases, so an API error, a rate limit or a token problem lets the run overwrite a published release",
+	);
+	assert.ok(
+		!refuse.includes("gh release view") && !replace.includes("gh release view"),
+		"a collision step is back to asking gh release view, whose non-zero exit means both 'no such release' and 'could not look'",
+	);
+	assert.ok(
+		!refuse.includes("gh release delete"),
+		"the push path deletes a release, which the operator's ruling reserves for a manual run",
+	);
+	// Both steps have to sit ahead of the create step. Behind it they would
+	// delete or refuse the release this run had already made.
+	assert.ok(
+		vscodeRelease.indexOf(
+			"- name: Replace a pre-existing release at this tag on a manual run",
+		) < vscodeRelease.indexOf("- name: Create the GitHub Release") &&
+			vscodeRelease.indexOf(
+				"- name: Refuse to overwrite a pre-existing release on a push",
+			) < vscodeRelease.indexOf("- name: Create the GitHub Release"),
+		"a pre-existing release is handled after the release is created rather than before it",
+	);
+	assert.ok(
+		vscodeRelease.indexOf("- name: Tag this extension version") <
+			vscodeRelease.indexOf(
+				"- name: Replace a pre-existing release at this tag on a manual run",
+			),
+		"the tag these two steps read is computed after they run",
+	);
+});
+
 test("the release trigger compares the version field rather than the file", () => {
 	// The paths filter says the file changed and says nothing about which
 	// field. Without this comparison a push that renamed a command or edited
@@ -461,6 +613,14 @@ test("the marketplace publish is dormant until a token exists", () => {
 	assert.ok(
 		step.includes("if: env.VSCE_PAT != ''"),
 		"the publish step is no longer skipped when the marketplace token is absent",
+	);
+	// The two triggers publish under identical conditions, which today means
+	// never. A manual-only bypass here would publish unattended the moment a
+	// token appeared in Actions secrets, which is the operator's call to make
+	// rather than this workflow's.
+	assert.ok(
+		!step.includes("github.event_name"),
+		"the publish step distinguishes triggers, so a manual run can publish where a push cannot",
 	);
 	const command = step
 		.split("\n")
