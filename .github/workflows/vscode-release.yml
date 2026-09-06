@@ -21,6 +21,26 @@
 # code that never passed. This workflow's tag is a pure function of the
 # committed version string, and the release is created only after this
 # commit's CI has already passed, so neither problem arises.
+#
+# A manual trigger sits beside the push trigger because a version-change gate
+# cannot cut the first release at a version the manifest already carries. The
+# manifest said 1.0.0 with no release ever cut at that number, so the only way
+# to publish through the push path alone was to bump to 1.0.1 and accept a
+# first published version nobody meant. A dispatched run releases whatever
+# version is currently committed, without comparing it to any earlier commit,
+# because the person dispatching it has already made that decision.
+#
+# The two paths part company over a tag that already carries a release, and
+# the operator ruled on 2026-09-06 which way each goes. A dispatched run
+# replaces the release and its tag, since re-cutting a broken release at the
+# same version is what the manual path is for. A push refuses, because the
+# most plausible way a push reaches an already-released version is a revert
+# walking the manifest backwards, and deleting a published release is worth
+# being asked about. That refusal has to be built rather than inherited:
+# softprops/action-gh-release documents that "If a tag already has a GitHub
+# release, the existing release will be updated with the release assets", so
+# the create step below would quietly overwrite on a push if nothing stopped
+# it first.
 
 name: VS Code extension release
 
@@ -29,6 +49,7 @@ on:
     branches: [main]
     paths:
       - "editors/vscode/package.json"
+  workflow_dispatch: {}
 
 permissions:
   contents: read
@@ -36,9 +57,15 @@ permissions:
 jobs:
   check-version:
     runs-on: ubuntu-latest
+    # Exactly one of the two steps below runs, and the outputs read from
+    # whichever it was. GitHub's own workflow syntax reference documents this
+    # use of the operators by example, at jobs.<job_id>.services.<service_id>
+    # .image, where `${{ options.nginx == true && 'nginx' || '' }}` yields an
+    # operand rather than a boolean. The skipped step contributes no output,
+    # so its side of the expression is empty and the other side answers.
     outputs:
-      changed: ${{ steps.diff.outputs.changed }}
-      version: ${{ steps.diff.outputs.version }}
+      changed: ${{ steps.diff.outputs.changed || steps.manual.outputs.changed }}
+      version: ${{ steps.diff.outputs.version || steps.manual.outputs.version }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -63,6 +90,7 @@ jobs:
       # documented anywhere, so nothing here rests on it.
       - name: Read the version before and after this push
         id: diff
+        if: github.event_name == 'push'
         working-directory: editors/vscode
         env:
           BEFORE_SHA: ${{ github.event.before }}
@@ -77,6 +105,29 @@ jobs:
             BEFORE_PATH=/tmp/before.json
           fi
           node scripts/check-version-change.mjs /tmp/after.json "$BEFORE_PATH"
+
+      # A dispatched run has no earlier state to compare against. It carries no
+      # github.event.before, and github.event.created describes a push rather
+      # than a dispatch, so there is nothing honest to diff and the step above
+      # would report no change and skip every job downstream of it. The version
+      # this run releases is therefore read straight out of the manifest at the
+      # checked-out ref.
+      #
+      # That ref is the one the dispatcher selected. actions/checkout documents
+      # its ref input as defaulting to "the reference or SHA for that event"
+      # when checking out the repository that triggered the workflow, and a
+      # workflow_dispatch event's reference is the branch or tag chosen when
+      # the run was started, so no ref needs naming here.
+      - name: Read the committed version for a manual run
+        id: manual
+        if: github.event_name == 'workflow_dispatch'
+        working-directory: editors/vscode
+        run: |
+          set -e
+          VERSION=$(node -p "require('./package.json').version")
+          echo "Manual run: releasing the version already committed to package.json ($VERSION), without comparing it to any prior commit."
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
   # CI runs as a job of this workflow rather than being polled by SHA and by
   # check-run name. release.yml moved to this shape in dinah-363, and ci.yml
@@ -211,6 +262,48 @@ jobs:
           set -e
           VERSION=$(node -p "require('./package.json').version")
           echo "tag=vscode-v$VERSION" >> "$GITHUB_OUTPUT"
+
+      # The next two steps decide what happens when the tag this run computed
+      # already carries a release, and they answer differently per trigger
+      # because the operator ruled that way on 2026-09-06.
+      #
+      # Neither step can be left out on the grounds that the create step
+      # already does the right thing. softprops/action-gh-release's own README
+      # states that "If a tag already has a GitHub release, the existing
+      # release will be updated with the release assets", so with nothing here
+      # a push landing on an already-released version would silently replace
+      # that release's archive. Both halves of the ruling are built.
+      #
+      # The job already holds contents: write for the create step below, which
+      # is also what deleting a release needs, so neither step asks for more.
+      - name: Replace a pre-existing release at this tag on a manual run
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.tag.outputs.tag }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -e
+          if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
+            echo "A release already exists at $TAG. Deleting it and its tag so this run recreates both at the current commit."
+            gh release delete "$TAG" --repo "$REPO" --yes --cleanup-tag
+          else
+            echo "No release exists at $TAG yet, so there is nothing to replace."
+          fi
+
+      - name: Refuse to overwrite a pre-existing release on a push
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.tag.outputs.tag }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -e
+          if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
+            echo "::error::a release already exists at $TAG, so this push reached a version that has already shipped; dispatch this workflow manually if you meant to replace that release"
+            exit 1
+          fi
+          echo "No release exists at $TAG, so this push is cutting it for the first time."
 
       # The asset list names the one archive and nothing else. vsix/manifest.json
       # is written beside it by package.mjs so that verify-package.mjs and a
