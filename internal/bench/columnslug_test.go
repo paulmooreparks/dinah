@@ -658,4 +658,35 @@ func TestTheSlugRefusalCarriesTheWorkbenchItWasRaisedOver(t *testing.T) {
 	if got := refusal.Extra[contract.ValueWorkbench]; got != root {
 		t.Errorf("the slug refusal carries workbench %q, wanted %q, so its reader is given the repair that names no workbench and cannot confirm it from where he stands", got, root)
 	}
+	if got := refusal.Extra[contract.ValueColumn]; got != "b00000000001" {
+		t.Errorf("the slug refusal carries column %q, wanted b00000000001, so a caller reading the declared field is left to parse Detail's English or the path's spelling for the identifier", got)
+	}
+}
+
+// TestTheAbsentSlugRefusalCarriesTheColumnItWasRaisedOver drives the other of
+// the two refusals admitSlug raises, which is the one an absent slug reaches.
+//
+// Both refusals take the map openWithVocabulary builds for them rather than
+// building one, so a caller that stopped naming the column would break both
+// together and the pair is covered here rather than at one of them. This one
+// arrives through the same injected admit function the sibling test uses,
+// because the mandating major stays out of Open's reach while the binary
+// declares major 0.
+func TestTheAbsentSlugRefusalCarriesTheColumnItWasRaisedOver(t *testing.T) {
+	root := newTwoColumnFixture(t, ProfileVersion, "", "review")
+	mandating := func(declared string) (int, int, error) {
+		return SlugMandatoryMajor, 0, nil
+	}
+
+	_, err := openWithVocabulary(root, currentVocabulary, mandating, false)
+	var refusal *contract.Refusal
+	if !errors.As(err, &refusal) {
+		t.Fatalf("a column carrying no slug at the mandating major should refuse, got %v", err)
+	}
+	if refusal.Name != contract.Malformed {
+		t.Fatalf("the absent-slug refusal is %s, wanted %s", refusal.Name, contract.Malformed)
+	}
+	if got := refusal.Extra[contract.ValueColumn]; got != "b00000000001" {
+		t.Errorf("the absent-slug refusal carries column %q, wanted b00000000001", got)
+	}
 }
