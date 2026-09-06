@@ -112,7 +112,7 @@ function main() {
 			writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
 		}
 
-		vsce(["package", "--pre-release", "--out", vsix]);
+		vsce(["package", "--out", vsix]);
 	} finally {
 		// The committed manifest is put back whether the packaging worked or not,
 		// so a failed run never leaves a checkout claiming a version it does not
