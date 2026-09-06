@@ -48,10 +48,16 @@ func TestTheChangesToolIsTheProjectionOfTheOneLibraryCall(t *testing.T) {
 			t.Errorf("the %s argument's schema carries no sentence", param.Name)
 		}
 	}
-	for _, always := range []string{"actor", "basis", "workbench"} {
-		if _, named := properties[always]; !named {
-			t.Errorf("the changes schema drops the %s argument every tool carries", always)
+	for _, injected := range []string{"actor", "workbench"} {
+		if _, named := properties[injected]; !named {
+			t.Errorf("the changes schema drops the %s argument this tool consumes", injected)
 		}
+	}
+	// changes reads no basis, and an injected property is published on exactly
+	// the tools that consume it, so the schema offering it here would be an
+	// argument accepted and dropped without a word.
+	if _, named := properties["basis"]; named {
+		t.Error("the changes schema publishes basis, which this tool never reads")
 	}
 
 	// A first call mints a cursor, and the tool and the library are handed the

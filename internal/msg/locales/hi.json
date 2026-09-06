@@ -2935,9 +2935,9 @@
       "source": "8d52837d1182ee6b"
     },
     "schema.basis.description": {
-      "text": "हर बदलने वाले निवेदन के लिए Dinah स्वयं basis निकालता है, और इसे लिखने का कोई तरीका उपलब्ध नहीं है, इसलिए इस property को वैसे ही छोड़ दें।",
-      "context": "The description of the basis property, which every generated machine schema carries and no command declares.",
-      "source": "d079f7c8e67509b5"
+      "text": "इस कार्ड के लिए पिछली प्रतिक्रिया ने जो संशोधन बताया था; यदि कार्ड उसके बाद आगे बढ़ चुका है तो कॉल को बासी मानकर अस्वीकार किया जाता है",
+      "context": "The description of the basis property, which the eight generated machine schemas that consume basis carry and no command declares.",
+      "source": "249351173cf9bde1"
     },
     "param.card.summary": {
       "text": "जिस कार्ड पर आप काम कर रहे हैं, उसके संदर्भ के रूप में लिखा गया, जैसे wb-1",
@@ -3285,9 +3285,9 @@
       "source": "f3935cffe44663d9"
     },
     "schema.workbench.description": {
-      "text": "वर्कबेंच की अपनी स्टोर डायरेक्टरी का पूर्ण पथ, जैसे C:\\Users\\you\\projects\\plans\\.dinah\\4fa1c9d2e8b0, जिसे workbenches टूल और dinah init बताते हैं; सर्वर जिस वर्कबेंच के साथ शुरू हुआ उसी पर काम करने के लिए इसे छोड़ दें",
+      "text": "कार्यपीठ की अपनी भंडार निर्देशिका, पूर्ण पथ के रूप में; छोड़ देने पर सर्वर की तयशुदा कार्यपीठ",
       "context": "The description of the workbench property, which every generated machine schema carries except the workbenches tool, and which an MCP caller sets to reach a workbench other than the one the server started with.",
-      "source": "732e5002ec4db9c1"
+      "source": "751c96238707e34c"
     },
     "param.mcp.root.summary": {
       "text": "वह डायरेक्टरी जिसके नीचे यह सर्वर की परोसी हर वर्कबेंच पड़ती है; आप कोई न नामें, तो शुरुआत में मिली वर्कबेंच",
