@@ -970,6 +970,13 @@ commit is `de5558289b0962c50b578fc81b65f856aa9100b3`, and the baseline is
 Both runs read their layers at the baseline commit, since this card edits none
 of the files those layers are composed from.
 
+The landing commit named above is the last commit on the branch that changes
+what this surface publishes or answers. The commits after it edit this document
+and one help page's own prose, and the tool-definition block the head serves is
+byte-identical at the branch head to what it was at the landing commit, as is
+the unshaped payload the fixture card produces. The figures below therefore
+describe the branch as it stands rather than a state it has since left.
+
 ```
 BASELINE=93142ba0c8a1278f124007881eb9f8f66ea56877
 go build -o ./dinah-landing ./cmd/dinah
