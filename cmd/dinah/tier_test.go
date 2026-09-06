@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -525,5 +526,48 @@ func rewriteColumnAnchor(t *testing.T, root, slug, from, to string) {
 	}
 	if err := os.WriteFile(path, []byte(edited), 0o644); err != nil {
 		t.Fatalf("write the anchor of %s: %v", slug, err)
+	}
+}
+
+// TestTheClaimHelpAndTheFormatDocStateBothLimits is dinah-408 AC-18. The two
+// limits are the ones a caller has to meet before relying on the gate, and a
+// caller meets them where they read: the help text for each --tier flag, and
+// the design document's own tier section.
+//
+// The assertions are over the clauses rather than over whole sentences,
+// because the help wraps at the reader's window and the document is prose
+// somebody will reword. What each one names is the claim that cannot go
+// missing: a declared tier is taken on trust, and a column's default cannot
+// make a station selective.
+func TestTheClaimHelpAndTheFormatDocStateBothLimits(t *testing.T) {
+	root := newBenchFromDefinition(t, tierDefinition)
+	claim := flattenWords(runCLI(t, root, "help", "claim").out)
+	for _, clause := range []string{
+		"taken on trust and never verified",
+		"only what the card itself asks for can refuse you, never a column's own default",
+	} {
+		if !strings.Contains(claim, clause) {
+			t.Errorf("dinah help claim does not state %q:\n%s", clause, claim)
+		}
+	}
+	column := flattenWords(runCLI(t, root, "help", "column").out)
+	if !strings.Contains(column, "never refuses a claim, so it cannot make this column selective") {
+		t.Errorf("dinah help column does not state that a tier default cannot make a column selective:\n%s", column)
+	}
+
+	doc, err := os.ReadFile(filepath.Join("..", "..", "docs", "design", "format.md"))
+	if err != nil {
+		t.Fatalf("read the format document: %v", err)
+	}
+	prose := flattenWords(string(doc))
+	for _, clause := range []string{
+		"Dinah cannot verify a declared tier",
+		"a claim the tool takes on trust rather than a capability it checks",
+		"A column cannot make itself selective by declaring a default",
+		"Only a requirement the card itself carries can refuse a claim",
+	} {
+		if !strings.Contains(prose, clause) {
+			t.Errorf("docs/design/format.md does not state %q", clause)
+		}
 	}
 }
