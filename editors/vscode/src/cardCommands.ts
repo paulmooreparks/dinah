@@ -39,7 +39,7 @@ export interface CommandHost {
 	 * Injected alongside the window calls rather than imported, for the reason
 	 * l10n.ts's own header gives: this module imports no vscode symbol, so it
 	 * cannot reach vscode.l10n, and extension.ts is the one place that reads
-	 * vscode.env.language and binds a Localizer to it.
+	 * the editor's display language and binds a Localizer to it.
 	 */
 	readonly t: Localizer;
 	readonly showError: (message: string) => void;

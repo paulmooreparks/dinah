@@ -13,9 +13,9 @@
 // vscode external so it resolves only inside a real host. A module reaching
 // for vscode.l10n would throw the moment a unit test imported it. So a
 // Localizer is injected exactly as showError, showInfo, pick and input already
-// are: extension.ts is the one file that reads vscode.env.language, and it
-// builds one Localizer here and threads it into every host and every render
-// call it makes.
+// are: extension.ts is the one file that reads the editor's display language,
+// and it builds one Localizer here and threads it into every host and every
+// render call it makes.
 //
 // The catalogues are imported rather than read off disk. The vsix ignores
 // src/, so a file read at run time would find nothing in a packaged
@@ -184,9 +184,10 @@ export function createLocalizer(tag: SupportedTag): Localizer {
  * caller passes none.
  *
  * Every such default is a test call site rather than a production one:
- * extension.ts builds the window's own Localizer from vscode.env.language and
- * passes it down every path a reader's text travels, and the parameter exists
- * defaulted so the unit layer's several hundred existing call sites go on
- * asserting on English without each one having to name a localizer.
+ * extension.ts builds the window's own Localizer from the editor's display
+ * language and passes it down every path a reader's text travels, and the
+ * parameter exists defaulted so the unit layer's several hundred existing call
+ * sites go on asserting on English without each one having to name a
+ * localizer.
  */
 export const ENGLISH: Localizer = createLocalizer(BASE_TAG);
