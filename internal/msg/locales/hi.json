@@ -710,7 +710,7 @@
       "source": "1825c0207e46f3c6"
     },
     "check.show.2": {
-      "text": "संदर्भ किसी कार्ड या उसके नीचे के पथ तक पहुँचता है",
+      "text": "संदर्भ किसी कार्ड या उसके नीचे के पथ का नाम लेता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "f386eb2b00f548c0"
     },
@@ -2035,9 +2035,14 @@
       "source": "4f6de5e55bbd45d0"
     },
     "refusal.dinah.unknown-field.show": {
-      "text": "show {detail} को नहीं चुन सका। यह फ़ील्ड एक कार्ड में से चुनता है, और एक कार्ड जो फ़ील्ड रखता है वे हैं: {fields}।",
-      "context": "The sentence printed after the refusal name dinah.unknown-field when the show command raised it, which is a read naming a member of a card's detail that show cannot select. {detail} is what the reader asked for: the unrecognised names, sorted, or the whole list where the reference the reader named is not a card. {fields} is the set of members a card's detail carries, read off the tool rather than written here, so a member name is machine vocabulary and is never translated. refusal.dinah.unknown-field.show.reference and refusal.dinah.unknown-field.show.next are spliced on after this one.",
-      "source": "b81a6881d074fbd5"
+      "text": "show इस पठन में नामित फ़ील्ड नहीं चुन सका। यह फ़ील्ड एक कार्ड में से चुनता है, और एक कार्ड जो फ़ील्ड रखता है वे हैं: {fields}।",
+      "context": "The sentence printed after the refusal name dinah.unknown-field when the show command raised it, which is a read that named members of a card's detail show could not select. It names neither the unrecognised names nor the reference, because only one of the two is the fault at any one raise and a sentence naming both would be false at each of them, so each rides a fragment of its own. {fields} is the set of members a card's detail carries, read off the tool rather than written here, so a member name is machine vocabulary and is never translated. refusal.dinah.unknown-field.show.unknown, refusal.dinah.unknown-field.show.reference, and refusal.dinah.unknown-field.show.next are spliced on after this one.",
+      "source": "ec7986fea5becbc7"
+    },
+    "refusal.dinah.unknown-field.show.unknown": {
+      "text": " ये नाम एक कार्ड नहीं रखता: {unknown}।",
+      "context": "Spliced onto refusal.dinah.unknown-field.show where the fault is in the names the reader wrote, which is every raise of that sentence except the one about a reference that is not a card. {unknown} is those names, sorted, and a member name is machine vocabulary rather than prose, so it is never translated.",
+      "source": "3e44ff1d09129017"
     },
     "refusal.dinah.unknown-field.show.reference": {
       "text": " संदर्भ {reference} कार्ड के अलावा किसी और चीज़ का नाम लेता है, और चुनने के लिए सदस्य केवल एक कार्ड के पास होते हैं।",

@@ -566,18 +566,22 @@ var Shapes = []Shape{
 		// one ranking field and says nothing a card reader can use.
 		// show carries a variant of its own because the act it refuses is a
 		// third one: a read naming a member of a card's detail that show
-		// cannot select. The reference clause is a conditional fragment
-		// rather than a fourth variant, since it answers a different
-		// question from the base sentence's: the base sentence says which
-		// names show could not select, and the fragment says the reference
-		// had no members to select from at all. reference is filled at one
-		// raise site and is that fragment's own condition, so it is declared
-		// there rather than in Values.
+		// cannot select. Its base sentence says what was refused and what a
+		// card carries, and stops there, because show refuses two different
+		// reads and each carries a clause the other would make false. Where
+		// the names are the fault the sentence names them, and where the
+		// reference is not a card the names may all be legal and naming
+		// them as unselectable would contradict the set the same sentence
+		// lists. So each rides a fragment of its own, switched on the value
+		// its raise site fills: unknown on the one, reference on the other.
+		// Both are filled at a raise site and each is its own fragment's
+		// condition, so they are declared there rather than in Values.
 		Name:     UnknownField,
 		Values:   []string{"fields", "instantField"},
 		Variants: []string{"card", "show"},
 		Fragments: []Fragment{
 			{Key: "refusal.dinah.unknown-field.ordered", WhenCommand: "query"},
+			{Key: "refusal.dinah.unknown-field.show.unknown", When: "unknown"},
 			{Key: "refusal.dinah.unknown-field.show.reference", When: "reference"},
 			{Key: "refusal.dinah.unknown-field.card.next", WhenCommand: "card"},
 			{Key: "refusal.dinah.unknown-field.show.next", WhenCommand: "show"},

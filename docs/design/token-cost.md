@@ -849,10 +849,9 @@ because an agent that has learned to read a withheld layer reads a withheld
 member without learning anything new.
 
 The argument is declared as a parameter of the `show` command rather than as a
-property this head injects into every tool. Three things follow, and each was
-the reason for the placement. The schema generator publishes the property on
-`show` alone, so the tool-definition block grows on one tool instead of on all
-of them and the growth stays attributable. A person at a terminal gains
+property this head injects into every tool. The schema generator publishes it
+on `show` alone, so the tool-definition block grows on one tool instead of on
+all of them and the growth stays attributable. A person at a terminal gains
 `dinah show <ref> --fields <list>` without the MCP head growing an act of its
 own. The selection itself lives in `Library.Show`, so one implementation
 answers both heads and neither head asks for less than the other by default.
@@ -920,6 +919,13 @@ since dropping or doubling a zero moves the residual by nothing at all, so a
 limit keyed to one would refuse every run while detecting no error. The repeat
 serves of the instruction chain are exactly that figure on any binary at or
 past dinah-382.
+
+`Payload-derived` is the label the harness prints over every attributed figure
+except the tool-definition block, and the scaffolding term belongs to that set
+even though it is read off the transcript rather than off a payload. The three
+runs below printed five such figures with no scaffolding figure among them,
+because the term went uncounted until this repair, so their candidate sets are
+one figure shorter than the set a run of the repaired harness reports.
 
 The three residuals this document already records were recomputed against the
 replacement rule, so a reader can see the rule was not chosen to admit one run.

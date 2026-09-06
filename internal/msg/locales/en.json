@@ -1750,8 +1750,12 @@
       "context": "Spliced onto refusal.dinah.unknown-field unconditionally, because the reader who named a field this tool does not have and the reader who gave a field an operator it does not take cannot be told apart from the sentence. {instantField} is the one field whose values rank and arrives as a filled value. The four operators after it are punctuation a reader types, the same in every language, so leave them as they are."
     },
     "refusal.dinah.unknown-field.show": {
-      "text": "show could not select {detail}. It selects fields from a card, and the fields a card carries are: {fields}.",
-      "context": "The sentence printed after the refusal name dinah.unknown-field when the show command raised it, which is a read naming a member of a card's detail that show cannot select. {detail} is what the reader asked for: the unrecognised names, sorted, or the whole list where the reference the reader named is not a card. {fields} is the set of members a card's detail carries, read off the tool rather than written here, so a member name is machine vocabulary and is never translated. refusal.dinah.unknown-field.show.reference and refusal.dinah.unknown-field.show.next are spliced on after this one."
+      "text": "show could not select the fields this read named. It selects fields from a card, and the fields a card carries are: {fields}.",
+      "context": "The sentence printed after the refusal name dinah.unknown-field when the show command raised it, which is a read that named members of a card's detail show could not select. It names neither the unrecognised names nor the reference, because only one of the two is the fault at any one raise and a sentence naming both would be false at each of them, so each rides a fragment of its own. {fields} is the set of members a card's detail carries, read off the tool rather than written here, so a member name is machine vocabulary and is never translated. refusal.dinah.unknown-field.show.unknown, refusal.dinah.unknown-field.show.reference, and refusal.dinah.unknown-field.show.next are spliced on after this one."
+    },
+    "refusal.dinah.unknown-field.show.unknown": {
+      "text": " The names it does not have are: {unknown}.",
+      "context": "Spliced onto refusal.dinah.unknown-field.show where the fault is in the names the reader wrote, which is every raise of that sentence except the one about a reference that is not a card. {unknown} is those names, sorted, and a member name is machine vocabulary rather than prose, so it is never translated."
     },
     "refusal.dinah.unknown-field.show.reference": {
       "text": " The reference {reference} names something other than a card, and only a card has members to select from.",

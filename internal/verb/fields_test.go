@@ -3,6 +3,7 @@ package verb
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"reflect"
 	"sort"
 	"strings"
@@ -54,7 +55,7 @@ func TestShowCarriesTheFieldsTheCallerNamed(t *testing.T) {
 		withheld []string
 	}{
 		{
-			name:     "a card carrying links, attachments and comments",
+			name:     "a card carrying links, attachments, and comments",
 			ref:      full,
 			fields:   "card,body",
 			withheld: []string{"links", "attachments", "comments", "path"},
@@ -186,6 +187,12 @@ func TestShowRefusesAFieldItDoesNotCarry(t *testing.T) {
 			fields: "card,body",
 			detail: "card,body",
 		},
+		{
+			name:   "a list written with nothing in it names no member",
+			card:   ref,
+			fields: ",",
+			detail: ",",
+		},
 	} {
 		t.Run(row.name, func(t *testing.T) {
 			detail, text, err := h.library.Show(&Request{
@@ -208,6 +215,18 @@ func TestShowRefusesAFieldItDoesNotCarry(t *testing.T) {
 				t.Errorf("the refusal does not name the declared set, got %q", got)
 			}
 		})
+	}
+
+	// The control for the last row: an argument that is blank rather than
+	// written with a separator in it is an argument the caller did not give,
+	// so it reads as the unshaped call it has always been and is not refused
+	// alongside the bare comma above.
+	if detail, _, err := h.library.Show(&Request{
+		Verb: "show", Actor: "alka", Card: ref, Fields: "   ",
+	}); err != nil {
+		t.Fatalf("a blank field list was refused: %v", err)
+	} else if detail.Withheld != nil {
+		t.Errorf("a blank field list shaped the answer: %v", detail.Withheld)
 	}
 
 	// The control for the second row: the same nonexistent card with no
@@ -257,5 +276,68 @@ func TestTheDetailVocabularyIsTheDetailItself(t *testing.T) {
 	if !reflect.DeepEqual(DetailFields,
 		[]string{"card", "body", "links", "attachments", "comments", "path"}) {
 		t.Errorf("the declared order moved: %v", DetailFields)
+	}
+}
+
+// TestTheDetailPayloadCarriesEveryMemberDetailDeclares stands over the mirror
+// struct inside Detail.MarshalJSON. That struct is a second declaration of the
+// same wire format, and the language ties it to nothing: a member added to
+// Detail and forgotten there is dropped from every payload, shaped and
+// unshaped alike, and every other test in this file would still pass.
+//
+// The guard has two halves and needs both. The literal below is asserted total
+// by reflection, so a member added to Detail fails here until somebody fills it
+// in, and the payload is then read back for every name the type declares, so a
+// member the mirror does not carry fails there. Neither half detects the drift
+// on its own, because a literal that leaves a member zero writes an answer that
+// omits it for a reason of its own.
+//
+// The literal fills withheld and reread alongside every member of the card,
+// which no live answer does, since an answer that withheld something did not
+// carry it. This is a test of the marshaller rather than of Library.Show, and
+// the question it asks is whether every name the type declares can reach the
+// wire at all.
+func TestTheDetailPayloadCarriesEveryMemberDetailDeclares(t *testing.T) {
+	whole := Detail{
+		Card:        CardView{Ref: "fx-1", Title: "A card"},
+		Body:        "The framing prose.",
+		Links:       []LinkView{{Kind: "relates_to", To: "0000", Ref: "fx-2"}},
+		Attachments: []AttachmentView{{ID: "0001", Filename: "note.txt"}},
+		Comments:    []CommentView{{ID: "0002", Body: "A remark."}},
+		Path:        filepath.Join("cards", "fx-1", "card.md"),
+		Withheld:    []string{"links"},
+		Reread:      "fx-1",
+	}
+	declared := map[string]bool{}
+	shape := reflect.TypeOf(whole)
+	value := reflect.ValueOf(whole)
+	for i := 0; i < shape.NumField(); i++ {
+		field := shape.Field(i)
+		name, _, _ := strings.Cut(field.Tag.Get("json"), ",")
+		if name == "" {
+			continue
+		}
+		declared[name] = true
+		if value.Field(i).IsZero() {
+			t.Errorf("the literal leaves %s empty, so this test cannot tell whether the payload carries it", name)
+		}
+	}
+	encoded, err := json.Marshal(whole)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var payload map[string]json.RawMessage
+	if err := json.Unmarshal(encoded, &payload); err != nil {
+		t.Fatalf("decode: %v\n%s", err, encoded)
+	}
+	for name := range declared {
+		if _, ok := payload[name]; !ok {
+			t.Errorf("Detail declares %s and MarshalJSON does not write it: %s", name, encoded)
+		}
+	}
+	for name := range payload {
+		if !declared[name] {
+			t.Errorf("the payload carries %s and Detail declares no such member: %s", name, encoded)
+		}
 	}
 }

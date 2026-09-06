@@ -352,7 +352,7 @@ type Detail struct {
 //
 // Three of Detail's members are absent from a payload whenever they are empty,
 // because their own tags say so. The other three are present whatever they
-// hold: every unshaped answer carries a card view, a body and a path, and a
+// hold: every unshaped answer carries a card view, a body, and a path, and a
 // reader of the wire format may rely on that. A shaped answer has to leave a
 // member the caller did not ask for out rather than carry it empty, since
 // carrying it empty is the claim withheld exists to deny, so those three are
@@ -361,6 +361,16 @@ type Detail struct {
 //
 // An unshaped answer sets all three, so its payload is byte for byte the
 // payload this type produced before the field list existed.
+//
+// carried is a second declaration of the same wire format and nothing in the
+// language ties it to Detail, so a member added above and forgotten here would
+// be dropped from every payload this type writes. Deriving the payload from
+// Detail by reflection would remove the second declaration and would also
+// reorder the members, since the encoder writes a map in sorted key order and
+// this wire format is frozen. The copy therefore stays and a guard stands over
+// it: TestTheDetailPayloadCarriesEveryMemberDetailDeclares marshals a Detail
+// with every member filled and fails on any name that reaches the type and not
+// the payload, or the payload and not the type.
 func (d Detail) MarshalJSON() ([]byte, error) {
 	type carried struct {
 		Card        *CardView        `json:"card,omitempty"`
@@ -394,10 +404,25 @@ func (d Detail) MarshalJSON() ([]byte, error) {
 	return json.Marshal(answer)
 }
 
+// Carries reports whether this answer carries the named member. A renderer
+// outside this package asks it before drawing a member, and an unshaped answer
+// answers yes to every name.
+//
+// A renderer cannot read the answer's own emptiness instead. Three of Detail's
+// members are slices or strings, so a member left out reads as nothing and
+// draws nothing, but the card view is a struct, and a card view the caller
+// left out is a zero struct that draws a header with an empty reference, an
+// empty title, and an empty column. The payload tells the two apart through
+// MarshalJSON, and this asks the same question from the terminal's side so
+// that the two heads cannot disagree about what an answer holds.
+func (d Detail) Carries(name string) bool {
+	return d.selected.carries(name)
+}
+
 // DetailFields are the members of a Detail that show's fields argument may
 // name, in the order withheld reports them. The vocabulary table declares the
 // closed set by pointing at this slice and Library.Show selects against the
-// same slice, so the help table, the refusal sentence and the selection cannot
+// same slice, so the help table, the refusal sentence, and the selection cannot
 // drift apart. A member added to Detail that a caller may ask for is added
 // here in the position the JSON payload prints it.
 var DetailFields = []string{"card", "body", "links", "attachments", "comments", "path"}
@@ -454,6 +479,17 @@ func parseDetailFields(fields string) (detailSelection, error) {
 		sort.Strings(named)
 		return nil, unknownDetailField(strings.Join(named, ", "), "")
 	}
+	// A list that survives the split naming nothing at all is refused rather
+	// than answered. `--fields ,` reaches here, and the answer to it would
+	// carry no member of the card whatsoever, under an announcement listing
+	// everything the card holds, which is an answer nobody asks for. Blank
+	// stays the unshaped read the paragraph above declares it to be, because
+	// an argument with nothing in it is an argument the caller did not give,
+	// where an argument carrying a separator is a list and a list names a
+	// member.
+	if len(chosen) == 0 {
+		return nil, unknownDetailField(strings.TrimSpace(fields), "")
+	}
 	return chosen, nil
 }
 
@@ -464,13 +500,25 @@ func parseDetailFields(fields string) (detailSelection, error) {
 //
 // The declared set rides as a value read off DetailFields rather than written
 // into the catalog, so a seventh member reaches the sentence without a
-// translator being asked for anything. reference is filled only where the
-// refusal is about the reference rather than about the names, and the fragment
-// that names it renders exactly there.
+// translator being asked for anything.
+//
+// The base sentence says which read was refused and what a card carries, and
+// it says neither of the two things that are true at only one of the raise
+// sites, because a sentence that named the unrecognised names would be false
+// where the names are all legal and the reference is not a card. Each of those
+// rides a fragment switched on by its own value. reference is filled where the
+// refusal is about the reference, and unknown is filled where it is about the
+// names, so the two are never both set and the composed sentence carries the
+// one clause that holds. unknown repeats the refusal's own detail because a
+// fragment renders on the presence of a named value and the detail is set at
+// every raise site, so the detail cannot be the condition that tells the two
+// sites apart.
 func unknownDetailField(detail, reference string) error {
 	extra := map[string]string{"fields": strings.Join(DetailFields, ", ")}
 	if reference != "" {
 		extra["reference"] = reference
+	} else {
+		extra["unknown"] = detail
 	}
 	return contract.RefuseWith(contract.UnknownField, detail, extra)
 }

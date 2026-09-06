@@ -8486,4 +8486,33 @@ func TestShowShapedByAFieldListPrintsWhatItHeldBack(t *testing.T) {
 	if !strings.Contains(shaped.out, msg.For(msg.Base).T("show.reread", "reread", first)) {
 		t.Errorf("the shaped answer does not say how to be served what it held back: %q", shaped.out)
 	}
+
+	// A field list that leaves the card out draws no card at all. The row
+	// above cannot see this, because it names card among its fields, and a
+	// card view is a struct rather than a slice: the members this renderer
+	// guards on emptiness draw nothing when they are left out, and the zero
+	// card view draws a header of empty cells that reads as an answer. The
+	// payload of the same call omits the member outright, so a header drawn
+	// here is the two heads disagreeing about what one answer holds.
+	withoutCard := runCLI(t, root, "show", first, "--fields", "links")
+	if withoutCard.code != 0 {
+		t.Fatalf("show %s --fields links: %d %s", first, withoutCard.code, withoutCard.errw)
+	}
+	if !strings.Contains(withoutCard.out, msg.For(msg.Base).T("show.links")) {
+		t.Fatalf("the answer carries no links, so its silence about the card proves nothing: %q", withoutCard.out)
+	}
+	if strings.Contains(withoutCard.out, "First") {
+		t.Errorf("the answer drew the card its field list left out: %q", withoutCard.out)
+	}
+	// The empty header by its own shape, because a card view drawn from
+	// nothing prints the bracketed column and state with neither in it.
+	if strings.Contains(withoutCard.out, "[ / ]") {
+		t.Errorf("the answer drew an empty card header above what it was asked for: %q", withoutCard.out)
+	}
+	// The control that keeps the two assertions above from passing on an
+	// answer that printed nothing whatever.
+	heldBack := msg.For(msg.Base).T("show.withheld", "members", "card, comments, path")
+	if !strings.Contains(withoutCard.out, heldBack) {
+		t.Errorf("wanted the line %q among what the shaped answer printed, got %q", heldBack, withoutCard.out)
+	}
 }

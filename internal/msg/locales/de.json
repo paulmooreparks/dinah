@@ -2620,9 +2620,14 @@
       "source": "4f6de5e55bbd45d0"
     },
     "refusal.dinah.unknown-field.show": {
-      "text": "show konnte {detail} nicht auswählen. show wählt Felder aus einer Karte aus, und die Felder, die eine Karte führt, sind: {fields}.",
-      "context": "The sentence printed after the refusal name dinah.unknown-field when the show command raised it, which is a read naming a member of a card's detail that show cannot select. {detail} is what the reader asked for: the unrecognised names, sorted, or the whole list where the reference the reader named is not a card. {fields} is the set of members a card's detail carries, read off the tool rather than written here, so a member name is machine vocabulary and is never translated. refusal.dinah.unknown-field.show.reference and refusal.dinah.unknown-field.show.next are spliced on after this one.",
-      "source": "b81a6881d074fbd5"
+      "text": "show konnte die in diesem Lesevorgang genannten Felder nicht auswählen. show wählt Felder aus einer Karte aus, und die Felder, die eine Karte führt, sind: {fields}.",
+      "context": "The sentence printed after the refusal name dinah.unknown-field when the show command raised it, which is a read that named members of a card's detail show could not select. It names neither the unrecognised names nor the reference, because only one of the two is the fault at any one raise and a sentence naming both would be false at each of them, so each rides a fragment of its own. {fields} is the set of members a card's detail carries, read off the tool rather than written here, so a member name is machine vocabulary and is never translated. refusal.dinah.unknown-field.show.unknown, refusal.dinah.unknown-field.show.reference, and refusal.dinah.unknown-field.show.next are spliced on after this one.",
+      "source": "ec7986fea5becbc7"
+    },
+    "refusal.dinah.unknown-field.show.unknown": {
+      "text": " Diese Namen führt eine Karte nicht: {unknown}.",
+      "context": "Spliced onto refusal.dinah.unknown-field.show where the fault is in the names the reader wrote, which is every raise of that sentence except the one about a reference that is not a card. {unknown} is those names, sorted, and a member name is machine vocabulary rather than prose, so it is never translated.",
+      "source": "3e44ff1d09129017"
     },
     "refusal.dinah.unknown-field.show.reference": {
       "text": " Die Referenz {reference} benennt etwas anderes als eine Karte, und nur eine Karte hat Bestandteile, aus denen ausgewählt werden kann.",

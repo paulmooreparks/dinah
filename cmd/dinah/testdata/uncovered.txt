@@ -35,7 +35,7 @@ render.go:emitCanonical#2  the branch where the machine form will not marshal, w
 render.go:nextStepOf#4  the alternation answering with nothing, which needs a last member carrying a condition, and the guard fails a shape whose last member does.
 render.go:refusalListings#2  the columns listing asked for before a workbench is open, which unknown-column cannot be raised before.
 render.go:renderColumnLine#2  renderColumnLine handed no column, which emitColumn cannot produce: it draws the line only on an ok outcome, and every ok outcome of column new carries the column it wrote.
-render.go:renderDetail#2  a card carrying a body, printed under its own line by show. Reachable and unreached: worth a test.
+render.go:renderDetail#8  a card carrying a body, printed under its own line by show. Reachable and unreached: worth a test.
 render.go:renderWorkstreamLine#2  renderWorkstreamLine handed no workstream, which emitWorkstream cannot produce: it draws the line only on an ok outcome, and every ok outcome of the two workstream acts carries the workstream it wrote.
 render.go:reportOutcome#4  the stale outcome of a response, which the cli head cannot provoke: a stale revision needs a second writer between the read and the act.
 render.go:reportOutcome#5  the same, on the branch where the stale response carries a card.
