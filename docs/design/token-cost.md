@@ -657,3 +657,181 @@ One edit reached the fixture after both runs above were made. The `show`
 scenario's statement gained the serial comma the workbench's prose standard
 requires of any list of three or more, which changes the input to that one
 scenario and to no other. Neither run was made again for it.
+
+## 2026-09-06: the repeat serves, cut by remembering what a connection has already been sent
+
+dinah-382 gave the MCP head a memory of the instruction-layer texts it has
+already sent to an owner on the connection it is serving, and it withholds a
+layer that owner already holds rather than sending it again. A withheld layer is
+named under `instructions.withheld`, most general first, alongside
+`instructions.reread`, which carries the column's own reference; the request
+that reference names is column-shaped, it never withholds, and its answer
+carries every layer in full. The hold expires on its own clock and its own
+counter, after `mcp.HoldTTL` of fifteen minutes or `mcp.HoldActCeiling` of twenty
+further tool calls answered for that owner, whichever comes first, because the
+head knows what it sent and cannot know what the agent still holds.
+
+The comparison is a pair of runs made with two binaries at one commit, which is
+the method the section above records and which is used for the same reason: the
+harness composes its instruction layers from committed files read at the commit
+it is given, so any other card editing those files would move the figures.
+Giving both binaries the same commit leaves the binary as the only difference.
+The landing commit is `830d3472660828299a7f5e8225f6152644d3971e`, and the
+baseline is `8f6b73599f05e00ff8125286fbf27a46383386a8`, the commit this card's
+branch left.
+
+```
+LANDING=830d3472660828299a7f5e8225f6152644d3971e
+go build -o ./dinah-landing ./cmd/dinah
+git worktree add --detach ../dinah-baseline-wt 8f6b73599f05e00ff8125286fbf27a46383386a8
+go build -C ../dinah-baseline-wt -o "$PWD/dinah-baseline" ./cmd/dinah
+python scripts/measure_agentic_sequence.py --dinah ./dinah-baseline \
+    --root <a scratch directory the harness may create and remove> \
+    --counter api --commit "$LANDING" --per-tool \
+    --api-key-file <the file holding a console API key>
+python scripts/measure_agentic_sequence.py --dinah ./dinah-landing \
+    --root <a scratch directory the harness may create and remove> \
+    --counter api --commit "$LANDING" --per-tool \
+    --api-key-file <the file holding a console API key>
+```
+
+### The paired runs, verbatim
+
+The per-tool attribution is omitted from the excerpt below because it is
+byte-identical between the two runs, which is one of the equalities this
+section reports. Everything else each run printed under these headings is
+reproduced as printed.
+
+```
+the baseline binary, built at 8f6b73599f05e00ff8125286fbf27a46383386a8
+
+the tool-definition block, and the round trips it is paid on
+  tools the MCP head serves                                            36 tools [not a token count]
+  tool-definition block, once                                        8660 tokens [counter=api model=claude-opus-5]
+  verb run, tool-call rounds                                           12 rounds [not a token count]
+  file run, tool-call rounds                                           18 rounds [not a token count]
+  tool block over the verb run's rounds                            103920 tokens [counter=api model=claude-opus-5]
+  tool block over the file run's rounds                            155880 tokens [counter=api model=claude-opus-5]
+  round-trip component, file run less verb run                     +51960 tokens [counter=api model=claude-opus-5]
+
+served instruction chain, per layer, arrivals and repeats
+  global layer, arrival serves (1)                                    408 tokens [counter=api model=claude-opus-5]
+  global layer, repeats within one card's own acts (4)               1632 tokens [counter=api model=claude-opus-5]
+  global layer, repeats across a card boundary (1)                    408 tokens [counter=api model=claude-opus-5]
+  standing layer, arrival serves (1)                                 2791 tokens [counter=api model=claude-opus-5]
+  standing layer, repeats within one card's own acts (4)            11164 tokens [counter=api model=claude-opus-5]
+  standing layer, repeats across a card boundary (1)                 2791 tokens [counter=api model=claude-opus-5]
+  column layer, arrival serves (2)                                   8080 tokens [counter=api model=claude-opus-5]
+  column layer, repeats within one card's own acts (2)               8382 tokens [counter=api model=claude-opus-5]
+  column layer, repeats across a card boundary (2)                   8080 tokens [counter=api model=claude-opus-5]
+  chain, arrival serves, all layers                                 11279 tokens [counter=api model=claude-opus-5]
+  chain, repeat serves, all layers                                  32457 tokens [counter=api model=claude-opus-5]
+
+the attributed figures, as counts rather than as shares
+  arrival serves of the instruction chain                           11279 tokens [counter=api model=claude-opus-5]
+  repeat serves of the instruction chain                            32457 tokens [counter=api model=claude-opus-5]
+  JSON re-encoding of the prose members                              5206 tokens [counter=api model=claude-opus-5]
+  response envelope, measured directly                               4474 tokens [counter=api model=claude-opus-5]
+  requested content                                                 21012 tokens [counter=api model=claude-opus-5]
+
+the reconciliation, against the verb run's context footprint
+  sum of the attributed figures and the tool block once             83088 tokens [counter=api model=claude-opus-5]
+  verb run, context footprint                                       84164 tokens [counter=api model=claude-opus-5]
+  residual                                                          +1076 tokens [counter=api model=claude-opus-5]
+  residual as a share of the footprint                             +1.278 %  [derived within one regime]
+
+
+the landing binary, built at 830d3472660828299a7f5e8225f6152644d3971e
+
+the tool-definition block, and the round trips it is paid on
+  tools the MCP head serves                                            36 tools [not a token count]
+  tool-definition block, once                                        8660 tokens [counter=api model=claude-opus-5]
+  verb run, tool-call rounds                                           12 rounds [not a token count]
+  file run, tool-call rounds                                           18 rounds [not a token count]
+  tool block over the verb run's rounds                            103920 tokens [counter=api model=claude-opus-5]
+  tool block over the file run's rounds                            155880 tokens [counter=api model=claude-opus-5]
+  round-trip component, file run less verb run                     +51960 tokens [counter=api model=claude-opus-5]
+
+served instruction chain, per layer, arrivals and repeats
+  global layer, arrival serves (1)                                    408 tokens [counter=api model=claude-opus-5]
+  global layer, repeats within one card's own acts (0)                  0 tokens [counter=api model=claude-opus-5]
+  global layer, repeats across a card boundary (0)                      0 tokens [counter=api model=claude-opus-5]
+  standing layer, arrival serves (1)                                 2791 tokens [counter=api model=claude-opus-5]
+  standing layer, repeats within one card's own acts (0)                0 tokens [counter=api model=claude-opus-5]
+  standing layer, repeats across a card boundary (0)                    0 tokens [counter=api model=claude-opus-5]
+  column layer, arrival serves (2)                                   8080 tokens [counter=api model=claude-opus-5]
+  column layer, repeats within one card's own acts (0)                  0 tokens [counter=api model=claude-opus-5]
+  column layer, repeats across a card boundary (0)                      0 tokens [counter=api model=claude-opus-5]
+  chain, arrival serves, all layers                                 11279 tokens [counter=api model=claude-opus-5]
+  chain, repeat serves, all layers                                      0 tokens [counter=api model=claude-opus-5]
+
+the attributed figures, as counts rather than as shares
+  arrival serves of the instruction chain                           11279 tokens [counter=api model=claude-opus-5]
+  repeat serves of the instruction chain                                0 tokens [counter=api model=claude-opus-5]
+  JSON re-encoding of the prose members                              2666 tokens [counter=api model=claude-opus-5]
+  response envelope, measured directly                               4551 tokens [counter=api model=claude-opus-5]
+  requested content                                                 21012 tokens [counter=api model=claude-opus-5]
+
+the reconciliation, against the verb run's context footprint
+  sum of the attributed figures and the tool block once             48168 tokens [counter=api model=claude-opus-5]
+  verb run, context footprint                                       49258 tokens [counter=api model=claude-opus-5]
+  residual                                                          +1090 tokens [counter=api model=claude-opus-5]
+  residual as a share of the footprint                             +2.213 %  [derived within one regime]
+```
+
+### What moved, and what did not
+
+Every repeat figure fell to zero on the landing side, on all three layers, and
+each parenthesised count fell to zero with it. Both kinds of repeat the
+measurement breaks out went: the ones inside one card's own acts, and the ones
+across a card boundary at the same column. `chain, repeat serves, all layers`
+fell to zero. Neither bound of the hold fires inside the run, which is a dozen
+tool calls completing in seconds, so those zeros are also the evidence that the
+bound costs nothing on the measured sequence.
+
+Every arrival figure is equal between the two runs to the token, and so is every
+arrival count. The design serves an arrival exactly as it did.
+
+The tool-definition block did not move, which is what makes this saving and the
+one above summable rather than double-counted. `tools the MCP head serves`,
+`tool-definition block, once`, `verb run, tool-call rounds`,
+`file run, tool-call rounds`, and both `tool block over the ... rounds` figures
+are equal between the two runs, and the per-tool attribution under `--per-tool`
+is byte-identical tool for tool. That equality is expected by construction
+rather than by luck, since the design publishes no new property and no new tool:
+the held set reaches the library on a request field that appears in no parameter
+list and in no input schema, and `checkArguments` refuses any argument name the
+surface did not publish.
+
+`response envelope, measured directly` rose, which is the withheld marker's
+whole cost across the acts that withhold, and the rise is a small fraction of
+one per cent of the repeat figure the same pair of runs removes.
+`JSON re-encoding of the prose members` fell, because that figure tracks the
+escaping of prose the response actually carries. The six coordination-act
+digests agree between the verb run and the file run on the landing side, so the
+two runs are still one sequence and the record is keyed on the text rather than
+on anything else.
+
+### Two findings the run reports rather than figures to quote
+
+The reconciliation residual left the harness's declared bound, and the bound was
+not widened to accommodate it. In absolute terms the residual barely moved
+between the two runs. What moved is the denominator: the verb run's context
+footprint fell by roughly the size of the saving, so a residual of much the same
+size crossed the share the harness declares, because the numerator stayed where
+it was while what it is divided by shrank. The harness therefore ends its
+landing run saying that no figure from it may be quoted. The absolute residual
+is what the bound was written to catch and the share is how it is expressed, so
+a saving large enough to shrink the denominator pushes a constant residual
+through a constant share. Whether that bound should be expressed absolutely, or
+scaled to the footprint, or left where it stands, is a question for its own card
+rather than one to settle by editing a number in the middle of a measurement.
+
+The harness also ends the landing run saying that the column layer repeated
+across no card boundary, so this sequence is not the one the decision to carry
+two cards rests on. That check was written when a second card always re-served
+the column layer, and its premise is exactly what this change removes. The
+second card still earns its place in the sequence, because it is what proves the
+across-boundary repeat is gone rather than merely displaced, but the sentence
+the harness prints about it is now stale. That belongs on the same card as the
+residual bound.
