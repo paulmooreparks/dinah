@@ -607,6 +607,15 @@ func RefuseWith(name, detail string, extra map[string]string) *Refusal {
 	return &Refusal{Name: name, Detail: detail, Extra: extra}
 }
 
+// ValueColumn is the column identifier a raise site fills in a refusal's
+// Extra when the refusal is about one column of an opened workbench. It
+// rides Extra, and so the JSON envelope's context map, exactly as
+// ValueWorkbench does, so that a caller wanting the identifier reads a
+// declared field rather than parsing the English a raise site composed into
+// Detail or recovering the id from a path's spelling. No catalog fragment
+// interpolates it, so the Malformed shape does not declare it in Values.
+const ValueColumn = "column"
+
 // Stale is the error a verb returns when the request's basis does not name
 // the card's current revision. It carries that revision, which CORE-BASIS-4
 // requires and which is what the caller reads against before retrying.
