@@ -122,9 +122,10 @@ defines.
 ## The three arguments beyond the verb's own
 
 Three arguments come from no verb's parameter list, and each is worth knowing
-before you need it. Two of them reach every tool. The third reaches only the
-tools that read it, and the schema tells you which: a tool publishes one of
-these arguments when it consumes it, and refuses the name when it does not.
+before you need it. `actor` reaches every tool, and `workbench` reaches every
+tool but the one named below. `basis` reaches only the tools that read it. The
+schema tells you which tools those are, because a tool publishes one of these
+arguments when it consumes it and refuses the name when it does not.
 
 `actor` is the name you act as. It overrides whatever owner the process
 defaults to, and it is how a caller makes a call in a name that is not the
@@ -140,7 +141,7 @@ Eight tools carry `basis` in their schema and read it: `claim`, `move`,
 `release`, `block`, `unblock`, `join_workstream`, `leave_workstream` and
 `pull`. Every other tool refuses the name, and the refusal names what it does
 accept in its place. That includes writes such as `comment`, `add_card`,
-`attach`, `archive`, `rename` and `delete`, which change a workbench and do
+`attach`, `archive`, `rename`, and `delete`, which change a workbench and do
 not consult a basis, so there is no optimistic check to express on them. An
 argument a tool would accept and then drop tells you a check ran when none
 did, so the surface turns the call away instead.

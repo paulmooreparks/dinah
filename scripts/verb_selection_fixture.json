@@ -24,7 +24,7 @@
     {"tool": "tree", "statement": "I want the whole workbench drawn as a tree, grouped by column, so that I can see its shape at a glance."},
     {"tool": "contents", "statement": "I want to know what sits underneath wb-12 as addressable things: its comments, its attachments, and its links."},
     {"tool": "attachments", "statement": "I want the list of files fastened to wb-12, and nothing else about the card."},
-    {"tool": "show", "statement": "I want to read wb-12 in full: its title, its body, its comments and its links, as one view."},
+    {"tool": "show", "statement": "I want to read wb-12 in full: its title, its body, its comments, and its links, as one view."},
     {"tool": "log", "statement": "I want wb-12's history, meaning every act taken on that card and who took it."},
     {"tool": "changes", "statement": "I want everything on this workbench that has changed since the cursor my last call handed back to me."},
     {"tool": "instructions", "statement": "I want the standing instructions that apply to wb-12 where it stands, so that I know what this position expects of me."},

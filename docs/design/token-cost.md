@@ -341,7 +341,7 @@ either total.
 ## 2026-09-06: the block, cut by publishing an injected property only where it is consumed
 
 dinah-397 landed a cut to the tool-definition block. `injectedProperties` added
-`actor`, `basis` and `workbench` to every one of the head's 36 tools, and those
+`actor`, `basis`, and `workbench` to every one of the head's 36 tools, and those
 three properties were the largest repeated text on the surface. `basis` was the
 worst of them: eight tools read it, and 28 accepted it and dropped it in silence,
 so publishing it only where it is consumed closed a correctness hole and took the
@@ -569,14 +569,91 @@ verb_selection: one committed fixture, two tool blocks, one pinned model
   input tokens billed      3282360
 ```
 
-Two rows are worth reading rather than skipping. The `rename` scenario prints
-`no baseline`: both blocks settle on `attachments` for it, so the two sides agree
+The `rename` scenario prints `no baseline`, and the row is worth reading rather
+than skipping. Both blocks settle on `attachments` for it, so the two sides agree
 and the cut changed nothing, but the baseline never settled on the expected tool,
 and a scenario the surface never answered reliably cannot show that this cut
-broke it. The first run of this check, against an earlier draft of the fixture,
-failed on `status`, and that statement was rewritten because it described what
-`tree` grouped by column does as much as what `status` does. The rewritten
-statement names what `status` alone answers, which is where the workbench stands
-and what the caller holds. That is fixture authoring on a fixture landing in the
-same commit, rather than a re-run of an unchanged comparison for a greener
-result, and the earlier verdict is recorded here so that a reader can weigh it.
+broke it.
+
+The `status` row passes here, and it did not pass the first time this check was
+run. The section below carries that run.
+
+### The status scenario, and the run that failed
+
+The first run of this check failed on `status`, and the statement it failed on
+belongs in this document rather than in the branch's history. A reader who
+cannot see the statement that failed cannot judge whether the fixture was
+authored or tuned, and that judgement is the reason for recording the run at
+all.
+
+The fixture's `status` scenario first read:
+
+```
+{"tool": "status", "statement": "I want the standing summary of this workbench, meaning how much work each column is holding right now."},
+```
+
+Under that statement the check reported one failing scenario, escalated on both
+sides inside the same invocation, so the verdict had been reproduced at fifteen
+trials before it stood. That run's full output was not kept, so the row below is
+reconstructed from what the implementing session reported and from the script's
+own row format; every field in it is fixed by that report.
+
+```
+  expected           baseline           under test         verdict          note
+  status             status             tree               fail             regression, reproduced at 15 trials
+```
+
+The statement that replaced it reads:
+
+```
+{"tool": "status", "statement": "I want to know where this workbench stands and which cards I am holding myself right now."},
+```
+
+The original asked for how much work each column is holding, which is a
+per-column distribution and is what `tree` grouped by column prints. It left out
+the half of `status` that `tree` cannot do, which is what the caller is holding
+themselves. The replacement names both halves, and it follows the method the
+other thirty-five scenarios were written by, which is to paraphrase what a tool
+answers rather than what its output looks like.
+
+A reader should not have to take that account from whoever wrote the fixture.
+Code review re-ran the scenario independently at fifteen trials per side,
+against blocks dumped from the two built binaries, on both statements:
+
+```
+ORIGINAL   baseline  settled=status   {'status': 15}
+ORIGINAL   landing   settled=tree     {'tree': 15}
+REWRITTEN  baseline  settled=status   {'status': 15}
+REWRITTEN  landing   settled=status   {'status': 15}
+```
+
+The flip on the original statement is therefore deterministic rather than a
+stray sample, and the escalation would have stood on any draw.
+
+Review then wrote a third statement in its own words, naming what `status`
+answers without borrowing the fixture's wording: "Before I take anything else
+up, give me a quick read on how this workbench is doing overall and what is
+already on my plate". Both blocks settle on `status` for it, fifteen times out
+of fifteen. The cut did not cost the surface the ability to find `status`, which
+is the question this check exists to answer, and that result is independent of
+how the fixture's own statement is worded.
+
+Review also wrote a statement in the original's register, "How busy is each part
+of this workbench at the moment, and is anything assigned to me?", and found the
+baseline settling on `list_cards` while the block under test settles on `tree`.
+Neither side reads that phrasing as `status`, so the original statement's
+baseline settlement rested on its exact wording.
+
+One fact about the two blocks bounds what the flip can mean. The `status` and
+`tree` entries are byte-identical across them, and both tools merely lost
+`basis` and gained the shorter `workbench` string, so the cut removed no
+information about either tool. What the flip shows is that the check is
+sensitive to the overall bulk of the block on a statement that sits near a
+boundary between two tools, and the fixture carries one statement per tool, so a
+single boundary statement can decide a whole run. That is a limitation of the
+instrument, and it belongs to the later cards in this workstream.
+
+One edit reached the fixture after both runs above were made. The `show`
+scenario's statement gained the serial comma the workbench's prose standard
+requires of any list of three or more, which changes the input to that one
+scenario and to no other. Neither run was made again for it.
