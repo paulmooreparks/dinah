@@ -12,6 +12,12 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
+    // l10n.ts imports the eight runtime catalogues. tsc copies each imported
+    // .json beside the compiled module, which is what lets the unit layer run
+    // them under plain node, and esbuild inlines them into dist/extension.js,
+    // which is what lets the packaged extension read them at all, since
+    // .vscodeignore keeps src/ out of the archive.
+    "resolveJsonModule": true,
     "exactOptionalPropertyTypes": false,
     "skipLibCheck": true
   },

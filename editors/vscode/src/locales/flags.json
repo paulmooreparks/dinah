@@ -1,0 +1,301 @@
+{
+	"skeleton": {
+		"af": [
+			"manifest.viewsContainers.dinah.title",
+			"manifest.views.dinah.workbenchView.name",
+			"manifest.viewsWelcome.binaryMissing.contents",
+			"manifest.viewsWelcome.workbenchNone.contents",
+			"manifest.viewsWelcome.workbenchAmbiguous.contents",
+			"manifest.viewsWelcome.workbenchUnknown.contents",
+			"manifest.viewsWelcome.workbenchSearching.contents",
+			"manifest.viewsWelcome.binarySearching.contents",
+			"manifest.command.dinah.tree.refresh.title",
+			"manifest.command.dinah.tree.openCard.title",
+			"manifest.command.dinah.tree.claim.title",
+			"manifest.command.dinah.tree.move.title",
+			"manifest.command.dinah.tree.release.title",
+			"manifest.command.dinah.tree.block.title",
+			"manifest.command.dinah.tree.unblock.title",
+			"manifest.command.dinah.tree.copyCardRef.title",
+			"manifest.command.dinah.tree.checkWorkbench.title",
+			"manifest.command.dinah.tree.copyWorkbenchPath.title",
+			"manifest.command.dinah.tree.editWorkbenchDefinition.title",
+			"manifest.command.dinah.tree.editColumnInstructions.title",
+			"manifest.command.dinah.tree.openAttachment.title",
+			"manifest.command.dinah.tree.newCard.title",
+			"manifest.command.dinah.tree.attachFile.title",
+			"manifest.command.dinah.tree.pull.title",
+			"manifest.configuration.title",
+			"manifest.configuration.dinah.path.markdownDescription",
+			"manifest.configuration.dinah.workbench.markdownDescription",
+			"manifest.configuration.dinah.pollIntervalSeconds.markdownDescription",
+			"manifest.configuration.dinah.watchFiles.markdownDescription"
+		],
+		"cs": [
+			"manifest.viewsContainers.dinah.title",
+			"manifest.views.dinah.workbenchView.name",
+			"manifest.viewsWelcome.binaryMissing.contents",
+			"manifest.viewsWelcome.workbenchNone.contents",
+			"manifest.viewsWelcome.workbenchAmbiguous.contents",
+			"manifest.viewsWelcome.workbenchUnknown.contents",
+			"manifest.viewsWelcome.workbenchSearching.contents",
+			"manifest.viewsWelcome.binarySearching.contents",
+			"manifest.command.dinah.tree.refresh.title",
+			"manifest.command.dinah.tree.openCard.title",
+			"manifest.command.dinah.tree.claim.title",
+			"manifest.command.dinah.tree.move.title",
+			"manifest.command.dinah.tree.release.title",
+			"manifest.command.dinah.tree.block.title",
+			"manifest.command.dinah.tree.unblock.title",
+			"manifest.command.dinah.tree.copyCardRef.title",
+			"manifest.command.dinah.tree.checkWorkbench.title",
+			"manifest.command.dinah.tree.copyWorkbenchPath.title",
+			"manifest.command.dinah.tree.editWorkbenchDefinition.title",
+			"manifest.command.dinah.tree.editColumnInstructions.title",
+			"manifest.command.dinah.tree.openAttachment.title",
+			"manifest.command.dinah.tree.newCard.title",
+			"manifest.command.dinah.tree.attachFile.title",
+			"manifest.command.dinah.tree.pull.title",
+			"manifest.configuration.title",
+			"manifest.configuration.dinah.path.markdownDescription",
+			"manifest.configuration.dinah.workbench.markdownDescription",
+			"manifest.configuration.dinah.pollIntervalSeconds.markdownDescription",
+			"manifest.configuration.dinah.watchFiles.markdownDescription"
+		],
+		"de": [],
+		"es": [
+			"manifest.viewsContainers.dinah.title",
+			"manifest.views.dinah.workbenchView.name",
+			"manifest.viewsWelcome.binaryMissing.contents",
+			"manifest.viewsWelcome.workbenchNone.contents",
+			"manifest.viewsWelcome.workbenchAmbiguous.contents",
+			"manifest.viewsWelcome.workbenchUnknown.contents",
+			"manifest.viewsWelcome.workbenchSearching.contents",
+			"manifest.viewsWelcome.binarySearching.contents",
+			"manifest.command.dinah.tree.refresh.title",
+			"manifest.command.dinah.tree.openCard.title",
+			"manifest.command.dinah.tree.claim.title",
+			"manifest.command.dinah.tree.move.title",
+			"manifest.command.dinah.tree.release.title",
+			"manifest.command.dinah.tree.block.title",
+			"manifest.command.dinah.tree.unblock.title",
+			"manifest.command.dinah.tree.copyCardRef.title",
+			"manifest.command.dinah.tree.checkWorkbench.title",
+			"manifest.command.dinah.tree.copyWorkbenchPath.title",
+			"manifest.command.dinah.tree.editWorkbenchDefinition.title",
+			"manifest.command.dinah.tree.editColumnInstructions.title",
+			"manifest.command.dinah.tree.openAttachment.title",
+			"manifest.command.dinah.tree.newCard.title",
+			"manifest.command.dinah.tree.attachFile.title",
+			"manifest.command.dinah.tree.pull.title",
+			"manifest.configuration.title",
+			"manifest.configuration.dinah.path.markdownDescription",
+			"manifest.configuration.dinah.workbench.markdownDescription",
+			"manifest.configuration.dinah.pollIntervalSeconds.markdownDescription",
+			"manifest.configuration.dinah.watchFiles.markdownDescription"
+		],
+		"fil": [
+			"manifest.viewsContainers.dinah.title",
+			"manifest.views.dinah.workbenchView.name",
+			"manifest.viewsWelcome.binaryMissing.contents",
+			"manifest.viewsWelcome.workbenchNone.contents",
+			"manifest.viewsWelcome.workbenchAmbiguous.contents",
+			"manifest.viewsWelcome.workbenchUnknown.contents",
+			"manifest.viewsWelcome.workbenchSearching.contents",
+			"manifest.viewsWelcome.binarySearching.contents",
+			"manifest.command.dinah.tree.refresh.title",
+			"manifest.command.dinah.tree.openCard.title",
+			"manifest.command.dinah.tree.claim.title",
+			"manifest.command.dinah.tree.move.title",
+			"manifest.command.dinah.tree.release.title",
+			"manifest.command.dinah.tree.block.title",
+			"manifest.command.dinah.tree.unblock.title",
+			"manifest.command.dinah.tree.copyCardRef.title",
+			"manifest.command.dinah.tree.checkWorkbench.title",
+			"manifest.command.dinah.tree.copyWorkbenchPath.title",
+			"manifest.command.dinah.tree.editWorkbenchDefinition.title",
+			"manifest.command.dinah.tree.editColumnInstructions.title",
+			"manifest.command.dinah.tree.openAttachment.title",
+			"manifest.command.dinah.tree.newCard.title",
+			"manifest.command.dinah.tree.attachFile.title",
+			"manifest.command.dinah.tree.pull.title",
+			"manifest.configuration.title",
+			"manifest.configuration.dinah.path.markdownDescription",
+			"manifest.configuration.dinah.workbench.markdownDescription",
+			"manifest.configuration.dinah.pollIntervalSeconds.markdownDescription",
+			"manifest.configuration.dinah.watchFiles.markdownDescription"
+		],
+		"hi": [],
+		"id": [
+			"manifest.viewsContainers.dinah.title",
+			"manifest.views.dinah.workbenchView.name",
+			"manifest.viewsWelcome.binaryMissing.contents",
+			"manifest.viewsWelcome.workbenchNone.contents",
+			"manifest.viewsWelcome.workbenchAmbiguous.contents",
+			"manifest.viewsWelcome.workbenchUnknown.contents",
+			"manifest.viewsWelcome.workbenchSearching.contents",
+			"manifest.viewsWelcome.binarySearching.contents",
+			"manifest.command.dinah.tree.refresh.title",
+			"manifest.command.dinah.tree.openCard.title",
+			"manifest.command.dinah.tree.claim.title",
+			"manifest.command.dinah.tree.move.title",
+			"manifest.command.dinah.tree.release.title",
+			"manifest.command.dinah.tree.block.title",
+			"manifest.command.dinah.tree.unblock.title",
+			"manifest.command.dinah.tree.copyCardRef.title",
+			"manifest.command.dinah.tree.checkWorkbench.title",
+			"manifest.command.dinah.tree.copyWorkbenchPath.title",
+			"manifest.command.dinah.tree.editWorkbenchDefinition.title",
+			"manifest.command.dinah.tree.editColumnInstructions.title",
+			"manifest.command.dinah.tree.openAttachment.title",
+			"manifest.command.dinah.tree.newCard.title",
+			"manifest.command.dinah.tree.attachFile.title",
+			"manifest.command.dinah.tree.pull.title",
+			"manifest.configuration.title",
+			"manifest.configuration.dinah.path.markdownDescription",
+			"manifest.configuration.dinah.workbench.markdownDescription",
+			"manifest.configuration.dinah.pollIntervalSeconds.markdownDescription",
+			"manifest.configuration.dinah.watchFiles.markdownDescription"
+		]
+	},
+	"verbatim": {
+		"af": [],
+		"cs": [],
+		"de": [
+			"manifest.viewsContainers.dinah.title",
+			"manifest.configuration.title"
+		],
+		"es": [],
+		"fil": [],
+		"hi": [
+			"manifest.viewsContainers.dinah.title",
+			"manifest.configuration.title"
+		],
+		"id": []
+	},
+	"glossary": [
+		{
+			"en": "state",
+			"forms": {
+				"de": [
+					"Zustand",
+					"Zustands",
+					"zustand"
+				],
+				"hi": [
+					"स्थिति"
+				]
+			}
+		},
+		{
+			"en": "the root",
+			"forms": {
+				"de": [
+					"Wurzelverzeichnis"
+				],
+				"hi": [
+					"रूट"
+				]
+			}
+		},
+		{
+			"en": "owner",
+			"forms": {
+				"de": [
+					"Akteur"
+				],
+				"hi": [
+					"स्वामी"
+				]
+			}
+		},
+		{
+			"en": "level",
+			"forms": {
+				"de": [
+					"Stufe",
+					"stufe"
+				],
+				"hi": [
+					"स्तर"
+				]
+			}
+		},
+		{
+			"en": "column",
+			"forms": {
+				"de": [
+					"Spalte",
+					"spalte"
+				],
+				"hi": [
+					"कॉलम"
+				]
+			}
+		}
+	],
+	"source": {
+		"de": {
+			"manifest.viewsContainers.dinah.title": "4f7f4ffab37b3e1",
+			"manifest.views.dinah.workbenchView.name": "28958cab917f71fe",
+			"manifest.viewsWelcome.binaryMissing.contents": "6fa55393186fb961",
+			"manifest.viewsWelcome.workbenchNone.contents": "8ccacbb3ec3e174c",
+			"manifest.viewsWelcome.workbenchAmbiguous.contents": "c93d7850d26daa87",
+			"manifest.viewsWelcome.workbenchUnknown.contents": "65b65d6e1f0bd053",
+			"manifest.viewsWelcome.workbenchSearching.contents": "c05437435abe088c",
+			"manifest.viewsWelcome.binarySearching.contents": "58ec0318ead5d6e9",
+			"manifest.command.dinah.tree.refresh.title": "5a98f628474b5716",
+			"manifest.command.dinah.tree.openCard.title": "24713a03c4f481e7",
+			"manifest.command.dinah.tree.claim.title": "90b34efba1c2832f",
+			"manifest.command.dinah.tree.move.title": "8384101fe0d9fa8a",
+			"manifest.command.dinah.tree.release.title": "1cdeecda0baf365e",
+			"manifest.command.dinah.tree.block.title": "9674acfcae91ca50",
+			"manifest.command.dinah.tree.unblock.title": "865b6f4c6920e17f",
+			"manifest.command.dinah.tree.copyCardRef.title": "adef082975322081",
+			"manifest.command.dinah.tree.checkWorkbench.title": "42cbd8dca939a9c7",
+			"manifest.command.dinah.tree.copyWorkbenchPath.title": "d56027c3e488188b",
+			"manifest.command.dinah.tree.editWorkbenchDefinition.title": "759cf717cf5a113e",
+			"manifest.command.dinah.tree.editColumnInstructions.title": "7e480b56fc8ae5ae",
+			"manifest.command.dinah.tree.openAttachment.title": "d2f4f7b450185280",
+			"manifest.command.dinah.tree.newCard.title": "b350694933613c9",
+			"manifest.command.dinah.tree.attachFile.title": "21b03fd158abadc8",
+			"manifest.command.dinah.tree.pull.title": "96b1fe1a2884509e",
+			"manifest.configuration.title": "4f7f4ffab37b3e1",
+			"manifest.configuration.dinah.path.markdownDescription": "b5f12924bb294315",
+			"manifest.configuration.dinah.workbench.markdownDescription": "221249b5110ae1ac",
+			"manifest.configuration.dinah.pollIntervalSeconds.markdownDescription": "82a83a3ecee5e3d2",
+			"manifest.configuration.dinah.watchFiles.markdownDescription": "be82886b40a298f6"
+		},
+		"hi": {
+			"manifest.viewsContainers.dinah.title": "4f7f4ffab37b3e1",
+			"manifest.views.dinah.workbenchView.name": "28958cab917f71fe",
+			"manifest.viewsWelcome.binaryMissing.contents": "6fa55393186fb961",
+			"manifest.viewsWelcome.workbenchNone.contents": "8ccacbb3ec3e174c",
+			"manifest.viewsWelcome.workbenchAmbiguous.contents": "c93d7850d26daa87",
+			"manifest.viewsWelcome.workbenchUnknown.contents": "65b65d6e1f0bd053",
+			"manifest.viewsWelcome.workbenchSearching.contents": "c05437435abe088c",
+			"manifest.viewsWelcome.binarySearching.contents": "58ec0318ead5d6e9",
+			"manifest.command.dinah.tree.refresh.title": "5a98f628474b5716",
+			"manifest.command.dinah.tree.openCard.title": "24713a03c4f481e7",
+			"manifest.command.dinah.tree.claim.title": "90b34efba1c2832f",
+			"manifest.command.dinah.tree.move.title": "8384101fe0d9fa8a",
+			"manifest.command.dinah.tree.release.title": "1cdeecda0baf365e",
+			"manifest.command.dinah.tree.block.title": "9674acfcae91ca50",
+			"manifest.command.dinah.tree.unblock.title": "865b6f4c6920e17f",
+			"manifest.command.dinah.tree.copyCardRef.title": "adef082975322081",
+			"manifest.command.dinah.tree.checkWorkbench.title": "42cbd8dca939a9c7",
+			"manifest.command.dinah.tree.copyWorkbenchPath.title": "d56027c3e488188b",
+			"manifest.command.dinah.tree.editWorkbenchDefinition.title": "759cf717cf5a113e",
+			"manifest.command.dinah.tree.editColumnInstructions.title": "7e480b56fc8ae5ae",
+			"manifest.command.dinah.tree.openAttachment.title": "d2f4f7b450185280",
+			"manifest.command.dinah.tree.newCard.title": "b350694933613c9",
+			"manifest.command.dinah.tree.attachFile.title": "21b03fd158abadc8",
+			"manifest.command.dinah.tree.pull.title": "96b1fe1a2884509e",
+			"manifest.configuration.title": "4f7f4ffab37b3e1",
+			"manifest.configuration.dinah.path.markdownDescription": "b5f12924bb294315",
+			"manifest.configuration.dinah.workbench.markdownDescription": "221249b5110ae1ac",
+			"manifest.configuration.dinah.pollIntervalSeconds.markdownDescription": "82a83a3ecee5e3d2",
+			"manifest.configuration.dinah.watchFiles.markdownDescription": "be82886b40a298f6"
+		}
+	}
+}

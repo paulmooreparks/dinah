@@ -44,6 +44,8 @@ import {
 	COMMAND_OPEN_ATTACHMENT,
 	COMMAND_OPEN_CARD,
 } from "./identity";
+import { ENGLISH } from "./l10n";
+import type { Localizer } from "./l10n";
 import type {
 	AttachmentListing,
 	AttachmentView,
@@ -312,12 +314,15 @@ export function joinCards(
 export function columnDescription(
 	view: ColumnView | undefined,
 	node: TreeNode,
+	t: Localizer = ENGLISH,
 ): string {
 	const count = view?.count ?? node.count;
 	const capacity = view?.capacity ?? 0;
 	const occupancy =
 		capacity > 0 ? `${String(count)}/${String(capacity)}` : String(count);
-	return view?.awaiting_outside === true ? `${occupancy}, waiting` : occupancy;
+	return view?.awaiting_outside === true
+		? t("tree.column.occupancyWaiting", { occupancy })
+		: occupancy;
 }
 
 /**
@@ -467,16 +472,21 @@ export function columnActionsFor(
 }
 
 /** The label a state group carries, title-cased from the axis value. */
-export function groupLabel(value: string | undefined): string {
+export function groupLabel(
+	value: string | undefined,
+	t: Localizer = ENGLISH,
+): string {
 	switch (value) {
 		case STATE_READY:
-			return "Ready";
+			return t("tree.group.ready");
 		case STATE_ACTIVE:
-			return "Active";
+			return t("tree.group.active");
 		case STATE_BLOCKED:
-			return "Blocked";
+			return t("tree.group.blocked");
 		default:
-			return value === undefined || value === "" ? "(none)" : value;
+			return value === undefined || value === ""
+				? t("tree.group.none")
+				: value;
 	}
 }
 
@@ -486,6 +496,7 @@ export function cardTooltip(
 	view: CardView | undefined,
 	column: ColumnView | undefined,
 	state: string,
+	t: Localizer = ENGLISH,
 ): string {
 	const lines: string[] = [];
 	const ref = view?.ref ?? node.ref;
@@ -499,7 +510,7 @@ export function cardTooltip(
 			: `${columnTitle} · ${state}`,
 	);
 	if (state === STATE_ACTIVE && view?.holder !== undefined && view.holder !== "") {
-		lines.push(`held by ${view.holder}`);
+		lines.push(t("tree.card.heldBy", { holder: view.holder }));
 	}
 	if (state === STATE_BLOCKED) {
 		const blocked = [view?.block_kind, view?.block_reason].filter(
@@ -546,6 +557,7 @@ export function columnTooltip(
 	node: TreeNode,
 	nextColumn?: ColumnView,
 	nextColumnRef?: string,
+	t: Localizer = ENGLISH,
 ): string {
 	const title = view?.title ?? node.value ?? "";
 	if (view === undefined) {
@@ -554,20 +566,20 @@ export function columnTooltip(
 	const lines: string[] = [title];
 	lines.push(
 		view.takes_work_up
-			? "Cards are claimed here."
-			: "A card here waits to be pulled onward.",
+			? t("tree.column.claimedHere")
+			: t("tree.column.pulledOnward"),
 	);
 	if (!view.takes_work_up && nextColumnRef !== undefined) {
 		const destination = nextColumn?.title ?? nextColumnRef;
-		lines.push(`Right-click to pull the next ready card into ${destination}.`);
+		lines.push(t("tree.column.pullHint", { destination }));
 	}
 	if (view.awaiting_outside) {
-		lines.push("This column is waiting on somebody outside the workbench.");
+		lines.push(t("tree.column.awaitingOutside"));
 	}
 	lines.push(
 		view.operator_owned
-			? "Only the operator moves a card out."
-			: "An agent moves a card out.",
+			? t("tree.column.operatorOwned")
+			: t("tree.column.agentMoves"),
 	);
 	return lines.join("\n");
 }
@@ -578,15 +590,17 @@ export function columnTooltip(
  * refusal's name and detail in the same "name: detail" form every other
  * refusal this extension shows already uses.
  *
- * The text is composed here rather than looked up, on the same terms
- * cardCommands.ts's refusalMessage composes its own. Nothing the extension
- * writes reaches internal/msg, so DINAH_LANG on the CLI's side changes
- * nothing about these words, and dinah-379 is the separate card for the
- * extension speaking only English while the CLI speaks eight.
+ * The two lines this function writes itself, the column's title aside, are
+ * localised through l10n.ts and reach a reader in the language the editor is
+ * displaying (dinah-379). The refusal's own name and detail are not: they come
+ * off the CLI's `--json` wire, which spells them in English whatever
+ * DINAH_LANG says, so the sentence they compose is relayed exactly as
+ * cardCommands.ts's refusalMessage relays its own.
  */
 export function columnBrokenTooltip(
 	view: ColumnView | undefined,
 	data: WorkbenchData | undefined,
+	t: Localizer = ENGLISH,
 ): string {
 	const name = data?.unanswered ?? "";
 	const detail = data?.unansweredDetail ?? "";
@@ -594,7 +608,7 @@ export function columnBrokenTooltip(
 		name === "" ? "" : detail === "" ? name : `${name}: ${detail}`;
 	const lines = [
 		view?.title ?? "",
-		"This column's own file could not be read.",
+		t("tree.column.brokenTooltip.unreadable"),
 		sentence,
 	];
 	return lines.filter((line) => line !== "").join("\n");
@@ -679,10 +693,13 @@ function workbenchLabel(data: WorkbenchData | undefined, row: RootRow): string {
 }
 
 /** Composes the row for one element. */
-export function treeItemFor(element: TreeElement): TreeItemSpec {
+export function treeItemFor(
+	element: TreeElement,
+	t: Localizer = ENGLISH,
+): TreeItemSpec {
 	switch (element.kind) {
 		case "root":
-			return rootItem(element.row);
+			return rootItem(element.row, t);
 		case "note":
 			return {
 				label: element.text,
@@ -696,14 +713,17 @@ export function treeItemFor(element: TreeElement): TreeItemSpec {
 			const broken = named !== undefined && view?.id === named;
 			return {
 				label: view?.title ?? element.node.value ?? "",
-				description: broken ? "damaged" : columnDescription(view, element.node),
+				description: broken
+					? t("tree.column.damaged")
+					: columnDescription(view, element.node, t),
 				tooltip: broken
-					? columnBrokenTooltip(view, element.row.data)
+					? columnBrokenTooltip(view, element.row.data, t)
 					: columnTooltip(
 							view,
 							element.node,
 							element.nextColumn,
 							element.nextColumnRef,
+							t,
 						),
 				contextValue: columnActionsFor(view, element.nextColumnRef),
 				collapsibleState: "expanded",
@@ -712,7 +732,7 @@ export function treeItemFor(element: TreeElement): TreeItemSpec {
 		}
 		case "group":
 			return {
-				label: groupLabel(element.node.value),
+				label: groupLabel(element.node.value, t),
 				description: String(element.node.count),
 				contextValue: CONTEXT_STATE_GROUP,
 				collapsibleState: element.node.count === 0 ? "collapsed" : "expanded",
@@ -723,7 +743,13 @@ export function treeItemFor(element: TreeElement): TreeItemSpec {
 			return {
 				label: cardLabel(ref, element.node.title ?? element.view?.title),
 				description: cardDescription(element.view),
-				tooltip: cardTooltip(element.node, element.view, element.column, state),
+				tooltip: cardTooltip(
+					element.node,
+					element.view,
+					element.column,
+					state,
+					t,
+				),
 				contextValue: actionsFor({ state, column: element.column }),
 				// An arrow only when the count says something is there to expand.
 				// A card the ls join missed reads no count, and a card carrying
@@ -743,7 +769,7 @@ export function treeItemFor(element: TreeElement): TreeItemSpec {
 		}
 		case "attachmentsGroup":
 			return {
-				label: "Attachments",
+				label: t("tree.attachments.label"),
 				description: String(element.count),
 				collapsibleState: "collapsed",
 			};
@@ -757,7 +783,7 @@ export function treeItemFor(element: TreeElement): TreeItemSpec {
 						? [view.description]
 						: []
 				),
-				openable ? (view.path as string) : "no local file",
+				openable ? (view.path as string) : t("tree.attachment.noLocalFile"),
 			];
 			return {
 				label: view.filename,
@@ -784,10 +810,13 @@ export function treeItemFor(element: TreeElement): TreeItemSpec {
 }
 
 /** Composes a root-level row. */
-function rootItem(row: RootRow): TreeItemSpec {
+function rootItem(row: RootRow, t: Localizer): TreeItemSpec {
 	if (row.rowKind === "deadEnd") {
 		return {
-			label: `${row.folderName}: ${row.refusal ?? "no workbench"}`,
+			label: t("tree.root.deadEnd.label", {
+				folder: row.folderName,
+				refusal: row.refusal ?? t("tree.root.noWorkbench"),
+			}),
 			tooltip: row.sentence ?? "",
 			collapsibleState: "none",
 			icon: WARNING_ICON,
@@ -804,7 +833,9 @@ function rootItem(row: RootRow): TreeItemSpec {
 		return {
 			label,
 			description: data?.refused,
-			tooltip: `The walk could not read this directory: ${data?.refused ?? ""}`,
+			tooltip: t("tree.root.unreadable.tooltip", {
+				refusal: data?.refused ?? "",
+			}),
 			collapsibleState,
 			icon: WARNING_ICON,
 		};
@@ -819,9 +850,9 @@ function rootItem(row: RootRow): TreeItemSpec {
 
 	const description =
 		data?.refused !== undefined && data.refused !== ""
-			? "would not open"
+			? t("tree.root.wouldNotOpen")
 			: data?.unanswered !== undefined && data.unanswered !== ""
-				? "did not answer"
+				? t("tree.root.didNotAnswer")
 				: row.description;
 
 	const path = data?.path ?? row.candidate?.path ?? "";
@@ -1105,6 +1136,14 @@ export interface TreeDeps {
 	readonly caseInsensitive: boolean;
 	/** The sentence a folder with no workbench beneath it shows. */
 	readonly deadEndSentence: (refusal: string) => string;
+	/**
+	 * Renders one row's text in the language the editor is displaying.
+	 *
+	 * Optional so that the several hundred existing unit-layer call sites go on
+	 * driving the provider without each naming a localizer; an absent one reads
+	 * English. extension.ts always passes one.
+	 */
+	readonly t?: Localizer;
 }
 
 /** One workspace folder as the provider is told about it. */
@@ -1223,7 +1262,7 @@ export class DinahTreeProvider {
 	}
 
 	getTreeItem(element: TreeElement): TreeItemSpec {
-		return treeItemFor(element);
+		return treeItemFor(element, this.deps.t);
 	}
 
 	async getChildren(element?: TreeElement): Promise<TreeElement[]> {

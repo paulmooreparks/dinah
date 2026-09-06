@@ -83,7 +83,7 @@ export async function newCard(
 	context: ColumnCommandContext,
 ): Promise<CliOutcome | undefined> {
 	const title = await context.host.input(
-		`Title for the new card in ${context.label}`,
+		context.host.t("dialog.newCard.titlePrompt", { column: context.label }),
 	);
 	if (title === undefined || title.trim() === "") {
 		return undefined;
@@ -269,7 +269,7 @@ export async function attachFile(
 		return undefined;
 	}
 	const description = await context.host.input(
-		"Description for this attachment, or leave blank",
+		context.host.t("dialog.attach.descriptionPrompt"),
 	);
 	if (description === undefined) {
 		return undefined;

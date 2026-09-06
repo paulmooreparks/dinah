@@ -85,6 +85,8 @@ import {
 import { contextForPull, pullFromColumn } from "./pullCommands";
 import { assertCommandsFullyRegistered } from "./registrationGuard";
 import { nodeSpawner } from "./spawn";
+import { createLocalizer, resolveTag } from "./l10n";
+import type { Localizer } from "./l10n";
 import { composeContextKeys, composeStatus } from "./status";
 import type { TreeElement, TreeItemSpec } from "./tree";
 import { DinahTreeProvider } from "./tree";
@@ -168,8 +170,10 @@ function toTreeItem(spec: TreeItemSpec): vscode.TreeItem {
 function commandHost(
 	channel: vscode.OutputChannel,
 	checkpoint: (folder: string) => Promise<void>,
+	t: Localizer,
 ): CommandHost {
 	return {
+		t,
 		showError: (message) => {
 			void vscode.window.showErrorMessage(message);
 		},
@@ -211,8 +215,10 @@ function commandHost(
 /** The window calls the workbench-row commands make, bound to the real window. */
 function workbenchCommandHost(
 	channel: vscode.OutputChannel,
+	t: Localizer,
 ): WorkbenchCommandHost {
 	return {
+		t,
 		showInfo: (message) => {
 			void vscode.window.showInformationMessage(message);
 		},
@@ -236,8 +242,12 @@ function workbenchCommandHost(
 }
 
 /** The window calls the column-row command makes, bound to the real window. */
-function columnCommandHost(channel: vscode.OutputChannel): ColumnCommandHost {
+function columnCommandHost(
+	channel: vscode.OutputChannel,
+	t: Localizer,
+): ColumnCommandHost {
 	return {
+		t,
 		showWarning: async (message, actions) =>
 			vscode.window.showWarningMessage(message, ...actions),
 		appendLines: (lines) => {
@@ -262,6 +272,17 @@ export async function activate(
 	output = vscode.window.createOutputChannel("Dinah");
 	context.subscriptions.push(output);
 
+	// The one read of the editor's display language in the whole extension.
+	// Everything a reader sees at run time is rendered through this Localizer,
+	// which is threaded into every host and every render call below; the
+	// manifest half is resolved by the editor itself out of package.nls.json
+	// before any of this runs. Nothing here reaches the CLI: the operator
+	// ruled on 2026-09-06 that the extension imposes no language on a spawned
+	// dinah, so no DINAH_LANG is set and no --lang is passed, and a German
+	// editor over a Czech environment shows German chrome around Czech card
+	// text.
+	const t = createLocalizer(resolveTag(vscode.env.language));
+
 	const binary = await resolveBinary({
 		setting: setting(SETTING_PATH),
 		probe: async (exe) =>
@@ -285,7 +306,7 @@ export async function activate(
 
 	const first = vscode.workspace.workspaceFolders?.[0];
 	const primary = first ? workbenches.get(first.uri.fsPath) : undefined;
-	const view = composeStatus(binary, primary, PAIRED_RELEASE);
+	const view = composeStatus(binary, primary, PAIRED_RELEASE, t);
 	const keys = composeContextKeys(binary, primary);
 
 	await vscode.commands.executeCommand("setContext", "dinah.binary", keys.binary);
@@ -328,10 +349,11 @@ export async function activate(
 		exe: binary.state === "ok" ? binary.path : "",
 		log: (line) => channel.appendLine(line),
 		caseInsensitive: process.platform === "win32",
+		t,
 		deadEndSentence: (refusal) =>
 			refusal === NO_WORKBENCH_FOUND
-				? "No workbench was found from this folder. Run `dinah init` in a terminal to create one, or set `dinah.workbench` to the directory of one you already have."
-				: `dinah refused: ${refusal}`,
+				? t("tree.root.deadEnd.noWorkbenchSentence")
+				: t("status.refused", { refusal }),
 	});
 
 	if (binary.state === "ok") {
@@ -469,7 +491,7 @@ export async function activate(
 		context.subscriptions.push(vscode.commands.registerCommand(id, handler));
 	}
 
-	const host = commandHost(channel, (folder) => checkpointing.checkNow(folder));
+	const host = commandHost(channel, (folder) => checkpointing.checkNow(folder), t);
 	const flowCommands: [string, (c: CommandContext) => Promise<unknown>][] = [
 		[COMMAND_CLAIM, claimCard],
 		[COMMAND_MOVE, moveCard],
@@ -497,7 +519,7 @@ export async function activate(
 	// one above. The two families take different contexts and different hosts,
 	// and a single loop over both would have to widen each of those to a union
 	// that neither handler can use without narrowing it again.
-	const workbenchHost = workbenchCommandHost(channel);
+	const workbenchHost = workbenchCommandHost(channel, t);
 	const workbenchCommands: [
 		string,
 		(c: WorkbenchCommandContext) => Promise<unknown>,
@@ -533,7 +555,7 @@ export async function activate(
 	// compose a different context and the first two do not even share a host.
 	// Edit Instructions is the one that takes the column host, which opens a
 	// file and carries no checkpoint.
-	const columnHost = columnCommandHost(channel);
+	const columnHost = columnCommandHost(channel, t);
 	register(
 		COMMAND_EDIT_COLUMN_INSTRUCTIONS,
 		async (element: TreeElement | undefined) => {

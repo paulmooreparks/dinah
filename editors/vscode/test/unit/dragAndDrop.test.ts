@@ -16,6 +16,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+import { ENGLISH } from "../../src/l10n";
+
 import type { CommandHost, PickItem } from "../../src/cardCommands";
 import { moveCard, refusalMessage } from "../../src/cardCommands";
 import type { SpawnOutcome, Spawner } from "../../src/cli";
@@ -151,6 +153,7 @@ function watcher(answer: SpawnOutcome = ok({})): Watcher {
 		return state.answer;
 	};
 	const host: CommandHost = {
+		t: ENGLISH,
 		showError: (message) => errors.push(message),
 		showInfo: (message) => infos.push(message),
 		copyToClipboard: async () => {},

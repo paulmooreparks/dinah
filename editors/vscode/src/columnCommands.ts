@@ -26,15 +26,27 @@ import type { Spawner } from "./cli";
 import { runDinah } from "./cli";
 import { refusalMessage, isRow } from "./cardCommands";
 import { COMMAND_EDIT_COLUMN_INSTRUCTIONS } from "./identity";
+import { ENGLISH } from "./l10n";
+import type { Localizer } from "./l10n";
 import type { TreeElement } from "./tree";
 import { treeItemFor } from "./tree";
 import type { PathAnswer } from "./wire";
 
-/** The action the toast offers when there is something in the channel to read. */
-export const OPEN_OUTPUT = "Open Output";
+/**
+ * The action the toast offers when there is something in the channel to read.
+ *
+ * workbenchCommands.ts declares its own, reading the same catalogue key. The
+ * duplication predates this card and is left where it stands rather than
+ * merged into one shared declaration, which is its own change.
+ */
+export function openOutputLabel(t: Localizer = ENGLISH): string {
+	return t("dialog.openOutput.label");
+}
 
 /** The window calls the column row's command makes, injected so tests watch them. */
 export interface ColumnCommandHost {
+	/** Renders one message in the language the editor is displaying. */
+	readonly t: Localizer;
 	readonly showWarning: (
 		message: string,
 		actions: readonly string[],
@@ -116,7 +128,7 @@ export function contextForColumn(
 		host,
 		root,
 		columnRef,
-		label: treeItemFor(element).label,
+		label: treeItemFor(element, host.t).label,
 	};
 }
 
@@ -146,11 +158,16 @@ export async function editColumnInstructions(
 	);
 	if (outcome.kind !== "ok") {
 		context.host.appendLines([
-			`${context.label}: could not open this column's instructions file. ${refusalMessage(outcome)}`,
+			context.host.t("dialog.column.instructionsUnreadable.channel", {
+				column: context.label,
+				detail: refusalMessage(outcome),
+			}),
 		]);
 		const picked = await context.host.showWarning(
-			`${context.label}: could not open this column's instructions file. See the Dinah output channel for details.`,
-			[OPEN_OUTPUT],
+			context.host.t("dialog.column.instructionsUnreadable.toast", {
+				column: context.label,
+			}),
+			[openOutputLabel(context.host.t)],
 		);
 		if (picked !== undefined) {
 			context.host.revealOutput();

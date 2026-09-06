@@ -15,6 +15,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+import { ENGLISH } from "../../src/l10n";
+
 import type { CommandHost } from "../../src/cardCommands";
 import { refusalMessage } from "../../src/cardCommands";
 import type { SpawnOutcome, Spawner } from "../../src/cli";
@@ -91,6 +93,7 @@ function recorder(): Recorder {
 			return state.answer;
 		},
 		host: {
+			t: ENGLISH,
 			showError: (message) => {
 				errors.push(message);
 			},

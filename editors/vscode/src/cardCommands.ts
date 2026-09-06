@@ -16,6 +16,8 @@ import type { Spawner } from "./cli";
 import { runDinah } from "./cli";
 import type { CliOutcome } from "./cli";
 import { COMMAND_OPEN_ATTACHMENT } from "./identity";
+import { ENGLISH } from "./l10n";
+import type { Localizer } from "./l10n";
 import { nodeSpawner } from "./spawn";
 import type { TreeElement } from "./tree";
 import type { DetailAnswer, LegalMove, ServedAnswer } from "./wire";
@@ -31,6 +33,15 @@ export interface PickItem {
 
 /** The window calls these commands make, injected so tests can watch them. */
 export interface CommandHost {
+	/**
+	 * Renders one message in the language the editor is displaying.
+	 *
+	 * Injected alongside the window calls rather than imported, for the reason
+	 * l10n.ts's own header gives: this module imports no vscode symbol, so it
+	 * cannot reach vscode.l10n, and extension.ts is the one place that reads
+	 * the editor's display language and binds a Localizer to it.
+	 */
+	readonly t: Localizer;
 	readonly showError: (message: string) => void;
 	/** Reports an act that succeeded and shows nothing else, such as a copy. */
 	readonly showInfo: (message: string) => void;
@@ -204,7 +215,9 @@ export async function unblockCard(
  */
 export async function copyCardRef(context: CommandContext): Promise<void> {
 	await context.host.copyToClipboard(context.ref);
-	context.host.showInfo(`Copied ${context.ref}`);
+	context.host.showInfo(
+		context.host.t("dialog.card.copiedRef", { ref: context.ref }),
+	);
 }
 
 /**
@@ -217,7 +230,9 @@ export async function copyCardRef(context: CommandContext): Promise<void> {
 export async function blockCard(
 	context: CommandContext,
 ): Promise<CliOutcome | undefined> {
-	const reason = await context.host.input("Why is this card blocked?");
+	const reason = await context.host.input(
+		context.host.t("dialog.block.reasonPrompt"),
+	);
 	if (reason === undefined || reason.trim() === "") {
 		return undefined;
 	}
@@ -245,10 +260,10 @@ export function orderLegalMoves(
 }
 
 /** The quick-pick entry one legal move renders as. */
-export function movePick(move: LegalMove): PickItem {
+export function movePick(move: LegalMove, t: Localizer = ENGLISH): PickItem {
 	return {
 		label: move.title,
-		detail: move.direction === BACKWARD ? "backward" : undefined,
+		detail: move.direction === BACKWARD ? t("dialog.move.backward") : undefined,
 		// The destination the move verb takes is the entry's own Column, which
 		// is the column's identifier. Not its Ref, which is what a person
 		// types, and not its Title, which is what a person reads.
@@ -279,13 +294,13 @@ export async function moveCard(
 	const moves = (served.json as ServedAnswer).legal_moves ?? [];
 	if (moves.length === 0) {
 		context.host.showError(
-			`${context.ref} has no legal moves from where it stands.`,
+			context.host.t("dialog.move.noLegalMoves", { ref: context.ref }),
 		);
 		return undefined;
 	}
 	const picked = await context.host.pick(
-		orderLegalMoves(moves).map(movePick),
-		`Move ${context.ref} to`,
+		orderLegalMoves(moves).map((move) => movePick(move, context.host.t)),
+		context.host.t("dialog.move.placeholder", { ref: context.ref }),
 	);
 	if (picked === undefined) {
 		return undefined;

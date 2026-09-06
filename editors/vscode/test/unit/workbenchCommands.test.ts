@@ -8,6 +8,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+import { ENGLISH } from "../../src/l10n";
+
 import type { SpawnOutcome, Spawner } from "../../src/cli";
 import { EXIT_READ_FINDINGS } from "../../src/cli";
 import { COMMAND_EDIT_WORKBENCH_DEFINITION } from "../../src/identity";
@@ -17,7 +19,7 @@ import type {
 	WorkbenchCommandHost,
 } from "../../src/workbenchCommands";
 import {
-	OPEN_OUTPUT,
+	openOutputLabel,
 	checkWorkbench,
 	contextForWorkbench,
 	copyWorkbenchPath,
@@ -86,6 +88,7 @@ function recorder(outcome: SpawnOutcome = CLEAN): Recorder {
 		logged: [],
 		revealed: 0,
 		host: {
+			t: ENGLISH,
 			showInfo: (message) => {
 				r.infos.push(message);
 			},
@@ -94,7 +97,7 @@ function recorder(outcome: SpawnOutcome = CLEAN): Recorder {
 				// The action list is asserted here rather than in each test,
 				// because a toast offering a button the handler does not read
 				// would be a dead end a reader clicks once and never again.
-				assert.deepEqual([...actions], [OPEN_OUTPUT]);
+				assert.deepEqual([...actions], [openOutputLabel(ENGLISH)]);
 				return r.answer;
 			},
 			appendLines: (lines) => {
@@ -146,6 +149,7 @@ function rootRow(overrides: Partial<RootRow> = {}): RootRow {
 }
 
 const silentHost: WorkbenchCommandHost = {
+	t: ENGLISH,
 	showInfo: () => undefined,
 	showWarning: async () => undefined,
 	appendLines: () => undefined,
@@ -301,7 +305,7 @@ test("a check that found defects writes a header and one line for each of them",
 	// AC-6. The count in the header is what a reader sees in the toast, so the
 	// two are composed from the same number rather than from two counts.
 	const r = recorder(DIRTY);
-	r.answer = OPEN_OUTPUT;
+	r.answer = openOutputLabel(ENGLISH);
 	await checkWorkbench(r.context);
 	assert.deepEqual(r.appended, [
 		"Work: check found 2 defect(s):",
@@ -318,7 +322,7 @@ test("the channel opens when the reader asks for it and stays shut when they do 
 	// AC-6's second half. A toast that revealed the channel either way would
 	// take the window away from whatever the reader was doing.
 	const picked = recorder(DIRTY);
-	picked.answer = OPEN_OUTPUT;
+	picked.answer = openOutputLabel(ENGLISH);
 	await checkWorkbench(picked.context);
 	assert.equal(picked.revealed, 1);
 
@@ -373,7 +377,7 @@ test("a check that produced no report reports itself rather than passing for cle
 	];
 	for (const [kind, outcome, sentence] of cases) {
 		const r = recorder(outcome);
-		r.answer = OPEN_OUTPUT;
+		r.answer = openOutputLabel(ENGLISH);
 		await checkWorkbench(r.context);
 		assert.deepEqual(
 			r.appended,
@@ -415,7 +419,7 @@ test("the answer a binary predating dinah-346 gives names that binary and no fal
 		}),
 		stderr: "",
 	});
-	r.answer = OPEN_OUTPUT;
+	r.answer = openOutputLabel(ENGLISH);
 	await checkWorkbench(r.context);
 	assert.deepEqual(r.appended, [
 		'Work: check produced no report the extension could read. not-json: dinah exited 2 (refused), but its JSON carried no string "refusal" field, which every refusal envelope carries. Top-level keys: findings.',
@@ -603,7 +607,7 @@ test("editWorkbenchDefinition reports every refusal and opens nothing", async ()
 	];
 	for (const [kind, outcome, sentence] of cases) {
 		const r = recorder(outcome);
-		r.answer = OPEN_OUTPUT;
+		r.answer = openOutputLabel(ENGLISH);
 		await editWorkbenchDefinition(r.context);
 		assert.deepEqual(
 			r.appended,

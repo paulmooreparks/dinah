@@ -10,13 +10,15 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+import { ENGLISH } from "../../src/l10n";
+
 import type { SpawnOutcome, Spawner } from "../../src/cli";
 import type {
 	ColumnCommandContext,
 	ColumnCommandHost,
 } from "../../src/columnCommands";
 import {
-	OPEN_OUTPUT,
+	openOutputLabel,
 	contextForColumn,
 	editColumnInstructions,
 } from "../../src/columnCommands";
@@ -70,12 +72,13 @@ function recorder(outcome: SpawnOutcome = RESOLVED): Recorder {
 		logged: [],
 		revealed: 0,
 		host: {
+			t: ENGLISH,
 			showWarning: async (message, actions) => {
 				r.warnings.push(message);
 				// The action list is asserted here rather than in each test,
 				// because a toast offering a button the handler does not read
 				// would be a dead end a reader clicks once and never again.
-				assert.deepEqual([...actions], [OPEN_OUTPUT]);
+				assert.deepEqual([...actions], [openOutputLabel(ENGLISH)]);
 				return r.answer;
 			},
 			appendLines: (lines) => {
@@ -107,6 +110,7 @@ function recorder(outcome: SpawnOutcome = RESOLVED): Recorder {
 }
 
 const silentHost: ColumnCommandHost = {
+	t: ENGLISH,
 	showWarning: async () => undefined,
 	appendLines: () => undefined,
 	revealOutput: () => undefined,
@@ -425,7 +429,7 @@ test("editColumnInstructions reports every refusal and opens nothing", async () 
 	];
 	for (const [kind, outcome, sentence] of cases) {
 		const r = recorder(outcome);
-		r.answer = OPEN_OUTPUT;
+		r.answer = openOutputLabel(ENGLISH);
 		await editColumnInstructions(r.context);
 		assert.deepEqual(
 			r.appended,
