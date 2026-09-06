@@ -613,8 +613,7 @@ func RefuseWith(name, detail string, extra map[string]string) *Refusal {
 // ValueWorkbench does, so that a caller wanting the identifier reads a
 // declared field rather than parsing the English a raise site composed into
 // Detail or recovering the id from a path's spelling. No catalog fragment
-// interpolates it, which is why the Malformed shape does not declare it in
-// Values.
+// interpolates it, so the Malformed shape does not declare it in Values.
 const ValueColumn = "column"
 
 // Stale is the error a verb returns when the request's basis does not name

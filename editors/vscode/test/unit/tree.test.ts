@@ -1887,7 +1887,14 @@ test("a column the last good read never cached leaves the marker off and says so
 	const columns = (await view.getChildren(root)).filter(
 		(element) => element.kind === "column",
 	);
-	for (const item of columns.map((element) => treeItemFor(element))) {
+	// The labels are pinned before the loop runs, because a loop over an empty
+	// list passes for the wrong reason and a fixture change could empty it.
+	const items = columns.map((element) => treeItemFor(element));
+	assert.deepEqual(
+		items.map((item) => item.label),
+		["Backlog", "Doing", "Done"],
+	);
+	for (const item of items) {
 		assert.notEqual(item.description, "damaged");
 		assert.equal(item.icon, undefined);
 	}
