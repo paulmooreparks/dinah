@@ -213,9 +213,23 @@ jobs:
         with:
           go-version-file: go.mod
 
+      # The pattern is what keeps this download to the platform binaries. Every
+      # artifact of the run is a candidate otherwise, and since dinah-363 made
+      # ci.yml a job of this run its packaged extension is one of them, so an
+      # unfiltered download put the packaged extension into dist/ on every run
+      # (dinah-412). Each upload of the build job is named for its own platform
+      # pair under a binaries- prefix, and
+      # internal/release/download_filter_test.go holds this pattern against
+      # those names and against the names every other job of the run uploads
+      # under.
+      #
+      # The step below still checks what actually landed. A filter narrows what
+      # is asked for and can say nothing about what an artifact carries inside
+      # it, so the two are not alternatives.
       - name: Download every binary
         uses: actions/download-artifact@v4
         with:
+          pattern: binaries-*
           path: dist/
           merge-multiple: true
 
