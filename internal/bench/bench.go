@@ -1561,7 +1561,15 @@ func openWithVocabulary(root string, vocab columnVocabulary, admit func(declared
 			return nil, err
 		}
 		path := filepath.Join(root, vocab.Dir, id, vocab.Anchor)
-		if err := admitSlug(column, major, seenSlug, map[string]string{"path": path, contract.ValueWorkbench: root}); err != nil {
+		// The map stays written out in the argument rather than lifted to a
+		// local, because check 5 reads admitSlug's anchor parameter through
+		// the composite literals its callers hand it in that position and a
+		// name in its place leaves the strings inside unread.
+		if err := admitSlug(column, major, seenSlug, map[string]string{
+			"path":                  path,
+			contract.ValueWorkbench: root,
+			contract.ValueColumn:    column.ID,
+		}); err != nil {
 			return nil, err
 		}
 		b.Columns = append(b.Columns, column)
@@ -1746,7 +1754,7 @@ func readColumn(root, id string, position int) (*Column, error) {
 // names that vocabulary used.
 func readColumnIn(root string, vocab columnVocabulary, id string, position int) (*Column, error) {
 	path := filepath.Join(root, vocab.Dir, id, vocab.Anchor)
-	anchor := map[string]string{"path": path, contract.ValueWorkbench: root}
+	anchor := map[string]string{"path": path, contract.ValueWorkbench: root, contract.ValueColumn: id}
 	text, err := ReadText(path)
 	if err != nil {
 		return nil, contract.RefuseWith(contract.Malformed, "column "+id, anchor)
