@@ -51,25 +51,44 @@ if ($publishers -match 'No publishers found') {
     Fail "No marketplace publisher is logged in on this machine. Run 'vsce login paulmooreparks' and follow the prompts, then run this again. The extension publishes as paulmooreparks.dinah, and that identifier is permanent from the first publish."
 }
 
-# The extension's version is its own and is read rather than computed. The
-# tag is recorded inside the build as provenance, and nothing derives one
-# project's number from the other's.
-$manifestPath = Join-Path $extensionRoot 'package.json'
-$version = (Get-Content -Path $manifestPath -Raw | ConvertFrom-Json).version
-if ([string]::IsNullOrWhiteSpace($version)) {
-    Fail "package.json carries no version, so there is nothing to publish. Set the extension's own version there and run this again."
+# Which version goes to the marketplace. package.json's version field is a
+# floor whose patch is always 0, so it no longer names anything that shipped;
+# the real number lives in the release history, which is where the release
+# workflow puts it. This script asks that same history rather than reading a
+# field that stopped carrying the answer.
+#
+# Two failures are possible here and they are kept apart, because they call for
+# different things from whoever is reading. The listing itself can fail for
+# reasons that have nothing to do with whether a release exists: no network, an
+# expired token, a rate limit, a transient API error. Every one of those exits
+# non-zero, so the exit status is checked immediately, before anything reads
+# the text that came back, and the message says the list could not be retrieved.
+# Only once the list has arrived is it asked whether it carries a release, and
+# that question has its own message. Neither answer is ever read off the
+# emptiness of the other one's output.
+#
+# Both captures redirect standard error into the variable. Piping a command's
+# output into a variable in PowerShell captures only its success stream, so
+# without the redirection the second call's own message never reaches $version
+# and Fail would report an empty string on exactly the path that runs first in
+# reality, which is the one where nothing has been released yet.
+$Repo = 'paulmooreparks/dinah'
+$tagsOutput = & gh api "repos/$Repo/releases" --paginate --jq '.[] | .tag_name' 2>&1
+if ($LASTEXITCODE -ne 0) {
+    Fail "The releases on $Repo could not be listed ($tagsOutput), so the newest published extension version is unknown. Nothing was packaged or published."
 }
-Write-Output "Publishing extension version $version, paired with dinah $Tag."
+$version = $tagsOutput | node (Join-Path $extensionRoot 'scripts/print-newest-version.mjs') - 2>&1
+if ($LASTEXITCODE -ne 0) {
+    Fail "$version"
+}
+Write-Output "Publishing the newest released extension version, $version, paired with dinah $Tag."
 
-# --published tells the packaging step that this archive is the one going to
-# the marketplace, so it carries the committed version above rather than the
-# unpublished ordinal every other build gets.
 Push-Location $extensionRoot
 try {
     $env:DINAH_PAIRED_RELEASE = $Tag
     npm ci
     if ($LASTEXITCODE -ne 0) { Fail "npm ci failed." }
-    npm run package -- --published
+    npm run package -- --version $version
     if ($LASTEXITCODE -ne 0) { Fail "Packaging failed." }
     npm run verify-package
     if ($LASTEXITCODE -ne 0) { Fail "The packaged archive did not carry what it should. Nothing was published." }

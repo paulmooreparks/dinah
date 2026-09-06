@@ -44,6 +44,8 @@ binary it considers, refusing one whose profile is older than the fields the
 extension reads, so a mismatch surfaces as a message about the profile rather
 than as a wrong answer.
 
-An archive whose version begins `0.0.` is not a release. Those are local and
-continuous-integration builds, numbered so that they always sort below every
-published version.
+Every version of this extension sits on one line, and the number by itself does
+not say whether an archive was published as a pre-release. The marketplace
+listing says so, because a pre-release is marked as one there. Every archive this
+repository publishes carries that mark, so VS Code offers it only to people who
+have opted into pre-releases.

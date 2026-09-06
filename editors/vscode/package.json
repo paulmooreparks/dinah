@@ -334,6 +334,7 @@
     "vscode:prepublish": "npm run compile"
   },
   "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
     "@types/mocha": "^10.0.10",
     "@types/node": "^22.10.2",
     "@types/vscode": "^1.90.0",
@@ -344,6 +345,7 @@
     "esbuild": "^0.24.2",
     "eslint": "^9.17.0",
     "glob": "^11.0.0",
+    "js-yaml": "^4.3.2",
     "mocha": "^11.0.1",
     "typescript": "^5.7.2"
   }

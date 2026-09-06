@@ -134,12 +134,27 @@ matching tag strings itself.
 
 ## The VS Code extension's numbers are its own
 
-`editors/vscode` is versioned separately and deliberately. Its published
-version is committed in its own `package.json` and bumped on its own cadence,
-and nothing derives it from a dinah release tag. An extension archive built
-locally or in CI carries a version on the `0.0.x` line, numbered by the CI run
-number or the checkout's commit count, so that an archive somebody installs by
-hand always sorts below a published release and no two of them collide.
+`editors/vscode` is versioned separately and deliberately, and nothing derives
+its number from a dinah release tag. The version field committed in its
+`package.json` is a floor rather than a release. It names a `major.minor` line
+and its patch component is always `0`, so a human moves the major or the minor
+by hand when a change earns it and resets the patch in the same edit.
+
+Every push to `main` touching anything under `editors/vscode` cuts a release of
+its own. `.github/workflows/vscode-release.yml` reads the release history, takes
+the next patch on the committed line, reserves that number as a `vscode-v` tag
+before anything is built, and hands it to the packaging step. Reserving the tag
+first is what stops two pushes landing close together from minting the same
+number, because only the first reservation succeeds and the second run fails
+loudly rather than publishing over it. A run that reserves a tag and then fails
+deletes it again, so a failed run burns no number.
+`editors/vscode/scripts/release-version.mjs` holds the arithmetic, and its unit
+tests drive every branch of it.
+
+An archive packaged with no version argument carries the committed floor
+instead. Continuous integration builds one on every pull request to prove that
+packaging still works, and that archive is never published and never attached
+to a release.
 
 What tells a reader whether an installed extension and an installed binary
 belong together is the profile revision, the `profile` field
