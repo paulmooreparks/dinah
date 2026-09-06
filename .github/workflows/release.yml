@@ -114,7 +114,14 @@ jobs:
       # dist/ was checked against a different set of names than it produced.
       - name: Resolve the platform target list
         id: targets
-        run: echo "targets=$(go run ./cmd/dinah-release targets --format json)" >> "$GITHUB_OUTPUT"
+        run: |
+          set -eo pipefail
+          # The assignment carries the exit status, which a command
+          # substitution inside echo does not: a go run that died there would
+          # write an empty targets= and leave the step green, and the failure
+          # would surface two jobs later as a matrix that will not parse.
+          TARGETS=$(go run ./cmd/dinah-release targets --format json)
+          echo "targets=$TARGETS" >> "$GITHUB_OUTPUT"
 
   # ci.yml runs as a job of this workflow rather than being polled by SHA. A
   # job that "needs" this one blocks on the native GitHub Actions dependency
@@ -231,10 +238,12 @@ jobs:
         run: |
           set -eo pipefail
           go run ./cmd/dinah-release targets --format names | sort > expected.txt
-          # -maxdepth 1 -type f lists the regular files directly inside dist/,
-          # so an artifact that arrives as a directory is reported rather than
-          # descended into.
-          find dist -maxdepth 1 -type f -printf '%f\n' | sort > actual.txt
+          # -maxdepth 1 -mindepth 1 lists everything directly inside dist/ and
+          # descends into nothing, so an artifact that arrives as a directory
+          # is reported by its own name rather than passed over. A correct
+          # build leaves six regular files there and nothing else, so listing
+          # directories too cannot fail a run that should pass.
+          find dist -maxdepth 1 -mindepth 1 -printf '%f\n' | sort > actual.txt
           if ! diff -u expected.txt actual.txt > dist-diff.txt; then
             echo "::error::dist/ does not hold exactly the expected release binaries"
             echo "--- expected  +++ actually present in dist/"

@@ -25,8 +25,14 @@ func (t Target) BinaryName() string {
 
 // Targets is the CLI's six supported platform and architecture pairs, in the
 // order release.yml's build matrix and its release-time asset check both read
-// them. This is the one place that names them, so a platform is added or
-// dropped here and nowhere else.
+// them. That workflow names no platform itself, so an entry added or dropped
+// here reaches its matrix and its asset check together.
+//
+// This is not the only copy of the list in the repository.
+// .github/workflows/promote.yml spells the same six pairs in a shell loop of
+// its own, builds the stable channel's binaries from that loop, and has no
+// check holding it against this declaration. A platform change therefore has
+// to be made there by hand as well, and nothing fails if it is not.
 var Targets = []Target{
 	{GOOS: "windows", GOARCH: "amd64", Ext: ".exe"},
 	{GOOS: "windows", GOARCH: "arm64", Ext: ".exe"},
