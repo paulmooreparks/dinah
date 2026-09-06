@@ -8,6 +8,7 @@ import (
 
 	"dinah/internal/bench"
 	"dinah/internal/contract"
+	"dinah/internal/msg"
 )
 
 // The tier tests sit in a file of their own rather than in levels_test.go,
@@ -242,14 +243,13 @@ func TestACardsOwnBaselineIsAFloorOnEveryClaim(t *testing.T) {
 			t.Fatalf("add %s: %d %s", title, got.code, got.errw)
 		}
 	}
-	for i, ref := range []string{"fx-1", "fx-2", "fx-3"} {
+	for _, ref := range []string{"fx-1", "fx-2", "fx-3"} {
 		if got := runCLI(t, root, "card", "set", ref, "tier", "frontier"); got.code != 0 {
 			t.Fatalf("card set tier on %s: %d %s", ref, got.code, got.errw)
 		}
 		if got := runCLI(t, root, "move", ref, "plain"); got.code != 0 {
 			t.Fatalf("move %s: %d %s", ref, got.code, got.errw)
 		}
-		_ = i
 	}
 	refused := runCLI(t, root, "claim", "fx-1", "--tier", "workhorse")
 	if refused.code != 2 {
@@ -331,6 +331,64 @@ func TestAnOverrideGovernsItsOwnColumnAndTheBaselineGovernsElsewhere(t *testing.
 	}
 	if !strings.Contains(refused.errw, "apex") {
 		t.Errorf("the sentence names a tier other than the baseline:\n%s", refused.errw)
+	}
+}
+
+// TestAClaimAtAColumnTheWorkbenchNoLongerDeclaresIsRefusedRatherThanPanicking
+// guards the state the gate meets when the card carries a floor and the column
+// carries nothing at all, which is the one input claimableTier cannot resolve.
+//
+// The state is built the way dinah check finds it rather than by handing the
+// gate a nil: a card is given a baseline, moved to a column, and its anchor is
+// then rewritten to an identifier no column declares, which is the stranded
+// card the quick start's own damaged-workbench transcript produces. The test
+// asserts that check reports that state before the claim runs, so a later edit
+// that stops producing it fails here rather than passing vacuously.
+//
+// What the claim owes is a refusal, and the assertions say so. A panic is not
+// a refusal and neither is a silent admission, so both the exit code and the
+// refusal name are checked, and the sentence is read for the identifier the
+// card still carries, because that is the value an operator repairs the
+// workbench with.
+func TestAClaimAtAColumnTheWorkbenchNoLongerDeclaresIsRefusedRatherThanPanicking(t *testing.T) {
+	root := newBenchFromDefinition(t, tierDefinition)
+	if got := runCLI(t, root, "add", "a card whose column went away"); got.code != 0 {
+		t.Fatalf("add: %d %s", got.code, got.errw)
+	}
+	if got := runCLI(t, root, "card", "set", "fx-1", "tier", "frontier"); got.code != 0 {
+		t.Fatalf("card set tier: %d %s", got.code, got.errw)
+	}
+	if got := runCLI(t, root, "move", "fx-1", "plain"); got.code != 0 {
+		t.Fatalf("move: %d %s", got.code, got.errw)
+	}
+	stranded := "c00000000009"
+	rewriteAnchor(t, root, "fx-1", "column: c00000000003", "column: "+stranded)
+
+	checked := runCLI(t, root, "check")
+	if checked.code == 4 {
+		t.Fatalf("check could not open the workbench: %d %s", checked.code, checked.errw)
+	}
+	sentence := msg.For(msg.Base).T(bench.FindingUnknownColumn, "detail", stranded)
+	if !strings.Contains(checked.out, sentence) {
+		t.Fatalf("check does not report the stranded column, so this test no longer builds the state it names:\n%s", checked.out)
+	}
+
+	refused := runCLI(t, root, "claim", "fx-1", "--tier", "workhorse")
+	if refused.code != 2 {
+		t.Fatalf("a claim below the card's baseline at a stranded column exited %d, wanted 2: %s%s", refused.code, refused.out, refused.errw)
+	}
+	if name := refusalNameOf(refused.errw); name != contract.BelowTier {
+		t.Errorf("the refusal name is %s, wanted %s", name, contract.BelowTier)
+	}
+	if !strings.Contains(refused.errw, "frontier") {
+		t.Errorf("the sentence does not name the tier the card asks for:\n%s", refused.errw)
+	}
+	if !strings.Contains(refused.errw, stranded) {
+		t.Errorf("the sentence does not name the identifier the card still carries, which is what repairs the workbench:\n%s", refused.errw)
+	}
+
+	if got := runCLI(t, root, "claim", "fx-1", "--tier", "frontier"); got.code != 0 {
+		t.Errorf("a claim meeting the card's baseline at a stranded column was refused: %d %s", got.code, got.errw)
 	}
 }
 

@@ -136,8 +136,21 @@ func (l *Library) claimableTier(req *Request, card *bench.Card, column *bench.Co
 	if rank, ok := l.Bench.TierRank(req.Tier); ok && rank >= floor {
 		return nil
 	}
+	// The column can be nil here, and the refusal still has to name one. A
+	// card standing at a column the workbench no longer declares reaches this
+	// gate with nothing resolved, exactly as operatorReservesClaim's comment
+	// says it reaches that one, and dereferencing it would answer a claim
+	// with a panic where a refusal is owed. So the name degrades to the
+	// identifier the card itself carries, which is what dinah check prints
+	// under check.unknown-column and what an operator names on the reshape
+	// that repairs it. ResolveTierWrite makes the same allowance for the same
+	// argument on the write side.
+	ref := card.Column
+	if column != nil {
+		ref = columnRef(column)
+	}
 	return l.refuseWith(req, card, contract.BelowTier, required, map[string]string{
 		"required": required,
-		"column":   columnRef(column),
+		"column":   ref,
 	})
 }

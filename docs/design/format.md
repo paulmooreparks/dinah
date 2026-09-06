@@ -810,9 +810,9 @@ is queryable over a card and written by nothing, so it sits in the twenty-one
 and outside the twenty-three. `column_updated`, `workbench_updated` and
 `workstream_updated` are written by commands but never land on a card's
 journal, so they sit in the twenty-three and outside the twenty-one. Twenty
-names sit in both counts. Nineteen of those land on a card's own journal, and `deleted` is the exception, because deleting a card
-destroys the journal inside it and the record of the deletion goes to the
-workbench's.
+names sit in both counts. Nineteen of those land on a card's own journal, and
+`deleted` is the exception, because deleting a card destroys the journal inside
+it and the record of the deletion goes to the workbench's.
 
 The set stays closed mechanically rather than by inspection. A twenty-fifth
 constant fails the build unless it reaches the sample fixture's journal or is
@@ -1710,6 +1710,17 @@ refused, under `dinah.below-tier`. Somebody over-qualified taking a card is
 waste rather than an error, and the format has no view on waste. A claim
 declaring nothing at all, or declaring a name the workbench does not carry,
 cannot be shown to meet a floor and is refused wherever one applies.
+
+The card's side of that comparison is read the other way, and the asymmetry is
+deliberate rather than an oversight. Where the card asks for a tier the
+workbench does not declare, there is no rank to measure a claimant against, so
+the gate has no honest refusal to make and admits the claim. `dinah check`
+reports the card under `check.unknown-level`, which is the repair, and holding
+every claim at a column hostage to one card's stale value would be a refusal
+nobody could satisfy. A card standing at a column the workbench no longer
+declares is read the same way: the requirement it carries still applies, and
+the refusal names the stored column identifier, since that is what an operator
+repairs the workbench with.
 
 ### Two limits worth knowing before you rely on any of this
 
