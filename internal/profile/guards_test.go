@@ -974,8 +974,15 @@ func windowsPowerShellEnv(extra ...string) []string {
 	return append(env, extra...)
 }
 
-// releaseBinaries names every binary .github/workflows/release.yml builds, in
-// the order its matrix declares them.
+// releaseBinaries names every binary a CLI release builds, in the order
+// internal/release.Targets declares them. release.yml's build matrix reads
+// that declaration and no longer spells the names itself, so the list this
+// fixture is held against lives in Go rather than in the workflow text.
+//
+// It stays hand-written rather than importing that declaration. This fixture
+// assembles a stand-in release for the install script to read, and a stand-in
+// built from the same declaration the release is built from would agree with
+// it whatever it said.
 var releaseBinaries = []string{
 	"dinah-windows-amd64.exe",
 	"dinah-windows-arm64.exe",
