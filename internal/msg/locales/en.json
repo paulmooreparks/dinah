@@ -558,7 +558,11 @@
       "context": "One row of the ordered precondition list of reshape. Keep a translation at or under 52 display columns."
     },
     "check.show.1": {
-      "text": "the reference resolves to a card or a path below one",
+      "text": "the fields named are ones a card's detail carries",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.show.2": {
+      "text": "the reference names a card or a path below one",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.slug-assigned.one": {

@@ -705,9 +705,14 @@
       "source": "d9d874f8f4ad70c0"
     },
     "check.show.1": {
+      "text": "नामित फ़ील्ड वे हैं जो एक कार्ड का विवरण रखता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "1825c0207e46f3c6"
+    },
+    "check.show.2": {
       "text": "संदर्भ किसी कार्ड या उसके नीचे के पथ तक पहुँचता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "dd300660ba922972"
+      "source": "f386eb2b00f548c0"
     },
     "check.slug-assigned.one": {
       "text": "{count} कॉलम-उपनाम निर्धारित किया।",

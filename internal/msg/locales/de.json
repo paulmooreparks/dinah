@@ -725,9 +725,14 @@
       "source": "d9d874f8f4ad70c0"
     },
     "check.show.1": {
+      "text": "jedes genannte Feld gehört zum Detail einer Karte",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "1825c0207e46f3c6"
+    },
+    "check.show.2": {
       "text": "die Referenz nennt eine Karte oder etwas darunter",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "dd300660ba922972"
+      "source": "f386eb2b00f548c0"
     },
     "check.slug-assigned.one": {
       "text": "{count} Spalten-Slug vergeben.",
