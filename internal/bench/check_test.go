@@ -1625,6 +1625,10 @@ func TestMalformedCarriesTheFileItWasRaisedOver(t *testing.T) {
 		damage func(t *testing.T, root string)
 		detail string
 		path   func(root string) string
+		// column is the identifier the refusal's own contract.ValueColumn
+		// entry has to carry, and the empty string is what a refusal naming
+		// no single column carries.
+		column string
 	}{
 		{
 			name: "a workbench predating the profile line",
@@ -1661,6 +1665,7 @@ func TestMalformedCarriesTheFileItWasRaisedOver(t *testing.T) {
 			path: func(root string) string {
 				return filepath.Join(root, ColumnsDir, "b00000000001", ColumnAnchor)
 			},
+			column: "b00000000001",
 		},
 	}
 	for _, c := range cases {
@@ -1680,6 +1685,9 @@ func TestMalformedCarriesTheFileItWasRaisedOver(t *testing.T) {
 			}
 			if got := refusal.Extra["path"]; got != c.path(root) {
 				t.Errorf("path: wanted %q, got %q", c.path(root), got)
+			}
+			if got := refusal.Extra[contract.ValueColumn]; got != c.column {
+				t.Errorf("column: wanted %q, got %q", c.column, got)
 			}
 		})
 	}

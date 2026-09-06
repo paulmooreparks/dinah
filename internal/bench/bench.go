@@ -1561,7 +1561,7 @@ func openWithVocabulary(root string, vocab columnVocabulary, admit func(declared
 			return nil, err
 		}
 		path := filepath.Join(root, vocab.Dir, id, vocab.Anchor)
-		if err := admitSlug(column, major, seenSlug, map[string]string{"path": path, contract.ValueWorkbench: root}); err != nil {
+		if err := admitSlug(column, major, seenSlug, map[string]string{"path": path, contract.ValueWorkbench: root, contract.ValueColumn: column.ID}); err != nil {
 			return nil, err
 		}
 		b.Columns = append(b.Columns, column)
@@ -1746,7 +1746,7 @@ func readColumn(root, id string, position int) (*Column, error) {
 // names that vocabulary used.
 func readColumnIn(root string, vocab columnVocabulary, id string, position int) (*Column, error) {
 	path := filepath.Join(root, vocab.Dir, id, vocab.Anchor)
-	anchor := map[string]string{"path": path, contract.ValueWorkbench: root}
+	anchor := map[string]string{"path": path, contract.ValueWorkbench: root, contract.ValueColumn: id}
 	text, err := ReadText(path)
 	if err != nil {
 		return nil, contract.RefuseWith(contract.Malformed, "column "+id, anchor)
