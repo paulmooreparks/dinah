@@ -23,6 +23,16 @@ export const VIEW_CONTAINER_ID = "dinah";
 /** The id of the single view inside that container. */
 export const VIEW_ID = "dinah.workbenchView";
 
+/**
+ * The mime type the tree publishes its own dragged rows under.
+ *
+ * VS Code recommends `application/vnd.code.tree.<treeidlowercase>` for a
+ * tree's own drags, so the value is composed from VIEW_ID rather than typed a
+ * second time. A unit test recomputes it the same way, so the two cannot drift
+ * if the view is ever renamed.
+ */
+export const DRAG_MIME_TYPE = `application/vnd.code.tree.${VIEW_ID.toLowerCase()}`;
+
 /** The settings key holding an explicit path to the binary. */
 export const SETTING_PATH = "dinah.path";
 
