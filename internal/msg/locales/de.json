@@ -3109,14 +3109,14 @@
       "source": "cd228857426eace1"
     },
     "schema.basis.description": {
-      "text": "Dinah berechnet für jede ändernde Anfrage eine Basis, und nichts hier bietet einen Weg, eine zu schreiben, lassen Sie diese Eigenschaft also unberührt.",
-      "context": "The description of the basis property, which every generated machine schema carries and no command declares.",
-      "source": "d079f7c8e67509b5"
+      "text": "die Revision, die die letzte Antwort für diese Karte gemeldet hat; der Aufruf wird als veraltet abgelehnt, wenn die Karte sich seither weiterbewegt hat",
+      "context": "The description of the basis property, which the eight generated machine schemas that consume basis carry and no command declares.",
+      "source": "249351173cf9bde1"
     },
     "schema.workbench.description": {
-      "text": "der absolute Pfad des eigenen Speicherverzeichnisses der Werkbank, etwa C:\\Users\\you\\projects\\plans\\.dinah\\4fa1c9d2e8b0, so wie es das workbenches-Werkzeug und dinah init melden; weggelassen, um auf die Werkbank einzuwirken, mit der der Server gestartet wurde",
+      "text": "das eigene Speicherverzeichnis der Werkbank, als absoluter Pfad; die Vorgabe des Servers, wenn weggelassen",
       "context": "The description of the workbench property, which every generated machine schema carries except the workbenches tool, and which an MCP caller sets to reach a workbench other than the one the server started with.",
-      "source": "732e5002ec4db9c1"
+      "source": "751c96238707e34c"
     },
     "show.attachments": {
       "text": "Anhänge:",

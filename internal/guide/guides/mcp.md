@@ -119,20 +119,31 @@ request answers with an `error` block and a JSON-RPC code. A refusal lives
 in `result`, because a refused act is a legitimate answer the contract
 defines.
 
-## Three arguments every tool accepts
+## The three arguments beyond the verb's own
 
-Every tool's schema carries three arguments beyond the ones the verb itself
-takes, and each is worth knowing before you need it.
+Three arguments come from no verb's parameter list, and each is worth knowing
+before you need it. Two of them reach every tool. The third reaches only the
+tools that read it, and the schema tells you which: a tool publishes one of
+these arguments when it consumes it, and refuses the name when it does not.
 
 `actor` is the name you act as. It overrides whatever owner the process
 defaults to, and it is how a caller makes a call in a name that is not the
-server's default.
+server's default. Every tool takes it.
 
 `basis` is the revision the call is to be evaluated against. When a response
 carries a basis and you want to follow it with a write, pass that basis back
 in the next call. If the card changed between your read and your write, the
 write is refused as stale rather than silently clobbering the newer state.
 That is the optimistic check, and it is why you pass basis forward.
+
+Eight tools carry `basis` in their schema and read it: `claim`, `move`,
+`release`, `block`, `unblock`, `join_workstream`, `leave_workstream` and
+`pull`. Every other tool refuses the name, and the refusal names what it does
+accept in its place. That includes writes such as `comment`, `add_card`,
+`attach`, `archive`, `rename` and `delete`, which change a workbench and do
+not consult a basis, so there is no optimistic check to express on them. An
+argument a tool would accept and then drop tells you a check ran when none
+did, so the surface turns the call away instead.
 
 `workbench` names the workbench a call targets when a process serves more
 than one. The value is a path to a workbench directory, the directory that

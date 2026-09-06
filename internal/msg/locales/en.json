@@ -2382,11 +2382,11 @@
       "context": "A paragraph under the summary of `dinah help check`, for a command whose exit code cannot be read off its list of refusals."
     },
     "schema.basis.description": {
-      "text": "Dinah computes a basis for every request that changes something, and nothing here offers a way to write one, so leave this property alone.",
-      "context": "The description of the basis property, which every generated machine schema carries and no command declares."
+      "text": "the revision the last response reported for this card; the call is refused as stale when the card has moved on since",
+      "context": "The description of the basis property, which the eight generated machine schemas that consume basis carry and no command declares."
     },
     "schema.workbench.description": {
-      "text": "the absolute path of the workbench's own store directory, such as C:\\Users\\you\\projects\\plans\\.dinah\\4fa1c9d2e8b0, which the workbenches tool and dinah init report; omitted to act on the workbench the server started with",
+      "text": "the workbench's own store directory, as an absolute path; the server's default when omitted",
       "context": "The description of the workbench property, which every generated machine schema carries except the workbenches tool, and which an MCP caller sets to reach a workbench other than the one the server started with."
     },
     "param.card.summary": {
