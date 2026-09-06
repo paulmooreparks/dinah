@@ -19,20 +19,20 @@ type Level struct {
 	Rank int
 }
 
-// LevelAxes are the two axes a workbench may declare, in the order a reader
+// LevelAxes are the three axes a workbench may declare, in the order a reader
 // meets them.
 //
-// Each axis is declared independently of the other. A workbench may declare
-// both sets, one of them, or neither, and every part of this model is keyed by
+// Each axis is declared independently of the others. A workbench may declare
+// every set, some of them, or none, and every part of this model is keyed by
 // axis rather than by workbench, so a workbench declaring severity and no
 // priority is an ordinary workbench rather than a degenerate one.
-var LevelAxes = []string{"severity", "priority"}
+var LevelAxes = []string{"severity", "priority", "tier"}
 
 // LevelsKey is the frontmatter key carrying the workbench's declared level
 // sets, one nested block holding one entry per axis.
 const LevelsKey = "levels"
 
-// KnownLevelAxis reports whether a name is one of the two axes this model
+// KnownLevelAxis reports whether a name is one of the three axes this model
 // reads. An axis outside the set is left on disk untouched and takes no part
 // in any check.
 func KnownLevelAxis(name string) bool {
@@ -55,7 +55,7 @@ var levelEntry = regexp.MustCompile(`^\s*-\s*(.*)$`)
 // Levels returns one axis's declared members in declaration order, and nil
 // when the workbench declares no set for that axis. The answer is about the
 // named axis alone: an axis carrying no declaration returns nil whether or not
-// the other axis carries one.
+// another axis carries one.
 func (b *Bench) Levels(axis string) []Level {
 	if len(b.levels[axis]) == 0 {
 		return nil
@@ -75,6 +75,18 @@ func (b *Bench) Level(axis, name string) *Level {
 	return nil
 }
 
+// LevelNames is one axis's members in declaration order, which is the order
+// every refusal listing a declared set prints them in. It lives here beside
+// the set it reads rather than beside either caller, because both the level
+// checks and the tier resolver print the same list for the same reason.
+func LevelNames(levels []Level) []string {
+	names := make([]string, 0, len(levels))
+	for _, level := range levels {
+		names = append(names, level.Name)
+	}
+	return names
+}
+
 // readLevels reads the levels block out of the raw frontmatter lines the way
 // readLinks reads a card's links sequence, rather than by introducing a YAML
 // parser for one key.
@@ -86,8 +98,8 @@ func (b *Bench) Level(axis, name string) *Level {
 //
 // Four rules bind. Declaration order within one axis is the rank, and nothing
 // sorts the members. Ranks are counted within an axis and never across the
-// block, so each axis's ranks run from zero however many members the other
-// axis carries. A duplicate name within one axis keeps the first occurrence
+// block, so each axis's ranks run from zero however many members the sibling
+// axes carry. A duplicate name within one axis keeps the first occurrence
 // for both rank and lookup. A block carrying no parseable child leaves every
 // axis undeclared and raises nothing, because the format's reader posture is
 // to ignore what it cannot read rather than to fail.

@@ -173,13 +173,19 @@ func stampSlug(path, slug string) error {
 }
 
 // NewColumn creates a column: the directory, the anchor carrying title, slug,
-// kind and (when given) a capacity, and the column's identifier spliced into
-// the workbench's own columns sequence, either at the end or immediately
-// ahead of an existing column named by before.
+// kind and (when given) a capacity and a tier default, and the column's
+// identifier spliced into the workbench's own columns sequence, either at the
+// end or immediately ahead of an existing column named by before.
 //
 // An empty kind defaults to contract.KindWork, which is what a new place to
 // do work means, and a capacity of zero means unlimited, exactly as an absent
-// wip_limit already means for every other column.
+// wip_limit already means for every other column. An empty tier means the
+// column asks for nothing of anyone, which stays reachable because it is what
+// almost every column says.
+//
+// The caller validates the tier against the workbench's declared set before
+// calling, exactly as it validates a card's own level write, so a value
+// arriving here is one the workbench declares.
 //
 // The caller holds the workbench's lock, which is what makes the identifier
 // claim, the slug collision scan and the columns-sequence write race-free,
@@ -189,7 +195,7 @@ func stampSlug(path, slug string) error {
 // called; see internal/verb/columns.go. This function does not repeat it,
 // matching the division of labour NewWorkstream already keeps with its own
 // caller.
-func (b *Bench) NewColumn(title, kind, slug string, capacity int, before string) (*Column, error) {
+func (b *Bench) NewColumn(title, kind, slug, tier string, capacity int, before string) (*Column, error) {
 	if kind == "" {
 		kind = DefaultColumnKind
 	}
@@ -222,6 +228,9 @@ func (b *Bench) NewColumn(title, kind, slug string, capacity int, before string)
 	fm.Set("title", title)
 	fm.SetAfter(SlugField, resolved, "title")
 	fm.Set("kind", kind)
+	if tier != "" {
+		fm.Set(TierField, tier)
+	}
 	if capacity > 0 {
 		fm.Set("wip_limit", strconv.Itoa(capacity))
 	}
@@ -237,7 +246,7 @@ func (b *Bench) NewColumn(title, kind, slug string, capacity int, before string)
 	if err := WriteText(filepath.Join(b.Root, WorkbenchAnchor), b.FM.Render(b.Standing)); err != nil {
 		return nil, err
 	}
-	column := &Column{ID: id, Title: title, Slug: resolved, Kind: kind, Capacity: capacity, Position: insertAt, FM: fm}
+	column := &Column{ID: id, Title: title, Slug: resolved, Kind: kind, Tier: tier, Capacity: capacity, Position: insertAt, FM: fm}
 	columns := make([]*Column, 0, len(b.Columns)+1)
 	columns = append(columns, b.Columns[:insertAt]...)
 	columns = append(columns, column)

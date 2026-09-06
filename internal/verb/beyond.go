@@ -622,20 +622,10 @@ func (l *Library) admitLevels(named map[string]string) *contract.Refusal {
 		}
 		return contract.RefuseWith(contract.UnknownLevel, value, map[string]string{
 			"axis":   axis,
-			"levels": strings.Join(declaredLevelNames(l.Bench.Levels(axis)), ", "),
+			"levels": strings.Join(bench.LevelNames(l.Bench.Levels(axis)), ", "),
 		})
 	}
 	return nil
-}
-
-// declaredLevelNames is one axis's members in declaration order, which is the
-// order the refusal lists them in.
-func declaredLevelNames(levels []bench.Level) []string {
-	names := make([]string, 0, len(levels))
-	for _, level := range levels {
-		names = append(names, level.Name)
-	}
-	return names
 }
 
 // journalFor names the journal an event about an entity is recorded in, which

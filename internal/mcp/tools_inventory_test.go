@@ -25,7 +25,7 @@ import (
 // workbench. Restoring them means deleting their rows from argumentExemptions
 // and editing this row in the same commit.
 var publishedProperties = map[string][]string{
-	"claim":            {"actor", "basis", "card", "expires", "workbench"},
+	"claim":            {"actor", "basis", "card", "expires", "tier", "workbench"},
 	"move":             {"actor", "basis", "card", "column", "override", "workbench"},
 	"release":          {"actor", "basis", "card", "workbench"},
 	"block":            {"actor", "basis", "card", "kind", "reason", "workbench"},
@@ -53,10 +53,10 @@ var publishedProperties = map[string][]string{
 	"changes":          {"actor", "card", "column", "max-depth", "root", "since", "workbench"},
 	"instructions":     {"actor", "card", "workbench"},
 	"whoami":           {"actor", "workbench"},
-	"card":             {"action", "actor", "card", "field", "value", "workbench"},
+	"card":             {"action", "actor", "at", "card", "field", "value", "workbench"},
 	"workbench":        {"action", "actor", "field", "value", "workbench", "yes"},
 	"workstream":       {"action", "actor", "field", "slug", "value", "workbench", "workstream", "yes"},
-	"new_column":       {"actor", "before", "capacity", "column", "kind", "slug", "workbench"},
+	"new_column":       {"actor", "before", "capacity", "column", "kind", "slug", "tier", "workbench"},
 	"version":          {"actor", "catalogs", "workbench"},
 	"export":           {"actor", "workbench"},
 	"check":            {"actor", "workbench"},

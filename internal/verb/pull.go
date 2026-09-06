@@ -313,6 +313,13 @@ func (l *Library) pull(req *Request, card *bench.Card) *Response {
 		if refusal := l.claimableItems(req, card); refusal != nil {
 			return refusal
 		}
+		// Row 14, Dinah's own, is asked about the destination rather than the
+		// column the card is leaving, because that is where the claim is
+		// taken. A --no-claim pull takes nothing up, so no requirement the
+		// card carries can refuse it, exactly as no unresolved item can.
+		if refusal := l.claimableTier(req, card, destination); refusal != nil {
+			return refusal
+		}
 	}
 	now := l.Now()
 	stamp := bench.Stamp(now)

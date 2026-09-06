@@ -1074,6 +1074,7 @@ func (l *Library) carryOneCard(req *Request, entry *reshapeRetirement, destinati
 		ToTitle:   destination.Title,
 		Reshape:   true,
 	}
+	dropped := dropTierOverrideFor(card, fresh, entry.id)
 	card.Column = destination.ID
 	if err := card.Save(); err != nil {
 		return false, err
@@ -1081,7 +1082,46 @@ func (l *Library) carryOneCard(req *Request, entry *reshapeRetirement, destinati
 	if err := bench.AppendEvent(card.JournalPath(), ev); err != nil {
 		return false, err
 	}
+	if dropped != "" {
+		drop := bench.Event{
+			TS:     now,
+			Event:  contract.EventTierOverrideDropped,
+			Actor:  req.Actor,
+			Column: entry.id,
+			From:   dropped,
+		}
+		if err := bench.AppendEvent(card.JournalPath(), drop); err != nil {
+			return false, err
+		}
+	}
 	return true, nil
+}
+
+// dropTierOverrideFor removes the card's tier override for the column being
+// retired, and reports the absolute value it removed so the caller can journal
+// the drop. It reports the empty string when the card carries no override for
+// that column, which is the ordinary case.
+//
+// A tier chosen for one station is not evidence about a different one, so the
+// override is dropped rather than carried to wherever the card lands. Reshape
+// picked that destination to satisfy the invariant that a card stands
+// somewhere, and nobody judged the destination's own acuity when it did.
+// Carrying the value forward would be reshape inventing a fact nobody stated,
+// which is what the position side already refuses to do when it strands an
+// unmapped card rather than guessing at one.
+//
+// An override naming any other column is untouched, since the match is against
+// the one column this call is carrying the card out of.
+func dropTierOverrideFor(card *bench.Card, fresh *bench.Bench, retiring string) string {
+	for i, override := range card.ColumnTiers {
+		target := fresh.ColumnByRef(override.Column)
+		if target == nil || target.ID != retiring {
+			continue
+		}
+		card.ColumnTiers = append(card.ColumnTiers[:i], card.ColumnTiers[i+1:]...)
+		return override.Tier
+	}
+	return ""
 }
 
 // reshapeDepartureTitle is the title a carried card's moved event records for

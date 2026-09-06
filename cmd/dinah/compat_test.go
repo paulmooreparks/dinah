@@ -75,9 +75,9 @@ var wantedTemplates = []string{
 // workstreams, and the head writes none of them as mappings today.
 var wantedKeys = map[string][]string{
 	"workbench.md":                                      {"format", "profile", "title", "slug", "operator", "columns", "levels"},
-	"columns/<id>/column.md":                            {"title", "slug", "kind", "operator_owned", "wip_limit"},
+	"columns/<id>/column.md":                            {"title", "slug", "kind", "operator_owned", "wip_limit", "tier"},
 	"archive/columns/<id>/column.md":                    {"title", "slug", "kind", "operator_owned", "wip_limit"},
-	"cards/<id>/card.md":                                {"title", "number", "column", "state", "severity", "priority", "claim_holder", "claim_since", "claim_expires", "block_reason", "block_kind", "block_since", "workstreams"},
+	"cards/<id>/card.md":                                {"title", "number", "column", "state", "severity", "priority", "tier", "tier_at", "claim_holder", "claim_since", "claim_expires", "block_reason", "block_kind", "block_since", "workstreams"},
 	"archive/cards/<id>/card.md":                        {"title", "number", "column", "state"},
 	"cards/<id>/comments/<id>/comment.md":               {"ts", "author", "ordinal"},
 	"cards/<id>/archive/comments/<id>/comment.md":       {"ts", "author", "ordinal"},
@@ -111,6 +111,10 @@ var wantedEvents = map[string][]string{
 	contract.EventWorkstreamJoined:   {"ts", "event", "actor", "workstream"},
 	contract.EventWorkstreamLeft:     {"ts", "event", "actor", "workstream"},
 	contract.EventManualCorrection:   {"ts", "event", "actor", "from", "from_title", "to", "to_title"},
+	// against is absent on an absolute override write, which needed no
+	// baseline, and the sequence writes one of each, so the union carries it.
+	contract.EventTierOverridden:      {"ts", "event", "actor", "column", "from", "to", "expr", "against"},
+	contract.EventTierOverrideDropped: {"ts", "event", "actor", "column", "from"},
 }
 
 // unwrittenEvents are the event names internal/contract declares that this

@@ -340,7 +340,7 @@ func TestNamingAFieldACardDoesNotRecordRefuses(t *testing.T) {
 	if name := refusalNameOf(refused.errw); name != contract.UnknownField {
 		t.Errorf("the refusal name is %s, wanted %s", name, contract.UnknownField)
 	}
-	if !strings.Contains(refused.errw, "The fields a card records are: severity, priority.") {
+	if !strings.Contains(refused.errw, "The fields a card records are: severity, priority, tier.") {
 		t.Errorf("the sentence does not carry the fields a card records:\n%s", refused.errw)
 	}
 	if strings.Contains(refused.errw, "a query may name") {
@@ -523,16 +523,24 @@ func TestTheCardHelpPageIsTheBlockTheOperatorApproved(t *testing.T) {
 	if got.code != 0 {
 		t.Fatalf("help card: %d %s", got.code, got.errw)
 	}
+	// The comparison runs over the page's words rather than its lines. An
+	// argument's meaning wraps under its own column at this window, which the
+	// <card> row has always done and the <field> row does now that the field
+	// set names three axes, and a wrap is allowed to change nothing about the
+	// words themselves.
+	flat := flattenWords(got.out)
 	for _, phrase := range []string{
 		"card <get|set> <card> <field> [value]",
 		"<get|set>",
 		"<card>",
 		"<field>",
 		"[value]",
-		"which field you are reading or writing: severity or priority",
+		"[--at <column>]",
+		"which field you are reading or writing: severity, priority or tier",
 		"the level to write; leave it out to clear the field",
+		"the column a tier write applies to, instead of the card's own baseline",
 	} {
-		if !strings.Contains(got.out, phrase) {
+		if !strings.Contains(flat, phrase) {
 			t.Errorf("the page does not carry %q:\n%s", phrase, got.out)
 		}
 	}
