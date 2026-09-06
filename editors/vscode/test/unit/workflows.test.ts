@@ -705,8 +705,8 @@ test("the marketplace publish is dormant until a token exists", () => {
 		"the publish step no longer runs vsce publish exactly once",
 	);
 	assert.ok(
-		command[0].includes("--skip-duplicate") && command[0].includes("--pre-release"),
-		"the publish command no longer republishes idempotently as a pre-release",
+		command[0].includes("--skip-duplicate") && !command[0].includes("--pre-release"),
+		"the publish command stamps the marketplace publish as a pre-release again",
 	);
 	assert.ok(
 		command[0].includes("--packagePath vsix/dinah-universal.vsix"),
