@@ -336,3 +336,247 @@ smallest of the three.
 The response envelope is the smallest of the attributed figures, so a card that
 shapes the read verbs should be scoped against that figure rather than against
 either total.
+
+
+## 2026-09-06: the block, cut by publishing an injected property only where it is consumed
+
+dinah-397 landed a cut to the tool-definition block. `injectedProperties` added
+`actor`, `basis` and `workbench` to every one of the head's 36 tools, and those
+three properties were the largest repeated text on the surface. `basis` was the
+worst of them: eight tools read it, and 28 accepted it and dropped it in silence,
+so publishing it only where it is consumed closed a correctness hole and took the
+biggest string off the surface in one move. `schema.workbench.description` was
+cut to a single line, because `internal/guide/guides/mcp.md` already carries the
+whole address grammar. The `check` tool's ten store-repair markers were withdrawn
+from this head by the operator's ruling of 2026-09-06, and they remain in the
+verb library and at the terminal.
+
+The comparison is a pair of runs made with two binaries at one commit, rather
+than a run measured against a figure frozen in this document. The harness
+composes its instruction-chain layers from four committed files read at the
+commit it is given, so every chain figure is a function of that commit, and any
+other card editing one of those files would move it. Giving both binaries the
+same commit makes the binary the only difference between the two sides. The
+landing commit is `0b2df2c990f55daade44e6a4640295bbc2566ff7`, which is the
+commit that landed the surface change; this section sits on top of it.
+
+```
+LANDING=0b2df2c990f55daade44e6a4640295bbc2566ff7
+go build -o ./dinah-landing ./cmd/dinah
+git worktree add --detach ../dinah-baseline-wt b54159a250805ff66ae2d0e1d8d750964a2e522c
+go build -C ../dinah-baseline-wt -o "$PWD/dinah-baseline" ./cmd/dinah
+python scripts/measure_agentic_sequence.py --dinah ./dinah-baseline \
+    --root <a scratch directory the harness may create and remove> \
+    --counter api --commit "$LANDING" --per-tool \
+    --api-key-file <the file holding a console API key>
+python scripts/measure_agentic_sequence.py --dinah ./dinah-landing \
+    --root <a scratch directory the harness may create and remove> \
+    --counter api --commit "$LANDING" --per-tool \
+    --api-key-file <the file holding a console API key>
+```
+
+### The paired runs, verbatim
+
+```
+the baseline binary, built at b54159a250805ff66ae2d0e1d8d750964a2e522c
+
+the tool-definition block, and the round trips it is paid on
+  tools the MCP head serves                                            36 tools [not a token count]
+  tool-definition block, once                                       12837 tokens [counter=api model=claude-opus-5]
+  verb run, tool-call rounds                                           12 rounds [not a token count]
+  file run, tool-call rounds                                           18 rounds [not a token count]
+  tool block over the verb run's rounds                            154044 tokens [counter=api model=claude-opus-5]
+  tool block over the file run's rounds                            231066 tokens [counter=api model=claude-opus-5]
+  round-trip component, file run less verb run                     +77022 tokens [counter=api model=claude-opus-5]
+
+served instruction chain, per layer, arrivals and repeats
+  global layer, arrival serves (1)                                    408 tokens [counter=api model=claude-opus-5]
+  global layer, repeats within one card's own acts (4)               1632 tokens [counter=api model=claude-opus-5]
+  global layer, repeats across a card boundary (1)                    408 tokens [counter=api model=claude-opus-5]
+  standing layer, arrival serves (1)                                 2791 tokens [counter=api model=claude-opus-5]
+  standing layer, repeats within one card's own acts (4)            11164 tokens [counter=api model=claude-opus-5]
+  standing layer, repeats across a card boundary (1)                 2791 tokens [counter=api model=claude-opus-5]
+  column layer, arrival serves (2)                                   8080 tokens [counter=api model=claude-opus-5]
+  column layer, repeats within one card's own acts (2)               8382 tokens [counter=api model=claude-opus-5]
+  column layer, repeats across a card boundary (2)                   8080 tokens [counter=api model=claude-opus-5]
+  chain, arrival serves, all layers                                 11279 tokens [counter=api model=claude-opus-5]
+  chain, repeat serves, all layers                                  32457 tokens [counter=api model=claude-opus-5]
+
+the reconciliation, against the verb run's context footprint
+  sum of the attributed figures and the tool block once             87265 tokens [counter=api model=claude-opus-5]
+  verb run, context footprint                                       88341 tokens [counter=api model=claude-opus-5]
+  residual                                                          +1076 tokens [counter=api model=claude-opus-5]
+  residual as a share of the footprint                             +1.218 %  [derived within one regime]
+
+the landing binary, built at 0b2df2c990f55daade44e6a4640295bbc2566ff7
+
+the tool-definition block, and the round trips it is paid on
+  tools the MCP head serves                                            36 tools [not a token count]
+  tool-definition block, once                                        8660 tokens [counter=api model=claude-opus-5]
+  verb run, tool-call rounds                                           12 rounds [not a token count]
+  file run, tool-call rounds                                           18 rounds [not a token count]
+  tool block over the verb run's rounds                            103920 tokens [counter=api model=claude-opus-5]
+  tool block over the file run's rounds                            155880 tokens [counter=api model=claude-opus-5]
+  round-trip component, file run less verb run                     +51960 tokens [counter=api model=claude-opus-5]
+
+served instruction chain, per layer, arrivals and repeats
+  global layer, arrival serves (1)                                    408 tokens [counter=api model=claude-opus-5]
+  global layer, repeats within one card's own acts (4)               1632 tokens [counter=api model=claude-opus-5]
+  global layer, repeats across a card boundary (1)                    408 tokens [counter=api model=claude-opus-5]
+  standing layer, arrival serves (1)                                 2791 tokens [counter=api model=claude-opus-5]
+  standing layer, repeats within one card's own acts (4)            11164 tokens [counter=api model=claude-opus-5]
+  standing layer, repeats across a card boundary (1)                 2791 tokens [counter=api model=claude-opus-5]
+  column layer, arrival serves (2)                                   8080 tokens [counter=api model=claude-opus-5]
+  column layer, repeats within one card's own acts (2)               8382 tokens [counter=api model=claude-opus-5]
+  column layer, repeats across a card boundary (2)                   8080 tokens [counter=api model=claude-opus-5]
+  chain, arrival serves, all layers                                 11279 tokens [counter=api model=claude-opus-5]
+  chain, repeat serves, all layers                                  32457 tokens [counter=api model=claude-opus-5]
+
+the reconciliation, against the verb run's context footprint
+  sum of the attributed figures and the tool block once             83088 tokens [counter=api model=claude-opus-5]
+  verb run, context footprint                                       84164 tokens [counter=api model=claude-opus-5]
+  residual                                                          +1076 tokens [counter=api model=claude-opus-5]
+  residual as a share of the footprint                             +1.278 %  [derived within one regime]
+```
+
+The block fell, the tool count did not move, both round counts did not move, and
+every figure in the served instruction chain is equal between the two runs to the
+token. That last equality is what shows this card's saving and dinah-382's add
+rather than overlap: this card takes text off every request whatever the
+workbench serves, and dinah-382 takes text out of what the workbench serves.
+
+### The block attributed per published tool, at the landing commit
+
+`--per-tool` counts the whole block, counts it again with one tool removed, and
+reports the difference. The figures do not sum to the block, because a tokenizer
+is not additive over a concatenation, so each one is what removing that tool
+would save rather than a slice of a partition.
+
+```
+the tool-definition block, attributed per published tool
+  claim                                                               245 tokens [counter=api model=claude-opus-5]
+  move                                                                275 tokens [counter=api model=claude-opus-5]
+  release                                                             207 tokens [counter=api model=claude-opus-5]
+  block                                                               289 tokens [counter=api model=claude-opus-5]
+  unblock                                                             210 tokens [counter=api model=claude-opus-5]
+  join_workstream                                                     254 tokens [counter=api model=claude-opus-5]
+  leave_workstream                                                    256 tokens [counter=api model=claude-opus-5]
+  add_card                                                            267 tokens [counter=api model=claude-opus-5]
+  comment                                                             209 tokens [counter=api model=claude-opus-5]
+  attach                                                              302 tokens [counter=api model=claude-opus-5]
+  archive                                                             183 tokens [counter=api model=claude-opus-5]
+  delete                                                              226 tokens [counter=api model=claude-opus-5]
+  rename                                                              223 tokens [counter=api model=claude-opus-5]
+  status                                                              214 tokens [counter=api model=claude-opus-5]
+  columns                                                             114 tokens [counter=api model=claude-opus-5]
+  list_cards                                                          284 tokens [counter=api model=claude-opus-5]
+  next_card                                                           249 tokens [counter=api model=claude-opus-5]
+  pull                                                                375 tokens [counter=api model=claude-opus-5]
+  query                                                               159 tokens [counter=api model=claude-opus-5]
+  search_cards                                                        345 tokens [counter=api model=claude-opus-5]
+  tree                                                                357 tokens [counter=api model=claude-opus-5]
+  contents                                                            228 tokens [counter=api model=claude-opus-5]
+  attachments                                                         186 tokens [counter=api model=claude-opus-5]
+  show                                                                168 tokens [counter=api model=claude-opus-5]
+  log                                                                 166 tokens [counter=api model=claude-opus-5]
+  changes                                                             331 tokens [counter=api model=claude-opus-5]
+  instructions                                                        166 tokens [counter=api model=claude-opus-5]
+  whoami                                                              126 tokens [counter=api model=claude-opus-5]
+  card                                                                267 tokens [counter=api model=claude-opus-5]
+  workbench                                                           246 tokens [counter=api model=claude-opus-5]
+  workstream                                                          341 tokens [counter=api model=claude-opus-5]
+  new_column                                                          338 tokens [counter=api model=claude-opus-5]
+  version                                                             156 tokens [counter=api model=claude-opus-5]
+  export                                                              122 tokens [counter=api model=claude-opus-5]
+  check                                                               119 tokens [counter=api model=claude-opus-5]
+  workbenches                                                         171 tokens [counter=api model=claude-opus-5]
+```
+
+### The verb-selection check
+
+A token count cannot say whether an agent still finds the right verb, so
+`scripts/verb_selection.py` compares verb selection under the two blocks over a
+committed fixture of task statements, one per published tool. It samples rather
+than reading one draw as a verdict, because the Messages API documents
+`temperature` as a sampling control and publishes no reproducibility guarantee at
+any value. A block's selection settles when one tool takes four fifths of a
+scenario's trials, and both failing verdicts are re-run at fifteen trials inside
+the same invocation before they stand.
+
+The check pins a different model from the one the cost harness counts for. The
+endpoint refuses `temperature` for the newest Opus, answering that the parameter
+is deprecated for that model, so a run pinned against it cannot be made, and the
+script fails outright rather than dropping the pin.
+
+```
+verb_selection: one committed fixture, two tool blocks, one pinned model
+
+  model                    claude-sonnet-4-5
+  endpoint                 https://api.anthropic.com/v1/messages
+  temperature              0.0
+  max_tokens               256
+  system digest            8c24d256ccab6bd9
+  scenario order digest    1977fc5773ad7549
+  trials per scenario      5
+  settle bar               4 of 5 (4/5 of the trials, rounded up)
+  escalated settle bar     12 of 15
+  scenarios                36
+  baseline block           36 tools, digest 9189f93ad92f4f16
+  candidate block          36 tools, digest f0fd44b1f11989aa
+
+  expected           baseline           under test         verdict          note
+  claim              claim              claim              pass             
+  move               move               move               pass             
+  release            release            release            pass             
+  block              block              block              pass             
+  unblock            unblock            unblock            pass             
+  join_workstream    join_workstream    join_workstream    pass             
+  leave_workstream   leave_workstream   leave_workstream   pass             
+  add_card           add_card           add_card           pass             
+  comment            comment            comment            pass             
+  attach             attach             attach             pass             
+  archive            archive            archive            pass             
+  delete             delete             delete             pass             
+  rename             attachments        attachments        no baseline      the baseline did not settle on the expected tool
+  status             status             status             pass             
+  columns            columns            columns            pass             
+  list_cards         list_cards         list_cards         pass             
+  next_card          next_card          next_card          pass             
+  pull               pull               pull               pass             
+  query              query              query              pass             
+  search_cards       search_cards       search_cards       pass             
+  tree               tree               tree               pass             
+  contents           contents           contents           pass             
+  attachments        attachments        attachments        pass             
+  show               show               show               pass             
+  log                log                log                pass             
+  changes            changes            changes            pass             
+  instructions       instructions       instructions       pass             
+  whoami             whoami             whoami             pass             
+  card               card               card               pass             
+  workbench          workbench          workbench          pass             
+  workstream         workstream         workstream         pass             
+  new_column         new_column         new_column         pass             
+  version            version            version            pass             
+  export             export             export             pass             
+  check              check              check              pass             
+  workbenches        workbenches        workbenches        pass             
+
+  pass                     35
+  no baseline              1
+  fail                     0
+  requests sent            360
+  input tokens billed      3282360
+```
+
+Two rows are worth reading rather than skipping. The `rename` scenario prints
+`no baseline`: both blocks settle on `attachments` for it, so the two sides agree
+and the cut changed nothing, but the baseline never settled on the expected tool,
+and a scenario the surface never answered reliably cannot show that this cut
+broke it. The first run of this check, against an earlier draft of the fixture,
+failed on `status`, and that statement was rewritten because it described what
+`tree` grouped by column does as much as what `status` does. The rewritten
+statement names what `status` alone answers, which is where the workbench stands
+and what the caller holds. That is fixture authoring on a fixture landing in the
+same commit, rather than a re-run of an unchanged comparison for a greener
+result, and the earlier verdict is recorded here so that a reader can weigh it.

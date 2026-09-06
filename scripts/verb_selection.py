@@ -85,6 +85,15 @@ ENDPOINT = "https://api.anthropic.com/v1/messages"
 API_VERSION = "2023-06-01"
 TEMPERATURE = 0.0
 
+# The model this check chooses under by default, which is not the model the
+# cost harness counts for. The sampling control has to be pinned for the header
+# to mean anything, and the endpoint answers 400 with "`temperature` is
+# deprecated for this model" for the newest Opus, so a run pinned against that
+# model cannot be made. This default is a model the endpoint accepts the
+# parameter on. Naming a model that rejects it fails the run outright, with the
+# endpoint's own message, rather than quietly dropping the pin.
+DEFAULT_MODEL = "claude-sonnet-4-5"
+
 # The smallest budget that admits a single tool call. A tool_use block carries
 # its own input object, and the largest schema on this surface takes a handful
 # of short string fields, so the budget is set here rather than left to a value
@@ -280,7 +289,7 @@ def main():
                         help="the committed scenario fixture")
     parser.add_argument("--trials", type=int, default=5,
                         help="requests per scenario per block before any escalation")
-    parser.add_argument("--model", default="claude-opus-5",
+    parser.add_argument("--model", default=DEFAULT_MODEL,
                         help="the model that chooses, pinned and recorded")
     parser.add_argument("--api-key-file",
                         default=os.path.join(os.path.expanduser("~"), ".dinah-token-count.txt"),
