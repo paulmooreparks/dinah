@@ -254,6 +254,15 @@ test("each trigger reads its version from the step that can answer for it", () =
 			manual.includes('echo "changed=true" >> "$GITHUB_OUTPUT"'),
 		"the manual step no longer reads the committed version and declares it releasable",
 	);
+	// The job's outputs name steps.manual.outputs.version whether or not the
+	// step ever writes it, and the create step reads that output for both the
+	// release's name and its body. Without this assertion the write can be
+	// deleted and the suite stays green while a dispatched run cuts a release
+	// titled "Dinah for VS Code " with an empty version in it.
+	assert.ok(
+		manual.includes('echo "version=$VERSION" >> "$GITHUB_OUTPUT"'),
+		"the manual step no longer publishes the version it read, so the release it cuts would be named and described with an empty version",
+	);
 	assert.ok(
 		!/github\.event\.(before|created)/.test(manual),
 		"the manual step consults a push-only field, which carries nothing on a dispatched run",
@@ -286,9 +295,15 @@ test("a tag that already carries a release is replaced by hand and refused on a 
 		"the delete-and-recreate step is no longer restricted to dispatched runs, so a push could destroy a published release",
 	);
 	assert.ok(
-		replace.includes('gh release view "$TAG"') &&
+		replace.includes('gh api "repos/$REPO/releases"') &&
+			replace.includes(`grep -Fxq "$TAG"`) &&
 			replace.includes('gh release delete "$TAG" --repo "$REPO" --yes --cleanup-tag'),
-		"the manual path no longer deletes the existing release and its tag before recreating them",
+		"the manual path no longer decides by testing this tag against the release list before deleting",
+	);
+	assert.ok(
+		replace.includes("::error::the releases on $REPO could not be listed") &&
+			replace.includes("exit 1"),
+		"the manual path no longer fails when it cannot list the releases, so a lookup that could not answer reads as a tag with nothing on it",
 	);
 	const refuse = vscodeRelease.slice(
 		vscodeRelease.indexOf("- name: Refuse to overwrite a pre-existing release on a push"),
@@ -299,10 +314,25 @@ test("a tag that already carries a release is replaced by hand and refused on a 
 		"the refusal is no longer restricted to pushes, so a manual re-cut would fail on the release it came to replace",
 	);
 	assert.ok(
-		refuse.includes('gh release view "$TAG"') &&
+		refuse.includes('gh api "repos/$REPO/releases"') &&
+			refuse.includes(`grep -Fxq "$TAG"`) &&
 			refuse.includes("::error::a release already exists at $TAG") &&
 			refuse.includes("exit 1"),
 		"a push reaching an already-released version no longer fails loudly",
+	);
+	// This is the assertion that closes the round-two finding. gh documents
+	// exit code 1 for a command that "fails for any reason", so a lookup
+	// reading absence off a non-zero exit cannot tell a tag with no release
+	// on it from a tag it was unable to ask about, and on the second one this
+	// step would wave the run through to an action documented to update an
+	// existing release in place.
+	assert.ok(
+		refuse.includes("::error::the releases on $REPO could not be listed"),
+		"the push refusal no longer fails when it cannot list the releases, so an API error, a rate limit or a token problem lets the run overwrite a published release",
+	);
+	assert.ok(
+		!refuse.includes("gh release view") && !replace.includes("gh release view"),
+		"a collision step is back to asking gh release view, whose non-zero exit means both 'no such release' and 'could not look'",
 	);
 	assert.ok(
 		!refuse.includes("gh release delete"),

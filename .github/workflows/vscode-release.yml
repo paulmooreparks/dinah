@@ -62,7 +62,12 @@ jobs:
     # use of the operators by example, at jobs.<job_id>.services.<service_id>
     # .image, where `${{ options.nginx == true && 'nginx' || '' }}` yields an
     # operand rather than a boolean. The skipped step contributes no output,
-    # so its side of the expression is empty and the other side answers.
+    # so its side of the expression is empty and the other side answers. That
+    # half is documented too, in GitHub's contexts reference: the steps
+    # context "contains information about the steps in the current job that
+    # have an `id` specified and have already run", and "If you attempt to
+    # dereference a nonexistent property, it will evaluate to an empty
+    # string".
     outputs:
       changed: ${{ steps.diff.outputs.changed || steps.manual.outputs.changed }}
       version: ${{ steps.diff.outputs.version || steps.manual.outputs.version }}
@@ -274,6 +279,21 @@ jobs:
       # a push landing on an already-released version would silently replace
       # that release's archive. Both halves of the ruling are built.
       #
+      # Both steps ask the question by listing the releases and testing this
+      # tag for membership, which is the shape the dev-release lookup above
+      # already uses. An earlier round asked it with `gh release view "$TAG"`
+      # and read a non-zero exit as "no release exists", which cannot be
+      # right: `gh help exit-codes` documents 0 for success and 1 for a
+      # command that "fails for any reason", so an absent release and a
+      # lookup that could not answer (an API error, a rate limit, a token
+      # problem) arrive at that step spelled identically. On the second of
+      # those the push step announced that the tag was free and handed the run
+      # to the create step, which is the silent overwrite the ruling exists to
+      # prevent. A list that comes back and does not carry the tag is a
+      # positive answer of absence, and a list that fails is told apart from
+      # it by the same documented exit status, so neither step below rests on
+      # any message text or on any undocumented code.
+      #
       # The job already holds contents: write for the create step below, which
       # is also what deleting a release needs, so neither step asks for more.
       - name: Replace a pre-existing release at this tag on a manual run
@@ -284,11 +304,16 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           set -e
-          if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
-            echo "A release already exists at $TAG. Deleting it and its tag so this run recreates both at the current commit."
+          set -o pipefail
+          if ! TAGS=$(gh api "repos/$REPO/releases" --paginate --jq '.[] | .tag_name'); then
+            echo "::error::the releases on $REPO could not be listed, so whether $TAG already carries a release is unknown; refusing rather than reporting an answer this step does not have"
+            exit 1
+          fi
+          if printf '%s\n' "$TAGS" | grep -Fxq "$TAG"; then
+            echo "The release list carries $TAG. Deleting that release and its tag so this run recreates both at the current commit."
             gh release delete "$TAG" --repo "$REPO" --yes --cleanup-tag
           else
-            echo "No release exists at $TAG yet, so there is nothing to replace."
+            echo "The release list came back and carries no $TAG, so there is nothing to replace."
           fi
 
       - name: Refuse to overwrite a pre-existing release on a push
@@ -299,11 +324,16 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           set -e
-          if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
+          set -o pipefail
+          if ! TAGS=$(gh api "repos/$REPO/releases" --paginate --jq '.[] | .tag_name'); then
+            echo "::error::the releases on $REPO could not be listed, so whether $TAG already carries a release is unknown; refusing rather than letting this push reach a create step that would replace a release nobody could check for"
+            exit 1
+          fi
+          if printf '%s\n' "$TAGS" | grep -Fxq "$TAG"; then
             echo "::error::a release already exists at $TAG, so this push reached a version that has already shipped; dispatch this workflow manually if you meant to replace that release"
             exit 1
           fi
-          echo "No release exists at $TAG, so this push is cutting it for the first time."
+          echo "The release list came back and carries no $TAG, so this push is cutting it for the first time."
 
       # The asset list names the one archive and nothing else. vsix/manifest.json
       # is written beside it by package.mjs so that verify-package.mjs and a
