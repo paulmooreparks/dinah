@@ -273,7 +273,7 @@
 			"source": "ec979ef589c9e2f5"
 		},
 		"status.outsideWorkspace": {
-			"text": "यह वर्कबेंच आपके कार्यक्षेत्र के बाहर है: {root}",
+			"text": "यह वर्कबेंच आपके वर्कस्पेस के बाहर है: {root}",
 			"context": "Leading hover line when the walk climbed past the workspace folder. {root} is the workbench's directory.",
 			"source": "51d0ceb69d7b761d"
 		}
