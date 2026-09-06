@@ -52,6 +52,7 @@ jobs:
       contents: write # creates the tag ref
     outputs:
       tag: ${{ steps.version.outputs.tag }}
+      targets: ${{ steps.targets.outputs.targets }}
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -107,6 +108,14 @@ jobs:
             -f ref="refs/tags/$TAG" \
             -f sha="$SHA"
 
+      # The platform list is declared once, in internal/release/targets.go, and
+      # read from here by the build matrix below and by the release job's asset
+      # check. A workflow that spelled the list twice could pass a build whose
+      # dist/ was checked against a different set of names than it produced.
+      - name: Resolve the platform target list
+        id: targets
+        run: echo "targets=$(go run ./cmd/dinah-release targets --format json)" >> "$GITHUB_OUTPUT"
+
   # ci.yml runs as a job of this workflow rather than being polled by SHA. A
   # job that "needs" this one blocks on the native GitHub Actions dependency
   # graph until every job inside ci.yml finishes, which is what removes the
@@ -147,25 +156,7 @@ jobs:
       contents: read
     strategy:
       matrix:
-        include:
-          - goos: windows
-            goarch: amd64
-            ext: .exe
-          - goos: windows
-            goarch: arm64
-            ext: .exe
-          - goos: linux
-            goarch: amd64
-            ext: ""
-          - goos: linux
-            goarch: arm64
-            ext: ""
-          - goos: darwin
-            goarch: amd64
-            ext: ""
-          - goos: darwin
-            goarch: arm64
-            ext: ""
+        include: ${{ fromJSON(needs.compute-version.outputs.targets) }}
 
     steps:
       - name: Checkout source
@@ -208,6 +199,13 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
+      # The asset check below runs the same declaration the build matrix read,
+      # so this job needs a toolchain even though it compiles nothing itself.
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
       - name: Download every binary
         uses: actions/download-artifact@v4
         with:
@@ -216,25 +214,34 @@ jobs:
 
       # A release naming fewer binaries than the matrix builds is worse than no
       # release, because the manifest would tell a person on a missing platform
-      # that no build exists for their machine. The steps below publish
-      # whatever landed in dist/, so this names what has to be there.
-      - name: Confirm every binary arrived
+      # that no build exists for their machine. A release naming more is worse
+      # again: the download step takes every artifact this run produced, ci.yml
+      # runs as a job of this run, and its extension archive rode along on real
+      # releases for weeks because the check here only looked for six names and
+      # had no opinion about a seventh file (dinah-396).
+      #
+      # So the assertion runs in both directions. dist/ has to hold the six
+      # platform binaries and nothing else, and either kind of difference stops
+      # the run before anything is attached to a release.
+      #
+      # Position matters. SHA256SUMS.txt does not exist yet at this point in the
+      # job, because the channel-manifest action writes it in a later step, so
+      # moving this step after that one would fail every run.
+      - name: Confirm dist/ carries exactly what a release should carry
         run: |
-          set -e
-          EXPECTED="dinah-windows-amd64.exe dinah-windows-arm64.exe dinah-linux-amd64 dinah-linux-arm64 dinah-darwin-amd64 dinah-darwin-arm64"
-          MISSING=""
-          for binary in $EXPECTED; do
-            if [ ! -f "dist/$binary" ]; then
-              MISSING="$MISSING $binary"
-            fi
-          done
-          if [ -n "$MISSING" ]; then
-            echo "::error::the build did not produce:$MISSING"
-            echo "dist/ holds:"
-            ls -1 dist
+          set -eo pipefail
+          go run ./cmd/dinah-release targets --format names | sort > expected.txt
+          # -maxdepth 1 -type f lists the regular files directly inside dist/,
+          # so an artifact that arrives as a directory is reported rather than
+          # descended into.
+          find dist -maxdepth 1 -type f -printf '%f\n' | sort > actual.txt
+          if ! diff -u expected.txt actual.txt > dist-diff.txt; then
+            echo "::error::dist/ does not hold exactly the expected release binaries"
+            echo "--- expected  +++ actually present in dist/"
+            cat dist-diff.txt
             exit 1
           fi
-          echo "All six binaries arrived."
+          echo "dist/ holds exactly the $(wc -l < expected.txt) expected binaries."
 
       - name: Check the release number reached the binary
         env:
