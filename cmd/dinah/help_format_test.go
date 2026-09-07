@@ -63,7 +63,7 @@ READ
     [--root <path>] [--max-depth <n>]
   contents <ref> [--depth <level>]                       What an entity of the workbench contains
   attachments [ref]                                      What is attached to an entity of the workbench
-  show <ref>                                             A card, or anything below it
+  show <ref> [--fields <list>]                           A card, or anything below it
   log <card>                                             The recorded actions of a card, oldest first
   changes [--since <cursor>] [--card <ref>]              What has happened on this workbench since a cursor
     [--column <column>] [--root <path>] [--max-depth <n>]
@@ -152,7 +152,7 @@ READ
   tree [query] [--group-by <axes>] [--depth <level>] [--root <path>] [--max-depth <n>]                  The workbench's cards nested along a chain of axes
   contents <ref> [--depth <level>]                                                                      What an entity of the workbench contains
   attachments [ref]                                                                                     What is attached to an entity of the workbench
-  show <ref>                                                                                            A card, or anything below it
+  show <ref> [--fields <list>]                                                                          A card, or anything below it
   log <card>                                                                                            The recorded actions of a card, oldest first
   changes [--since <cursor>] [--card <ref>] [--column <column>] [--root <path>] [--max-depth <n>]       What has happened on this workbench since a cursor
   instructions <card|column>                                                                            The instructions served at a position

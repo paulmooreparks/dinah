@@ -522,15 +522,43 @@ func (s *session) renderOffers(offers []verb.Offer) {
 	s.table(t)
 }
 
-// renderDetail prints a card, its links, its attachments and its comments.
+// renderDetail prints a card, its links, its attachments, and its comments, and
+// then what a shaped answer held back.
+//
+// The announcement is drawn last because it is about the answer rather than
+// about the card, so a reader who asked for one member reads that member first
+// and reads what it cost afterwards.
+//
+// Every member is drawn only where the answer carries it. The three below this
+// one are slices and a string, so a member the answer left out holds nothing
+// and the emptiness check already covers it, but the card view is a struct and
+// its zero value draws a header of empty cells. The answer is asked directly
+// here rather than read for emptiness, so a reader at the terminal is shown
+// what the payload of the same call carries and nothing besides.
+//
+// The blank line between two blocks is drawn by gap rather than written at the
+// head of each block, because a block is no longer sure of having anything
+// above it. An answer whose field list leaves the card out opens on the first
+// member it does carry, and one that carries a single member draws no blank
+// line at all.
 func (s *session) renderDetail(detail *verb.Detail) {
-	s.renderCard(&detail.Card)
+	drawn := false
+	gap := func() {
+		if drawn {
+			s.line("")
+		}
+		drawn = true
+	}
+	if detail.Carries("card") {
+		s.renderCard(&detail.Card)
+		drawn = true
+	}
 	if detail.Body != "" {
-		s.line("")
+		gap()
 		s.write(detail.Body)
 	}
 	if len(detail.Links) > 0 {
-		s.line("")
+		gap()
 		s.line(s.r.T("show.links"))
 		links := table{indent: 2, columns: s.columns("links", "link", "card")}
 		for _, link := range detail.Links {
@@ -539,12 +567,12 @@ func (s *session) renderDetail(detail *verb.Detail) {
 		s.table(links)
 	}
 	if len(detail.Attachments) > 0 {
-		s.line("")
+		gap()
 		s.line(s.r.T("show.attachments"))
 		s.renderAttachments(detail.Attachments)
 	}
 	if len(detail.Comments) > 0 {
-		s.line("")
+		gap()
 		s.line(s.r.T("show.comments"))
 		comments := table{indent: 2, columns: s.columns("comments", "when", "who")}
 		for _, comment := range detail.Comments {
@@ -552,6 +580,11 @@ func (s *session) renderDetail(detail *verb.Detail) {
 			comments.rows = append(comments.rows, tableRow{fields: fields, note: comment.Body})
 		}
 		s.table(comments)
+	}
+	if len(detail.Withheld) > 0 {
+		gap()
+		s.line(s.r.T("show.withheld", "members", strings.Join(detail.Withheld, ", ")))
+		s.line(s.r.T("show.reread", "reread", detail.Reread))
 	}
 }
 

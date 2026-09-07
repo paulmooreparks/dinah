@@ -160,11 +160,12 @@ type Vocabulary struct {
 // the sets the commands themselves check against, so neither can drift from
 // what a command accepts, and two name a set only a head can resolve.
 var vocabularies = map[string]Vocabulary{
-	"key":         {Values: bench.ConfigKeys},
-	"field":       {Values: bench.WorkbenchFields},
-	"column-kind": {Values: contract.Kinds},
-	"topic":       {Source: "guides"},
-	"column":      {Source: "columns"},
+	"key":          {Values: bench.ConfigKeys},
+	"field":        {Values: bench.WorkbenchFields},
+	"column-kind":  {Values: contract.Kinds},
+	"detail-field": {Values: DetailFields},
+	"topic":        {Source: "guides"},
+	"column":       {Source: "columns"},
 }
 
 // VocabularyFor returns the set one argument accepts, and whether it declares
@@ -375,8 +376,16 @@ var params = map[string][]Param{
 	// for the same reason: the shared sentence ends "not this workbench" and
 	// the workbench is one of the four kinds this read is asked about.
 	"attachments": {{Name: "ref", Guide: "references", Field: "Ref"}},
-	"show":        {{Name: "card", Display: "ref", Required: true, Guide: "references", Field: "Card"}},
-	"log":         {{Name: "card", Required: true, Shared: "card", Field: "Card"}},
+	// fields is declared here, as a parameter of show, rather than as an
+	// injected property of the MCP head. The schema generator then publishes
+	// it on show and on no other tool, a person at a terminal gains
+	// --fields for free, and the selection lives in Library.Show so the two
+	// heads reach one act and differ only in what they ask for.
+	"show": {
+		{Name: "card", Display: "ref", Required: true, Guide: "references", Field: "Card"},
+		{Name: "fields", Flag: true, Value: "list", Vocabulary: "detail-field", Field: "Fields"},
+	},
+	"log": {{Name: "card", Required: true, Shared: "card", Field: "Card"}},
 	// Every argument of changes is a flag, including the two a read usually
 	// takes positionally, because the cursor is the argument a caller reaches
 	// for and a positional slot ahead of it would be the one they type by

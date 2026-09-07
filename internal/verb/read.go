@@ -1,7 +1,9 @@
 package verb
 
 import (
+	"encoding/json"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -423,6 +425,202 @@ type Detail struct {
 	Comments []CommentView `json:"comments,omitempty"`
 	// Path is the file the card lives in.
 	Path string `json:"path"`
+	// Withheld names the members this answer did not carry because the
+	// caller named a field set that left them out. A name here is a positive
+	// statement rather than a silence: it says the card holds that member and
+	// this answer does not carry it. A member that is neither carried nor
+	// named here is empty on the card.
+	//
+	// The spelling is the one Instructions.Withheld already uses for the same
+	// shape of fact, so an agent that has learned to read a withheld
+	// instruction layer reads a withheld card member without learning
+	// anything new.
+	Withheld []string `json:"withheld,omitempty"`
+	// Reread is what a caller passes back to show, with the fields it now
+	// wants, to be served a withheld member. It is the card's own reference,
+	// and it is present exactly when Withheld is non-empty.
+	Reread string `json:"reread,omitempty"`
+	// selected is the field set this answer was shaped by, nil on an
+	// unshaped answer. It is unexported, so it reaches no payload and no
+	// caller outside this package. MarshalJSON needs it because a member the
+	// caller left out and a member the card carries empty are the same value
+	// once the answer is built, and the payload has to tell them apart.
+	selected detailSelection
+}
+
+// MarshalJSON writes the members this answer carries and no others.
+//
+// Three of Detail's members are absent from a payload whenever they are empty,
+// because their own tags say so. The other three are present whatever they
+// hold: every unshaped answer carries a card view, a body, and a path, and a
+// reader of the wire format may rely on that. A shaped answer has to leave a
+// member the caller did not ask for out rather than carry it empty, since
+// carrying it empty is the claim withheld exists to deny, so those three are
+// written through pointers here and a nil pointer is a member this answer does
+// not carry.
+//
+// An unshaped answer sets all three, so its payload is byte for byte the
+// payload this type produced before the field list existed.
+//
+// carried is a second declaration of the same wire format and nothing in the
+// language ties it to Detail, so a member added above and forgotten here would
+// be dropped from every payload this type writes. Deriving the payload from
+// Detail by reflection would remove the second declaration and would also
+// reorder the members, since the encoder writes a map in sorted key order and
+// this wire format is frozen. The copy therefore stays and a guard stands over
+// it: TestTheDetailPayloadCarriesEveryMemberDetailDeclares marshals a Detail
+// with every member filled and fails on any name that reaches the type and not
+// the payload, or the payload and not the type.
+func (d Detail) MarshalJSON() ([]byte, error) {
+	type carried struct {
+		Card        *CardView        `json:"card,omitempty"`
+		Body        *string          `json:"body,omitempty"`
+		Links       []LinkView       `json:"links,omitempty"`
+		Attachments []AttachmentView `json:"attachments,omitempty"`
+		Comments    []CommentView    `json:"comments,omitempty"`
+		Path        *string          `json:"path,omitempty"`
+		Withheld    []string         `json:"withheld,omitempty"`
+		Reread      string           `json:"reread,omitempty"`
+	}
+	answer := carried{
+		Links:       d.Links,
+		Attachments: d.Attachments,
+		Comments:    d.Comments,
+		Withheld:    d.Withheld,
+		Reread:      d.Reread,
+	}
+	if d.selected.carries("card") {
+		card := d.Card
+		answer.Card = &card
+	}
+	if d.selected.carries("body") {
+		body := d.Body
+		answer.Body = &body
+	}
+	if d.selected.carries("path") {
+		path := d.Path
+		answer.Path = &path
+	}
+	return json.Marshal(answer)
+}
+
+// Carries reports whether this answer carries the named member. A renderer
+// outside this package asks it before drawing a member, and an unshaped answer
+// answers yes to every name.
+//
+// A renderer cannot read the answer's own emptiness instead. Three of Detail's
+// members are slices or strings, so a member left out reads as nothing and
+// draws nothing, but the card view is a struct, and a card view the caller
+// left out is a zero struct that draws a header with an empty reference, an
+// empty title, and an empty column. The payload tells the two apart through
+// MarshalJSON, and this asks the same question from the terminal's side so
+// that the two heads cannot disagree about what an answer holds.
+func (d Detail) Carries(name string) bool {
+	return d.selected.carries(name)
+}
+
+// DetailFields are the members of a Detail that show's fields argument may
+// name, in the order withheld reports them. The vocabulary table declares the
+// closed set by pointing at this slice and Library.Show selects against the
+// same slice, so the help table, the refusal sentence, and the selection cannot
+// drift apart. A member added to Detail that a caller may ask for is added
+// here in the position the JSON payload prints it.
+var DetailFields = []string{"card", "body", "links", "attachments", "comments", "path"}
+
+// detailSelection is the set of members one answer carries, or nil where the
+// caller named no field set and the answer carries every member.
+type detailSelection map[string]bool
+
+// carries reports whether a member belongs in the answer. A nil selection is
+// the unshaped read, which carries everything.
+func (s detailSelection) carries(name string) bool {
+	if s == nil {
+		return true
+	}
+	return s[name]
+}
+
+// parseDetailFields reads show's fields argument into the members the answer
+// is to carry. The argument absent, empty, or blank means every member, which
+// is what show has always returned, so an unshaped call is untouched by this
+// whole mechanism.
+//
+// Surrounding whitespace on each name is ignored and a repeated name carries
+// its member once. Every unrecognised name is reported, sorted, rather than
+// the first one the loop reaches, which is the rule checkArguments already
+// holds for argument names, and the refusal is composed before any card is
+// read.
+func parseDetailFields(fields string) (detailSelection, error) {
+	if strings.TrimSpace(fields) == "" {
+		return nil, nil
+	}
+	declared := map[string]bool{}
+	for _, name := range DetailFields {
+		declared[name] = true
+	}
+	chosen := detailSelection{}
+	unknown := map[string]bool{}
+	for _, written := range strings.Split(fields, ",") {
+		name := strings.TrimSpace(written)
+		if name == "" {
+			continue
+		}
+		if !declared[name] {
+			unknown[name] = true
+			continue
+		}
+		chosen[name] = true
+	}
+	if len(unknown) > 0 {
+		named := make([]string, 0, len(unknown))
+		for name := range unknown {
+			named = append(named, name)
+		}
+		sort.Strings(named)
+		return nil, unknownDetailField(strings.Join(named, ", "), "")
+	}
+	// A list that survives the split naming nothing at all is refused rather
+	// than answered. `--fields ,` reaches here, and the answer to it would
+	// carry no member of the card whatsoever, under an announcement listing
+	// everything the card holds, which is an answer nobody asks for. Blank
+	// stays the unshaped read the paragraph above declares it to be, because
+	// an argument with nothing in it is an argument the caller did not give,
+	// where an argument carrying a separator is a list and a list names a
+	// member.
+	if len(chosen) == 0 {
+		return nil, unknownDetailField(strings.TrimSpace(fields), "")
+	}
+	return chosen, nil
+}
+
+// unknownDetailField raises dinah.unknown-field for show's fields argument. It
+// raises that name rather than a new one because the reader's mistake is the
+// one the name already covers: a field this tool does not have, named where a
+// field was asked for.
+//
+// The declared set rides as a value read off DetailFields rather than written
+// into the catalog, so a seventh member reaches the sentence without a
+// translator being asked for anything.
+//
+// The base sentence says which read was refused and what a card carries, and
+// it says neither of the two things that are true at only one of the raise
+// sites, because a sentence that named the unrecognised names would be false
+// where the names are all legal and the reference is not a card. Each of those
+// rides a fragment switched on by its own value. reference is filled where the
+// refusal is about the reference, and unknown is filled where it is about the
+// names, so the two are never both set and the composed sentence carries the
+// one clause that holds. unknown repeats the refusal's own detail because a
+// fragment renders on the presence of a named value and the detail is set at
+// every raise site, so the detail cannot be the condition that tells the two
+// sites apart.
+func unknownDetailField(detail, reference string) error {
+	extra := map[string]string{"fields": strings.Join(DetailFields, ", ")}
+	if reference != "" {
+		extra["reference"] = reference
+	} else {
+		extra["unknown"] = detail
+	}
+	return contract.RefuseWith(contract.UnknownField, detail, extra)
 }
 
 // AttachmentView is one attachment as a read reports it.
@@ -494,12 +692,21 @@ type CommentView struct {
 // it named, since nothing but a card has a view to build. A caller reads the
 // pair rather than assuming the Detail.
 func (l *Library) Show(req *Request) (*Detail, string, error) {
+	// The field list is read before anything is resolved, so a call naming a
+	// field this tool does not have performs no read and mutates nothing.
+	chosen, err := parseDetailFields(req.Fields)
+	if err != nil {
+		return nil, "", err
+	}
 	head, rest, _ := strings.Cut(req.Card, "/")
 	// A column is an entity of the workbench, and the containment walk prints
 	// a reference for one, so show reads it the way path and edit do rather
 	// than refusing over a reference the tool told the reader to type.
 	if rest == "" {
 		if column := l.Bench.ColumnByRef(head); column != nil {
+			if chosen != nil {
+				return nil, "", unknownDetailField(strings.TrimSpace(req.Fields), head)
+			}
 			text, err := bench.ReadText(l.Bench.ColumnAnchorPath(column.ID))
 			if err != nil {
 				return nil, "", contract.Refuse(contract.UnknownPath, head)
@@ -512,6 +719,11 @@ func (l *Library) Show(req *Request) (*Detail, string, error) {
 	// workbench or a column rather than a card, and every one of those forms is
 	// a reference the containment walk prints.
 	if rest != "" {
+		// A composed reference never names a card, so it has no members to
+		// select from and the refusal is raised ahead of the resolution.
+		if chosen != nil {
+			return nil, "", unknownDetailField(strings.TrimSpace(req.Fields), req.Card)
+		}
 		path, err := l.Bench.ResolvePath(req.Card)
 		if err != nil {
 			return nil, "", err
@@ -530,21 +742,32 @@ func (l *Library) Show(req *Request) (*Detail, string, error) {
 	if err := l.lapseRead(card, req.Actor); err != nil {
 		return nil, "", err
 	}
-	detail := &Detail{Card: *l.view(card), Body: card.Body, Path: card.AnchorPath()}
-	for _, link := range card.Links {
-		detail.Links = append(detail.Links, LinkView{Kind: link.Kind, To: link.To, Ref: l.linkRef(link.To)})
-	}
 	cardRef := card.Ref(l.Bench.Slug)
+	// Every member is built before the selection is applied, because withheld
+	// reports what the card holds rather than what the caller left out, and
+	// only a built member answers that. The cost is a read of the card's own
+	// directory, which show performs whatever the caller asked for.
+	detail := &Detail{Path: card.AnchorPath(), selected: chosen}
+	if chosen.carries("card") {
+		detail.Card = *l.view(card)
+	}
+	if chosen.carries("body") {
+		detail.Body = card.Body
+	}
+	var links []LinkView
+	for _, link := range card.Links {
+		links = append(links, LinkView{Kind: link.Kind, To: link.To, Ref: l.linkRef(link.To)})
+	}
 	views, err := attachmentViews(card.Dir, cardRef)
 	if err != nil {
 		return nil, "", err
 	}
-	detail.Attachments = views
-	comments, err := bench.Comments(card.Dir)
+	stored, err := bench.Comments(card.Dir)
 	if err != nil {
 		return nil, "", err
 	}
-	for _, comment := range comments {
+	var comments []CommentView
+	for _, comment := range stored {
 		view := CommentView{ID: comment.ID, TS: comment.TS, Author: comment.Author, Body: comment.Body}
 		// A comment's attachments compose their references against the
 		// comment's own address rather than the card's, so a reference the
@@ -554,7 +777,40 @@ func (l *Library) Show(req *Request) (*Detail, string, error) {
 			return nil, "", err
 		}
 		view.Attachments = below
-		detail.Comments = append(detail.Comments, view)
+		comments = append(comments, view)
+	}
+	if chosen.carries("links") {
+		detail.Links = links
+	}
+	if chosen.carries("attachments") {
+		detail.Attachments = views
+	}
+	if chosen.carries("comments") {
+		detail.Comments = comments
+	}
+	if !chosen.carries("path") {
+		detail.Path = ""
+	}
+	// The announcement names only members the card actually holds, in the
+	// order DetailFields declares, so two runs against one card compose one
+	// string. An unshaped answer withholds nothing and carries neither member.
+	if chosen != nil {
+		held := map[string]bool{
+			"card":        true,
+			"body":        card.Body != "",
+			"links":       len(links) > 0,
+			"attachments": len(views) > 0,
+			"comments":    len(comments) > 0,
+			"path":        card.AnchorPath() != "",
+		}
+		for _, name := range DetailFields {
+			if !chosen[name] && held[name] {
+				detail.Withheld = append(detail.Withheld, name)
+			}
+		}
+		if len(detail.Withheld) > 0 {
+			detail.Reread = cardRef
+		}
 	}
 	return detail, "", nil
 }
