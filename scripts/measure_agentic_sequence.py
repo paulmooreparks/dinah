@@ -776,14 +776,47 @@ COLUMN_NEXT = "d00000000003"
 # instead of from the run is a figure the run did not produce.
 FIXTURE_CARDS = 2
 
+# How many cards the bulk fixture builds. The bulk scenario reads many cards in
+# one stretch, so it needs a fixture deeper than the six-act sequence's two,
+# and it gets its own ceiling rather than raising FIXTURE_CARDS. Raising that
+# one would change a payload the three recorded runs already counted, and every
+# figure in docs/design/token-cost.md would stop being comparable with the new
+# ones. The fixture builds sixteen and --bulk-max reads twelve, so the ceiling
+# can be raised later without rebuilding the fixture.
+BULK_FIXTURE_CARDS = 16
+
+# The two card sizes the bulk read is measured at, named and taken from
+# committed files on the terms every other source in this harness is. Both
+# routes pay the card's content and only the verb route pays a fixed cost per
+# round, so the crossover moves with card size, and one size would publish a
+# number that reads as universal without being one.
+BULK_BODY_SOURCES = (("small", "internal/guide/guides/verbs.md"),
+                     ("large", "docs/design/surfaces.md"))
+
+# The opening turn of the bulk scenario's transcript. Both routes carry the
+# same one, and it says what the agent holds when it enters: the references and
+# nothing else about the cards.
+BULK_TASK_TEXT = (
+    "Read the bodies of the cards named below. You hold their references and "
+    "nothing else about them."
+)
+
+# What the resolving form prints ahead of each card, so a reader of the one
+# result can tell where one card ends and the next begins. It is one line per
+# card inside the shell route's result, so it is inside both totals and inside
+# the crossover, and the report gives it its own line rather than leaving a
+# reader to find it in the difference.
+BULK_DELIMITER = "=== "
+
 
 class Fixture(object):
     """One throwaway workbench, built from one committed definition."""
 
     def __init__(self, dinah, run_root, layers, body, attachment_name, attachment_bytes,
-                 comments):
+                 comments, card_count=FIXTURE_CARDS):
         self.dinah = dinah
         self.comments = comments
+        self.card_count = card_count
         self.root = str(pathlib.Path(run_root).resolve())
         self.home = os.path.join(self.root, "home")
         self.env = dict(os.environ)
@@ -841,7 +874,7 @@ class Fixture(object):
         with open(payload_source, "wb") as handle:
             handle.write(self.attachment_bytes.encode("utf-8"))
 
-        for number in range(1, FIXTURE_CARDS + 1):
+        for number in range(1, self.card_count + 1):
             answer = json.loads(self.cli("--json", "add", "Card number %d" % number))
             self.cards.append({"ref": "fx-%d" % number, "id": answer["card"]["id"]})
 
@@ -894,6 +927,11 @@ class Fixture(object):
 
 COORDINATION_TOOLS = ("pull", "comment", "move")
 
+# The protocol version the initialize request names. The head answers with its
+# own version and negotiates nothing, so this is only the client's half of the
+# handshake and no figure depends on the value.
+Version = "2024-11-05"
+
 
 class Session(object):
     """One `dinah mcp` process spoken to over line-delimited JSON-RPC."""
@@ -921,6 +959,20 @@ class Session(object):
         if "error" in answer:
             raise Failure("the MCP head refused %s: %s" % (method, answer["error"]))
         return answer["result"]
+
+    def instructions(self):
+        """The string initialize publishes under `instructions`.
+
+        The MCP specification describes that field as a hint a client MAY add
+        to the system prompt, so its cost is a figure under a named assumption
+        rather than a promise of the protocol. It is counted on its own and is
+        deliberately kept out of every transcript, for the reason the report
+        gives beside it."""
+        return self.request("initialize", {
+            "protocolVersion": Version,
+            "capabilities": {},
+            "clientInfo": {"name": "measure_agentic_sequence", "version": "1"},
+        }).get("instructions", "")
 
     def tools(self):
         """The tool-definition block as tools/list serves it, spelled the way a
@@ -1060,11 +1112,16 @@ class Round(object):
         self.source_bytes = source_bytes
 
 
-def transcript(rounds):
+def transcript(rounds, task=TASK_TEXT):
     """Build the message array one run produces. An agent pays the whole
     conversation's input tokens on every request, so the array is what the
-    closing request carries and its prefixes are what the earlier ones did."""
-    messages = [{"role": "user", "content": TASK_TEXT}]
+    closing request carries and its prefixes are what the earlier ones did.
+
+    The opening turn is a parameter because this file measures two scenarios
+    rather than one. The six-act sequence opens on TASK_TEXT and the bulk read
+    opens on BULK_TASK_TEXT, and a scenario measured under another scenario's
+    task text is measuring a transcript nobody would produce."""
+    messages = [{"role": "user", "content": task}]
     for position, item in enumerate(rounds):
         use_id = "toolu_%02d" % (position + 1)
         messages.append({
@@ -1242,7 +1299,27 @@ def pinned_input(arguments, roots):
 # --------------------------------------------------------------------------
 
 
-def totals(counter, rounds, tools):
+def prefix_totals(counter, rounds, tools, task=TASK_TEXT):
+    """Return one (footprint, cumulative) pair per prefix of a run's rounds.
+
+    The pair at index k is what the run would have cost had it stopped after
+    k + 1 rounds, on the two definitions totals() states. A run of N rounds
+    whose k-th round reads the k-th card therefore yields the whole per-N
+    column of a table in N + 1 counts rather than in N(N + 1)/2 of them,
+    because the transcript at N cards is a prefix of the transcript at more.
+    """
+    messages = transcript(rounds, task)
+    series = []
+    cumulative = None
+    for k in range(len(rounds) + 1):
+        count = counter.count(messages[:1 + 2 * k], tools)
+        cumulative = count if cumulative is None else cumulative + count
+        if k >= 1:
+            series.append((count, cumulative))
+    return series
+
+
+def totals(counter, rounds, tools, task=TASK_TEXT):
     """Return the context footprint and the cumulative billed input for one run.
 
     The footprint is the input-token count of the final transcript with the
@@ -1251,16 +1328,297 @@ def totals(counter, rounds, tools):
     over the requests the sequence produces, which is one per tool-call round
     of any kind plus the closing turn, computed under no caching.
     """
-    messages = transcript(rounds)
-    cumulative = None
-    footprint = None
-    for k in range(len(rounds) + 1):
-        prefix = messages[:1 + 2 * k]
-        count = counter.count(prefix, tools)
-        cumulative = count if cumulative is None else cumulative + count
-        footprint = count
-    return footprint, cumulative
+    return prefix_totals(counter, rounds, tools, task)[-1]
 
+
+# --------------------------------------------------------------------------
+# The bulk read.
+# --------------------------------------------------------------------------
+
+
+def resolving_command(refs):
+    """The one shell command the guidance publishes, spelled for the references
+    it is handed.
+
+    Three properties make it the form worth measuring and worth publishing. It
+    names the cards it wants, so the number of cards read is the number of
+    references and the per-N column of the table exists. It resolves each
+    reference to that card's anchor inside the round it is already paying for,
+    because `dinah path <ref>` is a local process launch in a subshell rather
+    than a call back to the head, so the route spends no locating round and
+    needs nothing beyond the references the agent already holds. It reads no
+    card the agent did not name, where a wildcard over the store's card
+    directories would drag a whole workbench into context, which is the cost
+    this workstream exists to cut.
+
+    It degrades on standard error rather than in the result. `dinah path`
+    writes one line and nothing else, and on a reference the workbench does not
+    know the refusal goes to standard error while standard output stays empty,
+    so the substitution yields nothing and `cat` fails on an empty name rather
+    than reading some other card. The loop does not stop for that failure and
+    its exit status is the last iteration's alone, which is why the guidance
+    tells a caller to read standard error rather than the status.
+    """
+    return ("for ref in %s; do printf '=== %%s\\n' \"$ref\"; "
+            "cat \"$(dinah path \"$ref\")\"; done" % " ".join(refs))
+
+
+def direct_command(anchors):
+    """The floor form, which spends no command text on resolution because it
+    already holds every anchor path.
+
+    It is measured so that a reader can see how much of the resolving form's
+    cost is the resolution, and no published figure comes from it. Its
+    precondition is a prior act that hands the agent twelve-hex card
+    identifiers and the store's own path, and pricing that act means pricing a
+    listing, whose figures belong to dinah-411 rather than to this card.
+    """
+    return "cat " + " ".join(anchors)
+
+
+def bulk_shell_rounds(command, result, roots):
+    """The shell route's whole transcript at any N, which is one Bash round.
+
+    One round at every N is the property the route's entire claim rests on, and
+    it is the property nothing else here can check for the reader. The nearest
+    precedent in this file has the opposite shape on purpose: run_file spends a
+    separate Bash round per reference, because the six-act sequence locates one
+    card at a time and each locating act is a round that agent really performs.
+    Copying that shape here would emit N + 1 rounds, the table would still
+    print, the crossover would move out, and nothing in the output would look
+    wrong. So the count is derived from the list this function returns, checked
+    against one by its caller, and printed per card size.
+    """
+    return [Round("shell", "Bash", pinned_input({"command": command}, roots), result)]
+
+
+def bulk_crossover(shell, verb, ceiling):
+    """The smallest N at which the shell form's total falls below the verb
+    route's shaped total and stays below it to the ceiling, or 0 where there is
+    no such N.
+
+    Staying below is part of the definition rather than a refinement of it. A
+    single N where the two curves cross and cross back is a coincidence rather
+    than a rule an agent can be told, because an agent told to reach for the
+    shell at or above that N would be wrong above it.
+    """
+    for start in range(1, ceiling + 1):
+        if all(shell[k].tokens < verb[k].tokens for k in range(start - 1, ceiling)):
+            return start
+    return 0
+
+
+def posix_shell():
+    """A shell that can run the published command, or the empty string.
+
+    The published command is POSIX shell text. Where no such shell is on the
+    path, the harness reports that the check did not run rather than letting it
+    pass by default.
+    """
+    for name in ("bash", "sh"):
+        found = shutil.which(name)
+        if found:
+            return found
+    return ""
+
+
+def check_published_command(dinah, fixture, command, expected):
+    """Run the published command through a real shell and compare its output
+    with the text the harness counted.
+
+    This is what keeps the measured command and the published command one
+    string rather than two that resemble each other. The harness composes the
+    result rather than shelling out for every N, because a `for` loop is not
+    portable to every platform this script runs on, so the composition is an
+    assumption and this check is what turns it into a measurement wherever a
+    shell exists.
+    """
+    shell = posix_shell()
+    if not shell:
+        return "not checked: no POSIX shell was found on the path"
+    directory = os.path.dirname(os.path.abspath(dinah))
+    stem = os.path.splitext(os.path.basename(dinah))[0]
+    if stem != "dinah":
+        return ("not checked: the binary under test is named %s, and the published "
+                "command names dinah on the path" % os.path.basename(dinah))
+    env = dict(fixture.env)
+    env["PATH"] = directory + os.pathsep + env.get("PATH", "")
+    finished = subprocess.run(
+        [shell, "-c", command], cwd=fixture.root, env=env,
+        capture_output=True, text=True, encoding="utf-8",
+    )
+    if finished.returncode != 0:
+        raise Failure("the published command failed under %s with status %d"
+                      % (shell, finished.returncode))
+    if finished.stdout != expected:
+        raise Failure(
+            "the published command's output is not the text the harness counted: the "
+            "shell wrote %d characters and the harness composed %d"
+            % (len(finished.stdout), len(expected))
+        )
+    return "matches the text the harness counted, run through %s" % shell
+
+
+def bulk_read(args, report, counter, strings, repo, layers, attachment_name, attachment,
+              comments, roots, bulk_roots):
+    """Measure one bulk read at each card size, and print one block per size.
+
+    The scenario is one agent reading the content of N cards in one stretch,
+    which is the survey act an agent performs before it can choose, compare, or
+    report across a column. dinah-381's D-3 kept every listing act out of the
+    measured sequence, and that exclusion left this case without a baseline, so
+    it is measured here before anything is advised from it.
+    """
+    regime = counter.regime()
+    for label, source in BULK_BODY_SOURCES:
+        run_root = bulk_roots[label]
+        if os.path.isdir(run_root):
+            shutil.rmtree(run_root)
+        body = repo.show(source)
+        fixture = Fixture(args.dinah, run_root, layers, body, attachment_name, attachment,
+                          comments, card_count=BULK_FIXTURE_CARDS)
+        fixture.build()
+        cards = fixture.cards[:args.bulk_max]
+        if len(cards) != args.bulk_max:
+            raise Failure("the %s bulk fixture built %d cards where %d were asked for"
+                          % (label, len(fixture.cards), args.bulk_max))
+
+        # Each anchor is located the way the published command locates it,
+        # through `dinah path`, and the located path is checked against the one
+        # the fixture knows. A route measured against a path the command would
+        # not have reached is a route nobody runs.
+        anchors = []
+        for card in cards:
+            finished = subprocess.run(
+                [args.dinah, "path", card["ref"]], cwd=fixture.root, env=fixture.env,
+                capture_output=True, text=True, encoding="utf-8",
+            )
+            located = finished.stdout.strip()
+            if finished.returncode != 0 or not located:
+                raise Failure("dinah path %s located nothing in the %s bulk fixture"
+                              % (card["ref"], label))
+            if os.path.normcase(os.path.abspath(located)) != \
+                    os.path.normcase(os.path.abspath(fixture.card_anchor(card))):
+                raise Failure(
+                    "dinah path %s located %s where the fixture holds that card's anchor "
+                    "at %s" % (card["ref"], located, fixture.card_anchor(card)))
+            anchors.append(located)
+        anchor_text = [pathlib.Path(path).read_text(encoding="utf-8") for path in anchors]
+
+        session = Session(args.dinah, fixture)
+        try:
+            tools = session.tools()
+            if not publishes_show_fields(tools):
+                raise Failure("the binary under test publishes no fields argument on show, "
+                              "so the shaped verb route the crossover is computed against "
+                              "cannot be performed")
+            shaped_rounds = []
+            unshaped_rounds = []
+            for card in cards:
+                shaped_arguments = {"card": card["ref"], "actor": "alka",
+                                    "fields": args.shaped_fields}
+                shaped = pin(session.call("show", shaped_arguments), roots)
+                shaped_rounds.append(Round("mcp", "show",
+                                           pinned_input(shaped_arguments, roots), shaped,
+                                           act="show-card", card=card["ref"]))
+                plain_arguments = {"card": card["ref"], "actor": "alka"}
+                plain = pin(session.call("show", plain_arguments), roots)
+                unshaped_rounds.append(Round("mcp", "show",
+                                             pinned_input(plain_arguments, roots), plain,
+                                             act="show-card", card=card["ref"]))
+        finally:
+            session.close()
+
+        # The verb route's transcript at N cards is the prefix of its
+        # transcript at the ceiling, because each round reads one card and the
+        # pinning maps every fresh identifier to one stand-in, so each verb
+        # column is read off one transcript rather than off twelve.
+        shaped_series = prefix_totals(counter, shaped_rounds, tools, BULK_TASK_TEXT)
+        unshaped_series = prefix_totals(counter, unshaped_rounds, tools, BULK_TASK_TEXT)
+
+        resolving_series = []
+        direct_series = []
+        round_counts = []
+        published = ""
+        for n in range(1, args.bulk_max + 1):
+            refs = [card["ref"] for card in cards[:n]]
+            result = "".join(BULK_DELIMITER + refs[k] + "\n" + anchor_text[k]
+                             for k in range(n))
+            command = resolving_command(refs)
+            if n == args.bulk_max:
+                published = check_published_command(args.dinah, fixture, command, result)
+            rounds = bulk_shell_rounds(command, pin(result, roots), roots)
+            # The route is one Bash round at every N, and the count is taken
+            # from the list that was counted rather than asserted in prose.
+            if len(rounds) != 1:
+                raise Failure(
+                    "the bulk shell route produced %d Bash rounds at %d cards, and the "
+                    "route is one round at every N. A route spending a round per "
+                    "reference is a different route, its cumulative figure is a "
+                    "different figure, and its crossover is not the one the guidance "
+                    "quotes." % (len(rounds), n))
+            round_counts.append(len(rounds))
+            resolving_series.append(totals(counter, rounds, tools, BULK_TASK_TEXT))
+
+            direct = bulk_shell_rounds(
+                direct_command([pin(path, roots) for path in anchors[:n]]),
+                pin("".join(anchor_text[:n]), roots), roots)
+            direct_series.append(totals(counter, direct, tools, BULK_TASK_TEXT))
+
+        shaped_answer = shaped_rounds[0].result
+        one_anchor = pin(anchor_text[0], roots)
+        one_reference = strings.of(resolving_command([cards[0]["ref"]]))
+        two_references = strings.of(resolving_command([c["ref"] for c in cards[:2]]))
+        per_reference = two_references - one_reference
+        preamble = Count(one_reference.tokens - per_reference.tokens, regime)
+        ceiling_resolving = strings.of(resolving_command([card["ref"] for card in cards]))
+        ceiling_direct = strings.of(direct_command([pin(path, roots) for path in anchors]))
+
+        report.say("the bulk read, N cards at once against N cards one at a time")
+        report.plain("card size", "%s, %s (%d bytes [bytes], digest %s)"
+                     % (label, source, len(body.encode("utf-8")), digest(body)))
+        report.figure("per-card content, verb route shaped to %s" % args.shaped_fields,
+                      strings.of(shaped_answer))
+        report.figure("per-card content, shell route, one anchor", strings.of(one_anchor))
+        report.signed("parity, anchor less shaped answer, per card",
+                      strings.of(one_anchor) - strings.of(shaped_answer))
+        report.figure("result text, the delimiter line the shell route prints per card",
+                      strings.of(BULK_DELIMITER + cards[0]["ref"] + "\n"))
+        report.figure("command text, resolving form, fixed preamble", preamble)
+        report.figure("command text, resolving form, per further reference", per_reference)
+        report.signed("command text, resolving form less direct form, at the ceiling",
+                      ceiling_resolving - ceiling_direct)
+        report.measure("shell route, Bash rounds, smallest over every N",
+                       min(round_counts), "rounds")
+        report.measure("shell route, Bash rounds, largest over every N",
+                       max(round_counts), "rounds")
+        report.plain("the published command, run against this fixture", published)
+        report.say()
+
+        for total, name in ((1, "cumulative billed input"), (0, "context footprint")):
+            report.row("N", ["verb shaped", "verb unshaped", "shell resolving",
+                             "shell direct"], "(%s)" % name)
+            for n in range(1, args.bulk_max + 1):
+                report.row(str(n), [
+                    shaped_series[n - 1][total].tokens,
+                    unshaped_series[n - 1][total].tokens,
+                    resolving_series[n - 1][total].tokens,
+                    direct_series[n - 1][total].tokens,
+                ], regime_label(regime) if n == 1 else "")
+            report.say()
+
+        for total, name in ((1, "cumulative"), (0, "footprint")):
+            for form, series in (("resolving", resolving_series),
+                                 ("direct", direct_series)):
+                found = bulk_crossover([pair[total] for pair in series],
+                                       [pair[total] for pair in shaped_series],
+                                       args.bulk_max)
+                line = "crossover on %s, shell %s against verb shaped" % (name, form)
+                if found:
+                    report.measure(line, found, "cards")
+                else:
+                    report.plain(line, "none within the ceiling of %d cards" % args.bulk_max)
+        report.say()
 
 # --------------------------------------------------------------------------
 # Attribution.
@@ -1478,6 +1836,17 @@ class Report(object):
     def plain(self, label, value):
         self.lines.append("  %-60s %s" % (label, value))
 
+    def row(self, label, cells, suffix=""):
+        """One line of a table, which is the shape the bulk block reports N in.
+
+        A table is not a list of labelled figures, so it gets its own helper
+        rather than being bent into one. The regime rides on the first row of
+        each table instead of on every cell, because a row of four figures with
+        four regime labels on it is unreadable and the table is one regime by
+        construction."""
+        line = "  %-5s%s" % (label, "".join("%17s" % cell for cell in cells))
+        self.lines.append(line + ("   " + suffix if suffix else ""))
+
     def emit(self):
         sys.stdout.write("\n".join(self.lines) + "\n")
 
@@ -1512,6 +1881,12 @@ def main():
                              "figure above zero the reconciliation residual may reach")
     parser.add_argument("--shaped-fields", default="card,body",
                         help="the field list the shaped run's show-card acts name")
+    parser.add_argument("--bulk-max", type=int, default=12,
+                        help="how many cards the bulk read carries, and the ceiling its "
+                             "crossover lines speak of")
+    parser.add_argument("--no-bulk", action="store_true",
+                        help="skip the bulk read, for a run that wants only the six-act "
+                             "figures")
     parser.add_argument("--per-tool", action="store_true",
                         help="print the tool-definition block attributed to each published tool")
     args = parser.parse_args()
@@ -1532,6 +1907,13 @@ def measure(args):
         raise Failure("--cards %d cannot be run: the fixture builds %d cards, so the "
                       "sequence carries between 1 and %d"
                       % (args.cards, FIXTURE_CARDS, FIXTURE_CARDS))
+
+    # The bulk fixture builds a fixed number of cards too, and the ceiling
+    # every crossover line speaks of is the number the run actually read.
+    if args.bulk_max < 1 or args.bulk_max > BULK_FIXTURE_CARDS:
+        raise Failure("--bulk-max %d cannot be run: the bulk fixture builds %d cards, so "
+                      "the bulk read carries between 1 and %d"
+                      % (args.bulk_max, BULK_FIXTURE_CARDS, BULK_FIXTURE_CARDS))
 
     repository = pathlib.Path(__file__).resolve().parents[1]
     repo = Repository(repository, args.commit)
@@ -1586,7 +1968,11 @@ def measure(args):
     # is built only where the binary can perform that run and the pinning has
     # to be the same either way.
     labels = ("verb", "file", "shaped")
+    bulk_roots = collections.OrderedDict(
+        (size, str(pathlib.Path(args.root, "bulk-" + size).resolve()))
+        for size, _ in BULK_BODY_SOURCES)
     roots = [str(pathlib.Path(args.root, label).resolve()) for label in labels]
+    roots += list(bulk_roots.values())
 
     def build(label):
         run_root = roots[labels.index(label)]
@@ -1684,6 +2070,14 @@ def measure(args):
         report.signed("cumulative, shaped run less verb run",
                       shaped_cumulative - cumulatives["verb"])
     report.say()
+
+    if args.no_bulk:
+        report.say("the bulk read, N cards at once against N cards one at a time")
+        report.plain("the bulk read", "skipped: --no-bulk was given")
+        report.say()
+    else:
+        bulk_read(args, report, counter, strings, repo, layers, attachment_name,
+                  attachment, comments, roots, bulk_roots)
 
     report.say("what the file run read, each path under the throwaway root")
     for item in file_rounds:
@@ -1790,6 +2184,24 @@ def measure(args):
     report.figure("tool block over the verb run's rounds", verb_product)
     report.figure("tool block over the file run's rounds", file_product)
     report.signed("round-trip component, file run less verb run", file_product - verb_product)
+    # The string initialize serves is counted here and is deliberately not put
+    # into any transcript. Putting it in would move every headline total and
+    # make this run incomparable with the three the document already records,
+    # and the placement it assumes is the client's option under the MCP
+    # specification rather than a promise of the protocol. So it stands beside
+    # the reconciliation rather than inside it, and the reconciliation sum, its
+    # residual, and its bound do not move.
+    instructions_session = Session(args.dinah, runs["verb"])
+    try:
+        served_instructions = pin(instructions_session.instructions(), roots)
+    finally:
+        instructions_session.close()
+    instructions_once = strings.of(served_instructions)
+    report.figure("the server instructions string, once", instructions_once,
+                  "(assumes the client places it in the system prompt, which the MCP "
+                  "specification leaves to the client)")
+    report.figure("server instructions over the verb run's rounds",
+                  Count(instructions_once.tokens * verb_rounds_count, regime))
     report.say()
 
     if args.per_tool:
