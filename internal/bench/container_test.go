@@ -349,6 +349,43 @@ func TestTheAmbiguityWalkRefusesAContainerItCannotList(t *testing.T) {
 	}
 }
 
+// TestTheWorkbenchOverrideRoutesAroundAContainerThatCannotBeListed holds the
+// remedy refusal.dinah.unreadable-container.next now offers the reader first.
+// DiscoverSource returns on a non-empty override before it ever calls walk, so
+// naming a healthy workbench with --workbench or DINAH_WORKBENCH reaches it
+// without the corrupt container being opened at all, which is what makes that
+// sentence worth acting on for the reader whose ambient climb has just been
+// refused. Two comments on this card once claimed the opposite, so the claim
+// is held by a test rather than by prose.
+//
+// The ambient climb over the same directory runs first. Without it the
+// override case would pass over a fixture that was never corrupt.
+func TestTheWorkbenchOverrideRoutesAroundAContainerThatCannotBeListed(t *testing.T) {
+	container := unreadableContainer(t)
+	start := filepath.Dir(container)
+	healthy := plantBench(t, containedPath(t.TempDir()), currentBenchDefinition)
+
+	climbed, _, err := Discover(start, "", filepath.Join(start, "home"), filepath.Dir(start))
+	refusal, ok := err.(*contract.Refusal)
+	if !ok || refusal.Name != contract.UnreadableContainer {
+		t.Fatalf("the climb from %q answered %q and %v rather than refusing %s, so the override below proves nothing", start, climbed, err, contract.UnreadableContainer)
+	}
+
+	found, source, passed, _, err := DiscoverSource(start, healthy, SourceFlag, filepath.Join(start, "home"), filepath.Dir(start), "")
+	if err != nil {
+		t.Fatalf("an explicit pointer should route past a container the climb cannot list, got %v", err)
+	}
+	if found != healthy {
+		t.Errorf("wanted the pointed-at workbench %q, got %q", healthy, found)
+	}
+	if source != SourceFlag {
+		t.Errorf("wanted the flag named as the source, got %q", source)
+	}
+	if len(passed) != 0 {
+		t.Errorf("the override branch runs no walk and passes nothing over, got %v", passed)
+	}
+}
+
 // TestAMigrationComparisonPassesUpAContainerItCannotList asserts dinah-433
 // AC-7. completedLift over a container it cannot list answers with the raw
 // filesystem error rather than with the empty string, so the migration stops

@@ -1238,11 +1238,14 @@ func soleBench(base string) (found string, ambiguous, damaged []string, err erro
 	// base holding nothing, so it refuses here rather than falling through to
 	// the empty-base return and reporting a walk it never performed.
 	// UnreadableContainer is minted for it rather than UnreadableBench being
-	// reused, because UnreadableBench's stored next step tells the reader to
-	// fix a file's permissions or to route past it with --workbench, and that
-	// advice is wrong for a container replaced by a plain file, where nothing
-	// about permissions is at fault and --workbench does not route around the
-	// directory the search has to open.
+	// reused, because UnreadableBench's stored next step opens by telling the
+	// reader to fix a file's permissions, and permissions are not at fault
+	// when a plain file sits where the container belongs, where there is
+	// nothing to fix short of removing the file. The rest of that next step
+	// carries over intact. DiscoverSource returns on a non-empty override
+	// before it calls walk, so --workbench and DINAH_WORKBENCH both reach a
+	// workbench without this container ever being opened, and that route is
+	// what UnreadableContainer's own next step offers the reader first.
 	ids, lerr := ListWorkbenchIDs(base)
 	if lerr != nil {
 		return "", nil, nil, contract.Refuse(contract.UnreadableContainer, base)

@@ -1978,8 +1978,8 @@
       "context": "The sentence printed after the refusal name dinah.unreadable-container. {detail} is the .dinah container directory the walk found and could not list, which is the container directory itself rather than a workbench.md inside it."
     },
     "refusal.dinah.unreadable-container.next": {
-      "text": "; check that a directory and not a file sits at that path and that its permissions allow reading, or restore the container from a backup or from git",
-      "context": "Spliced onto refusal.dinah.unreadable-container as the next step. It asks about a file sitting where the directory belongs before it mentions permissions, because that corruption is the one the permission advice on dinah.unreadable-workbench does not fit."
+      "text": "; point --workbench at the workbench directory itself, which the search reaches without opening any container, or check that a directory and not a file sits at that path and that its permissions allow reading, and restore the container from a backup or from git if neither helps",
+      "context": "Spliced onto refusal.dinah.unreadable-container as the next step. It names the --workbench route first because DiscoverSource returns on that override before it opens any container, so a reader whose container is corrupt reaches a healthy workbench at once. Checking the path comes second and restoring from a backup or from git is the last resort."
     },
     "refusal.dinah.unreadable-workbench": {
       "text": "{detail} exists and could not be read",

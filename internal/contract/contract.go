@@ -177,13 +177,16 @@ const (
 	// which the walk refuses over rather than reporting the container as
 	// holding nothing, because an ambiguity answer built on a directory
 	// nobody managed to read is not an answer. It is a separate name from
-	// UnreadableBench because UnreadableBench's next step tells the reader to
-	// fix a file's permissions or to point --workbench somewhere the search
-	// need not open, and neither instruction helps a reader whose container
-	// has been replaced by a plain file. A container that plainly does not
-	// exist is not this refusal at all; ListWorkbenchIDs answers that case
-	// with an empty list and no error, since a directory this format has not
-	// created yet is an ordinary shape rather than a defect.
+	// UnreadableBench because UnreadableBench's next step opens by telling
+	// the reader to fix a file's permissions, and permissions are not at
+	// fault for a container replaced by a plain file. Routing past the
+	// container does help, since DiscoverSource returns on a --workbench or
+	// DINAH_WORKBENCH override before the walk opens anything, so this
+	// refusal's next step offers that route ahead of the repair. A container
+	// that plainly does not exist is not this refusal at all;
+	// ListWorkbenchIDs answers that case with an empty list and no error,
+	// since a directory this format has not created yet is an ordinary shape
+	// rather than a defect.
 	UnreadableContainer = LayerPrefix + "unreadable-container"
 	// NoConfiguredWorkbench is the workbench setting naming a path that no
 	// longer carries a workbench.md, consulted only once the search has
