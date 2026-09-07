@@ -145,6 +145,10 @@
         "title": "%manifest.command.dinah.tree.openInstructions.title%"
       },
       {
+        "command": "dinah.tree.openHistory",
+        "title": "%manifest.command.dinah.tree.openHistory.title%"
+      },
+      {
         "command": "dinah.walkthrough.openFirstSessionGuide",
         "title": "%manifest.command.dinah.walkthrough.openFirstSessionGuide.title%"
       }
@@ -213,6 +217,10 @@
         },
         {
           "command": "dinah.tree.openInstructions",
+          "when": "false"
+        },
+        {
+          "command": "dinah.tree.openHistory",
           "when": "false"
         }
       ],
@@ -303,6 +311,11 @@
           "command": "dinah.tree.openInstructions",
           "when": "view == dinah.workbenchView && viewItem =~ /^dinah\\.card\\./",
           "group": "2_view@1"
+        },
+        {
+          "command": "dinah.tree.openHistory",
+          "when": "view == dinah.workbenchView && viewItem =~ /^dinah\\.card\\./",
+          "group": "2_view@2"
         }
       ]
     },

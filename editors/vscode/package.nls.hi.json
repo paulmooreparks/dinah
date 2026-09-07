@@ -24,6 +24,7 @@
 	"manifest.command.dinah.tree.attachFile.title": "फ़ाइल संलग्न करें...",
 	"manifest.command.dinah.tree.pull.title": "खींचें",
 	"manifest.command.dinah.tree.openInstructions.title": "प्रस्तुत निर्देश देखें",
+	"manifest.command.dinah.tree.openHistory.title": "इतिहास देखें",
 	"manifest.configuration.title": "Dinah",
 	"manifest.configuration.dinah.path.markdownDescription": "`dinah` प्रोग्राम का पूर्ण पथ। अपने PATH वाले प्रोग्राम का उपयोग करने के लिए खाली छोड़ें। प्रोग्राम का पथ मशीन का गुण है, इसलिए यह सेटिंग सेटिंग-सिंक के ज़रिये नहीं जाती।",
 	"manifest.configuration.dinah.workbench.markdownDescription": "इस फ़ोल्डर के लिए उपयोग की जाने वाली वर्कबेंच की निर्देशिका, जो `dinah` को `--workbench` के रूप में दी जाती है। खाली छोड़ें ताकि `dinah` फ़ोल्डर से ऊपर चलकर स्वयं एक खोज ले। इसे तब सेट करें जब कई वर्कबेंच पहुँच में हों, या जब खोज ऐसी वर्कबेंच तक पहुँचे जो आपका आशय नहीं थी।",

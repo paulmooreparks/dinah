@@ -18,7 +18,7 @@ import type { CliOutcome } from "./cli";
 import { COMMAND_OPEN_ATTACHMENT } from "./identity";
 import { ENGLISH } from "./l10n";
 import type { Localizer } from "./l10n";
-import { KIND_INSTRUCTIONS } from "./servedText";
+import { KIND_HISTORY, KIND_INSTRUCTIONS } from "./servedText";
 import { nodeSpawner } from "./spawn";
 import type { TreeElement } from "./tree";
 import type { DetailAnswer, LegalMove, ServedAnswer } from "./wire";
@@ -337,6 +337,24 @@ export async function openInstructions(context: CommandContext): Promise<void> {
 		context.root,
 		context.ref,
 		context.host.t("servedText.title.instructions", { ref: context.ref }),
+	);
+}
+
+/**
+ * Opens the card's own journal as a read-only editor tab.
+ *
+ * This mirrors openInstructions field for field, and it does so because the
+ * two acts differ only in which kind of text the tab serves. The reasoning
+ * above about opening being an explicit act applies here unchanged, and a card
+ * that opened its history on every claim would take the reader's focus for the
+ * same reason (dinah-422 D-1).
+ */
+export async function openHistory(context: CommandContext): Promise<void> {
+	await context.host.openServedText(
+		KIND_HISTORY,
+		context.root,
+		context.ref,
+		context.host.t("servedText.title.history", { ref: context.ref }),
 	);
 }
 
