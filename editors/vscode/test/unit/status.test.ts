@@ -76,6 +76,81 @@ test("an ambiguous refusal warns, names no winner, and lists the candidates", ()
 	assert.ok(view.tooltip.includes("/base/.dinah/bbb"));
 });
 
+test("an ambiguous refusal whose candidate list is unknown lists nothing", () => {
+	// dinah-432: a walk that could not produce the list arrives with no list
+	// at all, and coalescing that into an empty array drew a folder holding
+	// several workbenches as a folder holding none. The generic refusal
+	// branch is what an unlisted refusal already gets, and this case joins it
+	// rather than gaining a sentence of its own.
+	const unknown = composeStatus(
+		GOOD_BINARY,
+		{
+			state: "refused",
+			refusal: AMBIGUOUS_WORKBENCH,
+			answered: true,
+			candidatesUnknown: true,
+		},
+		"source",
+	);
+	assert.equal(unknown.text, "$(checklist) Dinah $(warning)");
+	assert.ok(!unknown.tooltip.includes("Set dinah.workbench to choose one."));
+	assert.ok(!unknown.tooltip.includes("/base/.dinah/"));
+	assert.equal(
+		unknown.tooltip.split("\n")[0],
+		`dinah refused: ${AMBIGUOUS_WORKBENCH}`,
+	);
+
+	// A refusal this extension has no special case for is what the generic
+	// branch was already drawing, and the unknown list joins it rather than
+	// getting a shape of its own, so everything below the refusal line has to
+	// match.
+	const generic = composeStatus(
+		GOOD_BINARY,
+		{ state: "refused", refusal: "dinah.unreadable-bench", answered: true },
+		"source",
+	);
+	assert.equal(unknown.text, generic.text);
+	assert.deepEqual(
+		unknown.tooltip.split("\n").slice(1),
+		generic.tooltip.split("\n").slice(1),
+	);
+});
+
+test("an ambiguous refusal that carries its list still lists it", () => {
+	const view = composeStatus(
+		GOOD_BINARY,
+		{
+			state: "refused",
+			refusal: AMBIGUOUS_WORKBENCH,
+			answered: true,
+			candidatesUnknown: false,
+			candidates: [
+				{ title: "one", path: "/base/.dinah/aaa" },
+				{ title: "two", path: "/base/.dinah/bbb" },
+			],
+		},
+		"source",
+	);
+	assert.ok(view.tooltip.includes("Set dinah.workbench to choose one."));
+	assert.ok(view.tooltip.includes("/base/.dinah/aaa"));
+	assert.ok(view.tooltip.includes("/base/.dinah/bbb"));
+});
+
+test("the ambiguity context key survives a candidate list nobody could produce", () => {
+	// dinah-432 keeps the fallthrough to the listing alone. The folder is
+	// still known to be ambiguous, because that came from the refusal name
+	// rather than from the walk, and the welcome view depends on this key.
+	assert.deepEqual(
+		composeContextKeys(GOOD_BINARY, {
+			state: "refused",
+			refusal: AMBIGUOUS_WORKBENCH,
+			answered: true,
+			candidatesUnknown: true,
+		}),
+		{ binary: "ok", workbench: "ambiguous" },
+	);
+});
+
 test("no workbench found hides the item", () => {
 	const view = composeStatus(
 		GOOD_BINARY,

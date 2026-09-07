@@ -309,6 +309,27 @@ type refusalReport struct {
 	// splitting a prose string. Every other refusal leaves this nil, and
 	// omitempty drops it.
 	Workbenches []bench.Candidate `json:"workbenches,omitempty"`
+	// WorkbenchesRefusal carries the refusal the walk that gathers
+	// Workbenches raised, present only when that walk failed. It is set only
+	// inside the dinah.ambiguous-workbench branch, which is the one case
+	// Workbenches is ever populated at all; every other refusal leaves both
+	// fields nil and omitempty drops both keys. When this field is set,
+	// Workbenches is left nil and its own omitempty drops the "workbenches"
+	// key, so a reader holds exactly one of the two keys rather than neither
+	// or both.
+	//
+	// Name and Detail reuse the vocabulary refusalReport's own top-level
+	// Refusal and Detail fields already carry, so a reader parsing one needs
+	// no second vocabulary to parse the other.
+	WorkbenchesRefusal *walkRefusal `json:"workbenches_refusal,omitempty"`
+}
+
+// walkRefusal names a refusal internal/bench raised while a call inside
+// reportError was gathering data for the reply, rather than the refusal that
+// reportError itself is reporting.
+type walkRefusal struct {
+	Name   string `json:"name"`
+	Detail string `json:"detail,omitempty"`
 }
 
 // reportError reports an error from a layer below as a refusal on stderr and
@@ -337,7 +358,20 @@ func (s *session) reportError(err error) int {
 		}
 		if refusal.Name == contract.AmbiguousWorkbench {
 			report.Detail = ""
-			report.Workbenches, _ = bench.Reachable(s.cwd, s.benchFlag, s.home, s.nativeHome)
+			rows, err := bench.Reachable(s.cwd, s.benchFlag, s.home, s.nativeHome)
+			if err != nil {
+				if walked, ok := err.(*contract.Refusal); ok {
+					report.WorkbenchesRefusal = &walkRefusal{Name: walked.Name, Detail: walked.Detail}
+				} else {
+					// filepath.Abs failing inside walk() is the one error
+					// Reachable can return that is not a *contract.Refusal.
+					// contract.UnknownRoot is the closest existing name to a
+					// directory this walk could not treat as a root.
+					report.WorkbenchesRefusal = &walkRefusal{Name: contract.UnknownRoot, Detail: err.Error()}
+				}
+			} else {
+				report.Workbenches = rows
+			}
 		}
 		s.emitMachine(report)
 	}

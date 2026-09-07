@@ -442,7 +442,14 @@ export function composeStatus(
 		) {
 			return HIDDEN;
 		}
-		if (resolution.refusal === AMBIGUOUS_WORKBENCH) {
+		// A folder whose candidate list could not be produced falls through to
+		// the generic refusal branch below, which names the refusal and lists
+		// nothing. Listing here would draw the empty array the coalescing
+		// produces, which reads as a folder holding nothing at all.
+		if (
+			resolution.refusal === AMBIGUOUS_WORKBENCH &&
+			!resolution.candidatesUnknown
+		) {
 			const candidates = (resolution.candidates ?? []).map(
 				(candidate) => `  ${candidate.path}`,
 			);

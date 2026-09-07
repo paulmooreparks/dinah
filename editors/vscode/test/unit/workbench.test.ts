@@ -108,6 +108,30 @@ test("parseRefusal keeps the candidate list an ambiguous refusal carries", () =>
 	assert.equal(resolution.candidates?.length, 2);
 });
 
+test("parseRefusal carries an unknown candidate list through", () => {
+	const unknown = parseRefusal({
+		kind: "refused",
+		refusal: AMBIGUOUS_WORKBENCH,
+		workbenchesUnknown: true,
+	});
+	assert.equal(unknown.state, "refused");
+	if (unknown.state !== "refused") {
+		return;
+	}
+	assert.equal(unknown.candidatesUnknown, true);
+
+	const known = parseRefusal({
+		kind: "refused",
+		refusal: AMBIGUOUS_WORKBENCH,
+		workbenches: [{ title: "one", slug: "alpha", path: "/base/.dinah/aaa" }],
+	});
+	assert.equal(known.state, "refused");
+	if (known.state !== "refused") {
+		return;
+	}
+	assert.ok(!known.candidatesUnknown);
+});
+
 test("parseRefusal keeps the named values a refusal carries", () => {
 	// The `found` key is what tells a pinned folder holding nothing from a
 	// pinned folder whose own container holds a workbench one level down.
