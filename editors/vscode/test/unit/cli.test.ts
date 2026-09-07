@@ -89,7 +89,7 @@ test("runDinah reads a refused candidate walk as a list it does not have", async
 		refusal: "dinah.ambiguous-workbench",
 		context: { base: "C:\\base\\.dinah" },
 		workbenches_refusal: {
-			name: "dinah.damaged-bench",
+			name: "dinah.damaged-workbench",
 			detail: "C:\\base\\.dinah\\aaa",
 		},
 	});

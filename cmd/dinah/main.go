@@ -313,10 +313,16 @@ type refusalReport struct {
 	// Workbenches raised, present only when that walk failed. It is set only
 	// inside the dinah.ambiguous-workbench branch, which is the one case
 	// Workbenches is ever populated at all; every other refusal leaves both
-	// fields nil and omitempty drops both keys. When this field is set,
-	// Workbenches is left nil and its own omitempty drops the "workbenches"
-	// key, so a reader holds exactly one of the two keys rather than neither
-	// or both.
+	// fields nil and omitempty drops both keys.
+	//
+	// A walk that refused carries this key and no "workbenches" key. A walk
+	// that answered with rows carries "workbenches" and not this one. A walk
+	// that answered with no rows at all carries neither, because omitempty
+	// drops an empty slice as readily as a nil one, so that third case stays
+	// as indistinguishable from a dropped answer as it was before this field
+	// existed. Reaching it takes the directory changing between the walk that
+	// found the ambiguity and this one, which is a race rather than an
+	// ordinary outcome.
 	//
 	// Name and Detail reuse the vocabulary refusalReport's own top-level
 	// Refusal and Detail fields already carry, so a reader parsing one needs
@@ -330,6 +336,25 @@ type refusalReport struct {
 type walkRefusal struct {
 	Name   string `json:"name"`
 	Detail string `json:"detail,omitempty"`
+}
+
+// walkRefusalOf names the refusal a walk inside reportError raised, and
+// answers nil for a walk that did not fail. Both renderers of the ambiguous
+// refusal ask this rather than reading the error themselves, so the reply a
+// script parses and the listing a person reads cannot name one failed walk
+// two different ways.
+func walkRefusalOf(err error) *walkRefusal {
+	if err == nil {
+		return nil
+	}
+	if walked, ok := err.(*contract.Refusal); ok {
+		return &walkRefusal{Name: walked.Name, Detail: walked.Detail}
+	}
+	// filepath.Abs failing inside walk() is the one error Reachable can
+	// return that is not a *contract.Refusal. contract.UnknownRoot is the
+	// closest existing name to a directory this walk could not treat as a
+	// root.
+	return &walkRefusal{Name: contract.UnknownRoot, Detail: err.Error()}
 }
 
 // reportError reports an error from a layer below as a refusal on stderr and
@@ -359,16 +384,8 @@ func (s *session) reportError(err error) int {
 		if refusal.Name == contract.AmbiguousWorkbench {
 			report.Detail = ""
 			rows, err := bench.Reachable(s.cwd, s.benchFlag, s.home, s.nativeHome)
-			if err != nil {
-				if walked, ok := err.(*contract.Refusal); ok {
-					report.WorkbenchesRefusal = &walkRefusal{Name: walked.Name, Detail: walked.Detail}
-				} else {
-					// filepath.Abs failing inside walk() is the one error
-					// Reachable can return that is not a *contract.Refusal.
-					// contract.UnknownRoot is the closest existing name to a
-					// directory this walk could not treat as a root.
-					report.WorkbenchesRefusal = &walkRefusal{Name: contract.UnknownRoot, Detail: err.Error()}
-				}
+			if walked := walkRefusalOf(err); walked != nil {
+				report.WorkbenchesRefusal = walked
 			} else {
 				report.Workbenches = rows
 			}

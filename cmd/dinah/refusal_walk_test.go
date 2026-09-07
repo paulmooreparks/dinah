@@ -37,27 +37,43 @@ func corruptedAmbiguousTree(t *testing.T) string {
 	return tree
 }
 
-// reportedRefusal runs one refusal through reportError from a session standing
-// in tree and returns what the named machine form wrote to stdout.
+// refusingSession builds a session standing in tree, alongside the buffers its
+// two streams write to.
 //
 // The boundary the walk stops its climb at is the tree's own parent rather
 // than the tree, because benchIn skips a directory's .dinah once the climb has
 // reached the native home, and the tree's .dinah is the whole fixture.
-func reportedRefusal(t *testing.T, tree string, format outputFormat, refusal *contract.Refusal) string {
-	t.Helper()
-	out := &bytes.Buffer{}
-	s := &session{
+func refusingSession(tree string, format outputFormat) (*session, *bytes.Buffer, *bytes.Buffer) {
+	out, errw := &bytes.Buffer{}, &bytes.Buffer{}
+	return &session{
 		out:        out,
-		errw:       &bytes.Buffer{},
+		errw:       errw,
 		r:          msg.For(msg.Base),
 		width:      100,
 		format:     format,
 		home:       filepath.Join(tree, "home"),
 		nativeHome: filepath.Dir(tree),
 		cwd:        tree,
-	}
+	}, out, errw
+}
+
+// reportedRefusal runs one refusal through reportError from a session standing
+// in tree and returns what the named machine form wrote to stdout.
+func reportedRefusal(t *testing.T, tree string, format outputFormat, refusal *contract.Refusal) string {
+	t.Helper()
+	s, out, _ := refusingSession(tree, format)
 	s.reportError(refusal)
 	return out.String()
+}
+
+// composedRefusal runs one refusal through reportError from a session standing
+// in tree and returns what the human form wrote to stderr, which is the form a
+// person reading dinah status sees.
+func composedRefusal(t *testing.T, tree string, refusal *contract.Refusal) string {
+	t.Helper()
+	s, _, errw := refusingSession(tree, formatHuman)
+	s.reportError(refusal)
+	return errw.String()
 }
 
 // decodeReport reads one machine refusal back as the generic map a script
@@ -108,18 +124,29 @@ func TestAFailedCandidateWalkIsReportedRatherThanDroppingTheKey(t *testing.T) {
 // this card, so a change populating both fields at once, or neither, fails
 // here.
 func TestASucceedingCandidateWalkStillServesTheCandidates(t *testing.T) {
-	tree, _ := ambiguousTree(t)
+	tree, rooms := ambiguousTree(t)
+
+	// The reply is read out of a run of the binary, which climbs to the
+	// volume root and can therefore be answered by a directory above the
+	// fixture on somebody's machine. That arm skips rather than asserting
+	// against whatever the machine happens to hold, so the fixture is put
+	// through bench.Reachable directly first, where the climb is bounded by
+	// arguments and the answer is the same on every machine.
+	rows, err := bench.Reachable(tree, "", filepath.Join(tree, "home"), filepath.Dir(tree))
+	if err != nil {
+		t.Fatalf("the uncorrupted fixture should answer, got %v", err)
+	}
+	if len(rows) != len(rooms) {
+		t.Fatalf("the walk should find %d candidates, got %v", len(rooms), rows)
+	}
+
 	machine := runCLI(t, tree, "--json", "status")
 	report := decodeReport(t, machine.out)
-	// The walk climbs to the volume root, so on a machine whose own home
-	// carries a .dinah holding one workbench the search resolves before it
-	// reaches the fixture's ambiguity. The case is skipped rather than
-	// asserted against whatever the machine happens to hold.
 	if report["refusal"] != contract.AmbiguousWorkbench {
 		t.Skipf("a directory above the temporary tree answered the search with %v", report["refusal"])
 	}
-	rows, ok := report["workbenches"].([]any)
-	if !ok || len(rows) < 2 {
+	carried, ok := report["workbenches"].([]any)
+	if !ok || len(carried) < 2 {
 		t.Fatalf("the reply should carry the candidate rows, got %v", report["workbenches"])
 	}
 	if _, present := report["workbenches_refusal"]; present {
@@ -146,5 +173,56 @@ func TestOnlyTheAmbiguousRefusalCarriesACandidateWalk(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestAFailedCandidateWalkNamesItselfInTheHumanListing asserts that the block
+// drawing the ambiguous refusal's candidates for a person keeps the same error
+// the machine form keeps. Before this, refusalBlocks["workbenches"] discarded
+// it and formatCandidateRows drew a table of no rows, so the reader was told
+// the directory holds several workbenches and shown none of them, with nothing
+// saying the list could not be produced.
+func TestAFailedCandidateWalkNamesItselfInTheHumanListing(t *testing.T) {
+	tree := corruptedAmbiguousTree(t)
+
+	// The fixture has to reach the failure this listing reports rather than
+	// some other error by another path, so the walk is run directly first.
+	rows, err := bench.Reachable(tree, "", filepath.Join(tree, "home"), filepath.Dir(tree))
+	walked, ok := err.(*contract.Refusal)
+	if !ok {
+		t.Fatalf("the fixture should make the walk refuse, got rows %v and err %v", rows, err)
+	}
+	if walked.Name != contract.DamagedBench {
+		t.Fatalf("the fixture should reach %s, got %s", contract.DamagedBench, walked.Name)
+	}
+
+	text := composedRefusal(t, tree, contract.Refuse(contract.AmbiguousWorkbench, tree))
+	if !strings.HasPrefix(text, contract.AmbiguousWorkbench+" ") {
+		t.Errorf("the refusal name should still lead stderr, got %q", text)
+	}
+	s, _, _ := refusingSession(tree, formatHuman)
+	cell := s.refusedCell(contract.DamagedBench)
+	if !strings.Contains(text, cell) {
+		t.Errorf("the listing should carry %q in place of the rows it could not produce, got %q", cell, text)
+	}
+}
+
+// TestASucceedingCandidateWalkStillDrawsTheCandidatesForAPerson holds the
+// other arm of the same block: a walk that answered draws its rows and names
+// no refusal, so a change reporting the failure on every walk fails here.
+func TestASucceedingCandidateWalkStillDrawsTheCandidatesForAPerson(t *testing.T) {
+	tree, rooms := ambiguousTree(t)
+
+	text := composedRefusal(t, tree, contract.Refuse(contract.AmbiguousWorkbench, tree))
+	for _, room := range rooms {
+		if !strings.Contains(text, room) {
+			t.Errorf("the listing should carry the candidate %q, got %q", room, text)
+		}
+	}
+	s, _, _ := refusingSession(tree, formatHuman)
+	for _, name := range []string{contract.DamagedBench, contract.UnknownRoot} {
+		if cell := s.refusedCell(name); strings.Contains(text, cell) {
+			t.Errorf("a walk that answered should name no refusal, got %q", text)
+		}
 	}
 }
