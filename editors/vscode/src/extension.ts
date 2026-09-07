@@ -813,7 +813,10 @@ export async function activate(
 			if (outcome.kind !== "ok") {
 				throw new Error(refusalMessage(outcome));
 			}
-			return renderHistoryMarkdown(outcome.json as JournalEvent[], t);
+			// The cast admits null, because a card whose journal is absent or
+			// carries no lines is answered with the JSON literal null rather
+			// than with an empty array. renderHistoryMarkdown takes both.
+			return renderHistoryMarkdown(outcome.json as JournalEvent[] | null, t);
 		},
 		[KIND_GUIDE]: async (_root, ref) => {
 			const outcome = await runDinahText(

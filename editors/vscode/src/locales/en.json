@@ -350,12 +350,12 @@
 			"context": "History row for an attachment being renamed. {from} is the old filename and {filename} the new one."
 		},
 		"history.event.archived": {
-			"text": "{actor} archived this.",
-			"context": "History row for an archive. The row deliberately does not name what was archived, because the event carries a bare identifier that cannot say whether it names the card or one of its attachments."
+			"text": "{actor} archived something recorded here.",
+			"context": "History row for an archive. The row does not name what was archived, because the event carries a bare identifier that cannot say whether it names the card or one of its attachments, and a reader reaches this tab from a live card row, so an attachment is the usual answer. The wording follows history.event.deleted, which carries the same ambiguity."
 		},
 		"history.event.restored": {
-			"text": "{actor} restored this.",
-			"context": "History row for a restore. No command writes this event today, and the row exists so that a binary which starts writing one needs no change here."
+			"text": "{actor} restored something recorded here.",
+			"context": "History row for a restore. No command writes this event today, and the row exists so that a binary which starts writing one needs no change here. The wording follows history.event.deleted, which carries the same ambiguity about what was acted on."
 		},
 		"history.event.deleted": {
 			"text": "{actor} deleted something recorded here.",
@@ -378,12 +378,12 @@
 			"context": "History row for a write to one of a card's own fields. {field} is the field's name, and {from} and {to} carry its value on either side of the write, each filled with the catalogue's word for an absent value when the event carries none."
 		},
 		"history.event.tier_overridden": {
-			"text": "{actor} set {columnTitle} to {to} ({expr}).",
-			"context": "History row for a per-column tier override being written. {columnTitle} is the column's title as of the event and falls back to its raw identifier when the event captured none, {to} is the resolved value and {expr} is what somebody typed."
+			"text": "{actor} set the card's tier in {columnTitle} to {to} ({expr}).",
+			"context": "History row for a per-card tier override being written for one column. The sentence names the card because the override belongs to the card and not to the column. {columnTitle} is the column's title as of the event and falls back to its raw identifier when the event captured none, {to} is the resolved value and {expr} is what somebody typed."
 		},
 		"history.event.tier_override_dropped": {
-			"text": "{actor}'s override of {column} ({from}) was dropped because the column was retired.",
-			"context": "History row for a per-column tier override dropped by a reshape. {column} is the retired column's raw identifier and {from} the value that went with it."
+			"text": "{actor}'s tier override for the card in {column} ({from}) was dropped because the column was retired.",
+			"context": "History row for a per-card tier override dropped when the column it applied in was retired by a reshape. {column} is that column's raw identifier and {from} the value that went with it."
 		},
 		"history.event.unknown": {
 			"text": "{actor} recorded an event of kind {event}.",

@@ -420,10 +420,36 @@ test("the render table names exactly the events the contract declares", () => {
 test("an empty journal renders the catalogue's own sentence and nothing else", () => {
 	// dinah-422 AC-6. The wording is asserted whole, because "is recorded" is
 	// the half that keeps this from reading as a claim that nothing happened.
-	assert.equal(
-		renderHistoryMarkdown([], ENGLISH),
-		"No history is recorded for this card.",
-	);
+	//
+	// Both wire readings are driven, and null is the one the binary actually
+	// prints. `dinah --json log` answers a card whose journal is absent or
+	// carries no lines with the JSON literal null, because bench.ReadJournal
+	// returns a nil slice and encoding/json writes a nil slice as null.
+	// Captured by running the built binary against a card whose journal file
+	// was emptied and then removed: both runs printed `null` and exited 0.
+	for (const events of [null, []] as (readonly JournalEvent[] | null)[]) {
+		assert.equal(
+			renderHistoryMarkdown(events, ENGLISH),
+			"No history is recorded for this card.",
+			`the empty sentence did not render for ${JSON.stringify(events)}`,
+		);
+	}
+});
+
+test("an event name that collides with Object.prototype falls through to unknown", () => {
+	// dinah-422. HISTORY_ROWS is a plain object literal, so indexing it with
+	// toString, valueOf or __proto__ resolves to the inherited member and
+	// walks past the unknown-name fallback into a throw that takes the whole
+	// tab to servedText.refused. No contract event has such a name; the guard
+	// is here because a newer binary chooses its own names and the fallback
+	// exists precisely for names this catalogue has never seen.
+	for (const name of ["toString", "valueOf", "hasOwnProperty", "constructor", "__proto__"]) {
+		assert.equal(
+			renderHistoryMarkdown([event({ event: name })], ENGLISH),
+			`paul recorded an event of kind ${name}.`,
+			`${name} did not reach the unknown-name row`,
+		);
+	}
 });
 
 test("events render one line each, in the order they arrive", () => {
@@ -537,12 +563,12 @@ const HISTORY_CASES: readonly {
 	{
 		name: "archived",
 		fixture: event({ event: "archived", note: "card-9f2c" }),
-		want: "paul archived this.",
+		want: "paul archived something recorded here.",
 	},
 	{
 		name: "restored",
 		fixture: event({ event: "restored" }),
-		want: "paul restored this.",
+		want: "paul restored something recorded here.",
 	},
 	{
 		name: "deleted",
@@ -585,7 +611,7 @@ const HISTORY_CASES: readonly {
 			against: "workhorse",
 			reason: "the diff reaches the contract",
 		}),
-		want: "paul set Implement to frontier (+1).",
+		want: "paul set the card's tier in Implement to frontier (+1).",
 	},
 	{
 		name: "tier_override_dropped",
@@ -594,7 +620,8 @@ const HISTORY_CASES: readonly {
 			column: "col-3",
 			from: "frontier",
 		}),
-		want: "paul's override of col-3 (frontier) was dropped because the column was retired.",
+		want:
+			"paul's tier override for the card in col-3 (frontier) was dropped because the column was retired.",
 	},
 	{
 		name: "an unrecognised name",
@@ -653,7 +680,7 @@ test("a tier override with no captured column title falls back to the identifier
 			[event({ event: "tier_overridden", column: "col-3", to: "frontier", expr: "frontier" })],
 			ENGLISH,
 		),
-		"paul set col-3 to frontier (frontier).",
+		"paul set the card's tier in col-3 to frontier (frontier).",
 	);
 });
 
@@ -690,9 +717,13 @@ test("the journal is asked for with the pinned argv and no hand-built flag", () 
 	// dinah-422 AC-3. --json is composed by cli.ts and refused if a caller
 	// spells it, so the argv this resolver hands over carries the workbench
 	// and the verb alone.
+	// stdout is the literal null the binary prints for a card with no journal
+	// lines, captured from a run of the built binary rather than imagined. An
+	// earlier form of this fixture printed "[]", a shape dinah never emits,
+	// and it agreed with a renderer that threw on the real answer.
 	const { spawner, calls } = historySpawner({
 		code: 0,
-		stdout: "[]",
+		stdout: "null",
 		stderr: "",
 	});
 	return resolveHistory(spawner, "/bench", "dinah-422").then((text) => {
@@ -706,15 +737,18 @@ test("a refused log throws what the existing refusal path already renders", asyn
 	// dinah-422 AC-3's other half. The kind adds no failure string of its own:
 	// the provider's catch turns this into servedText.refused, which is the
 	// same entry the instructions kind has used since dinah-270.
+	// Captured from `dinah --json log` against a reference no card carries:
+	// the refusal name is bare rather than dotted, and detail is the
+	// reference itself rather than a sentence about it. Exit code 2.
 	const refusal = JSON.stringify({
 		outcome: "refused",
-		refusal: "dinah.unknown-card",
-		detail: "no card is filed under that reference",
+		refusal: "unknown-card",
+		detail: "dinah-999",
 	});
 	const { spawner } = historySpawner({ code: 2, stdout: refusal, stderr: "" });
 	await assert.rejects(
 		() => resolveHistory(spawner, "/bench", "dinah-999"),
-		/no card is filed under that reference/,
+		/^Error: unknown-card: dinah-999$/,
 	);
 
 	// The catalogue carries no history-specific refusal entry, which is what

@@ -179,16 +179,28 @@ function field(value: string | undefined): string {
  * otherwise make and would let a line's rendering depend on whether the entity
  * it names still exists (dinah-422 D-4).
  *
- * Two events carry fields no row surfaces. `moved` carries override, reject and
- * reshape, which v1 leaves out because saying which two columns the move was
- * between is what a reader scanning a card's history is after (D-5).
- * `tier_overridden` carries `against` and `reason`, and this card drops both by
- * a decision of its own rather than by oversight: against is the column's own
+ * Most events carry wire fields no row reads. A row says what happened, and
+ * every field it passes over stays in the journal for a reader who goes there,
+ * so an unread field is unremarkable and no inventory of them belongs in this
+ * comment. Three omissions were chosen rather than defaulted, and each is
+ * recorded here so that a later reader does not repair a gap somebody meant.
+ *
+ * `moved` carries override, reject and reshape. v1 leaves the three out
+ * because saying which two columns the move was between is what a reader
+ * scanning a card's history is after (dinah-422 D-5).
+ *
+ * `tier_overridden` carries against and reason. against is the column's own
  * tier default at the moment a relative expression was resolved, which is
- * provenance for the number rather than the number, and reason is populated
- * only by a raise, so an ordinary per-column write would render a template
- * variant with an empty clause in it. Each would want its own variant to read
- * as a sentence, and neither changes what the row already reports happened.
+ * provenance for the number rather than the number itself, and reason is
+ * populated only by a raise, so an ordinary per-column write would render a
+ * template variant with an empty clause in it (dinah-422 D-7).
+ *
+ * `blocked` carries kind, the structured reason class the block was filed
+ * under. `--kind` is optional and nothing supplies a default, so the field is
+ * absent on every block that named none, while the prose reason this row does
+ * render is required by the verb and never empty. A reader who wants the class
+ * asks for it through the block_kind query field, where it is a value to match
+ * on rather than a word in a sentence (dinah-422 D-8).
  */
 export const HISTORY_ROWS: Readonly<
 	Record<string, (event: JournalEvent, t: Localizer) => HistoryParams>
@@ -304,15 +316,30 @@ export const HISTORY_ROWS: Readonly<
  * at rather than a card nothing has been done to.
  */
 export function renderHistoryMarkdown(
-	events: readonly JournalEvent[],
+	events: readonly JournalEvent[] | null,
 	t: Localizer,
 ): string {
-	if (events.length === 0) {
+	// `dinah --json log` answers a card whose journal is absent or carries no
+	// lines with the JSON literal null and not with an empty array, because
+	// bench.ReadJournal returns a nil slice and encoding/json writes a nil
+	// slice as null. Both readings arrive here meaning the same thing, so the
+	// guard establishes that it holds an array before it asks one for its
+	// length. Reading .length off the null throws a TypeError, which the
+	// content provider's catch renders as a refusal, and the reader then sees
+	// a type error where history.empty belongs.
+	const lines = Array.isArray(events) ? (events as readonly JournalEvent[]) : [];
+	if (lines.length === 0) {
 		return t("history.empty");
 	}
-	return events
+	return lines
 		.map((event) => {
-			const row = HISTORY_ROWS[event.event];
+			// Object.hasOwn rather than a bare index, because an event name
+			// colliding with an Object.prototype member (toString, valueOf,
+			// __proto__) otherwise resolves to the inherited value and walks
+			// past the unknown-name fallback into a throw.
+			const row = Object.hasOwn(HISTORY_ROWS, event.event)
+				? HISTORY_ROWS[event.event]
+				: undefined;
 			if (row === undefined) {
 				return t("history.event.unknown", {
 					actor: event.actor,

@@ -440,14 +440,14 @@
 			"source": "cab9bf6f757d4f62"
 		},
 		"history.event.archived": {
-			"text": "{actor} hat dies archiviert.",
-			"context": "History row for an archive. The row deliberately does not name what was archived, because the event carries a bare identifier that cannot say whether it names the card or one of its attachments.",
-			"source": "5521609f617277be"
+			"text": "{actor} hat etwas archiviert, das hier verzeichnet ist.",
+			"context": "History row for an archive. The row does not name what was archived, because the event carries a bare identifier that cannot say whether it names the card or one of its attachments, and a reader reaches this tab from a live card row, so an attachment is the usual answer. The wording follows history.event.deleted, which carries the same ambiguity.",
+			"source": "c448bbcf19553830"
 		},
 		"history.event.restored": {
-			"text": "{actor} hat dies wiederhergestellt.",
-			"context": "History row for a restore. No command writes this event today, and the row exists so that a binary which starts writing one needs no change here.",
-			"source": "36d8c8be9be9345e"
+			"text": "{actor} hat etwas wiederhergestellt, das hier verzeichnet ist.",
+			"context": "History row for a restore. No command writes this event today, and the row exists so that a binary which starts writing one needs no change here. The wording follows history.event.deleted, which carries the same ambiguity about what was acted on.",
+			"source": "35890f113d23bed0"
 		},
 		"history.event.deleted": {
 			"text": "{actor} hat etwas gelöscht, das hier verzeichnet war.",
@@ -475,14 +475,14 @@
 			"source": "b67b9d3f470d1ee6"
 		},
 		"history.event.tier_overridden": {
-			"text": "{actor} hat {columnTitle} auf {to} gesetzt ({expr}).",
-			"context": "History row for a per-column tier override being written. {columnTitle} is the column's title as of the event and falls back to its raw identifier when the event captured none, {to} is the resolved value and {expr} is what somebody typed.",
-			"source": "6b1db2b1ac17da1a"
+			"text": "{actor} hat die Stufe der Karte in {columnTitle} auf {to} gesetzt ({expr}).",
+			"context": "History row for a per-card tier override being written for one column. The sentence names the card because the override belongs to the card and not to the column. {columnTitle} is the column's title as of the event and falls back to its raw identifier when the event captured none, {to} is the resolved value and {expr} is what somebody typed.",
+			"source": "14bca67b2e8a90c4"
 		},
 		"history.event.tier_override_dropped": {
-			"text": "Die Überschreibung von {column} ({from}) durch {actor} wurde verworfen, weil die Spalte zurückgezogen wurde.",
-			"context": "History row for a per-column tier override dropped by a reshape. {column} is the retired column's raw identifier and {from} the value that went with it.",
-			"source": "65be4341288bb348"
+			"text": "Die Stufenüberschreibung der Karte in {column} ({from}) durch {actor} wurde verworfen, weil die Spalte zurückgezogen wurde.",
+			"context": "History row for a per-card tier override dropped when the column it applied in was retired by a reshape. {column} is that column's raw identifier and {from} the value that went with it.",
+			"source": "e8328108c80161c"
 		},
 		"history.event.unknown": {
 			"text": "{actor} hat ein Ereignis des Typs {event} aufgezeichnet.",
