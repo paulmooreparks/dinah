@@ -212,10 +212,10 @@ The exit status will not tell a complete read from a partial one. A `for` loop
 exits with the status of its last iteration alone, so a mistyped reference
 anywhere before the last one leaves the status reporting success, and a run
 that got every card but the middle one looks from the status exactly like a run
-that got them all. Read standard error instead. Each failed reference leaves a refusal there
-naming itself, followed by `cat`'s own complaint about the empty name, so an
-empty standard error is a complete read and anything on it names the cards you
-asked for and did not get.
+that got them all. Read standard error instead. Each failed reference leaves a
+refusal there naming itself, followed by `cat`'s own complaint about the empty
+name, so an empty standard error is a complete read and anything on it names
+the cards you asked for and did not get.
 
 `docs/design/token-cost.md` records the measurement in its dated section for
 this command, and the figures here are transcribed from that section's fenced
