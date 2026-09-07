@@ -201,10 +201,16 @@ func TestARaiseIsRefusedWhereTheCardIsNotHeld(t *testing.T) {
 	}
 }
 
-// TestARaiseSkipsTheComparisonAgainstARequirementTheWorkbenchHasLost is AC-14
-// at the library, where the state can be built: the card asks for a tier the
-// declared set no longer carries, so there is no rank to compare against and
-// the raise proceeds rather than measuring against a fabricated rank of zero.
+// TestARaiseSkipsTheComparisonAgainstARequirementTheWorkbenchHasLost covers a
+// card asking for a tier the declared set no longer carries: there is no rank
+// to compare against, so the raise proceeds rather than measuring against a
+// fabricated rank of zero. It lives at the library because that is the only
+// layer where the state can be built.
+//
+// No acceptance criterion on dinah-409 names this case. An earlier round of
+// this comment cited AC-14, which is the log-rendering criterion and was never
+// about it, and the citation was written before AC-13 and AC-14 were
+// repurposed. Cite nothing rather than the wrong thing.
 func TestARaiseSkipsTheComparisonAgainstARequirementTheWorkbenchHasLost(t *testing.T) {
 	h := harnessFromDefinition(t, "rz", raiseDefinition)
 	ref := h.readyAt("assessed against a retired rung", raiseBuild)

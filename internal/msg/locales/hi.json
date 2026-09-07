@@ -2677,8 +2677,18 @@
     },
     "refusal.no-reason.next": {
       "text": "; `dinah block {card} \"वह प्रश्न जिसका उत्तर संचालक को देना है\"` चलाएँ",
-      "context": "Spliced onto refusal.no-reason as the next step. {card} is the card reference the reader named. Written for block, the one verb that raises this refusal.",
+      "context": "Spliced onto refusal.no-reason as the next step. {card} is the card reference the reader named. Written for block; raise raises this refusal too and renders refusal.no-reason.raise.next in place of this entry.",
       "source": "1200d4b14e107f7f"
+    },
+    "refusal.no-reason.raise": {
+      "text": "स्तर बढ़ाने के साथ कारण आता है, जो बताता है कि आपने ऐसा क्या पाया जो काम को इस पड़ाव के माँगे गए स्तर से ऊपर ले जाता है",
+      "context": "The sentence printed after the refusal name no-reason when the raise command raised it. A command adding no key of its own renders refusal.no-reason instead.",
+      "source": "a22814c635d4a42a"
+    },
+    "refusal.no-reason.raise.next": {
+      "text": "; `dinah raise {card} <tier> \"आपने जो पाया\"` चलाएँ",
+      "context": "Spliced onto refusal.no-reason.raise as its next step. {card} is the card reference the reader named. The raise command renders it; every other command renders refusal.no-reason.next.",
+      "source": "57eed4ce08978d9a"
     },
     "refusal.not-blocked": {
       "text": "यह कार्ड बाधित नहीं है, इसलिए हटाने को कुछ नहीं है",

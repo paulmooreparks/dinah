@@ -2691,8 +2691,18 @@
     },
     "refusal.no-reason.next": {
       "text": "; führen Sie `dinah block {card} \"die Frage, die der Betreiber beantworten muss\"` aus",
-      "context": "Spliced onto refusal.no-reason as the next step. {card} is the card reference the reader named. Written for block, the one verb that raises this refusal.",
+      "context": "Spliced onto refusal.no-reason as the next step. {card} is the card reference the reader named. Written for block; raise raises this refusal too and renders refusal.no-reason.raise.next in place of this entry.",
       "source": "1200d4b14e107f7f"
+    },
+    "refusal.no-reason.raise": {
+      "text": "eine Anhebung trägt einen Grund, der sagt, was Sie gefunden haben, das die Arbeit über die hier verlangte Stufe hinaushebt",
+      "context": "The sentence printed after the refusal name no-reason when the raise command raised it. A command adding no key of its own renders refusal.no-reason instead.",
+      "source": "a22814c635d4a42a"
+    },
+    "refusal.no-reason.raise.next": {
+      "text": "; führen Sie `dinah raise {card} <tier> \"was Sie gefunden haben\"` aus",
+      "context": "Spliced onto refusal.no-reason.raise as its next step. {card} is the card reference the reader named. The raise command renders it; every other command renders refusal.no-reason.next.",
+      "source": "57eed4ce08978d9a"
     },
     "refusal.not-blocked": {
       "text": "diese Karte ist nicht blockiert, es gibt also nichts aufzuheben",

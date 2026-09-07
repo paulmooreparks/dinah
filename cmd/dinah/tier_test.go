@@ -780,11 +780,12 @@ func TestARaiseResolvingAtOrBelowWhatTheCardAsksIsRefused(t *testing.T) {
 			if name := refusalNameOf(refused.errw); name != contract.TierNotHigher {
 				t.Errorf("the refusal name is %s, wanted %s", name, contract.TierNotHigher)
 			}
-			if !strings.Contains(refused.errw, "apex") {
-				t.Errorf("the sentence does not name what the card already asks for:\n%s", refused.errw)
-			}
-			if !strings.Contains(refused.errw, tc.attempted) {
-				t.Errorf("the sentence does not name what the raise resolved to:\n%s", refused.errw)
+			english := msg.For(msg.Base)
+			want := contract.TierNotHigher + " " +
+				english.T("refusal.dinah.tier-not-higher", "current", "apex", "attempted", tc.attempted) +
+				english.T("refusal.dinah.tier-not-higher.next", "current", "apex") + "\n"
+			if refused.errw != want {
+				t.Errorf("the sentence a caller reads:\n got  %q\n want %q", refused.errw, want)
 			}
 			after := anchorText(t, root, "fx-1")
 			if after != anchor {
@@ -834,8 +835,17 @@ func TestARaiseByAnyoneButTheHolderIsRefused(t *testing.T) {
 			if name := refusalNameOf(refused.errw); name != contract.NotHolder {
 				t.Errorf("the refusal name is %s, wanted %s", name, contract.NotHolder)
 			}
-			if tc.holder != "" && !strings.Contains(refused.errw, tc.holder) {
-				t.Errorf("the sentence does not name the holder:\n%s", refused.errw)
+			english := msg.For(msg.Base)
+			want := contract.NotHolder + " " +
+				english.T("refusal.not-holder.unnamed") +
+				english.T("refusal.not-holder.next-unheld", "card", tc.ref) + "\n"
+			if tc.holder != "" {
+				want = contract.NotHolder + " " +
+					english.T("refusal.not-holder", "detail", tc.holder) +
+					english.T("refusal.not-holder.next", "detail", tc.holder) + "\n"
+			}
+			if refused.errw != want {
+				t.Errorf("the sentence a caller reads:\n got  %q\n want %q", refused.errw, want)
 			}
 			if after := anchorText(t, root, tc.ref); after != anchor {
 				t.Errorf("the refused raise reached the anchor:\n%s", after)
@@ -847,14 +857,19 @@ func TestARaiseByAnyoneButTheHolderIsRefused(t *testing.T) {
 	}
 }
 
-// TestARaiseWithNoReasonIsRefusedBeforeTheTierIsResolved asserts AC-5: the
-// reason is checked ahead of the expression, so an invocation that would fail
-// both fails for the missing reason, which is the order the printed check
-// table promises.
+// TestARaiseWithNoReasonIsRefusedBeforeTheTierIsResolved asserts AC-5, which
+// has two halves. The reason is checked ahead of the expression, so an
+// invocation that would fail both fails for the missing reason, which is the
+// order the printed check table promises. And the sentence the caller reads is
+// raise's own: the whole of stderr is compared against the variant pair, so a
+// raise that fell back on block's entries would fail here even though it
+// refused under the right name. The name half alone cannot see that, which is
+// how this card once shipped a refusal telling a caller to run `dinah block`.
 func TestARaiseWithNoReasonIsRefusedBeforeTheTierIsResolved(t *testing.T) {
 	root := newBenchFromDefinition(t, raisingDefinition)
 	heldAt(t, root, "a card with nothing said about it", "build")
 	anchor := anchorText(t, root, "fx-1")
+	english := msg.For(msg.Base)
 
 	refused := runCLI(t, root, "raise", "fx-1", "+5")
 	if refused.code != 2 {
@@ -862,6 +877,18 @@ func TestARaiseWithNoReasonIsRefusedBeforeTheTierIsResolved(t *testing.T) {
 	}
 	if name := refusalNameOf(refused.errw); name != contract.NoReason {
 		t.Errorf("the refusal name is %s, wanted %s, so the tier was resolved before the reason was asked for", name, contract.NoReason)
+	}
+	want := contract.NoReason + " " +
+		english.T("refusal.no-reason.raise") +
+		english.T("refusal.no-reason.raise.next", "card", "fx-1") + "\n"
+	if refused.errw != want {
+		t.Errorf("the sentence a caller reads:\n got  %q\n want %q", refused.errw, want)
+	}
+	if strings.Contains(refused.errw, english.T("refusal.no-reason.next", "card", "fx-1")) {
+		t.Errorf("block's next step reached a reader who typed raise, so following it runs a different verb against the card: %q", refused.errw)
+	}
+	if strings.Contains(refused.errw, english.T("refusal.no-reason")) {
+		t.Errorf("block's own sentence reached a reader who typed raise: %q", refused.errw)
 	}
 	if after := anchorText(t, root, "fx-1"); after != anchor {
 		t.Errorf("the refused raise reached the anchor:\n%s", after)

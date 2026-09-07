@@ -107,15 +107,23 @@ const (
 // with no entry here fails the build, which is what keeps the name, the
 // sentence and the shape from drifting apart.
 //
-// Three of the sentences below are written for the one command that raises
-// their refusal, and the card that adds a second raise site to any of them
+// Two of the sentences below are written for the one command that raises
+// their refusal, and the card that adds a second raise site to either of them
 // owes a second entry rather than inheriting a sentence written elsewhere.
-// refusal.no-reason.next is written for block, refusal.not-requester.next for
-// claim, and refusal.not-holder.unnamed together with
-// refusal.not-holder.next-unheld for release, which is the one verb that
-// raises not-holder today. refusal.layer-collision.next has no raise site at
-// all, since LayerCollisionErr is declared and never raised, so its wording
-// is a reading of the catalog rather than of a rendering.
+// refusal.not-requester.next is written for claim, and
+// refusal.not-holder.unnamed together with refusal.not-holder.next-unheld are
+// written for release. raise raises not-holder as well, and those two entries
+// were read against it and kept, because a card nobody holds still has to be
+// claimed before anybody can raise it.
+//
+// refusal.no-reason was a third until dinah-409. It was written for block, so
+// a raise typed with no reason ended on advice to run `dinah block`, which is
+// a different act against the same card. raise now carries a variant of its
+// own, which is what this paragraph asks a second raise site to do.
+//
+// refusal.layer-collision.next has no raise site at all, since
+// LayerCollisionErr is declared and never raised, so its wording is a reading
+// of the catalog rather than of a rendering.
 var Shapes = []Shape{
 	{
 		Name:      AtCapacity,
@@ -203,10 +211,24 @@ var Shapes = []Shape{
 		NextStep:  []string{"refusal.no-owner.next"},
 	},
 	{
-		Name:      NoReason,
-		Values:    []string{ValueCard},
-		Fragments: []Fragment{{Key: "refusal.no-reason.next"}},
-		NextStep:  []string{"refusal.no-reason.next"},
+		// One refusal name answers two acts. block asks for the question the
+		// operator has to answer, and raise asks what the caller found that
+		// puts the work beyond the tier the stop declares, so raise carries
+		// its own sentence and its own next step. Without the variant a raise
+		// typed with no reason ends on advice that blocks the card, which is
+		// a different act against the same card, and a caller who follows it
+		// does the wrong thing rather than being stopped.
+		Name:     NoReason,
+		Values:   []string{ValueCard},
+		Variants: []string{"raise"},
+		Fragments: []Fragment{
+			{Key: "refusal.no-reason.raise.next", WhenCommand: "raise"},
+			{Key: "refusal.no-reason.next"},
+		},
+		NextStep: []string{
+			"refusal.no-reason.raise.next",
+			"refusal.no-reason.next",
+		},
 	},
 	{
 		Name:      NotBlocked,

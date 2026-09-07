@@ -2672,7 +2672,17 @@
     },
     "refusal.no-reason.next": {
       "text": "; run `dinah block {card} \"the question the operator has to answer\"`",
-      "context": "Spliced onto refusal.no-reason as the next step. {card} is the card reference the reader named. Written for block, the one verb that raises this refusal.",
+      "context": "Spliced onto refusal.no-reason as the next step. {card} is the card reference the reader named. Written for block; raise raises this refusal too and renders refusal.no-reason.raise.next in place of this entry.",
+      "skeleton": true
+    },
+    "refusal.no-reason.raise": {
+      "text": "a raise carries a reason, saying what you found that puts the work beyond the tier this stop asks for",
+      "context": "The sentence printed after the refusal name no-reason when the raise command raised it. A command adding no key of its own renders refusal.no-reason instead.",
+      "skeleton": true
+    },
+    "refusal.no-reason.raise.next": {
+      "text": "; run `dinah raise {card} <tier> \"what you found\"`",
+      "context": "Spliced onto refusal.no-reason.raise as its next step. {card} is the card reference the reader named. The raise command renders it; every other command renders refusal.no-reason.next.",
       "skeleton": true
     },
     "refusal.not-blocked": {
