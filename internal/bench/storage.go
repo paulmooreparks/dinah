@@ -273,10 +273,35 @@ func ClaimWorkbenchID(container string) (string, error) {
 // the one directory in the format holding names of two widths, so it is the
 // one directory that gets its own listing, and a caller asking what a
 // container holds asks this rather than reaching for the entity listing.
-func ListWorkbenchIDs(container string) []string {
+//
+// It answers (nil, nil) for a container that names nothing on disk, because a
+// discovery walk visits mostly directories that hold no .dinah at all and a
+// migration's first run has not created its container yet. It answers
+// (nil, err) whenever something is there and could not be listed, so a caller
+// that receives an empty list and a nil error has been told that the container
+// really was read and really held nothing.
+//
+// The existence question is settled by a second os.Stat on the container
+// rather than by classifying os.ReadDir's own error, and that is the whole
+// point of the two calls. os.ReadDir reports a path where a plain file sits in
+// place of the directory through an error that os.IsNotExist and
+// errors.Is(err, fs.ErrNotExist) both answer true for on at least one
+// supported platform, which is the same answer they give for a container
+// nobody ever created. Nothing here depends on that, and the code is written
+// so that nothing can come to depend on it: os.ReadDir's error is never
+// classified at all, and os.Stat, whose documented contract distinguishes a
+// path that does not exist from a path that exists and is not a directory,
+// decides the case on every platform alike. listIdentifiers
+// (internal/bench/vocabulary.go) classifies os.ReadDir's own error for a
+// different collection and carries the same latent gap, so do not copy that
+// idiom into this function.
+func ListWorkbenchIDs(container string) ([]string, error) {
 	entries, err := os.ReadDir(container)
 	if err != nil {
-		return nil
+		if _, statErr := os.Stat(container); os.IsNotExist(statErr) {
+			return nil, nil
+		}
+		return nil, err
 	}
 	var ids []string
 	for _, entry := range entries {
@@ -289,5 +314,5 @@ func ListWorkbenchIDs(container string) []string {
 		}
 		ids = append(ids, name)
 	}
-	return ids
+	return ids, nil
 }

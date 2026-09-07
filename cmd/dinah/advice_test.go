@@ -86,7 +86,10 @@ func TestTheContainerMigrationAdviceIsACommandThatWorks(t *testing.T) {
 			if took.code != 0 {
 				t.Fatalf("the advice, confirmed, exited %d: %s%s", took.code, took.out, took.errw)
 			}
-			ids := bench.ListWorkbenchIDs(filepath.Join(project, bench.UserBaseName))
+			ids, err := bench.ListWorkbenchIDs(filepath.Join(project, bench.UserBaseName))
+			if err != nil {
+				t.Fatalf("ListWorkbenchIDs: %v", err)
+			}
 			if len(ids) != 1 {
 				t.Fatalf("the advice ran and the workbench is not in a container: the container holds %v", ids)
 			}
