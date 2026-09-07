@@ -88,6 +88,15 @@ export type CliOutcome =
 	| { readonly kind: "not-json"; readonly detail: string };
 
 /**
+ * Every arm of CliOutcome but the successful one.
+ *
+ * The two classifiers below answer with this rather than with the whole union,
+ * because neither of them can produce a success and a caller composing an
+ * outcome of its own would otherwise have to prove that again.
+ */
+export type CliFailure = Exclude<CliOutcome, { kind: "ok" }>;
+
+/**
  * Composes the argv dinah is actually invoked with: `--json` ahead of
  * everything the caller asked for.
  *
@@ -201,7 +210,7 @@ function readRefusal(
 	parsed: unknown,
 	stdout: string,
 	stderr: string,
-): CliOutcome {
+): CliFailure {
 	const envelope = parsed as
 		| {
 				refusal?: unknown;
@@ -282,7 +291,7 @@ export const EXIT_READ_FINDINGS = 5;
  * a `version` probe that answers prose is a binary that is not dinah, while a
  * check that answers prose is a report that went missing.
  */
-function classifyFailure(outcome: SpawnOutcome, parsed: unknown): CliOutcome {
+function classifyFailure(outcome: SpawnOutcome, parsed: unknown): CliFailure {
 	switch (outcome.code) {
 		case 2:
 			return readRefusal(parsed, outcome.stdout, outcome.stderr);
@@ -343,6 +352,55 @@ export async function runDinah(
 		return { kind: "ok", json: parsed };
 	}
 	return classifyFailure(outcome, parsed);
+}
+
+/**
+ * What one invocation whose success carries text rather than JSON came to.
+ *
+ * Every failure arm is the one `runDinah` already answers with, so a caller
+ * reads a refusal the same way whichever of the two it called. Only the
+ * success arm differs, and it carries the bytes dinah wrote.
+ */
+export type CliTextOutcome =
+	| { readonly kind: "ok"; readonly text: string }
+	| CliFailure;
+
+/**
+ * Runs one dinah invocation whose successful output is text, and classifies it.
+ *
+ * `runDinah` parses stdout as JSON on the way out, so a verb whose successful
+ * stdout is prose comes back from it as "this binary is not dinah", which is
+ * both false and the opposite of useful. `guide` is that verb: it writes the
+ * embedded guide's Markdown whether or not `--json` is set, and it is the only
+ * surface this extension reads that way.
+ *
+ * Keep it that way. This is not a general escape from the machine surfaces,
+ * and a second caller wanting it is a sign that the caller wants a verb whose
+ * machine form somebody has yet to add. `composeArgv` still runs, so the
+ * argv-hygiene rules above still apply, and every non-zero exit still goes
+ * through `classifyFailure`, which reads the refusal envelope. The exit-0 arm
+ * parses nothing at all, which is the whole of what this function adds.
+ */
+export async function runDinahText(
+	spawner: Spawner,
+	exe: string,
+	args: readonly string[],
+	options: SpawnOptions = {},
+): Promise<CliTextOutcome> {
+	const outcome = await spawner(exe, composeArgv(args), options);
+
+	if (outcome.spawnError) {
+		return {
+			kind: "spawn-failed",
+			errno: outcome.spawnError.code,
+			detail: outcome.spawnError.message,
+		};
+	}
+
+	if (outcome.code === 0) {
+		return { kind: "ok", text: outcome.stdout };
+	}
+	return classifyFailure(outcome, parseJson(outcome.stdout));
 }
 
 /**
