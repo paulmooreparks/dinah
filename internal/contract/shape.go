@@ -621,6 +621,16 @@ var Shapes = []Shape{
 		NextStep:  []string{"refusal.dinah.below-tier.next"},
 	},
 	{
+		// Both tiers ride as values for the reason BelowTier gives: the base
+		// sentence names what the card already asks for and what the raise
+		// resolved to, and the next step names the first of them again, so
+		// neither can travel in the detail alone.
+		Name:      TierNotHigher,
+		Values:    []string{"current", "attempted"},
+		Fragments: []Fragment{{Key: "refusal.dinah.tier-not-higher.next"}},
+		NextStep:  []string{"refusal.dinah.tier-not-higher.next"},
+	},
+	{
 		// The axis rides as a value even though the detail could carry it,
 		// because the sentence names the axis twice and the anchor path once,
 		// and a detail doing both jobs reads as one of them.

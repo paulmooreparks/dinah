@@ -82,10 +82,14 @@ type Request struct {
 	// field.
 	Severity string
 	Priority string
-	// Tier is what a claim declares about itself and what a column creation
-	// gives the new column as its default, which are two different acts
-	// sharing one flag name the way Kind already serves a block and a column
-	// creation. A claim's value is self-reported and nothing verifies it.
+	// Tier is what a claim declares about itself, what a column creation
+	// gives the new column as its default, and what a raise asks the card to
+	// require at the column it is standing in, which are three different acts
+	// sharing one argument name the way Kind already serves a block and a
+	// column creation. A claim's value is self-reported and nothing verifies
+	// it. A raise's value is an expression rather than a name: it resolves
+	// through ResolveTierWrite exactly as a per-column tier write does, so it
+	// may be a declared member or a relative step.
 	Tier string
 	// At is the column a per-column write names, empty when the write is
 	// about the card as a whole. A tier write carrying it sets an override

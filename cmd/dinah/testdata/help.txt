@@ -14,6 +14,8 @@ WORK
   release <card>                            Give the card back to its queue
   block <card> <reason> [--kind <kind>]     Raise an obstacle and free the card
   unblock <card>                            Lift a block (operator only)
+  raise <card> <tier> <reason>              Raise the tier this stop needs and
+                                              hand the card back
   comment <card> <text|->                   Record a comment on a card
   attach <ref> <file>                       Attach a file, or replace its bytes
     [--description <text>] [--replace]

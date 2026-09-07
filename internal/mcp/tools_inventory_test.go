@@ -30,6 +30,7 @@ var publishedProperties = map[string][]string{
 	"release":          {"actor", "basis", "card", "workbench"},
 	"block":            {"actor", "basis", "card", "kind", "reason", "workbench"},
 	"unblock":          {"actor", "basis", "card", "workbench"},
+	"raise":            {"actor", "card", "reason", "tier", "workbench"},
 	"join_workstream":  {"actor", "basis", "card", "workbench", "workstream"},
 	"leave_workstream": {"actor", "basis", "card", "workbench", "workstream"},
 	"add_card":         {"actor", "column", "priority", "severity", "title", "workbench"},

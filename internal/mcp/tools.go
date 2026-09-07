@@ -69,6 +69,7 @@ var tools = []tool{
 	{name: "release", command: verb.Release, run: doVerb},
 	{name: "block", command: verb.Block, run: doVerb},
 	{name: "unblock", command: verb.Unblock, run: doVerb},
+	{name: "raise", command: verb.Raise, run: func(l *verb.Library, r *verb.Request) any { return l.Raise(r) }},
 	{name: "join_workstream", command: verb.Join, run: doVerb},
 	{name: "leave_workstream", command: verb.Leave, run: doVerb},
 	{name: "add_card", command: "add", run: func(l *verb.Library, r *verb.Request) any { return l.Add(r) }},

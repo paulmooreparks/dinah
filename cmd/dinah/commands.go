@@ -43,6 +43,10 @@ func init() {
 		{name: "release", group: groupWork, run: runRelease, bounded: 1},
 		{name: "block", group: groupWork, run: runBlock, bounded: 1, openTail: true},
 		{name: "unblock", group: groupWork, run: runUnblock, bounded: 1},
+		// raise binds two positionals and lets the reason run to the end of
+		// the line, which is block's shape for the same reason: a
+		// justification worth recording is worth typing without a flag.
+		{name: "raise", group: groupWork, run: runRaise, bounded: 2, openTail: true},
 		{name: "comment", group: groupWork, run: runComment, bounded: 1, openTail: true},
 		{name: "attach", group: groupWork, run: runAttach, bounded: 2},
 		{name: "join", group: groupWork, run: runJoin, bounded: 2},
@@ -198,6 +202,24 @@ func runBlock(s *session, parsed *arguments) int {
 	req.Reason = reason
 	return s.withBench(func(l *verb.Library) int {
 		return s.emit(l.Do(req))
+	})
+}
+
+// runRaise puts the tier required at the card's own column up and hands the
+// card back. The reason is positional, the way block's is, because a
+// reassessment worth recording is worth typing without a flag.
+func runRaise(s *session, parsed *arguments) int {
+	words := parsed.rest()
+	req := s.request(verb.Raise, parsed)
+	req.Card = at(words, 0)
+	req.Tier = at(words, 1)
+	reason, refusal := s.freeText([]string{verb.Raise, req.Card, req.Tier}, words[min(2, len(words)):], "slot.reason")
+	if refusal != nil {
+		return s.reportError(refusal)
+	}
+	req.Reason = reason
+	return s.withBench(func(l *verb.Library) int {
+		return s.emit(l.Raise(req))
 	})
 }
 
