@@ -139,6 +139,10 @@
       {
         "command": "dinah.tree.pull",
         "title": "%manifest.command.dinah.tree.pull.title%"
+      },
+      {
+        "command": "dinah.tree.openInstructions",
+        "title": "%manifest.command.dinah.tree.openInstructions.title%"
       }
     ],
     "menus": {
@@ -202,6 +206,10 @@
         {
           "command": "dinah.tree.pull",
           "when": "false"
+        },
+        {
+          "command": "dinah.tree.openInstructions",
+          "when": "false"
         }
       ],
       "view/title": [
@@ -240,7 +248,7 @@
         {
           "command": "dinah.tree.copyCardRef",
           "when": "view == dinah.workbenchView && viewItem =~ /^dinah\\.card\\./",
-          "group": "2_copy@1"
+          "group": "3_copy@1"
         },
         {
           "command": "dinah.tree.checkWorkbench",
@@ -286,6 +294,11 @@
           "command": "dinah.tree.attachFile",
           "when": "view == dinah.workbenchView && viewItem =~ /^dinah\\.card\\./",
           "group": "2_attachment@1"
+        },
+        {
+          "command": "dinah.tree.openInstructions",
+          "when": "view == dinah.workbenchView && viewItem =~ /^dinah\\.card\\./",
+          "group": "2_view@1"
         }
       ]
     },

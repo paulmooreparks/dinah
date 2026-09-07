@@ -185,9 +185,38 @@ export interface PullAnswer {
 	readonly message_values?: Record<string, string>;
 }
 
+/**
+ * verb.Instructions, the three text layers never written into one another.
+ *
+ * `withheld` and `reread` are the recovery path a long-lived connection needs
+ * when a layer it already holds is not sent again. The CLI head never withholds,
+ * because it opens the workbench once per invocation, and every call this
+ * extension makes is a fresh child process. Both fields are mirrored anyway,
+ * since this interface is a mirror of the Go struct rather than a mirror of the
+ * subset one caller happens to read.
+ */
+export interface InstructionChain {
+	readonly global?: string;
+	readonly standing?: string;
+	readonly column?: string;
+	readonly withheld?: readonly string[];
+	readonly reread?: string;
+}
+
+/** verb.Loop, a card's standing against its column's declared loop_limit. */
+export interface Loop {
+	readonly column: string;
+	readonly limit: number;
+	readonly count: number;
+	readonly at_limit: boolean;
+}
+
 /** verb.Served, what `dinah --json instructions <ref>` emits. */
 export interface ServedAnswer {
+	readonly instructions: InstructionChain;
 	readonly legal_moves?: readonly LegalMove[];
+	readonly loop?: Loop;
+	readonly column: string;
 }
 
 /** The two directions verb.LegalMove.Direction carries. */

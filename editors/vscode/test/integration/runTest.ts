@@ -75,12 +75,22 @@ async function main(): Promise<void> {
 	// there can only assert the no-Claim half.
 	moveCard(root, tree, treeCards[0], "doing");
 
+	// dinah-270: a workbench holding one card, whose served instruction chain
+	// the servedText suite opens as a tab. The poll interval is pinned to its
+	// floor so the staleness half of that suite waits out intervals rather
+	// than the ten-second default.
+	const served = join(fixtures, "served");
+	initBench(root, served);
+	pinBinary(root, served, { "dinah.pollIntervalSeconds": 2 });
+	addCard(root, served, "Read the served text");
+
 	const launches: Launch[] = [
 		{ suite: "active", folder: active },
 		{ suite: "nested", folder: nestedWork },
 		{ suite: "ambiguous", folder: ambiguous },
 		{ suite: "inactive", folder: bare },
 		{ suite: "tree", folder: tree },
+		{ suite: "servedText", folder: served },
 	];
 
 	let failed = false;

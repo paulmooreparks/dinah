@@ -168,6 +168,7 @@ function watcher(answer: SpawnOutcome = ok({})): Watcher {
 		openDocument: async () => {},
 		openFile: async () => {},
 		pickFile: async () => undefined,
+		openServedText: async () => undefined,
 		checkpoint: async (folder) => {
 			checkpoints.push(folder);
 		},

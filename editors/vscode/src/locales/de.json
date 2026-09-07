@@ -322,6 +322,42 @@
 			"text": "Dinah konnte nicht bestätigen, ob Sie gerade etwas halten",
 			"context": "First hover line when every workbench's last read went stale, so the window cannot say what the reader holds.",
 			"source": "809bda6a4396c0d6"
+		},
+		"servedText.title.instructions": {
+			"text": "{ref} (bereitgestellte Anweisungen)",
+			"context": "Tab label of the editor tab a card's served instruction chain opens in. {ref} is the card's own reference.",
+			"source": "2fe7049743acca53"
+		},
+		"servedText.heading.global": {
+			"text": "Global",
+			"context": "Markdown heading above the user-global layer of a served instruction chain.",
+			"verbatim": true,
+			"source": "681c086b8f7afcae"
+		},
+		"servedText.heading.standing": {
+			"text": "Werkbank",
+			"context": "Markdown heading above the workbench's own standing layer of a served instruction chain.",
+			"source": "989261d5eefc4735"
+		},
+		"servedText.heading.column": {
+			"text": "Spalte",
+			"context": "Markdown heading above the column's own layer of a served instruction chain.",
+			"source": "9e40e59654c8ad67"
+		},
+		"servedText.malformedUri": {
+			"text": "Die URI dieses Tabs mit bereitgestelltem Text konnte nicht gelesen werden.",
+			"context": "Body of a served-text tab whose URI carries no kind, no workbench or no reference.",
+			"source": "d08e29f688250158"
+		},
+		"servedText.unknownKind": {
+			"text": "Dinah kann keinen Text der Art {kind} anzeigen.",
+			"context": "Body of a served-text tab naming a kind of text this extension serves no reader for. {kind} is that name.",
+			"source": "172ba149e3da9ff9"
+		},
+		"servedText.refused": {
+			"text": "dinah hat abgelehnt: {detail}",
+			"context": "Body of a served-text tab whose fetch was refused. {detail} is what dinah said.",
+			"source": "9129bb93df2fae54"
 		}
 	}
 }
