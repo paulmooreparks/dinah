@@ -137,6 +137,7 @@ export function parseRefusal(outcome: CliOutcome): WorkbenchResolution {
 			// they have been discarded.
 			context: outcome.context,
 			candidates: outcome.workbenches as readonly Candidate[] | undefined,
+			candidatesUnknown: outcome.workbenchesUnknown,
 		};
 	}
 	const detail = (outcome as { detail?: string }).detail ?? outcome.kind;

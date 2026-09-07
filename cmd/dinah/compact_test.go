@@ -338,6 +338,12 @@ func decodeCompactRefusalReport(payload string) (refusalReport, error) {
 		Refusal: head.field(2),
 		Detail:  head.field(3),
 	}
+	// The two trailing fields carry the refusal the candidate walk raised.
+	// An empty name is the absence JSON writes by dropping the key, so the
+	// pointer stays nil there and the two forms compare equal.
+	if name := head.field(8); name != "" {
+		report.WorkbenchesRefusal = &walkRefusal{Name: name, Detail: head.field(9)}
+	}
 	for _, record := range records[1:] {
 		switch record.kind {
 		case "ctx":
@@ -996,5 +1002,59 @@ func TestTheCompactFormOpensOnItsVersionRecord(t *testing.T) {
 		if !strings.HasSuffix(got.out, "\n") || strings.HasSuffix(got.out, "\n\n") {
 			t.Errorf("%v does not end on exactly one newline: %q", argv, got.out)
 		}
+	}
+}
+
+// TestTheCandidateWalksRefusalDecodesTheSameUnderBothMachineForms asserts
+// dinah-432 AC-6: the two trailing fields compactRefusal appends carry what
+// the JSON field carries, on the fixture whose candidate walk fails and on the
+// fixture whose candidate walk answers.
+//
+// Both forms are produced through reportError rather than through the binary,
+// because the corrupted fixture refuses over the damage before any invocation
+// can reach the ambiguous branch, so no argv puts the CLI in the state this
+// field reports.
+func TestTheCandidateWalksRefusalDecodesTheSameUnderBothMachineForms(t *testing.T) {
+	for _, c := range []struct {
+		name    string
+		build   func(t *testing.T) string
+		refused bool
+	}{
+		{name: "the candidate walk fails", build: corruptedAmbiguousTree, refused: true},
+		{
+			name:    "the candidate walk answers",
+			build:   func(t *testing.T) string { tree, _ := ambiguousTree(t); return tree },
+			refused: false,
+		},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			tree := c.build(t)
+			refusal := contract.Refuse(contract.AmbiguousWorkbench, tree)
+			var canonical refusalReport
+			if err := json.Unmarshal([]byte(reportedRefusal(t, tree, formatJSON, refusal)), &canonical); err != nil {
+				t.Fatalf("read the canonical refusal: %v", err)
+			}
+			compact := reportedRefusal(t, tree, formatCompact, refusal)
+			decoded, err := decodeCompactRefusalReport(compact)
+			if err != nil {
+				t.Fatalf("decode the compact refusal: %v\n%s", err, compact)
+			}
+			if c.refused {
+				if canonical.WorkbenchesRefusal == nil {
+					t.Fatalf("the fixture did not induce the failure this case is about")
+				}
+				if len(decoded.Workbenches) != 0 {
+					t.Errorf("a failed walk should leave no wb records, got %v", decoded.Workbenches)
+				}
+			} else {
+				if canonical.WorkbenchesRefusal != nil {
+					t.Fatalf("the plain fixture should not carry a walk refusal, got %#v", canonical.WorkbenchesRefusal)
+				}
+				if len(decoded.Workbenches) < 2 {
+					t.Errorf("a walk that answered should keep its wb records, got %v", decoded.Workbenches)
+				}
+			}
+			sameFields(t, "the candidate walk's refusal", decoded, canonical)
+		})
 	}
 }

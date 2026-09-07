@@ -121,6 +121,17 @@ export type WorkbenchResolution =
 			 */
 			readonly context?: Readonly<Record<string, string>>;
 			readonly candidates?: readonly Candidate[];
+			/**
+			 * True when dinah could not produce the candidate list at all,
+			 * which it reports on the envelope's `workbenches_refusal` key.
+			 *
+			 * A reader drawing the candidates has to know which of the two
+			 * silences it is holding, because an absent list and an empty one
+			 * arrive alike. Only the listing is unknown here: the folder is
+			 * still known to be ambiguous, since that came from the refusal
+			 * name rather than from the walk.
+			 */
+			readonly candidatesUnknown?: boolean;
 	  };
 
 /**

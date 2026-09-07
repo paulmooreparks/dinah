@@ -83,6 +83,43 @@ test("runDinah reads exit 2 as the refusal envelope on stdout", async () => {
 	assert.equal(outcome.context?.base, "C:\\base\\.dinah");
 });
 
+test("runDinah reads a refused candidate walk as a list it does not have", async () => {
+	const envelope = JSON.stringify({
+		outcome: "refused",
+		refusal: "dinah.ambiguous-workbench",
+		context: { base: "C:\\base\\.dinah" },
+		workbenches_refusal: {
+			name: "dinah.damaged-workbench",
+			detail: "C:\\base\\.dinah\\aaa",
+		},
+	});
+	const { spawner } = stub({ code: 2, stdout: envelope, stderr: "prose" });
+	const outcome = await runDinah(spawner, "dinah", ["status"]);
+	assert.equal(outcome.kind, "refused");
+	if (outcome.kind !== "refused") {
+		return;
+	}
+	assert.equal(outcome.workbenchesUnknown, true);
+	assert.equal(outcome.workbenches, undefined);
+});
+
+test("runDinah reads an empty candidate list as a list it does have", async () => {
+	const envelope = JSON.stringify({
+		outcome: "refused",
+		refusal: "dinah.ambiguous-workbench",
+		context: { base: "C:\\base\\.dinah" },
+		workbenches: [],
+	});
+	const { spawner } = stub({ code: 2, stdout: envelope, stderr: "prose" });
+	const outcome = await runDinah(spawner, "dinah", ["status"]);
+	assert.equal(outcome.kind, "refused");
+	if (outcome.kind !== "refused") {
+		return;
+	}
+	assert.ok(!outcome.workbenchesUnknown);
+	assert.deepEqual(outcome.workbenches, []);
+});
+
 test("runDinah reads exit 4 as unreachable", async () => {
 	const { spawner } = stub({ code: 4, stdout: "", stderr: "gone" });
 	const outcome = await runDinah(spawner, "dinah", ["status"]);

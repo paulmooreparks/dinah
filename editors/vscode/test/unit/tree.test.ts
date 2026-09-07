@@ -1027,6 +1027,59 @@ test("expanding a candidate joins once, scoped to that candidate's own path", as
 	assert.equal(calls.length, 3);
 });
 
+test("an ambiguous folder whose candidate list is unknown draws a dead end", async () => {
+	// dinah-432: a walk that could not produce the list arrives with no list
+	// at all, and the candidates mode then drew zero rows, which is the exact
+	// shape a folder confirmed to hold nothing draws. The dead-end return is
+	// what every refusal this provider does not special-case already gets,
+	// and this case joins it.
+	const unknown = provider(REFUSING);
+	await unknown.load([
+		folder({
+			folder: "C:\\multi\\second",
+			resolution: {
+				...AMBIGUOUS,
+				candidates: undefined,
+				candidatesUnknown: true,
+			},
+		}),
+	]);
+	const unknownRows = await unknown.getChildren();
+	assert.equal(unknownRows.length, 1, "a dead end draws one row, not none");
+
+	// The row a refusal with no special case of its own already produces,
+	// which is the row the unknown list now joins.
+	const plain = provider(REFUSING);
+	await plain.load([
+		folder({
+			folder: "C:\\multi\\second",
+			resolution: {
+				state: "refused",
+				refusal: "dinah.unreadable-bench",
+				answered: true,
+			},
+		}),
+	]);
+	const plainRows = await plain.getChildren();
+	assert.equal(plainRows.length, 1);
+	// Only the refusal name differs, which is what says the two rows came
+	// out of one return rather than out of two that happen to agree.
+	assert.equal(
+		treeItemFor(unknownRows[0]).label,
+		String(treeItemFor(plainRows[0]).label).replace(
+			"dinah.unreadable-bench",
+			"dinah.ambiguous-workbench",
+		),
+	);
+
+	// The control: a resolution that did carry its list still lists it.
+	const listed = provider(REFUSING);
+	await listed.load([
+		folder({ folder: "C:\\multi\\second", resolution: AMBIGUOUS }),
+	]);
+	assert.equal((await listed.getChildren()).length, 2);
+});
+
 test("two expands racing each other still join once", async () => {
 	const { spawner, calls } = stubSpawner({
 		status: THREE_STATUS,

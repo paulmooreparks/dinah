@@ -2981,10 +2981,7 @@ func TestRefusalsSayWhereTheToolLookedAndWhatComesNext(t *testing.T) {
 			}
 
 			machine := runCLI(t, dir, append([]string{"--json"}, argv...)...)
-			report := map[string]any{}
-			if err := json.Unmarshal([]byte(machine.out), &report); err != nil {
-				t.Fatalf("--json wrote nothing a caller can parse: %q (%v)", machine.out, err)
-			}
+			report := decodeReport(t, machine.out)
 			if report["outcome"] != contract.OutcomeRefused {
 				t.Errorf("outcome: wanted %s, got %v", contract.OutcomeRefused, report["outcome"])
 			}

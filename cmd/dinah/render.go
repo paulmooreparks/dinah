@@ -447,8 +447,11 @@ func (s *session) renderWorkbenches(rows []bench.Candidate, root string) {
 // callers can never draw the same candidates in different columns.
 // A row the walk could not describe carries its refusal name in the workbench
 // cell, in place of the title it has none of, and leaves the slug cell empty
-// rather than printing the missing-slug repair: a workbench nothing could read
-// is not a workbench whose slug is worth deriving.
+// rather than printing the missing-slug repair, because a workbench nothing
+// could read is a workbench whose slug is not worth deriving. A walk that
+// refused before it described anything is drawn the same way, as one row
+// naming that refusal with no path beside it, so the reason a listing is
+// missing reaches a person in the place the listing would have stood.
 func (s *session) formatCandidateRows(rows []bench.Candidate) []string {
 	t := table{indent: 2, columns: s.columns("workbenches", "workbench", "slug", "path")}
 	for _, candidate := range rows {
@@ -872,7 +875,15 @@ var refusalListings = map[string]func(*session) []string{
 // rows carry columns rather than bare names and one place already draws them.
 var refusalBlocks = map[string]func(*session) []string{
 	"workbenches": func(s *session) []string {
-		rows, _ := bench.Reachable(s.cwd, s.benchFlag, s.home, s.nativeHome)
+		rows, err := bench.Reachable(s.cwd, s.benchFlag, s.home, s.nativeHome)
+		if walked := walkRefusalOf(err); walked != nil {
+			// The walk that would have named the candidates refused, so the
+			// reason stands where the rows would have. Drawing nothing here
+			// tells a person the directory holds several workbenches and
+			// then shows them none, which is the confident empty answer the
+			// machine form no longer gives.
+			return s.formatCandidateRows([]bench.Candidate{{Refused: walked.Name}})
+		}
 		return s.formatCandidateRows(rows)
 	},
 }

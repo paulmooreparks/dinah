@@ -27,7 +27,8 @@ const compactVersion = "2"
 // The record kinds, with their fields in order after the kind:
 //
 //	fmt      compact, version
-//	rsp      outcome, verb, refusal, detail, basis, warning, warning_detail, message
+//	rsp      outcome, verb, refusal, detail, basis, warning, warning_detail,
+//	         message, workbenches_refusal, workbenches_refusal_detail
 //	card     id, ref, title, column, column_title, state, severity, priority,
 //	         holder, claim_since, expires, block_reason, block_kind, revision,
 //	         then one trailing field per workstream identifier
@@ -211,7 +212,15 @@ func compactResponse(response *verb.Response) string {
 // which is the property refusalReport already claims for the canonical form.
 func compactRefusal(report refusalReport) string {
 	payload := openCompact()
-	payload.record("rsp", report.Outcome, "", report.Refusal, report.Detail, "", "", "", "")
+	// The two trailing fields stay present and empty when the walk that
+	// gathers the candidates did not fail, because a record is read by index
+	// and a reader counting fields finds the same count on every refusal.
+	refusalName, refusalDetail := "", ""
+	if report.WorkbenchesRefusal != nil {
+		refusalName, refusalDetail = report.WorkbenchesRefusal.Name, report.WorkbenchesRefusal.Detail
+	}
+	payload.record("rsp", report.Outcome, "", report.Refusal, report.Detail, "", "", "", "",
+		refusalName, refusalDetail)
 	payload.pairs("ctx", report.Context)
 	for _, candidate := range report.Workbenches {
 		payload.record("wb", candidate.ID, candidate.Title, candidate.Slug, candidate.Path)

@@ -64,6 +64,19 @@ export type CliOutcome =
 			readonly detail?: string;
 			readonly context?: Record<string, string>;
 			readonly workbenches?: Candidate[];
+			/**
+			 * True when the envelope said the walk that gathers `workbenches`
+			 * refused, which dinah reports as a `workbenches_refusal` object.
+			 * A refusal carrying neither key leaves this undefined, and so
+			 * does one carrying an ordinary candidate list.
+			 *
+			 * The distinction it makes is between a list that is empty and a
+			 * list nobody could produce. Both arrive with no `workbenches`
+			 * key, and reading the second as the first is how a folder
+			 * holding several workbenches came to be drawn as a folder
+			 * holding none.
+			 */
+			readonly workbenchesUnknown?: boolean;
 	  }
 	| { readonly kind: "stale"; readonly detail: string }
 	| { readonly kind: "unreachable"; readonly detail: string }
@@ -195,6 +208,7 @@ function readRefusal(
 				detail?: unknown;
 				context?: unknown;
 				workbenches?: unknown;
+				workbenches_refusal?: unknown;
 		  }
 		| undefined;
 	if (envelope && typeof envelope.refusal === "string") {
@@ -209,6 +223,14 @@ function readRefusal(
 			workbenches: Array.isArray(envelope.workbenches)
 				? (envelope.workbenches as Candidate[])
 				: undefined,
+			// Left undefined rather than false where the key is absent, which
+			// is how the field beside it reports an envelope that carried no
+			// candidate list, so an absent answer reads the same way in both.
+			workbenchesUnknown:
+				typeof envelope.workbenches_refusal === "object" &&
+				envelope.workbenches_refusal !== null
+					? true
+					: undefined,
 		};
 	}
 	const stderrText = stderr.trim();

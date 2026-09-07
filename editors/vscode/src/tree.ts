@@ -1916,7 +1916,14 @@ export class DinahTreeProvider {
 				membershipAnsweredAt: undefined,
 			};
 		}
-		if (resolution.refusal === AMBIGUOUS_WORKBENCH) {
+		// The candidates mode draws the list the resolution carried, so a
+		// resolution that could not produce one falls through to the dead-end
+		// return below. Taking this branch with nothing to draw is the shape
+		// that reads as a folder confirmed to hold nothing.
+		if (
+			resolution.refusal === AMBIGUOUS_WORKBENCH &&
+			!resolution.candidatesUnknown
+		) {
 			return {
 				folder: input.folder,
 				folderName: input.name,
