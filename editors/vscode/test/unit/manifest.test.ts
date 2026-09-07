@@ -7,7 +7,7 @@
 // by a test failing for a reason that looks unrelated.
 
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 
@@ -20,6 +20,7 @@ import {
 	COMMAND_EDIT_WORKBENCH_DEFINITION,
 	COMMAND_NEW_CARD,
 	COMMAND_OPEN_ATTACHMENT,
+	COMMAND_OPEN_FIRST_SESSION_GUIDE,
 	COMMAND_OPEN_INSTRUCTIONS,
 	COMMAND_PULL,
 	COMMAND_REFRESH,
@@ -48,6 +49,8 @@ import {
 	TREE_COMMANDS,
 	VIEW_CONTAINER_ID,
 	VIEW_ID,
+	WALKTHROUGH_FIRST_SESSION,
+	WALKTHROUGH_STEP_READ_GUIDE,
 } from "../../src/identity";
 import { assertCommandsFullyRegistered } from "../../src/registrationGuard";
 import { BINARY_KEY_VALUES, WORKBENCH_KEY_VALUES } from "../../src/status";
@@ -1929,5 +1932,131 @@ test("the extension carries the repository's own licence text", () => {
 		carried,
 		authority,
 		"editors/vscode/LICENSE has drifted from the repository root LICENSE",
+	);
+});
+
+// ---------------------------------------------------------------------------
+// The first-session walkthrough (dinah-423)
+// ---------------------------------------------------------------------------
+
+interface WalkthroughStep {
+	readonly id: string;
+	readonly title: string;
+	readonly description: string;
+	readonly media?: Record<string, string>;
+	readonly completionEvents?: string[];
+}
+
+interface Walkthrough {
+	readonly id: string;
+	readonly title: string;
+	readonly description: string;
+	readonly steps: WalkthroughStep[];
+}
+
+function walkthroughs(): Walkthrough[] {
+	return (contributes.walkthroughs ?? []) as Walkthrough[];
+}
+
+/** The one file this card adds under media/, read as VS Code would find it. */
+const WALKTHROUGH_MEDIA = "media/walkthrough-first-session.md";
+
+test("one walkthrough is contributed, with one step that opens the guide", () => {
+	// dinah-423 AC-1 and D-4. One step is the whole of what this card was
+	// split out to deliver, and a second step appearing here without a card
+	// behind it is what this count notices.
+	const found = walkthroughs();
+	assert.equal(found.length, 1, `wanted one walkthrough, found ${String(found.length)}`);
+	assert.equal(found[0].id, WALKTHROUGH_FIRST_SESSION);
+	assert.equal(found[0].steps.length, 1);
+	const step = found[0].steps[0];
+	assert.equal(step.id, WALKTHROUGH_STEP_READ_GUIDE);
+	assert.equal(step.media?.markdown, WALKTHROUGH_MEDIA);
+	assert.deepEqual(step.completionEvents, [
+		`onCommand:${COMMAND_OPEN_FIRST_SESSION_GUIDE}`,
+	]);
+});
+
+test("the step's button runs the command the extension registers", () => {
+	// dinah-423 AC-2's manifest half, and reference verification for the one
+	// link a reader can click inside the step. A button naming a command the
+	// manifest does not declare renders as a link that does nothing.
+	const step = walkthroughs()[0].steps[0];
+	assert.ok(
+		step.description.includes(`(command:${COMMAND_OPEN_FIRST_SESSION_GUIDE})`),
+		`the step's description offers no button for the command: ${step.description}`,
+	);
+	const commands = contributes.commands as { command: string; title: string }[];
+	const declared = commands.find(
+		(entry) => entry.command === COMMAND_OPEN_FIRST_SESSION_GUIDE,
+	);
+	assert.ok(declared !== undefined, "the command the button runs is not declared");
+	assert.equal(declared.title, "Dinah: Open the First-Session Guide");
+	assert.ok(
+		GLOBAL_COMMANDS.includes(COMMAND_OPEN_FIRST_SESSION_GUIDE),
+		"the walkthrough command needs no row and must stay in the palette",
+	);
+});
+
+test("the media file carries the image reference and nothing else", () => {
+	// dinah-423 AC-9 and D-2. Every translatable word lives in the step's own
+	// description, which VS Code substitutes; whether it substitutes anything
+	// inside a media file is undocumented, so this file carries no word for a
+	// translator to be denied.
+	const body = readFileSync(join(extensionRoot, WALKTHROUGH_MEDIA), "utf8");
+	assert.equal(body.trim(), "![Dinah](dinah.svg)");
+	const target = /!\[[^\]]*\]\(([^)]+)\)/.exec(body.trim());
+	assert.ok(target !== null, "the media file carries no image reference");
+	// The reference is relative, so the file it names has to sit beside it.
+	const beside = readdirSync(join(extensionRoot, "media"));
+	assert.ok(
+		beside.includes(target[1]),
+		`the media file points at ${target[1]}, which is not in media/`,
+	);
+	assert.deepEqual(
+		beside.sort(),
+		["dinah.svg", "icon.png", "walkthrough-first-session.md"],
+		"media/ gained a file this card did not declare",
+	);
+});
+
+test("the no-workbench welcome view separates creating from opening, and offers the walkthrough", () => {
+	// dinah-423 AC-5. The text is pinned rather than pattern-matched: a reader
+	// who has neither a new workbench nor an old one has to be able to tell
+	// which of the two acts is theirs, and a sentence carrying both at once is
+	// what this card was written to replace.
+	const blocks = welcomeBlocks();
+	const matched = blocks.filter((block) =>
+		evaluate(block.when, { binary: "ok", workbench: "none" }),
+	);
+	assert.equal(matched.length, 1);
+	assert.equal(
+		matched[0].contents,
+		"No workbench was found from this folder.\n" +
+			"\n" +
+			"To start one here, run `dinah init` in a terminal. To use one you already have, set `dinah.workbench` to its directory.\n" +
+			"\n" +
+			"New to Dinah? [Walk through your first session](command:workbench.action.openWalkthrough?%22paulmooreparks.dinah%23dinah.firstSession%22)\n" +
+			"[Open the Dinah settings](command:workbench.action.openSettings?%22dinah%22)",
+	);
+});
+
+test("the welcome view's walkthrough link names this extension's own walkthrough", () => {
+	// Reference verification, composed rather than retyped. VS Code addresses
+	// a walkthrough as `<publisher>.<name>#<id>`, so a publisher rename or a
+	// walkthrough rename breaks the link, and the composition below is what
+	// notices instead of a reader clicking a link that opens nothing.
+	const blocks = welcomeBlocks();
+	const matched = blocks.filter((block) =>
+		evaluate(block.when, { binary: "ok", workbench: "none" }),
+	);
+	const wanted = encodeURIComponent(
+		`"${EXTENSION_ID}#${WALKTHROUGH_FIRST_SESSION}"`,
+	);
+	assert.ok(
+		matched[0].contents.includes(
+			`(command:workbench.action.openWalkthrough?${wanted})`,
+		),
+		`the welcome view links to no walkthrough of this extension: ${matched[0].contents}`,
 	);
 });
