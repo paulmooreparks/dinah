@@ -551,6 +551,12 @@ func cardAffordances(l *verb.Library, r *verb.Request) []string {
 // readShow answers the show tool. The card branch asks the library what a
 // caller may do with the card it just read, rather than carrying a list of its
 // own that would go on naming claim at a column where a claim is refused.
+//
+// The request's Fields travels through untouched, and this head supplies no
+// default of its own, so the MCP head's default shape for show is the shape
+// show has always answered with. Which members an answer carries is the
+// caller's choice on the call rather than this head's choice on every call,
+// and the head stays a projection of the library and nothing else.
 func readShow(l *verb.Library, r *verb.Request) any {
 	detail, text, err := l.Show(r)
 	if err != nil {

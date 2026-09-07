@@ -1,12 +1,12 @@
 # Dinah
 
-<img src="editors/vscode/media/icon.png" align="right" width="256" alt="The Dinah lantern">
-
 [![CI](https://img.shields.io/github/actions/workflow/status/paulmooreparks/dinah/ci.yml?branch=main&label=CI)](https://github.com/paulmooreparks/dinah/actions/workflows/ci.yml)
 [![License](https://img.shields.io/github/license/paulmooreparks/dinah)](LICENSE)
 [![Go Version](https://img.shields.io/github/go-mod/go-version/paulmooreparks/dinah)](go.mod)
 [![Latest release](https://img.shields.io/github/v/release/paulmooreparks/dinah?include_prereleases&sort=semver&label=latest)](https://github.com/paulmooreparks/dinah/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/paulmooreparks/dinah/total)](https://github.com/paulmooreparks/dinah/releases)
+
+<img src="editors/vscode/media/icon.png" align="right" width="256" alt="The Dinah lantern">
 
 Dinah keeps work moving. Your tasks live as cards on a board made of plain files on your file system. Each card waits at a station, and that station's instructions tell whoever picks up the card exactly what to do there, and whoever picks it up may be you, a teammate, or an AI agent. Work is pulled by whoever is ready rather than assigned by whoever is busy, handoffs pass through review gates, and every move lands on a permanent record.
 

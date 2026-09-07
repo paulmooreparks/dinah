@@ -49,7 +49,7 @@ var publishedProperties = map[string][]string{
 	"tree":             {"actor", "depth", "group-by", "max-depth", "query", "root", "workbench"},
 	"contents":         {"actor", "depth", "ref", "workbench"},
 	"attachments":      {"actor", "ref", "workbench"},
-	"show":             {"actor", "card", "workbench"},
+	"show":             {"actor", "card", "fields", "workbench"},
 	"log":              {"actor", "card", "workbench"},
 	"changes":          {"actor", "card", "column", "max-depth", "root", "since", "workbench"},
 	"instructions":     {"actor", "card", "workbench"},

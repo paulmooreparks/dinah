@@ -1224,14 +1224,14 @@ storage format 2
 Catalogs:
   Language  Translated
   --------  ----------
-  en        844/844
-  af        0/844
-  cs        0/844
-  de        844/844
-  es        0/844
-  fil       0/844
-  hi        844/844
-  id        0/844
+  en        852/852
+  af        0/852
+  cs        0/852
+  de        852/852
+  es        0/852
+  fil       0/852
+  hi        852/852
+  id        0/852
 [exit 0]
 ```
 
