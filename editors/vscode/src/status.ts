@@ -402,8 +402,13 @@ export function composeStatus(
 	// to mean they hold nothing. The glyph is appended the way the ambiguous
 	// branch above appends it, and the outside-workspace branch below already
 	// carries one, so it lands once rather than twice.
-	const unconfirmed = holding.uncertain && holding.cards.length === 0;
-	const glyph = resolution.insideWorkspace && !unconfirmed ? "" : " $(warning)";
+	//
+	// The flag is read on its own. HoldingSummary defines `uncertain` as
+	// false whenever `cards` can be trusted, so re-testing the cards here
+	// would restate that definition in a second place and no fixture could
+	// ever drive the difference.
+	const glyph =
+		resolution.insideWorkspace && !holding.uncertain ? "" : " $(warning)";
 	const text = `$(checklist) ${title}${heldSuffix(holding, now, t)}${glyph}`;
 
 	if (resolution.insideWorkspace) {

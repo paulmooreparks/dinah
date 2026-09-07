@@ -46,6 +46,7 @@ import {
 	relativeTo,
 	treeItemFor,
 } from "../../src/tree";
+import { staleAfterMs, summarizeHolding } from "../../src/status";
 import type {
 	AttachmentListing,
 	CardView,
@@ -2228,4 +2229,120 @@ test("a forest member that declined a read keeps the hand it was last confirmed 
 	const [unheard] = view.holdingSnapshot();
 	assert.deepEqual([...unheard.holding], [carried]);
 	assert.equal(unheard.fetchedAt, 12_000);
+});
+
+test("a folder whose walk did not answer keeps its rows rather than emptying the hand", async () => {
+	// The failure that deletes the record the uncertainty would be written
+	// on. When the root-scoped `tree` call declines, no member list comes
+	// back, so a walk that returned nothing would replace the folder's rows
+	// with nothing and take every workbench under it out of the snapshot.
+	// The bar would then compose from an empty snapshot, find no stale entry
+	// to warn about, and render the idle text: a reader holding a card would
+	// be told they hold none. Both halves are driven here, the walk failing
+	// alone and then nothing answering at all.
+	let walkFailing = false;
+	let statusFailing = false;
+	let reading = 1_000;
+	const carried = {
+		id: "aaa",
+		ref: "tr-3",
+		state: "active",
+		holder: "alka",
+		expires: "2026-09-07T13:30:00Z",
+	};
+	const memberStatus = {
+		...THREE_STATUS,
+		actor: "alka",
+		is_operator: false,
+		holding: [carried],
+		blocked: [],
+	};
+	const refusal: SpawnOutcome = {
+		code: 2,
+		stdout: JSON.stringify({ refusal: "dinah.unreachable" }),
+		stderr: "",
+	};
+	const spawner: Spawner = async (_exe, argv) => {
+		if (argv.includes("tree") && walkFailing) {
+			return refusal;
+		}
+		if (argv.includes("status") && statusFailing) {
+			return refusal;
+		}
+		const member = {
+			title: "Carter LLP",
+			slug: "carter",
+			path: "C:\\customers\\carter\\board",
+			...(argv.includes("tree")
+				? { tree: THREE_COLUMNS }
+				: argv.includes("status")
+					? { status: memberStatus }
+					: { listing: THREE_LISTING }),
+		};
+		return ok({ root: "C:\\customers", workbenches: [member] });
+	};
+	const view = new DinahTreeProvider({
+		spawner,
+		exe: "dinah",
+		log: () => {},
+		caseInsensitive: true,
+		deadEndSentence: (name) => name,
+		now: () => reading,
+	});
+	await view.load([folder({ folder: "C:\\customers", resolution: NOTHING })]);
+	assert.deepEqual([...view.holdingSnapshot()[0].holding], [carried]);
+
+	// The walk declines and the root-scoped status call answers. The member
+	// is still there, and its hand is this checkpoint's own answer rather
+	// than the last one's, so the stamp moves with it.
+	const window = staleAfterMs(10);
+	walkFailing = true;
+	reading = 9_000;
+	await view.refresh("C:\\customers");
+	const [answered] = view.holdingSnapshot();
+	assert.equal(answered.root, "C:\\customers\\carter\\board");
+	assert.deepEqual([...answered.holding], [carried]);
+	assert.equal(answered.fetchedAt, 9_000);
+	assert.deepEqual(summarizeHolding(view.holdingSnapshot(), 9_000, window), {
+		cards: [
+			{
+				ref: "tr-3",
+				workbenchTitle: "Carter LLP",
+				expiresAt: carried.expires,
+			},
+		],
+		uncertain: false,
+	});
+
+	// Now nothing under the folder answers. The row survives, its stamp
+	// stops advancing, and the summary the bar composes from says outright
+	// that this window cannot tell, which is the whole point of the row
+	// surviving.
+	statusFailing = true;
+	reading = 60_000;
+	await view.refresh("C:\\customers");
+	const [unheard] = view.holdingSnapshot();
+	assert.equal(unheard.root, "C:\\customers\\carter\\board");
+	assert.equal(unheard.fetchedAt, 9_000);
+	assert.deepEqual(summarizeHolding(view.holdingSnapshot(), 60_000, window), {
+		cards: [],
+		uncertain: true,
+	});
+});
+
+test("a forest member answering with no path of its own contributes no hand", async () => {
+	// holdingSnapshot keys every entry on the workbench root, so a member
+	// that came back without one has nothing to key on and would collide
+	// with any other such member on the empty string. One negative row pins
+	// the disjunct that drops it.
+	const { spawner } = forestSpawner([
+		{ title: "Ghost", slug: "ghost", path: "" },
+		{ title: "Acme Co", slug: "acme", path: "C:\\customers\\acme\\board" },
+	]);
+	const view = provider(spawner);
+	await view.load([folder({ folder: "C:\\customers", resolution: NOTHING })]);
+	assert.deepEqual(
+		view.holdingSnapshot().map((entry) => entry.root),
+		["C:\\customers\\acme\\board"],
+	);
 });

@@ -970,9 +970,7 @@ export async function readWorkbench(
 			// The tree is what failed here. Status may well have answered,
 			// and where it did its holding list is this checkpoint's own
 			// answer rather than the last one's.
-			actor: statusJson?.actor ?? held?.actor,
-			holding: statusJson?.holding ?? held?.holding ?? [],
-			fetchedAt: statusJson === undefined ? held?.fetchedAt : now(),
+			...heldHand(statusJson, held, now),
 		};
 	}
 
@@ -983,9 +981,38 @@ export async function readWorkbench(
 		cards: joinCards(listingJson),
 		root: treeJson.root,
 		attachmentCount: statusJson?.attachment_count,
-		actor: statusJson?.actor ?? held?.actor,
-		holding: statusJson?.holding ?? held?.holding ?? [],
-		fetchedAt: statusJson === undefined ? held?.fetchedAt : now(),
+		...heldHand(statusJson, held, now),
+	};
+}
+
+/**
+ * What a row says about the reader's hand, given this checkpoint's status
+ * answer for it and whatever the last good checkpoint left behind.
+ *
+ * Both read paths ask this question, and before this helper existed they
+ * answered it differently: the single-workbench read preferred a status
+ * answer that arrived even when its sibling calls failed, while the
+ * root-scoped read dropped one. A status answer that came back this
+ * checkpoint is this checkpoint's own answer wherever it arrives, so the two
+ * paths now decide it in one place. `fetchedAt` moves only on an answer,
+ * which is what makes a run of failures read as increasing staleness.
+ */
+function heldHand(
+	status: StatusAnswer | undefined,
+	held: WorkbenchData | undefined,
+	now: () => number,
+): Pick<WorkbenchData, "actor" | "holding" | "fetchedAt"> {
+	if (status === undefined) {
+		return {
+			actor: held?.actor,
+			holding: held?.holding ?? [],
+			fetchedAt: held?.fetchedAt,
+		};
+	}
+	return {
+		actor: status.actor ?? held?.actor,
+		holding: status.holding ?? held?.holding ?? [],
+		fetchedAt: now(),
 	};
 }
 
@@ -1051,10 +1078,37 @@ export async function readForest(
 			: undefined,
 	);
 
+	if (forest === undefined) {
+		// The walk itself did not answer, so this checkpoint learned nothing
+		// about which workbenches lie under the folder. Returning no members
+		// would delete the rows the caller replaces its own with, and the
+		// rows are what every later reader records a failed read against, so
+		// a reader holding a card would watch it vanish from the bar with
+		// nothing left to say the window had stopped hearing. The members
+		// the last good walk found are kept and marked unanswered, which is
+		// the decision the per-member branch below already makes for a
+		// member that read fine and declined this one question.
+		const name = refusalNameOf(tree);
+		log(`the walk at ${folder} did not answer: ${name}`);
+		return [...previous.values()].map(
+			(held): WorkbenchData => ({
+				path: held.path,
+				title: held.title,
+				slug: held.slug,
+				unanswered: name,
+				columns: held.columns,
+				cards: held.cards,
+				root: held.root,
+				attachmentCount: held.attachmentCount,
+				...heldHand(statuses.get(held.path)?.status, held, now),
+			}),
+		);
+	}
+
 	// The walk's own order is path-sorted and deliberate, so that two heads
 	// walking one tree report it identically. It is preserved rather than
 	// re-sorted here.
-	return (forest?.workbenches ?? []).map((member): WorkbenchData => {
+	return (forest.workbenches ?? []).map((member): WorkbenchData => {
 		const held = previous.get(member.path);
 		if (member.refused !== undefined && member.refused !== "") {
 			// The workbench itself would not read. A row in this condition
@@ -1092,9 +1146,7 @@ export async function readForest(
 				cards: held?.cards ?? new Map(),
 				root: held?.root,
 				attachmentCount: held?.attachmentCount,
-				actor: held?.actor,
-				holding: held?.holding ?? [],
-				fetchedAt: held?.fetchedAt,
+				...heldHand(statusMember?.status, held, now),
 			};
 		}
 		return {
@@ -1105,10 +1157,7 @@ export async function readForest(
 			cards: joinCards(listingMember?.listing),
 			root: member.tree?.root,
 			attachmentCount: statusMember?.status?.attachment_count,
-			actor: statusMember?.status?.actor ?? held?.actor,
-			holding: statusMember?.status?.holding ?? held?.holding ?? [],
-			fetchedAt:
-				statusMember?.status === undefined ? held?.fetchedAt : now(),
+			...heldHand(statusMember?.status, held, now),
 		};
 	});
 }

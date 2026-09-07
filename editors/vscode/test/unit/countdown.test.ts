@@ -54,9 +54,13 @@ function ok(payload: unknown): SpawnOutcome {
 test("a tick redraws the bar and asks dinah nothing", async () => {
 	// AC-10, driven over the same three paths activate() wires: the first
 	// paint, the checkpoint loop's refresh callback, and the countdown's own
-	// interval. Every call to the spawner is counted, so a redraw that
-	// reached for the CLI would show up as a fourth call rather than as a
-	// slower test.
+	// interval. Every call to the spawner is counted, which is what proves
+	// that the ticker and the checkpoint wrapper spawn nothing of their own.
+	// The render this test passes is a stub, so a renderStatusBar that went
+	// to the CLI would not be caught here; what keeps that true is that
+	// renderStatusBar reaches only holdingSnapshot, summarizeHolding,
+	// composeStatus and the status bar item's own fields, and that neither
+	// status.ts nor countdown.ts imports a spawner.
 	let renders = 0;
 	const render = (): void => {
 		renders += 1;
@@ -100,8 +104,8 @@ test("a tick redraws the bar and asks dinah nothing", async () => {
 	const afterCheckpoint = calls.length;
 	assert.equal(afterCheckpoint, 1);
 
-	// The countdown's own tick. It redraws and spawns nothing at all, which
-	// is the whole claim this design rests on.
+	// The countdown's own tick. It redraws, and the tick itself spawns
+	// nothing, which is the half of the design's claim a test can drive.
 	const countdown = intervals.find((entry) => entry.ms === COUNTDOWN_INTERVAL_MS);
 	assert.notEqual(countdown, undefined, "the countdown took out an interval");
 	countdown?.fn();
