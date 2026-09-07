@@ -14,8 +14,38 @@
 import type { Clock } from "./changes";
 import type { InstructionChain } from "./wire";
 
-/** The one kind dinah-270 serves: a card's own instruction chain. */
+/** The first kind served here, which is a card's own instruction chain. */
 export const KIND_INSTRUCTIONS = "instructions";
+
+/**
+ * The second kind, which is one topic of the guide dinah itself prints.
+ *
+ * A guide needs no workbench and no card, so its resolver ignores the root the
+ * table's shape hands it. That is what makes this kind showable in the one
+ * state where nothing else here can be fetched, which is a window that found
+ * no workbench at all (dinah-423).
+ */
+export const KIND_GUIDE = "guide";
+
+/**
+ * The identity key a guide tab is opened under, where another kind carries a
+ * workbench directory.
+ *
+ * `parseServedTextUri` refuses an empty root, and the refresh loop and the
+ * open/close bookkeeping key on whatever is here, so a guide tab needs some
+ * non-empty word. It is a fixed one because a guide is embedded in the binary
+ * and belongs to no directory, and the guide resolver never reads it.
+ */
+export const GUIDE_ROOT = "embedded";
+
+/**
+ * The topic the first-session walkthrough opens.
+ *
+ * `internal/guide`'s own reading order puts this topic first among the
+ * embedded guides, so a walkthrough opening one guide opens the one dinah
+ * recommends starting with.
+ */
+export const GUIDE_TOPIC_FIRST_SESSION = "first-session";
 
 /**
  * The three parts of a served-text URI.

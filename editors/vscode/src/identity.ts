@@ -97,6 +97,21 @@ export const COMMAND_PULL = "dinah.tree.pull";
 export const COMMAND_OPEN_INSTRUCTIONS = "dinah.tree.openInstructions";
 
 /**
+ * The walkthrough a reader with no workbench is offered, and its one step.
+ *
+ * VS Code addresses a walkthrough as `<publisher>.<name>#<walkthroughId>`, so
+ * the welcome view's link is that composition rather than a second spelling of
+ * the identifier, and a unit test composes it the same way to hold the
+ * manifest's own link to it. Both ids are dot-namespaced because VS Code's
+ * manifest schema requires that shape of a contribution id (dinah-423 D-3).
+ */
+export const WALKTHROUGH_FIRST_SESSION = "dinah.firstSession";
+export const WALKTHROUGH_STEP_READ_GUIDE = "dinah.firstSession.readGuide";
+
+/** The command that step's button runs, which opens the guide as a tab. */
+export const COMMAND_OPEN_FIRST_SESSION_GUIDE = "dinah.walkthrough.openFirstSessionGuide";
+
+/**
  * Every command this extension contributes, in the order package.json
  * declares them. A manifest test reads this array back, which is what keeps
  * a command registered in code but undeclared (or the reverse) from shipping.
@@ -119,6 +134,7 @@ export const TREE_COMMANDS: readonly string[] = [
 	COMMAND_ATTACH_FILE,
 	COMMAND_PULL,
 	COMMAND_OPEN_INSTRUCTIONS,
+	COMMAND_OPEN_FIRST_SESSION_GUIDE,
 ];
 
 /**
@@ -159,7 +175,10 @@ export const ROW_COMMANDS: readonly string[] = [
  * non-overlapping partition of TREE_COMMANDS, so a command added there
  * without a classification fails a test rather than shipping unclassified.
  */
-export const GLOBAL_COMMANDS: readonly string[] = [COMMAND_REFRESH];
+export const GLOBAL_COMMANDS: readonly string[] = [
+	COMMAND_REFRESH,
+	COMMAND_OPEN_FIRST_SESSION_GUIDE,
+];
 
 /**
  * The four answers actionsFor composes for a card row, and the row kinds
