@@ -143,6 +143,10 @@
       {
         "command": "dinah.tree.openInstructions",
         "title": "%manifest.command.dinah.tree.openInstructions.title%"
+      },
+      {
+        "command": "dinah.walkthrough.openFirstSessionGuide",
+        "title": "%manifest.command.dinah.walkthrough.openFirstSessionGuide.title%"
       }
     ],
     "menus": {
@@ -331,7 +335,27 @@
           "markdownDescription": "%manifest.configuration.dinah.watchFiles.markdownDescription%"
         }
       }
-    }
+    },
+    "walkthroughs": [
+      {
+        "id": "dinah.firstSession",
+        "title": "%manifest.walkthrough.firstSession.title%",
+        "description": "%manifest.walkthrough.firstSession.description%",
+        "steps": [
+          {
+            "id": "dinah.firstSession.readGuide",
+            "title": "%manifest.walkthrough.firstSession.step.readGuide.title%",
+            "description": "%manifest.walkthrough.firstSession.step.readGuide.description%",
+            "media": {
+              "markdown": "media/walkthrough-first-session.md"
+            },
+            "completionEvents": [
+              "onCommand:dinah.walkthrough.openFirstSessionGuide"
+            ]
+          }
+        ]
+      }
+    ]
   },
   "scripts": {
     "generate": "node esbuild.mjs --generate-only",
