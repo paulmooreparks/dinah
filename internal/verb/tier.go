@@ -122,18 +122,18 @@ func (l *Library) SetCardTierAt(req *Request) *Response {
 // the card asks for is admitted, since somebody over-qualified taking work is
 // waste rather than an error, and waste is not this gate's business.
 func (l *Library) claimableTier(req *Request, card *bench.Card, column *bench.Column) *Response {
-	required := card.RequiredTier(l.Bench, column)
-	if required == "" {
-		return nil
-	}
-	floor, declared := l.Bench.TierRank(required)
-	if !declared {
-		// The card names a tier this workbench does not declare, so there is
-		// no rank to compare against and no honest refusal to make. dinah
-		// check reports the card, and the claim is left alone.
-		return nil
-	}
-	if rank, ok := l.Bench.TierRank(req.Tier); ok && rank >= floor {
+	// The comparison itself lives on the workbench, in TierAdmission, because
+	// selection asks the same question of the same card at the same column and
+	// the two answers have to agree. A card the offer shows is a card the gate
+	// admits, and that holds by there being one comparison rather than by two
+	// copies of it being kept in step.
+	//
+	// An admitted claim covers three cases the refusal never sees: the card
+	// asks for nothing here, it asks for a tier this workbench does not
+	// declare, which dinah check reports and no gate can honestly refuse, and
+	// the declaration clears the floor.
+	admitted, required := l.Bench.TierAdmission(card, column, req.Tier)
+	if admitted {
 		return nil
 	}
 	// The column can be nil here, and the refusal still has to name one. A

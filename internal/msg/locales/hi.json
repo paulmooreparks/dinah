@@ -11,6 +11,16 @@
       "context": "The one-line sentence the empty answer of pull prints when the named form was asked and the upstream column holds no ready card. {upstream} names the upstream column by its title, {destination} names the column the caller asked pull to land the card in.",
       "source": "3a88bcf8a5a3f1f5"
     },
+    "answer.pull.above-tier.bare": {
+      "text": "Dinah को खींचने के लिए तैयार काम मिला, पर उसमें से कोई भी आपके घोषित स्तर पर खरा नहीं उतरता",
+      "context": "The one-line sentence pull prints when the bare form was asked, a column holds ready work, and the tier the caller declared is admitted for none of it. It is a separate key from answer.pull.empty.bare on purpose, because a caller reading the message alone has to be able to tell work standing above it from no work at all.",
+      "source": "df47b85572baafb7"
+    },
+    "answer.pull.above-tier.named": {
+      "text": "Dinah को {upstream} में {destination} के लिए तैयार काम मिला, पर उसमें से कोई भी आपके घोषित स्तर पर खरा नहीं उतरता",
+      "context": "The one-line sentence pull prints when the named form was asked, a source holds ready work, and the tier the caller declared is admitted for none of it. {upstream} names the source column by its title, {destination} names the column the caller asked pull to land the card in. It is a separate key from answer.pull.empty.named on purpose, because a caller reading the message alone has to be able to tell work standing above it from no work at all.",
+      "source": "b6d82debf2560ac6"
+    },
     "attachments.empty": {
       "text": "{ref} में कोई संलग्नक नहीं है।",
       "context": "Printed when `dinah attachments` is asked about an entity that carries none. No table follows, and the call succeeds: an entity with nothing attached is an answer rather than a mistake.",
@@ -150,21 +160,36 @@
       "source": "60d69cecd8163ee2"
     },
     "check.card.2": {
+      "text": "--at इस वर्कबेंच के एक कॉलम को नाम देता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "2235cca0a0d5d60b"
+    },
+    "check.card.3": {
       "text": "फ़ील्ड वह है जो एक कार्ड रखता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "823290afcaaee695"
     },
-    "check.card.3": {
+    "check.card.4": {
       "text": "वर्कबेंच उस फ़ील्ड के लिए स्तर घोषित करती है",
       "context": "One row of the precondition list of a command outside the five the profile specifies. The last three words bind it to the field being written: the question is whether this workbench declares a set for that one axis, never whether it declares any levels at all.",
       "source": "7be94b9daf0a52fd"
     },
-    "check.card.4": {
+    "check.card.5": {
+      "text": "सापेक्ष मान के पास गिनने के लिए एक डिफ़ॉल्ट है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "945d9750f68dc8a7"
+    },
+    "check.card.6": {
       "text": "मान वह स्तर है जिसे वह फ़ील्ड घोषित करता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "4002d10f56f595e"
     },
-    "check.card.5": {
+    "check.card.7": {
+      "text": "सापेक्ष मान घोषित स्तरों के भीतर रहता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "d04b77900ae81b5c"
+    },
+    "check.card.8": {
       "text": "निवेदन किसी स्वामी को नामता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "bc538e33f1fcc933"
@@ -1955,6 +1980,11 @@
       "context": "Printed beside a column offering no card.",
       "source": "8f5f2c97c3a268dd"
     },
+    "next.above-tier": {
+      "text": "तैयार, आपके घोषित स्तर से ऊपर",
+      "context": "Printed beside a column that offers no card because the tier the caller declared is admitted for none of the work standing there, in place of next.none, which says only that nothing is ready.",
+      "source": "a0cd79296cfc6d32"
+    },
     "outcome.stale": {
       "text": "आपके पढ़ने के बाद कार्ड बदल गया; अब उसका संस्करण {revision} है",
       "context": "The sentence after the stale outcome name. {revision} is the card's current revision.",
@@ -3189,10 +3219,10 @@
       "context": "The meaning of the expires argument of `dinah claim`, printed in that command's arguments table.",
       "source": "89b79368080416a1"
     },
-    "param.claim.tier.summary": {
-      "text": "वह स्तर जो आप स्वयं को बताते हैं, भरोसे पर लिया जाता है और कभी सत्यापित नहीं होता; केवल वही जो कार्ड स्वयं माँगता है आपको मना कर सकता है, कॉलम का अपना डिफ़ॉल्ट कभी नहीं",
-      "context": "The meaning of the tier argument of `dinah claim`, printed in that command's arguments table. It carries two limits a caller has to meet before relying on the gate: Dinah has no server and no credential, so a declared tier is self-reported, and a column's tier default never refuses a claim by itself.",
-      "source": "e8a2c1ca4550bdd7"
+    "param.tier.summary": {
+      "text": "वह स्तर जो आप स्वयं को बताते हैं, भरोसे पर लिया जाता है और कभी सत्यापित नहीं होता; केवल वही जो कार्ड स्वयं माँगता है आपको मना कर सकता है, कॉलम का अपना डिफ़ॉल्ट कभी नहीं, और जिस कारण से दावा अस्वीकृत होता है उसी कारण next और pull कार्ड रोक लेते हैं",
+      "context": "The meaning of the tier argument of `dinah claim`, `dinah next` and `dinah pull`, printed in each command's arguments table. One flag says one thing, so the three commands take one sentence rather than three that have to be kept in step. It carries the limits a caller has to meet before relying on any of them: Dinah has no server and no credential, so a declared tier is self-reported and nothing verifies it; a column's tier default never refuses a claim by itself; and selection withholds a card on the same rule the claim gate refuses one.",
+      "source": "30dedfbf06194d6"
     },
     "param.comment.text.summary": {
       "text": "टिप्पणी, एक ही शब्द में या उद्धरण चिह्नों के भीतर; अकेला - इसे पाइप से पढ़ता है",

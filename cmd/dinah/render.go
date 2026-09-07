@@ -487,12 +487,19 @@ func (s *session) renderOffers(offers []verb.Offer) {
 	t := table{indent: 2, columns: s.columns("next", "column", "card", "title", "take")}
 	for _, offer := range offers {
 		if offer.Card == nil {
-			// Three empty answers, most specific first. A column that waits on
-			// somebody outside says who it waits on. A column where no act
-			// could take a card up says so, which is a different fact from
-			// nothing ready, because a done column holding four ready cards
-			// offers none of them. Everything else has nothing ready.
+			// Four empty answers, most specific last, so the narrowest fact a
+			// column can report is the one printed. A column holding ready
+			// work that stands above the tier the caller declared says so,
+			// which tells a reader to send a more senior caller rather than
+			// to wait for work to arrive. A column where no act could take a
+			// card up says that instead, which is a different fact again,
+			// because a done column holding four ready cards offers none of
+			// them. A column waiting on somebody outside says who it waits
+			// on. Everything else has nothing ready.
 			absent := s.r.T("next.none")
+			if offer.AboveTier {
+				absent = s.r.T("next.above-tier")
+			}
 			if offer.NoTaker {
 				absent = s.r.T("next.no-taker")
 			}

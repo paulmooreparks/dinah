@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -513,9 +514,68 @@ func handWrite(t *testing.T, root, ref, line string) {
 	}
 }
 
+// ratifiedCardHelp is the block the operator approved for dinah help card,
+// drawn in section 8 of docs/specs/dinah-193-severity-and-priority-ux-sketch.md
+// and renumbered under dinah-408 D-10, which ruled that the three refusals the
+// --at flag can raise be published where the code runs them rather than
+// appended after the rows that already existed. It is quoted here rather than
+// read from the sketch because a sketch is a design document that ships once
+// and this is the surface.
+//
+// The block is drawn against bothAxesDefinition at eighty columns, so the
+// --at row names that workbench's own two columns. Every other line is the
+// same wherever the command is run.
+const ratifiedCardHelp = `card <get|set> <card> <field> [value] [--at <column>]
+
+Read one of a card's own fields, or write one
+
+What you may write:
+  As you write it  What it is
+  ---------------  -------------------------------------------------------------
+  <get|set>        which of the two acts to run: read one field or write one
+  <card>           the card you are acting on, written as its reference, such as
+                   wb-1
+  <field>          which field you are reading or writing: severity, priority or
+                   tier
+  [value]          the level to write; leave it out to clear the field
+  [--at <column>]  the column a tier write applies to, instead of the card's own
+                   baseline; tier is the one field that takes it (one of:
+                   intake, done)
+
+What can go wrong, in the order each is checked:
+  Order  What can go wrong                             Refusal
+  -----  --------------------------------------------  -----------------------
+  1      the reference names a card of this workbench  unknown-card
+  2      --at names a column of this workbench         unknown-column
+  3      the field is one a card records               dinah.unknown-field
+  4      the workbench declares levels for that field  dinah.no-levels
+  5      a relative write has a default to count from  dinah.no-tier-default
+  6      the value is a level that field declares      dinah.unknown-level
+  7      a relative write lands inside the tier set    dinah.tier-out-of-range
+  8      the request names an owner                    no-owner
+
+Exit codes: 0 ok, 2 refused, 3 stale, 4 unreachable.
+`
+
 // TestTheCardHelpPageIsTheBlockTheOperatorApproved asserts dinah-193 AC-18
 // against the sketch's section 8: the syntax line, one row per argument, and
-// the five checks in the order the runtime evaluates them.
+// the checks in the order the runtime evaluates them.
+//
+// The refusal half compares the printed table against verb.Checks("card")
+// index for index rather than searching the page for a hand-written list of
+// rows, and dinah-413 rewrote it for a reason worth keeping in view. The
+// earlier form held five {check text, refusal} pairs and asked only that each
+// appeared somewhere on the page at an index no earlier than the last. It
+// never counted the printed rows and never asked that the table held nothing
+// else, so a row added to the list passed unremarked. That is how the three
+// refusals dinah-408's --at flag can raise stood missing from an
+// operator-approved block for a whole card.
+//
+// Keying it to verb.Checks rather than to a second hand-written list is the
+// other half of the rewrite. The runtime list is what the page is rendered
+// from, so a copy of it here would be a copy of the thing under test, and the
+// two would go on agreeing with each other while both drifted from the
+// catalog the page actually prints.
 func TestTheCardHelpPageIsTheBlockTheOperatorApproved(t *testing.T) {
 	root := newBenchFromDefinition(t, bothAxesDefinition)
 	t.Setenv("COLUMNS", "80")
@@ -544,28 +604,136 @@ func TestTheCardHelpPageIsTheBlockTheOperatorApproved(t *testing.T) {
 			t.Errorf("the page does not carry %q:\n%s", phrase, got.out)
 		}
 	}
-	rows := []struct{ check, refusal string }{
-		{"the reference names a card of this workbench", contract.UnknownCard},
-		{"the field is one a card records", contract.UnknownField},
-		{"the workbench declares levels for that field", contract.NoLevels},
-		{"the value is a level that field declares", contract.UnknownLevel},
-		{"the request names an owner", contract.NoOwner},
+	// The block itself, byte for byte, which is the assertion that records
+	// the approval. It is what notices a row added to the runtime list: the
+	// index-exact comparison below reads the printed table and the list it is
+	// rendered from, so an addition arrives on both sides of it at once and
+	// passes, which is the same blindness in a new place. A fixture ratified
+	// on its own is what catches an addition, because nothing in the tree
+	// derives it. TestWorkbenchHelpIsTheBlockTheOperatorApproved holds the
+	// workbench page the same way.
+	if got.out != ratifiedCardHelp {
+		t.Errorf("the emitted block differs from the one the operator approved:\n%s", diffLines(ratifiedCardHelp, got.out))
 	}
-	at := 0
-	for i, row := range rows {
-		found := strings.Index(got.out, row.check)
-		if found < 0 {
-			t.Errorf("the page does not carry the check %q:\n%s", row.check, got.out)
+
+	checks := verb.Checks("card")
+	catalog := msg.For(msg.Base)
+	rows := parseRefusalTable(t, got.out)
+	if len(rows) != len(checks) {
+		t.Fatalf("the page draws %d refusal rows, wanted the %d of verb.Checks(\"card\"):\n%s", len(rows), len(checks), got.out)
+	}
+	for i, check := range checks {
+		// A key the catalog does not carry renders as the key itself, on the
+		// page and in the comparison alike, so the two would agree about a
+		// row that says nothing to a reader. The entry is checked for rather
+		// than inferred from the render.
+		if _, carried := msg.BaseEntry(check.Key); !carried {
+			t.Errorf("row %d names the catalog key %s, which no entry carries", i+1, check.Key)
+		}
+		want := catalog.T(check.Key)
+		if rows[i].order != i+1 || rows[i].check != want || rows[i].refusal != check.Refusal {
+			t.Errorf("row %d: wanted order %d, check %q, refusal %s; got order %d, check %q, refusal %s",
+				i+1, i+1, want, check.Refusal, rows[i].order, rows[i].check, rows[i].refusal)
+		}
+	}
+}
+
+// refusalRow is one parsed line of a help page's refusal table.
+type refusalRow struct {
+	order          int
+	check, refusal string
+}
+
+// parseRefusalTable reads the order, check and refusal columns back out of a
+// rendered help page, one struct per printed row.
+//
+// It splits on the table's own column boundaries, which the rule line under
+// the headings draws as runs of dashes, rather than on runs of whitespace. A
+// check cell is a sentence carrying spaces of its own, so a whitespace split
+// would report a different field count for every row and would join a check
+// to the refusal beside it.
+//
+// The refusal table is the last table on a help page, so its rule is the last
+// rule line, and the table ends at the first blank line under that rule. A
+// page drawing no rule at all fails the test rather than reporting no rows,
+// because no rows and no table are the same answer to a caller comparing a
+// count, and only one of the two is a defect this helper should hide.
+func parseRefusalTable(t *testing.T, page string) []refusalRow {
+	t.Helper()
+	lines := strings.Split(page, "\n")
+	rule := -1
+	for i, line := range lines {
+		if strings.HasPrefix(strings.TrimSpace(line), "---") {
+			rule = i
+		}
+	}
+	if rule < 0 {
+		t.Fatalf("the page draws no table rule, so it carries no refusal table:\n%s", page)
+	}
+	spans := columnSpans(lines[rule])
+	if len(spans) != 3 {
+		t.Fatalf("the refusal table's rule draws %d columns, wanted 3:\n%s", len(spans), page)
+	}
+	var rows []refusalRow
+	for _, line := range lines[rule+1:] {
+		if strings.TrimSpace(line) == "" {
+			break
+		}
+		fields := make([]string, 0, len(spans))
+		for _, span := range spans {
+			fields = append(fields, strings.TrimSpace(runeSlice(line, span[0], span[1])))
+		}
+		order, err := strconv.Atoi(fields[0])
+		if err != nil {
+			t.Fatalf("the refusal table draws %q where a row number belongs:\n%s", fields[0], page)
+		}
+		rows = append(rows, refusalRow{order: order, check: fields[1], refusal: fields[2]})
+	}
+	return rows
+}
+
+// columnSpans reads a table's rule line into one half-open span per column.
+// A run of dashes is a column and the gutter between two runs is not, so the
+// spans sit exactly where the renderer put the columns.
+//
+// The last span runs to the end of the line rather than to the end of its own
+// dashes, so a cell drawn wider than its rule is read whole rather than
+// truncated into a value that still looks like a real one.
+func columnSpans(rule string) [][2]int {
+	var spans [][2]int
+	start := -1
+	for i, r := range []rune(rule) {
+		if r == '-' {
+			if start < 0 {
+				start = i
+			}
 			continue
 		}
-		if found < at {
-			t.Errorf("row %d is drawn out of the order the runtime evaluates:\n%s", i+1, got.out)
-		}
-		at = found
-		if !strings.Contains(got.out[found:], row.refusal) {
-			t.Errorf("the check %q is not paired with %s:\n%s", row.check, row.refusal, got.out)
+		if start >= 0 {
+			spans = append(spans, [2]int{start, i})
+			start = -1
 		}
 	}
+	if start >= 0 {
+		spans = append(spans, [2]int{start, len([]rune(rule))})
+	}
+	if len(spans) > 0 {
+		spans[len(spans)-1][1] = -1
+	}
+	return spans
+}
+
+// runeSlice takes the runes of line between two column positions, tolerating
+// a line shorter than the span and reading a negative end as the line's end.
+func runeSlice(line string, from, to int) string {
+	runes := []rune(line)
+	if from > len(runes) {
+		return ""
+	}
+	if to < 0 || to > len(runes) {
+		to = len(runes)
+	}
+	return string(runes[from:to])
 }
 
 // TestShowPrintsIndependentlyConditionalSeverityAndPriorityLines asserts

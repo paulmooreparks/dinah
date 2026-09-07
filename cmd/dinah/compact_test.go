@@ -397,6 +397,7 @@ func decodeCompactOffers(payload string) ([]verb.Offer, error) {
 				AwaitingOutside: decodeCompactFlag(record.field(2)),
 				NoTaker:         decodeCompactFlag(record.field(3)),
 				TakenByPull:     decodeCompactFlag(record.field(4)),
+				AboveTier:       decodeCompactFlag(record.field(5)),
 			})
 		case "card":
 			if len(offers) == 0 {
