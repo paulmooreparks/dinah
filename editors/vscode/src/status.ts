@@ -135,30 +135,75 @@ export function staleAfterMs(pollIntervalSeconds: number): number {
 }
 
 /**
- * One workbench's last answer about what the reader holds there.
+ * What one place this window watches last said about the reader's hand.
  *
- * This is the shape DinahTreeProvider.holdingSnapshot() returns, spelled
- * structurally here so that this module goes on importing nothing from the
- * tree. The provider's own entry carries more than these three members and
- * satisfies this by having them.
+ * The three arms are the three answers there are, and each one is something a
+ * reporter says rather than something it leaves out. That is the point of the
+ * union. This card has twice shipped a bar claiming an empty hand because a
+ * place that could not be read contributed no entry at all, and a snapshot
+ * that reads silence off a missing member cannot tell that apart from a
+ * confirmed nothing. Absence carries no meaning here, so an absent entry can
+ * no longer mean anything wrong: every row and every folder the provider
+ * knows about produces one of these, and `summarizeHolding` refuses to
+ * compile against an arm it does not handle.
+ *
+ * `source` names the workbench root, or the workspace folder where no root is
+ * known yet. Nothing reads it to decide the summary; it is what a log line or
+ * a failing assertion needs in order to name the place that went quiet.
  */
-export interface WorkbenchHoldingReport {
-	readonly title: string;
-	readonly holding: readonly CardView[];
-	/** Milliseconds, as of the last status call that answered ok. */
-	readonly fetchedAt?: number;
+export type WorkbenchHoldingReport =
+	| {
+			/** A status call answered ok, and `holding` is what it said. */
+			readonly state: "answered";
+			readonly source: string;
+			readonly title: string;
+			readonly holding: readonly CardView[];
+			/** Milliseconds, as of that answer. */
+			readonly fetchedAt: number;
+	  }
+	| {
+			/**
+			 * Nothing here has answered, so what is held is not known. A
+			 * workbench whose reads are failing, one this window has not
+			 * reached yet, and a folder whose walk has never come back are
+			 * all this arm.
+			 */
+			readonly state: "unheard";
+			readonly source: string;
+	  }
+	| {
+			/**
+			 * Dinah answered and there is no workbench here to hold a card:
+			 * a folder with nothing beneath it, or one whose walk came back
+			 * naming no members. It contributes neither a card nor a doubt.
+			 */
+			readonly state: "vacant";
+			readonly source: string;
+	  };
+
+/**
+ * Names an arm of a closed union that a switch above did not handle.
+ *
+ * The call is unreachable while the union is fully handled, and it stops
+ * compiling the moment somebody adds an arm, which is what makes the union a
+ * gate rather than a description. I searched the extension's own sources for
+ * an existing exhaustiveness helper before adding this one and found no
+ * `never` parameter anywhere in `src/`; the switches in tree.ts and cli.ts
+ * are all over open string sets, where a default arm is the right shape.
+ */
+function unhandledArm(value: never): never {
+	throw new Error(`unhandled holding report: ${JSON.stringify(value)}`);
 }
 
 /**
- * Turns what every open workbench last said into one summary for the bar.
+ * Turns what every place this window watches last said into one summary.
  *
- * A workbench is fresh when its last ok answer is inside `staleAfter`, and a
- * workbench nobody has heard an ok answer from at all is stale rather than
- * fresh. Only fresh workbenches contribute cards, so a claim that lapsed
- * while a read was failing is never asserted on the strength of an old
- * answer.
+ * An answered report is trusted while it is inside `staleAfter` and treated
+ * as unheard once it is older, so a claim that lapsed while reads were
+ * failing is never asserted on the strength of an old answer. Only a fresh
+ * answer contributes cards.
  *
- * A stale workbench beside a fresh one that reports a held card does not make
+ * An unheard place beside a fresh one that reports a held card does not make
  * the window uncertain. Something confirmed is already on screen, and warning
  * beside it would undermine a card the window does know about.
  */
@@ -168,21 +213,32 @@ export function summarizeHolding(
 	staleAfter: number,
 ): HoldingSummary {
 	const cards: HeldCardView[] = [];
-	let stale = false;
+	let unheard = false;
 	for (const entry of snapshot) {
-		if (entry.fetchedAt === undefined || now - entry.fetchedAt > staleAfter) {
-			stale = true;
-			continue;
-		}
-		for (const card of entry.holding) {
-			cards.push({
-				ref: card.ref ?? card.id,
-				workbenchTitle: entry.title,
-				expiresAt: card.expires ?? "",
-			});
+		switch (entry.state) {
+			case "vacant":
+				break;
+			case "unheard":
+				unheard = true;
+				break;
+			case "answered":
+				if (now - entry.fetchedAt > staleAfter) {
+					unheard = true;
+					break;
+				}
+				for (const card of entry.holding) {
+					cards.push({
+						ref: card.ref ?? card.id,
+						workbenchTitle: entry.title,
+						expiresAt: card.expires ?? "",
+					});
+				}
+				break;
+			default:
+				unhandledArm(entry);
 		}
 	}
-	return { cards, uncertain: stale && cards.length === 0 };
+	return { cards, uncertain: unheard && cards.length === 0 };
 }
 
 /**

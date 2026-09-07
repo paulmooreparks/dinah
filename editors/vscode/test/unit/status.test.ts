@@ -331,11 +331,19 @@ test("a stale workbench beside a confirmed held card does not undermine it", () 
 	const summary = summarizeHolding(
 		[
 			{
+				state: "answered",
+				source: "C:\\trees",
 				title: "Trees",
 				holding: [{ id: "aaa", ref: "dn-7", expires: stampAt(90 * MINUTE) }],
 				fetchedAt: NOW - 1000,
 			},
-			{ title: "Maps", holding: [], fetchedAt: NOW - stale - 1 },
+			{
+				state: "answered",
+				source: "C:\\maps",
+				title: "Maps",
+				holding: [],
+				fetchedAt: NOW - stale - 1,
+			},
 		],
 		NOW,
 		stale,
@@ -409,13 +417,18 @@ test("a workbench nobody has heard from is stale rather than fresh", () => {
 	// The floor CheckpointLoop.startTimer applies to its own timer.
 	assert.equal(staleAfterMs(0), 6_000);
 
-	const never: WorkbenchHoldingReport = { title: "Trees", holding: [] };
+	const never: WorkbenchHoldingReport = {
+		state: "unheard",
+		source: "C:\\trees",
+	};
 	assert.deepEqual(summarizeHolding([never], NOW, 30_000), {
 		cards: [],
 		uncertain: true,
 	});
 	// Just inside the window is fresh, and one millisecond beyond it is not.
 	const at = (age: number): WorkbenchHoldingReport => ({
+		state: "answered",
+		source: "C:\\trees",
 		title: "Trees",
 		holding: [],
 		fetchedAt: NOW - age,
@@ -429,7 +442,15 @@ test("a workbench nobody has heard from is stale rather than fresh", () => {
 	// drawn with an empty name.
 	assert.deepEqual(
 		summarizeHolding(
-			[{ title: "Trees", holding: [{ id: "aaa" }], fetchedAt: NOW }],
+			[
+				{
+					state: "answered",
+					source: "C:\\trees",
+					title: "Trees",
+					holding: [{ id: "aaa" }],
+					fetchedAt: NOW,
+				},
+			],
 			NOW,
 			30_000,
 		),

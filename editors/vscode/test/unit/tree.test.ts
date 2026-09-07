@@ -11,7 +11,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import type { WorkbenchResolution } from "../../src/api";
+import type { BinaryState, WorkbenchResolution } from "../../src/api";
 import type { CommandHost } from "../../src/cardCommands";
 import type { SpawnOutcome, Spawner } from "../../src/cli";
 import { contextForPull } from "../../src/pullCommands";
@@ -46,7 +46,13 @@ import {
 	relativeTo,
 	treeItemFor,
 } from "../../src/tree";
-import { staleAfterMs, summarizeHolding } from "../../src/status";
+import {
+	NOTHING_HELD,
+	composeStatus,
+	staleAfterMs,
+	summarizeHolding,
+} from "../../src/status";
+import type { WorkbenchHoldingReport } from "../../src/status";
 import type {
 	AttachmentListing,
 	CardView,
@@ -151,6 +157,21 @@ function stubSpawner(answers: Record<string, unknown>): {
 	return { spawner, calls };
 }
 
+/**
+ * The reports in a snapshot that carry a hand, narrowed to that arm.
+ *
+ * holdingSnapshot answers about every place the provider watches, including
+ * the ones it could not read, so a test asking what a workbench reported has
+ * to say which arm it means rather than indexing blindly into the array.
+ */
+function answered(
+	snapshot: readonly WorkbenchHoldingReport[],
+): Extract<WorkbenchHoldingReport, { state: "answered" }>[] {
+	return snapshot.flatMap((entry) =>
+		entry.state === "answered" ? [entry] : [],
+	);
+}
+
 const RESOLVED: WorkbenchResolution = {
 	state: "ok",
 	root: "C:\\work\\bench",
@@ -158,6 +179,14 @@ const RESOLVED: WorkbenchResolution = {
 	source: "search",
 	profile: "dinah-core/0.7",
 	insideWorkspace: true,
+};
+
+/** A binary that resolved, so the bar's own trailer never moves in a test. */
+const GOOD_BINARY: BinaryState = {
+	state: "ok",
+	path: "/usr/local/bin/dinah",
+	source: "path",
+	version: { tool: "v0.1.0-dev.42", profile: "dinah-core/0.4", format: 1 },
 };
 
 function provider(spawner: Spawner, logged: string[] = []): DinahTreeProvider {
@@ -2096,9 +2125,9 @@ test("two folders resolving to one workbench report one held hand between them",
 		}),
 	]);
 
-	const first = view.holdingSnapshot();
+	const first = answered(view.holdingSnapshot());
 	assert.deepEqual(
-		first.map((entry) => entry.root),
+		first.map((entry) => entry.source),
 		[SHARED, OTHER],
 		"the shared workbench appears once and the other appears beside it",
 	);
@@ -2117,15 +2146,15 @@ test("two folders resolving to one workbench report one held hand between them",
 	failing.value = true;
 	reading = 9_000;
 	await view.refresh("C:\\ws\\c");
-	const second = view.holdingSnapshot();
-	const other = second.find((entry) => entry.root === OTHER);
+	const second = answered(view.holdingSnapshot());
+	const other = second.find((entry) => entry.source === OTHER);
 	assert.notEqual(other, undefined);
 	assert.equal(other?.fetchedAt, 1_000);
 
 	// The shared workbench's own entry is untouched by that failure, and one
 	// entry is still all it gets.
 	assert.deepEqual(
-		second.map((entry) => entry.root),
+		second.map((entry) => entry.source),
 		[SHARED, OTHER],
 	);
 	assert.equal(second[0].fetchedAt, 1_000);
@@ -2136,7 +2165,8 @@ test("two folders resolving to one workbench report one held hand between them",
 	reading = 12_000;
 	await view.refresh("C:\\ws\\c");
 	assert.equal(
-		view.holdingSnapshot().find((entry) => entry.root === OTHER)?.fetchedAt,
+		answered(view.holdingSnapshot()).find((entry) => entry.source === OTHER)
+			?.fetchedAt,
 		12_000,
 	);
 });
@@ -2196,8 +2226,7 @@ test("a forest member that declined a read keeps the hand it was last confirmed 
 	});
 	await view.load([folder({ folder: "C:\\customers", resolution: NOTHING })]);
 
-	const [confirmed] = view.holdingSnapshot();
-	assert.equal(confirmed.actor, "alka");
+	const [confirmed] = answered(view.holdingSnapshot());
 	assert.deepEqual([...confirmed.holding], [carried]);
 	assert.equal(confirmed.fetchedAt, 1_000);
 
@@ -2207,7 +2236,7 @@ test("a forest member that declined a read keeps the hand it was last confirmed 
 	declining = true;
 	reading = 9_000;
 	await view.refresh("C:\\customers");
-	const [stale] = view.holdingSnapshot();
+	const [stale] = answered(view.holdingSnapshot());
 	assert.deepEqual([...stale.holding], [carried]);
 	assert.equal(stale.fetchedAt, 1_000);
 
@@ -2216,7 +2245,7 @@ test("a forest member that declined a read keeps the hand it was last confirmed 
 	declining = false;
 	reading = 12_000;
 	await view.refresh("C:\\customers");
-	assert.equal(view.holdingSnapshot()[0].fetchedAt, 12_000);
+	assert.equal(answered(view.holdingSnapshot())[0].fetchedAt, 12_000);
 
 	// The other way a status answer goes missing: the member itself reads
 	// fine and the root-scoped status call is the one that refused, so no
@@ -2226,7 +2255,7 @@ test("a forest member that declined a read keeps the hand it was last confirmed 
 	statusRefusing = true;
 	reading = 20_000;
 	await view.refresh("C:\\customers");
-	const [unheard] = view.holdingSnapshot();
+	const [unheard] = answered(view.holdingSnapshot());
 	assert.deepEqual([...unheard.holding], [carried]);
 	assert.equal(unheard.fetchedAt, 12_000);
 });
@@ -2290,7 +2319,10 @@ test("a folder whose walk did not answer keeps its rows rather than emptying the
 		now: () => reading,
 	});
 	await view.load([folder({ folder: "C:\\customers", resolution: NOTHING })]);
-	assert.deepEqual([...view.holdingSnapshot()[0].holding], [carried]);
+	assert.deepEqual(
+		[...answered(view.holdingSnapshot())[0].holding],
+		[carried],
+	);
 
 	// The walk declines and the root-scoped status call answers. The member
 	// is still there, and its hand is this checkpoint's own answer rather
@@ -2299,10 +2331,10 @@ test("a folder whose walk did not answer keeps its rows rather than emptying the
 	walkFailing = true;
 	reading = 9_000;
 	await view.refresh("C:\\customers");
-	const [answered] = view.holdingSnapshot();
-	assert.equal(answered.root, "C:\\customers\\carter\\board");
-	assert.deepEqual([...answered.holding], [carried]);
-	assert.equal(answered.fetchedAt, 9_000);
+	const [walked] = answered(view.holdingSnapshot());
+	assert.equal(walked.source, "C:\\customers\\carter\\board");
+	assert.deepEqual([...walked.holding], [carried]);
+	assert.equal(walked.fetchedAt, 9_000);
 	assert.deepEqual(summarizeHolding(view.holdingSnapshot(), 9_000, window), {
 		cards: [
 			{
@@ -2321,13 +2353,213 @@ test("a folder whose walk did not answer keeps its rows rather than emptying the
 	statusFailing = true;
 	reading = 60_000;
 	await view.refresh("C:\\customers");
-	const [unheard] = view.holdingSnapshot();
-	assert.equal(unheard.root, "C:\\customers\\carter\\board");
-	assert.equal(unheard.fetchedAt, 9_000);
+	const [silent] = answered(view.holdingSnapshot());
+	assert.equal(silent.source, "C:\\customers\\carter\\board");
+	assert.equal(silent.fetchedAt, 9_000);
 	assert.deepEqual(summarizeHolding(view.holdingSnapshot(), 60_000, window), {
 		cards: [],
 		uncertain: true,
 	});
+});
+
+test("a folder whose read threw contributes a doubt rather than nothing", async () => {
+	// The other way a folder ends up with no rows at all. runDinah does not
+	// catch a spawner that rejects, so a rejection travels out through
+	// readWorkbench and load and leaves the folder standing with the empty
+	// row list blankState gave it. Nothing later fills it in, and before
+	// holdingSnapshot answered for the folder itself that folder simply left
+	// the snapshot, which is the same lie by a third road.
+	const view = provider(async () => {
+		throw new Error("spawn refused by the operating system");
+	});
+	await assert.rejects(() =>
+		view.load([folder({ folder: "C:\\ws\\thrown", resolution: RESOLVED })]),
+	);
+	assert.deepEqual(view.holdingSnapshot(), [
+		{ state: "unheard", source: "C:\\ws\\thrown" },
+	]);
+	assert.deepEqual(
+		summarizeHolding(view.holdingSnapshot(), 5_000, staleAfterMs(10)),
+		{ cards: [], uncertain: true },
+	);
+});
+
+test("an unopened candidate is a hand this window has not read", async () => {
+	// A folder holding several workbenches resolves to candidate rows, and
+	// this window opens none of them until a reader expands one. What is held
+	// inside them is therefore unread rather than empty, and the bar says so.
+	// Before this, an ambiguous folder contributed nothing to the snapshot, so
+	// a reader holding a card in one of two sibling workbenches was told they
+	// held nothing.
+	const view = provider(async () => {
+		throw new Error("no call is made for an unopened candidate");
+	});
+	await view.load([folder({ folder: "C:\\multi\\second", resolution: AMBIGUOUS })]);
+	assert.deepEqual(
+		view.holdingSnapshot().map((entry) => entry.state),
+		["unheard", "unheard"],
+	);
+	assert.deepEqual(
+		summarizeHolding(view.holdingSnapshot(), 5_000, staleAfterMs(10)),
+		{ cards: [], uncertain: true },
+	);
+});
+
+test("a member that declined the walk still reports the hand the status call answered with", async () => {
+	// The one branch of readForest that had no fixture. A member can decline
+	// the walk while the root-scoped status call answers for it perfectly
+	// well, and the hand that answer carries is this checkpoint's own. The
+	// root-scoped read used to drop it and report the last checkpoint's hand
+	// instead, where the single-workbench read kept it, so the two paths gave
+	// different answers to one question. They share heldHand now, and this is
+	// what holds them to it: reverting the branch to read the hand off the
+	// held data alone reports the first card and the first stamp, and both
+	// assertions below go red.
+	let declining = false;
+	let reading = 1_000;
+	const first = {
+		id: "aaa",
+		ref: "ca-1",
+		state: "active",
+		holder: "alka",
+		expires: "2026-09-07T13:30:00Z",
+	};
+	const second = { ...first, id: "bbb", ref: "ca-2" };
+	const spawner: Spawner = async (_exe, argv) => {
+		const member = {
+			title: "Carter LLP",
+			slug: "carter",
+			path: "C:\\customers\\carter\\board",
+			...(argv.includes("tree")
+				? declining
+					? { unanswered: "dinah.unanswered" }
+					: { tree: THREE_COLUMNS }
+				: argv.includes("status")
+					? {
+							status: {
+								...THREE_STATUS,
+								actor: "alka",
+								is_operator: false,
+								holding: [declining ? second : first],
+								blocked: [],
+							},
+						}
+					: { listing: THREE_LISTING }),
+		};
+		return ok({ root: "C:\\customers", workbenches: [member] });
+	};
+	const view = new DinahTreeProvider({
+		spawner,
+		exe: "dinah",
+		log: () => {},
+		caseInsensitive: true,
+		deadEndSentence: (name) => name,
+		now: () => reading,
+	});
+	await view.load([folder({ folder: "C:\\customers", resolution: NOTHING })]);
+	assert.deepEqual(
+		[...answered(view.holdingSnapshot())[0].holding],
+		[first],
+	);
+
+	// The member declines the walk. The status call answered for it in the
+	// same checkpoint, so its hand is that answer and its stamp moves with
+	// it, exactly as the single-workbench read has always done.
+	declining = true;
+	reading = 9_000;
+	await view.refresh("C:\\customers");
+	const [reported] = answered(view.holdingSnapshot());
+	assert.deepEqual([...reported.holding], [second]);
+	assert.equal(reported.fetchedAt, 9_000);
+});
+
+test("a folder never read and a workbench never read give the reader one answer", async () => {
+	// The blocker, driven the way the review drove it: the same failure put
+	// to the window twice, once through a folder whose walk has never
+	// answered and once through a single workbench whose reads have never
+	// answered, with the two bars laid beside each other. Round two closed
+	// this on the folder path only where an earlier good walk had left rows
+	// behind, so a folder that had never been read still handed the bar an
+	// empty snapshot and the bar reported an empty hand. Asserting on the
+	// code would not have caught that, because the code looked repaired.
+	const refusal: SpawnOutcome = {
+		code: 2,
+		stdout: JSON.stringify({ refusal: "dinah.unreachable" }),
+		stderr: "",
+	};
+	const window = staleAfterMs(10);
+	const refusing: Spawner = async () => refusal;
+	const QUIET = "C:\\ws\\quiet";
+
+	// One quiet folder, read through whichever resolution it is given, then
+	// asked again. The bar is composed for both from the same binary and the
+	// same resolved workbench, so the only thing that can move the text is
+	// what this window believes about the reader's hand.
+	const quiet = async (resolution: WorkbenchResolution) => {
+		const view = provider(refusing);
+		await view.load([folder({ folder: QUIET, resolution })]);
+		const first = summarizeHolding(view.holdingSnapshot(), 5_000, window);
+		// Every later checkpoint asks again and hears nothing again, which is
+		// where the folder path used to go on reporting an empty hand instead
+		// of converging on the answer the other path gave.
+		await view.refresh(QUIET);
+		const later = summarizeHolding(view.holdingSnapshot(), 50_000, window);
+		const view50 = composeStatus(
+			GOOD_BINARY,
+			RESOLVED,
+			"1.0.0",
+			later,
+			50_000,
+		);
+		return {
+			first,
+			later,
+			text: view50.text,
+			lead: view50.tooltip.split("\n")[0],
+		};
+	};
+
+	const asFolder = await quiet(NOTHING);
+	const asWorkbench = await quiet(RESOLVED);
+
+	// Neither can say what is held, and each says so on the first checkpoint
+	// as well as on the fourth, rather than only once a good read has left
+	// something behind to go stale.
+	assert.deepEqual(asFolder.first, { cards: [], uncertain: true });
+	assert.deepEqual(asFolder.later, { cards: [], uncertain: true });
+	assert.deepEqual(
+		asFolder,
+		asWorkbench,
+		"the same failure put to the window twice reads the same way twice",
+	);
+	assert.ok(
+		asFolder.text.endsWith("$(warning)"),
+		`the bar warns rather than claiming an empty hand: ${asFolder.text}`,
+	);
+	assert.equal(
+		asFolder.lead,
+		"Dinah could not confirm whether you are holding anything right now",
+	);
+
+	// The control, without which the assertions above would also pass for a
+	// window that warned whatever it heard. A walk that answers and names no
+	// workbenches is dinah saying there is nothing beneath the folder, so
+	// the reader is told they hold nothing and is told it plainly.
+	const empty = provider(async (_exe, argv) =>
+		argv.includes("tree")
+			? ok({ root: QUIET, workbenches: [] })
+			: ok({ workbenches: [] }),
+	);
+	await empty.load([folder({ folder: QUIET, resolution: NOTHING })]);
+	assert.deepEqual(summarizeHolding(empty.holdingSnapshot(), 5_000, window), {
+		cards: [],
+		uncertain: false,
+	});
+	assert.equal(
+		composeStatus(GOOD_BINARY, RESOLVED, "1.0.0", NOTHING_HELD, 5_000).text
+			.endsWith("$(warning)"),
+		false,
+	);
 });
 
 test("a forest member answering with no path of its own contributes no hand", async () => {
@@ -2342,7 +2574,7 @@ test("a forest member answering with no path of its own contributes no hand", as
 	const view = provider(spawner);
 	await view.load([folder({ folder: "C:\\customers", resolution: NOTHING })]);
 	assert.deepEqual(
-		view.holdingSnapshot().map((entry) => entry.root),
+		answered(view.holdingSnapshot()).map((entry) => entry.source),
 		["C:\\customers\\acme\\board"],
 	);
 });
