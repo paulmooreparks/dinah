@@ -9,7 +9,8 @@ import (
 )
 
 // NewColumn creates a column carrying a title and, optionally, a kind, a
-// capacity, a slug and a placement ahead of an existing column.
+// capacity, a slug, a tier default and a placement ahead of an existing
+// column.
 //
 // It evaluates in the order SetWorkbench and NewWorkstream both fix: the
 // workbench designates an operator, each supplied value is present and well
@@ -39,6 +40,17 @@ func (l *Library) NewColumn(req *Request) *Response {
 	kind := strings.TrimSpace(req.Kind)
 	if kind != "" && !bench.ValidColumnKind(kind) {
 		return l.refuse(req, nil, contract.Malformed, "kind")
+	}
+	// The tier default is validated the way a card's own level write is, and
+	// for the same reason: NewColumn is the only path that writes it, so a
+	// value the workbench does not declare either arrives here or arrives by
+	// hand. An empty value skips the check, since a column asking for nothing
+	// of anyone has to stay reachable and is what almost every column says.
+	tier := strings.TrimSpace(req.Tier)
+	if tier != "" {
+		if refusal := l.admitLevels(map[string]string{bench.TierField: tier}); refusal != nil {
+			return l.refuseWith(req, nil, refusal.Name, refusal.Detail, refusal.Extra)
+		}
 	}
 	var capacity int
 	if text := strings.TrimSpace(req.Capacity); text != "" {
@@ -104,7 +116,7 @@ func (l *Library) NewColumn(req *Request) *Response {
 	if disrupted := placementDisrupts(fresh.Columns, insertAt, effective, cards); disrupted != nil {
 		return l.refuse(req, nil, contract.ColumnRoutingDisrupted, disrupted.Ref())
 	}
-	column, err := fresh.NewColumn(title, kind, slug, capacity, before)
+	column, err := fresh.NewColumn(title, kind, slug, tier, capacity, before)
 	if err != nil {
 		return l.FromError(req, err)
 	}

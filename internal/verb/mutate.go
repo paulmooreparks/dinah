@@ -123,10 +123,19 @@ func (l *Library) lapse(card *bench.Card) error {
 	return bench.AppendEvent(card.JournalPath(), ev)
 }
 
-// canClaim runs the precondition sequence CORE-CLAIM declares. It returns a
-// refusal response when the card may not be claimed and nil when the card is
-// ready to take. Pull reuses the same checks for the claimed event it bundles
-// with its move, so both verbs run the same gates in the same order.
+// canClaim runs the precondition sequence CORE-CLAIM declares, and Dinah's own
+// tier row after it. It returns a refusal response when the card may not be
+// claimed and nil when the card is ready to take. Pull reuses the same checks
+// for the claimed event it bundles with its move, so both verbs run the same
+// gates in the same order.
+//
+// The tier row is Dinah's own, and it is appended rather than inserted among
+// the profile's seven, on the terms check.move.9 already keeps: inserting it
+// would renumber rows the profile numbers, and dinah help claim heads its
+// table Order and promises the rows in the order each is checked, so the
+// published numbering decides the evaluation order rather than the code
+// deciding what the page prints. A claim that is both below the card's tier
+// and carrying an unresolved item is therefore refused unresolved-item.
 func (l *Library) canClaim(req *Request, card *bench.Card) *Response {
 	if req.Actor == "" {
 		return l.refuse(req, card, contract.NoOwner, "")
@@ -140,7 +149,10 @@ func (l *Library) canClaim(req *Request, card *bench.Card) *Response {
 	if refusal := l.claimableColumn(req, card); refusal != nil {
 		return refusal
 	}
-	return l.claimableItems(req, card)
+	if refusal := l.claimableItems(req, card); refusal != nil {
+		return refusal
+	}
+	return l.claimableTier(req, card, l.Bench.Column(card.Column))
 }
 
 // claimableItems carries the last row of the claim's list, CORE-CLAIM-9. It

@@ -30,7 +30,7 @@ Usage: dinah <command> [arguments]
 WORK
   add <title> [--column <column>] [--severity <level>]   File a new card in the first column
     [--priority <level>]
-  claim <card> [--expires <duration>]                    Take up a ready card
+  claim <card> [--expires <duration>] [--tier <level>]   Take up a ready card
   move <card> <column> [--override]                      Carry a card to another column
   pull [column] [--no-claim] [--expires <duration>]      Claim the head of a column's queue and move it
     [--override]                                           there in one act
@@ -47,7 +47,7 @@ WORK
   delete <ref> --yes                                     Destroy a card, a column, or anything below a
                                                            card, along with its history
   rename <ref> <name>                                    Rename an attachment
-  card <get|set> <card> <field> [value]                  Read one of a card's own fields, or write one
+  card <get|set> <card> <field> [value] [--at <column>]  Read one of a card's own fields, or write one
 
 READ
   status [--root <path>] [--max-depth <n>]               Where this workbench stands, and what you hold
@@ -91,8 +91,8 @@ WORKBENCH
   workbench [get|set] [field] [value] [--yes]            Read this workbench's own fields, or write one
   workstream [new|get|set] [workstream|title] [field]    Read this workbench's workstreams, create one, or
     [value] [--slug <slug>] [--yes]                        write one's fields
-  column <new> <title> [--kind <kind>] [--capacity <n>]  Create a column in this workbench's flow
-    [--slug <slug>] [--before <column>]
+  column <new> <title> [--kind <kind>] [--tier <level>]  Create a column in this workbench's flow
+    [--capacity <n>] [--slug <slug>] [--before <column>]
   workbenches [path] [--max-depth <n>]                   The workbenches beneath a directory, or the ones
                                                            reachable from here
   version [--catalogs]                                   What Dinah is and what it conforms to
@@ -125,58 +125,59 @@ const desiredHelpAt200 = `Dinah keeps work moving.
 Usage: dinah <command> [arguments]
 
 WORK
-  add <title> [--column <column>] [--severity <level>] [--priority <level>]                        File a new card in the first column
-  claim <card> [--expires <duration>]                                                              Take up a ready card
-  move <card> <column> [--override]                                                                Carry a card to another column
-  pull [column] [--no-claim] [--expires <duration>] [--override]                                   Claim the head of a column's queue and move it there in one act
-  release <card>                                                                                   Give the card back to its queue
-  block <card> <reason> [--kind <kind>]                                                            Raise an obstacle and free the card
-  unblock <card>                                                                                   Lift a block (operator only)
-  comment <card> <text|->                                                                          Record a comment on a card
-  attach <ref> <file> [--description <text>] [--replace]                                           Attach a file, or replace its bytes
-  join <card> <workstream>                                                                         Add a card to a workstream
-  leave <card> <workstream>                                                                        Take a card out of a workstream
-  archive <ref>                                                                                    Move a card, a column, or anything below a card, out of the live set
-  delete <ref> --yes                                                                               Destroy a card, a column, or anything below a card, along with its history
-  rename <ref> <name>                                                                              Rename an attachment
-  card <get|set> <card> <field> [value]                                                            Read one of a card's own fields, or write one
+  add <title> [--column <column>] [--severity <level>] [--priority <level>]                             File a new card in the first column
+  claim <card> [--expires <duration>] [--tier <level>]                                                  Take up a ready card
+  move <card> <column> [--override]                                                                     Carry a card to another column
+  pull [column] [--no-claim] [--expires <duration>] [--override]                                        Claim the head of a column's queue and move it there in one act
+  release <card>                                                                                        Give the card back to its queue
+  block <card> <reason> [--kind <kind>]                                                                 Raise an obstacle and free the card
+  unblock <card>                                                                                        Lift a block (operator only)
+  comment <card> <text|->                                                                               Record a comment on a card
+  attach <ref> <file> [--description <text>] [--replace]                                                Attach a file, or replace its bytes
+  join <card> <workstream>                                                                              Add a card to a workstream
+  leave <card> <workstream>                                                                             Take a card out of a workstream
+  archive <ref>                                                                                         Move a card, a column, or anything below a card, out of the live set
+  delete <ref> --yes                                                                                    Destroy a card, a column, or anything below a card, along with its history
+  rename <ref> <name>                                                                                   Rename an attachment
+  card <get|set> <card> <field> [value] [--at <column>]                                                 Read one of a card's own fields, or write one
 
 READ
-  status [--root <path>] [--max-depth <n>]                                                         Where this workbench stands, and what you hold
-  columns                                                                                          The flow, in order
-  ls [column] [--ready] [--root <path>] [--max-depth <n>]                                          The cards of a column, in queue order
-  next [column] [--root <path>] [--max-depth <n>]                                                  The card a column offers next
-  query [query]                                                                                    The cards of the workbench that match a query
-  search <phrase> [--query <terms>] [--archived] [--root <path>] [--max-depth <n>]                 Every place a phrase occurs in this workbench
-  tree [query] [--group-by <axes>] [--depth <level>] [--root <path>] [--max-depth <n>]             The workbench's cards nested along a chain of axes
-  contents <ref> [--depth <level>]                                                                 What an entity of the workbench contains
-  attachments [ref]                                                                                What is attached to an entity of the workbench
-  show <ref> [--fields <list>]                                                                     A card, or anything below it
-  log <card>                                                                                       The recorded actions of a card, oldest first
-  changes [--since <cursor>] [--card <ref>] [--column <column>] [--root <path>] [--max-depth <n>]  What has happened on this workbench since a cursor
-  instructions <card|column>                                                                       The instructions served at a position
-  guide [topic]                                                                                    The embedded guides, or one of them
+  status [--root <path>] [--max-depth <n>]                                                              Where this workbench stands, and what you hold
+  columns                                                                                               The flow, in order
+  ls [column] [--ready] [--root <path>] [--max-depth <n>]                                               The cards of a column, in queue order
+  next [column] [--root <path>] [--max-depth <n>]                                                       The card a column offers next
+  query [query]                                                                                         The cards of the workbench that match a query
+  search <phrase> [--query <terms>] [--archived] [--root <path>] [--max-depth <n>]                      Every place a phrase occurs in this workbench
+  tree [query] [--group-by <axes>] [--depth <level>] [--root <path>] [--max-depth <n>]                  The workbench's cards nested along a chain of axes
+  contents <ref> [--depth <level>]                                                                      What an entity of the workbench contains
+  attachments [ref]                                                                                     What is attached to an entity of the workbench
+  show <ref> [--fields <list>]                                                                          A card, or anything below it
+  log <card>                                                                                            The recorded actions of a card, oldest first
+  changes [--since <cursor>] [--card <ref>] [--column <column>] [--root <path>] [--max-depth <n>]       What has happened on this workbench since a cursor
+  instructions <card|column>                                                                            The instructions served at a position
+  guide [topic]                                                                                         The embedded guides, or one of them
 
 WORKBENCH
-  init [dir] [--from <source>] [--slug <slug>] [--operator <actor>]                                Create a workbench here, optionally from a template
-  export                                                                                           Write this workbench's interchange form to stdout
-  extract <dir>                                                                                    Copy this workbench's definition out as a template
-  reshape --from <source> [--map <retired=destination>] [--yes]                                    Carry this workbench to the column layout a new definition declares
-  path <ref>                                                                                       Print the file path of this workbench, of a card, or of anything below a card
-  edit <ref>                                                                                       Open this workbench, a card, or anything below a card in your editor
-  config [get|set] [key] [value]                                                                   List your user settings, or read or write one
-  check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-columns]                      Look for structural defects in this workbench
-    [--migrate-vocabulary] [--migrate-container] [--remint <dir>] [--migrate-workstreams]
-    [--witness] [--yes] [--root <path>] [--max-depth <n>]
-  whoami                                                                                           The actor your actions carry, and whether it is the operator
-  workbench [get|set] [field] [value] [--yes]                                                      Read this workbench's own fields, or write one
-  workstream [new|get|set] [workstream|title] [field] [value] [--slug <slug>] [--yes]              Read this workbench's workstreams, create one, or write one's fields
-  column <new> <title> [--kind <kind>] [--capacity <n>] [--slug <slug>] [--before <column>]        Create a column in this workbench's flow
-  workbenches [path] [--max-depth <n>]                                                             The workbenches beneath a directory, or the ones reachable from here
-  version [--catalogs]                                                                             What Dinah is and what it conforms to
+  init [dir] [--from <source>] [--slug <slug>] [--operator <actor>]                                     Create a workbench here, optionally from a template
+  export                                                                                                Write this workbench's interchange form to stdout
+  extract <dir>                                                                                         Copy this workbench's definition out as a template
+  reshape --from <source> [--map <retired=destination>] [--yes]                                         Carry this workbench to the column layout a new definition declares
+  path <ref>                                                                                            Print the file path of this workbench, of a card, or of anything below a card
+  edit <ref>                                                                                            Open this workbench, a card, or anything below a card in your editor
+  config [get|set] [key] [value]                                                                        List your user settings, or read or write one
+  check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-columns] [--migrate-vocabulary]    Look for structural defects in this workbench
+    [--migrate-container] [--remint <dir>] [--migrate-workstreams] [--witness] [--yes] [--root <path>]
+    [--max-depth <n>]
+  whoami                                                                                                The actor your actions carry, and whether it is the operator
+  workbench [get|set] [field] [value] [--yes]                                                           Read this workbench's own fields, or write one
+  workstream [new|get|set] [workstream|title] [field] [value] [--slug <slug>] [--yes]                   Read this workbench's workstreams, create one, or write one's fields
+  column <new> <title> [--kind <kind>] [--tier <level>] [--capacity <n>] [--slug <slug>]                Create a column in this workbench's flow
+    [--before <column>]
+  workbenches [path] [--max-depth <n>]                                                                  The workbenches beneath a directory, or the ones reachable from here
+  version [--catalogs]                                                                                  What Dinah is and what it conforms to
 
 SERVE
-  mcp [--root <dir>]                                                                               Serve workbenches over MCP on stdio
+  mcp [--root <dir>]                                                                                    Serve workbenches over MCP on stdio
 
 Global flags:
   Option             What it does

@@ -181,6 +181,17 @@ type Column struct {
 	// read directly, because resolving a name against the flow needs the
 	// whole column list and this field alone does not carry one.
 	RejectTo string
+	// Tier is the column's own tier default, or empty when the column asks
+	// for nothing of anyone.
+	//
+	// A default informs and never refuses. It takes no part in the claim
+	// gate, whatever it says: only a requirement a card itself carries can
+	// refuse a claim, so declaring one here cannot make this column
+	// selective. It has two jobs instead, and both are read elsewhere. It is
+	// what a relative override write resolves against, in ResolveTierWrite,
+	// and it is what a reader answering "the work here needs somebody of
+	// about this class" consults.
+	Tier string
 	// Capacity is the column's declared limit, or zero for unlimited.
 	Capacity int
 	// LoopLimit is how many times one card may leave this column by a
@@ -1765,6 +1776,7 @@ func readColumnIn(root string, vocab columnVocabulary, id string, position int) 
 		Title:         fm.Value("title"),
 		Slug:          fm.Value("slug"),
 		Kind:          fm.Value("kind"),
+		Tier:          fm.Value(TierField),
 		OperatorOwned: fm.Value("operator_owned") == "true",
 		RejectTo:      fm.Value("reject_to"),
 		Instructions:  body,

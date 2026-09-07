@@ -793,29 +793,28 @@ and stores nothing.
 ### Journal event schema
 
 Every journal line names an event, and the core event names are a closed set
-of twenty-two, which `internal/contract` declares as constants.
-Twenty-one of them are written by some command in this build. The one that is
+of twenty-four, which `internal/contract` declares as constants.
+Twenty-three of them are written by some command in this build. The one that is
 not, `restored`, is declared and reserved, and `cmd/dinah/compat_test.go`'s
 `unwrittenEvents` table records the reason it stays unwritten. No verb is
 wired to `restored` yet, though the structural machinery a restore would use
 already exists.
 
-A second count of nineteen sits nearby and names a different set.
+A second count of twenty-one sits nearby and names a different set.
 `contract.Events` is the vocabulary a query over cards accepts, and it holds
 out `column_updated`, `workbench_updated` and `workstream_updated`, since each
 of those lands on the workbench's journal or on a workstream's and never on a
 card's.
 The two counts no longer agree, and neither set contains the other. `restored`
-is queryable over a card and written by nothing, so it sits in the nineteen and
-outside the twenty-one. `column_updated`, `workbench_updated` and
+is queryable over a card and written by nothing, so it sits in the twenty-one
+and outside the twenty-three. `column_updated`, `workbench_updated` and
 `workstream_updated` are written by commands but never land on a card's
-journal, so they sit in the twenty-one and outside the nineteen. Eighteen names
-sit in both counts. Seventeen of those land
-on a card's own journal, and `deleted` is the exception, because deleting a card
-destroys the journal inside it and the record of the deletion goes to the
-workbench's.
+journal, so they sit in the twenty-three and outside the twenty-one. Twenty
+names sit in both counts. Nineteen of those land on a card's own journal, and
+`deleted` is the exception, because deleting a card destroys the journal inside
+it and the record of the deletion goes to the workbench's.
 
-The set stays closed mechanically rather than by inspection. A twenty-third
+The set stays closed mechanically rather than by inspection. A twenty-fifth
 constant fails the build unless it reaches the sample fixture's journal or is
 named in `unwrittenEvents`, which is the coverage alarm the Versioning section
 describes.
@@ -824,7 +823,7 @@ A reader that meets an event name it does not know reads the line, keeps it,
 and hands it on exactly as written. A name carrying a dot,
 `<namespace>.<name>`, belongs to an extension kind that declared
 `journal: true`, and it is legitimate whatever it says. A name carrying no dot
-is one of the twenty-one, or one a different build wrote, whether an older
+is one of the twenty-three, or one a different build wrote, whether an older
 build or a core revision this build's profile ceiling has not reached. Dinah
 refuses no read on account of the event name a line carries. Rendering,
 ordinal replay, and position replay each switch on the event name and none of
@@ -865,6 +864,8 @@ so a `claimed` line with no `expires` records an unbounded claim.
 | `card_updated` | `field` | `from` and `to`, by the rule `workbench_updated` follows |
 | `restored` | `note` (the entity's own id) | |
 | `manual_correction` | `from`, `to`, `from_title`, `to_title` | |
+| `tier_overridden` | `column` (the resolved column's id), `to`, `expr` (what was typed) | `from`, absent where the card carried no override for that column; `against` (the column's own tier default), absent where the expression was absolute and needed no baseline |
+| `tier_override_dropped` | `column` (the retired column's id), `from` (the dropped absolute tier) | |
 
 An `expired` line carries `expires` unconditionally because the event fires
 only when a claim's own expiry lapsed, so the field it reports is never empty.
@@ -1616,10 +1617,10 @@ sequence order is the rank.
 }
 ```
 
-The axes reach it in a fixed order, severity first, then priority, then any
-further axis in sorted order, whichever order the workbench declared them in.
-A reader of the interchange therefore never has to ask what an axis's position
-in the object meant.
+The axes reach it in a fixed order, severity first, then priority, then tier,
+then any further axis in sorted order, whichever order the workbench declared
+them in. A reader of the interchange therefore never has to ask what an axis's
+position in the object meant.
 
 A hint is content-tier text in the author's language. Guidance longer than
 a hint, a real rubric with examples, is ordinary prose in the workbench
@@ -1630,6 +1631,132 @@ context.
 is tracked on its own board.) Domain fields generally, such as `project` and
 `repository` on a ticket card, live on the card without the core knowing
 them; unknown keys are tolerated.
+
+## Tier: what class of worker a card needs at each stop
+
+Tier is the third level axis, and a workbench declares it exactly as it
+declares the other two. Its members run from low to high in declaration
+order, and nothing in the format reads the names, so a workbench whose work
+is not software names its own rungs.
+
+```yaml
+levels:
+  severity: [trivial, minor, major, critical]
+  priority: [later, soon, next, now]
+  tier: [workhorse, frontier, apex]
+```
+
+A card carries a baseline tier in the `tier` key, on the terms severity and
+priority already use, and per-column overrides in a `tier_at` sequence for
+the stops that differ from that baseline. Each override names a column the
+way a column's own `reject_to` names one, which is the identifier, the slug
+or the title, and carries an absolute member of the declared set.
+
+```yaml
+title: Ship the thing
+column: 7c2a1e9f0b3d
+state: ready
+tier: apex
+tier_at:
+  - column: test
+    tier: frontier
+```
+
+A column carries a tier default of its own in the `tier` key of `column.md`,
+beside `kind` and `wip_limit`. The default says what the work at that station
+usually needs. It has two jobs and refuses nothing, and the section on the
+gate below says what it deliberately does not do.
+
+### Writing a tier relatively, and what lands on disk
+
+An override may be written as a departure from the column's own default, as
+`+1` or `-2`, and Dinah resolves it to an absolute member at the moment of the
+write. Only that absolute member is stored. What somebody typed and what it
+resolved against travel on the card's journal instead, in the
+`tier_overridden` event's `expr` and `against` members.
+
+The split matters because a level set is open and editable. A stored `+1`
+would name a different rung the day somebody inserts a member into the middle
+of the set, on cards nobody has touched since, and retuning a column's default
+would quietly reinterpret every card written against the old one. Storing the
+absolute keeps a card saying what it was assessed to need.
+
+Three refusals bound a relative write. A column carrying no default of its own
+gives `+1` nothing to be relative to, and the write refuses with
+`dinah.no-tier-default`. A column whose stored default names no member of the
+declared set refuses with `dinah.unknown-level` naming that stored value,
+which is a different repair from a missing default and so carries a different
+name. A step landing off either end of the set refuses with
+`dinah.tier-out-of-range`, and nothing clamps to the nearest rung, because a
+caller who asked for a rung above the top has said something the workbench
+cannot honour.
+
+An absolute write never reads the column's default at all, so a column whose
+default is stale or absent still takes an override written by name.
+
+### The gate: what a claim is measured against
+
+A claim is measured against what the card asks for at the column it is being
+taken up in, which is the first of these that says anything:
+
+1. the card's own `tier_at` entry whose column reference resolves to that
+   column;
+2. the card's own baseline `tier`;
+3. nothing, in which case the gate does not fire.
+
+The comparison is a floor rather than a match. A claim declaring a tier at or
+above what the card asks for is admitted, and only one declaring less is
+refused, under `dinah.below-tier`. Somebody over-qualified taking a card is
+waste rather than an error, and the format has no view on waste. A claim
+declaring nothing at all, or declaring a name the workbench does not carry,
+cannot be shown to meet a floor and is refused wherever one applies.
+
+The card's side of that comparison is read the other way, and the asymmetry is
+deliberate rather than an oversight. Where the card asks for a tier the
+workbench does not declare, there is no rank to measure a claimant against, so
+the gate has no honest refusal to make and admits the claim. `dinah check`
+reports the card under `check.unknown-level`, which is the repair, and holding
+every claim at a column hostage to one card's stale value would be a refusal
+nobody could satisfy. A card standing at a column the workbench no longer
+declares is read the same way: the requirement it carries still applies, and
+the refusal names the stored column identifier, since that is what an operator
+repairs the workbench with.
+
+### Two limits worth knowing before you rely on any of this
+
+**Dinah cannot verify a declared tier.** A workbench is files on a disk, with
+no server, no account system and no credential, so `--tier apex` is a claim
+the tool takes on trust rather than a capability it checks. The gate stops an
+honest claimant who has not noticed what the card asks for. It does nothing at
+all against a dishonest declaration, and no part of this design should be read
+as saying otherwise.
+
+**A column cannot make itself selective by declaring a default.** Only a
+requirement the card itself carries can refuse a claim. A review column that
+would like every claimant to be at least `frontier` gets nothing from writing
+`tier: frontier` into its own frontmatter: that value informs a relative
+override written at the column, and it is available to a later reader
+answering which cards somebody is competent for, but it never stands between
+an under-qualified claimant and the claim. The floor protects the cards
+somebody has assessed, one card at a time, and a station is protected only by
+giving each card arriving there a baseline or an override of its own.
+
+### Reshape, and what check reports
+
+Retiring a column that a card carries an override for drops that override and
+records the drop as a `tier_override_dropped` event on the card's journal, in
+the same run that carries the card to its destination. The tier somebody chose
+for one station is not evidence about a different one, and reshape picked the
+destination to satisfy the rule that a card stands somewhere rather than
+because anybody judged what the destination needs.
+
+An override naming a column the workbench no longer carries is reported by
+`dinah check` under `check.unknown-tier-column` rather than refused on read,
+on the posture `reject_to` already keeps: a write catches a typo before it
+lands, and a read tolerates a name that resolved when it was written. A stored
+tier the declared set does not carry is reported under `check.unknown-level`,
+whether it sits on a card, on one of a card's overrides, or on a column's own
+default.
 
 ## Versioning
 

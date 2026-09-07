@@ -7099,10 +7099,10 @@ func TestEveryHelpSpellingReachesTheSamePage(t *testing.T) {
 // still behave.
 func TestTheFlagSetsTheParserAcceptsAreDerivedFromTheParameterTable(t *testing.T) {
 	wantValued := []string{
-		"actor", "before", "capacity", "card", "column", "depth",
+		"actor", "at", "before", "capacity", "card", "column", "depth",
 		"description", "expires", "fields", "format", "from", "group-by", "kind",
 		"lang", "map", "max-depth", "operator", "priority", "query", "remint",
-		"root", "severity", "since", "slug", "workbench",
+		"root", "severity", "since", "slug", "tier", "workbench",
 	}
 	wantMarkers := []string{
 		"archived", "catalogs", "finish", "help", "json", "migrate-columns",

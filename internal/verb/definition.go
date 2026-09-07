@@ -258,6 +258,7 @@ var params = map[string][]Param{
 	Claim: {
 		{Name: "card", Required: true, Field: "Card"},
 		{Name: "expires", Flag: true, Value: "duration", Field: "Expires"},
+		{Name: "tier", Flag: true, Value: "level", Field: "Tier"},
 	},
 	Move: {
 		{Name: "card", Required: true, Shared: "card", Field: "Card"},
@@ -445,6 +446,7 @@ var params = map[string][]Param{
 		{Name: "action", Display: "new", Required: true, Field: "Action"},
 		{Name: "column", Display: "title", Required: true, Field: "Column"},
 		{Name: "kind", Flag: true, Value: "kind", Vocabulary: "column-kind", Field: "Kind"},
+		{Name: "tier", Flag: true, Value: "level", Field: "Tier"},
 		{Name: "capacity", Flag: true, Value: "n", Field: "Capacity"},
 		{Name: "slug", Flag: true, Value: "slug", Field: "Slug"},
 		{Name: "before", Flag: true, Value: "column", Field: "Before"},
@@ -471,6 +473,7 @@ var params = map[string][]Param{
 		{Name: "card", Required: true, Shared: "card", Field: "Card"},
 		{Name: "field", Required: true, Field: "Field"},
 		{Name: "value", Field: "Value"},
+		{Name: "at", Flag: true, Value: "column", Vocabulary: "column", Field: "At"},
 	},
 	"check": {
 		{Name: "finish", Flag: true, Marker: true, Field: "Finish"},

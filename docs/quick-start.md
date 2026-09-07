@@ -1224,14 +1224,14 @@ storage format 2
 Catalogs:
   Language  Translated
   --------  ----------
-  en        820/820
-  af        0/820
-  cs        0/820
-  de        820/820
-  es        0/820
-  fil       0/820
-  hi        820/820
-  id        0/820
+  en        832/832
+  af        0/832
+  cs        0/832
+  de        832/832
+  es        0/832
+  fil       0/832
+  hi        832/832
+  id        0/832
 [exit 0]
 ```
 
@@ -1565,15 +1565,16 @@ out which of two possible errors you are looking at.
 
 ```console
 $ dinah help claim
-claim <card> [--expires <duration>]
+claim <card> [--expires <duration>] [--tier <level>]
 
 Take up a ready card
 
 What you may write:
   As you write it         What it is
-  ----------------------  -------------------------------------------------------------------------------------------
+  ----------------------  --------------------------------------------------------------------------------------------------------------------------------------------
   <card>                  the card you are taking up
   [--expires <duration>]  how long your claim holds before it goes stale, written as a number and a unit: 30m, 2h, 7d
+  [--tier <level>]        the tier you say you are, taken on trust and never verified; only what the card itself asks for can refuse you, never a column's own default
 
 What can go wrong, in the order each is checked:
   Order  What can go wrong                                             Refusal
@@ -1587,6 +1588,7 @@ What can go wrong, in the order each is checked:
   7      the card's state is not `active`                              held
   8      taking the card up is legal for whoever asks                  not-operator
   9      the card carries no structured item that is not resolved      unresolved-item
+  10     your declared tier is at or above what the card asks          dinah.below-tier
 
 Exit codes: 0 ok, 2 refused, 3 stale, 4 unreachable.
 [exit 0]

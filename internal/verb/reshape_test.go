@@ -1390,3 +1390,75 @@ func TestAnEditedRetryAfterALateRefusalArchivesTheAddedColumn(t *testing.T) {
 		}
 	}
 }
+
+// TestAReshapeDropsTheOverrideForTheColumnItRetires is dinah-408 AC-9 and
+// AC-10 in one run, because the two criteria are the two halves of one rule
+// and a run that carries a card exercises both at once.
+//
+// The overrides are written onto the anchors directly rather than through the
+// verb, since this fixture declares no tier axis and the question here is what
+// reshape does with an override that is already on a card rather than how one
+// gets there.
+func TestAReshapeDropsTheOverrideForTheColumnItRetires(t *testing.T) {
+	h := newHarness(t)
+	carried := h.readyAt("carried", aftercare)
+	untouched := h.readyAt("untouched", aftercare)
+
+	first := h.card(carried)
+	first.ColumnTiers = []bench.ColumnTier{
+		{Column: aftercare, Tier: "apex"},
+		{Column: review, Tier: "frontier"},
+	}
+	if err := first.Save(); err != nil {
+		t.Fatalf("save %s: %v", carried, err)
+	}
+	second := h.card(untouched)
+	second.ColumnTiers = []bench.ColumnTier{{Column: review, Tier: "workhorse"}}
+	if err := second.Save(); err != nil {
+		t.Fatalf("save %s: %v", untouched, err)
+	}
+
+	if _, err := h.reshape(h.source(dropsAftercare), true, aftercare+"="+review); err != nil {
+		t.Fatalf("reshape: %v", err)
+	}
+
+	kept := h.card(carried).ColumnTiers
+	if len(kept) != 1 || kept[0].Column != review || kept[0].Tier != "frontier" {
+		t.Errorf("wanted the override for the surviving column alone, got %+v", kept)
+	}
+	survived := h.card(untouched).ColumnTiers
+	if len(survived) != 1 || survived[0].Column != review || survived[0].Tier != "workhorse" {
+		t.Errorf("an override naming no retired column was rewritten, got %+v", survived)
+	}
+
+	moves, drops := 0, 0
+	var dropped bench.Event
+	for _, event := range h.events(carried) {
+		switch event.Event {
+		case contract.EventMoved:
+			if event.Reshape {
+				moves++
+			}
+		case contract.EventTierOverrideDropped:
+			drops++
+			dropped = event
+		}
+	}
+	if moves != 1 {
+		t.Errorf("wanted exactly one reshape-marked moved event on the carried card, got %d", moves)
+	}
+	if drops != 1 {
+		t.Fatalf("wanted exactly one tier_override_dropped event, got %d", drops)
+	}
+	if dropped.Column != aftercare {
+		t.Errorf("the drop names column %q, wanted the retired column %s", dropped.Column, aftercare)
+	}
+	if dropped.From != "apex" {
+		t.Errorf("the drop carries from %q, wanted the dropped value apex", dropped.From)
+	}
+	for _, event := range h.events(untouched) {
+		if event.Event == contract.EventTierOverrideDropped {
+			t.Errorf("a card whose overrides name no retired column carries a drop event: %+v", event)
+		}
+	}
+}

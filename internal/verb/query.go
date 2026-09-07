@@ -587,15 +587,15 @@ func (l *Library) checkLevels(q *query, cards []*bench.Card) error {
 
 // levelRoster is every value a term on one level axis may carry: the
 // workbench's currently declared members for that axis, in the declaration
-// order declaredLevelNames reports, followed by any value a live card
+// order bench.LevelNames reports, followed by any value a live card
 // actually carries there that the workbench does not declare, sorted among
 // itself. Declaration order is the order a comparison like severity>=major
 // would later need, per the "Levels reach the surfaces" workstream notes, so
-// this reuses declaredLevelNames rather than sorting the whole roster the way
+// this reuses bench.LevelNames rather than sorting the whole roster the way
 // workstreamRoster does; only the drifted tail is sorted, since nothing
 // promises an order among values nobody declares.
 func levelRoster(b *bench.Bench, cards []*bench.Card, axis string) []string {
-	declared := declaredLevelNames(b.Levels(axis))
+	declared := bench.LevelNames(b.Levels(axis))
 	seen := map[string]bool{}
 	for _, name := range declared {
 		seen[name] = true

@@ -63,6 +63,12 @@ var checkLists = map[string][]Check{
 		{Refusal: contract.Held, Key: "check.claim.5"},
 		{Refusal: contract.NotOperator, Key: "check.claim.6"},
 		{Refusal: contract.UnresolvedItem, Key: "check.claim.7"},
+		// The eighth row is Dinah's own, appended rather than inserted for
+		// the reason check.move.9 gives: the profile's section 6.3 list ends
+		// at the seventh, and inserting among them would renumber rows the
+		// profile numbers. canClaim runs it where this list prints it, after
+		// the unresolved-item row.
+		{Refusal: contract.BelowTier, Key: "check.claim.8"},
 	},
 	Move: {
 		{Refusal: contract.UnknownCard, Key: "check.move.1"},
@@ -130,6 +136,9 @@ var pullChecks = []Check{
 	{Refusal: contract.NotOperator, Key: "check.pull.11"},
 	{Refusal: contract.Locked, Key: "check.pull.12"},
 	{Refusal: contract.UnresolvedItem, Key: "check.pull.13"},
+	// Row 14 is Dinah's own tier gate, the claim list's row 8 reached at the
+	// destination, and it is appended for the same reason.
+	{Refusal: contract.BelowTier, Key: "check.pull.14"},
 }
 
 // beyondChecks are the refusals the commands outside the five contract verbs

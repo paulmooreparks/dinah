@@ -11,5 +11,6 @@ columns:
 levels:
   severity: [trivial, minor, major, critical]
   priority: [later, soon, next, now]
+  tier: [workhorse, frontier, apex]
 ---
 This workbench is a compatibility sample. Every command populate.txt replays runs against it.

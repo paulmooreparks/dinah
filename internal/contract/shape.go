@@ -604,6 +604,39 @@ var Shapes = []Shape{
 		NextStep:  []string{"refusal.dinah.unknown-level.next"},
 	},
 	{
+		// The column rides as a value even though the detail carries the same
+		// reference, because the sentence names it and the next step names
+		// what to do about it, and the expression is the other half of the
+		// sentence and has nowhere else to travel.
+		Name:      NoTierDefault,
+		Values:    []string{"column", "expr"},
+		Fragments: []Fragment{{Key: "refusal.dinah.no-tier-default.next"}},
+		NextStep:  []string{"refusal.dinah.no-tier-default.next"},
+	},
+	{
+		// The attempted rung rides as a value because the detail carries what
+		// the caller typed and the sentence needs both: a reader fixing a
+		// relative write wants to see the step they wrote and the rung it
+		// came out at. The declared set rides as a value for the reason
+		// UnknownLevel gives, since it is the same set read off the same
+		// workbench.
+		Name:      TierOutOfRange,
+		Values:    []string{"attempted", "levels"},
+		Fragments: []Fragment{{Key: "refusal.dinah.tier-out-of-range.next"}},
+		NextStep:  []string{"refusal.dinah.tier-out-of-range.next"},
+	},
+	{
+		// The required tier rides as a value as well as in the detail,
+		// because the base sentence and the next step both name it and a
+		// detail cannot be spliced into the fragment. The column rides
+		// alongside it, since what the card asks for depends on which column
+		// the claim is being made at.
+		Name:      BelowTier,
+		Values:    []string{"required", "column"},
+		Fragments: []Fragment{{Key: "refusal.dinah.below-tier.next"}},
+		NextStep:  []string{"refusal.dinah.below-tier.next"},
+	},
+	{
 		// The axis rides as a value even though the detail could carry it,
 		// because the sentence names the axis twice and the anchor path once,
 		// and a detail doing both jobs reads as one of them.

@@ -25,6 +25,11 @@ claim sample-3 --expires 8h
 block sample-4 "a vendor has not answered" --kind external
 unblock sample-4
 block sample-5 "a second obstacle" --kind external
+move sample-1 review
+card set sample-1 tier apex
+card set sample-1 tier frontier --at doing
+card set sample-1 tier +1 --at review
+card set sample-1 tier apex --at doing
 move sample-6 doing --override
 archive sample-6
 move sample-7 doing --override

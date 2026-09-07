@@ -1,86 +1,6 @@
 {
   "tag": "de",
   "entries": {
-    "check.orphaned-column-directory": {
-      "text": "ein Verzeichnis unter columns/ wird von dieser Werkbank nicht genannt ({detail}), daher erreicht nichts im Werkzeug die Spalte darin",
-      "context": "A check finding: a directory sitting under the workbench's columns directory whose name the columns sequence does not carry. It is the mirror of check.stranded-column, which names a sequence entry with no directory. The path carried is the directory itself, because unlike a stranded identifier this one names something a reader can open, and no repair flag offers to remove it.",
-      "source": "2058b1bc7d2266fd"
-    },
-    "check.reshape.1": {
-      "text": "die Werkbank benennt einen Operator",
-      "context": "One row of the ordered precondition list of reshape. Keep a translation at or under 52 display columns.",
-      "source": "99ec845df4936041"
-    },
-    "check.reshape.10": {
-      "text": "keine gehaltene Karte landet dort, wo niemand arbeitet",
-      "context": "One row of the ordered precondition list of reshape. Keep a translation at or under 52 display columns.",
-      "source": "f3901da378e0cc48"
-    },
-    "check.reshape.2": {
-      "text": "die Anfrage nennt einen Akteur",
-      "context": "One row of the ordered precondition list of reshape. Keep a translation at or under 52 display columns.",
-      "source": "bc538e33f1fcc933"
-    },
-    "check.reshape.3": {
-      "text": "--from nennt eine vorhandene Quelle",
-      "context": "One row of the ordered precondition list of reshape. Keep a translation at or under 52 display columns.",
-      "source": "7e02cd1315938ada"
-    },
-    "check.reshape.4": {
-      "text": "die Quelle liest sich, kein replaces doppelt",
-      "context": "One row of the ordered precondition list of reshape. Keep a translation at or under 52 display columns.",
-      "source": "2e566bd3d42eb5ea"
-    },
-    "check.reshape.5": {
-      "text": "jedes Ziel nennt höchstens eine neue Spalte",
-      "context": "One row of the ordered precondition list of reshape. Keep a translation at or under 52 display columns.",
-      "source": "5884fe7088cca04"
-    },
-    "check.reshape.6": {
-      "text": "jedes Ziel nennt eine Spalte",
-      "context": "One row of the ordered precondition list of reshape. Keep a translation at or under 52 display columns.",
-      "source": "f4afafb604b52fab"
-    },
-    "check.reshape.7": {
-      "text": "kein Ziel ist eine Spalte, die dieser Lauf ausmustert",
-      "context": "One row of the ordered precondition list of reshape. Keep a translation at or under 52 display columns.",
-      "source": "fd6f78794bd308ca"
-    },
-    "check.reshape.8": {
-      "text": "jeder --map-Eintrag trägt mindestens eine Karte",
-      "context": "One row of the ordered precondition list of reshape. Keep a translation at or under 52 display columns.",
-      "source": "fdf7a8edf7772691"
-    },
-    "check.reshape.9": {
-      "text": "jede besetzte Ausmusterung hat ein Ziel",
-      "context": "One row of the ordered precondition list of reshape. Keep a translation at or under 52 display columns.",
-      "source": "a6c6bbabf4aa530c"
-    },
-    "cmd.reshape.summary": {
-      "text": "Diese Werkbank auf das Spaltenlayout bringen, das eine neue Definition erklärt",
-      "context": "The one-line summary of the reshape command, shown beside its syntax in the help block.",
-      "source": "64de682cbf18a8ac"
-    },
-    "param.attachments.ref.summary": {
-      "text": "diese Werkbank, geschrieben als `workbench` oder `.`, eine Spalte, eine Karte oder ein Kommentar wie wb-1/comments/1; diese Werkbank, wenn Sie keine nennen",
-      "context": "The meaning of the ref argument of `dinah attachments`, printed in that command's arguments table. attachments writes its own sentence rather than taking the shared one, because the shared sentence ends \"not this workbench\" and the workbench is one of the entities this read is asked about.",
-      "source": "a2f398d58994dc1"
-    },
-    "cmd.attachments.summary": {
-      "text": "Was an einer Einheit der Werkbank hängt",
-      "context": "The one-line summary of the attachments command, shown beside its syntax in the help block.",
-      "source": "8d731c6126a2b24d"
-    },
-    "attachments.header": {
-      "text": "An {ref} hängen {count} Anhänge.",
-      "context": "The sentence above the table `dinah attachments` prints, naming the entity the attachments hang from. {count} is how many that entity carries.",
-      "source": "7a8989b658661606"
-    },
-    "attachments.empty": {
-      "text": "An {ref} hängt nichts.",
-      "context": "Printed when `dinah attachments` is asked about an entity that carries none. No table follows, and the call succeeds: an entity with nothing attached is an answer rather than a mistake.",
-      "source": "a28b198befaf8664"
-    },
     "answer.pull.empty.bare": {
       "text": "Dinah hat keine Spalte gefunden, in die Sie gerade ziehen können",
       "context": "The one-line sentence the empty answer of pull prints when the bare form was asked and nothing qualifies. It is the answer the refusal table explicitly carves out as an answer rather than a refusal, and the cardless OK response carries the catalog key the head renders.",
@@ -90,6 +10,16 @@
       "text": "Dinah hat in {upstream} nichts Bereites gefunden, das nach {destination} verschoben werden könnte",
       "context": "The one-line sentence the empty answer of pull prints when the named form was asked and the upstream column holds no ready card. {upstream} names the upstream column by its title, {destination} names the column the caller asked pull to land the card in.",
       "source": "3a88bcf8a5a3f1f5"
+    },
+    "attachments.empty": {
+      "text": "An {ref} hängt nichts.",
+      "context": "Printed when `dinah attachments` is asked about an entity that carries none. No table follows, and the call succeeds: an entity with nothing attached is an answer rather than a mistake.",
+      "source": "a28b198befaf8664"
+    },
+    "attachments.header": {
+      "text": "An {ref} hängen {count} Anhänge.",
+      "context": "The sentence above the table `dinah attachments` prints, naming the entity the attachments hang from. {count} is how many that entity carries.",
+      "source": "7a8989b658661606"
     },
     "card.blocked": {
       "text": "  blockiert: {reason}",
@@ -279,6 +209,11 @@
       "context": "One row of the ordered precondition list of claim, quoted from section 6 of the core profile.",
       "source": "50228523d584f48"
     },
+    "check.claim.8": {
+      "text": "Ihre angegebene Stufe liegt auf oder über dem, was die Karte verlangt",
+      "context": "One row of the ordered precondition list of claim. This row is Dinah's own addition; the core profile's own section 6.3 list ends at check.claim.7. What the card asks for is its own baseline or its override for this column, never the column's own default.",
+      "source": "eb323a49241afd2c"
+    },
     "check.clean": {
       "text": "Keine strukturellen Mängel gefunden.",
       "context": "Printed when check finds nothing.",
@@ -303,16 +238,6 @@
       "text": "der Schlüssel ist einer, den dieses Werkzeug kennt",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "a157cf7153d965c7"
-    },
-    "check.contents.1": {
-      "text": "die Referenz nennt etwas in dieser Werkbank",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "8aa86f2d95ed91c9"
-    },
-    "check.contents.2": {
-      "text": "die Tiefenstufe ist eine, die dieser Befehl kennt",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "9f7fb892144ebc7d"
     },
     "check.count.one": {
       "text": "{count} Mangel.",
@@ -529,6 +454,11 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "7037e94c3b8968f0"
     },
+    "check.orphaned-column-directory": {
+      "text": "ein Verzeichnis unter columns/ wird von dieser Werkbank nicht genannt ({detail}), daher erreicht nichts im Werkzeug die Spalte darin",
+      "context": "A check finding: a directory sitting under the workbench's columns directory whose name the columns sequence does not carry. It is the mirror of check.stranded-column, which names a sequence entry with no directory. The path carried is the directory itself, because unlike a stranded identifier this one names something a reader can open, and no repair flag offers to remove it.",
+      "source": "2058b1bc7d2266fd"
+    },
     "check.pull.1": {
       "text": "die Anfrage nennt einen Akteur",
       "context": "One row of the ordered precondition list of pull: the request must carry an actor, so the workbench has a name to record on the claim event.",
@@ -594,6 +524,11 @@
       "context": "One row of the ordered precondition list of pull: a pull that takes the card up answers claim's own last row, in the words claim refuses it.",
       "source": "50228523d584f48"
     },
+    "check.pull.14": {
+      "text": "Ihre angegebene Stufe liegt auf oder über dem, was die Karte dort verlangt",
+      "context": "One row of the ordered precondition list of pull: a pull that takes the card up answers claim's own tier row, asked at the column it lands in.",
+      "source": "3a872f98880c416e"
+    },
     "check.ordinal-duplicate": {
       "text": "{detail} trägt eine Erstellungs-Ordnungszahl, die ein anderes Mitglied seiner Sammlung bereits trägt, sodass eine Position zwei von ihnen benennt",
       "context": "A check finding: two entities of one collection share an ordinal, which leaves a positional reference with two answers.",
@@ -614,6 +549,11 @@
       "context": "A check finding: an entity written before the ordinal field existed, or by hand; `dinah check --migrate-ordinals` stamps it.",
       "source": "ad27d232efa0754e"
     },
+    "check.ordinal-unwritable": {
+      "text": "{detail} war nicht beschreibbar, daher hat die Migration nichts darauf gestempelt und ist fortgefahren",
+      "context": "A check finding the ordinal migration raises: the entity's anchor could not be read or written (a bare directory an interrupted claim left behind, or a file the filesystem refused), the walk stepped over it and carried on.",
+      "source": "a54cb0a6cf1d872b"
+    },
     "check.ordinal-stamped.one": {
       "text": "{count} Erstellungs-Ordnungszahl gestempelt.",
       "context": "The line the ordinal migration prints for what it stamped, for exactly one entity.",
@@ -623,11 +563,6 @@
       "text": "{count} Erstellungs-Ordnungszahlen gestempelt.",
       "context": "The line the ordinal migration prints for what it stamped, for any other number.",
       "source": "71492f4c7f0f0dbf"
-    },
-    "check.ordinal-unwritable": {
-      "text": "{detail} war nicht beschreibbar, daher hat die Migration nichts darauf gestempelt und ist fortgefahren",
-      "context": "A check finding the ordinal migration raises: the entity's anchor could not be read or written (a bare directory an interrupted claim left behind, or a file the filesystem refused), the walk stepped over it and carried on.",
-      "source": "a54cb0a6cf1d872b"
     },
     "check.path.1": {
       "text": "die Referenz löst sich zu einem Pfad auf",
@@ -724,6 +659,56 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "d9d874f8f4ad70c0"
     },
+    "check.reshape.1": {
+      "text": "die Werkbank benennt einen Operator",
+      "context": "One row of the ordered precondition list of reshape. Keep a translation at or under 52 display columns.",
+      "source": "99ec845df4936041"
+    },
+    "check.reshape.10": {
+      "text": "keine gehaltene Karte landet dort, wo niemand arbeitet",
+      "context": "One row of the ordered precondition list of reshape. Keep a translation at or under 52 display columns.",
+      "source": "f3901da378e0cc48"
+    },
+    "check.reshape.2": {
+      "text": "die Anfrage nennt einen Akteur",
+      "context": "One row of the ordered precondition list of reshape. Keep a translation at or under 52 display columns.",
+      "source": "bc538e33f1fcc933"
+    },
+    "check.reshape.3": {
+      "text": "--from nennt eine vorhandene Quelle",
+      "context": "One row of the ordered precondition list of reshape. Keep a translation at or under 52 display columns.",
+      "source": "7e02cd1315938ada"
+    },
+    "check.reshape.4": {
+      "text": "die Quelle liest sich, kein replaces doppelt",
+      "context": "One row of the ordered precondition list of reshape. Keep a translation at or under 52 display columns.",
+      "source": "2e566bd3d42eb5ea"
+    },
+    "check.reshape.5": {
+      "text": "jedes Ziel nennt höchstens eine neue Spalte",
+      "context": "One row of the ordered precondition list of reshape. Keep a translation at or under 52 display columns.",
+      "source": "5884fe7088cca04"
+    },
+    "check.reshape.6": {
+      "text": "jedes Ziel nennt eine Spalte",
+      "context": "One row of the ordered precondition list of reshape. Keep a translation at or under 52 display columns.",
+      "source": "f4afafb604b52fab"
+    },
+    "check.reshape.7": {
+      "text": "kein Ziel ist eine Spalte, die dieser Lauf ausmustert",
+      "context": "One row of the ordered precondition list of reshape. Keep a translation at or under 52 display columns.",
+      "source": "fd6f78794bd308ca"
+    },
+    "check.reshape.8": {
+      "text": "jeder --map-Eintrag trägt mindestens eine Karte",
+      "context": "One row of the ordered precondition list of reshape. Keep a translation at or under 52 display columns.",
+      "source": "fdf7a8edf7772691"
+    },
+    "check.reshape.9": {
+      "text": "jede besetzte Ausmusterung hat ein Ziel",
+      "context": "One row of the ordered precondition list of reshape. Keep a translation at or under 52 display columns.",
+      "source": "a6c6bbabf4aa530c"
+    },
     "check.show.1": {
       "text": "jedes genannte Feld gehört zum Detail einer Karte",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
@@ -804,26 +789,6 @@
       "context": "The line the witness repair prints for what it recorded, for any other number. Followed by one line per witnessed identifier.",
       "source": "824d36cabfb0ccf6"
     },
-    "check.tree.1": {
-      "text": "jede genannte Achse ist eine gruppierbare",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "39962089ddf8e1bb"
-    },
-    "check.tree.2": {
-      "text": "keine Achse wird zweimal genannt",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "3abc9c0559589da0"
-    },
-    "check.tree.3": {
-      "text": "die Kette nennt höchstens vier Achsen",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "257bb76a28ccef1c"
-    },
-    "check.tree.4": {
-      "text": "die Tiefenstufe ist eine, die dieser Befehl kennt",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "9f7fb892144ebc7d"
-    },
     "check.unblock.1": {
       "text": "die Karte existiert",
       "context": "One row of the ordered precondition list of unblock, quoted from section 6 of the core profile.",
@@ -840,9 +805,14 @@
       "source": "7bc8856e42e38f2b"
     },
     "check.unknown-level": {
-      "text": "eine Karte nennt {detail}, was diese Werkbank nicht deklariert",
-      "context": "A check finding: every level a card stores is one the workbench declares for that axis. {detail} carries the axis and the stored value, in that order, and the finding's own path names the card.",
-      "source": "5c2a73478fe2656b"
+      "text": "diese Werkbank deklariert {detail} nicht",
+      "context": "A check finding: every level anything stores is one the workbench declares for that axis. {detail} carries the axis and the stored value in that order for a card's own level, and tier@<column> and the stored value for a column's tier default or a card's per-column tier override. The finding's own path names the file to edit.",
+      "source": "7860b21686695701"
+    },
+    "check.unknown-tier-column": {
+      "text": "eine Karte nennt eine tier_at-Spalte, die diese Werkbank nicht führt: {detail}",
+      "context": "A check finding: every column a card's tier_at names resolves. {detail} carries the card's reference and then the column reference that resolves to nothing, in that order. A reshape retiring a column and a hand edit both produce it, so it is reported rather than refused.",
+      "source": "258a8be5af7cb0d8"
     },
     "check.unknown-column": {
       "text": "eine Karte nennt Spalte {detail}, die diese Werkbank nicht deklariert",
@@ -858,6 +828,16 @@
       "text": "ein Akteur ist auflösbar",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "fdca0aeeb585eb88"
+    },
+    "check.workbench.1": {
+      "text": "das Werkzeug implementiert die Profilversion",
+      "context": "One row of the ordered precondition list of workbench, quoted from section 6 of the core profile.",
+      "source": "a62190818c1deab5"
+    },
+    "check.workbench.2": {
+      "text": "die Werkbank benennt einen Betreiber",
+      "context": "One row of the ordered precondition list of workbench, quoted from section 6 of the core profile.",
+      "source": "99ec845df4936041"
     },
     "check.workbench-field.1": {
       "text": "das Feld ist eines, das diese Werkbank führt",
@@ -903,16 +883,6 @@
       "text": "die Werkbank trägt einen Titel, aus dem sich kein Slug ableiten lässt, daher hat die Migration ihr keinen gegeben",
       "context": "A check finding the workbench-slug migration raises: no letter of the workbench's title survives the derivation, so a person retitles the workbench or writes a slug onto its anchor by hand.",
       "source": "53637a3c039ad136"
-    },
-    "check.workbench.1": {
-      "text": "das Werkzeug implementiert die Profilversion",
-      "context": "One row of the ordered precondition list of workbench, quoted from section 6 of the core profile.",
-      "source": "a62190818c1deab5"
-    },
-    "check.workbench.2": {
-      "text": "die Werkbank benennt einen Betreiber",
-      "context": "One row of the ordered precondition list of workbench, quoted from section 6 of the core profile.",
-      "source": "99ec845df4936041"
     },
     "check.workstream-adopted.one": {
       "text": "{count} Arbeitsstrang übernommen.",
@@ -1019,11 +989,6 @@
       "context": "The one-line summary of the block command, shown beside its syntax in the help block.",
       "source": "e9ff4f24dac7935b"
     },
-    "cmd.check.note": {
-      "text": "Dinah beendet sich mit 2, wenn ein Mangel gefunden wird, sodass ein Skript allein den Exit-Code lesen kann.",
-      "context": "A paragraph under the summary of `dinah help check`, for a command whose exit code cannot be read off its list of refusals.",
-      "source": "8d52837d1182ee6b"
-    },
     "cmd.check.summary": {
       "text": "Diese Werkbank auf strukturelle Mängel prüfen",
       "context": "The one-line summary of the check command, shown beside its syntax in the help block.",
@@ -1043,11 +1008,6 @@
       "text": "Ihre Benutzereinstellungen auflisten oder eine davon lesen oder schreiben",
       "context": "The one-line summary of the config command, shown beside its syntax in the help block.",
       "source": "d4e39c0cabb42107"
-    },
-    "cmd.contents.summary": {
-      "text": "Was eine Einheit der Werkbank enthält",
-      "context": "The one-line summary of the contents command, shown beside its syntax in the help block.",
-      "source": "f6a076421f668675"
     },
     "cmd.delete.summary": {
       "text": "Eine Karte, eine Spalte oder etwas unterhalb einer Karte samt ihrer Geschichte vernichten",
@@ -1114,6 +1074,271 @@
       "context": "The one-line summary of the mcp command, shown beside its syntax in the help block.",
       "source": "7d3198fa32547f63"
     },
+    "cmd.reshape.summary": {
+      "text": "Diese Werkbank auf das Spaltenlayout bringen, das eine neue Definition erklärt",
+      "context": "The one-line summary of the reshape command, shown beside its syntax in the help block.",
+      "source": "64de682cbf18a8ac"
+    },
+    "param.add.priority.summary": {
+      "text": "mit welcher Prioritätsstufe die Karte angelegt wird, aus den Stufen, die diese Werkbank deklariert",
+      "context": "The meaning of the priority argument of `dinah add`, printed in that command's arguments table.",
+      "source": "34b0957fa9817136"
+    },
+    "param.add.severity.summary": {
+      "text": "mit welcher Schweregrad-Stufe die Karte angelegt wird, aus den Stufen, die diese Werkbank deklariert",
+      "context": "The meaning of the severity argument of `dinah add`, printed in that command's arguments table.",
+      "source": "b582dea3676f4a97"
+    },
+    "param.card.action.summary": {
+      "text": "welche der beiden Handlungen laufen soll: ein Feld lesen oder eines schreiben",
+      "context": "The meaning of the action argument of `dinah card`, printed in that command's arguments table.",
+      "source": "bf33c4c7813d8693"
+    },
+    "param.card.field.summary": {
+      "text": "welches Feld Sie lesen oder schreiben: severity, priority oder tier",
+      "context": "The meaning of the field argument of `dinah card`, printed in that command's arguments table.",
+      "source": "652bb2461918ae56"
+    },
+    "param.card.value.summary": {
+      "text": "die Stufe, die geschrieben wird; lassen Sie sie weg, um das Feld zu leeren",
+      "context": "The meaning of the value argument of `dinah card`, printed in that command's arguments table.",
+      "source": "e6f73845d9f81a66"
+    },
+    "param.card.at.summary": {
+      "text": "die Spalte, für die ein tier-Schreibvorgang gilt, statt der eigenen Grundstufe der Karte; tier ist das einzige Feld, das ihn annimmt",
+      "context": "The meaning of the at argument of `dinah card`, printed in that command's arguments table. A severity or a priority is one value for the whole card, so naming a column for either is a usage error.",
+      "source": "837e4d41d4d3e056"
+    },
+    "param.reshape.from.summary": {
+      "text": "die Definition, aus der die neue Form genommen wird: eine Austauschdatei oder das Verzeichnis einer anderen Werkbank, also genau das, was `dinah init --from` bereits annimmt",
+      "context": "The meaning of the from argument of `dinah reshape`, printed in that command's arguments table.",
+      "source": "9c9dd584e19f2ca0"
+    },
+    "param.reshape.map.summary": {
+      "text": "die Karten einer ausscheidenden Spalte in eine andere Spalte schicken, geschrieben als retired=destination und je ausscheidender Spalte einmal wiederholt; die linke Seite darf auch eine Spaltenkennung sein, die eine Karte noch trägt und diese Werkbank nicht mehr nennt, was `dinah check` als check.unknown-column meldet",
+      "context": "The meaning of the map argument of `dinah reshape`, printed in that command's arguments table. It names `dinah check` because that is the command an operator runs to find a stranded column identifier before writing this flag.",
+      "source": "be7a7c10a7313389"
+    },
+    "refusal.dinah.no-levels": {
+      "text": "diese Werkbank deklariert keine {axis}-Stufen, also gibt es keine zu setzen",
+      "context": "The sentence printed after the refusal name dinah.no-levels, which a write naming an axis this workbench declares no set for carries. {axis} is that field, and it is machine vocabulary that is never translated; {detail} carries the same word. The reader is not told their level name is unknown, because every name would be. The sentence is about one axis and must not be worded as a report about the workbench as a whole. refusal.dinah.no-levels.next is spliced on after this one.",
+      "source": "12396c7c23016f9b"
+    },
+    "refusal.dinah.no-levels.next": {
+      "text": "; deklarieren Sie sie unter levels: in {anchor}",
+      "context": "The next step of refusal.dinah.no-levels. {anchor} is the workbench.md path the declaration belongs in. The key name levels: is the frontmatter key itself and stays as it is.",
+      "source": "1915ff7003a8ca95"
+    },
+    "refusal.dinah.reshape-destination-ambiguous": {
+      "text": "die neue Form fügt mehr als eine Spalte mit dem Titel {detail} hinzu, an den Positionen {positions}, und keine davon erklärt eine Kennung, die sie unterscheidet",
+      "context": "The sentence printed after the refusal name dinah.reshape-destination-ambiguous. {detail} is the title the caller wrote and {positions} names where each candidate sits in the new definition's columns array, which is the only handle an added column carries before it is written.",
+      "source": "b21120df2aa37a2c"
+    },
+    "refusal.dinah.reshape-destination-ambiguous.next": {
+      "text": "; geben Sie einer davon eine id in der Definition und nennen Sie diese id stattdessen",
+      "context": "Spliced onto refusal.dinah.reshape-destination-ambiguous as the next step.",
+      "source": "ed11e6a5636325c5"
+    },
+    "refusal.dinah.reshape-destination-retiring": {
+      "text": "{detail} nennt Spalte {column}, die derselbe Lauf ausmustert, sodass die Karten in eine Spalte getragen würden, die gleich verschwindet",
+      "context": "The sentence printed after the refusal name dinah.reshape-destination-retiring. {detail} is the reference the caller wrote and {column} is the retiring column it resolved to.",
+      "source": "a8075e19e6962cc0"
+    },
+    "refusal.dinah.reshape-destination-retiring.next": {
+      "text": "; nennen Sie eine Spalte, die die neue Form behält oder hinzufügt",
+      "context": "Spliced onto refusal.dinah.reshape-destination-retiring as the next step.",
+      "source": "35328f80b371d431"
+    },
+    "refusal.dinah.reshape-held-card-in-queue": {
+      "text": "kein Akteur nimmt an Spalte {detail} Arbeit auf, sobald diese Form geschrieben ist, und diese Karten werden dort gehalten: {cards}",
+      "context": "The sentence printed after the refusal name dinah.reshape-held-card-in-queue. {detail} names the column and {cards} carries the identifiers of the cards somebody is holding there.",
+      "source": "4ef573a1cbc261ab"
+    },
+    "refusal.dinah.reshape-held-card-in-queue.next": {
+      "text": "; geben Sie sie zuerst frei, oder lassen Sie die Spalte Arbeit aufnehmen",
+      "context": "Spliced onto refusal.dinah.reshape-held-card-in-queue as the next step, naming the two ways out.",
+      "source": "c3dfdfc8557cc5c4"
+    },
+    "refusal.dinah.reshape-map-source-empty": {
+      "text": "keine Karte, die dieser Lauf tragen würde, steht bei {detail}",
+      "context": "The sentence printed after the refusal name dinah.reshape-map-source-empty. {detail} carries the reference the caller wrote on the left of a --map entry.",
+      "source": "5fd93f542d3e3f20"
+    },
+    "refusal.dinah.reshape-map-source-empty.next": {
+      "text": "; nennen Sie eine Spalte, die die neue Form weglässt, oder die Spaltenkennung, die eine gestrandete Karte noch trägt und die `dinah check` als check.unknown-column meldet",
+      "context": "Spliced onto refusal.dinah.reshape-map-source-empty as the next step. It names `dinah check` because that is the command that reports a stranded column identifier.",
+      "source": "5e8f3a719d8581c7"
+    },
+    "refusal.dinah.reshape-needs-a-destination": {
+      "text": "die neue Form lässt Spalte {detail} weg, und die dort stehenden lebenden Karten, {cards} an der Zahl, haben kein Ziel",
+      "context": "The sentence printed after the refusal name dinah.reshape-needs-a-destination. {detail} names the retiring column and {cards} is how many live cards stand in it.",
+      "source": "236df9db3b971c1a"
+    },
+    "refusal.dinah.reshape-needs-a-destination.next": {
+      "text": "; nennen Sie eines mit `--map {detail}=<column>`, oder erklären Sie replaces auf der Spalte, die die Arbeit übernimmt",
+      "context": "Spliced onto refusal.dinah.reshape-needs-a-destination as the next step, naming the two ways a destination is supplied.",
+      "source": "85d4e50e26e4c4be"
+    },
+    "refusal.dinah.unknown-field.card": {
+      "text": "Dinah hat kein Feld {detail}. Die Felder, die eine Karte führt, sind: {fields}.",
+      "context": "The sentence printed after the refusal name dinah.unknown-field when the card command raised it, which is a write naming a field a card does not record. It is refusal.dinah.unknown-field with the query's own clause replaced, and the command word selects between the two. {detail} is the field the reader typed. {fields} is the set of fields a card records, read off the tool rather than written here, so a field name is machine vocabulary and is never translated.",
+      "source": "a77e2922618b02f9"
+    },
+    "refusal.dinah.unknown-field.card.next": {
+      "text": " Nennen Sie stattdessen eines davon, oder führen Sie `dinah help card` aus, um zu sehen, was der Befehl prüft.",
+      "context": "The next step of refusal.dinah.unknown-field when the card command raised it. It points at that command's own help page where the shared one points at the query's. The command line inside it is syntax and stays as it is.",
+      "source": "47a93fa06743eae2"
+    },
+    "refusal.dinah.unknown-level": {
+      "text": "diese Werkbank deklariert keine {axis}-Stufe namens {detail}. Die {axis}-Stufen, die sie deklariert, sind: {levels}.",
+      "context": "The sentence printed after the refusal name dinah.unknown-level, which a write naming a level the workbench does not declare for that axis carries. {detail} is the level the reader typed. {axis} is the field the write named, and it is machine vocabulary that is never translated. {levels} is that one axis's declared members in declaration order, read off the workbench rather than written here, so a level name is never translated either. The sentence is about one axis and must not be worded as a report about the workbench as a whole. refusal.dinah.unknown-level.next is spliced on after this one.",
+      "source": "972bc93454f5788b"
+    },
+    "refusal.dinah.unknown-level.next": {
+      "text": " Nennen Sie stattdessen eine davon.",
+      "context": "The next step of refusal.dinah.unknown-level, spliced onto the sentence that just listed the declared levels.",
+      "source": "47ef8e6442436430"
+    },
+    "refusal.dinah.no-tier-default": {
+      "text": "Spalte {column} führt keinen tier-Standardwert, also hat {expr} keinen Bezugspunkt",
+      "context": "The sentence printed after the refusal name dinah.no-tier-default, which a relative tier write against a column carrying no tier default of its own carries. {column} is that column and {detail} carries the same reference; {expr} is what the caller typed. refusal.dinah.no-tier-default.next is spliced on after this one.",
+      "source": "d4743a24e15ef289"
+    },
+    "refusal.dinah.no-tier-default.next": {
+      "text": "; schreiben Sie die Stufe stattdessen mit Namen, oder geben Sie der Spalte einen Standardwert",
+      "context": "The next step of refusal.dinah.no-tier-default. Both ways out are open to the caller: an absolute tier needs no default, and a default makes the relative form work from then on.",
+      "source": "2c4df505ad477bb3"
+    },
+    "refusal.dinah.tier-out-of-range": {
+      "text": "{detail} landet auf Sprosse {attempted}, die außerhalb der tier-Menge dieser Werkbank liegt",
+      "context": "The sentence printed after the refusal name dinah.tier-out-of-range, which a relative tier write resolving outside the declared set carries. {detail} is what the caller typed; {attempted} is the zero-based rank it worked out to, which may be negative. Nothing is clamped, so the sentence reports the rung rather than a value that was written. refusal.dinah.tier-out-of-range.next is spliced on after this one.",
+      "source": "7f7f8c598a061a51"
+    },
+    "refusal.dinah.tier-out-of-range.next": {
+      "text": "; die deklarierten Stufen sind {levels}, nennen Sie also eine davon oder schreiben Sie einen kleineren Schritt",
+      "context": "The next step of refusal.dinah.tier-out-of-range. {levels} is the tier axis's declared members in declaration order, read off the workbench rather than written here, so a tier name is never translated.",
+      "source": "272296a3cbc23d55"
+    },
+    "refusal.dinah.below-tier": {
+      "text": "diese Karte verlangt Stufe {required} an Spalte {column}, und Ihr Anspruch nennt weniger",
+      "context": "The sentence printed after the refusal name dinah.below-tier, which a claim declaring a tier below what the card requires carries. {required} is the tier the card itself asks for, and {detail} carries the same name; {column} is the column being claimed into. The requirement is the card's own, so the sentence says the card asks rather than the column.",
+      "source": "2a044b8e9d7387a"
+    },
+    "refusal.dinah.below-tier.next": {
+      "text": "; nehmen Sie sie mit `--tier` {required} oder höher auf, oder überlassen Sie sie jemandem, der das kann",
+      "context": "The next step of refusal.dinah.below-tier. The gate is a floor, so declaring more than the card asks for is admitted, which is why the sentence says or above.",
+      "source": "320838a210fd95aa"
+    },
+    "refusal.malformed.claimed-twice": {
+      "text": ", und {claimants} erklären es beide für {retired}",
+      "context": "Spliced onto refusal.malformed when a reshape's new definition has two columns claiming one retirement through replaces. {claimants} names both declaring columns and {retired} is the identifier they both claim.",
+      "source": "cd64a4362f1593ea"
+    },
+    "refusal.unresolved-item": {
+      "text": "diese Karte trägt den Eintrag {detail}, der nicht aufgelöst ist",
+      "context": "The sentence printed after the refusal name unresolved-item. {detail} carries the identifier, owner or column the refusal is about.",
+      "source": "d0c5d88e34acb80f"
+    },
+    "refusal.unresolved-item.next": {
+      "text": "; beantworten Sie ihn und markieren Sie diesen Eintrag in checklist/{detail}/item.md als aufgelöst",
+      "context": "Spliced onto refusal.unresolved-item as the next step. {detail} is the item that is not resolved, and it names no command, because nothing in Dinah writes a checklist item yet and the edit is made in the file.",
+      "source": "42e653b228b5e733"
+    },
+    "reshape.applied": {
+      "text": "Diese Werkbank trägt nun die neue Form.",
+      "context": "The first line of a reshape that applied, printed where a preview prints the line saying nothing was written.",
+      "source": "700831486797af13"
+    },
+    "reshape.blocked": {
+      "text": "Blockiert übernommen: {cards}.",
+      "context": "One row of a reshape report, naming the carried cards that arrived still blocked, since a reshape carries a block through untouched.",
+      "source": "7c47d5d8cad54b8d"
+    },
+    "reshape.carry": {
+      "text": "{id} schickt seine Karten an {destination}. Karten: {count}.",
+      "context": "One row of a reshape report: where a retiring column's cards go and how many there are. A preview reads it as what would be carried and an applied run as what was.",
+      "source": "85240e720c94b31d"
+    },
+    "reshape.column.added": {
+      "text": "hinzugefügt {title} ({id})",
+      "context": "One row of a reshape report: a column the new definition adds.",
+      "source": "5fa39f8f1f982b95"
+    },
+    "reshape.column.adopted": {
+      "text": "ausgemustert {id}, eine Kennung, die diese Werkbank nicht mehr nennt",
+      "context": "One row of a reshape report: an identifier a --map entry adopted, which names no live column and so carries no title.",
+      "source": "257a8d8f28296182"
+    },
+    "reshape.column.kept": {
+      "text": "behalten {title} ({id})",
+      "context": "One row of a reshape report: a column the new definition keeps.",
+      "source": "98cc4236e6d825e9"
+    },
+    "reshape.column.retired": {
+      "text": "ausgemustert {title} ({id})",
+      "context": "One row of a reshape report: a live column the new definition drops.",
+      "source": "d60ab9a89eddc730"
+    },
+    "reshape.confirm": {
+      "text": "Führen Sie denselben Befehl erneut mit --yes aus, um ihn anzuwenden.",
+      "context": "The closing line of a reshape preview, naming the flag that carries the run out.",
+      "source": "d58f165d9534cfd3"
+    },
+    "reshape.empty": {
+      "text": "{id} wird ausgemustert, ohne dass eine Karte darin steht.",
+      "context": "One row of a reshape report: a retiring column nothing had to be carried out of.",
+      "source": "b21106442a0be2ab"
+    },
+    "reshape.partial": {
+      "text": "Dieser Lauf hatte bereits mit dem Schreiben begonnen, als er anhielt, daher steht diese Werkbank zwischen ihrer alten und ihrer neuen Form. Es folgt, was er geschrieben hat.",
+      "context": "The first line of a reshape that refused after its write phase had begun, printed where a preview prints the line saying nothing was written and an applied run prints the line saying the shape is on disk. The three openings are different because the three states are, and an operator who is told only which refusal stopped the run cannot tell a half-applied workbench from an untouched one.",
+      "source": "ae9fdb33e82336ba"
+    },
+    "reshape.preview": {
+      "text": "Es wurde nichts geschrieben. Dies ist, was ein Lauf mit --yes täte.",
+      "context": "The first line of a reshape preview, which says at the top that none of the page below has happened.",
+      "source": "d930604dbdecd792"
+    },
+    "reshape.retry": {
+      "text": "Beheben Sie, was die Ablehnung nennt, und führen Sie denselben Befehl mit derselben Quelle erneut aus. Die obigen Schritte werden beim zweiten Lauf übersprungen, und der Rest der Form wird geschrieben.",
+      "context": "The closing line of the report for a reshape that stopped part way through, which is what tells the operator the state is finishable and how. Every write-phase step is idempotent, so the second run does what the first did not.",
+      "source": "5ff52d499cdd5db9"
+    },
+    "reshape.stranded": {
+      "text": "Karten, die in einer Spalte stehen, die dieser Lauf nicht kennt: {count}. Führen Sie `dinah check` aus, um ihre Kennungen zu finden.",
+      "context": "The reshape report's line for cards standing in a column that is in neither the workbench's own sequence nor the new definition. The count is reported rather than the identifiers, because reshape diffs two column lists and `dinah check` is the command that walks every card.",
+      "source": "4d423d479fb37643"
+    },
+    "reshape.updated": {
+      "text": "Die neue Definition hat Spalte {id} geändert.",
+      "context": "One row of a reshape report: a kept column whose anchor the rewrite actually changed, which is what the run recorded a column_updated event for.",
+      "source": "21d7c7ccec3eea74"
+    },
+    "reshape.wrote.added": {
+      "text": "Von der neuen Definition ergänzte Spalten, nun geschrieben und im Fluss: {count}.",
+      "context": "One row of the report for a reshape that stopped part way through, counting the columns write-phase step one had already written.",
+      "source": "2552497602e0ea05"
+    },
+    "reshape.wrote.archived": {
+      "text": "Archivierte stillgelegte Spalten: {count}.",
+      "context": "One row of the report for a reshape that stopped part way through, counting the retiring columns the archive step had already put into the archive.",
+      "source": "79cb0ecdbbb92915"
+    },
+    "reshape.wrote.carried": {
+      "text": "Aus einer stillzulegenden Spalte übernommene Karten: {count}.",
+      "context": "One row of the report for a reshape that stopped part way through, counting the cards the carry had already moved to their destinations.",
+      "source": "6e230ff4563ae377"
+    },
+    "reshape.wrote.updated": {
+      "text": "Aus der neuen Definition neu geschriebene beibehaltene Spalten: {count}.",
+      "context": "One row of the report for a reshape that stopped part way through, counting the kept columns whose anchor the rewrite had already changed.",
+      "source": "cd228857426eace1"
+    },
+    "tool.workbenches.summary": {
+      "text": "die Werkbänke, die dieser Server bereitstellen darf",
+      "context": "The one-line summary of the workbenches tool, shown beside its name in the MCP surface. Overrides the command's own summary, which reads about reachability from here and is false on a server bounded by a root, and is now a partial rather than a false answer on a server with no root at all, when a default is being served (dinah-301): the one row it carries is real, but the tool cannot promise it is the only workbench this server may serve.",
+      "source": "e803d837439b3c74"
+    },
     "cmd.move.summary": {
       "text": "Eine Karte in eine andere Spalte tragen",
       "context": "The one-line summary of the move command, shown beside its syntax in the help block.",
@@ -1159,11 +1384,6 @@
       "context": "The one-line summary of the status command, shown beside its syntax in the help block.",
       "source": "64fdfa01ab88706d"
     },
-    "cmd.tree.summary": {
-      "text": "Die Karten der Werkbank, verschachtelt entlang einer Achsenkette",
-      "context": "The one-line summary of the tree command, shown beside its syntax in the help block.",
-      "source": "978852122039d8b6"
-    },
     "cmd.unblock.summary": {
       "text": "Eine Blockade aufheben (nur Betreiber)",
       "context": "The one-line summary of the unblock command, shown beside its syntax in the help block.",
@@ -1194,32 +1414,6 @@
       "context": "The one-line summary of the workstream command, shown beside its syntax in the help block.",
       "source": "ffca4130e336f703"
     },
-    "column.arguments.argument": {
-      "text": "So schreiben Sie es",
-      "context": "Heading over how each argument is spelled, in the arguments table one command's help page prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it.",
-      "source": "95f57e2357251202"
-    },
-    "column.arguments.what": {
-      "text": "Was es ist",
-      "context": "Heading over what each argument means, in the arguments table one command's help page prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it.",
-      "source": "13ab62950a6c39c0"
-    },
-    "column.attachments.position": {
-      "text": "#",
-      "context": "Heading over the attachment's one-based position in its collection, in the attachments block of `dinah show`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "source": "af639e4c86018332",
-      "verbatim": true
-    },
-    "column.attachments.filename": {
-      "text": "Datei",
-      "context": "Heading over the attachment's current filename, in the attachments block of `dinah show`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "source": "d1f81284eeb7b503"
-    },
-    "column.attachments.description": {
-      "text": "Beschreibung",
-      "context": "Heading over the optional prose the attachment carries, in the attachments block of `dinah show`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "source": "63d894b1ddb06289"
-    },
     "column.blocked.card": {
       "text": "Karte",
       "context": "Heading over the reference a person types to name the card, in the block of blocked cards, inside `dinah status`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
@@ -1239,6 +1433,22 @@
       "text": "Übersetzt",
       "context": "Heading over how many of the base catalog's messages the language carries translated, in the catalog coverage `dinah version --catalogs` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "88e3992063008363"
+    },
+    "column.attachments.position": {
+      "text": "#",
+      "context": "Heading over the attachment's one-based position in its collection, in the attachments block of `dinah show`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "source": "af639e4c86018332",
+      "verbatim": true
+    },
+    "column.attachments.filename": {
+      "text": "Datei",
+      "context": "Heading over the attachment's current filename, in the attachments block of `dinah show`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "source": "d1f81284eeb7b503"
+    },
+    "column.attachments.description": {
+      "text": "Beschreibung",
+      "context": "Heading over the optional prose the attachment carries, in the attachments block of `dinah show`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "source": "63d894b1ddb06289"
     },
     "column.commands.command": {
       "text": "Befehl",
@@ -1471,31 +1681,6 @@
       "source": "91f70424f5d5d23e",
       "verbatim": true
     },
-    "column.tree.count": {
-      "text": "Anzahl",
-      "context": "Heading over how many subjects a node accounts for. A card row under `dinah tree` carries nothing here, since a card is one card. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "source": "71a5c9f4b68ef4d4"
-    },
-    "column.tree.entity": {
-      "text": "Einheit",
-      "context": "Heading over what a node is: an entity kind on an entity row, and the axis the group gathered on a group row. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "source": "757a4c2248c0b9da"
-    },
-    "column.tree.hidden": {
-      "text": "Nicht gezeigt",
-      "context": "Heading over what a node is holding back. The whole column is dropped when no row fills it. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "source": "5b65d2a20b1e0477"
-    },
-    "column.tree.reference": {
-      "text": "Referenz",
-      "context": "Heading over what a person types to reach a node, in the tree both `dinah tree` and `dinah contents` print. On a group row the cell carries the value the group gathered at, which nothing addresses, and the Entity cell beside it says so. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "source": "fe88d270aa3e71da"
-    },
-    "column.tree.title": {
-      "text": "Titel",
-      "context": "Heading over an entity's own title in the tree both tree commands print. A group row carries nothing here. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "source": "99f110d27e30b289"
-    },
     "column.workbench.field": {
       "text": "Feld",
       "context": "Heading over the field's name, in the fields `dinah workbench` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
@@ -1570,16 +1755,6 @@
       "source": "ad3e3c8146fc920f",
       "verbatim": true
     },
-    "contents.empty": {
-      "text": "{title} ({ref}) enthält nichts.",
-      "context": "Printed when `dinah contents` is asked about an entity with nothing below it. No table follows, and the call succeeds: an entity that contains nothing is an answer rather than a mistake.",
-      "source": "2b7896241257de2d"
-    },
-    "contents.header": {
-      "text": "{title} ({ref}) enthält {count} Einheiten.",
-      "context": "The sentence above the tree `dinah contents` prints, naming the entity the walk started from. {count} is how many entities sit below it, at every depth and not only the ones drawn.",
-      "source": "fbbebbe584d94da8"
-    },
     "extract.done": {
       "text": "Definition nach {dir} geschrieben.",
       "context": "Printed after extract succeeds.",
@@ -1630,11 +1805,6 @@
       "context": "Printed above the guide topics `dinah guide` lists, so a reader knows the rows are arranged as a reading order rather than alphabetically. Each catalog decides for itself how to say that in its own language.",
       "source": "a399073bcebed400"
     },
-    "help.arguments": {
-      "text": "Was Sie schreiben dürfen:",
-      "context": "Heading over the arguments table of one command's help page, which says how each argument is spelled and what it is.",
-      "source": "bda56dd7c6ff3d50"
-    },
     "help.environment": {
       "text": "Umgebung: DINAH_WORKBENCH, DINAH_HOME, DINAH_FORMAT=json|compact, DINAH_LANG, DINAH_ACTOR, DINAH_EDITOR, DINAH_MCP_ROOT, VISUAL, EDITOR",
       "context": "The environment variables the tool reads. The variable names are machine vocabulary and are never translated.",
@@ -1675,11 +1845,6 @@
       "context": "A heading of the help block, grouping the commands beneath it.",
       "source": "4b1925a97d1874fe"
     },
-    "help.guide": {
-      "text": "Mehr dazu mit `dinah guide {topic}`.",
-      "context": "The closing line of a command's help page, pointing at the guide that explains that command's argument language. {topic} is the guide's topic name, which is machine vocabulary and is never translated.",
-      "source": "7d9ca5bd5b7994bd"
-    },
     "help.reading": {
       "text": "Führen Sie 'dinah guide' aus für die Leitfäden, die Dinah mitbringt, und lesen Sie den Schnelleinstieg unter https://github.com/paulmooreparks/dinah/blob/main/docs/quick-start.md",
       "context": "The line below the help block's footer, pointing a reader at the guides the binary carries and at the quick start. The URL names a location rather than reading as prose, and it stays as it is in every language.",
@@ -1699,11 +1864,6 @@
       "text": "Aufruf: dinah <Befehl> [Argumente]",
       "context": "The usage line. The word dinah and the bracketed placeholders are syntax and stay as they are.",
       "source": "14dae6b00f67607f"
-    },
-    "help.vocabulary": {
-      "text": "{summary} (eines von: {values})",
-      "context": "One argument's meaning followed by the closed set of values it accepts. {summary} is the argument's own sentence and {values} is the members separated by commas. The members are machine vocabulary and are never translated.",
-      "source": "69c6e2cfea9de173"
     },
     "init.actor.recorded": {
       "text": "Dinah hat Sie als Akteur {actor} in {path} festgehalten und wird diesen Namen bei allem festhalten, was Sie tun. Führen Sie `dinah config set actor <Name>` aus, um ihn zu ändern, oder `dinah config set actor`, um ihn zu löschen.",
@@ -1745,11 +1905,6 @@
       "context": "The line served with the instructions where the card's column declares a loop_limit. {count} is how often this card has already left that column backwards, {limit} is what the column declares, and {column} names the column.",
       "source": "7e830fb10e40b872"
     },
-    "log.attachment-renamed": {
-      "text": "{from} nach {to}",
-      "context": "The detail of a recorded attachment_renamed, carrying the old filename as {from} and the new filename as {to}.",
-      "source": "dff97f4b63c30b11"
-    },
     "log.manual-correction": {
       "text": "{from} nach {to}, aus einer Handbearbeitung übernommen",
       "context": "The detail of a witnessed correction, carrying the column the journal believed and the column the anchor records. It reads differently from a move because nobody chose this transition; the tool found it.",
@@ -1770,15 +1925,15 @@
       "context": "The mark on a move whose destination is the departure column's own reject_to target.",
       "source": "7a665993a2b70017"
     },
+    "log.attachment-renamed": {
+      "text": "{from} nach {to}",
+      "context": "The detail of a recorded attachment_renamed, carrying the old filename as {from} and the new filename as {to}.",
+      "source": "dff97f4b63c30b11"
+    },
     "ls.empty": {
       "text": "Keine Karten hier.",
       "context": "Printed when a listing has nothing in it.",
       "source": "e3bcc853e3228d2d"
-    },
-    "mcp.no-default": {
-      "text": "keine Standardwerkbank: {detail}",
-      "context": "The one line dinah mcp writes to stderr when startup discovery resolved a workbench the root does not contain or the ancestor walk found none, and a later call has to be told no default will answer.",
-      "source": "227a147f318cba47"
     },
     "mcp.reach": {
       "text": "Sie können jede Werkbank unterhalb von {root} erreichen; dieser Server stellt standardmäßig {title} bereit. Das Werkzeug workbenches listet die Werkbänke unterhalb des Wurzelverzeichnisses auf, und die Eigenschaft workbench jedes anderen Werkzeugs nennt eine.",
@@ -1800,6 +1955,11 @@
       "context": "The third paragraph of the working agreement when the server has a default workbench but no root: --root and DINAH_MCP_ROOT were both empty, discovery found a workbench to serve as default, and the auto-narrowing that used to bind root to that workbench's own directory (dinah-307) no longer runs, so PathUnderRoot admits every other candidate too. {title} is the default workbench's own title. The workbenches tool still cannot search an empty root, so a call naming no path answers the one candidate it already knows, the default, marked unbounded rather than presented as a completed search (dinah-301); it no longer refuses dinah.no-workbench-found in this one combination, though it still does when there is no default to fall back on.",
       "source": "2fd7404f8a163b56"
     },
+    "mcp.no-default": {
+      "text": "keine Standardwerkbank: {detail}",
+      "context": "The one line dinah mcp writes to stderr when startup discovery resolved a workbench the root does not contain or the ancestor walk found none, and a later call has to be told no default will answer.",
+      "source": "227a147f318cba47"
+    },
     "next.none": {
       "text": "nichts bereit",
       "context": "Printed beside a column offering no card.",
@@ -1814,361 +1974,6 @@
       "text": "die Frage konnte nicht gestellt werden: {detail}",
       "context": "The sentence after the unreachable outcome name.",
       "source": "aa65b469853e26e8"
-    },
-    "param.add.priority.summary": {
-      "text": "mit welcher Prioritätsstufe die Karte angelegt wird, aus den Stufen, die diese Werkbank deklariert",
-      "context": "The meaning of the priority argument of `dinah add`, printed in that command's arguments table.",
-      "source": "34b0957fa9817136"
-    },
-    "param.add.severity.summary": {
-      "text": "mit welcher Schweregrad-Stufe die Karte angelegt wird, aus den Stufen, die diese Werkbank deklariert",
-      "context": "The meaning of the severity argument of `dinah add`, printed in that command's arguments table.",
-      "source": "b582dea3676f4a97"
-    },
-    "param.add.column.summary": {
-      "text": "in welcher Spalte die Karte angelegt wird; die erste Spalte, wenn Sie keine nennen",
-      "context": "The meaning of the column argument of `dinah add`, printed in that command's arguments table.",
-      "source": "ec724e9c659389c3"
-    },
-    "param.add.title.summary": {
-      "text": "der Titel der Karte, in einem Shell-Wort oder in Anführungszeichen",
-      "context": "The meaning of the title argument of `dinah add`, printed in that command's arguments table.",
-      "source": "a9fc1e128fcf0249"
-    },
-    "param.attach.description.summary": {
-      "text": "eine Zeile, die den Anhang beschreibt und daneben gespeichert wird",
-      "context": "The meaning of the description argument of `dinah attach`, printed in that command's arguments table.",
-      "source": "42a79770cb6b51a8"
-    },
-    "param.attach.file.summary": {
-      "text": "ein Pfad auf diesem Rechner zu der Datei, die Sie anhängen",
-      "context": "The meaning of the file argument of `dinah attach`, printed in that command's arguments table.",
-      "source": "c785f7b1c25ff803"
-    },
-    "param.attach.ref.summary": {
-      "text": "woran die Datei hängt: diese Werkbank, eine Spalte, eine Karte oder ein Kommentar oder Anhang unterhalb einer Karte; mit --replace der Anhang, dessen Bytes Sie ersetzen",
-      "context": "The meaning of the ref argument of `dinah attach`, printed in that command's arguments table.",
-      "source": "dc3ef09df80df2e1"
-    },
-    "param.attach.replace.summary": {
-      "text": "die Bytes eines bestehenden Anhangs ersetzen, statt einen hinzuzufügen",
-      "context": "The meaning of the replace argument of `dinah attach`, printed in that command's arguments table.",
-      "source": "5fd589a8f6ec16f5"
-    },
-    "param.block.card.summary": {
-      "text": "die Karte, die Sie blockieren",
-      "context": "The meaning of the card argument of `dinah block`, printed in that command's arguments table.",
-      "source": "67878506bfeb475a"
-    },
-    "param.block.kind.summary": {
-      "text": "Ihr eigenes Wort dafür, was für ein Hindernis das ist; Dinah speichert, was Sie schreiben, und prüft es gegen keine Menge",
-      "context": "The meaning of the kind argument of `dinah block`, printed in that command's arguments table.",
-      "source": "e25acbd2f8a5d4ff"
-    },
-    "param.block.reason.summary": {
-      "text": "warum sie blockiert ist, in einem Shell-Wort oder in Anführungszeichen",
-      "context": "The meaning of the reason argument of `dinah block`, printed in that command's arguments table.",
-      "source": "a09cc9de23cc48f5"
-    },
-    "param.card.action.summary": {
-      "text": "welche der beiden Handlungen laufen soll: ein Feld lesen oder eines schreiben",
-      "context": "The meaning of the action argument of `dinah card`, printed in that command's arguments table.",
-      "source": "bf33c4c7813d8693"
-    },
-    "param.card.field.summary": {
-      "text": "welches Feld Sie lesen oder schreiben: severity oder priority",
-      "context": "The meaning of the field argument of `dinah card`, printed in that command's arguments table.",
-      "source": "82a13458f0b9844a"
-    },
-    "param.card.summary": {
-      "text": "die Karte, auf die Sie einwirken, geschrieben als ihre Referenz, etwa wb-1",
-      "context": "The meaning of the card argument, shared by every command that takes a card and nothing else.",
-      "source": "16824e77ab43d6e4"
-    },
-    "param.card.value.summary": {
-      "text": "die Stufe, die geschrieben wird; lassen Sie sie weg, um das Feld zu leeren",
-      "context": "The meaning of the value argument of `dinah card`, printed in that command's arguments table.",
-      "source": "e6f73845d9f81a66"
-    },
-    "param.check.finish.summary": {
-      "text": "eine unterbrochene strukturelle Aktion abschließen oder zurücknehmen",
-      "context": "The meaning of the finish argument of `dinah check`, printed in that command's arguments table.",
-      "source": "cbc4ff1646862f6d"
-    },
-    "param.check.migrate-ordinals.summary": {
-      "text": "jeder Einheit ohne Erstellungs-Ordnungszahl eine aufstempeln",
-      "context": "The meaning of the migrate-ordinals argument of `dinah check`, printed in that command's arguments table.",
-      "source": "afb87b206222d764"
-    },
-    "param.check.migrate-slugs.summary": {
-      "text": "für jede Spalte dieser Werkbank ohne Slug einen ableiten",
-      "context": "The meaning of the migrate-slugs argument of `dinah check`, printed in that command's arguments table.",
-      "source": "d20e1be96184e474"
-    },
-    "param.check.migrate-columns.summary": {
-      "text": "verwaiste Bezeichner aus der Spaltenliste dieser Werkbank entfernen",
-      "context": "The meaning of the migrate-columns argument of `dinah check`, printed in that command's arguments table.",
-      "source": "2a383b2471db9773"
-    },
-    "param.check.migrate-container.summary": {
-      "text": "diese Werkbank in einen .dinah-Container unter einem von Dinah geprägten Bezeichner tragen, oder jede Werkbank unterhalb von --root",
-      "context": "The one-line summary of the check command flag --migrate-container, printed by `dinah help check`.",
-      "source": "26ead382b2d32a9a"
-    },
-    "param.check.migrate-workstreams.summary": {
-      "text": "jeden von einer Karte genannten Arbeitsstrang übernehmen, den diese Werkbank nicht führt",
-      "context": "The meaning of the migrate-workstreams argument of `dinah check`, printed in that command's arguments table.",
-      "source": "a1f0e6c7ae6251db"
-    },
-    "param.check.remint.summary": {
-      "text": "der Werkbank an diesem Pfad einen frischen Bezeichner geben",
-      "context": "The one-line summary of the check command flag --remint, printed by `dinah help check`. The flag takes one directory path.",
-      "source": "1d1a5352f959b7ee"
-    },
-    "param.check.witness.summary": {
-      "text": "auf jeder Karte, deren Position von Hand bearbeitet wurde, eine manuelle Korrektur festhalten",
-      "context": "The meaning of the witness argument of `dinah check`, printed in that command's arguments table.",
-      "source": "2e69c6123b25a380"
-    },
-    "param.claim.card.summary": {
-      "text": "die Karte, die Sie übernehmen",
-      "context": "The meaning of the card argument of `dinah claim`, printed in that command's arguments table.",
-      "source": "f4ee694607d7c58a"
-    },
-    "param.claim.expires.summary": {
-      "text": "wie lange Ihr Anspruch hält, bevor er veraltet, geschrieben als Zahl und Einheit: 30m, 2h, 7d",
-      "context": "The meaning of the expires argument of `dinah claim`, printed in that command's arguments table.",
-      "source": "89b79368080416a1"
-    },
-    "param.comment.text.summary": {
-      "text": "der Kommentar, in einem Shell-Wort oder in Anführungszeichen; ein einzelnes - liest ihn aus einer Pipe",
-      "context": "The meaning of the text argument of `dinah comment`, printed in that command's arguments table.",
-      "source": "a4772e5498d84e38"
-    },
-    "param.config.action.summary": {
-      "text": "eine Einstellung lesen oder eine schreiben; jede Einstellung mit ihrem Wert, wenn Sie keine nennen",
-      "context": "The meaning of the action argument of `dinah config`, printed in that command's arguments table.",
-      "source": "b96f6ad99e0d9df4"
-    },
-    "param.config.key.summary": {
-      "text": "welche Einstellung Sie lesen oder schreiben",
-      "context": "The meaning of the key argument of `dinah config`, printed in that command's arguments table.",
-      "source": "e8f16a23fba9ca7c"
-    },
-    "param.config.value.summary": {
-      "text": "was darunter gespeichert wird, bei einem set",
-      "context": "The meaning of the value argument of `dinah config`, printed in that command's arguments table.",
-      "source": "e78a40bd1e5b6d62"
-    },
-    "param.contents.depth.summary": {
-      "text": "wie tief gezeichnet wird, geschrieben als root, cards, entities oder all; entities, wenn Sie keine nennen",
-      "context": "The meaning of the depth argument of `dinah contents`, printed in that command's arguments table.",
-      "source": "a52db472a25cc33a"
-    },
-    "param.contents.ref.summary": {
-      "text": "diese Werkbank, geschrieben als `workbench` oder `.`, eine Spalte, eine Karte oder etwas unterhalb einer Karte wie wb-1/comments/1",
-      "context": "The meaning of the ref argument of `dinah contents`, printed in that command's arguments table. contents writes its own sentence rather than taking the shared one, because the shared sentence ends \"not this workbench\" and the workbench is the reference contents is most often given.",
-      "source": "4e3252343e38263"
-    },
-    "param.edit.card.summary": {
-      "text": "diese Werkbank, geschrieben als `workbench` oder `.`, eine Karte oder etwas unterhalb einer Karte wie wb-1/comments/1",
-      "context": "The meaning of the card argument of `dinah edit`, printed in that command's arguments table.",
-      "source": "1795aa1c0605796a"
-    },
-    "param.extract.dir.summary": {
-      "text": "wohin die Definition dieser Werkbank geschrieben wird",
-      "context": "The meaning of the dir argument of `dinah extract`, printed in that command's arguments table.",
-      "source": "af37615ebb4deabe"
-    },
-    "param.guide.topic.summary": {
-      "text": "welchen Leitfaden Sie lesen; die Themen, wenn Sie keinen nennen",
-      "context": "The meaning of the topic argument of `dinah guide`, printed in that command's arguments table.",
-      "source": "7344a21df5369cc5"
-    },
-    "param.help.command.summary": {
-      "text": "der Befehl, dessen Seite Sie möchten",
-      "context": "The meaning of the command argument of `dinah help`, printed in that command's arguments table.",
-      "source": "f79c3572838d2317"
-    },
-    "param.init.dir.summary": {
-      "text": "wo die Werkbank angelegt wird; das Verzeichnis, in dem Sie stehen, wenn Sie keines nennen",
-      "context": "The meaning of the dir argument of `dinah init`, printed in that command's arguments table.",
-      "source": "1328685eec647b56"
-    },
-    "param.init.from.summary": {
-      "text": "ein Verzeichnis mit einer Werkbank oder eine einzelne Datei, geschrieben von `dinah export` oder `dinah extract`",
-      "context": "The meaning of the from argument of `dinah init`, printed in that command's arguments table.",
-      "source": "a63072636c4c6fae"
-    },
-    "param.init.operator.summary": {
-      "text": "wem diese Werkbank gehört; Ihr eigener Akteur, wenn Sie keinen nennen",
-      "context": "The meaning of the operator argument of `dinah init`, printed in that command's arguments table.",
-      "source": "1a8a5d6cfd7ce9c4"
-    },
-    "param.init.slug.summary": {
-      "text": "das Präfix, das jede Kartenreferenz trägt; abgeleitet aus dem Namen des Verzeichnisses, wenn Sie keines nennen",
-      "context": "The meaning of the slug argument of `dinah init`, printed in that command's arguments table.",
-      "source": "fd8f41676a091f46"
-    },
-    "param.instructions.card.summary": {
-      "text": "eine Karte oder eine Spalte; instructions nimmt weder diese Werkbank noch etwas unterhalb einer Karte",
-      "context": "The meaning of the card argument of `dinah instructions`, printed in that command's arguments table.",
-      "source": "1e52ce94a75a3b5d"
-    },
-    "param.ls.ready.summary": {
-      "text": "nur die Karten auflisten, die zur Übernahme bereit sind",
-      "context": "The meaning of the ready argument of `dinah ls`, printed in that command's arguments table.",
-      "source": "36fbc940df2d68dc"
-    },
-    "param.ls.column.summary": {
-      "text": "welche Spalte aufgelistet wird, auch geschrieben --column <Spalte>; jede Spalte, wenn Sie keine nennen",
-      "context": "The meaning of the column argument of `dinah ls`, printed in that command's arguments table.",
-      "source": "8f967e423be24761"
-    },
-    "param.mcp.root.summary": {
-      "text": "Verzeichnis, unterhalb dessen jede Werkbank liegt, die dieser Server bereitstellt; die beim Start entdeckte Werkbank, wenn Sie kein Verzeichnis nennen",
-      "context": "The meaning of the --root argument of `dinah mcp`, printed in that command's arguments table.",
-      "source": "b4a7679728c79e03"
-    },
-    "param.move.override.summary": {
-      "text": "die Karte auch dann tragen, wenn der Ablauf keinen solchen Zug anbietet",
-      "context": "The meaning of the override argument of `dinah move`, printed in that command's arguments table.",
-      "source": "9092656657c61845"
-    },
-    "param.move.column.summary": {
-      "text": "in welche Spalte die Karte getragen wird, auch geschrieben --column <Spalte>",
-      "context": "The meaning of the column argument of `dinah move`, printed in that command's arguments table.",
-      "source": "74a12fa4cdbfa7a6"
-    },
-    "param.next.column.summary": {
-      "text": "aus welcher Spalte eine Karte angeboten wird, auch geschrieben --column <Spalte>; jede Spalte, wenn Sie keine nennen",
-      "context": "The meaning of the column argument of `dinah next`, printed in that command's arguments table.",
-      "source": "5d2227204b4f58f2"
-    },
-    "param.pull.column.summary": {
-      "text": "in welche Spalte eine Karte gezogen wird; die eine in Frage kommende Spalte, wenn Sie keine nennen, abgelehnt, wenn mehr als eine in Frage kommt",
-      "context": "The meaning of the column argument of `dinah pull`, printed in that command's arguments table.",
-      "source": "70515ce655b60819"
-    },
-    "param.pull.no-claim.summary": {
-      "text": "die Karte verschieben, ohne sie zu beanspruchen; sie bleibt dort bereit für den Nächsten, der sie nimmt",
-      "context": "The meaning of the --no-claim flag of `dinah pull`, printed in that command's arguments table.",
-      "source": "499768e843c3fab2"
-    },
-    "param.pull.expires.summary": {
-      "text": "wie lange Ihr Anspruch hält, bevor er veraltet, geschrieben als Zahl und Einheit: 30m, 2h, 7d; ohne Angabe hält er, bis Sie die Karte freigeben",
-      "context": "The meaning of the --expires flag of `dinah pull`, printed in that command's arguments table.",
-      "source": "e22a8531617af968"
-    },
-    "param.pull.override.summary": {
-      "text": "den Betreiber in eine Spalte an ihrer Grenze ziehen lassen; für alle anderen verweigert",
-      "context": "The meaning of the --override flag of `dinah pull`, printed in that command's arguments table.",
-      "source": "efbd0444a56459fb"
-    },
-    "param.path.card.summary": {
-      "text": "diese Werkbank, geschrieben als `workbench` oder `.`, eine Karte oder etwas unterhalb einer Karte wie wb-1/comments/1",
-      "context": "The meaning of the card argument of `dinah path`, printed in that command's arguments table.",
-      "source": "1795aa1c0605796a"
-    },
-    "param.query.query.summary": {
-      "text": "die Abfrage, in einem Shell-Wort oder in Anführungszeichen; jede lebende Karte, wenn Sie keine schreiben",
-      "context": "The meaning of the query argument of `dinah query`, printed in that command's arguments table.",
-      "source": "7a5c1bae3ca79f81"
-    },
-    "param.ref.summary": {
-      "text": "eine Spalte, eine Karte oder etwas unterhalb einer Karte wie wb-1/comments/1; nicht diese Werkbank",
-      "context": "The meaning of the ref argument of archive and delete, which take the same set of things.",
-      "source": "3f739e20c1af8b82"
-    },
-    "param.reshape.from.summary": {
-      "text": "die Definition, aus der die neue Form genommen wird: eine Austauschdatei oder das Verzeichnis einer anderen Werkbank, also genau das, was `dinah init --from` bereits annimmt",
-      "context": "The meaning of the from argument of `dinah reshape`, printed in that command's arguments table.",
-      "source": "9c9dd584e19f2ca0"
-    },
-    "param.reshape.map.summary": {
-      "text": "die Karten einer ausscheidenden Spalte in eine andere Spalte schicken, geschrieben als retired=destination und je ausscheidender Spalte einmal wiederholt; die linke Seite darf auch eine Spaltenkennung sein, die eine Karte noch trägt und diese Werkbank nicht mehr nennt, was `dinah check` als check.unknown-column meldet",
-      "context": "The meaning of the map argument of `dinah reshape`, printed in that command's arguments table. It names `dinah check` because that is the command an operator runs to find a stranded column identifier before writing this flag.",
-      "source": "be7a7c10a7313389"
-    },
-    "param.show.card.summary": {
-      "text": "ein Zustand, eine Karte oder etwas unterhalb einer Karte wie wb-1/comments/1; show nimmt diese Werkbank nicht",
-      "context": "The meaning of the card argument of `dinah show`, printed in that command's arguments table.",
-      "source": "e5e44cefcd5c33f0"
-    },
-    "param.show.fields.summary": {
-      "text": "welche Bestandteile der Karte die Antwort führt, als kommagetrennte Liste geschrieben; alle Bestandteile, wenn Sie keinen nennen",
-      "context": "The meaning of the fields argument of `dinah show`, printed in that command's arguments table. The table appends the closed set of member names after this sentence, read off the tool, so the sentence does not spell the set itself.",
-      "source": "d9fd26ca9e82957c"
-    },
-    "param.tree.depth.summary": {
-      "text": "wie tief gezeichnet wird, geschrieben als root, groups oder cards; cards, wenn Sie keine nennen",
-      "context": "The meaning of the depth argument of `dinah tree`, printed in that command's arguments table.",
-      "source": "c49a3ef1d0a76760"
-    },
-    "param.tree.group-by.summary": {
-      "text": "die Achsen zum Verschachteln, äußerste zuerst, bis zu vier, durch Kommas getrennt; column,state, wenn Sie keine nennen",
-      "context": "The meaning of the group-by argument of `dinah tree`, printed in that command's arguments table. The axis names themselves are machine vocabulary and are never translated.",
-      "source": "604cde91c2a17d5e"
-    },
-    "param.tree.query.summary": {
-      "text": "welche Karten verschachtelt werden, geschrieben als Abfrage in einem Shell-Wort oder in Anführungszeichen; jede lebende Karte, wenn Sie keine schreiben",
-      "context": "The meaning of the query argument of `dinah tree`, printed in that command's arguments table. tree reads the same query language `dinah query` reads.",
-      "source": "a5a5e862482edacf"
-    },
-    "param.version.catalogs.summary": {
-      "text": "jede mitgelieferte Sprache melden und wie weit sie übersetzt ist",
-      "context": "The meaning of the catalogs argument of `dinah version`, printed in that command's arguments table.",
-      "source": "c1016c1ef09e7a7d"
-    },
-    "param.workbench.action.summary": {
-      "text": "ein Feld lesen oder eines schreiben; jedes Feld mit seinem Wert, wenn Sie keines nennen",
-      "context": "The meaning of the action argument of `dinah workbench`, printed in that command's arguments table.",
-      "source": "937419efc33a8cdc"
-    },
-    "param.workbench.field.summary": {
-      "text": "welches Feld Sie lesen oder schreiben",
-      "context": "The meaning of the field argument of `dinah workbench`, printed in that command's arguments table.",
-      "source": "38f99b89450cab4c"
-    },
-    "param.workbench.value.summary": {
-      "text": "was darin gespeichert wird, bei einem set",
-      "context": "The meaning of the value argument of `dinah workbench`, printed in that command's arguments table.",
-      "source": "227d7c26bf3fe47f"
-    },
-    "param.workstream.action.summary": {
-      "text": "einen Arbeitsstrang anlegen, einen lesen oder eines seiner Felder schreiben; jeden Arbeitsstrang, wenn Sie keinen nennen",
-      "context": "The meaning of the action argument of `dinah workstream`, printed in that command's arguments table.",
-      "source": "21685a314507b306"
-    },
-    "param.workstream.field.summary": {
-      "text": "welches Feld Sie lesen oder schreiben",
-      "context": "The meaning of the field argument of `dinah workstream`, printed in that command's arguments table.",
-      "source": "38f99b89450cab4c"
-    },
-    "param.workstream.slug.summary": {
-      "text": "mit welchem Slug der Arbeitsstrang angelegt wird, anstelle eines aus seinem Titel abgeleiteten",
-      "context": "The meaning of the slug argument of `dinah workstream`, printed in that command's arguments table.",
-      "source": "5b716c838dbd0efe"
-    },
-    "param.workstream.summary": {
-      "text": "der Arbeitsstrang, den Sie nennen, geschrieben als sein Slug oder sein Bezeichner",
-      "context": "The meaning of the workstream argument, shared by the commands that name one.",
-      "source": "6e4010bcd3c3b66c"
-    },
-    "param.workstream.value.summary": {
-      "text": "was darin gespeichert wird, bei einem set",
-      "context": "The meaning of the value argument of `dinah workstream`, printed in that command's arguments table.",
-      "source": "227d7c26bf3fe47f"
-    },
-    "param.workstream.workstream.summary": {
-      "text": "der Arbeitsstrang, den Sie lesen oder schreiben, oder der Titel des Arbeitsstrangs, den Sie anlegen",
-      "context": "The meaning of the workstream argument of `dinah workstream`, printed in that command's arguments table.",
-      "source": "7670387210ff58cf"
-    },
-    "param.yes.summary": {
-      "text": "die Aktion bestätigen, die Dinah ohne sie nicht ausführt",
-      "context": "The meaning of the --yes flag, shared by the commands that ask before they destroy something.",
-      "source": "28bafe0212ebfc9f"
     },
     "query.empty": {
       "text": "Keine Karte passt auf diese Abfrage.",
@@ -2205,46 +2010,6 @@
       "context": "Spliced onto refusal.blocked as the next step. {card} is the card reference the reader named.",
       "source": "82fa6263ac8b65f3"
     },
-    "refusal.dinah.needs-vocabulary-migration": {
-      "text": "Dinah öffnet {detail} nicht mehr direkt",
-      "context": "The sentence printed after the refusal name dinah.needs-vocabulary-migration. {detail} carries the profile string the workbench declares, and this refusal is raised only for a revision the retired-name alias resolved, where a plainly unrecognized one is refused as unsupported-version instead.",
-      "source": "c3cc30091b4f8297"
-    },
-    "refusal.dinah.needs-vocabulary-migration.next": {
-      "text": "; führen Sie zuerst `dinah check --migrate-vocabulary` aus und öffnen Sie sie danach erneut",
-      "context": "Spliced onto refusal.dinah.needs-vocabulary-migration as the next step. The flag name dinah check --migrate-vocabulary is provisional pending dinah-287's own naming, and is updated in that card's commit if it settles on a different spelling.",
-      "source": "2d044b02d1cbb5c1"
-    },
-    "refusal.dinah.needs-vocabulary-migration.next-named": {
-      "text": "; führen Sie zuerst `dinah check --root {workbench} --migrate-vocabulary` aus und öffnen Sie sie danach erneut",
-      "context": "Spliced onto refusal.dinah.needs-vocabulary-migration as the next step wherever the head resolved which workbench the invocation was about, which covers every reader standing in one and every reader who named one with --workbench. {workbench} is the workbench directory, and naming it is what lets the reader run the repair from where he stands rather than from where the workbench is. The sibling entry without the flag is the alternation's unconditional last member, and no invocation renders it today. The command spelling is machine vocabulary and is not translated.",
-      "source": "1e012fe589abf690"
-    },
-    "refusal.dinah.needs-container-migration": {
-      "text": "Dinah öffnet {detail} nicht mehr, denn eine Werkbank lebt in einem .dinah-Container und diese tut es nicht",
-      "context": "The sentence printed after the refusal name dinah.needs-container-migration. {detail} carries the workbench directory the refusal was raised over.",
-      "source": "658a71835c2be723"
-    },
-    "refusal.dinah.needs-container-migration.next": {
-      "text": "; führen Sie `dinah check --root {detail} --migrate-container` aus, um sie in einen zu tragen, und öffnen Sie sie danach erneut",
-      "context": "Spliced onto refusal.dinah.needs-container-migration as the next step. It names the preview rather than the applied run, so the reader sees what the repair would move before he types the flag that moves it, which is what the other two sentences of this family already do. The command name is machine vocabulary and is not translated.",
-      "source": "b06c3e162e0a89c6"
-    },
-    "refusal.dinah.add-needs-a-column": {
-      "text": "dieser Werkbank ist keine Spalte geblieben, in der eine neue Karte angelegt werden könnte",
-      "context": "The sentence printed after the refusal name dinah.add-needs-a-column. {detail} is the workbench.md path Add read an empty live columns list from, since l.refuse carries no path of its own for the malformed.at/.fix splice to reach.",
-      "source": "9d3d069e9b698d0d"
-    },
-    "refusal.dinah.add-needs-a-column.next": {
-      "text": "; bearbeiten Sie {detail} von Hand, um der Spaltenliste eine Spalte hinzuzufügen und deren columns/<id>/column.md anzulegen, und führen Sie dann `dinah check` aus, um es zu bestätigen, bevor Sie `dinah add` erneut versuchen",
-      "context": "Spliced onto refusal.dinah.add-needs-a-column as the next step, carrying the clause that base entry used to end with. {detail} is the workbench.md path to hand-edit.",
-      "source": "fe71af28f4ee8805"
-    },
-    "refusal.dinah.add-needs-a-column.next-named": {
-      "text": "; bearbeiten Sie {detail} von Hand, um der Spaltenliste eine Spalte hinzuzufügen und deren columns/<id>/column.md anzulegen, und führen Sie dann `dinah check --workbench {workbench}` aus, um es zu bestätigen, bevor Sie `dinah add` erneut versuchen",
-      "context": "Spliced onto refusal.dinah.add-needs-a-column as the next step wherever a workbench was resolved for this invocation, which covers every reader standing in one and every reader who named one with --workbench from somewhere else. {workbench} is the workbench directory, and naming it is what lets the reader confirm the hand edit on the workbench he was filing into. {detail} is the workbench.md path to hand-edit. The sibling entry without the flag is the alternation's unconditional last member. The command spelling is machine vocabulary and is not translated.",
-      "source": "8a268bcc89e6b74f"
-    },
     "refusal.dinah.ambiguous-workbench": {
       "text": "von {base} aus ist mehr als eine Werkbank erreichbar",
       "context": "The opening sentence printed after the refusal name dinah.ambiguous-workbench, naming the directory the search found several workbenches under. The candidate rows print beneath it, in the same shape the workbenches listing renders, and refusal.dinah.ambiguous-workbench.next follows as the closing line naming the ways forward.",
@@ -2275,16 +2040,6 @@
       "context": "Spliced onto refusal.dinah.ambiguous-name as the next step, carrying the clause that base entry used to end with.",
       "source": "b6150cbdb4350f2f"
     },
-    "refusal.dinah.chain-too-long": {
-      "text": "Eine Gruppierungskette verschachtelt entlang höchstens {allowed} Achsen, und diese nennt {asked}.",
-      "context": "The sentence printed after the refusal name dinah.chain-too-long. {asked} is how many axes the reader named and {allowed} how many the command takes. This sentence names no axis at all, because every axis in the chain may be a legal one. refusal.dinah.chain-too-long.next is spliced on after this one.",
-      "source": "7b4984e61fe5ed68"
-    },
-    "refusal.dinah.chain-too-long.next": {
-      "text": " Kürzen Sie die Kette, oder führen Sie `dinah help tree` aus, um zu sehen, was der Befehl prüft.",
-      "context": "The next step of refusal.dinah.chain-too-long. The command line inside it is syntax and stays as it is.",
-      "source": "3cefbb96f58668d4"
-    },
     "refusal.dinah.exists": {
       "text": "{detail} trägt bereits eine workbench.md",
       "context": "The sentence printed after the refusal name dinah.exists. {detail} carries the identifier, owner or column the refusal is about.",
@@ -2294,6 +2049,16 @@
       "text": "; schieben Sie sie beiseite, oder wählen Sie ein anderes Verzeichnis",
       "context": "Spliced onto refusal.dinah.exists as the next step, carrying the clause that base entry used to end with.",
       "source": "8d85819f35ec85f3"
+    },
+    "refusal.dinah.last-column": {
+      "text": "{detail} ist die einzige verbliebene Spalte",
+      "context": "The sentence printed after the refusal name dinah.last-column. {detail} carries the identifier, owner or column the refusal is about.",
+      "source": "6c3ced789714ca62"
+    },
+    "refusal.dinah.last-column.next": {
+      "text": "; fügen Sie eine weitere Spalte hinzu, bevor Sie diese ausmustern",
+      "context": "Spliced onto refusal.dinah.last-column as the next step, carrying the clause that base entry used to end with.",
+      "source": "2093a7c07f9d6b1f"
     },
     "refusal.dinah.interrupted": {
       "text": "die Aktion auf {detail} wurde unterbrochen, nachdem sie festgehalten worden war",
@@ -2310,20 +2075,15 @@
       "context": "Spliced onto refusal.dinah.interrupted as the next step wherever a workbench was resolved for this invocation, which covers every reader standing in one and every reader who named one with --workbench from somewhere else. {workbench} is the workbench directory, and naming it is what lets the reader finish the act from wherever he was standing when it broke. The sibling entry without the flag is the alternation's unconditional last member. The command spelling is machine vocabulary and is not translated.",
       "source": "248f008d8842a382"
     },
-    "refusal.dinah.last-column": {
-      "text": "{detail} ist die einzige verbliebene Spalte",
-      "context": "The sentence printed after the refusal name dinah.last-column. {detail} carries the identifier, owner or column the refusal is about.",
-      "source": "6c3ced789714ca62"
-    },
-    "refusal.dinah.last-column.next": {
-      "text": "; fügen Sie eine weitere Spalte hinzu, bevor Sie diese ausmustern",
-      "context": "Spliced onto refusal.dinah.last-column as the next step, carrying the clause that base entry used to end with.",
-      "source": "2093a7c07f9d6b1f"
-    },
     "refusal.dinah.locked": {
       "text": "dies ist bereits gesperrt; {detail}",
       "context": "The sentence printed after the refusal name dinah.locked. {detail} carries the identifier, owner or column the refusal is about.",
       "source": "a7e64c664e2c498f"
+    },
+    "refusal.dinah.locked.unnamed": {
+      "text": "dies ist bereits gesperrt",
+      "context": "The sentence printed after the refusal name dinah.locked when the lock record names nobody, in place of refusal.dinah.locked.",
+      "source": "29c046da91fe483"
     },
     "refusal.dinah.locked.next": {
       "text": "; warten Sie, bis es fertig ist, und versuchen Sie es erneut, oder führen Sie `dinah check --finish` aus, falls es nie fertig wird",
@@ -2335,26 +2095,6 @@
       "context": "Spliced onto refusal.dinah.locked as the next step wherever a workbench was resolved for this invocation, which covers every reader standing in one and every reader who named one with --workbench from somewhere else. {workbench} is the workbench directory, and naming it is what lets the reader clear an act the tool left standing from where he is rather than from where the workbench is. The sibling entry without the flag is the alternation's unconditional last member. The command spelling is machine vocabulary and is not translated.",
       "source": "8d566324f652a577"
     },
-    "refusal.dinah.locked.unnamed": {
-      "text": "dies ist bereits gesperrt",
-      "context": "The sentence printed after the refusal name dinah.locked when the lock record names nobody, in place of refusal.dinah.locked.",
-      "source": "29c046da91fe483"
-    },
-    "refusal.dinah.multiple-words": {
-      "text": "Dinah hat {count} getrennte Wörter für {label} gelesen, und es nimmt nur eines an.",
-      "context": "Printed when an open-tail command (add, block, comment, config set) gets more than one unquoted word for its free-text slot. {count} is the number of words seen past the command's fixed arguments. {label} names the slot in plain language (\"the title\", \"the reason\", \"the comment\", \"the value\"). One of two fragments is spliced on: refusal.dinah.multiple-words.example when the free text carries no quotation mark, refusal.dinah.multiple-words.quote-yourself when it does.",
-      "source": "128b48464c00b2ba"
-    },
-    "refusal.dinah.multiple-words.example": {
-      "text": " Setzen Sie das Ganze in Anführungszeichen: {example}",
-      "context": "Spliced onto refusal.dinah.multiple-words when the free text carries no quotation mark, so wrapping it in double quotes reads back correctly verbatim in bash, cmd.exe and PowerShell alike. {example} is the command line rebuilt with the free text quoted.",
-      "source": "57501d3fdfd10489"
-    },
-    "refusal.dinah.multiple-words.quote-yourself": {
-      "text": " In diesem Text steht ein Anführungszeichen, setzen Sie das Ganze also selbst in Anführungszeichen. Keine von Dinah wiederaufgebaute Befehlszeile lässt sich in jeder Shell korrekt zurückkopieren, sobald der Text selbst eines enthält.",
-      "context": "Spliced onto refusal.dinah.multiple-words when the free text contains a literal quotation mark: which shell will read the pasted line back is undocumented and cannot be asked for, and bash, cmd.exe and PowerShell disagree on how to escape an embedded quote, so no single rebuilt example is correct in all three. The caller is asked to add the quoting themselves rather than being handed a line that is wrong somewhere.",
-      "source": "3e84c7bfc66c3155"
-    },
     "refusal.dinah.no-configured-workbench": {
       "text": "die Einstellung workbench nennt {detail}, was keine workbench.md trägt",
       "context": "The sentence printed after the refusal name dinah.no-configured-workbench. {detail} is the configured path the discovery walk found nothing local to answer with and then tried.",
@@ -2365,30 +2105,20 @@
       "context": "Spliced onto refusal.dinah.no-configured-workbench as the next step, carrying the clause that base entry used to end with.",
       "source": "57f043aeafcc37e8"
     },
-    "refusal.dinah.no-editor": {
-      "text": "kein Editor war auflösbar",
-      "context": "The sentence printed after the refusal name dinah.no-editor. {detail} carries the identifier, owner or column the refusal is about.",
-      "source": "bcc65bd2d92f8c0b"
-    },
-    "refusal.dinah.no-editor.next": {
-      "text": "; setzen Sie DINAH_EDITOR, oder installieren Sie einen von {detail}",
-      "context": "Spliced onto refusal.dinah.no-editor as the next step, carrying the clause that base entry used to end with. {detail} is the built-in list of editors to install one of.",
-      "source": "7e19d158a642175a"
-    },
-    "refusal.dinah.no-levels": {
-      "text": "diese Werkbank deklariert keine {axis}-Stufen, also gibt es keine zu setzen",
-      "context": "The sentence printed after the refusal name dinah.no-levels, which a write naming an axis this workbench declares no set for carries. {axis} is that field, and it is machine vocabulary that is never translated; {detail} carries the same word. The reader is not told their level name is unknown, because every name would be. The sentence is about one axis and must not be worded as a report about the workbench as a whole. refusal.dinah.no-levels.next is spliced on after this one.",
-      "source": "12396c7c23016f9b"
-    },
-    "refusal.dinah.no-levels.next": {
-      "text": "; deklarieren Sie sie unter levels: in {anchor}",
-      "context": "The next step of refusal.dinah.no-levels. {anchor} is the workbench.md path the declaration belongs in. The key name levels: is the frontmatter key itself and stays as it is.",
-      "source": "1915ff7003a8ca95"
-    },
     "refusal.dinah.no-workbench": {
       "text": "{detail} wurde mit --workbench genannt und trägt keine workbench.md",
       "context": "The sentence printed after the refusal name dinah.no-workbench. {detail} is the directory the caller named with --workbench or DINAH_WORKBENCH.",
       "source": "438f10bd6ee2b700"
+    },
+    "refusal.dinah.no-workbench.found": {
+      "text": "; eine Werkbank liegt eine Stufe tiefer, unter {found}; richten Sie --workbench stattdessen dorthin",
+      "context": "Spliced onto refusal.dinah.no-workbench as the next step in place of refusal.dinah.no-workbench.next, when the directory named with --workbench, DINAH_WORKBENCH, or an MCP call's workbench property held exactly one workbench store immediately beneath its .dinah, so the caller named the workbench's containing directory rather than its store. {found} is that store's absolute path, the exact spelling --workbench or the workbench property would accept.",
+      "source": "c5c0bc52302ed34e"
+    },
+    "refusal.dinah.no-workbench.next": {
+      "text": "; richten Sie --workbench auf ein Verzeichnis, das eine trägt, oder lassen Sie --workbench weg, um von hier aus aufwärts zu suchen",
+      "context": "Spliced onto refusal.dinah.no-workbench as the next step, carrying the clause that base entry used to end with.",
+      "source": "5304a56a1c20ac25"
     },
     "refusal.dinah.no-workbench-found": {
       "text": "beim Aufwärtsgehen von {detail} wurde keine Werkbank gefunden, auch nicht in der Benutzerbasis unter {home}",
@@ -2404,15 +2134,15 @@
       "text": "; bei {bare} liegt eine workbench.md außerhalb jedes .dinah-Containers, deshalb erreicht sie keine Suche; führen Sie dort `dinah check --root . --migrate-container` aus, um sie in einen Container zu tragen",
       "source": "7700822e3c75a9c1"
     },
-    "refusal.dinah.no-workbench.found": {
-      "text": "; eine Werkbank liegt eine Stufe tiefer, unter {found}; richten Sie --workbench stattdessen dorthin",
-      "context": "Spliced onto refusal.dinah.no-workbench as the next step in place of refusal.dinah.no-workbench.next, when the directory named with --workbench, DINAH_WORKBENCH, or an MCP call's workbench property held exactly one workbench store immediately beneath its .dinah, so the caller named the workbench's containing directory rather than its store. {found} is that store's absolute path, the exact spelling --workbench or the workbench property would accept.",
-      "source": "c5c0bc52302ed34e"
+    "refusal.dinah.no-editor": {
+      "text": "kein Editor war auflösbar",
+      "context": "The sentence printed after the refusal name dinah.no-editor. {detail} carries the identifier, owner or column the refusal is about.",
+      "source": "bcc65bd2d92f8c0b"
     },
-    "refusal.dinah.no-workbench.next": {
-      "text": "; richten Sie --workbench auf ein Verzeichnis, das eine trägt, oder lassen Sie --workbench weg, um von hier aus aufwärts zu suchen",
-      "context": "Spliced onto refusal.dinah.no-workbench as the next step, carrying the clause that base entry used to end with.",
-      "source": "5304a56a1c20ac25"
+    "refusal.dinah.no-editor.next": {
+      "text": "; setzen Sie DINAH_EDITOR, oder installieren Sie einen von {detail}",
+      "context": "Spliced onto refusal.dinah.no-editor as the next step, carrying the clause that base entry used to end with. {detail} is the built-in list of editors to install one of.",
+      "source": "7e19d158a642175a"
     },
     "refusal.dinah.no-upstream": {
       "text": "Sie können nicht nach {column} ziehen, denn diese Spalte steht im Fluss an erster Stelle und ihr geht nichts voran",
@@ -2424,16 +2154,6 @@
       "context": "The line printed after dinah.no-upstream, naming the ways forward.",
       "source": "be8c2b2d40061074"
     },
-    "refusal.dinah.not-renamable": {
-      "text": "{kind} ist kein Anhang, und rename ändert seinen Namen nicht",
-      "context": "The sentence printed after the refusal name dinah.not-renamable. {kind} names what kind of entity the reference reached, so the sentence names the entity the caller meant rather than the word they typed.",
-      "source": "73f2c382dedeeb8f"
-    },
-    "refusal.dinah.not-renamable.next": {
-      "text": "; übergeben Sie eine Anhang-Referenz wie <Karte>/attachments/<ordinal>",
-      "context": "Spliced onto refusal.dinah.not-renamable as the next step, naming the form the reference has to take to land on an attachment.",
-      "source": "8b1e574b3bdc690a"
-    },
     "refusal.dinah.occupied": {
       "text": "Karten belegen Spalte {detail} weiterhin",
       "context": "The sentence printed after the refusal name dinah.occupied. {detail} carries the identifier, owner or column the refusal is about.",
@@ -2443,6 +2163,16 @@
       "text": "; nehmen Sie sie zuerst mit `dinah move` heraus, und versuchen Sie es dann erneut",
       "context": "Spliced onto refusal.dinah.occupied as the next step.",
       "source": "de0352db52c5f412"
+    },
+    "refusal.dinah.not-renamable": {
+      "text": "{kind} ist kein Anhang, und rename ändert seinen Namen nicht",
+      "context": "The sentence printed after the refusal name dinah.not-renamable. {kind} names what kind of entity the reference reached, so the sentence names the entity the caller meant rather than the word they typed.",
+      "source": "73f2c382dedeeb8f"
+    },
+    "refusal.dinah.not-renamable.next": {
+      "text": "; übergeben Sie eine Anhang-Referenz wie <Karte>/attachments/<ordinal>",
+      "context": "Spliced onto refusal.dinah.not-renamable as the next step, naming the form the reference has to take to land on an attachment.",
+      "source": "8b1e574b3bdc690a"
     },
     "refusal.dinah.outside-root": {
       "text": "{detail} liegt außerhalb von {root}, dem Wurzelverzeichnis, mit dem der Server gestartet wurde",
@@ -2463,76 +2193,6 @@
       "text": "; nehmen Sie sie zuerst mit `dinah leave` heraus, oder archivieren Sie stattdessen den Arbeitsstrang",
       "context": "Spliced onto refusal.dinah.referenced as the next step, naming the two ways past the refusal.",
       "source": "ade7e0e869d8e3c5"
-    },
-    "refusal.dinah.repair-would-empty-columns": {
-      "text": "{detail} nennt jede Spalte, die der Werkbank geblieben ist, und jedes zugehörige Verzeichnis fehlt. Sie zu entfernen ließe die Werkbank ganz ohne Spalte zurück, daher lehnt dinah check --migrate-columns ab.",
-      "context": "The sentence printed after the refusal name dinah.repair-would-empty-columns. {detail} is the comma-joined ids of every column the raw columns list still names, all of them stranded, which RemoveStrandedColumns would otherwise have dropped down to an empty list.",
-      "source": "2b866eaadd3e160c"
-    },
-    "refusal.dinah.repair-would-empty-columns.next": {
-      "text": " Bearbeiten Sie die Spaltenliste der Werkbank von Hand, um eine Spalte hinzuzufügen, oder stellen Sie eines der fehlenden Verzeichnisse wieder her, und führen Sie dann dinah check --migrate-columns erneut aus.",
-      "context": "Spliced onto refusal.dinah.repair-would-empty-columns as the next step, carrying the sentence that base entry used to end with.",
-      "source": "4894a4b75a1fd0a"
-    },
-    "refusal.dinah.repeated-axis": {
-      "text": "Eine Gruppierungskette nennt jede Achse einmal, und diese nennt {detail} zweimal.",
-      "context": "The sentence printed after the refusal name dinah.repeated-axis. {detail} is the axis the reader typed twice. This sentence lists no axes, because the one it names is already a legal one and listing them would say so twice. refusal.dinah.repeated-axis.next is spliced on after this one.",
-      "source": "16449136fb302e51"
-    },
-    "refusal.dinah.repeated-axis.next": {
-      "text": " Entfernen Sie die Wiederholung, oder führen Sie `dinah help tree` aus, um zu sehen, was der Befehl prüft.",
-      "context": "The next step of refusal.dinah.repeated-axis. The command line inside it is syntax and stays as it is.",
-      "source": "bf9ceea7dc013c6d"
-    },
-    "refusal.dinah.reshape-destination-ambiguous": {
-      "text": "die neue Form fügt mehr als eine Spalte mit dem Titel {detail} hinzu, an den Positionen {positions}, und keine davon erklärt eine Kennung, die sie unterscheidet",
-      "context": "The sentence printed after the refusal name dinah.reshape-destination-ambiguous. {detail} is the title the caller wrote and {positions} names where each candidate sits in the new definition's columns array, which is the only handle an added column carries before it is written.",
-      "source": "b21120df2aa37a2c"
-    },
-    "refusal.dinah.reshape-destination-ambiguous.next": {
-      "text": "; geben Sie einer davon eine id in der Definition und nennen Sie diese id stattdessen",
-      "context": "Spliced onto refusal.dinah.reshape-destination-ambiguous as the next step.",
-      "source": "ed11e6a5636325c5"
-    },
-    "refusal.dinah.reshape-destination-retiring": {
-      "text": "{detail} nennt Spalte {column}, die derselbe Lauf ausmustert, sodass die Karten in eine Spalte getragen würden, die gleich verschwindet",
-      "context": "The sentence printed after the refusal name dinah.reshape-destination-retiring. {detail} is the reference the caller wrote and {column} is the retiring column it resolved to.",
-      "source": "a8075e19e6962cc0"
-    },
-    "refusal.dinah.reshape-destination-retiring.next": {
-      "text": "; nennen Sie eine Spalte, die die neue Form behält oder hinzufügt",
-      "context": "Spliced onto refusal.dinah.reshape-destination-retiring as the next step.",
-      "source": "35328f80b371d431"
-    },
-    "refusal.dinah.reshape-held-card-in-queue": {
-      "text": "kein Akteur nimmt an Spalte {detail} Arbeit auf, sobald diese Form geschrieben ist, und diese Karten werden dort gehalten: {cards}",
-      "context": "The sentence printed after the refusal name dinah.reshape-held-card-in-queue. {detail} names the column and {cards} carries the identifiers of the cards somebody is holding there.",
-      "source": "4ef573a1cbc261ab"
-    },
-    "refusal.dinah.reshape-held-card-in-queue.next": {
-      "text": "; geben Sie sie zuerst frei, oder lassen Sie die Spalte Arbeit aufnehmen",
-      "context": "Spliced onto refusal.dinah.reshape-held-card-in-queue as the next step, naming the two ways out.",
-      "source": "c3dfdfc8557cc5c4"
-    },
-    "refusal.dinah.reshape-map-source-empty": {
-      "text": "keine Karte, die dieser Lauf tragen würde, steht bei {detail}",
-      "context": "The sentence printed after the refusal name dinah.reshape-map-source-empty. {detail} carries the reference the caller wrote on the left of a --map entry.",
-      "source": "5fd93f542d3e3f20"
-    },
-    "refusal.dinah.reshape-map-source-empty.next": {
-      "text": "; nennen Sie eine Spalte, die die neue Form weglässt, oder die Spaltenkennung, die eine gestrandete Karte noch trägt und die `dinah check` als check.unknown-column meldet",
-      "context": "Spliced onto refusal.dinah.reshape-map-source-empty as the next step. It names `dinah check` because that is the command that reports a stranded column identifier.",
-      "source": "5e8f3a719d8581c7"
-    },
-    "refusal.dinah.reshape-needs-a-destination": {
-      "text": "die neue Form lässt Spalte {detail} weg, und die dort stehenden lebenden Karten, {cards} an der Zahl, haben kein Ziel",
-      "context": "The sentence printed after the refusal name dinah.reshape-needs-a-destination. {detail} names the retiring column and {cards} is how many live cards stand in it.",
-      "source": "236df9db3b971c1a"
-    },
-    "refusal.dinah.reshape-needs-a-destination.next": {
-      "text": "; nennen Sie eines mit `--map {detail}=<column>`, oder erklären Sie replaces auf der Spalte, die die Arbeit übernimmt",
-      "context": "Spliced onto refusal.dinah.reshape-needs-a-destination as the next step, naming the two ways a destination is supplied.",
-      "source": "85d4e50e26e4c4be"
     },
     "refusal.dinah.unconfirmed": {
       "text": "delete vernichtet Geschichte",
@@ -2564,16 +2224,6 @@
       "context": "Spliced onto refusal.dinah.unconfirmed.workstream as its next step. The workstream command renders it; every other command renders refusal.dinah.unconfirmed.next.",
       "source": "36b7012eed26cc03"
     },
-    "refusal.dinah.unknown-axis": {
-      "text": "Dinah gruppiert nicht nach {detail}. Die Achsen, entlang derer ein Baum verschachteln darf, sind: {axes}.",
-      "context": "The sentence printed after the refusal name dinah.unknown-axis, which a group-by chain naming a word this tool does not group on carries. {detail} is the word the reader typed. {axes} is the list of legal axis names, read off the tool's own table rather than written here, so an axis name is machine vocabulary and is never translated. refusal.dinah.unknown-axis.next is spliced on after this one.",
-      "source": "b94119a1afee6b38"
-    },
-    "refusal.dinah.unknown-axis.next": {
-      "text": " Nennen Sie stattdessen eine davon, oder führen Sie `dinah help tree` aus, um zu sehen, was der Befehl prüft.",
-      "context": "The next step of refusal.dinah.unknown-axis. The command line inside it is syntax and stays as it is.",
-      "source": "1bf020aaf7e01508"
-    },
     "refusal.dinah.unknown-command": {
       "text": "Dinah bietet keinen Befehl namens {detail}",
       "context": "The sentence printed after the refusal name dinah.unknown-command. {detail} carries the identifier, owner or column the refusal is about.",
@@ -2584,30 +2234,10 @@
       "context": "Spliced onto refusal.dinah.unknown-command as the next step. This refusal prints no listing, so the clause points at the grouped listing dinah help already prints.",
       "source": "5b7853d735990f09"
     },
-    "refusal.dinah.unknown-depth": {
-      "text": "Dinah hat für diesen Befehl keine Tiefenstufe {detail}. Die Stufen, die er nimmt, sind: {levels}.",
-      "context": "The sentence printed after the refusal name dinah.unknown-depth. {detail} is the level the reader typed. {levels} is the ladder of the command that refused rather than the union of both ladders, read off the tool's own table, so a level name is machine vocabulary and is never translated. refusal.dinah.unknown-depth.next is spliced on after this one.",
-      "source": "8b62ec2ecc541a78"
-    },
-    "refusal.dinah.unknown-depth.next": {
-      "text": " Nennen Sie stattdessen eine davon, oder führen Sie `dinah help` zum Befehl aus, um zu sehen, was er prüft.",
-      "context": "The next step of refusal.dinah.unknown-depth. The command line inside it is syntax and stays as it is.",
-      "source": "d501d957e047c8ec"
-    },
     "refusal.dinah.unknown-field": {
       "text": "Dinah hat kein Feld {detail}. Die Felder, die eine Abfrage nennen darf, sind: {fields}.",
       "context": "The sentence printed after the refusal name dinah.unknown-field, which a query naming a field this tool does not have and a query giving a field an operator it does not take both carry. {detail} is the field token the reader typed, or that token with the operator after it. {fields} is the list of legal field names, read off the query language rather than written here, so a field name is machine vocabulary and is never translated. refusal.dinah.unknown-field.ordered and refusal.dinah.unknown-field.next are spliced on after this one.",
       "source": "429f06e75e1c88cd"
-    },
-    "refusal.dinah.unknown-field.card": {
-      "text": "Dinah hat kein Feld {detail}. Die Felder, die eine Karte führt, sind: {fields}.",
-      "context": "The sentence printed after the refusal name dinah.unknown-field when the card command raised it, which is a write naming a field a card does not record. It is refusal.dinah.unknown-field with the query's own clause replaced, and the command word selects between the two. {detail} is the field the reader typed. {fields} is the set of fields a card records, read off the tool rather than written here, so a field name is machine vocabulary and is never translated.",
-      "source": "a77e2922618b02f9"
-    },
-    "refusal.dinah.unknown-field.card.next": {
-      "text": " Nennen Sie stattdessen eines davon, oder führen Sie `dinah help card` aus, um zu sehen, was der Befehl prüft.",
-      "context": "The next step of refusal.dinah.unknown-field when the card command raised it. It points at that command's own help page where the shared one points at the query's. The command line inside it is syntax and stays as it is.",
-      "source": "47a93fa06743eae2"
     },
     "refusal.dinah.unknown-field.next": {
       "text": " Nennen Sie stattdessen eines davon, oder führen Sie `dinah help query` aus, um zu sehen, was der Befehl prüft.",
@@ -2669,35 +2299,20 @@
       "context": "Printed under the settings refusal.dinah.unknown-key lists, on its own line and with no leading punctuation. It names no subcommand, because this refusal answers config get and config set alike.",
       "source": "9ac2442247af0dc2"
     },
-    "refusal.dinah.unknown-level": {
-      "text": "diese Werkbank deklariert keine {axis}-Stufe namens {detail}. Die {axis}-Stufen, die sie deklariert, sind: {levels}.",
-      "context": "The sentence printed after the refusal name dinah.unknown-level, which a write naming a level the workbench does not declare for that axis carries. {detail} is the level the reader typed. {axis} is the field the write named, and it is machine vocabulary that is never translated. {levels} is that one axis's declared members in declaration order, read off the workbench rather than written here, so a level name is never translated either. The sentence is about one axis and must not be worded as a report about the workbench as a whole. refusal.dinah.unknown-level.next is spliced on after this one.",
-      "source": "972bc93454f5788b"
-    },
-    "refusal.dinah.unknown-level.next": {
-      "text": " Nennen Sie stattdessen eine davon.",
-      "context": "The next step of refusal.dinah.unknown-level, spliced onto the sentence that just listed the declared levels.",
-      "source": "47ef8e6442436430"
-    },
     "refusal.dinah.unknown-path": {
       "text": "nichts in dieser Werkbank hört auf {detail}",
       "context": "The sentence printed after the refusal name dinah.unknown-path. {detail} carries the identifier, owner or column the refusal is about.",
       "source": "715e031bd2d76865"
     },
-    "refusal.dinah.unknown-path.next": {
-      "text": "; führen Sie `dinah ls` aus, um zu sehen, was diese Werkbank trägt",
-      "context": "Spliced onto refusal.dinah.unknown-path as the next step when the refusal names no file, which is the reader who typed something the workbench does not answer to.",
-      "source": "a389d86eb8c557de"
-    },
-    "refusal.dinah.unknown-path.next-addressed": {
-      "text": "; ein {addressed} wird über seine eigene Referenz benannt, nicht über das, was es hält",
-      "context": "The next step after the refusal name dinah.unknown-path, when the reader reached a card or a column through the collection that holds it, such as wb/cards/1. {addressed} is the kind reached that way, card or column, which is machine vocabulary and is never translated. The collection named is one the workbench really has, so the advice is about how the thing is addressed rather than about the word. Spliced on after refusal.dinah.unknown-path.",
-      "source": "129884b7bbc55760"
-    },
     "refusal.dinah.unknown-path.next-file": {
       "text": "; prüfen Sie, ob {file} existiert und ob Sie es von hier aus lesen können",
       "context": "Spliced onto refusal.dinah.unknown-path as the next step when the refusal carries a file: a path on the filesystem the reader named.",
       "source": "239c67aad72c8145"
+    },
+    "refusal.dinah.unknown-path.next": {
+      "text": "; führen Sie `dinah ls` aus, um zu sehen, was diese Werkbank trägt",
+      "context": "Spliced onto refusal.dinah.unknown-path as the next step when the refusal names no file, which is the reader who typed something the workbench does not answer to.",
+      "source": "a389d86eb8c557de"
     },
     "refusal.dinah.unknown-root": {
       "text": "{detail} ist kein Verzeichnis, das das Dateisystem trägt",
@@ -2769,15 +2384,15 @@
       "context": "The sentence printed after the refusal name dinah.usage. {detail} carries the identifier, owner or column the refusal is about.",
       "source": "a41d318811d1e923"
     },
-    "refusal.dinah.usage.dash-hint": {
-      "text": ". Dinah liest ein Wort, das mit zwei Bindestrichen beginnt, als Option. Schreiben Sie zuerst `--`, und Dinah liest jedes folgende Wort als reinen Text, Bindestriche eingeschlossen.",
-      "context": "Spliced onto refusal.dinah.usage when the word that triggered the refusal has two leading dashes: parseArgs's two flag-scan refusal sites in cmd/dinah/args.go set dashHint for this and no other dinah.usage caller does.",
-      "source": "dcb06b0105995885"
-    },
     "refusal.dinah.usage.next": {
       "text": "; führen Sie dinah help aus für die Liste der Befehle",
       "context": "Spliced onto refusal.dinah.usage as the next step, carrying the clause that base entry used to end with. It is spliced ahead of refusal.dinah.usage.dash-hint, which is the position it held inside the sentence.",
       "source": "d9e4ce94a1505a25"
+    },
+    "refusal.dinah.usage.dash-hint": {
+      "text": ". Dinah liest ein Wort, das mit zwei Bindestrichen beginnt, als Option. Schreiben Sie zuerst `--`, und Dinah liest jedes folgende Wort als reinen Text, Bindestriche eingeschlossen.",
+      "context": "Spliced onto refusal.dinah.usage when the word that triggered the refusal has two leading dashes: parseArgs's two flag-scan refusal sites in cmd/dinah/args.go set dashHint for this and no other dinah.usage caller does.",
+      "source": "dcb06b0105995885"
     },
     "refusal.dinah.vocabulary-mixed": {
       "text": "{detail} trägt je einen Schlüssel aus den beiden Vokabularen, die dieses Format hatte, daher kann Dinah nicht erkennen, in welchem von beiden die Datei geschrieben ist",
@@ -2836,6 +2451,71 @@
       "context": "Spliced onto refusal.dinah.workstream-slug-taken as the next step.",
       "source": "8737ff38eb1dfc4e"
     },
+    "refusal.dinah.repair-would-empty-columns": {
+      "text": "{detail} nennt jede Spalte, die der Werkbank geblieben ist, und jedes zugehörige Verzeichnis fehlt. Sie zu entfernen ließe die Werkbank ganz ohne Spalte zurück, daher lehnt dinah check --migrate-columns ab.",
+      "context": "The sentence printed after the refusal name dinah.repair-would-empty-columns. {detail} is the comma-joined ids of every column the raw columns list still names, all of them stranded, which RemoveStrandedColumns would otherwise have dropped down to an empty list.",
+      "source": "2b866eaadd3e160c"
+    },
+    "refusal.dinah.repair-would-empty-columns.next": {
+      "text": " Bearbeiten Sie die Spaltenliste der Werkbank von Hand, um eine Spalte hinzuzufügen, oder stellen Sie eines der fehlenden Verzeichnisse wieder her, und führen Sie dann dinah check --migrate-columns erneut aus.",
+      "context": "Spliced onto refusal.dinah.repair-would-empty-columns as the next step, carrying the sentence that base entry used to end with.",
+      "source": "4894a4b75a1fd0a"
+    },
+    "refusal.dinah.needs-vocabulary-migration": {
+      "text": "Dinah öffnet {detail} nicht mehr direkt",
+      "context": "The sentence printed after the refusal name dinah.needs-vocabulary-migration. {detail} carries the profile string the workbench declares, and this refusal is raised only for a revision the retired-name alias resolved, where a plainly unrecognized one is refused as unsupported-version instead.",
+      "source": "c3cc30091b4f8297"
+    },
+    "refusal.dinah.needs-vocabulary-migration.next": {
+      "text": "; führen Sie zuerst `dinah check --migrate-vocabulary` aus und öffnen Sie sie danach erneut",
+      "context": "Spliced onto refusal.dinah.needs-vocabulary-migration as the next step. The flag name dinah check --migrate-vocabulary is provisional pending dinah-287's own naming, and is updated in that card's commit if it settles on a different spelling.",
+      "source": "2d044b02d1cbb5c1"
+    },
+    "refusal.dinah.needs-vocabulary-migration.next-named": {
+      "text": "; führen Sie zuerst `dinah check --root {workbench} --migrate-vocabulary` aus und öffnen Sie sie danach erneut",
+      "context": "Spliced onto refusal.dinah.needs-vocabulary-migration as the next step wherever the head resolved which workbench the invocation was about, which covers every reader standing in one and every reader who named one with --workbench. {workbench} is the workbench directory, and naming it is what lets the reader run the repair from where he stands rather than from where the workbench is. The sibling entry without the flag is the alternation's unconditional last member, and no invocation renders it today. The command spelling is machine vocabulary and is not translated.",
+      "source": "1e012fe589abf690"
+    },
+    "refusal.dinah.needs-container-migration": {
+      "text": "Dinah öffnet {detail} nicht mehr, denn eine Werkbank lebt in einem .dinah-Container und diese tut es nicht",
+      "context": "The sentence printed after the refusal name dinah.needs-container-migration. {detail} carries the workbench directory the refusal was raised over.",
+      "source": "658a71835c2be723"
+    },
+    "refusal.dinah.needs-container-migration.next": {
+      "text": "; führen Sie `dinah check --root {detail} --migrate-container` aus, um sie in einen zu tragen, und öffnen Sie sie danach erneut",
+      "context": "Spliced onto refusal.dinah.needs-container-migration as the next step. It names the preview rather than the applied run, so the reader sees what the repair would move before he types the flag that moves it, which is what the other two sentences of this family already do. The command name is machine vocabulary and is not translated.",
+      "source": "b06c3e162e0a89c6"
+    },
+    "refusal.dinah.add-needs-a-column": {
+      "text": "dieser Werkbank ist keine Spalte geblieben, in der eine neue Karte angelegt werden könnte",
+      "context": "The sentence printed after the refusal name dinah.add-needs-a-column. {detail} is the workbench.md path Add read an empty live columns list from, since l.refuse carries no path of its own for the malformed.at/.fix splice to reach.",
+      "source": "9d3d069e9b698d0d"
+    },
+    "refusal.dinah.add-needs-a-column.next": {
+      "text": "; bearbeiten Sie {detail} von Hand, um der Spaltenliste eine Spalte hinzuzufügen und deren columns/<id>/column.md anzulegen, und führen Sie dann `dinah check` aus, um es zu bestätigen, bevor Sie `dinah add` erneut versuchen",
+      "context": "Spliced onto refusal.dinah.add-needs-a-column as the next step, carrying the clause that base entry used to end with. {detail} is the workbench.md path to hand-edit.",
+      "source": "fe71af28f4ee8805"
+    },
+    "refusal.dinah.add-needs-a-column.next-named": {
+      "text": "; bearbeiten Sie {detail} von Hand, um der Spaltenliste eine Spalte hinzuzufügen und deren columns/<id>/column.md anzulegen, und führen Sie dann `dinah check --workbench {workbench}` aus, um es zu bestätigen, bevor Sie `dinah add` erneut versuchen",
+      "context": "Spliced onto refusal.dinah.add-needs-a-column as the next step wherever a workbench was resolved for this invocation, which covers every reader standing in one and every reader who named one with --workbench from somewhere else. {workbench} is the workbench directory, and naming it is what lets the reader confirm the hand edit on the workbench he was filing into. {detail} is the workbench.md path to hand-edit. The sibling entry without the flag is the alternation's unconditional last member. The command spelling is machine vocabulary and is not translated.",
+      "source": "8a268bcc89e6b74f"
+    },
+    "refusal.dinah.multiple-words": {
+      "text": "Dinah hat {count} getrennte Wörter für {label} gelesen, und es nimmt nur eines an.",
+      "context": "Printed when an open-tail command (add, block, comment, config set) gets more than one unquoted word for its free-text slot. {count} is the number of words seen past the command's fixed arguments. {label} names the slot in plain language (\"the title\", \"the reason\", \"the comment\", \"the value\"). One of two fragments is spliced on: refusal.dinah.multiple-words.example when the free text carries no quotation mark, refusal.dinah.multiple-words.quote-yourself when it does.",
+      "source": "128b48464c00b2ba"
+    },
+    "refusal.dinah.multiple-words.example": {
+      "text": " Setzen Sie das Ganze in Anführungszeichen: {example}",
+      "context": "Spliced onto refusal.dinah.multiple-words when the free text carries no quotation mark, so wrapping it in double quotes reads back correctly verbatim in bash, cmd.exe and PowerShell alike. {example} is the command line rebuilt with the free text quoted.",
+      "source": "57501d3fdfd10489"
+    },
+    "refusal.dinah.multiple-words.quote-yourself": {
+      "text": " In diesem Text steht ein Anführungszeichen, setzen Sie das Ganze also selbst in Anführungszeichen. Keine von Dinah wiederaufgebaute Befehlszeile lässt sich in jeder Shell korrekt zurückkopieren, sobald der Text selbst eines enthält.",
+      "context": "Spliced onto refusal.dinah.multiple-words when the free text contains a literal quotation mark: which shell will read the pasted line back is undocumented and cannot be asked for, and bash, cmd.exe and PowerShell disagree on how to escape an embedded quote, so no single rebuilt example is correct in all three. The caller is asked to add the quoting themselves rather than being handed a line that is wrong somewhere.",
+      "source": "3e84c7bfc66c3155"
+    },
     "refusal.held": {
       "text": "{detail} hält diese Karte",
       "context": "The sentence printed after the refusal name held. {detail} carries the identifier, owner or column the refusal is about.",
@@ -2861,16 +2541,27 @@
       "context": "The sentence printed after the refusal name malformed. {detail} names the field or argument that failed.",
       "source": "33cc09c42e3e6dd8"
     },
+    "refusal.malformed.in-file": {
+      "text": ", in {file}",
+      "context": "Spliced onto refusal.malformed when the refusal carries a file: the definition file the reader named, whose contents will not parse.",
+      "source": "746638cc448d3d7c",
+      "verbatim": true
+    },
+    "refusal.malformed.next-file": {
+      "text": "; bearbeiten Sie {file} von Hand, um es zu korrigieren, und führen Sie den Befehl dann erneut aus",
+      "context": "Spliced onto refusal.malformed as the next step when the refusal carries a file. It names no dinah check, because the command that read the file created no workbench to check.",
+      "source": "334e0db39bf72c24"
+    },
+    "refusal.malformed.next": {
+      "text": "; schreiben Sie den Befehl als `dinah {usage}` und versuchen Sie es erneut",
+      "context": "Spliced onto refusal.malformed as the next step when the refusal names no file. {usage} is the syntax line of the command the reader typed.",
+      "source": "3f6e8eeca9be9f46"
+    },
     "refusal.malformed.at": {
       "text": ", in {path}",
       "context": "Spliced onto refusal.malformed when the refusal carries a path: the file the missing or broken field belongs to.",
       "source": "ef1414e25cbe0d27",
       "verbatim": true
-    },
-    "refusal.malformed.claimed-twice": {
-      "text": ", und {claimants} erklären es beide für {retired}",
-      "context": "Spliced onto refusal.malformed when a reshape's new definition has two columns claiming one retirement through replaces. {claimants} names both declaring columns and {retired} is the identifier they both claim.",
-      "source": "cd64a4362f1593ea"
     },
     "refusal.malformed.fix": {
       "text": "; bearbeiten Sie die Datei von Hand und fügen Sie es hinzu, und führen Sie dann `dinah check` aus, um es zu bestätigen",
@@ -2881,22 +2572,6 @@
       "text": "; bearbeiten Sie die Datei von Hand und fügen Sie es hinzu, und führen Sie dann `dinah check --workbench {workbench}` aus, um es zu bestätigen",
       "context": "Spliced onto refusal.malformed as the next step wherever a workbench was resolved for this invocation, which covers every reader standing in one and every reader who named one with --workbench from somewhere else. {workbench} is the workbench directory, and naming it is what lets the reader confirm the hand edit on the workbench whose file would not read. The workbench is attached by the raise site rather than by the head, so this repair renders exactly where the file path does and nowhere else. The sibling entry without the flag is the alternation's unconditional last member. The command spelling is machine vocabulary and is not translated.",
       "source": "fd0cab63edc2986b"
-    },
-    "refusal.malformed.in-file": {
-      "text": ", in {file}",
-      "context": "Spliced onto refusal.malformed when the refusal carries a file: the definition file the reader named, whose contents will not parse.",
-      "source": "746638cc448d3d7c",
-      "verbatim": true
-    },
-    "refusal.malformed.next": {
-      "text": "; schreiben Sie den Befehl als `dinah {usage}` und versuchen Sie es erneut",
-      "context": "Spliced onto refusal.malformed as the next step when the refusal names no file. {usage} is the syntax line of the command the reader typed.",
-      "source": "3f6e8eeca9be9f46"
-    },
-    "refusal.malformed.next-file": {
-      "text": "; bearbeiten Sie {file} von Hand, um es zu korrigieren, und führen Sie den Befehl dann erneut aus",
-      "context": "Spliced onto refusal.malformed as the next step when the refusal carries a file. It names no dinah check, because the command that read the file created no workbench to check.",
-      "source": "334e0db39bf72c24"
     },
     "refusal.malformed.reads-as-a-card-reference": {
       "text": "; Dinah liest {cardRef} als Kartenreferenz, daher darf ein Werkbank-Slug nicht auf einen Bindestrich und eine Zahl enden",
@@ -2953,6 +2628,11 @@
       "context": "The sentence printed after the refusal name not-holder. {detail} carries the identifier, owner or column the refusal is about.",
       "source": "e633dc835b572c4"
     },
+    "refusal.not-holder.unnamed": {
+      "text": "niemand hält diese Karte, es gibt also nichts freizugeben",
+      "context": "The sentence printed after the refusal name not-holder when nobody holds the card, in place of refusal.not-holder. Written for release, the one verb that raises this refusal.",
+      "source": "c483e1b28629f5b1"
+    },
     "refusal.not-holder.next": {
       "text": "; führen Sie `dinah whoami` aus, um zu sehen, für wen Dinah Sie hält, oder bitten Sie {detail}, sie freizugeben",
       "context": "Spliced onto refusal.not-holder as the next step when somebody else holds the card. {detail} is that owner.",
@@ -2962,11 +2642,6 @@
       "text": "; übernehmen Sie sie zuerst mit `dinah claim {card}`",
       "context": "Spliced onto refusal.not-holder.unnamed as the next step when nobody holds the card. {card} is the card reference the reader named.",
       "source": "ce774076daa92da9"
-    },
-    "refusal.not-holder.unnamed": {
-      "text": "niemand hält diese Karte, es gibt also nichts freizugeben",
-      "context": "The sentence printed after the refusal name not-holder when nobody holds the card, in place of refusal.not-holder. Written for release, the one verb that raises this refusal.",
-      "source": "c483e1b28629f5b1"
     },
     "refusal.not-operator": {
       "text": "diese Aktion ist dem Betreiber vorbehalten, und Sie sind {detail}",
@@ -3023,16 +2698,6 @@
       "context": "Printed under the columns refusal.unknown-column lists, on its own line and with no leading punctuation. {command} is the command the reader typed, because this refusal answers ls, move, add and next.",
       "source": "464b1380b274754"
     },
-    "refusal.unresolved-item": {
-      "text": "diese Karte trägt den Eintrag {detail}, der nicht aufgelöst ist",
-      "context": "The sentence printed after the refusal name unresolved-item. {detail} carries the identifier, owner or column the refusal is about.",
-      "source": "d0c5d88e34acb80f"
-    },
-    "refusal.unresolved-item.next": {
-      "text": "; beantworten Sie ihn und markieren Sie diesen Eintrag in checklist/{detail}/item.md als aufgelöst",
-      "context": "Spliced onto refusal.unresolved-item as the next step. {detail} is the item that is not resolved, and it names no command, because nothing in Dinah writes a checklist item yet and the edit is made in the file.",
-      "source": "42e653b228b5e733"
-    },
     "refusal.unsupported-version": {
       "text": "Dinah implementiert {detail} nicht",
       "context": "The sentence printed after the refusal name unsupported-version. {detail} carries the identifier, owner or column the refusal is about.",
@@ -3048,115 +2713,15 @@
       "context": "Spliced onto refusal.unsupported-version when the refusal names the window this build opens. {floor} and {ceiling} are profile revision identities such as `dinah-core 0.1`, and a translator moves them within the sentence without respelling them.",
       "source": "b5a194329eb77159"
     },
-    "reshape.applied": {
-      "text": "Diese Werkbank trägt nun die neue Form.",
-      "context": "The first line of a reshape that applied, printed where a preview prints the line saying nothing was written.",
-      "source": "700831486797af13"
-    },
-    "reshape.blocked": {
-      "text": "Blockiert übernommen: {cards}.",
-      "context": "One row of a reshape report, naming the carried cards that arrived still blocked, since a reshape carries a block through untouched.",
-      "source": "7c47d5d8cad54b8d"
-    },
-    "reshape.carry": {
-      "text": "{id} schickt seine Karten an {destination}. Karten: {count}.",
-      "context": "One row of a reshape report: where a retiring column's cards go and how many there are. A preview reads it as what would be carried and an applied run as what was.",
-      "source": "85240e720c94b31d"
-    },
-    "reshape.column.added": {
-      "text": "hinzugefügt {title} ({id})",
-      "context": "One row of a reshape report: a column the new definition adds.",
-      "source": "5fa39f8f1f982b95"
-    },
-    "reshape.column.adopted": {
-      "text": "ausgemustert {id}, eine Kennung, die diese Werkbank nicht mehr nennt",
-      "context": "One row of a reshape report: an identifier a --map entry adopted, which names no live column and so carries no title.",
-      "source": "257a8d8f28296182"
-    },
-    "reshape.column.kept": {
-      "text": "behalten {title} ({id})",
-      "context": "One row of a reshape report: a column the new definition keeps.",
-      "source": "98cc4236e6d825e9"
-    },
-    "reshape.column.retired": {
-      "text": "ausgemustert {title} ({id})",
-      "context": "One row of a reshape report: a live column the new definition drops.",
-      "source": "d60ab9a89eddc730"
-    },
-    "reshape.confirm": {
-      "text": "Führen Sie denselben Befehl erneut mit --yes aus, um ihn anzuwenden.",
-      "context": "The closing line of a reshape preview, naming the flag that carries the run out.",
-      "source": "d58f165d9534cfd3"
-    },
-    "reshape.empty": {
-      "text": "{id} wird ausgemustert, ohne dass eine Karte darin steht.",
-      "context": "One row of a reshape report: a retiring column nothing had to be carried out of.",
-      "source": "b21106442a0be2ab"
-    },
-    "reshape.partial": {
-      "text": "Dieser Lauf hatte bereits mit dem Schreiben begonnen, als er anhielt, daher steht diese Werkbank zwischen ihrer alten und ihrer neuen Form. Es folgt, was er geschrieben hat.",
-      "context": "The first line of a reshape that refused after its write phase had begun, printed where a preview prints the line saying nothing was written and an applied run prints the line saying the shape is on disk. The three openings are different because the three states are, and an operator who is told only which refusal stopped the run cannot tell a half-applied workbench from an untouched one.",
-      "source": "ae9fdb33e82336ba"
-    },
-    "reshape.preview": {
-      "text": "Es wurde nichts geschrieben. Dies ist, was ein Lauf mit --yes täte.",
-      "context": "The first line of a reshape preview, which says at the top that none of the page below has happened.",
-      "source": "d930604dbdecd792"
-    },
-    "reshape.retry": {
-      "text": "Beheben Sie, was die Ablehnung nennt, und führen Sie denselben Befehl mit derselben Quelle erneut aus. Die obigen Schritte werden beim zweiten Lauf übersprungen, und der Rest der Form wird geschrieben.",
-      "context": "The closing line of the report for a reshape that stopped part way through, which is what tells the operator the state is finishable and how. Every write-phase step is idempotent, so the second run does what the first did not.",
-      "source": "5ff52d499cdd5db9"
-    },
-    "reshape.stranded": {
-      "text": "Karten, die in einer Spalte stehen, die dieser Lauf nicht kennt: {count}. Führen Sie `dinah check` aus, um ihre Kennungen zu finden.",
-      "context": "The reshape report's line for cards standing in a column that is in neither the workbench's own sequence nor the new definition. The count is reported rather than the identifiers, because reshape diffs two column lists and `dinah check` is the command that walks every card.",
-      "source": "4d423d479fb37643"
-    },
-    "reshape.updated": {
-      "text": "Die neue Definition hat Spalte {id} geändert.",
-      "context": "One row of a reshape report: a kept column whose anchor the rewrite actually changed, which is what the run recorded a column_updated event for.",
-      "source": "21d7c7ccec3eea74"
-    },
-    "reshape.wrote.added": {
-      "text": "Von der neuen Definition ergänzte Spalten, nun geschrieben und im Fluss: {count}.",
-      "context": "One row of the report for a reshape that stopped part way through, counting the columns write-phase step one had already written.",
-      "source": "2552497602e0ea05"
-    },
-    "reshape.wrote.archived": {
-      "text": "Archivierte stillgelegte Spalten: {count}.",
-      "context": "One row of the report for a reshape that stopped part way through, counting the retiring columns the archive step had already put into the archive.",
-      "source": "79cb0ecdbbb92915"
-    },
-    "reshape.wrote.carried": {
-      "text": "Aus einer stillzulegenden Spalte übernommene Karten: {count}.",
-      "context": "One row of the report for a reshape that stopped part way through, counting the cards the carry had already moved to their destinations.",
-      "source": "6e230ff4563ae377"
-    },
-    "reshape.wrote.updated": {
-      "text": "Aus der neuen Definition neu geschriebene beibehaltene Spalten: {count}.",
-      "context": "One row of the report for a reshape that stopped part way through, counting the kept columns whose anchor the rewrite had already changed.",
-      "source": "cd228857426eace1"
-    },
-    "schema.basis.description": {
-      "text": "die Revision, die die letzte Antwort für diese Karte gemeldet hat; der Aufruf wird als veraltet abgelehnt, wenn die Karte sich seither weiterbewegt hat",
-      "context": "The description of the basis property, which the eight generated machine schemas that consume basis carry and no command declares.",
-      "source": "249351173cf9bde1"
-    },
-    "schema.workbench.description": {
-      "text": "das eigene Speicherverzeichnis der Werkbank, als absoluter Pfad; die Vorgabe des Servers, wenn weggelassen",
-      "context": "The description of the workbench property, which every generated machine schema carries except the workbenches tool, and which an MCP caller sets to reach a workbench other than the one the server started with.",
-      "source": "751c96238707e34c"
+    "show.comments": {
+      "text": "Kommentare:",
+      "context": "The label above a card's comments.",
+      "source": "14ee3017f3f55997"
     },
     "show.attachments": {
       "text": "Anhänge:",
       "context": "The label above a card's attachments, printed between the links block and the comments block.",
       "source": "8d37091c6b961261"
-    },
-    "show.comments": {
-      "text": "Kommentare:",
-      "context": "The label above a card's comments.",
-      "source": "14ee3017f3f55997"
     },
     "show.links": {
       "text": "Verknüpfungen:",
@@ -3173,25 +2738,30 @@
       "context": "The sentence printed under show.withheld, telling the reader how to be served a member that was held back. {reread} is the card's own reference. The flag spelling inside it is syntax and stays as it is.",
       "source": "f341fc582260bf03"
     },
-    "slot.comment": {
-      "text": "der Kommentar",
-      "context": "Names comment's free-text slot inside refusal.dinah.multiple-words, which reads it as {label}.",
-      "source": "8cd9876f2cd76701"
-    },
     "slot.query": {
       "text": "die Abfrage",
       "context": "Names query's free-text slot inside refusal.dinah.multiple-words, which reads it as {label}.",
       "source": "2f5a4f9465d51bf0"
+    },
+    "slug.missing": {
+      "text": "kein Slug (führen Sie check --migrate-slugs aus)",
+      "context": "The placeholder a human-rendered listing shows in a slug column for a column or workbench carrying none, naming the repair rather than padding an empty string.",
+      "source": "1b5adbf3e777514f"
+    },
+    "slot.title": {
+      "text": "der Titel",
+      "context": "Names add's free-text slot inside refusal.dinah.multiple-words, which reads it as {label}.",
+      "source": "792bdba4f2176042"
     },
     "slot.reason": {
       "text": "der Grund",
       "context": "Names block's free-text slot inside refusal.dinah.multiple-words, which reads it as {label}.",
       "source": "2598201234648428"
     },
-    "slot.title": {
-      "text": "der Titel",
-      "context": "Names add's free-text slot inside refusal.dinah.multiple-words, which reads it as {label}.",
-      "source": "792bdba4f2176042"
+    "slot.comment": {
+      "text": "der Kommentar",
+      "context": "Names comment's free-text slot inside refusal.dinah.multiple-words, which reads it as {label}.",
+      "source": "8cd9876f2cd76701"
     },
     "slot.value": {
       "text": "der Wert",
@@ -3202,11 +2772,6 @@
       "text": "der Name",
       "context": "Names rename's free-text slot inside refusal.dinah.multiple-words, which reads it as {label}.",
       "source": "2222c8b5d2f36b0f"
-    },
-    "slug.missing": {
-      "text": "kein Slug (führen Sie check --migrate-slugs aus)",
-      "context": "The placeholder a human-rendered listing shows in a slug column for a column or workbench carrying none, naming the repair rather than padding an empty string.",
-      "source": "1b5adbf3e777514f"
     },
     "columns.moved-by.agent": {
       "text": "Agent",
@@ -3431,47 +2996,6 @@
       "context": "The word a person reads for the workstream_updated journal event.",
       "source": "4e2dfd38be444dff"
     },
-    "tool.workbenches.summary": {
-      "text": "die Werkbänke, die dieser Server bereitstellen darf",
-      "context": "The one-line summary of the workbenches tool, shown beside its name in the MCP surface. Overrides the command's own summary, which reads about reachability from here and is false on a server bounded by a root, and is now a partial rather than a false answer on a server with no root at all, when a default is being served (dinah-301): the one row it carries is real, but the tool cannot promise it is the only workbench this server may serve.",
-      "source": "e803d837439b3c74"
-    },
-    "tree.empty": {
-      "text": "Keine Karten hier.",
-      "context": "Printed when a tree has no card in it at all, so nothing is drawn beneath the sentence above it.",
-      "source": "e3bcc853e3228d2d"
-    },
-    "tree.header": {
-      "text": "{title} ({ref}) hält {count} Karten.",
-      "context": "The sentence above the tree `dinah tree` prints, naming the workbench the tree was built from. {title} is the workbench's title, {ref} its slug, and {count} how many cards it holds. The table starts at this node's children, so no row repeats it.",
-      "source": "934a792d61c11979"
-    },
-    "tree.header.filtered": {
-      "text": "{title} ({ref}) hält {held} Karten, von denen {matched} auf die Abfrage passen.",
-      "context": "The sentence above the tree `dinah tree` prints when a query narrowed it. {held} is how many cards the workbench holds and {matched} how many the query selected, so the two numbers are always the larger and then the smaller.",
-      "source": "9f00f2c0e6308ef1"
-    },
-    "tree.hidden.depth": {
-      "text": "{count} nicht gezeigt",
-      "context": "The Not shown cell on a node whose own children the depth did not draw. {count} is how many of its direct children were left out, which is not the same number as the subjects those children hold; the Count column beside it already carries those.",
-      "source": "604b52258d523e8c"
-    },
-    "tree.hidden.filter": {
-      "text": "{count} herausgefiltert",
-      "context": "The Not shown cell on a node the query removed cards from. {count} is how many cards at or below this node the query left out.",
-      "source": "f417554377f4c9d7"
-    },
-    "tree.hidden.join": {
-      "text": "{first}, {second}",
-      "context": "Joins the two halves of a Not shown cell on a node that is holding something back for both reasons at once. {first} is the depth's account and {second} the query's.",
-      "source": "86da02c677b5c51b",
-      "verbatim": true
-    },
-    "tree.unset": {
-      "text": "(kein Wert)",
-      "context": "The label on the group holding the cards that carry no value at all on the axis. It is drawn in the Reference column, where every other group row carries the value it gathered at.",
-      "source": "199f98480ae8cbac"
-    },
     "version.catalogs": {
       "text": "Kataloge:",
       "context": "The label above the shipped locales and their coverage.",
@@ -3528,6 +3052,537 @@
       "text": "diese Werkbank trägt keinen Arbeitsstrang",
       "context": "Printed by the workstream command when the workbench carries none, in place of an empty table.",
       "source": "7d1a4aa9199e6ddf"
+    },
+    "help.arguments": {
+      "text": "Was Sie schreiben dürfen:",
+      "context": "Heading over the arguments table of one command's help page, which says how each argument is spelled and what it is.",
+      "source": "bda56dd7c6ff3d50"
+    },
+    "help.guide": {
+      "text": "Mehr dazu mit `dinah guide {topic}`.",
+      "context": "The closing line of a command's help page, pointing at the guide that explains that command's argument language. {topic} is the guide's topic name, which is machine vocabulary and is never translated.",
+      "source": "7d9ca5bd5b7994bd"
+    },
+    "help.vocabulary": {
+      "text": "{summary} (eines von: {values})",
+      "context": "One argument's meaning followed by the closed set of values it accepts. {summary} is the argument's own sentence and {values} is the members separated by commas. The members are machine vocabulary and are never translated.",
+      "source": "69c6e2cfea9de173"
+    },
+    "column.arguments.argument": {
+      "text": "So schreiben Sie es",
+      "context": "Heading over how each argument is spelled, in the arguments table one command's help page prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it.",
+      "source": "95f57e2357251202"
+    },
+    "column.arguments.what": {
+      "text": "Was es ist",
+      "context": "Heading over what each argument means, in the arguments table one command's help page prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it.",
+      "source": "13ab62950a6c39c0"
+    },
+    "cmd.check.note": {
+      "text": "Dinah beendet sich mit 2, wenn ein Mangel gefunden wird, sodass ein Skript allein den Exit-Code lesen kann.",
+      "context": "A paragraph under the summary of `dinah help check`, for a command whose exit code cannot be read off its list of refusals.",
+      "source": "8d52837d1182ee6b"
+    },
+    "schema.basis.description": {
+      "text": "die Revision, die die letzte Antwort für diese Karte gemeldet hat; der Aufruf wird als veraltet abgelehnt, wenn die Karte sich seither weiterbewegt hat",
+      "context": "The description of the basis property, which the eight generated machine schemas that consume basis carry and no command declares.",
+      "source": "249351173cf9bde1"
+    },
+    "schema.workbench.description": {
+      "text": "das eigene Speicherverzeichnis der Werkbank, als absoluter Pfad; die Vorgabe des Servers, wenn weggelassen",
+      "context": "The description of the workbench property, which every generated machine schema carries except the workbenches tool, and which an MCP caller sets to reach a workbench other than the one the server started with.",
+      "source": "751c96238707e34c"
+    },
+    "param.card.summary": {
+      "text": "die Karte, auf die Sie einwirken, geschrieben als ihre Referenz, etwa wb-1",
+      "context": "The meaning of the card argument, shared by every command that takes a card and nothing else.",
+      "source": "16824e77ab43d6e4"
+    },
+    "param.ref.summary": {
+      "text": "eine Spalte, eine Karte oder etwas unterhalb einer Karte wie wb-1/comments/1; nicht diese Werkbank",
+      "context": "The meaning of the ref argument of archive and delete, which take the same set of things.",
+      "source": "3f739e20c1af8b82"
+    },
+    "param.yes.summary": {
+      "text": "die Aktion bestätigen, die Dinah ohne sie nicht ausführt",
+      "context": "The meaning of the --yes flag, shared by the commands that ask before they destroy something.",
+      "source": "28bafe0212ebfc9f"
+    },
+    "param.add.title.summary": {
+      "text": "der Titel der Karte, in einem Shell-Wort oder in Anführungszeichen",
+      "context": "The meaning of the title argument of `dinah add`, printed in that command's arguments table.",
+      "source": "a9fc1e128fcf0249"
+    },
+    "param.add.column.summary": {
+      "text": "in welcher Spalte die Karte angelegt wird; die erste Spalte, wenn Sie keine nennen",
+      "context": "The meaning of the column argument of `dinah add`, printed in that command's arguments table.",
+      "source": "ec724e9c659389c3"
+    },
+    "param.attach.ref.summary": {
+      "text": "woran die Datei hängt: diese Werkbank, eine Spalte, eine Karte oder ein Kommentar oder Anhang unterhalb einer Karte; mit --replace der Anhang, dessen Bytes Sie ersetzen",
+      "context": "The meaning of the ref argument of `dinah attach`, printed in that command's arguments table.",
+      "source": "dc3ef09df80df2e1"
+    },
+    "param.attach.file.summary": {
+      "text": "ein Pfad auf diesem Rechner zu der Datei, die Sie anhängen",
+      "context": "The meaning of the file argument of `dinah attach`, printed in that command's arguments table.",
+      "source": "c785f7b1c25ff803"
+    },
+    "param.attach.description.summary": {
+      "text": "eine Zeile, die den Anhang beschreibt und daneben gespeichert wird",
+      "context": "The meaning of the description argument of `dinah attach`, printed in that command's arguments table.",
+      "source": "42a79770cb6b51a8"
+    },
+    "param.attach.replace.summary": {
+      "text": "die Bytes eines bestehenden Anhangs ersetzen, statt einen hinzuzufügen",
+      "context": "The meaning of the replace argument of `dinah attach`, printed in that command's arguments table.",
+      "source": "5fd589a8f6ec16f5"
+    },
+    "param.block.card.summary": {
+      "text": "die Karte, die Sie blockieren",
+      "context": "The meaning of the card argument of `dinah block`, printed in that command's arguments table.",
+      "source": "67878506bfeb475a"
+    },
+    "param.block.reason.summary": {
+      "text": "warum sie blockiert ist, in einem Shell-Wort oder in Anführungszeichen",
+      "context": "The meaning of the reason argument of `dinah block`, printed in that command's arguments table.",
+      "source": "a09cc9de23cc48f5"
+    },
+    "param.block.kind.summary": {
+      "text": "Ihr eigenes Wort dafür, was für ein Hindernis das ist; Dinah speichert, was Sie schreiben, und prüft es gegen keine Menge",
+      "context": "The meaning of the kind argument of `dinah block`, printed in that command's arguments table.",
+      "source": "e25acbd2f8a5d4ff"
+    },
+    "param.check.finish.summary": {
+      "text": "eine unterbrochene strukturelle Aktion abschließen oder zurücknehmen",
+      "context": "The meaning of the finish argument of `dinah check`, printed in that command's arguments table.",
+      "source": "cbc4ff1646862f6d"
+    },
+    "param.check.migrate-ordinals.summary": {
+      "text": "jeder Einheit ohne Erstellungs-Ordnungszahl eine aufstempeln",
+      "context": "The meaning of the migrate-ordinals argument of `dinah check`, printed in that command's arguments table.",
+      "source": "afb87b206222d764"
+    },
+    "param.check.migrate-slugs.summary": {
+      "text": "für jede Spalte dieser Werkbank ohne Slug einen ableiten",
+      "context": "The meaning of the migrate-slugs argument of `dinah check`, printed in that command's arguments table.",
+      "source": "d20e1be96184e474"
+    },
+    "param.check.migrate-columns.summary": {
+      "text": "verwaiste Bezeichner aus der Spaltenliste dieser Werkbank entfernen",
+      "context": "The meaning of the migrate-columns argument of `dinah check`, printed in that command's arguments table.",
+      "source": "2a383b2471db9773"
+    },
+    "param.check.migrate-container.summary": {
+      "text": "diese Werkbank in einen .dinah-Container unter einem von Dinah geprägten Bezeichner tragen, oder jede Werkbank unterhalb von --root",
+      "context": "The one-line summary of the check command flag --migrate-container, printed by `dinah help check`.",
+      "source": "26ead382b2d32a9a"
+    },
+    "param.check.migrate-workstreams.summary": {
+      "text": "jeden von einer Karte genannten Arbeitsstrang übernehmen, den diese Werkbank nicht führt",
+      "context": "The meaning of the migrate-workstreams argument of `dinah check`, printed in that command's arguments table.",
+      "source": "a1f0e6c7ae6251db"
+    },
+    "param.check.remint.summary": {
+      "text": "der Werkbank an diesem Pfad einen frischen Bezeichner geben",
+      "context": "The one-line summary of the check command flag --remint, printed by `dinah help check`. The flag takes one directory path.",
+      "source": "1d1a5352f959b7ee"
+    },
+    "param.check.witness.summary": {
+      "text": "auf jeder Karte, deren Position von Hand bearbeitet wurde, eine manuelle Korrektur festhalten",
+      "context": "The meaning of the witness argument of `dinah check`, printed in that command's arguments table.",
+      "source": "2e69c6123b25a380"
+    },
+    "param.claim.card.summary": {
+      "text": "die Karte, die Sie übernehmen",
+      "context": "The meaning of the card argument of `dinah claim`, printed in that command's arguments table.",
+      "source": "f4ee694607d7c58a"
+    },
+    "param.claim.expires.summary": {
+      "text": "wie lange Ihr Anspruch hält, bevor er veraltet, geschrieben als Zahl und Einheit: 30m, 2h, 7d",
+      "context": "The meaning of the expires argument of `dinah claim`, printed in that command's arguments table.",
+      "source": "89b79368080416a1"
+    },
+    "param.claim.tier.summary": {
+      "text": "die Stufe, die Sie zu sein angeben, auf Treu und Glauben genommen und nie geprüft; nur was die Karte selbst verlangt, kann Sie abweisen, nie der Standardwert einer Spalte",
+      "context": "The meaning of the tier argument of `dinah claim`, printed in that command's arguments table. It carries two limits a caller has to meet before relying on the gate: Dinah has no server and no credential, so a declared tier is self-reported, and a column's tier default never refuses a claim by itself.",
+      "source": "e8a2c1ca4550bdd7"
+    },
+    "param.comment.text.summary": {
+      "text": "der Kommentar, in einem Shell-Wort oder in Anführungszeichen; ein einzelnes - liest ihn aus einer Pipe",
+      "context": "The meaning of the text argument of `dinah comment`, printed in that command's arguments table.",
+      "source": "a4772e5498d84e38"
+    },
+    "param.config.action.summary": {
+      "text": "eine Einstellung lesen oder eine schreiben; jede Einstellung mit ihrem Wert, wenn Sie keine nennen",
+      "context": "The meaning of the action argument of `dinah config`, printed in that command's arguments table.",
+      "source": "b96f6ad99e0d9df4"
+    },
+    "param.config.key.summary": {
+      "text": "welche Einstellung Sie lesen oder schreiben",
+      "context": "The meaning of the key argument of `dinah config`, printed in that command's arguments table.",
+      "source": "e8f16a23fba9ca7c"
+    },
+    "param.config.value.summary": {
+      "text": "was darunter gespeichert wird, bei einem set",
+      "context": "The meaning of the value argument of `dinah config`, printed in that command's arguments table.",
+      "source": "e78a40bd1e5b6d62"
+    },
+    "param.edit.card.summary": {
+      "text": "diese Werkbank, geschrieben als `workbench` oder `.`, eine Karte oder etwas unterhalb einer Karte wie wb-1/comments/1",
+      "context": "The meaning of the card argument of `dinah edit`, printed in that command's arguments table.",
+      "source": "1795aa1c0605796a"
+    },
+    "param.extract.dir.summary": {
+      "text": "wohin die Definition dieser Werkbank geschrieben wird",
+      "context": "The meaning of the dir argument of `dinah extract`, printed in that command's arguments table.",
+      "source": "af37615ebb4deabe"
+    },
+    "param.guide.topic.summary": {
+      "text": "welchen Leitfaden Sie lesen; die Themen, wenn Sie keinen nennen",
+      "context": "The meaning of the topic argument of `dinah guide`, printed in that command's arguments table.",
+      "source": "7344a21df5369cc5"
+    },
+    "param.help.command.summary": {
+      "text": "der Befehl, dessen Seite Sie möchten",
+      "context": "The meaning of the command argument of `dinah help`, printed in that command's arguments table.",
+      "source": "f79c3572838d2317"
+    },
+    "param.init.dir.summary": {
+      "text": "wo die Werkbank angelegt wird; das Verzeichnis, in dem Sie stehen, wenn Sie keines nennen",
+      "context": "The meaning of the dir argument of `dinah init`, printed in that command's arguments table.",
+      "source": "1328685eec647b56"
+    },
+    "param.init.from.summary": {
+      "text": "ein Verzeichnis mit einer Werkbank oder eine einzelne Datei, geschrieben von `dinah export` oder `dinah extract`",
+      "context": "The meaning of the from argument of `dinah init`, printed in that command's arguments table.",
+      "source": "a63072636c4c6fae"
+    },
+    "param.init.slug.summary": {
+      "text": "das Präfix, das jede Kartenreferenz trägt; abgeleitet aus dem Namen des Verzeichnisses, wenn Sie keines nennen",
+      "context": "The meaning of the slug argument of `dinah init`, printed in that command's arguments table.",
+      "source": "fd8f41676a091f46"
+    },
+    "param.init.operator.summary": {
+      "text": "wem diese Werkbank gehört; Ihr eigener Akteur, wenn Sie keinen nennen",
+      "context": "The meaning of the operator argument of `dinah init`, printed in that command's arguments table.",
+      "source": "1a8a5d6cfd7ce9c4"
+    },
+    "param.instructions.card.summary": {
+      "text": "eine Karte oder eine Spalte; instructions nimmt weder diese Werkbank noch etwas unterhalb einer Karte",
+      "context": "The meaning of the card argument of `dinah instructions`, printed in that command's arguments table.",
+      "source": "1e52ce94a75a3b5d"
+    },
+    "param.ls.column.summary": {
+      "text": "welche Spalte aufgelistet wird, auch geschrieben --column <Spalte>; jede Spalte, wenn Sie keine nennen",
+      "context": "The meaning of the column argument of `dinah ls`, printed in that command's arguments table.",
+      "source": "8f967e423be24761"
+    },
+    "param.ls.ready.summary": {
+      "text": "nur die Karten auflisten, die zur Übernahme bereit sind",
+      "context": "The meaning of the ready argument of `dinah ls`, printed in that command's arguments table.",
+      "source": "36fbc940df2d68dc"
+    },
+    "param.move.column.summary": {
+      "text": "in welche Spalte die Karte getragen wird, auch geschrieben --column <Spalte>",
+      "context": "The meaning of the column argument of `dinah move`, printed in that command's arguments table.",
+      "source": "74a12fa4cdbfa7a6"
+    },
+    "param.move.override.summary": {
+      "text": "die Karte auch dann tragen, wenn der Ablauf keinen solchen Zug anbietet",
+      "context": "The meaning of the override argument of `dinah move`, printed in that command's arguments table.",
+      "source": "9092656657c61845"
+    },
+    "param.mcp.root.summary": {
+      "text": "Verzeichnis, unterhalb dessen jede Werkbank liegt, die dieser Server bereitstellt; die beim Start entdeckte Werkbank, wenn Sie kein Verzeichnis nennen",
+      "context": "The meaning of the --root argument of `dinah mcp`, printed in that command's arguments table.",
+      "source": "b4a7679728c79e03"
+    },
+    "param.next.column.summary": {
+      "text": "aus welcher Spalte eine Karte angeboten wird, auch geschrieben --column <Spalte>; jede Spalte, wenn Sie keine nennen",
+      "context": "The meaning of the column argument of `dinah next`, printed in that command's arguments table.",
+      "source": "5d2227204b4f58f2"
+    },
+    "param.pull.column.summary": {
+      "text": "in welche Spalte eine Karte gezogen wird; die eine in Frage kommende Spalte, wenn Sie keine nennen, abgelehnt, wenn mehr als eine in Frage kommt",
+      "context": "The meaning of the column argument of `dinah pull`, printed in that command's arguments table.",
+      "source": "70515ce655b60819"
+    },
+    "param.pull.no-claim.summary": {
+      "text": "die Karte verschieben, ohne sie zu beanspruchen; sie bleibt dort bereit für den Nächsten, der sie nimmt",
+      "context": "The meaning of the --no-claim flag of `dinah pull`, printed in that command's arguments table.",
+      "source": "499768e843c3fab2"
+    },
+    "param.pull.expires.summary": {
+      "text": "wie lange Ihr Anspruch hält, bevor er veraltet, geschrieben als Zahl und Einheit: 30m, 2h, 7d; ohne Angabe hält er, bis Sie die Karte freigeben",
+      "context": "The meaning of the --expires flag of `dinah pull`, printed in that command's arguments table.",
+      "source": "e22a8531617af968"
+    },
+    "param.pull.override.summary": {
+      "text": "den Betreiber in eine Spalte an ihrer Grenze ziehen lassen; für alle anderen verweigert",
+      "context": "The meaning of the --override flag of `dinah pull`, printed in that command's arguments table.",
+      "source": "efbd0444a56459fb"
+    },
+    "param.path.card.summary": {
+      "text": "diese Werkbank, geschrieben als `workbench` oder `.`, eine Karte oder etwas unterhalb einer Karte wie wb-1/comments/1",
+      "context": "The meaning of the card argument of `dinah path`, printed in that command's arguments table.",
+      "source": "1795aa1c0605796a"
+    },
+    "param.query.query.summary": {
+      "text": "die Abfrage, in einem Shell-Wort oder in Anführungszeichen; jede lebende Karte, wenn Sie keine schreiben",
+      "context": "The meaning of the query argument of `dinah query`, printed in that command's arguments table.",
+      "source": "7a5c1bae3ca79f81"
+    },
+    "param.show.card.summary": {
+      "text": "ein Zustand, eine Karte oder etwas unterhalb einer Karte wie wb-1/comments/1; show nimmt diese Werkbank nicht",
+      "context": "The meaning of the card argument of `dinah show`, printed in that command's arguments table.",
+      "source": "e5e44cefcd5c33f0"
+    },
+    "param.show.fields.summary": {
+      "text": "welche Bestandteile der Karte die Antwort führt, als kommagetrennte Liste geschrieben; alle Bestandteile, wenn Sie keinen nennen",
+      "context": "The meaning of the fields argument of `dinah show`, printed in that command's arguments table. The table appends the closed set of member names after this sentence, read off the tool, so the sentence does not spell the set itself.",
+      "source": "d9fd26ca9e82957c"
+    },
+    "param.version.catalogs.summary": {
+      "text": "jede mitgelieferte Sprache melden und wie weit sie übersetzt ist",
+      "context": "The meaning of the catalogs argument of `dinah version`, printed in that command's arguments table.",
+      "source": "c1016c1ef09e7a7d"
+    },
+    "param.workbench.action.summary": {
+      "text": "ein Feld lesen oder eines schreiben; jedes Feld mit seinem Wert, wenn Sie keines nennen",
+      "context": "The meaning of the action argument of `dinah workbench`, printed in that command's arguments table.",
+      "source": "937419efc33a8cdc"
+    },
+    "param.workbench.field.summary": {
+      "text": "welches Feld Sie lesen oder schreiben",
+      "context": "The meaning of the field argument of `dinah workbench`, printed in that command's arguments table.",
+      "source": "38f99b89450cab4c"
+    },
+    "param.workbench.value.summary": {
+      "text": "was darin gespeichert wird, bei einem set",
+      "context": "The meaning of the value argument of `dinah workbench`, printed in that command's arguments table.",
+      "source": "227d7c26bf3fe47f"
+    },
+    "param.workstream.action.summary": {
+      "text": "einen Arbeitsstrang anlegen, einen lesen oder eines seiner Felder schreiben; jeden Arbeitsstrang, wenn Sie keinen nennen",
+      "context": "The meaning of the action argument of `dinah workstream`, printed in that command's arguments table.",
+      "source": "21685a314507b306"
+    },
+    "param.workstream.field.summary": {
+      "text": "welches Feld Sie lesen oder schreiben",
+      "context": "The meaning of the field argument of `dinah workstream`, printed in that command's arguments table.",
+      "source": "38f99b89450cab4c"
+    },
+    "param.workstream.slug.summary": {
+      "text": "mit welchem Slug der Arbeitsstrang angelegt wird, anstelle eines aus seinem Titel abgeleiteten",
+      "context": "The meaning of the slug argument of `dinah workstream`, printed in that command's arguments table.",
+      "source": "5b716c838dbd0efe"
+    },
+    "param.workstream.summary": {
+      "text": "der Arbeitsstrang, den Sie nennen, geschrieben als sein Slug oder sein Bezeichner",
+      "context": "The meaning of the workstream argument, shared by the commands that name one.",
+      "source": "6e4010bcd3c3b66c"
+    },
+    "param.workstream.value.summary": {
+      "text": "was darin gespeichert wird, bei einem set",
+      "context": "The meaning of the value argument of `dinah workstream`, printed in that command's arguments table.",
+      "source": "227d7c26bf3fe47f"
+    },
+    "param.workstream.workstream.summary": {
+      "text": "der Arbeitsstrang, den Sie lesen oder schreiben, oder der Titel des Arbeitsstrangs, den Sie anlegen",
+      "context": "The meaning of the workstream argument of `dinah workstream`, printed in that command's arguments table.",
+      "source": "7670387210ff58cf"
+    },
+    "check.contents.1": {
+      "text": "die Referenz nennt etwas in dieser Werkbank",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "8aa86f2d95ed91c9"
+    },
+    "check.contents.2": {
+      "text": "die Tiefenstufe ist eine, die dieser Befehl kennt",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "9f7fb892144ebc7d"
+    },
+    "check.tree.1": {
+      "text": "jede genannte Achse ist eine gruppierbare",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "39962089ddf8e1bb"
+    },
+    "check.tree.2": {
+      "text": "keine Achse wird zweimal genannt",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "3abc9c0559589da0"
+    },
+    "check.tree.3": {
+      "text": "die Kette nennt höchstens vier Achsen",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "257bb76a28ccef1c"
+    },
+    "check.tree.4": {
+      "text": "die Tiefenstufe ist eine, die dieser Befehl kennt",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "9f7fb892144ebc7d"
+    },
+    "cmd.attachments.summary": {
+      "text": "Was an einer Einheit der Werkbank hängt",
+      "context": "The one-line summary of the attachments command, shown beside its syntax in the help block.",
+      "source": "8d731c6126a2b24d"
+    },
+    "cmd.contents.summary": {
+      "text": "Was eine Einheit der Werkbank enthält",
+      "context": "The one-line summary of the contents command, shown beside its syntax in the help block.",
+      "source": "f6a076421f668675"
+    },
+    "cmd.tree.summary": {
+      "text": "Die Karten der Werkbank, verschachtelt entlang einer Achsenkette",
+      "context": "The one-line summary of the tree command, shown beside its syntax in the help block.",
+      "source": "978852122039d8b6"
+    },
+    "column.tree.count": {
+      "text": "Anzahl",
+      "context": "Heading over how many subjects a node accounts for. A card row under `dinah tree` carries nothing here, since a card is one card. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "source": "71a5c9f4b68ef4d4"
+    },
+    "column.tree.entity": {
+      "text": "Einheit",
+      "context": "Heading over what a node is: an entity kind on an entity row, and the axis the group gathered on a group row. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "source": "757a4c2248c0b9da"
+    },
+    "column.tree.hidden": {
+      "text": "Nicht gezeigt",
+      "context": "Heading over what a node is holding back. The whole column is dropped when no row fills it. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "source": "5b65d2a20b1e0477"
+    },
+    "column.tree.reference": {
+      "text": "Referenz",
+      "context": "Heading over what a person types to reach a node, in the tree both `dinah tree` and `dinah contents` print. On a group row the cell carries the value the group gathered at, which nothing addresses, and the Entity cell beside it says so. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "source": "fe88d270aa3e71da"
+    },
+    "column.tree.title": {
+      "text": "Titel",
+      "context": "Heading over an entity's own title in the tree both tree commands print. A group row carries nothing here. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "source": "99f110d27e30b289"
+    },
+    "contents.empty": {
+      "text": "{title} ({ref}) enthält nichts.",
+      "context": "Printed when `dinah contents` is asked about an entity with nothing below it. No table follows, and the call succeeds: an entity that contains nothing is an answer rather than a mistake.",
+      "source": "2b7896241257de2d"
+    },
+    "contents.header": {
+      "text": "{title} ({ref}) enthält {count} Einheiten.",
+      "context": "The sentence above the tree `dinah contents` prints, naming the entity the walk started from. {count} is how many entities sit below it, at every depth and not only the ones drawn.",
+      "source": "fbbebbe584d94da8"
+    },
+    "param.attachments.ref.summary": {
+      "text": "diese Werkbank, geschrieben als `workbench` oder `.`, eine Spalte, eine Karte oder ein Kommentar wie wb-1/comments/1; diese Werkbank, wenn Sie keine nennen",
+      "context": "The meaning of the ref argument of `dinah attachments`, printed in that command's arguments table. attachments writes its own sentence rather than taking the shared one, because the shared sentence ends \"not this workbench\" and the workbench is one of the entities this read is asked about.",
+      "source": "a2f398d58994dc1"
+    },
+    "param.contents.depth.summary": {
+      "text": "wie tief gezeichnet wird, geschrieben als root, cards, entities oder all; entities, wenn Sie keine nennen",
+      "context": "The meaning of the depth argument of `dinah contents`, printed in that command's arguments table.",
+      "source": "a52db472a25cc33a"
+    },
+    "param.contents.ref.summary": {
+      "text": "diese Werkbank, geschrieben als `workbench` oder `.`, eine Spalte, eine Karte oder etwas unterhalb einer Karte wie wb-1/comments/1",
+      "context": "The meaning of the ref argument of `dinah contents`, printed in that command's arguments table. contents writes its own sentence rather than taking the shared one, because the shared sentence ends \"not this workbench\" and the workbench is the reference contents is most often given.",
+      "source": "4e3252343e38263"
+    },
+    "param.tree.depth.summary": {
+      "text": "wie tief gezeichnet wird, geschrieben als root, groups oder cards; cards, wenn Sie keine nennen",
+      "context": "The meaning of the depth argument of `dinah tree`, printed in that command's arguments table.",
+      "source": "c49a3ef1d0a76760"
+    },
+    "param.tree.group-by.summary": {
+      "text": "die Achsen zum Verschachteln, äußerste zuerst, bis zu vier, durch Kommas getrennt; column,state, wenn Sie keine nennen",
+      "context": "The meaning of the group-by argument of `dinah tree`, printed in that command's arguments table. The axis names themselves are machine vocabulary and are never translated.",
+      "source": "604cde91c2a17d5e"
+    },
+    "param.tree.query.summary": {
+      "text": "welche Karten verschachtelt werden, geschrieben als Abfrage in einem Shell-Wort oder in Anführungszeichen; jede lebende Karte, wenn Sie keine schreiben",
+      "context": "The meaning of the query argument of `dinah tree`, printed in that command's arguments table. tree reads the same query language `dinah query` reads.",
+      "source": "a5a5e862482edacf"
+    },
+    "refusal.dinah.chain-too-long": {
+      "text": "Eine Gruppierungskette verschachtelt entlang höchstens {allowed} Achsen, und diese nennt {asked}.",
+      "context": "The sentence printed after the refusal name dinah.chain-too-long. {asked} is how many axes the reader named and {allowed} how many the command takes. This sentence names no axis at all, because every axis in the chain may be a legal one. refusal.dinah.chain-too-long.next is spliced on after this one.",
+      "source": "7b4984e61fe5ed68"
+    },
+    "refusal.dinah.chain-too-long.next": {
+      "text": " Kürzen Sie die Kette, oder führen Sie `dinah help tree` aus, um zu sehen, was der Befehl prüft.",
+      "context": "The next step of refusal.dinah.chain-too-long. The command line inside it is syntax and stays as it is.",
+      "source": "3cefbb96f58668d4"
+    },
+    "refusal.dinah.repeated-axis": {
+      "text": "Eine Gruppierungskette nennt jede Achse einmal, und diese nennt {detail} zweimal.",
+      "context": "The sentence printed after the refusal name dinah.repeated-axis. {detail} is the axis the reader typed twice. This sentence lists no axes, because the one it names is already a legal one and listing them would say so twice. refusal.dinah.repeated-axis.next is spliced on after this one.",
+      "source": "16449136fb302e51"
+    },
+    "refusal.dinah.repeated-axis.next": {
+      "text": " Entfernen Sie die Wiederholung, oder führen Sie `dinah help tree` aus, um zu sehen, was der Befehl prüft.",
+      "context": "The next step of refusal.dinah.repeated-axis. The command line inside it is syntax and stays as it is.",
+      "source": "bf9ceea7dc013c6d"
+    },
+    "refusal.dinah.unknown-axis": {
+      "text": "Dinah gruppiert nicht nach {detail}. Die Achsen, entlang derer ein Baum verschachteln darf, sind: {axes}.",
+      "context": "The sentence printed after the refusal name dinah.unknown-axis, which a group-by chain naming a word this tool does not group on carries. {detail} is the word the reader typed. {axes} is the list of legal axis names, read off the tool's own table rather than written here, so an axis name is machine vocabulary and is never translated. refusal.dinah.unknown-axis.next is spliced on after this one.",
+      "source": "b94119a1afee6b38"
+    },
+    "refusal.dinah.unknown-axis.next": {
+      "text": " Nennen Sie stattdessen eine davon, oder führen Sie `dinah help tree` aus, um zu sehen, was der Befehl prüft.",
+      "context": "The next step of refusal.dinah.unknown-axis. The command line inside it is syntax and stays as it is.",
+      "source": "1bf020aaf7e01508"
+    },
+    "refusal.dinah.unknown-depth": {
+      "text": "Dinah hat für diesen Befehl keine Tiefenstufe {detail}. Die Stufen, die er nimmt, sind: {levels}.",
+      "context": "The sentence printed after the refusal name dinah.unknown-depth. {detail} is the level the reader typed. {levels} is the ladder of the command that refused rather than the union of both ladders, read off the tool's own table, so a level name is machine vocabulary and is never translated. refusal.dinah.unknown-depth.next is spliced on after this one.",
+      "source": "8b62ec2ecc541a78"
+    },
+    "refusal.dinah.unknown-depth.next": {
+      "text": " Nennen Sie stattdessen eine davon, oder führen Sie `dinah help` zum Befehl aus, um zu sehen, was er prüft.",
+      "context": "The next step of refusal.dinah.unknown-depth. The command line inside it is syntax and stays as it is.",
+      "source": "d501d957e047c8ec"
+    },
+    "refusal.dinah.unknown-path.next-addressed": {
+      "text": "; ein {addressed} wird über seine eigene Referenz benannt, nicht über das, was es hält",
+      "context": "The next step after the refusal name dinah.unknown-path, when the reader reached a card or a column through the collection that holds it, such as wb/cards/1. {addressed} is the kind reached that way, card or column, which is machine vocabulary and is never translated. The collection named is one the workbench really has, so the advice is about how the thing is addressed rather than about the word. Spliced on after refusal.dinah.unknown-path.",
+      "source": "129884b7bbc55760"
+    },
+    "tree.empty": {
+      "text": "Keine Karten hier.",
+      "context": "Printed when a tree has no card in it at all, so nothing is drawn beneath the sentence above it.",
+      "source": "e3bcc853e3228d2d"
+    },
+    "tree.header": {
+      "text": "{title} ({ref}) hält {count} Karten.",
+      "context": "The sentence above the tree `dinah tree` prints, naming the workbench the tree was built from. {title} is the workbench's title, {ref} its slug, and {count} how many cards it holds. The table starts at this node's children, so no row repeats it.",
+      "source": "934a792d61c11979"
+    },
+    "tree.header.filtered": {
+      "text": "{title} ({ref}) hält {held} Karten, von denen {matched} auf die Abfrage passen.",
+      "context": "The sentence above the tree `dinah tree` prints when a query narrowed it. {held} is how many cards the workbench holds and {matched} how many the query selected, so the two numbers are always the larger and then the smaller.",
+      "source": "9f00f2c0e6308ef1"
+    },
+    "tree.hidden.depth": {
+      "text": "{count} nicht gezeigt",
+      "context": "The Not shown cell on a node whose own children the depth did not draw. {count} is how many of its direct children were left out, which is not the same number as the subjects those children hold; the Count column beside it already carries those.",
+      "source": "604b52258d523e8c"
+    },
+    "tree.hidden.filter": {
+      "text": "{count} herausgefiltert",
+      "context": "The Not shown cell on a node the query removed cards from. {count} is how many cards at or below this node the query left out.",
+      "source": "f417554377f4c9d7"
+    },
+    "tree.hidden.join": {
+      "text": "{first}, {second}",
+      "context": "Joins the two halves of a Not shown cell on a node that is holding something back for both reasons at once. {first} is the depth's account and {second} the query's.",
+      "source": "86da02c677b5c51b",
+      "verbatim": true
+    },
+    "tree.unset": {
+      "text": "(kein Wert)",
+      "context": "The label on the group holding the cards that carry no value at all on the axis. It is drawn in the Reference column, where every other group row carries the value it gathered at.",
+      "source": "199f98480ae8cbac"
     },
     "param.rename.ref.summary": {
       "text": "der Anhang, der umbenannt werden soll, etwa wb-1/attachments/1 oder wb-1/attachments/sketch.txt",
@@ -4075,6 +4130,11 @@
       "text": "welche Art die neue Spalte trägt: intake, work, done oder dinah.buffer; work, wenn Sie nichts sagen",
       "context": "The meaning of the kind argument of `dinah column`, printed in that command's arguments table.",
       "source": "fc6e5d0232821219"
+    },
+    "param.column.tier.summary": {
+      "text": "die Stufe, die die Arbeit hier üblicherweise braucht; sie informiert einen relativen Kartenschreibvorgang und weist nie einen Anspruch ab, kann diese Spalte also nicht wählerisch machen",
+      "context": "The meaning of the tier argument of `dinah column`, printed in that command's arguments table. The second clause is the limit a caller has to meet before relying on the field: only a requirement a card carries can refuse a claim, so a station is protected one card at a time and never by its own default.",
+      "source": "c06be3521836300b"
     },
     "param.column.capacity.summary": {
       "text": "wie viele Karten die neue Spalte höchstens gleichzeitig hält, unbegrenzt, wenn Sie nichts sagen",

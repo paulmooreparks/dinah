@@ -80,12 +80,18 @@ const (
 	// want opposite repairs. `dinah check --remint <path>` is the explicit
 	// act that settles it.
 	FindingDuplicateWorkbenchID = "check.duplicate-workbench-id"
-	// FindingUnknownLevel names a card whose stored severity or priority is
-	// no member of what this workbench declares for that axis, which covers
-	// a declaration that has since changed and one that was never made. It
-	// sits beside FindingUnknownColumn for the same reason: the write path is
-	// the only place a level is validated, because refusing on read would
-	// make a workbench unreadable the moment somebody edits its declaration.
+	// FindingUnknownLevel names a card whose stored severity, priority or
+	// tier is no member of what this workbench declares for that axis, which
+	// covers a declaration that has since changed and one that was never
+	// made. It sits beside FindingUnknownColumn for the same reason: the
+	// write path is the only place a level is validated, because refusing on
+	// read would make a workbench unreadable the moment somebody edits its
+	// declaration.
+	//
+	// Three places raise it, and each writes its own detail. A card's own
+	// level carries "<axis> <value>". A column's tier default and a card's
+	// per-column tier override each carry "tier@<column ref> <value>", so a
+	// reader who has seen one of the two recognises the other.
 	FindingUnknownLevel  = "check.unknown-level"
 	FindingIgnoredAnchor = "check.ignored-anchor"
 	// FindingCardVocabularyMixed and FindingCardVocabularyRetired name the
@@ -110,6 +116,12 @@ const (
 	// FindingRejectTargetUnknown names a column whose reject_to names no
 	// column this workbench carries.
 	FindingRejectTargetUnknown = "check.reject-target-unknown"
+	// FindingUnknownTierColumn names a card whose tier_at entry names no
+	// column this workbench carries, which a reshape retiring a column and a
+	// hand edit both produce. It is reported rather than refused on the same
+	// posture reject_to keeps: a write catches a typo before it lands, and a
+	// read tolerates a column that existed when the line was written.
+	FindingUnknownTierColumn = "check.unknown-tier-column"
 	// FindingRejectTargetIsSelf names a column whose reject_to names itself.
 	FindingRejectTargetIsSelf = "check.reject-target-is-self"
 	// FindingRejectTargetForward names a column whose reject_to names a column
@@ -242,6 +254,7 @@ func (b *Bench) Check() ([]Finding, error) {
 	}
 	findings = append(findings, b.checkColumnKinds()...)
 	findings = append(findings, b.checkRejectTargets()...)
+	findings = append(findings, b.checkColumnLevels()...)
 	findings = append(findings, b.checkWorkstreams()...)
 	findings = append(findings, b.checkColumnSlugs()...)
 	findings = append(findings, b.checkWorkbenchSlug()...)
@@ -313,6 +326,61 @@ func (b *Bench) checkRejectTargets() []Finding {
 			findings = append(findings, Finding{Path: path, Key: FindingRejectTargetIsSelf, Detail: column.Ref()})
 		case target.Position > column.Position && !target.Terminal():
 			findings = append(findings, Finding{Path: path, Key: FindingRejectTargetForward, Detail: column.Ref()})
+		}
+	}
+	return findings
+}
+
+// checkColumnLevels reports a column whose own tier default names no member
+// of the workbench's declared tier set, which a hand-edited column.md and a
+// later edit to the workbench's levels declaration both produce.
+//
+// It is worth a human's attention because a stale default silently breaks a
+// relative override write at that column, and because a reader answering "what
+// class of worker does the work here need" would be misled by it. It is never
+// worth more than a report: the claim gate does not read a column's tier
+// default at all, so a stale one cannot make a claim behave differently from a
+// column carrying no default whatsoever.
+func (b *Bench) checkColumnLevels() []Finding {
+	var findings []Finding
+	for _, column := range b.Columns {
+		if column.Tier == "" || b.Level(TierField, column.Tier) != nil {
+			continue
+		}
+		findings = append(findings, Finding{
+			Path:   b.ColumnAnchorPath(column.ID),
+			Key:    FindingUnknownLevel,
+			Detail: TierField + "@" + column.Ref() + " " + column.Tier,
+		})
+	}
+	return findings
+}
+
+// checkTierOverrides reports what a card's tier_at entries say that this
+// workbench cannot act on: an entry naming no column it carries, and an entry
+// whose tier names no member of the declared tier set.
+//
+// It mirrors checkRejectTargets rather than refusing on read, for the reason
+// that function gives: a reshape can retire a column long after somebody wrote
+// the override, so a reader has to tolerate a reference that no longer
+// resolves. The write path is where a typo is caught.
+func (b *Bench) checkTierOverrides(card *Card) []Finding {
+	var findings []Finding
+	anchor := card.AnchorPath()
+	for _, override := range card.ColumnTiers {
+		if b.ColumnByRef(override.Column) == nil {
+			findings = append(findings, Finding{
+				Path:   anchor,
+				Key:    FindingUnknownTierColumn,
+				Detail: card.Ref(b.Slug) + " " + override.Column,
+			})
+		}
+		if override.Tier != "" && b.Level(TierField, override.Tier) == nil {
+			findings = append(findings, Finding{
+				Path:   anchor,
+				Key:    FindingUnknownLevel,
+				Detail: TierField + "@" + override.Column + " " + override.Tier,
+			})
 		}
 	}
 	return findings
@@ -394,6 +462,7 @@ func (b *Bench) checkCard(card *Card) []Finding {
 		}
 		findings = append(findings, Finding{Path: anchor, Key: FindingUnknownLevel, Detail: axis + " " + stored})
 	}
+	findings = append(findings, b.checkTierOverrides(card)...)
 	if card.Number == 0 {
 		findings = append(findings, Finding{Path: anchor, Key: FindingOrdinalMissing, Detail: card.ID})
 	}

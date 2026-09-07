@@ -7,6 +7,7 @@ WORK
     [--severity <level>]
     [--priority <level>]
   claim <card> [--expires <duration>]       Take up a ready card
+    [--tier <level>]
   move <card> <column> [--override]         Carry a card to another column
   pull [column] [--no-claim]                Claim the head of a column's queue
     [--expires <duration>] [--override]       and move it there in one act
@@ -25,7 +26,7 @@ WORK
                                               its history
   rename <ref> <name>                       Rename an attachment
   card <get|set> <card> <field> [value]     Read one of a card's own fields, or
-                                              write one
+    [--at <column>]                           write one
 
 READ
   status [--root <path>] [--max-depth <n>]  Where this workbench stands, and
@@ -89,8 +90,8 @@ WORKBENCH
     [workstream|title] [field] [value]        create one, or write one's fields
     [--slug <slug>] [--yes]
   column <new> <title> [--kind <kind>]      Create a column in this workbench's
-    [--capacity <n>] [--slug <slug>]          flow
-    [--before <column>]
+    [--tier <level>] [--capacity <n>]         flow
+    [--slug <slug>] [--before <column>]
   workbenches [path] [--max-depth <n>]      The workbenches beneath a directory,
                                               or the ones reachable from here
   version [--catalogs]                      What Dinah is and what it conforms
