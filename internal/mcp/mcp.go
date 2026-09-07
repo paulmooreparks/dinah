@@ -873,6 +873,10 @@ func assignValue(req *verb.Request, name, value string) {
 		req.Severity = value
 	case "priority":
 		req.Priority = value
+	case "tier":
+		req.Tier = value
+	case "at":
+		req.At = value
 	case "title":
 		req.Title = value
 	case "text":

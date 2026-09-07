@@ -74,6 +74,21 @@ type Event struct {
 	// concerns, carried by workstream_joined and workstream_left on the
 	// card's own journal.
 	Workstream string `json:"workstream,omitempty"`
+	// Column is the identifier of the column a tier override concerns,
+	// carried by tier_overridden and tier_override_dropped. It is the
+	// resolved identifier rather than the reference somebody typed, because
+	// the reference can be a slug a later rename changes and the line is
+	// history.
+	Column string `json:"column,omitempty"`
+	// Expr is what a person typed for a tier override, absolute or relative,
+	// carried by tier_overridden alongside the resolved value in To. Keeping
+	// it means a later reader is not left inferring the intent from the
+	// result.
+	Expr string `json:"expr,omitempty"`
+	// Against is the column's own tier default at the moment a relative
+	// expression was resolved, carried by tier_overridden. It is absent on an
+	// absolute write, which needed no baseline to be relative to.
+	Against string `json:"against,omitempty"`
 	// Note is the human's free prose, unparseable by design.
 	Note string `json:"note,omitempty"`
 }

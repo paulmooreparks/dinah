@@ -157,6 +157,7 @@ func runClaim(s *session, parsed *arguments) int {
 		return s.reportError(err)
 	}
 	req.Expires = expires
+	req.Tier = parsed.value("tier")
 	return s.withBench(func(l *verb.Library) int {
 		return s.emit(l.Do(req))
 	})
@@ -297,6 +298,18 @@ func (s *session) runCardSet(parsed *arguments, words []string) int {
 	return s.withBench(func(l *verb.Library) int {
 		req := s.request("card", parsed)
 		req.Action, req.Card, req.Field, req.Value = "set", reference, field, value
+		req.At = parsed.value("at")
+		// A write naming a column is a per-column override rather than a
+		// write to the card's own field, and only the tier axis has one. A
+		// severity or a priority is one value for the whole card, so naming a
+		// column for either is a usage error rather than a write nobody can
+		// see the effect of.
+		if req.At != "" {
+			if field != bench.TierField {
+				return s.fail(contract.Usage, "--at")
+			}
+			return s.emit(l.SetCardTierAt(req))
+		}
 		return s.emit(l.SetCardField(req))
 	})
 }
@@ -1770,6 +1783,7 @@ func runColumn(s *session, parsed *arguments) int {
 		req := s.request("column", parsed)
 		req.Action, req.Column = first, title
 		req.Kind = parsed.value("kind")
+		req.Tier = parsed.value("tier")
 		req.Capacity = parsed.value("capacity")
 		req.Slug = parsed.value("slug")
 		req.Before = parsed.value("before")

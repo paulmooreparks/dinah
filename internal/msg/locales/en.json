@@ -165,6 +165,10 @@
       "text": "the card carries no structured item that is not resolved",
       "context": "One row of the ordered precondition list of claim, quoted from section 6 of the core profile."
     },
+    "check.claim.8": {
+      "text": "your declared tier is at or above what the card asks",
+      "context": "One row of the ordered precondition list of claim. This row is Dinah's own addition; the core profile's own section 6.3 list ends at check.claim.7. What the card asks for is its own baseline or its override for this column, never the column's own default."
+    },
     "check.clean": {
       "text": "No structural defects found.",
       "context": "Printed when check finds nothing."
@@ -413,6 +417,10 @@
       "text": "the card carries no structured item that is not resolved",
       "context": "One row of the ordered precondition list of pull: a pull that takes the card up answers claim's own last row, in the words claim refuses it."
     },
+    "check.pull.14": {
+      "text": "your declared tier is at or above what the card asks there",
+      "context": "One row of the ordered precondition list of pull: a pull that takes the card up answers claim's own tier row, asked at the column it lands in."
+    },
     "check.ordinal-duplicate": {
       "text": "{detail} carries a creation ordinal that another member of its collection already carries, so one position names two of them",
       "context": "A check finding: two entities of one collection share an ordinal, which leaves a positional reference with two answers."
@@ -630,8 +638,12 @@
       "context": "One row of the ordered precondition list of unblock, quoted from section 6 of the core profile."
     },
     "check.unknown-level": {
-      "text": "a card names {detail}, which this workbench does not declare",
-      "context": "A check finding: every level a card stores is one the workbench declares for that axis. {detail} carries the axis and the stored value, in that order, and the finding's own path names the card."
+      "text": "this workbench does not declare {detail}",
+      "context": "A check finding: every level anything stores is one the workbench declares for that axis. {detail} carries the axis and the stored value in that order for a card's own level, and tier@<column> and the stored value for a column's tier default or a card's per-column tier override. The finding's own path names the file to edit."
+    },
+    "check.unknown-tier-column": {
+      "text": "a card names a tier_at column this workbench does not carry: {detail}",
+      "context": "A check finding: every column a card's tier_at names resolves. {detail} carries the card's reference and then the column reference that resolves to nothing, in that order. A reshape retiring a column and a hand edit both produce it, so it is reported rather than refused."
     },
     "check.unknown-column": {
       "text": "a card names column {detail}, which this workbench does not declare",
@@ -858,12 +870,16 @@
       "context": "The meaning of the action argument of `dinah card`, printed in that command's arguments table."
     },
     "param.card.field.summary": {
-      "text": "which field you are reading or writing: severity or priority",
+      "text": "which field you are reading or writing: severity, priority or tier",
       "context": "The meaning of the field argument of `dinah card`, printed in that command's arguments table."
     },
     "param.card.value.summary": {
       "text": "the level to write; leave it out to clear the field",
       "context": "The meaning of the value argument of `dinah card`, printed in that command's arguments table."
+    },
+    "param.card.at.summary": {
+      "text": "the column a tier write applies to, instead of the card's own baseline; tier is the one field that takes it",
+      "context": "The meaning of the at argument of `dinah card`, printed in that command's arguments table. A severity or a priority is one value for the whole card, so naming a column for either is a usage error."
     },
     "param.reshape.from.summary": {
       "text": "the definition to take the new shape from: an interchange file, or another workbench's directory, which is what `dinah init --from` already accepts",
@@ -936,6 +952,30 @@
     "refusal.dinah.unknown-level.next": {
       "text": " Name one of those instead.",
       "context": "The next step of refusal.dinah.unknown-level, spliced onto the sentence that just listed the declared levels."
+    },
+    "refusal.dinah.no-tier-default": {
+      "text": "column {column} carries no tier default, so {expr} has nothing to be relative to",
+      "context": "The sentence printed after the refusal name dinah.no-tier-default, which a relative tier write against a column carrying no tier default of its own carries. {column} is that column and {detail} carries the same reference; {expr} is what the caller typed. refusal.dinah.no-tier-default.next is spliced on after this one."
+    },
+    "refusal.dinah.no-tier-default.next": {
+      "text": "; write the tier by name instead, or give the column a default",
+      "context": "The next step of refusal.dinah.no-tier-default. Both ways out are open to the caller: an absolute tier needs no default, and a default makes the relative form work from then on."
+    },
+    "refusal.dinah.tier-out-of-range": {
+      "text": "{detail} lands at rung {attempted}, which is off the end of this workbench's tier set",
+      "context": "The sentence printed after the refusal name dinah.tier-out-of-range, which a relative tier write resolving outside the declared set carries. {detail} is what the caller typed; {attempted} is the zero-based rank it worked out to, which may be negative. Nothing is clamped, so the sentence reports the rung rather than a value that was written. refusal.dinah.tier-out-of-range.next is spliced on after this one."
+    },
+    "refusal.dinah.tier-out-of-range.next": {
+      "text": "; the declared tiers are {levels}, so name one of those or write a smaller step",
+      "context": "The next step of refusal.dinah.tier-out-of-range. {levels} is the tier axis's declared members in declaration order, read off the workbench rather than written here, so a tier name is never translated."
+    },
+    "refusal.dinah.below-tier": {
+      "text": "this card asks for tier {required} at column {column}, and your claim declares less",
+      "context": "The sentence printed after the refusal name dinah.below-tier, which a claim declaring a tier below what the card requires carries. {required} is the tier the card itself asks for, and {detail} carries the same name; {column} is the column being claimed into. The requirement is the card's own, so the sentence says the card asks rather than the column."
+    },
+    "refusal.dinah.below-tier.next": {
+      "text": "; claim it with `--tier` {required} or above, or leave it for somebody who can",
+      "context": "The next step of refusal.dinah.below-tier. The gate is a floor, so declaring more than the card asks for is admitted, which is why the sentence says or above."
     },
     "refusal.malformed.claimed-twice": {
       "text": ", and {claimants} both declare it for {retired}",
@@ -2477,6 +2517,10 @@
       "text": "how long your claim holds before it goes stale, written as a number and a unit: 30m, 2h, 7d",
       "context": "The meaning of the expires argument of `dinah claim`, printed in that command's arguments table."
     },
+    "param.claim.tier.summary": {
+      "text": "the tier you say you are, taken on trust and never verified; only what the card itself asks for can refuse you, never a column's own default",
+      "context": "The meaning of the tier argument of `dinah claim`, printed in that command's arguments table. It carries two limits a caller has to meet before relying on the gate: Dinah has no server and no credential, so a declared tier is self-reported, and a column's tier default never refuses a claim by itself."
+    },
     "param.comment.text.summary": {
       "text": "the comment, in one shell word or in quotation marks; a single - reads it from a pipe",
       "context": "The meaning of the text argument of `dinah comment`, printed in that command's arguments table."
@@ -3208,6 +3252,10 @@
     "param.column.kind.summary": {
       "text": "which kind the new column carries: intake, work, done, or dinah.buffer; work when you say nothing",
       "context": "The meaning of the kind argument of `dinah column`, printed in that command's arguments table."
+    },
+    "param.column.tier.summary": {
+      "text": "the tier the work here usually needs; it informs a relative card write and never refuses a claim, so it cannot make this column selective",
+      "context": "The meaning of the tier argument of `dinah column`, printed in that command's arguments table. The second clause is the limit a caller has to meet before relying on the field: only a requirement a card carries can refuse a claim, so a station is protected one card at a time and never by its own default."
     },
     "param.column.capacity.summary": {
       "text": "the most cards the new column holds at once, unlimited when you say nothing",

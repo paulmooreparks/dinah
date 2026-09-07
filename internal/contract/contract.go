@@ -357,8 +357,29 @@ const (
 	NoLevels = LayerPrefix + "no-levels"
 	// UnknownLevel is a write naming a level the workbench's declaration for
 	// that axis does not carry. The sentence lists the levels it does carry,
-	// and it too is written about one axis.
+	// and it too is written about one axis. A relative tier write raises it
+	// over the column's own stored default as well, since a default naming
+	// no declared member is the same defect arriving from the other side.
 	UnknownLevel = LayerPrefix + "unknown-level"
+	// NoTierDefault is a relative tier write, +N or -N, against a column
+	// carrying no tier default of its own. It is separate from NoLevels
+	// because the workbench's set is declared and the column is what says
+	// nothing, and separate from UnknownLevel because there is no value to
+	// call unknown. The repair is to write the tier absolutely or to give
+	// the column a default.
+	NoTierDefault = LayerPrefix + "no-tier-default"
+	// TierOutOfRange is a relative tier write whose rung count lands off
+	// either end of the declared set. Nothing clamps it, because a caller
+	// asking for a rung above the top has said something the workbench
+	// cannot honour and silently writing the top would tell them nothing.
+	TierOutOfRange = LayerPrefix + "tier-out-of-range"
+	// BelowTier is a claim declaring a tier below what the card requires at
+	// the column being claimed into. The requirement comes from the card
+	// alone, its own baseline or a per-column override, and never from the
+	// column's tier default, which informs and refuses nothing. The gate is
+	// a floor rather than a match: declaring more than the card asks for is
+	// waste rather than an error, and only declaring less is refused.
+	BelowTier = LayerPrefix + "below-tier"
 	// NotRenamable is a rename aimed at something that is not an attachment.
 	// The detail names what the reference resolved to, so the caller sees
 	// what was misunderstood rather than what they tried to write.
@@ -439,6 +460,7 @@ var Introduced = []string{
 	AmbiguousName, NotRenamable,
 	AmbiguousColumn, NoUpstream, AwaitingOutside, TakesNoWork,
 	NoLevels, UnknownLevel, UnknownFormat,
+	NoTierDefault, TierOutOfRange, BelowTier,
 	ReshapeNeedsDestination, ReshapeHeldCardInQueue, ReshapeMapSourceEmpty,
 	ReshapeDestinationRetiring, ReshapeDestinationAmbiguous,
 }
@@ -546,9 +568,25 @@ const (
 	// absent, and a first write to a field carrying none writes it with From
 	// absent, since omitempty drops an empty value either way.
 	EventCardUpdated = "card_updated"
+	// EventTierOverridden records a write to one of a card's per-column tier
+	// overrides, on that card's journal. It carries the resolved column's
+	// identifier in Column, the override's previous and new absolute values
+	// in From and To, exactly what the caller typed in Expr, and the column's
+	// own tier default in Against, which is what a relative expression was
+	// measured from and is absent where the expression was absolute and
+	// needed no baseline. The provenance rides here rather than on the anchor
+	// because the anchor stores the resolved value alone.
+	EventTierOverridden = "tier_overridden"
+	// EventTierOverrideDropped records a per-column tier override removed
+	// because reshape retired the column it was written for, on that card's
+	// journal. It carries the retired column's identifier in Column and the
+	// dropped absolute value in From. Nothing carries it forward to the
+	// destination, since a tier chosen for one station is not evidence about
+	// a different one.
+	EventTierOverrideDropped = "tier_override_dropped"
 )
 
-// Events lists the nineteen event names a query over cards accepts in its
+// Events lists the twenty-one event names a query over cards accepts in its
 // event field, in the order the constants above declare them, so a caller
 // checking a value against the closed set reads one list rather than repeating
 // it. Every event a card's own journal can carry has to be here, since an
@@ -569,6 +607,7 @@ var Events = []string{
 	EventAttachmentReplaced, EventAttachmentRemoved, EventAttachmentRenamed,
 	EventArchived, EventRestored, EventDeleted, EventManualCorrection,
 	EventWorkstreamJoined, EventWorkstreamLeft, EventCardUpdated,
+	EventTierOverridden, EventTierOverrideDropped,
 }
 
 // Refusal is the error a verb returns when a rule says no. It carries the one

@@ -745,11 +745,11 @@ const reservedAmbiguousDefinition = `{
   ]
 }`
 
-// TestPullChecksAgainstTheFullFifteenRowTable asserts that the ordered
+// TestPullChecksAgainstTheFullSixteenRowTable asserts that the ordered
 // precondition list Pull's help is generated from is the workbench pair
-// followed by the thirteen pull rows the spec owns, in the order the spec
-// names them. This is the test the help renders against.
-func TestPullChecksAgainstTheFullFifteenRowTable(t *testing.T) {
+// followed by the thirteen pull rows the spec owns and Dinah's own tier row,
+// in the order they are checked. This is the test the help renders against.
+func TestPullChecksAgainstTheFullSixteenRowTable(t *testing.T) {
 	checks := Checks(Pull)
 	want := []Check{
 		{Refusal: contract.UnsupportedVer, Key: "check.workbench.1"},
@@ -767,6 +767,7 @@ func TestPullChecksAgainstTheFullFifteenRowTable(t *testing.T) {
 		{Refusal: contract.NotOperator, Key: "check.pull.11"},
 		{Refusal: contract.Locked, Key: "check.pull.12"},
 		{Refusal: contract.UnresolvedItem, Key: "check.pull.13"},
+		{Refusal: contract.BelowTier, Key: "check.pull.14"},
 	}
 	if len(checks) != len(want) {
 		t.Fatalf("wanted %d rows, got %d", len(want), len(checks))
@@ -778,12 +779,12 @@ func TestPullChecksAgainstTheFullFifteenRowTable(t *testing.T) {
 	}
 }
 
-// TestClaimChecksAgainstTheFullSevenRowTable is the claim's half of the same
-// assertion, and it is what pins each new row's position: the claim's own list
-// ends with the unresolved-item row behind the operator-owned reservation,
-// behind the workbench pair every contract verb carries in front of its own
-// rows.
-func TestClaimChecksAgainstTheFullSevenRowTable(t *testing.T) {
+// TestClaimChecksAgainstTheFullEightRowTable is the claim's half of the same
+// assertion, and it is what pins each new row's position: the profile's seven
+// end with the unresolved-item row behind the operator-owned reservation, and
+// Dinah's own tier row is appended behind those, all behind the workbench pair
+// every contract verb carries in front of its own rows.
+func TestClaimChecksAgainstTheFullEightRowTable(t *testing.T) {
 	own, found := ownChecks(Claim)
 	if !found {
 		t.Fatal("the claim declares no precondition list")
@@ -796,6 +797,7 @@ func TestClaimChecksAgainstTheFullSevenRowTable(t *testing.T) {
 		{Refusal: contract.Held, Key: "check.claim.5"},
 		{Refusal: contract.NotOperator, Key: "check.claim.6"},
 		{Refusal: contract.UnresolvedItem, Key: "check.claim.7"},
+		{Refusal: contract.BelowTier, Key: "check.claim.8"},
 	}
 	if len(own) != len(wantOwn) {
 		t.Fatalf("wanted %d own rows, got %d", len(wantOwn), len(own))

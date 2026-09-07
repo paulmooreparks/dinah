@@ -19,6 +19,22 @@ type Link struct {
 	To string
 }
 
+// ColumnTier is one entry of a card's tier_at sequence: the column the
+// override is written for, and the tier a claim into that column must declare
+// at or above.
+//
+// Column is a reference rather than an identifier, resolved through
+// Bench.ColumnByRef exactly as a column's own reject_to declaration is, so a
+// person writes the slug they read on the board. Tier is always an absolute
+// member name of the declared tier set.
+type ColumnTier struct {
+	// Column is the reference the override was written against, exactly as
+	// the anchor carries it.
+	Column string
+	// Tier is the resolved absolute member name the override requires.
+	Tier string
+}
+
 // Card is one card of a bench: its identity, its position, its claim or block
 // and the framing prose of its body.
 type Card struct {
@@ -47,11 +63,23 @@ type Card struct {
 	BlockReason string
 	BlockKind   string
 	BlockSince  string
-	// Severity and Priority are the levels the card records on the two axes
-	// a workbench may declare. An empty value means the card carries no
-	// level for that axis, which the format declares legal.
+	// Severity, Priority and Tier are the levels the card records on the
+	// three axes a workbench may declare. An empty value means the card
+	// carries no level for that axis, which the format declares legal.
+	//
+	// Tier is the card's own baseline requirement: the tier a claim must
+	// declare at or above, at every column the card stands in, unless an
+	// entry of ColumnTiers names that column. It is what the card asks of
+	// whoever takes it up rather than what any column asks.
 	Severity string
 	Priority string
+	Tier     string
+	// ColumnTiers are the card's per-column tier overrides, in the order the
+	// anchor carries them. Each entry names a column the way reject_to names
+	// one and carries an absolute member of the workbench's declared tier
+	// set, never a relative expression, because a stored relative value would
+	// repoint the day somebody inserts a rung into the middle of the set.
+	ColumnTiers []ColumnTier
 	// Links are what this card records about other cards.
 	Links []Link
 	// Workstreams are the identifiers of the workstreams the card belongs
@@ -156,6 +184,7 @@ func loadCard(collection, id string, refuseRetired bool) (*Card, error) {
 		BlockSince:  fm.Value("block_since"),
 		Severity:    fm.Value(SeverityField),
 		Priority:    fm.Value(PriorityField),
+		Tier:        fm.Value(TierField),
 		Workstreams: fm.Seq("workstreams"),
 		Body:        body,
 		Revision:    revision,
@@ -165,6 +194,7 @@ func loadCard(collection, id string, refuseRetired bool) (*Card, error) {
 		card.Number, _ = strconv.Atoi(number)
 	}
 	card.Links = readLinks(fm)
+	card.ColumnTiers = readColumnTiers(fm)
 	if card.State == "" {
 		card.State = contract.StateReady
 	}
@@ -205,6 +235,144 @@ func readLinks(fm *Frontmatter) []Link {
 	return links
 }
 
+// readColumnTiers reads the tier_at sequence the way readLinks reads links,
+// line by line rather than through a YAML parser, since both keys carry the
+// same shape: a block of dashed entries, each a mapping of two keys.
+//
+// An entry carrying neither key is not started, and a key outside the two is
+// ignored, which is the reader posture the rest of this file keeps: what
+// cannot be read is left alone rather than raised over.
+func readColumnTiers(fm *Frontmatter) []ColumnTier {
+	var overrides []ColumnTier
+	current := ColumnTier{}
+	for _, line := range fm.Raw(TierAtKey) {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == TierAtKey+":" {
+			continue
+		}
+		trimmed = strings.TrimPrefix(trimmed, "- ")
+		key, value, ok := strings.Cut(trimmed, ":")
+		if !ok {
+			continue
+		}
+		value = unquote(strings.TrimSpace(value))
+		switch strings.TrimSpace(key) {
+		case "column":
+			if current.Column != "" || current.Tier != "" {
+				overrides = append(overrides, current)
+				current = ColumnTier{}
+			}
+			current.Column = value
+		case TierField:
+			current.Tier = value
+		}
+	}
+	if current.Column != "" || current.Tier != "" {
+		overrides = append(overrides, current)
+	}
+	return overrides
+}
+
+// renderColumnTiers is the tier_at block as the anchor carries it, which the
+// frontmatter takes verbatim because no typed setter covers a sequence of
+// mappings. The entries render in the order the card holds them, so a write
+// that changes one leaves the rest where a reader last saw them.
+func renderColumnTiers(overrides []ColumnTier) []string {
+	lines := []string{TierAtKey + ":"}
+	for _, override := range overrides {
+		lines = append(lines, "  - column: "+quote(override.Column))
+		lines = append(lines, "    "+TierField+": "+quote(override.Tier))
+	}
+	return lines
+}
+
+// RequiredTier is the tier a claim into one column must declare at or above,
+// and the empty string when the card asks for nothing there.
+//
+// Two rules answer it, in this order. An entry of ColumnTiers whose column
+// reference resolves to the column being claimed into governs that column. The
+// card's own baseline governs everywhere else.
+//
+// There is no third rule. The column's own tier default is never read here,
+// valid or stale, because a column default informs and never refuses: only a
+// requirement the card itself carries can refuse a claim. The column argument
+// is what an override is matched against and nothing else, which is why a card
+// nobody has assessed answers empty at every column of every workbench.
+func (c *Card) RequiredTier(b *Bench, column *Column) string {
+	if b != nil && column != nil {
+		for _, override := range c.ColumnTiers {
+			if override.Tier == "" {
+				continue
+			}
+			if target := b.ColumnByRef(override.Column); target != nil && target.ID == column.ID {
+				return override.Tier
+			}
+		}
+	}
+	return c.Tier
+}
+
+// SetColumnTier writes one per-column override in memory, ready for Save,
+// replacing the entry whose reference resolves to the same column and
+// appending when none does. An empty tier removes the entry, so clearing an
+// override leaves the card carrying no line for that column rather than a line
+// carrying nothing.
+//
+// The stored reference is whatever the caller passed. A rewrite keeps the
+// spelling already on disk, because the entry a person reads should not change
+// its wording because somebody wrote the same column a second way.
+func (c *Card) SetColumnTier(b *Bench, ref, tier string) {
+	target := (*Column)(nil)
+	if b != nil {
+		target = b.ColumnByRef(ref)
+	}
+	for i, override := range c.ColumnTiers {
+		if !sameColumnRef(b, target, override.Column, ref) {
+			continue
+		}
+		if tier == "" {
+			c.ColumnTiers = append(c.ColumnTiers[:i], c.ColumnTiers[i+1:]...)
+			return
+		}
+		c.ColumnTiers[i].Tier = tier
+		return
+	}
+	if tier == "" {
+		return
+	}
+	c.ColumnTiers = append(c.ColumnTiers, ColumnTier{Column: ref, Tier: tier})
+}
+
+// ColumnTierFor reads the override written for one column reference, and the
+// empty string when the card carries none.
+func (c *Card) ColumnTierFor(b *Bench, ref string) string {
+	target := (*Column)(nil)
+	if b != nil {
+		target = b.ColumnByRef(ref)
+	}
+	for _, override := range c.ColumnTiers {
+		if sameColumnRef(b, target, override.Column, ref) {
+			return override.Tier
+		}
+	}
+	return ""
+}
+
+// sameColumnRef reports whether a stored reference and a written one name one
+// column. Two references naming a column this workbench carries are compared
+// by that column's identifier, so the slug and the title of one column are one
+// key. Two references naming no column are compared as text, which is what
+// keeps an override for a retired column rewritable rather than duplicated.
+func sameColumnRef(b *Bench, target *Column, stored, ref string) bool {
+	if b != nil && target != nil {
+		if found := b.ColumnByRef(stored); found != nil {
+			return found.ID == target.ID
+		}
+		return false
+	}
+	return stored == ref
+}
+
 // AnchorPath is the card's anchor file.
 func (c *Card) AnchorPath() string {
 	return filepath.Join(c.Dir, CardAnchor)
@@ -241,11 +409,19 @@ func (c *Card) Save() error {
 	setOrDelete(c.FM, "block_kind", c.BlockKind)
 	setOrDelete(c.FM, "block_since", c.BlockSince)
 	// SetAfter inserts directly after its anchor and leaves an existing key
-	// where it already sits, so writing priority after state and then
-	// severity after state lands severity, then priority, whichever of
-	// the two is present, and a key somebody placed by hand stays put.
+	// where it already sits, so a call made earlier is pushed outward by
+	// every call made after it against the same anchor. All three level
+	// fields anchor on state, and writing tier, then priority, then severity
+	// lands severity, then priority, then tier, whichever of the three are
+	// present, and a key somebody placed by hand stays put.
+	setAfterOrDelete(c.FM, TierField, c.Tier, "state")
 	setAfterOrDelete(c.FM, PriorityField, c.Priority, "state")
 	setAfterOrDelete(c.FM, SeverityField, c.Severity, "state")
+	if len(c.ColumnTiers) == 0 {
+		c.FM.Delete(TierAtKey)
+	} else {
+		c.FM.SetRaw(TierAtKey, renderColumnTiers(c.ColumnTiers))
+	}
 	c.FM.SetSeq("workstreams", c.Workstreams)
 	if err := WriteText(c.AnchorPath(), c.FM.Render(c.Body)); err != nil {
 		return err
@@ -280,18 +456,24 @@ func setAfterOrDelete(fm *Frontmatter, key, value, after string) {
 	fm.SetAfter(key, value, after)
 }
 
-// The frontmatter keys carrying a card's two levels, which are also the names
-// of the two axes a workbench declares them under.
+// The frontmatter keys carrying a card's three levels, which are also the
+// names of the three axes a workbench declares them under.
 const (
 	SeverityField = "severity"
 	PriorityField = "priority"
+	TierField     = "tier"
 )
+
+// TierAtKey is the frontmatter key carrying a card's per-column tier
+// overrides. It is a key of its own rather than a level, because what it holds
+// is a sequence of mappings and not a value.
+const TierAtKey = "tier_at"
 
 // CardFields are the fields a card records that a person writes and may
 // rewrite, in the order a reader meets them. It is a variable in the source
-// rather than a sentence in a catalog, so a third card field reaches the
+// rather than a sentence in a catalog, so a fourth card field reaches the
 // refusal that lists them without a translator being asked for anything.
-var CardFields = []string{SeverityField, PriorityField}
+var CardFields = []string{SeverityField, PriorityField, TierField}
 
 // KnownCardField reports whether a name is one of the card's own fields,
 // which is what both a read of one and a write to one ask first.
@@ -313,6 +495,8 @@ func (c *Card) LevelOf(field string) string {
 		return c.Severity
 	case PriorityField:
 		return c.Priority
+	case TierField:
+		return c.Tier
 	}
 	return ""
 }
@@ -326,6 +510,8 @@ func (c *Card) SetLevel(field, value string) {
 		c.Severity = value
 	case PriorityField:
 		c.Priority = value
+	case TierField:
+		c.Tier = value
 	}
 }
 
