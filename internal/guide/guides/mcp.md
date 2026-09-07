@@ -181,6 +181,77 @@ A name outside the six is refused with `dinah.unknown-field`. The refusal names
 every unrecognised name you gave, sorted, together with the set you may choose
 from, and nothing is read before it is raised.
 
+## Reading the bodies of many cards at once
+
+A survey act reads the bodies of several cards in one stretch, and you perform
+one before you can choose between cards, compare them, or report across a
+column. Over the verbs that act is one `show` per card, and each of those calls
+sends the whole conversation so far again along with the tool definitions. One
+shell command over the anchors you name sends all of that once.
+
+Where you hold a shell on the machine the workbench's files live on, name the
+references you want and read their anchors in a single command:
+
+```
+for ref in <ref> <ref> <ref>; do printf '=== %s\n' "$ref"; cat "$(dinah path "$ref")"; done
+```
+
+`dinah path` resolves one reference to that card's anchor file, and it runs
+inside the command substitution rather than as a call back to the head, so the
+whole read is one round however many references you name. The command reads the
+cards you named and no others.
+
+A reference the workbench does not know does not stop the read. `dinah path`
+writes its refusal to standard error and leaves standard output empty, `cat`
+then fails on an empty name, and the loop carries straight on to the next
+reference, so that card contributes no body while its `=== ` line still stands
+where the card would have been. What you get back is a partial read rather than
+a wrong one, because standard output never carries a card you did not name.
+
+The exit status will not tell a complete read from a partial one. A `for` loop
+exits with the status of its last iteration alone, so a mistyped reference
+anywhere before the last one leaves the status reporting success, and a run
+that got every card but the middle one looks from the status exactly like a run
+that got them all. Read standard error instead. Each failed reference leaves a
+refusal there naming itself, followed by `cat`'s own complaint about the empty
+name, so an empty standard error is a complete read and anything on it names
+the cards you asked for and did not get.
+
+`docs/design/token-cost.md` records the measurement in its dated section for
+this command, and the figures here are transcribed from that section's fenced
+block. The command came out cheaper than one `show` per card from the first
+card at both measured card sizes, so the crossover is 1 card, and the saving
+grows steeply with the number of cards read. At 12 cards of the large measured
+size the calls cost 794859 tokens of cumulative billed input against 110627 for
+the one command, and at the small size they cost 207597 against 27935. The
+crossover did not move between a card body of 2330 bytes and one of 23776
+bytes, so what card size changes is the size of the saving rather than the
+point at which the saving begins.
+
+Three preconditions bound the route. The first two announce themselves the
+first time you run the command, and the third can go wrong without saying
+anything at all.
+
+- You need a local shell on the machine the workbench's files live on. Over a
+  remote head there is no filesystem to read, and the verbs are the whole
+  surface.
+- You need the `dinah` binary on that shell's `PATH`, because the command calls
+  it once per reference to resolve an anchor.
+- You need to run the command somewhere Dinah's discovery resolves to the
+  workbench you mean, because the command names no workbench of its own and
+  discovery climbs from the directory you are standing in. A directory that
+  reaches some other workbench answers out of that one, and where the two
+  workbenches share a slug your references resolve there without a refusal and
+  without anything on standard error. Confirm the workbench rather than waiting
+  to be told about it: `dinah status` prints the workbench discovery resolves
+  to, and its path, on its first line.
+
+For a single card, call `show` and name the fields you want, as the section
+above describes. The crossover means the command is never the dearer route
+inside the measured range, so the reason to keep `show` for one card is what
+its answer carries beyond the body. It states what it withheld and it names
+what you may do next, and an anchor file carries neither of those.
+
 ## When a call is refused
 
 A refusal is an answer, not an error. The answer carries `outcome` of
