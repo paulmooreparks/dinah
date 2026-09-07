@@ -23,6 +23,7 @@
 	"manifest.command.dinah.tree.newCard.title": "Neue Karte...",
 	"manifest.command.dinah.tree.attachFile.title": "Datei anhängen...",
 	"manifest.command.dinah.tree.pull.title": "Ziehen",
+	"manifest.command.dinah.tree.openInstructions.title": "Bereitgestellte Anweisungen anzeigen",
 	"manifest.configuration.title": "Dinah",
 	"manifest.configuration.dinah.path.markdownDescription": "Absoluter Pfad zum `dinah`-Programm. Leer lassen, um das Programm aus Ihrem PATH zu verwenden. Ein Programmpfad ist eine Eigenschaft des Rechners, daher wandert diese Einstellung nicht über die Einstellungssynchronisierung.",
 	"manifest.configuration.dinah.workbench.markdownDescription": "Verzeichnis der Werkbank, die für diesen Ordner verwendet wird, an `dinah` als `--workbench` übergeben. Leer lassen, damit `dinah` durch Aufwärtssuche vom Ordner aus eine findet. Setzen Sie es, wenn mehrere Werkbänke erreichbar sind, oder wenn die Suche eine erreicht, die Sie nicht gemeint haben.",

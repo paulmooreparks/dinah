@@ -121,6 +121,9 @@ function recorder(): Recorder {
 				unused.push("pickFile");
 				return undefined;
 			},
+			openServedText: async () => {
+				unused.push("openServedText");
+			},
 			checkpoint: async (folder) => {
 				checkpoints.push(folder);
 			},
