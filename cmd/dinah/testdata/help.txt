@@ -11,6 +11,7 @@ WORK
   move <card> <column> [--override]         Carry a card to another column
   pull [column] [--no-claim]                Claim the head of a column's queue
     [--expires <duration>] [--override]       and move it there in one act
+    [--tier <level>]
   release <card>                            Give the card back to its queue
   block <card> <reason> [--kind <kind>]     Raise an obstacle and free the card
   unblock <card>                            Lift a block (operator only)
@@ -36,8 +37,8 @@ READ
   columns                                   The flow, in order
   ls [column] [--ready] [--root <path>]     The cards of a column, in queue
     [--max-depth <n>]                         order
-  next [column] [--root <path>]             The card a column offers next
-    [--max-depth <n>]
+  next [column] [--tier <level>]            The card a column offers next
+    [--root <path>] [--max-depth <n>]
   query [query]                             The cards of the workbench that
                                               match a query
   search <phrase> [--query <terms>]         Every place a phrase occurs in this

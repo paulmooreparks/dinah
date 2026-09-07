@@ -42,8 +42,8 @@ var publishedProperties = map[string][]string{
 	"status":           {"actor", "max-depth", "root", "workbench"},
 	"columns":          {"actor", "workbench"},
 	"list_cards":       {"actor", "column", "max-depth", "ready", "root", "workbench"},
-	"next_card":        {"actor", "column", "max-depth", "root", "workbench"},
-	"pull":             {"actor", "basis", "column", "expires", "no-claim", "override", "workbench"},
+	"next_card":        {"actor", "column", "max-depth", "root", "tier", "workbench"},
+	"pull":             {"actor", "basis", "column", "expires", "no-claim", "override", "tier", "workbench"},
 	"query":            {"actor", "query", "workbench"},
 	"search_cards":     {"actor", "archived", "max-depth", "phrase", "query", "root", "workbench"},
 	"tree":             {"actor", "depth", "group-by", "max-depth", "query", "root", "workbench"},
@@ -221,5 +221,67 @@ func TestTheVerbSelectionFixtureNamesEveryPublishedTool(t *testing.T) {
 		if _, served := toolsByName[name]; !served {
 			t.Errorf("the fixture names %s, which this head serves no tool for", name)
 		}
+	}
+}
+
+// tierTakingTools are the three tools that take a caller's own tier
+// declaration. claim gates on it (dinah-408) and next_card and pull select on
+// it (dinah-410), and all three read it from one parameter table, so a caller
+// that has learned to declare a tier on one of them has learned it on all
+// three.
+var tierTakingTools = []string{"claim", "next_card", "pull"}
+
+// TestTheTierParameterIsOneShapeAcrossEveryToolThatTakesIt asserts dinah-410
+// AC-11: the tier property the schema publishes for next_card and for pull is
+// claim's property, byte for byte, rather than a second way of saying the
+// same thing.
+//
+// The comparison is over the property's whole serialized JSON rather than
+// over its type alone, so a description that drifts, a default that appears
+// on one tool, or an enumeration added to one schema fails here. A reader of
+// this failure gets the two JSON objects and can see which field moved.
+func TestTheTierParameterIsOneShapeAcrossEveryToolThatTakesIt(t *testing.T) {
+	served := map[string]string{}
+	for _, entry := range toolList() {
+		name, _ := entry["name"].(string)
+		schema, ok := entry["inputSchema"].(map[string]any)
+		if !ok {
+			continue
+		}
+		properties, ok := schema["properties"].(map[string]any)
+		if !ok {
+			continue
+		}
+		property, published := properties["tier"]
+		if !published {
+			continue
+		}
+		encoded, err := json.Marshal(property)
+		if err != nil {
+			t.Fatalf("%s: encode the tier property: %v", name, err)
+		}
+		served[name] = string(encoded)
+	}
+	for _, name := range tierTakingTools {
+		if _, published := served[name]; !published {
+			t.Errorf("%s publishes no tier property, so a caller cannot declare one", name)
+		}
+	}
+	if t.Failed() {
+		return
+	}
+	want := served["claim"]
+	for _, name := range tierTakingTools {
+		if served[name] != want {
+			t.Errorf("%s publishes tier as %s, and claim publishes it as %s", name, served[name], want)
+		}
+	}
+	// new_column also carries a tier parameter, and it is a different act:
+	// the column's own default rather than a declaration about the caller.
+	// Naming it here says the exclusion is deliberate rather than an
+	// oversight, and a reader comparing the two shapes is looking at the
+	// wrong pair.
+	if _, published := served["new_column"]; !published {
+		t.Errorf("new_column publishes no tier property, so this exclusion is describing something that is not there")
 	}
 }
