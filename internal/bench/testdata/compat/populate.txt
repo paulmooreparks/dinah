@@ -30,6 +30,9 @@ card set sample-1 tier apex
 card set sample-1 tier frontier --at doing
 card set sample-1 tier +1 --at review
 card set sample-1 tier apex --at doing
+move sample-4 review
+claim sample-4
+raise sample-4 apex "reads deeper than the ticket suggested, and needs a hand from somebody senior"
 move sample-6 doing --override
 archive sample-6
 move sample-7 doing --override

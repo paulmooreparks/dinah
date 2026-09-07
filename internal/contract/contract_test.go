@@ -76,3 +76,39 @@ func TestAReadsExitCodeIsItsOwnTableAndNeverTheRefusedOne(t *testing.T) {
 		t.Errorf("a read that found something and a refusal both exit %d, which is the overload dinah-346 removed", ExitCodeForRead(ReadFindings))
 	}
 }
+
+// TestTierNotHigherIsMintedOnceAndCostsTheProfileNothing asserts dinah-409
+// AC-9: the raise's one new refusal is Dinah's own, it is entered in the
+// minted list exactly once, and neither the profile's own refusal set nor the
+// event set moves for it.
+//
+// The two counts are what the criterion pins, and both are read off the
+// declarations rather than carried forward from prose. The event count matters
+// because raise composes two events that already exist rather than minting a
+// third, and a third would cost a coordinated compat-fixture change nobody
+// asked for.
+func TestTierNotHigherIsMintedOnceAndCostsTheProfileNothing(t *testing.T) {
+	if TierNotHigher != LayerPrefix+"tier-not-higher" {
+		t.Errorf("TierNotHigher is %q, and a minted refusal carries the layer prefix", TierNotHigher)
+	}
+	minted := 0
+	for _, name := range Introduced {
+		if name == TierNotHigher {
+			minted++
+		}
+	}
+	if minted != 1 {
+		t.Errorf("Introduced carries TierNotHigher %d times, wanted once", minted)
+	}
+	for _, name := range Declared {
+		if name == TierNotHigher {
+			t.Errorf("the profile's own set carries %s, which Dinah minted", name)
+		}
+	}
+	if len(Declared) != 17 {
+		t.Errorf("the profile declares %d refusal names, and raise was to leave that seventeen unchanged", len(Declared))
+	}
+	if len(Events) != 21 {
+		t.Errorf("the event set carries %d names, and raise was to compose two existing events rather than mint a twenty-second", len(Events))
+	}
+}

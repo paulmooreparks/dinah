@@ -864,7 +864,7 @@ so a `claimed` line with no `expires` records an unbounded claim.
 | `card_updated` | `field` | `from` and `to`, by the rule `workbench_updated` follows |
 | `restored` | `note` (the entity's own id) | |
 | `manual_correction` | `from`, `to`, `from_title`, `to_title` | |
-| `tier_overridden` | `column` (the resolved column's id), `to`, `expr` (what was typed) | `from`, absent where the card carried no override for that column; `against` (the column's own tier default), absent where the expression was absolute and needed no baseline |
+| `tier_overridden` | `column` (the resolved column's id), `to`, `expr` (what was typed) | `from`, absent where the card carried no override for that column; `against` (the column's own tier default), absent where the expression was absolute and needed no baseline; `column_title` and `reason`, both written by `raise` alone and both absent on an ordinary `card set ... --at` write |
 | `tier_override_dropped` | `column` (the retired column's id), `from` (the dropped absolute tier) | |
 
 An `expired` line carries `expires` unconditionally because the event fires
@@ -1748,7 +1748,31 @@ A pull carrying `--no-claim` takes nothing up, so no requirement the card
 carries can refuse it. The gate does not run for such a pull, and selection
 withholds nothing from it on tier either.
 
-### Two limits worth knowing before you rely on any of this
+### Raising the tier from inside the work
+
+An agent that has taken a card up and found the work beyond its own class
+raises the tier the card requires at that column and hands the card back, in
+one act: `dinah raise <ref> <tier> <reason...>`. The caller has to hold the
+card, the column is the one the card is standing in and cannot be named
+otherwise, and the reason cannot be left out.
+
+The act only ever goes up. A tier resolving at or below what the card already
+asks for at that column is refused under `dinah.tier-not-higher`, equality
+included, since a raise that changes nothing is not a raise. A deliberate
+downward or lateral correction is `dinah card set <ref> tier <value> --at
+<column>`, which is unrestricted, does not require a reason and does not hand
+the card back.
+
+The two writes it composes are the ones already described above: the anchor
+gains the resolved absolute tier as a `tier_at` entry, and the claim is
+released. Both land under one lock and are journaled as a `tier_overridden`
+line and a `released` line sharing a timestamp, so nothing can appear between
+them. The `tier_overridden` line is where the reason lives, and it is the only
+line that carries one; the anchor never does, because the justification is a
+fact about one write rather than a property of what the card currently
+requires.
+
+### Three limits worth knowing before you rely on any of this
 
 **Dinah cannot verify a declared tier.** A workbench is files on a disk, with
 no server, no account system and no credential, so `--tier apex` is a claim
@@ -1756,6 +1780,14 @@ the tool takes on trust rather than a capability it checks. The gate stops an
 honest claimant who has not noticed what the card asks for. It does nothing at
 all against a dishonest declaration, and no part of this design should be read
 as saying otherwise.
+
+**A raise's reason is trusted prose.** Dinah checks that one was typed and
+stops there. It does not, and structurally cannot, check that the reason is
+true, so a raise reads as an honest reassessment and an agent avoiding work in
+exactly the same way. What the format guarantees instead is that the reason
+exists, that it names the column the caller was actually standing in rather
+than one they chose, and that it sits on the journal next to the very act of
+handing the card back.
 
 **A column cannot make itself selective by declaring a default.** Only a
 requirement the card itself carries can refuse a claim. A review column that

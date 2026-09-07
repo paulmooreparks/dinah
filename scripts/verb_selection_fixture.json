@@ -5,6 +5,7 @@
     {"tool": "move", "statement": "I have finished the work on wb-12, and the card should now stand in the Code Review column instead of where it is."},
     {"tool": "release", "statement": "I am stopping work on wb-12, and I want to hand it back to the queue so that it stands unclaimed again."},
     {"tool": "block", "statement": "wb-12 cannot go on until the operator answers a question, and I want that obstruction recorded on the card with its reason."},
+    {"tool": "raise", "statement": "I took wb-12 up and the work turns out to need a more capable agent than I am, so I want the tier this column requires of it put up and the card handed back."},
     {"tool": "unblock", "statement": "The obstruction on wb-12 has been cleared, so the card should stop being marked as obstructed."},
     {"tool": "join_workstream", "statement": "wb-12 belongs to the portfolio workstream, and I want the card added to that workstream's membership."},
     {"tool": "leave_workstream", "statement": "wb-12 no longer belongs to the portfolio workstream, and I want the card taken out of that workstream's membership."},

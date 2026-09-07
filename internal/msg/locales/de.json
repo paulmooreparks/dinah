@@ -634,6 +634,56 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "b71a9fa16890f28b"
     },
+    "check.raise.1": {
+      "text": "die Werkbank benennt einen Operator",
+      "context": "One row of the ordered precondition list of raise. Keep a translation at or under 52 display columns.",
+      "source": "99ec845df4936041"
+    },
+    "check.raise.2": {
+      "text": "die Karte existiert",
+      "context": "One row of the ordered precondition list of raise. Keep a translation at or under 52 display columns.",
+      "source": "37dac5acd188c446"
+    },
+    "check.raise.3": {
+      "text": "die Anfrage nennt einen Akteur",
+      "context": "One row of the ordered precondition list of raise. Keep a translation at or under 52 display columns.",
+      "source": "bc538e33f1fcc933"
+    },
+    "check.raise.4": {
+      "text": "die anfragende Person hält die Karte",
+      "context": "One row of the ordered precondition list of raise. Keep a translation at or under 52 display columns.",
+      "source": "b14913e0de423e4"
+    },
+    "check.raise.5": {
+      "text": "die Anfrage trägt einen Grund",
+      "context": "One row of the ordered precondition list of raise. Keep a translation at or under 52 display columns.",
+      "source": "6187d91bfd0a84c3"
+    },
+    "check.raise.6": {
+      "text": "die Karte steht in einer Spalte, die es gibt",
+      "context": "One row of the ordered precondition list of raise. Keep a translation at or under 52 display columns.",
+      "source": "41219f1028fc9ee2"
+    },
+    "check.raise.7": {
+      "text": "eine relative Stufe hat einen Standardwert",
+      "context": "One row of the ordered precondition list of raise. Keep a translation at or under 52 display columns.",
+      "source": "a806e5c98dc6961"
+    },
+    "check.raise.8": {
+      "text": "die genannte Stufe deklariert die Werkbank",
+      "context": "One row of the ordered precondition list of raise. Keep a translation at or under 52 display columns.",
+      "source": "244a5ca7ae0e32ac"
+    },
+    "check.raise.9": {
+      "text": "die aufgelöste Stufe liegt in der deklarierten Menge",
+      "context": "One row of the ordered precondition list of raise. Keep a translation at or under 52 display columns.",
+      "source": "40632150ad9cfae5"
+    },
+    "check.raise.10": {
+      "text": "die aufgelöste Stufe liegt über der verlangten",
+      "context": "One row of the ordered precondition list of raise. Keep a translation at or under 52 display columns.",
+      "source": "a70704ecb8a24083"
+    },
     "check.reject-target-forward": {
       "text": "Spalte {detail} deklariert reject_to mit einer Spalte vor ihr, die keine done-Spalte ist",
       "context": "A check finding: reject_to names a column further along the flow whose kind is not done. A rejection that lands somewhere behind the declaring column, or that lands in a done column ahead of it, is not reported; only a forward name landing in an ordinary station is. {detail} carries the declaring column.",
@@ -1234,6 +1284,16 @@
       "context": "The next step of refusal.dinah.no-tier-default. Both ways out are open to the caller: an absolute tier needs no default, and a default makes the relative form work from then on.",
       "source": "2c4df505ad477bb3"
     },
+    "refusal.dinah.tier-not-higher": {
+      "text": "diese Karte verlangt hier bereits Stufe {current}, und {attempted} würde sie nicht anheben",
+      "context": "The sentence printed after the refusal name dinah.tier-not-higher, which a raise resolving to a tier at or below what the card already requires at this column carries. {current} is what the card asks for now, and {attempted} is what the raise resolved to, which {detail} carries as well. Equal counts as not higher, because a raise that changes nothing is not a raise. refusal.dinah.tier-not-higher.next is spliced on after this one.",
+      "source": "be48f8ac9203e45b"
+    },
+    "refusal.dinah.tier-not-higher.next": {
+      "text": "; nennen Sie eine Stufe über {current}, oder schreiben Sie sie mit `card set ... tier ... --at ...`, wenn Sie etwas anderes als eine Anhebung meinen",
+      "context": "The next step of refusal.dinah.tier-not-higher. Both ways out are named because only one of them is a raise: the other verb writes any value, a lower one included, and it does not hand the card back.",
+      "source": "a1d466252499c5ef"
+    },
     "refusal.dinah.tier-out-of-range": {
       "text": "{detail} landet auf Sprosse {attempted}, die außerhalb der tier-Menge dieser Werkbank liegt",
       "context": "The sentence printed after the refusal name dinah.tier-out-of-range, which a relative tier write resolving outside the declared set carries. {detail} is what the caller typed; {attempted} is the zero-based rank it worked out to, which may be negative. Nothing is clamped, so the sentence reports the rung rather than a value that was written. refusal.dinah.tier-out-of-range.next is spliced on after this one.",
@@ -1388,6 +1448,11 @@
       "text": "Die Karten der Werkbank, die auf eine Abfrage passen",
       "context": "The one-line summary of the query command, shown beside its syntax in the help block.",
       "source": "ea3969f5a4fee36d"
+    },
+    "cmd.raise.summary": {
+      "text": "Die hier nötige Stufe anheben und die Karte zurückgeben",
+      "context": "The one-line summary of `dinah raise`, printed in the command list and above that command's own help.",
+      "source": "a271dbaa000b2ec3"
     },
     "cmd.release.summary": {
       "text": "Die Karte an ihre Warteschlange zurückgeben",
@@ -1949,6 +2014,22 @@
       "text": "(abgelehnt)",
       "context": "The mark on a move whose destination is the departure column's own reject_to target.",
       "source": "7a665993a2b70017"
+    },
+    "log.tier-overridden": {
+      "text": "{column}: {from} nach {to}",
+      "context": "The detail of a tier_overridden line: the column the override concerns, and the requirement on either side of the write. {column} is the title the event captured at write time, falling back to the stored identifier on a line that captured none. {from} is the previous requirement, or log.tier-overridden.no-requirement where the card asked for nothing. log.tier-overridden.reason is appended after this one only when the event carries a reason, which an ordinary card set ... --at write does not.",
+      "source": "b14b0ec28b6548e9"
+    },
+    "log.tier-overridden.no-requirement": {
+      "text": "keine Anforderung",
+      "context": "Spliced in as {from} on a tier_overridden line whose own from is empty, meaning the card asked for nothing at this column before the write.",
+      "source": "cc08554c5e1522e1"
+    },
+    "log.tier-overridden.reason": {
+      "text": "({reason})",
+      "context": "Appended to log.tier-overridden's detail when the event carries a reason, which today only a raise writes. It is a parenthesis around the prose and nothing else, which is why every catalog answers it the same way.",
+      "verbatim": true,
+      "source": "277b9f1a4836002"
     },
     "log.attachment-renamed": {
       "text": "{from} nach {to}",
@@ -2640,8 +2721,18 @@
     },
     "refusal.no-reason.next": {
       "text": "; führen Sie `dinah block {card} \"die Frage, die der Betreiber beantworten muss\"` aus",
-      "context": "Spliced onto refusal.no-reason as the next step. {card} is the card reference the reader named. Written for block, the one verb that raises this refusal.",
+      "context": "Spliced onto refusal.no-reason as the next step. {card} is the card reference the reader named. Written for block; raise raises this refusal too and renders refusal.no-reason.raise.next in place of this entry.",
       "source": "1200d4b14e107f7f"
+    },
+    "refusal.no-reason.raise": {
+      "text": "eine Anhebung trägt einen Grund, der sagt, was Sie gefunden haben, das die Arbeit über die hier verlangte Stufe hinaushebt",
+      "context": "The sentence printed after the refusal name no-reason when the raise command raised it. A command adding no key of its own renders refusal.no-reason instead.",
+      "source": "a22814c635d4a42a"
+    },
+    "refusal.no-reason.raise.next": {
+      "text": "; führen Sie `dinah raise {card} <tier> \"was Sie gefunden haben\"` aus",
+      "context": "Spliced onto refusal.no-reason.raise as its next step. {card} is the card reference the reader named. The raise command renders it; every other command renders refusal.no-reason.next.",
+      "source": "57eed4ce08978d9a"
     },
     "refusal.not-blocked": {
       "text": "diese Karte ist nicht blockiert, es gibt also nichts aufzuheben",
@@ -2660,7 +2751,7 @@
     },
     "refusal.not-holder.unnamed": {
       "text": "niemand hält diese Karte, es gibt also nichts freizugeben",
-      "context": "The sentence printed after the refusal name not-holder when nobody holds the card, in place of refusal.not-holder. Written for release, the one verb that raises this refusal.",
+      "context": "The sentence printed after the refusal name not-holder when nobody holds the card, in place of refusal.not-holder. Release and raise both raise this refusal, and the sentence is written for release because releasing is still how the card is freed for somebody else to claim and then raise.",
       "source": "c483e1b28629f5b1"
     },
     "refusal.not-holder.next": {
@@ -2980,6 +3071,16 @@
       "context": "How the canonical token search is rendered where a person reads it, naming the rung a workbench answer came from: the ancestor walk resolved it, in the settings listing and on the status line alike. The machine surface always carries the canonical spelling.",
       "source": "220bcce27242e1e9"
     },
+    "token.tier_overridden": {
+      "text": "Stufe überschrieben",
+      "context": "How the canonical token tier_overridden is rendered where a person reads it. The machine surface always carries the canonical spelling.",
+      "source": "a057f907f314f263"
+    },
+    "token.tier_override_dropped": {
+      "text": "Stufenvorgabe verworfen",
+      "context": "How the canonical token tier_override_dropped is rendered where a person reads it. The machine surface always carries the canonical spelling.",
+      "source": "7fdfa8b00a2e3cf1"
+    },
     "token.unblocked": {
       "text": "Blockade aufgehoben",
       "context": "How the canonical token unblocked is rendered where a person reads it. The machine surface always carries the canonical spelling.",
@@ -3127,6 +3228,16 @@
       "text": "die Karte, auf die Sie einwirken, geschrieben als ihre Referenz, etwa wb-1",
       "context": "The meaning of the card argument, shared by every command that takes a card and nothing else.",
       "source": "16824e77ab43d6e4"
+    },
+    "param.raise.tier.summary": {
+      "text": "die Stufe, die die Arbeit wirklich braucht, als Name oder als Schritt wie +1; sie muss über dem liegen, was die Karte hier bereits verlangt",
+      "context": "The meaning of the tier argument of `dinah raise`, printed in that command's arguments table. It resolves the way any tier write resolves, so a relative step is measured against the column's own default and an absolute name is checked against the declared set.",
+      "source": "f136ab6b6ae83a09"
+    },
+    "param.raise.reason.summary": {
+      "text": "warum die Arbeit eine höhere Stufe braucht, in einem Shell-Wort oder in Anführungszeichen; Dinah hält fest, dass Sie einen geschrieben haben, und prüft nie, ob er stimmt",
+      "context": "The meaning of the reason argument of `dinah raise`, printed in that command's arguments table. The second clause is the limit a reader has to meet before relying on what a raise says: the reason cannot be left out, and no part of the tool judges what it claims.",
+      "source": "e18c38895376a397"
     },
     "param.ref.summary": {
       "text": "eine Spalte, eine Karte oder etwas unterhalb einer Karte wie wb-1/comments/1; nicht diese Werkbank",

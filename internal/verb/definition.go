@@ -272,6 +272,15 @@ var params = map[string][]Param{
 		{Name: "kind", Flag: true, Value: "kind", Field: "Kind"},
 	},
 	Unblock: {{Name: "card", Required: true, Shared: "card", Field: "Card"}},
+	// raise takes the tier before the reason, and the reason takes the rest
+	// of the line the way block's does, because a justification worth
+	// recording is worth typing without a flag. There is no column argument:
+	// a raise is always about the column the caller is standing in.
+	Raise: {
+		{Name: "card", Required: true, Shared: "card", Field: "Card"},
+		{Name: "tier", Required: true, Field: "Tier"},
+		{Name: "reason", Required: true, Rest: true, Field: "Reason"},
+	},
 	Join: {
 		{Name: "card", Required: true, Shared: "card", Field: "Card"},
 		{Name: "workstream", Required: true, Shared: "workstream", Field: "Workstream"},

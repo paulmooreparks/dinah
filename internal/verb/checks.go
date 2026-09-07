@@ -30,6 +30,7 @@ const (
 	Unblock = "unblock"
 	Join    = "join"
 	Leave   = "leave"
+	Raise   = "raise"
 )
 
 // ContractVerbs are the five verbs the profile specifies, in the order
@@ -375,6 +376,30 @@ var beyondChecks = map[string][]Check{
 	"mcp": {
 		{Refusal: contract.UnknownRoot, Key: "check.mcp.1"},
 		{Refusal: contract.OutsideRoot, Key: "check.mcp.2"},
+	},
+	// raise checks the operator itself, as Library.Raise's own first line,
+	// the same way reshape does, so the operator row sits in this table
+	// rather than being prefixed by Checks: raise is a beyond-contract
+	// command, IsContractVerb answers false for it, and nothing prefixes
+	// WorkbenchChecks onto a list held here.
+	//
+	// The order is the order Library.Raise evaluates them in. Identity comes
+	// before the reason so that a caller who does not hold the card is told
+	// that rather than being asked for prose it would then discard, and the
+	// reason comes before the tier resolution so that a raise typed with no
+	// justification is refused for the justification whatever the expression
+	// would have resolved to.
+	Raise: {
+		{Refusal: contract.NoOperator, Key: "check.raise.1"},
+		{Refusal: contract.UnknownCard, Key: "check.raise.2"},
+		{Refusal: contract.NoOwner, Key: "check.raise.3"},
+		{Refusal: contract.NotHolder, Key: "check.raise.4"},
+		{Refusal: contract.NoReason, Key: "check.raise.5"},
+		{Refusal: contract.UnknownColumn, Key: "check.raise.6"},
+		{Refusal: contract.NoTierDefault, Key: "check.raise.7"},
+		{Refusal: contract.UnknownLevel, Key: "check.raise.8"},
+		{Refusal: contract.TierOutOfRange, Key: "check.raise.9"},
+		{Refusal: contract.TierNotHigher, Key: "check.raise.10"},
 	},
 	// reshape's list is the order a reader meets the refusals in, which is
 	// the order the help text reads best in: the workbench and the owner

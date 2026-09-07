@@ -4,12 +4,14 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
 	"dinah/internal/bench"
 	"dinah/internal/contract"
 	"dinah/internal/msg"
+	"dinah/internal/verb"
 )
 
 // The tier tests sit in a file of their own rather than in levels_test.go,
@@ -624,6 +626,441 @@ func TestTheClaimHelpAndTheFormatDocStateBothLimits(t *testing.T) {
 		"a claim the tool takes on trust rather than a capability it checks",
 		"A column cannot make itself selective by declaring a default",
 		"Only a requirement the card itself carries can refuse a claim",
+	} {
+		if !strings.Contains(prose, clause) {
+			t.Errorf("docs/design/format.md does not state %q", clause)
+		}
+	}
+}
+
+// raisingDefinition is the workbench the raise tests run against: three
+// declared rungs, a column defaulting to the lowest of them, and a column
+// carrying no default at all, so a relative expression can be measured at one
+// and refused at the other.
+const raisingDefinition = `{
+  "profile": "dinah-core/0.7",
+  "title": "Raising",
+  "levels": { "tier": ["workhorse", "frontier", "apex"] },
+  "columns": [
+    { "id": "c00000000001", "title": "Intake", "kind": "intake" },
+    { "id": "c00000000002", "title": "Build", "slug": "build", "kind": "work", "tier": "workhorse" },
+    { "id": "c00000000003", "title": "Plain", "slug": "plain", "kind": "work" },
+    { "id": "c00000000004", "title": "Done", "kind": "done" }
+  ]
+}`
+
+// heldAt files a card, carries it to a column and takes it up, which is the
+// state every raise starts from.
+func heldAt(t *testing.T, root, title, column string) {
+	t.Helper()
+	if got := runCLI(t, root, "add", title); got.code != 0 {
+		t.Fatalf("add %s: %d %s", title, got.code, got.errw)
+	}
+	ref := lastCardRef(t, root)
+	if got := runCLI(t, root, "move", ref, column); got.code != 0 {
+		t.Fatalf("move %s: %d %s", ref, got.code, got.errw)
+	}
+	if got := runCLI(t, root, "claim", ref); got.code != 0 {
+		t.Fatalf("claim %s: %d %s", ref, got.code, got.errw)
+	}
+}
+
+// lastCardRef is the reference of the card filed most recently, read off the
+// tool rather than composed here, so a change to how references are minted
+// does not need this file edited.
+func lastCardRef(t *testing.T, root string) string {
+	t.Helper()
+	got := runCLI(t, root, "ls", "--json")
+	if got.code != 0 {
+		t.Fatalf("ls: %d %s", got.code, got.errw)
+	}
+	var answer struct {
+		Cards []struct {
+			Ref string `json:"ref"`
+		} `json:"cards"`
+	}
+	if err := json.Unmarshal([]byte(got.out), &answer); err != nil {
+		t.Fatalf("decode the listing: %v\n%s", err, got.out)
+	}
+	if len(answer.Cards) == 0 {
+		t.Fatal("the workbench carries no cards")
+	}
+	return answer.Cards[len(answer.Cards)-1].Ref
+}
+
+// TestARaiseWritesTheOverrideAndHandsTheCardBack asserts AC-1: one act writes
+// the requirement, frees the claim, and leaves two adjacent journal lines
+// sharing a timestamp, the first of them carrying the reason.
+func TestARaiseWritesTheOverrideAndHandsTheCardBack(t *testing.T) {
+	root := newBenchFromDefinition(t, raisingDefinition)
+	heldAt(t, root, "a card that turns out to be harder", "build")
+
+	const reason = "found deeper coupling than the ticket suggested"
+	if got := runCLI(t, root, "raise", "fx-1", "apex", reason); got.code != 0 {
+		t.Fatalf("raise: %d %s", got.code, got.errw)
+	}
+
+	anchor := anchorText(t, root, "fx-1")
+	if !strings.Contains(anchor, "tier_at:\n  - column: build\n    tier: apex\n") {
+		t.Errorf("the anchor does not carry the raised requirement:\n%s", anchor)
+	}
+	if !strings.Contains(anchor, "state: ready") {
+		t.Errorf("the card was not handed back:\n%s", anchor)
+	}
+	if strings.Contains(anchor, "claim_holder:") {
+		t.Errorf("the card is still held:\n%s", anchor)
+	}
+
+	events := cardEvents(t, root, "fx-1")
+	if len(events) < 2 {
+		t.Fatalf("wanted at least the raise's own two lines, got %d", len(events))
+	}
+	raised := events[len(events)-2]
+	freed := events[len(events)-1]
+	if raised.Event != contract.EventTierOverridden || freed.Event != contract.EventReleased {
+		t.Fatalf("wanted %s then %s as the last two lines, got %s then %s",
+			contract.EventTierOverridden, contract.EventReleased, raised.Event, freed.Event)
+	}
+	if raised.TS != freed.TS {
+		t.Errorf("the pair carries %q and %q, and one act writes one timestamp", raised.TS, freed.TS)
+	}
+	if raised.Reason != reason {
+		t.Errorf("the raise carries reason %q, wanted %q", raised.Reason, reason)
+	}
+	if raised.Column != "c00000000002" || raised.ColumnTitle != "Build" {
+		t.Errorf("the raise names column %q titled %q, wanted the build column and its title",
+			raised.Column, raised.ColumnTitle)
+	}
+	if raised.From != "" || raised.To != "apex" || raised.Expr != "apex" || raised.Against != "" {
+		t.Errorf("the raise carries from %q to %q expr %q against %q, wanted an absolute write over no requirement",
+			raised.From, raised.To, raised.Expr, raised.Against)
+	}
+	if freed.Actor != raised.Actor {
+		t.Errorf("the two lines name %q and %q, and one act has one actor", raised.Actor, freed.Actor)
+	}
+}
+
+// TestARaiseResolvingAtOrBelowWhatTheCardAsksIsRefused asserts AC-2 and AC-3:
+// the comparison is against what the card itself already requires, so a
+// relative step measured from the column's own lower default is refused, and
+// so is an absolute value that is plainly lower.
+func TestARaiseResolvingAtOrBelowWhatTheCardAsksIsRefused(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		set       []string
+		expr      string
+		attempted string
+	}{
+		{
+			name:      "a relative step measured from the column default",
+			set:       []string{"card", "set", "fx-1", "tier", "apex", "--at", "build"},
+			expr:      "+1",
+			attempted: "frontier",
+		},
+		{
+			name:      "an absolute value below the baseline",
+			set:       []string{"card", "set", "fx-1", "tier", "apex"},
+			expr:      "workhorse",
+			attempted: "workhorse",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := newBenchFromDefinition(t, raisingDefinition)
+			heldAt(t, root, "a card assessed at the top already", "build")
+			if got := runCLI(t, root, tc.set...); got.code != 0 {
+				t.Fatalf("%v: %d %s", tc.set, got.code, got.errw)
+			}
+			anchor := anchorText(t, root, "fx-1")
+			events := len(cardEvents(t, root, "fx-1"))
+
+			refused := runCLI(t, root, "raise", "fx-1", tc.expr, "the ticket understated it")
+			if refused.code != 2 {
+				t.Fatalf("the raise exited %d, wanted 2: %s", refused.code, refused.errw)
+			}
+			if name := refusalNameOf(refused.errw); name != contract.TierNotHigher {
+				t.Errorf("the refusal name is %s, wanted %s", name, contract.TierNotHigher)
+			}
+			english := msg.For(msg.Base)
+			want := contract.TierNotHigher + " " +
+				english.T("refusal.dinah.tier-not-higher", "current", "apex", "attempted", tc.attempted) +
+				english.T("refusal.dinah.tier-not-higher.next", "current", "apex") + "\n"
+			if refused.errw != want {
+				t.Errorf("the sentence a caller reads:\n got  %q\n want %q", refused.errw, want)
+			}
+			after := anchorText(t, root, "fx-1")
+			if after != anchor {
+				t.Errorf("the refused raise reached the anchor:\n%s", after)
+			}
+			if got := len(cardEvents(t, root, "fx-1")); got != events {
+				t.Errorf("the refused raise wrote %d journal lines", got-events)
+			}
+			if !strings.Contains(after, "state: active") {
+				t.Errorf("the refused raise handed the card back anyway:\n%s", after)
+			}
+		})
+	}
+}
+
+// TestARaiseByAnyoneButTheHolderIsRefused asserts AC-4: an unclaimed card and
+// a card somebody else holds answer under one name, and neither is written to.
+func TestARaiseByAnyoneButTheHolderIsRefused(t *testing.T) {
+	root := newBenchFromDefinition(t, raisingDefinition)
+	if got := runCLI(t, root, "add", "nobody holds it"); got.code != 0 {
+		t.Fatalf("add: %d %s", got.code, got.errw)
+	}
+	if got := runCLI(t, root, "move", "fx-1", "build"); got.code != 0 {
+		t.Fatalf("move: %d %s", got.code, got.errw)
+	}
+	if got := runCLI(t, root, "add", "somebody else holds it"); got.code != 0 {
+		t.Fatalf("add: %d %s", got.code, got.errw)
+	}
+	if got := runCLI(t, root, "move", "fx-2", "build"); got.code != 0 {
+		t.Fatalf("move fx-2: %d %s", got.code, got.errw)
+	}
+	if got := runCLI(t, root, "claim", "fx-2", "--actor", "bo"); got.code != 0 {
+		t.Fatalf("claim fx-2 as bo: %d %s", got.code, got.errw)
+	}
+
+	for _, tc := range []struct{ name, ref, holder string }{
+		{name: "unclaimed", ref: "fx-1", holder: ""},
+		{name: "held by another", ref: "fx-2", holder: "bo"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			anchor := anchorText(t, root, tc.ref)
+			events := len(cardEvents(t, root, tc.ref))
+			refused := runCLI(t, root, "raise", tc.ref, "apex", "the ticket understated it")
+			if refused.code != 2 {
+				t.Fatalf("the raise exited %d, wanted 2: %s", refused.code, refused.errw)
+			}
+			if name := refusalNameOf(refused.errw); name != contract.NotHolder {
+				t.Errorf("the refusal name is %s, wanted %s", name, contract.NotHolder)
+			}
+			english := msg.For(msg.Base)
+			want := contract.NotHolder + " " +
+				english.T("refusal.not-holder.unnamed") +
+				english.T("refusal.not-holder.next-unheld", "card", tc.ref) + "\n"
+			if tc.holder != "" {
+				want = contract.NotHolder + " " +
+					english.T("refusal.not-holder", "detail", tc.holder) +
+					english.T("refusal.not-holder.next", "detail", tc.holder) + "\n"
+			}
+			if refused.errw != want {
+				t.Errorf("the sentence a caller reads:\n got  %q\n want %q", refused.errw, want)
+			}
+			if after := anchorText(t, root, tc.ref); after != anchor {
+				t.Errorf("the refused raise reached the anchor:\n%s", after)
+			}
+			if got := len(cardEvents(t, root, tc.ref)); got != events {
+				t.Errorf("the refused raise wrote %d journal lines", got-events)
+			}
+		})
+	}
+}
+
+// TestARaiseWithNoReasonIsRefusedBeforeTheTierIsResolved asserts AC-5, which
+// has two halves. The reason is checked ahead of the expression, so an
+// invocation that would fail both fails for the missing reason, which is the
+// order the printed check table promises. And the sentence the caller reads is
+// raise's own: the whole of stderr is compared against the variant pair, so a
+// raise that fell back on block's entries would fail here even though it
+// refused under the right name. The name half alone cannot see that, which is
+// how this card once shipped a refusal telling a caller to run `dinah block`.
+func TestARaiseWithNoReasonIsRefusedBeforeTheTierIsResolved(t *testing.T) {
+	root := newBenchFromDefinition(t, raisingDefinition)
+	heldAt(t, root, "a card with nothing said about it", "build")
+	anchor := anchorText(t, root, "fx-1")
+	english := msg.For(msg.Base)
+
+	refused := runCLI(t, root, "raise", "fx-1", "+5")
+	if refused.code != 2 {
+		t.Fatalf("the raise exited %d, wanted 2: %s", refused.code, refused.errw)
+	}
+	if name := refusalNameOf(refused.errw); name != contract.NoReason {
+		t.Errorf("the refusal name is %s, wanted %s, so the tier was resolved before the reason was asked for", name, contract.NoReason)
+	}
+	want := contract.NoReason + " " +
+		english.T("refusal.no-reason.raise") +
+		english.T("refusal.no-reason.raise.next", "card", "fx-1") + "\n"
+	if refused.errw != want {
+		t.Errorf("the sentence a caller reads:\n got  %q\n want %q", refused.errw, want)
+	}
+	if strings.Contains(refused.errw, english.T("refusal.no-reason.next", "card", "fx-1")) {
+		t.Errorf("block's next step reached a reader who typed raise, so following it runs a different verb against the card: %q", refused.errw)
+	}
+	if strings.Contains(refused.errw, english.T("refusal.no-reason")) {
+		t.Errorf("block's own sentence reached a reader who typed raise: %q", refused.errw)
+	}
+	if after := anchorText(t, root, "fx-1"); after != anchor {
+		t.Errorf("the refused raise reached the anchor:\n%s", after)
+	}
+}
+
+// TestARaiseReusesTheResolversOwnRefusals asserts AC-6 and AC-7: raise calls
+// the same resolver the ordinary per-column write calls, so a column carrying
+// no default and a step off the end of the set are refused under the names
+// that write already uses, in sentences of the same shape.
+func TestARaiseReusesTheResolversOwnRefusals(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		column  string
+		step    string
+		refusal string
+	}{
+		{name: "no default to be relative to", column: "plain", step: "+1", refusal: contract.NoTierDefault},
+		{name: "a step off the end of the set", column: "build", step: "+9", refusal: contract.TierOutOfRange},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := newBenchFromDefinition(t, raisingDefinition)
+			heldAt(t, root, "a card at a station that cannot answer", tc.column)
+			anchor := anchorText(t, root, "fx-1")
+
+			refused := runCLI(t, root, "raise", "fx-1", tc.step, "the ticket understated it")
+			if refused.code != 2 {
+				t.Fatalf("the raise exited %d, wanted 2: %s", refused.code, refused.errw)
+			}
+			if name := refusalNameOf(refused.errw); name != tc.refusal {
+				t.Errorf("the refusal name is %s, wanted %s", name, tc.refusal)
+			}
+			if after := anchorText(t, root, "fx-1"); after != anchor {
+				t.Errorf("the refused raise reached the anchor:\n%s", after)
+			}
+
+			// The same condition reached through the ordinary write prints
+			// the same sentence, which is what reusing the name buys. The two
+			// invocations differ only in the verb that raised it, so a
+			// message naming the verb would show up here as a difference.
+			write := runCLI(t, root, "card", "set", "fx-1", "tier", tc.step, "--at", tc.column)
+			if got, want := flattenWords(write.errw), flattenWords(refused.errw); got != want {
+				t.Errorf("the raise prints\n%s\nand the ordinary write prints\n%s", want, got)
+			}
+		})
+	}
+}
+
+// TestTheLogPrintsARaisesColumnTitleReasonAndRanks asserts AC-14: the one
+// surface a person reads carries the whole of what the raise decided, with the
+// column named by the title the event itself captured.
+func TestTheLogPrintsARaisesColumnTitleReasonAndRanks(t *testing.T) {
+	root := newBenchFromDefinition(t, raisingDefinition)
+	heldAt(t, root, "a card that turns out to be harder", "build")
+	const reason = "found deeper coupling than the ticket suggested"
+	if got := runCLI(t, root, "raise", "fx-1", "apex", reason); got.code != 0 {
+		t.Fatalf("raise: %d %s", got.code, got.errw)
+	}
+
+	got := runCLI(t, root, "log", "fx-1")
+	if got.code != 0 {
+		t.Fatalf("log: %d %s", got.code, got.errw)
+	}
+	want := "Build: no requirement to apex (" + reason + ")"
+	if !strings.Contains(flattenWords(got.out), want) {
+		t.Errorf("the log does not carry %q:\n%s", want, got.out)
+	}
+	if strings.Contains(got.out, "c00000000002") {
+		t.Errorf("the log prints the raw column identifier where the event captured a title:\n%s", got.out)
+	}
+}
+
+// TestTheLogFallsBackToTheStoredColumnIdentifier asserts AC-13, which is the
+// sibling line and the one a reader meets most often: an ordinary per-column
+// tier write captures no column title and carries no reason, so its own line
+// degrades to the stored identifier rather than to a blank detail, and prints
+// no empty parenthesis where a raise prints its justification.
+func TestTheLogFallsBackToTheStoredColumnIdentifier(t *testing.T) {
+	root := newBenchFromDefinition(t, raisingDefinition)
+	if got := runCLI(t, root, "add", "a card triage assessed"); got.code != 0 {
+		t.Fatalf("add: %d %s", got.code, got.errw)
+	}
+	if got := runCLI(t, root, "card", "set", "fx-1", "tier", "apex", "--at", "build"); got.code != 0 {
+		t.Fatalf("card set tier --at build: %d %s", got.code, got.errw)
+	}
+
+	overrides := tierOverriddenEvents(cardEvents(t, root, "fx-1"))
+	if len(overrides) != 1 {
+		t.Fatalf("wanted one tier_overridden event, got %d", len(overrides))
+	}
+	if overrides[0].ColumnTitle != "" {
+		t.Fatalf("the ordinary write captured a column title, so this test no longer builds the state it names: %+v", overrides[0])
+	}
+
+	got := runCLI(t, root, "log", "fx-1")
+	if got.code != 0 {
+		t.Fatalf("log: %d %s", got.code, got.errw)
+	}
+	flat := flattenWords(got.out)
+	if !strings.Contains(flat, "c00000000002: no requirement to apex") {
+		t.Errorf("the log does not fall back to the stored column identifier:\n%s", got.out)
+	}
+	if strings.Contains(flat, "()") {
+		t.Errorf("the log prints an empty parenthesis where the write carried no reason:\n%s", got.out)
+	}
+}
+
+// TestTheRaiseHelpTableMatchesTheEvaluationOrder asserts AC-12: `dinah help
+// raise` prints the ten rows in the order the library evaluates them, with the
+// operator row first because raise checks the operator itself, and both the
+// page and the format document state that the reason is required and never
+// verified.
+func TestTheRaiseHelpTableMatchesTheEvaluationOrder(t *testing.T) {
+	wanted := []string{
+		contract.NoOperator,
+		contract.UnknownCard,
+		contract.NoOwner,
+		contract.NotHolder,
+		contract.NoReason,
+		contract.UnknownColumn,
+		contract.NoTierDefault,
+		contract.UnknownLevel,
+		contract.TierOutOfRange,
+		contract.TierNotHigher,
+	}
+	checks := verb.Checks(verb.Raise)
+	if len(checks) != len(wanted) {
+		t.Fatalf("wanted %d rows, got %d, so raise is picking up the workbench pair it does not run", len(wanted), len(checks))
+	}
+	if verb.IsContractVerb(verb.Raise) {
+		t.Error("raise reads as a contract verb, which would prefix the workbench pair onto its own table")
+	}
+	for i, want := range wanted {
+		if checks[i].Refusal != want {
+			t.Errorf("row %d reports %s, wanted %s", i+1, checks[i].Refusal, want)
+		}
+		if got, key := checks[i].Key, "check.raise."+strconv.Itoa(i+1); got != key {
+			t.Errorf("row %d carries the key %s, wanted %s", i+1, got, key)
+		}
+	}
+
+	root := newBenchFromDefinition(t, raisingDefinition)
+	page := runCLI(t, root, "help", "raise")
+	if page.code != 0 {
+		t.Fatalf("help raise: %d %s", page.code, page.errw)
+	}
+	flat := flattenWords(page.out)
+	previous := -1
+	for i := range wanted {
+		row := flattenWords(msg.For(msg.Base).T("check.raise." + strconv.Itoa(i+1)))
+		at := strings.Index(flat, row)
+		if at < 0 {
+			t.Errorf("the page does not print row %d (%q):\n%s", i+1, row, page.out)
+			continue
+		}
+		if at < previous {
+			t.Errorf("row %d is printed before the row above it, so the page and the code disagree:\n%s", i+1, page.out)
+		}
+		previous = at
+	}
+	if !strings.Contains(flat, "records that you wrote one and never checks that it is true") {
+		t.Errorf("dinah help raise does not state that the reason is required and never verified:\n%s", page.out)
+	}
+
+	doc, err := os.ReadFile(filepath.Join("..", "..", "docs", "design", "format.md"))
+	if err != nil {
+		t.Fatalf("read the format document: %v", err)
+	}
+	prose := flattenWords(string(doc))
+	for _, clause := range []string{
+		"A raise's reason is trusted prose",
+		"It does not, and structurally cannot, check that the reason is true",
 	} {
 		if !strings.Contains(prose, clause) {
 			t.Errorf("docs/design/format.md does not state %q", clause)

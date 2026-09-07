@@ -634,6 +634,56 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "b71a9fa16890f28b"
     },
+    "check.raise.1": {
+      "text": "वर्कबेंच एक ऑपरेटर नियुक्त करता है",
+      "context": "One row of the ordered precondition list of raise. Keep a translation at or under 52 display columns.",
+      "source": "99ec845df4936041"
+    },
+    "check.raise.2": {
+      "text": "कार्ड मौजूद है",
+      "context": "One row of the ordered precondition list of raise. Keep a translation at or under 52 display columns.",
+      "source": "37dac5acd188c446"
+    },
+    "check.raise.3": {
+      "text": "निवेदन किसी स्वामी को नामता है",
+      "context": "One row of the ordered precondition list of raise. Keep a translation at or under 52 display columns.",
+      "source": "bc538e33f1fcc933"
+    },
+    "check.raise.4": {
+      "text": "कार्ड माँगने वाले के पास है",
+      "context": "One row of the ordered precondition list of raise. Keep a translation at or under 52 display columns.",
+      "source": "b14913e0de423e4"
+    },
+    "check.raise.5": {
+      "text": "निवेदन में कारण है",
+      "context": "One row of the ordered precondition list of raise. Keep a translation at or under 52 display columns.",
+      "source": "6187d91bfd0a84c3"
+    },
+    "check.raise.6": {
+      "text": "कार्ड एक ऐसे कॉलम में है जो मौजूद है",
+      "context": "One row of the ordered precondition list of raise. Keep a translation at or under 52 display columns.",
+      "source": "41219f1028fc9ee2"
+    },
+    "check.raise.7": {
+      "text": "सापेक्ष स्तर के पास मापने को डिफ़ॉल्ट है",
+      "context": "One row of the ordered precondition list of raise. Keep a translation at or under 52 display columns.",
+      "source": "a806e5c98dc6961"
+    },
+    "check.raise.8": {
+      "text": "बताया गया स्तर वर्कबेंच घोषित करती है",
+      "context": "One row of the ordered precondition list of raise. Keep a translation at or under 52 display columns.",
+      "source": "244a5ca7ae0e32ac"
+    },
+    "check.raise.9": {
+      "text": "हल हुआ स्तर घोषित समुच्चय में आता है",
+      "context": "One row of the ordered precondition list of raise. Keep a translation at or under 52 display columns.",
+      "source": "40632150ad9cfae5"
+    },
+    "check.raise.10": {
+      "text": "हल हुआ स्तर कार्ड की माँग से ऊपर है",
+      "context": "One row of the ordered precondition list of raise. Keep a translation at or under 52 display columns.",
+      "source": "a70704ecb8a24083"
+    },
     "check.reject-target-forward": {
       "text": "कॉलम {detail} reject_to में अपने आगे का ऐसा कॉलम बताता है जो done कॉलम नहीं है",
       "context": "A check finding: reject_to names a column further along the flow whose kind is not done. A rejection that lands somewhere behind the declaring column, or that lands in a done column ahead of it, is not reported; only a forward name landing in an ordinary station is. {detail} carries the declaring column.",
@@ -1234,6 +1284,16 @@
       "context": "The next step of refusal.dinah.no-tier-default. Both ways out are open to the caller: an absolute tier needs no default, and a default makes the relative form work from then on.",
       "source": "2c4df505ad477bb3"
     },
+    "refusal.dinah.tier-not-higher": {
+      "text": "यह कार्ड यहाँ पहले से tier {current} माँगता है, और {attempted} उसे नहीं बढ़ाएगा",
+      "context": "The sentence printed after the refusal name dinah.tier-not-higher, which a raise resolving to a tier at or below what the card already requires at this column carries. {current} is what the card asks for now, and {attempted} is what the raise resolved to, which {detail} carries as well. Equal counts as not higher, because a raise that changes nothing is not a raise. refusal.dinah.tier-not-higher.next is spliced on after this one.",
+      "source": "be48f8ac9203e45b"
+    },
+    "refusal.dinah.tier-not-higher.next": {
+      "text": "; {current} से ऊपर का स्तर बताएँ, या यदि आपका अर्थ बढ़ाना नहीं है तो उसे `card set ... tier ... --at ...` से लिखें",
+      "context": "The next step of refusal.dinah.tier-not-higher. Both ways out are named because only one of them is a raise: the other verb writes any value, a lower one included, and it does not hand the card back.",
+      "source": "a1d466252499c5ef"
+    },
     "refusal.dinah.tier-out-of-range": {
       "text": "{detail} पायदान {attempted} पर पहुँचता है, जो इस वर्कबेंच के tier समुच्चय से बाहर है",
       "context": "The sentence printed after the refusal name dinah.tier-out-of-range, which a relative tier write resolving outside the declared set carries. {detail} is what the caller typed; {attempted} is the zero-based rank it worked out to, which may be negative. Nothing is clamped, so the sentence reports the rung rather than a value that was written. refusal.dinah.tier-out-of-range.next is spliced on after this one.",
@@ -1388,6 +1448,11 @@
       "text": "वर्कबेंच के वे कार्ड जो किसी क्वेरी से मेल खाते हैं",
       "context": "The one-line summary of the query command, shown beside its syntax in the help block.",
       "source": "ea3969f5a4fee36d"
+    },
+    "cmd.raise.summary": {
+      "text": "इस पड़ाव के लिए आवश्यक स्तर बढ़ाएँ और कार्ड लौटा दें",
+      "context": "The one-line summary of `dinah raise`, printed in the command list and above that command's own help.",
+      "source": "a271dbaa000b2ec3"
     },
     "cmd.release.summary": {
       "text": "कार्ड उसकी कतार को लौटा दें",
@@ -1939,6 +2004,22 @@
       "text": "(अस्वीकृत)",
       "context": "The mark on a move whose destination is the departure column's own reject_to target.",
       "source": "7a665993a2b70017"
+    },
+    "log.tier-overridden": {
+      "text": "{column}: {from} से {to}",
+      "context": "The detail of a tier_overridden line: the column the override concerns, and the requirement on either side of the write. {column} is the title the event captured at write time, falling back to the stored identifier on a line that captured none. {from} is the previous requirement, or log.tier-overridden.no-requirement where the card asked for nothing. log.tier-overridden.reason is appended after this one only when the event carries a reason, which an ordinary card set ... --at write does not.",
+      "source": "b14b0ec28b6548e9"
+    },
+    "log.tier-overridden.no-requirement": {
+      "text": "कोई माँग नहीं",
+      "context": "Spliced in as {from} on a tier_overridden line whose own from is empty, meaning the card asked for nothing at this column before the write.",
+      "source": "cc08554c5e1522e1"
+    },
+    "log.tier-overridden.reason": {
+      "text": "({reason})",
+      "context": "Appended to log.tier-overridden's detail when the event carries a reason, which today only a raise writes. It is a parenthesis around the prose and nothing else, which is why every catalog answers it the same way.",
+      "verbatim": true,
+      "source": "277b9f1a4836002"
     },
     "log.attachment-renamed": {
       "text": "{from} से {to}",
@@ -2626,8 +2707,18 @@
     },
     "refusal.no-reason.next": {
       "text": "; `dinah block {card} \"वह प्रश्न जिसका उत्तर संचालक को देना है\"` चलाएँ",
-      "context": "Spliced onto refusal.no-reason as the next step. {card} is the card reference the reader named. Written for block, the one verb that raises this refusal.",
+      "context": "Spliced onto refusal.no-reason as the next step. {card} is the card reference the reader named. Written for block; raise raises this refusal too and renders refusal.no-reason.raise.next in place of this entry.",
       "source": "1200d4b14e107f7f"
+    },
+    "refusal.no-reason.raise": {
+      "text": "स्तर बढ़ाने के साथ कारण आता है, जो बताता है कि आपने ऐसा क्या पाया जो काम को इस पड़ाव के माँगे गए स्तर से ऊपर ले जाता है",
+      "context": "The sentence printed after the refusal name no-reason when the raise command raised it. A command adding no key of its own renders refusal.no-reason instead.",
+      "source": "a22814c635d4a42a"
+    },
+    "refusal.no-reason.raise.next": {
+      "text": "; `dinah raise {card} <tier> \"आपने जो पाया\"` चलाएँ",
+      "context": "Spliced onto refusal.no-reason.raise as its next step. {card} is the card reference the reader named. The raise command renders it; every other command renders refusal.no-reason.next.",
+      "source": "57eed4ce08978d9a"
     },
     "refusal.not-blocked": {
       "text": "यह कार्ड बाधित नहीं है, इसलिए हटाने को कुछ नहीं है",
@@ -2646,7 +2737,7 @@
     },
     "refusal.not-holder.unnamed": {
       "text": "यह कार्ड किसी ने नहीं लिया है, इसलिए छोड़ने को कुछ नहीं है",
-      "context": "The sentence printed after the refusal name not-holder when nobody holds the card, in place of refusal.not-holder. Written for release, the one verb that raises this refusal.",
+      "context": "The sentence printed after the refusal name not-holder when nobody holds the card, in place of refusal.not-holder. Release and raise both raise this refusal, and the sentence is written for release because releasing is still how the card is freed for somebody else to claim and then raise.",
       "source": "c483e1b28629f5b1"
     },
     "refusal.not-holder.next": {
@@ -2966,6 +3057,16 @@
       "context": "How the canonical token search is rendered where a person reads it, naming the rung a workbench answer came from: the ancestor walk resolved it, in the settings listing and on the status line alike. The machine surface always carries the canonical spelling.",
       "source": "220bcce27242e1e9"
     },
+    "token.tier_overridden": {
+      "text": "स्तर बदला",
+      "context": "How the canonical token tier_overridden is rendered where a person reads it. The machine surface always carries the canonical spelling.",
+      "source": "a057f907f314f263"
+    },
+    "token.tier_override_dropped": {
+      "text": "स्तर हटा",
+      "context": "How the canonical token tier_override_dropped is rendered where a person reads it. The machine surface always carries the canonical spelling.",
+      "source": "7fdfa8b00a2e3cf1"
+    },
     "token.unblocked": {
       "text": "बाधा हटी",
       "context": "How the canonical token unblocked is rendered where a person reads it. The machine surface always carries the canonical spelling.",
@@ -3113,6 +3214,16 @@
       "text": "जिस कार्ड पर आप काम कर रहे हैं, उसके संदर्भ के रूप में लिखा गया, जैसे wb-1",
       "context": "The meaning of the card argument, shared by every command that takes a card and nothing else.",
       "source": "16824e77ab43d6e4"
+    },
+    "param.raise.tier.summary": {
+      "text": "वह स्तर जो काम को वास्तव में चाहिए, नाम से या +1 जैसे कदम के रूप में; उसे उससे ऊपर होना चाहिए जो कार्ड यहाँ पहले से माँगता है",
+      "context": "The meaning of the tier argument of `dinah raise`, printed in that command's arguments table. It resolves the way any tier write resolves, so a relative step is measured against the column's own default and an absolute name is checked against the declared set.",
+      "source": "f136ab6b6ae83a09"
+    },
+    "param.raise.reason.summary": {
+      "text": "काम को ऊँचा स्तर क्यों चाहिए, एक ही शब्द में या उद्धरण चिह्नों के भीतर; Dinah केवल यह दर्ज करता है कि आपने कारण लिखा, यह कभी नहीं जाँचता कि वह सच है",
+      "context": "The meaning of the reason argument of `dinah raise`, printed in that command's arguments table. The second clause is the limit a reader has to meet before relying on what a raise says: the reason cannot be left out, and no part of the tool judges what it claims.",
+      "source": "e18c38895376a397"
     },
     "param.ref.summary": {
       "text": "एक कॉलम, एक कार्ड, या कार्ड के नीचे की कोई चीज़ जैसे wb-1/comments/1; यह वर्कबेंच नहीं",

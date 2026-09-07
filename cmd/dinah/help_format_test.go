@@ -37,6 +37,8 @@ WORK
   release <card>                                         Give the card back to its queue
   block <card> <reason> [--kind <kind>]                  Raise an obstacle and free the card
   unblock <card>                                         Lift a block (operator only)
+  raise <card> <tier> <reason>                           Raise the tier this stop needs and hand the card
+                                                           back
   comment <card> <text|->                                Record a comment on a card
   attach <ref> <file> [--description <text>]             Attach a file, or replace its bytes
     [--replace]
@@ -133,6 +135,7 @@ WORK
   release <card>                                                                                        Give the card back to its queue
   block <card> <reason> [--kind <kind>]                                                                 Raise an obstacle and free the card
   unblock <card>                                                                                        Lift a block (operator only)
+  raise <card> <tier> <reason>                                                                          Raise the tier this stop needs and hand the card back
   comment <card> <text|->                                                                               Record a comment on a card
   attach <ref> <file> [--description <text>] [--replace]                                                Attach a file, or replace its bytes
   join <card> <workstream>                                                                              Add a card to a workstream
