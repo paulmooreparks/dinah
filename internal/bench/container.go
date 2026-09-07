@@ -523,12 +523,26 @@ func resumableLift(container string) (string, error) {
 // workbench with the same contents at two paths is the state the copying half
 // of this migration leaves behind, so recognising it is what makes the second
 // run finish the first one rather than start a second copy.
+//
+// A container that exists and cannot be listed is answered with that error
+// instead of with the empty string. Answering emptily would send the migration
+// on to copy the workbench afresh into a container it never actually examined,
+// which is how one workbench ends up stored twice.
 func completedLift(source, container string) (string, error) {
 	want, err := memberDigest(source)
 	if err != nil {
 		return "", err
 	}
-	for _, id := range ListWorkbenchIDs(container) {
+	// A container that could not be listed travels on as the raw filesystem
+	// error, with no contract.Refusal wrapping it, because liftIntoContainer
+	// already lets an os.MkdirAll or an os.Rename failure reach the caller
+	// that way and this call has no reason to behave differently from its
+	// neighbours.
+	ids, err := ListWorkbenchIDs(container)
+	if err != nil {
+		return "", err
+	}
+	for _, id := range ids {
 		candidate := filepath.Join(container, id)
 		recognition, err := readAnchor(filepath.Join(candidate, WorkbenchAnchor))
 		if err != nil || recognition != anchorOurs {

@@ -22,9 +22,9 @@ import (
 // collects the recognised candidates first and refuses over the damaged ones
 // only when none was recognised, so a single healthy survivor resolves the
 // base quietly and proves nothing. Replacing the .dinah container itself with
-// a plain file does not reach this branch at all, because ListWorkbenchIDs
-// (internal/bench/storage.go) discards the resulting os.ReadDir error and
-// reports an empty container rather than a failed one.
+// a plain file reaches a different branch and a different refusal, which
+// unreadableContainerTree below plants and
+// TestAContainerTheWalkCannotListIsReportedRatherThanReadAsEmpty asserts.
 func corruptedAmbiguousTree(t *testing.T) string {
 	t.Helper()
 	tree, rooms := ambiguousTree(t)
@@ -86,6 +86,60 @@ func decodeReport(t *testing.T, payload string) map[string]any {
 		t.Fatalf("--json wrote nothing a caller can parse: %q (%v)", payload, err)
 	}
 	return report
+}
+
+// unreadableContainerTree returns a tree whose own .dinah container has been
+// replaced by a plain file, which is the corruption the walk used to read as a
+// container holding nothing.
+//
+// The fixture proves its own fault before it is used. os.ReadDir has to refuse
+// the planted path, because a plant that left a readable directory behind
+// would send every assertion below through the ordinary empty-container path
+// and pass for the wrong reason.
+func unreadableContainerTree(t *testing.T) string {
+	t.Helper()
+	tree := emptyTree(t)
+	container := filepath.Join(tree, bench.UserBaseName)
+	if err := os.WriteFile(container, []byte("a file sitting where the container belongs"), 0o644); err != nil {
+		t.Fatalf("write %s: %v", container, err)
+	}
+	if _, err := os.ReadDir(container); err == nil {
+		t.Fatalf("%s still reads as a directory, so this fixture plants no fault", container)
+	}
+	return tree
+}
+
+// TestAContainerTheWalkCannotListIsReportedRatherThanReadAsEmpty asserts
+// dinah-433 AC-5. A .dinah container replaced by a plain file now reaches
+// dinah.unreadable-container and travels out through the same
+// workbenches_refusal field dinah-432 added, which is the scenario dinah-432's
+// own description opened with and could not reach.
+func TestAContainerTheWalkCannotListIsReportedRatherThanReadAsEmpty(t *testing.T) {
+	tree := unreadableContainerTree(t)
+
+	// The fixture has to reach this refusal through the walk itself rather
+	// than through some other error on the way, so the walk is run directly
+	// first.
+	rows, err := bench.Reachable(tree, "", filepath.Join(tree, "home"), filepath.Dir(tree))
+	walked, ok := err.(*contract.Refusal)
+	if !ok {
+		t.Fatalf("the fixture should make the walk refuse, got rows %v and err %v", rows, err)
+	}
+	if walked.Name != contract.UnreadableContainer {
+		t.Fatalf("the fixture should reach %s, got %s", contract.UnreadableContainer, walked.Name)
+	}
+
+	report := decodeReport(t, reportedRefusal(t, tree, formatJSON, contract.Refuse(contract.AmbiguousWorkbench, tree)))
+	carried, ok := report["workbenches_refusal"].(map[string]any)
+	if !ok {
+		t.Fatalf("the reply should carry workbenches_refusal as an object, got %v", report["workbenches_refusal"])
+	}
+	if name, _ := carried["name"].(string); name != contract.UnreadableContainer {
+		t.Errorf("workbenches_refusal.name: wanted %s, got %v", contract.UnreadableContainer, carried["name"])
+	}
+	if _, present := report["workbenches"]; present {
+		t.Errorf("a failed walk should leave no workbenches key, got %v", report["workbenches"])
+	}
 }
 
 // TestAFailedCandidateWalkIsReportedRatherThanDroppingTheKey asserts dinah-432
@@ -157,7 +211,7 @@ func TestASucceedingCandidateWalkStillServesTheCandidates(t *testing.T) {
 // TestOnlyTheAmbiguousRefusalCarriesACandidateWalk asserts dinah-432 AC-4 over
 // the whole named-refusal set rather than over the one case read while the
 // spec was drafted. contract.Introduced carries every name Dinah mints beyond
-// the profile's own, which is 58 names on this build and so 57 subtests
+// the profile's own, which is 59 names on this build and so 58 subtests
 // here, and none of them but the ambiguous one runs a walk at all.
 func TestOnlyTheAmbiguousRefusalCarriesACandidateWalk(t *testing.T) {
 	tree := emptyTree(t)

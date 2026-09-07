@@ -1144,7 +1144,10 @@ func substituteWorkbench(t *testing.T, block quickBlock, cwd string, argv []stri
 			continue
 		}
 		parent := filepath.Join(cwd, filepath.FromSlash(argument[:found[0]]))
-		ids := bench.ListWorkbenchIDs(filepath.Join(parent, bench.UserBaseName))
+		ids, err := bench.ListWorkbenchIDs(filepath.Join(parent, bench.UserBaseName))
+		if err != nil {
+			t.Fatalf("ListWorkbenchIDs: %v", err)
+		}
 		if len(ids) != 1 {
 			t.Fatalf("%s:%d: the argument %s names one workbench under %s and the replay built %d there",
 				quickStartPath, block.fence, argument, argument[:found[0]], len(ids))

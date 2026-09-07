@@ -1202,9 +1202,9 @@ func PathUnderRoot(root, candidate string) (bool, error) {
 
 // soleBench returns the one bench a base directory holds. A base holding
 // several is ambiguous, so it returns no bench and the candidates instead,
-// and the walk continues rather than picking one. The error is a workbench.md
-// that exists and could not be read, or one that reads and no longer names
-// itself as a workbench.
+// and the walk continues rather than picking one. The error is a container
+// this function could not list at all, a workbench.md that exists and could
+// not be read, or one that reads and no longer names itself as a workbench.
 //
 // It reads every admitted entry before it decides anything, because every
 // candidate it considers already carries a name ListWorkbenchIDs admitted, so
@@ -1234,7 +1234,23 @@ func PathUnderRoot(root, candidate string) (bool, error) {
 // base refused, so the refusal branch fills this return too.
 func soleBench(base string) (found string, ambiguous, damaged []string, err error) {
 	var candidates []string
-	for _, id := range ListWorkbenchIDs(base) {
+	// A base whose container could not be listed is a different answer from a
+	// base holding nothing, so it refuses here rather than falling through to
+	// the empty-base return and reporting a walk it never performed.
+	// UnreadableContainer is minted for it rather than UnreadableBench being
+	// reused, because UnreadableBench's stored next step opens by telling the
+	// reader to fix a file's permissions, and permissions are not at fault
+	// when a plain file sits where the container belongs, where there is
+	// nothing to fix short of removing the file. The rest of that next step
+	// carries over intact. DiscoverSource returns on a non-empty override
+	// before it calls walk, so --workbench and DINAH_WORKBENCH both reach a
+	// workbench without this container ever being opened, and that route is
+	// what UnreadableContainer's own next step offers the reader first.
+	ids, lerr := ListWorkbenchIDs(base)
+	if lerr != nil {
+		return "", nil, nil, contract.Refuse(contract.UnreadableContainer, base)
+	}
+	for _, id := range ids {
 		candidate := filepath.Join(base, id)
 		anchorPath := filepath.Join(candidate, WorkbenchAnchor)
 		recognition, rerr := readAnchor(anchorPath)
