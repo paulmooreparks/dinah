@@ -1403,6 +1403,42 @@ the bulk read, N cards at once against N cards one at a time
   crossover on footprint, shell direct against verb shaped              1 cards [not a token count]
 ```
 
+### The trunk moved under this section, and the crossover did not
+
+The recorded figures were taken at the commit their header names, and the
+branch head is no longer that commit. dinah-410 and dinah-413 merged into this
+branch after the run, and dinah-410 changes what `next` and `pull` publish, so
+the tool-definition block at the branch head is not the block above. No figure
+above was retaken across that merge, on the terms the earlier sections in this
+document already use for the same situation.
+
+What that merge could have moved is the crossover, since a bigger block is paid
+once by the shell route and once per card by the verb route. Whether it did is
+a question the harness answers for free, so it was asked rather than reasoned
+about. The extended harness was run at the merged head under `--counter proxy`,
+which is deterministic and local, and the crossover lines came out unchanged at
+both card sizes and on both totals.
+
+```
+the merged head at 2ece402, under a regime of its own
+                                                [counter=proxy encoding=cl100k_base]
+
+  tools the MCP head serves                                            36 tools
+  tool-definition block, once, at f808127                            6451 tokens
+  tool-definition block, once, at the merged head                    6583 tokens
+
+  crossover on cumulative, shell resolving against verb shaped          1 cards
+  crossover on cumulative, shell direct against verb shaped             1 cards
+  crossover on footprint, shell resolving against verb shaped           1 cards
+  crossover on footprint, shell direct against verb shaped              1 cards
+```
+
+Those crossover lines repeat for the large card size, and the proxy counter's
+token figures are not comparable with the api counter's, so nothing above is
+read across the two regimes. What the block establishes is that the crossover
+this section publishes survives the merge, which is the only claim the guidance
+takes from it.
+
 ### What the run says, and the two predictions it contradicts
 
 The crossover is 1 card, on both totals, at both card sizes, and for both shell
