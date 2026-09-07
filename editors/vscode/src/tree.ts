@@ -1433,6 +1433,25 @@ function holdingReportOf(
 	};
 }
 
+/**
+ * What one folder's rows say about the reader's hand, one report per row.
+ *
+ * A folder holding no rows still produces a report, because a place that drops
+ * out of the answer leaves a summary with nothing to be uncertain about, which
+ * is the defect holdingSnapshot's own comment records. Both callers below read
+ * this rather than walking the rows themselves.
+ */
+function reportsForFolder(
+	state: FolderState,
+): readonly WorkbenchHoldingReport[] {
+	if (state.rows.length === 0) {
+		return [vacancyOrDoubt(state.folder, state.membershipAnsweredAt)];
+	}
+	return state.rows.map((row) =>
+		holdingReportOf(row, state.membershipAnsweredAt),
+	);
+}
+
 /** One workspace folder as the provider is told about it. */
 export interface FolderInput {
 	readonly folder: string;
@@ -1595,14 +1614,7 @@ export class DinahTreeProvider {
 		const reports: WorkbenchHoldingReport[] = [];
 		const seen = new Set<string>();
 		for (const state of this.folders.values()) {
-			if (state.rows.length === 0) {
-				reports.push(
-					vacancyOrDoubt(state.folder, state.membershipAnsweredAt),
-				);
-				continue;
-			}
-			for (const row of state.rows) {
-				const report = holdingReportOf(row, state.membershipAnsweredAt);
+			for (const report of reportsForFolder(state)) {
 				if (report.state === "answered") {
 					const key = this.rootKey(report.source);
 					if (seen.has(key)) {
@@ -1614,6 +1626,35 @@ export class DinahTreeProvider {
 			}
 		}
 		return reports;
+	}
+
+	/**
+	 * Every workbench one folder has answered for, named and titled.
+	 *
+	 * This is holdingSnapshot narrowed to one folder and to the arm that
+	 * carries a root, which is what a caller wanting to run something against
+	 * each workbench under a folder needs. The two share reportsForFolder
+	 * rather than each walking the rows, so a change to what a row reports
+	 * reaches both.
+	 *
+	 * No cross-folder deduplication happens here, because there is one folder.
+	 * A folder this provider was never told about answers with nothing, which
+	 * is the same answer it would give for a folder holding no workbench.
+	 */
+	rootsFor(
+		folder: string,
+	): readonly { readonly root: string; readonly title: string }[] {
+		const state = this.folders.get(folder);
+		if (state === undefined) {
+			return [];
+		}
+		const found: { root: string; title: string }[] = [];
+		for (const report of reportsForFolder(state)) {
+			if (report.state === "answered") {
+				found.push({ root: report.source, title: report.title });
+			}
+		}
+		return found;
 	}
 
 	/**

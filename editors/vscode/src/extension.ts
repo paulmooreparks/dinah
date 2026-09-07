@@ -35,6 +35,8 @@ import {
 import { CheckpointLoop, systemClock } from "./changes";
 import { runDinah } from "./cli";
 import { CountdownTicker, redrawAfterRefresh } from "./countdown";
+import type { DiagnosticEntry, DiagnosticPlan, StatKind } from "./diagnostics";
+import { CheckDiagnostics } from "./diagnostics";
 // Two modules export a function named contextForColumn. dinah-331 and
 // dinah-332 each gave the column row an act, and each act composes its own
 // context: the creation one declines a row whose ColumnView the status join
@@ -110,7 +112,7 @@ import {
 import type { TreeElement, TreeItemSpec } from "./tree";
 import { DinahTreeProvider } from "./tree";
 import { classifyVersion, describeVersion } from "./version";
-import type { ServedAnswer } from "./wire";
+import type { PathAnswer, ServedAnswer } from "./wire";
 import { NO_WORKBENCH_FOUND, resolveWorkbench } from "./workbench";
 import type {
 	WorkbenchCommandContext,
@@ -418,6 +420,116 @@ export async function activate(
 				: t("status.refused", { refusal }),
 	});
 
+	// The Problems panel's half of the check, and the one collection every
+	// workbench's findings are written into.
+	const diagnosticCollection =
+		vscode.languages.createDiagnosticCollection("Dinah");
+	context.subscriptions.push(diagnosticCollection);
+
+	/**
+	 * Every severity a projected entry can carry, mapped once.
+	 *
+	 * A record rather than a conditional, so a second severity added to the
+	 * union fails to compile here instead of quietly rendering as this one.
+	 */
+	const severities: Record<
+		DiagnosticEntry["severity"],
+		vscode.DiagnosticSeverity
+	> = { warning: vscode.DiagnosticSeverity.Warning };
+
+	/**
+	 * The definition file a finding attaches to when its own path is not a
+	 * document, asked of the CLI once per workbench.
+	 *
+	 * `path workbench` rather than joining workbench.md onto the root, for the
+	 * reason editWorkbenchDefinition already gives: a workbench whose
+	 * definition file is relocated or malformed is exactly the case a
+	 * hardcoded join gets wrong, and this is the surface built to answer it.
+	 *
+	 * A failed call is not remembered, so the next run asks again rather than
+	 * carrying one bad moment for the rest of the session.
+	 */
+	const definitionFiles = new Map<string, string>();
+	const resolveFallback = async (
+		root: string,
+	): Promise<string | undefined> => {
+		const known = definitionFiles.get(root);
+		if (known !== undefined) {
+			return known;
+		}
+		const outcome = await runDinah(
+			nodeSpawner,
+			binary.state === "ok" ? binary.path : "",
+			["--workbench", root, "path", "workbench"],
+			{ cwd: root },
+		);
+		if (outcome.kind !== "ok") {
+			channel.appendLine(
+				`dinah check: ${root} names no readable definition file (${outcome.kind})`,
+			);
+			return undefined;
+		}
+		const resolved = (outcome.json as PathAnswer).path;
+		if (resolved === undefined || resolved === "") {
+			channel.appendLine(`dinah check: ${root} answered path with no path`);
+			return undefined;
+		}
+		definitionFiles.set(root, resolved);
+		return resolved;
+	};
+
+	const diagnostics = new CheckDiagnostics({
+		spawner: nodeSpawner,
+		exe: binary.state === "ok" ? binary.path : "",
+		log: (line) => channel.appendLine(line),
+		t,
+		statKind: async (path): Promise<StatKind> => {
+			try {
+				const stat = await vscode.workspace.fs.stat(vscode.Uri.file(path));
+				// The type is a bit set rather than an enumeration, so a
+				// symbolic link to a directory carries the directory bit
+				// alongside the link bit and is read as the directory it
+				// points at.
+				if ((stat.type & vscode.FileType.Directory) !== 0) {
+					return "directory";
+				}
+				if ((stat.type & vscode.FileType.File) !== 0) {
+					return "file";
+				}
+				// Something is there and it is neither, which the API reports
+				// as Unknown. It is not a document a diagnostic can be opened
+				// on, so it takes the same route a directory takes.
+				return "missing";
+			} catch {
+				// A path that is not there throws, which is what the API
+				// documents for stat and the only signal it gives.
+				return "missing";
+			}
+		},
+		resolveFallback,
+		apply: (byPath: DiagnosticPlan) => {
+			for (const [path, entries] of byPath) {
+				diagnosticCollection.set(
+					vscode.Uri.file(path),
+					entries.map((entry) => {
+						const diagnostic = new vscode.Diagnostic(
+							new vscode.Range(
+								entry.range[0],
+								entry.range[1],
+								entry.range[2],
+								entry.range[3],
+							),
+							entry.message,
+							severities[entry.severity],
+						);
+						diagnostic.source = entry.source;
+						return diagnostic;
+					}),
+				);
+			}
+		},
+	});
+
 	/**
 	 * Recomposes the status bar from data the provider is already holding.
 	 *
@@ -476,6 +588,20 @@ export async function activate(
 			})),
 		);
 		renderStatusBar();
+		// The first check of the session, one per workbench the load resolved.
+		// markPending goes first so that a reader opening the Problems panel
+		// while the sweep is still running sees the workbench named as
+		// unconfirmed rather than seeing an empty panel they would read as
+		// clean. runFor is deliberately not awaited: a structural sweep of
+		// several workbenches would otherwise hold up the rest of activation,
+		// and each root's own result reaches the panel as it lands.
+		for (const report of provider.holdingSnapshot()) {
+			if (report.state !== "answered") {
+				continue;
+			}
+			await diagnostics.markPending(report.source, report.title);
+			void diagnostics.runFor(report.source, report.title);
+		}
 	}
 
 	// createTreeView rather than registerTreeDataProvider, because the
@@ -535,8 +661,19 @@ export async function activate(
 		exe: binary.state === "ok" ? binary.path : "",
 		clock: systemClock,
 		log: (line) => channel.appendLine(line),
+		// The one hook a check re-runs on. CheckpointLoop calls this only when
+		// `dinah changes` answered that something moved, so the panel is
+		// refreshed by a change on disk rather than by a timer of its own and
+		// never by a keystroke. Scoping to the folder's own workbenches keeps
+		// a change in one from re-sweeping every other workbench the window
+		// has open.
 		refresh: redrawAfterRefresh(
-			(folder) => provider.refresh(folder),
+			async (folder) => {
+				await provider.refresh(folder);
+				for (const { root, title } of provider.rootsFor(folder)) {
+					await diagnostics.runFor(root, title);
+				}
+			},
 			renderStatusBar,
 		),
 		fire: () => emitter.fire(undefined),
@@ -757,7 +894,18 @@ export async function activate(
 		string,
 		(c: WorkbenchCommandContext) => Promise<unknown>,
 	][] = [
-		[COMMAND_CHECK_WORKBENCH, checkWorkbench],
+		// The manual check pays for one invocation and both surfaces read it.
+		// checkWorkbench already returns the outcome it fetched, so the panel
+		// is updated from that answer rather than from a second sweep, and
+		// nothing about the channel report or the toast changes.
+		[
+			COMMAND_CHECK_WORKBENCH,
+			async (c: WorkbenchCommandContext) => {
+				const outcome = await checkWorkbench(c);
+				await diagnostics.applyResult(c.path, c.label, outcome);
+				return outcome;
+			},
+		],
 		[COMMAND_COPY_WORKBENCH_PATH, copyWorkbenchPath],
 		[COMMAND_EDIT_WORKBENCH_DEFINITION, editWorkbenchDefinition],
 	];
