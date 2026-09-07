@@ -2689,6 +2689,43 @@ const NO_CONFIGURED: CliOutcome = {
 };
 
 /**
+ * Three refusals that say a workbench is there and cannot be used.
+ *
+ * The names are written out rather than imported, because the extension owns
+ * none of them: they are minted in `internal/contract/contract.go`, which
+ * publishes over a hundred, and this test's whole point is that a name the
+ * TypeScript has never been taught about must not earn a reassuring answer.
+ * `unreadable-workbench` is a `workbench.md` the walk found and could not
+ * open, `damaged-workbench` is one whose anchor will not parse, and
+ * `needs-container-migration` is a workbench in the layout the format used to
+ * have, which anybody whose workbench predates the containment change meets
+ * simply by opening the folder.
+ */
+const BROKEN_WORKBENCH_REFUSALS: readonly { name: string; refusal: string }[] = [
+	{
+		name: "a folder whose workbench.md could not be opened",
+		refusal: "dinah.unreadable-workbench",
+	},
+	{
+		name: "a folder whose workbench anchor will not parse",
+		refusal: "dinah.damaged-workbench",
+	},
+	{
+		name: "a folder whose workbench is in the older layout",
+		refusal: "dinah.needs-container-migration",
+	},
+];
+
+/** The refusal envelope dinah answers with for one of those three. */
+function brokenWorkbench(refusal: string): CliOutcome {
+	return {
+		kind: "refused",
+		refusal,
+		detail: `the workbench is there and dinah refused with ${refusal}`,
+	};
+}
+
+/**
  * Every route by which this window can end up not knowing what is held.
  *
  * The card's rule is one sentence: a reader who holds nothing and a reader
@@ -2766,6 +2803,11 @@ const FAILURE_ROUTES: readonly FailureRoute[] = [
 		at: LONG_AFTER,
 		reach: () => deadEnd(NO_CONFIGURED, () => 1_000),
 	},
+	...BROKEN_WORKBENCH_REFUSALS.map(({ name, refusal }) => ({
+		name,
+		at: 5_000,
+		reach: () => deadEnd(brokenWorkbench(refusal), () => 1_000),
+	})),
 	{
 		name: "a folder whose resolution could not launch the binary",
 		at: 5_000,
@@ -2924,6 +2966,67 @@ test("a confident empty hand takes an answer, and takes a recent one", async () 
 		"dinah said again that nothing is here, so the hand is empty and known",
 	);
 	assert.equal(barFrom(renewed, LONG_AFTER).text.endsWith("$(warning)"), false);
+});
+
+test("a broken workbench beside a healthy one still warns", async () => {
+	// The reviewer's own reproduction, kept so that it cannot come back. A
+	// single folder in this state renders composeStatus's refusal branch and
+	// warns for a reason that has nothing to do with the snapshot, so the
+	// defect was only visible with a healthy folder alongside: the healthy
+	// one drives the base rendering while the broken one contributes its
+	// answer about the hand. Three rounds of this card each admitted these
+	// refusals, because the predicate deciding what earns a vacancy named the
+	// refusals that mean something else instead of the ones that mean
+	// nothing is there.
+	const healthy = stubSpawner({
+		status: THREE_STATUS,
+		tree: THREE_COLUMNS,
+		ls: THREE_LISTING,
+	}).spawner;
+
+	// The control, and it is what a bar made to warn at everything fails.
+	// The healthy folder on its own answers with no warning, so each warning
+	// below is the broken folder's doing rather than the window's mood.
+	const alone = clocked(healthy, () => 1_000);
+	await alone.load([folder({ folder: "C:\\work\\bench" })]);
+	const control = barFrom(alone, 5_000);
+	assert.equal(
+		control.summary.uncertain,
+		false,
+		"the healthy folder on its own is a place this window has heard from",
+	);
+	assert.equal(control.text.endsWith("$(warning)"), false);
+
+	for (const { name, refusal } of BROKEN_WORKBENCH_REFUSALS) {
+		const view = clocked(healthy, () => 1_000);
+		await view.load([
+			folder({ folder: "C:\\work\\bench" }),
+			folder({
+				folder: "C:\\ws\\broken",
+				resolution: parseRefusal(brokenWorkbench(refusal)),
+			}),
+		]);
+		const bar = barFrom(view, 5_000);
+		assert.ok(
+			view
+				.holdingSnapshot()
+				.some(
+					(report) =>
+						report.source === "C:\\ws\\broken" &&
+						report.state === "unheard",
+				),
+			`${name}: the folder reports a doubt rather than a vacancy`,
+		);
+		assert.equal(
+			bar.summary.uncertain,
+			true,
+			`${name}: the window cannot say what is held there`,
+		);
+		assert.ok(
+			bar.text.endsWith("$(warning)"),
+			`${name}: the bar warns rather than drawing a confident hand: ${bar.text}`,
+		);
+	}
 });
 
 test("a vacancy cannot be reported without the moment it was answered", async () => {

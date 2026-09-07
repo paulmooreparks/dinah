@@ -70,6 +70,8 @@ import {
 import type { WorkbenchHoldingReport } from "./status";
 import {
 	AMBIGUOUS_WORKBENCH,
+	NO_CONFIGURED_WORKBENCH,
+	NO_WORKBENCH,
 	NO_WORKBENCH_FOUND,
 	isInside,
 } from "./workbench";
@@ -1292,6 +1294,34 @@ export interface TreeDeps {
 }
 
 /**
+ * The refusals that say a folder holds no workbench.
+ *
+ * `no-workbench` is a path the caller named, through the folder's pinned
+ * `dinah.workbench` setting, that carries no `workbench.md`.
+ * `no-configured-workbench` is the stored setting naming such a path once the
+ * search has also found nothing local. Both report the same thing about the
+ * disk, which is that there is nothing there to hold a card, so both earn a
+ * vacancy.
+ *
+ * Membership is what the set states, and everything outside it is a doubt.
+ * The rule was written the other way round until round five, excluding
+ * `no-workbench-found` and `ambiguous-workbench` and admitting the rest, and
+ * that shape cannot be safe here: `internal/contract/contract.go` publishes
+ * over a hundred refusal names and this extension owns none of them, so an
+ * exclusion list admits every name it has not been taught about. Three
+ * published names say the opposite of emptiness and were being admitted.
+ * `dinah.unreadable-workbench` is a `workbench.md` the walk found and could
+ * not open, `dinah.damaged-workbench` is one whose anchor will not parse, and
+ * `dinah.needs-container-migration` is a workbench that is simply in the
+ * layout the format used to have. Each of those is a place that may be
+ * holding the reader's card.
+ */
+const VACANCY_REFUSALS: readonly string[] = [
+	NO_WORKBENCH,
+	NO_CONFIGURED_WORKBENCH,
+];
+
+/**
  * Whether a resolution settles that a folder holds no workbench at all.
  *
  * Three questions have to be yes together, and each one has been the reason a
@@ -1299,11 +1329,14 @@ export interface TreeDeps {
  * because an ok resolution names a workbench whose hand is a separate
  * question. Dinah has to have produced that refusal, because a spawn that
  * never ran and an answer that would not parse arrive wearing the same shape
- * and say nothing about what is on disk. And the refusal has to be one that
- * means emptiness: `no-workbench-found` says the climb found nothing above
- * the folder while a walk beneath it may still find several, and
- * `ambiguous-workbench` says there are several right here, so neither is a
- * vacancy.
+ * and say nothing about what is on disk. And the refusal has to be one of the
+ * names above.
+ *
+ * A refusal minted after this was written falls to the doubt, which is the
+ * direction that costs a warning rather than a false reassurance. The cost of
+ * that direction is real and nothing here catches it: a future refusal that
+ * genuinely does mean emptiness has to be added to the set by hand, and until
+ * somebody does the bar warns at a folder it could speak confidently about.
  *
  * One predicate rather than the same three conditions at the two producers,
  * so that what earns a vacancy is decided once.
@@ -1312,10 +1345,7 @@ function vacancyAnsweredBy(resolution: WorkbenchResolution): boolean {
 	if (resolution.state !== "refused" || !resolution.answered) {
 		return false;
 	}
-	return (
-		resolution.refusal !== NO_WORKBENCH_FOUND &&
-		resolution.refusal !== AMBIGUOUS_WORKBENCH
-	);
+	return VACANCY_REFUSALS.includes(resolution.refusal);
 }
 
 /**

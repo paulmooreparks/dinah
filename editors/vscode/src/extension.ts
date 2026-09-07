@@ -466,7 +466,12 @@ export async function activate(
 					({
 						state: "refused",
 						refusal: NO_WORKBENCH_FOUND,
-						answered: true,
+						// Nobody asked dinah anything about this folder, so
+						// this resolution is a placeholder rather than an
+						// answer. Saying otherwise would offer the vacancy
+						// predicate a synthetic refusal to act on, and
+						// `answered` is the field standing between the two.
+						answered: false,
 					} as WorkbenchResolution),
 			})),
 		);

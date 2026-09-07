@@ -17,10 +17,21 @@ import type { CliOutcome, SpawnOptions, Spawner } from "./cli";
 import { runDinah } from "./cli";
 import type { Candidate, WorkbenchResolution } from "./api";
 
-/** The three refusals this extension handles by name. */
+/** The four refusals this extension handles by name. */
 export const NO_WORKBENCH_FOUND = "dinah.no-workbench-found";
 export const AMBIGUOUS_WORKBENCH = "dinah.ambiguous-workbench";
 export const NO_CONFIGURED_WORKBENCH = "dinah.no-configured-workbench";
+/**
+ * The path the caller named carries no `workbench.md`.
+ *
+ * `resolveWorkbench` passes the folder's `dinah.workbench` setting as
+ * `--workbench` when one is set, and this is what the tool answers when that
+ * pinned path has stopped being a workbench. It is a separate name from
+ * `no-configured-workbench` because the tool needs a separate sentence for a
+ * path the caller has just typed, and both mean the same thing about what is
+ * on disk, so both belong in the set that earns a vacancy.
+ */
+export const NO_WORKBENCH = "dinah.no-workbench";
 
 /**
  * The rung name reported when `verb.Status` names none.
