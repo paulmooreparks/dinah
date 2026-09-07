@@ -11,6 +11,16 @@
       "context": "The one-line sentence the empty answer of pull prints when the named form was asked and the upstream column holds no ready card. {upstream} names the upstream column by its title, {destination} names the column the caller asked pull to land the card in.",
       "source": "3a88bcf8a5a3f1f5"
     },
+    "answer.pull.above-tier.bare": {
+      "text": "Dinah hat bereite Arbeit zum Ziehen gefunden, aber nichts davon entspricht der von Ihnen angegebenen Stufe",
+      "context": "The one-line sentence pull prints when the bare form was asked, a column holds ready work, and the tier the caller declared is admitted for none of it. It is a separate key from answer.pull.empty.bare on purpose, because a caller reading the message alone has to be able to tell work standing above it from no work at all.",
+      "source": "df47b85572baafb7"
+    },
+    "answer.pull.above-tier.named": {
+      "text": "Dinah hat in {upstream} bereite Arbeit für {destination} gefunden, aber nichts davon entspricht der von Ihnen angegebenen Stufe",
+      "context": "The one-line sentence pull prints when the named form was asked, a source holds ready work, and the tier the caller declared is admitted for none of it. {upstream} names the source column by its title, {destination} names the column the caller asked pull to land the card in. It is a separate key from answer.pull.empty.named on purpose, because a caller reading the message alone has to be able to tell work standing above it from no work at all.",
+      "source": "b6d82debf2560ac6"
+    },
     "attachments.empty": {
       "text": "An {ref} hängt nichts.",
       "context": "Printed when `dinah attachments` is asked about an entity that carries none. No table follows, and the call succeeds: an entity with nothing attached is an answer rather than a mistake.",
@@ -1980,6 +1990,11 @@
       "context": "Printed beside a column offering no card.",
       "source": "8f5f2c97c3a268dd"
     },
+    "next.above-tier": {
+      "text": "bereit, über der von Ihnen angegebenen Stufe",
+      "context": "Printed beside a column that offers no card because the tier the caller declared is admitted for none of the work standing there, in place of next.none, which says only that nothing is ready.",
+      "source": "a0cd79296cfc6d32"
+    },
     "outcome.stale": {
       "text": "die Karte hat sich bewegt, seit Sie sie gelesen haben; ihre Revision ist jetzt {revision}",
       "context": "The sentence after the stale outcome name. {revision} is the card's current revision.",
@@ -3218,10 +3233,10 @@
       "context": "The meaning of the expires argument of `dinah claim`, printed in that command's arguments table.",
       "source": "89b79368080416a1"
     },
-    "param.claim.tier.summary": {
-      "text": "die Stufe, die Sie zu sein angeben, auf Treu und Glauben genommen und nie geprüft; nur was die Karte selbst verlangt, kann Sie abweisen, nie der Standardwert einer Spalte",
-      "context": "The meaning of the tier argument of `dinah claim`, printed in that command's arguments table. It carries two limits a caller has to meet before relying on the gate: Dinah has no server and no credential, so a declared tier is self-reported, and a column's tier default never refuses a claim by itself.",
-      "source": "e8a2c1ca4550bdd7"
+    "param.tier.summary": {
+      "text": "die Stufe, die Sie zu sein angeben, auf Treu und Glauben genommen und nie geprüft; nur was die Karte selbst verlangt, kann Sie abweisen, nie der Standardwert einer Spalte, und wofür ein Anspruch abgewiesen wird, das halten next und pull zurück",
+      "context": "The meaning of the tier argument of `dinah claim`, `dinah next` and `dinah pull`, printed in each command's arguments table. One flag says one thing, so the three commands take one sentence rather than three that have to be kept in step. It carries the limits a caller has to meet before relying on any of them: Dinah has no server and no credential, so a declared tier is self-reported and nothing verifies it; a column's tier default never refuses a claim by itself; and selection withholds a card on the same rule the claim gate refuses one.",
+      "source": "30dedfbf06194d6"
     },
     "param.comment.text.summary": {
       "text": "der Kommentar, in einem Shell-Wort oder in Anführungszeichen; ein einzelnes - liest ihn aus einer Pipe",

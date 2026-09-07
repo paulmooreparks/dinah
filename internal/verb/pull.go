@@ -48,12 +48,12 @@ func (l *Library) Pull(req *Request) *Response {
 	if req.Override && req.Actor != l.Bench.Operator {
 		return l.refuse(req, nil, contract.NotOperator, req.Actor)
 	}
-	destination, refusal, err := l.pullDestination(req, named)
+	destination, answer, err := l.pullDestination(req, named)
 	if err != nil {
 		return l.FromError(req, err)
 	}
-	if refusal != nil {
-		return refusal
+	if answer != nil {
+		return answer
 	}
 	if destination == nil {
 		return l.okEmpty(req, nil)
@@ -73,11 +73,21 @@ func (l *Library) Pull(req *Request) *Response {
 	// still answers its own name. Only when it holds no ready card does the
 	// pull look further back, through the columns that carry into this
 	// destination, nearest first.
-	head := headOfReady(upstream.ID, cards)
+	by := selectionAdmission(req)
+	head, sawReady := headOfReadyForTier(l.Bench, upstream.ID, destination, cards, by)
 	if head == nil {
-		head = headOfFurtherSource(destination, upstream, l.Bench.Columns, cards)
+		var furtherReady bool
+		head, furtherReady = headOfFurtherSource(l.Bench, destination, upstream, cards, by)
+		sawReady = sawReady || furtherReady
 	}
 	if head == nil {
+		// Finding nothing to take has two causes and they are different
+		// answers. Either no source holds a ready card, or one does and the
+		// declared tier is admitted for none of it, which is work waiting on
+		// a more senior caller rather than an empty workbench.
+		if sawReady {
+			return l.okAboveTier(req, destination)
+		}
 		return l.okEmpty(req, destination)
 	}
 	req.Card = head.Ref(l.Bench.Slug)
@@ -93,8 +103,11 @@ func (l *Library) Pull(req *Request) *Response {
 // pullDestination fixes the column a pull will land its card in. A named form
 // resolves to the column the caller typed, which Pull has already found. A
 // bare form runs the qualifying predicate over the flow and answers with the
-// one column that qualifies, a refusal when more than one does, or a nil column
-// when none does, which Pull turns into the empty answer.
+// one column that qualifies, a refusal when more than one does, the
+// above-tier answer when none qualifies and the predicate saw ready work the
+// declared tier is admitted for nowhere, or a nil column and no answer when
+// none qualifies for any other reason, which Pull turns into the empty
+// answer.
 //
 // The retiring row is left to the inner pull for the named form, so that both
 // forms reach it through canMove and neither carries a second copy of the
@@ -109,13 +122,16 @@ func (l *Library) pullDestination(req *Request, named *bench.Column) (*bench.Col
 	if err != nil {
 		return nil, nil, err
 	}
-	qualifying := l.pullCandidates(req, cards)
+	qualifying, aboveTier := l.pullCandidates(req, cards)
 	if len(qualifying) > 1 {
 		carried := map[string]string{"columns": strings.Join(qualifying, "\n")}
 		return nil, l.refuseWith(req, nil, contract.AmbiguousColumn, "", carried), nil
 	}
 	if len(qualifying) == 1 {
 		return l.Bench.ColumnByRef(qualifying[0]), nil, nil
+	}
+	if aboveTier {
+		return nil, l.okAboveTier(req, nil), nil
 	}
 	return nil, nil, nil
 }
@@ -156,13 +172,20 @@ func (l *Library) pullDestination(req *Request, named *bench.Column) (*bench.Col
 // sequence runs under the card's lock once the destination is fixed, and when
 // the two disagree, because the workbench changed in between, the lock's
 // answer is the one the caller is given.
-func (l *Library) pullCandidates(req *Request, cards []*bench.Card) []string {
+func (l *Library) pullCandidates(req *Request, cards []*bench.Card) ([]string, bool) {
 	operator := req.Actor == l.Bench.Operator
+	by := selectionAdmission(req)
 	var qualifying []string
+	aboveTier := false
 	for _, column := range l.Bench.Columns {
-		if !l.someSourceIsReady(column, cards, operator) {
-			continue
-		}
+		ready, gated := l.someSourceIsReady(column, cards, operator, by)
+		// The tier observation is kept only for a column clearing every other
+		// row of the list, so the aggregate never reports tier-gated work
+		// standing somewhere this caller could not have pulled into for a
+		// reason that has nothing to do with tier. A column at its capacity
+		// limit, one reserved to the operator, or one being retired is a
+		// column the caller was never going to reach, and saying "above your
+		// tier" about it would name the wrong obstacle.
 		reached, err := l.atCapacity(column)
 		if err == nil && reached && !req.Override {
 			continue
@@ -173,23 +196,42 @@ func (l *Library) pullCandidates(req *Request, cards []*bench.Card) []string {
 		if _, retiring := l.retiring(column.ID); retiring {
 			continue
 		}
+		if gated {
+			aboveTier = true
+		}
+		if !ready {
+			continue
+		}
 		qualifying = append(qualifying, columnRef(column))
 	}
-	return qualifying
+	return qualifying, aboveTier
 }
 
 // someSourceIsReady reports whether any column a pull into this destination
-// could take a card from holds a ready card the asking owner may take.
-func (l *Library) someSourceIsReady(destination *bench.Column, cards []*bench.Card, operator bool) bool {
+// could take a card from holds a ready card the asking owner may take and the
+// declared tier is admitted for at this destination. It reports separately
+// whether any of those columns holds ready work the declared tier is admitted
+// for nowhere, which is what lets the bare form say that there is work about
+// and it stands above the caller rather than saying that there is nothing.
+//
+// The walk does not stop at the first qualifying source, because a source
+// holding only gated work still has to be seen when a nearer one has already
+// answered yes.
+func (l *Library) someSourceIsReady(destination *bench.Column, cards []*bench.Card, operator bool, by admission) (bool, bool) {
+	ready, gated := false, false
 	for _, source := range pullSources(destination, l.Bench.Columns) {
 		if source.OperatorOwned && !operator {
 			continue
 		}
-		if headOfReady(source.ID, cards) != nil {
-			return true
+		head, sawReady := headOfReadyForTier(l.Bench, source.ID, destination, cards, by)
+		switch {
+		case head != nil:
+			ready = true
+		case sawReady:
+			gated = true
 		}
 	}
-	return false
+	return ready, gated
 }
 
 // okEmpty answers a pull that found nothing to take, at exit 0 with no card
@@ -209,6 +251,36 @@ func (l *Library) okEmpty(req *Request, destination *bench.Column) *Response {
 		return response
 	}
 	response.Message = "answer.pull.empty.named"
+	response.MessageValues = map[string]string{
+		"upstream":    upstreamTitle(destination, l.Bench.Columns),
+		"destination": destination.Title,
+	}
+	return response
+}
+
+// okAboveTier answers a pull that found ready work it could not take because
+// the declared tier is admitted for none of it, at exit 0 with no card and
+// nothing written to any journal, exactly as okEmpty answers nothing ready at
+// all. The two carry separate messages rather than one message and a flag,
+// because a caller reading Message alone, which is what an MCP client and a
+// --json caller already branch on for okEmpty, has to be able to tell that
+// there is genuinely nothing from that there is something and it is not for
+// them, without inspecting anything else.
+//
+// What the declared tier is remains self-reported and unverified, here as on
+// a claim. This answer reports what the caller said about itself and settles
+// nothing about what the caller is.
+func (l *Library) okAboveTier(req *Request, destination *bench.Column) *Response {
+	response := &Response{
+		Outcome:     contract.OutcomeOK,
+		Verb:        req.Verb,
+		Affordances: l.affordances(nil),
+	}
+	if destination == nil {
+		response.Message = "answer.pull.above-tier.bare"
+		return response
+	}
+	response.Message = "answer.pull.above-tier.named"
 	response.MessageValues = map[string]string{
 		"upstream":    upstreamTitle(destination, l.Bench.Columns),
 		"destination": destination.Title,
@@ -415,20 +487,32 @@ func pullDepartureName(column *bench.Column) string {
 
 // headOfFurtherSource returns the card a pull takes when the destination's
 // immediate upstream holds none: the head of the nearest column that carries
-// into this destination and holds a ready card. It reads the caller not at
-// all, exactly as the immediate-upstream step does, so a source the caller
-// may not move a card out of answers not-operator under the lock rather than
-// leaving the caller with the empty answer for a card the board shows them.
-func headOfFurtherSource(destination, upstream *bench.Column, columns []*bench.Column, cards []*bench.Card) *bench.Card {
-	for _, source := range pullSources(destination, columns) {
+// into this destination and holds a ready card the declared tier is admitted
+// for at that destination. It reads the caller's identity not at all, exactly
+// as the immediate-upstream step does, so a source the caller may not move a
+// card out of answers not-operator under the lock rather than leaving the
+// caller with the empty answer for a card the board shows them.
+//
+// sawReady says whether any of those sources held a ready card at all, which
+// is what separates a run of empty columns from a run holding only work above
+// the caller. The walk carries on past a gated source rather than stopping
+// there, so a nearer column holding only gated work cannot hide an eligible
+// card standing further back.
+func headOfFurtherSource(b *bench.Bench, destination, upstream *bench.Column, cards []*bench.Card, by admission) (*bench.Card, bool) {
+	sawReady := false
+	for _, source := range pullSources(destination, b.Columns) {
 		if source == upstream {
 			continue
 		}
-		if head := headOfReady(source.ID, cards); head != nil {
-			return head
+		head, ready := headOfReadyForTier(b, source.ID, destination, cards, by)
+		if ready {
+			sawReady = true
+		}
+		if head != nil {
+			return head, sawReady
 		}
 	}
-	return nil
+	return nil, sawReady
 }
 
 // upstreamOf returns the column standing immediately before the given column in

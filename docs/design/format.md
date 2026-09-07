@@ -1722,6 +1722,32 @@ declares is read the same way: the requirement it carries still applies, and
 the refusal names the stored column identifier, since that is what an operator
 repairs the workbench with.
 
+### Selection: what next and pull withhold
+
+The gate above is not the only surface that reads a card's requirement.
+`next` and `pull` take the same `--tier` declaration a claim takes, and they
+answer with a card that declaration is admitted for rather than with the head
+of the queue. The comparison is the gate's own, read against the column the
+call would land the card in: the column being reported for `next`, the column
+a pull would carry the card into where the one it stands at takes no work up,
+and the resolved destination for `pull`. A requirement declared for a column
+further down the route withholds nothing here, because it is checked again at
+that column against whatever the caller who reaches it declares.
+
+Selection adds no ordering of its own. It walks the arrival order and answers
+with the first card the declaration admits, so no caller's eligible run is
+reordered by what somebody else's card asks for.
+
+A queue holding ready work the declaration is admitted for none of gets a
+different answer from a queue holding nothing, and the two are published
+separately. `next` sets `above_tier` on that column's offer, and `pull`
+answers `answer.pull.above-tier.bare` or `answer.pull.above-tier.named` where
+an empty queue answers `answer.pull.empty.bare` or `answer.pull.empty.named`.
+
+A pull carrying `--no-claim` takes nothing up, so no requirement the card
+carries can refuse it. The gate does not run for such a pull, and selection
+withholds nothing from it on tier either.
+
 ### Two limits worth knowing before you rely on any of this
 
 **Dinah cannot verify a declared tier.** A workbench is files on a disk, with

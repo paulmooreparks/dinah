@@ -14,7 +14,7 @@ import (
 
 // TestPullAgreesWithNextWhenBothHaveAHead asserts that a pull and a next
 // over the same column name the same card: both reach the head of the ready
-// queue through headOfReady, and a test that drives pull on the back of
+// queue through headOfReadyForTier, and a test that drives pull on the back of
 // next's offer is the same card next would have offered.
 //
 // Pull reaches into the destination's upstream, so the matching call to

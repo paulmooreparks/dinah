@@ -1571,10 +1571,10 @@ Take up a ready card
 
 What you may write:
   As you write it         What it is
-  ----------------------  --------------------------------------------------------------------------------------------------------------------------------------------
+  ----------------------  ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
   <card>                  the card you are taking up
   [--expires <duration>]  how long your claim holds before it goes stale, written as a number and a unit: 30m, 2h, 7d
-  [--tier <level>]        the tier you say you are, taken on trust and never verified; only what the card itself asks for can refuse you, never a column's own default
+  [--tier <level>]        the tier you say you are, taken on trust and never verified; only what the card itself asks for can refuse you, never a column's own default, and what a claim is refused for is what next and pull withhold
 
 What can go wrong, in the order each is checked:
   Order  What can go wrong                                             Refusal

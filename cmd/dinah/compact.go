@@ -39,7 +39,13 @@ const compactVersion = "2"
 //	wb       id, title, slug, path
 //	aff      one trailing field per affordance token
 //	lst      column
-//	off      column, title, awaiting_outside, no_taker, taken_by_pull
+//	off      column, title, awaiting_outside, no_taker, taken_by_pull, above_tier
+//
+// A field appended to the end of a record's list is a compatible change and
+// does not increment the version, because a record is read by index and a
+// reader that stops after the last field it knows about sees the record it
+// already knew. Inserting, renaming, reordering or removing a field is not
+// compatible and does increment it.
 //
 // A verb's response and a pre-verb refusal both order their records fmt, rsp,
 // card, wstream, instr, move, ctx, msgval, wb, aff, and the aff record closes
@@ -237,6 +243,7 @@ func compactOffers(offers []verb.Offer) string {
 			compactFlag(offer.AwaitingOutside),
 			compactFlag(offer.NoTaker),
 			compactFlag(offer.TakenByPull),
+			compactFlag(offer.AboveTier),
 		)
 		payload.card(offer.Card)
 	}
