@@ -1285,6 +1285,12 @@ python scripts/measure_agentic_sequence.py \
     --api-key-file <the file holding a console API key>
 ```
 
+The commit in the header below is this card's own harness commit, and the
+binary measured was built from the same tree. This card changes no Go source,
+so the head those figures describe is the head `f808127` publishes, and the
+commit named in the header is what the instruction layers were read at rather
+than a change to the surface being measured.
+
 The invariance check of the section below runs under `--counter proxy`, which
 is deterministic, local, and free, and which compares two runs inside one
 regime. The credential is read from the file named by `--api-key-file` at the
