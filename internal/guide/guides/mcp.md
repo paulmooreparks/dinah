@@ -146,6 +146,41 @@ The user-global layer is read from disk on every serve, so an edit to that one
 does reach a running session, and it arrives as a `global` layer served in full
 where you expected it withheld.
 
+## Ask show for the members you want
+
+`show` takes an optional `fields` argument, and it selects which members of a
+card the answer carries. The six names are `card`, `body`, `links`,
+`attachments`, `comments`, and `path`. Write them comma-separated, and leave
+the argument out to be served all six, which is what `show` answers when
+nobody asks:
+
+```json
+{"jsonrpc":"2.0","id":11,"method":"tools/call","params":{"name":"show","arguments":{"card":"wb-1","fields":"card,body"}}}
+```
+
+Naming what you want on the first call costs nothing. Coming back for a member
+you did not ask for costs a whole round trip, which is the most expensive thing
+on this surface, because the conversation so far is sent again with it. Ask
+narrowly where you know what you want, and leave the argument out where you do
+not.
+
+A shaped answer says what it held back:
+
+```json
+"withheld": ["links", "comments"], "reread": "wb-1"
+```
+
+`withheld` is a statement rather than a silence, on the same terms the
+instruction chain's marker is. Each name says the card holds that member and
+this answer did not carry it, so a member that is neither carried nor named is
+empty on the card and no second call is needed to learn that. `reread` is the
+card's own reference, and you pass it back to `show` with the fields you now
+want.
+
+A name outside the six is refused with `dinah.unknown-field`. The refusal names
+every unrecognised name you gave, sorted, together with the set you may choose
+from, and nothing is read before it is raised.
+
 ## When a call is refused
 
 A refusal is an answer, not an error. The answer carries `outcome` of

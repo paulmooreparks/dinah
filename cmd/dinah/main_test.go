@@ -7100,7 +7100,7 @@ func TestEveryHelpSpellingReachesTheSamePage(t *testing.T) {
 func TestTheFlagSetsTheParserAcceptsAreDerivedFromTheParameterTable(t *testing.T) {
 	wantValued := []string{
 		"actor", "at", "before", "capacity", "card", "column", "depth",
-		"description", "expires", "format", "from", "group-by", "kind",
+		"description", "expires", "fields", "format", "from", "group-by", "kind",
 		"lang", "map", "max-depth", "operator", "priority", "query", "remint",
 		"root", "severity", "since", "slug", "tier", "workbench",
 	}
@@ -8437,5 +8437,82 @@ func TestColumnNewCreatesAColumnFromTheTerminal(t *testing.T) {
 	unknown := runCLI(t, root, "column", "list")
 	if unknown.code != contract.ExitCode(contract.OutcomeRefused) {
 		t.Errorf("an action this build does not carry: wanted the refused exit code, got %d\n%s", unknown.code, unknown.out)
+	}
+}
+
+// TestShowShapedByAFieldListPrintsWhatItHeldBack asserts dinah-383 AC-3's
+// rendering half at the terminal. A reader who names two fields is shown those
+// two and is then told, in one place, which members the card holds that the
+// answer left out and what to type to be served them.
+//
+// The unshaped invocation is run alongside as the control, because an
+// assertion that a shaped answer omits the comments proves nothing unless the
+// same fixture's unshaped answer carries them.
+func TestShowShapedByAFieldListPrintsWhatItHeldBack(t *testing.T) {
+	root := newBench(t)
+	first := addCard(t, root, "First")
+	second := addCard(t, root, "Second")
+	addLink(t, root, first, "relates_to", cardID(t, root, second))
+	if got := runCLI(t, root, "comment", first, "A remark worth keeping"); got.code != 0 {
+		t.Fatalf("comment %s: %d %s", first, got.code, got.errw)
+	}
+
+	whole := runCLI(t, root, "show", first)
+	if whole.code != 0 {
+		t.Fatalf("show %s: %d %s", first, whole.code, whole.errw)
+	}
+	if !strings.Contains(whole.out, "A remark worth keeping") {
+		t.Fatalf("the unshaped answer carries no comment, so the shaped one proves nothing: %q", whole.out)
+	}
+	if strings.Contains(whole.out, msg.For(msg.Base).T("show.withheld", "members", "links")) {
+		t.Errorf("the unshaped answer announced a withheld member and it withheld nothing: %q", whole.out)
+	}
+
+	shaped := runCLI(t, root, "show", first, "--fields", "card,body")
+	if shaped.code != 0 {
+		t.Fatalf("show %s --fields card,body: %d %s", first, shaped.code, shaped.errw)
+	}
+	if strings.Contains(shaped.out, "A remark worth keeping") {
+		t.Errorf("the shaped answer carried a comment the field list left out: %q", shaped.out)
+	}
+	// The card carries links, a comment and an anchor path and no
+	// attachment, so the announcement names the three it holds and leaves
+	// attachments out, which is the whole difference between a statement and
+	// a silence.
+	announced := msg.For(msg.Base).T("show.withheld", "members", "links, comments, path")
+	if !strings.Contains(shaped.out, announced) {
+		t.Errorf("wanted the line %q among what the shaped answer printed, got %q", announced, shaped.out)
+	}
+	if !strings.Contains(shaped.out, msg.For(msg.Base).T("show.reread", "reread", first)) {
+		t.Errorf("the shaped answer does not say how to be served what it held back: %q", shaped.out)
+	}
+
+	// A field list that leaves the card out draws no card at all. The row
+	// above cannot see this, because it names card among its fields, and a
+	// card view is a struct rather than a slice: the members this renderer
+	// guards on emptiness draw nothing when they are left out, and the zero
+	// card view draws a header of empty cells that reads as an answer. The
+	// payload of the same call omits the member outright, so a header drawn
+	// here is the two heads disagreeing about what one answer holds.
+	withoutCard := runCLI(t, root, "show", first, "--fields", "links")
+	if withoutCard.code != 0 {
+		t.Fatalf("show %s --fields links: %d %s", first, withoutCard.code, withoutCard.errw)
+	}
+	if !strings.Contains(withoutCard.out, msg.For(msg.Base).T("show.links")) {
+		t.Fatalf("the answer carries no links, so its silence about the card proves nothing: %q", withoutCard.out)
+	}
+	if strings.Contains(withoutCard.out, "First") {
+		t.Errorf("the answer drew the card its field list left out: %q", withoutCard.out)
+	}
+	// The empty header by its own shape, because a card view drawn from
+	// nothing prints the bracketed column and state with neither in it.
+	if strings.Contains(withoutCard.out, "[ / ]") {
+		t.Errorf("the answer drew an empty card header above what it was asked for: %q", withoutCard.out)
+	}
+	// The control that keeps the two assertions above from passing on an
+	// answer that printed nothing whatever.
+	heldBack := msg.For(msg.Base).T("show.withheld", "members", "card, comments, path")
+	if !strings.Contains(withoutCard.out, heldBack) {
+		t.Errorf("wanted the line %q among what the shaped answer printed, got %q", heldBack, withoutCard.out)
 	}
 }
