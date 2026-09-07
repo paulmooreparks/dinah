@@ -150,21 +150,36 @@
       "source": "60d69cecd8163ee2"
     },
     "check.card.2": {
+      "text": "--at इस वर्कबेंच के एक कॉलम को नाम देता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "2235cca0a0d5d60b"
+    },
+    "check.card.3": {
       "text": "फ़ील्ड वह है जो एक कार्ड रखता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "823290afcaaee695"
     },
-    "check.card.3": {
+    "check.card.4": {
       "text": "वर्कबेंच उस फ़ील्ड के लिए स्तर घोषित करती है",
       "context": "One row of the precondition list of a command outside the five the profile specifies. The last three words bind it to the field being written: the question is whether this workbench declares a set for that one axis, never whether it declares any levels at all.",
       "source": "7be94b9daf0a52fd"
     },
-    "check.card.4": {
+    "check.card.5": {
+      "text": "सापेक्ष मान के पास गिनने के लिए एक डिफ़ॉल्ट है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "945d9750f68dc8a7"
+    },
+    "check.card.6": {
       "text": "मान वह स्तर है जिसे वह फ़ील्ड घोषित करता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "4002d10f56f595e"
     },
-    "check.card.5": {
+    "check.card.7": {
+      "text": "सापेक्ष मान घोषित स्तरों के भीतर रहता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "d04b77900ae81b5c"
+    },
+    "check.card.8": {
       "text": "निवेदन किसी स्वामी को नामता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "bc538e33f1fcc933"

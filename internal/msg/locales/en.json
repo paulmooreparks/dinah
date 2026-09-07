@@ -118,18 +118,30 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.card.2": {
-      "text": "the field is one a card records",
+      "text": "--at names a column of this workbench",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.card.3": {
+      "text": "the field is one a card records",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.card.4": {
       "text": "the workbench declares levels for that field",
       "context": "One row of the precondition list of a command outside the five the profile specifies. The last three words bind it to the field being written: the question is whether this workbench declares a set for that one axis, never whether it declares any levels at all."
     },
-    "check.card.4": {
+    "check.card.5": {
+      "text": "a relative write has a default to count from",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.card.6": {
       "text": "the value is a level that field declares",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
-    "check.card.5": {
+    "check.card.7": {
+      "text": "a relative write lands inside the tier set",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.card.8": {
       "text": "the request names an owner",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
