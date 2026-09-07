@@ -236,6 +236,14 @@ type Offer struct {
 	// rather than by a claim here, because nobody takes work up where it
 	// stands. A reader that acts on an offer needs to know which act to use.
 	TakenByPull bool `json:"taken_by_pull,omitempty"`
+	// AboveTier says the column, or for a column a pull would carry its card
+	// through, the column beyond, holds ready work, and that none of it the
+	// caller's declared tier is admitted for. It is mutually exclusive with
+	// Card, and it is a different answer from an offer of nothing at all: a
+	// reader acting on AboveTier knows there is work here waiting on a more
+	// senior caller, where a reader of an empty offer carrying no flag knows
+	// there is nothing waiting on anyone yet.
+	AboveTier bool `json:"above_tier,omitempty"`
 }
 
 // Next reports the card a column offers, and changes nothing. Offering a card
@@ -271,31 +279,67 @@ func (l *Library) Next(req *Request) ([]Offer, error) {
 		// The lookup reads the whole flow rather than the columns this request
 		// reports, since a named column's downstream is a fact about the
 		// workbench rather than about the request.
-		byPull := !column.TakesWorkUp() && carriesInto(column, l.Bench.Columns) != nil
+		beyond := carriesInto(column, l.Bench.Columns)
+		byPull := !column.TakesWorkUp() && beyond != nil
 		if !column.TakesWorkUp() && !byPull {
 			offer.NoTaker = true
 			offer.AwaitingOutside = column.AwaitingOutside
-		} else if head := headOfReady(column.ID, cards); head != nil {
-			offer.Card = l.view(head)
-			offer.TakenByPull = byPull
+		} else {
+			// The tier the card has to meet is the tier of the column the act
+			// would land it in, which is this column for a claim and the
+			// column beyond for a pull. Reading it anywhere else would offer
+			// work a claim here then refuses, or withhold work on the strength
+			// of a requirement nothing is about to check.
+			landing := column
+			if byPull {
+				landing = beyond
+			}
+			head, hadReady := headOfReadyForTier(l.Bench, column.ID, landing, cards, req.Tier)
+			switch {
+			case head != nil:
+				offer.Card = l.view(head)
+				offer.TakenByPull = byPull
+			case hadReady:
+				offer.AboveTier = true
+			}
 		}
 		offers = append(offers, offer)
 	}
 	return offers, nil
 }
 
-// headOfReady returns the next card pull (or next) would take from the given
-// column, or nil if the column holds no ready card. The order is the queue
-// order CORE-QUEUE-3 fixes, namely arrival into the current column first with
-// the lower card identifier breaking a tie, and only ready cards are eligible.
+// headOfReadyForTier returns the card pull (or next) would take from the
+// given column, or nil when nothing there is available to the caller. The
+// order is the queue order CORE-QUEUE-3 fixes, namely arrival into the
+// current column first with the lower card identifier breaking a tie, and
+// only ready cards are eligible. Nothing is reordered by what a card
+// requires: the scan runs down the arrival order and stops at the first card
+// the declared tier is admitted for, so a caller's own eligible run reaches
+// it in the order it arrived.
+//
+// landing is the column this scan is being run to decide whether a claim or
+// a pull could take the card into, and the admission is read there. It
+// differs from columnID when the scan crosses a buffer a pull would carry
+// the card through, which is the same distinction TakenByPull already
+// reports.
 //
 // Reading the cards out of the bench's own latch-free snapshot means the
-// returned card may have lapsed in between; both call sites re-read under the
-// card's lock inside their own transaction, so a held card here is filtered
-// again with `claim`'s state test at the only moment it would matter. A
-// pull that reaches a held or blocked card re-reads it under its lock and
-// refuses accordingly.
-func headOfReady(columnID string, cards []*bench.Card) *bench.Card {
+// returned card may have lapsed in between; every call site re-reads under
+// the card's lock inside its own transaction, so a held card here is
+// filtered again with `claim`'s state test at the only moment it would
+// matter. A pull that reaches a held or blocked card re-reads it under its
+// lock and refuses accordingly.
+//
+// hadReady says whether the column held any ready card at all, admitted or
+// not, and it is what lets a caller tell a queue with nothing in it from a
+// queue whose work stands above the tier the caller declared. Those are
+// different answers to a reader deciding what to do next, so nothing here
+// collapses them into a nil card.
+//
+// The declaration is self-reported and nothing verifies it, exactly as it is
+// on a claim. This filters what a caller is shown; it establishes nothing
+// about the caller.
+func headOfReadyForTier(b *bench.Bench, columnID string, landing *bench.Column, cards []*bench.Card, declared string) (*bench.Card, bool) {
 	var ready []*bench.Card
 	for _, card := range cards {
 		if card.Column == columnID && card.State == contract.StateReady {
@@ -303,10 +347,15 @@ func headOfReady(columnID string, cards []*bench.Card) *bench.Card {
 		}
 	}
 	if len(ready) == 0 {
-		return nil
+		return nil, false
 	}
 	sortByArrival(ready)
-	return ready[0]
+	for _, card := range ready {
+		if admitted, _ := b.TierAdmission(card, landing, declared); admitted {
+			return card, true
+		}
+	}
+	return nil, true
 }
 
 // Detail is a card and everything below it a reader asked to see.

@@ -1224,14 +1224,14 @@ storage format 2
 Catalogs:
   Language  Translated
   --------  ----------
-  en        824/824
-  af        0/824
-  cs        0/824
-  de        824/824
-  es        0/824
-  fil       0/824
-  hi        824/824
-  id        0/824
+  en        827/827
+  af        0/827
+  cs        0/827
+  de        827/827
+  es        0/827
+  fil       0/827
+  hi        827/827
+  id        0/827
 [exit 0]
 ```
 
@@ -1571,10 +1571,10 @@ Take up a ready card
 
 What you may write:
   As you write it         What it is
-  ----------------------  --------------------------------------------------------------------------------------------------------------------------------------------
+  ----------------------  ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
   <card>                  the card you are taking up
   [--expires <duration>]  how long your claim holds before it goes stale, written as a number and a unit: 30m, 2h, 7d
-  [--tier <level>]        the tier you say you are, taken on trust and never verified; only what the card itself asks for can refuse you, never a column's own default
+  [--tier <level>]        the tier you say you are, taken on trust and never verified; only what the card itself asks for can refuse you, never a column's own default, and what a claim is refused for is what next and pull withhold
 
 What can go wrong, in the order each is checked:
   Order  What can go wrong                                             Refusal

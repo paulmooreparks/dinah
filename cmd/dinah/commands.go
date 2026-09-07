@@ -456,6 +456,7 @@ func runNext(s *session, parsed *arguments) int {
 	if req.Column == "" {
 		req.Column = at(parsed.rest(), 0)
 	}
+	req.Tier = parsed.value("tier")
 	walk, refusal := s.rootWalkFor(parsed, parsed.value("root"))
 	if refusal != nil {
 		return s.reportError(refusal)
@@ -492,6 +493,7 @@ func runPull(s *session, parsed *arguments) int {
 		return s.reportError(err)
 	}
 	req.Expires = expires
+	req.Tier = parsed.value("tier")
 	return s.withBench(func(l *verb.Library) int {
 		return s.emit(l.Pull(req))
 	})

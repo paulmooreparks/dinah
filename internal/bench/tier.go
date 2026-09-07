@@ -115,3 +115,34 @@ func (b *Bench) TierRank(name string) (int, bool) {
 	}
 	return level.Rank, true
 }
+
+// TierAdmission reports whether a declared tier meets what a card requires at
+// a column, and returns that requirement so a caller refusing the claim can
+// name it. The requirement is empty, and everyone is admitted, when the card
+// asks for nothing at that column and when it asks for a tier this workbench
+// does not declare, both of which are RequiredTier's and TierRank's own rules
+// rather than anything decided here.
+//
+// One place decides this, and two callers read it: the gate that refuses a
+// claim below the requirement, and the selection that answers next and pull
+// with a card the asking owner is admitted for. A second copy of the
+// comparison would let the offer and the refusal drift apart, so that a
+// caller is shown work the gate then declines to hand over.
+//
+// The comparison is a floor rather than a match, exactly as the gate has
+// always made it: a caller declaring more than the card asks for is admitted.
+func (b *Bench) TierAdmission(card *Card, column *Column, declared string) (bool, string) {
+	if card == nil {
+		return true, ""
+	}
+	required := card.RequiredTier(b, column)
+	if required == "" {
+		return true, ""
+	}
+	floor, known := b.TierRank(required)
+	if !known {
+		return true, ""
+	}
+	rank, ok := b.TierRank(declared)
+	return ok && rank >= floor, required
+}

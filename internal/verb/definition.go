@@ -257,7 +257,7 @@ var params = map[string][]Param{
 	Claim: {
 		{Name: "card", Required: true, Field: "Card"},
 		{Name: "expires", Flag: true, Value: "duration", Field: "Expires"},
-		{Name: "tier", Flag: true, Value: "level", Field: "Tier"},
+		{Name: "tier", Flag: true, Value: "level", Shared: "tier", Field: "Tier"},
 	},
 	Move: {
 		{Name: "card", Required: true, Shared: "card", Field: "Card"},
@@ -312,8 +312,15 @@ var params = map[string][]Param{
 		{Name: "root", Flag: true, Value: "path", Shared: "root", Field: "Root"},
 		{Name: "max-depth", Flag: true, Value: "n", Shared: "max-depth", Field: "MaxDepth"},
 	},
+	// The tier flag is the one claim already carries, in the same shape, so
+	// that an agent says what it is once and every command reading it means
+	// the same thing. next answers with a card that declaration is admitted
+	// for rather than with the head of the queue, and a call omitting it is
+	// admitted exactly where an omitting claim is: at a card carrying no
+	// requirement.
 	"next": {
 		{Name: "column", Vocabulary: "column", AlsoFlag: true, Field: "Column"},
+		{Name: "tier", Flag: true, Value: "level", Shared: "tier", Field: "Tier"},
 		{Name: "root", Flag: true, Value: "path", Shared: "root", Field: "Root"},
 		{Name: "max-depth", Flag: true, Value: "n", Shared: "max-depth", Field: "MaxDepth"},
 	},
@@ -322,12 +329,16 @@ var params = map[string][]Param{
 	// one column that qualifies and refuses when more than one does. The
 	// three flags sit on the move's own shape: --no-claim drops the
 	// claim half, --override lets the operator pick a column at its limit,
-	// and --expires sets the claim's lease exactly as it does on claim.
+	// and --expires sets the claim's lease exactly as it does on claim. The
+	// fourth is claim's own tier declaration, in the same shape, which picks
+	// the card out of the queue as well as passing the gate the claiming half
+	// already ran it through.
 	Pull: {
 		{Name: "column", Vocabulary: "column", AlsoFlag: true, Field: "Column"},
 		{Name: "no-claim", Flag: true, Marker: true, Field: "NoClaim"},
 		{Name: "expires", Flag: true, Value: "duration", Field: "Expires"},
 		{Name: "override", Flag: true, Marker: true, Field: "Override"},
+		{Name: "tier", Flag: true, Value: "level", Shared: "tier", Field: "Tier"},
 	},
 	"query": {{Name: "query", Rest: true, Field: "Query"}},
 	// The bare positional is named phrase rather than text because the mcp

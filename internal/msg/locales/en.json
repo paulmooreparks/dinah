@@ -9,6 +9,14 @@
       "text": "Dinah found nothing ready in {upstream} to move into {destination}",
       "context": "The one-line sentence the empty answer of pull prints when the named form was asked and the upstream column holds no ready card. {upstream} names the upstream column by its title, {destination} names the column the caller asked pull to land the card in."
     },
+    "answer.pull.above-tier.bare": {
+      "text": "Dinah found ready work to pull, but none of it meets your declared tier",
+      "context": "The one-line sentence pull prints when the bare form was asked, a column holds ready work, and the tier the caller declared is admitted for none of it. It is a separate key from answer.pull.empty.bare on purpose, because a caller reading the message alone has to be able to tell work standing above it from no work at all."
+    },
+    "answer.pull.above-tier.named": {
+      "text": "Dinah found ready work in {upstream} for {destination}, but none of it meets your declared tier",
+      "context": "The one-line sentence pull prints when the named form was asked, a source holds ready work, and the tier the caller declared is admitted for none of it. {upstream} names the source column by its title, {destination} names the column the caller asked pull to land the card in. It is a separate key from answer.pull.empty.named on purpose, because a caller reading the message alone has to be able to tell work standing above it from no work at all."
+    },
     "attachments.empty": {
       "text": "{ref} carries no attachments.",
       "context": "Printed when `dinah attachments` is asked about an entity that carries none. No table follows, and the call succeeds: an entity with nothing attached is an answer rather than a mistake."
@@ -1557,6 +1565,10 @@
       "text": "nothing ready",
       "context": "Printed beside a column offering no card."
     },
+    "next.above-tier": {
+      "text": "ready, above your declared tier",
+      "context": "Printed beside a column that offers no card because the tier the caller declared is admitted for none of the work standing there, in place of next.none, which says only that nothing is ready."
+    },
     "outcome.stale": {
       "text": "the card moved since you read it; its revision is now {revision}",
       "context": "The sentence after the stale outcome name. {revision} is the card's current revision."
@@ -2517,9 +2529,9 @@
       "text": "how long your claim holds before it goes stale, written as a number and a unit: 30m, 2h, 7d",
       "context": "The meaning of the expires argument of `dinah claim`, printed in that command's arguments table."
     },
-    "param.claim.tier.summary": {
-      "text": "the tier you say you are, taken on trust and never verified; only what the card itself asks for can refuse you, never a column's own default",
-      "context": "The meaning of the tier argument of `dinah claim`, printed in that command's arguments table. It carries two limits a caller has to meet before relying on the gate: Dinah has no server and no credential, so a declared tier is self-reported, and a column's tier default never refuses a claim by itself."
+    "param.tier.summary": {
+      "text": "the tier you say you are, taken on trust and never verified; only what the card itself asks for can refuse you, never a column's own default, and what a claim is refused for is what next and pull withhold",
+      "context": "The meaning of the tier argument of `dinah claim`, `dinah next` and `dinah pull`, printed in each command's arguments table. One flag says one thing, so the three commands take one sentence rather than three that have to be kept in step. It carries the limits a caller has to meet before relying on any of them: Dinah has no server and no credential, so a declared tier is self-reported and nothing verifies it; a column's tier default never refuses a claim by itself; and selection withholds a card on the same rule the claim gate refuses one."
     },
     "param.comment.text.summary": {
       "text": "the comment, in one shell word or in quotation marks; a single - reads it from a pipe",

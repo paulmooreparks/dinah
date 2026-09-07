@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -627,5 +628,428 @@ func TestTheClaimHelpAndTheFormatDocStateBothLimits(t *testing.T) {
 		if !strings.Contains(prose, clause) {
 			t.Errorf("docs/design/format.md does not state %q", clause)
 		}
+	}
+}
+
+// The block below is dinah-410, which is selection rather than the gate: next
+// and pull take the same --tier declaration claim takes and answer with a card
+// that declaration is admitted for. It sits in this file because it reads the
+// same fixtures and asks the same question of the same code, and splitting it
+// off would leave a reader comparing the offer against the refusal across two
+// files.
+
+// selectionDefinition is a plain flow of two work columns, which is all most
+// of the selection assertions need: a queue to stand cards in and a
+// destination to pull them into.
+const selectionDefinition = `{
+  "profile": "dinah-core/0.7",
+  "title": "Selection",
+  "levels": { "tier": ["workhorse", "frontier", "apex"] },
+  "columns": [
+    { "id": "d00000000001", "title": "Intake", "kind": "intake" },
+    { "id": "d00000000002", "title": "Queue", "slug": "queue", "kind": "work" },
+    { "id": "d00000000003", "title": "Doing", "slug": "doing", "kind": "work" },
+    { "id": "d00000000004", "title": "Done", "kind": "done" }
+  ]
+}`
+
+// routeDefinition is long enough to put three stops between the column a card
+// stands at and the column its override names, which is the distance the
+// landing-column reading of "competent for" has to survive.
+const routeDefinition = `{
+  "profile": "dinah-core/0.7",
+  "title": "Route",
+  "levels": { "tier": ["workhorse", "frontier", "apex"] },
+  "columns": [
+    { "id": "e00000000001", "title": "Intake", "kind": "intake" },
+    { "id": "e00000000002", "title": "First", "slug": "first", "kind": "work" },
+    { "id": "e00000000003", "title": "Second", "slug": "second", "kind": "work" },
+    { "id": "e00000000004", "title": "Third", "slug": "third", "kind": "work" },
+    { "id": "e00000000005", "title": "Fourth", "slug": "fourth", "kind": "work" },
+    { "id": "e00000000006", "title": "Done", "kind": "done" }
+  ]
+}`
+
+// bufferDefinition puts a column nobody takes work up at between the intake
+// and the work, so a card standing in the buffer leaves by a pull into the
+// column beyond rather than by a claim where it stands.
+const bufferDefinition = `{
+  "profile": "dinah-core/0.7",
+  "title": "Buffered",
+  "levels": { "tier": ["workhorse", "frontier", "apex"] },
+  "columns": [
+    { "id": "f00000000001", "title": "Intake", "kind": "intake" },
+    { "id": "f00000000002", "title": "Waiting", "slug": "waiting", "kind": "dinah.buffer" },
+    { "id": "f00000000003", "title": "Work", "slug": "work", "kind": "work" },
+    { "id": "f00000000004", "title": "Done", "kind": "done" }
+  ]
+}`
+
+// offerLine is one entry of what `dinah --json next` prints. It is spelled
+// here rather than borrowed from verb.Offer because these assertions are
+// about the wire shape a reader branches on, and a struct shared with the
+// producer would agree with the producer whatever the JSON said.
+type offerLine struct {
+	Column string `json:"column"`
+	Title  string `json:"title"`
+	Card   *struct {
+		Ref string `json:"ref"`
+	} `json:"card"`
+	AwaitingOutside bool `json:"awaiting_outside"`
+	NoTaker         bool `json:"no_taker"`
+	TakenByPull     bool `json:"taken_by_pull"`
+	AboveTier       bool `json:"above_tier"`
+}
+
+// answerLine is the part of a pull's JSON answer these assertions read.
+type answerLine struct {
+	Outcome string `json:"outcome"`
+	Message string `json:"message"`
+	Card    *struct {
+		Ref string `json:"ref"`
+	} `json:"card"`
+}
+
+// offersFrom runs `dinah --json next` with the given arguments and decodes
+// what it printed.
+func offersFrom(t *testing.T, root string, argv ...string) []offerLine {
+	t.Helper()
+	got := runCLI(t, root, append([]string{"--json", "next"}, argv...)...)
+	if got.code != 0 {
+		t.Fatalf("next %v: %d %s", argv, got.code, got.errw)
+	}
+	var offers []offerLine
+	if err := json.Unmarshal([]byte(got.out), &offers); err != nil {
+		t.Fatalf("next %v: decode %v:\n%s", argv, err, got.out)
+	}
+	return offers
+}
+
+// soleOffer is offersFrom for the calls that name one column and so expect
+// exactly one entry back.
+func soleOffer(t *testing.T, root string, argv ...string) offerLine {
+	t.Helper()
+	offers := offersFrom(t, root, argv...)
+	if len(offers) != 1 {
+		t.Fatalf("next %v: wanted one offer, got %d:\n%+v", argv, len(offers), offers)
+	}
+	return offers[0]
+}
+
+// answerFrom runs `dinah --json pull` and decodes what it printed.
+func answerFrom(t *testing.T, root string, argv ...string) answerLine {
+	t.Helper()
+	got := runCLI(t, root, append([]string{"--json", "pull"}, argv...)...)
+	if got.code != 0 {
+		t.Fatalf("pull %v: %d %s", argv, got.code, got.errw)
+	}
+	var answer answerLine
+	if err := json.Unmarshal([]byte(got.out), &answer); err != nil {
+		t.Fatalf("pull %v: decode %v:\n%s", argv, err, got.out)
+	}
+	return answer
+}
+
+// standCard files a card, gives it a baseline tier when one is named, and
+// moves it to a column. The three selection fixtures all build their queues
+// this way, and a card's arrival order is the order this is called in.
+func standCard(t *testing.T, root, ref, title, tier, column string) {
+	t.Helper()
+	if got := runCLI(t, root, "add", title); got.code != 0 {
+		t.Fatalf("add %s: %d %s", title, got.code, got.errw)
+	}
+	if tier != "" {
+		if got := runCLI(t, root, "card", "set", ref, "tier", tier); got.code != 0 {
+			t.Fatalf("card set tier on %s: %d %s", ref, got.code, got.errw)
+		}
+	}
+	if got := runCLI(t, root, "move", ref, column); got.code != 0 {
+		t.Fatalf("move %s to %s: %d %s", ref, column, got.code, got.errw)
+	}
+}
+
+// TestNextOffersTheFirstCardTheDeclaredTierAdmits asserts dinah-410 AC-1 and
+// the decision behind it: selection filters the arrival order and adds no
+// order of its own, so a workhorse caller is offered the first card it is
+// admitted for and never the head of the queue it is not.
+func TestNextOffersTheFirstCardTheDeclaredTierAdmits(t *testing.T) {
+	root := newBenchFromDefinition(t, selectionDefinition)
+	standCard(t, root, "fx-1", "first and above", "apex", "queue")
+	standCard(t, root, "fx-2", "second and within", "workhorse", "queue")
+	standCard(t, root, "fx-3", "third and above", "apex", "queue")
+
+	offer := soleOffer(t, root, "--column", "queue", "--tier", "workhorse")
+	if offer.Card == nil {
+		t.Fatalf("a queue holding a card this caller may take offered nothing: %+v", offer)
+	}
+	if offer.Card.Ref != "fx-2" {
+		t.Errorf("the offer names %s, wanted fx-2: the head is above this caller and the third card is behind an eligible one", offer.Card.Ref)
+	}
+	// The same queue, read by a caller admitted for everything in it, answers
+	// with the head. Without this the assertion above would also pass on an
+	// implementation that always skipped the first card.
+	apex := soleOffer(t, root, "--column", "queue", "--tier", "apex")
+	if apex.Card == nil || apex.Card.Ref != "fx-1" {
+		t.Errorf("an apex caller was not offered the head of the queue: %+v", apex)
+	}
+}
+
+// TestNextSeparatesWorkAboveTheTierFromNothingReady asserts dinah-410 AC-2:
+// a column holding only work above the caller says so, a column holding
+// nothing says nothing, and the two are different answers on the wire and on
+// the terminal.
+func TestNextSeparatesWorkAboveTheTierFromNothingReady(t *testing.T) {
+	root := newBenchFromDefinition(t, selectionDefinition)
+	standCard(t, root, "fx-1", "above every workhorse", "apex", "queue")
+
+	gated := soleOffer(t, root, "--column", "queue", "--tier", "workhorse")
+	if gated.Card != nil {
+		t.Errorf("a card above the declared tier was offered anyway: %+v", gated.Card)
+	}
+	if !gated.AboveTier {
+		t.Errorf("the offer does not carry above_tier, so a reader cannot tell gated work from an empty queue: %+v", gated)
+	}
+	if gated.NoTaker || gated.AwaitingOutside {
+		t.Errorf("the gated offer raises another column's flag: %+v", gated)
+	}
+
+	// Doing holds nothing at all, and its offer must not borrow the flag.
+	empty := soleOffer(t, root, "--column", "doing", "--tier", "workhorse")
+	if empty.Card != nil {
+		t.Errorf("an empty column offered a card: %+v", empty.Card)
+	}
+	if empty.AboveTier || empty.NoTaker || empty.AwaitingOutside || empty.TakenByPull {
+		t.Errorf("an empty column raised a flag, so nothing-ready reads as something: %+v", empty)
+	}
+
+	// The terminal says the same thing in its own words, which is the surface
+	// an operator reads when a queue stalls above every agent available.
+	printed := runCLI(t, root, "next", "--column", "queue", "--tier", "workhorse")
+	if printed.code != 0 {
+		t.Fatalf("next: %d %s", printed.code, printed.errw)
+	}
+	if want := msg.For(msg.Base).T("next.above-tier"); !strings.Contains(printed.out, want) {
+		t.Errorf("the table does not print %q:\n%s", want, printed.out)
+	}
+
+	// The compact form carries the flag as the off record's sixth value, in
+	// the position that record's own doc comment names, so a reader of that
+	// form is told what a reader of the canonical form is told.
+	compact := runCLI(t, root, "--format", "compact", "next", "--column", "queue", "--tier", "workhorse")
+	if compact.code != 0 {
+		t.Fatalf("compact next: %d %s", compact.code, compact.errw)
+	}
+	found := false
+	for _, line := range strings.Split(compact.out, "\n") {
+		fields := strings.Split(line, "|")
+		if fields[0] != "off" {
+			continue
+		}
+		found = true
+		if len(fields) != 7 {
+			t.Fatalf("the off record carries %d fields, wanted the kind and six values: %q", len(fields), line)
+		}
+		if fields[6] != "1" {
+			t.Errorf("the off record's above_tier value is %q, wanted 1: %q", fields[6], line)
+		}
+	}
+	if !found {
+		t.Fatalf("the compact answer carries no off record:\n%s", compact.out)
+	}
+}
+
+// TestNextWithNoDeclarationWithholdsWhatABareClaimWouldRefuse asserts
+// dinah-410 AC-3, which is the whole point of the card: what selection shows
+// and what the gate admits are one answer, so a caller declaring nothing is
+// shown nothing it would then be refused.
+func TestNextWithNoDeclarationWithholdsWhatABareClaimWouldRefuse(t *testing.T) {
+	root := newBenchFromDefinition(t, selectionDefinition)
+	standCard(t, root, "fx-1", "assessed", "frontier", "queue")
+
+	offer := soleOffer(t, root, "--column", "queue")
+	if offer.Card != nil {
+		t.Errorf("a caller declaring nothing was offered an assessed card: %+v", offer.Card)
+	}
+	if !offer.AboveTier {
+		t.Errorf("the withheld offer does not say why it is empty: %+v", offer)
+	}
+	refused := runCLI(t, root, "claim", "fx-1")
+	if refused.code != 2 {
+		t.Fatalf("the bare claim this offer was compared against exited %d, wanted 2: %s", refused.code, refused.errw)
+	}
+	if name := refusalNameOf(refused.errw); name != contract.BelowTier {
+		t.Errorf("the bare claim refused under %s rather than %s, so the two surfaces are not being compared on the same rule", name, contract.BelowTier)
+	}
+}
+
+// TestNamedPullTakesTheFirstCardTheDeclaredTierAdmits asserts dinah-410 AC-4:
+// the named form claims and moves the card selection would have offered, and
+// the card it stepped over is left where it stood.
+func TestNamedPullTakesTheFirstCardTheDeclaredTierAdmits(t *testing.T) {
+	root := newBenchFromDefinition(t, selectionDefinition)
+	standCard(t, root, "fx-1", "first and above", "apex", "queue")
+	standCard(t, root, "fx-2", "second and within", "workhorse", "queue")
+
+	answer := answerFrom(t, root, "doing", "--tier", "workhorse")
+	if answer.Card == nil {
+		t.Fatalf("the pull took nothing: %+v", answer)
+	}
+	if answer.Card.Ref != "fx-2" {
+		t.Errorf("the pull took %s, wanted fx-2", answer.Card.Ref)
+	}
+	listing := runCLI(t, root, "ls", "queue")
+	if listing.code != 0 {
+		t.Fatalf("ls: %d %s", listing.code, listing.errw)
+	}
+	if !strings.Contains(listing.out, "fx-1") {
+		t.Errorf("the card the pull stepped over did not stay in the queue:\n%s", listing.out)
+	}
+	if !strings.Contains(listing.out, "ready") {
+		t.Errorf("the card the pull stepped over is no longer ready:\n%s", listing.out)
+	}
+}
+
+// TestNamedPullSeparatesWorkAboveTheTierFromNothingReady asserts dinah-410
+// AC-5: the named form carries two messages, and a caller branching on the
+// message alone can tell an empty upstream from an upstream it may not take
+// from.
+func TestNamedPullSeparatesWorkAboveTheTierFromNothingReady(t *testing.T) {
+	root := newBenchFromDefinition(t, selectionDefinition)
+	standCard(t, root, "fx-1", "above every workhorse", "apex", "queue")
+
+	gated := answerFrom(t, root, "doing", "--tier", "workhorse")
+	if gated.Card != nil {
+		t.Errorf("the pull took a card above the declared tier: %+v", gated.Card)
+	}
+	if gated.Message != "answer.pull.above-tier.named" {
+		t.Errorf("the answer is %q, wanted answer.pull.above-tier.named", gated.Message)
+	}
+
+	// The same call on a workbench whose upstream holds nothing at all keeps
+	// the older message, so the two cases never print the same sentence.
+	bare := newBenchFromDefinition(t, selectionDefinition)
+	empty := answerFrom(t, bare, "doing", "--tier", "workhorse")
+	if empty.Message != "answer.pull.empty.named" {
+		t.Errorf("an empty upstream answered %q, wanted answer.pull.empty.named", empty.Message)
+	}
+}
+
+// TestBarePullSaysWorkStandsAboveTheDeclaredTier asserts dinah-410 AC-6: the
+// bare form does not name a column it would then refuse the caller at, and it
+// says why it named none.
+func TestBarePullSaysWorkStandsAboveTheDeclaredTier(t *testing.T) {
+	root := newBenchFromDefinition(t, selectionDefinition)
+	standCard(t, root, "fx-1", "above every workhorse", "apex", "queue")
+
+	answer := answerFrom(t, root, "--tier", "workhorse")
+	if answer.Card != nil {
+		t.Errorf("the bare pull took a card above the declared tier: %+v", answer.Card)
+	}
+	if answer.Message != "answer.pull.above-tier.bare" {
+		t.Errorf("the answer is %q, wanted answer.pull.above-tier.bare", answer.Message)
+	}
+	if answer.Outcome != "ok" {
+		t.Errorf("the above-tier answer is an outcome of %q, wanted ok", answer.Outcome)
+	}
+	// An apex caller reaches the same workbench and is given the column, which
+	// is what shows the bare form withheld it for tier rather than for one of
+	// the other rows of its own list.
+	taken := answerFrom(t, root, "--tier", "apex")
+	if taken.Card == nil || taken.Card.Ref != "fx-1" {
+		t.Errorf("an apex caller was not given the card the bare form withheld: %+v", taken)
+	}
+}
+
+// TestACardAskingForNothingIsOfferedAndTakenWhateverIsDeclared asserts
+// dinah-410 AC-7: a card nobody has assessed is unaffected by any of this,
+// which is the majority of cards on any workbench.
+func TestACardAskingForNothingIsOfferedAndTakenWhateverIsDeclared(t *testing.T) {
+	for _, declared := range [][]string{nil, {"--tier", "workhorse"}, {"--tier", "apex"}} {
+		name := "no declaration"
+		if len(declared) == 2 {
+			name = declared[1]
+		}
+		t.Run(name, func(t *testing.T) {
+			root := newBenchFromDefinition(t, selectionDefinition)
+			standCard(t, root, "fx-1", "unassessed", "", "queue")
+
+			offer := soleOffer(t, root, append([]string{"--column", "queue"}, declared...)...)
+			if offer.Card == nil || offer.Card.Ref != "fx-1" {
+				t.Fatalf("an unassessed card was not offered: %+v", offer)
+			}
+			answer := answerFrom(t, root, append([]string{"doing"}, declared...)...)
+			if answer.Card == nil || answer.Card.Ref != "fx-1" {
+				t.Errorf("an unassessed card was not taken: %+v", answer)
+			}
+		})
+	}
+}
+
+// TestARequirementFurtherDownTheRouteDoesNotWithholdWorkHere asserts
+// dinah-410 AC-8 and D-1: competent-for is read at the column this call would
+// land the card in, never at every column still ahead of it. The requirement
+// three stops down is checked again, on its own terms, against whichever
+// caller reaches that column.
+func TestARequirementFurtherDownTheRouteDoesNotWithholdWorkHere(t *testing.T) {
+	root := newBenchFromDefinition(t, routeDefinition)
+	standCard(t, root, "fx-1", "assessed further down", "workhorse", "first")
+	if got := runCLI(t, root, "card", "set", "fx-1", "tier", "apex", "--at", "fourth"); got.code != 0 {
+		t.Fatalf("card set tier --at fourth: %d %s", got.code, got.errw)
+	}
+
+	offer := soleOffer(t, root, "--column", "first", "--tier", "workhorse")
+	if offer.Card == nil || offer.Card.Ref != "fx-1" {
+		t.Fatalf("a requirement declared for a column three stops down withheld the card here: %+v", offer)
+	}
+	answer := answerFrom(t, root, "second", "--tier", "workhorse")
+	if answer.Card == nil || answer.Card.Ref != "fx-1" {
+		t.Fatalf("the pull refused a card its own destination admits: %+v", answer)
+	}
+	// The override still governs its own column, so nothing above has quietly
+	// dropped it. A workhorse caller reaching Fourth is refused there.
+	if got := runCLI(t, root, "move", "fx-1", "fourth"); got.code != 0 {
+		t.Fatalf("move to fourth: %d %s", got.code, got.errw)
+	}
+	if got := runCLI(t, root, "release", "fx-1"); got.code != 0 {
+		t.Fatalf("release: %d %s", got.code, got.errw)
+	}
+	refused := runCLI(t, root, "claim", "fx-1", "--tier", "workhorse")
+	if refused.code != 2 {
+		t.Fatalf("the override at Fourth admitted a workhorse claim, so the assertion above proved nothing: %d %s", refused.code, refused.errw)
+	}
+	if name := refusalNameOf(refused.errw); name != contract.BelowTier {
+		t.Errorf("the refusal at Fourth is %s, wanted %s", name, contract.BelowTier)
+	}
+}
+
+// TestSelectionAtABufferReadsTheColumnTheCardWouldLandIn asserts dinah-410
+// AC-9: where a card leaves by a pull into the column beyond, the tier read
+// is that column's, because that is where the claim actually happens. Reading
+// the buffer instead would offer work the pull then refuses.
+func TestSelectionAtABufferReadsTheColumnTheCardWouldLandIn(t *testing.T) {
+	root := newBenchFromDefinition(t, bufferDefinition)
+	standCard(t, root, "fx-1", "waiting to be carried on", "", "waiting")
+	if got := runCLI(t, root, "card", "set", "fx-1", "tier", "apex", "--at", "work"); got.code != 0 {
+		t.Fatalf("card set tier --at work: %d %s", got.code, got.errw)
+	}
+
+	offer := soleOffer(t, root, "--column", "waiting", "--tier", "workhorse")
+	if offer.Card != nil {
+		t.Errorf("the buffer offered a card the column beyond would refuse: %+v", offer.Card)
+	}
+	if !offer.AboveTier {
+		t.Errorf("the buffer's empty offer does not say why it is empty: %+v", offer)
+	}
+	// The buffer itself carries no requirement, and the card carries no
+	// baseline, so an implementation reading the buffer rather than the
+	// landing column offers this card. An apex caller is offered it and is
+	// told the card leaves by a pull, which is what makes the landing column
+	// the one that matters.
+	admitted := soleOffer(t, root, "--column", "waiting", "--tier", "apex")
+	if admitted.Card == nil || admitted.Card.Ref != "fx-1" {
+		t.Fatalf("an apex caller was not offered the buffered card: %+v", admitted)
+	}
+	if !admitted.TakenByPull {
+		t.Errorf("the offer does not say the card leaves by a pull, so this test is not standing at a buffer: %+v", admitted)
 	}
 }
