@@ -976,12 +976,20 @@ commit is `de5558289b0962c50b578fc81b65f856aa9100b3`, and the baseline is
 Both runs read their layers at the baseline commit, since this card edits none
 of the files those layers are composed from.
 
-The landing commit named above is the last commit on the branch that changes
-what this surface publishes or answers. The commits after it edit this document
-and one help page's own prose, and the tool-definition block the head serves is
-byte-identical at the branch head to what it was at the landing commit, as is
-the unshaped payload the fixture card produces. The figures below therefore
-describe the branch as it stands rather than a state it has since left.
+The landing commit named above is the last commit of this card's own work that
+changes what this surface publishes or answers, and every figure below was
+measured at that commit and describes it. The branch head is no longer that
+commit. dinah-408 merged into this branch afterwards and gives three commands
+an argument apiece, which raises the tool-definition block the head publishes
+above the figure recorded here. No figure below was retaken across that merge,
+and none needed retaking, because each one reports a difference between two
+binaries given one commit, which is the quantity this card owns and which the
+merge leaves alone. The reproduction below is what preserves that property, since
+it gives both binaries of a pair the same commit. One claim does survive to the
+head unchanged: the unshaped payload the fixture card produces is byte-identical
+there to what it was at the landing commit. A reader who wants the head's own
+published surface has to measure the head, and a reader who wants this card's
+effect should read the figures below, which are exact for the commits they name.
 
 ```
 BASELINE=93142ba0c8a1278f124007881eb9f8f66ea56877
