@@ -113,7 +113,10 @@ var wantedEvents = map[string][]string{
 	contract.EventManualCorrection:   {"ts", "event", "actor", "from", "from_title", "to", "to_title"},
 	// against is absent on an absolute override write, which needed no
 	// baseline, and the sequence writes one of each, so the union carries it.
-	contract.EventTierOverridden:      {"ts", "event", "actor", "column", "from", "to", "expr", "against"},
+	// column_title and reason are raise's own two members, absent on every
+	// line an ordinary card set ... --at write produces, and the sequence
+	// carries one raise so the union carries them.
+	contract.EventTierOverridden:      {"ts", "event", "actor", "column", "column_title", "from", "to", "expr", "against", "reason"},
 	contract.EventTierOverrideDropped: {"ts", "event", "actor", "column", "from"},
 }
 

@@ -505,6 +505,46 @@
       "text": "each named severity or priority is declared or a live card carries it",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
+    "check.raise.1": {
+      "text": "the workbench designates an operator",
+      "context": "One row of the ordered precondition list of raise. Keep a translation at or under 52 display columns."
+    },
+    "check.raise.2": {
+      "text": "the card exists",
+      "context": "One row of the ordered precondition list of raise. Keep a translation at or under 52 display columns."
+    },
+    "check.raise.3": {
+      "text": "the request names an owner",
+      "context": "One row of the ordered precondition list of raise. Keep a translation at or under 52 display columns."
+    },
+    "check.raise.4": {
+      "text": "whoever asks holds the card",
+      "context": "One row of the ordered precondition list of raise. Keep a translation at or under 52 display columns."
+    },
+    "check.raise.5": {
+      "text": "the request carries a reason",
+      "context": "One row of the ordered precondition list of raise. Keep a translation at or under 52 display columns."
+    },
+    "check.raise.6": {
+      "text": "the card stands in a column that exists",
+      "context": "One row of the ordered precondition list of raise. Keep a translation at or under 52 display columns."
+    },
+    "check.raise.7": {
+      "text": "a relative tier has a default to measure from",
+      "context": "One row of the ordered precondition list of raise. Keep a translation at or under 52 display columns."
+    },
+    "check.raise.8": {
+      "text": "the tier named is one the workbench declares",
+      "context": "One row of the ordered precondition list of raise. Keep a translation at or under 52 display columns."
+    },
+    "check.raise.9": {
+      "text": "the tier resolved lands inside the declared set",
+      "context": "One row of the ordered precondition list of raise. Keep a translation at or under 52 display columns."
+    },
+    "check.raise.10": {
+      "text": "the tier resolved ranks above what the card asks",
+      "context": "One row of the ordered precondition list of raise. Keep a translation at or under 52 display columns."
+    },
     "check.reject-target-forward": {
       "text": "column {detail} declares reject_to naming a column ahead of it that is not a done column",
       "context": "A check finding: reject_to names a column further along the flow whose kind is not done. A rejection that lands somewhere behind the declaring column, or that lands in a done column ahead of it, is not reported; only a forward name landing in an ordinary station is. {detail} carries the declaring column."
@@ -985,6 +1025,14 @@
       "text": "; write the tier by name instead, or give the column a default",
       "context": "The next step of refusal.dinah.no-tier-default. Both ways out are open to the caller: an absolute tier needs no default, and a default makes the relative form work from then on."
     },
+    "refusal.dinah.tier-not-higher": {
+      "text": "this card already asks for tier {current} here, and {attempted} would not raise it",
+      "context": "The sentence printed after the refusal name dinah.tier-not-higher, which a raise resolving to a tier at or below what the card already requires at this column carries. {current} is what the card asks for now, and {attempted} is what the raise resolved to, which {detail} carries as well. Equal counts as not higher, because a raise that changes nothing is not a raise. refusal.dinah.tier-not-higher.next is spliced on after this one."
+    },
+    "refusal.dinah.tier-not-higher.next": {
+      "text": "; name a tier ranking above {current}, or write it with `card set ... tier ... --at ...` if you mean something other than a raise",
+      "context": "The next step of refusal.dinah.tier-not-higher. Both ways out are named because only one of them is a raise: the other verb writes any value, a lower one included, and it does not hand the card back."
+    },
     "refusal.dinah.tier-out-of-range": {
       "text": "{detail} lands at rung {attempted}, which is off the end of this workbench's tier set",
       "context": "The sentence printed after the refusal name dinah.tier-out-of-range, which a relative tier write resolving outside the declared set carries. {detail} is what the caller typed; {attempted} is the zero-based rank it worked out to, which may be negative. Nothing is clamped, so the sentence reports the rung rather than a value that was written. refusal.dinah.tier-out-of-range.next is spliced on after this one."
@@ -1108,6 +1156,10 @@
     "cmd.query.summary": {
       "text": "The cards of the workbench that match a query",
       "context": "The one-line summary of the query command, shown beside its syntax in the help block."
+    },
+    "cmd.raise.summary": {
+      "text": "Raise the tier this stop needs and hand the card back",
+      "context": "The one-line summary of `dinah raise`, printed in the command list and above that command's own help."
     },
     "cmd.release.summary": {
       "text": "Give the card back to its queue",
@@ -1548,6 +1600,18 @@
     "log.reject": {
       "text": "(reject)",
       "context": "The mark on a move whose destination is the departure column's own reject_to target."
+    },
+    "log.tier-overridden": {
+      "text": "{column}: {from} to {to}",
+      "context": "The detail of a tier_overridden line: the column the override concerns, and the requirement on either side of the write. {column} is the title the event captured at write time, falling back to the stored identifier on a line that captured none. {from} is the previous requirement, or log.tier-overridden.no-requirement where the card asked for nothing. log.tier-overridden.reason is appended after this one only when the event carries a reason, which an ordinary card set ... --at write does not."
+    },
+    "log.tier-overridden.no-requirement": {
+      "text": "no requirement",
+      "context": "Spliced in as {from} on a tier_overridden line whose own from is empty, meaning the card asked for nothing at this column before the write."
+    },
+    "log.tier-overridden.reason": {
+      "text": "({reason})",
+      "context": "Appended to log.tier-overridden's detail when the event carries a reason, which today only a raise writes. It is a parenthesis around the prose and nothing else, which is why every catalog answers it the same way."
     },
     "log.attachment-renamed": {
       "text": "{from} to {to}",
@@ -2099,7 +2163,15 @@
     },
     "refusal.no-reason.next": {
       "text": "; run `dinah block {card} \"the question the operator has to answer\"`",
-      "context": "Spliced onto refusal.no-reason as the next step. {card} is the card reference the reader named. Written for block, the one verb that raises this refusal."
+      "context": "Spliced onto refusal.no-reason as the next step. {card} is the card reference the reader named. Written for block; raise raises this refusal too and renders refusal.no-reason.raise.next in place of this entry."
+    },
+    "refusal.no-reason.raise": {
+      "text": "a raise carries a reason, saying what you found that puts the work beyond the tier this stop asks for",
+      "context": "The sentence printed after the refusal name no-reason when the raise command raised it. A command adding no key of its own renders refusal.no-reason instead."
+    },
+    "refusal.no-reason.raise.next": {
+      "text": "; run `dinah raise {card} <tier> \"what you found\"`",
+      "context": "Spliced onto refusal.no-reason.raise as its next step. {card} is the card reference the reader named. The raise command renders it; every other command renders refusal.no-reason.next."
     },
     "refusal.not-blocked": {
       "text": "this card is not blocked, so there is nothing to lift",
@@ -2115,7 +2187,7 @@
     },
     "refusal.not-holder.unnamed": {
       "text": "nobody holds this card, so there is nothing to release",
-      "context": "The sentence printed after the refusal name not-holder when nobody holds the card, in place of refusal.not-holder. Written for release, the one verb that raises this refusal."
+      "context": "The sentence printed after the refusal name not-holder when nobody holds the card, in place of refusal.not-holder. Release and raise both raise this refusal, and the sentence is written for release because releasing is still how the card is freed for somebody else to claim and then raise."
     },
     "refusal.not-holder.next": {
       "text": "; run `dinah whoami` to see who Dinah takes you to be, or ask {detail} to release it",
@@ -2369,6 +2441,14 @@
       "text": "search",
       "context": "How the canonical token search is rendered where a person reads it, naming the rung a workbench answer came from: the ancestor walk resolved it, in the settings listing and on the status line alike. The machine surface always carries the canonical spelling."
     },
+    "token.tier_overridden": {
+      "text": "tier overridden",
+      "context": "How the canonical token tier_overridden is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "token.tier_override_dropped": {
+      "text": "tier override dropped",
+      "context": "How the canonical token tier_override_dropped is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
     "token.unblocked": {
       "text": "unblocked",
       "context": "How the canonical token unblocked is rendered where a person reads it. The machine surface always carries the canonical spelling."
@@ -2484,6 +2564,14 @@
     "param.card.summary": {
       "text": "the card you are acting on, written as its reference, such as wb-1",
       "context": "The meaning of the card argument, shared by every command that takes a card and nothing else."
+    },
+    "param.raise.tier.summary": {
+      "text": "the tier the work actually needs, by name or as a step like +1; it has to rank above what the card already asks for here",
+      "context": "The meaning of the tier argument of `dinah raise`, printed in that command's arguments table. It resolves the way any tier write resolves, so a relative step is measured against the column's own default and an absolute name is checked against the declared set."
+    },
+    "param.raise.reason.summary": {
+      "text": "why the work needs a higher tier, in one shell word or in quotation marks; Dinah records that you wrote one and never checks that it is true",
+      "context": "The meaning of the reason argument of `dinah raise`, printed in that command's arguments table. The second clause is the limit a reader has to meet before relying on what a raise says: the reason cannot be left out, and no part of the tool judges what it claims."
     },
     "param.ref.summary": {
       "text": "a column, a card, or something below a card such as wb-1/comments/1; not this workbench",

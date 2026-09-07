@@ -56,7 +56,11 @@ type Event struct {
 	// ordinary move, which is what the line already is: state and holder are
 	// unchanged, and from, to and both titles carry what they always carry.
 	Reshape bool `json:"reshape,omitempty"`
-	// Reason is a block's prose reason.
+	// Reason is a block's prose reason, or the reason a raise gave for
+	// requiring more of a card than it required a moment ago. Only block and
+	// raise populate it: an ordinary per-column tier write carries none, and
+	// a reader meeting a tier_overridden line with no reason is meeting one
+	// of those rather than a raise that omitted it.
 	Reason string `json:"reason,omitempty"`
 	// Kind is a block's optional class of obstacle.
 	Kind string `json:"kind,omitempty"`
@@ -80,6 +84,13 @@ type Event struct {
 	// the reference can be a slug a later rename changes and the line is
 	// history.
 	Column string `json:"column,omitempty"`
+	// ColumnTitle is that column's title as of the event, captured at write
+	// time the way FromTitle and ToTitle capture a move's states, so a reader
+	// is not left holding a bare identifier for a column that may since have
+	// been renamed or retired. Only a raise populates it today; the ordinary
+	// per-column tier write does not, and the renderer falls back to Column
+	// for every line that carries none.
+	ColumnTitle string `json:"column_title,omitempty"`
 	// Expr is what a person typed for a tier override, absolute or relative,
 	// carried by tier_overridden alongside the resolved value in To. Keeping
 	// it means a later reader is not left inferring the intent from the

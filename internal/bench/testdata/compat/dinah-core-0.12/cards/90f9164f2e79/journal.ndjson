@@ -1,0 +1,9 @@
+{"ts":"2026-09-07T01:32:23Z","event":"created","actor":"sam","title":"fourth card","to":"004acda2c28a","to_title":"Intake"}
+{"ts":"2026-09-07T01:32:25Z","event":"blocked","actor":"sam","reason":"a vendor has not answered","kind":"external"}
+{"ts":"2026-09-07T01:32:25Z","event":"unblocked","actor":"sam"}
+{"ts":"2026-09-07T01:32:25Z","event":"moved","actor":"sam","from":"004acda2c28a","to":"3f9c17ade5b2","from_title":"Intake","to_title":"Review"}
+{"ts":"2026-09-07T01:32:25Z","event":"claimed","actor":"sam"}
+{"ts":"2026-09-07T01:32:25Z","event":"tier_overridden","actor":"sam","to":"apex","reason":"reads deeper than the ticket suggested, and needs a hand from somebody senior","column":"3f9c17ade5b2","column_title":"Review","expr":"apex"}
+{"ts":"2026-09-07T01:32:25Z","event":"released","actor":"sam"}
+{"ts":"2026-09-07T01:32:28Z","event":"moved","actor":"sam","from":"3f9c17ade5b2","to":"7b5cfe51cb3b","from_title":"Review","to_title":"Doing","reshape":true}
+{"ts":"2026-09-07T01:32:28Z","event":"tier_override_dropped","actor":"sam","from":"apex","column":"3f9c17ade5b2"}

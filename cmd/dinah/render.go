@@ -653,8 +653,40 @@ func (s *session) eventDetail(ev bench.Event) string {
 		return s.r.T("log.attachment-renamed", "from", ev.From, "to", ev.Filename)
 	case contract.EventManualCorrection:
 		return s.r.T("log.manual-correction", "from", ev.FromTitle, "to", ev.ToTitle)
+	case contract.EventTierOverridden:
+		return s.tierOverriddenDetail(ev)
 	}
 	return ""
+}
+
+// tierOverriddenDetail composes what a tier override carried: the column it
+// concerns, the requirement on either side of the write, and the reason where
+// one was given.
+//
+// The column is the title the event captured at write time, exactly as a moved
+// line reads its own FromTitle and ToTitle, and nothing here resolves anything
+// against the workbench as it now stands. A line carrying no title degrades to
+// the stored identifier rather than to nothing: an ordinary per-column tier
+// write captures no title, and neither did any line written before the field
+// existed, so that fallback is what most of these lines read as.
+//
+// The reason is appended only where the event carries one, since only a raise
+// is required to supply one and a hollow pair of brackets would say less than
+// leaving them out.
+func (s *session) tierOverriddenDetail(ev bench.Event) string {
+	column := ev.ColumnTitle
+	if column == "" {
+		column = ev.Column
+	}
+	from := ev.From
+	if from == "" {
+		from = s.r.T("log.tier-overridden.no-requirement")
+	}
+	detail := s.r.T("log.tier-overridden", "column", column, "from", from, "to", ev.To)
+	if ev.Reason == "" {
+		return detail
+	}
+	return detail + " " + s.r.T("log.tier-overridden.reason", "reason", ev.Reason)
 }
 
 // renderChanges prints what one checkpoint answered with: the journal lines

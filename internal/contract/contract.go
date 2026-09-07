@@ -380,6 +380,18 @@ const (
 	// a floor rather than a match: declaring more than the card asks for is
 	// waste rather than an error, and only declaring less is refused.
 	BelowTier = LayerPrefix + "below-tier"
+	// TierNotHigher is a raise whose resolved tier does not rank above what
+	// the card already requires at the column being raised. Equal counts as
+	// not higher: a raise that changes nothing is not a raise. The comparison
+	// is against the card's own current requirement (the baseline or the
+	// override for that column), never against the column's own tier default,
+	// because a relative expression resolves against that default and the two
+	// can differ, so a card already overridden above the column's default can
+	// see "+1" resolve to a value at or below what it already requires. When
+	// the card's current requirement names a tier the workbench no longer
+	// declares, this refusal is never raised: there is nothing to compare
+	// against, and TierRank's own second return value says so.
+	TierNotHigher = LayerPrefix + "tier-not-higher"
 	// NotRenamable is a rename aimed at something that is not an attachment.
 	// The detail names what the reference resolved to, so the caller sees
 	// what was misunderstood rather than what they tried to write.
@@ -460,7 +472,7 @@ var Introduced = []string{
 	AmbiguousName, NotRenamable,
 	AmbiguousColumn, NoUpstream, AwaitingOutside, TakesNoWork,
 	NoLevels, UnknownLevel, UnknownFormat,
-	NoTierDefault, TierOutOfRange, BelowTier,
+	NoTierDefault, TierOutOfRange, BelowTier, TierNotHigher,
 	ReshapeNeedsDestination, ReshapeHeldCardInQueue, ReshapeMapSourceEmpty,
 	ReshapeDestinationRetiring, ReshapeDestinationAmbiguous,
 }
