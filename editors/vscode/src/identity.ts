@@ -96,6 +96,10 @@ export const COMMAND_PULL = "dinah.tree.pull";
 /** The card row's act that opens its served instruction chain as a tab (dinah-270). */
 export const COMMAND_OPEN_INSTRUCTIONS = "dinah.tree.openInstructions";
 
+/** The command palette's own two commands, which need no row (dinah-420). */
+export const COMMAND_RUN_VERB = "dinah.runVerb";
+export const COMMAND_REFRESH_VERB_CATALOG = "dinah.refreshVerbCatalog";
+
 /**
  * Every command this extension contributes, in the order package.json
  * declares them. A manifest test reads this array back, which is what keeps
@@ -119,6 +123,8 @@ export const TREE_COMMANDS: readonly string[] = [
 	COMMAND_ATTACH_FILE,
 	COMMAND_PULL,
 	COMMAND_OPEN_INSTRUCTIONS,
+	COMMAND_RUN_VERB,
+	COMMAND_REFRESH_VERB_CATALOG,
 ];
 
 /**
@@ -159,7 +165,11 @@ export const ROW_COMMANDS: readonly string[] = [
  * non-overlapping partition of TREE_COMMANDS, so a command added there
  * without a classification fails a test rather than shipping unclassified.
  */
-export const GLOBAL_COMMANDS: readonly string[] = [COMMAND_REFRESH];
+export const GLOBAL_COMMANDS: readonly string[] = [
+	COMMAND_REFRESH,
+	COMMAND_RUN_VERB,
+	COMMAND_REFRESH_VERB_CATALOG,
+];
 
 /**
  * The four answers actionsFor composes for a card row, and the row kinds

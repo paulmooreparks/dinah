@@ -143,6 +143,16 @@
       {
         "command": "dinah.tree.openInstructions",
         "title": "%manifest.command.dinah.tree.openInstructions.title%"
+      },
+      {
+        "command": "dinah.runVerb",
+        "title": "%manifest.command.dinah.runVerb.title%",
+        "enablement": "dinah.binary == 'ok'"
+      },
+      {
+        "command": "dinah.refreshVerbCatalog",
+        "title": "%manifest.command.dinah.refreshVerbCatalog.title%",
+        "enablement": "dinah.binary == 'ok'"
       }
     ],
     "menus": {

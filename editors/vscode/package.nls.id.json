@@ -28,5 +28,7 @@
 	"manifest.configuration.dinah.path.markdownDescription": "Absolute path to the `dinah` binary. Leave empty to use the one on your PATH. A binary path is a property of the machine, so this setting does not travel through settings sync.",
 	"manifest.configuration.dinah.workbench.markdownDescription": "Directory of the workbench to use for this folder, passed to `dinah` as `--workbench`. Leave empty to let `dinah` discover one by walking up from the folder. Set it when several workbenches are reachable, or when the walk reaches one you did not mean.",
 	"manifest.configuration.dinah.pollIntervalSeconds.markdownDescription": "How often the sidebar tree checks `dinah changes` for updates while visible.",
-	"manifest.configuration.dinah.watchFiles.markdownDescription": "Watch the workbench's Markdown files for changes and check sooner than the poll interval when one is saved."
+	"manifest.configuration.dinah.watchFiles.markdownDescription": "Watch the workbench's Markdown files for changes and check sooner than the poll interval when one is saved.",
+	"manifest.command.dinah.runVerb.title": "Dinah: Run Verb…",
+	"manifest.command.dinah.refreshVerbCatalog.title": "Dinah: Refresh Command Palette"
 }

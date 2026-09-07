@@ -30,6 +30,17 @@ export interface PickItem {
 	readonly detail?: string;
 	/** The value the caller gets back, which is never shown. */
 	readonly value: string;
+	/**
+	 * Marks a label-only row a reader cannot choose.
+	 *
+	 * The command palette's verb list ends in one when a tool was left out
+	 * because this build cannot draw its arguments (dinah-420). The modules
+	 * that compose pick items import no vscode symbol, so they cannot build a
+	 * vscode.QuickPickItemKind value; extension.ts's own `pick` binding turns
+	 * this marker into the editor's separator before the array reaches
+	 * showQuickPick. An item without it is an ordinary, choosable row.
+	 */
+	readonly kind?: "separator";
 }
 
 /** The window calls these commands make, injected so tests can watch them. */

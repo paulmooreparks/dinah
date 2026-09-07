@@ -28,5 +28,7 @@
 	"manifest.configuration.dinah.path.markdownDescription": "`dinah` प्रोग्राम का पूर्ण पथ। अपने PATH वाले प्रोग्राम का उपयोग करने के लिए खाली छोड़ें। प्रोग्राम का पथ मशीन का गुण है, इसलिए यह सेटिंग सेटिंग-सिंक के ज़रिये नहीं जाती।",
 	"manifest.configuration.dinah.workbench.markdownDescription": "इस फ़ोल्डर के लिए उपयोग की जाने वाली वर्कबेंच की निर्देशिका, जो `dinah` को `--workbench` के रूप में दी जाती है। खाली छोड़ें ताकि `dinah` फ़ोल्डर से ऊपर चलकर स्वयं एक खोज ले। इसे तब सेट करें जब कई वर्कबेंच पहुँच में हों, या जब खोज ऐसी वर्कबेंच तक पहुँचे जो आपका आशय नहीं थी।",
 	"manifest.configuration.dinah.pollIntervalSeconds.markdownDescription": "जब तक साइडबार वृक्ष दिखता है, वह कितनी बार `dinah changes` से अद्यतन जाँचे।",
-	"manifest.configuration.dinah.watchFiles.markdownDescription": "वर्कबेंच की Markdown फ़ाइलों में बदलाव देखें और कोई फ़ाइल सहेजे जाने पर अंतराल से पहले जाँचें।"
+	"manifest.configuration.dinah.watchFiles.markdownDescription": "वर्कबेंच की Markdown फ़ाइलों में बदलाव देखें और कोई फ़ाइल सहेजे जाने पर अंतराल से पहले जाँचें।",
+	"manifest.command.dinah.runVerb.title": "Dinah: कमांड चलाएँ…",
+	"manifest.command.dinah.refreshVerbCatalog.title": "Dinah: कमांड पैलेट ताज़ा करें"
 }

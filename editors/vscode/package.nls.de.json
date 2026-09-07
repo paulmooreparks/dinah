@@ -28,5 +28,7 @@
 	"manifest.configuration.dinah.path.markdownDescription": "Absoluter Pfad zum `dinah`-Programm. Leer lassen, um das Programm aus Ihrem PATH zu verwenden. Ein Programmpfad ist eine Eigenschaft des Rechners, daher wandert diese Einstellung nicht über die Einstellungssynchronisierung.",
 	"manifest.configuration.dinah.workbench.markdownDescription": "Verzeichnis der Werkbank, die für diesen Ordner verwendet wird, an `dinah` als `--workbench` übergeben. Leer lassen, damit `dinah` durch Aufwärtssuche vom Ordner aus eine findet. Setzen Sie es, wenn mehrere Werkbänke erreichbar sind, oder wenn die Suche eine erreicht, die Sie nicht gemeint haben.",
 	"manifest.configuration.dinah.pollIntervalSeconds.markdownDescription": "Wie oft der Seitenleistenbaum `dinah changes` auf Aktualisierungen prüft, solange er sichtbar ist.",
-	"manifest.configuration.dinah.watchFiles.markdownDescription": "Die Markdown-Dateien der Werkbank auf Änderungen beobachten und beim Speichern einer Datei früher prüfen als im Abfrageintervall."
+	"manifest.configuration.dinah.watchFiles.markdownDescription": "Die Markdown-Dateien der Werkbank auf Änderungen beobachten und beim Speichern einer Datei früher prüfen als im Abfrageintervall.",
+	"manifest.command.dinah.runVerb.title": "Dinah: Befehl ausführen…",
+	"manifest.command.dinah.refreshVerbCatalog.title": "Dinah: Befehlspalette aktualisieren"
 }

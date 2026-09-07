@@ -30,7 +30,9 @@
 			"manifest.configuration.dinah.workbench.markdownDescription",
 			"manifest.configuration.dinah.pollIntervalSeconds.markdownDescription",
 			"manifest.configuration.dinah.watchFiles.markdownDescription",
-			"manifest.command.dinah.tree.openInstructions.title"
+			"manifest.command.dinah.tree.openInstructions.title",
+			"manifest.command.dinah.runVerb.title",
+			"manifest.command.dinah.refreshVerbCatalog.title"
 		],
 		"cs": [
 			"manifest.viewsContainers.dinah.title",
@@ -62,7 +64,9 @@
 			"manifest.configuration.dinah.workbench.markdownDescription",
 			"manifest.configuration.dinah.pollIntervalSeconds.markdownDescription",
 			"manifest.configuration.dinah.watchFiles.markdownDescription",
-			"manifest.command.dinah.tree.openInstructions.title"
+			"manifest.command.dinah.tree.openInstructions.title",
+			"manifest.command.dinah.runVerb.title",
+			"manifest.command.dinah.refreshVerbCatalog.title"
 		],
 		"de": [],
 		"es": [
@@ -95,7 +99,9 @@
 			"manifest.configuration.dinah.workbench.markdownDescription",
 			"manifest.configuration.dinah.pollIntervalSeconds.markdownDescription",
 			"manifest.configuration.dinah.watchFiles.markdownDescription",
-			"manifest.command.dinah.tree.openInstructions.title"
+			"manifest.command.dinah.tree.openInstructions.title",
+			"manifest.command.dinah.runVerb.title",
+			"manifest.command.dinah.refreshVerbCatalog.title"
 		],
 		"fil": [
 			"manifest.viewsContainers.dinah.title",
@@ -127,7 +133,9 @@
 			"manifest.configuration.dinah.workbench.markdownDescription",
 			"manifest.configuration.dinah.pollIntervalSeconds.markdownDescription",
 			"manifest.configuration.dinah.watchFiles.markdownDescription",
-			"manifest.command.dinah.tree.openInstructions.title"
+			"manifest.command.dinah.tree.openInstructions.title",
+			"manifest.command.dinah.runVerb.title",
+			"manifest.command.dinah.refreshVerbCatalog.title"
 		],
 		"hi": [],
 		"id": [
@@ -160,7 +168,9 @@
 			"manifest.configuration.dinah.workbench.markdownDescription",
 			"manifest.configuration.dinah.pollIntervalSeconds.markdownDescription",
 			"manifest.configuration.dinah.watchFiles.markdownDescription",
-			"manifest.command.dinah.tree.openInstructions.title"
+			"manifest.command.dinah.tree.openInstructions.title",
+			"manifest.command.dinah.runVerb.title",
+			"manifest.command.dinah.refreshVerbCatalog.title"
 		]
 	},
 	"verbatim": {
@@ -270,7 +280,9 @@
 			"manifest.configuration.dinah.workbench.markdownDescription": "221249b5110ae1ac",
 			"manifest.configuration.dinah.pollIntervalSeconds.markdownDescription": "82a83a3ecee5e3d2",
 			"manifest.configuration.dinah.watchFiles.markdownDescription": "be82886b40a298f6",
-			"manifest.command.dinah.tree.openInstructions.title": "4b8f647ad07e49ba"
+			"manifest.command.dinah.tree.openInstructions.title": "4b8f647ad07e49ba",
+			"manifest.command.dinah.runVerb.title": "95fc95d0605e23f7",
+			"manifest.command.dinah.refreshVerbCatalog.title": "d47308fc7756dee4"
 		},
 		"hi": {
 			"manifest.viewsContainers.dinah.title": "4f7f4ffab37b3e1",
@@ -302,7 +314,9 @@
 			"manifest.configuration.dinah.workbench.markdownDescription": "221249b5110ae1ac",
 			"manifest.configuration.dinah.pollIntervalSeconds.markdownDescription": "82a83a3ecee5e3d2",
 			"manifest.configuration.dinah.watchFiles.markdownDescription": "be82886b40a298f6",
-			"manifest.command.dinah.tree.openInstructions.title": "4b8f647ad07e49ba"
+			"manifest.command.dinah.tree.openInstructions.title": "4b8f647ad07e49ba",
+			"manifest.command.dinah.runVerb.title": "95fc95d0605e23f7",
+			"manifest.command.dinah.refreshVerbCatalog.title": "d47308fc7756dee4"
 		}
 	}
 }

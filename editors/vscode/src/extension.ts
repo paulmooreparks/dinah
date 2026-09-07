@@ -5,6 +5,8 @@
 // the whole of the binary ladder, the compatibility gate and the refusal
 // parser without a VS Code host.
 
+import { basename, dirname } from "node:path";
+
 import * as vscode from "vscode";
 
 import type { DinahApi, WorkbenchResolution } from "./api";
@@ -79,7 +81,9 @@ import {
 	COMMAND_OPEN_INSTRUCTIONS,
 	COMMAND_PULL,
 	COMMAND_REFRESH,
+	COMMAND_REFRESH_VERB_CATALOG,
 	COMMAND_RELEASE,
+	COMMAND_RUN_VERB,
 	COMMAND_UNBLOCK,
 	DRAG_MIME_TYPE,
 	SERVED_TEXT_SCHEME,
@@ -99,6 +103,8 @@ import {
 	renderInstructionsMarkdown,
 	servedTextUriParts,
 } from "./servedText";
+import type { RunVerbContext } from "./runVerbCommand";
+import { refreshVerbCatalog, runVerbFromPalette } from "./runVerbCommand";
 import { nodeSpawner } from "./spawn";
 import { createLocalizer, resolveTag } from "./l10n";
 import type { Localizer } from "./l10n";
@@ -113,6 +119,7 @@ import type { TreeElement, TreeItemSpec } from "./tree";
 import { DinahTreeProvider } from "./tree";
 import { classifyVersion, describeVersion } from "./version";
 import type { PathAnswer, ServedAnswer } from "./wire";
+import { VerbCatalog } from "./verbCatalog";
 import { NO_WORKBENCH_FOUND, resolveWorkbench } from "./workbench";
 import type {
 	WorkbenchCommandContext,
@@ -205,9 +212,18 @@ function commandHost(
 			void vscode.window.showInformationMessage(message);
 		},
 		copyToClipboard: async (text) => vscode.env.clipboard.writeText(text),
+		// A row marked as a separator becomes the editor's own label-only
+		// divider, which a reader cannot select and which showQuickPick
+		// therefore never answers with. The modules composing these arrays
+		// import no vscode symbol, so the marker is a string there and becomes
+		// a QuickPickItemKind here (dinah-420 D6).
 		pick: async (items, placeholder) => {
 			const chosen = await vscode.window.showQuickPick(
-				items.map((item) => ({ ...item })),
+				items.map((item) =>
+					item.kind === "separator"
+						? { ...item, kind: vscode.QuickPickItemKind.Separator }
+						: { ...item, kind: vscode.QuickPickItemKind.Default },
+				),
 				{ placeHolder: placeholder },
 			);
 			return chosen as PickItem | undefined;
@@ -1021,6 +1037,61 @@ export async function activate(
 		await checkpointing.refreshNow();
 		emitter.fire(undefined);
 	});
+
+	// The command palette's two commands, and the catalog behind them.
+	//
+	// The wizard is pinned to the primary folder's own workbench, because a
+	// verb has to run against one and this is the same workbench the status
+	// bar and the first tree root already name. A window whose folder
+	// resolved to nothing falls back to the folder itself, which is what the
+	// binary would walk from at a terminal opened there.
+	const verbRoot =
+		primary?.state === "ok" ? primary.root : (first?.uri.fsPath ?? "");
+	const verbCatalog = new VerbCatalog({
+		spawner: nodeSpawner,
+		exe: binary.state === "ok" ? binary.path : "",
+		options: { cwd: verbRoot === "" ? undefined : verbRoot },
+		log: (line) => channel.appendLine(line),
+	});
+	const verbContext = (): RunVerbContext => ({
+		spawner: nodeSpawner,
+		exe: binary.state === "ok" ? binary.path : "",
+		host,
+		folder: first?.uri.fsPath ?? verbRoot,
+		root: verbRoot,
+		catalog: verbCatalog,
+	});
+	register(COMMAND_RUN_VERB, async () => {
+		await runVerbFromPalette(verbContext());
+	});
+	register(COMMAND_REFRESH_VERB_CATALOG, async () => {
+		await refreshVerbCatalog(verbContext());
+	});
+	if (binary.state === "ok") {
+		// Built once at activation and held, so opening the palette costs no
+		// spawn. The build is not awaited: it is one round trip against a
+		// process that has to start, and nothing else in activation depends on
+		// it, so awaiting it would delay the tree for a list nobody has asked
+		// for yet. A build that failed is held as its own failure arm and
+		// reported when a reader runs the command.
+		void verbCatalog.get();
+		// A watcher on the binary's own path rather than a glob over its
+		// directory, which is the shape the checkpoint loop's watcher already
+		// uses, narrowed to one file. An upgrade that replaces the binary in
+		// place invalidates what is held, and the next invocation rebuilds it.
+		// The path is watched for creation as well as change, because an
+		// installer that writes a new file beside the old one and renames it
+		// reaches this path as a create.
+		const binaryWatcher = vscode.workspace.createFileSystemWatcher(
+			new vscode.RelativePattern(
+				vscode.Uri.file(dirname(binary.path)),
+				basename(binary.path),
+			),
+		);
+		binaryWatcher.onDidChange(() => verbCatalog.invalidate());
+		binaryWatcher.onDidCreate(() => verbCatalog.invalidate());
+		context.subscriptions.push(binaryWatcher);
+	}
 
 	// Every registration above has run by now, so this is where a dropped one
 	// becomes visible. Activation fails with a message naming the id rather
