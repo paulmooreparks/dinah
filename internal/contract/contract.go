@@ -172,6 +172,22 @@ const (
 	// not open, rather than climbing past it and answering as though the
 	// workbench it names were not there at all.
 	DamagedBench = LayerPrefix + "damaged-workbench"
+	// UnreadableContainer is a .dinah container the walk found and could not
+	// list. Something exists at that path and os.ReadDir would not read it,
+	// which the walk refuses over rather than reporting the container as
+	// holding nothing, because an ambiguity answer built on a directory
+	// nobody managed to read is not an answer. It is a separate name from
+	// UnreadableBench because UnreadableBench's next step opens by telling
+	// the reader to fix a file's permissions, and permissions are not at
+	// fault for a container replaced by a plain file. Routing past the
+	// container does help, since DiscoverSource returns on a --workbench or
+	// DINAH_WORKBENCH override before the walk opens anything, so this
+	// refusal's next step offers that route ahead of the repair. A container
+	// that plainly does not exist is not this refusal at all;
+	// ListWorkbenchIDs answers that case with an empty list and no error,
+	// since a directory this format has not created yet is an ordinary shape
+	// rather than a defect.
+	UnreadableContainer = LayerPrefix + "unreadable-container"
 	// NoConfiguredWorkbench is the workbench setting naming a path that no
 	// longer carries a workbench.md, consulted only once the search has
 	// found nothing local to answer with. It is a distinct name from
@@ -490,7 +506,8 @@ const (
 var Introduced = []string{
 	Unconfirmed, UnknownGuide, UnknownKey, Occupied, Locked, Exists,
 	UnknownPath, NoEditor, NoWorkbench, UnknownVerb, Usage, Interrupted,
-	NoWorkbenchFound, AmbiguousWorkbench, LastColumn, UnreadableBench, DamagedBench, NoConfiguredWorkbench,
+	NoWorkbenchFound, AmbiguousWorkbench, LastColumn, UnreadableBench, DamagedBench, UnreadableContainer,
+	NoConfiguredWorkbench,
 	WorkbenchNotApplicable, RepairWouldEmptyColumns, NeedsVocabularyMigration,
 	AddNeedsAColumn, MultipleWords, EmptySearch,
 	UnknownField, UnknownValue, UnknownAxis, RepeatedAxis, ChainTooLong,

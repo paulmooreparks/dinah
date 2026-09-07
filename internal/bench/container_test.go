@@ -2,6 +2,7 @@ package bench
 
 import (
 	"encoding/hex"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -231,7 +232,10 @@ func TestSoleBenchStillFindsBothWidths(t *testing.T) {
 	legacy := plantBench(t, filepath.Join(base, "d00000000001"), benchDefinition)
 	wide := plantBench(t, filepath.Join(base, fixtureWorkbenchID), currentBenchDefinition)
 
-	listed := ListWorkbenchIDs(base)
+	listed, err := ListWorkbenchIDs(base)
+	if err != nil {
+		t.Fatalf("ListWorkbenchIDs: %v", err)
+	}
 	sort.Strings(listed)
 	want := []string{"0199a1b2c3d47abc8000000000000001", "d00000000001"}
 	sort.Strings(want)
@@ -267,6 +271,142 @@ func TestSoleBenchStillFindsBothWidths(t *testing.T) {
 	}
 }
 
+// unreadableContainer plants a plain file at the address a .dinah container
+// belongs at and answers that path. os.ReadDir refuses a path of that shape,
+// which is the fault the three cases below are checked against, and the
+// helper proves the fault is really there before it hands the path back so
+// that a fixture planting nothing cannot pass for a fixture planting a
+// failure.
+func unreadableContainer(t *testing.T) string {
+	t.Helper()
+	container := filepath.Join(t.TempDir(), UserBaseName)
+	write(t, container, "a file sitting where the container belongs")
+	if _, err := os.ReadDir(container); err == nil {
+		t.Fatalf("%s still reads as a directory, so this fixture plants no fault", container)
+	}
+	return container
+}
+
+// TestAContainerThatCannotBeListedIsNotAnEmptyContainer asserts dinah-433 AC-2
+// and AC-3 together. A container nobody has created yet and a container an
+// ordinary run reads and finds empty both answer with no identifiers and no
+// error, and a container replaced by a plain file answers with an error, so a
+// caller can tell the three apart. The empty cases run beside the failing one
+// on purpose: a fix that answered every container with an error would satisfy
+// the failing case alone.
+func TestAContainerThatCannotBeListedIsNotAnEmptyContainer(t *testing.T) {
+	absent := filepath.Join(t.TempDir(), UserBaseName)
+	ids, err := ListWorkbenchIDs(absent)
+	if err != nil {
+		t.Errorf("a container nobody created answered %v, wanted no error", err)
+	}
+	if len(ids) != 0 {
+		t.Errorf("a container nobody created listed %v", ids)
+	}
+
+	empty := filepath.Join(t.TempDir(), UserBaseName)
+	if err := os.MkdirAll(empty, 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", empty, err)
+	}
+	ids, err = ListWorkbenchIDs(empty)
+	if err != nil {
+		t.Errorf("an ordinary empty container answered %v, wanted no error", err)
+	}
+	if len(ids) != 0 {
+		t.Errorf("an ordinary empty container listed %v", ids)
+	}
+
+	unreadable := unreadableContainer(t)
+	ids, err = ListWorkbenchIDs(unreadable)
+	if err == nil {
+		t.Fatalf("a container that cannot be listed answered %v and no error, which is what an empty one answers", ids)
+	}
+	if len(ids) != 0 {
+		t.Errorf("a container that cannot be listed still listed %v", ids)
+	}
+}
+
+// TestTheAmbiguityWalkRefusesAContainerItCannotList asserts dinah-433 AC-4.
+// soleBench over a container replaced by a plain file refuses with
+// dinah.unreadable-container naming that container, rather than answering as
+// it answers a base holding nothing.
+func TestTheAmbiguityWalkRefusesAContainerItCannotList(t *testing.T) {
+	container := unreadableContainer(t)
+
+	found, ambiguous, damaged, err := soleBench(container)
+	refusal, ok := err.(*contract.Refusal)
+	if !ok {
+		t.Fatalf("the sole-workbench probe answered found=%q ambiguous=%v damaged=%v err=%v, wanted a refusal", found, ambiguous, damaged, err)
+	}
+	if refusal.Name != contract.UnreadableContainer {
+		t.Errorf("the refusal is %s, wanted %s", refusal.Name, contract.UnreadableContainer)
+	}
+	if refusal.Detail != container {
+		t.Errorf("the refusal names %q, wanted the container %q", refusal.Detail, container)
+	}
+	if found != "" || len(ambiguous) != 0 || len(damaged) != 0 {
+		t.Errorf("a refused walk still reported found=%q ambiguous=%v damaged=%v", found, ambiguous, damaged)
+	}
+}
+
+// TestTheWorkbenchOverrideRoutesAroundAContainerThatCannotBeListed holds the
+// remedy refusal.dinah.unreadable-container.next now offers the reader first.
+// DiscoverSource returns on a non-empty override before it ever calls walk, so
+// naming a healthy workbench with --workbench or DINAH_WORKBENCH reaches it
+// without the corrupt container being opened at all, which is what makes that
+// sentence worth acting on for the reader whose ambient climb has just been
+// refused. Two comments on this card once claimed the opposite, so the claim
+// is held by a test rather than by prose.
+//
+// The ambient climb over the same directory runs first. Without it the
+// override case would pass over a fixture that was never corrupt.
+func TestTheWorkbenchOverrideRoutesAroundAContainerThatCannotBeListed(t *testing.T) {
+	container := unreadableContainer(t)
+	start := filepath.Dir(container)
+	healthy := plantBench(t, containedPath(t.TempDir()), currentBenchDefinition)
+
+	climbed, _, err := Discover(start, "", filepath.Join(start, "home"), filepath.Dir(start))
+	refusal, ok := err.(*contract.Refusal)
+	if !ok || refusal.Name != contract.UnreadableContainer {
+		t.Fatalf("the climb from %q answered %q and %v rather than refusing %s, so the override below proves nothing", start, climbed, err, contract.UnreadableContainer)
+	}
+
+	found, source, passed, _, err := DiscoverSource(start, healthy, SourceFlag, filepath.Join(start, "home"), filepath.Dir(start), "")
+	if err != nil {
+		t.Fatalf("an explicit pointer should route past a container the climb cannot list, got %v", err)
+	}
+	if found != healthy {
+		t.Errorf("wanted the pointed-at workbench %q, got %q", healthy, found)
+	}
+	if source != SourceFlag {
+		t.Errorf("wanted the flag named as the source, got %q", source)
+	}
+	if len(passed) != 0 {
+		t.Errorf("the override branch runs no walk and passes nothing over, got %v", passed)
+	}
+}
+
+// TestAMigrationComparisonPassesUpAContainerItCannotList asserts dinah-433
+// AC-7. completedLift over a container it cannot list answers with the raw
+// filesystem error rather than with the empty string, so the migration stops
+// instead of copying a second time into a container it never examined, and
+// that error arrives unwrapped, which is decision D-4.
+func TestAMigrationComparisonPassesUpAContainerItCannotList(t *testing.T) {
+	source := plantBench(t, filepath.Join(t.TempDir(), "notes"), currentBenchDefinition)
+	container := unreadableContainer(t)
+
+	resumed, err := completedLift(source, container)
+	if err == nil {
+		t.Fatalf("the comparison answered %q and no error over a container it never read", resumed)
+	}
+	if resumed != "" {
+		t.Errorf("the comparison named %q beside its error", resumed)
+	}
+	if refusal, ok := err.(*contract.Refusal); ok {
+		t.Errorf("the comparison wrapped the failure as the refusal %s, and this call chain reports its filesystem errors raw", refusal.Name)
+	}
+}
+
 // TestAStrayContainerEntryIsInvisibleToDiscoveryAndFoundByTheSweep asserts
 // dinah-285 AC-7. A container subdirectory whose name is neither width carries
 // a recognized workbench.md and is not a candidate for any listing in this
@@ -278,7 +418,11 @@ func TestAStrayContainerEntryIsInvisibleToDiscoveryAndFoundByTheSweep(t *testing
 	base := filepath.Join(tree, UserBaseName)
 	stray := plantBench(t, filepath.Join(base, "my-notes"), benchDefinition)
 
-	if listed := ListWorkbenchIDs(base); len(listed) != 0 {
+	listed, err := ListWorkbenchIDs(base)
+	if err != nil {
+		t.Fatalf("ListWorkbenchIDs: %v", err)
+	}
+	if len(listed) != 0 {
 		t.Errorf("the container listing sees %v, and neither width admits my-notes", listed)
 	}
 	found, ambiguous, _, err := soleBench(base)

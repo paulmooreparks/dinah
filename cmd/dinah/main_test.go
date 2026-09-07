@@ -441,7 +441,10 @@ func TestInitWritesIntoTheContainerAndSaysWhere(t *testing.T) {
 	if got.code != 0 {
 		t.Fatalf("init: %d %s", got.code, got.errw)
 	}
-	ids := bench.ListWorkbenchIDs(filepath.Join(root, bench.UserBaseName))
+	ids, err := bench.ListWorkbenchIDs(filepath.Join(root, bench.UserBaseName))
+	if err != nil {
+		t.Fatalf("ListWorkbenchIDs: %v", err)
+	}
 	if len(ids) != 1 {
 		t.Fatalf("the container should hold one workbench, got %v", ids)
 	}
@@ -468,7 +471,7 @@ func TestInitWritesIntoTheContainerAndSaysWhere(t *testing.T) {
 	if bench.Exists(filepath.Join(root, "workbench.md")) {
 		t.Error("init wrote a workbench bare at the directory it was run in")
 	}
-	opened, err := bench.Open(written)
+	opened, err = bench.Open(written)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -489,7 +492,10 @@ func TestASecondInitAddsAWorkbenchBesideTheFirst(t *testing.T) {
 	if got.code != 0 {
 		t.Fatalf("the second init: %d %s", got.code, got.errw)
 	}
-	ids := bench.ListWorkbenchIDs(filepath.Join(root, bench.UserBaseName))
+	ids, err := bench.ListWorkbenchIDs(filepath.Join(root, bench.UserBaseName))
+	if err != nil {
+		t.Fatalf("ListWorkbenchIDs: %v", err)
+	}
 	if len(ids) != 2 {
 		t.Fatalf("the container should hold two workbenches, got %v", ids)
 	}
@@ -559,7 +565,10 @@ func TestInitProceedsPastAForeignWorkbenchFile(t *testing.T) {
 	if got.code != 0 {
 		t.Fatalf("init past a foreign anchor: wanted 0, got %d (%s)", got.code, got.errw)
 	}
-	ids := bench.ListWorkbenchIDs(filepath.Join(root, bench.UserBaseName))
+	ids, err := bench.ListWorkbenchIDs(filepath.Join(root, bench.UserBaseName))
+	if err != nil {
+		t.Fatalf("ListWorkbenchIDs: %v", err)
+	}
 	if len(ids) != 1 {
 		t.Fatalf("the container should hold one workbench, got %v", ids)
 	}
@@ -700,7 +709,10 @@ func TestInitRefusesTheWorkbenchFlag(t *testing.T) {
 		if got.code != 0 {
 			t.Fatalf("init with neither set: wanted 0, got %d (%s)", got.code, got.errw)
 		}
-		ids := bench.ListWorkbenchIDs(filepath.Join(root, bench.UserBaseName))
+		ids, err := bench.ListWorkbenchIDs(filepath.Join(root, bench.UserBaseName))
+		if err != nil {
+			t.Fatalf("ListWorkbenchIDs: %v", err)
+		}
 		if len(ids) != 1 {
 			t.Fatalf("the container should hold one workbench, got %v", ids)
 		}
@@ -722,7 +734,10 @@ func TestInitStillHonoursThePositionalRootAlone(t *testing.T) {
 	if got.code != 0 {
 		t.Fatalf("init with a positional root alone: wanted 0, got %d (%s)", got.code, got.errw)
 	}
-	ids := bench.ListWorkbenchIDs(filepath.Join(root, bench.UserBaseName))
+	ids, err := bench.ListWorkbenchIDs(filepath.Join(root, bench.UserBaseName))
+	if err != nil {
+		t.Fatalf("ListWorkbenchIDs: %v", err)
+	}
 	if len(ids) != 1 {
 		t.Fatalf("the container should hold one workbench at the positional root, got %v", ids)
 	}

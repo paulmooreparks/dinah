@@ -2109,6 +2109,14 @@
       "text": "; pass --workbench {detail} to open it directly and see exactly what is wrong, or restore workbench.md from a backup or from git, then run `dinah check` to confirm",
       "context": "Spliced onto refusal.dinah.damaged-workbench as the next step. Naming --workbench {detail} is what lets the reader reach Open's own, more specific per-field refusal (missing title, missing profile, and so on) despite the discovery walk itself being unable to say more than damaged; --workbench bypasses recognition entirely and tests only that the file exists, which it does."
     },
+    "refusal.dinah.unreadable-container": {
+      "text": "{detail} exists and could not be listed",
+      "context": "The sentence printed after the refusal name dinah.unreadable-container. {detail} is the .dinah container directory the walk found and could not list, which is the container directory itself rather than a workbench.md inside it."
+    },
+    "refusal.dinah.unreadable-container.next": {
+      "text": "; point --workbench at the workbench directory itself, which the search reaches without opening any container, or check that a directory and not a file sits at that path and that its permissions allow reading, and restore the container from a backup or from git if neither helps",
+      "context": "Spliced onto refusal.dinah.unreadable-container as the next step. It names the --workbench route first because DiscoverSource returns on that override before it opens any container, so a reader whose container is corrupt reaches a healthy workbench at once. Checking the path comes second and restoring from a backup or from git is the last resort."
+    },
     "refusal.dinah.unreadable-workbench": {
       "text": "{detail} exists and could not be read",
       "context": "The sentence printed after the refusal name dinah.unreadable-workbench. {detail} is the workbench.md the search found and could not open."

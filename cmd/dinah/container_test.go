@@ -72,7 +72,10 @@ func TestTheContainerMigrationPreviewsBeforeItMoves(t *testing.T) {
 	if bench.Exists(legacy) {
 		t.Error("the migration left the workbench under its legacy name")
 	}
-	ids := bench.ListWorkbenchIDs(container)
+	ids, err := bench.ListWorkbenchIDs(container)
+	if err != nil {
+		t.Fatalf("ListWorkbenchIDs: %v", err)
+	}
 	if len(ids) != 1 || !bench.IsWorkbenchID(ids[0]) {
 		t.Fatalf("the container holds %v, wanted one minted identifier", ids)
 	}
@@ -153,7 +156,10 @@ func TestTheContainerMigrationReportsADuplicateAndRemintRepairsIt(t *testing.T) 
 	if !bench.Exists(second) {
 		t.Error("the remint touched the other copy")
 	}
-	ids := bench.ListWorkbenchIDs(filepath.Dir(first))
+	ids, err := bench.ListWorkbenchIDs(filepath.Dir(first))
+	if err != nil {
+		t.Fatalf("ListWorkbenchIDs: %v", err)
+	}
 	if len(ids) != 1 || ids[0] == "0199a1b2c3d47abc8000000000000001" {
 		t.Errorf("the container holds %v, wanted one freshly minted identifier", ids)
 	}
@@ -224,7 +230,10 @@ func TestEveryWorkbenchListingCarriesTheIdentifier(t *testing.T) {
 	if got := runCLI(t, tree, "check", "--root", ".", "--migrate-container", "--yes"); got.code != 0 {
 		t.Fatalf("migrate: %d %s", got.code, got.errw)
 	}
-	ids := bench.ListWorkbenchIDs(container)
+	ids, err := bench.ListWorkbenchIDs(container)
+	if err != nil {
+		t.Fatalf("ListWorkbenchIDs: %v", err)
+	}
 	if len(ids) != 1 {
 		t.Fatalf("the container holds %v, wanted one workbench", ids)
 	}
@@ -505,7 +514,10 @@ func TestThePreviewSaysWhatMovesAndWhatStays(t *testing.T) {
 	if bench.Exists(filepath.Join(project, bench.WorkbenchAnchor)) {
 		t.Error("the anchor never moved into the container")
 	}
-	ids := bench.ListWorkbenchIDs(filepath.Join(project, bench.UserBaseName))
+	ids, err := bench.ListWorkbenchIDs(filepath.Join(project, bench.UserBaseName))
+	if err != nil {
+		t.Fatalf("ListWorkbenchIDs: %v", err)
+	}
 	if len(ids) != 1 {
 		t.Fatalf("the container inside the project holds %v, wanted the one workbench that moved", ids)
 	}
@@ -549,7 +561,10 @@ func TestTheReportSaysAWorkbenchMovedBeforeTheMigrationStopped(t *testing.T) {
 	if got.code != 5 {
 		t.Fatalf("a migration that stopped exited %d, wanted the findings code 5: %s%s", got.code, got.out, got.errw)
 	}
-	ids := bench.ListWorkbenchIDs(filepath.Join(project, bench.UserBaseName))
+	ids, err := bench.ListWorkbenchIDs(filepath.Join(project, bench.UserBaseName))
+	if err != nil {
+		t.Fatalf("ListWorkbenchIDs: %v", err)
+	}
 	if len(ids) != 1 {
 		t.Fatalf("the container holds %v, wanted the one workbench that moved before the stamp failed", ids)
 	}
@@ -592,7 +607,10 @@ func TestTheSweepFinishesAWorkbenchThatMovedBeforeItWasStamped(t *testing.T) {
 		t.Fatalf("a migration that stopped at the stamp exited %d, wanted the findings code 5: %s%s", stopped.code, stopped.out, stopped.errw)
 	}
 	container := filepath.Join(project, bench.UserBaseName)
-	ids := bench.ListWorkbenchIDs(container)
+	ids, err := bench.ListWorkbenchIDs(container)
+	if err != nil {
+		t.Fatalf("ListWorkbenchIDs: %v", err)
+	}
 	if len(ids) != 1 {
 		t.Fatalf("the container holds %v, wanted the one workbench whose members moved before the stamp", ids)
 	}
@@ -610,7 +628,11 @@ func TestTheSweepFinishesAWorkbenchThatMovedBeforeItWasStamped(t *testing.T) {
 	if !anchorDeclares(t, anchor, "format: "+strconv.Itoa(bench.ContainerFormat)) {
 		t.Errorf("the workbench still declares the format it was left with, so the sweep walked past the one interruption it had to finish:\n%s", readAnchorText(t, anchor))
 	}
-	if got := bench.ListWorkbenchIDs(container); len(got) != 1 || got[0] != ids[0] {
+	got, err := bench.ListWorkbenchIDs(container)
+	if err != nil {
+		t.Fatalf("ListWorkbenchIDs: %v", err)
+	}
+	if len(got) != 1 || got[0] != ids[0] {
 		t.Errorf("the container holds %v, wanted the one directory the interrupted run had already filled at %s", got, landed)
 	}
 	third := runCLI(t, tree, "check", "--root", ".", "--migrate-container", "--yes")
@@ -869,7 +891,10 @@ func TestTheSweepReportsADamagedWorkbenchAndTouchesNothing(t *testing.T) {
 	}
 
 	// The sweep kept walking, so the workbench it could repair was repaired.
-	ids := bench.ListWorkbenchIDs(filepath.Join(project, bench.UserBaseName))
+	ids, err := bench.ListWorkbenchIDs(filepath.Join(project, bench.UserBaseName))
+	if err != nil {
+		t.Fatalf("ListWorkbenchIDs: %v", err)
+	}
 	if len(ids) != 1 {
 		t.Errorf("the container inside the project holds %v, so one damaged workbench cost the sweep the one it could move", ids)
 	}
@@ -882,7 +907,11 @@ func TestTheSweepReportsADamagedWorkbenchAndTouchesNothing(t *testing.T) {
 	if string(after) != string(before) {
 		t.Errorf("the sweep rewrote the damaged anchor, wanted %q, got %q", before, after)
 	}
-	if entries := bench.ListWorkbenchIDs(filepath.Dir(damaged)); len(entries) != 1 || entries[0] != filepath.Base(damaged) {
+	entries, err := bench.ListWorkbenchIDs(filepath.Dir(damaged))
+	if err != nil {
+		t.Fatalf("ListWorkbenchIDs: %v", err)
+	}
+	if len(entries) != 1 || entries[0] != filepath.Base(damaged) {
 		t.Errorf("the damaged workbench's container holds %v, wanted only %q", entries, filepath.Base(damaged))
 	}
 }

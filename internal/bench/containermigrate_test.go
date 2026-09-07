@@ -373,7 +373,10 @@ func TestAnInterruptedLiftIsFinishedByTheNextRun(t *testing.T) {
 		t.Fatal("the interrupted run deleted the original, and the crash was planted before the delete")
 	}
 	container := filepath.Join(root, UserBaseName)
-	copied := ListWorkbenchIDs(container)
+	copied, err := ListWorkbenchIDs(container)
+	if err != nil {
+		t.Fatalf("ListWorkbenchIDs: %v", err)
+	}
 	if len(copied) != 1 {
 		t.Fatalf("the interrupted run left %v in the container, wanted the one copy it made", copied)
 	}
@@ -393,7 +396,11 @@ func TestAnInterruptedLiftIsFinishedByTheNextRun(t *testing.T) {
 	if !Exists(root) {
 		t.Errorf("the second run removed %s, and a lift moves the workbench's members rather than the directory holding them", root)
 	}
-	if got := ListWorkbenchIDs(container); len(got) != 1 {
+	got, err := ListWorkbenchIDs(container)
+	if err != nil {
+		t.Fatalf("ListWorkbenchIDs: %v", err)
+	}
+	if len(got) != 1 {
 		t.Errorf("the container holds %v, so the second run copied again rather than finishing the first", got)
 	}
 	after := contents(t, moved)
@@ -574,7 +581,10 @@ func TestALiftStoppedPartWayFinishesIntoTheSameDirectory(t *testing.T) {
 		t.Fatal("the anchor moved before the stop, so a sweep would no longer find the workbench where it left it")
 	}
 	container := filepath.Join(root, UserBaseName)
-	partial := ListWorkbenchIDs(container)
+	partial, err := ListWorkbenchIDs(container)
+	if err != nil {
+		t.Fatalf("ListWorkbenchIDs: %v", err)
+	}
 	if len(partial) != 1 {
 		t.Fatalf("the stopped run left %v in the container, wanted the one directory it was filling", partial)
 	}
@@ -588,7 +598,11 @@ func TestALiftStoppedPartWayFinishesIntoTheSameDirectory(t *testing.T) {
 	if moved != landed {
 		t.Errorf("the second run answered %s, wanted the directory the first run was already filling at %s", moved, landed)
 	}
-	if got := ListWorkbenchIDs(container); len(got) != 1 {
+	got, err := ListWorkbenchIDs(container)
+	if err != nil {
+		t.Fatalf("ListWorkbenchIDs: %v", err)
+	}
+	if len(got) != 1 {
 		t.Errorf("the container holds %v, so the second run minted a second directory and stranded what the first one moved", got)
 	}
 	after := contents(t, moved)
@@ -702,7 +716,10 @@ func TestALiftStoppedBeforeTheStampIsFinishedByTheNextRun(t *testing.T) {
 		t.Fatal("the anchor is still at the old path, so the stop landed before the last move rather than after it")
 	}
 	container := filepath.Join(root, UserBaseName)
-	ids := ListWorkbenchIDs(container)
+	ids, err := ListWorkbenchIDs(container)
+	if err != nil {
+		t.Fatalf("ListWorkbenchIDs: %v", err)
+	}
 	if len(ids) != 1 {
 		t.Fatalf("the stopped run left %v in the container, wanted the one directory it filled", ids)
 	}
@@ -726,7 +743,11 @@ func TestALiftStoppedBeforeTheStampIsFinishedByTheNextRun(t *testing.T) {
 	if finished.Format != ContainerFormat {
 		t.Errorf("the workbench declares format %d after the sweep, so the sweep walked past the one interruption it had to finish", finished.Format)
 	}
-	if got := ListWorkbenchIDs(container); len(got) != 1 {
+	got, err := ListWorkbenchIDs(container)
+	if err != nil {
+		t.Fatalf("ListWorkbenchIDs: %v", err)
+	}
+	if len(got) != 1 {
 		t.Errorf("the container holds %v, so the sweep minted a second directory rather than finishing the first", got)
 	}
 	after := contents(t, landed)
