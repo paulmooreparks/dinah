@@ -138,14 +138,22 @@ export function staleAfterMs(pollIntervalSeconds: number): number {
  * What one place this window watches last said about the reader's hand.
  *
  * The three arms are the three answers there are, and each one is something a
- * reporter says rather than something it leaves out. That is the point of the
- * union. This card has twice shipped a bar claiming an empty hand because a
- * place that could not be read contributed no entry at all, and a snapshot
- * that reads silence off a missing member cannot tell that apart from a
- * confirmed nothing. Absence carries no meaning here, so an absent entry can
- * no longer mean anything wrong: every row and every folder the provider
- * knows about produces one of these, and `summarizeHolding` refuses to
- * compile against an arm it does not handle.
+ * reporter says rather than something it leaves out. Absence carries no
+ * meaning here: every row and every folder the provider knows about produces
+ * one of these, and `summarizeHolding` refuses to compile against an arm it
+ * does not handle. That much was settled when this card stopped a place from
+ * dropping out of the snapshot altogether.
+ *
+ * Totality alone was not enough, and the reason is what the stamps below are
+ * for. Two of the three arms are reassuring, in that a summary reading either
+ * one goes on to draw a confident bar, and a producer that cannot see is
+ * always in a position to name an arm. So both reassuring arms carry the
+ * moment they were learned, and neither can be constructed by a producer with
+ * nothing to stamp. A failure has no moment to record, which leaves it
+ * `unheard`, and a reassurance nobody has renewed ages out of trust the same
+ * way a held card's data does. Three rounds of review found this defect three
+ * times, each time one path over from the last, because the arms were
+ * distinguishable by name alone and any producer could pick the quiet one.
  *
  * `source` names the workbench root, or the workspace folder where no root is
  * known yet. Nothing reads it to decide the summary; it is what a log line or
@@ -165,8 +173,10 @@ export type WorkbenchHoldingReport =
 			/**
 			 * Nothing here has answered, so what is held is not known. A
 			 * workbench whose reads are failing, one this window has not
-			 * reached yet, and a folder whose walk has never come back are
-			 * all this arm.
+			 * reached yet, a folder whose walk has never come back, and a
+			 * folder this window could not reach dinah about at all are all
+			 * this arm. It is the only arm carrying no stamp, because it is
+			 * the only arm a producer with no answer is entitled to name.
 			 */
 			readonly state: "unheard";
 			readonly source: string;
@@ -175,10 +185,17 @@ export type WorkbenchHoldingReport =
 			/**
 			 * Dinah answered and there is no workbench here to hold a card:
 			 * a folder with nothing beneath it, or one whose walk came back
-			 * naming no members. It contributes neither a card nor a doubt.
+			 * naming no members.
+			 *
+			 * `answeredAt` is the moment that answer was given, in
+			 * milliseconds, and it is required for the same reason
+			 * `fetchedAt` is required above. A vacancy is a claim about a
+			 * place, so it needs an observation behind it, and it goes out of
+			 * date exactly as a hand does when nothing renews it.
 			 */
 			readonly state: "vacant";
 			readonly source: string;
+			readonly answeredAt: number;
 	  };
 
 /**
@@ -198,10 +215,14 @@ function unhandledArm(value: never): never {
 /**
  * Turns what every place this window watches last said into one summary.
  *
- * An answered report is trusted while it is inside `staleAfter` and treated
- * as unheard once it is older, so a claim that lapsed while reads were
- * failing is never asserted on the strength of an old answer. Only a fresh
- * answer contributes cards.
+ * Both stamped arms are trusted while they are inside `staleAfter` and read
+ * as unheard once they are older, so no conclusion here outlives the
+ * observation behind it. For an answered report that means a claim which
+ * lapsed while reads were failing is never asserted on the strength of an old
+ * answer, and only a fresh answer contributes cards. For a vacancy it means a
+ * folder that reported nothing beneath it and then went quiet stops counting
+ * as a confident nothing, which is what it used to do for as long as the
+ * window stayed open.
  *
  * An unheard place beside a fresh one that reports a held card does not make
  * the window uncertain. Something confirmed is already on screen, and warning
@@ -217,6 +238,9 @@ export function summarizeHolding(
 	for (const entry of snapshot) {
 		switch (entry.state) {
 			case "vacant":
+				if (now - entry.answeredAt > staleAfter) {
+					unheard = true;
+				}
 				break;
 			case "unheard":
 				unheard = true;

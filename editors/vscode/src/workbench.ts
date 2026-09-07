@@ -89,18 +89,28 @@ export function parseStatus(
 	};
 }
 
-/** Turns any non-ok outcome into the refused arm. */
+/**
+ * Turns any non-ok outcome into the refused arm.
+ *
+ * The two shapes reaching here are not the same event, and `answered` is what
+ * keeps them apart afterwards. A `refused` outcome is dinah's own envelope,
+ * so its refusal is an answer to the question asked. Every other kind is the
+ * window failing to reach dinah, and this function flattens that kind into
+ * the same `refusal` string, which is where a later reader lost the ability
+ * to tell a vacancy from a silence.
+ */
 export function parseRefusal(outcome: CliOutcome): WorkbenchResolution {
 	if (outcome.kind === "refused") {
 		return {
 			state: "refused",
 			refusal: outcome.refusal,
+			answered: true,
 			detail: outcome.detail,
 			candidates: outcome.workbenches as readonly Candidate[] | undefined,
 		};
 	}
 	const detail = (outcome as { detail?: string }).detail ?? outcome.kind;
-	return { state: "refused", refusal: outcome.kind, detail };
+	return { state: "refused", refusal: outcome.kind, answered: false, detail };
 }
 
 /**
@@ -128,6 +138,10 @@ export async function resolveWorkbench(
 		return {
 			state: "refused",
 			refusal: "not-json",
+			// Something came back and it settles nothing. An answer this
+			// window cannot read is not an answer it may draw a conclusion
+			// from, so this counts with the transport failures.
+			answered: false,
 			detail: "dinah answered `status` with something that carries no root",
 		};
 	}

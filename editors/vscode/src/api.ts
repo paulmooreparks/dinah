@@ -85,6 +85,26 @@ export type WorkbenchResolution =
 	| {
 			readonly state: "refused";
 			readonly refusal: string;
+			/**
+			 * Whether dinah itself produced this refusal.
+			 *
+			 * True means the binary ran, answered, and its answer was a
+			 * refusal envelope, so the refusal settles the question it was
+			 * asked. False means the window never got an answer at all: the
+			 * spawn failed, the call timed out, the binary was skewed, or
+			 * what came back would not parse. Both arrive here wearing the
+			 * same shape, because `parseRefusal` puts a transport failure's
+			 * own `kind` in `refusal` where dinah's envelope puts a refusal
+			 * name, and a reader given only that string has to guess.
+			 *
+			 * A reader that draws a conclusion from a refusal has to know
+			 * which of the two it is holding. The status bar is the one that
+			 * does: it may report a folder as holding no workbench only when
+			 * dinah said so, because reading a spawn failure as a vacancy is
+			 * how this window came to tell a reader they were holding
+			 * nothing when it could not see.
+			 */
+			readonly answered: boolean;
 			readonly detail?: string;
 			readonly candidates?: readonly Candidate[];
 	  };

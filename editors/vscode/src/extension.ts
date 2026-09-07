@@ -397,6 +397,21 @@ export async function activate(
 		log: (line) => channel.appendLine(line),
 		caseInsensitive: process.platform === "win32",
 		t,
+		// The same call that resolved every folder at activation, offered
+		// back to the provider so that a folder resolving to no workbench is
+		// asked again at each checkpoint. Its vacancy expires like any other
+		// answer, so somebody has to renew it, and this is the only call that
+		// can. The pinned setting is read per folder here exactly as it is
+		// above, because a reader who pins one folder's workbench expects the
+		// pin to hold on every later read of it.
+		resolve: (folder) =>
+			resolveWorkbench(
+				nodeSpawner,
+				binary.state === "ok" ? binary.path : "",
+				folder,
+				setting(SETTING_WORKBENCH, vscode.Uri.file(folder)),
+				process.platform === "win32",
+			),
 		deadEndSentence: (refusal) =>
 			refusal === NO_WORKBENCH_FOUND
 				? t("tree.root.deadEnd.noWorkbenchSentence")
@@ -448,7 +463,11 @@ export async function activate(
 				name: folder.name,
 				resolution:
 					workbenches.get(folder.uri.fsPath) ??
-					({ state: "refused", refusal: NO_WORKBENCH_FOUND } as WorkbenchResolution),
+					({
+						state: "refused",
+						refusal: NO_WORKBENCH_FOUND,
+						answered: true,
+					} as WorkbenchResolution),
 			})),
 		);
 		renderStatusBar();

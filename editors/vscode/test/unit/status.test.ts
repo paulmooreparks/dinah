@@ -62,6 +62,7 @@ test("an ambiguous refusal warns, names no winner, and lists the candidates", ()
 		{
 			state: "refused",
 			refusal: AMBIGUOUS_WORKBENCH,
+			answered: true,
 			candidates: [
 				{ title: "one", path: "/base/.dinah/aaa" },
 				{ title: "two", path: "/base/.dinah/bbb" },
@@ -78,7 +79,7 @@ test("an ambiguous refusal warns, names no winner, and lists the candidates", ()
 test("no workbench found hides the item", () => {
 	const view = composeStatus(
 		GOOD_BINARY,
-		{ state: "refused", refusal: NO_WORKBENCH_FOUND },
+		{ state: "refused", refusal: NO_WORKBENCH_FOUND, answered: true },
 		"source",
 	);
 	assert.equal(view.hidden, true);
@@ -124,11 +125,19 @@ test("the context keys drive every welcome case", () => {
 		workbench: "unknown",
 	});
 	assert.deepEqual(
-		composeContextKeys(GOOD_BINARY, { state: "refused", refusal: NO_WORKBENCH_FOUND }),
+		composeContextKeys(GOOD_BINARY, {
+			state: "refused",
+			refusal: NO_WORKBENCH_FOUND,
+			answered: true,
+		}),
 		{ binary: "ok", workbench: "none" },
 	);
 	assert.deepEqual(
-		composeContextKeys(GOOD_BINARY, { state: "refused", refusal: AMBIGUOUS_WORKBENCH }),
+		composeContextKeys(GOOD_BINARY, {
+			state: "refused",
+			refusal: AMBIGUOUS_WORKBENCH,
+			answered: true,
+		}),
 		{ binary: "ok", workbench: "ambiguous" },
 	);
 	assert.deepEqual(composeContextKeys(GOOD_BINARY, INSIDE), {
