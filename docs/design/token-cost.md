@@ -1227,3 +1227,359 @@ added to the harness's sequence gives the cost of a recovery round on this
 instrument directly rather than by rescaling. That card also carries the two
 things this workstream has never measured, which are a listing act in the
 sequence and a caching-aware counting regime.
+## 2026-09-07: one shell command across many cards, measured before anything was advised from it
+
+dinah-380 asks when an agent should read the bodies of many cards with one
+shell command instead of calling `show` once per card. Two earlier versions of
+that card advised from an argument and were both wrong, so this one measured
+first and wrote its guidance from what the run printed. The harness gained a
+bulk scenario for the purpose, because dinah-381's D-3 kept every listing act
+out of the measured sequence and that exclusion left the bulk case with no
+baseline at all.
+
+The scenario is one agent holding N card references and nothing else about
+those cards, reading their bodies in one stretch. Four routes read the same
+cards. The verb route calls `show` once per card, shaped to `card,body`, which
+is what the guide already tells an agent to do and is therefore the
+conservative comparison; the unshaped form is measured beside it so a reader
+can see that the crossover was not bought from a cheaper strawman. The shell
+route is one `Bash` round in two forms, a resolving form that locates each
+anchor inside the round it is already paying for, and a direct form that
+already holds the anchor paths.
+
+The resolving form is the only form any figure below is quoted from, and it is
+the command the guide publishes:
+
+```
+for ref in <ref> <ref> <ref>; do printf '=== %s\n' "$ref"; cat "$(dinah path "$ref")"; done
+```
+
+It names the cards it wants, so the number of cards read is the number of
+references. `dinah path` resolves one reference to one anchor and runs inside
+the command substitution rather than as a call back to the head, so the route
+spends no locating round and needs nothing beyond the references the agent
+already holds. It reads no card the agent did not name, where a wildcard over
+the store's card directories would pull a whole workbench into context, which
+is the cost this workstream exists to reduce.
+
+The route is one `Bash` round at every N, and that is the property the whole
+comparison rests on. The nearest precedent in the harness has the opposite
+shape, since `run_file` spends a separate round per reference for the six-act
+sequence, which is right there and wrong here. A copy of that shape would emit
+a round per reference, the table would still print, the crossover would move
+out, and nothing in the output would look wrong, so the harness derives the
+round count from the list it counted, prints the smallest and largest over
+every N, and refuses the run outright when the count is not one. The refusal
+was armed rather than assumed. Rewriting the route to emit one round per
+reference took the run red at two cards with the message the check exists to
+print, and restoring the file from a byte-identical copy took it green again.
+
+### The reproduction
+
+```
+go build -o ./dinah ./cmd/dinah
+python scripts/measure_agentic_sequence.py \
+    --dinah ./dinah \
+    --root <a scratch directory the harness may create and remove> \
+    --counter api --commit <the landing commit> --per-tool --bulk-max 12 \
+    --api-key-file <the file holding a console API key>
+```
+
+The invariance check of the section below runs under `--counter proxy`, which
+is deterministic, local, and free, and which compares two runs inside one
+regime. The credential is read from the file named by `--api-key-file` at the
+moment of use and is never exported into a shell-wide environment, for the
+reason this document already gives.
+
+### The run, verbatim
+
+```
+measure_agentic_sequence: one agentic work sequence, over the verbs and over the files
+  commit                                                       6caecb3ff8c75f72dc5f3b596d40d73689d67291
+  counter                                                      api, [counter=api model=claude-opus-5]
+  endpoint                                                     https://api.anthropic.com/v1/messages/count_tokens
+  cards in the sequence                                                 2 cards [not a token count]
+```
+
+```
+the bulk read, N cards at once against N cards one at a time
+  card size                                                    small, internal/guide/guides/verbs.md (2330 bytes [bytes], digest cf6e0eda72b0)
+  per-card content, verb route shaped to card,body                   1079 tokens [counter=api model=claude-opus-5]
+  per-card content, shell route, one anchor                           825 tokens [counter=api model=claude-opus-5]
+  parity, anchor less shaped answer, per card                        -254 tokens [counter=api model=claude-opus-5]
+  result text, the delimiter line the shell route prints per card          7 tokens [counter=api model=claude-opus-5]
+  command text, resolving form, fixed preamble                         39 tokens [counter=api model=claude-opus-5]
+  command text, resolving form, per further reference                   5 tokens [counter=api model=claude-opus-5]
+  command text, resolving form less direct form, at the ceiling       -588 tokens [counter=api model=claude-opus-5]
+  shell route, Bash rounds, smallest over every N                       1 rounds [not a token count]
+  shell route, Bash rounds, largest over every N                        1 rounds [not a token count]
+  the published command, run against this fixture              matches the text the harness counted, run through C:\Program Files\Git\usr\bin\bash.EXE
+
+  N          verb shaped    verb unshaped  shell resolving     shell direct   (cumulative billed input)
+  1                18980            19799            18728            18737   [counter=api model=claude-opus-5]
+  2                30237            32694            19565            19619
+  3                42672            47586            20402            20501
+  4                56285            64475            21239            21383
+  5                71076            83361            22076            22265
+  6                87045           104244            22913            23147
+  7               104192           127124            23750            24029
+  8               122517           152001            24587            24911
+  9               142020           178875            25424            25793
+  10              162701           207746            26261            26675
+  11              184560           238614            27098            27557
+  12              207597           271479            27935            28439
+
+  N          verb shaped    verb unshaped  shell resolving     shell direct   (context footprint)
+  1                10079            10898             9827             9836   [counter=api model=claude-opus-5]
+  2                11257            12895            10664            10718
+  3                12435            14892            11501            11600
+  4                13613            16889            12338            12482
+  5                14791            18886            13175            13364
+  6                15969            20883            14012            14246
+  7                17147            22880            14849            15128
+  8                18325            24877            15686            16010
+  9                19503            26874            16523            16892
+  10               20681            28871            17360            17774
+  11               21859            30868            18197            18656
+  12               23037            32865            19034            19538
+
+  crossover on cumulative, shell resolving against verb shaped          1 cards [not a token count]
+  crossover on cumulative, shell direct against verb shaped             1 cards [not a token count]
+  crossover on footprint, shell resolving against verb shaped           1 cards [not a token count]
+  crossover on footprint, shell direct against verb shaped              1 cards [not a token count]
+```
+
+```
+the bulk read, N cards at once against N cards one at a time
+  card size                                                    large, docs/design/surfaces.md (23776 bytes [bytes], digest 67247634ecb8)
+  per-card content, verb route shaped to card,body                   8608 tokens [counter=api model=claude-opus-5]
+  per-card content, shell route, one anchor                          7716 tokens [counter=api model=claude-opus-5]
+  parity, anchor less shaped answer, per card                        -892 tokens [counter=api model=claude-opus-5]
+  result text, the delimiter line the shell route prints per card          7 tokens [counter=api model=claude-opus-5]
+  command text, resolving form, fixed preamble                         39 tokens [counter=api model=claude-opus-5]
+  command text, resolving form, per further reference                   5 tokens [counter=api model=claude-opus-5]
+  command text, resolving form less direct form, at the ceiling       -588 tokens [counter=api model=claude-opus-5]
+  shell route, Bash rounds, smallest over every N                       1 rounds [not a token count]
+  shell route, Bash rounds, largest over every N                        1 rounds [not a token count]
+  the published command, run against this fixture              matches the text the harness counted, run through C:\Program Files\Git\usr\bin\bash.EXE
+
+  N          verb shaped    verb unshaped  shell resolving     shell direct   (cumulative billed input)
+  1                26509            27328            25619            25628   [counter=api model=claude-opus-5]
+  2                52824            55281            33347            33401
+  3                87846            92760            41075            41174
+  4               131575           139765            48803            48947
+  5               184011           196296            56531            56720
+  6               245154           262353            64259            64493
+  7               315004           337936            71987            72266
+  8               393561           423045            79715            80039
+  9               480825           517680            87443            87812
+  10              576796           621841            95171            95585
+  11              681474           735528           102899           103358
+  12              794859           858741           110627           111131
+
+  N          verb shaped    verb unshaped  shell resolving     shell direct   (context footprint)
+  1                17608            18427            16718            16727   [counter=api model=claude-opus-5]
+  2                26315            27953            24446            24500
+  3                35022            37479            32174            32273
+  4                43729            47005            39902            40046
+  5                52436            56531            47630            47819
+  6                61143            66057            55358            55592
+  7                69850            75583            63086            63365
+  8                78557            85109            70814            71138
+  9                87264            94635            78542            78911
+  10               95971           104161            86270            86684
+  11              104678           113687            93998            94457
+  12              113385           123213           101726           102230
+
+  crossover on cumulative, shell resolving against verb shaped          1 cards [not a token count]
+  crossover on cumulative, shell direct against verb shaped             1 cards [not a token count]
+  crossover on footprint, shell resolving against verb shaped           1 cards [not a token count]
+  crossover on footprint, shell direct against verb shaped              1 cards [not a token count]
+```
+
+### What the run says, and the two predictions it contradicts
+
+The crossover is 1 card, on both totals, at both card sizes, and for both shell
+forms. The shell command is cheaper than one `show` per card from the first
+card, and the margin widens steeply as N rises. At twelve cards of the large
+size the calls cost 794859 tokens of cumulative billed input against 110627 for
+the one command, and at the small size they cost 207597 against 27935.
+
+Two of the predictions the card recorded before the run came out wrong, and
+they are recorded here rather than quietly dropped.
+
+The card predicted that the resolving form would be dearer at one card, because
+it spends a round carrying a shell preamble and a reference where the verb
+route spends a round carrying one call. It is not dearer, and the reason is
+visible on the parity line rather than in the round-trip arithmetic. A card
+anchor came out 254 tokens below a `show` answer shaped to `card,body` at the
+small size and 892 tokens below it at the large size, which is more than the
+preamble and the references cost. The two routes carry different things, and
+the parity line reports that difference rather than hiding it. An anchor
+carries the frontmatter, the seeded links, and the body, while a shaped answer
+carries the card view and the body inside a JSON envelope alongside
+`affordances` and the statement of what it withheld.
+
+The card also predicted that the crossover would be higher for the large card
+than for the small one, on the reasoning that a bigger payload dilutes the
+fixed per-round cost. It is 1 card at both sizes, which is the floor, so there
+was no room for the prediction to come true. What card size moves is the size
+of the saving rather than the point at which the saving begins.
+
+The remaining predictions held. The two shell forms' crossovers differ by no
+cards at all, and the card allowed them to differ by one. The footprint
+comes out with the shell route slightly below the verb route at equal content.
+The server instructions string is a small figure beside the tool-definition
+block.
+
+### The working agreement, and the rule that refused a sentence
+
+The guidance passage lands in `internal/guide/guides/mcp.md`, which the head
+serves as a resource, so its text costs nothing until an agent reads it. The
+working agreement is different, because `workingAgreement` composes the string
+`initialize` publishes under `instructions`, and the MCP specification
+describes that field as a hint a client MAY add to the system prompt. Under
+that placement the text is paid on every request of the session, which is the
+tool-definition block's cost class rather than the guide's. The harness
+therefore counts the string as a standalone figure and deliberately keeps it
+out of every transcript, so the headline totals, the reconciliation sum, its
+residual, and its bound are exactly what they were.
+
+A sentence was drafted for the working agreement and then measured rather than
+argued about. The rule the card fixed in advance adds it when `d x R < s`,
+where `d` is the rise the sentence costs in the served string, `R` is the verb
+run's tool-call rounds, and `s` is the cumulative saving of the resolving form
+at the crossover.
+
+```
+the working-agreement rule, evaluated at the crossover of 1 card
+                                                     [counter=api model=claude-opus-5]
+
+  the candidate sentence
+    Where you hold a shell on the machine this workbench lives on and want
+    the bodies of several cards at once, one shell command reading the
+    anchors you name costs less than one call per card, and the MCP guide
+    carries the command.
+
+  the server instructions string, once                                653 tokens
+  the same string carrying the candidate sentence                     720 tokens
+  d, the rise the sentence costs                                       67 tokens
+  R, the verb run's tool-call rounds                                   12 rounds
+  d x R, paid by every session whether or not it reads in bulk        804 tokens
+
+  s, small card, verb shaped less shell resolving at 1 card           252 tokens
+  s, large card, verb shaped less shell resolving at 1 card           890 tokens
+
+  d x R against the small card's saving         804 is not below 252, rule fails
+  d x R against the large card's saving         804 is below 890, rule would pass
+  the ruling                                              no sentence is added
+```
+
+The ruling takes the smaller of the two savings, and it takes it for a reason
+rather than for caution. Every session pays `d x R` whether or not it ever
+reads in bulk, while `s` is what one bulk read returns to the session that
+performs it, so a sentence that only pays for itself when the cards happen to
+be large is a sentence the population does not recover. `internal/mcp/mcp.go`
+is therefore untouched by this card, and `internal/mcp/mcp_test.go` with it.
+
+The reproduction for `d` reads the served string off the same fixture the
+harness builds and counts it through the same counter, with and without the
+sentence quoted above.
+
+### What did not move
+
+This card publishes no tool and changes no tool's parameter list, so its saving
+is additive with what dinah-397 and dinah-382 already banked rather than
+overlapping either. That is shown by equality rather than argued. The harness
+was run at one commit against one binary under `--counter proxy`, once from the
+file as it stood at `f808127` and once from the file as this card leaves it,
+and the two outputs were compared line by line. No line present before the
+change was removed or altered. Every added line belongs either to the bulk
+block or to the two server-instruction lines.
+
+That covers `tools the MCP head serves`, `tool-definition block, once`, both
+round counts, both `tool block over the ... rounds` figures, every row printed
+under `--per-tool`, every line under `served instruction chain, per layer,
+arrivals and repeats` including each parenthesised count, both chain totals,
+and the whole reconciliation block with its residual, its candidate set, and
+its bound.
+
+```
+the tool-definition block at the landing commit, for a reader comparing sections
+
+the tool-definition block, and the round trips it is paid on
+  tools the MCP head serves                                            36 tools [not a token count]
+  tool-definition block, once                                        8869 tokens [counter=api model=claude-opus-5]
+  verb run, tool-call rounds                                           12 rounds [not a token count]
+  file run, tool-call rounds                                           18 rounds [not a token count]
+  tool block over the verb run's rounds                            106428 tokens [counter=api model=claude-opus-5]
+  tool block over the file run's rounds                            159642 tokens [counter=api model=claude-opus-5]
+  round-trip component, file run less verb run                     +53214 tokens [counter=api model=claude-opus-5]
+  the server instructions string, once                                653 tokens [counter=api model=claude-opus-5] (assumes the client places it in the system prompt, which the MCP specification leaves to the client)
+  server instructions over the verb run's rounds                     7836 tokens [counter=api model=claude-opus-5]
+```
+
+The block reads 8869 tokens here where dinah-383's landing section recorded
+8705. Nothing in this card moved it. dinah-408 landed between the two sections
+and gives three commands an argument apiece, and the figure above is the head
+as it now stands rather than a figure this card changed.
+
+Two consecutive runs of the extended harness at one commit against one binary
+printed identical text, digests included, which is the standard every run in
+this document is held to.
+
+### The direct form, which is a floor and not a result
+
+The direct form names the anchor paths outright and spends no command text on
+resolution, so it says how much of the resolving form's cost is the resolution.
+At the ceiling of twelve references the resolving form's command text costs 588
+tokens more than the direct form's.
+
+No figure in the guidance comes from it. Its precondition is a prior act that
+hands the agent twelve-hex card identifiers and the store's own path, and
+pricing that act means pricing a listing, whose figures belong to dinah-411
+rather than to this card. A floor whose precondition is unpriced cannot be a
+headline, so the direct form is reported here and quoted nowhere.
+
+### What this section does not measure
+
+`Bash`'s own tool definition stays outside the counted tool block, which is the
+convention dinah-381 fixed and this document records under `the file run's own
+tools`. That convention favours the shell route, since a real client pays for
+`Bash` on every round, and it is kept because a coding agent carries `Bash`
+whether or not Dinah exists, so the definition is not a cost this surface
+causes. The bias is recorded here in the same breath as the crossover rather
+than left for a reader to find.
+
+The two routes do not carry identical content, and the parity line reports the
+difference per card rather than burying it. The counting regime applies no
+prompt-caching logic, so every figure is an uncached request size. The bulk
+scenario reads N cards' bodies over two routes and is not a listing act, so it
+does not absorb the recovery rate, the listing act, or the caching-aware regime
+that dinah-411 carries.
+
+### The plural read Dinah should offer, and why it is not here
+
+An agent driving a shell loop over a store's files is working around a surface
+rather than using one, so Dinah should offer a plural read. The shape is a
+`cards` argument on `show` carrying a comma-separated list of references and
+answering a `details` array in reference order, with the existing `fields`
+selection applied over every element. It is an argument on one tool rather than
+a new tool, because the head serves 36 tools for the block above, so a tool
+averages roughly 240 tokens where dinah-383 measured an added `show` argument
+at 45.
+
+The trade was computed rather than asserted. That 45 tokens costs about 540
+over a twelve-round session and every session pays it, while one avoided round
+trip measured 36679 tokens on dinah-381's measurement of record and about 20000
+rescaled to the post-dinah-382 footprint, so the population breaks even once
+roughly one session in 37 performs a single two-card bulk read. The figures
+above raise the benefit rather than lowering it, since a twelve-card read over
+the verbs cost 794859 tokens of cumulative billed input where the one command
+cost 110627.
+
+It ships on its own card, "show reads several cards in one call", because the
+surface change carries its own paired-run section, its own verb-selection
+check, and its own tests, and because this card's guidance had to be able to
+land whether or not the surface change survives Operator Design Review, as
+dinah-383's second half did not.
