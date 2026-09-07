@@ -1227,6 +1227,7 @@ added to the harness's sequence gives the cost of a recovery round on this
 instrument directly rather than by rescaling. That card also carries the two
 things this workstream has never measured, which are a listing act in the
 sequence and a caching-aware counting regime.
+
 ## 2026-09-07: one shell command across many cards, measured before anything was advised from it
 
 dinah-380 asks when an agent should read the bodies of many cards with one
@@ -1625,3 +1626,12 @@ surface change carries its own paired-run section, its own verb-selection
 check, and its own tests, and because this card's guidance had to be able to
 land whether or not the surface change survives Operator Design Review, as
 dinah-383's second half did not.
+
+That card has a bar to clear, and it is stated here so that whoever files it
+need open nothing else. Its own `--per-tool` run must show `show` as the only
+row that moved, since an argument declared on one tool that widens another
+row is not the change this arithmetic prices. Its measured block delta
+multiplied by the verb run's rounds must then stay below the cumulative saving
+its own bulk run reports, which is the same shape of rule this section applied
+to the working-agreement sentence and for the same reason, because every
+session pays the block delta whether or not it ever reads in bulk.

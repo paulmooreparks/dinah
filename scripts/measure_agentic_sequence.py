@@ -1351,10 +1351,13 @@ def resolving_command(refs):
     directories would drag a whole workbench into context, which is the cost
     this workstream exists to cut.
 
-    It degrades loudly. `dinah path` writes one line and nothing else, and on a
-    reference the workbench does not know the refusal goes to standard error
-    while standard output stays empty, so the substitution yields nothing and
-    `cat` fails on an empty name rather than reading some other card.
+    It degrades on standard error rather than in the result. `dinah path`
+    writes one line and nothing else, and on a reference the workbench does not
+    know the refusal goes to standard error while standard output stays empty,
+    so the substitution yields nothing and `cat` fails on an empty name rather
+    than reading some other card. The loop does not stop for that failure and
+    its exit status is the last iteration's alone, which is why the guidance
+    tells a caller to read standard error rather than the status.
     """
     return ("for ref in %s; do printf '=== %%s\\n' \"$ref\"; "
             "cat \"$(dinah path \"$ref\")\"; done" % " ".join(refs))

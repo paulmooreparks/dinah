@@ -199,10 +199,23 @@ for ref in <ref> <ref> <ref>; do printf '=== %s\n' "$ref"; cat "$(dinah path "$r
 `dinah path` resolves one reference to that card's anchor file, and it runs
 inside the command substitution rather than as a call back to the head, so the
 whole read is one round however many references you name. The command reads the
-cards you named and no others. On a reference the workbench does not know, the
-refusal goes to standard error, standard output stays empty, and `cat` fails on
-an empty name, so a mistyped reference stops the read rather than quietly
-returning some other card.
+cards you named and no others.
+
+A reference the workbench does not know does not stop the read. `dinah path`
+writes its refusal to standard error and leaves standard output empty, `cat`
+then fails on an empty name, and the loop carries straight on to the next
+reference, so that card contributes no body while its `=== ` line still stands
+where the card would have been. What you get back is a partial read rather than
+a wrong one, because standard output never carries a card you did not name.
+
+The exit status will not tell a complete read from a partial one. A `for` loop
+exits with the status of its last iteration alone, so a mistyped reference
+anywhere before the last one leaves the status reporting success, and a run
+that got every card but the middle one looks from the status exactly like a run
+that got them all. Read standard error instead. Each failed reference leaves a refusal there
+naming itself, followed by `cat`'s own complaint about the empty name, so an
+empty standard error is a complete read and anything on it names the cards you
+asked for and did not get.
 
 `docs/design/token-cost.md` records the measurement in its dated section for
 this command, and the figures here are transcribed from that section's fenced
@@ -215,8 +228,9 @@ crossover did not move between a card body of 2330 bytes and one of 23776
 bytes, so what card size changes is the size of the saving rather than the
 point at which the saving begins.
 
-Three preconditions bound the route, and each of them fails loudly rather than
-quietly.
+Three preconditions bound the route. The first two announce themselves the
+first time you run the command, and the third can go wrong without saying
+anything at all.
 
 - You need a local shell on the machine the workbench's files live on. Over a
   remote head there is no filesystem to read, and the verbs are the whole
@@ -225,7 +239,12 @@ quietly.
   it once per reference to resolve an anchor.
 - You need to run the command somewhere Dinah's discovery resolves to the
   workbench you mean, because the command names no workbench of its own and
-  discovery climbs from the directory you are standing in.
+  discovery climbs from the directory you are standing in. A directory that
+  reaches some other workbench answers out of that one, and where the two
+  workbenches share a slug your references resolve there without a refusal and
+  without anything on standard error. Confirm the workbench rather than waiting
+  to be told about it: `dinah status` prints the workbench discovery resolves
+  to, and its path, on its first line.
 
 For a single card, call `show` and name the fields you want, as the section
 above describes. The crossover means the command is never the dearer route
