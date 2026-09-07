@@ -287,14 +287,14 @@ export const HISTORY_ROWS: Readonly<
  * A torn trailing journal line is not detectable through this surface today.
  * bench.ReadJournal returns a second value reporting that a crash truncated the
  * final line and that the line was dropped, and internal/bench/check.go:483 is
- * the only caller in the repository that keeps it. internal/verb/read.go's
- * History function, which backs the `log` machine surface this kind's resolver
- * calls, discards it with `_`, so a torn journal reaches this function looking
- * exactly like a complete one. Closing the gap means carrying that flag through
- * log and History the way check already carries it, which is a change to the Go
- * binary and outside an extension-only card's reach. This renderer therefore
- * says nothing about a tail it cannot see rather than inventing a client-side
- * signal for one (dinah-422 D-6, AC-13).
+ * the only caller outside the tests that keeps it. internal/verb/read.go's
+ * History function at line 974, which backs the `log` machine surface this
+ * kind's resolver calls, discards it with an underscore, so a torn journal
+ * reaches this function looking exactly like a complete one. Closing the gap
+ * means carrying that flag through log and History the way check already
+ * carries it, which is a change to the Go binary and outside an extension-only
+ * card's reach. This renderer therefore says nothing about a tail it cannot see
+ * rather than inventing a client-side signal for one (dinah-422 D-6, AC-13).
  *
  * `history.empty` fires for a genuinely zero-event read and never means
  * "nothing has happened." A read that failed is refused upstream and renders
