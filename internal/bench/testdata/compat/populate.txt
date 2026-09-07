@@ -57,6 +57,15 @@ join sample-2 portfolio-work
 join sample-3 portfolio-work
 leave sample-3 portfolio-work
 archive workstream/console-redesign
+file sample-1 acceptance_criterion "the endpoint returns 404 for an unknown id"
+file sample-1 open_question "does the deadline move?" --owner operator
+file sample-1 decision "the write path takes the card's own lock" --column review
+cite sample-1/ac/1 test internal/verb/query_test.go#TestQueryNamesSeverity --observed fail:pass
+verify sample-1/ac/1 "the new fixture drives the unknown-id path and the handler answers 404"
+reopen sample-1/ac/1 "the reviewer found the fixture predates the fix"
+fail sample-1/ac/1 "the handler still answers 200 for an unknown id"
+resolve sample-1/oq/1 "the operator confirmed the deadline is the 15th"
+resolve sample-1/d/1 "it mirrors the lock comment and attach already take"
 hand-edit sample-2 column intake
 check --witness
 reshape --from reshape.json --yes

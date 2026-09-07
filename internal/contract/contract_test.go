@@ -108,7 +108,13 @@ func TestTierNotHigherIsMintedOnceAndCostsTheProfileNothing(t *testing.T) {
 	if len(Declared) != 17 {
 		t.Errorf("the profile declares %d refusal names, and raise was to leave that seventeen unchanged", len(Declared))
 	}
-	if len(Events) != 21 {
-		t.Errorf("the event set carries %d names, and raise was to compose two existing events rather than mint a twenty-second", len(Events))
+	// The count is pinned rather than derived, so minting an event is a
+	// deliberate act that fails here first. It stood at twenty-one while
+	// raise composed two existing events rather than minting a third, and it
+	// moved to twenty-seven when the checklist verbs minted their six, each
+	// of which paid the coordinated compat-fixture change this guard exists
+	// to make somebody notice.
+	if len(Events) != 27 {
+		t.Errorf("the event set carries %d names, and this build declares twenty-seven", len(Events))
 	}
 }

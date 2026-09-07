@@ -843,6 +843,22 @@ func assignValue(req *verb.Request, name, value string) {
 		req.Card = value
 	case "ref":
 		req.Ref = value
+	// The five checklist verbs beyond file name their target "item" rather
+	// than "ref", because a caller composing one is looking at a checklist
+	// and the sentence beside the argument says so. It lands on the same
+	// field, since the reference grammar that resolves it is the same one.
+	case "item":
+		req.Ref = value
+	case "scheme":
+		req.Scheme = value
+	case "target":
+		req.CiteTarget = value
+	case "observed":
+		req.Observed = value
+	case "note":
+		req.Note = value
+	case "owner":
+		req.Owner = value
 	case "column":
 		req.Column = value
 	case "since":

@@ -1046,6 +1046,26 @@
       "context": "The one-line summary of the card command, shown beside its syntax in the help block.",
       "skeleton": true
     },
+    "cmd.cite.summary": {
+      "text": "Cite evidence on a checklist item",
+      "context": "The one-line summary of the cite command, printed in the command list and above its own help.",
+      "skeleton": true
+    },
+    "cmd.fail.note": {
+      "text": "A note has to say what the check showed. Dinah refuses an empty note, and it refuses a note that repeats the criterion's own text word for word. That check catches the literal echo alone: a note restating the criterion in different words passes it and still says nothing.",
+      "context": "The note printed under the fail command's own help, after its summary. It states what the note check does and what it does not prove, so a reader does not take it for a stronger guarantee than it is.",
+      "skeleton": true
+    },
+    "cmd.fail.summary": {
+      "text": "Record an acceptance criterion as failed",
+      "context": "The one-line summary of the fail command, printed in the command list and above its own help.",
+      "skeleton": true
+    },
+    "cmd.file.summary": {
+      "text": "File a checklist item on a card",
+      "context": "The one-line summary of the file command, printed in the command list and above its own help.",
+      "skeleton": true
+    },
     "cmd.rename.summary": {
       "text": "Rename an attachment",
       "context": "The one-line summary of the rename command, shown beside its syntax in the help block.",
@@ -1146,9 +1166,34 @@
       "context": "The one-line summary of the mcp command, shown beside its syntax in the help block.",
       "skeleton": true
     },
+    "cmd.reopen.summary": {
+      "text": "Return a closed checklist item to pending",
+      "context": "The one-line summary of the reopen command, printed in the command list and above its own help.",
+      "skeleton": true
+    },
     "cmd.reshape.summary": {
       "text": "Carry this workbench to the column layout a new definition declares",
       "context": "The one-line summary of the reshape command, shown beside its syntax in the help block.",
+      "skeleton": true
+    },
+    "cmd.resolve.note": {
+      "text": "A note has to say what settled the item. Dinah refuses an empty note, and it refuses a note that repeats the item's own text word for word. That check catches the literal echo alone: a note restating the item in different words passes it and still says nothing.",
+      "context": "The note printed under the resolve command's own help, after its summary. It states what the note check does and what it does not prove, so a reader does not take it for a stronger guarantee than it is.",
+      "skeleton": true
+    },
+    "cmd.resolve.summary": {
+      "text": "Resolve an open question or a decision",
+      "context": "The one-line summary of the resolve command, printed in the command list and above its own help.",
+      "skeleton": true
+    },
+    "cmd.verify.note": {
+      "text": "A note has to say what the check showed. Dinah refuses an empty note, and it refuses a note that repeats the criterion's own text word for word. That check catches the literal echo alone: a note restating the criterion in different words passes it and still says nothing.",
+      "context": "The note printed under the verify command's own help, after its summary. It states what the note check does and what it does not prove, so a reader does not take it for a stronger guarantee than it is.",
+      "skeleton": true
+    },
+    "cmd.verify.summary": {
+      "text": "Record an acceptance criterion as verified",
+      "context": "The one-line summary of the verify command, printed in the command list and above its own help.",
       "skeleton": true
     },
     "param.add.priority.summary": {
@@ -1181,6 +1226,61 @@
       "context": "The meaning of the at argument of `dinah card`, printed in that command's arguments table. A severity or a priority is one value for the whole card, so naming a column for either is a usage error.",
       "skeleton": true
     },
+    "param.cite.item.summary": {
+      "text": "the checklist item the citation is added to, such as wb-1/ac/1",
+      "context": "The written meaning of cite's item argument. wb-1 stands for a card reference and is not translated.",
+      "skeleton": true
+    },
+    "param.cite.observed.summary": {
+      "text": "what the check showed before the work and after it, written fail:pass",
+      "context": "The written meaning of cite's observed flag. Each half is fail or pass, and both words are machine vocabulary that is never translated.",
+      "skeleton": true
+    },
+    "param.cite.scheme.summary": {
+      "text": "the evidence scheme the citation draws on, as the workbench declares it",
+      "context": "The written meaning of cite's scheme argument. Dinah writes the scheme down as given, and dinah check is what reports one the workbench never declared.",
+      "skeleton": true
+    },
+    "param.cite.target.summary": {
+      "text": "what that scheme points at, such as a test path or an attachment identifier",
+      "context": "The written meaning of cite's target argument.",
+      "skeleton": true
+    },
+    "param.file.column.summary": {
+      "text": "the column the item names, written on the item only when you give one",
+      "context": "The written meaning of file's column flag. It says the field is absent when the flag is absent, because nothing reads it for enforcement yet.",
+      "skeleton": true
+    },
+    "param.file.kind.summary": {
+      "text": "the kind of judgement being recorded: acceptance_criterion, open_question or decision",
+      "context": "The written meaning of file's kind argument. The three kind names are machine vocabulary and are never translated.",
+      "skeleton": true
+    },
+    "param.file.owner.summary": {
+      "text": "who the item is meant for, recorded on the item and never enforced",
+      "context": "The written meaning of file's owner flag. It says the value is recorded rather than checked, so a reader does not take it for an authorisation.",
+      "skeleton": true
+    },
+    "param.file.text.summary": {
+      "text": "the item's own text, in one shell word or in quotation marks; a single - reads it from a pipe",
+      "context": "The written meaning of file's text argument.",
+      "skeleton": true
+    },
+    "param.item.summary": {
+      "text": "the checklist item, such as wb-1/checklist/2 or wb-1/ac/1",
+      "context": "The written meaning of the item argument, shared by every command naming one checklist item. wb-1 stands for a card reference and is not translated.",
+      "skeleton": true
+    },
+    "param.note.summary": {
+      "text": "what the check showed, in one shell word or in quotation marks; a single - reads it from a pipe",
+      "context": "The written meaning of the note argument, shared by resolve, verify and fail.",
+      "skeleton": true
+    },
+    "param.reopen.reason.summary": {
+      "text": "why the item is being opened again, in one shell word or in quotation marks",
+      "context": "The written meaning of reopen's reason argument.",
+      "skeleton": true
+    },
     "param.reshape.from.summary": {
       "text": "the definition to take the new shape from: an interchange file, or another workbench's directory, which is what `dinah init --from` already accepts",
       "context": "The meaning of the from argument of `dinah reshape`, printed in that command's arguments table.",
@@ -1199,6 +1299,36 @@
     "refusal.dinah.no-levels.next": {
       "text": "; declare them under levels: in {anchor}",
       "context": "The next step of refusal.dinah.no-levels. {anchor} is the workbench.md path the declaration belongs in. The key name levels: is the frontmatter key itself and stays as it is.",
+      "skeleton": true
+    },
+    "refusal.dinah.not-pending": {
+      "text": "That item is already {detail}.",
+      "context": "The sentence printed after the refusal name dinah.not-pending, which resolve, verify and fail carry on an item that has already left pending. {detail} is the state on disk, machine vocabulary that is never translated. refusal.dinah.not-pending.next is spliced on after this one.",
+      "skeleton": true
+    },
+    "refusal.dinah.not-pending.next": {
+      "text": " Reopen it first if it was closed wrongly.",
+      "context": "The next step of refusal.dinah.not-pending, spliced onto the sentence that just named the item's state.",
+      "skeleton": true
+    },
+    "refusal.dinah.not-resolved": {
+      "text": "That item is {detail}, so there is nothing to reopen.",
+      "context": "The sentence printed after the refusal name dinah.not-resolved, which reopen carries on an item already pending. {detail} is the state on disk, machine vocabulary that is never translated.",
+      "skeleton": true
+    },
+    "refusal.dinah.not-resolved.next": {
+      "text": " Reopen an item that has been resolved, verified or failed.",
+      "context": "The next step of refusal.dinah.not-resolved, spliced onto the sentence that just named the item's state. The three state names are machine vocabulary that is never translated.",
+      "skeleton": true
+    },
+    "refusal.dinah.observation-required": {
+      "text": "The {detail} scheme requires an observation.",
+      "context": "The sentence printed after the refusal name dinah.observation-required, which cite carries when the named scheme's declaration says observed: required and the call supplied no pair. {detail} is the scheme name, machine vocabulary that is never translated. refusal.dinah.observation-required.next is spliced on after this one.",
+      "skeleton": true
+    },
+    "refusal.dinah.observation-required.next": {
+      "text": " Add --observed fail:pass, recording what the check showed before the work and after it.",
+      "context": "The next step of refusal.dinah.observation-required, spliced onto the sentence that just named the scheme.",
       "skeleton": true
     },
     "refusal.dinah.reshape-destination-ambiguous": {
@@ -1251,6 +1381,16 @@
       "context": "Spliced onto refusal.dinah.reshape-needs-a-destination as the next step, naming the two ways a destination is supplied.",
       "skeleton": true
     },
+    "refusal.dinah.uncited": {
+      "text": "This workbench declares what counts as evidence, and {detail} carries no citation.",
+      "context": "The sentence printed after the refusal name dinah.uncited, which verify and fail carry on an acceptance criterion holding no citations entry. {detail} is the item reference. refusal.dinah.uncited.next is spliced on after this one.",
+      "skeleton": true
+    },
+    "refusal.dinah.uncited.next": {
+      "text": " Add one with dinah cite, then try again.",
+      "context": "The next step of refusal.dinah.uncited, spliced onto the sentence that just named the item.",
+      "skeleton": true
+    },
     "refusal.dinah.unknown-field.card": {
       "text": "Dinah has no field {detail}. The fields a card records are: {fields}.",
       "context": "The sentence printed after the refusal name dinah.unknown-field when the card command raised it, which is a write naming a field a card does not record. It is refusal.dinah.unknown-field with the query's own clause replaced, and the command word selects between the two. {detail} is the field the reader typed. {fields} is the set of fields a card records, read off the tool rather than written here, so a field name is machine vocabulary and is never translated.",
@@ -1259,6 +1399,16 @@
     "refusal.dinah.unknown-field.card.next": {
       "text": " Name one of those instead, or run `dinah help card` to see what the command checks.",
       "context": "The next step of refusal.dinah.unknown-field when the card command raised it. It points at that command's own help page where the shared one points at the query's. The command line inside it is syntax and stays as it is.",
+      "skeleton": true
+    },
+    "refusal.dinah.unknown-item-kind": {
+      "text": "{detail} is not a kind of checklist item. The kinds are {kinds}.",
+      "context": "The sentence printed after the refusal name dinah.unknown-item-kind, which a filing naming a kind outside the three the format declares carries. {detail} is the kind the reader typed. {kinds} is the closed set of three, which is machine vocabulary that is never translated.",
+      "skeleton": true
+    },
+    "refusal.dinah.unknown-item-kind.next": {
+      "text": " File it under acceptance_criterion, open_question or decision.",
+      "context": "The next step of refusal.dinah.unknown-item-kind, spliced onto the sentence that just listed the kinds. The three kind names are machine vocabulary that is never translated.",
       "skeleton": true
     },
     "refusal.dinah.unknown-level": {
@@ -1309,6 +1459,16 @@
     "refusal.dinah.below-tier.next": {
       "text": "; claim it with `--tier` {required} or above, or leave it for somebody who can",
       "context": "The next step of refusal.dinah.below-tier. The gate is a floor, so declaring more than the card asks for is admitted, which is why the sentence says or above.",
+      "skeleton": true
+    },
+    "refusal.dinah.wrong-item-kind": {
+      "text": "That command cannot close an item of kind {detail}.",
+      "context": "The sentence printed after the refusal name dinah.wrong-item-kind, which resolve carries on an acceptance criterion and verify or fail carry on an open question or a decision. {detail} is the item's own kind, machine vocabulary that is never translated. refusal.dinah.wrong-item-kind.next is spliced on after this one.",
+      "skeleton": true
+    },
+    "refusal.dinah.wrong-item-kind.next": {
+      "text": " Resolve an open question or a decision, and verify or fail an acceptance criterion.",
+      "context": "The next step of refusal.dinah.wrong-item-kind, spliced onto the sentence that just named the item's kind.",
       "skeleton": true
     },
     "refusal.malformed.claimed-twice": {
@@ -1414,6 +1574,16 @@
     "reshape.wrote.updated": {
       "text": "Kept columns rewritten from the new definition: {count}.",
       "context": "One row of the report for a reshape that stopped part way through, counting the kept columns whose anchor the rewrite had already changed.",
+      "skeleton": true
+    },
+    "slot.item": {
+      "text": "the item's text",
+      "context": "The label naming what a bare word after dinah file was meant to be, printed when several unquoted words arrive where one argument belongs.",
+      "skeleton": true
+    },
+    "slot.note": {
+      "text": "the note",
+      "context": "The label naming what a bare word after resolve, verify or fail was meant to be, printed when several unquoted words arrive where one argument belongs.",
       "skeleton": true
     },
     "tool.workbenches.summary": {

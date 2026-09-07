@@ -20,6 +20,18 @@ WORK
   comment <card> <text|->                   Record a comment on a card
   attach <ref> <file>                       Attach a file, or replace its bytes
     [--description <text>] [--replace]
+  file <card> <kind> <text|->               File a checklist item on a card
+    [--column <column>] [--owner <owner>]
+  cite <item> <scheme> <target>             Cite evidence on a checklist item
+    [--observed <before:after>]
+  resolve <item> <note|->                   Resolve an open question or a
+                                              decision
+  verify <item> <note|->                    Record an acceptance criterion as
+                                              verified
+  fail <item> <note|->                      Record an acceptance criterion as
+                                              failed
+  reopen <item> <reason>                    Return a closed checklist item to
+                                              pending
   join <card> <workstream>                  Add a card to a workstream
   leave <card> <workstream>                 Take a card out of a workstream
   archive <ref>                             Move a card, a column, or anything

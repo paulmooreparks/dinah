@@ -42,6 +42,14 @@ WORK
   comment <card> <text|->                                Record a comment on a card
   attach <ref> <file> [--description <text>]             Attach a file, or replace its bytes
     [--replace]
+  file <card> <kind> <text|-> [--column <column>]        File a checklist item on a card
+    [--owner <owner>]
+  cite <item> <scheme> <target>                          Cite evidence on a checklist item
+    [--observed <before:after>]
+  resolve <item> <note|->                                Resolve an open question or a decision
+  verify <item> <note|->                                 Record an acceptance criterion as verified
+  fail <item> <note|->                                   Record an acceptance criterion as failed
+  reopen <item> <reason>                                 Return a closed checklist item to pending
   join <card> <workstream>                               Add a card to a workstream
   leave <card> <workstream>                              Take a card out of a workstream
   archive <ref>                                          Move a card, a column, or anything below a card,
@@ -138,6 +146,12 @@ WORK
   raise <card> <tier> <reason>                                                                          Raise the tier this stop needs and hand the card back
   comment <card> <text|->                                                                               Record a comment on a card
   attach <ref> <file> [--description <text>] [--replace]                                                Attach a file, or replace its bytes
+  file <card> <kind> <text|-> [--column <column>] [--owner <owner>]                                     File a checklist item on a card
+  cite <item> <scheme> <target> [--observed <before:after>]                                             Cite evidence on a checklist item
+  resolve <item> <note|->                                                                               Resolve an open question or a decision
+  verify <item> <note|->                                                                                Record an acceptance criterion as verified
+  fail <item> <note|->                                                                                  Record an acceptance criterion as failed
+  reopen <item> <reason>                                                                                Return a closed checklist item to pending
   join <card> <workstream>                                                                              Add a card to a workstream
   leave <card> <workstream>                                                                             Take a card out of a workstream
   archive <ref>                                                                                         Move a card, a column, or anything below a card, out of the live set
