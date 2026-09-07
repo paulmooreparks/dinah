@@ -220,6 +220,42 @@
 		"status.outsideWorkspace": {
 			"text": "This workbench is outside your workspace: {root}",
 			"context": "Leading hover line when the walk climbed past the workspace folder. {root} is the workbench's directory."
+		},
+		"status.holding.remaining.hours": {
+			"text": "{hours}h {minutes}m left",
+			"context": "Time left on a claim of an hour or more, shown beside the card's reference in the status bar. {hours} is whole hours, {minutes} the minutes after them."
+		},
+		"status.holding.remaining.minutes": {
+			"text": "{minutes}m left",
+			"context": "Time left on a claim of under an hour, shown beside the card's reference in the status bar. {minutes} is whole minutes."
+		},
+		"status.holding.remaining.soon": {
+			"text": "less than a minute left",
+			"context": "Time left on a claim that lapses within the minute, shown beside the card's reference in the status bar."
+		},
+		"status.holding.remaining.expired": {
+			"text": "lease expired",
+			"context": "Shown in place of a time when the claim's lease has already lapsed."
+		},
+		"status.holding.remaining.noLease": {
+			"text": "no lease",
+			"context": "Shown in place of a time when the claim carries no lease and so never lapses."
+		},
+		"status.holding.tooltipLead": {
+			"text": "Holding {ref} in {workbench}: {clause}",
+			"context": "First hover line when the reader holds exactly one card. {ref} is the card's reference, {workbench} the workbench's title, {clause} one of the five remaining-time clauses."
+		},
+		"status.holding.tooltipLeadMany": {
+			"text": "Holding {count} cards; soonest is {ref} in {workbench}, {clause}",
+			"context": "First hover line when the reader holds more than one card. {count} is how many, and {ref}, {workbench} and {clause} describe the one whose lease lapses first."
+		},
+		"status.holding.tooltipRow": {
+			"text": "{ref} in {workbench}: {clause}",
+			"context": "One hover line per further held card, under the lead line. {ref} is the card's reference, {workbench} the workbench's title, {clause} its remaining-time clause. Two references, a separator and a clause, so a language whose preposition here is also \"in\" renders it identically."
+		},
+		"status.holding.uncertainLead": {
+			"text": "Dinah could not confirm whether you are holding anything right now",
+			"context": "First hover line when every workbench's last read went stale, so the window cannot say what the reader holds."
 		}
 	}
 }

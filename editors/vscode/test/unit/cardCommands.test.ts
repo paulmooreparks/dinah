@@ -476,6 +476,7 @@ function rowFor(path: string | undefined): RootRow {
 						title: "Work",
 						columns: new Map(),
 						cards: new Map(),
+						holding: [],
 					},
 	};
 }

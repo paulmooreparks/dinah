@@ -276,6 +276,51 @@
 			"text": "यह वर्कबेंच आपके वर्कस्पेस के बाहर है: {root}",
 			"context": "Leading hover line when the walk climbed past the workspace folder. {root} is the workbench's directory.",
 			"source": "51d0ceb69d7b761d"
+		},
+		"status.holding.remaining.hours": {
+			"text": "{hours} घंटे {minutes} मिनट शेष",
+			"context": "Time left on a claim of an hour or more, shown beside the card's reference in the status bar. {hours} is whole hours, {minutes} the minutes after them.",
+			"source": "7079a2912bfb8d45"
+		},
+		"status.holding.remaining.minutes": {
+			"text": "{minutes} मिनट शेष",
+			"context": "Time left on a claim of under an hour, shown beside the card's reference in the status bar. {minutes} is whole minutes.",
+			"source": "8d69a20c31d54032"
+		},
+		"status.holding.remaining.soon": {
+			"text": "एक मिनट से कम शेष",
+			"context": "Time left on a claim that lapses within the minute, shown beside the card's reference in the status bar.",
+			"source": "c8d8556ebefd4a11"
+		},
+		"status.holding.remaining.expired": {
+			"text": "अवधि समाप्त",
+			"context": "Shown in place of a time when the claim's lease has already lapsed.",
+			"source": "a8093589b9a12b50"
+		},
+		"status.holding.remaining.noLease": {
+			"text": "कोई अवधि नहीं",
+			"context": "Shown in place of a time when the claim carries no lease and so never lapses.",
+			"source": "b39d2c2f1ea8d8cc"
+		},
+		"status.holding.tooltipLead": {
+			"text": "आपके पास {workbench} में {ref} है: {clause}",
+			"context": "First hover line when the reader holds exactly one card. {ref} is the card's reference, {workbench} the workbench's title, {clause} one of the five remaining-time clauses.",
+			"source": "87dce8435ec18e14"
+		},
+		"status.holding.tooltipLeadMany": {
+			"text": "आपके पास {count} कार्ड हैं; सबसे पहले {workbench} में {ref}, {clause}",
+			"context": "First hover line when the reader holds more than one card. {count} is how many, and {ref}, {workbench} and {clause} describe the one whose lease lapses first.",
+			"source": "6855602a71730c8e"
+		},
+		"status.holding.tooltipRow": {
+			"text": "{workbench} में {ref}: {clause}",
+			"context": "One hover line per further held card, under the lead line. {ref} is the card's reference, {workbench} the workbench's title, {clause} its remaining-time clause. Two references, a separator and a clause, so a language whose preposition here is also \"in\" renders it identically.",
+			"source": "43909375681ae60d"
+		},
+		"status.holding.uncertainLead": {
+			"text": "Dinah यह पुष्टि नहीं कर सका कि इस समय आपके पास कुछ है या नहीं",
+			"context": "First hover line when every workbench's last read went stale, so the window cannot say what the reader holds.",
+			"source": "809bda6a4396c0d6"
 		}
 	}
 }

@@ -143,6 +143,7 @@ function rootRow(overrides: Partial<RootRow> = {}): RootRow {
 			title: "Work",
 			columns: new Map(),
 			cards: new Map(),
+			holding: [],
 		},
 		...overrides,
 	};

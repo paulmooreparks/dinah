@@ -46,7 +46,12 @@ import {
 	relativeTo,
 	treeItemFor,
 } from "../../src/tree";
-import type { AttachmentListing, CardView, ColumnView } from "../../src/wire";
+import type {
+	AttachmentListing,
+	CardView,
+	ColumnView,
+	StatusAnswer,
+} from "../../src/wire";
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -1901,4 +1906,326 @@ test("a column the last good read never cached leaves the marker off and says so
 	const rootItem = treeItemFor(root);
 	assert.equal(rootItem.description, "did not answer");
 	assert.ok(rootItem.tooltip?.includes("malformed: column b00000000002"));
+});
+
+// ---------------------------------------------------------------------------
+// dinah-419: what status says the reader is holding
+// ---------------------------------------------------------------------------
+
+/**
+ * A `dinah --json status` answer as the binary actually emits one, written
+ * out as text rather than as an object literal.
+ *
+ * The text is what a mirror can be wrong about. An object literal is checked
+ * against the interface by the compiler and so agrees with it whatever either
+ * one says, while a parse of real output fails when the mirror has drifted
+ * from the field names the Go tags publish.
+ */
+const STATUS_JSON = `{
+	"workbench": "Trees",
+	"root": "C:\\\\work\\\\bench",
+	"actor": "alka",
+	"is_operator": false,
+	"operator": "paul",
+	"profile": "dinah-core/0.7",
+	"columns": [],
+	"holding": [
+		{
+			"id": "aaa",
+			"ref": "tr-3",
+			"title": "Retire the second map",
+			"column": "doing",
+			"state": "active",
+			"holder": "alka",
+			"claim_since": "2026-09-07T09:00:00Z",
+			"expires": "2026-09-07T13:30:00Z",
+			"revision": "r1",
+			"blocking_items": 2
+		}
+	],
+	"blocked": [],
+	"workbench_source": "search",
+	"attachment_count": 1
+}`;
+
+test("the status mirror carries the actor, the holding list and each claim's own stamps", async () => {
+	// AC-1's first half. Every field this card added to the mirror is read off
+	// a parse of real output and asserted with its type, because a field
+	// spelled wrongly here reads as undefined rather than as an error.
+	const answer = JSON.parse(STATUS_JSON) as StatusAnswer;
+	assert.equal(answer.actor, "alka");
+	assert.equal(answer.is_operator, false);
+	assert.equal(typeof answer.is_operator, "boolean");
+	assert.equal(answer.operator, "paul");
+	assert.equal(answer.workbench_source, "search");
+	assert.ok(Array.isArray(answer.holding));
+	assert.ok(Array.isArray(answer.blocked));
+	assert.deepEqual(answer.blocked, []);
+	assert.equal(answer.holding.length, 1);
+	const first = answer.holding[0];
+	assert.equal(first.ref, "tr-3");
+	assert.equal(first.claim_since, "2026-09-07T09:00:00Z");
+	assert.equal(first.expires, "2026-09-07T13:30:00Z");
+	assert.equal(first.blocking_items, 2);
+	assert.equal(typeof first.blocking_items, "number");
+});
+
+test("a status answer carrying no holding list leaves an empty hand rather than throwing", async () => {
+	// AC-1's second half. The three fields carry no omitempty on the Go side,
+	// so a current binary always writes them, but a binary older than the
+	// field would not, and a reader that trusts the mirror's promise would
+	// throw on the first read rather than degrade.
+	const { spawner } = stubSpawner({
+		status: { workbench: "Trees", root: "C:\\work\\bench", columns: [] },
+		tree: treeAnswer([]),
+		ls: { cards: [] },
+	});
+	const data = await readWorkbench(spawner, "dinah", "C:\\work\\bench", () => {});
+	assert.deepEqual([...data.holding], []);
+	assert.equal(data.actor, undefined);
+});
+
+test("what the reader holds is read off the status call the tree already makes", async () => {
+	const held = {
+		id: "aaa",
+		ref: "tr-3",
+		title: "Retire the second map",
+		state: "active",
+		holder: "alka",
+		claim_since: "2026-09-07T09:00:00Z",
+		expires: "2026-09-07T13:30:00Z",
+	};
+	const { spawner, calls } = stubSpawner({
+		status: {
+			workbench: "Trees",
+			root: "C:\\work\\bench",
+			actor: "alka",
+			is_operator: false,
+			columns: [],
+			holding: [held],
+			blocked: [],
+		},
+		tree: treeAnswer([]),
+		ls: { cards: [] },
+	});
+	const data = await readWorkbench(
+		spawner,
+		"dinah",
+		"C:\\work\\bench",
+		() => {},
+		undefined,
+		() => 7_000,
+	);
+	assert.equal(data.actor, "alka");
+	assert.deepEqual([...data.holding], [held]);
+	assert.equal(data.fetchedAt, 7_000);
+	// Three calls and no fourth: the holding list rode the status call the
+	// tree was making anyway.
+	assert.equal(calls.length, 3);
+	assert.deepEqual(
+		calls.map((argv) => argv[argv.length - 1]).sort(),
+		["ls", "status", "tree"],
+	);
+});
+
+test("two folders resolving to one workbench report one held hand between them", async () => {
+	// AC-9. Folders A and B resolve to the same root spelled two ways, and a
+	// third folder resolves to a workbench of its own whose status call fails
+	// after an initial success.
+	const SHARED = "C:\\work\\bench";
+	const OTHER = "C:\\work\\other";
+	const failing = { value: false };
+	let reading = 1_000;
+
+	const held = {
+		id: "aaa",
+		ref: "tr-3",
+		state: "active",
+		holder: "alka",
+		expires: "2026-09-07T13:30:00Z",
+	};
+	const statusFor = (root: string): Record<string, unknown> => ({
+		workbench: root === SHARED ? "Trees" : "Maps",
+		root,
+		actor: "alka",
+		is_operator: false,
+		columns: [],
+		holding: root === SHARED ? [held] : [],
+		blocked: [],
+	});
+	const spawner: Spawner = async (_exe, argv) => {
+		const root = argv[argv.indexOf("--workbench") + 1] ?? "";
+		const verb = argv[argv.length - 1];
+		if (verb === "status") {
+			if (failing.value && root.toLowerCase() === OTHER.toLowerCase()) {
+				return {
+					code: 2,
+					stdout: JSON.stringify({ refusal: "dinah.unreachable" }),
+					stderr: "",
+				};
+			}
+			return ok(statusFor(root));
+		}
+		if (verb === "tree") {
+			return ok(treeAnswer([]));
+		}
+		return ok({ cards: [] });
+	};
+
+	const view = new DinahTreeProvider({
+		spawner,
+		exe: "dinah",
+		log: () => {},
+		caseInsensitive: true,
+		deadEndSentence: (refusal) => refusal,
+		now: () => reading,
+	});
+	await view.load([
+		folder({ folder: "C:\\ws\\a", resolution: { ...RESOLVED, root: SHARED } }),
+		// The same workbench, reached through a second folder and spelled with
+		// different case and separators, which is what the deduplication key
+		// has to see through.
+		folder({
+			folder: "C:\\ws\\b",
+			resolution: { ...RESOLVED, root: "c:/work/BENCH" },
+		}),
+		folder({
+			folder: "C:\\ws\\c",
+			resolution: { ...RESOLVED, root: OTHER, title: "Maps" },
+		}),
+	]);
+
+	const first = view.holdingSnapshot();
+	assert.deepEqual(
+		first.map((entry) => entry.root),
+		[SHARED, OTHER],
+		"the shared workbench appears once and the other appears beside it",
+	);
+	assert.deepEqual(
+		first.map((entry) => entry.holding.length),
+		[1, 0],
+	);
+	assert.deepEqual(
+		first.map((entry) => entry.fetchedAt),
+		[1_000, 1_000],
+	);
+
+	// The third folder's status call now fails. Its last good answer stands,
+	// and its fetchedAt does not advance, so the failure reads as staleness
+	// rather than as a fresh empty hand.
+	failing.value = true;
+	reading = 9_000;
+	await view.refresh("C:\\ws\\c");
+	const second = view.holdingSnapshot();
+	const other = second.find((entry) => entry.root === OTHER);
+	assert.notEqual(other, undefined);
+	assert.equal(other?.fetchedAt, 1_000);
+
+	// The shared workbench's own entry is untouched by that failure, and one
+	// entry is still all it gets.
+	assert.deepEqual(
+		second.map((entry) => entry.root),
+		[SHARED, OTHER],
+	);
+	assert.equal(second[0].fetchedAt, 1_000);
+
+	// A successful read does advance it, which is what makes the assertion
+	// above a real one rather than a stamp that never moves at all.
+	failing.value = false;
+	reading = 12_000;
+	await view.refresh("C:\\ws\\c");
+	assert.equal(
+		view.holdingSnapshot().find((entry) => entry.root === OTHER)?.fetchedAt,
+		12_000,
+	);
+});
+
+test("a forest member that declined a read keeps the hand it was last confirmed to hold", async () => {
+	// AC-9's other read. The root-scoped walk answers for every workbench
+	// beneath a folder in one call each, so the same rule about what a failed
+	// read may and may not change has to hold on that path too, and a test
+	// covering only the single-workbench read would leave it unguarded.
+	let declining = false;
+	let statusRefusing = false;
+	let reading = 1_000;
+	const carried = {
+		id: "aaa",
+		ref: "tr-3",
+		state: "active",
+		holder: "alka",
+		expires: "2026-09-07T13:30:00Z",
+	};
+	const spawner: Spawner = async (_exe, argv) => {
+		if (statusRefusing && argv.includes("status")) {
+			return {
+				code: 2,
+				stdout: JSON.stringify({ refusal: "dinah.unreachable" }),
+				stderr: "",
+			};
+		}
+		const member = {
+			title: "Carter LLP",
+			slug: "carter",
+			path: "C:\\customers\\carter\\board",
+			...(declining
+				? { unanswered: "dinah.unknown-column" }
+				: argv.includes("tree")
+					? { tree: THREE_COLUMNS }
+					: argv.includes("status")
+						? {
+								status: {
+									...THREE_STATUS,
+									actor: "alka",
+									is_operator: false,
+									holding: [carried],
+									blocked: [],
+								},
+							}
+						: { listing: THREE_LISTING }),
+		};
+		return ok({ root: "C:\\customers", workbenches: [member] });
+	};
+	const view = new DinahTreeProvider({
+		spawner,
+		exe: "dinah",
+		log: () => {},
+		caseInsensitive: true,
+		deadEndSentence: (refusal) => refusal,
+		now: () => reading,
+	});
+	await view.load([folder({ folder: "C:\\customers", resolution: NOTHING })]);
+
+	const [confirmed] = view.holdingSnapshot();
+	assert.equal(confirmed.actor, "alka");
+	assert.deepEqual([...confirmed.holding], [carried]);
+	assert.equal(confirmed.fetchedAt, 1_000);
+
+	// The member declines this checkpoint. What it was last confirmed to hold
+	// stands, and the stamp does not move, so the display ages out rather
+	// than reading as freshly empty.
+	declining = true;
+	reading = 9_000;
+	await view.refresh("C:\\customers");
+	const [stale] = view.holdingSnapshot();
+	assert.deepEqual([...stale.holding], [carried]);
+	assert.equal(stale.fetchedAt, 1_000);
+
+	// A read that answers does move it, which is what keeps the assertion
+	// above from passing against a stamp that never moves at all.
+	declining = false;
+	reading = 12_000;
+	await view.refresh("C:\\customers");
+	assert.equal(view.holdingSnapshot()[0].fetchedAt, 12_000);
+
+	// The other way a status answer goes missing: the member itself reads
+	// fine and the root-scoped status call is the one that refused, so no
+	// member declined anything and there is simply nothing to read a hand
+	// off. That is a different branch from the declining one above, and it
+	// has to leave the stamp alone for the same reason.
+	statusRefusing = true;
+	reading = 20_000;
+	await view.refresh("C:\\customers");
+	const [unheard] = view.holdingSnapshot();
+	assert.deepEqual([...unheard.holding], [carried]);
+	assert.equal(unheard.fetchedAt, 12_000);
 });

@@ -147,6 +147,29 @@ export interface WorkbenchData {
 	 * Attachments row at all.
 	 */
 	readonly attachmentCount?: number;
+	/**
+	 * The owner this window's invocations act as here, as `status` reports
+	 * it. Held from the last good checkpoint when this one's status did not
+	 * answer, for the reason `root` is.
+	 */
+	readonly actor?: string;
+	/**
+	 * The cards that actor holds in this workbench right now, as `status`
+	 * reports them. Empty is a real answer meaning the actor holds nothing,
+	 * so a caller telling "holds nothing" apart from "we do not know" reads
+	 * `fetchedAt` rather than this array's length.
+	 */
+	readonly holding: readonly CardView[];
+	/**
+	 * When the last `status` call that answered ok came back, in milliseconds.
+	 *
+	 * It advances on an ok answer and on nothing else, so a run of refusals
+	 * reads as increasing staleness rather than as freshness. It is absent
+	 * until a status call has answered ok at least once, which is how a
+	 * workbench nobody has heard from yet is told apart from one that
+	 * answered a moment ago.
+	 */
+	readonly fetchedAt?: number;
 }
 
 /** How one workspace folder resolved, and therefore what rows it contributes. */
@@ -900,6 +923,7 @@ export async function readWorkbench(
 	root: string,
 	log: (line: string) => void,
 	held?: WorkbenchData,
+	now: () => number = Date.now,
 ): Promise<WorkbenchData> {
 	const [status, tree, listing] = await Promise.all([
 		runDinah(spawner, exe, pinned(root, ["status"]), { cwd: root }),
@@ -943,6 +967,12 @@ export async function readWorkbench(
 			cards: held?.cards ?? new Map(),
 			root: held?.root,
 			attachmentCount: held?.attachmentCount,
+			// The tree is what failed here. Status may well have answered,
+			// and where it did its holding list is this checkpoint's own
+			// answer rather than the last one's.
+			actor: statusJson?.actor ?? held?.actor,
+			holding: statusJson?.holding ?? held?.holding ?? [],
+			fetchedAt: statusJson === undefined ? held?.fetchedAt : now(),
 		};
 	}
 
@@ -953,6 +983,9 @@ export async function readWorkbench(
 		cards: joinCards(listingJson),
 		root: treeJson.root,
 		attachmentCount: statusJson?.attachment_count,
+		actor: statusJson?.actor ?? held?.actor,
+		holding: statusJson?.holding ?? held?.holding ?? [],
+		fetchedAt: statusJson === undefined ? held?.fetchedAt : now(),
 	};
 }
 
@@ -988,6 +1021,7 @@ export async function readForest(
 	folder: string,
 	previous: ReadonlyMap<string, WorkbenchData>,
 	log: (line: string) => void,
+	now: () => number = Date.now,
 ): Promise<WorkbenchData[]> {
 	const [status, tree, listing] = await Promise.all([
 		runDinah(spawner, exe, ["status", "--root", folder], { cwd: folder }),
@@ -1033,6 +1067,7 @@ export async function readForest(
 				refused: member.refused,
 				columns: new Map(),
 				cards: new Map(),
+				holding: [],
 			};
 		}
 		const statusMember = statuses.get(member.path);
@@ -1057,6 +1092,9 @@ export async function readForest(
 				cards: held?.cards ?? new Map(),
 				root: held?.root,
 				attachmentCount: held?.attachmentCount,
+				actor: held?.actor,
+				holding: held?.holding ?? [],
+				fetchedAt: held?.fetchedAt,
 			};
 		}
 		return {
@@ -1067,6 +1105,10 @@ export async function readForest(
 			cards: joinCards(listingMember?.listing),
 			root: member.tree?.root,
 			attachmentCount: statusMember?.status?.attachment_count,
+			actor: statusMember?.status?.actor ?? held?.actor,
+			holding: statusMember?.status?.holding ?? held?.holding ?? [],
+			fetchedAt:
+				statusMember?.status === undefined ? held?.fetchedAt : now(),
 		};
 	});
 }
@@ -1144,6 +1186,30 @@ export interface TreeDeps {
 	 * English. extension.ts always passes one.
 	 */
 	readonly t?: Localizer;
+	/**
+	 * Reads the wall clock, so the unit layer stamps a fetch without waiting.
+	 *
+	 * Optional for the reason `t` is: the existing call sites construct a
+	 * provider without one, and an absent reader is the real clock.
+	 */
+	readonly now?: () => number;
+}
+
+/**
+ * One workbench's answer to what the actor is holding there.
+ *
+ * `fetchedAt` is what tells "holds nothing" apart from "we have not heard":
+ * an empty `holding` beside a recent `fetchedAt` is a confirmed empty hand,
+ * and an empty `holding` beside an absent or old one is silence.
+ */
+export interface WorkbenchHolding {
+	/** The resolved workbench root, which is the deduplication key. */
+	readonly root: string;
+	readonly title: string;
+	readonly actor?: string;
+	readonly holding: readonly CardView[];
+	/** Milliseconds, as of the last status call that answered ok. */
+	readonly fetchedAt?: number;
 }
 
 /** One workspace folder as the provider is told about it. */
@@ -1198,6 +1264,7 @@ export class DinahTreeProvider {
 					state.root ?? folder,
 					this.deps.log,
 					state.rows[0]?.data,
+					this.deps.now,
 				);
 				state.rows = [
 					{
@@ -1224,6 +1291,7 @@ export class DinahTreeProvider {
 					folder,
 					previous,
 					this.deps.log,
+					this.deps.now,
 				);
 				state.rows = members.map((data) => ({
 					rowKind: "workbenchForest" as const,
@@ -1250,6 +1318,54 @@ export class DinahTreeProvider {
 				break;
 		}
 		this.markSole();
+	}
+
+	/**
+	 * What every workbench this provider knows about last said the actor
+	 * holds, one entry per distinct workbench root.
+	 *
+	 * Two workspace folders resolving to the same workbench collapse to one
+	 * entry, because a card held there is one card and counting it twice
+	 * would tell a reader they hold two. The first entry for a root wins, so
+	 * the answer follows workspace folder order the way rootRows() does.
+	 *
+	 * A row that has no data yet, and a row whose workbench would not read at
+	 * all, contribute nothing: neither has a root to key on that anybody has
+	 * heard an answer from.
+	 */
+	holdingSnapshot(): readonly WorkbenchHolding[] {
+		const found = new Map<string, WorkbenchHolding>();
+		for (const row of this.rootRows()) {
+			const data = row.data;
+			if (data === undefined || data.path === "") {
+				continue;
+			}
+			const key = this.rootKey(data.path);
+			if (found.has(key)) {
+				continue;
+			}
+			found.set(key, {
+				root: data.path,
+				title: data.title === "" ? UNTITLED_WORKBENCH : data.title,
+				actor: data.actor,
+				holding: data.holding,
+				fetchedAt: data.fetchedAt,
+			});
+		}
+		return [...found.values()];
+	}
+
+	/**
+	 * The key two roots are compared on.
+	 *
+	 * Separators are folded because one directory reached two ways is still
+	 * one directory, and case is folded on the platforms this provider is
+	 * told to fold it on, which is the same flag every other path comparison
+	 * in this module reads.
+	 */
+	private rootKey(root: string): string {
+		const posix = root.replace(/\\/g, "/");
+		return this.deps.caseInsensitive ? posix.toLowerCase() : posix;
 	}
 
 	/** The rows every folder contributes, in workspace folder order. */
@@ -1439,6 +1555,8 @@ export class DinahTreeProvider {
 				this.deps.exe,
 				path,
 				this.deps.log,
+				row.data,
+				this.deps.now,
 			);
 		} catch (err) {
 			row.failure = String(err);
