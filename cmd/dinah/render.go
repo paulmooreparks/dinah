@@ -584,6 +584,25 @@ func (s *session) renderDetail(detail *verb.Detail) {
 		}
 		s.table(comments)
 	}
+	if len(detail.Checklist) > 0 {
+		gap()
+		s.line(s.r.T("show.checklist"))
+		checklist := table{indent: 2, columns: s.columns("checklist", "ref", "kind", "state", "owner")}
+		for _, item := range detail.Checklist {
+			fields := []string{item.Ref, item.Kind, item.State, item.Owner}
+			// The item's own text is the row's note, which is where a
+			// comment's body already prints, so a card carrying nineteen
+			// items draws a nineteen-row table rather than nineteen
+			// paragraphs. A resolution note follows it under its own label,
+			// since what was decided is what a later reader came for.
+			note := item.Text
+			if item.Note != "" {
+				note += "\n\n" + s.r.T("show.checklist.resolution") + " " + item.Note
+			}
+			checklist.rows = append(checklist.rows, tableRow{fields: fields, note: note})
+		}
+		s.table(checklist)
+	}
 	if len(detail.Withheld) > 0 {
 		gap()
 		s.line(s.r.T("show.withheld", "members", strings.Join(detail.Withheld, ", ")))

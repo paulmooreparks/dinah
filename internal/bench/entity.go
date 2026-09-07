@@ -832,9 +832,10 @@ func (b *Bench) refBelowHead(headKind, headRef, headDir, dir string) string {
 }
 
 // Item is one checklist item: a card's own recorded judgement, per
-// docs/design/format.md's "Checklist items" section. Nothing in Dinah writes
-// one yet, so the fields read here are the two CORE-CLAIM-9 needs and no
-// more, and a field a later card wants is added when that card arrives.
+// docs/design/format.md's "Checklist items" section. The fields read here are
+// the ones a claim decides on and the ones a read reports; a field the format
+// names without settling a key for, timestamps among them, is added when the
+// card that settles the key arrives.
 type Item struct {
 	// ID is the item's 12-hex identifier.
 	ID string
@@ -846,21 +847,68 @@ type Item struct {
 	// whatever the file says rather than a value read into the closed set,
 	// so a caller decides for itself what an unrecognized one means.
 	State string
+	// Ordinal is the position the item's own anchor records, which is what
+	// SortByOrdinal reads a collection into creation order by.
+	Ordinal int
+	// Column is the column the item names for gating, empty when the item
+	// was filed without one.
+	Column string
+	// Owner is who the item names as its answerer, recorded rather than
+	// enforced.
+	Owner string
+	// Note is the resolution note: what was decided, empty until somebody
+	// records it.
+	Note string
+	// Text is the item's own body, the judgement it was filed under, with
+	// the newline every text file ends in trimmed off the end of it. A card
+	// body and a comment body are both carried verbatim, and an item's is
+	// not, because nothing writes an item yet: every one of them is typed
+	// into a file by hand, so every one of them would otherwise report a
+	// trailing newline no reader asked for, in a field a row of a table and
+	// a payload of one line both print.
+	Text string
 }
 
 // LoadItem reads one checklist item from its directory.
+//
+// Every field but the two CORE-CLAIM-9 decides on is read for a reader rather
+// than for the claim, and an anchor carrying none of them still answers the
+// claim exactly as it did: a key a header does not carry reads as empty.
 func LoadItem(dir string) (*Item, error) {
 	text, err := ReadText(filepath.Join(dir, ItemAnchor))
 	if err != nil {
 		return nil, contract.Refuse(contract.UnknownPath, dir)
 	}
-	fm, _ := ParseAnchor(text)
+	fm, body := ParseAnchor(text)
 	return &Item{
-		ID:    filepath.Base(dir),
-		Dir:   dir,
-		Kind:  fm.Value("kind"),
-		State: fm.Value("state"),
+		ID:      filepath.Base(dir),
+		Dir:     dir,
+		Kind:    fm.Value("kind"),
+		State:   fm.Value("state"),
+		Ordinal: OrdinalOf(fm),
+		Column:  fm.Value("column"),
+		Owner:   fm.Value("owner"),
+		Note:    fm.Value("note"),
+		Text:    strings.TrimRight(body, "\n"),
 	}, nil
+}
+
+// Items reads a card's checklist items in creation order, on the terms
+// Comments and Attachments already read their own collections: the ordinal's
+// order rather than the listing's, so an item keeps its place however the
+// identifiers happened to fall. An item whose anchor will not open is skipped,
+// on the terms BlockingItems already reads past one.
+func Items(cardDir string) ([]*Item, error) {
+	collection := filepath.Join(cardDir, ChecklistDir)
+	var items []*Item
+	for _, id := range SortByOrdinal(collection, ItemAnchor, ListIDs(collection)) {
+		item, err := LoadItem(filepath.Join(collection, id))
+		if err != nil {
+			continue
+		}
+		items = append(items, item)
+	}
+	return items, nil
 }
 
 // ItemBlocksClaim reports whether an item is one CORE-CLAIM-9 refuses a claim

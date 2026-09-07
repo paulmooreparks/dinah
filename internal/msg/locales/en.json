@@ -1229,6 +1229,22 @@
       "text": "Description",
       "context": "Heading over the optional prose the attachment carries, in the attachments block of `dinah show`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
     },
+    "column.checklist.ref": {
+      "text": "Ref",
+      "context": "Heading over the reference a person types to reach the item, in the checklist block of `dinah show`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.checklist.kind": {
+      "text": "Kind",
+      "context": "Heading over which of the three kinds the item is, in the checklist block of `dinah show`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.checklist.state": {
+      "text": "State",
+      "context": "Heading over the state the item's own file records, in the checklist block of `dinah show`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.checklist.owner": {
+      "text": "Owner",
+      "context": "Heading over who the item names as its answerer, in the checklist block of `dinah show`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
     "column.commands.command": {
       "text": "Command",
       "context": "Heading over the command with the arguments it takes, in the command list bare `dinah` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
@@ -2252,6 +2268,14 @@
     "refusal.unsupported-version.window": {
       "text": "; this build reads {floor} through {ceiling}",
       "context": "Spliced onto refusal.unsupported-version when the refusal names the window this build opens. {floor} and {ceiling} are profile revision identities such as `dinah-core 0.1`, and a translator moves them within the sentence without respelling them."
+    },
+    "show.checklist": {
+      "text": "Checklist:",
+      "context": "The label above a card's checklist items, printed between the comments block and what a shaped answer held back."
+    },
+    "show.checklist.resolution": {
+      "text": "Resolution:",
+      "context": "The label opening the line that carries a checklist item's resolution note, printed under that item's own text in the checklist block of `dinah show`. It is followed by a space and the note the item records."
     },
     "show.comments": {
       "text": "Comments:",
