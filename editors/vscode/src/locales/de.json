@@ -358,6 +358,11 @@
 			"text": "dinah hat abgelehnt: {detail}",
 			"context": "Body of a served-text tab whose fetch was refused. {detail} is what dinah said.",
 			"source": "9129bb93df2fae54"
+		},
+		"diagnostics.check.uncertain": {
+			"text": "{workbench}: check ist noch nicht abgeschlossen; ob die Werkbank sauber ist, ist unbekannt.",
+			"context": "Placeholder diagnostic shown on a workbench's own definition file until the first `dinah check` run of the session for that workbench answers, so an empty Problems panel never means both \"confirmed clean\" and \"never checked, or check failed.\"",
+			"source": "d5ce4ba4bb42af09"
 		}
 	}
 }
