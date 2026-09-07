@@ -256,8 +256,12 @@ var beyondChecks = map[string][]Check{
 	"path": {
 		{Refusal: contract.UnknownPath, Key: "check.path.1"},
 	},
+	// The field list is read before the reference is resolved, so its row
+	// comes first: a call naming a field a card's detail does not carry
+	// performs no read at all.
 	"show": {
-		{Refusal: contract.UnknownPath, Key: "check.show.1"},
+		{Refusal: contract.UnknownField, Key: "check.show.1"},
+		{Refusal: contract.UnknownPath, Key: "check.show.2"},
 	},
 	// rename checks UnknownPath first so a reference naming nothing fails on
 	// the resolution it tried rather than on the rename-specific name it did

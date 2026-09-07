@@ -91,10 +91,12 @@ COMMENT_SOURCE = "docs/design/renaming-a-word.md"
 SEEDED_COMMENTS = 3
 SEEDED_LINKS = ("relates", "blocks")
 
-# What the caller writes on the comment act. It is outbound payload rather than
-# requested content, so it lands in the run total and in the reconciliation's
-# residual rather than in any attributed figure. It is kept to one line for
-# that reason.
+# What the caller writes on the comment act. It is outbound payload rather
+# than requested content, so no act's attribution reads it; it reaches the sum
+# through the transcript-scaffolding figure, which counts every tool_use
+# block's arguments. It is kept to one line all the same, because a long one
+# would move a figure that is meant to measure the framing rather than the
+# fixture.
 COMMENT_TEXT = "Read the position, did the work, and left the branch green."
 
 # The opening turn of the constructed transcript. Both runs carry the same one.
@@ -1078,8 +1080,54 @@ def transcript(rounds):
     return messages
 
 
-def run_verb(dinah, fixture, roots):
-    """Perform all six acts over the MCP head."""
+def scaffolding_transcript(rounds):
+    """The transcript with every tool_result content replaced by the empty
+    string, which is what the message array costs when no answer is in it.
+
+    What is left is the text no attributed figure counts: TASK_TEXT, one
+    tool_use block per round carrying the tool's name and its pinned
+    arguments, and the framing of every message. Each attributed figure is
+    derived from a response payload or from the tool-definition block, so none
+    of that reaches the sum, and the omission is what the reconciliation
+    residual has been reporting.
+
+    It is a direct count of a variant rather than a subtraction, on the same
+    terms the response-envelope figure is, so it cannot make the residual
+    identically zero and cannot turn the reconciliation into a tautology.
+    """
+    messages = transcript(rounds)
+    for message in messages:
+        content = message["content"]
+        if not isinstance(content, list):
+            continue
+        for block in content:
+            if block.get("type") == "tool_result":
+                block["content"] = ""
+    return messages
+
+
+def publishes_show_fields(tools):
+    """Whether the binary under test publishes the fields argument on show,
+    read off the tools/list answer the harness already fetches.
+
+    One harness invocation has to work against both binaries of a paired run,
+    which is the method dinah-397 and dinah-382 both used, so the shaped run
+    is a capability of the binary rather than a flag of the harness."""
+    for definition in tools:
+        if definition.get("name") != "show":
+            continue
+        schema = definition.get("input_schema") or {}
+        return "fields" in (schema.get("properties") or {})
+    return False
+
+
+def run_verb(dinah, fixture, roots, show_fields=""):
+    """Perform all six acts over the MCP head.
+
+    show_fields is the field list each show-card act names, empty for the
+    canonical verb run, which asks for nothing and is served everything. The
+    show-attachment act never carries one, because an attachment payload has
+    no members to select."""
     session = Session(dinah, fixture)
     rounds = []
     try:
@@ -1091,6 +1139,8 @@ def run_verb(dinah, fixture, roots):
                     arguments = {"column": "working", "actor": "alka"}
                 elif act == "show-card":
                     arguments = {"card": ref, "actor": "alka"}
+                    if show_fields:
+                        arguments["fields"] = show_fields
                 elif act == "instructions":
                     arguments = {"card": ref, "actor": "alka"}
                 elif act == "show-attachment":
@@ -1249,9 +1299,16 @@ class Attribution(object):
         three layers rather than the column-scoped one alone. The global layer
         and the standing layer are workbench-wide, so they repeat from the
         second serve onward whatever route the cards take. The column layer
-        repeats inside one card because the third act re-asks for the position
-        the pull already served, and it repeats across a card boundary because
-        a second card is worked at the column the first was worked at.
+        repeats inside one card where the third act re-asks for the position
+        the pull already served, and it repeats across a card boundary where a
+        second card is worked at the column the first was worked at.
+
+        Whether either column repeat actually occurs is a property of the
+        binary rather than of the sequence. A binary that withholds a layer it
+        has already served produces neither, which is what dinah-382 landed,
+        so the counts here are read as evidence of what a binary did and never
+        as a condition a run has to satisfy. The card-boundary check in
+        measure() reads the act instead, for exactly that reason.
         """
         key = (layer_kind, text)
         previous = self._seen.get(key)
@@ -1450,8 +1507,11 @@ def main():
                         help="the commit the instruction layers are read at")
     parser.add_argument("--cards", type=int, default=2,
                         help="how many cards the sequence carries through the column")
-    parser.add_argument("--residual-bound", type=float, default=2.0,
-                        help="the share of the footprint the reconciliation may miss by")
+    parser.add_argument("--residual-bound-fraction", type=float, default=0.5,
+                        help="the fraction of the smallest payload-derived attributed "
+                             "figure above zero the reconciliation residual may reach")
+    parser.add_argument("--shaped-fields", default="card,body",
+                        help="the field list the shaped run's show-card acts name")
     parser.add_argument("--per-tool", action="store_true",
                         help="print the tool-definition block attributed to each published tool")
     args = parser.parse_args()
@@ -1520,10 +1580,16 @@ def measure(args):
         return reduced_live_run(args, report, counter, layers, body, attachment,
                                 attachment_name, comments)
 
-    roots = []
-    runs = {}
-    for label in ("verb", "file"):
-        run_root = str(pathlib.Path(args.root, label).resolve())
+    # Every run's root is pinned by every run, so no run's payload text can
+    # differ from another's over a directory name. The three paths are
+    # composed before any fixture is built, because the shaped run's fixture
+    # is built only where the binary can perform that run and the pinning has
+    # to be the same either way.
+    labels = ("verb", "file", "shaped")
+    roots = [str(pathlib.Path(args.root, label).resolve()) for label in labels]
+
+    def build(label):
+        run_root = roots[labels.index(label)]
         if os.path.isdir(run_root):
             shutil.rmtree(run_root)
         fixture = Fixture(args.dinah, run_root, layers, body, attachment_name, attachment,
@@ -1534,26 +1600,46 @@ def measure(args):
             raise Failure("the %s run carries %d cards where %d were asked for, so the "
                           "header would report a sequence that was not performed"
                           % (label, len(fixture.cards), args.cards))
-        roots.append(fixture.root)
-        runs[label] = fixture
+        return fixture
 
-    # Both runs pin both roots, so the two never differ over a directory name.
+    runs = {"verb": build("verb"), "file": build("file")}
+
     verb_rounds, tools = run_verb(args.dinah, runs["verb"], roots)
     file_rounds, file_tools = run_file(args.dinah, runs["file"], roots)
 
+    # The shaped run performs the identical sequence with each show-card act
+    # naming its fields, so it is one sequence with the other two in the sense
+    # the coordination digests already enforce.
+    shaped_rounds = None
+    shaped_skipped = ""
+    if publishes_show_fields(tools):
+        runs["shaped"] = build("shaped")
+        shaped_rounds, _ = run_verb(args.dinah, runs["shaped"], roots,
+                                    show_fields=args.shaped_fields)
+    else:
+        shaped_skipped = ("the binary under test publishes no fields argument on show, "
+                          "so there is no shaped run to perform")
+
     # AC-1: the three coordination acts are performed identically by both runs,
     # so their pinned digests agree or the run is not one measurement.
-    report.say("coordination acts, pinned digests, which prove the two runs are one sequence")
+    report.say("coordination acts, pinned digests, which prove the runs are one sequence")
     disagreed = []
-    verb_coordination = [r for r in verb_rounds if r.tool in COORDINATION_TOOLS]
-    file_coordination = [r for r in file_rounds if r.tool in COORDINATION_TOOLS]
-    if len(verb_coordination) != len(file_coordination):
-        raise Failure("the two runs performed different numbers of coordination acts")
-    for left, right in zip(verb_coordination, file_coordination):
-        agree = digest(left.result) == digest(right.result)
+    coordination = collections.OrderedDict()
+    coordination["verb"] = [r for r in verb_rounds if r.tool in COORDINATION_TOOLS]
+    coordination["file"] = [r for r in file_rounds if r.tool in COORDINATION_TOOLS]
+    if shaped_rounds is not None:
+        coordination["shaped"] = [r for r in shaped_rounds if r.tool in COORDINATION_TOOLS]
+    for label, acts in coordination.items():
+        if len(acts) != len(coordination["verb"]):
+            raise Failure("the %s run performed %d coordination acts where the verb run "
+                          "performed %d" % (label, len(acts), len(coordination["verb"])))
+    for position, left in enumerate(coordination["verb"]):
+        digests = collections.OrderedDict(
+            (label, digest(acts[position].result)) for label, acts in coordination.items())
+        agree = len(set(digests.values())) == 1
         report.plain("%s %s" % (left.card, left.tool),
-                     "verb %s, file %s, %s" % (digest(left.result), digest(right.result),
-                                               "agree" if agree else "DISAGREE"))
+                     "%s, %s" % (", ".join("%s %s" % pair for pair in digests.items()),
+                                 "agree" if agree else "DISAGREE"))
         if not agree:
             disagreed.append((left.card, left.tool))
     report.say()
@@ -1582,6 +1668,21 @@ def measure(args):
                   footprints["file"] - footprints["verb"])
     report.signed("cumulative, file run less verb run",
                   cumulatives["file"] - cumulatives["verb"])
+    report.say()
+
+    report.say("the shaped run, the same sequence with show naming its fields")
+    if shaped_rounds is None:
+        report.plain("shaped run", "skipped: %s" % shaped_skipped)
+    else:
+        shaped_footprint, shaped_cumulative = totals(counter, shaped_rounds, tools)
+        report.figure("shaped run, context footprint", shaped_footprint)
+        report.figure("shaped run, cumulative billed input", shaped_cumulative)
+        report.measure("shaped run, tool-call rounds", len(shaped_rounds), "rounds")
+        report.plain("the field list each show-card act named", args.shaped_fields)
+        report.signed("footprint, shaped run less verb run",
+                      shaped_footprint - footprints["verb"])
+        report.signed("cumulative, shaped run less verb run",
+                      shaped_cumulative - cumulatives["verb"])
     report.say()
 
     report.say("what the file run read, each path under the throwaway root")
@@ -1627,12 +1728,52 @@ def measure(args):
     report.figure("chain, repeat serves, all layers", repeats)
     report.say()
 
+    # B3, the card-boundary check. dinah-382 removed the repeat this check
+    # used to read, so the premise is rewritten rather than the check retired:
+    # the thing it guards is still real, since the sequence carries two cards
+    # precisely so that a card boundary exists, and a sequence that had lost
+    # its second card would silently stop testing what the second card is for.
+    #
+    # The new premise is about the act rather than about the repeat. At the
+    # second card's pull the column layer is either carried in full, which
+    # means the boundary exists and the binary serves it, or named under
+    # instructions.withheld, which means the boundary exists and the binary
+    # withholds it. Neither present is the condition the original check was
+    # written to catch, and it is what a one-card sequence produces.
+    boundary_carried = False
+    boundary_named = False
+    boundary_act = None
+    if len(runs["verb"].cards) >= 2:
+        second = runs["verb"].cards[1]["ref"]
+        for item in verb_rounds:
+            if item.kind == "mcp" and item.act == "pull" and item.card == second:
+                boundary_act = item
+                break
+    if boundary_act is not None:
+        boundary_payload = parse_payload(boundary_act.result)
+        if has_member(boundary_payload, "instructions.column"):
+            boundary_carried = bool(member_at(boundary_payload, "instructions.column"))
+        if has_member(boundary_payload, "instructions.withheld"):
+            withheld = member_at(boundary_payload, "instructions.withheld") or []
+            boundary_named = LAYER_OF["column"] in withheld
+    report.say("the card boundary, read off the second card's pull")
+    if boundary_act is None:
+        report.plain("the second card's pull", "there is none in this sequence")
+    else:
+        report.plain("the column layer at the second card's pull",
+                     "carried" if boundary_carried
+                     else ("named under instructions.withheld" if boundary_named
+                           else "neither served nor withheld"))
+    report.say()
+
     report.say("the attributed figures, as counts rather than as shares")
     report.figure("arrival serves of the instruction chain", arrivals)
     report.figure("repeat serves of the instruction chain", repeats)
     report.figure("JSON re-encoding of the prose members", attribution.reencoding)
     report.figure("response envelope, measured directly", attribution.envelope)
     report.figure("requested content", attribution.requested)
+    scaffolding = counter.count(scaffolding_transcript(verb_rounds))
+    report.figure("transcript scaffolding, measured directly", scaffolding)
     report.say()
 
     tool_block = counter.count([{"role": "user", "content": TOKEN_PROBE_PREFIX}], tools) \
@@ -1668,16 +1809,55 @@ def measure(args):
 
     report.say("the reconciliation, against the verb run's context footprint")
     attributed = (arrivals + repeats + attribution.reencoding + attribution.envelope
-                  + attribution.requested + tool_block)
-    # The label names the tool block as well as the five figures printed under
-    # "the attributed figures", because a reader adding that section reaches a
-    # total the tool block is missing from and the gap is named nowhere else.
-    report.figure("sum of the attributed figures and the tool block once", attributed)
+                  + attribution.requested + scaffolding + tool_block)
+    # The label names the scaffolding and the tool block as well, because a
+    # reader adding the section above reaches a total that is missing the tool
+    # block, and the scaffolding is the figure this sum most recently gained.
+    report.figure("sum of the attributed figures, the scaffolding among them, "
+                  "and the tool block once", attributed)
     report.figure("verb run, context footprint", footprints["verb"])
     residual = footprints["verb"] - attributed
     report.signed("residual", residual)
-    residual_share = 100.0 * float(residual.tokens) / float(footprints["verb"].tokens)
-    report.signed_share("residual as a share of the footprint", residual_share)
+    # The bound is a fraction of the smallest payload-derived attributed
+    # figure rather than a share of the footprint. What the check is for is
+    # catching a figure gone missing or counted twice, and such an error moves
+    # the residual by at least the size of the figure it lost or doubled, so a
+    # limit at half the smallest of them fails on any one of those errors. A
+    # share of the footprint is a bound on nothing: it admitted 1,683 tokens
+    # before dinah-382 and 985 after, on one instrument measuring one
+    # sequence, and it tracks the size of the transcript rather than the size
+    # of the smallest thing the sum could drop. This rule also tightens on its
+    # own as this workstream shrinks the figures it keys on.
+    payload_derived = collections.OrderedDict((
+        ("arrival serves of the instruction chain", arrivals),
+        ("repeat serves of the instruction chain", repeats),
+        ("JSON re-encoding of the prose members", attribution.reencoding),
+        ("response envelope, measured directly", attribution.envelope),
+        ("requested content", attribution.requested),
+        ("transcript scaffolding, measured directly", scaffolding),
+    ))
+    # A figure standing at zero is left out of the minimum, because it carries
+    # no information for the question this bound asks. The check exists to
+    # catch a figure gone missing or counted twice, and dropping or doubling a
+    # zero moves the residual by nothing at all, so keying the bound to one
+    # would refuse every run while detecting no error. The repeat serves of
+    # the instruction chain are exactly that figure on any binary at or past
+    # dinah-382, which took the repeats out by design.
+    candidates = collections.OrderedDict(
+        (name, count) for name, count in payload_derived.items() if count.tokens > 0)
+    if not candidates:
+        raise Failure("every payload-derived attributed figure is zero, so the "
+                      "reconciliation has nothing to bound the residual against")
+    smallest_name, smallest = min(candidates.items(), key=lambda pair: pair[1].tokens)
+    bound = args.residual_bound_fraction * float(smallest.tokens)
+    report.plain("payload-derived figures standing above zero",
+                 ", ".join(candidates.keys()))
+    report.plain("smallest of them", smallest_name)
+    report.figure("that figure", smallest)
+    report.plain("residual bound, %g of it" % args.residual_bound_fraction,
+                 "%.1f tokens [derived within one regime]" % bound)
+    report.signed_share("residual as a share of the footprint",
+                        100.0 * float(residual.tokens) / float(footprints["verb"].tokens))
     report.say()
 
     report.say("per-act check, the payload against the figures attributed to it")
@@ -1697,14 +1877,18 @@ def measure(args):
 
     failed = []
     if disagreed:
-        failed.append("the two runs disagreed on %d coordination acts" % len(disagreed))
-    if abs(residual_share) > args.residual_bound:
-        failed.append("the reconciliation residual is %.3f%% of the footprint, outside the "
-                      "%.1f%% bound, so no figure from this run may be quoted"
-                      % (residual_share, args.residual_bound))
-    if attribution.repeat_counts["column"]["across"] <= 0:
-        failed.append("the column layer repeated across no card boundary, so this sequence "
-                      "is not the one the decision to carry two cards rests on")
+        failed.append("the runs disagreed on %d coordination acts" % len(disagreed))
+    if abs(residual.tokens) > bound:
+        failed.append("the reconciliation residual is %d tokens, outside the %.1f the rule "
+                      "allows, which is %g of the smallest payload-derived attributed "
+                      "figure above zero (%s, %d tokens), so no figure from this run may "
+                      "be quoted"
+                      % (residual.tokens, bound, args.residual_bound_fraction,
+                         smallest_name, smallest.tokens))
+    if not (boundary_carried or boundary_named):
+        failed.append("the column layer was neither served nor withheld at the second "
+                      "card's pull, so this sequence carries no card boundary and is not "
+                      "the one the decision to carry two cards rests on")
 
     report.emit()
     if failed:
