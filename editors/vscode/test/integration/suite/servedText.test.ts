@@ -192,7 +192,6 @@ suite("the first-session walkthrough", () => {
 	});
 
 	test("the command opens a guide tab carrying what the binary prints", async () => {
-		const before = servedTabs().length;
 		await vscode.commands.executeCommand(COMMAND_OPEN_FIRST_SESSION_GUIDE);
 		assert.ok(
 			await until(() => guideDocument() !== undefined, 20_000),
@@ -212,7 +211,20 @@ suite("the first-session walkthrough", () => {
 		});
 		assert.equal(document.getText(), printed);
 		assert.notEqual(document.getText().trim(), "", "the guide tab opened empty");
-		assert.equal(servedTabs().length, before + 1, "the command opened more than one tab");
+
+		// One guide tab, counted by authority rather than by how many
+		// served-text tabs the window holds. The suite above leaves an
+		// instruction tab open, and the editor may reuse a preview tab for
+		// this one, so the total says nothing about what this command did.
+		const guideTabs = servedTabs().filter((tab) => {
+			const input = tab.input as { uri?: vscode.Uri } | undefined;
+			return input?.uri?.authority === KIND_GUIDE;
+		});
+		assert.equal(
+			guideTabs.length,
+			1,
+			`wanted one guide tab, found ${String(guideTabs.length)}`,
+		);
 	});
 
 	test("the editor knows the walkthrough the welcome view links to", async () => {
