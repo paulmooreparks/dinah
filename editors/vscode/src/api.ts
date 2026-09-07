@@ -106,6 +106,20 @@ export type WorkbenchResolution =
 			 */
 			readonly answered: boolean;
 			readonly detail?: string;
+			/**
+			 * The named values the refusal envelope carried, verbatim from
+			 * dinah's `context` field, which is `Refusal.Extra` on the Go
+			 * side. A refusal that carried none leaves this undefined, and so
+			 * does every transport failure, because nothing answered.
+			 *
+			 * One refusal name can cover more than one situation, and the CLI
+			 * tells those situations apart by a key in here rather than by
+			 * minting a second name. `dinah.no-workbench` is the case this
+			 * extension reads: a `found` key means a workbench sits one level
+			 * down inside the pinned folder's own container, and its absence
+			 * means the folder really does hold nothing.
+			 */
+			readonly context?: Readonly<Record<string, string>>;
 			readonly candidates?: readonly Candidate[];
 	  };
 

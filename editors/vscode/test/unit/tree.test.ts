@@ -45,6 +45,7 @@ import {
 	readWorkbench,
 	relativeTo,
 	treeItemFor,
+	vacancyAnsweredBy,
 } from "../../src/tree";
 import {
 	composeStatus,
@@ -52,7 +53,12 @@ import {
 	summarizeHolding,
 } from "../../src/status";
 import type { HoldingSummary, WorkbenchHoldingReport } from "../../src/status";
-import { NO_CONFIGURED_WORKBENCH, parseRefusal } from "../../src/workbench";
+import {
+	FOUND_BENEATH,
+	NO_CONFIGURED_WORKBENCH,
+	NO_WORKBENCH,
+	parseRefusal,
+} from "../../src/workbench";
 import type {
 	AttachmentListing,
 	CardView,
@@ -2688,6 +2694,59 @@ const NO_CONFIGURED: CliOutcome = {
 	detail: "no workbench is configured for this directory",
 };
 
+/** The refusal dinah answers with where a pinned path holds nothing at all. */
+const PINNED_EMPTY: CliOutcome = {
+	kind: "refused",
+	refusal: NO_WORKBENCH,
+	detail: "C:\\ws\\quiet carries no workbench.md",
+};
+
+/**
+ * The same refusal where the workbench sits one level down.
+ *
+ * `internal/bench`'s override branch raises `dinah.no-workbench` for both
+ * situations and tells them apart by this key, which carries the workbench it
+ * found inside the pinned folder's own container.
+ */
+const PINNED_BENEATH: CliOutcome = {
+	kind: "refused",
+	refusal: NO_WORKBENCH,
+	detail: "C:\\ws\\quiet carries no workbench.md",
+	context: { [FOUND_BENEATH]: "C:\\ws\\quiet\\.dinah\\team" },
+};
+
+test("a workbench found one level down is not a vacancy the pinned path earns", () => {
+	// The predicate itself, over the three answers one refusal name has to
+	// give. The pipeline assertions below prove the bar acts on this; these
+	// three prove the decision is being made here rather than somewhere the
+	// next reader would have to go looking for.
+	assert.equal(
+		vacancyAnsweredBy(parseRefusal(PINNED_BENEATH)),
+		false,
+		"a path whose container holds a workbench is a place dinah would not read",
+	);
+	assert.equal(
+		vacancyAnsweredBy(parseRefusal(PINNED_EMPTY)),
+		true,
+		"the same refusal carrying no found key is dinah confirming the folder empty",
+	);
+	assert.equal(
+		vacancyAnsweredBy({
+			state: "refused",
+			refusal: NO_WORKBENCH,
+			answered: true,
+			context: {},
+		}),
+		true,
+		"an envelope carrying a context with no found key names no workbench",
+	);
+	assert.equal(
+		vacancyAnsweredBy(parseRefusal(NO_CONFIGURED)),
+		true,
+		"no-configured-workbench never carries a context and is unaffected",
+	);
+});
+
 /**
  * Three refusals that say a workbench is there and cannot be used.
  *
@@ -2802,6 +2861,17 @@ const FAILURE_ROUTES: readonly FailureRoute[] = [
 		name: "a folder dinah confirmed empty that nobody has asked again",
 		at: LONG_AFTER,
 		reach: () => deadEnd(NO_CONFIGURED, () => 1_000),
+	},
+	{
+		// Fresh rather than aged, because this one is not a vacancy that went
+		// stale. Dinah answered just now, and what it said was that it would
+		// not read the pinned path while a workbench sits inside that path's
+		// own container. That workbench may be holding the reader's card and
+		// this window has not opened it, so there is nothing confident to say
+		// however recent the answer is.
+		name: "a folder whose workbench sits one level down inside it",
+		at: 5_000,
+		reach: () => deadEnd(PINNED_BENEATH, () => 1_000),
 	},
 	...BROKEN_WORKBENCH_REFUSALS.map(({ name, refusal }) => ({
 		name,
@@ -2948,6 +3018,23 @@ test("a confident empty hand takes an answer, and takes a recent one", async () 
 	await held.load([folder({ folder: "C:\\work\\bench" })]);
 	assert.equal(barFrom(held, 5_000).summary.uncertain, false);
 	assert.equal(barFrom(held, 5_000).text.endsWith("$(warning)"), false);
+
+	// The control for the found-beneath route in the enumeration above, and
+	// the case that route must not take with it. The same refusal name, and
+	// the same dead-end row, with no `found` key: dinah is saying the pinned
+	// path really does hold nothing, and the reader is told so plainly. A
+	// window made to warn at every no-workbench refusal would pass the
+	// enumeration and fail here.
+	const pinnedEmpty = await deadEnd(PINNED_EMPTY, () => 1_000);
+	assert.deepEqual(
+		barFrom(pinnedEmpty, 5_000).summary,
+		{ cards: [], uncertain: false },
+		"a pinned path carrying no workbench and naming none beneath it is empty",
+	);
+	assert.equal(
+		barFrom(pinnedEmpty, 5_000).text.endsWith("$(warning)"),
+		false,
+	);
 
 	// The same dead end the enumeration above lets expire, renewed instead.
 	// The clock is read on every call, so the refresh restamps the folder at

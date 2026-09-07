@@ -34,6 +34,19 @@ export const NO_CONFIGURED_WORKBENCH = "dinah.no-configured-workbench";
 export const NO_WORKBENCH = "dinah.no-workbench";
 
 /**
+ * The `dinah.no-workbench` context key naming a workbench one level down.
+ *
+ * The tool raises that one refusal for two different situations. Usually the
+ * pinned path holds nothing at all and the envelope carries no context. When
+ * the path carries no `workbench.md` of its own but its own container holds
+ * exactly one workbench, the same refusal carries this key with the found
+ * workbench's absolute path, and the tool picks its own wording off the same
+ * discriminator. A reader that ignores the key reads the second situation as
+ * the first and calls a folder empty that is not.
+ */
+export const FOUND_BENEATH = "found";
+
+/**
  * The rung name reported when `verb.Status` names none.
  *
  * `WorkbenchSource` is declared `json:"workbench_source,omitempty"`, so the key
@@ -117,6 +130,12 @@ export function parseRefusal(outcome: CliOutcome): WorkbenchResolution {
 			refusal: outcome.refusal,
 			answered: true,
 			detail: outcome.detail,
+			// Carried through rather than dropped here, because this function
+			// is the only thing standing between the envelope's named values
+			// and every reader of a resolution. A refusal whose meaning turns
+			// on one of those values cannot be read correctly downstream once
+			// they have been discarded.
+			context: outcome.context,
 			candidates: outcome.workbenches as readonly Candidate[] | undefined,
 		};
 	}

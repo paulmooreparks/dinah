@@ -70,6 +70,7 @@ import {
 import type { WorkbenchHoldingReport } from "./status";
 import {
 	AMBIGUOUS_WORKBENCH,
+	FOUND_BENEATH,
 	NO_CONFIGURED_WORKBENCH,
 	NO_WORKBENCH,
 	NO_WORKBENCH_FOUND,
@@ -1338,11 +1339,30 @@ const VACANCY_REFUSALS: readonly string[] = [
  * genuinely does mean emptiness has to be added to the set by hand, and until
  * somebody does the bar warns at a folder it could speak confidently about.
  *
+ * Membership in the set is necessary and it is not sufficient, because one of
+ * the names in it covers two situations. `dinah.no-workbench` carries the
+ * `found` key when the pinned path holds no workbench of its own but its own
+ * container holds one a level down, and that path names a place dinah refused
+ * to read rather than a place confirmed empty. The workbench beneath it may
+ * be holding the reader's own claimed card, so the honest answer for it is
+ * the doubt. Nothing here opens that workbench; the folder becomes unheard
+ * through the existing report path and the bar warns, exactly as it already
+ * does for `dinah.no-workbench-found` and `dinah.ambiguous-workbench`.
+ * `dinah.no-configured-workbench` is untouched by that test, since
+ * `internal/bench` raises it through `contract.Refuse`, which carries no
+ * context at all.
+ *
  * One predicate rather than the same three conditions at the two producers,
  * so that what earns a vacancy is decided once.
  */
-function vacancyAnsweredBy(resolution: WorkbenchResolution): boolean {
+export function vacancyAnsweredBy(resolution: WorkbenchResolution): boolean {
 	if (resolution.state !== "refused" || !resolution.answered) {
+		return false;
+	}
+	if (
+		resolution.refusal === NO_WORKBENCH &&
+		resolution.context?.[FOUND_BENEATH] !== undefined
+	) {
 		return false;
 	}
 	return VACANCY_REFUSALS.includes(resolution.refusal);

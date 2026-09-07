@@ -4,6 +4,8 @@ import { test } from "node:test";
 import type { SpawnOutcome, Spawner } from "../../src/cli";
 import {
 	AMBIGUOUS_WORKBENCH,
+	FOUND_BENEATH,
+	NO_WORKBENCH,
 	UNNAMED_SOURCE,
 	isInside,
 	parseRefusal,
@@ -104,6 +106,56 @@ test("parseRefusal keeps the candidate list an ambiguous refusal carries", () =>
 		return;
 	}
 	assert.equal(resolution.candidates?.length, 2);
+});
+
+test("parseRefusal keeps the named values a refusal carries", () => {
+	// The `found` key is what tells a pinned folder holding nothing from a
+	// pinned folder whose own container holds a workbench one level down.
+	// Both arrive under the same refusal name, so a reader that never sees
+	// the key cannot tell them apart and calls the second one empty.
+	const beneath = parseRefusal({
+		kind: "refused",
+		refusal: NO_WORKBENCH,
+		detail: "C:\\ws\\quiet carries no workbench.md",
+		context: { [FOUND_BENEATH]: "/a/b/.dinah/some-workbench" },
+	});
+	assert.equal(beneath.state, "refused");
+	if (beneath.state !== "refused") {
+		return;
+	}
+	assert.deepEqual(beneath.context, { found: "/a/b/.dinah/some-workbench" });
+
+	// A refusal that carried no context leaves the field undefined rather
+	// than inventing an empty object, so the two arms of the same refusal
+	// name stay distinguishable by the field's presence alone.
+	const bare = parseRefusal({
+		kind: "refused",
+		refusal: NO_WORKBENCH,
+		detail: "C:\\ws\\quiet carries no workbench.md",
+	});
+	assert.equal(bare.state, "refused");
+	if (bare.state !== "refused") {
+		return;
+	}
+	assert.equal(bare.context, undefined);
+});
+
+test("parseRefusal leaves a transport failure carrying no named values", () => {
+	// Nothing answered on any of these, so there is no envelope to have
+	// carried a context and nothing may be read out of one.
+	for (const outcome of [
+		{ kind: "spawn-failed", errno: "ENOENT", detail: "no dinah" },
+		{ kind: "unreachable", detail: "timed out" },
+		{ kind: "stale", detail: "format 0" },
+	] as const) {
+		const resolution = parseRefusal(outcome);
+		assert.equal(resolution.state, "refused");
+		if (resolution.state !== "refused") {
+			return;
+		}
+		assert.equal(resolution.context, undefined, outcome.kind);
+		assert.equal(resolution.answered, false, outcome.kind);
+	}
 });
 
 test("resolveWorkbench runs status in the folder and adds no --workbench when unpinned", async () => {
