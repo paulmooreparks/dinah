@@ -2470,6 +2470,16 @@
       "context": "Spliced onto refusal.dinah.damaged-workbench as the next step. Naming --workbench {detail} is what lets the reader reach Open's own, more specific per-field refusal (missing title, missing profile, and so on) despite the discovery walk itself being unable to say more than damaged; --workbench bypasses recognition entirely and tests only that the file exists, which it does.",
       "source": "78159c3092a046a6"
     },
+    "refusal.dinah.unreadable-container": {
+      "text": "{detail} मौजूद है और इसकी सूची नहीं बनाई जा सकी",
+      "context": "The sentence printed after the refusal name dinah.unreadable-container. {detail} is the .dinah container directory the walk found and could not list, which is the container directory itself rather than a workbench.md inside it.",
+      "source": "e6d65922b68428ad"
+    },
+    "refusal.dinah.unreadable-container.next": {
+      "text": "; जाँचें कि उस पथ पर कोई डायरेक्टरी है, फ़ाइल नहीं, और उसकी अनुमतियां पढ़ने देती हैं, या कंटेनर को किसी बैकअप से या git से बहाल करें",
+      "context": "Spliced onto refusal.dinah.unreadable-container as the next step. It asks about a file sitting where the directory belongs before it mentions permissions, because that corruption is the one the permission advice on dinah.unreadable-workbench does not fit.",
+      "source": "6efc6e4267cf6b76"
+    },
     "refusal.dinah.unreadable-workbench": {
       "text": "{detail} मौजूद है और पढ़ी नहीं जा सकी",
       "context": "The sentence printed after the refusal name dinah.unreadable-workbench. {detail} is the workbench.md the search found and could not open.",

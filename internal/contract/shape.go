@@ -785,6 +785,14 @@ var Shapes = []Shape{
 		NextStep:  []string{"refusal.dinah.damaged-workbench.next"},
 	},
 	{
+		// One sentence and one next step again, mirroring UnreadableBench,
+		// because this refusal reports the same kind of failure one directory
+		// further out and has no alternation to resolve either.
+		Name:      UnreadableContainer,
+		Fragments: []Fragment{{Key: "refusal.dinah.unreadable-container.next"}},
+		NextStep:  []string{"refusal.dinah.unreadable-container.next"},
+	},
+	{
 		// The clause split out of the base entry sat ahead of the dash hint
 		// inside the sentence, so its fragment is declared ahead of it here
 		// and a reader sees the three pieces in the order they were written.
