@@ -73,10 +73,11 @@ func (l *Library) Pull(req *Request) *Response {
 	// still answers its own name. Only when it holds no ready card does the
 	// pull look further back, through the columns that carry into this
 	// destination, nearest first.
-	head, sawReady := headOfReadyForTier(l.Bench, upstream.ID, destination, cards, req.Tier)
+	by := selectionAdmission(req)
+	head, sawReady := headOfReadyForTier(l.Bench, upstream.ID, destination, cards, by)
 	if head == nil {
 		var furtherReady bool
-		head, furtherReady = headOfFurtherSource(l.Bench, destination, upstream, cards, req.Tier)
+		head, furtherReady = headOfFurtherSource(l.Bench, destination, upstream, cards, by)
 		sawReady = sawReady || furtherReady
 	}
 	if head == nil {
@@ -173,10 +174,11 @@ func (l *Library) pullDestination(req *Request, named *bench.Column) (*bench.Col
 // answer is the one the caller is given.
 func (l *Library) pullCandidates(req *Request, cards []*bench.Card) ([]string, bool) {
 	operator := req.Actor == l.Bench.Operator
+	by := selectionAdmission(req)
 	var qualifying []string
 	aboveTier := false
 	for _, column := range l.Bench.Columns {
-		ready, gated := l.someSourceIsReady(column, cards, operator, req.Tier)
+		ready, gated := l.someSourceIsReady(column, cards, operator, by)
 		// The tier observation is kept only for a column clearing every other
 		// row of the list, so the aggregate never reports tier-gated work
 		// standing somewhere this caller could not have pulled into for a
@@ -215,13 +217,13 @@ func (l *Library) pullCandidates(req *Request, cards []*bench.Card) ([]string, b
 // The walk does not stop at the first qualifying source, because a source
 // holding only gated work still has to be seen when a nearer one has already
 // answered yes.
-func (l *Library) someSourceIsReady(destination *bench.Column, cards []*bench.Card, operator bool, declared string) (bool, bool) {
+func (l *Library) someSourceIsReady(destination *bench.Column, cards []*bench.Card, operator bool, by admission) (bool, bool) {
 	ready, gated := false, false
 	for _, source := range pullSources(destination, l.Bench.Columns) {
 		if source.OperatorOwned && !operator {
 			continue
 		}
-		head, sawReady := headOfReadyForTier(l.Bench, source.ID, destination, cards, declared)
+		head, sawReady := headOfReadyForTier(l.Bench, source.ID, destination, cards, by)
 		switch {
 		case head != nil:
 			ready = true
@@ -496,13 +498,13 @@ func pullDepartureName(column *bench.Column) string {
 // the caller. The walk carries on past a gated source rather than stopping
 // there, so a nearer column holding only gated work cannot hide an eligible
 // card standing further back.
-func headOfFurtherSource(b *bench.Bench, destination, upstream *bench.Column, cards []*bench.Card, declared string) (*bench.Card, bool) {
+func headOfFurtherSource(b *bench.Bench, destination, upstream *bench.Column, cards []*bench.Card, by admission) (*bench.Card, bool) {
 	sawReady := false
 	for _, source := range pullSources(destination, b.Columns) {
 		if source == upstream {
 			continue
 		}
-		head, ready := headOfReadyForTier(b, source.ID, destination, cards, declared)
+		head, ready := headOfReadyForTier(b, source.ID, destination, cards, by)
 		if ready {
 			sawReady = true
 		}

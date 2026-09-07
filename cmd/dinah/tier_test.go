@@ -1053,3 +1053,54 @@ func TestSelectionAtABufferReadsTheColumnTheCardWouldLandIn(t *testing.T) {
 		t.Errorf("the offer does not say the card leaves by a pull, so this test is not standing at a buffer: %+v", admitted)
 	}
 }
+
+// TestANoClaimPullTakesWorkNoRequirementCouldRefuseIt guards the exemption
+// pull's own claim gate already makes. A --no-claim pull leaves the card ready
+// and takes nothing up, so claimableTier never runs on it, and selection has
+// to withhold nothing on tier either. The caller declaring no tier is the case
+// that reads worst when this is wrong: it is told that ready work stands above
+// a tier it never named and would never have been refused for.
+func TestANoClaimPullTakesWorkNoRequirementCouldRefuseIt(t *testing.T) {
+	root := newBenchFromDefinition(t, selectionDefinition)
+	standCard(t, root, "fx-1", "assessed and unclaimed", "apex", "queue")
+
+	// The control. The pull that does claim is withheld this same card by the
+	// same undeclared caller, which is what shows the fixture carries a real
+	// requirement and that the assertions below are not passing on a card
+	// nobody assessed.
+	claiming := answerFrom(t, root, "doing")
+	if claiming.Card != nil {
+		t.Fatalf("a claiming pull declaring nothing took an assessed card, so this fixture proves nothing: %+v", claiming)
+	}
+	if claiming.Message != "answer.pull.above-tier.named" {
+		t.Fatalf("the claiming pull answered %q, wanted answer.pull.above-tier.named", claiming.Message)
+	}
+
+	answer := answerFrom(t, root, "doing", "--no-claim")
+	if answer.Card == nil {
+		t.Fatalf("a --no-claim pull moved nothing, though no requirement the card carries could refuse it: %+v", answer)
+	}
+	if answer.Card.Ref != "fx-1" {
+		t.Errorf("the --no-claim pull moved %s, wanted fx-1", answer.Card.Ref)
+	}
+	listing := runCLI(t, root, "ls", "doing")
+	if listing.code != 0 {
+		t.Fatalf("ls doing: %d %s", listing.code, listing.errw)
+	}
+	if !strings.Contains(listing.out, "fx-1") {
+		t.Errorf("the card the --no-claim pull moved did not land in the destination:\n%s", listing.out)
+	}
+	if !strings.Contains(listing.out, "ready") {
+		t.Errorf("the --no-claim pull did not leave the card ready:\n%s", listing.out)
+	}
+
+	// The bare form selects through pullCandidates rather than through the
+	// named form's own two steps, so it is a second path to the rule rather
+	// than the first path called twice.
+	second := newBenchFromDefinition(t, selectionDefinition)
+	standCard(t, second, "fx-1", "assessed and unclaimed", "apex", "queue")
+	bare := answerFrom(t, second, "--no-claim")
+	if bare.Card == nil || bare.Card.Ref != "fx-1" {
+		t.Errorf("the bare --no-claim pull moved nothing, though no requirement the card carries could refuse it: %+v", bare)
+	}
+}

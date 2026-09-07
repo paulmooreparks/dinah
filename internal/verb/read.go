@@ -294,7 +294,7 @@ func (l *Library) Next(req *Request) ([]Offer, error) {
 			if byPull {
 				landing = beyond
 			}
-			head, hadReady := headOfReadyForTier(l.Bench, column.ID, landing, cards, req.Tier)
+			head, hadReady := headOfReadyForTier(l.Bench, column.ID, landing, cards, selectionAdmission(req))
 			switch {
 			case head != nil:
 				offer.Card = l.view(head)
@@ -306,6 +306,56 @@ func (l *Library) Next(req *Request) ([]Offer, error) {
 		offers = append(offers, offer)
 	}
 	return offers, nil
+}
+
+// admission is what selection measures a ready card against: what the caller
+// declared, and whether any requirement governs the act being selected for.
+//
+// The two are separate values because an empty declaration already means
+// something else. TierAdmission reads it as a caller that cannot be shown to
+// meet any floor and admits it nowhere a requirement applies, which is the
+// strict reading the claim gate asks for. An act no requirement can refuse
+// therefore cannot be described by clearing the declaration, since that is the
+// most selective input rather than the least, and it has to say instead that
+// nothing filters it.
+type admission struct {
+	declared string
+	filters  bool
+}
+
+// admits reports whether the act this admission describes could take the card
+// at landing. An act nothing filters takes the first ready card without
+// reading any requirement.
+func (a admission) admits(b *bench.Bench, card *bench.Card, landing *bench.Column) bool {
+	if !a.filters {
+		return true
+	}
+	admitted, _ := b.TierAdmission(card, landing, a.declared)
+	return admitted
+}
+
+// selectionAdmission answers what selection filters an invocation's ready
+// cards by, and it follows the claim gate rather than restating it.
+//
+// A pull that takes the card up is a claim, so selection filters by what the
+// caller declared and the card an offer shows is a card the gate admits. A
+// pull carrying --no-claim leaves the card ready and takes nothing up, so
+// pull's own gate does not run claimableTier on it at all: the call sits
+// inside pull's `if !req.NoClaim`, under a comment saying that no requirement
+// the card carries can refuse such a pull. Selection makes the same exemption
+// here. Filtering anyway would withhold cards the gate was never going to
+// refuse, and would answer a caller that declared no tier that ready work
+// stands above one.
+//
+// A caller passing --no-claim and --tier together is therefore answered as a
+// caller passing neither. The declaration describes a claimant, and this
+// invocation does not claim.
+//
+// next carries no --no-claim of its own, so it always filters. What it reports
+// is what a claim or a claiming pull would take, which is the act the gate
+// governs.
+func selectionAdmission(req *Request) admission {
+	return admission{declared: req.Tier, filters: !req.NoClaim}
 }
 
 // headOfReadyForTier returns the card pull (or next) would take from the
@@ -338,8 +388,9 @@ func (l *Library) Next(req *Request) ([]Offer, error) {
 //
 // The declaration is self-reported and nothing verifies it, exactly as it is
 // on a claim. This filters what a caller is shown; it establishes nothing
-// about the caller.
-func headOfReadyForTier(b *bench.Bench, columnID string, landing *bench.Column, cards []*bench.Card, declared string) (*bench.Card, bool) {
+// about the caller. Where the act being selected for is one no requirement can
+// refuse, by carries no filter and every ready card is eligible.
+func headOfReadyForTier(b *bench.Bench, columnID string, landing *bench.Column, cards []*bench.Card, by admission) (*bench.Card, bool) {
 	var ready []*bench.Card
 	for _, card := range cards {
 		if card.Column == columnID && card.State == contract.StateReady {
@@ -351,7 +402,7 @@ func headOfReadyForTier(b *bench.Bench, columnID string, landing *bench.Column, 
 	}
 	sortByArrival(ready)
 	for _, card := range ready {
-		if admitted, _ := b.TierAdmission(card, landing, declared); admitted {
+		if by.admits(b, card, landing) {
 			return card, true
 		}
 	}
