@@ -150,21 +150,36 @@
       "source": "60d69cecd8163ee2"
     },
     "check.card.2": {
+      "text": "--at nennt eine Spalte dieser Werkbank",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "2235cca0a0d5d60b"
+    },
+    "check.card.3": {
       "text": "das Feld ist eines, das eine Karte führt",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "823290afcaaee695"
     },
-    "check.card.3": {
+    "check.card.4": {
       "text": "die Werkbank deklariert Stufen zum Feld",
       "context": "One row of the precondition list of a command outside the five the profile specifies. The last three words bind it to the field being written: the question is whether this workbench declares a set for that one axis, never whether it declares any levels at all.",
       "source": "7be94b9daf0a52fd"
     },
-    "check.card.4": {
+    "check.card.5": {
+      "text": "ein relativer Wert hat eine Vorgabe, von der er zählt",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "945d9750f68dc8a7"
+    },
+    "check.card.6": {
       "text": "der Wert ist eine Stufe, die dieses Feld deklariert",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "4002d10f56f595e"
     },
-    "check.card.5": {
+    "check.card.7": {
+      "text": "ein relativer Wert bleibt innerhalb der deklarierten Stufen",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "d04b77900ae81b5c"
+    },
+    "check.card.8": {
       "text": "die Anfrage nennt einen Akteur",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "bc538e33f1fcc933"

@@ -157,26 +157,50 @@ var beyondChecks = map[string][]Check{
 		{Refusal: contract.NoLevels, Key: "check.add.4"},
 		{Refusal: contract.UnknownLevel, Key: "check.add.5"},
 	},
-	// The command covers two acts and a clear is a third case within one of
-	// them, so this list carries the mapping the workstream list below
-	// carries in its own comment. Rows 1 and 2 belong to get and set alike.
-	// Rows 3 and 4 run only where a value is present, so a clear evaluates
-	// rows 1, 2 and 5, and get evaluates rows 1 and 2 alone, since a read
-	// validates nothing. Row 5 runs on every write, a clear included, because
-	// a clear rewrites the anchor and journals a line and both need an actor.
+	// The command covers two acts, a clear is a third case within one of
+	// them, and --at splits the write in two, so this list carries the
+	// mapping the workstream list below carries in its own comment.
 	//
-	// Rows 3 and 4 take the named field's own axis as their subject, never
-	// the workbench. check.card.3's sentence is bound by its last three
+	// Row 1 belongs to every act. Row 3 belongs to every act that does not
+	// name a column, since runCardSet refuses --at paired with any field but
+	// tier as a usage error before either write function runs, and a get
+	// evaluates rows 1 and 3 alone because a read validates nothing. Rows 4
+	// and 6 run only where a value is present, so a clear evaluates rows 1
+	// and 3 and then row 8. Row 8 runs on every write, a clear included,
+	// because a clear rewrites the anchor and journals a line and both need
+	// an actor.
+	//
+	// Rows 2, 5 and 7 belong to the --at write alone, which SetCardTierAt
+	// carries. Row 2 resolves the column the override is written for. Rows 5
+	// and 7 belong to the relative branch of that write: a +N or -N is
+	// measured against the column's own tier default, so a column carrying
+	// none has nothing to be relative to, and a result off either end of the
+	// declared set is out of range. An absolute --at write reaches neither,
+	// and reaches row 6 instead when the name is not a declared tier.
+	//
+	// The three tier rows are inserted where the code runs them rather than
+	// appended, which is the opposite of what check.claim.8, check.move.9 and
+	// check.pull.14 do. The reason each way is the same reason. Those three
+	// lists are the profile's, numbered by the profile document, so a Dinah
+	// row among them would renumber a row the profile names. This list is
+	// Dinah's own, numbered by nothing outside it, and the page heads the
+	// table "What can go wrong, in the order each is checked", so a row
+	// printed away from where it runs would break that promise for nothing.
+	// The renumbering it costs was ruled on rather than assumed (dinah-408
+	// D-10, and dinah-413 carried it out).
+	//
+	// Rows 4 and 6 take the named field's own axis as their subject, never
+	// the workbench. check.card.4's sentence is bound by its last three
 	// words: it asks whether this workbench declares a set for that one axis,
 	// and reading it as a single workbench-wide test for whether any
-	// declaration exists would break the format's posture that the two axes
-	// are declared independently.
+	// declaration exists would break the format's posture that the axes are
+	// declared independently.
 	//
-	// The rows-3-and-4 rule is not merely a convenience. A stored level the
+	// The rows-4-and-6 rule is not merely a convenience. A stored level the
 	// workbench does not declare is tolerated everywhere and reported by
 	// check, and the only workbench where somebody wants to clear one is a
 	// workbench whose declaration has since changed or gone. A clear running
-	// row 3 would refuse there, leaving the one card that needs clearing as
+	// row 4 would refuse there, leaving the one card that needs clearing as
 	// the one card that cannot be cleared.
 	//
 	// The keys are check.card.N rather than the card-field prefix the two
@@ -184,10 +208,13 @@ var beyondChecks = map[string][]Check{
 	// CheckKey composes it.
 	"card": {
 		{Refusal: contract.UnknownCard, Key: "check.card.1"},
-		{Refusal: contract.UnknownField, Key: "check.card.2"},
-		{Refusal: contract.NoLevels, Key: "check.card.3"},
-		{Refusal: contract.UnknownLevel, Key: "check.card.4"},
-		{Refusal: contract.NoOwner, Key: "check.card.5"},
+		{Refusal: contract.UnknownColumn, Key: "check.card.2"},
+		{Refusal: contract.UnknownField, Key: "check.card.3"},
+		{Refusal: contract.NoLevels, Key: "check.card.4"},
+		{Refusal: contract.NoTierDefault, Key: "check.card.5"},
+		{Refusal: contract.UnknownLevel, Key: "check.card.6"},
+		{Refusal: contract.TierOutOfRange, Key: "check.card.7"},
+		{Refusal: contract.NoOwner, Key: "check.card.8"},
 	},
 	"comment": {
 		{Refusal: contract.UnknownCard, Key: "check.comment.1"},
