@@ -379,9 +379,15 @@ func declaredArgNames(t tool) map[string]bool {
 // parameter list is declaredArgNames' answer, since a property offered here
 // and refused there would tell a caller two different things.
 //
-// No property carries an enum. A description is additive and constrains no
-// caller, where an enum changes what a strict client will send, which is a
-// change to a published machine interface.
+// Three keys beyond the type and the description say what a generic client
+// cannot infer from either, and vocabularyKeys below derives all three from
+// the same parameter table the rest of this function reads. An enum does
+// change what a strict client will send, and this head published none until
+// dinah-420, which reversed that decision: the argument a command accepts a
+// closed set of values for is refused at the far end anyway, and a client
+// that cannot see the set has to ask a person to type one of its members
+// from memory. Publishing the set moves that refusal from run time to
+// composition time.
 func schemaFor(t tool) map[string]any {
 	catalog := msg.For(msg.Base)
 	properties := map[string]any{}
@@ -391,7 +397,11 @@ func schemaFor(t tool) map[string]any {
 			continue
 		}
 		description := catalog.T(param.SummaryKey(t.command))
-		properties[param.Name] = map[string]any{"type": param.Type(), "description": description}
+		property := map[string]any{"type": param.Type(), "description": description}
+		for key, value := range vocabularyKeys(t.command, param) {
+			property[key] = value
+		}
+		properties[param.Name] = property
 		if param.Required {
 			required = append(required, param.Name)
 		}
@@ -416,6 +426,46 @@ func schemaFor(t tool) map[string]any {
 	}
 	return schema
 }
+
+// vocabularyKeys are the schema keys one parameter earns beyond its type and
+// its description, keyed by the key each is published under.
+//
+// The three answer three questions a client asking "what may I send here?"
+// cannot settle from a bare string type. A parameter whose vocabulary is
+// fixed in the source publishes that set as "enum", so a client offers the
+// members rather than a blank field. A parameter whose vocabulary is resolved
+// when a head runs publishes the source's own name under
+// "x-dinah-vocabulary-source", because the members are workbench data this
+// process cannot put in a static schema; a client that recognises the source
+// resolves it with a call of its own, and one that does not sees a key it may
+// ignore, which is what the "x-" prefix is for. A duration-typed parameter
+// publishes "format": "duration", because the value is a string whose grammar
+// is verb.ParseDuration's rather than free text.
+//
+// Nothing here is hand-maintained. The vocabulary comes from
+// verb.VocabularyFor, which reads the same table the cli head's own
+// completion reads, and the duration marker comes from the parameter's
+// declared placeholder, so a parameter that gains or loses either changes
+// this schema without anybody editing this function.
+func vocabularyKeys(command string, param verb.Param) map[string]any {
+	keys := map[string]any{}
+	if set, declared := verb.VocabularyFor(command, param.Name); declared {
+		if set.Source == "" {
+			keys["enum"] = set.Values
+		} else {
+			keys["x-dinah-vocabulary-source"] = set.Source
+		}
+	}
+	if param.Value == durationPlaceholder {
+		keys["format"] = "duration"
+	}
+	return keys
+}
+
+// durationPlaceholder is the placeholder a duration-typed parameter declares,
+// which is the only signal the parameter table gives that a value is parsed as
+// a duration rather than taken as text.
+const durationPlaceholder = "duration"
 
 // doVerb runs one of the five contract verbs.
 func doVerb(l *verb.Library, r *verb.Request) any {

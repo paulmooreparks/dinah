@@ -898,15 +898,16 @@ func TestTheWorkstreamToolsAnswerTheWayTheTerminalDoes(t *testing.T) {
 	}
 }
 
-// TestEverySchemaPropertyIsDescribedAndNoneCarriesAnEnum asserts dinah-172
-// AC-12: every property of every generated input schema carries a non-empty
-// description, including the two schemaFor adds beyond any parameter table,
-// and no property carries an enum.
+// TestEverySchemaPropertyIsDescribed asserts dinah-172 AC-12: every property
+// of every generated input schema carries a non-empty description, including
+// the two schemaFor adds beyond any parameter table.
 //
-// A description is additive and constrains no caller. An enum changes what a
-// strict client will send, which is a change to a published machine interface,
-// so its absence is asserted here rather than left to be noticed.
-func TestEverySchemaPropertyIsDescribedAndNoneCarriesAnEnum(t *testing.T) {
+// This test also asserted that no property carried an enum until dinah-420,
+// which publishes one on every parameter whose vocabulary is fixed in the
+// source. Where the enum may and may not appear is now a rule rather than an
+// absence, and TestTheSchemaPublishesEachVocabularyAndDurationKeyExactlyWhereTheTableDeclaresIt
+// in vocabulary_schema_test.go holds the surface to it in both directions.
+func TestEverySchemaPropertyIsDescribed(t *testing.T) {
 	library := newLibrary(t)
 	answer := ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/list"}`)
 	encoded, err := json.Marshal(answer.Result)
@@ -948,9 +949,6 @@ func TestEverySchemaPropertyIsDescribedAndNoneCarriesAnEnum(t *testing.T) {
 			described++
 			if name == "actor" || name == "basis" || name == "workbench" {
 				beyond++
-			}
-			if _, carried := property["enum"]; carried {
-				t.Errorf("%s: the property %s carries an enum, which changes what a strict client sends", tool.Name, name)
 			}
 		}
 	}
