@@ -7,11 +7,15 @@
 // that tool's own input schema (dinah-420).
 //
 // A schema property carries a type and a description, and dinah publishes
-// three further keys beside them: `enum` for a vocabulary fixed in the source,
-// `x-dinah-vocabulary-source` for one a head resolves when it runs, and
-// `format: "duration"` for a value parsed as a duration. This module turns
-// each of those into the prompt a reader answers, and turns anything it does
-// not recognise into an exclusion carrying a reason rather than into a guess.
+// four further keys beside them: `enum` for a vocabulary fixed in the source
+// whose one member is the whole value, `x-dinah-vocabulary-members` for a
+// fixed vocabulary whose members are combined into a comma-separated list,
+// `x-dinah-vocabulary-source` for a vocabulary a head resolves when it runs,
+// and `format: "duration"` for a value parsed as a duration. A list-valued
+// property carries `x-dinah-value-list: true` beside its members. This module
+// turns each of those into the prompt a reader answers, and turns anything it
+// does not recognise into an exclusion carrying a reason rather than into a
+// guess.
 //
 // Nothing here imports vscode. The build runs under `node --test` against
 // fabricated tool tables and against the binary this commit builds, and
@@ -24,6 +28,21 @@ import { callMcp } from "./mcpClient";
 
 /** The vendor key dinah publishes a runtime-resolved vocabulary's source under. */
 export const VOCABULARY_SOURCE_KEY = "x-dinah-vocabulary-source";
+
+/**
+ * The vendor key carrying the members of a list-valued fixed vocabulary.
+ *
+ * A single-valued argument publishes its set as `enum`, because the whole
+ * value has to be one member. `show`'s `fields` argument is split on commas
+ * before any member is checked, so `card,body` is legal and is not a member,
+ * and an enum would have made it invalid on a surface that accepts it. dinah
+ * publishes the members under this key instead, which describes the argument
+ * without narrowing it.
+ */
+export const VOCABULARY_MEMBERS_KEY = "x-dinah-vocabulary-members";
+
+/** The vendor key marking a property whose value is a comma-separated list. */
+export const VALUE_LIST_KEY = "x-dinah-value-list";
 
 /** The one `format` this build knows how to prompt for. */
 export const DURATION_FORMAT = "duration";
@@ -63,6 +82,7 @@ export type ArgumentPrompt =
 	| { readonly kind: "text" }
 	| { readonly kind: "boolean" }
 	| { readonly kind: "choice"; readonly values: readonly string[] }
+	| { readonly kind: "list"; readonly values: readonly string[] }
 	| { readonly kind: "vocabulary"; readonly source: string }
 	| { readonly kind: "duration" };
 
@@ -87,6 +107,25 @@ export interface ExcludedVerb {
 }
 
 /**
+ * A build that reached a verb list, with everything the reader is owed about
+ * what did not reach it.
+ *
+ * `unnamed` counts the tool-table entries this build could not name: an entry
+ * that is not an object, one carrying no `name` member, and one whose name is
+ * the empty string. Such an entry earns no `ExcludedVerb`, because an
+ * exclusion names the tool it excludes and there is no name here to print.
+ * It is still counted, and it still writes a line to the channel, because the
+ * palette's whole claim is that its entries are what the tool reported, and a
+ * silently dropped entry breaks that claim exactly where nobody is looking.
+ */
+export interface CatalogOk {
+	readonly kind: "ok";
+	readonly verbs: readonly RenderableVerb[];
+	readonly excluded: readonly ExcludedVerb[];
+	readonly unnamed: number;
+}
+
+/**
  * What building the catalog came to.
  *
  * The failures are separate arms rather than an empty verb list, because the
@@ -96,11 +135,7 @@ export interface ExcludedVerb {
  * nobody could ask it.
  */
 export type CatalogBuild =
-	| {
-			readonly kind: "ok";
-			readonly verbs: readonly RenderableVerb[];
-			readonly excluded: readonly ExcludedVerb[];
-	  }
+	| CatalogOk
 	| { readonly kind: "spawn-failed"; readonly detail: string }
 	| { readonly kind: "transport-error"; readonly detail: string }
 	| { readonly kind: "no-renderable-verbs"; readonly detail: string };
@@ -124,15 +159,21 @@ function isStringArray(value: unknown): value is string[] {
  * Decides what one schema property becomes, or why it cannot become anything.
  *
  * The rule is a whitelist: a property is renderable when it classifies under
- * one of the five prompts this build knows, using only the keys this build
+ * one of the six prompts this build knows, using only the keys this build
  * knows. Everything else is unrenderable, which is what arrives the day the
  * CLI is newer than the extension and some argument grows a shape written
  * after this classifier was.
  *
- * A property carrying more than one of the three constraining keys is
+ * A property carrying more than one of the four constraining keys is
  * unrenderable too. Nothing publishes such a property today, and guessing
  * which of two constraints wins would be inventing a rule dinah has not
  * declared.
+ *
+ * The list marker is read as a modifier rather than as one of those four,
+ * because it says how the value is composed and not what the value may be.
+ * A marker spelled as anything but `true`, and a members key on a property
+ * carrying no marker, are both shapes this build has no rule for, so both are
+ * unrenderable rather than guessed at.
  */
 export function classifyProperty(property: unknown): Classification {
 	if (!isObject(property)) {
@@ -148,14 +189,25 @@ export function classifyProperty(property: unknown): Classification {
 					: `a type of ${JSON.stringify(type)}`,
 		};
 	}
-	const carried = ["enum", VOCABULARY_SOURCE_KEY, "format"].filter(
-		(key) => property[key] !== undefined,
-	);
+	const carried = [
+		"enum",
+		VOCABULARY_MEMBERS_KEY,
+		VOCABULARY_SOURCE_KEY,
+		"format",
+	].filter((key) => property[key] !== undefined);
+	const marker = property[VALUE_LIST_KEY];
+	if (marker !== undefined && marker !== true) {
+		return {
+			kind: "unrenderable",
+			detail: `${VALUE_LIST_KEY} spelled as ${JSON.stringify(marker)} rather than true`,
+		};
+	}
+	const isList = marker === true;
 	if (type === "boolean") {
-		if (carried.length > 0) {
+		if (carried.length > 0 || isList) {
 			return {
 				kind: "unrenderable",
-				detail: `a boolean carrying ${carried.join(" and ")}`,
+				detail: `a boolean carrying ${[...carried, ...(isList ? [VALUE_LIST_KEY] : [])].join(" and ")}`,
 			};
 		}
 		return { kind: "prompt", prompt: { kind: "boolean" } };
@@ -163,12 +215,34 @@ export function classifyProperty(property: unknown): Classification {
 	if (carried.length > 1) {
 		return { kind: "unrenderable", detail: `${carried.join(" and ")} at once` };
 	}
+	if (property[VOCABULARY_MEMBERS_KEY] !== undefined) {
+		const values = property[VOCABULARY_MEMBERS_KEY];
+		if (!isStringArray(values) || values.length === 0) {
+			return {
+				kind: "unrenderable",
+				detail: `a ${VOCABULARY_MEMBERS_KEY} that is not a non-empty list of strings`,
+			};
+		}
+		if (!isList) {
+			return {
+				kind: "unrenderable",
+				detail: `${VOCABULARY_MEMBERS_KEY} on a property carrying no ${VALUE_LIST_KEY}, so what the members bound is undeclared`,
+			};
+		}
+		return { kind: "prompt", prompt: { kind: "list", values } };
+	}
 	if (property["enum"] !== undefined) {
 		const values = property["enum"];
 		if (!isStringArray(values) || values.length === 0) {
 			return {
 				kind: "unrenderable",
 				detail: "an enum that is not a non-empty list of strings",
+			};
+		}
+		if (isList) {
+			return {
+				kind: "unrenderable",
+				detail: `an enum on a property carrying ${VALUE_LIST_KEY}, which would refuse a legal answer naming two members`,
 			};
 		}
 		return { kind: "prompt", prompt: { kind: "choice", values } };
@@ -224,9 +298,10 @@ function orderArguments(
  * Classifies one entry of the tool table, and answers undefined for an entry
  * that is not a tool at all.
  *
- * An entry with no name is dropped rather than excluded, because an exclusion
- * names the tool it excludes and this one names nothing a reader could look
- * up.
+ * An entry with no name answers undefined rather than an exclusion, because
+ * an exclusion names the tool it excludes and this one names nothing a reader
+ * could look up. buildCatalog counts what it drops and says so on the
+ * channel, so answering undefined here is not the same as the entry vanishing.
  */
 export function classifyTool(entry: unknown): ToolVerdict | undefined {
 	if (
@@ -297,9 +372,15 @@ export async function buildCatalog(deps: CatalogDeps): Promise<CatalogBuild> {
 	}
 	const verbs: RenderableVerb[] = [];
 	const excluded: ExcludedVerb[] = [];
-	for (const entry of listed) {
+	let unnamed = 0;
+	for (const [position, entry] of listed.entries()) {
 		const verdict = classifyTool(entry);
 		if (verdict === undefined) {
+			unnamed += 1;
+			deps.log(
+				`Command palette: dropping tool table entry ${String(position + 1)} ` +
+					`of ${String(listed.length)}, which carries no usable name`,
+			);
 			continue;
 		}
 		if (verdict.kind === "renderable") {
@@ -318,7 +399,7 @@ export async function buildCatalog(deps: CatalogDeps): Promise<CatalogBuild> {
 			detail: `dinah mcp reported ${String(listed.length)} tool(s) and this build can render none of them`,
 		};
 	}
-	return { kind: "ok", verbs, excluded };
+	return { kind: "ok", verbs, excluded, unnamed };
 }
 
 /**
@@ -329,19 +410,21 @@ export async function buildCatalog(deps: CatalogDeps): Promise<CatalogBuild> {
  * would say the same thing about a tool this build cannot draw as about a tool
  * that does not exist, and the channel line naming each exclusion is no use to
  * somebody who has no reason to open the channel.
+ *
+ * The count is every entry the build did not turn into a row, which means the
+ * unnameable entries as well as the excluded ones. Their names cannot reach
+ * the channel and their existence can, so leaving them out of the count would
+ * put the palette back in the position of being quietly short.
  */
-export function verbPickItems(
-	verbs: readonly RenderableVerb[],
-	excluded: readonly ExcludedVerb[],
-	t: Localizer,
-): PickItem[] {
-	const items: PickItem[] = verbs.map((verb) => ({
+export function verbPickItems(build: CatalogOk, t: Localizer): PickItem[] {
+	const items: PickItem[] = build.verbs.map((verb) => ({
 		label: verb.name,
 		value: verb.name,
 	}));
-	if (excluded.length > 0) {
+	const missing = build.excluded.length + build.unnamed;
+	if (missing > 0) {
 		items.push({
-			label: t("dialog.runVerb.excludedSeparator", { count: excluded.length }),
+			label: t("dialog.runVerb.excludedSeparator", { count: missing }),
 			value: "",
 			kind: "separator",
 		});

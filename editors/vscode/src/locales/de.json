@@ -410,6 +410,21 @@
 			"context": "Placeholder of the quick pick resolving an argument whose values are a closed set, which is either a set fixed in the source or one dinah resolves when it runs. {argument} is the argument's own untranslated name.",
 			"source": "26130caf93227e1d"
 		},
+		"dialog.runVerb.omitOptional": {
+			"text": "{argument} weglassen",
+			"context": "Label of the first row in the quick pick for an optional argument whose values are a closed set. Choosing it leaves the argument out of the call, which Escape cannot do, because Escape abandons the whole wizard. {argument} is the argument's own untranslated name.",
+			"source": "585d35a542fbfbb9"
+		},
+		"dialog.runVerb.requiredListPrompt": {
+			"text": "{argument} (erforderlich, eines oder mehrere aus {values}, durch Kommas getrennt)",
+			"context": "Prompt of the input box for a required argument whose value is a comma-separated list drawn from a fixed set. {argument} is the argument's own untranslated name and {values} is that set, also untranslated.",
+			"source": "581e79eb620a944f"
+		},
+		"dialog.runVerb.optionalListPrompt": {
+			"text": "{argument} (optional, eines oder mehrere aus {values}, durch Kommas getrennt; leer lassen zum Auslassen)",
+			"context": "Prompt of the input box for an optional argument whose value is a comma-separated list drawn from a fixed set. A blank answer leaves the argument out of the call. {argument} and {values} are untranslated.",
+			"source": "da9adb985921f718"
+		},
 		"dialog.runVerb.durationPlaceholder": {
 			"text": "{argument} (z. B. 30m, 2h)",
 			"context": "Prompt of the input box for a duration-typed argument. The answer is passed through unexamined and parsed by the CLI's own ParseDuration.",
@@ -429,6 +444,11 @@
 			"text": "Dinah meldete keinen Befehl, den diese Version der Erweiterung ausführen kann. Einzelheiten in der Dinah-Ausgabe.",
 			"context": "Toast when tools/list parsed but held no verb this build can render, whether because tools itself came back empty or every entry was unrenderable under this build's classifier.",
 			"source": "a2c401aac950f58b"
+		},
+		"dialog.runVerb.noRenderableVerbs.channel": {
+			"text": "Befehlspalette: kein Befehl, den dieser Build ausführen kann. {detail}",
+			"context": "Output channel line beside the noRenderableVerbs toast. The listing succeeded here and the rendering did not, which is why this line is not the enumerationFailed one. {detail} is what the build reported.",
+			"source": "77b488ae4a778c35"
 		},
 		"dialog.runVerb.vocabularyResolutionFailed.toast": {
 			"text": "Die Auswahl für {argument} konnte nicht aufgelistet werden. Einzelheiten in der Dinah-Ausgabe.",

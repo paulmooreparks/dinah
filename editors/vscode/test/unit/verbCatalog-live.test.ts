@@ -102,14 +102,19 @@ test("the palette can render every tool this commit's binary publishes", async (
 	if (catalog.kind !== "ok") {
 		return;
 	}
-	// Three assertions rather than one, because "excluded nothing" is true of a
+	// Four assertions rather than one, because "excluded nothing" is true of a
 	// build that read nothing at all. The palette has to carry a verb for every
-	// tool the binary published, by name, with the exclusion list empty and its
-	// own log silent.
+	// tool the binary published, by name, with the exclusion list empty, no
+	// entry dropped for want of a name, and its own log silent.
 	assert.deepEqual(
 		catalog.excluded,
 		[],
 		`this build cannot render every published tool:\n${lines.join("\n")}`,
+	);
+	assert.equal(
+		catalog.unnamed,
+		0,
+		`the binary published an entry this build could not name:\n${lines.join("\n")}`,
 	);
 	assert.deepEqual(lines, [], "an exclusion was logged with nothing excluded");
 	assert.deepEqual(

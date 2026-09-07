@@ -151,12 +151,12 @@
       {
         "command": "dinah.runVerb",
         "title": "%manifest.command.dinah.runVerb.title%",
-        "enablement": "dinah.binary == 'ok'"
+        "enablement": "dinah.binary == 'ok' && workspaceFolderCount != 0"
       },
       {
         "command": "dinah.refreshVerbCatalog",
         "title": "%manifest.command.dinah.refreshVerbCatalog.title%",
-        "enablement": "dinah.binary == 'ok'"
+        "enablement": "dinah.binary == 'ok' && workspaceFolderCount != 0"
       }
     ],
     "menus": {

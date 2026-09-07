@@ -164,7 +164,7 @@ test("an undrawable verb is left out, named in the log, and counted in a separat
 	assert.ok(logged[0].includes("tags"), `the line names no property: ${logged[0]}`);
 	assert.ok(logged[0].includes("array"), `the line names no reason: ${logged[0]}`);
 
-	const items: PickItem[] = verbPickItems(outcome.verbs, outcome.excluded, ENGLISH);
+	const items: PickItem[] = verbPickItems(outcome, ENGLISH);
 	const last = items[items.length - 1];
 	assert.equal(last.kind, "separator");
 	assert.ok(
@@ -180,7 +180,7 @@ test("a table this build can draw entirely ends in no separator row", async () =
 	if (outcome.kind !== "ok") {
 		return;
 	}
-	const items = verbPickItems(outcome.verbs, outcome.excluded, ENGLISH);
+	const items = verbPickItems(outcome, ENGLISH);
 	assert.deepEqual(
 		items.map((item) => item.kind),
 		[undefined],
@@ -265,4 +265,134 @@ test("a spawn outcome carrying no answer to the request is a transport error", a
 	};
 	const built = await build(async () => outcome);
 	assert.equal(built.kind, "transport-error");
+});
+
+// ---------------------------------------------------------------------------
+// A tool-table entry this build cannot name is counted and said out loud
+// ---------------------------------------------------------------------------
+
+test("an entry carrying no usable name reaches the log and the count", async () => {
+	const logged: string[] = [];
+	const outcome = await build(
+		serving([
+			stringTool("claim"),
+			{ description: "no name at all" },
+			{ name: "", description: "an empty name" },
+			"not an object",
+		]),
+		logged,
+	);
+	assert.equal(outcome.kind, "ok");
+	if (outcome.kind !== "ok") {
+		return;
+	}
+	assert.deepEqual(
+		outcome.verbs.map((verb) => verb.name),
+		["claim"],
+	);
+	assert.equal(
+		outcome.unnamed,
+		3,
+		"an entry this build could not name was dropped without being counted",
+	);
+	assert.equal(
+		logged.length,
+		3,
+		`the channel is silent about a dropped entry: ${logged.join(" | ")}`,
+	);
+	for (const position of ["2", "3", "4"]) {
+		assert.ok(
+			logged.some((line) => line.includes(`entry ${position}`)),
+			`no line names entry ${position}: ${logged.join(" | ")}`,
+		);
+	}
+
+	// The separator is what a reader who never opens the channel sees, so an
+	// unnameable entry has to reach it even though its name cannot.
+	const items = verbPickItems(outcome, ENGLISH);
+	const last = items[items.length - 1];
+	assert.equal(last.kind, "separator");
+	assert.ok(
+		last.label.includes("3"),
+		`the separator undercounts what was dropped: ${last.label}`,
+	);
+});
+
+test("an excluded verb and an unnameable entry are counted together", async () => {
+	const outcome = await build(
+		serving([
+			stringTool("claim"),
+			{
+				name: "future",
+				inputSchema: {
+					type: "object",
+					properties: { tags: { type: "array", description: "several tags" } },
+				},
+			},
+			{ name: "" },
+		]),
+	);
+	assert.equal(outcome.kind, "ok");
+	if (outcome.kind !== "ok") {
+		return;
+	}
+	assert.equal(outcome.excluded.length, 1);
+	assert.equal(outcome.unnamed, 1);
+	const items = verbPickItems(outcome, ENGLISH);
+	assert.ok(
+		items[items.length - 1].label.includes("2"),
+		`the separator names one of the two: ${items[items.length - 1].label}`,
+	);
+});
+
+// ---------------------------------------------------------------------------
+// A list-valued property is not a closed set of single values
+// ---------------------------------------------------------------------------
+
+test("a list-valued property carrying members classifies as a list", () => {
+	assert.deepEqual(
+		classifyProperty({
+			type: "string",
+			description: "which fields",
+			"x-dinah-value-list": true,
+			"x-dinah-vocabulary-members": ["card", "body"],
+		}),
+		{ kind: "prompt", prompt: { kind: "list", values: ["card", "body"] } },
+	);
+});
+
+test("an enum on a list-valued property is refused rather than narrowed", () => {
+	const verdict = classifyProperty({
+		type: "string",
+		description: "which fields",
+		"x-dinah-value-list": true,
+		enum: ["card", "body"],
+	});
+	assert.equal(verdict.kind, "unrenderable");
+	if (verdict.kind !== "unrenderable") {
+		return;
+	}
+	assert.ok(
+		verdict.detail.includes("two members"),
+		`the reason does not name the defect: ${verdict.detail}`,
+	);
+});
+
+test("members without the list marker leave what they bound undeclared", () => {
+	const verdict = classifyProperty({
+		type: "string",
+		description: "which fields",
+		"x-dinah-vocabulary-members": ["card", "body"],
+	});
+	assert.equal(verdict.kind, "unrenderable");
+});
+
+test("a list marker spelled as anything but true is refused", () => {
+	const verdict = classifyProperty({
+		type: "string",
+		description: "which fields",
+		"x-dinah-value-list": "yes",
+		"x-dinah-vocabulary-members": ["card"],
+	});
+	assert.equal(verdict.kind, "unrenderable");
 });

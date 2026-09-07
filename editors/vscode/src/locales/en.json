@@ -325,6 +325,18 @@
 			"text": "Choose {argument}",
 			"context": "Placeholder of the quick pick resolving an argument whose values are a closed set, which is either a set fixed in the source or one dinah resolves when it runs. {argument} is the argument's own untranslated name."
 		},
+		"dialog.runVerb.omitOptional": {
+			"text": "Leave {argument} out",
+			"context": "Label of the first row in the quick pick for an optional argument whose values are a closed set. Choosing it leaves the argument out of the call, which Escape cannot do, because Escape abandons the whole wizard. {argument} is the argument's own untranslated name."
+		},
+		"dialog.runVerb.requiredListPrompt": {
+			"text": "{argument} (required, one or more of {values}, separated by commas)",
+			"context": "Prompt of the input box for a required argument whose value is a comma-separated list drawn from a fixed set. {argument} is the argument's own untranslated name and {values} is that set, also untranslated."
+		},
+		"dialog.runVerb.optionalListPrompt": {
+			"text": "{argument} (optional, one or more of {values}, separated by commas; leave blank to omit)",
+			"context": "Prompt of the input box for an optional argument whose value is a comma-separated list drawn from a fixed set. A blank answer leaves the argument out of the call. {argument} and {values} are untranslated."
+		},
 		"dialog.runVerb.durationPlaceholder": {
 			"text": "{argument} (e.g. 30m, 2h)",
 			"context": "Prompt of the input box for a duration-typed argument. The answer is passed through unexamined and parsed by the CLI's own ParseDuration."
@@ -340,6 +352,10 @@
 		"dialog.runVerb.noRenderableVerbs.toast": {
 			"text": "Dinah reported no verb this version of the extension can run. See the Dinah output channel for details.",
 			"context": "Toast when tools/list parsed but held no verb this build can render, whether because tools itself came back empty or every entry was unrenderable under this build's classifier."
+		},
+		"dialog.runVerb.noRenderableVerbs.channel": {
+			"text": "Command palette: no verb this build can run. {detail}",
+			"context": "Output channel line beside the noRenderableVerbs toast. The listing succeeded here and the rendering did not, which is why this line is not the enumerationFailed one. {detail} is what the build reported."
 		},
 		"dialog.runVerb.vocabularyResolutionFailed.toast": {
 			"text": "Could not list the choices for {argument}. See the Dinah output channel for details.",

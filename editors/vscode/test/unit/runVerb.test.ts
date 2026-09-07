@@ -72,13 +72,47 @@ function rpc(id: number, result: unknown): string {
 }
 
 /**
+ * A tool whose only two arguments are optional and constrained, which is the
+ * shape nine served tools have and the shape the wizard could not compose
+ * before dinah-420's code review.
+ *
+ * `kind` is a fixed set, as `new_column`'s own is, and `fields` is a
+ * comma-separated list drawn from a fixed set, as `show`'s is. Neither is
+ * required, so the ordinary invocation of this tool sends neither.
+ */
+const OPTIONAL_TOOL = {
+	name: "show",
+	description: "reads a card",
+	inputSchema: {
+		type: "object",
+		properties: {
+			kind: {
+				type: "string",
+				description: "which kind",
+				enum: ["flow", "queue"],
+			},
+			fields: {
+				type: "string",
+				description: "which fields",
+				"x-dinah-value-list": true,
+				"x-dinah-vocabulary-members": ["card", "body", "links"],
+			},
+		},
+	},
+};
+
+/**
  * A driver over a fake server.
  *
  * The spawner reads the request off the stdin the wizard wrote, so what the
  * test asserts on is the bytes the process would have received rather than an
  * argument list a helper remembered.
  */
-function driver(columns: ColumnRow[], callResult: unknown = { outcome: "ok" }): Driver {
+function driver(
+	columns: ColumnRow[],
+	callResult: unknown = { outcome: "ok" },
+	served: readonly unknown[] = [WIZARD_TOOL],
+): Driver {
 	const calls: Call[] = [];
 	const errors: string[] = [];
 	const logged: string[] = [];
@@ -111,7 +145,7 @@ function driver(columns: ColumnRow[], callResult: unknown = { outcome: "ok" }): 
 		if (request.method === "tools/list") {
 			return {
 				code: 0,
-				stdout: rpc(1, {}) + rpc(REQUEST_ID, { tools: [WIZARD_TOOL] }),
+				stdout: rpc(1, {}) + rpc(REQUEST_ID, { tools: served }),
 				stderr: "",
 			};
 		}
@@ -208,8 +242,10 @@ test("the column choice is offered by title and sent by slug", async () => {
 	await runVerbFromPalette(d.context);
 
 	const columnPick = d.offered[1];
+	// The leave-out row comes first because the argument is optional, and the
+	// resolved rows follow in the order the columns tool answered with.
 	assert.deepEqual(
-		columnPick.map((item) => [item.label, item.value]),
+		columnPick.slice(1).map((item) => [item.label, item.value]),
 		[
 			["Triage", "triage"],
 			["Build", "build"],
@@ -395,4 +431,107 @@ test("an enumeration that failed shows a message and opens no picker", async () 
 		d.logged.some((line) => line.includes("ENOENT")),
 		`the channel carries no detail: ${d.logged.join(" | ")}`,
 	);
+});
+
+// ---------------------------------------------------------------------------
+// An optional argument the schema constrains can still be left out
+// ---------------------------------------------------------------------------
+
+/** The tools/call the wizard made for the optional-argument tool. */
+function showCall(d: Driver): Call | undefined {
+	return d.calls.find((call) => call.method === "tools/call" && call.name === "show");
+}
+
+test("an optional argument with a fixed set is offered a way to be left out", async () => {
+	const d = driver([], { outcome: "ok" }, [OPTIONAL_TOOL]);
+	// The verb, then the leave-out row on the fixed set, then a blank answer
+	// to the list, which is that prompt's own way of declining.
+	d.picks = ["show", ENGLISH("dialog.runVerb.omitOptional", { argument: "kind" })];
+	d.typed = [""];
+	await runVerbFromPalette(d.context);
+
+	const call = showCall(d);
+	assert.ok(call !== undefined, "the wizard ran no call, so the verb is unreachable");
+	assert.deepEqual(
+		call.arguments,
+		{},
+		"an argument the reader declined reached the call",
+	);
+	assert.deepEqual(d.errors, []);
+	assert.deepEqual(d.checkpoints, [d.context.folder]);
+});
+
+test("the leave-out row is offered first and only where the schema allows it", async () => {
+	const d = driver([], { outcome: "ok" }, [OPTIONAL_TOOL]);
+	d.picks = ["show", "flow"];
+	d.typed = ["card,body"];
+	await runVerbFromPalette(d.context);
+
+	// offered[0] is the verb list; offered[1] is the fixed set, which is the
+	// only pick this tool opens, because the list argument is typed.
+	const kindPick = d.offered[1];
+	assert.equal(
+		kindPick[0].label,
+		ENGLISH("dialog.runVerb.omitOptional", { argument: "kind" }),
+	);
+	assert.deepEqual(
+		kindPick.slice(1).map((item) => item.value),
+		["flow", "queue"],
+	);
+	assert.deepEqual(showCall(d)?.arguments, { kind: "flow", fields: "card,body" });
+});
+
+test("a required argument with a fixed set is offered no way to be left out", async () => {
+	const required = {
+		...OPTIONAL_TOOL,
+		inputSchema: { ...OPTIONAL_TOOL.inputSchema, required: ["kind"] },
+	};
+	const d = driver([], { outcome: "ok" }, [required]);
+	d.picks = ["show", "flow"];
+	d.typed = [""];
+	await runVerbFromPalette(d.context);
+
+	assert.deepEqual(
+		d.offered[1].map((item) => item.value),
+		["flow", "queue"],
+	);
+	assert.deepEqual(showCall(d)?.arguments, { kind: "flow" });
+});
+
+test("an optional runtime-vocabulary argument can be left out too", async () => {
+	const d = driver([
+		{ id: "c1", slug: "triage", title: "Triage" },
+		{ id: "c2", slug: "build", title: "Build" },
+	]);
+	// The verb, the leave-out row on the column, then No to the marker.
+	d.picks = [
+		"move",
+		ENGLISH("dialog.runVerb.omitOptional", { argument: "column" }),
+		"No",
+	];
+	d.typed = ["dn-12", ""];
+	await runVerbFromPalette(d.context);
+
+	const call = verbCall(d);
+	assert.ok(call !== undefined, "the wizard ran no call for the verb");
+	assert.deepEqual(call.arguments, { card: "dn-12" });
+});
+
+test("the list prompt names the members a reader may combine", async () => {
+	const d = driver([], { outcome: "ok" }, [OPTIONAL_TOOL]);
+	d.picks = ["show", ENGLISH("dialog.runVerb.omitOptional", { argument: "kind" })];
+	d.typed = ["card,body"];
+	await runVerbFromPalette(d.context);
+
+	const listPrompt = d.prompts.find((prompt) => prompt.includes("fields"));
+	assert.ok(listPrompt !== undefined, `no prompt named fields: ${d.prompts.join(" | ")}`);
+	for (const member of ["card", "body", "links"]) {
+		assert.ok(
+			listPrompt.includes(member),
+			`the prompt hides the member ${member}: ${listPrompt}`,
+		);
+	}
+	// Two members together is the value the published enum had made illegal,
+	// and it travels as the reader typed it.
+	assert.deepEqual(showCall(d)?.arguments, { fields: "card,body" });
 });

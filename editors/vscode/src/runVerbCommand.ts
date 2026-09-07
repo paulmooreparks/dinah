@@ -13,8 +13,27 @@
 import type { CommandHost, PickItem } from "./cardCommands";
 import type { SpawnOptions, Spawner } from "./cli";
 import { callMcp } from "./mcpClient";
-import type { VerbArgument, VerbCatalog, RenderableVerb } from "./verbCatalog";
+import type {
+	CatalogBuild,
+	CatalogOk,
+	VerbArgument,
+	VerbCatalog,
+	RenderableVerb,
+} from "./verbCatalog";
 import { VOCABULARY_RESOLVERS, verbPickItems } from "./verbCatalog";
+
+/**
+ * The value the "leave this out" row carries.
+ *
+ * An optional argument whose schema constrains it still has to be omittable,
+ * and the row offering that has to be told apart from every real member. A
+ * NUL byte is what separates them: dinah's fixed vocabularies are identifier
+ * tokens, and a column's slug and id are drawn from the same alphabet, so no
+ * value a picker can offer contains one. Comparing on this string rather than
+ * on object identity is deliberate, because extension.ts's `pick` binding
+ * hands the array to the editor and gets a copy back.
+ */
+const OMIT_VALUE = "\u0000dinah.omit";
 
 /** What the wizard needs to ask dinah anything and to report what came back. */
 export interface RunVerbContext {
@@ -89,6 +108,32 @@ async function askText(
 			return { kind: "omitted" };
 		}
 	}
+}
+
+/**
+ * The rows a constrained argument is offered as, with a way to decline when
+ * the schema does not require it.
+ *
+ * Escape is not that way. It cancels the whole wizard, which is what a reader
+ * who has changed their mind about running anything wants, and it is not what
+ * a reader who wants an unfiltered `list_cards` wants. Without this row nine
+ * of the served tools could not be run in their ordinary form from the
+ * palette at all, because every one of them constrains an argument it does
+ * not require.
+ */
+function withOmitRow(
+	items: readonly PickItem[],
+	required: boolean,
+	t: CommandHost["t"],
+	argument: string,
+): PickItem[] {
+	if (required) {
+		return [...items];
+	}
+	return [
+		{ label: t("dialog.runVerb.omitOptional", { argument }), value: OMIT_VALUE },
+		...items,
+	];
 }
 
 /** The rows one runtime vocabulary answered with, as choices. */
@@ -170,7 +215,12 @@ async function askVocabulary(
 	// has nothing to offer. A failed call never opens one at all, which is
 	// what keeps the two apart.
 	const chosen = await context.host.pick(
-		vocabularyItems(rows),
+		withOmitRow(
+			vocabularyItems(rows),
+			argument.required,
+			context.host.t,
+			argument.name,
+		),
 		context.host.t("dialog.runVerb.vocabularyPlaceholder", {
 			argument: argument.name,
 		}),
@@ -178,7 +228,9 @@ async function askVocabulary(
 	if (chosen === undefined) {
 		return { kind: "cancelled" };
 	}
-	return { kind: "value", value: chosen.value };
+	return chosen.value === OMIT_VALUE
+		? { kind: "omitted" }
+		: { kind: "value", value: chosen.value };
 }
 
 /** Asks for one argument, whatever kind of prompt its schema earned. */
@@ -212,13 +264,41 @@ async function askArgument(
 			// The members are canonical tokens, so they are shown as they are
 			// spelled on the wire and are never translated.
 			const chosen = await context.host.pick(
-				argument.prompt.values.map((value) => ({ label: value, value })),
+				withOmitRow(
+					argument.prompt.values.map((value) => ({ label: value, value })),
+					argument.required,
+					t,
+					argument.name,
+				),
 				t("dialog.runVerb.vocabularyPlaceholder", { argument: argument.name }),
 			);
-			return chosen === undefined
-				? { kind: "cancelled" }
+			if (chosen === undefined) {
+				return { kind: "cancelled" };
+			}
+			return chosen.value === OMIT_VALUE
+				? { kind: "omitted" }
 				: { kind: "value", value: chosen.value };
 		}
+		case "list":
+			// A list-valued argument is typed rather than picked, because its
+			// legal answers are the subsets of the vocabulary rather than its
+			// members, and a quick pick offers one row at a time. The members
+			// ride in the prompt so a reader never has to know them already,
+			// and a blank answer to an optional one omits it, which is the
+			// same omit path every text argument has.
+			return askText(
+				context.host,
+				t(
+					argument.required
+						? "dialog.runVerb.requiredListPrompt"
+						: "dialog.runVerb.optionalListPrompt",
+					{
+						argument: argument.name,
+						values: argument.prompt.values.join(", "),
+					},
+				),
+				argument.required,
+			);
 		case "vocabulary":
 			return askVocabulary(context, verb, argument, argument.prompt.source, options);
 		case "duration":
@@ -254,18 +334,11 @@ export async function runVerbFromPalette(context: RunVerbContext): Promise<void>
 	const options: SpawnOptions = { cwd: context.root };
 	const build = await context.catalog.get();
 	if (build.kind !== "ok") {
-		context.host.showError(
-			build.kind === "no-renderable-verbs"
-				? t("dialog.runVerb.noRenderableVerbs.toast")
-				: t("dialog.runVerb.enumerationFailed.toast"),
-		);
-		context.host.log(
-			t("dialog.runVerb.enumerationFailed.channel", { detail: build.detail }),
-		);
+		reportFailedBuild(context.host, build);
 		return;
 	}
 	const picked = await context.host.pick(
-		verbPickItems(build.verbs, build.excluded, t),
+		verbPickItems(build, t),
 		t("dialog.runVerb.pickVerbPlaceholder"),
 	);
 	if (picked === undefined) {
@@ -310,20 +383,43 @@ export async function runVerbFromPalette(context: RunVerbContext): Promise<void>
 	await context.host.checkpoint(context.folder);
 }
 
+/**
+ * Says on both surfaces that the catalog could not be built, and says the
+ * same thing on each.
+ *
+ * The two failing arms are told apart rather than sharing one line. A build
+ * that reached the tool table and could draw nothing in it is not a build
+ * that could not read the table, and the channel line telling a reader the
+ * listing failed when the listing succeeded sends them looking for the wrong
+ * fault.
+ */
+function reportFailedBuild(
+	host: CommandHost,
+	build: Exclude<CatalogBuild, CatalogOk>,
+): void {
+	const renderable = build.kind === "no-renderable-verbs";
+	host.showError(
+		host.t(
+			renderable
+				? "dialog.runVerb.noRenderableVerbs.toast"
+				: "dialog.runVerb.enumerationFailed.toast",
+		),
+	);
+	host.log(
+		host.t(
+			renderable
+				? "dialog.runVerb.noRenderableVerbs.channel"
+				: "dialog.runVerb.enumerationFailed.channel",
+			{ detail: build.detail },
+		),
+	);
+}
+
 /** Rebuilds the catalog now, and says so when the rebuild failed. */
 export async function refreshVerbCatalog(context: RunVerbContext): Promise<void> {
 	const build = await context.catalog.rebuild();
 	if (build.kind === "ok") {
 		return;
 	}
-	context.host.showError(
-		build.kind === "no-renderable-verbs"
-			? context.host.t("dialog.runVerb.noRenderableVerbs.toast")
-			: context.host.t("dialog.runVerb.enumerationFailed.toast"),
-	);
-	context.host.log(
-		context.host.t("dialog.runVerb.enumerationFailed.channel", {
-			detail: build.detail,
-		}),
-	);
+	reportFailedBuild(context.host, build);
 }

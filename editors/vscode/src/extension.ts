@@ -1108,7 +1108,16 @@ export async function activate(
 		// it, so awaiting it would delay the tree for a list nobody has asked
 		// for yet. A build that failed is held as its own failure arm and
 		// reported when a reader runs the command.
-		void verbCatalog.get();
+		//
+		// The rejection handler is not decoration. nodeSpawner resolves on
+		// every path it has today, so nothing here can reject, and a future
+		// spawner that throws would otherwise surface as an unhandled
+		// rejection in the extension host's own log rather than in Dinah's.
+		verbCatalog.get().catch((reason: unknown) => {
+			channel.appendLine(
+				`Command palette: the catalog build at activation threw. ${String(reason)}`,
+			);
+		});
 		// A watcher on the binary's own path rather than a glob over its
 		// directory, which is the shape the checkpoint loop's watcher already
 		// uses, narrowed to one file. An upgrade that replaces the binary in
