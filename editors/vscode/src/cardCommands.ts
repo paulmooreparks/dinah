@@ -18,6 +18,7 @@ import type { CliOutcome } from "./cli";
 import { COMMAND_OPEN_ATTACHMENT } from "./identity";
 import { ENGLISH } from "./l10n";
 import type { Localizer } from "./l10n";
+import { KIND_INSTRUCTIONS } from "./servedText";
 import { nodeSpawner } from "./spawn";
 import type { TreeElement } from "./tree";
 import type { DetailAnswer, LegalMove, ServedAnswer } from "./wire";
@@ -57,6 +58,20 @@ export interface CommandHost {
 	readonly openFile: (path: string) => Promise<void>;
 	/** Opens a native file picker and answers the chosen file's absolute path. */
 	readonly pickFile: () => Promise<string | undefined>;
+	/**
+	 * Opens served text of one kind as a read-only tab, under the given title.
+	 *
+	 * The kind and the title travel together and are resolved by the caller
+	 * rather than inside the tab machinery, because the title is a catalogue
+	 * key and only the caller knows which kind it is asking for. A later kind
+	 * resolves its own title key and calls this same method.
+	 */
+	readonly openServedText: (
+		kind: string,
+		root: string,
+		ref: string,
+		title: string,
+	) => Promise<void>;
 	/** Runs one off-cycle checkpoint for the folder the card stands in. */
 	readonly checkpoint: (folder: string) => Promise<void>;
 	readonly log: (line: string) => void;
@@ -306,6 +321,23 @@ export async function moveCard(
 		return undefined;
 	}
 	return runVerb(context, ["move", context.ref, picked.value]);
+}
+
+/**
+ * Opens the card's served instruction chain as a read-only editor tab.
+ *
+ * Opening is an explicit act rather than something the claim drags along
+ * behind it (dinah-270 D-1). A tab that reopened itself every time the board
+ * moved would take the reader's focus away from whatever they were editing,
+ * which is the intrusion a panel does not commit.
+ */
+export async function openInstructions(context: CommandContext): Promise<void> {
+	await context.host.openServedText(
+		KIND_INSTRUCTIONS,
+		context.root,
+		context.ref,
+		context.host.t("servedText.title.instructions", { ref: context.ref }),
+	);
 }
 
 /**

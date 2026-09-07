@@ -18,6 +18,9 @@ import {
 	moveCard,
 	openAttachment,
 	openCard,
+	openInstructions,
+	pinnedArgv,
+	refusalMessage,
 	releaseCard,
 	unblockCard,
 } from "./cardCommands";
@@ -70,11 +73,13 @@ import {
 	COMMAND_NEW_CARD,
 	COMMAND_OPEN_ATTACHMENT,
 	COMMAND_OPEN_CARD,
+	COMMAND_OPEN_INSTRUCTIONS,
 	COMMAND_PULL,
 	COMMAND_REFRESH,
 	COMMAND_RELEASE,
 	COMMAND_UNBLOCK,
 	DRAG_MIME_TYPE,
+	SERVED_TEXT_SCHEME,
 	SETTING_PATH,
 	SETTING_POLL_INTERVAL,
 	SETTING_WATCH_FILES,
@@ -84,6 +89,13 @@ import {
 } from "./identity";
 import { contextForPull, pullFromColumn } from "./pullCommands";
 import { assertCommandsFullyRegistered } from "./registrationGuard";
+import {
+	KIND_INSTRUCTIONS,
+	ServedTextRefreshLoop,
+	parseServedTextUri,
+	renderInstructionsMarkdown,
+	servedTextUriParts,
+} from "./servedText";
 import { nodeSpawner } from "./spawn";
 import { createLocalizer, resolveTag } from "./l10n";
 import type { Localizer } from "./l10n";
@@ -91,6 +103,7 @@ import { composeContextKeys, composeStatus } from "./status";
 import type { TreeElement, TreeItemSpec } from "./tree";
 import { DinahTreeProvider } from "./tree";
 import { classifyVersion, describeVersion } from "./version";
+import type { ServedAnswer } from "./wire";
 import { NO_WORKBENCH_FOUND, resolveWorkbench } from "./workbench";
 import type {
 	WorkbenchCommandContext,
@@ -107,6 +120,7 @@ let statusItem: vscode.StatusBarItem | undefined;
 let output: vscode.OutputChannel | undefined;
 let loop: CheckpointLoop | undefined;
 let treeView: vscode.TreeView<TreeElement> | undefined;
+let servedText: ServedTextRefreshLoop | undefined;
 
 /** Reads a settings value as a string, treating an unset value as empty. */
 function setting(key: string, scope?: vscode.Uri): string {
@@ -207,6 +221,21 @@ function commandHost(
 		// (dinah-331 AC-12).
 		pickFile: async () =>
 			pickedFilePath(await vscode.window.showOpenDialog(ATTACH_DIALOG_OPTIONS)),
+		// setTextDocumentLanguage rather than trusting the `.md` suffix on the
+		// path: the suffix is display, and the language association is a
+		// documented call that says what it means.
+		openServedText: async (kind, root, ref, title) => {
+			const parts = servedTextUriParts(kind, root, ref, title);
+			const uri = vscode.Uri.from({
+				scheme: SERVED_TEXT_SCHEME,
+				authority: parts.authority,
+				path: parts.path,
+				query: parts.query,
+			});
+			const document = await vscode.workspace.openTextDocument(uri);
+			await vscode.languages.setTextDocumentLanguage(document, "markdown");
+			await vscode.window.showTextDocument(document);
+		},
 		checkpoint,
 		log: (line) => channel.appendLine(line),
 	};
@@ -491,6 +520,115 @@ export async function activate(
 		context.subscriptions.push(vscode.commands.registerCommand(id, handler));
 	}
 
+	// The served-text scheme, its one content provider, and the timer that
+	// keeps an open tab current.
+	//
+	// The provider dispatches on a resolver table keyed by the URI's authority,
+	// which is the kind of text being served. dinah-270 puts one entry in that
+	// table. A later document type adds a second entry and touches neither the
+	// provider, the URI grammar, nor the refresh loop, which is the whole point
+	// of keying it this way.
+	const resolvers: Record<
+		string,
+		(root: string, ref: string) => Promise<string>
+	> = {
+		[KIND_INSTRUCTIONS]: async (root, ref) => {
+			const outcome = await runDinah(
+				nodeSpawner,
+				binary.state === "ok" ? binary.path : "",
+				pinnedArgv(root, ["instructions", ref]),
+				{ cwd: root },
+			);
+			if (outcome.kind !== "ok") {
+				throw new Error(refusalMessage(outcome));
+			}
+			const served = outcome.json as ServedAnswer;
+			return renderInstructionsMarkdown(served.instructions, {
+				global: t("servedText.heading.global"),
+				standing: t("servedText.heading.standing"),
+				column: t("servedText.heading.column"),
+			});
+		},
+	};
+	// The Uri a tab opened under, kept so that a change can be announced for
+	// the same value the editor holds. onDidChange takes a Uri and the loop
+	// deals in the string form, which is the only key a Map can compare.
+	const servedTextUris = new Map<string, vscode.Uri>();
+	const servedTextEmitter = new vscode.EventEmitter<vscode.Uri>();
+	context.subscriptions.push(servedTextEmitter);
+	const servedTextRefreshLoop = new ServedTextRefreshLoop({
+		clock: systemClock,
+		// The tree's own setting, read a second time rather than shared as one
+		// value, because the two loops start and stop on unrelated conditions:
+		// the tree's on whether its view is visible, this one on whether any
+		// tab is open.
+		pollIntervalSeconds: settingOf<number>(SETTING_POLL_INTERVAL, 10),
+		resolve: async (kind, root, ref) => {
+			const resolve = resolvers[kind];
+			if (resolve === undefined) {
+				throw new Error(`no servedText resolver for kind ${kind}`);
+			}
+			return resolve(root, ref);
+		},
+		onChanged: (uriKey) => {
+			const uri = servedTextUris.get(uriKey);
+			if (uri !== undefined) {
+				servedTextEmitter.fire(uri);
+			}
+		},
+		log: (line) => channel.appendLine(line),
+	});
+	servedText = servedTextRefreshLoop;
+	context.subscriptions.push(
+		vscode.workspace.onDidOpenTextDocument((document) => {
+			if (document.uri.scheme !== SERVED_TEXT_SCHEME) {
+				return;
+			}
+			const parsed = parseServedTextUri(document.uri.authority, document.uri.query);
+			if (parsed === undefined) {
+				return;
+			}
+			servedTextUris.set(document.uri.toString(), document.uri);
+			servedTextRefreshLoop.noteOpened(
+				document.uri.toString(),
+				parsed.kind,
+				parsed.root,
+				parsed.ref,
+				document.getText(),
+			);
+		}),
+		vscode.workspace.onDidCloseTextDocument((document) => {
+			if (document.uri.scheme !== SERVED_TEXT_SCHEME) {
+				return;
+			}
+			servedTextUris.delete(document.uri.toString());
+			servedTextRefreshLoop.noteClosed(document.uri.toString());
+		}),
+		{ dispose: () => servedTextRefreshLoop.stop() },
+		vscode.workspace.registerTextDocumentContentProvider(SERVED_TEXT_SCHEME, {
+			onDidChange: servedTextEmitter.event,
+			provideTextDocumentContent: async (uri) => {
+				const parsed = parseServedTextUri(uri.authority, uri.query);
+				if (parsed === undefined) {
+					return t("servedText.malformedUri");
+				}
+				const resolve = resolvers[parsed.kind];
+				if (resolve === undefined) {
+					return t("servedText.unknownKind", { kind: parsed.kind });
+				}
+				try {
+					const text = await resolve(parsed.root, parsed.ref);
+					servedTextRefreshLoop.recordFetched(uri.toString(), text);
+					return text;
+				} catch (err) {
+					return t("servedText.refused", {
+						detail: err instanceof Error ? err.message : String(err),
+					});
+				}
+			},
+		}),
+	);
+
 	const host = commandHost(channel, (folder) => checkpointing.checkNow(folder), t);
 	const flowCommands: [string, (c: CommandContext) => Promise<unknown>][] = [
 		[COMMAND_CLAIM, claimCard],
@@ -500,6 +638,7 @@ export async function activate(
 		[COMMAND_UNBLOCK, unblockCard],
 		[COMMAND_COPY_CARD_REF, copyCardRef],
 		[COMMAND_OPEN_CARD, openCard],
+		[COMMAND_OPEN_INSTRUCTIONS, openInstructions],
 	];
 	for (const [id, run] of flowCommands) {
 		register(id, async (element: TreeElement | undefined) => {
@@ -661,6 +800,8 @@ export function deactivate(): void {
 	statusItem = undefined;
 	loop?.stop();
 	loop = undefined;
+	servedText?.stop();
+	servedText = undefined;
 	treeView = undefined;
 	output = undefined;
 }

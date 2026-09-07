@@ -189,6 +189,9 @@ function recorder(typed: (string | undefined)[] = []): Recorder {
 				unused.push("pickFile");
 				return undefined;
 			},
+			openServedText: async () => {
+				unused.push("openServedText");
+			},
 			checkpoint: async (folder) => {
 				checkpoints.push(folder);
 			},

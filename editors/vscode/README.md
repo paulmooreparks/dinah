@@ -13,6 +13,9 @@ runs, so claiming a card here and claiming it from a terminal are the same act
 against the same files.
 
 - Claim, Move, Release, Block and Unblock, on the selected card.
+- View Served Instructions, which opens the instruction chain the workbench
+  serves for where that card stands as a read-only Markdown tab, and keeps that
+  tab current while it is open.
 - Check and Copy Path, on the workbench itself.
 - Refresh, for when you would rather not wait for the poll.
 

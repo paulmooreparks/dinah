@@ -33,6 +33,16 @@ export const VIEW_ID = "dinah.workbenchView";
  */
 export const DRAG_MIME_TYPE = `application/vnd.code.tree.${VIEW_ID.toLowerCase()}`;
 
+/**
+ * The URI scheme served text opens under.
+ *
+ * One content provider is registered for the whole scheme, and the URI's
+ * authority carries the kind of text being served. dinah-270 populates the
+ * provider's resolver table with `instructions`, and a later kind is an entry
+ * in that table rather than a change to the provider or to this scheme.
+ */
+export const SERVED_TEXT_SCHEME = "dinah-served";
+
 /** The settings key holding an explicit path to the binary. */
 export const SETTING_PATH = "dinah.path";
 
@@ -83,6 +93,9 @@ export const COMMAND_ATTACH_FILE = "dinah.tree.attachFile";
 /** The command a queue column row runs to pull its head-of-ready card onward. */
 export const COMMAND_PULL = "dinah.tree.pull";
 
+/** The card row's act that opens its served instruction chain as a tab (dinah-270). */
+export const COMMAND_OPEN_INSTRUCTIONS = "dinah.tree.openInstructions";
+
 /**
  * Every command this extension contributes, in the order package.json
  * declares them. A manifest test reads this array back, which is what keeps
@@ -105,6 +118,7 @@ export const TREE_COMMANDS: readonly string[] = [
 	COMMAND_NEW_CARD,
 	COMMAND_ATTACH_FILE,
 	COMMAND_PULL,
+	COMMAND_OPEN_INSTRUCTIONS,
 ];
 
 /**
@@ -134,6 +148,7 @@ export const ROW_COMMANDS: readonly string[] = [
 	COMMAND_NEW_CARD,
 	COMMAND_ATTACH_FILE,
 	COMMAND_PULL,
+	COMMAND_OPEN_INSTRUCTIONS,
 ];
 
 /**
