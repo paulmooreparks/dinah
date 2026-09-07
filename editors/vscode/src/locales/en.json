@@ -289,6 +289,106 @@
 			"text": "Dinah guide: {topic}",
 			"context": "Tab title for a live-fetched guide, opened today only from the first-session walkthrough. {topic} is the guide's own topic slug (e.g. first-session) and is not translated."
 		},
+		"servedText.title.history": {
+			"text": "{ref} (history)",
+			"context": "Tab label of the editor tab a card's own journal opens in. {ref} is the card's own reference."
+		},
+		"history.empty": {
+			"text": "No history is recorded for this card.",
+			"context": "Body of the history tab when the journal read succeeded and returned no events at all."
+		},
+		"history.value.none": {
+			"text": "none",
+			"context": "Stands in for an absent from or to value on a history row reporting a change to one of a card's own fields."
+		},
+		"history.event.created": {
+			"text": "{actor} created the card \"{title}\" in {toTitle}.",
+			"context": "History row for a card's creation. {actor} is who acted, {title} the card's title, {toTitle} the title of the column it was filed into."
+		},
+		"history.event.claimed": {
+			"text": "{actor} claimed the card.",
+			"context": "History row for a claim. {actor} is who claimed it."
+		},
+		"history.event.moved": {
+			"text": "{actor} moved the card from {fromTitle} to {toTitle}.",
+			"context": "History row for a move. {fromTitle} and {toTitle} are the two columns' titles as of the move."
+		},
+		"history.event.released": {
+			"text": "{actor} released the card.",
+			"context": "History row for a release. {actor} is who let the card go."
+		},
+		"history.event.blocked": {
+			"text": "{actor} blocked the card: {reason}",
+			"context": "History row for a block. {reason} is the prose reason the block carried, which is never empty."
+		},
+		"history.event.unblocked": {
+			"text": "{actor} unblocked the card.",
+			"context": "History row for an unblock. {actor} is who lifted the block."
+		},
+		"history.event.expired": {
+			"text": "{actor}'s claim on the card expired.",
+			"context": "History row for a claim that lapsed. {actor} is the holder whose claim ran out."
+		},
+		"history.event.commented": {
+			"text": "{actor} added a comment.",
+			"context": "History row for a comment. The comment's own text is not in the journal, so the row names only who wrote one."
+		},
+		"history.event.attached": {
+			"text": "{actor} attached {filename}.",
+			"context": "History row for an attachment being added. {filename} is the file's name as of the event."
+		},
+		"history.event.attachment_replaced": {
+			"text": "{actor} replaced the attachment with {filename}.",
+			"context": "History row for an attachment's contents being replaced. {filename} is the new file's name."
+		},
+		"history.event.attachment_removed": {
+			"text": "{actor} removed the attachment {filename}.",
+			"context": "History row for an attachment being removed. {filename} is the name it carried when it went."
+		},
+		"history.event.attachment_renamed": {
+			"text": "{actor} renamed an attachment from {from} to {filename}.",
+			"context": "History row for an attachment being renamed. {from} is the old filename and {filename} the new one."
+		},
+		"history.event.archived": {
+			"text": "{actor} archived this.",
+			"context": "History row for an archive. The row deliberately does not name what was archived, because the event carries a bare identifier that cannot say whether it names the card or one of its attachments."
+		},
+		"history.event.restored": {
+			"text": "{actor} restored this.",
+			"context": "History row for a restore. No command writes this event today, and the row exists so that a binary which starts writing one needs no change here."
+		},
+		"history.event.deleted": {
+			"text": "{actor} deleted something recorded here.",
+			"context": "History row for a deletion. Nothing writes this event onto a card's own journal today, and the row exists for the same forward-compatibility reason the restore row does."
+		},
+		"history.event.manual_correction": {
+			"text": "{actor} corrected the card's recorded position from {fromTitle} to {toTitle}.",
+			"context": "History row for a witnessed correction. {fromTitle} and {toTitle} are the believed and the anchored column at the moment the drift was witnessed."
+		},
+		"history.event.workstream_joined": {
+			"text": "{actor} added the card to workstream {workstream}.",
+			"context": "History row for a workstream membership being taken up. {workstream} is the raw identifier, since the event captures no title for it."
+		},
+		"history.event.workstream_left": {
+			"text": "{actor} removed the card from workstream {workstream}.",
+			"context": "History row for a workstream membership being given up. {workstream} is the raw identifier, since the event captures no title for it."
+		},
+		"history.event.card_updated": {
+			"text": "{actor} changed {field} from {from} to {to}.",
+			"context": "History row for a write to one of a card's own fields. {field} is the field's name, and {from} and {to} carry its value on either side of the write, each filled with the catalogue's word for an absent value when the event carries none."
+		},
+		"history.event.tier_overridden": {
+			"text": "{actor} set {columnTitle} to {to} ({expr}).",
+			"context": "History row for a per-column tier override being written. {columnTitle} is the column's title as of the event and falls back to its raw identifier when the event captured none, {to} is the resolved value and {expr} is what somebody typed."
+		},
+		"history.event.tier_override_dropped": {
+			"text": "{actor}'s override of {column} ({from}) was dropped because the column was retired.",
+			"context": "History row for a per-column tier override dropped by a reshape. {column} is the retired column's raw identifier and {from} the value that went with it."
+		},
+		"history.event.unknown": {
+			"text": "{actor} recorded an event of kind {event}.",
+			"context": "History row for an event name this catalogue does not recognise, which is what a newer binary's event renders as. {event} is that raw name and is not translated."
+		},
 		"diagnostics.check.uncertain": {
 			"text": "{workbench}: check has not completed, so whether it is clean is not known.",
 			"context": "Placeholder diagnostic shown on a workbench's own definition file until the first `dinah check` run of the session for that workbench answers, so an empty Problems panel never means both \"confirmed clean\" and \"never checked, or check failed.\""

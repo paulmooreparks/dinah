@@ -5,22 +5,30 @@
 // a test that really waited out a ten-second poll would be slow and would
 // still not prove which mechanism fired.
 //
-// dinah-270 AC-2, AC-3, AC-4, AC-5, AC-6 and AC-13.
+// dinah-270 AC-2, AC-3, AC-4, AC-5, AC-6 and AC-13, and dinah-422 AC-3,
+// AC-6, AC-7, AC-8 and AC-9.
 
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 
+import { pinnedArgv, refusalMessage } from "../../src/cardCommands";
 import type { Clock } from "../../src/changes";
+import { runDinah } from "../../src/cli";
+import type { SpawnOptions, SpawnOutcome, Spawner } from "../../src/cli";
+import { ENGLISH } from "../../src/l10n";
 import {
+	HISTORY_ROWS,
+	KIND_HISTORY,
 	KIND_INSTRUCTIONS,
 	ServedTextRefreshLoop,
 	parseServedTextUri,
+	renderHistoryMarkdown,
 	renderInstructionsMarkdown,
 	servedTextUriParts,
 } from "../../src/servedText";
-import type { InstructionChain, ServedAnswer } from "../../src/wire";
+import type { InstructionChain, JournalEvent, ServedAnswer } from "../../src/wire";
 
 // ---------------------------------------------------------------------------
 // The wire mirror
@@ -351,4 +359,451 @@ test("stop clears every open tab, so deactivation leaves nothing running", async
 	assert.equal(loop.openCount, 0);
 	await clock.tickIntervals();
 	assert.deepEqual(calls, []);
+});
+
+// ---------------------------------------------------------------------------
+// The history rendering (dinah-422)
+// ---------------------------------------------------------------------------
+
+/**
+ * The twenty-one event names internal/contract/contract.go's Events slice
+ * declares, in the order the constants above it are declared and the slice
+ * lists them.
+ *
+ * Quoted here rather than derived, because the point of the assertion below is
+ * that two independently maintained lists agree. A twenty-second name added to
+ * the Go slice and not to this file fails when somebody next reconciles the
+ * two; a row added to HISTORY_ROWS and not to the contract, or a row dropped
+ * from it, fails immediately.
+ */
+const CONTRACT_EVENTS: readonly string[] = [
+	"created",
+	"claimed",
+	"moved",
+	"released",
+	"blocked",
+	"unblocked",
+	"expired",
+	"commented",
+	"attached",
+	"attachment_replaced",
+	"attachment_removed",
+	"attachment_renamed",
+	"archived",
+	"restored",
+	"deleted",
+	"manual_correction",
+	"workstream_joined",
+	"workstream_left",
+	"card_updated",
+	"tier_overridden",
+	"tier_override_dropped",
+];
+
+/** Fills the skeleton every journal line carries, so a fixture names only its own fields. */
+function event(fields: Partial<JournalEvent> & { event: string }): JournalEvent {
+	return { ts: "2026-09-08T10:00:00Z", actor: "paul", ...fields };
+}
+
+test("the render table names exactly the events the contract declares", () => {
+	// dinah-422 AC-6. Sorted on both sides, because the table is written for a
+	// reader in the contract's own order and a Record's key order is not a
+	// promise this assertion should rest on.
+	assert.deepEqual(
+		Object.keys(HISTORY_ROWS).sort(),
+		[...CONTRACT_EVENTS].sort(),
+		"HISTORY_ROWS and internal/contract's Events slice have drifted apart",
+	);
+	assert.equal(CONTRACT_EVENTS.length, 21);
+});
+
+test("an empty journal renders the catalogue's own sentence and nothing else", () => {
+	// dinah-422 AC-6. The wording is asserted whole, because "is recorded" is
+	// the half that keeps this from reading as a claim that nothing happened.
+	assert.equal(
+		renderHistoryMarkdown([], ENGLISH),
+		"No history is recorded for this card.",
+	);
+});
+
+test("events render one line each, in the order they arrive", () => {
+	// dinah-422 AC-6. The second fixture is older than the first, and the
+	// rendering keeps it second, so a renderer that sorted by timestamp would
+	// fail here rather than quietly reordering a journal.
+	const rendered = renderHistoryMarkdown(
+		[
+			event({ event: "claimed", ts: "2026-09-08T12:00:00Z" }),
+			event({ event: "released", ts: "2026-09-08T09:00:00Z", actor: "ana" }),
+		],
+		ENGLISH,
+	);
+	assert.equal(rendered, "paul claimed the card.\nana released the card.");
+});
+
+/**
+ * One fixture per event name, with the sentence each one must render to.
+ *
+ * Each case is its own test, so a wording change to one template reddens only
+ * its own line and a reviewer reading a failure sees which event moved.
+ */
+const HISTORY_CASES: readonly {
+	name: string;
+	fixture: JournalEvent;
+	want: string;
+}[] = [
+	{
+		name: "created",
+		fixture: event({ event: "created", title: "Ship the tab", to_title: "Intake" }),
+		want: 'paul created the card "Ship the tab" in Intake.',
+	},
+	{
+		name: "claimed",
+		fixture: event({ event: "claimed" }),
+		want: "paul claimed the card.",
+	},
+	{
+		name: "moved",
+		fixture: event({
+			event: "moved",
+			from: "spec",
+			to: "build",
+			from_title: "Spec",
+			to_title: "Implement",
+		}),
+		want: "paul moved the card from Spec to Implement.",
+	},
+	{
+		name: "released",
+		fixture: event({ event: "released" }),
+		want: "paul released the card.",
+	},
+	{
+		name: "blocked",
+		fixture: event({
+			event: "blocked",
+			reason: "the spec names no destination",
+			kind: "ambiguous_spec",
+		}),
+		want: "paul blocked the card: the spec names no destination",
+	},
+	{
+		name: "unblocked",
+		fixture: event({ event: "unblocked" }),
+		want: "paul unblocked the card.",
+	},
+	{
+		name: "expired",
+		fixture: event({ event: "expired", expires: "2026-09-08T09:00:00Z" }),
+		want: "paul's claim on the card expired.",
+	},
+	{
+		name: "commented",
+		fixture: event({ event: "commented", comment: "c-7" }),
+		want: "paul added a comment.",
+	},
+	{
+		name: "attached",
+		fixture: event({ event: "attached", attachment: "a-1", filename: "trace.log" }),
+		want: "paul attached trace.log.",
+	},
+	{
+		name: "attachment_replaced",
+		fixture: event({
+			event: "attachment_replaced",
+			attachment: "a-1",
+			filename: "trace.log",
+		}),
+		want: "paul replaced the attachment with trace.log.",
+	},
+	{
+		name: "attachment_removed",
+		fixture: event({
+			event: "attachment_removed",
+			attachment: "a-1",
+			filename: "trace.log",
+		}),
+		want: "paul removed the attachment trace.log.",
+	},
+	{
+		name: "attachment_renamed",
+		fixture: event({
+			event: "attachment_renamed",
+			attachment: "a-1",
+			from: "trace.log",
+			filename: "run.log",
+		}),
+		want: "paul renamed an attachment from trace.log to run.log.",
+	},
+	{
+		name: "archived",
+		fixture: event({ event: "archived", note: "card-9f2c" }),
+		want: "paul archived this.",
+	},
+	{
+		name: "restored",
+		fixture: event({ event: "restored" }),
+		want: "paul restored this.",
+	},
+	{
+		name: "deleted",
+		fixture: event({ event: "deleted" }),
+		want: "paul deleted something recorded here.",
+	},
+	{
+		name: "manual_correction",
+		fixture: event({
+			event: "manual_correction",
+			from_title: "Spec",
+			to_title: "Implement",
+		}),
+		want: "paul corrected the card's recorded position from Spec to Implement.",
+	},
+	{
+		name: "workstream_joined",
+		fixture: event({ event: "workstream_joined", workstream: "ws-editor" }),
+		want: "paul added the card to workstream ws-editor.",
+	},
+	{
+		name: "workstream_left",
+		fixture: event({ event: "workstream_left", workstream: "ws-editor" }),
+		want: "paul removed the card from workstream ws-editor.",
+	},
+	{
+		name: "card_updated",
+		fixture: event({ event: "card_updated", field: "priority", from: "soon", to: "now" }),
+		want: "paul changed priority from soon to now.",
+	},
+	{
+		name: "tier_overridden",
+		fixture: event({
+			event: "tier_overridden",
+			column: "col-3",
+			column_title: "Implement",
+			from: "workhorse",
+			to: "frontier",
+			expr: "+1",
+			against: "workhorse",
+			reason: "the diff reaches the contract",
+		}),
+		want: "paul set Implement to frontier (+1).",
+	},
+	{
+		name: "tier_override_dropped",
+		fixture: event({
+			event: "tier_override_dropped",
+			column: "col-3",
+			from: "frontier",
+		}),
+		want: "paul's override of col-3 (frontier) was dropped because the column was retired.",
+	},
+	{
+		name: "an unrecognised name",
+		fixture: event({ event: "teleported" }),
+		want: "paul recorded an event of kind teleported.",
+	},
+];
+
+for (const testCase of HISTORY_CASES) {
+	test(`the ${testCase.name} row reads as the catalogue's English`, () => {
+		// dinah-422 AC-7. Byte for byte against the filled English template, so
+		// a placeholder left unfilled or filled from the wrong wire field fails
+		// here rather than reaching a reader.
+		assert.equal(renderHistoryMarkdown([testCase.fixture], ENGLISH), testCase.want);
+	});
+}
+
+test("every contract event has a case above, and the unknown fallback has one too", () => {
+	// dinah-422 AC-7's own completeness. Without this, dropping a case from
+	// HISTORY_CASES would silently stop testing an event.
+	const covered = HISTORY_CASES.map((testCase) => testCase.fixture.event);
+	for (const name of CONTRACT_EVENTS) {
+		assert.ok(covered.includes(name), `no fixture renders the ${name} row`);
+	}
+	assert.equal(HISTORY_CASES.length, CONTRACT_EVENTS.length + 1);
+});
+
+test("an absent from or to on a field change names none rather than nothing", () => {
+	// dinah-422 AC-8. A first write to a field that carried nothing, and a
+	// write that cleared one. Both are things that happened, and neither may
+	// reach a reader as an empty span or an unfilled token.
+	const firstWrite = renderHistoryMarkdown(
+		[event({ event: "card_updated", field: "severity", to: "major" })],
+		ENGLISH,
+	);
+	assert.equal(firstWrite, "paul changed severity from none to major.");
+
+	const cleared = renderHistoryMarkdown(
+		[event({ event: "card_updated", field: "severity", from: "major" })],
+		ENGLISH,
+	);
+	assert.equal(cleared, "paul changed severity from major to none.");
+
+	for (const rendered of [firstWrite, cleared]) {
+		assert.doesNotMatch(rendered, /\{from\}|\{to\}/, "a placeholder survived");
+		assert.doesNotMatch(rendered, /from to |to \.$/, "a value rendered as nothing");
+	}
+});
+
+test("a tier override with no captured column title falls back to the identifier", () => {
+	// dinah-422 AC-9's sibling case. journal.go says only a raise captures a
+	// column title, so the ordinary per-column write must still read as a
+	// sentence rather than as a gap.
+	assert.equal(
+		renderHistoryMarkdown(
+			[event({ event: "tier_overridden", column: "col-3", to: "frontier", expr: "frontier" })],
+			ENGLISH,
+		),
+		"paul set col-3 to frontier (frontier).",
+	);
+});
+
+// ---------------------------------------------------------------------------
+// The history resolver, composed here out of the pieces extension.ts composes
+// it from, since nothing in the unit layer can register a content provider.
+// ---------------------------------------------------------------------------
+
+/** A spawner that records what it was asked to run and replays one outcome. */
+function historySpawner(outcome: SpawnOutcome): {
+	spawner: Spawner;
+	calls: { exe: string; argv: string[]; options: SpawnOptions }[];
+} {
+	const calls: { exe: string; argv: string[]; options: SpawnOptions }[] = [];
+	const spawner: Spawner = async (exe, argv, options) => {
+		calls.push({ exe, argv: [...argv], options });
+		return outcome;
+	};
+	return { spawner, calls };
+}
+
+/** What extension.ts's KIND_HISTORY entry does, with its dependencies injected. */
+async function resolveHistory(spawner: Spawner, root: string, ref: string): Promise<string> {
+	const outcome = await runDinah(spawner, "dinah", pinnedArgv(root, ["log", ref]), {
+		cwd: root,
+	});
+	if (outcome.kind !== "ok") {
+		throw new Error(refusalMessage(outcome));
+	}
+	return renderHistoryMarkdown(outcome.json as JournalEvent[], ENGLISH);
+}
+
+test("the journal is asked for with the pinned argv and no hand-built flag", () => {
+	// dinah-422 AC-3. --json is composed by cli.ts and refused if a caller
+	// spells it, so the argv this resolver hands over carries the workbench
+	// and the verb alone.
+	const { spawner, calls } = historySpawner({
+		code: 0,
+		stdout: "[]",
+		stderr: "",
+	});
+	return resolveHistory(spawner, "/bench", "dinah-422").then((text) => {
+		assert.equal(text, "No history is recorded for this card.");
+		assert.deepEqual(calls[0].argv, ["--json", "--workbench", "/bench", "log", "dinah-422"]);
+		assert.equal(calls[0].options.cwd, "/bench");
+	});
+});
+
+test("a refused log throws what the existing refusal path already renders", async () => {
+	// dinah-422 AC-3's other half. The kind adds no failure string of its own:
+	// the provider's catch turns this into servedText.refused, which is the
+	// same entry the instructions kind has used since dinah-270.
+	const refusal = JSON.stringify({
+		outcome: "refused",
+		refusal: "dinah.unknown-card",
+		detail: "no card is filed under that reference",
+	});
+	const { spawner } = historySpawner({ code: 2, stdout: refusal, stderr: "" });
+	await assert.rejects(
+		() => resolveHistory(spawner, "/bench", "dinah-999"),
+		/no card is filed under that reference/,
+	);
+
+	// The catalogue carries no history-specific refusal entry, which is what
+	// "the existing path, unchanged" means in practice.
+	const catalogue = JSON.parse(
+		readFileSync(join(__dirname, "..", "..", "..", "src", "locales", "en.json"), "utf8"),
+	) as { entries: Record<string, unknown> };
+	const refusalKeys = Object.keys(catalogue.entries).filter(
+		(key) => key.startsWith("history.") && key.includes("refus"),
+	);
+	assert.deepEqual(refusalKeys, [], "history added a refusal string of its own");
+	assert.equal(
+		ENGLISH("servedText.refused", { detail: "x" }),
+		"dinah refused: x",
+		"the shared refusal entry moved",
+	);
+});
+
+test("a bare identifier renders as itself, with no second call to resolve it", async () => {
+	// dinah-422 AC-9. The three events carrying an identifier and no captured
+	// title all render in one pass, and the spawner sees the log call and
+	// nothing else. A lookup added later to prettify one of them fails here.
+	const journal: JournalEvent[] = [
+		event({ event: "archived", note: "card-9f2c" }),
+		event({ event: "workstream_joined", workstream: "ws-editor" }),
+		event({ event: "workstream_left", workstream: "ws-editor" }),
+		event({ event: "tier_override_dropped", column: "col-3", from: "frontier" }),
+	];
+	const { spawner, calls } = historySpawner({
+		code: 0,
+		stdout: JSON.stringify(journal),
+		stderr: "",
+	});
+	const text = await resolveHistory(spawner, "/bench", "dinah-422");
+	assert.equal(calls.length, 1, "rendering a history spawned dinah more than once");
+	assert.deepEqual(calls[0].argv.slice(-2), ["log", "dinah-422"]);
+	assert.ok(text.includes("ws-editor"), "the workstream identifier was not printed");
+	assert.ok(text.includes("col-3"), "the column identifier was not printed");
+	assert.equal(text.split("\n").length, 4);
+});
+
+test("extension.ts's own history entry asks for log through the pinned argv", () => {
+	// dinah-422 AC-3. The resolver above is this test file's reconstruction of
+	// the table entry, and a reconstruction guards its own copy rather than the
+	// shipped one, so the shipped entry is read here as source. The same reason
+	// spawn-sites.test.ts reads source: nothing in the unit layer can register
+	// a content provider, and the claim is about a call site rather than about
+	// a value a function returns.
+	const source = readFileSync(
+		join(__dirname, "..", "..", "..", "src", "extension.ts"),
+		"utf8",
+	);
+	const at = source.indexOf("[KIND_HISTORY]:");
+	assert.notEqual(at, -1, "extension.ts declares no KIND_HISTORY resolver");
+	const entry = source.slice(at, source.indexOf("[KIND_GUIDE]:", at));
+	assert.match(
+		entry,
+		/pinnedArgv\(root, \["log", ref\]\)/,
+		"the history resolver no longer composes the log verb through pinnedArgv",
+	);
+	assert.doesNotMatch(entry, /--json/, "the history resolver spells --json by hand");
+	assert.match(entry, /renderHistoryMarkdown\(/);
+	assert.match(entry, /throw new Error\(refusalMessage\(outcome\)\)/);
+	// One spawn per rendered history, asserted on the shipped entry rather than
+	// on the reconstruction, which is the other half of AC-9: a lookup added
+	// later to resolve one of the bare identifiers would show up here.
+	assert.equal(
+		(entry.match(/runDinah\(/g) ?? []).length,
+		1,
+		"the history resolver spawns dinah more than once",
+	);
+	// The renderer itself cannot spawn at all, because its module reaches
+	// neither the CLI wrapper nor the spawner.
+	const renderer = readFileSync(
+		join(__dirname, "..", "..", "..", "src", "servedText.ts"),
+		"utf8",
+	);
+	assert.doesNotMatch(renderer, /from "\.\/(cli|spawn)"/);
+});
+
+test("the history kind is spelled once and travels through the URI grammar", () => {
+	// dinah-422 AC-3. The kind is a table key and a URI authority, and the
+	// round trip is what proves the second kind needed no change to the
+	// grammar the first one uses.
+	assert.equal(KIND_HISTORY, "history");
+	const parts = servedTextUriParts(KIND_HISTORY, "/bench", "dinah-422", "dinah-422 (history)");
+	assert.deepEqual(parseServedTextUri(parts.authority, parts.query), {
+		kind: KIND_HISTORY,
+		root: "/bench",
+		ref: "dinah-422",
+	});
 });

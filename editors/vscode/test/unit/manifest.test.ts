@@ -20,6 +20,7 @@ import {
 	COMMAND_EDIT_WORKBENCH_DEFINITION,
 	COMMAND_NEW_CARD,
 	COMMAND_OPEN_ATTACHMENT,
+	COMMAND_OPEN_HISTORY,
 	COMMAND_OPEN_FIRST_SESSION_GUIDE,
 	COMMAND_OPEN_INSTRUCTIONS,
 	COMMAND_PULL,
@@ -964,6 +965,32 @@ function paletteEntries(): { command: string; when?: string }[] {
 	>;
 	return menus.commandPalette ?? [];
 }
+
+test("the two card-row view acts sit in one menu group, in the order they were added", () => {
+	// dinah-422 AC-2. The card clause is asserted whole rather than by
+	// substring, for the reason the workbench-row test below gives: an anchored
+	// regular expression is what keeps an entry off a contextValue a later card
+	// composes with the same prefix.
+	const menus = contributes.menus as Record<
+		string,
+		{ command: string; when: string; group?: string }[]
+	>;
+	const items = menus["view/item/context"];
+	const clause = "view == dinah.workbenchView && viewItem =~ /^dinah\\.card\\./";
+	const matched = items.filter((entry) => entry.command === COMMAND_OPEN_HISTORY);
+	assert.equal(matched.length, 1, `${COMMAND_OPEN_HISTORY} has ${matched.length} menu entries`);
+	assert.equal(matched[0].when, clause);
+	assert.equal(matched[0].group, "2_view@2");
+
+	// The group is shared with openInstructions and ordered after it, so the
+	// two read as one pair rather than as two acts that happen to be adjacent.
+	const instructions = items.filter(
+		(entry) => entry.command === COMMAND_OPEN_INSTRUCTIONS,
+	);
+	assert.equal(instructions.length, 1);
+	assert.equal(instructions[0].when, clause);
+	assert.equal(instructions[0].group, "2_view@1");
+});
 
 test("every tree command is classified as either a row command or a global one", () => {
 	// This is the check that fails on a command nobody classified, which is

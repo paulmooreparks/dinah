@@ -18,6 +18,7 @@ import {
 	moveCard,
 	openAttachment,
 	openCard,
+	openHistory,
 	openInstructions,
 	pinnedArgv,
 	refusalMessage,
@@ -76,6 +77,7 @@ import {
 	COMMAND_NEW_CARD,
 	COMMAND_OPEN_ATTACHMENT,
 	COMMAND_OPEN_CARD,
+	COMMAND_OPEN_HISTORY,
 	COMMAND_OPEN_INSTRUCTIONS,
 	COMMAND_PULL,
 	COMMAND_REFRESH,
@@ -97,9 +99,11 @@ import {
 	GUIDE_ROOT,
 	GUIDE_TOPIC_FIRST_SESSION,
 	KIND_GUIDE,
+	KIND_HISTORY,
 	KIND_INSTRUCTIONS,
 	ServedTextRefreshLoop,
 	parseServedTextUri,
+	renderHistoryMarkdown,
 	renderInstructionsMarkdown,
 	servedTextUriParts,
 } from "./servedText";
@@ -116,7 +120,7 @@ import {
 import type { TreeElement, TreeItemSpec } from "./tree";
 import { DinahTreeProvider } from "./tree";
 import { classifyVersion, describeVersion } from "./version";
-import type { PathAnswer, ServedAnswer } from "./wire";
+import type { JournalEvent, PathAnswer, ServedAnswer } from "./wire";
 import { NO_WORKBENCH_FOUND, resolveWorkbench } from "./workbench";
 import type {
 	WorkbenchCommandContext,
@@ -794,6 +798,23 @@ export async function activate(
 		// no workbench, which is the window the first-session walkthrough is
 		// written for. The root the table's shape passes is a fixed
 		// placeholder that only the tab bookkeeping reads.
+		// The card's own journal, fetched through the same pinned argv every
+		// other card-scoped call composes. The --json flag is not spelled here
+		// and is not pinnedArgv's either: cli.ts's composeArgv puts it in front
+		// of whatever argv reaches runDinah, and it refuses an argv that already
+		// carries it.
+		[KIND_HISTORY]: async (root, ref) => {
+			const outcome = await runDinah(
+				nodeSpawner,
+				binary.state === "ok" ? binary.path : "",
+				pinnedArgv(root, ["log", ref]),
+				{ cwd: root },
+			);
+			if (outcome.kind !== "ok") {
+				throw new Error(refusalMessage(outcome));
+			}
+			return renderHistoryMarkdown(outcome.json as JournalEvent[], t);
+		},
 		[KIND_GUIDE]: async (_root, ref) => {
 			const outcome = await runDinahText(
 				nodeSpawner,
@@ -895,6 +916,7 @@ export async function activate(
 		[COMMAND_COPY_CARD_REF, copyCardRef],
 		[COMMAND_OPEN_CARD, openCard],
 		[COMMAND_OPEN_INSTRUCTIONS, openInstructions],
+		[COMMAND_OPEN_HISTORY, openHistory],
 	];
 	for (const [id, run] of flowCommands) {
 		register(id, async (element: TreeElement | undefined) => {

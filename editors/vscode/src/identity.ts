@@ -97,6 +97,15 @@ export const COMMAND_PULL = "dinah.tree.pull";
 export const COMMAND_OPEN_INSTRUCTIONS = "dinah.tree.openInstructions";
 
 /**
+ * The card row's act that opens its own journal as a tab (dinah-422).
+ *
+ * It sits beside openInstructions in every list a command belongs to,
+ * because the two are the same shape of act: each is invoked on a card row,
+ * each opens a read-only served-text tab, and neither changes anything.
+ */
+export const COMMAND_OPEN_HISTORY = "dinah.tree.openHistory";
+
+/**
  * The walkthrough a reader with no workbench is offered, and its one step.
  *
  * VS Code addresses a walkthrough as `<publisher>.<name>#<walkthroughId>`, so
@@ -134,6 +143,7 @@ export const TREE_COMMANDS: readonly string[] = [
 	COMMAND_ATTACH_FILE,
 	COMMAND_PULL,
 	COMMAND_OPEN_INSTRUCTIONS,
+	COMMAND_OPEN_HISTORY,
 	COMMAND_OPEN_FIRST_SESSION_GUIDE,
 ];
 
@@ -165,6 +175,7 @@ export const ROW_COMMANDS: readonly string[] = [
 	COMMAND_ATTACH_FILE,
 	COMMAND_PULL,
 	COMMAND_OPEN_INSTRUCTIONS,
+	COMMAND_OPEN_HISTORY,
 ];
 
 /**

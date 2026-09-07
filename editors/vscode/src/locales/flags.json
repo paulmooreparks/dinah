@@ -35,7 +35,8 @@
 			"manifest.walkthrough.firstSession.description",
 			"manifest.walkthrough.firstSession.step.readGuide.title",
 			"manifest.walkthrough.firstSession.step.readGuide.description",
-			"manifest.command.dinah.walkthrough.openFirstSessionGuide.title"
+			"manifest.command.dinah.walkthrough.openFirstSessionGuide.title",
+			"manifest.command.dinah.tree.openHistory.title"
 		],
 		"cs": [
 			"manifest.viewsContainers.dinah.title",
@@ -72,7 +73,8 @@
 			"manifest.walkthrough.firstSession.description",
 			"manifest.walkthrough.firstSession.step.readGuide.title",
 			"manifest.walkthrough.firstSession.step.readGuide.description",
-			"manifest.command.dinah.walkthrough.openFirstSessionGuide.title"
+			"manifest.command.dinah.walkthrough.openFirstSessionGuide.title",
+			"manifest.command.dinah.tree.openHistory.title"
 		],
 		"de": [],
 		"es": [
@@ -110,7 +112,8 @@
 			"manifest.walkthrough.firstSession.description",
 			"manifest.walkthrough.firstSession.step.readGuide.title",
 			"manifest.walkthrough.firstSession.step.readGuide.description",
-			"manifest.command.dinah.walkthrough.openFirstSessionGuide.title"
+			"manifest.command.dinah.walkthrough.openFirstSessionGuide.title",
+			"manifest.command.dinah.tree.openHistory.title"
 		],
 		"fil": [
 			"manifest.viewsContainers.dinah.title",
@@ -147,7 +150,8 @@
 			"manifest.walkthrough.firstSession.description",
 			"manifest.walkthrough.firstSession.step.readGuide.title",
 			"manifest.walkthrough.firstSession.step.readGuide.description",
-			"manifest.command.dinah.walkthrough.openFirstSessionGuide.title"
+			"manifest.command.dinah.walkthrough.openFirstSessionGuide.title",
+			"manifest.command.dinah.tree.openHistory.title"
 		],
 		"hi": [],
 		"id": [
@@ -185,7 +189,8 @@
 			"manifest.walkthrough.firstSession.description",
 			"manifest.walkthrough.firstSession.step.readGuide.title",
 			"manifest.walkthrough.firstSession.step.readGuide.description",
-			"manifest.command.dinah.walkthrough.openFirstSessionGuide.title"
+			"manifest.command.dinah.walkthrough.openFirstSessionGuide.title",
+			"manifest.command.dinah.tree.openHistory.title"
 		]
 	},
 	"verbatim": {
@@ -300,7 +305,8 @@
 			"manifest.walkthrough.firstSession.description": "5e1129cece660a34",
 			"manifest.walkthrough.firstSession.step.readGuide.title": "266439a9960a7e76",
 			"manifest.walkthrough.firstSession.step.readGuide.description": "959e8f30cc244660",
-			"manifest.command.dinah.walkthrough.openFirstSessionGuide.title": "3ac34c23b56939c3"
+			"manifest.command.dinah.walkthrough.openFirstSessionGuide.title": "3ac34c23b56939c3",
+			"manifest.command.dinah.tree.openHistory.title": "5023ccb1323ec290"
 		},
 		"hi": {
 			"manifest.viewsContainers.dinah.title": "4f7f4ffab37b3e1",
@@ -337,7 +343,8 @@
 			"manifest.walkthrough.firstSession.description": "5e1129cece660a34",
 			"manifest.walkthrough.firstSession.step.readGuide.title": "266439a9960a7e76",
 			"manifest.walkthrough.firstSession.step.readGuide.description": "959e8f30cc244660",
-			"manifest.command.dinah.walkthrough.openFirstSessionGuide.title": "3ac34c23b56939c3"
+			"manifest.command.dinah.walkthrough.openFirstSessionGuide.title": "3ac34c23b56939c3",
+			"manifest.command.dinah.tree.openHistory.title": "5023ccb1323ec290"
 		}
 	}
 }
