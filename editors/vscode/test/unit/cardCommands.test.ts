@@ -23,6 +23,7 @@ import {
 	movePick,
 	openAttachment,
 	openCard,
+	openInstructions,
 	orderLegalMoves,
 	refusalMessage,
 	releaseCard,
@@ -43,6 +44,8 @@ interface Recorder {
 	readonly opened: string[];
 	/** The files handed to the host's file opener, in call order. */
 	readonly files: string[];
+	/** Every served-text tab the host was asked to open, in call order. */
+	readonly served: { kind: string; root: string; ref: string; title: string }[];
 	readonly logged: string[];
 	/** The host the recorder watches, which the attachment handler reaches directly. */
 	readonly host: CommandHost;
@@ -72,6 +75,7 @@ function recorder(answers: Record<string, SpawnOutcome> = {}): Recorder {
 	const copied: string[] = [];
 	const opened: string[] = [];
 	const files: string[] = [];
+	const served: { kind: string; root: string; ref: string; title: string }[] = [];
 	const logged: string[] = [];
 	const offered: PickItem[] = [];
 	const state = {
@@ -82,6 +86,7 @@ function recorder(answers: Record<string, SpawnOutcome> = {}): Recorder {
 		copied,
 		opened,
 		files,
+		served,
 		logged,
 		offered,
 		answers,
@@ -118,6 +123,9 @@ function recorder(answers: Record<string, SpawnOutcome> = {}): Recorder {
 		// No command in this file opens a picker, so this answers nothing.
 		// dinah-331 put the field on the host; the creation commands drive it.
 		pickFile: async () => undefined,
+		openServedText: async (kind, root, ref, title) => {
+			served.push({ kind, root, ref, title });
+		},
 		checkpoint: async (folder) => {
 			checkpoints.push(folder);
 		},
@@ -267,6 +275,38 @@ test("a refused show reports the refusal rather than opening anything", async ()
 	await openCard(r.context);
 	assert.deepEqual(r.opened, []);
 	assert.deepEqual(r.errors, ["dinah.unknown-card"]);
+});
+
+// ---------------------------------------------------------------------------
+// dinah-270: the served instruction chain, opened as a tab
+// ---------------------------------------------------------------------------
+
+test("opening the served instructions names the kind, the workbench and the card", async () => {
+	// The handler spawns nothing itself: the content provider fetches when the
+	// editor asks it to, so the whole of this command is composing a URI and
+	// a title. A spawn here would mean the text was fetched twice.
+	const r = recorder();
+	await openInstructions(r.context);
+	assert.deepEqual(r.served, [
+		{
+			kind: "instructions",
+			root: "C:\\work\\bench",
+			ref: "tr-4",
+			title: "tr-4 (served instructions)",
+		},
+	]);
+	assert.deepEqual(r.calls, []);
+});
+
+test("the tab's title comes from the catalogue and carries the card's own reference", async () => {
+	// The title is the only label a reader gets, so it names the card rather
+	// than the URI. It is resolved through the localizer here rather than
+	// inside the tab machinery, because a later kind of served text resolves
+	// its own key and calls the same host method.
+	const r = recorder();
+	await openInstructions(r.context);
+	assert.ok(r.served[0].title.includes(r.context.ref));
+	assert.equal(r.served[0].title, ENGLISH("servedText.title.instructions", { ref: "tr-4" }));
 });
 
 // ---------------------------------------------------------------------------
@@ -457,6 +497,7 @@ const silentHost: CommandHost = {
 	openDocument: async () => undefined,
 	openFile: async () => undefined,
 	pickFile: async () => undefined,
+	openServedText: async () => undefined,
 	checkpoint: async () => undefined,
 	log: () => undefined,
 };

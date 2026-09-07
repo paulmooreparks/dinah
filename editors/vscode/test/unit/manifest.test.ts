@@ -20,6 +20,7 @@ import {
 	COMMAND_EDIT_WORKBENCH_DEFINITION,
 	COMMAND_NEW_CARD,
 	COMMAND_OPEN_ATTACHMENT,
+	COMMAND_OPEN_INSTRUCTIONS,
 	COMMAND_PULL,
 	COMMAND_REFRESH,
 	CONTEXT_CARD_ACTIVE,
@@ -1382,6 +1383,80 @@ test("the card copy item is offered on every card row, whatever state it stands 
 	]) {
 		assert.doesNotMatch(value, CARD_ROW_PATTERN);
 	}
+});
+
+test("View Served Instructions is declared, classified and hidden from the palette", () => {
+	// dinah-270 AC-7. Three declarations have to agree: identity.ts's two
+	// arrays, the contributes.commands entry, and the commandPalette entry
+	// that keeps a row command out of a place that hands it no row. The
+	// generic tests above hold each of the three families as a whole, and this
+	// one names the command, so a reader looking for this card's registration
+	// finds an assertion rather than an argument about coverage.
+	assert.ok(TREE_COMMANDS.includes(COMMAND_OPEN_INSTRUCTIONS));
+	assert.ok(ROW_COMMANDS.includes(COMMAND_OPEN_INSTRUCTIONS));
+	assert.ok(!GLOBAL_COMMANDS.includes(COMMAND_OPEN_INSTRUCTIONS));
+
+	const commands = contributes.commands as { command: string; title: string }[];
+	const titles = new Map(commands.map((entry) => [entry.command, entry.title]));
+	// The manifest read here has already been resolved against
+	// package.nls.json, exactly as the copy command's own title test reads it,
+	// so this is the English a reader sees on the menu item.
+	assert.equal(titles.get(COMMAND_OPEN_INSTRUCTIONS), "View Served Instructions");
+
+	const menus = contributes.menus as Record<
+		string,
+		{ command: string; when: string }[]
+	>;
+	const palette = menus.commandPalette.filter(
+		(entry) => entry.command === COMMAND_OPEN_INSTRUCTIONS,
+	);
+	assert.equal(palette.length, 1);
+	assert.equal(palette[0].when, "false");
+});
+
+test("View Served Instructions is offered on every card row, and the copy item moved down to make room", () => {
+	// dinah-270 AC-8. The instruction chain is readable from a ready, an
+	// active and a blocked card alike, so the item takes the same prefix
+	// anchor Copy Reference takes rather than a state-gated clause. The two
+	// items would collide on 2_copy@1 if the renumbering had been skipped,
+	// which is why the copy item's own group is asserted here rather than only
+	// in its own test.
+	const menus = contributes.menus as Record<
+		string,
+		{ command: string; when: string; group: string }[]
+	>;
+	const items = menus["view/item/context"];
+	const matched = items.filter(
+		(entry) => entry.command === COMMAND_OPEN_INSTRUCTIONS,
+	);
+	assert.equal(
+		matched.length,
+		1,
+		`${COMMAND_OPEN_INSTRUCTIONS} has ${String(matched.length)} menu entries, wanted 1`,
+	);
+	assert.equal(matched[0].when, CARD_ROW_CLAUSE);
+	assert.equal(matched[0].group, "2_view@1");
+
+	for (const value of [
+		CONTEXT_CARD_READY_CLAIM,
+		CONTEXT_CARD_READY_NONE,
+		CONTEXT_CARD_ACTIVE,
+		CONTEXT_CARD_BLOCKED,
+	]) {
+		assert.match(value, CARD_ROW_PATTERN);
+	}
+	for (const value of [
+		CONTEXT_COLUMN,
+		CONTEXT_STATE_GROUP,
+		CONTEXT_WORKBENCH_ROOT,
+	]) {
+		assert.doesNotMatch(value, CARD_ROW_PATTERN);
+	}
+
+	const copy = items.filter((entry) => entry.command === COMMAND_COPY_CARD_REF);
+	assert.equal(copy.length, 1);
+	assert.equal(copy[0].group, "3_copy@1");
+	assert.notEqual(copy[0].group, matched[0].group);
 });
 
 test("the extension version is major.minor.patch, which is all the marketplace accepts", () => {

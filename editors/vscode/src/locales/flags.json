@@ -29,7 +29,8 @@
 			"manifest.configuration.dinah.path.markdownDescription",
 			"manifest.configuration.dinah.workbench.markdownDescription",
 			"manifest.configuration.dinah.pollIntervalSeconds.markdownDescription",
-			"manifest.configuration.dinah.watchFiles.markdownDescription"
+			"manifest.configuration.dinah.watchFiles.markdownDescription",
+			"manifest.command.dinah.tree.openInstructions.title"
 		],
 		"cs": [
 			"manifest.viewsContainers.dinah.title",
@@ -60,7 +61,8 @@
 			"manifest.configuration.dinah.path.markdownDescription",
 			"manifest.configuration.dinah.workbench.markdownDescription",
 			"manifest.configuration.dinah.pollIntervalSeconds.markdownDescription",
-			"manifest.configuration.dinah.watchFiles.markdownDescription"
+			"manifest.configuration.dinah.watchFiles.markdownDescription",
+			"manifest.command.dinah.tree.openInstructions.title"
 		],
 		"de": [],
 		"es": [
@@ -92,7 +94,8 @@
 			"manifest.configuration.dinah.path.markdownDescription",
 			"manifest.configuration.dinah.workbench.markdownDescription",
 			"manifest.configuration.dinah.pollIntervalSeconds.markdownDescription",
-			"manifest.configuration.dinah.watchFiles.markdownDescription"
+			"manifest.configuration.dinah.watchFiles.markdownDescription",
+			"manifest.command.dinah.tree.openInstructions.title"
 		],
 		"fil": [
 			"manifest.viewsContainers.dinah.title",
@@ -123,7 +126,8 @@
 			"manifest.configuration.dinah.path.markdownDescription",
 			"manifest.configuration.dinah.workbench.markdownDescription",
 			"manifest.configuration.dinah.pollIntervalSeconds.markdownDescription",
-			"manifest.configuration.dinah.watchFiles.markdownDescription"
+			"manifest.configuration.dinah.watchFiles.markdownDescription",
+			"manifest.command.dinah.tree.openInstructions.title"
 		],
 		"hi": [],
 		"id": [
@@ -155,7 +159,8 @@
 			"manifest.configuration.dinah.path.markdownDescription",
 			"manifest.configuration.dinah.workbench.markdownDescription",
 			"manifest.configuration.dinah.pollIntervalSeconds.markdownDescription",
-			"manifest.configuration.dinah.watchFiles.markdownDescription"
+			"manifest.configuration.dinah.watchFiles.markdownDescription",
+			"manifest.command.dinah.tree.openInstructions.title"
 		]
 	},
 	"verbatim": {
@@ -264,7 +269,8 @@
 			"manifest.configuration.dinah.path.markdownDescription": "b5f12924bb294315",
 			"manifest.configuration.dinah.workbench.markdownDescription": "221249b5110ae1ac",
 			"manifest.configuration.dinah.pollIntervalSeconds.markdownDescription": "82a83a3ecee5e3d2",
-			"manifest.configuration.dinah.watchFiles.markdownDescription": "be82886b40a298f6"
+			"manifest.configuration.dinah.watchFiles.markdownDescription": "be82886b40a298f6",
+			"manifest.command.dinah.tree.openInstructions.title": "4b8f647ad07e49ba"
 		},
 		"hi": {
 			"manifest.viewsContainers.dinah.title": "4f7f4ffab37b3e1",
@@ -295,7 +301,8 @@
 			"manifest.configuration.dinah.path.markdownDescription": "b5f12924bb294315",
 			"manifest.configuration.dinah.workbench.markdownDescription": "221249b5110ae1ac",
 			"manifest.configuration.dinah.pollIntervalSeconds.markdownDescription": "82a83a3ecee5e3d2",
-			"manifest.configuration.dinah.watchFiles.markdownDescription": "be82886b40a298f6"
+			"manifest.configuration.dinah.watchFiles.markdownDescription": "be82886b40a298f6",
+			"manifest.command.dinah.tree.openInstructions.title": "4b8f647ad07e49ba"
 		}
 	}
 }

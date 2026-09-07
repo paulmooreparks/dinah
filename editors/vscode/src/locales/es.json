@@ -275,6 +275,41 @@
 			"text": "This workbench is outside your workspace: {root}",
 			"context": "Leading hover line when the walk climbed past the workspace folder. {root} is the workbench's directory.",
 			"skeleton": true
+		},
+		"servedText.title.instructions": {
+			"text": "{ref} (served instructions)",
+			"context": "Tab label of the editor tab a card's served instruction chain opens in. {ref} is the card's own reference.",
+			"skeleton": true
+		},
+		"servedText.heading.global": {
+			"text": "Global",
+			"context": "Markdown heading above the user-global layer of a served instruction chain.",
+			"skeleton": true
+		},
+		"servedText.heading.standing": {
+			"text": "Standing",
+			"context": "Markdown heading above the workbench's own standing layer of a served instruction chain.",
+			"skeleton": true
+		},
+		"servedText.heading.column": {
+			"text": "Column",
+			"context": "Markdown heading above the column's own layer of a served instruction chain.",
+			"skeleton": true
+		},
+		"servedText.malformedUri": {
+			"text": "This served-text tab's own URI could not be read.",
+			"context": "Body of a served-text tab whose URI carries no kind, no workbench or no reference.",
+			"skeleton": true
+		},
+		"servedText.unknownKind": {
+			"text": "Dinah has no way to show text of kind {kind}.",
+			"context": "Body of a served-text tab naming a kind of text this extension serves no reader for. {kind} is that name.",
+			"skeleton": true
+		},
+		"servedText.refused": {
+			"text": "dinah refused: {detail}",
+			"context": "Body of a served-text tab whose fetch was refused. {detail} is what dinah said.",
+			"skeleton": true
 		}
 	}
 }

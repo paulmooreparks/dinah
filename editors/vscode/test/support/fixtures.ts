@@ -71,13 +71,24 @@ export function initBench(root: FixtureRoot, dir: string, slug?: string): void {
 	});
 }
 
-/** Writes a workspace-folder settings file pinning the binary this run built. */
-export function pinBinary(root: FixtureRoot, folder: string): void {
+/**
+ * Writes a workspace-folder settings file pinning the binary this run built.
+ *
+ * `extra` is merged over the pinned path, which is how a suite needing a
+ * setting of its own gets one without a second settings writer. The
+ * served-text suite pins the poll interval that way, because a suite waiting
+ * out the ten-second default would spend most of its budget waiting.
+ */
+export function pinBinary(
+	root: FixtureRoot,
+	folder: string,
+	extra: Record<string, unknown> = {},
+): void {
 	const dir = join(folder, ".vscode");
 	mkdirSync(dir, { recursive: true });
 	writeFileSync(
 		join(dir, "settings.json"),
-		`${JSON.stringify({ "dinah.path": root.binary }, null, 2)}\n`,
+		`${JSON.stringify({ "dinah.path": root.binary, ...extra }, null, 2)}\n`,
 		"utf8",
 	);
 }
