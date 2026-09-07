@@ -65,7 +65,13 @@ function row(path = ROOT): RootRow {
 		folderName: "bench",
 		description: "",
 		sole: true,
-		data: { path, title: "Bench", columns: new Map(), cards: new Map() },
+		data: {
+			path,
+			title: "Bench",
+			columns: new Map(),
+			cards: new Map(),
+			holding: [],
+		},
 	};
 }
 

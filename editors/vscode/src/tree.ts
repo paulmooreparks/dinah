@@ -67,8 +67,11 @@ import {
 	STATE_BLOCKED,
 	STATE_READY,
 } from "./wire";
+import type { WorkbenchHoldingReport } from "./status";
 import {
 	AMBIGUOUS_WORKBENCH,
+	NO_CONFIGURED_WORKBENCH,
+	NO_WORKBENCH,
 	NO_WORKBENCH_FOUND,
 	isInside,
 } from "./workbench";
@@ -147,6 +150,29 @@ export interface WorkbenchData {
 	 * Attachments row at all.
 	 */
 	readonly attachmentCount?: number;
+	/**
+	 * The owner this window's invocations act as here, as `status` reports
+	 * it. Held from the last good checkpoint when this one's status did not
+	 * answer, for the reason `root` is.
+	 */
+	readonly actor?: string;
+	/**
+	 * The cards that actor holds in this workbench right now, as `status`
+	 * reports them. Empty is a real answer meaning the actor holds nothing,
+	 * so a caller telling "holds nothing" apart from "we do not know" reads
+	 * `fetchedAt` rather than this array's length.
+	 */
+	readonly holding: readonly CardView[];
+	/**
+	 * When the last `status` call that answered ok came back, in milliseconds.
+	 *
+	 * It advances on an ok answer and on nothing else, so a run of refusals
+	 * reads as increasing staleness rather than as freshness. It is absent
+	 * until a status call has answered ok at least once, which is how a
+	 * workbench nobody has heard from yet is told apart from one that
+	 * answered a moment ago.
+	 */
+	readonly fetchedAt?: number;
 }
 
 /** How one workspace folder resolved, and therefore what rows it contributes. */
@@ -900,6 +926,7 @@ export async function readWorkbench(
 	root: string,
 	log: (line: string) => void,
 	held?: WorkbenchData,
+	now: () => number = Date.now,
 ): Promise<WorkbenchData> {
 	const [status, tree, listing] = await Promise.all([
 		runDinah(spawner, exe, pinned(root, ["status"]), { cwd: root }),
@@ -943,6 +970,10 @@ export async function readWorkbench(
 			cards: held?.cards ?? new Map(),
 			root: held?.root,
 			attachmentCount: held?.attachmentCount,
+			// The tree is what failed here. Status may well have answered,
+			// and where it did its holding list is this checkpoint's own
+			// answer rather than the last one's.
+			...heldHand(statusJson, held, now),
 		};
 	}
 
@@ -953,6 +984,38 @@ export async function readWorkbench(
 		cards: joinCards(listingJson),
 		root: treeJson.root,
 		attachmentCount: statusJson?.attachment_count,
+		...heldHand(statusJson, held, now),
+	};
+}
+
+/**
+ * What a row says about the reader's hand, given this checkpoint's status
+ * answer for it and whatever the last good checkpoint left behind.
+ *
+ * Both read paths ask this question, and before this helper existed they
+ * answered it differently: the single-workbench read preferred a status
+ * answer that arrived even when its sibling calls failed, while the
+ * root-scoped read dropped one. A status answer that came back this
+ * checkpoint is this checkpoint's own answer wherever it arrives, so the two
+ * paths now decide it in one place. `fetchedAt` moves only on an answer,
+ * which is what makes a run of failures read as increasing staleness.
+ */
+function heldHand(
+	status: StatusAnswer | undefined,
+	held: WorkbenchData | undefined,
+	now: () => number,
+): Pick<WorkbenchData, "actor" | "holding" | "fetchedAt"> {
+	if (status === undefined) {
+		return {
+			actor: held?.actor,
+			holding: held?.holding ?? [],
+			fetchedAt: held?.fetchedAt,
+		};
+	}
+	return {
+		actor: status.actor ?? held?.actor,
+		holding: status.holding ?? held?.holding ?? [],
+		fetchedAt: now(),
 	};
 }
 
@@ -975,6 +1038,21 @@ function byPath<T extends { path: string }>(
 }
 
 /**
+ * What a root-scoped walk came back with, and whether it came back at all.
+ *
+ * `walked` is a separate question from how many members arrived. A walk that
+ * answered and named no workbenches, and a walk that never answered while the
+ * folder had nothing held from before, both produce an empty `members`, and
+ * the caller has to tell a folder holding nothing apart from a folder it
+ * knows nothing about. Returning the members alone left that undecidable, and
+ * the provider guessed the reassuring answer.
+ */
+export interface ForestReading {
+	readonly walked: boolean;
+	readonly members: readonly WorkbenchData[];
+}
+
+/**
  * The three root-scoped calls that answer for every workbench beneath a
  * folder, in one process each rather than one process per workbench.
  *
@@ -988,7 +1066,8 @@ export async function readForest(
 	folder: string,
 	previous: ReadonlyMap<string, WorkbenchData>,
 	log: (line: string) => void,
-): Promise<WorkbenchData[]> {
+	now: () => number = Date.now,
+): Promise<ForestReading> {
 	const [status, tree, listing] = await Promise.all([
 		runDinah(spawner, exe, ["status", "--root", folder], { cwd: folder }),
 		runDinah(spawner, exe, ["tree", "--root", folder], { cwd: folder }),
@@ -1017,10 +1096,38 @@ export async function readForest(
 			: undefined,
 	);
 
+	if (forest === undefined) {
+		// The walk itself did not answer, so this checkpoint learned nothing
+		// about which workbenches lie under the folder. Returning no members
+		// would delete the rows the caller replaces its own with, and the
+		// rows are what every later reader records a failed read against, so
+		// a reader holding a card would watch it vanish from the bar with
+		// nothing left to say the window had stopped hearing. The members
+		// the last good walk found are kept and marked unanswered, which is
+		// the decision the per-member branch below already makes for a
+		// member that read fine and declined this one question.
+		const name = refusalNameOf(tree);
+		log(`the walk at ${folder} did not answer: ${name}`);
+		const kept = [...previous.values()].map(
+			(held): WorkbenchData => ({
+				path: held.path,
+				title: held.title,
+				slug: held.slug,
+				unanswered: name,
+				columns: held.columns,
+				cards: held.cards,
+				root: held.root,
+				attachmentCount: held.attachmentCount,
+				...heldHand(statuses.get(held.path)?.status, held, now),
+			}),
+		);
+		return { walked: false, members: kept };
+	}
+
 	// The walk's own order is path-sorted and deliberate, so that two heads
 	// walking one tree report it identically. It is preserved rather than
 	// re-sorted here.
-	return (forest?.workbenches ?? []).map((member): WorkbenchData => {
+	const members = (forest.workbenches ?? []).map((member): WorkbenchData => {
 		const held = previous.get(member.path);
 		if (member.refused !== undefined && member.refused !== "") {
 			// The workbench itself would not read. A row in this condition
@@ -1033,6 +1140,7 @@ export async function readForest(
 				refused: member.refused,
 				columns: new Map(),
 				cards: new Map(),
+				holding: [],
 			};
 		}
 		const statusMember = statuses.get(member.path);
@@ -1057,6 +1165,7 @@ export async function readForest(
 				cards: held?.cards ?? new Map(),
 				root: held?.root,
 				attachmentCount: held?.attachmentCount,
+				...heldHand(statusMember?.status, held, now),
 			};
 		}
 		return {
@@ -1067,8 +1176,10 @@ export async function readForest(
 			cards: joinCards(listingMember?.listing),
 			root: member.tree?.root,
 			attachmentCount: statusMember?.status?.attachment_count,
+			...heldHand(statusMember?.status, held, now),
 		};
 	});
+	return { walked: true, members };
 }
 
 /** The first of its arguments that is set and non-empty. */
@@ -1124,6 +1235,19 @@ export interface FolderState {
 	readonly resolution: WorkbenchResolution;
 	mode: FolderMode;
 	rows: RootRow[];
+	/**
+	 * When an answer last established which workbenches this folder holds,
+	 * in milliseconds, or undefined while none ever has.
+	 *
+	 * A folder with no rows is two different things, and this is what tells
+	 * them apart: dinah said there is nothing here, or nobody has managed to
+	 * ask. It carries the moment rather than a yes, because the report it
+	 * feeds is a vacancy and a vacancy expires. Every checkpoint that gets an
+	 * answer restamps it, so a folder that goes quiet stops being counted as
+	 * a confident nothing once the answer behind it is older than the window
+	 * is willing to trust. `holdingSnapshot` is its only reader.
+	 */
+	membershipAnsweredAt: number | undefined;
 	/** The single-workbench root, on a folder that resolved to exactly one. */
 	readonly root?: string;
 }
@@ -1144,6 +1268,149 @@ export interface TreeDeps {
 	 * English. extension.ts always passes one.
 	 */
 	readonly t?: Localizer;
+	/**
+	 * Reads the wall clock, so the unit layer stamps a fetch without waiting.
+	 *
+	 * Optional for the reason `t` is: the existing call sites construct a
+	 * provider without one, and an absent reader is the real clock.
+	 */
+	readonly now?: () => number;
+	/**
+	 * Resolves one workspace folder's workbench again, the way activation
+	 * first resolved it.
+	 *
+	 * A folder that resolved to no workbench at all is the one kind this
+	 * provider never re-read, because it has no rows to re-read and nothing
+	 * beneath it to walk. That left its vacancy standing on a single answer
+	 * for the life of the window, and a vacancy that expires needs somebody
+	 * to renew it. The checkpoint calls this and the answer restamps the
+	 * folder, so the claim that nothing is there is re-earned at the same
+	 * cadence every other claim on the bar is.
+	 *
+	 * Optional for the reason `t` and `now` are. Where it is absent such a
+	 * folder simply stops being renewed, which the bar reports as a doubt.
+	 */
+	readonly resolve?: (folder: string) => Promise<WorkbenchResolution>;
+}
+
+/**
+ * The refusals that say a folder holds no workbench.
+ *
+ * `no-workbench` is a path the caller named, through the folder's pinned
+ * `dinah.workbench` setting, that carries no `workbench.md`.
+ * `no-configured-workbench` is the stored setting naming such a path once the
+ * search has also found nothing local. Both report the same thing about the
+ * disk, which is that there is nothing there to hold a card, so both earn a
+ * vacancy.
+ *
+ * Membership is what the set states, and everything outside it is a doubt.
+ * The rule was written the other way round until round five, excluding
+ * `no-workbench-found` and `ambiguous-workbench` and admitting the rest, and
+ * that shape cannot be safe here: `internal/contract/contract.go` publishes
+ * over a hundred refusal names and this extension owns none of them, so an
+ * exclusion list admits every name it has not been taught about. Three
+ * published names say the opposite of emptiness and were being admitted.
+ * `dinah.unreadable-workbench` is a `workbench.md` the walk found and could
+ * not open, `dinah.damaged-workbench` is one whose anchor will not parse, and
+ * `dinah.needs-container-migration` is a workbench that is simply in the
+ * layout the format used to have. Each of those is a place that may be
+ * holding the reader's card.
+ */
+const VACANCY_REFUSALS: readonly string[] = [
+	NO_WORKBENCH,
+	NO_CONFIGURED_WORKBENCH,
+];
+
+/**
+ * Whether a resolution settles that a folder holds no workbench at all.
+ *
+ * Three questions have to be yes together, and each one has been the reason a
+ * vacancy was claimed without grounds. The resolution has to be a refusal,
+ * because an ok resolution names a workbench whose hand is a separate
+ * question. Dinah has to have produced that refusal, because a spawn that
+ * never ran and an answer that would not parse arrive wearing the same shape
+ * and say nothing about what is on disk. And the refusal has to be one of the
+ * names above.
+ *
+ * A refusal minted after this was written falls to the doubt, which is the
+ * direction that costs a warning rather than a false reassurance. The cost of
+ * that direction is real and nothing here catches it: a future refusal that
+ * genuinely does mean emptiness has to be added to the set by hand, and until
+ * somebody does the bar warns at a folder it could speak confidently about.
+ *
+ * One predicate rather than the same three conditions at the two producers,
+ * so that what earns a vacancy is decided once.
+ */
+function vacancyAnsweredBy(resolution: WorkbenchResolution): boolean {
+	if (resolution.state !== "refused" || !resolution.answered) {
+		return false;
+	}
+	return VACANCY_REFUSALS.includes(resolution.refusal);
+}
+
+/**
+ * The report a place with no rows of its own gets.
+ *
+ * One function rather than the same conditional at each of the two sites that
+ * needs it, because those two sites are exactly where the reassuring answer
+ * was reachable without evidence and a single spelling is what keeps a later
+ * edit from restoring that. A stamp produces the vacancy and its absence
+ * produces the doubt, so nothing here can name a vacancy it cannot date.
+ */
+function vacancyOrDoubt(
+	source: string,
+	answeredAt: number | undefined,
+): WorkbenchHoldingReport {
+	if (answeredAt === undefined) {
+		return { state: "unheard", source };
+	}
+	return { state: "vacant", source, answeredAt };
+}
+
+/**
+ * What one row says about the reader's hand there.
+ *
+ * A row with no data at all, and a row whose data carries no path to key it
+ * on, are both unheard rather than empty. Dropping either used to leave the
+ * bar with nothing to warn about, which is how a window that could not read
+ * a workbench came to tell its reader they were holding nothing.
+ */
+function holdingReportOf(
+	row: RootRow,
+	membershipAnsweredAt: number | undefined,
+): WorkbenchHoldingReport {
+	const data = row.data;
+	if (row.rowKind === "deadEnd") {
+		// A dead-end row is drawn several ways and only some of them are
+		// dinah saying the folder holds no workbench. markSole draws the same
+		// row for a forest folder that came back with no members at all,
+		// blankState draws it for a folder this window could not reach dinah
+		// about, and reading either as a vacancy is how this bar has twice
+		// claimed an empty hand it could not see. The stamp the folder is
+		// carrying settles it, and a folder nobody has answered for carries
+		// none.
+		return vacancyOrDoubt(row.folder, membershipAnsweredAt);
+	}
+	if (data === undefined) {
+		// An unexpanded candidate is this case too. The resolution named
+		// several workbenches here and this window has opened none of them,
+		// so what is held in them is genuinely unread.
+		return { state: "unheard", source: row.candidate?.path ?? row.folder };
+	}
+	if (data.fetchedAt === undefined || data.path === "") {
+		// No status call has answered for this row, or one has and gave no
+		// path to key the row on. The second is kept out of the count
+		// because two such rows would fold together on the empty string, and
+		// a hand that cannot be counted is a hand this window cannot report.
+		return { state: "unheard", source: data.path === "" ? row.folder : data.path };
+	}
+	return {
+		state: "answered",
+		source: data.path,
+		title: data.title === "" ? UNTITLED_WORKBENCH : data.title,
+		holding: data.holding,
+		fetchedAt: data.fetchedAt,
+	};
 }
 
 /** One workspace folder as the provider is told about it. */
@@ -1198,6 +1465,7 @@ export class DinahTreeProvider {
 					state.root ?? folder,
 					this.deps.log,
 					state.rows[0]?.data,
+					this.deps.now,
 				);
 				state.rows = [
 					{
@@ -1209,6 +1477,13 @@ export class DinahTreeProvider {
 						sole: false,
 					},
 				];
+				// readWorkbench returns a row whatever happened, so this
+				// folder's membership is settled from here on and the row
+				// itself carries whether its reads answered. The stamp is
+				// never read for a folder in this mode, which always has its
+				// one row, and it is written anyway so that no mode leaves
+				// the field saying something untrue about the folder.
+				state.membershipAnsweredAt = this.clock();
 				break;
 			}
 			case "forest": {
@@ -1218,14 +1493,23 @@ export class DinahTreeProvider {
 						previous.set(row.data.path, row.data);
 					}
 				}
-				const members = await readForest(
+				const reading = await readForest(
 					this.deps.spawner,
 					this.deps.exe,
 					folder,
 					previous,
 					this.deps.log,
+					this.deps.now,
 				);
-				state.rows = members.map((data) => ({
+				// A walk that answered settles what this folder holds, and
+				// restamps it. A walk that fails keeps the members the last
+				// good one found, which are still an answer somebody gave,
+				// and keeps the stamp it had, which is what lets the folder
+				// age out of trust while the walks go on failing.
+				if (reading.walked) {
+					state.membershipAnsweredAt = this.clock();
+				}
+				state.rows = reading.members.map((data) => ({
 					rowKind: "workbenchForest" as const,
 					folder,
 					folderName: state.folderName,
@@ -1243,13 +1527,86 @@ export class DinahTreeProvider {
 				}));
 				break;
 			}
-			case "candidates":
 			case "dead-end":
-				// A candidate row is a stub until it is expanded, and a dead
-				// end has nothing to re-read. Neither is re-fetched here.
+				// A dead end has no rows to re-read and nothing beneath it to
+				// walk, so what gets re-asked is the resolution itself, which
+				// is the answer this folder's vacancy rests on. Renewing it
+				// is what keeps the vacancy honest: dinah says again that
+				// there is no workbench here, or it stops saying so and the
+				// bar reports a doubt instead of a confident empty hand.
+				await this.reresolve(state);
+				break;
+			case "candidates":
+				// A candidate row is a stub until it is expanded, and the
+				// resolution already named which workbenches this folder
+				// holds, so there is nothing to re-ask at the folder level.
+				// Each candidate row reports its own hand as unread until a
+				// reader opens it.
 				break;
 		}
 		this.markSole();
+	}
+
+	/**
+	 * What every place this provider watches last said the actor holds.
+	 *
+	 * The answer is total over what the provider knows. Every row produces a
+	 * report, and a folder holding no rows produces one of its own, so no
+	 * failure can take a place out of the snapshot and leave the bar with
+	 * nothing to be uncertain about. That was the defect twice over: a folder
+	 * whose walk never answered had no rows to record the silence on, and the
+	 * summary read the missing entry as a confirmed empty hand.
+	 *
+	 * Whether the folder's own membership is known is what its report turns
+	 * on. A folder dinah has answered for contributes `vacant` when it has no
+	 * rows, because there is nothing beneath it to hold a card. A folder
+	 * nobody has heard from contributes `unheard`, which is what makes the
+	 * bar warn on the very first failed walk instead of only after a good one
+	 * has left rows behind.
+	 *
+	 * Two workspace folders resolving to the same workbench collapse to one
+	 * answered report, because a card held there is one card and counting it
+	 * twice would tell a reader they hold two. The first report for a root
+	 * wins, so the answer follows workspace folder order the way rootRows()
+	 * does. An unheard report is never folded away, since folding one would
+	 * be dropping a doubt.
+	 */
+	holdingSnapshot(): readonly WorkbenchHoldingReport[] {
+		const reports: WorkbenchHoldingReport[] = [];
+		const seen = new Set<string>();
+		for (const state of this.folders.values()) {
+			if (state.rows.length === 0) {
+				reports.push(
+					vacancyOrDoubt(state.folder, state.membershipAnsweredAt),
+				);
+				continue;
+			}
+			for (const row of state.rows) {
+				const report = holdingReportOf(row, state.membershipAnsweredAt);
+				if (report.state === "answered") {
+					const key = this.rootKey(report.source);
+					if (seen.has(key)) {
+						continue;
+					}
+					seen.add(key);
+				}
+				reports.push(report);
+			}
+		}
+		return reports;
+	}
+
+	/**
+	 * The key two roots are compared on.
+	 *
+	 * Separators are folded because one directory reached two ways is still
+	 * one directory, and case is folded on the platforms this provider is
+	 * told to fold it on, which is the same flag every other path comparison
+	 * in this module reads.
+	 */
+	private rootKey(root: string): string {
+		const posix = root.replace(/\\/g, "/");
+		return this.deps.caseInsensitive ? posix.toLowerCase() : posix;
 	}
 
 	/** The rows every folder contributes, in workspace folder order. */
@@ -1439,6 +1796,8 @@ export class DinahTreeProvider {
 				this.deps.exe,
 				path,
 				this.deps.log,
+				row.data,
+				this.deps.now,
 			);
 		} catch (err) {
 			row.failure = String(err);
@@ -1449,6 +1808,33 @@ export class DinahTreeProvider {
 	private rootDescription(root: string, folder: string): string {
 		const relative = relativeTo(root, folder, this.deps.caseInsensitive);
 		return relative === "" ? "" : relative;
+	}
+
+	/** The wall clock this provider stamps its answers with. */
+	private clock(): number {
+		return (this.deps.now ?? Date.now)();
+	}
+
+	/**
+	 * Asks again whether a dead-end folder really holds no workbench.
+	 *
+	 * The answer either renews the folder's stamp or leaves it to expire, and
+	 * nothing else about the folder changes. A resolution that now names a
+	 * workbench, or several, is deliberately not turned into rows here: what
+	 * the tree draws for such a folder is a separate surface with its own
+	 * card, and the honest thing for this one to report meanwhile is that it
+	 * cannot say what is held there, which is what an unrenewed stamp
+	 * produces.
+	 */
+	private async reresolve(state: FolderState): Promise<void> {
+		const resolve = this.deps.resolve;
+		if (resolve === undefined) {
+			return;
+		}
+		const resolution = await resolve(state.folder);
+		if (vacancyAnsweredBy(resolution)) {
+			state.membershipAnsweredAt = this.clock();
+		}
 	}
 
 	/** Turns one folder's resolution into the mode and the stub rows it gets. */
@@ -1462,6 +1848,11 @@ export class DinahTreeProvider {
 				mode: "single",
 				root: resolution.root,
 				rows: [],
+				// The resolution named the root, and readWorkbench returns a
+				// row on every path, so this is stamped by the first refresh.
+				// Until one runs, this window has heard nothing about the
+				// folder and says so.
+				membershipAnsweredAt: undefined,
 			};
 		}
 		if (resolution.refusal === AMBIGUOUS_WORKBENCH) {
@@ -1470,6 +1861,12 @@ export class DinahTreeProvider {
 				folderName: input.name,
 				resolution,
 				mode: "candidates",
+				// The resolution is the answer here: these are the
+				// workbenches this folder holds, and it was given just now.
+				// Which cards are held inside them stays unheard until a
+				// candidate is expanded, and each candidate row says that for
+				// itself.
+				membershipAnsweredAt: this.clock(),
 				rows: (resolution.candidates ?? []).map((candidate) => ({
 					rowKind: "workbenchCandidate" as const,
 					folder: input.folder,
@@ -1494,6 +1891,10 @@ export class DinahTreeProvider {
 				resolution,
 				mode: "forest",
 				rows: [],
+				// The walk is what establishes membership here, and it has
+				// not run. A folder in this state contributing nothing is
+				// what let a failed first walk read as an empty hand.
+				membershipAnsweredAt: undefined,
 			};
 		}
 		return {
@@ -1502,6 +1903,16 @@ export class DinahTreeProvider {
 			resolution,
 			mode: "dead-end",
 			rows: [this.deadEndRow(input, resolution.refusal)],
+			// Only dinah's own refusal is an answer. Everything else reaching
+			// this arm is the window failing to run the binary, time it out
+			// or parse it, and each of those wears the same shape as a
+			// refusal once the kind has been flattened into the refusal
+			// string. Stamping them all was how a folder the extension could
+			// not launch dinah in came to be drawn as a folder confirmed to
+			// hold nothing.
+			membershipAnsweredAt: vacancyAnsweredBy(resolution)
+				? this.clock()
+				: undefined,
 		};
 	}
 

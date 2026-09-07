@@ -38,19 +38,37 @@ export interface CardView {
 	readonly severity?: string;
 	readonly priority?: string;
 	readonly holder?: string;
+	readonly claim_since?: string;
+	readonly expires?: string;
 	readonly block_reason?: string;
 	readonly block_kind?: string;
 	readonly workstreams?: readonly string[];
 	readonly revision?: string;
 	readonly attachment_count?: number;
+	readonly blocking_items?: number;
 }
 
-/** verb.Status, what `dinah --json status` emits. */
+/**
+ * verb.Status, what `dinah --json status` emits.
+ *
+ * `is_operator`, `holding` and `blocked` carry no omitempty on the Go side,
+ * because Library.Status initializes both slices and writes the boolean
+ * unconditionally, so they are required here for the reason the header gives:
+ * an optional field spells a key that may be absent, and these three are not.
+ * A reader still guards them, because a binary older than the field would omit
+ * what this mirror promises and a client that trusts the promise throws.
+ */
 export interface StatusAnswer {
 	readonly workbench?: string;
 	readonly root?: string;
+	readonly actor?: string;
+	readonly is_operator: boolean;
+	readonly operator?: string;
 	readonly profile?: string;
 	readonly columns?: readonly ColumnView[];
+	readonly holding: readonly CardView[];
+	readonly blocked: readonly CardView[];
+	readonly workbench_source?: string;
 	readonly attachment_count?: number;
 }
 

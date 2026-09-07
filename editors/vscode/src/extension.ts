@@ -34,6 +34,7 @@ import {
 } from "./dragAndDrop";
 import { CheckpointLoop, systemClock } from "./changes";
 import { runDinah } from "./cli";
+import { CountdownTicker, redrawAfterRefresh } from "./countdown";
 // Two modules export a function named contextForColumn. dinah-331 and
 // dinah-332 each gave the column row an act, and each act composes its own
 // context: the creation one declines a row whose ColumnView the status join
@@ -99,7 +100,13 @@ import {
 import { nodeSpawner } from "./spawn";
 import { createLocalizer, resolveTag } from "./l10n";
 import type { Localizer } from "./l10n";
-import { composeContextKeys, composeStatus } from "./status";
+import {
+	NOTHING_HELD,
+	composeContextKeys,
+	composeStatus,
+	staleAfterMs,
+	summarizeHolding,
+} from "./status";
 import type { TreeElement, TreeItemSpec } from "./tree";
 import { DinahTreeProvider } from "./tree";
 import { classifyVersion, describeVersion } from "./version";
@@ -119,6 +126,7 @@ import {
 let statusItem: vscode.StatusBarItem | undefined;
 let output: vscode.OutputChannel | undefined;
 let loop: CheckpointLoop | undefined;
+let ticker: CountdownTicker | undefined;
 let treeView: vscode.TreeView<TreeElement> | undefined;
 let servedText: ServedTextRefreshLoop | undefined;
 
@@ -335,7 +343,17 @@ export async function activate(
 
 	const first = vscode.workspace.workspaceFolders?.[0];
 	const primary = first ? workbenches.get(first.uri.fsPath) : undefined;
-	const view = composeStatus(binary, primary, PAIRED_RELEASE, t);
+	// The pre-load paint. No provider exists yet, so this one carries no held
+	// card at all; renderStatusBar() below replaces it as soon as the initial
+	// load has answered, and again on every checkpoint and every tick.
+	let view = composeStatus(
+		binary,
+		primary,
+		PAIRED_RELEASE,
+		NOTHING_HELD,
+		Date.now(),
+		t,
+	);
 	const keys = composeContextKeys(binary, primary);
 
 	await vscode.commands.executeCommand("setContext", "dinah.binary", keys.binary);
@@ -379,11 +397,64 @@ export async function activate(
 		log: (line) => channel.appendLine(line),
 		caseInsensitive: process.platform === "win32",
 		t,
+		// The same call that resolved every folder at activation, offered
+		// back to the provider so that a folder resolving to no workbench is
+		// asked again at each checkpoint. Its vacancy expires like any other
+		// answer, so somebody has to renew it, and this is the only call that
+		// can. The pinned setting is read per folder here exactly as it is
+		// above, because a reader who pins one folder's workbench expects the
+		// pin to hold on every later read of it.
+		resolve: (folder) =>
+			resolveWorkbench(
+				nodeSpawner,
+				binary.state === "ok" ? binary.path : "",
+				folder,
+				setting(SETTING_WORKBENCH, vscode.Uri.file(folder)),
+				process.platform === "win32",
+			),
 		deadEndSentence: (refusal) =>
 			refusal === NO_WORKBENCH_FOUND
 				? t("tree.root.deadEnd.noWorkbenchSentence")
 				: t("status.refused", { refusal }),
 	});
+
+	/**
+	 * Recomposes the status bar from data the provider is already holding.
+	 *
+	 * Nothing here spawns a process. The held cards and their expiry stamps
+	 * come off the `status` answers the tree's own reads already made, and the
+	 * time left is arithmetic over those stamps and the wall clock, so a
+	 * redraw costs a string and no CLI call.
+	 *
+	 * Three call sites reach it and there is no fourth: the initial load
+	 * below, the checkpoint loop's refresh callback, and the countdown's own
+	 * thirty-second tick.
+	 */
+	function renderStatusBar(): void {
+		const now = Date.now();
+		view = composeStatus(
+			binary,
+			primary,
+			PAIRED_RELEASE,
+			summarizeHolding(
+				provider.holdingSnapshot(),
+				now,
+				staleAfterMs(settingOf<number>(SETTING_POLL_INTERVAL, 10)),
+			),
+			now,
+			t,
+		);
+		if (statusItem === undefined) {
+			return;
+		}
+		statusItem.text = view.text;
+		statusItem.tooltip = view.tooltip;
+		if (view.hidden) {
+			statusItem.hide();
+		} else {
+			statusItem.show();
+		}
+	}
 
 	if (binary.state === "ok") {
 		await provider.load(
@@ -392,9 +463,19 @@ export async function activate(
 				name: folder.name,
 				resolution:
 					workbenches.get(folder.uri.fsPath) ??
-					({ state: "refused", refusal: NO_WORKBENCH_FOUND } as WorkbenchResolution),
+					({
+						state: "refused",
+						refusal: NO_WORKBENCH_FOUND,
+						// Nobody asked dinah anything about this folder, so
+						// this resolution is a placeholder rather than an
+						// answer. Saying otherwise would offer the vacancy
+						// predicate a synthetic refusal to act on, and
+						// `answered` is the field standing between the two.
+						answered: false,
+					} as WorkbenchResolution),
 			})),
 		);
+		renderStatusBar();
 	}
 
 	// createTreeView rather than registerTreeDataProvider, because the
@@ -454,7 +535,10 @@ export async function activate(
 		exe: binary.state === "ok" ? binary.path : "",
 		clock: systemClock,
 		log: (line) => channel.appendLine(line),
-		refresh: (folder) => provider.refresh(folder),
+		refresh: redrawAfterRefresh(
+			(folder) => provider.refresh(folder),
+			renderStatusBar,
+		),
 		fire: () => emitter.fire(undefined),
 		pollIntervalSeconds: settingOf<number>(SETTING_POLL_INTERVAL, 10),
 		watchFiles: settingOf<boolean>(SETTING_WATCH_FILES, true),
@@ -484,6 +568,16 @@ export async function activate(
 		checkpointing.setVisible(event.visible);
 	});
 	context.subscriptions.push({ dispose: () => checkpointing.stop() });
+
+	// The countdown's own timer, which redraws the remaining time between
+	// checkpoints and asks dinah nothing. It runs only where there is a
+	// binary to have produced a held card in the first place.
+	ticker = new CountdownTicker(systemClock, renderStatusBar);
+	if (binary.state === "ok") {
+		ticker.start();
+	}
+	const counting = ticker;
+	context.subscriptions.push({ dispose: () => counting.stop() });
 
 	// Every command this extension contributes is registered through this one
 	// helper, so that registeredIds is a record of what activation actually
@@ -800,6 +894,8 @@ export function deactivate(): void {
 	statusItem = undefined;
 	loop?.stop();
 	loop = undefined;
+	ticker?.stop();
+	ticker = undefined;
 	servedText?.stop();
 	servedText = undefined;
 	treeView = undefined;

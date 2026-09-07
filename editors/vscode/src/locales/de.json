@@ -277,6 +277,52 @@
 			"context": "Leading hover line when the walk climbed past the workspace folder. {root} is the workbench's directory.",
 			"source": "51d0ceb69d7b761d"
 		},
+		"status.holding.remaining.hours": {
+			"text": "{hours} Std. {minutes} Min. übrig",
+			"context": "Time left on a claim of an hour or more, shown beside the card's reference in the status bar. {hours} is whole hours, {minutes} the minutes after them.",
+			"source": "7079a2912bfb8d45"
+		},
+		"status.holding.remaining.minutes": {
+			"text": "{minutes} Min. übrig",
+			"context": "Time left on a claim of under an hour, shown beside the card's reference in the status bar. {minutes} is whole minutes.",
+			"source": "8d69a20c31d54032"
+		},
+		"status.holding.remaining.soon": {
+			"text": "weniger als eine Minute übrig",
+			"context": "Time left on a claim that lapses within the minute, shown beside the card's reference in the status bar.",
+			"source": "c8d8556ebefd4a11"
+		},
+		"status.holding.remaining.expired": {
+			"text": "Frist abgelaufen",
+			"context": "Shown in place of a time when the claim's lease has already lapsed.",
+			"source": "a8093589b9a12b50"
+		},
+		"status.holding.remaining.noLease": {
+			"text": "ohne Frist",
+			"context": "Shown in place of a time when the claim carries no lease and so never lapses.",
+			"source": "b39d2c2f1ea8d8cc"
+		},
+		"status.holding.tooltipLead": {
+			"text": "Sie halten {ref} in {workbench}: {clause}",
+			"context": "First hover line when the reader holds exactly one card. {ref} is the card's reference, {workbench} the workbench's title, {clause} one of the five remaining-time clauses.",
+			"source": "87dce8435ec18e14"
+		},
+		"status.holding.tooltipLeadMany": {
+			"text": "Sie halten {count} Karten; zuerst läuft {ref} in {workbench} ab, {clause}",
+			"context": "First hover line when the reader holds more than one card. {count} is how many, and {ref}, {workbench} and {clause} describe the one whose lease lapses first.",
+			"source": "6855602a71730c8e"
+		},
+		"status.holding.tooltipRow": {
+			"text": "{ref} in {workbench}: {clause}",
+			"context": "One hover line per further held card, under the lead line. {ref} is the card's reference, {workbench} the workbench's title, {clause} its remaining-time clause. Two references, a separator and a clause, so a language whose preposition here is also \"in\" renders it identically.",
+			"verbatim": true,
+			"source": "43909375681ae60d"
+		},
+		"status.holding.uncertainLead": {
+			"text": "Dinah konnte nicht bestätigen, ob Sie gerade etwas halten",
+			"context": "First hover line when every workbench's last read went stale, so the window cannot say what the reader holds.",
+			"source": "809bda6a4396c0d6"
+		},
 		"servedText.title.instructions": {
 			"text": "{ref} (bereitgestellte Anweisungen)",
 			"context": "Tab label of the editor tab a card's served instruction chain opens in. {ref} is the card's own reference.",

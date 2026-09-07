@@ -11,9 +11,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import type { WorkbenchResolution } from "../../src/api";
+import type { BinaryState, WorkbenchResolution } from "../../src/api";
 import type { CommandHost } from "../../src/cardCommands";
-import type { SpawnOutcome, Spawner } from "../../src/cli";
+import type { CliOutcome, SpawnOutcome, Spawner } from "../../src/cli";
 import { contextForPull } from "../../src/pullCommands";
 import {
 	COMMAND_OPEN_ATTACHMENT,
@@ -46,7 +46,19 @@ import {
 	relativeTo,
 	treeItemFor,
 } from "../../src/tree";
-import type { AttachmentListing, CardView, ColumnView } from "../../src/wire";
+import {
+	composeStatus,
+	staleAfterMs,
+	summarizeHolding,
+} from "../../src/status";
+import type { HoldingSummary, WorkbenchHoldingReport } from "../../src/status";
+import { NO_CONFIGURED_WORKBENCH, parseRefusal } from "../../src/workbench";
+import type {
+	AttachmentListing,
+	CardView,
+	ColumnView,
+	StatusAnswer,
+} from "../../src/wire";
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -145,6 +157,21 @@ function stubSpawner(answers: Record<string, unknown>): {
 	return { spawner, calls };
 }
 
+/**
+ * The reports in a snapshot that carry a hand, narrowed to that arm.
+ *
+ * holdingSnapshot answers about every place the provider watches, including
+ * the ones it could not read, so a test asking what a workbench reported has
+ * to say which arm it means rather than indexing blindly into the array.
+ */
+function answered(
+	snapshot: readonly WorkbenchHoldingReport[],
+): Extract<WorkbenchHoldingReport, { state: "answered" }>[] {
+	return snapshot.flatMap((entry) =>
+		entry.state === "answered" ? [entry] : [],
+	);
+}
+
 const RESOLVED: WorkbenchResolution = {
 	state: "ok",
 	root: "C:\\work\\bench",
@@ -152,6 +179,14 @@ const RESOLVED: WorkbenchResolution = {
 	source: "search",
 	profile: "dinah-core/0.7",
 	insideWorkspace: true,
+};
+
+/** A binary that resolved, so the bar's own trailer never moves in a test. */
+const GOOD_BINARY: BinaryState = {
+	state: "ok",
+	path: "/usr/local/bin/dinah",
+	source: "path",
+	version: { tool: "v0.1.0-dev.42", profile: "dinah-core/0.4", format: 1 },
 };
 
 function provider(spawner: Spawner, logged: string[] = []): DinahTreeProvider {
@@ -707,6 +742,7 @@ test("an active card's tooltip names its holder and a blocked card's names its o
 const AMBIGUOUS: WorkbenchResolution = {
 	state: "refused",
 	refusal: "dinah.ambiguous-workbench",
+	answered: true,
 	candidates: [
 		{ title: "First", slug: "one", path: "C:\\multi\\second\\one" },
 		{ title: "Second", slug: "two", path: "C:\\multi\\second\\two" },
@@ -716,6 +752,7 @@ const AMBIGUOUS: WorkbenchResolution = {
 const NOTHING: WorkbenchResolution = {
 	state: "refused",
 	refusal: "dinah.no-workbench-found",
+	answered: true,
 };
 
 test("three folders produce one resolved row, two candidate rows and one dead end", async () => {
@@ -1901,4 +1938,1107 @@ test("a column the last good read never cached leaves the marker off and says so
 	const rootItem = treeItemFor(root);
 	assert.equal(rootItem.description, "did not answer");
 	assert.ok(rootItem.tooltip?.includes("malformed: column b00000000002"));
+});
+
+// ---------------------------------------------------------------------------
+// dinah-419: what status says the reader is holding
+// ---------------------------------------------------------------------------
+
+/**
+ * A `dinah --json status` answer as the binary actually emits one, written
+ * out as text rather than as an object literal.
+ *
+ * The text is what a mirror can be wrong about. An object literal is checked
+ * against the interface by the compiler and so agrees with it whatever either
+ * one says, while a parse of real output fails when the mirror has drifted
+ * from the field names the Go tags publish.
+ */
+const STATUS_JSON = `{
+	"workbench": "Trees",
+	"root": "C:\\\\work\\\\bench",
+	"actor": "alka",
+	"is_operator": false,
+	"operator": "paul",
+	"profile": "dinah-core/0.7",
+	"columns": [],
+	"holding": [
+		{
+			"id": "aaa",
+			"ref": "tr-3",
+			"title": "Retire the second map",
+			"column": "doing",
+			"state": "active",
+			"holder": "alka",
+			"claim_since": "2026-09-07T09:00:00Z",
+			"expires": "2026-09-07T13:30:00Z",
+			"revision": "r1",
+			"blocking_items": 2
+		}
+	],
+	"blocked": [],
+	"workbench_source": "search",
+	"attachment_count": 1
+}`;
+
+test("the status mirror carries the actor, the holding list and each claim's own stamps", async () => {
+	// AC-1's first half. Every field this card added to the mirror is read off
+	// a parse of real output and asserted with its type, because a field
+	// spelled wrongly here reads as undefined rather than as an error.
+	const answer = JSON.parse(STATUS_JSON) as StatusAnswer;
+	assert.equal(answer.actor, "alka");
+	assert.equal(answer.is_operator, false);
+	assert.equal(typeof answer.is_operator, "boolean");
+	assert.equal(answer.operator, "paul");
+	assert.equal(answer.workbench_source, "search");
+	assert.ok(Array.isArray(answer.holding));
+	assert.ok(Array.isArray(answer.blocked));
+	assert.deepEqual(answer.blocked, []);
+	assert.equal(answer.holding.length, 1);
+	const first = answer.holding[0];
+	assert.equal(first.ref, "tr-3");
+	assert.equal(first.claim_since, "2026-09-07T09:00:00Z");
+	assert.equal(first.expires, "2026-09-07T13:30:00Z");
+	assert.equal(first.blocking_items, 2);
+	assert.equal(typeof first.blocking_items, "number");
+});
+
+test("a status answer carrying no holding list leaves an empty hand rather than throwing", async () => {
+	// AC-1's second half. The three fields carry no omitempty on the Go side,
+	// so a current binary always writes them, but a binary older than the
+	// field would not, and a reader that trusts the mirror's promise would
+	// throw on the first read rather than degrade.
+	const { spawner } = stubSpawner({
+		status: { workbench: "Trees", root: "C:\\work\\bench", columns: [] },
+		tree: treeAnswer([]),
+		ls: { cards: [] },
+	});
+	const data = await readWorkbench(spawner, "dinah", "C:\\work\\bench", () => {});
+	assert.deepEqual([...data.holding], []);
+	assert.equal(data.actor, undefined);
+});
+
+test("what the reader holds is read off the status call the tree already makes", async () => {
+	const held = {
+		id: "aaa",
+		ref: "tr-3",
+		title: "Retire the second map",
+		state: "active",
+		holder: "alka",
+		claim_since: "2026-09-07T09:00:00Z",
+		expires: "2026-09-07T13:30:00Z",
+	};
+	const { spawner, calls } = stubSpawner({
+		status: {
+			workbench: "Trees",
+			root: "C:\\work\\bench",
+			actor: "alka",
+			is_operator: false,
+			columns: [],
+			holding: [held],
+			blocked: [],
+		},
+		tree: treeAnswer([]),
+		ls: { cards: [] },
+	});
+	const data = await readWorkbench(
+		spawner,
+		"dinah",
+		"C:\\work\\bench",
+		() => {},
+		undefined,
+		() => 7_000,
+	);
+	assert.equal(data.actor, "alka");
+	assert.deepEqual([...data.holding], [held]);
+	assert.equal(data.fetchedAt, 7_000);
+	// Three calls and no fourth: the holding list rode the status call the
+	// tree was making anyway.
+	assert.equal(calls.length, 3);
+	assert.deepEqual(
+		calls.map((argv) => argv[argv.length - 1]).sort(),
+		["ls", "status", "tree"],
+	);
+});
+
+test("two folders resolving to one workbench report one held hand between them", async () => {
+	// AC-9. Folders A and B resolve to the same root spelled two ways, and a
+	// third folder resolves to a workbench of its own whose status call fails
+	// after an initial success.
+	const SHARED = "C:\\work\\bench";
+	const OTHER = "C:\\work\\other";
+	const failing = { value: false };
+	let reading = 1_000;
+
+	const held = {
+		id: "aaa",
+		ref: "tr-3",
+		state: "active",
+		holder: "alka",
+		expires: "2026-09-07T13:30:00Z",
+	};
+	const statusFor = (root: string): Record<string, unknown> => ({
+		workbench: root === SHARED ? "Trees" : "Maps",
+		root,
+		actor: "alka",
+		is_operator: false,
+		columns: [],
+		holding: root === SHARED ? [held] : [],
+		blocked: [],
+	});
+	const spawner: Spawner = async (_exe, argv) => {
+		const root = argv[argv.indexOf("--workbench") + 1] ?? "";
+		const verb = argv[argv.length - 1];
+		if (verb === "status") {
+			if (failing.value && root.toLowerCase() === OTHER.toLowerCase()) {
+				return {
+					code: 2,
+					stdout: JSON.stringify({ refusal: "dinah.unreachable" }),
+					stderr: "",
+				};
+			}
+			return ok(statusFor(root));
+		}
+		if (verb === "tree") {
+			return ok(treeAnswer([]));
+		}
+		return ok({ cards: [] });
+	};
+
+	const view = new DinahTreeProvider({
+		spawner,
+		exe: "dinah",
+		log: () => {},
+		caseInsensitive: true,
+		deadEndSentence: (refusal) => refusal,
+		now: () => reading,
+	});
+	await view.load([
+		folder({ folder: "C:\\ws\\a", resolution: { ...RESOLVED, root: SHARED } }),
+		// The same workbench, reached through a second folder and spelled with
+		// different case and separators, which is what the deduplication key
+		// has to see through.
+		folder({
+			folder: "C:\\ws\\b",
+			resolution: { ...RESOLVED, root: "c:/work/BENCH" },
+		}),
+		folder({
+			folder: "C:\\ws\\c",
+			resolution: { ...RESOLVED, root: OTHER, title: "Maps" },
+		}),
+	]);
+
+	const first = answered(view.holdingSnapshot());
+	assert.deepEqual(
+		first.map((entry) => entry.source),
+		[SHARED, OTHER],
+		"the shared workbench appears once and the other appears beside it",
+	);
+	assert.deepEqual(
+		first.map((entry) => entry.holding.length),
+		[1, 0],
+	);
+	assert.deepEqual(
+		first.map((entry) => entry.fetchedAt),
+		[1_000, 1_000],
+	);
+
+	// The third folder's status call now fails. Its last good answer stands,
+	// and its fetchedAt does not advance, so the failure reads as staleness
+	// rather than as a fresh empty hand.
+	failing.value = true;
+	reading = 9_000;
+	await view.refresh("C:\\ws\\c");
+	const second = answered(view.holdingSnapshot());
+	const other = second.find((entry) => entry.source === OTHER);
+	assert.notEqual(other, undefined);
+	assert.equal(other?.fetchedAt, 1_000);
+
+	// The shared workbench's own entry is untouched by that failure, and one
+	// entry is still all it gets.
+	assert.deepEqual(
+		second.map((entry) => entry.source),
+		[SHARED, OTHER],
+	);
+	assert.equal(second[0].fetchedAt, 1_000);
+
+	// A successful read does advance it, which is what makes the assertion
+	// above a real one rather than a stamp that never moves at all.
+	failing.value = false;
+	reading = 12_000;
+	await view.refresh("C:\\ws\\c");
+	assert.equal(
+		answered(view.holdingSnapshot()).find((entry) => entry.source === OTHER)
+			?.fetchedAt,
+		12_000,
+	);
+});
+
+test("a forest member that declined a read keeps the hand it was last confirmed to hold", async () => {
+	// AC-9's other read. The root-scoped walk answers for every workbench
+	// beneath a folder in one call each, so the same rule about what a failed
+	// read may and may not change has to hold on that path too, and a test
+	// covering only the single-workbench read would leave it unguarded.
+	let declining = false;
+	let statusRefusing = false;
+	let reading = 1_000;
+	const carried = {
+		id: "aaa",
+		ref: "tr-3",
+		state: "active",
+		holder: "alka",
+		expires: "2026-09-07T13:30:00Z",
+	};
+	const spawner: Spawner = async (_exe, argv) => {
+		if (statusRefusing && argv.includes("status")) {
+			return {
+				code: 2,
+				stdout: JSON.stringify({ refusal: "dinah.unreachable" }),
+				stderr: "",
+			};
+		}
+		const member = {
+			title: "Carter LLP",
+			slug: "carter",
+			path: "C:\\customers\\carter\\board",
+			...(declining
+				? { unanswered: "dinah.unknown-column" }
+				: argv.includes("tree")
+					? { tree: THREE_COLUMNS }
+					: argv.includes("status")
+						? {
+								status: {
+									...THREE_STATUS,
+									actor: "alka",
+									is_operator: false,
+									holding: [carried],
+									blocked: [],
+								},
+							}
+						: { listing: THREE_LISTING }),
+		};
+		return ok({ root: "C:\\customers", workbenches: [member] });
+	};
+	const view = new DinahTreeProvider({
+		spawner,
+		exe: "dinah",
+		log: () => {},
+		caseInsensitive: true,
+		deadEndSentence: (refusal) => refusal,
+		now: () => reading,
+	});
+	await view.load([folder({ folder: "C:\\customers", resolution: NOTHING })]);
+
+	const [confirmed] = answered(view.holdingSnapshot());
+	assert.deepEqual([...confirmed.holding], [carried]);
+	assert.equal(confirmed.fetchedAt, 1_000);
+
+	// The member declines this checkpoint. What it was last confirmed to hold
+	// stands, and the stamp does not move, so the display ages out rather
+	// than reading as freshly empty.
+	declining = true;
+	reading = 9_000;
+	await view.refresh("C:\\customers");
+	const [stale] = answered(view.holdingSnapshot());
+	assert.deepEqual([...stale.holding], [carried]);
+	assert.equal(stale.fetchedAt, 1_000);
+
+	// A read that answers does move it, which is what keeps the assertion
+	// above from passing against a stamp that never moves at all.
+	declining = false;
+	reading = 12_000;
+	await view.refresh("C:\\customers");
+	assert.equal(answered(view.holdingSnapshot())[0].fetchedAt, 12_000);
+
+	// The other way a status answer goes missing: the member itself reads
+	// fine and the root-scoped status call is the one that refused, so no
+	// member declined anything and there is simply nothing to read a hand
+	// off. That is a different branch from the declining one above, and it
+	// has to leave the stamp alone for the same reason.
+	statusRefusing = true;
+	reading = 20_000;
+	await view.refresh("C:\\customers");
+	const [unheard] = answered(view.holdingSnapshot());
+	assert.deepEqual([...unheard.holding], [carried]);
+	assert.equal(unheard.fetchedAt, 12_000);
+});
+
+test("a folder whose walk did not answer keeps its rows rather than emptying the hand", async () => {
+	// The failure that deletes the record the uncertainty would be written
+	// on. When the root-scoped `tree` call declines, no member list comes
+	// back, so a walk that returned nothing would replace the folder's rows
+	// with nothing and take every workbench under it out of the snapshot.
+	// The bar would then compose from an empty snapshot, find no stale entry
+	// to warn about, and render the idle text: a reader holding a card would
+	// be told they hold none. Both halves are driven here, the walk failing
+	// alone and then nothing answering at all.
+	let walkFailing = false;
+	let statusFailing = false;
+	let reading = 1_000;
+	const carried = {
+		id: "aaa",
+		ref: "tr-3",
+		state: "active",
+		holder: "alka",
+		expires: "2026-09-07T13:30:00Z",
+	};
+	const memberStatus = {
+		...THREE_STATUS,
+		actor: "alka",
+		is_operator: false,
+		holding: [carried],
+		blocked: [],
+	};
+	const refusal: SpawnOutcome = {
+		code: 2,
+		stdout: JSON.stringify({ refusal: "dinah.unreachable" }),
+		stderr: "",
+	};
+	const spawner: Spawner = async (_exe, argv) => {
+		if (argv.includes("tree") && walkFailing) {
+			return refusal;
+		}
+		if (argv.includes("status") && statusFailing) {
+			return refusal;
+		}
+		const member = {
+			title: "Carter LLP",
+			slug: "carter",
+			path: "C:\\customers\\carter\\board",
+			...(argv.includes("tree")
+				? { tree: THREE_COLUMNS }
+				: argv.includes("status")
+					? { status: memberStatus }
+					: { listing: THREE_LISTING }),
+		};
+		return ok({ root: "C:\\customers", workbenches: [member] });
+	};
+	const view = new DinahTreeProvider({
+		spawner,
+		exe: "dinah",
+		log: () => {},
+		caseInsensitive: true,
+		deadEndSentence: (name) => name,
+		now: () => reading,
+	});
+	await view.load([folder({ folder: "C:\\customers", resolution: NOTHING })]);
+	assert.deepEqual(
+		[...answered(view.holdingSnapshot())[0].holding],
+		[carried],
+	);
+
+	// The walk declines and the root-scoped status call answers. The member
+	// is still there, and its hand is this checkpoint's own answer rather
+	// than the last one's, so the stamp moves with it.
+	const window = staleAfterMs(10);
+	walkFailing = true;
+	reading = 9_000;
+	await view.refresh("C:\\customers");
+	const [walked] = answered(view.holdingSnapshot());
+	assert.equal(walked.source, "C:\\customers\\carter\\board");
+	assert.deepEqual([...walked.holding], [carried]);
+	assert.equal(walked.fetchedAt, 9_000);
+	assert.deepEqual(summarizeHolding(view.holdingSnapshot(), 9_000, window), {
+		cards: [
+			{
+				ref: "tr-3",
+				workbenchTitle: "Carter LLP",
+				expiresAt: carried.expires,
+			},
+		],
+		uncertain: false,
+	});
+
+	// Now nothing under the folder answers. The row survives, its stamp
+	// stops advancing, and the summary the bar composes from says outright
+	// that this window cannot tell, which is the whole point of the row
+	// surviving.
+	statusFailing = true;
+	reading = 60_000;
+	await view.refresh("C:\\customers");
+	const [silent] = answered(view.holdingSnapshot());
+	assert.equal(silent.source, "C:\\customers\\carter\\board");
+	assert.equal(silent.fetchedAt, 9_000);
+	assert.deepEqual(summarizeHolding(view.holdingSnapshot(), 60_000, window), {
+		cards: [],
+		uncertain: true,
+	});
+});
+
+test("a folder whose read threw contributes a doubt rather than nothing", async () => {
+	// The other way a folder ends up with no rows at all. runDinah does not
+	// catch a spawner that rejects, so a rejection travels out through
+	// readWorkbench and load and leaves the folder standing with the empty
+	// row list blankState gave it. Nothing later fills it in, and before
+	// holdingSnapshot answered for the folder itself that folder simply left
+	// the snapshot, which is the same lie by a third road.
+	const view = provider(async () => {
+		throw new Error("spawn refused by the operating system");
+	});
+	await assert.rejects(() =>
+		view.load([folder({ folder: "C:\\ws\\thrown", resolution: RESOLVED })]),
+	);
+	assert.deepEqual(view.holdingSnapshot(), [
+		{ state: "unheard", source: "C:\\ws\\thrown" },
+	]);
+	assert.deepEqual(
+		summarizeHolding(view.holdingSnapshot(), 5_000, staleAfterMs(10)),
+		{ cards: [], uncertain: true },
+	);
+});
+
+test("an unopened candidate is a hand this window has not read", async () => {
+	// A folder holding several workbenches resolves to candidate rows, and
+	// this window opens none of them until a reader expands one. What is held
+	// inside them is therefore unread rather than empty, and the bar says so.
+	// Before this, an ambiguous folder contributed nothing to the snapshot, so
+	// a reader holding a card in one of two sibling workbenches was told they
+	// held nothing.
+	const view = provider(async () => {
+		throw new Error("no call is made for an unopened candidate");
+	});
+	await view.load([folder({ folder: "C:\\multi\\second", resolution: AMBIGUOUS })]);
+	assert.deepEqual(
+		view.holdingSnapshot().map((entry) => entry.state),
+		["unheard", "unheard"],
+	);
+	assert.deepEqual(
+		summarizeHolding(view.holdingSnapshot(), 5_000, staleAfterMs(10)),
+		{ cards: [], uncertain: true },
+	);
+});
+
+test("a member that declined the walk still reports the hand the status call answered with", async () => {
+	// The one branch of readForest that had no fixture. A member can decline
+	// the walk while the root-scoped status call answers for it perfectly
+	// well, and the hand that answer carries is this checkpoint's own. The
+	// root-scoped read used to drop it and report the last checkpoint's hand
+	// instead, where the single-workbench read kept it, so the two paths gave
+	// different answers to one question. They share heldHand now, and this is
+	// what holds them to it: reverting the branch to read the hand off the
+	// held data alone reports the first card and the first stamp, and both
+	// assertions below go red.
+	let declining = false;
+	let reading = 1_000;
+	const first = {
+		id: "aaa",
+		ref: "ca-1",
+		state: "active",
+		holder: "alka",
+		expires: "2026-09-07T13:30:00Z",
+	};
+	const second = { ...first, id: "bbb", ref: "ca-2" };
+	const spawner: Spawner = async (_exe, argv) => {
+		const member = {
+			title: "Carter LLP",
+			slug: "carter",
+			path: "C:\\customers\\carter\\board",
+			...(argv.includes("tree")
+				? declining
+					? { unanswered: "dinah.unanswered" }
+					: { tree: THREE_COLUMNS }
+				: argv.includes("status")
+					? {
+							status: {
+								...THREE_STATUS,
+								actor: "alka",
+								is_operator: false,
+								holding: [declining ? second : first],
+								blocked: [],
+							},
+						}
+					: { listing: THREE_LISTING }),
+		};
+		return ok({ root: "C:\\customers", workbenches: [member] });
+	};
+	const view = new DinahTreeProvider({
+		spawner,
+		exe: "dinah",
+		log: () => {},
+		caseInsensitive: true,
+		deadEndSentence: (name) => name,
+		now: () => reading,
+	});
+	await view.load([folder({ folder: "C:\\customers", resolution: NOTHING })]);
+	assert.deepEqual(
+		[...answered(view.holdingSnapshot())[0].holding],
+		[first],
+	);
+
+	// The member declines the walk. The status call answered for it in the
+	// same checkpoint, so its hand is that answer and its stamp moves with
+	// it, exactly as the single-workbench read has always done.
+	declining = true;
+	reading = 9_000;
+	await view.refresh("C:\\customers");
+	const [reported] = answered(view.holdingSnapshot());
+	assert.deepEqual([...reported.holding], [second]);
+	assert.equal(reported.fetchedAt, 9_000);
+});
+
+test("a folder never read and a workbench never read give the reader one answer", async () => {
+	// The blocker, driven the way the review drove it: the same failure put
+	// to the window twice, once through a folder whose walk has never
+	// answered and once through a single workbench whose reads have never
+	// answered, with the two bars laid beside each other. Round two closed
+	// this on the folder path only where an earlier good walk had left rows
+	// behind, so a folder that had never been read still handed the bar an
+	// empty snapshot and the bar reported an empty hand. Asserting on the
+	// code would not have caught that, because the code looked repaired.
+	const refusal: SpawnOutcome = {
+		code: 2,
+		stdout: JSON.stringify({ refusal: "dinah.unreachable" }),
+		stderr: "",
+	};
+	const window = staleAfterMs(10);
+	const refusing: Spawner = async () => refusal;
+	const QUIET = "C:\\ws\\quiet";
+
+	// One quiet folder, read through whichever resolution it is given, then
+	// asked again. The bar is composed for both from the same binary and the
+	// same resolved workbench, so the only thing that can move the text is
+	// what this window believes about the reader's hand.
+	const quiet = async (resolution: WorkbenchResolution) => {
+		const view = provider(refusing);
+		await view.load([folder({ folder: QUIET, resolution })]);
+		const first = summarizeHolding(view.holdingSnapshot(), 5_000, window);
+		// Every later checkpoint asks again and hears nothing again, which is
+		// where the folder path used to go on reporting an empty hand instead
+		// of converging on the answer the other path gave.
+		await view.refresh(QUIET);
+		const later = summarizeHolding(view.holdingSnapshot(), 50_000, window);
+		const view50 = composeStatus(
+			GOOD_BINARY,
+			RESOLVED,
+			"1.0.0",
+			later,
+			50_000,
+		);
+		return {
+			first,
+			later,
+			text: view50.text,
+			lead: view50.tooltip.split("\n")[0],
+		};
+	};
+
+	const asFolder = await quiet(NOTHING);
+	const asWorkbench = await quiet(RESOLVED);
+
+	// Neither can say what is held, and each says so on the first checkpoint
+	// as well as on the fourth, rather than only once a good read has left
+	// something behind to go stale.
+	assert.deepEqual(asFolder.first, { cards: [], uncertain: true });
+	assert.deepEqual(asFolder.later, { cards: [], uncertain: true });
+	assert.deepEqual(
+		asFolder,
+		asWorkbench,
+		"the same failure put to the window twice reads the same way twice",
+	);
+	assert.ok(
+		asFolder.text.endsWith("$(warning)"),
+		`the bar warns rather than claiming an empty hand: ${asFolder.text}`,
+	);
+	assert.equal(
+		asFolder.lead,
+		"Dinah could not confirm whether you are holding anything right now",
+	);
+
+	// The control, without which the assertions above would also pass for a
+	// window that warned whatever it heard. A walk that answers and names no
+	// workbenches is dinah saying there is nothing beneath the folder, so
+	// the reader is told they hold nothing and is told it plainly.
+	const empty = provider(async (_exe, argv) =>
+		argv.includes("tree")
+			? ok({ root: QUIET, workbenches: [] })
+			: ok({ workbenches: [] }),
+	);
+	await empty.load([folder({ folder: QUIET, resolution: NOTHING })]);
+	const confirmed = summarizeHolding(empty.holdingSnapshot(), 5_000, window);
+	assert.deepEqual(confirmed, { cards: [], uncertain: false });
+	// Composed from what this provider answered rather than from the module's
+	// own empty constant, which is a value no provider produced and which
+	// would have rendered the same line however the control had gone.
+	assert.equal(
+		composeStatus(GOOD_BINARY, RESOLVED, "1.0.0", confirmed, 5_000).text
+			.endsWith("$(warning)"),
+		false,
+	);
+});
+
+test("a forest member answering with no path of its own contributes no hand", async () => {
+	// holdingSnapshot keys every entry on the workbench root, so a member
+	// that came back without one has nothing to key on and would collide
+	// with any other such member on the empty string. One negative row pins
+	// the disjunct that drops it.
+	const { spawner } = forestSpawner([
+		{ title: "Ghost", slug: "ghost", path: "" },
+		{ title: "Acme Co", slug: "acme", path: "C:\\customers\\acme\\board" },
+	]);
+	const view = provider(spawner);
+	await view.load([folder({ folder: "C:\\customers", resolution: NOTHING })]);
+	assert.deepEqual(
+		answered(view.holdingSnapshot()).map((entry) => entry.source),
+		["C:\\customers\\acme\\board"],
+	);
+});
+
+// ---------------------------------------------------------------------------
+// AC-6, the whole class: every way of failing to learn about a place
+// ---------------------------------------------------------------------------
+
+/** The tooltip line a window that cannot see the reader's hand leads with. */
+const UNCERTAIN_LEAD =
+	"Dinah could not confirm whether you are holding anything right now";
+
+/** How long an answer is trusted for in the tests below, in milliseconds. */
+const TRUST_WINDOW = staleAfterMs(10);
+
+/** A moment far enough past any stamp below that nothing is still fresh. */
+const LONG_AFTER = 9_000_000;
+
+/**
+ * Composes the bar from what a provider is actually holding.
+ *
+ * The binary and the resolution are fixed, so the only thing that can move
+ * the text or the lead line is what this window believes about the reader's
+ * hand. Both come back beside the summary, because a summary that reads
+ * uncertain and a bar that draws the warning are two claims and the card
+ * promises both.
+ */
+function barFrom(
+	view: DinahTreeProvider,
+	at: number,
+): { summary: HoldingSummary; text: string; lead: string } {
+	const summary = summarizeHolding(view.holdingSnapshot(), at, TRUST_WINDOW);
+	const composed = composeStatus(GOOD_BINARY, RESOLVED, "1.0.0", summary, at);
+	return {
+		summary,
+		text: composed.text,
+		lead: composed.tooltip.split("\n")[0] ?? "",
+	};
+}
+
+/** A provider whose clock a test names, and whose resolver it may name too. */
+function clocked(
+	spawner: Spawner,
+	now: () => number,
+	resolve?: (folder: string) => Promise<WorkbenchResolution>,
+): DinahTreeProvider {
+	return new DinahTreeProvider({
+		spawner,
+		exe: "dinah",
+		log: () => {},
+		caseInsensitive: true,
+		deadEndSentence: (refusal) => `no workbench: ${refusal}`,
+		now,
+		resolve,
+	});
+}
+
+/** A spawner that refuses everything it is asked. */
+const REFUSING: Spawner = async () => ({
+	code: 2,
+	stdout: JSON.stringify({ refusal: "dinah.unreachable" }),
+	stderr: "",
+});
+
+/** A spawner whose walk answers and names no workbench beneath the folder. */
+const EMPTY_WALK: Spawner = async (_exe, argv) =>
+	argv.includes("tree")
+		? ok({ root: "C:\\ws\\quiet", workbenches: [] })
+		: ok({ workbenches: [] });
+
+/**
+ * One way this window can fail to learn what is held somewhere.
+ *
+ * `at` is the moment the bar is composed, which matters for the routes where
+ * the failure is an answer nobody renewed rather than an answer nobody gave.
+ */
+interface FailureRoute {
+	readonly name: string;
+	readonly reach: () => Promise<DinahTreeProvider>;
+	readonly at: number;
+}
+
+/**
+ * A workspace folder that resolved to a dead end, through a real refusal.
+ *
+ * The outcome goes through parseRefusal rather than being written out as a
+ * resolution literal, because parseRefusal is where a transport failure and
+ * dinah's own envelope are flattened into one string, and a test writing the
+ * resolution by hand would be asserting on its own opinion of that flattening
+ * instead of driving it.
+ */
+async function deadEnd(
+	outcome: CliOutcome,
+	now: () => number,
+	resolve?: (folder: string) => Promise<WorkbenchResolution>,
+): Promise<DinahTreeProvider> {
+	const view = clocked(REFUSING, now, resolve);
+	await view.load([
+		folder({ folder: "C:\\ws\\quiet", resolution: parseRefusal(outcome) }),
+	]);
+	return view;
+}
+
+/** The refusal envelope dinah answers with where a folder configures none. */
+const NO_CONFIGURED: CliOutcome = {
+	kind: "refused",
+	refusal: NO_CONFIGURED_WORKBENCH,
+	detail: "no workbench is configured for this directory",
+};
+
+/**
+ * Three refusals that say a workbench is there and cannot be used.
+ *
+ * The names are written out rather than imported, because the extension owns
+ * none of them: they are minted in `internal/contract/contract.go`, which
+ * publishes over a hundred, and this test's whole point is that a name the
+ * TypeScript has never been taught about must not earn a reassuring answer.
+ * `unreadable-workbench` is a `workbench.md` the walk found and could not
+ * open, `damaged-workbench` is one whose anchor will not parse, and
+ * `needs-container-migration` is a workbench in the layout the format used to
+ * have, which anybody whose workbench predates the containment change meets
+ * simply by opening the folder.
+ */
+const BROKEN_WORKBENCH_REFUSALS: readonly { name: string; refusal: string }[] = [
+	{
+		name: "a folder whose workbench.md could not be opened",
+		refusal: "dinah.unreadable-workbench",
+	},
+	{
+		name: "a folder whose workbench anchor will not parse",
+		refusal: "dinah.damaged-workbench",
+	},
+	{
+		name: "a folder whose workbench is in the older layout",
+		refusal: "dinah.needs-container-migration",
+	},
+];
+
+/** The refusal envelope dinah answers with for one of those three. */
+function brokenWorkbench(refusal: string): CliOutcome {
+	return {
+		kind: "refused",
+		refusal,
+		detail: `the workbench is there and dinah refused with ${refusal}`,
+	};
+}
+
+/**
+ * Every route by which this window can end up not knowing what is held.
+ *
+ * The card's rule is one sentence: a reader who holds nothing and a reader
+ * whose window could not find out are two different people. Three rounds of
+ * review each found that rule broken on a route the round before had not
+ * looked at, and each repair was proven on the routes the reviewer named. So
+ * the proof here is the enumeration rather than the instance. Every entry
+ * reaches its state by driving the provider into it, and the assertion below
+ * is made once, over all of them.
+ */
+const FAILURE_ROUTES: readonly FailureRoute[] = [
+	{
+		name: "a workbench whose every read refuses",
+		at: 5_000,
+		reach: async () => {
+			const view = clocked(REFUSING, () => 1_000);
+			await view.load([folder({ folder: "C:\\work\\bench" })]);
+			return view;
+		},
+	},
+	{
+		name: "a folder whose walk has never answered",
+		at: 5_000,
+		reach: async () => {
+			const view = clocked(REFUSING, () => 1_000);
+			await view.load([
+				folder({ folder: "C:\\ws\\quiet", resolution: NOTHING }),
+			]);
+			return view;
+		},
+	},
+	{
+		name: "a folder whose walk answered once and then stopped",
+		at: LONG_AFTER,
+		reach: async () => {
+			const { spawner } = forestSpawner(FOREST_MEMBERS);
+			let walking = true;
+			const view = clocked(
+				async (exe, argv, options) =>
+					walking
+						? spawner(exe, argv, options)
+						: REFUSING(exe, argv, options),
+				() => 1_000,
+			);
+			await view.load([
+				folder({ folder: "C:\\customers", resolution: NOTHING }),
+			]);
+			walking = false;
+			await view.refresh("C:\\customers");
+			return view;
+		},
+	},
+	{
+		name: "a folder whose walk answered that nothing is there and then stopped",
+		at: LONG_AFTER,
+		reach: async () => {
+			let walking = true;
+			const view = clocked(
+				async (exe, argv, options) =>
+					walking
+						? EMPTY_WALK(exe, argv, options)
+						: REFUSING(exe, argv, options),
+				() => 1_000,
+			);
+			await view.load([
+				folder({ folder: "C:\\ws\\quiet", resolution: NOTHING }),
+			]);
+			walking = false;
+			await view.refresh("C:\\ws\\quiet");
+			return view;
+		},
+	},
+	{
+		name: "a folder dinah confirmed empty that nobody has asked again",
+		at: LONG_AFTER,
+		reach: () => deadEnd(NO_CONFIGURED, () => 1_000),
+	},
+	...BROKEN_WORKBENCH_REFUSALS.map(({ name, refusal }) => ({
+		name,
+		at: 5_000,
+		reach: () => deadEnd(brokenWorkbench(refusal), () => 1_000),
+	})),
+	{
+		name: "a folder whose resolution could not launch the binary",
+		at: 5_000,
+		reach: () =>
+			deadEnd(
+				{ kind: "spawn-failed", errno: "ENOENT", detail: "no dinah" },
+				() => 1_000,
+			),
+	},
+	{
+		name: "a folder whose resolution never came back",
+		at: 5_000,
+		reach: () =>
+			deadEnd({ kind: "unreachable", detail: "timed out" }, () => 1_000),
+	},
+	{
+		name: "a folder resolved by a binary too old to answer",
+		at: 5_000,
+		reach: () => deadEnd({ kind: "stale", detail: "format 0" }, () => 1_000),
+	},
+	{
+		name: "a folder whose resolution came back garbled",
+		at: 5_000,
+		reach: () =>
+			deadEnd({ kind: "not-json", detail: "syntax error" }, () => 1_000),
+	},
+	{
+		name: "a folder holding several workbenches, none of them opened",
+		at: 5_000,
+		reach: async () => {
+			const view = clocked(
+				async () => {
+					throw new Error("no call is made for an unopened candidate");
+				},
+				() => 1_000,
+			);
+			await view.load([
+				folder({ folder: "C:\\multi\\second", resolution: AMBIGUOUS }),
+			]);
+			return view;
+		},
+	},
+	{
+		name: "a folder whose spawn threw rather than answering",
+		at: 5_000,
+		reach: async () => {
+			const view = clocked(
+				async () => {
+					throw new Error("spawn ENOENT");
+				},
+				() => 1_000,
+			);
+			// runDinah does not catch a spawner that rejects, so the
+			// rejection travels out through load and leaves the folder
+			// standing with the empty row list blankState gave it. The
+			// window is left running, which is exactly why the bar has to
+			// speak for the folder afterwards.
+			await assert.rejects(() =>
+				view.load([
+					folder({ folder: "C:\\ws\\thrown", resolution: NOTHING }),
+				]),
+			);
+			return view;
+		},
+	},
+	{
+		name: "a workbench whose last answer has gone stale",
+		at: LONG_AFTER,
+		reach: async () => {
+			const { spawner } = stubSpawner({
+				status: THREE_STATUS,
+				tree: THREE_COLUMNS,
+				ls: THREE_LISTING,
+			});
+			const view = clocked(spawner, () => 1_000);
+			await view.load([folder({ folder: "C:\\work\\bench" })]);
+			return view;
+		},
+	},
+];
+
+test("every way of failing to learn about a place makes the bar warn", async () => {
+	// The proof the class asked for, rather than the two instances the third
+	// review reported. Each round of this card repaired the route it was
+	// shown and left the same lie one path over, so what is driven here is
+	// every route there is: a read that refuses, a walk that never came back,
+	// a walk that came back once and stopped, a vacancy nobody renewed, each
+	// of the four ways a resolution can fail without dinah having answered, a
+	// folder whose workbenches were never opened, a spawn that threw, and an
+	// answer that simply aged. Every one of them ends with a window that does
+	// not know what the reader is holding, and the card's promise is that all
+	// of them look the same to the reader.
+	for (const route of FAILURE_ROUTES) {
+		const bar = barFrom(await route.reach(), route.at);
+		assert.deepEqual(
+			bar.summary,
+			{ cards: [], uncertain: true },
+			`${route.name}: the window has nothing confirmed and knows it`,
+		);
+		assert.ok(
+			bar.text.endsWith("$(warning)"),
+			`${route.name}: the bar warns rather than drawing an empty hand: ${bar.text}`,
+		);
+		assert.equal(bar.lead, UNCERTAIN_LEAD, route.name);
+	}
+});
+
+test("a confident empty hand takes an answer, and takes a recent one", async () => {
+	// The control the enumeration needs, and the second half of what the
+	// third review asked for. A window made to warn at everything would pass
+	// that enumeration, so these three are the cases that must not warn, and
+	// each one is a place that answered rather than a place that went quiet.
+	//
+	// The renewed dead end is the one worth reading twice. A folder dinah has
+	// confirmed holds no workbench is the only kind this provider never
+	// re-read, so its vacancy used to stand for the life of the window. It
+	// now expires like every other answer, which means somebody has to renew
+	// it, and the checkpoint's own re-resolution is what does.
+	const answering = async () => parseRefusal(NO_CONFIGURED);
+
+	const walked = clocked(EMPTY_WALK, () => 1_000);
+	await walked.load([folder({ folder: "C:\\ws\\quiet", resolution: NOTHING })]);
+	assert.deepEqual(
+		barFrom(walked, 5_000).summary,
+		{ cards: [], uncertain: false },
+		"a walk that answered and named nothing is dinah saying the folder is empty",
+	);
+	assert.equal(barFrom(walked, 5_000).text.endsWith("$(warning)"), false);
+
+	const held = clocked(
+		stubSpawner({
+			status: THREE_STATUS,
+			tree: THREE_COLUMNS,
+			ls: THREE_LISTING,
+		}).spawner,
+		() => 1_000,
+	);
+	await held.load([folder({ folder: "C:\\work\\bench" })]);
+	assert.equal(barFrom(held, 5_000).summary.uncertain, false);
+	assert.equal(barFrom(held, 5_000).text.endsWith("$(warning)"), false);
+
+	// The same dead end the enumeration above lets expire, renewed instead.
+	// The clock is read on every call, so the refresh restamps the folder at
+	// a moment the later composition still trusts.
+	let clock = 1_000;
+	const renewed = await deadEnd(NO_CONFIGURED, () => clock, answering);
+	assert.deepEqual(barFrom(renewed, LONG_AFTER).summary, {
+		cards: [],
+		uncertain: true,
+	});
+	clock = LONG_AFTER;
+	await renewed.refresh("C:\\ws\\quiet");
+	assert.deepEqual(
+		barFrom(renewed, LONG_AFTER).summary,
+		{ cards: [], uncertain: false },
+		"dinah said again that nothing is here, so the hand is empty and known",
+	);
+	assert.equal(barFrom(renewed, LONG_AFTER).text.endsWith("$(warning)"), false);
+});
+
+test("a broken workbench beside a healthy one still warns", async () => {
+	// The reviewer's own reproduction, kept so that it cannot come back. A
+	// single folder in this state renders composeStatus's refusal branch and
+	// warns for a reason that has nothing to do with the snapshot, so the
+	// defect was only visible with a healthy folder alongside: the healthy
+	// one drives the base rendering while the broken one contributes its
+	// answer about the hand. Three rounds of this card each admitted these
+	// refusals, because the predicate deciding what earns a vacancy named the
+	// refusals that mean something else instead of the ones that mean
+	// nothing is there.
+	const healthy = stubSpawner({
+		status: THREE_STATUS,
+		tree: THREE_COLUMNS,
+		ls: THREE_LISTING,
+	}).spawner;
+
+	// The control, and it is what a bar made to warn at everything fails.
+	// The healthy folder on its own answers with no warning, so each warning
+	// below is the broken folder's doing rather than the window's mood.
+	const alone = clocked(healthy, () => 1_000);
+	await alone.load([folder({ folder: "C:\\work\\bench" })]);
+	const control = barFrom(alone, 5_000);
+	assert.equal(
+		control.summary.uncertain,
+		false,
+		"the healthy folder on its own is a place this window has heard from",
+	);
+	assert.equal(control.text.endsWith("$(warning)"), false);
+
+	for (const { name, refusal } of BROKEN_WORKBENCH_REFUSALS) {
+		const view = clocked(healthy, () => 1_000);
+		await view.load([
+			folder({ folder: "C:\\work\\bench" }),
+			folder({
+				folder: "C:\\ws\\broken",
+				resolution: parseRefusal(brokenWorkbench(refusal)),
+			}),
+		]);
+		const bar = barFrom(view, 5_000);
+		assert.ok(
+			view
+				.holdingSnapshot()
+				.some(
+					(report) =>
+						report.source === "C:\\ws\\broken" &&
+						report.state === "unheard",
+				),
+			`${name}: the folder reports a doubt rather than a vacancy`,
+		);
+		assert.equal(
+			bar.summary.uncertain,
+			true,
+			`${name}: the window cannot say what is held there`,
+		);
+		assert.ok(
+			bar.text.endsWith("$(warning)"),
+			`${name}: the bar warns rather than drawing a confident hand: ${bar.text}`,
+		);
+	}
+});
+
+test("a vacancy cannot be reported without the moment it was answered", async () => {
+	// The type is what closes the class, and this is what shows it closing.
+	// Every vacancy in a snapshot carries a stamp, so a producer with nothing
+	// to stamp cannot name the reassuring arm at all, and the compiler is
+	// what enforces that rather than a reviewer reading each producer one at
+	// a time. The row here asserts the stamp's value rather than only its
+	// presence, because a stamp read off the wrong clock would age wrongly.
+	const view = clocked(EMPTY_WALK, () => 4_242);
+	await view.load([folder({ folder: "C:\\ws\\quiet", resolution: NOTHING })]);
+	assert.deepEqual(view.holdingSnapshot(), [
+		{ state: "vacant", source: "C:\\ws\\quiet", answeredAt: 4_242 },
+	]);
 });

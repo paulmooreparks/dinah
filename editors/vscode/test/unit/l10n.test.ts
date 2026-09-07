@@ -434,3 +434,105 @@ test("fingerprint is FNV-1a 64-bit over the UTF-8 bytes, formatted as lowercase 
 	assert.notEqual(fingerprint("ä"), fingerprint("a"));
 	assert.match(fingerprint("damaged"), /^[0-9a-f]+$/);
 });
+
+// ---------------------------------------------------------------------------
+// dinah-419's nine keys, named one at a time
+// ---------------------------------------------------------------------------
+
+/**
+ * The nine keys the held-card rendering added.
+ *
+ * The set equality above would already catch a locale missing one of these,
+ * but it reports the failure as a difference between two sets, and a reader
+ * meeting that has to work out which card owned the key. Naming them makes
+ * the failure say so, and it also lets the three checks below hold each key
+ * to the shape its own language ships in.
+ */
+const HELD_CARD_KEYS: readonly string[] = [
+	"status.holding.remaining.hours",
+	"status.holding.remaining.minutes",
+	"status.holding.remaining.soon",
+	"status.holding.remaining.expired",
+	"status.holding.remaining.noLease",
+	"status.holding.tooltipLead",
+	"status.holding.tooltipLeadMany",
+	"status.holding.tooltipRow",
+	"status.holding.uncertainLead",
+];
+
+test("each of the nine held-card keys ships in all eight runtime catalogues", () => {
+	// AC-12. The English carries the text and a context a translator can work
+	// from; the five skeletons carry that same English declared as a
+	// placeholder; and the two translated languages carry their own text with
+	// a fingerprint of the English it was made from.
+	const base = runtimeCatalog(BASE_TAG).entries;
+	for (const key of HELD_CARD_KEYS) {
+		const english = base[key];
+		assert.ok(english !== undefined, `en.json carries no ${key}`);
+		assert.ok(english.text.length > 0, `${key} has no English text`);
+		assert.ok(
+			english.context !== undefined && english.context.length > 0,
+			`${key} has no context for a translator to work from`,
+		);
+	}
+	for (const tag of SKELETON_TAGS) {
+		const entries = runtimeCatalog(tag).entries;
+		for (const key of HELD_CARD_KEYS) {
+			const entry = entries[key];
+			assert.ok(entry !== undefined, `${tag}.json carries no ${key}`);
+			assert.equal(entry.skeleton, true, `${tag}/${key} is not declared a skeleton`);
+			assert.equal(entry.text, base[key].text, `${tag}/${key} is not the English`);
+		}
+	}
+	for (const tag of TRANSLATED_TAGS) {
+		const entries = runtimeCatalog(tag).entries;
+		for (const key of HELD_CARD_KEYS) {
+			const entry = entries[key];
+			assert.ok(entry !== undefined, `${tag}.json carries no ${key}`);
+			assert.notEqual(entry.skeleton, true, `${tag}/${key} ships as a skeleton`);
+			assert.equal(
+				entry.source,
+				fingerprint(base[key].text),
+				`${tag}/${key} was stamped against English that has since moved`,
+			);
+			// An entry rendering as the English says so, which is the same
+			// rule the honesty guard above applies to every key; it is
+			// repeated here so that this test names the key when it trips.
+			if (entry.text === base[key].text) {
+				assert.equal(
+					entry.verbatim,
+					true,
+					`${tag}/${key} reads as English without declaring that it does`,
+				);
+			}
+		}
+	}
+});
+
+test("every held-card key the catalogue declares is one the rendering reaches", () => {
+	// AC-13. A key nobody renders is dead weight a translator still pays for,
+	// and the one this spec explicitly dropped is asserted absent by name so
+	// that adding it back trips a test rather than passing review.
+	const source = readFileSync(join(extensionRoot, "src", "status.ts"), "utf8");
+	for (const key of HELD_CARD_KEYS) {
+		assert.ok(
+			source.includes(`"${key}"`),
+			`${key} is declared in the catalogue and named nowhere in status.ts`,
+		);
+	}
+
+	const base = runtimeCatalog(BASE_TAG).entries;
+	assert.equal(
+		base["status.holding.tooltipUnknown"],
+		undefined,
+		"status.holding.tooltipUnknown is not rendered, so it is not declared",
+	);
+
+	// The set is closed in both directions: every status.holding key in the
+	// catalogue is one of the nine, so a tenth added without a rendering
+	// fails here rather than shipping.
+	const declared = Object.keys(base)
+		.filter((key) => key.startsWith("status.holding."))
+		.sort();
+	assert.deepEqual(declared, [...HELD_CARD_KEYS].sort());
+});

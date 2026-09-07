@@ -145,6 +145,7 @@ function rowFixture(over: Partial<RootRow> = {}): RootRow {
 			title: "Trees",
 			columns: new Map(),
 			cards: new Map(),
+			holding: [],
 		},
 		...over,
 	};
