@@ -2,7 +2,7 @@
 	"manifest.viewsContainers.dinah.title": "Dinah",
 	"manifest.views.dinah.workbenchView.name": "वर्कबेंच",
 	"manifest.viewsWelcome.binaryMissing.contents": "इस मशीन पर Dinah स्थापित नहीं है। यह एक्सटेंशन `dinah` कमांड-लाइन उपकरण का साथी है और उसकी प्रति साथ नहीं रखता। dinah को [github.com/paulmooreparks/dinah#install](https://github.com/paulmooreparks/dinah#install) से स्थापित करें, या `dinah.path` को किसी ऐसे प्रोग्राम पर सेट करें जो आपके पास पहले से है।\n[Dinah की सेटिंग खोलें](command:workbench.action.openSettings?%22dinah%22)",
-	"manifest.viewsWelcome.workbenchNone.contents": "इस फ़ोल्डर से कोई वर्कबेंच नहीं मिली। एक बनाने के लिए टर्मिनल में `dinah init` चलाएँ, या `dinah.workbench` को किसी ऐसी वर्कबेंच की निर्देशिका पर सेट करें जो आपके पास पहले से है।\n[Dinah की सेटिंग खोलें](command:workbench.action.openSettings?%22dinah%22)",
+	"manifest.viewsWelcome.workbenchNone.contents": "इस फ़ोल्डर से कोई वर्कबेंच नहीं मिली।\n\nयहाँ एक बनाने के लिए टर्मिनल में `dinah init` चलाएँ। पहले से मौजूद किसी वर्कबेंच का उपयोग करने के लिए `dinah.workbench` को उसकी निर्देशिका पर सेट करें।\n\nDinah में नए हैं? [अपने पहले सत्र का वॉकथ्रू देखें](command:workbench.action.openWalkthrough?%22paulmooreparks.dinah%23dinah.firstSession%22)\n[Dinah की सेटिंग खोलें](command:workbench.action.openSettings?%22dinah%22)",
 	"manifest.viewsWelcome.workbenchAmbiguous.contents": "यहाँ से कई वर्कबेंच पहुँच में हैं। `dinah.workbench` को उस वर्कबेंच पर सेट करें जो आपका आशय है।\n[Dinah की सेटिंग खोलें](command:workbench.action.openSettings?%22dinah%22)",
 	"manifest.viewsWelcome.workbenchUnknown.contents": "इस विंडो के लिए Dinah के पास प्रोग्राम है, पर उसके साथ कोई वर्कबेंच नहीं। काम करने के लिए कोई फ़ोल्डर खोलें, या `dinah` ने क्या बताया यह पढ़ने के लिए Dinah आउटपुट चैनल खोलें।\n[Dinah की सेटिंग खोलें](command:workbench.action.openSettings?%22dinah%22)",
 	"manifest.viewsWelcome.workbenchSearching.contents": "Dinah को इस विंडो के लिए प्रोग्राम मिल गया है और वह अब भी वर्कबेंच खोज रहा है।\n\nजैसे ही Dinah के पास उत्तर होगा, यह पाठ बदल जाएगा। यदि यह बना रहे, तो Dinah आउटपुट चैनल खोलकर देखें कि क्या हुआ।",
@@ -29,6 +29,11 @@
 	"manifest.configuration.dinah.workbench.markdownDescription": "इस फ़ोल्डर के लिए उपयोग की जाने वाली वर्कबेंच की निर्देशिका, जो `dinah` को `--workbench` के रूप में दी जाती है। खाली छोड़ें ताकि `dinah` फ़ोल्डर से ऊपर चलकर स्वयं एक खोज ले। इसे तब सेट करें जब कई वर्कबेंच पहुँच में हों, या जब खोज ऐसी वर्कबेंच तक पहुँचे जो आपका आशय नहीं थी।",
 	"manifest.configuration.dinah.pollIntervalSeconds.markdownDescription": "जब तक साइडबार वृक्ष दिखता है, वह कितनी बार `dinah changes` से अद्यतन जाँचे।",
 	"manifest.configuration.dinah.watchFiles.markdownDescription": "वर्कबेंच की Markdown फ़ाइलों में बदलाव देखें और कोई फ़ाइल सहेजे जाने पर अंतराल से पहले जाँचें।",
+	"manifest.walkthrough.firstSession.title": "Dinah: आपका पहला सत्र",
+	"manifest.walkthrough.firstSession.description": "Dinah के अपने गाइड की मदद से किसी Dinah वर्कबेंच पर अपनी दिशा तय करें।",
+	"manifest.walkthrough.firstSession.step.readGuide.title": "गाइड पढ़ें",
+	"manifest.walkthrough.firstSession.step.readGuide.description": "यह चरण आपके इंस्टॉल किए गए प्रोग्राम से लाइव `dinah guide first-session` को एक एडिटर टैब में खोलता है। यह टेक्स्ट हमेशा कमांड के आउटपुट से मेल खाता है, क्योंकि यहाँ इसकी कोई प्रति नहीं रखी जाती।\n\n[गाइड खोलें](command:dinah.walkthrough.openFirstSessionGuide)",
+	"manifest.command.dinah.walkthrough.openFirstSessionGuide.title": "Dinah: पहले सत्र का गाइड खोलें",
 	"manifest.command.dinah.runVerb.title": "Dinah: कमांड चलाएँ…",
 	"manifest.command.dinah.refreshVerbCatalog.title": "Dinah: कमांड पैलेट ताज़ा करें"
 }

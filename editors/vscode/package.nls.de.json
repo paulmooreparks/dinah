@@ -2,7 +2,7 @@
 	"manifest.viewsContainers.dinah.title": "Dinah",
 	"manifest.views.dinah.workbenchView.name": "Werkbank",
 	"manifest.viewsWelcome.binaryMissing.contents": "Dinah ist auf diesem Rechner nicht installiert. Diese Erweiterung begleitet das Kommandozeilenwerkzeug `dinah` und enthält keine Kopie davon. Installieren Sie dinah von [github.com/paulmooreparks/dinah#install](https://github.com/paulmooreparks/dinah#install), oder setzen Sie `dinah.path` auf ein Programm, das Sie bereits haben.\n[Die Dinah-Einstellungen öffnen](command:workbench.action.openSettings?%22dinah%22)",
-	"manifest.viewsWelcome.workbenchNone.contents": "Von diesem Ordner aus wurde keine Werkbank gefunden. Führen Sie `dinah init` in einem Terminal aus, um eine anzulegen, oder setzen Sie `dinah.workbench` auf das Verzeichnis einer Werkbank, die Sie bereits haben.\n[Die Dinah-Einstellungen öffnen](command:workbench.action.openSettings?%22dinah%22)",
+	"manifest.viewsWelcome.workbenchNone.contents": "Von diesem Ordner aus wurde keine Werkbank gefunden.\n\nUm hier eine anzulegen, führen Sie `dinah init` in einem Terminal aus. Um eine zu verwenden, die Sie bereits haben, setzen Sie `dinah.workbench` auf deren Verzeichnis.\n\nNeu bei Dinah? [Ihre erste Sitzung im Rundgang](command:workbench.action.openWalkthrough?%22paulmooreparks.dinah%23dinah.firstSession%22)\n[Die Dinah-Einstellungen öffnen](command:workbench.action.openSettings?%22dinah%22)",
 	"manifest.viewsWelcome.workbenchAmbiguous.contents": "Von hier aus sind mehrere Werkbänke erreichbar. Setzen Sie `dinah.workbench` auf die gemeinte.\n[Die Dinah-Einstellungen öffnen](command:workbench.action.openSettings?%22dinah%22)",
 	"manifest.viewsWelcome.workbenchUnknown.contents": "Dinah hat ein Programm für dieses Fenster, aber keine dazugehörige Werkbank. Öffnen Sie einen Ordner, von dem aus gearbeitet wird, oder öffnen Sie den Dinah-Ausgabekanal, um zu lesen, was `dinah` gemeldet hat.\n[Die Dinah-Einstellungen öffnen](command:workbench.action.openSettings?%22dinah%22)",
 	"manifest.viewsWelcome.workbenchSearching.contents": "Dinah hat ein Programm für dieses Fenster gefunden und sucht noch nach einer Werkbank.\n\nDieser Text wird ersetzt, sobald Dinah eine Antwort hat. Bleibt er stehen, öffnen Sie den Dinah-Ausgabekanal, um zu sehen, was geschehen ist.",
@@ -29,6 +29,11 @@
 	"manifest.configuration.dinah.workbench.markdownDescription": "Verzeichnis der Werkbank, die für diesen Ordner verwendet wird, an `dinah` als `--workbench` übergeben. Leer lassen, damit `dinah` durch Aufwärtssuche vom Ordner aus eine findet. Setzen Sie es, wenn mehrere Werkbänke erreichbar sind, oder wenn die Suche eine erreicht, die Sie nicht gemeint haben.",
 	"manifest.configuration.dinah.pollIntervalSeconds.markdownDescription": "Wie oft der Seitenleistenbaum `dinah changes` auf Aktualisierungen prüft, solange er sichtbar ist.",
 	"manifest.configuration.dinah.watchFiles.markdownDescription": "Die Markdown-Dateien der Werkbank auf Änderungen beobachten und beim Speichern einer Datei früher prüfen als im Abfrageintervall.",
+	"manifest.walkthrough.firstSession.title": "Dinah: Ihre erste Sitzung",
+	"manifest.walkthrough.firstSession.description": "Finden Sie sich an einer Dinah-Werkbank zurecht, mit Dinahs eigenem Leitfaden.",
+	"manifest.walkthrough.firstSession.step.readGuide.title": "Den Leitfaden lesen",
+	"manifest.walkthrough.firstSession.step.readGuide.description": "Dieser Schritt öffnet `dinah guide first-session` live von Ihrem installierten Programm in einem Editor-Tab. Der Text stimmt immer mit der Ausgabe des Befehls überein, denn nichts hier kopiert ihn.\n\n[Den Leitfaden öffnen](command:dinah.walkthrough.openFirstSessionGuide)",
+	"manifest.command.dinah.walkthrough.openFirstSessionGuide.title": "Dinah: Leitfaden zur ersten Sitzung öffnen",
 	"manifest.command.dinah.runVerb.title": "Dinah: Befehl ausführen…",
 	"manifest.command.dinah.refreshVerbCatalog.title": "Dinah: Befehlspalette aktualisieren"
 }

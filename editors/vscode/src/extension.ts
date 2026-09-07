@@ -35,7 +35,7 @@ import {
 	offerDrag,
 } from "./dragAndDrop";
 import { CheckpointLoop, systemClock } from "./changes";
-import { runDinah } from "./cli";
+import { runDinah, runDinahText } from "./cli";
 import { CountdownTicker, redrawAfterRefresh } from "./countdown";
 import type { DiagnosticEntry, DiagnosticPlan, StatKind } from "./diagnostics";
 import { CheckDiagnostics } from "./diagnostics";
@@ -86,6 +86,7 @@ import {
 	COMMAND_RUN_VERB,
 	COMMAND_UNBLOCK,
 	DRAG_MIME_TYPE,
+	COMMAND_OPEN_FIRST_SESSION_GUIDE,
 	SERVED_TEXT_SCHEME,
 	SETTING_PATH,
 	SETTING_POLL_INTERVAL,
@@ -97,6 +98,9 @@ import {
 import { contextForPull, pullFromColumn } from "./pullCommands";
 import { assertCommandsFullyRegistered } from "./registrationGuard";
 import {
+	GUIDE_ROOT,
+	GUIDE_TOPIC_FIRST_SESSION,
+	KIND_GUIDE,
 	KIND_INSTRUCTIONS,
 	ServedTextRefreshLoop,
 	parseServedTextUri,
@@ -800,6 +804,23 @@ export async function activate(
 				column: t("servedText.heading.column"),
 			});
 		},
+		// The guide is fetched with no --workbench and no cwd, because
+		// `dinah guide` opens no workbench and ignores the flag when it is
+		// given one. That is what lets this kind answer in a window that found
+		// no workbench, which is the window the first-session walkthrough is
+		// written for. The root the table's shape passes is a fixed
+		// placeholder that only the tab bookkeeping reads.
+		[KIND_GUIDE]: async (_root, ref) => {
+			const outcome = await runDinahText(
+				nodeSpawner,
+				binary.state === "ok" ? binary.path : "",
+				["guide", ref],
+			);
+			if (outcome.kind !== "ok") {
+				throw new Error(refusalMessage(outcome));
+			}
+			return outcome.text;
+		},
 	};
 	// The Uri a tab opened under, kept so that a change can be announced for
 	// the same value the editor holds. onDidChange takes a Uri and the loop
@@ -1032,6 +1053,19 @@ export async function activate(
 			return;
 		}
 		await attachFile(target, host.pickFile);
+	});
+	// The walkthrough's button, and a Command Palette entry beside it. The
+	// root passed here is a fixed word rather than a directory: a guide has no
+	// directory to be pinned to, the guide resolver never reads it, and
+	// parseServedTextUri refuses an empty one, so it has to be some non-empty
+	// word (dinah-423).
+	register(COMMAND_OPEN_FIRST_SESSION_GUIDE, async () => {
+		await host.openServedText(
+			KIND_GUIDE,
+			GUIDE_ROOT,
+			GUIDE_TOPIC_FIRST_SESSION,
+			t("servedText.title.guide", { topic: GUIDE_TOPIC_FIRST_SESSION }),
+		);
 	});
 	register(COMMAND_REFRESH, async () => {
 		await checkpointing.refreshNow();

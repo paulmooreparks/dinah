@@ -285,6 +285,10 @@
 			"text": "dinah refused: {detail}",
 			"context": "Body of a served-text tab whose fetch was refused. {detail} is what dinah said."
 		},
+		"servedText.title.guide": {
+			"text": "Dinah guide: {topic}",
+			"context": "Tab title for a live-fetched guide, opened today only from the first-session walkthrough. {topic} is the guide's own topic slug (e.g. first-session) and is not translated."
+		},
 		"diagnostics.check.uncertain": {
 			"text": "{workbench}: check has not completed, so whether it is clean is not known.",
 			"context": "Placeholder diagnostic shown on a workbench's own definition file until the first `dinah check` run of the session for that workbench answers, so an empty Problems panel never means both \"confirmed clean\" and \"never checked, or check failed.\""

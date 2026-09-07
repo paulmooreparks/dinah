@@ -16,11 +16,22 @@ import { appendFileSync } from "node:fs";
 
 import * as vscode from "vscode";
 
-import { COMMAND_OPEN_INSTRUCTIONS, SERVED_TEXT_SCHEME } from "../../../src/identity";
+import {
+	COMMAND_OPEN_FIRST_SESSION_GUIDE,
+	COMMAND_OPEN_INSTRUCTIONS,
+	EXTENSION_ID,
+	SERVED_TEXT_SCHEME,
+	WALKTHROUGH_FIRST_SESSION,
+	WALKTHROUGH_STEP_READ_GUIDE,
+} from "../../../src/identity";
 import { ENGLISH } from "../../../src/l10n";
-import { renderInstructionsMarkdown } from "../../../src/servedText";
+import {
+	GUIDE_TOPIC_FIRST_SESSION,
+	KIND_GUIDE,
+	renderInstructionsMarkdown,
+} from "../../../src/servedText";
 import type { ServedAnswer } from "../../../src/wire";
-import { api, until } from "./support";
+import { api, extension, until } from "./support";
 
 /** The binary this run built, which the fixtures were made with. */
 function binary(): string {
@@ -81,6 +92,15 @@ function servedTabs(): vscode.Tab[] {
 		}
 	}
 	return tabs;
+}
+
+/** The open guide document, once one exists. */
+function guideDocument(): vscode.TextDocument | undefined {
+	return vscode.workspace.textDocuments.find(
+		(document) =>
+			document.uri.scheme === SERVED_TEXT_SCHEME &&
+			document.uri.authority === KIND_GUIDE,
+	);
 }
 
 /** The open served-text document, once one exists. */
@@ -157,6 +177,88 @@ suite("served text opens as an editor tab", () => {
 		assert.ok(
 			await until(() => (servedDocument()?.getText() ?? "").includes(planted), 30_000),
 			"the tab did not pick up an edit to the column's own instructions",
+		);
+	});
+});
+
+suite("the first-session walkthrough", () => {
+	// dinah-423 AC-2, and as much of OQ-1 as a running editor can answer
+	// without a person looking at the screen.
+
+	teardown(async () => {
+		// The suite above counts served-text tabs, and a guide tab left open
+		// would be counted there if the order these files run in ever changes.
+		await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+	});
+
+	test("the command opens a guide tab carrying what the binary prints", async () => {
+		await vscode.commands.executeCommand(COMMAND_OPEN_FIRST_SESSION_GUIDE);
+		assert.ok(
+			await until(() => guideDocument() !== undefined, 20_000),
+			"the command opened no guide tab",
+		);
+		const document = guideDocument();
+		assert.ok(document !== undefined);
+		assert.equal(document.uri.authority, KIND_GUIDE);
+		assert.equal(document.languageId, "markdown");
+
+		// The guide is fetched with no --workbench of its own, so the
+		// comparison asks the binary the same way the extension does. Byte
+		// equality is the claim: nothing between the binary and the tab
+		// re-renders, re-wraps or copies the text.
+		const printed = execFileSync(binary(), ["--json", "guide", GUIDE_TOPIC_FIRST_SESSION], {
+			encoding: "utf8",
+		});
+		assert.equal(document.getText(), printed);
+		assert.notEqual(document.getText().trim(), "", "the guide tab opened empty");
+
+		// One guide tab, counted by authority rather than by how many
+		// served-text tabs the window holds. The suite above leaves an
+		// instruction tab open, and the editor may reuse a preview tab for
+		// this one, so the total says nothing about what this command did.
+		const guideTabs = servedTabs().filter((tab) => {
+			const input = tab.input as { uri?: vscode.Uri } | undefined;
+			return input?.uri?.authority === KIND_GUIDE;
+		});
+		assert.equal(
+			guideTabs.length,
+			1,
+			`wanted one guide tab, found ${String(guideTabs.length)}`,
+		);
+	});
+
+	test("the editor knows the walkthrough the welcome view links to", async () => {
+		// The welcome view's link is `<publisher>.<name>#<walkthroughId>`
+		// against VS Code's own built-in command, and neither half of that can
+		// be checked outside a running editor. What this settles is that the
+		// command exists, that the installed manifest really carries the
+		// walkthrough the link names, and that invoking the command with the
+		// argument the welcome view composes resolves rather than throwing.
+		//
+		// What it leaves open is whether the walkthrough the editor then
+		// selected is this one, and whether the step's image renders, because
+		// neither is readable through any documented API. OQ-1 carries that
+		// half to the operator's station.
+		const known = await vscode.commands.getCommands(true);
+		assert.ok(
+			known.includes("workbench.action.openWalkthrough"),
+			"this editor has no openWalkthrough command, so the welcome view links to nothing",
+		);
+
+		const installed = extension().packageJSON as {
+			contributes: { walkthroughs: { id: string; steps: { id: string }[] }[] };
+		};
+		const walkthroughs = installed.contributes.walkthroughs;
+		assert.equal(walkthroughs.length, 1);
+		assert.equal(walkthroughs[0].id, WALKTHROUGH_FIRST_SESSION);
+		assert.deepEqual(
+			walkthroughs[0].steps.map((step) => step.id),
+			[WALKTHROUGH_STEP_READ_GUIDE],
+		);
+
+		await vscode.commands.executeCommand(
+			"workbench.action.openWalkthrough",
+			`${EXTENSION_ID}#${WALKTHROUGH_FIRST_SESSION}`,
 		);
 	});
 });

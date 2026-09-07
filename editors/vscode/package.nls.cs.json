@@ -2,7 +2,7 @@
 	"manifest.viewsContainers.dinah.title": "Dinah",
 	"manifest.views.dinah.workbenchView.name": "Workbench",
 	"manifest.viewsWelcome.binaryMissing.contents": "Dinah is not installed on this machine. This extension is a companion to the `dinah` command-line tool, and it does not carry a copy of it. Install dinah from [github.com/paulmooreparks/dinah#install](https://github.com/paulmooreparks/dinah#install), or set `dinah.path` to a binary you already have.\n[Open the Dinah settings](command:workbench.action.openSettings?%22dinah%22)",
-	"manifest.viewsWelcome.workbenchNone.contents": "No workbench was found from this folder. Run `dinah init` in a terminal to create one, or set `dinah.workbench` to the directory of one you already have.\n[Open the Dinah settings](command:workbench.action.openSettings?%22dinah%22)",
+	"manifest.viewsWelcome.workbenchNone.contents": "No workbench was found from this folder.\n\nTo start one here, run `dinah init` in a terminal. To use one you already have, set `dinah.workbench` to its directory.\n\nNew to Dinah? [Walk through your first session](command:workbench.action.openWalkthrough?%22paulmooreparks.dinah%23dinah.firstSession%22)\n[Open the Dinah settings](command:workbench.action.openSettings?%22dinah%22)",
 	"manifest.viewsWelcome.workbenchAmbiguous.contents": "Several workbenches are reachable from here. Set `dinah.workbench` to the one you mean.\n[Open the Dinah settings](command:workbench.action.openSettings?%22dinah%22)",
 	"manifest.viewsWelcome.workbenchUnknown.contents": "Dinah has a binary for this window but no workbench to go with it. Open a folder to work from, or open the Dinah output channel to read what `dinah` reported.\n[Open the Dinah settings](command:workbench.action.openSettings?%22dinah%22)",
 	"manifest.viewsWelcome.workbenchSearching.contents": "Dinah found a binary for this window and is still looking for a workbench.\n\nThis text is replaced as soon as Dinah has an answer. If it stays, open the Dinah output channel to see what happened.",
@@ -29,6 +29,11 @@
 	"manifest.configuration.dinah.workbench.markdownDescription": "Directory of the workbench to use for this folder, passed to `dinah` as `--workbench`. Leave empty to let `dinah` discover one by walking up from the folder. Set it when several workbenches are reachable, or when the walk reaches one you did not mean.",
 	"manifest.configuration.dinah.pollIntervalSeconds.markdownDescription": "How often the sidebar tree checks `dinah changes` for updates while visible.",
 	"manifest.configuration.dinah.watchFiles.markdownDescription": "Watch the workbench's Markdown files for changes and check sooner than the poll interval when one is saved.",
+	"manifest.walkthrough.firstSession.title": "Dinah: Your First Session",
+	"manifest.walkthrough.firstSession.description": "Get oriented at a Dinah workbench, using Dinah's own guide.",
+	"manifest.walkthrough.firstSession.step.readGuide.title": "Read the guide",
+	"manifest.walkthrough.firstSession.step.readGuide.description": "This step opens `dinah guide first-session` in an editor tab, fetched live from your installed binary. The text always matches what the command prints, because nothing here copies it.\n\n[Open the guide](command:dinah.walkthrough.openFirstSessionGuide)",
+	"manifest.command.dinah.walkthrough.openFirstSessionGuide.title": "Dinah: Open the First-Session Guide",
 	"manifest.command.dinah.runVerb.title": "Dinah: Run Verb…",
 	"manifest.command.dinah.refreshVerbCatalog.title": "Dinah: Refresh Command Palette"
 }
