@@ -569,9 +569,7 @@ Exit codes: 0 ok, 2 refused, 3 stale, 4 unreachable.
 // never counted the printed rows and never asked that the table held nothing
 // else, so a row added to the list passed unremarked. That is how the three
 // refusals dinah-408's --at flag can raise stood missing from an
-// operator-approved block for a whole card. A guard recording an approval has
-// to be able to see an addition, or what it records is an approval of a page
-// nobody checked.
+// operator-approved block for a whole card.
 //
 // Keying it to verb.Checks rather than to a second hand-written list is the
 // other half of the rewrite. The runtime list is what the page is rendered

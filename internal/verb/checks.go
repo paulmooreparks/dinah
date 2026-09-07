@@ -170,7 +170,7 @@ var beyondChecks = map[string][]Check{
 	// because a clear rewrites the anchor and journals a line and both need
 	// an actor.
 	//
-	// Rows 2, 5 and 7 belong to the --at write alone, which SetCardTierAt
+	// Rows 2, 5, and 7 belong to the --at write alone, which SetCardTierAt
 	// carries. Row 2 resolves the column the override is written for. Rows 5
 	// and 7 belong to the relative branch of that write: a +N or -N is
 	// measured against the column's own tier default, so a column carrying
@@ -179,11 +179,11 @@ var beyondChecks = map[string][]Check{
 	// and reaches row 6 instead when the name is not a declared tier.
 	//
 	// The three tier rows are inserted where the code runs them rather than
-	// appended, which is the opposite of what check.claim.8, check.move.9 and
-	// check.pull.14 do. The reason each way is the same reason. Those three
-	// lists are the profile's, numbered by the profile document, so a Dinah
-	// row among them would renumber a row the profile names. This list is
-	// Dinah's own, numbered by nothing outside it, and the page heads the
+	// appended, which is the opposite of what check.claim.8, check.move.9,
+	// and check.pull.14 do. The reason each way is the same reason. Those
+	// three lists are the profile's, numbered by the profile document, so a
+	// Dinah row among them would renumber a row the profile names. This list
+	// is Dinah's own, numbered by nothing outside it, and the page heads the
 	// table "What can go wrong, in the order each is checked", so a row
 	// printed away from where it runs would break that promise for nothing.
 	// The renumbering it costs was ruled on rather than assumed (dinah-408
