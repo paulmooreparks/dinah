@@ -35,7 +35,10 @@ type Library struct {
 	// nothing refuses it, so a test can construct the interleaving a composed
 	// write phase really admits instead of reasoning about it. The step names
 	// which window the run is standing in, because the answer a test wants
-	// differs per step. Reshape is the only caller today.
+	// differs per step. Reshape calls it between its own steps, and the
+	// checklist item verbs call it in the one window before the card lock is
+	// taken, where a test runs a whole second write and then asserts that the
+	// first one reads it rather than overwriting it.
 	Interpose func(step string)
 }
 

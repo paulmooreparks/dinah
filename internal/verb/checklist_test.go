@@ -415,3 +415,130 @@ func TestAnItemWriteIsACommentShapedActRatherThanAClaimShapedOne(t *testing.T) {
 		t.Fatalf("resolving on a card another owner holds: %s %s", response.Outcome, response.Refusal)
 	}
 }
+
+// secondLibrary is a second view of the same workbench on the harness's own
+// clock, standing for a second process. Two libraries over one bench is how
+// the tree already drives a concurrent writer, at
+// TestTheCardLockCoversTheWholeTransaction.
+func (h *harness) secondLibrary() *Library {
+	h.t.Helper()
+	opened, err := bench.Open(h.root)
+	if err != nil {
+		h.t.Fatalf("open a second view of the workbench: %v", err)
+	}
+	other := New(opened, h.home)
+	other.Now = h.library.Now
+	return other
+}
+
+// TestATwoWriterCiteKeepsBothCitations asserts that an item write reads the
+// item under the card's lock rather than before it, by driving a whole second
+// cite through the one window where the first holds no lock.
+//
+// The Interpose hook fires after the reference has been resolved and before
+// the lock is taken. A second library files its citation there and finishes,
+// so by the time the first takes the lock the item on disk carries an entry
+// the first has not seen. Both entries have to survive. A verb that read the
+// item before that window would write its own snapshot back over the second
+// writer's entry, and the loss would be silent: both calls answer ok and one
+// journal line each is appended, so nothing but the anchor reveals it.
+func TestATwoWriterCiteKeepsBothCitations(t *testing.T) {
+	h := newHarness(t)
+	h.declareEvidence(evidenceBlock)
+	card := h.add("first card")
+	ref := h.file(card, "acceptance_criterion", criterionText)
+	other := h.secondLibrary()
+
+	const intruderTarget = "internal/verb/checklist_test.go#TestFileCreatesAPendingItemAndOneJournalLine"
+	const ownTarget = "internal/verb/checklist_test.go#TestATwoWriterCiteKeepsBothCitations"
+	var intruder *Response
+	h.library.Interpose = func(step string) {
+		if step != itemStepUnlocked {
+			return
+		}
+		intruder = other.Cite(&Request{
+			Verb: "cite", Actor: "bob", Ref: ref,
+			Scheme: "test", CiteTarget: intruderTarget, Observed: "fail:pass",
+		})
+	}
+	first := h.library.Cite(&Request{
+		Verb: "cite", Actor: "alka", Ref: ref,
+		Scheme: "test", CiteTarget: ownTarget, Observed: "fail:pass",
+	})
+	h.library.Interpose = nil
+	h.reopen()
+
+	if intruder == nil {
+		t.Fatal("the interposed cite never ran, so this test proves nothing")
+	}
+	if intruder.Outcome != contract.OutcomeOK {
+		t.Fatalf("the interposed cite: %s %s", intruder.Outcome, intruder.Refusal)
+	}
+	if first.Outcome != contract.OutcomeOK {
+		t.Fatalf("the first cite: %s %s", first.Outcome, first.Refusal)
+	}
+	fm, _ := h.itemAnchor(ref)
+	if got := bench.CountCitations(fm); got != 2 {
+		t.Errorf("citations: wanted 2, got %d", got)
+	}
+	raw := strings.Join(fm.Raw(bench.CitationsField), "\n")
+	for _, target := range []string{intruderTarget, ownTarget} {
+		if !strings.Contains(raw, target) {
+			t.Errorf("the citations lost %s:\n%s", target, raw)
+		}
+	}
+}
+
+// TestASecondCloseIsRefusedRatherThanOverwritingTheFirst asserts that
+// not-pending is decided against the state on disk at the moment of the write.
+//
+// A second library resolves the item outright in the window where the first
+// holds no lock, so the first arrives at a resolved item. It has to be refused
+// not-pending, and the note the second writer left has to survive. A verb
+// reading the item before that window would see pending, be admitted, and
+// overwrite an answer somebody else had already recorded, which is the failure
+// not-pending exists to prevent.
+func TestASecondCloseIsRefusedRatherThanOverwritingTheFirst(t *testing.T) {
+	h := newHarness(t)
+	card := h.add("first card")
+	ref := h.file(card, "open_question", criterionText)
+	other := h.secondLibrary()
+
+	const intruderNote = "the second writer answered it first, and this is that answer"
+	var intruder *Response
+	h.library.Interpose = func(step string) {
+		if step != itemStepUnlocked {
+			return
+		}
+		intruder = other.Resolve(&Request{Verb: "resolve", Actor: "bob", Ref: ref, Note: intruderNote})
+	}
+	first := h.library.Resolve(&Request{
+		Verb: "resolve", Actor: "alka", Ref: ref,
+		Note: "the first writer's answer, which must not land",
+	})
+	h.library.Interpose = nil
+	h.reopen()
+
+	if intruder == nil {
+		t.Fatal("the interposed resolve never ran, so this test proves nothing")
+	}
+	if intruder.Outcome != contract.OutcomeOK {
+		t.Fatalf("the interposed resolve: %s %s", intruder.Outcome, intruder.Refusal)
+	}
+	if first.Refusal != contract.NotPending {
+		t.Errorf("the second resolve: wanted %s, got %s %s", contract.NotPending, first.Outcome, first.Refusal)
+	}
+	fm, _ := h.itemAnchor(ref)
+	if got := fm.Value(bench.ItemNoteField); got != intruderNote {
+		t.Errorf("note: wanted the interposed writer's answer, got %q", got)
+	}
+	resolutions := 0
+	for _, ev := range h.events(card) {
+		if ev.Event == contract.EventItemResolved {
+			resolutions++
+		}
+	}
+	if resolutions != 1 {
+		t.Errorf("wanted one item_resolved recorded, got %d", resolutions)
+	}
+}

@@ -484,3 +484,100 @@ func TestNoSyntaxLineReachesPastTheWindow(t *testing.T) {
 		}
 	}
 }
+
+// notedCommands are the commands whose help page draws a note under the
+// summary. It is read off the catalog rather than listed here, so a command
+// that gains or loses a note is swept without this file being edited.
+func notedCommands(s *session) []string {
+	var named []string
+	for _, c := range commands {
+		if s.r.Has("cmd." + c.name + ".note") {
+			named = append(named, c.name)
+		}
+	}
+	return named
+}
+
+// TestNoNoteLineReachesPastTheWindow sweeps every command note the catalog
+// carries, in every language, across the same windows the other two sweeps
+// draw at, and refuses a line drawn past the edge.
+//
+// The note is a paragraph rather than a table row, and until the six checklist
+// verbs arrived the one note in the catalog fitted eighty columns whole. Three
+// of the new notes run past 260 characters, and one drew a 271-column line
+// before wrapNote was written. The one word wider than the window is exempt,
+// because packTokens writes an overlong token whole rather than splitting it,
+// which is the documented behaviour of every wrap in this binary.
+func TestNoNoteLineReachesPastTheWindow(t *testing.T) {
+	// A sweep over no notes at all would pass whatever wrapNote did, so the
+	// count is pinned before the sweep runs. Four commands carry a note today:
+	// check, resolve, verify and fail.
+	if named := notedCommands(helpSession(80, "en")); len(named) != 4 {
+		t.Fatalf("wanted four commands carrying a note, got %d: %v", len(named), named)
+	}
+	for _, tag := range msg.Tags() {
+		for _, window := range helpSweepWindows() {
+			s := helpSession(window, tag)
+			for _, name := range notedCommands(s) {
+				note := s.r.T("cmd." + name + ".note")
+				lines := s.wrapNote(note)
+				for _, line := range lines {
+					if displayWidth(line) > window && len(strings.Fields(line)) > 1 {
+						t.Errorf("in %s at a window of %d the note of %s draws %d columns wide:\n%s", tag, window, name, displayWidth(line), line)
+					}
+				}
+				if got := strings.Join(strings.Fields(strings.Join(lines, " ")), " "); got != strings.Join(strings.Fields(note), " ") {
+					t.Errorf("in %s at a window of %d the note of %s came back changed:\n%s", tag, window, name, got)
+				}
+			}
+		}
+	}
+}
+
+// TestANoteAtAnUnmeasuredWindowComesBackWhole holds the branch wrapNote takes
+// when no window was measured, which is what a pipe or a terminal that answers
+// nothing gives it. There is no width to wrap to, so the note is written as
+// one line however long it is, the way every note was written before wrapNote
+// existed.
+func TestANoteAtAnUnmeasuredWindowComesBackWhole(t *testing.T) {
+	long := strings.TrimSpace(strings.Repeat("a note long enough that any measured window would break it. ", 6))
+	for _, window := range []int{0, -1} {
+		s := helpSession(window, "en")
+		lines := s.wrapNote(long)
+		if len(lines) != 1 || lines[0] != long {
+			t.Errorf("at a window of %d: wanted the note whole on one line, got %d lines:\n%s", window, len(lines), strings.Join(lines, "\n"))
+		}
+	}
+}
+
+// TestANoteAtTheWindowsOwnEdge holds the two boundaries a sweep of real
+// catalog text cannot reach on purpose: a note whose width is exactly the
+// window, which has to stay on one line rather than wrapping a word off the
+// end, and a single word wider than the window, which has to be written whole
+// rather than split or dropped.
+func TestANoteAtTheWindowsOwnEdge(t *testing.T) {
+	const window = 40
+	s := helpSession(window, "en")
+
+	exact := "one two three four five six seven eight!"
+	if displayWidth(exact) != window {
+		t.Fatalf("this case needs a note of exactly %d columns, and its own text is %d", window, displayWidth(exact))
+	}
+	if lines := s.wrapNote(exact); len(lines) != 1 || lines[0] != exact {
+		t.Errorf("a note of exactly the window: wanted one unbroken line, got %d:\n%s", len(lines), strings.Join(lines, "\n"))
+	}
+
+	overlong := strings.Repeat("z", window+5)
+	if lines := s.wrapNote(overlong); len(lines) != 1 || lines[0] != overlong {
+		t.Errorf("a single word wider than the window: wanted it whole on one line, got %d:\n%s", len(lines), strings.Join(lines, "\n"))
+	}
+
+	over := exact + " nine"
+	lines := s.wrapNote(over)
+	if len(lines) != 2 {
+		t.Fatalf("a note one word past the window: wanted two lines, got %d:\n%s", len(lines), strings.Join(lines, "\n"))
+	}
+	if lines[0] != exact || lines[1] != "nine" {
+		t.Errorf("a note one word past the window broke in the wrong place:\n%s", strings.Join(lines, "\n"))
+	}
+}

@@ -9,14 +9,27 @@ import (
 
 // The six verbs in this file are the write side of a card's checklist. They
 // follow Comment and Attach exactly: resolve the target, check the operator
-// and the actor, take the card's own directory lock, write the entity, append
-// one event to the card's journal, answer.
+// and the actor, take the card's own directory lock, read the item under that
+// lock, decide, write the entity, append one event to the card's journal,
+// answer.
+//
+// The order of those steps is load-bearing, and it is the order Library.Do
+// documents in internal/verb/mutate.go. Everything an item verb decides is
+// read after the lock is held, so a precondition is answered against what is
+// on disk at the moment of the write. A verb that read the item first and
+// wrote that snapshot back under the lock would let two writers silently lose
+// each other's work: two cite calls would each read no citations and the
+// second would drop the first's entry, and two verify calls would each read
+// the item pending, so NotPending would never fire.
 //
 // None of them touches the claim system. A checklist item write is a
 // comment-shaped act rather than a claim-shaped one, so filing, citing,
 // resolving or reopening an item on a card somebody else holds succeeds
-// exactly as leaving a comment on it does, and the only refusal two concurrent
-// writers can produce is the transient Locked.
+// exactly as leaving a comment on it does. Two writers reaching the same item
+// are serialised by the card's lock. One is admitted and the other is refused
+// the transient Locked, and where the first has already finished, the second
+// reads what it wrote and answers against that, so a second verify is refused
+// NotPending rather than overwriting the first.
 
 // File creates a pending checklist item on a card, carrying the given text as
 // its body.
@@ -85,28 +98,24 @@ func (l *Library) File(req *Request) *Response {
 // observation and a call supplying none writes a citation no terminal verb
 // could ever close against.
 func (l *Library) Cite(req *Request) *Response {
-	entity, refused := l.resolveItem(req)
-	if refused != nil {
-		return refused
-	}
-	scheme := strings.TrimSpace(req.Scheme)
-	if scheme == "" {
-		return l.refuse(req, entity.card, contract.Malformed, bench.ItemCitationScheme)
-	}
-	target := strings.TrimSpace(req.CiteTarget)
-	if target == "" {
-		return l.refuse(req, entity.card, contract.Malformed, bench.ItemCitationTarget)
-	}
-	before, after, read := bench.ParseObserved(req.Observed)
-	if !read {
-		return l.refuse(req, entity.card, contract.Malformed, bench.ItemCitationObserved)
-	}
-	if before == "" && l.Bench.EvidenceObservedRequired(scheme) {
-		return l.refuse(req, entity.card, contract.ObservationRequired, scheme)
-	}
-	return l.writeItem(req, entity, func(fm *bench.Frontmatter, body string) (*bench.Event, string) {
-		bench.AppendCitation(fm, bench.Citation{Scheme: scheme, Target: target, Before: before, After: after})
-		return &bench.Event{Event: contract.EventItemCited, Scheme: scheme, Target: target}, body
+	return l.withItem(req, func(entity *itemTarget) (*bench.Event, *Response) {
+		scheme := strings.TrimSpace(req.Scheme)
+		if scheme == "" {
+			return nil, l.refuse(req, entity.card, contract.Malformed, bench.ItemCitationScheme)
+		}
+		target := strings.TrimSpace(req.CiteTarget)
+		if target == "" {
+			return nil, l.refuse(req, entity.card, contract.Malformed, bench.ItemCitationTarget)
+		}
+		before, after, read := bench.ParseObserved(req.Observed)
+		if !read {
+			return nil, l.refuse(req, entity.card, contract.Malformed, bench.ItemCitationObserved)
+		}
+		if before == "" && l.Bench.EvidenceObservedRequired(scheme) {
+			return nil, l.refuse(req, entity.card, contract.ObservationRequired, scheme)
+		}
+		bench.AppendCitation(entity.fm, bench.Citation{Scheme: scheme, Target: target, Before: before, After: after})
+		return &bench.Event{Event: contract.EventItemCited, Scheme: scheme, Target: target}, nil
 	})
 }
 
@@ -132,31 +141,27 @@ func (l *Library) Fail(req *Request) *Response {
 // fixed by the item's own kind rather than chosen by the caller, which is why
 // there are three verbs rather than one taking a state.
 func (l *Library) closeItem(req *Request, event, state string) *Response {
-	entity, refused := l.resolveItem(req)
-	if refused != nil {
-		return refused
-	}
-	if !kindClosedBy(state)[entity.item.Kind] {
-		return l.refuse(req, entity.card, contract.WrongItemKind, entity.item.Kind)
-	}
-	if entity.item.State != bench.ItemPending {
-		return l.refuse(req, entity.card, contract.NotPending, entity.item.State)
-	}
-	note, refused := l.admitNote(req, entity, req.Note)
-	if refused != nil {
-		return refused
-	}
-	// The citation obligation is stated for an acceptance criterion alone, so
-	// a decision or an open question closes with citations or without them
-	// exactly as it does today.
-	if entity.item.Kind == criterionKind && l.Bench.EvidenceDeclared() && bench.CountCitations(entity.fm) == 0 {
-		return l.refuse(req, entity.card, contract.Uncited, entity.ref)
-	}
-	prior := entity.item.State
-	return l.writeItem(req, entity, func(fm *bench.Frontmatter, body string) (*bench.Event, string) {
-		fm.Set(bench.ItemStateField, state)
-		fm.Set(bench.ItemNoteField, note)
-		return &bench.Event{Event: event, From: prior, To: state}, body
+	return l.withItem(req, func(entity *itemTarget) (*bench.Event, *Response) {
+		if !kindClosedBy(state)[entity.item.Kind] {
+			return nil, l.refuse(req, entity.card, contract.WrongItemKind, entity.item.Kind)
+		}
+		if entity.item.State != bench.ItemPending {
+			return nil, l.refuse(req, entity.card, contract.NotPending, entity.item.State)
+		}
+		note, refused := l.admitNote(req, entity, req.Note)
+		if refused != nil {
+			return nil, refused
+		}
+		// The citation obligation is stated for an acceptance criterion alone,
+		// so a decision or an open question closes with citations or without
+		// them exactly as it does today.
+		if entity.item.Kind == criterionKind && l.Bench.EvidenceDeclared() && bench.CountCitations(entity.fm) == 0 {
+			return nil, l.refuse(req, entity.card, contract.Uncited, entity.ref)
+		}
+		prior := entity.item.State
+		entity.fm.Set(bench.ItemStateField, state)
+		entity.fm.Set(bench.ItemNoteField, note)
+		return &bench.Event{Event: event, From: prior, To: state}, nil
 	})
 }
 
@@ -167,26 +172,22 @@ func (l *Library) closeItem(req *Request, event, state string) *Response {
 // resolution rather than erasing it, so the record of what was in force
 // survives until a fresh resolve, verify, fail or cite replaces or adds to it.
 func (l *Library) Reopen(req *Request) *Response {
-	entity, refused := l.resolveItem(req)
-	if refused != nil {
-		return refused
-	}
-	if entity.item.State == bench.ItemPending {
-		return l.refuse(req, entity.card, contract.NotResolved, entity.item.State)
-	}
-	reason := strings.TrimSpace(req.Reason)
-	if reason == "" {
-		return l.refuse(req, entity.card, contract.Malformed, "reason")
-	}
-	prior := entity.item.State
-	return l.writeItem(req, entity, func(fm *bench.Frontmatter, body string) (*bench.Event, string) {
-		fm.Set(bench.ItemStateField, bench.ItemPending)
+	return l.withItem(req, func(entity *itemTarget) (*bench.Event, *Response) {
+		if entity.item.State == bench.ItemPending {
+			return nil, l.refuse(req, entity.card, contract.NotResolved, entity.item.State)
+		}
+		reason := strings.TrimSpace(req.Reason)
+		if reason == "" {
+			return nil, l.refuse(req, entity.card, contract.Malformed, "reason")
+		}
+		prior := entity.item.State
+		entity.fm.Set(bench.ItemStateField, bench.ItemPending)
 		return &bench.Event{
 			Event:  contract.EventItemReopened,
 			From:   prior,
 			To:     bench.ItemPending,
 			Reason: reason,
-		}, body
+		}, nil
 	})
 }
 
@@ -215,33 +216,80 @@ type itemTarget struct {
 	body string
 }
 
-// resolveItem resolves the reference the five item verbs take and reads the
-// item's anchor, refusing UnknownPath for a reference naming anything that is
-// not a checklist item. What it returns on a refusal is a whole response, so a
-// caller writes one branch rather than three.
-func (l *Library) resolveItem(req *Request) (*itemTarget, *Response) {
+// itemStepUnlocked names the one window an item write leaves open: after the
+// reference has been resolved and before the card's lock is taken, where
+// nothing has been read yet and so nothing can go stale. It is the step name
+// Interpose is given, and a test uses it to run a whole second write in that
+// window and then assert the first one sees it.
+const itemStepUnlocked = "item-unlocked"
+
+// withItem is the body the five item verbs share, and the order of its steps
+// is the whole of what makes an item write one transaction.
+//
+// The reference is resolved first, because the lock lives inside the card's
+// own directory and there is nothing to lock until the card is found. The
+// card's lock is then taken, and the item is read under it, so the state every
+// precondition reads and the frontmatter the write puts back are the ones on
+// disk at the moment of the write rather than a snapshot taken before it. That
+// is the order Library.Do documents and it is the order for the same reason:
+// two processes reaching the same item cannot both see it pending, because the
+// second is either refused the lock outright or reads what the first wrote.
+//
+// The work function decides and edits. It reads the item and the frontmatter
+// off the target, sets whatever it changes, and answers with the event its
+// change produced, or with a refusal and no event. Everything the five verbs
+// share is filled in here: the lock, the stamp, the actor, the item's
+// identifier, the anchor write and the journal line.
+//
+// dinah-30's batch verb composes on top of this: it takes the lock once and
+// runs the work body N times under it, which is the same concurrency story
+// this acquisition already tells for one write.
+func (l *Library) withItem(req *Request, work func(*itemTarget) (*bench.Event, *Response)) *Response {
 	if l.Bench.Operator == "" {
-		return nil, l.refuse(req, nil, contract.NoOperator, "")
+		return l.refuse(req, nil, contract.NoOperator, "")
 	}
 	entity, err := l.Bench.ResolveEntity(req.Ref)
 	if err != nil {
-		return nil, l.FromError(req, err)
+		return l.FromError(req, err)
 	}
 	if req.Actor == "" {
-		return nil, l.refuse(req, entity.Card, contract.NoOwner, "")
+		return l.refuse(req, entity.Card, contract.NoOwner, "")
 	}
 	if entity.Kind != bench.KindItem || entity.Card == nil {
-		return nil, l.refuse(req, entity.Card, contract.UnknownPath, req.Ref)
+		return l.refuse(req, entity.Card, contract.UnknownPath, req.Ref)
 	}
+	l.interpose(itemStepUnlocked)
+	now := bench.Stamp(l.Now())
+	lock, err := bench.Acquire(entity.Card.Dir, req.Actor, now)
+	if err != nil {
+		return l.FromError(req, err)
+	}
+	defer lock.Release()
 	item, err := bench.LoadItem(entity.Dir)
 	if err != nil {
-		return nil, l.FromError(req, err)
+		return l.FromError(req, err)
 	}
 	fm, body, err := bench.ReadItemAnchor(entity.Dir)
 	if err != nil {
-		return nil, l.FromError(req, err)
+		return l.FromError(req, err)
 	}
-	return &itemTarget{ref: req.Ref, dir: entity.Dir, card: entity.Card, item: item, fm: fm, body: body}, nil
+	target := &itemTarget{ref: req.Ref, dir: entity.Dir, card: entity.Card, item: item, fm: fm, body: body}
+	ev, refused := work(target)
+	if refused != nil {
+		return refused
+	}
+	if err := bench.WriteItemAnchor(target.dir, target.fm, target.body); err != nil {
+		return l.FromError(req, err)
+	}
+	ev.TS = now
+	ev.Actor = req.Actor
+	ev.Item = item.ID
+	if err := bench.AppendEvent(entity.Card.JournalPath(), *ev); err != nil {
+		return l.FromError(req, err)
+	}
+	response := l.ok(req, entity.Card)
+	response.Detail = item.ID
+	return response
 }
 
 // admitNote checks the resolution note the three terminal verbs require. A
@@ -262,34 +310,4 @@ func (l *Library) admitNote(req *Request, entity *itemTarget, note string) (stri
 		})
 	}
 	return trimmed, nil
-}
-
-// writeItem takes the card's lock, applies a write to the item's anchor, and
-// appends the event that write produced to the card's journal. The lock, the
-// stamp, the actor and the item's identifier are filled in here, so each verb
-// above states its own change and nothing else.
-//
-// dinah-30's batch verb composes on top of this: it takes the lock once and
-// calls the write body N times under it, which is the same concurrency story
-// this acquisition already tells for one write.
-func (l *Library) writeItem(req *Request, entity *itemTarget, apply func(*bench.Frontmatter, string) (*bench.Event, string)) *Response {
-	now := bench.Stamp(l.Now())
-	lock, err := bench.Acquire(entity.card.Dir, req.Actor, now)
-	if err != nil {
-		return l.FromError(req, err)
-	}
-	defer lock.Release()
-	ev, body := apply(entity.fm, entity.body)
-	if err := bench.WriteItemAnchor(entity.dir, entity.fm, body); err != nil {
-		return l.FromError(req, err)
-	}
-	ev.TS = now
-	ev.Actor = req.Actor
-	ev.Item = entity.item.ID
-	if err := bench.AppendEvent(entity.card.JournalPath(), *ev); err != nil {
-		return l.FromError(req, err)
-	}
-	response := l.ok(req, entity.card)
-	response.Detail = entity.item.ID
-	return response
 }
