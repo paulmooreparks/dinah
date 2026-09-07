@@ -60,7 +60,11 @@ func TestASweepWithNoRootClimbsLikeEveryOtherCheck(t *testing.T) {
 	}
 	// Nothing was swept while the sweeps were refusing, which is the half of
 	// the claim a refusal message cannot make on its own.
-	if ids := bench.ListWorkbenchIDs(filepath.Join(tree, "project", bench.UserBaseName)); len(ids) != 1 || bench.IsWorkbenchID(ids[0]) {
+	ids, err := bench.ListWorkbenchIDs(filepath.Join(tree, "project", bench.UserBaseName))
+	if err != nil {
+		t.Fatalf("ListWorkbenchIDs: %v", err)
+	}
+	if len(ids) != 1 || bench.IsWorkbenchID(ids[0]) {
 		t.Errorf("a refused sweep still moved something: the container holds %v", ids)
 	}
 }
@@ -343,7 +347,10 @@ func TestTheBareWorkbenchAdviceIsACommandThatWorks(t *testing.T) {
 	if confirmed.code != 0 {
 		t.Fatalf("the advice, confirmed, exited %d: %s%s", confirmed.code, confirmed.out, confirmed.errw)
 	}
-	ids := bench.ListWorkbenchIDs(filepath.Join(project, bench.UserBaseName))
+	ids, err := bench.ListWorkbenchIDs(filepath.Join(project, bench.UserBaseName))
+	if err != nil {
+		t.Fatalf("ListWorkbenchIDs: %v", err)
+	}
 	if len(ids) != 1 {
 		t.Errorf("the advice ran and the workbench is not in a container: the container holds %v", ids)
 	}
