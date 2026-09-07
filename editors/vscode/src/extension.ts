@@ -589,17 +589,21 @@ export async function activate(
 		);
 		renderStatusBar();
 		// The first check of the session, one per workbench the load resolved.
-		// markPending goes first so that a reader opening the Problems panel
-		// while the sweep is still running sees the workbench named as
-		// unconfirmed rather than seeing an empty panel they would read as
-		// clean. runFor is deliberately not awaited: a structural sweep of
-		// several workbenches would otherwise hold up the rest of activation,
-		// and each root's own result reaches the panel as it lands.
+		// runFor is deliberately not awaited: a structural sweep of several
+		// workbenches would otherwise hold up the rest of activation, and each
+		// root's own result reaches the panel as it lands.
+		//
+		// Nothing here puts the "not checked yet" row up, and that is the
+		// point. CheckDiagnostics marks the root itself before it spawns, so a
+		// reader opening the Problems panel while the sweep is still running
+		// sees the workbench named as unconfirmed either way. This loop skips
+		// every workbench the load has not heard from, and those are reached
+		// later through the checkpoint callback below, which is why the
+		// obligation cannot live at a call site.
 		for (const report of provider.holdingSnapshot()) {
 			if (report.state !== "answered") {
 				continue;
 			}
-			await diagnostics.markPending(report.source, report.title);
 			void diagnostics.runFor(report.source, report.title);
 		}
 	}

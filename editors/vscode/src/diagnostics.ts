@@ -18,6 +18,17 @@
 // because no check has completed looks exactly like a panel that is empty
 // because the workbench is clean, so a placeholder says which one it is until
 // the first run answers.
+//
+// The placeholder is this module's own obligation and not an instruction to
+// whoever calls it. An earlier shape left `markPending` to the activation
+// loop, which skipped every workbench it had not yet heard from, and a folder
+// holding several workbenches reports all of them that way until a reader
+// opens one. Such a workbench became visible later and was first reached
+// through the reading half alone, so a check that failed on it wrote nothing
+// and its panel went on meaning both "clean" and "never asked" for as long as
+// the failures lasted. So both reading entry points, `runFor` and
+// `applyResult`, mark the root themselves before they can produce an absence,
+// and no caller is able to decline the invariant by forgetting a call.
 
 import type { CliOutcome, Spawner } from "./cli";
 import { runCheck } from "./cli";
@@ -155,6 +166,16 @@ export interface CheckDiagnosticsDeps {
 interface RootState {
 	/** Whether a run has ever completed for this root this session. */
 	confirmedOnce: boolean;
+	/**
+	 * Whether the placeholder is already standing for this root.
+	 *
+	 * Both reading entry points mark the root before they produce anything, so
+	 * without this the same placeholder would be resolved and written again on
+	 * every trigger a failing workbench received. It is set only once the write
+	 * has happened, so a root whose definition file did not resolve is tried
+	 * again on the next trigger rather than written off.
+	 */
+	pendingShown: boolean;
 	/** Every path the last applied plan wrote to, so the next one can clear them. */
 	lastPaths: ReadonlySet<string>;
 	/** Whether a run is in flight for this root. */
@@ -184,17 +205,25 @@ export class CheckDiagnostics {
 	 * workbench as unconfirmed instead of seeing nothing, so an empty panel
 	 * never has to mean both "clean" and "never asked". The first successful
 	 * run replaces it, and this is a no-op from then on.
+	 *
+	 * `runFor` and `applyResult` call this themselves, so an outside caller
+	 * needs it only to put the row up ahead of a sweep it is not waiting for.
+	 * Calling it twice costs nothing.
 	 */
 	async markPending(root: string, title: string): Promise<void> {
 		const state = this.stateOf(root);
-		if (state.confirmedOnce) {
+		if (state.confirmedOnce || state.pendingShown) {
 			return;
 		}
 		const fallback = await this.deps.resolveFallback(root);
 		if (fallback === undefined) {
-			// There is no file to hang the placeholder on. Saying so in the
-			// channel is all that is left, and it is better than a panel that
-			// quietly says nothing.
+			// The one case that degrades to the channel, and it does so by
+			// design rather than by oversight. A diagnostic has to hang on a
+			// document, this root resolved no document at all, and there is
+			// nothing else to hang it on. The channel line is the honest
+			// remainder. Nothing is recorded as shown, so the next trigger
+			// tries the resolution again, which matters because the definition
+			// file usually fails to resolve for a reason that passes.
 			this.deps.log(
 				`${SOURCE}: ${root} has not been checked yet, and its definition file did not resolve`,
 			);
@@ -214,6 +243,7 @@ export class CheckDiagnostics {
 			],
 		]);
 		this.applyPlan(state, plan);
+		state.pendingShown = true;
 	}
 
 	/**
@@ -223,6 +253,12 @@ export class CheckDiagnostics {
 	 * run is remembered rather than spawned, and however many arrive they
 	 * collapse into one rerun behind the run that was already going, so a busy
 	 * workbench costs two structural sweeps rather than a queue of them.
+	 *
+	 * The root is marked before the first spawn, which covers the workbench
+	 * this module first hears about here rather than at activation. Marking it
+	 * after the in-flight guard is what keeps the guard synchronous: an await
+	 * placed above it would let three triggers all read `running` as false and
+	 * all spawn.
 	 */
 	async runFor(root: string, title: string): Promise<void> {
 		const state = this.stateOf(root);
@@ -232,6 +268,7 @@ export class CheckDiagnostics {
 		}
 		state.running = true;
 		try {
+			await this.markPending(root, title);
 			await this.spawnOnce(root, title);
 			while (state.queued) {
 				// Cleared before the rerun rather than after it, so a trigger
@@ -268,6 +305,12 @@ export class CheckDiagnostics {
 			this.deps.log(
 				`${SOURCE}: ${title} did not answer (${outcome.kind}), so its problems are as they were`,
 			);
+			// A root reaching its first failure here has nothing standing yet,
+			// and "as they were" would be an empty panel that reads as clean.
+			// Marking it says what is true instead, and the call is a no-op
+			// once a run has succeeded, so a later failure still cannot bring
+			// the placeholder back over real findings.
+			await this.markPending(root, title);
 			return;
 		}
 		const answer = outcome.json as CheckAnswer;
@@ -314,6 +357,7 @@ export class CheckDiagnostics {
 		}
 		const fresh: RootState = {
 			confirmedOnce: false,
+			pendingShown: false,
 			lastPaths: new Set<string>(),
 			running: false,
 			queued: false,

@@ -249,6 +249,19 @@ test("a finding lands on its own file, on the definition file, or in the log", a
 	);
 	assert.ok(moved.message.includes(ORPHANED.Key));
 
+	// A path that is not there at all, with a definition file to fall back to,
+	// which is the ordinary production shape of the third arm. It takes the
+	// route the directory takes and keeps the absent path in the message,
+	// because a reader has to be told which path went missing.
+	const absent = await planFor(
+		{ outcome: "findings", findings: [atFile(CARD_FILE)] },
+		DEFINITION,
+		stats({}),
+		() => {},
+	);
+	assert.deepEqual([...absent.keys()], [DEFINITION]);
+	assert.ok((absent.get(DEFINITION) ?? [])[0].message.includes(CARD_FILE));
+
 	const lines: string[] = [];
 	const nowhere = await planFor(
 		{ outcome: "findings", findings: [ORPHANED] },
@@ -414,9 +427,118 @@ test("the check is reached from the two call sites the design names", () => {
 	// reader settles that by reading the two sites. What this pins is the
 	// count, so a third site cannot appear without somebody deciding to change
 	// this number and saying why.
+	//
+	// The whole set of methods extension.ts reaches is pinned rather than the
+	// runFor count alone, and markPending's zero is the number being defended.
+	// It reads as a gap and is the opposite of one: keeping the panel honest
+	// about a workbench nobody has checked belongs to CheckDiagnostics, which
+	// does it on the way into both of its reading paths. A markPending call
+	// appearing here again would mean somebody had moved that obligation back
+	// out to a caller who is free to forget it, which is the defect this card
+	// came back from review for.
 	const body = readFileSync(join(extensionRoot, "src", "extension.ts"), "utf8");
-	const occurrences = (needle: string): number =>
-		body.split(needle).length - 1;
-	assert.equal(occurrences("diagnostics.runFor("), 2);
-	assert.equal(occurrences("diagnostics.markPending("), 1);
+	const called = new Map<string, number>();
+	for (const [, method] of body.matchAll(/\bdiagnostics\.([A-Za-z]+)\(/g)) {
+		called.set(method, (called.get(method) ?? 0) + 1);
+	}
+	assert.deepEqual(
+		[...called.entries()].sort(),
+		[
+			["applyResult", 1],
+			["runFor", 2],
+		],
+		"extension.ts reaches a different set of CheckDiagnostics methods than the design names",
+	);
+});
+
+// ---------------------------------------------------------------------------
+// AC-4, the case the first round of code review drove: a workbench this module
+// first hears about through its reading half alone
+// ---------------------------------------------------------------------------
+
+/** A spawner that refuses every invocation, in the envelope the CLI answers with. */
+const refusingSpawner: Spawner = async () =>
+	Promise.resolve({
+		code: 2,
+		stdout: JSON.stringify({ refusal: "workbench.not-found" }),
+		stderr: "",
+	} as SpawnOutcome);
+
+test("a workbench first reached by a failing check still says it is unchecked", async () => {
+	const uncertain = ENGLISH("diagnostics.check.uncertain", {
+		workbench: "Bench",
+	});
+
+	// The reviewer's own drive. A workbench in a folder holding several is
+	// unheard at activation, so the activation loop skips it; a reader opens
+	// it, it becomes visible, and the checkpoint callback calls runFor on a
+	// root that was never marked. The check then fails.
+	const swept = panel();
+	const onCheckpoint = new CheckDiagnostics(
+		deps({
+			apply: swept.apply,
+			spawner: refusingSpawner,
+			statKind: stats({ [DEFINITION]: "file" }),
+		}),
+	);
+	await onCheckpoint.runFor(ROOT, "Bench");
+	assert.deepEqual(
+		allMessages(swept.collection),
+		[uncertain],
+		"a failing first check left the panel empty, which reads as clean",
+	);
+
+	// The failure repeating does not stack the row up, and does not stop
+	// saying it either.
+	await onCheckpoint.runFor(ROOT, "Bench");
+	assert.deepEqual(allMessages(swept.collection), [uncertain]);
+
+	// The manual command's path to the same place. It applies an outcome
+	// somebody else fetched, so it never goes through runFor at all.
+	const manual = panel();
+	const fromCommand = new CheckDiagnostics(
+		deps({ apply: manual.apply, statKind: stats({ [DEFINITION]: "file" }) }),
+	);
+	await fromCommand.applyResult(ROOT, "Bench", {
+		kind: "refused",
+		refusal: "workbench.not-found",
+	});
+	assert.deepEqual(
+		allMessages(manual.collection),
+		[uncertain],
+		"a manual check that was refused left the panel empty",
+	);
+});
+
+test("the panel says unknown while the first sweep is still running", async () => {
+	// The sibling of the case above rather than the case itself. A check that
+	// is merely slow leaves the same empty panel behind it as a check that
+	// fails, for as long as it runs, so the row goes up before the spawn and
+	// not after the answer.
+	const held = heldSpawner();
+	const shown = panel();
+	const run = new CheckDiagnostics(
+		deps({
+			apply: shown.apply,
+			spawner: held.spawner,
+			statKind: stats({ [DEFINITION]: "file" }),
+		}),
+	);
+
+	void run.runFor(ROOT, "Bench");
+	await settle();
+	assert.equal(held.argvs.length, 1, "the sweep did not reach the spawner");
+	assert.deepEqual(
+		allMessages(shown.collection),
+		[ENGLISH("diagnostics.check.uncertain", { workbench: "Bench" })],
+		"the panel was empty while the first sweep ran",
+	);
+
+	held.release();
+	await settle();
+	assert.deepEqual(
+		allMessages(shown.collection),
+		[],
+		"the placeholder outlived the sweep that answered clean",
+	);
 });
