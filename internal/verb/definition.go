@@ -164,6 +164,7 @@ var vocabularies = map[string]Vocabulary{
 	"field":        {Values: bench.WorkbenchFields},
 	"column-kind":  {Values: contract.Kinds},
 	"detail-field": {Values: DetailFields},
+	"item-kind":    {Values: bench.ItemKinds},
 	"topic":        {Source: "guides"},
 	"column":       {Source: "columns"},
 }
@@ -213,6 +214,11 @@ var guides = map[string][]string{
 	"show":         {"references"},
 	"instructions": {"references"},
 	"attach":       {"references"},
+	"cite":         {"references"},
+	"resolve":      {"references"},
+	"verify":       {"references"},
+	"fail":         {"references"},
+	"reopen":       {"references"},
 	"archive":      {"references"},
 	"delete":       {"references"},
 	"rename":       {"references"},
@@ -298,6 +304,39 @@ var params = map[string][]Param{
 		{Name: "file", Required: true, Field: "File"},
 		{Name: "description", Flag: true, Value: "text", Field: "Description"},
 		{Name: "replace", Flag: true, Marker: true, Field: "Replace"},
+	},
+	// The six checklist verbs. file names a card, because an item is created
+	// under one; the other five name the item itself, which resolves through
+	// the same reference grammar every entity-shaped command already uses,
+	// short aliases included.
+	"file": {
+		{Name: "card", Required: true, Shared: "card", Field: "Card"},
+		{Name: "kind", Required: true, Vocabulary: "item-kind", Field: "Kind"},
+		{Name: "text", Display: "text|-", Required: true, Rest: true, Field: "Text"},
+		{Name: "column", Flag: true, Value: "column", Field: "Column"},
+		{Name: "owner", Flag: true, Value: "owner", Field: "Owner"},
+	},
+	"cite": {
+		{Name: "item", Required: true, Guide: "references", Field: "Ref"},
+		{Name: "scheme", Required: true, Field: "Scheme"},
+		{Name: "target", Required: true, Field: "CiteTarget"},
+		{Name: "observed", Flag: true, Value: "before:after", Field: "Observed"},
+	},
+	"resolve": {
+		{Name: "item", Required: true, Shared: "item", Guide: "references", Field: "Ref"},
+		{Name: "note", Display: "note|-", Required: true, Rest: true, Shared: "note", Field: "Note"},
+	},
+	"verify": {
+		{Name: "item", Required: true, Shared: "item", Guide: "references", Field: "Ref"},
+		{Name: "note", Display: "note|-", Required: true, Rest: true, Shared: "note", Field: "Note"},
+	},
+	"fail": {
+		{Name: "item", Required: true, Shared: "item", Guide: "references", Field: "Ref"},
+		{Name: "note", Display: "note|-", Required: true, Rest: true, Shared: "note", Field: "Note"},
+	},
+	"reopen": {
+		{Name: "item", Required: true, Shared: "item", Guide: "references", Field: "Ref"},
+		{Name: "reason", Required: true, Rest: true, Field: "Reason"},
 	},
 	"archive": {{Name: "ref", Required: true, Shared: "ref", Guide: "references", Field: "Ref"}},
 	"delete": {

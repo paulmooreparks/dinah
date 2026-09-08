@@ -180,7 +180,15 @@ func (s *session) verbHelp(name string) string {
 	b.WriteString(s.renderSyntaxLine(usage, 2) + "\n\n")
 	b.WriteString(s.r.T("cmd."+name+".summary") + "\n")
 	if key := "cmd." + name + ".note"; s.r.Has(key) {
-		b.WriteString("\n" + s.r.T(key) + "\n")
+		// The note is a paragraph rather than a table row, so it is wrapped to
+		// the window the way a guide's paragraphs are. Writing it whole was
+		// safe while the one note in the catalog fitted an eighty-column
+		// terminal, and it drew a 271-column line the first time a longer one
+		// arrived.
+		b.WriteString("\n")
+		for _, line := range s.wrapNote(s.r.T(key)) {
+			b.WriteString(line + "\n")
+		}
 	}
 	for _, line := range s.argumentLines(name) {
 		b.WriteString(line + "\n")
@@ -276,3 +284,14 @@ func (s *session) vocabularyValues(command string, param verb.Param) []string {
 // workbench rather than in the binary, so it is the one that needs a workbench
 // opened before it can answer.
 const columnsVocabulary = "columns"
+
+// wrapNote breaks a command's note into the lines the window holds, and
+// answers with the note whole where no window was measured. It takes no
+// indent, because the note stands flush against the same left margin the
+// summary above it uses.
+func (s *session) wrapNote(text string) []string {
+	if s.width <= 0 {
+		return []string{text}
+	}
+	return wrappedLines(text, 0, s.width)
+}

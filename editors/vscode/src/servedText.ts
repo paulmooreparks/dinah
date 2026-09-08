@@ -12,7 +12,8 @@
 // rather than a change to the grammar, the provider or this module.
 
 import type { Clock } from "./changes";
-import type { InstructionChain } from "./wire";
+import type { Localizer } from "./l10n";
+import type { InstructionChain, JournalEvent } from "./wire";
 
 /** The first kind served here, which is a card's own instruction chain. */
 export const KIND_INSTRUCTIONS = "instructions";
@@ -141,6 +142,213 @@ export function renderInstructionsMarkdown(
 		sections.push(`## ${labels.column}\n\n${chain.column}`);
 	}
 	return sections.join("\n\n");
+}
+
+/**
+ * The third kind, which is a card's own journal read back as prose.
+ *
+ * dinah-422 D-1. The header above says a second document type is a second
+ * entry in the provider's table rather than a change to the grammar, the
+ * provider or this module, and this kind is the second card-scoped one to
+ * take that route.
+ */
+export const KIND_HISTORY = "history";
+
+/** What one journal event contributes to its own sentence, already resolved. */
+type HistoryParams = Record<string, string>;
+
+/** Reads an optional wire field as text, so an absent one fills as nothing. */
+function field(value: string | undefined): string {
+	return value ?? "";
+}
+
+/**
+ * One row builder per event name internal/contract's Events slice declares.
+ *
+ * The keys are the event names rather than catalogue keys, and the catalogue
+ * key is composed from the name at render time, so a row can never be filed
+ * under a key naming a different event than the row it renders. A name outside
+ * this table falls through to `history.event.unknown`, which is what keeps a
+ * newer binary's event from blanking a line this catalogue cannot name.
+ *
+ * The values a row reads are the raw wire fields. Three of them carry a bare
+ * identifier with no display name captured at write time (`archived`'s note,
+ * the workstream membership events' workstream, and `tier_override_dropped`'s
+ * column), and those print as the identifier and are never resolved against
+ * the bench, because resolving them would need a lookup this surface does not
+ * otherwise make and would let a line's rendering depend on whether the entity
+ * it names still exists (dinah-422 D-4).
+ *
+ * Most events carry wire fields no row reads. A row says what happened, and
+ * every field it passes over stays in the journal for a reader who goes there,
+ * so an unread field is unremarkable and no inventory of them belongs in this
+ * comment. Three omissions were chosen rather than defaulted, and each is
+ * recorded here so that a later reader does not repair a gap somebody meant.
+ *
+ * `moved` carries override, reject and reshape. v1 leaves the three out
+ * because saying which two columns the move was between is what a reader
+ * scanning a card's history is after (dinah-422 D-5).
+ *
+ * `tier_overridden` carries against and reason. against is the column's own
+ * tier default at the moment a relative expression was resolved, which is
+ * provenance for the number rather than the number itself, and reason is
+ * populated only by a raise, so an ordinary per-column write would render a
+ * template variant with an empty clause in it (dinah-422 D-7).
+ *
+ * `blocked` carries kind, the structured reason class the block was filed
+ * under. `--kind` is optional and nothing supplies a default, so the field is
+ * absent on every block that named none, while the prose reason this row does
+ * render is required by the verb and never empty. A reader who wants the class
+ * asks for it through the block_kind query field, where it is a value to match
+ * on rather than a word in a sentence (dinah-422 D-8).
+ */
+export const HISTORY_ROWS: Readonly<
+	Record<string, (event: JournalEvent, t: Localizer) => HistoryParams>
+> = {
+	created: (event) => ({
+		actor: event.actor,
+		title: field(event.title),
+		toTitle: field(event.to_title),
+	}),
+	claimed: (event) => ({ actor: event.actor }),
+	moved: (event) => ({
+		actor: event.actor,
+		fromTitle: field(event.from_title),
+		toTitle: field(event.to_title),
+	}),
+	released: (event) => ({ actor: event.actor }),
+	blocked: (event) => ({ actor: event.actor, reason: field(event.reason) }),
+	unblocked: (event) => ({ actor: event.actor }),
+	expired: (event) => ({ actor: event.actor }),
+	commented: (event) => ({ actor: event.actor }),
+	attached: (event) => ({ actor: event.actor, filename: field(event.filename) }),
+	attachment_replaced: (event) => ({
+		actor: event.actor,
+		filename: field(event.filename),
+	}),
+	attachment_removed: (event) => ({
+		actor: event.actor,
+		filename: field(event.filename),
+	}),
+	attachment_renamed: (event) => ({
+		actor: event.actor,
+		from: field(event.from),
+		filename: field(event.filename),
+	}),
+	archived: (event) => ({ actor: event.actor }),
+	restored: (event) => ({ actor: event.actor }),
+	deleted: (event) => ({ actor: event.actor }),
+	manual_correction: (event) => ({
+		actor: event.actor,
+		fromTitle: field(event.from_title),
+		toTitle: field(event.to_title),
+	}),
+	workstream_joined: (event) => ({
+		actor: event.actor,
+		workstream: field(event.workstream),
+	}),
+	workstream_left: (event) => ({
+		actor: event.actor,
+		workstream: field(event.workstream),
+	}),
+	// An absent from or to is a first write to a field that carried nothing or
+	// a write that cleared one, and both are things that happened rather than
+	// gaps in the record, so each fills with the catalogue's own word for it
+	// instead of leaving an empty span or an unfilled token on screen.
+	card_updated: (event, t) => ({
+		actor: event.actor,
+		field: field(event.field),
+		from: event.from ?? t("history.value.none"),
+		to: event.to ?? t("history.value.none"),
+	}),
+	// column_title is captured at write time by a raise alone. The ordinary
+	// per-column tier write carries none, and journal.go's own comment on that
+	// field says a renderer falls back to Column for every line carrying one
+	// without the other.
+	tier_overridden: (event) => ({
+		actor: event.actor,
+		columnTitle: event.column_title ?? field(event.column),
+		to: field(event.to),
+		expr: field(event.expr),
+	}),
+	tier_override_dropped: (event) => ({
+		actor: event.actor,
+		column: field(event.column),
+		from: field(event.from),
+	}),
+};
+
+/**
+ * Renders a card's journal as one Markdown line per event.
+ *
+ * The sentence is composed here rather than passed through, and that is not the
+ * departure from the raw-text rule it looks like. `dinah --json log` answers
+ * bare struct fields with no English anywhere on the wire; cmd/dinah renders
+ * those same events for its own terminal output, and that rendering is never
+ * what the machine surface returns. So there is no CLI-composed prose here to
+ * relay, and filling a catalogue template from wire fields is what
+ * pullCommands.ts's emptyPullMessage and tree.ts's columnDescription already do
+ * (dinah-422 D-3).
+ *
+ * Events render in the order they arrive, which is the order the journal was
+ * appended in, and nothing here re-sorts them.
+ *
+ * Two things this surface cannot say, which a reader should know before drawing
+ * a conclusion from a rendered history:
+ *
+ * A torn trailing journal line is not detectable through this surface today.
+ * bench.ReadJournal returns a second value reporting that a crash truncated the
+ * final line and that the line was dropped, and internal/bench/check.go:483 is
+ * the only caller outside the tests that keeps it. internal/verb/read.go's
+ * History function at line 974, which backs the `log` machine surface this
+ * kind's resolver calls, discards it with an underscore, so a torn journal
+ * reaches this function looking exactly like a complete one. Closing the gap
+ * means carrying that flag through log and History the way check already
+ * carries it, which is a change to the Go binary and outside an extension-only
+ * card's reach. This renderer therefore says nothing about a tail it cannot see
+ * rather than inventing a client-side signal for one (dinah-422 D-6, AC-13).
+ *
+ * `history.empty` fires for a genuinely zero-event read and never means
+ * "nothing has happened." A read that failed is refused upstream and renders
+ * through servedText.refused instead, and an ordinary card is never empty here,
+ * because the one write of a `created` event reaching a card's own journal
+ * happens at creation. A card that reads as empty is an anomaly worth looking
+ * at rather than a card nothing has been done to.
+ */
+export function renderHistoryMarkdown(
+	events: readonly JournalEvent[] | null,
+	t: Localizer,
+): string {
+	// `dinah --json log` answers a card whose journal is absent or carries no
+	// lines with the JSON literal null and not with an empty array, because
+	// bench.ReadJournal returns a nil slice and encoding/json writes a nil
+	// slice as null. Both readings arrive here meaning the same thing, so the
+	// guard establishes that it holds an array before it asks one for its
+	// length. Reading .length off the null throws a TypeError, which the
+	// content provider's catch renders as a refusal, and the reader then sees
+	// a type error where history.empty belongs.
+	const lines = Array.isArray(events) ? (events as readonly JournalEvent[]) : [];
+	if (lines.length === 0) {
+		return t("history.empty");
+	}
+	return lines
+		.map((event) => {
+			// Object.hasOwn rather than a bare index, because an event name
+			// colliding with an Object.prototype member (toString, valueOf,
+			// __proto__) otherwise resolves to the inherited value and walks
+			// past the unknown-name fallback into a throw.
+			const row = Object.hasOwn(HISTORY_ROWS, event.event)
+				? HISTORY_ROWS[event.event]
+				: undefined;
+			if (row === undefined) {
+				return t("history.event.unknown", {
+					actor: event.actor,
+					event: event.event,
+				});
+			}
+			return t(`history.event.${event.event}`, row(event, t));
+		})
+		.join("\n");
 }
 
 /** What the refresh loop needs in order to run. */

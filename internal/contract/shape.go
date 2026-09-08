@@ -980,6 +980,47 @@ var Shapes = []Shape{
 		Fragments: []Fragment{{Key: "refusal.dinah.reshape-destination-ambiguous.next"}},
 		NextStep:  []string{"refusal.dinah.reshape-destination-ambiguous.next"},
 	},
+	{
+		// The three legal kinds ride as a value rather than as a Listing,
+		// because the set is fixed by the format rather than read off the
+		// workbench a Listing name would resolve against.
+		Name:      UnknownItemKind,
+		Values:    []string{"kinds"},
+		Fragments: []Fragment{{Key: "refusal.dinah.unknown-item-kind.next"}},
+		NextStep:  []string{"refusal.dinah.unknown-item-kind.next"},
+	},
+	{
+		// The detail is the item's own kind rather than the verb the caller
+		// typed, since the caller knows what they typed and does not know
+		// what is on disk.
+		Name:      WrongItemKind,
+		Fragments: []Fragment{{Key: "refusal.dinah.wrong-item-kind.next"}},
+		NextStep:  []string{"refusal.dinah.wrong-item-kind.next"},
+	},
+	{
+		// The detail is the state on disk, and the next step names reopen,
+		// which is the one way back to pending.
+		Name:      NotPending,
+		Fragments: []Fragment{{Key: "refusal.dinah.not-pending.next"}},
+		NextStep:  []string{"refusal.dinah.not-pending.next"},
+	},
+	{
+		Name:      NotResolved,
+		Fragments: []Fragment{{Key: "refusal.dinah.not-resolved.next"}},
+		NextStep:  []string{"refusal.dinah.not-resolved.next"},
+	},
+	{
+		// The detail is the item's reference, so the reader can hand the same
+		// spelling to cite, which is what the next step tells them to do.
+		Name:      Uncited,
+		Fragments: []Fragment{{Key: "refusal.dinah.uncited.next"}},
+		NextStep:  []string{"refusal.dinah.uncited.next"},
+	},
+	{
+		Name:      ObservationRequired,
+		Fragments: []Fragment{{Key: "refusal.dinah.observation-required.next"}},
+		NextStep:  []string{"refusal.dinah.observation-required.next"},
+	},
 }
 
 // ShapeOf returns the shape governing a refusal name, or nil for a name no

@@ -793,28 +793,28 @@ and stores nothing.
 ### Journal event schema
 
 Every journal line names an event, and the core event names are a closed set
-of twenty-four, which `internal/contract` declares as constants.
-Twenty-three of them are written by some command in this build. The one that is
+of thirty, which `internal/contract` declares as constants.
+Twenty-nine of them are written by some command in this build. The one that is
 not, `restored`, is declared and reserved, and `cmd/dinah/compat_test.go`'s
 `unwrittenEvents` table records the reason it stays unwritten. No verb is
 wired to `restored` yet, though the structural machinery a restore would use
 already exists.
 
-A second count of twenty-one sits nearby and names a different set.
+A second count of twenty-seven sits nearby and names a different set.
 `contract.Events` is the vocabulary a query over cards accepts, and it holds
 out `column_updated`, `workbench_updated` and `workstream_updated`, since each
 of those lands on the workbench's journal or on a workstream's and never on a
 card's.
 The two counts no longer agree, and neither set contains the other. `restored`
-is queryable over a card and written by nothing, so it sits in the twenty-one
-and outside the twenty-three. `column_updated`, `workbench_updated` and
+is queryable over a card and written by nothing, so it sits in the twenty-seven
+and outside the twenty-nine. `column_updated`, `workbench_updated` and
 `workstream_updated` are written by commands but never land on a card's
-journal, so they sit in the twenty-three and outside the twenty-one. Twenty
-names sit in both counts. Nineteen of those land on a card's own journal, and
+journal, so they sit in the twenty-nine and outside the twenty-seven. Twenty-six
+names sit in both counts. Twenty-five of those land on a card's own journal, and
 `deleted` is the exception, because deleting a card destroys the journal inside
 it and the record of the deletion goes to the workbench's.
 
-The set stays closed mechanically rather than by inspection. A twenty-fifth
+The set stays closed mechanically rather than by inspection. A thirty-first
 constant fails the build unless it reaches the sample fixture's journal or is
 named in `unwrittenEvents`, which is the coverage alarm the Versioning section
 describes.

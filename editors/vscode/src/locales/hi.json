@@ -362,6 +362,131 @@
 			"context": "Tab title for a live-fetched guide, opened today only from the first-session walkthrough. {topic} is the guide's own topic slug (e.g. first-session) and is not translated.",
 			"source": "e743bfbfd31b0116"
 		},
+		"servedText.title.history": {
+			"text": "{ref} (इतिहास)",
+			"context": "Tab label of the editor tab a card's own journal opens in. {ref} is the card's own reference.",
+			"source": "df682a92d39fa511"
+		},
+		"history.empty": {
+			"text": "इस कार्ड के लिए कोई इतिहास दर्ज नहीं है।",
+			"context": "Body of the history tab when the journal read succeeded and returned no events at all.",
+			"source": "77f6bcf3f72049a7"
+		},
+		"history.value.none": {
+			"text": "कोई नहीं",
+			"context": "Stands in for an absent from or to value on a history row reporting a change to one of a card's own fields.",
+			"source": "3c0d17bad169557b"
+		},
+		"history.event.created": {
+			"text": "{actor} ने कार्ड \"{title}\" को {toTitle} में बनाया।",
+			"context": "History row for a card's creation. {actor} is who acted, {title} the card's title, {toTitle} the title of the column it was filed into.",
+			"source": "b14b89012f51483d"
+		},
+		"history.event.claimed": {
+			"text": "{actor} ने कार्ड को क्लेम किया।",
+			"context": "History row for a claim. {actor} is who claimed it.",
+			"source": "dd5b70a8ca489010"
+		},
+		"history.event.moved": {
+			"text": "{actor} ने कार्ड को {fromTitle} से {toTitle} में स्थानांतरित किया।",
+			"context": "History row for a move. {fromTitle} and {toTitle} are the two columns' titles as of the move.",
+			"source": "3e2a3e25b7d23776"
+		},
+		"history.event.released": {
+			"text": "{actor} ने कार्ड जारी किया।",
+			"context": "History row for a release. {actor} is who let the card go.",
+			"source": "a651b6a2c2c15bb2"
+		},
+		"history.event.blocked": {
+			"text": "{actor} ने कार्ड को अवरुद्ध किया: {reason}",
+			"context": "History row for a block. {reason} is the prose reason the block carried, which is never empty.",
+			"source": "16ee7b25f651679b"
+		},
+		"history.event.unblocked": {
+			"text": "{actor} ने कार्ड को अनवरुद्ध किया।",
+			"context": "History row for an unblock. {actor} is who lifted the block.",
+			"source": "a9e0bec16c9fd088"
+		},
+		"history.event.expired": {
+			"text": "कार्ड पर {actor} का क्लेम समाप्त हो गया।",
+			"context": "History row for a claim that lapsed. {actor} is the holder whose claim ran out.",
+			"source": "a7926380c1820b2d"
+		},
+		"history.event.commented": {
+			"text": "{actor} ने एक टिप्पणी जोड़ी।",
+			"context": "History row for a comment. The comment's own text is not in the journal, so the row names only who wrote one.",
+			"source": "dd210ef6fbd94778"
+		},
+		"history.event.attached": {
+			"text": "{actor} ने {filename} संलग्न किया।",
+			"context": "History row for an attachment being added. {filename} is the file's name as of the event.",
+			"source": "2302d34e42c4de25"
+		},
+		"history.event.attachment_replaced": {
+			"text": "{actor} ने अटैचमेंट को {filename} से बदल दिया।",
+			"context": "History row for an attachment's contents being replaced. {filename} is the new file's name.",
+			"source": "2bb74b33e1538689"
+		},
+		"history.event.attachment_removed": {
+			"text": "{actor} ने अटैचमेंट {filename} हटा दिया।",
+			"context": "History row for an attachment being removed. {filename} is the name it carried when it went.",
+			"source": "eeba2552f0805bb9"
+		},
+		"history.event.attachment_renamed": {
+			"text": "{actor} ने एक अटैचमेंट का नाम {from} से बदलकर {filename} कर दिया।",
+			"context": "History row for an attachment being renamed. {from} is the old filename and {filename} the new one.",
+			"source": "cab9bf6f757d4f62"
+		},
+		"history.event.archived": {
+			"text": "{actor} ने यहाँ दर्ज कुछ संग्रहीत किया।",
+			"context": "History row for an archive. The row does not name what was archived, because the event carries a bare identifier that cannot say whether it names the card or one of its attachments, and a reader reaches this tab from a live card row, so an attachment is the usual answer. The wording follows history.event.deleted, which carries the same ambiguity.",
+			"source": "c448bbcf19553830"
+		},
+		"history.event.restored": {
+			"text": "{actor} ने यहाँ दर्ज कुछ पुनर्स्थापित किया।",
+			"context": "History row for a restore. No command writes this event today, and the row exists so that a binary which starts writing one needs no change here. The wording follows history.event.deleted, which carries the same ambiguity about what was acted on.",
+			"source": "35890f113d23bed0"
+		},
+		"history.event.deleted": {
+			"text": "{actor} ने यहाँ दर्ज कुछ हटा दिया।",
+			"context": "History row for a deletion. Nothing writes this event onto a card's own journal today, and the row exists for the same forward-compatibility reason the restore row does.",
+			"source": "2bb75fc85625cff1"
+		},
+		"history.event.manual_correction": {
+			"text": "{actor} ने कार्ड की दर्ज स्थिति को {fromTitle} से {toTitle} में सुधारा।",
+			"context": "History row for a witnessed correction. {fromTitle} and {toTitle} are the believed and the anchored column at the moment the drift was witnessed.",
+			"source": "57d790f76336ad65"
+		},
+		"history.event.workstream_joined": {
+			"text": "{actor} ने कार्ड को वर्कस्ट्रीम {workstream} में जोड़ा।",
+			"context": "History row for a workstream membership being taken up. {workstream} is the raw identifier, since the event captures no title for it.",
+			"source": "dede4b072fe443ea"
+		},
+		"history.event.workstream_left": {
+			"text": "{actor} ने कार्ड को वर्कस्ट्रीम {workstream} से हटा दिया।",
+			"context": "History row for a workstream membership being given up. {workstream} is the raw identifier, since the event captures no title for it.",
+			"source": "5f22e46ddc146a57"
+		},
+		"history.event.card_updated": {
+			"text": "{actor} ने {field} को {from} से {to} में बदला।",
+			"context": "History row for a write to one of a card's own fields. {field} is the field's name, and {from} and {to} carry its value on either side of the write, each filled with the catalogue's word for an absent value when the event carries none.",
+			"source": "b67b9d3f470d1ee6"
+		},
+		"history.event.tier_overridden": {
+			"text": "{actor} ने {columnTitle} में कार्ड का स्तर {to} पर सेट किया ({expr})।",
+			"context": "History row for a per-card tier override being written for one column. The sentence names the card because the override belongs to the card and not to the column. {columnTitle} is the column's title as of the event and falls back to its raw identifier when the event captured none, {to} is the resolved value and {expr} is what somebody typed.",
+			"source": "14bca67b2e8a90c4"
+		},
+		"history.event.tier_override_dropped": {
+			"text": "{column} में कार्ड के लिए {actor} का स्तर ओवरराइड ({from}) हटा दिया गया क्योंकि कॉलम को हटा दिया गया था।",
+			"context": "History row for a per-card tier override dropped when the column it applied in was retired by a reshape. {column} is that column's raw identifier and {from} the value that went with it.",
+			"source": "e8328108c80161c"
+		},
+		"history.event.unknown": {
+			"text": "{actor} ने {event} प्रकार की एक घटना दर्ज की।",
+			"context": "History row for an event name this catalogue does not recognise, which is what a newer binary's event renders as. {event} is that raw name and is not translated.",
+			"source": "1e40527f4fc5c5c8"
+		},
 		"diagnostics.check.uncertain": {
 			"text": "{workbench}: check अभी पूरा नहीं हुआ है; यह ज्ञात नहीं कि वर्कबेंच स्वच्छ है या नहीं।",
 			"context": "Placeholder diagnostic shown on a workbench's own definition file until the first `dinah check` run of the session for that workbench answers, so an empty Problems panel never means both \"confirmed clean\" and \"never checked, or check failed.\"",
