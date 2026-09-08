@@ -114,6 +114,27 @@ var checklistKinds = map[string]string{
 	"d":  "decision",
 }
 
+// itemKindAlias is checklistKinds read the other way round. It is computed
+// from that one map rather than declared a second time, so the spelling a
+// reference resolves by and the spelling a reference is composed from cannot
+// drift apart.
+var itemKindAlias = func() map[string]string {
+	reversed := make(map[string]string, len(checklistKinds))
+	for alias, kind := range checklistKinds {
+		reversed[kind] = alias
+	}
+	return reversed
+}()
+
+// AliasForItemKind returns the short segment a checklist item's kind composes
+// into a reference under, and reports whether the kind is one of the three the
+// format declares. A kind outside those three composes no reference, since
+// nothing would resolve one.
+func AliasForItemKind(kind string) (string, bool) {
+	alias, ok := itemKindAlias[kind]
+	return alias, ok
+}
+
 // ResolvePath resolves a reference to an absolute path: the workbench itself,
 // a column, a workstream, a card, or anything below any of the first three
 // composed by path. It is what the plumbing guarantee of `path` rests on,

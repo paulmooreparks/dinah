@@ -584,6 +584,35 @@ func (s *session) renderDetail(detail *verb.Detail) {
 		}
 		s.table(comments)
 	}
+	if len(detail.Checklist) > 0 {
+		gap()
+		s.line(s.r.T("show.checklist"))
+		// The block draws as a plain multi-column table with no heading row
+		// and no rule over it: the item's reference, its state and whoever
+		// answers it in three columns of their own, and the item's own text
+		// last. A kind column would say a second time what the oq/ac/d
+		// segment of the reference already says.
+		//
+		// The three leading columns are separate rather than packed into one
+		// value, which is what lets a reader run an eye down the states. Only
+		// the last field of a row goes unpadded, so a value that has to line
+		// up with the value below it has to be a column of its own, and
+		// wrapTail then breaks the text between words at the column the text
+		// itself starts at, so a wrapped line hangs under its own first line
+		// rather than under the reference.
+		//
+		// The resolution note is not drawn here. It stays in the payload for
+		// a machine reader, and a person reaches it through the item's own
+		// reference, which `dinah show <card>/oq/1` answers with; two runs of
+		// prose in the same position read as one run of prose.
+		checklist := table{indent: 2, columns: s.columns("checklist", "ref", "state", "owner", "description"),
+			labels: labelInTheStack, wrapTail: true}
+		for _, item := range detail.Checklist {
+			fields := []string{item.Ref, item.State, item.Owner, item.Text}
+			checklist.rows = append(checklist.rows, tableRow{fields: fields})
+		}
+		s.table(checklist)
+	}
 	if len(detail.Withheld) > 0 {
 		gap()
 		s.line(s.r.T("show.withheld", "members", strings.Join(detail.Withheld, ", ")))

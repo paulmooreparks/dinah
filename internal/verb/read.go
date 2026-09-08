@@ -423,6 +423,8 @@ type Detail struct {
 	Attachments []AttachmentView `json:"attachments,omitempty"`
 	// Comments are the card's comments in timestamp order.
 	Comments []CommentView `json:"comments,omitempty"`
+	// Checklist are the card's checklist items in creation order.
+	Checklist []ItemView `json:"checklist,omitempty"`
 	// Path is the file the card lives in.
 	Path string `json:"path"`
 	// Withheld names the members this answer did not carry because the
@@ -478,6 +480,7 @@ func (d Detail) MarshalJSON() ([]byte, error) {
 		Links       []LinkView       `json:"links,omitempty"`
 		Attachments []AttachmentView `json:"attachments,omitempty"`
 		Comments    []CommentView    `json:"comments,omitempty"`
+		Checklist   []ItemView       `json:"checklist,omitempty"`
 		Path        *string          `json:"path,omitempty"`
 		Withheld    []string         `json:"withheld,omitempty"`
 		Reread      string           `json:"reread,omitempty"`
@@ -486,6 +489,7 @@ func (d Detail) MarshalJSON() ([]byte, error) {
 		Links:       d.Links,
 		Attachments: d.Attachments,
 		Comments:    d.Comments,
+		Checklist:   d.Checklist,
 		Withheld:    d.Withheld,
 		Reread:      d.Reread,
 	}
@@ -525,7 +529,7 @@ func (d Detail) Carries(name string) bool {
 // same slice, so the help table, the refusal sentence, and the selection cannot
 // drift apart. A member added to Detail that a caller may ask for is added
 // here in the position the JSON payload prints it.
-var DetailFields = []string{"card", "body", "links", "attachments", "comments", "path"}
+var DetailFields = []string{"card", "body", "links", "attachments", "comments", "checklist", "path"}
 
 // detailSelection is the set of members one answer carries, or nil where the
 // caller named no field set and the answer carries every member.
@@ -685,6 +689,48 @@ type CommentView struct {
 	Attachments []AttachmentView `json:"attachments,omitempty"`
 }
 
+// ItemView is one checklist item as a read reports it.
+type ItemView struct {
+	// ID is the item's identifier.
+	ID string `json:"id"`
+	// Ordinal is the item's one-based position among the card's checklist
+	// items in creation order, which is the meaning AttachmentView.Ordinal
+	// already carries for attachments. It is not the item's position within
+	// its own kind: that number is folded into Ref rather than carried a
+	// second time, since two numbers on one row both answering which one is
+	// this is a shape this board has already paid to remove once.
+	Ordinal int `json:"ordinal"`
+	// Ref is what a person types to reach this item: the card's own
+	// reference, the item's kind as a short alias (oq, ac, d), and its
+	// position among the items of that one kind. It is the spelling
+	// internal/bench/resolve.go already resolves, composed here for the
+	// first time, and it is empty on an item whose kind is none of the
+	// three, since nothing would resolve a reference composed from one.
+	Ref string `json:"ref,omitempty"`
+	// Kind is one of acceptance_criterion, open_question and decision.
+	Kind string `json:"kind"`
+	// State is whatever the item's own file says, unvalidated, on the terms
+	// CardView.Severity and CardView.Priority already report a level
+	// verbatim rather than through a lookup.
+	State string `json:"state"`
+	// Column is the column this item names for gating, absent when the item
+	// was filed without one.
+	Column string `json:"column,omitempty"`
+	// ColumnTitle is that column's title, resolved the way
+	// CardView.ColumnTitle resolves the card's own, absent when Column names
+	// no column this workbench still has.
+	ColumnTitle string `json:"column_title,omitempty"`
+	// Owner is who the item names as its answerer, recorded rather than
+	// enforced.
+	Owner string `json:"owner,omitempty"`
+	// Text is the item's own body: the judgement it records, unchanged from
+	// when it was filed.
+	Text string `json:"text"`
+	// Note is the resolution note, absent while the item is pending and
+	// absent whenever an item on disk carries none.
+	Note string `json:"note,omitempty"`
+}
+
 // Show reads a card, or the file any other reference names.
 //
 // A card comes back as a Detail with an empty text. Every other reference
@@ -779,6 +825,38 @@ func (l *Library) Show(req *Request) (*Detail, string, error) {
 		view.Attachments = below
 		comments = append(comments, view)
 	}
+	items, err := bench.Items(card.Dir)
+	if err != nil {
+		return nil, "", err
+	}
+	var checklist []ItemView
+	// The position a reference carries is counted within the item's own kind,
+	// which is what descend narrows a checklist alias by, so the two are
+	// counted the same way over the same order rather than composed from the
+	// overall ordinal and hoped to agree.
+	kindPosition := map[string]int{}
+	for i, item := range items {
+		kindPosition[item.Kind]++
+		view := ItemView{
+			ID:      item.ID,
+			Ordinal: i + 1,
+			Kind:    item.Kind,
+			State:   item.State,
+			Column:  item.Column,
+			Owner:   item.Owner,
+			Text:    item.Text,
+			Note:    item.Note,
+		}
+		if alias, ok := bench.AliasForItemKind(item.Kind); ok {
+			view.Ref = cardRef + "/" + alias + "/" + strconv.Itoa(kindPosition[item.Kind])
+		}
+		if item.Column != "" {
+			if column := l.Bench.Column(item.Column); column != nil {
+				view.ColumnTitle = column.Title
+			}
+		}
+		checklist = append(checklist, view)
+	}
 	if chosen.carries("links") {
 		detail.Links = links
 	}
@@ -787,6 +865,9 @@ func (l *Library) Show(req *Request) (*Detail, string, error) {
 	}
 	if chosen.carries("comments") {
 		detail.Comments = comments
+	}
+	if chosen.carries("checklist") {
+		detail.Checklist = checklist
 	}
 	if !chosen.carries("path") {
 		detail.Path = ""
@@ -801,6 +882,7 @@ func (l *Library) Show(req *Request) (*Detail, string, error) {
 			"links":       len(links) > 0,
 			"attachments": len(views) > 0,
 			"comments":    len(comments) > 0,
+			"checklist":   len(checklist) > 0,
 			"path":        card.AnchorPath() != "",
 		}
 		for _, name := range DetailFields {

@@ -274,7 +274,7 @@ func TestTheDetailVocabularyIsTheDetailItself(t *testing.T) {
 	// withheld reports in it and two runs against one card have to compose
 	// one string.
 	if !reflect.DeepEqual(DetailFields,
-		[]string{"card", "body", "links", "attachments", "comments", "path"}) {
+		[]string{"card", "body", "links", "attachments", "comments", "checklist", "path"}) {
 		t.Errorf("the declared order moved: %v", DetailFields)
 	}
 }
@@ -304,9 +304,13 @@ func TestTheDetailPayloadCarriesEveryMemberDetailDeclares(t *testing.T) {
 		Links:       []LinkView{{Kind: "relates_to", To: "0000", Ref: "fx-2"}},
 		Attachments: []AttachmentView{{ID: "0001", Filename: "note.txt"}},
 		Comments:    []CommentView{{ID: "0002", Body: "A remark."}},
-		Path:        filepath.Join("cards", "fx-1", "card.md"),
-		Withheld:    []string{"links"},
-		Reread:      "fx-1",
+		Checklist: []ItemView{{
+			ID: "0003", Ordinal: 1, Ref: "fx-1/oq/1", Kind: "open_question",
+			State: "pending", Text: "A question.",
+		}},
+		Path:     filepath.Join("cards", "fx-1", "card.md"),
+		Withheld: []string{"links"},
+		Reread:   "fx-1",
 	}
 	declared := map[string]bool{}
 	shape := reflect.TypeOf(whole)

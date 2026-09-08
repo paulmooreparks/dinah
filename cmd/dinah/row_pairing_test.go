@@ -58,6 +58,9 @@ type sweptRecord struct {
 	// benches are the workbenches populateBase created, with the titles
 	// sweptRetitle wrote and the slugs they were given.
 	benches []sweptBenchRecord
+	// checklist are the checklist items the checklist fixture typed into
+	// files, in the order it wrote them.
+	checklist []sweptItemRecord
 	// searchHits are the hits the search fixture planted, which is what the
 	// search block's own expectation is built from.
 	searchHits []sweptSearchRecord
@@ -1085,6 +1088,46 @@ func expectMatches(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
 
 // sweptSearchRecord is one hit the search fixture planted: what it planted it
 // on, and where in that entity the phrase sits.
+// sweptItemRecord is one checklist item the fixture typed into a file, which
+// is what the checklist block's expectation is built from.
+type sweptItemRecord struct {
+	id    string
+	kind  string
+	state string
+	owner string
+	text  string
+	note  string
+}
+
+// expectChecklist is a card's checklist items, in the order the fixture wrote
+// them. The block draws four columns: the item's reference, its state, whoever
+// answers it, and the item's own text last. The reference is composed here the
+// way a person types one, out of the card's own reference, the kind's short
+// alias and the item's position among the items of that one kind, so a view
+// composing it from the overall ordinal instead would fail this rather than
+// agreeing with itself.
+//
+// The state and the owner are cells of their own rather than parts of one
+// packed string, which is what the block has to draw for a reader to run an
+// eye down the states. A render packing them back together would put one cell
+// where this expects three and fail here.
+//
+// The item's resolution note is not expected anywhere: the block stopped
+// drawing it when the operator ruled it out of the human render, and it
+// reaches a reader through the item's own reference instead.
+func expectChecklist(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
+	t.Helper()
+	aliases := map[string]string{"open_question": "oq", "acceptance_criterion": "ac", "decision": "d"}
+	within := map[string]int{}
+	var rows [][]sweptCell
+	for _, item := range r.checklist {
+		within[item.kind]++
+		ref := "ck-1/" + aliases[item.kind] + "/" + strconv.Itoa(within[item.kind])
+		rows = append(rows, sweptTexts(ref, item.state, item.owner, item.text))
+	}
+	return sweptExpectation{rows: rows, source: "the record's checklist items"}
+}
+
 type sweptSearchRecord struct {
 	kind      string
 	ref       string

@@ -190,6 +190,16 @@ type sweptWorkbenches struct {
 	// Nothing the block runs writes to it, so one tree serves every language
 	// and every pass.
 	search string
+	// checklist holds the tree the checklist block draws from, which is a
+	// tree of its own because no command writes a checklist item: the items
+	// are typed into files by hand, and a card of the healthy corpus carrying
+	// one would change what every listing, every containment walk and every
+	// claim in the sweep already asserts. Nothing the block runs writes to
+	// it, so one tree serves every language and every pass.
+	checklist string
+	// checklistCard is the reference of the card the checklist tree's items
+	// hang from.
+	checklistCard string
 	// card is a reference the healthy tree carries.
 	card string
 	// held is the reference of the card claimed in the healthy tree.
@@ -516,6 +526,15 @@ func sweptRowLines(t *testing.T, block sweptBlock, tag string, full bool, lines 
 // Column 0 is taken at sweptIndent rather than asserted, for the same reason.
 // A row indented anywhere else fails in readSweptRows.
 //
+// The scan reads a boundary off a line that opens a row, which is a line
+// leading at sweptIndent, and every column after the first is read off those
+// same lines further along. A block of three or more columns needs that:
+// nothing leads at the second column, so a scan restricted to lines leading
+// where the previous column begins finds a boundary for column 1 and none for
+// any column after it. Skipping by the lead is what rules out a continuation
+// line, which leads further right than a row does, and the previous column's
+// own position is where the scan for the next boundary starts.
+//
 // A column no row places calls t.Errorf naming the block, the locale and the
 // column, then returns nil for the caller to read as a failure already
 // reported, exactly as assertHeadingRow does. The loop runs until it holds one
@@ -530,7 +549,7 @@ func deriveHeadinglessColumns(t *testing.T, block sweptBlock, tag string, lines 
 		from := columns[len(columns)-1]
 		at := -1
 		for _, line := range lines {
-			if sweptLead(line) != from {
+			if sweptLead(line) != sweptIndent {
 				continue
 			}
 			if next := sweptNextFieldColumn(line, from); next > at {
@@ -1556,6 +1575,16 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
+			site: renderSite{File: "render.go", Function: "renderDetail", Label: "checklist", Ordinal: 1}, label: "a card's checklist items",
+			keys: []string{"column.checklist.ref", "column.checklist.state", "column.checklist.owner",
+				"column.checklist.description"},
+			noHeadingRow: true, wrapsTail: true,
+			opensAt: "show.checklist", expect: expectChecklist,
+			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
+				return sweptRun(t, w.checklist, tag, "show", w.checklistCard)
+			},
+		},
+		{
 			site: renderSite{File: "render.go", Function: "renderHistory", Label: "t", Ordinal: 1}, label: "dinah log",
 			keys:   []string{"column.log.when", "column.log.action", "column.log.actor", "column.log.detail"},
 			varies: lastCell, expect: expectHistory,
@@ -1943,6 +1972,7 @@ func buildSweptWorkbenches(t *testing.T) *sweptWorkbenches {
 	benches.record.strippedWorkstreams = sweptStrippedWorkstreams()
 
 	benches.search = sweptSearchTree(t, base, benches.record)
+	benches.checklist, benches.checklistCard = sweptChecklistTree(t, base, benches.record)
 
 	rooms := populateBase(t, filepath.Join(benches.ambiguous, bench.UserBaseName), "one", "twoandthree")
 	sweptRetitle(t, rooms[0], wideTitle)
@@ -2668,6 +2698,68 @@ func sweptSearchTree(t *testing.T, base string, record *sweptRecord) string {
 			matchedIn: "framing", snippet: sweptSearchBenchNote,
 		})
 	return dir
+}
+
+// sweptChecklistItems are the items the checklist fixture types into files, in
+// the order it writes them, which is the order a read reports them in.
+//
+// Two of each kind, one pending and one resolved, is what the block needs to
+// draw more than one shape: the reference column's width differs between rows,
+// since the decision's reference is a character shorter than the other two
+// kinds', the state differs between the two items of every kind, and every
+// item carries an owner and its own distinct text, so no column of the block
+// is ever blank and no two rows draw the same four cells. Three of the six
+// record a resolution note, which the block does not draw, so a note leaking
+// back into the render fails the guard in checklist_prose_test.go rather than
+// passing unnoticed.
+var sweptChecklistItems = []sweptItemRecord{
+	{id: "b00000000001", kind: "open_question", state: "pending", owner: "operator",
+		text: "Which vendor do we cite?"},
+	{id: "b00000000002", kind: "open_question", state: "resolved", owner: "operator",
+		text: "Who signs the wording off?", note: "the operator answered Acme"},
+	{id: "b00000000003", kind: "acceptance_criterion", state: "pending", owner: "holder",
+		text: "The endpoint answers 404."},
+	{id: "b00000000004", kind: "acceptance_criterion", state: "verified", owner: "holder",
+		text: "The listing keeps its count.", note: "run against this fixture"},
+	{id: "b00000000005", kind: "decision", state: "pending", owner: "holder",
+		text: "Where the member sits."},
+	{id: "b00000000006", kind: "decision", state: "resolved", owner: "holder",
+		text: "Which order the rows take.", note: "creation order, as the loader reads them"},
+}
+
+// sweptChecklistTree builds the tree the checklist block draws from and
+// records what it planted, which is what the block's expectation is built
+// from. It answers with the tree and the reference of the card the items hang
+// from.
+func sweptChecklistTree(t *testing.T, base string, record *sweptRecord) (string, string) {
+	t.Helper()
+	dir := filepath.Join(base, "checklist")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	sweptDo(t, dir, "init", "--slug", "ck", "--operator", "alka")
+	sweptDo(t, dir, "add", wideTitle)
+	ref := "ck-1"
+	got := runCLI(t, dir, "path", ref)
+	if got.code != 0 {
+		t.Fatalf("path %s: %d %s", ref, got.code, got.errw)
+	}
+	cardDir := filepath.Dir(strings.TrimSpace(got.out))
+	for i, item := range sweptChecklistItems {
+		header := "kind: " + item.kind + "\n" +
+			"state: " + item.state + "\n" +
+			"owner: " + item.owner + "\n" +
+			"ordinal: " + strconv.Itoa(i+1) + "\n"
+		if item.note != "" {
+			header += "note: " + item.note + "\n"
+		}
+		anchor := filepath.Join(cardDir, bench.ChecklistDir, item.id, bench.ItemAnchor)
+		if err := bench.WriteText(anchor, "---\n"+header+"---\n"+item.text+"\n"); err != nil {
+			t.Fatalf("write the item %s: %v", item.id, err)
+		}
+	}
+	record.checklist = sweptChecklistItems
+	return dir, ref
 }
 
 // sweptWriteFraming puts framing prose on a card by writing its anchor, since
