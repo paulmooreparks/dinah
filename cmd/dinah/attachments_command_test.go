@@ -4,9 +4,12 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
+	"dinah/internal/contract"
+	"dinah/internal/msg"
 	"dinah/internal/verb"
 )
 
@@ -166,5 +169,123 @@ func TestAListingCarriesTheAttachmentCountRatherThanTheList(t *testing.T) {
 	}
 	if strings.Contains(got.out, "notes.txt") {
 		t.Errorf("the listing carried an attachment's own fields, which is what the count exists to avoid:\n%s", got.out)
+	}
+}
+
+// TestTheNotAttachableRefusalPrintsTheAdviceForItsKind asserts that the
+// alternation resolves at the terminal: an item, an attachment and a
+// workstream each draw dinah.not-attachable with the base sentence and with
+// the one next step written for that kind, and with neither of the other two.
+//
+// The expectations are rendered through the catalog rather than spelled in
+// English here, so a later wording edit moves the test with the copy while the
+// test still pins which key each case reaches.
+//
+// Arming: swapping the When on the item fragment to attachment leaves both of
+// the first two cases printing an advice, and only the "and neither other"
+// assertions go red.
+func TestTheNotAttachableRefusalPrintsTheAdviceForItsKind(t *testing.T) {
+	root := newBench(t)
+	ref := addCard(t, root, "a card with things below it")
+	mustRunCLI(t, root, "file", ref, "open_question", "Does attach refuse?")
+	source := filepath.Join(t.TempDir(), "notes.txt")
+	if err := os.WriteFile(source, []byte("the bytes"), 0o644); err != nil {
+		t.Fatalf("write the source: %v", err)
+	}
+	mustRunCLI(t, root, "attach", ref, source)
+	mustRunCLI(t, root, "workstream", "new", "Probe stream")
+
+	base := msg.For(msg.Base)
+	for _, c := range []struct {
+		name     string
+		argument string
+		resolved string
+		kind     string
+	}{
+		{name: "a checklist item", argument: ref + "/oq/1", resolved: ref + "/checklist/1", kind: "item"},
+		{name: "an attachment", argument: ref + "/attachments/1", resolved: ref + "/attachments/1", kind: "attachment"},
+		{name: "a workstream", argument: "workstream/probe-stream", resolved: "probe-stream", kind: "workstream"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			got := runCLI(t, root, "attach", c.argument, source)
+			if got.code == 0 {
+				t.Fatalf("attach to %s succeeded, and its kind mounts no attachments", c.argument)
+			}
+			if !strings.HasPrefix(got.errw, contract.NotAttachable) {
+				t.Errorf("stderr should open with %s, got:\n%s", contract.NotAttachable, got.errw)
+			}
+			sentence := base.T("refusal.dinah.not-attachable", "detail", c.resolved, "kind", c.kind)
+			if !strings.Contains(got.errw, sentence) {
+				t.Errorf("stderr should carry %q, got:\n%s", sentence, got.errw)
+			}
+			advice := map[string]string{
+				"item":       base.T("refusal.dinah.not-attachable.next-item", "item", c.resolved),
+				"attachment": base.T("refusal.dinah.not-attachable.next-attachment", "attachment", c.resolved),
+				"workstream": base.T("refusal.dinah.not-attachable.next"),
+			}
+			for kind, splice := range advice {
+				carried := strings.Contains(got.errw, splice)
+				if kind == c.kind && !carried {
+					t.Errorf("stderr should carry the %s advice %q, got:\n%s", kind, splice, got.errw)
+				}
+				if kind != c.kind && carried {
+					t.Errorf("stderr carries the %s advice %q, and this is the %s case:\n%s", kind, splice, c.kind, got.errw)
+				}
+			}
+		})
+	}
+}
+
+// TestTheAttachHelpPageNamesTheKindPrecondition asserts that attach's
+// precondition list reads as the code evaluates it: the reference, the owner,
+// the kind, then the file.
+//
+// The order is written out as a literal as well as compared against
+// verb.Checks, because a guard that recomputed its expectation from the table
+// under test would stay green through a reordering of that table.
+//
+// Arming: swapping rows 3 and 4 in beyondChecks reddens the literal comparison
+// and leaves the generated one green.
+func TestTheAttachHelpPageNamesTheKindPrecondition(t *testing.T) {
+	root := newBench(t)
+	t.Setenv("COLUMNS", "80")
+	wanted := []string{contract.UnknownPath, contract.NoOwner, contract.NotAttachable, contract.UnknownPath}
+
+	declared := verb.Checks("attach")
+	if len(declared) != len(wanted) {
+		t.Fatalf("attach declares %d preconditions, wanted %d: %+v", len(declared), len(wanted), declared)
+	}
+	for i, refusal := range wanted {
+		if declared[i].Refusal != refusal {
+			t.Errorf("precondition %d is %s, wanted %s", i+1, declared[i].Refusal, refusal)
+		}
+	}
+
+	page := runCLI(t, root, "help", "attach")
+	if page.code != 0 {
+		t.Fatalf("help attach: %d %s", page.code, page.errw)
+	}
+	var rows []string
+	for _, line := range strings.Split(page.out, "\n") {
+		fields := strings.Fields(line)
+		// A numbered row of the refusal table opens with its ordinal and
+		// closes with the refusal name, and no other line of the page does.
+		if len(fields) < 2 || fields[0] != strconv.Itoa(len(rows)+1) {
+			continue
+		}
+		rows = append(rows, fields[len(fields)-1])
+	}
+	if len(rows) != len(wanted) {
+		t.Fatalf("the page draws %d numbered rows, wanted %d:\n%s", len(rows), len(wanted), page.out)
+	}
+	for i, refusal := range wanted {
+		if rows[i] != refusal {
+			t.Errorf("row %d names %s, wanted %s", i+1, rows[i], refusal)
+		}
+	}
+	for _, line := range strings.Split(page.out, "\n") {
+		if displayWidth(line) > 80 {
+			t.Errorf("help attach draws a line %d columns wide:\n%q", displayWidth(line), line)
+		}
 	}
 }

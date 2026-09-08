@@ -380,7 +380,7 @@ func (b *Bench) resolveWorkstreamRef(ref string) (*EntityRef, bool, error) {
 		return nil, true, contract.Refuse(contract.UnknownWorkstream, rest)
 	}
 	entity := &EntityRef{
-		Kind: "workstream",
+		Kind: KindWorkstream,
 		Dir:  workstream.Dir,
 		ID:   workstream.ID,
 		Ref:  workstream.Ref(),
