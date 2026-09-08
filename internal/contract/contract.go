@@ -472,6 +472,34 @@ const (
 	// yet, so the refusal names each candidate by its position in the new
 	// definition's columns array.
 	ReshapeDestinationAmbiguous = LayerPrefix + "reshape-destination-ambiguous"
+	// UnknownItemKind is a checklist item filed under a kind outside the
+	// three the format declares. It has UnknownLevel's shape, a write naming
+	// a value the declaration does not carry, except that this set is fixed
+	// by the format rather than by the workbench, so the sentence names the
+	// three legal spellings instead of reading a declaration.
+	UnknownItemKind = LayerPrefix + "unknown-item-kind"
+	// WrongItemKind is a terminal verb handed an item of a kind it cannot
+	// land: resolve handed an acceptance criterion, or verify or fail handed
+	// an open question or a decision. The detail names the item's own kind,
+	// because the caller already knows which verb they typed.
+	WrongItemKind = LayerPrefix + "wrong-item-kind"
+	// NotPending is a terminal verb asked to close an item that is not
+	// pending. It is NotBlocked's shape: the condition the verb requires is
+	// not the condition on disk.
+	NotPending = LayerPrefix + "not-pending"
+	// NotResolved is a reopen asked for an item already pending, the mirror
+	// of NotPending.
+	NotResolved = LayerPrefix + "not-resolved"
+	// Uncited is an acceptance criterion asked to leave pending with no
+	// citation, on a workbench that declares an evidence block. It is the
+	// write-time enforcement of the citation obligation the format states.
+	Uncited = LayerPrefix + "uncited"
+	// ObservationRequired is a citation naming a scheme whose declaration
+	// carries observed: required, written with no observation. Such a
+	// citation is one no terminal verb could ever legally close against, and
+	// catching it at write time is cheaper than meeting it once the evidence
+	// has gone stale.
+	ObservationRequired = LayerPrefix + "observation-required"
 )
 
 // Introduced lists every refusal name Dinah mints beyond the profile's own.
@@ -492,6 +520,8 @@ var Introduced = []string{
 	NoTierDefault, TierOutOfRange, BelowTier, TierNotHigher,
 	ReshapeNeedsDestination, ReshapeHeldCardInQueue, ReshapeMapSourceEmpty,
 	ReshapeDestinationRetiring, ReshapeDestinationAmbiguous,
+	UnknownItemKind, WrongItemKind, NotPending, NotResolved, Uncited,
+	ObservationRequired,
 }
 
 // NameIsLegal reports whether a refusal name is one CORE-OUT-3 admits: one
@@ -613,9 +643,27 @@ const (
 	// destination, since a tier chosen for one station is not evidence about
 	// a different one.
 	EventTierOverrideDropped = "tier_override_dropped"
+	// The six checklist item lifecycle events, on the card's own journal by
+	// the nearest-enclosing rule. Each carries the item's identifier in Item,
+	// and the item's text stays in the item's anchor rather than travelling
+	// on the line, exactly as a comment's text stays in the comment.
+	//
+	// They join this block rather than carrying LayerPrefix because the
+	// prefix is reserved for what Dinah invents beyond what the format
+	// declares, and a checklist item is declared. EventItemFiled carries the
+	// kind in Kind. EventItemCited carries the citation's scheme and target
+	// in Scheme and Target. The three terminal events and EventItemReopened
+	// carry the state the item left in From, and a reopen carries its reason
+	// in Reason.
+	EventItemFiled    = "item_filed"
+	EventItemCited    = "item_cited"
+	EventItemResolved = "item_resolved"
+	EventItemVerified = "item_verified"
+	EventItemFailed   = "item_failed"
+	EventItemReopened = "item_reopened"
 )
 
-// Events lists the twenty-one event names a query over cards accepts in its
+// Events lists the twenty-seven event names a query over cards accepts in its
 // event field, in the order the constants above declare them, so a caller
 // checking a value against the closed set reads one list rather than repeating
 // it. Every event a card's own journal can carry has to be here, since an
@@ -637,6 +685,8 @@ var Events = []string{
 	EventArchived, EventRestored, EventDeleted, EventManualCorrection,
 	EventWorkstreamJoined, EventWorkstreamLeft, EventCardUpdated,
 	EventTierOverridden, EventTierOverrideDropped,
+	EventItemFiled, EventItemCited, EventItemResolved, EventItemVerified,
+	EventItemFailed, EventItemReopened,
 }
 
 // Refusal is the error a verb returns when a rule says no. It carries the one

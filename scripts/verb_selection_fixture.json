@@ -37,6 +37,12 @@
     {"tool": "version", "statement": "I want to know which release of Dinah this server is running."},
     {"tool": "export", "statement": "I want the whole workbench written out in one machine-readable payload I can carry elsewhere."},
     {"tool": "check", "statement": "I want this workbench inspected for defects, and to be told what is wrong with its store."},
-    {"tool": "workbenches", "statement": "I want to know which workbenches exist beneath the directory this server was given to serve."}
+    {"tool": "workbenches", "statement": "I want to know which workbenches exist beneath the directory this server was given to serve."},
+    {"tool": "file_item", "statement": "The spec for wb-12 settles an acceptance criterion, and I want that criterion recorded on the card as a checklist item nobody has judged yet."},
+    {"tool": "cite_item", "statement": "The first acceptance criterion on wb-12 is satisfied by a Go test I just wrote, and I want that test recorded against the criterion as evidence."},
+    {"tool": "resolve_item", "statement": "The operator has answered the first open question on wb-12, and I want the answer recorded against it so the question stops standing open."},
+    {"tool": "verify_item", "statement": "I have checked the first acceptance criterion on wb-12 and it holds, so I want it recorded as met."},
+    {"tool": "fail_item", "statement": "I have checked the first acceptance criterion on wb-12 and it does not hold, so I want it recorded as not met."},
+    {"tool": "reopen_item", "statement": "The first acceptance criterion on wb-12 was recorded as met against a fixture that predates the fix, so it should stand unjudged again."}
   ]
 }

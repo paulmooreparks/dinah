@@ -1,0 +1,9 @@
+---
+kind: open_question
+state: resolved
+owner: operator
+ts: 2026-09-07T19:07:50Z
+ordinal: 2
+note: the operator confirmed the deadline is the 15th
+---
+does the deadline move?
