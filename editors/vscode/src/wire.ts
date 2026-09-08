@@ -357,3 +357,46 @@ export interface CheckAnswer {
  */
 export const READ_OK = "ok";
 export const READ_FINDINGS = "findings";
+
+/**
+ * One line of a card's journal, as `internal/bench.Event` marshals it.
+ *
+ * Every JSON-tagged field of that struct is mirrored here, and the optionality
+ * follows its `omitempty` tags rather than what the events this extension
+ * renders happen to carry. A mirror that named only the fields today's
+ * renderer reads would go on compiling after the struct grew a field, which is
+ * the drift the other interfaces in this file are written against.
+ *
+ * `ts`, `event` and `actor` are the universal skeleton and carry no
+ * `omitempty`, so they arrive on every line. The rest belong to particular
+ * events and are absent everywhere else.
+ */
+export interface JournalEvent {
+	/** When the event happened, RFC 3339 in UTC. */
+	readonly ts: string;
+	/** The event name, from the closed set internal/contract declares. */
+	readonly event: string;
+	/** Who acted, self-declared attribution rather than authority. */
+	readonly actor: string;
+	readonly title?: string;
+	readonly from?: string;
+	readonly to?: string;
+	readonly from_title?: string;
+	readonly to_title?: string;
+	readonly override?: boolean;
+	readonly reject?: boolean;
+	readonly reshape?: boolean;
+	readonly reason?: string;
+	readonly kind?: string;
+	readonly expires?: string;
+	readonly attachment?: string;
+	readonly filename?: string;
+	readonly comment?: string;
+	readonly field?: string;
+	readonly workstream?: string;
+	readonly column?: string;
+	readonly column_title?: string;
+	readonly expr?: string;
+	readonly against?: string;
+	readonly note?: string;
+}
