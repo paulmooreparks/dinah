@@ -843,12 +843,20 @@ func (l *Library) Show(req *Request) (*Detail, string, error) {
 	// which is what descend narrows a checklist alias by, so the two are
 	// counted the same way over the same order rather than composed from the
 	// overall ordinal and hoped to agree.
+	//
+	// The collection position is taken through memberPosition rather than from
+	// this loop's index, because bench.Items skips an item whose anchor will
+	// not open and the resolver counts the collection unfiltered. Counting
+	// here would number every item after a damaged one one place low, so show
+	// would print an address reaching a different item, which is worse than
+	// the blank cell this card replaced.
 	kindPosition := map[string]int{}
-	for i, item := range items {
+	for _, item := range items {
 		kindPosition[item.Kind]++
+		position := memberPosition(item.Dir, bench.ItemAnchor)
 		view := ItemView{
 			ID:      item.ID,
-			Ordinal: i + 1,
+			Ordinal: position,
 			Kind:    item.Kind,
 			State:   item.State,
 			Column:  item.Column,
@@ -856,7 +864,7 @@ func (l *Library) Show(req *Request) (*Detail, string, error) {
 			Text:    item.Text,
 			Note:    item.Note,
 		}
-		view.Ref = itemRef(cardRef, item.Kind, kindPosition[item.Kind], i+1)
+		view.Ref = itemRef(cardRef, item.Kind, kindPosition[item.Kind], position)
 		if item.Column != "" {
 			if column := l.Bench.Column(item.Column); column != nil {
 				view.ColumnTitle = column.Title

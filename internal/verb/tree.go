@@ -1008,8 +1008,11 @@ func (l *Library) containedChildren(dir, kind, ref string, rank, limit int) []Tr
 	// kindSeen counts each item kind's members as the walk passes them, so an
 	// item's reference carries its position within its own kind rather than
 	// within the whole checklist. The walk lists a collection through
-	// containmentMembersOf, which sorts the way bench.Items sorts, so this
-	// count and the count Show takes over bench.Items agree by construction.
+	// containmentMembersOf, which sorts the way bench.Items sorts but keeps a
+	// member bench.Items skips, so the two counts run together over every item
+	// both surfaces draw. They part company only over an item whose anchor
+	// will not open: itemKindAt reads that item's kind as the empty string, so
+	// it lands in a bucket of its own here and Show never draws it at all.
 	kindSeen := map[string]int{}
 	for _, mount := range bench.Contains(kind) {
 		collection := filepath.Join(dir, mount.Dir)

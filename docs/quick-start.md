@@ -939,10 +939,10 @@ it, and those cards keep the membership. `dinah delete workstream/autumn-2025
 --yes` destroys it instead, and Dinah refuses that while a live card still belongs to
 it. A workstream names its kind in those two commands because they take any
 reference at all, and a bare name is tried against the columns and the cards
-first. `dinah join`, `dinah leave` and `dinah workstream get` take a workstream
-and nothing else, so they accept either spelling, and Dinah prints the longer
-one everywhere. That is why a workstream and a column may share a name without
-either one hiding the other.
+first. `dinah join`, `dinah leave`, `dinah workstream get` and `dinah
+workstream set` take a workstream and nothing else, so they accept either
+spelling, and Dinah prints the longer one everywhere. That is why a workstream
+and a column may share a name without either one hiding the other.
 
 The first of these two reads succeeds and the second is refused, which is that
 split on one screen:
