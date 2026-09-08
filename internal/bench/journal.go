@@ -100,6 +100,18 @@ type Event struct {
 	// expression was resolved, carried by tier_overridden. It is absent on an
 	// absolute write, which needed no baseline to be relative to.
 	Against string `json:"against,omitempty"`
+	// Item is the identifier of the checklist item a lifecycle event
+	// concerns, carried by the six item events on the card's own journal. The
+	// line points at the item the way a comment event points at the comment,
+	// so the item's own text and note are read from its anchor rather than
+	// copied into history.
+	Item string `json:"item,omitempty"`
+	// Scheme and Target are the citation an item_cited event recorded, as the
+	// caller typed them. Nothing here resolves either: a citation is taken at
+	// its word at write time, and dinah check is what tells a reader it was
+	// wrong.
+	Scheme string `json:"scheme,omitempty"`
+	Target string `json:"target,omitempty"`
 	// Note is the human's free prose, unparseable by design.
 	Note string `json:"note,omitempty"`
 }

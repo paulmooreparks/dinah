@@ -35,7 +35,10 @@ type Library struct {
 	// nothing refuses it, so a test can construct the interleaving a composed
 	// write phase really admits instead of reasoning about it. The step names
 	// which window the run is standing in, because the answer a test wants
-	// differs per step. Reshape is the only caller today.
+	// differs per step. Reshape calls it between its own steps, and the
+	// checklist item verbs call it in the one window before the card lock is
+	// taken, where a test runs a whole second write and then asserts that the
+	// first one reads it rather than overwriting it.
 	Interpose func(step string)
 }
 
@@ -128,6 +131,24 @@ type Request struct {
 	Title string
 	// Text is a comment's body.
 	Text string
+	// Owner is the owner a checklist item names, blank for none said. It is
+	// recorded on the item and never enforced against the actor calling a
+	// terminal verb, on the terms Comment is unauthenticated today.
+	Owner string
+	// Scheme and CiteTarget are a citation's scheme and the target that
+	// scheme names, each as the caller typed it. Nothing resolves either at
+	// write time.
+	Scheme     string
+	CiteTarget string
+	// Observed is the raw before:after pair a citation may carry, parsed
+	// inside cite for the reason MaxDepth and GroupBy are parsed inside the
+	// verbs that read them rather than at the request builder.
+	Observed string
+	// Note is the resolution note the three terminal checklist verbs
+	// require. It is separate from Reason, which reopen takes, because the
+	// two say different things: a note is what the check showed, and a
+	// reason is why a closed item is being opened again.
+	Note string
 	// File is the path an attachment's bytes are copied from.
 	File string
 	// Description is an attachment's optional description.

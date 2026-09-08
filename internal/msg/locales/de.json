@@ -1049,6 +1049,26 @@
       "context": "The one-line summary of the card command, shown beside its syntax in the help block.",
       "source": "fa91a2816300606a"
     },
+    "cmd.cite.summary": {
+      "text": "Belege zu einem Checklistenpunkt anführen",
+      "context": "The one-line summary of the cite command, printed in the command list and above its own help.",
+      "source": "b5f18cd4441203e6"
+    },
+    "cmd.fail.note": {
+      "text": "Eine Notiz muss sagen, was die Prüfung gezeigt hat. Dinah weist eine leere Notiz zurück, und Dinah weist eine Notiz zurück, die den eigenen Text des Kriteriums Wort für Wort wiederholt. Diese Prüfung fängt allein das wörtliche Echo: Eine Notiz, die das Kriterium mit anderen Worten wiederholt, besteht sie und sagt trotzdem nichts.",
+      "context": "The note printed under the fail command's own help, after its summary. It states what the note check does and what it does not prove, so a reader does not take it for a stronger guarantee than it is.",
+      "source": "ba4b032c239208fc"
+    },
+    "cmd.fail.summary": {
+      "text": "Ein Abnahmekriterium als fehlgeschlagen festhalten",
+      "context": "The one-line summary of the fail command, printed in the command list and above its own help.",
+      "source": "b1b04419627f9894"
+    },
+    "cmd.file.summary": {
+      "text": "Einen Checklistenpunkt auf einer Karte anlegen",
+      "context": "The one-line summary of the file command, printed in the command list and above its own help.",
+      "source": "993869dd8280ed1b"
+    },
     "cmd.rename.summary": {
       "text": "Einen Anhang umbenennen",
       "context": "The one-line summary of the rename command, shown beside its syntax in the help block.",
@@ -1149,10 +1169,35 @@
       "context": "The one-line summary of the mcp command, shown beside its syntax in the help block.",
       "source": "7d3198fa32547f63"
     },
+    "cmd.reopen.summary": {
+      "text": "Einen abgeschlossenen Checklistenpunkt wieder auf offen setzen",
+      "context": "The one-line summary of the reopen command, printed in the command list and above its own help.",
+      "source": "3f2dc35271623e03"
+    },
     "cmd.reshape.summary": {
       "text": "Diese Werkbank auf das Spaltenlayout bringen, das eine neue Definition erklärt",
       "context": "The one-line summary of the reshape command, shown beside its syntax in the help block.",
       "source": "64de682cbf18a8ac"
+    },
+    "cmd.resolve.note": {
+      "text": "Eine Notiz muss sagen, was den Punkt geklärt hat. Dinah weist eine leere Notiz zurück, und Dinah weist eine Notiz zurück, die den eigenen Text des Punktes Wort für Wort wiederholt. Diese Prüfung fängt allein das wörtliche Echo: Eine Notiz, die den Punkt mit anderen Worten wiederholt, besteht sie und sagt trotzdem nichts.",
+      "context": "The note printed under the resolve command's own help, after its summary. It states what the note check does and what it does not prove, so a reader does not take it for a stronger guarantee than it is.",
+      "source": "9ad3a5cb58aef3b4"
+    },
+    "cmd.resolve.summary": {
+      "text": "Eine offene Frage oder eine Entscheidung klären",
+      "context": "The one-line summary of the resolve command, printed in the command list and above its own help.",
+      "source": "df21a5c160dd507e"
+    },
+    "cmd.verify.note": {
+      "text": "Eine Notiz muss sagen, was die Prüfung gezeigt hat. Dinah weist eine leere Notiz zurück, und Dinah weist eine Notiz zurück, die den eigenen Text des Kriteriums Wort für Wort wiederholt. Diese Prüfung fängt allein das wörtliche Echo: Eine Notiz, die das Kriterium mit anderen Worten wiederholt, besteht sie und sagt trotzdem nichts.",
+      "context": "The note printed under the verify command's own help, after its summary. It states what the note check does and what it does not prove, so a reader does not take it for a stronger guarantee than it is.",
+      "source": "ba4b032c239208fc"
+    },
+    "cmd.verify.summary": {
+      "text": "Ein Abnahmekriterium als geprüft festhalten",
+      "context": "The one-line summary of the verify command, printed in the command list and above its own help.",
+      "source": "71a47229cd4003a5"
     },
     "param.add.priority.summary": {
       "text": "mit welcher Prioritätsstufe die Karte angelegt wird, aus den Stufen, die diese Werkbank deklariert",
@@ -1184,6 +1229,61 @@
       "context": "The meaning of the at argument of `dinah card`, printed in that command's arguments table. A severity or a priority is one value for the whole card, so naming a column for either is a usage error.",
       "source": "837e4d41d4d3e056"
     },
+    "param.cite.item.summary": {
+      "text": "der Checklistenpunkt, dem der Beleg hinzugefügt wird, etwa wb-1/ac/1",
+      "context": "The written meaning of cite's item argument. wb-1 stands for a card reference and is not translated.",
+      "source": "228d3209f9efc9a7"
+    },
+    "param.cite.observed.summary": {
+      "text": "was die Prüfung vor der Arbeit und danach gezeigt hat, geschrieben als fail:pass",
+      "context": "The written meaning of cite's observed flag. Each half is fail or pass, and both words are machine vocabulary that is never translated.",
+      "source": "7af873e67d3f4849"
+    },
+    "param.cite.scheme.summary": {
+      "text": "das Belegschema, auf das sich der Beleg stützt, so wie die Werkbank es deklariert",
+      "context": "The written meaning of cite's scheme argument. Dinah writes the scheme down as given, and dinah check is what reports one the workbench never declared.",
+      "source": "ed103f1c42682b9e"
+    },
+    "param.cite.target.summary": {
+      "text": "worauf dieses Schema zeigt, etwa ein Testpfad oder die Kennung eines Anhangs",
+      "context": "The written meaning of cite's target argument.",
+      "source": "54080523de5b286c"
+    },
+    "param.file.column.summary": {
+      "text": "die Spalte, die der Punkt nennt, die nur dann auf den Punkt geschrieben wird, wenn du eine angibst",
+      "context": "The written meaning of file's column flag. It says the field is absent when the flag is absent, because nothing reads it for enforcement yet.",
+      "source": "a01f90ccb5da238c"
+    },
+    "param.file.kind.summary": {
+      "text": "die Art des festgehaltenen Urteils: acceptance_criterion, open_question oder decision",
+      "context": "The written meaning of file's kind argument. The three kind names are machine vocabulary and are never translated.",
+      "source": "199d469bb36d196c"
+    },
+    "param.file.owner.summary": {
+      "text": "für wen der Punkt gedacht ist, auf dem Punkt festgehalten und nie erzwungen",
+      "context": "The written meaning of file's owner flag. It says the value is recorded rather than checked, so a reader does not take it for an authorisation.",
+      "source": "f9ad74968b960ee7"
+    },
+    "param.file.text.summary": {
+      "text": "der eigene Text des Punktes, in einem Shell-Wort oder in Anführungszeichen; ein einzelnes - liest ihn aus einer Pipe",
+      "context": "The written meaning of file's text argument.",
+      "source": "285916965fedb12d"
+    },
+    "param.item.summary": {
+      "text": "der Checklistenpunkt, etwa wb-1/checklist/2 oder wb-1/ac/1",
+      "context": "The written meaning of the item argument, shared by every command naming one checklist item. wb-1 stands for a card reference and is not translated.",
+      "source": "c14e0956a585a0ae"
+    },
+    "param.note.summary": {
+      "text": "was die Prüfung gezeigt hat, in einem Shell-Wort oder in Anführungszeichen; ein einzelnes - liest es aus einer Pipe",
+      "context": "The written meaning of the note argument, shared by resolve, verify and fail.",
+      "source": "9d18a0ac7460a25"
+    },
+    "param.reopen.reason.summary": {
+      "text": "warum der Punkt wieder geöffnet wird, in einem Shell-Wort oder in Anführungszeichen",
+      "context": "The written meaning of reopen's reason argument.",
+      "source": "310109d0d15f9380"
+    },
     "param.reshape.from.summary": {
       "text": "die Definition, aus der die neue Form genommen wird: eine Austauschdatei oder das Verzeichnis einer anderen Werkbank, also genau das, was `dinah init --from` bereits annimmt",
       "context": "The meaning of the from argument of `dinah reshape`, printed in that command's arguments table.",
@@ -1203,6 +1303,36 @@
       "text": "; deklarieren Sie sie unter levels: in {anchor}",
       "context": "The next step of refusal.dinah.no-levels. {anchor} is the workbench.md path the declaration belongs in. The key name levels: is the frontmatter key itself and stays as it is.",
       "source": "1915ff7003a8ca95"
+    },
+    "refusal.dinah.not-pending": {
+      "text": "Dieser Punkt ist bereits {detail}.",
+      "context": "The sentence printed after the refusal name dinah.not-pending, which resolve, verify and fail carry on an item that has already left pending. {detail} is the state on disk, machine vocabulary that is never translated. refusal.dinah.not-pending.next is spliced on after this one.",
+      "source": "d9260a4476751292"
+    },
+    "refusal.dinah.not-pending.next": {
+      "text": " Setze ihn zuerst wieder auf offen, wenn er falsch abgeschlossen wurde.",
+      "context": "The next step of refusal.dinah.not-pending, spliced onto the sentence that just named the item's state.",
+      "source": "1ff2725b3ec20dd8"
+    },
+    "refusal.dinah.not-resolved": {
+      "text": "Dieser Punkt ist {detail}, es gibt also nichts wieder zu öffnen.",
+      "context": "The sentence printed after the refusal name dinah.not-resolved, which reopen carries on an item already pending. {detail} is the state on disk, machine vocabulary that is never translated.",
+      "source": "275a1370456118bb"
+    },
+    "refusal.dinah.not-resolved.next": {
+      "text": " Setze einen Punkt zurück, der resolved, verified oder failed ist.",
+      "context": "The next step of refusal.dinah.not-resolved, spliced onto the sentence that just named the item's state. The three state names are machine vocabulary that is never translated.",
+      "source": "5ac264a582046f29"
+    },
+    "refusal.dinah.observation-required": {
+      "text": "Das Schema {detail} verlangt eine Beobachtung.",
+      "context": "The sentence printed after the refusal name dinah.observation-required, which cite carries when the named scheme's declaration says observed: required and the call supplied no pair. {detail} is the scheme name, machine vocabulary that is never translated. refusal.dinah.observation-required.next is spliced on after this one.",
+      "source": "2db538c982630c17"
+    },
+    "refusal.dinah.observation-required.next": {
+      "text": " Füge --observed fail:pass hinzu und halte fest, was die Prüfung vor der Arbeit und danach gezeigt hat.",
+      "context": "The next step of refusal.dinah.observation-required, spliced onto the sentence that just named the scheme.",
+      "source": "7f629f054187fcb6"
     },
     "refusal.dinah.reshape-destination-ambiguous": {
       "text": "die neue Form fügt mehr als eine Spalte mit dem Titel {detail} hinzu, an den Positionen {positions}, und keine davon erklärt eine Kennung, die sie unterscheidet",
@@ -1254,6 +1384,16 @@
       "context": "Spliced onto refusal.dinah.reshape-needs-a-destination as the next step, naming the two ways a destination is supplied.",
       "source": "85d4e50e26e4c4be"
     },
+    "refusal.dinah.uncited": {
+      "text": "Diese Werkbank deklariert, was als Beleg zählt, und {detail} trägt keinen Beleg.",
+      "context": "The sentence printed after the refusal name dinah.uncited, which verify and fail carry on an acceptance criterion holding no citations entry. {detail} is the item reference. refusal.dinah.uncited.next is spliced on after this one.",
+      "source": "323de8e33bafbe93"
+    },
+    "refusal.dinah.uncited.next": {
+      "text": " Füge einen mit dinah cite hinzu und versuche es erneut.",
+      "context": "The next step of refusal.dinah.uncited, spliced onto the sentence that just named the item.",
+      "source": "f6ebc6f8b974ddfd"
+    },
     "refusal.dinah.unknown-field.card": {
       "text": "Dinah hat kein Feld {detail}. Die Felder, die eine Karte führt, sind: {fields}.",
       "context": "The sentence printed after the refusal name dinah.unknown-field when the card command raised it, which is a write naming a field a card does not record. It is refusal.dinah.unknown-field with the query's own clause replaced, and the command word selects between the two. {detail} is the field the reader typed. {fields} is the set of fields a card records, read off the tool rather than written here, so a field name is machine vocabulary and is never translated.",
@@ -1263,6 +1403,16 @@
       "text": " Nennen Sie stattdessen eines davon, oder führen Sie `dinah help card` aus, um zu sehen, was der Befehl prüft.",
       "context": "The next step of refusal.dinah.unknown-field when the card command raised it. It points at that command's own help page where the shared one points at the query's. The command line inside it is syntax and stays as it is.",
       "source": "47a93fa06743eae2"
+    },
+    "refusal.dinah.unknown-item-kind": {
+      "text": "{detail} ist keine Art von Checklistenpunkt. Die Arten sind {kinds}.",
+      "context": "The sentence printed after the refusal name dinah.unknown-item-kind, which a filing naming a kind outside the three the format declares carries. {detail} is the kind the reader typed. {kinds} is the closed set of three, which is machine vocabulary that is never translated.",
+      "source": "a648bf5efbb4eca5"
+    },
+    "refusal.dinah.unknown-item-kind.next": {
+      "text": " Lege ihn unter acceptance_criterion, open_question oder decision an.",
+      "context": "The next step of refusal.dinah.unknown-item-kind, spliced onto the sentence that just listed the kinds. The three kind names are machine vocabulary that is never translated.",
+      "source": "2d0c13c914a3a2a5"
     },
     "refusal.dinah.unknown-level": {
       "text": "diese Werkbank deklariert keine {axis}-Stufe namens {detail}. Die {axis}-Stufen, die sie deklariert, sind: {levels}.",
@@ -1313,6 +1463,16 @@
       "text": "; nehmen Sie sie mit `--tier` {required} oder höher auf, oder überlassen Sie sie jemandem, der das kann",
       "context": "The next step of refusal.dinah.below-tier. The gate is a floor, so declaring more than the card asks for is admitted, which is why the sentence says or above.",
       "source": "320838a210fd95aa"
+    },
+    "refusal.dinah.wrong-item-kind": {
+      "text": "Dieser Befehl kann keinen Punkt der Art {detail} abschließen.",
+      "context": "The sentence printed after the refusal name dinah.wrong-item-kind, which resolve carries on an acceptance criterion and verify or fail carry on an open question or a decision. {detail} is the item's own kind, machine vocabulary that is never translated. refusal.dinah.wrong-item-kind.next is spliced on after this one.",
+      "source": "65fd31d2649e824c"
+    },
+    "refusal.dinah.wrong-item-kind.next": {
+      "text": " Kläre eine offene Frage oder eine Entscheidung, und prüfe ein Abnahmekriterium mit verify oder fail.",
+      "context": "The next step of refusal.dinah.wrong-item-kind, spliced onto the sentence that just named the item's kind.",
+      "source": "bf8e4736fa109ec6"
     },
     "refusal.malformed.claimed-twice": {
       "text": ", und {claimants} erklären es beide für {retired}",
@@ -1418,6 +1578,16 @@
       "text": "Aus der neuen Definition neu geschriebene beibehaltene Spalten: {count}.",
       "context": "One row of the report for a reshape that stopped part way through, counting the kept columns whose anchor the rewrite had already changed.",
       "source": "cd228857426eace1"
+    },
+    "slot.item": {
+      "text": "der Text des Punktes",
+      "context": "The label naming what a bare word after dinah file was meant to be, printed when several unquoted words arrive where one argument belongs.",
+      "source": "8812d5c8f41241d8"
+    },
+    "slot.note": {
+      "text": "die Notiz",
+      "context": "The label naming what a bare word after resolve, verify or fail was meant to be, printed when several unquoted words arrive where one argument belongs.",
+      "source": "a72e6ab58cd4bb60"
     },
     "tool.workbenches.summary": {
       "text": "die Werkbänke, die dieser Server bereitstellen darf",

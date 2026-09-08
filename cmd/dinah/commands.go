@@ -49,6 +49,16 @@ func init() {
 		{name: "raise", group: groupWork, run: runRaise, bounded: 2, openTail: true},
 		{name: "comment", group: groupWork, run: runComment, bounded: 1, openTail: true},
 		{name: "attach", group: groupWork, run: runAttach, bounded: 2},
+		// The six checklist verbs. file binds the card and the kind and lets
+		// the item's own text run to the end of the line; the three terminal
+		// verbs bind the item and let the note run; reopen binds the item and
+		// lets the reason run, which is block's shape for the same reason.
+		{name: "file", group: groupWork, run: runFile, bounded: 2, openTail: true},
+		{name: "cite", group: groupWork, run: runCite, bounded: 3},
+		{name: "resolve", group: groupWork, run: runResolve, bounded: 1, openTail: true},
+		{name: "verify", group: groupWork, run: runVerify, bounded: 1, openTail: true},
+		{name: "fail", group: groupWork, run: runFail, bounded: 1, openTail: true},
+		{name: "reopen", group: groupWork, run: runReopen, bounded: 1, openTail: true},
 		{name: "join", group: groupWork, run: runJoin, bounded: 2},
 		{name: "leave", group: groupWork, run: runLeave, bounded: 2},
 		{name: "archive", group: groupWork, run: runArchive, bounded: 1},
@@ -367,6 +377,104 @@ func runAttach(s *session, parsed *arguments) int {
 	req.File = at(words, 1)
 	return s.withBench(func(l *verb.Library) int {
 		return s.emit(l.Attach(req))
+	})
+}
+
+// runFile creates a checklist item on a card, reading the item's text from
+// stdin when the caller wrote a single dash in its place.
+func runFile(s *session, parsed *arguments) int {
+	words := parsed.rest()
+	req := s.request("file", parsed)
+	req.Card = at(words, 0)
+	req.Kind = at(words, 1)
+	req.Owner = parsed.value("owner")
+	text, refusal := s.freeText([]string{"file", req.Card, req.Kind}, words[min(2, len(words)):], "slot.item")
+	if refusal != nil {
+		return s.reportError(refusal)
+	}
+	req.Text = text
+	if req.Text == "-" {
+		piped, err := io.ReadAll(s.in)
+		if err != nil {
+			return s.reportError(err)
+		}
+		req.Text = string(piped)
+	}
+	return s.withBench(func(l *verb.Library) int {
+		return s.emit(l.File(req))
+	})
+}
+
+// runCite appends a citation to a checklist item.
+func runCite(s *session, parsed *arguments) int {
+	words := parsed.rest()
+	req := s.request("cite", parsed)
+	req.Ref = at(words, 0)
+	req.Scheme = at(words, 1)
+	req.CiteTarget = at(words, 2)
+	req.Observed = parsed.value("observed")
+	return s.withBench(func(l *verb.Library) int {
+		return s.emit(l.Cite(req))
+	})
+}
+
+// runResolve lands an open question or a decision at resolved.
+func runResolve(s *session, parsed *arguments) int {
+	return runTerminalItem(s, parsed, "resolve", func(l *verb.Library, req *verb.Request) *verb.Response {
+		return l.Resolve(req)
+	})
+}
+
+// runVerify lands an acceptance criterion at verified.
+func runVerify(s *session, parsed *arguments) int {
+	return runTerminalItem(s, parsed, "verify", func(l *verb.Library, req *verb.Request) *verb.Response {
+		return l.Verify(req)
+	})
+}
+
+// runFail lands an acceptance criterion at failed.
+func runFail(s *session, parsed *arguments) int {
+	return runTerminalItem(s, parsed, "fail", func(l *verb.Library, req *verb.Request) *verb.Response {
+		return l.Fail(req)
+	})
+}
+
+// runTerminalItem reads the item reference and the resolution note the three
+// terminal checklist verbs share, taking the note from stdin when the caller
+// wrote a single dash in its place, and calls the one that was asked for.
+func runTerminalItem(s *session, parsed *arguments, name string, call func(*verb.Library, *verb.Request) *verb.Response) int {
+	words := parsed.rest()
+	req := s.request(name, parsed)
+	req.Ref = at(words, 0)
+	note, refusal := s.freeText([]string{name, req.Ref}, words[min(1, len(words)):], "slot.note")
+	if refusal != nil {
+		return s.reportError(refusal)
+	}
+	req.Note = note
+	if req.Note == "-" {
+		piped, err := io.ReadAll(s.in)
+		if err != nil {
+			return s.reportError(err)
+		}
+		req.Note = string(piped)
+	}
+	return s.withBench(func(l *verb.Library) int {
+		return s.emit(call(l, req))
+	})
+}
+
+// runReopen returns a closed checklist item to pending.
+func runReopen(s *session, parsed *arguments) int {
+	words := parsed.rest()
+	req := s.request("reopen", parsed)
+	req.Ref = at(words, 0)
+	reason, refusal := s.freeText([]string{"reopen", req.Ref}, words[min(1, len(words)):], "slot.reason")
+	if refusal != nil {
+		return s.reportError(refusal)
+	}
+	req.Reason = reason
+	return s.withBench(func(l *verb.Library) int {
+		return s.emit(l.Reopen(req))
 	})
 }
 
