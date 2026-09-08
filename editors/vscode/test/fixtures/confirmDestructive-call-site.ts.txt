@@ -1,0 +1,1 @@
+context.host.confirmDestructive("Delete it?", "Delete");

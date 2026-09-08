@@ -17,6 +17,7 @@ import {
 	claimCard,
 	contextFor,
 	copyCardRef,
+	deleteAttachment,
 	moveCard,
 	openAttachment,
 	openCard,
@@ -73,6 +74,7 @@ import {
 	COMMAND_CLAIM,
 	COMMAND_COPY_CARD_REF,
 	COMMAND_COPY_WORKBENCH_PATH,
+	COMMAND_DELETE_ATTACHMENT,
 	COMMAND_EDIT_COLUMN_INSTRUCTIONS,
 	COMMAND_EDIT_WORKBENCH_DEFINITION,
 	COMMAND_MOVE,
@@ -269,6 +271,18 @@ function commandHost(
 			const document = await vscode.workspace.openTextDocument(uri);
 			await vscode.languages.setTextDocumentLanguage(document, "markdown");
 			await vscode.window.showTextDocument(document);
+		},
+		// The documented three-argument overload, whose MessageOptions.modal
+		// makes the dialog block and whose items become its buttons. VS Code
+		// supplies Cancel itself, and a dismissal answers undefined, which is
+		// read here as declined (dinah-451 D-3).
+		confirmDestructive: async (message, confirmLabel) => {
+			const picked = await vscode.window.showWarningMessage(
+				message,
+				{ modal: true },
+				confirmLabel,
+			);
+			return picked === confirmLabel;
 		},
 		checkpoint,
 		log: (line) => channel.appendLine(line),
@@ -1043,6 +1057,18 @@ export async function activate(
 	// it was drawn from is the whole of what opening it needs.
 	register(COMMAND_OPEN_ATTACHMENT, async (element: TreeElement | undefined) => {
 		await openAttachment(element, host, (line) => channel.appendLine(line));
+	});
+	// Delete is registered beside it and for the same reason: it acts on an
+	// attachment row rather than on a card, so it composes its own context
+	// from the element instead of taking one from the loop above.
+	register(COMMAND_DELETE_ATTACHMENT, async (element: TreeElement | undefined) => {
+		await deleteAttachment(
+			element,
+			binary.state === "ok" ? binary.path : "",
+			host,
+			nodeSpawner,
+			(line) => channel.appendLine(line),
+		);
 	});
 	// The two creation commands are registered on their own for the reason the
 	// loops above are separate from each other: New Card takes a column context

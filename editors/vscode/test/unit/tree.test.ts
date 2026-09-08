@@ -17,6 +17,7 @@ import type { CliOutcome, SpawnOutcome, Spawner } from "../../src/cli";
 import { contextForPull } from "../../src/pullCommands";
 import {
 	COMMAND_OPEN_ATTACHMENT,
+	CONTEXT_ATTACHMENT,
 	CONTEXT_CARD_ACTIVE,
 	CONTEXT_CARD_BLOCKED,
 	CONTEXT_CARD_READY_CLAIM,
@@ -1593,6 +1594,101 @@ test("a forest member that declined a read keeps the attachment count it carried
 	await view.refresh("C:\\customers");
 	const [second] = await view.getChildren();
 	assert.equal(dataOf(second).attachmentCount, 5);
+});
+
+// ---------------------------------------------------------------------------
+// dinah-451: the row's own context value, and the two addresses it carries
+// ---------------------------------------------------------------------------
+
+/** A workbench-scoped attachments listing, for the group whose own ref is "". */
+const WORKBENCH_ATTACHMENTS: AttachmentListing = {
+	kind: "workbench",
+	ref: "workbench",
+	attachments: [
+		{
+			id: "aa11bb22cc33",
+			ordinal: 1,
+			ref: "workbench/attachments/1",
+			filename: "policy.md",
+			provenance: "copy",
+			path: "C:\\customers\\carter\\board\\attachments\\policy.md",
+		},
+	],
+};
+
+/**
+ * A forest holding one member that reports attachments.
+ *
+ * The forest shape is what makes this fixture distinguishing. The row is drawn
+ * for the folder C:\customers while the member's own workbench root is
+ * C:\customers\carter\board, so an element taking its root from row.folder and
+ * one taking it from the group disagree. attachingBench() cannot tell the two
+ * apart, because every path in it is C:\work\bench.
+ */
+async function forestAttachingBench(): Promise<DinahTreeProvider> {
+	const spawner: Spawner = async (_exe, argv) => {
+		if (argv.includes("attachments")) {
+			return ok(WORKBENCH_ATTACHMENTS);
+		}
+		const member = {
+			title: "Carter LLP",
+			slug: "carter",
+			path: "C:\\customers\\carter\\board",
+			...(argv.includes("tree")
+				? { tree: THREE_COLUMNS }
+				: argv.includes("status")
+					? { status: ATTACHING_STATUS }
+					: { listing: THREE_LISTING }),
+		};
+		return ok({ root: "C:\\customers", workbenches: [member] });
+	};
+	const view = provider(spawner);
+	await view.load([folder({ folder: "C:\\customers", resolution: NOTHING })]);
+	return view;
+}
+
+test("an attachment row carries the contextValue its context menu is registered against", async () => {
+	// dinah-451 AC-3. The fixture's two attachments are the distinguishing
+	// pair: the first carries a path and the second carries none, and D-4 says
+	// both rows offer the act, because an attachment Dinah cannot open is the
+	// one a reader most wants gone. The manifest half of the pairing lives in
+	// manifest.test.ts, which holds the same identifier against the menu's own
+	// clause.
+	const { view } = await attachingBench();
+	const [, review] = await view.getChildren((await view.getChildren())[0]);
+	const [ddd] = await view.getChildren(review);
+	const [group] = await view.getChildren(carryingAttachments(ddd, 2));
+	const [shot, spec] = await view.getChildren(group);
+	assert.equal(treeItemFor(shot).contextValue, CONTEXT_ATTACHMENT);
+	assert.equal(treeItemFor(spec).contextValue, CONTEXT_ATTACHMENT);
+});
+
+test("an attachment element names the workbench it was read from and the entity it hangs from", async () => {
+	// dinah-451 AC-4. Both values are load-bearing on the delete argv: the
+	// root becomes the --workbench pin, and the owner is the first segment of
+	// the reference. A forest member is what separates each value from the
+	// wrong source, since the row's folder and the member's own workbench root
+	// are two different paths there.
+	const view = await forestAttachingBench();
+	const [root] = await view.getChildren();
+	const children = await view.getChildren(root);
+	const group = children[children.length - 1];
+	if (group.kind !== "attachmentsGroup") {
+		assert.fail(`the member drew a ${group.kind} row last, wanted an attachmentsGroup`);
+	}
+	const [attachment] = await view.getChildren(group);
+	if (attachment.kind !== "attachment") {
+		assert.fail(`the group drew a ${attachment.kind} row, wanted an attachment`);
+	}
+	// The listing resolved the workbench's own reference to the literal
+	// "workbench"; the group carries the empty string the binary is asked with.
+	assert.equal(attachment.owner, "workbench");
+	assert.equal(attachment.root, "C:\\customers\\carter\\board");
+	// The non-vacuity pair, asserted rather than assumed of the fixture. If
+	// somebody later flattens forestAttachingBench() so the paths coincide,
+	// these go red instead of the two above quietly becoming unfalsifiable.
+	assert.notEqual(attachment.root, attachment.row.folder);
+	assert.notEqual(attachment.owner, group.ref);
 });
 
 // ---------------------------------------------------------------------------

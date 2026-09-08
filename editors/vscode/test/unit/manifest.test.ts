@@ -16,6 +16,7 @@ import {
 	COMMAND_CHECK_WORKBENCH,
 	COMMAND_COPY_CARD_REF,
 	COMMAND_COPY_WORKBENCH_PATH,
+	COMMAND_DELETE_ATTACHMENT,
 	COMMAND_EDIT_COLUMN_INSTRUCTIONS,
 	COMMAND_EDIT_WORKBENCH_DEFINITION,
 	COMMAND_NEW_CARD,
@@ -25,6 +26,7 @@ import {
 	COMMAND_OPEN_INSTRUCTIONS,
 	COMMAND_PULL,
 	COMMAND_REFRESH,
+	CONTEXT_ATTACHMENT,
 	CONTEXT_CARD_ACTIVE,
 	CONTEXT_CARD_BLOCKED,
 	CONTEXT_CARD_READY_CLAIM,
@@ -1611,6 +1613,84 @@ function attachClauseFor(group: string): string {
 	assert.equal(matched.length, 1, `${group} holds ${matched.length} Attach File items`);
 	return matched[0].when;
 }
+
+/**
+ * The `when` clause of the one view/item/context item in a menu group,
+ * whatever command it names.
+ *
+ * attachClauseFor above answers the same question for Attach File alone,
+ * because that command holds three entries in three groups. A group holding
+ * exactly one item needs no command filter, and filtering on the command under
+ * test would ask the manifest to confirm what the test already assumed.
+ */
+function soleClauseFor(group: string): string {
+	const menus = contributes.menus as Record<
+		string,
+		{ command: string; when: string; group: string }[]
+	>;
+	const matched = menus["view/item/context"].filter((entry) => entry.group === group);
+	assert.equal(matched.length, 1, `${group} holds ${matched.length} items`);
+	return matched[0].when;
+}
+
+test("Delete Attachment is declared with a bare title and hidden from the Command Palette", () => {
+	// dinah-451 AC-1. Bare rather than "Dinah: " prefixed, because the palette
+	// never shows a row command and the prefix would be read by nobody; the
+	// trailing ellipsis is the other half of that convention, and it is honest
+	// here because the command asks before it acts.
+	const commands = contributes.commands as { command: string; title: string }[];
+	const titles = new Map(commands.map((entry) => [entry.command, entry.title]));
+	assert.equal(titles.get(COMMAND_DELETE_ATTACHMENT), "Delete...");
+	assert.ok(
+		!String(titles.get(COMMAND_DELETE_ATTACHMENT)).startsWith("Dinah: "),
+		`${COMMAND_DELETE_ATTACHMENT} carries the palette prefix on a row command`,
+	);
+	const entries = paletteEntries().filter(
+		(entry) => entry.command === COMMAND_DELETE_ATTACHMENT,
+	);
+	assert.equal(
+		entries.length,
+		1,
+		`${COMMAND_DELETE_ATTACHMENT} has ${entries.length} commandPalette entries, wanted 1`,
+	);
+	assert.equal(entries[0].when, "false");
+	assert.ok(
+		ROW_COMMANDS.includes(COMMAND_DELETE_ATTACHMENT),
+		`${COMMAND_DELETE_ATTACHMENT} is not a row command`,
+	);
+	assert.ok(
+		!GLOBAL_COMMANDS.includes(COMMAND_DELETE_ATTACHMENT),
+		`${COMMAND_DELETE_ATTACHMENT} is classified as global, and it cannot act without a row`,
+	);
+});
+
+test("Delete Attachment is offered on an attachment row and on no other row in the tree", () => {
+	// dinah-451 AC-2. The clause is read out of the manifest rather than
+	// restated, so a widened or narrowed clause is what turns this table red.
+	// The entry is selected by its menu group rather than by the pattern under
+	// test, for the reason attachClauseFor states: selecting by the pattern
+	// would ask the manifest to confirm what the test already assumed.
+	const clause = soleClauseFor("1_attachment@1");
+	const cases: [string, boolean][] = [
+		[CONTEXT_ATTACHMENT, true],
+		[CONTEXT_CARD_READY_CLAIM, false],
+		[CONTEXT_CARD_READY_NONE, false],
+		[CONTEXT_CARD_ACTIVE, false],
+		[CONTEXT_CARD_BLOCKED, false],
+		[CONTEXT_COLUMN, false],
+		[CONTEXT_COLUMN_OPEN, false],
+		[CONTEXT_COLUMN_FULL, false],
+		[CONTEXT_COLUMN_OPEN_PULL, false],
+		[CONTEXT_COLUMN_FULL_PULL, false],
+		[CONTEXT_WORKBENCH_ROOT, false],
+		[CONTEXT_WORKBENCH_CANDIDATE, false],
+		[CONTEXT_WORKBENCH_FOREST, false],
+		[CONTEXT_STATE_GROUP, false],
+	];
+	for (const [value, matches] of cases) {
+		assert.equal(opensOn(clause, value), matches, value);
+	}
+});
 
 test("the clause reader answers both spellings, so the tables below are not vacuous", () => {
 	// The matcher is the thing every table on this card leans on, so it is

@@ -84,6 +84,9 @@ export const COMMAND_EDIT_COLUMN_INSTRUCTIONS = "dinah.tree.editColumnInstructio
 /** The command an attachment row runs on a plain click, when its file can open. */
 export const COMMAND_OPEN_ATTACHMENT = "dinah.tree.openAttachment";
 
+/** The command an attachment row runs to remove the attachment (dinah-451). */
+export const COMMAND_DELETE_ATTACHMENT = "dinah.tree.deleteAttachment";
+
 /** The command a column row runs to file a new card into it. */
 export const COMMAND_NEW_CARD = "dinah.tree.newCard";
 
@@ -143,6 +146,7 @@ export const TREE_COMMANDS: readonly string[] = [
 	COMMAND_EDIT_WORKBENCH_DEFINITION,
 	COMMAND_EDIT_COLUMN_INSTRUCTIONS,
 	COMMAND_OPEN_ATTACHMENT,
+	COMMAND_DELETE_ATTACHMENT,
 	COMMAND_NEW_CARD,
 	COMMAND_ATTACH_FILE,
 	COMMAND_PULL,
@@ -177,6 +181,7 @@ export const ROW_COMMANDS: readonly string[] = [
 	COMMAND_EDIT_WORKBENCH_DEFINITION,
 	COMMAND_EDIT_COLUMN_INSTRUCTIONS,
 	COMMAND_OPEN_ATTACHMENT,
+	COMMAND_DELETE_ATTACHMENT,
 	COMMAND_NEW_CARD,
 	COMMAND_ATTACH_FILE,
 	COMMAND_PULL,
@@ -221,6 +226,16 @@ export const CONTEXT_WORKBENCH_CANDIDATE = "dinah.workbenchCandidate";
 export const CONTEXT_WORKBENCH_FOREST = "dinah.workbenchForest";
 
 /** The contextValue a column row and a state group row carry. */
+/**
+ * The contextValue every attachment row carries, whatever its payload (dinah-451).
+ *
+ * One value and no state axis, so the manifest clause matching it is an
+ * equality rather than a regex. An attachment Dinah cannot open is exactly the
+ * one a reader most wants off the card, so the value does not depend on
+ * whether the payload reads.
+ */
+export const CONTEXT_ATTACHMENT = "dinah.attachment";
+
 export const CONTEXT_COLUMN = "dinah.column";
 export const CONTEXT_STATE_GROUP = "dinah.stateGroup";
 

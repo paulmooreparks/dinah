@@ -20,6 +20,7 @@
 	"manifest.command.dinah.tree.editWorkbenchDefinition.title": "परिभाषा संपादित करें",
 	"manifest.command.dinah.tree.editColumnInstructions.title": "निर्देश संपादित करें",
 	"manifest.command.dinah.tree.openAttachment.title": "Dinah: संलग्नक खोलें",
+	"manifest.command.dinah.tree.deleteAttachment.title": "हटाएँ...",
 	"manifest.command.dinah.tree.newCard.title": "नया कार्ड...",
 	"manifest.command.dinah.tree.attachFile.title": "फ़ाइल संलग्न करें...",
 	"manifest.command.dinah.tree.pull.title": "खींचें",

@@ -1267,3 +1267,46 @@ func TestACorruptedArchiveDoesNotExplainAMovedLiveTerm(t *testing.T) {
 		t.Errorf("a corrupted archived journal was read as the explanation for a moved live term, and the edited card was lost: %v", cardIDs(set))
 	}
 }
+
+// TestDeletingAnAttachmentIsReportedAsAChangeOnItsOwnEntity covers dinah-451
+// AC-10. The sidebar's whole refresh path after a delete rests on this: the
+// extension runs one off-cycle checkpoint and repaints whatever the answer
+// says moved, so a removal the checkpoint cannot see leaves a deleted file on
+// the reader's screen until something else happens to move the digest.
+//
+// Changed alone would not distinguish. The workbench journal is a watched
+// entity too, so a record sent to the wrong journal moves the digest just the
+// same; the scope and identifier assertions are what catch that, and the
+// filename assertion catches removalRecord dropping its LoadAttachment lookup.
+func TestDeletingAnAttachmentIsReportedAsAChangeOnItsOwnEntity(t *testing.T) {
+	h := newHarness(t)
+	ref := h.add("a card carrying bytes")
+	h.attach(ref, "notes.txt", "the bytes")
+	minted := h.mint()
+
+	h.remove(ref + "/" + bench.AttachmentsDir + "/1")
+
+	set := h.checkpoint(&Request{Since: minted})
+	if !set.Changed {
+		t.Fatalf("wanted the removal reported as a change, got %+v", set)
+	}
+	var removals []ChangeEvent
+	for _, ev := range set.Events {
+		if ev.Event.Event == contract.EventAttachmentRemoved {
+			removals = append(removals, ev)
+		}
+	}
+	if len(removals) != 1 {
+		t.Fatalf("wanted one attachment_removed event, got %v", eventNames(set))
+	}
+	removal := removals[0]
+	if removal.Scope != ScopeCard {
+		t.Errorf("wanted the event on the card's own journal, got scope %q", removal.Scope)
+	}
+	if want := h.cardID(ref); removal.ID != want {
+		t.Errorf("wanted the event keyed to %s, got %q", want, removal.ID)
+	}
+	if removal.Filename != "notes.txt" {
+		t.Errorf("wanted the filename as of the event, got %q", removal.Filename)
+	}
+}

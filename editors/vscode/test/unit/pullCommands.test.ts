@@ -124,6 +124,7 @@ function recorder(): Recorder {
 			openServedText: async () => {
 				unused.push("openServedText");
 			},
+			confirmDestructive: async () => false,
 			checkpoint: async (folder) => {
 				checkpoints.push(folder);
 			},
