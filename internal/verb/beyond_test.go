@@ -927,6 +927,12 @@ func TestAttachTakesTheEnclosingEntitysLock(t *testing.T) {
 		lockDir string
 		owner   string
 		journal string
+		// replace is what the attachment row needs and no other row does.
+		// An attachment mounts no attachments collection, so a plain attach
+		// aimed at one is refused dinah.not-attachable before any lock is
+		// reached; replacing its bytes is the legal act on an attachment,
+		// and it takes the same lock a new attachment below the card would.
+		replace bool
 	}{
 		{kind: "workbench", ref: "", lockDir: h.root, owner: h.root, journal: benchJournal},
 		{
@@ -950,6 +956,7 @@ func TestAttachTakesTheEnclosingEntitysLock(t *testing.T) {
 			lockDir: card.Dir,
 			owner:   filepath.Join(card.Dir, bench.AttachmentsDir, attachments[0]),
 			journal: card.JournalPath(),
+			replace: true,
 		},
 	}
 	for _, c := range cases {
@@ -958,7 +965,7 @@ func TestAttachTakesTheEnclosingEntitysLock(t *testing.T) {
 			entities := len(bench.ListIDs(collection))
 			lines := journalLength(t, c.journal)
 			held := h.hold(c.lockDir, "someone")
-			response := h.library.Attach(&Request{Verb: "attach", Actor: "alka", Ref: c.ref, File: source})
+			response := h.library.Attach(&Request{Verb: "attach", Actor: "alka", Ref: c.ref, File: source, Replace: c.replace})
 			held.Release()
 			if response.Refusal != contract.Locked {
 				t.Fatalf("wanted %s, got %s %s", contract.Locked, response.Outcome, response.Refusal)
@@ -3193,6 +3200,137 @@ func TestColumnNewRefusesAPlacementAnOccupiedColumnWouldFeel(t *testing.T) {
 		}
 		if now := h.columnDirs(); now != was {
 			t.Errorf("the refusal left %d column directories where there were %d", now, was)
+		}
+	})
+}
+
+// TestAttachRefusesAKindTheContainmentTableGivesNoMount asserts both halves of
+// the containment rule attach now reads. A reference resolving to a kind the
+// table gives no attachments collection is refused dinah.not-attachable and
+// nothing is written below it, and the four kinds that do mount one go on
+// taking a file, as does the replace of an attachment's own bytes.
+//
+// Both halves live in one test because a guard proving only the refusal passes
+// on code that refuses everything, and a guard proving only the permission
+// passes on the defect this card fixes.
+//
+// Every target is built by the library's own verbs rather than planted on
+// disk, so a refusal cannot be an artefact of a hand-written shape the
+// resolver would have rejected anyway.
+//
+// Arming: deleting the MountOf guard from Library.Attach reddens all three
+// refused rows on the outcome and on the directory assertion; replacing the
+// guard's condition with an unconditional refusal reddens all five permitted
+// rows while the refused ones stay green; and dropping `&& !replacing` reddens
+// the replace row alone.
+func TestAttachRefusesAKindTheContainmentTableGivesNoMount(t *testing.T) {
+	h := newHarness(t)
+	ref := h.add("annotated")
+	h.comment(ref, "a thought")
+	h.attach(ref, "notes.txt", "the bytes")
+
+	filed := h.library.File(&Request{Verb: "file", Actor: "alka", Card: ref, Kind: "open_question", Text: "Does attach refuse?"})
+	if filed.Outcome != contract.OutcomeOK {
+		t.Fatalf("file an item: %s %s", filed.Outcome, filed.Refusal)
+	}
+	h.reopen()
+	stream := h.library.NewWorkstream(&Request{Verb: "workstream", Actor: "alka", Workstream: "A probe stream", Slug: "probe-stream"})
+	if stream.Outcome != contract.OutcomeOK {
+		t.Fatalf("new workstream: %s %s", stream.Outcome, stream.Refusal)
+	}
+	h.reopen()
+
+	source := filepath.Join(t.TempDir(), "evidence.txt")
+	if err := os.WriteFile(source, []byte("the evidence"), 0o644); err != nil {
+		t.Fatalf("source: %v", err)
+	}
+
+	for _, c := range []struct {
+		name string
+		ref  string
+		kind string
+	}{
+		{name: "a checklist item", ref: ref + "/checklist/1", kind: bench.KindItem},
+		{name: "an attachment", ref: ref + "/attachments/1", kind: bench.KindAttachment},
+		{name: "a workstream", ref: "workstream/probe-stream", kind: bench.KindWorkstream},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			entity, err := h.library.Bench.ResolveEntity(c.ref)
+			if err != nil {
+				t.Fatalf("resolve %s: %v", c.ref, err)
+			}
+			response := h.library.Attach(&Request{Verb: "attach", Actor: "alka", Ref: c.ref, File: source})
+			// Reported rather than fatal, so that the on-disk assertion
+			// below still runs when the outcome is wrong. A verb that
+			// answered ok and one that answered refused and wrote anyway
+			// are different defects, and the run should name both.
+			if response.Outcome != contract.OutcomeRefused || response.Refusal != contract.NotAttachable {
+				t.Errorf("attach to %s: wanted refused %s, got %s %s", c.ref, contract.NotAttachable, response.Outcome, response.Refusal)
+			}
+			if got := response.Context["kind"]; got != c.kind {
+				t.Errorf("the refusal carries kind %q, wanted %q", got, c.kind)
+			}
+			if got := response.Context[c.kind]; got != entity.Ref {
+				t.Errorf("the refusal carries %s=%q, wanted the resolved reference %q", c.kind, got, entity.Ref)
+			}
+			// A verb that answers refused and writes anyway is the defect
+			// itself, so the on-disk half is asserted rather than the
+			// outcome alone.
+			if collection := filepath.Join(entity.Dir, bench.AttachmentsDir); bench.Exists(collection) {
+				t.Errorf("a refused attach left %s behind", collection)
+			}
+			h.reopen()
+		})
+	}
+
+	card := h.card(ref)
+	for _, c := range []struct {
+		name string
+		ref  string
+		dir  string
+	}{
+		{name: "the workbench", ref: "", dir: h.root},
+		{name: "a column", ref: intake, dir: filepath.Join(h.root, bench.ColumnsDir, intake)},
+		{name: "a card", ref: ref, dir: card.Dir},
+		{name: "a comment", ref: ref + "/comments/1", dir: filepath.Join(card.Dir, bench.CommentsDir, bench.ListIDs(filepath.Join(card.Dir, bench.CommentsDir))[0])},
+	} {
+		t.Run(c.name+" still takes a file", func(t *testing.T) {
+			response := h.library.Attach(&Request{Verb: "attach", Actor: "alka", Ref: c.ref, File: source})
+			if response.Outcome != contract.OutcomeOK {
+				t.Fatalf("attach to %s: %s %s", c.ref, response.Outcome, response.Refusal)
+			}
+			h.reopen()
+			payload := filepath.Join(c.dir, bench.AttachmentsDir, response.Detail, bench.PayloadDir, "evidence.txt")
+			if !bench.Exists(payload) {
+				t.Errorf("wanted the payload at %s", payload)
+			}
+		})
+	}
+
+	t.Run("an attachment's bytes are still replaced", func(t *testing.T) {
+		replacement := filepath.Join(t.TempDir(), "notes.txt")
+		if err := os.WriteFile(replacement, []byte("other bytes"), 0o644); err != nil {
+			t.Fatalf("replacement: %v", err)
+		}
+		target := ref + "/attachments/1"
+		entity, err := h.library.Bench.ResolveEntity(target)
+		if err != nil {
+			t.Fatalf("resolve %s: %v", target, err)
+		}
+		response := h.library.Attach(&Request{Verb: "attach", Actor: "alka", Ref: target, File: replacement, Replace: true})
+		if response.Outcome != contract.OutcomeOK {
+			t.Fatalf("replace: %s %s", response.Outcome, response.Refusal)
+		}
+		h.reopen()
+		bytes, err := os.ReadFile(filepath.Join(entity.Dir, bench.PayloadDir, "notes.txt"))
+		if err != nil {
+			t.Fatalf("read the replaced payload: %v", err)
+		}
+		if string(bytes) != "other bytes" {
+			t.Errorf("the payload holds %q, wanted the replacement bytes", string(bytes))
+		}
+		if collection := filepath.Join(entity.Dir, bench.AttachmentsDir); bench.Exists(collection) {
+			t.Errorf("a replace hung %s below the attachment", collection)
 		}
 	})
 }

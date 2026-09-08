@@ -171,6 +171,20 @@ const (
 	// between the two writes of a rename lands here, and a hand-written
 	// anchor that nobody noticed is caught the same way.
 	FindingAttachmentFilenameDrift = "check.attachment-filename-drift"
+	// FindingAttachmentsWithoutAMount names an attachments directory sitting
+	// below an entity whose kind the containment table gives no attachments
+	// mount. The attach verb wrote them before it refused the act, and nothing
+	// reaches them afterwards: descend refuses the path and the containment
+	// walk cannot see them, so the entity holding them reports a count short by
+	// what is inside.
+	//
+	// Path names the directory itself rather than the anchor above it, because
+	// a reader has to open it to decide what to do with the files, and Detail
+	// names the kind rather than an identifier, because the identifier is
+	// already the last segment of the path. Nothing repairs it: the bytes
+	// belong to whoever attached them, and the anchor beside each one records a
+	// filename and a provenance that a silent removal would destroy.
+	FindingAttachmentsWithoutAMount = "check.attachments-without-a-mount"
 	// FindingWorkbenchSlugMalformed names a stored workbench slug that does
 	// not conform to the grammar. Open validates the stored slug at no major,
 	// so a slug written by hand reaches the checker rather than being
@@ -256,6 +270,7 @@ func (b *Bench) Check() ([]Finding, error) {
 	findings = append(findings, b.checkRejectTargets()...)
 	findings = append(findings, b.checkColumnLevels()...)
 	findings = append(findings, b.checkWorkstreams()...)
+	findings = append(findings, b.checkAttachmentsWithoutAMount()...)
 	findings = append(findings, b.checkColumnSlugs()...)
 	findings = append(findings, b.checkWorkbenchSlug()...)
 	for _, id := range b.StrandedColumns {
@@ -268,6 +283,59 @@ func (b *Bench) Check() ([]Finding, error) {
 		findings = append(findings, standing.finding())
 	}
 	return findings, nil
+}
+
+// checkAttachmentsWithoutAMount reports every attachments directory sitting
+// below an entity whose kind mounts no attachments collection.
+//
+// The walk descends the containment table and asks MountOf at each entity
+// rather than naming the kinds it expects, so a kind the table later gives an
+// attachments mount stops being reported here with no second edit, and a kind
+// added without one is covered from the day it exists.
+//
+// The workstreams are walked beside the table rather than through it, because a
+// workstream is a membership rather than a container and the table deliberately
+// leaves it out. The reference grammar reaches one all the same, so attach can
+// be aimed at one and the collection has to be swept.
+func (b *Bench) checkAttachmentsWithoutAMount() []Finding {
+	var findings []Finding
+	for _, mount := range Contains(KindWorkbench) {
+		dir := filepath.Join(b.Root, mount.Dir)
+		for _, id := range ListIDs(dir) {
+			findings = append(findings, b.mountlessAttachmentsBelow(filepath.Join(dir, id), mount.Kind)...)
+		}
+	}
+	root := b.WorkstreamsRoot()
+	for _, id := range ListIDs(root) {
+		findings = append(findings, b.mountlessAttachmentsBelow(filepath.Join(root, id), KindWorkstream)...)
+	}
+	return findings
+}
+
+// mountlessAttachmentsBelow visits one entity, and everything the containment
+// table says hangs below it, reporting an attachments directory wherever the
+// kind mounts none.
+//
+// A kind mounting no attachments is a leaf of the grammar, so the walk reports
+// what it finds there and descends no further: a directory below a stray is
+// unreachable for the same reason the stray is, and one finding names the whole
+// of what an operator has to look at.
+func (b *Bench) mountlessAttachmentsBelow(dir, kind string) []Finding {
+	if _, mounts := MountOf(kind, AttachmentsDir); !mounts {
+		attachments := filepath.Join(dir, AttachmentsDir)
+		if !Exists(attachments) {
+			return nil
+		}
+		return []Finding{{Path: attachments, Key: FindingAttachmentsWithoutAMount, Detail: kind}}
+	}
+	var findings []Finding
+	for _, mount := range Contains(kind) {
+		collection := filepath.Join(dir, mount.Dir)
+		for _, id := range ListIDs(collection) {
+			findings = append(findings, b.mountlessAttachmentsBelow(filepath.Join(collection, id), mount.Kind)...)
+		}
+	}
+	return findings
 }
 
 // checkColumnKinds applies the position rules to the flow and reports a column

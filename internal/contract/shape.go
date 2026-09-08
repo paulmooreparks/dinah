@@ -902,6 +902,27 @@ var Shapes = []Shape{
 		NextStep:  []string{"refusal.dinah.not-renamable.next"},
 	},
 	{
+		// attach is the only verb that writes a new entity below the
+		// reference it is handed, so it is the only one that can be aimed at
+		// a kind the containment grammar gives nothing to hang from. The next
+		// step splits on the kind, because the honest advice differs: an item
+		// takes its evidence by citation, an attachment wraps bytes and holds
+		// nothing, and the unconditional member covers every other kind the
+		// table leaves out, which is the workstream today.
+		Name:   NotAttachable,
+		Values: []string{"kind", "item", "attachment"},
+		Fragments: []Fragment{
+			{Key: "refusal.dinah.not-attachable.next-item", When: "item"},
+			{Key: "refusal.dinah.not-attachable.next-attachment", When: "attachment"},
+			{Key: "refusal.dinah.not-attachable.next"},
+		},
+		NextStep: []string{
+			"refusal.dinah.not-attachable.next-item",
+			"refusal.dinah.not-attachable.next-attachment",
+			"refusal.dinah.not-attachable.next",
+		},
+	},
+	{
 		// A bare pull found more than one column it could pull into, and
 		// the qualifying columns ride as a Carried set rather than a Listing
 		// since the value depends on the invocation. The next step names

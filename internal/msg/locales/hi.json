@@ -115,19 +115,34 @@
       "source": "5166e1a76d1e4f39"
     },
     "check.attach.1": {
-      "text": "संदर्भ और फ़ाइल दोनों मिलते हैं",
+      "text": "संदर्भ मिलता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "1e8569b0a5501482"
+      "source": "f6bbbe8e6d03a9c2"
     },
     "check.attach.2": {
       "text": "निवेदन किसी स्वामी को नामता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "bc538e33f1fcc933"
     },
+    "check.attach.3": {
+      "text": "संदर्भ ऐसी किस्म को नामता है जो संलग्नक रखती है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "c9483d6f38a3959"
+    },
+    "check.attach.4": {
+      "text": "फ़ाइल मिलती है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "f03798a2790e533f"
+    },
     "check.attachment-filename-drift": {
       "text": "संलग्नक {detail} की न्यासफ़ाइल का नाम उसके अंकर से अलग है",
       "context": "A check finding: an attachment's payload file and its anchor's filename field disagree, which is the residue of a crash between a rename's two writes or of a hand edit nobody noticed.",
       "source": "7872207295dbdeba"
+    },
+    "check.attachments-without-a-mount": {
+      "text": "{detail} में एक attachments निर्देशिका है, और Dinah {detail} पर कोई संलग्नक नहीं रखती, इसलिए उसके भीतर की फ़ाइलों तक कुछ नहीं पहुँचता",
+      "context": "A check finding: an attachments directory sitting below an entity of a kind that holds no attachments. {detail} names that kind, which is machine vocabulary and is never translated. The path beside the sentence is the directory itself, because the reader has to open it to decide what to do with the files. Dinah does not remove it, because the files belong to whoever attached them.",
+      "source": "ce7162cafe5cec22"
     },
     "check.block-without-reason": {
       "text": "कार्ड {detail} बाधित है पर कारण नहीं",
@@ -2464,6 +2479,26 @@
       "text": "; कोई संलग्नक-संदर्भ दें जैसे <कार्ड>/attachments/<ordinal>",
       "context": "Spliced onto refusal.dinah.not-renamable as the next step, naming the form the reference has to take to land on an attachment.",
       "source": "8b1e574b3bdc690a"
+    },
+    "refusal.dinah.not-attachable": {
+      "text": "{detail} {kind} है, और Dinah {kind} पर कोई संलग्नक नहीं रखती",
+      "context": "The sentence printed after the refusal name dinah.not-attachable, when attach is aimed at a reference that resolves to a kind that holds no attachments. {detail} is the reference the caller named, in the canonical spelling the resolver reports, and {kind} names what it resolved to, which is machine vocabulary and is never translated.",
+      "source": "91e01a64431f7727"
+    },
+    "refusal.dinah.not-attachable.next-item": {
+      "text": "; फ़ाइल को इसके बजाय कार्ड से संलग्न करें, फिर {item} से `dinah cite` द्वारा उसका उद्धरण दें",
+      "context": "Spliced onto refusal.dinah.not-attachable when the reference resolved to a checklist item. {item} repeats that reference. A checklist item takes its evidence by citation rather than by holding a copy, so the reader is sent to the card and then back to the item.",
+      "source": "b608504e941bd01"
+    },
+    "refusal.dinah.not-attachable.next-attachment": {
+      "text": "; संलग्नक बाइट्स रखता है, अन्य संलग्नक नहीं, इसलिए फ़ाइल को उसी से संलग्न करें जिससे {attachment} जुड़ा है",
+      "context": "Spliced onto refusal.dinah.not-attachable when the reference resolved to an attachment. {attachment} repeats that reference. An attachment wraps the bytes of one file, so a second file belongs on whatever the first one hangs from.",
+      "source": "6afacfddbc37041a"
+    },
+    "refusal.dinah.not-attachable.next": {
+      "text": "; संलग्नक वर्कबेंच, किसी कॉलम, किसी कार्ड, या किसी टिप्पणी से जुड़ते हैं",
+      "context": "The last member of refusal.dinah.not-attachable's alternation, printed for any kind the two branches above do not name. It carries no condition, because the last member of an alternation is what a reader gets when none of the branches matches.",
+      "source": "c45dbccd232c8bf9"
     },
     "refusal.dinah.outside-root": {
       "text": "{detail} उस रूट {root} के बाहर है जिसके साथ सर्वर शुरू हुआ",

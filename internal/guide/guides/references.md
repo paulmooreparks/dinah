@@ -74,8 +74,10 @@ sets of things. This table says what each one accepts:
 | rename       | no             | no      | no     | yes          |
 
 Four of those rows carry a detail the table is too coarse to hold. `attach`
-takes a comment or an attachment below a card and takes nothing else below one,
-so `dinah attach wb-1/journal notes.md` is refused. `instructions` takes a card
+takes a comment below a card, and it takes an attachment only with `--replace`,
+which replaces that attachment's bytes rather than hanging a new file below it.
+It takes nothing else below a card, so `dinah attach wb-1/oq/1 notes.md` is
+refused. `instructions` takes a card
 or a column and nothing else at all. `contents` takes a card by the card's own
 reference and never through what holds it, so `dinah contents wb/cards/1` is
 refused and `dinah contents wb-1` is what you write. `rename` takes an

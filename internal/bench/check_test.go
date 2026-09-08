@@ -2231,3 +2231,153 @@ func TestRenamingOntoAKeyTheHeaderAlreadyCarriesRefuses(t *testing.T) {
 		t.Errorf("the renamed key holds %q", got)
 	}
 }
+
+// strayFixture is the shape both mountless-attachment tests read: a card
+// carrying a checklist item, an attachment of its own and a comment, plus a
+// workstream, with an attachments directory planted below the item, below the
+// card's attachment and below the workstream, and a legitimate one below the
+// card and below the comment.
+//
+// It returns the root and the three planted directories in the order item,
+// attachment, workstream, so a test can compare paths rather than counting.
+func strayFixture(t *testing.T) (string, []string) {
+	t.Helper()
+	root := newFixture(t)
+	card := filepath.Join(root, CardsDir, "c00000000001")
+	writeItem(t, root, "d00000000001", 1)
+	writeAttachment(t, root, "e00000000001", 1)
+	writeComment(t, root, "f00000000001", "2026-08-17T09:00:00Z", 1, "A thought")
+	writeWorkstream(t, root, "a00000000001", "title: Portfolio work\nslug: portfolio\nstatus: active\nordinal: 1\n")
+
+	item := filepath.Join(card, ChecklistDir, "d00000000001", AttachmentsDir)
+	below := filepath.Join(card, AttachmentsDir, "e00000000001", AttachmentsDir)
+	stream := filepath.Join(root, WorkstreamsDir, "a00000000001", AttachmentsDir)
+	for _, dir := range []string{item, below, stream} {
+		plantAttachment(t, dir, "b00000000009")
+	}
+	// The two legitimate collections. The card's own already holds
+	// e00000000001, so only the comment's has to be planted.
+	plantAttachment(t, filepath.Join(card, CommentsDir, "f00000000001", AttachmentsDir), "b0000000000a")
+	return root, []string{item, below, stream}
+}
+
+// plantAttachment writes one attachment, anchor and payload alike, into a
+// collection directory the caller names. It is what writes the strays, which
+// no verb will produce once attach refuses them.
+func plantAttachment(t *testing.T, collection, id string) {
+	t.Helper()
+	fm := NewFrontmatter()
+	fm.Set("filename", "evidence.txt")
+	fm.Set("provenance", "alka")
+	fm.Set(OrdinalField, "1")
+	write(t, filepath.Join(collection, id, AttachmentAnchor), fm.Render(""))
+	write(t, filepath.Join(collection, id, PayloadDir, "evidence.txt"), "the evidence\n")
+}
+
+// TestCheckReportsAnAttachmentsDirectoryUnderAKindThatMountsNone asserts that
+// check names every attachments directory sitting below a kind the containment
+// table gives no attachments mount, names no other one, and removes nothing.
+//
+// The comparison is against the exact set of planted directories rather than
+// against a count, because a count is equally true of a walk that read nothing
+// and found its number somewhere else.
+//
+// Arming: naming the mountless kinds in the walk instead of asking MountOf
+// reddens the workstream row; deleting the directory instead of reporting it
+// reddens the still-exists assertion; and testing for the directory before
+// asking MountOf reddens the two legitimate collections.
+func TestCheckReportsAnAttachmentsDirectoryUnderAKindThatMountsNone(t *testing.T) {
+	root, planted := strayFixture(t)
+	opened, err := Open(root)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	findings, err := opened.Check()
+	if err != nil {
+		t.Fatalf("check: %v", err)
+	}
+	paths := map[string]string{}
+	for _, finding := range findings {
+		if finding.Key != FindingAttachmentsWithoutAMount {
+			continue
+		}
+		if previous, seen := paths[finding.Path]; seen {
+			t.Errorf("%s reported twice, as %s and %s", finding.Path, previous, finding.Detail)
+		}
+		paths[finding.Path] = finding.Detail
+	}
+	wanted := map[string]string{
+		planted[0]: KindItem,
+		planted[1]: KindAttachment,
+		planted[2]: KindWorkstream,
+	}
+	if len(paths) != len(wanted) {
+		t.Errorf("wanted %d findings, got %d: %v", len(wanted), len(paths), paths)
+	}
+	for path, kind := range wanted {
+		got, reported := paths[path]
+		if !reported {
+			t.Errorf("nothing reported %s, which mounts no attachments", path)
+			continue
+		}
+		if got != kind {
+			t.Errorf("%s was reported as %q, wanted %q", path, got, kind)
+		}
+	}
+	for path := range paths {
+		if _, expected := wanted[path]; !expected {
+			t.Errorf("%s was reported, and its kind mounts attachments", path)
+		}
+	}
+	// The bytes are somebody's evidence, so the finding reports and nothing
+	// repairs. D-14 of dinah-456 is what this holds.
+	for _, dir := range planted {
+		payload := filepath.Join(dir, "b00000000009", PayloadDir, "evidence.txt")
+		if !Exists(payload) {
+			t.Errorf("check removed %s, and it may not remove anything", payload)
+		}
+	}
+}
+
+// TestAKindGivenAnAttachmentsMountStopsBeingReported asserts that the walk
+// reads the containment table rather than a list of kinds it was written
+// against, which is what dinah-456 D-14 requires of it: a kind the table later
+// gives an attachments mount is covered with no second edit.
+//
+// The test is in package bench, so it can give KindItem a mount, re-run the
+// check and put the table back.
+//
+// Arming: rewriting the walk to compare the kind against KindItem and
+// KindAttachment directly leaves the tree compiling and reddens this test,
+// while TestCheckReportsAnAttachmentsDirectoryUnderAKindThatMountsNone stays
+// green.
+func TestAKindGivenAnAttachmentsMountStopsBeingReported(t *testing.T) {
+	root, planted := strayFixture(t)
+	restore := containment[KindItem]
+	t.Cleanup(func() { containment[KindItem] = restore })
+	containment[KindItem] = []Mount{
+		{Dir: AttachmentsDir, Kind: KindAttachment, Anchor: AttachmentAnchor, NameField: "filename"},
+	}
+	opened, err := Open(root)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	findings, err := opened.Check()
+	if err != nil {
+		t.Fatalf("check: %v", err)
+	}
+	reported := map[string]bool{}
+	for _, finding := range findings {
+		if finding.Key == FindingAttachmentsWithoutAMount {
+			reported[finding.Path] = true
+		}
+	}
+	if reported[planted[0]] {
+		t.Errorf("%s is still reported, and the table now gives an item an attachments mount", planted[0])
+	}
+	for _, dir := range planted[1:] {
+		if !reported[dir] {
+			t.Errorf("nothing reported %s, whose kind still mounts no attachments", dir)
+		}
+	}
+}

@@ -412,6 +412,11 @@ const (
 	// The detail names what the reference resolved to, so the caller sees
 	// what was misunderstood rather than what they tried to write.
 	NotRenamable = LayerPrefix + "not-renamable"
+	// NotAttachable is an attach aimed at a reference that resolves to a kind
+	// the containment table gives no attachments collection. The detail names
+	// the reference and the kind rides beside it, so the caller sees what the
+	// reference reached rather than what they hoped it would reach.
+	NotAttachable = LayerPrefix + "not-attachable"
 	// AmbiguousColumn is a pull with no destination named finding more than
 	// one column it could pull into. The sentence names the columns that
 	// qualified, because a reader whose command stopped needs to know what
@@ -514,7 +519,7 @@ var Introduced = []string{
 	UnknownDepth, UnknownWorkstream, Referenced, WorkstreamSlugTaken,
 	ColumnSlugTaken, ColumnRoutingDisrupted,
 	UnknownRoot, OutsideRoot, ConflictingScope, DepthWithoutRoot, MalformedDepth,
-	AmbiguousName, NotRenamable,
+	AmbiguousName, NotRenamable, NotAttachable,
 	AmbiguousColumn, NoUpstream, AwaitingOutside, TakesNoWork,
 	NoLevels, UnknownLevel, UnknownFormat,
 	NoTierDefault, TierOutOfRange, BelowTier, TierNotHigher,
