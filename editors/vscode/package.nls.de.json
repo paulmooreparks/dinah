@@ -34,5 +34,7 @@
 	"manifest.walkthrough.firstSession.description": "Finden Sie sich an einer Dinah-Werkbank zurecht, mit Dinahs eigenem Leitfaden.",
 	"manifest.walkthrough.firstSession.step.readGuide.title": "Den Leitfaden lesen",
 	"manifest.walkthrough.firstSession.step.readGuide.description": "Dieser Schritt öffnet `dinah guide first-session` live von Ihrem installierten Programm in einem Editor-Tab. Der Text stimmt immer mit der Ausgabe des Befehls überein, denn nichts hier kopiert ihn.\n\n[Den Leitfaden öffnen](command:dinah.walkthrough.openFirstSessionGuide)",
-	"manifest.command.dinah.walkthrough.openFirstSessionGuide.title": "Dinah: Leitfaden zur ersten Sitzung öffnen"
+	"manifest.command.dinah.walkthrough.openFirstSessionGuide.title": "Dinah: Leitfaden zur ersten Sitzung öffnen",
+	"manifest.command.dinah.runVerb.title": "Dinah: Befehl ausführen…",
+	"manifest.command.dinah.refreshVerbCatalog.title": "Dinah: Befehlspalette aktualisieren"
 }

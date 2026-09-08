@@ -493,6 +493,97 @@
 			"text": "{workbench}: check ist noch nicht abgeschlossen; ob die Werkbank sauber ist, ist unbekannt.",
 			"context": "Placeholder diagnostic shown on a workbench's own definition file until the first `dinah check` run of the session for that workbench answers, so an empty Problems panel never means both \"confirmed clean\" and \"never checked, or check failed.\"",
 			"source": "d5ce4ba4bb42af09"
+		},
+		"dialog.runVerb.pickVerbPlaceholder": {
+			"text": "Welchen Befehl ausführen?",
+			"context": "Placeholder of the quick pick listing every verb this build can render, opened by the Run Command entry.",
+			"source": "2305431f6c11e27b"
+		},
+		"dialog.runVerb.excludedSeparator": {
+			"text": "{count} Befehl(e) nicht angezeigt; siehe die Dinah-Ausgabe für den Grund.",
+			"context": "Label of the trailing separator row in the verb quick pick when one or more served tools were left out as unrenderable. {count} is how many.",
+			"source": "4ab9a999478b4375"
+		},
+		"dialog.runVerb.requiredValuePrompt": {
+			"text": "{argument} (erforderlich)",
+			"context": "Prompt of the input box for a required string argument of the chosen verb. {argument} is the argument's own untranslated name, and an empty or whitespace-only answer reopens this same prompt.",
+			"source": "975d000228fdbe60"
+		},
+		"dialog.runVerb.optionalValuePrompt": {
+			"text": "{argument} (optional, leer lassen zum Auslassen)",
+			"context": "Prompt of the input box for an optional string argument. A blank answer leaves the argument out of the call rather than sending it as an empty string.",
+			"source": "6e2528e408179b8e"
+		},
+		"dialog.runVerb.booleanPlaceholder": {
+			"text": "{argument}?",
+			"context": "Placeholder of the two-item quick pick for a boolean (marker) argument. {argument} is the argument's own untranslated name.",
+			"verbatim": true,
+			"source": "e3e94dae68c2c1c5"
+		},
+		"dialog.runVerb.booleanYes": {
+			"text": "Ja",
+			"context": "Label of the affirmative item in a boolean argument's quick pick. Choosing it sends the argument as true.",
+			"source": "cb489a1a173ac3f0"
+		},
+		"dialog.runVerb.booleanNo": {
+			"text": "Nein",
+			"context": "Label of the negative item in a boolean argument's quick pick. Choosing it leaves the argument out of the call.",
+			"source": "9205907b5b56cda"
+		},
+		"dialog.runVerb.vocabularyPlaceholder": {
+			"text": "{argument} wählen",
+			"context": "Placeholder of the quick pick resolving an argument whose values are a closed set, which is either a set fixed in the source or one dinah resolves when it runs. {argument} is the argument's own untranslated name.",
+			"source": "26130caf93227e1d"
+		},
+		"dialog.runVerb.omitOptional": {
+			"text": "{argument} weglassen",
+			"context": "Label of the first row in the quick pick for an optional argument whose values are a closed set. Choosing it leaves the argument out of the call, which Escape cannot do, because Escape abandons the whole wizard. {argument} is the argument's own untranslated name.",
+			"source": "585d35a542fbfbb9"
+		},
+		"dialog.runVerb.requiredListPrompt": {
+			"text": "{argument} (erforderlich, eines oder mehrere aus {values}, durch Kommas getrennt)",
+			"context": "Prompt of the input box for a required argument whose value is a comma-separated list drawn from a fixed set. {argument} is the argument's own untranslated name and {values} is that set, also untranslated.",
+			"source": "581e79eb620a944f"
+		},
+		"dialog.runVerb.optionalListPrompt": {
+			"text": "{argument} (optional, eines oder mehrere aus {values}, durch Kommas getrennt; leer lassen zum Auslassen)",
+			"context": "Prompt of the input box for an optional argument whose value is a comma-separated list drawn from a fixed set. A blank answer leaves the argument out of the call. {argument} and {values} are untranslated.",
+			"source": "da9adb985921f718"
+		},
+		"dialog.runVerb.durationPlaceholder": {
+			"text": "{argument} (z. B. 30m, 2h)",
+			"context": "Prompt of the input box for a duration-typed argument. The answer is passed through unexamined and parsed by the CLI's own ParseDuration.",
+			"source": "7134aab9779756d9"
+		},
+		"dialog.runVerb.enumerationFailed.toast": {
+			"text": "Die Befehle von Dinah konnten nicht aufgelistet werden. Einzelheiten in der Dinah-Ausgabe.",
+			"context": "Toast when building the verb catalog failed outright: the dinah mcp spawn did not start, or its tools/list response could not be parsed.",
+			"source": "4c4c659edd3898a4"
+		},
+		"dialog.runVerb.enumerationFailed.channel": {
+			"text": "Befehlspalette: Die Befehle von Dinah konnten nicht aufgelistet werden. {detail}",
+			"context": "Output channel line beside the toast above, carrying the full spawn or transport failure. {detail} is that failure.",
+			"source": "48f43c702de98912"
+		},
+		"dialog.runVerb.noRenderableVerbs.toast": {
+			"text": "Dinah meldete keinen Befehl, den diese Version der Erweiterung ausführen kann. Einzelheiten in der Dinah-Ausgabe.",
+			"context": "Toast when tools/list parsed but held no verb this build can render, whether because tools itself came back empty or every entry was unrenderable under this build's classifier.",
+			"source": "46ff349fc3cb1589"
+		},
+		"dialog.runVerb.noRenderableVerbs.channel": {
+			"text": "Befehlspalette: kein Befehl, den dieser Build ausführen kann. {detail}",
+			"context": "Output channel line beside the noRenderableVerbs toast. The listing succeeded here and the rendering did not, which is why this line is not the enumerationFailed one. {detail} is what the build reported.",
+			"source": "acfd60c6da5186c9"
+		},
+		"dialog.runVerb.vocabularyResolutionFailed.toast": {
+			"text": "Die Auswahl für {argument} konnte nicht aufgelistet werden. Einzelheiten in der Dinah-Ausgabe.",
+			"context": "Toast when the second call resolving a runtime-vocabulary argument failed, so the wizard for this one verb invocation stops without running it. {argument} is the argument's own untranslated name.",
+			"source": "a69d72a032078895"
+		},
+		"dialog.runVerb.vocabularyResolutionFailed.channel": {
+			"text": "Befehlspalette: {argument} für {verb} konnte nicht aufgelöst werden. {detail}",
+			"context": "Output channel line beside the toast above, carrying the full failure. {argument} and {verb} are their own untranslated names, {detail} the refusal.",
+			"source": "22600771c417ac05"
 		}
 	}
 }

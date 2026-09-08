@@ -20,7 +20,7 @@ export const nodeSpawner: Spawner = (
 	options: SpawnOptions,
 ): Promise<SpawnOutcome> =>
 	new Promise<SpawnOutcome>((resolve) => {
-		execFile(
+		const child = execFile(
 			exe,
 			[...argv],
 			{
@@ -54,4 +54,13 @@ export const nodeSpawner: Spawner = (
 				resolve({ code, stdout, stderr });
 			},
 		);
+		// `dinah mcp` reads line-delimited JSON-RPC and exits on end of
+		// stream, so a caller that writes its requests and never closes the
+		// stream waits for a process that is waiting for it. Closing the
+		// stream is therefore part of writing to it, and a call that passes
+		// no stdin closes it unwritten for the same reason: every other dinah
+		// invocation takes its input as argv and reads nothing, and a child
+		// holding an open pipe it never reads keeps the parent's handle alive
+		// for no purpose.
+		child.stdin?.end(options.stdin ?? "");
 	});

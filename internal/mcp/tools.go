@@ -385,9 +385,27 @@ func declaredArgNames(t tool) map[string]bool {
 // parameter list is declaredArgNames' answer, since a property offered here
 // and refused there would tell a caller two different things.
 //
-// No property carries an enum. A description is additive and constrains no
-// caller, where an enum changes what a strict client will send, which is a
-// change to a published machine interface.
+// A property this head injects rather than reads off the parameter table
+// carries "x-dinah-injected": true. A client that composes a call needs to
+// tell an argument its caller supplies from the plumbing the transport fills
+// in, and without that key the only way to draw the line is to name actor,
+// basis and workbench in the client's own source. Such a list goes stale on
+// the day a fourth injected property is added here, and every client carrying
+// one goes stale with it, so the head states the fact instead.
+//
+// Four keys beyond the type and the description say what a generic client
+// cannot infer from either, and vocabularyKeys below derives all four from the
+// same parameter table the rest of this function reads. An enum does change
+// what a strict client will send, and this head published none until
+// dinah-420, which reversed that decision. A parameter whose whole value is
+// one member of a set fixed in the source is refused at the far end when it
+// names anything else, so publishing the set moves that refusal from run time
+// to composition time, and a client that cannot see the set has to ask a
+// person to type a member from memory. A parameter whose value is a
+// comma-separated list of those members is the case that reversal does not
+// cover, because a legal answer naming two of them is not itself a member, so
+// such a parameter publishes the members under a vendor key rather than under
+// enum and keeps a strict client free to compose them.
 func schemaFor(t tool) map[string]any {
 	catalog := msg.For(msg.Base)
 	properties := map[string]any{}
@@ -397,7 +415,11 @@ func schemaFor(t tool) map[string]any {
 			continue
 		}
 		description := catalog.T(param.SummaryKey(t.command))
-		properties[param.Name] = map[string]any{"type": param.Type(), "description": description}
+		property := map[string]any{"type": param.Type(), "description": description}
+		for key, value := range vocabularyKeys(t.command, param) {
+			property[key] = value
+		}
+		properties[param.Name] = property
 		if param.Required {
 			required = append(required, param.Name)
 		}
@@ -408,8 +430,9 @@ func schemaFor(t tool) map[string]any {
 			continue
 		}
 		properties[injected.name] = map[string]any{
-			"type":        "string",
-			"description": catalog.T(injected.key),
+			"type":             "string",
+			"description":      catalog.T(injected.key),
+			"x-dinah-injected": true,
 		}
 	}
 	sort.Strings(required)
@@ -422,6 +445,69 @@ func schemaFor(t tool) map[string]any {
 	}
 	return schema
 }
+
+// vocabularyKeys are the schema keys one parameter earns beyond its type and
+// its description, keyed by the key each is published under.
+//
+// The four answer questions a client asking "what may I send here?" cannot
+// settle from a bare string type. A parameter whose whole value is one member
+// of a vocabulary fixed in the source publishes that set as "enum", so a
+// client offers the members rather than a blank field. A parameter whose
+// vocabulary is resolved when a head runs publishes the source's own name
+// under "x-dinah-vocabulary-source", because the members are workbench data
+// this process cannot put in a static schema; a client that recognises the
+// source resolves it with a call of its own, and one that does not sees a key
+// it may ignore, which is what the "x-" prefix is for. A duration-typed
+// parameter publishes "format": "duration", because the value is a string
+// whose grammar is verb.ParseDuration's rather than free text.
+//
+// The fourth key exists because one parameter takes a list rather than a
+// value. show's fields argument is declared with the list placeholder and is
+// split on commas by verb.parseDetailFields, which accepts any subset of the
+// vocabulary and reads a blank value as every member. Publishing that
+// vocabulary as an enum would make the legal answer "card,body" invalid on
+// this surface, so a list-valued parameter publishes "x-dinah-value-list":
+// true and carries its members under "x-dinah-vocabulary-members" instead. A
+// strict validator is then told what the members are without being told the
+// value has to be one of them, which is the truth about this argument.
+//
+// Nothing here is hand-maintained. The vocabulary comes from
+// verb.VocabularyFor, which reads the same table the cli head's own
+// completion reads, and the list and duration markers come from the
+// parameter's declared placeholder, so a parameter that gains or loses any of
+// them changes this schema without anybody editing this function.
+func vocabularyKeys(command string, param verb.Param) map[string]any {
+	keys := map[string]any{}
+	list := param.Value == listPlaceholder
+	if list {
+		keys["x-dinah-value-list"] = true
+	}
+	if set, declared := verb.VocabularyFor(command, param.Name); declared {
+		switch {
+		case set.Source != "":
+			keys["x-dinah-vocabulary-source"] = set.Source
+		case list:
+			keys["x-dinah-vocabulary-members"] = set.Values
+		default:
+			keys["enum"] = set.Values
+		}
+	}
+	if param.Value == durationPlaceholder {
+		keys["format"] = "duration"
+	}
+	return keys
+}
+
+// listPlaceholder is the placeholder a parameter declares when its value is a
+// comma-separated list rather than a single value, which is the only signal
+// the parameter table gives that a vocabulary bounds the members rather than
+// the whole argument.
+const listPlaceholder = "list"
+
+// durationPlaceholder is the placeholder a duration-typed parameter declares,
+// which is the only signal the parameter table gives that a value is parsed as
+// a duration rather than taken as text.
+const durationPlaceholder = "duration"
 
 // doVerb runs one of the five contract verbs.
 func doVerb(l *verb.Library, r *verb.Request) any {

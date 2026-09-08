@@ -96,6 +96,10 @@ export const COMMAND_PULL = "dinah.tree.pull";
 /** The card row's act that opens its served instruction chain as a tab (dinah-270). */
 export const COMMAND_OPEN_INSTRUCTIONS = "dinah.tree.openInstructions";
 
+/** The command palette's own two commands, which need no row (dinah-420). */
+export const COMMAND_RUN_VERB = "dinah.runVerb";
+export const COMMAND_REFRESH_VERB_CATALOG = "dinah.refreshVerbCatalog";
+
 /**
  * The card row's act that opens its own journal as a tab (dinah-422).
  *
@@ -145,6 +149,8 @@ export const TREE_COMMANDS: readonly string[] = [
 	COMMAND_OPEN_INSTRUCTIONS,
 	COMMAND_OPEN_HISTORY,
 	COMMAND_OPEN_FIRST_SESSION_GUIDE,
+	COMMAND_RUN_VERB,
+	COMMAND_REFRESH_VERB_CATALOG,
 ];
 
 /**
@@ -189,6 +195,8 @@ export const ROW_COMMANDS: readonly string[] = [
 export const GLOBAL_COMMANDS: readonly string[] = [
 	COMMAND_REFRESH,
 	COMMAND_OPEN_FIRST_SESSION_GUIDE,
+	COMMAND_RUN_VERB,
+	COMMAND_REFRESH_VERB_CATALOG,
 ];
 
 /**

@@ -34,5 +34,7 @@
 	"manifest.walkthrough.firstSession.description": "Dinah के अपने गाइड की मदद से किसी Dinah वर्कबेंच पर अपनी दिशा तय करें।",
 	"manifest.walkthrough.firstSession.step.readGuide.title": "गाइड पढ़ें",
 	"manifest.walkthrough.firstSession.step.readGuide.description": "यह चरण आपके इंस्टॉल किए गए प्रोग्राम से लाइव `dinah guide first-session` को एक एडिटर टैब में खोलता है। यह टेक्स्ट हमेशा कमांड के आउटपुट से मेल खाता है, क्योंकि यहाँ इसकी कोई प्रति नहीं रखी जाती।\n\n[गाइड खोलें](command:dinah.walkthrough.openFirstSessionGuide)",
-	"manifest.command.dinah.walkthrough.openFirstSessionGuide.title": "Dinah: पहले सत्र का गाइड खोलें"
+	"manifest.command.dinah.walkthrough.openFirstSessionGuide.title": "Dinah: पहले सत्र का गाइड खोलें",
+	"manifest.command.dinah.runVerb.title": "Dinah: कमांड चलाएँ…",
+	"manifest.command.dinah.refreshVerbCatalog.title": "Dinah: कमांड पैलेट ताज़ा करें"
 }
