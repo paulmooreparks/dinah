@@ -325,8 +325,8 @@ transcript:
 
 ```file path=<workbench>/workbench.md
 ---
-format: 1
-profile: dinah-core/0.9
+format: 2
+profile: dinah-core/0.12
 title: Release 0.2
 slug: rel
 operator: ana
@@ -1409,7 +1409,7 @@ $ dinah export
     }
   ],
   "instructions": "Every card on this workbench ends with a line in the changelog.\n",
-  "profile": "dinah-core/0.9",
+  "profile": "dinah-core/0.12",
   "title": "Release 0.2"
 }
 [exit 0]
@@ -1546,13 +1546,12 @@ still gives a call that names none a default to fall back on, but no longer
 keeps the server from reaching any other workbench you name. Give the server a
 root, with `--root` or `DINAH_MCP_ROOT`, when you want it bounded to one tree; a
 workbench outside that root is then refused. Dinah hands the client the rules
-for working this workbench and twenty-one tools against its twenty-nine
-commands. Every command that files, moves, or reads a card is there. Seven of
-the eight that are missing only make sense at a shell: `init`, `config`, `path`,
-`edit`, `extract`, `workbenches`, and `mcp` itself. The eighth is `guide`, and
-the client reads it as a resource rather than calling it as a tool. Your AI
-colleague claims, moves, releases, and blocks under the same rules and leaves
-the same journal entries you do.
+for working this workbench, and a tool for every command that has a use over a
+protocol. The ones it leaves out are the ones that only make sense where a
+shell and a filesystem are, and `guide`, which the client reads as a resource
+rather than calling it as a tool. `tools/list` names the set your client
+actually got. Your AI colleague claims, moves, releases, and blocks under the
+same rules and leaves the same journal entries you do.
 
 Give your AI colleague an actor name of its own through `DINAH_ACTOR`, so the
 record shows who did what.

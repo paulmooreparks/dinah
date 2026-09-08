@@ -25,7 +25,7 @@ the response indented for reading.
 ```
 
 ```json
-{"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"{\n  \"affordances\": [\"status\", \"columns\", \"list_cards\", \"next_card\"],\n  \"status\": { \"workbench\": \"Your workbench\", \"profile\": \"dinah-core/0.7\", ... }\n}"}]}}
+{"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"{\n  \"affordances\": [\"status\", \"columns\", \"list_cards\", \"next_card\"],\n  \"status\": { \"workbench\": \"Your workbench\", \"profile\": \"...\", ... }\n}"}]}}
 ```
 
 Every payload carries two things at the top: the answer the tool was asked
@@ -92,9 +92,9 @@ the flow, `attach` to bind a file, `release` to hand a card back to the
 queue unfinished. A successful `claim` or `move` carries the instructions of
 the new position, minus the layers you already hold, and the moves the flow
 allows, so follow the one you need rather than guessing the next column's
-name. The moves are never withheld. `show` returns one card in full, its
-body, its links, and its comments, and that is the call to make before you
-act on a card you have not already met.
+name. The moves are never withheld. `show` returns one card and every member
+of it, and the section below names those members and how to ask for fewer.
+Make that call before you act on a card you have not already met.
 
 ## What a withheld layer means, and how you get it back
 
