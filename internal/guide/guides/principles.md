@@ -27,11 +27,11 @@ If you let a column accept every card offered to it, you stop having a station a
 You set a column's limit by writing `wip_limit` into `columns/<id>/column.md`. Dinah then refuses a move into that column once it is full, and `dinah columns` shows you the count against the limit while you still have room:
 
 ```
-  Slug    Name    Kind    Cards  Owner
-  ------  ------  ------  -----  -----
-  intake  Intake  intake  1      agent
-  doing   Doing   work    2/2    agent
-  done    Done    done    0      agent
+  Slug    Name    Kind    Cards  Work        Owner
+  ------  ------  ------  -----  ----------  -----
+  intake  Intake  intake  1      none taken  agent
+  doing   Doing   work    2/2    taken       agent
+  done    Done    done    0      none taken  agent
 ```
 
 Dinah counts a blocked card against the limit. The card has not left the column, and blocking it did not free the place it occupies. If Dinah exempted it, you could hide an overloaded station by blocking whatever was stuck in it, which keeps the trouble from the person who has to fix it.

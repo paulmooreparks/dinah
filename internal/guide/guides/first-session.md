@@ -106,6 +106,7 @@ and the exit code is 4.
 A command Dinah refuses writes the rule's name as the first field of the line,
 so `cut -d' ' -f1` gives you the name to act on.
 
-Dinah does not accept `--help`. Run `dinah help` for the list of commands, and
-`dinah help <command>` for one command's arguments, what can go wrong with it
-in the order each thing is checked, and its exit codes.
+Run `dinah help` for the list of commands, and `dinah help <command>` for one
+command's arguments, what can go wrong with it in the order each thing is
+checked, and its exit codes. Writing `dinah <command> --help` prints that same
+page.
