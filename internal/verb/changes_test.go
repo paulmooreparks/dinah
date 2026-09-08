@@ -73,7 +73,10 @@ func (h *harness) workstream(title string) (id, ref string) {
 		h.t.Fatalf("workstream new %q: %s %s", title, response.Outcome, response.Refusal)
 	}
 	h.reopen()
-	return response.Workstream.ID, bench.WorkstreamRefPrefix + response.Workstream.Ref
+	// The view's own reference already names the kind, per Workstream.Ref, so
+	// the harness hands back what a reader would type rather than prefixing a
+	// second time.
+	return response.Workstream.ID, response.Workstream.Ref
 }
 
 // cardID resolves a reference to the identifier the change walk keys on.

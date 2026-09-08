@@ -675,6 +675,14 @@ type LinkView struct {
 type CommentView struct {
 	// ID is the comment's identifier.
 	ID string `json:"id"`
+	// Ref is what a person types to reach the comment: the card's own
+	// reference, then comments and the comment's one-based position among the
+	// card's comments. It is the spelling internal/bench/resolve.go resolves,
+	// and it is a spelling to type now rather than a handle to keep, because a
+	// position stops naming the same comment once an earlier one is deleted.
+	// The identifier beside it is the handle, and the resolver accepts that in
+	// the same slot.
+	Ref string `json:"ref"`
 	// TS is when it was written.
 	TS string `json:"ts"`
 	// Author is who wrote it.
@@ -700,13 +708,13 @@ type ItemView struct {
 	// second time, since two numbers on one row both answering which one is
 	// this is a shape this board has already paid to remove once.
 	Ordinal int `json:"ordinal"`
-	// Ref is what a person types to reach this item: the card's own
-	// reference, the item's kind as a short alias (oq, ac, d), and its
-	// position among the items of that one kind. It is the spelling
-	// internal/bench/resolve.go already resolves, composed here for the
-	// first time, and it is empty on an item whose kind is none of the
-	// three, since nothing would resolve a reference composed from one.
-	Ref string `json:"ref,omitempty"`
+	// Ref is what a person types to reach this item, composed by itemRef.
+	// An item of one of the three kinds the format declares is named by that
+	// kind's short alias (oq, ac, d) and its position among the items of that
+	// kind; an item of any other kind is named by the checklist collection
+	// and its position in it, which the resolver descends unnarrowed. It is
+	// never empty.
+	Ref string `json:"ref"`
 	// Kind is one of acceptance_criterion, open_question and decision.
 	Kind string `json:"kind"`
 	// State is whatever the item's own file says, unvalidated, on the terms
@@ -814,11 +822,12 @@ func (l *Library) Show(req *Request) (*Detail, string, error) {
 	}
 	var comments []CommentView
 	for _, comment := range stored {
-		view := CommentView{ID: comment.ID, TS: comment.TS, Author: comment.Author, Body: comment.Body}
+		ref := commentRef(cardRef, memberPosition(comment.Dir, bench.CommentAnchor))
+		view := CommentView{ID: comment.ID, Ref: ref, TS: comment.TS, Author: comment.Author, Body: comment.Body}
 		// A comment's attachments compose their references against the
 		// comment's own address rather than the card's, so a reference the
 		// view prints reaches the attachment the view describes.
-		below, err := attachmentViews(comment.Dir, commentRef(cardRef, memberPosition(comment.Dir, bench.CommentAnchor)))
+		below, err := attachmentViews(comment.Dir, ref)
 		if err != nil {
 			return nil, "", err
 		}
@@ -847,9 +856,7 @@ func (l *Library) Show(req *Request) (*Detail, string, error) {
 			Text:    item.Text,
 			Note:    item.Note,
 		}
-		if alias, ok := bench.AliasForItemKind(item.Kind); ok {
-			view.Ref = cardRef + "/" + alias + "/" + strconv.Itoa(kindPosition[item.Kind])
-		}
+		view.Ref = itemRef(cardRef, item.Kind, kindPosition[item.Kind], i+1)
 		if item.Column != "" {
 			if column := l.Bench.Column(item.Column); column != nil {
 				view.ColumnTitle = column.Title
@@ -936,7 +943,7 @@ func (l *Library) Attachments(req *Request) (*AttachmentListing, error) {
 	// second one.
 	ref := entity.Ref
 	if entity.Kind == bench.KindWorkbench {
-		ref = "workbench"
+		ref = bench.WorkbenchRef
 	}
 	views, err := attachmentViews(entity.Dir, ref)
 	if err != nil {
@@ -977,6 +984,20 @@ func attachmentViews(dir, ref string) ([]AttachmentView, error) {
 // its card: the card's own reference, then comments and the comment's ordinal.
 func commentRef(cardRef string, ordinal int) string {
 	return cardRef + "/" + bench.CommentsDir + "/" + strconv.Itoa(ordinal)
+}
+
+// itemRef is what a person types to reach one checklist item. An item of
+// one of the three kinds the format declares is named by that kind's alias
+// and its position among the items of that kind, which is the spelling
+// dinah show already prints and the one walkBelowCard narrows by. An item
+// of any other kind is named by the collection and its position in it,
+// which descend resolves without narrowing, so a damaged item or an
+// extension kind still shows a reader something they can type.
+func itemRef(cardRef, kind string, kindPosition, position int) string {
+	if alias, ok := bench.AliasForItemKind(kind); ok {
+		return cardRef + "/" + alias + "/" + strconv.Itoa(kindPosition)
+	}
+	return cardRef + "/" + bench.ChecklistDir + "/" + strconv.Itoa(position)
 }
 
 // displayOrdinal is the one-based position a read reports for an attachment,

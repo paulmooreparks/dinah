@@ -912,7 +912,7 @@ func (l *Library) rootOf(entity *bench.EntityRef) TreeNode {
 		// slug: a slug is a prefix for building a card reference and nothing
 		// accepts it alone, so drawing it here would put an address in the
 		// tree a reader could not type back.
-		return TreeNode{Kind: entity.Kind, Ref: "workbench", Title: l.Bench.Title}
+		return TreeNode{Kind: entity.Kind, Ref: bench.WorkbenchRef, Title: l.Bench.Title}
 	case bench.KindColumn:
 		node := TreeNode{Kind: entity.Kind, ID: entity.ID, Ref: entity.Ref}
 		if column := l.Bench.Column(entity.ID); column != nil {
@@ -926,6 +926,19 @@ func (l *Library) rootOf(entity *bench.EntityRef) TreeNode {
 			Ref:   entity.Card.Ref(l.Bench.Slug),
 			Title: entity.Card.Title,
 		}
+	case bench.KindItem:
+		// An item is the one kind whose printed spelling is not the one the
+		// resolver composes. The resolver answers the collection form, and
+		// both forms resolve, but Library.Show and the containment walk both
+		// print the aliased form through itemRef, so a walk rooted at an item
+		// composes it here as well rather than drawing one item under two
+		// addresses on two screens.
+		return TreeNode{
+			Kind:  entity.Kind,
+			ID:    entity.ID,
+			Ref:   l.itemRefOf(entity),
+			Title: anchorTitle(entity.Dir, anchorOfKind(entity.Kind)),
+		}
 	}
 	// Every kind reaching this branch sits below a head, and the resolver
 	// composes the reference of anything below a head, so the address a
@@ -938,6 +951,29 @@ func (l *Library) rootOf(entity *bench.EntityRef) TreeNode {
 		Ref:   entity.Ref,
 		Title: anchorTitle(entity.Dir, anchorOfKind(entity.Kind)),
 	}
+}
+
+// itemRefOf composes one checklist item's printed reference when the item is
+// all the caller holds. Library.Show and the containment walk both already
+// hold an item's positions from the collection they walked; a walk rooted at
+// the item itself holds neither, so the collection is walked once here in the
+// order the resolver counts.
+func (l *Library) itemRefOf(entity *bench.EntityRef) string {
+	if entity.Card == nil {
+		return entity.Ref
+	}
+	cardRef := entity.Card.Ref(l.Bench.Slug)
+	collection := filepath.Dir(entity.Dir)
+	id := filepath.Base(entity.Dir)
+	kindSeen := map[string]int{}
+	for n, member := range bench.SortByOrdinal(collection, bench.ItemAnchor, bench.ListIDs(collection)) {
+		kind := itemKindAt(filepath.Join(collection, member))
+		kindSeen[kind]++
+		if member == id {
+			return itemRef(cardRef, kind, kindSeen[kind], n+1)
+		}
+	}
+	return entity.Ref
 }
 
 // fillContained gives one node of the containment tree its children and its
@@ -969,15 +1005,39 @@ func (l *Library) fillContained(node *TreeNode, dir, kind, ref string, rank, lim
 // collection comes in the creation order a positional reference counts in.
 func (l *Library) containedChildren(dir, kind, ref string, rank, limit int) []TreeNode {
 	var nodes []TreeNode
+	// kindSeen counts each item kind's members as the walk passes them, so an
+	// item's reference carries its position within its own kind rather than
+	// within the whole checklist. The walk lists a collection through
+	// containmentMembersOf, which sorts the way bench.Items sorts, so this
+	// count and the count Show takes over bench.Items agree by construction.
+	kindSeen := map[string]int{}
 	for _, mount := range bench.Contains(kind) {
 		collection := filepath.Join(dir, mount.Dir)
 		for position, id := range l.containmentMembersOf(collection, mount) {
-			child := l.containedNode(collection, id, position+1, mount, ref)
+			itemKind, kindPosition := "", 0
+			if mount.Kind == bench.KindItem {
+				itemKind = itemKindAt(filepath.Join(collection, id))
+				kindSeen[itemKind]++
+				kindPosition = kindSeen[itemKind]
+			}
+			child := l.containedNode(collection, id, position+1, itemKind, kindPosition, mount, ref)
 			l.fillContained(&child, filepath.Join(collection, id), mount.Kind, child.Ref, rank+1, limit)
 			nodes = append(nodes, child)
 		}
 	}
 	return nodes
+}
+
+// itemKindAt is the kind an item's own anchor records, and the empty string
+// where the anchor will not read. An unreadable anchor composes the
+// unaliased reference, which is what the walk printed for every item before
+// this card and which still resolves.
+func itemKindAt(dir string) string {
+	item, err := bench.LoadItem(dir)
+	if err != nil {
+		return ""
+	}
+	return item.Kind
 }
 
 // containmentMembersOf lists one collection's live members in the order the
@@ -1012,6 +1072,8 @@ func (l *Library) containmentMembersOf(collection string, mount bench.Mount) []s
 func (l *Library) containedNode(
 	collection, id string,
 	position int,
+	itemKind string,
+	kindPosition int,
 	mount bench.Mount,
 	parentRef string,
 ) TreeNode {
@@ -1032,6 +1094,10 @@ func (l *Library) containedNode(
 		if err == nil {
 			node.Ref, node.Title = card.Ref(l.Bench.Slug), card.Title
 		}
+	case bench.KindItem:
+		// One composer serves this walk and Library.Show, so contents and
+		// show cannot print two spellings of one item.
+		node.Ref = itemRef(parentRef, itemKind, kindPosition, position)
 	default:
 		node.Ref = parentRef + "/" + mount.Dir + "/" + strconv.Itoa(position)
 	}

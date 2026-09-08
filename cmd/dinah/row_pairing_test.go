@@ -972,6 +972,20 @@ func sweptSlugCell(tag, slug string) string {
 	return slug
 }
 
+// sweptWorkstreamRefCell renders the reference column of the workstream
+// listing the way Workstream.Ref composes it: the kind's prefix, then the
+// slug. A workstream carrying no slug is addressed by its identifier, which
+// the fixture never sees, so that row carries a matcher rather than text.
+func sweptWorkstreamRefCell(slug string) sweptCell {
+	if slug == "" {
+		return sweptCell{match: func(field string) bool {
+			rest, named := strings.CutPrefix(field, bench.WorkstreamRefPrefix)
+			return named && bench.IsID(rest)
+		}}
+	}
+	return sweptCell{text: bench.WorkstreamRefPrefix + slug}
+}
+
 // sweptCardsIn returns the cards the record holds in one column, in the order
 // the queue fixes, which is ascending creation ordinal once every card of a
 // column arrived in the same second.
@@ -1234,13 +1248,18 @@ func expectLinks(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
 
 // expectComments is a card's comments, with the stamp column opaque because
 // the test that provoked it cannot predict it.
+//
+// The reference leads the row, and its position segment is the comment's place
+// in the collection: the fixture writes its comments in order and deletes none,
+// so the fixture's own index is that place.
 func expectComments(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
 	t.Helper()
 	var rows [][]sweptCell
-	for _, comment := range r.comments {
-		rows = append(rows, sweptTexts("", comment.actor))
+	for i, comment := range r.comments {
+		ref := comment.card + "/" + bench.CommentsDir + "/" + strconv.Itoa(i+1)
+		rows = append(rows, sweptTexts(ref, "", comment.actor))
 	}
-	opaque, why := sweptStampColumn(0, "a comment's stamp is the moment the fixture ran, which the fixture cannot know before it runs")
+	opaque, why := sweptStampColumn(1, "a comment's stamp is the moment the fixture ran, which the fixture cannot know before it runs")
 	return sweptExpectation{
 		rows:         rows,
 		source:       "the record's comments",
@@ -1250,8 +1269,10 @@ func expectComments(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
 }
 
 // expectAttachments is a card's attachments, in the position order the
-// fixture wrote them. The position is the row's first column and the
-// description is what --description carried, empty when the fixture passed none.
+// fixture wrote them. The reference is the row's first column, composed
+// against the card the attachment hangs from and the position the fixture
+// wrote it at, and the description is what --description carried, empty when
+// the fixture passed none.
 // A rename the fixture ran against one of these attachments rewrites its
 // filename to the new one, since the rendered block carries the post-rename
 // filename rather than the original.
@@ -1271,7 +1292,8 @@ func expectAttachments(t *testing.T, r *sweptRecord, tag string) sweptExpectatio
 	}
 	var rows [][]sweptCell
 	for i, attachment := range r.attachments {
-		rows = append(rows, sweptTexts(strconv.Itoa(i+1), filenames[i], attachment.description))
+		ref := attachment.card + "/" + bench.AttachmentsDir + "/" + strconv.Itoa(i+1)
+		rows = append(rows, sweptTexts(ref, filenames[i], attachment.description))
 	}
 	return sweptExpectation{rows: rows, source: "the record's attachments, with renames applied"}
 }
@@ -1484,12 +1506,13 @@ func expectWorkstreams(t *testing.T, r *sweptRecord, tag string) sweptExpectatio
 	t.Helper()
 	var rows [][]sweptCell
 	for _, workstream := range r.workstreams {
-		rows = append(rows, sweptTexts(
-			sweptSlugCell(tag, workstream.slug),
+		row := []sweptCell{sweptWorkstreamRefCell(workstream.slug)}
+		row = append(row, sweptTexts(
 			workstream.title,
 			workstream.status,
 			strconv.Itoa(len(workstream.cards)),
-		))
+		)...)
+		rows = append(rows, row)
 	}
 	return sweptExpectation{rows: rows, source: "the record's workstreams"}
 }

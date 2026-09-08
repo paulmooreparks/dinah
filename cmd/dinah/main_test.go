@@ -6271,7 +6271,7 @@ func TestAWorkstreamIsCreatedListedAndReadFromATerminal(t *testing.T) {
 	if created.code != 0 {
 		t.Fatalf("workstream new: %d %s", created.code, created.errw)
 	}
-	if created.out != "portfolio-work  Portfolio work  [active]\n" {
+	if created.out != "workstream/portfolio-work  Portfolio work  [active]\n" {
 		t.Errorf("creation printed %q", created.out)
 	}
 
@@ -6340,7 +6340,7 @@ func TestTheCardLineCarriesTheWorkstreamsACardBelongsTo(t *testing.T) {
 	if joined.code != 0 {
 		t.Fatalf("join: %d %s", joined.code, joined.errw)
 	}
-	if joined.out != strings.TrimSuffix(plain.out, "\n")+"  portfolio-work\n" {
+	if joined.out != strings.TrimSuffix(plain.out, "\n")+"  workstream/portfolio-work\n" {
 		t.Errorf("the two forms differ by more than the trailing field:\n%q\n%q", plain.out, joined.out)
 	}
 	carryToDoing(t, root, "fx-1")
@@ -6540,7 +6540,7 @@ func TestEveryMachineSurfaceCarriesAWorkstream(t *testing.T) {
 		t.Fatalf("the machine listing carries %+v", all.Workstreams)
 	}
 	entry := all.Workstreams[0]
-	if entry.ID != id || entry.Ref != "portfolio-work" || entry.Slug != "portfolio-work" || entry.Title != "Portfolio work" || entry.Status != "active" || entry.Cards != 1 {
+	if entry.ID != id || entry.Ref != "workstream/portfolio-work" || entry.Slug != "portfolio-work" || entry.Title != "Portfolio work" || entry.Status != "active" || entry.Cards != 1 {
 		t.Errorf("the machine listing reads %+v", entry)
 	}
 

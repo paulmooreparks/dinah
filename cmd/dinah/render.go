@@ -577,9 +577,9 @@ func (s *session) renderDetail(detail *verb.Detail) {
 	if len(detail.Comments) > 0 {
 		gap()
 		s.line(s.r.T("show.comments"))
-		comments := table{indent: 2, columns: s.columns("comments", "when", "who")}
+		comments := table{indent: 2, columns: s.columns("comments", "ref", "when", "who")}
 		for _, comment := range detail.Comments {
-			fields := []string{comment.TS, comment.Author}
+			fields := []string{comment.Ref, comment.TS, comment.Author}
 			comments.rows = append(comments.rows, tableRow{fields: fields, note: comment.Body})
 		}
 		s.table(comments)
@@ -638,10 +638,10 @@ func (s *session) renderAttachmentListing(listing *verb.AttachmentListing) {
 // attachments prints, so a card's own list and the list of any other entity
 // cannot come out under different headings or in a different order.
 func (s *session) renderAttachments(views []verb.AttachmentView) {
-	attachments := table{indent: 2, columns: s.columns("attachments", "position", "filename", "description")}
+	attachments := table{indent: 2, columns: s.columns("attachments", "ref", "filename", "description")}
 	for _, attachment := range views {
 		attachments.rows = append(attachments.rows, tableRow{fields: []string{
-			strconv.Itoa(attachment.Ordinal),
+			attachment.Ref,
 			attachment.Filename,
 			attachment.Description,
 		}})
@@ -1094,17 +1094,18 @@ func (s *session) renderWorkbenchFields(fields *verb.WorkbenchView) {
 
 // renderWorkstreams prints every live workstream of the workbench, and the
 // sentence that says so when the workbench carries none. The columns are the
-// shape dinah columns already draws, and a workstream carrying no slug prints
-// through slugCell rather than as a blank.
+// shape dinah columns already draws, and the first cell is the reference a
+// reader types rather than the bare slug, so it needs no slugCell: Ref falls
+// back to the identifier and is never empty.
 func (s *session) renderWorkstreams(listing *verb.WorkstreamListing) {
 	if len(listing.Workstreams) == 0 {
 		s.line(s.r.T("workstreams.empty"))
 		return
 	}
-	t := table{indent: 2, columns: s.columns("workstreams", "slug", "name", "status", "cards")}
+	t := table{indent: 2, columns: s.columns("workstreams", "reference", "name", "status", "cards")}
 	for _, workstream := range listing.Workstreams {
 		fields := []string{
-			s.slugCell(workstream.Slug),
+			workstream.Ref,
 			workstream.Title,
 			workstream.Status,
 			strconv.Itoa(workstream.Cards),

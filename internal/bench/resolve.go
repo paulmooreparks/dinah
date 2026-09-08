@@ -147,7 +147,11 @@ func AliasForItemKind(kind string) (string, bool) {
 // before the rest of the grammar gets a chance to shadow it.
 func (b *Bench) ResolvePath(ref string) (string, error) {
 	if rest, named := strings.CutPrefix(strings.TrimSpace(ref), WorkstreamRefPrefix); named {
-		workstream := b.WorkstreamByRef(rest)
+		// The whole reference goes to the resolver rather than the
+		// remainder, because that resolver strips the prefix itself so that
+		// the workstream-taking commands accept either spelling. Passing the
+		// remainder would strip a second time and admit a doubled prefix.
+		workstream := b.WorkstreamByRef(strings.TrimSpace(ref))
 		if workstream == nil {
 			return "", contract.Refuse(contract.UnknownWorkstream, rest)
 		}

@@ -375,7 +375,10 @@ func (b *Bench) resolveWorkstreamRef(ref string) (*EntityRef, bool, error) {
 	if !named {
 		return nil, false, nil
 	}
-	workstream := b.WorkstreamByRef(rest)
+	// The whole reference goes to the resolver, on the reasoning
+	// ResolvePath's workstream arm gives: WorkstreamByRef strips the prefix
+	// itself, so handing it the remainder would strip twice.
+	workstream := b.WorkstreamByRef(ref)
 	if workstream == nil {
 		return nil, true, contract.Refuse(contract.UnknownWorkstream, rest)
 	}
