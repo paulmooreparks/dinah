@@ -198,6 +198,14 @@ function auditFile(file: string): Audit {
 			inspect(args[0], "host.showWarning message");
 			return;
 		}
+		// A confirmation carries two strings a reader meets, the sentence and
+		// the affirmative button's label, so neither can be reached by the
+		// sole-argument list above (dinah-451 AC-9).
+		if (name === "confirmDestructive" && args.length >= 2) {
+			inspect(args[0], "host.confirmDestructive message");
+			inspect(args[1], "host.confirmDestructive label");
+			return;
+		}
 		if (name === "pick" && args.length >= 2) {
 			inspect(args[1], "host.pick placeholder");
 		}
@@ -276,5 +284,27 @@ test("no English sentence is left standing where a reader would see it", () => {
 		findings.map((finding) => `${finding.where}: ${finding.text}`),
 		[],
 		"each line above is English a reader sees; route it through the injected localizer",
+	);
+});
+
+test("the audit reads both arguments of a confirmation", () => {
+	// dinah-451 AC-9. The sweep over src/ cannot prove this: it is green while
+	// the branch is absent, because nothing in src/ carries an English literal
+	// there to find. A fixture whose two literals the audit must report is
+	// what turns the widening into something a test can fail on.
+	//
+	// The fixture is named .ts.txt so sources() never sweeps it and tsc never
+	// compiles it, while auditFile parses it because it passes ScriptKind.TS
+	// explicitly. Its receiver is spelled `context.host` because onAHost
+	// matches a receiver whose last segment is `host`.
+	const fixture = join(extensionRoot, "test", "fixtures", "confirmDestructive-call-site.ts.txt");
+	const audit = auditFile(fixture);
+	assert.deepEqual(
+		audit.findings.map((finding) => finding.text),
+		['"Delete it?"', '"Delete"'],
+	);
+	assert.deepEqual(
+		audit.findings.map((finding) => finding.where.replace(/^.*\(/, "(")),
+		["(host.confirmDestructive message)", "(host.confirmDestructive label)"],
 	);
 });

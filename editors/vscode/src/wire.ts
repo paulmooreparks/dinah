@@ -308,6 +308,15 @@ export const STATE_ACTIVE = "active";
 export const STATE_BLOCKED = "blocked";
 
 /** The node kinds the grouped producer emits, as TreeNode.Kind spells them. */
+/**
+ * The collection segment an attachment reference carries.
+ *
+ * This is the value of `bench.AttachmentsDir` as the reference grammar spells
+ * it, written here because the extension composes a reference of its own
+ * rather than only reading ones the tool composed.
+ */
+export const ATTACHMENTS_SEGMENT = "attachments";
+
 export const NODE_GROUP = "group";
 export const NODE_CARD = "card";
 

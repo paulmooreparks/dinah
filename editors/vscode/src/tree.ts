@@ -28,6 +28,7 @@ import type { Candidate, WorkbenchResolution } from "./api";
 import type { Spawner } from "./cli";
 import { runDinah } from "./cli";
 import {
+	CONTEXT_ATTACHMENT,
 	CONTEXT_CARD_ACTIVE,
 	CONTEXT_CARD_BLOCKED,
 	CONTEXT_CARD_READY_CLAIM,
@@ -279,6 +280,23 @@ export type TreeElement =
 	| {
 			readonly kind: "attachment";
 			readonly row: RootRow;
+			/**
+			 * The workbench root the listing that produced this row was pinned
+			 * to, taken from the group element's own `root` rather than from
+			 * `row.folder`. A forest row's folder holds several workbenches, so
+			 * the folder is not a workbench root at all there.
+			 */
+			readonly root: string;
+			/**
+			 * The reference of the entity this attachment hangs from, taken
+			 * from the listing's own `ref` rather than from the group's.
+			 *
+			 * The listing resolves the workbench's own reference to the literal
+			 * `workbench`, while the group carries the empty string the binary
+			 * is asked with, so only the listing's answer composes a reference
+			 * a later call can resolve.
+			 */
+			readonly owner: string;
 			readonly view: AttachmentView;
 	  };
 
@@ -818,6 +836,11 @@ export function treeItemFor(
 				tooltip: tooltip.join("\n"),
 				icon: openable ? { id: "file" } : WARNING_ICON,
 				collapsibleState: "none",
+				// Set whatever the payload says, because an attachment Dinah
+				// cannot open is the one a reader most wants gone, and a value
+				// gated on openability would withhold Delete from exactly that
+				// row (dinah-451 D-4).
+				contextValue: CONTEXT_ATTACHMENT,
 				// A command only when the file can be opened. The key is
 				// absent rather than set to undefined so a row carrying no
 				// payload is a row VS Code will not offer as clickable, which
@@ -1738,6 +1761,8 @@ export class DinahTreeProvider {
 				return listing.attachments.map((view) => ({
 					kind: "attachment" as const,
 					row: element.row,
+					root: element.root,
+					owner: listing.ref,
 					view,
 				}));
 			}

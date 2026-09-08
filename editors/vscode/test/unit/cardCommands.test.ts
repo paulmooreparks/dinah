@@ -19,6 +19,7 @@ import {
 	claimCard,
 	contextFor,
 	copyCardRef,
+	deleteAttachment,
 	moveCard,
 	movePick,
 	openAttachment,
@@ -57,6 +58,10 @@ interface Recorder {
 	offered: PickItem[];
 	/** What the input box returns, if it is opened. */
 	typed?: string;
+	/** The two arguments every confirmDestructive call was made with, in order. */
+	readonly confirmations: { message: string; label: string }[];
+	/** What the confirmation answers, which every test that reaches one sets. */
+	confirmed: boolean;
 }
 
 function ok(payload: unknown): SpawnOutcome {
@@ -78,6 +83,7 @@ function recorder(answers: Record<string, SpawnOutcome> = {}): Recorder {
 	const served: { kind: string; root: string; ref: string; title: string }[] = [];
 	const logged: string[] = [];
 	const offered: PickItem[] = [];
+	const confirmations: { message: string; label: string }[] = [];
 	const state = {
 		calls,
 		errors,
@@ -89,6 +95,10 @@ function recorder(answers: Record<string, SpawnOutcome> = {}): Recorder {
 		served,
 		logged,
 		offered,
+		confirmations,
+		// A confirmation nobody set answers no, so a test that forgets to say
+		// deletes nothing rather than deleting on a default.
+		confirmed: false,
 		answers,
 	} as Recorder;
 
@@ -125,6 +135,10 @@ function recorder(answers: Record<string, SpawnOutcome> = {}): Recorder {
 		pickFile: async () => undefined,
 		openServedText: async (kind, root, ref, title) => {
 			served.push({ kind, root, ref, title });
+		},
+		confirmDestructive: async (message, label) => {
+			confirmations.push({ message, label });
+			return state.confirmed;
 		},
 		checkpoint: async (folder) => {
 			checkpoints.push(folder);
@@ -431,6 +445,8 @@ function attachmentRow(path: string | undefined): TreeElement {
 	return {
 		kind: "attachment",
 		row: rowFixture(),
+		root: "C:\\work\\bench",
+		owner: "tr-4",
 		view: {
 			id: "9a1b2c3d4e5f",
 			ordinal: 1,
@@ -498,6 +514,7 @@ const silentHost: CommandHost = {
 	openFile: async () => undefined,
 	pickFile: async () => undefined,
 	openServedText: async () => undefined,
+	confirmDestructive: async () => false,
 	checkpoint: async () => undefined,
 	log: () => undefined,
 };
@@ -742,5 +759,128 @@ test("the comment that says isRow is above it is in fact below isRow", () => {
 	assert.ok(
 		claimAt > isRowAt,
 		"a comment claims the check happens by isRow above while sitting above isRow",
+	);
+});
+
+// ---------------------------------------------------------------------------
+// dinah-451: deleting an attachment, and the confirmation in front of it
+// ---------------------------------------------------------------------------
+
+/**
+ * The attachment row the delete tests are aimed at.
+ *
+ * The second entry of the fixture tree.test.ts uses, chosen because its
+ * identifier and its position differ: the reference the row was drawn with
+ * ends in 2 and the identifier is 0b2c3d4e5f61, so an argv composed from the
+ * wrong one is a visibly different string rather than a coincidence.
+ */
+function deletableRow(): TreeElement {
+	return {
+		kind: "attachment",
+		row: rowFixture(),
+		root: "C:\\work\\bench",
+		owner: "tr-4",
+		view: {
+			id: "0b2c3d4e5f61",
+			ordinal: 2,
+			ref: "tr-4/attachments/2",
+			filename: "spec.pdf",
+			provenance: "import",
+		},
+	};
+}
+
+test("deleting an attachment addresses it by its identifier and not by its position", async () => {
+	// dinah-451 AC-5. view.ref ends in the attachment's position within its
+	// collection, and a position shifts the moment somebody deletes an earlier
+	// attachment, so a row left sitting in a sidebar would address a different
+	// file with nothing refusing. The identifier names one attachment for as
+	// long as it exists, and --yes is what the tool requires of a caller that
+	// has already asked.
+	const r = recorder();
+	r.confirmed = true;
+	await deleteAttachment(deletableRow(), "dinah", r.host, r.context.spawner, () => undefined);
+	assert.equal(r.calls.length, 1);
+	assert.deepEqual(r.calls[0], [
+		"--json",
+		"--workbench",
+		"C:\\work\\bench",
+		"delete",
+		"tr-4/attachments/0b2c3d4e5f61",
+		"--yes",
+	]);
+});
+
+test("a declined confirmation deletes nothing and asks dinah nothing", async () => {
+	// dinah-451 AC-6. This is what stops the modal from being decoration: a
+	// dialog shown after the act, or one whose answer is never read, looks
+	// identical in a screenshot and identical in review.
+	const r = recorder();
+	r.confirmed = false;
+	const outcome = await deleteAttachment(
+		deletableRow(),
+		"dinah",
+		r.host,
+		r.context.spawner,
+		() => undefined,
+	);
+	assert.equal(outcome, undefined);
+	assert.equal(r.calls.length, 0);
+	assert.equal(r.checkpoints.length, 0);
+	assert.equal(r.errors.length, 0);
+	// The dismissal path answers the same way. The bound host reads an
+	// undefined answer from showWarningMessage as declined, which is what an
+	// Escape or a click on the editor's own Cancel produces, so a recorder
+	// whose confirmation answers false stands for both.
+	const dismissed = recorder();
+	dismissed.confirmed = false;
+	assert.equal(
+		await deleteAttachment(deletableRow(), "dinah", dismissed.host, dismissed.context.spawner, () => undefined),
+		undefined,
+	);
+	assert.equal(dismissed.calls.length, 0);
+	assert.equal(dismissed.checkpoints.length, 0);
+});
+
+test("the confirmation names the file and the address the row was drawn from", async () => {
+	// dinah-451 AC-7. Equality rather than containment, because a containment
+	// check goes on passing while the two placeholders are filled from each
+	// other's fields, and the row's label is the filename alone, so a reader
+	// with two attachments of the same name needs the address as well.
+	const r = recorder();
+	r.confirmed = true;
+	await deleteAttachment(deletableRow(), "dinah", r.host, r.context.spawner, () => undefined);
+	assert.equal(r.confirmations.length, 1);
+	assert.equal(
+		r.confirmations[0].message,
+		ENGLISH("dialog.attachment.delete.confirm", {
+			filename: "spec.pdf",
+			ref: "tr-4/attachments/2",
+		}),
+	);
+	assert.equal(r.confirmations[0].label, ENGLISH("dialog.attachment.delete.action"));
+});
+
+test("a delete checkpoints the folder the row stands in, whichever way dinah answered", async () => {
+	// dinah-451 AC-8. The checkpoint is the whole of the extension's refresh
+	// obligation here: it re-reads the workbench, which is what redraws the
+	// card's own count and the group's contents. It runs on a refusal too,
+	// because a refusal usually means the board moved under the reader.
+	const accepted = recorder();
+	accepted.confirmed = true;
+	await deleteAttachment(deletableRow(), "dinah", accepted.host, accepted.context.spawner, () => undefined);
+	assert.deepEqual(accepted.checkpoints, ["C:\\work\\bench"]);
+	assert.equal(accepted.errors.length, 0);
+
+	const denied = recorder({
+		delete: refused("dinah.unknown-path", "tr-4/attachments/0b2c3d4e5f61"),
+	});
+	denied.confirmed = true;
+	await deleteAttachment(deletableRow(), "dinah", denied.host, denied.context.spawner, () => undefined);
+	assert.deepEqual(denied.checkpoints, ["C:\\work\\bench"]);
+	assert.equal(denied.errors.length, 1);
+	assert.equal(
+		denied.errors[0],
+		"dinah.unknown-path: tr-4/attachments/0b2c3d4e5f61",
 	);
 });

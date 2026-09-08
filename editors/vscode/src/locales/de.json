@@ -106,6 +106,16 @@
 			"context": "Prompt of the input box Attach File raises after the file has been chosen.",
 			"source": "d54d02a4f2d85e47"
 		},
+		"dialog.attachment.delete.confirm": {
+			"text": "{filename} ({ref}) löschen? Dinah zerstört die Datei und kann sie nicht wiederherstellen.",
+			"context": "The modal shown before an attachment is deleted from the sidebar. {filename} is the attachment's filename, which is also the row's label; {ref} is the address a person would type to reach it.",
+			"source": "15d264fb206c92e0"
+		},
+		"dialog.attachment.delete.action": {
+			"text": "Löschen",
+			"context": "The affirmative button of that modal. The editor supplies Cancel itself.",
+			"source": "dc673e73b5c13aea"
+		},
 		"dialog.pull.empty": {
 			"text": "In {from} ist nichts bereit, um nach {into} gezogen zu werden.",
 			"context": "Toast after a pull that was allowed and found nothing. {from} is the upstream's title, {into} the destination's.",

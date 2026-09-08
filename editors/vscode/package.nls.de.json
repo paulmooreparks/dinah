@@ -20,6 +20,7 @@
 	"manifest.command.dinah.tree.editWorkbenchDefinition.title": "Definition bearbeiten",
 	"manifest.command.dinah.tree.editColumnInstructions.title": "Anweisungen bearbeiten",
 	"manifest.command.dinah.tree.openAttachment.title": "Dinah: Anhang öffnen",
+	"manifest.command.dinah.tree.deleteAttachment.title": "Löschen...",
 	"manifest.command.dinah.tree.newCard.title": "Neue Karte...",
 	"manifest.command.dinah.tree.attachFile.title": "Datei anhängen...",
 	"manifest.command.dinah.tree.pull.title": "Ziehen",

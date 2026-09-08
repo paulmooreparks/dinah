@@ -215,6 +215,7 @@ function driver(
 		openFile: async () => undefined,
 		pickFile: async () => undefined,
 		openServedText: async () => undefined,
+		confirmDestructive: async () => false,
 		checkpoint: async (folder) => {
 			checkpoints.push(folder);
 		},

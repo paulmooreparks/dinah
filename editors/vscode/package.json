@@ -129,6 +129,10 @@
         "title": "%manifest.command.dinah.tree.openAttachment.title%"
       },
       {
+        "command": "dinah.tree.deleteAttachment",
+        "title": "%manifest.command.dinah.tree.deleteAttachment.title%"
+      },
+      {
         "command": "dinah.tree.newCard",
         "title": "%manifest.command.dinah.tree.newCard.title%"
       },
@@ -211,6 +215,10 @@
         },
         {
           "command": "dinah.tree.openAttachment",
+          "when": "false"
+        },
+        {
+          "command": "dinah.tree.deleteAttachment",
           "when": "false"
         },
         {
@@ -326,6 +334,11 @@
           "command": "dinah.tree.openHistory",
           "when": "view == dinah.workbenchView && viewItem =~ /^dinah\\.card\\./",
           "group": "2_view@2"
+        },
+        {
+          "command": "dinah.tree.deleteAttachment",
+          "when": "view == dinah.workbenchView && viewItem == dinah.attachment",
+          "group": "1_attachment@1"
         }
       ]
     },

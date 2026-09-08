@@ -15,14 +15,14 @@
 import type { Spawner } from "./cli";
 import { runDinah } from "./cli";
 import type { CliOutcome } from "./cli";
-import { COMMAND_OPEN_ATTACHMENT } from "./identity";
+import { COMMAND_DELETE_ATTACHMENT, COMMAND_OPEN_ATTACHMENT } from "./identity";
 import { ENGLISH } from "./l10n";
 import type { Localizer } from "./l10n";
 import { KIND_HISTORY, KIND_INSTRUCTIONS } from "./servedText";
 import { nodeSpawner } from "./spawn";
 import type { TreeElement } from "./tree";
 import type { DetailAnswer, LegalMove, ServedAnswer } from "./wire";
-import { BACKWARD, FORWARD } from "./wire";
+import { ATTACHMENTS_SEGMENT, BACKWARD, FORWARD } from "./wire";
 
 /** One entry of a quick-pick, as the host renders it. */
 export interface PickItem {
@@ -83,6 +83,18 @@ export interface CommandHost {
 		ref: string,
 		title: string,
 	) => Promise<void>;
+	/**
+	 * Asks the reader to confirm an act that cannot be undone, and answers
+	 * whether they did.
+	 *
+	 * Two arguments rather than one because a modal dialog supplies its own
+	 * Cancel and takes the affirmative button's label from the caller, and both
+	 * strings are prose a reader meets, so both go through the localizer.
+	 */
+	readonly confirmDestructive: (
+		message: string,
+		confirmLabel: string,
+	) => Promise<boolean>;
 	/** Runs one off-cycle checkpoint for the folder the card stands in. */
 	readonly checkpoint: (folder: string) => Promise<void>;
 	readonly log: (line: string) => void;
@@ -404,8 +416,9 @@ export async function openCard(context: CommandContext): Promise<void> {
  * the whole of what opening one needs and it already rides the element the
  * row was drawn from. `openFile` rather than `openDocument`, because an
  * attachment is arbitrary bytes and the editor is the one to decide how to
- * render them (dinah-335's Decision 3); the row carries no context menu
- * either (Decision 4), and its plain click is the whole of what it offers.
+ * render them (dinah-335's Decision 3). The plain click is the whole of what
+ * this handler offers; the row's context menu arrived with dinah-451 and is
+ * deleteAttachment below.
  *
  * The channel line goes through a callback of its own rather than through
  * the host, so a row that names no openable file reports itself without
@@ -426,4 +439,91 @@ export async function openAttachment(
 		return;
 	}
 	await host.openFile(path);
+}
+
+/**
+ * The context an attachment row's own verbs run in.
+ *
+ * The reference is composed from the attachment's identifier rather than from
+ * `view.ref`. `view.ref` ends in the attachment's position within its
+ * collection, and a position shifts when an earlier attachment is deleted, so
+ * a row drawn before somebody else's delete-then-attach would address a
+ * different file with nothing refused. The identifier the listing reported is
+ * what the row was drawn from and it names one attachment for as long as that
+ * attachment exists.
+ *
+ * The absent element is checked by isRow before any field is read, which is
+ * the ordering dinah-342 found wrong under six commands at once.
+ *
+ * The spawner is injected rather than reached for, which is what
+ * contextForAttach and contextForColumn already do for the same reason: a
+ * command composing its own context from an element is otherwise a command no
+ * unit test can watch spawn, since nothing between the element and the call
+ * belongs to the caller.
+ */
+export function contextForAttachment(
+	element: TreeElement | undefined,
+	exe: string,
+	host: CommandHost,
+	spawner: Spawner,
+): CommandContext | undefined {
+	if (!isRow(element, "attachment")) {
+		return undefined;
+	}
+	if (element.owner === "" || element.root === "" || element.view.id === "") {
+		return undefined;
+	}
+	return {
+		spawner,
+		exe,
+		host,
+		folder: element.row.folder,
+		root: element.root,
+		ref: `${element.owner}/${ATTACHMENTS_SEGMENT}/${element.view.id}`,
+	};
+}
+
+/**
+ * Deletes an attachment, after asking the reader to confirm it.
+ *
+ * The confirmation is the extension's own, because the tool's answer to the
+ * same question is a required `--yes` marker rather than a prompt, and a
+ * marker composed in code asks nobody anything. The sentence names the file
+ * and the address the row was drawn from, since an attachment row is labelled
+ * by filename alone and one entity may carry several.
+ *
+ * A declined confirmation returns undefined having spawned nothing, so the
+ * board is not re-read for an act that did not happen. Everything after the
+ * confirmation is runVerb's, which reports a refusal and checkpoints either
+ * way.
+ */
+export async function deleteAttachment(
+	element: TreeElement | undefined,
+	exe: string,
+	host: CommandHost,
+	spawner: Spawner,
+	log: (line: string) => void,
+): Promise<CliOutcome | undefined> {
+	if (!isRow(element, "attachment")) {
+		log(`${COMMAND_DELETE_ATTACHMENT} was invoked on a row that names no attachment`);
+		return undefined;
+	}
+	const context = contextForAttachment(element, exe, host, spawner);
+	if (context === undefined) {
+		log(
+			`${COMMAND_DELETE_ATTACHMENT} was invoked on an attachment row that composes no reference`,
+		);
+		return undefined;
+	}
+	const confirmed = await host.confirmDestructive(
+		host.t("dialog.attachment.delete.confirm", {
+			filename: element.view.filename,
+			ref: element.view.ref,
+		}),
+		host.t("dialog.attachment.delete.action"),
+	);
+	if (!confirmed) {
+		return undefined;
+	}
+	return runVerb(context, ["delete", context.ref, "--yes"]);
 }
