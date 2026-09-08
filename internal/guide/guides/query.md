@@ -80,9 +80,9 @@ card that has since moved on. It does not return a card that entered Doing in
 June and was commented on in August, because the five journal fields all have
 to be satisfied by one and the same recorded act.
 
-Use `!=` to ask for the opposite of any of the nine fields that take `:`. On a
-card field it means what you expect, so `column!=done` returns every card that
-is not in Done. On a journal field the negation applies inside the one act, so
+Use `!=` to ask for the opposite of any field that takes `:`. On a card field
+it means what you expect, so `column!=done` returns every card that is not in
+Done. On a journal field the negation applies inside the one act, so
 `actor:alka event!=commented` asks for an act by Alka that was not a comment.
 
 ## What a mistake looks like

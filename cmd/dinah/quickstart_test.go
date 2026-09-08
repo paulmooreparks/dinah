@@ -1729,3 +1729,68 @@ func numberWord(n int) string {
 	}
 	return ten + "-" + units[n%10]
 }
+
+// TestTheQuickStartWorkbenchFileDeclaresWhatTheBinaryWrites holds the
+// narrative's own workbench anchor against the constants a fresh `dinah init`
+// stamps into one.
+//
+// The replay cannot catch this. writeNarrativeFile writes a `file` block's
+// bytes over the sandbox's workbench.md before the next command runs, and
+// normalisationTable restores nothing about a storage format or a profile
+// revision, so the document's declared values are written through verbatim and
+// the `dinah export` transcript later in the document echoes them back. The
+// guard passes on a document that agrees with itself. That loop is how
+// `dinah-core/0.9` survived four profile revisions, so this check reads the
+// constants instead.
+func TestTheQuickStartWorkbenchFileDeclaresWhatTheBinaryWrites(t *testing.T) {
+	const anchorPath = "<workbench>/workbench.md"
+	blocks := parseQuickStart(readQuickStart(t))
+	selected := 0
+	for _, block := range blocks {
+		if block.kind != "file" {
+			continue
+		}
+		if path, ok := block.directive("path"); !ok || path != anchorPath {
+			continue
+		}
+		selected++
+		checkAnchorBlockDeclaresTheBinarysValues(t, block)
+	}
+	if selected == 0 {
+		t.Fatalf("no `file path=%s` block in %s, so this check read nothing", anchorPath, quickStartPath)
+	}
+}
+
+// checkAnchorBlockDeclaresTheBinarysValues compares one anchor block's
+// `format:` and `profile:` lines against internal/bench. A block declaring
+// neither key fails, because a workbench anchor that declares neither is not
+// the shape the narrative is teaching, and because a selector that matches a
+// block with nothing in it to read is the vacuous pass this guard exists to
+// avoid.
+func checkAnchorBlockDeclaresTheBinarysValues(t *testing.T, block quickBlock) {
+	t.Helper()
+	wanted := map[string]string{
+		"format":  strconv.Itoa(bench.StorageFormat),
+		"profile": bench.ProfileVersion,
+	}
+	found := map[string]bool{}
+	for i, line := range block.body {
+		key, value, ok := strings.Cut(line, ":")
+		if !ok {
+			continue
+		}
+		want, governed := wanted[key]
+		if !governed {
+			continue
+		}
+		found[key] = true
+		if got := strings.TrimSpace(value); got != want {
+			t.Errorf("%s:%d declares %s: %s and the binary writes %s: %s",
+				quickStartPath, block.bodyAt+i, key, got, key, want)
+		}
+	}
+	if !found["format"] && !found["profile"] {
+		t.Errorf("the `file` block at %s:%d declares neither `format` nor `profile`, so a workbench anchor's two stamped values are unheld",
+			quickStartPath, block.fence)
+	}
+}
