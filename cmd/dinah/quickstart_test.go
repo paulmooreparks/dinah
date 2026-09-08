@@ -32,9 +32,13 @@ import (
 //   - Whether the prose is clear, whether the order helps a beginner, and
 //     whether an example teaches the right thing. Nothing mechanical reaches
 //     any of it.
-//   - A count written out in prose. The document states how many commands
-//     `dinah help` lists and how many tools the MCP head carries, and no
-//     check here reads either sentence.
+//   - A count written out in prose, except where prose_figure_test.go reaches
+//     it. That guard registers nine countable nouns and holds the 23 figures
+//     standing beside one of them, which includes the sentence saying how many
+//     commands `dinah help` lists. It reads nothing standing beside any other
+//     noun, so a figure counting refusals or workstreams is still held by
+//     nothing here. That file's own doc comment states the rest of the
+//     boundary.
 //   - A claim the document makes in prose instead of showing. "Dinah does not
 //     touch a name you have already given it" is a real promise and no
 //     transcript demonstrates it.
@@ -52,10 +56,13 @@ import (
 //     only letters, digits, and spaces outside its placeholders and whose
 //     interpolated value carries a space, since such a rendering reads its
 //     placeholders as runs of non-space characters.
-//   - The three embedded guides carry no transcript at all, so the replay
-//     never reads them, and the source checks are the whole of their
-//     coverage. A transcript added to getting-started.md tomorrow is guarded
-//     by nothing until somebody widens the replay's corpus.
+//   - The embedded guides carry no transcript at all, so the replay never
+//     reads them, and the source checks are the whole of their coverage. A
+//     transcript added to getting-started.md tomorrow is still not driven,
+//     but it is no longer unheld: guide_block_test.go fails on a fenced block
+//     the guide ledger does not declare, and it fails again on a block
+//     declared as commands that shows output. What no check does is run the
+//     commands a guide shows and compare what they print.
 //   - The argument grammar of the three checksum commands and of the
 //     PowerShell install line. Those four lines drive another tool, so
 //     nothing here runs them. The URL check holds the URL the PowerShell line
@@ -362,7 +369,7 @@ func parseExemption(line string) (quickExemption, error) {
 		return entry, fmt.Errorf("the entry opens %q, and an entry opens with the line it names", first)
 	}
 	entry.at = at
-	for key, value := range splitDirectives(rest) {
+	for key, value := range splitDirectives(rest, exemptionKeys) {
 		switch key {
 		case "reason":
 			entry.reason = value
@@ -385,9 +392,16 @@ func parseExemption(line string) (quickExemption, error) {
 }
 
 // splitDirectives reads a run of key=value directives whose values carry
-// spaces. A word whose text before its first equals sign is one of the known
-// keys opens a value; every other word continues the value it stands in.
-func splitDirectives(rest string) map[string]string {
+// spaces. A word whose text before its first equals sign is one of the keys
+// the caller declares opens a value; every other word continues the value it
+// stands in.
+//
+// The key set is the caller's rather than this file's, because four ledgers
+// now share this grammar and each one declares its own directives. A splitter
+// holding one file's key set would read another file's `counts=` phrase as
+// part of the value before it, which is a parser that silently agrees with
+// whatever it is handed.
+func splitDirectives(rest string, keys []string) map[string]string {
 	found := map[string]string{}
 	key := ""
 	var value []string
@@ -398,7 +412,7 @@ func splitDirectives(rest string) map[string]string {
 	}
 	for _, word := range strings.Fields(rest) {
 		name, opened, ok := strings.Cut(word, "=")
-		if ok && knownExemptionKey(name) {
+		if ok && namesADirective(name, keys) {
 			flush()
 			key, value = name, nil
 			if opened != "" {
@@ -412,15 +426,174 @@ func splitDirectives(rest string) map[string]string {
 	return found
 }
 
-// knownExemptionKey reports whether a word names one of the exemption file's
-// own directives.
-func knownExemptionKey(name string) bool {
-	for _, known := range exemptionKeys {
+// namesADirective reports whether a word names one of a ledger's own
+// directives.
+func namesADirective(name string, keys []string) bool {
+	for _, known := range keys {
 		if known == name {
 			return true
 		}
 	}
 	return false
+}
+
+// quickStartFileBlocks is the ledger holding the document's `file` blocks
+// against the files the binary wrote.
+var quickStartFileBlocks = filepath.Join("testdata", "quickstart-file-blocks.txt")
+
+// fileBlockKeys are the directives an entry of that ledger may carry.
+var fileBlockKeys = []string{"teaches", "reason", "because"}
+
+// quickFileEntry is one entry of the file-block ledger: one `file` block, and
+// the frontmatter keys it is allowed to differ from the sandbox about.
+type quickFileEntry struct {
+	// at is the one-based line the block's opening fence stands on.
+	at int
+	// teaches are the keys the block declares, whose values the document
+	// keeps. teachesNone says the block declares none, and because carries
+	// why.
+	teaches     []string
+	teachesNone bool
+	because     string
+	// declared says whether a teaches= directive was written at all.
+	declared bool
+	// unwritten says the block lands where the tool wrote nothing, so
+	// there is no file to hold it against.
+	unwritten bool
+	// reason is why, and every entry carries one under reason= or, for a
+	// teaches=none entry, under because=.
+	reason string
+	// source is the one-based line of the entry, for a finding to name.
+	source int
+}
+
+// readQuickStartFileBlocks reads the file-block ledger. A blank line and a
+// line opening with a hash are commentary.
+func readQuickStartFileBlocks(t *testing.T) []quickFileEntry {
+	t.Helper()
+	source, err := os.ReadFile(quickStartFileBlocks)
+	if err != nil {
+		t.Fatalf("read %s: %v", quickStartFileBlocks, err)
+	}
+	var entries []quickFileEntry
+	for number, line := range strings.Split(strings.ReplaceAll(string(source), "\r\n", "\n"), "\n") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		entry, err := parseFileBlockEntry(trimmed)
+		if err != nil {
+			t.Errorf("%s:%d: %v", quickStartFileBlocks, number+1, err)
+			continue
+		}
+		entry.source = number + 1
+		entries = append(entries, entry)
+	}
+	if len(entries) == 0 {
+		t.Fatalf("%s names no block, so the file-block rules read nothing", quickStartFileBlocks)
+	}
+	return entries
+}
+
+// parseFileBlockEntry reads one entry, whose first word is the line its
+// block's opening fence stands on. The word `unwritten` may follow it, and it
+// is a bare word rather than a directive because it takes no value.
+func parseFileBlockEntry(line string) (quickFileEntry, error) {
+	entry := quickFileEntry{}
+	first, rest, _ := strings.Cut(line, " ")
+	at, err := strconv.Atoi(first)
+	if err != nil {
+		return entry, fmt.Errorf("the entry opens %q, and an entry opens with the line its block's fence stands on", first)
+	}
+	entry.at = at
+	if word, remainder, _ := strings.Cut(rest, " "); word == "unwritten" {
+		entry.unwritten = true
+		rest = remainder
+	}
+	for key, value := range splitDirectives(rest, fileBlockKeys) {
+		switch key {
+		case "reason":
+			entry.reason = value
+		case "because":
+			entry.because = value
+		case "teaches":
+			entry.declared = true
+			if value == "none" {
+				entry.teachesNone = true
+				continue
+			}
+			for _, taught := range strings.Split(value, ",") {
+				if taught = strings.TrimSpace(taught); taught != "" {
+					entry.teaches = append(entry.teaches, taught)
+				}
+			}
+		}
+	}
+	switch {
+	case entry.unwritten && entry.reason == "":
+		return entry, fmt.Errorf("an unwritten entry declares no reason=, and the reason says why the tool wrote nothing there")
+	case entry.unwritten:
+		return entry, nil
+	case !entry.declared:
+		return entry, fmt.Errorf("the entry declares neither teaches= nor teaches=none, so nothing says which keys the block is allowed to differ about")
+	case entry.teachesNone && entry.because == "":
+		return entry, fmt.Errorf("a teaches=none entry declares no because=, and the because says why the block teaches no key of its own")
+	case !entry.teachesNone && entry.reason == "":
+		return entry, fmt.Errorf("the entry declares no reason=, and the reason says why the document keeps its own value for the keys it teaches")
+	}
+	return entry, nil
+}
+
+// holdingFor returns the entry naming a block's fence, and a zero entry when
+// no entry names it. checkFileBlockEntries is what reports the absence, so the
+// replay does not have to.
+func holdingFor(entries []quickFileEntry, fence int) quickFileEntry {
+	for _, entry := range entries {
+		if entry.at == fence {
+			return entry
+		}
+	}
+	return quickFileEntry{}
+}
+
+// checkFileBlockEntries holds the file-block ledger to the document: every
+// `file` block carries an entry, and every entry names a `file` block.
+//
+// These rules are evaluated for every `file` block the document carries,
+// independently of the two cases the comparison in writeNarrativeFile skips. A
+// block whose body carries no frontmatter, and a block landing where the tool
+// wrote nothing, are skipped by the comparison and are still held here, so a
+// block cannot fall out of the ledger by being one the comparison never reads.
+func checkFileBlockEntries(t *testing.T, blocks []quickBlock, entries []quickFileEntry) {
+	t.Helper()
+	standing := map[int]bool{}
+	for _, block := range blocks {
+		if block.kind != "file" {
+			continue
+		}
+		standing[block.fence] = true
+		named := false
+		for _, entry := range entries {
+			if entry.at == block.fence {
+				named = true
+				break
+			}
+		}
+		if !named {
+			t.Errorf("%s:%d opens a `file` block and %s carries no entry for it; declare which frontmatter keys the block teaches",
+				quickStartPath, block.fence, quickStartFileBlocks)
+		}
+	}
+	if len(standing) == 0 {
+		t.Fatalf("%s carries no `file` block, so the file-block rules read nothing", quickStartPath)
+	}
+	for _, entry := range entries {
+		if standing[entry.at] {
+			continue
+		}
+		t.Errorf("%s:%d: the entry names %s:%d, and no `file` block opens there",
+			quickStartFileBlocks, entry.source, quickStartPath, entry.at)
+	}
 }
 
 // exempt reports whether a block is one the replay does not drive, either
@@ -803,12 +976,14 @@ func TestTheQuickStartMatchesTheTool(t *testing.T) {
 	checkEveryTranscriptDeclaresItsFence(t, blocks)
 	checkTranscriptPathsAreTheNarrative(t, blocks)
 	checkSeparatorRowsMatchTheirTables(t, blocks)
+	holding := readQuickStartFileBlocks(t)
+	checkFileBlockEntries(t, blocks, holding)
 
-	captured := replayQuickStart(t, blocks, replayColumns)
+	captured := replayQuickStart(t, blocks, replayColumns, holding, true)
 	if len(captured) == 0 {
 		t.Fatal("the replay drove no block, so this test proves nothing")
 	}
-	checkNothingStacksOrWraps(t, blocks, captured, replayQuickStart(t, blocks, wideningColumns))
+	checkNothingStacksOrWraps(t, blocks, captured, replayQuickStart(t, blocks, wideningColumns, holding, false))
 
 	if *updateQuickStart {
 		rewriteQuickStart(t, lines, blocks, captured)
@@ -1197,7 +1372,12 @@ func applyBlockEnvironment(block quickBlock) func() {
 // outside the developer's home so the ancestor walk cannot reach a real
 // workbench, so the replay needs no isolation of its own and writes nothing
 // outside the tree t.TempDir() gave it.
-func replayQuickStart(t *testing.T, blocks []quickBlock, columns string) map[int]quickCapture {
+// The report argument says whether this replay reports what a file block
+// disagreed with the sandbox about. The document is replayed twice, at two
+// window widths, and the frontmatter comparison reads the same two files both
+// times, so the second run holds identical ground and would only say the same
+// thing twice.
+func replayQuickStart(t *testing.T, blocks []quickBlock, columns string, holding []quickFileEntry, report bool) map[int]quickCapture {
 	t.Helper()
 	root := t.TempDir()
 	t.Setenv("DINAH_HOME", root)
@@ -1212,7 +1392,7 @@ func replayQuickStart(t *testing.T, blocks []quickBlock, columns string) map[int
 	for _, block := range blocks {
 		switch {
 		case block.kind == "file":
-			writeNarrativeFile(t, cwd, block)
+			writeNarrativeFile(t, cwd, block, holdingFor(holding, block.fence), report)
 		case block.kind == "console" && !block.exempt():
 			capture, next := replayBlock(t, cwd, block)
 			captured[block.fence] = capture
@@ -1229,7 +1409,29 @@ func replayQuickStart(t *testing.T, blocks []quickBlock, columns string) map[int
 // the sandbox minted its own, so the identifiers standing in the file this run
 // built are restored into those bytes before they land. Writing the document's
 // values would name columns no workbench here declares.
-func writeNarrativeFile(t *testing.T, cwd string, block quickBlock) {
+//
+// Restoring those identifiers is not the whole of what a file block writes,
+// and the rest is what dinah-448 closes. Every other value the block declares
+// used to land in the sandbox verbatim, so a later transcript echoed the
+// document's own `format:` and `profile:` back and the replay proved the
+// document agreed with itself. Three steps stand between the restoration and
+// the write now. The frontmatter of the restored body and of the file standing
+// in the sandbox are read, every key the two share is compared, and a
+// disagreement fails unless the ledger declares that the block teaches that
+// key. Then the block is written with every shared key it does not teach
+// taking the standing file's value, so the document can no longer inject a
+// stale value into the sandbox.
+//
+// The ordering is part of the contract. The identifier restoration runs first,
+// so the minted `columns:` list of a workbench anchor is reconciled before the
+// comparison reads it and never appears as a divergence.
+//
+// A key the standing file does not carry is not shared, so it is written
+// through unchecked, which is right because the tool never had an opinion
+// about it. That, and a declared key, are what keep a file block's second
+// purpose intact: the reader's hand edit still lands, so the transcripts after
+// it still show the title and the wip limit the section taught.
+func writeNarrativeFile(t *testing.T, cwd string, block quickBlock, holding quickFileEntry, report bool) {
 	t.Helper()
 	where, ok := block.directive("path")
 	if !ok {
@@ -1240,16 +1442,112 @@ func writeNarrativeFile(t *testing.T, cwd string, block quickBlock) {
 		t.Fatalf("%s:%d: %v", quickStartPath, block.fence, err)
 	}
 	body := strings.Join(block.body, "\n") + "\n"
-	if standing, err := os.ReadFile(target); err == nil {
-		restored, err := restoreDocumentValues(body, valuesByClass(string(standing)), "the document's file block", "the file standing in the sandbox")
-		if err != nil {
-			t.Fatalf("%s:%d: %v", quickStartPath, block.fence, err)
+	standing, err := os.ReadFile(target)
+	if err != nil {
+		if report && !holding.unwritten {
+			t.Errorf("%s:%d: the sandbox carries no %s for the block to be held against, and %s:%d does not declare the block unwritten",
+				quickStartPath, block.fence, where, quickStartFileBlocks, holding.source)
 		}
-		body = restored
+		writeNarrativeBytes(t, target, block, body)
+		return
 	}
+	restored, err := restoreDocumentValues(body, valuesByClass(string(standing)), "the document's file block", "the file standing in the sandbox")
+	if err != nil {
+		t.Fatalf("%s:%d: %v", quickStartPath, block.fence, err)
+	}
+	lines := strings.Split(strings.TrimSuffix(restored, "\n"), "\n")
+	shown, framed := frontmatterOf(lines)
+	written, standingFramed := frontmatterOf(strings.Split(strings.ReplaceAll(string(standing), "\r\n", "\n"), "\n"))
+	if !framed || !standingFramed {
+		writeNarrativeBytes(t, target, block, restored)
+		return
+	}
+	held := map[string]string{}
+	for _, key := range written {
+		held[key.key] = key.value
+	}
+	taught := map[string]bool{}
+	for _, key := range holding.teaches {
+		taught[key] = true
+	}
+	agreed := map[string]bool{}
+	for _, key := range shown {
+		value, shared := held[key.key]
+		if !shared {
+			continue
+		}
+		if value == key.value {
+			agreed[key.key] = true
+			continue
+		}
+		if taught[key.key] {
+			continue
+		}
+		if report {
+			t.Errorf("%s:%d declares %s: %s and the file the binary wrote carries %s: %s; either the document is stale or %s:%d declares that the block teaches the key",
+				quickStartPath, block.bodyAt+key.at, key.key, key.value, key.key, value, quickStartFileBlocks, holding.source)
+		}
+		lines[key.at] = lines[key.at][:strings.Index(lines[key.at], ":")+1] + " " + value
+	}
+	if report {
+		for _, key := range holding.teaches {
+			if agreed[key] {
+				t.Errorf("%s:%d declares that the block at %s:%d teaches %s, and the two values agree, so the key does not need declaring",
+					quickStartFileBlocks, holding.source, quickStartPath, block.fence, key)
+			}
+		}
+	}
+	writeNarrativeBytes(t, target, block, strings.Join(lines, "\n")+"\n")
+}
+
+// writeNarrativeBytes lands a file block's bytes, naming the block when the
+// write fails.
+func writeNarrativeBytes(t *testing.T, target string, block quickBlock, body string) {
+	t.Helper()
 	if err := os.WriteFile(target, []byte(body), 0o644); err != nil {
 		t.Fatalf("%s:%d: %v", quickStartPath, block.fence, err)
 	}
+}
+
+// frontmatterKey is one `key: value` line of a frontmatter block, with the
+// index of the line it stands on among the lines it was read from.
+type frontmatterKey struct {
+	key   string
+	value string
+	at    int
+}
+
+// frontmatterOf reads the block between the opening `---` line and the next
+// one, and reports whether the lines carry such a block at all. A line
+// carrying no colon is a list member or prose rather than a key, and it is not
+// read as one.
+func frontmatterOf(lines []string) ([]frontmatterKey, bool) {
+	opened := -1
+	for i, line := range lines {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		if strings.TrimSpace(line) != "---" {
+			return nil, false
+		}
+		opened = i
+		break
+	}
+	if opened < 0 {
+		return nil, false
+	}
+	var keys []frontmatterKey
+	for i := opened + 1; i < len(lines); i++ {
+		if strings.TrimSpace(lines[i]) == "---" {
+			return keys, true
+		}
+		key, value, ok := strings.Cut(lines[i], ":")
+		if !ok || strings.TrimSpace(key) != key || key == "" {
+			continue
+		}
+		keys = append(keys, frontmatterKey{key: key, value: strings.TrimSpace(value), at: i})
+	}
+	return nil, false
 }
 
 // columnReference matches the one placeholder a file block's path may carry
@@ -1680,117 +1978,4 @@ func separatorRow(indent int, widths []int) string {
 		built.WriteString(rule(width))
 	}
 	return built.String()
-}
-
-// TestTheQuickStartCountsTheCommandsTheBinaryOffers holds one sentence of the
-// quick start against the binary it describes.
-//
-// The replay drives the transcript blocks and reads none of the prose around
-// them, so a command added to the binary moves the number in this sentence
-// and nothing notices. It has been wrong twice: once when dinah-213 corrected
-// it, and once when this card added the command that made the correction
-// stale again.
-func TestTheQuickStartCountsTheCommandsTheBinaryOffers(t *testing.T) {
-	listed := 0
-	for _, c := range commands {
-		if c.group != "" {
-			listed++
-		}
-	}
-	if listed == 0 {
-		t.Fatal("the binary offers no grouped command, so this check read nothing")
-	}
-	body, err := os.ReadFile(quickStartPath)
-	if err != nil {
-		t.Fatalf("reading the quick start: %v", err)
-	}
-	found := regexp.MustCompile("lists all ([a-z-]+) commands").FindSubmatch(body)
-	if found == nil {
-		t.Fatal("the quick start no longer says how many commands `dinah help` lists, so this check has lost its subject")
-	}
-	if want := numberWord(listed); string(found[1]) != want {
-		t.Errorf("the quick start says `dinah help` lists all %s commands and the binary offers %s", found[1], want)
-	}
-}
-
-// numberWord spells a whole number from twenty to ninety-nine the way the
-// guides spell one. The range is the range a command count can occupy in a
-// document a reader would notice, and a number outside it returns the digits
-// so a caller sees the miss rather than a plausible wrong word.
-func numberWord(n int) string {
-	tens := map[int]string{2: "twenty", 3: "thirty", 4: "forty", 5: "fifty", 6: "sixty", 7: "seventy", 8: "eighty", 9: "ninety"}
-	units := []string{"", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"}
-	ten, ok := tens[n/10]
-	if !ok {
-		return strconv.Itoa(n)
-	}
-	if n%10 == 0 {
-		return ten
-	}
-	return ten + "-" + units[n%10]
-}
-
-// TestTheQuickStartWorkbenchFileDeclaresWhatTheBinaryWrites holds the
-// narrative's own workbench anchor against the constants a fresh `dinah init`
-// stamps into one.
-//
-// The replay cannot catch this. writeNarrativeFile writes a `file` block's
-// bytes over the sandbox's workbench.md before the next command runs, and
-// normalisationTable restores nothing about a storage format or a profile
-// revision, so the document's declared values are written through verbatim and
-// the `dinah export` transcript later in the document echoes them back. The
-// guard passes on a document that agrees with itself. That loop is how
-// `dinah-core/0.9` survived four profile revisions, so this check reads the
-// constants instead.
-func TestTheQuickStartWorkbenchFileDeclaresWhatTheBinaryWrites(t *testing.T) {
-	const anchorPath = "<workbench>/workbench.md"
-	blocks := parseQuickStart(readQuickStart(t))
-	selected := 0
-	for _, block := range blocks {
-		if block.kind != "file" {
-			continue
-		}
-		if path, ok := block.directive("path"); !ok || path != anchorPath {
-			continue
-		}
-		selected++
-		checkAnchorBlockDeclaresTheBinarysValues(t, block)
-	}
-	if selected == 0 {
-		t.Fatalf("no `file path=%s` block in %s, so this check read nothing", anchorPath, quickStartPath)
-	}
-}
-
-// checkAnchorBlockDeclaresTheBinarysValues compares one anchor block's
-// `format:` and `profile:` lines against internal/bench. A block declaring
-// neither key fails, because a workbench anchor that declares neither is not
-// the shape the narrative is teaching, and because a selector that matches a
-// block with nothing in it to read is the vacuous pass this guard exists to
-// avoid.
-func checkAnchorBlockDeclaresTheBinarysValues(t *testing.T, block quickBlock) {
-	t.Helper()
-	wanted := map[string]string{
-		"format":  strconv.Itoa(bench.StorageFormat),
-		"profile": bench.ProfileVersion,
-	}
-	found := map[string]bool{}
-	for i, line := range block.body {
-		key, value, ok := strings.Cut(line, ":")
-		if !ok {
-			continue
-		}
-		want, governed := wanted[key]
-		if !governed {
-			continue
-		}
-		found[key] = true
-		if got := strings.TrimSpace(value); got != want {
-			t.Errorf("%s:%d declares %s: %s and the binary writes %s: %s",
-				quickStartPath, block.bodyAt+i, key, got, key, want)
-		}
-	}
-	if !found["format"] && !found["profile"] {
-		t.Errorf("the `file` block at %s:%d declares neither `format` nor `profile`, so a workbench anchor's two stamped values are unheld",
-			quickStartPath, block.fence)
-	}
 }

@@ -1,0 +1,75 @@
+# The prose figure ledger.
+#
+# A transcript that disagrees with the tool is caught by the replay, and until
+# this file existed a sentence that disagreed with the tool was caught by
+# nothing. Each entry below stands for one figure written out in prose, beside
+# one registered noun, at one line of one document, and it says what set the
+# figure counts and what holds the figure to that set.
+#
+# The reach of the scan is the nouns registered here and nothing else. A figure
+# standing beside a noun this file does not register is invisible, and nothing
+# anywhere notices that a new countable noun has entered the documents. When
+# you write a sentence counting something, either write it about a noun this
+# file already registers or add the noun, because nothing will remind you.
+#
+# A `counts=` phrase is prose naming the set the figure counts, and it is never
+# the literal `none`. Entries sharing a phrase must agree about the figure and
+# about how the figure is held, so a shared sentinel would group unrelated
+# figures together and redden a run over a collision rather than over a
+# disagreement. A figure that counts nothing still stands for something, and
+# the phrase says what it stands for.
+#
+# An entry carries `derives=` naming a derivation the checks compute, or
+# `holds=` naming why no derivation reaches it. Four holdings are allowed, and
+# they are not worth the same:
+#
+#   partitive   The figure counts a member or a subset rather than the set.
+#               It requires a reason.
+#   elsewhere   Another test in the tree holds the figure. The check proves
+#               that the named test is declared and nothing more, so the
+#               reason carries the claim that the test reads the document and
+#               counts, and a person is the one who checked it.
+#   unreachable The tree declares the set where this package cannot read it.
+#               The check proves the named line carries the named identifier,
+#               which points a reader at the declaration and holds nothing.
+#               A figure of this class goes stale in silence when the set it
+#               names grows, and two of the entries below sit in that state
+#               today.
+#   prose       The tree declares the set nowhere. It requires a reason.
+#
+# A noun line registers one countable noun for the scan and carries nothing
+# else.
+
+noun commands
+noun fields
+noun flags
+noun groups
+noun kinds
+noun outcomes
+noun settings
+noun tools
+noun verbs
+
+docs/quick-start.md:105 figure=fifty-one noun=commands counts=the commands dinah help lists derives=groupedCommands
+docs/quick-start.md:105 figure=four noun=groups counts=the groups dinah help sorts its commands into derives=commandGroups
+docs/quick-start.md:222 figure=four noun=settings counts=the settings dinah config accepts derives=configKeys
+docs/quick-start.md:438 figure=five noun=commands counts=the verbs that change where a card stands derives=contractVerbs
+docs/quick-start.md:439 figure=five noun=commands counts=the verbs that change where a card stands derives=contractVerbs
+docs/quick-start.md:445 figure=three noun=commands counts=three of the reading commands holds=partitive reason=the sentence names ls, next, and show, which are three of the reading group rather than the whole of it
+docs/quick-start.md:546 figure=five noun=commands counts=the verbs that change where a card stands derives=contractVerbs
+docs/quick-start.md:561 figure=Five noun=commands counts=the verbs that change where a card stands derives=contractVerbs
+docs/quick-start.md:562 figure=five noun=verbs counts=the verbs that change where a card stands derives=contractVerbs
+docs/quick-start.md:756 figure=three noun=kinds counts=the checklist kinds a card may carry derives=checklistKinds
+docs/quick-start.md:888 figure=one noun=fields counts=nothing, since the figure stands for the workstream the sentence above names holds=prose reason=the sentence reads Naming one reads its fields, so one is a pronoun and no set is being counted
+docs/quick-start.md:1130 figure=two noun=groups counts=the two origins of a refusal name holds=prose reason=the groups are the shared rules and Dinah's own coinage, which no table in the tree declares as a set
+docs/quick-start.md:1493 figure=five noun=flags counts=the optional flags dinah column new accepts derives=columnNewFlags
+internal/guide/guides/first-session.md:99 figure=one noun=outcomes counts=one of the four outcomes a command reports holds=partitive reason=the sentence says one of four outcomes, so the figure counts the choice rather than the set
+internal/guide/guides/mcp.md:298 figure=Eight noun=tools counts=the MCP tools whose verb reads the request's basis holds=unreachable at=internal/mcp/tools.go:305 declares=injectedProperties
+internal/guide/guides/mcp.md:330 figure=two noun=kinds counts=the directory kinds the descent skips holds=prose reason=a dotted directory and a symbolic link are two branches of one walk rather than a set the tree declares
+internal/guide/guides/query.md:44 figure=Twelve noun=fields counts=the field names the query language admits derives=queryFields
+internal/guide/guides/query.md:80 figure=five noun=fields counts=the query fields read from a card's journal holds=unreachable at=internal/verb/query.go:72 declares=actPlane
+internal/guide/guides/references.md:60 figure=Ten noun=commands counts=the commands that take a reference holds=elsewhere by=TestTheReferencesGuideSaysWhichCommandTakesWhat reason=assertTheGuideCountsItsOwnTable at cmd/dinah/main_test.go:7213 reads the rendered guide, counts the rows of the drawn table, and holds this sentence against that count
+internal/guide/guides/verbs.md:1 figure=five noun=verbs counts=the verbs that change where a card stands derives=contractVerbs
+internal/guide/guides/verbs.md:3 figure=Five noun=verbs counts=the verbs that change where a card stands derives=contractVerbs
+internal/guide/guides/verbs.md:33 figure=two noun=commands counts=two of the five verbs holds=partitive reason=the two are claim and move, whose separate records a pull writes together
+internal/guide/guides/verbs.md:37 figure=one noun=outcomes counts=one of the four outcomes a command reports holds=partitive reason=the sentence says one of four outcomes, so the figure counts the choice rather than the set
