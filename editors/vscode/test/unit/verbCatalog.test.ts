@@ -14,7 +14,13 @@ import type { SpawnOutcome, Spawner } from "../../src/cli";
 import { ENGLISH } from "../../src/l10n";
 import { REQUEST_ID } from "../../src/mcpClient";
 import type { CatalogBuild } from "../../src/verbCatalog";
-import { buildCatalog, classifyProperty, verbPickItems } from "../../src/verbCatalog";
+import {
+	buildCatalog,
+	classifyProperty,
+	classifyTool,
+	readInjectedMarker,
+	verbPickItems,
+} from "../../src/verbCatalog";
 
 /** A spawner answering with the two JSON-RPC lines a real server writes. */
 function serving(tools: unknown[]): Spawner {
@@ -395,4 +401,67 @@ test("a list marker spelled as anything but true is refused", () => {
 		"x-dinah-vocabulary-members": ["card"],
 	});
 	assert.equal(verdict.kind, "unrenderable");
+});
+
+test("an injected marker spelled as anything but true is refused", () => {
+	// Read as absent, this would put a prompt for the head's own plumbing in
+	// front of a reader; read as present, it would drop an argument the verb
+	// needs and the call would be refused for a value nobody was asked for.
+	// Neither guess is dinah's declared rule, so the tool is excluded and says
+	// which property stopped it, exactly as the list marker's misspelling is.
+	const verdict = readInjectedMarker({
+		type: "string",
+		description: "who is acting",
+		"x-dinah-injected": "yes",
+	});
+	assert.equal(verdict.kind, "unrenderable");
+
+	const tool = classifyTool({
+		name: "move",
+		inputSchema: {
+			type: "object",
+			properties: {
+				card: { type: "string", description: "the card" },
+				actor: {
+					type: "string",
+					description: "who is acting",
+					"x-dinah-injected": "yes",
+				},
+			},
+			required: ["card"],
+		},
+	});
+	assert.equal(tool?.kind, "unrenderable");
+	assert.equal(
+		tool?.kind === "unrenderable" ? tool.excluded.argument : "",
+		"actor",
+		"the exclusion does not name the property that stopped it",
+	);
+});
+
+test("a property the head marks as its own is no argument at all", () => {
+	// The marked property leaves no VerbArgument behind, which is what keeps
+	// the wizard from prompting for it and keeps the composed call from
+	// carrying it. No name is written here or in the source: the fixture's
+	// property is held back because it carries the mark.
+	const tool = classifyTool({
+		name: "move",
+		inputSchema: {
+			type: "object",
+			properties: {
+				card: { type: "string", description: "the card" },
+				workbench: {
+					type: "string",
+					description: "the workbench",
+					"x-dinah-injected": true,
+				},
+			},
+			required: ["card"],
+		},
+	});
+	assert.equal(tool?.kind, "renderable");
+	assert.deepEqual(
+		tool?.kind === "renderable" ? tool.verb.args.map((arg) => arg.name) : [],
+		["card"],
+	);
 });

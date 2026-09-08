@@ -67,6 +67,42 @@ const WIZARD_TOOL = {
 	},
 };
 
+/**
+ * A tool carrying one argument its caller supplies and three the head does.
+ *
+ * `dinah mcp` fills in the acting name, the claim basis and the workbench on
+ * every call, and marks each of those properties with `x-dinah-injected` so a
+ * client can tell them from the arguments a reader has to answer. This is the
+ * shape every served tool really has, reduced to one ordinary argument so the
+ * count of prompts is a number a failure can name (dinah-420 AC15).
+ */
+const INJECTED_TOOL = {
+	name: "move",
+	description: "moves a card",
+	inputSchema: {
+		type: "object",
+		properties: {
+			card: { type: "string", description: "the card" },
+			actor: {
+				type: "string",
+				description: "who is acting",
+				"x-dinah-injected": true,
+			},
+			basis: {
+				type: "string",
+				description: "the claim basis",
+				"x-dinah-injected": true,
+			},
+			workbench: {
+				type: "string",
+				description: "the workbench",
+				"x-dinah-injected": true,
+			},
+		},
+		required: ["card"],
+	},
+};
+
 function rpc(id: number, result: unknown): string {
 	return `${JSON.stringify({ jsonrpc: "2.0", id, result })}\n`;
 }
@@ -534,4 +570,50 @@ test("the list prompt names the members a reader may combine", async () => {
 	// Two members together is the value the published enum had made illegal,
 	// and it travels as the reader typed it.
 	assert.deepEqual(showCall(d)?.arguments, { fields: "card,body" });
+});
+
+// ---------------------------------------------------------------------------
+// AC15: the head's own plumbing is never a question the reader is asked
+// ---------------------------------------------------------------------------
+
+test("a property the head fills in is neither prompted for nor sent", async () => {
+	const d = driver([], { outcome: "ok" }, [INJECTED_TOOL]);
+	d.picks = ["move"];
+	d.typed = ["dn-12"];
+	await runVerbFromPalette(d.context);
+
+	// One prompt, not four. The count is the assertion because the defect is a
+	// reader being asked to type a claim basis, and a wizard that asked for all
+	// three and dropped the answers would still compose the right call.
+	assert.deepEqual(
+		d.prompts.length,
+		1,
+		`the wizard raised ${String(d.prompts.length)} prompts: ${d.prompts.join(" | ")}`,
+	);
+	assert.ok(
+		d.prompts[0].includes("card"),
+		`the one prompt was not the card: ${d.prompts[0]}`,
+	);
+
+	const call = verbCall(d);
+	assert.ok(call !== undefined, "the wizard made no call for the verb");
+	assert.deepEqual(call.arguments, { card: "dn-12" });
+	assert.deepEqual(d.errors, []);
+});
+
+test("holding the head's plumbing back never costs the reader the verb", async () => {
+	// The other direction. A skipped property that had also been counted as an
+	// argument this build cannot draw would take the verb out of the palette
+	// altogether, and the reader would be told a count with no verb behind it.
+	const d = driver([], { outcome: "ok" }, [INJECTED_TOOL]);
+	d.picks = ["move"];
+	d.typed = ["dn-12"];
+	await runVerbFromPalette(d.context);
+
+	assert.deepEqual(
+		d.offered[0].map((item) => item.value),
+		["move"],
+		"the verb list is not the one tool the fixture served",
+	);
+	assert.deepEqual(d.logged, [], "an exclusion was logged for injected plumbing");
 });

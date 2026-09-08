@@ -12,7 +12,9 @@
 // fixed vocabulary whose members are combined into a comma-separated list,
 // `x-dinah-vocabulary-source` for a vocabulary a head resolves when it runs,
 // and `format: "duration"` for a value parsed as a duration. A list-valued
-// property carries `x-dinah-value-list: true` beside its members. This module
+// property carries `x-dinah-value-list: true` beside its members, and a
+// property the head fills in itself carries `x-dinah-injected: true` and is
+// never asked about. This module
 // turns each of those into the prompt a reader answers, and turns anything it
 // does not recognise into an exclusion carrying a reason rather than into a
 // guess.
@@ -43,6 +45,24 @@ export const VOCABULARY_MEMBERS_KEY = "x-dinah-vocabulary-members";
 
 /** The vendor key marking a property whose value is a comma-separated list. */
 export const VALUE_LIST_KEY = "x-dinah-value-list";
+
+/**
+ * The vendor key marking a property the head supplies rather than the caller.
+ *
+ * `dinah mcp` fills in the acting name, the claim basis and the workbench on
+ * every call it serves, and publishes those as ordinary schema properties so a
+ * client that wants to override one can. A wizard walking a reader through a
+ * verb's arguments must not ask for any of them: the transport already knows
+ * all three, and a reader asked for a claim basis has been handed a question
+ * about this extension's plumbing.
+ *
+ * The alternative was a list of the three names inside this extension, and the
+ * operator ruled against it on dinah-420. A name list is right until the head
+ * injects a fourth property, and then it is wrong in every installed copy of
+ * the extension at once, while the marker is right on the day the fourth one
+ * lands. Every other MCP client gets the same fact for the same reason.
+ */
+export const INJECTED_KEY = "x-dinah-injected";
 
 /** The one `format` this build knows how to prompt for. */
 export const DURATION_FORMAT = "duration";
@@ -270,6 +290,48 @@ export function classifyProperty(property: unknown): Classification {
 	return { kind: "prompt", prompt: { kind: "text" } };
 }
 
+/** What reading one property's injected marker came to. */
+type InjectedVerdict =
+	| { readonly kind: "injected" }
+	| { readonly kind: "argument" }
+	| { readonly kind: "unrenderable"; readonly detail: string };
+
+/**
+ * Reads the injected marker, which decides whether a property is an argument
+ * at all before anything asks what shape of prompt it would take.
+ *
+ * A marked property is skipped whatever else it carries, so a head that starts
+ * injecting a property of some shape written after this classifier was does
+ * not cost the reader the verb. That is the point of the order: an exclusion
+ * is what this build says about an argument it cannot draw, and a property the
+ * reader is never asked for is not an argument.
+ *
+ * A marker spelled as anything but `true` is a shape this build has no rule
+ * for, and it is read the way the list marker's is, as an exclusion rather
+ * than as a guess in either direction. Reading it as absent would prompt for
+ * plumbing; reading it as present would drop an argument the verb needs and
+ * refuse the call for a value nobody was asked for.
+ *
+ * A property that is not an object answers `argument`, so classifyProperty
+ * stays the one place that names that defect.
+ */
+export function readInjectedMarker(property: unknown): InjectedVerdict {
+	if (!isObject(property)) {
+		return { kind: "argument" };
+	}
+	const marker = property[INJECTED_KEY];
+	if (marker === undefined) {
+		return { kind: "argument" };
+	}
+	if (marker !== true) {
+		return {
+			kind: "unrenderable",
+			detail: `${INJECTED_KEY} spelled as ${JSON.stringify(marker)} rather than true`,
+		};
+	}
+	return { kind: "injected" };
+}
+
 /** What classifying one whole tool came to. */
 export type ToolVerdict =
 	| { readonly kind: "renderable"; readonly verb: RenderableVerb }
@@ -327,6 +389,16 @@ export function classifyTool(entry: unknown): ToolVerdict | undefined {
 	const required = isStringArray(schema["required"]) ? schema["required"] : [];
 	const args: VerbArgument[] = [];
 	for (const argument of orderArguments(properties, required)) {
+		const injected = readInjectedMarker(properties[argument]);
+		if (injected.kind === "unrenderable") {
+			return {
+				kind: "unrenderable",
+				excluded: { name, argument, detail: injected.detail },
+			};
+		}
+		if (injected.kind === "injected") {
+			continue;
+		}
 		const classified = classifyProperty(properties[argument]);
 		if (classified.kind === "unrenderable") {
 			return {

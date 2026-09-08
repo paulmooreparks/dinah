@@ -25,7 +25,7 @@ import { after, test } from "node:test";
 
 import { REQUEST_ID, callMcp } from "../../src/mcpClient";
 import { nodeSpawner } from "../../src/spawn";
-import { buildCatalog } from "../../src/verbCatalog";
+import { INJECTED_KEY, buildCatalog } from "../../src/verbCatalog";
 import type { FixtureRoot } from "../support/fixtures";
 import { buildBinary, fixtureEnv } from "../support/fixtures";
 
@@ -122,7 +122,45 @@ test("the palette can render every tool this commit's binary publishes", async (
 		(tools as { name: string }[]).map((tool) => tool.name).sort(),
 		"the palette's verbs are not the tools the binary published",
 	);
+
+	// The head marks every property it fills in itself, and the palette holds
+	// those back by reading the mark rather than by naming actor, basis and
+	// workbench in its own source. Two assertions, because the halves fail in
+	// opposite directions: a head that published the mark nowhere would leave
+	// the extension's rule reading nothing, and an extension that ignored the
+	// mark would prompt a reader for plumbing while every fixture still passed.
+	const marked = new Map<string, string[]>();
+	for (const tool of tools as LiveTool[]) {
+		const properties = tool.inputSchema?.properties ?? {};
+		const names = Object.keys(properties).filter(
+			(name) => properties[name]?.[INJECTED_KEY] === true,
+		);
+		if (names.length > 0) {
+			marked.set(tool.name, names);
+		}
+	}
+	assert.ok(
+		marked.size > 0,
+		`no tool this binary publishes carries ${INJECTED_KEY}, so the rule that holds the head's plumbing back reads nothing`,
+	);
+	for (const verb of catalog.verbs) {
+		const held = marked.get(verb.name) ?? [];
+		const asked = verb.args.map((arg) => arg.name).filter((name) => held.includes(name));
+		assert.deepEqual(
+			asked,
+			[],
+			`the palette would prompt for ${verb.name}'s ${asked.join(", ")}, which the binary marked as ${INJECTED_KEY}`,
+		);
+	}
 });
+
+/** One entry of the live tool table, read for the marks it publishes. */
+interface LiveTool {
+	readonly name: string;
+	readonly inputSchema?: {
+		readonly properties?: Record<string, Record<string, unknown>>;
+	};
+}
 
 test("the live transport answers the request it was sent and not the handshake", async () => {
 	// The reader of the answer picks the response by id, so a transport that

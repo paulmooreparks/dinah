@@ -385,6 +385,14 @@ func declaredArgNames(t tool) map[string]bool {
 // parameter list is declaredArgNames' answer, since a property offered here
 // and refused there would tell a caller two different things.
 //
+// A property this head injects rather than reads off the parameter table
+// carries "x-dinah-injected": true. A client that composes a call needs to
+// tell an argument its caller supplies from the plumbing the transport fills
+// in, and without that key the only way to draw the line is to name actor,
+// basis and workbench in the client's own source. Such a list goes stale on
+// the day a fourth injected property is added here, and every client carrying
+// one goes stale with it, so the head states the fact instead.
+//
 // Four keys beyond the type and the description say what a generic client
 // cannot infer from either, and vocabularyKeys below derives all four from the
 // same parameter table the rest of this function reads. An enum does change
@@ -422,8 +430,9 @@ func schemaFor(t tool) map[string]any {
 			continue
 		}
 		properties[injected.name] = map[string]any{
-			"type":        "string",
-			"description": catalog.T(injected.key),
+			"type":             "string",
+			"description":      catalog.T(injected.key),
+			"x-dinah-injected": true,
 		}
 	}
 	sort.Strings(required)
