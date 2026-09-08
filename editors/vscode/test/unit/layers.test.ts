@@ -88,6 +88,8 @@ const MAY_START_A_PROCESS: Record<string, string> = {
 		"drives print-newest-version.mjs's two exit paths, which are the contract publish-extension.ps1 reads",
 	"unit/publish-script.test.ts":
 		"runs publish-extension.ps1 against stubbed gh, npm and vsce, which is the only way to tell its three release-lookup outcomes apart",
+	"unit/verbCatalog-live.test.ts":
+		"builds this commit's dinah and reads its real tool table, which is the only way to hold the command palette's classifier to what the binary actually publishes rather than to a fixture written beside it",
 };
 
 test("no unit-test file starts a process", () => {
@@ -99,12 +101,18 @@ test("no unit-test file starts a process", () => {
 		files.length > 0,
 		"no unit-test file was scanned at all, so this check proved nothing",
 	);
+	// A file that spawns through the fixtures builder counts as a file that
+	// spawns. The import is not child_process, so a rule reading only for that
+	// module would have called test/support/fixtures.ts's `go build` a file
+	// read, and the exemption below would then have been reported as stale
+	// rather than as the decision it is.
 	const starts = (rel: string): boolean => {
 		const body = readFileSync(join(testRoot, rel), "utf8");
 		return (
 			valueImportOf("node:child_process").test(body) ||
 			valueImportOf("child_process").test(body) ||
-			/require\("(node:)?child_process"\)/.test(body)
+			/require\("(node:)?child_process"\)/.test(body) ||
+			/^import [^;]*buildBinary[^;]*from "\.\.\/support\/fixtures";$/m.test(body)
 		);
 	};
 	const offenders = files.filter((rel) => starts(rel) && !(rel in MAY_START_A_PROCESS));

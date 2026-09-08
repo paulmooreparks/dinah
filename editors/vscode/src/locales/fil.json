@@ -490,6 +490,96 @@
 			"text": "{workbench}: check has not completed, so whether it is clean is not known.",
 			"context": "Placeholder diagnostic shown on a workbench's own definition file until the first `dinah check` run of the session for that workbench answers, so an empty Problems panel never means both \"confirmed clean\" and \"never checked, or check failed.\"",
 			"skeleton": true
+		},
+		"dialog.runVerb.pickVerbPlaceholder": {
+			"text": "Run which command?",
+			"context": "Placeholder of the quick pick listing every verb this build can render, opened by the Run Command entry.",
+			"skeleton": true
+		},
+		"dialog.runVerb.excludedSeparator": {
+			"text": "{count} command(s) not shown; see the Dinah output channel for why.",
+			"context": "Label of the trailing separator row in the verb quick pick when one or more served tools were left out as unrenderable. {count} is how many.",
+			"skeleton": true
+		},
+		"dialog.runVerb.requiredValuePrompt": {
+			"text": "{argument} (required)",
+			"context": "Prompt of the input box for a required string argument of the chosen verb. {argument} is the argument's own untranslated name, and an empty or whitespace-only answer reopens this same prompt.",
+			"skeleton": true
+		},
+		"dialog.runVerb.optionalValuePrompt": {
+			"text": "{argument} (optional, leave blank to omit)",
+			"context": "Prompt of the input box for an optional string argument. A blank answer leaves the argument out of the call rather than sending it as an empty string.",
+			"skeleton": true
+		},
+		"dialog.runVerb.booleanPlaceholder": {
+			"text": "{argument}?",
+			"context": "Placeholder of the two-item quick pick for a boolean (marker) argument. {argument} is the argument's own untranslated name.",
+			"skeleton": true
+		},
+		"dialog.runVerb.booleanYes": {
+			"text": "Yes",
+			"context": "Label of the affirmative item in a boolean argument's quick pick. Choosing it sends the argument as true.",
+			"skeleton": true
+		},
+		"dialog.runVerb.booleanNo": {
+			"text": "No",
+			"context": "Label of the negative item in a boolean argument's quick pick. Choosing it leaves the argument out of the call.",
+			"skeleton": true
+		},
+		"dialog.runVerb.vocabularyPlaceholder": {
+			"text": "Choose {argument}",
+			"context": "Placeholder of the quick pick resolving an argument whose values are a closed set, which is either a set fixed in the source or one dinah resolves when it runs. {argument} is the argument's own untranslated name.",
+			"skeleton": true
+		},
+		"dialog.runVerb.omitOptional": {
+			"text": "Leave {argument} out",
+			"context": "Label of the first row in the quick pick for an optional argument whose values are a closed set. Choosing it leaves the argument out of the call, which Escape cannot do, because Escape abandons the whole wizard. {argument} is the argument's own untranslated name.",
+			"skeleton": true
+		},
+		"dialog.runVerb.requiredListPrompt": {
+			"text": "{argument} (required, one or more of {values}, separated by commas)",
+			"context": "Prompt of the input box for a required argument whose value is a comma-separated list drawn from a fixed set. {argument} is the argument's own untranslated name and {values} is that set, also untranslated.",
+			"skeleton": true
+		},
+		"dialog.runVerb.optionalListPrompt": {
+			"text": "{argument} (optional, one or more of {values}, separated by commas; leave blank to omit)",
+			"context": "Prompt of the input box for an optional argument whose value is a comma-separated list drawn from a fixed set. A blank answer leaves the argument out of the call. {argument} and {values} are untranslated.",
+			"skeleton": true
+		},
+		"dialog.runVerb.durationPlaceholder": {
+			"text": "{argument} (e.g. 30m, 2h)",
+			"context": "Prompt of the input box for a duration-typed argument. The answer is passed through unexamined and parsed by the CLI's own ParseDuration.",
+			"skeleton": true
+		},
+		"dialog.runVerb.enumerationFailed.toast": {
+			"text": "Could not list Dinah's commands. See the Dinah output channel for details.",
+			"context": "Toast when building the verb catalog failed outright: the dinah mcp spawn did not start, or its tools/list response could not be parsed.",
+			"skeleton": true
+		},
+		"dialog.runVerb.enumerationFailed.channel": {
+			"text": "Command palette: could not list Dinah's commands. {detail}",
+			"context": "Output channel line beside the toast above, carrying the full spawn or transport failure. {detail} is that failure.",
+			"skeleton": true
+		},
+		"dialog.runVerb.noRenderableVerbs.toast": {
+			"text": "Dinah reported no command this version of the extension can run. See the Dinah output channel for details.",
+			"context": "Toast when tools/list parsed but held no verb this build can render, whether because tools itself came back empty or every entry was unrenderable under this build's classifier.",
+			"skeleton": true
+		},
+		"dialog.runVerb.noRenderableVerbs.channel": {
+			"text": "Command palette: no command this build can run. {detail}",
+			"context": "Output channel line beside the noRenderableVerbs toast. The listing succeeded here and the rendering did not, which is why this line is not the enumerationFailed one. {detail} is what the build reported.",
+			"skeleton": true
+		},
+		"dialog.runVerb.vocabularyResolutionFailed.toast": {
+			"text": "Could not list the choices for {argument}. See the Dinah output channel for details.",
+			"context": "Toast when the second call resolving a runtime-vocabulary argument failed, so the wizard for this one verb invocation stops without running it. {argument} is the argument's own untranslated name.",
+			"skeleton": true
+		},
+		"dialog.runVerb.vocabularyResolutionFailed.channel": {
+			"text": "Command palette: could not resolve {argument} for {verb}. {detail}",
+			"context": "Output channel line beside the toast above, carrying the full failure. {argument} and {verb} are their own untranslated names, {detail} the refusal.",
+			"skeleton": true
 		}
 	}
 }

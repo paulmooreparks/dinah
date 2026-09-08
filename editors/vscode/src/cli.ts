@@ -42,6 +42,18 @@ export interface SpawnOutcome {
 export interface SpawnOptions {
 	readonly cwd?: string;
 	readonly env?: NodeJS.ProcessEnv;
+	/**
+	 * What the child reads on stdin before the stream is closed.
+	 *
+	 * Every invocation this module composes leaves it unset, because a dinah
+	 * verb takes its whole input as argv. `dinah mcp` is the one surface that
+	 * reads a request rather than an argument list: it scans stdin line by
+	 * line and exits when the stream closes, so a caller sends its JSON-RPC
+	 * lines here and reads the answers off stdout (dinah-420). A spawner that
+	 * ignores this field would hang that surface rather than failing it, so
+	 * the field is on the shared options type rather than on a second one.
+	 */
+	readonly stdin?: string;
 }
 
 /** Runs one process and resolves with what it produced. */

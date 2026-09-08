@@ -36,6 +36,8 @@
 			"manifest.walkthrough.firstSession.step.readGuide.title",
 			"manifest.walkthrough.firstSession.step.readGuide.description",
 			"manifest.command.dinah.walkthrough.openFirstSessionGuide.title",
+			"manifest.command.dinah.runVerb.title",
+			"manifest.command.dinah.refreshVerbCatalog.title",
 			"manifest.command.dinah.tree.openHistory.title"
 		],
 		"cs": [
@@ -74,6 +76,8 @@
 			"manifest.walkthrough.firstSession.step.readGuide.title",
 			"manifest.walkthrough.firstSession.step.readGuide.description",
 			"manifest.command.dinah.walkthrough.openFirstSessionGuide.title",
+			"manifest.command.dinah.runVerb.title",
+			"manifest.command.dinah.refreshVerbCatalog.title",
 			"manifest.command.dinah.tree.openHistory.title"
 		],
 		"de": [],
@@ -113,6 +117,8 @@
 			"manifest.walkthrough.firstSession.step.readGuide.title",
 			"manifest.walkthrough.firstSession.step.readGuide.description",
 			"manifest.command.dinah.walkthrough.openFirstSessionGuide.title",
+			"manifest.command.dinah.runVerb.title",
+			"manifest.command.dinah.refreshVerbCatalog.title",
 			"manifest.command.dinah.tree.openHistory.title"
 		],
 		"fil": [
@@ -151,6 +157,8 @@
 			"manifest.walkthrough.firstSession.step.readGuide.title",
 			"manifest.walkthrough.firstSession.step.readGuide.description",
 			"manifest.command.dinah.walkthrough.openFirstSessionGuide.title",
+			"manifest.command.dinah.runVerb.title",
+			"manifest.command.dinah.refreshVerbCatalog.title",
 			"manifest.command.dinah.tree.openHistory.title"
 		],
 		"hi": [],
@@ -190,6 +198,8 @@
 			"manifest.walkthrough.firstSession.step.readGuide.title",
 			"manifest.walkthrough.firstSession.step.readGuide.description",
 			"manifest.command.dinah.walkthrough.openFirstSessionGuide.title",
+			"manifest.command.dinah.runVerb.title",
+			"manifest.command.dinah.refreshVerbCatalog.title",
 			"manifest.command.dinah.tree.openHistory.title"
 		]
 	},
@@ -306,6 +316,8 @@
 			"manifest.walkthrough.firstSession.step.readGuide.title": "266439a9960a7e76",
 			"manifest.walkthrough.firstSession.step.readGuide.description": "959e8f30cc244660",
 			"manifest.command.dinah.walkthrough.openFirstSessionGuide.title": "3ac34c23b56939c3",
+			"manifest.command.dinah.runVerb.title": "eaa3141b4f0a01ab",
+			"manifest.command.dinah.refreshVerbCatalog.title": "d47308fc7756dee4",
 			"manifest.command.dinah.tree.openHistory.title": "5023ccb1323ec290"
 		},
 		"hi": {
@@ -344,6 +356,8 @@
 			"manifest.walkthrough.firstSession.step.readGuide.title": "266439a9960a7e76",
 			"manifest.walkthrough.firstSession.step.readGuide.description": "959e8f30cc244660",
 			"manifest.command.dinah.walkthrough.openFirstSessionGuide.title": "3ac34c23b56939c3",
+			"manifest.command.dinah.runVerb.title": "eaa3141b4f0a01ab",
+			"manifest.command.dinah.refreshVerbCatalog.title": "d47308fc7756dee4",
 			"manifest.command.dinah.tree.openHistory.title": "5023ccb1323ec290"
 		}
 	}
