@@ -35,6 +35,6 @@
 	"manifest.walkthrough.firstSession.step.readGuide.title": "Read the guide",
 	"manifest.walkthrough.firstSession.step.readGuide.description": "This step opens `dinah guide first-session` in an editor tab, fetched live from your installed binary. The text always matches what the command prints, because nothing here copies it.\n\n[Open the guide](command:dinah.walkthrough.openFirstSessionGuide)",
 	"manifest.command.dinah.walkthrough.openFirstSessionGuide.title": "Dinah: Open the First-Session Guide",
-	"manifest.command.dinah.runVerb.title": "Dinah: Run Verb…",
+	"manifest.command.dinah.runVerb.title": "Dinah: Run Command…",
 	"manifest.command.dinah.refreshVerbCatalog.title": "Dinah: Refresh Command Palette"
 }

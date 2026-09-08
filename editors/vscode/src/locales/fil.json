@@ -492,12 +492,12 @@
 			"skeleton": true
 		},
 		"dialog.runVerb.pickVerbPlaceholder": {
-			"text": "Run which verb?",
-			"context": "Placeholder of the quick pick listing every verb this build can render, opened by the Run Verb command.",
+			"text": "Run which command?",
+			"context": "Placeholder of the quick pick listing every verb this build can render, opened by the Run Command entry.",
 			"skeleton": true
 		},
 		"dialog.runVerb.excludedSeparator": {
-			"text": "{count} verb(s) not shown; see the Dinah output channel for why.",
+			"text": "{count} command(s) not shown; see the Dinah output channel for why.",
 			"context": "Label of the trailing separator row in the verb quick pick when one or more served tools were left out as unrenderable. {count} is how many.",
 			"skeleton": true
 		},
@@ -552,22 +552,22 @@
 			"skeleton": true
 		},
 		"dialog.runVerb.enumerationFailed.toast": {
-			"text": "Could not list Dinah's verbs. See the Dinah output channel for details.",
+			"text": "Could not list Dinah's commands. See the Dinah output channel for details.",
 			"context": "Toast when building the verb catalog failed outright: the dinah mcp spawn did not start, or its tools/list response could not be parsed.",
 			"skeleton": true
 		},
 		"dialog.runVerb.enumerationFailed.channel": {
-			"text": "Command palette: could not list Dinah's verbs. {detail}",
+			"text": "Command palette: could not list Dinah's commands. {detail}",
 			"context": "Output channel line beside the toast above, carrying the full spawn or transport failure. {detail} is that failure.",
 			"skeleton": true
 		},
 		"dialog.runVerb.noRenderableVerbs.toast": {
-			"text": "Dinah reported no verb this version of the extension can run. See the Dinah output channel for details.",
+			"text": "Dinah reported no command this version of the extension can run. See the Dinah output channel for details.",
 			"context": "Toast when tools/list parsed but held no verb this build can render, whether because tools itself came back empty or every entry was unrenderable under this build's classifier.",
 			"skeleton": true
 		},
 		"dialog.runVerb.noRenderableVerbs.channel": {
-			"text": "Command palette: no verb this build can run. {detail}",
+			"text": "Command palette: no command this build can run. {detail}",
 			"context": "Output channel line beside the noRenderableVerbs toast. The listing succeeded here and the rendering did not, which is why this line is not the enumerationFailed one. {detail} is what the build reported.",
 			"skeleton": true
 		},

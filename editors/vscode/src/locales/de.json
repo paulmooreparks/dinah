@@ -496,13 +496,13 @@
 		},
 		"dialog.runVerb.pickVerbPlaceholder": {
 			"text": "Welchen Befehl ausführen?",
-			"context": "Placeholder of the quick pick listing every verb this build can render, opened by the Run Verb command.",
-			"source": "6dbe5105cdef0f1"
+			"context": "Placeholder of the quick pick listing every verb this build can render, opened by the Run Command entry.",
+			"source": "2305431f6c11e27b"
 		},
 		"dialog.runVerb.excludedSeparator": {
 			"text": "{count} Befehl(e) nicht angezeigt; siehe die Dinah-Ausgabe für den Grund.",
 			"context": "Label of the trailing separator row in the verb quick pick when one or more served tools were left out as unrenderable. {count} is how many.",
-			"source": "c7beb90d62c71e99"
+			"source": "4ab9a999478b4375"
 		},
 		"dialog.runVerb.requiredValuePrompt": {
 			"text": "{argument} (erforderlich)",
@@ -558,22 +558,22 @@
 		"dialog.runVerb.enumerationFailed.toast": {
 			"text": "Die Befehle von Dinah konnten nicht aufgelistet werden. Einzelheiten in der Dinah-Ausgabe.",
 			"context": "Toast when building the verb catalog failed outright: the dinah mcp spawn did not start, or its tools/list response could not be parsed.",
-			"source": "592262fb46d4368a"
+			"source": "4c4c659edd3898a4"
 		},
 		"dialog.runVerb.enumerationFailed.channel": {
 			"text": "Befehlspalette: Die Befehle von Dinah konnten nicht aufgelistet werden. {detail}",
 			"context": "Output channel line beside the toast above, carrying the full spawn or transport failure. {detail} is that failure.",
-			"source": "8738635c7d4e87b0"
+			"source": "48f43c702de98912"
 		},
 		"dialog.runVerb.noRenderableVerbs.toast": {
 			"text": "Dinah meldete keinen Befehl, den diese Version der Erweiterung ausführen kann. Einzelheiten in der Dinah-Ausgabe.",
 			"context": "Toast when tools/list parsed but held no verb this build can render, whether because tools itself came back empty or every entry was unrenderable under this build's classifier.",
-			"source": "a2c401aac950f58b"
+			"source": "46ff349fc3cb1589"
 		},
 		"dialog.runVerb.noRenderableVerbs.channel": {
 			"text": "Befehlspalette: kein Befehl, den dieser Build ausführen kann. {detail}",
 			"context": "Output channel line beside the noRenderableVerbs toast. The listing succeeded here and the rendering did not, which is why this line is not the enumerationFailed one. {detail} is what the build reported.",
-			"source": "77b488ae4a778c35"
+			"source": "acfd60c6da5186c9"
 		},
 		"dialog.runVerb.vocabularyResolutionFailed.toast": {
 			"text": "Die Auswahl für {argument} konnte nicht aufgelistet werden. Einzelheiten in der Dinah-Ausgabe.",
