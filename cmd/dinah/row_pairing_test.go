@@ -1100,18 +1100,21 @@ type sweptItemRecord struct {
 }
 
 // expectChecklist is a card's checklist items, in the order the fixture wrote
-// them. The block draws two columns: the item's reference, state and owner
-// packed into the first, and the item's own text in the second. The reference
-// is composed here the way a person types one, out of the card's own
-// reference, the kind's short alias and the item's position among the items of
-// that one kind, so a view composing it from the overall ordinal instead would
-// fail this rather than agreeing with itself. The three parts are joined by
-// single spaces, which is what a capped column's own word-wrap leaves behind
-// whatever the render packed them with.
+// them. The block draws four columns: the item's reference, its state, whoever
+// answers it, and the item's own text last. The reference is composed here the
+// way a person types one, out of the card's own reference, the kind's short
+// alias and the item's position among the items of that one kind, so a view
+// composing it from the overall ordinal instead would fail this rather than
+// agreeing with itself.
+//
+// The state and the owner are cells of their own rather than parts of one
+// packed string, which is what the block has to draw for a reader to run an
+// eye down the states. A render packing them back together would put one cell
+// where this expects three and fail here.
 //
 // The item's resolution note is not expected anywhere: the block stopped
-// drawing it when the packed shape landed, and it reaches a reader through the
-// item's own reference instead.
+// drawing it when the operator ruled it out of the human render, and it
+// reaches a reader through the item's own reference instead.
 func expectChecklist(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
 	t.Helper()
 	aliases := map[string]string{"open_question": "oq", "acceptance_criterion": "ac", "decision": "d"}
@@ -1120,7 +1123,7 @@ func expectChecklist(t *testing.T, r *sweptRecord, tag string) sweptExpectation 
 	for _, item := range r.checklist {
 		within[item.kind]++
 		ref := "ck-1/" + aliases[item.kind] + "/" + strconv.Itoa(within[item.kind])
-		rows = append(rows, sweptTexts(ref+" "+item.state+" "+item.owner, item.text))
+		rows = append(rows, sweptTexts(ref, item.state, item.owner, item.text))
 	}
 	return sweptExpectation{rows: rows, source: "the record's checklist items"}
 }

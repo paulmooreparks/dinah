@@ -1708,7 +1708,17 @@
     },
     "column.checklist.ref": {
       "text": "Ref",
-      "context": "Heading over the packed value that opens a checklist item's row in the block of `dinah show`: the reference a person types to reach the item, then the item's state, then whoever answers it. The block draws no heading row, so a reader meets this heading only where a narrow window stacks each field on a line of its own. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "context": "Heading over the reference a person types to reach the item, in the checklist block of `dinah show`. The block draws no heading row, so a reader meets this heading only where a narrow window stacks each field on a line of its own. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.checklist.state": {
+      "text": "State",
+      "context": "Heading over the state the item's own file records, in the checklist block of `dinah show`. The block draws no heading row, so a reader meets this heading only where a narrow window stacks each field on a line of its own. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.checklist.owner": {
+      "text": "Owner",
+      "context": "Heading over who the item names as its answerer, in the checklist block of `dinah show`. The block draws no heading row, so a reader meets this heading only where a narrow window stacks each field on a line of its own. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "skeleton": true
     },
     "column.checklist.description": {

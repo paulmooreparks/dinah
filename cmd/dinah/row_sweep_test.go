@@ -526,6 +526,15 @@ func sweptRowLines(t *testing.T, block sweptBlock, tag string, full bool, lines 
 // Column 0 is taken at sweptIndent rather than asserted, for the same reason.
 // A row indented anywhere else fails in readSweptRows.
 //
+// The scan reads a boundary off a line that opens a row, which is a line
+// leading at sweptIndent, and every column after the first is read off those
+// same lines further along. A block of three or more columns needs that:
+// nothing leads at the second column, so a scan restricted to lines leading
+// where the previous column begins finds a boundary for column 1 and none for
+// any column after it. Skipping by the lead is what rules out a continuation
+// line, which leads further right than a row does, and the previous column's
+// own position is where the scan for the next boundary starts.
+//
 // A column no row places calls t.Errorf naming the block, the locale and the
 // column, then returns nil for the caller to read as a failure already
 // reported, exactly as assertHeadingRow does. The loop runs until it holds one
@@ -540,7 +549,7 @@ func deriveHeadinglessColumns(t *testing.T, block sweptBlock, tag string, lines 
 		from := columns[len(columns)-1]
 		at := -1
 		for _, line := range lines {
-			if sweptLead(line) != from {
+			if sweptLead(line) != sweptIndent {
 				continue
 			}
 			if next := sweptNextFieldColumn(line, from); next > at {
@@ -1567,8 +1576,9 @@ func sweptBlocks() []sweptBlock {
 		},
 		{
 			site: renderSite{File: "render.go", Function: "renderDetail", Label: "checklist", Ordinal: 1}, label: "a card's checklist items",
-			keys:         []string{"column.checklist.ref", "column.checklist.description"},
-			noHeadingRow: true, capsColumn: true, wrapsTail: true,
+			keys: []string{"column.checklist.ref", "column.checklist.state", "column.checklist.owner",
+				"column.checklist.description"},
+			noHeadingRow: true, wrapsTail: true,
 			opensAt: "show.checklist", expect: expectChecklist,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
 				return sweptRun(t, w.checklist, tag, "show", w.checklistCard)
@@ -2694,13 +2704,14 @@ func sweptSearchTree(t *testing.T, base string, record *sweptRecord) string {
 // the order it writes them, which is the order a read reports them in.
 //
 // Two of each kind, one pending and one resolved, is what the block needs to
-// draw more than one shape: the packed column's width differs between rows,
-// since the state that rides in it differs and the decision's reference is a
-// character shorter than the other two kinds', and every item carries an owner
-// and its own distinct text, so neither column of the block is ever blank and
-// no two rows draw the same pair. Three of the six record a resolution note,
-// which the block no longer draws, so a note leaking back into the render
-// fails the guard in checklist_prose_test.go rather than passing unnoticed.
+// draw more than one shape: the reference column's width differs between rows,
+// since the decision's reference is a character shorter than the other two
+// kinds', the state differs between the two items of every kind, and every
+// item carries an owner and its own distinct text, so no column of the block
+// is ever blank and no two rows draw the same four cells. Three of the six
+// record a resolution note, which the block does not draw, so a note leaking
+// back into the render fails the guard in checklist_prose_test.go rather than
+// passing unnoticed.
 var sweptChecklistItems = []sweptItemRecord{
 	{id: "b00000000001", kind: "open_question", state: "pending", owner: "operator",
 		text: "Which vendor do we cite?"},

@@ -1712,8 +1712,18 @@
     },
     "column.checklist.ref": {
       "text": "संदर्भ",
-      "context": "Heading over the packed value that opens a checklist item's row in the block of `dinah show`: the reference a person types to reach the item, then the item's state, then whoever answers it. The block draws no heading row, so a reader meets this heading only where a narrow window stacks each field on a line of its own. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "context": "Heading over the reference a person types to reach the item, in the checklist block of `dinah show`. The block draws no heading row, so a reader meets this heading only where a narrow window stacks each field on a line of its own. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "9ff1e019feac1ee2"
+    },
+    "column.checklist.state": {
+      "text": "स्थिति",
+      "context": "Heading over the state the item's own file records, in the checklist block of `dinah show`. The block draws no heading row, so a reader meets this heading only where a narrow window stacks each field on a line of its own. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "source": "ae239213b7c70376"
+    },
+    "column.checklist.owner": {
+      "text": "स्वामी",
+      "context": "Heading over who the item names as its answerer, in the checklist block of `dinah show`. The block draws no heading row, so a reader meets this heading only where a narrow window stacks each field on a line of its own. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "source": "b971debc37bf0b54"
     },
     "column.checklist.description": {
       "text": "विवरण",

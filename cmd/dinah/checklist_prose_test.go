@@ -8,12 +8,11 @@ import (
 	"dinah/internal/msg"
 )
 
-// The checklist block draws each item as one row of two columns: its
-// reference, state and owner packed into the first, and its own text in the
-// second. The row sweep pairs both columns in eight locales, and this file
-// holds the same association in one locale from the other side, reading the
-// text off the row by cutting at the state and owner rather than at a column
-// the sweep derives from the ink.
+// The checklist block draws each item as one row of four columns: its
+// reference, its state, whoever answers it, and its own text last. The row
+// sweep pairs all four in eight locales, and this file holds the same
+// association in one locale from the other side, walking the row's own values
+// in order rather than reading a column position off the ink.
 //
 // Two guards live here. The first is the association: an item's text has to
 // sit on the row bearing that item's own reference, since text drawn against
@@ -64,20 +63,22 @@ func TestAChecklistItemsTextPrintsOnItsOwnRow(t *testing.T) {
 			end = at[i+1]
 		}
 
-		// The text begins where the packed column ends, and the packed
-		// column ends at its own last two parts. Cutting there reads the
-		// text off the row without deriving a column position out of the
-		// ink the render produced, which is the sweep's job and would agree
-		// with a render that had drifted.
-		packed := item.state + " " + item.owner
+		// The row's own values are walked in order, each found after the
+		// one before it with nothing but padding between them, and the text
+		// is whatever the row has left after the owner. Walking the values
+		// reads the text off the row without deriving a column position out
+		// of the ink the render produced, which is the sweep's job and would
+		// agree with a render that had drifted. A render packing the three
+		// leading values back into one field still passes here, and fails in
+		// the sweep, which is what holds the columns to lining up.
 		head := lines[at[i]]
-		cut := strings.Index(head, packed)
-		if cut < 0 {
-			t.Errorf("the item %s draws the row %q, which carries neither its state nor its owner beside its reference, wanted %q",
-				item.id, head, packed)
+		cut, ok := afterTheRowsOwnValues(head, refs[i], item.state, item.owner)
+		if !ok {
+			t.Errorf("the item %s draws the row %q, which does not carry its reference, its state %q and its owner %q in that order separated by padding",
+				item.id, head, item.state, item.owner)
 			continue
 		}
-		drawn := []string{strings.TrimSpace(head[cut+len(packed):])}
+		drawn := []string{strings.TrimSpace(head[cut:])}
 		for _, line := range lines[at[i]+1 : end] {
 			if strings.TrimSpace(line) == "" {
 				break
@@ -108,6 +109,30 @@ func TestAChecklistItemsTextPrintsOnItsOwnRow(t *testing.T) {
 				item.id, item.note, got.out)
 		}
 	}
+}
+
+// afterTheRowsOwnValues reports where a row's last column begins: the byte
+// after the last of the values given, each of which has to follow the one
+// before it with nothing but spaces between them. It reports false when any
+// value is missing or arrives out of order, which is what a row drawing its
+// cells in the wrong places does.
+//
+// The values are given rather than read off the line, so a row that drew a
+// neighbour's state or dropped its owner fails here rather than being cut at
+// whatever it did draw.
+func afterTheRowsOwnValues(line string, values ...string) (int, bool) {
+	cursor := 0
+	for _, value := range values {
+		at := strings.Index(line[cursor:], value)
+		if at < 0 {
+			return 0, false
+		}
+		if strings.TrimLeft(line[cursor:cursor+at], " ") != "" {
+			return 0, false
+		}
+		cursor += at + len(value)
+	}
+	return cursor, true
 }
 
 // TestAResolvedItemStillCarriesItsNoteWhereItIsRead is the other half of the
