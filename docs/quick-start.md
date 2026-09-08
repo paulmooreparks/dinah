@@ -1550,9 +1550,8 @@ for working this workbench, and a tool for every command that has a use over a
 protocol. The ones it leaves out are the ones that only make sense where a
 shell and a filesystem are, and `guide`, which the client reads as a resource
 rather than calling it as a tool. `tools/list` names the set your client
-actually got. Your AI
-colleague claims, moves, releases, and blocks under the same rules and leaves
-the same journal entries you do.
+actually got. Your AI colleague claims, moves, releases, and blocks under the
+same rules and leaves the same journal entries you do.
 
 Give your AI colleague an actor name of its own through `DINAH_ACTOR`, so the
 record shows who did what.

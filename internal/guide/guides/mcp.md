@@ -93,8 +93,8 @@ queue unfinished. A successful `claim` or `move` carries the instructions of
 the new position, minus the layers you already hold, and the moves the flow
 allows, so follow the one you need rather than guessing the next column's
 name. The moves are never withheld. `show` returns one card and every member
-of it, the section below names those members and how to ask for fewer, and it
-is the call to make before you act on a card you have not already met.
+of it, and the section below names those members and how to ask for fewer.
+Make that call before you act on a card you have not already met.
 
 ## What a withheld layer means, and how you get it back
 
