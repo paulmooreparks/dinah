@@ -1567,9 +1567,9 @@ func sweptBlocks() []sweptBlock {
 		},
 		{
 			site: renderSite{File: "render.go", Function: "renderDetail", Label: "checklist", Ordinal: 1}, label: "a card's checklist items",
-			keys:          []string{"column.checklist.ref", "column.checklist.kind", "column.checklist.state", "column.checklist.owner"},
-			blanksAreLost: true,
-			opensAt:       "show.checklist", expect: expectChecklist,
+			keys:         []string{"column.checklist.ref", "column.checklist.description"},
+			noHeadingRow: true, capsColumn: true, wrapsTail: true,
+			opensAt: "show.checklist", expect: expectChecklist,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
 				return sweptRun(t, w.checklist, tag, "show", w.checklistCard)
 			},
@@ -2694,10 +2694,13 @@ func sweptSearchTree(t *testing.T, base string, record *sweptRecord) string {
 // the order it writes them, which is the order a read reports them in.
 //
 // Two of each kind, one pending and one resolved, is what the block needs to
-// draw more than one shape: the kind column and the state column both differ
-// between rows, a resolved item draws its own resolution line under its text
-// where a pending one draws none, and every item carries an owner, so the last
-// column of the block is never blank.
+// draw more than one shape: the packed column's width differs between rows,
+// since the state that rides in it differs and the decision's reference is a
+// character shorter than the other two kinds', and every item carries an owner
+// and its own distinct text, so neither column of the block is ever blank and
+// no two rows draw the same pair. Three of the six record a resolution note,
+// which the block no longer draws, so a note leaking back into the render
+// fails the guard in checklist_prose_test.go rather than passing unnoticed.
 var sweptChecklistItems = []sweptItemRecord{
 	{id: "b00000000001", kind: "open_question", state: "pending", owner: "operator",
 		text: "Which vendor do we cite?"},

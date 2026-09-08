@@ -1538,22 +1538,12 @@
     },
     "column.checklist.ref": {
       "text": "Ref",
-      "context": "Heading over the reference a person types to reach the item, in the checklist block of `dinah show`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "context": "Heading over the packed value that opens a checklist item's row in the block of `dinah show`: the reference a person types to reach the item, then the item's state, then whoever answers it. The block draws no heading row, so a reader meets this heading only where a narrow window stacks each field on a line of its own. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "skeleton": true
     },
-    "column.checklist.kind": {
-      "text": "Kind",
-      "context": "Heading over which of the three kinds the item is, in the checklist block of `dinah show`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "skeleton": true
-    },
-    "column.checklist.state": {
-      "text": "State",
-      "context": "Heading over the state the item's own file records, in the checklist block of `dinah show`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "skeleton": true
-    },
-    "column.checklist.owner": {
-      "text": "Owner",
-      "context": "Heading over who the item names as its answerer, in the checklist block of `dinah show`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+    "column.checklist.description": {
+      "text": "Description",
+      "context": "Heading over the item's own text, the judgement it records, in the checklist block of `dinah show`. The block draws no heading row, so a reader meets this heading only where a narrow window stacks each field on a line of its own. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "skeleton": true
     },
     "column.commands.command": {
@@ -2848,11 +2838,6 @@
     "show.checklist": {
       "text": "Checklist:",
       "context": "The label above a card's checklist items, printed between the comments block and what a shaped answer held back.",
-      "skeleton": true
-    },
-    "show.checklist.resolution": {
-      "text": "Resolution:",
-      "context": "The label opening the line that carries a checklist item's resolution note, printed under that item's own text in the checklist block of `dinah show`. It is followed by a space and the note the item records.",
       "skeleton": true
     },
     "show.comments": {

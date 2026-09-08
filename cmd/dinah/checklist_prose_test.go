@@ -8,28 +8,25 @@ import (
 	"dinah/internal/msg"
 )
 
-// The checklist block draws two things, and the row sweep can only see one of
-// them. A sweep entry harvests the cells of a row and pairs them against an
-// expected row, so it holds the reference, the kind, the state and the owner
-// in every locale. An item's own text is not a cell. It is prose printed
-// beneath the row, and a resolution note is a second line of prose beneath
-// that, so both fall outside everything the sweep collects: deleting every
-// item's text from the render leaves the sweep green, which is how the shipped
-// build reached review with its headline behaviour unguarded.
+// The checklist block draws each item as one row of two columns: its
+// reference, state and owner packed into the first, and its own text in the
+// second. The row sweep pairs both columns in eight locales, and this file
+// holds the same association in one locale from the other side, reading the
+// text off the row by cutting at the state and owner rather than at a column
+// the sweep derives from the ink.
 //
-// This is the guard for that half. It runs one locale, because the prose is
-// the item's own text rather than catalog wording and the sweep already holds
-// the wording in eight. What it asserts is the association rather than the
-// presence: each item's text has to sit under the row bearing that item's own
-// reference, since text printed under the wrong row is exactly as wrong as
-// text not printed at all and a whole-output search cannot tell them apart.
-func TestAChecklistItemsTextPrintsUnderItsOwnRow(t *testing.T) {
+// Two guards live here. The first is the association: an item's text has to
+// sit on the row bearing that item's own reference, since text drawn against
+// the wrong row is exactly as wrong as text not drawn at all and a
+// whole-output search cannot tell the two apart. The second is the absence
+// the operator ruled for: a resolution note belongs to the payload and to the
+// item's own detail view, and no part of it reaches this block.
+func TestAChecklistItemsTextPrintsOnItsOwnRow(t *testing.T) {
 	dir, ref := sweptChecklistTree(t, t.TempDir(), &sweptRecord{})
 	got := runCLI(t, dir, "--lang", "en", "show", ref)
 	if got.code != 0 {
 		t.Fatalf("show %s: exit %d\n%s", ref, got.code, got.errw)
 	}
-	resolution := msg.For(msg.Base).T("show.checklist.resolution")
 	lines := strings.Split(strings.TrimSuffix(got.out, "\n"), "\n")
 
 	// The reference is composed here the way a person types one, out of the
@@ -58,55 +55,90 @@ func TestAChecklistItemsTextPrintsUnderItsOwnRow(t *testing.T) {
 	}
 
 	for i, item := range sweptChecklistItems {
-		// The block belonging to this row runs from the row to the next row,
-		// so prose that landed under a neighbour is not counted here.
+		// The row runs to the next row, so text that landed against a
+		// neighbour is not counted here. Every line after the first belongs
+		// to one of the two columns' continuations, which the join below
+		// folds back into the text.
 		end := len(lines)
 		if i+1 < len(sweptChecklistItems) {
 			end = at[i+1]
 		}
-		block := lines[at[i]+1 : end]
 
-		text := -1
-		for n, line := range block {
-			if strings.TrimSpace(line) == item.text {
-				text = n
-				break
-			}
-		}
-		if text < 0 {
-			t.Errorf("the item %s prints no line carrying its text %q under the row %s, which drew:\n%s",
-				item.id, item.text, refs[i], strings.Join(block, "\n"))
+		// The text begins where the packed column ends, and the packed
+		// column ends at its own last two parts. Cutting there reads the
+		// text off the row without deriving a column position out of the
+		// ink the render produced, which is the sweep's job and would agree
+		// with a render that had drifted.
+		packed := item.state + " " + item.owner
+		head := lines[at[i]]
+		cut := strings.Index(head, packed)
+		if cut < 0 {
+			t.Errorf("the item %s draws the row %q, which carries neither its state nor its owner beside its reference, wanted %q",
+				item.id, head, packed)
 			continue
 		}
-
-		wanted := resolution + " " + item.note
-		found := -1
-		for n, line := range block {
-			if strings.HasPrefix(strings.TrimSpace(line), resolution) {
-				found = n
+		drawn := []string{strings.TrimSpace(head[cut+len(packed):])}
+		for _, line := range lines[at[i]+1 : end] {
+			if strings.TrimSpace(line) == "" {
 				break
 			}
+			drawn = append(drawn, strings.TrimSpace(line))
 		}
+		text := strings.TrimSpace(strings.Join(drawn, " "))
+		if text != item.text {
+			t.Errorf("the item %s draws %q on the row %s, wanted its own text %q",
+				item.id, text, refs[i], item.text)
+		}
+	}
+
+	// The resolution note leaves this block entirely. It stays on the wire
+	// for a machine reader and a person reaches it through the item's own
+	// reference, which `dinah show <card>/<kind>/<n>` answers with.
+	//
+	// The search runs over the output with its whitespace collapsed, since a
+	// note the block drew would be wrapped at the window and a search for the
+	// note as it was written would miss it across the break.
+	flattened := strings.Join(strings.Fields(got.out), " ")
+	for _, item := range sweptChecklistItems {
 		if item.note == "" {
-			if found >= 0 {
-				t.Errorf("the item %s is %s and carries no resolution note, but the row %s drew %q under it",
-					item.id, item.state, refs[i], strings.TrimSpace(block[found]))
-			}
 			continue
 		}
-		if found < 0 {
-			t.Errorf("the item %s records the resolution note %q and the row %s drew no %s line, only:\n%s",
-				item.id, item.note, refs[i], resolution, strings.Join(block, "\n"))
+		if strings.Contains(flattened, strings.Join(strings.Fields(item.note), " ")) {
+			t.Errorf("the item %s records the resolution note %q and the checklist block drew it:\n%s",
+				item.id, item.note, got.out)
+		}
+	}
+}
+
+// TestAResolvedItemStillCarriesItsNoteWhereItIsRead is the other half of the
+// rule above. Dropping the note from the listing is only a tidy-up as long as
+// a person can still reach it, so this holds the path the ruling rests on:
+// `dinah show <card>/<kind>/<n>` answers with the item, and the note it
+// records is in that answer. Without this, the assertion above could be
+// satisfied by a build that had made a written resolution unreadable.
+func TestAResolvedItemStillCarriesItsNoteWhereItIsRead(t *testing.T) {
+	dir, ref := sweptChecklistTree(t, t.TempDir(), &sweptRecord{})
+	aliases := map[string]string{"open_question": "oq", "acceptance_criterion": "ac", "decision": "d"}
+	within := map[string]int{}
+	checked := 0
+	for _, item := range sweptChecklistItems {
+		within[item.kind]++
+		if item.note == "" {
 			continue
 		}
-		if strings.TrimSpace(block[found]) != wanted {
-			t.Errorf("the item %s draws its resolution as %q under the row %s, wanted %q",
-				item.id, strings.TrimSpace(block[found]), refs[i], wanted)
+		checked++
+		at := ref + "/" + aliases[item.kind] + "/" + strconv.Itoa(within[item.kind])
+		got := runCLI(t, dir, "--lang", "en", "show", at)
+		if got.code != 0 {
+			t.Fatalf("show %s: exit %d\n%s", at, got.code, got.errw)
 		}
-		if found < text {
-			t.Errorf("the item %s draws its resolution above its own text under the row %s, which drew:\n%s",
-				item.id, refs[i], strings.Join(block, "\n"))
+		if !strings.Contains(got.out, item.note) {
+			t.Errorf("the item %s records the resolution note %q and `show %s` does not carry it:\n%s",
+				item.id, item.note, at, got.out)
 		}
+	}
+	if checked == 0 {
+		t.Fatal("no item of the fixture records a resolution note, so this guard asserts nothing")
 	}
 }
 

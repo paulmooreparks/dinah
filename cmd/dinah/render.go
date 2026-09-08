@@ -587,19 +587,39 @@ func (s *session) renderDetail(detail *verb.Detail) {
 	if len(detail.Checklist) > 0 {
 		gap()
 		s.line(s.r.T("show.checklist"))
-		checklist := table{indent: 2, columns: s.columns("checklist", "ref", "kind", "state", "owner")}
+		// The block draws the way the command list of bare `dinah` draws its
+		// commands: two columns, the first capped at half the window and
+		// broken between words when a value outgrows it, the second wrapped
+		// at the right edge, and no heading row or rule over either. An
+		// item's reference, its state and its owner pack into the capped
+		// column the way a command's syntax packs into that listing's own
+		// first column, and the item's own text takes the column after it.
+		// A kind column would say a second time what the oq/ac/d segment of
+		// the reference already says.
+		//
+		// The resolution note is not drawn here. It stays in the payload for
+		// a machine reader, and a person reaches it through the item's own
+		// reference, which `dinah show <card>/oq/1` answers with; two runs of
+		// prose in the same position read as one run of prose.
+		//
+		// The three parts are joined by single spaces rather than padded to
+		// a common width. A capped column is word-wrapped before it is
+		// drawn, and that wrap rebuilds the value one space between words,
+		// so padding written here reaches the page collapsed. Aligning the
+		// state under the state above it would mean teaching the shared
+		// renderer about a packed value, which is a change to every table
+		// this tool draws for the sake of one block.
+		checklist := table{indent: 2, columns: s.columns("checklist", "ref", "description"),
+			labels: labelInTheStack, ceilingColumn: 0, hasCeiling: true, wrapTail: true}
 		for _, item := range detail.Checklist {
-			fields := []string{item.Ref, item.Kind, item.State, item.Owner}
-			// The item's own text is the row's note, which is where a
-			// comment's body already prints, so a card carrying nineteen
-			// items draws a nineteen-row table rather than nineteen
-			// paragraphs. A resolution note follows it under its own label,
-			// since what was decided is what a later reader came for.
-			note := item.Text
-			if item.Note != "" {
-				note += "\n\n" + s.r.T("show.checklist.resolution") + " " + item.Note
+			var packed []string
+			for _, part := range []string{item.Ref, item.State, item.Owner} {
+				if part != "" {
+					packed = append(packed, part)
+				}
 			}
-			checklist.rows = append(checklist.rows, tableRow{fields: fields, note: note})
+			fields := []string{strings.Join(packed, " "), item.Text}
+			checklist.rows = append(checklist.rows, tableRow{fields: fields})
 		}
 		s.table(checklist)
 	}
