@@ -930,7 +930,7 @@ func (l *Library) rootOf(entity *bench.EntityRef) TreeNode {
 		// An item is the one kind whose printed spelling is not the one the
 		// resolver composes. The resolver answers the collection form, and
 		// both forms resolve, but Library.Show and the containment walk both
-		// print the aliased form through itemRef, so a walk rooted at an item
+		// print the kind-narrowed form through itemRef, so a walk rooted at an item
 		// composes it here as well rather than drawing one item under two
 		// addresses on two screens.
 		return TreeNode{
@@ -1033,7 +1033,7 @@ func (l *Library) containedChildren(dir, kind, ref string, rank, limit int) []Tr
 
 // itemKindAt is the kind an item's own anchor records, and the empty string
 // where the anchor will not read. An unreadable anchor composes the
-// unaliased reference, which is what the walk printed for every item before
+// collection reference, which is what the walk printed for every item before
 // this card and which still resolves.
 func itemKindAt(dir string) string {
 	item, err := bench.LoadItem(dir)

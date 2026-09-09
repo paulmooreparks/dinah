@@ -1245,9 +1245,9 @@
       "source": "837e4d41d4d3e056"
     },
     "param.cite.item.summary": {
-      "text": "वह चेकलिस्ट मद जिसमें उद्धरण जोड़ा जाता है, जैसे wb-1/ac/1",
+      "text": "वह चेकलिस्ट मद जिसमें उद्धरण जोड़ा जाता है, जैसे wb-1/criteria/1",
       "context": "The written meaning of cite's item argument. wb-1 stands for a card reference and is not translated.",
-      "source": "228d3209f9efc9a7"
+      "source": "e1fd78e3207ce0c2"
     },
     "param.cite.observed.summary": {
       "text": "काम से पहले और उसके बाद जाँच में क्या दिखा, fail:pass के रूप में लिखा",
@@ -1285,9 +1285,9 @@
       "source": "285916965fedb12d"
     },
     "param.item.summary": {
-      "text": "चेकलिस्ट मद, जैसे wb-1/checklist/2 या wb-1/ac/1",
+      "text": "चेकलिस्ट मद, जैसे wb-1/checklist/2 या wb-1/criteria/1",
       "context": "The written meaning of the item argument, shared by every command naming one checklist item. wb-1 stands for a card reference and is not translated.",
-      "source": "c14e0956a585a0ae"
+      "source": "d40f3765418bee37"
     },
     "param.note.summary": {
       "text": "जाँच में क्या दिखा, एक शेल शब्द में या उद्धरण चिह्नों में; अकेला - इसे पाइप से पढ़ता है",

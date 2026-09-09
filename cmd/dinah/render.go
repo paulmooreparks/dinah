@@ -590,8 +590,8 @@ func (s *session) renderDetail(detail *verb.Detail) {
 		// The block draws as a plain multi-column table with no heading row
 		// and no rule over it: the item's reference, its state and whoever
 		// answers it in three columns of their own, and the item's own text
-		// last. A kind column would say a second time what the oq/ac/d
-		// segment of the reference already says.
+		// last. A kind column would say a second time what the
+		// questions/criteria/decisions segment of the reference already says.
 		//
 		// The three leading columns are separate rather than packed into one
 		// value, which is what lets a reader run an eye down the states. Only
@@ -603,7 +603,7 @@ func (s *session) renderDetail(detail *verb.Detail) {
 		//
 		// The resolution note is not drawn here. It stays in the payload for
 		// a machine reader, and a person reaches it through the item's own
-		// reference, which `dinah show <card>/oq/1` answers with; two runs of
+		// reference, which `dinah show <card>/questions/1` answers with; two runs of
 		// prose in the same position read as one run of prose.
 		checklist := table{indent: 2, columns: s.columns("checklist", "ref", "state", "owner", "description"),
 			labels: labelInTheStack, wrapTail: true}

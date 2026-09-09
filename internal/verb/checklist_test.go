@@ -46,7 +46,7 @@ func (h *harness) declareEvidence(block string) {
 }
 
 // file files one checklist item and returns the reference the other five verbs
-// take, which is the card's reference and the kind-narrowed alias.
+// take, which is the card's reference and the kind-narrowed word.
 func (h *harness) file(card, kind, text string) string {
 	h.t.Helper()
 	response := h.library.File(&Request{Verb: "file", Actor: "alka", Card: card, Kind: kind, Text: text})
@@ -55,9 +55,9 @@ func (h *harness) file(card, kind, text string) string {
 	}
 	h.reopen()
 	return card + "/" + map[string]string{
-		"acceptance_criterion": "ac",
-		"open_question":        "oq",
-		"decision":             "d",
+		"acceptance_criterion": "criteria",
+		"open_question":        "questions",
+		"decision":             "decisions",
 	}[kind] + "/1"
 }
 

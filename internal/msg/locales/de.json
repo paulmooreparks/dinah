@@ -1245,9 +1245,9 @@
       "source": "837e4d41d4d3e056"
     },
     "param.cite.item.summary": {
-      "text": "der Checklistenpunkt, dem der Beleg hinzugefügt wird, etwa wb-1/ac/1",
+      "text": "der Checklistenpunkt, dem der Beleg hinzugefügt wird, etwa wb-1/criteria/1",
       "context": "The written meaning of cite's item argument. wb-1 stands for a card reference and is not translated.",
-      "source": "228d3209f9efc9a7"
+      "source": "e1fd78e3207ce0c2"
     },
     "param.cite.observed.summary": {
       "text": "was die Prüfung vor der Arbeit und danach gezeigt hat, geschrieben als fail:pass",
@@ -1285,9 +1285,9 @@
       "source": "285916965fedb12d"
     },
     "param.item.summary": {
-      "text": "der Checklistenpunkt, etwa wb-1/checklist/2 oder wb-1/ac/1",
+      "text": "der Checklistenpunkt, etwa wb-1/checklist/2 oder wb-1/criteria/1",
       "context": "The written meaning of the item argument, shared by every command naming one checklist item. wb-1 stands for a card reference and is not translated.",
-      "source": "c14e0956a585a0ae"
+      "source": "d40f3765418bee37"
     },
     "param.note.summary": {
       "text": "was die Prüfung gezeigt hat, in einem Shell-Wort oder in Anführungszeichen; ein einzelnes - liest es aus einer Pipe",

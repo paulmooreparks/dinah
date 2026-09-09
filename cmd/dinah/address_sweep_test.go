@@ -951,3 +951,70 @@ func treeExpectations(t *testing.T, payload map[string]any) []addressExpectation
 	walk(children)
 	return want
 }
+
+// TestAChecklistItemIsAddressedByAWordAndTheShortFormStillResolves asserts
+// dinah-454 AC-13: the three checklist collections are addressed by a word on
+// every surface Dinah prints, the three short forms the tool printed before go
+// on resolving when a person types one, and the kind tokens are untouched by
+// either.
+//
+// The arm that can fail is the last pair. A guard asserting only that the new
+// words resolve would pass against a resolver that accepted every string, so
+// the singular of each word and the kind token itself are handed to the same
+// command and have to be refused. `decision` is the sharpest of the five,
+// because it is a real kind token and this rename is about addressing rather
+// than about kinds.
+func TestAChecklistItemIsAddressedByAWordAndTheShortFormStillResolves(t *testing.T) {
+	root := newBench(t)
+	mustRun(t, root, "add", "a card carrying one item of each kind")
+	mustRun(t, root, "file", "fx-1", "open_question", "does the deadline move?")
+	mustRun(t, root, "file", "fx-1", "acceptance_criterion", "the endpoint answers 404 for an unknown id")
+	mustRun(t, root, "file", "fx-1", "decision", "the write path takes the card's own lock")
+
+	shown := mustRun(t, root, "--lang", "en", "show", "fx-1").out
+	for _, word := range []string{"fx-1/questions/1", "fx-1/criteria/1", "fx-1/decisions/1"} {
+		if !strings.Contains(shown, word) {
+			t.Errorf("show draws no row carrying the reference %q:\n%s", word, shown)
+		}
+	}
+	for _, short := range []string{"fx-1/oq/1", "fx-1/ac/1", "fx-1/d/1"} {
+		if strings.Contains(shown, short) {
+			t.Errorf("show still prints the short form %q, and a word is what it composes now:\n%s", short, shown)
+		}
+	}
+
+	// Both spellings open the same file, which is what keeps a reference
+	// written down before the words landed working. The comparison is between
+	// two answers from the tool rather than against a path this test builds,
+	// so it cannot agree with itself.
+	for _, spelling := range []struct{ word, short string }{
+		{word: "fx-1/questions/1", short: "fx-1/oq/1"},
+		{word: "fx-1/criteria/1", short: "fx-1/ac/1"},
+		{word: "fx-1/decisions/1", short: "fx-1/d/1"},
+	} {
+		byWord := strings.TrimSpace(mustRun(t, root, "path", spelling.word).out)
+		byShort := strings.TrimSpace(mustRun(t, root, "path", spelling.short).out)
+		if byWord != byShort {
+			t.Errorf("%s opens %s and %s opens %s", spelling.word, byWord, spelling.short, byShort)
+		}
+	}
+
+	for _, refused := range []string{
+		"fx-1/question/1", "fx-1/criterion/1", "fx-1/decision/1",
+		"fx-1/open_question/1", "fx-1/acceptance_criterion/1",
+	} {
+		got := runCLI(t, root, "path", refused)
+		if got.code == 0 {
+			t.Errorf("the segment %q was accepted and opened %s, and nothing declares that spelling", refused, strings.TrimSpace(got.out))
+		}
+	}
+
+	// The kind tokens travel on the machine surface and this ruling did not
+	// reach them, so the payload still carries all three.
+	payload := mustRun(t, root, "show", "fx-1", "--json").out
+	for _, token := range []string{`"open_question"`, `"acceptance_criterion"`, `"decision"`} {
+		if !strings.Contains(payload, token) {
+			t.Errorf("the payload carries no %s, and the kind tokens do not change with the addressing:\n%s", token, payload)
+		}
+	}
+}

@@ -710,10 +710,10 @@ type ItemView struct {
 	Ordinal int `json:"ordinal"`
 	// Ref is what a person types to reach this item, composed by itemRef.
 	// An item of one of the three kinds the format declares is named by that
-	// kind's short alias (oq, ac, d) and its position among the items of that
-	// kind; an item of any other kind is named by the checklist collection
-	// and its position in it, which the resolver descends unnarrowed. It is
-	// never empty.
+	// kind's word (questions, criteria, decisions) and its position among the
+	// items of that kind; an item of any other kind is named by the checklist
+	// collection and its position in it, which the resolver descends
+	// unnarrowed. It is never empty.
 	Ref string `json:"ref"`
 	// Kind is one of acceptance_criterion, open_question and decision.
 	Kind string `json:"kind"`
@@ -840,7 +840,7 @@ func (l *Library) Show(req *Request) (*Detail, string, error) {
 	}
 	var checklist []ItemView
 	// The position a reference carries is counted within the item's own kind,
-	// which is what descend narrows a checklist alias by, so the two are
+	// which is what descend narrows a checklist segment by, so the two are
 	// counted the same way over the same order rather than composed from the
 	// overall ordinal and hoped to agree.
 	//
@@ -995,15 +995,15 @@ func commentRef(cardRef string, ordinal int) string {
 }
 
 // itemRef is what a person types to reach one checklist item. An item of
-// one of the three kinds the format declares is named by that kind's alias
+// one of the three kinds the format declares is named by that kind's word
 // and its position among the items of that kind, which is the spelling
 // dinah show already prints and the one walkBelowCard narrows by. An item
 // of any other kind is named by the collection and its position in it,
 // which descend resolves without narrowing, so a damaged item or an
 // extension kind still shows a reader something they can type.
 func itemRef(cardRef, kind string, kindPosition, position int) string {
-	if alias, ok := bench.AliasForItemKind(kind); ok {
-		return cardRef + "/" + alias + "/" + strconv.Itoa(kindPosition)
+	if word, ok := bench.WordForItemKind(kind); ok {
+		return cardRef + "/" + word + "/" + strconv.Itoa(kindPosition)
 	}
 	return cardRef + "/" + bench.ChecklistDir + "/" + strconv.Itoa(position)
 }

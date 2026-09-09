@@ -1131,12 +1131,12 @@ type sweptItemRecord struct {
 // reaches a reader through the item's own reference instead.
 func expectChecklist(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
 	t.Helper()
-	aliases := map[string]string{"open_question": "oq", "acceptance_criterion": "ac", "decision": "d"}
+	words := map[string]string{"open_question": "questions", "acceptance_criterion": "criteria", "decision": "decisions"}
 	within := map[string]int{}
 	var rows [][]sweptCell
 	for _, item := range r.checklist {
 		within[item.kind]++
-		ref := "ck-1/" + aliases[item.kind] + "/" + strconv.Itoa(within[item.kind])
+		ref := "ck-1/" + words[item.kind] + "/" + strconv.Itoa(within[item.kind])
 		rows = append(rows, sweptTexts(ref, item.state, item.owner, item.text))
 	}
 	return sweptExpectation{rows: rows, source: "the record's checklist items"}

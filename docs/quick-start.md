@@ -752,11 +752,11 @@ script does not fill the journal with rows recording nothing.
 You address anything below a card with a path reference, which is the card's
 reference followed by slash-separated segments. You write `rel-1/attachments/1`
 for the attachment you just made. The segments you can use are `comments`,
-`attachments`, `checklist`, `journal`, and `card`, plus `oq`, `ac`, and `d` as
-shorthands for the three checklist kinds. If you reach past an attachment into
-`payload`, you get the file itself. No command in this version files a checklist
-item. You can only address checklist items that something else has already
-written.
+`attachments`, `checklist`, `journal`, and `card`, plus `questions`, `criteria`,
+and `decisions` for the three checklist kinds. If you reach past an attachment
+into `payload`, you get the file itself. No command in this version files a
+checklist item. You can only address checklist items that something else has
+already written.
 
 You name a thing in a collection either by its twelve-hex identifier or by its
 position, counting from one, and Dinah counts positions in the order the things

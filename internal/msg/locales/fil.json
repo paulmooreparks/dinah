@@ -1242,7 +1242,7 @@
       "skeleton": true
     },
     "param.cite.item.summary": {
-      "text": "the checklist item the citation is added to, such as wb-1/ac/1",
+      "text": "the checklist item the citation is added to, such as wb-1/criteria/1",
       "context": "The written meaning of cite's item argument. wb-1 stands for a card reference and is not translated.",
       "skeleton": true
     },
@@ -1282,7 +1282,7 @@
       "skeleton": true
     },
     "param.item.summary": {
-      "text": "the checklist item, such as wb-1/checklist/2 or wb-1/ac/1",
+      "text": "the checklist item, such as wb-1/checklist/2 or wb-1/criteria/1",
       "context": "The written meaning of the item argument, shared by every command naming one checklist item. wb-1 stands for a card reference and is not translated.",
       "skeleton": true
     },

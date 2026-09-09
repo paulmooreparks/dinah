@@ -62,9 +62,9 @@ func TestACommentViewCarriesAReferenceThatResolves(t *testing.T) {
 //
 // The third item is written by hand because no verb files an undeclared kind,
 // which is the only way the case can exist at all. Its reference is the
-// unaliased one, since the resolver descends the collection unnarrowed for a
-// segment that is not a checklist alias, and the two declared kinds keep the
-// aliased spelling dinah show has always printed.
+// uncollected one, since the resolver descends the collection unnarrowed for a
+// segment that names no checklist kind, and the two declared kinds carry the
+// word their kind is addressed by.
 func TestEveryChecklistItemCarriesAReferenceThatResolves(t *testing.T) {
 	h := newHarness(t)
 	card := h.add("a card carrying three kinds of item")
@@ -96,9 +96,9 @@ func TestEveryChecklistItemCarriesAReferenceThatResolves(t *testing.T) {
 		}
 	}
 	if got, want := byKind["risk"].Ref, card+"/checklist/3"; got != want {
-		t.Errorf("the risk item is addressed %q, wanted the unaliased %q, since the format declares no alias for that kind", got, want)
+		t.Errorf("the risk item is addressed %q, wanted the collection spelling %q, since the format declares no word for that kind", got, want)
 	}
-	if got, want := byKind["acceptance_criterion"].Ref, card+"/ac/1"; got != want {
-		t.Errorf("the criterion is addressed %q, wanted the aliased %q", got, want)
+	if got, want := byKind["acceptance_criterion"].Ref, card+"/criteria/1"; got != want {
+		t.Errorf("the criterion is addressed %q, wanted the kind-narrowed %q", got, want)
 	}
 }

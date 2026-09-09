@@ -7172,7 +7172,8 @@ func TestTheReferencesGuideSaysWhichCommandTakesWhat(t *testing.T) {
 		"dinah path workbench", "dinah path .", "dinah show wb-1", "dinah attach doing",
 		"wb-1/card", "wb-1/journal", "wb-1/comments", "wb-1/comments/1",
 		"wb-1/checklist", "wb-1/checklist/1", "wb-1/attachments", "wb-1/attachments/1",
-		"wb-1/oq", "wb-1/ac", "wb-1/d",
+		"wb-1/questions", "wb-1/criteria", "wb-1/decisions",
+		"accepts `oq`, `ac` and `d` for those same three",
 		"in the order the entities were created",
 		"nothing answers to the reference rather than telling you the collection is empty",
 	} {

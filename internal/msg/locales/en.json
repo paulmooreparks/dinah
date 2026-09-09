@@ -994,7 +994,7 @@
       "context": "The meaning of the at argument of `dinah card`, printed in that command's arguments table. A severity or a priority is one value for the whole card, so naming a column for either is a usage error."
     },
     "param.cite.item.summary": {
-      "text": "the checklist item the citation is added to, such as wb-1/ac/1",
+      "text": "the checklist item the citation is added to, such as wb-1/criteria/1",
       "context": "The written meaning of cite's item argument. wb-1 stands for a card reference and is not translated."
     },
     "param.cite.observed.summary": {
@@ -1026,7 +1026,7 @@
       "context": "The written meaning of file's text argument."
     },
     "param.item.summary": {
-      "text": "the checklist item, such as wb-1/checklist/2 or wb-1/ac/1",
+      "text": "the checklist item, such as wb-1/checklist/2 or wb-1/criteria/1",
       "context": "The written meaning of the item argument, shared by every command naming one checklist item. wb-1 stands for a card reference and is not translated."
     },
     "param.note.summary": {
