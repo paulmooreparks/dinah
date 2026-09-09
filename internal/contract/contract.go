@@ -417,6 +417,11 @@ const (
 	// the reference and the kind rides beside it, so the caller sees what the
 	// reference reached rather than what they hoped it would reach.
 	NotAttachable = LayerPrefix + "not-attachable"
+	// IsACollection is a command that takes one entity handed a reference
+	// naming a whole collection. The detail names the reference as typed,
+	// the member count rides beside it, and so does the reference of the
+	// first member, which is a spelling the reader can type.
+	IsACollection = LayerPrefix + "is-a-collection"
 	// AmbiguousColumn is a pull with no destination named finding more than
 	// one column it could pull into. The sentence names the columns that
 	// qualified, because a reader whose command stopped needs to know what
@@ -519,7 +524,7 @@ var Introduced = []string{
 	UnknownDepth, UnknownWorkstream, Referenced, WorkstreamSlugTaken,
 	ColumnSlugTaken, ColumnRoutingDisrupted,
 	UnknownRoot, OutsideRoot, ConflictingScope, DepthWithoutRoot, MalformedDepth,
-	AmbiguousName, NotRenamable, NotAttachable,
+	AmbiguousName, NotRenamable, NotAttachable, IsACollection,
 	AmbiguousColumn, NoUpstream, AwaitingOutside, TakesNoWork,
 	NoLevels, UnknownLevel, UnknownFormat,
 	NoTierDefault, TierOutOfRange, BelowTier, TierNotHigher,

@@ -14,8 +14,8 @@ import (
 // every head renders it, so a consumer learns one node and reads both trees.
 type TreeNode struct {
 	// Kind is what this node is: workbench, column, card, comment, item,
-	// attachment, a dotted extension kind, or group. Every value but group
-	// names an entity kind of the format.
+	// attachment, a dotted extension kind, group, or collection. Every value
+	// but group and collection names an entity kind of the format.
 	Kind string `json:"kind"`
 	// ID is the entity's 12-hex identifier, absent on a group node.
 	ID string `json:"id,omitempty"`
@@ -100,6 +100,12 @@ const (
 // NodeGroup is the one node kind that names no entity: a set of subjects
 // sharing a value on one axis.
 const NodeGroup = "group"
+
+// KindCollection is the kind a payload gives a collection reference. Like
+// NodeGroup it names no entity of the format, and both the containment tree's
+// root node and an attachments listing carry it where an entity kind would
+// otherwise sit.
+const KindCollection = "collection"
 
 // The depth levels. Both ladders share root and cards, and every other level
 // belongs to one producer alone.
@@ -872,12 +878,15 @@ func (l *Library) readableValues(axis string, stored []string) []string {
 // from a comment has no cards in it, so a filter there would either mean
 // nothing or mean something the grammar does not say.
 func (l *Library) Contents(req *Request, level string) (*Tree, error) {
-	entity, err := l.Bench.ResolveEntity(req.Ref)
+	entity, collection, err := l.Bench.ResolveReference(req.Ref)
 	if err != nil {
 		return nil, err
 	}
 	if err := checkLevel(level, ContentsLevels); err != nil {
 		return nil, err
+	}
+	if collection != nil {
+		return l.collectionContents(collection, level), nil
 	}
 	tree := &Tree{
 		Producer: ProducerContainment,
@@ -894,12 +903,52 @@ func (l *Library) Contents(req *Request, level string) (*Tree, error) {
 	// address below the workbench rather than the one address the ruling is
 	// about, and would desync from the resolver's own default the moment a
 	// child address was resolved a second time.
-	childRef := tree.Root.Ref
-	if entity.Kind == bench.KindWorkbench {
-		childRef = l.Bench.Slug
-	}
+	childRef := l.childSeed(entity)
 	l.fillContained(&tree.Root, entity.Dir, entity.Kind, childRef, rank, contentsLimit(level))
 	return tree, nil
+}
+
+// childSeed is the reference an entity's contained members compose against.
+// The workbench is the one entity whose children are seeded with the slug
+// rather than with its own printed spelling, per dinah-151 OQ-9: that ruling
+// changed the root's own displayed reference alone, and seeding the children
+// with it as well would rename every address below the workbench rather than
+// the one address the ruling is about.
+func (l *Library) childSeed(entity *bench.EntityRef) string {
+	if entity.Kind == bench.KindWorkbench {
+		return l.Bench.Slug
+	}
+	return l.rootOf(entity).Ref
+}
+
+// collectionContents is the walk rooted at a whole collection: the rows a walk
+// rooted at the collection's holder draws under that collection, and no
+// others.
+//
+// The root takes its rank from the holder rather than from a rung of its own,
+// because a collection has no anchor, no identifier and no row in the
+// containment table, and the depth ladder is a ladder of entities. A --depth
+// therefore cuts this walk where it cuts a walk rooted at the holder.
+func (l *Library) collectionContents(collection *bench.CollectionRef, level string) *Tree {
+	tree := &Tree{
+		Producer: ProducerContainment,
+		Subject:  SubjectEntity,
+		Depth:    level,
+		Root:     TreeNode{Kind: KindCollection, Ref: collection.Ref},
+	}
+	rank := rankOfKind(collection.Holder.Kind)
+	limit := contentsLimit(level)
+	children := l.memberNodes(collection.Dir, collection.Mount, collection.Members, l.childSeed(collection.Holder))
+	for i := range children {
+		member := filepath.Join(collection.Dir, children[i].ID)
+		l.fillContained(&children[i], member, collection.Mount.Kind, children[i].Ref, rank+1, limit)
+		// The count is walked rather than added up from the children the
+		// projection drew, so it is the same number whatever the depth left
+		// out, which is the rule containedCount already carries.
+		tree.Root.Count += 1 + containedCount(member, collection.Mount.Kind)
+	}
+	placeChildren(&tree.Root, children, rank, limit)
+	return tree
 }
 
 // rootOf is the node the containment walk starts from, named the way a person
@@ -980,7 +1029,15 @@ func (l *Library) itemRefOf(entity *bench.EntityRef) string {
 // depth report. The filter never reaches this producer, so a containment node
 // hides nothing but what the depth cut off.
 func (l *Library) fillContained(node *TreeNode, dir, kind, ref string, rank, limit int) {
-	children := l.containedChildren(dir, kind, ref, rank, limit)
+	placeChildren(node, l.containedChildren(dir, kind, ref, rank, limit), rank, limit)
+}
+
+// placeChildren either draws a node's children or reports them as held back,
+// which is the whole of what the depth cut does to one node. A walk rooted at
+// a collection builds its children from the collection's own members rather
+// than from the containment grammar, so it reads the rule here rather than
+// restating it.
+func placeChildren(node *TreeNode, children []TreeNode, rank, limit int) {
 	if rank < limit {
 		node.Children = children
 		return
@@ -1005,28 +1062,42 @@ func (l *Library) fillContained(node *TreeNode, dir, kind, ref string, rank, lim
 // collection comes in the creation order a positional reference counts in.
 func (l *Library) containedChildren(dir, kind, ref string, rank, limit int) []TreeNode {
 	var nodes []TreeNode
-	// kindSeen counts each item kind's members as the walk passes them, so an
-	// item's reference carries its position within its own kind rather than
-	// within the whole checklist. The walk lists a collection through
-	// containmentMembersOf, which sorts the way bench.Items sorts but keeps a
-	// member bench.Items skips, so the two counts run together over every item
-	// both surfaces draw. They part company only over an item whose anchor
-	// will not open: itemKindAt reads that item's kind as the empty string, so
-	// it lands in a bucket of its own here and Show never draws it at all.
-	kindSeen := map[string]int{}
 	for _, mount := range bench.Contains(kind) {
 		collection := filepath.Join(dir, mount.Dir)
-		for position, id := range l.containmentMembersOf(collection, mount) {
-			itemKind, kindPosition := "", 0
-			if mount.Kind == bench.KindItem {
-				itemKind = itemKindAt(filepath.Join(collection, id))
-				kindSeen[itemKind]++
-				kindPosition = kindSeen[itemKind]
-			}
-			child := l.containedNode(collection, id, position+1, itemKind, kindPosition, mount, ref)
-			l.fillContained(&child, filepath.Join(collection, id), mount.Kind, child.Ref, rank+1, limit)
-			nodes = append(nodes, child)
+		children := l.memberNodes(collection, mount, l.containmentMembersOf(collection, mount), ref)
+		for i := range children {
+			l.fillContained(&children[i], filepath.Join(collection, children[i].ID), mount.Kind, children[i].Ref, rank+1, limit)
 		}
+		nodes = append(nodes, children...)
+	}
+	return nodes
+}
+
+// memberNodes builds one node per member of a collection, in the order the ids
+// arrive, named the way this walk names members. containedChildren runs it
+// once per mount of an entity's kind, and the two commands rooted at a
+// collection run it once, so every one of them prints one spelling per entity.
+//
+// kindSeen counts each item kind's members as the walk passes them, so an
+// item's reference carries its position within its own kind rather than within
+// the whole checklist, and the counter lives here with the composition it
+// feeds. The walk lists a collection through containmentMembersOf, which sorts
+// the way bench.Items sorts but keeps a member bench.Items skips, so the two
+// counts run together over every item both surfaces draw. They part company
+// only over an item whose anchor will not open: itemKindAt reads that item's
+// kind as the empty string, so it lands in a bucket of its own here and Show
+// never draws it at all.
+func (l *Library) memberNodes(collection string, mount bench.Mount, ids []string, seed string) []TreeNode {
+	nodes := make([]TreeNode, 0, len(ids))
+	kindSeen := map[string]int{}
+	for position, id := range ids {
+		itemKind, kindPosition := "", 0
+		if mount.Kind == bench.KindItem {
+			itemKind = itemKindAt(filepath.Join(collection, id))
+			kindSeen[itemKind]++
+			kindPosition = kindSeen[itemKind]
+		}
+		nodes = append(nodes, l.containedNode(collection, id, position+1, itemKind, kindPosition, mount, seed))
 	}
 	return nodes
 }
@@ -1067,7 +1138,7 @@ func (l *Library) containmentMembersOf(collection string, mount bench.Mount) []s
 		}
 		return ids
 	}
-	return bench.SortByOrdinal(collection, mount.Anchor, bench.ListIDs(collection))
+	return bench.MemberIDs(collection, mount)
 }
 
 // containedNode is one entity as a node of the containment tree, with the

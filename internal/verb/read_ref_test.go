@@ -25,7 +25,7 @@ func TestACommentViewCarriesAReferenceThatResolves(t *testing.T) {
 	h.comment(card, "the third thought")
 	h.remove(card + "/comments/1")
 
-	detail, _, err := h.library.Show(&Request{Verb: "show", Card: card})
+	detail, _, _, err := h.library.Show(&Request{Verb: "show", Card: card})
 	if err != nil {
 		t.Fatalf("show %s: %v", card, err)
 	}
@@ -72,7 +72,7 @@ func TestEveryChecklistItemCarriesAReferenceThatResolves(t *testing.T) {
 	h.file(card, "acceptance_criterion", "the criterion")
 	h.item(card, "c00000000003", "kind: risk\nordinal: 3\n", "a risk")
 
-	detail, _, err := h.library.Show(&Request{Verb: "show", Card: card})
+	detail, _, _, err := h.library.Show(&Request{Verb: "show", Card: card})
 	if err != nil {
 		t.Fatalf("show %s: %v", card, err)
 	}

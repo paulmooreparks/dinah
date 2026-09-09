@@ -206,6 +206,50 @@ func VocabularySources() []string {
 	return sources
 }
 
+// ReferenceTakingCommands are the commands that take a reference in the
+// containment grammar, in name order, derived from the two declarations that
+// carry the fact rather than from a list written beside them.
+//
+// A command declares it twice: guides names the references guide against the
+// command, and the command's own parameter carries the same topic. The two are
+// separate declarations of one fact, so this reads both and returns them only
+// when they agree, which is what makes a command joining or leaving the roster
+// move every guard that reads this rather than leaving a stale literal behind.
+func ReferenceTakingCommands() []string {
+	byGuide := map[string]bool{}
+	for command, topics := range guides {
+		for _, topic := range topics {
+			if topic == referencesGuide {
+				byGuide[command] = true
+			}
+		}
+	}
+	named := make([]string, 0, len(byGuide))
+	for command, list := range params {
+		carried := false
+		for _, param := range list {
+			if param.Guide == referencesGuide {
+				carried = true
+			}
+		}
+		if carried != byGuide[command] {
+			// The two declarations disagree, which is a defect of the
+			// definition rather than of the caller, so the roster reports it
+			// by leaving the command out and letting the count fail.
+			continue
+		}
+		if carried {
+			named = append(named, command)
+		}
+	}
+	sort.Strings(named)
+	return named
+}
+
+// referencesGuide is the topic a reference-taking parameter names, spelled
+// once because two tables and the roster above all read it.
+const referencesGuide = "references"
+
 // guides are the guide topics a command as a whole points its reader at, where
 // a parameter's own Guide points at one for a single argument.
 var guides = map[string][]string{

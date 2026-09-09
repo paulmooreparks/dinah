@@ -25,7 +25,7 @@ func TestShowCarriesEveryChecklistItemTheCardHolds(t *testing.T) {
 	h.item(ref, "b00000000003", "kind: decision\nstate: resolved\nordinal: 3\nnote: the operator confirmed it's Acme per the 2026-08 contract\n",
 		"Whose contract the numbers come from.")
 
-	detail, _, err := h.library.Show(&Request{Verb: "show", Actor: "alka", Card: ref})
+	detail, _, _, err := h.library.Show(&Request{Verb: "show", Actor: "alka", Card: ref})
 	if err != nil {
 		t.Fatalf("show: %v", err)
 	}
@@ -71,7 +71,7 @@ func TestAChecklistPayloadOmitsWhatTheItemNeverCarried(t *testing.T) {
 		"The endpoint returns 404 for an unknown id.")
 	bare := h.ready("carrying nothing at all")
 
-	detail, _, err := h.library.Show(&Request{Verb: "show", Actor: "alka", Card: ref})
+	detail, _, _, err := h.library.Show(&Request{Verb: "show", Actor: "alka", Card: ref})
 	if err != nil {
 		t.Fatalf("show: %v", err)
 	}
@@ -99,7 +99,7 @@ func TestAChecklistPayloadOmitsWhatTheItemNeverCarried(t *testing.T) {
 		}
 	}
 
-	empty, _, err := h.library.Show(&Request{Verb: "show", Actor: "alka", Card: bare})
+	empty, _, _, err := h.library.Show(&Request{Verb: "show", Actor: "alka", Card: bare})
 	if err != nil {
 		t.Fatalf("show the bare card: %v", err)
 	}
@@ -139,7 +139,7 @@ func TestAChecklistItemsReferenceResolvesToThatItem(t *testing.T) {
 		planted[row.id] = h.item(ref, row.id, row.frontmatter, row.text)
 	}
 
-	detail, _, err := h.library.Show(&Request{Verb: "show", Actor: "alka", Card: ref})
+	detail, _, _, err := h.library.Show(&Request{Verb: "show", Actor: "alka", Card: ref})
 	if err != nil {
 		t.Fatalf("show: %v", err)
 	}

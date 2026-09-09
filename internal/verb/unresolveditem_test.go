@@ -172,7 +172,7 @@ func TestACardPublishesHowManyItemsWouldRefuseAClaim(t *testing.T) {
 	clean := h.ready("carrying nothing that refuses")
 	h.item(clean, "b00000000007", resolvedQuestion, "Which way round?")
 
-	detail, _, err := h.library.Show(&Request{Verb: "show", Actor: "alka", Card: carrying})
+	detail, _, _, err := h.library.Show(&Request{Verb: "show", Actor: "alka", Card: carrying})
 	if err != nil {
 		t.Fatalf("show: %v", err)
 	}
@@ -180,7 +180,7 @@ func TestACardPublishesHowManyItemsWouldRefuseAClaim(t *testing.T) {
 		t.Errorf("wanted the two questions counted and the criterion not, got %d", detail.Card.BlockingItems)
 	}
 
-	quiet, _, err := h.library.Show(&Request{Verb: "show", Actor: "alka", Card: clean})
+	quiet, _, _, err := h.library.Show(&Request{Verb: "show", Actor: "alka", Card: clean})
 	if err != nil {
 		t.Fatalf("show: %v", err)
 	}

@@ -41,7 +41,7 @@ func TestTheShowToolCarriesTheChecklistTheCliCarries(t *testing.T) {
 		t.Fatalf("marshal the tool's checklist: %v", err)
 	}
 
-	direct, _, err := library.Show(&verb.Request{Verb: "show", Actor: "alka", Card: "fx-1"})
+	direct, _, _, err := library.Show(&verb.Request{Verb: "show", Actor: "alka", Card: "fx-1"})
 	if err != nil {
 		t.Fatalf("show: %v", err)
 	}

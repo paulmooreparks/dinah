@@ -923,6 +923,27 @@ var Shapes = []Shape{
 		},
 	},
 	{
+		// A collection reference resolves, so the reader is told what it
+		// names rather than that it names nothing. The next step is an
+		// alternation of two, because a collection holding members can
+		// offer one of them to type and an empty collection cannot, and
+		// the empty branch carries no condition so every rendering ends on
+		// a next step. count is carried for a machine caller and named in
+		// no entry, so it is not declared here: the guard reads Values to
+		// find a name that outlived the entry using it, and a declared
+		// value no sentence carries fails it.
+		Name:   IsACollection,
+		Values: []string{"member"},
+		Fragments: []Fragment{
+			{Key: "refusal.dinah.is-a-collection.next-member", When: "member"},
+			{Key: "refusal.dinah.is-a-collection.empty"},
+		},
+		NextStep: []string{
+			"refusal.dinah.is-a-collection.next-member",
+			"refusal.dinah.is-a-collection.empty",
+		},
+	},
+	{
 		// A bare pull found more than one column it could pull into, and
 		// the qualifying columns ride as a Carried set rather than a Listing
 		// since the value depends on the invocation. The next step names
