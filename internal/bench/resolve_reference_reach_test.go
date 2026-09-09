@@ -60,20 +60,30 @@ func TestResolveReferenceReachesAWorkstreamAndRefusesAnAttachmentPayload(t *test
 	}
 }
 
-// TestResolvePathAnswersACollectionWhereResolveEntityRefusesIt holds the
-// clause resolveBelow's doc comment states about the two resolvers. That
-// comment said ResolvePath and ResolveEntity are two readings of the pair
-// resolveBelow returns, so both accept the same references. This card made
-// that false: a reference naming a whole collection resolves to the
-// collection's directory through ResolvePath and is refused by ResolveEntity,
-// which is the addressing this card set out to separate.
+// TestResolveEntityRefusesTheTwoReferencesResolvePathAnswers holds the clause
+// two doc comments in dinah-455 state about what separates the path resolver
+// from the entity resolver. resolveBelow's comment said ResolvePath and
+// ResolveEntity are two readings of the pair it returns, so both accept the
+// same references, and ResolveEntity's own comment said the same thing in its
+// own words. This card made both false: a reference naming a whole collection
+// resolves to the collection's directory through ResolvePath and is refused by
+// ResolveEntity, which is the addressing this card set out to separate. The
+// attachment payload was the exception before this card and is the second one
+// now, and it is asserted here against ResolveEntity rather than only against
+// ResolveReference, because ResolveEntity is where the corrected comment
+// counts the two.
 //
 // The claim is guarded here rather than in prose for the reason the test above
 // gives, since a comment restating it in new words is still caught by the
 // resolvers disagreeing with it.
-func TestResolvePathAnswersACollectionWhereResolveEntityRefusesIt(t *testing.T) {
+//
+// Each assertion below fails on its own: a ResolvePath that stopped answering
+// a collection fails the first, a ResolveEntity that answered one fails the
+// second, and a ResolveEntity that answered a payload fails the third.
+func TestResolveEntityRefusesTheTwoReferencesResolvePathAnswers(t *testing.T) {
 	root := newFixture(t)
 	writeAttachment(t, root, "a00000000001", 1)
+	write(t, filepath.Join(root, CardsDir, "c00000000001", AttachmentsDir, "a00000000001", PayloadDir, "a00000000001.txt"), "payload bytes\n")
 	opened, err := Open(root)
 	if err != nil {
 		t.Fatalf("open: %v", err)
@@ -82,12 +92,17 @@ func TestResolvePathAnswersACollectionWhereResolveEntityRefusesIt(t *testing.T) 
 	collectionRef := "fx-1/" + AttachmentsDir
 	resolved, err := opened.ResolvePath(collectionRef)
 	if err != nil {
-		t.Fatalf("ResolvePath refuses %q with %v, and the comment says it answers a reference naming a whole collection", collectionRef, err)
+		t.Fatalf("ResolvePath refuses %q with %v, and the comments say it answers a reference naming a whole collection", collectionRef, err)
 	}
 	if got := filepath.Base(resolved); got != AttachmentsDir {
 		t.Errorf("ResolvePath answers %q with %q, wanted the collection's own directory", collectionRef, got)
 	}
 	if _, err := opened.ResolveEntity(collectionRef); err == nil {
-		t.Errorf("ResolveEntity answers %q, and the comment says it refuses a reference naming a whole collection", collectionRef)
+		t.Errorf("ResolveEntity answers %q, and the comments say it refuses a reference naming a whole collection", collectionRef)
+	}
+
+	payloadRef := "fx-1/" + AttachmentsDir + "/1/" + PayloadDir
+	if _, err := opened.ResolveEntity(payloadRef); err == nil {
+		t.Errorf("ResolveEntity answers %q, and its comment counts an attachment's payload as one of the two references it refuses", payloadRef)
 	}
 }

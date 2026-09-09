@@ -710,8 +710,11 @@ type EntityRef struct {
 
 // ResolveEntity resolves the reference the entity-shaped commands take: the
 // bench itself, a column, a workstream, a card, or any entity below one of
-// those. It accepts the same references ResolvePath does, so a reference a
-// walk prints names the same entity to every command that takes one.
+// those. It accepts every reference ResolvePath accepts but two, so a
+// reference a walk prints names the same entity to every command that takes
+// one. It refuses an attachment's payload, which carries no anchor, and it
+// refuses a reference naming a whole collection, which is not an entity of the
+// format and has no anchor either. ResolvePath answers both with a path.
 //
 // An answer of kind card always carries the card, and an answer below a card
 // always carries the card it belongs to. Callers read Card without asking, and
