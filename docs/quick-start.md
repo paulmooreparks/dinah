@@ -1238,14 +1238,14 @@ storage format 2
 Catalogs:
   Language  Translated
   --------  ----------
-  en        915/915
-  af        0/915
-  cs        0/915
-  de        915/915
-  es        0/915
-  fil       0/915
-  hi        915/915
-  id        0/915
+  en        917/917
+  af        0/917
+  cs        0/917
+  de        917/917
+  es        0/917
+  fil       0/917
+  hi        917/917
+  id        0/917
 [exit 0]
 ```
 

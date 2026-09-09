@@ -482,8 +482,13 @@
       "skeleton": true
     },
     "check.move.9": {
+      "text": "the card carries no unresolved item that names the destination",
+      "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
+      "skeleton": true
+    },
+    "check.move.10": {
       "text": "the card has not reached the departure column's loop limit",
-      "context": "One row of the ordered precondition list of move. This row is Dinah's own addition; the core profile's own section 6.4 list ends at check.move.8.",
+      "context": "One row of the ordered precondition list of move. This row is Dinah's own addition; the core profile's own section 6.4 list ends at check.move.9.",
       "skeleton": true
     },
     "check.next.1": {
@@ -547,21 +552,26 @@
       "skeleton": true
     },
     "check.pull.11": {
+      "text": "the card carries no unresolved item that names the destination",
+      "context": "One row of the ordered precondition list of pull: the destination's own hold, read at the column the card would land in.",
+      "skeleton": true
+    },
+    "check.pull.12": {
       "text": "taking the card up at the destination is legal for whoever asks",
       "context": "One row of the ordered precondition list of pull: the operator-owned reservation applied to the column the card would land in and be claimed at.",
       "skeleton": true
     },
-    "check.pull.12": {
+    "check.pull.13": {
       "text": "the destination is not being retired",
       "context": "One row of the ordered precondition list of pull: a destination whose retirement is in flight refuses, in the words move refuses it.",
       "skeleton": true
     },
-    "check.pull.13": {
+    "check.pull.14": {
       "text": "the card carries no structured item that is not resolved",
       "context": "One row of the ordered precondition list of pull: a pull that takes the card up answers claim's own last row, in the words claim refuses it.",
       "skeleton": true
     },
-    "check.pull.14": {
+    "check.pull.15": {
       "text": "your declared tier is at or above what the card asks there",
       "context": "One row of the ordered precondition list of pull: a pull that takes the card up answers claim's own tier row, asked at the column it lands in.",
       "skeleton": true

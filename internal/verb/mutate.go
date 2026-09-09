@@ -130,7 +130,7 @@ func (l *Library) lapse(card *bench.Card) error {
 // gates in the same order.
 //
 // The tier row is Dinah's own, and it is appended rather than inserted among
-// the profile's seven, on the terms check.move.9 already keeps: inserting it
+// the profile's seven, on the terms check.move.10 already keeps: inserting it
 // would renumber rows the profile numbers, and dinah help claim heads its
 // table Order and promises the rows in the order each is checked, so the
 // published numbering decides the evaluation order rather than the code
@@ -350,18 +350,23 @@ func (l *Library) canRoute(req *Request, card *bench.Card) (*bench.Column, *benc
 // destination, in that list's order: the card is not blocked, the card is
 // not held by somebody else, the move is not a forward move out of a done
 // column, the destination stands below its capacity, the departure has not
-// reached its own declared loop_limit for this card, the destination does not
+// reached its own declared loop_limit for this card, the destination holds no
+// unresolved item of this card's that names it, the destination does not
 // wait on somebody outside the workbench, the destination does not reserve
 // to the operator the claim an arriving act would take there, and the
-// destination is not being retired. It reports whether either limit was
+// destination is not being retired. It reports whether a limit or a hold was
 // reached and overridden, which is the flag the moved event carries.
 //
-// The loop row is Dinah's own, appended after the profile's own eight rather
-// than inserted among them, and it runs where it is printed. dinah help move
-// heads its table Order and promises the rows in the order each is checked,
-// so a move failing both the capacity row and the loop row answers
-// at-capacity, and the published numbering decides the evaluation order
-// rather than the other way round.
+// The loop row is Dinah's own, appended after the profile's own nine rather
+// than inserted among them. dinah help move heads its table Order and
+// promises the rows in the order each is checked, so a move failing the
+// capacity row and any row below it answers at-capacity.
+//
+// One pair departs from that promise, and it is dinah-450's own placement
+// rather than an accident. The gate row is published ninth and the loop row
+// tenth, and this function runs the loop row first, so a regressive move that
+// fails both answers dinah.at-loop-limit where the page says unresolved-item.
+// dinah-450 OQ-2 carries the question of which of the two to move.
 //
 // takesUp says whether the act this list is running for takes the card up
 // where it lands, which a pull does and a move does not. The waiting row and
@@ -402,6 +407,26 @@ func (l *Library) canLand(req *Request, card *bench.Card, destination, departure
 			return false, l.refuse(req, card, contract.AtLoopLimit, columnRef(departure)), nil
 		}
 	}
+	// CORE-GATE-3, the destination's own hold. The column declares only that
+	// it holds, and which items hold there follows from which of the card's
+	// items name it, so nothing below reads what kind of item it found. Every
+	// kind an item can carry holds a card on the same terms, and a workbench
+	// that wants one kind held at a column and not another says so by which
+	// kinds it files against that column.
+	//
+	// The refusal names the first such item, on claimableItems's own
+	// convention, because a count tells whoever is holding the card nothing
+	// about what to go and settle.
+	gateHeld := false
+	if destination.GateItems {
+		holding := bench.GatingItems(card.Dir, destination.ID)
+		if len(holding) > 0 {
+			gateHeld = true
+			if !req.Override {
+				return false, l.refuse(req, card, contract.UnresolvedItem, holding[0].ID), nil
+			}
+		}
+	}
 	// A column where no owner takes work up receives a card that arrives
 	// unheld, which is the ordinary handoff, and refuses one that arrives
 	// held, because a held card at such a column is work taken up where
@@ -434,7 +459,7 @@ func (l *Library) canLand(req *Request, card *bench.Card, destination, departure
 	if holder, retiring := l.retiring(destination.ID); retiring {
 		return false, l.refuse(req, card, contract.Locked, holder), nil
 	}
-	return (reached || loopReached) && req.Override, nil, nil
+	return (reached || loopReached || gateHeld) && req.Override, nil, nil
 }
 
 // move carries a card from one column to another. The list is CORE-MOVE's, in

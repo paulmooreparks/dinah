@@ -745,11 +745,14 @@ const reservedAmbiguousDefinition = `{
   ]
 }`
 
-// TestPullChecksAgainstTheFullSixteenRowTable asserts that the ordered
+// TestPullChecksAgainstTheFullSeventeenRowTable asserts that the ordered
 // precondition list Pull's help is generated from is the workbench pair
-// followed by the thirteen pull rows the spec owns and Dinah's own tier row,
+// followed by the fourteen pull rows the spec owns and Dinah's own tier row,
 // in the order they are checked. This is the test the help renders against.
-func TestPullChecksAgainstTheFullSixteenRowTable(t *testing.T) {
+//
+// Row 11 is the destination's own hold, CORE-GATE-2, which dinah-450 stated
+// here rather than leaving it to arrive silently through canLand.
+func TestPullChecksAgainstTheFullSeventeenRowTable(t *testing.T) {
 	checks := Checks(Pull)
 	want := []Check{
 		{Refusal: contract.UnsupportedVer, Key: "check.workbench.1"},
@@ -764,10 +767,11 @@ func TestPullChecksAgainstTheFullSixteenRowTable(t *testing.T) {
 		{Refusal: contract.Held, Key: "check.pull.8"},
 		{Refusal: contract.Terminal, Key: "check.pull.9"},
 		{Refusal: contract.AtCapacity, Key: "check.pull.10"},
-		{Refusal: contract.NotOperator, Key: "check.pull.11"},
-		{Refusal: contract.Locked, Key: "check.pull.12"},
-		{Refusal: contract.UnresolvedItem, Key: "check.pull.13"},
-		{Refusal: contract.BelowTier, Key: "check.pull.14"},
+		{Refusal: contract.UnresolvedItem, Key: "check.pull.11"},
+		{Refusal: contract.NotOperator, Key: "check.pull.12"},
+		{Refusal: contract.Locked, Key: "check.pull.13"},
+		{Refusal: contract.UnresolvedItem, Key: "check.pull.14"},
+		{Refusal: contract.BelowTier, Key: "check.pull.15"},
 	}
 	if len(checks) != len(want) {
 		t.Fatalf("wanted %d rows, got %d", len(want), len(checks))

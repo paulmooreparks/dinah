@@ -65,7 +65,7 @@ var checkLists = map[string][]Check{
 		{Refusal: contract.NotOperator, Key: "check.claim.6"},
 		{Refusal: contract.UnresolvedItem, Key: "check.claim.7"},
 		// The eighth row is Dinah's own, appended rather than inserted for
-		// the reason check.move.9 gives: the profile's section 6.3 list ends
+		// the reason check.move.10 gives: the profile's section 6.3 list ends
 		// at the seventh, and inserting among them would renumber rows the
 		// profile numbers. canClaim runs it where this list prints it, after
 		// the unresolved-item row.
@@ -80,16 +80,20 @@ var checkLists = map[string][]Check{
 		{Refusal: contract.Held, Key: "check.move.6"},
 		{Refusal: contract.Terminal, Key: "check.move.7"},
 		{Refusal: contract.AtCapacity, Key: "check.move.8"},
-		// The ninth row is Dinah's own: the profile's section 6.4 list ends
-		// at the eighth, so the loop limit is appended rather than inserted
-		// among the eight, which would renumber rows the profile numbers. Its
-		// key names where it sits in this list, and canLand runs it where
-		// this list prints it, after the capacity row, so a move failing
-		// both is refused at-capacity. dinah help move heads its table
-		// Order and promises the rows in the order each is checked, so the
-		// published numbering decides the evaluation order rather than the
-		// code deciding what the page prints.
-		{Refusal: contract.AtLoopLimit, Key: "check.move.9"},
+		// The ninth row is the profile's own, CORE-GATE-2, and it carries the
+		// name the profile fixes for it, unprefixed. It sits inside the
+		// profile-matched prefix of this list rather than past it, because a
+		// row past that prefix is required to carry a name in Dinah's own
+		// layer, and this one is not Dinah's to rename.
+		{Refusal: contract.UnresolvedItem, Key: "check.move.9"},
+		// The tenth row is Dinah's own: the profile's section 6.4 list ends
+		// at the ninth, so the loop limit is appended rather than inserted
+		// among the nine, which would renumber rows the profile numbers. Its
+		// key names where it sits in this list. canLand runs it ahead of the
+		// gate row above rather than where this list prints it, which is the
+		// one place the page and the code disagree, and dinah-450 OQ-2
+		// carries the question of which of the two moves.
+		{Refusal: contract.AtLoopLimit, Key: "check.move.10"},
 	},
 	Release: {
 		{Refusal: contract.UnknownCard, Key: "check.release.1"},
@@ -112,7 +116,7 @@ var checkLists = map[string][]Check{
 // IsContractVerb continues to answer false for pull while Checks still returns
 // the full list for the help and the refusal-set tests.
 //
-// These are rows 3 to 14 of pull's fourteen-row list, in order; rows 1 and 2
+// These are rows 3 to 15 of pull's fifteen-row list, in order; rows 1 and 2
 // are the workbench pair Checks prefixes. Two of them are pull's own names:
 // ambiguous-column is what the bare form answers when more than one column
 // qualifies, and no-upstream is what the named form answers for a column
@@ -121,8 +125,13 @@ var checkLists = map[string][]Check{
 //
 // Two rows carry not-operator for the operator-owned reservation, one at each
 // end of the pull. Row 6 reads the column the card is leaving, which is
-// CORE-MOVE-6, and row 11 reads the column it would land in and be claimed at,
+// CORE-MOVE-6, and row 12 reads the column it would land in and be claimed at,
 // which is CORE-CLAIM-8.
+//
+// Row 11 is CORE-GATE-2 read at the destination. It is stated here for real
+// rather than inherited silently through canLand, because nothing about a
+// pull's forward-only landing makes a gated destination unreachable, which is
+// what narrows the loop row away from this list.
 var pullChecks = []Check{
 	{Refusal: contract.NoOwner, Key: "check.pull.1"},
 	{Refusal: contract.UnknownColumn, Key: "check.pull.2"},
@@ -134,12 +143,13 @@ var pullChecks = []Check{
 	{Refusal: contract.Held, Key: "check.pull.8"},
 	{Refusal: contract.Terminal, Key: "check.pull.9"},
 	{Refusal: contract.AtCapacity, Key: "check.pull.10"},
-	{Refusal: contract.NotOperator, Key: "check.pull.11"},
-	{Refusal: contract.Locked, Key: "check.pull.12"},
-	{Refusal: contract.UnresolvedItem, Key: "check.pull.13"},
-	// Row 14 is Dinah's own tier gate, the claim list's row 8 reached at the
+	{Refusal: contract.UnresolvedItem, Key: "check.pull.11"},
+	{Refusal: contract.NotOperator, Key: "check.pull.12"},
+	{Refusal: contract.Locked, Key: "check.pull.13"},
+	{Refusal: contract.UnresolvedItem, Key: "check.pull.14"},
+	// Row 15 is Dinah's own tier gate, the claim list's row 8 reached at the
 	// destination, and it is appended for the same reason.
-	{Refusal: contract.BelowTier, Key: "check.pull.14"},
+	{Refusal: contract.BelowTier, Key: "check.pull.15"},
 }
 
 // beyondChecks are the refusals the commands outside the five contract verbs
@@ -180,8 +190,8 @@ var beyondChecks = map[string][]Check{
 	// and reaches row 6 instead when the name is not a declared tier.
 	//
 	// The three tier rows are inserted where the code runs them rather than
-	// appended, which is the opposite of what check.claim.8, check.move.9,
-	// and check.pull.14 do. The reason each way is the same reason. Those
+	// appended, which is the opposite of what check.claim.8, check.move.10,
+	// and check.pull.15 do. The reason each way is the same reason. Those
 	// three lists are the profile's, numbered by the profile document, so a
 	// Dinah row among them would renumber a row the profile names. This list
 	// is Dinah's own, numbered by nothing outside it, and the page heads the

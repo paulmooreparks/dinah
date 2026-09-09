@@ -28,7 +28,7 @@ var knownBenchKeys = map[string]bool{
 // under a name of its own.
 var knownColumnKeys = map[string]bool{
 	"title": true, "kind": true, "operator_owned": true, "wip_limit": true,
-	"slug": true, "awaiting_outside": true,
+	"slug": true, "awaiting_outside": true, "gate_items": true,
 }
 
 // Export writes the interchange form of a bench definition.
@@ -90,6 +90,12 @@ func exportColumn(column *Column) map[string]json.RawMessage {
 	// same shape operator_owned carries above.
 	if column.AwaitingOutside {
 		element["awaiting_outside"] = mustMarshal(true)
+	}
+	// CORE-JSON-10 blesses this member, so it travels under a name of its
+	// own rather than as an unrecognized member somebody else's tool
+	// preserves without understanding.
+	if column.GateItems {
+		element["gate_items"] = mustMarshal(true)
 	}
 	if column.Capacity > 0 {
 		element["capacity"] = mustMarshal(column.Capacity)
@@ -324,6 +330,12 @@ func writeColumnFromMember(root, id, slug string, element map[string]json.RawMes
 	if raw, ok := element["awaiting_outside"]; ok {
 		if err := json.Unmarshal(raw, &awaitingOutside); err == nil && awaitingOutside {
 			fm.Set("awaiting_outside", "true")
+		}
+	}
+	var gateItems bool
+	if raw, ok := element["gate_items"]; ok {
+		if err := json.Unmarshal(raw, &gateItems); err == nil && gateItems {
+			fm.Set("gate_items", "true")
 		}
 	}
 	var capacity int

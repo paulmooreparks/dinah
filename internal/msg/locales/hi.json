@@ -485,8 +485,13 @@
       "source": "9d61260048317b7e"
     },
     "check.move.9": {
+      "text": "कार्ड पर ऐसा कोई अनसुलझा मद नहीं है जो गंतव्य का नाम लेता हो",
+      "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
+      "source": "d6e9e1f4780da9c4"
+    },
+    "check.move.10": {
       "text": "कार्ड प्रस्थान कॉलम की लूप सीमा पर नहीं पहुँचा है",
-      "context": "One row of the ordered precondition list of move. This row is Dinah's own addition; the core profile's own section 6.4 list ends at check.move.8.",
+      "context": "One row of the ordered precondition list of move. This row is Dinah's own addition; the core profile's own section 6.4 list ends at check.move.9.",
       "source": "193dcb5974ead6b"
     },
     "check.next.1": {
@@ -550,21 +555,26 @@
       "source": "9d61260048317b7e"
     },
     "check.pull.11": {
+      "text": "कार्ड पर ऐसा कोई अनसुलझा मद नहीं है जो गंतव्य का नाम लेता हो",
+      "context": "One row of the ordered precondition list of pull: the destination's own hold, read at the column the card would land in.",
+      "source": "d6e9e1f4780da9c4"
+    },
+    "check.pull.12": {
       "text": "माँगने वाले के लिए गंतव्य पर कार्ड उठाना वैध है",
       "context": "One row of the ordered precondition list of pull: the operator-owned reservation applied to the column the card would land in and be claimed at.",
       "source": "93e6ab0cb424ce6d"
     },
-    "check.pull.12": {
+    "check.pull.13": {
       "text": "गंतव्य को सेवामुक्त नहीं किया जा रहा है",
       "context": "One row of the ordered precondition list of pull: a destination whose retirement is in flight refuses, in the words move refuses it.",
       "source": "64b7abf44b69542b"
     },
-    "check.pull.13": {
+    "check.pull.14": {
       "text": "कार्ड पर ऐसा कोई संरचित मद नहीं है जो अनसुलझी हो",
       "context": "One row of the ordered precondition list of pull: a pull that takes the card up answers claim's own last row, in the words claim refuses it.",
       "source": "50228523d584f48"
     },
-    "check.pull.14": {
+    "check.pull.15": {
       "text": "आपका बताया गया स्तर उससे बराबर या ऊपर है जो कार्ड वहाँ माँगता है",
       "context": "One row of the ordered precondition list of pull: a pull that takes the card up answers claim's own tier row, asked at the column it lands in.",
       "source": "3a872f98880c416e"

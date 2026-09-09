@@ -447,7 +447,7 @@ while that column carries a live card; an empty flow, and a placement nothing
 has reached yet, are unaffected. The check is evaluated against a read taken
 under the workbench lock, immediately before the column is written, so a card
 arriving while the call is being evaluated is one the check meets rather than
-misses. `operator_owned` and `awaiting_outside` are not settable at creation;
+misses. `operator_owned`, `awaiting_outside` and `gate_items` are not settable at creation;
 write them into the column's own file by hand, as before.
 
 Two words run through the rest of this section. A **station** is a column where
@@ -545,7 +545,7 @@ reaches the wire by a different route from `awaiting_outside` below, which is
 listed in `knownColumnKeys` and written out by name: `reject_to` is not listed,
 so the generic pass `exportColumn` makes over the rest of a column's frontmatter
 carries it, and an import writes it back into the anchor's frontmatter
-unchanged. CORE-JSON-9 lists the column members the profile blesses and does not
+unchanged. CORE-JSON-10 lists the column members the profile blesses and does not
 list this one, which is correct rather than a defect. To another tool it is an
 unrecognized member, and CORE-JSON-7 obliges that tool to preserve it. The
 concept's boundary-table row in section 10 of the profile is ruled out, with
@@ -603,12 +603,47 @@ identical name would claim an identity the two structures do not have. The
 divergence is recorded here rather than left for somebody to discover.
 
 `awaiting_outside` travels through interchange as a member of its own on the
-column element, written only where the flag is set. CORE-JSON-9 lists the column
+column element, written only where the flag is set. CORE-JSON-10 lists the column
 members the profile blesses and does not list this one, which is correct rather
 than a defect: to another tool it is an unrecognized member, and CORE-JSON-7
 obliges that tool to preserve it. The concept's boundary-table row in section 10
 of the profile is ruled out, with the reason and the reopen condition that go
 with staying out.
+
+A column may declare `gate_items: true`, which says the column holds a card
+while an item the card carries names that column and is not resolved. Absent
+means false, and the value is exactly `true` or `false`, following
+`awaiting_outside` above rather than `operator_owned`. The declaration says only
+that the column holds. It carries no list of which kinds of item hold there, and
+nothing in the refusal reads an item's kind, so an acceptance criterion holds a
+card exactly as a decision or an open question does and a workbench that wants
+one kind held at a column and not another says so by which kinds it files
+against that column. The item's own `column` key names the column by its
+identifier, which is the key the item reader beside it already resolves a title
+from.
+
+Entry is what is held. A move or a pull into a column declaring the flag is
+refused `unresolved-item`, naming the first such item in identifier order,
+because a count tells whoever holds the card nothing about what to go and
+settle. The operator carries the move through with the same `--override` marker
+that already carries a card into a full column, witnessed on the `moved` event
+the same way. Departure is untouched, as is every other verb: an item is filed,
+cited, resolved or reopened wherever the card stands, so nothing about the flag
+changes who may settle an item or when.
+
+The tool cannot tell a column an item deliberately names from one an item traps
+itself at. An item that names the very column where somebody was going to
+settle it holds the card out of that column forever, and Dinah has a field for
+the column an item names and none for the column that settles it, so a refusal
+built on what exists would refuse the ordinary case (a criterion verified
+downstream, naming a later column as its gate) exactly as often as the trap. No
+code addresses it. A workbench adopting the flag writes the discipline into its
+own method text instead: name the column after the one that settles the item,
+never the one that does.
+
+`gate_items` travels through interchange as a member of its own, the route
+`awaiting_outside` takes, and CORE-JSON-10 lists it among the members the
+profile blesses.
 
 A column may declare `wip_limit: <n>`; absent means unlimited. The limit
 counts every card in the column regardless of state, because a blocked
@@ -662,7 +697,7 @@ inert.
 `loop_limit` travels through interchange by the route `reject_to` takes rather
 than the one `awaiting_outside` takes: it is not listed in `knownColumnKeys`,
 so the generic pass `exportColumn` makes over the rest of a column's
-frontmatter carries it, and an import writes it back unchanged. CORE-JSON-9
+frontmatter carries it, and an import writes it back unchanged. CORE-JSON-10
 lists the column members the profile blesses and does not list this one, which
 is correct rather than a defect: to another tool it is an unrecognized member,
 and CORE-JSON-7 obliges that tool to preserve it. The concept's boundary-table
@@ -844,7 +879,7 @@ so a `claimed` line with no `expires` records an unbounded claim.
 |---|---|---|
 | `created` | | `title`, on a card's line and on a new workstream's, absent on the line that records a workstream `check` adopted; `to` and `to_title`, on a card's line only, since a workstream stands in no column |
 | `claimed` | | `expires`, when the claim carried a duration |
-| `moved` | `from`, `from_title`, `to`, `to_title` | `override`, true only where a declared limit was reached and the operator carried the move past it, which is a CORE-MOVE-9 capacity override or the departure column's own `loop_limit`; `reject`, true only when the destination is the departure column's own `reject_to` target |
+| `moved` | `from`, `from_title`, `to`, `to_title` | `override`, true only where a declared limit or hold stood in the way and the operator carried the move past it, which is a CORE-MOVE-9 capacity override, the departure column's own `loop_limit`, or the destination column's own `gate_items` hold under CORE-GATE-4; `reject`, true only when the destination is the departure column's own `reject_to` target |
 | `released` | | |
 | `blocked` | `reason` | `kind`, whatever the caller passed, since nothing validates it |
 | `unblocked` | | |
