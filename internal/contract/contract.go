@@ -510,6 +510,12 @@ const (
 	// catching it at write time is cheaper than meeting it once the evidence
 	// has gone stale.
 	ObservationRequired = LayerPrefix + "observation-required"
+	// UnknownLink is an unlink naming a kind and target pair the card does
+	// not carry. It carries LayerPrefix, unlike the two link events, because
+	// removal is Dinah's own invention: neither the format document nor the
+	// profile describes an unlink verb or names a refusal for one, so this is
+	// not a declared-shape name the way unknown-card and malformed are.
+	UnknownLink = LayerPrefix + "unknown-link"
 )
 
 // Introduced lists every refusal name Dinah mints beyond the profile's own.
@@ -531,7 +537,7 @@ var Introduced = []string{
 	ReshapeNeedsDestination, ReshapeHeldCardInQueue, ReshapeMapSourceEmpty,
 	ReshapeDestinationRetiring, ReshapeDestinationAmbiguous,
 	UnknownItemKind, WrongItemKind, NotPending, NotResolved, Uncited,
-	ObservationRequired,
+	ObservationRequired, UnknownLink,
 }
 
 // NameIsLegal reports whether a refusal name is one CORE-OUT-3 admits: one
@@ -671,9 +677,22 @@ const (
 	EventItemVerified = "item_verified"
 	EventItemFailed   = "item_failed"
 	EventItemReopened = "item_reopened"
+	// EventLinked and EventUnlinked record a link written onto a card and
+	// removed from it, on that card's own journal, because a link is
+	// card-owned and the card carrying it is the only file that changes.
+	// Each carries the link's kind in Kind and the resolved identifier of
+	// the card the link names in To.
+	//
+	// They join this block rather than carrying LayerPrefix for the reason
+	// the checklist events give: the prefix is reserved for what Dinah
+	// invents beyond what the format declares, and a link is declared. The
+	// removal refusal is not, which is why UnknownLink does carry the prefix
+	// and these two do not.
+	EventLinked   = "linked"
+	EventUnlinked = "unlinked"
 )
 
-// Events lists the twenty-seven event names a query over cards accepts in its
+// Events lists the twenty-nine event names a query over cards accepts in its
 // event field, in the order the constants above declare them, so a caller
 // checking a value against the closed set reads one list rather than repeating
 // it. Every event a card's own journal can carry has to be here, since an
@@ -697,6 +716,7 @@ var Events = []string{
 	EventTierOverridden, EventTierOverrideDropped,
 	EventItemFiled, EventItemCited, EventItemResolved, EventItemVerified,
 	EventItemFailed, EventItemReopened,
+	EventLinked, EventUnlinked,
 }
 
 // Refusal is the error a verb returns when a rule says no. It carries the one

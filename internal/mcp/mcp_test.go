@@ -167,8 +167,8 @@ func TestToolSurfaceIsTheProjection(t *testing.T) {
 	if err := json.Unmarshal(encoded, &listed); err != nil {
 		t.Fatalf("tools/list: %v", err)
 	}
-	if len(listed.Tools) != 43 {
-		t.Errorf("wanted forty-three tools, got %d", len(listed.Tools))
+	if len(listed.Tools) != 45 {
+		t.Errorf("wanted forty-five tools, got %d", len(listed.Tools))
 	}
 	names := map[string]bool{}
 	for _, tool := range listed.Tools {

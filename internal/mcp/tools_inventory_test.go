@@ -42,6 +42,8 @@ var publishedProperties = map[string][]string{
 	"verify_item":      {"actor", "item", "note", "workbench"},
 	"fail_item":        {"actor", "item", "note", "workbench"},
 	"reopen_item":      {"actor", "item", "reason", "workbench"},
+	"link_card":        {"actor", "card", "kind", "to", "workbench"},
+	"unlink_card":      {"actor", "card", "kind", "to", "workbench"},
 	"archive":          {"actor", "ref", "workbench"},
 	"delete":           {"actor", "ref", "workbench", "yes"},
 	"rename":           {"actor", "name", "ref", "workbench"},

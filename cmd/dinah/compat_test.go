@@ -77,7 +77,7 @@ var wantedKeys = map[string][]string{
 	"workbench.md":                                      {"format", "profile", "title", "slug", "operator", "columns", "levels"},
 	"columns/<id>/column.md":                            {"title", "slug", "kind", "operator_owned", "wip_limit", "tier"},
 	"archive/columns/<id>/column.md":                    {"title", "slug", "kind", "operator_owned", "wip_limit"},
-	"cards/<id>/card.md":                                {"title", "number", "column", "state", "severity", "priority", "tier", "tier_at", "claim_holder", "claim_since", "claim_expires", "block_reason", "block_kind", "block_since", "workstreams"},
+	"cards/<id>/card.md":                                {"title", "number", "column", "state", "severity", "priority", "tier", "tier_at", "links", "claim_holder", "claim_since", "claim_expires", "block_reason", "block_kind", "block_since", "workstreams"},
 	"archive/cards/<id>/card.md":                        {"title", "number", "column", "state"},
 	"cards/<id>/comments/<id>/comment.md":               {"ts", "author", "ordinal"},
 	"cards/<id>/archive/comments/<id>/comment.md":       {"ts", "author", "ordinal"},
@@ -118,6 +118,10 @@ var wantedEvents = map[string][]string{
 	// carries one raise so the union carries them.
 	contract.EventTierOverridden:      {"ts", "event", "actor", "column", "column_title", "from", "to", "expr", "against", "reason"},
 	contract.EventTierOverrideDropped: {"ts", "event", "actor", "column", "from"},
+	// kind is the word the caller typed for the relation, and to is the
+	// identifier the target resolved to, which is what the anchor stores.
+	contract.EventLinked:   {"ts", "event", "actor", "kind", "to"},
+	contract.EventUnlinked: {"ts", "event", "actor", "kind", "to"},
 }
 
 // unwrittenEvents are the event names internal/contract declares that this
@@ -943,4 +947,91 @@ func fixtureContents(t *testing.T, root string) map[string]string {
 		t.Fatalf("walk %s: %v", root, err)
 	}
 	return contents
+}
+
+// TestLinkAndUnlinkRoundTripOnEveryFixture asserts dinah-436 AC-19: every
+// compatibility fixture in the tree takes a link and gives it back, leaving
+// the card's anchor byte-identical to what it was, and no fixture needs its
+// card re-migrated for either verb to act on it.
+//
+// The links block is declared at the profile's current revision, and one
+// fixture carries one: dinah-core-0.12's first card, which gained two entries
+// when this card recaptured it so that the coverage alarm sees a line of each
+// new event. Directory order makes that same card the source here, so on that
+// fixture the round trip adds a third entry to an existing block and takes it
+// away again, while on every other fixture it writes the block and removes it.
+// Either way what this proves is that a card written by an older build takes
+// the block a newer one writes and loses it again cleanly, rather than gaining
+// a stray key or losing one it already had.
+//
+// The migrations run first are the ones the tool itself prescribes before
+// anything opens an older workbench, exactly as the checklist compat case
+// runs them, and they are not a condition either verb imposes. The snapshot
+// is taken after them, so what is compared is the same card before the link
+// and after the unlink.
+func TestLinkAndUnlinkRoundTripOnEveryFixture(t *testing.T) {
+	manifest, err := compattest.ReadFixtureManifest(compatDir)
+	if err != nil {
+		t.Fatalf("manifest: %v", err)
+	}
+	if len(manifest.Fixtures) == 0 {
+		t.Fatal("the manifest names no fixture, so this test proves nothing")
+	}
+	for _, row := range manifest.Fixtures {
+		t.Run(row.Directory, func(t *testing.T) {
+			base := t.TempDir()
+			root := filepath.Join(base, "workbench")
+			copyFixture(t, filepath.Join(compatDir, row.Directory), root)
+			t.Setenv("DINAH_HOME", filepath.Join(base, "home"))
+			t.Setenv("DINAH_ACTOR", "sam")
+			t.Setenv("DINAH_LANG", "")
+			t.Setenv("DINAH_FORMAT", "")
+			t.Setenv("DINAH_WORKBENCH", "")
+			// check exits 2 when it reports a finding, so its code is not read
+			// here; the link below fails loudly if a migration did not happen.
+			runCLI(t, root, "--workbench", root, "check", "--migrate-container", "--yes")
+			opened := benchDir(t, root)
+			runCLI(t, opened, "--workbench", opened, "check", "--migrate-vocabulary", "--yes")
+
+			cards := bench.ListIDs(filepath.Join(opened, bench.CardsDir))
+			if len(cards) == 0 {
+				t.Fatalf("the fixture carries no live card to link from")
+			}
+			// A fixture carrying one card links it to itself, which the format
+			// gives no ground to refuse, so the round trip runs on every
+			// fixture rather than skipping the smallest one.
+			source := cards[0]
+			target := source
+			if len(cards) > 1 {
+				target = cards[1]
+			}
+			anchor := filepath.Join(opened, bench.CardsDir, source, bench.CardAnchor)
+			before, err := os.ReadFile(anchor)
+			if err != nil {
+				t.Fatalf("read the anchor: %v", err)
+			}
+
+			if got := runCLI(t, opened, "--workbench", opened, "link", source, "tile-order-duplicates", target); got.code != 0 {
+				t.Fatalf("link: %d %s", got.code, got.errw)
+			}
+			written, err := os.ReadFile(anchor)
+			if err != nil {
+				t.Fatalf("read the anchor after the link: %v", err)
+			}
+			if !strings.Contains(string(written), "to: "+target) {
+				t.Fatalf("the link wrote no entry naming %s:\n%s", target, written)
+			}
+
+			if got := runCLI(t, opened, "--workbench", opened, "unlink", source, "tile-order-duplicates", target); got.code != 0 {
+				t.Fatalf("unlink: %d %s", got.code, got.errw)
+			}
+			after, err := os.ReadFile(anchor)
+			if err != nil {
+				t.Fatalf("read the anchor after the unlink: %v", err)
+			}
+			if string(after) != string(before) {
+				t.Errorf("the round trip did not restore the anchor:\nbefore:\n%s\nafter:\n%s", before, after)
+			}
+		})
+	}
 }

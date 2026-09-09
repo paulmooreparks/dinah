@@ -140,6 +140,13 @@ type Request struct {
 	// write time.
 	Scheme     string
 	CiteTarget string
+	// LinkTo is the card a link names, as the caller typed it, which link and
+	// unlink resolve to an identifier before either touches the anchor. It is
+	// its own field rather than a reuse of CiteTarget because the two mean
+	// different things: a link's target is a card reference this package
+	// resolves, and a citation's target is an opaque string nothing resolves,
+	// so a later change to either leaves the other alone.
+	LinkTo string
 	// Observed is the raw before:after pair a citation may carry, parsed
 	// inside cite for the reason MaxDepth and GroupBy are parsed inside the
 	// verbs that read them rather than at the request builder.

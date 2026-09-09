@@ -678,3 +678,36 @@ func matchByName(collection string, mount Mount, ids []string, selector string) 
 	}
 	return matches
 }
+
+// ResolveLinkTarget turns what a caller typed for a link's target into the
+// 12-hex identifier the anchor stores, and refuses unknown-card when the
+// reference names no card either half of the collection carries.
+//
+// It is the one write-time resolution that reads both halves. Every other
+// write verb resolves a reference that has to be live, since nothing comments
+// on, attaches to or claims an archived card, but a link may legally name a
+// card that has since been archived: the format fixes the identifier space as
+// spanning both halves, which is the same scope HasIdentifier and the
+// dangling-link check already read.
+//
+// An identifier is checked for presence rather than resolved, so a link may
+// name an archived card by its identifier without the archived anchors being
+// read at all. A human reference has to be resolved, so the live half is
+// tried first and the archive only after it fails, which is the order
+// ResolveArchivedCard's own comment fixes.
+func (b *Bench) ResolveLinkTarget(raw string) (string, *contract.Refusal) {
+	raw = strings.TrimSpace(raw)
+	if IsID(raw) {
+		if !b.HasIdentifier(raw) {
+			return "", contract.Refuse(contract.UnknownCard, raw)
+		}
+		return raw, nil
+	}
+	if found, err := b.ResolveCard(raw); err == nil {
+		return found.Card.ID, nil
+	}
+	if found, err := b.ResolveArchivedCard(raw); err == nil {
+		return found.Card.ID, nil
+	}
+	return "", contract.Refuse(contract.UnknownCard, raw)
+}

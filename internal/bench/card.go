@@ -273,6 +273,21 @@ func readColumnTiers(fm *Frontmatter) []ColumnTier {
 	return overrides
 }
 
+// renderLinks is the links block as the anchor carries it, which the
+// frontmatter takes verbatim because no typed setter covers a sequence of
+// mappings. It mirrors renderColumnTiers: one dashed entry per link, in the
+// order the slice holds them, so a write that adds or removes one leaves the
+// rest where a reader last saw them, and both values go through quote for the
+// reason renderColumnTiers quotes.
+func renderLinks(links []Link) []string {
+	lines := []string{"links:"}
+	for _, link := range links {
+		lines = append(lines, "  - kind: "+quote(link.Kind))
+		lines = append(lines, "    to: "+quote(link.To))
+	}
+	return lines
+}
+
 // renderColumnTiers is the tier_at block as the anchor carries it, which the
 // frontmatter takes verbatim because no typed setter covers a sequence of
 // mappings. The entries render in the order the card holds them, so a write
@@ -421,6 +436,11 @@ func (c *Card) Save() error {
 		c.FM.Delete(TierAtKey)
 	} else {
 		c.FM.SetRaw(TierAtKey, renderColumnTiers(c.ColumnTiers))
+	}
+	if len(c.Links) == 0 {
+		c.FM.Delete("links")
+	} else {
+		c.FM.SetRaw("links", renderLinks(c.Links))
 	}
 	c.FM.SetSeq("workstreams", c.Workstreams)
 	if err := WriteText(c.AnchorPath(), c.FM.Render(c.Body)); err != nil {

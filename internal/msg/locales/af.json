@@ -1166,6 +1166,11 @@
       "context": "The one-line summary of the leave command, shown beside its syntax in the help block.",
       "skeleton": true
     },
+    "cmd.link.summary": {
+      "text": "Record a link from one card to another",
+      "context": "The one-line summary of the link command, shown beside its syntax in the help block.",
+      "skeleton": true
+    },
     "cmd.log.summary": {
       "text": "The recorded actions of a card, oldest first",
       "context": "The one-line summary of the log command, shown beside its syntax in the help block.",
@@ -1426,6 +1431,16 @@
       "context": "The next step of refusal.dinah.unknown-item-kind, spliced onto the sentence that just listed the kinds. The three kind names are machine vocabulary that is never translated.",
       "skeleton": true
     },
+    "refusal.dinah.unknown-link": {
+      "text": "this card carries no {kind} link to {detail}",
+      "context": "The sentence printed after the refusal name dinah.unknown-link, which unlink carries when the card holds no link of that kind to that card. {kind} is the word the caller typed for the relation and {detail} is the target as they spelled it. refusal.dinah.unknown-link.next is spliced on after this one.",
+      "skeleton": true
+    },
+    "refusal.dinah.unknown-link.next": {
+      "text": "; run `dinah show` on the card to read the links it does carry",
+      "context": "Spliced onto refusal.dinah.unknown-link as the next step. The command name is machine vocabulary that is never translated.",
+      "skeleton": true
+    },
     "refusal.dinah.unknown-level": {
       "text": "this workbench declares no {axis} level called {detail}. The {axis} levels it declares are: {levels}.",
       "context": "The sentence printed after the refusal name dinah.unknown-level, which a write naming a level the workbench does not declare for that axis carries. {detail} is the level the reader typed. {axis} is the field the write named, and it is machine vocabulary that is never translated. {levels} is that one axis's declared members in declaration order, read off the workbench rather than written here, so a level name is never translated either. The sentence is about one axis and must not be worded as a report about the workbench as a whole. refusal.dinah.unknown-level.next is spliced on after this one.",
@@ -1659,6 +1674,11 @@
     "cmd.unblock.summary": {
       "text": "Lift a block (operator only)",
       "context": "The one-line summary of the unblock command, shown beside its syntax in the help block.",
+      "skeleton": true
+    },
+    "cmd.unlink.summary": {
+      "text": "Remove a link a card carries",
+      "context": "The one-line summary of the unlink command, shown beside its syntax in the help block.",
       "skeleton": true
     },
     "cmd.version.summary": {
@@ -3663,6 +3683,16 @@
     "param.ls.ready.summary": {
       "text": "list only the cards that are ready to be claimed",
       "context": "The meaning of the ready argument of `dinah ls`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.link-kind.summary": {
+      "text": "the word for how the two cards relate, such as duplicates or relates; any word is accepted",
+      "context": "The meaning of the kind argument, shared by link and unlink. Nothing checks the word against a set, so a workbench writes whatever term it uses. duplicates and relates are suggested spellings and are never translated.",
+      "skeleton": true
+    },
+    "param.link-to.summary": {
+      "text": "the card at the other end of the link, written as its reference or its identifier",
+      "context": "The meaning of the to argument, shared by link and unlink. The card it names may be live or archived, and what is written down is always the identifier the reference resolves to.",
       "skeleton": true
     },
     "param.move.column.summary": {

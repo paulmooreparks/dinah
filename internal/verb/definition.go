@@ -382,6 +382,27 @@ var params = map[string][]Param{
 		{Name: "item", Required: true, Shared: "item", Guide: "references", Field: "Ref"},
 		{Name: "reason", Required: true, Rest: true, Field: "Reason"},
 	},
+	// link and unlink are the write side of a card's links, and they take the
+	// same three positionals in the same order so that a caller removes a
+	// link by retyping the call that made it with one word changed.
+	//
+	// The kind declares no Vocabulary, unlike file's. That absence is
+	// deliberate and load-bearing: a checklist item's kind is enforced, so
+	// the format closes it, and a link's kind is never enforced by anything,
+	// so the format leaves it open and the tool holds whatever word the
+	// caller typed. Do not add a Vocabulary here without reopening the format
+	// document's decision and the operator's ruling that Dinah stay usable
+	// for a workbench with no code, no merge and no tests.
+	"link": {
+		{Name: "card", Required: true, Shared: "card", Field: "Card"},
+		{Name: "kind", Required: true, Shared: "link-kind", Field: "Kind"},
+		{Name: "to", Required: true, Shared: "link-to", Field: "LinkTo"},
+	},
+	"unlink": {
+		{Name: "card", Required: true, Shared: "card", Field: "Card"},
+		{Name: "kind", Required: true, Shared: "link-kind", Field: "Kind"},
+		{Name: "to", Required: true, Shared: "link-to", Field: "LinkTo"},
+	},
 	"archive": {{Name: "ref", Required: true, Shared: "ref", Guide: "references", Field: "Ref"}},
 	"delete": {
 		{Name: "ref", Required: true, Shared: "ref", Guide: "references", Field: "Ref"},

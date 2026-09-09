@@ -59,6 +59,11 @@ func init() {
 		{name: "verify", group: groupWork, run: runVerify, bounded: 1, openTail: true},
 		{name: "fail", group: groupWork, run: runFail, bounded: 1, openTail: true},
 		{name: "reopen", group: groupWork, run: runReopen, bounded: 1, openTail: true},
+		// link and unlink each bind three positionals and take no tail, which
+		// is cite's shape: every argument is one word, and none of the three
+		// is prose.
+		{name: "link", group: groupWork, run: runLink, bounded: 3},
+		{name: "unlink", group: groupWork, run: runUnlink, bounded: 3},
 		{name: "join", group: groupWork, run: runJoin, bounded: 2},
 		{name: "leave", group: groupWork, run: runLeave, bounded: 2},
 		{name: "archive", group: groupWork, run: runArchive, bounded: 1},
@@ -415,6 +420,32 @@ func runCite(s *session, parsed *arguments) int {
 	req.Observed = parsed.value("observed")
 	return s.withBench(func(l *verb.Library) int {
 		return s.emit(l.Cite(req))
+	})
+}
+
+// runLink records one link on a card. The card is the subject because the
+// card's own frontmatter is the only file that changes.
+func runLink(s *session, parsed *arguments) int {
+	words := parsed.rest()
+	req := s.request("link", parsed)
+	req.Card = at(words, 0)
+	req.Kind = at(words, 1)
+	req.LinkTo = at(words, 2)
+	return s.withBench(func(l *verb.Library) int {
+		return s.emit(l.Link(req))
+	})
+}
+
+// runUnlink removes one link from a card, by the same three arguments that
+// wrote it.
+func runUnlink(s *session, parsed *arguments) int {
+	words := parsed.rest()
+	req := s.request("unlink", parsed)
+	req.Card = at(words, 0)
+	req.Kind = at(words, 1)
+	req.LinkTo = at(words, 2)
+	return s.withBench(func(l *verb.Library) int {
+		return s.emit(l.Unlink(req))
 	})
 }
 

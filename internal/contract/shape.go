@@ -1063,6 +1063,19 @@ var Shapes = []Shape{
 		Fragments: []Fragment{{Key: "refusal.dinah.observation-required.next"}},
 		NextStep:  []string{"refusal.dinah.observation-required.next"},
 	},
+	{
+		// The detail is the target as the caller typed it rather than the
+		// identifier it resolved to, because the reader is being told that
+		// the spelling they just used names no link on the card, and the
+		// spelling they used is the one they can compare against. The kind
+		// rides as a value, since a card may carry a link to that same
+		// target under a different word and the sentence has to say which
+		// word was looked for.
+		Name:      UnknownLink,
+		Values:    []string{"kind"},
+		Fragments: []Fragment{{Key: "refusal.dinah.unknown-link.next"}},
+		NextStep:  []string{"refusal.dinah.unknown-link.next"},
+	},
 }
 
 // ShapeOf returns the shape governing a refusal name, or nil for a name no

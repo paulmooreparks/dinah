@@ -50,6 +50,8 @@ WORK
   verify <item> <note|->                                 Record an acceptance criterion as verified
   fail <item> <note|->                                   Record an acceptance criterion as failed
   reopen <item> <reason>                                 Return a closed checklist item to pending
+  link <card> <kind> <to>                                Record a link from one card to another
+  unlink <card> <kind> <to>                              Remove a link a card carries
   join <card> <workstream>                               Add a card to a workstream
   leave <card> <workstream>                              Take a card out of a workstream
   archive <ref>                                          Move a card, a column, or anything below a card,
@@ -152,6 +154,8 @@ WORK
   verify <item> <note|->                                                                                Record an acceptance criterion as verified
   fail <item> <note|->                                                                                  Record an acceptance criterion as failed
   reopen <item> <reason>                                                                                Return a closed checklist item to pending
+  link <card> <kind> <to>                                                                               Record a link from one card to another
+  unlink <card> <kind> <to>                                                                             Remove a link a card carries
   join <card> <workstream>                                                                              Add a card to a workstream
   leave <card> <workstream>                                                                             Take a card out of a workstream
   archive <ref>                                                                                         Move a card, a column, or anything below a card, out of the live set
