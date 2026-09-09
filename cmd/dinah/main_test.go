@@ -7169,7 +7169,7 @@ func TestTheReferencesGuideSaysWhichCommandTakesWhat(t *testing.T) {
 		t.Fatalf("guide references: %d %s", got.code, got.errw)
 	}
 	for _, form := range []string{
-		"dinah path workbench", "dinah path .", "dinah show wb-1", "dinah attach doing",
+		"dinah path workbench", "dinah path .", "dinah path wb", "dinah show wb-1", "dinah attach doing",
 		"wb-1/card", "wb-1/journal", "wb-1/comments", "wb-1/comments/1",
 		"wb-1/checklist", "wb-1/checklist/1", "wb-1/attachments", "wb-1/attachments/1",
 		"wb-1/questions", "wb-1/criteria", "wb-1/decisions",

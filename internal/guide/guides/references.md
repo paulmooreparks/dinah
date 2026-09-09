@@ -15,13 +15,16 @@ slashes between its parts.
 
 ## This workbench
 
-You may write this workbench in two ways, and the two mean the same thing:
+You may write this workbench in three ways, and the three name one
+workbench:
 
     dinah path workbench
     dinah path .
+    dinah path wb/attachments
 
-Your workbench's slug reaches the same place, so `wb/attachments/1` and
-`workbench/attachments/1` name one file.
+Write the third, which is your workbench's own slug, with something below
+it, because Dinah reads a slug standing alone as a card and refuses it.
+So `wb/attachments/1` and `workbench/attachments/1` name one file.
 
 ## A card
 
@@ -76,10 +79,10 @@ every live member of that collection:
 
     dinah show wb-1/comments
 
-A collection that holds nothing is an empty answer rather than a mistake.
-Which commands take a reference of that shape is settled one command at a
-time, in the table below, because an act that writes to a whole collection
-cannot be undone and Dinah has no restore.
+Dinah reads an empty collection as an empty answer rather than a mistake.
+You read from the table below whether a command takes a reference of that
+shape, one command at a time, because an act that writes to a whole
+collection cannot be undone and Dinah has no restore.
 
 ## The number and the identifier
 
@@ -89,11 +92,11 @@ identifier first, then the position, then the filename, so an attachment
 named `1` or whose filename is twelve hex characters is reachable by
 ordinal and by identifier rather than by name. The number counts in the order the entities were created, which is not always the order a listing prints them in.
 
-The number is a spelling for now and the identifier is a handle to keep.
-Deleting an earlier member of a collection moves every number after it,
-and the identifier an entity is born with never changes. A screen prints
-the number because the number is what you are about to type, and `--json`
-carries both.
+Type the number and keep the identifier. Deleting an earlier member of a
+collection moves every number after it, and the identifier an entity is
+born with never changes. Dinah shows you the number because the number is
+what you are about to type, and `dinah contents --json` and `dinah
+attachments --json` give you both.
 
 ## Which command takes what
 
@@ -119,7 +122,7 @@ Fifteen commands take a reference, and between them they accept six different se
 
 Six commands take a workstream: `path`, `edit`, `archive`, `delete`, `contents`, and `attachments`. The others refuse one, so the table leaves the workstream out rather than carrying a column that is mostly no.
 
-Five of those rows carry a detail the table is too coarse to hold.
+Nine of those rows carry a detail the table is too coarse to hold.
 `attach` takes a comment below a card, and it takes an attachment only
 with `--replace`, which replaces that attachment's bytes rather than
 hanging a new file below it. It takes nothing else below a card, so `dinah
@@ -144,6 +147,4 @@ workstream, and walks down to what that holds, so `wb-1/comments/1` names
 one comment and `wb-1/comments` names all of them. A query asks which
 cards match a condition, including conditions about what has happened to
 them, and it answers with cards. If you know which thing you want, write a
-reference. If you want Dinah to find the cards, write a query. Neither one
-does the other's job, so a reference takes no conditions and a query names
-nothing below a card.
+reference. If you want Dinah to find the cards, write a query.

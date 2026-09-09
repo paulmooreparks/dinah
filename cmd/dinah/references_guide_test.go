@@ -34,6 +34,16 @@ import (
 // declaration behind it, because Guides merges the command's own topics with
 // every topic its parameters declare, so a command declared in one roster and
 // not the other is counted once and no caller has to know there are two.
+//
+// verb.ReferenceTakingCommands answers the neighbouring question and this file
+// deliberately does not call it. That roster returns a command only when the
+// two declarations agree, and drops one that carries the topic in a single
+// place, which is right for a caller asking what the library promises and
+// wrong for a caller asking who sends a reader to this guide: a command
+// declaring the topic once still points its reader here, and dropping it would
+// let the guide's table lose a row with every check green. The union cannot go
+// stale against that roster either, because internal/verb/collection_roster_test.go
+// holds both declarations to one another.
 func commandsTakingAReference() []string {
 	var names []string
 	for _, name := range verb.Commands() {
@@ -82,6 +92,109 @@ func foldedGuideParagraphStartingWith(t *testing.T, marker string) string {
 		t.Fatalf("the references guide carries no paragraph opening %q, so this check read nothing", marker)
 	}
 	return folded
+}
+
+// foldedGuideParagraphMatching returns the whole of the references guide's
+// paragraph whose folded text pattern matches, alongside that match. It exists
+// for the callers whose subject is the paragraph's own opening figure, which a
+// prefix marker would have to spell and would then stop finding the paragraph
+// the moment the figure it holds went wrong.
+//
+// The paragraph and the match are returned separately because the patterns
+// here anchor on the opening sentence, so the match covers that sentence and
+// not the rest of the paragraph the caller has to read.
+func foldedGuideParagraphMatching(t *testing.T, pattern *regexp.Regexp) (string, []string) {
+	t.Helper()
+	text, err := guide.Text("references")
+	if err != nil {
+		t.Fatalf("guide references: %v", err)
+	}
+	for _, paragraph := range regexp.MustCompile(`\n\s*\n`).Split(text, -1) {
+		folded := strings.Join(strings.Fields(paragraph), " ")
+		if match := pattern.FindStringSubmatch(folded); match != nil {
+			return folded, match
+		}
+	}
+	t.Fatalf("the references guide carries no paragraph matching %s, so this check read nothing", pattern)
+	return "", nil
+}
+
+// referencesGuideDetail names the paragraph qualifying individual rows of the
+// table, and captures the figure opening it. The figure is the thing under
+// test, so the pattern cannot anchor on it; the rest of the sentence names the
+// paragraph on its own.
+var referencesGuideDetail = regexp.MustCompile(`^([A-Za-z0-9-]+) of those rows carry a detail the table is too coarse to hold\.`)
+
+// referencesGuideQualifiedRows returns the commands the detail paragraph
+// qualifies, derived from the guide's own backticks against the roster rather
+// than from a second list, and the figure the paragraph opens with.
+func referencesGuideQualifiedRows(t *testing.T) (map[string]bool, string) {
+	t.Helper()
+	roster := commandsTakingAReference()
+	if len(roster) == 0 {
+		t.Fatal("no command points at the references guide, so this check read nothing")
+	}
+	folded, match := foldedGuideParagraphMatching(t, referencesGuideDetail)
+	return backtickedCommandsIn(folded, roster), match[1]
+}
+
+// referencesGuideWorkbenchSpellings returns the references the guide's "This
+// workbench" section shows, in the order it draws them. The section's whole
+// claim is that the spellings it shows name one thing, so the count and the
+// probe both read the shown lines rather than a list written beside them.
+func referencesGuideWorkbenchSpellings(t *testing.T) []string {
+	t.Helper()
+	text, err := guide.Text("references")
+	if err != nil {
+		t.Fatalf("guide references: %v", err)
+	}
+	shown := regexp.MustCompile(`^ +dinah path (\S+)$`)
+	var spellings []string
+	inside := false
+	for _, line := range strings.Split(text, "\n") {
+		if strings.HasPrefix(line, "## ") {
+			inside = strings.TrimSpace(line) == "## This workbench"
+			continue
+		}
+		if !inside {
+			continue
+		}
+		if match := shown.FindStringSubmatch(strings.TrimRight(line, "\r")); match != nil {
+			spellings = append(spellings, match[1])
+		}
+	}
+	if len(spellings) == 0 {
+		t.Fatal("the references guide's \"This workbench\" section shows no spelling, so this check read nothing")
+	}
+	return spellings
+}
+
+// workbenchSpellingRoot is the part of a shown reference that spells this
+// workbench, which is everything before the first slash. The section shows one
+// of its three spellings with something below it, because Dinah reads a slug
+// standing alone as a card, so the count reads the shown lines and the probe
+// reads their roots.
+func workbenchSpellingRoot(shown string) string {
+	root, _, _ := strings.Cut(shown, "/")
+	return root
+}
+
+// workbenchSpellingProbe rewrites one root the guide shows into the form a
+// fixture can run. The guide teaches the slug with its own example workbench,
+// so the probe writes the fixture's slug in its place. Like referenceProbeArgs
+// this is arguments rather than roster: a root it does not know stops the run
+// naming that root, so a fourth spelling is probed deliberately rather than
+// silently as a second copy of the third.
+func workbenchSpellingProbe(t *testing.T, root, slug string) string {
+	t.Helper()
+	switch root {
+	case "workbench", ".":
+		return root
+	case "wb":
+		return slug
+	}
+	t.Fatalf("the references guide's \"This workbench\" section spells this workbench %q and this check does not know how to run it", root)
+	return ""
 }
 
 // backtickedCommandsIn returns the commands of the roster that the folded
@@ -458,5 +571,85 @@ func TestTheReferencesGuideTableFitsAnEightyColumnWindow(t *testing.T) {
 	}
 	if want := len(commandsTakingAReference()) + 2; measured != want {
 		t.Errorf("this check measured %d table lines, and the table draws a header, a separator and one row per command, which is %d", measured, want)
+	}
+}
+
+// TestTheDetailParagraphQualifiesRowsTheTableActuallyDraws holds the sentence
+// under the table to the table. The paragraph says that some of those rows
+// carry a detail the table is too coarse to hold, so every command it names in
+// backticks has to be a row: a paragraph qualifying a command the table never
+// drew is describing a table that is not there.
+//
+// The figure opening that sentence is held elsewhere, by the qualifiedTableRows
+// derivation in the prose figure ledger, which counts the same set this check
+// reads. Round one of this card shipped that figure hand-counted, said five and
+// detailed nine, and nothing anywhere noticed.
+func TestTheDetailParagraphQualifiesRowsTheTableActuallyDraws(t *testing.T) {
+	declared := parseReferencesGuideTable(t)
+	if len(declared) == 0 {
+		t.Fatal("the references guide's table draws no row, so this check read nothing")
+	}
+	qualified, _ := referencesGuideQualifiedRows(t)
+	if len(qualified) == 0 {
+		t.Fatal("the references guide's detail paragraph names no command of the roster, so this check read nothing")
+	}
+	for name := range qualified {
+		if _, drawn := declared[name]; !drawn {
+			t.Errorf("the references guide's detail paragraph qualifies %s and the guide's table draws no row for it", name)
+		}
+	}
+}
+
+// TestEverySpellingOfThisWorkbenchTheGuideShowsNamesOneThing holds the claim
+// the "This workbench" section makes about the spellings it shows, which is
+// that they mean the same thing. Every shown spelling is run against one
+// fixture and the answers are compared, so a spelling that stops resolving,
+// and a spelling added to the block that never resolved, both fail here.
+//
+// The figure in that section's opening sentence is held by the
+// workbenchSpellings derivation in the prose figure ledger, which counts the
+// same shown lines. Round one of this card added the third spelling in prose
+// and left the sentence above it saying two.
+func TestEverySpellingOfThisWorkbenchTheGuideShowsNamesOneThing(t *testing.T) {
+	shown := referencesGuideWorkbenchSpellings(t)
+	// Every root is probed with the same thing below it, so the answers are
+	// comparable however the section chose to show each one. Two shown lines
+	// sharing a root would be one spelling written twice, which would make the
+	// section's own figure wrong, so that fails here rather than passing as a
+	// pair that trivially agrees.
+	roots := map[string]string{}
+	var order []string
+	for _, line := range shown {
+		root := workbenchSpellingRoot(line)
+		if first, repeated := roots[root]; repeated {
+			t.Errorf("the references guide shows `dinah path %s` and `dinah path %s`, which spell this workbench the same way, so the section shows fewer ways than it draws lines", first, line)
+			continue
+		}
+		roots[root] = line
+		order = append(order, root)
+	}
+	root := newBench(t)
+	answers := map[string]string{}
+	for _, spelling := range order {
+		reference := workbenchSpellingProbe(t, spelling, "fx") + "/attachments"
+		got := runCLI(t, root, "path", reference)
+		if got.code != 0 {
+			t.Errorf("the references guide spells this workbench %q and `dinah path %s` exits %d: %s", spelling, reference, got.code, got.errw)
+			continue
+		}
+		answers[spelling] = strings.TrimSpace(got.out)
+	}
+	if len(answers) == 0 {
+		t.Fatal("no spelling the references guide shows resolved, so the fixture is broken rather than the guide")
+	}
+	first := order[0]
+	want, resolved := answers[first]
+	if !resolved {
+		t.Fatalf("the first spelling the references guide shows, %q, did not resolve, so this check has nothing to compare against", first)
+	}
+	for _, spelling := range order[1:] {
+		if got, ok := answers[spelling]; ok && got != want {
+			t.Errorf("the references guide says its spellings of this workbench name the same thing, and %q answers %q where %q answers %q", spelling, got, first, want)
+		}
 	}
 }
