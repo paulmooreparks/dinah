@@ -1116,8 +1116,8 @@ type sweptItemRecord struct {
 // expectChecklist is a card's checklist items, in the order the fixture wrote
 // them. The block draws four columns: the item's reference, its state, whoever
 // answers it, and the item's own text last. The reference is composed here the
-// way a person types one, out of the card's own reference, the kind's short
-// alias and the item's position among the items of that one kind, so a view
+// way a person types one, out of the card's own reference, the kind's word
+// and the item's position among the items of that one kind, so a view
 // composing it from the overall ordinal instead would fail this rather than
 // agreeing with itself.
 //

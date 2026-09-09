@@ -287,7 +287,7 @@ func checklistMount() (Mount, bool) {
 // it, with nothing said.
 //
 // A kind narrows the collection's members first, which is what a checklist
-// alias such as oq selects on. Position counts in creation order rather than
+// segment such as questions selects on. Position counts in creation order rather than
 // in the listing's ascending-hex order, so `<card>/comment/2` names the second
 // comment somebody wrote and keeps naming it however the identifiers happened
 // to fall.
@@ -369,7 +369,7 @@ func payloadOf(dir string) (string, error) {
 }
 
 // filterByKind narrows a collection to the entities whose anchor declares a
-// kind, which is how the checklist aliases select one of the three.
+// kind, which is how the checklist segments select one of the three.
 func filterByKind(collection, anchor string, ids []string, kind string) []string {
 	var kept []string
 	for _, id := range ids {

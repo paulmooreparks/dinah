@@ -794,7 +794,7 @@ func (b *Bench) ResolveEntity(ref string) (*EntityRef, error) {
 // is what a containment walk draws and what a person types, rather than the
 // identifier its directory is named for. Composing it here is what gives one
 // entity one spelling however the caller reached it, whether by an identifier,
-// by a narrowed checklist alias, or by the position itself.
+// by a narrowed checklist segment, or by the position itself.
 //
 // An entity this composer cannot name comes back with no reference at all,
 // because a reference naming the head instead would send a reader somewhere

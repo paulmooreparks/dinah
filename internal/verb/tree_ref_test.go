@@ -15,7 +15,7 @@ import (
 // The two are paired by identifier rather than by position, so a walk emitting
 // the right references in the wrong order still fails. Comparing the two
 // producers against each other rather than either against a literal is what
-// lets this criterion survive a later change to the aliasing rule: the rule
+// lets this criterion survive a later change to the addressing rule: the rule
 // under guard is that one item has one address, not what that address spells.
 func TestTheContainmentWalkAndShowAgreeOnEveryItemReference(t *testing.T) {
 	h := newHarness(t)
@@ -72,7 +72,7 @@ func TestTheContainmentWalkAndShowAgreeOnEveryItemReference(t *testing.T) {
 //
 // The fixture is the one the clean cases cannot be: bench.Items skips an item
 // it cannot load and the containment walk keeps it, so the two surfaces count
-// different collections and every unaliased item after the damage is where
+// different collections and every item after the damage is where
 // they can disagree. The item is written whole and its anchor removed
 // afterwards, because the collection must still list the directory for the
 // walk to pass it.
