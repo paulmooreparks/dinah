@@ -290,7 +290,7 @@
       "source": "895ef509846325a4"
     },
     "check.dangling-link": {
-      "text": "एक कड़ी कार्ड {detail} बताती है, जो किसी भी आधे में नहीं मिलता",
+      "text": "एक कड़ी कार्ड {detail} बताती है, जो संग्रह के किसी भी आधे में नहीं मिलता",
       "context": "A check finding: a links entry whose to resolves to no card.",
       "source": "5f1aeb5567864080"
     },
@@ -2385,6 +2385,21 @@
       "context": "Spliced onto refusal.dinah.interrupted as the next step wherever a workbench was resolved for this invocation, which covers every reader standing in one and every reader who named one with --workbench from somewhere else. {workbench} is the workbench directory, and naming it is what lets the reader finish the act from wherever he was standing when it broke. The sibling entry without the flag is the alternation's unconditional last member. The command spelling is machine vocabulary and is not translated.",
       "source": "248f008d8842a382"
     },
+    "refusal.dinah.is-a-collection": {
+      "text": "{detail} पूरे संग्रह को नाम देता है, उसमें रखी किसी एक चीज़ को नहीं",
+      "context": "The sentence printed after the refusal name dinah.is-a-collection, when a command that reads or writes one thing is handed a reference naming a whole collection, such as pb-1/comments. {detail} is the reference as the reader typed it. The reference resolves, so the sentence says what it names rather than saying that nothing answers to it.",
+      "source": "c875064b11d626c7"
+    },
+    "refusal.dinah.is-a-collection.next-member": {
+      "text": "; उनमें से किसी एक के लिए {member} लिखें, या संग्रह के लिए `dinah path {detail}`",
+      "context": "Spliced onto refusal.dinah.is-a-collection when the collection holds at least one member. {member} is the reference of the first member, which is the collection's own reference followed by /1, and it is an address rather than prose. The second clause offers the one command that takes a collection reference and answers with a filesystem path.",
+      "source": "a59569c49ab23289"
+    },
+    "refusal.dinah.is-a-collection.empty": {
+      "text": "; इसमें कुछ नहीं है, इसलिए संग्रह की निर्देशिका के लिए `dinah path {detail}` ही नाम देने को बचता है",
+      "context": "The last member of refusal.dinah.is-a-collection's alternation, printed when the collection holds no members. It carries no condition, because the last member of an alternation is what a reader gets when no branch above it matches. An empty collection is an empty set rather than a mistake, so the sentence offers what can still be named instead of reporting a failure.",
+      "source": "407bc04e786c7e02"
+    },
     "refusal.dinah.locked": {
       "text": "इस पर पहले से ताला है; {detail}",
       "context": "The sentence printed after the refusal name dinah.locked. {detail} carries the identifier, owner or column the refusal is about.",
@@ -2750,7 +2765,7 @@
       "source": "9b4d2512a901f950"
     },
     "refusal.dinah.vocabulary-mixed.next-named": {
-      "text": "; फ़ाइल को हाथ से बदलें ताकि वह एक ही शब्दावली रखे, दोनों नहीं, फिर वर्कबेंच को आगे ले जाने के लिए `dinah check --root {workbench} --migrate-vocabulary` चलाएँ",
+      "text": "; फ़ाइल को हाथ से बदलें ताकि वह एक ही शब्दावली रखे, दोनों नहीं, फिर वर्कबेंच को आगे ले जाने के लिए `dinah check --root {workbench} --migrate-vocabulary` चलाएँ",
       "context": "Spliced onto refusal.dinah.vocabulary-mixed as the next step wherever the head resolved which workbench the invocation was about. {workbench} is the workbench directory, and naming it is what lets the reader run the repair from where he stands. The sibling entry without the flag is the alternation's unconditional last member, and no invocation renders it today. The command spelling is machine vocabulary and is not translated.",
       "source": "ccace2b0ced93be7"
     },
@@ -3088,6 +3103,11 @@
       "text": "यह कार्ड वे सदस्य रखता है। उन्हें पाने के लिए {reread} पर --fields में उनका नाम दें।",
       "context": "The sentence printed under show.withheld, telling the reader how to be served a member that was held back. {reread} is the card's own reference. The flag spelling inside it is syntax and stays as it is.",
       "source": "f341fc582260bf03"
+    },
+    "show.collection.empty": {
+      "text": "{ref} में कुछ नहीं है।",
+      "context": "Printed when `dinah show` is asked for a collection that has no members. No text follows and the call succeeds, because a collection holding nothing is an answer rather than a mistake. It reads as attachments.empty and contents.empty read, since the three commands are answering the same shape of question.",
+      "source": "789d02ac5d397b75"
     },
     "slot.query": {
       "text": "क्वेरी",
@@ -3843,6 +3863,16 @@
       "text": "{title} ({ref}) में {count} इकाइयाँ हैं।",
       "context": "The sentence above the tree `dinah contents` prints, naming the entity the walk started from. {count} is how many entities sit below it, at every depth and not only the ones drawn.",
       "source": "fbbebbe584d94da8"
+    },
+    "contents.header.collection": {
+      "text": "{ref} में {count} इकाइयाँ हैं।",
+      "context": "The sentence above the tree `dinah contents` prints when the reference names a whole collection rather than one entity. A collection has no title of its own, so it is named by the reference alone, and {count} is how many entities sit below it at every depth rather than only the ones drawn.",
+      "source": "f43f145e7030430f"
+    },
+    "contents.empty.collection": {
+      "text": "{ref} में कुछ नहीं है।",
+      "context": "Printed when `dinah contents` is asked about a collection with no members. No table follows and the call succeeds, for the reason contents.empty gives for an entity.",
+      "source": "c3b658c29527aa78"
     },
     "param.attachments.ref.summary": {
       "text": "यह वर्कबेंच, `workbench` या `.` के रूप में लिखा गया, एक कॉलम, एक कार्ड, या एक टिप्पणी जैसे wb-1/comments/1; कुछ न लिखने पर यह वर्कबेंच",

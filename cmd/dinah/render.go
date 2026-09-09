@@ -341,6 +341,15 @@ func (s *session) treeHeader(tree *verb.Tree) string {
 	root := tree.Root
 	count := strconv.Itoa(root.Count)
 	if tree.Producer == verb.ProducerContainment {
+		// A collection has no title of its own, and both entity sentences
+		// open with one, so the two collection sentences name the root by
+		// its reference alone.
+		if root.Kind == verb.KindCollection {
+			if root.Count == 0 {
+				return s.r.T("contents.empty.collection", "ref", root.Ref)
+			}
+			return s.r.T("contents.header.collection", "ref", root.Ref, "count", count)
+		}
 		if root.Count == 0 {
 			return s.r.T("contents.empty", "title", root.Title, "ref", root.Ref)
 		}
@@ -617,6 +626,29 @@ func (s *session) renderDetail(detail *verb.Detail) {
 		gap()
 		s.line(s.r.T("show.withheld", "members", strings.Join(detail.Withheld, ", ")))
 		s.line(s.r.T("show.reread", "reread", detail.Reread))
+	}
+}
+
+// renderCollectionListing prints the members of a collection: each member's
+// own address on a line of its own, then the text that address reads on its
+// own, with a blank line between members.
+//
+// The address line carries no words, so it needs no catalogue entry and reads
+// the same in every language. A collection holding nothing prints one sentence
+// and succeeds, because an empty collection is an answer rather than a
+// mistake, on the same terms `dinah attachments` and `dinah contents` already
+// answer an entity that holds nothing.
+func (s *session) renderCollectionListing(listing *verb.CollectionListing) {
+	if len(listing.Members) == 0 {
+		s.line(s.r.T("show.collection.empty", "ref", listing.Ref))
+		return
+	}
+	for i, member := range listing.Members {
+		if i > 0 {
+			s.line("")
+		}
+		s.line(member.Ref)
+		s.write(member.Text)
 	}
 }
 

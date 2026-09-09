@@ -282,6 +282,18 @@
 					"कॉलम"
 				]
 			}
+		},
+		{
+			"en": "collection",
+			"forms": {
+				"de": [
+					"Sammlung",
+					"sammlung"
+				],
+				"hi": [
+					"संग्रह"
+				]
+			}
 		}
 	],
 	"source": {

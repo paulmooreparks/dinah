@@ -710,8 +710,11 @@ type EntityRef struct {
 
 // ResolveEntity resolves the reference the entity-shaped commands take: the
 // bench itself, a column, a workstream, a card, or any entity below one of
-// those. It accepts the same references ResolvePath does, so a reference a
-// walk prints names the same entity to every command that takes one.
+// those. It accepts every reference ResolvePath accepts but two, so a
+// reference a walk prints names the same entity to every command that takes
+// one. It refuses an attachment's payload, which carries no anchor, and it
+// refuses a reference naming a whole collection, which is not an entity of the
+// format and has no anchor either. ResolvePath answers both with a path.
 //
 // An answer of kind card always carries the card, and an answer below a card
 // always carries the card it belongs to. Callers read Card without asking, and
@@ -720,69 +723,17 @@ type EntityRef struct {
 // bench's. A half-filled answer therefore does not degrade, it misreports, so
 // the last guard below refuses rather than returning one.
 func (b *Bench) ResolveEntity(ref string) (*EntityRef, error) {
-	ref = strings.TrimSpace(ref)
-	// The empty reference is this resolver's own case and IsWorkbenchRef does
-	// not carry it, because ResolvePath refuses it. See IsWorkbenchRef.
-	if ref == "" || IsWorkbenchRef(ref) {
-		return &EntityRef{Kind: KindWorkbench, Dir: b.Root}, nil
-	}
-	// A workstream names its own kind in the grammar, per WorkstreamRefPrefix,
-	// so it is tried before the columns and the cards rather than falling
-	// through to them: a bare workstream reference would otherwise be
-	// shadowed by a column or a card sharing its name.
-	if entity, named, err := b.resolveWorkstreamRef(ref); named {
-		return entity, err
-	}
-	head, rest, _ := strings.Cut(ref, "/")
-	if rest == "" {
-		if column := b.ColumnByRef(ref); column != nil {
-			return &EntityRef{
-				Kind: KindColumn,
-				Dir:  b.ColumnDir(column.ID),
-				ID:   column.ID,
-				Ref:  column.Ref(),
-			}, nil
-		}
-		found, err := b.ResolveCard(head)
-		if err != nil {
-			return nil, err
-		}
-		return &EntityRef{Kind: KindCard, Dir: found.Card.Dir, ID: found.Card.ID, Ref: found.Card.Ref(b.Slug), Card: found.Card}, nil
-	}
-	path, card, err := b.resolveBelow(ref)
+	entity, collection, err := b.ResolveReference(ref)
 	if err != nil {
 		return nil, err
 	}
-	kind, named := KindOfAnchor(filepath.Base(path))
-	if !named {
-		return nil, contract.Refuse(contract.UnknownPath, rest)
+	// A reference naming a whole collection is refused here rather than in
+	// each caller, because every caller of this resolver takes one entity
+	// and a caller added later would otherwise have to remember the check.
+	if collection != nil {
+		return nil, collection.Refuse()
 	}
-	// No reference reaches this guard today, because descend refuses a
-	// collection whose kind is addressed in its own right before anything
-	// half-filled is built, so deleting it reddens no test. It stays because
-	// the invariant belongs on this function rather than in the caller that
-	// happens to enforce it, and a reader meeting it here is told what every
-	// caller of ResolveEntity may assume.
-	if kind == KindCard && card == nil {
-		return nil, contract.Refuse(contract.UnknownCard, ref)
-	}
-	dir := filepath.Dir(path)
-	headKind, headRef, headDir := KindWorkbench, b.Slug, b.Root
-	if card != nil {
-		headKind, headRef, headDir = KindCard, card.Ref(b.Slug), card.Dir
-	} else if !IsWorkbenchRef(head) && head != b.Slug {
-		if column := b.ColumnByRef(head); column != nil {
-			headKind, headRef = KindColumn, column.Ref()
-			headDir = filepath.Join(b.Root, ColumnsDir, column.ID)
-		}
-	}
-	return &EntityRef{
-		Kind: kind,
-		Dir:  dir,
-		ID:   filepath.Base(dir),
-		Ref:  b.refBelowHead(headKind, headRef, headDir, dir),
-		Card: card,
-	}, nil
+	return entity, nil
 }
 
 // refBelowHead composes the reference of an entity sitting below a head: the

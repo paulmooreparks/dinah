@@ -1905,6 +1905,18 @@
       "text": ", and `dinah check --workbench {workbench} --finish` completes it",
       "context": "Spliced onto refusal.dinah.interrupted as the next step wherever a workbench was resolved for this invocation, which covers every reader standing in one and every reader who named one with --workbench from somewhere else. {workbench} is the workbench directory, and naming it is what lets the reader finish the act from wherever he was standing when it broke. The sibling entry without the flag is the alternation's unconditional last member. The command spelling is machine vocabulary and is not translated."
     },
+    "refusal.dinah.is-a-collection": {
+      "text": "{detail} names a whole collection rather than one thing in it",
+      "context": "The sentence printed after the refusal name dinah.is-a-collection, when a command that reads or writes one thing is handed a reference naming a whole collection, such as pb-1/comments. {detail} is the reference as the reader typed it. The reference resolves, so the sentence says what it names rather than saying that nothing answers to it."
+    },
+    "refusal.dinah.is-a-collection.next-member": {
+      "text": "; write {member} for one of them, or `dinah path {detail}` for the collection itself",
+      "context": "Spliced onto refusal.dinah.is-a-collection when the collection holds at least one member. {member} is the reference of the first member, which is the collection's own reference followed by /1, and it is an address rather than prose. The second clause offers the one command that takes a collection reference and answers with a filesystem path."
+    },
+    "refusal.dinah.is-a-collection.empty": {
+      "text": "; it holds nothing, so `dinah path {detail}` for the collection directory is all there is to name",
+      "context": "The last member of refusal.dinah.is-a-collection's alternation, printed when the collection holds no members. It carries no condition, because the last member of an alternation is what a reader gets when no branch above it matches. An empty collection is an empty set rather than a mistake, so the sentence offers what can still be named instead of reporting a failure."
+    },
     "refusal.dinah.locked": {
       "text": "this is already locked; {detail}",
       "context": "The sentence printed after the refusal name dinah.locked. {detail} carries the identifier, owner or column the refusal is about."
@@ -2468,6 +2480,10 @@
     "show.reread": {
       "text": "This card holds those members. Name them in --fields on {reread} to be served them.",
       "context": "The sentence printed under show.withheld, telling the reader how to be served a member that was held back. {reread} is the card's own reference. The flag spelling inside it is syntax and stays as it is."
+    },
+    "show.collection.empty": {
+      "text": "{ref} holds nothing.",
+      "context": "Printed when `dinah show` is asked for a collection that has no members. No text follows and the call succeeds, because a collection holding nothing is an answer rather than a mistake. It reads as attachments.empty and contents.empty read, since the three commands are answering the same shape of question."
     },
     "slot.query": {
       "text": "the query",
@@ -3068,6 +3084,14 @@
     "contents.header": {
       "text": "{title} ({ref}) contains {count} entities.",
       "context": "The sentence above the tree `dinah contents` prints, naming the entity the walk started from. {count} is how many entities sit below it, at every depth and not only the ones drawn."
+    },
+    "contents.header.collection": {
+      "text": "{ref} contains {count} entities.",
+      "context": "The sentence above the tree `dinah contents` prints when the reference names a whole collection rather than one entity. A collection has no title of its own, so it is named by the reference alone, and {count} is how many entities sit below it at every depth rather than only the ones drawn."
+    },
+    "contents.empty.collection": {
+      "text": "{ref} contains nothing.",
+      "context": "Printed when `dinah contents` is asked about a collection with no members. No table follows and the call succeeds, for the reason contents.empty gives for an entity."
     },
     "param.attachments.ref.summary": {
       "text": "this workbench written as `workbench` or `.`, a column, a card, or a comment such as wb-1/comments/1; this workbench when you name none",

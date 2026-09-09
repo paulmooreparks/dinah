@@ -195,9 +195,189 @@ func (b *Bench) ResolvePath(ref string) (string, error) {
 	return filepath.Abs(path)
 }
 
+// CollectionRef is what <head>/<collection> resolves to: the directory the
+// collection lives in, the containment mount it is, and its live members in
+// creation order. A collection is not an entity of the format, so it has no
+// anchor and no identifier of its own.
+type CollectionRef struct {
+	// Ref is the reference as typed, trimmed.
+	Ref string
+	// Dir is the collection's directory, whether or not it exists yet.
+	Dir string
+	// Mount is the containment-table mount the last step named, which is
+	// where the member kind and the member anchor filename come from.
+	Mount Mount
+	// Narrow is the item kind a checklist segment selected, empty for every
+	// other collection and for the bare checklist segment.
+	Narrow string
+	// Members are the member directory identifiers, in creation order and
+	// after any narrowing, which are the ids the positional selector counts.
+	Members []string
+	// Holder is the entity the collection hangs from.
+	Holder *EntityRef
+}
+
+// FirstMember is the reference of the collection's first member, and the
+// empty string when the collection holds none. A collection reference plus
+// /1 always names its first member, because a position is counted in the
+// same creation order this list is in.
+func (c *CollectionRef) FirstMember() string {
+	if len(c.Members) == 0 {
+		return ""
+	}
+	return c.Ref + "/1"
+}
+
+// Refuse is the refusal a command that takes one entity raises when its
+// reference names a whole collection.
+//
+// The named values are written out at each of the two raise sites rather than
+// built into one map that is filled conditionally, because the profile guard
+// holding a refusal's sentences against the values they carry reads the
+// composite literal written at the raise site.
+func (c *CollectionRef) Refuse() error {
+	count := strconv.Itoa(len(c.Members))
+	if len(c.Members) == 0 {
+		return contract.RefuseWith(contract.IsACollection, c.Ref, map[string]string{"count": count})
+	}
+	return contract.RefuseWith(contract.IsACollection, c.Ref, map[string]string{"count": count, "member": c.FirstMember()})
+}
+
+// ResolveReference resolves any reference the grammar admits and answers
+// which of the two things it names: one entity, or a whole collection.
+// Exactly one of the two is non-nil whenever the error is nil.
+//
+// It accepts every reference ResolvePath accepts but one, so a reference a
+// walk prints names the same thing to every command that takes one. The
+// exception is an attachment's payload: that file carries no anchor, so it
+// names no entity of the format, and ResolvePath answers it with a path where
+// this refuses it. ResolveEntity is the reading of this that takes the entity
+// and refuses the collection.
+//
+// An answer of kind card always carries the card, and an answer below a card
+// always carries the card it belongs to. Callers read Card without asking, and
+// the ones that ask read a nil as the entity belonging to no card at all: the
+// event a write records goes to the bench journal and the lock it takes is the
+// bench's. A half-filled answer therefore does not degrade, it misreports, so
+// the last guard below refuses rather than returning one.
+func (b *Bench) ResolveReference(ref string) (*EntityRef, *CollectionRef, error) {
+	ref = strings.TrimSpace(ref)
+	// The empty reference is this resolver's own case and IsWorkbenchRef does
+	// not carry it, because ResolvePath refuses it. See IsWorkbenchRef.
+	if ref == "" || IsWorkbenchRef(ref) {
+		return &EntityRef{Kind: KindWorkbench, Dir: b.Root}, nil, nil
+	}
+	// A workstream names its own kind in the grammar, per WorkstreamRefPrefix,
+	// so it is tried before the columns and the cards rather than falling
+	// through to them: a bare workstream reference would otherwise be
+	// shadowed by a column or a card sharing its name.
+	if entity, named, err := b.resolveWorkstreamRef(ref); named {
+		return entity, nil, err
+	}
+	head, rest, _ := strings.Cut(ref, "/")
+	if rest == "" {
+		if column := b.ColumnByRef(ref); column != nil {
+			return &EntityRef{
+				Kind: KindColumn,
+				Dir:  b.ColumnDir(column.ID),
+				ID:   column.ID,
+				Ref:  column.Ref(),
+			}, nil, nil
+		}
+		found, err := b.ResolveCard(head)
+		if err != nil {
+			return nil, nil, err
+		}
+		return &EntityRef{Kind: KindCard, Dir: found.Card.Dir, ID: found.Card.ID, Ref: found.Card.Ref(b.Slug), Card: found.Card}, nil, nil
+	}
+	landed := &landing{}
+	path, card, err := b.resolveBelowLanding(ref, landed)
+	if err != nil {
+		return nil, nil, err
+	}
+	if landed.collection {
+		collection, err := b.collectionAt(ref, landed)
+		if err != nil {
+			return nil, nil, err
+		}
+		return nil, collection, nil
+	}
+	kind, named := KindOfAnchor(filepath.Base(path))
+	if !named {
+		return nil, nil, contract.Refuse(contract.UnknownPath, rest)
+	}
+	// No reference reaches this guard today, because descend refuses a
+	// collection whose kind is addressed in its own right before anything
+	// half-filled is built, so deleting it reddens no test. It stays because
+	// the invariant belongs on this function rather than in the caller that
+	// happens to enforce it, and a reader meeting it here is told what every
+	// caller of ResolveEntity may assume.
+	if kind == KindCard && card == nil {
+		return nil, nil, contract.Refuse(contract.UnknownCard, ref)
+	}
+	dir := filepath.Dir(path)
+	headKind, headRef, headDir := KindWorkbench, b.Slug, b.Root
+	if card != nil {
+		headKind, headRef, headDir = KindCard, card.Ref(b.Slug), card.Dir
+	} else if !IsWorkbenchRef(head) && head != b.Slug {
+		if column := b.ColumnByRef(head); column != nil {
+			headKind, headRef = KindColumn, column.Ref()
+			headDir = filepath.Join(b.Root, ColumnsDir, column.ID)
+		}
+	}
+	return &EntityRef{
+		Kind: kind,
+		Dir:  dir,
+		ID:   filepath.Base(dir),
+		Ref:  b.refBelowHead(headKind, headRef, headDir, dir),
+		Card: card,
+	}, nil, nil
+}
+
+// collectionAt builds the answer for a reference the walk stopped on a
+// collection with. The members are the walk's own list, narrowed the way the
+// walk narrows before it counts a position, so the position this resolver
+// answers and the position a screen prints are one number.
+func (b *Bench) collectionAt(ref string, landed *landing) (*CollectionRef, error) {
+	ref = strings.TrimSpace(ref)
+	members := MemberIDs(landed.dir, landed.mount)
+	if landed.narrow != "" {
+		members = filterByKind(landed.dir, landed.mount.Anchor, members, landed.narrow)
+	}
+	holder, err := b.collectionHolder(ref)
+	if err != nil {
+		return nil, err
+	}
+	return &CollectionRef{
+		Ref:     ref,
+		Dir:     landed.dir,
+		Mount:   landed.mount,
+		Narrow:  landed.narrow,
+		Members: members,
+		Holder:  holder,
+	}, nil
+}
+
+// collectionHolder is the entity a collection hangs from, which is the
+// reference minus its last segment.
+//
+// ResolveEntity answers every spelling of that but one. A bare slug names no
+// entity to it and is a legal head below the workbench, so that case is
+// answered here with what ResolveEntity answers for the workbench itself,
+// including the empty Ref: the workbench's own printed spelling is a question
+// this resolver does not settle, and the two consumers that need one already
+// carry their own rule for it.
+func (b *Bench) collectionHolder(ref string) (*EntityRef, error) {
+	holder := ref[:strings.LastIndex(ref, "/")]
+	if b.Slug != "" && holder == b.Slug {
+		return &EntityRef{Kind: KindWorkbench, Dir: b.Root}, nil
+	}
+	return b.ResolveEntity(holder)
+}
+
 // resolveBelow resolves a reference to the file it names, and to the card that
-// file belongs to when it belongs to one. ResolvePath and ResolveEntity are
-// two readings of that pair, so both accept the same references.
+// file belongs to when it belongs to one. ResolvePath reads it, and answers a
+// reference naming a whole collection where ResolveEntity refuses one.
 //
 // The head segment names where the walk starts and the rest descends through
 // the containment grammar. A column is an entity of the workbench and the
@@ -207,32 +387,40 @@ func (b *Bench) ResolvePath(ref string) (string, error) {
 // form the walk prints for a workbench attachment; whether the bare slug also
 // opens the workbench is a separate question and this does not answer it.
 func (b *Bench) resolveBelow(ref string) (string, *Card, error) {
+	return b.resolveBelowLanding(ref, nil)
+}
+
+// resolveBelowLanding is resolveBelow with the walk's landing reported. A
+// caller that needs to know whether the reference stopped on a collection
+// passes one to write into; resolveBelow passes nil, which is every caller
+// that only wants the path.
+func (b *Bench) resolveBelowLanding(ref string, landed *landing) (string, *Card, error) {
 	head, rest, _ := strings.Cut(strings.TrimSpace(ref), "/")
 	if IsWorkbenchRef(head) || (rest != "" && b.Slug != "" && head == b.Slug) {
 		if rest == "" {
 			return filepath.Join(b.Root, WorkbenchAnchor), nil, nil
 		}
-		path, err := descend(b.Root, KindWorkbench, strings.Split(rest, "/"), nil)
+		path, err := descend(b.Root, KindWorkbench, strings.Split(rest, "/"), nil, landed)
 		return path, nil, err
 	}
 	if column := b.ColumnByRef(head); column != nil {
 		if rest == "" {
 			return b.ColumnAnchorPath(column.ID), nil, nil
 		}
-		path, err := descend(b.ColumnDir(column.ID), KindColumn, strings.Split(rest, "/"), nil)
+		path, err := descend(b.ColumnDir(column.ID), KindColumn, strings.Split(rest, "/"), nil, landed)
 		return path, nil, err
 	}
 	found, err := b.ResolveCard(head)
 	if err != nil {
 		return "", nil, err
 	}
-	path, err := walkBelowCard(found.Card, rest)
+	path, err := walkBelowCard(found.Card, rest, landed)
 	return path, found.Card, err
 }
 
 // walkBelowCard resolves the segments below a card. An empty rest is the
 // card's own anchor, which is what makes `path <card>` open the card.
-func walkBelowCard(card *Card, rest string) (string, error) {
+func walkBelowCard(card *Card, rest string, landed *landing) (string, error) {
 	if rest == "" {
 		return card.AnchorPath(), nil
 	}
@@ -254,9 +442,9 @@ func walkBelowCard(card *Card, rest string) (string, error) {
 			return "", contract.Refuse(contract.UnknownPath, rest)
 		}
 		aliased := append([]string{items.Dir}, segments[1:]...)
-		return descend(card.Dir, KindCard, aliased, &kind)
+		return descend(card.Dir, KindCard, aliased, &kind, landed)
 	}
-	return descend(card.Dir, KindCard, segments, nil)
+	return descend(card.Dir, KindCard, segments, nil, landed)
 }
 
 // checklistMount is the collection a checklist segment such as questions
@@ -269,6 +457,26 @@ func checklistMount() (Mount, bool) {
 		}
 	}
 	return Mount{}, false
+}
+
+// landing is what the walk reports about where it stopped, filled only by
+// the branch that stops on a collection. A caller wanting the answer passes
+// a landing to write into; every other caller passes nil.
+type landing struct {
+	collection bool
+	dir        string
+	mount      Mount
+	narrow     string
+}
+
+// MemberIDs are one collection's live members, in the creation order a
+// positional reference counts in.
+//
+// The resolver counts a position in this list and the containment walk draws
+// its rows from it, so the two read one statement of the order rather than
+// two statements that agree today.
+func MemberIDs(collection string, mount Mount) []string {
+	return SortByOrdinal(collection, mount.Anchor, ListIDs(collection))
 }
 
 // descend resolves the segments below one entity by walking the containment
@@ -291,7 +499,7 @@ func checklistMount() (Mount, bool) {
 // in the listing's ascending-hex order, so `<card>/comment/2` names the second
 // comment somebody wrote and keeps naming it however the identifiers happened
 // to fall.
-func descend(dir, kind string, segments []string, narrow *string) (string, error) {
+func descend(dir, kind string, segments []string, narrow *string, landed *landing) (string, error) {
 	mount, ok := MountOf(kind, segments[0])
 	if !ok {
 		return "", contract.Refuse(contract.UnknownPath, segments[0])
@@ -311,12 +519,24 @@ func descend(dir, kind string, segments []string, narrow *string) (string, error
 	collection := filepath.Join(dir, mount.Dir)
 	tail := segments[1:]
 	if len(tail) == 0 {
-		if !Exists(collection) {
-			return "", contract.Refuse(contract.UnknownPath, collection)
+		// A collection the containment table declares for this kind is
+		// there whether or not anything has been written into it, so the
+		// walk answers with the directory a first member would be written
+		// into rather than refusing over a directory nobody has made yet.
+		// ListIDs reads an absent directory as an empty one, so a
+		// positional selector below this point still refuses through pick.
+		if landed != nil {
+			landed.collection = true
+			landed.dir = collection
+			landed.mount = mount
+			landed.narrow = ""
+			if narrow != nil {
+				landed.narrow = *narrow
+			}
 		}
 		return collection, nil
 	}
-	ids := SortByOrdinal(collection, mount.Anchor, ListIDs(collection))
+	ids := MemberIDs(collection, mount)
 	if narrow != nil {
 		ids = filterByKind(collection, mount.Anchor, ids, *narrow)
 	}
@@ -337,7 +557,7 @@ func descend(dir, kind string, segments []string, narrow *string) (string, error
 		}
 		return payloadOf(member)
 	}
-	return descend(member, mount.Kind, below, nil)
+	return descend(member, mount.Kind, below, nil, landed)
 }
 
 // addressedInItsOwnRight reports whether a kind is one a person names directly

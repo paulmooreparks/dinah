@@ -25,7 +25,7 @@ func TestTheContainmentWalkAndShowAgreeOnEveryItemReference(t *testing.T) {
 	h.file(card, "acceptance_criterion", "the criterion")
 	h.item(card, "c00000000004", "kind: risk\nordinal: 4\n", "a risk")
 
-	detail, _, err := h.library.Show(&Request{Verb: "show", Card: card})
+	detail, _, _, err := h.library.Show(&Request{Verb: "show", Card: card})
 	if err != nil {
 		t.Fatalf("show %s: %v", card, err)
 	}
@@ -93,7 +93,7 @@ func TestShowAddressesAnItemBelowADamagedOneTheWayTheWalkDoes(t *testing.T) {
 	}
 	h.reopen()
 
-	detail, _, err := h.library.Show(&Request{Verb: "show", Card: card})
+	detail, _, _, err := h.library.Show(&Request{Verb: "show", Card: card})
 	if err != nil {
 		t.Fatalf("show %s: %v", card, err)
 	}

@@ -68,7 +68,7 @@ func TestShowCarriesTheFieldsTheCallerNamed(t *testing.T) {
 		},
 	} {
 		t.Run(row.name, func(t *testing.T) {
-			detail, text, err := h.library.Show(&Request{
+			detail, _, text, err := h.library.Show(&Request{
 				Verb: "show", Actor: "alka", Card: row.ref, Fields: row.fields,
 			})
 			if err != nil {
@@ -117,7 +117,7 @@ func TestShowCarriesTheFieldsTheCallerNamed(t *testing.T) {
 
 	// The control. Without it, an answer that carried nothing at all would
 	// satisfy every assertion above about what the shaped answer omits.
-	whole, _, err := h.library.Show(&Request{Verb: "show", Actor: "alka", Card: full})
+	whole, _, _, err := h.library.Show(&Request{Verb: "show", Actor: "alka", Card: full})
 	if err != nil {
 		t.Fatalf("show %s: %v", full, err)
 	}
@@ -195,7 +195,7 @@ func TestShowRefusesAFieldItDoesNotCarry(t *testing.T) {
 		},
 	} {
 		t.Run(row.name, func(t *testing.T) {
-			detail, text, err := h.library.Show(&Request{
+			detail, _, text, err := h.library.Show(&Request{
 				Verb: "show", Actor: "alka", Card: row.card, Fields: row.fields,
 			})
 			if err == nil {
@@ -221,7 +221,7 @@ func TestShowRefusesAFieldItDoesNotCarry(t *testing.T) {
 	// written with a separator in it is an argument the caller did not give,
 	// so it reads as the unshaped call it has always been and is not refused
 	// alongside the bare comma above.
-	if detail, _, err := h.library.Show(&Request{
+	if detail, _, _, err := h.library.Show(&Request{
 		Verb: "show", Actor: "alka", Card: ref, Fields: "   ",
 	}); err != nil {
 		t.Fatalf("a blank field list was refused: %v", err)
@@ -232,7 +232,7 @@ func TestShowRefusesAFieldItDoesNotCarry(t *testing.T) {
 	// The control for the second row: the same nonexistent card with no
 	// field list is refused for being nonexistent, so the row above really
 	// does show the field check running ahead of the resolution.
-	if _, _, err := h.library.Show(&Request{Verb: "show", Actor: "alka", Card: "fx-9999"}); err == nil {
+	if _, _, _, err := h.library.Show(&Request{Verb: "show", Actor: "alka", Card: "fx-9999"}); err == nil {
 		t.Fatal("a nonexistent card resolved")
 	} else if refusal, ok := err.(*contract.Refusal); !ok || refusal.Name != contract.UnknownCard {
 		t.Fatalf("wanted %s on a card that does not exist, got %v", contract.UnknownCard, err)

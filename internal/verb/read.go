@@ -739,18 +739,46 @@ type ItemView struct {
 	Note string `json:"note,omitempty"`
 }
 
-// Show reads a card, or the file any other reference names.
+// CollectionListing is what show answers for a reference naming a whole
+// collection: the reference the reader typed, the kind of thing the collection
+// holds, and one member per live member in creation order.
+type CollectionListing struct {
+	// Ref is the collection reference as the reader typed it, so a header
+	// drawn from this reads back what they wrote.
+	Ref string `json:"ref"`
+	// Kind is what the collection holds, as the containment table spells it,
+	// so a checklist collection reports item however it was addressed.
+	Kind string `json:"kind"`
+	// Members are the collection's live members in creation order. A
+	// collection holding none reports an empty list rather than nothing.
+	Members []CollectionMember `json:"members"`
+}
+
+// CollectionMember is one member of a collection: the address a reader types
+// to reach it, and the text show prints for that address on its own.
+type CollectionMember struct {
+	// Ref is the member's own printed spelling, composed by the containment
+	// walk rather than by appending a position to the collection reference,
+	// so one entity is printed one way wherever it appears.
+	Ref string `json:"ref"`
+	// Text is the member's anchor, which is the same read show performs for
+	// the member asked for alone.
+	Text string `json:"text"`
+}
+
+// Show reads a card, the file any other reference names, or the members of a
+// reference naming a whole collection.
 //
-// A card comes back as a Detail with an empty text. Every other reference
-// comes back the other way round, as a nil Detail beside the text of the file
-// it named, since nothing but a card has a view to build. A caller reads the
-// pair rather than assuming the Detail.
-func (l *Library) Show(req *Request) (*Detail, string, error) {
+// A card comes back as a Detail with an empty text. A collection comes back as
+// a CollectionListing. Every other reference comes back as a nil Detail beside
+// the text of the file it named, since nothing but a card has a view to build.
+// A caller reads whichever of the three is filled rather than assuming one.
+func (l *Library) Show(req *Request) (*Detail, *CollectionListing, string, error) {
 	// The field list is read before anything is resolved, so a call naming a
 	// field this tool does not have performs no read and mutates nothing.
 	chosen, err := parseDetailFields(req.Fields)
 	if err != nil {
-		return nil, "", err
+		return nil, nil, "", err
 	}
 	head, rest, _ := strings.Cut(req.Card, "/")
 	// A column is an entity of the workbench, and the containment walk prints
@@ -759,13 +787,13 @@ func (l *Library) Show(req *Request) (*Detail, string, error) {
 	if rest == "" {
 		if column := l.Bench.ColumnByRef(head); column != nil {
 			if chosen != nil {
-				return nil, "", unknownDetailField(strings.TrimSpace(req.Fields), head)
+				return nil, nil, "", unknownDetailField(strings.TrimSpace(req.Fields), head)
 			}
 			text, err := bench.ReadText(l.Bench.ColumnAnchorPath(column.ID))
 			if err != nil {
-				return nil, "", contract.Refuse(contract.UnknownPath, head)
+				return nil, nil, "", contract.Refuse(contract.UnknownPath, head)
 			}
-			return nil, text, nil
+			return nil, nil, text, nil
 		}
 	}
 	// A composed reference is whatever the resolver reaches, which is why the
@@ -776,25 +804,39 @@ func (l *Library) Show(req *Request) (*Detail, string, error) {
 		// A composed reference never names a card, so it has no members to
 		// select from and the refusal is raised ahead of the resolution.
 		if chosen != nil {
-			return nil, "", unknownDetailField(strings.TrimSpace(req.Fields), req.Card)
+			return nil, nil, "", unknownDetailField(strings.TrimSpace(req.Fields), req.Card)
+		}
+		// The collection question is asked ahead of the resolution this
+		// command already performs, and the resolver's error is ignored, so
+		// every reference that refuses today goes on refusing with the
+		// sentence it refuses with today. ResolvePath reaches an attachment's
+		// payload, which this resolver refuses because a payload file carries
+		// no anchor, and answering the collection first leaves that where it
+		// is.
+		if _, collection, err := l.Bench.ResolveReference(req.Card); err == nil && collection != nil {
+			listing, err := l.collectionListing(collection)
+			if err != nil {
+				return nil, nil, "", err
+			}
+			return nil, listing, "", nil
 		}
 		path, err := l.Bench.ResolvePath(req.Card)
 		if err != nil {
-			return nil, "", err
+			return nil, nil, "", err
 		}
 		text, err := bench.ReadText(path)
 		if err != nil {
-			return nil, "", contract.Refuse(contract.UnknownPath, rest)
+			return nil, nil, "", contract.Refuse(contract.UnknownPath, rest)
 		}
-		return nil, text, nil
+		return nil, nil, text, nil
 	}
 	found, err := l.Bench.ResolveCard(head)
 	if err != nil {
-		return nil, "", err
+		return nil, nil, "", err
 	}
 	card := found.Card
 	if err := l.lapseRead(card, req.Actor); err != nil {
-		return nil, "", err
+		return nil, nil, "", err
 	}
 	cardRef := card.Ref(l.Bench.Slug)
 	// Every member is built before the selection is applied, because withheld
@@ -814,11 +856,11 @@ func (l *Library) Show(req *Request) (*Detail, string, error) {
 	}
 	views, err := attachmentViews(card.Dir, cardRef)
 	if err != nil {
-		return nil, "", err
+		return nil, nil, "", err
 	}
 	stored, err := bench.Comments(card.Dir)
 	if err != nil {
-		return nil, "", err
+		return nil, nil, "", err
 	}
 	var comments []CommentView
 	for _, comment := range stored {
@@ -829,14 +871,14 @@ func (l *Library) Show(req *Request) (*Detail, string, error) {
 		// view prints reaches the attachment the view describes.
 		below, err := attachmentViews(comment.Dir, ref)
 		if err != nil {
-			return nil, "", err
+			return nil, nil, "", err
 		}
 		view.Attachments = below
 		comments = append(comments, view)
 	}
 	items, err := bench.Items(card.Dir)
 	if err != nil {
-		return nil, "", err
+		return nil, nil, "", err
 	}
 	var checklist []ItemView
 	// The position a reference carries is counted within the item's own kind,
@@ -909,19 +951,44 @@ func (l *Library) Show(req *Request) (*Detail, string, error) {
 			detail.Reread = cardRef
 		}
 	}
-	return detail, "", nil
+	return detail, nil, "", nil
+}
+
+// collectionListing reads every member of a collection the way show reads one
+// member asked for alone, so a member reads identically whichever way it was
+// asked for.
+//
+// The addresses come from the containment walk's own composer rather than from
+// the collection reference plus a position, because one entity has one printed
+// spelling: an open question filed first is pb-1/questions/1 on every surface,
+// and pb-1/checklist/1 on none of them.
+func (l *Library) collectionListing(collection *bench.CollectionRef) (*CollectionListing, error) {
+	nodes := l.memberNodes(collection.Dir, collection.Mount, collection.Members, l.childSeed(collection.Holder))
+	members := make([]CollectionMember, 0, len(nodes))
+	for i, node := range nodes {
+		anchor := filepath.Join(collection.Dir, collection.Members[i], collection.Mount.Anchor)
+		text, err := bench.ReadText(anchor)
+		if err != nil {
+			return nil, contract.Refuse(contract.UnknownPath, node.Ref)
+		}
+		members = append(members, CollectionMember{Ref: node.Ref, Text: text})
+	}
+	return &CollectionListing{Ref: collection.Ref, Kind: collection.Mount.Kind, Members: members}, nil
 }
 
 // AttachmentListing is one entity's attachments: a workbench's, a column's, a
 // card's or a comment's, which are the four kinds the containment grammar
 // gives an attachments collection.
 type AttachmentListing struct {
-	// Kind is the entity's kind, as the containment grammar spells it.
+	// Kind is the entity's kind, as the containment grammar spells it, and
+	// verb.KindCollection where the reference named a whole collection that
+	// hangs no attachments of its own.
 	Kind string `json:"kind"`
 	// Ref is what a person types to reach the entity the attachments hang
 	// from. The workbench is written `workbench`, which is the spelling the
-	// containment tree's own root row already prints for it, and everything
-	// else carries the reference the resolver composed.
+	// containment tree's own root row already prints for it, everything else
+	// carries the reference the resolver composed, and a collection reference
+	// that hangs nothing carries itself as the reader typed it.
 	Ref string `json:"ref"`
 	// Attachments are the entity's own attachments in creation order, never
 	// those of anything it contains. An entity carrying none reports an
@@ -939,9 +1006,20 @@ type AttachmentListing struct {
 // the same question everywhere instead of deciding first whether the question
 // is legal.
 func (l *Library) Attachments(req *Request) (*AttachmentListing, error) {
-	entity, err := l.Bench.ResolveEntity(req.Ref)
+	entity, collection, err := l.Bench.ResolveReference(req.Ref)
 	if err != nil {
 		return nil, err
+	}
+	if collection != nil {
+		// An attachments collection is the holder's own attachments named
+		// the long way, so it is answered from the holder and prints what
+		// the holder prints. Every other collection hangs no attachments and
+		// gets the empty listing an entity of an unmounted kind already gets,
+		// for the reason this function's own doc comment gives.
+		if collection.Mount.Kind != bench.KindAttachment {
+			return &AttachmentListing{Kind: KindCollection, Ref: collection.Ref, Attachments: []AttachmentView{}}, nil
+		}
+		entity = collection.Holder
 	}
 	// EntityRef leaves the workbench's own reference empty, calling its
 	// spelling a question the resolver does not settle, so composing an
@@ -1134,6 +1212,13 @@ func (l *Library) Instructions(req *Request) (*Served, error) {
 			ChainServed:  keys,
 		}
 		return served, nil
+	}
+	// The collection question comes ahead of the card resolution, and the
+	// resolver's error is ignored, so a reference naming nothing goes on
+	// refusing dinah.unknown-path with the whole reference below rather than
+	// picking up a refusal about cards that nobody asked for.
+	if _, collection, err := l.Bench.ResolveReference(req.Card); err == nil && collection != nil {
+		return nil, collection.Refuse()
 	}
 	found, err := l.Bench.ResolveCard(req.Card)
 	if err != nil {
