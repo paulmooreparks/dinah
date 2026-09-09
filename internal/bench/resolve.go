@@ -247,9 +247,12 @@ func (c *CollectionRef) Refuse() error {
 // which of the two things it names: one entity, or a whole collection.
 // Exactly one of the two is non-nil whenever the error is nil.
 //
-// It accepts the same references ResolvePath does, so a reference a walk
-// prints names the same thing to every command that takes one. ResolveEntity
-// is the reading of this that takes the entity and refuses the collection.
+// It accepts every reference ResolvePath accepts but one, so a reference a
+// walk prints names the same thing to every command that takes one. The
+// exception is an attachment's payload: that file carries no anchor, so it
+// names no entity of the format, and ResolvePath answers it with a path where
+// this refuses it. ResolveEntity is the reading of this that takes the entity
+// and refuses the collection.
 //
 // An answer of kind card always carries the card, and an answer below a card
 // always carries the card it belongs to. Callers read Card without asking, and

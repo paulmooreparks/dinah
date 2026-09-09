@@ -809,9 +809,10 @@ func (l *Library) Show(req *Request) (*Detail, *CollectionListing, string, error
 		// The collection question is asked ahead of the resolution this
 		// command already performs, and the resolver's error is ignored, so
 		// every reference that refuses today goes on refusing with the
-		// sentence it refuses with today. ResolvePath reaches two forms this
-		// resolver does not, an attachment's payload and a workstream, and
-		// answering the collection first leaves both of them where they are.
+		// sentence it refuses with today. ResolvePath reaches an attachment's
+		// payload, which this resolver refuses because a payload file carries
+		// no anchor, and answering the collection first leaves that where it
+		// is.
 		if _, collection, err := l.Bench.ResolveReference(req.Card); err == nil && collection != nil {
 			listing, err := l.collectionListing(collection)
 			if err != nil {

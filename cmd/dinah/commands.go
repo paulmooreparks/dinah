@@ -1233,8 +1233,8 @@ func runEdit(s *session, parsed *arguments) int {
 		// handing it over is what this command did with one until now. The
 		// question is asked ahead of the resolution and the resolver's error
 		// is ignored, so every reference that refuses today refuses the same
-		// way, including the two forms ResolvePath reaches and the entity
-		// resolver does not.
+		// way, including an attachment's payload, which ResolvePath reaches
+		// and the entity resolver does not.
 		if _, collection, err := l.Bench.ResolveReference(ref); err == nil && collection != nil {
 			return s.reportError(collection.Refuse())
 		}

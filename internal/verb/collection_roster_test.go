@@ -109,3 +109,35 @@ func TestTheDocCommentsThisCardFalsifiesWereCorrected(t *testing.T) {
 	}
 	t.Logf("three comments read, %d stale claims survived", survivals)
 }
+
+// TestTreeNodeRefSaysWhatACollectionRootCarries reads the fourth shipped doc
+// comment this card falsifies, which the sweep behind
+// TestTheDocCommentsThisCardFalsifiesWereCorrected missed.
+//
+// That sweep found TreeNode.Kind and stopped, and TreeNode.Ref sits two fields
+// below it on the same struct. Its sentence says the value is what a person
+// types to reach the node on show, path, or edit, and this card makes edit
+// refuse a collection while contents grows a walk whose root node carries a
+// collection reference. So the one comment on the struct that names the three
+// commands became false in the same diff that corrected the one above it.
+//
+// It is guarded here rather than added to that sweep's subject set, because
+// that set is three by assertion and the criterion behind it names its three
+// comments one by one.
+func TestTreeNodeRefSaysWhatACollectionRootCarries(t *testing.T) {
+	source, err := os.ReadFile("tree.go")
+	if err != nil {
+		t.Fatalf("read tree.go: %v", err)
+	}
+	text := string(source)
+	// The fragment sits whole on one source line at b825059, so the grep is
+	// not defeated by the wrap the sentence it belongs to takes.
+	stale := "// It is absent on a group node, which nothing addresses.\n"
+	if strings.Contains(text, stale) {
+		t.Fatalf("tree.go's comment on TreeNode.Ref still ends where it ended before edit refused a collection")
+	}
+	if !strings.Contains(text, "edit refuses") {
+		t.Errorf("tree.go's comment on TreeNode.Ref no longer ends there but says nothing about what edit does with a collection reference")
+	}
+	t.Logf("tree.go's comment on TreeNode.Ref covers the collection root")
+}

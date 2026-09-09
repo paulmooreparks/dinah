@@ -2765,7 +2765,7 @@
       "source": "9b4d2512a901f950"
     },
     "refusal.dinah.vocabulary-mixed.next-named": {
-      "text": "; फ़ाइल को हाथ से बदलें ताकि वह एक ही शब्दावली रखे, दोनों नहीं, फिर वर्कबेंच को आगे ले जाने के लिए `dinah check --root {workbench} --migrate-vocabulary` चलाएँ",
+      "text": "; फ़ाइल को हाथ से बदलें ताकि वह एक ही शब्दावली रखे, दोनों नहीं, फिर वर्कबेंच को आगे ले जाने के लिए `dinah check --root {workbench} --migrate-vocabulary` चलाएँ",
       "context": "Spliced onto refusal.dinah.vocabulary-mixed as the next step wherever the head resolved which workbench the invocation was about. {workbench} is the workbench directory, and naming it is what lets the reader run the repair from where he stands. The sibling entry without the flag is the alternation's unconditional last member, and no invocation renders it today. The command spelling is machine vocabulary and is not translated.",
       "source": "ccace2b0ced93be7"
     },

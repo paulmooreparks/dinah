@@ -20,7 +20,9 @@ type TreeNode struct {
 	// ID is the entity's 12-hex identifier, absent on a group node.
 	ID string `json:"id,omitempty"`
 	// Ref is what a person types to reach this node on show, path, or edit.
-	// It is absent on a group node, which nothing addresses.
+	// It is absent on a group node, which nothing addresses. The root node of
+	// a walk rooted at a collection carries a collection reference, which show
+	// and path answer and edit refuses.
 	Ref string `json:"ref,omitempty"`
 	// Title is the entity's own title, or the group's label when the axis has
 	// one to give. It is absent on every group node the tool can build today,
