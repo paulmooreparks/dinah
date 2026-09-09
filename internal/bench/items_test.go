@@ -82,25 +82,46 @@ func TestACardWithNoChecklistReadsAsNoItems(t *testing.T) {
 	}
 }
 
-// TestAliasForItemKindAgreesWithWhatAReferenceResolvesBy asserts that the
-// alias a reference is composed from is the alias a reference resolves by. The
-// two directions are derived from one map, and this is what would catch a
-// second literal being introduced beside it: every alias the resolver knows
-// round-trips, and a kind the format does not declare composes nothing rather
-// than composing a reference that resolves to no item.
-func TestAliasForItemKindAgreesWithWhatAReferenceResolvesBy(t *testing.T) {
-	for alias, kind := range checklistKinds {
-		got, ok := AliasForItemKind(kind)
+// TestWordForItemKindAgreesWithWhatAReferenceResolvesBy asserts dinah-454
+// AC-14: the segment a reference is composed from is a segment a reference
+// resolves by, and it is the word rather than the short form. Both directions
+// are derived from one declaration, and this is what would catch a second
+// literal being introduced beside it.
+//
+// The last two arms carry the weight. Every segment the resolver knows has to
+// come from that declaration, so a resolver quietly widened to accept a fourth
+// spelling fails here rather than passing as a convenience, and a kind the
+// format does not declare composes nothing rather than composing a reference
+// that resolves to no item.
+func TestWordForItemKindAgreesWithWhatAReferenceResolvesBy(t *testing.T) {
+	declared := map[string]bool{}
+	for _, segment := range checklistSegments {
+		declared[segment.Word] = true
+		declared[segment.Short] = true
+		if segment.Word == segment.Short {
+			t.Errorf("%s declares one spelling twice, so nothing distinguishes the word from the short form", segment.Kind)
+		}
+		for _, spelling := range []string{segment.Word, segment.Short} {
+			if got := checklistKinds[spelling]; got != segment.Kind {
+				t.Errorf("the segment %q resolves to %q, wanted %q", spelling, got, segment.Kind)
+			}
+		}
+		got, ok := WordForItemKind(segment.Kind)
 		if !ok {
-			t.Errorf("the resolver reaches %s through %q and nothing composes it back", kind, alias)
+			t.Errorf("the resolver reaches %s and nothing composes it back", segment.Kind)
 			continue
 		}
-		if got != alias {
-			t.Errorf("%s composes to %q and resolves from %q", kind, got, alias)
+		if got != segment.Word {
+			t.Errorf("%s composes to %q and its declared word is %q", segment.Kind, got, segment.Word)
 		}
 	}
-	if alias, ok := AliasForItemKind("risk"); ok {
-		t.Errorf("a kind the format does not declare composed the alias %q", alias)
+	for spelling := range checklistKinds {
+		if !declared[spelling] {
+			t.Errorf("the resolver accepts the segment %q, which no entry of checklistSegments declares", spelling)
+		}
+	}
+	if word, ok := WordForItemKind("risk"); ok {
+		t.Errorf("a kind the format does not declare composed the segment %q", word)
 	}
 }
 

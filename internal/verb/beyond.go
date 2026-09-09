@@ -170,6 +170,14 @@ func (l *Library) Attach(req *Request) *Response {
 	if req.Actor == "" {
 		return l.refuse(req, entity.Card, contract.NoOwner, "")
 	}
+	// Replacing an attachment's bytes writes nothing below it and stays legal,
+	// so one expression decides both the refusal and the branch that writes,
+	// and the two cannot drift apart.
+	replacing := req.Replace && entity.Kind == bench.KindAttachment
+	if _, mounts := bench.MountOf(entity.Kind, bench.AttachmentsDir); !mounts && !replacing {
+		return l.refuseWith(req, entity.Card, contract.NotAttachable, entity.Ref,
+			map[string]string{"kind": entity.Kind, entity.Kind: entity.Ref})
+	}
 	if !bench.Exists(req.File) {
 		return l.refuseWith(req, entity.Card, contract.UnknownPath, req.File, map[string]string{"file": req.File})
 	}
@@ -187,7 +195,7 @@ func (l *Library) Attach(req *Request) *Response {
 		l.Interleave()
 	}
 	ev := bench.Event{TS: now, Actor: req.Actor}
-	if req.Replace && entity.Kind == "attachment" {
+	if replacing {
 		attachment, err := bench.ReplaceAttachment(entity.Dir, req.File)
 		if err != nil {
 			return l.FromError(req, err)
@@ -227,7 +235,7 @@ func (l *Library) Archive(req *Request) *Response {
 	if req.Actor == "" {
 		return l.refuse(req, entity.Card, contract.NoOwner, "")
 	}
-	if entity.Kind == "workbench" {
+	if entity.Kind == bench.KindWorkbench {
 		return l.refuse(req, nil, contract.UnknownPath, req.Ref)
 	}
 	now := bench.Stamp(l.Now())
@@ -272,7 +280,7 @@ func (l *Library) Delete(req *Request) *Response {
 	if !req.Confirm {
 		return l.refuse(req, entity.Card, contract.Unconfirmed, req.Ref)
 	}
-	if entity.Kind == "workbench" {
+	if entity.Kind == bench.KindWorkbench {
 		return l.refuse(req, nil, contract.UnknownPath, req.Ref)
 	}
 	now := bench.Stamp(l.Now())
@@ -636,7 +644,7 @@ func (l *Library) journalFor(entity *bench.EntityRef) string {
 	if entity.Card != nil {
 		return entity.Card.JournalPath()
 	}
-	if entity.Kind == "workstream" {
+	if entity.Kind == bench.KindWorkstream {
 		return filepath.Join(entity.Dir, bench.JournalName)
 	}
 	return l.Bench.JournalPath()
@@ -649,7 +657,7 @@ func (l *Library) lockDirFor(entity *bench.EntityRef) string {
 	if entity.Card != nil {
 		return entity.Card.Dir
 	}
-	if entity.Kind == "workstream" {
+	if entity.Kind == bench.KindWorkstream {
 		return entity.Dir
 	}
 	return l.Bench.Root
@@ -672,7 +680,7 @@ func (l *Library) retiring(columnID string) (string, bool) {
 // an act on any other kind. It is what arms the occupancy scan the act runs
 // once its own sibling exists.
 func columnSubject(entity *bench.EntityRef) string {
-	if entity.Kind != "column" {
+	if entity.Kind != bench.KindColumn {
 		return ""
 	}
 	return entity.ID
@@ -683,7 +691,7 @@ func columnSubject(entity *bench.EntityRef) string {
 // documented invariant, empty exactly when ColumnID is, holds by construction
 // rather than by every entity kind but column happening to carry no Ref today.
 func columnRefSubject(entity *bench.EntityRef) string {
-	if entity.Kind != "column" {
+	if entity.Kind != bench.KindColumn {
 		return ""
 	}
 	return entity.Ref
@@ -694,7 +702,7 @@ func columnRefSubject(entity *bench.EntityRef) string {
 // runs once its own sibling exists. Archiving passes it nothing, because a
 // workstream cards still belong to is the ordinary thing to archive.
 func workstreamSubject(entity *bench.EntityRef) string {
-	if entity.Kind != "workstream" {
+	if entity.Kind != bench.KindWorkstream {
 		return ""
 	}
 	return entity.ID
@@ -707,7 +715,7 @@ func workstreamSubject(entity *bench.EntityRef) string {
 // construction rather than by every entity kind but workstream happening to
 // carry no Ref today.
 func workstreamRefSubject(entity *bench.EntityRef) string {
-	if entity.Kind != "workstream" {
+	if entity.Kind != bench.KindWorkstream {
 		return ""
 	}
 	return entity.Ref
@@ -721,7 +729,7 @@ func workstreamRefSubject(entity *bench.EntityRef) string {
 // attachment keeps the attachment event it has always carried.
 func (l *Library) removalRecord(entity *bench.EntityRef, actor, now string) (string, bench.Event) {
 	ev := bench.Event{TS: now, Actor: actor, Event: contract.EventDeleted, Note: entity.ID}
-	if entity.Kind == "attachment" {
+	if entity.Kind == bench.KindAttachment {
 		ev.Event = contract.EventAttachmentRemoved
 		ev.Attachment = entity.ID
 		if attachment, err := bench.LoadAttachment(entity.Dir); err == nil {
@@ -733,7 +741,7 @@ func (l *Library) removalRecord(entity *bench.EntityRef, actor, now string) (str
 	// Deleting a card or a workstream destroys the journal inside it, so the
 	// record goes to the bench's, carrying the identifier and the title as
 	// of the event.
-	if entity.Kind == "card" || entity.Kind == "workstream" {
+	if entity.Kind == bench.KindCard || entity.Kind == bench.KindWorkstream {
 		return l.Bench.JournalPath(), ev
 	}
 	return l.journalFor(entity), ev
@@ -742,10 +750,10 @@ func (l *Library) removalRecord(entity *bench.EntityRef, actor, now string) (str
 // titleOfEntity is what a person called the entity at the moment it was
 // deleted, so the bench's history reads without resolving anything.
 func (l *Library) titleOfEntity(entity *bench.EntityRef) string {
-	if entity.Kind == "card" && entity.Card != nil {
+	if entity.Kind == bench.KindCard && entity.Card != nil {
 		return entity.Card.Title
 	}
-	if entity.Kind == "workstream" {
+	if entity.Kind == bench.KindWorkstream {
 		if workstream := l.Bench.Workstream(entity.ID); workstream != nil {
 			return workstream.Title
 		}
@@ -874,9 +882,11 @@ func columnMember(id, title, kind string) map[string]json.RawMessage {
 type WorkstreamView struct {
 	// ID is the workstream's 12-hex identifier.
 	ID string `json:"id"`
-	// Ref is what a person types to reach it: its slug where it carries one,
-	// its identifier otherwise.
-	Ref string `json:"ref,omitempty"`
+	// Ref is what a person types to reach the workstream: the kind's own
+	// prefix, then the slug where the workstream carries one and the
+	// identifier otherwise. It is never empty, because Workstream.Ref falls
+	// back to the identifier.
+	Ref string `json:"ref"`
 	// Slug is the short handle, absent on a workstream carrying none.
 	Slug string `json:"slug,omitempty"`
 	// Title is what a person calls it, absent on one the adoption repair

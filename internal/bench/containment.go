@@ -18,6 +18,11 @@ const (
 	// KindAttachment is one attachment, which any of the four kinds above
 	// may carry.
 	KindAttachment = "attachment"
+	// KindWorkstream is one workstream. It is named by the reference grammar
+	// and it is deliberately absent from the containment table below, because a
+	// workstream is a membership rather than a container: cards join and leave
+	// one, and a card is not contained by one.
+	KindWorkstream = "workstream"
 )
 
 // Mount is one collection a kind contains: the directory name it hangs from

@@ -225,6 +225,8 @@ var beyondChecks = map[string][]Check{
 	"attach": {
 		{Refusal: contract.UnknownPath, Key: "check.attach.1"},
 		{Refusal: contract.NoOwner, Key: "check.attach.2"},
+		{Refusal: contract.NotAttachable, Key: "check.attach.3"},
+		{Refusal: contract.UnknownPath, Key: "check.attach.4"},
 	},
 	"archive": {
 		{Refusal: contract.UnknownPath, Key: "check.archive.1"},

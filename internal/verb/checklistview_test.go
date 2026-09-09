@@ -31,15 +31,15 @@ func TestShowCarriesEveryChecklistItemTheCardHolds(t *testing.T) {
 	}
 	wanted := []ItemView{
 		{
-			ID: "b00000000001", Ordinal: 1, Ref: ref + "/oq/1", Kind: "open_question",
+			ID: "b00000000001", Ordinal: 1, Ref: ref + "/questions/1", Kind: "open_question",
 			State: "pending", Owner: "operator", Text: "Which vendor do we cite for the SLA numbers?",
 		},
 		{
-			ID: "b00000000002", Ordinal: 2, Ref: ref + "/ac/1", Kind: "acceptance_criterion",
+			ID: "b00000000002", Ordinal: 2, Ref: ref + "/criteria/1", Kind: "acceptance_criterion",
 			State: "pending", Text: "The endpoint returns 404 for an unknown id.",
 		},
 		{
-			ID: "b00000000003", Ordinal: 3, Ref: ref + "/d/1", Kind: "decision",
+			ID: "b00000000003", Ordinal: 3, Ref: ref + "/decisions/1", Kind: "decision",
 			State: "resolved", Text: "Whose contract the numbers come from.",
 			Note: "the operator confirmed it's Acme per the 2026-08 contract",
 		},

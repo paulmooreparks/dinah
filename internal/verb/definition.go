@@ -308,7 +308,7 @@ var params = map[string][]Param{
 	// The six checklist verbs. file names a card, because an item is created
 	// under one; the other five name the item itself, which resolves through
 	// the same reference grammar every entity-shaped command already uses,
-	// short aliases included.
+	// the checklist segments' short forms included.
 	"file": {
 		{Name: "card", Required: true, Shared: "card", Field: "Card"},
 		{Name: "kind", Required: true, Vocabulary: "item-kind", Field: "Kind"},

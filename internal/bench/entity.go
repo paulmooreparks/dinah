@@ -375,12 +375,15 @@ func (b *Bench) resolveWorkstreamRef(ref string) (*EntityRef, bool, error) {
 	if !named {
 		return nil, false, nil
 	}
-	workstream := b.WorkstreamByRef(rest)
+	// The whole reference goes to the resolver, on the reasoning
+	// ResolvePath's workstream arm gives: WorkstreamByRef strips the prefix
+	// itself, so handing it the remainder would strip twice.
+	workstream := b.WorkstreamByRef(ref)
 	if workstream == nil {
 		return nil, true, contract.Refuse(contract.UnknownWorkstream, rest)
 	}
 	entity := &EntityRef{
-		Kind: "workstream",
+		Kind: KindWorkstream,
 		Dir:  workstream.Dir,
 		ID:   workstream.ID,
 		Ref:  workstream.Ref(),
@@ -791,7 +794,7 @@ func (b *Bench) ResolveEntity(ref string) (*EntityRef, error) {
 // is what a containment walk draws and what a person types, rather than the
 // identifier its directory is named for. Composing it here is what gives one
 // entity one spelling however the caller reached it, whether by an identifier,
-// by a narrowed checklist alias, or by the position itself.
+// by a narrowed checklist segment, or by the position itself.
 //
 // An entity this composer cannot name comes back with no reference at all,
 // because a reference naming the head instead would send a reader somewhere

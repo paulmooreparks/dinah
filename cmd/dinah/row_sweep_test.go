@@ -1557,7 +1557,7 @@ func sweptBlocks() []sweptBlock {
 		},
 		{
 			site: renderSite{File: "render.go", Function: "renderAttachments", Label: "attachments", Ordinal: 1}, label: "a card's attachments",
-			keys: []string{"column.attachments.position", "column.attachments.filename", "column.attachments.description"}, varies: lastCell,
+			keys: []string{"column.attachments.ref", "column.attachments.filename", "column.attachments.description"}, varies: lastCell,
 			opensAt: "show.attachments", expect: expectAttachments,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
 				return sweptRun(t, w.healthy, tag, "show", w.card)
@@ -1565,7 +1565,7 @@ func sweptBlocks() []sweptBlock {
 		},
 		{
 			site: renderSite{File: "render.go", Function: "renderDetail", Label: "comments", Ordinal: 1}, label: "a card's comments",
-			keys: []string{"column.comments.when", "column.comments.who"}, varies: noCell,
+			keys: []string{"column.comments.ref", "column.comments.when", "column.comments.who"}, varies: noCell,
 			blanksAreLost: true,
 			opensAt:       "show.comments", expect: expectComments,
 			constantReason: "a timestamp is one format in one time zone, so every comment header draws its stamp " +
@@ -1713,7 +1713,7 @@ func sweptBlocks() []sweptBlock {
 		},
 		{
 			site: renderSite{File: "render.go", Function: "renderWorkstreams", Label: "t", Ordinal: 1}, label: "dinah workstream",
-			keys:   []string{"column.workstreams.slug", "column.workstreams.name", "column.workstreams.status", "column.workstreams.cards"},
+			keys:   []string{"column.workstreams.reference", "column.workstreams.name", "column.workstreams.status", "column.workstreams.cards"},
 			varies: lastCell, expect: expectWorkstreams,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
 				return sweptRun(t, w.healthy, tag, "workstream")
@@ -2694,7 +2694,9 @@ func sweptSearchTree(t *testing.T, base string, record *sweptRecord) string {
 			matchedIn: "framing", snippet: sweptSearchColumnNote,
 		},
 		sweptSearchRecord{
-			kind: "workbench", ref: sweptSearchSlug, title: filepath.Base(dir),
+			// The workbench is addressed as itself rather than by its slug,
+			// which names the workbench nowhere.
+			kind: "workbench", ref: bench.WorkbenchRef, title: filepath.Base(dir),
 			matchedIn: "framing", snippet: sweptSearchBenchNote,
 		})
 	return dir
