@@ -954,10 +954,15 @@ func fixtureContents(t *testing.T, root string) map[string]string {
 // the card's anchor byte-identical to what it was, and no fixture needs its
 // card re-migrated for either verb to act on it.
 //
-// The links block is declared at the profile's current revision and no fixture
-// carries one, so what this proves is that a card written by an older build
-// takes the block a newer one writes and loses it again cleanly, rather than
-// gaining a stray key or losing one it already had.
+// The links block is declared at the profile's current revision, and one
+// fixture carries one: dinah-core-0.12's first card, which gained two entries
+// when this card recaptured it so that the coverage alarm sees a line of each
+// new event. Directory order makes that same card the source here, so on that
+// fixture the round trip adds a third entry to an existing block and takes it
+// away again, while on every other fixture it writes the block and removes it.
+// Either way what this proves is that a card written by an older build takes
+// the block a newer one writes and loses it again cleanly, rather than gaining
+// a stray key or losing one it already had.
 //
 // The migrations run first are the ones the tool itself prescribes before
 // anything opens an older workbench, exactly as the checklist compat case

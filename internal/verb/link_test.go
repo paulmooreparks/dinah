@@ -178,9 +178,11 @@ func TestLinkRefusesATargetTheWorkbenchDoesNotCarry(t *testing.T) {
 // makes the help text finite, and every kind this project uses today would fit
 // inside one.
 //
-// The kinds below are chosen to be words no part of this codebase knows. Each
-// has to be accepted and each has to read back exactly as it was given, so a
-// set that admitted them and a canonicaliser that rewrote them both fail here.
+// Three of the kinds below are words no part of this codebase knows, and the
+// fourth is the spelling the locale catalogs suggest, so a set built from the
+// suggestions would admit one of the four and refuse the rest. Each has to be
+// accepted and each has to read back exactly as it was given, so a set that
+// admitted them all and a canonicaliser that rewrote them both fail here.
 func TestLinkTakesAnyKindAndCanonicalisesNothing(t *testing.T) {
 	h := newHarness(t)
 	source := h.add("the source")
@@ -244,8 +246,9 @@ func TestLinkWritesNothingToTheCardItNames(t *testing.T) {
 
 // TestNoVerbRefusesOnAccountOfALink drives CORE-LINK-5, which forbids
 // reporting one of the profile's refusal names for a claim, a move, a release,
-// a block or an unblock refused on the ground of a link. All five run against
-// a card carrying links, including one to itself, and all five are admitted.
+// a block or an unblock refused on the ground of a link. The body issues each
+// of those five at least once against a card carrying two links, one of them
+// to itself, and every one of them is admitted.
 //
 // The second half is the other side of the same property: neither link nor
 // unlink consults the claim system, so both succeed on a card another owner
@@ -264,6 +267,7 @@ func TestNoVerbRefusesOnAccountOfALink(t *testing.T) {
 	h.mustDo(&Request{Verb: Claim, Card: source, Actor: "bob"})
 	h.mustDo(&Request{Verb: Release, Card: source, Actor: "bob"})
 	h.mustDo(&Request{Verb: Claim, Card: source, Actor: "bob"})
+	h.mustDo(&Request{Verb: Move, Card: source, Actor: "bob", Column: doing})
 
 	// The card is held by bob, and alka writes and removes a link on it.
 	if holder := h.card(source).Holder; holder != "bob" {
