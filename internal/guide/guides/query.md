@@ -133,3 +133,14 @@ rest downstream. Two lines do it.
 one object with the cards nested under `cards`, so a reader unnests that member
 before it has rows to group. Anything that reads JSON reads that document, so
 the tool you already use for numbers is the tool you use here.
+
+## A query or a reference
+
+`dinah query` finds cards for you, and a reference tells Dinah which one
+thing you already mean. Write a reference when you know what you want and
+can say where it sits, from a card, a column, this workbench, or a
+workstream down to the comment or the attachment it holds. Write a query
+when you want Dinah to pick the cards out by what is true of them. The two
+stay separate on purpose. No condition may be written inside a reference,
+and no query reaches below a card. The guide on references teaches how one
+is spelled.

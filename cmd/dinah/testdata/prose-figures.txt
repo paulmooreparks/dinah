@@ -46,9 +46,11 @@ noun flags
 noun groups
 noun kinds
 noun outcomes
+noun rows
 noun settings
 noun tools
 noun verbs
+noun ways
 
 docs/quick-start.md:105 figure=fifty-three noun=commands counts=the commands dinah help lists derives=groupedCommands
 docs/quick-start.md:105 figure=four noun=groups counts=the groups dinah help sorts its commands into derives=commandGroups
@@ -69,7 +71,10 @@ internal/guide/guides/mcp.md:298 figure=Eight noun=tools counts=the MCP tools wh
 internal/guide/guides/mcp.md:330 figure=two noun=kinds counts=the directory kinds the descent skips holds=prose reason=a dotted directory and a symbolic link are two branches of one walk rather than a set the tree declares
 internal/guide/guides/query.md:44 figure=Twelve noun=fields counts=the field names the query language admits derives=queryFields
 internal/guide/guides/query.md:80 figure=five noun=fields counts=the query fields read from a card's journal holds=unreachable at=internal/verb/query.go:72 declares=actPlane
-internal/guide/guides/references.md:64 figure=Ten noun=commands counts=the commands that take a reference holds=elsewhere by=TestTheReferencesGuideSaysWhichCommandTakesWhat reason=assertTheGuideCountsItsOwnTable at cmd/dinah/main_test.go:7214 reads the rendered guide, counts the rows of the drawn table, and holds this sentence against that count
+internal/guide/guides/references.md:18 figure=three noun=ways counts=the spellings of this workbench the guide shows derives=workbenchSpellings
+internal/guide/guides/references.md:103 figure=Fifteen noun=commands counts=the commands that take a reference derives=referenceCommands
+internal/guide/guides/references.md:123 figure=Six noun=commands counts=the commands that take a workstream reference holds=elsewhere by=TestTheReferencesGuideNamesTheCommandsThatTakeAWorkstream reason=that test runs every command of the roster against a workstream reference and holds this sentence's named list against what each one did
+internal/guide/guides/references.md:125 figure=Nine noun=rows counts=the table rows the guide qualifies with a detail derives=qualifiedTableRows
 internal/guide/guides/verbs.md:1 figure=five noun=verbs counts=the verbs that change where a card stands derives=contractVerbs
 internal/guide/guides/verbs.md:3 figure=Five noun=verbs counts=the verbs that change where a card stands derives=contractVerbs
 internal/guide/guides/verbs.md:33 figure=two noun=commands counts=two of the five verbs holds=partitive reason=the two are claim and move, whose separate records a pull writes together
