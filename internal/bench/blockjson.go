@@ -152,12 +152,27 @@ func childValue(children []blockLine) json.RawMessage {
 
 // arrayFromChildren reads the block as a JSON array, and reports whether the
 // first child at the shallowest indent was a dashed entry at all. A dashed
-// entry always reads as text, so a block of dashed digits gives an array of
-// strings.
+// entry on its own line always reads as text, so a block of dashed digits
+// gives an array of strings.
+//
+// An entry carrying lines indented deeper than the dash is read by the same
+// rules the whole file is read by, applied to the entry's own text and to
+// those deeper lines together, which is how objectFromChildren already reads
+// a mapping member's children. That is what a sequence of multi-field entries
+// needs, and citations in docs/design/format.md is the documented shape: an
+// entry there maps a scheme to a target and may nest an observed mapping
+// under both. Reading only the dashed line kept the first field and dropped
+// the rest.
+//
+// An entry with no deeper lines keeps going through dashedValue rather than
+// through the same route, because the two disagree on entries this reader has
+// always answered for: a bare name reads as a string here and as nothing at
+// all through a mapping, and a hint reads as the text after the colon here
+// where the mapping rules would read a bare number as a JSON number.
 func arrayFromChildren(children []blockLine, shallowest int) (json.RawMessage, bool) {
 	var entries []json.RawMessage
 	opened := false
-	for _, child := range children {
+	for i, child := range children {
 		if child.indent != shallowest {
 			continue
 		}
@@ -169,12 +184,40 @@ func arrayFromChildren(children []blockLine, shallowest int) (json.RawMessage, b
 			continue
 		}
 		opened = true
+		var deeper []blockLine
+		for _, follower := range children[i+1:] {
+			if follower.indent <= shallowest {
+				break
+			}
+			deeper = append(deeper, follower)
+		}
+		if len(deeper) > 0 {
+			entries = append(entries, childValue(entryChildren(child, m[1], deeper)))
+			continue
+		}
 		entries = append(entries, dashedValue(m[1]))
 	}
 	if !opened {
 		return nil, false
 	}
 	return jsonArray(entries), true
+}
+
+// entryChildren is one dashed entry's own lines: the text after the dash,
+// standing at the indent that text occupies on the page, followed by the
+// lines indented deeper than the dash. Measuring the text where it is written
+// rather than where the dash is written is what lets a follower line up with
+// it, since an author writes the second field under the first rather than
+// under the dash.
+//
+// A dash with nothing after it contributes no line, so the entry is its
+// deeper lines alone, which is the other spelling of the same entry.
+func entryChildren(child blockLine, text string, deeper []blockLine) []blockLine {
+	if strings.TrimSpace(text) == "" {
+		return deeper
+	}
+	lines := []blockLine{{indent: child.indent + len(child.text) - len(text), text: text}}
+	return append(lines, deeper...)
 }
 
 // dashedValue reads one dashed entry. An entry splitting at its first colon is
