@@ -59,3 +59,35 @@ func TestResolveReferenceReachesAWorkstreamAndRefusesAnAttachmentPayload(t *test
 		t.Errorf("ResolveReference answers %q, and the comments say it refuses one because a payload file carries no anchor", payloadRef)
 	}
 }
+
+// TestResolvePathAnswersACollectionWhereResolveEntityRefusesIt holds the
+// clause resolveBelow's doc comment states about the two resolvers. That
+// comment said ResolvePath and ResolveEntity are two readings of the pair
+// resolveBelow returns, so both accept the same references. This card made
+// that false: a reference naming a whole collection resolves to the
+// collection's directory through ResolvePath and is refused by ResolveEntity,
+// which is the addressing this card set out to separate.
+//
+// The claim is guarded here rather than in prose for the reason the test above
+// gives, since a comment restating it in new words is still caught by the
+// resolvers disagreeing with it.
+func TestResolvePathAnswersACollectionWhereResolveEntityRefusesIt(t *testing.T) {
+	root := newFixture(t)
+	writeAttachment(t, root, "a00000000001", 1)
+	opened, err := Open(root)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+
+	collectionRef := "fx-1/" + AttachmentsDir
+	resolved, err := opened.ResolvePath(collectionRef)
+	if err != nil {
+		t.Fatalf("ResolvePath refuses %q with %v, and the comment says it answers a reference naming a whole collection", collectionRef, err)
+	}
+	if got := filepath.Base(resolved); got != AttachmentsDir {
+		t.Errorf("ResolvePath answers %q with %q, wanted the collection's own directory", collectionRef, got)
+	}
+	if _, err := opened.ResolveEntity(collectionRef); err == nil {
+		t.Errorf("ResolveEntity answers %q, and the comment says it refuses a reference naming a whole collection", collectionRef)
+	}
+}

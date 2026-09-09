@@ -376,8 +376,8 @@ func (b *Bench) collectionHolder(ref string) (*EntityRef, error) {
 }
 
 // resolveBelow resolves a reference to the file it names, and to the card that
-// file belongs to when it belongs to one. ResolvePath and ResolveEntity are
-// two readings of that pair, so both accept the same references.
+// file belongs to when it belongs to one. ResolvePath reads it, and answers a
+// reference naming a whole collection where ResolveEntity refuses one.
 //
 // The head segment names where the walk starts and the rest descends through
 // the containment grammar. A column is an entity of the workbench and the
