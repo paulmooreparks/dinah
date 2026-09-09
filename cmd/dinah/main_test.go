@@ -7173,9 +7173,11 @@ func TestTheReferencesGuideSaysWhichCommandTakesWhat(t *testing.T) {
 		"wb-1/card", "wb-1/journal", "wb-1/comments", "wb-1/comments/1",
 		"wb-1/checklist", "wb-1/checklist/1", "wb-1/attachments", "wb-1/attachments/1",
 		"wb-1/questions", "wb-1/criteria", "wb-1/decisions",
-		"accepts `oq`, `ac` and `d` for those same three",
+		"accepts `oq`, `ac`, and `d` for those same three",
 		"in the order the entities were created",
-		"nothing answers to the reference rather than telling you the collection is empty",
+		"dinah contents workstream/addressing",
+		"every live member of that collection",
+		"an empty answer rather than a mistake",
 	} {
 		if !strings.Contains(got.out, form) {
 			t.Errorf("the references guide does not teach %q", form)
@@ -7184,15 +7186,21 @@ func TestTheReferencesGuideSaysWhichCommandTakesWhat(t *testing.T) {
 	// The table, row by row, in the shape the guide draws it. Every cell was
 	// provoked against a build rather than read off the resolvers.
 	for _, row := range []string{
-		"| path         | yes            | yes     | yes    | yes          |",
-		"| edit         | yes            | yes     | yes    | yes          |",
-		"| show         | no             | yes     | yes    | yes          |",
-		"| instructions | no             | yes     | yes    | no           |",
-		"| attach       | yes            | yes     | yes    | yes          |",
-		"| archive      | no             | yes     | yes    | yes          |",
-		"| delete       | no             | yes     | yes    | yes          |",
-		"| contents     | yes            | yes     | yes    | yes          |",
-		"| attachments  | yes            | yes     | yes    | yes          |",
+		"| path         | yes         | yes      | yes    | yes          | yes          |",
+		"| edit         | yes         | yes      | yes    | yes          | no           |",
+		"| show         | no          | yes      | yes    | yes          | yes          |",
+		"| instructions | no          | yes      | yes    | no           | no           |",
+		"| attach       | yes         | yes      | yes    | yes          | no           |",
+		"| archive      | no          | yes      | yes    | yes          | no           |",
+		"| delete       | no          | yes      | yes    | yes          | no           |",
+		"| contents     | yes         | yes      | yes    | yes          | yes          |",
+		"| attachments  | yes         | yes      | yes    | yes          | yes          |",
+		"| rename       | no          | no       | no     | yes          | no           |",
+		"| cite         | no          | no       | no     | yes          | no           |",
+		"| resolve      | no          | no       | no     | yes          | no           |",
+		"| verify       | no          | no       | no     | yes          | no           |",
+		"| fail         | no          | no       | no     | yes          | no           |",
+		"| reopen       | no          | no       | no     | yes          | no           |",
 	} {
 		if !strings.Contains(got.out, row) {
 			t.Errorf("the references guide does not carry the row %q", row)
@@ -7221,7 +7229,7 @@ func assertTheGuideCountsItsOwnTable(t *testing.T, guide string) {
 			continue
 		}
 		cells := strings.Split(strings.Trim(line, "|"), "|")
-		if len(cells) != 5 {
+		if len(cells) != 6 {
 			continue
 		}
 		name := strings.TrimSpace(cells[0])
@@ -7238,7 +7246,11 @@ func assertTheGuideCountsItsOwnTable(t *testing.T, guide string) {
 	if commands == 0 {
 		t.Fatal("the references guide draws no command row, so this assertion proves nothing")
 	}
-	words := []string{"zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"}
+	words := []string{
+		"zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
+		"eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen",
+		"nineteen", "twenty",
+	}
 	if commands >= len(words) || len(sets) >= len(words) {
 		t.Fatalf("the table draws %d commands over %d sets, past what this assertion spells", commands, len(sets))
 	}
@@ -7695,10 +7707,10 @@ func TestAGuideTableSurvivesTheWindowItIsReadIn(t *testing.T) {
 		t.Fatalf("guide references at 40 columns: %d %s", got.code, got.errw)
 	}
 	for _, row := range []string{
-		"| Command      | This workbench | A column | A card | Below a card |",
-		"|--------------|----------------|---------|--------|--------------|",
-		"| path         | yes            | yes     | yes    | yes          |",
-		"| rename       | no             | no      | no     | yes          |",
+		"| Command      | A workbench | A column | A card | Below a card | A collection |",
+		"|--------------|-------------|----------|--------|--------------|--------------|",
+		"| path         | yes         | yes      | yes    | yes          | yes          |",
+		"| reopen       | no          | no       | no     | yes          | no           |",
 	} {
 		if !strings.Contains(got.out, row) {
 			t.Errorf("the table lost the row %q at 40 columns", row)

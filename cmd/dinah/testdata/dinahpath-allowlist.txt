@@ -1,0 +1,17 @@
+# The files that may carry the name DinahPath.
+#
+# DinahPath is the language a Dinah reference is written in, and dinah-456
+# section 13.2 rules surface by surface where the name may stand: design
+# documents, and the references guide's opening paragraph. It stands nowhere
+# else, and it is deliberately absent from help text, from refusal text, from
+# the guide's title, and from every field, key and tool name on the wire,
+# because a name on the wire is a compatibility commitment.
+#
+# TestTheNameDinahPathStandsOnlyWhereItIsDeclared reads this file. A hit in a
+# file this list does not carry fails, and zero hits in the references guide
+# fails too, since a guard satisfied by deleting the name is no guard. Adding
+# a design document that discusses the language is an edit to this list.
+
+internal/guide/guides/references.md
+cmd/dinah/references_guide_test.go
+cmd/dinah/testdata/dinahpath-allowlist.txt
