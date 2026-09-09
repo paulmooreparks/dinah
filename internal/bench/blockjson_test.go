@@ -101,6 +101,7 @@ func TestASecondExportMatchesTheFirst(t *testing.T) {
 		{"a mapping nobody reads", "groups:\n  ZEBRA: [one, two]\n  ALPHA: [three]\n"},
 		{"a mapping two deep", "contacts:\n  oncall:\n    rota: [ana, bo]\n"},
 		{"a plain sequence", "rituals:\n  - standup\n  - retro\n"},
+		{"a sequence of multi-field entries", "citations:\n  - scheme: test\n    target: t_test.go#TestOne\n    observed:\n      before: fail\n      after: pass\n  - scheme: attachment\n"},
 		{"a scalar", "owner: ana\n"},
 		{"a duplicated member name", "dup: {\"a\":1,\"a\":2}\n"},
 	} {
@@ -272,5 +273,94 @@ func TestAnUnrenderableMemberFallsBackToOneRawLine(t *testing.T) {
 	}
 	if got := blockValue(fm, "mixed"); !sameJSON(got, raw) {
 		t.Errorf("the raw line reads back as %s and the member was %s", got, raw)
+	}
+}
+
+// TestASequenceEntryKeepsEveryFieldIndentedBeneathIt asserts dinah-438. The
+// citations block docs/design/format.md documents is a sequence whose entries
+// each carry a scheme, a target, and an optional nested observed mapping, and
+// the reader kept the first field of each entry and dropped the rest, because
+// it read the dashed line alone and never looked beneath it.
+//
+// The one-field entry and the bare-name entry are here because they are what
+// the reader always answered for. A guard covering the multi-field entry alone
+// would pass over a fix that widened the entries it could not read at the cost
+// of the entries it could.
+func TestASequenceEntryKeepsEveryFieldIndentedBeneathIt(t *testing.T) {
+	block := "citations:\n" +
+		"  - scheme: test\n" +
+		"    target: internal/verb/query_test.go#TestQueryNamesSeverity\n" +
+		"    observed:\n" +
+		"      before: fail\n" +
+		"      after: pass\n" +
+		"  - scheme: attachment\n" +
+		"    target: 4f2c19ab77e0\n" +
+		"  - scheme: attachment\n" +
+		"  - bare\n"
+	want := json.RawMessage(`[` +
+		`{"scheme":"test","target":"internal/verb/query_test.go#TestQueryNamesSeverity",` +
+		`"observed":{"before":"fail","after":"pass"}},` +
+		`{"scheme":"attachment","target":"4f2c19ab77e0"},` +
+		`{"scheme":"attachment"},` +
+		`"bare"]`)
+	fm, _ := ParseAnchor("---\n" + block + "---\n")
+	got := blockValue(fm, "citations")
+	if !sameJSON(got, want) {
+		t.Errorf("the citations block read as\n%s\nwanted\n%s", got, want)
+	}
+	// The fields are named one at a time as well, so a failure says which
+	// field went missing rather than printing two long lines to compare by
+	// eye. This is the assertion that went red when the single-line read was
+	// restored.
+	entries, read := jsonEntries(got)
+	if !read || len(entries) != 4 {
+		t.Fatalf("the block read as %d entries, wanted 4: %s", len(entries), got)
+	}
+	for _, want := range []struct {
+		entry int
+		name  string
+		value string
+	}{
+		{0, "scheme", `"test"`},
+		{0, "target", `"internal/verb/query_test.go#TestQueryNamesSeverity"`},
+		{0, "observed", `{"before":"fail","after":"pass"}`},
+		{1, "scheme", `"attachment"`},
+		{1, "target", `"4f2c19ab77e0"`},
+		{2, "scheme", `"attachment"`},
+	} {
+		members, read := jsonMembers(entries[want.entry])
+		if !read {
+			t.Errorf("entry %d is not an object: %s", want.entry, entries[want.entry])
+			continue
+		}
+		found := false
+		for _, member := range members {
+			if member.name != want.name {
+				continue
+			}
+			found = true
+			if !sameJSON(member.value, json.RawMessage(want.value)) {
+				t.Errorf("entry %d carries %s as %s, wanted %s", want.entry, want.name, member.value, want.value)
+			}
+		}
+		if !found {
+			t.Errorf("entry %d dropped the field %s, carrying %s", want.entry, want.name, entries[want.entry])
+		}
+	}
+	if !sameJSON(entries[3], json.RawMessage(`"bare"`)) {
+		t.Errorf("the bare entry read as %s, wanted the string it has always read as", entries[3])
+	}
+}
+
+// TestAnEntryWhoseFieldsAllSitBeneathTheDashReadsAsThoseFields covers the
+// other spelling of the same entry, where the dash carries nothing and every
+// field is written under it. Both spellings name the same entry, so the reader
+// answers the same for each.
+func TestAnEntryWhoseFieldsAllSitBeneathTheDashReadsAsThoseFields(t *testing.T) {
+	block := "citations:\n  -\n    scheme: test\n    target: t_test.go#TestOne\n"
+	fm, _ := ParseAnchor("---\n" + block + "---\n")
+	want := json.RawMessage(`[{"scheme":"test","target":"t_test.go#TestOne"}]`)
+	if got := blockValue(fm, "citations"); !sameJSON(got, want) {
+		t.Errorf("the block read as %s, wanted %s", got, want)
 	}
 }
