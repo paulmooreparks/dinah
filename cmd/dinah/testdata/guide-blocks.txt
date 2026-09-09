@@ -1,0 +1,50 @@
+# The guide block ledger.
+#
+# Every fenced block of every embedded guide is declared here, keyed by the
+# guide's file and the one-based line its opening marker stands on. The rule
+# this replaces forbade a block whose first line opened with a dollar sign and
+# told authors to write the command without one, which is the spelling that
+# made a block invisible to it. A ledger over blocks has no spelling an author
+# can choose to evade: a block nobody declares fails, however it is written.
+#
+# `shows=` says what the block is and carries its own check:
+#
+#   commands  Every non-blank line is a command the reader types, beginning
+#             with `dinah `. A line opening `$ ` and an output line are both
+#             refused, because a block showing output is a transcript nothing
+#             drives.
+#   json      The block parses through encoding/json. A block showing two
+#             members of an object rather than a whole document declares
+#             `fragment=members` with a reason, and is parsed inside a
+#             wrapping pair of braces. A block that parses on its own may not
+#             declare it.
+#   table     The block draws a table the tool renders, and `command=` names
+#             the command. The block's header row is held against the drawn
+#             one, and nothing else is, because the data rows are invented for
+#             the lesson and the separator row's widths follow them.
+#   shell     The block drives a shell rather than Dinah, so nothing here runs
+#             it. It requires a reason.
+#   tree      The block draws a directory tree. It requires a reason naming
+#             what holds the tree, or why nothing can.
+
+internal/guide/guides/getting-started.md:9 shows=commands
+internal/guide/guides/getting-started.md:42 shows=commands
+internal/guide/guides/getting-started.md:49 shows=commands
+internal/guide/guides/getting-started.md:56 shows=commands
+internal/guide/guides/getting-started.md:69 shows=commands
+internal/guide/guides/mcp.md:23 shows=json
+internal/guide/guides/mcp.md:27 shows=json
+internal/guide/guides/mcp.md:66 shows=json
+internal/guide/guides/mcp.md:70 shows=json
+internal/guide/guides/mcp.md:85 shows=json
+internal/guide/guides/mcp.md:109 shows=json fragment=members reason=the block shows the instructions member of a response rather than a whole document, so it is parsed inside a wrapping pair of braces
+internal/guide/guides/mcp.md:122 shows=json
+internal/guide/guides/mcp.md:157 shows=json
+internal/guide/guides/mcp.md:169 shows=json fragment=members reason=the block shows the two members a shaped answer withholds rather than a whole document, so it is parsed inside a wrapping pair of braces
+internal/guide/guides/mcp.md:195 shows=shell reason=the line drives a shell loop around dinah path, which no replay here runs
+internal/guide/guides/mcp.md:262 shows=json
+internal/guide/guides/mcp.md:266 shows=json
+internal/guide/guides/mcp.md:345 shows=json
+internal/guide/guides/mcp.md:358 shows=json
+internal/guide/guides/principles.md:29 shows=table command=columns
+internal/guide/guides/workbench-layout.md:6 shows=tree reason=TestTheLayoutGuideDrawsPathsTheToolWrites holds every path this block draws

@@ -994,7 +994,7 @@
       "context": "The meaning of the at argument of `dinah card`, printed in that command's arguments table. A severity or a priority is one value for the whole card, so naming a column for either is a usage error."
     },
     "param.cite.item.summary": {
-      "text": "the checklist item the citation is added to, such as wb-1/ac/1",
+      "text": "the checklist item the citation is added to, such as wb-1/criteria/1",
       "context": "The written meaning of cite's item argument. wb-1 stands for a card reference and is not translated."
     },
     "param.cite.observed.summary": {
@@ -1026,7 +1026,7 @@
       "context": "The written meaning of file's text argument."
     },
     "param.item.summary": {
-      "text": "the checklist item, such as wb-1/checklist/2 or wb-1/ac/1",
+      "text": "the checklist item, such as wb-1/checklist/2 or wb-1/criteria/1",
       "context": "The written meaning of the item argument, shared by every command naming one checklist item. wb-1 stands for a card reference and is not translated."
     },
     "param.note.summary": {
@@ -1365,9 +1365,9 @@
       "text": "Translated",
       "context": "Heading over how many of the base catalog's messages the language carries translated, in the catalog coverage `dinah version --catalogs` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
     },
-    "column.attachments.position": {
-      "text": "#",
-      "context": "Heading over the attachment's one-based position in its collection, in the attachments block of `dinah show`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    "column.attachments.ref": {
+      "text": "Ref",
+      "context": "Heading over the reference a person types to reach the attachment, in the attachments block of `dinah show` and in the listing `dinah attachments` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
     },
     "column.attachments.filename": {
       "text": "File",
@@ -1400,6 +1400,10 @@
     "column.commands.what": {
       "text": "What it does",
       "context": "Heading over what the command does, in the command list bare `dinah` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.comments.ref": {
+      "text": "Ref",
+      "context": "Heading over the reference a person types to reach the comment, in the comments block of `dinah show`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
     },
     "column.comments.when": {
       "text": "When",
@@ -1621,9 +1625,9 @@
       "text": "Name",
       "context": "Heading over the workstream's title, in the listing `dinah workstream` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
     },
-    "column.workstreams.slug": {
-      "text": "Slug",
-      "context": "Heading over the workstream's short handle, which is what a person types to name it, in the listing `dinah workstream` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    "column.workstreams.reference": {
+      "text": "Reference",
+      "context": "Heading over what a person types to reach the workstream, in the listing `dinah workstream` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
     },
     "column.workstreams.status": {
       "text": "Status",

@@ -40,11 +40,15 @@ name of what you want:
     dinah path wb-1/attachments/1/payload
                                      the file the attachment carries
 
-You may write three shorter spellings that select one kind of checklist item:
+Three more spellings each select one kind of checklist item:
 
-    dinah path wb-1/oq               the open questions
-    dinah path wb-1/ac               the acceptance criteria
-    dinah path wb-1/d                the decisions
+    dinah path wb-1/questions        the open questions
+    dinah path wb-1/criteria         the acceptance criteria
+    dinah path wb-1/decisions        the decisions
+
+Dinah also accepts `oq`, `ac` and `d` for those same three, which is what it
+printed and taught before the words landed. It never writes one of them back,
+so a reference you read off a screen carries the word.
 
 You may write an entity's own identifier in place of its number, and you may
 write an attachment's filename in place of its number. Dinah tries the
@@ -76,7 +80,7 @@ sets of things. This table says what each one accepts:
 Four of those rows carry a detail the table is too coarse to hold. `attach`
 takes a comment below a card, and it takes an attachment only with `--replace`,
 which replaces that attachment's bytes rather than hanging a new file below it.
-It takes nothing else below a card, so `dinah attach wb-1/oq/1 notes.md` is
+It takes nothing else below a card, so `dinah attach wb-1/questions/1 notes.md` is
 refused. `instructions` takes a card
 or a column and nothing else at all. `contents` takes a card by the card's own
 reference and never through what holds it, so `dinah contents wb/cards/1` is

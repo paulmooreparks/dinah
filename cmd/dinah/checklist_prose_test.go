@@ -29,17 +29,17 @@ func TestAChecklistItemsTextPrintsOnItsOwnRow(t *testing.T) {
 	lines := strings.Split(strings.TrimSuffix(got.out, "\n"), "\n")
 
 	// The reference is composed here the way a person types one, out of the
-	// card's reference, the kind's short alias and the item's position among
+	// card's reference, the kind's word and the item's position among
 	// the items of its own kind, which is how the sweep's own expectation
 	// builds it. Composing it from the view's own accessor would let a wrong
 	// reference agree with itself.
-	aliases := map[string]string{"open_question": "oq", "acceptance_criterion": "ac", "decision": "d"}
+	words := map[string]string{"open_question": "questions", "acceptance_criterion": "criteria", "decision": "decisions"}
 	within := map[string]int{}
 	refs := make([]string, len(sweptChecklistItems))
 	at := make([]int, len(sweptChecklistItems))
 	for i, item := range sweptChecklistItems {
 		within[item.kind]++
-		refs[i] = ref + "/" + aliases[item.kind] + "/" + strconv.Itoa(within[item.kind])
+		refs[i] = ref + "/" + words[item.kind] + "/" + strconv.Itoa(within[item.kind])
 		at[i] = -1
 		for n, line := range lines {
 			fields := strings.Fields(line)
@@ -143,7 +143,7 @@ func afterTheRowsOwnValues(line string, values ...string) (int, bool) {
 // satisfied by a build that had made a written resolution unreadable.
 func TestAResolvedItemStillCarriesItsNoteWhereItIsRead(t *testing.T) {
 	dir, ref := sweptChecklistTree(t, t.TempDir(), &sweptRecord{})
-	aliases := map[string]string{"open_question": "oq", "acceptance_criterion": "ac", "decision": "d"}
+	words := map[string]string{"open_question": "questions", "acceptance_criterion": "criteria", "decision": "decisions"}
 	within := map[string]int{}
 	checked := 0
 	for _, item := range sweptChecklistItems {
@@ -152,7 +152,7 @@ func TestAResolvedItemStillCarriesItsNoteWhereItIsRead(t *testing.T) {
 			continue
 		}
 		checked++
-		at := ref + "/" + aliases[item.kind] + "/" + strconv.Itoa(within[item.kind])
+		at := ref + "/" + words[item.kind] + "/" + strconv.Itoa(within[item.kind])
 		got := runCLI(t, dir, "--lang", "en", "show", at)
 		if got.code != 0 {
 			t.Fatalf("show %s: exit %d\n%s", at, got.code, got.errw)

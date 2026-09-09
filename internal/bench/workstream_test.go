@@ -104,8 +104,8 @@ func TestAnAnchorWithNoParseableHeaderLoadsWithEmptyFields(t *testing.T) {
 	if workstreams[0].Title != "" || workstreams[0].Slug != "" {
 		t.Errorf("the workstream loaded as %+v, wanted empty fields", workstreams[0])
 	}
-	if workstreams[0].Ref() != "f00000000001" {
-		t.Errorf("its reference is %q, and a workstream carrying no slug falls back to its identifier", workstreams[0].Ref())
+	if workstreams[0].Ref() != WorkstreamRefPrefix+"f00000000001" {
+		t.Errorf("its reference is %q, and a workstream carrying no slug falls back to the kind's prefix and its identifier", workstreams[0].Ref())
 	}
 	findings, err := opened.Check()
 	if err != nil {

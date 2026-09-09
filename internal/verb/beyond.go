@@ -882,9 +882,11 @@ func columnMember(id, title, kind string) map[string]json.RawMessage {
 type WorkstreamView struct {
 	// ID is the workstream's 12-hex identifier.
 	ID string `json:"id"`
-	// Ref is what a person types to reach it: its slug where it carries one,
-	// its identifier otherwise.
-	Ref string `json:"ref,omitempty"`
+	// Ref is what a person types to reach the workstream: the kind's own
+	// prefix, then the slug where the workstream carries one and the
+	// identifier otherwise. It is never empty, because Workstream.Ref falls
+	// back to the identifier.
+	Ref string `json:"ref"`
 	// Slug is the short handle, absent on a workstream carrying none.
 	Slug string `json:"slug,omitempty"`
 	// Title is what a person calls it, absent on one the adoption repair

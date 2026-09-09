@@ -105,34 +105,65 @@ func splitRef(ref string) (string, int, bool) {
 	return ref[:cut], number, true
 }
 
-// checklistKinds maps the short segments a path reference may carry onto the
-// checklist kind they select. The spellings are the ones the board vocabulary
-// already uses for the three kinds.
-var checklistKinds = map[string]string{
-	"oq": "open_question",
-	"ac": "acceptance_criterion",
-	"d":  "decision",
+// checklistSegments declares, once, how each of the three checklist kinds is
+// addressed inside a path reference. Word is the spelling Dinah composes and
+// prints. Short is an older spelling the resolver goes on accepting on input
+// and never produces, so a reference written down before the words landed
+// still opens what it named.
+//
+// Everything else a workbench holds is addressed by a word, and the three
+// short forms were the exception: two of them were abbreviations a reader had
+// to be told about, and one was a single letter naming a whole entity kind.
+// The words follow comments and attachments instead.
+//
+// A segment is not a kind. The kind tokens open_question, acceptance_criterion
+// and decision are what the format stores, what the wire carries and what the
+// machine surface prints, and none of them changes because a reference spells
+// the collection it narrows differently.
+//
+// The two directions of the mapping are both derived from this one
+// declaration rather than written out a second time, so the spelling a
+// reference resolves by and the spelling it is composed from cannot drift
+// apart: an edit here teaches the resolver and the composer together.
+var checklistSegments = []struct {
+	Kind  string
+	Word  string
+	Short string
+}{
+	{Kind: "open_question", Word: "questions", Short: "oq"},
+	{Kind: "acceptance_criterion", Word: "criteria", Short: "ac"},
+	{Kind: "decision", Word: "decisions", Short: "d"},
 }
 
-// itemKindAlias is checklistKinds read the other way round. It is computed
-// from that one map rather than declared a second time, so the spelling a
-// reference resolves by and the spelling a reference is composed from cannot
-// drift apart.
-var itemKindAlias = func() map[string]string {
-	reversed := make(map[string]string, len(checklistKinds))
-	for alias, kind := range checklistKinds {
-		reversed[kind] = alias
+// checklistKinds maps every segment a path reference may carry onto the
+// checklist kind it selects. Both spellings of each kind resolve, which is
+// what keeps the short forms working.
+var checklistKinds = func() map[string]string {
+	kinds := make(map[string]string, 2*len(checklistSegments))
+	for _, segment := range checklistSegments {
+		kinds[segment.Word] = segment.Kind
+		kinds[segment.Short] = segment.Kind
 	}
-	return reversed
+	return kinds
 }()
 
-// AliasForItemKind returns the short segment a checklist item's kind composes
-// into a reference under, and reports whether the kind is one of the three the
-// format declares. A kind outside those three composes no reference, since
-// nothing would resolve one.
-func AliasForItemKind(kind string) (string, bool) {
-	alias, ok := itemKindAlias[kind]
-	return alias, ok
+// itemKindWord is checklistSegments read from the kind, and it answers with
+// the word alone, because only the word is ever composed.
+var itemKindWord = func() map[string]string {
+	words := make(map[string]string, len(checklistSegments))
+	for _, segment := range checklistSegments {
+		words[segment.Kind] = segment.Word
+	}
+	return words
+}()
+
+// WordForItemKind returns the segment a checklist item's kind composes into a
+// reference under, and reports whether the kind is one of the three the format
+// declares. A kind outside those three composes no reference, since nothing
+// would resolve one.
+func WordForItemKind(kind string) (string, bool) {
+	word, ok := itemKindWord[kind]
+	return word, ok
 }
 
 // ResolvePath resolves a reference to an absolute path: the workbench itself,
@@ -147,7 +178,11 @@ func AliasForItemKind(kind string) (string, bool) {
 // before the rest of the grammar gets a chance to shadow it.
 func (b *Bench) ResolvePath(ref string) (string, error) {
 	if rest, named := strings.CutPrefix(strings.TrimSpace(ref), WorkstreamRefPrefix); named {
-		workstream := b.WorkstreamByRef(rest)
+		// The whole reference goes to the resolver rather than the
+		// remainder, because that resolver strips the prefix itself so that
+		// the workstream-taking commands accept either spelling. Passing the
+		// remainder would strip a second time and admit a doubled prefix.
+		workstream := b.WorkstreamByRef(strings.TrimSpace(ref))
 		if workstream == nil {
 			return "", contract.Refuse(contract.UnknownWorkstream, rest)
 		}
@@ -224,9 +259,9 @@ func walkBelowCard(card *Card, rest string) (string, error) {
 	return descend(card.Dir, KindCard, segments, nil)
 }
 
-// checklistMount is the collection a checklist alias such as oq narrows, read
-// off the containment grammar so the aliases follow the table rather than a
-// second statement of where a checklist lives.
+// checklistMount is the collection a checklist segment such as questions
+// narrows, read off the containment grammar so the segments follow the table
+// rather than a second statement of where a checklist lives.
 func checklistMount() (Mount, bool) {
 	for _, mount := range Contains(KindCard) {
 		if mount.Kind == KindItem {
@@ -252,7 +287,7 @@ func checklistMount() (Mount, bool) {
 // it, with nothing said.
 //
 // A kind narrows the collection's members first, which is what a checklist
-// alias such as oq selects on. Position counts in creation order rather than
+// segment such as questions selects on. Position counts in creation order rather than
 // in the listing's ascending-hex order, so `<card>/comment/2` names the second
 // comment somebody wrote and keeps naming it however the identifiers happened
 // to fall.
@@ -334,7 +369,7 @@ func payloadOf(dir string) (string, error) {
 }
 
 // filterByKind narrows a collection to the entities whose anchor declares a
-// kind, which is how the checklist aliases select one of the three.
+// kind, which is how the checklist segments select one of the three.
 func filterByKind(collection, anchor string, ids []string, kind string) []string {
 	var kept []string
 	for _, id := range ids {

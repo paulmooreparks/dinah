@@ -104,38 +104,6 @@ func guardedDocuments(t *testing.T) []guardedDocument {
 	return documents
 }
 
-// TestNoGuideCarriesATranscriptTheReplayDoesNotDrive asserts that no embedded
-// guide opens a fenced block with a command line, which is the shape the quick
-// start's replay selects on and the shape nothing drives inside a guide.
-//
-// A guide's fenced blocks show commands to type rather than sessions to
-// believe, and the quick start owns the transcripts the replay runs. A guide
-// that writes one in the replay's own shape gets neither treatment: no replay
-// reaches it, no exemption is demanded of it, and the output it shows stands
-// unheld from the day it was written. The check names the shape rather than the
-// intent, because the shape is what the replay's selection rule reads.
-func TestNoGuideCarriesATranscriptTheReplayDoesNotDrive(t *testing.T) {
-	read := 0
-	for _, document := range embeddedGuides(t) {
-		lines := strings.Split(document.text, "\n")
-		for at := 0; at < len(lines); at++ {
-			run := quickStartMarkerRun(lines[at])
-			if run == 0 {
-				continue
-			}
-			read++
-			if at+1 < len(lines) && strings.HasPrefix(lines[at+1], "$ ") {
-				t.Errorf("%s:%d: the block opens with a command line, which is the shape the quick start's replay drives and nothing drives here; write the command without its leading dollar sign", document.name, at+2)
-			}
-			for at++; at < len(lines) && quickStartMarkerRun(lines[at]) != run; at++ {
-			}
-		}
-	}
-	if read == 0 {
-		t.Error("no embedded guide carries a fenced block, so this check read nothing")
-	}
-}
-
 // bannedTypography is the character set the profile's style section rules out,
 // mapped to the name a finding calls each one by.
 //

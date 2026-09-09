@@ -1984,8 +1984,14 @@ func (b *Bench) SetWorkbenchField(name, value string) {
 // the argument required and a bare `dinah path` is somebody who forgot it.
 func IsWorkbenchRef(ref string) bool {
 	trimmed := strings.TrimSpace(ref)
-	return trimmed == "." || trimmed == "workbench"
+	return trimmed == "." || trimmed == WorkbenchRef
 }
+
+// WorkbenchRef is the spelling a surface prints for the workbench itself,
+// and one of the two forms IsWorkbenchRef accepts. The addresses below the
+// workbench are composed against the slug instead, which dinah-151 OQ-9
+// settled and this does not reopen.
+const WorkbenchRef = "workbench"
 
 // Cards reads every live card of the bench, in ascending identifier order.
 //

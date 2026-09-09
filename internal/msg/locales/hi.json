@@ -1245,9 +1245,9 @@
       "source": "837e4d41d4d3e056"
     },
     "param.cite.item.summary": {
-      "text": "वह चेकलिस्ट मद जिसमें उद्धरण जोड़ा जाता है, जैसे wb-1/ac/1",
+      "text": "वह चेकलिस्ट मद जिसमें उद्धरण जोड़ा जाता है, जैसे wb-1/criteria/1",
       "context": "The written meaning of cite's item argument. wb-1 stands for a card reference and is not translated.",
-      "source": "228d3209f9efc9a7"
+      "source": "e1fd78e3207ce0c2"
     },
     "param.cite.observed.summary": {
       "text": "काम से पहले और उसके बाद जाँच में क्या दिखा, fail:pass के रूप में लिखा",
@@ -1285,9 +1285,9 @@
       "source": "285916965fedb12d"
     },
     "param.item.summary": {
-      "text": "चेकलिस्ट मद, जैसे wb-1/checklist/2 या wb-1/ac/1",
+      "text": "चेकलिस्ट मद, जैसे wb-1/checklist/2 या wb-1/criteria/1",
       "context": "The written meaning of the item argument, shared by every command naming one checklist item. wb-1 stands for a card reference and is not translated.",
-      "source": "c14e0956a585a0ae"
+      "source": "d40f3765418bee37"
     },
     "param.note.summary": {
       "text": "जाँच में क्या दिखा, एक शेल शब्द में या उद्धरण चिह्नों में; अकेला - इसे पाइप से पढ़ता है",
@@ -1709,11 +1709,10 @@
       "context": "Heading over how many of the base catalog's messages the language carries translated, in the catalog coverage `dinah version --catalogs` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "88e3992063008363"
     },
-    "column.attachments.position": {
-      "text": "#",
-      "context": "Heading over the attachment's one-based position in its collection, in the attachments block of `dinah show`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "source": "af639e4c86018332",
-      "verbatim": true
+    "column.attachments.ref": {
+      "text": "संदर्भ",
+      "context": "Heading over the reference a person types to reach the attachment, in the attachments block of `dinah show` and in the listing `dinah attachments` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "source": "9ff1e019feac1ee2"
     },
     "column.attachments.filename": {
       "text": "फ़ाइल",
@@ -1754,6 +1753,11 @@
       "text": "यह क्या करता है",
       "context": "Heading over what the command does, in the command list bare `dinah` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "1cfeee4ed64f50bd"
+    },
+    "column.comments.ref": {
+      "text": "संदर्भ",
+      "context": "Heading over the reference a person types to reach the comment, in the comments block of `dinah show`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "source": "9ff1e019feac1ee2"
     },
     "column.comments.when": {
       "text": "कब",
@@ -2030,10 +2034,10 @@
       "context": "Heading over the workstream's title, in the listing `dinah workstream` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "ef49aec68fd1dc66"
     },
-    "column.workstreams.slug": {
-      "text": "उपनाम",
-      "context": "Heading over the workstream's short handle, which is what a person types to name it, in the listing `dinah workstream` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "source": "91f70424f5d5d23e"
+    "column.workstreams.reference": {
+      "text": "संदर्भ",
+      "context": "Heading over what a person types to reach the workstream, in the listing `dinah workstream` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "source": "fe88d270aa3e71da"
     },
     "column.workstreams.status": {
       "text": "स्थिति",

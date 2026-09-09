@@ -305,7 +305,7 @@ func TestTheDetailPayloadCarriesEveryMemberDetailDeclares(t *testing.T) {
 		Attachments: []AttachmentView{{ID: "0001", Filename: "note.txt"}},
 		Comments:    []CommentView{{ID: "0002", Body: "A remark."}},
 		Checklist: []ItemView{{
-			ID: "0003", Ordinal: 1, Ref: "fx-1/oq/1", Kind: "open_question",
+			ID: "0003", Ordinal: 1, Ref: "fx-1/questions/1", Kind: "open_question",
 			State: "pending", Text: "A question.",
 		}},
 		Path:     filepath.Join("cards", "fx-1", "card.md"),
