@@ -269,7 +269,7 @@ func TestHelpBlockIsTheRatifiedSurface(t *testing.T) {
 		t.Errorf("the emitted block differs from the spec's section 2:\n%s", diffLines(string(fixture), got.out))
 	}
 
-	// The block lists fifty-one commands, and every command the binary
+	// The block lists fifty-three commands, and every command the binary
 	// offers is either one of them or `help`, which the block's own last
 	// line names.
 	listed := 0
@@ -285,8 +285,8 @@ func TestHelpBlockIsTheRatifiedSurface(t *testing.T) {
 			t.Errorf("the block does not list %s", c.name)
 		}
 	}
-	if listed != 51 {
-		t.Errorf("wanted fifty-one listed commands, got %d", listed)
+	if listed != 53 {
+		t.Errorf("wanted fifty-three listed commands, got %d", listed)
 	}
 }
 
