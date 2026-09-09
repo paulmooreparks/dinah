@@ -90,14 +90,16 @@ func (w *Workstream) JournalPath() string {
 	return filepath.Join(w.Dir, JournalName)
 }
 
-// Ref is what a person types to reach this workstream: its own slug when it
-// carries one, its identifier otherwise. Mirrors Column.Ref's fallback, so a
-// workstream carrying no slug still gives a caller something to type.
+// Ref is what a person types to reach this workstream in the reference
+// grammar: the kind's own prefix, then the workstream's slug where it
+// carries one and its identifier otherwise. The prefix is part of the
+// reference rather than decoration, because a bare handle is tried against
+// the columns and the cards first and resolves to neither.
 func (w *Workstream) Ref() string {
 	if w.Slug != "" {
-		return w.Slug
+		return WorkstreamRefPrefix + w.Slug
 	}
-	return w.ID
+	return WorkstreamRefPrefix + w.ID
 }
 
 // Field reads one of the workstream's own fields by name, and answers the
@@ -228,7 +230,12 @@ func (b *Bench) Workstream(id string) *Workstream {
 // workstream is ever named by its title, so `dinah workstream new Portfolio`
 // and `dinah workstream get Portfolio` cannot read the same word two ways.
 func (b *Bench) WorkstreamByRef(ref string) *Workstream {
-	ref = strings.TrimSpace(ref)
+	// A caller may write the reference-grammar spelling or the bare handle.
+	// Every surface prints the prefixed form, and the workstream-taking
+	// commands took the bare form before this card, so both are accepted and
+	// exactly one prefix is stripped. A doubled prefix is not a spelling
+	// anything prints, and it is refused.
+	ref = strings.TrimPrefix(strings.TrimSpace(ref), WorkstreamRefPrefix)
 	if ref == "" {
 		return nil
 	}

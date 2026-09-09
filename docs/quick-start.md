@@ -752,11 +752,11 @@ script does not fill the journal with rows recording nothing.
 You address anything below a card with a path reference, which is the card's
 reference followed by slash-separated segments. You write `rel-1/attachments/1`
 for the attachment you just made. The segments you can use are `comments`,
-`attachments`, `checklist`, `journal`, and `card`, plus `oq`, `ac`, and `d` as
-shorthands for the three checklist kinds. If you reach past an attachment into
-`payload`, you get the file itself. No command in this version files a checklist
-item. You can only address checklist items that something else has already
-written.
+`attachments`, `checklist`, `journal`, and `card`, plus `questions`, `criteria`,
+and `decisions` for the three checklist kinds. If you reach past an attachment
+into `payload`, you get the file itself. No command in this version files a
+checklist item. You can only address checklist items that something else has
+already written.
 
 You name a thing in a collection either by its twelve-hex identifier or by its
 position, counting from one, and Dinah counts positions in the order the things
@@ -848,7 +848,7 @@ title:
 
 ```console
 $ dinah workstream new "Autumn release" --slug autumn
-autumn  Autumn release  [active]
+workstream/autumn  Autumn release  [active]
 [exit 0]
 ```
 
@@ -866,10 +866,10 @@ file is what changes:
 
 ```console
 $ dinah join rel-1 autumn
-rel-1  Write the release notes  [Done / ready]  autumn
+rel-1  Write the release notes  [Done / ready]  workstream/autumn
 [exit 0]
 $ dinah join rel-2 autumn
-rel-2  Draft the changelog  [Intake / ready]  autumn
+rel-2  Draft the changelog  [Intake / ready]  workstream/autumn
 [exit 0]
 ```
 
@@ -879,9 +879,9 @@ lists what the workbench carries, with the number of live cards in each:
 
 ```console
 $ dinah workstream
-  Slug    Name            Status  Cards
-  ------  --------------  ------  -----
-  autumn  Autumn release  active  2
+  Reference          Name            Status  Cards
+  -----------------  --------------  ------  -----
+  workstream/autumn  Autumn release  active  2
 [exit 0]
 ```
 
@@ -918,7 +918,7 @@ Dinah creates the workstream, and you may put any word you like in its place:
 
 ```console
 $ dinah workstream set autumn status finished
-autumn  Autumn release  [finished]
+workstream/autumn  Autumn release  [finished]
 [exit 0]
 ```
 
@@ -929,7 +929,7 @@ elsewhere names the old one:
 
 ```console
 $ dinah workstream set autumn slug autumn-2025 --yes
-autumn-2025  Autumn release  [finished]
+workstream/autumn-2025  Autumn release  [finished]
 [exit 0]
 ```
 
@@ -937,9 +937,23 @@ If you want the workstream out of your listings when the effort is over, run
 `dinah archive workstream/autumn-2025`. That works while cards still belong to
 it, and those cards keep the membership. `dinah delete workstream/autumn-2025
 --yes` destroys it instead, and Dinah refuses that while a live card still belongs to
-it. A workstream names its kind in both of those commands, and nothing else
-does, so a workstream and a column may share a name without either one hiding
-the other.
+it. A workstream names its kind in those two commands because they take any
+reference at all, and a bare name is tried against the columns and the cards
+first. `dinah join`, `dinah leave`, `dinah workstream get` and `dinah
+workstream set` take a workstream and nothing else, so they accept either
+spelling, and Dinah prints the longer one everywhere. That is why a workstream
+and a column may share a name without either one hiding the other.
+
+The first of these two reads succeeds and the second is refused, which is that
+split on one screen:
+
+```console
+$ dinah workstream get workstream/autumn-2025 status
+finished
+$ dinah contents autumn-2025
+unknown-card this workbench carries no card autumn-2025; run `dinah ls` to see the cards this workbench carries
+[exit 2]
+```
 
 ## Taking things out
 
@@ -1224,14 +1238,14 @@ storage format 2
 Catalogs:
   Language  Translated
   --------  ----------
-  en        908/908
-  af        0/908
-  cs        0/908
-  de        908/908
-  es        0/908
-  fil       0/908
-  hi        908/908
-  id        0/908
+  en        909/909
+  af        0/909
+  cs        0/909
+  de        909/909
+  es        0/909
+  fil       0/909
+  hi        909/909
+  id        0/909
 [exit 0]
 ```
 

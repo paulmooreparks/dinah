@@ -259,9 +259,13 @@ func (l *Library) searchBench(results *SearchResults, phrase string) {
 	// ever one of it and nothing it could be ordered against.
 	if at, length, ok := substringIn(phrase, l.Bench.Standing); ok {
 		results.add(SearchHit{
-			Kind:  SearchKindWorkbench,
-			ID:    l.Bench.ID,
-			Ref:   l.Bench.Slug,
+			Kind: SearchKindWorkbench,
+			ID:   l.Bench.ID,
+			// The workbench is spelled as itself rather than by its slug.
+			// A bare slug is a prefix for composing an address below the
+			// workbench and names the workbench nowhere, so printing it
+			// hands the reader something that resolves to nothing.
+			Ref:   bench.WorkbenchRef,
 			Title: l.Bench.Title,
 		}, tierFraming, MatchedInFraming, l.Bench.Standing, at, length)
 	}

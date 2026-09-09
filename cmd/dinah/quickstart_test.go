@@ -1794,3 +1794,65 @@ func checkAnchorBlockDeclaresTheBinarysValues(t *testing.T, block quickBlock) {
 			quickStartPath, block.fence)
 	}
 }
+
+// retiredWorkstreamClause is the clause dinah-454 makes false, quoted as a
+// person would write it rather than as the document wrapped it. The document
+// broke it between "nothing else" and "does", so a containment test over the
+// raw bytes answered false before anything was edited and could never witness
+// the removal it exists to witness. Flattening the document's whitespace is
+// what makes this assertion able to fail.
+const retiredWorkstreamClause = "A workstream names its kind in both of those commands, and nothing else does"
+
+// TestTheQuickStartDropsTheRetiredWorkstreamClause asserts the first of
+// dinah-454 AC-12's two added assertions: the one sentence this card makes
+// false is gone from the document, in any wrapping.
+//
+// It is worth saying plainly what this does not prove. It proves that the
+// specific false clause was removed, and it would pass against a replacement
+// that said something else wrong, because nothing mechanical reads prose. The
+// replacement is checked by the operator reading the diff.
+func TestTheQuickStartDropsTheRetiredWorkstreamClause(t *testing.T) {
+	source, err := os.ReadFile(quickStartPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", quickStartPath, err)
+	}
+	flattened := strings.Join(strings.Fields(string(source)), " ")
+	if strings.Contains(flattened, retiredWorkstreamClause) {
+		t.Errorf("%s still carries %q, which is false in both directions after dinah-454: every screen prints the kind, "+
+			"and workstream get, workstream set, join and leave all come to accept it",
+			quickStartPath, retiredWorkstreamClause)
+	}
+}
+
+// TestTheQuickStartShowsBothWorkstreamSpellings asserts the second of
+// dinah-454 AC-12's two added assertions: the claim the retired sentence made
+// in prose is now shown in a replayed block, which is the half a guard can
+// hold. TestTheQuickStartMatchesTheTool holds what that block prints; this one
+// holds that the block is there and drives the two commands.
+func TestTheQuickStartShowsBothWorkstreamSpellings(t *testing.T) {
+	source, err := os.ReadFile(quickStartPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", quickStartPath, err)
+	}
+	lines := strings.Split(string(source), "\n")
+	wanted := []string{
+		"$ dinah workstream get workstream/autumn-2025 status",
+		"$ dinah contents autumn-2025",
+	}
+	for i, line := range lines {
+		if strings.TrimRight(line, "\r") != wanted[0] {
+			continue
+		}
+		for j := i + 1; j < len(lines); j++ {
+			trimmed := strings.TrimRight(lines[j], "\r")
+			if strings.HasPrefix(trimmed, "```") {
+				break
+			}
+			if trimmed == wanted[1] {
+				return
+			}
+		}
+	}
+	t.Errorf("%s carries no replayed block running %q and then %q, so the claim the retired sentence made is back in prose alone",
+		quickStartPath, wanted[0], wanted[1])
+}
