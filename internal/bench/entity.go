@@ -885,14 +885,12 @@ func ItemBlocksClaim(item *Item) bool {
 }
 
 // ItemIsResolved reports whether an item has been settled, which is the
-// question CORE-ITEM-2 puts to a tool and the one every hold in the tool
+// question CORE-ITEM-2 puts to a tool and the one the claim refusal above
 // turns on.
 //
-// It reads the state alone. No kind is named here and none is read, because
-// the two callers want opposite things of the kinds: the claim refusal above
-// exempts one kind on a ruling of its own, and the column hold below exempts
-// none. Putting the kind at the caller rather than here is what lets one
-// answer serve both.
+// It reads the state alone, and no kind is named here or read, because the
+// claim refusal above exempts one kind on a ruling of its own and wants that
+// exemption at the caller.
 //
 // A state that is absent, empty or outside the closed set reads as
 // unresolved, on ItemBlocksClaim's own reasoning: reading a damaged file as
@@ -900,6 +898,35 @@ func ItemBlocksClaim(item *Item) bool {
 func ItemIsResolved(item *Item) bool {
 	switch item.State {
 	case ItemResolved, ItemVerified, ItemFailed:
+		return true
+	default:
+		return false
+	}
+}
+
+// ItemLiftsColumnHold reports whether an item's state releases the hold a
+// column declaring gate_items puts on entry.
+//
+// It answers differently from ItemIsResolved above, on one state and on the
+// operator's ruling of 2026-09-10 recorded as dinah-450 OQ-5. A failed item
+// records that somebody checked the work and it did not hold, so it releases
+// nothing: were failed to settle the hold here, a column gated on an
+// acceptance criterion would admit the card on the one state saying the work
+// is wrong. Whether the work passed and whether the card may proceed anyway
+// are separate questions, and the state carrying the second answer is not
+// built. Until it is, the operator's move-level override marker is what
+// carries a card past a criterion that genuinely failed, which CORE-GATE-4
+// already permits.
+//
+// The claim refusal keeps ItemIsResolved rather than this. It exempts
+// acceptance criteria outright, so the ruling above does not reach it, and
+// narrowing the state set underneath it would move behaviour nobody ruled on.
+//
+// A state that is absent, empty or outside the closed set releases nothing,
+// for ItemIsResolved's own reason.
+func ItemLiftsColumnHold(item *Item) bool {
+	switch item.State {
+	case ItemResolved, ItemVerified:
 		return true
 	default:
 		return false
@@ -915,9 +942,9 @@ func BlockingItems(cardDir string) []*Item {
 
 // GatingItems reads the checklist items of a card that hold it out of one
 // column right now, in the order BlockingItems reads its own. An item holds
-// when its own column field names the column and it is not resolved, and
-// that is the whole test: every kind an item can carry holds on the same
-// terms, because CORE-GATE-1 puts the selectivity in which items name a
+// when its own column field names the column and its state does not lift the
+// hold, and that is the whole test: every kind an item can carry holds on the
+// same terms, because CORE-GATE-1 puts the selectivity in which items name a
 // column rather than in the column or in the tool.
 //
 // The column is named by identifier, which is what an item's column field
@@ -927,7 +954,7 @@ func GatingItems(cardDir, columnID string) []*Item {
 		return nil
 	}
 	return itemsWhere(cardDir, func(item *Item) bool {
-		return item.Column == columnID && !ItemIsResolved(item)
+		return item.Column == columnID && !ItemLiftsColumnHold(item)
 	})
 }
 

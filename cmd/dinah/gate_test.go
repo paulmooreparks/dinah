@@ -188,3 +188,91 @@ func TestAPullIsHeldByTheDestinationsGate(t *testing.T) {
 		t.Errorf("the refusal names no item; wanted %s in:\n%s", item, got.errw)
 	}
 }
+
+// soleItemState reads back the state of the one checklist item a fixture card
+// carries. A test asserting that a failed criterion still holds has to prove
+// the criterion is actually failed, because a build where the fail verb landed
+// nothing would otherwise pass on a pending item.
+func soleItemState(t *testing.T, root, card string) string {
+	t.Helper()
+	path := filepath.Join(soleBenchDir(t, root), bench.CardsDir, cardID(t, root, card),
+		bench.ChecklistDir, soleItemID(t, root, card), bench.ItemAnchor)
+	text, err := bench.ReadText(path)
+	if err != nil {
+		t.Fatalf("read the item: %v", err)
+	}
+	fm, _ := bench.ParseAnchor(text)
+	return fm.Value(bench.ItemStateField)
+}
+
+// TestAFailedCriterionGoesOnHoldingTheGate is the operator's ruling of
+// 2026-09-10, recorded as dinah-450 OQ-5. It names the failed state rather
+// than testing the hold in general, because the hold fired on a pending item
+// before that ruling and goes on firing on one after it: a guard proving only
+// that the gate holds at all stays green on the build this test exists to
+// refuse.
+//
+// The state is the whole point. A failed criterion records that somebody
+// checked the work and it did not hold, so a build settling the gate on it
+// opens the column on the one state saying the work is wrong.
+func TestAFailedCriterionGoesOnHoldingTheGate(t *testing.T) {
+	root, item := gatedCard(t, "acceptance_criterion")
+	if got := runCLI(t, root, "fail", "fx-1/criteria/1", "the endpoint still answers 200 for an unknown id"); got.code != 0 {
+		t.Fatalf("fail: %d %s", got.code, got.errw)
+	}
+	if state := soleItemState(t, root, "fx-1"); state != bench.ItemFailed {
+		t.Fatalf("the criterion stands at %q, so this test is not exercising the failed state", state)
+	}
+
+	refused := runCLI(t, root, "move", "fx-1", "doing")
+	if refused.code == 0 {
+		t.Fatalf("the move into the held station succeeded carrying a failed criterion")
+	}
+	if !strings.Contains(refused.errw, contract.UnresolvedItem) {
+		t.Errorf("wanted %s, got:\n%s", contract.UnresolvedItem, refused.errw)
+	}
+	if !strings.Contains(refused.errw, item) {
+		t.Errorf("the refusal names no item; wanted %s in:\n%s", item, refused.errw)
+	}
+
+	// The interim route the ruling relies on. No state carries permission to
+	// proceed past a criterion that genuinely failed, so the operator's
+	// move-level marker is the only way through, and a build where it stopped
+	// working would leave such a card stuck at the gate for good.
+	if carried := runCLI(t, root, "move", "fx-1", "doing", "--override"); carried.code != 0 {
+		t.Fatalf("the operator could not carry the failed criterion past the gate: %d %s", carried.code, carried.errw)
+	}
+}
+
+// TestAGatedColumnAnswersAheadOfTheDepartureLoopLimit is dinah-450 OQ-2's
+// ruling. The gate is published ninth and the loop limit tenth, and dinah help
+// move promises the rows in the order each is checked, so a move failing both
+// answers the earlier of the two.
+//
+// The fixture is the only shape that reaches the pair: a regressive move out
+// of a column already at its declared loop limit, into a column holding an
+// item of the card's. Either row alone refuses the move, so the assertion is
+// on which name comes back rather than on whether it was refused.
+func TestAGatedColumnAnswersAheadOfTheDepartureLoopLimit(t *testing.T) {
+	root := newBench(t)
+	declareLoopLimit(t, root, "Doing", "1")
+	loopedCard(t, root)
+	// Declared after the fixture's own regressive move, which would otherwise
+	// be the move this gate refused.
+	declareGateItems(t, root, "Intake", "true")
+	back := columnIdentifier(t, root, "intake")
+	if got := runCLI(t, root, "file", "--column", back, "fx-1", "open_question", "Somebody has to settle this."); got.code != 0 {
+		t.Fatalf("file: %d %s", got.code, got.errw)
+	}
+
+	refused := runCLI(t, root, "move", "fx-1", "intake")
+	if refused.code == 0 {
+		t.Fatal("a regressive move failing both the gate and the loop limit succeeded")
+	}
+	if !strings.Contains(refused.errw, contract.UnresolvedItem) {
+		t.Errorf("wanted %s, the ninth row, got:\n%s", contract.UnresolvedItem, refused.errw)
+	}
+	if strings.Contains(refused.errw, contract.AtLoopLimit) {
+		t.Errorf("the tenth row answered ahead of the ninth:\n%s", refused.errw)
+	}
+}

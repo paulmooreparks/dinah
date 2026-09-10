@@ -89,10 +89,8 @@ var checkLists = map[string][]Check{
 		// The tenth row is Dinah's own: the profile's section 6.4 list ends
 		// at the ninth, so the loop limit is appended rather than inserted
 		// among the nine, which would renumber rows the profile numbers. Its
-		// key names where it sits in this list. canLand runs it ahead of the
-		// gate row above rather than where this list prints it, which is the
-		// one place the page and the code disagree, and dinah-450 OQ-2
-		// carries the question of which of the two moves.
+		// key names where it sits in this list, and canLand runs it there,
+		// after the gate row above.
 		{Refusal: contract.AtLoopLimit, Key: "check.move.10"},
 	},
 	Release: {

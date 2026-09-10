@@ -611,8 +611,14 @@ of the profile is ruled out, with the reason and the reopen condition that go
 with staying out.
 
 A column may declare `gate_items: true`, which says the column holds a card
-while an item the card carries names that column and is not resolved. Absent
-means false, and the value is exactly `true` or `false`, following
+while an item the card carries names that column and its state has not settled
+it. Two of an item's four states settle it here, `resolved` and `verified`. A
+`failed` item holds the card, because that state records that somebody checked
+the work and it did not hold, and releasing the gate on it would open the
+column on the one state saying the work is wrong; the operator's `--override`
+marker below is what carries such a card through. This is narrower than the
+question the claim refusal asks, which reads `failed` as settled and is
+unchanged. Absent means false, and the value is exactly `true` or `false`, following
 `awaiting_outside` above rather than `operator_owned`. The declaration says only
 that the column holds. It carries no list of which kinds of item hold there, and
 nothing in the refusal reads an item's kind, so an acceptance criterion holds a

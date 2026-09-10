@@ -349,9 +349,9 @@ func (l *Library) canRoute(req *Request, card *bench.Card) (*bench.Column, *benc
 // canLand runs the rows of CORE-MOVE's list that read the card and the
 // destination, in that list's order: the card is not blocked, the card is
 // not held by somebody else, the move is not a forward move out of a done
-// column, the destination stands below its capacity, the departure has not
-// reached its own declared loop_limit for this card, the destination holds no
-// unresolved item of this card's that names it, the destination does not
+// column, the destination stands below its capacity, the destination holds no
+// unresolved item of this card's that names it, the departure has not reached
+// its own declared loop_limit for this card, the destination does not
 // wait on somebody outside the workbench, the destination does not reserve
 // to the operator the claim an arriving act would take there, and the
 // destination is not being retired. It reports whether a limit or a hold was
@@ -360,13 +360,9 @@ func (l *Library) canRoute(req *Request, card *bench.Card) (*bench.Column, *benc
 // The loop row is Dinah's own, appended after the profile's own nine rather
 // than inserted among them. dinah help move heads its table Order and
 // promises the rows in the order each is checked, so a move failing the
-// capacity row and any row below it answers at-capacity.
-//
-// One pair departs from that promise, and it is dinah-450's own placement
-// rather than an accident. The gate row is published ninth and the loop row
-// tenth, and this function runs the loop row first, so a regressive move that
-// fails both answers dinah.at-loop-limit where the page says unresolved-item.
-// dinah-450 OQ-2 carries the question of which of the two to move.
+// capacity row and any row below it answers at-capacity, and a regressive
+// move into a held column that has also reached its departure's loop limit
+// answers unresolved-item, which is the ninth row and the earlier of the two.
 //
 // takesUp says whether the act this list is running for takes the card up
 // where it lands, which a pull does and a move does not. The waiting row and
@@ -391,22 +387,6 @@ func (l *Library) canLand(req *Request, card *bench.Card, destination, departure
 	if reached && !req.Override {
 		return false, l.refuse(req, card, contract.AtCapacity, columnRef(destination)), nil
 	}
-	// The cap is absolute, on the operator's own ruling: an override carries
-	// the one move it is passed on, the count goes on rising underneath it,
-	// and the next regressive move out of the column is refused again for the
-	// life of the card. Nothing here resets a count and nothing stores a
-	// standing exemption.
-	loopReached := false
-	if departure != nil && departure.LoopLimit > 0 && !destination.Terminal() && destination.Position < departure.Position {
-		events, _, err := bench.ReadJournal(card.JournalPath())
-		if err != nil {
-			return false, nil, err
-		}
-		loopReached = l.Bench.RegressiveDepartures(events, departure.ID) >= departure.LoopLimit
-		if loopReached && !req.Override {
-			return false, l.refuse(req, card, contract.AtLoopLimit, columnRef(departure)), nil
-		}
-	}
 	// CORE-GATE-3, the destination's own hold. The column declares only that
 	// it holds, and which items hold there follows from which of the card's
 	// items name it, so nothing below reads what kind of item it found. Every
@@ -425,6 +405,22 @@ func (l *Library) canLand(req *Request, card *bench.Card, destination, departure
 			if !req.Override {
 				return false, l.refuse(req, card, contract.UnresolvedItem, holding[0].ID), nil
 			}
+		}
+	}
+	// The cap is absolute, on the operator's own ruling: an override carries
+	// the one move it is passed on, the count goes on rising underneath it,
+	// and the next regressive move out of the column is refused again for the
+	// life of the card. Nothing here resets a count and nothing stores a
+	// standing exemption.
+	loopReached := false
+	if departure != nil && departure.LoopLimit > 0 && !destination.Terminal() && destination.Position < departure.Position {
+		events, _, err := bench.ReadJournal(card.JournalPath())
+		if err != nil {
+			return false, nil, err
+		}
+		loopReached = l.Bench.RegressiveDepartures(events, departure.ID) >= departure.LoopLimit
+		if loopReached && !req.Override {
+			return false, l.refuse(req, card, contract.AtLoopLimit, columnRef(departure)), nil
 		}
 	}
 	// A column where no owner takes work up receives a card that arrives

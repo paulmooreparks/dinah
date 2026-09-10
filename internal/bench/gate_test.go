@@ -167,24 +167,29 @@ func TestTheGateFlagRidesTheInterchange(t *testing.T) {
 //
 // The second half is the guard on what did not change: ItemBlocksClaim goes on
 // exempting an acceptance criterion in every state, which is CORE-CLAIM-9's
-// own ruling and not this card's to move.
+// own ruling and not this card's to move, and it goes on reading failed as
+// settled, which the column hold no longer does.
 func TestItemIsResolvedAnswersTheSameForEveryKind(t *testing.T) {
 	states := []struct {
 		state    string
 		resolved bool
+		lifts    bool
 	}{
-		{ItemPending, false},
-		{ItemResolved, true},
-		{ItemVerified, true},
-		{ItemFailed, true},
-		{"", false},
-		{"halfway", false},
+		{ItemPending, false, false},
+		{ItemResolved, true, true},
+		{ItemVerified, true, true},
+		{ItemFailed, true, false},
+		{"", false, false},
+		{"halfway", false, false},
 	}
 	for _, kind := range ItemKinds {
 		for _, want := range states {
 			item := &Item{ID: "b00000000001", Kind: kind, State: want.state}
 			if got := ItemIsResolved(item); got != want.resolved {
 				t.Errorf("ItemIsResolved(%s in %q) is %v, wanted %v", kind, want.state, got, want.resolved)
+			}
+			if got := ItemLiftsColumnHold(item); got != want.lifts {
+				t.Errorf("ItemLiftsColumnHold(%s in %q) is %v, wanted %v", kind, want.state, got, want.lifts)
 			}
 			blocks := kind != "acceptance_criterion" && !want.resolved
 			if got := ItemBlocksClaim(item); got != blocks {
@@ -232,8 +237,8 @@ func TestGatingItemsExcludesNoKind(t *testing.T) {
 		}
 	})
 
-	t.Run("a settled item is not held, whatever settled it", func(t *testing.T) {
-		for _, state := range []string{ItemResolved, ItemVerified, ItemFailed} {
+	t.Run("an item resolved or verified is not held", func(t *testing.T) {
+		for _, state := range []string{ItemResolved, ItemVerified} {
 			card := t.TempDir()
 			plantChecklistItem(t, card, "b00000000001",
 				"kind: open_question\nstate: "+state+"\ncolumn: "+held+"\nnote: settled\nordinal: 1\n", "A question.")
@@ -293,4 +298,43 @@ func TestGatingItemsSkipsAnItemWhoseAnchorWillNotOpen(t *testing.T) {
 	if got := GatingItems(card, "e00000000002"); len(got) != 1 || got[0].ID != "b00000000001" {
 		t.Fatalf("wanted the one readable item, got %s", ids(got))
 	}
+}
+
+// TestAFailedItemHoldsAColumnThatTheClaimRefusalLetsThrough is the operator's
+// ruling of 2026-09-10, recorded as dinah-450 OQ-5, at the predicate the two
+// holds part company on.
+//
+// It names the failed state on purpose. The gate held a pending item before
+// the ruling and holds one after it, so a guard written against the hold in
+// general stays green on the build this test exists to refuse, which is the
+// build where a criterion somebody checked and found wanting opens the very
+// column meant to stop it.
+//
+// The second half is what the ruling deliberately left alone. The claim
+// refusal goes on reading failed as settled: it exempts acceptance criteria
+// outright, so the ruling does not reach it, and narrowing the state set
+// underneath it would move behaviour nobody ruled on.
+func TestAFailedItemHoldsAColumnThatTheClaimRefusalLetsThrough(t *testing.T) {
+	held := "e00000000002"
+	for _, kind := range ItemKinds {
+		item := &Item{ID: "b00000000001", Kind: kind, State: ItemFailed, Column: held}
+		if ItemLiftsColumnHold(item) {
+			t.Errorf("a failed %s lifted the column hold", kind)
+		}
+		if !ItemIsResolved(item) {
+			t.Errorf("a failed %s stopped reading as resolved, which the claim refusal turns on", kind)
+		}
+		if ItemBlocksClaim(item) {
+			t.Errorf("a failed %s began blocking a claim, which no ruling asked for", kind)
+		}
+	}
+
+	t.Run("read off disk at the gate", func(t *testing.T) {
+		card := t.TempDir()
+		plantChecklistItem(t, card, "b00000000001",
+			"kind: acceptance_criterion\nstate: "+ItemFailed+"\ncolumn: "+held+"\nnote: the endpoint still answers 200\nordinal: 1\n", "A criterion.")
+		if got := GatingItems(card, held); len(got) != 1 || got[0].ID != "b00000000001" {
+			t.Fatalf("wanted the failed criterion held, got %s", ids(got))
+		}
+	})
 }
