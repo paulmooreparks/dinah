@@ -2,6 +2,7 @@ package bench
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -169,13 +170,18 @@ func WordForItemKind(kind string) (string, bool) {
 // ResolvePath resolves a reference to an absolute path: the workbench itself,
 // a column, a workstream, a card, or anything below any of the first three
 // composed by path. It is what the plumbing guarantee of `path` rests on,
-// what `edit` walks, and what `show` walks for the composed form.
+// what `show` walks for the composed form, and what ResolveEditTarget
+// reaches, both for the empty reference it sends here ahead of anything
+// else and for every reference the entity resolver does not answer.
 //
 // A workstream resolves to its directory rather than to its anchor, because
-// its notes, its journal and its attachments all sit inside it and the
-// reference names the entity rather than one file of it. A workstream is
-// tried first, per WorkstreamRefPrefix and the reasoning on resolveWorkstreamRef,
-// before the rest of the grammar gets a chance to shadow it.
+// the reference names the entity and `path` hands a shell a filesystem
+// address to work from. The directory holds the anchor workstream.md, which
+// carries the workstream's notes, and the machine-written journal.ndjson.
+// ResolveEditTarget answers that anchor rather than this directory, because
+// an editor is handed a file. A workstream is tried first, per
+// WorkstreamRefPrefix and the reasoning on resolveWorkstreamRef, before the
+// rest of the grammar gets a chance to shadow it.
 func (b *Bench) ResolvePath(ref string) (string, error) {
 	return b.ResolvePathIn(LiveHalf, ref)
 }
@@ -225,6 +231,55 @@ func (b *Bench) resolvePathBody(half ResolutionHalf, ref string) (string, error)
 		return "", err
 	}
 	return path, nil
+}
+
+// ResolveEditTarget is the file `edit` opens for a reference, and it is the
+// whole of that command's reference policy in one place. An entity is
+// answered with its anchor, which is what makes edit open a workstream's
+// workstream.md rather than the directory holding it. A whole collection is
+// refused with the refusal CollectionRef.Refuse composes: a collection
+// directory is not a file an editor can open, and handing it over is what
+// this command did with one until dinah-455. Everything else falls through
+// to ResolvePath, which answers exactly two further references, both of them
+// files: a card's journal and an attachment's payload.
+//
+// The empty reference is answered by ResolvePath rather than by the entity
+// resolver, and that ordering is the whole of arm 1. ResolveReference reads
+// an empty reference as the workbench, so asking it first would make a bare
+// `dinah edit` open workbench.md; IsWorkbenchRef's own comment declares that
+// edit refuses it, because edit declares its argument required and somebody
+// who typed no argument forgot it rather than meaning the workbench. The
+// refusal is delegated rather than restated, so the sentence a reader gets
+// cannot drift from the one `dinah path` raises.
+//
+// The entity resolver's own error is discarded rather than reported, so
+// every reference that refuses today refuses the same way: workstream/nosuch
+// keeps its UnknownWorkstream refusal from ResolvePath rather than becoming
+// an unknown card.
+func (b *Bench) ResolveEditTarget(ref string) (string, error) {
+	// The trim is what sends a space-only or tab-only argument down the same
+	// arm as an argument nobody typed, since both resolvers trim inside
+	// themselves rather than at the command.
+	if strings.TrimSpace(ref) == "" {
+		return b.ResolvePath(ref)
+	}
+	entity, collection, err := b.ResolveReference(ref)
+	if err != nil {
+		return b.ResolvePath(ref)
+	}
+	if collection != nil {
+		return "", collection.Refuse()
+	}
+	anchor, declared := AnchorPathOf(entity)
+	if !declared {
+		// No reference a reader can type reaches this, because every kind
+		// ResolveReference answers declares an anchor. It is a defect in
+		// this build rather than a mistake by the reader, so it takes the
+		// route reportError prints as unreachable rather than minting a
+		// refusal name for a case nobody can produce.
+		return "", fmt.Errorf("the kind %q declares no anchor, so %q names nothing to open", entity.Kind, ref)
+	}
+	return filepath.Abs(anchor)
 }
 
 // CollectionRef is what <head>/<collection> resolves to: the directory the
@@ -283,12 +338,13 @@ func (c *CollectionRef) Refuse() error {
 // which of the two things it names: one entity, or a whole collection.
 // Exactly one of the two is non-nil whenever the error is nil.
 //
-// It accepts every reference ResolvePath accepts but one, so a reference a
+// It accepts every reference ResolvePath accepts but two, so a reference a
 // walk prints names the same thing to every command that takes one. The
-// exception is an attachment's payload: that file carries no anchor, so it
-// names no entity of the format, and ResolvePath answers it with a path where
-// this refuses it. ResolveEntity is the reading of this that takes the entity
-// and refuses the collection.
+// exceptions are an attachment's payload and a card's journal: neither file
+// carries an anchor, so neither names an entity of the format, and
+// ResolvePath answers both with a path where this refuses them.
+// ResolveEntity is the reading of this that takes the entity and refuses the
+// collection.
 //
 // An answer of kind card always carries the card, and an answer below a card
 // always carries the card it belongs to. Callers read Card without asking, and
@@ -602,7 +658,7 @@ func MemberIDs(collection string, mount Mount) []string {
 //
 // A collection holding a kind that is addressed in its own right is refused,
 // so the workbench's cards and columns are reached by the address a person
-// types for them and by nothing else. See addressedInItsOwnRight.
+// types for them and by nothing else. See AddressedInItsOwnRight.
 //
 // A segment the grammar does not know is refused rather than dropped. The
 // resolver used to read the first collection and discard everything past the
@@ -620,7 +676,7 @@ func descend(dir, kind string, segments []string, narrow *string, landed *landin
 	if !ok {
 		return "", contract.Refuse(contract.UnknownPath, segments[0])
 	}
-	if addressedInItsOwnRight(mount.Kind) {
+	if AddressedInItsOwnRight(mount.Kind) {
 		// The segment names a collection this workbench plainly has, so a
 		// refusal quoting the segment alone tells a reader that something
 		// they can see does not exist. What is refused is the addressing
@@ -688,7 +744,7 @@ func descend(dir, kind string, segments []string, narrow *string, landed *landin
 	return descend(member, mount.Kind, below, nil, landed, half)
 }
 
-// addressedInItsOwnRight reports whether a kind is one a person names directly
+// AddressedInItsOwnRight reports whether a kind is one a person names directly
 // rather than by its position in the collection that holds it. A card is named
 // by its reference and a column by its slug, and each of those addresses is the
 // only one either kind has.
@@ -701,7 +757,7 @@ func descend(dir, kind string, segments []string, narrow *string, landed *landin
 // collection while filling in no card, which crashed the containment walk and
 // wrote a card's own history into the workbench journal under the workbench's
 // lock.
-func addressedInItsOwnRight(kind string) bool {
+func AddressedInItsOwnRight(kind string) bool {
 	return kind == KindCard || kind == KindColumn
 }
 

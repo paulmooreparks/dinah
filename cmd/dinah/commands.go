@@ -1258,16 +1258,9 @@ func editCmd(s *session, editor, path string) *exec.Cmd {
 func runEdit(s *session, parsed *arguments) int {
 	ref := at(parsed.rest(), 0)
 	return s.withBench(func(l *verb.Library) int {
-		// A collection directory is not a file an editor can open, and
-		// handing it over is what this command did with one until now. The
-		// question is asked ahead of the resolution and the resolver's error
-		// is ignored, so every reference that refuses today refuses the same
-		// way, including an attachment's payload, which ResolvePath reaches
-		// and the entity resolver does not.
-		if _, collection, err := l.Bench.ResolveReference(ref); err == nil && collection != nil {
-			return s.reportError(collection.Refuse())
-		}
-		resolved, err := l.Bench.ResolvePath(ref)
+		// What this command opens is declared once, in ResolveEditTarget,
+		// rather than assembled here out of two resolvers.
+		resolved, err := l.Bench.ResolveEditTarget(ref)
 		if err != nil {
 			return s.reportError(err)
 		}

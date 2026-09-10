@@ -26,6 +26,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 )
 
 // IsolateTempDir points TMP, TEMP, and TMPDIR at a directory outside the
@@ -263,4 +264,55 @@ func insideHome(dir, home string) bool {
 // still lands inside".
 func hasParentSegment(rel string) bool {
 	return rel == ".." || len(rel) >= 3 && rel[:3] == ".."+string(filepath.Separator)
+}
+
+// EditorRecordVar names the environment variable that turns a test binary
+// into a stand-in for the reader's text editor. A test pointing DINAH_EDITOR
+// at its own binary and this variable at a file gets one line per launch,
+// holding the arguments the launched process was handed. dinah-467.
+//
+// Observing the argument is the point. A test that points the editor at a
+// name no machine carries learns that resolution did not refuse and nothing
+// more, and a directory and a file fail such a launch identically, which is
+// how `edit` came to hand a workstream's directory over for as long as it
+// did.
+//
+// The hook lives here rather than in the test package that uses it because
+// this is the only place it can run early enough. The launched child inherits
+// the working directory the command under test was run in, which is a
+// throwaway fixture tree, and a test package holding a package-level variable
+// that climbs to the repository root dies there before any of its own code
+// runs. The Go specification has a package's imports initialized before the
+// package itself, so a variable initializer in this imported package runs
+// ahead of every variable and every init function in the binary's own
+// packages, whatever order their files reach the compiler in.
+const EditorRecordVar = "DINAH_TEST_EDITOR_LOG"
+
+// The recording decision, taken during this package's own variable
+// initialization. It answers false in the ordinary case, where the binary is
+// running its suite rather than standing in for an editor.
+var _ = recordEditorLaunch()
+
+// recordEditorLaunch appends this process's arguments to the file
+// EditorRecordVar names and exits at once, so the caller never runs a test.
+// A launch that was handed nothing still writes its line, because a launch
+// that recorded nothing and a launch that never happened have to be told
+// apart.
+func recordEditorLaunch() bool {
+	log := os.Getenv(EditorRecordVar)
+	if log == "" {
+		return false
+	}
+	file, err := os.OpenFile(log, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "recording an editor launch in %s: %v\n", log, err)
+		os.Exit(1)
+	}
+	defer file.Close()
+	if _, err := fmt.Fprintln(file, strings.Join(os.Args[1:], " ")); err != nil {
+		fmt.Fprintf(os.Stderr, "recording an editor launch in %s: %v\n", log, err)
+		os.Exit(1)
+	}
+	os.Exit(0)
+	return true
 }
