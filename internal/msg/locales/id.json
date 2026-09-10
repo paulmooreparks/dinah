@@ -1248,7 +1248,7 @@
     },
     "param.file.column.summary": {
       "text": "the column the item names, written on the item only when you give one",
-      "context": "The written meaning of file's column flag. It says the field is absent when the flag is absent, because nothing reads it for enforcement yet.",
+      "context": "The written meaning of file's column flag. It says the field is absent when the flag is absent. The value has to name a column the workbench declares, because file resolves the reference to that column's identifier and a column gate matches on the identifier.",
       "skeleton": true
     },
     "param.file.kind.summary": {
