@@ -944,6 +944,11 @@
       "context": "A check finding: every column a card's tier_at names resolves. {detail} carries the card's reference and then the column reference that resolves to nothing, in that order. A reshape retiring a column and a hand edit both produce it, so it is reported rather than refused.",
       "source": "258a8be5af7cb0d8"
     },
+    "check.item-column-unresolved": {
+      "text": "ein Checklistenpunkt nennt eine Spalte, die niemals eine Karte aufhalten wird, denn er löst entweder zu keiner Spalte auf oder zu einer, deren Kennung nicht dem entspricht, was gespeichert ist: {detail}",
+      "context": "A check finding: every checklist item's column value, where set, is stored as the identifier of a column this workbench declares. {detail} carries the card's reference, the item's identifier, and the stored column value, in that order. A write filed or set before the field validated, or a hand edit, both produce it.",
+      "source": "27409d9d6b02c475"
+    },
     "check.unknown-column": {
       "text": "eine Karte nennt Spalte {detail}, die diese Werkbank nicht deklariert",
       "context": "A check finding: every card's column identifier resolves.",

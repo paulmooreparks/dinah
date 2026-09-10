@@ -122,6 +122,15 @@ const (
 	// posture reject_to keeps: a write catches a typo before it lands, and a
 	// read tolerates a column that existed when the line was written.
 	FindingUnknownTierColumn = "check.unknown-tier-column"
+	// FindingItemColumnUnresolved names a checklist item whose column value
+	// can never hold a card: either it resolves to no column at all, or it
+	// resolves to one whose identifier the value does not spell, and
+	// GatingItems compares an item's column against a column identifier by
+	// string equality. A write made before the field ran a guard, and a hand
+	// edit, both produce it. It is reported rather than refused on the same
+	// posture the two above keep, since the write path is where a typo is
+	// caught and a read tolerates a column that has since been retired.
+	FindingItemColumnUnresolved = "check.item-column-unresolved"
 	// FindingRejectTargetIsSelf names a column whose reject_to names itself.
 	FindingRejectTargetIsSelf = "check.reject-target-is-self"
 	// FindingRejectTargetForward names a column whose reject_to names a column
@@ -454,6 +463,34 @@ func (b *Bench) checkTierOverrides(card *Card) []Finding {
 	return findings
 }
 
+// checkItemColumns reports every checklist item of a card whose column value
+// cannot hold the card anywhere: a value resolving to no column, and a value
+// resolving to a column by its slug or its title rather than by the identifier
+// GatingItems compares against. An item filed without a column names nothing
+// and is passed over.
+//
+// It reads rather than repairs, as checkTierOverrides does and as everything
+// else in this file does. The repair is a write through the field, which
+// resolves the spelling it is given and refuses one that resolves to nothing.
+func (b *Bench) checkItemColumns(card *Card) []Finding {
+	var findings []Finding
+	named := itemsWhere(card.Dir, func(item *Item) bool {
+		return item.Column != ""
+	})
+	for _, item := range named {
+		resolved := b.ColumnByRef(item.Column)
+		if resolved != nil && resolved.ID == item.Column {
+			continue
+		}
+		findings = append(findings, Finding{
+			Path:   filepath.Join(item.Dir, ItemAnchor),
+			Key:    FindingItemColumnUnresolved,
+			Detail: card.Ref(b.Slug) + " " + item.ID + " " + item.Column,
+		})
+	}
+	return findings
+}
+
 // kindStandsWrong reports whether one column's kind is disallowed at the
 // position the column stands in, given where the terminal region starts.
 func (b *Bench) kindStandsWrong(column *Column, terminalStart int) bool {
@@ -531,6 +568,7 @@ func (b *Bench) checkCard(card *Card) []Finding {
 		findings = append(findings, Finding{Path: anchor, Key: FindingUnknownLevel, Detail: axis + " " + stored})
 	}
 	findings = append(findings, b.checkTierOverrides(card)...)
+	findings = append(findings, b.checkItemColumns(card)...)
 	if card.Number == 0 {
 		findings = append(findings, Finding{Path: anchor, Key: FindingOrdinalMissing, Detail: card.ID})
 	}

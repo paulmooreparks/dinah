@@ -93,9 +93,10 @@ func title(omit bool) string {
 	return "A card about the " + planted
 }
 
-// plantFramingOn writes framing prose onto a card, which no verb does: a
-// card's body is written by a person editing the file, and every reader of it
-// reads what that person wrote.
+// plantFramingOn writes framing prose onto a card by appending to its anchor,
+// the way a person editing the file does rather than the way
+// `dinah set <card> body` does, and every reader of a card's body reads what
+// landed there by either route.
 func plantFramingOn(h *harness, ref, body string) {
 	h.t.Helper()
 	appendTo(h, filepath.Join(h.library.Bench.CardsRoot(), h.cardID(ref), bench.CardAnchor), body+"\n")

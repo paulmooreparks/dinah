@@ -95,8 +95,9 @@ const (
 
 // archiveEvents are the only lines the archive half of the walk yields. An
 // archived entity's own acts are not a caller's to act on, so the half reports
-// the departure and nothing else. Nothing appends to an archived journal in
-// any case, since no verb takes an archived card as its subject.
+// the departure and the return and nothing else. `dinah restore` is the one
+// verb that takes an archived card as its subject, and the line it appends to
+// that card's own journal is why restored sits in this set beside archived.
 //
 // Both reads of that half use this set, the reporting one and the one a mint
 // makes to find the end of the total order, so a minted position can never sit

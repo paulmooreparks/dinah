@@ -44,14 +44,21 @@ const (
 	GuardKind     = "column-kind"
 	GuardCapacity = "capacity"
 	GuardHold     = "hold"
+	// GuardColumnRef admits any spelling ColumnByRef resolves, which is a
+	// column's identifier, its slug or its title, and the router resolves
+	// the admitted value to that column's identifier before it is stored.
+	// A field carrying this guard therefore holds an identifier or nothing,
+	// which is what a gate reading it compares against.
+	GuardColumnRef = "column-ref"
 )
 
 // Guards lists the closed set of guard names a field may declare, in the order
 // the declaration above states them. A sweep asking whether every guard is
-// routed reads this rather than writing the eight out again.
+// routed reads this rather than writing the nine out again.
 var Guards = []string{
 	GuardSlug, GuardLevel, GuardTier, GuardState,
 	GuardFilename, GuardKind, GuardCapacity, GuardHold,
+	GuardColumnRef,
 }
 
 // The two write authorities a kind declares. The set is closed at two, and it
@@ -153,7 +160,7 @@ var fields = map[string][]Field{
 		{Name: ItemStateField, Guard: GuardState},
 		{Name: ItemNoteField, Clearable: true},
 		{Name: ItemOwnerField, Clearable: true},
-		{Name: ItemColumnField, Clearable: true},
+		{Name: ItemColumnField, Clearable: true, Guard: GuardColumnRef},
 	},
 	KindAttachment: {
 		{Name: FilenameField, Guard: GuardFilename},

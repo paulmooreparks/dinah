@@ -84,11 +84,16 @@ var fieldSamples = map[string]map[string]fieldSample{
 		"body": {first: "First thought.", second: "Second thought.\n\nWith a second paragraph."},
 	},
 	bench.KindItem: {
-		"text":   {first: "First question.", second: "Second question.\n\nWith a second paragraph."},
-		"state":  {first: "resolved", second: "pending", extra: []string{"--note", "the operator settled it"}},
-		"note":   {first: "a first note", second: "a second note"},
-		"owner":  {first: "operator", second: "holder"},
-		"column": {first: "intake", second: "done"},
+		"text":  {first: "First question.", second: "Second question.\n\nWith a second paragraph."},
+		"state": {first: "resolved", second: "pending", extra: []string{"--note", "the operator settled it"}},
+		"note":  {first: "a first note", second: "a second note"},
+		"owner": {first: "operator", second: "holder"},
+		// The two columns are named by their identifiers rather than by
+		// their slugs, because a column reference resolves on write and the
+		// identifier is what reaches the anchor, so a slug written here
+		// would not be the value read back. Which spellings the write
+		// admits is dinah-474's own case in gate_test.go.
+		"column": {first: "e00000000001", second: "e00000000003"},
 	},
 	bench.KindAttachment: {
 		"filename":    {first: "first.txt", second: "second.txt"},

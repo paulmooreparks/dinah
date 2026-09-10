@@ -87,9 +87,11 @@ func sameJSON(t *testing.T, left, right []byte) bool {
 	return string(one) == string(two)
 }
 
-// plantItem writes a checklist item by hand, which is how one reaches a card:
-// no verb writes one yet, and the format is a tree of plain files a person is
-// meant to be able to edit.
+// plantItem writes a checklist item by hand, which is what lets a case fix the
+// identifiers and the ordinals the two surfaces are then compared on, where
+// `dinah file` mints an identifier of its own. The format is a tree of plain
+// files a person is meant to be able to edit, so writing the anchor is the
+// whole act.
 func plantItem(t *testing.T, library *verb.Library, ref, id, frontmatter, text string) {
 	t.Helper()
 	found, err := library.Bench.ResolveCard(ref)
