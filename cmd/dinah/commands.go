@@ -69,13 +69,6 @@ func init() {
 		{name: "archive", group: groupWork, run: runArchive, bounded: 1},
 		{name: "delete", group: groupWork, run: runDelete, bounded: 1},
 		{name: "rename", group: groupWork, run: runRename, bounded: 2},
-		// card dispatches on its own first word the way workbench does, so it
-		// declares an open tail here and runs its own arity and mistyped-flag
-		// checks (see runCard). It sits under groupWork rather than beside
-		// its grammar siblings because the groups split on what a command
-		// acts on: groupWork holds every command that acts on a card, and a
-		// reader scanning the block for how to change something about a card
-		// finds it beside the other twelve.
 
 		{name: "status", group: groupRead, run: runStatus},
 		{name: "columns", group: groupRead, run: runColumns},
@@ -124,8 +117,7 @@ func init() {
 		// it declares an open tail here and runs its own arity and
 		// mistyped-flag checks (see runColumn). It sits under groupBench
 		// rather than groupWork because it authors a station of the flow,
-		// which is workbench structure rather than an act on a card, and
-		// groupWork is the group every card-acting command is in.
+		// which is workbench structure rather than an act on a card.
 		{name: "column", group: groupBench, run: runColumn, openTail: true},
 		// workbenches takes one positional, which is the directory to walk
 		// downward from. Without it the command keeps answering what is

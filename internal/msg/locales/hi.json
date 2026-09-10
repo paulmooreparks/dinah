@@ -2456,7 +2456,7 @@
     },
     "refusal.dinah.not-renamable": {
       "text": "{kind} कोई संलग्नक नहीं है, और rename उसका नाम नहीं बदलेगा",
-      "context": "The sentence printed after the refusal name dinah.not-renamable. {kind} names what kind of entity the reference reached, so the sentence names the entity the caller meant rather than the word they typed.",
+      "context": "The sentence printed after the refusal name dinah.not-renamable. {kind} names what kind of entity the reference reached, so the sentence names the entity the caller meant rather than the word they typed. {kind} is machine vocabulary and is never translated, so no word of the sentence may agree with it, for the reason refusal.dinah.unknown-field.get gives. That covers the possessive on the name, which a language carrying grammatical gender would otherwise inflect for the kind.",
       "source": "73f2c382dedeeb8f"
     },
     "refusal.dinah.not-renamable.next": {
