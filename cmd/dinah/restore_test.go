@@ -10,6 +10,7 @@ import (
 
 	"dinah/internal/bench"
 	"dinah/internal/contract"
+	"dinah/internal/guide/guidepin"
 )
 
 // foldedStderr is a refusal's stderr with every run of whitespace folded to
@@ -429,6 +430,9 @@ func TestRestoreAcceptsAnArchivedReference(t *testing.T) {
 // every restore of an occupied column, which is exactly the case a stranded
 // card creates and exactly the repair this command is for.
 func TestRestoringAColumnReturnsItToTheOrderAndRepairsAStrandedCard(t *testing.T) {
+	if err := guidepin.Carries("references", guidepin.ARestoredColumnLandsAtTheEndOfTheOrder); err != nil {
+		t.Error(err)
+	}
 	root := newBench(t)
 	if got := runCLI(t, root, "column", "new", "Spare", "--slug", "spare"); got.code != 0 {
 		t.Fatalf("column new: %d %s", got.code, got.errw)
@@ -636,6 +640,9 @@ func TestRestoreRefusedByAnOccupiedSlotRendersItsOwnSentence(t *testing.T) {
 
 // TestAnArchivedReadShowsOneHalfAndWritesNothing is dinah-461 AC-10.
 func TestAnArchivedReadShowsOneHalfAndWritesNothing(t *testing.T) {
+	if err := guidepin.Carries("references", guidepin.AnArchivedContentsRowIsTheAddressAfterRestore); err != nil {
+		t.Error(err)
+	}
 	root := newBench(t)
 	if got := runCLI(t, root, "add", "a card with comments"); got.code != 0 {
 		t.Fatalf("add: %d %s", got.code, got.errw)
@@ -722,8 +729,19 @@ func TestAnArchivedReadShowsOneHalfAndWritesNothing(t *testing.T) {
 	if human.code != 0 {
 		t.Fatalf("contents --archived: %d %s", human.code, human.errw)
 	}
-	if !strings.Contains(human.out, "resolve once "+tree.Root.Ref+" is restored") {
-		t.Errorf("the human listing carries no contents.archived line naming %s:\n%s", tree.Root.Ref, human.out)
+	// The guide says the notice stands on the line under the sentence naming
+	// the root, so the assertion reads that line rather than the whole
+	// listing. A strings.Contains over the whole output passes wherever the
+	// notice appears, including above the sentence it is meant to follow,
+	// which is the shape the guide's own previous wording got wrong.
+	lines := strings.Split(strings.TrimRight(human.out, "\r\n"), "\n")
+	notice := "resolve once " + tree.Root.Ref + " is restored"
+	if len(lines) < 2 || !strings.Contains(lines[1], notice) {
+		second := "(the listing has no second line)"
+		if len(lines) > 1 {
+			second = lines[1]
+		}
+		t.Errorf("the references guide says the archived listing carries its notice on the line under the sentence naming the root; the second line reads %q and the whole listing is:\n%s", second, human.out)
 	}
 }
 
@@ -779,6 +797,9 @@ func collectionTexts(t *testing.T, got invocation) []string {
 // end, because a check asserting that a directory is present proves presence
 // rather than correctness.
 func TestANestedArchiveRestoresInTwoActs(t *testing.T) {
+	if err := guidepin.Carries("references", guidepin.AnEntityComesBackWithItsHolder); err != nil {
+		t.Error(err)
+	}
 	root := newBench(t)
 	if got := runCLI(t, root, "add", "a card that holds a comment"); got.code != 0 {
 		t.Fatalf("add: %d %s", got.code, got.errw)
