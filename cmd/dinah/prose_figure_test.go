@@ -458,6 +458,16 @@ var derivationsByName = map[string]func(t *testing.T) (int, error){
 	"checklistKinds": func(t *testing.T) (int, error) {
 		return len(bench.ItemKinds), nil
 	},
+	"referenceCommands": func(t *testing.T) (int, error) {
+		return len(commandsTakingAReference()), nil
+	},
+	"qualifiedTableRows": func(t *testing.T) (int, error) {
+		qualified, _ := referencesGuideQualifiedRows(t)
+		return len(qualified), nil
+	},
+	"workbenchSpellings": func(t *testing.T) (int, error) {
+		return len(referencesGuideWorkbenchSpellings(t)), nil
+	},
 	"queryFields": func(t *testing.T) (int, error) {
 		return len(verb.QueryFields), nil
 	},

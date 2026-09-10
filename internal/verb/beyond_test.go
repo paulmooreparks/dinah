@@ -236,9 +236,13 @@ func TestArchiveAndDelete(t *testing.T) {
 	occupant := h.add("occupant")
 	linked := h.add("linked")
 
-	// A card carrying a link to the card that is about to be deleted.
+	// A card carrying a link to the card that is about to be deleted. The
+	// link goes on the typed field rather than into the raw frontmatter,
+	// because Save owns the links block now the way it already owned tier_at:
+	// it renders the block from Links on every write, so a raw block planted
+	// beside an empty Links is deleted by the next save rather than kept.
 	card := h.card(occupant)
-	card.FM.SetRaw("links", []string{"links:", "  - kind: relates", "    to: " + h.card(linked).ID})
+	card.Links = append(card.Links, bench.Link{Kind: "relates", To: h.card(linked).ID})
 	if err := card.Save(); err != nil {
 		t.Fatalf("write link: %v", err)
 	}

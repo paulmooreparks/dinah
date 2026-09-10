@@ -853,6 +853,12 @@ func assignValue(req *verb.Request, name, value string) {
 		req.Scheme = value
 	case "target":
 		req.CiteTarget = value
+	// link and unlink name their target "to" rather than "target", because
+	// the two mean different things and land on different fields: a link's
+	// target is a card reference the library resolves, and a citation's is an
+	// opaque string nothing resolves.
+	case "to":
+		req.LinkTo = value
 	case "observed":
 		req.Observed = value
 	case "note":

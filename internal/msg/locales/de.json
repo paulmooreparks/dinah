@@ -1179,6 +1179,11 @@
       "context": "The one-line summary of the leave command, shown beside its syntax in the help block.",
       "source": "8f209a159d25acae"
     },
+    "cmd.link.summary": {
+      "text": "Eine Verknüpfung von einer Karte zu einer anderen festhalten",
+      "context": "The one-line summary of the link command, shown beside its syntax in the help block.",
+      "source": "5e8c58645f06d7af"
+    },
     "cmd.log.summary": {
       "text": "Die festgehaltenen Aktionen einer Karte, älteste zuerst",
       "context": "The one-line summary of the log command, shown beside its syntax in the help block.",
@@ -1439,6 +1444,16 @@
       "context": "The next step of refusal.dinah.unknown-item-kind, spliced onto the sentence that just listed the kinds. The three kind names are machine vocabulary that is never translated.",
       "source": "2d0c13c914a3a2a5"
     },
+    "refusal.dinah.unknown-link": {
+      "text": "diese Karte trägt keine {kind}-Verknüpfung zu {detail}",
+      "context": "The sentence printed after the refusal name dinah.unknown-link, which unlink carries when the card holds no link of that kind to that card. {kind} is the word the caller typed for the relation and {detail} is the target as they spelled it. refusal.dinah.unknown-link.next is spliced on after this one.",
+      "source": "b83e5b119d000073"
+    },
+    "refusal.dinah.unknown-link.next": {
+      "text": "; führen Sie `dinah show` für die Karte aus, um die Verknüpfungen zu lesen, die sie trägt",
+      "context": "Spliced onto refusal.dinah.unknown-link as the next step. The command name is machine vocabulary that is never translated.",
+      "source": "2fd6aff126a426bc"
+    },
     "refusal.dinah.unknown-level": {
       "text": "diese Werkbank deklariert keine {axis}-Stufe namens {detail}. Die {axis}-Stufen, die sie deklariert, sind: {levels}.",
       "context": "The sentence printed after the refusal name dinah.unknown-level, which a write naming a level the workbench does not declare for that axis carries. {detail} is the level the reader typed. {axis} is the field the write named, and it is machine vocabulary that is never translated. {levels} is that one axis's declared members in declaration order, read off the workbench rather than written here, so a level name is never translated either. The sentence is about one axis and must not be worded as a report about the workbench as a whole. refusal.dinah.unknown-level.next is spliced on after this one.",
@@ -1673,6 +1688,11 @@
       "text": "Eine Blockade aufheben (nur Betreiber)",
       "context": "The one-line summary of the unblock command, shown beside its syntax in the help block.",
       "source": "b4cfdb8c1ebe1ffb"
+    },
+    "cmd.unlink.summary": {
+      "text": "Eine Verknüpfung entfernen, die eine Karte trägt",
+      "context": "The one-line summary of the unlink command, shown beside its syntax in the help block.",
+      "source": "8feef1401d040042"
     },
     "cmd.version.summary": {
       "text": "Was Dinah ist und wozu es konform ist",
@@ -3696,6 +3716,16 @@
       "text": "nur die Karten auflisten, die zur Übernahme bereit sind",
       "context": "The meaning of the ready argument of `dinah ls`, printed in that command's arguments table.",
       "source": "36fbc940df2d68dc"
+    },
+    "param.link-kind.summary": {
+      "text": "das Wort dafür, wie die beiden Karten zueinander stehen, etwa duplicates oder relates; jedes Wort wird angenommen",
+      "context": "The meaning of the kind argument, shared by link and unlink. Nothing checks the word against a set, so a workbench writes whatever term it uses. duplicates and relates are suggested spellings and are never translated.",
+      "source": "b838a3bde3794364"
+    },
+    "param.link-to.summary": {
+      "text": "die Karte am anderen Ende der Verknüpfung, geschrieben als ihre Referenz oder ihre Kennung",
+      "context": "The meaning of the to argument, shared by link and unlink. The card it names may be live or archived, and what is written down is always the identifier the reference resolves to.",
+      "source": "9b2b60e51610d32d"
     },
     "param.move.column.summary": {
       "text": "in welche Spalte die Karte getragen wird, auch geschrieben --column <Spalte>",
