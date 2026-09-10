@@ -1001,10 +1001,10 @@ CORE-CLAIM-9 refuses a claim on a card carrying a pending `open_question`
 or `decision` item, reporting `unresolved-item`. An `acceptance_criterion`
 item never triggers this refusal, whatever its state; its own resolution
 belongs to a citation check at Move into Done that no card has built yet.
-Nothing today creates or resolves an item, so exercising this refusal, or
-clearing it, means hand-editing an item's `state` key directly, which the
-format's own plain-text, git-friendly shape makes an ordinary act rather
-than a workaround.
+`dinah file` creates an item and `dinah resolve` settles one, so exercising
+this refusal and clearing it are each a command. Hand-editing an item's
+`state` key reaches the same place, which the format's own plain-text,
+git-friendly shape makes an ordinary act rather than a workaround.
 
 ### Citations
 
@@ -1192,10 +1192,10 @@ of the pair is missing or unrecognized. It reaches no further than that,
 since an entry claiming a failing before and a passing after is taken at
 its word.
 
-Nothing creates a checklist item yet, so none of the three has anything to
-run against until the verbs that write items exist. All three are named
-here so that whatever eventually writes an item reports under these names
-rather than minting others.
+`dinah file` creates a checklist item and `dinah cite` writes a citation
+onto one, so all three findings have entries to run against. All three are
+named here so that anything writing a citation, the verb or a hand edit,
+reports under these names rather than minting others.
 
 ### Refusing a move on a citation
 
@@ -1285,8 +1285,8 @@ has nothing to say about any other collection.
 Assignment happens at creation, inside the lock the creating verb already
 holds over the nearest enclosing journal-bearing entity, so the scan for
 the highest ordinal in use and the write that follows it cannot be
-interleaved with another writer. Nothing creates a checklist item yet, and
-whatever eventually does owes the same field on the same terms.
+interleaved with another writer. `dinah file` creates a checklist item under
+the card's own lock and assigns its ordinal on exactly those terms.
 
 Ordinals exist because the two orderings already on disk both fail. A
 directory listing is ascending hex and an entity identifier is random, so the

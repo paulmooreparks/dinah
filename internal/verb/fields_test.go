@@ -12,9 +12,10 @@ import (
 	"dinah/internal/contract"
 )
 
-// linkTo writes a link into a card's frontmatter by hand, which is how a
-// link reaches a card in this package's tests: no verb writes one, and the
-// format is a tree of plain files a person is meant to be able to edit.
+// linkTo writes a link into a card's frontmatter by hand, which is one of the
+// two ways a link reaches a card; `dinah link` is the other, and planting the
+// key here keeps these tests off that verb's own path. The format is a tree of
+// plain files a person is meant to be able to edit.
 func linkTo(h *harness, ref, kind, to string) {
 	h.t.Helper()
 	path := h.card(ref).AnchorPath()

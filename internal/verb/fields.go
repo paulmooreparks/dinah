@@ -105,6 +105,14 @@ func (l *Library) SetField(req *Request) *Response {
 		}
 		return l.refuseWith(req, entity.Card, contract.Unconfirmed, value, extra)
 	}
+	// The value a reader types is any spelling of a column, and the value
+	// stored is that column's identifier, because a gate reads the field by
+	// identifier equality. admitFieldValue has already refused a spelling
+	// that resolves to nothing, so the lookup here cannot come back empty,
+	// and a clear carries no value to resolve.
+	if field.Guard == bench.GuardColumnRef && value != "" {
+		value = l.Bench.ColumnByRef(value).ID
+	}
 	if field.Guard == bench.GuardHold {
 		return l.writeHold(req, entity, field, value)
 	}
@@ -220,6 +228,10 @@ func (l *Library) admitFieldValue(req *Request, entity *bench.EntityRef, field b
 	case bench.GuardHold:
 		if value != bench.HoldOn && value != bench.HoldOff {
 			return l.refuse(req, entity.Card, contract.Malformed, field.Name)
+		}
+	case bench.GuardColumnRef:
+		if l.Bench.ColumnByRef(value) == nil {
+			return l.refuse(req, entity.Card, contract.UnknownColumn, value)
 		}
 	}
 	return nil

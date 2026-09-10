@@ -271,7 +271,9 @@ func TestAContainedNodeCountsWhatItContainsAndNeverItself(t *testing.T) {
 	})
 }
 
-// writeItem writes a checklist item by hand, since no verb files one yet.
+// writeItem writes a checklist item by hand, which fixes the identifier and
+// the ordinal these cases order their assertions on, where `dinah file` mints
+// an identifier of its own.
 func writeItem(t *testing.T, cardDir, text string, ordinal int) {
 	t.Helper()
 	id := "c0000000000" + string(rune('0'+ordinal))
