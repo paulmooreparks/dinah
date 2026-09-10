@@ -264,7 +264,13 @@ func TestEditHandsTheEditorTheFileTheResolverNames(t *testing.T) {
 			t.Errorf("the resolver refused %q where the command opened %q: %v", shape.ref, launched[0], err)
 			continue
 		}
-		if launched[0] != answer {
+		// The two are compared as files rather than as strings. The command
+		// resolves from the directory runCLI stands in, which the operating
+		// system may report under a spelling of its own (/private/var against
+		// /var on macOS), while this call resolves from the path t.TempDir
+		// handed out. os.SameFile answers the question actually being asked,
+		// which is whether the editor was handed the file the resolver names.
+		if !sameFile(launched[0], answer) {
 			t.Errorf("`dinah edit %q` handed the editor %q, and the resolver names %q", shape.ref, launched[0], answer)
 		}
 	}
@@ -608,10 +614,13 @@ func editorLaunches(t *testing.T, log string) []string {
 	return lines
 }
 
-// sameFile compares two paths the way this suite has to on Windows, where the
-// temporary directory a test runs in reaches the same file under more than one
-// spelling. The comparison falls back to the strings when neither path can be
-// stat'ed, so a mismatch is reported rather than swallowed.
+// sameFile reports whether two paths name one file, which is the comparison
+// this sweep needs because a temporary directory is reachable under more than
+// one spelling: macOS reports the same tree as /var/folders/... and as
+// /private/var/folders/..., and a launched process resolving from its own
+// working directory picks the second where a caller joining t.TempDir's answer
+// picks the first. The comparison falls back to the strings when either path
+// cannot be stat'ed, so a mismatch is reported rather than swallowed.
 func sameFile(got, want string) bool {
 	gotInfo, gotErr := os.Stat(got)
 	wantInfo, wantErr := os.Stat(want)
