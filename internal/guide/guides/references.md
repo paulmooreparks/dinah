@@ -33,6 +33,24 @@ card's number:
 
     dinah show wb-1
 
+You may also write the card's identifier on its own:
+
+    dinah show 4f0a1c2b8d31
+
+You may also write the card's number on its own:
+
+    dinah show 1
+
+Dinah reads a bare head as a column before it reads it as a card, so a
+column whose identifier, slug or title is what you typed answers instead of
+the card. Write the card's reference when you want the card whatever your
+columns are called.
+
+Dinah resolves a card on its number rather than on its prefix, so a
+reference carrying a prefix that names no current slug still opens the card
+it named. If you rename your workbench after writing a reference down, that
+reference goes on working.
+
 ## A column
 
 You write a column as its slug, its name, or its identifier:
@@ -45,6 +63,11 @@ You write a workstream as the word workstream, a slash, and the
 workstream's slug or its identifier:
 
     dinah contents workstream/addressing
+
+The commands that take a workstream also accept the slug or the identifier
+on its own, so `dinah join wb-1 addressing` names the same workstream. You
+write the prefixed form wherever a reference is read as an address, because
+Dinah reads a bare handle there as a card and refuses it.
 
 ## Something below a card
 
@@ -87,11 +110,15 @@ its members one at a time cannot tell a reader what the act touched.
 
 ## The number and the identifier
 
-You may write an entity's own identifier in place of its number, and you
-may write an attachment's filename in place of its number. Dinah tries the
-identifier first, then the position, then the filename, so an attachment
-named `1` or whose filename is twelve hex characters is reachable by
-ordinal and by identifier rather than by name. The number counts in the order the entities were created, which is not always the order a listing prints them in.
+You may write a collection member's own identifier in place of its number,
+and you may write an attachment's filename in place of its number. Dinah
+tries the identifier first, then the position, then the filename, so an
+attachment named `1` or whose filename is twelve hex characters is
+reachable by ordinal and by identifier rather than by name. The number counts in the order the entities were created, which is not always the order a listing prints them in.
+
+You do not address a card this way. You write the card's identifier on its
+own, and Dinah refuses `wb-4f0a1c2b8d31`, because a card's reference joins
+your workbench's slug to the card's number and to nothing else.
 
 Type the number and keep the identifier. Deleting an earlier member of a
 collection moves every number after it, and the identifier an entity is
