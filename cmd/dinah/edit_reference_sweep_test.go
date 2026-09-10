@@ -170,6 +170,25 @@ func TestEveryReferenceShapeEditAcceptsNamesAFile(t *testing.T) {
 		}
 	}
 
+	// The containment table is walked a second time, independently of the
+	// generator, and every mount it declares is required to have produced a
+	// shape. Generating from the table makes that true by construction
+	// today; asserting it is what catches a later hand-edit that skips a
+	// mount, and it is the property that would have caught this card's
+	// defect had a workstream been mounted.
+	for _, mount := range mountsReachableFromTheWorkbench() {
+		carried := false
+		for _, shape := range shapes {
+			if strings.HasSuffix(shape.ref, "/"+mount.Dir) {
+				carried = true
+				break
+			}
+		}
+		if !carried {
+			t.Errorf("the containment table declares a %s collection at %s, and the generated set carries no shape ending in that segment", mount.Kind, mount.Dir)
+		}
+	}
+
 	// Group C is asserted on its own, because a group that silently stopped
 	// generating is the failure mode this card is repairing.
 	group := editDegenerateShapes(t, fixture)
@@ -332,6 +351,29 @@ func editReferenceShapes(t *testing.T, fixture editFixture) []editShape {
 	shapes = append(shapes, editDeclaredShapes(t, fixture)...)
 	shapes = append(shapes, editDegenerateShapes(t, fixture)...)
 	return shapes
+}
+
+// mountsReachableFromTheWorkbench is the containment table read for the
+// expectation rather than for the generation, so the sweep's coverage of that
+// table is asserted rather than assumed. A kind is walked once, since the
+// attachment collection hangs from four kinds and the walk would otherwise
+// not terminate on a table that ever mounted a cycle.
+func mountsReachableFromTheWorkbench() []bench.Mount {
+	var mounts []bench.Mount
+	seen := map[string]bool{}
+	var walk func(kind string)
+	walk = func(kind string) {
+		if seen[kind] {
+			return
+		}
+		seen[kind] = true
+		for _, mount := range bench.Contains(kind) {
+			mounts = append(mounts, mount)
+			walk(mount.Kind)
+		}
+	}
+	walk(bench.KindWorkbench)
+	return mounts
 }
 
 // editContainedShapes is group A: every collection the containment table
