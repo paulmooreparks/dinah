@@ -34,9 +34,14 @@ import (
 // File creates a pending checklist item on a card, carrying the given text as
 // its body.
 //
-// The column and the owner are written only when the caller names one. Nothing
-// in this build reads an item's column for enforcement, so absence is the one
-// default that cannot be wrong once a later card decides what the field means.
+// The column and the owner are written only when the caller names one, and a
+// named column is resolved before it is written. A column gates a card by the
+// identifier its items carry, so a reference stored as it was typed holds
+// nothing at all: the gate compares an identifier against a slug, finds no
+// match, and the card walks through the station the workbench meant to stop
+// it at with nothing reporting it. Resolving here means an item can never
+// exist in that state, which is why the refusal is a write-time one rather
+// than a finding dinah check reports afterwards.
 func (l *Library) File(req *Request) *Response {
 	if l.Bench.Operator == "" {
 		return l.refuse(req, nil, contract.NoOperator, "")
@@ -60,13 +65,24 @@ func (l *Library) File(req *Request) *Response {
 	if strings.TrimSpace(req.Text) == "" {
 		return l.refuse(req, found.Card, contract.Malformed, "text")
 	}
+	// Add's own column block, one file over, resolves and refuses on these
+	// terms, and the refusal it raises names the unresolved value back to
+	// whoever typed it.
+	column := req.Column
+	if column != "" {
+		named := l.Bench.ColumnByRef(column)
+		if named == nil {
+			return l.refuse(req, found.Card, contract.UnknownColumn, column)
+		}
+		column = named.ID
+	}
 	now := bench.Stamp(l.Now())
 	lock, err := bench.Acquire(found.Card.Dir, req.Actor, now)
 	if err != nil {
 		return l.FromError(req, err)
 	}
 	defer lock.Release()
-	item, err := bench.AddItem(found.Card.Dir, kind, req.Column, req.Owner, now, req.Text)
+	item, err := bench.AddItem(found.Card.Dir, kind, column, req.Owner, now, req.Text)
 	if err != nil {
 		return l.FromError(req, err)
 	}

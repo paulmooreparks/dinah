@@ -82,7 +82,10 @@ type Citation struct {
 //
 // The column and the owner are written only when the caller supplies one.
 // Absence is legal for both, on the terms severity and priority already
-// follow, and it is what this build commits to for a field nothing reads yet.
+// follow. A column that is supplied arrives resolved to its identifier,
+// because GatingItems matches on the identifier and a caller's own spelling
+// would match nothing there; File is where that resolution happens, and this
+// writer takes the value it is given.
 func AddItem(cardDir, kind, column, owner, ts, text string) (*Item, error) {
 	collection := filepath.Join(cardDir, ChecklistDir)
 	id, err := ClaimID(collection, nil)
