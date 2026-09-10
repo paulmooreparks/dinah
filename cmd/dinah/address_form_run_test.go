@@ -391,10 +391,14 @@ func TestEveryDeclaredNearMissRefusesWithItsDeclaredRefusal(t *testing.T) {
 // fixture that quietly stopped running one proves nothing about it.
 func TestANonCanonicalNumberSpellingAnswersWithTheReferenceDinahWrites(t *testing.T) {
 	root := newBench(t)
-	card := addCard(t, root, "a card named several careless ways")
-	if card != "fx-1" {
-		t.Fatalf("this fixture's first card is %q and these spellings are written against fx-1", card)
-	}
+	addCard(t, root, "a card named several careless ways")
+
+	// The expected reference is composed from what stands on disk rather than
+	// from what the tool answered, because what the tool answers is the
+	// subject of this check. Reading it back off Card.Ref would compare the
+	// composition against itself, and every plant on that composition would
+	// then move both sides together and prove nothing.
+	card := workbenchSlugOnDisk(t, root) + "-" + firstCardNumberOnDisk(t, root)
 
 	spellings := []string{"fx-01", "fx--1", "FX-1", " fx-1 "}
 	ran := 0
@@ -423,4 +427,40 @@ func TestANonCanonicalNumberSpellingAnswersWithTheReferenceDinahWrites(t *testin
 		t.Fatalf("%d of the %d named spellings were run, so this check read less than it claims", ran, len(spellings))
 	}
 	t.Logf("%d tolerated spellings each answered with %s", ran, card)
+}
+
+// workbenchSlugOnDisk reads the workbench's slug out of its own anchor, so the
+// expectation above comes from the file rather than from the composition it is
+// holding to account.
+func workbenchSlugOnDisk(t *testing.T, root string) string {
+	t.Helper()
+	dir := resolvedDir(t, benchDir(t, root))
+	text, err := bench.ReadText(filepath.Join(dir, bench.WorkbenchAnchor))
+	if err != nil {
+		t.Fatalf("read the workbench anchor: %v", err)
+	}
+	fm, _ := bench.ParseAnchor(text)
+	slug := fm.Value("slug")
+	if slug == "" {
+		t.Fatal("the workbench anchor carries no slug, so the reference this check expects cannot be composed")
+	}
+	return slug
+}
+
+// firstCardNumberOnDisk reads the number off the one card the fixture files,
+// for the same reason.
+func firstCardNumberOnDisk(t *testing.T, root string) string {
+	t.Helper()
+	dir := resolvedDir(t, benchDir(t, root))
+	cardDir := soleMemberDir(t, filepath.Join(dir, bench.CardsDir))
+	text, err := bench.ReadText(filepath.Join(cardDir, bench.CardAnchor))
+	if err != nil {
+		t.Fatalf("read the card anchor: %v", err)
+	}
+	fm, _ := bench.ParseAnchor(text)
+	number := fm.Value("number")
+	if number == "" {
+		t.Fatal("the card anchor carries no number, so the reference this check expects cannot be composed")
+	}
+	return number
 }

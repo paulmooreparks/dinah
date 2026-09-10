@@ -13,9 +13,6 @@ import (
 	"dinah/internal/addressform"
 )
 
-// benchPackageDir is the package these two guards read.
-const benchPackageDir = "internal/bench"
-
 // addressAnsweringResultTypes are the entity types a function answers when it
 // answers a caller's string with a thing rather than with a path.
 //
@@ -104,7 +101,7 @@ func armCounts(body *ast.BlockStmt) (returns, accepting int) {
 // scan that read no file finds no function.
 func readBenchFunctions(t *testing.T) ([]benchFunction, int) {
 	t.Helper()
-	dir := filepath.Join(repositoryRoot, filepath.FromSlash(benchPackageDir))
+	dir := filepath.Join(repositoryRoot, filepath.FromSlash(addressform.PackageDir))
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		t.Fatalf("reading %s: %v", dir, err)
@@ -173,10 +170,10 @@ func TestEveryDeclaredResolverCarriesTheArmsItDeclares(t *testing.T) {
 	}
 	functions, files := readBenchFunctions(t)
 	if files == 0 {
-		t.Fatalf("no non-test .go file stands in %s, so this scan read nothing", benchPackageDir)
+		t.Fatalf("no non-test .go file stands in %s, so this scan read nothing", addressform.PackageDir)
 	}
 	if len(functions) == 0 {
-		t.Fatalf("no function is declared in %s, so this scan read nothing", benchPackageDir)
+		t.Fatalf("no function is declared in %s, so this scan read nothing", addressform.PackageDir)
 	}
 
 	read := map[string]benchFunction{}
@@ -189,7 +186,7 @@ func TestEveryDeclaredResolverCarriesTheArmsItDeclares(t *testing.T) {
 		key := resolver.File + " " + resolver.Function
 		found, ok := read[key]
 		if !ok {
-			t.Errorf("the roster names %s in %s/%s and no function of that name is declared there", resolver.Function, benchPackageDir, resolver.File)
+			t.Errorf("the roster names %s in %s/%s and no function of that name is declared there", resolver.Function, addressform.PackageDir, resolver.File)
 			continue
 		}
 		checked++
@@ -203,7 +200,7 @@ func TestEveryDeclaredResolverCarriesTheArmsItDeclares(t *testing.T) {
 	if checked != len(roster) {
 		t.Errorf("%d of the %d rostered functions were found and counted, so this sweep read less than the roster it claims", checked, len(roster))
 	}
-	t.Logf("%d rostered functions counted over %d files of %s", checked, files, benchPackageDir)
+	t.Logf("%d rostered functions counted over %d files of %s", checked, files, addressform.PackageDir)
 }
 
 // TestEveryAddressAnsweringFunctionIsRosteredOrExempted sweeps the whole
@@ -224,7 +221,7 @@ func TestEveryDeclaredResolverCarriesTheArmsItDeclares(t *testing.T) {
 func TestEveryAddressAnsweringFunctionIsRosteredOrExempted(t *testing.T) {
 	functions, files := readBenchFunctions(t)
 	if files == 0 {
-		t.Fatalf("no non-test .go file stands in %s, so this scan read nothing", benchPackageDir)
+		t.Fatalf("no non-test .go file stands in %s, so this scan read nothing", addressform.PackageDir)
 	}
 
 	subject := map[string]bool{}
@@ -234,7 +231,7 @@ func TestEveryAddressAnsweringFunctionIsRosteredOrExempted(t *testing.T) {
 		}
 	}
 	if len(subject) == 0 {
-		t.Fatalf("no function in %s takes a string and answers an entity, so this sweep read nothing", benchPackageDir)
+		t.Fatalf("no function in %s takes a string and answers an entity, so this sweep read nothing", addressform.PackageDir)
 	}
 
 	rostered := map[string]bool{}
@@ -269,7 +266,7 @@ func TestEveryAddressAnsweringFunctionIsRosteredOrExempted(t *testing.T) {
 		}
 		exempted[exemption.Function] = true
 		if !subject[exemption.Function] {
-			t.Errorf("%s is exempted from this sweep and the sweep of %s does not find it, so the exemption excuses nothing", exemption.Function, benchPackageDir)
+			t.Errorf("%s is exempted from this sweep and the sweep of %s does not find it, so the exemption excuses nothing", exemption.Function, addressform.PackageDir)
 		}
 		if rostered[exemption.Function] {
 			t.Errorf("%s stands in the resolver roster and in the exemption roster, and a function is one or the other", exemption.Function)
@@ -292,7 +289,7 @@ func TestEveryAddressAnsweringFunctionIsRosteredOrExempted(t *testing.T) {
 	}
 	sort.Strings(uncovered)
 	for _, name := range uncovered {
-		t.Errorf("%s in %s takes a string and answers an entity, and neither roster names it: roster it with its arm counts and the forms it accepts, or exempt it on a stated ground", name, benchPackageDir)
+		t.Errorf("%s in %s takes a string and answers an entity, and neither roster names it: roster it with its arm counts and the forms it accepts, or exempt it on a stated ground", name, addressform.PackageDir)
 	}
 
 	if rosteredInSubject+len(exempted) != len(subject) {
@@ -300,5 +297,5 @@ func TestEveryAddressAnsweringFunctionIsRosteredOrExempted(t *testing.T) {
 			rosteredInSubject, len(exempted), rosteredInSubject+len(exempted), len(subject))
 	}
 	t.Logf("%d functions declared over %d files of %s; subject set %d, of which %d rostered and %d exempted",
-		len(functions), files, benchPackageDir, len(subject), rosteredInSubject, len(exempted))
+		len(functions), files, addressform.PackageDir, len(subject), rosteredInSubject, len(exempted))
 }

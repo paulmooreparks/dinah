@@ -73,9 +73,9 @@ internal/guide/guides/mcp.md:330 figure=two noun=kinds counts=the directory kind
 internal/guide/guides/query.md:44 figure=Twelve noun=fields counts=the field names the query language admits derives=queryFields
 internal/guide/guides/query.md:80 figure=five noun=fields counts=the query fields read from a card's journal holds=unreachable at=internal/verb/query.go:72 declares=actPlane
 internal/guide/guides/references.md:18 figure=three noun=ways counts=the spellings of this workbench the guide shows derives=workbenchSpellings
-internal/guide/guides/references.md:104 figure=Eighteen noun=commands counts=the commands that take a reference derives=referenceCommands
-internal/guide/guides/references.md:127 figure=Nine noun=commands counts=the commands that take a workstream reference holds=elsewhere by=TestTheReferencesGuideNamesTheCommandsThatTakeAWorkstream reason=that test runs every command of the roster against a workstream reference, with the per-command setup that lets each cell answer, and holds this sentence's named list against both what each one did and what internal/verb declares
-internal/guide/guides/references.md:129 figure=Nine noun=rows counts=the table rows the guide qualifies with a detail derives=qualifiedTableRows
+internal/guide/guides/references.md:131 figure=Eighteen noun=commands counts=the commands that take a reference derives=referenceCommands
+internal/guide/guides/references.md:154 figure=Nine noun=commands counts=the commands that take a workstream reference holds=elsewhere by=TestTheReferencesGuideNamesTheCommandsThatTakeAWorkstream reason=that test runs every command of the roster against a workstream reference, with the per-command setup that lets each cell answer, and holds this sentence's named list against both what each one did and what internal/verb declares
+internal/guide/guides/references.md:156 figure=Nine noun=rows counts=the table rows the guide qualifies with a detail derives=qualifiedTableRows
 internal/guide/guides/verbs.md:1 figure=five noun=verbs counts=the verbs that change where a card stands derives=contractVerbs
 internal/guide/guides/verbs.md:3 figure=Five noun=verbs counts=the verbs that change where a card stands derives=contractVerbs
 internal/guide/guides/verbs.md:33 figure=two noun=commands counts=two of the five verbs holds=partitive reason=the two are claim and move, whose separate records a pull writes together
