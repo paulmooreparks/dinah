@@ -347,8 +347,8 @@ func TestEveryArchivedHalfCommandRefusesALiveReference(t *testing.T) {
 			excluded: []string{"dinah archive workbench", "dinah archive ."},
 		},
 	}
-	if len(cases) == 0 || len(archivedHalfCommands) == 0 {
-		t.Fatal("one of the two tables is empty, so this sweep would pass against anything")
+	if len(cases) < 3 || len(archivedHalfCommands) < 4 {
+		t.Fatalf("this sweep drives %d references against %d commands and the subject set is the three references against the four commands that take the archived half", len(cases), len(archivedHalfCommands))
 	}
 
 	ran := 0

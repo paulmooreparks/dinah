@@ -115,7 +115,7 @@
       "source": "5166e1a76d1e4f39"
     },
     "check.restore.1": {
-      "text": "संदर्भ संग्रह में रखी किसी वस्तु तक पहुँचता है",
+      "text": "संदर्भ अभिलेखागार में रखी किसी वस्तु तक पहुँचता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "cc96c6655557640b"
     },
@@ -2515,7 +2515,7 @@
       "source": "c45dbccd232c8bf9"
     },
     "refusal.dinah.not-archived": {
-      "text": "संग्रह में {detail} के नाम से कुछ नहीं मिला",
+      "text": "अभिलेखागार में {detail} के नाम से कुछ नहीं मिला",
       "context": "The sentence printed after the refusal name dinah.not-archived when show, path or contents was asked to read the archive and the archive holds nothing the reference names. {detail} is the reference as the reader typed it, which is an address rather than prose and is never translated. The reader can see the thing they typed, either because it is live or because it travelled inside an archived holder, so the sentence says which half it is in rather than saying it does not exist. No word of the sentence may agree with {detail}: the token substituted there is an untranslated address and no language can predict its gender, its number or the sound it starts with.",
       "source": "370397533caa4bcf"
     },
@@ -2535,7 +2535,7 @@
       "source": "b0a7d60effd0df4b"
     },
     "refusal.dinah.not-archived.next-collection": {
-      "text": "; संग्रह में उस संग्रह की सामग्री देखने के लिए `dinah show --archived {collection}` चलाएँ",
+      "text": "; अभिलेखागार में उस संग्रह की सामग्री देखने के लिए `dinah show --archived {collection}` चलाएँ",
       "context": "Spliced onto either base sentence of dinah.not-archived when the reference selects a member of a collection and that member is live. {collection} is the reference of the collection above it, an address rather than prose, and no word may agree with it. The whole backticked span is a command line for the reader to copy: every word of it is machine vocabulary and none of it is translated.",
       "source": "e2f2bda2d3244fe5"
     },
@@ -3530,7 +3530,7 @@
       "source": "3f739e20c1af8b82"
     },
     "param.archived.summary": {
-      "text": "संदर्भ को जीवित समूह के बजाय संग्रह में हल करें",
+      "text": "संदर्भ को जीवित समूह के बजाय अभिलेखागार में हल करें",
       "context": "The meaning of the --archived flag, shared by restore, show, path and contents, printed in each command's arguments table. On those four the flag names one half rather than widening: the reference resolves against the archive mirror at its deepest collection step. The same flag on `dinah search` widens the scan instead and carries its own sentence under param.search.archived.summary.",
       "source": "96062bdaae050886"
     },
