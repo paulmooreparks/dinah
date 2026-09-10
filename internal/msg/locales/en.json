@@ -750,7 +750,7 @@
       "context": "A check finding: every column a card's tier_at names resolves. {detail} carries the card's reference and then the column reference that resolves to nothing, in that order. A reshape retiring a column and a hand edit both produce it, so it is reported rather than refused."
     },
     "check.item-column-unresolved": {
-      "text": "a checklist item on {detail} names a column that will never hold a card: it either resolves to no column, or resolves to one whose identifier does not match what is stored",
+      "text": "a checklist item names a column that will never hold a card, because it either resolves to no column at all or resolves to one whose identifier is not what is stored: {detail}",
       "context": "A check finding: every checklist item's column value, where set, is stored as the identifier of a column this workbench declares. {detail} carries the card's reference, the item's identifier, and the stored column value, in that order. A write filed or set before the field validated, or a hand edit, both produce it."
     },
     "check.unknown-column": {

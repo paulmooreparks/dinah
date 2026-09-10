@@ -940,9 +940,9 @@
       "source": "258a8be5af7cb0d8"
     },
     "check.item-column-unresolved": {
-      "text": "ein Checklistenpunkt auf {detail} nennt eine Spalte, die niemals eine Karte aufhalten wird: er löst entweder zu keiner Spalte auf oder zu einer, deren Kennung nicht dem entspricht, was gespeichert ist",
+      "text": "ein Checklistenpunkt nennt eine Spalte, die niemals eine Karte aufhalten wird, denn er löst entweder zu keiner Spalte auf oder zu einer, deren Kennung nicht dem entspricht, was gespeichert ist: {detail}",
       "context": "A check finding: every checklist item's column value, where set, is stored as the identifier of a column this workbench declares. {detail} carries the card's reference, the item's identifier, and the stored column value, in that order. A write filed or set before the field validated, or a hand edit, both produce it.",
-      "source": "29f540b2736dddb4"
+      "source": "27409d9d6b02c475"
     },
     "check.unknown-column": {
       "text": "eine Karte nennt Spalte {detail}, die diese Werkbank nicht deklariert",

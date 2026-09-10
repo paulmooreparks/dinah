@@ -444,9 +444,10 @@ func writeAttachment(t *testing.T, root, id string, ordinal int) {
 	write(t, path, fm.Render(""))
 }
 
-// writeItem puts a checklist item on the fixture card by hand. No verb creates
-// one yet, so the ordinal on an item is a contract on whatever eventually
-// does, and the migration and the checker have to hold it meanwhile.
+// writeItem puts a checklist item on the fixture card by hand. `dinah file`
+// creates one and assigns its ordinal, so an item written here without one
+// stands in for an item filed before ordinals existed, which is what the
+// migration and the checker have to hold.
 func writeItem(t *testing.T, root, id string, ordinal int) {
 	t.Helper()
 	fm := NewFrontmatter()

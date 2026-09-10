@@ -191,11 +191,13 @@ type sweptWorkbenches struct {
 	// and every pass.
 	search string
 	// checklist holds the tree the checklist block draws from, which is a
-	// tree of its own because no command writes a checklist item: the items
-	// are typed into files by hand, and a card of the healthy corpus carrying
-	// one would change what every listing, every containment walk and every
-	// claim in the sweep already asserts. Nothing the block runs writes to
-	// it, so one tree serves every language and every pass.
+	// tree of its own because a card of the healthy corpus carrying an item
+	// would change what every listing, every containment walk and every
+	// claim in the sweep already asserts. The items are typed into files by
+	// hand rather than filed through `dinah file`, so the fixture picks
+	// identifiers of a fixed width and the block's columns draw the same
+	// every pass. Nothing the block runs writes to it, so one tree serves
+	// every language and every pass.
 	checklist string
 	// checklistCard is the reference of the card the checklist tree's items
 	// hang from.
@@ -2323,7 +2325,9 @@ func sweptRoot(t *testing.T, dir string) string {
 }
 
 // sweptAddColumn writes a column into a workbench by hand and appends it to the
-// columns list, since no command creates one.
+// columns list. `dinah column new` creates one, but it mints its own
+// identifier and appends at the end, where this fixture needs a chosen
+// identifier, extra frontmatter of the caller's own, and a chosen position.
 func sweptAddColumn(t *testing.T, dir, id, title, kind, extra string) {
 	t.Helper()
 	root := sweptRoot(t, dir)
@@ -2746,10 +2750,10 @@ func sweptChecklistTree(t *testing.T, base string, record *sweptRecord) (string,
 	return dir, ref
 }
 
-// sweptWriteFraming puts framing prose on a card by writing its anchor, since
-// no command writes a card's body. It appends under the frontmatter the way a
-// person editing the file would, and handWrite is the sibling that writes a
-// frontmatter line the same way.
+// sweptWriteFraming puts framing prose on a card by writing its anchor rather
+// than through `dinah set <card> body`. It appends under the frontmatter the
+// way a person editing the file would, and handWrite is the sibling that
+// writes a frontmatter line the same way.
 func sweptWriteFraming(t *testing.T, dir, ref, body string) {
 	t.Helper()
 	got := runCLI(t, dir, "path", ref)

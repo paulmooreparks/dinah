@@ -253,9 +253,9 @@ type reshapePlan struct {
 // verb, and the hand edit that does it fails open: once a card's column
 // resolves to nothing, claimableColumn and operatorReservesClaim both no-op on
 // the nil column, so a claim nobody's guard would refuse becomes available.
-// Re-kinding a column has no verb and no gate either, and a work column
-// redeclared as intake under a held card leaves a claim standing where no
-// owner takes work up.
+// Re-kinding a column is what `dinah set <column> kind` does, and that write
+// runs no gate, so a work column redeclared as intake under a held card
+// leaves a claim standing where no owner takes work up.
 //
 // Everything is validated read-only before anything is written, and the two
 // phases are the same phase for a preview: without the confirmation the run
