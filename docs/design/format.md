@@ -835,23 +835,21 @@ and stores nothing.
 
 Every journal line names an event, and the core event names are a closed set
 of thirty-five, which `internal/contract` declares as constants.
-Thirty-four of them are written by some command in this build. The one that is
-not, `restored`, is declared and reserved, and `cmd/dinah/compat_test.go`'s
-`unwrittenEvents` table records the reason it stays unwritten. No verb is
-wired to `restored` yet, though the structural machinery a restore would use
-already exists.
+Thirty-five of them are written by some command in this build.
+`cmd/dinah/compat_test.go`'s `unwrittenEvents` table is where an exemption
+would be recorded, and it is empty, so a constant declared and left unwritten
+turns the build red in the commit that adds it.
 
 A second count of thirty-two sits nearby and names a different set.
 `contract.Events` is the vocabulary a query over cards accepts, and it holds
 out `column_updated`, `workbench_updated` and `workstream_updated`, since each
 of those lands on the workbench's journal or on a workstream's and never on a
 card's.
-The two counts no longer agree, and neither set contains the other. `restored`
-is queryable over a card and written by nothing, so it sits in the thirty-two
-and outside the thirty-four. `column_updated`, `workbench_updated` and
-`workstream_updated` are written by commands but never land on a card's
-journal, so they sit in the thirty-four and outside the thirty-two.
-Thirty-one names sit in both counts. Thirty of those land on a card's
+The two counts no longer agree, and the second is contained in the first.
+`column_updated`, `workbench_updated` and `workstream_updated` are written by
+commands but never land on a card's journal, so they sit in the thirty-five
+and outside the thirty-two.
+Thirty-two names sit in both counts. Thirty-one of those land on a card's
 own journal, and `deleted` is the exception, because deleting a card destroys
 the journal inside it and the record of the deletion goes to the workbench's.
 
@@ -933,21 +931,9 @@ and the column the card was created in, a new workstream's carries the title
 alone, and the line `check` writes when it adopts a dangling workstream
 carries the skeleton and nothing else.
 
-Every row but `restored`'s describes lines this build writes, and each was
-read off the writing code and checked against the sample fixture's journal.
-The `restored` row comes from somewhere else, and the paragraph below says
-where.
-
-`restored` is not written by any command, so its row is not read off writing
-code. The requirement comes from `internal/bench/finish.go`'s `eventRecords`,
-the crash-recovery function that decides whether a structural act already has
-its point of record on the journal. To recognise a restore, that function
-requires the line to name `restored` and to carry `note` equal to the entity's
-own identifier, which is the same requirement it puts on an `archived` line
-one branch above. A `restored` line failing it leaves the restore outstanding.
-Nothing else in the tree asks anything of the event's other fields, so the row
-states the one field shipped code enforces and does not borrow the four-field
-shape `moved` carries.
+Every row describes lines this build writes, and each was read off the writing
+code and checked against the sample fixture's journal. The `restored` row is
+read off `Library.Restore` as every other row is read off its own writer.
 
 `manual_correction` is written by one function, `internal/bench/witness.go`'s
 `WitnessDivergence`, and its row was read off that function as every other

@@ -259,6 +259,63 @@ func (l *Library) Archive(req *Request) *Response {
 	return response
 }
 
+// Restore moves an entity's whole directory out of the archive mirror and
+// back into the live half of the collection it was archived from, history
+// and all. It is Archive read in the other direction, and it runs the same
+// structural protocol under bench.OpRestore, which Bench.Run has carried
+// since the format's concurrency section was written.
+//
+// The workbench guard Archive carries is not repeated. The resolver refuses
+// the workbench under bench.ArchivedHalf before this verb sees it, and a
+// reference naming a whole collection is refused by ResolveEntityIn itself.
+//
+// journalFor and lockDirFor read the entity's own directory, which under a
+// restore is the mirror path, and that is where the entity's journal still
+// is. The event is written at the source and arrives at the destination
+// inside the directory that carries it.
+func (l *Library) Restore(req *Request) *Response {
+	if l.Bench.Operator == "" {
+		return l.refuse(req, nil, contract.NoOperator, "")
+	}
+	entity, err := l.Bench.ResolveEntityIn(bench.ArchivedHalf, req.Ref)
+	if err != nil {
+		return l.FromError(req, err)
+	}
+	if req.Actor == "" {
+		return l.refuse(req, entity.Card, contract.NoOwner, "")
+	}
+	now := bench.Stamp(l.Now())
+	journal := l.journalFor(entity)
+	ev := bench.Event{TS: now, Event: contract.EventRestored, Actor: req.Actor, Note: entity.ID}
+	act := &bench.StructuralAct{
+		Dir:       entity.Dir,
+		LockDir:   l.lockDirFor(entity),
+		Op:        bench.OpRestore,
+		Actor:     req.Actor,
+		Now:       now,
+		ColumnID:  columnSubject(entity),
+		ColumnRef: columnRefSubject(entity),
+		Record:    func() error { return bench.AppendEvent(journal, ev) },
+	}
+	if err := l.Bench.Run(act); err != nil {
+		return l.FromError(req, err)
+	}
+	response := l.ok(req, nil)
+	response.Detail = entity.ID
+	return response
+}
+
+// halfFor is the resolution half a request names, which is the archive mirror
+// when the request carries the archived flag and the live half otherwise. The
+// four commands that take the flag ask this rather than each writing the
+// condition out.
+func halfFor(req *Request) bench.ResolutionHalf {
+	if req.Archived {
+		return bench.ArchivedHalf
+	}
+	return bench.LiveHalf
+}
+
 // Delete destroys an entity and the history inside it. The confirmation flag
 // is required and there is no prompt, so the command behaves the same in a
 // script and at a terminal.

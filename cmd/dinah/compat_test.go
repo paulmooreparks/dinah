@@ -140,9 +140,7 @@ var wantedEvents = map[string][]string{
 // holds the population sequence to the difference between this table and the
 // declared set, so adding an event constant turns the build red in the commit
 // that adds it.
-var unwrittenEvents = map[string]string{
-	contract.EventRestored: "archive has no inverse verb in the command surface, so nothing restores an entity",
-}
+var unwrittenEvents = map[string]string{}
 
 // shape is what a fixture and a freshly populated workbench are compared on.
 // None of the three sets reads a value the tool generates.

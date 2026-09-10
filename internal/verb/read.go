@@ -741,7 +741,8 @@ type ItemView struct {
 
 // CollectionListing is what show answers for a reference naming a whole
 // collection: the reference the reader typed, the kind of thing the collection
-// holds, and one member per live member in creation order.
+// holds, and one member per member of the half the reference resolved in, in
+// creation order.
 type CollectionListing struct {
 	// Ref is the collection reference as the reader typed it, so a header
 	// drawn from this reads back what they wrote.
@@ -749,9 +750,14 @@ type CollectionListing struct {
 	// Kind is what the collection holds, as the containment table spells it,
 	// so a checklist collection reports item however it was addressed.
 	Kind string `json:"kind"`
-	// Members are the collection's live members in creation order. A
-	// collection holding none reports an empty list rather than nothing.
+	// Members are the collection's members in creation order, drawn from
+	// whichever half the reference resolved in. A collection holding none
+	// reports an empty list rather than nothing.
 	Members []CollectionMember `json:"members"`
+	// Archived reports that the members listed are the archive mirror's own
+	// rather than the live half's, so a client knows which half it is
+	// looking at without parsing the command line it sent.
+	Archived bool `json:"archived,omitempty"`
 }
 
 // CollectionMember is one member of a collection: the address a reader types
@@ -781,6 +787,36 @@ func (l *Library) Show(req *Request) (*Detail, *CollectionListing, string, error
 		return nil, nil, "", err
 	}
 	head, rest, _ := strings.Cut(req.Card, "/")
+	// A bare head under the flag gets a branch of its own, because neither of
+	// the two branches below it reaches the resolver whose refusal the
+	// archived half rests on: the column branch reads an anchor with no
+	// resolver in the chain at all, and the branch at the bottom goes to
+	// ResolveCard, which reads the live cards root. One resolution answers
+	// both kinds here, and the workbench cannot come back from it, because
+	// Bench.notArchivedFor refuses that reference ahead of the walk.
+	//
+	// This branch never calls lapseRead. An archived card is out of the flow
+	// by construction, so expiring its claim would write an expired event
+	// into an archived journal that nobody asked to change, and a read
+	// command that writes to history is a surprise this contract does not
+	// want.
+	if rest == "" && req.Archived {
+		entity, _, err := l.Bench.ResolveReferenceIn(bench.ArchivedHalf, req.Card)
+		if err != nil {
+			return nil, nil, "", err
+		}
+		if entity.Kind != bench.KindCard {
+			if chosen != nil {
+				return nil, nil, "", unknownDetailField(strings.TrimSpace(req.Fields), head)
+			}
+			text, err := bench.ReadText(filepath.Join(entity.Dir, bench.ColumnAnchor))
+			if err != nil {
+				return nil, nil, "", contract.Refuse(contract.UnknownPath, head)
+			}
+			return nil, nil, text, nil
+		}
+		return l.detailOf(entity.Card, chosen)
+	}
 	// A column is an entity of the workbench, and the containment walk prints
 	// a reference for one, so show reads it the way path and edit do rather
 	// than refusing over a reference the tool told the reader to type.
@@ -813,14 +849,18 @@ func (l *Library) Show(req *Request) (*Detail, *CollectionListing, string, error
 		// payload, which this resolver refuses because a payload file carries
 		// no anchor, and answering the collection first leaves that where it
 		// is.
-		if _, collection, err := l.Bench.ResolveReference(req.Card); err == nil && collection != nil {
+		if _, collection, err := l.Bench.ResolveReferenceIn(halfFor(req), req.Card); err == nil && collection != nil {
 			listing, err := l.collectionListing(collection)
 			if err != nil {
 				return nil, nil, "", err
 			}
 			return nil, listing, "", nil
 		}
-		path, err := l.Bench.ResolvePath(req.Card)
+		// The discarded error above stays discarded under the flag too, and
+		// that is safe rather than lucky: ResolvePathIn on this line raises
+		// the same refusal ResolveReferenceIn would have, which is why the
+		// rule sits in both entry points rather than in one.
+		path, err := l.Bench.ResolvePathIn(halfFor(req), req.Card)
 		if err != nil {
 			return nil, nil, "", err
 		}
@@ -838,6 +878,17 @@ func (l *Library) Show(req *Request) (*Detail, *CollectionListing, string, error
 	if err := l.lapseRead(card, req.Actor); err != nil {
 		return nil, nil, "", err
 	}
+	return l.detailOf(card, chosen)
+}
+
+// detailOf builds the answer show gives for one card: every member the card
+// holds, then the selection applied over them, then the announcement of what
+// was withheld. Show reaches it from two branches, the live bare-card one and
+// the archived-half one, and neither carries a copy of the build.
+//
+// It is the whole of what show does once it has a card, so nothing about
+// which half the card came from reaches inside it.
+func (l *Library) detailOf(card *bench.Card, chosen detailSelection) (*Detail, *CollectionListing, string, error) {
 	cardRef := card.Ref(l.Bench.Slug)
 	// Every member is built before the selection is applied, because withheld
 	// reports what the card holds rather than what the caller left out, and
@@ -973,7 +1024,7 @@ func (l *Library) collectionListing(collection *bench.CollectionRef) (*Collectio
 		}
 		members = append(members, CollectionMember{Ref: node.Ref, Text: text})
 	}
-	return &CollectionListing{Ref: collection.Ref, Kind: collection.Mount.Kind, Members: members}, nil
+	return &CollectionListing{Ref: collection.Ref, Kind: collection.Mount.Kind, Members: members, Archived: collection.Archived}, nil
 }
 
 // AttachmentListing is one entity's attachments: a workbench's, a column's, a

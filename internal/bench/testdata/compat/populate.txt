@@ -76,6 +76,9 @@ set sample-1/oq/1 note "the operator confirmed the deadline is the 15th, and sai
 attach sample-2 payload-one.txt --description "the second card's payload"
 set sample-2/attachments/1 description "the second card's payload, described again"
 set doing title "Doing, renamed"
+comment sample-1 "a comment archived and then restored"
+archive sample-1/comments/2
+restore sample-1/comments/2
 hand-edit sample-2 column intake
 check --witness
 reshape --from reshape.json --yes

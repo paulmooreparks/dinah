@@ -111,6 +111,21 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
+    "check.restore.1": {
+      "text": "the reference resolves to something in the archive",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.restore.2": {
+      "text": "the request names who is acting",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.restore.3": {
+      "text": "nothing live stands where the entity goes back",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
     "check.attach.1": {
       "text": "the reference resolves",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
@@ -1029,6 +1044,11 @@
     "cmd.archive.summary": {
       "text": "Move a card, a column, or anything below a card, out of the live set",
       "context": "The one-line summary of the archive command, shown beside its syntax in the help block.",
+      "skeleton": true
+    },
+    "cmd.restore.summary": {
+      "text": "Put a card, a column, or anything below a card, back into the live set",
+      "context": "The one-line summary of the restore command, shown beside its syntax in the help block. It is the inverse of cmd.archive.summary and is worded to read as its pair.",
       "skeleton": true
     },
     "cmd.cite.summary": {
@@ -2321,6 +2341,16 @@
       "context": "Spliced onto refusal.dinah.exists as the next step, carrying the clause that base entry used to end with.",
       "skeleton": true
     },
+    "refusal.dinah.exists.restore": {
+      "text": "something live already stands at {detail}, so the archived entity has nowhere to go back to",
+      "context": "The sentence printed after the refusal name dinah.exists when the restore command raised it, which is a live entity occupying the directory the archived one was archived from. It is a separate entry because the entry above it is written for init and extract and reports a workbench.md, which is false of this raise site. {detail} is the directory the entity would go back to, a path rather than prose, and no word may agree with it.",
+      "skeleton": true
+    },
+    "refusal.dinah.exists.restore.next": {
+      "text": "; move or delete what stands there, then restore again",
+      "context": "Spliced onto refusal.dinah.exists.restore. It names the two acts that clear the slot, and it advises neither of the two the init sentence advises, because choosing a different directory is not something a restore can do.",
+      "skeleton": true
+    },
     "refusal.dinah.last-column": {
       "text": "{detail} is the only column left",
       "context": "The sentence printed after the refusal name dinah.last-column. {detail} carries the identifier, owner or column the refusal is about.",
@@ -2478,6 +2508,41 @@
     "refusal.dinah.not-attachable.next": {
       "text": "; attachments hang from the workbench, a column, a card, or a comment",
       "context": "The last member of refusal.dinah.not-attachable's alternation, printed for any kind the two branches above do not name. It carries no condition, because the last member of an alternation is what a reader gets when none of the branches matches.",
+      "skeleton": true
+    },
+    "refusal.dinah.not-archived": {
+      "text": "nothing in the archive answers to {detail}",
+      "context": "The sentence printed after the refusal name dinah.not-archived when show, path or contents was asked to read the archive and the archive holds nothing the reference names. {detail} is the reference as the reader typed it, which is an address rather than prose and is never translated. The reader can see the thing they typed, either because it is live or because it travelled inside an archived holder, so the sentence says which half it is in rather than saying it does not exist. No word of the sentence may agree with {detail}: the token substituted there is an untranslated address and no language can predict its gender, its number or the sound it starts with.",
+      "skeleton": true
+    },
+    "refusal.dinah.not-archived.restore": {
+      "text": "{detail} is not archived, so there is nothing to restore",
+      "context": "The sentence printed after the refusal name dinah.not-archived when the restore command raised it. It carries the same refusal name as the entry above and is a separate entry because \"there is nothing to restore\" is no answer to somebody who asked to look at something. {detail} is the reference as the reader typed it, which is an address rather than prose and is never translated, and no word may agree with it.",
+      "skeleton": true
+    },
+    "refusal.dinah.not-archived.next-holder": {
+      "text": "; {holder} is archived and this entity travelled inside it, so run `dinah restore {holder}` to bring both back",
+      "context": "Spliced onto either base sentence of dinah.not-archived when the reference names something that was carried into the archive inside its holder rather than archived in its own right. {holder} is the reference of that holder, an address rather than prose, and no word may agree with it. The whole backticked span is a command line for the reader to copy: every word of it is machine vocabulary and none of it is translated.",
+      "skeleton": true
+    },
+    "refusal.dinah.not-archived.next-workbench": {
+      "text": "; the workbench {slug} is never archived, so name a column, a card, or something below a card instead",
+      "context": "Spliced onto either base sentence of dinah.not-archived when the reference names the workbench itself. {slug} is the workbench's slug, which is a name rather than prose and is never translated, and no word may agree with it. The clause offers no command, because archiving the workbench is refused by design and there is no act to advise.",
+      "skeleton": true
+    },
+    "refusal.dinah.not-archived.next-collection": {
+      "text": "; run `dinah show --archived {collection}` to see what that collection holds in the archive",
+      "context": "Spliced onto either base sentence of dinah.not-archived when the reference selects a member of a collection and that member is live. {collection} is the reference of the collection above it, an address rather than prose, and no word may agree with it. The whole backticked span is a command line for the reader to copy: every word of it is machine vocabulary and none of it is translated.",
+      "skeleton": true
+    },
+    "refusal.dinah.not-archived.restore.next": {
+      "text": "; run `dinah archive {detail}` first if moving it out of the live set is what you meant",
+      "context": "The restore command's own last resort in dinah.not-archived's alternation, printed when no branch above it matched, which is a live entity named by a bare reference. {detail} is the reference as the reader typed it, an address rather than prose, and no word may agree with it. The whole backticked span is a command line for the reader to copy: every word of it is machine vocabulary and none of it is translated.",
+      "skeleton": true
+    },
+    "refusal.dinah.not-archived.next": {
+      "text": "; drop `--archived` to read it where it is, in the live set",
+      "context": "The last member of dinah.not-archived's alternation, printed to a reader of show, path or contents when no branch above it matched, which is a live entity named by a bare reference. It carries no condition, because the last member of an alternation is what a reader gets when no branch above it matches. `--archived` is the flag's own spelling and is copied rather than translated.",
       "skeleton": true
     },
     "refusal.dinah.outside-root": {
@@ -3455,6 +3520,11 @@
       "context": "The meaning of the ref argument of archive and delete, which take the same set of things.",
       "skeleton": true
     },
+    "param.archived.summary": {
+      "text": "resolve the reference in the archive rather than in the live set",
+      "context": "The meaning of the --archived flag, shared by restore, show, path and contents, printed in each command's arguments table. On those four the flag names one half rather than widening: the reference resolves against the archive mirror at its deepest collection step. The same flag on `dinah search` widens the scan instead and carries its own sentence under param.search.archived.summary.",
+      "skeleton": true
+    },
     "param.yes.summary": {
       "text": "confirm the act, which Dinah does not carry out without it",
       "context": "The meaning of the --yes flag, shared by the commands that ask before they destroy something.",
@@ -3853,6 +3923,11 @@
     "contents.empty.collection": {
       "text": "{ref} contains nothing.",
       "context": "Printed when `dinah contents` is asked about a collection with no members. No table follows and the call succeeds, for the reason contents.empty gives for an entity.",
+      "skeleton": true
+    },
+    "contents.archived": {
+      "text": "These addresses resolve once {ref} is restored.",
+      "context": "The line printed under the heading of `dinah contents --archived`, once per listing. The rows below it carry the addresses the walk's children will have when the root is restored, and none of them resolves while the root is archived. {ref} is the root's own reference, an address rather than prose, and no word may agree with it.",
       "skeleton": true
     },
     "param.attachments.ref.summary": {

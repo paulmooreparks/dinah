@@ -15,6 +15,7 @@
     {"tool": "link_card", "statement": "wb-12 covers the same ground as wb-4, and I want that written down on wb-12 so anybody reading it sees the other card."},
     {"tool": "unlink_card", "statement": "The note on wb-12 saying it duplicates wb-4 turned out to be wrong, and I want that note taken off wb-12."},
     {"tool": "archive", "statement": "wb-12 is finished with and should be put out of the way in the archive, where it can still be found later."},
+    {"tool": "restore", "statement": "wb-12 was archived last week and now has to stand in the live set again, exactly where it was."},
     {"tool": "delete", "statement": "wb-12 was created by mistake and should be destroyed outright rather than kept anywhere."},
     {"tool": "rename", "statement": "The file fastened to wb-12 carries the wrong filename, and I want that attachment given a different name."},
     {"tool": "status", "statement": "I want to know where this workbench stands and which cards I am holding myself right now."},

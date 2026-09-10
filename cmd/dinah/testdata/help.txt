@@ -39,6 +39,9 @@ WORK
   leave <card> <workstream>                 Take a card out of a workstream
   archive <ref>                             Move a card, a column, or anything
                                               below a card, out of the live set
+  restore <ref> [--archived]                Put a card, a column, or anything
+                                              below a card, back into the live
+                                              set
   delete <ref> --yes                        Destroy a card, a column, or
                                               anything below a card, along with
                                               its history
@@ -61,10 +64,11 @@ READ
     [--depth <level>] [--root <path>]         chain of axes
     [--max-depth <n>]
   contents <ref> [--depth <level>]          What an entity of the workbench
-                                              contains
+    [--archived]                              contains
   attachments [ref]                         What is attached to an entity of the
                                               workbench
   show <ref> [--fields <list>]              A card, or anything below it
+    [--archived]
   log <card>                                The recorded actions of a card,
                                               oldest first
   changes [--since <cursor>]                What has happened on this workbench
@@ -83,7 +87,7 @@ WORKBENCH
                                               as a template
   reshape --from <source>                   Carry this workbench to the column
     [--map <retired=destination>] [--yes]     layout a new definition declares
-  path <ref>                                Print the file path of this
+  path <ref> [--archived]                   Print the file path of this
                                               workbench, of a card, or of
                                               anything below a card
   edit <ref>                                Open this workbench, a card, or

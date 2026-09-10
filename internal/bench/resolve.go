@@ -177,22 +177,54 @@ func WordForItemKind(kind string) (string, bool) {
 // tried first, per WorkstreamRefPrefix and the reasoning on resolveWorkstreamRef,
 // before the rest of the grammar gets a chance to shadow it.
 func (b *Bench) ResolvePath(ref string) (string, error) {
+	return b.ResolvePathIn(LiveHalf, ref)
+}
+
+// ResolvePathIn is ResolvePath reading the half a caller names. Under
+// ArchivedHalf it refuses NotArchived for a reference the mirror does not
+// hold, which is the refusal notArchivedFor decides.
+//
+// The refusal is asked for twice, once before the walk and once on the walk's
+// failure, because neither walk fails on the workbench: resolveBelowLanding
+// answers a bare workbench head with the live anchor and a success, so a
+// refusal left to the failure path alone would never reach the one reference
+// the archive can never hold.
+func (b *Bench) ResolvePathIn(half ResolutionHalf, ref string) (string, error) {
+	if half == ArchivedHalf {
+		if refusal := b.notArchivedFor(ref, nil); refusal != nil {
+			return "", refusal
+		}
+	}
+	path, err := b.resolvePathBody(half, ref)
+	if err != nil {
+		if half == ArchivedHalf {
+			err = b.notArchivedFor(ref, err)
+		}
+		return "", err
+	}
+	return filepath.Abs(path)
+}
+
+// resolvePathBody is the walk ResolvePathIn wraps, without the refusal and
+// without the absolute-path step, so the two calls to notArchivedFor sit in
+// one place rather than at each of this function's own returns.
+func (b *Bench) resolvePathBody(half ResolutionHalf, ref string) (string, error) {
 	if rest, named := strings.CutPrefix(strings.TrimSpace(ref), WorkstreamRefPrefix); named {
 		// The whole reference goes to the resolver rather than the
 		// remainder, because that resolver strips the prefix itself so that
 		// the workstream-taking commands accept either spelling. Passing the
 		// remainder would strip a second time and admit a doubled prefix.
-		workstream := b.WorkstreamByRef(strings.TrimSpace(ref))
+		workstream := b.workstreamByRefIn(half, strings.TrimSpace(ref))
 		if workstream == nil {
 			return "", contract.Refuse(contract.UnknownWorkstream, rest)
 		}
-		return filepath.Abs(workstream.Dir)
+		return workstream.Dir, nil
 	}
-	path, _, err := b.resolveBelow(ref)
+	path, _, err := b.resolveBelowLanding(half, ref, nil)
 	if err != nil {
 		return "", err
 	}
-	return filepath.Abs(path)
+	return path, nil
 }
 
 // CollectionRef is what <head>/<collection> resolves to: the directory the
@@ -210,11 +242,15 @@ type CollectionRef struct {
 	// Narrow is the item kind a checklist segment selected, empty for every
 	// other collection and for the bare checklist segment.
 	Narrow string
-	// Members are the member directory identifiers, in creation order and
-	// after any narrowing, which are the ids the positional selector counts.
+	// Members are the member directory identifiers of the half this answer
+	// was resolved in, in creation order and after any narrowing, which are
+	// the ids the positional selector counts.
 	Members []string
 	// Holder is the entity the collection hangs from.
 	Holder *EntityRef
+	// Archived reports whether the members listed here came out of the
+	// archive mirror rather than out of the live half.
+	Archived bool
 }
 
 // FirstMember is the reference of the collection's first member, and the
@@ -261,6 +297,39 @@ func (c *CollectionRef) Refuse() error {
 // bench's. A half-filled answer therefore does not degrade, it misreports, so
 // the last guard below refuses rather than returning one.
 func (b *Bench) ResolveReference(ref string) (*EntityRef, *CollectionRef, error) {
+	return b.ResolveReferenceIn(LiveHalf, ref)
+}
+
+// ResolveReferenceIn is ResolveReference reading the half a caller names. It
+// carries the same two calls to notArchivedFor ResolvePathIn carries, and for
+// the same reason: the pre-walk call is what catches the workbench, which the
+// branch below answers successfully rather than failing on.
+//
+// Two entry points raise this refusal rather than one, because neither of the
+// two can be written in terms of the other. ResolvePath answers an
+// attachment's payload, which this resolver refuses, and this resolver answers
+// a collection separately, which ResolvePath answers as a directory path. The
+// rule is in one place; what is in two places is the call to it.
+func (b *Bench) ResolveReferenceIn(half ResolutionHalf, ref string) (*EntityRef, *CollectionRef, error) {
+	if half == ArchivedHalf {
+		if refusal := b.notArchivedFor(ref, nil); refusal != nil {
+			return nil, nil, refusal
+		}
+	}
+	entity, collection, err := b.resolveReferenceBody(half, ref)
+	if err != nil {
+		if half == ArchivedHalf {
+			err = b.notArchivedFor(ref, err)
+		}
+		return nil, nil, err
+	}
+	return entity, collection, nil
+}
+
+// resolveReferenceBody is the walk ResolveReferenceIn wraps, without the
+// refusal, so the two calls to notArchivedFor sit in one place rather than at
+// each of this function's own returns.
+func (b *Bench) resolveReferenceBody(half ResolutionHalf, ref string) (*EntityRef, *CollectionRef, error) {
 	ref = strings.TrimSpace(ref)
 	// The empty reference is this resolver's own case and IsWorkbenchRef does
 	// not carry it, because ResolvePath refuses it. See IsWorkbenchRef.
@@ -271,32 +340,35 @@ func (b *Bench) ResolveReference(ref string) (*EntityRef, *CollectionRef, error)
 	// so it is tried before the columns and the cards rather than falling
 	// through to them: a bare workstream reference would otherwise be
 	// shadowed by a column or a card sharing its name.
-	if entity, named, err := b.resolveWorkstreamRef(ref); named {
+	if entity, named, err := b.resolveWorkstreamRef(half, ref); named {
 		return entity, nil, err
 	}
 	head, rest, _ := strings.Cut(ref, "/")
+	// A bare head is always the reference's deepest collection step, so it
+	// takes the caller's half straight through rather than asking headHalf.
 	if rest == "" {
-		if column := b.ColumnByRef(ref); column != nil {
+		if column := b.columnByRefIn(half, ref); column != nil {
 			return &EntityRef{
-				Kind: KindColumn,
-				Dir:  b.ColumnDir(column.ID),
-				ID:   column.ID,
-				Ref:  column.Ref(),
+				Kind:     KindColumn,
+				Dir:      b.columnDirIn(half, column.ID),
+				ID:       column.ID,
+				Ref:      column.Ref(),
+				Archived: half == ArchivedHalf,
 			}, nil, nil
 		}
-		found, err := b.ResolveCard(head)
+		found, err := b.resolveCardIn(b.cardsRootIn(half), head)
 		if err != nil {
 			return nil, nil, b.orAWorkstreamNamedBarely(ref, err)
 		}
-		return &EntityRef{Kind: KindCard, Dir: found.Card.Dir, ID: found.Card.ID, Ref: found.Card.Ref(b.Slug), Card: found.Card}, nil, nil
+		return &EntityRef{Kind: KindCard, Dir: found.Card.Dir, ID: found.Card.ID, Ref: found.Card.Ref(b.Slug), Card: found.Card, Archived: half == ArchivedHalf}, nil, nil
 	}
 	landed := &landing{}
-	path, card, err := b.resolveBelowLanding(ref, landed)
+	path, card, err := b.resolveBelowLanding(half, ref, landed)
 	if err != nil {
 		return nil, nil, err
 	}
 	if landed.collection {
-		collection, err := b.collectionAt(ref, landed)
+		collection, err := b.collectionAt(half, ref, landed)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -320,17 +392,18 @@ func (b *Bench) ResolveReference(ref string) (*EntityRef, *CollectionRef, error)
 	if card != nil {
 		headKind, headRef, headDir = KindCard, card.Ref(b.Slug), card.Dir
 	} else if !IsWorkbenchRef(head) && head != b.Slug {
-		if column := b.ColumnByRef(head); column != nil {
+		if column := b.columnByRefIn(headHalf(half, rest), head); column != nil {
 			headKind, headRef = KindColumn, column.Ref()
-			headDir = filepath.Join(b.Root, ColumnsDir, column.ID)
+			headDir = b.columnDirIn(headHalf(half, rest), column.ID)
 		}
 	}
 	return &EntityRef{
-		Kind: kind,
-		Dir:  dir,
-		ID:   filepath.Base(dir),
-		Ref:  b.refBelowHead(headKind, headRef, headDir, dir),
-		Card: card,
+		Kind:     kind,
+		Dir:      dir,
+		ID:       filepath.Base(dir),
+		Ref:      b.refBelowHead(half, headKind, headRef, headDir, dir),
+		Card:     card,
+		Archived: half == ArchivedHalf,
 	}, nil, nil
 }
 
@@ -363,7 +436,7 @@ func (b *Bench) orAWorkstreamNamedBarely(ref string, err error) error {
 // collection with. The members are the walk's own list, narrowed the way the
 // walk narrows before it counts a position, so the position this resolver
 // answers and the position a screen prints are one number.
-func (b *Bench) collectionAt(ref string, landed *landing) (*CollectionRef, error) {
+func (b *Bench) collectionAt(half ResolutionHalf, ref string, landed *landing) (*CollectionRef, error) {
 	ref = strings.TrimSpace(ref)
 	members := MemberIDs(landed.dir, landed.mount)
 	if landed.narrow != "" {
@@ -374,12 +447,13 @@ func (b *Bench) collectionAt(ref string, landed *landing) (*CollectionRef, error
 		return nil, err
 	}
 	return &CollectionRef{
-		Ref:     ref,
-		Dir:     landed.dir,
-		Mount:   landed.mount,
-		Narrow:  landed.narrow,
-		Members: members,
-		Holder:  holder,
+		Ref:      ref,
+		Dir:      landed.dir,
+		Mount:    landed.mount,
+		Narrow:   landed.narrow,
+		Members:  members,
+		Holder:   holder,
+		Archived: half == ArchivedHalf,
 	}, nil
 }
 
@@ -412,40 +486,47 @@ func (b *Bench) collectionHolder(ref string) (*EntityRef, error) {
 // form the walk prints for a workbench attachment; whether the bare slug also
 // opens the workbench is a separate question and this does not answer it.
 func (b *Bench) resolveBelow(ref string) (string, *Card, error) {
-	return b.resolveBelowLanding(ref, nil)
+	return b.resolveBelowLanding(LiveHalf, ref, nil)
 }
 
 // resolveBelowLanding is resolveBelow with the walk's landing reported. A
 // caller that needs to know whether the reference stopped on a collection
 // passes one to write into; resolveBelow passes nil, which is every caller
 // that only wants the path.
-func (b *Bench) resolveBelowLanding(ref string, landed *landing) (string, *Card, error) {
+func (b *Bench) resolveBelowLanding(half ResolutionHalf, ref string, landed *landing) (string, *Card, error) {
 	head, rest, _ := strings.Cut(strings.TrimSpace(ref), "/")
+	// The head is the reference's deepest collection step only when nothing
+	// below it names a collection, so it asks headHalf rather than taking the
+	// caller's half. The workbench is never one of the heads this walk
+	// resolves under ArchivedHalf, because notArchivedFor refuses it ahead of
+	// the walk.
+	within := headHalf(half, rest)
 	if IsWorkbenchRef(head) || (rest != "" && b.Slug != "" && head == b.Slug) {
 		if rest == "" {
 			return filepath.Join(b.Root, WorkbenchAnchor), nil, nil
 		}
-		path, err := descend(b.Root, KindWorkbench, strings.Split(rest, "/"), nil, landed)
+		path, err := descend(b.Root, KindWorkbench, strings.Split(rest, "/"), nil, landed, half)
 		return path, nil, err
 	}
-	if column := b.ColumnByRef(head); column != nil {
+	if column := b.columnByRefIn(within, head); column != nil {
+		dir := b.columnDirIn(within, column.ID)
 		if rest == "" {
-			return b.ColumnAnchorPath(column.ID), nil, nil
+			return filepath.Join(dir, ColumnAnchor), nil, nil
 		}
-		path, err := descend(b.ColumnDir(column.ID), KindColumn, strings.Split(rest, "/"), nil, landed)
+		path, err := descend(dir, KindColumn, strings.Split(rest, "/"), nil, landed, half)
 		return path, nil, err
 	}
-	found, err := b.ResolveCard(head)
+	found, err := b.resolveCardIn(b.cardsRootIn(within), head)
 	if err != nil {
 		return "", nil, err
 	}
-	path, err := walkBelowCard(found.Card, rest, landed)
+	path, err := walkBelowCard(found.Card, rest, landed, half)
 	return path, found.Card, err
 }
 
 // walkBelowCard resolves the segments below a card. An empty rest is the
 // card's own anchor, which is what makes `path <card>` open the card.
-func walkBelowCard(card *Card, rest string, landed *landing) (string, error) {
+func walkBelowCard(card *Card, rest string, landed *landing, half ResolutionHalf) (string, error) {
 	if rest == "" {
 		return card.AnchorPath(), nil
 	}
@@ -455,10 +536,10 @@ func walkBelowCard(card *Card, rest string, landed *landing) (string, error) {
 	// collection, so they are answered ahead of the grammar. Neither is an
 	// entity of the containment table: the anchor is the card itself and the
 	// journal is content.
-	if head == CardAnchor || head == KindCard {
-		return card.AnchorPath(), nil
-	}
-	if head == "journal" || head == JournalName {
+	if cardOwnFileSegment(head) {
+		if head == CardAnchor || head == KindCard {
+			return card.AnchorPath(), nil
+		}
 		return card.JournalPath(), nil
 	}
 	if kind, ok := checklistKinds[head]; ok {
@@ -467,9 +548,19 @@ func walkBelowCard(card *Card, rest string, landed *landing) (string, error) {
 			return "", contract.Refuse(contract.UnknownPath, rest)
 		}
 		aliased := append([]string{items.Dir}, segments[1:]...)
-		return descend(card.Dir, KindCard, aliased, &kind, landed)
+		return descend(card.Dir, KindCard, aliased, &kind, landed, half)
 	}
-	return descend(card.Dir, KindCard, segments, nil, landed)
+	return descend(card.Dir, KindCard, segments, nil, landed, half)
+}
+
+// cardOwnFileSegment reports whether a segment below a card names one of the
+// card's own two files rather than a collection. walkBelowCard answers those
+// segments ahead of the containment grammar, and the archived-half resolution
+// asks the same question to decide whether the head is the reference's
+// deepest collection step, so the set is declared once rather than written
+// out in both places.
+func cardOwnFileSegment(segment string) bool {
+	return segment == CardAnchor || segment == KindCard || segment == "journal" || segment == JournalName
 }
 
 // checklistMount is the collection a checklist segment such as questions
@@ -524,7 +615,7 @@ func MemberIDs(collection string, mount Mount) []string {
 // in the listing's ascending-hex order, so `<card>/comment/2` names the second
 // comment somebody wrote and keeps naming it however the identifiers happened
 // to fall.
-func descend(dir, kind string, segments []string, narrow *string, landed *landing) (string, error) {
+func descend(dir, kind string, segments []string, narrow *string, landed *landing, half ResolutionHalf) (string, error) {
 	mount, ok := MountOf(kind, segments[0])
 	if !ok {
 		return "", contract.Refuse(contract.UnknownPath, segments[0])
@@ -541,7 +632,19 @@ func descend(dir, kind string, segments []string, narrow *string, landed *landin
 			map[string]string{"addressed": mount.Kind},
 		)
 	}
+	// Whether this call is the reference's deepest collection step is decided
+	// from the segment count and the mount kind, and it is decided here,
+	// before the collection path is joined. Written in terms of tail and
+	// below it would decide after the join has already chosen the live
+	// directory and after the member listing has been read out of it, which
+	// compiles and reads the live members in silence.
+	deepest := len(segments) == 1 ||
+		len(segments) == 2 ||
+		(mount.Kind == KindAttachment && len(segments) > 2 && segments[2] == PayloadDir)
 	collection := filepath.Join(dir, mount.Dir)
+	if deepest && half == ArchivedHalf {
+		collection = filepath.Join(dir, ArchiveDir, mount.Dir)
+	}
 	tail := segments[1:]
 	if len(tail) == 0 {
 		// A collection the containment table declares for this kind is
@@ -582,7 +685,7 @@ func descend(dir, kind string, segments []string, narrow *string, landed *landin
 		}
 		return payloadOf(member)
 	}
-	return descend(member, mount.Kind, below, nil, landed)
+	return descend(member, mount.Kind, below, nil, landed, half)
 }
 
 // addressedInItsOwnRight reports whether a kind is one a person names directly
@@ -735,4 +838,321 @@ func (b *Bench) ResolveLinkTarget(raw string) (string, *contract.Refusal) {
 		return found.Card.ID, nil
 	}
 	return "", contract.Refuse(contract.UnknownCard, raw)
+}
+
+// ResolutionHalf names which half of a collection a resolution reads at a
+// reference's deepest collection step.
+type ResolutionHalf int
+
+const (
+	// LiveHalf reads the live half, which is every resolution the tool
+	// performed before restore existed.
+	LiveHalf ResolutionHalf = iota
+	// ArchivedHalf reads the archive mirror at the reference's deepest
+	// collection step, and the live half at every step above it.
+	ArchivedHalf
+)
+
+// headHalf is the half a reference's head segment resolves in. The head is
+// the reference's deepest collection step exactly when nothing below it names
+// a collection, which is a bare head and a head followed only by one of the
+// card's own file segments. Every other reference resolves its head live and
+// carries the archived half down to the step that uses it.
+//
+// The head is resolved twice over, once in ResolveReferenceIn's bare-head
+// branch and once in resolveBelowLanding, and neither is written in terms of
+// the other, so the question of which half it resolves in is one declared
+// function rather than a condition written out in both places.
+func headHalf(half ResolutionHalf, rest string) ResolutionHalf {
+	if half == LiveHalf || rest == "" {
+		return half
+	}
+	segment, below, _ := strings.Cut(rest, "/")
+	if below == "" && cardOwnFileSegment(segment) {
+		return ArchivedHalf
+	}
+	return LiveHalf
+}
+
+// cardsRootIn is the cards collection of one half.
+func (b *Bench) cardsRootIn(half ResolutionHalf) string {
+	if half == ArchivedHalf {
+		return b.ArchivedCardsRoot()
+	}
+	return b.CardsRoot()
+}
+
+// columnsRootIn is the columns collection of one half.
+func (b *Bench) columnsRootIn(half ResolutionHalf) string {
+	if half == ArchivedHalf {
+		return b.ArchivedColumnsRoot()
+	}
+	return filepath.Join(b.Root, ColumnsDir)
+}
+
+// columnDirIn is one column's directory in one half.
+func (b *Bench) columnDirIn(half ResolutionHalf, id string) string {
+	return filepath.Join(b.columnsRootIn(half), id)
+}
+
+// workstreamsRootIn is the workstreams collection of one half.
+func (b *Bench) workstreamsRootIn(half ResolutionHalf) string {
+	if half == ArchivedHalf {
+		return b.ArchivedWorkstreamsRoot()
+	}
+	return b.WorkstreamsRoot()
+}
+
+// columnByRefIn is the column a reference names in one half. The live form is
+// ColumnByRef, which reads the workbench's own ordered list, and that list
+// cannot hold an archived column, so the archived form loads the anchors under
+// the mirror instead.
+func (b *Bench) columnByRefIn(half ResolutionHalf, ref string) *Column {
+	if half == ArchivedHalf {
+		return b.ArchivedColumnByRef(ref)
+	}
+	return b.ColumnByRef(ref)
+}
+
+// ArchivedColumnByRef finds a column in the archive mirror, by the grammar
+// ColumnByRef accepts: the identifier first, then the slug, then the title,
+// the last two compared without regard to ASCII case.
+//
+// The order is ColumnByRef's own, and the reason it records applies here
+// unchanged: a reference matching one column's slug and another column's
+// title resolves to the column whose slug it is.
+func (b *Bench) ArchivedColumnByRef(ref string) *Column {
+	ref = strings.TrimSpace(ref)
+	if ref == "" {
+		return nil
+	}
+	root := filepath.Join(b.Root, ArchiveDir)
+	var columns []*Column
+	for n, id := range ListIDs(b.ArchivedColumnsRoot()) {
+		// A directory the reader refuses is skipped rather than refused
+		// over, which is what leaves the rest of the mirror reachable when
+		// one anchor in it is damaged.
+		column, err := readColumnIn(root, currentVocabulary, id, n+1)
+		if err != nil {
+			continue
+		}
+		columns = append(columns, column)
+	}
+	want := asciiLower(ref)
+	for _, column := range columns {
+		if column.ID == ref {
+			return column
+		}
+	}
+	for _, column := range columns {
+		if column.Slug != "" && asciiLower(column.Slug) == want {
+			return column
+		}
+	}
+	for _, column := range columns {
+		if asciiLower(column.Title) == want {
+			return column
+		}
+	}
+	return nil
+}
+
+// workstreamByRefIn is the workstream a reference names in one half. The live
+// form is WorkstreamByRef, which spans both halves on purpose, because a
+// card's membership has to resolve whichever half its workstream is in.
+func (b *Bench) workstreamByRefIn(half ResolutionHalf, ref string) *Workstream {
+	if half != ArchivedHalf {
+		return b.WorkstreamByRef(ref)
+	}
+	handle := strings.TrimPrefix(strings.TrimSpace(ref), WorkstreamRefPrefix)
+	if handle == "" {
+		return nil
+	}
+	archived := workstreamsIn(b.workstreamsRootIn(ArchivedHalf))
+	for _, workstream := range archived {
+		if workstream.ID == handle {
+			return workstream
+		}
+	}
+	want := asciiLower(handle)
+	for _, workstream := range archived {
+		if workstream.Slug != "" && asciiLower(workstream.Slug) == want {
+			return workstream
+		}
+	}
+	return nil
+}
+
+// notArchivedFor is the only place NotArchived is raised. Both archived-half
+// entry points call it twice: once before the walk, passing a nil failure,
+// and once on the walk's failure, passing the error it failed with.
+//
+// The pre-walk call exists because neither walk fails on the workbench.
+// ResolveReferenceIn answers the workbench at its own top and
+// resolveBelowLanding answers a bare workbench head with the live anchor and
+// a success, so a refusal left to the failure path would never be reached for
+// the one reference the archive can never hold.
+//
+// A pre-walk call answers nil for every reference but the workbench's. A
+// failure call answers either NotArchived or the failure unchanged, and never
+// nil.
+func (b *Bench) notArchivedFor(ref string, failure error) error {
+	trimmed := strings.TrimSpace(ref)
+	if failure == nil {
+		head, rest, _ := strings.Cut(trimmed, "/")
+		if trimmed != "" && !(IsWorkbenchRef(head) && rest == "") {
+			return nil
+		}
+		detail := trimmed
+		if detail == "" {
+			detail = WorkbenchRef
+		}
+		return contract.RefuseWith(contract.NotArchived, detail, map[string]string{"slug": b.Slug})
+	}
+	holder, collection, found := b.probe(trimmed)
+	if !found {
+		// Nothing in either half answers to the reference, so the mirror's
+		// own error travels unchanged and the reader goes on getting the
+		// sentence they get today.
+		return failure
+	}
+	values := map[string]string{}
+	switch {
+	case holder != "":
+		values["holder"] = holder
+	case collection != "":
+		values["collection"] = collection
+	}
+	return contract.RefuseWith(contract.NotArchived, trimmed, values)
+}
+
+// probe is the refusal probe: one diagnostic walk over a reference the
+// archived half failed on, reading the live half first and the archive mirror
+// second at every collection step and taking the first that holds the member
+// the segment names.
+//
+// It answers the reference truncated to the member selected at the first step
+// it read out of the mirror, the reference of the collection whose member the
+// deepest step selected, and whether it reached anything at all. It never
+// answers an *EntityRef and notArchivedFor never answers anything but an
+// error, so nothing this walk reaches can become an answer to a caller on
+// either entry point. Section 3's answer rule still looks in exactly one
+// place; a second look is affordable here because the whole output is which
+// of two refusal names to print.
+//
+// Live first rather than mirror first is deliberate. This order decides only
+// which of two true sentences a refused reader gets, and live first makes the
+// live case win any tie, so the advice never tells a reader to restore
+// something standing in front of them.
+func (b *Bench) probe(ref string) (string, string, bool) {
+	ref = strings.TrimSpace(ref)
+	if ref == "" {
+		return "", "", false
+	}
+	if strings.HasPrefix(ref, WorkstreamRefPrefix) {
+		// WorkstreamByRef spans both halves, and a bare workstream head is
+		// its own deepest step, so an archived one resolved rather than
+		// failing and only the live case can reach here.
+		return "", "", b.WorkstreamByRef(ref) != nil
+	}
+	head, rest, _ := strings.Cut(ref, "/")
+	if IsWorkbenchRef(head) || (rest != "" && b.Slug != "" && head == b.Slug) {
+		if rest == "" {
+			return "", "", true
+		}
+		segments := strings.Split(rest, "/")
+		return b.probeBelow(b.Root, KindWorkbench, head, "", segments, segments, nil)
+	}
+	if column := b.ColumnByRef(head); column != nil {
+		if rest == "" {
+			return "", "", true
+		}
+		segments := strings.Split(rest, "/")
+		return b.probeBelow(b.ColumnDir(column.ID), KindColumn, head, "", segments, segments, nil)
+	}
+	if column := b.ArchivedColumnByRef(head); column != nil {
+		if rest == "" {
+			return head, "", true
+		}
+		segments := strings.Split(rest, "/")
+		return b.probeBelow(b.columnDirIn(ArchivedHalf, column.ID), KindColumn, head, head, segments, segments, nil)
+	}
+	var card *Card
+	holder := ""
+	if found, err := b.resolveCardIn(b.CardsRoot(), head); err == nil {
+		card = found.Card
+	} else if found, err := b.resolveCardIn(b.ArchivedCardsRoot(), head); err == nil {
+		card, holder = found.Card, head
+	} else {
+		return "", "", false
+	}
+	if rest == "" {
+		return holder, "", true
+	}
+	segments := strings.Split(rest, "/")
+	if cardOwnFileSegment(segments[0]) {
+		return holder, "", true
+	}
+	walk := segments
+	var narrow *string
+	if kind, ok := checklistKinds[segments[0]]; ok {
+		items, ok := checklistMount()
+		if !ok {
+			return "", "", false
+		}
+		walk = append([]string{items.Dir}, segments[1:]...)
+		narrow = &kind
+	}
+	return b.probeBelow(card.Dir, KindCard, head, holder, segments, walk, narrow)
+}
+
+// probeBelow is the probe's walk below one entity. typed carries the segments
+// the reader wrote, which is what the holder and collection references are
+// composed from, and walk carries the same segments with a checklist word
+// aliased onto the collection it narrows, which is what the containment
+// grammar is walked with. The two are the same length, so one indexes the
+// other.
+func (b *Bench) probeBelow(dir, kind, ref, holder string, typed, walk []string, narrow *string) (string, string, bool) {
+	mount, ok := MountOf(kind, walk[0])
+	if !ok {
+		return "", "", false
+	}
+	if len(walk) == 1 {
+		// The reference ends on the collection itself, which a walk answers
+		// in either half whether or not anything was written into it.
+		return holder, "", true
+	}
+	for _, half := range []ResolutionHalf{LiveHalf, ArchivedHalf} {
+		collection := filepath.Join(dir, mount.Dir)
+		if half == ArchivedHalf {
+			collection = filepath.Join(dir, ArchiveDir, mount.Dir)
+		}
+		members := MemberIDs(collection, mount)
+		if narrow != nil {
+			members = filterByKind(collection, mount.Anchor, members, *narrow)
+		}
+		id, err := pick(collection, mount, members, walk[1])
+		if err != nil {
+			continue
+		}
+		below := ref + "/" + typed[0] + "/" + typed[1]
+		if half == ArchivedHalf && holder == "" {
+			holder = below
+		}
+		if len(walk) == 2 {
+			return holder, ref + "/" + typed[0], true
+		}
+		member := filepath.Join(collection, id)
+		if mount.Kind == KindAttachment && walk[2] == PayloadDir {
+			if len(walk) > 3 {
+				return "", "", false
+			}
+			if _, err := payloadOf(member); err != nil {
+				return "", "", false
+			}
+			return holder, "", true
+		}
+		return b.probeBelow(member, mount.Kind, below, holder, typed[2:], walk[2:], nil)
+	}
+	return "", "", false
 }

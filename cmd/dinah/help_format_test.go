@@ -56,6 +56,8 @@ WORK
   leave <card> <workstream>                              Take a card out of a workstream
   archive <ref>                                          Move a card, a column, or anything below a card,
                                                            out of the live set
+  restore <ref> [--archived]                             Put a card, a column, or anything below a card,
+                                                           back into the live set
   delete <ref> --yes                                     Destroy a card, a column, or anything below a
                                                            card, along with its history
   rename <ref> <name>                                    Rename an attachment
@@ -72,9 +74,9 @@ READ
     [--root <path>] [--max-depth <n>]
   tree [query] [--group-by <axes>] [--depth <level>]     The workbench's cards nested along a chain of axes
     [--root <path>] [--max-depth <n>]
-  contents <ref> [--depth <level>]                       What an entity of the workbench contains
+  contents <ref> [--depth <level>] [--archived]          What an entity of the workbench contains
   attachments [ref]                                      What is attached to an entity of the workbench
-  show <ref> [--fields <list>]                           A card, or anything below it
+  show <ref> [--fields <list>] [--archived]              A card, or anything below it
   log <card>                                             The recorded actions of a card, oldest first
   changes [--since <cursor>] [--card <ref>]              What has happened on this workbench since a cursor
     [--column <column>] [--root <path>] [--max-depth <n>]
@@ -88,7 +90,7 @@ WORKBENCH
   extract <dir>                                          Copy this workbench's definition out as a template
   reshape --from <source> [--map <retired=destination>]  Carry this workbench to the column layout a new
     [--yes]                                                definition declares
-  path <ref>                                             Print the file path of this workbench, of a card,
+  path <ref> [--archived]                                Print the file path of this workbench, of a card,
                                                            or of anything below a card
   edit <ref>                                             Open this workbench, a card, or anything below a
                                                            card in your editor
@@ -160,6 +162,7 @@ WORK
   join <card> <workstream>                                                                              Add a card to a workstream
   leave <card> <workstream>                                                                             Take a card out of a workstream
   archive <ref>                                                                                         Move a card, a column, or anything below a card, out of the live set
+  restore <ref> [--archived]                                                                            Put a card, a column, or anything below a card, back into the live set
   delete <ref> --yes                                                                                    Destroy a card, a column, or anything below a card, along with its history
   rename <ref> <name>                                                                                   Rename an attachment
 
@@ -171,9 +174,9 @@ READ
   query [query]                                                                                         The cards of the workbench that match a query
   search <phrase> [--query <terms>] [--archived] [--root <path>] [--max-depth <n>]                      Every place a phrase occurs in this workbench
   tree [query] [--group-by <axes>] [--depth <level>] [--root <path>] [--max-depth <n>]                  The workbench's cards nested along a chain of axes
-  contents <ref> [--depth <level>]                                                                      What an entity of the workbench contains
+  contents <ref> [--depth <level>] [--archived]                                                         What an entity of the workbench contains
   attachments [ref]                                                                                     What is attached to an entity of the workbench
-  show <ref> [--fields <list>]                                                                          A card, or anything below it
+  show <ref> [--fields <list>] [--archived]                                                             A card, or anything below it
   log <card>                                                                                            The recorded actions of a card, oldest first
   changes [--since <cursor>] [--card <ref>] [--column <column>] [--root <path>] [--max-depth <n>]       What has happened on this workbench since a cursor
   instructions <card|column>                                                                            The instructions served at a position
@@ -184,7 +187,7 @@ WORKBENCH
   export                                                                                                Write this workbench's interchange form to stdout
   extract <dir>                                                                                         Copy this workbench's definition out as a template
   reshape --from <source> [--map <retired=destination>] [--yes]                                         Carry this workbench to the column layout a new definition declares
-  path <ref>                                                                                            Print the file path of this workbench, of a card, or of anything below a card
+  path <ref> [--archived]                                                                               Print the file path of this workbench, of a card, or of anything below a card
   edit <ref>                                                                                            Open this workbench, a card, or anything below a card in your editor
   get <ref> <field>                                                                                     Read one field of any entity of this workbench
   set <ref> <field> [value|-] [--at <column>] [--note <text>] [--yes]                                   Write one field of any entity of this workbench

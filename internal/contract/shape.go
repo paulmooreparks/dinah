@@ -365,9 +365,22 @@ var Shapes = []Shape{
 		NextStep:  []string{"refusal.dinah.awaiting-outside.next"},
 	},
 	{
-		Name:      Exists,
-		Fragments: []Fragment{{Key: "refusal.dinah.exists.next"}},
-		NextStep:  []string{"refusal.dinah.exists.next"},
+		// init and extract raise this over a directory that already carries
+		// a workbench, and restore raises it over a live entity standing in
+		// the slot an archived one goes back to. The two acts share nothing
+		// but the word already, so restore carries a base entry and a next
+		// step of its own rather than telling a reader their card directory
+		// holds a workbench.md.
+		Name:     Exists,
+		Variants: []string{"restore"},
+		Fragments: []Fragment{
+			{Key: "refusal.dinah.exists.restore.next", WhenCommand: "restore"},
+			{Key: "refusal.dinah.exists.next"},
+		},
+		NextStep: []string{
+			"refusal.dinah.exists.restore.next",
+			"refusal.dinah.exists.next",
+		},
 	},
 	{
 		// The reader of this refusal is the person whose own act was cut
@@ -974,6 +987,40 @@ var Shapes = []Shape{
 		NextStep: []string{
 			"refusal.dinah.is-a-collection.next-member",
 			"refusal.dinah.is-a-collection.empty",
+		},
+	},
+	{
+		// A reader who types one of these four commands against something
+		// they can see is told which half it is in rather than that it does
+		// not exist, which is the mistake dinah.is-a-collection was minted
+		// against one layer up. The name answers two acts and four commands,
+		// so restore carries its own base sentence and the alternation
+		// carries one branch per case the reader can be in: inside an
+		// archived holder, at the workbench, naming a member of a
+		// collection, or asking to archive something still live. Each branch
+		// names an act the reader can carry out.
+		//
+		// The workbench branch's value is slug rather than workbench.
+		// ValueWorkbench is the workbench directory discovery resolved for
+		// the invocation, and a shape spelling its own value that way and
+		// filling it with a slug would put a slug where every other reader
+		// of that name expects an absolute path.
+		Name:     NotArchived,
+		Values:   []string{"holder", "slug", "collection"},
+		Variants: []string{"restore"},
+		Fragments: []Fragment{
+			{Key: "refusal.dinah.not-archived.next-holder", When: "holder"},
+			{Key: "refusal.dinah.not-archived.next-workbench", When: "slug"},
+			{Key: "refusal.dinah.not-archived.next-collection", When: "collection"},
+			{Key: "refusal.dinah.not-archived.restore.next", WhenCommand: "restore"},
+			{Key: "refusal.dinah.not-archived.next"},
+		},
+		NextStep: []string{
+			"refusal.dinah.not-archived.next-holder",
+			"refusal.dinah.not-archived.next-workbench",
+			"refusal.dinah.not-archived.next-collection",
+			"refusal.dinah.not-archived.restore.next",
+			"refusal.dinah.not-archived.next",
 		},
 	},
 	{

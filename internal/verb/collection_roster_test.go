@@ -6,24 +6,24 @@ import (
 	"testing"
 )
 
-// TestTheReferenceTakingRosterIsSeventeen derives the roster at the commit
+// TestTheReferenceTakingRosterIsEighteen derives the roster at the commit
 // under test rather than reading it off a card, because three separate
 // statements of this number, in a card's own framing and in its parent's
 // prose, disagreed with the tables.
 //
 // It cannot pass vacuously. An empty parse yields nothing rather than
-// seventeen, and the two declarations that carry the fact are compared against
+// eighteen, and the two declarations that carry the fact are compared against
 // each other as well as against the named set, so a command declaring the
 // guide on one of them and not the other is left out and the count fails.
-func TestTheReferenceTakingRosterIsSeventeen(t *testing.T) {
+func TestTheReferenceTakingRosterIsEighteen(t *testing.T) {
 	roster := ReferenceTakingCommands()
-	if len(roster) != 17 {
-		t.Fatalf("the roster holds %d commands and it is seventeen: %s", len(roster), strings.Join(roster, " "))
+	if len(roster) != 18 {
+		t.Fatalf("the roster holds %d commands and it is eighteen: %s", len(roster), strings.Join(roster, " "))
 	}
 	want := []string{
 		"archive", "attach", "attachments", "cite", "contents", "delete", "edit",
 		"fail", "get", "instructions", "path", "rename", "reopen", "resolve",
-		"set", "show", "verify",
+		"restore", "set", "show", "verify",
 	}
 	if strings.Join(roster, " ") != strings.Join(want, " ") {
 		t.Errorf("the roster is\n  %s\nand the set the card names is\n  %s", strings.Join(roster, " "), strings.Join(want, " "))
@@ -48,8 +48,8 @@ func TestTheReferenceTakingRosterIsSeventeen(t *testing.T) {
 			}
 		}
 	}
-	if byGuide != 17 || byParam != 17 {
-		t.Errorf("the guide table names %d commands and the parameter table names %d, and both are seventeen", byGuide, byParam)
+	if byGuide != 18 || byParam != 18 {
+		t.Errorf("the guide table names %d commands and the parameter table names %d, and both are eighteen", byGuide, byParam)
 	}
 	t.Logf("the roster derived at this commit holds %d commands", len(roster))
 }

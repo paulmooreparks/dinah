@@ -23,6 +23,11 @@ The six sets:
   CARD       the event names a card's own journal carries, read off every
              compatibility fixture under internal/bench/testdata/compat.
 
+An empty exemption map is the expected shape once every declared event is
+written by some command, and the pattern above matches the one-line spelling
+`gofmt` writes an empty map as, so emptying the table is not a reason to leave
+a dead entry behind.
+
 Run it from anywhere: `python scripts/derive_event_counts.py`. It prints the
 derivation, then reports each document claim it checked. Exit status is 0 when
 the document agrees with the tree and 1 when it does not, and a disagreement
@@ -62,7 +67,7 @@ EVENT_CONSTANT = re.compile(r"(?m)^\tEvent[A-Za-z]+\s+= \"([a-z_]+)\"")
 # One entry of the Events slice, by constant name.
 EVENTS_SLICE = re.compile(r"(?s)var Events = \[\]string\{(.*?)\n\}")
 # One key of the unwrittenEvents map, by constant name.
-UNWRITTEN_MAP = re.compile(r"(?s)var unwrittenEvents = map\[string\]string\{(.*?)\n\}")
+UNWRITTEN_MAP = re.compile(r"(?s)var unwrittenEvents = map\[string\]string\{(.*?)\}")
 CONSTANT_REFERENCE = re.compile(r"(?:contract\.)?\b(Event[A-Za-z]+)")
 # One journal line's event name, in either spacing json.Marshal may produce.
 JOURNAL_EVENT = re.compile(r"\"event\"\s*:\s*\"([a-z_]+)\"")

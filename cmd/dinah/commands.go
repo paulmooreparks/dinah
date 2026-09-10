@@ -67,6 +67,7 @@ func init() {
 		{name: "join", group: groupWork, run: runJoin, bounded: 2},
 		{name: "leave", group: groupWork, run: runLeave, bounded: 2},
 		{name: "archive", group: groupWork, run: runArchive, bounded: 1},
+		{name: "restore", group: groupWork, run: runRestore, bounded: 1},
 		{name: "delete", group: groupWork, run: runDelete, bounded: 1},
 		{name: "rename", group: groupWork, run: runRename, bounded: 2},
 
@@ -494,6 +495,16 @@ func runArchive(s *session, parsed *arguments) int {
 }
 
 // runDelete destroys an entity and its history.
+func runRestore(s *session, parsed *arguments) int {
+	req := s.request("restore", parsed)
+	req.Ref = at(parsed.rest(), 0)
+	req.Archived = parsed.has("archived")
+	return s.withBench(func(l *verb.Library) int {
+		return s.emit(l.Restore(req))
+	})
+}
+
+// runDelete destroys an entity and its history.
 func runDelete(s *session, parsed *arguments) int {
 	req := s.request("delete", parsed)
 	req.Ref = at(parsed.rest(), 0)
@@ -740,6 +751,7 @@ func runTree(s *session, parsed *arguments) int {
 func runContents(s *session, parsed *arguments) int {
 	req := s.request("contents", parsed)
 	req.Ref = at(parsed.rest(), 0)
+	req.Archived = parsed.has("archived")
 	level := depthOr(parsed, verb.LevelEntities)
 	return s.withBench(func(l *verb.Library) int {
 		tree, err := l.Contents(req, level)
@@ -873,6 +885,7 @@ func runShow(s *session, parsed *arguments) int {
 	req := s.request("show", parsed)
 	req.Card = at(parsed.rest(), 0)
 	req.Fields = parsed.value("fields")
+	req.Archived = parsed.has("archived")
 	if req.Card == "" {
 		if rows, ok := s.ambiguousWorkbenches(); ok {
 			return s.emitWorkbenches(rows, "")
@@ -1189,7 +1202,11 @@ func runPath(s *session, parsed *arguments) int {
 		io.WriteString(s.out, resolved+"\n")
 		return 0
 	}
-	if head, rest, _ := strings.Cut(strings.TrimSpace(ref), "/"); rest == "" && bench.IsWorkbenchRef(head) {
+	// The shortcut answers the workbench out of discovery without opening the
+	// bench at all, so under the flag it is guarded off: the archive never
+	// holds the workbench, and a reference that never reached the bench would
+	// print the live anchor's path and exit 0 while ignoring what was asked.
+	if head, rest, _ := strings.Cut(strings.TrimSpace(ref), "/"); rest == "" && bench.IsWorkbenchRef(head) && !parsed.has("archived") {
 		root, _, _, err := s.discoverRoot()
 		if err != nil {
 			return s.reportError(err)
@@ -1200,8 +1217,14 @@ func runPath(s *session, parsed *arguments) int {
 		}
 		return answer(resolved)
 	}
+	// runPath is in cmd/dinah and cannot see verb.halfFor, so it reads the
+	// half off the parsed flag at its own call site.
+	half := bench.LiveHalf
+	if parsed.has("archived") {
+		half = bench.ArchivedHalf
+	}
 	return s.withBench(func(l *verb.Library) int {
-		resolved, err := l.Bench.ResolvePath(ref)
+		resolved, err := l.Bench.ResolvePathIn(half, ref)
 		if err != nil {
 			return s.reportError(err)
 		}

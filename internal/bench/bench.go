@@ -1939,6 +1939,14 @@ func (b *Bench) ArchivedCardsRoot() string {
 	return filepath.Join(b.Root, ArchiveDir, CardsDir)
 }
 
+// ArchivedColumnsRoot is the archived half of the columns collection. The
+// live ordered list the workbench anchor carries cannot hold an archived
+// column, so a resolution reading the archive loads the anchors under this
+// directory instead.
+func (b *Bench) ArchivedColumnsRoot() string {
+	return filepath.Join(b.Root, ArchiveDir, ColumnsDir)
+}
+
 // JournalPath is the bench's own journal, which appears on the first
 // bench-scoped act rather than at creation.
 func (b *Bench) JournalPath() string {

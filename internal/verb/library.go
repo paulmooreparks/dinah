@@ -172,9 +172,12 @@ type Request struct {
 	// reads. It is distinct from Query, which narrows the card set the phrase
 	// is run over rather than naming what it is run against.
 	SearchText string
-	// Archived asks search to include the archived half of the cards
-	// collection in its scan, which is otherwise left out on the format's own
-	// rule that the archive is read on demand.
+	// Archived names the archive mirror. On search it widens the scan to
+	// include the archived half of the cards collection, which is otherwise
+	// left out on the format's own rule that the archive is read on demand.
+	// On show, path, contents and restore it names one half rather than
+	// widening: the reference resolves against the mirror at its deepest
+	// collection step, and against the live half at every step above it.
 	Archived bool
 	// GroupBy is the axis chain a tree nests along, as the caller wrote it:
 	// one comma-separated word, empty for the default chain.

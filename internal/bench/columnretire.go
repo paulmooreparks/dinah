@@ -30,6 +30,23 @@ func (b *Bench) RemoveColumnID(id string) error {
 	return WriteText(filepath.Join(b.Root, WorkbenchAnchor), b.FM.Render(b.Standing))
 }
 
+// AddColumnID appends one identifier to the workbench's own ordered columns
+// list and writes the anchor back, preserving every other key exactly as
+// RemoveColumnID does. It is restoration's own write to the definition, made
+// while the bench lock the restoring act already holds is still in force.
+// Adding an id already present is a no-op, which is what makes a second call
+// over the same bench safe.
+func (b *Bench) AddColumnID(id string) error {
+	ids := b.FM.Seq("columns")
+	for _, existing := range ids {
+		if existing == id {
+			return nil
+		}
+	}
+	b.FM.SetSeq("columns", append(append([]string{}, ids...), id))
+	return WriteText(filepath.Join(b.Root, WorkbenchAnchor), b.FM.Render(b.Standing))
+}
+
 // RemoveStrandedColumns drops every stranded identifier from the workbench's
 // own ordered columns list in one write, and returns what it removed.
 // Unlike a slug backfill there is no title or further metadata to report:

@@ -112,6 +112,7 @@ func TestEveryReferenceTakingCommandAnswersACollectionOrRefusesIt(t *testing.T) 
 		"edit":         {"edit", "fx-1/comments"},
 		"attach":       {"attach", "fx-1/comments", source},
 		"archive":      {"archive", "fx-1/comments"},
+		"restore":      {"restore", "fx-1/comments"},
 		"delete":       {"delete", "fx-1/comments", "--yes"},
 		"rename":       {"rename", "fx-1/comments", "renamed.txt"},
 		"instructions": {"instructions", "fx-1/comments"},
@@ -166,13 +167,13 @@ func TestEveryReferenceTakingCommandAnswersACollectionOrRefusesIt(t *testing.T) 
 		}
 		refused++
 	}
-	if ran != 17 {
-		t.Fatalf("the sweep ran %d invocations and the roster is seventeen", ran)
+	if ran != 18 {
+		t.Fatalf("the sweep ran %d invocations and the roster is eighteen", ran)
 	}
-	if accepted != 4 || refused != 13 {
-		t.Fatalf("the sweep accepted %d and refused %d, and the split is four and thirteen", accepted, refused)
+	if accepted != 4 || refused != 14 {
+		t.Fatalf("the sweep accepted %d and refused %d, and the split is four and fourteen", accepted, refused)
 	}
-	t.Logf("seventeen invocations ran: %d accepted, %d refused with %s", accepted, refused, contract.IsACollection)
+	t.Logf("eighteen invocations ran: %d accepted, %d refused with %s", accepted, refused, contract.IsACollection)
 }
 
 // TestShowDrawsACollectionsMembersInCreationOrder pins the members, their

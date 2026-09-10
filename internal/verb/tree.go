@@ -84,6 +84,12 @@ type Tree struct {
 	// caller named under contents, and it is always present, including at
 	// depth root where it carries no children.
 	Root TreeNode `json:"root"`
+	// Archived reports that the root was resolved in the archive mirror. The
+	// walk below it reads the archived entity's own live collections, so the
+	// references those rows carry are the addresses the children will have
+	// once the root is restored and they do not resolve while it is
+	// archived. A reader is told that once, on the listing.
+	Archived bool `json:"archived,omitempty"`
 }
 
 // The two producers, as Tree.Producer names them.
@@ -880,7 +886,7 @@ func (l *Library) readableValues(axis string, stored []string) []string {
 // from a comment has no cards in it, so a filter there would either mean
 // nothing or mean something the grammar does not say.
 func (l *Library) Contents(req *Request, level string) (*Tree, error) {
-	entity, collection, err := l.Bench.ResolveReference(req.Ref)
+	entity, collection, err := l.Bench.ResolveReferenceIn(halfFor(req), req.Ref)
 	if err != nil {
 		return nil, err
 	}
@@ -888,13 +894,16 @@ func (l *Library) Contents(req *Request, level string) (*Tree, error) {
 		return nil, err
 	}
 	if collection != nil {
-		return l.collectionContents(collection, level), nil
+		tree := l.collectionContents(collection, level)
+		tree.Archived = collection.Archived
+		return tree, nil
 	}
 	tree := &Tree{
 		Producer: ProducerContainment,
 		Subject:  SubjectEntity,
 		Depth:    level,
 		Root:     l.rootOf(entity),
+		Archived: entity.Archived,
 	}
 	rank := rankOfKind(entity.Kind)
 	tree.Root.Count = containedCount(entity.Dir, entity.Kind)

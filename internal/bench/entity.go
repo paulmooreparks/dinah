@@ -370,7 +370,7 @@ const WorkstreamRefPrefix = "workstream/"
 // columns and the cards: a caller who wrote workstream/ meant a workstream, so
 // a name no workstream answers to is refused here rather than reported as an
 // unknown card.
-func (b *Bench) resolveWorkstreamRef(ref string) (*EntityRef, bool, error) {
+func (b *Bench) resolveWorkstreamRef(half ResolutionHalf, ref string) (*EntityRef, bool, error) {
 	rest, named := strings.CutPrefix(ref, WorkstreamRefPrefix)
 	if !named {
 		return nil, false, nil
@@ -378,15 +378,16 @@ func (b *Bench) resolveWorkstreamRef(ref string) (*EntityRef, bool, error) {
 	// The whole reference goes to the resolver, on the reasoning
 	// ResolvePath's workstream arm gives: WorkstreamByRef strips the prefix
 	// itself, so handing it the remainder would strip twice.
-	workstream := b.WorkstreamByRef(ref)
+	workstream := b.workstreamByRefIn(half, ref)
 	if workstream == nil {
 		return nil, true, contract.Refuse(contract.UnknownWorkstream, rest)
 	}
 	entity := &EntityRef{
-		Kind: KindWorkstream,
-		Dir:  workstream.Dir,
-		ID:   workstream.ID,
-		Ref:  workstream.Ref(),
+		Kind:     KindWorkstream,
+		Dir:      workstream.Dir,
+		ID:       workstream.ID,
+		Ref:      workstream.Ref(),
+		Archived: half == ArchivedHalf,
 	}
 	return entity, true, nil
 }
@@ -578,11 +579,17 @@ func (b *Bench) Run(act *StructuralAct) error {
 			return unwind(err, sibling, benchLock)
 		}
 	}
-	if act.ColumnID != "" {
+	// A restore runs neither of these. The occupancy scan is what stops an
+	// archive stranding a live card that names the column, and on a restore
+	// it is backwards: a live card naming a column the workbench does not
+	// list is the stranded state check reports, and restoring the column is
+	// the repair. The last-column check is about the workbench keeping one
+	// column, and a restore adds a column rather than removing one.
+	if act.ColumnID != "" && act.Op != OpRestore {
 		if err := b.ColumnOccupied(act.ColumnID, act.ColumnRef); err != nil {
 			return unwind(err, sibling, benchLock)
 		}
-		if act.Op != OpRestore && len(b.Columns) <= 1 {
+		if len(b.Columns) <= 1 {
 			return unwind(contract.Refuse(contract.LastColumn, act.ColumnRef), sibling, benchLock)
 		}
 	}
@@ -620,8 +627,16 @@ func (b *Bench) Run(act *StructuralAct) error {
 	if err := act.apply(); err != nil {
 		return reportInterruption(err, act, benchLock)
 	}
-	if act.ColumnID != "" && act.Op != OpRestore {
-		if err := b.RemoveColumnID(act.ColumnID); err != nil {
+	if act.ColumnID != "" {
+		// The workbench anchor's columns sequence is the single authority
+		// for order, so a column leaving it and a column returning to it are
+		// both written here, under the bench lock this act still holds, and
+		// the anchor never names a column whose directory is not there.
+		write := b.RemoveColumnID
+		if act.Op == OpRestore {
+			write = b.AddColumnID
+		}
+		if err := write(act.ColumnID); err != nil {
 			return reportInterruption(err, act, benchLock)
 		}
 	}
@@ -706,6 +721,10 @@ type EntityRef struct {
 	Ref string
 	// Card is the card the entity belongs to, when one does.
 	Card *Card
+	// Archived reports whether this answer came out of the archive mirror,
+	// which is what a renderer reads to mark a listing and what the machine
+	// views carry.
+	Archived bool
 }
 
 // ResolveEntity resolves the reference the entity-shaped commands take: the
@@ -723,7 +742,14 @@ type EntityRef struct {
 // bench's. A half-filled answer therefore does not degrade, it misreports, so
 // the last guard below refuses rather than returning one.
 func (b *Bench) ResolveEntity(ref string) (*EntityRef, error) {
-	entity, collection, err := b.ResolveReference(ref)
+	return b.ResolveEntityIn(LiveHalf, ref)
+}
+
+// ResolveEntityIn is ResolveEntity reading the half a caller names. It is
+// ResolveReferenceIn plus the collection refusal, and it needs no call to
+// notArchivedFor of its own because ResolveReferenceIn has already made both.
+func (b *Bench) ResolveEntityIn(half ResolutionHalf, ref string) (*EntityRef, error) {
+	entity, collection, err := b.ResolveReferenceIn(half, ref)
 	if err != nil {
 		return nil, err
 	}
@@ -750,15 +776,31 @@ func (b *Bench) ResolveEntity(ref string) (*EntityRef, error) {
 // An entity this composer cannot name comes back with no reference at all,
 // because a reference naming the head instead would send a reader somewhere
 // they did not ask for, and an absent answer is one a caller can see.
-func (b *Bench) refBelowHead(headKind, headRef, headDir, dir string) string {
+func (b *Bench) refBelowHead(half ResolutionHalf, headKind, headRef, headDir, dir string) string {
 	below, err := filepath.Rel(headDir, dir)
 	if err != nil {
 		return ""
 	}
+	segments := strings.Split(filepath.ToSlash(below), "/")
+	// Under the archived half the entity sits inside its holder's mirror, so
+	// the path below the head carries one extra archive segment at the step
+	// the flag names. Lifting it out here leaves the alternating pairs the
+	// rest of this composer walks, and the position is still counted in the
+	// mirror, because the loop rebuilds that one collection under it.
+	mirrored := -1
+	if half == ArchivedHalf {
+		for i, segment := range segments {
+			if segment != ArchiveDir {
+				continue
+			}
+			mirrored = i
+			segments = append(segments[:i:i], segments[i+1:]...)
+			break
+		}
+	}
 	// The path below a head alternates a collection's directory with one
 	// member's identifier, so every level is two segments and an odd count is
 	// a path this composer was never meant to be given.
-	segments := strings.Split(filepath.ToSlash(below), "/")
 	if len(segments)%2 != 0 {
 		return ""
 	}
@@ -769,6 +811,9 @@ func (b *Bench) refBelowHead(headKind, headRef, headDir, dir string) string {
 			return ""
 		}
 		collection := filepath.Join(at, mount.Dir)
+		if i == mirrored {
+			collection = filepath.Join(at, ArchiveDir, mount.Dir)
+		}
 		position := 0
 		for n, id := range SortByOrdinal(collection, mount.Anchor, ListIDs(collection)) {
 			if id == segments[i+1] {

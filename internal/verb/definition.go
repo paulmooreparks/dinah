@@ -264,6 +264,7 @@ var guides = map[string][]string{
 	"fail":         {"references"},
 	"reopen":       {"references"},
 	"archive":      {"references"},
+	"restore":      {"references"},
 	"delete":       {"references"},
 	"rename":       {"references"},
 	"contents":     {"references"},
@@ -406,6 +407,15 @@ var params = map[string][]Param{
 		{Name: "to", Required: true, Shared: "link-to", Field: "LinkTo"},
 	},
 	"archive": {{Name: "ref", Required: true, Shared: "ref", Guide: "references", Field: "Ref"}},
+	// The archived flag is redundant on restore, which always resolves in
+	// the mirror because restoring a live entity is not an act, and it is
+	// declared anyway: a reader who found an entity with
+	// `dinah show --archived <ref>` restores it by changing one word of the
+	// line they already have.
+	"restore": {
+		{Name: "ref", Required: true, Shared: "ref", Guide: "references", Field: "Ref"},
+		{Name: "archived", Flag: true, Marker: true, Shared: "archived", Field: "Archived"},
+	},
 	"delete": {
 		{Name: "ref", Required: true, Shared: "ref", Guide: "references", Field: "Ref"},
 		{Name: "yes", Flag: true, Marker: true, Required: true, Shared: "yes", Field: "Confirm"},
@@ -469,6 +479,9 @@ var params = map[string][]Param{
 	"search": {
 		{Name: "phrase", Required: true, Rest: true, Field: "SearchText"},
 		{Name: "query", Flag: true, Value: "terms", Field: "Query"},
+		// search declares no Shared name for this flag, so it keeps its own
+		// sentence: there the flag widens the scan to both halves, where on
+		// the four reference-resolving commands it names one half.
 		{Name: "archived", Flag: true, Marker: true, Field: "Archived"},
 		{Name: "root", Flag: true, Value: "path", Shared: "root", Field: "Root"},
 		{Name: "max-depth", Flag: true, Value: "n", Shared: "max-depth", Field: "MaxDepth"},
@@ -486,6 +499,7 @@ var params = map[string][]Param{
 	"contents": {
 		{Name: "ref", Required: true, Guide: "references", Field: "Ref"},
 		{Name: "depth", Flag: true, Value: "level", Field: "Depth"},
+		{Name: "archived", Flag: true, Marker: true, Shared: "archived", Field: "Archived"},
 	},
 	// attachments writes its own sentence for ref, the way contents does and
 	// for the same reason: the shared sentence ends "not this workbench" and
@@ -499,6 +513,7 @@ var params = map[string][]Param{
 	"show": {
 		{Name: "card", Display: "ref", Required: true, Guide: "references", Field: "Card"},
 		{Name: "fields", Flag: true, Value: "list", Vocabulary: "detail-field", Field: "Fields"},
+		{Name: "archived", Flag: true, Marker: true, Shared: "archived", Field: "Archived"},
 	},
 	"log": {{Name: "card", Required: true, Shared: "card", Field: "Card"}},
 	// Every argument of changes is a flag, including the two a read usually
@@ -538,8 +553,16 @@ var params = map[string][]Param{
 		{Name: "yes", Flag: true, Marker: true, Shared: "yes", Field: "Confirm"},
 	},
 	"extract": {{Name: "dir", Required: true}},
-	"path":    {{Name: "card", Display: "ref", Required: true, Guide: "references"}},
-	"edit":    {{Name: "card", Display: "ref", Required: true, Guide: "references"}},
+	// path names no Request field on either of its parameters, because the
+	// terminal never builds a Request for it: runPath reads the flag off its
+	// own parsed arguments. derivationExemptions records that, and a Field
+	// here would make the exemption stale on one parameter and live on the
+	// other.
+	"path": {
+		{Name: "card", Display: "ref", Required: true, Guide: "references"},
+		{Name: "archived", Flag: true, Marker: true, Shared: "archived"},
+	},
+	"edit": {{Name: "card", Display: "ref", Required: true, Guide: "references"}},
 	// The bare invocation lists every setting, so neither the action nor the
 	// key is required; `get` and `set` still need a key, which the command
 	// refuses over rather than the syntax line.
