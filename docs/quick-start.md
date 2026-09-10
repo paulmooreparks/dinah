@@ -949,7 +949,7 @@ $ dinah join rel-2 autumn-2025
 rel-2  Draft the changelog  [Intake / ready]  workstream/autumn-2025
 [exit 0]
 $ dinah contents autumn-2025
-unknown-card this workbench carries no card autumn-2025; run `dinah ls` to see the cards this workbench carries
+unknown-card this workbench carries no card autumn-2025; workstream/autumn-2025 names a workstream, so write the reference that way, or run `dinah guide references` for how a reference is spelled
 [exit 2]
 ```
 
@@ -1239,14 +1239,14 @@ storage format 2
 Catalogs:
   Language  Translated
   --------  ----------
-  en        912/912
-  af        0/912
-  cs        0/912
-  de        912/912
-  es        0/912
-  fil       0/912
-  hi        912/912
-  id        0/912
+  en        913/913
+  af        0/913
+  cs        0/913
+  de        913/913
+  es        0/913
+  fil       0/913
+  hi        913/913
+  id        0/913
 [exit 0]
 ```
 
