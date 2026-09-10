@@ -737,12 +737,12 @@ var Events = []string{
 	EventUnblocked, EventExpired, EventCommented, EventAttached,
 	EventAttachmentReplaced, EventAttachmentRemoved, EventAttachmentRenamed,
 	EventArchived, EventRestored, EventDeleted, EventManualCorrection,
+	EventCommentUpdated, EventItemUpdated, EventAttachmentUpdated,
 	EventWorkstreamJoined, EventWorkstreamLeft, EventCardUpdated,
 	EventTierOverridden, EventTierOverrideDropped,
 	EventItemFiled, EventItemCited, EventItemResolved, EventItemVerified,
 	EventItemFailed, EventItemReopened,
 	EventLinked, EventUnlinked,
-	EventCommentUpdated, EventItemUpdated, EventAttachmentUpdated,
 }
 
 // Refusal is the error a verb returns when a rule says no. It carries the one

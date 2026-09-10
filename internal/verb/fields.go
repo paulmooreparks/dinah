@@ -166,9 +166,9 @@ func (l *Library) setItemState(req *Request, entity *bench.EntityRef, value stri
 }
 
 // admitFieldValue runs the guard a field declares over a value that is being
-// written rather than cleared. A clear runs no guard, which is the rule
-// SetCardField already holds for a level: the checks are about the value, and
-// a clear has none.
+// written rather than cleared. A clear runs no guard, which is the rule a
+// level write has always held: the checks are about the value, and a clear
+// has none.
 //
 // Every guard here is the check the field's own create path already applies,
 // so a value legal to file stays legal to correct.
@@ -232,10 +232,10 @@ func (l *Library) entityAnchor(entity *bench.EntityRef) (*bench.Frontmatter, str
 // reread under the lock of the nearest enclosing journal-bearing entity, the
 // one field is rewritten, and one line is appended to that entity's journal.
 //
-// Rereading under the lock is what SetWorkbench, SetWorkstream and the card's
-// own level write all do, and for their reason: the anchor is rendered whole
-// from the header being held, so a copy read before the lock would revert
-// whatever landed after it was read.
+// Rereading under the lock is what SetCardTierAt and the card's own level
+// write both do, and for their reason: the anchor is rendered whole from the
+// header being held, so a copy read before the lock would revert whatever
+// landed after it was read.
 //
 // A write storing the value the entity already carries succeeds, writes
 // nothing and journals nothing, on the terms join already returns ok for a

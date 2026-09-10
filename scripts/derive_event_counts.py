@@ -12,12 +12,14 @@ procedure that lives only in prose is checked when somebody rebuilds the
 checker, and two people rebuilding one checker from one paragraph is the hazard
 this file removes.
 
-The five sets:
+The six sets:
 
   DECLARED   every Event constant internal/contract declares.
   UNWRITTEN  the names cmd/dinah/compat_test.go's unwrittenEvents exempts.
   WRITTEN    DECLARED minus UNWRITTEN, the events some command writes.
   QUERYABLE  contract.Events, the vocabulary a query over cards accepts.
+  OVERLAP    WRITTEN and QUERYABLE both, the events a command writes and a
+             query can then ask for.
   CARD       the event names a card's own journal carries, read off every
              compatibility fixture under internal/bench/testdata/compat.
 
@@ -89,7 +91,7 @@ def constant_names(source, block):
 
 
 def derive():
-    """Derive the five sets from the code and the fixtures."""
+    """Derive the six sets from the code and the fixtures."""
     contract_source = CONTRACT.read_text(encoding="utf-8")
     declared = set(EVENT_CONSTANT.findall(contract_source))
     if not declared:

@@ -1967,11 +1967,11 @@ func TestWorkbenchReadsTheThreeFieldsAndRefusesAnyOther(t *testing.T) {
 	}
 }
 
-// TestSetWorkbenchEvaluatesItsChecksInOrder asserts the ladder the spec fixes.
-// Each case satisfies every rung above the one it is aimed at, so a rung that
-// stopped running would show up as the rung below it answering in its place,
-// and each case leaves the anchor byte-identical.
-func TestSetWorkbenchEvaluatesItsChecksInOrder(t *testing.T) {
+// TestAWorkbenchFieldWriteEvaluatesItsChecksInOrder asserts the ladder the
+// spec fixes. Each case satisfies every rung above the one it is aimed at, so
+// a rung that stopped running would show up as the rung below it answering in
+// its place, and each case leaves the anchor byte-identical.
+func TestAWorkbenchFieldWriteEvaluatesItsChecksInOrder(t *testing.T) {
 	cases := []struct {
 		name    string
 		request *Request
@@ -2052,12 +2052,12 @@ func TestSetWorkbenchEvaluatesItsChecksInOrder(t *testing.T) {
 	})
 }
 
-// TestSetWorkbenchWritesUnderOneLockAndJournalsWhatChanged asserts the write
-// itself: each of the three fields round-trips, the keys the tool does not set
-// survive, one workbench_updated event lands per write carrying what it
+// TestAWorkbenchFieldWriteRunsUnderOneLockAndJournalsWhatChanged asserts the
+// write itself: each of the three fields round-trips, the keys the tool does
+// not set survive, one workbench_updated event lands per write carrying what it
 // rewrote, and a second library driven into the middle of the transaction sees
 // an anchor and a journal that have not moved yet and cannot take the lock.
-func TestSetWorkbenchWritesUnderOneLockAndJournalsWhatChanged(t *testing.T) {
+func TestAWorkbenchFieldWriteRunsUnderOneLockAndJournalsWhatChanged(t *testing.T) {
 	h := newHarness(t)
 	writes := []struct {
 		field string
@@ -2675,7 +2675,7 @@ func TestAWorkstreamCreatedWithASlugStoresThatSlug(t *testing.T) {
 // collection as empty as it found it.
 //
 // The detail is the field name rather than the value the caller typed, which is
-// the convention SetWorkstream's own malformed rows already keep: the field is
+// the convention SetField's own malformed rows already keep: the field is
 // what a caller can act on.
 func TestAMalformedSlugAtCreationIsRefusedBeforeAnythingIsWritten(t *testing.T) {
 	for _, slug := range []string{"Autumn", "autumn release", "-autumn", "autumn--release", "autumn/release"} {

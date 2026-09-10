@@ -105,10 +105,12 @@ func TestTheSixRetiredSpellingsRefuseAndTheirReplacementsWork(t *testing.T) {
 			prints:      "active",
 		},
 		{
+			// The second of the two replacements that write. It runs after
+			// the row above, whose read wants the value this one changes.
 			retired:     []string{"workstream", "set", "autumn", "status", "finished"},
 			wanted:      contract.Usage,
-			replacement: []string{"get", "workstream/autumn", "status"},
-			prints:      "active",
+			replacement: []string{"set", "workstream/autumn", "status", "finished"},
+			prints:      "",
 		},
 	}
 	if len(rows) != len(retiredSpellings) {
@@ -139,12 +141,18 @@ func TestTheSixRetiredSpellingsRefuseAndTheirReplacementsWork(t *testing.T) {
 		}
 	}
 
-	// The one replacement above that writes rather than reads is read back
-	// here, so the row proves the write landed rather than only that it
-	// exited zero.
+	// The two replacements above that write rather than read are read back
+	// here, so each row proves its write landed rather than only that it
+	// exited zero. Two rows retire a write, so two rows replace one, and a
+	// row given another row's replacement leaves the write it stands for
+	// unexercised.
 	title := runCLI(t, root, "get", "workbench", "title")
 	if got := strings.TrimSuffix(title.out, "\n"); got != "A renamed workbench" {
 		t.Errorf("the workbench title reads back %q after the generic write", got)
+	}
+	status := runCLI(t, root, "get", "workstream/autumn", "status")
+	if got := strings.TrimSuffix(status.out, "\n"); got != "finished" {
+		t.Errorf("the workstream status reads back %q after the generic write", got)
 	}
 }
 
@@ -303,14 +311,30 @@ func decodeServed(t *testing.T, dir, line string, into any) {
 	}
 }
 
-// retiredSpellingAllowlist names the files a retired spelling legitimately
-// survives in, with the reason it is legitimate. Every entry is an unrelated
+// retiredSpellingExcuse is one phrase a retired spelling legitimately survives
+// inside, the file it is expected in, and the reason it is legitimate.
+//
+// The excuse is keyed to the phrase rather than to the file, and the
+// difference is the whole point of it. An excuse keyed to a file excuses every
+// hit in that file, so a genuine `dinah card set` written into one of the two
+// files below would have passed in silence, and the doc comment's promise that
+// each occurrence is argued for would have held everywhere except inside the
+// files it names.
+type retiredSpellingExcuse struct {
+	File   string
+	Phrase string
+	Reason string
+}
+
+// retiredSpellingAllowlist is every phrase argued for. Each is an unrelated
 // word pair rather than a command anybody could type, which is what the reason
-// has to argue: a ninth entry is an argument somebody makes rather than a
-// silent match.
-var retiredSpellingAllowlist = map[string]string{
-	filepath.Join("internal", "verb", "library.go"): "the phrases are \"narrows the card set\" and \"the no-card set\", where set is the noun rather than the verb",
-	filepath.Join("internal", "verb", "tree.go"):    "the phrases are \"over the card set\" and \"partitions a card set\", where set is the noun rather than the verb",
+// has to say: a fifth phrase is an argument somebody makes rather than a silent
+// match.
+var retiredSpellingAllowlist = []retiredSpellingExcuse{
+	{File: filepath.Join("internal", "verb", "library.go"), Phrase: "narrows the card set", Reason: "set is the noun rather than the verb"},
+	{File: filepath.Join("internal", "verb", "library.go"), Phrase: "the no-card set", Reason: "set is the noun rather than the verb"},
+	{File: filepath.Join("internal", "verb", "tree.go"), Phrase: "over the card set", Reason: "set is the noun rather than the verb"},
+	{File: filepath.Join("internal", "verb", "tree.go"), Phrase: "partitions a card set", Reason: "set is the noun rather than the verb"},
 }
 
 // retiredSpellingRoots are the document trees this sweep walks, which is
@@ -345,11 +369,12 @@ func TestNoRetiredSpellingSurvivesInTheShippedCorpus(t *testing.T) {
 		t.Fatal("no spelling is named as retired, so this sweep read nothing")
 	}
 
+	found := map[string]int{}
 	documents := 0
 	for _, root := range retiredSpellingRoots {
 		documents += sweepRetired(t, root, func(path string) bool {
 			return true
-		})
+		}, found)
 	}
 	if documents == 0 {
 		t.Fatal("the document walk read no file, so its roots have moved")
@@ -359,10 +384,19 @@ func TestNoRetiredSpellingSurvivesInTheShippedCorpus(t *testing.T) {
 	for _, root := range retiredSpellingGoRoots {
 		goFiles += sweepRetired(t, root, func(path string) bool {
 			return strings.HasSuffix(path, ".go") && !strings.HasSuffix(path, "_test.go")
-		})
+		}, found)
 	}
 	if goFiles == 0 {
 		t.Fatal("the Go walk read no file, so its roots have moved")
+	}
+
+	// An excuse whose phrase is no longer in the file is an argument for
+	// something nobody is writing any more, and it is the way this list rots
+	// into a file-wide exemption again.
+	for _, excuse := range retiredSpellingAllowlist {
+		if found[excuse.Phrase] == 0 {
+			t.Errorf("the allowlist argues for %q in %s, and no file carries that phrase, so the entry has outlived its hit", excuse.Phrase, excuse.File)
+		}
 	}
 
 	// The embedded help text is not a file on disk under either root, so it
@@ -378,10 +412,15 @@ func TestNoRetiredSpellingSurvivesInTheShippedCorpus(t *testing.T) {
 }
 
 // sweepRetired walks one root, reads every file the predicate admits, and
-// reports how many it read. A file the allowlist names is read and counted,
-// and its hits are excused rather than skipped, so an entry that has outlived
-// its hit still shows up as a file the walk covered.
-func sweepRetired(t *testing.T, root string, admits func(string) bool) int {
+// reports how many it read. Every excused phrase is cut out of a file's text
+// before that text is scanned, so what the patterns then see is whatever the
+// argued-for phrases do not account for, and a genuine retired spelling in an
+// excused file is caught like any other.
+//
+// A phrase is counted where it is found, and the caller checks the counts, so
+// an excuse that has outlived the phrase it argues for is reported rather than
+// left standing.
+func sweepRetired(t *testing.T, root string, admits func(string) bool, found map[string]int) int {
 	t.Helper()
 	read := 0
 	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
@@ -400,16 +439,20 @@ func sweepRetired(t *testing.T, root string, admits func(string) bool) int {
 		}
 		read++
 		relative := relativeToRepo(path)
-		excuse, allowed := retiredSpellingAllowlist[relative]
+		text := string(body)
+		for _, excuse := range retiredSpellingAllowlist {
+			if excuse.File != relative {
+				continue
+			}
+			if hits := strings.Count(text, excuse.Phrase); hits > 0 {
+				found[excuse.Phrase] += hits
+				text = strings.ReplaceAll(text, excuse.Phrase, "")
+			}
+		}
 		for at, spelling := range retiredSpellings {
-			if !retiredSpellingPattern[at].Match(body) {
-				continue
+			if retiredSpellingPattern[at].MatchString(text) {
+				t.Errorf("%s carries the retired spelling %q, and no allowlist entry argues that it is legitimate", relative, spelling)
 			}
-			if allowed {
-				t.Logf("%s carries %q, allowed because %s", relative, spelling, excuse)
-				continue
-			}
-			t.Errorf("%s carries the retired spelling %q, and no allowlist entry argues that it is legitimate", relative, spelling)
 		}
 		return nil
 	})

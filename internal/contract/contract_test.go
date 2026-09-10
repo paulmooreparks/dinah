@@ -1,6 +1,10 @@
 package contract
 
-import "testing"
+import (
+	"os"
+	"regexp"
+	"testing"
+)
 
 // TestTheBufferKindCarriesTheLayerPrefix is dinah-273 AC-1. The token lands on
 // disk in every board declaring a buffer, so its spelling is asserted rather
@@ -119,5 +123,60 @@ func TestTierNotHigherIsMintedOnceAndCostsTheProfileNothing(t *testing.T) {
 	// notice.
 	if len(Events) != 32 {
 		t.Errorf("the event set carries %d names, and this build declares thirty-two", len(Events))
+	}
+}
+
+// theEventConstant matches one declaration of an event name in this package's
+// own source, which is where the order Events claims to follow is fixed. It
+// captures the constant's Go name and the value declared with it, because
+// Events carries the values and only the source carries the order.
+var theEventConstant = regexp.MustCompile(`(?m)^\s+(Event[A-Za-z]+)\s+= "([a-z_]+)"`)
+
+// TestEventsFollowsTheOrderItsDocCommentClaims holds Events to the order the
+// constants are declared in, which is what its doc comment tells a caller it
+// is reading.
+//
+// Nothing about the tool's behaviour turns on that order, and that is why it
+// needs a guard rather than a reviewer: a name appended to the end of the
+// slice works perfectly, so the claim decays with nobody noticing. Three
+// names appended in this workstream did decay it, and a reviewer caught them
+// by reading the two lists side by side, which is not a thing to ask of the
+// next reviewer.
+//
+// Events holds three declared names out, so the comparison runs over the
+// declarations that survive that filter rather than over all of them.
+// Membership is somebody else's check, held by scripts/derive_event_counts.py
+// and by the format document. What is asserted here is order alone.
+func TestEventsFollowsTheOrderItsDocCommentClaims(t *testing.T) {
+	source, err := os.ReadFile("contract.go")
+	if err != nil {
+		t.Fatalf("read the constant block: %v", err)
+	}
+	declared := []string{}
+	for _, match := range theEventConstant.FindAllStringSubmatch(string(source), -1) {
+		declared = append(declared, match[2])
+	}
+	if len(declared) == 0 {
+		t.Fatal("this package declares no event constant the pattern can read, so it has gone stale")
+	}
+
+	listed := map[string]bool{}
+	for _, event := range Events {
+		listed[event] = true
+	}
+	wanted := []string{}
+	for _, event := range declared {
+		if listed[event] {
+			wanted = append(wanted, event)
+		}
+	}
+	if len(wanted) != len(Events) {
+		t.Fatalf("Events carries %d names and %d of them resolve to a declared constant, so a name in it was written out rather than declared", len(Events), len(wanted))
+	}
+	for at := range Events {
+		if Events[at] != wanted[at] {
+			t.Errorf("Events is in a different order from the constants it says it follows:\n  got  %v\n  want %v", Events, wanted)
+			break
+		}
 	}
 }

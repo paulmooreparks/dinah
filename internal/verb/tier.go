@@ -65,7 +65,7 @@ func (l *Library) SetCardTierAt(req *Request) *Response {
 		l.Interleave()
 	}
 	// The write reloads the card under its own lock and sets the one field on
-	// the reloaded value, for the reason SetCardField gives: Save rewrites the
+	// the reloaded value, for the reason writeField gives: Save rewrites the
 	// whole anchor from the frontmatter the caller holds, and a stale copy
 	// would revert whatever landed after it was read.
 	reloaded, err := bench.LoadCard(filepath.Dir(card.Dir), card.ID)

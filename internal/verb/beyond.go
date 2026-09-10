@@ -768,12 +768,12 @@ func (l *Library) Workstreams() (*WorkstreamListing, error) {
 // alone, so a caller that is not the operator cannot correct a derived slug
 // afterwards, and before this row existed it was left holding a
 // half-provisioned entity it was not permitted to finish. Naming the slug at
-// creation closes that without moving SetWorkstream's authorization, which
-// stays exactly where the operator ratified it.
+// creation closes that without moving a workstream field write's
+// authorization, which stays exactly where the operator ratified it.
 //
 // The grammar check sits between the title and the owner, which is where
-// SetWorkbench and SetWorkstream both put "the value is present and well
-// formed" relative to the entity they name. It refuses a malformed slug
+// SetField puts "the value is present and well formed" relative to the entity
+// the reference names. It refuses a malformed slug
 // naming the field rather than the offending value, because the field is what
 // a caller can act on. A slug a live workstream already carries is
 // NewWorkstream's own row, raised there because the collection scan that

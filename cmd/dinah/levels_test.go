@@ -341,7 +341,7 @@ func TestNamingAFieldACardDoesNotRecordRefuses(t *testing.T) {
 	if name := refusalNameOf(refused.errw); name != contract.UnknownField {
 		t.Errorf("the refusal name is %s, wanted %s", name, contract.UnknownField)
 	}
-	if !strings.Contains(refused.errw, "The fields a card records are: "+strings.Join(bench.FieldsOf(bench.KindCard), ", ")+".") {
+	if !strings.Contains(refused.errw, "The fields of card are: "+strings.Join(bench.FieldsOf(bench.KindCard), ", ")+".") {
 		t.Errorf("the sentence does not carry the fields a card records:\n%s", refused.errw)
 	}
 	// The sentence lists the resolved kind's own set and no other kind's, so
