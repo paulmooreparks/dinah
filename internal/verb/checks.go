@@ -182,6 +182,14 @@ var beyondChecks = map[string][]Check{
 		{Refusal: contract.Occupied, Key: "check.archive.2"},
 		{Refusal: contract.LastColumn, Key: "check.archive.3"},
 	},
+	// archive's occupancy row has no counterpart here, because a restore
+	// runs no occupancy scan: a live card naming a column the workbench does
+	// not list is the damage restoring the column repairs.
+	"restore": {
+		{Refusal: contract.NotArchived, Key: "check.restore.1"},
+		{Refusal: contract.NoOwner, Key: "check.restore.2"},
+		{Refusal: contract.Exists, Key: "check.restore.3"},
+	},
 	"delete": {
 		{Refusal: contract.UnknownPath, Key: "check.delete.1"},
 		{Refusal: contract.Unconfirmed, Key: "check.delete.2"},

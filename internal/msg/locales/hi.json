@@ -114,6 +114,21 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "5166e1a76d1e4f39"
     },
+    "check.restore.1": {
+      "text": "संदर्भ संग्रह में रखी किसी वस्तु तक पहुँचता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "cc96c6655557640b"
+    },
+    "check.restore.2": {
+      "text": "अनुरोध बताता है कि कौन कार्य कर रहा है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "4c8ee5f415ee9e31"
+    },
+    "check.restore.3": {
+      "text": "जहाँ इकाई वापस जाती है वहाँ कुछ भी जीवित नहीं खड़ा है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "9692bffafbfe61b5"
+    },
     "check.attach.1": {
       "text": "संदर्भ मिलता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
@@ -1033,6 +1048,11 @@
       "text": "कार्ड, कॉलम, या कार्ड के नीचे की कोई भी वस्तु जीवित समूह से बाहर करें",
       "context": "The one-line summary of the archive command, shown beside its syntax in the help block.",
       "source": "dc0b4d1c53656321"
+    },
+    "cmd.restore.summary": {
+      "text": "कार्ड, कॉलम, या कार्ड के नीचे की कोई भी वस्तु वापस जीवित समूह में रखें",
+      "context": "The one-line summary of the restore command, shown beside its syntax in the help block. It is the inverse of cmd.archive.summary and is worded to read as its pair.",
+      "source": "3426d04bace61a23"
     },
     "cmd.cite.summary": {
       "text": "चेकलिस्ट मद पर प्रमाण उद्धृत करें",
@@ -2325,6 +2345,16 @@
       "context": "Spliced onto refusal.dinah.exists as the next step, carrying the clause that base entry used to end with.",
       "source": "8d85819f35ec85f3"
     },
+    "refusal.dinah.exists.restore": {
+      "text": "{detail} पर पहले से कुछ जीवित खड़ा है, इसलिए संग्रहीत इकाई के लौटने की कोई जगह नहीं है",
+      "context": "The sentence printed after the refusal name dinah.exists when the restore command raised it, which is a live entity occupying the directory the archived one was archived from. It is a separate entry because the entry above it is written for init and extract and reports a workbench.md, which is false of this raise site. {detail} is the directory the entity would go back to, a path rather than prose, and no word may agree with it.",
+      "source": "3ffe575ba0a7e53b"
+    },
+    "refusal.dinah.exists.restore.next": {
+      "text": "; वहाँ जो खड़ा है उसे हटाएँ या मिटाएँ, फिर दुबारा वापस लाएँ",
+      "context": "Spliced onto refusal.dinah.exists.restore. It names the two acts that clear the slot, and it advises neither of the two the init sentence advises, because choosing a different directory is not something a restore can do.",
+      "source": "f37f3eed6582377"
+    },
     "refusal.dinah.last-column": {
       "text": "{detail} ही बचा हुआ एकमात्र कॉलम है",
       "context": "The sentence printed after the refusal name dinah.last-column. {detail} carries the identifier, owner or column the refusal is about.",
@@ -2483,6 +2513,41 @@
       "text": "; संलग्नक वर्कबेंच, किसी कॉलम, किसी कार्ड, या किसी टिप्पणी से जुड़ते हैं",
       "context": "The last member of refusal.dinah.not-attachable's alternation, printed for any kind the two branches above do not name. It carries no condition, because the last member of an alternation is what a reader gets when none of the branches matches.",
       "source": "c45dbccd232c8bf9"
+    },
+    "refusal.dinah.not-archived": {
+      "text": "संग्रह में {detail} के नाम से कुछ नहीं मिला",
+      "context": "The sentence printed after the refusal name dinah.not-archived when show, path or contents was asked to read the archive and the archive holds nothing the reference names. {detail} is the reference as the reader typed it, which is an address rather than prose and is never translated. The reader can see the thing they typed, either because it is live or because it travelled inside an archived holder, so the sentence says which half it is in rather than saying it does not exist. No word of the sentence may agree with {detail}: the token substituted there is an untranslated address and no language can predict its gender, its number or the sound it starts with.",
+      "source": "370397533caa4bcf"
+    },
+    "refusal.dinah.not-archived.restore": {
+      "text": "{detail} संग्रहीत नहीं है, इसलिए वापस लाने को कुछ नहीं है",
+      "context": "The sentence printed after the refusal name dinah.not-archived when the restore command raised it. It carries the same refusal name as the entry above and is a separate entry because \"there is nothing to restore\" is no answer to somebody who asked to look at something. {detail} is the reference as the reader typed it, which is an address rather than prose and is never translated, and no word may agree with it.",
+      "source": "29e0e8d9eee777f3"
+    },
+    "refusal.dinah.not-archived.next-holder": {
+      "text": "; {holder} संग्रहीत है और यह इकाई उसके भीतर चली गई थी, इसलिए दोनों को वापस लाने के लिए `dinah restore {holder}` चलाएँ",
+      "context": "Spliced onto either base sentence of dinah.not-archived when the reference names something that was carried into the archive inside its holder rather than archived in its own right. {holder} is the reference of that holder, an address rather than prose, and no word may agree with it. The whole backticked span is a command line for the reader to copy: every word of it is machine vocabulary and none of it is translated.",
+      "source": "e6e0126ed86ada16"
+    },
+    "refusal.dinah.not-archived.next-workbench": {
+      "text": "; वर्कबेंच {slug} कभी संग्रहीत नहीं होती, इसके बजाय कोई कॉलम, कोई कार्ड, या कार्ड के नीचे की कोई वस्तु बताएँ",
+      "context": "Spliced onto either base sentence of dinah.not-archived when the reference names the workbench itself. {slug} is the workbench's slug, which is a name rather than prose and is never translated, and no word may agree with it. The clause offers no command, because archiving the workbench is refused by design and there is no act to advise.",
+      "source": "b0a7d60effd0df4b"
+    },
+    "refusal.dinah.not-archived.next-collection": {
+      "text": "; संग्रह में उस संग्रह की सामग्री देखने के लिए `dinah show --archived {collection}` चलाएँ",
+      "context": "Spliced onto either base sentence of dinah.not-archived when the reference selects a member of a collection and that member is live. {collection} is the reference of the collection above it, an address rather than prose, and no word may agree with it. The whole backticked span is a command line for the reader to copy: every word of it is machine vocabulary and none of it is translated.",
+      "source": "e2f2bda2d3244fe5"
+    },
+    "refusal.dinah.not-archived.restore.next": {
+      "text": "; यदि आपका आशय उसे जीवित समूह से बाहर करना था तो पहले `dinah archive {detail}` चलाएँ",
+      "context": "The restore command's own last resort in dinah.not-archived's alternation, printed when no branch above it matched, which is a live entity named by a bare reference. {detail} is the reference as the reader typed it, an address rather than prose, and no word may agree with it. The whole backticked span is a command line for the reader to copy: every word of it is machine vocabulary and none of it is translated.",
+      "source": "bb61f3e1c95a2d90"
+    },
+    "refusal.dinah.not-archived.next": {
+      "text": "; जहाँ वह है वहीं, जीवित समूह में, पढ़ने के लिए `--archived` हटा दें",
+      "context": "The last member of dinah.not-archived's alternation, printed to a reader of show, path or contents when no branch above it matched, which is a live entity named by a bare reference. It carries no condition, because the last member of an alternation is what a reader gets when no branch above it matches. `--archived` is the flag's own spelling and is copied rather than translated.",
+      "source": "c1e6d45241590b8f"
     },
     "refusal.dinah.outside-root": {
       "text": "{detail} उस रूट {root} के बाहर है जिसके साथ सर्वर शुरू हुआ",
@@ -3464,6 +3529,11 @@
       "context": "The meaning of the ref argument of archive and delete, which take the same set of things.",
       "source": "3f739e20c1af8b82"
     },
+    "param.archived.summary": {
+      "text": "संदर्भ को जीवित समूह के बजाय संग्रह में हल करें",
+      "context": "The meaning of the --archived flag, shared by restore, show, path and contents, printed in each command's arguments table. On those four the flag names one half rather than widening: the reference resolves against the archive mirror at its deepest collection step. The same flag on `dinah search` widens the scan instead and carries its own sentence under param.search.archived.summary.",
+      "source": "96062bdaae050886"
+    },
     "param.yes.summary": {
       "text": "इस काम की पुष्टि करें, जिसके बिना Dinah इसे नहीं करता",
       "context": "The meaning of the --yes flag, shared by the commands that ask before they destroy something.",
@@ -3863,6 +3933,11 @@
       "text": "{ref} में कुछ नहीं है।",
       "context": "Printed when `dinah contents` is asked about a collection with no members. No table follows and the call succeeds, for the reason contents.empty gives for an entity.",
       "source": "c3b658c29527aa78"
+    },
+    "contents.archived": {
+      "text": "{ref} के वापस आने पर ये पते हल होंगे।",
+      "context": "The line printed under the heading of `dinah contents --archived`, once per listing. The rows below it carry the addresses the walk's children will have when the root is restored, and none of them resolves while the root is archived. {ref} is the root's own reference, an address rather than prose, and no word may agree with it.",
+      "source": "c3e882c83ac25674"
     },
     "param.attachments.ref.summary": {
       "text": "यह वर्कबेंच, `workbench` या `.` के रूप में लिखा गया, एक कॉलम, एक कार्ड, या एक टिप्पणी जैसे wb-1/comments/1; कुछ न लिखने पर यह वर्कबेंच",

@@ -258,7 +258,7 @@ func TestTheReferencesGuideTableNamesEveryCommandThatTakesAReference(t *testing.
 func referenceProbeArgs(t *testing.T, command string) []string {
 	t.Helper()
 	switch command {
-	case "path", "edit", "show", "instructions", "contents", "attachments", "archive":
+	case "path", "edit", "show", "instructions", "contents", "attachments", "archive", "restore":
 		return nil
 	case "get":
 		return []string{"title"}

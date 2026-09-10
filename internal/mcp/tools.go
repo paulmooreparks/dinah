@@ -77,6 +77,7 @@ var tools = []tool{
 	{name: "link_card", command: "link", run: func(l *verb.Library, r *verb.Request) any { return l.Link(r) }},
 	{name: "unlink_card", command: "unlink", run: func(l *verb.Library, r *verb.Request) any { return l.Unlink(r) }},
 	{name: "archive", command: "archive", run: func(l *verb.Library, r *verb.Request) any { return l.Archive(r) }},
+	{name: "restore", command: "restore", run: func(l *verb.Library, r *verb.Request) any { return l.Restore(r) }},
 	{name: "delete", command: "delete", run: func(l *verb.Library, r *verb.Request) any { return l.Delete(r) }},
 	{name: "rename", command: "rename", run: func(l *verb.Library, r *verb.Request) any { return l.Rename(r) }},
 	{name: "status", command: "status", run: readStatus},

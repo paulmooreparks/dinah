@@ -417,6 +417,13 @@ const (
 	// the reference and the kind rides beside it, so the caller sees what the
 	// reference reached rather than what they hoped it would reach.
 	NotAttachable = LayerPrefix + "not-attachable"
+	// NotArchived is raised when the archive mirror holds nothing the
+	// reference names and the reader can nevertheless see the thing they
+	// typed, either because it is live or because it travelled inside an
+	// archived holder. It is what an --archived read and every restore ask
+	// for. The detail names the reference as typed; holder, slug and
+	// collection each ride beside it on the one case that fills them.
+	NotArchived = LayerPrefix + "not-archived"
 	// IsACollection is a command that takes one entity handed a reference
 	// naming a whole collection. The detail names the reference as typed,
 	// the member count rides beside it, and so does the reference of the
@@ -530,7 +537,7 @@ var Introduced = []string{
 	UnknownDepth, UnknownWorkstream, Referenced, WorkstreamSlugTaken,
 	ColumnSlugTaken, ColumnRoutingDisrupted,
 	UnknownRoot, OutsideRoot, ConflictingScope, DepthWithoutRoot, MalformedDepth,
-	AmbiguousName, NotRenamable, NotAttachable, IsACollection,
+	AmbiguousName, NotRenamable, NotAttachable, IsACollection, NotArchived,
 	AmbiguousColumn, NoUpstream, AwaitingOutside, TakesNoWork,
 	NoLevels, UnknownLevel, UnknownFormat,
 	NoTierDefault, TierOutOfRange, BelowTier, TierNotHigher,

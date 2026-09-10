@@ -334,6 +334,13 @@ func (s *session) renderMatches(matches *verb.Matches) {
 // words than as a bare number beside a title.
 func (s *session) renderTree(tree *verb.Tree) {
 	s.line(s.treeHeader(tree))
+	// The rows below an archived root carry the addresses the children will
+	// have once the root is restored, and none of them resolves while it is
+	// archived. Saying that once here is what keeps a screen of addresses
+	// from quietly not working.
+	if tree.Archived {
+		s.line(s.r.T("contents.archived", "ref", tree.Root.Ref))
+	}
 	if len(tree.Root.Children) == 0 {
 		return
 	}

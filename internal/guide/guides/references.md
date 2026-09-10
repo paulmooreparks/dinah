@@ -100,7 +100,7 @@ attachments --json` give you both.
 
 ## Which command takes what
 
-Seventeen commands take a reference, and between them they accept six different sets of things. This table says what each one accepts:
+Eighteen commands take a reference, and between them they accept six different sets of things. This table says what each one accepts:
 
 | Command      | A workbench | A column | A card | Below a card | A collection |
 |--------------|-------------|----------|--------|--------------|--------------|
@@ -112,6 +112,7 @@ Seventeen commands take a reference, and between them they accept six different 
 | instructions | no          | yes      | yes    | no           | no           |
 | attach       | yes         | yes      | yes    | yes          | no           |
 | archive      | no          | yes      | yes    | yes          | no           |
+| restore      | no          | yes      | yes    | yes          | no           |
 | delete       | no          | yes      | yes    | yes          | no           |
 | contents     | yes         | yes      | yes    | yes          | yes          |
 | attachments  | yes         | yes      | yes    | yes          | yes          |
@@ -140,6 +141,36 @@ else below a card.
 Each command's own help page carries the same answer for that one command,
 so run `dinah help attach` when you want it beside the arguments rather
 than here.
+
+## Reading the archive
+
+`--archived` reads the archive mirror at a reference's deepest collection
+step, and the live half at every step above it. `restore`, `show`, `path` and
+`contents` take it. A read under the flag shows the archived half alone, where
+the same flag on `dinah search` scans both halves and marks each hit. One
+sentence covers both: `--archived` admits the archive mirror, and a command
+that resolves a reference admits it by resolving in it, where a command that
+scans a set admits it by scanning it too.
+
+Positions under the flag count the mirror's own members. With one comment
+archived and one live, `dinah show --archived wb-1/comments/1` reads the
+archived one and `dinah show wb-1/comments/1` reads the live one, and neither
+number moves when the other half changes.
+
+An entity that travelled into the archive inside its holder comes back with
+that holder. Archiving a card moves the card's whole directory, comments and
+all, and those comments were never archived in their own right, so `dinah show
+--archived wb-1/comments/1` with `wb-1` archived tells you to restore `wb-1`
+rather than answering. Once the card is back, every address below it resolves
+the ordinary way.
+
+A restored column lands at the end of the column order, because the order is
+what the workbench's own definition records and a restore appends to it. Run
+`dinah reshape` to move it where you want it.
+
+A reference printed under `dinah contents --archived` below the walk's root is
+the address that child will have once the root is restored, and it does not
+resolve while the root is archived. The listing says so on its own first line.
 
 ## Which fields a kind has
 

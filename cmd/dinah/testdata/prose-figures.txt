@@ -52,7 +52,7 @@ noun tools
 noun verbs
 noun ways
 
-docs/quick-start.md:105 figure=fifty-four noun=commands counts=the commands dinah help lists derives=groupedCommands
+docs/quick-start.md:105 figure=fifty-five noun=commands counts=the commands dinah help lists derives=groupedCommands
 docs/quick-start.md:105 figure=four noun=groups counts=the groups dinah help sorts its commands into derives=commandGroups
 docs/quick-start.md:222 figure=four noun=settings counts=the settings dinah config accepts derives=configKeys
 docs/quick-start.md:438 figure=five noun=commands counts=the verbs that change where a card stands derives=contractVerbs
@@ -68,14 +68,14 @@ docs/quick-start.md:944 figure=two noun=commands counts=the two commands the blo
 docs/quick-start.md:1142 figure=two noun=groups counts=the two origins of a refusal name holds=prose reason=the groups are the shared rules and Dinah's own coinage, which no table in the tree declares as a set
 docs/quick-start.md:1508 figure=five noun=flags counts=the optional flags dinah column new accepts derives=columnNewFlags
 internal/guide/guides/first-session.md:99 figure=one noun=outcomes counts=one of the four outcomes a command reports holds=partitive reason=the sentence says one of four outcomes, so the figure counts the choice rather than the set
-internal/guide/guides/mcp.md:298 figure=Eight noun=tools counts=the MCP tools whose verb reads the request's basis holds=unreachable at=internal/mcp/tools.go:307 declares=injectedProperties
+internal/guide/guides/mcp.md:298 figure=Eight noun=tools counts=the MCP tools whose verb reads the request's basis holds=unreachable at=internal/mcp/tools.go:308 declares=injectedProperties
 internal/guide/guides/mcp.md:330 figure=two noun=kinds counts=the directory kinds the descent skips holds=prose reason=a dotted directory and a symbolic link are two branches of one walk rather than a set the tree declares
 internal/guide/guides/query.md:44 figure=Twelve noun=fields counts=the field names the query language admits derives=queryFields
 internal/guide/guides/query.md:80 figure=five noun=fields counts=the query fields read from a card's journal holds=unreachable at=internal/verb/query.go:72 declares=actPlane
 internal/guide/guides/references.md:18 figure=three noun=ways counts=the spellings of this workbench the guide shows derives=workbenchSpellings
-internal/guide/guides/references.md:103 figure=Seventeen noun=commands counts=the commands that take a reference derives=referenceCommands
-internal/guide/guides/references.md:125 figure=Eight noun=commands counts=the commands that take a workstream reference holds=elsewhere by=TestTheReferencesGuideNamesTheCommandsThatTakeAWorkstream reason=that test runs every command of the roster against a workstream reference and holds this sentence's named list against what each one did
-internal/guide/guides/references.md:127 figure=Nine noun=rows counts=the table rows the guide qualifies with a detail derives=qualifiedTableRows
+internal/guide/guides/references.md:103 figure=Eighteen noun=commands counts=the commands that take a reference derives=referenceCommands
+internal/guide/guides/references.md:126 figure=Eight noun=commands counts=the commands that take a workstream reference holds=elsewhere by=TestTheReferencesGuideNamesTheCommandsThatTakeAWorkstream reason=that test runs every command of the roster against a workstream reference and holds this sentence's named list against what each one did
+internal/guide/guides/references.md:128 figure=Nine noun=rows counts=the table rows the guide qualifies with a detail derives=qualifiedTableRows
 internal/guide/guides/verbs.md:1 figure=five noun=verbs counts=the verbs that change where a card stands derives=contractVerbs
 internal/guide/guides/verbs.md:3 figure=Five noun=verbs counts=the verbs that change where a card stands derives=contractVerbs
 internal/guide/guides/verbs.md:33 figure=two noun=commands counts=two of the five verbs holds=partitive reason=the two are claim and move, whose separate records a pull writes together
