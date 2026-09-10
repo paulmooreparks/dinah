@@ -281,6 +281,10 @@
       "text": "an editor is resolvable",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
+    "check.edit.3": {
+      "text": "the reference names one thing rather than a whole collection",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
     "check.entity-at-both-paths": {
       "text": "{detail} is present in the workbench's live set and in its archive, and check will not choose between them",
       "context": "A check finding: an interrupted structural act left a directory at both paths, which the tool reports and refuses to resolve."
@@ -834,11 +838,11 @@
       "context": "The one-line summary of the add command, shown beside its syntax in the help block."
     },
     "cmd.archive.summary": {
-      "text": "Move a card, a column, or anything below a card, out of the live set",
+      "text": "Move an entity out of the live set",
       "context": "The one-line summary of the archive command, shown beside its syntax in the help block."
     },
     "cmd.restore.summary": {
-      "text": "Put a card, a column, or anything below a card, back into the live set",
+      "text": "Put an archived entity back into the live set",
       "context": "The one-line summary of the restore command, shown beside its syntax in the help block. It is the inverse of cmd.archive.summary and is worded to read as its pair."
     },
     "cmd.cite.summary": {
@@ -886,11 +890,11 @@
       "context": "The one-line summary of the config command, shown beside its syntax in the help block."
     },
     "cmd.delete.summary": {
-      "text": "Destroy a card, a column, or anything below a card, along with its history",
+      "text": "Destroy an entity, along with its history",
       "context": "The one-line summary of the delete command, shown beside its syntax in the help block."
     },
     "cmd.edit.summary": {
-      "text": "Open this workbench, a card, or anything below a card in your editor",
+      "text": "Open an entity of this workbench in your editor",
       "context": "The one-line summary of the edit command, shown beside its syntax in the help block."
     },
     "cmd.get.summary": {
@@ -1302,7 +1306,7 @@
       "context": "The one-line summary of the pull command, shown beside its syntax in the help block. Pull is not a sixth verb: it combines a claim and a move into one transaction."
     },
     "cmd.path.summary": {
-      "text": "Print the file path of this workbench, of a card, or of anything below a card",
+      "text": "Print the file path of an entity of this workbench",
       "context": "The one-line summary of the path command, shown beside its syntax in the help block."
     },
     "cmd.query.summary": {
@@ -1318,7 +1322,7 @@
       "context": "The one-line summary of the release command, shown beside its syntax in the help block."
     },
     "cmd.show.summary": {
-      "text": "A card, or anything below it",
+      "text": "The detail of an entity of this workbench",
       "context": "The one-line summary of the show command, shown beside its syntax in the help block."
     },
     "cmd.columns.summary": {
@@ -2781,6 +2785,34 @@
       "text": "{summary} (one of: {values})",
       "context": "One argument's meaning followed by the closed set of values it accepts. {summary} is the argument's own sentence and {values} is the members separated by commas. The members are machine vocabulary and are never translated."
     },
+    "help.reference-kinds": {
+      "text": "{summary} (one of: {kinds})",
+      "context": "One argument's meaning followed by the kinds of thing its reference may name. {summary} is the argument's own sentence. {kinds} holds the labels reference.kind.workbench, reference.kind.workstream, reference.kind.column, reference.kind.card, reference.kind.below-card and reference.kind.collection, joined by a semicolon and a space, and those labels are translated prose rather than machine vocabulary, so unlike {kind} in the unknown-field refusals a word of this sentence may agree with what is substituted here. No label may itself contain a semicolon followed by a space, because the guard over this clause splits the list on that pair."
+    },
+    "reference.kind.workbench": {
+      "text": "this workbench, written as `workbench` or `.`",
+      "context": "One address kind a command's reference may name, printed in the list beside that argument on the command's help page and in the tool schema. No label may itself contain a semicolon followed by a space, because the guard over that list splits it on that pair."
+    },
+    "reference.kind.workstream": {
+      "text": "a workstream, written as `workstream/<slug>`",
+      "context": "One address kind a command's reference may name, printed in the list beside that argument on the command's help page and in the tool schema. No label may itself contain a semicolon followed by a space, because the guard over that list splits it on that pair."
+    },
+    "reference.kind.column": {
+      "text": "a column",
+      "context": "One address kind a command's reference may name, printed in the list beside that argument on the command's help page and in the tool schema. No label may itself contain a semicolon followed by a space, because the guard over that list splits it on that pair."
+    },
+    "reference.kind.card": {
+      "text": "a card",
+      "context": "One address kind a command's reference may name, printed in the list beside that argument on the command's help page and in the tool schema. No label may itself contain a semicolon followed by a space, because the guard over that list splits it on that pair."
+    },
+    "reference.kind.below-card": {
+      "text": "something below a card",
+      "context": "One address kind a command's reference may name, printed in the list beside that argument on the command's help page and in the tool schema. No label may itself contain a semicolon followed by a space, because the guard over that list splits it on that pair."
+    },
+    "reference.kind.collection": {
+      "text": "a whole collection",
+      "context": "One address kind a command's reference may name, printed in the list beside that argument on the command's help page and in the tool schema. No label may itself contain a semicolon followed by a space, because the guard over that list splits it on that pair."
+    },
     "column.arguments.argument": {
       "text": "As you write it",
       "context": "Heading over how each argument is spelled, in the arguments table one command's help page prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it."
@@ -2814,8 +2846,8 @@
       "context": "The meaning of the reason argument of `dinah raise`, printed in that command's arguments table. The second clause is the limit a reader has to meet before relying on what a raise says: the reason cannot be left out, and no part of the tool judges what it claims."
     },
     "param.ref.summary": {
-      "text": "a column, a card, or something below a card such as wb-1/comments/1; not this workbench",
-      "context": "The meaning of the ref argument of archive and delete, which take the same set of things."
+      "text": "the entity you are acting on, written as its reference, such as wb-1/comments/1",
+      "context": "The meaning of the ref argument of archive, restore and delete, which take the same set of things."
     },
     "param.archived.summary": {
       "text": "resolve the reference in the archive rather than in the live set",
@@ -2834,7 +2866,7 @@
       "context": "The meaning of the column argument of `dinah add`, printed in that command's arguments table."
     },
     "param.attach.ref.summary": {
-      "text": "what the file hangs off: this workbench, a column, a card, or a comment or an attachment below a card; with --replace, the attachment whose bytes you are replacing",
+      "text": "what the file hangs off; below a card that is a comment, or, with --replace, the attachment whose bytes you are replacing",
       "context": "The meaning of the ref argument of `dinah attach`, printed in that command's arguments table."
     },
     "param.attach.file.summary": {
@@ -2922,7 +2954,7 @@
       "context": "The meaning of the value argument of `dinah config`, printed in that command's arguments table."
     },
     "param.edit.card.summary": {
-      "text": "this workbench written as `workbench` or `.`, a card, or something below a card such as wb-1/comments/1",
+      "text": "the thing you are opening in your editor, such as wb-1/comments/1",
       "context": "The meaning of the card argument of `dinah edit`, printed in that command's arguments table."
     },
     "param.extract.dir.summary": {
@@ -2954,7 +2986,7 @@
       "context": "The meaning of the operator argument of `dinah init`, printed in that command's arguments table."
     },
     "param.instructions.card.summary": {
-      "text": "a card or a column; instructions takes neither this workbench nor anything below a card",
+      "text": "the position whose instructions you are reading",
       "context": "The meaning of the card argument of `dinah instructions`, printed in that command's arguments table."
     },
     "param.ls.column.summary": {
@@ -3006,11 +3038,11 @@
       "context": "The meaning of the --override flag of `dinah pull`, printed in that command's arguments table."
     },
     "param.path.card.summary": {
-      "text": "this workbench written as `workbench` or `.`, a card, or something below a card such as wb-1/comments/1",
+      "text": "the thing whose file path you are printing, such as wb-1/comments/1",
       "context": "The meaning of the card argument of `dinah path`, printed in that command's arguments table."
     },
     "param.get.ref.summary": {
-      "text": "the entity you are reading, written as its reference: this workbench as `workbench` or `.`, a column, a card, or something below a card such as wb-1/comments/1",
+      "text": "the entity you are reading, written as its reference",
       "context": "The meaning of the ref argument of `dinah get`, printed in that command's arguments table."
     },
     "param.get.field.summary": {
@@ -3018,7 +3050,7 @@
       "context": "The meaning of the field argument of `dinah get`, printed in that command's arguments table. The set the argument publishes is the union over every kind, and the refusal names the resolved kind's own set."
     },
     "param.set.ref.summary": {
-      "text": "the entity you are writing, written as its reference: this workbench as `workbench` or `.`, a column, a card, or something below a card such as wb-1/comments/1",
+      "text": "the entity you are writing, written as its reference",
       "context": "The meaning of the ref argument of `dinah set`, printed in that command's arguments table."
     },
     "param.set.field.summary": {
@@ -3042,7 +3074,7 @@
       "context": "The meaning of the query argument of `dinah query`, printed in that command's arguments table."
     },
     "param.show.card.summary": {
-      "text": "a card, or something below a card such as wb-1/comments/1; show does not take this workbench",
+      "text": "the thing whose detail you are reading, such as wb-1 or wb-1/comments/1",
       "context": "The meaning of the card argument of `dinah show`, printed in that command's arguments table."
     },
     "param.show.fields.summary": {
@@ -3146,7 +3178,7 @@
       "context": "The line printed under the heading of `dinah contents --archived`, once per listing. The rows below it carry the addresses the walk's children will have when the root is restored, and none of them resolves while the root is archived. {ref} is the root's own reference, an address rather than prose, and no word may agree with it."
     },
     "param.attachments.ref.summary": {
-      "text": "this workbench written as `workbench` or `.`, a column, a card, or a comment such as wb-1/comments/1; this workbench when you name none",
+      "text": "the entity whose attachments you are listing; this workbench when you name none",
       "context": "The meaning of the ref argument of `dinah attachments`, printed in that command's arguments table. attachments writes its own sentence rather than taking the shared one, because the shared sentence ends \"not this workbench\" and the workbench is one of the entities this read is asked about."
     },
     "param.contents.depth.summary": {
@@ -3154,7 +3186,7 @@
       "context": "The meaning of the depth argument of `dinah contents`, printed in that command's arguments table."
     },
     "param.contents.ref.summary": {
-      "text": "this workbench written as `workbench` or `.`, a column, a card, or something below a card such as wb-1/comments/1",
+      "text": "the entity whose contents you are drawing, written as its reference",
       "context": "The meaning of the ref argument of `dinah contents`, printed in that command's arguments table. contents writes its own sentence rather than taking the shared one, because the shared sentence ends \"not this workbench\" and the workbench is the reference contents is most often given."
     },
     "param.tree.depth.summary": {

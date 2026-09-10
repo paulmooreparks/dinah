@@ -354,6 +354,11 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "940db15f0e728ae6"
     },
+    "check.edit.3": {
+      "text": "संदर्भ पूरे संग्रह को नहीं, किसी एक चीज़ को नाम देता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "2b9ac1df1c55ee5c"
+    },
     "check.entity-at-both-paths": {
       "text": "{detail} वर्कबेंच के जीवित समूह में और उसके पुरालेख में, दोनों जगह मौजूद है, और check इनमें से किसी एक को नहीं चुनेगा",
       "context": "A check finding: an interrupted structural act left a directory at both paths, which the tool reports and refuses to resolve.",
@@ -1045,14 +1050,14 @@
       "source": "4bc64e311c859f14"
     },
     "cmd.archive.summary": {
-      "text": "कार्ड, कॉलम, या कार्ड के नीचे की कोई भी वस्तु जीवित समूह से बाहर करें",
+      "text": "किसी इकाई को जीवित समूह से बाहर करें",
       "context": "The one-line summary of the archive command, shown beside its syntax in the help block.",
-      "source": "dc0b4d1c53656321"
+      "source": "6a93f0542e7f5026"
     },
     "cmd.restore.summary": {
-      "text": "कार्ड, कॉलम, या कार्ड के नीचे की कोई भी वस्तु वापस जीवित समूह में रखें",
+      "text": "किसी संग्रहित इकाई को वापस जीवित समूह में रखें",
       "context": "The one-line summary of the restore command, shown beside its syntax in the help block. It is the inverse of cmd.archive.summary and is worded to read as its pair.",
-      "source": "3426d04bace61a23"
+      "source": "e33de6bd1bb93b96"
     },
     "cmd.cite.summary": {
       "text": "चेकलिस्ट मद पर प्रमाण उद्धृत करें",
@@ -1110,14 +1115,14 @@
       "source": "d4e39c0cabb42107"
     },
     "cmd.delete.summary": {
-      "text": "कार्ड, कॉलम, या कार्ड के नीचे की कोई भी वस्तु, उसके इतिहास सहित नष्ट करें",
+      "text": "किसी इकाई को उसके इतिहास सहित नष्ट करें",
       "context": "The one-line summary of the delete command, shown beside its syntax in the help block.",
-      "source": "99d356ed109c1795"
+      "source": "d370310b161fba96"
     },
     "cmd.edit.summary": {
-      "text": "इस वर्कबेंच, किसी कार्ड, या कार्ड के नीचे की किसी वस्तु को अपने संपादक में खोलें",
+      "text": "इस वर्कबेंच की किसी इकाई को अपने संपादक में खोलें",
       "context": "The one-line summary of the edit command, shown beside its syntax in the help block.",
-      "source": "4c47ea6af00f9c49"
+      "source": "8d75a45fac2e108c"
     },
     "cmd.get.summary": {
       "text": "इस वर्कबेंच की किसी भी इकाई का एक फ़ील्ड पढ़ें",
@@ -1630,9 +1635,9 @@
       "source": "4a7141f183e1ec1d"
     },
     "cmd.path.summary": {
-      "text": "इस वर्कबेंच, किसी कार्ड, या कार्ड के नीचे की किसी वस्तु का फ़ाइल पथ छापें",
+      "text": "इस वर्कबेंच की किसी इकाई का फ़ाइल पथ छापें",
       "context": "The one-line summary of the path command, shown beside its syntax in the help block.",
-      "source": "b400e47faeb64a30"
+      "source": "515bfc99c0986913"
     },
     "cmd.query.summary": {
       "text": "वर्कबेंच के वे कार्ड जो किसी क्वेरी से मेल खाते हैं",
@@ -1650,9 +1655,9 @@
       "source": "9e72a44fab9f346e"
     },
     "cmd.show.summary": {
-      "text": "कार्ड, या उसके नीचे की कोई चीज़",
+      "text": "इस वर्कबेंच की किसी इकाई का विवरण",
       "context": "The one-line summary of the show command, shown beside its syntax in the help block.",
-      "source": "7fbe0c4aa4a95ee7"
+      "source": "dc2332719d859856"
     },
     "cmd.columns.summary": {
       "text": "प्रवाह, क्रम में",
@@ -3484,6 +3489,41 @@
       "context": "One argument's meaning followed by the closed set of values it accepts. {summary} is the argument's own sentence and {values} is the members separated by commas. The members are machine vocabulary and are never translated.",
       "source": "69c6e2cfea9de173"
     },
+    "help.reference-kinds": {
+      "text": "{summary} (इनमें से एक: {kinds})",
+      "context": "One argument's meaning followed by the kinds of thing its reference may name. {summary} is the argument's own sentence. {kinds} holds the labels reference.kind.workbench, reference.kind.workstream, reference.kind.column, reference.kind.card, reference.kind.below-card and reference.kind.collection, joined by a semicolon and a space, and those labels are translated prose rather than machine vocabulary, so unlike {kind} in the unknown-field refusals a word of this sentence may agree with what is substituted here. No label may itself contain a semicolon followed by a space, because the guard over this clause splits the list on that pair.",
+      "source": "5de6886b12b5f67c"
+    },
+    "reference.kind.workbench": {
+      "text": "यह वर्कबेंच, `workbench` या `.` के रूप में लिखा गया",
+      "context": "One address kind a command's reference may name, printed in the list beside that argument on the command's help page and in the tool schema. No label may itself contain a semicolon followed by a space, because the guard over that list splits it on that pair.",
+      "source": "6fd434ec7b7ef775"
+    },
+    "reference.kind.workstream": {
+      "text": "एक वर्कस्ट्रीम, `workstream/<slug>` के रूप में लिखी गई",
+      "context": "One address kind a command's reference may name, printed in the list beside that argument on the command's help page and in the tool schema. No label may itself contain a semicolon followed by a space, because the guard over that list splits it on that pair.",
+      "source": "a29e818fd19f6a0f"
+    },
+    "reference.kind.column": {
+      "text": "एक कॉलम",
+      "context": "One address kind a command's reference may name, printed in the list beside that argument on the command's help page and in the tool schema. No label may itself contain a semicolon followed by a space, because the guard over that list splits it on that pair.",
+      "source": "5df7f9e3855e6436"
+    },
+    "reference.kind.card": {
+      "text": "एक कार्ड",
+      "context": "One address kind a command's reference may name, printed in the list beside that argument on the command's help page and in the tool schema. No label may itself contain a semicolon followed by a space, because the guard over that list splits it on that pair.",
+      "source": "e7633c823e64293a"
+    },
+    "reference.kind.below-card": {
+      "text": "कार्ड के नीचे कोई चीज़",
+      "context": "One address kind a command's reference may name, printed in the list beside that argument on the command's help page and in the tool schema. No label may itself contain a semicolon followed by a space, because the guard over that list splits it on that pair.",
+      "source": "aa525843a4cac25d"
+    },
+    "reference.kind.collection": {
+      "text": "एक पूरा संग्रह",
+      "context": "One address kind a command's reference may name, printed in the list beside that argument on the command's help page and in the tool schema. No label may itself contain a semicolon followed by a space, because the guard over that list splits it on that pair.",
+      "source": "f3072dc5274260c1"
+    },
     "column.arguments.argument": {
       "text": "आप इसे ऐसे लिखें",
       "context": "Heading over how each argument is spelled, in the arguments table one command's help page prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it.",
@@ -3525,9 +3565,9 @@
       "source": "e18c38895376a397"
     },
     "param.ref.summary": {
-      "text": "एक कॉलम, एक कार्ड, या कार्ड के नीचे की कोई चीज़ जैसे wb-1/comments/1; यह वर्कबेंच नहीं",
-      "context": "The meaning of the ref argument of archive and delete, which take the same set of things.",
-      "source": "3f739e20c1af8b82"
+      "text": "जिस इकाई पर आप कार्य कर रहे हैं, उसके संदर्भ के रूप में लिखी गई, जैसे wb-1/comments/1",
+      "context": "The meaning of the ref argument of archive, restore and delete, which take the same set of things.",
+      "source": "7cc95807b54059cc"
     },
     "param.archived.summary": {
       "text": "संदर्भ को जीवित समूह के बजाय अभिलेखागार में हल करें",
@@ -3550,9 +3590,9 @@
       "source": "ec724e9c659389c3"
     },
     "param.attach.ref.summary": {
-      "text": "फ़ाइल किससे जुड़ेगी: यह वर्कबेंच, एक कॉलम, एक कार्ड, या कार्ड के नीचे कोई टिप्पणी या संलग्नक; --replace के साथ, वह संलग्नक जिसके बाइट आप बदल रहे हैं",
+      "text": "फ़ाइल किससे जुड़ेगी; कार्ड के नीचे वह एक टिप्पणी है, या, --replace के साथ, वह संलग्नक जिसके बाइट आप बदल रहे हैं",
       "context": "The meaning of the ref argument of `dinah attach`, printed in that command's arguments table.",
-      "source": "dc3ef09df80df2e1"
+      "source": "d9f9607ea9aee2b6"
     },
     "param.attach.file.summary": {
       "text": "इस मशीन पर उस फ़ाइल का पथ जिसे आप जोड़ रहे हैं",
@@ -3660,9 +3700,9 @@
       "source": "e78a40bd1e5b6d62"
     },
     "param.edit.card.summary": {
-      "text": "यह वर्कबेंच, `workbench` या `.` के रूप में लिखा गया, एक कार्ड, या कार्ड के नीचे कोई चीज़ जैसे wb-1/comments/1",
+      "text": "वह चीज़ जिसे आप अपने संपादक में खोल रहे हैं, जैसे wb-1/comments/1",
       "context": "The meaning of the card argument of `dinah edit`, printed in that command's arguments table.",
-      "source": "1795aa1c0605796a"
+      "source": "3ce76cc6f182702b"
     },
     "param.extract.dir.summary": {
       "text": "इस वर्कबेंच की परिभाषा कहाँ लिखनी है",
@@ -3700,9 +3740,9 @@
       "source": "1a8a5d6cfd7ce9c4"
     },
     "param.instructions.card.summary": {
-      "text": "एक कार्ड या एक कॉलम; instructions न यह वर्कबेंच लेता है और न कार्ड के नीचे की कोई चीज़",
+      "text": "वह स्थान जिसके निर्देश आप पढ़ रहे हैं",
       "context": "The meaning of the card argument of `dinah instructions`, printed in that command's arguments table.",
-      "source": "1e52ce94a75a3b5d"
+      "source": "bbea5b44dfebd901"
     },
     "param.ls.column.summary": {
       "text": "कौन-सा कॉलम दिखाना है, इसे --column <column> भी लिखा जाता है; कुछ न लिखने पर हर कॉलम",
@@ -3765,14 +3805,14 @@
       "source": "efbd0444a56459fb"
     },
     "param.path.card.summary": {
-      "text": "यह वर्कबेंच, `workbench` या `.` के रूप में लिखा गया, एक कार्ड, या कार्ड के नीचे कोई चीज़ जैसे wb-1/comments/1",
+      "text": "वह चीज़ जिसका फ़ाइल पथ आप छाप रहे हैं, जैसे wb-1/comments/1",
       "context": "The meaning of the card argument of `dinah path`, printed in that command's arguments table.",
-      "source": "1795aa1c0605796a"
+      "source": "46a2740d129682a0"
     },
     "param.get.ref.summary": {
-      "text": "जिस इकाई को आप पढ़ रहे हैं, उसके संदर्भ के रूप में लिखी गई: यह वर्कबेंच `workbench` या `.` के रूप में, एक कॉलम, एक कार्ड, या कार्ड के नीचे कोई चीज़ जैसे wb-1/comments/1",
+      "text": "जिस इकाई को आप पढ़ रहे हैं, उसके संदर्भ के रूप में लिखी गई",
       "context": "The meaning of the ref argument of `dinah get`, printed in that command's arguments table.",
-      "source": "cb02cac9a94c468f"
+      "source": "e7ef088ff9da9e00"
     },
     "param.get.field.summary": {
       "text": "आप कौन-सा फ़ील्ड पढ़ रहे हैं; कौन-से नाम मान्य हैं यह उस प्रकार पर निर्भर करता है जिस पर संदर्भ हल होता है",
@@ -3780,9 +3820,9 @@
       "source": "27a7c297c40a2669"
     },
     "param.set.ref.summary": {
-      "text": "जिस इकाई को आप लिख रहे हैं, उसके संदर्भ के रूप में लिखी गई: यह वर्कबेंच `workbench` या `.` के रूप में, एक कॉलम, एक कार्ड, या कार्ड के नीचे कोई चीज़ जैसे wb-1/comments/1",
+      "text": "जिस इकाई को आप लिख रहे हैं, उसके संदर्भ के रूप में लिखी गई",
       "context": "The meaning of the ref argument of `dinah set`, printed in that command's arguments table.",
-      "source": "ce92c50364a262ef"
+      "source": "d0762f4e90c1a4e0"
     },
     "param.set.field.summary": {
       "text": "आप कौन-सा फ़ील्ड लिख रहे हैं; कौन-से नाम मान्य हैं यह उस प्रकार पर निर्भर करता है जिस पर संदर्भ हल होता है",
@@ -3810,9 +3850,9 @@
       "source": "7a5c1bae3ca79f81"
     },
     "param.show.card.summary": {
-      "text": "एक कार्ड, या कार्ड के नीचे कोई चीज़ जैसे wb-1/comments/1; show यह वर्कबेंच नहीं लेता",
+      "text": "वह चीज़ जिसका विवरण आप पढ़ रहे हैं, जैसे wb-1 या wb-1/comments/1",
       "context": "The meaning of the card argument of `dinah show`, printed in that command's arguments table.",
-      "source": "e5e44cefcd5c33f0"
+      "source": "d9ac8e6674501327"
     },
     "param.show.fields.summary": {
       "text": "उत्तर कार्ड के कौन से सदस्य ले जाए, अल्पविराम से अलग की गई सूची के रूप में लिखा; कोई न बताने पर हर सदस्य",
@@ -3940,9 +3980,9 @@
       "source": "c3e882c83ac25674"
     },
     "param.attachments.ref.summary": {
-      "text": "यह वर्कबेंच, `workbench` या `.` के रूप में लिखा गया, एक कॉलम, एक कार्ड, या एक टिप्पणी जैसे wb-1/comments/1; कुछ न लिखने पर यह वर्कबेंच",
+      "text": "जिस इकाई के संलग्नक आप सूचीबद्ध कर रहे हैं; कुछ न लिखने पर यह वर्कबेंच",
       "context": "The meaning of the ref argument of `dinah attachments`, printed in that command's arguments table. attachments writes its own sentence rather than taking the shared one, because the shared sentence ends \"not this workbench\" and the workbench is one of the entities this read is asked about.",
-      "source": "a2f398d58994dc1"
+      "source": "d25479de711b9eea"
     },
     "param.contents.depth.summary": {
       "text": "कितनी गहराई तक खींचना है, root, cards, entities, या all के रूप में लिखा गया; कुछ न लिखने पर entities",
@@ -3950,9 +3990,9 @@
       "source": "a52db472a25cc33a"
     },
     "param.contents.ref.summary": {
-      "text": "यह वर्कबेंच, `workbench` या `.` के रूप में लिखा गया, एक कॉलम, एक कार्ड, या कार्ड के नीचे कोई चीज़ जैसे wb-1/comments/1",
+      "text": "जिस इकाई की सामग्री आप ले रहे हैं, उसके संदर्भ के रूप में लिखी गई",
       "context": "The meaning of the ref argument of `dinah contents`, printed in that command's arguments table. contents writes its own sentence rather than taking the shared one, because the shared sentence ends \"not this workbench\" and the workbench is the reference contents is most often given.",
-      "source": "4e3252343e38263"
+      "source": "141ee2fd0e8e55be"
     },
     "param.tree.depth.summary": {
       "text": "कितनी गहराई तक खींचना है, root, groups, या cards के रूप में लिखा गया; कुछ न लिखने पर cards",

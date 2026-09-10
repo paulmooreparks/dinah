@@ -308,11 +308,42 @@ func addressRefused(errw string) bool {
 	return strings.SplitN(strings.TrimSpace(errw), " ", 2)[0] == contract.IsACollection
 }
 
-// TestTheReferencesGuideNamesTheCommandsThatTakeAWorkstream holds the guide's
-// workstream sentence, which is a hand-written list of six names, against what
-// the commands do. Every command of the roster is run against a workstream of
-// its own, so an archive or a delete that succeeds cannot change what the next
-// command sees.
+// workstreamProbeSetup is the invocations to run against the fresh workbench
+// before a command is probed against its own workstream, so that a cell the
+// declaration grants can answer at all.
+//
+// restore is the one command that needs any today: an entity that has not been
+// archived draws dinah.not-archived, which is a refusal for the state rather than
+// for the kind, and reading it as "did not take the reference" is what let this
+// check agree with a sentence that omitted restore for as long as it did.
+//
+// It is written as a declaration with a default of nothing, so a nineteenth
+// command needing state is one entry rather than a rewrite. That is the shape
+// this card's spec asks a future card to widen to the other five kinds, where the
+// same hazard runs deeper: dinah.occupied refuses archive and delete against a
+// column the table grants, and restore against this workbench and restore against
+// a column answer the identical refusal, so classifying by refusal name cannot
+// separate a no cell from a yes cell and only arranging the state can.
+func workstreamProbeSetup(command, slug string) [][]string {
+	switch command {
+	case "restore":
+		return [][]string{{"archive", "workstream/" + slug}}
+	}
+	return nil
+}
+
+// TestTheReferencesGuideNamesTheCommandsThatTakeAWorkstream holds three answers
+// to "which commands take a workstream" against each other: what the binary does,
+// what internal/verb declares, and what the guide's sentence names. Every pair is
+// compared in both directions, so no single edit can quietly move all three into
+// agreement.
+//
+// Every command of the roster is run against a workstream of its own, so an
+// archive or a delete that succeeds cannot change what the next command sees, and
+// each one first gets the setup workstreamProbeSetup declares for it.
+//
+// The two halves are counted separately. A single combined count would hide a
+// half that read nothing behind a half that read plenty.
 func TestTheReferencesGuideNamesTheCommandsThatTakeAWorkstream(t *testing.T) {
 	root := newBench(t)
 	t.Setenv("DINAH_EDITOR", "dinah-no-such-editor")
@@ -320,30 +351,67 @@ func TestTheReferencesGuideNamesTheCommandsThatTakeAWorkstream(t *testing.T) {
 	if len(roster) == 0 {
 		t.Fatal("no command points at the references guide, so this check read nothing")
 	}
-	named := backtickedCommandsIn(foldedGuideParagraphStartingWith(t, "Eight commands take a workstream:"), roster)
+	named := backtickedCommandsIn(foldedGuideParagraphStartingWith(t, "Nine commands take a workstream:"), roster)
 	reached := map[string]bool{}
+	probed, refused := 0, 0
 	for at, name := range roster {
 		slug := fmt.Sprintf("ws%d", at+1)
 		if got := runCLI(t, root, "workstream", "new", "Stream "+slug, "--slug", slug); got.code != 0 {
 			t.Fatalf("workstream new %s: %d %s", slug, got.code, got.errw)
 		}
+		for _, setup := range workstreamProbeSetup(name, slug) {
+			if got := runCLI(t, root, setup...); got.code != 0 {
+				t.Fatalf("setup for %s (%v): %d %s", name, setup, got.code, got.errw)
+			}
+		}
 		got := runCLI(t, root, append([]string{name, "workstream/" + slug}, referenceProbeArgs(t, name)...)...)
+		probed++
 		if commandTookTheReference(name, got) {
 			reached[name] = true
+			continue
 		}
+		refused++
+		t.Logf("refused %s exit %d %s", name, got.code, strings.SplitN(strings.TrimSpace(got.errw), " ", 2)[0])
 	}
 	if len(reached) == 0 {
 		t.Fatal("no command reached a workstream, so the fixture is broken rather than the guide")
 	}
-	for name := range reached {
-		if !named[name] {
-			t.Errorf("`dinah %s workstream/<slug>` works and the references guide's workstream sentence does not name %s", name, name)
+
+	// Three sides, each pair both ways. The binary is the authority the other
+	// two answer to, and the guide's sentence and the declaration are held to
+	// each other as well so that a sentence and a declaration cannot agree with
+	// one another while both disagree with what the tool does.
+	for _, name := range roster {
+		kinds, ok := verb.ReferenceKindsFor(name)
+		declares := false
+		if ok {
+			for _, kind := range kinds {
+				if kind == verb.ReferenceKindWorkstream {
+					declares = true
+				}
+			}
+		}
+		took := reached[name]
+		if took != declares {
+			t.Errorf("%s: binary=%t declaration=%t; `dinah %s workstream/<slug>` and internal/verb disagree about the workstream", name, took, declares, name)
+		}
+		if took != named[name] {
+			t.Errorf("%s: binary=%t sentence=%t; `dinah %s workstream/<slug>` and the references guide's workstream sentence disagree", name, took, named[name], name)
+		}
+		if declares != named[name] {
+			t.Errorf("%s: declaration=%t sentence=%t; internal/verb and the references guide's workstream sentence disagree", name, declares, named[name])
 		}
 	}
-	for name := range named {
-		if !reached[name] {
-			t.Errorf("the references guide's workstream sentence names %s and `dinah %s workstream/<slug>` does not take one", name, name)
-		}
+
+	t.Logf("%d commands probed, %d reached the workstream, %d refused", probed, len(reached), refused)
+	if probed != len(roster) {
+		t.Fatalf("the probe ran %d commands and the roster names %d", probed, len(roster))
+	}
+	if len(reached) != 9 {
+		t.Fatalf("%d commands reached the workstream and nine take one", len(reached))
+	}
+	if refused != 9 {
+		t.Fatalf("%d commands were refused the workstream and nine refuse one", refused)
 	}
 }
 
@@ -739,4 +807,91 @@ func TestTheReferencesGuideDeniesNoCommandTheToolHas(t *testing.T) {
 			t.Errorf("the references guide says %q and `dinah %s` is a command this build carries: %s", match[0], denied, paragraph)
 		}
 	}
+}
+
+// TestTheReferencesGuideTableDrawsTheDeclaredReferenceKinds holds the shipped
+// guide's "Which command takes what" table against the declaration in
+// internal/verb, cell by cell and in both directions. A declared command with no
+// row fails, a row naming an undeclared command fails, and a cell whose yes or no
+// disagrees with the declaration fails naming the command, the column and both
+// answers.
+//
+// This is what makes the guide derived rather than authoritative. dinah-457 made
+// the table the one place the tool declared which kinds a command takes, which
+// was a stopgap; the declaration now lives in internal/verb and the table is held
+// to it.
+//
+// The workstream is excluded deliberately rather than silently, because the
+// table draws five columns and the declaration carries six. The exclusion is
+// asserted to reach exactly one kind and to be that one, so a seventh kind
+// arriving fails here rather than becoming a cell nobody compares.
+// TestTheReferencesGuideNamesTheCommandsThatTakeAWorkstream holds the workstream.
+func TestTheReferencesGuideTableDrawsTheDeclaredReferenceKinds(t *testing.T) {
+	roster := verb.ReferenceTakingCommands()
+	if len(roster) == 0 {
+		t.Fatal("no command points at the references guide, so this check read nothing")
+	}
+
+	var unmapped []verb.ReferenceKind
+	var drawn []verb.ReferenceKind
+	for _, kind := range verb.ReferenceKindOrder() {
+		if _, mapped := referenceGuideHeading(kind); mapped {
+			drawn = append(drawn, kind)
+			continue
+		}
+		unmapped = append(unmapped, kind)
+	}
+	if len(unmapped) != 1 || unmapped[0] != verb.ReferenceKindWorkstream {
+		t.Fatalf("the guide's table draws a column for every declared kind but the workstream; these are unmapped instead: %v", unmapped)
+	}
+
+	declared := parseReferencesGuideTable(t)
+	for command := range declared {
+		if _, ok := verb.ReferenceKindsFor(command); !ok {
+			t.Errorf("the references guide's table carries a row for %s and internal/verb declares no kinds for it", command)
+		}
+	}
+
+	rows, cells := 0, 0
+	for _, command := range roster {
+		accepts, carried := declared[command]
+		if !carried {
+			t.Errorf("internal/verb declares kinds for %s and the references guide's table carries no row for it", command)
+			continue
+		}
+		rows++
+		granted := map[verb.ReferenceKind]bool{}
+		kinds, _ := verb.ReferenceKindsFor(command)
+		for _, kind := range kinds {
+			granted[kind] = true
+		}
+		for _, kind := range drawn {
+			heading, _ := referenceGuideHeading(kind)
+			cell, drawnHere := accepts[heading]
+			if !drawnHere {
+				t.Errorf("the references guide's row for %s draws no %q cell", command, heading)
+				continue
+			}
+			cells++
+			if cell != granted[kind] {
+				t.Errorf("the references guide's table says %s against %q for %s and internal/verb declares %s", yesNo(cell), heading, command, yesNo(granted[kind]))
+			}
+		}
+	}
+	t.Logf("%d rows and %d cells compared", rows, cells)
+	if want := len(roster); rows != want {
+		t.Fatalf("the comparison read %d rows and the roster names %d commands", rows, want)
+	}
+	if want := len(roster) * len(drawn); cells != want {
+		t.Fatalf("the comparison read %d cells and %d rows against %d drawn columns is %d", cells, rows, len(drawn), want)
+	}
+}
+
+// yesNo spells a declaration cell the way the guide's table spells it, so a
+// disagreement is reported in the words a reader would compare.
+func yesNo(accepts bool) string {
+	if accepts {
+		return "yes"
+	}
+	return "no"
 }

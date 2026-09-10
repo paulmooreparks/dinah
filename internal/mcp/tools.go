@@ -439,7 +439,7 @@ func schemaFor(t tool) map[string]any {
 		if exemptArgument(t.name, param.Name) {
 			continue
 		}
-		description := catalog.T(param.SummaryKey(t.command))
+		description := verb.ArgumentMeaning(t.command, param, catalog.T)
 		property := map[string]any{"type": param.Type(), "description": description}
 		for key, value := range vocabularyKeys(t.command, param) {
 			property[key] = value

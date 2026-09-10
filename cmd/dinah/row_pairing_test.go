@@ -2077,7 +2077,7 @@ func expectArguments(t *testing.T, r *sweptRecord, tag string) sweptExpectation 
 	t.Helper()
 	var rows [][]sweptCell
 	for _, param := range verb.Params(sweptArgumentsCommand) {
-		meaning := msg.For(tag).T(param.SummaryKey(sweptArgumentsCommand))
+		meaning := verb.ArgumentMeaning(sweptArgumentsCommand, param, msg.For(tag).T)
 		rows = append(rows, sweptTexts(param.Token(), meaning))
 	}
 	return sweptExpectation{rows: rows, source: "verb.Params(" + sweptArgumentsCommand + ")"}

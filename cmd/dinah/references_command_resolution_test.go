@@ -82,7 +82,11 @@ func TestEveryAddressTheContentsTreeDrawsResolvesThroughTheCommandsThatDeclareIt
 	var walk func(node verb.TreeNode)
 	walk = func(node verb.TreeNode) {
 		if node.Ref != "" {
-			col := column(node.Kind)
+			kind := column(node.Kind)
+			col, mapped := referenceGuideHeading(kind)
+			if !mapped {
+				t.Fatalf("the contents tree drew a node of kind %q, which classifies as %s, and the references guide's table draws no column for it", node.Kind, kind)
+			}
 			seen[col] = true
 			for _, cmd := range []string{"show", "path", "edit", "attachments"} {
 				accepts, ok := declared[cmd][col]
@@ -120,22 +124,52 @@ func TestEveryAddressTheContentsTreeDrawsResolvesThroughTheCommandsThatDeclareIt
 	}
 }
 
-// column classifies a contents-tree node's kind against the references
-// guide's own table columns. The three named kinds each get their own
-// column; every other kind (comment, item, attachment, and any extension
-// kind the containment table declares later) hangs off a card, which is the
-// fourth column.
-func column(kind string) string {
+// column classifies a contents-tree node's kind against the address kinds
+// internal/verb declares. The three named kinds each get their own kind; every
+// other kind (comment, item, attachment, and any extension kind the containment
+// table declares later) hangs off a card.
+//
+// It answers a verb.ReferenceKind rather than a table heading, so the mapping
+// between the declaration's tokens and the guide's English column headings is
+// written once, in referenceGuideHeading, rather than here as well.
+func column(kind string) verb.ReferenceKind {
 	switch kind {
 	case bench.KindWorkbench:
-		return "A workbench"
+		return verb.ReferenceKindWorkbench
 	case bench.KindColumn:
-		return "A column"
+		return verb.ReferenceKindColumn
 	case bench.KindCard:
-		return "A card"
+		return verb.ReferenceKindCard
 	default:
-		return "Below a card"
+		return verb.ReferenceKindBelowCard
 	}
+}
+
+// referenceGuideHeading is the one place the references guide's English column
+// headings are mapped onto the declaration's tokens.
+//
+// It answers false for the workstream alone, because the guide's table draws no
+// column for that kind and the sentence below the table answers it instead;
+// TestTheReferencesGuideNamesTheCommandsThatTakeAWorkstream is what holds that
+// sentence. TestTheReferencesGuideTableDrawsTheDeclaredReferenceKinds asserts
+// that exactly one kind is unmapped and that it is the workstream, so a seventh
+// kind arriving fails there rather than becoming a cell nobody compares.
+func referenceGuideHeading(kind verb.ReferenceKind) (string, bool) {
+	switch kind {
+	case verb.ReferenceKindWorkbench:
+		return "A workbench", true
+	case verb.ReferenceKindColumn:
+		return "A column", true
+	case verb.ReferenceKindCard:
+		return "A card", true
+	case verb.ReferenceKindBelowCard:
+		return "Below a card", true
+	case verb.ReferenceKindCollection:
+		return "A collection", true
+	case verb.ReferenceKindWorkstream:
+		return "", false
+	}
+	return "", false
 }
 
 // resolutionRefused reports whether a command's stderr names one of the two
@@ -152,12 +186,14 @@ func resolutionRefused(errw string) bool {
 
 // parseReferencesGuideTable reads the "Which command takes what" table out
 // of the shipped references guide and returns, for each command the table
-// names, whether it accepts each of the table's four columns. This is the
-// declaration TestEveryAddressTheContentsTreeDrawsResolvesThroughTheCommandsThatDeclareIt
-// reads rather than hand-writes: the guide is the one place the tool already
-// says which kinds a command takes, and a row this parser cannot find is a
-// row the guide no longer carries the way this test expects, which fails
-// loudly rather than silently reading zero rows.
+// names, whether it accepts each of the table's five columns.
+//
+// The guide's table was the declaration until dinah-470 moved that job to
+// internal/verb's referenceKinds, and this parser now reads the shipped table so
+// that TestTheReferencesGuideTableDrawsTheDeclaredReferenceKinds can hold the two
+// against each other cell for cell. A row this parser cannot find is a row the
+// guide no longer carries the way this test expects, which fails loudly rather
+// than silently reading zero rows.
 func parseReferencesGuideTable(t *testing.T) map[string]map[string]bool {
 	t.Helper()
 	text, err := guide.Text("references")

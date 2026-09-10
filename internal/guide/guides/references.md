@@ -124,7 +124,7 @@ Eighteen commands take a reference, and between them they accept six different s
 | fail         | no          | no       | no     | yes          | no           |
 | reopen       | no          | no       | no     | yes          | no           |
 
-Eight commands take a workstream: `path`, `edit`, `get`, `set`, `archive`, `delete`, `contents`, and `attachments`. The others refuse one, so the table leaves the workstream out rather than carrying a column that is mostly no.
+Nine commands take a workstream: `path`, `edit`, `get`, `set`, `archive`, `restore`, `delete`, `contents`, and `attachments`. The others refuse one, and the table leaves the workstream out rather than carrying a column for it, so this sentence is where that answer lives.
 
 Nine of those rows carry a detail the table is too coarse to hold.
 `attach` takes a comment below a card, and it takes an attachment only
