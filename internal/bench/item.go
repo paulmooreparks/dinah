@@ -17,8 +17,10 @@ const (
 	// ItemStateField is the item's state, one of ItemStates.
 	ItemStateField = "state"
 	// ItemColumnField is the column an item names, written only when a
-	// caller supplies one. Nothing reads it for enforcement today, so the
-	// write side commits to no default for it.
+	// caller supplies one. GatingItems matches a move's destination
+	// against it, so the value is the column's identifier rather than
+	// whatever the caller spelled, and an item carrying no column holds
+	// nothing.
 	ItemColumnField = "column"
 	// ItemOwnerField is who the item is meant for, recorded and never
 	// enforced against the actor calling a terminal verb.

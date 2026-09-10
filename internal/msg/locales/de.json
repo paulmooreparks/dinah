@@ -1231,7 +1231,7 @@
     },
     "param.file.column.summary": {
       "text": "die Spalte, die der Punkt nennt, die nur dann auf den Punkt geschrieben wird, wenn du eine angibst",
-      "context": "The written meaning of file's column flag. It says the field is absent when the flag is absent, because nothing reads it for enforcement yet.",
+      "context": "The written meaning of file's column flag. It says the field is absent when the flag is absent. The value has to name a column the workbench declares, because file resolves the reference to that column's identifier and a column gate matches on the identifier.",
       "source": "a01f90ccb5da238c"
     },
     "param.file.kind.summary": {
