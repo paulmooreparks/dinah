@@ -31,10 +31,11 @@ import (
 // fixture's columns are intake, doing and the retitled done, and a column
 // identifier is twelve hex characters.
 //
-// attachmentName carries an extension rather than being a bare integer. pick
-// tries an identifier, then a position, then a name, so an attachment filename
-// that parsed as a number would be answered by the position arm before the
-// name arm ran.
+// A third resolver has the same ordering without the same exposure: pick tries
+// an identifier, then a position, then a name, so the member-name example must
+// not be a bare integer, which an attachment filename carrying an extension
+// never is. member-position is safe against the arm ahead of it because an
+// identifier is twelve hex characters.
 //
 // The two bare workstream forms are joined to two different cards, so that the
 // second probe cannot be answered by the membership the first one wrote.
