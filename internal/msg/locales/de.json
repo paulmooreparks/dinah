@@ -100,9 +100,9 @@
       "source": "18355315571e9c45"
     },
     "check.archive.1": {
-      "text": "die Referenz nennt Karte, Spalte oder Teil davon",
+      "text": "die Referenz löst sich zu einer Einheit auf, die dieser Befehl archivieren kann",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "292e0cba1554c144"
+      "source": "89da21c2335b4b3a"
     },
     "check.archive.2": {
       "text": "keine Karte belegt die archivierte Spalte",
@@ -325,9 +325,9 @@
       "source": "26290cfe311e2542"
     },
     "check.delete.1": {
-      "text": "die Referenz nennt Karte, Spalte oder Teil davon",
+      "text": "die Referenz löst sich zu einer Einheit auf, die dieser Befehl vernichten kann",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "292e0cba1554c144"
+      "source": "27d286e7b74f1f36"
     },
     "check.delete.2": {
       "text": "die Anfrage trägt die Bestätigungsoption",
@@ -845,9 +845,9 @@
       "source": "1825c0207e46f3c6"
     },
     "check.show.2": {
-      "text": "die Referenz nennt eine Karte oder etwas darunter",
+      "text": "die Referenz löst sich zu einer Einheit auf, die dieser Befehl anzeigen kann",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "f386eb2b00f548c0"
+      "source": "c83f9e04287d7f7d"
     },
     "check.slug-assigned.one": {
       "text": "{count} Spalten-Slug vergeben.",
@@ -2549,9 +2549,9 @@
       "source": "e6e0126ed86ada16"
     },
     "refusal.dinah.not-archived.next-workbench": {
-      "text": "; die Werkbank {slug} wird nie archiviert, nennen Sie stattdessen eine Spalte, eine Karte oder etwas unterhalb einer Karte",
+      "text": "; die Werkbank {slug} wird nie archiviert, nennen Sie stattdessen einen Arbeitsstrang, eine Spalte, eine Karte oder etwas unterhalb einer Karte",
       "context": "Spliced onto either base sentence of dinah.not-archived when the reference names the workbench itself. {slug} is the workbench's slug, which is a name rather than prose and is never translated, and no word may agree with it. The clause offers no command, because archiving the workbench is refused by design and there is no act to advise.",
-      "source": "b0a7d60effd0df4b"
+      "source": "cab6cd5849dac633"
     },
     "refusal.dinah.not-archived.next-collection": {
       "text": "; führen Sie `dinah show --archived {collection}` aus, um zu sehen, was diese Sammlung im Archiv enthält",

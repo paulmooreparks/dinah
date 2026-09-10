@@ -110,6 +110,7 @@ func TestEveryHelpPageNamesTheReferenceKindsItDeclares(t *testing.T) {
 			wantSuffix := foldedSuffix
 
 			var folded [2]string
+			var found [2]bool
 			for at, columns := range [2]string{"40", "200"} {
 				t.Setenv("COLUMNS", columns)
 				t.Setenv("DINAH_LANG", tag)
@@ -132,8 +133,14 @@ func TestEveryHelpPageNamesTheReferenceKindsItDeclares(t *testing.T) {
 					break
 				}
 				folded[at] = rest[:at2]
+				found[at] = true
 			}
-			if folded[0] == "" && folded[1] == "" {
+			// The skip belongs to the break above, which has already recorded an
+			// error, rather than to a page that printed the clause with nothing
+			// between its prefix and its suffix. Gating on whether the region was
+			// found rather than on whether it is empty lets that page fall through
+			// to the comparison, which then reports every declared kind as absent.
+			if !found[0] && !found[1] {
 				continue
 			}
 			// Rendering the page at two widths and requiring one clause is what

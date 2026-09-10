@@ -142,7 +142,6 @@ can say where it sits: this workbench, a column, a card, or a workstream,
 and on down to a comment or an attachment where the thing holding it keeps
 one. A workstream keeps neither, so nothing is addressable below it. Write
 a query when you want Dinah to pick the cards out by what is true of them.
-The two
-stay separate on purpose. No condition may be written inside a reference,
-and no query reaches below a card. The guide on references teaches how one
-is spelled.
+The two stay separate on purpose. No condition may be written inside a
+reference, and no query reaches below a card. The guide on references
+teaches how one is spelled.

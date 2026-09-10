@@ -97,7 +97,7 @@
       "skeleton": true
     },
     "check.archive.1": {
-      "text": "the reference resolves to a card, a column, or something below a card",
+      "text": "the reference resolves to an entity this command can archive",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
@@ -322,7 +322,7 @@
       "skeleton": true
     },
     "check.delete.1": {
-      "text": "the reference resolves to a card, a column, or something below a card",
+      "text": "the reference resolves to an entity this command can destroy",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
@@ -842,7 +842,7 @@
       "skeleton": true
     },
     "check.show.2": {
-      "text": "the reference names a card or a path below one",
+      "text": "the reference resolves to an entity this command can show",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
@@ -2536,7 +2536,7 @@
       "skeleton": true
     },
     "refusal.dinah.not-archived.next-workbench": {
-      "text": "; the workbench {slug} is never archived, so name a column, a card, or something below a card instead",
+      "text": "; the workbench {slug} is never archived, so name a workstream, a column, a card, or something below a card instead",
       "context": "Spliced onto either base sentence of dinah.not-archived when the reference names the workbench itself. {slug} is the workbench's slug, which is a name rather than prose and is never translated, and no word may agree with it. The clause offers no command, because archiving the workbench is refused by design and there is no act to advise.",
       "skeleton": true
     },

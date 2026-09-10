@@ -100,9 +100,9 @@
       "source": "18355315571e9c45"
     },
     "check.archive.1": {
-      "text": "संदर्भ किसी कार्ड, किसी कॉलम, या कार्ड के नीचे की किसी वस्तु तक पहुँचता है",
+      "text": "संदर्भ किसी ऐसी इकाई तक पहुँचता है जिसे यह कमांड संग्रहीत कर सकता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "292e0cba1554c144"
+      "source": "89da21c2335b4b3a"
     },
     "check.archive.2": {
       "text": "संग्रहीत होने वाले कॉलम में कोई कार्ड नहीं",
@@ -325,9 +325,9 @@
       "source": "26290cfe311e2542"
     },
     "check.delete.1": {
-      "text": "संदर्भ किसी कार्ड, किसी कॉलम, या कार्ड के नीचे की किसी वस्तु तक पहुँचता है",
+      "text": "संदर्भ किसी ऐसी इकाई तक पहुँचता है जिसे यह कमांड नष्ट कर सकता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "292e0cba1554c144"
+      "source": "27d286e7b74f1f36"
     },
     "check.delete.2": {
       "text": "निवेदन में पुष्टि फ़्लैग है",
@@ -845,9 +845,9 @@
       "source": "1825c0207e46f3c6"
     },
     "check.show.2": {
-      "text": "संदर्भ किसी कार्ड या उसके नीचे के पथ का नाम लेता है",
+      "text": "संदर्भ किसी ऐसी इकाई तक पहुँचता है जिसे यह कमांड दिखा सकता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "f386eb2b00f548c0"
+      "source": "c83f9e04287d7f7d"
     },
     "check.slug-assigned.one": {
       "text": "{count} कॉलम-उपनाम निर्धारित किया।",
@@ -2540,9 +2540,9 @@
       "source": "e6e0126ed86ada16"
     },
     "refusal.dinah.not-archived.next-workbench": {
-      "text": "; वर्कबेंच {slug} कभी संग्रहीत नहीं होती, इसके बजाय कोई कॉलम, कोई कार्ड, या कार्ड के नीचे की कोई वस्तु बताएँ",
+      "text": "; वर्कबेंच {slug} कभी संग्रहीत नहीं होती, इसके बजाय कोई वर्कस्ट्रीम, कोई कॉलम, कोई कार्ड, या कार्ड के नीचे की कोई वस्तु बताएँ",
       "context": "Spliced onto either base sentence of dinah.not-archived when the reference names the workbench itself. {slug} is the workbench's slug, which is a name rather than prose and is never translated, and no word may agree with it. The clause offers no command, because archiving the workbench is refused by design and there is no act to advise.",
-      "source": "b0a7d60effd0df4b"
+      "source": "cab6cd5849dac633"
     },
     "refusal.dinah.not-archived.next-collection": {
       "text": "; अभिलेखागार में उस संग्रह की सामग्री देखने के लिए `dinah show --archived {collection}` चलाएँ",

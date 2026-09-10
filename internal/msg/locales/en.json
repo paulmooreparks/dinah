@@ -78,7 +78,7 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.archive.1": {
-      "text": "the reference resolves to a card, a column, or something below a card",
+      "text": "the reference resolves to an entity this command can archive",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.archive.2": {
@@ -258,7 +258,7 @@
       "context": "A check finding: a card's workstreams list names an identifier no workstream answers to; `dinah check --migrate-workstreams` adopts it."
     },
     "check.delete.1": {
-      "text": "the reference resolves to a card, a column, or something below a card",
+      "text": "the reference resolves to an entity this command can destroy",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.delete.2": {
@@ -674,7 +674,7 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.show.2": {
-      "text": "the reference names a card or a path below one",
+      "text": "the reference resolves to an entity this command can show",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.slug-assigned.one": {
@@ -2030,7 +2030,7 @@
       "context": "Spliced onto either base sentence of dinah.not-archived when the reference names something that was carried into the archive inside its holder rather than archived in its own right. {holder} is the reference of that holder, an address rather than prose, and no word may agree with it. The whole backticked span is a command line for the reader to copy: every word of it is machine vocabulary and none of it is translated."
     },
     "refusal.dinah.not-archived.next-workbench": {
-      "text": "; the workbench {slug} is never archived, so name a column, a card, or something below a card instead",
+      "text": "; the workbench {slug} is never archived, so name a workstream, a column, a card, or something below a card instead",
       "context": "Spliced onto either base sentence of dinah.not-archived when the reference names the workbench itself. {slug} is the workbench's slug, which is a name rather than prose and is never translated, and no word may agree with it. The clause offers no command, because archiving the workbench is refused by design and there is no act to advise."
     },
     "refusal.dinah.not-archived.next-collection": {
