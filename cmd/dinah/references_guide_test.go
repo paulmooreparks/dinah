@@ -726,89 +726,6 @@ func TestEverySpellingOfThisWorkbenchTheGuideShowsNamesOneThing(t *testing.T) {
 	}
 }
 
-// guideDenialOfACapability matches a sentence denying that something exists:
-// an absence verb, the word no, and the name being denied. The capture is the
-// name, which the caller holds against the tool's own roster.
-//
-// The pattern is deliberately narrow. It reads a denial rather than every
-// mention of a command, because prose says "no" about plenty of things that
-// are not capabilities, and a guard that fired on all of them would be
-// silenced rather than fixed.
-var guideDenialOfACapability = regexp.MustCompile(`\b(?:has|have|had|is|are|was|were|carries|carry|offers|offer|provides|provide|knows|know)\s+no\s+([a-z][a-z-]*)`)
-
-// referencesGuideProseParagraphs returns the references guide's paragraphs
-// with its tables and its indented blocks removed, each folded to single
-// spaces and stripped of backticks.
-//
-// The two removals are what make a scan over the whole guide safe. Folding a
-// table row runs its cells together, so a `no` cell lands directly beside the
-// next row's command name and reads as a denial of it, and an indented block
-// holds command lines rather than sentences.
-func referencesGuideProseParagraphs(t *testing.T) []string {
-	t.Helper()
-	text, err := guide.Text("references")
-	if err != nil {
-		t.Fatalf("guide references: %v", err)
-	}
-	var prose []string
-	for _, paragraph := range regexp.MustCompile(`\n\s*\n`).Split(text, -1) {
-		var kept []string
-		for _, line := range strings.Split(paragraph, "\n") {
-			if strings.HasPrefix(line, "    ") || strings.HasPrefix(line, "\t") {
-				continue
-			}
-			if strings.HasPrefix(strings.TrimSpace(line), "|") {
-				continue
-			}
-			kept = append(kept, line)
-		}
-		folded := strings.Join(strings.Fields(strings.Join(kept, " ")), " ")
-		folded = strings.ReplaceAll(folded, "`", "")
-		if folded != "" {
-			prose = append(prose, folded)
-		}
-	}
-	return prose
-}
-
-// TestTheReferencesGuideDeniesNoCommandTheToolHas holds the guide's prose
-// against the tool's command roster in the one direction the table checks
-// cannot see. Those checks compare the table's rows with the commands that
-// point a reader here, so a row for a new command is added and they go green,
-// and a sentence elsewhere in the same guide saying that command does not
-// exist stays exactly as it was.
-//
-// That is not hypothetical. dinah-461 added the `restore` row and the guide
-// went on saying "an act that writes to a whole collection cannot be undone
-// and Dinah has no restore" thirty lines above it, through a green tree and
-// eleven verified criteria, because no check read that sentence.
-//
-// The guard runs one way. A guide that denies a command the tool has fails
-// here; a guide that stays silent about a command passes, which is the table
-// checks' subject rather than this one's.
-func TestTheReferencesGuideDeniesNoCommandTheToolHas(t *testing.T) {
-	roster := map[string]bool{}
-	for _, name := range verb.Commands() {
-		roster[name] = true
-	}
-	if len(roster) == 0 {
-		t.Fatal("the library declares no command, so this check read nothing")
-	}
-	prose := referencesGuideProseParagraphs(t)
-	if len(prose) == 0 {
-		t.Fatal("the references guide carries no prose paragraph, so this check read nothing")
-	}
-	for _, paragraph := range prose {
-		for _, match := range guideDenialOfACapability.FindAllStringSubmatch(paragraph, -1) {
-			denied := match[1]
-			if !roster[denied] {
-				continue
-			}
-			t.Errorf("the references guide says %q and `dinah %s` is a command this build carries: %s", match[0], denied, paragraph)
-		}
-	}
-}
-
 // TestTheReferencesGuideTableDrawsTheDeclaredReferenceKinds holds the shipped
 // guide's "Which command takes what" table against the declaration in
 // internal/verb, cell by cell and in both directions. A declared command with no
@@ -894,4 +811,112 @@ func yesNo(accepts bool) string {
 		return "yes"
 	}
 	return "no"
+}
+
+// archivedFlagSentenceLocator finds the paragraph of the references guide that
+// introduces `--archived`. The paragraph is located by its opening rather than
+// by a line number, so the guide can be re-wrapped without moving it.
+const archivedFlagParagraphOpening = "`--archived` reads the archive mirror"
+
+// archivedFlagSetSentenceEnding is what the set-claiming sentence of that
+// paragraph ends with. The paragraph backticks `--archived` and `dinah search`
+// as well as the four command names, so a check reading backticked names out
+// of the whole paragraph would collect a set that could never match, and the
+// natural repair would be to narrow the reader until it went green, which
+// shapes a check by its own failures.
+const archivedFlagSetSentenceEnding = "take it."
+
+// TestTheReferencesGuideNamesEveryCommandThatTakesTheArchivedFlag holds the
+// guide's claim about which commands take `--archived` against internal/verb's
+// own declaration, in both directions.
+//
+// The sentence is a claim about a whole set, so pinning it as a phrase would
+// prove only that the guide still says it. internal/verb already declares the
+// answer: a command takes the shared `--archived` flag when it declares a
+// parameter named archived whose Shared is archived.
+//
+// `search` is the case that stops a check demanding four names from passing by
+// being too strict. It declares an archived parameter with an empty Shared,
+// because the flag widens a scan there rather than naming one half, and the
+// guide's own paragraph names `dinah search` separately for that reason. The
+// excluded case is asserted beside the included ones, so a check that simply
+// collected every command with an archived parameter would fail here.
+func TestTheReferencesGuideNamesEveryCommandThatTakesTheArchivedFlag(t *testing.T) {
+	declared := map[string]bool{}
+	searchDeclaresAnUnsharedArchived := false
+	for _, command := range verb.Commands() {
+		for _, param := range verb.Params(command) {
+			if param.Name != "archived" {
+				continue
+			}
+			if param.Shared == "archived" {
+				declared[command] = true
+				continue
+			}
+			if command == "search" && param.Shared == "" {
+				searchDeclaresAnUnsharedArchived = true
+			}
+		}
+	}
+	if len(declared) == 0 {
+		t.Fatal("internal/verb declares no command taking the shared archived flag, so this check read nothing")
+	}
+	if !searchDeclaresAnUnsharedArchived {
+		t.Error("internal/verb no longer declares search's archived parameter with an empty Shared, so the guide's separate sentence about `dinah search` is no longer the excluded case this check pins")
+	}
+
+	text, err := guide.Text("references")
+	if err != nil {
+		t.Fatalf("guide references: %v", err)
+	}
+	var paragraph string
+	for _, block := range regexp.MustCompile(`\n\s*\n`).Split(text, -1) {
+		folded := strings.Join(strings.Fields(block), " ")
+		if strings.HasPrefix(folded, archivedFlagParagraphOpening) {
+			paragraph = folded
+			break
+		}
+	}
+	if paragraph == "" {
+		t.Fatalf("no paragraph of the references guide opens %q, so this check has nothing to hold", archivedFlagParagraphOpening)
+	}
+	if !strings.Contains(paragraph, "`dinah search`") {
+		t.Error("the paragraph introducing `--archived` no longer names `dinah search` separately, so the guide no longer says why search is not in the set")
+	}
+
+	var claims []string
+	for _, part := range strings.Split(paragraph, ". ") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		if !strings.HasSuffix(part, ".") {
+			part += "."
+		}
+		if strings.HasSuffix(part, archivedFlagSetSentenceEnding) {
+			claims = append(claims, part)
+		}
+	}
+	if len(claims) != 1 {
+		t.Fatalf("the paragraph introducing `--archived` holds %d sentences ending %q and this check reads exactly one: %v", len(claims), archivedFlagSetSentenceEnding, claims)
+	}
+
+	named := map[string]bool{}
+	for _, match := range regexp.MustCompile("`([a-z][a-z-]*)`").FindAllStringSubmatch(claims[0], -1) {
+		named[match[1]] = true
+	}
+	if len(named) == 0 {
+		t.Fatalf("the guide's sentence %q backticks no command name, so this check read nothing", claims[0])
+	}
+	for command := range declared {
+		if !named[command] {
+			t.Errorf("internal/verb declares that `dinah %s` takes the shared archived flag and the references guide's sentence does not name it: %s", command, claims[0])
+		}
+	}
+	for command := range named {
+		if !declared[command] {
+			t.Errorf("the references guide says `dinah %s` takes `--archived` and internal/verb declares no archived parameter sharing that meaning for it: %s", command, claims[0])
+		}
+	}
+	t.Logf("internal/verb declares %d commands taking the shared archived flag and the guide's sentence names %d", len(declared), len(named))
 }

@@ -1064,3 +1064,105 @@ func guideProse(text string) []string {
 	}
 	return sentences
 }
+
+// guideDenialOfACapability matches a sentence denying that something exists:
+// an absence verb, the word no, and the name being denied. The capture is the
+// name, which the caller holds against the tool's own roster.
+//
+// The pattern is deliberately narrow. It reads a denial rather than every
+// mention of a command, because prose says "no" about plenty of things that
+// are not capabilities, and a guard that fired on all of them would be
+// silenced rather than fixed.
+var guideDenialOfACapability = regexp.MustCompile(`\b(?:has|have|had|is|are|was|were|carries|carry|offers|offer|provides|provide|knows|know)\s+no\s+([a-z][a-z-]*)`)
+
+// TestNoGuideDeniesACommandTheToolHas holds every embedded guide's prose
+// against the tool's command roster in the one direction the table checks
+// cannot see. Those checks compare a table's rows with the commands that point
+// a reader at that guide, so a row for a new command is added and they go
+// green, and a sentence elsewhere in the same guide saying that command does
+// not exist stays exactly as it was.
+//
+// That is not hypothetical. dinah-461 added the `restore` row to the
+// references guide and the guide went on saying "an act that writes to a whole
+// collection cannot be undone and Dinah has no restore" thirty lines above it,
+// through a green tree and eleven verified criteria, because no check read
+// that sentence. dinah-461's own guard then read that one guide of the eight,
+// so the other seven kept the hole it was written to close.
+//
+// How a sentence is found, since the rule is this check's meaning rather than
+// a detail of guideProse, whose own comment defers the rule to whichever test
+// calls it. Fenced blocks are dropped whole, because a command line is not a
+// sentence. Heading lines are dropped for the same reason. Table rows are
+// dropped because a row is a record rather than a sentence; the retired reader
+// this check replaces gave a different reason, that folding a row runs a `no`
+// cell into the next row's command name, and that reason was false, since the
+// pipe characters survive the fold. A list marker is stripped and what follows
+// it is read as prose. Indented lines are read rather than dropped, which is
+// wider than the retired reader was: the references guide carries 20 indented
+// lines, all of them command examples, and the scan fires on none of them.
+//
+// Backticks are stripped from each sentence here rather than inside
+// guideProse, so that a denial written with either word in backticks is read.
+// Over the eight guides that raises the pattern's firing count from 12 to 14.
+// The strip is not moved into guideProse because that would change what
+// TestNoSentenceStandsInTwoGuides compares, for no gain to this check.
+//
+// The corpus is the eight embedded guides, and docs/quick-start.md is
+// deliberately left out. The quick start carries this true sentence:
+//
+//	nobody claims a card there, `dinah next` offers nothing from it, and
+//	`dinah pull` neither takes a card out of it nor lands one in it, but a
+//	card standing there is ready in the ordinary way, carries no block, and
+//	anybody may move it on when the answer comes
+//
+// `block` is a command this build carries and the sentence is true, so
+// admitting the quick start would ship a guard that fired falsely on its first
+// run. Rewording the quick start to admit it was considered and rejected,
+// because that lets the guard dictate how a true sentence may be phrased.
+//
+// The guard runs one way. A guide that denies a command the tool has fails
+// here; a guide that stays silent about a command passes, which is the table
+// checks' subject rather than this one's.
+func TestNoGuideDeniesACommandTheToolHas(t *testing.T) {
+	roster := map[string]bool{}
+	for _, name := range verb.Commands() {
+		roster[name] = true
+	}
+	if len(roster) == 0 {
+		t.Fatal("the library declares no command, so the roster this check compares against read nothing")
+	}
+	topics := guide.Topics()
+	if len(topics) == 0 {
+		t.Fatal("the library names no guide topic, so the corpus this check sweeps read nothing")
+	}
+
+	scanned, sentences := 0, 0
+	for _, topic := range topics {
+		text, err := guide.Text(topic)
+		if err != nil {
+			t.Fatalf("guide %s: %v", topic, err)
+		}
+		scanned++
+		prose := guideProse(text)
+		t.Logf("internal/guide/guides/%s.md: %d sentences", topic, len(prose))
+		if len(prose) == 0 {
+			t.Errorf("the guide %s yields no sentence, so this check read nothing of it", topic)
+			continue
+		}
+		sentences += len(prose)
+		for _, sentence := range prose {
+			for _, match := range guideDenialOfACapability.FindAllStringSubmatch(strings.ReplaceAll(sentence, "`", ""), -1) {
+				denied := match[1]
+				if !roster[denied] {
+					continue
+				}
+				t.Errorf("internal/guide/guides/%s.md says %q and `dinah %s` is a command this build carries: %s\n(a command name standing as an ordinary noun trips this check; reword the sentence rather than exempting it)",
+					topic, match[0], denied, sentence)
+			}
+		}
+	}
+	if scanned != len(guide.Topics()) {
+		t.Fatalf("this check scanned %d guides and the library names %d, so it read less than the corpus it claims", scanned, len(guide.Topics()))
+	}
+	t.Logf("%d guides scanned, %d sentences, against a roster of %d commands", scanned, sentences, len(roster))
+}

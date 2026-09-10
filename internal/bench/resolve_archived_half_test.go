@@ -4,6 +4,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"testing"
+
+	"dinah/internal/guide/guidepin"
 )
 
 // archivedHalfRow is one row of dinah-461 section 3's worked table: a
@@ -58,6 +60,9 @@ func archiveDir(t *testing.T, dir string) string {
 // cmd/dinah rather than here. Ten is the whole of what this test can drive
 // rather than a row quietly dropped.
 func TestTheArchivedHalfIsReadAtTheDeepestCollectionStep(t *testing.T) {
+	if err := guidepin.Carries("references", guidepin.ArchivedReadsTheDeepestCollectionStep); err != nil {
+		t.Error(err)
+	}
 	fixture := buildArchivedHalfFixture(t)
 	if len(fixture.rows) < 10 {
 		t.Fatalf("the table holds %d rows and section 3's resolving rows are ten", len(fixture.rows))
@@ -91,6 +96,9 @@ func TestTheArchivedHalfIsReadAtTheDeepestCollectionStep(t *testing.T) {
 // where both halves happened to hold the entity at position one, so the two
 // answers are asserted to differ as well as each being asserted right.
 func TestAPositionUnderTheFlagCountsTheMirrorsOwnMembers(t *testing.T) {
+	if err := guidepin.Carries("references", guidepin.PositionsCountTheMirrorsOwnMembers); err != nil {
+		t.Error(err)
+	}
 	root := newFixture(t)
 	card := filepath.Join(root, CardsDir, "c00000000001")
 	// Three comments in a known order: the first two are archived, so the

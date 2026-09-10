@@ -171,7 +171,8 @@ what the workbench's own definition records and a restore appends to it. Run
 
 A reference printed under `dinah contents --archived` below the walk's root is
 the address that child will have once the root is restored, and it does not
-resolve while the root is archived. The listing says so on its own first line.
+resolve while the root is archived. The listing says so on the line under the
+sentence naming the root.
 
 ## Which fields a kind has
 
