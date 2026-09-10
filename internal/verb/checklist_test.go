@@ -103,8 +103,8 @@ func TestFileCreatesAPendingItemAndOneJournalLine(t *testing.T) {
 		t.Errorf("body: wanted the item's text, got %q", got)
 	}
 	// The column field is written only when a caller supplies one, and this
-	// call supplied none. Nothing reads the field for enforcement today, so
-	// absence is what the write commits to rather than a chosen default.
+	// call supplied none. Absence is what the write commits to rather than a
+	// chosen default, and an item carrying no column gates nothing.
 	if fm.Has(bench.ItemColumnField) {
 		t.Errorf("column: wanted the field absent, got %q", fm.Value(bench.ItemColumnField))
 	}
@@ -132,6 +132,12 @@ func TestFileCreatesAPendingItemAndOneJournalLine(t *testing.T) {
 // the absence rule: a caller naming a column and an owner gets both fields,
 // so the absence above is the flag not being passed rather than the write
 // dropping what it was given.
+//
+// It is also dinah-473's write half, and the column is named by the slug a
+// person types rather than by the identifier a fixture can spell. GatingItems
+// matches an item's column field against the destination's identifier, so an
+// item storing the slug holds nothing; a case filing the identifier passes
+// whether or not the resolution happens and proves neither half.
 func TestFileWritesTheColumnAndTheOwnerOnlyWhenGiven(t *testing.T) {
 	h := newHarness(t)
 	card := h.add("first card")
@@ -145,11 +151,72 @@ func TestFileWritesTheColumnAndTheOwnerOnlyWhenGiven(t *testing.T) {
 	}
 	h.reopen()
 	fm, _ := h.itemAnchor(card + "/oq/1")
-	if got := fm.Value(bench.ItemColumnField); got != "review" {
-		t.Errorf("column: wanted review, got %q", got)
+	if got := fm.Value(bench.ItemColumnField); got != review {
+		t.Errorf("column: wanted the resolved identifier %s, got %q", review, got)
 	}
 	if got := fm.Value(bench.ItemOwnerField); got != "operator" {
 		t.Errorf("owner: wanted operator, got %q", got)
+	}
+}
+
+// TestFileRefusesAColumnTheWorkbenchDoesNotDeclare is dinah-473's refusal
+// half. The field is load-bearing once a column gates on it, so a reference
+// that resolves to nothing has to be refused at the write rather than stored
+// to be silently ignored by every later read.
+//
+// The case runs the whole way to the gate as well as to the anchor, because
+// the defect this guards was invisible at the write: the item existed, the
+// tool said nothing, and the only evidence was a move that should have been
+// refused and was not.
+func TestFileRefusesAColumnTheWorkbenchDoesNotDeclare(t *testing.T) {
+	h := newHarness(t)
+	card := h.add("first card")
+	response := h.library.File(&Request{
+		Verb: "file", Actor: "alka", Card: card,
+		Kind: "open_question", Text: "does the deadline move?",
+		Column: "nowhere",
+	})
+	if response.Refusal != contract.UnknownColumn {
+		t.Fatalf("wanted %s, got %s %s", contract.UnknownColumn, response.Outcome, response.Refusal)
+	}
+	// The refusal names the value back, because a person who typed a name the
+	// workbench does not carry needs to see which of the two forms was wanted.
+	if response.Detail != "nowhere" {
+		t.Errorf("detail: wanted the unresolved reference nowhere, got %q", response.Detail)
+	}
+	h.reopen()
+	items, err := bench.Items(h.card(card).Dir)
+	if err != nil {
+		t.Fatalf("read the card's checklist: %v", err)
+	}
+	if len(items) != 0 {
+		t.Errorf("a refused filing left %d item(s) behind", len(items))
+	}
+}
+
+// TestAnItemFiledBySlugHoldsTheColumnItNames is dinah-473's end-to-end half,
+// and the one that would have caught the defect. It reaches GatingItems, which
+// is what a gated move consults, rather than stopping at the anchor: the write
+// half above and this one fail together when the resolution is removed, and
+// this one names the consequence.
+func TestAnItemFiledBySlugHoldsTheColumnItNames(t *testing.T) {
+	h := newHarness(t)
+	card := h.add("first card")
+	response := h.library.File(&Request{
+		Verb: "file", Actor: "alka", Card: card,
+		Kind: "open_question", Text: "does the deadline move?",
+		Column: "review",
+	})
+	if response.Outcome != contract.OutcomeOK {
+		t.Fatalf("file: %s %s", response.Outcome, response.Refusal)
+	}
+	h.reopen()
+	holding := bench.GatingItems(h.card(card).Dir, review)
+	if len(holding) != 1 {
+		t.Fatalf("wanted the review station held by the one item filed against it, got %d holding item(s)", len(holding))
+	}
+	if holding[0].Column != review {
+		t.Errorf("the holding item carries the column %q, wanted the identifier %s", holding[0].Column, review)
 	}
 }
 
