@@ -881,31 +881,100 @@ func ItemBlocksClaim(item *Item) bool {
 	if item.Kind != "open_question" && item.Kind != "decision" {
 		return false
 	}
+	return !ItemIsResolved(item)
+}
+
+// ItemIsResolved reports whether an item has been settled, which is the
+// question CORE-ITEM-2 puts to a tool and the one the claim refusal above
+// turns on.
+//
+// It reads the state alone, and no kind is named here or read, because the
+// claim refusal above exempts one kind on a ruling of its own and wants that
+// exemption at the caller.
+//
+// A state that is absent, empty or outside the closed set reads as
+// unresolved, on ItemBlocksClaim's own reasoning: reading a damaged file as
+// settled lets through the very thing a hold exists to catch.
+func ItemIsResolved(item *Item) bool {
 	switch item.State {
-	case "resolved", "verified", "failed":
-		return false
-	default:
+	case ItemResolved, ItemVerified, ItemFailed:
 		return true
+	default:
+		return false
+	}
+}
+
+// ItemLiftsColumnHold reports whether an item's state releases the hold a
+// column declaring gate_items puts on entry.
+//
+// It answers differently from ItemIsResolved above, on one state and on the
+// operator's ruling of 2026-09-10 recorded as dinah-450 OQ-5. A failed item
+// records that somebody checked the work and it did not hold, so it releases
+// nothing: were failed to settle the hold here, a column gated on an
+// acceptance criterion would admit the card on the one state saying the work
+// is wrong. Whether the work passed and whether the card may proceed anyway
+// are separate questions, and the state carrying the second answer is not
+// built. Until it is, the operator's move-level override marker is what
+// carries a card past a criterion that genuinely failed, which CORE-GATE-4
+// already permits.
+//
+// The claim refusal keeps ItemIsResolved rather than this. It exempts
+// acceptance criteria outright, so the ruling above does not reach it, and
+// narrowing the state set underneath it would move behaviour nobody ruled on.
+//
+// A state that is absent, empty or outside the closed set releases nothing,
+// for ItemIsResolved's own reason.
+func ItemLiftsColumnHold(item *Item) bool {
+	switch item.State {
+	case ItemResolved, ItemVerified:
+		return true
+	default:
+		return false
 	}
 }
 
 // BlockingItems reads the checklist items of a card that would refuse a claim
-// right now, in identifier order. It opens each item's anchor, where
+// right now, in identifier order. The reading itself, and what it does with an
+// item whose anchor will not open, are itemsWhere's below.
+func BlockingItems(cardDir string) []*Item {
+	return itemsWhere(cardDir, ItemBlocksClaim)
+}
+
+// GatingItems reads the checklist items of a card that hold it out of one
+// column right now, in the order BlockingItems reads its own. An item holds
+// when its own column field names the column and its state does not lift the
+// hold, and that is the whole test: every kind an item can carry holds on the
+// same terms, because CORE-GATE-1 puts the selectivity in which items name a
+// column rather than in the column or in the tool.
+//
+// The column is named by identifier, which is what an item's column field
+// carries and what the reader beside it resolves a title from.
+func GatingItems(cardDir, columnID string) []*Item {
+	if columnID == "" {
+		return nil
+	}
+	return itemsWhere(cardDir, func(item *Item) bool {
+		return item.Column == columnID && !ItemLiftsColumnHold(item)
+	})
+}
+
+// itemsWhere reads a card's checklist items and keeps the ones a predicate
+// admits, in identifier order. It opens each item's anchor, where
 // CountAttachments counts a directory listing, because the answer depends on
 // what the anchor says rather than on the item existing. An item whose anchor
 // will not open is skipped, on the same terms Attachments already reads past
 // one, since an unreadable file is a defect dinah check reports rather than
-// one a claim discovers.
-func BlockingItems(cardDir string) []*Item {
+// one a claim or a move discovers.
+func itemsWhere(cardDir string, keep func(*Item) bool) []*Item {
 	collection := filepath.Join(cardDir, ChecklistDir)
-	var blocking []*Item
+	var kept []*Item
 	for _, id := range ListIDs(collection) {
 		item, err := LoadItem(filepath.Join(collection, id))
-		if err == nil && ItemBlocksClaim(item) {
-			blocking = append(blocking, item)
+		if err == nil && keep(item) {
+			kept = append(kept, item)
 		}
 	}
-	return blocking
+	return kept
 }
 
 // CountBlockingItems reports how many of a card's checklist items would refuse

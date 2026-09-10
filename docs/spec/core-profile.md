@@ -1,6 +1,6 @@
 # The core profile
 
-Version identity: `dinah-core 0.12`, maturity channel `dev`.
+Version identity: `dinah-core 0.13`, maturity channel `dev`.
 
 ## 1. Scope and audience
 
@@ -55,7 +55,7 @@ that would bring it in.
 
 ## 2. Version identity and compatibility
 
-This document is version 0.12 of the profile whose identity string is
+This document is version 0.13 of the profile whose identity string is
 `dinah-core`. The version of this profile is a property of this document. It
 is unrelated to the release numbering of any tool, and a tool's own version
 number tells a reader nothing about which profile version that tool
@@ -92,7 +92,7 @@ in the changelog like any other change, and the promise starts to bind at
 that event. The move of this document's own major number from 0 to 1 is a
 named event of the same kind, recorded in the entry that promotes the
 document to `stable`, so no revision is ever `dev` or `beta` and major 1 at
-once. A conformance claim names `dinah-core 0.12` and says nothing about
+once. A conformance claim names `dinah-core 0.13` and says nothing about
 the channel, because the channel belongs to the document's history and the
 number belongs to the contract.
 
@@ -623,7 +623,7 @@ with the meanings RFC 8259 gives them.
 
 ```json
 {
-  "profile": "dinah-core/0.12",
+  "profile": "dinah-core/0.13",
   "title": "Wedding",
   "columns": [
     { "id": "s1", "title": "Ideas",   "kind": "intake" },
@@ -644,7 +644,7 @@ with the meanings RFC 8259 gives them.
 
 [CORE-JSON-5] Each element of `columns` MUST be a JSON object carrying the members `id`, `title` and `kind`.
 
-[CORE-JSON-9] A column object MAY carry the members `instructions`, `operator_owned`, `capacity`, and `slug`.
+[CORE-JSON-10] A column object MAY carry the members `instructions`, `operator_owned`, `capacity`, `slug`, and `gate_items`.
 
 [CORE-JSON-7] A tool MUST preserve the members it does not recognize in an interchange object it has read and written back.
 
@@ -890,6 +890,7 @@ waiting.
 6  the card is unheld or held by whoever asks           held
 7  the move is not a forward move out of a `done` column terminal
 8  the destination is below its capacity limit          at-capacity
+9  the card carries no unresolved item that names the destination unresolved-item
 ```
 
 Effect: the card's column becomes the destination.
@@ -942,9 +943,23 @@ column. The item named is one the card itself carries, per section 5.9, and
 the requirement is a property of the column rather than of the workbench as
 a whole, the way a capacity limit is.
 
+The column says that it holds and nothing more. Which items hold there
+follows from which of a card's items name the column, so no kind of item is
+enumerated on the column and none is treated differently from another when
+the hold is applied. A workbench that wants only one kind held at a column
+files only that kind against it.
+
+The way through is the way through a capacity limit, and for the reason
+given there: a control nobody can ever set aside is worked around where
+nothing sees it. The operator marks the request as an override, the move is
+recorded as an override rather than passing as an ordinary move, and every
+other owner is refused whatever they carry.
+
 [CORE-GATE-1] A workbench MAY mark a column as requiring a named structured item to be resolved before a card enters it.
 
-[CORE-GATE-2] A tool MUST refuse a move into a column so marked, reporting the refusal name `unresolved-item`, while the card carries the item that column names and that item is not resolved.
+[CORE-GATE-3] A tool MUST refuse a move into a column so marked, reporting the refusal name `unresolved-item`, while the card carries the item that column names and that item is not resolved, except where the request carries an override marker and the owner asking is the operator of the workbench.
+
+[CORE-GATE-4] A tool MAY admit a move into a column so marked when the request carries an override marker and the owner asking is the operator of the workbench, provided it records that move as one act marked an override.
 
 ### 6.5 Release
 
@@ -1252,10 +1267,10 @@ quietly.
 | The four outcomes of a verb | in | Refused, stale and unreachable call for three different next moves, and a caller that cannot tell them apart cannot be driven without a person watching. | | CORE-OUT-1, CORE-OUT-4 |
 | The number a tool answers an outcome with, where it answers with one | in | A caller driving a tool without a person watching often reads one number and nothing else, so two outcomes arriving under one number leave it unable to tell a request it must repair from a result it must act on. The concept is ruled in narrowly: no number is fixed to any outcome, because which numbers a tool has available belongs to that tool rather than to the shared model, so what enters the core is the separation and not a table of values. | | CORE-OUT-7 |
 | The claim as a lease that may expire | in | An owner that disappears must not be able to hold a card forever, and expiry that is recorded rather than silent keeps the record honest. | | CORE-CLAIM-4, CORE-CLAIM-5, CORE-HIST-2 |
-| The interchange form of a workbench definition | in | A workbench definition nobody can carry between tools makes the whole exercise theoretical. One serialization is the smallest thing that solves it, and storage stays unconstrained. | | CORE-JSON-1, CORE-JSON-2, CORE-JSON-3, CORE-JSON-4, CORE-JSON-5, CORE-JSON-9, CORE-JSON-7, CORE-JSON-8 |
+| The interchange form of a workbench definition | in | A workbench definition nobody can carry between tools makes the whole exercise theoretical. One serialization is the smallest thing that solves it, and storage stays unconstrained. | | CORE-JSON-1, CORE-JSON-2, CORE-JSON-3, CORE-JSON-4, CORE-JSON-5, CORE-JSON-10, CORE-JSON-7, CORE-JSON-8 |
 | Text encoding and the untranslated token | in | Two tools that disagree about encoding or that translate a token cannot read each other at all. | | CORE-TEXT-1, CORE-TEXT-2, CORE-TEXT-3, CORE-TEXT-4 |
 | Parallel routes through the flow [lanes] | out | The core gains a simple model by having one route, and a tool that needs several can declare them in a layer. A real board already routes work three ways, so this is the likeliest first promotion. | A second tool needs routes and the layer form proves too weak to carry them. | |
-| Conditions that must be satisfied before a card may enter a column [gates] | in | The condition this row excluded is now a shape every workbench wanting citation discipline needs rather than one each invents differently: a card does not enter a column while a structured item that column names is not resolved. The core takes the column-level declaration and the refusal it produces; which item satisfies which column, and what the item itself records, stay for the workbench to define. | | CORE-GATE-1, CORE-GATE-2 |
+| Conditions that must be satisfied before a card may enter a column [gates] | in | The condition this row excluded is now a shape every workbench wanting citation discipline needs rather than one each invents differently: a card does not enter a column while a structured item that column names is not resolved. The core takes the column-level declaration and the refusal it produces; which item satisfies which column, and what the item itself records, stay for the workbench to define. | | CORE-GATE-1, CORE-GATE-3, CORE-GATE-4 |
 | A limit on how many times a card may travel one backward edge [loop limits] | out | The core does not model backward edges as a distinct thing, so there is nothing yet for such a limit to count. | Backward edges are modelled, at which point counting travel over one becomes describable. | |
 | Display grouping of columns [column groups] | out | The core loses nothing, because no verb consults a grouping and a tool that ignores it loses only visual comfort. | A grouping starts carrying meaning a verb has to consult. | |
 | A group of columns behaving as one stage of the flow | out | The core would gain a second notion of position competing with the column, and two positions is one too many. | A workbench needs to move a card between groups without naming a column. | |
@@ -1451,7 +1466,7 @@ themselves carry meaning.
 | CORE-JSON-3 | must | tool | The written object carries `profile`, `title` and `columns`, and an object missing one of them is refused with `malformed`. |
 | CORE-JSON-4 | must | tool | The order of `columns` in the written object is the order of the flow. |
 | CORE-JSON-5 | must | tool | Every element of `columns` carries `id`, `title` and `kind`, and an element missing one of them is refused with `malformed`. |
-| CORE-JSON-9 | may | tool | A column object carrying `slug` alongside `instructions`, `operator_owned`, or `capacity` is accepted. |
+| CORE-JSON-10 | may | tool | A column object carrying `slug` or `gate_items` alongside `instructions`, `operator_owned`, or `capacity` is accepted. |
 | CORE-JSON-7 | must | tool | An interchange object read and written back carries the unrecognized member it arrived with. |
 | CORE-JSON-8 | may | tool | A tool holding definitions in some other form still produces the interchange form on request. |
 | CORE-LINK-1 | may | tool | A card offered with a link is accepted. |
@@ -1497,7 +1512,8 @@ themselves carry meaning.
 | CORE-MOVE-10 | must | tool | The history of a move admitted under CORE-MOVE-9 carries one act for that move, marked an override, and no second act beside it. |
 | CORE-MOVE-11 | must | tool | A request carrying an override marker from an owner that is not the operator is refused with `not-operator`. |
 | CORE-GATE-1 | may | tool | A definition marking a column as requiring a named structured item resolved is accepted. |
-| CORE-GATE-2 | must | tool | A move into a column so marked, where the card carries that item unresolved, is refused with `unresolved-item`. |
+| CORE-GATE-3 | must | tool | A move into a column so marked, where the card carries that item unresolved, is refused with `unresolved-item` unless CORE-GATE-4 admits it. |
+| CORE-GATE-4 | may | tool | A move into a column so marked, carrying the operator's override marker, is admitted and recorded as an override. |
 | CORE-RELEASE-1 | must | tool | A release asked for by an owner that is not the holder is refused with `not-holder`. |
 | CORE-RELEASE-2 | must | tool | After a release, the card reads `ready` and carries no holder. |
 | CORE-BLOCK-1 | must | tool | Every blocked card the tool reports carries a reason. |
@@ -1535,12 +1551,12 @@ themselves carry meaning.
 | CORE-LAYER-2 | must | tool | A workbench carrying a declared layer the tool does not understand still carries that layer's content after a read and a write. |
 | CORE-LAYER-3 | must | tool | A definition declaring a layer under a name this profile defines is refused with `layer-collision`. |
 
-The index carries 137 rows, which is the number of identifiers an extraction
+The index carries 138 rows, which is the number of identifiers an extraction
 over this revision returns.
 
 ## 12. Changelog
 
-The current revision is `dinah-core 0.12`. Entries below stay in the order
+The current revision is `dinah-core 0.13`. Entries below stay in the order
 they were published rather than in numeric order. The fourth entry renamed
 the first three from `1.0`, `2.0`, and `3.0` to `0.1`, `0.2`, and `0.3`, so
 it reads here as a drop from `3.0` to `0.4` even though nothing was undone.
@@ -2008,3 +2024,41 @@ CORE-INSTR-8 and CORE-INSTR-9 exactly as it satisfied the two statements they
 replace, and CORE-INSTR-10 is vacuous for it. The document sits on the `dev`
 channel, so nothing here binds a caller who has not already opted into
 `dinah-core 0.12`.
+
+### 0.13, channel `dev`, 2026-09-09
+
+Identifiers affected: CORE-JSON-9, retired. CORE-JSON-10, introduced, carrying
+CORE-JSON-9's permission with `gate_items` added to the set of members a column
+object may carry. CORE-GATE-2, retired. CORE-GATE-3, introduced, carrying
+CORE-GATE-2's demand with an exception for the operator's override marker.
+CORE-GATE-4, introduced: a move into a gated column carrying that marker is
+admitted and recorded as an override. No other identifier in the section 11
+index is affected.
+
+This revision also grows the ordered check table of section 6.4 by one row, the
+ninth, which is the gate CORE-GATE-3 states. The table's own order is under
+DOC-ORDER-2, so the revision takes a minor increment on that ground as well as
+on the statement changes above, and a tool reading its checks off that table
+finds the gate row inside the profile's own list rather than after it.
+
+A gate that nobody could ever set aside would be worked around outside the
+tool, where nothing records it, which is the reasoning section 6.4 already
+gives for the capacity limit. CORE-GATE-2 as published admitted no way through,
+so a tool offering the operator one departed from it. The pair replacing it
+puts the gate on the same footing as the capacity limit: the refusal stands for
+every owner who carries no marker, the operator's marker admits the one move it
+is passed on, and the act is recorded as an override rather than passing as an
+ordinary move.
+
+Consequence for a caller. A tool reading or writing the interchange form may
+now carry a `gate_items` member on a column object, and a tool that does not
+recognise it and has not read this revision sees it travel through as an
+unrecognized member under CORE-JSON-7, unaffected. A caller conforming to an
+earlier revision was entitled to be refused at a gated column whatever it
+carried; under `dinah-core 0.13` a caller that is the workbench's operator and
+carries an override marker may find the move admitted instead, and it learns
+that this happened from the act's own record rather than from the refusal it
+did not get. A tool that offers no override at all still conforms, because
+CORE-GATE-4 is a permission and a gated column then refuses every entry. The
+document sits on the `dev` channel, so nothing here binds a caller who has not
+already opted into `dinah-core 0.13`.

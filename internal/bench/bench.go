@@ -202,6 +202,12 @@ type Column struct {
 	// has been and a workbench edited by hand answers the way every other
 	// replay answers.
 	LoopLimit int
+	// GateItems marks a column that holds a card while an item on it names
+	// this column and is not resolved, which is CORE-GATE-1's declaration.
+	// The column says only that it holds; which items hold there follows
+	// from which items name it, so no kind of item is named here and none
+	// is named where the hold is applied either.
+	GateItems bool
 	// Instructions is the column's own body, the last layer of the chain.
 	Instructions string
 	// Position is the column's zero-based index in the flow.
@@ -1831,6 +1837,17 @@ func readColumnIn(root string, vocab columnVocabulary, id string, position int) 
 	case "":
 	case "true":
 		column.AwaitingOutside = true
+	case "false":
+	default:
+		return nil, contract.RefuseWith(contract.Malformed, "column "+id, anchor)
+	}
+	// The same strict reading, for the same reason: a column declaring
+	// gate_items: yes would otherwise hold nothing and say nothing about it,
+	// which is the failure a hand-edited flag makes easiest to reach.
+	switch fm.Value("gate_items") {
+	case "":
+	case "true":
+		column.GateItems = true
 	case "false":
 	default:
 		return nil, contract.RefuseWith(contract.Malformed, "column "+id, anchor)

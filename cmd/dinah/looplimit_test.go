@@ -136,7 +136,7 @@ func TestTheJSONInstructionsCarryTheLoopMember(t *testing.T) {
 }
 
 // TestHelpMoveListsTheLoopLimitRow is dinah-364 AC-6 at the surface a person
-// reads. The row is Dinah's own ninth, appended after the profile's eight, and
+// reads. The row is Dinah's own tenth, appended after the profile's nine, and
 // the generated per-command help is where the tool says the refusal exists at
 // all.
 func TestHelpMoveListsTheLoopLimitRow(t *testing.T) {
@@ -148,12 +148,12 @@ func TestHelpMoveListsTheLoopLimitRow(t *testing.T) {
 	if got.code != 0 {
 		t.Fatalf("help move: %d %s", got.code, got.errw)
 	}
-	entry, ok := msg.BaseEntry("check.move.9")
+	entry, ok := msg.BaseEntry("check.move.10")
 	if !ok || entry.Text == "" {
-		t.Fatal("the catalog carries no check.move.9")
+		t.Fatal("the catalog carries no check.move.10")
 	}
 	if !strings.Contains(got.out, entry.Text) {
-		t.Errorf("help move carries no check.move.9 row:\n%s", got.out)
+		t.Errorf("help move carries no check.move.10 row:\n%s", got.out)
 	}
 	if !strings.Contains(got.out, contract.AtLoopLimit) {
 		t.Errorf("help move names no %s refusal:\n%s", contract.AtLoopLimit, got.out)
