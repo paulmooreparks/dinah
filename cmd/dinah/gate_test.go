@@ -11,10 +11,11 @@ import (
 )
 
 // declareGateItems writes gate_items into one column's own anchor, found by
-// the title the init flow gives it. Nothing in the tool sets the field, so a
-// test reaching the rendered surface writes the declaration the way a person
-// editing a column.md would, which is what declareLoopLimit already does one
-// file over for the other column-level declaration.
+// the title the init flow gives it. `dinah set <column> hold on|off` writes the
+// same key through the field grammar, and dinah-477's own cases below drive
+// that command; this helper stays because it reaches values the command
+// refuses, and because it writes the declaration the way a person editing a
+// column.md would.
 func declareGateItems(t *testing.T, root, title, value string) {
 	t.Helper()
 	columns := filepath.Join(soleBenchDir(t, root), bench.ColumnsDir)
@@ -274,5 +275,324 @@ func TestAGatedColumnAnswersAheadOfTheDepartureLoopLimit(t *testing.T) {
 	}
 	if strings.Contains(refused.errw, contract.AtLoopLimit) {
 		t.Errorf("the tenth row answered ahead of the ninth:\n%s", refused.errw)
+	}
+}
+
+// columnAnchorOf reads one column's anchor by slug and answers its header and
+// its body, so a case asserts on the key a write touched and on every key it
+// left alone.
+func columnAnchorOf(t *testing.T, root, slug string) (*bench.Frontmatter, string) {
+	t.Helper()
+	path := filepath.Join(soleBenchDir(t, root), bench.ColumnsDir, columnIdentifier(t, root, slug), bench.ColumnAnchor)
+	text, err := bench.ReadText(path)
+	if err != nil {
+		t.Fatalf("read the %s anchor: %v", slug, err)
+	}
+	fm, body := bench.ParseAnchor(text)
+	return fm, body
+}
+
+// benchJournalLines counts the lines standing in the workbench's own journal,
+// which is where a column's field write lands its event.
+func benchJournalLines(t *testing.T, root string) int {
+	t.Helper()
+	text, err := os.ReadFile(filepath.Join(soleBenchDir(t, root), bench.JournalName))
+	if err != nil {
+		t.Fatalf("read the workbench journal: %v", err)
+	}
+	lines := 0
+	for _, line := range strings.Split(string(text), "\n") {
+		if strings.TrimSpace(line) != "" {
+			lines++
+		}
+	}
+	return lines
+}
+
+// holdOf reads a column's hold back through the command a person would use.
+func holdOf(t *testing.T, root, slug string) string {
+	t.Helper()
+	read := runCLI(t, root, "get", slug, bench.HoldField)
+	if read.code != 0 {
+		t.Fatalf("get %s hold: %d %s", slug, read.code, read.errw)
+	}
+	return strings.TrimSuffix(read.out, "\n")
+}
+
+// TestTheHoldWritesTheDeclarationAndReadsItBack is dinah-477 AC-2 and AC-3.
+// Turning the hold on writes the stored key and touches nothing else in the
+// header, turning it off removes that key rather than storing a second
+// spelling of off, and a column that has never carried the key reads off.
+func TestTheHoldWritesTheDeclarationAndReadsItBack(t *testing.T) {
+	root := newBench(t)
+	before, body := columnAnchorOf(t, root, "doing")
+	if got := holdOf(t, root, "doing"); got != bench.HoldOff {
+		t.Errorf("a column that has never carried the key reads %q, wanted %q", got, bench.HoldOff)
+	}
+
+	if got := runCLI(t, root, "set", "doing", bench.HoldField, bench.HoldOn); got.code != 0 {
+		t.Fatalf("set doing hold on: %d %s", got.code, got.errw)
+	}
+	on, onBody := columnAnchorOf(t, root, "doing")
+	if on.Value(bench.GateItemsKey) != "true" {
+		t.Errorf("the anchor stores %q under the gate key, wanted true", on.Value(bench.GateItemsKey))
+	}
+	if onBody != body {
+		t.Errorf("the write moved the column's body:\n%q\nwanted:\n%q", onBody, body)
+	}
+	for _, key := range on.Keys() {
+		if key == bench.GateItemsKey {
+			continue
+		}
+		if on.Value(key) != before.Value(key) {
+			t.Errorf("the write moved %s from %q to %q", key, before.Value(key), on.Value(key))
+		}
+	}
+	for _, key := range before.Keys() {
+		if !on.Has(key) {
+			t.Errorf("the write dropped the key %s", key)
+		}
+	}
+	if got := holdOf(t, root, "doing"); got != bench.HoldOn {
+		t.Errorf("the hold reads %q after being turned on, wanted %q", got, bench.HoldOn)
+	}
+
+	if got := runCLI(t, root, "set", "doing", bench.HoldField, bench.HoldOff); got.code != 0 {
+		t.Fatalf("set doing hold off: %d %s", got.code, got.errw)
+	}
+	off, _ := columnAnchorOf(t, root, "doing")
+	if off.Has(bench.GateItemsKey) {
+		t.Errorf("turning the hold off left the gate key standing at %q, wanted the key gone", off.Value(bench.GateItemsKey))
+	}
+	if got := holdOf(t, root, "doing"); got != bench.HoldOff {
+		t.Errorf("the hold reads %q after being turned off, wanted %q", got, bench.HoldOff)
+	}
+}
+
+// TestTheHoldWrittenTwiceJournalsOnce is dinah-477 AC-4. The second write
+// stores what the column already carries, which writeField answers ok and
+// records nowhere, so the journal is what says the two calls were one act.
+func TestTheHoldWrittenTwiceJournalsOnce(t *testing.T) {
+	root := newBench(t)
+	if got := runCLI(t, root, "set", "doing", bench.HoldField, bench.HoldOn); got.code != 0 {
+		t.Fatalf("the first write: %d %s", got.code, got.errw)
+	}
+	before := benchJournalLines(t, root)
+	if got := runCLI(t, root, "set", "doing", bench.HoldField, bench.HoldOn); got.code != 0 {
+		t.Fatalf("the second write: %d %s", got.code, got.errw)
+	}
+	if after := benchJournalLines(t, root); after != before {
+		t.Errorf("the second write appended %d journal lines, wanted none", after-before)
+	}
+	if got := holdOf(t, root, "doing"); got != bench.HoldOn {
+		t.Errorf("the hold reads %q after being turned on twice, wanted %q", got, bench.HoldOn)
+	}
+}
+
+// TestTheHoldJournalsInTheStoredForm is dinah-477 AC-7. The journal is the one
+// surface that keeps the storage spelling, because nothing reads a column's
+// journal back to a person and every other field's event carries what the
+// anchor carries.
+func TestTheHoldJournalsInTheStoredForm(t *testing.T) {
+	root := newBench(t)
+	path := filepath.Join(soleBenchDir(t, root), bench.JournalName)
+	before, torn, err := bench.ReadJournal(path)
+	if err != nil || torn {
+		t.Fatalf("read the workbench journal: %v (torn %v)", err, torn)
+	}
+	if got := runCLI(t, root, "set", "doing", bench.HoldField, bench.HoldOn); got.code != 0 {
+		t.Fatalf("set doing hold on: %d %s", got.code, got.errw)
+	}
+	after, torn, err := bench.ReadJournal(path)
+	if err != nil || torn {
+		t.Fatalf("reread the workbench journal: %v (torn %v)", err, torn)
+	}
+	if len(after) != len(before)+1 {
+		t.Fatalf("the write appended %d events, wanted one", len(after)-len(before))
+	}
+	event := after[len(after)-1]
+	if event.Event != contract.EventColumnUpdated {
+		t.Errorf("the event is %s, wanted %s", event.Event, contract.EventColumnUpdated)
+	}
+	if event.Field != bench.HoldField {
+		t.Errorf("the event names the field %q, wanted %q", event.Field, bench.HoldField)
+	}
+	if event.From != "" || event.To != "true" {
+		t.Errorf("the event carries from %q to %q, wanted the stored form: %q to %q", event.From, event.To, "", "true")
+	}
+}
+
+// TestTheHoldRefusesAnyValueButOnAndOff is dinah-477 AC-5. A value outside the
+// two is refused malformed naming the field, and so is a write carrying no
+// value at all, since the field declares itself unclearable exactly so that a
+// bare write does nothing rather than quietly meaning off.
+func TestTheHoldRefusesAnyValueButOnAndOff(t *testing.T) {
+	for _, argv := range [][]string{
+		{"set", "doing", bench.HoldField},
+		{"set", "doing", bench.HoldField, "maybe"},
+		{"set", "doing", bench.HoldField, "true"},
+		{"set", "doing", bench.HoldField, "On"},
+	} {
+		t.Run(strings.Join(argv[2:], " "), func(t *testing.T) {
+			root := newBench(t)
+			before, _ := columnAnchorOf(t, root, "doing")
+			refused := runCLI(t, root, argv...)
+			if refused.code != contract.ExitCode(contract.OutcomeRefused) {
+				t.Fatalf("the write exited %d, wanted %d", refused.code, contract.ExitCode(contract.OutcomeRefused))
+			}
+			if name := refusalNameOf(refused.errw); name != contract.Malformed {
+				t.Errorf("the refusal name is %s, wanted %s", name, contract.Malformed)
+			}
+			if !strings.Contains(refused.errw, bench.HoldField) {
+				t.Errorf("the refusal names no field; wanted %s in:\n%s", bench.HoldField, refused.errw)
+			}
+			after, _ := columnAnchorOf(t, root, "doing")
+			if after.Has(bench.GateItemsKey) {
+				t.Errorf("the refused write stored the gate key: %q", after.Value(bench.GateItemsKey))
+			}
+			if len(after.Keys()) != len(before.Keys()) {
+				t.Errorf("the refused write left %d keys, wanted %d", len(after.Keys()), len(before.Keys()))
+			}
+		})
+	}
+}
+
+// TestTheHoldIsTheOperatorsToTurn is dinah-477 AC-6. Nothing here is new
+// authority: the hold is a column field, every write to a column field is the
+// operator's already, and this case is what says the new field inherited that
+// rather than stepping around it. Reading stays open to anybody.
+func TestTheHoldIsTheOperatorsToTurn(t *testing.T) {
+	root := newBench(t)
+	refused := runCLI(t, root, "set", "doing", bench.HoldField, bench.HoldOn, "--actor", "someoneelse")
+	if refused.code != contract.ExitCode(contract.OutcomeRefused) {
+		t.Fatalf("a write by somebody who is not the operator exited %d", refused.code)
+	}
+	if name := refusalNameOf(refused.errw); name != contract.NotOperator {
+		t.Errorf("the refusal name is %s, wanted %s", name, contract.NotOperator)
+	}
+	if anchor, _ := columnAnchorOf(t, root, "doing"); anchor.Has(bench.GateItemsKey) {
+		t.Error("the refused write stored the declaration anyway")
+	}
+	if got := runCLI(t, root, "set", "doing", bench.HoldField, bench.HoldOn); got.code != 0 {
+		t.Fatalf("the operator's own write: %d %s", got.code, got.errw)
+	}
+	read := runCLI(t, root, "get", "doing", bench.HoldField, "--actor", "someoneelse")
+	if read.code != 0 {
+		t.Fatalf("a read by somebody who is not the operator: %d %s", read.code, read.errw)
+	}
+	if got := strings.TrimSuffix(read.out, "\n"); got != bench.HoldOn {
+		t.Errorf("the read answered %q, wanted %q", got, bench.HoldOn)
+	}
+}
+
+// TestTheHoldCommandTurnsTheGateOnAndOff is dinah-477 AC-11, and it is the one
+// case here that shows the command doing something rather than storing
+// something. Every other case above proves a value reached disk and came back;
+// this one carries a card at a column the command has just put a hold on,
+// watches the move refuse, takes the hold off through the same command, and
+// watches the same move go through.
+func TestTheHoldCommandTurnsTheGateOnAndOff(t *testing.T) {
+	root := newBench(t)
+	if got := runCLI(t, root, "add", "Write the release notes"); got.code != 0 {
+		t.Fatalf("add: %d %s", got.code, got.errw)
+	}
+	held := columnIdentifier(t, root, "doing")
+	// An acceptance criterion rather than an open question. An unresolved
+	// question refuses a claim wherever the card stands, so a case built on
+	// one cannot tell the column's own hold from that refusal.
+	if got := runCLI(t, root, "file", "--column", held, "fx-1", "acceptance_criterion", "Somebody has to settle this."); got.code != 0 {
+		t.Fatalf("file: %d %s", got.code, got.errw)
+	}
+	item := soleItemID(t, root, "fx-1")
+
+	if got := runCLI(t, root, "move", "fx-1", "doing"); got.code != 0 {
+		t.Fatalf("the move was refused before any hold was turned on: %d %s", got.code, got.errw)
+	}
+	if got := runCLI(t, root, "move", "fx-1", "intake"); got.code != 0 {
+		t.Fatalf("the move back to intake: %d %s", got.code, got.errw)
+	}
+
+	if got := runCLI(t, root, "set", "doing", bench.HoldField, bench.HoldOn); got.code != 0 {
+		t.Fatalf("set doing hold on: %d %s", got.code, got.errw)
+	}
+	refused := runCLI(t, root, "move", "fx-1", "doing")
+	if refused.code == 0 {
+		t.Fatal("the move into the held station succeeded after the hold was turned on")
+	}
+	if name := refusalNameOf(refused.errw); name != contract.UnresolvedItem {
+		t.Errorf("the refusal name is %s, wanted %s", name, contract.UnresolvedItem)
+	}
+	if !strings.Contains(refused.errw, item) {
+		t.Errorf("the refusal names no item; wanted %s in:\n%s", item, refused.errw)
+	}
+
+	if got := runCLI(t, root, "set", "doing", bench.HoldField, bench.HoldOff); got.code != 0 {
+		t.Fatalf("set doing hold off: %d %s", got.code, got.errw)
+	}
+	if got := runCLI(t, root, "move", "fx-1", "doing"); got.code != 0 {
+		t.Fatalf("the move was refused after the hold was turned off: %d %s", got.code, got.errw)
+	}
+}
+
+// TestTheStoredHoldKeyReachesNothingAPersonReads is dinah-477 AC-12, which the
+// operator minted when he approved the vocabulary. He approved the words and
+// not the mechanism, and the stored key is right there in the code, so the
+// cheap mistake is letting it out through an answer, a refusal or the help.
+// Those are the places this walks.
+func TestTheStoredHoldKeyReachesNothingAPersonReads(t *testing.T) {
+	root := newBench(t)
+	surfaces := map[string]string{}
+
+	written := runCLI(t, root, "--json", "set", "doing", bench.HoldField, bench.HoldOn)
+	if written.code != 0 {
+		t.Fatalf("set doing hold on: %d %s", written.code, written.errw)
+	}
+	if !strings.Contains(written.out, `"detail": "`+bench.HoldOn+`"`) {
+		t.Errorf("the answer to a write does not carry the word that was typed:\n%s", written.out)
+	}
+	surfaces["the answer to a write"] = written.out
+
+	read := runCLI(t, root, "get", "doing", bench.HoldField)
+	if read.code != 0 {
+		t.Fatalf("get doing hold: %d %s", read.code, read.errw)
+	}
+	if got := strings.TrimSuffix(read.out, "\n"); got != bench.HoldOn {
+		t.Errorf("the read answered %q, wanted %q", got, bench.HoldOn)
+	}
+	surfaces["the answer to a read"] = read.out
+
+	cleared := runCLI(t, root, "--json", "set", "doing", bench.HoldField, bench.HoldOff)
+	if cleared.code != 0 {
+		t.Fatalf("set doing hold off: %d %s", cleared.code, cleared.errw)
+	}
+	if !strings.Contains(cleared.out, `"detail": "`+bench.HoldOff+`"`) {
+		t.Errorf("the answer to a clearing write does not carry the word that was typed:\n%s", cleared.out)
+	}
+	surfaces["the answer to a clearing write"] = cleared.out
+
+	// The value typed here is one the stored key does not appear in, because
+	// a case that types the stored key and then edits it back out of the
+	// answer cannot tell a refusal echoing a person from a refusal
+	// volunteering the storage spelling, and an earlier draft of this case
+	// did exactly that and could not go red.
+	refused := runCLI(t, root, "set", "doing", bench.HoldField, "maybe")
+	if refused.code == 0 {
+		t.Fatal("a value outside the two was accepted")
+	}
+	surfaces["the refusal"] = refused.errw
+
+	help := runCLI(t, root, "help", "set")
+	if help.code != 0 {
+		t.Fatalf("help set: %d %s", help.code, help.errw)
+	}
+	if !strings.Contains(help.out, bench.HoldField) {
+		t.Errorf("the help does not offer the field a person types:\n%s", help.out)
+	}
+	surfaces["the help"] = help.out
+
+	for where, text := range surfaces {
+		if strings.Contains(text, bench.GateItemsKey) {
+			t.Errorf("%s spells the stored key:\n%s", where, text)
+		}
 	}
 }

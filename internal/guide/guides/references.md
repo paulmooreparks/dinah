@@ -182,7 +182,7 @@ records:
 | Kind | Fields |
 |------|--------|
 | workbench | `title`, `slug`, `operator`, `instructions` |
-| column | `title`, `slug`, `kind`, `tier`, `capacity`, `instructions` |
+| column | `title`, `slug`, `kind`, `tier`, `capacity`, `hold`, `instructions` |
 | card | `title`, `body`, `severity`, `priority`, `tier` |
 | comment | `body` |
 | item | `text`, `state`, `note`, `owner`, `column` |
@@ -204,6 +204,13 @@ a comment, `text` on an item, and `notes` on a workstream. Those hold as many
 lines as you send, and `dinah set <ref> <field> -` reads them from standard
 input. Every other field holds one line, and a value carrying a line break is
 refused.
+
+A column's `hold` takes one of two values and nothing else. `dinah set <column>
+hold on` makes that column hold a card while an item the card carries names the
+column and has not been settled, `dinah set <column> hold off` lets cards
+through again, and `dinah get <column> hold` answers `on` or `off`. Turning a
+hold on or off is the operator's, the way every other write to a column is;
+reading it is open to anybody.
 
 ## A reference or a query
 

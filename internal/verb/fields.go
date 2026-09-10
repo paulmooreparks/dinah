@@ -105,7 +105,28 @@ func (l *Library) SetField(req *Request) *Response {
 		}
 		return l.refuseWith(req, entity.Card, contract.Unconfirmed, value, extra)
 	}
+	if field.Guard == bench.GuardHold {
+		return l.writeHold(req, entity, field, value)
+	}
 	return l.writeField(req, entity, field, value)
+}
+
+// writeHold performs a hold write in the storage spelling and answers in the
+// typed one, so the two words a person types are the two words the answer
+// carries and `gate_items` reaches nothing a person reads.
+//
+// The detail is rewritten only where writeField reports back the value it was
+// given, which is the successful write and the write that found the value
+// already there. A refusal composed further down carries its own detail, and
+// swapping that one for on or off would put a word in a sentence about
+// something else.
+func (l *Library) writeHold(req *Request, entity *bench.EntityRef, field bench.Field, typed string) *Response {
+	stored := storedHold(typed)
+	response := l.writeField(req, entity, field, stored)
+	if response.Outcome == contract.OutcomeOK && response.Detail == stored {
+		response.Detail = typed
+	}
+	return response
 }
 
 // routeGuardedWrite hands a write to the verb that already performs it, and
@@ -196,6 +217,10 @@ func (l *Library) admitFieldValue(req *Request, entity *bench.EntityRef, field b
 		if err != nil || n <= 0 {
 			return l.refuse(req, entity.Card, contract.Malformed, field.Name)
 		}
+	case bench.GuardHold:
+		if value != bench.HoldOn && value != bench.HoldOff {
+			return l.refuse(req, entity.Card, contract.Malformed, field.Name)
+		}
 	}
 	return nil
 }
@@ -211,7 +236,39 @@ func (l *Library) readField(entity *bench.EntityRef, field bench.Field) (string,
 	if field.Prose {
 		return body, nil
 	}
+	if field.Guard == bench.GuardHold {
+		return typedHold(fm.Value(field.Stored())), nil
+	}
 	return fm.Value(field.Stored()), nil
+}
+
+// typedHold reports a column's hold in the words a person types, given what
+// the anchor stores. The stored spelling is the profile's `gate_items`, whose
+// value is exactly true, exactly false, or absent, and bench.Open refuses a
+// workbench carrying anything else, so the three readings this collapses are
+// the three that can reach it.
+//
+// The translation lives here and in storedHold below rather than in
+// writeField, because the storage spelling is what every other reader of the
+// anchor already expects and the typed spelling is what only this one field's
+// two commands use.
+func typedHold(stored string) string {
+	if stored == "true" {
+		return bench.HoldOn
+	}
+	return bench.HoldOff
+}
+
+// storedHold reports what the anchor carries for a hold a person has just
+// typed. Off clears the key rather than writing false, which is what
+// writeField's own empty-value branch does with it, and the strict parser in
+// internal/bench reads an absent key and an explicit false identically, so
+// clearing never produces a second on-disk spelling of off.
+func storedHold(typed string) string {
+	if typed == bench.HoldOn {
+		return "true"
+	}
+	return ""
 }
 
 // entityAnchor reads an entity's anchor into its header and its body. Reading the

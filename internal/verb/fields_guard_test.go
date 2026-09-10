@@ -39,6 +39,7 @@ func TestEveryGuardedFieldRefusesAndAcceptsAtItsOwnGate(t *testing.T) {
 		bench.GuardFilename: guardFilename,
 		bench.GuardKind:     guardColumnKind,
 		bench.GuardCapacity: guardCapacity,
+		bench.GuardHold:     guardHold,
 	}
 	if len(subtests) != len(bench.Guards) {
 		t.Fatalf("this file runs %d subtests and the closed guard set declares %d, so a guard is unexercised", len(subtests), len(bench.Guards))
@@ -252,6 +253,46 @@ func guardCapacity(t *testing.T) {
 	h.reopen()
 	if got := h.library.Bench.Columns[1].Capacity; got != 3 {
 		t.Errorf("the column reads back the capacity %d, wanted 3", got)
+	}
+}
+
+// guardHold asserts a column's hold against the two words a person types, and
+// asserts that neither the storage spelling nor a near miss of the typed one
+// is admitted. What reaches disk is checked through the reopened column rather
+// than through the value that was written, since typed and stored differ here.
+func guardHold(t *testing.T) {
+	h := harnessFromDefinition(t, "gd", fieldGuardDefinition)
+	for _, value := range []string{"maybe", "true", "On", "1"} {
+		refused := h.library.SetField(&Request{
+			Verb: "set", Actor: "alka", Ref: "d00000000002",
+			Field: bench.HoldField, Value: value,
+		})
+		refusedWith(t, "the hold "+value, refused, contract.Malformed)
+	}
+	accepted := h.library.SetField(&Request{
+		Verb: "set", Actor: "alka", Ref: "d00000000002",
+		Field: bench.HoldField, Value: bench.HoldOn,
+	})
+	acceptedOK(t, "a hold turned on", accepted)
+	if accepted.Detail != bench.HoldOn {
+		t.Errorf("the answer carries the detail %q, wanted the word that was typed, %q", accepted.Detail, bench.HoldOn)
+	}
+	h.reopen()
+	if !h.library.Bench.Columns[1].GateItems {
+		t.Error("the column reads back as not holding after the hold was turned on")
+	}
+
+	cleared := h.library.SetField(&Request{
+		Verb: "set", Actor: "alka", Ref: "d00000000002",
+		Field: bench.HoldField, Value: bench.HoldOff,
+	})
+	acceptedOK(t, "a hold turned off", cleared)
+	if cleared.Detail != bench.HoldOff {
+		t.Errorf("the answer carries the detail %q, wanted the word that was typed, %q", cleared.Detail, bench.HoldOff)
+	}
+	h.reopen()
+	if h.library.Bench.Columns[1].GateItems {
+		t.Error("the column reads back as holding after the hold was turned off")
 	}
 }
 
