@@ -727,13 +727,30 @@ type EntityRef struct {
 	Archived bool
 }
 
+// AnchorPathOf is the path of the file that IS an entity: the entity's own
+// directory joined with the anchor filename its kind declares. The second
+// answer reports whether the kind declares one at all, which is false only
+// for a kind outside the grammar. It is reported rather than swallowed
+// because AnchorOf answers such a kind with the empty string, and a caller
+// joining that gets the entity's directory back, which is a directory where
+// it asked for a file. That is the defect dinah-467 fixed for the one kind
+// that had it.
+func AnchorPathOf(entity *EntityRef) (string, bool) {
+	anchor := AnchorOf(entity.Kind)
+	if anchor == "" {
+		return "", false
+	}
+	return filepath.Join(entity.Dir, anchor), true
+}
+
 // ResolveEntity resolves the reference the entity-shaped commands take: the
 // bench itself, a column, a workstream, a card, or any entity below one of
-// those. It accepts every reference ResolvePath accepts but two, so a
+// those. It accepts every reference ResolvePath accepts but three, so a
 // reference a walk prints names the same entity to every command that takes
-// one. It refuses an attachment's payload, which carries no anchor, and it
-// refuses a reference naming a whole collection, which is not an entity of the
-// format and has no anchor either. ResolvePath answers both with a path.
+// one. It refuses an attachment's payload and a card's journal, neither of
+// which carries an anchor, and it refuses a reference naming a whole
+// collection, which is not an entity of the format and has no anchor either.
+// ResolvePath answers all three with a path.
 //
 // An answer of kind card always carries the card, and an answer below a card
 // always carries the card it belongs to. Callers read Card without asking, and

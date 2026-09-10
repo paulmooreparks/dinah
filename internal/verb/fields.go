@@ -276,7 +276,10 @@ func storedHold(typed string) string {
 // it did not touch, which is CORE-CARD-9's guarantee for a key this build has
 // never heard of.
 func (l *Library) entityAnchor(entity *bench.EntityRef) (*bench.Frontmatter, string, error) {
-	path := filepath.Join(entity.Dir, bench.AnchorOf(entity.Kind))
+	path, declared := bench.AnchorPathOf(entity)
+	if !declared {
+		return nil, "", contract.Refuse(contract.UnknownPath, entity.Ref)
+	}
 	text, err := bench.ReadText(path)
 	if err != nil {
 		return nil, "", contract.Refuse(contract.UnknownPath, entity.Ref)
@@ -325,7 +328,14 @@ func (l *Library) writeField(req *Request, entity *bench.EntityRef, field bench.
 		response.Detail = value
 		return response
 	}
-	path := filepath.Join(entity.Dir, bench.AnchorOf(entity.Kind))
+	// entityAnchor above has already refused a kind declaring no anchor, so
+	// this reads the same join rather than guarding it a second time; the
+	// second answer is checked because swallowing it is what let a caller
+	// join an empty filename and get a directory back.
+	path, declared := bench.AnchorPathOf(entity)
+	if !declared {
+		return l.FromError(req, contract.Refuse(contract.UnknownPath, entity.Ref))
+	}
 	if err := bench.WriteText(path, fm.Render(body)); err != nil {
 		return l.FromError(req, err)
 	}
