@@ -47,6 +47,23 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
+// editorRecordVar names the environment variable that turns this test binary
+// into a stand-in editor, which is testenv's own constant read under a local
+// name. TestEditHandsTheEditorTheFileTheResolverNames sets it to a fresh file
+// and points DINAH_EDITOR at this binary, so what `edit` launched writes down
+// the argument it was given.
+//
+// It is deliberately NOT in isolatedEnv. That list names variables production
+// code reads and a developer's shell might export; this one is read by
+// testenv's own start-up alone, and clearing it at the binary boundary would
+// switch off the very mechanism it exists for.
+//
+// The reading happens in testenv rather than here because this package holds
+// a package-level variable that climbs to the repository root and panics when
+// it cannot, and a launched editor inherits the fixture directory the command
+// was run in. See testenv.EditorRecordVar for the ordering that solves.
+const editorRecordVar = testenv.EditorRecordVar
+
 // isolatedEnv names the variables production code reads straight from the
 // environment and that no test in this binary asked to see. dinah-229.
 //
