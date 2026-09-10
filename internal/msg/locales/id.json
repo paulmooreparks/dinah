@@ -942,7 +942,7 @@
       "skeleton": true
     },
     "check.item-column-unresolved": {
-      "text": "a checklist item names a column that will never hold a card, because it either resolves to no column at all or resolves to one whose identifier is not what is stored: {detail}",
+      "text": "a checklist item names a column that will never hold a card: {detail}",
       "context": "A check finding: every checklist item's column value, where set, is stored as the identifier of a column this workbench declares. {detail} carries the card's reference, the item's identifier, and the stored column value, in that order. A write filed or set before the field validated, or a hand edit, both produce it.",
       "skeleton": true
     },
