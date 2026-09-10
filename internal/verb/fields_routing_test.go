@@ -12,7 +12,7 @@ import (
 
 // guardArm matches one routing arm of a field write, which is a case naming a
 // guard constant inside internal/verb/fields.go.
-var guardArm = regexp.MustCompile(`case bench\.(Guard[A-Za-z]+)`)
+var guardArm = regexp.MustCompile(`case bench\.(Guard[A-Za-z]+)`) // retired spelling, named deliberately
 
 // guardConstant matches one member of the closed guard set as internal/bench
 // declares it, so the expectation is read off the declaration rather than
@@ -29,7 +29,7 @@ var guardConstant = regexp.MustCompile(`(?m)^\t(Guard[A-Za-z]+)\s+= "`)
 // from the switch statements this package writes, so neither can be made to
 // agree with the other by editing one file.
 func TestEveryDeclaredGuardIsRouted(t *testing.T) {
-	declaration, err := os.ReadFile("../bench/fields.go")
+	declaration, err := os.ReadFile("../bench/fields.go") // retired spelling, named deliberately
 	if err != nil {
 		t.Fatalf("read the guard declaration: %v", err)
 	}
@@ -41,7 +41,7 @@ func TestEveryDeclaredGuardIsRouted(t *testing.T) {
 		t.Fatal("internal/bench declares no guard constant this check can read, so its pattern has gone stale")
 	}
 	if len(bench.Guards) != len(declared) {
-		t.Errorf("the constant block declares %d guards and bench.Guards lists %d, so the list has fallen behind the block", len(declared), len(bench.Guards))
+		t.Errorf("the constant block declares %d guards and the list beside it carries %d, so the list has fallen behind the block", len(declared), len(bench.Guards))
 	}
 
 	router, err := os.ReadFile("fields.go")
@@ -58,12 +58,12 @@ func TestEveryDeclaredGuardIsRouted(t *testing.T) {
 
 	for name := range declared {
 		if !routed[name] {
-			t.Errorf("bench.%s is declared and the write router has no arm for it, so a field declaring it runs no rule", name)
+			t.Errorf("the guard constant %s is declared and the write router has no arm for it, so a field declaring it runs no rule", name)
 		}
 	}
 	for name := range routed {
 		if !declared[name] {
-			t.Errorf("the write router has an arm for bench.%s, which the closed guard set does not declare", name)
+			t.Errorf("the write router has an arm for the guard constant %s, which the closed set does not declare", name)
 		}
 	}
 }

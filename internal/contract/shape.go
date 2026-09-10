@@ -177,7 +177,7 @@ var Shapes = []Shape{
 		// title dinah add refuses, and hand that reader a repair written
 		// about a file he has not touched.
 		Name:   Malformed,
-		Values: []string{"path", "file", "cardRef", "claimants", "retired", "oneLine", ValueUsage, ValueWorkbench},
+		Values: []string{"path", "file", "cardRef", "claimants", "retired", ValueUsage, ValueWorkbench},
 		Fragments: []Fragment{
 			{Key: "refusal.malformed.one-line", When: "oneLine"},
 			{Key: "refusal.malformed.at", When: "path"},
@@ -562,7 +562,6 @@ var Shapes = []Shape{
 		// every card in the workbench at the same time, and a column's or a
 		// workstream's does not.
 		Name:     Unconfirmed,
-		Values:   []string{"renamesCards"},
 		Variants: []string{"set"},
 		Fragments: []Fragment{
 			{Key: "refusal.dinah.unconfirmed.set.cards", When: "renamesCards"},
