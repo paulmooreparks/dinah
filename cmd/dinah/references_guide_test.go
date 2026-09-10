@@ -657,3 +657,86 @@ func TestEverySpellingOfThisWorkbenchTheGuideShowsNamesOneThing(t *testing.T) {
 		}
 	}
 }
+
+// guideDenialOfACapability matches a sentence denying that something exists:
+// an absence verb, the word no, and the name being denied. The capture is the
+// name, which the caller holds against the tool's own roster.
+//
+// The pattern is deliberately narrow. It reads a denial rather than every
+// mention of a command, because prose says "no" about plenty of things that
+// are not capabilities, and a guard that fired on all of them would be
+// silenced rather than fixed.
+var guideDenialOfACapability = regexp.MustCompile(`\b(?:has|have|had|is|are|was|were|carries|carry|offers|offer|provides|provide|knows|know)\s+no\s+([a-z][a-z-]*)`)
+
+// referencesGuideProseParagraphs returns the references guide's paragraphs
+// with its tables and its indented blocks removed, each folded to single
+// spaces and stripped of backticks.
+//
+// The two removals are what make a scan over the whole guide safe. Folding a
+// table row runs its cells together, so a `no` cell lands directly beside the
+// next row's command name and reads as a denial of it, and an indented block
+// holds command lines rather than sentences.
+func referencesGuideProseParagraphs(t *testing.T) []string {
+	t.Helper()
+	text, err := guide.Text("references")
+	if err != nil {
+		t.Fatalf("guide references: %v", err)
+	}
+	var prose []string
+	for _, paragraph := range regexp.MustCompile(`\n\s*\n`).Split(text, -1) {
+		var kept []string
+		for _, line := range strings.Split(paragraph, "\n") {
+			if strings.HasPrefix(line, "    ") || strings.HasPrefix(line, "\t") {
+				continue
+			}
+			if strings.HasPrefix(strings.TrimSpace(line), "|") {
+				continue
+			}
+			kept = append(kept, line)
+		}
+		folded := strings.Join(strings.Fields(strings.Join(kept, " ")), " ")
+		folded = strings.ReplaceAll(folded, "`", "")
+		if folded != "" {
+			prose = append(prose, folded)
+		}
+	}
+	return prose
+}
+
+// TestTheReferencesGuideDeniesNoCommandTheToolHas holds the guide's prose
+// against the tool's command roster in the one direction the table checks
+// cannot see. Those checks compare the table's rows with the commands that
+// point a reader here, so a row for a new command is added and they go green,
+// and a sentence elsewhere in the same guide saying that command does not
+// exist stays exactly as it was.
+//
+// That is not hypothetical. dinah-461 added the `restore` row and the guide
+// went on saying "an act that writes to a whole collection cannot be undone
+// and Dinah has no restore" thirty lines above it, through a green tree and
+// eleven verified criteria, because no check read that sentence.
+//
+// The guard runs one way. A guide that denies a command the tool has fails
+// here; a guide that stays silent about a command passes, which is the table
+// checks' subject rather than this one's.
+func TestTheReferencesGuideDeniesNoCommandTheToolHas(t *testing.T) {
+	roster := map[string]bool{}
+	for _, name := range verb.Commands() {
+		roster[name] = true
+	}
+	if len(roster) == 0 {
+		t.Fatal("the library declares no command, so this check read nothing")
+	}
+	prose := referencesGuideProseParagraphs(t)
+	if len(prose) == 0 {
+		t.Fatal("the references guide carries no prose paragraph, so this check read nothing")
+	}
+	for _, paragraph := range prose {
+		for _, match := range guideDenialOfACapability.FindAllStringSubmatch(paragraph, -1) {
+			denied := match[1]
+			if !roster[denied] {
+				continue
+			}
+			t.Errorf("the references guide says %q and `dinah %s` is a command this build carries: %s", match[0], denied, paragraph)
+		}
+	}
+}

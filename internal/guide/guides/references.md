@@ -81,8 +81,9 @@ every live member of that collection:
 
 Dinah reads an empty collection as an empty answer rather than a mistake.
 You read from the table below whether a command takes a reference of that
-shape, one command at a time, because an act that writes to a whole
-collection cannot be undone and Dinah has no restore.
+shape, one command at a time, because an act over a whole collection
+writes an unknown number of times and nothing records how many. Restoring
+its members one at a time cannot tell a reader what the act touched.
 
 ## The number and the identifier
 
