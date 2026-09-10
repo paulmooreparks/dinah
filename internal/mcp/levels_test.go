@@ -115,6 +115,19 @@ func requiredOf(schema map[string]any) []string {
 // field tools' schemas carry the arguments their parameter tables declare,
 // that add_card carries the two level arguments, and that every property is
 // described with the sentence the cli head prints beside the same argument.
+//
+// It compares against verb.ArgumentMeaning rather than against the bare summary
+// key, which is what keeps its name true now that the terminal prints the
+// address kinds beside the sentence: a schema publishing the bare sentence while
+// the terminal prints the clause would be the same defect this card fixes, one
+// head over.
+//
+// What it proves is what its name claims, that the two heads publish one string,
+// and it is NOT a proof of what the clause contains. Once internal/mcp/tools.go
+// calls the same function this expectation does, the two sides are one expression
+// and a defect inside ArgumentMeaning passes here.
+// TestEveryReferenceTakingToolPublishesTheKindsItsReferenceMayName is the
+// independent proof for this head, and it names ArgumentMeaning nowhere.
 func TestTheFieldToolsCarryTheSameSentencesTheTerminalPrints(t *testing.T) {
 	library := newLevelledLibrary(t)
 	catalog := msg.For(msg.Base)
@@ -125,7 +138,7 @@ func TestTheFieldToolsCarryTheSameSentencesTheTerminalPrints(t *testing.T) {
 			t.Fatalf("%s declares no parameter, so this check read nothing", command)
 		}
 		for _, param := range params {
-			wanted := catalog.T(param.SummaryKey(command))
+			wanted := verb.ArgumentMeaning(command, param, catalog.T)
 			if got := propertyDescription(t, schema, param.Name); got != wanted {
 				t.Errorf("the %s tool describes %s as %q and the terminal prints %q", tool, param.Name, got, wanted)
 			}

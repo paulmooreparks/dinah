@@ -241,8 +241,15 @@ func (s *session) argumentLines(name string) []string {
 }
 
 // argumentMeaning is what one argument's row says: the sentence written for it,
-// with the values it accepts appended where it names a closed set that
-// resolves.
+// with the address kinds its reference may name appended where it takes a
+// reference, and with the values it accepts appended where it names a closed
+// set that resolves.
+//
+// The kinds half is composed by verb.ArgumentMeaning rather than here, because
+// the tool schema publishes the same sentence and the two heads may not compose
+// it twice. No parameter declares both a reference guide and a vocabulary, so
+// the two appends never meet; TestNoReferenceTakingParameterAlsoDeclaresAVocabulary
+// is what keeps that true.
 //
 // A set living in the reader's own workbench resolves only where a workbench
 // opens from where the command was run. Every way that can fail is swallowed
@@ -250,7 +257,7 @@ func (s *session) argumentLines(name string) []string {
 // anywhere, and a help page that refuses because somebody's configured default
 // moved is worse than the gap it would have closed.
 func (s *session) argumentMeaning(command string, param verb.Param) string {
-	summary := s.r.T(param.SummaryKey(command))
+	summary := verb.ArgumentMeaning(command, param, s.r.T)
 	values := s.vocabularyValues(command, param)
 	if len(values) == 0 {
 		return summary

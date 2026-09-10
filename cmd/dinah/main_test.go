@@ -6935,7 +6935,7 @@ func TestEveryPageSaysWhatEachArgumentIs(t *testing.T) {
 		{command: "attach", carries: []string{
 			"attach <ref> <file> [--description <text>] [--replace]",
 			"[--description <text>]", "a line describing the attachment, stored beside it",
-			"what the file hangs off: this workbench, a column, a card, or a comment or an attachment below a card",
+			"what the file hangs off; below a card that is a comment",
 			"with --replace, the attachment whose bytes you are replacing",
 			"For more, run `dinah guide references`.",
 		}},
@@ -6952,24 +6952,25 @@ func TestEveryPageSaysWhatEachArgumentIs(t *testing.T) {
 		}},
 		{command: "query", carries: []string{"For more, run `dinah guide query`."}},
 		{command: "path", carries: []string{
-			"path <ref>", "this workbench written as `workbench` or `.`",
+			"path <ref>", "this workbench, written as `workbench` or `.`", "a whole collection",
 			"For more, run `dinah guide references`.",
 		}},
 		{command: "edit", carries: []string{
-			"edit <ref>", "this workbench written as `workbench` or `.`",
+			"edit <ref>", "this workbench, written as `workbench` or `.`", "a workstream, written as `workstream/<slug>`",
 			"For more, run `dinah guide references`.",
 		}},
 		{command: "show", carries: []string{
-			"show <ref>", "show does not take this workbench",
+			"show <ref>", "a column; a card; something below a card; a whole collection",
 			"For more, run `dinah guide references`.",
 		}},
 		{command: "instructions", carries: []string{
 			"instructions <card|column>",
-			"instructions takes neither this workbench nor anything below a card",
+			"(one of: a column; a card)",
 			"For more, run `dinah guide references`.",
 		}},
 		{command: "archive", carries: []string{
-			"a column, a card, or something below a card such as wb-1/comments/1; not this workbench",
+			"the entity you are acting on, written as its reference, such as wb-1/comments/1",
+			"a workstream, written as `workstream/<slug>`",
 			"For more, run `dinah guide references`.",
 		}},
 		{command: "delete", carries: []string{
@@ -7545,7 +7546,7 @@ func TestTheArgumentsTableWrapsAndNoOtherTableMoved(t *testing.T) {
 	// A wrapped continuation begins under the column its own row's last field
 	// begins at, rather than at the left margin.
 	attach := runCLI(t, root, "help", "attach")
-	if !strings.Contains(attach.out, "\n                          card, or a comment or an attachment below a card; with\n") {
+	if !strings.Contains(attach.out, "\n                          comment, or, with --replace, the attachment whose\n") {
 		t.Errorf("the wrapped meaning does not indent under its column:\n%s", attach.out)
 	}
 

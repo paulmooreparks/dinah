@@ -209,8 +209,15 @@ var beyondChecks = map[string][]Check{
 	"extract": {
 		{Refusal: contract.Exists, Key: "check.extract.1"},
 	},
+	// The collection refusal sits between the two, measured rather than
+	// assumed: `dinah edit wb-1/nosuch` raises UnknownPath with the editor
+	// unset, so resolution runs first, and `dinah edit wb-1/comments` raises
+	// IsACollection with a working editor, with a broken editor name, and
+	// with DINAH_EDITOR, EDITOR and VISUAL all unset, so the collection
+	// refusal precedes every editor check.
 	"edit": {
 		{Refusal: contract.UnknownPath, Key: "check.edit.1"},
+		{Refusal: contract.IsACollection, Key: "check.edit.3"},
 		{Refusal: contract.NoEditor, Key: "check.edit.2"},
 	},
 	"path": {

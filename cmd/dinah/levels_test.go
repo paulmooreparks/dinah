@@ -543,9 +543,10 @@ Write one field of any entity of this workbench
 What you may write:
   As you write it  What it is
   ---------------  -------------------------------------------------------------
-  <ref>            the entity you are writing, written as its reference: this
-                   workbench as ` + "`" + `workbench` + "`" + ` or ` + "`" + `.` + "`" + `, a column, a card, or
-                   something below a card such as wb-1/comments/1
+  <ref>            the entity you are writing, written as its reference (one of:
+                   this workbench, written as ` + "`" + `workbench` + "`" + ` or ` + "`" + `.` + "`" + `; a workstream,
+                   written as ` + "`" + `workstream/<slug>` + "`" + `; a column; a card; something
+                   below a card)
   <field>          which field you are writing; which names are legal depends on
                    the kind the reference resolves to (one of: body, capacity,
                    column, description, filename, hold, instructions, kind,

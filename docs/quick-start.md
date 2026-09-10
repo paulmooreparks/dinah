@@ -955,9 +955,9 @@ unknown-card this workbench carries no card autumn-2025; workstream/autumn-2025 
 
 ## Taking things out
 
-`archive` takes a card, a column, or a comment or attachment on one, out of the
-listings and keeps its files. `delete` destroys the same things and their
-history. Dinah says nothing to you when either one succeeds.
+`archive` takes a workstream, a column, a card, or a comment or attachment on
+one, out of the listings and keeps its files. `delete` destroys the same things
+and their history. Dinah says nothing to you when either one succeeds.
 
 ```console
 $ dinah archive rel-3
@@ -1239,14 +1239,14 @@ storage format 2
 Catalogs:
   Language  Translated
   --------  ----------
-  en        929/929
-  af        0/929
-  cs        0/929
-  de        929/929
-  es        0/929
-  fil       0/929
-  hi        929/929
-  id        0/929
+  en        937/937
+  af        0/937
+  cs        0/937
+  de        937/937
+  es        0/937
+  fil       0/937
+  hi        937/937
+  id        0/937
 [exit 0]
 ```
 

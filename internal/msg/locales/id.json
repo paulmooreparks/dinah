@@ -97,7 +97,7 @@
       "skeleton": true
     },
     "check.archive.1": {
-      "text": "the reference resolves to a card, a column, or something below a card",
+      "text": "the reference resolves to an entity this command can archive",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
@@ -322,7 +322,7 @@
       "skeleton": true
     },
     "check.delete.1": {
-      "text": "the reference resolves to a card, a column, or something below a card",
+      "text": "the reference resolves to an entity this command can destroy",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
@@ -348,6 +348,11 @@
     },
     "check.edit.2": {
       "text": "an editor is resolvable",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.edit.3": {
+      "text": "the reference names one thing rather than a whole collection",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
@@ -837,7 +842,7 @@
       "skeleton": true
     },
     "check.show.2": {
-      "text": "the reference names a card or a path below one",
+      "text": "the reference resolves to an entity this command can show",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
@@ -1047,12 +1052,12 @@
       "skeleton": true
     },
     "cmd.archive.summary": {
-      "text": "Move a card, a column, or anything below a card, out of the live set",
+      "text": "Move an entity out of the live set",
       "context": "The one-line summary of the archive command, shown beside its syntax in the help block.",
       "skeleton": true
     },
     "cmd.restore.summary": {
-      "text": "Put a card, a column, or anything below a card, back into the live set",
+      "text": "Put an archived entity back into the live set",
       "context": "The one-line summary of the restore command, shown beside its syntax in the help block. It is the inverse of cmd.archive.summary and is worded to read as its pair.",
       "skeleton": true
     },
@@ -1112,12 +1117,12 @@
       "skeleton": true
     },
     "cmd.delete.summary": {
-      "text": "Destroy a card, a column, or anything below a card, along with its history",
+      "text": "Destroy an entity, along with its history",
       "context": "The one-line summary of the delete command, shown beside its syntax in the help block.",
       "skeleton": true
     },
     "cmd.edit.summary": {
-      "text": "Open this workbench, a card, or anything below a card in your editor",
+      "text": "Open an entity of this workbench in your editor",
       "context": "The one-line summary of the edit command, shown beside its syntax in the help block.",
       "skeleton": true
     },
@@ -1632,7 +1637,7 @@
       "skeleton": true
     },
     "cmd.path.summary": {
-      "text": "Print the file path of this workbench, of a card, or of anything below a card",
+      "text": "Print the file path of an entity of this workbench",
       "context": "The one-line summary of the path command, shown beside its syntax in the help block.",
       "skeleton": true
     },
@@ -1652,7 +1657,7 @@
       "skeleton": true
     },
     "cmd.show.summary": {
-      "text": "A card, or anything below it",
+      "text": "The detail of an entity of this workbench",
       "context": "The one-line summary of the show command, shown beside its syntax in the help block.",
       "skeleton": true
     },
@@ -2531,7 +2536,7 @@
       "skeleton": true
     },
     "refusal.dinah.not-archived.next-workbench": {
-      "text": "; the workbench {slug} is never archived, so name a column, a card, or something below a card instead",
+      "text": "; the workbench {slug} is never archived, so name a workstream, a column, a card, or something below a card instead",
       "context": "Spliced onto either base sentence of dinah.not-archived when the reference names the workbench itself. {slug} is the workbench's slug, which is a name rather than prose and is never translated, and no word may agree with it. The clause offers no command, because archiving the workbench is refused by design and there is no act to advise.",
       "skeleton": true
     },
@@ -3480,6 +3485,41 @@
       "context": "One argument's meaning followed by the closed set of values it accepts. {summary} is the argument's own sentence and {values} is the members separated by commas. The members are machine vocabulary and are never translated.",
       "skeleton": true
     },
+    "help.reference-kinds": {
+      "text": "{summary} (one of: {kinds})",
+      "context": "One argument's meaning followed by the kinds of thing its reference may name. {summary} is the argument's own sentence. {kinds} holds the labels reference.kind.workbench, reference.kind.workstream, reference.kind.column, reference.kind.card, reference.kind.below-card and reference.kind.collection, joined by a semicolon and a space, and those labels are translated prose rather than machine vocabulary, so unlike {kind} in the unknown-field refusals a word of this sentence may agree with what is substituted here. No label may itself contain a semicolon followed by a space, because the guard over this clause splits the list on that pair.",
+      "skeleton": true
+    },
+    "reference.kind.workbench": {
+      "text": "this workbench, written as `workbench` or `.`",
+      "context": "One address kind a command's reference may name, printed in the list beside that argument on the command's help page and in the tool schema. No label may itself contain a semicolon followed by a space, because the guard over that list splits it on that pair.",
+      "skeleton": true
+    },
+    "reference.kind.workstream": {
+      "text": "a workstream, written as `workstream/<slug>`",
+      "context": "One address kind a command's reference may name, printed in the list beside that argument on the command's help page and in the tool schema. No label may itself contain a semicolon followed by a space, because the guard over that list splits it on that pair.",
+      "skeleton": true
+    },
+    "reference.kind.column": {
+      "text": "a column",
+      "context": "One address kind a command's reference may name, printed in the list beside that argument on the command's help page and in the tool schema. No label may itself contain a semicolon followed by a space, because the guard over that list splits it on that pair.",
+      "skeleton": true
+    },
+    "reference.kind.card": {
+      "text": "a card",
+      "context": "One address kind a command's reference may name, printed in the list beside that argument on the command's help page and in the tool schema. No label may itself contain a semicolon followed by a space, because the guard over that list splits it on that pair.",
+      "skeleton": true
+    },
+    "reference.kind.below-card": {
+      "text": "something below a card",
+      "context": "One address kind a command's reference may name, printed in the list beside that argument on the command's help page and in the tool schema. No label may itself contain a semicolon followed by a space, because the guard over that list splits it on that pair.",
+      "skeleton": true
+    },
+    "reference.kind.collection": {
+      "text": "a whole collection",
+      "context": "One address kind a command's reference may name, printed in the list beside that argument on the command's help page and in the tool schema. No label may itself contain a semicolon followed by a space, because the guard over that list splits it on that pair.",
+      "skeleton": true
+    },
     "column.arguments.argument": {
       "text": "As you write it",
       "context": "Heading over how each argument is spelled, in the arguments table one command's help page prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it.",
@@ -3521,8 +3561,8 @@
       "skeleton": true
     },
     "param.ref.summary": {
-      "text": "a column, a card, or something below a card such as wb-1/comments/1; not this workbench",
-      "context": "The meaning of the ref argument of archive and delete, which take the same set of things.",
+      "text": "the entity you are acting on, written as its reference, such as wb-1/comments/1",
+      "context": "The meaning of the ref argument of archive, restore and delete, which take the same set of things.",
       "skeleton": true
     },
     "param.archived.summary": {
@@ -3546,7 +3586,7 @@
       "skeleton": true
     },
     "param.attach.ref.summary": {
-      "text": "what the file hangs off: this workbench, a column, a card, or a comment or an attachment below a card; with --replace, the attachment whose bytes you are replacing",
+      "text": "what the file hangs off; below a card that is a comment, or, with --replace, the attachment whose bytes you are replacing",
       "context": "The meaning of the ref argument of `dinah attach`, printed in that command's arguments table.",
       "skeleton": true
     },
@@ -3656,7 +3696,7 @@
       "skeleton": true
     },
     "param.edit.card.summary": {
-      "text": "this workbench written as `workbench` or `.`, a card, or something below a card such as wb-1/comments/1",
+      "text": "the thing you are opening in your editor, such as wb-1/comments/1",
       "context": "The meaning of the card argument of `dinah edit`, printed in that command's arguments table.",
       "skeleton": true
     },
@@ -3696,7 +3736,7 @@
       "skeleton": true
     },
     "param.instructions.card.summary": {
-      "text": "a card or a column; instructions takes neither this workbench nor anything below a card",
+      "text": "the position whose instructions you are reading",
       "context": "The meaning of the card argument of `dinah instructions`, printed in that command's arguments table.",
       "skeleton": true
     },
@@ -3761,12 +3801,12 @@
       "skeleton": true
     },
     "param.path.card.summary": {
-      "text": "this workbench written as `workbench` or `.`, a card, or something below a card such as wb-1/comments/1",
+      "text": "the thing whose file path you are printing, such as wb-1/comments/1",
       "context": "The meaning of the card argument of `dinah path`, printed in that command's arguments table.",
       "skeleton": true
     },
     "param.get.ref.summary": {
-      "text": "the entity you are reading, written as its reference: this workbench as `workbench` or `.`, a column, a card, or something below a card such as wb-1/comments/1",
+      "text": "the entity you are reading, written as its reference",
       "context": "The meaning of the ref argument of `dinah get`, printed in that command's arguments table.",
       "skeleton": true
     },
@@ -3776,7 +3816,7 @@
       "skeleton": true
     },
     "param.set.ref.summary": {
-      "text": "the entity you are writing, written as its reference: this workbench as `workbench` or `.`, a column, a card, or something below a card such as wb-1/comments/1",
+      "text": "the entity you are writing, written as its reference",
       "context": "The meaning of the ref argument of `dinah set`, printed in that command's arguments table.",
       "skeleton": true
     },
@@ -3806,7 +3846,7 @@
       "skeleton": true
     },
     "param.show.card.summary": {
-      "text": "a card, or something below a card such as wb-1/comments/1; show does not take this workbench",
+      "text": "the thing whose detail you are reading, such as wb-1 or wb-1/comments/1",
       "context": "The meaning of the card argument of `dinah show`, printed in that command's arguments table.",
       "skeleton": true
     },
@@ -3936,7 +3976,7 @@
       "skeleton": true
     },
     "param.attachments.ref.summary": {
-      "text": "this workbench written as `workbench` or `.`, a column, a card, or a comment such as wb-1/comments/1; this workbench when you name none",
+      "text": "the entity whose attachments you are listing; this workbench when you name none",
       "context": "The meaning of the ref argument of `dinah attachments`, printed in that command's arguments table. attachments writes its own sentence rather than taking the shared one, because the shared sentence ends \"not this workbench\" and the workbench is one of the entities this read is asked about.",
       "skeleton": true
     },
@@ -3946,7 +3986,7 @@
       "skeleton": true
     },
     "param.contents.ref.summary": {
-      "text": "this workbench written as `workbench` or `.`, a column, a card, or something below a card such as wb-1/comments/1",
+      "text": "the entity whose contents you are drawing, written as its reference",
       "context": "The meaning of the ref argument of `dinah contents`, printed in that command's arguments table. contents writes its own sentence rather than taking the shared one, because the shared sentence ends \"not this workbench\" and the workbench is the reference contents is most often given.",
       "skeleton": true
     },
