@@ -56,13 +56,6 @@ type tool struct {
 // repository, where a user setting is a machine artifact, and the operator
 // check guards the write here exactly as it does at a terminal, because the
 // library holds it.
-//
-// workbenches is the one tool that sat inside the rule while the head served
-// one workbench and sits outside it now. The rule's reason is unchanged:
-// every other excluded command needs a shell or a filesystem to make sense.
-// workbenches needs neither, and the workbench argument creates an address
-// space an agent cannot enumerate from any other tool. The exception is the
-// reason for the rule, not a contradiction of it.
 var tools = []tool{
 	{name: "claim", command: verb.Claim, run: doVerb},
 	{name: "move", command: verb.Move, run: doVerb},
@@ -101,9 +94,10 @@ var tools = []tool{
 	{name: "changes", command: "changes", run: readChanges},
 	{name: "instructions", command: "instructions", run: readInstructions},
 	{name: "whoami", command: "whoami", run: readWhoami},
-	{name: "card", command: "card", run: doCard},
 	{name: "workbench", command: "workbench", run: doWorkbench},
 	{name: "workstream", command: "workstream", run: doWorkstream},
+	{name: "get_field", command: "get", run: readField},
+	{name: "set_field", command: "set", run: func(l *verb.Library, r *verb.Request) any { return l.SetField(r) }},
 	// The tool sets the action itself, since column carries exactly one, and
 	// argumentExemptions holds that argument back so the schema never asks a
 	// caller for a value this closure has already decided. A later card adding
@@ -117,21 +111,49 @@ var tools = []tool{
 	{name: "workbenches", command: "workbenches", run: nil, summaryKey: "tool.workbenches.summary"},
 }
 
+// exemption is one command this head does not serve: the ground it is held out
+// on, drawn from the closed set below, and the prose a reader wants.
+type exemption struct {
+	// ground is why the command is held out, and is one of toolGrounds.
+	ground string
+	// reason is the sentence a reader meets, which says what about this
+	// particular command puts it on that ground.
+	reason string
+}
+
+// The grounds an exemption may stand on. The set is closed. A fifth needs a
+// card arguing for it, which is the point: the guard's job is to make an
+// unargued exemption impossible rather than to decide that only one argument
+// can ever be made.
+const (
+	GroundShellOrFilesystem   = "shell-or-filesystem"
+	GroundMachineNotWorkbench = "machine-not-workbench"
+	GroundTheHeadItself       = "the-head-itself"
+	GroundProtocolServesIt    = "protocol-serves-it"
+)
+
+// toolGrounds lists the closed set, in the order the constants declare it.
+var toolGrounds = []string{
+	GroundShellOrFilesystem, GroundMachineNotWorkbench,
+	GroundTheHeadItself, GroundProtocolServesIt,
+}
+
 // toolExemptions names every library command this head deliberately does not
-// serve, with the reason it is absent. The comment above tools states the same
-// reasoning in prose; this map is what a test can read, and the roster check
-// requires every command to be either served or named here with a reason, so a
+// serve, with the ground it is held out on and the reason it is absent. The
+// comment above tools states the same reasoning in prose; this map is what a
+// test can read, and the roster check requires every command to be either
+// served or named here with a ground from the closed set and a reason, so a
 // gap nobody has argued for cannot reach a green build.
-var toolExemptions = map[string]string{
-	"path":    "resolves a filesystem path for a shell to consume, so it means nothing over a protocol",
-	"edit":    "opens a file in the reader's own editor, which needs a terminal this head does not have",
-	"init":    "creates a workbench in a directory, which is a filesystem act rather than a workbench act",
-	"extract": "copies a workbench definition out to a directory, which is the same filesystem act",
-	"reshape": "reads its new column layout from a definition file or another workbench's directory, which is the same filesystem act init and extract are held out for",
-	"config":  "writes the user's own machine settings, which travel with the person rather than the workbench",
-	"mcp":     "starts this head, so a tool for it would be the server offering to start itself",
-	"guide":   "served as a resource rather than a tool, because a guide is read rather than run",
-	"help":    "the surface's own tools/list carries every tool's schema and description, which is what help prints at a terminal",
+var toolExemptions = map[string]exemption{
+	"path":    {GroundShellOrFilesystem, "resolves a filesystem path for a shell to consume, so it means nothing over a protocol"},
+	"edit":    {GroundShellOrFilesystem, "opens a file in the reader's own editor, which needs a terminal this head does not have"},
+	"init":    {GroundShellOrFilesystem, "creates a workbench in a directory, which is a filesystem act rather than a workbench act"},
+	"extract": {GroundShellOrFilesystem, "copies a workbench definition out to a directory, which is the same filesystem act"},
+	"reshape": {GroundShellOrFilesystem, "reads its new column layout from a definition file or another workbench's directory, which is the same filesystem act init and extract are held out for"},
+	"config":  {GroundMachineNotWorkbench, "writes the user's own machine settings, which travel with the person rather than the workbench"},
+	"mcp":     {GroundTheHeadItself, "starts this head, so a tool for it would be the server offering to start itself"},
+	"guide":   {GroundProtocolServesIt, "served as a resource rather than a tool, because a guide is read rather than run"},
+	"help":    {GroundProtocolServesIt, "the surface's own tools/list carries every tool's schema and description, which is what help prints at a terminal"},
 }
 
 // argumentExemptions names, per tool, the parameters this head deliberately
@@ -715,29 +737,26 @@ func readWhoami(l *verb.Library, r *verb.Request) any {
 	return wrap(map[string]any{"identity": identity}, readAffordances)
 }
 
-// doCard answers the card tool, which reads one of a card's own fields or
-// writes one, exactly as the command does. A call naming the set action takes
-// the write, and every other call is the read, so an agent reaches the same
-// two acts a person reaches from a terminal.
-func doCard(l *verb.Library, r *verb.Request) any {
-	if r.Action == "set" {
-		return l.SetCardField(r)
-	}
-	value, err := l.CardField(r)
+// readField answers the get_field tool, which reads one field of whatever
+// entity the reference names, exactly as the command does.
+//
+// It wraps with readAffordances rather than with a list of its own. The tool
+// answers for a workbench, a column, a card, a comment, an item, an attachment
+// and a workstream alike, so an affordance naming what a reader does next with
+// a card would be wrong wherever the reference is not one, and every other
+// bench-level read in this file wraps with the same four.
+func readField(l *verb.Library, r *verb.Request) any {
+	value, err := l.GetField(r)
 	if err != nil {
 		return l.FromError(r, err)
 	}
-	return wrap(map[string]any{"value": value}, []string{"show", "log", "card"})
+	return wrap(map[string]any{"value": value}, readAffordances)
 }
 
 // doWorkbench answers the workbench tool, which reads the workbench's own
-// fields or writes one of them, exactly as the command does. A call naming the
-// set action takes the write, and every other call is the read, so an agent
-// reads the same three fields the terminal listing prints.
+// fields exactly as the bare command does, so an agent reads the same three
+// fields the terminal listing prints.
 func doWorkbench(l *verb.Library, r *verb.Request) any {
-	if r.Action == "set" {
-		return l.SetWorkbench(r)
-	}
 	fields, err := l.Workbench(r)
 	if err != nil {
 		return l.FromError(r, err)
@@ -746,21 +765,13 @@ func doWorkbench(l *verb.Library, r *verb.Request) any {
 }
 
 // doWorkstream answers the workstream tool, which lists the workbench's
-// workstreams, reads one, creates one or writes a field of one, exactly as the
-// command does. The action selects, so an agent reaches the same four acts a
-// person reaches from a terminal.
+// workstreams or creates one, exactly as the command does. The action selects,
+// so an agent reaches the same two acts a person reaches from a terminal, and
+// a workstream's own fields are read and written through get_field and
+// set_field.
 func doWorkstream(l *verb.Library, r *verb.Request) any {
-	switch r.Action {
-	case "new":
+	if r.Action == "new" {
 		return l.NewWorkstream(r)
-	case "set":
-		return l.SetWorkstream(r)
-	case "get":
-		detail, err := l.Workstream(r)
-		if err != nil {
-			return l.FromError(r, err)
-		}
-		return wrap(map[string]any{"detail": detail}, readAffordances)
 	}
 	listing, err := l.Workstreams()
 	if err != nil {

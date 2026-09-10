@@ -46,6 +46,11 @@ const (
 // than writing the three out again.
 var ItemKinds = []string{"acceptance_criterion", "open_question", "decision"}
 
+// ItemStates are the four states an item takes, in the order the constants
+// above declare them. A surface offering a caller the choice reads this for
+// ItemKinds' own reason rather than writing the four out again.
+var ItemStates = []string{ItemPending, ItemResolved, ItemVerified, ItemFailed}
+
 // KnownItemKind reports whether a name is one of the three the format
 // declares.
 func KnownItemKind(kind string) bool {

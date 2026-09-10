@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Derive the journal event sets from the tree and check what format.md says.
 
-The "Journal event schema" section of docs/design/format.md states five counts
+The "Journal event schema" section of docs/design/format.md states six counts
 and places four event names in or out of the sets those counts name. Every one
 of those claims is derived rather than remembered, so this script derives them
 again from the code and the fixtures and holds the document to the answer.
@@ -50,6 +50,9 @@ WORDS = {
     24: "twenty-four", 25: "twenty-five", 26: "twenty-six",
     27: "twenty-seven", 28: "twenty-eight", 29: "twenty-nine",
     30: "thirty", 31: "thirty-one", 32: "thirty-two",
+    33: "thirty-three", 34: "thirty-four", 35: "thirty-five",
+    36: "thirty-six", 37: "thirty-seven", 38: "thirty-eight",
+    39: "thirty-nine", 40: "forty",
 }
 
 # One event-name constant declaration, capturing the name a journal carries.
@@ -146,6 +149,10 @@ def claims(sets):
         ("queryable count", rf"A second count of {queryable} sits nearby"),
         ("overlap count", rf"{word(len(sets['OVERLAP'])).capitalize()} names sit in both counts"),
         ("card-journal count", rf"{word(len(sets['CARD'])).capitalize()} of those land on a card's own journal"),
+        # The extension paragraph states the declared count a second time, in
+        # its own words, and nothing read it until this line existed. It had
+        # been wrong through several rounds that moved every count around it.
+        ("declared count in the extension paragraph", rf"is one of the {word(len(sets['DECLARED']))}"),
     ]
 
     # The three memberships the paragraph states, each phrased from the sets

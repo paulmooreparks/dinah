@@ -76,7 +76,6 @@ func init() {
 		// acts on: groupWork holds every command that acts on a card, and a
 		// reader scanning the block for how to change something about a card
 		// finds it beside the other twelve.
-		{name: "card", group: groupWork, run: runCard, openTail: true},
 
 		{name: "status", group: groupRead, run: runStatus},
 		{name: "columns", group: groupRead, run: runColumns},
@@ -105,6 +104,8 @@ func init() {
 		{name: "reshape", group: groupBench, run: runReshape},
 		{name: "path", group: groupBench, run: runPath, bounded: 1},
 		{name: "edit", group: groupBench, run: runEdit, bounded: 1},
+		{name: "get", group: groupBench, run: runGet, bounded: 2},
+		{name: "set", group: groupBench, run: runSet, bounded: 2, openTail: true},
 		// config dispatches on its own first word and runs the same
 		// mistyped-flag check itself (see runConfig), so it declares an open
 		// tail here to keep the generic walk in run() out of its way entirely.
@@ -262,92 +263,74 @@ func runAdd(s *session, parsed *arguments) int {
 	})
 }
 
-// runCard reads or writes one of a card's own fields.
+// runGet prints one field of one entity on a line of its own, so a script
+// reads it, and prints an empty line for an entity carrying no value under
+// that field.
 //
-// The grammar is `dinah workbench`'s over a card, so the third entity that
-// carries writable fields is reached the same way as the other two. There is
-// no bare invocation, since a card reference is needed before the command
-// means anything and `dinah show` already prints what a card holds.
-//
-// Like runWorkbench, this dispatches on its own first word rather than reading
-// fixed positions, so it runs its own arity and mistyped-flag checks: once on
-// the first word before the switch, once on the reference and the field inside
-// the branches that read them, and once on get's fourth word, which get never
-// reads. The parameter list's Required marks are read by the syntax line and
-// by the mcp head's schema and by nothing here.
-func runCard(s *session, parsed *arguments) int {
+// The reference is whatever the containment grammar resolves, so one command
+// reads a workbench's operator, a column's capacity, a card's title, a
+// comment's body and a checklist item's note. It binds two positionals and
+// takes no tail, so a third word is a usage error naming that word.
+func runGet(s *session, parsed *arguments) int {
 	words := parsed.rest()
-	first := at(words, 0)
-	if looksLikeMistypedFlag(first) {
-		return s.fail(contract.Usage, first)
-	}
-	switch first {
-	case "get":
-		return s.runCardGet(parsed, words)
-	case "set":
-		return s.runCardSet(parsed, words)
-	}
-	return s.fail(contract.Usage, first)
-}
-
-// runCardGet prints one field of one card on a line of its own, so a script
-// reads it, and prints an empty line for a card carrying no level.
-func (s *session) runCardGet(parsed *arguments, words []string) int {
-	reference := at(words, 1)
-	field := at(words, 2)
+	reference := at(words, 0)
+	field := at(words, 1)
 	for _, word := range []string{reference, field} {
 		if looksLikeMistypedFlag(word) {
 			return s.fail(contract.Usage, word)
 		}
 	}
-	if extra := at(words, 3); extra != "" {
+	if extra := at(words, 2); extra != "" {
 		return s.fail(contract.Usage, extra)
 	}
 	return s.withBench(func(l *verb.Library) int {
-		req := s.request("card", parsed)
-		req.Action, req.Card, req.Field = "get", reference, field
-		value, err := l.CardField(req)
+		req := s.request("get", parsed)
+		req.Ref, req.Field = reference, field
+		value, err := l.GetField(req)
 		if err != nil {
 			return s.reportError(err)
+		}
+		if s.format != formatHuman {
+			return s.emitMachine(map[string]string{"value": value})
 		}
 		s.line(value)
 		return 0
 	})
 }
 
-// runCardSet writes one field of one card, and clears it when the invocation
-// leaves the value off. Clearing is spelled that way because a card without a
-// level is a legal card, so the `config set` grammar applies where the
-// `workbench set` refusal of an empty value does not.
-func (s *session) runCardSet(parsed *arguments, words []string) int {
-	reference := at(words, 1)
-	field := at(words, 2)
+// runSet writes one field of one entity, and clears it where the field
+// declares itself clearable and the invocation leaves the value off.
+//
+// A single dash in the value slot reads the value from stdin, which is the
+// spelling `dinah comment <card> -` already uses, and is what lets a caller
+// send the several lines a prose field holds.
+func runSet(s *session, parsed *arguments) int {
+	words := parsed.rest()
+	reference := at(words, 0)
+	field := at(words, 1)
 	for _, word := range []string{reference, field} {
 		if looksLikeMistypedFlag(word) {
 			return s.fail(contract.Usage, word)
 		}
 	}
-	lead := []string{"card", "set", reference, field}
-	value, refusal := s.freeText(lead, words[min(3, len(words)):], "slot.value")
+	lead := []string{"set", reference, field}
+	value, refusal := s.freeText(lead, words[min(2, len(words)):], "slot.value")
 	if refusal != nil {
 		return s.reportError(refusal)
 	}
-	return s.withBench(func(l *verb.Library) int {
-		req := s.request("card", parsed)
-		req.Action, req.Card, req.Field, req.Value = "set", reference, field, value
-		req.At = parsed.value("at")
-		// A write naming a column is a per-column override rather than a
-		// write to the card's own field, and only the tier axis has one. A
-		// severity or a priority is one value for the whole card, so naming a
-		// column for either is a usage error rather than a write nobody can
-		// see the effect of.
-		if req.At != "" {
-			if field != bench.TierField {
-				return s.fail(contract.Usage, "--at")
-			}
-			return s.emit(l.SetCardTierAt(req))
+	if value == "-" {
+		piped, err := io.ReadAll(s.in)
+		if err != nil {
+			return s.reportError(err)
 		}
-		return s.emit(l.SetCardField(req))
+		value = string(piped)
+	}
+	return s.withBench(func(l *verb.Library) int {
+		req := s.request("set", parsed)
+		req.Ref, req.Field, req.Value = reference, field, value
+		req.At = parsed.value("at")
+		req.Note = parsed.value("note")
+		return s.emit(l.SetField(req))
 	})
 }
 
@@ -1508,66 +1491,22 @@ func runWhoami(s *session, parsed *arguments) int {
 	})
 }
 
-// runWorkbench lists the workbench's own fields, or reads or writes one of
-// them.
+// runWorkbench lists the workbench's own fields.
 //
-// The grammar is `config`'s, copied word for word, over a different file. The
-// bare invocation lists, `get` prints one stored value alone so a script can
-// read it, and `set` writes one field. The two commands stay apart because
-// they write different files for different owners: `config` writes the user's
-// own settings, which follow a person from workbench to workbench, and this
-// writes the anchor, which travels with the repository to everybody who
-// clones it.
-//
-// Like runConfig, this dispatches on its own first word rather than reading
-// fixed positions, so it runs its own arity and mistyped-flag checks: once on
-// the first word before the switch, once on the field name inside get and set,
-// and once on get's third word, which get never reads.
+// Reading one field and writing one are `dinah get` and `dinah set`, which
+// reach every field of every kind through one reference grammar, so this
+// command is the listing alone. Every first word is refused under usage, which
+// is `dinah column`'s precedent: that command answers `new` and refuses every
+// other word the same way.
 func runWorkbench(s *session, parsed *arguments) int {
 	words := parsed.rest()
 	first := at(words, 0)
-	if looksLikeMistypedFlag(first) {
+	if first != "" {
 		return s.fail(contract.Usage, first)
 	}
-	switch first {
-	case "":
-		return s.withBench(func(l *verb.Library) int {
-			return s.emitWorkbenchFields(l, s.request("workbench", parsed))
-		})
-	case "get":
-		field := at(words, 1)
-		if looksLikeMistypedFlag(field) {
-			return s.fail(contract.Usage, field)
-		}
-		if extra := at(words, 2); extra != "" {
-			return s.fail(contract.Usage, extra)
-		}
-		return s.withBench(func(l *verb.Library) int {
-			req := s.request("workbench", parsed)
-			req.Action, req.Field = first, field
-			fields, err := l.Workbench(req)
-			if err != nil {
-				return s.reportError(err)
-			}
-			s.line(fields.Field(field))
-			return 0
-		})
-	case "set":
-		field := at(words, 1)
-		if looksLikeMistypedFlag(field) {
-			return s.fail(contract.Usage, field)
-		}
-		value, refusal := s.freeText([]string{"workbench", "set", field}, words[min(2, len(words)):], "slot.value")
-		if refusal != nil {
-			return s.reportError(refusal)
-		}
-		return s.withBench(func(l *verb.Library) int {
-			req := s.request("workbench", parsed)
-			req.Action, req.Field, req.Value = first, field, value
-			return s.emit(l.SetWorkbench(req))
-		})
-	}
-	return s.fail(contract.Usage, first)
+	return s.withBench(func(l *verb.Library) int {
+		return s.emitWorkbenchFields(l, s.request("workbench", parsed))
+	})
 }
 
 // emitWorkbenchFields answers the bare invocation in whichever form it asked
@@ -1821,20 +1760,12 @@ func runLeave(s *session, parsed *arguments) int {
 	})
 }
 
-// runWorkstream lists the workbench's workstreams, creates one, or reads or
-// writes one's fields.
+// runWorkstream lists the workbench's workstreams or creates one.
 //
-// The grammar is `workbench`'s with a `new` action added and a reference in
-// front of the field, because this command names one of many entities where
-// that one names the workbench it is already serving. The bare invocation
-// lists, `get` prints one workstream or one stored value alone so a script can
-// read it, and `set` writes one field.
-//
-// Like runWorkbench, this dispatches on its own first word rather than reading
-// fixed positions, so it runs its own arity and mistyped-flag checks: once on
-// the first word before the switch, once on the reference and the field inside
-// the branches that read them, and once on get's fourth word, which get never
-// reads.
+// Reading one workstream's fields and writing them are `dinah get` and `dinah
+// set`, so the two acts this command kept are the listing and the creation.
+// Every other first word is refused under usage, which is `dinah column`'s
+// precedent.
 func runWorkstream(s *session, parsed *arguments) int {
 	words := parsed.rest()
 	first := at(words, 0)
@@ -1865,64 +1796,8 @@ func runWorkstream(s *session, parsed *arguments) int {
 			req.Slug = parsed.value("slug")
 			return s.emitWorkstream(l.NewWorkstream(req))
 		})
-	case "get":
-		return s.runWorkstreamGet(parsed, words)
-	case "set":
-		return s.runWorkstreamSet(parsed, words)
 	}
 	return s.fail(contract.Usage, first)
-}
-
-// runWorkstreamGet reads one workstream, or one field of it alone.
-func (s *session) runWorkstreamGet(parsed *arguments, words []string) int {
-	reference := at(words, 1)
-	field := at(words, 2)
-	for _, word := range []string{reference, field} {
-		if looksLikeMistypedFlag(word) {
-			return s.fail(contract.Usage, word)
-		}
-	}
-	if extra := at(words, 3); extra != "" {
-		return s.fail(contract.Usage, extra)
-	}
-	return s.withBench(func(l *verb.Library) int {
-		req := s.request("workstream", parsed)
-		req.Action, req.Workstream, req.Field = "get", reference, field
-		detail, err := l.Workstream(req)
-		if err != nil {
-			return s.reportError(err)
-		}
-		if field != "" {
-			s.line(detail.Workstream.Field(field))
-			return 0
-		}
-		if s.format != formatHuman {
-			return s.emitMachine(detail)
-		}
-		s.renderWorkstreamDetail(detail)
-		return 0
-	})
-}
-
-// runWorkstreamSet writes one field of one workstream.
-func (s *session) runWorkstreamSet(parsed *arguments, words []string) int {
-	reference := at(words, 1)
-	field := at(words, 2)
-	for _, word := range []string{reference, field} {
-		if looksLikeMistypedFlag(word) {
-			return s.fail(contract.Usage, word)
-		}
-	}
-	lead := []string{"workstream", "set", reference, field}
-	value, refusal := s.freeText(lead, words[min(3, len(words)):], "slot.value")
-	if refusal != nil {
-		return s.reportError(refusal)
-	}
-	return s.withBench(func(l *verb.Library) int {
-		req := s.request("workstream", parsed)
-		req.Action, req.Workstream, req.Field, req.Value = "set", reference, field, value
-		return s.emitWorkstream(l.SetWorkstream(req))
-	})
 }
 
 // emitWorkstream reports a workstream act: the machine form under --json, the

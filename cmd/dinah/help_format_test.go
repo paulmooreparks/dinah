@@ -59,7 +59,6 @@ WORK
   delete <ref> --yes                                     Destroy a card, a column, or anything below a
                                                            card, along with its history
   rename <ref> <name>                                    Rename an attachment
-  card <get|set> <card> <field> [value] [--at <column>]  Read one of a card's own fields, or write one
 
 READ
   status [--root <path>] [--max-depth <n>]               Where this workbench stands, and what you hold
@@ -93,6 +92,9 @@ WORKBENCH
                                                            or of anything below a card
   edit <ref>                                             Open this workbench, a card, or anything below a
                                                            card in your editor
+  get <ref> <field>                                      Read one field of any entity of this workbench
+  set <ref> <field> [value|-] [--at <column>]            Write one field of any entity of this workbench
+    [--note <text>] [--yes]
   config [get|set] [key] [value]                         List your user settings, or read or write one
   check [--finish] [--migrate-ordinals]                  Look for structural defects in this workbench
     [--migrate-slugs] [--migrate-columns]
@@ -101,9 +103,8 @@ WORKBENCH
     [--yes] [--root <path>] [--max-depth <n>]
   whoami                                                 The actor your actions carry, and whether it is
                                                            the operator
-  workbench [get|set] [field] [value] [--yes]            Read this workbench's own fields, or write one
-  workstream [new|get|set] [workstream|title] [field]    Read this workbench's workstreams, create one, or
-    [value] [--slug <slug>] [--yes]                        write one's fields
+  workbench                                              Read this workbench's own fields
+  workstream [new] [title] [--slug <slug>]               Read this workbench's workstreams, or create one
   column <new> <title> [--kind <kind>] [--tier <level>]  Create a column in this workbench's flow
     [--capacity <n>] [--slug <slug>] [--before <column>]
   workbenches [path] [--max-depth <n>]                   The workbenches beneath a directory, or the ones
@@ -161,7 +162,6 @@ WORK
   archive <ref>                                                                                         Move a card, a column, or anything below a card, out of the live set
   delete <ref> --yes                                                                                    Destroy a card, a column, or anything below a card, along with its history
   rename <ref> <name>                                                                                   Rename an attachment
-  card <get|set> <card> <field> [value] [--at <column>]                                                 Read one of a card's own fields, or write one
 
 READ
   status [--root <path>] [--max-depth <n>]                                                              Where this workbench stands, and what you hold
@@ -186,13 +186,15 @@ WORKBENCH
   reshape --from <source> [--map <retired=destination>] [--yes]                                         Carry this workbench to the column layout a new definition declares
   path <ref>                                                                                            Print the file path of this workbench, of a card, or of anything below a card
   edit <ref>                                                                                            Open this workbench, a card, or anything below a card in your editor
+  get <ref> <field>                                                                                     Read one field of any entity of this workbench
+  set <ref> <field> [value|-] [--at <column>] [--note <text>] [--yes]                                   Write one field of any entity of this workbench
   config [get|set] [key] [value]                                                                        List your user settings, or read or write one
   check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-columns] [--migrate-vocabulary]    Look for structural defects in this workbench
     [--migrate-container] [--remint <dir>] [--migrate-workstreams] [--witness] [--yes] [--root <path>]
     [--max-depth <n>]
   whoami                                                                                                The actor your actions carry, and whether it is the operator
-  workbench [get|set] [field] [value] [--yes]                                                           Read this workbench's own fields, or write one
-  workstream [new|get|set] [workstream|title] [field] [value] [--slug <slug>] [--yes]                   Read this workbench's workstreams, create one, or write one's fields
+  workbench                                                                                             Read this workbench's own fields
+  workstream [new] [title] [--slug <slug>]                                                              Read this workbench's workstreams, or create one
   column <new> <title> [--kind <kind>] [--tier <level>] [--capacity <n>] [--slug <slug>]                Create a column in this workbench's flow
     [--before <column>]
   workbenches [path] [--max-depth <n>]                                                                  The workbenches beneath a directory, or the ones reachable from here

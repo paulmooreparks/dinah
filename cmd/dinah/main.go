@@ -218,7 +218,12 @@ func run(argv []string, in io.Reader, out, errw io.Writer) int {
 	// take the peeling branch, which nothing shipped exercises today.
 	// workstream sits with workbench for the same two reasons: dinah-100's
 	// one-word rule bounds its title and its value, and it declares --yes.
-	if command.name != "add" && command.name != "block" && command.name != "comment" && command.name != "workbench" && command.name != "workstream" {
+	// set is the third of that family and arrived when the three
+	// kind-prefixed field commands became one: the same one-word rule bounds
+	// its value, and it declares --at, --note and --yes, so a flag typed
+	// before the value would otherwise be spliced back into the value as
+	// prose and refused as a second word.
+	if command.name != "add" && command.name != "block" && command.name != "comment" && command.name != "workbench" && command.name != "workstream" && command.name != "set" {
 		if refusal := resolveOpenTailFlags(parsed, command); refusal != nil {
 			return s.reportError(refusal)
 		}

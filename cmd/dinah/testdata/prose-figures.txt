@@ -52,7 +52,7 @@ noun tools
 noun verbs
 noun ways
 
-docs/quick-start.md:105 figure=fifty-three noun=commands counts=the commands dinah help lists derives=groupedCommands
+docs/quick-start.md:105 figure=fifty-four noun=commands counts=the commands dinah help lists derives=groupedCommands
 docs/quick-start.md:105 figure=four noun=groups counts=the groups dinah help sorts its commands into derives=commandGroups
 docs/quick-start.md:222 figure=four noun=settings counts=the settings dinah config accepts derives=configKeys
 docs/quick-start.md:438 figure=five noun=commands counts=the verbs that change where a card stands derives=contractVerbs
@@ -62,19 +62,20 @@ docs/quick-start.md:546 figure=five noun=commands counts=the verbs that change w
 docs/quick-start.md:561 figure=Five noun=commands counts=the verbs that change where a card stands derives=contractVerbs
 docs/quick-start.md:562 figure=five noun=verbs counts=the verbs that change where a card stands derives=contractVerbs
 docs/quick-start.md:756 figure=three noun=kinds counts=the checklist kinds a card may carry derives=checklistKinds
-docs/quick-start.md:888 figure=one noun=fields counts=nothing, since the figure stands for the workstream the sentence above names holds=prose reason=the sentence reads Naming one reads its fields, so one is a pronoun and no set is being counted
-docs/quick-start.md:940 figure=two noun=commands counts=two of the commands that take any reference holds=partitive reason=the sentence names archive and delete, which take any reference at all rather than being the whole of the group that does
-docs/quick-start.md:1144 figure=two noun=groups counts=the two origins of a refusal name holds=prose reason=the groups are the shared rules and Dinah's own coinage, which no table in the tree declares as a set
-docs/quick-start.md:1507 figure=five noun=flags counts=the optional flags dinah column new accepts derives=columnNewFlags
+docs/quick-start.md:888 figure=one noun=fields counts=nothing, since the figure stands for the workstream the sentence above names holds=prose reason=the sentence reads Reading one of its fields, so one is a pronoun and no set is being counted
+docs/quick-start.md:935 figure=two noun=commands counts=two of the commands that take any reference holds=partitive reason=the sentence names archive and delete, which take any reference at all rather than being the whole of the group that does
+docs/quick-start.md:944 figure=two noun=commands counts=the two commands the block under this sentence runs holds=prose reason=the sentence points at the two lines of the block that follows rather than at any set the tree declares
+docs/quick-start.md:1142 figure=two noun=groups counts=the two origins of a refusal name holds=prose reason=the groups are the shared rules and Dinah's own coinage, which no table in the tree declares as a set
+docs/quick-start.md:1508 figure=five noun=flags counts=the optional flags dinah column new accepts derives=columnNewFlags
 internal/guide/guides/first-session.md:99 figure=one noun=outcomes counts=one of the four outcomes a command reports holds=partitive reason=the sentence says one of four outcomes, so the figure counts the choice rather than the set
 internal/guide/guides/mcp.md:298 figure=Eight noun=tools counts=the MCP tools whose verb reads the request's basis holds=unreachable at=internal/mcp/tools.go:307 declares=injectedProperties
 internal/guide/guides/mcp.md:330 figure=two noun=kinds counts=the directory kinds the descent skips holds=prose reason=a dotted directory and a symbolic link are two branches of one walk rather than a set the tree declares
 internal/guide/guides/query.md:44 figure=Twelve noun=fields counts=the field names the query language admits derives=queryFields
 internal/guide/guides/query.md:80 figure=five noun=fields counts=the query fields read from a card's journal holds=unreachable at=internal/verb/query.go:72 declares=actPlane
 internal/guide/guides/references.md:18 figure=three noun=ways counts=the spellings of this workbench the guide shows derives=workbenchSpellings
-internal/guide/guides/references.md:103 figure=Fifteen noun=commands counts=the commands that take a reference derives=referenceCommands
-internal/guide/guides/references.md:123 figure=Six noun=commands counts=the commands that take a workstream reference holds=elsewhere by=TestTheReferencesGuideNamesTheCommandsThatTakeAWorkstream reason=that test runs every command of the roster against a workstream reference and holds this sentence's named list against what each one did
-internal/guide/guides/references.md:125 figure=Nine noun=rows counts=the table rows the guide qualifies with a detail derives=qualifiedTableRows
+internal/guide/guides/references.md:103 figure=Seventeen noun=commands counts=the commands that take a reference derives=referenceCommands
+internal/guide/guides/references.md:125 figure=Eight noun=commands counts=the commands that take a workstream reference holds=elsewhere by=TestTheReferencesGuideNamesTheCommandsThatTakeAWorkstream reason=that test runs every command of the roster against a workstream reference and holds this sentence's named list against what each one did
+internal/guide/guides/references.md:127 figure=Nine noun=rows counts=the table rows the guide qualifies with a detail derives=qualifiedTableRows
 internal/guide/guides/verbs.md:1 figure=five noun=verbs counts=the verbs that change where a card stands derives=contractVerbs
 internal/guide/guides/verbs.md:3 figure=Five noun=verbs counts=the verbs that change where a card stands derives=contractVerbs
 internal/guide/guides/verbs.md:33 figure=two noun=commands counts=two of the five verbs holds=partitive reason=the two are claim and move, whose separate records a pull writes together

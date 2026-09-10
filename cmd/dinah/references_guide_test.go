@@ -253,13 +253,17 @@ func TestTheReferencesGuideTableNamesEveryCommandThatTakesAReference(t *testing.
 // referenceProbeArgs returns the arguments a command needs after its
 // reference. It is the one hand-written table in this file, and it is
 // arguments rather than roster: a command it does not know stops the run
-// naming that command, so a sixteenth command entering the roster is probed
+// naming that command, so an eighteenth command entering the roster is probed
 // deliberately rather than with the wrong line.
 func referenceProbeArgs(t *testing.T, command string) []string {
 	t.Helper()
 	switch command {
 	case "path", "edit", "show", "instructions", "contents", "attachments", "archive":
 		return nil
+	case "get":
+		return []string{"title"}
+	case "set":
+		return []string{"title", "a new title"}
 	case "delete":
 		return []string{"--yes"}
 	case "rename":
@@ -316,7 +320,7 @@ func TestTheReferencesGuideNamesTheCommandsThatTakeAWorkstream(t *testing.T) {
 	if len(roster) == 0 {
 		t.Fatal("no command points at the references guide, so this check read nothing")
 	}
-	named := backtickedCommandsIn(foldedGuideParagraphStartingWith(t, "Six commands take a workstream:"), roster)
+	named := backtickedCommandsIn(foldedGuideParagraphStartingWith(t, "Eight commands take a workstream:"), roster)
 	reached := map[string]bool{}
 	for at, name := range roster {
 		slug := fmt.Sprintf("ws%d", at+1)

@@ -157,6 +157,12 @@ var Shapes = []Shape{
 		// file, so the alternation's tail gives it the command-spelling next
 		// step, which is the advice a reader who typed the slug needs.
 		//
+		// oneLine carries the one case where the value is neither missing nor
+		// unparseable: a field stored as a frontmatter key was given a value
+		// carrying a line break. The base sentence's "is missing, empty, or
+		// will not parse" does not tell that reader which of the three they
+		// met, so the clause says the newline was the problem.
+		//
 		// The repair alternation leads with the sibling that names the
 		// workbench, because a reader told to confirm his hand edit with a
 		// check needs the check to reach the file he just edited, and a
@@ -171,8 +177,9 @@ var Shapes = []Shape{
 		// title dinah add refuses, and hand that reader a repair written
 		// about a file he has not touched.
 		Name:   Malformed,
-		Values: []string{"path", "file", "cardRef", "claimants", "retired", ValueUsage, ValueWorkbench},
+		Values: []string{"path", "file", "cardRef", "claimants", "retired", "oneLine", ValueUsage, ValueWorkbench},
 		Fragments: []Fragment{
+			{Key: "refusal.malformed.one-line", When: "oneLine"},
 			{Key: "refusal.malformed.at", When: "path"},
 			{Key: "refusal.malformed.in-file", When: "file"},
 			{Key: "refusal.malformed.reads-as-a-card-reference", When: "cardRef"},
@@ -543,19 +550,27 @@ var Shapes = []Shape{
 	},
 	{
 		// One refusal name answers two acts here. delete destroys history,
-		// and a slug rename renames every card in the workbench, so the
-		// workbench command carries its own sentence and its own next step
+		// and a slug change stops every reference already written down from
+		// matching, so set carries its own sentence and its own next step
 		// rather than ending on advice written for delete.
+		//
+		// The workbench and the workstream carried a variant each until the
+		// kind-prefixed field commands became one, and one command reaches
+		// both kinds now. What separated the two sentences was a fact about
+		// the kind rather than about the command, so it rides as a spliced
+		// clause the raise site switches on: a workbench slug change renames
+		// every card in the workbench at the same time, and a column's or a
+		// workstream's does not.
 		Name:     Unconfirmed,
-		Variants: []string{"workbench", "workstream"},
+		Values:   []string{"renamesCards"},
+		Variants: []string{"set"},
 		Fragments: []Fragment{
-			{Key: "refusal.dinah.unconfirmed.workbench.next", WhenCommand: "workbench"},
-			{Key: "refusal.dinah.unconfirmed.workstream.next", WhenCommand: "workstream"},
+			{Key: "refusal.dinah.unconfirmed.set.cards", When: "renamesCards"},
+			{Key: "refusal.dinah.unconfirmed.set.next", WhenCommand: "set"},
 			{Key: "refusal.dinah.unconfirmed.next"},
 		},
 		NextStep: []string{
-			"refusal.dinah.unconfirmed.workbench.next",
-			"refusal.dinah.unconfirmed.workstream.next",
+			"refusal.dinah.unconfirmed.set.next",
 			"refusal.dinah.unconfirmed.next",
 		},
 	},
@@ -581,11 +596,15 @@ var Shapes = []Shape{
 		// and the clause says which field takes the four ordered ones either
 		// way.
 		//
-		// Two commands raise this name for two acts. A query names a field of
-		// the query language, and card names a field a card records, so the
-		// command word selects the sentence and the ordered-operator clause
-		// stops being unconditional: it is written about the query language's
-		// one ranking field and says nothing a card reader can use.
+		// Three commands raise this name for three acts. A query names a
+		// field of the query language, and get and set each name a field the
+		// resolved kind records, so the command word selects the sentence and
+		// the ordered-operator clause stops being unconditional: it is written
+		// about the query language's one ranking field and says nothing a
+		// reader of an entity's fields can use.
+		//
+		// get and set carry an entry each rather than sharing one, because
+		// their next steps differ: each points at its own help page.
 		// show carries a variant of its own because the act it refuses is a
 		// third one: a read naming a member of a card's detail that show
 		// cannot select. Its base sentence says what was refused and what a
@@ -599,18 +618,20 @@ var Shapes = []Shape{
 		// Both are filled at a raise site and each is its own fragment's
 		// condition, so they are declared there rather than in Values.
 		Name:     UnknownField,
-		Values:   []string{"fields", "instantField"},
-		Variants: []string{"card", "show"},
+		Values:   []string{"fields", "instantField", "kind"},
+		Variants: []string{"get", "set", "show"},
 		Fragments: []Fragment{
 			{Key: "refusal.dinah.unknown-field.ordered", WhenCommand: "query"},
 			{Key: "refusal.dinah.unknown-field.show.unknown", When: "unknown"},
 			{Key: "refusal.dinah.unknown-field.show.reference", When: "reference"},
-			{Key: "refusal.dinah.unknown-field.card.next", WhenCommand: "card"},
+			{Key: "refusal.dinah.unknown-field.get.next", WhenCommand: "get"},
+			{Key: "refusal.dinah.unknown-field.set.next", WhenCommand: "set"},
 			{Key: "refusal.dinah.unknown-field.show.next", WhenCommand: "show"},
 			{Key: "refusal.dinah.unknown-field.next"},
 		},
 		NextStep: []string{
-			"refusal.dinah.unknown-field.card.next",
+			"refusal.dinah.unknown-field.get.next",
+			"refusal.dinah.unknown-field.set.next",
 			"refusal.dinah.unknown-field.show.next",
 			"refusal.dinah.unknown-field.next",
 		},

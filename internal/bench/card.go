@@ -489,23 +489,6 @@ const (
 // is a sequence of mappings and not a value.
 const TierAtKey = "tier_at"
 
-// CardFields are the fields a card records that a person writes and may
-// rewrite, in the order a reader meets them. It is a variable in the source
-// rather than a sentence in a catalog, so a fourth card field reaches the
-// refusal that lists them without a translator being asked for anything.
-var CardFields = []string{SeverityField, PriorityField, TierField}
-
-// KnownCardField reports whether a name is one of the card's own fields,
-// which is what both a read of one and a write to one ask first.
-func KnownCardField(name string) bool {
-	for _, known := range CardFields {
-		if known == name {
-			return true
-		}
-	}
-	return false
-}
-
 // LevelOf reads the level a card records on one axis, and answers the empty
 // string for a name outside the set. The caller refuses over the name; this
 // reports what is stored under it.

@@ -369,11 +369,22 @@ func numberWords() []string {
 	return words
 }
 
-// numberWord spells a whole number from twenty to ninety-nine the way the
+// numberWord spells a whole number from ten to ninety-nine the way the
 // documents spell one. The range is the range a command count can occupy in a
 // document a reader would notice, and a number outside it returns the digits
 // so a caller sees the miss rather than a plausible wrong word.
+//
+// The teens are spelled rather than left to the digits, because a roster
+// crossing from nine to seventeen put a derived figure in that range and the
+// digits are not what the guide's sentence says.
 func numberWord(n int) string {
+	teens := map[int]string{
+		10: "ten", 11: "eleven", 12: "twelve", 13: "thirteen", 14: "fourteen",
+		15: "fifteen", 16: "sixteen", 17: "seventeen", 18: "eighteen", 19: "nineteen",
+	}
+	if word, named := teens[n]; named {
+		return word
+	}
 	tens := map[int]string{2: "twenty", 3: "thirty", 4: "forty", 5: "fifty", 6: "sixty", 7: "seventy", 8: "eighty", 9: "ninety"}
 	units := []string{"", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"}
 	ten, ok := tens[n/10]

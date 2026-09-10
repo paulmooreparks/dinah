@@ -35,6 +35,15 @@ func (s *session) emit(response *verb.Response) int {
 		s.line(s.r.T(response.Message, values...))
 		return 0
 	}
+	// A response about a workstream draws the workstream's own line, which is
+	// what the workstream verbs have always printed. It rides here rather than
+	// in a second emitter because `dinah set` reaches every kind through one
+	// reference, so which line to draw is a fact about the answer rather than
+	// about the command that asked.
+	if response.Card == nil && response.Workstream != nil {
+		s.renderWorkstreamLine(response.Workstream)
+		return 0
+	}
 	s.renderCard(response.Card)
 	if response.Instructions != nil && !s.quiet {
 		s.renderInstructions(response.Instructions, response.LegalMoves, response.Loop)
@@ -1105,7 +1114,10 @@ func sortedKeys(values map[string]string) []string {
 	return keys
 }
 
-// renderWorkbenchFields prints the workbench's own fields, one row per field.
+// renderWorkbenchFields prints the three fields the listing carries, one row
+// per field. The workbench's instructions are a field of it too and are
+// deliberately not here, because a listing that printed a whole instruction
+// body would stop being a listing; `dinah get . instructions` reads them.
 //
 // The field names travel untranslated, the way `config`'s keys do, because a
 // field name is machine vocabulary a caller types back. The slug row is served
@@ -1114,7 +1126,7 @@ func sortedKeys(values map[string]string) []string {
 // workbenches` already say about a missing slug.
 func (s *session) renderWorkbenchFields(fields *verb.WorkbenchView) {
 	t := table{indent: 2, columns: s.columns("workbench", "field", "value")}
-	for _, name := range bench.WorkbenchFields {
+	for _, name := range bench.WorkbenchListingFields {
 		value := fields.Field(name)
 		if name == "slug" {
 			value = s.slugCell(value)
@@ -1145,40 +1157,6 @@ func (s *session) renderWorkstreams(listing *verb.WorkstreamListing) {
 		t.rows = append(t.rows, tableRow{fields: fields})
 	}
 	s.table(t)
-}
-
-// renderWorkstreamDetail prints one workstream's own fields, its notes, and
-// the live cards belonging to it.
-//
-// The field names travel untranslated, the way the workbench listing's do,
-// because a field name is machine vocabulary a caller types back.
-func (s *session) renderWorkstreamDetail(detail *verb.WorkstreamDetail) {
-	workstream := detail.Workstream
-	fields := table{indent: 2, columns: s.columns("workstream", "field", "value")}
-	rows := [][]string{
-		{"slug", s.slugCell(workstream.Slug)},
-		{"id", workstream.ID},
-		{"title", workstream.Title},
-		{"status", workstream.Status},
-		{"cards", strconv.Itoa(workstream.Cards)},
-	}
-	for _, row := range rows {
-		fields.rows = append(fields.rows, tableRow{fields: row})
-	}
-	s.table(fields)
-	if detail.Body != "" {
-		s.line("")
-		s.write(detail.Body)
-	}
-	if len(detail.Cards) == 0 {
-		return
-	}
-	s.line("")
-	members := table{indent: 2, columns: s.columns("workstream", "card", "title", "column")}
-	for _, card := range detail.Cards {
-		members.rows = append(members.rows, tableRow{fields: []string{card.Ref, card.Title, card.ColumnTitle}})
-	}
-	s.table(members)
 }
 
 // renderWorkstreamLine prints the one line a person needs after creating a

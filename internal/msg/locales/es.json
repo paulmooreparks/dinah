@@ -166,43 +166,53 @@
       "context": "One row of the ordered precondition list of block, quoted from section 6 of the core profile.",
       "skeleton": true
     },
-    "check.card.1": {
-      "text": "the reference names a card of this workbench",
+    "check.get.1": {
+      "text": "the reference resolves to one entity",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
-    "check.card.2": {
-      "text": "--at names a column of this workbench",
+    "check.get.2": {
+      "text": "the field is one that kind records",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
-    "check.card.3": {
-      "text": "the field is one a card records",
+    "check.set.1": {
+      "text": "this workbench designates an operator",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
-    "check.card.4": {
-      "text": "the workbench declares levels for that field",
-      "context": "One row of the precondition list of a command outside the five the profile specifies. The last three words bind it to the field being written: the question is whether this workbench declares a set for that one axis, never whether it declares any levels at all.",
-      "skeleton": true
-    },
-    "check.card.5": {
-      "text": "a relative write has a default to count from",
+    "check.set.2": {
+      "text": "the reference resolves to one entity",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
-    "check.card.6": {
-      "text": "the value is a level that field declares",
+    "check.set.3": {
+      "text": "the field is one that kind records",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
-    "check.card.7": {
-      "text": "a relative write lands inside the tier set",
+    "check.set.4": {
+      "text": "the value is present, and one line unless prose",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
-    "check.card.8": {
+    "check.set.5": {
+      "text": "the field's own guard admits the value",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.set.6": {
       "text": "the request names an owner",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.set.7": {
+      "text": "that owner is the operator, where the kind asks",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.set.8": {
+      "text": "a slug change carries the confirmation flag",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
@@ -936,31 +946,6 @@
       "context": "One row of the ordered precondition list of workbench, quoted from section 6 of the core profile.",
       "skeleton": true
     },
-    "check.workbench-field.1": {
-      "text": "the field is one this workbench records",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "skeleton": true
-    },
-    "check.workbench-field.2": {
-      "text": "the value is present and well formed",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "skeleton": true
-    },
-    "check.workbench-field.3": {
-      "text": "on a write, the request names an owner",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "skeleton": true
-    },
-    "check.workbench-field.4": {
-      "text": "that owner is the operator",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "skeleton": true
-    },
-    "check.workbench-field.5": {
-      "text": "a slug rename carries the confirmation flag",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "skeleton": true
-    },
     "check.workbench-slug-assigned": {
       "text": "Assigned the workbench slug {slug}.",
       "context": "The line the workbench-slug migration prints for what it derived, once, since a run repairs at most one workbench.",
@@ -991,16 +976,6 @@
       "context": "The line the adoption repair prints for what it created, for any other number. Followed by one line per adopted identifier.",
       "skeleton": true
     },
-    "check.workstream-field.1": {
-      "text": "the workstream exists",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "skeleton": true
-    },
-    "check.workstream-field.2": {
-      "text": "the field is one this workstream records",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "skeleton": true
-    },
     "check.workstream-field.3": {
       "text": "the title or value is present and well formed",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
@@ -1008,16 +983,6 @@
     },
     "check.workstream-field.4": {
       "text": "the request names an owner",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "skeleton": true
-    },
-    "check.workstream-field.5": {
-      "text": "a write to a field is made by the operator",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "skeleton": true
-    },
-    "check.workstream-field.6": {
-      "text": "a slug change carries the confirmation flag",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
@@ -1064,11 +1029,6 @@
     "cmd.archive.summary": {
       "text": "Move a card, a column, or anything below a card, out of the live set",
       "context": "The one-line summary of the archive command, shown beside its syntax in the help block.",
-      "skeleton": true
-    },
-    "cmd.card.summary": {
-      "text": "Read one of a card's own fields, or write one",
-      "context": "The one-line summary of the card command, shown beside its syntax in the help block.",
       "skeleton": true
     },
     "cmd.cite.summary": {
@@ -1134,6 +1094,16 @@
     "cmd.edit.summary": {
       "text": "Open this workbench, a card, or anything below a card in your editor",
       "context": "The one-line summary of the edit command, shown beside its syntax in the help block.",
+      "skeleton": true
+    },
+    "cmd.get.summary": {
+      "text": "Read one field of any entity of this workbench",
+      "context": "The one-line summary of the get command, shown beside its syntax in the help block.",
+      "skeleton": true
+    },
+    "cmd.set.summary": {
+      "text": "Write one field of any entity of this workbench",
+      "context": "The one-line summary of the set command, shown beside its syntax in the help block.",
       "skeleton": true
     },
     "cmd.export.summary": {
@@ -1234,26 +1204,6 @@
     "param.add.severity.summary": {
       "text": "which severity level to file the card with, from the levels this workbench declares",
       "context": "The meaning of the severity argument of `dinah add`, printed in that command's arguments table.",
-      "skeleton": true
-    },
-    "param.card.action.summary": {
-      "text": "which of the two acts to run: read one field or write one",
-      "context": "The meaning of the action argument of `dinah card`, printed in that command's arguments table.",
-      "skeleton": true
-    },
-    "param.card.field.summary": {
-      "text": "which field you are reading or writing: severity, priority or tier",
-      "context": "The meaning of the field argument of `dinah card`, printed in that command's arguments table.",
-      "skeleton": true
-    },
-    "param.card.value.summary": {
-      "text": "the level to write; leave it out to clear the field",
-      "context": "The meaning of the value argument of `dinah card`, printed in that command's arguments table.",
-      "skeleton": true
-    },
-    "param.card.at.summary": {
-      "text": "the column a tier write applies to, instead of the card's own baseline; tier is the one field that takes it",
-      "context": "The meaning of the at argument of `dinah card`, printed in that command's arguments table. A severity or a priority is one value for the whole card, so naming a column for either is a usage error.",
       "skeleton": true
     },
     "param.cite.item.summary": {
@@ -1421,14 +1371,24 @@
       "context": "The next step of refusal.dinah.uncited, spliced onto the sentence that just named the item.",
       "skeleton": true
     },
-    "refusal.dinah.unknown-field.card": {
-      "text": "Dinah has no field {detail}. The fields a card records are: {fields}.",
-      "context": "The sentence printed after the refusal name dinah.unknown-field when the card command raised it, which is a write naming a field a card does not record. It is refusal.dinah.unknown-field with the query's own clause replaced, and the command word selects between the two. {detail} is the field the reader typed. {fields} is the set of fields a card records, read off the tool rather than written here, so a field name is machine vocabulary and is never translated.",
+    "refusal.dinah.unknown-field.get": {
+      "text": "Dinah has no field {detail} on {kind}. The fields a {kind} records are: {fields}.",
+      "context": "The sentence printed after the refusal name dinah.unknown-field when the get command raised it, which is a read naming a field the resolved kind does not record. {detail} is the field the reader typed. {kind} is the kind the reference resolved to and {fields} is that kind's own set, both read off the tool rather than written here, so both are machine vocabulary and are never translated.",
       "skeleton": true
     },
-    "refusal.dinah.unknown-field.card.next": {
-      "text": " Name one of those instead, or run `dinah help card` to see what the command checks.",
-      "context": "The next step of refusal.dinah.unknown-field when the card command raised it. It points at that command's own help page where the shared one points at the query's. The command line inside it is syntax and stays as it is.",
+    "refusal.dinah.unknown-field.get.next": {
+      "text": " Name one of those instead, or run `dinah help get` to see what the command takes.",
+      "context": "The next step of refusal.dinah.unknown-field when the get command raised it. It points at that command's own help page where the shared one points at the query's. The command line inside it is syntax and stays as it is.",
+      "skeleton": true
+    },
+    "refusal.dinah.unknown-field.set": {
+      "text": "Dinah has no field {detail} on {kind}. The fields a {kind} records are: {fields}.",
+      "context": "The sentence printed after the refusal name dinah.unknown-field when the set command raised it, which is a write naming a field the resolved kind does not record. It carries the same sentence as the get variant and is a separate entry because the two next steps differ. {detail} is the field the reader typed. {kind} is the kind the reference resolved to and {fields} is that kind's own set, both read off the tool rather than written here, so both are machine vocabulary and are never translated.",
+      "skeleton": true
+    },
+    "refusal.dinah.unknown-field.set.next": {
+      "text": " Name one of those instead, or run `dinah help set` to see what the command takes.",
+      "context": "The next step of refusal.dinah.unknown-field when the set command raised it. It points at that command's own help page where the shared one points at the query's. The command line inside it is syntax and stays as it is.",
       "skeleton": true
     },
     "refusal.dinah.unknown-item-kind": {
@@ -1477,7 +1437,7 @@
       "skeleton": true
     },
     "refusal.dinah.tier-not-higher.next": {
-      "text": "; name a tier ranking above {current}, or write it with `card set ... tier ... --at ...` if you mean something other than a raise",
+      "text": "; name a tier ranking above {current}, or write it with `set ... tier ... --at ...` if you mean something other than a raise",
       "context": "The next step of refusal.dinah.tier-not-higher. Both ways out are named because only one of them is a raise: the other verb writes any value, a lower one included, and it does not hand the card back.",
       "skeleton": true
     },
@@ -1702,7 +1662,7 @@
       "skeleton": true
     },
     "cmd.workbench.summary": {
-      "text": "Read this workbench's own fields, or write one",
+      "text": "Read this workbench's own fields",
       "context": "The one-line summary of the workbench command, shown beside its syntax in the help block.",
       "skeleton": true
     },
@@ -1712,7 +1672,7 @@
       "skeleton": true
     },
     "cmd.workstream.summary": {
-      "text": "Read this workbench's workstreams, create one, or write one's fields",
+      "text": "Read this workbench's workstreams, or create one",
       "context": "The one-line summary of the workstream command, shown beside its syntax in the help block.",
       "skeleton": true
     },
@@ -2026,31 +1986,6 @@
       "context": "Heading over the workbench's title, in the workbench listing, which `dinah workbenches` prints and the ambiguous-workbench refusal repeats. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "skeleton": true
     },
-    "column.workstream.card": {
-      "text": "Card",
-      "context": "Heading over the card's reference, in the member cards `dinah workstream get` prints under the fields. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "skeleton": true
-    },
-    "column.workstream.field": {
-      "text": "Field",
-      "context": "Heading over the field's name, in the fields `dinah workstream get` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "skeleton": true
-    },
-    "column.workstream.column": {
-      "text": "Column",
-      "context": "Heading over the column the card stands in, in the member cards `dinah workstream get` prints under the fields. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "skeleton": true
-    },
-    "column.workstream.title": {
-      "text": "Title",
-      "context": "Heading over the card's title, in the member cards `dinah workstream get` prints under the fields. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "skeleton": true
-    },
-    "column.workstream.value": {
-      "text": "Value",
-      "context": "Heading over the value stored under it, in the fields `dinah workstream get` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "skeleton": true
-    },
     "column.workstreams.cards": {
       "text": "Cards",
       "context": "Heading over how many live cards belong to the workstream, in the listing `dinah workstream` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
@@ -2243,7 +2178,7 @@
     },
     "log.tier-overridden": {
       "text": "{column}: {from} to {to}",
-      "context": "The detail of a tier_overridden line: the column the override concerns, and the requirement on either side of the write. {column} is the title the event captured at write time, falling back to the stored identifier on a line that captured none. {from} is the previous requirement, or log.tier-overridden.no-requirement where the card asked for nothing. log.tier-overridden.reason is appended after this one only when the event carries a reason, which an ordinary card set ... --at write does not.",
+      "context": "The detail of a tier_overridden line: the column the override concerns, and the requirement on either side of the write. {column} is the title the event captured at write time, falling back to the stored identifier on a line that captured none. {from} is the previous requirement, or log.tier-overridden.no-requirement where the card asked for nothing. log.tier-overridden.reason is appended after this one only when the event carries a reason, which an ordinary `set <ref> tier <value> --at <column>` write does not.",
       "skeleton": true
     },
     "log.tier-overridden.no-requirement": {
@@ -2575,24 +2510,19 @@
       "context": "Spliced onto refusal.dinah.unconfirmed as the next step, carrying the clause that base entry used to end with.",
       "skeleton": true
     },
-    "refusal.dinah.unconfirmed.workbench": {
-      "text": "Dinah renames every card in this workbench when you change the slug to {detail}, so every card reference you have written down elsewhere stops matching.",
-      "context": "The sentence printed after the refusal name dinah.unconfirmed when the workbench command raised it. {detail} carries the new slug the rename would write. A command adding no key of its own renders refusal.dinah.unconfirmed instead.",
+    "refusal.dinah.unconfirmed.set": {
+      "text": "Every reference to this entity that you have written down elsewhere names the old slug, and changing it to {detail} stops those references matching.",
+      "context": "The sentence printed after the refusal name dinah.unconfirmed when the set command raised it, which is a slug change carrying no confirmation. {detail} is the slug the reader asked for. It is one sentence for every kind whose slug can change, and the clause about a workbench renaming its cards is spliced on separately, because only that kind does.",
       "skeleton": true
     },
-    "refusal.dinah.unconfirmed.workbench.next": {
+    "refusal.dinah.unconfirmed.set.cards": {
+      "text": " Dinah renames every card in this workbench at the same time.",
+      "context": "Spliced onto refusal.dinah.unconfirmed.set when the entity whose slug is changing is the workbench itself, which is the one kind whose slug change also renames every card reference in the workbench.",
+      "skeleton": true
+    },
+    "refusal.dinah.unconfirmed.set.next": {
       "text": " Run the command again with --yes.",
-      "context": "Spliced onto refusal.dinah.unconfirmed.workbench as its next step, carrying the sentence that base entry used to end with. The workbench command renders it; every other command renders refusal.dinah.unconfirmed.next.",
-      "skeleton": true
-    },
-    "refusal.dinah.unconfirmed.workstream": {
-      "text": "Every reference to this workstream that you have written down elsewhere names the old slug, and changing it to {detail} stops those references matching.",
-      "context": "The sentence printed after the refusal name dinah.unconfirmed when the workstream command raised it. {detail} carries the new slug the change would write. A command adding no key of its own renders refusal.dinah.unconfirmed instead.",
-      "skeleton": true
-    },
-    "refusal.dinah.unconfirmed.workstream.next": {
-      "text": " Run the command again with --yes.",
-      "context": "Spliced onto refusal.dinah.unconfirmed.workstream as its next step. The workstream command renders it; every other command renders refusal.dinah.unconfirmed.next.",
+      "context": "The next step of refusal.dinah.unconfirmed when the set command raised it. The flag inside it is syntax and stays as it is.",
       "skeleton": true
     },
     "refusal.dinah.unknown-command": {
@@ -2940,6 +2870,11 @@
       "context": "Spliced onto refusal.malformed when the refusal carries a path: the file the missing or broken field belongs to.",
       "skeleton": true
     },
+    "refusal.malformed.one-line": {
+      "text": "; a value for {detail} is stored on one line, and the value you gave carries a line break",
+      "context": "Spliced onto refusal.malformed when the refusal carries the one-line marker: the field is stored as a frontmatter key rather than as the anchor's prose, so its value holds one line. {detail} is the field name, which is machine vocabulary and is never translated.",
+      "skeleton": true
+    },
     "refusal.malformed.fix": {
       "text": "; hand-edit the file and add it, then run `dinah check` to confirm",
       "context": "Spliced onto refusal.malformed after refusal.malformed.at, naming the repair.",
@@ -3162,7 +3097,7 @@
     },
     "slot.value": {
       "text": "the value",
-      "context": "Names the free-text slot of `config set` and of `workbench set` inside refusal.dinah.multiple-words, which reads it as {label}.",
+      "context": "Names the free-text slot of `config set` and of `set` inside refusal.dinah.multiple-words, which reads it as {label}.",
       "skeleton": true
     },
     "slot.name": {
@@ -3750,6 +3685,41 @@
       "context": "The meaning of the card argument of `dinah path`, printed in that command's arguments table.",
       "skeleton": true
     },
+    "param.get.ref.summary": {
+      "text": "the entity you are reading, written as its reference: this workbench as `workbench` or `.`, a column, a card, or something below a card such as wb-1/comments/1",
+      "context": "The meaning of the ref argument of `dinah get`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.get.field.summary": {
+      "text": "which field you are reading; which names are legal depends on the kind the reference resolves to",
+      "context": "The meaning of the field argument of `dinah get`, printed in that command's arguments table. The set the argument publishes is the union over every kind, and the refusal names the resolved kind's own set.",
+      "skeleton": true
+    },
+    "param.set.ref.summary": {
+      "text": "the entity you are writing, written as its reference: this workbench as `workbench` or `.`, a column, a card, or something below a card such as wb-1/comments/1",
+      "context": "The meaning of the ref argument of `dinah set`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.set.field.summary": {
+      "text": "which field you are writing; which names are legal depends on the kind the reference resolves to",
+      "context": "The meaning of the field argument of `dinah set`, printed in that command's arguments table. The set the argument publishes is the union over every kind, and the refusal names the resolved kind's own set.",
+      "skeleton": true
+    },
+    "param.set.value.summary": {
+      "text": "what to store in it; write a single dash to read it from standard input, and leave it out to clear a field that may be cleared",
+      "context": "The meaning of the value argument of `dinah set`, printed in that command's arguments table. The dash is the spelling `dinah comment` already uses, and it is what sends the several lines a prose field holds.",
+      "skeleton": true
+    },
+    "param.set.at.summary": {
+      "text": "the column a tier write applies to, instead of the card's own baseline; a card's tier is the one field that takes it",
+      "context": "The meaning of the at argument of `dinah set`, printed in that command's arguments table. Every other field takes one value for the whole entity, so naming a column beside one is a usage error.",
+      "skeleton": true
+    },
+    "param.set.note.summary": {
+      "text": "the note the verb behind a `state` write records; `state` is the one field that takes it",
+      "context": "The meaning of the note argument of `dinah set`, printed in that command's arguments table. A state write routes to the checklist verb that lands that state, and that verb records a note, so this is where the note is given.",
+      "skeleton": true
+    },
     "param.query.query.summary": {
       "text": "the query, in one shell word or in quotation marks; every live card when you write none",
       "context": "The meaning of the query argument of `dinah query`, printed in that command's arguments table.",
@@ -3770,29 +3740,9 @@
       "context": "The meaning of the catalogs argument of `dinah version`, printed in that command's arguments table.",
       "skeleton": true
     },
-    "param.workbench.action.summary": {
-      "text": "read one field or write one; every field with its value when you name none",
-      "context": "The meaning of the action argument of `dinah workbench`, printed in that command's arguments table.",
-      "skeleton": true
-    },
-    "param.workbench.field.summary": {
-      "text": "which field you are reading or writing",
-      "context": "The meaning of the field argument of `dinah workbench`, printed in that command's arguments table.",
-      "skeleton": true
-    },
-    "param.workbench.value.summary": {
-      "text": "what to store in it, on a set",
-      "context": "The meaning of the value argument of `dinah workbench`, printed in that command's arguments table.",
-      "skeleton": true
-    },
     "param.workstream.action.summary": {
-      "text": "create a workstream, read one, or write one of its fields; every workstream when you name none",
+      "text": "create a workstream; every workstream when you name none",
       "context": "The meaning of the action argument of `dinah workstream`, printed in that command's arguments table.",
-      "skeleton": true
-    },
-    "param.workstream.field.summary": {
-      "text": "which field you are reading or writing",
-      "context": "The meaning of the field argument of `dinah workstream`, printed in that command's arguments table.",
       "skeleton": true
     },
     "param.workstream.slug.summary": {
@@ -3805,13 +3755,8 @@
       "context": "The meaning of the workstream argument, shared by the commands that name one.",
       "skeleton": true
     },
-    "param.workstream.value.summary": {
-      "text": "what to store in it, on a set",
-      "context": "The meaning of the value argument of `dinah workstream`, printed in that command's arguments table.",
-      "skeleton": true
-    },
     "param.workstream.workstream.summary": {
-      "text": "the workstream you are reading or writing, or the title of the one you are creating",
+      "text": "the title of the workstream you are creating",
       "context": "The meaning of the workstream argument of `dinah workstream`, printed in that command's arguments table.",
       "skeleton": true
     },

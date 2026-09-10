@@ -9,11 +9,11 @@ import (
 )
 
 // SetCardTierAt writes one of a card's per-column tier overrides, and clears
-// it when the request carries no value. It is what `dinah card set <ref> tier
+// it when the request carries no value. It is what `dinah set <ref> tier
 // <expr> --at <column>` reaches, where the same command without --at writes
-// the card's own baseline through SetCardField.
+// the card's own baseline through the generic field write SetField performs.
 //
-// It evaluates in the order SetCardField fixes for the baseline write: the
+// It evaluates in the order that baseline write fixes: the
 // workbench designates an operator, the reference names a card, the column the
 // override is written for resolves, the expression resolves against the
 // workbench's declared tier set, and the request names an owner.

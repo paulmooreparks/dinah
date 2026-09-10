@@ -1720,24 +1720,6 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: renderSite{File: "render.go", Function: "renderWorkstreamDetail", Label: "fields", Ordinal: 1}, label: "one workstream's own fields",
-			keys:   []string{"column.workstream.field", "column.workstream.value"},
-			varies: lastCell, expect: expectWorkstreamFields,
-			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
-				out := sweptRun(t, w.healthy, tag, "workstream", "get", sweptWorkstream)
-				return sweptTableOf(out, tag, []string{"column.workstream.field", "column.workstream.value"})
-			},
-		},
-		{
-			site: renderSite{File: "render.go", Function: "renderWorkstreamDetail", Label: "members", Ordinal: 1}, label: "the cards belonging to one workstream",
-			keys:   []string{"column.workstream.card", "column.workstream.title", "column.workstream.column"},
-			varies: lastCell, expect: expectWorkstreamMembers,
-			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
-				out := sweptRun(t, w.healthy, tag, "workstream", "get", sweptWorkstream)
-				return sweptTableOf(out, tag, []string{"column.workstream.card", "column.workstream.title", "column.workstream.column"})
-			},
-		},
-		{
 			site: renderSite{File: "render.go", Function: "composeRefusal", Label: "carriedTable", Ordinal: 1}, label: "a refusal that carries a list", varies: noCell,
 			constantReason: "this block declares one column and no heading, so it has no column to misplace",
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1958,7 +1940,7 @@ func buildSweptWorkbenches(t *testing.T) *sweptWorkbenches {
 	benches.record.stripped = sweptStrippedColumns()
 	sweptDo(t, benches.healthy, "workstream", "new", sweptWorkstreamTitle)
 	sweptDo(t, benches.healthy, "workstream", "new", sweptFinishedTitle)
-	sweptDo(t, benches.healthy, "workstream", "set", sweptFinishedSlug, "status", sweptFinishedStatus)
+	sweptDo(t, benches.healthy, "set", "workstream/"+sweptFinishedSlug, "status", sweptFinishedStatus)
 	sweptDo(t, benches.healthy, "join", "fx-1", sweptWorkstream)
 	sweptDo(t, benches.healthy, "join", "fx-2", sweptWorkstream)
 	sweptDo(t, benches.healthy, "join", "fx-3", sweptWorkstream)

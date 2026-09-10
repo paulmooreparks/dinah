@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"slices"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -167,8 +168,8 @@ func TestToolSurfaceIsTheProjection(t *testing.T) {
 	if err := json.Unmarshal(encoded, &listed); err != nil {
 		t.Fatalf("tools/list: %v", err)
 	}
-	if len(listed.Tools) != 45 {
-		t.Errorf("wanted forty-five tools, got %d", len(listed.Tools))
+	if len(listed.Tools) != 46 {
+		t.Errorf("wanted forty-six tools, got %d", len(listed.Tools))
 	}
 	names := map[string]bool{}
 	for _, tool := range listed.Tools {
@@ -240,9 +241,31 @@ func TestInitializeCarriesTheWorkingAgreement(t *testing.T) {
 }
 
 // TestEveryToolResponseCarriesAffordances asserts that an agent never has to
-// learn which responses answer the question of what it may do next.
+// learn which responses answer the question of what it may do next, and that
+// every name it is offered is a tool this head actually serves.
+//
+// The second half is the one this file did not hold. Two assertions nearby
+// look as though they cover it and do not: the presence check below is about
+// the member existing, and the check in
+// TestTheInstructionsListAgreesWithWhereTheCardIsStanding runs the opposite
+// direction, refusing a name that is a command spelling. Neither would have
+// caught a literal list naming a tool a later card deleted, which is exactly
+// what copying the retired card tool's own list would have produced.
+//
+// The served set is read from a live tools/list call rather than written out,
+// so a tool renamed anywhere moves both sides of the comparison at once and
+// this check cannot drift into being one hand list held against another.
+//
+// Every row has to succeed rather than refuse. A refusal carries the head's
+// own read affordances rather than the tool's, so a row that refuses tests a
+// list the tool never published: the two claim rows below are deliberate and
+// are the only ones, and the get_field and set_field rows must answer.
 func TestEveryToolResponseCarriesAffordances(t *testing.T) {
 	library := newLibrary(t)
+	served := servedTools(t, library)
+	if len(served) == 0 {
+		t.Fatal("this head serves no tool, so the comparison below reads nothing")
+	}
 	calls := []string{
 		`{"name":"status","arguments":{"actor":"alka"}}`,
 		`{"name":"columns","arguments":{"actor":"alka"}}`,
@@ -257,16 +280,69 @@ func TestEveryToolResponseCarriesAffordances(t *testing.T) {
 		`{"name":"check","arguments":{}}`,
 		`{"name":"claim","arguments":{"actor":"alka","card":"fx-99"}}`,
 		`{"name":"claim","arguments":{"actor":"alka","card":"fx-1"}}`,
+		`{"name":"get_field","arguments":{"actor":"alka","ref":"fx-1","field":"title"}}`,
+		`{"name":"set_field","arguments":{"actor":"alka","ref":"fx-1","field":"title","value":"a renamed card"}}`,
+	}
+	if len(calls) == 0 {
+		t.Fatal("the call table is empty, so this check read nothing")
 	}
 	for _, call := range calls {
 		t.Run(call, func(t *testing.T) {
 			answer := ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":`+call+`}`)
 			decoded := payload(t, answer)
-			if _, carried := decoded["affordances"]; !carried {
-				t.Errorf("the response carries no affordances member: %v", decoded)
+			raw, carried := decoded["affordances"]
+			if !carried {
+				t.Fatalf("the response carries no affordances member: %v", decoded)
+			}
+			offered := stringsOf(t, raw)
+			if len(offered) == 0 {
+				t.Fatalf("the response offers an empty affordance list, which tells a caller nothing: %v", decoded)
+			}
+			for _, name := range offered {
+				if !served[name] {
+					t.Errorf("the response offers %q and this head serves no such tool; it serves %v", name, sortedServed(served))
+				}
 			}
 		})
 	}
+}
+
+// servedTools reads the tool names this head serves off a live tools/list
+// answer, which is the same answer an agent reads.
+func servedTools(t *testing.T, library *verb.Library) map[string]bool {
+	t.Helper()
+	answer := ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}`)
+	if answer.Error != nil {
+		t.Fatalf("tools/list failed at the transport: %+v", answer.Error)
+	}
+	encoded, err := json.Marshal(answer.Result)
+	if err != nil {
+		t.Fatalf("marshal the tools/list result: %v", err)
+	}
+	var listed struct {
+		Tools []struct {
+			Name string `json:"name"`
+		} `json:"tools"`
+	}
+	if err := json.Unmarshal(encoded, &listed); err != nil {
+		t.Fatalf("decode tools/list: %v (%s)", err, encoded)
+	}
+	names := map[string]bool{}
+	for _, tool := range listed.Tools {
+		names[tool.Name] = true
+	}
+	return names
+}
+
+// sortedServed spells the served set for a failure message, so a reader of a
+// red run sees what was on offer rather than only what was not.
+func sortedServed(served map[string]bool) []string {
+	names := make([]string, 0, len(served))
+	for name := range served {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
 }
 
 // TestTheInstructionsListAgreesWithWhereTheCardIsStanding is dinah-273 AC-42.
@@ -666,9 +742,10 @@ func TestTheQueryToolCarriesTheSameMatchesTheCliEmits(t *testing.T) {
 
 // TestTheWorkbenchToolReadsAndGuardsTheSameWayTheTerminalDoes asserts that the
 // workbench tool answers a read with the same three fields the terminal
-// listing prints, that a write by the operator lands, and that a write by
-// somebody else refuses under the name the terminal raises, since both heads
-// run one library and the operator check lives there rather than in either.
+// listing prints, that a write through set_field by the operator lands, and
+// that the same write by somebody else refuses under the name the terminal
+// raises, since both heads run one library and the operator check lives there
+// rather than in either.
 func TestTheWorkbenchToolReadsAndGuardsTheSameWayTheTerminalDoes(t *testing.T) {
 	library := newLibrary(t)
 
@@ -681,7 +758,7 @@ func TestTheWorkbenchToolReadsAndGuardsTheSameWayTheTerminalDoes(t *testing.T) {
 		t.Errorf("the read answered %v, wanted the fixture's own three fields", fields)
 	}
 
-	refused := payload(t, ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"workbench","arguments":{"actor":"bob","action":"set","field":"title","value":"Renamed"}}}`))
+	refused := payload(t, ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"set_field","arguments":{"actor":"bob","ref":"workbench","field":"title","value":"Renamed"}}}`))
 	if refused["outcome"] != contract.OutcomeRefused || refused["refusal"] != contract.NotOperator {
 		t.Errorf("a write by somebody other than the operator: wanted %s, got %v", contract.NotOperator, refused)
 	}
@@ -702,7 +779,7 @@ func TestTheWorkbenchToolReadsAndGuardsTheSameWayTheTerminalDoes(t *testing.T) {
 		t.Errorf("a refusal carries no affordances member: %v", refused)
 	}
 
-	written := payload(t, ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"workbench","arguments":{"actor":"alka","action":"set","field":"title","value":"Renamed"}}}`))
+	written := payload(t, ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"set_field","arguments":{"actor":"alka","ref":"workbench","field":"title","value":"Renamed"}}}`))
 	if written["outcome"] != contract.OutcomeOK {
 		t.Fatalf("a write by the operator: %v", written)
 	}
@@ -875,13 +952,20 @@ func TestTheWorkstreamToolsAnswerTheWayTheTerminalDoes(t *testing.T) {
 		t.Errorf("the card carries %v, wanted the workstream's own identifier", joined["card"])
 	}
 
-	read := payload(t, ask(t, newLibraryAt(t, root), `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"workstream","arguments":{"actor":"alka","action":"get","workstream":"portfolio-work"}}}`))
-	detail, ok := read["detail"].(map[string]any)
-	if !ok {
-		t.Fatalf("the read carries no detail member: %v", read)
+	// The two halves the retired detail action printed together are reached
+	// separately now: one field comes from get_field, and the member cards
+	// come from a query.
+	read := payload(t, ask(t, newLibraryAt(t, root), `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_field","arguments":{"actor":"alka","ref":"workstream/portfolio-work","field":"status"}}}`))
+	if read["value"] != "active" {
+		t.Fatalf("the field read answered %v", read)
 	}
-	if detail["workstream"].(map[string]any)["cards"].(float64) != 1 {
-		t.Errorf("the read counts %v member cards, wanted one", detail["workstream"])
+	members := payload(t, ask(t, newLibraryAt(t, root), `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"query","arguments":{"actor":"alka","query":"workstream:portfolio-work"}}}`))
+	matched, ok := members["matches"].(map[string]any)
+	if !ok {
+		t.Fatalf("the query carries no matches member: %v", members)
+	}
+	if matched["count"].(float64) != 1 {
+		t.Errorf("the query counts %v member cards, wanted one", matched["count"])
 	}
 
 	left := payload(t, ask(t, newLibraryAt(t, root), `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"leave_workstream","arguments":{"actor":"alka","card":"`+ref+`","workstream":"portfolio-work"}}}`))

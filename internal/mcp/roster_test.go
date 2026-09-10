@@ -31,16 +31,39 @@ func TestEveryLibraryCommandIsServedOrExempted(t *testing.T) {
 		declared[name] = true
 	}
 
+	grounds := map[string]bool{}
+	for _, ground := range toolGrounds {
+		grounds[ground] = true
+	}
+	if len(toolGrounds) == 0 {
+		t.Fatal("the head declares no exemption ground, so the ground arm below is asserting nothing")
+	}
+	if len(toolExemptions) == 0 {
+		t.Fatal("the head exempts no command, so the reason and ground arms below read nothing")
+	}
 	for _, name := range sorted(verb.Commands()) {
 		_, dispatched := served[name]
-		reason, exempted := toolExemptions[name]
+		entry, exempted := toolExemptions[name]
 		switch {
 		case dispatched && exempted:
-			t.Errorf("%s is served as the tool %s and is also exempted (%q); one of the two is wrong", name, served[name], reason)
+			t.Errorf("%s is served as the tool %s and is also exempted (%q); one of the two is wrong", name, served[name], entry.reason)
 		case !dispatched && !exempted:
 			t.Errorf("the library defines %s and this head neither serves it nor names a reason it is absent", name)
-		case exempted && reason == "":
+		case exempted && entry.reason == "":
 			t.Errorf("%s is exempted with no reason, which is a gap nobody has argued for", name)
+		}
+		if !exempted {
+			continue
+		}
+		// The ground is the arm dinah-456 added. A reason alone is prose
+		// anybody can write; a ground drawn from a closed set is a claim
+		// somebody has to have argued for, and a fifth needs a card.
+		if entry.ground == "" {
+			t.Errorf("%s is exempted on no ground, so nothing says which argument holds it out", name)
+			continue
+		}
+		if !grounds[entry.ground] {
+			t.Errorf("%s is exempted on the ground %q, which is not one of %v", name, entry.ground, toolGrounds)
 		}
 	}
 

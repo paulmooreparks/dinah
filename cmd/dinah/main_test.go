@@ -269,7 +269,7 @@ func TestHelpBlockIsTheRatifiedSurface(t *testing.T) {
 		t.Errorf("the emitted block differs from the spec's section 2:\n%s", diffLines(string(fixture), got.out))
 	}
 
-	// The block lists fifty-three commands, and every command the binary
+	// The block lists fifty-four commands, and every command the binary
 	// offers is either one of them or `help`, which the block's own last
 	// line names.
 	listed := 0
@@ -285,8 +285,8 @@ func TestHelpBlockIsTheRatifiedSurface(t *testing.T) {
 			t.Errorf("the block does not list %s", c.name)
 		}
 	}
-	if listed != 53 {
-		t.Errorf("wanted fifty-three listed commands, got %d", listed)
+	if listed != 54 {
+		t.Errorf("wanted fifty-four listed commands, got %d", listed)
 	}
 }
 
@@ -5417,11 +5417,15 @@ func TestWorkbenchListsReadsAndWritesItsOwnFields(t *testing.T) {
 	}
 
 	// `get` prints the stored value alone, with no heading and no padding,
-	// under the default rendering, under another language, and under --json.
+	// under the default rendering and under another language. Under --json it
+	// wraps the same value in the one-member object its own MCP tool
+	// publishes, which is where it parts company with `config get`: that
+	// command writes a bare scalar line under --json because its sibling with
+	// no subcommand already carries every setting, and `get` has no such
+	// sibling to fall back on.
 	for _, argv := range [][]string{
-		{"workbench", "get", "slug"},
-		{"--lang", "hi", "workbench", "get", "slug"},
-		{"--json", "workbench", "get", "slug"},
+		{"get", "workbench", "slug"},
+		{"--lang", "hi", "get", "workbench", "slug"},
 	} {
 		got := runCLI(t, root, argv...)
 		if got.code != 0 {
@@ -5431,15 +5435,28 @@ func TestWorkbenchListsReadsAndWritesItsOwnFields(t *testing.T) {
 			t.Errorf("%v printed %q, wanted the stored value alone", argv, got.out)
 		}
 	}
+	machineField := runCLI(t, root, "--json", "get", "workbench", "slug")
+	if machineField.code != 0 {
+		t.Fatalf("the machine read: %d %s", machineField.code, machineField.errw)
+	}
+	var value struct {
+		Value string `json:"value"`
+	}
+	if err := json.Unmarshal([]byte(machineField.out), &value); err != nil {
+		t.Fatalf("the machine read should be one object: %v\n%s", err, machineField.out)
+	}
+	if value.Value != "fx" {
+		t.Errorf("the machine read carries %+v", value)
+	}
 
 	before, err := os.ReadFile(anchor)
 	if err != nil {
 		t.Fatalf("read the anchor: %v", err)
 	}
-	if wrote := runCLI(t, root, "workbench", "set", "title", "Dinah, the tool"); wrote.code != 0 {
+	if wrote := runCLI(t, root, "set", "workbench", "title", "Dinah, the tool"); wrote.code != 0 {
 		t.Fatalf("set title: %d %s", wrote.code, wrote.errw)
 	}
-	if got := runCLI(t, root, "workbench", "get", "title"); got.out != "Dinah, the tool\n" {
+	if got := runCLI(t, root, "get", "workbench", "title"); got.out != "Dinah, the tool\n" {
 		t.Errorf("the title read back as %q", got.out)
 	}
 	after, err := os.ReadFile(anchor)
@@ -5456,14 +5473,14 @@ func TestWorkbenchListsReadsAndWritesItsOwnFields(t *testing.T) {
 	}
 
 	// An unquoted multi-word value refuses, and the line it offers reads back.
-	multiple := runCLI(t, root, "workbench", "set", "title", "Dinah,", "the", "tool")
+	multiple := runCLI(t, root, "set", "workbench", "title", "Dinah,", "the", "tool")
 	if multiple.code != contract.ExitCode(contract.OutcomeRefused) {
 		t.Errorf("an unquoted value: wanted the refused exit code, got %d", multiple.code)
 	}
 	if !strings.Contains(multiple.errw, contract.MultipleWords) {
 		t.Errorf("an unquoted value: wanted %s, got %q", contract.MultipleWords, multiple.errw)
 	}
-	if !strings.Contains(multiple.errw, `dinah workbench set title "Dinah, the tool"`) {
+	if !strings.Contains(multiple.errw, `dinah set workbench title "Dinah, the tool"`) {
 		t.Errorf("the rebuilt command line does not read back:\n%s", multiple.errw)
 	}
 
@@ -5472,8 +5489,8 @@ func TestWorkbenchListsReadsAndWritesItsOwnFields(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read the anchor: %v", err)
 	}
-	for _, field := range bench.WorkbenchFields {
-		got := runCLI(t, root, "workbench", "set", field, "")
+	for _, field := range bench.WorkbenchListingFields {
+		got := runCLI(t, root, "set", "workbench", field, "")
 		if got.code != contract.ExitCode(contract.OutcomeRefused) {
 			t.Errorf("an empty %s: wanted the refused exit code, got %d", field, got.code)
 		}
@@ -5521,24 +5538,43 @@ func TestWorkbenchRefusesAFieldItDoesNotRecord(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read the anchor: %v", err)
 	}
-	sentences := map[string]bool{}
+	// A read and a write of a key the workbench does not record refuse under
+	// the same name and list the same set, and the sentence names the kind
+	// the reference resolved to rather than any one entity. The two differ
+	// only in the help page each points at, which is why the variants are two
+	// entries rather than one.
+	//
+	// `dinah config get` is no longer part of the comparison. It keeps
+	// dinah.unknown-key, which enumerates the user's own settings, and this
+	// pair raises dinah.unknown-field, which lists the fields of a kind, so
+	// the two answer different questions about different stores and one
+	// sentence cannot serve both.
+	pages := map[string]bool{}
 	for _, argv := range [][]string{
-		{"workbench", "get", "profile"},
-		{"workbench", "set", "profile", "dinah-core/1.0"},
-		{"config", "get", "profile"},
+		{"get", "workbench", "profile"},
+		{"set", "workbench", "profile", "dinah-core/1.0"},
 	} {
 		got := runCLI(t, root, argv...)
 		if got.code != contract.ExitCode(contract.OutcomeRefused) {
 			t.Errorf("%v: wanted the refused exit code, got %d", argv, got.code)
 		}
 		leading, sentence, _ := strings.Cut(strings.TrimSpace(got.errw), " ")
-		if leading != contract.UnknownKey {
-			t.Errorf("%v: wanted %s, got %q", argv, contract.UnknownKey, got.errw)
+		if leading != contract.UnknownField {
+			t.Errorf("%v: wanted %s, got %q", argv, contract.UnknownField, got.errw)
 		}
-		sentences[sentence] = true
+		for _, field := range bench.FieldsOf(bench.KindWorkbench) {
+			if !strings.Contains(sentence, field) {
+				t.Errorf("%v: the sentence does not name the %s field: %q", argv, field, sentence)
+			}
+		}
+		pages[sentence] = true
 	}
-	if len(sentences) != 1 {
-		t.Errorf("the three paths render %d different sentences, wanted one: %v", len(sentences), sentences)
+	if len(pages) != 2 {
+		t.Errorf("the read and the write render %d sentences, wanted one each pointing at its own help page: %v", len(pages), pages)
+	}
+	settings := runCLI(t, root, "config", "get", "profile")
+	if leading := strings.SplitN(strings.TrimSpace(settings.errw), " ", 2)[0]; leading != contract.UnknownKey {
+		t.Errorf("config get: wanted %s, got %q", contract.UnknownKey, settings.errw)
 	}
 	after, err := os.ReadFile(anchor)
 	if err != nil {
@@ -5563,7 +5599,7 @@ func TestRenamingTheSlugAsksOnceAndLeavesTheOldReferenceResolving(t *testing.T) 
 		t.Fatalf("add: %d %s", got.code, got.errw)
 	}
 
-	unconfirmed := runCLI(t, root, "workbench", "set", "slug", "fx-dev")
+	unconfirmed := runCLI(t, root, "set", "workbench", "slug", "fx-dev")
 	if unconfirmed.code != contract.ExitCode(contract.OutcomeRefused) {
 		t.Fatalf("the first attempt: wanted the refused exit code, got %d", unconfirmed.code)
 	}
@@ -5577,7 +5613,7 @@ func TestRenamingTheSlugAsksOnceAndLeavesTheOldReferenceResolving(t *testing.T) 
 	if !strings.Contains(renameSentence, "--yes") {
 		t.Errorf("the sentence does not say how to go on: %q", renameSentence)
 	}
-	if got := runCLI(t, root, "workbench", "get", "slug"); got.out != "fx\n" {
+	if got := runCLI(t, root, "get", "workbench", "slug"); got.out != "fx\n" {
 		t.Errorf("the refused rename wrote the slug anyway: %q", got.out)
 	}
 
@@ -5608,16 +5644,16 @@ func TestRenamingTheSlugAsksOnceAndLeavesTheOldReferenceResolving(t *testing.T) 
 
 	// The flag is read as a flag whether it is typed before the value or
 	// after it, and neither position swallows the other.
-	if got := runCLI(t, root, "workbench", "set", "slug", "fx-dev", "--yes"); got.code != 0 {
+	if got := runCLI(t, root, "set", "workbench", "slug", "fx-dev", "--yes"); got.code != 0 {
 		t.Fatalf("the flag after the value: %d %s", got.code, got.errw)
 	}
-	if got := runCLI(t, root, "workbench", "get", "slug"); got.out != "fx-dev\n" {
+	if got := runCLI(t, root, "get", "workbench", "slug"); got.out != "fx-dev\n" {
 		t.Errorf("the slug read back as %q", got.out)
 	}
-	if got := runCLI(t, root, "workbench", "set", "slug", "--yes", "fx-later"); got.code != 0 {
+	if got := runCLI(t, root, "set", "workbench", "slug", "--yes", "fx-later"); got.code != 0 {
 		t.Fatalf("the flag before the value: %d %s", got.code, got.errw)
 	}
-	if got := runCLI(t, root, "workbench", "get", "slug"); got.out != "fx-later\n" {
+	if got := runCLI(t, root, "get", "workbench", "slug"); got.out != "fx-later\n" {
 		t.Errorf("the slug read back as %q, so a position swallowed the flag or the value", got.out)
 	}
 
@@ -5807,7 +5843,7 @@ func TestInitDerivesTheReadableSlugAndRefusesOneThatReadsAsACardReference(t *tes
 			if got.code != 0 {
 				t.Fatalf("init: %d %s", got.code, got.errw)
 			}
-			if read := runCLI(t, root, "workbench", "get", "slug"); read.out != c.wanted+"\n" {
+			if read := runCLI(t, root, "get", "workbench", "slug"); read.out != c.wanted+"\n" {
 				t.Errorf("the slug read back as %q, wanted %q", read.out, c.wanted)
 			}
 		})
@@ -5827,7 +5863,7 @@ func TestADashedWorkbenchSlugResolvesEveryReference(t *testing.T) {
 	if got := runCLI(t, root, "check"); got.code != 0 {
 		t.Errorf("a dash-free slug drew a finding: %d %s", got.code, got.out)
 	}
-	if got := runCLI(t, root, "workbench", "set", "slug", "fx-dev", "--yes"); got.code != 0 {
+	if got := runCLI(t, root, "set", "workbench", "slug", "fx-dev", "--yes"); got.code != 0 {
 		t.Fatalf("the rename: %d %s", got.code, got.errw)
 	}
 	for _, argv := range [][]string{
@@ -5864,7 +5900,7 @@ func TestAStoredWorkbenchSlugOutsideTheGrammarIsReportedAndStillOpens(t *testing
 	editAnchor(t, root, "slug: fx\n", "slug: sprint-2\n")
 	anchor := filepath.Join(benchDir(t, root), "workbench.md")
 
-	if got := runCLI(t, root, "workbench", "get", "slug"); got.code != 0 || got.out != "sprint-2\n" {
+	if got := runCLI(t, root, "get", "workbench", "slug"); got.code != 0 || got.out != "sprint-2\n" {
 		t.Fatalf("the workbench should still open: %d %q %s", got.code, got.out, got.errw)
 	}
 	reported := runCLI(t, root, "check")
@@ -5891,28 +5927,9 @@ func TestAStoredWorkbenchSlugOutsideTheGrammarIsReportedAndStillOpens(t *testing
 // The field row carries this workbench's own three fields, which the block
 // reads from bench.WorkbenchFields rather than from the workbench under test,
 // so it says the same thing wherever the command is run.
-const ratifiedWorkbenchHelp = `workbench [get|set] [field] [value] [--yes]
+const ratifiedWorkbenchHelp = `workbench
 
-Read this workbench's own fields, or write one
-
-What you may write:
-  As you write it  What it is
-  ---------------  -------------------------------------------------------------
-  [get|set]        read one field or write one; every field with its value when
-                   you name none
-  [field]          which field you are reading or writing (one of: title, slug,
-                   operator)
-  [value]          what to store in it, on a set
-  [--yes]          confirm the act, which Dinah does not carry out without it
-
-What can go wrong, in the order each is checked:
-  Order  What can go wrong                            Refusal
-  -----  -------------------------------------------  -----------------
-  1      the field is one this workbench records      dinah.unknown-key
-  2      the value is present and well formed         malformed
-  3      on a write, the request names an owner       no-owner
-  4      that owner is the operator                   not-operator
-  5      a slug rename carries the confirmation flag  dinah.unconfirmed
+Read this workbench's own fields
 
 Exit codes: 0 ok, 2 refused, 3 stale, 4 unreachable.
 `
@@ -6282,12 +6299,12 @@ func TestAWorkstreamIsCreatedListedAndReadFromATerminal(t *testing.T) {
 		}
 	}
 
-	field := runCLI(t, root, "workstream", "get", "portfolio-work", "status")
+	field := runCLI(t, root, "get", "workstream/portfolio-work", "status")
 	if field.code != 0 || field.out != "active\n" {
 		t.Errorf("one field alone printed %d %q, wanted the value and nothing else", field.code, field.out)
 	}
 
-	unknown := runCLI(t, root, "workstream", "get", "nosuch")
+	unknown := runCLI(t, root, "get", "workstream/nosuch", "status")
 	if unknown.code != 2 || !strings.HasPrefix(unknown.errw, contract.UnknownWorkstream+" ") {
 		t.Errorf("an unknown workstream: %d %q", unknown.code, unknown.errw)
 	}
@@ -6301,20 +6318,20 @@ func TestAWorkstreamIsCreatedListedAndReadFromATerminal(t *testing.T) {
 // writes nothing when it is refused, and moves the reference when it is given.
 func TestAWorkstreamSlugChangeNeedsTheConfirmationFlag(t *testing.T) {
 	root := workstreamBench(t)
-	refused := runCLI(t, root, "workstream", "set", "portfolio-work", "slug", "folio")
+	refused := runCLI(t, root, "set", "workstream/portfolio-work", "slug", "folio")
 	if refused.code != 2 || !strings.HasPrefix(refused.errw, contract.Unconfirmed+" ") {
 		t.Fatalf("a slug change without the flag: %d %q", refused.code, refused.errw)
 	}
-	if got := runCLI(t, root, "workstream", "get", "portfolio-work", "slug"); got.out != "portfolio-work\n" {
+	if got := runCLI(t, root, "get", "workstream/portfolio-work", "slug"); got.out != "portfolio-work\n" {
 		t.Errorf("the refused change wrote something: %q", got.out)
 	}
-	if got := runCLI(t, root, "workstream", "set", "portfolio-work", "slug", "folio", "--yes"); got.code != 0 {
+	if got := runCLI(t, root, "set", "workstream/portfolio-work", "slug", "folio", "--yes"); got.code != 0 {
 		t.Fatalf("a slug change with the flag: %d %s", got.code, got.errw)
 	}
-	if got := runCLI(t, root, "workstream", "get", "portfolio-work"); got.code != 2 || !strings.HasPrefix(got.errw, contract.UnknownWorkstream+" ") {
+	if got := runCLI(t, root, "get", "workstream/portfolio-work", "slug"); got.code != 2 || !strings.HasPrefix(got.errw, contract.UnknownWorkstream+" ") {
 		t.Errorf("the old slug still resolves: %d %q", got.code, got.errw)
 	}
-	if got := runCLI(t, root, "workstream", "get", "folio", "slug"); got.out != "folio\n" {
+	if got := runCLI(t, root, "get", "workstream/folio", "slug"); got.out != "folio\n" {
 		t.Errorf("the new slug does not resolve: %q", got.out)
 	}
 }
@@ -6409,7 +6426,7 @@ func TestAWorkstreamAndAColumnMayShareAName(t *testing.T) {
 	if !renamed {
 		t.Fatal("the fixture flow carries no column to rename")
 	}
-	if got := runCLI(t, root, "workstream", "get", "review", "title"); got.out != "review\n" {
+	if got := runCLI(t, root, "get", "workstream/review", "title"); got.out != "review\n" {
 		t.Errorf("the bare reference inside the workstream command read %q", got.out)
 	}
 	if got := runCLI(t, root, "archive", "workstream/review"); got.code != 0 {
@@ -6488,7 +6505,7 @@ func TestCheckReportsAndAdoptsAMembershipNamingNothing(t *testing.T) {
 	if after != planted {
 		t.Errorf("the repair rewrote the card anchor:\n%q\n%q", planted, after)
 	}
-	if got := runCLI(t, root, "workstream", "get", "f00000000009", "status"); got.out != "active\n" {
+	if got := runCLI(t, root, "get", "workstream/f00000000009", "status"); got.out != "active\n" {
 		t.Errorf("the adopted workstream reads %q, wanted an active status", got.out)
 	}
 	repaired := runCLI(t, root, "check")
@@ -6544,16 +6561,26 @@ func TestEveryMachineSurfaceCarriesAWorkstream(t *testing.T) {
 		t.Errorf("the machine listing reads %+v", entry)
 	}
 
-	one := runCLI(t, root, "--json", "workstream", "get", "portfolio-work")
-	var got verb.WorkstreamDetail
-	if err := json.Unmarshal([]byte(one.out), &got); err != nil {
-		t.Fatalf("decode the workstream: %v\n%s", err, one.out)
+	// The two halves the retired detail read printed together are reached
+	// separately now: one field comes from get, and the member cards come
+	// from a query.
+	one := runCLI(t, root, "--json", "get", "workstream/portfolio-work", "title")
+	var field struct {
+		Value string `json:"value"`
 	}
-	if got.Workstream.ID != id || got.Path == "" {
-		t.Errorf("the machine form reads %+v", got)
+	if err := json.Unmarshal([]byte(one.out), &field); err != nil {
+		t.Fatalf("decode the field: %v\n%s", err, one.out)
 	}
-	if len(got.Cards) != 1 || got.Cards[0].Ref != "fx-1" {
-		t.Errorf("the machine form carries %+v, wanted the one member card", got.Cards)
+	if field.Value != "Portfolio work" {
+		t.Errorf("the machine form reads %+v", field)
+	}
+	members := runCLI(t, root, "--json", "query", "workstream:portfolio-work")
+	var matched verb.Matches
+	if err := json.Unmarshal([]byte(members.out), &matched); err != nil {
+		t.Fatalf("decode the query: %v\n%s", err, members.out)
+	}
+	if len(matched.Cards) != 1 || matched.Cards[0].Ref != "fx-1" {
+		t.Errorf("the query carries %+v, wanted the one member card", matched.Cards)
 	}
 }
 
@@ -6598,18 +6625,29 @@ func TestAHandWrittenWorkstreamDirectoryIsSkippedRatherThanRefused(t *testing.T)
 	}
 }
 
-// TestAWorkstreamsNotesAndItsEmptyMembershipBothDraw asserts the two branches
-// of the read that a workbench of one workstream and no cards reaches: the
-// notes print under the fields, and a workstream nobody has joined draws no
-// member table at all.
-func TestAWorkstreamsNotesAndItsEmptyMembershipBothDraw(t *testing.T) {
+// TestAWorkstreamsNotesAndItsEmptyMembershipBothRead asserts the two halves
+// the retired detail view used to print in one screen: the notes are one field
+// of the workstream, and the member cards are a query, which answers with
+// nothing at all for a workstream nobody has joined.
+func TestAWorkstreamsNotesAndItsEmptyMembershipBothRead(t *testing.T) {
 	root := workstreamBench(t)
-	bare := runCLI(t, root, "workstream", "get", "portfolio-work")
+	bare := runCLI(t, root, "get", "workstream/portfolio-work", "notes")
 	if bare.code != 0 {
-		t.Fatalf("workstream get: %d %s", bare.code, bare.errw)
+		t.Fatalf("get notes: %d %s", bare.code, bare.errw)
 	}
-	if strings.Contains(bare.out, msg.For(msg.Base).T("column.workstream.card")+"  ") {
-		t.Errorf("a workstream nobody has joined drew a member table:\n%s", bare.out)
+	if strings.TrimSpace(bare.out) != "" {
+		t.Errorf("a workstream nobody has written notes on read %q", bare.out)
+	}
+	empty := runCLI(t, root, "--json", "query", "workstream:portfolio-work")
+	if empty.code != 0 {
+		t.Fatalf("a query over a workstream nobody has joined: %d %s", empty.code, empty.errw)
+	}
+	var none verb.Matches
+	if err := json.Unmarshal([]byte(empty.out), &none); err != nil {
+		t.Fatalf("decode the query: %v\n%s", err, empty.out)
+	}
+	if none.Count != 0 || len(none.Cards) != 0 {
+		t.Errorf("a workstream nobody has joined answered %+v", none)
 	}
 
 	workstreams := filepath.Join(soleBenchDir(t, root), bench.WorkstreamsDir)
@@ -6625,7 +6663,7 @@ func TestAWorkstreamsNotesAndItsEmptyMembershipBothDraw(t *testing.T) {
 	if err := os.WriteFile(path, []byte(text+"The long-form notes.\n"), 0o644); err != nil {
 		t.Fatalf("write: %v", err)
 	}
-	noted := runCLI(t, root, "workstream", "get", "portfolio-work")
+	noted := runCLI(t, root, "get", "workstream/portfolio-work", "notes")
 	if !strings.Contains(noted.out, "The long-form notes.") {
 		t.Errorf("the notes did not print:\n%s", noted.out)
 	}
@@ -7113,9 +7151,9 @@ func TestTheFlagSetsTheParserAcceptsAreDerivedFromTheParameterTable(t *testing.T
 	wantValued := []string{
 		"actor", "at", "before", "capacity", "card", "column", "depth",
 		"description", "expires", "fields", "format", "from", "group-by", "kind",
-		"lang", "map", "max-depth", "observed", "operator", "owner", "priority",
-		"query", "remint", "root", "severity", "since", "slug", "tier",
-		"workbench",
+		"lang", "map", "max-depth", "note", "observed", "operator", "owner",
+		"priority", "query", "remint", "root", "severity", "since", "slug",
+		"tier", "workbench",
 	}
 	wantMarkers := []string{
 		"archived", "catalogs", "finish", "help", "json", "migrate-columns",

@@ -155,7 +155,7 @@ func TestWritingALevelOnAFiledCardJournalsOneLine(t *testing.T) {
 	if got := runCLI(t, root, "add", "--severity", "minor", "a card to reclassify"); got.code != 0 {
 		t.Fatalf("add: %d %s", got.code, got.errw)
 	}
-	if got := runCLI(t, root, "card", "set", "fx-1", "severity", "major"); got.code != 0 {
+	if got := runCLI(t, root, "set", "fx-1", "severity", "major"); got.code != 0 {
 		t.Fatalf("card set: %d %s", got.code, got.errw)
 	}
 	if written := anchorText(t, root, "fx-1"); !strings.Contains(written, "severity: major\n") {
@@ -172,7 +172,7 @@ func TestWritingALevelOnAFiledCardJournalsOneLine(t *testing.T) {
 	// AC-9: writing the level the card already carries succeeds, writes
 	// nothing and journals nothing.
 	before := anchorText(t, root, "fx-1")
-	if got := runCLI(t, root, "card", "set", "fx-1", "severity", "major"); got.code != 0 {
+	if got := runCLI(t, root, "set", "fx-1", "severity", "major"); got.code != 0 {
 		t.Fatalf("rewriting the same level: %d %s", got.code, got.errw)
 	}
 	if after := anchorText(t, root, "fx-1"); after != before {
@@ -184,7 +184,7 @@ func TestWritingALevelOnAFiledCardJournalsOneLine(t *testing.T) {
 
 	// AC-8: the clear removes the key and journals a line whose to member is
 	// absent, which is what omitempty makes of an empty value.
-	if got := runCLI(t, root, "card", "set", "fx-1", "severity"); got.code != 0 {
+	if got := runCLI(t, root, "set", "fx-1", "severity"); got.code != 0 {
 		t.Fatalf("clearing: %d %s", got.code, got.errw)
 	}
 	if written := anchorText(t, root, "fx-1"); strings.Contains(written, "severity") {
@@ -226,14 +226,14 @@ func TestReadingALevelBackPrintsOneLine(t *testing.T) {
 	if got := runCLI(t, root, "add", "--severity", "minor", "a half-classified card"); got.code != 0 {
 		t.Fatalf("add: %d %s", got.code, got.errw)
 	}
-	stored := runCLI(t, root, "card", "get", "fx-1", "severity")
+	stored := runCLI(t, root, "get", "fx-1", "severity")
 	if stored.code != 0 {
 		t.Fatalf("card get: %d %s", stored.code, stored.errw)
 	}
 	if stored.out != "minor\n" {
 		t.Errorf("the stored level printed as %q, wanted one line reading minor", stored.out)
 	}
-	absent := runCLI(t, root, "card", "get", "fx-1", "priority")
+	absent := runCLI(t, root, "get", "fx-1", "priority")
 	if absent.code != 0 {
 		t.Errorf("reading a level the card does not carry exited %d: %s", absent.code, absent.errw)
 	}
@@ -250,7 +250,7 @@ func TestNamingALevelTheWorkbenchDoesNotDeclareRefuses(t *testing.T) {
 	if got := runCLI(t, root, "add", "a card"); got.code != 0 {
 		t.Fatalf("add: %d %s", got.code, got.errw)
 	}
-	refused := runCLI(t, root, "card", "set", "fx-1", "severity", "urgent")
+	refused := runCLI(t, root, "set", "fx-1", "severity", "urgent")
 	if refused.code != 2 {
 		t.Fatalf("naming an undeclared level exited %d, wanted 2: %s", refused.code, refused.errw)
 	}
@@ -276,13 +276,13 @@ func TestOneWorkbenchDeclaringOneAxisAnswersBothPaths(t *testing.T) {
 	if got := runCLI(t, root, "add", "a card on a half-declared workbench"); got.code != 0 {
 		t.Fatalf("add: %d %s", got.code, got.errw)
 	}
-	if got := runCLI(t, root, "card", "set", "fx-1", "severity", "major"); got.code != 0 {
+	if got := runCLI(t, root, "set", "fx-1", "severity", "major"); got.code != 0 {
 		t.Fatalf("a severity write on a workbench that declares severity: %d %s", got.code, got.errw)
 	}
 	if written := anchorText(t, root, "fx-1"); !strings.Contains(written, "severity: major\n") {
 		t.Errorf("the severity write did not land:\n%s", written)
 	}
-	refused := runCLI(t, root, "card", "set", "fx-1", "priority", "now")
+	refused := runCLI(t, root, "set", "fx-1", "priority", "now")
 	if refused.code != 2 {
 		t.Fatalf("a priority write on a workbench that declares no priority exited %d, wanted 2: %s", refused.code, refused.errw)
 	}
@@ -334,15 +334,26 @@ func TestNamingAFieldACardDoesNotRecordRefuses(t *testing.T) {
 	if got := runCLI(t, root, "add", "a card"); got.code != 0 {
 		t.Fatalf("add: %d %s", got.code, got.errw)
 	}
-	refused := runCLI(t, root, "card", "set", "fx-1", "urgency", "major")
+	refused := runCLI(t, root, "set", "fx-1", "urgency", "major")
 	if refused.code != 2 {
 		t.Fatalf("naming a field a card does not record exited %d, wanted 2: %s", refused.code, refused.errw)
 	}
 	if name := refusalNameOf(refused.errw); name != contract.UnknownField {
 		t.Errorf("the refusal name is %s, wanted %s", name, contract.UnknownField)
 	}
-	if !strings.Contains(refused.errw, "The fields a card records are: severity, priority, tier.") {
+	if !strings.Contains(refused.errw, "The fields a card records are: "+strings.Join(bench.FieldsOf(bench.KindCard), ", ")+".") {
 		t.Errorf("the sentence does not carry the fields a card records:\n%s", refused.errw)
+	}
+	// The sentence lists the resolved kind's own set and no other kind's, so
+	// a reader who typed an item's field at a card is told what a card
+	// records rather than what any entity records.
+	for _, foreign := range bench.FieldsOf(bench.KindItem) {
+		if _, shared := bench.FieldOf(bench.KindCard, foreign); shared {
+			continue
+		}
+		if strings.Contains(refused.errw, foreign) {
+			t.Errorf("the sentence names %s, which belongs to an item rather than to a card:\n%s", foreign, refused.errw)
+		}
 	}
 	if strings.Contains(refused.errw, "a query may name") {
 		t.Errorf("the card reader got the sentence written for the query:\n%s", refused.errw)
@@ -350,7 +361,7 @@ func TestNamingAFieldACardDoesNotRecordRefuses(t *testing.T) {
 	if strings.Contains(refused.errw, ">=") {
 		t.Errorf("the ordered-operator clause reached the card reader:\n%s", refused.errw)
 	}
-	if !strings.Contains(refused.errw, "dinah help card") {
+	if !strings.Contains(refused.errw, "dinah help set") {
 		t.Errorf("the next step does not point at this command's own help page:\n%s", refused.errw)
 	}
 	// No listing table: every line after the first is a table row, and this
@@ -402,7 +413,7 @@ func TestARefusedFilingCreatesNoCardDirectory(t *testing.T) {
 		if filing.code != 2 {
 			t.Fatalf("add --%s urgent exited %d, wanted 2: %s", axis, filing.code, filing.errw)
 		}
-		writing := runCLI(t, root, "card", "set", "fx-1", axis, "urgent")
+		writing := runCLI(t, root, "set", "fx-1", axis, "urgent")
 		if writing.code != 2 {
 			t.Fatalf("card set %s urgent exited %d, wanted 2: %s", axis, writing.code, writing.errw)
 		}
@@ -421,7 +432,7 @@ func TestARefusedFilingCreatesNoCardDirectory(t *testing.T) {
 // declaring neither axis.
 func TestTheRefusalOrderIsObservable(t *testing.T) {
 	root := newBenchFromDefinition(t, bothAxesDefinition)
-	missing := runCLI(t, root, "card", "set", "fx-99", "urgency", "urgent")
+	missing := runCLI(t, root, "set", "fx-99", "urgency", "urgent")
 	if name := refusalNameOf(missing.errw); name != contract.UnknownCard {
 		t.Errorf("a card that does not exist reported %s, and row 1 runs before rows 2 and 4", name)
 	}
@@ -429,7 +440,7 @@ func TestTheRefusalOrderIsObservable(t *testing.T) {
 	if got := runCLI(t, bare, "add", "a card on a workbench declaring neither axis"); got.code != 0 {
 		t.Fatalf("add: %d %s", got.code, got.errw)
 	}
-	field := runCLI(t, bare, "card", "set", "fx-1", "urgency", "urgent")
+	field := runCLI(t, bare, "set", "fx-1", "urgency", "urgent")
 	if name := refusalNameOf(field.errw); name != contract.UnknownField {
 		t.Errorf("an unknown field reported %s on a workbench declaring neither axis, and row 2 runs before row 3", name)
 	}
@@ -445,12 +456,12 @@ func TestAStoredLevelNobodyDeclaresIsToleratedAndReported(t *testing.T) {
 		t.Fatalf("add: %d %s", got.code, got.errw)
 	}
 	handWrite(t, root, "fx-1", "severity: urgent")
-	for _, argv := range [][]string{{"ls"}, {"show", "fx-1"}, {"card", "get", "fx-1", "severity"}} {
+	for _, argv := range [][]string{{"ls"}, {"show", "fx-1"}, {"get", "fx-1", "severity"}} {
 		if got := runCLI(t, root, argv...); got.code != 0 {
 			t.Errorf("%v refused a card carrying an undeclared level: %d %s", argv, got.code, got.errw)
 		}
 	}
-	if got := runCLI(t, root, "card", "get", "fx-1", "severity"); got.out != "urgent\n" {
+	if got := runCLI(t, root, "get", "fx-1", "severity"); got.out != "urgent\n" {
 		t.Errorf("the stored level read back as %q", got.out)
 	}
 	checked := runCLI(t, root, "check")
@@ -476,7 +487,7 @@ func TestAStaleLevelStaysClearableWhereTheDeclarationWent(t *testing.T) {
 		t.Fatalf("add: %d %s", got.code, got.errw)
 	}
 	handWrite(t, root, "fx-1", "severity: urgent")
-	cleared := runCLI(t, root, "card", "set", "fx-1", "severity")
+	cleared := runCLI(t, root, "set", "fx-1", "severity")
 	if cleared.code != 0 {
 		t.Fatalf("clearing on a workbench declaring no severity set exited %d: %s", cleared.code, cleared.errw)
 	}
@@ -486,7 +497,7 @@ func TestAStaleLevelStaysClearableWhereTheDeclarationWent(t *testing.T) {
 	if updates := updatesOf(cardEvents(t, root, "fx-1")); len(updates) != 1 {
 		t.Errorf("the clear journalled %d card_updated lines, wanted one", len(updates))
 	}
-	refused := runCLI(t, root, "card", "set", "fx-1", "severity", "major")
+	refused := runCLI(t, root, "set", "fx-1", "severity", "major")
 	if refused.code != 2 || refusalNameOf(refused.errw) != contract.NoLevels {
 		t.Errorf("a write carrying a value on the same workbench answered %d %q, wanted dinah.no-levels", refused.code, refused.errw)
 	}
@@ -514,52 +525,63 @@ func handWrite(t *testing.T, root, ref, line string) {
 	}
 }
 
-// ratifiedCardHelp is the block the operator approved for dinah help card,
-// drawn in section 8 of docs/specs/dinah-193-severity-and-priority-ux-sketch.md
-// and renumbered under dinah-408 D-10, which ruled that the three refusals the
-// --at flag can raise be published where the code runs them rather than
-// appended after the rows that already existed. It is quoted here rather than
-// read from the sketch because a sketch is a design document that ships once
-// and this is the surface.
+// ratifiedSetHelp is the block dinah help set prints, which is the page the
+// retired card command's own page became. It is quoted here rather than
+// derived, because a page compared against the declaration it is rendered from
+// agrees with itself while both drift from the catalog, and a fixture nothing
+// derives is what notices a row arriving in the runtime list.
 //
-// The block is drawn against bothAxesDefinition at eighty columns, so the
-// --at row names that workbench's own two columns. Every other line is the
-// same wherever the command is run.
-const ratifiedCardHelp = `card <get|set> <card> <field> [value] [--at <column>]
+// The block is drawn against bothAxesDefinition at eighty columns, so the --at
+// row names that workbench's own two columns. The field row names no
+// workbench's vocabulary, because the argument publishes the union over every
+// kind rather than anything one workbench declares, so that row and every
+// other line read the same wherever the command is run.
+const ratifiedSetHelp = `set <ref> <field> [value|-] [--at <column>] [--note <text>] [--yes]
 
-Read one of a card's own fields, or write one
+Write one field of any entity of this workbench
 
 What you may write:
   As you write it  What it is
   ---------------  -------------------------------------------------------------
-  <get|set>        which of the two acts to run: read one field or write one
-  <card>           the card you are acting on, written as its reference, such as
-                   wb-1
-  <field>          which field you are reading or writing: severity, priority or
-                   tier
-  [value]          the level to write; leave it out to clear the field
+  <ref>            the entity you are writing, written as its reference: this
+                   workbench as ` + "`" + `workbench` + "`" + ` or ` + "`" + `.` + "`" + `, a column, a card, or
+                   something below a card such as wb-1/comments/1
+  <field>          which field you are writing; which names are legal depends on
+                   the kind the reference resolves to (one of: body, capacity,
+                   column, description, filename, instructions, kind, note,
+                   notes, operator, owner, priority, severity, slug, state,
+                   status, text, tier, title)
+  [value|-]        what to store in it; write a single dash to read it from
+                   standard input, and leave it out to clear a field that may be
+                   cleared
   [--at <column>]  the column a tier write applies to, instead of the card's own
-                   baseline; tier is the one field that takes it (one of:
-                   intake, done)
+                   baseline; a card's tier is the one field that takes it (one
+                   of: intake, done)
+  [--note <text>]  the note the verb behind a ` + "`" + `state` + "`" + ` write records; ` + "`" + `state` + "`" + ` is
+                   the one field that takes it
+  [--yes]          confirm the act, which Dinah does not carry out without it
 
 What can go wrong, in the order each is checked:
-  Order  What can go wrong                             Refusal
-  -----  --------------------------------------------  -----------------------
-  1      the reference names a card of this workbench  unknown-card
-  2      --at names a column of this workbench         unknown-column
-  3      the field is one a card records               dinah.unknown-field
-  4      the workbench declares levels for that field  dinah.no-levels
-  5      a relative write has a default to count from  dinah.no-tier-default
-  6      the value is a level that field declares      dinah.unknown-level
-  7      a relative write lands inside the tier set    dinah.tier-out-of-range
-  8      the request names an owner                    no-owner
+  Order  What can go wrong                                Refusal
+  -----  -----------------------------------------------  -------------------
+  1      this workbench designates an operator            no-operator
+  2      the reference resolves to one entity             dinah.unknown-path
+  3      the field is one that kind records               dinah.unknown-field
+  4      the value is present, and one line unless prose  malformed
+  5      the field's own guard admits the value           dinah.unknown-level
+  6      the request names an owner                       no-owner
+  7      that owner is the operator, where the kind asks  not-operator
+  8      a slug change carries the confirmation flag      dinah.unconfirmed
+
+For more, run ` + "`" + `dinah guide references` + "`" + `.
 
 Exit codes: 0 ok, 2 refused, 3 stale, 4 unreachable.
 `
 
-// TestTheCardHelpPageIsTheBlockTheOperatorApproved asserts dinah-193 AC-18
-// against the sketch's section 8: the syntax line, one row per argument, and
-// the checks in the order the runtime evaluates them.
+// TestTheSetHelpPageIsTheBlockTheOperatorApproved asserts the page dinah help
+// set prints: the syntax line, one row per argument, and the checks in the
+// order the runtime evaluates them. It is the page the retired card command's
+// own page became, and it is held the same way that one was.
 //
 // The refusal half compares the printed table against verb.Checks("card")
 // index for index rather than searching the page for a hand-written list of
@@ -576,28 +598,28 @@ Exit codes: 0 ok, 2 refused, 3 stale, 4 unreachable.
 // from, so a copy of it here would be a copy of the thing under test, and the
 // two would go on agreeing with each other while both drifted from the
 // catalog the page actually prints.
-func TestTheCardHelpPageIsTheBlockTheOperatorApproved(t *testing.T) {
+func TestTheSetHelpPageIsTheBlockTheOperatorApproved(t *testing.T) {
 	root := newBenchFromDefinition(t, bothAxesDefinition)
 	t.Setenv("COLUMNS", "80")
-	got := runCLI(t, root, "help", "card")
+	got := runCLI(t, root, "help", "set")
 	if got.code != 0 {
-		t.Fatalf("help card: %d %s", got.code, got.errw)
+		t.Fatalf("help set: %d %s", got.code, got.errw)
 	}
 	// The comparison runs over the page's words rather than its lines. An
 	// argument's meaning wraps under its own column at this window, which the
-	// <card> row has always done and the <field> row does now that the field
-	// set names three axes, and a wrap is allowed to change nothing about the
-	// words themselves.
+	// <ref> row and the <field> row both do, and a wrap is allowed to change
+	// nothing about the words themselves.
 	flat := flattenWords(got.out)
 	for _, phrase := range []string{
-		"card <get|set> <card> <field> [value]",
-		"<get|set>",
-		"<card>",
+		"set <ref> <field> [value|-] [--at <column>] [--note <text>] [--yes]",
+		"<ref>",
 		"<field>",
-		"[value]",
+		"[value|-]",
 		"[--at <column>]",
-		"which field you are reading or writing: severity, priority or tier",
-		"the level to write; leave it out to clear the field",
+		"[--note <text>]",
+		"[--yes]",
+		"which field you are writing; which names are legal depends on the kind",
+		"write a single dash to read it from standard input",
 		"the column a tier write applies to, instead of the card's own baseline",
 	} {
 		if !strings.Contains(flat, phrase) {
@@ -612,15 +634,15 @@ func TestTheCardHelpPageIsTheBlockTheOperatorApproved(t *testing.T) {
 	// on its own is what catches an addition, because nothing in the tree
 	// derives it. TestWorkbenchHelpIsTheBlockTheOperatorApproved holds the
 	// workbench page the same way.
-	if got.out != ratifiedCardHelp {
-		t.Errorf("the emitted block differs from the one the operator approved:\n%s", diffLines(ratifiedCardHelp, got.out))
+	if got.out != ratifiedSetHelp {
+		t.Errorf("the emitted block differs from the one the operator approved:\n%s", diffLines(ratifiedSetHelp, got.out))
 	}
 
-	checks := verb.Checks("card")
+	checks := verb.Checks("set")
 	catalog := msg.For(msg.Base)
 	rows := parseRefusalTable(t, got.out)
 	if len(rows) != len(checks) {
-		t.Fatalf("the page draws %d refusal rows, wanted the %d of verb.Checks(\"card\"):\n%s", len(rows), len(checks), got.out)
+		t.Fatalf("the page draws %d refusal rows, wanted the %d of verb.Checks(\"set\"):\n%s", len(rows), len(checks), got.out)
 	}
 	for i, check := range checks {
 		// A key the catalog does not carry renders as the key itself, on the

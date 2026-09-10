@@ -1484,7 +1484,7 @@ func expectGuides(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
 func expectWorkbenchFields(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
 	t.Helper()
 	var rows [][]sweptCell
-	for _, name := range bench.WorkbenchFields {
+	for _, name := range bench.WorkbenchListingFields {
 		value := ""
 		switch name {
 		case "title":

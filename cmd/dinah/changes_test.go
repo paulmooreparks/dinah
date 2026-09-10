@@ -30,7 +30,7 @@ func TestTheCheckpointPrintsItsEventsAndItsCursor(t *testing.T) {
 	if got := runCLI(t, root, "block", "fx-1", "the vendor has not answered"); got.code != 0 {
 		t.Fatalf("block: %d %s", got.code, got.errw)
 	}
-	if got := runCLI(t, root, "workbench", "set", "title", "A renamed workbench"); got.code != 0 {
+	if got := runCLI(t, root, "set", "workbench", "title", "A renamed workbench"); got.code != 0 {
 		t.Fatalf("workbench set title: %d %s", got.code, got.errw)
 	}
 	orphan := writeAnchorlessCard(t, root)

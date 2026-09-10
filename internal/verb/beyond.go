@@ -391,213 +391,20 @@ func (v *WorkbenchView) Field(name string) string {
 	return ""
 }
 
-// Workbench reports the workbench's own fields. Reading one is open to
-// anybody, so no owner is required and no operator is asked for; every other
-// read in the tool is open the same way.
+// Workbench reports the workbench's own fields, which is what the bare
+// `dinah workbench` listing prints. Reading is open to anybody, so no owner is
+// required and no operator is asked for; every other read in the tool is open
+// the same way.
 //
-// A request whose action is get names one field, and a field outside the set
-// refuses. The refusal travels as a contract.Refusal carrying no verb, so one
-// catalog sentence serves this read, the write inside the library, and
-// `dinah config get` alike, and none of the three can drift from the others.
+// It answers the listing alone. One field of the workbench is read through
+// GetField, which reaches every field of every kind through one grammar.
 func (l *Library) Workbench(req *Request) (*WorkbenchView, error) {
-	if req.Action == "get" && !bench.KnownWorkbenchField(req.Field) {
-		return nil, contract.Refuse(contract.UnknownKey, req.Field)
-	}
 	view := &WorkbenchView{
 		Title:    l.Bench.Title,
 		Slug:     l.Bench.Slug,
 		Operator: l.Bench.Operator,
 	}
 	return view, nil
-}
-
-// SetWorkbench writes one of the workbench's own fields. It evaluates in the
-// order the spec's check table fixes: the workbench designates an operator,
-// the field is one this workbench records, the value is present and well
-// formed, the request names an owner, that owner is the operator, and a slug
-// rename carries the confirmation flag.
-//
-// The operator the actor is compared against is the one Open loaded, before
-// the lock is taken, which is what every sibling does. So `workbench set
-// operator <somebody-else>`, run by the operator, succeeds, and the caller
-// ceases to be the operator for the next command rather than for this one.
-//
-// No field is ever cleared, which is where this grammar departs from `config
-// set`. Open refuses a workbench whose title is empty, clearing the operator
-// leaves nobody who can set it again through this command, and clearing the
-// slug leaves every card reachable only by its identifier.
-//
-// The write reloads the anchor under the lock and sets the one field on the
-// reloaded value, because Save rewrites the whole anchor from the frontmatter
-// the Bench is holding and a stale copy would revert whatever landed after it
-// was read.
-func (l *Library) SetWorkbench(req *Request) *Response {
-	if l.Bench.Operator == "" {
-		return l.refuse(req, nil, contract.NoOperator, "")
-	}
-	if !bench.KnownWorkbenchField(req.Field) {
-		return l.refuse(req, nil, contract.UnknownKey, req.Field)
-	}
-	value := strings.TrimSpace(req.Value)
-	if value == "" {
-		return l.refuse(req, nil, contract.Malformed, req.Field)
-	}
-	if req.Field == "slug" && !bench.ValidSlug(value) {
-		return l.refuse(req, nil, contract.Malformed, req.Field)
-	}
-	if req.Actor == "" {
-		return l.refuse(req, nil, contract.NoOwner, "")
-	}
-	if req.Actor != l.Bench.Operator {
-		return l.refuse(req, nil, contract.NotOperator, req.Actor)
-	}
-	if req.Field == "slug" && !req.Confirm {
-		return l.refuse(req, nil, contract.Unconfirmed, value)
-	}
-	now := bench.Stamp(l.Now())
-	lock, err := bench.Acquire(l.Bench.Root, req.Actor, now)
-	if err != nil {
-		return l.FromError(req, err)
-	}
-	defer lock.Release()
-	if l.Interleave != nil {
-		l.Interleave()
-	}
-	reloaded, err := bench.Open(l.Bench.Root)
-	if err != nil {
-		return l.FromError(req, err)
-	}
-	was := reloaded.WorkbenchField(req.Field)
-	reloaded.SetWorkbenchField(req.Field, value)
-	if err := reloaded.Save(); err != nil {
-		return l.FromError(req, err)
-	}
-	ev := bench.Event{
-		TS:    now,
-		Event: contract.EventWorkbenchUpdated,
-		Actor: req.Actor,
-		Field: req.Field,
-		From:  was,
-		To:    value,
-	}
-	if err := bench.AppendEvent(reloaded.JournalPath(), ev); err != nil {
-		return l.FromError(req, err)
-	}
-	l.Bench.SetWorkbenchField(req.Field, value)
-	response := l.ok(req, nil)
-	response.Detail = value
-	return response
-}
-
-// CardField reports one of a card's own fields. Reading one is open to
-// anybody, so no owner is required and no operator is asked for; every other
-// read in the tool is open the same way.
-//
-// It evaluates rows 1 and 2 of the check list and no more. A read validates
-// nothing, so a card carrying a level the workbench does not declare is
-// reported rather than refused, and a read on a workbench declaring no set for
-// the axis reports the stored value or the empty string.
-func (l *Library) CardField(req *Request) (string, error) {
-	found, err := l.Bench.ResolveCard(req.Card)
-	if err != nil {
-		return "", err
-	}
-	if !bench.KnownCardField(req.Field) {
-		return "", unknownCardField(req.Field)
-	}
-	return found.Card.LevelOf(req.Field), nil
-}
-
-// SetCardField writes one of a card's own fields, and clears it when the
-// request carries no value. It evaluates in the order the check list fixes:
-// the reference names a card of this workbench, the field is one a card
-// records, the workbench declares levels for that field, the value is a level
-// that field declares, and the request names an owner. The two level rows run
-// only where a value is present, so a clear runs neither.
-//
-// Nobody has to hold the card. Severity and priority are a classification
-// rather than a claim, so the write follows join and comment rather than move,
-// and a triager stamping a card an implementer holds is the ordinary case.
-//
-// Writing the level a card already carries succeeds, writes nothing and
-// journals nothing, on the terms join already returns ok for a workstream the
-// card already belongs to.
-//
-// The write reloads the card under its own lock and sets the one field on the
-// reloaded value, because Save rewrites the whole anchor from the frontmatter
-// the caller is holding and a stale copy would revert whatever landed after it
-// was read.
-func (l *Library) SetCardField(req *Request) *Response {
-	if l.Bench.Operator == "" {
-		return l.refuse(req, nil, contract.NoOperator, "")
-	}
-	found, err := l.Bench.ResolveCard(req.Card)
-	if err != nil {
-		return l.FromError(req, err)
-	}
-	card := found.Card
-	if !bench.KnownCardField(req.Field) {
-		return l.FromError(req, unknownCardField(req.Field))
-	}
-	value := strings.TrimSpace(req.Value)
-	if value != "" {
-		if refusal := l.admitLevels(map[string]string{req.Field: value}); refusal != nil {
-			return l.refuseWith(req, card, refusal.Name, refusal.Detail, refusal.Extra)
-		}
-	}
-	if req.Actor == "" {
-		return l.refuse(req, card, contract.NoOwner, "")
-	}
-	now := bench.Stamp(l.Now())
-	lock, err := bench.Acquire(card.Dir, req.Actor, now)
-	if err != nil {
-		return l.FromError(req, err)
-	}
-	defer lock.Release()
-	if l.Interleave != nil {
-		l.Interleave()
-	}
-	reloaded, err := bench.LoadCard(filepath.Dir(card.Dir), card.ID)
-	if err != nil {
-		return l.FromError(req, err)
-	}
-	was := reloaded.LevelOf(req.Field)
-	if was == value {
-		response := l.ok(req, nil)
-		response.Detail = value
-		return response
-	}
-	reloaded.SetLevel(req.Field, value)
-	if err := reloaded.Save(); err != nil {
-		return l.FromError(req, err)
-	}
-	ev := bench.Event{
-		TS:    now,
-		Event: contract.EventCardUpdated,
-		Actor: req.Actor,
-		Field: req.Field,
-		From:  was,
-		To:    value,
-	}
-	if err := bench.AppendEvent(reloaded.JournalPath(), ev); err != nil {
-		return l.FromError(req, err)
-	}
-	response := l.ok(req, nil)
-	response.Detail = value
-	return response
-}
-
-// unknownCardField raises row 2 of the card check list. It raises
-// dinah.unknown-field rather than dinah.unknown-key because that shape carries
-// its field set as a value the raise site fills, where unknown-key declares a
-// Listing the head resolves to the config settings for every raise site of the
-// name. The set is read off bench.CardFields rather than written into the
-// catalog, so a third card field reaches the sentence without a translator
-// being asked for anything.
-func unknownCardField(field string) error {
-	return contract.RefuseWith(contract.UnknownField, field, map[string]string{
-		"fields": strings.Join(bench.CardFields, ", "),
-	})
 }
 
 // admitLevels runs the two level checks over the axes a write named, in the
@@ -918,20 +725,6 @@ type WorkstreamListing struct {
 	Workstreams []WorkstreamView `json:"workstreams"`
 }
 
-// WorkstreamDetail is one workstream as a read reports it: the entity, its
-// notes, the live cards belonging to it and the directory it lives in. It is
-// the shape Show already uses for a card.
-type WorkstreamDetail struct {
-	// Workstream is the workstream itself.
-	Workstream WorkstreamView `json:"workstream"`
-	// Body is the workstream's long-form notes.
-	Body string `json:"body"`
-	// Cards are the live cards belonging to it, in queue order.
-	Cards []CardView `json:"cards,omitempty"`
-	// Path is the directory the workstream lives in.
-	Path string `json:"path"`
-}
-
 // workstreamView renders a workstream for a response, with the member count
 // read off a map the caller derived once for the whole listing.
 func workstreamView(workstream *bench.Workstream, counts map[string]int) WorkstreamView {
@@ -959,62 +752,6 @@ func (l *Library) Workstreams() (*WorkstreamListing, error) {
 		listing.Workstreams = append(listing.Workstreams, workstreamView(workstream, counts))
 	}
 	return listing, nil
-}
-
-// Workstream reports one workstream, its notes, its path and the live cards
-// belonging to it.
-//
-// A request whose action is get may name one field, and a field outside the
-// set refuses. The workstream resolves before the field is read, because a
-// reader who mistyped the reference is told about the reference rather than
-// about a field of a workstream that does not exist.
-func (l *Library) Workstream(req *Request) (*WorkstreamDetail, error) {
-	workstream := l.Bench.WorkstreamByRef(req.Workstream)
-	if workstream == nil {
-		return nil, contract.Refuse(contract.UnknownWorkstream, req.Workstream)
-	}
-	if req.Field != "" && !bench.KnownWorkstreamField(req.Field) {
-		return nil, contract.Refuse(contract.UnknownKey, req.Field)
-	}
-	counts, err := l.Bench.WorkstreamCounts()
-	if err != nil {
-		return nil, err
-	}
-	members, err := l.membersOf(workstream.ID)
-	if err != nil {
-		return nil, err
-	}
-	detail := &WorkstreamDetail{
-		Workstream: workstreamView(workstream, counts),
-		Body:       workstream.Notes,
-		Cards:      members,
-		Path:       workstream.Dir,
-	}
-	return detail, nil
-}
-
-// membersOf reads the live cards belonging to a workstream, in the order
-// CORE-QUEUE-3 fixes, which is the order every other listing of cards takes.
-func (l *Library) membersOf(id string) ([]CardView, error) {
-	cards, err := l.Bench.Cards()
-	if err != nil {
-		return nil, err
-	}
-	var kept []*bench.Card
-	for _, card := range cards {
-		for _, joined := range card.Workstreams {
-			if joined == id {
-				kept = append(kept, card)
-				break
-			}
-		}
-	}
-	sortByArrival(kept)
-	var views []CardView
-	for _, card := range kept {
-		views = append(views, *l.view(card))
-	}
-	return views, nil
 }
 
 // NewWorkstream creates a workstream from a title, and from the slug the
@@ -1082,105 +819,5 @@ func (l *Library) NewWorkstream(req *Request) *Response {
 	view := workstreamView(workstream, nil)
 	response.Workstream = &view
 	response.Detail = workstream.ID
-	return response
-}
-
-// SetWorkstream writes one of a workstream's own fields. It evaluates in the
-// order SetWorkbench fixes, with the reference resolved first because this
-// command names an entity where that one names the workbench it is already
-// serving: the workbench designates an operator, the workstream resolves, the
-// field is one this entity records, the value is present and well formed, the
-// request names an owner, that owner is the operator, and a slug change
-// carries the confirmation flag.
-//
-// No field is ever cleared, for SetWorkbench's own reason: an empty title
-// leaves the entity unnameable, and an empty slug leaves it reachable only by
-// its identifier.
-//
-// A slug another live workstream already carries is accepted, so this command
-// can write a duplicate that NewWorkstream's own collision loop can never
-// produce. Check is the whole answer to that column. It raises exactly one
-// check.workstream-slug-duplicate finding over the pair, never two, and it
-// names the later of the two by creation order, because checkWorkstreams and
-// WorkstreamByRef walk the collection in the same order: the earlier workstream
-// fills the seen set first and is the one a shared reference reaches, so the
-// identifier printed is always the workstream whose slug has been shadowed. A
-// person therefore meets the name that has stopped answering, together with the
-// finding's own sentence saying another workstream of this workbench carries
-// the same slug, and the repair is to rename that one or leave it reachable by
-// its identifier alone.
-//
-// Refusing the write here instead would amend the evaluation order the operator
-// ratified, inside a change he does not see, so whether this command grows that
-// refusal is his call rather than this command's.
-//
-// The write reloads the anchor under the workstream's own lock and sets the
-// one field on the reloaded value, because Save rewrites the whole anchor from
-// the frontmatter it is holding and a stale copy would revert whatever landed
-// after it was read.
-func (l *Library) SetWorkstream(req *Request) *Response {
-	if l.Bench.Operator == "" {
-		return l.refuse(req, nil, contract.NoOperator, "")
-	}
-	workstream := l.Bench.WorkstreamByRef(req.Workstream)
-	if workstream == nil {
-		return l.refuse(req, nil, contract.UnknownWorkstream, req.Workstream)
-	}
-	if !bench.KnownWorkstreamField(req.Field) {
-		return l.refuse(req, nil, contract.UnknownKey, req.Field)
-	}
-	value := strings.TrimSpace(req.Value)
-	if value == "" {
-		return l.refuse(req, nil, contract.Malformed, req.Field)
-	}
-	if req.Field == bench.SlugField && !bench.ValidColumnSlug(value) {
-		return l.refuse(req, nil, contract.Malformed, req.Field)
-	}
-	if req.Actor == "" {
-		return l.refuse(req, nil, contract.NoOwner, "")
-	}
-	if req.Actor != l.Bench.Operator {
-		return l.refuse(req, nil, contract.NotOperator, req.Actor)
-	}
-	if req.Field == bench.SlugField && !req.Confirm {
-		return l.refuse(req, nil, contract.Unconfirmed, value)
-	}
-	now := bench.Stamp(l.Now())
-	lock, err := bench.Acquire(workstream.Dir, req.Actor, now)
-	if err != nil {
-		return l.FromError(req, err)
-	}
-	defer lock.Release()
-	if l.Interleave != nil {
-		l.Interleave()
-	}
-	reloaded, err := bench.LoadWorkstream(filepath.Dir(workstream.Dir), workstream.ID)
-	if err != nil {
-		return l.FromError(req, err)
-	}
-	was := reloaded.Field(req.Field)
-	reloaded.SetField(req.Field, value)
-	if err := reloaded.Save(); err != nil {
-		return l.FromError(req, err)
-	}
-	ev := bench.Event{
-		TS:    now,
-		Event: contract.EventWorkstreamUpdated,
-		Actor: req.Actor,
-		Field: req.Field,
-		From:  was,
-		To:    value,
-	}
-	if err := bench.AppendEvent(reloaded.JournalPath(), ev); err != nil {
-		return l.FromError(req, err)
-	}
-	counts, err := l.Bench.WorkstreamCounts()
-	if err != nil {
-		return l.FromError(req, err)
-	}
-	response := l.ok(req, nil)
-	view := workstreamView(reloaded, counts)
-	response.Workstream = &view
-	response.Detail = value
 	return response
 }

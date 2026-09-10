@@ -120,10 +120,12 @@ func TestEveryReferenceTakingCommandAnswersACollectionOrRefusesIt(t *testing.T) 
 		"verify":       {"verify", "fx-1/comments", "a note"},
 		"fail":         {"fail", "fx-1/comments", "a note"},
 		"reopen":       {"reopen", "fx-1/comments", "a reason"},
+		"get":          {"get", "fx-1/comments", "body"},
+		"set":          {"set", "fx-1/comments", "body", "rewritten"},
 	}
 
 	// The roster this sweep covers is held against the one internal/verb
-	// derives from its own parameter tables, so a sixteenth command taking a
+	// derives from its own parameter tables, so an eighteenth command taking a
 	// reference reddens here rather than being missed.
 	covered := make([]string, 0, len(accepting)+len(refusing))
 	for name := range accepting {
@@ -164,13 +166,13 @@ func TestEveryReferenceTakingCommandAnswersACollectionOrRefusesIt(t *testing.T) 
 		}
 		refused++
 	}
-	if ran != 15 {
-		t.Fatalf("the sweep ran %d invocations and the roster is fifteen", ran)
+	if ran != 17 {
+		t.Fatalf("the sweep ran %d invocations and the roster is seventeen", ran)
 	}
-	if accepted != 4 || refused != 11 {
-		t.Fatalf("the sweep accepted %d and refused %d, and the split is four and eleven", accepted, refused)
+	if accepted != 4 || refused != 13 {
+		t.Fatalf("the sweep accepted %d and refused %d, and the split is four and thirteen", accepted, refused)
 	}
-	t.Logf("fifteen invocations ran: %d accepted, %d refused with %s", accepted, refused, contract.IsACollection)
+	t.Logf("seventeen invocations ran: %d accepted, %d refused with %s", accepted, refused, contract.IsACollection)
 }
 
 // TestShowDrawsACollectionsMembersInCreationOrder pins the members, their

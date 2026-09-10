@@ -50,11 +50,12 @@ tool itself rather than data about a workbench (`guide`, `help`), still
 answers a refusal in the shared machine form and carries no JSON payload on
 success because there is nothing to carry. `export`'s payload is already the
 interchange document, itself the frozen JSON form, so wrapping it in a second
-envelope would add nothing. `config get <key>` and `workbench get <field>`
-still write a bare scalar line under `--json`, unlike every other read verb,
-because each has a sibling verb with no subcommand, `config` and `workbench`,
-whose own JSON form already carries that same field among every other field a
-caller might ask for. `config set <key> <value>` answers `--json` with no
+envelope would add nothing. `config get <key>` still writes a bare scalar
+line under `--json`, unlike every other read verb, because it has a sibling
+verb with no subcommand, `config`, whose own JSON form already carries that
+same field among every other field a caller might ask for. `get <ref> <field>`
+answers `--json` with a one-member object, `{"value": "<the value>"}`, which is
+the payload its own MCP tool publishes. `config set <key> <value>` answers `--json` with no
 payload at all on success; that gap is recorded here rather than closed,
 because no caller today depends on it and there is no sibling shape to give
 it one.

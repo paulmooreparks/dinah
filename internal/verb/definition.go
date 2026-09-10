@@ -161,7 +161,7 @@ type Vocabulary struct {
 // what a command accepts, and two name a set only a head can resolve.
 var vocabularies = map[string]Vocabulary{
 	"key":          {Values: bench.ConfigKeys},
-	"field":        {Values: bench.WorkbenchFields},
+	"entity-field": {Values: bench.AllFields()},
 	"column-kind":  {Values: contract.Kinds},
 	"detail-field": {Values: DetailFields},
 	"item-kind":    {Values: bench.ItemKinds},
@@ -268,6 +268,8 @@ var guides = map[string][]string{
 	"rename":       {"references"},
 	"contents":     {"references"},
 	"attachments":  {"references"},
+	"get":          {"references"},
+	"set":          {"references"},
 	"query":        {"query"},
 	"search":       {"query"},
 }
@@ -546,21 +548,14 @@ var params = map[string][]Param{
 		{Name: "key", Vocabulary: "key"},
 		{Name: "value"},
 	},
-	// The bare invocation lists all three fields, so neither the action nor
-	// the field is required; get and set still need one, which the command
-	// refuses over rather than the syntax line. The confirmation flag is
-	// unrequired because a title change and an operator change take none.
-	"workbench": {
-		{Name: "action", Display: "get|set", Field: "Action"},
-		{Name: "field", Vocabulary: "field", Field: "Field"},
-		{Name: "value", Field: "Value"},
-		{Name: "yes", Flag: true, Marker: true, Shared: "yes", Field: "Confirm"},
-	},
+	// The command lists the workbench's own fields and does nothing else, so
+	// it declares no argument at all. Reading one field and writing one are
+	// `dinah get` and `dinah set`, which reach every kind through one
+	// grammar.
+	"workbench": {},
 	// The bare invocation lists every live workstream, so neither the action
-	// nor the workstream is required; new, get and set still need one, which
-	// the command refuses over rather than the syntax line. The workstream
-	// slot carries a reference on get and set and the title on new, which is
-	// what its two-word display says.
+	// nor the title is required; new still needs both, which the command
+	// refuses over rather than the syntax line.
 	// The bare invocation is not offered: dinah columns already lists the
 	// flow, and a bare dinah column would either duplicate that listing or
 	// read as a typo for it. new is the only action this build implements,
@@ -576,28 +571,27 @@ var params = map[string][]Param{
 		{Name: "before", Flag: true, Value: "column", Field: "Before"},
 	},
 	"workstream": {
-		{Name: "action", Display: "new|get|set", Field: "Action"},
-		{Name: "workstream", Display: "workstream|title", Field: "Workstream"},
-		{Name: "field", Field: "Field"},
-		{Name: "value", Field: "Value"},
+		{Name: "action", Display: "new", Field: "Action"},
+		{Name: "workstream", Display: "title", Field: "Workstream"},
 		{Name: "slug", Flag: true, Value: "slug", Field: "Slug"},
-		{Name: "yes", Flag: true, Marker: true, Shared: "yes", Field: "Confirm"},
 	},
-	// Three of the four slots are required, which is where card departs from
-	// its three grammar siblings. Each of those has a bare invocation that
-	// lists something, so neither the action nor the entity can be required
-	// there; card has no bare form, since a card reference is needed before
-	// the command means anything and `dinah show` already prints what a card
-	// holds. Required is read by Param.Token and by the mcp head's schema
-	// generator and by nothing in the cli parser, so runCard still runs its
-	// own arity check; what the declaration buys is a schema that refuses a
-	// call naming no action, no card or no field before the tool runs.
-	"card": {
-		{Name: "action", Display: "get|set", Required: true, Field: "Action"},
-		{Name: "card", Required: true, Shared: "card", Field: "Card"},
+	// get and set reach every field of every kind through one reference, so
+	// both take the reference and the field as positionals and neither
+	// carries an action word. The field argument declares the union of every
+	// kind's field names rather than one kind's, because a schema is fixed
+	// before a reference is known; which of them the resolved kind carries is
+	// what the refusal completes.
+	"get": {
+		{Name: "ref", Required: true, Guide: referencesGuide, Field: "Ref"},
 		{Name: "field", Required: true, Field: "Field"},
-		{Name: "value", Field: "Value"},
+	},
+	"set": {
+		{Name: "ref", Required: true, Guide: referencesGuide, Field: "Ref"},
+		{Name: "field", Required: true, Vocabulary: "entity-field", Field: "Field"},
+		{Name: "value", Display: "value|-", Rest: true, Field: "Value"},
 		{Name: "at", Flag: true, Value: "column", Vocabulary: "column", Field: "At"},
+		{Name: "note", Flag: true, Value: "text", Field: "Note"},
+		{Name: "yes", Flag: true, Marker: true, Shared: "yes", Field: "Confirm"},
 	},
 	"check": {
 		{Name: "finish", Flag: true, Marker: true, Field: "Finish"},

@@ -102,7 +102,7 @@ release publishes a new one. The second line names the shared rule set that buil
 other tool built to those same rules can read this workbench and reach the same
 answers about it. The third line names the format Dinah writes on disk.
 
-`dinah help` lists all fifty-three commands, in the four groups Dinah sorts
+`dinah help` lists all fifty-four commands, in the four groups Dinah sorts
 them into. Running `dinah` with no arguments at all prints the same list. So
 does whichever spelling of the help flag you already have the habit of typing,
 because Dinah answers to `--help`, `-help`, `-h`, `-?`, `--?` and `/?` alike.
@@ -885,18 +885,13 @@ $ dinah workstream
 [exit 0]
 ```
 
-Naming one reads its fields and the cards belonging to it:
+Reading one of its fields names the field, and the cards belonging to it come
+from a query:
 
 ```console skip=the member listing orders by the stamp a card arrived in its column under, and the replay runs the whole narrative inside one second, so whether the two cards tie on that stamp and fall back to the creation ordinal is decided by where a second boundary falls
-$ dinah workstream get autumn
-  Field   Value
-  ------  --------------
-  slug    autumn
-  id      8c3b92a3c21a
-  title   Autumn release
-  status  active
-  cards   2
-
+$ dinah get workstream/autumn status
+active
+$ dinah query workstream:autumn
   Card   Title                    Column
   -----  -----------------------  ------
   rel-1  Write the release notes  Done
@@ -917,7 +912,7 @@ The status is yours to write and Dinah never reads it. It says `active` when
 Dinah creates the workstream, and you may put any word you like in its place:
 
 ```console
-$ dinah workstream set autumn status finished
+$ dinah set workstream/autumn status finished
 workstream/autumn  Autumn release  [finished]
 [exit 0]
 ```
@@ -928,7 +923,7 @@ to the operator rather than to whoever created it. Changing the slug needs
 elsewhere names the old one:
 
 ```console
-$ dinah workstream set autumn slug autumn-2025 --yes
+$ dinah set workstream/autumn slug autumn-2025 --yes
 workstream/autumn-2025  Autumn release  [finished]
 [exit 0]
 ```
@@ -939,17 +934,20 @@ it, and those cards keep the membership. `dinah delete workstream/autumn-2025
 --yes` destroys it instead, and Dinah refuses that while a live card still belongs to
 it. A workstream names its kind in those two commands because they take any
 reference at all, and a bare name is tried against the columns and the cards
-first. `dinah join`, `dinah leave`, `dinah workstream get` and `dinah
-workstream set` take a workstream and nothing else, so they accept either
-spelling, and Dinah prints the longer one everywhere. That is why a workstream
-and a column may share a name without either one hiding the other.
+first. `dinah join` and `dinah leave` take a workstream and nothing else, so
+they accept either spelling, and Dinah prints the longer one everywhere. A
+command that takes any reference wants the prefixed form, so `dinah get
+workstream/autumn-2025 status` reads a field and `dinah get autumn-2025 status`
+does not. That is why a workstream and a column may share a name without either
+one hiding the other.
 
-The first of these two reads succeeds and the second is refused, which is that
-split on one screen:
+The first of these two commands takes the bare name and the second refuses it,
+which is that split on one screen:
 
 ```console
-$ dinah workstream get workstream/autumn-2025 status
-finished
+$ dinah join rel-2 autumn-2025
+rel-2  Draft the changelog  [Intake / ready]  workstream/autumn-2025
+[exit 0]
 $ dinah contents autumn-2025
 unknown-card this workbench carries no card autumn-2025; run `dinah ls` to see the cards this workbench carries
 [exit 2]
@@ -1177,6 +1175,9 @@ $ dinah ls intake --json
       "column": "003b09ee6e31",
       "column_title": "Intake",
       "state": "ready",
+      "workstreams": [
+        "<id>"
+      ],
       "revision": "sha256:433dfb7fa7a8a24d20c91ca5f9a3d9c50796139787358b7bbeaae9a35717db6c"
     }
   ]
@@ -1238,14 +1239,14 @@ storage format 2
 Catalogs:
   Language  Translated
   --------  ----------
-  en        923/923
-  af        0/923
-  cs        0/923
-  de        923/923
-  es        0/923
-  fil       0/923
-  hi        923/923
-  id        0/923
+  en        912/912
+  af        0/912
+  cs        0/912
+  de        912/912
+  es        0/912
+  fil       0/912
+  hi        912/912
+  id        0/912
 [exit 0]
 ```
 

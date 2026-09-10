@@ -376,7 +376,7 @@ func TestAWorkbenchScopedEventCarriesNoIdentifier(t *testing.T) {
 	h := newHarness(t)
 	minted := h.mint()
 
-	response := h.library.SetWorkbench(&Request{Verb: "workbench", Actor: "alka", Action: "set", Field: "title", Value: "A renamed workbench"})
+	response := h.library.SetField(&Request{Verb: "set", Ref: "workbench", Actor: "alka", Action: "set", Field: "title", Value: "A renamed workbench"})
 	if response.Outcome != contract.OutcomeOK {
 		t.Fatalf("workbench set title: %s %s", response.Outcome, response.Refusal)
 	}
@@ -964,7 +964,7 @@ func TestAnActThatExplainsItselfDoesNotResyncTheWholeBoard(t *testing.T) {
 		second := h.add("Another card nobody touches")
 		minted := h.mint()
 
-		response := h.library.SetWorkbench(&Request{Verb: "workbench", Actor: "alka", Action: "set", Field: "title", Value: "A renamed workbench"})
+		response := h.library.SetField(&Request{Verb: "set", Ref: "workbench", Actor: "alka", Action: "set", Field: "title", Value: "A renamed workbench"})
 		if response.Outcome != contract.OutcomeOK {
 			t.Fatalf("workbench set title: %s %s", response.Outcome, response.Refusal)
 		}
