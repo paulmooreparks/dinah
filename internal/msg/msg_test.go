@@ -577,3 +577,50 @@ func TestASkeletonEntryReallyCarriesTheEnglishText(t *testing.T) {
 		t.Fatal("no skeleton entry was checked, so this guard is asserting nothing")
 	}
 }
+
+// theIndefiniteArticle matches an English indefinite article standing
+// immediately before a placeholder, which is the shape this guard refuses.
+// The article is captured so the failure can quote what was written rather
+// than only where.
+var theIndefiniteArticle = regexp.MustCompile(`(?i)\b(an?)\s+(\{[a-zA-Z]+\})`)
+
+// TestNoEnglishSentenceTakesAnArticleBeforeAPlaceholder asserts that no
+// English catalog entry writes "a" or "an" in front of a placeholder.
+//
+// A placeholder carries a value the sentence cannot see, and the English
+// indefinite article has to agree with the sound the word after it starts
+// with, so the choice between the two forms is made before the value is
+// known and is right only by luck. dinah.unknown-field's sentence was
+// written when the kind it named was always a card, so "a card" agreed by
+// construction; generalising it to any kind made it render "a item" and "a
+// attachment". The repair is not a better article, because there is no
+// article that fits every value: it is a sentence that names the value
+// without one.
+//
+// That makes the rule cheap to hold and independent of how many kinds there
+// are, which is the point. An eighth kind, or a ninth, changes nothing here,
+// because no sentence this guard admits depends on which values exist.
+//
+// The subject is the English catalog alone. Every other catalog either
+// carries the English text unchanged, which this guard has already read
+// through the base entry, or carries a translation nobody on this project can
+// grade; what a translation is held to instead is the rule written into each
+// affected entry's context, and the recorded source fingerprint, which sends
+// the entry back to a translator whenever the English moves.
+func TestNoEnglishSentenceTakesAnArticleBeforeAPlaceholder(t *testing.T) {
+	checked := 0
+	for _, key := range Keys() {
+		entry, ok := BaseEntry(key)
+		if !ok || !strings.Contains(entry.Text, "{") {
+			continue
+		}
+		checked++
+		for _, match := range theIndefiniteArticle.FindAllStringSubmatch(entry.Text, -1) {
+			t.Errorf("%s: writes %q before %s, and no article agrees with every value that placeholder carries; name the value without one", key, match[1], match[2])
+		}
+	}
+	if checked == 0 {
+		t.Fatal("no English entry carries a placeholder, so this guard read nothing")
+	}
+	t.Logf("the guard read %d English entries carrying a placeholder", checked)
+}

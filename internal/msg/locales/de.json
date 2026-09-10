@@ -1375,9 +1375,9 @@
       "source": "f6ebc6f8b974ddfd"
     },
     "refusal.dinah.unknown-field.get": {
-      "text": "Dinah hat kein Feld {detail} auf {kind}. Die Felder, die ein {kind} führt, sind: {fields}.",
-      "context": "The sentence printed after the refusal name dinah.unknown-field when the get command raised it, which is a read naming a field the resolved kind does not record. {detail} is the field the reader typed. {kind} is the kind the reference resolved to and {fields} is that kind's own set, both read off the tool rather than written here, so both are machine vocabulary and are never translated.",
-      "source": "55ada101e6a24564"
+      "text": "Dinah hat kein Feld {detail} auf {kind}. Die Felder von {kind} sind: {fields}.",
+      "context": "The sentence printed after the refusal name dinah.unknown-field when the get command raised it, which is a read naming a field the resolved kind does not record. {detail} is the field the reader typed. {kind} is the kind the reference resolved to and {fields} is that kind's own set, both read off the tool rather than written here, so both are machine vocabulary and are never translated. No word of the sentence may agree with {kind}, because the token substituted there is untranslated English and no language can predict its gender, its number or the sound it starts with, so the kind is named without an article before it and without a word inflected for it.",
+      "source": "cad310301156a4c4"
     },
     "refusal.dinah.unknown-field.get.next": {
       "text": " Nennen Sie stattdessen eines davon, oder führen Sie `dinah help get` aus, um zu sehen, was der Befehl annimmt.",
@@ -1385,9 +1385,9 @@
       "source": "7a27fbcc9321beb7"
     },
     "refusal.dinah.unknown-field.set": {
-      "text": "Dinah hat kein Feld {detail} auf {kind}. Die Felder, die ein {kind} führt, sind: {fields}.",
-      "context": "The sentence printed after the refusal name dinah.unknown-field when the set command raised it, which is a write naming a field the resolved kind does not record. It carries the same sentence as the get variant and is a separate entry because the two next steps differ. {detail} is the field the reader typed. {kind} is the kind the reference resolved to and {fields} is that kind's own set, both read off the tool rather than written here, so both are machine vocabulary and are never translated.",
-      "source": "55ada101e6a24564"
+      "text": "Dinah hat kein Feld {detail} auf {kind}. Die Felder von {kind} sind: {fields}.",
+      "context": "The sentence printed after the refusal name dinah.unknown-field when the set command raised it, which is a write naming a field the resolved kind does not record. It carries the same sentence as the get variant and is a separate entry because the two next steps differ. {detail} is the field the reader typed. {kind} is the kind the reference resolved to and {fields} is that kind's own set, both read off the tool rather than written here, so both are machine vocabulary and are never translated. No word of the sentence may agree with {kind}, because the token substituted there is untranslated English and no language can predict its gender, its number or the sound it starts with, so the kind is named without an article before it and without a word inflected for it.",
+      "source": "cad310301156a4c4"
     },
     "refusal.dinah.unknown-field.set.next": {
       "text": " Nennen Sie stattdessen eines davon, oder führen Sie `dinah help set` aus, um zu sehen, was der Befehl annimmt.",
@@ -3027,6 +3027,11 @@
       "context": "Spliced onto refusal.unknown-card as the next step.",
       "source": "cc7f9fefb530b2c4"
     },
+    "refusal.unknown-card.workstream.next": {
+      "text": "; {workstream} benennt einen Arbeitsstrang, schreiben Sie die Referenz also so, oder führen Sie `dinah guide references` aus, um zu sehen, wie eine Referenz geschrieben wird",
+      "context": "Spliced onto refusal.unknown-card in place of its usual next step, when the reference names no card and does name a workstream. It is what a reader meets who typed a bare workstream slug, which the retired kind-prefixed commands accepted and the generic get and set do not. {workstream} is that workstream's reference in the grammar's own spelling, which is machine vocabulary and is never translated. The command line inside it is syntax and stays as it is.",
+      "source": "30860817bafb6b40"
+    },
     "refusal.unknown-column": {
       "text": "diese Werkbank deklariert keine Spalte {detail}; sie deklariert diese",
       "context": "The sentence printed after the refusal name unknown-column. {detail} carries the identifier, owner or column the refusal is about.",
@@ -3943,9 +3948,9 @@
       "source": "d501d957e047c8ec"
     },
     "refusal.dinah.unknown-path.next-addressed": {
-      "text": "; ein {addressed} wird über seine eigene Referenz benannt, nicht über das, was es hält",
-      "context": "The next step after the refusal name dinah.unknown-path, when the reader reached a card or a column through the collection that holds it, such as wb/cards/1. {addressed} is the kind reached that way, card or column, which is machine vocabulary and is never translated. The collection named is one the workbench really has, so the advice is about how the thing is addressed rather than about the word. Spliced on after refusal.dinah.unknown-path.",
-      "source": "129884b7bbc55760"
+      "text": "; {addressed} wird über seine eigene Referenz benannt, nicht über das, was es hält",
+      "context": "The next step after the refusal name dinah.unknown-path, when the reader reached a card or a column through the collection that holds it, such as wb/cards/1. {addressed} is the kind reached that way, card or column, which is machine vocabulary and is never translated. No word of the sentence may agree with it, for the reason refusal.dinah.unknown-field.get gives: the token substituted there is untranslated English, so the sentence cannot know its gender, its number or the sound it starts with. The collection named is one the workbench really has, so the advice is about how the thing is addressed rather than about the word. Spliced on after refusal.dinah.unknown-path.",
+      "source": "cbd49aee62761103"
     },
     "tree.empty": {
       "text": "Keine Karten hier.",

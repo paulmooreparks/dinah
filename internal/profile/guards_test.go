@@ -109,13 +109,24 @@ func TestNoLockIsCreatedOutsideTheOneAcquirer(t *testing.T) {
 // line before reaching for it.
 var theShortWord = regexp.MustCompile(`(?i)bench`) // retired spelling, named deliberately
 
-// theDeliberateSpelling exempts the line it appears on. It belongs on this
-// guard's own pattern, which has to spell what it looks for, and on the
-// assertions proving the retired flag and the retired variable are gone,
-// which have to type them to watch the tool refuse them. Nothing else has a
-// claim on it. The marker sits on the line rather than in a list here, so a
-// reader meets the reason where the spelling is instead of hunting for a
-// file-wide exemption.
+// theDeliberateSpelling exempts the line it appears on. It belongs on a
+// pattern that has to spell what it looks for, on the assertions proving the
+// retired flag and the retired variable are gone, which have to type them to
+// watch the tool refuse them, and nowhere else. The claim is written as a
+// property rather than as a list of the lines carrying it, because a list
+// kept somewhere other than the lines goes stale the first time somebody
+// writes a pattern in another package and does not think to come back here.
+//
+// This guard's own pattern is one such pattern, and internal/verb's routing
+// pattern is another: it reads the guard constants out of a switch by their
+// qualified name, so it has to write the package qualifier out. A path
+// spelled relatively is not this marker's business and is covered by
+// vocabularyExceptions below, which is where a token that is simply the
+// package's own name belongs.
+//
+// The marker sits on the line rather than in a list here, so a reader meets
+// the reason where the spelling is instead of hunting for a file-wide
+// exemption.
 const theDeliberateSpelling = "// retired spelling, named deliberately"
 
 // vocabularyExceptions are the tokens that still spell the short word and are
@@ -124,11 +135,16 @@ const theDeliberateSpelling = "// retired spelling, named deliberately"
 //
 // Every surface carries a refusal name as the coordination contract spells
 // it, the statement identifiers belong to the core profile, and the package
-// path is where the Go identifiers live. Longer tokens come first so that
-// removing a shorter one cannot strand the tail of a longer one.
+// path is where the Go identifiers live. The path is admitted in both the
+// spelling an import writes and the spelling a test reads a sibling file by,
+// since the two name one directory and a guard that admitted only the first
+// would push the second onto a hand-written marker for no reason. Longer
+// tokens come first so that removing a shorter one cannot strand the tail of
+// a longer one.
 var vocabularyExceptions = []string{
-	"CORE-BENCH",
 	"internal/bench",
+	"CORE-BENCH",
+	"../bench",
 }
 
 // vocabularyReason is what a reader who trips this guard needs: why the word

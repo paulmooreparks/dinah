@@ -276,9 +276,22 @@ var Shapes = []Shape{
 		NextStep:  []string{"refusal.terminal.next"},
 	},
 	{
-		Name:      UnknownCard,
-		Fragments: []Fragment{{Key: "refusal.unknown-card.next"}},
-		NextStep:  []string{"refusal.unknown-card.next"},
+		// The reference names no card, and a bare reference naming a
+		// workstream is the one case where the tool knows what the reader
+		// meant. That case gets a next step of its own, because the usual
+		// one sends the reader to the card listing, which cannot answer a
+		// question about a workstream. workstream is filled by the
+		// resolver alone, so every other raise site falls to the listing.
+		Name:   UnknownCard,
+		Values: []string{"workstream"},
+		Fragments: []Fragment{
+			{Key: "refusal.unknown-card.workstream.next", When: "workstream"},
+			{Key: "refusal.unknown-card.next"},
+		},
+		NextStep: []string{
+			"refusal.unknown-card.workstream.next",
+			"refusal.unknown-card.next",
+		},
 	},
 	{
 		// The next step names the command the reader typed, because this

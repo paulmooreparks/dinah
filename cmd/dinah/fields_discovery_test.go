@@ -134,3 +134,76 @@ func setFieldVocabulary(t *testing.T, root string) []string {
 	t.Fatal("this head serves no set_field tool")
 	return nil
 }
+
+// TestABareWorkstreamSlugIsSentToItsPrefixedSpelling asserts what a reader who
+// types the form the retired commands took meets instead of it.
+//
+// `workstream get autumn status` took a bare slug, and the generic get and set
+// that replace it take a reference, so the same reader now types a bare slug at
+// a command that reads it as a card. No card carries that name, so the refusal
+// is unknown-card and stays unknown-card, because no card was found and that is
+// what happened. What changes is where it sends the reader: the card listing
+// cannot answer a question about a workstream, so the sentence names the
+// prefixed spelling and the guide that gives the grammar.
+//
+// Three arms hold that together. Both commands are exercised, because a reader
+// arrives at either. A name that is neither a card nor a workstream keeps the
+// card listing, which is what stops the clause rendering on every unknown card.
+// And the spelling the refusal names is run, so the advice is checked against
+// the tool rather than only read.
+func TestABareWorkstreamSlugIsSentToItsPrefixedSpelling(t *testing.T) {
+	root := newBench(t)
+	if got := runCLI(t, root, "workstream", "new", "Autumn release", "--slug", "autumn"); got.code != 0 {
+		t.Fatalf("workstream new: %d %s", got.code, got.errw)
+	}
+	if got := runCLI(t, root, "add", "a card, so the listing the usual next step names is not empty"); got.code != 0 {
+		t.Fatalf("add: %d %s", got.code, got.errw)
+	}
+
+	for _, typed := range [][]string{
+		{"get", "autumn", "status"},
+		{"set", "autumn", "status", "finished"},
+	} {
+		spelling := strings.Join(typed, " ")
+		refused := runCLI(t, root, typed...)
+		if refused.code != contract.ExitCode(contract.OutcomeRefused) {
+			t.Fatalf("`dinah %s` exited %d, wanted the refused exit code", spelling, refused.code)
+		}
+		if name := refusalNameOf(refused.errw); name != contract.UnknownCard {
+			t.Errorf("`dinah %s` refused %s, wanted %s", spelling, name, contract.UnknownCard)
+		}
+		if !strings.Contains(refused.errw, "workstream/autumn") {
+			t.Errorf("`dinah %s` does not name the prefixed spelling:\n%s", spelling, refused.errw)
+		}
+		if !strings.Contains(refused.errw, "dinah guide references") {
+			t.Errorf("`dinah %s` does not name the guide that spells a reference out:\n%s", spelling, refused.errw)
+		}
+		if strings.Contains(refused.errw, "dinah ls") {
+			t.Errorf("`dinah %s` sends the reader to the card listing, which cannot answer a question about a workstream:\n%s", spelling, refused.errw)
+		}
+	}
+
+	// A name that is neither a card nor a workstream keeps the next step every
+	// other unknown-card raise site carries, so the clause above is switched on
+	// by the workstream and not by the command.
+	stranger := runCLI(t, root, "get", "frobnicate", "title")
+	if name := refusalNameOf(stranger.errw); name != contract.UnknownCard {
+		t.Fatalf("a name that is neither refused %s, wanted %s", name, contract.UnknownCard)
+	}
+	if !strings.Contains(stranger.errw, "dinah ls") {
+		t.Errorf("a name that is neither lost the card listing:\n%s", stranger.errw)
+	}
+	if strings.Contains(stranger.errw, "workstream/") {
+		t.Errorf("a name that is neither is offered a workstream spelling:\n%s", stranger.errw)
+	}
+
+	// The spelling the refusal names has to work, or the advice is worse than
+	// the advice it replaced.
+	answered := runCLI(t, root, "get", "workstream/autumn", "status")
+	if answered.code != 0 {
+		t.Fatalf("`dinah get workstream/autumn status` exited %d: %s", answered.code, answered.errw)
+	}
+	if got := strings.TrimSpace(answered.out); got == "" {
+		t.Error("the spelling the refusal names answered nothing")
+	}
+}

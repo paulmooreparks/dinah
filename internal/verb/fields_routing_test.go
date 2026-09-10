@@ -10,9 +10,21 @@ import (
 	"dinah/internal/bench"
 )
 
-// guardArm matches one routing arm of a field write, which is a case naming a
-// guard constant inside internal/verb/fields.go.
-var guardArm = regexp.MustCompile(`case bench\.(Guard[A-Za-z]+)`) // retired spelling, named deliberately
+// guardArm matches one routing arm of a field write, which is a case line
+// naming one or more guard constants inside internal/verb/fields.go, and
+// guardArmName reads the constants out of the line guardArm found.
+//
+// The two are separate because a case may fold several constants onto one
+// line, of the shape `case bench.GuardLevel, bench.GuardTier:`, and a pattern
+// that captures a name straight off the case keyword sees only the first of
+// them. A folded constant read that way is invisible here and passes only
+// because it happens to have a second arm elsewhere, which is a coincidence
+// this check should not depend on.
+var guardArm = regexp.MustCompile(`(?m)^\s*case\s+bench\.Guard[A-Za-z]+(?:,\s*bench\.Guard[A-Za-z]+)*:`) // retired spelling, named deliberately
+
+// guardArmName reads one guard constant out of a case line guardArm matched.
+// It names no package, so the whole of a folded line answers it.
+var guardArmName = regexp.MustCompile(`Guard[A-Za-z]+`)
 
 // guardConstant matches one member of the closed guard set as internal/bench
 // declares it, so the expectation is read off the declaration rather than
@@ -29,7 +41,7 @@ var guardConstant = regexp.MustCompile(`(?m)^\t(Guard[A-Za-z]+)\s+= "`)
 // from the switch statements this package writes, so neither can be made to
 // agree with the other by editing one file.
 func TestEveryDeclaredGuardIsRouted(t *testing.T) {
-	declaration, err := os.ReadFile("../bench/fields.go") // retired spelling, named deliberately
+	declaration, err := os.ReadFile("../bench/fields.go")
 	if err != nil {
 		t.Fatalf("read the guard declaration: %v", err)
 	}
@@ -49,8 +61,10 @@ func TestEveryDeclaredGuardIsRouted(t *testing.T) {
 		t.Fatalf("read the router: %v", err)
 	}
 	routed := map[string]bool{}
-	for _, match := range guardArm.FindAllStringSubmatch(string(router), -1) {
-		routed[match[1]] = true
+	for _, line := range guardArm.FindAllString(string(router), -1) {
+		for _, name := range guardArmName.FindAllString(line, -1) {
+			routed[name] = true
+		}
 	}
 	if len(routed) == 0 {
 		t.Fatal("the router carries no guard arm this check can read, so its pattern has gone stale")

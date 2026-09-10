@@ -1375,9 +1375,9 @@
       "source": "f6ebc6f8b974ddfd"
     },
     "refusal.dinah.unknown-field.get": {
-      "text": "Dinah के पास {kind} पर {detail} नाम का कोई फ़ील्ड नहीं है। एक {kind} जिन फ़ील्ड को रखता है वे हैं: {fields}।",
-      "context": "The sentence printed after the refusal name dinah.unknown-field when the get command raised it, which is a read naming a field the resolved kind does not record. {detail} is the field the reader typed. {kind} is the kind the reference resolved to and {fields} is that kind's own set, both read off the tool rather than written here, so both are machine vocabulary and are never translated.",
-      "source": "55ada101e6a24564"
+      "text": "Dinah के पास {kind} पर {detail} नाम का कोई फ़ील्ड नहीं है। {kind} के फ़ील्ड ये हैं: {fields}।",
+      "context": "The sentence printed after the refusal name dinah.unknown-field when the get command raised it, which is a read naming a field the resolved kind does not record. {detail} is the field the reader typed. {kind} is the kind the reference resolved to and {fields} is that kind's own set, both read off the tool rather than written here, so both are machine vocabulary and are never translated. No word of the sentence may agree with {kind}, because the token substituted there is untranslated English and no language can predict its gender, its number or the sound it starts with, so the kind is named without an article before it and without a word inflected for it.",
+      "source": "cad310301156a4c4"
     },
     "refusal.dinah.unknown-field.get.next": {
       "text": " उनमें से किसी एक का नाम लें, या यह देखने के लिए कि यह आदेश क्या लेता है `dinah help get` चलाएँ।",
@@ -1385,9 +1385,9 @@
       "source": "7a27fbcc9321beb7"
     },
     "refusal.dinah.unknown-field.set": {
-      "text": "Dinah के पास {kind} पर {detail} नाम का कोई फ़ील्ड नहीं है। एक {kind} जिन फ़ील्ड को रखता है वे हैं: {fields}।",
-      "context": "The sentence printed after the refusal name dinah.unknown-field when the set command raised it, which is a write naming a field the resolved kind does not record. It carries the same sentence as the get variant and is a separate entry because the two next steps differ. {detail} is the field the reader typed. {kind} is the kind the reference resolved to and {fields} is that kind's own set, both read off the tool rather than written here, so both are machine vocabulary and are never translated.",
-      "source": "55ada101e6a24564"
+      "text": "Dinah के पास {kind} पर {detail} नाम का कोई फ़ील्ड नहीं है। {kind} के फ़ील्ड ये हैं: {fields}।",
+      "context": "The sentence printed after the refusal name dinah.unknown-field when the set command raised it, which is a write naming a field the resolved kind does not record. It carries the same sentence as the get variant and is a separate entry because the two next steps differ. {detail} is the field the reader typed. {kind} is the kind the reference resolved to and {fields} is that kind's own set, both read off the tool rather than written here, so both are machine vocabulary and are never translated. No word of the sentence may agree with {kind}, because the token substituted there is untranslated English and no language can predict its gender, its number or the sound it starts with, so the kind is named without an article before it and without a word inflected for it.",
+      "source": "cad310301156a4c4"
     },
     "refusal.dinah.unknown-field.set.next": {
       "text": " उनमें से किसी एक का नाम लें, या यह देखने के लिए कि यह आदेश क्या लेता है `dinah help set` चलाएँ।",
@@ -3014,6 +3014,11 @@
       "context": "Spliced onto refusal.unknown-card as the next step.",
       "source": "cc7f9fefb530b2c4"
     },
+    "refusal.unknown-card.workstream.next": {
+      "text": "; {workstream} एक वर्कस्ट्रीम का नाम है, इसलिए संदर्भ इसी तरह लिखें, या यह देखने के लिए कि संदर्भ कैसे लिखा जाता है `dinah guide references` चलाएँ",
+      "context": "Spliced onto refusal.unknown-card in place of its usual next step, when the reference names no card and does name a workstream. It is what a reader meets who typed a bare workstream slug, which the retired kind-prefixed commands accepted and the generic get and set do not. {workstream} is that workstream's reference in the grammar's own spelling, which is machine vocabulary and is never translated. The command line inside it is syntax and stays as it is.",
+      "source": "30860817bafb6b40"
+    },
     "refusal.unknown-column": {
       "text": "यह वर्कबेंच कोई कॉलम {detail} घोषित नहीं करती; यह ये घोषित करती है",
       "context": "The sentence printed after the refusal name unknown-column. {detail} carries the identifier, owner or column the refusal is about.",
@@ -3931,8 +3936,8 @@
     },
     "refusal.dinah.unknown-path.next-addressed": {
       "text": "; {addressed} को उसे रखने वाली चीज़ के ज़रिए नहीं, बल्कि उसके अपने संदर्भ से नाम दिया जाता है",
-      "context": "The next step after the refusal name dinah.unknown-path, when the reader reached a card or a column through the collection that holds it, such as wb/cards/1. {addressed} is the kind reached that way, card or column, which is machine vocabulary and is never translated. The collection named is one the workbench really has, so the advice is about how the thing is addressed rather than about the word. Spliced on after refusal.dinah.unknown-path.",
-      "source": "129884b7bbc55760"
+      "context": "The next step after the refusal name dinah.unknown-path, when the reader reached a card or a column through the collection that holds it, such as wb/cards/1. {addressed} is the kind reached that way, card or column, which is machine vocabulary and is never translated. No word of the sentence may agree with it, for the reason refusal.dinah.unknown-field.get gives: the token substituted there is untranslated English, so the sentence cannot know its gender, its number or the sound it starts with. The collection named is one the workbench really has, so the advice is about how the thing is addressed rather than about the word. Spliced on after refusal.dinah.unknown-path.",
+      "source": "cbd49aee62761103"
     },
     "tree.empty": {
       "text": "यहाँ कोई कार्ड नहीं है।",
