@@ -9,13 +9,16 @@ type Field struct {
 	Name string
 	// Key is the frontmatter key the value is stored under, where that
 	// differs from the name a reader types. It is empty on every field
-	// stored under its own name, which is all but one of them, and Stored
+	// stored under its own name, which is all but two of them, and Stored
 	// resolves the two so no caller has to remember which.
 	//
-	// A column's capacity is the one that differs today: the format stores
-	// it as wip_limit, which is the profile's own word for the limit, and a
+	// Two column fields differ today. The format stores a column's capacity
+	// as wip_limit, which is the profile's own word for the limit, and a
 	// reader types capacity, which is what `dinah column new` already calls
-	// the flag that writes it.
+	// the flag that writes it. The format stores a column's hold as
+	// gate_items, which is the profile's own word for the declaration, and a
+	// reader types hold, which is the word a person reaches for when a step
+	// is to wait until its questions are answered.
 	Key string
 	// Prose is true where the value is the anchor's body rather than a
 	// frontmatter key. A prose field holds several lines; every other field
@@ -40,14 +43,15 @@ const (
 	GuardFilename = "filename"
 	GuardKind     = "column-kind"
 	GuardCapacity = "capacity"
+	GuardHold     = "hold"
 )
 
 // Guards lists the closed set of guard names a field may declare, in the order
 // the declaration above states them. A sweep asking whether every guard is
-// routed reads this rather than writing the seven out again.
+// routed reads this rather than writing the eight out again.
 var Guards = []string{
 	GuardSlug, GuardLevel, GuardTier, GuardState,
-	GuardFilename, GuardKind, GuardCapacity,
+	GuardFilename, GuardKind, GuardCapacity, GuardHold,
 }
 
 // The two write authorities a kind declares. The set is closed at two, and it
@@ -80,6 +84,18 @@ const (
 	// WIPLimitKey is the frontmatter key that limit is stored under, which
 	// is not the name a reader types for it.
 	WIPLimitKey = "wip_limit"
+	// HoldField is a column's hold, as a reader types it: on where the
+	// column holds a card until an item naming it is settled, and off where
+	// it does not.
+	HoldField = "hold"
+	// GateItemsKey is the frontmatter key that hold is stored under, which
+	// is not the name a reader types for it. The stored spelling is the
+	// profile's, under CORE-JSON-10, and it stays out of everything a person
+	// types or reads.
+	GateItemsKey = "gate_items"
+	// HoldOn and HoldOff are the two values a reader types for a hold.
+	HoldOn  = "on"
+	HoldOff = "off"
 	// StatusField is a workstream's status.
 	StatusField = "status"
 	// FilenameField is an attachment's filename.
@@ -119,6 +135,7 @@ var fields = map[string][]Field{
 		{Name: ColumnKindField, Guard: GuardKind},
 		{Name: TierField, Clearable: true, Guard: GuardLevel},
 		{Name: CapacityField, Key: WIPLimitKey, Clearable: true, Guard: GuardCapacity},
+		{Name: HoldField, Key: GateItemsKey, Guard: GuardHold},
 		{Name: InstructionsField, Prose: true, Clearable: true},
 	},
 	KindCard: {

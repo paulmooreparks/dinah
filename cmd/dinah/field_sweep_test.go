@@ -70,6 +70,7 @@ var fieldSamples = map[string]map[string]fieldSample{
 		"kind":         {first: "work", second: "done"},
 		"tier":         {first: "workhorse", second: "frontier"},
 		"capacity":     {first: "2", second: "3"},
+		"hold":         {first: "on", second: "off"},
 		"instructions": {first: "First station text.", second: "Second station text.\n\nWith a second paragraph."},
 	},
 	bench.KindCard: {

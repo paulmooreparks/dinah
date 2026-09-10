@@ -447,8 +447,11 @@ while that column carries a live card; an empty flow, and a placement nothing
 has reached yet, are unaffected. The check is evaluated against a read taken
 under the workbench lock, immediately before the column is written, so a card
 arriving while the call is being evaluated is one the check meets rather than
-misses. `operator_owned`, `awaiting_outside` and `gate_items` are not settable at creation;
-write them into the column's own file by hand, as before.
+misses. `operator_owned` and `awaiting_outside` are not settable at creation;
+write them into the column's own file by hand, as before. `gate_items` is not
+settable at creation either, and `dinah set <column> hold on` writes it
+afterwards, `dinah set <column> hold off` clears it, and `dinah get <column>
+hold` reads it back.
 
 Two words run through the rest of this section. A **station** is a column where
 an owner takes work up: a card there is claimed, worked, and moved on. A

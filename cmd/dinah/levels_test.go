@@ -548,9 +548,9 @@ What you may write:
                    something below a card such as wb-1/comments/1
   <field>          which field you are writing; which names are legal depends on
                    the kind the reference resolves to (one of: body, capacity,
-                   column, description, filename, instructions, kind, note,
-                   notes, operator, owner, priority, severity, slug, state,
-                   status, text, tier, title)
+                   column, description, filename, hold, instructions, kind,
+                   note, notes, operator, owner, priority, severity, slug,
+                   state, status, text, tier, title)
   [value|-]        what to store in it; write a single dash to read it from
                    standard input, and leave it out to clear a field that may be
                    cleared

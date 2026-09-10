@@ -151,6 +151,8 @@ func plainValueFor(field bench.Field) string {
 		return contract.Kinds[0]
 	case bench.GuardCapacity:
 		return "3"
+	case bench.GuardHold:
+		return bench.HoldOn
 	}
 	return "a written value"
 }
