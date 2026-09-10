@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"dinah/internal/bench"
 	"dinah/internal/contract"
 	"dinah/internal/msg"
 	"dinah/internal/verb"
@@ -453,5 +454,92 @@ func TestANarrowWindowClampsEveryContinuationLine(t *testing.T) {
 	}
 	if continuations == 0 {
 		t.Error("no continuation line was drawn, so this test asserts nothing about the clamp")
+	}
+}
+
+// staleItemColumn files a decision against a card and writes a column value
+// into that item's anchor by hand, answering the item's identifier. The value
+// is planted rather than typed because both write paths resolve what they are
+// given and refuse a spelling that resolves to nothing, so the only way an
+// item carries one is a write made before that guard existed or a hand edit.
+func staleItemColumn(t *testing.T, root, card, value string) string {
+	t.Helper()
+	if got := runCLI(t, root, "file", card, "decision", "Somebody has to settle this."); got.code != 0 {
+		t.Fatalf("file against %s: %d %s", card, got.code, got.errw)
+	}
+	item := soleItemID(t, root, card)
+	anchor := itemAnchorPath(t, root, card, item)
+	text, err := os.ReadFile(anchor)
+	if err != nil {
+		t.Fatalf("read the item's anchor: %v", err)
+	}
+	state := bench.ItemStateField + ": " + bench.ItemPending + "\n"
+	if !strings.Contains(string(text), state) {
+		t.Fatalf("the item's anchor carries no %q line, so nothing was planted:\n%s", state, text)
+	}
+	planted := strings.Replace(string(text), state, state+bench.ItemColumnField+": "+value+"\n", 1)
+	if err := os.WriteFile(anchor, []byte(planted), 0o644); err != nil {
+		t.Fatalf("write the item's anchor: %v", err)
+	}
+	return item
+}
+
+// TestAStaleItemColumnFindingFitsTheWindowBeforeItsDetail is dinah-481. The
+// finding dinah-474 shipped explained itself in two clauses before its detail
+// arrived, which ran the sentence alone well past an 80-column window and
+// repeated the whole explanation for every stale item on the workbench. The
+// measurement stops where the detail begins, because the detail carries a card
+// reference, an item identifier and a stored column value whose widths belong
+// to the workbench rather than to the message, and the path after it belongs
+// to the temporary directory.
+//
+// Two items are planted rather than one. Repetition is what the operator
+// objected to on reading the rendered output, so a case carrying a single
+// finding would not show the thing that was wrong.
+func TestAStaleItemColumnFindingFitsTheWindowBeforeItsDetail(t *testing.T) {
+	const window = 80
+	t.Setenv("COLUMNS", strconv.Itoa(window))
+	root := newBench(t)
+	if got := runCLI(t, root, "add", "Write the release notes"); got.code != 0 {
+		t.Fatalf("add: %d %s", got.code, got.errw)
+	}
+	if got := runCLI(t, root, "add", "Draft the summary"); got.code != 0 {
+		t.Fatalf("add: %d %s", got.code, got.errw)
+	}
+	planted := map[string]string{
+		"fx-1": staleItemColumn(t, root, "fx-1", "no-such-column"),
+		"fx-2": staleItemColumn(t, root, "fx-2", "doing"),
+	}
+
+	checked := runCLI(t, root, "check")
+	if checked.code == 0 {
+		t.Fatalf("check reported nothing over two planted items:\n%s", checked.out)
+	}
+	sentence := msg.For(msg.Base).T(bench.FindingItemColumnUnresolved, "detail", "")
+	sentence = strings.TrimSuffix(sentence, " ")
+	if want := "a checklist item names a column that will never hold a card:"; sentence != want {
+		t.Errorf("the finding reads %q before its detail, wanted %q", sentence, want)
+	}
+	for card, item := range planted {
+		var found []string
+		for _, line := range strings.Split(checked.out, "\n") {
+			if strings.Contains(line, item) {
+				found = append(found, line)
+			}
+		}
+		if len(found) != 1 {
+			t.Errorf("%s's item is reported on %d lines, wanted one:\n%s", card, len(found), checked.out)
+			continue
+		}
+		detail := card + " " + item
+		start := strings.Index(found[0], detail)
+		if start < 0 {
+			t.Errorf("%s's finding does not carry the detail %q:\n%s", card, detail, found[0])
+			continue
+		}
+		if width := displayWidth(found[0][:start]); width > window {
+			t.Errorf("%s's finding fills %d display columns before its detail begins, past the %d-column window, so the sentence alone wraps:\n%s",
+				card, width, window, found[0])
+		}
 	}
 }
