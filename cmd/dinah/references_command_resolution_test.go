@@ -219,8 +219,9 @@ func cells(line string) []string {
 }
 
 // writeChecklistItem hand-writes a checklist item onto a card's own anchor,
-// mirroring internal/verb/tree_test.go's writeItem: no verb in the declared
-// surface creates one, so the fixture writes the frontmatter directly.
+// mirroring internal/verb/tree_test.go's writeItem: writing the frontmatter
+// directly fixes the identifier and the ordinal this fixture counts on, where
+// `dinah file` mints an identifier of its own.
 func writeChecklistItem(t *testing.T, root, ref, text string, ordinal int) {
 	t.Helper()
 	id := cardID(t, root, ref)

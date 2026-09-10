@@ -9,9 +9,12 @@ import (
 )
 
 // declare writes a key into one column's own anchor frontmatter and reopens the
-// bench, which is how a test reaches a column property no verb sets. An empty
-// value clears the key, so a test can take a declaration away again and assert
-// that the same fixture behaves as a workbench that never carried it.
+// bench, which is how a test reaches a column property without going through
+// whatever else writes it. Of the keys the tests below declare, only kind has a
+// verb behind it; awaiting_outside, loop_limit, reject_to and operator_owned
+// have none. An empty value clears the key, so a test can take a declaration
+// away again and assert that the same fixture behaves as a workbench that never
+// carried it.
 func (h *harness) declare(id, key, value string) {
 	h.t.Helper()
 	path := filepath.Join(h.root, bench.ColumnsDir, id, bench.ColumnAnchor)

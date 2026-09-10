@@ -861,10 +861,10 @@ type Item struct {
 	// Text is the item's own body, the judgement it was filed under, with
 	// the newline every text file ends in trimmed off the end of it. A card
 	// body and a comment body are both carried verbatim, and an item's is
-	// not, because nothing writes an item yet: every one of them is typed
-	// into a file by hand, so every one of them would otherwise report a
-	// trailing newline no reader asked for, in a field a row of a table and
-	// a payload of one line both print.
+	// not, because an item's text is a single judgement rather than prose:
+	// `dinah file` writes one and a person editing the tree writes another,
+	// and either would otherwise report a trailing newline no reader asked
+	// for, in a field a row of a table and a payload of one line both print.
 	Text string
 }
 

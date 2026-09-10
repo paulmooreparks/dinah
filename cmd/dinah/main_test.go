@@ -3752,10 +3752,10 @@ func cardID(t *testing.T, root, ref string) string {
 	return filepath.Base(filepath.Dir(strings.TrimSpace(pathed.out)))
 }
 
-// addLink hand-writes a links entry onto a card's own anchor, since no verb
-// in the declared surface writes one (card.go's Link comment: "a declaration
-// rather than an entity, and nothing in the tool reads one" for anything but
-// display).
+// addLink hand-writes a links entry onto a card's own anchor, which keeps
+// these cases off `dinah link`'s own path (card.go's Link comment: "a
+// declaration rather than an entity, and nothing in the tool reads one" for
+// anything but display).
 func addLink(t *testing.T, root, ref, kind, to string) {
 	t.Helper()
 	path := runCLI(t, root, "path", ref)

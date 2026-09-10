@@ -451,7 +451,7 @@ func writeItem(t *testing.T, root, id string, ordinal int) {
 	t.Helper()
 	fm := NewFrontmatter()
 	fm.Set("kind", "decision")
-	fm.Set("column", "pending")
+	fm.Set(ItemStateField, ItemPending)
 	if ordinal > 0 {
 		fm.Set(OrdinalField, strconv.Itoa(ordinal))
 	}
@@ -522,8 +522,9 @@ func TestOrdinalMigrationReplaysTheJournalAndIsIdempotent(t *testing.T) {
 	appendText(t, journal, commentedEvent("e00000000009", "2026-08-17T09:01:00Z"))
 	appendText(t, journal, commentedEvent("e00000000001", "2026-08-17T09:02:00Z"))
 
-	// An attachment the journal never mentions, and a checklist item no verb
-	// creates, both fall to listing order for their own uncovered stretch.
+	// An attachment the journal never mentions, and a checklist item whose
+	// own filing event nothing reads back for ordering, both fall to listing
+	// order for their own uncovered stretch.
 	writeAttachment(t, root, "f00000000001", 0)
 	writeItem(t, root, "d00000000001", 0)
 	// A comment already stamped keeps the value it carries, and the ordinal
@@ -666,10 +667,11 @@ func assertCommentPositions(t *testing.T, opened *Bench, wanted map[string]strin
 // TestAChecklistItemHoldsItsPositionAcrossTheMigration asserts the same
 // stability for the one collection whose creation the journal cannot recover.
 //
-// No event records a checklist item being written and no verb writes one, so
-// there is nothing for the journal to say about these two. The read path and
-// the migration therefore both fall through to the directory listing, and
-// falling through to the same answer is what keeps the position still. The
+// A checklist item is written by `dinah file`, which records an item_filed
+// event, and nothing reads that event back for ordering, so the journal still
+// has nothing to say about the order of these two. The read path and the
+// migration therefore both fall through to the directory listing, and falling
+// through to the same answer is what keeps the position still. The
 // migration does stamp the items, in that guessed order, so the anchors carry
 // an ordinal afterwards and check reports every one of them as a guess.
 func TestAChecklistItemHoldsItsPositionAcrossTheMigration(t *testing.T) {
@@ -2378,6 +2380,134 @@ func TestAKindGivenAnAttachmentsMountStopsBeingReported(t *testing.T) {
 	for _, dir := range planted[1:] {
 		if !reported[dir] {
 			t.Errorf("nothing reported %s, whose kind still mounts no attachments", dir)
+		}
+	}
+}
+
+// plantCard writes a second card into the fixture, so a sweep reading every
+// card can be given several to read and be held to the set it reported. The
+// journal is the clean one every fixture card opens with, because a card whose
+// journal will not open is passed over before the later checks run.
+func plantCard(t *testing.T, root, id string, number int) {
+	t.Helper()
+	fm := NewFrontmatter()
+	fm.Set(TitleField, "A card")
+	fm.Set("number", strconv.Itoa(number))
+	fm.Set("column", "b00000000001")
+	fm.Set("state", contract.StateReady)
+	write(t, filepath.Join(root, CardsDir, id, CardAnchor), fm.Render("Framing.\n"))
+	write(t, filepath.Join(root, CardsDir, id, JournalName), cleanJournal)
+}
+
+// plantItemColumn writes one checklist item carrying the column value given,
+// which is how a test reaches the spellings a hand edit and a write made
+// before the field ran a guard both leave behind. An empty value writes no
+// column key at all, which is what an item filed without one carries. It
+// returns the anchor path, so a case can name the file it expects to be
+// reported.
+func plantItemColumn(t *testing.T, root, card, id, column string) string {
+	t.Helper()
+	fm := NewFrontmatter()
+	fm.Set("kind", "decision")
+	fm.Set(ItemStateField, ItemPending)
+	if column != "" {
+		fm.Set(ItemColumnField, column)
+	}
+	path := filepath.Join(root, CardsDir, card, ChecklistDir, id, ItemAnchor)
+	write(t, path, fm.Render("An item.\n"))
+	return path
+}
+
+// everyFile reads every file under a root, keyed by its path relative to that
+// root. It is the whole-tree twin of snapshot above, which reads the anchors
+// alone: a sweep that wrote would most likely write a journal line rather than
+// an anchor, and a comparison blind to the journal would miss exactly that.
+func everyFile(t *testing.T, root string) map[string]string {
+	t.Helper()
+	found := map[string]string{}
+	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
+		if err != nil || entry.IsDir() {
+			return err
+		}
+		text, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return readErr
+		}
+		relative, relErr := filepath.Rel(root, path)
+		if relErr != nil {
+			return relErr
+		}
+		found[filepath.ToSlash(relative)] = string(text)
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk: %v", err)
+	}
+	return found
+}
+
+// TestCheckReportsEveryItemColumnThatCannotHoldACard asserts the exact set the
+// item-column sweep reports over a workbench carrying every spelling an item's
+// column can hold: a value naming no column, a value naming the one column by
+// its slug rather than by the identifier a gate compares against, the
+// identifier itself, no column key at all, and a card with no checklist at
+// all.
+//
+// The assertion is over the set rather than over its members one at a time.
+// The two spellings that cannot gate are the ones this finding exists for, and
+// a sweep reporting the resolved identifier or the absent key as well would be
+// reporting every ordinary item on a real workbench.
+func TestCheckReportsEveryItemColumnThatCannotHoldACard(t *testing.T) {
+	root := newFixture(t)
+	plantCard(t, root, "c00000000002", 2)
+	plantCard(t, root, "c00000000003", 3)
+	plantCard(t, root, "c00000000004", 4)
+	plantCard(t, root, "c00000000005", 5)
+
+	unresolvable := plantItemColumn(t, root, "c00000000001", "d00000000001", "no-such-column")
+	bySlug := plantItemColumn(t, root, "c00000000002", "d00000000002", "only")
+	plantItemColumn(t, root, "c00000000003", "d00000000003", "b00000000001")
+	plantItemColumn(t, root, "c00000000004", "d00000000004", "")
+	// c00000000005 carries no checklist at all.
+
+	opened, err := Open(root)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	before := everyFile(t, root)
+	findings, err := opened.Check()
+	if err != nil {
+		t.Fatalf("check: %v", err)
+	}
+
+	reported := map[string]string{}
+	for _, finding := range findings {
+		if finding.Key != FindingItemColumnUnresolved {
+			continue
+		}
+		reported[finding.Path] = finding.Detail
+	}
+	if len(reported) != 2 {
+		t.Fatalf("the sweep reported %d items, wanted 2: %+v", len(reported), reported)
+	}
+	if detail, found := reported[unresolvable]; !found {
+		t.Errorf("the item naming no column was not reported: %+v", reported)
+	} else if detail != "fx-1 d00000000001 no-such-column" {
+		t.Errorf("the detail reads %q, wanted the card reference, the item and the stored value", detail)
+	}
+	if detail, found := reported[bySlug]; !found {
+		t.Errorf("the item naming the column by its slug was not reported: %+v", reported)
+	} else if detail != "fx-2 d00000000002 only" {
+		t.Errorf("the detail reads %q, wanted the card reference, the item and the stored value", detail)
+	}
+
+	after := everyFile(t, root)
+	if len(before) != len(after) {
+		t.Fatalf("the sweep changed how many files stand under the workbench, %d before and %d after", len(before), len(after))
+	}
+	for path, text := range before {
+		if after[path] != text {
+			t.Errorf("%s changed while check ran, and no sweep in this file writes", path)
 		}
 	}
 }

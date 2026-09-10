@@ -125,9 +125,11 @@ func TestWordForItemKindAgreesWithWhatAReferenceResolvesBy(t *testing.T) {
 	}
 }
 
-// plantChecklistItem writes one checklist item by hand, which is how one
-// reaches a card: no verb writes one yet, and the format is a tree of plain
-// files a person is meant to be able to edit.
+// plantChecklistItem writes one checklist item by hand, which is how a card in
+// this package's tests comes to carry one. `dinah file` lives a layer up in
+// internal/verb, which imports this package and cannot be called from it, and
+// the format is a tree of plain files a person is meant to be able to edit, so
+// writing the anchor is the whole act.
 func plantChecklistItem(t *testing.T, cardDir, id, frontmatter, text string) {
 	t.Helper()
 	path := filepath.Join(cardDir, ChecklistDir, id, ItemAnchor)

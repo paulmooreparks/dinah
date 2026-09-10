@@ -153,6 +153,11 @@ func plainValueFor(field bench.Field) string {
 		return "3"
 	case bench.GuardHold:
 		return bench.HoldOn
+	case bench.GuardColumnRef:
+		// The second column of fieldGuardDefinition, named by the
+		// identifier a resolved write stores, so this half tests the line
+		// rule rather than the guard.
+		return "d00000000002"
 	}
 	return "a written value"
 }

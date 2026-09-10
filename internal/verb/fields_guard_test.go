@@ -32,14 +32,15 @@ const fieldGuardDefinition = `{
 // sentence, so a reworded catalog entry cannot redden it.
 func TestEveryGuardedFieldRefusesAndAcceptsAtItsOwnGate(t *testing.T) {
 	subtests := map[string]func(*testing.T){
-		bench.GuardSlug:     guardSlug,
-		bench.GuardLevel:    guardLevel,
-		bench.GuardTier:     guardTier,
-		bench.GuardState:    guardState,
-		bench.GuardFilename: guardFilename,
-		bench.GuardKind:     guardColumnKind,
-		bench.GuardCapacity: guardCapacity,
-		bench.GuardHold:     guardHold,
+		bench.GuardSlug:      guardSlug,
+		bench.GuardLevel:     guardLevel,
+		bench.GuardTier:      guardTier,
+		bench.GuardState:     guardState,
+		bench.GuardFilename:  guardFilename,
+		bench.GuardKind:      guardColumnKind,
+		bench.GuardCapacity:  guardCapacity,
+		bench.GuardHold:      guardHold,
+		bench.GuardColumnRef: guardColumnRef,
 	}
 	if len(subtests) != len(bench.Guards) {
 		t.Fatalf("this file runs %d subtests and the closed guard set declares %d, so a guard is unexercised", len(subtests), len(bench.Guards))
@@ -293,6 +294,60 @@ func guardHold(t *testing.T) {
 	h.reopen()
 	if h.library.Bench.Columns[1].GateItems {
 		t.Error("the column reads back as holding after the hold was turned off")
+	}
+}
+
+// guardColumnRef asserts both halves of an item's column write: a spelling
+// that names no column is refused, and a spelling that names one is accepted
+// and stored as that column's identifier rather than as what was typed.
+//
+// The stored value is read back rather than the answer alone, because the
+// whole point of the guard is which of the three legal spellings reaches
+// disk: a gate compares an item's column against a column identifier by
+// string equality, so a title stored as a title holds nothing.
+func guardColumnRef(t *testing.T) {
+	h := harnessFromDefinition(t, "gd", fieldGuardDefinition)
+	ref := h.add("a card carrying a checklist")
+	fileItem(t, h, ref, "decision", "which column answers this")
+	h.reopen()
+	item := ref + "/decisions/1"
+
+	unknown := h.library.SetField(&Request{
+		Verb: "set", Actor: "alka", Ref: item,
+		Field: bench.ItemColumnField, Value: "no-such-column",
+	})
+	refusedWith(t, "a column nothing resolves", unknown, contract.UnknownColumn)
+
+	accepted := h.library.SetField(&Request{
+		Verb: "set", Actor: "alka", Ref: item,
+		Field: bench.ItemColumnField, Value: "Doing",
+	})
+	acceptedOK(t, "a column named by its title", accepted)
+	h.reopen()
+	value, err := h.library.GetField(&Request{
+		Verb: "get", Ref: item, Field: bench.ItemColumnField,
+	})
+	if err != nil {
+		t.Fatalf("read the column back: %v", err)
+	}
+	if value != "d00000000002" {
+		t.Errorf("the item reads back the column %q, wanted the identifier d00000000002", value)
+	}
+
+	cleared := h.library.SetField(&Request{
+		Verb: "set", Actor: "alka", Ref: item,
+		Field: bench.ItemColumnField, Value: "",
+	})
+	acceptedOK(t, "a column cleared", cleared)
+	h.reopen()
+	value, err = h.library.GetField(&Request{
+		Verb: "get", Ref: item, Field: bench.ItemColumnField,
+	})
+	if err != nil {
+		t.Fatalf("read the cleared column back: %v", err)
+	}
+	if value != "" {
+		t.Errorf("the item reads back the column %q after a clear, wanted nothing", value)
 	}
 }
 

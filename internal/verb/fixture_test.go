@@ -193,9 +193,9 @@ func (h *harness) attach(ref, name, body string) {
 	h.reopen()
 }
 
-// item writes a checklist item onto a card by hand, which is the only way one
-// is written today: no verb creates or resolves an item, and the format is a
-// tree of plain files a person is meant to be able to edit. The frontmatter
+// item writes a checklist item onto a card by hand rather than through File,
+// because the format is a tree of plain files a person is meant to be able to
+// edit and these cases have to plant what no verb would write. The frontmatter
 // is written as text rather than through Frontmatter so that a test can plant
 // a key that is absent or malformed, which is what CORE-CLAIM-9's own
 // fail-closed reading needs exercised.

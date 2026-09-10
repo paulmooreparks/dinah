@@ -596,3 +596,106 @@ func TestTheStoredHoldKeyReachesNothingAPersonReads(t *testing.T) {
 		}
 	}
 }
+
+// itemAnchorPath names the file one checklist item of a card is written in, so
+// a case can read the bytes a refused write must not have touched.
+func itemAnchorPath(t *testing.T, root, card, item string) string {
+	t.Helper()
+	return filepath.Join(soleBenchDir(t, root), bench.CardsDir, cardID(t, root, card), bench.ChecklistDir, item, bench.ItemAnchor)
+}
+
+// TestAnItemColumnSetByItsShortNameHoldsTheCard is dinah-474 AC-3 and AC-5,
+// which is the pair that proves the fix reaches the gate rather than only the
+// file. The column is named by its slug through the generic write, which is
+// the spelling every surface prints and the spelling that used to be stored
+// verbatim and hold nothing.
+//
+// The move is run twice on purpose. A build refusing every move into the held
+// station would pass the first half on its own, so the second half settles the
+// item and asserts the same move goes through.
+func TestAnItemColumnSetByItsShortNameHoldsTheCard(t *testing.T) {
+	root := newBench(t)
+	if got := runCLI(t, root, "add", "Write the release notes"); got.code != 0 {
+		t.Fatalf("add: %d %s", got.code, got.errw)
+	}
+	if got := runCLI(t, root, "set", "doing", bench.HoldField, bench.HoldOn); got.code != 0 {
+		t.Fatalf("set doing hold on: %d %s", got.code, got.errw)
+	}
+	// An acceptance criterion rather than an open question, for the reason
+	// TestTheHoldCommandTurnsTheGateOnAndOff gives: an unresolved question
+	// refuses a claim wherever the card stands, and this case is about the
+	// column's own hold.
+	if got := runCLI(t, root, "file", "fx-1", "acceptance_criterion", "Somebody has to settle this."); got.code != 0 {
+		t.Fatalf("file: %d %s", got.code, got.errw)
+	}
+	item := soleItemID(t, root, "fx-1")
+
+	if got := runCLI(t, root, "set", "fx-1/criteria/1", bench.ItemColumnField, "doing"); got.code != 0 {
+		t.Fatalf("set the item's column by slug: %d %s", got.code, got.errw)
+	}
+	stored := runCLI(t, root, "get", "fx-1/criteria/1", bench.ItemColumnField)
+	if stored.code != 0 {
+		t.Fatalf("read the item's column back: %d %s", stored.code, stored.errw)
+	}
+	held := columnIdentifier(t, root, "doing")
+	if got := strings.TrimSpace(stored.out); got != held {
+		t.Fatalf("the item stores the column %q, wanted the identifier %s that the gate compares against", got, held)
+	}
+
+	refused := runCLI(t, root, "move", "fx-1", "doing")
+	if refused.code == 0 {
+		t.Fatal("the move into the held station succeeded carrying the item that names it")
+	}
+	if name := refusalNameOf(refused.errw); name != contract.UnresolvedItem {
+		t.Errorf("the refusal name is %s, wanted %s", name, contract.UnresolvedItem)
+	}
+	if !strings.Contains(refused.errw, item) {
+		t.Errorf("the refusal names no item; wanted %s in:\n%s", item, refused.errw)
+	}
+
+	if got := runCLI(t, root, "verify", "fx-1/criteria/1", "the endpoint answers 404, run against the fixture"); got.code != 0 {
+		t.Fatalf("verify: %d %s", got.code, got.errw)
+	}
+	if got := runCLI(t, root, "move", "fx-1", "doing"); got.code != 0 {
+		t.Fatalf("the move was refused with the item settled: %d %s", got.code, got.errw)
+	}
+}
+
+// TestAnItemColumnNamingNoColumnIsRefused is dinah-474 AC-4. The write is
+// refused under the name the file path already raises for the same condition,
+// and the item's anchor is compared byte for byte, because a refusal that has
+// already written is the defect this card exists to close rather than a
+// cosmetic one.
+func TestAnItemColumnNamingNoColumnIsRefused(t *testing.T) {
+	root := newBench(t)
+	if got := runCLI(t, root, "add", "Write the release notes"); got.code != 0 {
+		t.Fatalf("add: %d %s", got.code, got.errw)
+	}
+	if got := runCLI(t, root, "file", "fx-1", "decision", "Somebody has to settle this."); got.code != 0 {
+		t.Fatalf("file: %d %s", got.code, got.errw)
+	}
+	anchor := itemAnchorPath(t, root, "fx-1", soleItemID(t, root, "fx-1"))
+	before, err := os.ReadFile(anchor)
+	if err != nil {
+		t.Fatalf("read the item's anchor: %v", err)
+	}
+
+	refused := runCLI(t, root, "set", "fx-1/decisions/1", bench.ItemColumnField, "no-such-column")
+	if refused.code == 0 {
+		t.Fatal("a column nothing resolves was accepted")
+	}
+	if name := refusalNameOf(refused.errw); name != contract.UnknownColumn {
+		t.Errorf("the refusal name is %s, wanted %s", name, contract.UnknownColumn)
+	}
+	if !strings.Contains(refused.errw, "no-such-column") {
+		t.Errorf("the refusal does not name what was typed:\n%s", refused.errw)
+	}
+
+	after, err := os.ReadFile(anchor)
+	if err != nil {
+		t.Fatalf("read the item's anchor again: %v", err)
+	}
+	if string(after) != string(before) {
+		t.Errorf("the refused write changed the anchor:\nbefore\n%s\nafter\n%s", before, after)
+	}
+}
