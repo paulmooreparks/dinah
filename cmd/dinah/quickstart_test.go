@@ -2010,10 +2010,18 @@ func TestTheQuickStartDropsTheRetiredWorkstreamClause(t *testing.T) {
 }
 
 // TestTheQuickStartShowsBothWorkstreamSpellings asserts the second of
-// dinah-454 AC-12's two added assertions: the claim the retired sentence made
-// in prose is now shown in a replayed block, which is the half a guard can
-// hold. TestTheQuickStartMatchesTheTool holds what that block prints; this one
-// holds that the block is there and drives the two commands.
+// dinah-454 AC-12's two added assertions: the claim the surrounding prose
+// makes is shown in a replayed block, which is the half a guard can hold.
+// TestTheQuickStartMatchesTheTool holds what that block prints; this one holds
+// that the block is there and drives the two commands.
+//
+// The claim moved when the kind-prefixed field spellings were retired. It used
+// to be that the retired pair took a workstream and nothing else and so
+// accepted the bare slug; it is now that join and leave do, while a command
+// taking any reference wants the prefixed form. So the accepting half of the
+// block is a join rather than a read: the two reference-taking commands both
+// refuse a bare slug, and a block where neither command showed the accepting
+// half would illustrate nothing.
 func TestTheQuickStartShowsBothWorkstreamSpellings(t *testing.T) {
 	source, err := os.ReadFile(quickStartPath)
 	if err != nil {
@@ -2021,7 +2029,7 @@ func TestTheQuickStartShowsBothWorkstreamSpellings(t *testing.T) {
 	}
 	lines := strings.Split(string(source), "\n")
 	wanted := []string{
-		"$ dinah workstream get workstream/autumn-2025 status",
+		"$ dinah join rel-2 autumn-2025",
 		"$ dinah contents autumn-2025",
 	}
 	for i, line := range lines {

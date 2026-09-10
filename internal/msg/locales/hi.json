@@ -169,45 +169,55 @@
       "context": "One row of the ordered precondition list of block, quoted from section 6 of the core profile.",
       "source": "ec01b01e10f981a7"
     },
-    "check.card.1": {
-      "text": "संदर्भ इस वर्कबेंच के एक कार्ड को नाम देता है",
+    "check.get.1": {
+      "text": "संदर्भ एक ही इकाई पर हल होता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "60d69cecd8163ee2"
+      "source": "602b3d376fe3f5b6"
     },
-    "check.card.2": {
-      "text": "--at इस वर्कबेंच के एक कॉलम को नाम देता है",
+    "check.get.2": {
+      "text": "फ़ील्ड वह है जो वह प्रकार रखता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "2235cca0a0d5d60b"
+      "source": "7b891cbb2ae50f1f"
     },
-    "check.card.3": {
-      "text": "फ़ील्ड वह है जो एक कार्ड रखता है",
+    "check.set.1": {
+      "text": "यह वर्कबेंच एक संचालक नियुक्त करती है",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "823290afcaaee695"
+      "source": "b64509306a5c6b2"
     },
-    "check.card.4": {
-      "text": "वर्कबेंच उस फ़ील्ड के लिए स्तर घोषित करती है",
-      "context": "One row of the precondition list of a command outside the five the profile specifies. The last three words bind it to the field being written: the question is whether this workbench declares a set for that one axis, never whether it declares any levels at all.",
-      "source": "7be94b9daf0a52fd"
-    },
-    "check.card.5": {
-      "text": "सापेक्ष मान के पास गिनने के लिए एक डिफ़ॉल्ट है",
+    "check.set.2": {
+      "text": "संदर्भ एक ही इकाई पर हल होता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "945d9750f68dc8a7"
+      "source": "602b3d376fe3f5b6"
     },
-    "check.card.6": {
-      "text": "मान वह स्तर है जिसे वह फ़ील्ड घोषित करता है",
+    "check.set.3": {
+      "text": "फ़ील्ड वह है जो वह प्रकार रखता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "4002d10f56f595e"
+      "source": "7b891cbb2ae50f1f"
     },
-    "check.card.7": {
-      "text": "सापेक्ष मान घोषित स्तरों के भीतर रहता है",
+    "check.set.4": {
+      "text": "मान उपस्थित है, और गद्य न होने पर एक ही पंक्ति का है",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "d04b77900ae81b5c"
+      "source": "db325899f113a89a"
     },
-    "check.card.8": {
+    "check.set.5": {
+      "text": "फ़ील्ड का अपना पहरा उस मान को स्वीकार करता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "1fe6da8db2af7a1d"
+    },
+    "check.set.6": {
       "text": "निवेदन किसी स्वामी को नामता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "bc538e33f1fcc933"
+    },
+    "check.set.7": {
+      "text": "वह स्वामी संचालक है, जहाँ वह प्रकार यह माँगता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "1dfdf27dbaf18e5e"
+    },
+    "check.set.8": {
+      "text": "उपनाम बदलने में पुष्टि फ़्लैग है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "785f446889dee438"
     },
     "check.claim-without-active": {
       "text": "कार्ड {detail} पर दावा क्षेत्र हैं पर स्थिति active नहीं",
@@ -939,31 +949,6 @@
       "context": "One row of the ordered precondition list of workbench, quoted from section 6 of the core profile.",
       "source": "99ec845df4936041"
     },
-    "check.workbench-field.1": {
-      "text": "क्षेत्र वह है जो यह वर्कबेंच रखता है",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "7a256233715cd43b"
-    },
-    "check.workbench-field.2": {
-      "text": "मान उपस्थित है और सही रूप में है",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "5ddd4270f4999df2"
-    },
-    "check.workbench-field.3": {
-      "text": "लिखते समय, निवेदन किसी स्वामी को नामता है",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "b7869b2f1f2419fe"
-    },
-    "check.workbench-field.4": {
-      "text": "वह स्वामी संचालक है",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "25b30388cd1d08aa"
-    },
-    "check.workbench-field.5": {
-      "text": "उपनाम बदलने में पुष्टि फ़्लैग है",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "549a89af58988602"
-    },
     "check.workbench-slug-assigned": {
       "text": "वर्कबेंच-उपनाम {slug} निर्धारित किया।",
       "context": "The line the workbench-slug migration prints for what it derived, once, since a run repairs at most one workbench.",
@@ -994,16 +979,6 @@
       "context": "The line the adoption repair prints for what it created, for any other number. Followed by one line per adopted identifier.",
       "source": "88982256aaa42a05"
     },
-    "check.workstream-field.1": {
-      "text": "वर्कस्ट्रीम मौजूद है",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "1c1e8ef1fba280ab"
-    },
-    "check.workstream-field.2": {
-      "text": "क्षेत्र वह है जो यह वर्कस्ट्रीम रखती है",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "a249bb238b1f4f2f"
-    },
     "check.workstream-field.3": {
       "text": "शीर्षक या मान उपस्थित है और सही रूप में है",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
@@ -1013,16 +988,6 @@
       "text": "निवेदन किसी स्वामी को नामता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "bc538e33f1fcc933"
-    },
-    "check.workstream-field.5": {
-      "text": "क्षेत्र में लिखने वाला संचालक है",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "4485b32023eb47f8"
-    },
-    "check.workstream-field.6": {
-      "text": "उपनाम बदलने में पुष्टि फ़्लैग है",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "785f446889dee438"
     },
     "check.workstream-slug-assigned.one": {
       "text": "{count} वर्कस्ट्रीम-उपनाम निर्धारित किया।",
@@ -1068,11 +1033,6 @@
       "text": "कार्ड, कॉलम, या कार्ड के नीचे की कोई भी वस्तु जीवित समूह से बाहर करें",
       "context": "The one-line summary of the archive command, shown beside its syntax in the help block.",
       "source": "dc0b4d1c53656321"
-    },
-    "cmd.card.summary": {
-      "text": "किसी कार्ड का अपना कोई एक फ़ील्ड पढ़ें, या कोई एक लिखें",
-      "context": "The one-line summary of the card command, shown beside its syntax in the help block.",
-      "source": "fa91a2816300606a"
     },
     "cmd.cite.summary": {
       "text": "चेकलिस्ट मद पर प्रमाण उद्धृत करें",
@@ -1138,6 +1098,16 @@
       "text": "इस वर्कबेंच, किसी कार्ड, या कार्ड के नीचे की किसी वस्तु को अपने संपादक में खोलें",
       "context": "The one-line summary of the edit command, shown beside its syntax in the help block.",
       "source": "4c47ea6af00f9c49"
+    },
+    "cmd.get.summary": {
+      "text": "इस वर्कबेंच की किसी भी इकाई का एक फ़ील्ड पढ़ें",
+      "context": "The one-line summary of the get command, shown beside its syntax in the help block.",
+      "source": "d507966613c6a485"
+    },
+    "cmd.set.summary": {
+      "text": "इस वर्कबेंच की किसी भी इकाई का एक फ़ील्ड लिखें",
+      "context": "The one-line summary of the set command, shown beside its syntax in the help block.",
+      "source": "bd0744c2d302f134"
     },
     "cmd.export.summary": {
       "text": "इस वर्कबेंच का विनिमय रूप stdout पर लिखें",
@@ -1238,26 +1208,6 @@
       "text": "कार्ड किस गंभीरता स्तर के साथ दर्ज करना है, उन स्तरों में से जो यह वर्कबेंच घोषित करती है",
       "context": "The meaning of the severity argument of `dinah add`, printed in that command's arguments table.",
       "source": "b582dea3676f4a97"
-    },
-    "param.card.action.summary": {
-      "text": "दो कार्यों में से कौन-सा चलाना है: एक फ़ील्ड पढ़ना या एक लिखना",
-      "context": "The meaning of the action argument of `dinah card`, printed in that command's arguments table.",
-      "source": "bf33c4c7813d8693"
-    },
-    "param.card.field.summary": {
-      "text": "आप कौन-सा फ़ील्ड पढ़ या लिख रहे हैं: severity, priority या tier",
-      "context": "The meaning of the field argument of `dinah card`, printed in that command's arguments table.",
-      "source": "652bb2461918ae56"
-    },
-    "param.card.value.summary": {
-      "text": "जो स्तर लिखना है; फ़ील्ड खाली करने के लिए इसे छोड़ दें",
-      "context": "The meaning of the value argument of `dinah card`, printed in that command's arguments table.",
-      "source": "e6f73845d9f81a66"
-    },
-    "param.card.at.summary": {
-      "text": "वह कॉलम जिस पर tier लेखन लागू होता है, कार्ड की अपनी आधार-रेखा के बजाय; tier ही एकमात्र फ़ील्ड है जो इसे लेता है",
-      "context": "The meaning of the at argument of `dinah card`, printed in that command's arguments table. A severity or a priority is one value for the whole card, so naming a column for either is a usage error.",
-      "source": "837e4d41d4d3e056"
     },
     "param.cite.item.summary": {
       "text": "वह चेकलिस्ट मद जिसमें उद्धरण जोड़ा जाता है, जैसे wb-1/criteria/1",
@@ -1424,15 +1374,25 @@
       "context": "The next step of refusal.dinah.uncited, spliced onto the sentence that just named the item.",
       "source": "f6ebc6f8b974ddfd"
     },
-    "refusal.dinah.unknown-field.card": {
-      "text": "Dinah के पास {detail} नाम का कोई क्षेत्र नहीं है। एक कार्ड जिन क्षेत्रों को रखता है वे हैं: {fields}।",
-      "context": "The sentence printed after the refusal name dinah.unknown-field when the card command raised it, which is a write naming a field a card does not record. It is refusal.dinah.unknown-field with the query's own clause replaced, and the command word selects between the two. {detail} is the field the reader typed. {fields} is the set of fields a card records, read off the tool rather than written here, so a field name is machine vocabulary and is never translated.",
-      "source": "a77e2922618b02f9"
+    "refusal.dinah.unknown-field.get": {
+      "text": "Dinah के पास {kind} पर {detail} नाम का कोई फ़ील्ड नहीं है। {kind} के फ़ील्ड ये हैं: {fields}।",
+      "context": "The sentence printed after the refusal name dinah.unknown-field when the get command raised it, which is a read naming a field the resolved kind does not record. {detail} is the field the reader typed. {kind} is the kind the reference resolved to and {fields} is that kind's own set, both read off the tool rather than written here, so both are machine vocabulary and are never translated. No word of the sentence may agree with {kind}, because the token substituted there is untranslated English and no language can predict its gender, its number or the sound it starts with, so the kind is named without an article before it and without a word inflected for it.",
+      "source": "cad310301156a4c4"
     },
-    "refusal.dinah.unknown-field.card.next": {
-      "text": " उनमें से किसी एक का नाम लें, या यह देखने के लिए कि यह आदेश क्या जाँचता है `dinah help card` चलाएँ।",
-      "context": "The next step of refusal.dinah.unknown-field when the card command raised it. It points at that command's own help page where the shared one points at the query's. The command line inside it is syntax and stays as it is.",
-      "source": "47a93fa06743eae2"
+    "refusal.dinah.unknown-field.get.next": {
+      "text": " उनमें से किसी एक का नाम लें, या यह देखने के लिए कि यह आदेश क्या लेता है `dinah help get` चलाएँ।",
+      "context": "The next step of refusal.dinah.unknown-field when the get command raised it. It points at that command's own help page where the shared one points at the query's. The command line inside it is syntax and stays as it is.",
+      "source": "7a27fbcc9321beb7"
+    },
+    "refusal.dinah.unknown-field.set": {
+      "text": "Dinah के पास {kind} पर {detail} नाम का कोई फ़ील्ड नहीं है। {kind} के फ़ील्ड ये हैं: {fields}।",
+      "context": "The sentence printed after the refusal name dinah.unknown-field when the set command raised it, which is a write naming a field the resolved kind does not record. It carries the same sentence as the get variant and is a separate entry because the two next steps differ. {detail} is the field the reader typed. {kind} is the kind the reference resolved to and {fields} is that kind's own set, both read off the tool rather than written here, so both are machine vocabulary and are never translated. No word of the sentence may agree with {kind}, because the token substituted there is untranslated English and no language can predict its gender, its number or the sound it starts with, so the kind is named without an article before it and without a word inflected for it.",
+      "source": "cad310301156a4c4"
+    },
+    "refusal.dinah.unknown-field.set.next": {
+      "text": " उनमें से किसी एक का नाम लें, या यह देखने के लिए कि यह आदेश क्या लेता है `dinah help set` चलाएँ।",
+      "context": "The next step of refusal.dinah.unknown-field when the set command raised it. It points at that command's own help page where the shared one points at the query's. The command line inside it is syntax and stays as it is.",
+      "source": "ebc507780e574e73"
     },
     "refusal.dinah.unknown-item-kind": {
       "text": "{detail} चेकलिस्ट मद का प्रकार नहीं है। प्रकार हैं {kinds}।",
@@ -1480,9 +1440,9 @@
       "source": "be48f8ac9203e45b"
     },
     "refusal.dinah.tier-not-higher.next": {
-      "text": "; {current} से ऊपर का स्तर बताएँ, या यदि आपका अर्थ बढ़ाना नहीं है तो उसे `card set ... tier ... --at ...` से लिखें",
+      "text": "; {current} से ऊपर की कोई श्रेणी नामें, या यदि आपका आशय अनुरोध से भिन्न कुछ है तो उसे `set ... tier ... --at ...` से लिखें",
       "context": "The next step of refusal.dinah.tier-not-higher. Both ways out are named because only one of them is a raise: the other verb writes any value, a lower one included, and it does not hand the card back.",
-      "source": "a1d466252499c5ef"
+      "source": "54f1ff54c18a3437"
     },
     "refusal.dinah.tier-out-of-range": {
       "text": "{detail} पायदान {attempted} पर पहुँचता है, जो इस वर्कबेंच के tier समुच्चय से बाहर है",
@@ -1705,9 +1665,9 @@
       "source": "7abeaebb7ab6b730"
     },
     "cmd.workbench.summary": {
-      "text": "इस वर्कबेंच के अपने क्षेत्र पढ़ें, या कोई एक लिखें",
+      "text": "इस वर्कबेंच के अपने फ़ील्ड पढ़ें",
       "context": "The one-line summary of the workbench command, shown beside its syntax in the help block.",
-      "source": "704668116bd24c97"
+      "source": "23bcfa1d77894f2d"
     },
     "cmd.workbenches.summary": {
       "text": "किसी डायरेक्टरी के नीचे की वर्कबेंच, या यहाँ से पहुँच योग्य वर्कबेंच",
@@ -1715,9 +1675,9 @@
       "source": "f45cb9666975067c"
     },
     "cmd.workstream.summary": {
-      "text": "इस वर्कबेंच की वर्कस्ट्रीम पढ़ें, नई बनाएँ, या किसी एक के क्षेत्र लिखें",
+      "text": "इस वर्कबेंच की वर्कस्ट्रीम पढ़ें, या एक नई बनाएँ",
       "context": "The one-line summary of the workstream command, shown beside its syntax in the help block.",
-      "source": "ffca4130e336f703"
+      "source": "6bba9fcad30efac1"
     },
     "column.blocked.card": {
       "text": "कार्ड",
@@ -2029,31 +1989,6 @@
       "context": "Heading over the workbench's title, in the workbench listing, which `dinah workbenches` prints and the ambiguous-workbench refusal repeats. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "28958cab917f71fe"
     },
-    "column.workstream.card": {
-      "text": "कार्ड",
-      "context": "Heading over the card's reference, in the member cards `dinah workstream get` prints under the fields. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "source": "dfef4f9ce9ebb93f"
-    },
-    "column.workstream.field": {
-      "text": "क्षेत्र",
-      "context": "Heading over the field's name, in the fields `dinah workstream get` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "source": "42a1ebe17efda727"
-    },
-    "column.workstream.column": {
-      "text": "कॉलम",
-      "context": "Heading over the column the card stands in, in the member cards `dinah workstream get` prints under the fields. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "source": "9e40e59654c8ad67"
-    },
-    "column.workstream.title": {
-      "text": "शीर्षक",
-      "context": "Heading over the card's title, in the member cards `dinah workstream get` prints under the fields. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "source": "99f110d27e30b289"
-    },
-    "column.workstream.value": {
-      "text": "मान",
-      "context": "Heading over the value stored under it, in the fields `dinah workstream get` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "source": "41f7dca46d3f1b4a"
-    },
     "column.workstreams.cards": {
       "text": "कार्ड",
       "context": "Heading over how many live cards belong to the workstream, in the listing `dinah workstream` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
@@ -2246,7 +2181,7 @@
     },
     "log.tier-overridden": {
       "text": "{column}: {from} से {to}",
-      "context": "The detail of a tier_overridden line: the column the override concerns, and the requirement on either side of the write. {column} is the title the event captured at write time, falling back to the stored identifier on a line that captured none. {from} is the previous requirement, or log.tier-overridden.no-requirement where the card asked for nothing. log.tier-overridden.reason is appended after this one only when the event carries a reason, which an ordinary card set ... --at write does not.",
+      "context": "The detail of a tier_overridden line: the column the override concerns, and the requirement on either side of the write. {column} is the title the event captured at write time, falling back to the stored identifier on a line that captured none. {from} is the previous requirement, or log.tier-overridden.no-requirement where the card asked for nothing. log.tier-overridden.reason is appended after this one only when the event carries a reason, which an ordinary `set <ref> tier <value> --at <column>` write does not.",
       "source": "b14b0ec28b6548e9"
     },
     "log.tier-overridden.no-requirement": {
@@ -2521,7 +2456,7 @@
     },
     "refusal.dinah.not-renamable": {
       "text": "{kind} कोई संलग्नक नहीं है, और rename उसका नाम नहीं बदलेगा",
-      "context": "The sentence printed after the refusal name dinah.not-renamable. {kind} names what kind of entity the reference reached, so the sentence names the entity the caller meant rather than the word they typed.",
+      "context": "The sentence printed after the refusal name dinah.not-renamable. {kind} names what kind of entity the reference reached, so the sentence names the entity the caller meant rather than the word they typed. {kind} is machine vocabulary and is never translated, so no word of the sentence may agree with it, for the reason refusal.dinah.unknown-field.get gives. That covers the possessive on the name, which a language carrying grammatical gender would otherwise inflect for the kind.",
       "source": "73f2c382dedeeb8f"
     },
     "refusal.dinah.not-renamable.next": {
@@ -2579,24 +2514,19 @@
       "context": "Spliced onto refusal.dinah.unconfirmed as the next step, carrying the clause that base entry used to end with.",
       "source": "ae278c50de5046b8"
     },
-    "refusal.dinah.unconfirmed.workbench": {
-      "text": "जब आप उपनाम बदलकर {detail} करते हैं तो Dinah इस वर्कबेंच के हर कार्ड का नाम बदल देता है, इसलिए आपने अन्यत्र जो भी कार्ड संदर्भ लिखे हैं वे मेल खाना बंद कर देंगे।",
-      "context": "The sentence printed after the refusal name dinah.unconfirmed when the workbench command raised it. {detail} carries the new slug the rename would write. A command adding no key of its own renders refusal.dinah.unconfirmed instead.",
-      "source": "57538a7607922b4"
+    "refusal.dinah.unconfirmed.set": {
+      "text": "इस इकाई का हर वह संदर्भ जो आपने कहीं और लिख रखा है पुराने उपनाम को नामता है, और उसे {detail} में बदलने पर वे संदर्भ मिलना बंद हो जाते हैं।",
+      "context": "The sentence printed after the refusal name dinah.unconfirmed when the set command raised it, which is a slug change carrying no confirmation. {detail} is the slug the reader asked for. It is one sentence for every kind whose slug can change, and the clause about a workbench renaming its cards is spliced on separately, because only that kind does.",
+      "source": "fe0ebbedd707951"
     },
-    "refusal.dinah.unconfirmed.workbench.next": {
-      "text": " आदेश को --yes के साथ फिर चलाएँ।",
-      "context": "Spliced onto refusal.dinah.unconfirmed.workbench as its next step, carrying the sentence that base entry used to end with. The workbench command renders it; every other command renders refusal.dinah.unconfirmed.next.",
-      "source": "36b7012eed26cc03"
+    "refusal.dinah.unconfirmed.set.cards": {
+      "text": " Dinah उसी समय इस वर्कबेंच के हर कार्ड का नाम बदल देती है।",
+      "context": "Spliced onto refusal.dinah.unconfirmed.set when the entity whose slug is changing is the workbench itself, which is the one kind whose slug change also renames every card reference in the workbench.",
+      "source": "eff371fd4a1828de"
     },
-    "refusal.dinah.unconfirmed.workstream": {
-      "text": "आपने अन्यत्र इस वर्कस्ट्रीम के जो भी संदर्भ लिखे हैं वे पुराना उपनाम बताते हैं, और उसे {detail} करने पर वे संदर्भ मेल खाना बंद कर देंगे।",
-      "context": "The sentence printed after the refusal name dinah.unconfirmed when the workstream command raised it. {detail} carries the new slug the change would write. A command adding no key of its own renders refusal.dinah.unconfirmed instead.",
-      "source": "c5ff502f9154a523"
-    },
-    "refusal.dinah.unconfirmed.workstream.next": {
-      "text": " आदेश को --yes के साथ फिर चलाएँ।",
-      "context": "Spliced onto refusal.dinah.unconfirmed.workstream as its next step. The workstream command renders it; every other command renders refusal.dinah.unconfirmed.next.",
+    "refusal.dinah.unconfirmed.set.next": {
+      "text": " आदेश को --yes के साथ फिर से चलाएँ।",
+      "context": "The next step of refusal.dinah.unconfirmed when the set command raised it. The flag inside it is syntax and stays as it is.",
       "source": "36b7012eed26cc03"
     },
     "refusal.dinah.unknown-command": {
@@ -2944,6 +2874,11 @@
       "context": "Spliced onto refusal.malformed when the refusal carries a path: the file the missing or broken field belongs to.",
       "source": "ef1414e25cbe0d27"
     },
+    "refusal.malformed.one-line": {
+      "text": "; {detail} का मान एक ही पंक्ति में रखा जाता है, और आपने जो मान दिया वह पंक्ति-विराम रखता है",
+      "context": "Spliced onto refusal.malformed when the refusal carries the one-line marker: the field is stored as a frontmatter key rather than as the anchor's prose, so its value holds one line. {detail} is the field name, which is machine vocabulary and is never translated.",
+      "source": "6becc83b82967592"
+    },
     "refusal.malformed.fix": {
       "text": "; फ़ाइल को स्वयं संपादित करके जोड़ें, फिर पुष्टि के लिए `dinah check` चलाएँ",
       "context": "Spliced onto refusal.malformed after refusal.malformed.at, naming the repair.",
@@ -3079,6 +3014,11 @@
       "context": "Spliced onto refusal.unknown-card as the next step.",
       "source": "cc7f9fefb530b2c4"
     },
+    "refusal.unknown-card.workstream.next": {
+      "text": "; {workstream} एक वर्कस्ट्रीम का नाम है, इसलिए संदर्भ इसी तरह लिखें, या यह देखने के लिए कि संदर्भ कैसे लिखा जाता है `dinah guide references` चलाएँ",
+      "context": "Spliced onto refusal.unknown-card in place of its usual next step, when the reference names no card and does name a workstream. It is what a reader meets who typed a bare workstream slug, which the retired kind-prefixed commands accepted and the generic get and set do not. {workstream} is that workstream's reference in the grammar's own spelling, which is machine vocabulary and is never translated. The command line inside it is syntax and stays as it is.",
+      "source": "30860817bafb6b40"
+    },
     "refusal.unknown-column": {
       "text": "यह वर्कबेंच कोई कॉलम {detail} घोषित नहीं करती; यह ये घोषित करती है",
       "context": "The sentence printed after the refusal name unknown-column. {detail} carries the identifier, owner or column the refusal is about.",
@@ -3166,7 +3106,7 @@
     },
     "slot.value": {
       "text": "मान",
-      "context": "Names the free-text slot of `config set` and of `workbench set` inside refusal.dinah.multiple-words, which reads it as {label}.",
+      "context": "Names the free-text slot of `config set` and of `set` inside refusal.dinah.multiple-words, which reads it as {label}.",
       "source": "657afcc7998b1ed"
     },
     "slot.name": {
@@ -3759,6 +3699,41 @@
       "context": "The meaning of the card argument of `dinah path`, printed in that command's arguments table.",
       "source": "1795aa1c0605796a"
     },
+    "param.get.ref.summary": {
+      "text": "जिस इकाई को आप पढ़ रहे हैं, उसके संदर्भ के रूप में लिखी गई: यह वर्कबेंच `workbench` या `.` के रूप में, एक कॉलम, एक कार्ड, या कार्ड के नीचे कोई चीज़ जैसे wb-1/comments/1",
+      "context": "The meaning of the ref argument of `dinah get`, printed in that command's arguments table.",
+      "source": "cb02cac9a94c468f"
+    },
+    "param.get.field.summary": {
+      "text": "आप कौन-सा फ़ील्ड पढ़ रहे हैं; कौन-से नाम मान्य हैं यह उस प्रकार पर निर्भर करता है जिस पर संदर्भ हल होता है",
+      "context": "The meaning of the field argument of `dinah get`, printed in that command's arguments table. The set the argument publishes is the union over every kind, and the refusal names the resolved kind's own set.",
+      "source": "27a7c297c40a2669"
+    },
+    "param.set.ref.summary": {
+      "text": "जिस इकाई को आप लिख रहे हैं, उसके संदर्भ के रूप में लिखी गई: यह वर्कबेंच `workbench` या `.` के रूप में, एक कॉलम, एक कार्ड, या कार्ड के नीचे कोई चीज़ जैसे wb-1/comments/1",
+      "context": "The meaning of the ref argument of `dinah set`, printed in that command's arguments table.",
+      "source": "ce92c50364a262ef"
+    },
+    "param.set.field.summary": {
+      "text": "आप कौन-सा फ़ील्ड लिख रहे हैं; कौन-से नाम मान्य हैं यह उस प्रकार पर निर्भर करता है जिस पर संदर्भ हल होता है",
+      "context": "The meaning of the field argument of `dinah set`, printed in that command's arguments table. The set the argument publishes is the union over every kind, and the refusal names the resolved kind's own set.",
+      "source": "e2cb5d430e04bf5d"
+    },
+    "param.set.value.summary": {
+      "text": "उसमें क्या रखना है; मानक इनपुट से पढ़ने के लिए एक अकेला डैश लिखें, और जिस फ़ील्ड को खाली किया जा सकता है उसे खाली करने के लिए इसे छोड़ दें",
+      "context": "The meaning of the value argument of `dinah set`, printed in that command's arguments table. The dash is the spelling `dinah comment` already uses, and it is what sends the several lines a prose field holds.",
+      "source": "7e894093746f48a2"
+    },
+    "param.set.at.summary": {
+      "text": "वह कॉलम जिस पर tier लेखन लागू होता है, कार्ड की अपनी आधार-रेखा के बजाय; कार्ड का tier ही एकमात्र फ़ील्ड है जो इसे लेता है",
+      "context": "The meaning of the at argument of `dinah set`, printed in that command's arguments table. Every other field takes one value for the whole entity, so naming a column beside one is a usage error.",
+      "source": "36f8dfa7f400a3b1"
+    },
+    "param.set.note.summary": {
+      "text": "वह टिप्पणी जिसे `state` लेखन के पीछे का क्रिया-पद दर्ज करता है; `state` ही एकमात्र फ़ील्ड है जो इसे लेता है",
+      "context": "The meaning of the note argument of `dinah set`, printed in that command's arguments table. A state write routes to the checklist verb that lands that state, and that verb records a note, so this is where the note is given.",
+      "source": "7abdc947472440d2"
+    },
     "param.query.query.summary": {
       "text": "प्रश्न, एक ही शब्द में या उद्धरण चिह्नों के भीतर; कुछ न लिखने पर हर जीवित कार्ड",
       "context": "The meaning of the query argument of `dinah query`, printed in that command's arguments table.",
@@ -3779,30 +3754,10 @@
       "context": "The meaning of the catalogs argument of `dinah version`, printed in that command's arguments table.",
       "source": "c1016c1ef09e7a7d"
     },
-    "param.workbench.action.summary": {
-      "text": "एक फ़ील्ड पढ़ें या लिखें; कुछ न लिखने पर हर फ़ील्ड अपने मान के साथ",
-      "context": "The meaning of the action argument of `dinah workbench`, printed in that command's arguments table.",
-      "source": "937419efc33a8cdc"
-    },
-    "param.workbench.field.summary": {
-      "text": "आप कौन-सा फ़ील्ड पढ़ या लिख रहे हैं",
-      "context": "The meaning of the field argument of `dinah workbench`, printed in that command's arguments table.",
-      "source": "38f99b89450cab4c"
-    },
-    "param.workbench.value.summary": {
-      "text": "set पर, उसमें क्या रखना है",
-      "context": "The meaning of the value argument of `dinah workbench`, printed in that command's arguments table.",
-      "source": "227d7c26bf3fe47f"
-    },
     "param.workstream.action.summary": {
-      "text": "एक वर्कस्ट्रीम बनाएँ, एक पढ़ें, या किसी एक का फ़ील्ड लिखें; कुछ न लिखने पर हर वर्कस्ट्रीम",
+      "text": "एक वर्कस्ट्रीम बनाएँ; कुछ न लिखने पर हर वर्कस्ट्रीम",
       "context": "The meaning of the action argument of `dinah workstream`, printed in that command's arguments table.",
-      "source": "21685a314507b306"
-    },
-    "param.workstream.field.summary": {
-      "text": "आप कौन-सा फ़ील्ड पढ़ या लिख रहे हैं",
-      "context": "The meaning of the field argument of `dinah workstream`, printed in that command's arguments table.",
-      "source": "38f99b89450cab4c"
+      "source": "f33d8a862f718508"
     },
     "param.workstream.slug.summary": {
       "text": "वर्कस्ट्रीम किस उपनाम के साथ बनानी है, शीर्षक से निकाले गए उपनाम के बजाय",
@@ -3814,15 +3769,10 @@
       "context": "The meaning of the workstream argument, shared by the commands that name one.",
       "source": "6e4010bcd3c3b66c"
     },
-    "param.workstream.value.summary": {
-      "text": "set पर, उसमें क्या रखना है",
-      "context": "The meaning of the value argument of `dinah workstream`, printed in that command's arguments table.",
-      "source": "227d7c26bf3fe47f"
-    },
     "param.workstream.workstream.summary": {
-      "text": "जिस वर्कस्ट्रीम को आप पढ़ या लिख रहे हैं, या जिसे बना रहे हैं उसका शीर्षक",
+      "text": "जिस वर्कस्ट्रीम को आप बना रहे हैं उसका शीर्षक",
       "context": "The meaning of the workstream argument of `dinah workstream`, printed in that command's arguments table.",
-      "source": "7670387210ff58cf"
+      "source": "99cc69f289d4e69f"
     },
     "check.contents.1": {
       "text": "संदर्भ इस वर्कबेंच में किसी वस्तु को नामित करता है",
@@ -3986,8 +3936,8 @@
     },
     "refusal.dinah.unknown-path.next-addressed": {
       "text": "; {addressed} को उसे रखने वाली चीज़ के ज़रिए नहीं, बल्कि उसके अपने संदर्भ से नाम दिया जाता है",
-      "context": "The next step after the refusal name dinah.unknown-path, when the reader reached a card or a column through the collection that holds it, such as wb/cards/1. {addressed} is the kind reached that way, card or column, which is machine vocabulary and is never translated. The collection named is one the workbench really has, so the advice is about how the thing is addressed rather than about the word. Spliced on after refusal.dinah.unknown-path.",
-      "source": "129884b7bbc55760"
+      "context": "The next step after the refusal name dinah.unknown-path, when the reader reached a card or a column through the collection that holds it, such as wb/cards/1. {addressed} is the kind reached that way, card or column, which is machine vocabulary and is never translated. No word of the sentence may agree with it, for the reason refusal.dinah.unknown-field.get gives: the token substituted there is untranslated English, so the sentence cannot know its gender, its number or the sound it starts with. The collection named is one the workbench really has, so the advice is about how the thing is addressed rather than about the word. Spliced on after refusal.dinah.unknown-path.",
+      "source": "cbd49aee62761103"
     },
     "tree.empty": {
       "text": "यहाँ कोई कार्ड नहीं है।",

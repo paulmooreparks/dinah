@@ -21,7 +21,7 @@ import (
 // a re-queuing with nothing behind it is indistinguishable from an agent
 // avoiding work. And the resolved tier has to rank above what the card already
 // requires here, so a raise can only ever go up; a deliberate downward or
-// lateral correction is `card set <ref> tier <value> --at <column>`, which is
+// lateral correction is `set <ref> tier <value> --at <column>`, which is
 // unrestricted and which this verb does not replace.
 //
 // The column is the card's own current column and never a flag. The card

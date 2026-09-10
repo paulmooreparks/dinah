@@ -12,7 +12,7 @@ import (
 // capacity, a slug, a tier default and a placement ahead of an existing
 // column.
 //
-// It evaluates in the order SetWorkbench and NewWorkstream both fix: the
+// It evaluates in the order SetField and NewWorkstream both fix: the
 // workbench designates an operator, each supplied value is present and well
 // formed, the reference --before names resolves, the request names an owner.
 // No row compares the owner against the operator. Authorization here turns on
@@ -91,8 +91,8 @@ func (l *Library) NewColumn(req *Request) *Response {
 	// The write runs against a view opened under the lock rather than against
 	// the one the library has been holding, so the flow the placement is
 	// judged against and the flow the placement is spliced into are the same
-	// flow. SetWorkstream reloads its own anchor under its own lock for the
-	// same reason.
+	// flow. writeField rereads its own anchor under its own lock for the same
+	// reason.
 	fresh, err := bench.Open(l.Bench.Root)
 	if err != nil {
 		return l.FromError(req, err)

@@ -42,22 +42,6 @@ type Workstream struct {
 	FM *Frontmatter
 }
 
-// WorkstreamFields are the fields of a workstream a person wrote and may
-// rewrite. The ordinal beside them is not a person's to type.
-var WorkstreamFields = []string{"title", "slug", "status"}
-
-// KnownWorkstreamField reports whether a name is one of the fields a
-// workstream records, which is what both a read of one and a write to one ask
-// first.
-func KnownWorkstreamField(name string) bool {
-	for _, known := range WorkstreamFields {
-		if known == name {
-			return true
-		}
-	}
-	return false
-}
-
 // StatusActive is the status Dinah writes when it creates a workstream, so the
 // field is never absent on one the tool made.
 const StatusActive = "active"
@@ -228,7 +212,8 @@ func (b *Bench) Workstream(id string) *Workstream {
 // can be another workstream's identifier, and the identifier wins. Dropping
 // the title pass ColumnByRef makes keeps one rule on every surface: no
 // workstream is ever named by its title, so `dinah workstream new Portfolio`
-// and `dinah workstream get Portfolio` cannot read the same word two ways.
+// and `dinah get workstream/Portfolio title` cannot read the same word two
+// ways.
 func (b *Bench) WorkstreamByRef(ref string) *Workstream {
 	// A caller may write the reference-grammar spelling or the bare handle.
 	// Every surface prints the prefixed form, and the workstream-taking

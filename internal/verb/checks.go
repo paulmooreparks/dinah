@@ -166,65 +166,6 @@ var beyondChecks = map[string][]Check{
 		{Refusal: contract.NoLevels, Key: "check.add.4"},
 		{Refusal: contract.UnknownLevel, Key: "check.add.5"},
 	},
-	// The command covers two acts, a clear is a third case within one of
-	// them, and --at splits the write in two, so this list carries the
-	// mapping the workstream list below carries in its own comment.
-	//
-	// Row 1 belongs to every act. Row 3 belongs to every act that does not
-	// name a column, since runCardSet refuses --at paired with any field but
-	// tier as a usage error before either write function runs, and a get
-	// evaluates rows 1 and 3 alone because a read validates nothing. Rows 4
-	// and 6 run only where a value is present, so a clear evaluates rows 1
-	// and 3 and then row 8. Row 8 runs on every write, a clear included,
-	// because a clear rewrites the anchor and journals a line and both need
-	// an actor.
-	//
-	// Rows 2, 5, and 7 belong to the --at write alone, which SetCardTierAt
-	// carries. Row 2 resolves the column the override is written for. Rows 5
-	// and 7 belong to the relative branch of that write: a +N or -N is
-	// measured against the column's own tier default, so a column carrying
-	// none has nothing to be relative to, and a result off either end of the
-	// declared set is out of range. An absolute --at write reaches neither,
-	// and reaches row 6 instead when the name is not a declared tier.
-	//
-	// The three tier rows are inserted where the code runs them rather than
-	// appended, which is the opposite of what check.claim.8, check.move.10,
-	// and check.pull.15 do. The reason each way is the same reason. Those
-	// three lists are the profile's, numbered by the profile document, so a
-	// Dinah row among them would renumber a row the profile names. This list
-	// is Dinah's own, numbered by nothing outside it, and the page heads the
-	// table "What can go wrong, in the order each is checked", so a row
-	// printed away from where it runs would break that promise for nothing.
-	// The renumbering it costs was ruled on rather than assumed (dinah-408
-	// D-10, and dinah-413 carried it out).
-	//
-	// Rows 4 and 6 take the named field's own axis as their subject, never
-	// the workbench. check.card.4's sentence is bound by its last three
-	// words: it asks whether this workbench declares a set for that one axis,
-	// and reading it as a single workbench-wide test for whether any
-	// declaration exists would break the format's posture that the axes are
-	// declared independently.
-	//
-	// The rows-4-and-6 rule is not merely a convenience. A stored level the
-	// workbench does not declare is tolerated everywhere and reported by
-	// check, and the only workbench where somebody wants to clear one is a
-	// workbench whose declaration has since changed or gone. A clear running
-	// row 4 would refuse there, leaving the one card that needs clearing as
-	// the one card that cannot be cleared.
-	//
-	// The keys are check.card.N rather than the card-field prefix the two
-	// commands below need, because nothing else holds check.card.N and
-	// CheckKey composes it.
-	"card": {
-		{Refusal: contract.UnknownCard, Key: "check.card.1"},
-		{Refusal: contract.UnknownColumn, Key: "check.card.2"},
-		{Refusal: contract.UnknownField, Key: "check.card.3"},
-		{Refusal: contract.NoLevels, Key: "check.card.4"},
-		{Refusal: contract.NoTierDefault, Key: "check.card.5"},
-		{Refusal: contract.UnknownLevel, Key: "check.card.6"},
-		{Refusal: contract.TierOutOfRange, Key: "check.card.7"},
-		{Refusal: contract.NoOwner, Key: "check.card.8"},
-	},
 	"comment": {
 		{Refusal: contract.UnknownCard, Key: "check.comment.1"},
 		{Refusal: contract.NoOwner, Key: "check.comment.2"},
@@ -345,36 +286,49 @@ var beyondChecks = map[string][]Check{
 		{Refusal: contract.NoOwner, Key: "check.leave.2"},
 		{Refusal: contract.UnknownWorkstream, Key: "check.leave.3"},
 	},
-	// The keys carry the workbench-field prefix rather than check.workbench.N,
-	// which check.workbench.1 and check.workbench.2 above already hold for the
-	// two workbench-wide preconditions of section 6.1. One consequence is
-	// worth naming: CheckKey composes check.<command>.<order>, so this is the
-	// one list whose keys that helper cannot compose.
+	// The keys keep the workstream-field prefix rather than becoming
+	// check.workstream.N, which is what CheckKey would compose. The prefix
+	// survives the retirement of the two kind-prefixed field spellings
+	// because these two rows are the two the creating verb raises, and
+	// renumbering them would ask seven translators for sentences they have
+	// already written. The four rows that went are the four only a field read
+	// or a field write raised.
 	//
-	// The workbench-level operator check runs ahead of all five at runtime and
-	// is not listed, because Checks prefixes WorkbenchChecks onto the five
+	// The workbench-level operator check runs ahead of both at runtime and is
+	// not listed, because Checks prefixes WorkbenchChecks onto the five
 	// contract verbs alone and every beyond-contract command lists only its
 	// own. Listing it here would name one of the workbench-level pair while
 	// leaving out the other, in the one command that does it.
-	// The keys carry the workstream-field prefix for the reason the workbench
-	// list gives: CheckKey composes check.<command>.<order>, and this list
-	// covers two acts rather than one, since `new` files a workstream and
-	// `set` writes a field of one. Row 1 belongs to get and set, row 3 to all
-	// three, and rows 5 and 6 to set alone.
 	"workstream": {
-		{Refusal: contract.UnknownWorkstream, Key: "check.workstream-field.1"},
-		{Refusal: contract.UnknownKey, Key: "check.workstream-field.2"},
 		{Refusal: contract.Malformed, Key: "check.workstream-field.3"},
 		{Refusal: contract.NoOwner, Key: "check.workstream-field.4"},
-		{Refusal: contract.NotOperator, Key: "check.workstream-field.5"},
-		{Refusal: contract.Unconfirmed, Key: "check.workstream-field.6"},
 	},
-	"workbench": {
-		{Refusal: contract.UnknownKey, Key: "check.workbench-field.1"},
-		{Refusal: contract.Malformed, Key: "check.workbench-field.2"},
-		{Refusal: contract.NoOwner, Key: "check.workbench-field.3"},
-		{Refusal: contract.NotOperator, Key: "check.workbench-field.4"},
-		{Refusal: contract.Unconfirmed, Key: "check.workbench-field.5"},
+	// get and set reach every field of every kind through one reference, so
+	// these two lists belong to the grammar rather than to any one entity.
+	// get carries rows 2 and 3 of set's list and no more, because a read
+	// validates nothing.
+	//
+	// Row 5 stands for the guard the named field declares rather than for one
+	// refusal name. Which name a caller meets is the field's own: a slug
+	// raises malformed, a level raises dinah.no-levels or dinah.unknown-level,
+	// an item's state raises dinah.wrong-item-kind or dinah.unknown-value, and
+	// a tier write raises what a relative expression already raises. The row
+	// carries dinah.unknown-level because that is the guard the most fields
+	// declare, and the sentence says the general thing rather than the one
+	// name.
+	"get": {
+		{Refusal: contract.UnknownPath, Key: "check.get.1"},
+		{Refusal: contract.UnknownField, Key: "check.get.2"},
+	},
+	"set": {
+		{Refusal: contract.NoOperator, Key: "check.set.1"},
+		{Refusal: contract.UnknownPath, Key: "check.set.2"},
+		{Refusal: contract.UnknownField, Key: "check.set.3"},
+		{Refusal: contract.Malformed, Key: "check.set.4"},
+		{Refusal: contract.UnknownLevel, Key: "check.set.5"},
+		{Refusal: contract.NoOwner, Key: "check.set.6"},
+		{Refusal: contract.NotOperator, Key: "check.set.7"},
+		{Refusal: contract.Unconfirmed, Key: "check.set.8"},
 	},
 	// mcp carries the two checks the startup path raises: the directory
 	// --root names has to exist, and any workbench the registration names

@@ -1945,34 +1945,26 @@ func (b *Bench) JournalPath() string {
 	return filepath.Join(b.Root, JournalName)
 }
 
-// WorkbenchFields are the fields a workbench records about itself that a
-// person wrote and may rewrite. The structural keys beside them (profile,
-// format and the columns list) are not a person's to type, and dinah columns and
-// dinah version already report what a reader needs of them.
-var WorkbenchFields = []string{"title", "slug", "operator"}
-
-// KnownWorkbenchField reports whether a name is one of the workbench's own
-// fields, which is what both a read of one and a write to one ask first.
-func KnownWorkbenchField(name string) bool {
-	for _, known := range WorkbenchFields {
-		if known == name {
-			return true
-		}
-	}
-	return false
-}
+// WorkbenchListingFields are the three fields the bare `dinah workbench`
+// listing prints, in the order it prints them. It is a shorter list than
+// FieldsOf reports for the kind, deliberately: the workbench's instructions
+// are one of its fields and a listing that printed a whole instruction body
+// would stop being a listing.
+var WorkbenchListingFields = []string{TitleField, SlugField, OperatorField}
 
 // WorkbenchField reads one of the workbench's own fields by name, and answers
 // the empty string for a name outside the set. The caller refuses over the
 // name; this reports what is stored under it.
 func (b *Bench) WorkbenchField(name string) string {
 	switch name {
-	case "title":
+	case TitleField:
 		return b.Title
-	case "slug":
+	case SlugField:
 		return b.Slug
-	case "operator":
+	case OperatorField:
 		return b.Operator
+	case InstructionsField:
+		return b.Standing
 	}
 	return ""
 }
@@ -1982,12 +1974,14 @@ func (b *Bench) WorkbenchField(name string) string {
 // already refused over it.
 func (b *Bench) SetWorkbenchField(name, value string) {
 	switch name {
-	case "title":
+	case TitleField:
 		b.Title = value
-	case "slug":
+	case SlugField:
 		b.Slug = value
-	case "operator":
+	case OperatorField:
 		b.Operator = value
+	case InstructionsField:
+		b.Standing = value
 	}
 }
 

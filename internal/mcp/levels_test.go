@@ -3,6 +3,7 @@ package mcp
 import (
 	"encoding/json"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 
@@ -110,19 +111,24 @@ func requiredOf(schema map[string]any) []string {
 	return names
 }
 
-// TestTheCardToolCarriesTheSameSentencesTheTerminalPrints asserts dinah-193
-// AC-20: the surface serves a card tool whose schema carries the four
-// arguments the parameter table declares, add_card carries the two new ones,
-// and every property is described with the sentence the cli head prints beside
-// the same argument.
-func TestTheCardToolCarriesTheSameSentencesTheTerminalPrints(t *testing.T) {
+// TestTheFieldToolsCarryTheSameSentencesTheTerminalPrints asserts that the two
+// field tools' schemas carry the arguments their parameter tables declare,
+// that add_card carries the two level arguments, and that every property is
+// described with the sentence the cli head prints beside the same argument.
+func TestTheFieldToolsCarryTheSameSentencesTheTerminalPrints(t *testing.T) {
 	library := newLevelledLibrary(t)
 	catalog := msg.For(msg.Base)
-	card := schemaOf(t, library, "card")
-	for _, param := range verb.Params("card") {
-		wanted := catalog.T(param.SummaryKey("card"))
-		if got := propertyDescription(t, card, param.Name); got != wanted {
-			t.Errorf("the card tool describes %s as %q and the terminal prints %q", param.Name, got, wanted)
+	for tool, command := range map[string]string{"get_field": "get", "set_field": "set"} {
+		schema := schemaOf(t, library, tool)
+		params := verb.Params(command)
+		if len(params) == 0 {
+			t.Fatalf("%s declares no parameter, so this check read nothing", command)
+		}
+		for _, param := range params {
+			wanted := catalog.T(param.SummaryKey(command))
+			if got := propertyDescription(t, schema, param.Name); got != wanted {
+				t.Errorf("the %s tool describes %s as %q and the terminal prints %q", tool, param.Name, got, wanted)
+			}
 		}
 	}
 	added := schemaOf(t, library, "add_card")
@@ -134,32 +140,34 @@ func TestTheCardToolCarriesTheSameSentencesTheTerminalPrints(t *testing.T) {
 	}
 }
 
-// TestTheCardToolMarksItsThreeSlotsRequired asserts dinah-193 AC-25. Required
-// is read by Param.Token and by this schema generator and by nothing in the
-// cli parser, so what the declaration buys is a call naming no action, no card
-// or no field being refused before the tool runs at all.
-func TestTheCardToolMarksItsThreeSlotsRequired(t *testing.T) {
+// TestTheFieldToolsMarkTheirTwoSlotsRequired asserts what the declaration
+// buys on this head: a call naming no reference or no field is refused before
+// the tool runs at all.
+func TestTheFieldToolsMarkTheirTwoSlotsRequired(t *testing.T) {
 	library := newLevelledLibrary(t)
-	got := strings.Join(requiredOf(schemaOf(t, library, "card")), ",")
-	if got != "action,card,field" {
-		t.Errorf("the card tool's required list is %q, wanted action, card and field with value left out", got)
+	for _, tool := range []string{"get_field", "set_field"} {
+		required := requiredOf(schemaOf(t, library, tool))
+		sort.Strings(required)
+		if got := strings.Join(required, ","); got != "field,ref" {
+			t.Errorf("the %s tool's required list is %q, wanted ref and field with the value left out", tool, got)
+		}
 	}
 }
 
-// TestTheCardToolReadsAndWritesOneField asserts that the tool reaches the same
-// two acts a person reaches from a terminal, and that the refusals a write
-// raises travel to an agent under their own names.
-func TestTheCardToolReadsAndWritesOneField(t *testing.T) {
+// TestTheFieldToolsReadAndWriteOneField asserts that the two tools reach the
+// same two acts a person reaches from a terminal, and that the refusals a
+// write raises travel to an agent under their own names.
+func TestTheFieldToolsReadAndWriteOneField(t *testing.T) {
 	library := newLevelledLibrary(t)
-	written := payload(t, ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"card","arguments":{"action":"set","card":"fx-1","field":"severity","value":"major","actor":"alka"}}}`))
+	written := payload(t, ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"set_field","arguments":{"ref":"fx-1","field":"severity","value":"major","actor":"alka"}}}`))
 	if outcome, _ := written["outcome"].(string); outcome != contract.OutcomeOK {
 		t.Fatalf("the write answered %v", written)
 	}
-	read := payload(t, ask(t, library, `{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"card","arguments":{"action":"get","card":"fx-1","field":"severity","actor":"alka"}}}`))
+	read := payload(t, ask(t, library, `{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"get_field","arguments":{"ref":"fx-1","field":"severity","actor":"alka"}}}`))
 	if value, _ := read["value"].(string); value != "major" {
 		t.Errorf("the read answered %v", read)
 	}
-	refused := payload(t, ask(t, library, `{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"card","arguments":{"action":"set","card":"fx-1","field":"severity","value":"urgent","actor":"alka"}}}`))
+	refused := payload(t, ask(t, library, `{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"set_field","arguments":{"ref":"fx-1","field":"severity","value":"urgent","actor":"alka"}}}`))
 	if name, _ := refused["refusal"].(string); name != contract.UnknownLevel {
 		t.Errorf("the refused write answered %v", refused)
 	}

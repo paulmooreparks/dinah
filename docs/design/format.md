@@ -17,7 +17,7 @@ lessons that earlier interface paid for first.
 Terminology note: "workbench" and "card" are working terms. Whether Dinah
 keeps them is an open question tracked on the board, and nothing below depends
 on the final names. "Column" and "state" no longer sit beside them: a column
-is where a card stands and a state is how it stands there, which dinah-287
+is where a card stands and a state is how it stands there, which the board
 settled and which this document's own prose now uses throughout.
 
 ## Storage is the filesystem, entirely
@@ -834,28 +834,28 @@ and stores nothing.
 ### Journal event schema
 
 Every journal line names an event, and the core event names are a closed set
-of thirty-two, which `internal/contract` declares as constants.
-Thirty-one of them are written by some command in this build. The one that is
+of thirty-five, which `internal/contract` declares as constants.
+Thirty-four of them are written by some command in this build. The one that is
 not, `restored`, is declared and reserved, and `cmd/dinah/compat_test.go`'s
 `unwrittenEvents` table records the reason it stays unwritten. No verb is
 wired to `restored` yet, though the structural machinery a restore would use
 already exists.
 
-A second count of twenty-nine sits nearby and names a different set.
+A second count of thirty-two sits nearby and names a different set.
 `contract.Events` is the vocabulary a query over cards accepts, and it holds
 out `column_updated`, `workbench_updated` and `workstream_updated`, since each
 of those lands on the workbench's journal or on a workstream's and never on a
 card's.
 The two counts no longer agree, and neither set contains the other. `restored`
-is queryable over a card and written by nothing, so it sits in the twenty-nine
-and outside the thirty-one. `column_updated`, `workbench_updated` and
+is queryable over a card and written by nothing, so it sits in the thirty-two
+and outside the thirty-four. `column_updated`, `workbench_updated` and
 `workstream_updated` are written by commands but never land on a card's
-journal, so they sit in the thirty-one and outside the twenty-nine.
-Twenty-eight names sit in both counts. Twenty-seven of those land on a card's
+journal, so they sit in the thirty-four and outside the thirty-two.
+Thirty-one names sit in both counts. Thirty of those land on a card's
 own journal, and `deleted` is the exception, because deleting a card destroys
 the journal inside it and the record of the deletion goes to the workbench's.
 
-The set stays closed mechanically rather than by inspection. A thirty-third
+The set stays closed mechanically rather than by inspection. A thirty-sixth
 constant fails the build unless it reaches the sample fixture's journal or is
 named in `unwrittenEvents`, which is the coverage alarm the Versioning section
 describes.
@@ -864,7 +864,7 @@ A reader that meets an event name it does not know reads the line, keeps it,
 and hands it on exactly as written. A name carrying a dot,
 `<namespace>.<name>`, belongs to an extension kind that declared
 `journal: true`, and it is legitimate whatever it says. A name carrying no dot
-is one of the twenty-three, or one a different build wrote, whether an older
+is one of the thirty-five, or one a different build wrote, whether an older
 build or a core revision this build's profile ceiling has not reached. Dinah
 refuses no read on account of the event name a line carries. Rendering,
 ordinal replay, and position replay each switch on the event name and none of
@@ -899,14 +899,31 @@ so a `claimed` line with no `expires` records an unbounded claim.
 | `deleted` | `note` (the entity's own id) | `title`, present only when the deleted entity's kind carries one Dinah can resolve at that moment, which covers a card, a workstream, and a column, and leaves out a comment |
 | `workbench_updated` | `field` | `from` and `to`, each omitted on the side of the write where the value is empty |
 | `workstream_updated` | `field` | `from` and `to`, by the rule `workbench_updated` follows |
-| `column_updated` | `note` (the column's own id) | |
+| `column_updated` | `note` (the column's own id) | `field`, written by a field write and absent on the lines `reshape` writes; `from` and `to`, by the rule `workbench_updated` follows, both absent where the field written is the column's prose body |
+| `comment_updated` | `note` (the comment's own id), `field` | none today: a comment's only field is its prose body, and a prose write carries neither `from` nor `to` |
+| `item_updated` | `note` (the item's own id), `field` | `from` and `to`, by the rule `workbench_updated` follows, both absent where the field written is the item's prose body |
+| `attachment_updated` | `note` (the attachment's own id), `field` | `from` and `to`, by the rule `workbench_updated` follows |
 | `workstream_joined` | `workstream` | |
 | `workstream_left` | `workstream` | |
 | `card_updated` | `field` | `from` and `to`, by the rule `workbench_updated` follows |
 | `restored` | `note` (the entity's own id) | |
 | `manual_correction` | `from`, `to`, `from_title`, `to_title` | |
-| `tier_overridden` | `column` (the resolved column's id), `to`, `expr` (what was typed) | `from`, absent where the card carried no override for that column; `against` (the column's own tier default), absent where the expression was absolute and needed no baseline; `column_title` and `reason`, both written by `raise` alone and both absent on an ordinary `card set ... --at` write |
+| `tier_overridden` | `column` (the resolved column's id), `to`, `expr` (what was typed) | `from`, absent where the card carried no override for that column; `against` (the column's own tier default), absent where the expression was absolute and needed no baseline; `column_title` and `reason`, both written by `raise` alone and both absent on an ordinary `set <ref> tier <value> --at` write |
 | `tier_override_dropped` | `column` (the retired column's id), `from` (the dropped absolute tier) | |
+
+`comment_updated`, `item_updated` and `attachment_updated` are written by a
+field write below a card, and each names the written entity rather than the
+card, because a query for the card's own field changing has to stay a question
+a reader can ask. Each lands on the journal of the nearest enclosing entity
+that carries one, so a comment's and an item's line lands on the card's, and an
+attachment's lands on the card's below a card and on the workbench's below a
+column or below the workbench itself. An `attachment_renamed` line records a
+filename change instead, because the payload moves with the name.
+
+A field write to a field stored as the entity's prose body carries `field` and
+carries neither `from` nor `to`. The journal records that the act happened and
+who did it, and the prose itself lives in the anchor, which is the file that
+changed and whose history the repository already carries.
 
 An `expired` line carries `expires` unconditionally because the event fires
 only when a claim's own expiry lapsed, so the field it reports is never empty.
@@ -1800,7 +1817,7 @@ otherwise, and the reason cannot be left out.
 The act only ever goes up. A tier resolving at or below what the card already
 asks for at that column is refused under `dinah.tier-not-higher`, equality
 included, since a raise that changes nothing is not a raise. A deliberate
-downward or lateral correction is `dinah card set <ref> tier <value> --at
+downward or lateral correction is `dinah set <ref> tier <value> --at
 <column>`, which is unrestricted, does not require a reason and does not hand
 the card back.
 

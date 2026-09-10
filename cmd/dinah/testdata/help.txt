@@ -43,8 +43,6 @@ WORK
                                               anything below a card, along with
                                               its history
   rename <ref> <name>                       Rename an attachment
-  card <get|set> <card> <field> [value]     Read one of a card's own fields, or
-    [--at <column>]                           write one
 
 READ
   status [--root <path>] [--max-depth <n>]  Where this workbench stands, and
@@ -91,6 +89,10 @@ WORKBENCH
   edit <ref>                                Open this workbench, a card, or
                                               anything below a card in your
                                               editor
+  get <ref> <field>                         Read one field of any entity of this
+                                              workbench
+  set <ref> <field> [value|-]               Write one field of any entity of
+    [--at <column>] [--note <text>] [--yes]   this workbench
   config [get|set] [key] [value]            List your user settings, or read or
                                               write one
   check [--finish] [--migrate-ordinals]     Look for structural defects in this
@@ -102,11 +104,9 @@ WORKBENCH
     [--max-depth <n>]
   whoami                                    The actor your actions carry, and
                                               whether it is the operator
-  workbench [get|set] [field] [value]       Read this workbench's own fields, or
-    [--yes]                                   write one
-  workstream [new|get|set]                  Read this workbench's workstreams,
-    [workstream|title] [field] [value]        create one, or write one's fields
-    [--slug <slug>] [--yes]
+  workbench                                 Read this workbench's own fields
+  workstream [new] [title] [--slug <slug>]  Read this workbench's workstreams,
+                                              or create one
   column <new> <title> [--kind <kind>]      Create a column in this workbench's
     [--tier <level>] [--capacity <n>]         flow
     [--slug <slug>] [--before <column>]

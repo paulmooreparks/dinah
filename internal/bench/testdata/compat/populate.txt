@@ -26,10 +26,10 @@ block sample-4 "a vendor has not answered" --kind external
 unblock sample-4
 block sample-5 "a second obstacle" --kind external
 move sample-1 review
-card set sample-1 tier apex
-card set sample-1 tier frontier --at doing
-card set sample-1 tier +1 --at review
-card set sample-1 tier apex --at doing
+set sample-1 tier apex
+set sample-1 tier frontier --at doing
+set sample-1 tier +1 --at review
+set sample-1 tier apex --at doing
 move sample-4 review
 claim sample-4
 raise sample-4 apex "reads deeper than the ticket suggested, and needs a hand from somebody senior"
@@ -42,17 +42,17 @@ show sample-7
 add "eighth card"
 delete sample-8 --yes
 archive done
-workbench set title "Sample workbench, renamed"
-workbench set title "Sample workbench"
-workbench set operator sam
-card set sample-1 severity minor
-card set sample-1 severity major
-card set sample-1 priority now
-card set sample-2 severity trivial
-card set sample-2 severity
+set workbench title "Sample workbench, renamed"
+set workbench title "Sample workbench"
+set workbench operator sam
+set sample-1 severity minor
+set sample-1 severity major
+set sample-1 priority now
+set sample-2 severity trivial
+set sample-2 severity
 workstream new "Portfolio work"
 workstream new "Console redesign"
-workstream set portfolio-work status paused
+set workstream/portfolio-work status paused
 join sample-2 portfolio-work
 join sample-3 portfolio-work
 leave sample-3 portfolio-work
@@ -70,6 +70,12 @@ link sample-1 duplicates sample-2
 link sample-1 relates sample-3
 link sample-1 spawned_from sample-2
 unlink sample-1 spawned_from sample-2
+comment sample-3 "a comment that will be corrected"
+set sample-3/comments/1 body "a comment, corrected"
+set sample-1/oq/1 note "the operator confirmed the deadline is the 15th, and said so twice"
+attach sample-2 payload-one.txt --description "the second card's payload"
+set sample-2/attachments/1 description "the second card's payload, described again"
+set doing title "Doing, renamed"
 hand-edit sample-2 column intake
 check --witness
 reshape --from reshape.json --yes

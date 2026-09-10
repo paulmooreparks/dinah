@@ -625,11 +625,36 @@ const (
 	// workbench journal, and carries the column's identifier in Note. It
 	// sits beside EventWorkbenchUpdated on the same terms: a column is a
 	// workbench-level entity carrying no journal of its own, so the record of
-	// a write to it belongs to the workbench that holds it. Reshape is the
-	// only writer today, and it writes one line per kept column whose
-	// rendered anchor the new definition actually changed, so a run that
-	// repeats a column unchanged leaves no line behind.
+	// a write to it belongs to the workbench that holds it.
+	//
+	// Two commands write it, and the two lines differ. Reshape writes one
+	// line per kept column whose rendered anchor the new definition actually
+	// changed, carrying Note alone, so a run that repeats a column unchanged
+	// leaves no line behind. A write to a column's own field carries Field
+	// beside the Note, and From and To with it wherever the field is not the
+	// column's prose body.
 	EventColumnUpdated = "column_updated"
+	// EventCommentUpdated records a write to a comment's own field, on the
+	// journal of the card the comment hangs below, and carries the comment's
+	// identifier in Note beside the Field. It is the comment's own event
+	// rather than EventCardUpdated so that a query for the card's own field
+	// changing stays a question a reader can ask.
+	EventCommentUpdated = "comment_updated"
+	// EventItemUpdated records a write to a checklist item's own field, on
+	// the journal of the card the item hangs below, and carries the item's
+	// identifier in Note beside the Field. It covers the fields a terminal
+	// verb does not land: a state change is EventItemResolved and its three
+	// siblings, which say which act closed the item.
+	EventItemUpdated = "item_updated"
+	// EventAttachmentUpdated records a write to an attachment's own field, on
+	// the journal of the nearest enclosing journal-bearing entity, which is
+	// the card below which the attachment hangs and the workbench for an
+	// attachment hanging below a column or below the workbench itself. It
+	// carries the attachment's identifier in Note beside the Field. A
+	// filename change is EventAttachmentRenamed rather than this name,
+	// because the payload moves with the name and the family of attachment
+	// events already says so.
+	EventAttachmentUpdated = "attachment_updated"
 	// EventWorkstreamJoined and EventWorkstreamLeft record a card entering
 	// and leaving a workstream, on the card's own journal, because membership
 	// is card-owned and the card is the file that changed. Each carries the
@@ -692,8 +717,8 @@ const (
 	EventUnlinked = "unlinked"
 )
 
-// Events lists the twenty-nine event names a query over cards accepts in its
-// event field, in the order the constants above declare them, so a caller
+// Events lists the event names a query over cards accepts in its event field,
+// in the order the constants above declare them, so a caller
 // checking a value against the closed set reads one list rather than repeating
 // it. Every event a card's own journal can carry has to be here, since an
 // event a card carries and this list omits is an event nobody can ask for. The
@@ -712,6 +737,7 @@ var Events = []string{
 	EventUnblocked, EventExpired, EventCommented, EventAttached,
 	EventAttachmentReplaced, EventAttachmentRemoved, EventAttachmentRenamed,
 	EventArchived, EventRestored, EventDeleted, EventManualCorrection,
+	EventCommentUpdated, EventItemUpdated, EventAttachmentUpdated,
 	EventWorkstreamJoined, EventWorkstreamLeft, EventCardUpdated,
 	EventTierOverridden, EventTierOverrideDropped,
 	EventItemFiled, EventItemCited, EventItemResolved, EventItemVerified,

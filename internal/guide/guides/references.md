@@ -100,12 +100,14 @@ attachments --json` give you both.
 
 ## Which command takes what
 
-Fifteen commands take a reference, and between them they accept six different sets of things. This table says what each one accepts:
+Seventeen commands take a reference, and between them they accept six different sets of things. This table says what each one accepts:
 
 | Command      | A workbench | A column | A card | Below a card | A collection |
 |--------------|-------------|----------|--------|--------------|--------------|
 | path         | yes         | yes      | yes    | yes          | yes          |
 | edit         | yes         | yes      | yes    | yes          | no           |
+| get          | yes         | yes      | yes    | yes          | no           |
+| set          | yes         | yes      | yes    | yes          | no           |
 | show         | no          | yes      | yes    | yes          | yes          |
 | instructions | no          | yes      | yes    | no           | no           |
 | attach       | yes         | yes      | yes    | yes          | no           |
@@ -120,7 +122,7 @@ Fifteen commands take a reference, and between them they accept six different se
 | fail         | no          | no       | no     | yes          | no           |
 | reopen       | no          | no       | no     | yes          | no           |
 
-Six commands take a workstream: `path`, `edit`, `archive`, `delete`, `contents`, and `attachments`. The others refuse one, so the table leaves the workstream out rather than carrying a column that is mostly no.
+Eight commands take a workstream: `path`, `edit`, `get`, `set`, `archive`, `delete`, `contents`, and `attachments`. The others refuse one, so the table leaves the workstream out rather than carrying a column that is mostly no.
 
 Nine of those rows carry a detail the table is too coarse to hold.
 `attach` takes a comment below a card, and it takes an attachment only
@@ -138,6 +140,38 @@ else below a card.
 Each command's own help page carries the same answer for that one command,
 so run `dinah help attach` when you want it beside the arguments rather
 than here.
+
+## Which fields a kind has
+
+`get` and `set` name a field after the reference, and which names are legal
+depends on the kind the reference resolves to. This table says what each kind
+records:
+
+| Kind | Fields |
+|------|--------|
+| workbench | `title`, `slug`, `operator`, `instructions` |
+| column | `title`, `slug`, `kind`, `tier`, `capacity`, `instructions` |
+| card | `title`, `body`, `severity`, `priority`, `tier` |
+| comment | `body` |
+| item | `text`, `state`, `note`, `owner`, `column` |
+| attachment | `filename`, `description` |
+| workstream | `title`, `slug`, `status`, `notes` |
+
+A field name is machine vocabulary, so it reads the same in every language and
+you type it back exactly as the table spells it. Naming a field the resolved
+kind does not record is refused, and the refusal lists that kind's own set, so
+you can also find the answer by asking wrongly once.
+
+The bare `dinah workbench` listing prints `title`, `slug` and `operator` and
+leaves `instructions` out, because a listing that printed a whole instruction
+body would stop being a listing. Read it with `dinah get workbench instructions`.
+
+Some of these fields are the entity's prose body rather than a line of its
+header: `instructions` on a workbench and on a column, `body` on a card and on
+a comment, `text` on an item, and `notes` on a workstream. Those hold as many
+lines as you send, and `dinah set <ref> <field> -` reads them from standard
+input. Every other field holds one line, and a value carrying a line break is
+refused.
 
 ## A reference or a query
 

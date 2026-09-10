@@ -286,7 +286,7 @@ func (b *Bench) ResolveReference(ref string) (*EntityRef, *CollectionRef, error)
 		}
 		found, err := b.ResolveCard(head)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, b.orAWorkstreamNamedBarely(ref, err)
 		}
 		return &EntityRef{Kind: KindCard, Dir: found.Card.Dir, ID: found.Card.ID, Ref: found.Card.Ref(b.Slug), Card: found.Card}, nil, nil
 	}
@@ -332,6 +332,31 @@ func (b *Bench) ResolveReference(ref string) (*EntityRef, *CollectionRef, error)
 		Ref:  b.refBelowHead(headKind, headRef, headDir, dir),
 		Card: card,
 	}, nil, nil
+}
+
+// orAWorkstreamNamedBarely carries the workstream a bare reference names onto
+// an unknown-card refusal, so the sentence can send the reader to the spelling
+// the grammar wants instead of to the card listing.
+//
+// A bare slug is what the retired kind-prefixed commands took, so it is the
+// spelling a reader who learned the tool before those went away still types.
+// Nothing about it is a card, and the card listing the usual next step points
+// at cannot answer the question, so the refusal names the prefixed form and
+// the guide that spells the grammar out.
+//
+// The workstream is looked for only after the card lookup has already failed,
+// which is what stops a workstream shadowing a card that shares its name. The
+// refusal name does not change: no card was found, which is what happened.
+func (b *Bench) orAWorkstreamNamedBarely(ref string, err error) error {
+	refusal, isRefusal := err.(*contract.Refusal)
+	if !isRefusal || refusal.Name != contract.UnknownCard {
+		return err
+	}
+	workstream := b.WorkstreamByRef(ref)
+	if workstream == nil {
+		return err
+	}
+	return contract.RefuseWith(contract.UnknownCard, refusal.Detail, map[string]string{"workstream": workstream.Ref()})
 }
 
 // collectionAt builds the answer for a reference the walk stopped on a

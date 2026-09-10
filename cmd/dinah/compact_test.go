@@ -76,7 +76,7 @@ func newCompactBench(t *testing.T) string {
 		mustRunCLI(t, root, "join", "fx-2", strings.ToLower(title))
 	}
 	for _, pair := range [][2]string{{"severity", "major"}, {"priority", "now"}} {
-		mustRunCLI(t, root, "card", "set", "fx-2", pair[0], pair[1])
+		mustRunCLI(t, root, "set", "fx-2", pair[0], pair[1])
 	}
 	mustRunCLI(t, root, "move", "fx-2", "doing")
 	mustRunCLI(t, root, "add", "Third card")
@@ -746,7 +746,7 @@ func TestEveryRefusedActDecodesTheSameUnderBothMachineForms(t *testing.T) {
 		{"release", "fx-2"},
 		{"block", "fx-2", "an obstacle"},
 		{"unblock", "fx-2"},
-		{"card", "set", "fx-1", "severity", "bogus"},
+		{"set", "fx-1", "severity", "bogus"},
 	}
 	carriedContext := 0
 	for _, argv := range cases {
@@ -819,7 +819,7 @@ func TestEveryAcceptedActDecodesTheSameUnderBothMachineForms(t *testing.T) {
 		{"move", "fx-2", "intake"},
 		{"pull", "done"},
 		{"workstream", "new", "Gamma"},
-		{"workstream", "set", "gamma", "status", "paused"},
+		{"set", "workstream/gamma", "status", "paused"},
 	}
 	instructions, moves, messages, workstreams, warnings := 0, 0, 0, 0, 0
 	for _, argv := range cases {

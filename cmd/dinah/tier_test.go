@@ -103,10 +103,10 @@ func TestWritingAndReadingACardsBaselineTier(t *testing.T) {
 	if got := runCLI(t, root, "add", "a card to assess"); got.code != 0 {
 		t.Fatalf("add: %d %s", got.code, got.errw)
 	}
-	if got := runCLI(t, root, "card", "set", "fx-1", "tier", "apex"); got.code != 0 {
+	if got := runCLI(t, root, "set", "fx-1", "tier", "apex"); got.code != 0 {
 		t.Fatalf("card set tier: %d %s", got.code, got.errw)
 	}
-	read := runCLI(t, root, "card", "get", "fx-1", "tier")
+	read := runCLI(t, root, "get", "fx-1", "tier")
 	if read.code != 0 {
 		t.Fatalf("card get tier: %d %s", read.code, read.errw)
 	}
@@ -132,7 +132,7 @@ func TestWritingATierOnAWorkbenchDeclaringNoneRefuses(t *testing.T) {
 	if got := runCLI(t, root, "add", "a card"); got.code != 0 {
 		t.Fatalf("add: %d %s", got.code, got.errw)
 	}
-	refused := runCLI(t, root, "card", "set", "fx-1", "tier", "apex")
+	refused := runCLI(t, root, "set", "fx-1", "tier", "apex")
 	if refused.code != 2 {
 		t.Fatalf("the write exited %d, wanted 2: %s", refused.code, refused.errw)
 	}
@@ -155,7 +155,7 @@ func TestARelativeOverrideStoresTheAbsoluteAndJournalsWhatWasTyped(t *testing.T)
 	if got := runCLI(t, root, "add", "a card to assess"); got.code != 0 {
 		t.Fatalf("add: %d %s", got.code, got.errw)
 	}
-	if got := runCLI(t, root, "card", "set", "fx-1", "tier", "+1", "--at", "test"); got.code != 0 {
+	if got := runCLI(t, root, "set", "fx-1", "tier", "+1", "--at", "test"); got.code != 0 {
 		t.Fatalf("card set tier +1 --at test: %d %s", got.code, got.errw)
 	}
 	anchor := anchorText(t, root, "fx-1")
@@ -193,7 +193,7 @@ func TestARelativeOverrideAgainstAColumnWithNoDefaultRefuses(t *testing.T) {
 		t.Fatalf("add: %d %s", got.code, got.errw)
 	}
 	before := anchorText(t, root, "fx-1")
-	refused := runCLI(t, root, "card", "set", "fx-1", "tier", "+1", "--at", "plain")
+	refused := runCLI(t, root, "set", "fx-1", "tier", "+1", "--at", "plain")
 	if refused.code != 2 {
 		t.Fatalf("the write exited %d, wanted 2: %s", refused.code, refused.errw)
 	}
@@ -217,7 +217,7 @@ func TestARelativeOverrideOffTheEndOfTheSetRefuses(t *testing.T) {
 		t.Fatalf("add: %d %s", got.code, got.errw)
 	}
 	before := anchorText(t, root, "fx-1")
-	refused := runCLI(t, root, "card", "set", "fx-1", "tier", "+1", "--at", "ceiling")
+	refused := runCLI(t, root, "set", "fx-1", "tier", "+1", "--at", "ceiling")
 	if refused.code != 2 {
 		t.Fatalf("the write exited %d, wanted 2: %s", refused.code, refused.errw)
 	}
@@ -247,7 +247,7 @@ func TestACardsOwnBaselineIsAFloorOnEveryClaim(t *testing.T) {
 		}
 	}
 	for _, ref := range []string{"fx-1", "fx-2", "fx-3"} {
-		if got := runCLI(t, root, "card", "set", ref, "tier", "frontier"); got.code != 0 {
+		if got := runCLI(t, root, "set", ref, "tier", "frontier"); got.code != 0 {
 			t.Fatalf("card set tier on %s: %d %s", ref, got.code, got.errw)
 		}
 		if got := runCLI(t, root, "move", ref, "plain"); got.code != 0 {
@@ -309,10 +309,10 @@ func TestAnOverrideGovernsItsOwnColumnAndTheBaselineGovernsElsewhere(t *testing.
 		}
 	}
 	for _, ref := range []string{"fx-1", "fx-2"} {
-		if got := runCLI(t, root, "card", "set", ref, "tier", "apex"); got.code != 0 {
+		if got := runCLI(t, root, "set", ref, "tier", "apex"); got.code != 0 {
 			t.Fatalf("card set tier on %s: %d %s", ref, got.code, got.errw)
 		}
-		if got := runCLI(t, root, "card", "set", ref, "tier", "frontier", "--at", "test"); got.code != 0 {
+		if got := runCLI(t, root, "set", ref, "tier", "frontier", "--at", "test"); got.code != 0 {
 			t.Fatalf("card set tier --at test on %s: %d %s", ref, got.code, got.errw)
 		}
 	}
@@ -358,7 +358,7 @@ func TestAClaimAtAColumnTheWorkbenchNoLongerDeclaresIsRefusedRatherThanPanicking
 	if got := runCLI(t, root, "add", "a card whose column went away"); got.code != 0 {
 		t.Fatalf("add: %d %s", got.code, got.errw)
 	}
-	if got := runCLI(t, root, "card", "set", "fx-1", "tier", "frontier"); got.code != 0 {
+	if got := runCLI(t, root, "set", "fx-1", "tier", "frontier"); got.code != 0 {
 		t.Fatalf("card set tier: %d %s", got.code, got.errw)
 	}
 	if got := runCLI(t, root, "move", "fx-1", "plain"); got.code != 0 {
@@ -402,7 +402,7 @@ func TestCheckReportsAnOverrideNamingNoColumn(t *testing.T) {
 	if got := runCLI(t, root, "add", "a card to assess"); got.code != 0 {
 		t.Fatalf("add: %d %s", got.code, got.errw)
 	}
-	if got := runCLI(t, root, "card", "set", "fx-1", "tier", "apex", "--at", "test"); got.code != 0 {
+	if got := runCLI(t, root, "set", "fx-1", "tier", "apex", "--at", "test"); got.code != 0 {
 		t.Fatalf("card set tier --at test: %d %s", got.code, got.errw)
 	}
 	rewriteAnchor(t, root, "fx-1", "  - column: test\n", "  - column: retired-long-ago\n")
@@ -448,7 +448,7 @@ func TestAStaleColumnDefaultRefusesTheRelativeWriteAndNothingElse(t *testing.T) 
 	rewriteColumnAnchor(t, root, "test", "tier: frontier", "tier: retired-rung")
 
 	before := anchorText(t, root, "fx-1")
-	refused := runCLI(t, root, "card", "set", "fx-1", "tier", "+1", "--at", "test")
+	refused := runCLI(t, root, "set", "fx-1", "tier", "+1", "--at", "test")
 	if refused.code != 2 {
 		t.Fatalf("the relative write exited %d, wanted 2: %s", refused.code, refused.errw)
 	}
@@ -521,7 +521,7 @@ func TestAWorkbenchDeclaringNoTierBehavesExactlyAsItDidBefore(t *testing.T) {
 		t.Fatalf("add: %d %s", got.code, got.errw)
 	}
 	for _, args := range [][]string{
-		{"card", "set", "fx-1", "severity", "major"},
+		{"set", "fx-1", "severity", "major"},
 		{"move", "fx-1", "plain"},
 		{"claim", "fx-1"},
 		{"release", "fx-1"},
@@ -753,13 +753,13 @@ func TestARaiseResolvingAtOrBelowWhatTheCardAsksIsRefused(t *testing.T) {
 	}{
 		{
 			name:      "a relative step measured from the column default",
-			set:       []string{"card", "set", "fx-1", "tier", "apex", "--at", "build"},
+			set:       []string{"set", "fx-1", "tier", "apex", "--at", "build"},
 			expr:      "+1",
 			attempted: "frontier",
 		},
 		{
 			name:      "an absolute value below the baseline",
-			set:       []string{"card", "set", "fx-1", "tier", "apex"},
+			set:       []string{"set", "fx-1", "tier", "apex"},
 			expr:      "workhorse",
 			attempted: "workhorse",
 		},
@@ -929,7 +929,7 @@ func TestARaiseReusesTheResolversOwnRefusals(t *testing.T) {
 			// the same sentence, which is what reusing the name buys. The two
 			// invocations differ only in the verb that raised it, so a
 			// message naming the verb would show up here as a difference.
-			write := runCLI(t, root, "card", "set", "fx-1", "tier", tc.step, "--at", tc.column)
+			write := runCLI(t, root, "set", "fx-1", "tier", tc.step, "--at", tc.column)
 			if got, want := flattenWords(write.errw), flattenWords(refused.errw); got != want {
 				t.Errorf("the raise prints\n%s\nand the ordinary write prints\n%s", want, got)
 			}
@@ -971,7 +971,7 @@ func TestTheLogFallsBackToTheStoredColumnIdentifier(t *testing.T) {
 	if got := runCLI(t, root, "add", "a card triage assessed"); got.code != 0 {
 		t.Fatalf("add: %d %s", got.code, got.errw)
 	}
-	if got := runCLI(t, root, "card", "set", "fx-1", "tier", "apex", "--at", "build"); got.code != 0 {
+	if got := runCLI(t, root, "set", "fx-1", "tier", "apex", "--at", "build"); got.code != 0 {
 		t.Fatalf("card set tier --at build: %d %s", got.code, got.errw)
 	}
 
@@ -1196,7 +1196,7 @@ func standCard(t *testing.T, root, ref, title, tier, column string) {
 		t.Fatalf("add %s: %d %s", title, got.code, got.errw)
 	}
 	if tier != "" {
-		if got := runCLI(t, root, "card", "set", ref, "tier", tier); got.code != 0 {
+		if got := runCLI(t, root, "set", ref, "tier", tier); got.code != 0 {
 			t.Fatalf("card set tier on %s: %d %s", ref, got.code, got.errw)
 		}
 	}
@@ -1430,7 +1430,7 @@ func TestACardAskingForNothingIsOfferedAndTakenWhateverIsDeclared(t *testing.T) 
 func TestARequirementFurtherDownTheRouteDoesNotWithholdWorkHere(t *testing.T) {
 	root := newBenchFromDefinition(t, routeDefinition)
 	standCard(t, root, "fx-1", "assessed further down", "workhorse", "first")
-	if got := runCLI(t, root, "card", "set", "fx-1", "tier", "apex", "--at", "fourth"); got.code != 0 {
+	if got := runCLI(t, root, "set", "fx-1", "tier", "apex", "--at", "fourth"); got.code != 0 {
 		t.Fatalf("card set tier --at fourth: %d %s", got.code, got.errw)
 	}
 
@@ -1466,7 +1466,7 @@ func TestARequirementFurtherDownTheRouteDoesNotWithholdWorkHere(t *testing.T) {
 func TestSelectionAtABufferReadsTheColumnTheCardWouldLandIn(t *testing.T) {
 	root := newBenchFromDefinition(t, bufferDefinition)
 	standCard(t, root, "fx-1", "waiting to be carried on", "", "waiting")
-	if got := runCLI(t, root, "card", "set", "fx-1", "tier", "apex", "--at", "work"); got.code != 0 {
+	if got := runCLI(t, root, "set", "fx-1", "tier", "apex", "--at", "work"); got.code != 0 {
 		t.Fatalf("card set tier --at work: %d %s", got.code, got.errw)
 	}
 

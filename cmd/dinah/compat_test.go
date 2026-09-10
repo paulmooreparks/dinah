@@ -108,9 +108,20 @@ var wantedEvents = map[string][]string{
 	contract.EventWorkbenchUpdated:   {"ts", "event", "actor", "field", "from", "to"},
 	contract.EventWorkstreamUpdated:  {"ts", "event", "actor", "field", "from", "to"},
 	contract.EventCardUpdated:        {"ts", "event", "actor", "field", "from", "to"},
-	contract.EventWorkstreamJoined:   {"ts", "event", "actor", "workstream"},
-	contract.EventWorkstreamLeft:     {"ts", "event", "actor", "workstream"},
-	contract.EventManualCorrection:   {"ts", "event", "actor", "from", "from_title", "to", "to_title"},
+	// The union covers two writers. reshape writes a line carrying note
+	// alone, per kept column whose rendered anchor its new definition
+	// changed, and a write to a column's own field writes one carrying field
+	// beside the note, so one row samples both.
+	contract.EventColumnUpdated: {"ts", "event", "actor", "note", "field"},
+	// from and to are absent, and not merely unsampled: a comment's only
+	// field is its prose body, and a prose write journals the act rather
+	// than the prose.
+	contract.EventCommentUpdated:    {"ts", "event", "actor", "note", "field"},
+	contract.EventItemUpdated:       {"ts", "event", "actor", "note", "field", "from", "to"},
+	contract.EventAttachmentUpdated: {"ts", "event", "actor", "note", "field", "from", "to"},
+	contract.EventWorkstreamJoined:  {"ts", "event", "actor", "workstream"},
+	contract.EventWorkstreamLeft:    {"ts", "event", "actor", "workstream"},
+	contract.EventManualCorrection:  {"ts", "event", "actor", "from", "from_title", "to", "to_title"},
 	// against is absent on an absolute override write, which needed no
 	// baseline, and the sequence writes one of each, so the union carries it.
 	// column_title and reason are raise's own two members, absent on every

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Derive the journal event sets from the tree and check what format.md says.
 
-The "Journal event schema" section of docs/design/format.md states five counts
+The "Journal event schema" section of docs/design/format.md states six counts
 and places four event names in or out of the sets those counts name. Every one
 of those claims is derived rather than remembered, so this script derives them
 again from the code and the fixtures and holds the document to the answer.
@@ -12,12 +12,14 @@ procedure that lives only in prose is checked when somebody rebuilds the
 checker, and two people rebuilding one checker from one paragraph is the hazard
 this file removes.
 
-The five sets:
+The six sets:
 
   DECLARED   every Event constant internal/contract declares.
   UNWRITTEN  the names cmd/dinah/compat_test.go's unwrittenEvents exempts.
   WRITTEN    DECLARED minus UNWRITTEN, the events some command writes.
   QUERYABLE  contract.Events, the vocabulary a query over cards accepts.
+  OVERLAP    WRITTEN and QUERYABLE both, the events a command writes and a
+             query can then ask for.
   CARD       the event names a card's own journal carries, read off every
              compatibility fixture under internal/bench/testdata/compat.
 
@@ -50,6 +52,9 @@ WORDS = {
     24: "twenty-four", 25: "twenty-five", 26: "twenty-six",
     27: "twenty-seven", 28: "twenty-eight", 29: "twenty-nine",
     30: "thirty", 31: "thirty-one", 32: "thirty-two",
+    33: "thirty-three", 34: "thirty-four", 35: "thirty-five",
+    36: "thirty-six", 37: "thirty-seven", 38: "thirty-eight",
+    39: "thirty-nine", 40: "forty",
 }
 
 # One event-name constant declaration, capturing the name a journal carries.
@@ -86,7 +91,7 @@ def constant_names(source, block):
 
 
 def derive():
-    """Derive the five sets from the code and the fixtures."""
+    """Derive the six sets from the code and the fixtures."""
     contract_source = CONTRACT.read_text(encoding="utf-8")
     declared = set(EVENT_CONSTANT.findall(contract_source))
     if not declared:
@@ -146,6 +151,10 @@ def claims(sets):
         ("queryable count", rf"A second count of {queryable} sits nearby"),
         ("overlap count", rf"{word(len(sets['OVERLAP'])).capitalize()} names sit in both counts"),
         ("card-journal count", rf"{word(len(sets['CARD'])).capitalize()} of those land on a card's own journal"),
+        # The extension paragraph states the declared count a second time, in
+        # its own words, and nothing read it until this line existed. It had
+        # been wrong through several rounds that moved every count around it.
+        ("declared count in the extension paragraph", rf"is one of the {word(len(sets['DECLARED']))}"),
     ]
 
     # The three memberships the paragraph states, each phrased from the sets

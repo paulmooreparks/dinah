@@ -106,10 +106,6 @@ var addressExemptions = []addressExemption{
 		site:   renderSite{File: "render.go", Function: "renderWorkbenchFields", Label: "t", Ordinal: 1},
 		ground: groundNamedByCaller, reason: "the table lists the workbench's own stored fields, and the reader named the workbench to reach it",
 	},
-	{
-		site:   renderSite{File: "render.go", Function: "renderWorkstreamDetail", Label: "fields", Ordinal: 1},
-		ground: groundNamedByCaller, reason: "the table lists one workstream's own stored fields, and the reader typed that workstream's address to get there",
-	},
 }
 
 // addressExpectation is what one drawn row's reference cell must hold, and
@@ -863,17 +859,9 @@ func addressCases() []addressCase {
 			// have to take the same spelling, or the listing sends a reader to
 			// a refusal.
 			companion: func(t *testing.T, w *addressWorkbench, cell string) {
-				if got := runCLI(t, w.root, "workstream", "get", cell, "title"); got.code != 0 {
-					t.Errorf("the listing prints %q and `dinah workstream get` refuses it: %s", cell, strings.TrimSpace(got.errw))
+				if got := runCLI(t, w.root, "get", cell, "title"); got.code != 0 {
+					t.Errorf("the listing prints %q and `dinah get` refuses it: %s", cell, strings.TrimSpace(got.errw))
 				}
-			},
-		},
-		{
-			site:  renderSite{File: "render.go", Function: "renderWorkstreamDetail", Label: "members", Ordinal: 1},
-			label: "one workstream's member cards",
-			argv:  []string{"workstream", "get", "autumn"}, at: 0,
-			want: func(t *testing.T, w *addressWorkbench) []addressExpectation {
-				return refsOf(t, w.payload(t, "workstream", "get", "autumn"), "cards", "ref")
 			},
 		},
 		{
