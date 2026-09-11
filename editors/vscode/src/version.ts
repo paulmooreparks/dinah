@@ -1,13 +1,15 @@
 // The compatibility gate.
 //
-// `dinah --json version` reports three fields with three jobs, and this gate
+// `dinah --json version` reports four fields with four jobs, and this gate
 // reads two of them.
 //
 // `format` is the storage gate. `profile` is the contract gate. `tool` is
 // never compared: `verb.ToolRelease` is the literal "0.1.0" in every build
 // from source and is overwritten only by a release build's -ldflags, so a
 // gate reading it would refuse every contributor's own binary. It is
-// displayed and nothing more.
+// displayed and nothing more. `executable` is the binary's own location, which
+// no gate compares either: it is carried through for the MCP provider, which
+// must hand the editor a command it can run.
 
 import type { CliOutcome } from "./cli";
 import type { VersionReport } from "./api";
@@ -90,10 +92,29 @@ export function parseProfile(
 	return { name, major, minor };
 }
 
-/** Reads the three fields off a parsed `--json version` payload. */
+/**
+ * Reads the four fields off a parsed `--json version` payload.
+ *
+ * This is the only decode of that payload in the extension, and it builds its
+ * result field by field, so a field named nowhere here is undefined on every
+ * binary however faithfully the CLI sends it.
+ *
+ * `executable` is optional in both directions. A binary older than the field
+ * sends none, and a binary whose own `os.Executable` failed sends none either,
+ * so its absence is ordinary rather than a defect in the report. A value of
+ * any other type is read as absent for the same reason: the three fields the
+ * gate reads are what decide whether this binary is usable at all, and
+ * refusing the whole report over a fourth one would refuse a binary this
+ * extension can otherwise drive.
+ */
 function readReport(json: unknown): VersionReport | undefined {
 	const report = json as
-		| { tool?: unknown; profile?: unknown; format?: unknown }
+		| {
+				tool?: unknown;
+				profile?: unknown;
+				format?: unknown;
+				executable?: unknown;
+		  }
 		| undefined;
 	if (
 		!report ||
@@ -103,7 +124,14 @@ function readReport(json: unknown): VersionReport | undefined {
 	) {
 		return undefined;
 	}
-	return { tool: report.tool, profile: report.profile, format: report.format };
+	const executable =
+		typeof report.executable === "string" ? report.executable : undefined;
+	return {
+		tool: report.tool,
+		profile: report.profile,
+		format: report.format,
+		executable,
+	};
 }
 
 /**

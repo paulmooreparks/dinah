@@ -14,6 +14,15 @@ export interface VersionReport {
 	readonly profile: string;
 	/** The storage format version the binary implements. */
 	readonly format: number;
+	/**
+	 * Where that binary is, absolute, as the binary itself reported it.
+	 *
+	 * Absent when the operating system would not say, and absent from every
+	 * binary older than the field. Nothing here tells those two apart, and
+	 * nothing here needs to: a reader that must hand a third party a runnable
+	 * command hands over nothing in either case.
+	 */
+	readonly executable?: string;
 }
 
 /** Which rung of the ladder produced the binary this window is using. */

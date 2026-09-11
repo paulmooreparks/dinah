@@ -19,13 +19,21 @@ against the same files.
 - Check and Copy Path, on the workbench itself.
 - Refresh, for when you would rather not wait for the poll.
 
+Dinah also offers every workbench this window has found to the editor's agent
+mode, as an MCP server the editor can start on your behalf. Your own agent
+session then reaches that workbench without you editing a configuration file.
+Nothing starts by itself: VS Code asks you to trust a server before it starts
+one for the first time, and nothing here writes to your settings or to an
+`mcp.json` file. If you would rather nothing were offered, set
+`dinah.registerMcpServer` to false.
+
 ## Requirements
 
 You need the `dinah` binary. The extension finds it on your PATH, or you can
 name it yourself with the `dinah.path` setting. `dinah.workbench` chooses a
 workbench when the folder resolves to more than one, `dinah.pollIntervalSeconds`
-sets how often the view re-reads, and `dinah.watchFiles` turns file watching on
-and off.
+sets how often the view re-reads, `dinah.watchFiles` turns file watching on and
+off, and `dinah.registerMcpServer` turns the MCP server offer on and off.
 
 Install the CLI from the project's own instructions at
 https://github.com/paulmooreparks/dinah#install.

@@ -31,6 +31,8 @@
 	"manifest.configuration.dinah.workbench.markdownDescription": "Directory of the workbench to use for this folder, passed to `dinah` as `--workbench`. Leave empty to let `dinah` discover one by walking up from the folder. Set it when several workbenches are reachable, or when the walk reaches one you did not mean.",
 	"manifest.configuration.dinah.pollIntervalSeconds.markdownDescription": "How often the sidebar tree checks `dinah changes` for updates while visible.",
 	"manifest.configuration.dinah.watchFiles.markdownDescription": "Watch the workbench's Markdown files for changes and check sooner than the poll interval when one is saved.",
+	"manifest.configuration.dinah.registerMcpServer.markdownDescription": "Offer every workbench this window has found to the editor's agent mode, as an MCP server that runs the `dinah` program this window is using. VS Code asks you to trust a server before it starts one, and nothing here writes to your settings or to an `mcp.json` file. If you turn this off, Dinah offers none.",
+	"manifest.mcp.provider.label": "Dinah workbenches",
 	"manifest.walkthrough.firstSession.title": "Dinah: Your First Session",
 	"manifest.walkthrough.firstSession.description": "Get oriented at a Dinah workbench, using Dinah's own guide.",
 	"manifest.walkthrough.firstSession.step.readGuide.title": "Read the guide",

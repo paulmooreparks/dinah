@@ -43,10 +43,12 @@ import {
 	EXTENSION_ID,
 	EXTENSION_NAME,
 	GLOBAL_COMMANDS,
+	MCP_PROVIDER_ID,
 	PUBLISHER,
 	ROW_COMMANDS,
 	SETTING_PATH,
 	SETTING_POLL_INTERVAL,
+	SETTING_REGISTER_MCP,
 	SETTING_WATCH_FILES,
 	SETTING_WORKBENCH,
 	TREE_COMMANDS,
@@ -124,6 +126,23 @@ function welcomeBlocks(): WelcomeBlock[] {
 	return (contributes.viewsWelcome as WelcomeBlock[]).filter(
 		(block) => block.view === VIEW_ID,
 	);
+}
+
+/** One declared MCP server definition provider, as the editor reads it. */
+interface McpProviderEntry {
+	readonly id: string;
+	readonly label: string;
+}
+
+/**
+ * The declared providers, with their labels resolved to English.
+ *
+ * Read off the resolved manifest, so a caller holding the label to a prose
+ * rule sees the sentence rather than the `%key%`. The raw form is read
+ * separately where the placeholder itself is the subject.
+ */
+function mcpProviders(): McpProviderEntry[] {
+	return (contributes.mcpServerDefinitionProviders ?? []) as McpProviderEntry[];
 }
 
 // The `when` grammar these blocks are held to. Restricting it is what makes
@@ -356,6 +375,7 @@ test("the settings are contributed with the scopes their subjects need", () => {
 		SETTING_WORKBENCH,
 		SETTING_POLL_INTERVAL,
 		SETTING_WATCH_FILES,
+		SETTING_REGISTER_MCP,
 	]);
 	// A binary path is a property of the machine and must not travel through
 	// settings sync to a different one.
@@ -372,6 +392,19 @@ test("the settings are contributed with the scopes their subjects need", () => {
 	const watch = configuration.properties[SETTING_WATCH_FILES];
 	assert.equal(watch.scope, "resource");
 	assert.equal(watch.default, true);
+	// Whether this window offers its workbenches to the editor's agent mode is
+	// not a property of any one folder: the provider answers once for the
+	// whole window with one flat array, and the published set is deduplicated
+	// across folders, so two folder-scoped answers would need a reconciliation
+	// and there is no defensible one.
+	const register = configuration.properties[SETTING_REGISTER_MCP];
+	assert.equal(register.scope, "window");
+	assert.equal(register.type, "boolean");
+	// The default is what the operator ruled, and presence alone would not
+	// catch it moving: a reader who never opened settings would silently get
+	// no registration while a test asserting only that the key exists stayed
+	// green.
+	assert.equal(register.default, true);
 });
 
 // The vocabulary an affirmative claim reaches for. This set is deliberately
@@ -906,6 +939,17 @@ test("no manifest string offers the extension itself as a place dinah comes from
 	for (const block of welcomeBlocks()) {
 		strings.push({ where: `the welcome block for ${block.when}`, text: block.contents });
 	}
+	// The provider's label is a reader-facing manifest string too, and it is
+	// neither the manifest description, nor a setting's description, nor a
+	// welcome block, so the three loops above reach none of it. resolveNls
+	// walks the whole manifest, so what arrives here is the English the
+	// label's %key% resolves to.
+	for (const entry of mcpProviders()) {
+		strings.push({
+			where: `the ${entry.id} provider's label`,
+			text: entry.label,
+		});
+	}
 	// A vacuous pass is the failure mode here, so the corpus is counted twice
 	// over. The derived count fails when the collector above stops reading one
 	// of the manifest's three sources, and the literal count fails when the
@@ -920,9 +964,10 @@ test("no manifest string offers the extension itself as a place dinah comes from
 				(property.description === undefined ? 0 : 1),
 			0,
 		) +
-		welcomeBlocks().length;
+		welcomeBlocks().length +
+		mcpProviders().length;
 	assert.equal(strings.length, declared);
-	assert.equal(strings.length, 11);
+	assert.equal(strings.length, 13);
 	for (const { where, text } of strings) {
 		assert.deepEqual(
 			claimsToCarryDinah(text),
@@ -2165,5 +2210,138 @@ test("the welcome view's walkthrough link names this extension's own walkthrough
 			`(command:workbench.action.openWalkthrough?${wanted})`,
 		),
 		`the welcome view links to no walkthrough of this extension: ${matched[0].contents}`,
+	);
+});
+
+test("one MCP server definition provider is declared, under the id the code registers", () => {
+	// dinah-424 AC-1. The API's own doc comment requires the manifest entry
+	// and the registerMcpServerDefinitionProvider call to spell one id, so the
+	// id half compares the manifest against the constant extension.ts passes
+	// rather than against a second literal.
+	const declared = mcpProviders();
+	assert.equal(declared.length, 1);
+	assert.equal(declared[0].id, MCP_PROVIDER_ID);
+
+	// The label half reads its operand from a raw parse, because the manifest
+	// binding above is resolveNls-resolved and would read as the English
+	// whether the manifest carries the key or a hard-coded sentence.
+	const raw = JSON.parse(
+		readFileSync(join(extensionRoot, "package.json"), "utf8"),
+	) as {
+		contributes: { mcpServerDefinitionProviders?: { label?: string }[] };
+	};
+	const rawLabel = raw.contributes.mcpServerDefinitionProviders?.[0]?.label;
+	assert.equal(
+		typeof rawLabel,
+		"string",
+		"the manifest declares a provider with no label at all",
+	);
+	const placeholder = /^%([A-Za-z0-9_.-]+)%$/.exec(rawLabel as string);
+	assert.ok(
+		placeholder !== null,
+		`the provider's label is ${String(rawLabel)} rather than a catalogue reference, so a reader in another language sees English`,
+	);
+	assert.ok(
+		Object.prototype.hasOwnProperty.call(baseCatalog, placeholder[1]),
+		`package.nls.json carries no ${String(rawLabel)}`,
+	);
+});
+
+test("the version floor and the types it was built against move together", () => {
+	// dinah-424 AC-10's version half. registerMcpServerDefinitionProvider
+	// first appears in the stable index.d.ts at @types/vscode@1.101.0, and
+	// declaring a contribution point an older editor cannot honour would rest
+	// on behaviour documented nowhere. The two strings are compared to each
+	// other so the pair cannot half-move.
+	const raw = JSON.parse(
+		readFileSync(join(extensionRoot, "package.json"), "utf8"),
+	) as {
+		engines: { vscode: string };
+		devDependencies: Record<string, string>;
+	};
+	assert.equal(raw.engines.vscode, raw.devDependencies["@types/vscode"]);
+});
+
+test("the registration call is in the shipped source and reaches the API uncast", () => {
+	// dinah-424 AC-10's sweep half. A clean type-check cannot establish any of
+	// this: a cast is what makes a call against types that do not declare it
+	// compile, and nothing in eslint.config.mjs bans a type assertion. The
+	// presence clauses are the only automated evidence anywhere on this card
+	// that the central call was written at all, because no unit test can load
+	// extension.ts and the integration suite is out of scope.
+	const body = readFileSync(join(extensionRoot, "src", "extension.ts"), "utf8");
+	assert.ok(body.length > 0, "extension.ts read as empty, so this check proved nothing");
+	assert.ok(
+		body.includes("registerMcpServerDefinitionProvider("),
+		"extension.ts registers no MCP server definition provider",
+	);
+	assert.ok(
+		body.includes("new vscode.McpStdioServerDefinition("),
+		"extension.ts constructs no server definition",
+	);
+	// The id and the settings key reach those call sites as the identifiers
+	// identity.ts exports. A literal spelled here could drift from the
+	// manifest, and a wiring that read a different key would leave the
+	// reader's off-switch doing nothing while every other criterion stayed
+	// green.
+	assert.ok(
+		/registerMcpServerDefinitionProvider\(\s*MCP_PROVIDER_ID\b/.test(body),
+		"the provider id reaching the registration call is not MCP_PROVIDER_ID",
+	);
+	assert.ok(
+		/settingOf<boolean>\(\s*SETTING_REGISTER_MCP\b/.test(body),
+		"the published set is not decided from the SETTING_REGISTER_MCP the manifest declares",
+	);
+	const cast: string[] = [];
+	for (const [at, line] of body.split("\n").entries()) {
+		const reaches =
+			line.includes("registerMcpServerDefinitionProvider") ||
+			line.includes("McpStdioServerDefinition");
+		if (!reaches) {
+			continue;
+		}
+		if (/\bas\s+(?:unknown|any)\b/.test(line) || line.includes("@ts-expect-error") || line.includes("@ts-ignore")) {
+			cast.push(`${String(at + 1)}: ${line.trim()}`);
+		}
+	}
+	assert.deepEqual(
+		cast,
+		[],
+		`a type assertion reaches an MCP API call site, so the type-check proves nothing about it:\n${cast.join("\n")}`,
+	);
+});
+
+test("the README offers the extension itself as a place nothing comes from", () => {
+	// dinah-424 AC-13. The manifest guard above opens no README at all, so
+	// this is a check beside it rather than a claim laid on that one. It
+	// reuses claimsToCarryDinah so one definition of the refusal serves both
+	// surfaces.
+	const readme = readFileSync(join(extensionRoot, "README.md"), "utf8");
+	assert.ok(readme.length > 0, "the README read as empty, so this check proved nothing");
+	assert.deepEqual(
+		claimsToCarryDinah(readme),
+		[],
+		"the README says a dinah binary lives inside the extension",
+	);
+});
+
+test("the README names every setting the manifest contributes", () => {
+	// dinah-424 AC-13's second half. A setting a reader cannot find written
+	// down is a setting they cannot turn off, and the off-switch is what makes
+	// the operator's ruling declinable.
+	const readme = readFileSync(join(extensionRoot, "README.md"), "utf8");
+	const configuration = contributes.configuration as {
+		properties: Record<string, unknown>;
+	};
+	const keys = Object.keys(configuration.properties);
+	assert.ok(
+		keys.length > 0,
+		"the manifest contributes no setting at all, so this check had nothing to look for",
+	);
+	const unmentioned = keys.filter((key) => !readme.includes(key));
+	assert.deepEqual(
+		unmentioned,
+		[],
+		`the README names none of these settings: ${unmentioned.join(", ")}`,
 	);
 });

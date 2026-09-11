@@ -91,14 +91,18 @@ import {
 	COMMAND_UNBLOCK,
 	DRAG_MIME_TYPE,
 	COMMAND_OPEN_FIRST_SESSION_GUIDE,
+	MCP_PROVIDER_ID,
 	SERVED_TEXT_SCHEME,
 	SETTING_PATH,
 	SETTING_POLL_INTERVAL,
+	SETTING_REGISTER_MCP,
 	SETTING_WATCH_FILES,
 	SETTING_WORKBENCH,
 	TREE_COMMANDS,
 	VIEW_ID,
 } from "./identity";
+import type { McpServerPlan } from "./mcpServers";
+import { mcpPlansDiffer, publishedMcpServers } from "./mcpServers";
 import { contextForPull, pullFromColumn } from "./pullCommands";
 import { assertCommandsFullyRegistered } from "./registrationGuard";
 import {
@@ -698,6 +702,60 @@ export async function activate(
 	});
 	context.subscriptions.push(treeView);
 
+	// The editor's MCP server list, one entry per workbench this window has
+	// resolved. Registration is unconditional, because a reader who installs
+	// the binary after the window opened would otherwise get no provider at
+	// all and nothing would tell them so; the provider answers with an empty
+	// array until there is something to publish. Nothing here starts a
+	// server. The editor asks, this answers, and the editor asks the reader
+	// whether they trust a server before it runs one.
+	const mcpChanged = new vscode.EventEmitter<void>();
+	context.subscriptions.push(mcpChanged);
+
+	let published: readonly McpServerPlan[] = [];
+	const currentPlans = (): readonly McpServerPlan[] =>
+		publishedMcpServers(
+			binary,
+			settingOf<boolean>(SETTING_REGISTER_MCP, true),
+			provider.mcpTargets(),
+			process.platform === "win32",
+		);
+
+	// The one impure step: plain data becomes the editor's own value. The
+	// installed .d.ts takes cwd as a settable property rather than as a
+	// constructor argument, which is why it is assigned rather than passed.
+	const toDefinition = (plan: McpServerPlan): vscode.McpStdioServerDefinition => {
+		const definition = new vscode.McpStdioServerDefinition(
+			plan.label,
+			plan.command,
+			[...plan.args],
+			{},
+			plan.version,
+		);
+		definition.cwd = vscode.Uri.file(plan.cwd);
+		return definition;
+	};
+
+	context.subscriptions.push(
+		vscode.lm.registerMcpServerDefinitionProvider(MCP_PROVIDER_ID, {
+			onDidChangeMcpServerDefinitions: mcpChanged.event,
+			provideMcpServerDefinitions: () => {
+				published = currentPlans();
+				return published.map(toDefinition);
+			},
+		}),
+	);
+
+	// The reader changed the switch, so the set is answered for again without
+	// waiting for a window reload.
+	context.subscriptions.push(
+		vscode.workspace.onDidChangeConfiguration((event) => {
+			if (event.affectsConfiguration(SETTING_REGISTER_MCP)) {
+				mcpChanged.fire();
+			}
+		}),
+	);
+
 	loop = new CheckpointLoop({
 		spawner: nodeSpawner,
 		exe: binary.state === "ok" ? binary.path : "",
@@ -714,6 +772,15 @@ export async function activate(
 				await provider.refresh(folder);
 				for (const { root, title } of provider.rootsFor(folder)) {
 					await diagnostics.runFor(root, title);
+				}
+				// Only where the set actually moved. Firing every checkpoint
+				// would prompt the reader to refresh their tools every poll
+				// interval, which the version field's documented behaviour
+				// makes a real cost to them.
+				const next = currentPlans();
+				if (mcpPlansDiffer(published, next)) {
+					published = next;
+					mcpChanged.fire();
 				}
 			},
 			renderStatusBar,

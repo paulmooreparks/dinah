@@ -11,9 +11,23 @@ import { test } from "node:test";
 import type { CliOutcome } from "../../src/cli";
 import { classifyVersion, parseProfile } from "../../src/version";
 
-/** An exit-0 answer carrying the three fields `--json version` reports. */
-function reported(tool: string, profile: string, format: number): CliOutcome {
-	return { kind: "ok", json: { tool, profile, format } };
+/**
+ * An exit-0 answer carrying the fields `--json version` reports.
+ *
+ * `executable` is typed as `unknown` and left out by default, so every row
+ * below is unchanged and the type-rejection case can be expressed.
+ */
+function reported(
+	tool: string,
+	profile: string,
+	format: number,
+	executable?: unknown,
+): CliOutcome {
+	const json: Record<string, unknown> = { tool, profile, format };
+	if (executable !== undefined) {
+		json.executable = executable;
+	}
+	return { kind: "ok", json };
 }
 
 const rows: {
@@ -177,4 +191,41 @@ test("a client tells the read exit convention apart from the version alone", () 
 			expected,
 		);
 	}
+});
+
+test("the decode carries the binary's own location through, and only as a string", () => {
+	// dinah-424 AC-16. readReport builds its result field by field, so a field
+	// named nowhere there is undefined on every binary however faithfully the
+	// CLI sends it. The payload is parsed rather than hand-built, because a
+	// hand-built VersionReport would pass over a decoder that drops the field.
+	//
+	// This proves the decode carries what it is given and proves nothing about
+	// what the CLI sends. versionExecutable-live.test.ts is the join.
+	const carried = classifyVersion(
+		reported("0.1.0", "dinah-core/0.4", 1, "C:/tools/dinah.exe"),
+	);
+	assert.equal(carried.kind, "ok");
+	assert.equal(
+		(carried as { version: { executable?: string } }).version.executable,
+		"C:/tools/dinah.exe",
+	);
+
+	// A value of another type is read as absent rather than refusing the whole
+	// report, because the three fields the gate reads are what decide whether
+	// the binary is usable at all.
+	const mistyped = classifyVersion(reported("0.1.0", "dinah-core/0.4", 1, 17));
+	assert.equal(mistyped.kind, "ok");
+	assert.equal(
+		(mistyped as { version: { executable?: string } }).version.executable,
+		undefined,
+	);
+
+	// A binary older than the field sends none, and so does one whose own
+	// os.Executable failed.
+	const absent = classifyVersion(reported("0.1.0", "dinah-core/0.4", 1));
+	assert.equal(absent.kind, "ok");
+	assert.equal(
+		(absent as { version: { executable?: string } }).version.executable,
+		undefined,
+	);
 });
