@@ -1,0 +1,22 @@
+// A module the key sweep is driven over by l10n-keys.test.ts, carrying one
+// call it must refuse and one it must resolve.
+//
+// Nothing in src/ passes a key the sweep cannot read, so the tree itself
+// cannot prove the refusal happens. This fixture is what turns that rule into
+// something a test can fail on, and the resolving call beside it is the clean
+// case: a sweep that reported every identifier as unresolvable would satisfy
+// the refusal on its own.
+//
+// The name ends .ts.txt so sources() never sweeps it and tsconfig.test.json's
+// exclude keeps tsc off it, exactly as confirmDestructive-call-site.ts.txt is
+// handled.
+
+const FIXTURE_KEY = "fixture.resolved";
+
+interface FixtureContext {
+	readonly host: { readonly t: (key: string) => string };
+}
+
+export function renderFixture(context: FixtureContext, chosenKey: string): string {
+	return `${context.host.t(chosenKey)} ${context.host.t(FIXTURE_KEY)}`;
+}
