@@ -3,6 +3,7 @@ package verb
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"sort"
 	"strings"
 
@@ -392,17 +393,30 @@ func (l *Library) changeFilters(req *Request) (card string, column *bench.Column
 // archive mirror, which is anchorOf's own order, and then accepts a
 // well-formed identifier that resolves in neither, because a removed entry in
 // gone carries an identifier and nothing else and an identifier is all a
-// caller can match one by. Anything else still refuses UnknownCard, so a
-// mistyped reference is caught rather than answered with silence.
+// caller can match one by. A number more than one card of a half carries
+// refuses dinah.ambiguous-card from that half rather than falling through to
+// the other one, because a filter keyed on a card the caller did not name
+// watches the wrong card and says nothing. Anything else still refuses
+// UnknownCard, so a mistyped reference is caught rather than answered with
+// silence.
 //
 // The mirror is reached only by a reference the live half already failed, so a
 // call about a card that is still on the board never pays for it.
 func (l *Library) watchedCard(ref string) (string, error) {
-	if found, err := l.Bench.ResolveCard(ref); err == nil {
+	found, err := l.Bench.ResolveCard(ref)
+	if err == nil {
 		return found.Card.ID, nil
 	}
-	if found, err := l.Bench.ResolveArchivedCard(ref); err == nil {
+	var refusal *contract.Refusal
+	if errors.As(err, &refusal) && refusal.Name == contract.AmbiguousCard {
+		return "", refusal
+	}
+	found, err = l.Bench.ResolveArchivedCard(ref)
+	if err == nil {
 		return found.Card.ID, nil
+	}
+	if errors.As(err, &refusal) && refusal.Name == contract.AmbiguousCard {
+		return "", refusal
 	}
 	if trimmed := strings.TrimSpace(ref); bench.IsID(trimmed) {
 		return trimmed, nil

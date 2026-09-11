@@ -1877,6 +1877,14 @@
       "text": "choose one with --workbench <dir>, or run from inside it",
       "context": "The line printed after dinah.ambiguous-workbench's candidate rows, naming the ways forward."
     },
+    "refusal.dinah.ambiguous-card": {
+      "text": "more than one card answers to {detail}",
+      "context": "The opening sentence printed after the refusal name dinah.ambiguous-card, naming the reference the reader typed. The candidate rows print beneath it, one 12-hex card identifier per row, and refusal.dinah.ambiguous-card.next follows as the closing line naming the way forward."
+    },
+    "refusal.dinah.ambiguous-card.next": {
+      "text": "name one by the identifier above",
+      "context": "The line printed after dinah.ambiguous-card's candidate rows, naming the way forward."
+    },
     "refusal.dinah.ambiguous-column": {
       "text": "you can pull into more than one column right now",
       "context": "The opening sentence printed after the refusal name dinah.ambiguous-column, raised when the bare form of pull has more than one column in its qualifying set. The candidate rows print beneath it, one per qualifying column, and refusal.dinah.ambiguous-column.next follows as the closing line naming the way forward."

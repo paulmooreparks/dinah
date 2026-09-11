@@ -1033,6 +1033,18 @@ var Shapes = []Shape{
 		},
 	},
 	{
+		// A card reference's number is carried by more than one card, so the
+		// resolution refuses rather than answering with the lowest
+		// identifier. The candidates ride as a Carried set rather than a
+		// Listing, because the set depends on the reference that was typed
+		// and no enumerable listing names it. The next step tells the reader
+		// to retype one of the identifiers the rows carry.
+		Name:      AmbiguousCard,
+		Carried:   "cards",
+		Fragments: []Fragment{{Key: "refusal.dinah.ambiguous-card.next"}},
+		NextStep:  []string{"refusal.dinah.ambiguous-card.next"},
+	},
+	{
 		// A bare pull found more than one column it could pull into, and
 		// the qualifying columns ride as a Carried set rather than a Listing
 		// since the value depends on the invocation. The next step names
