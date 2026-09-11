@@ -252,6 +252,16 @@ const (
 	// absolute, so the count goes on rising and the next regressive move is
 	// refused again.
 	AtLoopLimit = LayerPrefix + "at-loop-limit"
+	// UnresolvedItemExit is a move or a pull out of a column whose declared
+	// hold covers the way out, made while the card carries an item naming
+	// that column and not settled. It is a separate name from
+	// UnresolvedItem because that one is the profile's, fixed by CORE-GATE-3
+	// for a card arriving at a column, and the profile says nothing about a
+	// card leaving one, so borrowing the name would claim the profile covers
+	// a case it does not. The operator carries a card past this one with the
+	// same --override marker that already carries a card into a held or a
+	// full column.
+	UnresolvedItemExit = LayerPrefix + "unresolved-item-exit"
 	// UnknownField is a query naming a field this tool does not have, or
 	// naming one with an operator it does not take. One name covers both
 	// because to a reader `Priority>=next` and `at:` are the same mistake:
@@ -544,6 +554,7 @@ var Introduced = []string{
 	ReshapeNeedsDestination, ReshapeHeldCardInQueue, ReshapeMapSourceEmpty,
 	ReshapeDestinationRetiring, ReshapeDestinationAmbiguous,
 	UnknownItemKind, WrongItemKind, NotPending, NotResolved, Uncited,
+	UnresolvedItemExit,
 	ObservationRequired, UnknownLink,
 }
 

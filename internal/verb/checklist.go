@@ -158,6 +158,16 @@ func (l *Library) Fail(req *Request) *Response {
 // there are three verbs rather than one taking a state.
 func (l *Library) closeItem(req *Request, event, state string) *Response {
 	return l.withItem(req, func(entity *itemTarget) (*bench.Event, *Response) {
+		// An item the operator owns is the operator's to settle. The check
+		// reads the item rather than the verb, so one statement of it covers
+		// resolve, verify and fail, which all land here, and covers all three
+		// item kinds, because whose item this is does not depend on what kind
+		// of judgment it records. Reopen does not land here and is left open
+		// deliberately: reopening returns an item to pending, which can only
+		// re-impose a hold and never lift one.
+		if entity.fm.Value(bench.ItemOwnerField) == bench.ItemOwnerOperator && req.Actor != l.Bench.Operator {
+			return nil, l.refuse(req, entity.card, contract.NotOperator, req.Actor)
+		}
 		if !kindClosedBy(state)[entity.item.Kind] {
 			return nil, l.refuse(req, entity.card, contract.WrongItemKind, entity.item.Kind)
 		}

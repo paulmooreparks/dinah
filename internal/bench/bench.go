@@ -202,12 +202,20 @@ type Column struct {
 	// has been and a workbench edited by hand answers the way every other
 	// replay answers.
 	LoopLimit int
-	// GateItems marks a column that holds a card while an item on it names
-	// this column and is not resolved, which is CORE-GATE-1's declaration.
+	// Hold marks a column that holds a card while an item on it names this
+	// column and is not resolved, which is CORE-GATE-1's declaration, and
+	// says which way the column holds. It carries one of four values:
+	// HoldOn, the column holds a card entering it; HoldOut, the column
+	// holds a card leaving it; HoldBoth, the column holds a card both
+	// ways; and the zero value, the empty string, which is HoldOff and
+	// says the column holds neither way. Read it through HoldsOnEntry and
+	// HoldsOnExit below rather than comparing it here, so a value added
+	// later reaches every caller at once.
+	//
 	// The column says only that it holds; which items hold there follows
 	// from which items name it, so no kind of item is named here and none
 	// is named where the hold is applied either.
-	GateItems bool
+	Hold string
 	// Instructions is the column's own body, the last layer of the chain.
 	Instructions string
 	// Position is the column's zero-based index in the flow.
@@ -264,6 +272,20 @@ func (s *Column) TakesWorkUp() bool {
 		return false
 	}
 	return true
+}
+
+// HoldsOnEntry reports whether an item naming this column can hold a card
+// from entering it. CORE-GATE-3 reads this at a move's or a pull's
+// destination.
+func (s *Column) HoldsOnEntry() bool {
+	return s.Hold == HoldOn || s.Hold == HoldBoth
+}
+
+// HoldsOnExit reports whether an item naming this column can hold a card
+// from leaving it, Dinah's own addition beside CORE-GATE-3. canLand reads
+// this at a move's or a pull's departure.
+func (s *Column) HoldsOnExit() bool {
+	return s.Hold == HoldOut || s.Hold == HoldBoth
 }
 
 // Terminal reports whether a card's journey ends at this column, which is
@@ -1847,12 +1869,20 @@ func readColumnIn(root string, vocab columnVocabulary, id string, position int) 
 	}
 	// The same strict reading, for the same reason: a column declaring
 	// gate_items: yes would otherwise hold nothing and say nothing about it,
-	// which is the failure a hand-edited flag makes easiest to reach.
+	// which is the failure a hand-edited flag makes easiest to reach. The
+	// reading is extended rather than replaced: absent and false both mean
+	// no hold, true is the legacy spelling of holding on entry and is
+	// preserved exactly rather than reinterpreted, and out and both are the
+	// two new directions this field now carries.
 	switch fm.Value("gate_items") {
 	case "":
-	case "true":
-		column.GateItems = true
 	case "false":
+	case "true":
+		column.Hold = HoldOn
+	case "out":
+		column.Hold = HoldOut
+	case "both":
+		column.Hold = HoldBoth
 	default:
 		return nil, contract.RefuseWith(contract.Malformed, "column "+id, anchor)
 	}

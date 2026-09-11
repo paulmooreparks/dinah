@@ -225,9 +225,9 @@
       "source": "bc538e33f1fcc933"
     },
     "check.set.7": {
-      "text": "dieser Akteur ist der Betreiber, wo die Art es verlangt",
+      "text": "dieser Akteur ist der Betreiber, wo ein Schreibvorgang es verlangt",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "1dfdf27dbaf18e5e"
+      "source": "b8cdb6e9a369f5bd"
     },
     "check.set.8": {
       "text": "eine Slug-Aenderung traegt die Bestaetigungsoption",
@@ -524,6 +524,11 @@
       "context": "One row of the ordered precondition list of move. This row is Dinah's own addition; the core profile's own section 6.4 list ends at check.move.9.",
       "source": "193dcb5974ead6b"
     },
+    "check.move.11": {
+      "text": "die Karte trägt keinen ungelösten Eintrag, der die Ausgangsspalte nennt",
+      "context": "One row of the ordered precondition list of move. This row is Dinah's own addition; the core profile's own section 6.4 list ends at check.move.9. It is the departure's own hold, read at the column the card is leaving rather than the one it would land in.",
+      "source": "8186a705a5b6534a"
+    },
     "check.next.1": {
       "text": "die Werkbank deklariert die genannte Spalte",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
@@ -590,21 +595,26 @@
       "source": "d6e9e1f4780da9c4"
     },
     "check.pull.12": {
+      "text": "die Karte trägt keinen ungelösten Eintrag, der die Ausgangsspalte nennt",
+      "context": "One row of the ordered precondition list of pull: the departure's own hold, read at the column the card is leaving rather than the one it would land in.",
+      "source": "8186a705a5b6534a"
+    },
+    "check.pull.13": {
       "text": "das Aufnehmen der Karte am Ziel ist für die anfragende Person zulässig",
       "context": "One row of the ordered precondition list of pull: the operator-owned reservation applied to the column the card would land in and be claimed at.",
       "source": "93e6ab0cb424ce6d"
     },
-    "check.pull.13": {
+    "check.pull.14": {
       "text": "das Ziel wird nicht gerade stillgelegt",
       "context": "One row of the ordered precondition list of pull: a destination whose retirement is in flight refuses, in the words move refuses it.",
       "source": "64b7abf44b69542b"
     },
-    "check.pull.14": {
+    "check.pull.15": {
       "text": "die Karte trägt keinen strukturierten Eintrag, der nicht aufgelöst ist",
       "context": "One row of the ordered precondition list of pull: a pull that takes the card up answers claim's own last row, in the words claim refuses it.",
       "source": "50228523d584f48"
     },
-    "check.pull.15": {
+    "check.pull.16": {
       "text": "Ihre angegebene Stufe liegt auf oder über dem, was die Karte dort verlangt",
       "context": "One row of the ordered precondition list of pull: a pull that takes the card up answers claim's own tier row, asked at the column it lands in.",
       "source": "3a872f98880c416e"
@@ -1520,9 +1530,19 @@
       "source": "d0c5d88e34acb80f"
     },
     "refusal.unresolved-item.next": {
-      "text": "; beantworten Sie ihn und markieren Sie diesen Eintrag in checklist/{detail}/item.md als aufgelöst",
-      "context": "Spliced onto refusal.unresolved-item as the next step. {detail} is the item that is not resolved, and it names no command, because nothing in Dinah writes a checklist item yet and the edit is made in the file.",
-      "source": "42e653b228b5e733"
+      "text": "; beantworten Sie ihn und lösen Sie diesen Eintrag dann auf, verifizieren Sie ihn oder lassen Sie ihn scheitern",
+      "context": "Spliced onto refusal.unresolved-item as the next step. It names the three verbs that settle an item, because each of them is a command.",
+      "source": "e0599db3bacaa190"
+    },
+    "refusal.dinah.unresolved-item-exit": {
+      "text": "diese Karte trägt den Eintrag {detail}, der nicht aufgelöst ist, und diese Spalte hält sie fest, bis er es ist",
+      "context": "The sentence printed after the refusal name dinah.unresolved-item-exit. {detail} is the item's identifier, on unresolved-item's own convention.",
+      "source": "e40831aacd135af"
+    },
+    "refusal.dinah.unresolved-item-exit.next": {
+      "text": "; beantworten Sie ihn und lösen Sie diesen Eintrag dann auf, verifizieren Sie ihn oder lassen Sie ihn scheitern",
+      "context": "Spliced onto refusal.dinah.unresolved-item-exit as the next step.",
+      "source": "e0599db3bacaa190"
     },
     "reshape.applied": {
       "text": "Diese Werkbank trägt nun die neue Form.",

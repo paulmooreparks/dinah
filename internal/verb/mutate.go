@@ -358,7 +358,8 @@ func (l *Library) canRoute(req *Request, card *bench.Card) (*bench.Column, *benc
 // not held by somebody else, the move is not a forward move out of a done
 // column, the destination stands below its capacity, the destination holds no
 // unresolved item of this card's that names it, the departure has not reached
-// its own declared loop_limit for this card, the destination does not
+// its own declared loop_limit for this card, the departure holds no unresolved
+// item of this card's that names it for departure, the destination does not
 // wait on somebody outside the workbench, the destination does not reserve
 // to the operator the claim an arriving act would take there, and the
 // destination is not being retired. It reports whether a limit or a hold was
@@ -405,7 +406,7 @@ func (l *Library) canLand(req *Request, card *bench.Card, destination, departure
 	// convention, because a count tells whoever is holding the card nothing
 	// about what to go and settle.
 	gateHeld := false
-	if destination.GateItems {
+	if destination.HoldsOnEntry() {
 		holding, err := bench.GatingItems(card.Dir, destination.ID)
 		if err != nil {
 			return false, nil, err
@@ -431,6 +432,26 @@ func (l *Library) canLand(req *Request, card *bench.Card, destination, departure
 		loopReached = l.Bench.RegressiveDepartures(events, departure.ID) >= departure.LoopLimit
 		if loopReached && !req.Override {
 			return false, l.refuse(req, card, contract.AtLoopLimit, columnRef(departure)), nil
+		}
+	}
+	// CORE-GATE-6, Dinah's own: the departure's own exit hold, symmetric with
+	// the entry row above and running immediately after the loop-limit row it
+	// follows, before the three rows beneath it that ask about the
+	// destination rather than about this card's own departure. Nothing here
+	// reads forward, on the same terms the entry row above reads neither: an
+	// unresolved item is exactly as good a reason to keep a card at the
+	// column that raised it on a push-back as it is on an advance.
+	exitGateHeld := false
+	if departure != nil && departure.HoldsOnExit() {
+		holding, err := bench.GatingItems(card.Dir, departure.ID)
+		if err != nil {
+			return false, nil, err
+		}
+		if len(holding) > 0 {
+			exitGateHeld = true
+			if !req.Override {
+				return false, l.refuse(req, card, contract.UnresolvedItemExit, holding[0].ID), nil
+			}
 		}
 	}
 	// A column where no owner takes work up receives a card that arrives
@@ -465,7 +486,7 @@ func (l *Library) canLand(req *Request, card *bench.Card, destination, departure
 	if holder, retiring := l.retiring(destination.ID); retiring {
 		return false, l.refuse(req, card, contract.Locked, holder), nil
 	}
-	return (reached || loopReached || gateHeld) && req.Override, nil, nil
+	return (reached || loopReached || gateHeld || exitGateHeld) && req.Override, nil, nil
 }
 
 // move carries a card from one column to another. The list is CORE-MOVE's, in

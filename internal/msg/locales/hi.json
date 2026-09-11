@@ -225,9 +225,9 @@
       "source": "bc538e33f1fcc933"
     },
     "check.set.7": {
-      "text": "वह स्वामी संचालक है, जहाँ वह प्रकार यह माँगता है",
+      "text": "वह स्वामी संचालक है, जहाँ कोई लेखन यह माँगता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "1dfdf27dbaf18e5e"
+      "source": "b8cdb6e9a369f5bd"
     },
     "check.set.8": {
       "text": "उपनाम बदलने में पुष्टि फ़्लैग है",
@@ -524,6 +524,11 @@
       "context": "One row of the ordered precondition list of move. This row is Dinah's own addition; the core profile's own section 6.4 list ends at check.move.9.",
       "source": "193dcb5974ead6b"
     },
+    "check.move.11": {
+      "text": "कार्ड पर ऐसी कोई अनसुलझी मद नहीं है जो प्रस्थान कॉलम को नामित करती हो",
+      "context": "One row of the ordered precondition list of move. This row is Dinah's own addition; the core profile's own section 6.4 list ends at check.move.9. It is the departure's own hold, read at the column the card is leaving rather than the one it would land in.",
+      "source": "8186a705a5b6534a"
+    },
     "check.next.1": {
       "text": "नामित कॉलम वर्कबेंच घोषित करती है",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
@@ -590,21 +595,26 @@
       "source": "d6e9e1f4780da9c4"
     },
     "check.pull.12": {
+      "text": "कार्ड पर ऐसी कोई अनसुलझी मद नहीं है जो प्रस्थान कॉलम को नामित करती हो",
+      "context": "One row of the ordered precondition list of pull: the departure's own hold, read at the column the card is leaving rather than the one it would land in.",
+      "source": "8186a705a5b6534a"
+    },
+    "check.pull.13": {
       "text": "माँगने वाले के लिए गंतव्य पर कार्ड उठाना वैध है",
       "context": "One row of the ordered precondition list of pull: the operator-owned reservation applied to the column the card would land in and be claimed at.",
       "source": "93e6ab0cb424ce6d"
     },
-    "check.pull.13": {
+    "check.pull.14": {
       "text": "गंतव्य को सेवामुक्त नहीं किया जा रहा है",
       "context": "One row of the ordered precondition list of pull: a destination whose retirement is in flight refuses, in the words move refuses it.",
       "source": "64b7abf44b69542b"
     },
-    "check.pull.14": {
+    "check.pull.15": {
       "text": "कार्ड पर ऐसा कोई संरचित मद नहीं है जो अनसुलझी हो",
       "context": "One row of the ordered precondition list of pull: a pull that takes the card up answers claim's own last row, in the words claim refuses it.",
       "source": "50228523d584f48"
     },
-    "check.pull.15": {
+    "check.pull.16": {
       "text": "आपका बताया गया स्तर उससे बराबर या ऊपर है जो कार्ड वहाँ माँगता है",
       "context": "One row of the ordered precondition list of pull: a pull that takes the card up answers claim's own tier row, asked at the column it lands in.",
       "source": "3a872f98880c416e"
@@ -1520,9 +1530,19 @@
       "source": "d0c5d88e34acb80f"
     },
     "refusal.unresolved-item.next": {
-      "text": "; इसका उत्तर दें, फिर checklist/{detail}/item.md में उस मद को सुलझा हुआ चिह्नित करें",
-      "context": "Spliced onto refusal.unresolved-item as the next step. {detail} is the item that is not resolved, and it names no command, because nothing in Dinah writes a checklist item yet and the edit is made in the file.",
-      "source": "42e653b228b5e733"
+      "text": "; इसका उत्तर दें, फिर उस मद को सुलझाएँ, सत्यापित करें या विफल करें",
+      "context": "Spliced onto refusal.unresolved-item as the next step. It names the three verbs that settle an item, because each of them is a command.",
+      "source": "e0599db3bacaa190"
+    },
+    "refusal.dinah.unresolved-item-exit": {
+      "text": "इस कार्ड पर मद {detail} है, जो अनसुलझी है, और यह कॉलम तब तक रोके रखता है जब तक वह सुलझ न जाए",
+      "context": "The sentence printed after the refusal name dinah.unresolved-item-exit. {detail} is the item's identifier, on unresolved-item's own convention.",
+      "source": "e40831aacd135af"
+    },
+    "refusal.dinah.unresolved-item-exit.next": {
+      "text": "; इसका उत्तर दें, फिर उस मद को सुलझाएँ, सत्यापित करें या विफल करें",
+      "context": "Spliced onto refusal.dinah.unresolved-item-exit as the next step.",
+      "source": "e0599db3bacaa190"
     },
     "reshape.applied": {
       "text": "यह वर्कबेंच अब नया आकार रखता है।",

@@ -222,7 +222,7 @@
       "skeleton": true
     },
     "check.set.7": {
-      "text": "that owner is the operator, where the kind asks",
+      "text": "that owner is the operator, where a write asks",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
@@ -521,6 +521,11 @@
       "context": "One row of the ordered precondition list of move. This row is Dinah's own addition; the core profile's own section 6.4 list ends at check.move.9.",
       "skeleton": true
     },
+    "check.move.11": {
+      "text": "the card carries no unresolved item that names the departure column",
+      "context": "One row of the ordered precondition list of move. This row is Dinah's own addition; the core profile's own section 6.4 list ends at check.move.9. It is the departure's own hold, read at the column the card is leaving rather than the one it would land in.",
+      "skeleton": true
+    },
     "check.next.1": {
       "text": "the named column is one the workbench declares",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
@@ -587,21 +592,26 @@
       "skeleton": true
     },
     "check.pull.12": {
+      "text": "the card carries no unresolved item that names the departure column",
+      "context": "One row of the ordered precondition list of pull: the departure's own hold, read at the column the card is leaving rather than the one it would land in.",
+      "skeleton": true
+    },
+    "check.pull.13": {
       "text": "taking the card up at the destination is legal for whoever asks",
       "context": "One row of the ordered precondition list of pull: the operator-owned reservation applied to the column the card would land in and be claimed at.",
       "skeleton": true
     },
-    "check.pull.13": {
+    "check.pull.14": {
       "text": "the destination is not being retired",
       "context": "One row of the ordered precondition list of pull: a destination whose retirement is in flight refuses, in the words move refuses it.",
       "skeleton": true
     },
-    "check.pull.14": {
+    "check.pull.15": {
       "text": "the card carries no structured item that is not resolved",
       "context": "One row of the ordered precondition list of pull: a pull that takes the card up answers claim's own last row, in the words claim refuses it.",
       "skeleton": true
     },
-    "check.pull.15": {
+    "check.pull.16": {
       "text": "your declared tier is at or above what the card asks there",
       "context": "One row of the ordered precondition list of pull: a pull that takes the card up answers claim's own tier row, asked at the column it lands in.",
       "skeleton": true
@@ -1517,8 +1527,18 @@
       "skeleton": true
     },
     "refusal.unresolved-item.next": {
-      "text": "; answer it, then mark that item resolved in checklist/{detail}/item.md",
-      "context": "Spliced onto refusal.unresolved-item as the next step. {detail} is the item that is not resolved, and it names no command, because nothing in Dinah writes a checklist item yet and the edit is made in the file.",
+      "text": "; answer it, then resolve, verify or fail that item",
+      "context": "Spliced onto refusal.unresolved-item as the next step. It names the three verbs that settle an item, because each of them is a command.",
+      "skeleton": true
+    },
+    "refusal.dinah.unresolved-item-exit": {
+      "text": "this card carries the item {detail}, which is not resolved, and this column holds until it is",
+      "context": "The sentence printed after the refusal name dinah.unresolved-item-exit. {detail} is the item's identifier, on unresolved-item's own convention.",
+      "skeleton": true
+    },
+    "refusal.dinah.unresolved-item-exit.next": {
+      "text": "; answer it, then resolve, verify or fail that item",
+      "context": "Spliced onto refusal.dinah.unresolved-item-exit as the next step.",
       "skeleton": true
     },
     "reshape.applied": {
