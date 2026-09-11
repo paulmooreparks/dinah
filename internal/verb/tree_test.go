@@ -549,8 +549,13 @@ func TestTheDefaultChainDrawsTheStatusTree(t *testing.T) {
 	h := newHarness(t)
 	first := h.add("the first card filed")
 	second := h.add("the second card filed")
-	h.renumber(h.card(second).ID, 1)
-	h.renumber(h.card(first).ID, 2)
+	// Both identifiers are taken before either number moves. The swap passes
+	// through a state where both cards carry number 1, and a reference
+	// resolving on that number refuses dinah.ambiguous-card there, so a
+	// lookup by reference between the two writes would stop the fixture.
+	firstID, secondID := h.card(first).ID, h.card(second).ID
+	h.renumber(secondID, 1)
+	h.renumber(firstID, 2)
 	h.reopen()
 
 	built := treeOf(t, h, "", nil, LevelCards)

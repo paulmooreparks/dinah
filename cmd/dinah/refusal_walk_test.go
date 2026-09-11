@@ -211,7 +211,7 @@ func TestASucceedingCandidateWalkStillServesTheCandidates(t *testing.T) {
 // TestOnlyTheAmbiguousRefusalCarriesACandidateWalk asserts dinah-432 AC-4 over
 // the whole named-refusal set rather than over the one case read while the
 // spec was drafted. contract.Introduced carries every name Dinah mints beyond
-// the profile's own, which is 59 names on this build and so 58 subtests
+// the profile's own, which is 71 names on this build and so 70 subtests
 // here, and none of them but the ambiguous one runs a walk at all.
 func TestOnlyTheAmbiguousRefusalCarriesACandidateWalk(t *testing.T) {
 	tree := emptyTree(t)

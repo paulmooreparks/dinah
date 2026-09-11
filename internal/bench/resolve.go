@@ -74,17 +74,35 @@ func (b *Bench) resolveCardIn(root, ref string) (*Resolved, error) {
 	if err != nil {
 		return nil, err
 	}
+	var matches []*Card
 	for _, card := range cards {
-		if card.Number != number {
-			continue
+		if card.Number == number {
+			matches = append(matches, card)
 		}
-		found := &Resolved{Card: card}
+	}
+	switch len(matches) {
+	case 0:
+		return nil, contract.Refuse(contract.UnknownCard, ref)
+	case 1:
+		found := &Resolved{Card: matches[0]}
 		if prefix != "" && prefix != b.Slug {
 			found.StalePrefix = prefix
 		}
 		return found, nil
 	}
-	return nil, contract.Refuse(contract.UnknownCard, ref)
+	// More than one card of this half carries the number, so the scan
+	// refuses rather than answering with the first it walked past. The order
+	// is the one cardsIn preserves, which os.ReadDir documents as sorted by
+	// filename, so the rows come out in ascending identifier order without a
+	// sort call here. Every match is named and none is dropped, because a
+	// truncation would hide the candidate the caller was reaching for.
+	ids := make([]string, 0, len(matches))
+	for _, card := range matches {
+		ids = append(ids, card.ID)
+	}
+	return nil, contract.RefuseWith(contract.AmbiguousCard, ref, map[string]string{
+		"cards": strings.Join(ids, "\n"),
+	})
 }
 
 // splitRef reads a card reference of the form <anything>-<number> into its
@@ -918,11 +936,26 @@ func (b *Bench) ResolveLinkTarget(raw string) (string, *contract.Refusal) {
 		}
 		return raw, nil
 	}
-	if found, err := b.ResolveCard(raw); err == nil {
+	// An ambiguity is carried out of whichever half raised it rather than
+	// being discarded with every other error. Without the two unwraps, a
+	// number two live cards carry falls past the refusal and, where the
+	// archive holds a single card on that number, records the link against
+	// the archived card, which is the silent wrong answer this refusal
+	// exists to stop.
+	found, err := b.ResolveCard(raw)
+	if err == nil {
 		return found.Card.ID, nil
 	}
-	if found, err := b.ResolveArchivedCard(raw); err == nil {
+	var refusal *contract.Refusal
+	if errors.As(err, &refusal) && refusal.Name == contract.AmbiguousCard {
+		return "", refusal
+	}
+	found, err = b.ResolveArchivedCard(raw)
+	if err == nil {
 		return found.Card.ID, nil
+	}
+	if errors.As(err, &refusal) && refusal.Name == contract.AmbiguousCard {
+		return "", refusal
 	}
 	return "", contract.Refuse(contract.UnknownCard, raw)
 }

@@ -439,6 +439,12 @@ const (
 	// the member count rides beside it, and so does the reference of the
 	// first member, which is a spelling the reader can type.
 	IsACollection = LayerPrefix + "is-a-collection"
+	// AmbiguousCard is a card reference whose number more than one card of the
+	// half being read carries, raised before the resolution picks one of them.
+	// The candidates ride as a carried set of identifiers, because an
+	// identifier is the address every card always answers to and is what the
+	// caller retypes to get past this.
+	AmbiguousCard = LayerPrefix + "ambiguous-card"
 	// AmbiguousColumn is a pull with no destination named finding more than
 	// one column it could pull into. The sentence names the columns that
 	// qualified, because a reader whose command stopped needs to know what
@@ -548,7 +554,7 @@ var Introduced = []string{
 	ColumnSlugTaken, ColumnRoutingDisrupted,
 	UnknownRoot, OutsideRoot, ConflictingScope, DepthWithoutRoot, MalformedDepth,
 	AmbiguousName, NotRenamable, NotAttachable, IsACollection, NotArchived,
-	AmbiguousColumn, NoUpstream, AwaitingOutside, TakesNoWork,
+	AmbiguousCard, AmbiguousColumn, NoUpstream, AwaitingOutside, TakesNoWork,
 	NoLevels, UnknownLevel, UnknownFormat,
 	NoTierDefault, TierOutOfRange, BelowTier, TierNotHigher,
 	ReshapeNeedsDestination, ReshapeHeldCardInQueue, ReshapeMapSourceEmpty,
