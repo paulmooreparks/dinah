@@ -145,7 +145,10 @@ func TestTheColumnViewPublishesCarriesIntosOwnAnswer(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			flow := c.flow
 			library := &Library{Bench: &bench.Bench{Root: t.TempDir(), Columns: flow}}
-			views := library.columnViews(nil)
+			views, gotErr12 := library.columnViews(nil)
+			if gotErr12 != nil {
+				t.Fatalf("columnViews: %v", gotErr12)
+			}
 			if len(views) != len(flow) {
 				t.Fatalf("the flow has %d columns and the listing carries %d", len(flow), len(views))
 			}
@@ -169,7 +172,10 @@ func TestTheColumnViewPublishesCarriesIntosOwnAnswer(t *testing.T) {
 	t.Run("a station carries a card into the station beyond it", func(t *testing.T) {
 		flow := flowOf(contract.KindWork, contract.KindWork)
 		library := &Library{Bench: &bench.Bench{Root: t.TempDir(), Columns: flow}}
-		views := library.columnViews(nil)
+		views, gotErr11 := library.columnViews(nil)
+		if gotErr11 != nil {
+			t.Fatalf("columnViews: %v", gotErr11)
+		}
 		if views[0].PullDestination != flow[1].ID {
 			t.Errorf("the first station publishes pull_destination %q, wanted %q", views[0].PullDestination, flow[1].ID)
 		}

@@ -456,8 +456,20 @@ type Response struct {
 	ChainServed []string `json:"-"`
 }
 
-// view renders a card for a response.
-func (l *Library) view(card *bench.Card) *CardView {
+// view renders a card for a response. The two counts it carries are
+// directory reads, so a collection that will not read is reported rather than
+// counted as none: a view answering zero attachments for a card whose
+// attachments collection nobody could list says the same thing as a view of a
+// card that has none.
+func (l *Library) view(card *bench.Card) (*CardView, error) {
+	attachments, err := bench.CountAttachments(card.Dir)
+	if err != nil {
+		return nil, err
+	}
+	blocking, err := bench.CountBlockingItems(card.Dir)
+	if err != nil {
+		return nil, err
+	}
 	v := &CardView{
 		ID:          card.ID,
 		Ref:         card.Ref(l.Bench.Slug),
@@ -474,13 +486,13 @@ func (l *Library) view(card *bench.Card) *CardView {
 		Workstreams: card.Workstreams,
 		Revision:    card.Revision,
 
-		AttachmentCount: bench.CountAttachments(card.Dir),
-		BlockingItems:   bench.CountBlockingItems(card.Dir),
+		AttachmentCount: attachments,
+		BlockingItems:   blocking,
 	}
 	if column := l.Bench.Column(card.Column); column != nil {
 		v.ColumnTitle = column.Title
 	}
-	return v
+	return v, nil
 }
 
 // serve composes the instruction chain for a card's current position, and
@@ -719,7 +731,14 @@ func (l *Library) refuseWith(req *Request, card *bench.Card, name, detail string
 		Context:     extra,
 	}
 	if card != nil {
-		response.Card = l.view(card)
+		// A card whose collections will not read cannot be rendered, and
+		// the read failure is what the caller is told rather than a
+		// refusal carrying a view built from a collection nobody read.
+		view, err := l.view(card)
+		if err != nil {
+			return l.FromError(req, err)
+		}
+		response.Card = view
 	}
 	return response
 }
@@ -733,7 +752,11 @@ func (l *Library) ok(req *Request, card *bench.Card) *Response {
 		Basis:       req.Basis,
 	}
 	if card != nil {
-		response.Card = l.view(card)
+		view, err := l.view(card)
+		if err != nil {
+			return l.FromError(req, err)
+		}
+		response.Card = view
 		response.Basis = card.Revision
 	}
 	return response

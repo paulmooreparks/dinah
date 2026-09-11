@@ -388,7 +388,11 @@ func fixtureColumns(t *testing.T, root, key string) map[string]string {
 	t.Helper()
 	stood := map[string]string{}
 	dir := filepath.Join(root, CardsDir)
-	for _, id := range ListIDs(dir) {
+	listed4, listedErr4 := ListIDs(dir)
+	if listedErr4 != nil {
+		t.Fatalf("listing %s: %v", dir, listedErr4)
+	}
+	for _, id := range listed4 {
 		path := filepath.Join(dir, id, CardAnchor)
 		if !Exists(path) {
 			continue

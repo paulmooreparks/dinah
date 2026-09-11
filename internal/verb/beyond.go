@@ -64,7 +64,13 @@ func (l *Library) Add(req *Request) *Response {
 	if refusal := l.admitLevels(levels); refusal != nil {
 		return l.refuseWith(req, nil, refusal.Name, refusal.Detail, refusal.Extra)
 	}
-	number := l.Bench.NextNumber()
+	// The number is read before the identifier is claimed, so a collection
+	// neither half of which can be listed refuses the filing instead of
+	// stamping the card with a number an archived card already carries.
+	number, err := l.Bench.NextNumber()
+	if err != nil {
+		return l.FromError(req, err)
+	}
 	id, err := bench.ClaimID(l.Bench.CardsRoot(), l.Bench.HasIdentifier)
 	if err != nil {
 		return l.FromError(req, err)
@@ -804,8 +810,12 @@ func (l *Library) Workstreams() (*WorkstreamListing, error) {
 	if err != nil {
 		return nil, err
 	}
+	workstreams, err := l.Bench.Workstreams()
+	if err != nil {
+		return nil, err
+	}
 	listing := &WorkstreamListing{Workstreams: []WorkstreamView{}}
-	for _, workstream := range l.Bench.Workstreams() {
+	for _, workstream := range workstreams {
 		listing.Workstreams = append(listing.Workstreams, workstreamView(workstream, counts))
 	}
 	return listing, nil

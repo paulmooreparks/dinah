@@ -21,7 +21,11 @@ import (
 func declareLoopLimit(t *testing.T, root, title, limit string) {
 	t.Helper()
 	columns := filepath.Join(soleBenchDir(t, root), bench.ColumnsDir)
-	for _, id := range bench.ListIDs(columns) {
+	listed27, listedErr27 := bench.ListIDs(columns)
+	if listedErr27 != nil {
+		t.Fatalf("listing %s: %v", columns, listedErr27)
+	}
+	for _, id := range listed27 {
 		path := filepath.Join(columns, id, bench.ColumnAnchor)
 		text, err := bench.ReadText(path)
 		if err != nil {

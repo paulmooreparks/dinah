@@ -480,7 +480,11 @@ func TestPositionFollowsWriteOrderRatherThanIdentifier(t *testing.T) {
 	writeComment(t, root, "e00000000001", "2026-08-17T09:02:00Z", 2, "written second")
 
 	collection := filepath.Join(root, CardsDir, "c00000000001", CommentsDir)
-	if listed := ListIDs(collection); listed[0] != "e00000000001" {
+	listed3, listedErr3 := ListIDs(collection)
+	if listedErr3 != nil {
+		t.Fatalf("listing %s: %v", collection, listedErr3)
+	}
+	if listed := listed3; listed[0] != "e00000000001" {
 		t.Fatalf("the fixture no longer disagrees with the listing, which leads with %s", listed[0])
 	}
 
@@ -619,7 +623,11 @@ func TestACommentHoldsItsPositionAcrossTheMigration(t *testing.T) {
 	appendText(t, journal, commentedEvent("e00000000001", "2026-08-17T09:02:00Z"))
 
 	collection := filepath.Join(root, CardsDir, "c00000000001", CommentsDir)
-	if listed := ListIDs(collection); listed[0] != "e00000000001" {
+	listed2, listedErr2 := ListIDs(collection)
+	if listedErr2 != nil {
+		t.Fatalf("listing %s: %v", collection, listedErr2)
+	}
+	if listed := listed2; listed[0] != "e00000000001" {
 		t.Fatalf("the fixture no longer disagrees with the listing, which leads with %s", listed[0])
 	}
 
@@ -681,7 +689,10 @@ func TestAChecklistItemHoldsItsPositionAcrossTheMigration(t *testing.T) {
 	writeItem(t, root, "d00000000001", 0)
 
 	collection := filepath.Join(root, CardsDir, "c00000000001", ChecklistDir)
-	listed := ListIDs(collection)
+	listed, listedErr1 := ListIDs(collection)
+	if listedErr1 != nil {
+		t.Fatalf("listing %s: %v", collection, listedErr1)
+	}
 	if len(listed) != 2 {
 		t.Fatalf("the fixture holds %d items, wanted two", len(listed))
 	}

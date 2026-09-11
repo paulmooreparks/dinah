@@ -165,7 +165,11 @@ func (l *Library) Search(req *Request) (*SearchResults, error) {
 	}
 	if req.Archived {
 		root := l.Bench.ArchivedCardsRoot()
-		for _, id := range bench.ListIDs(root) {
+		archived, err := bench.ListIDs(root)
+		if err != nil {
+			return nil, err
+		}
+		for _, id := range archived {
 			card, err := bench.LoadCard(root, id)
 			if err != nil {
 				continue
@@ -173,7 +177,9 @@ func (l *Library) Search(req *Request) (*SearchResults, error) {
 			l.searchCard(results, card, phrase, narrowed, true)
 		}
 	}
-	l.searchBench(results, phrase)
+	if err := l.searchBench(results, phrase); err != nil {
+		return nil, err
+	}
 	rankHits(results.Hits)
 	results.Count = len(results.Hits)
 	return results, nil
@@ -234,7 +240,7 @@ func (l *Library) searchCard(results *SearchResults, card *bench.Card, phrase st
 // searchBench adds the hits the workbench itself, its columns and its
 // workstreams carry. All three are framing prose, so all three land at the one
 // tier framing sits at, and no filter narrows any of them.
-func (l *Library) searchBench(results *SearchResults, phrase string) {
+func (l *Library) searchBench(results *SearchResults, phrase string) error {
 	for _, column := range l.Bench.Columns {
 		if at, length, ok := substringIn(phrase, column.Instructions); ok {
 			results.add(SearchHit{
@@ -245,7 +251,11 @@ func (l *Library) searchBench(results *SearchResults, phrase string) {
 			}, tierFraming, MatchedInFraming, column.Instructions, at, length)
 		}
 	}
-	for _, workstream := range l.Bench.Workstreams() {
+	workstreams, err := l.Bench.Workstreams()
+	if err != nil {
+		return err
+	}
+	for _, workstream := range workstreams {
 		if at, length, ok := substringIn(phrase, workstream.Notes); ok {
 			results.add(SearchHit{
 				Kind:  SearchKindWorkstream,
@@ -269,6 +279,7 @@ func (l *Library) searchBench(results *SearchResults, phrase string) {
 			Title: l.Bench.Title,
 		}, tierFraming, MatchedInFraming, l.Bench.Standing, at, length)
 	}
+	return nil
 }
 
 // add files one substring hit, computing its quality as the share of the field

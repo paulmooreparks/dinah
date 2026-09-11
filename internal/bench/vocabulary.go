@@ -320,16 +320,14 @@ func migrateBenchAnchor(b *Bench) error {
 	return WriteText(path, fm.Render(body))
 }
 
-// listIdentifiers answers the member directories of a collection, or nothing
-// at all when the collection is not there. A collection this format never
-// wrote is an ordinary shape rather than a defect, so an absent directory is
-// not an error here.
+// listIdentifiers answers the member directories of a collection. The read
+// and the existence discrimination are readCollection's, so a directory that
+// is there and will not read answers the error rather than answering that the
+// collection holds nothing, which is what let a plain file named states be
+// renamed to columns with the migration reporting success.
 func listIdentifiers(dir string) ([]string, error) {
-	entries, err := os.ReadDir(dir)
+	entries, err := readCollection(dir)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
 		return nil, err
 	}
 	var ids []string

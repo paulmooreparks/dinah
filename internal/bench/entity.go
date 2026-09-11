@@ -36,7 +36,10 @@ func AddComment(cardDir, author, ts, body string) (*Comment, error) {
 	if err != nil {
 		return nil, err
 	}
-	ordinal := nextOrdinal(collection, CommentAnchor)
+	ordinal, err := nextOrdinal(collection, CommentAnchor)
+	if err != nil {
+		return nil, err
+	}
 	dir := filepath.Join(collection, id)
 	fm := NewFrontmatter()
 	fm.Set("ts", ts)
@@ -66,8 +69,12 @@ func AddComment(cardDir, author, ts, body string) (*Comment, error) {
 // which is the order check --migrate-ordinals will stamp them in.
 func Comments(cardDir string) ([]*Comment, error) {
 	collection := filepath.Join(cardDir, CommentsDir)
+	ids, err := ListIDs(collection)
+	if err != nil {
+		return nil, err
+	}
 	var comments []*Comment
-	for _, id := range SortByOrdinal(collection, CommentAnchor, ListIDs(collection)) {
+	for _, id := range SortByOrdinal(collection, CommentAnchor, ids) {
 		dir := filepath.Join(collection, id)
 		text, err := ReadText(filepath.Join(dir, CommentAnchor))
 		if err != nil {
@@ -96,8 +103,12 @@ func Comments(cardDir string) ([]*Comment, error) {
 // the order check --migrate-ordinals will stamp them in.
 func Attachments(cardDir string) ([]*Attachment, error) {
 	collection := filepath.Join(cardDir, AttachmentsDir)
+	ids, err := ListIDs(collection)
+	if err != nil {
+		return nil, err
+	}
 	var attachments []*Attachment
-	for _, id := range SortByOrdinal(collection, AttachmentAnchor, ListIDs(collection)) {
+	for _, id := range SortByOrdinal(collection, AttachmentAnchor, ids) {
 		dir := filepath.Join(collection, id)
 		text, err := ReadText(filepath.Join(dir, AttachmentAnchor))
 		if err != nil {
@@ -129,8 +140,16 @@ func Attachments(cardDir string) ([]*Attachment, error) {
 // A listing that carried every attachment of every card it holds would cost
 // what the listing is long, so the many-entity reads carry this count and the
 // single-entity reads carry the list.
-func CountAttachments(dir string) int {
-	return len(ListIDs(filepath.Join(dir, AttachmentsDir)))
+//
+// A collection that will not read is reported rather than counted as none,
+// because a count of zero is what an entity holding no attachments answers
+// and a caller cannot tell the two apart.
+func CountAttachments(dir string) (int, error) {
+	ids, err := ListIDs(filepath.Join(dir, AttachmentsDir))
+	if err != nil {
+		return 0, err
+	}
+	return len(ids), nil
 }
 
 // Attachment is one attachment: the entity wrapping bytes the format never
@@ -173,7 +192,10 @@ func AddAttachment(ownerDir, source, description, provenance string) (*Attachmen
 	if err != nil {
 		return nil, err
 	}
-	ordinal := nextOrdinal(collection, AttachmentAnchor)
+	ordinal, err := nextOrdinal(collection, AttachmentAnchor)
+	if err != nil {
+		return nil, err
+	}
 	dir := filepath.Join(collection, id)
 	filename := filepath.Base(source)
 	fm := NewFrontmatter()
@@ -378,7 +400,10 @@ func (b *Bench) resolveWorkstreamRef(half ResolutionHalf, ref string) (*EntityRe
 	// The whole reference goes to the resolver, on the reasoning
 	// ResolvePath's workstream arm gives: WorkstreamByRef strips the prefix
 	// itself, so handing it the remainder would strip twice.
-	workstream := b.workstreamByRefIn(half, ref)
+	workstream, err := b.workstreamByRefIn(half, ref)
+	if err != nil {
+		return nil, true, err
+	}
 	if workstream == nil {
 		return nil, true, contract.Refuse(contract.UnknownWorkstream, rest)
 	}
@@ -449,7 +474,11 @@ func DeleteEntity(dir string) error {
 // occupancy refusal names the column by, so a caller who typed a slug reads
 // that same slug back rather than the raw identifier behind it.
 func (b *Bench) ColumnOccupied(id, ref string) error {
-	for _, cardID := range ListIDs(b.CardsRoot()) {
+	cardIDs, err := ListIDs(b.CardsRoot())
+	if err != nil {
+		return err
+	}
+	for _, cardID := range cardIDs {
 		dir := filepath.Join(b.CardsRoot(), cardID)
 		locked := Exists(filepath.Join(dir, LockName))
 		if b.Hooks != nil && b.Hooks.BeforeAnchorRead != nil {
@@ -793,10 +822,10 @@ func (b *Bench) ResolveEntityIn(half ResolutionHalf, ref string) (*EntityRef, er
 // An entity this composer cannot name comes back with no reference at all,
 // because a reference naming the head instead would send a reader somewhere
 // they did not ask for, and an absent answer is one a caller can see.
-func (b *Bench) refBelowHead(half ResolutionHalf, headKind, headRef, headDir, dir string) string {
+func (b *Bench) refBelowHead(half ResolutionHalf, headKind, headRef, headDir, dir string) (string, error) {
 	below, err := filepath.Rel(headDir, dir)
 	if err != nil {
-		return ""
+		return "", nil
 	}
 	segments := strings.Split(filepath.ToSlash(below), "/")
 	// Under the archived half the entity sits inside its holder's mirror, so
@@ -819,32 +848,36 @@ func (b *Bench) refBelowHead(half ResolutionHalf, headKind, headRef, headDir, di
 	// member's identifier, so every level is two segments and an odd count is
 	// a path this composer was never meant to be given.
 	if len(segments)%2 != 0 {
-		return ""
+		return "", nil
 	}
 	ref, kind, at := headRef, headKind, headDir
 	for i := 0; i < len(segments); i += 2 {
 		mount, ok := MountOf(kind, segments[i])
 		if !ok {
-			return ""
+			return "", nil
 		}
 		collection := filepath.Join(at, mount.Dir)
 		if i == mirrored {
 			collection = filepath.Join(at, ArchiveDir, mount.Dir)
 		}
+		ids, err := ListIDs(collection)
+		if err != nil {
+			return "", err
+		}
 		position := 0
-		for n, id := range SortByOrdinal(collection, mount.Anchor, ListIDs(collection)) {
+		for n, id := range SortByOrdinal(collection, mount.Anchor, ids) {
 			if id == segments[i+1] {
 				position = n + 1
 				break
 			}
 		}
 		if position == 0 {
-			return ""
+			return "", nil
 		}
 		ref = ref + "/" + mount.Dir + "/" + strconv.Itoa(position)
 		kind, at = mount.Kind, filepath.Join(collection, segments[i+1])
 	}
-	return ref
+	return ref, nil
 }
 
 // Item is one checklist item: a card's own recorded judgement, per
@@ -916,8 +949,12 @@ func LoadItem(dir string) (*Item, error) {
 // on the terms BlockingItems already reads past one.
 func Items(cardDir string) ([]*Item, error) {
 	collection := filepath.Join(cardDir, ChecklistDir)
+	ids, err := ListIDs(collection)
+	if err != nil {
+		return nil, err
+	}
 	var items []*Item
-	for _, id := range SortByOrdinal(collection, ItemAnchor, ListIDs(collection)) {
+	for _, id := range SortByOrdinal(collection, ItemAnchor, ids) {
 		item, err := LoadItem(filepath.Join(collection, id))
 		if err != nil {
 			continue
@@ -1001,7 +1038,7 @@ func ItemLiftsColumnHold(item *Item) bool {
 // BlockingItems reads the checklist items of a card that would refuse a claim
 // right now, in identifier order. The reading itself, and what it does with an
 // item whose anchor will not open, are itemsWhere's below.
-func BlockingItems(cardDir string) []*Item {
+func BlockingItems(cardDir string) ([]*Item, error) {
 	return itemsWhere(cardDir, ItemBlocksClaim)
 }
 
@@ -1019,9 +1056,9 @@ func BlockingItems(cardDir string) []*Item {
 //
 // The column is named by identifier, which is what an item's column field
 // carries and what the reader beside it resolves a title from.
-func GatingItems(cardDir, columnID string) []*Item {
+func GatingItems(cardDir, columnID string) ([]*Item, error) {
 	if columnID == "" {
-		return nil
+		return nil, nil
 	}
 	return itemsWhere(cardDir, func(item *Item) bool {
 		return item.Column == columnID && !ItemLiftsColumnHold(item)
@@ -1035,20 +1072,28 @@ func GatingItems(cardDir, columnID string) []*Item {
 // will not open is skipped, on the same terms Attachments already reads past
 // one, since an unreadable file is a defect dinah check reports rather than
 // one a claim or a move discovers.
-func itemsWhere(cardDir string, keep func(*Item) bool) []*Item {
+func itemsWhere(cardDir string, keep func(*Item) bool) ([]*Item, error) {
 	collection := filepath.Join(cardDir, ChecklistDir)
+	ids, err := ListIDs(collection)
+	if err != nil {
+		return nil, err
+	}
 	var kept []*Item
-	for _, id := range ListIDs(collection) {
+	for _, id := range ids {
 		item, err := LoadItem(filepath.Join(collection, id))
 		if err == nil && keep(item) {
 			kept = append(kept, item)
 		}
 	}
-	return kept
+	return kept, nil
 }
 
 // CountBlockingItems reports how many of a card's checklist items would refuse
 // a claim right now, for a reader that wants the number rather than the items.
-func CountBlockingItems(cardDir string) int {
-	return len(BlockingItems(cardDir))
+func CountBlockingItems(cardDir string) (int, error) {
+	items, err := BlockingItems(cardDir)
+	if err != nil {
+		return 0, err
+	}
+	return len(items), nil
 }

@@ -124,7 +124,11 @@ func shapeOfFiledItems(t *testing.T, root string) map[string]string {
 			t.Fatalf("file %s on %s: exit %d, %s", kind, card, got.code, got.errw)
 		}
 	}
-	for _, dir := range bench.ListIDs(filepath.Join(cardDirOf(t, root, card), bench.ChecklistDir)) {
+	listed19, listedErr19 := bench.ListIDs(filepath.Join(cardDirOf(t, root, card), bench.ChecklistDir))
+	if listedErr19 != nil {
+		t.Fatalf("listing %s: %v", filepath.Join(cardDirOf(t, root, card), bench.ChecklistDir), listedErr19)
+	}
+	for _, dir := range listed19 {
 		anchor := filepath.Join(cardDirOf(t, root, card), bench.ChecklistDir, dir, bench.ItemAnchor)
 		text, err := bench.ReadText(anchor)
 		if err != nil {

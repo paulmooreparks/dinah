@@ -497,6 +497,10 @@
       "text": "{detail} carries a creation ordinal that another member of its collection already carries, so one position names two of them",
       "context": "A check finding: two entities of one collection share an ordinal, which leaves a positional reference with two answers."
     },
+    "check.card-number-duplicate": {
+      "text": "{detail} is a card number two cards carry, so a reference by number answers with either of them",
+      "context": "A check finding: two cards hold one number, which leaves the durable half of a card reference ambiguous."
+    },
     "check.ordinal-guessed": {
       "text": "{detail} was placed by its directory listing, because no event in the card's journal records its creation, so its position is a guess",
       "context": "A check finding the ordinal migration raises: the write order of this entity was not recoverable and the migration ordered it by the listing instead."

@@ -1002,7 +1002,10 @@ func TestLinkAndUnlinkRoundTripOnEveryFixture(t *testing.T) {
 			opened := benchDir(t, root)
 			runCLI(t, opened, "--workbench", opened, "check", "--migrate-vocabulary", "--yes")
 
-			cards := bench.ListIDs(filepath.Join(opened, bench.CardsDir))
+			cards, listedErr20 := bench.ListIDs(filepath.Join(opened, bench.CardsDir))
+			if listedErr20 != nil {
+				t.Fatalf("listing %s: %v", filepath.Join(opened, bench.CardsDir), listedErr20)
+			}
 			if len(cards) == 0 {
 				t.Fatalf("the fixture carries no live card to link from")
 			}
