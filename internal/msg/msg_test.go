@@ -1,6 +1,7 @@
 package msg
 
 import (
+	"fmt"
 	"regexp"
 	"sort"
 	"strings"
@@ -154,6 +155,13 @@ func TestPluralsFollowTheCategories(t *testing.T) {
 	}
 }
 
+// placeholderPattern is the spelling of a placeholder both guards below read,
+// compiled once so that the two of them cannot drift apart. A guard whose idea
+// of a placeholder differs from the renderer's checks a different thing from
+// the one that ships, and the divergence would show up as a name the guard
+// thinks is safe and fill leaves standing at a reader.
+var placeholderPattern = regexp.MustCompile(`\{[a-zA-Z][a-zA-Z0-9_.-]*\}`)
+
 // TestATranslationKeepsThePlaceholdersAndTheSplice asserts that a translated
 // string carries every placeholder its English source names, and that a
 // next-step clause still opens with the separator that splices it onto the
@@ -174,19 +182,34 @@ func TestPluralsFollowTheCategories(t *testing.T) {
 // content of every entry declaring it untranslatable. A reader chasing a
 // missing-content defect elsewhere in the catalog should still not expect this
 // guard to have caught it.
+//
+// The loop reads every shipped catalog rather than the Complete roster it once
+// read. Complete is [Base, "hi", "de"], so the old loop covered two languages
+// and compared English against itself, and the five skeleton catalogs went
+// unread by the guard over the very thing a skeleton will stop carrying the
+// day somebody translates it. A skeleton is byte-identical English today, so
+// widening the roster costs nothing and asserts the same claim over every
+// catalog that ships, which is the shape TestATranslationTracksItsEnglishSource
+// in this file already uses. Widening a walk without a floor is the vacuous
+// check dinah-406 is about, so the pairs it compared are counted and a run that
+// compared none is fatal.
 func TestATranslationKeepsThePlaceholdersAndTheSplice(t *testing.T) {
-	placeholder := regexp.MustCompile(`\{[a-zA-Z][a-zA-Z0-9_.-]*\}`)
+	pairs := 0
 	for _, key := range Keys() {
 		entry, ok := BaseEntry(key)
 		if !ok {
 			continue
 		}
-		names := placeholder.FindAllString(entry.Text, -1)
+		names := placeholderPattern.FindAllString(entry.Text, -1)
 		splice := strings.HasPrefix(entry.Text, "; ")
 		if len(names) == 0 && !splice {
 			continue
 		}
-		for _, tag := range Complete {
+		for _, tag := range Tags() {
+			if tag == Base {
+				continue
+			}
+			pairs++
 			rendered := For(tag).T(key)
 			for _, name := range names {
 				if !strings.Contains(rendered, name) {
@@ -197,6 +220,156 @@ func TestATranslationKeepsThePlaceholdersAndTheSplice(t *testing.T) {
 				t.Errorf("%s/%s: wanted the leading separator that splices it onto the refusal, got %q", tag, key, rendered)
 			}
 		}
+	}
+	if pairs == 0 {
+		t.Fatal("no key pair was compared, so this guard is asserting nothing")
+	}
+}
+
+// placeholderReport is what one catalog's comparison found, and how much of it
+// there was to find.
+type placeholderReport struct {
+	// pairs is the key pairs compared.
+	pairs int
+	// placeholders is the placeholder names read off the translation side,
+	// counted per pair. It is the translation side rather than the English
+	// side because that is the side the invention guard reads, and a pairs
+	// count stays high while the side being read goes empty.
+	placeholders int
+	// dropped holds one entry per name the English carries and the
+	// translation does not.
+	dropped []string
+	// invented holds one entry per name the translation carries and the
+	// English does not.
+	invented []string
+}
+
+// placeholderNames returns the placeholder names text carries, as a set.
+// Comparison is by set rather than by multiset: a translator may name a value
+// once where the English names it twice, and word order is theirs, so a count
+// comparison would fire on correct German in a language nobody on this project
+// reads. A name present on one side and absent on the other is the defect.
+func placeholderNames(text string) map[string]bool {
+	names := map[string]bool{}
+	for _, name := range placeholderPattern.FindAllString(text, -1) {
+		names[name] = true
+	}
+	return names
+}
+
+// comparePlaceholders reports what one catalog does with the placeholder names
+// its English carries, in both directions.
+//
+// The two catalogs are arguments rather than reads of the package's own loaded
+// map, so a fixture can drive this over a catalog that really does drop a name
+// and really does invent one. No shipped catalog has to be allowed to carry a
+// defect in order for the guard to have an armed path.
+func comparePlaceholders(base, other map[string]Entry, tag string) placeholderReport {
+	report := placeholderReport{}
+	for key, english := range base {
+		entry, carried := other[key]
+		if !carried {
+			continue
+		}
+		report.pairs++
+		wanted := placeholderNames(english.Text)
+		held := placeholderNames(entry.Text)
+		report.placeholders += len(held)
+		for name := range wanted {
+			if !held[name] {
+				report.dropped = append(report.dropped, fmt.Sprintf("%s/%s: %s", tag, key, name))
+			}
+		}
+		for name := range held {
+			if !wanted[name] {
+				report.invented = append(report.invented, fmt.Sprintf("%s/%s: %s", tag, key, name))
+			}
+		}
+	}
+	sort.Strings(report.dropped)
+	sort.Strings(report.invented)
+	return report
+}
+
+// TestATranslationInventsNoPlaceholder asserts that a translation names no
+// value its English does not, which is the direction neither this package nor
+// the extension caught before dinah-406.
+//
+// It sits beside TestATranslationKeepsThePlaceholdersAndTheSplice rather than
+// folded into it, because the two report different defects and a reader meeting
+// a failure should not have to work out which half tripped. A dropped name
+// leaves a hole in a sentence. An invented one renders its own characters at a
+// reader, because fill leaves a name nobody passed alone, which is a defect
+// that looks like a translation.
+//
+// One subtest per tag over every shipped catalog but the base, which is the
+// shape TestATranslationTracksItsEnglishSource uses, so a failure names the
+// language. Each subtest counts two populations of its own and fails on either
+// at zero: the key pairs it compared, and the placeholder names it read off
+// that tag's translations. Two counters rather than one, because a placeholder
+// pattern that stopped matching, or a translation side that went empty, leaves
+// the pairs count healthy while the check reads nothing.
+func TestATranslationInventsNoPlaceholder(t *testing.T) {
+	base, ok := loaded[Base]
+	if !ok {
+		t.Fatalf("the base catalog %s does not ship, so nothing can be compared against it", Base)
+	}
+	for _, tag := range Tags() {
+		if tag == Base {
+			continue
+		}
+		t.Run(tag, func(t *testing.T) {
+			catalog, shipped := loaded[tag]
+			if !shipped {
+				t.Fatalf("the catalog %s does not ship, so no entry of it can be checked", tag)
+			}
+			report := comparePlaceholders(base.Entries, catalog.Entries, tag)
+			if report.pairs == 0 {
+				t.Fatalf("%s shares no key with the base catalog, so this guard compared nothing", tag)
+			}
+			if report.placeholders == 0 {
+				t.Fatalf("%s carries no placeholder at all, so this guard read nothing", tag)
+			}
+			for _, finding := range report.invented {
+				t.Errorf("%s: the translation names a value the English does not, and nobody fills it, so a reader meets the name itself", finding)
+			}
+		})
+	}
+}
+
+// TestThePlaceholderComparisonReportsBothDirections drives the comparison over
+// two catalogs written here, and asserts both lists by content.
+//
+// No shipped catalog carries either defect, so nothing above proves the
+// translation side is read at all: a comparison that reported every pair and a
+// comparison that reported the right pair are both green against the tree as it
+// stands. The third key is the clean case, carrying the same two names in a
+// different order, and it is what a comparison reporting everything would fail.
+func TestThePlaceholderComparisonReportsBothDirections(t *testing.T) {
+	base := map[string]Entry{
+		"fixture.dropped":   {Text: "Copied {ref}"},
+		"fixture.invented":  {Text: "Moved {card}"},
+		"fixture.reordered": {Text: "{from} became {to}, and {from} is gone"},
+	}
+	other := map[string]Entry{
+		"fixture.dropped":   {Text: " kopiert"},
+		"fixture.invented":  {Text: "{card} verschoben nach {ziel}"},
+		"fixture.reordered": {Text: "{to} kommt von {from}"},
+	}
+
+	report := comparePlaceholders(base, other, "xx")
+
+	if report.pairs != 3 {
+		t.Errorf("wanted 3 pairs compared, got %d", report.pairs)
+	}
+	if report.placeholders != 4 {
+		t.Errorf("wanted 4 placeholder names read off the translation side, got %d", report.placeholders)
+	}
+	if got := strings.Join(report.dropped, ", "); got != "xx/fixture.dropped: {ref}" {
+		t.Errorf("wanted the dropped name and nothing else, got %q", got)
+	}
+	if got := strings.Join(report.invented, ", "); got != "xx/fixture.invented: {ziel}" {
+		t.Errorf("wanted the invented name and nothing else, got %q", got)
 	}
 }
 
