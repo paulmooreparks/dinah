@@ -2389,11 +2389,17 @@ func sweptDivergedTree(t *testing.T, w *sweptWorkbenches, name string) string {
 func sweptDivergeCard(t *testing.T, dir string) {
 	t.Helper()
 	root := sweptRoot(t, dir)
-	cards := bench.ListIDs(filepath.Join(root, bench.CardsDir))
+	cards, listedErr37 := bench.ListIDs(filepath.Join(root, bench.CardsDir))
+	if listedErr37 != nil {
+		t.Fatalf("listing %s: %v", filepath.Join(root, bench.CardsDir), listedErr37)
+	}
 	if len(cards) != 1 {
 		t.Fatalf("wanted one card under %s, got %v", root, cards)
 	}
-	columns := bench.ListIDs(filepath.Join(root, bench.ColumnsDir))
+	columns, listedErr36 := bench.ListIDs(filepath.Join(root, bench.ColumnsDir))
+	if listedErr36 != nil {
+		t.Fatalf("listing %s: %v", filepath.Join(root, bench.ColumnsDir), listedErr36)
+	}
 	if len(columns) < 2 {
 		t.Fatalf("wanted at least two columns under %s, got %v", root, columns)
 	}

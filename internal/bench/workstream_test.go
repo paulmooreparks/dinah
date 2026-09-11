@@ -20,17 +20,28 @@ func TestABareWorkstreamReferenceTakesTheIdentifierBeforeTheSlug(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
-	found := opened.WorkstreamByRef("abcdefabcdef")
+	found, gotErr19 := opened.WorkstreamByRef("abcdefabcdef")
+	if gotErr19 != nil {
+		t.Fatalf("WorkstreamByRef: %v", gotErr19)
+	}
 	if found == nil {
 		t.Fatal("the reference resolved to nothing")
 	}
 	if found.ID != "abcdefabcdef" {
 		t.Errorf("the reference resolved to %s, and the identifier wins over another workstream's slug", found.ID)
 	}
-	if opened.WorkstreamByRef("hexone").ID != "abcdefabcdef" {
+	got18, gotErr18 := opened.WorkstreamByRef("hexone")
+	if gotErr18 != nil {
+		t.Fatalf("WorkstreamByRef: %v", gotErr18)
+	}
+	if got18.ID != "abcdefabcdef" {
 		t.Error("a slug no identifier shadows did not resolve")
 	}
-	if got := opened.WorkstreamByRef("The hex one"); got != nil {
+	got17, gotErr17 := opened.WorkstreamByRef("The hex one")
+	if gotErr17 != nil {
+		t.Fatalf("WorkstreamByRef: %v", gotErr17)
+	}
+	if got := got17; got != nil {
 		t.Errorf("a title resolved to workstream %s, and no surface names a workstream by its title", got.ID)
 	}
 }
@@ -49,10 +60,18 @@ func TestAWorkstreamResolvesInEitherHalfOfTheCollection(t *testing.T) {
 	if !opened.HasWorkstream("f00000000003") {
 		t.Error("an archived workstream does not resolve, so every card listing it became a dangler")
 	}
-	if opened.WorkstreamByRef("finished-effort") == nil {
+	got16, gotErr16 := opened.WorkstreamByRef("finished-effort")
+	if gotErr16 != nil {
+		t.Fatalf("WorkstreamByRef: %v", gotErr16)
+	}
+	if got16 == nil {
 		t.Error("an archived workstream does not answer to its slug")
 	}
-	if got := opened.Workstreams(); len(got) != 0 {
+	got15, gotErr15 := opened.Workstreams()
+	if gotErr15 != nil {
+		t.Fatalf("Workstreams: %v", gotErr15)
+	}
+	if got := got15; len(got) != 0 {
 		t.Errorf("the live listing carries %d workstreams, wanted none", len(got))
 	}
 }
@@ -68,7 +87,10 @@ func TestWritingAWorkstreamFieldKeepsEveryKeyItDoesNotKnow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
-	workstream := opened.WorkstreamByRef("portfolio")
+	workstream, gotErr14 := opened.WorkstreamByRef("portfolio")
+	if gotErr14 != nil {
+		t.Fatalf("WorkstreamByRef: %v", gotErr14)
+	}
 	if workstream == nil {
 		t.Fatal("the fixture workstream does not resolve")
 	}
@@ -97,7 +119,10 @@ func TestAnAnchorWithNoParseableHeaderLoadsWithEmptyFields(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
-	workstreams := opened.Workstreams()
+	workstreams, gotErr13 := opened.Workstreams()
+	if gotErr13 != nil {
+		t.Fatalf("Workstreams: %v", gotErr13)
+	}
 	if len(workstreams) != 1 {
 		t.Fatalf("the listing carries %d workstreams, wanted the one on disk", len(workstreams))
 	}
@@ -167,7 +192,10 @@ func TestTheAdoptionRepairKeepsTheIdentifierAndWritesNoCard(t *testing.T) {
 	if !reopened.HasWorkstream("f00000000009") {
 		t.Error("the adopted identifier still resolves to nothing")
 	}
-	assigned, reported := reopened.BackfillWorkstreamSlugs()
+	assigned, reported, gotErr12 := reopened.BackfillWorkstreamSlugs()
+	if gotErr12 != nil {
+		t.Fatalf("BackfillWorkstreamSlugs: %v", gotErr12)
+	}
 	if len(assigned) != 0 {
 		t.Errorf("the slug migration assigned %+v to a workstream carrying no title", assigned)
 	}
@@ -192,7 +220,10 @@ func TestTheSlugMigrationRepairsAWorkstreamOnceItHasATitle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
-	assigned, reported := opened.BackfillWorkstreamSlugs()
+	assigned, reported, gotErr11 := opened.BackfillWorkstreamSlugs()
+	if gotErr11 != nil {
+		t.Fatalf("BackfillWorkstreamSlugs: %v", gotErr11)
+	}
 	if len(reported) != 0 {
 		t.Errorf("the migration reported %+v on a workbench it could repair", reported)
 	}

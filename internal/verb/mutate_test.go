@@ -1053,7 +1053,11 @@ func TestACreationIntoARetiringColumnCannotLand(t *testing.T) {
 	t.Run("the retirement got there first", func(t *testing.T) {
 		h := newHarness(t)
 		h.add("an occupant of the intake station")
-		before := strings.Join(bench.ListIDs(h.library.Bench.CardsRoot()), ",")
+		listed16, listedErr16 := bench.ListIDs(h.library.Bench.CardsRoot())
+		if listedErr16 != nil {
+			t.Fatalf("listing %s: %v", h.library.Bench.CardsRoot(), listedErr16)
+		}
+		before := strings.Join(listed16, ",")
 		other := h.second()
 		var blocked *Response
 		h.library.Bench.Hooks = &bench.Hooks{
@@ -1076,7 +1080,11 @@ func TestACreationIntoARetiringColumnCannotLand(t *testing.T) {
 		if blocked.Refusal != contract.Locked {
 			t.Fatalf("the interleaved creation: wanted %s, got %s %s", contract.Locked, blocked.Outcome, blocked.Refusal)
 		}
-		if after := strings.Join(bench.ListIDs(h.library.Bench.CardsRoot()), ","); after != before {
+		listed15, listedErr15 := bench.ListIDs(h.library.Bench.CardsRoot())
+		if listedErr15 != nil {
+			t.Fatalf("listing %s: %v", h.library.Bench.CardsRoot(), listedErr15)
+		}
+		if after := strings.Join(listed15, ","); after != before {
 			t.Errorf("the refused creation left a directory behind: %q, wanted %q", after, before)
 		}
 	})

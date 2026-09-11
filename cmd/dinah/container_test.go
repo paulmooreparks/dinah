@@ -294,7 +294,10 @@ func TestTwoBranchesAppendingToOneJournalMergeWithoutAConflict(t *testing.T) {
 	if got := runCLI(t, tree, "--workbench", root, "add", "a card with a journal"); got.code != 0 {
 		t.Fatalf("add: %d %s", got.code, got.errw)
 	}
-	cards := bench.ListIDs(filepath.Join(root, bench.CardsDir))
+	cards, listedErr22 := bench.ListIDs(filepath.Join(root, bench.CardsDir))
+	if listedErr22 != nil {
+		t.Fatalf("listing %s: %v", filepath.Join(root, bench.CardsDir), listedErr22)
+	}
 	if len(cards) != 1 {
 		t.Fatalf("the workbench holds %v cards, wanted one", cards)
 	}
@@ -387,7 +390,10 @@ func TestTheContainerMigrationReportsAWorkbenchItCouldNotMove(t *testing.T) {
 	tree := resolvedDir(t, emptyTree(t))
 	container := filepath.Join(tree, "project", bench.UserBaseName)
 	legacy := legacyContainerBench(t, container)
-	cards := bench.ListIDs(filepath.Join(legacy, bench.CardsDir))
+	cards, listedErr21 := bench.ListIDs(filepath.Join(legacy, bench.CardsDir))
+	if listedErr21 != nil {
+		t.Fatalf("listing %s: %v", filepath.Join(legacy, bench.CardsDir), listedErr21)
+	}
 	if len(cards) != 1 {
 		t.Fatalf("the workbench holds %v cards, wanted one", cards)
 	}

@@ -288,7 +288,10 @@ func (c cursor) coverThrough(delivered []position) cursor {
 // expired claim the way the other reads of the bench do: reporting a card as
 // stored is the honest answer from a call that is not allowed to change it.
 func (l *Library) Changes(req *Request) (*ChangeSet, error) {
-	live, archive := l.Bench.WatchedEntities()
+	live, archive, err := l.Bench.WatchedEntities()
+	if err != nil {
+		return nil, err
+	}
 	terms := cursor{
 		Version:   cursorVersion,
 		Workbench: l.Bench.Slug,
@@ -452,7 +455,11 @@ func (l *Library) changedSince(held, terms cursor, live, archive []bench.Watched
 	// the live one, so letting it stand as the explanation for a moved live
 	// term would suppress a resync the live half had earned.
 	explained := len(delivered) > 0 || len(liveUnreadable) > 0
-	answer.Cards = l.changedCards(delivered, unreadable, live, held.Live != terms.Live && !explained, wantedCard, wantedColumn)
+	changed, err := l.changedCards(delivered, unreadable, live, held.Live != terms.Live && !explained, wantedCard, wantedColumn)
+	if err != nil {
+		return nil, err
+	}
+	answer.Cards = changed
 	answer.Events = l.eventsFrom(delivered, wantedCard, wantedColumn)
 	answer.Unreadable = filterKeys(unreadable, wantedCard)
 	return answer, nil
@@ -550,7 +557,7 @@ func (l *Library) inColumn(scope, id string, event bench.Event, wanted *bench.Co
 // caller, over every entity the walk delivered rather than over cards alone,
 // because a workbench field rewrite, a workstream act, a deletion and a
 // completed archiving all move the live term and all explain it.
-func (l *Library) changedCards(delivered []position, unreadable []string, live []bench.Watched, unexplained bool, wantedCard string, wantedColumn *bench.Column) []*CardView {
+func (l *Library) changedCards(delivered []position, unreadable []string, live []bench.Watched, unexplained bool, wantedCard string, wantedColumn *bench.Column) ([]*CardView, error) {
 	named := map[string]bool{}
 	departed := map[string]bool{}
 	for _, at := range delivered {
@@ -595,9 +602,13 @@ func (l *Library) changedCards(delivered []position, unreadable []string, live [
 		if wantedColumn != nil && card.Column != wantedColumn.ID {
 			continue
 		}
-		views = append(views, l.view(card))
+		view, err := l.view(card)
+		if err != nil {
+			return nil, err
+		}
+		views = append(views, view)
 	}
-	return views
+	return views, nil
 }
 
 // goneFrom derives what left from the events this call delivered, never from

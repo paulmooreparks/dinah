@@ -114,6 +114,13 @@ func memberPaths(root string) []string {
 // variables in this same package.
 var containerRename = os.Rename
 
+// memberWalk is filepath.WalkDir by default. A test overrides it to make the
+// member walk below report a failure, which no fixture on disk can produce:
+// filepath.WalkDir over a path holding a plain file calls its callback once
+// with a nil error, and memberPaths filters every member through Exists
+// before the walk starts, so the absent case never arrives either.
+var memberWalk = filepath.WalkDir
+
 // afterContainerCopy runs on the cross-device path once every file has been
 // copied and before any of them is read back. It is nil outside the tests,
 // where it stands in for a payload that did not survive the copy, so that the
@@ -322,7 +329,11 @@ func Remint(path string) (string, error) {
 // window between the test and the rename is not a risk anybody has to reason
 // about.
 func remintInPlace(path string) (string, error) {
-	if held := heldLocks(path); len(held) > 0 {
+	held, err := heldLocks(path)
+	if err != nil {
+		return "", err
+	}
+	if len(held) > 0 {
 		return "", contract.Refuse(contract.Locked, lockedEntity(held[0]))
 	}
 	container := filepath.Dir(path)
@@ -368,7 +379,11 @@ func remintInPlace(path string) (string, error) {
 // they are. A crash between the copy and the delete also leaves both trees, and
 // completedLift recognises that state by content on the next run.
 func liftIntoContainer(path string) (string, error) {
-	if held := heldLocks(path); len(held) > 0 {
+	held, err := heldLocks(path)
+	if err != nil {
+		return "", err
+	}
+	if len(held) > 0 {
 		return "", contract.Refuse(contract.Locked, lockedEntity(held[0]))
 	}
 	container := filepath.Join(path, UserBaseName)
@@ -482,9 +497,14 @@ func removeMembers(root string) error {
 // the one bare workbench a directory can hold, so the ambiguity is refused
 // rather than guessed at.
 func resumableLift(container string) (string, error) {
-	entries, err := os.ReadDir(container)
+	// A container nobody has created yet answers no interrupted lift, which
+	// is the first-run path. A container that is there and will not read
+	// answers the error, because answering that there is none makes the
+	// caller mint a fresh target and strand whatever the interrupted run had
+	// already moved.
+	entries, err := readCollection(container)
 	if err != nil {
-		return "", nil
+		return "", err
 	}
 	var partial []string
 	for _, entry := range entries {
@@ -604,7 +624,11 @@ func finishContained(root string) error {
 	if declared, ok := declaredFormat(root); ok && declared >= ContainerFormat {
 		return nil
 	}
-	if held := heldLocks(root); len(held) > 0 {
+	held, err := heldLocks(root)
+	if err != nil {
+		return err
+	}
+	if len(held) > 0 {
 		return contract.Refuse(contract.Locked, lockedEntity(held[0]))
 	}
 	return stampContainerFormat(root)
@@ -688,22 +712,31 @@ func stampContainerFormat(root string) error {
 // no such lock exists in this format. The migration is a repair an operator
 // runs deliberately, and it refuses on every lock it can see rather than
 // breaking one.
-func heldLocks(root string) []string {
+func heldLocks(root string) ([]string, error) {
 	var held []string
-	if entries, err := os.ReadDir(root); err == nil {
-		for _, entry := range entries {
-			name := entry.Name()
-			if entry.IsDir() {
-				continue
-			}
-			if name == LockName || strings.HasSuffix(name, SiblingSuffix) {
-				held = append(held, filepath.Join(root, name))
-			}
+	entries, err := readCollection(root)
+	if err != nil {
+		return nil, err
+	}
+	for _, entry := range entries {
+		name := entry.Name()
+		if entry.IsDir() {
+			continue
+		}
+		if name == LockName || strings.HasSuffix(name, SiblingSuffix) {
+			held = append(held, filepath.Join(root, name))
 		}
 	}
 	for _, member := range memberPaths(root) {
-		filepath.WalkDir(member, func(path string, entry fs.DirEntry, err error) error {
-			if err != nil || entry.IsDir() {
+		// The walk's own error is returned rather than discarded, which is
+		// what memberDigest and mirrorTree below already do. Reporting no
+		// lock for a member directory nobody could walk is the answer this
+		// function exists not to give.
+		walkErr := memberWalk(member, func(path string, entry fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if entry.IsDir() {
 				return nil
 			}
 			name := entry.Name()
@@ -712,9 +745,12 @@ func heldLocks(root string) []string {
 			}
 			return nil
 		})
+		if walkErr != nil {
+			return nil, walkErr
+		}
 	}
 	sort.Strings(held)
-	return held
+	return held, nil
 }
 
 // lockedEntity names the directory a lock file stands for, which is what a

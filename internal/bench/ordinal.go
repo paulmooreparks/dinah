@@ -64,9 +64,18 @@ func EntityOrdinal(collection, id, anchor string) int {
 // lock of the nearest enclosing journal-bearing entity before it adds to the
 // collection, so no second writer can be between this scan and the write that
 // follows it.
-func nextOrdinal(collection, anchor string) int {
+//
+// A collection that will not read is reported rather than answered with 1.
+// Answering 1 stamps the new entity with the ordinal the collection's first
+// member already holds, and a position is what a reference below a card
+// addresses, so the write is refused instead.
+func nextOrdinal(collection, anchor string) (int, error) {
+	ids, err := ListIDs(collection)
+	if err != nil {
+		return 0, err
+	}
 	highest, members := 0, 0
-	for _, id := range ListIDs(collection) {
+	for _, id := range ids {
 		if !Exists(filepath.Join(collection, id, anchor)) {
 			continue
 		}
@@ -78,7 +87,7 @@ func nextOrdinal(collection, anchor string) int {
 	if members > highest {
 		highest = members
 	}
-	return highest + 1
+	return highest + 1, nil
 }
 
 // SortByOrdinal returns a collection's identifiers in creation order. An
@@ -281,8 +290,12 @@ func orderedByJournal(candidates []string, order []string) (ordered, guessed []s
 // POSIX asks the containing directory, Windows asks the file. Both answers are
 // honoured here as they come back, and neither is second-guessed by a
 // permission check of the tool's own.
-func (b *Bench) backfillCollection(collection, anchor string, order []string) (int, []Finding) {
-	ordered, unrecovered := orderedByJournal(ListIDs(collection), order)
+func (b *Bench) backfillCollection(collection, anchor string, order []string) (int, []Finding, error) {
+	ids, err := ListIDs(collection)
+	if err != nil {
+		return 0, nil, err
+	}
+	ordered, unrecovered := orderedByJournal(ids, order)
 	guessed := map[string]bool{}
 	for _, id := range unrecovered {
 		guessed[id] = true
@@ -318,7 +331,7 @@ func (b *Bench) backfillCollection(collection, anchor string, order []string) (i
 		taken[next] = true
 		stamped++
 	}
-	return stamped, findings
+	return stamped, findings, nil
 }
 
 // beforeOrdinalStamp runs the write failure a test asks for at one entity of
@@ -357,7 +370,11 @@ func (b *Bench) beforeOrdinalStamp(id string) error {
 func (b *Bench) BackfillOrdinals(actor, now string) (int, []Finding, error) {
 	stamped := 0
 	var findings []Finding
-	for _, id := range ListIDs(b.CardsRoot()) {
+	cardIDs, err := ListIDs(b.CardsRoot())
+	if err != nil {
+		return 0, nil, err
+	}
+	for _, id := range cardIDs {
 		dir := filepath.Join(b.CardsRoot(), id)
 		if !Exists(filepath.Join(dir, CardAnchor)) {
 			continue
@@ -388,10 +405,17 @@ func (b *Bench) backfillCard(dir string) (int, []Finding, error) {
 	order := journalOrder(events)
 	stamped := 0
 	var findings []Finding
-	for _, collection := range ordinalCollections(dir) {
-		count, reported := b.backfillCollection(collection.dir, collection.anchor, order)
+	collections, err := ordinalCollections(dir)
+	if err != nil {
+		return 0, nil, err
+	}
+	for _, collection := range collections {
+		count, reported, err := b.backfillCollection(collection.dir, collection.anchor, order)
 		stamped += count
 		findings = append(findings, reported...)
+		if err != nil {
+			return stamped, findings, err
+		}
 	}
 	return stamped, findings, nil
 }
@@ -412,7 +436,7 @@ type ordinalCollection struct {
 // The list is derived from Contains rather than written out here, so a kind
 // gaining a collection reaches the ordinal migration without this function
 // being edited.
-func ordinalCollections(cardDir string) []ordinalCollection {
+func ordinalCollections(cardDir string) ([]ordinalCollection, error) {
 	var collections []ordinalCollection
 	for _, mount := range Contains(KindCard) {
 		dir := filepath.Join(cardDir, mount.Dir)
@@ -420,11 +444,15 @@ func ordinalCollections(cardDir string) []ordinalCollection {
 		if mount.Kind != KindComment {
 			continue
 		}
-		for _, id := range ListIDs(dir) {
+		ids, err := ListIDs(dir)
+		if err != nil {
+			return nil, err
+		}
+		for _, id := range ids {
 			collections = append(collections, belowComment(filepath.Join(dir, id))...)
 		}
 	}
-	return collections
+	return collections, nil
 }
 
 // belowComment lists the collections one comment mounts, which the card walk
