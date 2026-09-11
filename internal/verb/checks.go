@@ -92,6 +92,13 @@ var checkLists = map[string][]Check{
 		// key names where it sits in this list, and canLand runs it there,
 		// after the gate row above.
 		{Refusal: contract.AtLoopLimit, Key: "check.move.10"},
+		// The eleventh row is Dinah's own too, and it is the departure's
+		// own hold, appended behind the loop row for the same reason and
+		// run immediately behind it in canLand. It carries a name of its
+		// own rather than the ninth row's, because the profile fixes that
+		// name for a card arriving at a column and says nothing about a
+		// card leaving one.
+		{Refusal: contract.UnresolvedItemExit, Key: "check.move.11"},
 	},
 	Release: {
 		{Refusal: contract.UnknownCard, Key: "check.release.1"},
@@ -114,7 +121,7 @@ var checkLists = map[string][]Check{
 // IsContractVerb continues to answer false for pull while Checks still returns
 // the full list for the help and the refusal-set tests.
 //
-// These are rows 3 to 15 of pull's fifteen-row list, in order; rows 1 and 2
+// These are rows 3 to 16 of pull's sixteen-row list, in order; rows 1 and 2
 // are the workbench pair Checks prefixes. Two of them are pull's own names:
 // ambiguous-column is what the bare form answers when more than one column
 // qualifies, and no-upstream is what the named form answers for a column
@@ -123,7 +130,7 @@ var checkLists = map[string][]Check{
 //
 // Two rows carry not-operator for the operator-owned reservation, one at each
 // end of the pull. Row 6 reads the column the card is leaving, which is
-// CORE-MOVE-6, and row 12 reads the column it would land in and be claimed at,
+// CORE-MOVE-6, and row 13 reads the column it would land in and be claimed at,
 // which is CORE-CLAIM-8.
 //
 // Row 11 is CORE-GATE-2 read at the destination. It is stated here for real
@@ -142,12 +149,19 @@ var pullChecks = []Check{
 	{Refusal: contract.Terminal, Key: "check.pull.9"},
 	{Refusal: contract.AtCapacity, Key: "check.pull.10"},
 	{Refusal: contract.UnresolvedItem, Key: "check.pull.11"},
-	{Refusal: contract.NotOperator, Key: "check.pull.12"},
-	{Refusal: contract.Locked, Key: "check.pull.13"},
-	{Refusal: contract.UnresolvedItem, Key: "check.pull.14"},
-	// Row 15 is Dinah's own tier gate, the claim list's row 8 reached at the
+	// Row 12, Dinah's own: the departure's own exit hold, canLand's new
+	// row, reached between the destination's entry gate above and the
+	// operator-owned reservation below, exactly where canLand runs it. It is
+	// an insertion rather than an append, because the rows below it run
+	// inside canLand after it, and a list printed in an order the code does
+	// not follow tells a reader the wrong thing about which refusal wins.
+	{Refusal: contract.UnresolvedItemExit, Key: "check.pull.12"},
+	{Refusal: contract.NotOperator, Key: "check.pull.13"},
+	{Refusal: contract.Locked, Key: "check.pull.14"},
+	{Refusal: contract.UnresolvedItem, Key: "check.pull.15"},
+	// Row 16 is Dinah's own tier gate, the claim list's row 8 reached at the
 	// destination, and it is appended for the same reason.
-	{Refusal: contract.BelowTier, Key: "check.pull.15"},
+	{Refusal: contract.BelowTier, Key: "check.pull.16"},
 }
 
 // beyondChecks are the refusals the commands outside the five contract verbs

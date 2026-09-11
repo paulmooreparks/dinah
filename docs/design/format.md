@@ -449,9 +449,9 @@ under the workbench lock, immediately before the column is written, so a card
 arriving while the call is being evaluated is one the check meets rather than
 misses. `operator_owned` and `awaiting_outside` are not settable at creation;
 write them into the column's own file by hand, as before. `gate_items` is not
-settable at creation either, and `dinah set <column> hold on` writes it
-afterwards, `dinah set <column> hold off` clears it, and `dinah get <column>
-hold` reads it back.
+settable at creation either, and `dinah set <column> hold <on|out|both>` writes
+it afterwards, `dinah set <column> hold off` clears it, and `dinah get <column>
+hold` reads back whichever of the four words was last written.
 
 Two words run through the rest of this section. A **station** is a column where
 an owner takes work up: a card there is claimed, worked, and moved on. A
@@ -613,16 +613,22 @@ obliges that tool to preserve it. The concept's boundary-table row in section 10
 of the profile is ruled out, with the reason and the reopen condition that go
 with staying out.
 
-A column may declare `gate_items: true`, which says the column holds a card
-while an item the card carries names that column and its state has not settled
-it. Two of an item's four states settle it here, `resolved` and `verified`. A
+A column may declare `gate_items`, which says the column holds a card while an
+item the card carries names that column and its state has not settled it, and
+says which way it holds. Two of an item's four states settle it here, `resolved` and `verified`. A
 `failed` item holds the card, because that state records that somebody checked
 the work and it did not hold, and releasing the gate on it would open the
 column on the one state saying the work is wrong; the operator's `--override`
 marker below is what carries such a card through. This is narrower than the
 question the claim refusal asks, which reads `failed` as settled and is
-unchanged. Absent means false, and the value is exactly `true` or `false`, following
-`awaiting_outside` above rather than `operator_owned`. The declaration says only
+unchanged. Absent means false, and the value is exactly one of four spellings, read as
+strictly as `awaiting_outside` above rather than as leniently as
+`operator_owned`. `true` holds a card entering the column, and it is the
+spelling every workbench written before the direction existed carries. `out`
+holds a card leaving the column. `both` holds a card either way. `false`, and
+an absent key, hold neither way. A person types `on`, `out`, `both` or `off`
+for those, since `dinah set <column> hold` takes the typed word and stores the
+spelling above. The declaration says only
 that the column holds. It carries no list of which kinds of item hold there, and
 nothing in the refusal reads an item's kind, so an acceptance criterion holds a
 card exactly as a decision or an open question does and a workbench that wants
@@ -631,28 +637,41 @@ against that column. The item's own `column` key names the column by its
 identifier, which is the key the item reader beside it already resolves a title
 from.
 
-Entry is what is held. A move or a pull into a column declaring the flag is
-refused `unresolved-item`, naming the first such item in identifier order,
-because a count tells whoever holds the card nothing about what to go and
-settle. The operator carries the move through with the same `--override` marker
-that already carries a card into a full column, witnessed on the `moved` event
-the same way. Departure is untouched, as is every other verb: an item is filed,
-cited, resolved or reopened wherever the card stands, so nothing about the flag
-changes who may settle an item or when.
+Which side is held follows the declared direction. A move or a pull into a
+column whose declaration covers entry is refused `unresolved-item`, naming the
+first such item in identifier order, because a count tells whoever holds the
+card nothing about what to go and settle. A move or a pull out of a column
+whose declaration covers departure is refused under the distinct name
+`dinah.unresolved-item-exit`, on identical terms and naming the item the same
+way. The two names are distinct because the profile fixes `unresolved-item` for
+a card arriving at a column and says nothing about a card leaving one.
 
-The tool cannot tell a column an item deliberately names from one an item traps
-itself at. An item that names the very column where somebody was going to
-settle it holds the card out of that column forever, and Dinah has a field for
-the column an item names and none for the column that settles it, so a refusal
-built on what exists would refuse the ordinary case (a criterion verified
-downstream, naming a later column as its gate) exactly as often as the trap. No
-code addresses it. A workbench adopting the flag writes the discipline into its
-own method text instead: name the column after the one that settles the item,
-never the one that does.
+Neither refusal reads the direction of the move. An entry hold refuses a
+regressive move into the column exactly as it refuses a forward one, and a
+departure hold refuses a push-back out of the column exactly as it refuses an
+advance, because an unresolved item is as good a reason to keep a card where it
+stands in one direction as in the other. The operator carries either through
+with the same `--override` marker that already carries a card into a full
+column, witnessed on the `moved` event the same way. Every other verb is
+untouched: an item is filed, cited, resolved or reopened wherever the card
+stands, so nothing about the flag changes when an item may be settled.
+
+The two directions carry a naming rule between them, and a workbench adopting
+the flag writes it into its own method text. An item somebody settles at one
+column names that column, which is declared to hold on departure, so the card
+waits there until the item is settled and cannot be trapped out of the place
+its answer comes from. An item that has to be settled before some later work
+begins names that later column, which is declared to hold on entry. The first
+of those replaces the older discipline of naming the column after the one that
+settles an item, which existed only because entry was the sole direction.
 
 `gate_items` travels through interchange as a member of its own, the route
 `awaiting_outside` takes, and CORE-JSON-10 lists it among the members the
-profile blesses.
+profile blesses. The member carries the boolean `true` for the entry direction,
+which is the shape the profile blessed, and the string `out` or `both` for the
+two Dinah adds. A member carrying any other shape is dropped on the way in
+rather than refusing the import, which is the leniency `awaiting_outside` and
+`operator_owned` already follow.
 
 A column may declare `wip_limit: <n>`; absent means unlimited. The limit
 counts every card in the column regardless of state, because a blocked
@@ -886,7 +905,7 @@ so a `claimed` line with no `expires` records an unbounded claim.
 |---|---|---|
 | `created` | | `title`, on a card's line and on a new workstream's, absent on the line that records a workstream `check` adopted; `to` and `to_title`, on a card's line only, since a workstream stands in no column |
 | `claimed` | | `expires`, when the claim carried a duration |
-| `moved` | `from`, `from_title`, `to`, `to_title` | `override`, true only where a declared limit or hold stood in the way and the operator carried the move past it, which is a CORE-MOVE-9 capacity override, the departure column's own `loop_limit`, or the destination column's own `gate_items` hold under CORE-GATE-4; `reject`, true only when the destination is the departure column's own `reject_to` target |
+| `moved` | `from`, `from_title`, `to`, `to_title` | `override`, true only where a declared limit or hold stood in the way and the operator carried the move past it, which is a CORE-MOVE-9 capacity override, the departure column's own `loop_limit`, the destination column's own `gate_items` hold under CORE-GATE-4, or the departure column's own `gate_items` hold read on the way out; `reject`, true only when the destination is the departure column's own `reject_to` target |
 | `released` | | |
 | `blocked` | `reason` | `kind`, whatever the caller passed, since nothing validates it |
 | `unblocked` | | |
@@ -984,7 +1003,16 @@ attachments for evidence per the universal rule. Kinds are a closed set of three
 (acceptance_criterion, open_question, decision) and states a closed set
 (pending, resolved, verified, failed), closed because method text travels
 between boards and "file it with owner operator" must mean the same thing
-everywhere. Items are per-item entities rather than a list in the card
+everywhere. An item whose `owner` reads exactly `operator` is the workbench
+operator's to settle: `dinah resolve`, `dinah verify` and `dinah fail` are
+refused `not-operator` to anybody else on such an item, and so is a write to
+that item's own `owner` key, since a key anybody could rewrite would be a
+record the refusal reads after whoever wanted past it had edited it. Filing a
+fresh item with `--owner operator` stays open to everybody, because routing a
+question to the operator is the ordinary act the field exists for, and `dinah
+reopen` stays open too, because returning an item to pending can only re-impose
+a hold and never lift one. Every other `owner` value is recorded and enforced
+against nobody. Items are per-item entities rather than a list in the card
 anchor for the same reason comments are: different actors add items
 concurrently, and per-item directories are the conflict-free shape. Item
 lifecycle events land in the card's journal per the nearest-enclosing

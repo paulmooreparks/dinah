@@ -91,18 +91,27 @@ const (
 	// WIPLimitKey is the frontmatter key that limit is stored under, which
 	// is not the name a reader types for it.
 	WIPLimitKey = "wip_limit"
-	// HoldField is a column's hold, as a reader types it: on where the
-	// column holds a card until an item naming it is settled, and off where
-	// it does not.
+	// HoldField is a column's hold, as a reader types it. It carries a
+	// direction as well as a state: on where the column holds a card
+	// entering it until an item naming the column is settled, out where it
+	// holds a card leaving it on the same terms, both where it holds a card
+	// either way, and off where it holds neither way.
 	HoldField = "hold"
 	// GateItemsKey is the frontmatter key that hold is stored under, which
 	// is not the name a reader types for it. The stored spelling is the
 	// profile's, under CORE-JSON-10, and it stays out of everything a person
 	// types or reads.
 	GateItemsKey = "gate_items"
-	// HoldOn and HoldOff are the two values a reader types for a hold.
-	HoldOn  = "on"
-	HoldOff = "off"
+	// HoldOn, HoldOff, HoldOut and HoldBoth are the four values a reader
+	// types for a hold, and the set is closed. On is the sole spelling for
+	// the entry direction, carried unchanged from the two-value vocabulary
+	// this field was born with, so there is deliberately no fifth word in:
+	// two spellings for one direction is the confusion this vocabulary is
+	// shaped to avoid.
+	HoldOn   = "on"
+	HoldOff  = "off"
+	HoldOut  = "out"
+	HoldBoth = "both"
 	// StatusField is a workstream's status.
 	StatusField = "status"
 	// FilenameField is an attachment's filename.

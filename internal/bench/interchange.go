@@ -93,9 +93,17 @@ func exportColumn(column *Column) map[string]json.RawMessage {
 	}
 	// CORE-JSON-10 blesses this member, so it travels under a name of its
 	// own rather than as an unrecognized member somebody else's tool
-	// preserves without understanding.
-	if column.GateItems {
+	// preserves without understanding. It carries either the boolean true,
+	// which holds a card entering the column and is unchanged from the
+	// two-value vocabulary, or the string out or both, which is Dinah's own
+	// extension of the same member's value set.
+	switch column.Hold {
+	case HoldOn:
 		element["gate_items"] = mustMarshal(true)
+	case HoldOut:
+		element["gate_items"] = mustMarshal("out")
+	case HoldBoth:
+		element["gate_items"] = mustMarshal("both")
 	}
 	if column.Capacity > 0 {
 		element["capacity"] = mustMarshal(column.Capacity)
@@ -332,10 +340,21 @@ func writeColumnFromMember(root, id, slug string, element map[string]json.RawMes
 			fm.Set("awaiting_outside", "true")
 		}
 	}
-	var gateItems bool
+	// The member carries a boolean for the entry direction and a string for
+	// the two Dinah adds. A shape this build does not recognize is silently
+	// not written, on the lenient discipline the members above already
+	// follow: one column's one member is not worth refusing a whole import
+	// over.
 	if raw, ok := element["gate_items"]; ok {
-		if err := json.Unmarshal(raw, &gateItems); err == nil && gateItems {
-			fm.Set("gate_items", "true")
+		var gateItems bool
+		var direction string
+		switch {
+		case json.Unmarshal(raw, &gateItems) == nil:
+			if gateItems {
+				fm.Set("gate_items", "true")
+			}
+		case json.Unmarshal(raw, &direction) == nil && (direction == HoldOut || direction == HoldBoth):
+			fm.Set("gate_items", direction)
 		}
 	}
 	var capacity int

@@ -331,7 +331,7 @@ func (l *Library) pullTransaction(req *Request, head *bench.Card) *Response {
 }
 
 // pull is the inner write, reached once the card has been chosen and locked.
-// It evaluates rows 8 to 14 of pull's table in the order the table declares,
+// It evaluates rows 8 to 16 of pull's table in the order the table declares,
 // out of the same two functions move and claim run, so a pull refuses in the
 // words a move and a claim already refuse in.
 //
@@ -340,9 +340,10 @@ func (l *Library) pullTransaction(req *Request, head *bench.Card) *Response {
 // and 10, and it stands between the halves because row 10 takes claim's
 // stricter test: a pull that claims cannot take a card already active
 // whoever holds it, where the move's row admits a card the owner asking
-// holds. canLand is the rest of the move's list, rows 11 to 14. Its own
-// blocked and held rows are reached with the state already settled by the
-// pair above, so neither can decide a pull.
+// holds. canLand is the rest of the move's list, rows 11 to 14, which now
+// include the departure's own exit hold between the entry gate and the
+// operator-owned reservation. Its own blocked and held rows are reached with
+// the state already settled by the pair above, so neither can decide a pull.
 //
 // claimableState runs whether or not the caller passed --no-claim, because
 // the option changes what pull writes and not what pull allows, and
@@ -385,7 +386,7 @@ func (l *Library) pull(req *Request, card *bench.Card) *Response {
 		if refusal := l.claimableItems(req, card); refusal != nil {
 			return refusal
 		}
-		// Row 14, Dinah's own, is asked about the destination rather than the
+		// Row 16, Dinah's own, is asked about the destination rather than the
 		// column the card is leaving, because that is where the claim is
 		// taken. A --no-claim pull takes nothing up, so no requirement the
 		// card carries can refuse it, exactly as no unresolved item can.

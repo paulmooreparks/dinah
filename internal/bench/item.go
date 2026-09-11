@@ -22,9 +22,17 @@ const (
 	// whatever the caller spelled, and an item carrying no column holds
 	// nothing.
 	ItemColumnField = "column"
-	// ItemOwnerField is who the item is meant for, recorded and never
-	// enforced against the actor calling a terminal verb.
+	// ItemOwnerField is who the item is meant for. An item recording
+	// ItemOwnerOperator is the operator's to settle: closeItem in
+	// internal/verb refuses a terminal verb on one to anybody else, and
+	// SetField beside it refuses a rewrite of this key on one, so the
+	// record cannot be edited out from under the refusal. Every other
+	// value is recorded and enforced against nobody, because only the
+	// operator is a person the workbench can name.
 	ItemOwnerField = "owner"
+	// ItemOwnerOperator is the one owner value the tool enforces, and it
+	// names the workbench's operator rather than any particular person.
+	ItemOwnerOperator = "operator"
 	// ItemNoteField is the resolution note a terminal verb requires, kept
 	// apart from the item's body, which is the text the item was filed with
 	// and never changes.

@@ -312,6 +312,15 @@ var Shapes = []Shape{
 		NextStep:  []string{"refusal.unresolved-item.next"},
 	},
 	{
+		// The departure's own hold, mirroring the entry shape above down
+		// to which entity the detail names, because the two refusals send
+		// a reader to the same item and differ only in which side of the
+		// column stood in the way.
+		Name:      UnresolvedItemExit,
+		Fragments: []Fragment{{Key: "refusal.dinah.unresolved-item-exit.next"}},
+		NextStep:  []string{"refusal.dinah.unresolved-item-exit.next"},
+	},
+	{
 		// The window clause says what this build reads, so the next step
 		// follows it rather than preceding it.
 		Name:   UnsupportedVer,
