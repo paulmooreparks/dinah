@@ -1,0 +1,93 @@
+// Every spelling of a silenced type check at an MCP API call site, so the
+// sweep in test/unit/manifest.test.ts is proved in the direction that finds
+// them rather than only against a source file carrying none.
+//
+// The name ends in .ts.txt so no walk collecting .ts reaches it and
+// tsconfig.test.json's exclude keeps tsc off it, exactly as
+// confirmDestructive-call-site.ts.txt and unresolvable-key-call-site.ts.txt
+// are handled. sweepMcpCallSites parses it because it passes ScriptKind.TS
+// explicitly. Nothing here is meant to type-check or to run.
+//
+// Twelve call sites. Ten carry a silenced type check: four spellings the first
+// reviewer wrote against the two-spelling text sweep, two the second reviewer
+// wrote against its widened pattern, and four nobody had tried. Two carry
+// none, and they are what stops a sweep passing this fixture by reporting
+// every node it meets.
+
+import * as vscode from "vscode";
+
+declare const MCP_PROVIDER_ID: string;
+declare const provider: vscode.McpServerDefinitionProvider;
+declare const plan: { label: string; command: string; args: string[] };
+
+// 1. A cast to a named type on the provider argument, on the call's own line.
+//    The first reviewer's spelling; the retired two-spelling pattern missed it.
+vscode.lm.registerMcpServerDefinitionProvider(MCP_PROVIDER_ID, provider as Spelling1);
+
+// 2. A cast on the vscode.lm object itself, so the method is reached through a
+//    type the installed declarations do not carry.
+(vscode.lm as Spelling2).registerMcpServerDefinitionProvider(MCP_PROVIDER_ID, provider);
+
+// 3. A cast on the constructed definition, wrapping the whole construction.
+//    The assertion's span holds the call site rather than sitting inside it.
+const three = new vscode.McpStdioServerDefinition(plan.label, plan.command, plan.args) as Spelling3;
+
+// 4. A cast on the argument to a type spelled out rather than to a name in
+//    scope, which is the shape a developer reaches for first.
+vscode.lm.registerMcpServerDefinitionProvider(MCP_PROVIDER_ID, provider as Spelling4);
+
+// 5. TypeScript's angle-bracket assertion, written on the registration call's
+//    own line. The second reviewer's first spelling, and the widened pattern
+//    saw no `as` in it at all.
+vscode.lm.registerMcpServerDefinitionProvider(MCP_PROVIDER_ID, <Spelling5>{
+	onDidChangeMcpServerDefinitions: undefined,
+	provideMcpServerDefinitions: () => [],
+});
+
+// 6. A cast on the closing line of the multi-line argument literal. The second
+//    reviewer's second spelling, and the one a developer reaches for when the
+//    provider object will not type-check.
+vscode.lm.registerMcpServerDefinitionProvider(MCP_PROVIDER_ID, {
+	onDidChangeMcpServerDefinitions: undefined,
+	provideMcpServerDefinitions: () => [],
+} as Spelling6);
+
+// 7. A double assertion through unknown, on a continuation line of a
+//    multi-line construction. Neither end of it is on the line the call opens.
+const seven = new vscode.McpStdioServerDefinition(
+	plan.label,
+	plan.command,
+	plan.args as unknown as Spelling7,
+);
+
+// 8. A non-null assertion on the receiver, which silences the checker about
+//    the API object rather than about an argument.
+vscode.lm!.registerMcpServerDefinitionProvider(MCP_PROVIDER_ID, provider);
+
+// 9. A line directive on the line above a multi-line call, where the retired
+//    sweep looked only at lines carrying an API name.
+// @ts-expect-error
+vscode.lm.registerMcpServerDefinitionProvider(
+	MCP_PROVIDER_ID,
+	provider,
+);
+
+// 10. A line directive inside the span of a multi-line construction.
+const ten = new vscode.McpStdioServerDefinition(
+	plan.label,
+	// @ts-ignore
+	plan.command,
+	plan.args,
+);
+
+// 11. Clean. No assertion, no directive, and the sweep must stay silent about
+//     it or the guard above would fail on honest source.
+vscode.lm.registerMcpServerDefinitionProvider(MCP_PROVIDER_ID, {
+	onDidChangeMcpServerDefinitions: undefined,
+	provideMcpServerDefinitions: () => [],
+});
+
+// 12. A const assertion, which narrows a literal's inferred type and cannot
+//     make a call compile against declarations that do not carry it. The sweep
+//     must stay silent about this one too.
+const twelve = new vscode.McpStdioServerDefinition(plan.label, plan.command, ["--json"] as const);

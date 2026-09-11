@@ -14,7 +14,7 @@
     "url": "https://github.com/paulmooreparks/dinah/issues"
   },
   "engines": {
-    "vscode": "^1.90.0"
+    "vscode": "^1.101.0"
   },
   "categories": [
     "Other"
@@ -369,9 +369,21 @@
           "default": true,
           "scope": "resource",
           "markdownDescription": "%manifest.configuration.dinah.watchFiles.markdownDescription%"
+        },
+        "dinah.registerMcpServer": {
+          "type": "boolean",
+          "default": true,
+          "scope": "window",
+          "markdownDescription": "%manifest.configuration.dinah.registerMcpServer.markdownDescription%"
         }
       }
     },
+    "mcpServerDefinitionProviders": [
+      {
+        "id": "dinah.workbenches",
+        "label": "%manifest.mcp.provider.label%"
+      }
+    ],
     "walkthroughs": [
       {
         "id": "dinah.firstSession",
@@ -410,7 +422,7 @@
     "@types/js-yaml": "^4.0.9",
     "@types/mocha": "^10.0.10",
     "@types/node": "^22.10.2",
-    "@types/vscode": "^1.90.0",
+    "@types/vscode": "^1.101.0",
     "@typescript-eslint/eslint-plugin": "^8.19.0",
     "@typescript-eslint/parser": "^8.19.0",
     "@vscode/test-electron": "^2.4.1",

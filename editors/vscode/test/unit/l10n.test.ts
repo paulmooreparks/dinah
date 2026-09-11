@@ -76,6 +76,40 @@ const flags = readJson<Flags>(localesDir, "flags.json");
 const sortedKeys = (record: Record<string, unknown>): string[] =>
 	Object.keys(record).sort();
 
+/**
+ * Which non-base tags actually ship translated, derived rather than declared.
+ *
+ * A tag ships translated exactly when flags.json records no skeleton key under
+ * it, so this reads the shipped data and the tag list instead of the two
+ * rosters above. The counting floors compare the rosters against it, which is
+ * why it must not be built out of either of them.
+ */
+const shippedTranslatedTags: readonly SupportedTag[] = SUPPORTED_TAGS.filter(
+	(tag) => tag !== BASE_TAG && (flags.skeleton[tag] ?? []).length === 0,
+);
+
+/**
+ * Which non-base tags ship as skeletons, the complement of the set above.
+ *
+ * Derived the same way and from the same two sources, so the skeleton floor
+ * can compare SKELETON_TAGS's membership rather than only its size.
+ */
+const shippedSkeletonTags: readonly SupportedTag[] = SUPPORTED_TAGS.filter(
+	(tag) => tag !== BASE_TAG && (flags.skeleton[tag] ?? []).length > 0,
+);
+
+/**
+ * Which shipped tags a roster never reaches, named for a failure message.
+ *
+ * The same set difference the key sweeps below spell inline, lifted out
+ * because four floors report it and a message naming the whole shipped set
+ * tells the reader to look at languages that were never missing.
+ */
+function missingFrom(roster: readonly string[], shipped: readonly string[]): string {
+	const absent = [...shipped].filter((tag) => !roster.includes(tag)).sort();
+	return absent.length > 0 ? absent.join(", ") : "no tag, so the roster holds a duplicate instead";
+}
+
 // ---------------------------------------------------------------------------
 // The manifest namespace
 // ---------------------------------------------------------------------------
@@ -123,16 +157,28 @@ test("every manifest sibling carries exactly the base catalogue's keys", () => {
 	// AC-2. Set equality in both directions, and the failure names the keys
 	// rather than the count, because a count sends a reader back to a diff.
 	const base = new Set(Object.keys(manifestCatalog(BASE_TAG)));
+	// dinah-424 AC-8's first floor. A sweep that read one file and a sweep
+	// that read them all report success the same way, so the number of files
+	// opened is asserted rather than assumed. The floor is SUPPORTED_TAGS's
+	// own length, which is the base catalogue plus one sibling per other tag,
+	// so a ninth language cannot leave this sweep silently short.
+	let filesRead = 1;
 	for (const tag of SUPPORTED_TAGS) {
 		if (tag === BASE_TAG) {
 			continue;
 		}
 		const sibling = new Set(Object.keys(manifestCatalog(tag)));
+		filesRead += 1;
 		const missing = [...base].filter((key) => !sibling.has(key)).sort();
 		const extra = [...sibling].filter((key) => !base.has(key)).sort();
 		assert.deepEqual(missing, [], `package.nls.${tag}.json is missing keys`);
 		assert.deepEqual(extra, [], `package.nls.${tag}.json carries extra keys`);
 	}
+	assert.equal(
+		filesRead,
+		SUPPORTED_TAGS.length,
+		`the parity sweep opened ${String(filesRead)} package.nls*.json files and there are ${String(SUPPORTED_TAGS.length)} tags, so it skipped one`,
+	);
 });
 
 test("a manifest entry that reads as English says so, and one that says so reads as English", () => {
@@ -165,18 +211,59 @@ test("a manifest entry that reads as English says so, and one that says so reads
 });
 
 test("the manifest's two translated languages carry no skeleton and its five skeletons carry every key", () => {
-	// AC-4.
+	// AC-4, and dinah-424 AC-8's second and third floors.
+	//
+	// Both rosters below are hand-written, so dropping a tag from one of them
+	// would stop that tag being swept and leave every assertion here true of
+	// what remained. Each floor is therefore derived from SUPPORTED_TAGS and
+	// from the shipped flags rather than from the roster it counts: a tag
+	// ships translated exactly when flags.json records no skeleton key for it,
+	// and every other non-base tag ships as a skeleton. Neither floor moves
+	// when the roster it guards is emptied, which is what lets each one fire
+	// under its own message.
+	//
+	// Each floor then asserts membership beside size, because a count alone is
+	// held steady by a duplicate: a roster of `["de", "de"]` runs the loop
+	// twice, reaches the same count, and retires Hindi's check in silence.
+	// Only `de` and `hi` can satisfy the translated loop's body and only the
+	// five skeleton tags can satisfy the skeleton loop's, so a duplicate is
+	// the substitution a careless edit or a bad merge produces.
+	// l10n-staleness.test.ts's own floor is written the same way.
 	const keys = sortedKeys(manifestCatalog(BASE_TAG));
+	let translatedChecked = 0;
 	for (const tag of TRANSLATED_TAGS) {
 		assert.deepEqual(flags.skeleton[tag], [], `${tag} ships translated`);
+		translatedChecked += 1;
 	}
+	let skeletonChecked = 0;
 	for (const tag of SKELETON_TAGS) {
 		assert.deepEqual(
 			[...(flags.skeleton[tag] ?? [])].sort(),
 			keys,
 			`${tag} ships as a fully flagged skeleton`,
 		);
+		skeletonChecked += 1;
 	}
+	assert.equal(
+		translatedChecked,
+		shippedTranslatedTags.length,
+		`the translated sweep read ${String(translatedChecked)} tags and ${String(shippedTranslatedTags.length)} ship translated, so TRANSLATED_TAGS is short of ${missingFrom(TRANSLATED_TAGS, shippedTranslatedTags)}`,
+	);
+	assert.deepEqual(
+		[...TRANSLATED_TAGS].sort(),
+		[...shippedTranslatedTags].sort(),
+		`the translated sweep reads the right number of tags and not the right ones: it never reads ${missingFrom(TRANSLATED_TAGS, shippedTranslatedTags)}`,
+	);
+	assert.equal(
+		skeletonChecked,
+		shippedSkeletonTags.length,
+		`the skeleton sweep read ${String(skeletonChecked)} tags and ${String(shippedSkeletonTags.length)} ship as skeletons, so SKELETON_TAGS is short of ${missingFrom(SKELETON_TAGS, shippedSkeletonTags)}`,
+	);
+	assert.deepEqual(
+		[...SKELETON_TAGS].sort(),
+		[...shippedSkeletonTags].sort(),
+		`the skeleton sweep reads the right number of tags and not the right ones: it never reads ${missingFrom(SKELETON_TAGS, shippedSkeletonTags)}`,
+	);
 });
 
 // ---------------------------------------------------------------------------

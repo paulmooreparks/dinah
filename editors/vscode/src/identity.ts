@@ -43,6 +43,16 @@ export const DRAG_MIME_TYPE = `application/vnd.code.tree.${VIEW_ID.toLowerCase()
  */
 export const SERVED_TEXT_SCHEME = "dinah-served";
 
+/**
+ * The id the manifest and the registration call must both spell.
+ *
+ * The API's own doc comment requires an extension to declare a
+ * `contributes.mcpServerDefinitionProviders` entry with the id it later
+ * registers under, so the manifest and `extension.ts` spell one value from
+ * here rather than two literals a diff can part.
+ */
+export const MCP_PROVIDER_ID = "dinah.workbenches";
+
 /** The settings key holding an explicit path to the binary. */
 export const SETTING_PATH = "dinah.path";
 
@@ -54,6 +64,9 @@ export const SETTING_POLL_INTERVAL = "dinah.pollIntervalSeconds";
 
 /** The settings key turning the filesystem watcher off. */
 export const SETTING_WATCH_FILES = "dinah.watchFiles";
+
+/** The settings key a reader turns MCP registration off with. */
+export const SETTING_REGISTER_MCP = "dinah.registerMcpServer";
 
 /** The view title bar's refresh command. */
 export const COMMAND_REFRESH = "dinah.tree.refresh";

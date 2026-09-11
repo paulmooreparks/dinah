@@ -31,6 +31,8 @@
 	"manifest.configuration.dinah.workbench.markdownDescription": "Verzeichnis der Werkbank, die für diesen Ordner verwendet wird, an `dinah` als `--workbench` übergeben. Leer lassen, damit `dinah` durch Aufwärtssuche vom Ordner aus eine findet. Setzen Sie es, wenn mehrere Werkbänke erreichbar sind, oder wenn die Suche eine erreicht, die Sie nicht gemeint haben.",
 	"manifest.configuration.dinah.pollIntervalSeconds.markdownDescription": "Wie oft der Seitenleistenbaum `dinah changes` auf Aktualisierungen prüft, solange er sichtbar ist.",
 	"manifest.configuration.dinah.watchFiles.markdownDescription": "Die Markdown-Dateien der Werkbank auf Änderungen beobachten und beim Speichern einer Datei früher prüfen als im Abfrageintervall.",
+	"manifest.configuration.dinah.registerMcpServer.markdownDescription": "Jede Werkbank, die dieses Fenster gefunden hat, dem Agentenmodus des Editors als MCP-Server anbieten, der das von diesem Fenster verwendete `dinah`-Programm ausführt. VS Code fragt Sie, ob Sie einem Server vertrauen, bevor es ihn startet, und hier wird nichts in Ihre Einstellungen oder in eine `mcp.json`-Datei geschrieben. Wenn Sie dies ausschalten, bietet Dinah keine an.",
+	"manifest.mcp.provider.label": "Dinah-Werkbänke",
 	"manifest.walkthrough.firstSession.title": "Dinah: Ihre erste Sitzung",
 	"manifest.walkthrough.firstSession.description": "Finden Sie sich an einer Dinah-Werkbank zurecht, mit Dinahs eigenem Leitfaden.",
 	"manifest.walkthrough.firstSession.step.readGuide.title": "Den Leitfaden lesen",

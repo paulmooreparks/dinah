@@ -11,6 +11,8 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 
+import * as ts from "typescript";
+
 import {
 	COMMAND_ATTACH_FILE,
 	COMMAND_CHECK_WORKBENCH,
@@ -43,10 +45,12 @@ import {
 	EXTENSION_ID,
 	EXTENSION_NAME,
 	GLOBAL_COMMANDS,
+	MCP_PROVIDER_ID,
 	PUBLISHER,
 	ROW_COMMANDS,
 	SETTING_PATH,
 	SETTING_POLL_INTERVAL,
+	SETTING_REGISTER_MCP,
 	SETTING_WATCH_FILES,
 	SETTING_WORKBENCH,
 	TREE_COMMANDS,
@@ -124,6 +128,23 @@ function welcomeBlocks(): WelcomeBlock[] {
 	return (contributes.viewsWelcome as WelcomeBlock[]).filter(
 		(block) => block.view === VIEW_ID,
 	);
+}
+
+/** One declared MCP server definition provider, as the editor reads it. */
+interface McpProviderEntry {
+	readonly id: string;
+	readonly label: string;
+}
+
+/**
+ * The declared providers, with their labels resolved to English.
+ *
+ * Read off the resolved manifest, so a caller holding the label to a prose
+ * rule sees the sentence rather than the `%key%`. The raw form is read
+ * separately where the placeholder itself is the subject.
+ */
+function mcpProviders(): McpProviderEntry[] {
+	return (contributes.mcpServerDefinitionProviders ?? []) as McpProviderEntry[];
 }
 
 // The `when` grammar these blocks are held to. Restricting it is what makes
@@ -356,6 +377,7 @@ test("the settings are contributed with the scopes their subjects need", () => {
 		SETTING_WORKBENCH,
 		SETTING_POLL_INTERVAL,
 		SETTING_WATCH_FILES,
+		SETTING_REGISTER_MCP,
 	]);
 	// A binary path is a property of the machine and must not travel through
 	// settings sync to a different one.
@@ -372,6 +394,19 @@ test("the settings are contributed with the scopes their subjects need", () => {
 	const watch = configuration.properties[SETTING_WATCH_FILES];
 	assert.equal(watch.scope, "resource");
 	assert.equal(watch.default, true);
+	// Whether this window offers its workbenches to the editor's agent mode is
+	// not a property of any one folder: the provider answers once for the
+	// whole window with one flat array, and the published set is deduplicated
+	// across folders, so two folder-scoped answers would need a reconciliation
+	// and there is no defensible one.
+	const register = configuration.properties[SETTING_REGISTER_MCP];
+	assert.equal(register.scope, "window");
+	assert.equal(register.type, "boolean");
+	// The default is what the operator ruled, and presence alone would not
+	// catch it moving: a reader who never opened settings would silently get
+	// no registration while a test asserting only that the key exists stayed
+	// green.
+	assert.equal(register.default, true);
 });
 
 // The vocabulary an affirmative claim reaches for. This set is deliberately
@@ -906,6 +941,17 @@ test("no manifest string offers the extension itself as a place dinah comes from
 	for (const block of welcomeBlocks()) {
 		strings.push({ where: `the welcome block for ${block.when}`, text: block.contents });
 	}
+	// The provider's label is a reader-facing manifest string too, and it is
+	// neither the manifest description, nor a setting's description, nor a
+	// welcome block, so the three loops above reach none of it. resolveNls
+	// walks the whole manifest, so what arrives here is the English the
+	// label's %key% resolves to.
+	for (const entry of mcpProviders()) {
+		strings.push({
+			where: `the ${entry.id} provider's label`,
+			text: entry.label,
+		});
+	}
 	// A vacuous pass is the failure mode here, so the corpus is counted twice
 	// over. The derived count fails when the collector above stops reading one
 	// of the manifest's three sources, and the literal count fails when the
@@ -920,9 +966,10 @@ test("no manifest string offers the extension itself as a place dinah comes from
 				(property.description === undefined ? 0 : 1),
 			0,
 		) +
-		welcomeBlocks().length;
+		welcomeBlocks().length +
+		mcpProviders().length;
 	assert.equal(strings.length, declared);
-	assert.equal(strings.length, 11);
+	assert.equal(strings.length, 13);
 	for (const { where, text } of strings) {
 		assert.deepEqual(
 			claimsToCarryDinah(text),
@@ -2165,5 +2212,382 @@ test("the welcome view's walkthrough link names this extension's own walkthrough
 			`(command:workbench.action.openWalkthrough?${wanted})`,
 		),
 		`the welcome view links to no walkthrough of this extension: ${matched[0].contents}`,
+	);
+});
+
+test("one MCP server definition provider is declared, under the id the code registers", () => {
+	// dinah-424 AC-1. The API's own doc comment requires the manifest entry
+	// and the registerMcpServerDefinitionProvider call to spell one id, so the
+	// id half compares the manifest against the constant extension.ts passes
+	// rather than against a second literal.
+	const declared = mcpProviders();
+	assert.equal(declared.length, 1);
+	assert.equal(declared[0].id, MCP_PROVIDER_ID);
+
+	// The label half reads its operand from a raw parse, because the manifest
+	// binding above is resolveNls-resolved and would read as the English
+	// whether the manifest carries the key or a hard-coded sentence.
+	const raw = JSON.parse(
+		readFileSync(join(extensionRoot, "package.json"), "utf8"),
+	) as {
+		contributes: { mcpServerDefinitionProviders?: { label?: string }[] };
+	};
+	const rawLabel = raw.contributes.mcpServerDefinitionProviders?.[0]?.label;
+	assert.equal(
+		typeof rawLabel,
+		"string",
+		"the manifest declares a provider with no label at all",
+	);
+	const placeholder = /^%([A-Za-z0-9_.-]+)%$/.exec(rawLabel as string);
+	assert.ok(
+		placeholder !== null,
+		`the provider's label is ${String(rawLabel)} rather than a catalogue reference, so a reader in another language sees English`,
+	);
+	assert.ok(
+		Object.prototype.hasOwnProperty.call(baseCatalog, placeholder[1]),
+		`package.nls.json carries no ${String(rawLabel)}`,
+	);
+});
+
+test("the version floor and the types it was built against move together", () => {
+	// dinah-424 AC-10's version half. registerMcpServerDefinitionProvider
+	// first appears in the stable index.d.ts at @types/vscode@1.101.0, and
+	// declaring a contribution point an older editor cannot honour would rest
+	// on behaviour documented nowhere. The two strings are compared to each
+	// other so the pair cannot half-move.
+	const raw = JSON.parse(
+		readFileSync(join(extensionRoot, "package.json"), "utf8"),
+	) as {
+		engines: { vscode: string };
+		devDependencies: Record<string, string>;
+	};
+	assert.equal(raw.engines.vscode, raw.devDependencies["@types/vscode"]);
+});
+
+// ---------------------------------------------------------------------------
+// The MCP API call sites in extension.ts
+// ---------------------------------------------------------------------------
+
+/**
+ * The two MCP API constructs this card's wiring is made of.
+ *
+ * The sweep matches these names on the parsed tree rather than looking for
+ * them in the file's text, and no receiver is part of the match, so a call
+ * through `vscode.lm`, through a local alias or through a destructured binding
+ * is one call site here.
+ */
+const MCP_CALL_NAMES: readonly string[] = [
+	"McpStdioServerDefinition",
+	"registerMcpServerDefinitionProvider",
+];
+
+/**
+ * The comment directives that switch the type checker off instead of satisfying it.
+ *
+ * They are spelled here as data rather than written into this file's own
+ * comments, because a directive written in a comment is a directive. The
+ * file-level one below governs a whole module, so it reaches every call site
+ * in one wherever it sits; the two line-level ones govern the line under
+ * themselves.
+ */
+const TS_SILENCING_DIRECTIVES: readonly string[] = ["@ts-expect-error", "@ts-ignore"];
+const TS_FILE_DIRECTIVE = "@ts-nocheck";
+
+/** What one sweep of a module's MCP API call sites found. */
+interface McpCallSweep {
+	/** One name per MCP API call site, in source order, repeats kept. */
+	readonly sites: string[];
+	/** One `line: what` per silenced type check reaching a call site. */
+	readonly silenced: string[];
+}
+
+/** One node's span, carried so containment can be tested in both directions. */
+interface Span {
+	readonly what: string;
+	readonly start: number;
+	readonly end: number;
+}
+
+/**
+ * The name a call or a construction is made through, when it is one of ours.
+ *
+ * A parenthesised or asserted receiver still yields the method's own name,
+ * which is what makes `(vscode.lm as Lm).registerMcpServerDefinitionProvider()`
+ * a call site rather than an expression the sweep does not recognise.
+ */
+function mcpCallName(node: ts.CallExpression | ts.NewExpression): string | undefined {
+	const callee = node.expression;
+	let name: string | undefined;
+	if (ts.isIdentifier(callee)) {
+		name = callee.text;
+	} else if (ts.isPropertyAccessExpression(callee)) {
+		name = callee.name.text;
+	}
+	if (name === undefined || !MCP_CALL_NAMES.includes(name)) {
+		return undefined;
+	}
+	return name;
+}
+
+/**
+ * How a type assertion reads in a failure message, or undefined for other nodes.
+ *
+ * The asserted type rather than the asserted expression, because the
+ * expression at one of these sites is a multi-line object literal and a
+ * message carrying the whole of it buries the one word a reader needs.
+ *
+ * A const assertion is the one assertion this does not report. `as const`
+ * narrows a literal's inferred type and cannot make a call compile against
+ * types that do not declare it, so reporting it would fail a developer who
+ * froze an argument rather than catching one who silenced the checker. The
+ * fixture pins that, alongside a call site carrying no assertion at all, so
+ * this sweep cannot pass its own test by reporting everything it meets.
+ */
+function silencedTypeCheck(node: ts.Node): string | undefined {
+	if (ts.isAsExpression(node)) {
+		if (
+			ts.isTypeReferenceNode(node.type) &&
+			ts.isIdentifier(node.type.typeName) &&
+			node.type.typeName.text === "const"
+		) {
+			return undefined;
+		}
+		return `as ${node.type.getText()}`;
+	}
+	if (ts.isTypeAssertionExpression(node)) {
+		return `<${node.type.getText()}>`;
+	}
+	if (ts.isNonNullExpression(node)) {
+		return `${node.expression.getText().slice(0, 60)}!`;
+	}
+	return undefined;
+}
+
+/**
+ * Every MCP API call site in one module, and every silenced type check reaching one.
+ *
+ * Modelled on l10n-keys.test.ts's `sweepKeys`, which walks src/ with the
+ * TypeScript compiler API for the same reason this does: an assertion is a
+ * node, and the spelling it was written in does not change which node it is.
+ * The text sweep this replaced was widened twice by example and broken twice
+ * by a reviewer, so it is gone rather than widened a third time.
+ *
+ * Containment is tested in both directions. An assertion inside the call's own
+ * span is a cast on the receiver or on an argument, wherever in the call it
+ * was written, and an assertion whose span holds the whole call is a cast on
+ * the call's result. Neither is visible to a reader taking one line at a time,
+ * and both of the real call sites here span seven lines.
+ *
+ * What this does not see, stated here rather than left to be discovered. A cast
+ * hoisted onto a binding and then passed walks past, because its node nests with
+ * neither call:
+ *
+ *     const lm = vscode.lm as unknown as typeof vscode.lm;
+ *     lm.registerMcpServerDefinitionProvider(MCP_PROVIDER_ID, { ... });
+ *
+ * That was driven on this branch and left the suite green. Closing it means
+ * following an assertion through the binding it initialises, which is a larger
+ * thing than this sweep, and dinah-424's OQ-1 ruled against doing it here: the
+ * protection is the type check against the pinned VS Code declarations, and this
+ * sweep is the backstop that notices somebody switching that off at a call site.
+ * A developer who hoists the cast is working around the type check deliberately,
+ * and one more rule here would cost them one more line rather than stop them. So
+ * the claim is the narrow one: an assertion whose span nests with a call site's.
+ */
+function sweepMcpCallSites(file: string): McpCallSweep {
+	const source = ts.createSourceFile(
+		file,
+		readFileSync(file, "utf8"),
+		ts.ScriptTarget.ES2022,
+		true,
+		ts.ScriptKind.TS,
+	);
+	const text = source.getFullText();
+	const lineOf = (pos: number): number => source.getLineAndCharacterOfPosition(pos).line + 1;
+
+	const sites: Span[] = [];
+	const assertions: Span[] = [];
+	const comments = new Map<number, ts.CommentRange>();
+
+	const visit = (node: ts.Node): void => {
+		if (ts.isCallExpression(node) || ts.isNewExpression(node)) {
+			const name = mcpCallName(node);
+			if (name !== undefined) {
+				sites.push({ what: name, start: node.getStart(source), end: node.getEnd() });
+			}
+		}
+		const silenced = silencedTypeCheck(node);
+		if (silenced !== undefined) {
+			assertions.push({ what: silenced, start: node.getStart(source), end: node.getEnd() });
+		}
+		for (const comment of ts.getLeadingCommentRanges(text, node.getFullStart()) ?? []) {
+			comments.set(comment.pos, comment);
+		}
+		for (const comment of ts.getTrailingCommentRanges(text, node.getEnd()) ?? []) {
+			comments.set(comment.pos, comment);
+		}
+		for (const child of node.getChildren(source)) {
+			visit(child);
+		}
+	};
+	visit(source);
+
+	const silenced = new Set<string>();
+	for (const site of sites) {
+		for (const assertion of assertions) {
+			const inside = assertion.start >= site.start && assertion.end <= site.end;
+			const around = assertion.start <= site.start && assertion.end >= site.end;
+			if (inside || around) {
+				silenced.add(`${String(lineOf(assertion.start))}: ${assertion.what}`);
+			}
+		}
+		const first = lineOf(site.start);
+		const last = lineOf(site.end);
+		for (const comment of comments.values()) {
+			const body = text.slice(comment.pos, comment.end);
+			const at = lineOf(comment.pos);
+			if (body.includes(TS_FILE_DIRECTIVE)) {
+				silenced.add(`${String(at)}: ${TS_FILE_DIRECTIVE}`);
+				continue;
+			}
+			const directive = TS_SILENCING_DIRECTIVES.find((name) => body.includes(name));
+			// A line directive governs the line below it, so the line above the
+			// call reaches it, and so does any line the call itself spans.
+			if (directive !== undefined && at >= first - 1 && at <= last) {
+				silenced.add(`${String(at)}: ${directive}`);
+			}
+		}
+	}
+	return { sites: sites.map((site) => site.what), silenced: [...silenced] };
+}
+
+test("the registration call is in the shipped source and reaches the API uncast", () => {
+	// dinah-424 AC-10's sweep half. A clean type-check cannot establish any of
+	// this: a cast is what makes a call against types that do not declare it
+	// compile, and nothing in eslint.config.mjs bans a type assertion. The
+	// presence clauses are the only automated evidence anywhere on this card
+	// that the central call was written at all, because no unit test can load
+	// extension.ts and the integration suite is out of scope.
+	const body = readFileSync(join(extensionRoot, "src", "extension.ts"), "utf8");
+	assert.ok(body.length > 0, "extension.ts read as empty, so this check proved nothing");
+	assert.ok(
+		body.includes("registerMcpServerDefinitionProvider("),
+		"extension.ts registers no MCP server definition provider",
+	);
+	assert.ok(
+		body.includes("new vscode.McpStdioServerDefinition("),
+		"extension.ts constructs no server definition",
+	);
+	// The id and the settings key reach those call sites as the identifiers
+	// identity.ts exports. A literal spelled here could drift from the
+	// manifest, and a wiring that read a different key would leave the
+	// reader's off-switch doing nothing while every other criterion stayed
+	// green.
+	assert.ok(
+		/registerMcpServerDefinitionProvider\(\s*MCP_PROVIDER_ID\b/.test(body),
+		"the provider id reaching the registration call is not MCP_PROVIDER_ID",
+	);
+	assert.ok(
+		/settingOf<boolean>\(\s*SETTING_REGISTER_MCP\b/.test(body),
+		"the published set is not decided from the SETTING_REGISTER_MCP the manifest declares",
+	);
+	// The cast half reads the file as a syntax tree, so it sees a construct
+	// rather than a spelling of one. Both real call sites are multi-line, each
+	// opening on the line that names the API and closing several lines later,
+	// so every line of an argument literal is a place an assertion can be
+	// written and a sweep taking one line at a time sees none of them. The
+	// text sweep this replaced said the opposite, that both were single-line,
+	// and that false sentence was the whole reason its line scope looked safe.
+	//
+	// The floor is an identity rather than a count: the sweep has to have
+	// found both API calls by name, because a universal claim over a subject
+	// set that turned out to be empty is true and says nothing.
+	const sweep = sweepMcpCallSites(join(extensionRoot, "src", "extension.ts"));
+	assert.deepEqual(
+		[...new Set(sweep.sites)].sort(),
+		[...MCP_CALL_NAMES].sort(),
+		"the sweep did not find both MCP API calls in extension.ts, so it had nothing to check",
+	);
+	assert.deepEqual(
+		sweep.silenced,
+		[],
+		`a silenced type check reaches an MCP API call site, so the type-check proves nothing about it:\n${sweep.silenced.join("\n")}`,
+	);
+});
+
+test("the call-site sweep sees every spelling of a silenced type check, and only those", () => {
+	// dinah-424 AC-10's sweep, proved in the detecting direction. The sweep
+	// above asserts an absence, and an absence is what a sweep that sees
+	// nothing also reports, so the fixture carries one call site per spelling
+	// and this names each one back.
+	//
+	// Ten silenced call sites. Four carry spellings the first reviewer wrote
+	// against the two-spelling text sweep, two carry the second reviewer's
+	// against its widened pattern, and four carry spellings neither tried. Two
+	// clean call sites sit beside them, one carrying no assertion at all and
+	// one carrying a const assertion, so a sweep reporting every node it meets
+	// fails this test rather than passing it.
+	const fixture = join(extensionRoot, "test", "fixtures", "mcp-call-site-casts.ts.txt");
+	const sweep = sweepMcpCallSites(fixture);
+	assert.equal(sweep.sites.length, 12, "the fixture's call sites are not all being found");
+
+	const expected = [
+		"as Spelling1",
+		"as Spelling2",
+		"as Spelling3",
+		"as Spelling4",
+		"<Spelling5>",
+		"as Spelling6",
+		"as Spelling7",
+		"as unknown",
+		"vscode.lm!",
+		"@ts-expect-error",
+		"@ts-ignore",
+	];
+	const seen = sweep.silenced.map((entry) => entry.slice(entry.indexOf(": ") + 2));
+	assert.deepEqual(
+		expected.filter((what) => !seen.includes(what)),
+		[],
+		`the sweep did not see these spellings in the fixture: ${expected.filter((what) => !seen.includes(what)).join(", ")}`,
+	);
+	assert.deepEqual(
+		seen.filter((what) => !expected.includes(what)),
+		[],
+		"the sweep reported something the fixture does not plant, so it is reporting more than a silenced type check",
+	);
+});
+
+test("no README sentence offers the extension itself as a place dinah comes from", () => {
+	// dinah-424 AC-13. The manifest guard above opens no README at all, so
+	// this is a check beside it rather than a claim laid on that one. It
+	// reuses claimsToCarryDinah so one definition of the refusal serves both
+	// surfaces.
+	const readme = readFileSync(join(extensionRoot, "README.md"), "utf8");
+	assert.ok(readme.length > 0, "the README read as empty, so this check proved nothing");
+	assert.deepEqual(
+		claimsToCarryDinah(readme),
+		[],
+		"the README says a dinah binary lives inside the extension",
+	);
+});
+
+test("the README names every setting the manifest contributes", () => {
+	// dinah-424 AC-13's second half. A setting a reader cannot find written
+	// down is a setting they cannot turn off, and the off-switch is what makes
+	// the operator's ruling declinable.
+	const readme = readFileSync(join(extensionRoot, "README.md"), "utf8");
+	const configuration = contributes.configuration as {
+		properties: Record<string, unknown>;
+	};
+	const keys = Object.keys(configuration.properties);
+	assert.ok(
+		keys.length > 0,
+		"the manifest contributes no setting at all, so this check had nothing to look for",
+	);
+	const unmentioned = keys.filter((key) => !readme.includes(key));
+	assert.deepEqual(
+		unmentioned,
+		[],
+		`the README names none of these settings: ${unmentioned.join(", ")}`,
 	);
 });

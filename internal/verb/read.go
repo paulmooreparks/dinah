@@ -2,6 +2,7 @@ package verb
 
 import (
 	"encoding/json"
+	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -1708,6 +1709,10 @@ type VersionReport struct {
 	Profile string `json:"profile"`
 	// Format is the storage format version the binary implements.
 	Format int `json:"format"`
+	// Executable is where this binary is, which a client that must hand a
+	// third party a runnable command needs and cannot work out for itself.
+	// Absent when the operating system would not say.
+	Executable string `json:"executable,omitempty"`
 	// Catalogs are the shipped locales with their coverage, present only
 	// when the caller asked for them.
 	Catalogs []CatalogCoverage `json:"catalogs,omitempty"`
@@ -1732,6 +1737,13 @@ type CatalogCoverage struct {
 // variable; a build from source keeps the default below.
 var ToolRelease = "0.1.0"
 
+// ExecutablePath is os.Executable behind a seam, so the failure arm is
+// reachable from a test. bench.statPath is the same shape. It is exported
+// because the test that drives the failure arm runs the whole head in
+// cmd/dinah rather than this package, and an unexported seam would put that
+// arm out of its reach.
+var ExecutablePath = os.Executable
+
 // Version reports what this binary is and what it conforms to, optionally
 // with the coverage of every shipped catalog.
 func Version(withCatalogs bool) *VersionReport {
@@ -1739,6 +1751,11 @@ func Version(withCatalogs bool) *VersionReport {
 		Tool:    ToolRelease,
 		Profile: bench.ProfileVersion,
 		Format:  bench.StorageFormat,
+	}
+	// A binary that cannot say where it is reports nothing rather than a
+	// guess, and omitempty turns the empty string into an absent key.
+	if path, err := ExecutablePath(); err == nil {
+		release.Executable = path
 	}
 	if !withCatalogs {
 		return release

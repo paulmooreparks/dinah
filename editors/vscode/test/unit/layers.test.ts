@@ -75,13 +75,20 @@ function valueImportOf(mod: string): RegExp {
  * The unit files allowed to start a process, and what each one buys by it.
  *
  * The rule below is otherwise absolute, so every entry here is a decision
- * somebody has to defend. Both of these check a command-line contract, which is
- * a claim about what happens when the thing is run, and a file read cannot make
- * that claim: a wrapper that always exits zero and a script that reports a
- * failed lookup as an absent release both look right in their own source. The
- * processes are node, which is already running, and pwsh, which every platform
- * this suite runs on carries; neither needs a Go toolchain and neither builds
- * anything, so between them they cost the layer under two seconds.
+ * somebody has to defend, and the four fall into two kinds.
+ *
+ * Two of them drive a script. That is a claim about what happens when the
+ * thing is run, and a file read cannot make it: a wrapper that always exits
+ * zero and a script that reports a failed lookup as an absent release both
+ * look right in their own source. The processes are node, which is already
+ * running, and pwsh, which every platform this suite runs on carries, so
+ * between them they cost the layer under two seconds.
+ *
+ * The other two build this commit's dinah and run it. A fixture written beside
+ * the code cannot say what the binary publishes or what it reports about
+ * itself, and those are the two claims they hold. Each owns its own fixture
+ * root and builds its own binary, so this layer now pays two `go build` runs
+ * on each CI leg.
  */
 const MAY_START_A_PROCESS: Record<string, string> = {
 	"unit/version-scheme.test.ts":
@@ -90,6 +97,8 @@ const MAY_START_A_PROCESS: Record<string, string> = {
 		"runs publish-extension.ps1 against stubbed gh, npm and vsce, which is the only way to tell its three release-lookup outcomes apart",
 	"unit/verbCatalog-live.test.ts":
 		"builds this commit's dinah and reads its real tool table, which is the only way to hold the command palette's classifier to what the binary actually publishes rather than to a fixture written beside it",
+	"unit/versionExecutable-live.test.ts":
+		"builds this commit's dinah and reads the location it reports about itself, which is the only harness in the tree that can hold a shipped binary to that; every other version test runs in the go test process and would report that process's own path",
 };
 
 test("no unit-test file starts a process", () => {

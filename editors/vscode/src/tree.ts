@@ -180,6 +180,14 @@ export interface WorkbenchData {
 /** How one workspace folder resolved, and therefore what rows it contributes. */
 export type FolderMode = "single" | "forest" | "candidates" | "dead-end";
 
+/** One workbench this window has resolved, as the MCP provider needs it. */
+export interface McpTarget {
+	/** The workbench's own absolute root, as `dinah --json status` reported it. */
+	readonly root: string;
+	/** The workbench's own title, empty when it has none. Never substituted. */
+	readonly title: string;
+}
+
 /** One root-level row of the tree. */
 export interface RootRow {
 	readonly rowKind:
@@ -1675,6 +1683,47 @@ export class DinahTreeProvider {
 		for (const report of reportsForFolder(state)) {
 			if (report.state === "answered") {
 				found.push({ root: report.source, title: report.title });
+			}
+		}
+		return found;
+	}
+
+	/**
+	 * Every workbench this window has resolved, for the MCP provider.
+	 *
+	 * The kept-row predicate is written out rather than borrowed, because
+	 * `holdingReportOf` is not exported and its answer would have to be
+	 * re-read to be used. It is that function's own condition, clause for
+	 * clause: a dead-end row is dropped before its data is looked at, a row
+	 * with no data is unheard, and a row whose data carries no path or has
+	 * never been fetched is unheard too.
+	 *
+	 * The title travels unsubstituted, which is why this is not `rootsFor`.
+	 * That method hands back the title `holdingReportOf` has already replaced
+	 * with UNTITLED_WORKBENCH, so a label built on it reads `Dinah: Dinah` for
+	 * a workbench with no title and cannot be told from one genuinely called
+	 * Dinah.
+	 *
+	 * Nothing is folded and nothing is dropped here. Two workspace folders
+	 * that both reach one workbench yield two targets, and `planMcpServers`
+	 * is what reduces them to one plan, so the deduplication rule is asserted
+	 * against the code that performs it.
+	 */
+	mcpTargets(): readonly McpTarget[] {
+		const found: McpTarget[] = [];
+		for (const state of this.folders.values()) {
+			for (const row of state.rows) {
+				if (row.rowKind === "deadEnd") {
+					continue;
+				}
+				const data = row.data;
+				if (data === undefined) {
+					continue;
+				}
+				if (data.path === "" || data.fetchedAt === undefined) {
+					continue;
+				}
+				found.push({ root: data.path, title: data.title });
 			}
 		}
 		return found;

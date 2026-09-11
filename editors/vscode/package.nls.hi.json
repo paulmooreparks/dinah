@@ -31,6 +31,8 @@
 	"manifest.configuration.dinah.workbench.markdownDescription": "इस फ़ोल्डर के लिए उपयोग की जाने वाली वर्कबेंच की निर्देशिका, जो `dinah` को `--workbench` के रूप में दी जाती है। खाली छोड़ें ताकि `dinah` फ़ोल्डर से ऊपर चलकर स्वयं एक खोज ले। इसे तब सेट करें जब कई वर्कबेंच पहुँच में हों, या जब खोज ऐसी वर्कबेंच तक पहुँचे जो आपका आशय नहीं थी।",
 	"manifest.configuration.dinah.pollIntervalSeconds.markdownDescription": "जब तक साइडबार वृक्ष दिखता है, वह कितनी बार `dinah changes` से अद्यतन जाँचे।",
 	"manifest.configuration.dinah.watchFiles.markdownDescription": "वर्कबेंच की Markdown फ़ाइलों में बदलाव देखें और कोई फ़ाइल सहेजे जाने पर अंतराल से पहले जाँचें।",
+	"manifest.configuration.dinah.registerMcpServer.markdownDescription": "इस विंडो को मिली हर वर्कबेंच को संपादक के एजेंट मोड में MCP सर्वर के रूप में प्रस्तुत करें, जो इस विंडो द्वारा उपयोग किया जा रहा `dinah` प्रोग्राम चलाता है। VS Code किसी सर्वर को चलाने से पहले आपसे पूछता है कि आप उस पर भरोसा करते हैं या नहीं, और यहाँ आपकी सेटिंगों या किसी `mcp.json` फ़ाइल में कुछ नहीं लिखा जाता। यदि आप इसे बंद कर दें, तो Dinah कोई भी प्रस्तुत नहीं करती।",
+	"manifest.mcp.provider.label": "Dinah वर्कबेंच",
 	"manifest.walkthrough.firstSession.title": "Dinah: आपका पहला सत्र",
 	"manifest.walkthrough.firstSession.description": "Dinah के अपने गाइड की मदद से किसी Dinah वर्कबेंच पर अपनी दिशा तय करें।",
 	"manifest.walkthrough.firstSession.step.readGuide.title": "गाइड पढ़ें",

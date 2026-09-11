@@ -48,6 +48,7 @@ import {
 	treeItemFor,
 	vacancyAnsweredBy,
 } from "../../src/tree";
+import { planMcpServers } from "../../src/mcpServers";
 import {
 	composeStatus,
 	staleAfterMs,
@@ -3277,4 +3278,135 @@ test("a vacancy cannot be reported without the moment it was answered", async ()
 	assert.deepEqual(view.holdingSnapshot(), [
 		{ state: "vacant", source: "C:\\ws\\quiet", answeredAt: 4_242 },
 	]);
+});
+
+// ---------------------------------------------------------------------------
+// dinah-424: what the MCP provider is offered
+// ---------------------------------------------------------------------------
+
+/** A workbench with no title of its own, which is the case labels turn on. */
+const UNTITLED_STATUS = {
+	workbench: "",
+	root: "C:\\scratch\\wt",
+	columns: [column({ id: "intake", title: "Intake", takes_work_up: true, count: 0 })],
+};
+
+test("mcpTargets carries the answered rows and nothing else", async () => {
+	// A folder in single mode and a folder in forest mode each contribute what
+	// this window has resolved. A folder whose candidates nobody has expanded
+	// contributes nothing, because no row of it carries data and this window
+	// has not established which workbench the folder holds, and a dead-end
+	// folder contributes nothing either.
+	const { spawner } = stubSpawner({
+		status: THREE_STATUS,
+		tree: THREE_COLUMNS,
+		ls: THREE_LISTING,
+	});
+	const mixed: Spawner = async (exe, argv, options) => {
+		if (argv.includes("--root")) {
+			if (argv.includes("C:\\multi\\third")) {
+				return ok({ root: "C:\\multi\\third", workbenches: [] });
+			}
+			const payload = argv.includes("tree")
+				? { tree: THREE_COLUMNS }
+				: argv.includes("status")
+					? { status: THREE_STATUS }
+					: { listing: THREE_LISTING };
+			return ok({
+				root: "C:\\customers",
+				workbenches: [
+					{ title: "Carter LLP", slug: "carter", path: "C:\\customers\\carter", ...payload },
+					{ title: "Dalton", slug: "dalton", path: "C:\\customers\\dalton", ...payload },
+					{
+						title: "Enderby",
+						slug: "enderby",
+						path: "C:\\customers\\enderby",
+						unanswered: "dinah.unknown-column",
+					},
+				],
+			});
+		}
+		return spawner(exe, argv, options);
+	};
+	const view = provider(mixed);
+	await view.load([
+		folder({ folder: "C:\\work\\bench" }),
+		folder({ folder: "C:\\customers", resolution: NOTHING }),
+		folder({ folder: "C:\\multi\\second", resolution: AMBIGUOUS }),
+		folder({ folder: "C:\\multi\\third", resolution: NOTHING }),
+	]);
+
+	const targets = view.mcpTargets();
+	const roots = targets.map((entry) => entry.root);
+	assert.ok(
+		roots.includes("C:\\work\\bench"),
+		`the single-mode folder reached no target: ${roots.join(", ")}`,
+	);
+	assert.deepEqual(
+		roots.filter((root) => root.startsWith("C:\\customers")),
+		["C:\\customers\\carter", "C:\\customers\\dalton"],
+		"the forest folder did not contribute one target per resolved member",
+	);
+	for (const unresolved of [
+		"C:\\multi\\second",
+		"C:\\multi\\third",
+		"C:\\customers\\enderby",
+	]) {
+		assert.deepEqual(
+			roots.filter((root) => root.startsWith(unresolved)),
+			[],
+			`${unresolved} published something this window has not resolved`,
+		);
+	}
+
+	// The count is computed from the fixture's own rows rather than written as
+	// a literal, so a walk that read nothing fails rather than reading as a
+	// clean sweep. holdingReportOf is not exported, so this is the test's own
+	// restatement of its predicate and no assertion here touches that
+	// function.
+	const answeredRows = view
+		.rootRows()
+		.filter(
+			(row) =>
+				row.rowKind !== "deadEnd" &&
+				row.data !== undefined &&
+				row.data.path !== "" &&
+				row.data.fetchedAt !== undefined,
+		);
+	assert.ok(
+		answeredRows.length > 0,
+		"the fixture carries no answered row at all, so this count would prove nothing",
+	);
+	assert.equal(targets.length, answeredRows.length);
+});
+
+test("an untitled workbench reaches the provider unsubstituted and is labelled by its directory", async () => {
+	// rootsFor hands back the substituted title, which would render
+	// `Dinah: Dinah` and could not be told from a workbench genuinely called
+	// Dinah. This is the assertion that holds mcpTargets to carrying the
+	// workbench's own title instead, and it runs the label composition over
+	// what mcpTargets actually returned rather than over a target written
+	// here.
+	const { spawner } = stubSpawner({
+		status: UNTITLED_STATUS,
+		tree: treeAnswer([columnGroup("intake", [], 0)]),
+		ls: { cards: [] },
+	});
+	const view = provider(spawner);
+	await view.load([
+		folder({
+			folder: "C:\\scratch\\wt",
+			resolution: { ...RESOLVED, root: "C:\\scratch\\wt", title: "" },
+		}),
+	]);
+
+	const targets = view.mcpTargets();
+	assert.equal(targets.length, 1);
+	assert.equal(targets[0].title, "", "the title was substituted on its way out");
+	assert.deepEqual(
+		planMcpServers(targets, "C:/tools/dinah.exe", "0.1.0", true).map(
+			(plan) => plan.label,
+		),
+		["Dinah: wt"],
+	);
 });
