@@ -2292,6 +2292,18 @@ test("the registration call is in the shipped source and reaches the API uncast"
 		/settingOf<boolean>\(\s*SETTING_REGISTER_MCP\b/.test(body),
 		"the published set is not decided from the SETTING_REGISTER_MCP the manifest declares",
 	);
+	// The sweep reads one line at a time, so a cast written on a continuation
+	// line of a multi-line call is invisible to it, exactly as AC-7's and
+	// AC-15's sweeps say what they cannot see. Both real call sites are
+	// single-line today and the presence clauses above keep them findable.
+	//
+	// `as` followed by any identifier character catches every assertion a
+	// developer would plausibly write here, not only `as unknown` and `as any`:
+	// a cast to a named type on the argument, a cast on the `vscode.lm` object
+	// itself, and a cast on the constructed definition all begin that way. The
+	// narrower pair let three of those four past, and a cast is the one thing
+	// that makes a call against types that do not declare the API compile, so
+	// a miss here empties the criterion rather than weakening it.
 	const cast: string[] = [];
 	for (const [at, line] of body.split("\n").entries()) {
 		const reaches =
@@ -2300,7 +2312,7 @@ test("the registration call is in the shipped source and reaches the API uncast"
 		if (!reaches) {
 			continue;
 		}
-		if (/\bas\s+(?:unknown|any)\b/.test(line) || line.includes("@ts-expect-error") || line.includes("@ts-ignore")) {
+		if (/\bas\s+[A-Za-z_$]/.test(line) || line.includes("@ts-expect-error") || line.includes("@ts-ignore")) {
 			cast.push(`${String(at + 1)}: ${line.trim()}`);
 		}
 	}
@@ -2311,7 +2323,7 @@ test("the registration call is in the shipped source and reaches the API uncast"
 	);
 });
 
-test("the README offers the extension itself as a place nothing comes from", () => {
+test("no README sentence offers the extension itself as a place dinah comes from", () => {
 	// dinah-424 AC-13. The manifest guard above opens no README at all, so
 	// this is a check beside it rather than a claim laid on that one. It
 	// reuses claimsToCarryDinah so one definition of the refusal serves both

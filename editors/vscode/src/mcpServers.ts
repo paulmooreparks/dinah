@@ -76,6 +76,12 @@ function labelFor(target: McpTarget): string {
  * Where two plans would carry the same label, every plan carrying it gains its
  * own root in parentheses. Not only the second: a reader cannot tell which of
  * two same-titled workbenches got the bare label.
+ *
+ * Two labels are the same label under the `key` fold the deduplication above
+ * uses, so on a platform whose paths fold case `Ledger` and `ledger` collide
+ * and on one whose paths do not they stand apart. The alternative, comparing
+ * the composed strings exactly, would leave a reader on Windows with two
+ * entries differing only in a capital letter and no root to tell them apart.
  */
 export function planMcpServers(
 	targets: readonly McpTarget[],
@@ -98,14 +104,15 @@ export function planMcpServers(
 	const collisions = new Set<string>();
 	const once = new Set<string>();
 	for (const label of labels) {
-		if (once.has(label)) {
-			collisions.add(label);
+		const folded = key(label, caseInsensitive);
+		if (once.has(folded)) {
+			collisions.add(folded);
 		}
-		once.add(label);
+		once.add(folded);
 	}
 
 	return kept.map((target, at) => ({
-		label: collisions.has(labels[at])
+		label: collisions.has(key(labels[at], caseInsensitive))
 			? `${labels[at]} (${target.root})`
 			: labels[at],
 		command: executable,

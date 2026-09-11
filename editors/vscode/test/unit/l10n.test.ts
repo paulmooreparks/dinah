@@ -76,6 +76,18 @@ const flags = readJson<Flags>(localesDir, "flags.json");
 const sortedKeys = (record: Record<string, unknown>): string[] =>
 	Object.keys(record).sort();
 
+/**
+ * Which non-base tags actually ship translated, derived rather than declared.
+ *
+ * A tag ships translated exactly when flags.json records no skeleton key under
+ * it, so this reads the shipped data and the tag list instead of the two
+ * rosters above. The counting floors compare the rosters against it, which is
+ * why it must not be built out of either of them.
+ */
+const shippedTranslatedTags: readonly SupportedTag[] = SUPPORTED_TAGS.filter(
+	(tag) => tag !== BASE_TAG && (flags.skeleton[tag] ?? []).length === 0,
+);
+
 // ---------------------------------------------------------------------------
 // The manifest namespace
 // ---------------------------------------------------------------------------
@@ -123,16 +135,28 @@ test("every manifest sibling carries exactly the base catalogue's keys", () => {
 	// AC-2. Set equality in both directions, and the failure names the keys
 	// rather than the count, because a count sends a reader back to a diff.
 	const base = new Set(Object.keys(manifestCatalog(BASE_TAG)));
+	// dinah-424 AC-8's first floor. A sweep that read one file and a sweep
+	// that read them all report success the same way, so the number of files
+	// opened is asserted rather than assumed. The floor is SUPPORTED_TAGS's
+	// own length, which is the base catalogue plus one sibling per other tag,
+	// so a ninth language cannot leave this sweep silently short.
+	let filesRead = 1;
 	for (const tag of SUPPORTED_TAGS) {
 		if (tag === BASE_TAG) {
 			continue;
 		}
 		const sibling = new Set(Object.keys(manifestCatalog(tag)));
+		filesRead += 1;
 		const missing = [...base].filter((key) => !sibling.has(key)).sort();
 		const extra = [...sibling].filter((key) => !base.has(key)).sort();
 		assert.deepEqual(missing, [], `package.nls.${tag}.json is missing keys`);
 		assert.deepEqual(extra, [], `package.nls.${tag}.json carries extra keys`);
 	}
+	assert.equal(
+		filesRead,
+		SUPPORTED_TAGS.length,
+		`the parity sweep opened ${String(filesRead)} package.nls*.json files and there are ${String(SUPPORTED_TAGS.length)} tags, so it skipped one`,
+	);
 });
 
 test("a manifest entry that reads as English says so, and one that says so reads as English", () => {
@@ -165,18 +189,41 @@ test("a manifest entry that reads as English says so, and one that says so reads
 });
 
 test("the manifest's two translated languages carry no skeleton and its five skeletons carry every key", () => {
-	// AC-4.
+	// AC-4, and dinah-424 AC-8's second and third floors.
+	//
+	// Both rosters below are hand-written, so dropping a tag from one of them
+	// would stop that tag being swept and leave every assertion here true of
+	// what remained. Each floor is therefore derived from SUPPORTED_TAGS and
+	// from the shipped flags rather than from the roster it counts: a tag
+	// ships translated exactly when flags.json records no skeleton key for it,
+	// and every other non-base tag ships as a skeleton. Neither floor moves
+	// when the roster it guards is emptied, which is what lets each one fire
+	// under its own message.
 	const keys = sortedKeys(manifestCatalog(BASE_TAG));
+	let translatedChecked = 0;
 	for (const tag of TRANSLATED_TAGS) {
 		assert.deepEqual(flags.skeleton[tag], [], `${tag} ships translated`);
+		translatedChecked += 1;
 	}
+	let skeletonChecked = 0;
 	for (const tag of SKELETON_TAGS) {
 		assert.deepEqual(
 			[...(flags.skeleton[tag] ?? [])].sort(),
 			keys,
 			`${tag} ships as a fully flagged skeleton`,
 		);
+		skeletonChecked += 1;
 	}
+	assert.equal(
+		translatedChecked,
+		shippedTranslatedTags.length,
+		`the translated sweep read ${String(translatedChecked)} tags and ${String(shippedTranslatedTags.length)} ship translated, so TRANSLATED_TAGS is short of ${shippedTranslatedTags.join(", ")}`,
+	);
+	assert.equal(
+		skeletonChecked,
+		SUPPORTED_TAGS.length - 1 - shippedTranslatedTags.length,
+		`the skeleton sweep read ${String(skeletonChecked)} tags and ${String(SUPPORTED_TAGS.length - 1 - shippedTranslatedTags.length)} ship as skeletons, so SKELETON_TAGS is short`,
+	);
 });
 
 // ---------------------------------------------------------------------------

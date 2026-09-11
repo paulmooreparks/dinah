@@ -25,7 +25,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 
 import { fingerprint } from "../../src/fingerprint";
-import { BASE_TAG } from "../../src/l10n";
+import { BASE_TAG, SUPPORTED_TAGS } from "../../src/l10n";
 import type { LocaleCatalog, SupportedTag } from "../../src/l10n";
 
 const extensionRoot = join(__dirname, "..", "..", "..");
@@ -133,6 +133,30 @@ function report(tag: string, namespace: string, verdict: Verdict): void {
 		);
 	}
 }
+
+test("the staleness sweep reads every language that ships translated", () => {
+	// dinah-424 AC-8's third floor. The per-tag tests below are generated from
+	// TRANSLATED_TAGS, so a tag dropped from that roster generates no test at
+	// all and every remaining check stays green: the `checked > 0` guards
+	// inside each test speak for the language they run on and say nothing
+	// about a language that stopped running. The floor is derived from
+	// SUPPORTED_TAGS and the shipped flags rather than from the roster it
+	// counts, because a floor built out of its own population cannot notice
+	// that population shrinking.
+	const shipped = SUPPORTED_TAGS.filter(
+		(tag) => tag !== BASE_TAG && (flags.skeleton[tag] ?? []).length === 0,
+	);
+	assert.equal(
+		TRANSLATED_TAGS.length,
+		shipped.length,
+		`the staleness sweep covers ${String(TRANSLATED_TAGS.length)} languages and ${String(shipped.length)} ship translated, so it is short of ${shipped.join(", ")}`,
+	);
+	assert.deepEqual(
+		[...TRANSLATED_TAGS].sort(),
+		[...shipped].sort(),
+		"the staleness sweep covers the right number of languages and not the right ones",
+	);
+});
 
 for (const tag of TRANSLATED_TAGS) {
 	test(`${tag}'s runtime entries still track the English they were translated from`, () => {

@@ -123,7 +123,8 @@ test("one plan per distinct root, folding separators always and case only where 
 });
 
 test("a label names the workbench, and two that would read alike name their roots", () => {
-	// AC-5, four cases.
+	// AC-5, six cases: the four the criterion names, plus both halves of the
+	// case fold the collision check applies.
 	const titled = planMcpServers([target("C:/w", "Ledger")], EXECUTABLE, "0.1.0", true);
 	assert.equal(titled[0].label, "Dinah: Ledger");
 
@@ -154,6 +155,31 @@ test("a label names the workbench, and two that would read alike name their root
 	// nothing, because the untitled case above never produces that string.
 	const named = planMcpServers([target("C:/w", "Dinah")], EXECUTABLE, "0.1.0", true);
 	assert.equal(named[0].label, "Dinah: Dinah");
+
+	// Two titles differing only in case collide where the platform folds case
+	// and stand apart where it does not, which is the same rule the dedup
+	// above applies to roots. Comparing the composed labels exactly would read
+	// the first of these as two distinct labels and publish neither root.
+	const foldedTitles = planMcpServers(
+		[target("C:/a", "Ledger"), target("C:/b", "ledger")],
+		EXECUTABLE,
+		"0.1.0",
+		true,
+	);
+	assert.deepEqual(
+		foldedTitles.map((plan) => plan.label),
+		["Dinah: Ledger (C:/a)", "Dinah: ledger (C:/b)"],
+	);
+	const distinctTitles = planMcpServers(
+		[target("C:/a", "Ledger"), target("C:/b", "ledger")],
+		EXECUTABLE,
+		"0.1.0",
+		false,
+	);
+	assert.deepEqual(
+		distinctTitles.map((plan) => plan.label),
+		["Dinah: Ledger", "Dinah: ledger"],
+	);
 });
 
 test("the reader's switch decides, and so does whether the plan set moved", () => {
