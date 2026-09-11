@@ -17,10 +17,10 @@ const (
 	// ItemStateField is the item's state, one of ItemStates.
 	ItemStateField = "state"
 	// ItemColumnField is the column an item names, written only when a
-	// caller supplies one. GatingItems matches a move's destination
-	// against it, so the value is the column's identifier rather than
-	// whatever the caller spelled, and an item carrying no column holds
-	// nothing.
+	// caller supplies one. GatingItems matches a move's destination against
+	// it, and since dinah-484 a move's departure too, so the value is the
+	// column's identifier rather than whatever the caller spelled, and an
+	// item carrying no column holds nothing.
 	ItemColumnField = "column"
 	// ItemOwnerField is who the item is meant for. An item recording
 	// ItemOwnerOperator is the operator's to settle: closeItem in

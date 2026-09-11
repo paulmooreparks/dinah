@@ -131,11 +131,23 @@ const (
 )
 
 // HoldValues are the four values a column's hold takes, in the order off, on,
-// out, both. It is the one statement of that set: the guard that admits a
-// typed value reads it through KnownHold below rather than writing the four
-// out again, and so does every surface offering a reader the choice. A fifth
-// value added later moves this list and the documentation a test holds
-// against it, and nothing else.
+// out, both. It is the one statement of which values are legal: the guard that
+// admits a typed value reads it through KnownHold below rather than writing the
+// four out again, and so does every surface offering a reader the choice.
+//
+// Membership is the whole of what it settles, and that is narrower than it
+// looks. Seven readers each decide what to do with a value, and a value added
+// here has to be taught to every one of them: storedHold and typedHold in
+// internal/verb carry it between the word a person types and the spelling the
+// anchor stores, readColumnIn above reads that spelling back, exportColumn and
+// writeColumnFromMember in interchange.go carry it out of a workbench and in
+// again, and HoldsOnEntry and HoldsOnExit on Column decide which way it holds.
+// A value added to this list alone produces a write that reports success,
+// stores nothing, and reads back as off.
+//
+// TestEveryDeclaredHoldValueReachesEveryReader in cmd/dinah is what holds the
+// seven to this list rather than to a reader's memory. It drives every value
+// declared here through all of them and fails on exactly that silence.
 var HoldValues = []string{HoldOff, HoldOn, HoldOut, HoldBoth}
 
 // KnownHold reports whether a value is one of the four HoldValues declares.

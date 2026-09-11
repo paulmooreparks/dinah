@@ -700,3 +700,114 @@ func TestAnItemColumnNamingNoColumnIsRefused(t *testing.T) {
 		t.Errorf("the refused write changed the anchor:\nbefore\n%s\nafter\n%s", before, after)
 	}
 }
+
+// TestEveryDeclaredHoldValueReachesEveryReader is dinah-484 AC-18, and it is
+// the guard the card's own refactor needed and did not have. bench.HoldValues
+// settles which values are legal and nothing else, and a reader who took the
+// declaration's word for more than that added a value to it, changed nothing
+// else, and got a command that reported success, stored nothing, and answered
+// off.
+//
+// So this drives every value the list declares through the readers that carry
+// it, rather than asserting the list exists. storedHold turns the typed word
+// into the spelling the anchor stores, readColumnIn reads that spelling back,
+// typedHold turns it into the word a person reads, and exportColumn and
+// writeColumnFromMember carry it out of the workbench and back in. A value the
+// list declares and any one of them does not know fails here.
+//
+// The two predicates on Column are the sixth and seventh readers, and the last
+// arm holds them: a hold that holds in neither direction is the off value and
+// nothing else, so a direction word nobody taught HoldsOnEntry or HoldsOnExit
+// is caught rather than standing as a declaration that declares nothing.
+func TestEveryDeclaredHoldValueReachesEveryReader(t *testing.T) {
+	if len(bench.HoldValues) == 0 {
+		t.Fatal("the declared hold set is empty, so this guard reads nothing")
+	}
+	for _, value := range bench.HoldValues {
+		t.Run(value, func(t *testing.T) {
+			root := newBench(t)
+
+			// The typed word reaches disk and comes back as the same word.
+			// This is the arm that catches a value added to the list alone:
+			// the write succeeds, stores nothing, and the read answers off.
+			if got := runCLI(t, root, "set", "doing", bench.HoldField, value); got.code != 0 {
+				t.Fatalf("set doing hold %s: %d %s", value, got.code, got.errw)
+			}
+			if got := holdOf(t, root, "doing"); got != value {
+				t.Fatalf("the hold was written as %s and reads back as %q, so a reader between the two does not carry it", value, got)
+			}
+
+			// What the anchor stores for it, which the interchange half below
+			// carries. It is read off disk rather than spelled here, because
+			// the storage spelling is storedHold's to decide and this guard is
+			// about whether every reader agrees rather than about what the
+			// spelling is.
+			anchor, _ := columnAnchorOf(t, root, "doing")
+			stored := anchor.Value(bench.GateItemsKey)
+			if value == bench.HoldOff && stored != "" {
+				t.Fatalf("the off value stored %q, and off clears the key", stored)
+			}
+			if value != bench.HoldOff && stored == "" {
+				t.Fatalf("%s stored nothing under the gate key, so the write reported success and wrote no declaration", value)
+			}
+
+			// The interchange carries it out and back, and the column that
+			// comes back carries the same declaration byte for byte.
+			opened, err := bench.Open(soleBenchDir(t, root))
+			if err != nil {
+				t.Fatalf("open the workbench: %v", err)
+			}
+			exported, err := opened.Export()
+			if err != nil {
+				t.Fatalf("export: %v", err)
+			}
+			source := filepath.Join(t.TempDir(), "definition.json")
+			if err := os.WriteFile(source, exported, 0o644); err != nil {
+				t.Fatalf("write the export: %v", err)
+			}
+			second := filepath.Join(t.TempDir(), "second")
+			if err := os.MkdirAll(second, 0o755); err != nil {
+				t.Fatalf("mkdir: %v", err)
+			}
+			// The import runs through `dinah init --from` rather than through
+			// Instantiate directly, because that is the command a person uses
+			// to carry a workbench somewhere and it is the path
+			// writeColumnFromMember sits on.
+			if got := runCLI(t, second, "init", "--from", source, "--slug", "cp", "--operator", "alka"); got.code != 0 {
+				t.Fatalf("init --from the export: %d %s", got.code, got.errw)
+			}
+			reopened, err := bench.Open(soleBenchDir(t, second))
+			if err != nil {
+				t.Fatalf("open the import: %v", err)
+			}
+			carried := columnTitled(t, reopened, "Doing")
+			if got := carried.FM.Value(bench.GateItemsKey); got != stored {
+				t.Errorf("the anchor stores %q under the gate key and the interchange carried it back as %q", stored, got)
+			}
+
+			// And the direction the value names is a direction somebody
+			// implemented, rather than a word that reads as no hold at all.
+			entry, exit := carried.HoldsOnEntry(), carried.HoldsOnExit()
+			if value == bench.HoldOff && (entry || exit) {
+				t.Errorf("the off value holds on entry %v and on exit %v, and off holds neither way", entry, exit)
+			}
+			if value != bench.HoldOff && !entry && !exit {
+				t.Errorf("%s holds in neither direction, so the two predicates read it as no hold at all", value)
+			}
+		})
+	}
+}
+
+// columnTitled answers the one column of a workbench carrying a title, so a
+// case reading a column back out of an interchange round trip names it by what
+// it is rather than by where it landed in the flow.
+func columnTitled(t *testing.T, opened *bench.Bench, title string) *bench.Column {
+	t.Helper()
+	for _, column := range opened.Columns {
+		if column.Title == title {
+			return column
+		}
+	}
+	t.Fatalf("the workbench declares no column titled %s", title)
+	return nil
+}
