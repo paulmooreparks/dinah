@@ -67,6 +67,13 @@ interface PlaceholderVerdict {
  * localizerOver's reason: a fixture can then drive this over a catalogue that
  * really does drop a placeholder, and no shipped catalogue has to be allowed
  * to carry a defect in order for the check to have an armed path.
+ *
+ * A key the other catalogue does not carry is skipped rather than counted or
+ * reported, and the guard that makes the skip safe is l10n.test.ts's "every
+ * runtime sibling carries exactly the base catalogue's keys", which holds all
+ * seven siblings to the base's key set in both directions. A key missing from a
+ * sibling therefore cannot reach here without that test failing first, so the
+ * skip hides nothing and the absence is reported once rather than twice.
  */
 function placeholderVerdict(
 	base: Readonly<Record<string, LocaleEntry>>,

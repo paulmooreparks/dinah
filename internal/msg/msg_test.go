@@ -193,8 +193,18 @@ var placeholderPattern = regexp.MustCompile(`\{[a-zA-Z][a-zA-Z0-9_.-]*\}`)
 // in this file already uses. Widening a walk without a floor is the vacuous
 // check dinah-406 is about, so the pairs it compared are counted and a run that
 // compared none is fatal.
+//
+// The two halves are counted apart, one floor each. A single counter here would
+// be fed by two populations at once, because an entry enters this loop either
+// by carrying a placeholder or by opening with the splice, and the two are
+// mostly different entries. The base catalog carries 48 keys that open with the
+// splice and name no placeholder, which is enough pairs to hold a combined
+// counter above zero on their own while the placeholder half reads nothing at
+// all. That is the shape this card exists to close, and D-6 and AC-8 are where
+// the same seam is split on the extension side, so it is split here too.
 func TestATranslationKeepsThePlaceholdersAndTheSplice(t *testing.T) {
-	pairs := 0
+	placeholderPairs := 0
+	splicePairs := 0
 	for _, key := range Keys() {
 		entry, ok := BaseEntry(key)
 		if !ok {
@@ -209,7 +219,12 @@ func TestATranslationKeepsThePlaceholdersAndTheSplice(t *testing.T) {
 			if tag == Base {
 				continue
 			}
-			pairs++
+			if len(names) > 0 {
+				placeholderPairs++
+			}
+			if splice {
+				splicePairs++
+			}
 			rendered := For(tag).T(key)
 			for _, name := range names {
 				if !strings.Contains(rendered, name) {
@@ -221,8 +236,11 @@ func TestATranslationKeepsThePlaceholdersAndTheSplice(t *testing.T) {
 			}
 		}
 	}
-	if pairs == 0 {
-		t.Fatal("no key pair was compared, so this guard is asserting nothing")
+	if placeholderPairs == 0 {
+		t.Error("no pair whose English names a placeholder was compared, so the placeholder half of this guard is asserting nothing")
+	}
+	if splicePairs == 0 {
+		t.Error("no pair whose English opens with the splice was compared, so the splice half of this guard is asserting nothing")
 	}
 }
 
@@ -264,6 +282,13 @@ func placeholderNames(text string) map[string]bool {
 // map, so a fixture can drive this over a catalog that really does drop a name
 // and really does invent one. No shipped catalog has to be allowed to carry a
 // defect in order for the guard to have an armed path.
+//
+// A key the other catalog does not carry is skipped rather than counted or
+// reported, and the guard that makes the skip safe is
+// TestEveryDeclaredLanguageShips, which asserts present == total over every tag
+// Tags() names. A key missing from a shipped catalog therefore cannot reach
+// here without that test failing first, so the skip hides nothing and the
+// absence is reported once rather than twice.
 func comparePlaceholders(base, other map[string]Entry, tag string) placeholderReport {
 	report := placeholderReport{}
 	for key, english := range base {

@@ -39,7 +39,10 @@ const srcDir = join(extensionRoot, "src");
  * `generated/` is written by esbuild.mjs and asks for no key. `locales/` holds
  * the catalogues rather than code. `l10n.ts` is the catalogue reader itself,
  * so every message in the product passes through it and it names no key of its
- * own.
+ * own. `test` names no directory under `src/` today and excludes nothing; it is
+ * carried verbatim from l10n-coverage.test.ts, whose list this one mirrors on
+ * purpose, so that a reader comparing the two finds the same exclusions and a
+ * test directory added under `src/` later is out of both walks at once.
  */
 const EXCLUDED_DIRS = ["generated", "locales", "test"];
 const EXCLUDED_FILES = ["l10n.ts"];
