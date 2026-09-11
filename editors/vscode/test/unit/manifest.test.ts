@@ -2377,6 +2377,22 @@ function silencedTypeCheck(node: ts.Node): string | undefined {
  * was written, and an assertion whose span holds the whole call is a cast on
  * the call's result. Neither is visible to a reader taking one line at a time,
  * and both of the real call sites here span seven lines.
+ *
+ * What this does not see, stated here rather than left to be discovered. A cast
+ * hoisted onto a binding and then passed walks past, because its node nests with
+ * neither call:
+ *
+ *     const lm = vscode.lm as unknown as typeof vscode.lm;
+ *     lm.registerMcpServerDefinitionProvider(MCP_PROVIDER_ID, { ... });
+ *
+ * That was driven on this branch and left the suite green. Closing it means
+ * following an assertion through the binding it initialises, which is a larger
+ * thing than this sweep, and dinah-424's OQ-1 ruled against doing it here: the
+ * protection is the type check against the pinned VS Code declarations, and this
+ * sweep is the backstop that notices somebody switching that off at a call site.
+ * A developer who hoists the cast is working around the type check deliberately,
+ * and one more rule here would cost them one more line rather than stop them. So
+ * the claim is the narrow one: an assertion whose span nests with a call site's.
  */
 function sweepMcpCallSites(file: string): McpCallSweep {
 	const source = ts.createSourceFile(
