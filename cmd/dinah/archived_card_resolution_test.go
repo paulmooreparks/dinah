@@ -24,8 +24,8 @@ import (
 // repository's worked precedent for a check that parses the tree and asserts a
 // declared set against what the AST holds.
 //
-// Six families on two axes. Families A, B and D are the REACHING axis, which
-// is every name by which code gets at the archived half. Families C, E and F
+// Six families on two axes. Families A, B, and D are the REACHING axis, which
+// is every name by which code gets at the archived half. Families C, E, and F
 // are the READING axis, which is every name by which code gets at a card's
 // number. A route that reaches the archive but reads no number cannot answer a
 // number, and a route that reads a number but never reaches the archive cannot
@@ -40,10 +40,12 @@ import (
 //
 // Families A through E read identifier nodes, never comments and never string
 // literals. Family F reads a string literal, because a frontmatter key is one
-// and nothing else. Twenty-five lines in the tree would be false positives for
-// a guard written with grep, ten in internal/addressform, one in
-// internal/guide/guidepin, and fourteen in internal/bench's own doc comments,
-// and the identifier-node rule excludes all of them.
+// and nothing else. Thirty-three lines in the tree would be false positives
+// for a guard written as a substring grep over the nine identifier names
+// that families A, B, and D collect: ten in internal/addressform, one in
+// internal/guide/guidepin, eighteen comment lines inside internal/bench, and
+// four comment lines inside internal/verb. The identifier-node rule excludes
+// all of them.
 //
 // Each row asserts its own mention count. Without that, a second resolution
 // added inside a function the table already recognises changes no set and
@@ -72,7 +74,7 @@ import (
 //     on one line and `render(slug)` on another is not a call whose callee is
 //     a selector named Ref, and a guard parsing without type information
 //     cannot tell that method value from a read of a struct field named Ref,
-//     which the tree does at a hundred and one non-call selector sites.
+//     which the tree does at ninety-six non-call selector sites.
 //  3. Family B collects ArchivedHalf outside internal/bench only. Inside the
 //     package the identifier appears on twenty-three non-comment lines, nearly
 //     all of them a comparison against a parameter, so collecting it would
