@@ -23,8 +23,20 @@ import type { McpTarget } from "../../src/tree";
 const extensionRoot = join(__dirname, "..", "..", "..");
 const srcRoot = join(extensionRoot, "src");
 
-/** An absolute path standing in for what a binary reported about itself. */
-const EXECUTABLE = "C:/tools/dinah.exe";
+/**
+ * An absolute path standing in for what a binary reported about itself.
+ *
+ * Absoluteness is a property of the platform the code is running on, not of
+ * the string: `node:path`'s `isAbsolute` reads `C:/tools/dinah.exe` as
+ * relative under POSIX, so a Windows-shaped literal here passes on a Windows
+ * runner and fails the publishing arms on the Linux and macOS ones. The
+ * fixture therefore names a path this platform calls absolute. The roots below
+ * stay Windows-shaped on every platform on purpose, because the dedup fold is
+ * about separators and case rather than about absoluteness and never asks the
+ * platform anything.
+ */
+const EXECUTABLE =
+	process.platform === "win32" ? "C:/tools/dinah.exe" : "/usr/local/bin/dinah";
 
 function target(root: string, title = ""): McpTarget {
 	return { root, title };
