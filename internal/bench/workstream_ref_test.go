@@ -25,7 +25,10 @@ func TestAWorkstreamIsPrintedInTheSpellingTheGrammarTakes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
-	workstream := opened.WorkstreamByRef("portfolio")
+	workstream, gotErr10 := opened.WorkstreamByRef("portfolio")
+	if gotErr10 != nil {
+		t.Fatalf("WorkstreamByRef: %v", gotErr10)
+	}
 	if workstream == nil {
 		t.Fatal("the fixture workstream does not resolve, so nothing below is asserted")
 	}
@@ -42,7 +45,10 @@ func TestAWorkstreamIsPrintedInTheSpellingTheGrammarTakes(t *testing.T) {
 	}
 
 	for _, spelling := range []string{"portfolio", WorkstreamRefPrefix + "portfolio", workstream.ID} {
-		found := opened.WorkstreamByRef(spelling)
+		found, gotErr9 := opened.WorkstreamByRef(spelling)
+		if gotErr9 != nil {
+			t.Fatalf("WorkstreamByRef: %v", gotErr9)
+		}
 		if found == nil {
 			t.Errorf("the commands that take a workstream refuse %q, and a reader who read that off a screen has nowhere to go", spelling)
 			continue
@@ -52,7 +58,11 @@ func TestAWorkstreamIsPrintedInTheSpellingTheGrammarTakes(t *testing.T) {
 		}
 	}
 	doubled := WorkstreamRefPrefix + WorkstreamRefPrefix + "portfolio"
-	if found := opened.WorkstreamByRef(doubled); found != nil {
+	got8, gotErr8 := opened.WorkstreamByRef(doubled)
+	if gotErr8 != nil {
+		t.Fatalf("WorkstreamByRef: %v", gotErr8)
+	}
+	if found := got8; found != nil {
 		t.Errorf("%q resolves to the workstream %s, and no surface prints that spelling, so exactly one prefix is stripped", doubled, found.ID)
 	}
 }

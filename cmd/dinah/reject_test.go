@@ -17,7 +17,11 @@ import (
 func declareRejectTo(t *testing.T, root, title, ref string) {
 	t.Helper()
 	columns := filepath.Join(soleBenchDir(t, root), bench.ColumnsDir)
-	for _, id := range bench.ListIDs(columns) {
+	listed35, listedErr35 := bench.ListIDs(columns)
+	if listedErr35 != nil {
+		t.Fatalf("listing %s: %v", columns, listedErr35)
+	}
+	for _, id := range listed35 {
 		path := filepath.Join(columns, id, bench.ColumnAnchor)
 		text, err := bench.ReadText(path)
 		if err != nil {

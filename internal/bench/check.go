@@ -2,8 +2,9 @@ package bench
 
 import (
 	"errors"
-	"os"
 	"path/filepath"
+	"sort"
+	"strconv"
 	"strings"
 
 	"dinah/internal/contract"
@@ -38,10 +39,17 @@ const (
 	FindingEntityAtBothPaths  = "check.entity-at-both-paths"
 	FindingOrdinalMissing     = "check.ordinal-missing"
 	FindingOrdinalDuplicate   = "check.ordinal-duplicate"
-	FindingSlugMissing        = "check.slug-missing"
-	FindingSlugMalformed      = "check.slug-malformed"
-	FindingSlugDuplicate      = "check.slug-duplicate"
-	FindingStrandedColumn     = "check.stranded-column"
+	// FindingCardNumberDuplicate names a card sharing its number with
+	// another card, in either half of the collection. It is modelled on
+	// FindingOrdinalDuplicate, and it parts company with it in reporting
+	// every member of a colliding group rather than the second one met.
+	// Path is the card's anchor and Detail is the number in decimal, so one
+	// collision prints one number against two openable paths.
+	FindingCardNumberDuplicate = "check.card-number-duplicate"
+	FindingSlugMissing         = "check.slug-missing"
+	FindingSlugMalformed       = "check.slug-malformed"
+	FindingSlugDuplicate       = "check.slug-duplicate"
+	FindingStrandedColumn      = "check.stranded-column"
 	// FindingOrphanedColumnDirectory names a directory under columns/ that
 	// the workbench's own columns sequence does not carry. It is the mirror
 	// of FindingStrandedColumn and never fires over the same identifier,
@@ -255,7 +263,11 @@ func (b *Bench) Check() ([]Finding, error) {
 	for _, dir := range b.Damaged {
 		findings = append(findings, Finding{Path: dir, Key: FindingDamagedWorkbench, Detail: dir})
 	}
-	for _, id := range ListIDs(b.CardsRoot()) {
+	cardIDs, err := ListIDs(b.CardsRoot())
+	if err != nil {
+		return findings, err
+	}
+	for _, id := range cardIDs {
 		dir := filepath.Join(b.CardsRoot(), id)
 		// A card a structural act is in the middle of belongs to the
 		// interrupted-act report below rather than to the card walk, and
@@ -273,13 +285,30 @@ func (b *Bench) Check() ([]Finding, error) {
 			findings = append(findings, Finding{Path: dir, Key: unreadableCardFinding(err), Detail: id})
 			continue
 		}
-		findings = append(findings, b.checkCard(card)...)
+		cardFindings, err := b.checkCard(card)
+		if err != nil {
+			return findings, err
+		}
+		findings = append(findings, cardFindings...)
 	}
 	findings = append(findings, b.checkColumnKinds()...)
 	findings = append(findings, b.checkRejectTargets()...)
 	findings = append(findings, b.checkColumnLevels()...)
-	findings = append(findings, b.checkWorkstreams()...)
-	findings = append(findings, b.checkAttachmentsWithoutAMount()...)
+	workstreamFindings, err := b.checkWorkstreams()
+	if err != nil {
+		return findings, err
+	}
+	findings = append(findings, workstreamFindings...)
+	mountlessFindings, err := b.checkAttachmentsWithoutAMount()
+	if err != nil {
+		return findings, err
+	}
+	findings = append(findings, mountlessFindings...)
+	numberFindings, err := b.checkCardNumbers()
+	if err != nil {
+		return findings, err
+	}
+	findings = append(findings, numberFindings...)
 	findings = append(findings, b.checkColumnSlugs()...)
 	findings = append(findings, b.checkWorkbenchSlug()...)
 	for _, id := range b.StrandedColumns {
@@ -288,8 +317,12 @@ func (b *Bench) Check() ([]Finding, error) {
 	for _, id := range b.OrphanedColumnDirectories {
 		findings = append(findings, Finding{Path: filepath.Join(b.Root, ColumnsDir, id), Key: FindingOrphanedColumnDirectory, Detail: id})
 	}
-	for _, standing := range b.interruptions() {
-		findings = append(findings, standing.finding())
+	standing, err := b.interruptions()
+	if err != nil {
+		return findings, err
+	}
+	for _, interrupted := range standing {
+		findings = append(findings, interrupted.finding())
 	}
 	return findings, nil
 }
@@ -306,19 +339,35 @@ func (b *Bench) Check() ([]Finding, error) {
 // workstream is a membership rather than a container and the table deliberately
 // leaves it out. The reference grammar reaches one all the same, so attach can
 // be aimed at one and the collection has to be swept.
-func (b *Bench) checkAttachmentsWithoutAMount() []Finding {
+func (b *Bench) checkAttachmentsWithoutAMount() ([]Finding, error) {
 	var findings []Finding
 	for _, mount := range Contains(KindWorkbench) {
 		dir := filepath.Join(b.Root, mount.Dir)
-		for _, id := range ListIDs(dir) {
-			findings = append(findings, b.mountlessAttachmentsBelow(filepath.Join(dir, id), mount.Kind)...)
+		ids, err := ListIDs(dir)
+		if err != nil {
+			return nil, err
+		}
+		for _, id := range ids {
+			below, err := b.mountlessAttachmentsBelow(filepath.Join(dir, id), mount.Kind)
+			if err != nil {
+				return nil, err
+			}
+			findings = append(findings, below...)
 		}
 	}
 	root := b.WorkstreamsRoot()
-	for _, id := range ListIDs(root) {
-		findings = append(findings, b.mountlessAttachmentsBelow(filepath.Join(root, id), KindWorkstream)...)
+	ids, err := ListIDs(root)
+	if err != nil {
+		return nil, err
 	}
-	return findings
+	for _, id := range ids {
+		below, err := b.mountlessAttachmentsBelow(filepath.Join(root, id), KindWorkstream)
+		if err != nil {
+			return nil, err
+		}
+		findings = append(findings, below...)
+	}
+	return findings, nil
 }
 
 // mountlessAttachmentsBelow visits one entity, and everything the containment
@@ -329,22 +378,30 @@ func (b *Bench) checkAttachmentsWithoutAMount() []Finding {
 // what it finds there and descends no further: a directory below a stray is
 // unreachable for the same reason the stray is, and one finding names the whole
 // of what an operator has to look at.
-func (b *Bench) mountlessAttachmentsBelow(dir, kind string) []Finding {
+func (b *Bench) mountlessAttachmentsBelow(dir, kind string) ([]Finding, error) {
 	if _, mounts := MountOf(kind, AttachmentsDir); !mounts {
 		attachments := filepath.Join(dir, AttachmentsDir)
 		if !Exists(attachments) {
-			return nil
+			return nil, nil
 		}
-		return []Finding{{Path: attachments, Key: FindingAttachmentsWithoutAMount, Detail: kind}}
+		return []Finding{{Path: attachments, Key: FindingAttachmentsWithoutAMount, Detail: kind}}, nil
 	}
 	var findings []Finding
 	for _, mount := range Contains(kind) {
 		collection := filepath.Join(dir, mount.Dir)
-		for _, id := range ListIDs(collection) {
-			findings = append(findings, b.mountlessAttachmentsBelow(filepath.Join(collection, id), mount.Kind)...)
+		ids, err := ListIDs(collection)
+		if err != nil {
+			return nil, err
+		}
+		for _, id := range ids {
+			below, err := b.mountlessAttachmentsBelow(filepath.Join(collection, id), mount.Kind)
+			if err != nil {
+				return nil, err
+			}
+			findings = append(findings, below...)
 		}
 	}
-	return findings
+	return findings, nil
 }
 
 // checkColumnKinds applies the position rules to the flow and reports a column
@@ -472,11 +529,14 @@ func (b *Bench) checkTierOverrides(card *Card) []Finding {
 // It reads rather than repairs, as checkTierOverrides does and as everything
 // else in this file does. The repair is a write through the field, which
 // resolves the spelling it is given and refuses one that resolves to nothing.
-func (b *Bench) checkItemColumns(card *Card) []Finding {
+func (b *Bench) checkItemColumns(card *Card) ([]Finding, error) {
 	var findings []Finding
-	named := itemsWhere(card.Dir, func(item *Item) bool {
+	named, err := itemsWhere(card.Dir, func(item *Item) bool {
 		return item.Column != ""
 	})
+	if err != nil {
+		return nil, err
+	}
 	for _, item := range named {
 		resolved := b.ColumnByRef(item.Column)
 		if resolved != nil && resolved.ID == item.Column {
@@ -488,7 +548,7 @@ func (b *Bench) checkItemColumns(card *Card) []Finding {
 			Detail: card.Ref(b.Slug) + " " + item.ID + " " + item.Column,
 		})
 	}
-	return findings
+	return findings, nil
 }
 
 // kindStandsWrong reports whether one column's kind is disallowed at the
@@ -521,7 +581,7 @@ func (b *Bench) terminalRegionStart() int {
 }
 
 // checkCard applies every card-level invariant to one card.
-func (b *Bench) checkCard(card *Card) []Finding {
+func (b *Bench) checkCard(card *Card) ([]Finding, error) {
 	var findings []Finding
 	anchor := card.AnchorPath()
 	claimed := card.Holder != "" || card.ClaimSince != ""
@@ -568,7 +628,11 @@ func (b *Bench) checkCard(card *Card) []Finding {
 		findings = append(findings, Finding{Path: anchor, Key: FindingUnknownLevel, Detail: axis + " " + stored})
 	}
 	findings = append(findings, b.checkTierOverrides(card)...)
-	findings = append(findings, b.checkItemColumns(card)...)
+	itemColumnFindings, err := b.checkItemColumns(card)
+	if err != nil {
+		return findings, err
+	}
+	findings = append(findings, itemColumnFindings...)
 	if card.Number == 0 {
 		findings = append(findings, Finding{Path: anchor, Key: FindingOrdinalMissing, Detail: card.ID})
 	}
@@ -584,11 +648,19 @@ func (b *Bench) checkCard(card *Card) []Finding {
 		}
 		findings = append(findings, Finding{Path: anchor, Key: FindingDanglingWorkstream, Detail: id})
 	}
-	findings = append(findings, checkOrdinals(card.Dir)...)
-	findings = append(findings, checkAttachmentFilename(card.Dir)...)
+	ordinalFindings, err := checkOrdinals(card.Dir)
+	if err != nil {
+		return findings, err
+	}
+	findings = append(findings, ordinalFindings...)
+	filenameFindings, err := checkAttachmentFilename(card.Dir)
+	if err != nil {
+		return findings, err
+	}
+	findings = append(findings, filenameFindings...)
 	events, torn, err := ReadJournal(card.JournalPath())
 	if err != nil {
-		return findings
+		return findings, nil
 	}
 	if torn {
 		findings = append(findings, Finding{Path: card.JournalPath(), Key: FindingTornJournal, Detail: card.ID})
@@ -604,7 +676,7 @@ func (b *Bench) checkCard(card *Card) []Finding {
 			findings = append(findings, Finding{Path: anchor, Key: FindingAtLoopLimit, Detail: column.Ref()})
 		}
 	}
-	return findings
+	return findings, nil
 }
 
 // RegressiveDepartures counts how many times a card has left one column by a
@@ -652,11 +724,19 @@ func (b *Bench) RegressiveDepartures(events []Event, columnID string) int {
 // deleted neighbour does not change where that was, so closing the gap would
 // rewrite a historical fact on entities nobody touched. A duplicate is
 // reported because it leaves a position with two answers.
-func checkOrdinals(cardDir string) []Finding {
+func checkOrdinals(cardDir string) ([]Finding, error) {
 	var findings []Finding
-	for _, collection := range ordinalCollections(cardDir) {
+	collections, err := ordinalCollections(cardDir)
+	if err != nil {
+		return nil, err
+	}
+	for _, collection := range collections {
 		seen := map[int]bool{}
-		for _, id := range ListIDs(collection.dir) {
+		ids, err := ListIDs(collection.dir)
+		if err != nil {
+			return nil, err
+		}
+		for _, id := range ids {
 			path := filepath.Join(collection.dir, id, collection.anchor)
 			if !Exists(path) {
 				continue
@@ -673,7 +753,7 @@ func checkOrdinals(cardDir string) []Finding {
 			seen[ordinal] = true
 		}
 	}
-	return findings
+	return findings, nil
 }
 
 // checkAttachmentFilename reports every attachment whose anchor's filename
@@ -681,10 +761,14 @@ func checkOrdinals(cardDir string) []Finding {
 // names agree on every rename the verb completes, and on every payload the
 // attach verb lays down, so a drift is the residue of a crash between the
 // two writes, or of a hand edit nobody noticed.
-func checkAttachmentFilename(cardDir string) []Finding {
+func checkAttachmentFilename(cardDir string) ([]Finding, error) {
 	collection := filepath.Join(cardDir, AttachmentsDir)
 	var findings []Finding
-	for _, id := range ListIDs(collection) {
+	ids, err := ListIDs(collection)
+	if err != nil {
+		return nil, err
+	}
+	for _, id := range ids {
 		dir := filepath.Join(collection, id)
 		anchor := filepath.Join(dir, AttachmentAnchor)
 		if !Exists(anchor) {
@@ -696,8 +780,11 @@ func checkAttachmentFilename(cardDir string) []Finding {
 			continue
 		}
 		payload := filepath.Join(dir, PayloadDir)
-		entries, err := os.ReadDir(payload)
-		if err != nil || len(entries) == 0 {
+		entries, err := readCollection(payload)
+		if err != nil {
+			return nil, err
+		}
+		if len(entries) == 0 {
 			continue
 		}
 		if entries[0].Name() == wanted {
@@ -705,7 +792,63 @@ func checkAttachmentFilename(cardDir string) []Finding {
 		}
 		findings = append(findings, Finding{Path: anchor, Key: FindingAttachmentFilenameDrift, Detail: id})
 	}
-	return findings
+	return findings, nil
+}
+
+// checkCardNumbers reports every card sharing its number with another card,
+// across both halves of the collection. A number is the durable half of a
+// card reference, so two cards holding one number leaves a reference by
+// number with two answers.
+//
+// Every card in a colliding group is reported rather than only the second
+// one met, which is where this parts company with checkOrdinals. The live
+// half is read before the archived one and the archived card is the one that
+// held the number first, so reporting the second sighting would name the
+// innocent card and leave the interloper unreported.
+func (b *Bench) checkCardNumbers() ([]Finding, error) {
+	var findings []Finding
+	byNumber := map[int][]string{}
+	for _, root := range []string{b.CardsRoot(), b.ArchivedCardsRoot()} {
+		ids, err := ListIDs(root)
+		if err != nil {
+			return nil, err
+		}
+		for _, id := range ids {
+			card, err := LoadCard(root, id)
+			if err != nil {
+				// An archived card whose anchor will not load is
+				// reported rather than skipped, because the number
+				// it holds is exactly the number that might be
+				// colliding, and a detector going quiet on the half
+				// that makes the damage reachable hides the defect
+				// it exists to report. The live half is reported by
+				// Bench.Check's own card walk, so reporting it here
+				// too would name it twice. The path is the card's
+				// directory, which is the spelling that walk uses.
+				if root == b.ArchivedCardsRoot() {
+					findings = append(findings, Finding{Path: filepath.Join(root, id), Key: unreadableCardFinding(err), Detail: id})
+				}
+				continue
+			}
+			byNumber[card.Number] = append(byNumber[card.Number], filepath.Join(root, id, CardAnchor))
+		}
+	}
+	numbers := make([]int, 0, len(byNumber))
+	for number := range byNumber {
+		numbers = append(numbers, number)
+	}
+	sort.Ints(numbers)
+	for _, number := range numbers {
+		paths := byNumber[number]
+		if len(paths) < 2 {
+			continue
+		}
+		sort.Strings(paths)
+		for _, path := range paths {
+			findings = append(findings, Finding{Path: path, Key: FindingCardNumberDuplicate, Detail: strconv.Itoa(number)})
+		}
+	}
+	return findings, nil
 }
 
 // ReplayPosition returns the column the journal says a card occupies, which is

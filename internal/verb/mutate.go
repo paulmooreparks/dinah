@@ -48,10 +48,14 @@ func (l *Library) Do(req *Request) *Response {
 		l.Interleave()
 	}
 	if req.Basis != "" && req.Basis != card.Revision {
+		view, err := l.view(card)
+		if err != nil {
+			return l.FromError(req, err)
+		}
 		response := &Response{
 			Outcome:     contract.OutcomeStale,
 			Verb:        req.Verb,
-			Card:        l.view(card),
+			Card:        view,
 			Basis:       req.Basis,
 			Affordances: l.affordances(card),
 		}
@@ -165,7 +169,10 @@ func (l *Library) canClaim(req *Request, card *bench.Card) *Response {
 // card happens to be standing when somebody reaches for it, so the refusal
 // binds every claim on every workbench.
 func (l *Library) claimableItems(req *Request, card *bench.Card) *Response {
-	blocking := bench.BlockingItems(card.Dir)
+	blocking, err := bench.BlockingItems(card.Dir)
+	if err != nil {
+		return l.FromError(req, err)
+	}
 	if len(blocking) == 0 {
 		return nil
 	}
@@ -399,7 +406,10 @@ func (l *Library) canLand(req *Request, card *bench.Card, destination, departure
 	// about what to go and settle.
 	gateHeld := false
 	if destination.GateItems {
-		holding := bench.GatingItems(card.Dir, destination.ID)
+		holding, err := bench.GatingItems(card.Dir, destination.ID)
+		if err != nil {
+			return false, nil, err
+		}
 		if len(holding) > 0 {
 			gateHeld = true
 			if !req.Override {
@@ -628,7 +638,10 @@ func (l *Library) join(req *Request, card *bench.Card) *Response {
 	if req.Actor == "" {
 		return l.refuse(req, card, contract.NoOwner, "")
 	}
-	workstream := l.Bench.WorkstreamByRef(req.Workstream)
+	workstream, err := l.Bench.WorkstreamByRef(req.Workstream)
+	if err != nil {
+		return l.FromError(req, err)
+	}
 	if workstream == nil {
 		return l.refuse(req, card, contract.UnknownWorkstream, req.Workstream)
 	}
@@ -658,7 +671,10 @@ func (l *Library) leave(req *Request, card *bench.Card) *Response {
 	if req.Actor == "" {
 		return l.refuse(req, card, contract.NoOwner, "")
 	}
-	workstream := l.Bench.WorkstreamByRef(req.Workstream)
+	workstream, err := l.Bench.WorkstreamByRef(req.Workstream)
+	if err != nil {
+		return l.FromError(req, err)
+	}
 	if workstream == nil {
 		return l.refuse(req, card, contract.UnknownWorkstream, req.Workstream)
 	}

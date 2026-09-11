@@ -1612,7 +1612,11 @@ func openWithVocabulary(root string, vocab columnVocabulary, admit func(declared
 	// ListIDs is what every other collection walk in this package reads a
 	// directory with, so a file, a stray name and anything that is not an
 	// identifier are passed over here exactly as they are there.
-	for _, id := range ListIDs(filepath.Join(root, vocab.Dir)) {
+	columnIDs, err := ListIDs(filepath.Join(root, vocab.Dir))
+	if err != nil {
+		return nil, err
+	}
+	for _, id := range columnIDs {
 		if seen[id] {
 			continue
 		}
@@ -2049,8 +2053,12 @@ func retiredCardsIn(root string) ([]*Card, error) {
 // cardsWith is the body both readers share, given the one-card reader that
 // separates them.
 func cardsWith(root string, load func(string, string) (*Card, error)) ([]*Card, error) {
+	ids, err := ListIDs(root)
+	if err != nil {
+		return nil, err
+	}
 	var cards []*Card
-	for _, id := range ListIDs(root) {
+	for _, id := range ids {
 		card, err := load(root, id)
 		if err != nil {
 			return nil, err
@@ -2073,10 +2081,22 @@ func (b *Bench) HasIdentifier(id string) bool {
 // NextNumber returns the number a newly filed card carries: one past the
 // highest in use across both halves of the collection. Numbers are the
 // durable half of a card reference, so a number is never reused.
-func (b *Bench) NextNumber() int {
+//
+// A half that cannot be listed is reported rather than contributing nothing.
+// The archived half is the one that makes the damage reachable: a caller
+// filing a card claims its identifier in the live collection alone, so a live
+// collection that will not read aborts the filing by itself, while an
+// archived collection that will not read would leave every archived number
+// out of the maximum and stamp the new card with a number an archived card
+// already carries.
+func (b *Bench) NextNumber() (int, error) {
 	highest := 0
 	for _, root := range []string{b.CardsRoot(), b.ArchivedCardsRoot()} {
-		for _, id := range ListIDs(root) {
+		ids, err := ListIDs(root)
+		if err != nil {
+			return 0, err
+		}
+		for _, id := range ids {
 			card, err := LoadCard(root, id)
 			if err != nil {
 				continue
@@ -2086,7 +2106,7 @@ func (b *Bench) NextNumber() int {
 			}
 		}
 	}
-	return highest + 1
+	return highest + 1, nil
 }
 
 // Save writes the workbench anchor back, preserving every key it does not

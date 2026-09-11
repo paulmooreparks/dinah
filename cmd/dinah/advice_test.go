@@ -662,7 +662,11 @@ func mixedCardFixture(t *testing.T) (tree, workbench string) {
 	if got := runCLI(t, project, "--workbench", workbench, "add", "a card"); got.code != 0 {
 		t.Fatalf("add: %d %s", got.code, got.errw)
 	}
-	for _, id := range bench.ListIDs(filepath.Join(workbench, bench.CardsDir)) {
+	listed18, listedErr18 := bench.ListIDs(filepath.Join(workbench, bench.CardsDir))
+	if listedErr18 != nil {
+		t.Fatalf("listing %s: %v", filepath.Join(workbench, bench.CardsDir), listedErr18)
+	}
+	for _, id := range listed18 {
 		rewriteFile(t, filepath.Join(workbench, bench.CardsDir, id, bench.CardAnchor), func(text string) string {
 			return strings.Replace(text, "\nstate: ", "\nsubstate: ready\nstate: ", 1)
 		})
@@ -675,7 +679,11 @@ func mixedCardFixture(t *testing.T) (tree, workbench string) {
 // each.
 func dropPreVocabularyState(t *testing.T, workbench string) {
 	t.Helper()
-	for _, id := range bench.ListIDs(filepath.Join(workbench, bench.CardsDir)) {
+	listed17, listedErr17 := bench.ListIDs(filepath.Join(workbench, bench.CardsDir))
+	if listedErr17 != nil {
+		t.Fatalf("listing %s: %v", filepath.Join(workbench, bench.CardsDir), listedErr17)
+	}
+	for _, id := range listed17 {
 		rewriteFile(t, filepath.Join(workbench, bench.CardsDir, id, bench.CardAnchor), func(text string) string {
 			return strings.Replace(text, "\nsubstate: ready", "", 1)
 		})

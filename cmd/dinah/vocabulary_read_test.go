@@ -57,7 +57,10 @@ func unwindOneCardHalfway(t *testing.T, root, id string) {
 // retired key names can see.
 func TestACardMissingTheColumnKeyIsRefusedWhateverElseItCarries(t *testing.T) {
 	root, _, _, _, current := buildTreeFixture(t)
-	ids := bench.ListIDs(filepath.Join(current, bench.CardsDir))
+	ids, listedErr40 := bench.ListIDs(filepath.Join(current, bench.CardsDir))
+	if listedErr40 != nil {
+		t.Fatalf("listing %s: %v", filepath.Join(current, bench.CardsDir), listedErr40)
+	}
 	if len(ids) == 0 {
 		t.Fatalf("%s holds no cards, so this test asserts nothing", current)
 	}
@@ -125,7 +128,10 @@ func TestCheckNamesAnUnreadableCardRatherThanReportingItAbsent(t *testing.T) {
 	} {
 		t.Run(shape.name, func(t *testing.T) {
 			root, _, _, _, current := buildTreeFixture(t)
-			ids := bench.ListIDs(filepath.Join(current, bench.CardsDir))
+			ids, listedErr39 := bench.ListIDs(filepath.Join(current, bench.CardsDir))
+			if listedErr39 != nil {
+				t.Fatalf("listing %s: %v", filepath.Join(current, bench.CardsDir), listedErr39)
+			}
 			if len(ids) == 0 {
 				t.Fatalf("%s holds no cards, so this test asserts nothing", current)
 			}
@@ -160,7 +166,10 @@ func TestCheckNamesAnUnreadableCardRatherThanReportingItAbsent(t *testing.T) {
 // a mixture that was not there.
 func TestACardCarryingHalfOfEachVocabularyIsRefusedAsMixed(t *testing.T) {
 	root, _, _, _, current := buildTreeFixture(t)
-	ids := bench.ListIDs(filepath.Join(current, bench.CardsDir))
+	ids, listedErr38 := bench.ListIDs(filepath.Join(current, bench.CardsDir))
+	if listedErr38 != nil {
+		t.Fatalf("listing %s: %v", filepath.Join(current, bench.CardsDir), listedErr38)
+	}
 	if len(ids) == 0 {
 		t.Fatalf("%s holds no cards, so this test asserts nothing", current)
 	}

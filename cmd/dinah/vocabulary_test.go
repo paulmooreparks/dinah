@@ -38,7 +38,11 @@ func unwind(t *testing.T, root string) {
 		if !bench.Exists(columns) {
 			continue
 		}
-		for _, id := range bench.ListIDs(columns) {
+		listed47, listedErr47 := bench.ListIDs(columns)
+		if listedErr47 != nil {
+			t.Fatalf("listing %s: %v", columns, listedErr47)
+		}
+		for _, id := range listed47 {
 			from := filepath.Join(columns, id, bench.ColumnAnchor)
 			if !bench.Exists(from) {
 				continue
@@ -65,7 +69,11 @@ func unwindCards(t *testing.T, root string) {
 		filepath.Join(root, bench.CardsDir),
 		filepath.Join(root, bench.ArchiveDir, bench.CardsDir),
 	} {
-		for _, id := range bench.ListIDs(dir) {
+		listed46, listedErr46 := bench.ListIDs(dir)
+		if listedErr46 != nil {
+			t.Fatalf("listing %s: %v", dir, listedErr46)
+		}
+		for _, id := range listed46 {
 			card := filepath.Join(dir, id, bench.CardAnchor)
 			if !bench.Exists(card) {
 				continue
@@ -193,7 +201,11 @@ func preVocabularyStanding(t *testing.T, root string) map[string]standing {
 	t.Helper()
 	stood := map[string]standing{}
 	dir := filepath.Join(root, bench.CardsDir)
-	for _, id := range bench.ListIDs(dir) {
+	listed45, listedErr45 := bench.ListIDs(dir)
+	if listedErr45 != nil {
+		t.Fatalf("listing %s: %v", dir, listedErr45)
+	}
+	for _, id := range listed45 {
 		text, err := os.ReadFile(filepath.Join(dir, id, bench.CardAnchor))
 		if err != nil {
 			t.Fatalf("read the card %s: %v", id, err)
@@ -456,7 +468,11 @@ func TestTheVocabularyMigrationReportsWhatItWillNotOpen(t *testing.T) {
 		// directory leaves the same answer there, so the cards are asked
 		// separately: a card of a candidate this walk declined to open still
 		// carries the retired pair of keys and not the current column key.
-		for _, id := range bench.ListIDs(filepath.Join(where, bench.CardsDir)) {
+		listed44, listedErr44 := bench.ListIDs(filepath.Join(where, bench.CardsDir))
+		if listedErr44 != nil {
+			t.Fatalf("listing %s: %v", filepath.Join(where, bench.CardsDir), listedErr44)
+		}
+		for _, id := range listed44 {
 			if cardCarries(t, where, id, "column") {
 				t.Errorf("the card %s of %s was rewritten, and this candidate should not have been opened at all", id, where)
 			}
@@ -630,7 +646,10 @@ func TestTheVocabularyMigrationResumesAWorkbenchLeftHalfConverted(t *testing.T) 
 	root, _, nested, _, _ := buildTreeFixture(t)
 	stood := preVocabularyStanding(t, nested)
 	assertConditionVaries(t, stood)
-	ids := bench.ListIDs(filepath.Join(nested, bench.CardsDir))
+	ids, listedErr43 := bench.ListIDs(filepath.Join(nested, bench.CardsDir))
+	if listedErr43 != nil {
+		t.Fatalf("listing %s: %v", filepath.Join(nested, bench.CardsDir), listedErr43)
+	}
 	if len(ids) < 2 {
 		t.Fatalf("%s holds %d cards, and this test needs one card rewritten before the failure", nested, len(ids))
 	}
@@ -772,7 +791,10 @@ func TestACardWrittenInTheRetiredVocabularyIsRefusedRatherThanMisread(t *testing
 	// The refusal names the card, not merely the anchor filename. A board of
 	// any size makes the difference between an operator who knows where to
 	// look and one who does not.
-	ids := bench.ListIDs(filepath.Join(current, bench.CardsDir))
+	ids, listedErr42 := bench.ListIDs(filepath.Join(current, bench.CardsDir))
+	if listedErr42 != nil {
+		t.Fatalf("listing %s: %v", filepath.Join(current, bench.CardsDir), listedErr42)
+	}
 	if len(ids) == 0 {
 		t.Fatalf("%s holds no cards, so this test asserts nothing", current)
 	}
@@ -831,7 +853,10 @@ func TestAnAnchorCarryingBothSequenceKeysIsRefusedBeforeAnythingIsWritten(t *tes
 // not tell him which.
 func TestACardCarryingBothVocabulariesIsRefusedByName(t *testing.T) {
 	root, atRoot, _, _, _ := buildTreeFixture(t)
-	ids := bench.ListIDs(filepath.Join(atRoot, bench.CardsDir))
+	ids, listedErr41 := bench.ListIDs(filepath.Join(atRoot, bench.CardsDir))
+	if listedErr41 != nil {
+		t.Fatalf("listing %s: %v", filepath.Join(atRoot, bench.CardsDir), listedErr41)
+	}
 	if len(ids) == 0 {
 		t.Fatalf("%s holds no cards", atRoot)
 	}

@@ -407,7 +407,10 @@ func TestARefusedFilingCreatesNoCardDirectory(t *testing.T) {
 		t.Fatalf("add: %d %s", got.code, got.errw)
 	}
 	anchor := soleBenchDir(t, root)
-	before := bench.ListIDs(filepath.Join(anchor, bench.CardsDir))
+	before, listedErr26 := bench.ListIDs(filepath.Join(anchor, bench.CardsDir))
+	if listedErr26 != nil {
+		t.Fatalf("listing %s: %v", filepath.Join(anchor, bench.CardsDir), listedErr26)
+	}
 	for _, axis := range []string{"severity", "priority"} {
 		filing := runCLI(t, root, "add", "--"+axis, "urgent", "a card filed with a level nobody declared")
 		if filing.code != 2 {
@@ -421,7 +424,11 @@ func TestARefusedFilingCreatesNoCardDirectory(t *testing.T) {
 			t.Errorf("the two paths refuse in different words:\nadd:\n%s\ncard set:\n%s", filing.errw, writing.errw)
 		}
 	}
-	if after := bench.ListIDs(filepath.Join(anchor, bench.CardsDir)); len(after) != len(before) {
+	listed25, listedErr25 := bench.ListIDs(filepath.Join(anchor, bench.CardsDir))
+	if listedErr25 != nil {
+		t.Fatalf("listing %s: %v", filepath.Join(anchor, bench.CardsDir), listedErr25)
+	}
+	if after := listed25; len(after) != len(before) {
 		t.Errorf("a refused filing left %d card directories where there were %d", len(after), len(before))
 	}
 }

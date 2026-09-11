@@ -104,6 +104,10 @@ func (l *Library) Status(req *Request) (*Status, error) {
 	if err != nil {
 		return nil, err
 	}
+	benchAttachments, err := bench.CountAttachments(l.Bench.Root)
+	if err != nil {
+		return nil, err
+	}
 	status := &Status{
 		Bench:           l.Bench.Title,
 		Root:            l.Bench.Root,
@@ -114,7 +118,7 @@ func (l *Library) Status(req *Request) (*Status, error) {
 		Holding:         []CardView{},
 		Blocked:         []CardView{},
 		WorkbenchSource: req.WorkbenchSource,
-		AttachmentCount: bench.CountAttachments(l.Bench.Root),
+		AttachmentCount: benchAttachments,
 	}
 	counts := map[string]int{}
 	for _, card := range cards {
@@ -122,14 +126,22 @@ func (l *Library) Status(req *Request) (*Status, error) {
 			return nil, err
 		}
 		counts[card.Column]++
+		view, err := l.view(card)
+		if err != nil {
+			return nil, err
+		}
 		if card.Holder != "" && card.Holder == req.Actor {
-			status.Holding = append(status.Holding, *l.view(card))
+			status.Holding = append(status.Holding, *view)
 		}
 		if card.State == contract.StateBlocked {
-			status.Blocked = append(status.Blocked, *l.view(card))
+			status.Blocked = append(status.Blocked, *view)
 		}
 	}
-	status.Columns = l.columnViews(counts)
+	columns, err := l.columnViews(counts)
+	if err != nil {
+		return nil, err
+	}
+	status.Columns = columns
 	return status, nil
 }
 
@@ -144,13 +156,17 @@ func (l *Library) Columns() ([]ColumnView, error) {
 	for _, card := range cards {
 		counts[card.Column]++
 	}
-	return l.columnViews(counts), nil
+	return l.columnViews(counts)
 }
 
 // columnViews renders the flow with each station's occupancy.
-func (l *Library) columnViews(counts map[string]int) []ColumnView {
+func (l *Library) columnViews(counts map[string]int) ([]ColumnView, error) {
 	views := make([]ColumnView, 0, len(l.Bench.Columns))
 	for _, column := range l.Bench.Columns {
+		attachments, err := bench.CountAttachments(l.Bench.ColumnDir(column.ID))
+		if err != nil {
+			return nil, err
+		}
 		view := ColumnView{
 			ID:              column.ID,
 			Slug:            column.Slug,
@@ -162,14 +178,14 @@ func (l *Library) columnViews(counts map[string]int) []ColumnView {
 			Capacity:        column.Capacity,
 			RejectTo:        column.RejectTo,
 			Count:           counts[column.ID],
-			AttachmentCount: bench.CountAttachments(l.Bench.ColumnDir(column.ID)),
+			AttachmentCount: attachments,
 		}
 		if destination := carriesInto(column, l.Bench.Columns); destination != nil {
 			view.PullDestination = columnRef(destination)
 		}
 		views = append(views, view)
 	}
-	return views
+	return views, nil
 }
 
 // Listing is the cards of a column in queue order.
@@ -212,7 +228,11 @@ func (l *Library) List(req *Request) (*Listing, error) {
 	}
 	sortByArrival(kept)
 	for _, card := range kept {
-		listing.Cards = append(listing.Cards, *l.view(card))
+		view, err := l.view(card)
+		if err != nil {
+			return nil, err
+		}
+		listing.Cards = append(listing.Cards, *view)
 	}
 	return listing, nil
 }
@@ -299,7 +319,11 @@ func (l *Library) Next(req *Request) ([]Offer, error) {
 			head, hadReady := headOfReadyForTier(l.Bench, column.ID, landing, cards, selectionAdmission(req))
 			switch {
 			case head != nil:
-				offer.Card = l.view(head)
+				view, err := l.view(head)
+				if err != nil {
+					return nil, err
+				}
+				offer.Card = view
 				offer.TakenByPull = byPull
 			case hadReady:
 				offer.AboveTier = true
@@ -896,7 +920,11 @@ func (l *Library) detailOf(card *bench.Card, chosen detailSelection) (*Detail, *
 	// directory, which show performs whatever the caller asked for.
 	detail := &Detail{Path: card.AnchorPath(), selected: chosen}
 	if chosen.carries("card") {
-		detail.Card = *l.view(card)
+		view, err := l.view(card)
+		if err != nil {
+			return nil, nil, "", err
+		}
+		detail.Card = *view
 	}
 	if chosen.carries("body") {
 		detail.Body = card.Body
@@ -915,7 +943,11 @@ func (l *Library) detailOf(card *bench.Card, chosen detailSelection) (*Detail, *
 	}
 	var comments []CommentView
 	for _, comment := range stored {
-		ref := commentRef(cardRef, memberPosition(comment.Dir, bench.CommentAnchor))
+		position, err := memberPosition(comment.Dir, bench.CommentAnchor)
+		if err != nil {
+			return nil, nil, "", err
+		}
+		ref := commentRef(cardRef, position)
 		view := CommentView{ID: comment.ID, Ref: ref, TS: comment.TS, Author: comment.Author, Body: comment.Body}
 		// A comment's attachments compose their references against the
 		// comment's own address rather than the card's, so a reference the
@@ -946,7 +978,10 @@ func (l *Library) detailOf(card *bench.Card, chosen detailSelection) (*Detail, *
 	kindPosition := map[string]int{}
 	for _, item := range items {
 		kindPosition[item.Kind]++
-		position := memberPosition(item.Dir, bench.ItemAnchor)
+		position, err := memberPosition(item.Dir, bench.ItemAnchor)
+		if err != nil {
+			return nil, nil, "", err
+		}
 		view := ItemView{
 			ID:      item.ID,
 			Ordinal: position,
@@ -1014,7 +1049,14 @@ func (l *Library) detailOf(card *bench.Card, chosen detailSelection) (*Detail, *
 // spelling: an open question filed first is pb-1/questions/1 on every surface,
 // and pb-1/checklist/1 on none of them.
 func (l *Library) collectionListing(collection *bench.CollectionRef) (*CollectionListing, error) {
-	nodes := l.memberNodes(collection.Dir, collection.Mount, collection.Members, l.childSeed(collection.Holder))
+	seed, err := l.childSeed(collection.Holder)
+	if err != nil {
+		return nil, err
+	}
+	nodes, err := l.memberNodes(collection.Dir, collection.Mount, collection.Members, seed)
+	if err != nil {
+		return nil, err
+	}
 	members := make([]CollectionMember, 0, len(nodes))
 	for i, node := range nodes {
 		anchor := filepath.Join(collection.Dir, collection.Members[i], collection.Mount.Anchor)
@@ -1103,7 +1145,10 @@ func attachmentViews(dir, ref string) ([]AttachmentView, error) {
 	}
 	var views []AttachmentView
 	for _, attachment := range attachments {
-		ordinal := displayOrdinal(attachment)
+		ordinal, err := displayOrdinal(attachment)
+		if err != nil {
+			return nil, err
+		}
 		views = append(views, AttachmentView{
 			ID:          attachment.ID,
 			Ordinal:     ordinal,
@@ -1155,7 +1200,7 @@ func itemRef(cardRef, kind string, kindPosition, position int) string {
 // sits in, which no caller can produce today, since Show's attachments come
 // out of that same listing. It is reported rather than smoothed over, so that
 // an unaddressable row shows up as one instead of pointing at the first file.
-func displayOrdinal(attachment *bench.Attachment) int {
+func displayOrdinal(attachment *bench.Attachment) (int, error) {
 	return memberPosition(attachment.Dir, bench.AttachmentAnchor)
 }
 
@@ -1168,15 +1213,19 @@ func displayOrdinal(attachment *bench.Attachment) int {
 // than the stored ordinal, and the two stop coinciding after one delete. The
 // count is taken here so that every read composing a reference and the
 // resolver reading one back agree by construction.
-func memberPosition(dir, anchor string) int {
+func memberPosition(dir, anchor string) (int, error) {
 	collection := filepath.Dir(dir)
 	id := filepath.Base(dir)
-	for n, member := range bench.SortByOrdinal(collection, anchor, bench.ListIDs(collection)) {
+	ids, err := bench.ListIDs(collection)
+	if err != nil {
+		return 0, err
+	}
+	for n, member := range bench.SortByOrdinal(collection, anchor, ids) {
 		if member == id {
-			return n + 1
+			return n + 1, nil
 		}
 	}
-	return 0
+	return 0, nil
 }
 
 // attachmentRef composes the reference a person types to reach one attachment
@@ -1405,9 +1454,12 @@ func (l *Library) Check(req *Request) (*CheckReport, error) {
 		report.MigratedSlugs = true
 		report.AssignedSlugs = assigned
 		report.Findings = append(report.Findings, reported...)
-		streamAssigned, streamReported := l.Bench.BackfillWorkstreamSlugs()
+		streamAssigned, streamReported, streamErr := l.Bench.BackfillWorkstreamSlugs()
 		report.AssignedWorkstreamSlugs = streamAssigned
 		report.Findings = append(report.Findings, streamReported...)
+		if streamErr != nil {
+			return report, streamErr
+		}
 		wsAssigned, wsReported, err := l.Bench.BackfillWorkbenchSlug()
 		report.AssignedWorkbenchSlug = wsAssigned
 		report.Findings = append(report.Findings, wsReported...)

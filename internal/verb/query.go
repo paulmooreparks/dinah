@@ -123,7 +123,11 @@ func (l *Library) Query(req *Request) (*Matches, error) {
 	sortByArrival(matched)
 	matches := &Matches{Query: req.Query, Cards: []CardView{}}
 	for _, card := range matched {
-		matches.Cards = append(matches.Cards, *l.view(card))
+		view, err := l.view(card)
+		if err != nil {
+			return nil, err
+		}
+		matches.Cards = append(matches.Cards, *view)
 	}
 	matches.Count = len(matches.Cards)
 	return matches, nil
@@ -494,7 +498,11 @@ func (l *Library) checkWorkstreams(q *query, cards []*bench.Card) error {
 			continue
 		}
 		if !loaded {
-			roster, loaded = l.workstreamRoster(cards), true
+			known, err := l.workstreamRoster(cards)
+			if err != nil {
+				return err
+			}
+			roster, loaded = known, true
 		}
 		for j, value := range t.values {
 			if !contains(roster, value) {
@@ -519,7 +527,7 @@ func (l *Library) checkWorkstreams(q *query, cards []*bench.Card) error {
 // An archived workstream contributes nothing of its own. Its identifier
 // reaches the roster only through a live card that still lists it, which is
 // the same reach every other archived thing has here.
-func (l *Library) workstreamRoster(cards []*bench.Card) []string {
+func (l *Library) workstreamRoster(cards []*bench.Card) ([]string, error) {
 	seen := map[string]bool{}
 	var roster []string
 	add := func(name string) {
@@ -529,7 +537,11 @@ func (l *Library) workstreamRoster(cards []*bench.Card) []string {
 		seen[name] = true
 		roster = append(roster, name)
 	}
-	for _, workstream := range l.Bench.Workstreams() {
+	workstreams, err := l.Bench.Workstreams()
+	if err != nil {
+		return nil, err
+	}
+	for _, workstream := range workstreams {
 		add(workstream.ID)
 		add(workstream.Slug)
 	}
@@ -539,7 +551,7 @@ func (l *Library) workstreamRoster(cards []*bench.Card) []string {
 		}
 	}
 	sort.Strings(roster)
-	return roster
+	return roster, nil
 }
 
 // workstreamIdentifier is what a card's own list carries for a value the
@@ -548,7 +560,8 @@ func (l *Library) workstreamRoster(cards []*bench.Card) []string {
 // workstream resolves to, which is a dangling membership and is stored exactly
 // as it reads.
 func (l *Library) workstreamIdentifier(value string) string {
-	if workstream := l.Bench.WorkstreamByRef(value); workstream != nil {
+	workstream, err := l.Bench.WorkstreamByRef(value)
+	if err == nil && workstream != nil {
 		return workstream.ID
 	}
 	return value

@@ -919,8 +919,14 @@ func TestAttachTakesTheEnclosingEntitysLock(t *testing.T) {
 	h.reopen()
 
 	card := h.card(ref)
-	comments := bench.ListIDs(filepath.Join(card.Dir, bench.CommentsDir))
-	attachments := bench.ListIDs(filepath.Join(card.Dir, bench.AttachmentsDir))
+	comments, listedErr10 := bench.ListIDs(filepath.Join(card.Dir, bench.CommentsDir))
+	if listedErr10 != nil {
+		t.Fatalf("listing %s: %v", filepath.Join(card.Dir, bench.CommentsDir), listedErr10)
+	}
+	attachments, listedErr9 := bench.ListIDs(filepath.Join(card.Dir, bench.AttachmentsDir))
+	if listedErr9 != nil {
+		t.Fatalf("listing %s: %v", filepath.Join(card.Dir, bench.AttachmentsDir), listedErr9)
+	}
 	if len(comments) != 1 || len(attachments) != 1 {
 		t.Fatalf("wanted one comment and one attachment to aim at, got %d and %d", len(comments), len(attachments))
 	}
@@ -966,7 +972,11 @@ func TestAttachTakesTheEnclosingEntitysLock(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.kind, func(t *testing.T) {
 			collection := filepath.Join(c.owner, bench.AttachmentsDir)
-			entities := len(bench.ListIDs(collection))
+			listed8, listedErr8 := bench.ListIDs(collection)
+			if listedErr8 != nil {
+				t.Fatalf("listing %s: %v", collection, listedErr8)
+			}
+			entities := len(listed8)
 			lines := journalLength(t, c.journal)
 			held := h.hold(c.lockDir, "someone")
 			response := h.library.Attach(&Request{Verb: "attach", Actor: "alka", Ref: c.ref, File: source, Replace: c.replace})
@@ -977,7 +987,11 @@ func TestAttachTakesTheEnclosingEntitysLock(t *testing.T) {
 			if response.Detail != "someone" {
 				t.Errorf("the refusal should name the holder, got %q", response.Detail)
 			}
-			if got := len(bench.ListIDs(collection)); got != entities {
+			listed7, listedErr7 := bench.ListIDs(collection)
+			if listedErr7 != nil {
+				t.Fatalf("listing %s: %v", collection, listedErr7)
+			}
+			if got := len(listed7); got != entities {
 				t.Errorf("a refused attach left %d entities behind, wanted %d", got, entities)
 			}
 			if got := journalLength(t, c.journal); got != lines {
@@ -1367,7 +1381,11 @@ func TestAnAttachAndAnArchiveOnOneCardSerialize(t *testing.T) {
 		live := filepath.Join(h.library.Bench.CardsRoot(), id, bench.AttachmentsDir)
 		archivedHalf := filepath.Join(h.archivedDir(id), bench.AttachmentsDir)
 		for _, collection := range []string{live, archivedHalf} {
-			if got := len(bench.ListIDs(collection)); got != 0 {
+			listed6, listedErr6 := bench.ListIDs(collection)
+			if listedErr6 != nil {
+				t.Fatalf("listing %s: %v", collection, listedErr6)
+			}
+			if got := len(listed6); got != 0 {
 				t.Errorf("a refused attach left %d entities at %s", got, collection)
 			}
 		}
@@ -1397,7 +1415,11 @@ func TestStructuralActsOnACommentAndAnAttachment(t *testing.T) {
 	}
 	h.reopen()
 	card := h.card(ref)
-	commentID := bench.ListIDs(filepath.Join(card.Dir, bench.CommentsDir))[0]
+	listed5, listedErr5 := bench.ListIDs(filepath.Join(card.Dir, bench.CommentsDir))
+	if listedErr5 != nil {
+		t.Fatalf("listing %s: %v", filepath.Join(card.Dir, bench.CommentsDir), listedErr5)
+	}
+	commentID := listed5[0]
 	commentRef := ref + "/comments/1"
 	attachmentRef := ref + "/attachments/1"
 
@@ -1450,7 +1472,11 @@ func TestStructuralActsOnACommentAndAnAttachment(t *testing.T) {
 	if _, err := h.finish(); err != nil {
 		t.Fatalf("finish: %v", err)
 	}
-	if got := len(bench.ListIDs(filepath.Join(card.Dir, bench.AttachmentsDir))); got != 0 {
+	listed4, listedErr4 := bench.ListIDs(filepath.Join(card.Dir, bench.AttachmentsDir))
+	if listedErr4 != nil {
+		t.Fatalf("listing %s: %v", filepath.Join(card.Dir, bench.AttachmentsDir), listedErr4)
+	}
+	if got := len(listed4); got != 0 {
 		t.Errorf("the finish left %d attachments behind", got)
 	}
 	if findings := h.check(); len(findings) != 0 {
@@ -2274,7 +2300,11 @@ func TestRenamingAWorkstreamOntoATakenSlugIsAcceptedAndReported(t *testing.T) {
 	if stored := h.library.Bench.Workstream(second.ID); stored.Slug != first.Slug {
 		t.Errorf("the second workstream stored the slug %q, wanted the duplicate %q it was told to take", stored.Slug, first.Slug)
 	}
-	if found := h.library.Bench.WorkstreamByRef(first.Slug); found == nil || found.ID != first.ID {
+	got10, gotErr10 := h.library.Bench.WorkstreamByRef(first.Slug)
+	if gotErr10 != nil {
+		t.Fatalf("WorkstreamByRef: %v", gotErr10)
+	}
+	if found := got10; found == nil || found.ID != first.ID {
 		t.Errorf("the shared slug resolved to %v, wanted the earlier workstream %s", found, first.ID)
 	}
 	var duplicates []string
@@ -2339,10 +2369,18 @@ func TestWritingAWorkstreamFieldRecordsOneUpdateOnItsOwnJournal(t *testing.T) {
 	if got := set(bench.SlugField, "folio", true); got.Outcome != contract.OutcomeOK {
 		t.Fatalf("a slug change with the flag: %s %s", got.Outcome, got.Refusal)
 	}
-	if h.library.Bench.WorkstreamByRef("portfolio-work") != nil {
+	got9, gotErr9 := h.library.Bench.WorkstreamByRef("portfolio-work")
+	if gotErr9 != nil {
+		t.Fatalf("WorkstreamByRef: %v", gotErr9)
+	}
+	if got9 != nil {
 		t.Error("the old slug still resolves after the rename")
 	}
-	if h.library.Bench.WorkstreamByRef("folio") == nil {
+	got8, gotErr8 := h.library.Bench.WorkstreamByRef("folio")
+	if gotErr8 != nil {
+		t.Fatalf("WorkstreamByRef: %v", gotErr8)
+	}
+	if got8 == nil {
 		t.Error("the new slug does not resolve after the rename")
 	}
 }
@@ -2521,7 +2559,11 @@ func TestArchivingAWorkstreamLeavesItsMembersResolvable(t *testing.T) {
 	if archived.Outcome != contract.OutcomeOK {
 		t.Fatalf("archiving a workstream cards belong to: %s %s", archived.Outcome, archived.Refusal)
 	}
-	if got := h.library.Bench.Workstreams(); len(got) != 0 {
+	got7, gotErr7 := h.library.Bench.Workstreams()
+	if gotErr7 != nil {
+		t.Fatalf("Workstreams: %v", gotErr7)
+	}
+	if got := got7; len(got) != 0 {
 		t.Errorf("the live listing carries %d workstreams after the archiving, wanted none", len(got))
 	}
 	if !h.library.Bench.HasWorkstream(view.ID) {
@@ -2665,7 +2707,11 @@ func TestAWorkstreamCreatedWithASlugStoresThatSlug(t *testing.T) {
 	if stored.Title != "Autumn release" || stored.Status != bench.StatusActive {
 		t.Errorf("the anchor reads title %q and status %q, wanted the title and the active status the slug row did not disturb", stored.Title, stored.Status)
 	}
-	if found := h.library.Bench.WorkstreamByRef("autumn"); found == nil || found.ID != view.ID {
+	got6, gotErr6 := h.library.Bench.WorkstreamByRef("autumn")
+	if gotErr6 != nil {
+		t.Fatalf("WorkstreamByRef: %v", gotErr6)
+	}
+	if found := got6; found == nil || found.ID != view.ID {
 		t.Errorf("the slug autumn resolves to %v, wanted the workstream it was written on", found)
 	}
 }
@@ -2696,7 +2742,11 @@ func TestAMalformedSlugAtCreationIsRefusedBeforeAnythingIsWritten(t *testing.T) 
 			if after := h.workstreamDirs(); len(after) != len(before) {
 				t.Errorf("the refused creation left the collection reading %v, wanted the %v it found", after, before)
 			}
-			if got := h.library.Bench.Workstreams(); len(got) != 0 {
+			got5, gotErr5 := h.library.Bench.Workstreams()
+			if gotErr5 != nil {
+				t.Fatalf("Workstreams: %v", gotErr5)
+			}
+			if got := got5; len(got) != 0 {
 				t.Errorf("the workbench carries %d workstreams, wanted none", len(got))
 			}
 		})
@@ -2728,7 +2778,10 @@ func TestASecondCreationOnATakenSlugIsRefusedAndWritesNothing(t *testing.T) {
 	if after := h.workstreamDirs(); len(after) != len(before) {
 		t.Errorf("the refused creation left the collection reading %v, wanted the %v it found", after, before)
 	}
-	live := h.library.Bench.Workstreams()
+	live, gotErr4 := h.library.Bench.Workstreams()
+	if gotErr4 != nil {
+		t.Fatalf("Workstreams: %v", gotErr4)
+	}
 	if len(live) != 1 || live[0].ID != first.ID || live[0].Slug != "autumn" {
 		t.Fatalf("the workbench carries %d workstreams, wanted the one born under autumn alone", len(live))
 	}
@@ -2805,7 +2858,11 @@ func newColumn(title string) *Request {
 // of the anchor and is exactly the leak the criteria ask about.
 func (h *harness) columnDirs() int {
 	h.t.Helper()
-	return len(bench.ListIDs(filepath.Join(h.root, bench.ColumnsDir)))
+	listed3, listedErr3 := bench.ListIDs(filepath.Join(h.root, bench.ColumnsDir))
+	if listedErr3 != nil {
+		h.t.Fatalf("listing %s: %v", filepath.Join(h.root, bench.ColumnsDir), listedErr3)
+	}
+	return len(listed3)
 }
 
 // columnSequence is the workbench's own ordered columns list as it stands on
@@ -3294,6 +3351,10 @@ func TestAttachRefusesAKindTheContainmentTableGivesNoMount(t *testing.T) {
 	}
 
 	card := h.card(ref)
+	listed2, listedErr2 := bench.ListIDs(filepath.Join(card.Dir, bench.CommentsDir))
+	if listedErr2 != nil {
+		t.Fatalf("listing %s: %v", filepath.Join(card.Dir, bench.CommentsDir), listedErr2)
+	}
 	for _, c := range []struct {
 		name string
 		ref  string
@@ -3302,7 +3363,7 @@ func TestAttachRefusesAKindTheContainmentTableGivesNoMount(t *testing.T) {
 		{name: "the workbench", ref: "", dir: h.root},
 		{name: "a column", ref: intake, dir: filepath.Join(h.root, bench.ColumnsDir, intake)},
 		{name: "a card", ref: ref, dir: card.Dir},
-		{name: "a comment", ref: ref + "/comments/1", dir: filepath.Join(card.Dir, bench.CommentsDir, bench.ListIDs(filepath.Join(card.Dir, bench.CommentsDir))[0])},
+		{name: "a comment", ref: ref + "/comments/1", dir: filepath.Join(card.Dir, bench.CommentsDir, listed2[0])},
 	} {
 		t.Run(c.name+" still takes a file", func(t *testing.T) {
 			response := h.library.Attach(&Request{Verb: "attach", Actor: "alka", Ref: c.ref, File: source})

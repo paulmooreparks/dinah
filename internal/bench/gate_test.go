@@ -216,7 +216,10 @@ func TestGatingItemsExcludesNoKind(t *testing.T) {
 		plantChecklistItem(t, card, "b00000000003",
 			"kind: acceptance_criterion\nstate: pending\ncolumn: "+held+"\nordinal: 3\n", "A criterion.")
 
-		got := GatingItems(card, held)
+		got, gotErr7 := GatingItems(card, held)
+		if gotErr7 != nil {
+			t.Fatalf("GatingItems: %v", gotErr7)
+		}
 		if len(got) != 3 {
 			t.Fatalf("wanted all three kinds held, got %d: %s", len(got), ids(got))
 		}
@@ -232,7 +235,11 @@ func TestGatingItemsExcludesNoKind(t *testing.T) {
 		card := t.TempDir()
 		plantChecklistItem(t, card, "b00000000001",
 			"kind: acceptance_criterion\nstate: pending\ncolumn: "+held+"\nordinal: 1\n", "A criterion.")
-		if got := GatingItems(card, held); len(got) != 1 {
+		got6, gotErr6 := GatingItems(card, held)
+		if gotErr6 != nil {
+			t.Fatalf("GatingItems: %v", gotErr6)
+		}
+		if got := got6; len(got) != 1 {
 			t.Fatalf("wanted the criterion held, got %d: %s", len(got), ids(got))
 		}
 	})
@@ -247,7 +254,10 @@ func TestGatingItemsExcludesNoKind(t *testing.T) {
 			plantChecklistItem(t, card, "b00000000003",
 				"kind: acceptance_criterion\nstate: pending\ncolumn: "+held+"\nordinal: 3\n", "A criterion.")
 
-			got := GatingItems(card, held)
+			got, gotErr5 := GatingItems(card, held)
+			if gotErr5 != nil {
+				t.Fatalf("GatingItems: %v", gotErr5)
+			}
 			if names := ids(got); names != "b00000000002 b00000000003" {
 				t.Errorf("with the question %s, wanted the other two held, got %s", state, names)
 			}
@@ -260,7 +270,11 @@ func TestGatingItemsExcludesNoKind(t *testing.T) {
 			"kind: decision\nstate: pending\ncolumn: e00000000001\nordinal: 1\n", "A decision.")
 		plantChecklistItem(t, card, "b00000000002",
 			"kind: decision\nstate: pending\nordinal: 2\n", "A decision naming no column.")
-		if got := GatingItems(card, held); len(got) != 0 {
+		got4, gotErr4 := GatingItems(card, held)
+		if gotErr4 != nil {
+			t.Fatalf("GatingItems: %v", gotErr4)
+		}
+		if got := got4; len(got) != 0 {
 			t.Fatalf("wanted nothing held, got %s", ids(got))
 		}
 	})
@@ -269,7 +283,11 @@ func TestGatingItemsExcludesNoKind(t *testing.T) {
 		card := t.TempDir()
 		plantChecklistItem(t, card, "b00000000001",
 			"kind: decision\nstate: pending\nordinal: 1\n", "A decision naming no column.")
-		if got := GatingItems(card, ""); len(got) != 0 {
+		got3, gotErr3 := GatingItems(card, "")
+		if gotErr3 != nil {
+			t.Fatalf("GatingItems: %v", gotErr3)
+		}
+		if got := got3; len(got) != 0 {
 			t.Fatalf("an empty column held %s, and an item naming no column names no column", ids(got))
 		}
 	})
@@ -295,7 +313,11 @@ func TestGatingItemsSkipsAnItemWhoseAnchorWillNotOpen(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(card, ChecklistDir, "b00000000002"), 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
-	if got := GatingItems(card, "e00000000002"); len(got) != 1 || got[0].ID != "b00000000001" {
+	got2, gotErr2 := GatingItems(card, "e00000000002")
+	if gotErr2 != nil {
+		t.Fatalf("GatingItems: %v", gotErr2)
+	}
+	if got := got2; len(got) != 1 || got[0].ID != "b00000000001" {
 		t.Fatalf("wanted the one readable item, got %s", ids(got))
 	}
 }
@@ -333,7 +355,11 @@ func TestAFailedItemHoldsAColumnThatTheClaimRefusalLetsThrough(t *testing.T) {
 		card := t.TempDir()
 		plantChecklistItem(t, card, "b00000000001",
 			"kind: acceptance_criterion\nstate: "+ItemFailed+"\ncolumn: "+held+"\nnote: the endpoint still answers 200\nordinal: 1\n", "A criterion.")
-		if got := GatingItems(card, held); len(got) != 1 || got[0].ID != "b00000000001" {
+		got1, gotErr1 := GatingItems(card, held)
+		if gotErr1 != nil {
+			t.Fatalf("GatingItems: %v", gotErr1)
+		}
+		if got := got1; len(got) != 1 || got[0].ID != "b00000000001" {
 			t.Fatalf("wanted the failed criterion held, got %s", ids(got))
 		}
 	})

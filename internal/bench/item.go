@@ -94,7 +94,10 @@ func AddItem(cardDir, kind, column, owner, ts, text string) (*Item, error) {
 	if err != nil {
 		return nil, err
 	}
-	ordinal := nextOrdinal(collection, ItemAnchor)
+	ordinal, err := nextOrdinal(collection, ItemAnchor)
+	if err != nil {
+		return nil, err
+	}
 	dir := filepath.Join(collection, id)
 	fm := NewFrontmatter()
 	fm.Set(ItemKindField, kind)

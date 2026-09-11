@@ -19,7 +19,11 @@ import (
 func declareGateItems(t *testing.T, root, title, value string) {
 	t.Helper()
 	columns := filepath.Join(soleBenchDir(t, root), bench.ColumnsDir)
-	for _, id := range bench.ListIDs(columns) {
+	listed24, listedErr24 := bench.ListIDs(columns)
+	if listedErr24 != nil {
+		t.Fatalf("listing %s: %v", columns, listedErr24)
+	}
+	for _, id := range listed24 {
 		path := filepath.Join(columns, id, bench.ColumnAnchor)
 		text, err := bench.ReadText(path)
 		if err != nil {
@@ -45,7 +49,10 @@ func declareGateItems(t *testing.T, root, title, value string) {
 func soleItemID(t *testing.T, root, card string) string {
 	t.Helper()
 	collection := filepath.Join(soleBenchDir(t, root), bench.CardsDir, cardID(t, root, card), bench.ChecklistDir)
-	ids := bench.ListIDs(collection)
+	ids, listedErr23 := bench.ListIDs(collection)
+	if listedErr23 != nil {
+		t.Fatalf("listing %s: %v", collection, listedErr23)
+	}
 	if len(ids) != 1 {
 		t.Fatalf("wanted one item on %s, got %v", card, ids)
 	}

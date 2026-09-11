@@ -44,7 +44,9 @@ type Watched struct {
 // live card, and the archive half, which is every archived card.
 //
 // Both slices come back sorted by key, which is the order Digest renders them
-// in, so a caller never sorts them again.
+// in, so a caller never sorts them again. A collection that cannot be listed
+// is reported rather than contributing nothing, because a change set missing
+// half the workbench reads exactly like a workbench where nothing changed.
 //
 // Two exclusions are deliberate and neither is an oversight. An archived
 // card contributes its journal size alone, because its anchor describes no
@@ -54,23 +56,35 @@ type Watched struct {
 // archiving a workstream drops its key out of the live term, so a caller
 // still learns the board moved, and the acts recorded inside an archived
 // entity are not acts a caller has anything left to do about.
-func (b *Bench) WatchedEntities() (live, archive []Watched) {
+func (b *Bench) WatchedEntities() (live, archive []Watched, err error) {
 	live = append(live, watch(WorkbenchKey, b.JournalPath(), filepath.Join(b.Root, WorkbenchAnchor)))
-	for _, id := range ListIDs(b.WorkstreamsRoot()) {
+	workstreamIDs, err := ListIDs(b.WorkstreamsRoot())
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, id := range workstreamIDs {
 		dir := filepath.Join(b.WorkstreamsRoot(), id)
 		live = append(live, watch(WorkstreamsDir+"/"+id, filepath.Join(dir, JournalName), filepath.Join(dir, WorkstreamAnchor)))
 	}
-	for _, id := range ListIDs(b.CardsRoot()) {
+	cardIDs, err := ListIDs(b.CardsRoot())
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, id := range cardIDs {
 		dir := filepath.Join(b.CardsRoot(), id)
 		live = append(live, watch(CardsDir+"/"+id, filepath.Join(dir, JournalName), filepath.Join(dir, CardAnchor)))
 	}
-	for _, id := range ListIDs(b.ArchivedCardsRoot()) {
+	archivedIDs, err := ListIDs(b.ArchivedCardsRoot())
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, id := range archivedIDs {
 		dir := filepath.Join(b.ArchivedCardsRoot(), id)
 		archive = append(archive, watch(CardsDir+"/"+id, filepath.Join(dir, JournalName), ""))
 	}
 	sortWatched(live)
 	sortWatched(archive)
-	return live, archive
+	return live, archive, nil
 }
 
 // watch reads one entity's two values off the filesystem. An absent journal

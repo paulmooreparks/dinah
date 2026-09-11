@@ -6393,7 +6393,10 @@ func TestTheCardLineCarriesTheWorkstreamsACardBelongsTo(t *testing.T) {
 	}
 
 	anchor := filepath.Join(soleBenchDir(t, root), bench.CardsDir)
-	ids := bench.ListIDs(anchor)
+	ids, listedErr34 := bench.ListIDs(anchor)
+	if listedErr34 != nil {
+		t.Fatalf("listing %s: %v", anchor, listedErr34)
+	}
 	if len(ids) != 1 {
 		t.Fatalf("wanted one card, got %v", ids)
 	}
@@ -6426,7 +6429,11 @@ func TestAWorkstreamAndAColumnMayShareAName(t *testing.T) {
 	}
 	columns := filepath.Join(soleBenchDir(t, root), bench.ColumnsDir)
 	renamed := false
-	for _, id := range bench.ListIDs(columns) {
+	listed33, listedErr33 := bench.ListIDs(columns)
+	if listedErr33 != nil {
+		t.Fatalf("listing %s: %v", columns, listedErr33)
+	}
+	for _, id := range listed33 {
 		path := filepath.Join(columns, id, bench.ColumnAnchor)
 		text, err := bench.ReadText(path)
 		if err != nil {
@@ -6469,7 +6476,10 @@ func TestCheckReportsAndAdoptsAMembershipNamingNothing(t *testing.T) {
 		t.Fatalf("add: %d %s", got.code, got.errw)
 	}
 	cards := filepath.Join(soleBenchDir(t, root), bench.CardsDir)
-	ids := bench.ListIDs(cards)
+	ids, listedErr32 := bench.ListIDs(cards)
+	if listedErr32 != nil {
+		t.Fatalf("listing %s: %v", cards, listedErr32)
+	}
 	path := filepath.Join(cards, ids[0], bench.CardAnchor)
 	text, err := bench.ReadText(path)
 	if err != nil {
@@ -6668,7 +6678,10 @@ func TestAWorkstreamsNotesAndItsEmptyMembershipBothRead(t *testing.T) {
 	}
 
 	workstreams := filepath.Join(soleBenchDir(t, root), bench.WorkstreamsDir)
-	ids := bench.ListIDs(workstreams)
+	ids, listedErr31 := bench.ListIDs(workstreams)
+	if listedErr31 != nil {
+		t.Fatalf("listing %s: %v", workstreams, listedErr31)
+	}
 	if len(ids) != 1 {
 		t.Fatalf("wanted one workstream, got %v", ids)
 	}
@@ -7923,7 +7936,11 @@ func TestAPositionNamesTheSameAttachmentAcrossTheMigration(t *testing.T) {
 		t.Fatalf("migrate: %d %s", got.code, got.errw)
 	}
 	wanted := map[string]int{"a.txt": 1, "b.txt": 2}
-	for _, id := range bench.ListIDs(collection) {
+	listed30, listedErr30 := bench.ListIDs(collection)
+	if listedErr30 != nil {
+		t.Fatalf("listing %s: %v", collection, listedErr30)
+	}
+	for _, id := range listed30 {
 		filename := attachedFilename(t, collection, id)
 		if got := bench.EntityOrdinal(collection, id, bench.AttachmentAnchor); got != wanted[filename] {
 			t.Errorf("the migration stamped %s with ordinal %d, wanted %d", filename, got, wanted[filename])
@@ -8057,7 +8074,10 @@ func legacyAttachmentsAgainstTheListing(t *testing.T) (string, string) {
 			}
 		}
 		collection := attachmentsCollection(t, root)
-		listed := bench.ListIDs(collection)
+		listed, listedErr29 := bench.ListIDs(collection)
+		if listedErr29 != nil {
+			t.Fatalf("listing %s: %v", collection, listedErr29)
+		}
 		if len(listed) != 2 {
 			t.Fatalf("the card carries %d attachments, wanted two", len(listed))
 		}
@@ -8088,7 +8108,11 @@ func attachedFilename(t *testing.T, collection, id string) string {
 // read path meets is the legacy anchor rather than a rewritten one.
 func stripOrdinals(t *testing.T, collection string) {
 	t.Helper()
-	for _, id := range bench.ListIDs(collection) {
+	listed28, listedErr28 := bench.ListIDs(collection)
+	if listedErr28 != nil {
+		t.Fatalf("listing %s: %v", collection, listedErr28)
+	}
+	for _, id := range listed28 {
 		anchor := filepath.Join(collection, id, bench.AttachmentAnchor)
 		text, err := os.ReadFile(anchor)
 		if err != nil {

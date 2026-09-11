@@ -894,19 +894,30 @@ func (l *Library) Contents(req *Request, level string) (*Tree, error) {
 		return nil, err
 	}
 	if collection != nil {
-		tree := l.collectionContents(collection, level)
+		tree, err := l.collectionContents(collection, level)
+		if err != nil {
+			return nil, err
+		}
 		tree.Archived = collection.Archived
 		return tree, nil
+	}
+	root, err := l.rootOf(entity)
+	if err != nil {
+		return nil, err
 	}
 	tree := &Tree{
 		Producer: ProducerContainment,
 		Subject:  SubjectEntity,
 		Depth:    level,
-		Root:     l.rootOf(entity),
+		Root:     root,
 		Archived: entity.Archived,
 	}
 	rank := rankOfKind(entity.Kind)
-	tree.Root.Count = containedCount(entity.Dir, entity.Kind)
+	count, err := containedCount(entity.Dir, entity.Kind)
+	if err != nil {
+		return nil, err
+	}
+	tree.Root.Count = count
 	// Children below the workbench are still composed against the slug, the
 	// form ResolveEntity's own head-recomposition still defaults to. Only the
 	// root's own displayed reference changes, per dinah-151 OQ-9; changing
@@ -914,8 +925,13 @@ func (l *Library) Contents(req *Request, level string) (*Tree, error) {
 	// address below the workbench rather than the one address the ruling is
 	// about, and would desync from the resolver's own default the moment a
 	// child address was resolved a second time.
-	childRef := l.childSeed(entity)
-	l.fillContained(&tree.Root, entity.Dir, entity.Kind, childRef, rank, contentsLimit(level))
+	childRef, err := l.childSeed(entity)
+	if err != nil {
+		return nil, err
+	}
+	if err := l.fillContained(&tree.Root, entity.Dir, entity.Kind, childRef, rank, contentsLimit(level)); err != nil {
+		return nil, err
+	}
 	return tree, nil
 }
 
@@ -925,11 +941,15 @@ func (l *Library) Contents(req *Request, level string) (*Tree, error) {
 // changed the root's own displayed reference alone, and seeding the children
 // with it as well would rename every address below the workbench rather than
 // the one address the ruling is about.
-func (l *Library) childSeed(entity *bench.EntityRef) string {
+func (l *Library) childSeed(entity *bench.EntityRef) (string, error) {
 	if entity.Kind == bench.KindWorkbench {
-		return l.Bench.Slug
+		return l.Bench.Slug, nil
 	}
-	return l.rootOf(entity).Ref
+	root, err := l.rootOf(entity)
+	if err != nil {
+		return "", err
+	}
+	return root.Ref, nil
 }
 
 // collectionContents is the walk rooted at a whole collection: the rows a walk
@@ -940,7 +960,7 @@ func (l *Library) childSeed(entity *bench.EntityRef) string {
 // because a collection has no anchor, no identifier and no row in the
 // containment table, and the depth ladder is a ladder of entities. A --depth
 // therefore cuts this walk where it cuts a walk rooted at the holder.
-func (l *Library) collectionContents(collection *bench.CollectionRef, level string) *Tree {
+func (l *Library) collectionContents(collection *bench.CollectionRef, level string) (*Tree, error) {
 	tree := &Tree{
 		Producer: ProducerContainment,
 		Subject:  SubjectEntity,
@@ -949,22 +969,35 @@ func (l *Library) collectionContents(collection *bench.CollectionRef, level stri
 	}
 	rank := rankOfKind(collection.Holder.Kind)
 	limit := contentsLimit(level)
-	children := l.memberNodes(collection.Dir, collection.Mount, collection.Members, l.childSeed(collection.Holder))
+	seed, err := l.childSeed(collection.Holder)
+	if err != nil {
+		return nil, err
+	}
+	children, err := l.memberNodes(collection.Dir, collection.Mount, collection.Members, seed)
+	if err != nil {
+		return nil, err
+	}
 	for i := range children {
 		member := filepath.Join(collection.Dir, children[i].ID)
-		l.fillContained(&children[i], member, collection.Mount.Kind, children[i].Ref, rank+1, limit)
+		if err := l.fillContained(&children[i], member, collection.Mount.Kind, children[i].Ref, rank+1, limit); err != nil {
+			return nil, err
+		}
 		// The count is walked rather than added up from the children the
 		// projection drew, so it is the same number whatever the depth left
 		// out, which is the rule containedCount already carries.
-		tree.Root.Count += 1 + containedCount(member, collection.Mount.Kind)
+		count, err := containedCount(member, collection.Mount.Kind)
+		if err != nil {
+			return nil, err
+		}
+		tree.Root.Count += 1 + count
 	}
 	placeChildren(&tree.Root, children, rank, limit)
-	return tree
+	return tree, nil
 }
 
 // rootOf is the node the containment walk starts from, named the way a person
 // would name it.
-func (l *Library) rootOf(entity *bench.EntityRef) TreeNode {
+func (l *Library) rootOf(entity *bench.EntityRef) (TreeNode, error) {
 	switch entity.Kind {
 	case bench.KindWorkbench:
 		// The reference is the form path, show, and edit already accept for
@@ -972,20 +1005,20 @@ func (l *Library) rootOf(entity *bench.EntityRef) TreeNode {
 		// slug: a slug is a prefix for building a card reference and nothing
 		// accepts it alone, so drawing it here would put an address in the
 		// tree a reader could not type back.
-		return TreeNode{Kind: entity.Kind, Ref: bench.WorkbenchRef, Title: l.Bench.Title}
+		return TreeNode{Kind: entity.Kind, Ref: bench.WorkbenchRef, Title: l.Bench.Title}, nil
 	case bench.KindColumn:
 		node := TreeNode{Kind: entity.Kind, ID: entity.ID, Ref: entity.Ref}
 		if column := l.Bench.Column(entity.ID); column != nil {
 			node.Title = column.Title
 		}
-		return node
+		return node, nil
 	case bench.KindCard:
 		return TreeNode{
 			Kind:  entity.Kind,
 			ID:    entity.ID,
 			Ref:   entity.Card.Ref(l.Bench.Slug),
 			Title: entity.Card.Title,
-		}
+		}, nil
 	case bench.KindItem:
 		// An item is the one kind whose printed spelling is not the one the
 		// resolver composes. The resolver answers the collection form, and
@@ -993,12 +1026,16 @@ func (l *Library) rootOf(entity *bench.EntityRef) TreeNode {
 		// print the kind-narrowed form through itemRef, so a walk rooted at an item
 		// composes it here as well rather than drawing one item under two
 		// addresses on two screens.
+		itemReference, err := l.itemRefOf(entity)
+		if err != nil {
+			return TreeNode{}, err
+		}
 		return TreeNode{
 			Kind:  entity.Kind,
 			ID:    entity.ID,
-			Ref:   l.itemRefOf(entity),
+			Ref:   itemReference,
 			Title: anchorTitle(entity.Dir, anchorOfKind(entity.Kind)),
-		}
+		}, nil
 	}
 	// Every kind reaching this branch sits below a head, and the resolver
 	// composes the reference of anything below a head, so the address a
@@ -1010,7 +1047,7 @@ func (l *Library) rootOf(entity *bench.EntityRef) TreeNode {
 		ID:    entity.ID,
 		Ref:   entity.Ref,
 		Title: anchorTitle(entity.Dir, anchorOfKind(entity.Kind)),
-	}
+	}, nil
 }
 
 // itemRefOf composes one checklist item's printed reference when the item is
@@ -1018,29 +1055,38 @@ func (l *Library) rootOf(entity *bench.EntityRef) TreeNode {
 // hold an item's positions from the collection they walked; a walk rooted at
 // the item itself holds neither, so the collection is walked once here in the
 // order the resolver counts.
-func (l *Library) itemRefOf(entity *bench.EntityRef) string {
+func (l *Library) itemRefOf(entity *bench.EntityRef) (string, error) {
 	if entity.Card == nil {
-		return entity.Ref
+		return entity.Ref, nil
 	}
 	cardRef := entity.Card.Ref(l.Bench.Slug)
 	collection := filepath.Dir(entity.Dir)
 	id := filepath.Base(entity.Dir)
+	ids, err := bench.ListIDs(collection)
+	if err != nil {
+		return "", err
+	}
 	kindSeen := map[string]int{}
-	for n, member := range bench.SortByOrdinal(collection, bench.ItemAnchor, bench.ListIDs(collection)) {
+	for n, member := range bench.SortByOrdinal(collection, bench.ItemAnchor, ids) {
 		kind := itemKindAt(filepath.Join(collection, member))
 		kindSeen[kind]++
 		if member == id {
-			return itemRef(cardRef, kind, kindSeen[kind], n+1)
+			return itemRef(cardRef, kind, kindSeen[kind], n+1), nil
 		}
 	}
-	return entity.Ref
+	return entity.Ref, nil
 }
 
 // fillContained gives one node of the containment tree its children and its
 // depth report. The filter never reaches this producer, so a containment node
 // hides nothing but what the depth cut off.
-func (l *Library) fillContained(node *TreeNode, dir, kind, ref string, rank, limit int) {
-	placeChildren(node, l.containedChildren(dir, kind, ref, rank, limit), rank, limit)
+func (l *Library) fillContained(node *TreeNode, dir, kind, ref string, rank, limit int) error {
+	children, err := l.containedChildren(dir, kind, ref, rank, limit)
+	if err != nil {
+		return err
+	}
+	placeChildren(node, children, rank, limit)
+	return nil
 }
 
 // placeChildren either draws a node's children or reports them as held back,
@@ -1071,17 +1117,26 @@ func placeChildren(node *TreeNode, children []TreeNode, rank, limit int) {
 // The workbench's own two collections are ordered by their own rules: columns
 // come in the flow's declared order and cards in arrival order. Every other
 // collection comes in the creation order a positional reference counts in.
-func (l *Library) containedChildren(dir, kind, ref string, rank, limit int) []TreeNode {
+func (l *Library) containedChildren(dir, kind, ref string, rank, limit int) ([]TreeNode, error) {
 	var nodes []TreeNode
 	for _, mount := range bench.Contains(kind) {
 		collection := filepath.Join(dir, mount.Dir)
-		children := l.memberNodes(collection, mount, l.containmentMembersOf(collection, mount), ref)
+		members, err := l.containmentMembersOf(collection, mount)
+		if err != nil {
+			return nil, err
+		}
+		children, err := l.memberNodes(collection, mount, members, ref)
+		if err != nil {
+			return nil, err
+		}
 		for i := range children {
-			l.fillContained(&children[i], filepath.Join(collection, children[i].ID), mount.Kind, children[i].Ref, rank+1, limit)
+			if err := l.fillContained(&children[i], filepath.Join(collection, children[i].ID), mount.Kind, children[i].Ref, rank+1, limit); err != nil {
+				return nil, err
+			}
 		}
 		nodes = append(nodes, children...)
 	}
-	return nodes
+	return nodes, nil
 }
 
 // memberNodes builds one node per member of a collection, in the order the ids
@@ -1098,7 +1153,7 @@ func (l *Library) containedChildren(dir, kind, ref string, rank, limit int) []Tr
 // only over an item whose anchor will not open: itemKindAt reads that item's
 // kind as the empty string, so it lands in a bucket of its own here and Show
 // never draws it at all.
-func (l *Library) memberNodes(collection string, mount bench.Mount, ids []string, seed string) []TreeNode {
+func (l *Library) memberNodes(collection string, mount bench.Mount, ids []string, seed string) ([]TreeNode, error) {
 	nodes := make([]TreeNode, 0, len(ids))
 	kindSeen := map[string]int{}
 	for position, id := range ids {
@@ -1108,9 +1163,13 @@ func (l *Library) memberNodes(collection string, mount bench.Mount, ids []string
 			kindSeen[itemKind]++
 			kindPosition = kindSeen[itemKind]
 		}
-		nodes = append(nodes, l.containedNode(collection, id, position+1, itemKind, kindPosition, mount, seed))
+		node, err := l.containedNode(collection, id, position+1, itemKind, kindPosition, mount, seed)
+		if err != nil {
+			return nil, err
+		}
+		nodes = append(nodes, node)
 	}
-	return nodes
+	return nodes, nil
 }
 
 // itemKindAt is the kind an item's own anchor records, and the empty string
@@ -1129,25 +1188,25 @@ func itemKindAt(dir string) string {
 // walk draws them. Named distinctly from Library.membersOf in beyond.go,
 // which lists a workstream's own member cards: same shape, different
 // question, and the two would otherwise collide under one name.
-func (l *Library) containmentMembersOf(collection string, mount bench.Mount) []string {
+func (l *Library) containmentMembersOf(collection string, mount bench.Mount) ([]string, error) {
 	switch mount.Kind {
 	case bench.KindColumn:
 		ids := make([]string, 0, len(l.Bench.Columns))
 		for _, column := range l.Bench.Columns {
 			ids = append(ids, column.ID)
 		}
-		return ids
+		return ids, nil
 	case bench.KindCard:
 		cards, err := l.Bench.Cards()
 		if err != nil {
-			return nil
+			return nil, nil
 		}
 		sortByArrival(cards)
 		ids := make([]string, 0, len(cards))
 		for _, card := range cards {
 			ids = append(ids, card.ID)
 		}
-		return ids
+		return ids, nil
 	}
 	return bench.MemberIDs(collection, mount)
 }
@@ -1161,13 +1220,17 @@ func (l *Library) containedNode(
 	kindPosition int,
 	mount bench.Mount,
 	parentRef string,
-) TreeNode {
+) (TreeNode, error) {
 	dir := filepath.Join(collection, id)
+	count, err := containedCount(dir, mount.Kind)
+	if err != nil {
+		return TreeNode{}, err
+	}
 	node := TreeNode{
 		Kind:  mount.Kind,
 		ID:    id,
 		Title: anchorTitle(dir, mount.Anchor),
-		Count: containedCount(dir, mount.Kind),
+		Count: count,
 	}
 	switch mount.Kind {
 	case bench.KindColumn:
@@ -1186,7 +1249,7 @@ func (l *Library) containedNode(
 	default:
 		node.Ref = parentRef + "/" + mount.Dir + "/" + strconv.Itoa(position)
 	}
-	return node
+	return node, nil
 }
 
 // containedCount is how many entities sit strictly below a directory.
@@ -1197,19 +1260,27 @@ func (l *Library) containedNode(
 // node's count equals its children plus their counts follows from the walk
 // rather than producing it, because a containment tree partitions its entities
 // and nothing appears in it twice.
-func containedCount(dir, kind string) int {
+func containedCount(dir, kind string) (int, error) {
 	total := 0
 	for _, mount := range bench.Contains(kind) {
 		collection := filepath.Join(dir, mount.Dir)
-		for _, id := range bench.ListIDs(collection) {
+		ids, err := bench.ListIDs(collection)
+		if err != nil {
+			return 0, err
+		}
+		for _, id := range ids {
 			member := filepath.Join(collection, id)
 			if !bench.Exists(filepath.Join(member, mount.Anchor)) {
 				continue
 			}
-			total += 1 + containedCount(member, mount.Kind)
+			below, err := containedCount(member, mount.Kind)
+			if err != nil {
+				return 0, err
+			}
+			total += 1 + below
 		}
 	}
-	return total
+	return total, nil
 }
 
 // anchorOfKind is the anchor filename one entity kind carries, read off the

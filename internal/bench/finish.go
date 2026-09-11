@@ -1,7 +1,6 @@
 package bench
 
 import (
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -54,12 +53,20 @@ const directionBoth = "both"
 // the live half of every collection a structural act can name and never the
 // archive mirrors, since a sibling always lives in the live half whichever
 // way its entity is travelling, which keeps the cost bounded by the live set.
-func (b *Bench) interruptions() []interruption {
+//
+// A collection that will not read is reported rather than swept past. A
+// sweep that skips it answers that there is nothing to finish, which is the
+// sentence an operator reads while a rename sits half-done.
+func (b *Bench) interruptions() ([]interruption, error) {
+	collections, err := b.siblingCollections()
+	if err != nil {
+		return nil, err
+	}
 	var standing []interruption
-	for _, collection := range b.siblingCollections() {
-		entries, err := os.ReadDir(collection)
+	for _, collection := range collections {
+		entries, err := readCollection(collection)
 		if err != nil {
-			continue
+			return nil, err
 		}
 		for _, entry := range entries {
 			name := entry.Name()
@@ -78,7 +85,7 @@ func (b *Bench) interruptions() []interruption {
 			standing = append(standing, b.readInterruption(collection, id, path, record))
 		}
 	}
-	return standing
+	return standing, nil
 }
 
 // readInterruption works out where one standing sibling's entity can be and
@@ -124,30 +131,46 @@ func (b *Bench) entityLockDir(collection, source string) string {
 // The walk reads Contains rather than naming the collections here, so a kind
 // gaining a collection is reachable by the interruption sweep without this
 // function being edited.
-func (b *Bench) siblingCollections() []string {
+func (b *Bench) siblingCollections() ([]string, error) {
 	var collections []string
 	for _, mount := range Contains(KindWorkbench) {
 		dir := filepath.Join(b.Root, mount.Dir)
 		collections = append(collections, dir)
-		for _, id := range ListIDs(dir) {
-			collections = append(collections, b.collectionsBelow(filepath.Join(dir, id), mount.Kind)...)
+		ids, err := ListIDs(dir)
+		if err != nil {
+			return nil, err
+		}
+		for _, id := range ids {
+			below, err := b.collectionsBelow(filepath.Join(dir, id), mount.Kind)
+			if err != nil {
+				return nil, err
+			}
+			collections = append(collections, below...)
 		}
 	}
-	return collections
+	return collections, nil
 }
 
 // collectionsBelow lists the live collection directories below one entity,
 // walking the containment grammar down from the kind it names.
-func (b *Bench) collectionsBelow(dir, kind string) []string {
+func (b *Bench) collectionsBelow(dir, kind string) ([]string, error) {
 	var collections []string
 	for _, mount := range Contains(kind) {
 		collection := filepath.Join(dir, mount.Dir)
 		collections = append(collections, collection)
-		for _, id := range ListIDs(collection) {
-			collections = append(collections, b.collectionsBelow(filepath.Join(collection, id), mount.Kind)...)
+		ids, err := ListIDs(collection)
+		if err != nil {
+			return nil, err
+		}
+		for _, id := range ids {
+			below, err := b.collectionsBelow(filepath.Join(collection, id), mount.Kind)
+			if err != nil {
+				return nil, err
+			}
+			collections = append(collections, below...)
 		}
 	}
-	return collections
+	return collections, nil
 }
 
 // decidingJournal names the journal whose event says whether an act reached
@@ -246,8 +269,12 @@ func (b *Bench) FinishInterrupted(actor, now string) ([]Finding, error) {
 		return nil, err
 	}
 	defer benchLock.Release()
+	interrupted, err := b.interruptions()
+	if err != nil {
+		return nil, err
+	}
 	var findings []Finding
-	for _, standing := range b.interruptions() {
+	for _, standing := range interrupted {
 		finding, err := b.finish(standing)
 		if err != nil {
 			return findings, err

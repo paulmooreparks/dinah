@@ -211,7 +211,10 @@ func TestAnItemFiledBySlugHoldsTheColumnItNames(t *testing.T) {
 		t.Fatalf("file: %s %s", response.Outcome, response.Refusal)
 	}
 	h.reopen()
-	holding := bench.GatingItems(h.card(card).Dir, review)
+	holding, gotErr13 := bench.GatingItems(h.card(card).Dir, review)
+	if gotErr13 != nil {
+		t.Fatalf("GatingItems: %v", gotErr13)
+	}
 	if len(holding) != 1 {
 		t.Fatalf("wanted the review station held by the one item filed against it, got %d holding item(s)", len(holding))
 	}

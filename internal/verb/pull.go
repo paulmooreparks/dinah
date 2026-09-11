@@ -316,10 +316,14 @@ func (l *Library) pullTransaction(req *Request, head *bench.Card) *Response {
 		return l.FromError(req, err)
 	}
 	if req.Basis != "" && req.Basis != card.Revision {
+		view, err := l.view(card)
+		if err != nil {
+			return l.FromError(req, err)
+		}
 		return &Response{
 			Outcome:     contract.OutcomeStale,
 			Verb:        req.Verb,
-			Card:        l.view(card),
+			Card:        view,
 			Basis:       req.Basis,
 			Affordances: l.affordances(card),
 		}

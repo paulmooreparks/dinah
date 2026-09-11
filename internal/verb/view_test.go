@@ -57,7 +57,10 @@ func TestViewCarriesSeverityAndPriorityVerbatim(t *testing.T) {
 				Priority: tc.priority,
 				Revision: "deadbeefcafe",
 			}
-			view := h.library.view(card)
+			view, gotErr14 := h.library.view(card)
+			if gotErr14 != nil {
+				t.Fatalf("view: %v", gotErr14)
+			}
 			if view.Severity != tc.severity {
 				t.Errorf("Severity = %q, want %q", view.Severity, tc.severity)
 			}

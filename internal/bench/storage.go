@@ -150,13 +150,39 @@ func ClaimID(collection string, taken func(string) bool) (string, error) {
 	return "", fmt.Errorf("could not claim an identifier in %s after 16 attempts", collection)
 }
 
+// readCollection lists a directory, separating a collection this format has
+// not written yet from one that exists and will not read. The existence
+// question is settled by a second os.Stat made only after the read has
+// failed, because os.ReadDir's own error reports a plain file sitting where a
+// directory belongs as not-existing on at least one supported platform, which
+// is the same answer it gives for a path nobody created. os.Stat's documented
+// contract separates the two on every platform alike, so nothing here rests
+// on how any particular platform spells a read failure.
+//
+// It is the one place in the shipped binary that decides whether a
+// directory-read failure means absence, and every collection reader in this
+// package goes through it rather than classifying os.ReadDir's error again.
+func readCollection(dir string) ([]os.DirEntry, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if _, statErr := os.Stat(dir); os.IsNotExist(statErr) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return entries, nil
+}
+
 // ListIDs returns the identifiers of a collection directory, sorted
 // ascending, ignoring anything that is not a hex directory. An absent
-// collection is an empty one, which is the absent-means-empty rule.
-func ListIDs(collection string) []string {
-	entries, err := os.ReadDir(collection)
+// collection is an empty one, which is the absent-means-empty rule, and it is
+// answered with a nil slice and a nil error. A collection that is there and
+// will not read is answered with the error, so a caller receiving an empty
+// list and a nil error has been told the collection really was read.
+func ListIDs(collection string) ([]string, error) {
+	entries, err := readCollection(collection)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	var ids []string
 	for _, entry := range entries {
@@ -165,7 +191,7 @@ func ListIDs(collection string) []string {
 		}
 		ids = append(ids, entry.Name())
 	}
-	return ids
+	return ids, nil
 }
 
 // Exists reports whether a path is present.
@@ -276,31 +302,16 @@ func ClaimWorkbenchID(container string) (string, error) {
 //
 // It answers (nil, nil) for a container that names nothing on disk, because a
 // discovery walk visits mostly directories that hold no .dinah at all and a
-// migration's first run has not created its container yet. It answers
-// (nil, err) whenever something is there and could not be listed, so a caller
-// that receives an empty list and a nil error has been told that the container
-// really was read and really held nothing.
+// migration's first run has not created its container yet.
 //
-// The existence question is settled by a second os.Stat on the container
-// rather than by classifying os.ReadDir's own error, and that is the whole
-// point of the two calls. os.ReadDir reports a path where a plain file sits in
-// place of the directory through an error that os.IsNotExist and
-// errors.Is(err, fs.ErrNotExist) both answer true for on at least one
-// supported platform, which is the same answer they give for a container
-// nobody ever created. Nothing here depends on that, and the code is written
-// so that nothing can come to depend on it: os.ReadDir's error is never
-// classified at all, and os.Stat, whose documented contract distinguishes a
-// path that does not exist from a path that exists and is not a directory,
-// decides the case on every platform alike. listIdentifiers
-// (internal/bench/vocabulary.go) classifies os.ReadDir's own error for a
-// different collection and carries the same latent gap, so do not copy that
-// idiom into this function.
+// It answers (nil, err) whenever something is there and could not be listed,
+// so a caller that receives an empty list and a nil error has been told that
+// the container really was read and really held nothing. The read and the
+// existence discrimination are performed by readCollection, which carries the
+// platform reasoning for every collection reader in this package.
 func ListWorkbenchIDs(container string) ([]string, error) {
-	entries, err := os.ReadDir(container)
+	entries, err := readCollection(container)
 	if err != nil {
-		if _, statErr := os.Stat(container); os.IsNotExist(statErr) {
-			return nil, nil
-		}
 		return nil, err
 	}
 	var ids []string

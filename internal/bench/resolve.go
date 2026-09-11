@@ -220,7 +220,10 @@ func (b *Bench) resolvePathBody(half ResolutionHalf, ref string) (string, error)
 		// remainder, because that resolver strips the prefix itself so that
 		// the workstream-taking commands accept either spelling. Passing the
 		// remainder would strip a second time and admit a doubled prefix.
-		workstream := b.workstreamByRefIn(half, strings.TrimSpace(ref))
+		workstream, err := b.workstreamByRefIn(half, strings.TrimSpace(ref))
+		if err != nil {
+			return "", err
+		}
 		if workstream == nil {
 			return "", contract.Refuse(contract.UnknownWorkstream, rest)
 		}
@@ -403,7 +406,11 @@ func (b *Bench) resolveReferenceBody(half ResolutionHalf, ref string) (*EntityRe
 	// A bare head is always the reference's deepest collection step, so it
 	// takes the caller's half straight through rather than asking headHalf.
 	if rest == "" {
-		if column := b.columnByRefIn(half, ref); column != nil {
+		column, err := b.columnByRefIn(half, ref)
+		if err != nil {
+			return nil, nil, err
+		}
+		if column != nil {
 			return &EntityRef{
 				Kind:     KindColumn,
 				Dir:      b.columnDirIn(half, column.ID),
@@ -448,16 +455,26 @@ func (b *Bench) resolveReferenceBody(half ResolutionHalf, ref string) (*EntityRe
 	if card != nil {
 		headKind, headRef, headDir = KindCard, card.Ref(b.Slug), card.Dir
 	} else if !IsWorkbenchRef(head) && head != b.Slug {
-		if column := b.columnByRefIn(headHalf(half, rest), head); column != nil {
+		column, err := b.columnByRefIn(headHalf(half, rest), head)
+		if err != nil {
+			return nil, nil, err
+		}
+		if column != nil {
 			headKind, headRef = KindColumn, column.Ref()
 			headDir = b.columnDirIn(headHalf(half, rest), column.ID)
 		}
+	}
+	// The composed reference is hoisted out of the composite literal because
+	// a field of one takes a single value, and this call now answers two.
+	below, err := b.refBelowHead(half, headKind, headRef, headDir, dir)
+	if err != nil {
+		return nil, nil, err
 	}
 	return &EntityRef{
 		Kind:     kind,
 		Dir:      dir,
 		ID:       filepath.Base(dir),
-		Ref:      b.refBelowHead(half, headKind, headRef, headDir, dir),
+		Ref:      below,
 		Card:     card,
 		Archived: half == ArchivedHalf,
 	}, nil, nil
@@ -481,8 +498,8 @@ func (b *Bench) orAWorkstreamNamedBarely(ref string, err error) error {
 	if !isRefusal || refusal.Name != contract.UnknownCard {
 		return err
 	}
-	workstream := b.WorkstreamByRef(ref)
-	if workstream == nil {
+	workstream, streamErr := b.WorkstreamByRef(ref)
+	if streamErr != nil || workstream == nil {
 		return err
 	}
 	return contract.RefuseWith(contract.UnknownCard, refusal.Detail, map[string]string{"workstream": workstream.Ref()})
@@ -494,7 +511,10 @@ func (b *Bench) orAWorkstreamNamedBarely(ref string, err error) error {
 // answers and the position a screen prints are one number.
 func (b *Bench) collectionAt(half ResolutionHalf, ref string, landed *landing) (*CollectionRef, error) {
 	ref = strings.TrimSpace(ref)
-	members := MemberIDs(landed.dir, landed.mount)
+	members, err := MemberIDs(landed.dir, landed.mount)
+	if err != nil {
+		return nil, err
+	}
 	if landed.narrow != "" {
 		members = filterByKind(landed.dir, landed.mount.Anchor, members, landed.narrow)
 	}
@@ -564,7 +584,11 @@ func (b *Bench) resolveBelowLanding(half ResolutionHalf, ref string, landed *lan
 		path, err := descend(b.Root, KindWorkbench, strings.Split(rest, "/"), nil, landed, half)
 		return path, nil, err
 	}
-	if column := b.columnByRefIn(within, head); column != nil {
+	withinColumn, err := b.columnByRefIn(within, head)
+	if err != nil {
+		return "", nil, err
+	}
+	if column := withinColumn; column != nil {
 		dir := b.columnDirIn(within, column.ID)
 		if rest == "" {
 			return filepath.Join(dir, ColumnAnchor), nil, nil
@@ -647,8 +671,12 @@ type landing struct {
 // The resolver counts a position in this list and the containment walk draws
 // its rows from it, so the two read one statement of the order rather than
 // two statements that agree today.
-func MemberIDs(collection string, mount Mount) []string {
-	return SortByOrdinal(collection, mount.Anchor, ListIDs(collection))
+func MemberIDs(collection string, mount Mount) ([]string, error) {
+	ids, err := ListIDs(collection)
+	if err != nil {
+		return nil, err
+	}
+	return SortByOrdinal(collection, mount.Anchor, ids), nil
 }
 
 // descend resolves the segments below one entity by walking the containment
@@ -720,7 +748,10 @@ func descend(dir, kind string, segments []string, narrow *string, landed *landin
 		}
 		return collection, nil
 	}
-	ids := MemberIDs(collection, mount)
+	ids, err := MemberIDs(collection, mount)
+	if err != nil {
+		return "", err
+	}
 	if narrow != nil {
 		ids = filterByKind(collection, mount.Anchor, ids, *narrow)
 	}
@@ -963,11 +994,11 @@ func (b *Bench) workstreamsRootIn(half ResolutionHalf) string {
 // ColumnByRef, which reads the workbench's own ordered list, and that list
 // cannot hold an archived column, so the archived form loads the anchors under
 // the mirror instead.
-func (b *Bench) columnByRefIn(half ResolutionHalf, ref string) *Column {
+func (b *Bench) columnByRefIn(half ResolutionHalf, ref string) (*Column, error) {
 	if half == ArchivedHalf {
 		return b.ArchivedColumnByRef(ref)
 	}
-	return b.ColumnByRef(ref)
+	return b.ColumnByRef(ref), nil
 }
 
 // ArchivedColumnByRef finds a column in the archive mirror, by the grammar
@@ -977,14 +1008,18 @@ func (b *Bench) columnByRefIn(half ResolutionHalf, ref string) *Column {
 // The order is ColumnByRef's own, and the reason it records applies here
 // unchanged: a reference matching one column's slug and another column's
 // title resolves to the column whose slug it is.
-func (b *Bench) ArchivedColumnByRef(ref string) *Column {
+func (b *Bench) ArchivedColumnByRef(ref string) (*Column, error) {
 	ref = strings.TrimSpace(ref)
 	if ref == "" {
-		return nil
+		return nil, nil
 	}
 	root := filepath.Join(b.Root, ArchiveDir)
+	ids, err := ListIDs(b.ArchivedColumnsRoot())
+	if err != nil {
+		return nil, err
+	}
 	var columns []*Column
-	for n, id := range ListIDs(b.ArchivedColumnsRoot()) {
+	for n, id := range ids {
 		// A directory the reader refuses is skipped rather than refused
 		// over, which is what leaves the rest of the mirror reachable when
 		// one anchor in it is damaged.
@@ -997,46 +1032,49 @@ func (b *Bench) ArchivedColumnByRef(ref string) *Column {
 	want := asciiLower(ref)
 	for _, column := range columns {
 		if column.ID == ref {
-			return column
+			return column, nil
 		}
 	}
 	for _, column := range columns {
 		if column.Slug != "" && asciiLower(column.Slug) == want {
-			return column
+			return column, nil
 		}
 	}
 	for _, column := range columns {
 		if asciiLower(column.Title) == want {
-			return column
+			return column, nil
 		}
 	}
-	return nil
+	return nil, nil
 }
 
 // workstreamByRefIn is the workstream a reference names in one half. The live
 // form is WorkstreamByRef, which spans both halves on purpose, because a
 // card's membership has to resolve whichever half its workstream is in.
-func (b *Bench) workstreamByRefIn(half ResolutionHalf, ref string) *Workstream {
+func (b *Bench) workstreamByRefIn(half ResolutionHalf, ref string) (*Workstream, error) {
 	if half != ArchivedHalf {
 		return b.WorkstreamByRef(ref)
 	}
 	handle := strings.TrimPrefix(strings.TrimSpace(ref), WorkstreamRefPrefix)
 	if handle == "" {
-		return nil
+		return nil, nil
 	}
-	archived := workstreamsIn(b.workstreamsRootIn(ArchivedHalf))
+	archived, err := workstreamsIn(b.workstreamsRootIn(ArchivedHalf))
+	if err != nil {
+		return nil, err
+	}
 	for _, workstream := range archived {
 		if workstream.ID == handle {
-			return workstream
+			return workstream, nil
 		}
 	}
 	want := asciiLower(handle)
 	for _, workstream := range archived {
 		if workstream.Slug != "" && asciiLower(workstream.Slug) == want {
-			return workstream
+			return workstream, nil
 		}
 	}
-	return nil
+	return nil, nil
 }
 
 // notArchivedFor is the only place NotArchived is raised. Both archived-half
@@ -1065,7 +1103,10 @@ func (b *Bench) notArchivedFor(ref string, failure error) error {
 		}
 		return contract.RefuseWith(contract.NotArchived, detail, map[string]string{"slug": b.Slug})
 	}
-	holder, collection, found := b.probe(trimmed)
+	holder, collection, found, probeErr := b.probe(trimmed)
+	if probeErr != nil {
+		return probeErr
+	}
 	if !found {
 		// Nothing in either half answers to the reference, so the mirror's
 		// own error travels unchanged and the reader goes on getting the
@@ -1100,35 +1141,43 @@ func (b *Bench) notArchivedFor(ref string, failure error) error {
 // which of two true sentences a refused reader gets, and live first makes the
 // live case win any tie, so the advice never tells a reader to restore
 // something standing in front of them.
-func (b *Bench) probe(ref string) (string, string, bool) {
+func (b *Bench) probe(ref string) (string, string, bool, error) {
 	ref = strings.TrimSpace(ref)
 	if ref == "" {
-		return "", "", false
+		return "", "", false, nil
 	}
 	if strings.HasPrefix(ref, WorkstreamRefPrefix) {
 		// WorkstreamByRef spans both halves, and a bare workstream head is
 		// its own deepest step, so an archived one resolved rather than
 		// failing and only the live case can reach here.
-		return "", "", b.WorkstreamByRef(ref) != nil
+		workstream, err := b.WorkstreamByRef(ref)
+		if err != nil {
+			return "", "", false, err
+		}
+		return "", "", workstream != nil, nil
 	}
 	head, rest, _ := strings.Cut(ref, "/")
 	if IsWorkbenchRef(head) || (rest != "" && b.Slug != "" && head == b.Slug) {
 		if rest == "" {
-			return "", "", true
+			return "", "", true, nil
 		}
 		segments := strings.Split(rest, "/")
 		return b.probeBelow(b.Root, KindWorkbench, head, "", segments, segments, nil)
 	}
 	if column := b.ColumnByRef(head); column != nil {
 		if rest == "" {
-			return "", "", true
+			return "", "", true, nil
 		}
 		segments := strings.Split(rest, "/")
 		return b.probeBelow(b.ColumnDir(column.ID), KindColumn, head, "", segments, segments, nil)
 	}
-	if column := b.ArchivedColumnByRef(head); column != nil {
+	archivedColumn, err := b.ArchivedColumnByRef(head)
+	if err != nil {
+		return "", "", false, err
+	}
+	if column := archivedColumn; column != nil {
 		if rest == "" {
-			return head, "", true
+			return head, "", true, nil
 		}
 		segments := strings.Split(rest, "/")
 		return b.probeBelow(b.columnDirIn(ArchivedHalf, column.ID), KindColumn, head, head, segments, segments, nil)
@@ -1140,21 +1189,21 @@ func (b *Bench) probe(ref string) (string, string, bool) {
 	} else if found, err := b.resolveCardIn(b.ArchivedCardsRoot(), head); err == nil {
 		card, holder = found.Card, head
 	} else {
-		return "", "", false
+		return "", "", false, nil
 	}
 	if rest == "" {
-		return holder, "", true
+		return holder, "", true, nil
 	}
 	segments := strings.Split(rest, "/")
 	if cardOwnFileSegment(segments[0]) {
-		return holder, "", true
+		return holder, "", true, nil
 	}
 	walk := segments
 	var narrow *string
 	if kind, ok := checklistKinds[segments[0]]; ok {
 		items, ok := checklistMount()
 		if !ok {
-			return "", "", false
+			return "", "", false, nil
 		}
 		walk = append([]string{items.Dir}, segments[1:]...)
 		narrow = &kind
@@ -1168,22 +1217,25 @@ func (b *Bench) probe(ref string) (string, string, bool) {
 // aliased onto the collection it narrows, which is what the containment
 // grammar is walked with. The two are the same length, so one indexes the
 // other.
-func (b *Bench) probeBelow(dir, kind, ref, holder string, typed, walk []string, narrow *string) (string, string, bool) {
+func (b *Bench) probeBelow(dir, kind, ref, holder string, typed, walk []string, narrow *string) (string, string, bool, error) {
 	mount, ok := MountOf(kind, walk[0])
 	if !ok {
-		return "", "", false
+		return "", "", false, nil
 	}
 	if len(walk) == 1 {
 		// The reference ends on the collection itself, which a walk answers
 		// in either half whether or not anything was written into it.
-		return holder, "", true
+		return holder, "", true, nil
 	}
 	for _, half := range []ResolutionHalf{LiveHalf, ArchivedHalf} {
 		collection := filepath.Join(dir, mount.Dir)
 		if half == ArchivedHalf {
 			collection = filepath.Join(dir, ArchiveDir, mount.Dir)
 		}
-		members := MemberIDs(collection, mount)
+		members, err := MemberIDs(collection, mount)
+		if err != nil {
+			return "", "", false, err
+		}
 		if narrow != nil {
 			members = filterByKind(collection, mount.Anchor, members, *narrow)
 		}
@@ -1196,19 +1248,19 @@ func (b *Bench) probeBelow(dir, kind, ref, holder string, typed, walk []string, 
 			holder = below
 		}
 		if len(walk) == 2 {
-			return holder, ref + "/" + typed[0], true
+			return holder, ref + "/" + typed[0], true, nil
 		}
 		member := filepath.Join(collection, id)
 		if mount.Kind == KindAttachment && walk[2] == PayloadDir {
 			if len(walk) > 3 {
-				return "", "", false
+				return "", "", false, nil
 			}
 			if _, err := payloadOf(member); err != nil {
-				return "", "", false
+				return "", "", false, nil
 			}
-			return holder, "", true
+			return holder, "", true, nil
 		}
 		return b.probeBelow(member, mount.Kind, below, holder, typed[2:], walk[2:], nil)
 	}
-	return "", "", false
+	return "", "", false, nil
 }

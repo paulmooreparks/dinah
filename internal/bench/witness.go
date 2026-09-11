@@ -64,7 +64,11 @@ func (b *Bench) WitnessDivergence(actor, now string, card *Card) (bool, error) {
 func (b *Bench) WriteWitnesses(actor, now string) ([]string, []Finding, error) {
 	var witnessed []string
 	var findings []Finding
-	for _, id := range ListIDs(b.CardsRoot()) {
+	cardIDs, err := ListIDs(b.CardsRoot())
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, id := range cardIDs {
 		dir := filepath.Join(b.CardsRoot(), id)
 		if Exists(SiblingPath(dir)) {
 			continue

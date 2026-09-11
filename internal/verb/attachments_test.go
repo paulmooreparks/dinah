@@ -159,10 +159,18 @@ func TestACountIsTakenWithoutOpeningAnAnchor(t *testing.T) {
 	h.attach(ref, "second.txt", "two")
 
 	card := h.card(ref)
-	if got := bench.CountAttachments(card.Dir); got != 2 {
+	got3, gotErr3 := bench.CountAttachments(card.Dir)
+	if gotErr3 != nil {
+		t.Fatalf("CountAttachments: %v", gotErr3)
+	}
+	if got := got3; got != 2 {
 		t.Fatalf("the count before the break is %d, wanted 2", got)
 	}
-	for _, id := range bench.ListIDs(filepath.Join(card.Dir, bench.AttachmentsDir)) {
+	listed1, listedErr1 := bench.ListIDs(filepath.Join(card.Dir, bench.AttachmentsDir))
+	if listedErr1 != nil {
+		t.Fatalf("listing %s: %v", filepath.Join(card.Dir, bench.AttachmentsDir), listedErr1)
+	}
+	for _, id := range listed1 {
 		anchor := filepath.Join(card.Dir, bench.AttachmentsDir, id, bench.AttachmentAnchor)
 		if err := os.Remove(anchor); err != nil {
 			t.Fatalf("break %s: %v", anchor, err)
@@ -175,11 +183,19 @@ func TestACountIsTakenWithoutOpeningAnAnchor(t *testing.T) {
 	if len(listed) != 0 {
 		t.Fatalf("the break did not reach the listing, which still reports %d", len(listed))
 	}
-	if got := bench.CountAttachments(card.Dir); got != 2 {
+	got2, gotErr2 := bench.CountAttachments(card.Dir)
+	if gotErr2 != nil {
+		t.Fatalf("CountAttachments: %v", gotErr2)
+	}
+	if got := got2; got != 2 {
 		t.Errorf("the count reads the anchors: got %d, wanted 2", got)
 	}
 	h.reopen()
-	if got := h.library.view(h.card(ref)).AttachmentCount; got != 2 {
+	got1, gotErr1 := h.library.view(h.card(ref))
+	if gotErr1 != nil {
+		t.Fatalf("view: %v", gotErr1)
+	}
+	if got := got1.AttachmentCount; got != 2 {
 		t.Errorf("the card view reports %d attachments, wanted 2", got)
 	}
 }
