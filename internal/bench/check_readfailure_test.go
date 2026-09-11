@@ -250,3 +250,52 @@ func TestCheckReportsADuplicateCardNumber(t *testing.T) {
 		}
 	})
 }
+
+// TestCheckPassesOverCardsCarryingNoNumber pins that the sentinel a card with
+// no number carries is not a number two cards share.
+//
+// Zero is what Card.Number holds when the anchor names no number, and
+// reference building already reads it that way, so a workbench full of
+// numberless cards answers no reference by number at all. Grouping on the
+// sentinel told exactly the population this detector shipped for, a workbench
+// mid-repair, that each of its numberless cards collides with the rest.
+// checkOrdinals excludes the same sentinel before it reaches its duplicate
+// map.
+//
+// The genuine collision rides in the same fixture, so a guard written wide
+// enough to silence the detector itself fails here rather than passing
+// quietly.
+func TestCheckPassesOverCardsCarryingNoNumber(t *testing.T) {
+	numberlessCard := "---\ntitle: A card\ncolumn: b00000000001\nstate: ready\n---\nFraming.\n"
+
+	root := newFixture(t)
+	collides := filepath.Join(root, CardsDir, "c00000000001", CardAnchor)
+	write(t, collides, numberedCard("7"))
+	write(t, filepath.Join(root, CardsDir, "c00000000002", CardAnchor), numberlessCard)
+	archivedCollides := filepath.Join(root, ArchiveDir, CardsDir, "c00000000003", CardAnchor)
+	write(t, archivedCollides, numberedCard("7"))
+	write(t, filepath.Join(root, ArchiveDir, CardsDir, "c00000000004", CardAnchor), numberlessCard)
+
+	opened, err := Open(root)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	findings, err := opened.Check()
+	if err != nil {
+		t.Fatalf("check: %v", err)
+	}
+	duplicates := findingsOfKey(findings, FindingCardNumberDuplicate)
+	for _, finding := range duplicates {
+		if finding.Detail == "0" {
+			t.Errorf("the detector reported %s as a number two cards share, and a card with no number answers no reference by number", finding.Path)
+		}
+	}
+	if len(duplicates) != 2 {
+		t.Fatalf("two cards carry number 7 and two carry no number, and the detector reported %d duplicate findings: %+v", len(duplicates), duplicates)
+	}
+	for _, finding := range duplicates {
+		if finding.Path != collides && finding.Path != archivedCollides {
+			t.Errorf("a duplicate finding names %s, which is neither of the two cards carrying number 7", finding.Path)
+		}
+	}
+}

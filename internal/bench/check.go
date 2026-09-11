@@ -800,6 +800,9 @@ func checkAttachmentFilename(cardDir string) ([]Finding, error) {
 // card reference, so two cards holding one number leaves a reference by
 // number with two answers.
 //
+// A card carrying no number is passed over, which checkOrdinals does with
+// its own sentinel too.
+//
 // Every card in a colliding group is reported rather than only the second
 // one met, which is where this parts company with checkOrdinals. The live
 // half is read before the archived one and the archived card is the one that
@@ -828,6 +831,18 @@ func (b *Bench) checkCardNumbers() ([]Finding, error) {
 				if root == b.ArchivedCardsRoot() {
 					findings = append(findings, Finding{Path: filepath.Join(root, id), Key: unreadableCardFinding(err), Detail: id})
 				}
+				continue
+			}
+			if card.Number == 0 {
+				// Zero is what a card with no number carries, and
+				// reference building reads it the same way, so such a
+				// card answers no reference by number and cannot be
+				// sharing one. checkOrdinals excludes its own sentinel
+				// before its duplicate map for the same reason. Without
+				// this the population the detector shipped for, a
+				// workbench mid-repair whose cards are the pre-ordinal
+				// shape BackfillOrdinals fixes, drew one false report
+				// per numberless card.
 				continue
 			}
 			byNumber[card.Number] = append(byNumber[card.Number], filepath.Join(root, id, CardAnchor))
