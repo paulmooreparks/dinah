@@ -2,22 +2,85 @@
 
 This companion carries the two programs section 8 of dinah-439's spec rests on,
 together with what they printed at `65a80ad8b3b525e62af2262ad6d3203876ea6c7a`.
-It exists because three rounds of design review on that card each falsified a
-rule worded over a shape somebody had pictured, and the remedy was to derive the
-shapes from the syntax trees instead. A spec that tells its implementer to
-re-run a program owes them the program.
+It exists because four rounds of design review on that card each falsified a
+claim about what the guard catches, and the remedy was to derive the claim from
+the syntax trees instead of from a shape somebody had pictured. A spec that
+tells its implementer to re-run a program owes them the program.
+
+Round five moved the failure one radius further out and fixed it there. Rounds
+two, three and four each measured over a set smaller than the rule applied to,
+so round four's programs were correct about their own population and wrong about
+the rule's. Both programs therefore now state their population, and the spec's
+numbers are read off the populations the programs report rather than off a run
+whose subject set nobody had checked against the rule's stated scope.
 
 Neither program ships. They are held here as fenced source rather than as `.go`
 files on purpose, so that `go build ./...` never compiles them and no guard over
 the tree has to carve out an exemption for them. To run one, copy it into a
 throwaway directory outside the repository, write a `go.mod` beside it, and pass
-the worktree path as the single argument.
+the worktree path as the single argument. Both were extracted from this document,
+built and re-run in that way before it was committed, so the recipe is one that
+works rather than one that reads well.
+
+## The population each program examines
+
+Neither program examines the guard's examined set exactly, and the two differ in
+opposite directions, so the difference is stated here rather than left to be
+discovered.
+
+**Program 1's file population** is every non-test `.go` file under the module
+root, excluding the `.git`, `node_modules` and `editors` directories. At
+`65a80ad` that is 93 files. **Its call population is wider than the guard's
+examined set**, because it matches nine directory-reading API names, six
+directory-reading selector names on any receiver, and the four collection
+readers. The width is deliberate: its job is to find shapes the guard's name set
+might have to grow to cover. At `65a80ad` it reports 60 call sites, of which 55
+are the guard's examined set (15 in the first half, 40 in the second) and 5 are
+outside it. Those 5 are three `os.Open` calls, every one of them opening a file
+rather than a directory, and the two `embed.FS` `ReadDir` methods over
+compiled-in data.
+
+**Program 2's file population is the same 93 files, and its call population is
+the guard's examined set exactly**, both halves. Round four ran it over the first
+half alone, which is how a divergence between the program and the written rule
+survived a round: the arm that caused the divergence could not fire over the
+first half, because the tree holds one first-half `if`-init read and its
+condition tests the error. The program now reports the size of each half and how
+many calls rule 5's narrowing exempts, so a future run whose subject set has
+drifted says so in its own output.
+
+**What both programs exclude, and what the guard must not.** Program 1 walks
+every call node. Round four's version reached a call only where the call was a
+statement's operative expression, which made a call nested inside another call
+invisible to it and dropped 11 of the tree's 60 sites, every one of them a
+`ListIDs` call this card rewrites. That is fixed here rather than recorded as a
+limitation, because the guard's second half exists to reach every caller of a
+collection reader, and a collector built the old way would examine 29 of the 40
+and report success. Program 2's rule 5 analysis is still statement-driven, and
+that is correct rather than a gap. Rule 5 asks what a function does on a path
+where the read's error is known to be non-nil, which arises only where the error
+is bound, and a nested call binds nothing, so rule 1 is the rule that reaches it.
+The census program 2 prints walks call nodes regardless, so the population it
+reports is the guard's rather than its own analysis's.
+
+Two limits of program 1 remain, and neither is a defect to fix here. It matches a
+callee by the name written at the call rather than by resolving its type, so a
+second declaration of one of the four collection reader names would be matched as
+though it were the real one; the spec checks separately that no such declaration
+exists, and at `65a80ad` `heldLocks`, `ListIDs` and `ListWorkbenchIDs` are each
+declared exactly once while `readCollection` is not declared at all. And it scans
+for an error test only among the statements following the read in the same block,
+so a test nested one level deeper reads as absent. Neither case arises at
+`65a80ad`.
 
 ## Program 1: the enumeration
 
 This one answers what shapes exist. It matches every call to a directory-reading
 API and every call to the four collection readers, then classifies each site by
 how the error result is taken and by the shape of the statement that tests it.
+A call it reaches only through the call-node sweep carries the binding class
+`nested inside an enclosing expression, result not separately bound`, because
+such a call is bound to nothing and no statement tests it.
 
 ```go
 package main
@@ -76,6 +139,7 @@ var collectionReaders = map[string]bool{
 }
 
 type site struct {
+	off      token.Pos
 	pos      string
 	callee   string
 	fn       string
@@ -155,6 +219,7 @@ func termOf(body *ast.BlockStmt) []string {
 func main() {
 	root := os.Args[1]
 	var sites []site
+	files := 0
 	filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -174,6 +239,7 @@ func main() {
 			fmt.Println("PARSE ERROR", path, perr)
 			return nil
 		}
+		files++
 		rel, _ := filepath.Rel(root, path)
 		rel = filepath.ToSlash(rel)
 		ast.Inspect(f, func(n ast.Node) bool {
@@ -181,7 +247,30 @@ func main() {
 			if !ok || fn.Body == nil {
 				return true
 			}
+			before := len(sites)
 			walkBlock(fn.Body, fn.Name.Name, rel, &sites)
+			seen := map[token.Pos]bool{}
+			for _, s := range sites[before:] {
+				seen[s.off] = true
+			}
+			ast.Inspect(fn.Body, func(m ast.Node) bool {
+				c, ok := m.(*ast.CallExpr)
+				if !ok || seen[c.Pos()] {
+					return true
+				}
+				name, ok := interesting(c)
+				if !ok {
+					return true
+				}
+				seen[c.Pos()] = true
+				sites = append(sites, site{
+					off: c.Pos(),
+					pos: fmt.Sprintf("%s:%d", rel, fset.Position(c.Pos()).Line),
+					callee: name, fn: fn.Name.Name,
+					binding: "nested inside an enclosing expression, result not separately bound",
+				})
+				return true
+			})
 			return false
 		})
 		return nil
@@ -221,6 +310,36 @@ func main() {
 		}
 	}
 	fmt.Println("")
+	fmt.Println("### POPULATION")
+	byCallee := map[string]int{}
+	for _, s := range sites {
+		byCallee[s.callee]++
+	}
+	names := []string{}
+	for k := range byCallee {
+		names = append(names, k)
+	}
+	sort.Strings(names)
+	first, second, outside := 0, 0, 0
+	for _, n := range names {
+		half := "outside the guard's examined set"
+		switch n {
+		case "os.ReadDir", "filepath.WalkDir", "fs.WalkDir":
+			half = "guard half 1 (standard-library directory reads)"
+			first += byCallee[n]
+		case "readCollection", "ListIDs", "bench.ListIDs", "ListWorkbenchIDs", "bench.ListWorkbenchIDs", "heldLocks":
+			half = "guard half 2 (collection readers)"
+			second += byCallee[n]
+		default:
+			outside += byCallee[n]
+		}
+		fmt.Printf("  %-28s %3d   %s\n", n, byCallee[n], half)
+	}
+	fmt.Println("")
+	fmt.Println("NON-TEST .go FILES SCANNED:", files)
+	fmt.Println("GUARD EXAMINED SET, HALF 1:", first)
+	fmt.Println("GUARD EXAMINED SET, HALF 2:", second)
+	fmt.Println("MATCHED BUT OUTSIDE THE GUARD'S EXAMINED SET:", outside)
 	fmt.Println("TOTAL SITES:", len(sites))
 }
 
@@ -254,6 +373,7 @@ func collect(st ast.Stmt, rest []ast.Stmt, fnName, rel string, out *[]site) {
 			return
 		}
 		*out = append(*out, site{
+			off:    c.Pos(),
 			pos:    fmt.Sprintf("%s:%d", rel, fset.Position(c.Pos()).Line),
 			callee: name, fn: fnName, binding: binding, errName: errName,
 			guards: guards, guardSrc: guardSrc, term: term,
@@ -401,10 +521,12 @@ func collect(st ast.Stmt, rest []ast.Stmt, fnName, rel string, out *[]site) {
 
 ### What it printed at `65a80ad`
 
-49 sites, collapsing to the shape table below. The per-site half is omitted here;
-re-run the program for it.
+60 sites in twelve groups, over the population the same run reports beneath the
+table. The per-site half is omitted here; re-run the program for it.
 
 ```
+### SHAPE TABLE (binding x guard)
+
 [2] assign  ||  COMPOUND || containing err test
        internal/bench/check.go:699 os.ReadDir
        internal/bench/resolve.go:768 os.ReadDir
@@ -447,37 +569,86 @@ re-run the program for it.
        internal/bench/container.go:371 heldLocks
        internal/bench/container.go:607 heldLocks
 
+[11] nested inside an enclosing expression, result not separately bound  ||  <no guard found>
+       internal/bench/entity.go:100 ListIDs
+       internal/bench/entity.go:133 ListIDs
+       internal/bench/entity.go:70 ListIDs
+       internal/bench/entity.go:835 ListIDs
+       internal/bench/entity.go:920 ListIDs
+       internal/bench/ordinal.go:285 ListIDs
+       internal/bench/resolve.go:651 ListIDs
+       internal/bench/workstream.go:171 ListIDs
+       internal/bench/workstream.go:427 ListIDs
+       internal/verb/read.go:1174 bench.ListIDs
+       internal/verb/tree.go:1029 bench.ListIDs
+
 [24] ranged over directly  ||  <no guard found>
-       ... 22 bare ListIDs sites inside internal/bench, plus
+       internal/bench/bench.go:1615 ListIDs
+       internal/bench/bench.go:2053 ListIDs
+       internal/bench/bench.go:2079 ListIDs
+       internal/bench/changes.go:59 ListIDs
+       internal/bench/changes.go:63 ListIDs
+       internal/bench/changes.go:67 ListIDs
+       internal/bench/check.go:258 ListIDs
+       internal/bench/check.go:313 ListIDs
+       internal/bench/check.go:318 ListIDs
+       internal/bench/check.go:343 ListIDs
+       internal/bench/check.go:659 ListIDs
+       internal/bench/check.go:687 ListIDs
+       internal/bench/entity.go:1033 ListIDs
+       internal/bench/entity.go:452 ListIDs
+       internal/bench/finish.go:132 ListIDs
+       internal/bench/finish.go:146 ListIDs
+       internal/bench/ordinal.go:360 ListIDs
+       internal/bench/ordinal.go:423 ListIDs
+       internal/bench/ordinal.go:69 ListIDs
+       internal/bench/resolve.go:987 ListIDs
+       internal/bench/witness.go:67 ListIDs
+       internal/bench/workstream.go:278 ListIDs
        internal/verb/search.go:168 bench.ListIDs
        internal/verb/tree.go:1204 bench.ListIDs
 
 [1] returned directly as the enclosing function results  ||  <no guard found>
        internal/bench/container.go:799 filepath.WalkDir
-
-TOTAL SITES: 49
 ```
 
-The `ranged over directly` bucket holds the `for _, id := range ListIDs(...)`
-sites this card rewrites, and it carries no guard today because `ListIDs`
-declares no error today. The three `heldLocks` sites read `other shape` because
-their `if`-init binds `held` rather than an error, and their condition tests
-`len(held) > 0`.
+```
+### POPULATION
+  ListIDs                       31   guard half 2 (collection readers)
+  ListWorkbenchIDs               2   guard half 2 (collection readers)
+  bench.ListIDs                  4   guard half 2 (collection readers)
+  filepath.WalkDir               3   guard half 1 (standard-library directory reads)
+  guides.ReadDir                 1   outside the guard's examined set
+  heldLocks                      3   guard half 2 (collection readers)
+  locales.ReadDir                1   outside the guard's examined set
+  os.Open                        3   outside the guard's examined set
+  os.ReadDir                    12   guard half 1 (standard-library directory reads)
 
-Two cautions for anyone re-running this. It walks statement lists rather than
-resolving types, so it sees a call written as an identifier and does not know
-what that identifier resolves to; a second declaration of one of the four
-collection reader names elsewhere in the tree would be matched as if it were the
-real one, which is why the spec checks separately that no such declaration
-exists. And it scans for an error test only among the statements following the
-read in the same block, so a test nested one level deeper would be reported as
-absent. Neither case arises at `65a80ad`.
+NON-TEST .go FILES SCANNED: 93
+GUARD EXAMINED SET, HALF 1: 15
+GUARD EXAMINED SET, HALF 2: 40
+MATCHED BUT OUTSIDE THE GUARD'S EXAMINED SET: 5
+TOTAL SITES: 60
+```
+
+The `ranged over directly` and `nested inside an enclosing expression` buckets
+together hold the 35 production `ListIDs` sites this card rewrites, and they
+carry no guard today because `ListIDs` declares no error today. The three
+`heldLocks` sites read `other shape` because their `if`-init binds `held` rather
+than an error and their condition tests `len(held) > 0`. Rule 5 asks nothing of
+those three, because `heldLocks` declares no error at `65a80ad` either.
 
 ## Program 2: the corrected rule 5
 
 This one answers whether the rule catches what the card claims. It implements
 rule 5 as section 8 words it, with the failure path covering all four forms the
-enumeration found and the question asked of every exit reachable on that path.
+enumeration found, the question asked of every exit reachable on that path, and
+the narrowing that rule 5 asks nothing of a call whose callee declares no error
+result. That narrowing is why the program's third `if`-init arm skips rather than
+reports. A callee with no error result presents no failure for the caller to
+answer, so rules 1 and 2 carry the whole obligation, and a rule 5 firing there
+condemns correct code. Round four's version reported instead of skipping, and
+running it over the first half alone is why nobody saw the difference.
 
 ```go
 package main
@@ -521,7 +692,35 @@ func calleeName(c *ast.CallExpr) string {
 	return ""
 }
 
-var reads = map[string]bool{"os.ReadDir": true, "filepath.WalkDir": true, "fs.WalkDir": true}
+// reads is the guard's whole examined set, both halves. The first three names are
+// the standard-library directory reads; the rest are the four collection readers
+// this card mints or owns, in both their bare and package-qualified spellings.
+// Running rule 5 over the first half alone is what hid a divergence between this
+// program and the rule for a review round.
+var reads = map[string]bool{
+	"os.ReadDir": true, "filepath.WalkDir": true, "fs.WalkDir": true,
+	"readCollection": true, "heldLocks": true,
+	"ListIDs": true, "bench.ListIDs": true,
+	"ListWorkbenchIDs": true, "bench.ListWorkbenchIDs": true,
+}
+
+// declaresError records, for every function declared in the tree, whether it
+// declares an error among its results. Rule 5 asks nothing of a call whose callee
+// declares no error, because there is then no failure for the enclosing function
+// to answer and rules 1 and 2 carry the whole obligation. The three standard-library
+// reads are documented to return an error and are not declared in this tree.
+var declaresError = map[string]bool{"os.ReadDir": true, "filepath.WalkDir": true, "fs.WalkDir": true}
+
+func inScope(c *ast.CallExpr) bool {
+	name := calleeName(c)
+	if !reads[name] {
+		return false
+	}
+	if i := strings.LastIndex(name, "."); i >= 0 && !strings.HasPrefix(name, "os.") && !strings.HasPrefix(name, "filepath.") && !strings.HasPrefix(name, "fs.") {
+		name = name[i+1:]
+	}
+	return declaresError[name]
+}
 
 func mentions(e ast.Expr, name string) bool {
 	found := false
@@ -644,6 +843,8 @@ func checkPath(stmts []ast.Stmt, fn *ast.FuncDecl, rel, readPos string, tail boo
 
 func main() {
 	root := os.Args[1]
+	declPass(root)
+	census(root)
 	filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -678,7 +879,97 @@ func main() {
 		fmt.Printf("%-40s %-26s %s\n", f.pos, f.fn, f.why)
 	}
 	fmt.Println("")
+	fmt.Println("EXAMINED HALF 1 (standard-library directory reads):", examinedFirst)
+	fmt.Println("EXAMINED HALF 2 (collection readers):", examinedSecond)
+	fmt.Println("SKIPPED, CALLEE DECLARES NO ERROR:", skippedNoError)
 	fmt.Println("RULE 5 FINDINGS:", len(findings))
+}
+
+var examinedFirst, examinedSecond, skippedNoError int
+
+// census walks every call node in the tree, not merely the calls that are a
+// statement's operative expression, and reports how large each half of the
+// examined set is and how much of it rule 5's narrowing exempts. It is separate
+// from the rule because rule 5 is a question about a failure path, which only
+// arises where the error is bound; the guard's other rules reach every call
+// counted here, which is why the count is taken over call nodes.
+func census(root string) {
+	filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			b := filepath.Base(path)
+			if b == ".git" || b == "node_modules" || b == "editors" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+		f, perr := parser.ParseFile(fset, path, nil, 0)
+		if perr != nil {
+			return nil
+		}
+		ast.Inspect(f, func(n ast.Node) bool {
+			c, ok := n.(*ast.CallExpr)
+			if !ok {
+				return true
+			}
+			name := calleeName(c)
+			if !reads[name] {
+				return true
+			}
+			switch name {
+			case "os.ReadDir", "filepath.WalkDir", "fs.WalkDir":
+				examinedFirst++
+			default:
+				examinedSecond++
+			}
+			if !inScope(c) {
+				skippedNoError++
+			}
+			return true
+		})
+		return nil
+	})
+}
+
+// declPass records which functions in the tree declare an error result, so that
+// inScope can answer the narrowing question rule 5 states.
+func declPass(root string) {
+	filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			b := filepath.Base(path)
+			if b == ".git" || b == "node_modules" || b == "editors" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+		f, perr := parser.ParseFile(fset, path, nil, 0)
+		if perr != nil {
+			return nil
+		}
+		for _, d := range f.Decls {
+			fn, ok := d.(*ast.FuncDecl)
+			if !ok || fn.Type.Results == nil {
+				continue
+			}
+			for _, r := range fn.Type.Results.List {
+				if id, ok := r.Type.(*ast.Ident); ok && id.Name == "error" {
+					declaresError[fn.Name.Name] = true
+				}
+			}
+		}
+		return nil
+	})
 }
 
 func inspectFn(fn *ast.FuncDecl, rel string) {
@@ -689,7 +980,7 @@ func inspectFn(fn *ast.FuncDecl, rel string) {
 			case *ast.AssignStmt:
 				for _, rhs := range t.Rhs {
 					c, ok := rhs.(*ast.CallExpr)
-					if !ok || !reads[calleeName(c)] {
+					if !ok || !inScope(c) {
 						continue
 					}
 					name := ""
@@ -726,7 +1017,7 @@ func inspectFn(fn *ast.FuncDecl, rel string) {
 				if as, ok := t.Init.(*ast.AssignStmt); ok {
 					for _, rhs := range as.Rhs {
 						c, ok := rhs.(*ast.CallExpr)
-						if !ok || !reads[calleeName(c)] {
+						if !ok || !inScope(c) {
 							continue
 						}
 						name := ""
@@ -769,33 +1060,24 @@ func inspectFn(fn *ast.FuncDecl, rel string) {
 ### What it printed at `65a80ad`
 
 ```
-internal/bench/check.go:701       checkAttachmentFilename  continue on the failure path leaves the failure unanswered  [read at internal/bench/check.go:699]
-internal/bench/container.go:487   resumableLift            return on the failure path does not set a non-nil error: return "", nil  [read at internal/bench/container.go:485]
-internal/bench/container.go:717   heldLocks                return on the failure path does not set a non-nil error: return held  [read at internal/bench/container.go:693]
-internal/bench/finish.go:62       interruptions            continue on the failure path leaves the failure unanswered  [read at internal/bench/finish.go:60]
-internal/bench/storage.go:159     ListIDs                  return on the failure path does not set a non-nil error: return nil  [read at internal/bench/storage.go:157]
-internal/bench/storage.go:302     ListWorkbenchIDs         return on the failure path does not set a non-nil error: return nil, nil  [read at internal/bench/storage.go:299]
-internal/bench/vocabulary.go:331  listIdentifiers          return on the failure path does not set a non-nil error: return nil, nil  [read at internal/bench/vocabulary.go:328]
+internal/bench/check.go:701              checkAttachmentFilename    continue on the failure path leaves the failure unanswered  [read at internal/bench/check.go:699]
+internal/bench/container.go:487          resumableLift              return on the failure path does not set a non-nil error: return "", nil  [read at internal/bench/container.go:485]
+internal/bench/container.go:717          heldLocks                  return on the failure path does not set a non-nil error: return held  [read at internal/bench/container.go:693]
+internal/bench/finish.go:62              interruptions              continue on the failure path leaves the failure unanswered  [read at internal/bench/finish.go:60]
+internal/bench/storage.go:159            ListIDs                    return on the failure path does not set a non-nil error: return nil  [read at internal/bench/storage.go:157]
+internal/bench/storage.go:302            ListWorkbenchIDs           return on the failure path does not set a non-nil error: return nil, nil  [read at internal/bench/storage.go:299]
+internal/bench/vocabulary.go:331         listIdentifiers            return on the failure path does not set a non-nil error: return nil, nil  [read at internal/bench/vocabulary.go:328]
 
+EXAMINED HALF 1 (standard-library directory reads): 15
+EXAMINED HALF 2 (collection readers): 40
+SKIPPED, CALLEE DECLARES NO ERROR: 38
 RULE 5 FINDINGS: 7
 ```
 
-Seven findings, and they are the seven reads dinah-439 rewrites. Six of them are
-FIX rows in the spec's survey table. The seventh, `ListWorkbenchIDs`, is the row
-the survey marks "correct since dinah-433, it is the model", and it fires here
-because its `return nil, nil` on an absent path is the existence discrimination
-this card moves into `readCollection`. After the card lands, `readCollection`
-carries that shape alone and holds the guard's single exemption entry.
-
-Nothing fires on `bench.go:880`, `bench.go:1039`, `container.go:186`,
-`entity.go:250` or `resolve.go:768`, which are the five reads the survey blesses
-as already honest. The false-positive set across 93 non-test files is empty.
-
-Two earlier wordings of rule 5 fail against this same tree, which is why the
-wording matters more than it looks. A rule worded over the branch taken when the
-error is non-nil never fires on `container.go:693`, because that read has no such
-branch, nor on `check.go:699`, whose condition merely contains the test. A rule
-asking only about the branch's terminating statement never fires on
-`storage.go:299` or `vocabulary.go:328`, whose branches end `return nil, err`
-and swallow in a nested `return nil, nil` earlier in the same branch. Each of
-those omissions blesses a site this card exists to fix.
+Seven findings over the whole examined set, and they are the seven reads this
+card rewrites. The run reports its own population above the count: 15 first-half
+calls, 40 second-half calls, and 38 of those 55 skipped because their callee
+declares no error at `65a80ad`. That last number describes the merge base rather
+than the rule. `ListIDs` and `heldLocks` account for all 38, this card gives both
+of them an error result, and rule 5 reaches every call in the second half from
+the moment it lands.
