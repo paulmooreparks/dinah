@@ -146,15 +146,16 @@ test("the staleness sweep reads every language that ships translated", () => {
 	const shipped = SUPPORTED_TAGS.filter(
 		(tag) => tag !== BASE_TAG && (flags.skeleton[tag] ?? []).length === 0,
 	);
+	const absent = shipped.filter((tag) => !TRANSLATED_TAGS.includes(tag)).sort();
 	assert.equal(
 		TRANSLATED_TAGS.length,
 		shipped.length,
-		`the staleness sweep covers ${String(TRANSLATED_TAGS.length)} languages and ${String(shipped.length)} ship translated, so it is short of ${shipped.join(", ")}`,
+		`the staleness sweep covers ${String(TRANSLATED_TAGS.length)} of the ${String(shipped.length)} languages that ship translated, so it never reads ${absent.join(", ")}`,
 	);
 	assert.deepEqual(
 		[...TRANSLATED_TAGS].sort(),
 		[...shipped].sort(),
-		"the staleness sweep covers the right number of languages and not the right ones",
+		`the staleness sweep covers the right number of languages and not the right ones: it never reads ${absent.join(", ")}`,
 	);
 });
 

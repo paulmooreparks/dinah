@@ -11,6 +11,8 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 
+import * as ts from "typescript";
+
 import {
 	COMMAND_ATTACH_FILE,
 	COMMAND_CHECK_WORKBENCH,
@@ -2262,6 +2264,187 @@ test("the version floor and the types it was built against move together", () =>
 	assert.equal(raw.engines.vscode, raw.devDependencies["@types/vscode"]);
 });
 
+// ---------------------------------------------------------------------------
+// The MCP API call sites in extension.ts
+// ---------------------------------------------------------------------------
+
+/**
+ * The two MCP API constructs this card's wiring is made of.
+ *
+ * The sweep matches these names on the parsed tree rather than looking for
+ * them in the file's text, and no receiver is part of the match, so a call
+ * through `vscode.lm`, through a local alias or through a destructured binding
+ * is one call site here.
+ */
+const MCP_CALL_NAMES: readonly string[] = [
+	"McpStdioServerDefinition",
+	"registerMcpServerDefinitionProvider",
+];
+
+/**
+ * The comment directives that switch the type checker off instead of satisfying it.
+ *
+ * They are spelled here as data rather than written into this file's own
+ * comments, because a directive written in a comment is a directive. The
+ * file-level one below governs a whole module, so it reaches every call site
+ * in one wherever it sits; the two line-level ones govern the line under
+ * themselves.
+ */
+const TS_SILENCING_DIRECTIVES: readonly string[] = ["@ts-expect-error", "@ts-ignore"];
+const TS_FILE_DIRECTIVE = "@ts-nocheck";
+
+/** What one sweep of a module's MCP API call sites found. */
+interface McpCallSweep {
+	/** One name per MCP API call site, in source order, repeats kept. */
+	readonly sites: string[];
+	/** One `line: what` per silenced type check reaching a call site. */
+	readonly silenced: string[];
+}
+
+/** One node's span, carried so containment can be tested in both directions. */
+interface Span {
+	readonly what: string;
+	readonly start: number;
+	readonly end: number;
+}
+
+/**
+ * The name a call or a construction is made through, when it is one of ours.
+ *
+ * A parenthesised or asserted receiver still yields the method's own name,
+ * which is what makes `(vscode.lm as Lm).registerMcpServerDefinitionProvider()`
+ * a call site rather than an expression the sweep does not recognise.
+ */
+function mcpCallName(node: ts.CallExpression | ts.NewExpression): string | undefined {
+	const callee = node.expression;
+	let name: string | undefined;
+	if (ts.isIdentifier(callee)) {
+		name = callee.text;
+	} else if (ts.isPropertyAccessExpression(callee)) {
+		name = callee.name.text;
+	}
+	if (name === undefined || !MCP_CALL_NAMES.includes(name)) {
+		return undefined;
+	}
+	return name;
+}
+
+/**
+ * How a type assertion reads in a failure message, or undefined for other nodes.
+ *
+ * The asserted type rather than the asserted expression, because the
+ * expression at one of these sites is a multi-line object literal and a
+ * message carrying the whole of it buries the one word a reader needs.
+ *
+ * A const assertion is the one assertion this does not report. `as const`
+ * narrows a literal's inferred type and cannot make a call compile against
+ * types that do not declare it, so reporting it would fail a developer who
+ * froze an argument rather than catching one who silenced the checker. The
+ * fixture pins that, alongside a call site carrying no assertion at all, so
+ * this sweep cannot pass its own test by reporting everything it meets.
+ */
+function silencedTypeCheck(node: ts.Node): string | undefined {
+	if (ts.isAsExpression(node)) {
+		if (
+			ts.isTypeReferenceNode(node.type) &&
+			ts.isIdentifier(node.type.typeName) &&
+			node.type.typeName.text === "const"
+		) {
+			return undefined;
+		}
+		return `as ${node.type.getText()}`;
+	}
+	if (ts.isTypeAssertionExpression(node)) {
+		return `<${node.type.getText()}>`;
+	}
+	if (ts.isNonNullExpression(node)) {
+		return `${node.expression.getText().slice(0, 60)}!`;
+	}
+	return undefined;
+}
+
+/**
+ * Every MCP API call site in one module, and every silenced type check reaching one.
+ *
+ * Modelled on l10n-keys.test.ts's `sweepKeys`, which walks src/ with the
+ * TypeScript compiler API for the same reason this does: an assertion is a
+ * node, and the spelling it was written in does not change which node it is.
+ * The text sweep this replaced was widened twice by example and broken twice
+ * by a reviewer, so it is gone rather than widened a third time.
+ *
+ * Containment is tested in both directions. An assertion inside the call's own
+ * span is a cast on the receiver or on an argument, wherever in the call it
+ * was written, and an assertion whose span holds the whole call is a cast on
+ * the call's result. Neither is visible to a reader taking one line at a time,
+ * and both of the real call sites here span seven lines.
+ */
+function sweepMcpCallSites(file: string): McpCallSweep {
+	const source = ts.createSourceFile(
+		file,
+		readFileSync(file, "utf8"),
+		ts.ScriptTarget.ES2022,
+		true,
+		ts.ScriptKind.TS,
+	);
+	const text = source.getFullText();
+	const lineOf = (pos: number): number => source.getLineAndCharacterOfPosition(pos).line + 1;
+
+	const sites: Span[] = [];
+	const assertions: Span[] = [];
+	const comments = new Map<number, ts.CommentRange>();
+
+	const visit = (node: ts.Node): void => {
+		if (ts.isCallExpression(node) || ts.isNewExpression(node)) {
+			const name = mcpCallName(node);
+			if (name !== undefined) {
+				sites.push({ what: name, start: node.getStart(source), end: node.getEnd() });
+			}
+		}
+		const silenced = silencedTypeCheck(node);
+		if (silenced !== undefined) {
+			assertions.push({ what: silenced, start: node.getStart(source), end: node.getEnd() });
+		}
+		for (const comment of ts.getLeadingCommentRanges(text, node.getFullStart()) ?? []) {
+			comments.set(comment.pos, comment);
+		}
+		for (const comment of ts.getTrailingCommentRanges(text, node.getEnd()) ?? []) {
+			comments.set(comment.pos, comment);
+		}
+		for (const child of node.getChildren(source)) {
+			visit(child);
+		}
+	};
+	visit(source);
+
+	const silenced = new Set<string>();
+	for (const site of sites) {
+		for (const assertion of assertions) {
+			const inside = assertion.start >= site.start && assertion.end <= site.end;
+			const around = assertion.start <= site.start && assertion.end >= site.end;
+			if (inside || around) {
+				silenced.add(`${String(lineOf(assertion.start))}: ${assertion.what}`);
+			}
+		}
+		const first = lineOf(site.start);
+		const last = lineOf(site.end);
+		for (const comment of comments.values()) {
+			const body = text.slice(comment.pos, comment.end);
+			const at = lineOf(comment.pos);
+			if (body.includes(TS_FILE_DIRECTIVE)) {
+				silenced.add(`${String(at)}: ${TS_FILE_DIRECTIVE}`);
+				continue;
+			}
+			const directive = TS_SILENCING_DIRECTIVES.find((name) => body.includes(name));
+			// A line directive governs the line below it, so the line above the
+			// call reaches it, and so does any line the call itself spans.
+			if (directive !== undefined && at >= first - 1 && at <= last) {
+				silenced.add(`${String(at)}: ${directive}`);
+			}
+		}
+	}
+	return { sites: sites.map((site) => site.what), silenced: [...silenced] };
+}
+
 test("the registration call is in the shipped source and reaches the API uncast", () => {
 	// dinah-424 AC-10's sweep half. A clean type-check cannot establish any of
 	// this: a cast is what makes a call against types that do not declare it
@@ -2292,34 +2475,69 @@ test("the registration call is in the shipped source and reaches the API uncast"
 		/settingOf<boolean>\(\s*SETTING_REGISTER_MCP\b/.test(body),
 		"the published set is not decided from the SETTING_REGISTER_MCP the manifest declares",
 	);
-	// The sweep reads one line at a time, so a cast written on a continuation
-	// line of a multi-line call is invisible to it, exactly as AC-7's and
-	// AC-15's sweeps say what they cannot see. Both real call sites are
-	// single-line today and the presence clauses above keep them findable.
+	// The cast half reads the file as a syntax tree, so it sees a construct
+	// rather than a spelling of one. Both real call sites are multi-line, each
+	// opening on the line that names the API and closing several lines later,
+	// so every line of an argument literal is a place an assertion can be
+	// written and a sweep taking one line at a time sees none of them. The
+	// text sweep this replaced said the opposite, that both were single-line,
+	// and that false sentence was the whole reason its line scope looked safe.
 	//
-	// `as` followed by any identifier character catches every assertion a
-	// developer would plausibly write here, not only `as unknown` and `as any`:
-	// a cast to a named type on the argument, a cast on the `vscode.lm` object
-	// itself, and a cast on the constructed definition all begin that way. The
-	// narrower pair let three of those four past, and a cast is the one thing
-	// that makes a call against types that do not declare the API compile, so
-	// a miss here empties the criterion rather than weakening it.
-	const cast: string[] = [];
-	for (const [at, line] of body.split("\n").entries()) {
-		const reaches =
-			line.includes("registerMcpServerDefinitionProvider") ||
-			line.includes("McpStdioServerDefinition");
-		if (!reaches) {
-			continue;
-		}
-		if (/\bas\s+[A-Za-z_$]/.test(line) || line.includes("@ts-expect-error") || line.includes("@ts-ignore")) {
-			cast.push(`${String(at + 1)}: ${line.trim()}`);
-		}
-	}
+	// The floor is an identity rather than a count: the sweep has to have
+	// found both API calls by name, because a universal claim over a subject
+	// set that turned out to be empty is true and says nothing.
+	const sweep = sweepMcpCallSites(join(extensionRoot, "src", "extension.ts"));
 	assert.deepEqual(
-		cast,
+		[...new Set(sweep.sites)].sort(),
+		[...MCP_CALL_NAMES].sort(),
+		"the sweep did not find both MCP API calls in extension.ts, so it had nothing to check",
+	);
+	assert.deepEqual(
+		sweep.silenced,
 		[],
-		`a type assertion reaches an MCP API call site, so the type-check proves nothing about it:\n${cast.join("\n")}`,
+		`a silenced type check reaches an MCP API call site, so the type-check proves nothing about it:\n${sweep.silenced.join("\n")}`,
+	);
+});
+
+test("the call-site sweep sees every spelling of a silenced type check, and only those", () => {
+	// dinah-424 AC-10's sweep, proved in the detecting direction. The sweep
+	// above asserts an absence, and an absence is what a sweep that sees
+	// nothing also reports, so the fixture carries one call site per spelling
+	// and this names each one back.
+	//
+	// Ten silenced call sites. Four carry spellings the first reviewer wrote
+	// against the two-spelling text sweep, two carry the second reviewer's
+	// against its widened pattern, and four carry spellings neither tried. Two
+	// clean call sites sit beside them, one carrying no assertion at all and
+	// one carrying a const assertion, so a sweep reporting every node it meets
+	// fails this test rather than passing it.
+	const fixture = join(extensionRoot, "test", "fixtures", "mcp-call-site-casts.ts.txt");
+	const sweep = sweepMcpCallSites(fixture);
+	assert.equal(sweep.sites.length, 12, "the fixture's call sites are not all being found");
+
+	const expected = [
+		"as Spelling1",
+		"as Spelling2",
+		"as Spelling3",
+		"as Spelling4",
+		"<Spelling5>",
+		"as Spelling6",
+		"as Spelling7",
+		"as unknown",
+		"vscode.lm!",
+		"@ts-expect-error",
+		"@ts-ignore",
+	];
+	const seen = sweep.silenced.map((entry) => entry.slice(entry.indexOf(": ") + 2));
+	assert.deepEqual(
+		expected.filter((what) => !seen.includes(what)),
+		[],
+		`the sweep did not see these spellings in the fixture: ${expected.filter((what) => !seen.includes(what)).join(", ")}`,
+	);
+	assert.deepEqual(
+		seen.filter((what) => !expected.includes(what)),
+		[],
+		"the sweep reported something the fixture does not plant, so it is reporting more than a silenced type check",
 	);
 });
 

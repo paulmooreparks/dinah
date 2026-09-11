@@ -82,6 +82,11 @@ function labelFor(target: McpTarget): string {
  * and on one whose paths do not they stand apart. The alternative, comparing
  * the composed strings exactly, would leave a reader on Windows with two
  * entries differing only in a capital letter and no root to tell them apart.
+ *
+ * That fold is a path fold, so it folds separators as well as case, and two
+ * workbenches titled `A\B` and `A/B` would be read as colliding. Both would
+ * then gain their root, which over-disambiguates and cannot produce a missed
+ * collision or a wrong entry.
  */
 export function planMcpServers(
 	targets: readonly McpTarget[],

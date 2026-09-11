@@ -88,6 +88,28 @@ const shippedTranslatedTags: readonly SupportedTag[] = SUPPORTED_TAGS.filter(
 	(tag) => tag !== BASE_TAG && (flags.skeleton[tag] ?? []).length === 0,
 );
 
+/**
+ * Which non-base tags ship as skeletons, the complement of the set above.
+ *
+ * Derived the same way and from the same two sources, so the skeleton floor
+ * can compare SKELETON_TAGS's membership rather than only its size.
+ */
+const shippedSkeletonTags: readonly SupportedTag[] = SUPPORTED_TAGS.filter(
+	(tag) => tag !== BASE_TAG && (flags.skeleton[tag] ?? []).length > 0,
+);
+
+/**
+ * Which shipped tags a roster never reaches, named for a failure message.
+ *
+ * The same set difference the key sweeps below spell inline, lifted out
+ * because four floors report it and a message naming the whole shipped set
+ * tells the reader to look at languages that were never missing.
+ */
+function missingFrom(roster: readonly string[], shipped: readonly string[]): string {
+	const absent = [...shipped].filter((tag) => !roster.includes(tag)).sort();
+	return absent.length > 0 ? absent.join(", ") : "no tag, so the roster holds a duplicate instead";
+}
+
 // ---------------------------------------------------------------------------
 // The manifest namespace
 // ---------------------------------------------------------------------------
@@ -199,6 +221,14 @@ test("the manifest's two translated languages carry no skeleton and its five ske
 	// and every other non-base tag ships as a skeleton. Neither floor moves
 	// when the roster it guards is emptied, which is what lets each one fire
 	// under its own message.
+	//
+	// Each floor then asserts membership beside size, because a count alone is
+	// held steady by a duplicate: a roster of `["de", "de"]` runs the loop
+	// twice, reaches the same count, and retires Hindi's check in silence.
+	// Only `de` and `hi` can satisfy the translated loop's body and only the
+	// five skeleton tags can satisfy the skeleton loop's, so a duplicate is
+	// the substitution a careless edit or a bad merge produces.
+	// l10n-staleness.test.ts's own floor is written the same way.
 	const keys = sortedKeys(manifestCatalog(BASE_TAG));
 	let translatedChecked = 0;
 	for (const tag of TRANSLATED_TAGS) {
@@ -217,12 +247,22 @@ test("the manifest's two translated languages carry no skeleton and its five ske
 	assert.equal(
 		translatedChecked,
 		shippedTranslatedTags.length,
-		`the translated sweep read ${String(translatedChecked)} tags and ${String(shippedTranslatedTags.length)} ship translated, so TRANSLATED_TAGS is short of ${shippedTranslatedTags.join(", ")}`,
+		`the translated sweep read ${String(translatedChecked)} tags and ${String(shippedTranslatedTags.length)} ship translated, so TRANSLATED_TAGS is short of ${missingFrom(TRANSLATED_TAGS, shippedTranslatedTags)}`,
+	);
+	assert.deepEqual(
+		[...TRANSLATED_TAGS].sort(),
+		[...shippedTranslatedTags].sort(),
+		`the translated sweep reads the right number of tags and not the right ones: it never reads ${missingFrom(TRANSLATED_TAGS, shippedTranslatedTags)}`,
 	);
 	assert.equal(
 		skeletonChecked,
-		SUPPORTED_TAGS.length - 1 - shippedTranslatedTags.length,
-		`the skeleton sweep read ${String(skeletonChecked)} tags and ${String(SUPPORTED_TAGS.length - 1 - shippedTranslatedTags.length)} ship as skeletons, so SKELETON_TAGS is short`,
+		shippedSkeletonTags.length,
+		`the skeleton sweep read ${String(skeletonChecked)} tags and ${String(shippedSkeletonTags.length)} ship as skeletons, so SKELETON_TAGS is short of ${missingFrom(SKELETON_TAGS, shippedSkeletonTags)}`,
+	);
+	assert.deepEqual(
+		[...SKELETON_TAGS].sort(),
+		[...shippedSkeletonTags].sort(),
+		`the skeleton sweep reads the right number of tags and not the right ones: it never reads ${missingFrom(SKELETON_TAGS, shippedSkeletonTags)}`,
 	);
 });
 
