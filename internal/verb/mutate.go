@@ -430,7 +430,7 @@ func (l *Library) canLand(req *Request, card *bench.Card, destination, departure
 	// destination rather than about this card's own departure. Nothing here
 	// reads forward, on the same terms the entry row above reads neither: an
 	// unresolved item is exactly as good a reason to keep a card at the
-	// station that raised it on a push-back as it is on an advance.
+	// column that raised it on a push-back as it is on an advance.
 	exitGateHeld := false
 	if departure != nil && departure.HoldsOnExit() {
 		holding := bench.GatingItems(card.Dir, departure.ID)

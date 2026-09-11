@@ -11,11 +11,11 @@ import (
 )
 
 // declareGateItems writes gate_items into one column's own anchor, found by
-// the title the init flow gives it. `dinah set <column> hold on|off` writes the
-// same key through the field grammar, and dinah-477's own cases below drive
-// that command; this helper stays because it reaches values the command
-// refuses, and because it writes the declaration the way a person editing a
-// column.md would.
+// the title the init flow gives it. `dinah set <column> hold <value>` writes
+// the same key through the field grammar for every value bench.HoldValues
+// declares, and dinah-477's own cases below drive that command; this helper
+// stays because it reaches values the command refuses, and because it writes
+// the declaration the way a person editing a column.md would.
 func declareGateItems(t *testing.T, root, title, value string) {
 	t.Helper()
 	columns := filepath.Join(soleBenchDir(t, root), bench.ColumnsDir)
@@ -422,11 +422,12 @@ func TestTheHoldJournalsInTheStoredForm(t *testing.T) {
 	}
 }
 
-// TestTheHoldRefusesAnyValueButOnAndOff is dinah-477 AC-5. A value outside the
-// two is refused malformed naming the field, and so is a write carrying no
+// TestTheHoldRefusesAnyValueOutsideTheDeclaredSet is dinah-477 AC-5, widened
+// by dinah-484 from two values to four. A value bench.HoldValues does not
+// declare is refused malformed naming the field, and so is a write carrying no
 // value at all, since the field declares itself unclearable exactly so that a
 // bare write does nothing rather than quietly meaning off.
-func TestTheHoldRefusesAnyValueButOnAndOff(t *testing.T) {
+func TestTheHoldRefusesAnyValueOutsideTheDeclaredSet(t *testing.T) {
 	for _, argv := range [][]string{
 		{"set", "doing", bench.HoldField},
 		{"set", "doing", bench.HoldField, "maybe"},
@@ -577,7 +578,7 @@ func TestTheStoredHoldKeyReachesNothingAPersonReads(t *testing.T) {
 	// did exactly that and could not go red.
 	refused := runCLI(t, root, "set", "doing", bench.HoldField, "maybe")
 	if refused.code == 0 {
-		t.Fatal("a value outside the two was accepted")
+		t.Fatal("a value the declared hold set does not carry was accepted")
 	}
 	surfaces["the refusal"] = refused.errw
 

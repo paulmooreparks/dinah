@@ -123,14 +123,14 @@ func (l *Library) SetField(req *Request) *Response {
 }
 
 // writeHold performs a hold write in the storage spelling and answers in the
-// typed one, so the two words a person types are the two words the answer
-// carries and `gate_items` reaches nothing a person reads.
+// typed one, so the word a person types is the word the answer carries and
+// `gate_items` reaches nothing a person reads.
 //
 // The detail is rewritten only where writeField reports back the value it was
 // given, which is the successful write and the write that found the value
 // already there. A refusal composed further down carries its own detail, and
-// swapping that one for on or off would put a word in a sentence about
-// something else.
+// swapping that one for a typed hold value would put a word in a sentence
+// about something else.
 func (l *Library) writeHold(req *Request, entity *bench.EntityRef, field bench.Field, typed string) *Response {
 	stored := storedHold(typed)
 	response := l.writeField(req, entity, field, stored)
@@ -261,9 +261,7 @@ func (l *Library) admitFieldValue(req *Request, entity *bench.EntityRef, field b
 			return l.refuse(req, entity.Card, contract.Malformed, field.Name)
 		}
 	case bench.GuardHold:
-		switch value {
-		case bench.HoldOn, bench.HoldOff, bench.HoldOut, bench.HoldBoth:
-		default:
+		if !bench.KnownHold(value) {
 			return l.refuse(req, entity.Card, contract.Malformed, field.Name)
 		}
 	case bench.GuardColumnRef:

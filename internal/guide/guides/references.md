@@ -233,12 +233,15 @@ lines as you send, and `dinah set <ref> <field> -` reads them from standard
 input. Every other field holds one line, and a value carrying a line break is
 refused.
 
-A column's `hold` takes one of two values and nothing else. `dinah set <column>
-hold on` makes that column hold a card while an item the card carries names the
-column and has not been settled, `dinah set <column> hold off` lets cards
-through again, and `dinah get <column> hold` answers `on` or `off`. Turning a
-hold on or off is the operator's, the way every other write to a column is;
-reading it is open to anybody.
+A column's `hold` takes one of `on`, `off`, `out` and `both`, and nothing else.
+The value says which way the column holds as well as whether it holds at all.
+`dinah set <column> hold on` makes that column hold a card entering it while an
+item the card carries names the column and has not been settled. `dinah set
+<column> hold out` holds a card leaving it on the same terms. `dinah set
+<column> hold both` holds a card either way, and `dinah set <column> hold off`
+lets cards through in both directions again. `dinah get <column> hold` answers
+whichever of them was written last. Writing a hold is the operator's, the way
+every other write to a column is; reading it is open to anybody.
 
 ## A reference or a query
 

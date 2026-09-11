@@ -130,6 +130,26 @@ const (
 	NotesField = "notes"
 )
 
+// HoldValues are the four values a column's hold takes, in the order off, on,
+// out, both. It is the one statement of that set: the guard that admits a
+// typed value reads it through KnownHold below rather than writing the four
+// out again, and so does every surface offering a reader the choice. A fifth
+// value added later moves this list and the documentation a test holds
+// against it, and nothing else.
+var HoldValues = []string{HoldOff, HoldOn, HoldOut, HoldBoth}
+
+// KnownHold reports whether a value is one of the four HoldValues declares.
+// It mirrors KnownItemKind, which answers the same question for an item's
+// kind, so a closed vocabulary is read the same way wherever one is read.
+func KnownHold(value string) bool {
+	for _, known := range HoldValues {
+		if known == value {
+			return true
+		}
+	}
+	return false
+}
+
 // fields is the one statement of what a kind's fields are. Every reader goes
 // through FieldsOf, FieldOf, AllFields or WriteAuthorityOf rather than
 // repeating any part of it, so a field added or dropped later moves this table

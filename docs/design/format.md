@@ -615,27 +615,27 @@ with staying out.
 
 A column may declare `gate_items`, which says the column holds a card while an
 item the card carries names that column and its state has not settled it, and
-says which way it holds. Two of an item's four states settle it here, `resolved` and `verified`. A
-`failed` item holds the card, because that state records that somebody checked
-the work and it did not hold, and releasing the gate on it would open the
-column on the one state saying the work is wrong; the operator's `--override`
-marker below is what carries such a card through. This is narrower than the
-question the claim refusal asks, which reads `failed` as settled and is
-unchanged. Absent means false, and the value is exactly one of four spellings, read as
-strictly as `awaiting_outside` above rather than as leniently as
-`operator_owned`. `true` holds a card entering the column, and it is the
-spelling every workbench written before the direction existed carries. `out`
-holds a card leaving the column. `both` holds a card either way. `false`, and
-an absent key, hold neither way. A person types `on`, `out`, `both` or `off`
-for those, since `dinah set <column> hold` takes the typed word and stores the
-spelling above. The declaration says only
-that the column holds. It carries no list of which kinds of item hold there, and
-nothing in the refusal reads an item's kind, so an acceptance criterion holds a
-card exactly as a decision or an open question does and a workbench that wants
-one kind held at a column and not another says so by which kinds it files
-against that column. The item's own `column` key names the column by its
-identifier, which is the key the item reader beside it already resolves a title
-from.
+says which way it holds. Two of an item's four states settle it here,
+`resolved` and `verified`. A `failed` item holds the card, because that state
+records that somebody checked the work and it did not hold, and releasing the
+gate on it would open the column on the one state saying the work is wrong;
+the operator's `--override` marker below is what carries such a card through.
+This is narrower than the question the claim refusal asks, which reads
+`failed` as settled and is unchanged. Absent means false, and the value is
+exactly one of four spellings, read as strictly as `awaiting_outside` above
+rather than as leniently as `operator_owned`. `true` holds a card entering the
+column, and it is the spelling every workbench written before the direction
+existed carries. `out` holds a card leaving the column. `both` holds a card
+either way. `false`, and an absent key, hold neither way. A person types `on`,
+`out`, `both` or `off` for those, since `dinah set <column> hold` takes the
+typed word and stores the spelling above. The declaration says only that the
+column holds. It carries no list of which kinds of item hold there, and
+nothing in the refusal reads an item's kind, so an acceptance criterion holds
+a card exactly as a decision or an open question does and a workbench that
+wants one kind held at a column and not another says so by which kinds it
+files against that column. The item's own `column` key names the column by its
+identifier, which is the key the item reader beside it already resolves a
+title from.
 
 Which side is held follows the declared direction. A move or a pull into a
 column whose declaration covers entry is refused `unresolved-item`, naming the
