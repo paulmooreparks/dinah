@@ -966,8 +966,11 @@ func ItemIsResolved(item *Item) bool {
 	}
 }
 
-// ItemLiftsColumnHold reports whether an item's state releases the hold a
-// column declaring gate_items puts on entry.
+// ItemLiftsColumnHold reports whether an item's state releases a hold a column
+// declaring gate_items puts on a card, whichever way that column holds. The
+// declaration carries a direction since dinah-484 and this reading does not:
+// the state that settles an item settles it for a card arriving at the column
+// and for one leaving it alike.
 //
 // It answers differently from ItemIsResolved above, on one state and on the
 // operator's ruling of 2026-09-10 recorded as dinah-450 OQ-5. A failed item
@@ -1002,12 +1005,17 @@ func BlockingItems(cardDir string) []*Item {
 	return itemsWhere(cardDir, ItemBlocksClaim)
 }
 
-// GatingItems reads the checklist items of a card that hold it out of one
+// GatingItems reads the checklist items of a card that hold it against one
 // column right now, in the order BlockingItems reads its own. An item holds
 // when its own column field names the column and its state does not lift the
 // hold, and that is the whole test: every kind an item can carry holds on the
 // same terms, because CORE-GATE-1 puts the selectivity in which items name a
 // column rather than in the column or in the tool.
+//
+// Which side of that column the items hold is the caller's question rather
+// than this one's. canLand asks twice for a move, once against the column the
+// card would arrive at and once against the column it would leave, and this
+// answers the same way both times.
 //
 // The column is named by identifier, which is what an item's column field
 // carries and what the reader beside it resolves a title from.

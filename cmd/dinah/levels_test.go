@@ -571,7 +571,7 @@ What can go wrong, in the order each is checked:
   4      the value is present, and one line unless prose  malformed
   5      the field's own guard admits the value           dinah.unknown-level
   6      the request names an owner                       no-owner
-  7      that owner is the operator, where the kind asks  not-operator
+  7      that owner is the operator, where a write asks   not-operator
   8      a slug change carries the confirmation flag      dinah.unconfirmed
 
 For more, run ` + "`" + `dinah guide references` + "`" + `.

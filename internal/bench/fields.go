@@ -91,18 +91,27 @@ const (
 	// WIPLimitKey is the frontmatter key that limit is stored under, which
 	// is not the name a reader types for it.
 	WIPLimitKey = "wip_limit"
-	// HoldField is a column's hold, as a reader types it: on where the
-	// column holds a card until an item naming it is settled, and off where
-	// it does not.
+	// HoldField is a column's hold, as a reader types it. It carries a
+	// direction as well as a state: on where the column holds a card
+	// entering it until an item naming the column is settled, out where it
+	// holds a card leaving it on the same terms, both where it holds a card
+	// either way, and off where it holds neither way.
 	HoldField = "hold"
 	// GateItemsKey is the frontmatter key that hold is stored under, which
 	// is not the name a reader types for it. The stored spelling is the
 	// profile's, under CORE-JSON-10, and it stays out of everything a person
 	// types or reads.
 	GateItemsKey = "gate_items"
-	// HoldOn and HoldOff are the two values a reader types for a hold.
-	HoldOn  = "on"
-	HoldOff = "off"
+	// HoldOn, HoldOff, HoldOut and HoldBoth are the four values a reader
+	// types for a hold, and the set is closed. On is the sole spelling for
+	// the entry direction, carried unchanged from the two-value vocabulary
+	// this field was born with, so there is deliberately no fifth word in:
+	// two spellings for one direction is the confusion this vocabulary is
+	// shaped to avoid.
+	HoldOn   = "on"
+	HoldOff  = "off"
+	HoldOut  = "out"
+	HoldBoth = "both"
 	// StatusField is a workstream's status.
 	StatusField = "status"
 	// FilenameField is an attachment's filename.
@@ -120,6 +129,38 @@ const (
 	// NotesField is the name a workstream's prose body is typed as.
 	NotesField = "notes"
 )
+
+// HoldValues are the four values a column's hold takes, in the order off, on,
+// out, both. It is the one statement of which values are legal: the guard that
+// admits a typed value reads it through KnownHold below rather than writing the
+// four out again, and so does every surface offering a reader the choice.
+//
+// Membership is the whole of what it settles, and that is narrower than it
+// looks. Seven readers each decide what to do with a value, and a value added
+// here has to be taught to every one of them: storedHold and typedHold in
+// internal/verb carry it between the word a person types and the spelling the
+// anchor stores, readColumnIn above reads that spelling back, exportColumn and
+// writeColumnFromMember in interchange.go carry it out of a workbench and in
+// again, and HoldsOnEntry and HoldsOnExit on Column decide which way it holds.
+// A value added to this list alone produces a write that reports success,
+// stores nothing, and reads back as off.
+//
+// TestEveryDeclaredHoldValueReachesEveryReader in cmd/dinah is what holds the
+// seven to this list rather than to a reader's memory. It drives every value
+// declared here through all of them and fails on exactly that silence.
+var HoldValues = []string{HoldOff, HoldOn, HoldOut, HoldBoth}
+
+// KnownHold reports whether a value is one of the four HoldValues declares.
+// It mirrors KnownItemKind, which answers the same question for an item's
+// kind, so a closed vocabulary is read the same way wherever one is read.
+func KnownHold(value string) bool {
+	for _, known := range HoldValues {
+		if known == value {
+			return true
+		}
+	}
+	return false
+}
 
 // fields is the one statement of what a kind's fields are. Every reader goes
 // through FieldsOf, FieldOf, AllFields or WriteAuthorityOf rather than

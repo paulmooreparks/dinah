@@ -1,6 +1,7 @@
 package main
 
 import (
+	"regexp"
 	"sort"
 	"strings"
 	"testing"
@@ -148,5 +149,67 @@ func TestTheGuideSaysWhichFieldsTheWorkbenchListingLeavesOut(t *testing.T) {
 		if !strings.Contains(folded, "leaves `"+name+"` out") {
 			t.Errorf("the workbench listing withholds %s and the guide does not say so", name)
 		}
+	}
+}
+
+// referencesGuideHoldParagraph returns the references guide's hold paragraph as
+// one folded line, so a check over it reads the sentences rather than the wrap.
+// It finds the paragraph by the clause that opens it, which is the clause the
+// paragraph exists to state, rather than by a line number or by a heading the
+// field does not have one of.
+func referencesGuideHoldParagraph(t *testing.T) string {
+	t.Helper()
+	text, err := guide.Text("references")
+	if err != nil {
+		t.Fatalf("guide references: %v", err)
+	}
+	for _, paragraph := range strings.Split(strings.ReplaceAll(text, "\r\n", "\n"), "\n\n") {
+		folded := strings.Join(strings.Fields(paragraph), " ")
+		if strings.HasPrefix(folded, "A column's `"+bench.HoldField+"` takes ") {
+			return folded
+		}
+	}
+	t.Fatalf("the references guide carries no paragraph opening \"A column's `%s` takes\"; this check and the guide have drifted apart", bench.HoldField)
+	return ""
+}
+
+// TestTheReferencesGuideNamesEveryHoldValueAndNoOther holds the guide's account
+// of a column's hold against the set the tree declares, in both directions: a
+// value bench.HoldValues carries and the guide does not name fails, and a value
+// the guide offers in a `dinah set` line that bench.HoldValues does not carry
+// fails too.
+//
+// The guide is the second shipped document describing this field, and until
+// dinah-484 nothing tied it to the field at all. Its passage went on saying the
+// hold took one of two values through the whole of the card that gave it four,
+// and it was the review rather than the suite that noticed. A check reading the
+// paragraph for a count word would have caught that one and would go on passing
+// the day a fifth value arrived under an unchanged count, so this one reads the
+// values themselves.
+func TestTheReferencesGuideNamesEveryHoldValueAndNoOther(t *testing.T) {
+	if len(bench.HoldValues) == 0 {
+		t.Fatal("the declared hold set is empty, so this check reads nothing")
+	}
+	paragraph := referencesGuideHoldParagraph(t)
+	declared := map[string]bool{}
+	for _, value := range bench.HoldValues {
+		declared[value] = true
+		if !strings.Contains(paragraph, "`"+value+"`") {
+			t.Errorf("the declared hold set carries %q and the guide's hold paragraph never names it", value)
+		}
+		if !strings.Contains(paragraph, "`dinah set <column> "+bench.HoldField+" "+value+"`") {
+			t.Errorf("the declared hold set carries %q and the guide's hold paragraph shows no `dinah set <column> %s %s` for it", value, bench.HoldField, value)
+		}
+	}
+	offered := regexp.MustCompile("`dinah set <column> " + regexp.QuoteMeta(bench.HoldField) + ` ([a-z]+)` + "`")
+	shown := 0
+	for _, match := range offered.FindAllStringSubmatch(paragraph, -1) {
+		shown++
+		if !declared[match[1]] {
+			t.Errorf("the guide's hold paragraph offers `dinah set <column> %s %s` and the declared hold set does not carry %q", bench.HoldField, match[1], match[1])
+		}
+	}
+	if shown == 0 {
+		t.Fatal("the guide's hold paragraph shows no `dinah set <column> hold` line at all, so the second half of this check read nothing")
 	}
 }

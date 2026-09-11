@@ -1377,15 +1377,19 @@ func TestPerCommandHelpFollowsTheProfile(t *testing.T) {
 		}
 	}
 	// The two workbench-level rows, then the profile's own move rows, then
-	// Dinah's one appended row for the departure column's loop_limit. The
-	// count is composed from the profile document rather than written down,
-	// so a row added or removed there moves this expectation with it.
-	wantedRows := len(workbench) + len(lists[verb.Move]) + 1
+	// Dinah's two appended rows: the departure column's loop_limit, and the
+	// departure column's own hold read on the way out. The count is composed
+	// from the profile document rather than written down, so a row added or
+	// removed there moves this expectation with it.
+	wantedRows := len(workbench) + len(lists[verb.Move]) + 2
 	if rows != wantedRows {
 		t.Errorf("wanted %d rows, got %d", wantedRows, rows)
 	}
 	if !strings.Contains(got.out, contract.AtLoopLimit) {
-		t.Error("the rendered help should carry Dinah's own appended row")
+		t.Error("the rendered help should carry Dinah's own appended loop row")
+	}
+	if !strings.Contains(got.out, contract.UnresolvedItemExit) {
+		t.Error("the rendered help should carry Dinah's own appended exit-hold row")
 	}
 	if !strings.Contains(got.out, contract.AtCapacity) {
 		t.Error("the rendered help should carry each check's refusal name")
@@ -7502,20 +7506,22 @@ const ratifiedGlobalFlagTable = `  Option             What it does
   --lang <tag>       Render in this language; run ` + "`dinah version --catalogs`" + ` for the tags
   --actor <name>     Act as this owner`
 
-const ratifiedMoveRefusalTable = `  Order  What can go wrong                                   Refusal
-  -----  --------------------------------------------------  -------------------
+const ratifiedMoveRefusalTable = `  Order  What can go wrong                            Refusal
+  -----  -------------------------------------------  --------------------------
   1      the workbench declares a profile version the tool implements
-                                                            unsupported-version
-  2      the workbench designates an operator                no-operator
-  3      the card exists                                     unknown-card
-  4      the destination is a column the workbench declares  unknown-column
-  5      an override marker, if carried, is the operator's   not-operator
-  6      the departure is legal for whoever asks             not-operator
-  7      the card's state is not ` + "`" + `blocked` + "`" + `                   blocked
-  8      the card is unheld or held by whoever asks          held
+                                                      unsupported-version
+  2      the workbench designates an operator         no-operator
+  3      the card exists                              unknown-card
+  4      the destination is a column the workbench declares
+                                                      unknown-column
+  5      an override marker, if carried, is the operator's
+                                                      not-operator
+  6      the departure is legal for whoever asks      not-operator
+  7      the card's state is not ` + "`" + `blocked` + "`" + `            blocked
+  8      the card is unheld or held by whoever asks   held
   9      the move is not a forward move out of a ` + "`" + `done` + "`" + ` column
-                                                            terminal
-  10     the destination is below its capacity limit         at-capacity`
+                                                      terminal
+  10     the destination is below its capacity limit  at-capacity`
 
 // TestTheArgumentsTableWrapsAndNoOtherTableMoved asserts dinah-172 AC-17: at an
 // eighty-column window the arguments table breaks its last column between
@@ -7653,7 +7659,7 @@ func TestPullOnTheCommandLine(t *testing.T) {
 		}
 	})
 
-	t.Run("help pull prints the arguments and the thirteen checks in order", func(t *testing.T) {
+	t.Run("help pull prints the arguments and the eighteen checks in order", func(t *testing.T) {
 		root := newBench(t)
 		got := runCLI(t, root, "help", "pull")
 		if got.code != 0 {
