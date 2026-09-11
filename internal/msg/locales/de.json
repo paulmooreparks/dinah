@@ -614,6 +614,11 @@
       "context": "A check finding: two entities of one collection share an ordinal, which leaves a positional reference with two answers.",
       "source": "dea3c47b046eca46"
     },
+    "check.card-number-duplicate": {
+      "text": "{detail} ist eine Kartennummer, die zwei Karten tragen, sodass ein Verweis per Nummer mit einer von beiden antwortet",
+      "context": "A check finding: two cards hold one number, which leaves the durable half of a card reference ambiguous.",
+      "source": "272f347a93a5c261"
+    },
     "check.ordinal-guessed": {
       "text": "{detail} wurde nach seinem Verzeichniseintrag eingeordnet, weil kein Ereignis im Protokoll der Karte seine Erstellung festhält, sodass seine Position geraten ist",
       "context": "A check finding the ordinal migration raises: the write order of this entity was not recoverable and the migration ordered it by the listing instead.",
