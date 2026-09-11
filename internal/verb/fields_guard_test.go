@@ -257,43 +257,64 @@ func guardCapacity(t *testing.T) {
 	}
 }
 
-// guardHold asserts a column's hold against the two words a person types, and
-// asserts that neither the storage spelling nor a near miss of the typed one
-// is admitted. What reaches disk is checked through the reopened column rather
-// than through the value that was written, since typed and stored differ here.
+// guardHold asserts a column's hold against the four words a person types,
+// and asserts that neither the storage spelling nor a near miss of the typed
+// one is admitted. What reaches disk is checked through the reopened column
+// rather than through the value that was written, since typed and stored
+// differ here.
+//
+// The retired word in is refused beside the rest, because on is the sole
+// spelling for the entry direction and a reader who guesses the other one gets
+// told so rather than getting a column that holds nothing.
 func guardHold(t *testing.T) {
 	h := harnessFromDefinition(t, "gd", fieldGuardDefinition)
-	for _, value := range []string{"maybe", "true", "On", "1"} {
+	for _, value := range []string{"maybe", "true", "On", "1", "in", "exit", "Both"} {
 		refused := h.library.SetField(&Request{
 			Verb: "set", Actor: "alka", Ref: "d00000000002",
 			Field: bench.HoldField, Value: value,
 		})
 		refusedWith(t, "the hold "+value, refused, contract.Malformed)
 	}
-	accepted := h.library.SetField(&Request{
-		Verb: "set", Actor: "alka", Ref: "d00000000002",
-		Field: bench.HoldField, Value: bench.HoldOn,
-	})
-	acceptedOK(t, "a hold turned on", accepted)
-	if accepted.Detail != bench.HoldOn {
-		t.Errorf("the answer carries the detail %q, wanted the word that was typed, %q", accepted.Detail, bench.HoldOn)
-	}
-	h.reopen()
-	if !h.library.Bench.Columns[1].GateItems {
-		t.Error("the column reads back as not holding after the hold was turned on")
-	}
-
-	cleared := h.library.SetField(&Request{
-		Verb: "set", Actor: "alka", Ref: "d00000000002",
-		Field: bench.HoldField, Value: bench.HoldOff,
-	})
-	acceptedOK(t, "a hold turned off", cleared)
-	if cleared.Detail != bench.HoldOff {
-		t.Errorf("the answer carries the detail %q, wanted the word that was typed, %q", cleared.Detail, bench.HoldOff)
-	}
-	h.reopen()
-	if h.library.Bench.Columns[1].GateItems {
-		t.Error("the column reads back as holding after the hold was turned off")
+	for _, want := range []struct {
+		typed  string
+		hold   string
+		stored string
+	}{
+		{bench.HoldOn, bench.HoldOn, "true"},
+		{bench.HoldOut, bench.HoldOut, "out"},
+		{bench.HoldBoth, bench.HoldBoth, "both"},
+		{bench.HoldOff, "", ""},
+	} {
+		accepted := h.library.SetField(&Request{
+			Verb: "set", Actor: "alka", Ref: "d00000000002",
+			Field: bench.HoldField, Value: want.typed,
+		})
+		acceptedOK(t, "a hold set to "+want.typed, accepted)
+		if accepted.Detail != want.typed {
+			t.Errorf("the answer carries the detail %q, wanted the word that was typed, %q", accepted.Detail, want.typed)
+		}
+		// The same word written twice succeeds and writes nothing, which is
+		// writeField's own idempotence and is what a script re-running a
+		// declaration depends on.
+		again := h.library.SetField(&Request{
+			Verb: "set", Actor: "alka", Ref: "d00000000002",
+			Field: bench.HoldField, Value: want.typed,
+		})
+		acceptedOK(t, "the hold "+want.typed+" written twice", again)
+		h.reopen()
+		if got := h.library.Bench.Columns[1].Hold; got != want.hold {
+			t.Errorf("the column reads back the hold %q after %s was typed, wanted %q", got, want.typed, want.hold)
+		}
+		if got := h.library.Bench.Columns[1].FM.Value(bench.GateItemsKey); got != want.stored {
+			t.Errorf("the anchor stores %q under the gate key after %s was typed, wanted %q", got, want.typed, want.stored)
+		}
+		read, err := h.library.GetField(&Request{Verb: "get", Ref: "d00000000002", Field: bench.HoldField})
+		if err != nil {
+			t.Fatalf("read the hold back: %v", err)
+		}
+		if read != want.typed {
+			t.Errorf("the hold reads back as %q, wanted the word that was typed, %q", read, want.typed)
+		}
 	}
 }
 

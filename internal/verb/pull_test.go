@@ -390,7 +390,7 @@ func TestCapacityAndRetiringRefuseUnderEachForm(t *testing.T) {
 		// bare form's set.
 		//
 		// The destination is doing rather than aftercare because the
-		// refusal has to be reachable. Row 13 is evaluated under the
+		// refusal has to be reachable. Row 14 is evaluated under the
 		// card's lock, so a card must be standing ready in the upstream
 		// column for the pull to get that far, and aftercare's upstream is
 		// the done column, which refuses terminal at row 11 first.
@@ -412,7 +412,7 @@ func TestCapacityAndRetiringRefuseUnderEachForm(t *testing.T) {
 	t.Run("a retiring column with nothing waiting answers empty", func(t *testing.T) {
 		h := newHarness(t)
 		// The same retiring destination, with its upstream left empty.
-		// Rows 8 to 13 read the one card the selection chose, so with no
+		// Rows 8 to 14 read the one card the selection chose, so with no
 		// card to choose the pull never reaches them and answers the
 		// empty answer rather than the refusal above. Both forms answer a
 		// pull that finds nothing to take the same way, which is what
@@ -745,14 +745,16 @@ const reservedAmbiguousDefinition = `{
   ]
 }`
 
-// TestPullChecksAgainstTheFullSeventeenRowTable asserts that the ordered
+// TestPullChecksAgainstTheFullEighteenRowTable asserts that the ordered
 // precondition list Pull's help is generated from is the workbench pair
-// followed by the fourteen pull rows the spec owns and Dinah's own tier row,
+// followed by the fifteen pull rows the spec owns and Dinah's own tier row,
 // in the order they are checked. This is the test the help renders against.
 //
 // Row 11 is the destination's own hold, CORE-GATE-2, which dinah-450 stated
-// here rather than leaving it to arrive silently through canLand.
-func TestPullChecksAgainstTheFullSeventeenRowTable(t *testing.T) {
+// here rather than leaving it to arrive silently through canLand. Row 12 is
+// the departure's own hold beside it, dinah-484's, inserted rather than
+// appended because canLand runs it before the three rows below it.
+func TestPullChecksAgainstTheFullEighteenRowTable(t *testing.T) {
 	checks := Checks(Pull)
 	want := []Check{
 		{Refusal: contract.UnsupportedVer, Key: "check.workbench.1"},
@@ -768,10 +770,11 @@ func TestPullChecksAgainstTheFullSeventeenRowTable(t *testing.T) {
 		{Refusal: contract.Terminal, Key: "check.pull.9"},
 		{Refusal: contract.AtCapacity, Key: "check.pull.10"},
 		{Refusal: contract.UnresolvedItem, Key: "check.pull.11"},
-		{Refusal: contract.NotOperator, Key: "check.pull.12"},
-		{Refusal: contract.Locked, Key: "check.pull.13"},
-		{Refusal: contract.UnresolvedItem, Key: "check.pull.14"},
-		{Refusal: contract.BelowTier, Key: "check.pull.15"},
+		{Refusal: contract.UnresolvedItemExit, Key: "check.pull.12"},
+		{Refusal: contract.NotOperator, Key: "check.pull.13"},
+		{Refusal: contract.Locked, Key: "check.pull.14"},
+		{Refusal: contract.UnresolvedItem, Key: "check.pull.15"},
+		{Refusal: contract.BelowTier, Key: "check.pull.16"},
 	}
 	if len(checks) != len(want) {
 		t.Fatalf("wanted %d rows, got %d", len(want), len(checks))
@@ -981,8 +984,9 @@ func TestACardThatStopsBeingReadyUnderTheLockRefusesInTheClaimsWords(t *testing.
 }
 
 // TestPullReadsTheCardRowsBeforeTheDestinationRows asserts the half of the
-// merged order the departure case cannot reach: row 10 reads the card, rows
-// 11 to 13 read the destination, and the card decides first.
+// merged order the departure case cannot reach: row 10 reads the card, row 11
+// and rows 13 to 14 read the destination (row 12, the departure's own exit
+// hold, reads the departure instead), and the card decides first.
 //
 // The card is claimed under the lock by the owner asking for the pull, and
 // the destination stands at its capacity. That pair is the only one that

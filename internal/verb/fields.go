@@ -95,6 +95,9 @@ func (l *Library) SetField(req *Request) *Response {
 	if bench.WriteAuthorityOf(entity.Kind) == bench.AuthorityOperator && req.Actor != l.Bench.Operator {
 		return l.refuse(req, entity.Card, contract.NotOperator, req.Actor)
 	}
+	if refused := l.admitOwnerWrite(req, entity, field, value); refused != nil {
+		return refused
+	}
 	if field.Guard == bench.GuardSlug && !req.Confirm {
 		// A workbench slug change renames every card of the workbench with
 		// it, which a column's and a workstream's do not, so the sentence
@@ -120,14 +123,14 @@ func (l *Library) SetField(req *Request) *Response {
 }
 
 // writeHold performs a hold write in the storage spelling and answers in the
-// typed one, so the two words a person types are the two words the answer
-// carries and `gate_items` reaches nothing a person reads.
+// typed one, so the word a person types is the word the answer carries and
+// `gate_items` reaches nothing a person reads.
 //
 // The detail is rewritten only where writeField reports back the value it was
 // given, which is the successful write and the write that found the value
 // already there. A refusal composed further down carries its own detail, and
-// swapping that one for on or off would put a word in a sentence about
-// something else.
+// swapping that one for a typed hold value would put a word in a sentence
+// about something else.
 func (l *Library) writeHold(req *Request, entity *bench.EntityRef, field bench.Field, typed string) *Response {
 	stored := storedHold(typed)
 	response := l.writeField(req, entity, field, stored)
@@ -135,6 +138,38 @@ func (l *Library) writeHold(req *Request, entity *bench.EntityRef, field bench.F
 		response.Detail = typed
 	}
 	return response
+}
+
+// admitOwnerWrite refuses a non-operator's write to a checklist item's owner
+// key where the operator owns the item already, or would own it once the write
+// landed. Without it the refusal closeItem raises is a refusal any value
+// satisfies: whoever wanted to settle an item the operator owns would take the
+// item out of the operator's name first and then settle it, and the record the
+// refusal reads would be the record they had just rewritten.
+//
+// It stands here rather than beside the field guards above because a clear
+// runs no guard, and clearing the key removes the operator's name exactly as
+// overwriting it does. Filing a fresh item in the operator's name stays open to
+// everybody, because that is the ordinary act of routing a question to the
+// operator and it is AddItem's path rather than this one.
+func (l *Library) admitOwnerWrite(req *Request, entity *bench.EntityRef, field bench.Field, value string) *Response {
+	if entity.Kind != bench.KindItem || field.Name != bench.ItemOwnerField {
+		return nil
+	}
+	if req.Actor == l.Bench.Operator {
+		return nil
+	}
+	if value == bench.ItemOwnerOperator {
+		return l.refuse(req, entity.Card, contract.NotOperator, req.Actor)
+	}
+	fm, _, err := l.entityAnchor(entity)
+	if err != nil {
+		return l.FromError(req, err)
+	}
+	if fm.Value(bench.ItemOwnerField) == bench.ItemOwnerOperator {
+		return l.refuse(req, entity.Card, contract.NotOperator, req.Actor)
+	}
+	return nil
 }
 
 // routeGuardedWrite hands a write to the verb that already performs it, and
@@ -226,7 +261,7 @@ func (l *Library) admitFieldValue(req *Request, entity *bench.EntityRef, field b
 			return l.refuse(req, entity.Card, contract.Malformed, field.Name)
 		}
 	case bench.GuardHold:
-		if value != bench.HoldOn && value != bench.HoldOff {
+		if !bench.KnownHold(value) {
 			return l.refuse(req, entity.Card, contract.Malformed, field.Name)
 		}
 	case bench.GuardColumnRef:
@@ -256,29 +291,41 @@ func (l *Library) readField(entity *bench.EntityRef, field bench.Field) (string,
 
 // typedHold reports a column's hold in the words a person types, given what
 // the anchor stores. The stored spelling is the profile's `gate_items`, whose
-// value is exactly true, exactly false, or absent, and bench.Open refuses a
-// workbench carrying anything else, so the three readings this collapses are
-// the three that can reach it.
+// value is exactly true, false, out, both, or absent, and bench.Open refuses a
+// workbench carrying anything else, so the five readings this collapses to
+// four typed words are the five that can reach it.
 //
 // The translation lives here and in storedHold below rather than in
 // writeField, because the storage spelling is what every other reader of the
 // anchor already expects and the typed spelling is what only this one field's
 // two commands use.
 func typedHold(stored string) string {
-	if stored == "true" {
+	switch stored {
+	case "true":
 		return bench.HoldOn
+	case "out":
+		return bench.HoldOut
+	case "both":
+		return bench.HoldBoth
 	}
 	return bench.HoldOff
 }
 
 // storedHold reports what the anchor carries for a hold a person has just
-// typed. Off clears the key rather than writing false, which is what
-// writeField's own empty-value branch does with it, and the strict parser in
-// internal/bench reads an absent key and an explicit false identically, so
-// clearing never produces a second on-disk spelling of off.
+// typed. On stores true, which is the spelling the field was born with and
+// which every workbench written before the direction existed already carries.
+// Off clears the key rather than writing false, which is what writeField's own
+// empty-value branch does with it, and the strict parser in internal/bench
+// reads an absent key and an explicit false identically, so clearing never
+// produces a second on-disk spelling of off.
 func storedHold(typed string) string {
-	if typed == bench.HoldOn {
+	switch typed {
+	case bench.HoldOn:
 		return "true"
+	case bench.HoldOut:
+		return bench.HoldOut
+	case bench.HoldBoth:
+		return bench.HoldBoth
 	}
 	return ""
 }
