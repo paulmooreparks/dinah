@@ -3317,6 +3317,12 @@ test("mcpTargets carries the answered rows and nothing else", async () => {
 				workbenches: [
 					{ title: "Carter LLP", slug: "carter", path: "C:\\customers\\carter", ...payload },
 					{ title: "Dalton", slug: "dalton", path: "C:\\customers\\dalton", ...payload },
+					{
+						title: "Enderby",
+						slug: "enderby",
+						path: "C:\\customers\\enderby",
+						unanswered: "dinah.unknown-column",
+					},
 				],
 			});
 		}
@@ -3341,7 +3347,11 @@ test("mcpTargets carries the answered rows and nothing else", async () => {
 		["C:\\customers\\carter", "C:\\customers\\dalton"],
 		"the forest folder did not contribute one target per resolved member",
 	);
-	for (const unresolved of ["C:\\multi\\second", "C:\\multi\\third"]) {
+	for (const unresolved of [
+		"C:\\multi\\second",
+		"C:\\multi\\third",
+		"C:\\customers\\enderby",
+	]) {
 		assert.deepEqual(
 			roots.filter((root) => root.startsWith(unresolved)),
 			[],
