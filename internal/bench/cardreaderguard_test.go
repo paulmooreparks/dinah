@@ -1630,6 +1630,18 @@ func read(b *w.Workbench, root, id, slug string) (string, bool) {
 			count:     1,
 		},
 		{
+			name: "an alias handed to a call as a value",
+			files: map[string]string{"internal/bench/check.go": `func (b *Workbench) stashedAlias(root, id string) error {
+	read := LoadCard
+	stash(read)
+	return nil
+}
+`},
+			allowlist: oneProbeEntry(),
+			want:      []string{"a free reader was handed as a call argument"},
+			count:     1,
+		},
+		{
 			name: "a reader value sent on a channel",
 			files: map[string]string{"internal/bench/check.go": `func (b *Workbench) shipped(root, id string, ch chan func(string, string) (*Card, error)) error {
 	ch <- LoadCard
