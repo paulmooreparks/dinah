@@ -382,10 +382,12 @@ func isNewCard(call *ast.CallExpr) bool {
 // answers the card in its first result and its error in its second, and
 // tracking every target would taint that error and report every error return
 // in the file. A range clause binds both its variables, because the walk
-// reads syntax and cannot tell which of the two holds the element. A name
-// bound from a bare reference to a reader rather than from its call is
-// tracked as an alias, and a call through that alias reads as a call of the
-// reader itself.
+// reads syntax and cannot tell which of the two holds the element. A type
+// assertion over a tracked identifier carries the taint to whatever it
+// binds, because the asserted value is the card itself, so a type-switch
+// guard launders nothing. A name bound from a bare reference to a reader
+// rather than from its call is tracked as an alias, and a call through that
+// alias reads as a call of the reader itself.
 func valueFindings(function *ast.FuncDecl, bound map[string]bool, at position, composed string) []readerFinding {
 	var findings []readerFinding
 	tracked := map[string]bool{}
@@ -564,12 +566,21 @@ func collectFieldNames(introduced map[string]bool, fields *ast.FieldList) {
 // card one of the free readers answered, by one of the shapes that carry the
 // taint: the reader's own call, direct or through a name the walk bound from
 // a reader reference, a tracked identifier read alone or through the alias
-// operators, an append whose argument is tracked, a composite literal
-// carrying a tracked identifier anywhere inside it, or a call whose function
-// expression carries one, which is a method on the card. The list is closed
-// on purpose, because tainting on any expression that merely mentions a
-// tracked identifier would reach a selector reading one field off the card
-// and forbid the very reads the migration's entry exists to permit.
+// operators, a type assertion whose operand carries the taint, an append
+// whose argument is tracked, a composite literal carrying a tracked
+// identifier anywhere inside it, or a call whose function expression carries
+// one, which is a method on the card. The list is closed on purpose, because
+// tainting on any expression that merely mentions a tracked identifier would
+// reach a selector reading one field off the card and forbid the very reads
+// the migration's entry exists to permit.
+//
+// The type-assertion shape reads its operand rather than mentioning it, so a
+// conversion inside the assertion does not carry the taint: asserting a
+// tracked identifier directly binds the card, while asserting it through a
+// conversion leaves the binding untracked, because the conversion is a call
+// whose function expression names no tracked identifier. The conversion
+// spelling is still caught, at its own line, by the clause that reports a
+// tracked identifier standing in a call's argument list.
 func carriesTheCard(expr ast.Expr, tracked map[string]bool, aliases map[string]bool, bound map[string]bool) bool {
 	switch value := expr.(type) {
 	case *ast.CallExpr:
@@ -587,6 +598,8 @@ func carriesTheCard(expr ast.Expr, tracked map[string]bool, aliases map[string]b
 		return mentionsTrackedIdentifier(value.Fun, tracked)
 	case *ast.CompositeLit:
 		return mentionsTrackedIdentifier(value, tracked)
+	case *ast.TypeAssertExpr:
+		return carriesTheCard(value.X, tracked, aliases, bound)
 	}
 	return aliasReads(expr, tracked)
 }
@@ -955,7 +968,13 @@ func oneProbeEntry() []readerExemption {
 // laundering assignment, a range clause binding a card out of a slice, a
 // reader call standing inside a call's arguments, a call through a local
 // alias of the reader, and package-level storage whose var declaration
-// elides its type.
+// elides its type. The three cases after those are this round's own probes
+// of the claims its own record makes: a type-switch guard and a plain type
+// assertion binding the card out of a tracked identifier, shapes the walk's
+// binding-form sentence had to cover and did not until the assertion shape
+// was added, and a tracked card sent on a channel, which is the arm the
+// receive residual's defense rests on, planted so that arm cannot be
+// removed silently.
 func TestTheLoadCardGuardGoesRed(t *testing.T) {
 	cases := []plantedEscape{
 		{
@@ -1417,6 +1436,54 @@ func read(b *w.Workbench, root, id, slug string) (string, bool) {
 `},
 			allowlist: oneProbeEntry(),
 			want:      []string{"a free reader was called inside a call argument"},
+			count:     1,
+		},
+		{
+			name: "a type-switch guard laundering a tracked card",
+			files: map[string]string{"internal/bench/check.go": `func (b *Workbench) switched(root, id string) (any, error) {
+	c, err := LoadCard(root, id)
+	if err != nil {
+		return nil, err
+	}
+	switch d := c.(type) {
+	case *Card:
+		return d, nil
+	}
+	return nil, nil
+}
+`},
+			allowlist: oneProbeEntry(),
+			want:      []string{"a tracked card was answered in a return"},
+			count:     1,
+		},
+		{
+			name: "a plain type assertion laundering a tracked card",
+			files: map[string]string{"internal/bench/check.go": `func (b *Workbench) asserted(root, id string) (any, error) {
+	c, err := LoadCard(root, id)
+	if err != nil {
+		return nil, err
+	}
+	d := c.(*Card)
+	return d, nil
+}
+`},
+			allowlist: oneProbeEntry(),
+			want:      []string{"a tracked card was answered in a return"},
+			count:     1,
+		},
+		{
+			name: "a tracked card sent on a channel",
+			files: map[string]string{"internal/bench/check.go": `func (b *Workbench) channeled(root, id string, ch chan *Card) error {
+	c, err := LoadCard(root, id)
+	if err != nil {
+		return err
+	}
+	ch <- c
+	return nil
+}
+`},
+			allowlist: oneProbeEntry(),
+			want:      []string{"a tracked card was sent on a channel"},
 			count:     1,
 		},
 		{
