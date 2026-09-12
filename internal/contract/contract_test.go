@@ -116,13 +116,14 @@ func TestTierNotHigherIsMintedOnceAndCostsTheProfileNothing(t *testing.T) {
 	// deliberate act that fails here first. It stood at twenty-one while
 	// raise composed two existing events rather than minting a third, it
 	// moved to twenty-seven when the checklist verbs minted their six, it
-	// moved to twenty-nine when link and unlink minted theirs, and it moved
+	// moved to twenty-nine when link and unlink minted theirs, it moved
 	// to thirty-two when a field write below a card minted comment_updated,
-	// item_updated and attachment_updated. Each of those paid the
-	// coordinated compat-fixture change this guard exists to make somebody
-	// notice.
-	if len(Events) != 32 {
-		t.Errorf("the event set carries %d names, and this build declares thirty-two", len(Events))
+	// item_updated and attachment_updated, and it moved to thirty-three
+	// when the number registry's migration minted renumbered. Each of those
+	// paid the coordinated compat-fixture change this guard exists to make
+	// somebody notice.
+	if len(Events) != 33 {
+		t.Errorf("the event set carries %d names, and this build declares thirty-three", len(Events))
 	}
 }
 

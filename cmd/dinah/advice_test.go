@@ -151,6 +151,59 @@ func TestTheVocabularyMigrationAdviceIsACommandThatWorks(t *testing.T) {
 	}
 }
 
+// TestTheNumberMigrationAdviceIsACommandThatWorks asserts that the advice on
+// dinah.needs-number-migration builds the registry it names, from the one
+// position its sentence reaches.
+//
+// The sentence names a bare `dinah check --migrate-numbers --yes` and no root,
+// so it reaches the reader standing in the workbench, whose climb resolves the
+// workbench the refusal named. The reader who named the workbench with
+// --workbench from elsewhere is told the directory in the sentence's own first
+// half and carries it to the command himself, which the sentence leaves him to
+// do because it names no scope to repeat; a test that ran the advice bare from
+// his position would be taking an advice the sentence does not give.
+//
+// The confirmation is inside the command the sentence names, which is the one
+// place this family's rule about --yes does not reach. The rule exists because
+// the sweep repairs print a preview an unconfirmed run reaches, and advice
+// naming --yes walks the reader past it. This repair has no preview: an
+// unconfirmed run refuses outright rather than reporting what it would carry
+// forward, so the sentence names the one form the command runs in and the
+// reader's consent is the flag it spells for him.
+func TestTheNumberMigrationAdviceIsACommandThatWorks(t *testing.T) {
+	_, _, workbench := preNumberRegistryFixture(t)
+
+	refused := runCLI(t, workbench, "add", "another card")
+	if !strings.Contains(refused.errw, contract.NeedsNumberMigration) {
+		t.Fatalf("a workbench below the registry's format does not refuse %s: %d %s%s", contract.NeedsNumberMigration, refused.code, refused.out, refused.errw)
+	}
+	argv := adviceFrom(t, refused.errw, "refusal.dinah.needs-number-migration.next")
+	took := runCLI(t, workbench, argv...)
+	if took.code != 0 {
+		t.Fatalf("taking the refusal's own advice, dinah %v, exited %d: %s%s", argv, took.code, took.out, took.errw)
+	}
+	// The sentence's first half claims the command builds the registry, so the
+	// card the workbench already held answers by a line in the file, and the
+	// reader is not left trusting the exit code alone.
+	ids, err := bench.ListIDs(filepath.Join(workbench, bench.CardsDir))
+	if err != nil {
+		t.Fatalf("listing %s: %v", filepath.Join(workbench, bench.CardsDir), err)
+	}
+	registry, err := os.ReadFile(filepath.Join(workbench, bench.CardNumbersName))
+	if err != nil {
+		t.Fatalf("reading the registry the advice claims to have built: %v", err)
+	}
+	if len(ids) != 1 || !strings.Contains(string(registry), "1 "+ids[0]) {
+		t.Fatalf("the registry the advice built does not name the card the workbench held: %q against %v", string(registry), ids)
+	}
+	// The sentence's second half is the claim the reader took the advice for:
+	// the card that was refused files now.
+	filed := runCLI(t, workbench, "add", "another card")
+	if filed.code != 0 {
+		t.Fatalf("the workbench still refuses a card after the advice was followed: %d %s%s", filed.code, filed.out, filed.errw)
+	}
+}
+
 // TestTheClimbingSweepRepairsRatherThanRefuses holds the premise the two
 // unqualified sweep-advice dispositions rest on, which is that no refusal
 // carrying that advice is composed on a path that never opened a workbench.
@@ -653,6 +706,39 @@ func preVocabularyFixture(t *testing.T) (tree, workbench string) {
 	return tree, workbench
 }
 
+// preNumberRegistryFixture writes one workbench in the shape a build before
+// this card left behind, which the tool refuses to mint: the anchor declares
+// the format the container migration stamps, the card carries its number in
+// the frontmatter the old allocator wrote there, and no card-numbers.txt
+// exists. It answers the tree, the project and the workbench's own directory,
+// on the preVocabularyFixture pattern.
+func preNumberRegistryFixture(t *testing.T) (tree, project, workbench string) {
+	t.Helper()
+	tree, project, workbench = workbenchInATree(t)
+	if got := runCLI(t, project, "--workbench", workbench, "add", "a card"); got.code != 0 {
+		t.Fatalf("add: %d %s", got.code, got.errw)
+	}
+	if err := os.Remove(filepath.Join(workbench, bench.CardNumbersName)); err != nil {
+		t.Fatalf("removing the registry this build wrote: %v", err)
+	}
+	rewriteFile(t, filepath.Join(workbench, bench.WorkbenchAnchor), func(text string) string {
+		return strings.Replace(text, "format: "+strconv.Itoa(bench.StorageFormat), "format: "+strconv.Itoa(bench.ContainerFormat), 1)
+	})
+	ids, err := bench.ListIDs(filepath.Join(workbench, bench.CardsDir))
+	if err != nil {
+		t.Fatalf("listing %s: %v", filepath.Join(workbench, bench.CardsDir), err)
+	}
+	// The number key sat between the title and the column in the anchor the
+	// old Save wrote, so it goes back there rather than anywhere the grammar
+	// would still read.
+	for _, id := range ids {
+		rewriteFile(t, filepath.Join(workbench, bench.CardsDir, id, bench.CardAnchor), func(text string) string {
+			return strings.Replace(text, "\ncolumn: ", "\nnumber: 1\ncolumn: ", 1)
+		})
+	}
+	return tree, project, workbench
+}
+
 // mixedCardFixture writes one workbench whose anchor declares the current
 // vocabulary and one of whose cards carries a key from each, which is the
 // shape no writer produces and the one dinah.vocabulary-mixed refuses.
@@ -708,6 +794,7 @@ const checkInvocation = "dinah check"
 var checkAdviceProvenByRunning = map[string]string{
 	"refusal.dinah.no-workbench-found.bare":               "TestTheBareWorkbenchAdviceIsACommandThatWorks",
 	"refusal.dinah.needs-container-migration.next":        "TestTheContainerMigrationAdviceIsACommandThatWorks",
+	"refusal.dinah.needs-number-migration.next":           "TestTheNumberMigrationAdviceIsACommandThatWorks",
 	"refusal.dinah.needs-vocabulary-migration.next-named": "TestTheVocabularyMigrationAdviceIsACommandThatWorks",
 	"refusal.dinah.vocabulary-mixed.next-named":           "TestTheMixedVocabularyAdviceIsACommandThatWorks",
 	"refusal.no-operator.next-named":                      "TestTheNoOperatorAdviceIsACommandThatWorks",

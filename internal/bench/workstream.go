@@ -288,7 +288,7 @@ func (b *Bench) WorkstreamReferenced(id, ref string) error {
 		return err
 	}
 	for _, cardID := range cardIDs {
-		card, err := LoadCard(b.CardsRoot(), cardID)
+		card, err := b.LoadCardIn(b.CardsRoot(), cardID)
 		if err != nil {
 			continue
 		}

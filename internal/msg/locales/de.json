@@ -625,9 +625,59 @@
       "source": "dea3c47b046eca46"
     },
     "check.card-number-duplicate": {
-      "text": "{detail} ist eine Kartennummer, die zwei Karten tragen, sodass ein Verweis per Nummer mit einer von beiden antwortet",
-      "context": "A check finding: two cards hold one number, which leaves the durable half of a card reference ambiguous.",
-      "source": "272f347a93a5c261"
+      "text": "{detail} beansprucht eine Nummer, die eine andere Zeile ebenfalls beansprucht, sodass ein Verweis per Nummer mit mehr als einer Karte antwortet",
+      "context": "A check finding: two or more lines of the card-number registry claim one number, which leaves the durable half of a card reference ambiguous. {detail} carries the line as stored, which is what a reader searches the file for. `dinah check --renumber --yes` repairs it, moving every later claimant.",
+      "source": "e0a7083f7826dbbf"
+    },
+    "check.card-number-repeated": {
+      "text": "{detail} ist eine von zwei oder mehr Zeilen, die dieselbe Karte benennen, sodass die Karte auf mehr als eine Nummer antwortet",
+      "context": "A check finding: two or more lines of the card-number registry name one identifier, so one card holds two numbers. {detail} carries the line as stored, which is what a reader searches the file for. No marker repairs it, because choosing what a card is called is the operator's.",
+      "source": "24f38ce6e2ad8766"
+    },
+    "check.card-number-missing": {
+      "text": "{detail} hat keine Zeile im Kartennummern-Register, sodass keine Nummer die Karte benennt",
+      "context": "A check finding: a card in either half of the collection that no line of the card-number registry claims. {detail} carries the card's identifier. A workbench still declaring the older format draws this for every card it holds, which is the flood that ends when `dinah check --migrate-numbers --yes` builds the registry.",
+      "source": "59c3ef542b3cb7d9"
+    },
+    "check.card-number-stranded": {
+      "text": "{detail} benennt weder eine Karte noch eine zurückgegebene Nummer, sodass die Nummer, die die Zeile beansprucht, von nichts gehalten wird",
+      "context": "A check finding: a line of the card-number registry whose identifier is neither a tombstone nor a card in either half of the collection. {detail} carries the line as stored, which is what a reader searches the file for. No marker removes it, because removing the line would release the number for reuse, which is the operator's call.",
+      "source": "3fa1ca89440589f2"
+    },
+    "check.card-number-malformed": {
+      "text": "{detail} ist keine Zeile, die die Grammatik des Registers liest, sodass sie weder eine Nummer noch eine Karte beansprucht",
+      "context": "A check finding: a line of card-numbers.txt that does not parse under the registry's grammar. {detail} carries the line verbatim, which is what a reader searches the file for. No marker repairs it; the operator rewrites the line by hand.",
+      "source": "985e6af2ae5095cc"
+    },
+    "check.card-number-in-frontmatter": {
+      "text": "{detail} trägt noch immer einen Nummern-Schlüssel im Anker, in einer Werkbank, deren Register die Heimat der Nummer ist",
+      "context": "A check finding: a card of a workbench declaring the registry's format that still carries a number key in its anchor, which the migration strips and nothing else writes. {detail} carries the card's identifier. `dinah check --migrate-numbers --yes` strips it.",
+      "source": "2cbf37261c4e535f"
+    },
+    "check.card-number-renumbered": {
+      "text": "{detail} wurde umnummeriert, sodass eine Referenz, die jemand für seine alte Nummer notiert hat, ins Leere läuft",
+      "context": "A check finding a number repair raises: the card left the run holding a number it did not arrive holding. The renumbered event on the card's journal says the same thing where history keeps it. {detail} carries the card's identifier.",
+      "source": "e2a0c7d4cda06b4e"
+    },
+    "check.card-numbers-written.one": {
+      "text": "{count} Zeile des Kartennummern-Registers geschrieben.",
+      "context": "The line the number migration prints for what it wrote, for exactly one line.",
+      "source": "267695e001aa601a"
+    },
+    "check.card-numbers-written.other": {
+      "text": "{count} Zeilen des Kartennummern-Registers geschrieben.",
+      "context": "The line the number migration prints for what it wrote, for any other number. The count is zero on a run over a workbench whose registry already covered every card, which is that run's own answer.",
+      "source": "55540a915ed7de23"
+    },
+    "check.cards-renumbered.one": {
+      "text": "{count} Karte umnummeriert.",
+      "context": "The line a number repair prints for what it moved, for exactly one card. The moved cards are counted and not listed, because each draws a check.card-number-renumbered finding naming it immediately below.",
+      "source": "a858ad624fbece13"
+    },
+    "check.cards-renumbered.other": {
+      "text": "{count} Karten umnummeriert.",
+      "context": "The line a number repair prints for what it moved, for any other number. The moved cards are counted and not listed, because each draws a check.card-number-renumbered finding naming it immediately below.",
+      "source": "ceb1d90d823ebdae"
     },
     "check.ordinal-guessed": {
       "text": "{detail} wurde nach seinem Verzeichniseintrag eingeordnet, weil kein Ereignis im Protokoll der Karte seine Erstellung festhält, sodass seine Position geraten ist",
@@ -2264,6 +2314,11 @@
       "context": "The detail of a recorded attachment_renamed, carrying the old filename as {from} and the new filename as {to}.",
       "source": "dff97f4b63c30b11"
     },
+    "log.renumbered": {
+      "text": "{from} nach {to}",
+      "context": "The detail of a recorded renumbered, carrying the number the card arrived holding as {from} and the number the repair gave it as {to}.",
+      "source": "dff97f4b63c30b11"
+    },
     "ls.empty": {
       "text": "Keine Karten hier.",
       "context": "Printed when a listing has nothing in it.",
@@ -2628,6 +2683,16 @@
       "context": "The sentence printed after the refusal name dinah.unconfirmed. {detail} carries the identifier, owner or column the refusal is about.",
       "source": "e9eed56f85c4ff5"
     },
+    "refusal.dinah.unconfirmed.check": {
+      "text": "Die Reparatur {detail} ändert, wie eine Karte heißt, und eine notierte Referenz läuft danach ins Leere.",
+      "context": "The sentence printed after the refusal name dinah.unconfirmed when the check command raised it, which is a number repair carrying no confirmation. {detail} is the repair flag the reader typed.",
+      "source": "98877dcf5a943c29"
+    },
+    "refusal.dinah.unconfirmed.check.next": {
+      "text": " Führen Sie den Befehl erneut mit --yes aus.",
+      "context": "The next step of refusal.dinah.unconfirmed when the check command raised it. The flag inside it is syntax and stays as it is.",
+      "source": "36b7012eed26cc03"
+    },
     "refusal.dinah.unconfirmed.next": {
       "text": ", daher braucht es --yes",
       "context": "Spliced onto refusal.dinah.unconfirmed as the next step, carrying the clause that base entry used to end with.",
@@ -2919,6 +2984,16 @@
       "text": "; führen Sie `dinah check --root {detail} --migrate-container` aus, um sie in einen zu tragen, und öffnen Sie sie danach erneut",
       "context": "Spliced onto refusal.dinah.needs-container-migration as the next step. It names the preview rather than the applied run, so the reader sees what the repair would move before he types the flag that moves it, which is what the other two sentences of this family already do. The command name is machine vocabulary and is not translated.",
       "source": "b06c3e162e0a89c6"
+    },
+    "refusal.dinah.needs-number-migration": {
+      "text": "{detail} stammt aus der Zeit vor dem Kartennummern-Register, sodass einer neuen Karte keine Nummer zugeteilt werden kann",
+      "context": "The sentence printed after the refusal name dinah.needs-number-migration, which add raises on a workbench declaring a format older than the registry's. {detail} carries the workbench directory the refusal was raised over.",
+      "source": "cf3abf14d7bfcd74"
+    },
+    "refusal.dinah.needs-number-migration.next": {
+      "text": "; führen Sie `dinah check --migrate-numbers --yes` aus, um das Register aufzubauen, und reichen Sie die Karte danach erneut ein",
+      "context": "Spliced onto refusal.dinah.needs-number-migration as the next step. It names the applied run, because this repair has no preview: the migration refuses without --yes rather than reporting what it would do. The command name is machine vocabulary and is not translated.",
+      "source": "42a3bb6503f38e52"
     },
     "refusal.dinah.add-needs-a-column": {
       "text": "dieser Werkbank ist keine Spalte geblieben, in der eine neue Karte angelegt werden könnte",
@@ -3409,6 +3484,11 @@
       "context": "How the canonical token restored is rendered where a person reads it. The machine surface always carries the canonical spelling.",
       "source": "3b21bcbea811aef"
     },
+    "token.renumbered": {
+      "text": "umnummeriert",
+      "context": "How the canonical token renumbered is rendered where a person reads it. The machine surface always carries the canonical spelling.",
+      "source": "7085d91404a85558"
+    },
     "token.search": {
       "text": "Suche",
       "context": "How the canonical token search is rendered where a person reads it, naming the rung a workbench answer came from: the ancestor walk resolved it, in the settings listing and on the status line alike. The machine surface always carries the canonical spelling.",
@@ -3701,6 +3781,16 @@
       "text": "diese Werkbank in einen .dinah-Container unter einem von Dinah geprägten Bezeichner tragen, oder jede Werkbank unterhalb von --root",
       "context": "The one-line summary of the check command flag --migrate-container, printed by `dinah help check`.",
       "source": "26ead382b2d32a9a"
+    },
+    "param.check.migrate-numbers.summary": {
+      "text": "das Kartennummern-Register aus den Nummern bauen, die die Karten dieser Werkbank noch tragen",
+      "context": "The meaning of the migrate-numbers argument of `dinah check`, printed in that command's arguments table.",
+      "source": "a851aea8e7bdda8d"
+    },
+    "param.check.renumber.summary": {
+      "text": "jede später beanspruchende Zeile verschieben, wenn zwei Karten mit einer Nummer ankommen",
+      "context": "The meaning of the renumber argument of `dinah check`, printed in that command's arguments table.",
+      "source": "fac92e4e93b81d82"
     },
     "param.check.migrate-workstreams.summary": {
       "text": "jeden von einer Karte genannten Arbeitsstrang übernehmen, den diese Werkbank nicht führt",

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -448,20 +449,20 @@ func workbenchSlugOnDisk(t *testing.T, root string) string {
 	return slug
 }
 
-// firstCardNumberOnDisk reads the number off the one card the fixture files,
-// for the same reason.
+// firstCardNumberOnDisk reads the number off the registry line claiming the
+// one card the fixture files, for the same reason. The line is where the tool
+// allocates the number, and the first line in file order is the allocation this
+// fixture's sole card holds.
 func firstCardNumberOnDisk(t *testing.T, root string) string {
 	t.Helper()
 	dir := resolvedDir(t, benchDir(t, root))
-	cardDir := soleMemberDir(t, filepath.Join(dir, bench.CardsDir))
-	text, err := bench.ReadText(filepath.Join(cardDir, bench.CardAnchor))
-	if err != nil {
-		t.Fatalf("read the card anchor: %v", err)
+	registry := bench.LoadNumberRegistry(filepath.Join(dir, bench.CardNumbersName))
+	for _, line := range registry.Lines {
+		if line.Number == 0 || line.ID == "-" {
+			continue
+		}
+		return strconv.Itoa(line.Number)
 	}
-	fm, _ := bench.ParseAnchor(text)
-	number := fm.Value("number")
-	if number == "" {
-		t.Fatal("the card anchor carries no number, so the reference this check expects cannot be composed")
-	}
-	return number
+	t.Fatal("the registry claims no card, so the reference this check expects cannot be composed")
+	return ""
 }

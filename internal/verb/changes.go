@@ -543,7 +543,7 @@ func (l *Library) inColumn(scope, id string, event bench.Event, wanted *bench.Co
 	if event.From == wanted.ID || event.To == wanted.ID {
 		return true
 	}
-	card, err := bench.LoadCard(l.Bench.CardsRoot(), id)
+	card, err := l.Bench.LoadCardIn(l.Bench.CardsRoot(), id)
 	return err == nil && card.Column == wanted.ID
 }
 
@@ -609,7 +609,7 @@ func (l *Library) changedCards(delivered []position, unreadable []string, live [
 		if wantedCard != "" && id != wantedCard {
 			continue
 		}
-		card, err := bench.LoadCard(l.Bench.CardsRoot(), id)
+		card, err := l.Bench.LoadCardIn(l.Bench.CardsRoot(), id)
 		if err != nil {
 			continue
 		}
@@ -675,10 +675,10 @@ func (l *Library) goneFrom(delivered []position, wantedCard string, wantedColumn
 // the live half while the event that names its departure has already been
 // delivered.
 func (l *Library) anchorOf(id string) *bench.Card {
-	if card, err := bench.LoadCard(l.Bench.CardsRoot(), id); err == nil {
+	if card, err := l.Bench.LoadCardIn(l.Bench.CardsRoot(), id); err == nil {
 		return card
 	}
-	if card, err := bench.LoadCard(l.Bench.ArchivedCardsRoot(), id); err == nil {
+	if card, err := l.Bench.LoadCardIn(l.Bench.ArchivedCardsRoot(), id); err == nil {
 		return card
 	}
 	return nil

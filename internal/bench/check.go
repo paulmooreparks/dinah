@@ -3,8 +3,6 @@ package bench
 import (
 	"errors"
 	"path/filepath"
-	"sort"
-	"strconv"
 	"strings"
 
 	"dinah/internal/contract"
@@ -39,17 +37,57 @@ const (
 	FindingEntityAtBothPaths  = "check.entity-at-both-paths"
 	FindingOrdinalMissing     = "check.ordinal-missing"
 	FindingOrdinalDuplicate   = "check.ordinal-duplicate"
-	// FindingCardNumberDuplicate names a card sharing its number with
-	// another card, in either half of the collection. It is modelled on
+	// FindingCardNumberDuplicate names a registry line claiming a number
+	// another well-formed line claims as well. It is modelled on
 	// FindingOrdinalDuplicate, and it parts company with it in reporting
-	// every member of a colliding group rather than the second one met.
-	// Path is the card's anchor and Detail is the number in decimal, so one
-	// collision prints one number against two openable paths.
+	// every member of a colliding group rather than the second one met. A
+	// tombstone draws none of it, because a number somebody gave back is
+	// free for the next filing to take. Path names the registry file and
+	// Detail is the line as stored, which is what a reader searches the
+	// file for.
 	FindingCardNumberDuplicate = "check.card-number-duplicate"
-	FindingSlugMissing         = "check.slug-missing"
-	FindingSlugMalformed       = "check.slug-malformed"
-	FindingSlugDuplicate       = "check.slug-duplicate"
-	FindingStrandedColumn      = "check.stranded-column"
+	// FindingCardNumberRepeated names a registry line whose identifier
+	// another well-formed line claims as well. A duplicate number is two
+	// cards answering one number, and this is one card answering two, which
+	// resolution reads as the first line that claims the identifier. No
+	// repair flag resolves it, because the two lines disagree about when the
+	// card was filed, and deciding which of them is true is an operator's
+	// call.
+	FindingCardNumberRepeated = "check.card-number-repeated"
+	// FindingCardNumberMissing names a card no registry line claims, in
+	// either half of the collection. Path is the card's anchor and Detail is
+	// the card's identifier. A workbench the migration has not reached holds
+	// an empty registry, so the finding floods one per card, and the flood
+	// is the intended signal. The migration is the repair, and a workbench
+	// waiting for it is exactly what one finding per card says.
+	FindingCardNumberMissing = "check.card-number-missing"
+	// FindingCardNumberStranded names a well-formed registry line whose
+	// identifier names no card directory in either half of the collection.
+	// Path names the registry file and Detail is the line as stored. A
+	// directory that stands but will not load is reported through
+	// unreadableCardFinding instead, since the defect there is the card
+	// rather than the line, and the classifier the card walk already uses
+	// keeps one condition from printing two spellings.
+	FindingCardNumberStranded = "check.card-number-stranded"
+	// FindingCardNumberMalformed names a registry line the grammar refuses.
+	// The reader keeps the line and enters it in no index, on the terms a
+	// card carrying an unknown level stays openable, so it can collide with
+	// nothing and strand nothing and is named for its own bytes alone.
+	// Detail is the line as stored, so an operator fixes the exact text
+	// rather than a number this build guessed at.
+	FindingCardNumberMalformed = "check.card-number-malformed"
+	// FindingCardNumberInFrontmatter names a card on a workbench the
+	// migration has reached that still carries a number in its anchor. The
+	// write path stopped stamping the key when the registry arrived and the
+	// migration strips it, so a card meeting this condition was written by a
+	// hand or by a tool older than the registry. The number it carries is
+	// not the one it answers to, because the registry line is. Path is the
+	// card's anchor and Detail is the card's identifier.
+	FindingCardNumberInFrontmatter = "check.card-number-in-frontmatter"
+	FindingSlugMissing             = "check.slug-missing"
+	FindingSlugMalformed           = "check.slug-malformed"
+	FindingSlugDuplicate           = "check.slug-duplicate"
+	FindingStrandedColumn          = "check.stranded-column"
 	// FindingOrphanedColumnDirectory names a directory under columns/ that
 	// the workbench's own columns sequence does not carry. It is the mirror
 	// of FindingStrandedColumn and never fires over the same identifier,
@@ -208,18 +246,27 @@ const (
 	// pre-empted by a refusal, and the workbench still opens while it is
 	// reported.
 	FindingWorkbenchSlugMalformed = "check.workbench-slug-malformed"
-	// The last seven are raised by a repair rather than by the checker,
+	// The last eight are raised by a repair rather than by the checker,
 	// because each names something only the run that did the work can know:
 	// which entity it placed by guesswork, which card a lock kept it out of,
 	// which entity it could not write to, which title it could derive no
-	// slug from, and which column or workbench anchor it could not write a
-	// slug to. None of them survives on disk for a later check to find.
+	// slug from, which column or workbench anchor it could not write a slug
+	// to, and which card a renumbering gave a number it did not arrive
+	// holding. None of them survives on disk for a later check to find.
 	FindingOrdinalGuessed           = "check.ordinal-guessed"
 	FindingOrdinalLocked            = "check.ordinal-locked"
 	FindingOrdinalUnwritable        = "check.ordinal-unwritable"
 	FindingSlugUnderivable          = "check.slug-underivable"
 	FindingSlugUnwritable           = "check.slug-unwritable"
 	FindingWorkbenchSlugUnderivable = "check.workbench-slug-underivable"
+	// FindingCardNumberRenumbered names a card one of the two number repairs
+	// gave a number different from the one it arrived holding, which answers
+	// the operator who asks why a card is called something else this morning.
+	// The renumbered event on the card's journal says the same thing where
+	// history keeps it, and the finding says it where the run's report is
+	// read. Path is the card's anchor and Detail is the card's identifier,
+	// the shape every card-scoped finding in this file keeps.
+	FindingCardNumberRenumbered = "check.card-number-renumbered"
 	// FindingWitnessLocked names a card the witness repair could not reach,
 	// because a lock stood on it while the walk passed. The walk stepped over
 	// it and carried on, so the card stays diverged until the repair is run
@@ -280,7 +327,7 @@ func (b *Bench) Check() ([]Finding, error) {
 			findings = append(findings, Finding{Path: dir, Key: FindingMissingAnchor, Detail: id})
 			continue
 		}
-		card, err := LoadCard(b.CardsRoot(), id)
+		card, err := b.LoadCardIn(b.CardsRoot(), id)
 		if err != nil {
 			findings = append(findings, Finding{Path: dir, Key: unreadableCardFinding(err), Detail: id})
 			continue
@@ -633,9 +680,10 @@ func (b *Bench) checkCard(card *Card) ([]Finding, error) {
 		return findings, err
 	}
 	findings = append(findings, itemColumnFindings...)
-	if card.Number == 0 {
-		findings = append(findings, Finding{Path: anchor, Key: FindingOrdinalMissing, Detail: card.ID})
-	}
+	// A card carrying no registry line is checkCardNumbers' finding rather
+	// than this walk's, because the line lives in the registry file rather
+	// than in the anchor this walk reads, and a workbench the migration has
+	// not reached owes one finding per card there.
 	for _, link := range card.Links {
 		if b.HasIdentifier(link.To) {
 			continue
@@ -795,72 +843,133 @@ func checkAttachmentFilename(cardDir string) ([]Finding, error) {
 	return findings, nil
 }
 
-// checkCardNumbers reports every card sharing its number with another card,
-// across both halves of the collection. A number is the durable half of a
-// card reference, so two cards holding one number leaves a reference by
-// number with two answers.
+// checkCardNumbers reports the six states a card-number registry can be left
+// in. Four are states of lines: two lines claiming one number, two lines
+// claiming one identifier, a line naming no card, and a line the grammar
+// refuses. Two are states of cards: a card no line claims, and a card on a
+// migrated workbench still carrying its number in frontmatter. A finding
+// about a line names the registry file and carries the line as stored, which
+// is what a reader searches the file for, and a finding about a card names
+// the card's anchor and carries the identifier, which is what a reader opens.
 //
-// A card carrying no number is passed over, which checkOrdinals does with
-// its own sentinel too.
+// A workbench below the format the registry arrived at holds an empty
+// registry, so the four line findings stay quiet over it and the missing
+// finding floods one per card. The flood is the intended signal rather than a
+// defect of the detector, because the migration is the repair and a
+// workbench waiting for it is exactly what one finding per card says. The
+// by-number index the pre-registry reader synthesizes from frontmatter feeds
+// resolution alone, and none of these findings read it, so a synthesized
+// workbench reports its cards as carrying no lines rather than as holding
+// duplicates.
 //
-// Every card in a colliding group is reported rather than only the second
-// one met, which is where this parts company with checkOrdinals. The live
-// half is read before the archived one and the archived card is the one that
-// held the number first, so reporting the second sighting would name the
-// innocent card and leave the interloper unreported.
+// The stranded probe reads every well-formed line's identifier against the two
+// collections, and a directory that stands but will not load is reported
+// through unreadableCardFinding rather than as stranded, because the defect
+// there is the card rather than the line. The probe reaches for the free
+// reader rather than the stamping one, because the question is whether the
+// directory reads as a card at all, and stamping the answer would read it
+// through the very index the line being probed is about to be weighed
+// against. The live half is left to Bench.Check's own card walk, which
+// already reports every live directory that will not load, so a probe here
+// would name each one twice. The walk below carries the archived half of the
+// same property: an archived card whose anchor will not load is reported
+// rather than passed over, which is the dinah-439 property this detector has
+// always owed, and the probe and the walk partition that half between them,
+// since the probe owns the cards a line claims and the walk owns the rest.
+//
+// A collection ListIDs cannot walk ends the check with an error, and the
+// findings gathered before it survive on the error's back, on the terms every
+// collection read in this package answers its own failure.
 func (b *Bench) checkCardNumbers() ([]Finding, error) {
 	var findings []Finding
-	byNumber := map[int][]string{}
+	file := filepath.Join(b.Root, CardNumbersName)
+	// The repeated-identifier finding needs a count per identifier, and the
+	// registry's own indexes answer every other question this walk asks. The
+	// count is built in a pass of its own because a group a later line joins
+	// is a group its earlier members already belonged to.
+	claimants := map[string]int{}
+	for _, line := range b.Numbers.Lines {
+		if line.Number == 0 || line.ID == "-" {
+			continue
+		}
+		claimants[line.ID]++
+	}
+	for _, line := range b.Numbers.Lines {
+		if line.Number == 0 {
+			// A malformed line enters neither index, so it collides with
+			// nothing, strands nothing, and is named for its own bytes
+			// alone.
+			findings = append(findings, Finding{Path: file, Key: FindingCardNumberMalformed, Detail: line.Raw})
+			continue
+		}
+		if line.ID != "-" {
+			if len(b.Numbers.ByNumber[line.Number]) >= 2 {
+				findings = append(findings, Finding{Path: file, Key: FindingCardNumberDuplicate, Detail: line.Raw})
+			}
+			if claimants[line.ID] >= 2 {
+				findings = append(findings, Finding{Path: file, Key: FindingCardNumberRepeated, Detail: line.Raw})
+			}
+		}
+		// A tombstone is a number somebody gave back, so it claims no card
+		// and no card claims it, and the missing and stranded findings are
+		// both built to pass it over.
+		if line.ID == "-" {
+			continue
+		}
+		if Exists(filepath.Join(b.CardsRoot(), line.ID)) {
+			// The live half's unreadable directories are Bench.Check's own
+			// card walk's report, and a probe here would name each one
+			// twice.
+			continue
+		}
+		archived := filepath.Join(b.ArchivedCardsRoot(), line.ID)
+		if !Exists(archived) {
+			findings = append(findings, Finding{Path: file, Key: FindingCardNumberStranded, Detail: line.Raw})
+			continue
+		}
+		if _, err := LoadCard(b.ArchivedCardsRoot(), line.ID); err != nil {
+			findings = append(findings, Finding{Path: archived, Key: unreadableCardFinding(err), Detail: line.ID})
+		}
+	}
 	for _, root := range []string{b.CardsRoot(), b.ArchivedCardsRoot()} {
 		ids, err := ListIDs(root)
 		if err != nil {
-			return nil, err
+			return findings, err
 		}
+		archived := root == b.ArchivedCardsRoot()
 		for _, id := range ids {
-			card, err := LoadCard(root, id)
-			if err != nil {
-				// An archived card whose anchor will not load is
-				// reported rather than skipped, because the number
-				// it holds is exactly the number that might be
-				// colliding, and a detector going quiet on the half
-				// that makes the damage reachable hides the defect
-				// it exists to report. The live half is reported by
-				// Bench.Check's own card walk, so reporting it here
-				// too would name it twice. The path is the card's
-				// directory, which is the spelling that walk uses.
-				if root == b.ArchivedCardsRoot() {
-					findings = append(findings, Finding{Path: filepath.Join(root, id), Key: unreadableCardFinding(err), Detail: id})
+			dir := filepath.Join(root, id)
+			// The guards mirror Bench.Check's own card walk, so a card a
+			// structural act is in the middle of and a directory carrying
+			// no anchor belong to the reports those states already have
+			// rather than to a finding about numbers.
+			if Exists(SiblingPath(dir)) {
+				continue
+			}
+			anchor := filepath.Join(dir, CardAnchor)
+			if !Exists(anchor) {
+				continue
+			}
+			_, claimed := b.Numbers.ByID[id]
+			card, loadErr := b.LoadCardIn(root, id)
+			if loadErr != nil {
+				// The card the walk cannot load is the card the line
+				// findings have not reached, so the missing finding would
+				// name an anchor nobody can open. The unreadable finding is
+				// the honest report, and the cards a line claims are the
+				// probe's half of the partition above. The live half is
+				// Bench.Check's own card walk's report either way.
+				if archived && !claimed {
+					findings = append(findings, Finding{Path: dir, Key: unreadableCardFinding(loadErr), Detail: id})
 				}
 				continue
 			}
-			if card.Number == 0 {
-				// Zero is what a card with no number carries, and
-				// reference building reads it the same way, so such a
-				// card answers no reference by number and cannot be
-				// sharing one. checkOrdinals excludes its own sentinel
-				// before its duplicate map for the same reason. Without
-				// this the population the detector shipped for, a
-				// workbench mid-repair whose cards are the pre-ordinal
-				// shape BackfillOrdinals fixes, drew one false report
-				// per numberless card.
-				continue
+			if !claimed {
+				findings = append(findings, Finding{Path: anchor, Key: FindingCardNumberMissing, Detail: id})
 			}
-			byNumber[card.Number] = append(byNumber[card.Number], filepath.Join(root, id, CardAnchor))
-		}
-	}
-	numbers := make([]int, 0, len(byNumber))
-	for number := range byNumber {
-		numbers = append(numbers, number)
-	}
-	sort.Ints(numbers)
-	for _, number := range numbers {
-		paths := byNumber[number]
-		if len(paths) < 2 {
-			continue
-		}
-		sort.Strings(paths)
-		for _, path := range paths {
-			findings = append(findings, Finding{Path: path, Key: FindingCardNumberDuplicate, Detail: strconv.Itoa(number)})
+			if b.Format >= RegistryFormat && card.FM.Has("number") {
+				findings = append(findings, Finding{Path: anchor, Key: FindingCardNumberInFrontmatter, Detail: id})
+			}
 		}
 	}
 	return findings, nil

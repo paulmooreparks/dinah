@@ -1,6 +1,6 @@
 # The core profile
 
-Version identity: `dinah-core 0.13`, maturity channel `dev`.
+Version identity: `dinah-core 0.14`, maturity channel `dev`.
 
 ## 1. Scope and audience
 
@@ -55,7 +55,7 @@ that would bring it in.
 
 ## 2. Version identity and compatibility
 
-This document is version 0.13 of the profile whose identity string is
+This document is version 0.14 of the profile whose identity string is
 `dinah-core`. The version of this profile is a property of this document. It
 is unrelated to the release numbering of any tool, and a tool's own version
 number tells a reader nothing about which profile version that tool
@@ -92,7 +92,7 @@ in the changelog like any other change, and the promise starts to bind at
 that event. The move of this document's own major number from 0 to 1 is a
 named event of the same kind, recorded in the entry that promotes the
 document to `stable`, so no revision is ever `dev` or `beta` and major 1 at
-once. A conformance claim names `dinah-core 0.13` and says nothing about
+once. A conformance claim names `dinah-core 0.14` and says nothing about
 the channel, because the channel belongs to the document's history and the
 number belongs to the contract.
 
@@ -349,6 +349,12 @@ to, unique in its context, which never changes.
 
 **Field.** One named value carried on a card.
 
+**Creation ordinal.** A whole number a workbench allocates to a card
+when the card is created, unique among the cards of that workbench. A
+tool may reallocate a card's ordinal when two copies of one workbench
+are reconciled and two cards arrive holding the same one. The ordinals
+a workbench has allocated need not run consecutively.
+
 **Link.** A reference one card carries to another card of the same workbench,
 naming a kind and the card it points to.
 
@@ -549,6 +555,8 @@ reading, and nothing here rests on it.
 
 [CORE-CARD-9] A tool MUST preserve the fields it does not recognize on a card it has read and written back.
 
+[CORE-CARD-10] Every card MUST carry a creation ordinal unique within its workbench.
+
 ### 5.4 Owners
 
 Every act names the owner who took it. An owner is whoever acts, whether that
@@ -623,7 +631,7 @@ with the meanings RFC 8259 gives them.
 
 ```json
 {
-  "profile": "dinah-core/0.13",
+  "profile": "dinah-core/0.14",
   "title": "Wedding",
   "columns": [
     { "id": "s1", "title": "Ideas",   "kind": "intake" },
@@ -1242,6 +1250,7 @@ quietly.
 | The verbs claim, move, release and block | in | These four are the whole of what an owner does to a card, and each has refusals a second tool would otherwise invent differently. | | CORE-VERB-1, CORE-VERB-2, CORE-CLAIM-3, CORE-RELEASE-2, CORE-BLOCK-3 |
 | The four-rule working agreement | in | The discipline is what makes a shared workbench trustworthy, and stating it in the contract keeps it from being reinvented per tool. | | ACTOR-1, ACTOR-2, ACTOR-3, ACTOR-4 |
 | Card identity and required fields | in | A card handed between tools has to survive the trip, and the four required fields are the fewest that keep its position meaningful. | | CORE-CARD-1, CORE-CARD-2, CORE-CARD-3, CORE-CARD-4, CORE-CARD-8, CORE-CARD-9 |
+| The creation ordinal | in | Two cards of one workbench carrying the same creation ordinal would leave a tool unable to say which card a reference reached, so the uniqueness is stated where the allocation can answer for it rather than left to each tool's own bookkeeping. | | CORE-CARD-10 |
 | The state, and the claim's dependence on it | in | Waiting and being worked are different situations, and a claim that ignored the difference would let two owners take up one card. | | CORE-CARD-5, CORE-CARD-6, CORE-CARD-7, CORE-CLAIM-1, CORE-CLAIM-6, CORE-MOVE-2 |
 | The pull invariant | in | Work here is taken and never handed out, which is what makes a flow pull rather than push. The invariant is stated as a rule about agency rather than about capacity, because a rule about capacity binds only the workbenches that declare a limit, and a tool declaring none would otherwise conform while pushing work at people. CORE-CLAIM-7 carries it: the owner that asks is the owner the claim names, so nobody assigns a card to anybody else. The limit below is the capacity layer built on top of that, not the invariant itself. | | CORE-CLAIM-7 |
 | The unblock verb, reserved to the operator | in | A block with no defined lift is a one-way door, and reserving the lift is what keeps a block from becoming a private pause the blocker alone can end. The verb's answer when there is nothing to lift belongs to the same row, because a caller that cannot tell a lift from a request that changed nothing cannot drive the verb without watching it. | | CORE-UNBLOCK-1, CORE-UNBLOCK-2, CORE-UNBLOCK-3, CORE-UNBLOCK-4 |
@@ -1295,7 +1304,7 @@ quietly.
 | Several people sharing one workbench, and who may do what | out | The core names an owner on every act and reserves some acts to the operator, which is the whole of what the model needs. Anything further is deployment. | Two tools must agree on a permission, rather than each enforcing its own. | |
 | Proving that an owner name belongs to whoever presents it | out | A single-person tool has nobody to prove anything to, and a shared one has its own means. Fixing one would exclude both. No statement of this profile rests on the question, which is why section 5.4 settles it in prose: the core neither requires such proof nor forbids it. | Two tools must accept each other's evidence about an owner. | |
 
-Rows ruled in: 36. Rows ruled out: 22. Total rows: 58.
+Rows ruled in: 37. Rows ruled out: 22. Total rows: 59.
 
 ### 10.1 Walking a wedding through the whole profile
 
@@ -1450,6 +1459,7 @@ themselves carry meaning.
 | CORE-CARD-7 | must not | tool | A card the tool reports as `ready` or `blocked` carries no holder. |
 | CORE-CARD-8 | may | tool | A card offered with a field the profile does not define is accepted. |
 | CORE-CARD-9 | must | tool | A card read and written back carries the unrecognized field it arrived with. |
+| CORE-CARD-10 | must | tool | Over a fixture of two or more cards, no two cards in one workbench carry one creation ordinal. |
 | CORE-OWNER-1 | must | tool | Every act in a card's history names an owner. |
 | CORE-OWNER-2 | must | tool | The tool answers whether a named owner is the operator of a named workbench. |
 | CORE-OWNER-3 | must | tool | A verb asked on a workbench that designates no operator is refused with `no-operator`. |
@@ -1551,12 +1561,12 @@ themselves carry meaning.
 | CORE-LAYER-2 | must | tool | A workbench carrying a declared layer the tool does not understand still carries that layer's content after a read and a write. |
 | CORE-LAYER-3 | must | tool | A definition declaring a layer under a name this profile defines is refused with `layer-collision`. |
 
-The index carries 138 rows, which is the number of identifiers an extraction
+The index carries 139 rows, which is the number of identifiers an extraction
 over this revision returns.
 
 ## 12. Changelog
 
-The current revision is `dinah-core 0.13`. Entries below stay in the order
+The current revision is `dinah-core 0.14`. Entries below stay in the order
 they were published rather than in numeric order. The fourth entry renamed
 the first three from `1.0`, `2.0`, and `3.0` to `0.1`, `0.2`, and `0.3`, so
 it reads here as a drop from `3.0` to `0.4` even though nothing was undone.
@@ -2062,3 +2072,44 @@ did not get. A tool that offers no override at all still conforms, because
 CORE-GATE-4 is a permission and a gated column then refuses every entry. The
 document sits on the `dev` channel, so nothing here binds a caller who has not
 already opted into `dinah-core 0.13`.
+
+### 0.14, channel `dev`, 2026-09-12
+
+Identifiers affected: CORE-CARD-10, introduced: every card carries a
+creation ordinal unique within its workbench. No identifier is relaxed
+or retired, and no other identifier in the section 11 index is affected.
+
+The difference is a minor increment on two grounds. DOC-VER-11 is
+satisfied, because the revision leaves every identifier the prior
+revision published present and retires none while the document's major
+number is still 0, and DOC-VER-8 classifies a difference no other rule
+reaches as a minor increment on the same condition.
+
+Section 4 gains the vocabulary entry that defines the creation ordinal,
+a term CORE-QUEUE-3 has used since the 2.0 revision without a
+definition anywhere in the document. The entry says the ordinal is a
+whole number the workbench allocates when the card is created, unique
+among the cards of that workbench, that a tool may reallocate one when
+two copies of a workbench are reconciled and two cards arrive holding
+the same one, and that the ordinals a workbench has allocated need not
+run consecutively.
+
+Consequence for a caller. A tool whose workbench carries two cards with
+one creation ordinal is not conformant at `dinah-core 0.14`, and the
+same tool was not evaluated against the question at 0.13, where the
+ordinal appeared inside this document only as the tie-break term of
+CORE-QUEUE-3. A caller conforming to an earlier revision loses nothing
+it was entitled to: no statement is relaxed, retired or reworded, and a
+tool that was already allocating unique numbers conforms on the day it
+takes the claim up. The document sits on the `dev` channel, so nothing
+here binds a caller who has not already opted into `dinah-core 0.14`.
+
+This entry also corrects a false claim the 2.0 entry's consequence
+sentence makes, which the append-only rule above leaves standing where
+it was published. That sentence says the tie-break reads the creation
+ordinal from "the `number` field the interchange form and every
+reference implementation already carry". The interchange form of
+section 5.7 carries columns and no cards, so no field of a card travels
+in it, and the parenthetical is wrong about the interchange form. The
+reference implementations the sentence also names are another matter,
+and this revision says nothing about where a tool keeps the ordinal.

@@ -96,8 +96,9 @@ WORKBENCH
   check [--finish] [--migrate-ordinals]                  Look for structural defects in this workbench
     [--migrate-slugs] [--migrate-columns]
     [--migrate-vocabulary] [--migrate-container]
-    [--remint <dir>] [--migrate-workstreams] [--witness]
-    [--yes] [--root <path>] [--max-depth <n>]
+    [--migrate-numbers] [--renumber] [--remint <dir>]
+    [--migrate-workstreams] [--witness] [--yes]
+    [--root <path>] [--max-depth <n>]
   whoami                                                 The actor your actions carry, and whether it is
                                                            the operator
   workbench                                              Read this workbench's own fields
@@ -188,8 +189,8 @@ WORKBENCH
   set <ref> <field> [value|-] [--at <column>] [--note <text>] [--yes]                                   Write one field of any entity of this workbench
   config [get|set] [key] [value]                                                                        List your user settings, or read or write one
   check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-columns] [--migrate-vocabulary]    Look for structural defects in this workbench
-    [--migrate-container] [--remint <dir>] [--migrate-workstreams] [--witness] [--yes] [--root <path>]
-    [--max-depth <n>]
+    [--migrate-container] [--migrate-numbers] [--renumber] [--remint <dir>] [--migrate-workstreams]
+    [--witness] [--yes] [--root <path>] [--max-depth <n>]
   whoami                                                                                                The actor your actions carry, and whether it is the operator
   workbench                                                                                             Read this workbench's own fields
   workstream [new] [title] [--slug <slug>]                                                              Read this workbench's workstreams, or create one

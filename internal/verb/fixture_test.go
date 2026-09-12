@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -242,15 +243,28 @@ func (h *harness) card(ref string) *bench.Card {
 
 // renumber rewrites a card's creation ordinal, which is how a test builds a
 // fixture whose ordinal order and identifier order disagree. Nothing in the
-// tool offers this, because a number is set at birth and never reused.
+// tool offers this, because a number is set at birth and never reused. The
+// rewrite lands in the card-number registry, because that is where a number
+// lives at the format the harness stamps, and the anchor has carried none
+// since the storage format moved past the registry's.
 func (h *harness) renumber(id string, number int) {
 	h.t.Helper()
-	card, err := bench.LoadCard(h.library.Bench.CardsRoot(), id)
-	if err != nil {
-		h.t.Fatalf("load %s: %v", id, err)
+	path := filepath.Join(h.library.Bench.Root, bench.CardNumbersName)
+	registry := bench.LoadNumberRegistry(path)
+	lines := make([]string, len(registry.Lines))
+	rewritten := false
+	for at, line := range registry.Lines {
+		if line.ID != id {
+			lines[at] = line.Raw
+			continue
+		}
+		lines[at] = strconv.Itoa(number) + " " + id
+		rewritten = true
 	}
-	card.Number = number
-	if err := card.Save(); err != nil {
+	if !rewritten {
+		h.t.Fatalf("renumber %s: the registry names no line for it", id)
+	}
+	if err := bench.WriteNumberLines(path, lines); err != nil {
 		h.t.Fatalf("renumber %s: %v", id, err)
 	}
 }

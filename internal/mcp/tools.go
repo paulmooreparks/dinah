@@ -169,7 +169,7 @@ var toolExemptions = map[string]exemption{
 // about the answer it gets back, which is the silent drop dinah-362 exists to
 // close, arriving on the other head.
 //
-// check's ten repair markers are held back for the neighbouring reason, and
+// check's twelve repair markers are held back for the neighbouring reason, and
 // the operator ruled on them at Operator Design Review on 2026-09-06. Each one
 // selects a one-time repair of an ageing store, and this workbench's own
 // standing rule is that a repair is never run against a live workbench and
@@ -196,13 +196,15 @@ var argumentExemptions = map[string]map[string]string{
 		"max-depth":           "bounds the walk root names, and this head takes no root for check",
 		"finish":              "completes a half-written store repair, which is operator work taken at a terminal against a copy",
 		"remint":              "rewrites the identifier of one of two directories claiming it, which is an irreversible repair an operator decides",
-		"yes":                 "confirms the two repairs whose rewrites have no undo, and this head offers neither of them",
+		"yes":                 "confirms the four repairs that read it, and this head offers none of them",
 		"witness":             "rebuilds the witness records of an ageing store, which is a one-time repair rather than a reading of it",
 		"migrate-ordinals":    "rewrites every card's ordinal in place, which is a one-time repair of an ageing store",
 		"migrate-slugs":       "rewrites every column's slug in place, which is a one-time repair of an ageing store",
 		"migrate-columns":     "rewrites the column layout of an ageing store, which is a one-time repair of it",
 		"migrate-vocabulary":  "rewrites the vocabulary of every workbench under a root, and its rewrite has no undo",
 		"migrate-container":   "rewrites the container layout of every workbench under a root, and its rewrite has no undo",
+		"migrate-numbers":     "builds the card-number registry and strips the number key from every anchor, which is a one-time repair of an ageing store",
+		"renumber":            "renumbers the later claimant of a number two cards hold, and a reference somebody wrote down for that card stops resolving",
 		"migrate-workstreams": "rewrites the workstream records of an ageing store, which is a one-time repair of it",
 	},
 	"new_column": {

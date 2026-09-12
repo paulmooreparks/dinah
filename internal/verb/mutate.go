@@ -37,7 +37,7 @@ func (l *Library) Do(req *Request) *Response {
 		return l.FromError(req, err)
 	}
 	defer lock.Release()
-	card, err := bench.LoadCard(l.Bench.CardsRoot(), found.Card.ID)
+	card, err := l.Bench.LoadCardIn(l.Bench.CardsRoot(), found.Card.ID)
 	if err != nil {
 		return l.FromError(req, err)
 	}
@@ -745,7 +745,7 @@ func (l *Library) lapseRead(card *bench.Card, actor string) error {
 		return nil
 	}
 	defer lock.Release()
-	fresh, err := bench.LoadCard(l.Bench.CardsRoot(), card.ID)
+	fresh, err := l.Bench.LoadCardIn(l.Bench.CardsRoot(), card.ID)
 	if err != nil {
 		return nil
 	}

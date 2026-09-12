@@ -151,6 +151,8 @@ func (s *session) request(name string, parsed *arguments) *verb.Request {
 		MigrateColumns:    parsed.has("migrate-columns"),
 		MigrateVocabulary: parsed.has("migrate-vocabulary"),
 		MigrateContainer:  parsed.has("migrate-container"),
+		MigrateNumbers:    parsed.has("migrate-numbers"),
+		Renumber:          parsed.has("renumber"),
 		Remint:            parsed.value("remint"),
 
 		MigrateWorkstreams: parsed.has("migrate-workstreams"),
@@ -1366,6 +1368,8 @@ var checkStarvedMarkers = []string{
 	"migrate-columns",
 	"migrate-workstreams",
 	"witness",
+	"migrate-numbers",
+	"renumber",
 }
 
 // checkFlagConflict answers the flag combinations check refuses, and it
@@ -1373,7 +1377,7 @@ var checkStarvedMarkers = []string{
 // words the caller typed is this run going to act on, and is every other word
 // he typed still going to mean something.
 //
-// A modal flag beside a second modal flag, or beside any of the six markers,
+// A modal flag beside a second modal flag, or beside any of the eight markers,
 // is the first half. runCheck takes the first modal flag it finds and returns
 // on that path, so everything else the caller asked for is dropped without a
 // word. That silent drop is the complaint this command was rewritten over,

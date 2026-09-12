@@ -24,8 +24,14 @@ import type { VersionReport } from "./api";
  * container and made its directory name a wider identifier. Neither of those
  * reaches this extension: it drives the binary through the JSON verb surface
  * and never reads the tree itself, and that surface did not change.
+ *
+ * 3 joined the set at dinah-488, which moved the card number out of the card
+ * anchor and into a registry at the workbench root. A reference still
+ * resolves through the verb surface exactly as it did, and what changed is
+ * where the binary keeps the numbers it allocates, which the extension never
+ * reads.
  */
-export const SUPPORTED_FORMATS: readonly number[] = [1, 2];
+export const SUPPORTED_FORMATS: readonly number[] = [1, 2, 3];
 
 /**
  * The conformance claim this extension needs. A different name or major is

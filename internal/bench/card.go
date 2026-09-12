@@ -190,15 +190,54 @@ func loadCard(collection, id string, refuseRetired bool) (*Card, error) {
 		Revision:    revision,
 		FM:          fm,
 	}
-	if number := fm.Value("number"); number != "" {
-		card.Number, _ = strconv.Atoi(number)
-	}
 	card.Links = readLinks(fm)
 	card.ColumnTiers = readColumnTiers(fm)
 	if card.State == "" {
 		card.State = contract.StateReady
 	}
 	return card, nil
+}
+
+// LoadCardIn loads a card and stamps the number the workbench allocates it.
+// The free LoadCard reads a card's own file and can know nothing about a
+// number that no longer lives there, so every caller that goes on to read
+// Number or to call Ref comes through here.
+func (b *Bench) LoadCardIn(root, id string) (*Card, error) {
+	card, err := LoadCard(root, id)
+	if err != nil {
+		return nil, err
+	}
+	b.stamp(card)
+	return card, nil
+}
+
+// loadRetiredCardIn is LoadCardIn for a bench written in the retired
+// vocabulary, which the lenient opener is the only source of. The fallback
+// lives in stamp rather than in LoadCardIn alone so that the retired route
+// reaches it too, which is the whole reason this method exists.
+func (b *Bench) loadRetiredCardIn(root, id string) (*Card, error) {
+	card, err := loadRetiredCard(root, id)
+	if err != nil {
+		return nil, err
+	}
+	b.stamp(card)
+	return card, nil
+}
+
+// stamp writes the number the workbench holds for this card onto the card it
+// is given. A workbench at RegistryFormat or above reads the registry, where
+// the first line in file order claiming the card is the one that counts and a
+// card no line claims keeps zero, which is what Ref reads as no number. A
+// workbench below it reads the number key the card's own frontmatter still
+// carries, which is the whole of the legacy read path.
+func (b *Bench) stamp(c *Card) {
+	if b.Format >= RegistryFormat {
+		c.Number = b.Numbers.ByID[c.ID]
+		return
+	}
+	if claimed := c.FM.Value("number"); claimed != "" {
+		c.Number, _ = strconv.Atoi(claimed)
+	}
 }
 
 // readLinks reads the links sequence. Each entry is a mapping, so the block
@@ -410,11 +449,14 @@ func (c *Card) Ref(slug string) string {
 // Save writes the card anchor back and refreshes the revision. Every field
 // the tool owns is written, and every field it does not own is preserved by
 // the frontmatter holding raw lines.
+//
+// The number is not written here, on either side of the registry: at
+// RegistryFormat it lives in card-numbers.txt and nowhere else, and below
+// that a card still carrying a number key keeps it across an edit because
+// this write preserves the raw lines, which is what the legacy read path in
+// stamp depends on.
 func (c *Card) Save() error {
 	c.FM.Set("title", c.Title)
-	if c.Number > 0 {
-		c.FM.Set("number", strconv.Itoa(c.Number))
-	}
 	c.FM.Set("column", c.Column)
 	c.FM.Set("state", c.State)
 	setOrDelete(c.FM, "claim_holder", c.Holder)

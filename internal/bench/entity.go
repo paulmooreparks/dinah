@@ -484,7 +484,7 @@ func (b *Bench) ColumnOccupied(id, ref string) error {
 		if b.Hooks != nil && b.Hooks.BeforeAnchorRead != nil {
 			b.Hooks.BeforeAnchorRead(cardID)
 		}
-		card, err := LoadCard(b.CardsRoot(), cardID)
+		card, err := b.LoadCardIn(b.CardsRoot(), cardID)
 		if err != nil {
 			return contract.Refuse(contract.Locked, cardID)
 		}

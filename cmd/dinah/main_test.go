@@ -1818,15 +1818,18 @@ func TestTheGuidesTeachOnlyDeclaredFlags(t *testing.T) {
 	}
 }
 
-// TestCheckDeclaresItsRepairFlagsOnEverySurface asserts that the three flags
+// TestCheckDeclaresItsRepairFlagsOnEverySurface asserts that the flags
 // which repair rather than report are declared once and projected everywhere:
 // the ratified help block's check line names them, the generated help for the
 // command names them from the same definition, and the argument parser accepts
 // them. One completes an interrupted structural act, one stamps the creation
 // ordinals a workbench written before the field carries none of, one derives
 // the slugs of columns and workstreams written before that field existed, one
-// removes the stranded identifiers from the columns list, and one creates a
-// workstream at every membership the live cards carry that names none.
+// removes the stranded identifiers from the columns list, one creates a
+// workstream at every membership the live cards carry that names none, one
+// builds the card-number registry from the frontmatter a workbench predating
+// the registry carries, and one renumbers the later claimants of a number two
+// lines claim.
 //
 // The change to the fixture's check line is a ratified one rather than drift.
 // The MCP head's schema is generated from the same parameter list and is
@@ -1836,7 +1839,7 @@ func TestCheckDeclaresItsRepairFlagsOnEverySurface(t *testing.T) {
 	if err != nil {
 		t.Fatalf("fixture: %v", err)
 	}
-	const line = "check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-columns] [--migrate-vocabulary] [--migrate-container] [--remint <dir>] [--migrate-workstreams] [--witness] [--yes] [--root <path>] [--max-depth <n>]"
+	const line = "check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-columns] [--migrate-vocabulary] [--migrate-container] [--migrate-numbers] [--renumber] [--remint <dir>] [--migrate-workstreams] [--witness] [--yes] [--root <path>] [--max-depth <n>]"
 	if !blockLists(string(fixture), line) {
 		t.Error("the ratified block's check line does not name every repair flag")
 	}
@@ -1853,28 +1856,38 @@ func TestCheckDeclaresItsRepairFlagsOnEverySurface(t *testing.T) {
 	// rather than standing alone, so running it bare on a clean workbench
 	// would refuse over the missing path rather than exercising the clean
 	// case every other repair flag is exercised for here.
-	for _, flag := range []string{"--finish", "--migrate-ordinals", "--migrate-slugs", "--migrate-columns", "--migrate-vocabulary", "--migrate-container", "--migrate-workstreams", "--witness"} {
+	//
+	// --migrate-numbers and --renumber change what a card is called, which
+	// is why they refuse without --yes, so the clean case below runs them
+	// confirmed rather than bare.
+	for _, flag := range []string{"--finish", "--migrate-ordinals", "--migrate-slugs", "--migrate-columns", "--migrate-vocabulary", "--migrate-container", "--migrate-numbers", "--renumber", "--migrate-workstreams", "--witness"} {
 		if !strings.Contains(generated.out, flag) {
 			t.Errorf("the generated help does not name %s:\n%s", flag, generated.out)
 		}
-		if got := runCLI(t, root, "check", flag); got.code != 0 {
-			t.Errorf("check %s on a clean workbench: %d %s", flag, got.code, got.errw)
+		confirmed := []string{"check", flag}
+		machined := []string{"--json", "check", flag}
+		if flag == "--migrate-numbers" || flag == "--renumber" {
+			confirmed = append(confirmed, "--yes")
+			machined = append(machined, "--yes")
+		}
+		if got := runCLI(t, root, confirmed...); got.code != 0 {
+			t.Errorf("check %s on a clean workbench: %d %s", strings.Join(confirmed[1:], " "), got.code, got.errw)
 		}
 		// dinah-346: every flag reaches the same exit-code site, so the
 		// clean case is asserted for each of them on the machine head too,
 		// where the outcome member says the same thing the code does.
-		machine := runCLI(t, root, "--json", "check", flag)
+		machine := runCLI(t, root, machined...)
 		if machine.code != contract.ExitCodeForRead(contract.ReadOK) {
-			t.Errorf("check --json %s on a clean workbench exited %d, wanted %d:\n%s", flag, machine.code, contract.ExitCodeForRead(contract.ReadOK), machine.out)
+			t.Errorf("check %s on a clean workbench exited %d, wanted %d:\n%s", strings.Join(machined[1:], " "), machine.code, contract.ExitCodeForRead(contract.ReadOK), machine.out)
 		}
 		var carried struct {
 			Outcome string `json:"outcome"`
 		}
 		if err := json.Unmarshal([]byte(machine.out), &carried); err != nil {
-			t.Fatalf("decode check --json %s: %v\n%s", flag, err, machine.out)
+			t.Fatalf("decode check %s: %v\n%s", strings.Join(machined[1:], " "), err, machine.out)
 		}
 		if carried.Outcome != contract.ReadOK {
-			t.Errorf("check --json %s on a clean workbench reports outcome %q, wanted %q", flag, carried.Outcome, contract.ReadOK)
+			t.Errorf("check %s on a clean workbench reports outcome %q, wanted %q", strings.Join(machined[1:], " "), carried.Outcome, contract.ReadOK)
 		}
 	}
 }
@@ -7192,9 +7205,10 @@ func TestTheFlagSetsTheParserAcceptsAreDerivedFromTheParameterTable(t *testing.T
 	}
 	wantMarkers := []string{
 		"archived", "catalogs", "finish", "help", "json", "migrate-columns",
-		"migrate-container", "migrate-ordinals", "migrate-slugs",
-		"migrate-vocabulary", "migrate-workstreams", "no-claim", "override",
-		"quiet", "ready", "replace", "version", "witness", "yes",
+		"migrate-container", "migrate-numbers", "migrate-ordinals",
+		"migrate-slugs", "migrate-vocabulary", "migrate-workstreams",
+		"no-claim", "override", "quiet", "ready", "renumber", "replace",
+		"version", "witness", "yes",
 	}
 	if got := strings.Join(valuedFlags, " "); got != strings.Join(wantValued, " ") {
 		t.Errorf("the derived valued flags are %q and the parser accepted %q", got, strings.Join(wantValued, " "))

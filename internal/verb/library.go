@@ -207,6 +207,17 @@ type Request struct {
 	// MigrateOrdinals asks check to stamp a creation ordinal on every entity
 	// of the workbench that predates the field, before it reports.
 	MigrateOrdinals bool
+	// MigrateNumbers asks check to build the card-number registry from the
+	// numbers the cards still carry in their anchors, strip the number key
+	// from every anchor, and stamp the workbench with the format that
+	// declares the registry, before it reports. It refuses without Confirm,
+	// because a card that changes what it is called leaves a reference
+	// somebody wrote down resolving to nothing.
+	MigrateNumbers bool
+	// Renumber asks check to repair the registry's duplicated numbers before
+	// it reports, leaving the number with the line that claimed it first. It
+	// refuses without Confirm, on the terms MigrateNumbers does.
+	Renumber bool
 	// MigrateSlugs asks check to derive a slug for every column of the
 	// workbench that predates the field, before it reports.
 	MigrateSlugs bool

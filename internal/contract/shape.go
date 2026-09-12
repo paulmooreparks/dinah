@@ -547,6 +547,15 @@ var Shapes = []Shape{
 		NextStep:  []string{"refusal.dinah.needs-container-migration.next"},
 	},
 	{
+		// Add is the only act that allocates a number, so Add is the only
+		// raise site, and the detail names the workbench root because the
+		// workbench rather than the card is what stands on the half of the
+		// format the migration has not reached.
+		Name:      NeedsNumberMigration,
+		Fragments: []Fragment{{Key: "refusal.dinah.needs-number-migration.next"}},
+		NextStep:  []string{"refusal.dinah.needs-number-migration.next"},
+	},
+	{
 		// The detail names the file inside the workbench, and path names it
 		// on disk, so a reader of a tree-wide run learns which of several
 		// hundred cards is the one refused. Malformed's location clause is
@@ -584,7 +593,7 @@ var Shapes = []Shape{
 		NextStep: []string{"refusal.dinah.vocabulary-retired.next"},
 	},
 	{
-		// One refusal name answers two acts here. delete destroys history,
+		// One refusal name answers three acts here. delete destroys history,
 		// and a slug change stops every reference already written down from
 		// matching, so set carries its own sentence and its own next step
 		// rather than ending on advice written for delete.
@@ -596,15 +605,24 @@ var Shapes = []Shape{
 		// clause the raise site switches on: a workbench slug change renames
 		// every card in the workbench at the same time, and a column's or a
 		// workstream's does not.
+		//
+		// The number repairs are the third act, raised on check. Both
+		// migrate-numbers and renumber change what a card is called, and a
+		// reference somebody wrote down stops resolving, which is a different
+		// stake from delete's and from set's. The sentence names the repair
+		// the detail brings, and the next step is the one word both repairs
+		// read.
 		Name:     Unconfirmed,
-		Variants: []string{"set"},
+		Variants: []string{"set", "check"},
 		Fragments: []Fragment{
 			{Key: "refusal.dinah.unconfirmed.set.cards", When: "renamesCards"},
 			{Key: "refusal.dinah.unconfirmed.set.next", WhenCommand: "set"},
+			{Key: "refusal.dinah.unconfirmed.check.next", WhenCommand: "check"},
 			{Key: "refusal.dinah.unconfirmed.next"},
 		},
 		NextStep: []string{
 			"refusal.dinah.unconfirmed.set.next",
+			"refusal.dinah.unconfirmed.check.next",
 			"refusal.dinah.unconfirmed.next",
 		},
 	},

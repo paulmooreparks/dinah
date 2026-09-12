@@ -498,8 +498,48 @@
       "context": "A check finding: two entities of one collection share an ordinal, which leaves a positional reference with two answers."
     },
     "check.card-number-duplicate": {
-      "text": "{detail} is a card number two cards carry, so a reference by number answers with either of them",
-      "context": "A check finding: two cards hold one number, which leaves the durable half of a card reference ambiguous."
+      "text": "{detail} claims a number that another line claims too, so a reference by number answers with more than one card",
+      "context": "A check finding: two or more lines of the card-number registry claim one number, which leaves the durable half of a card reference ambiguous. {detail} carries the line as stored, which is what a reader searches the file for. `dinah check --renumber --yes` repairs it, moving every later claimant."
+    },
+    "check.card-number-repeated": {
+      "text": "{detail} is one of two or more lines naming one card, so the card answers to more than one number",
+      "context": "A check finding: two or more lines of the card-number registry name one identifier, so one card holds two numbers. {detail} carries the line as stored, which is what a reader searches the file for. No marker repairs it, because choosing what a card is called is the operator's."
+    },
+    "check.card-number-missing": {
+      "text": "{detail} has no line in the card-number registry, so no number names it",
+      "context": "A check finding: a card in either half of the collection that no line of the card-number registry claims. {detail} carries the card's identifier. A workbench still declaring the older format draws this for every card it holds, which is the flood that ends when `dinah check --migrate-numbers --yes` builds the registry."
+    },
+    "check.card-number-stranded": {
+      "text": "{detail} names neither a card nor a tombstone, so the number it claims is held by nothing",
+      "context": "A check finding: a line of the card-number registry whose identifier is neither a tombstone nor a card in either half of the collection. {detail} carries the line as stored, which is what a reader searches the file for. No marker removes it, because removing the line would release the number for reuse, which is the operator's call."
+    },
+    "check.card-number-malformed": {
+      "text": "{detail} is not a line the registry's grammar reads, so it claims no number and no card",
+      "context": "A check finding: a line of card-numbers.txt that does not parse under the registry's grammar. {detail} carries the line verbatim, which is what a reader searches the file for. No marker repairs it; the operator rewrites the line by hand."
+    },
+    "check.card-number-in-frontmatter": {
+      "text": "{detail} still carries a number key in its anchor, on a workbench whose registry is the number's home",
+      "context": "A check finding: a card of a workbench declaring the registry's format that still carries a number key in its anchor, which the migration strips and nothing else writes. {detail} carries the card's identifier. `dinah check --migrate-numbers --yes` strips it."
+    },
+    "check.card-number-renumbered": {
+      "text": "{detail} was renumbered, so a reference somebody wrote down for its old number stops resolving",
+      "context": "A check finding a number repair raises: the card left the run holding a number it did not arrive holding. The renumbered event on the card's journal says the same thing where history keeps it. {detail} carries the card's identifier."
+    },
+    "check.card-numbers-written.one": {
+      "text": "Wrote {count} line of the card-number registry.",
+      "context": "The line the number migration prints for what it wrote, for exactly one line."
+    },
+    "check.card-numbers-written.other": {
+      "text": "Wrote {count} lines of the card-number registry.",
+      "context": "The line the number migration prints for what it wrote, for any other number. The count is zero on a run over a workbench whose registry already covered every card, which is that run's own answer."
+    },
+    "check.cards-renumbered.one": {
+      "text": "Renumbered {count} card.",
+      "context": "The line a number repair prints for what it moved, for exactly one card. The moved cards are counted and not listed, because each draws a check.card-number-renumbered finding naming it immediately below."
+    },
+    "check.cards-renumbered.other": {
+      "text": "Renumbered {count} cards.",
+      "context": "The line a number repair prints for what it moved, for any other number. The moved cards are counted and not listed, because each draws a check.card-number-renumbered finding naming it immediately below."
     },
     "check.ordinal-guessed": {
       "text": "{detail} was placed by its directory listing, because no event in the card's journal records its creation, so its position is a guess",
@@ -1801,6 +1841,10 @@
       "text": "{from} to {to}",
       "context": "The detail of a recorded attachment_renamed, carrying the old filename as {from} and the new filename as {to}."
     },
+    "log.renumbered": {
+      "text": "{from} to {to}",
+      "context": "The detail of a recorded renumbered, carrying the number the card arrived holding as {from} and the number the repair gave it as {to}."
+    },
     "ls.empty": {
       "text": "No cards here.",
       "context": "Printed when a listing has nothing in it."
@@ -2093,6 +2137,14 @@
       "text": "delete destroys history",
       "context": "The sentence printed after the refusal name dinah.unconfirmed. {detail} carries the identifier, owner or column the refusal is about."
     },
+    "refusal.dinah.unconfirmed.check": {
+      "text": "The {detail} repair changes what a card is called, and a reference somebody wrote down stops resolving.",
+      "context": "The sentence printed after the refusal name dinah.unconfirmed when the check command raised it, which is a number repair carrying no confirmation. {detail} is the repair flag the reader typed."
+    },
+    "refusal.dinah.unconfirmed.check.next": {
+      "text": " Run the command again with --yes.",
+      "context": "The next step of refusal.dinah.unconfirmed when the check command raised it. The flag inside it is syntax and stays as it is."
+    },
     "refusal.dinah.unconfirmed.next": {
       "text": ", so it needs --yes",
       "context": "Spliced onto refusal.dinah.unconfirmed as the next step, carrying the clause that base entry used to end with."
@@ -2324,6 +2376,14 @@
     "refusal.dinah.needs-container-migration.next": {
       "text": "; run `dinah check --root {detail} --migrate-container` to carry it into one, then open it again",
       "context": "Spliced onto refusal.dinah.needs-container-migration as the next step. It names the preview rather than the applied run, so the reader sees what the repair would move before he types the flag that moves it, which is what the other two sentences of this family already do. The command name is machine vocabulary and is not translated."
+    },
+    "refusal.dinah.needs-number-migration": {
+      "text": "{detail} predates the card-number registry, so a new card cannot be given a number",
+      "context": "The sentence printed after the refusal name dinah.needs-number-migration, which add raises on a workbench declaring a format older than the registry's. {detail} carries the workbench directory the refusal was raised over."
+    },
+    "refusal.dinah.needs-number-migration.next": {
+      "text": "; run `dinah check --migrate-numbers --yes` to build it, then file the card again",
+      "context": "Spliced onto refusal.dinah.needs-number-migration as the next step. It names the applied run, because this repair has no preview: the migration refuses without --yes rather than reporting what it would do. The command name is machine vocabulary and is not translated."
     },
     "refusal.dinah.add-needs-a-column": {
       "text": "this workbench has no columns left to file a new card into",
@@ -2713,6 +2773,10 @@
       "text": "restored",
       "context": "How the canonical token restored is rendered where a person reads it. The machine surface always carries the canonical spelling."
     },
+    "token.renumbered": {
+      "text": "renumbered",
+      "context": "How the canonical token renumbered is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
     "token.search": {
       "text": "search",
       "context": "How the canonical token search is rendered where a person reads it, naming the rung a workbench answer came from: the ancestor walk resolved it, in the settings listing and on the status line alike. The machine surface always carries the canonical spelling."
@@ -2944,6 +3008,14 @@
     "param.check.migrate-container.summary": {
       "text": "carry this workbench into a .dinah container under an identifier Dinah minted, or every workbench beneath --root",
       "context": "The one-line summary of the check command flag --migrate-container, printed by `dinah help check`."
+    },
+    "param.check.migrate-numbers.summary": {
+      "text": "build the card-number registry from the numbers this workbench's cards still carry",
+      "context": "The meaning of the migrate-numbers argument of `dinah check`, printed in that command's arguments table."
+    },
+    "param.check.renumber.summary": {
+      "text": "move every later claimant when two cards arrive holding one number",
+      "context": "The meaning of the renumber argument of `dinah check`, printed in that command's arguments table."
     },
     "param.check.migrate-workstreams.summary": {
       "text": "adopt every workstream a card names that this workbench does not carry",

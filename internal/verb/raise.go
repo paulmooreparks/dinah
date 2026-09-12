@@ -82,7 +82,7 @@ func (l *Library) Raise(req *Request) *Response {
 	// value, for the reason SetCardTierAt gives: Save rewrites the whole
 	// anchor from the frontmatter the caller holds, and a stale copy would
 	// revert whatever landed after it was read.
-	reloaded, err := bench.LoadCard(filepath.Dir(card.Dir), card.ID)
+	reloaded, err := l.Bench.LoadCardIn(filepath.Dir(card.Dir), card.ID)
 	if err != nil {
 		return l.FromError(req, err)
 	}
