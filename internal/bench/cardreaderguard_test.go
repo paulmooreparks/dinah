@@ -653,9 +653,11 @@ func collectFieldNames(introduced map[string]bool, fields *ast.FieldList) {
 // taint: the reader's own call, direct or through a name the walk bound from
 // a reader reference, a tracked identifier read alone or through the alias
 // operators, a type assertion whose operand carries the taint, an append
-// whose argument is tracked, a composite literal carrying a tracked
-// identifier anywhere inside it, or a call whose function expression carries
-// one, which is a method on the card. The list is closed on purpose, because
+// whose argument carries the taint, and a nested append is read the same
+// way through the ellipsis it is spread with, a composite literal carrying
+// a tracked identifier anywhere inside it, or a call whose function
+// expression carries one, which is a method on the card. The list is closed
+// on purpose, because
 // tainting on any expression that merely mentions a tracked identifier would
 // reach a selector reading one field off the card and forbid the very reads
 // the migration's entry exists to permit.
@@ -676,6 +678,17 @@ func carriesTheCard(expr ast.Expr, tracked map[string]bool, aliases map[string]b
 		if isAppend(value) {
 			for _, argument := range value.Args {
 				if aliasReads(argument, tracked) {
+					return true
+				}
+				// An argument spread from a nested append is read through
+				// the ellipsis and then as the call it is, because the
+				// nested call's own arguments are one more place a tracked
+				// card can hide.
+				inner := argument
+				if spread, ok := inner.(*ast.Ellipsis); ok {
+					inner = spread.Elt
+				}
+				if carriesTheCard(inner, tracked, aliases, bound) {
 					return true
 				}
 			}
@@ -1204,6 +1217,22 @@ func (b *Workbench) checkCards(ids []string) []Finding {
 `},
 			allowlist: oneProbeEntry(),
 			want:      []string{"collected, which answers a card", "a tracked card was answered in a return"},
+			count:     2,
+		},
+		{
+			name: "a nested append laundering a tracked card",
+			files: map[string]string{"internal/bench/check.go": `func (b *Workbench) nested(root, id string) ([]*Card, error) {
+	c, err := LoadCard(root, id)
+	if err != nil {
+		return nil, err
+	}
+	var more []*Card
+	cards := append([]*Card{}, append(more, c)...)
+	return cards, nil
+}
+`},
+			allowlist: oneProbeEntry(),
+			want:      []string{"nested, which answers a card", "a tracked card was answered in a return"},
 			count:     2,
 		},
 		{
