@@ -247,33 +247,40 @@ func scanForFreeCardReaders(root, prefix string, allowed []readerExemption) ([]r
 				if len(value.Values) == 0 {
 					continue
 				}
-				// A bare reference to a reader is read before the card-pointer
-				// test and carries its own storage, because a var holding
-				// the reader as a value is an escape of the reader rather
-				// than storage for a card. There is no alias map to read
-				// here, because the aliases are function-local and this is
-				// the package scope.
-				if namesAReader(value.Values[0], nil, bound) {
-					record(value, "2b", "a package-level var holding a free reader as a value")
-					continue
-				}
-				// A call in the initializer is one more spelling of the same
-				// storage, read for the same reason: a conversion hands its
-				// argument to the type it names and the var still holds the
-				// reader, and inside a function the same spelling is caught
-				// where it stands by the call-argument clause, which package
-				// scope has no walk of its own to answer.
-				// A call in the initializer is one more spelling of the same
-				// storage, read for the same reason: a conversion hands its
-				// argument to the type it names and the var still holds the
-				// reader, and inside a function the same spelling is caught
-				// where it stands by the call-argument clause, which package
-				// scope has no walk of its own to answer.
-				if namesAReaderInsideACall(value.Values[0], bound) {
-					record(value, "2b", "a package-level var holding a free reader through a call")
-				}
-				if valueMentionsACardPointer(value.Values[0], bound) {
-					record(value, "2b", "a package-level var holding a *Card")
+				// Each name is paired with the initializer on its own side,
+				// the pairing the function walk's var reader uses, because a
+				// reader or a card standing in the second element is stored
+				// in the second name and the first element answers nothing
+				// for it. A bare reference to a reader is read before the
+				// card-pointer test and carries its own storage, because a
+				// var holding the reader as a value is an escape of the
+				// reader rather than storage for a card, and a call carrying
+				// one is read with the same precedence, because a conversion
+				// hands its argument to the type it names and the var still
+				// holds the reader. There is no alias map to read here,
+				// because the aliases are function-local and this is the
+				// package scope.
+				readerStored := false
+				cardStored := false
+				for i := range value.Names {
+					if i >= len(value.Values) {
+						break
+					}
+					initial := value.Values[i]
+					if !readerStored && namesAReader(initial, nil, bound) {
+						record(value, "2b", "a package-level var holding a free reader as a value")
+						readerStored = true
+						continue
+					}
+					if !readerStored && namesAReaderInsideACall(initial, bound) {
+						record(value, "2b", "a package-level var holding a free reader through a call")
+						readerStored = true
+						continue
+					}
+					if !cardStored && valueMentionsACardPointer(initial, bound) {
+						record(value, "2b", "a package-level var holding a *Card")
+						cardStored = true
+					}
 				}
 			}
 		}
@@ -2302,6 +2309,22 @@ var launderHeld = holder{read: any(LoadCard)}
 `},
 			allowlist: oneProbeEntry(),
 			want:      []string{"a free reader was answered in a return"},
+			count:     1,
+		},
+		{
+			name: "a second package var name laundering a free reader",
+			files: map[string]string{"internal/bench/check.go": `var first, second = 5, LoadCard
+`},
+			allowlist: oneProbeEntry(),
+			want:      []string{"a package-level var holding a free reader as a value"},
+			count:     1,
+		},
+		{
+			name: "a second package var name laundering a card pointer",
+			files: map[string]string{"internal/bench/check.go": `var first, second = false, &Card{}
+`},
+			allowlist: []readerExemption{{path: "internal/bench/check.go", references: 0}},
+			want:      []string{"a package-level var holding a *Card"},
 			count:     1,
 		},
 	}
