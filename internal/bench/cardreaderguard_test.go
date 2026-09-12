@@ -425,7 +425,12 @@ func isNewCard(call *ast.CallExpr) bool {
 // value and for a call inside it, though a call standing in a send value
 // cannot compile, because a reader answers two values where a send takes
 // one. A return's results are read for the value too, because answering a
-// reader out of a function hands it on exactly as a call argument does.
+// reader out of a function hands it on exactly as a call argument does. The
+// three store clauses the card half already reads, through a field, an
+// index, or a pointer, on a named result, and on a name the function does
+// not introduce, are read for the value with the same ground, because
+// handing a reader to outer state answers it as surely as a call argument
+// does.
 func valueFindings(function *ast.FuncDecl, bound map[string]bool, at position, composed string) []readerFinding {
 	var findings []readerFinding
 	tracked := map[string]bool{}
@@ -467,6 +472,9 @@ func valueFindings(function *ast.FuncDecl, bound map[string]bool, at position, c
 					if carriesTheCard(n.Rhs[i], tracked, aliases, bound) {
 						record(n, "a tracked card was stored through a field, an index, or a pointer")
 					}
+					if namesAReader(n.Rhs[i], aliases, bound) {
+						record(n, "a free reader was stored through a field, an index, or a pointer")
+					}
 				case *ast.Ident:
 					if target.Name == "_" {
 						break
@@ -476,6 +484,12 @@ func valueFindings(function *ast.FuncDecl, bound map[string]bool, at position, c
 					}
 					if !introduced[target.Name] && carriesTheCard(n.Rhs[i], tracked, aliases, bound) {
 						record(n, "a tracked card was stored on a name the function does not introduce")
+					}
+					if named[target.Name] && namesAReader(n.Rhs[i], aliases, bound) {
+						record(n, "a free reader was stored on a named result")
+					}
+					if !introduced[target.Name] && namesAReader(n.Rhs[i], aliases, bound) {
+						record(n, "a free reader was stored on a name the function does not introduce")
 					}
 				}
 			}
@@ -1496,6 +1510,52 @@ func read(b *w.Workbench, root, id, slug string) (string, bool) {
 `},
 			allowlist: oneProbeEntry(),
 			want:      []string{"a tracked card was stored on a named result"},
+			count:     1,
+		},
+		{
+			name: "a reader value stored through a field",
+			files: map[string]string{"internal/bench/check.go": `func (b *Workbench) storedValue(root, id string) error {
+	b.anyField = LoadCard
+	return nil
+}
+`},
+			allowlist: oneProbeEntry(),
+			want:      []string{"a free reader was stored through a field, an index, or a pointer"},
+			count:     1,
+		},
+		{
+			name: "a reader value stored through an index",
+			files: map[string]string{"internal/bench/check.go": `func (b *Workbench) storedIndex(root, id string, out map[string]any) error {
+	out[id] = LoadCard
+	return nil
+}
+`},
+			allowlist: oneProbeEntry(),
+			want:      []string{"a free reader was stored through a field, an index, or a pointer"},
+			count:     1,
+		},
+		{
+			name: "a reader value stored on a named result",
+			files: map[string]string{"internal/bench/check.go": `func (b *Workbench) handedNamed(root, id string) (out func(string, string) (*Card, error), err error) {
+	out = LoadCard
+	return
+}
+`},
+			allowlist: oneProbeEntry(),
+			want:      []string{"handedNamed, which answers a card", "a free reader was stored on a named result"},
+			count:     2,
+		},
+		{
+			name: "a reader value stored on a name the function does not introduce",
+			files: map[string]string{"internal/bench/check.go": `var last any
+
+func (b *Workbench) storedOuter(root, id string) error {
+	last = LoadCard
+	return nil
+}
+`},
+			allowlist: oneProbeEntry(),
+			want:      []string{"a free reader was stored on a name the function does not introduce"},
 			count:     1,
 		},
 		{
