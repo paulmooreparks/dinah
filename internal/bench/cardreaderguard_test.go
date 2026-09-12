@@ -424,14 +424,19 @@ func valueFindings(function *ast.FuncDecl, bound map[string]bool, at position, c
 		case *ast.FuncLit:
 			collectNamed(named, n.Type)
 		case *ast.ValueSpec:
-			if len(n.Names) == 0 || len(n.Values) == 0 || n.Names[0].Name == "_" {
-				return true
-			}
-			if namesAReader(n.Values[0], aliases, bound) {
-				aliases[n.Names[0].Name] = true
-			}
-			if carriesTheCard(n.Values[0], tracked, aliases, bound) {
-				tracked[n.Names[0].Name] = true
+			for i, name := range n.Names {
+				if i >= len(n.Values) {
+					break
+				}
+				if name.Name == "_" {
+					continue
+				}
+				if namesAReader(n.Values[i], aliases, bound) {
+					aliases[name.Name] = true
+				}
+				if carriesTheCard(n.Values[i], tracked, aliases, bound) {
+					tracked[name.Name] = true
+				}
 			}
 		case *ast.AssignStmt:
 			for i, target := range n.Lhs {
@@ -1637,6 +1642,21 @@ func read(b *w.Workbench, root, id, slug string) (string, bool) {
 	}
 	var first, second *Card
 	first, second = card, card
+	return second, nil
+}
+`},
+			allowlist: oneProbeEntry(),
+			want:      []string{"a tracked card was answered in a return"},
+			count:     1,
+		},
+		{
+			name: "a second var name laundering a tracked card",
+			files: map[string]string{"internal/bench/check.go": `func (b *Workbench) redeclared(root, id string) (any, error) {
+	card, err := LoadCard(root, id)
+	if err != nil {
+		return nil, err
+	}
+	var first, second = card, card
 	return second, nil
 }
 `},
