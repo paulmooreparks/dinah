@@ -216,10 +216,16 @@ func scanForFreeCardReaders(root, prefix string, allowed []readerExemption) ([]r
 			}
 			for _, spec := range general.Specs {
 				value, ok := spec.(*ast.ValueSpec)
-				if !ok || value.Type == nil {
+				if !ok {
 					continue
 				}
-				if typeMentionsACardPointer(value.Type) {
+				if value.Type != nil {
+					if typeMentionsACardPointer(value.Type) {
+						record(value, "2b", "a package-level var")
+					}
+					continue
+				}
+				if len(value.Values) > 0 && valueMentionsACardPointer(value.Values[0], bound) {
 					record(value, "2b", "a package-level var")
 				}
 			}
@@ -287,8 +293,11 @@ func resultMentionsCard(function *ast.FuncDecl) bool {
 }
 
 // typeMentionsACardPointer reports whether a type expression carries *Card,
-// which is the question rule 2b asks of a package-level variable and of every
-// struct field an allowlisted file declares.
+// which is one half of the question rule 2b asks of a package-level variable,
+// the half a declaration names its type in, and the whole of the question it
+// asks of every struct field an allowlisted file declares. The other half of
+// the package-level question, a declaration that elides its type and holds
+// the card in its initializer, is valueMentionsACardPointer's.
 func typeMentionsACardPointer(expr ast.Expr) bool {
 	found := false
 	ast.Inspect(expr, func(node ast.Node) bool {
@@ -321,6 +330,44 @@ func mentionsTypeNamedCard(expr ast.Expr) bool {
 	return found
 }
 
+// valueMentionsACardPointer reports whether a package-level initializer hands
+// its variable a card pointer, which is the half of rule 2b's question a var
+// declaration asks when it elides its type. The shapes read are a call of one
+// of the free readers, a call of new naming the card, the address of a
+// composite literal naming the card, and a type expression carrying *Card
+// anywhere inside the initializer, which reads a slice or a map of card
+// pointers. A call of some other function that answers a card is invisible to
+// the walk, and that limit is the one rule 2c already carries: an
+// enumeration over syntax rather than a proof over types.
+func valueMentionsACardPointer(expr ast.Expr, bound map[string]bool) bool {
+	call, isCall := expr.(*ast.CallExpr)
+	if isCall && isReaderCall(call, nil, bound) {
+		return true
+	}
+	if isCall && isNewCard(call) {
+		return true
+	}
+	address, isAddress := expr.(*ast.UnaryExpr)
+	if isAddress && address.Op == token.AND {
+		literal, isLiteral := address.X.(*ast.CompositeLit)
+		if isLiteral && literal.Type != nil && mentionsTypeNamedCard(literal.Type) {
+			return true
+		}
+	}
+	return typeMentionsACardPointer(expr)
+}
+
+// isNewCard reports whether a call is the builtin new over the card type,
+// which answers a pointer to a card the way the address of an empty literal
+// does.
+func isNewCard(call *ast.CallExpr) bool {
+	ident, ok := call.Fun.(*ast.Ident)
+	if !ok || ident.Name != "new" || len(call.Args) != 1 {
+		return false
+	}
+	return mentionsTypeNamedCard(call.Args[0])
+}
+
 // valueFindings walks one function of an allowlisted file under rule 2c,
 // tracking the identifiers a free reader's value is bound to and reporting
 // every shape in which that value leaves the function. The walk is one pass in
@@ -328,16 +375,25 @@ func mentionsTypeNamedCard(expr ast.Expr) bool {
 // and it enters function literals, because a closure that answers a card is
 // as much an escape as a return is.
 //
-// Both of Go's binding forms are read, an assignment and a var declaration,
-// and only the first target of either takes the value, because a free reader
-// answers the card in its first result and its error in its second. Tracking
-// every target would taint that error and report every error return in the
-// file.
+// The walk reads an assignment, a var declaration, and a range clause, which
+// are every binding form Go has, because a type-switch guard and the receive
+// clause of a select are assignments too. Only the first target of an
+// assignment or a var declaration takes the value, because a free reader
+// answers the card in its first result and its error in its second, and
+// tracking every target would taint that error and report every error return
+// in the file. A range clause binds both its variables, because the walk
+// reads syntax and cannot tell which of the two holds the element. A name
+// bound from a bare reference to a reader rather than from its call is
+// tracked as an alias, and a call through that alias reads as a call of the
+// reader itself.
 func valueFindings(function *ast.FuncDecl, bound map[string]bool, at position, composed string) []readerFinding {
 	var findings []readerFinding
 	tracked := map[string]bool{}
 	named := map[string]bool{}
+	aliases := map[string]bool{}
+	introduced := map[string]bool{}
 	collectNamed(named, function.Type)
+	collectIntroduced(introduced, function)
 	record := func(node ast.Node, clause string) {
 		line, text := at(node)
 		findings = append(findings, readerFinding{Path: composed, Line: line, Rule: "2c", Detail: clause, Text: text})
@@ -350,7 +406,10 @@ func valueFindings(function *ast.FuncDecl, bound map[string]bool, at position, c
 			if len(n.Names) == 0 || len(n.Values) == 0 || n.Names[0].Name == "_" {
 				return true
 			}
-			if carriesTheCard(n.Values[0], tracked, bound) {
+			if namesAReader(n.Values[0], bound) {
+				aliases[n.Names[0].Name] = true
+			}
+			if carriesTheCard(n.Values[0], tracked, aliases, bound) {
 				tracked[n.Names[0].Name] = true
 			}
 		case *ast.AssignStmt:
@@ -359,27 +418,46 @@ func valueFindings(function *ast.FuncDecl, bound map[string]bool, at position, c
 					break
 				}
 				switch target := target.(type) {
-				case *ast.SelectorExpr, *ast.IndexExpr:
-					if aliasReads(n.Rhs[i], tracked) {
-						record(n, "a tracked card was stored on a field or an index")
+				case *ast.SelectorExpr, *ast.IndexExpr, *ast.StarExpr:
+					if carriesTheCard(n.Rhs[i], tracked, aliases, bound) {
+						record(n, "a tracked card was stored through a field, an index, or a pointer")
 					}
 				case *ast.Ident:
-					if named[target.Name] && aliasReads(n.Rhs[i], tracked) {
+					if target.Name == "_" {
+						break
+					}
+					if named[target.Name] && carriesTheCard(n.Rhs[i], tracked, aliases, bound) {
 						record(n, "a tracked card was stored on a named result")
+					}
+					if !introduced[target.Name] && carriesTheCard(n.Rhs[i], tracked, aliases, bound) {
+						record(n, "a tracked card was stored on a name the function does not introduce")
 					}
 				}
 			}
 			if len(n.Lhs) == 0 || len(n.Rhs) == 0 {
 				return true
 			}
-			if ident, ok := n.Lhs[0].(*ast.Ident); ok && ident.Name != "_" && carriesTheCard(n.Rhs[0], tracked, bound) {
-				tracked[ident.Name] = true
+			if ident, ok := n.Lhs[0].(*ast.Ident); ok && ident.Name != "_" {
+				if namesAReader(n.Rhs[0], bound) {
+					aliases[ident.Name] = true
+				}
+				if carriesTheCard(n.Rhs[0], tracked, aliases, bound) {
+					tracked[ident.Name] = true
+				}
+			}
+		case *ast.RangeStmt:
+			if carriesTheCard(n.X, tracked, aliases, bound) {
+				for _, target := range []ast.Expr{n.Key, n.Value} {
+					if ident, ok := target.(*ast.Ident); ok && ident.Name != "_" {
+						tracked[ident.Name] = true
+					}
+				}
 			}
 		case *ast.ReturnStmt:
 			if mentionsTrackedIdentifier(n, tracked) {
 				record(n, "a tracked card was answered in a return")
 			}
-			if callsAReaderInside(n, bound) {
+			if callsAReaderInside(n, aliases, bound) {
 				record(n, "a free reader was called inside a return")
 			}
 		case *ast.SendStmt:
@@ -393,6 +471,12 @@ func valueFindings(function *ast.FuncDecl, bound map[string]bool, at position, c
 			for _, argument := range n.Args {
 				if mentionsTrackedIdentifier(argument, tracked) {
 					record(n, "a tracked card was passed as a call argument")
+					break
+				}
+			}
+			for _, argument := range n.Args {
+				if callsAReaderInside(argument, aliases, bound) {
+					record(n, "a free reader was called inside a call argument")
 					break
 				}
 			}
@@ -416,19 +500,80 @@ func collectNamed(named map[string]bool, functionType *ast.FuncType) {
 	}
 }
 
+// collectIntroduced adds every name the function itself binds to the set: the
+// receiver, every parameter and named result of the function and of each
+// function literal inside it, every name a var declaration or a short
+// declaration binds, and every variable a range clause declares. The set is
+// what separates a name a function introduces from one it merely assigns, and
+// a package-level variable is the second kind, so storing a card on it is an
+// escape rather than a local binding.
+func collectIntroduced(introduced map[string]bool, function *ast.FuncDecl) {
+	if function.Recv != nil {
+		for _, field := range function.Recv.List {
+			for _, name := range field.Names {
+				introduced[name.Name] = true
+			}
+		}
+	}
+	ast.Inspect(function, func(node ast.Node) bool {
+		switch n := node.(type) {
+		case *ast.FuncType:
+			collectFieldNames(introduced, n.Params)
+			collectFieldNames(introduced, n.Results)
+		case *ast.ValueSpec:
+			for _, name := range n.Names {
+				introduced[name.Name] = true
+			}
+		case *ast.AssignStmt:
+			if n.Tok != token.DEFINE {
+				return true
+			}
+			for _, target := range n.Lhs {
+				if ident, ok := target.(*ast.Ident); ok {
+					introduced[ident.Name] = true
+				}
+			}
+		case *ast.RangeStmt:
+			if n.Tok != token.DEFINE {
+				return true
+			}
+			for _, target := range []ast.Expr{n.Key, n.Value} {
+				if ident, ok := target.(*ast.Ident); ok {
+					introduced[ident.Name] = true
+				}
+			}
+		}
+		return true
+	})
+}
+
+// collectFieldNames adds the names a field list declares, which for a function
+// type are its parameters or its named results.
+func collectFieldNames(introduced map[string]bool, fields *ast.FieldList) {
+	if fields == nil {
+		return
+	}
+	for _, field := range fields.List {
+		for _, name := range field.Names {
+			introduced[name.Name] = true
+		}
+	}
+}
+
 // carriesTheCard reports whether an expression hands a binding the value of a
 // card one of the free readers answered, by one of the shapes that carry the
-// taint: the reader's own call, a tracked identifier read alone or through the
-// alias operators, an append whose argument is tracked, a composite literal
+// taint: the reader's own call, direct or through a name the walk bound from
+// a reader reference, a tracked identifier read alone or through the alias
+// operators, an append whose argument is tracked, a composite literal
 // carrying a tracked identifier anywhere inside it, or a call whose function
 // expression carries one, which is a method on the card. The list is closed
 // on purpose, because tainting on any expression that merely mentions a
 // tracked identifier would reach a selector reading one field off the card
 // and forbid the very reads the migration's entry exists to permit.
-func carriesTheCard(expr ast.Expr, tracked map[string]bool, bound map[string]bool) bool {
+func carriesTheCard(expr ast.Expr, tracked map[string]bool, aliases map[string]bool, bound map[string]bool) bool {
 	switch value := expr.(type) {
 	case *ast.CallExpr:
-		if isReaderCall(value, bound) {
+		if isReaderCall(value, aliases, bound) {
 			return true
 		}
 		if isAppend(value) {
@@ -496,8 +641,9 @@ func mentionsTrackedIdentifier(node ast.Node, tracked map[string]bool) bool {
 
 // callsAReaderInside reports whether a node contains a call of one of the
 // free readers, which is the shape a function employs when it hands a caller
-// the reader's own answer directly.
-func callsAReaderInside(node ast.Node, bound map[string]bool) bool {
+// the reader's own answer directly. A return and a call's argument list ask
+// the question, and each records its own finding when it answers yes.
+func callsAReaderInside(node ast.Node, aliases map[string]bool, bound map[string]bool) bool {
 	found := false
 	ast.Inspect(node, func(child ast.Node) bool {
 		if found {
@@ -507,7 +653,7 @@ func callsAReaderInside(node ast.Node, bound map[string]bool) bool {
 		if !ok {
 			return true
 		}
-		if isReaderCall(call, bound) {
+		if isReaderCall(call, aliases, bound) {
 			found = true
 			return false
 		}
@@ -517,12 +663,13 @@ func callsAReaderInside(node ast.Node, bound map[string]bool) bool {
 }
 
 // isReaderCall reports whether a call names one of the free readers, either
-// bare in a file of this package or through a qualifier that file's imports
-// bind to it.
-func isReaderCall(call *ast.CallExpr, bound map[string]bool) bool {
+// bare in a file of this package, through a qualifier that file's imports
+// bind to it, or through a name the walk itself bound from a bare reference
+// to a reader.
+func isReaderCall(call *ast.CallExpr, aliases map[string]bool, bound map[string]bool) bool {
 	switch fun := call.Fun.(type) {
 	case *ast.Ident:
-		return theFreeReaders[fun.Name]
+		return theFreeReaders[fun.Name] || aliases[fun.Name]
 	case *ast.SelectorExpr:
 		if !theFreeReaders[fun.Sel.Name] {
 			return false
@@ -531,6 +678,32 @@ func isReaderCall(call *ast.CallExpr, bound map[string]bool) bool {
 		return ok && bound[qualifier.Name]
 	}
 	return false
+}
+
+// namesAReader reports whether an expression is a bare reference to one of the
+// free readers rather than a call of one, read through parentheses, and either
+// as a plain identifier in a file of this package or through a qualifier that
+// file's imports bind to it. Binding such a reference spends one of rule 1's
+// references and answers a function value that calls the reader when called,
+// so the walk tracks the bound name as an alias and reads calls made through
+// it as calls of the reader itself.
+func namesAReader(expr ast.Expr, bound map[string]bool) bool {
+	for {
+		switch read := expr.(type) {
+		case *ast.ParenExpr:
+			expr = read.X
+		case *ast.Ident:
+			return theFreeReaders[read.Name]
+		case *ast.SelectorExpr:
+			if !theFreeReaders[read.Sel.Name] {
+				return false
+			}
+			qualifier, ok := read.X.(*ast.Ident)
+			return ok && bound[qualifier.Name]
+		default:
+			return false
+		}
+	}
 }
 
 // isAppend reports whether a call is the builtin append, whose taint the walk
@@ -775,7 +948,14 @@ func oneProbeEntry() []readerExemption {
 // a helper declared where rule 2 never looks, the same escape through a
 // struct, a slice and a map literal, a named result answered by a bare
 // return, an alias read through each of the three operators, and a method on
-// the card declared outside the allowlisted files.
+// the card declared outside the allowlisted files. The newest cases are the
+// shapes a review planted against the shipped guard and watched escape: an
+// index and a star target receiving the reader's answer directly, a
+// package-level name receiving it, a named result receiving it without a
+// laundering assignment, a range clause binding a card out of a slice, a
+// reader call standing inside a call's arguments, a call through a local
+// alias of the reader, and package-level storage whose var declaration
+// elides its type.
 func TestTheLoadCardGuardGoesRed(t *testing.T) {
 	cases := []plantedEscape{
 		{
@@ -838,7 +1018,7 @@ func (b *Workbench) checkCards(ids []string) []Finding {
 }
 `},
 			allowlist: oneProbeEntry(),
-			want:      []string{"a tracked card was stored on a field or an index"},
+			want:      []string{"a tracked card was stored through a field, an index, or a pointer"},
 			count:     1,
 		},
 		{
@@ -1146,6 +1326,100 @@ func read(b *w.Workbench, root, id, slug string) (string, bool) {
 			count:     1,
 		},
 		{
+			name: "an index target receiving the reader call directly",
+			files: map[string]string{"internal/bench/check.go": `func (b *Workbench) cached(root, id string) error {
+	cache := map[string]*Card{}
+	cache[id], err := LoadCard(root, id)
+	return err
+}
+`},
+			allowlist: oneProbeEntry(),
+			want:      []string{"a tracked card was stored through a field, an index, or a pointer"},
+			count:     1,
+		},
+		{
+			name: "a star target receiving a tracked card",
+			files: map[string]string{"internal/bench/check.go": `func (b *Workbench) slotted(root, id string) error {
+	c, err := LoadCard(root, id)
+	if err != nil {
+		return err
+	}
+	var slot *Card
+	*slot = c
+	return nil
+}
+`},
+			allowlist: oneProbeEntry(),
+			want:      []string{"a tracked card was stored through a field, an index, or a pointer"},
+			count:     1,
+		},
+		{
+			name: "a package-level name receiving the reader call directly",
+			files: map[string]string{
+				"internal/bench/check.go": `func (b *Workbench) probedLast(root, id string) error {
+	last, err = LoadCard(root, id)
+	return err
+}
+`,
+				"internal/bench/types.go": `var last *Card
+`,
+			},
+			allowlist: oneProbeEntry(),
+			want:      []string{"a tracked card was stored on a name the function does not introduce"},
+			count:     1,
+		},
+		{
+			name: "a named result receiving the reader call directly",
+			files: map[string]string{"internal/bench/check.go": `func (b *Workbench) reportedDirect(root, id string) (out any, err error) {
+	out, err = LoadCard(root, id)
+	return
+}
+`},
+			allowlist: oneProbeEntry(),
+			want:      []string{"a tracked card was stored on a named result"},
+			count:     1,
+		},
+		{
+			name: "a range clause laundering a tracked card",
+			files: map[string]string{"internal/bench/check.go": `func (b *Workbench) ranged(root, id string) (any, error) {
+	c, err := LoadCard(root, id)
+	if err != nil {
+		return nil, err
+	}
+	for _, d := range []*Card{c} {
+		return d, nil
+	}
+	return nil, nil
+}
+`},
+			allowlist: oneProbeEntry(),
+			want:      []string{"a tracked card was answered in a return"},
+			count:     1,
+		},
+		{
+			name: "a reader call nested inside a call argument",
+			files: map[string]string{"internal/bench/check.go": `func (b *Workbench) stashed(root, id string) error {
+	stash(LoadCard(root, id))
+	return nil
+}
+`},
+			allowlist: oneProbeEntry(),
+			want:      []string{"a free reader was called inside a call argument"},
+			count:     1,
+		},
+		{
+			name: "a call through a local alias of the reader",
+			files: map[string]string{"internal/bench/check.go": `func (b *Workbench) aliasedCall(root, id string) error {
+	read := LoadCard
+	stash(read(root, id))
+	return nil
+}
+`},
+			allowlist: oneProbeEntry(),
+			want:      []string{"a free reader was called inside a call argument"},
+			count:     1,
+		},
+		{
 			name: "a reader called from a file the allowlist does not name",
 			files: map[string]string{"internal/verb/escape.go": `import w "dinah/internal/bench"
 
@@ -1194,6 +1468,17 @@ type escape struct {
 			allowlist: []readerExemption{{path: "internal/bench/check.go", references: 0}},
 			want:      []string{"a package-level var holding a *Card", "the struct field card holding a *Card"},
 			count:     2,
+		},
+		{
+			name: "package-level storage with its type elided",
+			files: map[string]string{"internal/bench/check.go": `var fromReader, readerErr = LoadCard("cards", "andon-1")
+var built = &Card{}
+var fresh = new(Card)
+var held = []*Card{}
+`},
+			allowlist: oneProbeEntry(),
+			want:      []string{"a package-level var holding a *Card"},
+			count:     4,
 		},
 	}
 	for _, c := range cases {
