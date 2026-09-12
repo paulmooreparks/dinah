@@ -775,10 +775,12 @@ func isReaderCall(call *ast.CallExpr, aliases map[string]bool, bound map[string]
 }
 
 // namesAReader reports whether an expression is a bare reference to one of the
-// free readers rather than a call of one, read through parentheses, and either
-// as a plain identifier in a file of this package or through a qualifier that
-// file's imports bind to it. A name the walk itself bound from a reference is
-// read the same way, so a binding taken from an alias binds an alias in turn.
+// free readers rather than a call of one, read through parentheses and the
+// address-of and dereference operators on the model the alias walk uses, and
+// either as a plain identifier in a file of this package or through a qualifier
+// that file's imports bind to it. A name the walk itself bound from a reference
+// is read the same way, so a binding taken from an alias binds an alias in
+// turn.
 // Binding such a reference spends one of rule 1's references and answers a
 // function value that calls the reader when called, so the walk tracks the
 // bound name as an alias and reads calls made through it as calls of the
@@ -787,6 +789,13 @@ func namesAReader(expr ast.Expr, aliases map[string]bool, bound map[string]bool)
 	for {
 		switch read := expr.(type) {
 		case *ast.ParenExpr:
+			expr = read.X
+		case *ast.StarExpr:
+			expr = read.X
+		case *ast.UnaryExpr:
+			if read.Op != token.AND {
+				return false
+			}
 			expr = read.X
 		case *ast.Ident:
 			return theFreeReaders[read.Name] || aliases[read.Name]
@@ -1583,6 +1592,25 @@ func read(b *w.Workbench, root, id, slug string) (string, bool) {
 		{
 			name: "a package-level var holding the reader as a value",
 			files: map[string]string{"internal/bench/check.go": `var read = LoadCard
+`},
+			allowlist: oneProbeEntry(),
+			want:      []string{"a package-level var holding a free reader as a value"},
+			count:     1,
+		},
+		{
+			name: "an address-of laundered reader handed to a call",
+			files: map[string]string{"internal/bench/check.go": `func (b *Workbench) stashedAddress(root, id string) error {
+	stash(&LoadCard)
+	return nil
+}
+`},
+			allowlist: oneProbeEntry(),
+			want:      []string{"a free reader was handed as a call argument"},
+			count:     1,
+		},
+		{
+			name: "an address-of laundered reader held by a package-level var",
+			files: map[string]string{"internal/bench/check.go": `var read = &LoadCard
 `},
 			allowlist: oneProbeEntry(),
 			want:      []string{"a package-level var holding a free reader as a value"},
