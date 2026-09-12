@@ -221,12 +221,23 @@ func scanForFreeCardReaders(root, prefix string, allowed []readerExemption) ([]r
 				}
 				if value.Type != nil {
 					if typeMentionsACardPointer(value.Type) {
-						record(value, "2b", "a package-level var")
+						record(value, "2b", "a package-level var holding a *Card")
 					}
 					continue
 				}
-				if len(value.Values) > 0 && valueMentionsACardPointer(value.Values[0], bound) {
-					record(value, "2b", "a package-level var")
+				if len(value.Values) == 0 {
+					continue
+				}
+				// A bare reference to a reader is read before the card-pointer
+				// test and carries its own storage, because a var holding
+				// the reader as a value is an escape of the reader rather
+				// than storage for a card.
+				if namesAReader(value.Values[0], bound) {
+					record(value, "2b", "a package-level var holding a free reader as a value")
+					continue
+				}
+				if valueMentionsACardPointer(value.Values[0], bound) {
+					record(value, "2b", "a package-level var holding a *Card")
 				}
 			}
 		}
@@ -239,9 +250,9 @@ func scanForFreeCardReaders(root, prefix string, allowed []readerExemption) ([]r
 				if !typeMentionsACardPointer(field.Type) {
 					continue
 				}
-				detail := "a struct field"
+				detail := "a struct field holding a *Card"
 				if len(field.Names) > 0 {
-					detail = "the struct field " + field.Names[0].Name
+					detail = "the struct field " + field.Names[0].Name + " holding a *Card"
 				}
 				record(field, "2b", detail)
 			}
@@ -764,7 +775,7 @@ func readerViolations(findings []readerFinding, allowed []readerExemption) []str
 				finding.Path, finding.Line, finding.Detail, finding.Text))
 		case "2b":
 			violations = append(violations, fmt.Sprintf(
-				"%s:%d declares %s holding a *Card, which the reader allowlist permits nowhere (rule 2b): %s",
+				"%s:%d declares %s, which the reader allowlist permits nowhere (rule 2b): %s",
 				finding.Path, finding.Line, finding.Detail, finding.Text))
 		default:
 			violations = append(violations, fmt.Sprintf(
@@ -1508,6 +1519,14 @@ func read(b *w.Workbench, root, id, slug string) (string, bool) {
 `},
 			allowlist: oneProbeEntry(),
 			want:      []string{"a free reader was handed as a call argument"},
+			count:     1,
+		},
+		{
+			name: "a package-level var holding the reader as a value",
+			files: map[string]string{"internal/bench/check.go": `var read = LoadCard
+`},
+			allowlist: oneProbeEntry(),
+			want:      []string{"a package-level var holding a free reader as a value"},
 			count:     1,
 		},
 		{
