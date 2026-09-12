@@ -827,9 +827,10 @@ func isReaderCall(call *ast.CallExpr, aliases map[string]bool, bound map[string]
 // either as a plain identifier in a file of this package or through a qualifier
 // that file's imports bind to it. A name the walk itself bound from a reference
 // is read the same way, so a binding taken from an alias binds an alias in
-// turn. A composite literal is read through its element values, without
-// entering a call, so a reader stored in a literal reads as a reference the
-// way a bare one does and a binding from such a literal binds an alias.
+// turn. A composite literal is read through its element values and the keys
+// of a literal whose type says map, without entering a call, so a reader
+// stored in a literal reads as a reference the way a bare one does and a
+// binding from such a literal binds an alias.
 // Binding such a reference spends one of rule 1's references and answers a
 // function value that calls the reader when called, so the walk tracks the
 // bound name as an alias and reads calls made through it as calls of the
@@ -858,6 +859,17 @@ func namesAReader(expr ast.Expr, aliases map[string]bool, bound map[string]bool)
 			for _, element := range read.Elts {
 				value := element
 				if pair, isPair := element.(*ast.KeyValueExpr); isPair {
+					// A map key is an expression, and a reader standing in
+					// it is stored in the literal the way an element is. A
+					// struct literal's key is a field name, which a struct
+					// elsewhere in the tree may spell as a reader's own
+					// name, so the key is read only where the literal's
+					// type says map. An elided type carries no such word,
+					// which is the syntax-not-types limit the walk already
+					// documents.
+					if _, isMap := read.Type.(*ast.MapType); isMap && namesAReader(pair.Key, aliases, bound) {
+						return true
+					}
 					value = pair.Value
 				}
 				if namesAReader(value, aliases, bound) {
@@ -1833,6 +1845,17 @@ func (b *Workbench) storedOuter(root, id string) error {
 			files: map[string]string{"internal/bench/check.go": `func (b *Workbench) literalSlice(root, id string) ([]any, error) {
 	cs := []any{LoadCard}
 	return cs, nil
+}
+`},
+			allowlist: oneProbeEntry(),
+			want:      []string{"a free reader was answered in a return"},
+			count:     1,
+		},
+		{
+			name: "a map literal storing a reader as a key, answered as a value",
+			files: map[string]string{"internal/bench/check.go": `func (b *Workbench) literalKey(root, id string) (map[any]int, error) {
+	m := map[any]int{LoadCard: 1}
+	return m, nil
 }
 `},
 			allowlist: oneProbeEntry(),
