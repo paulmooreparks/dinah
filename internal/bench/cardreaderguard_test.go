@@ -132,9 +132,11 @@ var thePackageName = path.Base(theImportPath)
 // of this package or in a file dot-importing it, and a selector naming a
 // reader whose qualifier that file's own import list binds to this package. The
 // second resolves aliases, so a file importing this package under another
-// name is read the same as one importing it under its own. Nothing in the
-// scan asks whether a reference is called, because a function value handed
-// elsewhere is as good an escape as a call.
+// name is read the same as one importing it under its own. A qualifier
+// written inside parentheses is unwrapped before it is read, so a selector
+// spelled (w).LoadCard is a reference the same as one spelled w.LoadCard.
+// Nothing in the scan asks whether a reference is called, because a
+// function value handed elsewhere is as good an escape as a call.
 func scanForFreeCardReaders(root, prefix string, allowed []readerExemption) ([]readerFinding, error) {
 	var found []readerFinding
 	fset := token.NewFileSet()
@@ -198,7 +200,7 @@ func scanForFreeCardReaders(root, prefix string, allowed []readerExemption) ([]r
 				if !theFreeReaders[n.Sel.Name] {
 					return true
 				}
-				qualifier, ok := n.X.(*ast.Ident)
+				qualifier, ok := parenQualifier(n.X)
 				if ok && bound[qualifier.Name] {
 					record(n, "reference", "")
 				}
@@ -341,6 +343,22 @@ func mentionsTypeNamedCard(expr ast.Expr) bool {
 		return true
 	})
 	return found
+}
+
+// parenQualifier answers the import name a selector's qualifier spells,
+// unwrapping any number of parentheses, so a qualifier written as (w) or
+// ((w)) reads the same as one written as w.
+func parenQualifier(expr ast.Expr) (*ast.Ident, bool) {
+	for {
+		switch read := expr.(type) {
+		case *ast.ParenExpr:
+			expr = read.X
+		case *ast.Ident:
+			return read, true
+		default:
+			return nil, false
+		}
+	}
 }
 
 // valueMentionsACardPointer reports whether a package-level initializer hands
@@ -1662,6 +1680,18 @@ func read(b *w.Workbench, root, id, slug string) (string, bool) {
 `},
 			allowlist: oneProbeEntry(),
 			want:      []string{"a tracked card was answered in a return"},
+			count:     1,
+		},
+		{
+			name: "a parenthesized qualifier in a file no entry names",
+			files: map[string]string{"internal/verb/escape.go": `import w "dinah/internal/bench"
+
+func unstampedQualified(root, id string) (*w.Card, error) {
+	return (w).LoadCard(root, id)
+}
+`},
+			allowlist: []readerExemption{{path: "internal/bench/check.go", references: 0}},
+			want:      []string{"internal/verb/escape.go", "refers to the free card reader"},
 			count:     1,
 		},
 		{
