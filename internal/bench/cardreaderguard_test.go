@@ -815,7 +815,9 @@ func isReaderCall(call *ast.CallExpr, aliases map[string]bool, bound map[string]
 // either as a plain identifier in a file of this package or through a qualifier
 // that file's imports bind to it. A name the walk itself bound from a reference
 // is read the same way, so a binding taken from an alias binds an alias in
-// turn.
+// turn. A composite literal is read through its element values, without
+// entering a call, so a reader stored in a literal reads as a reference the
+// way a bare one does and a binding from such a literal binds an alias.
 // Binding such a reference spends one of rule 1's references and answers a
 // function value that calls the reader when called, so the walk tracks the
 // bound name as an alias and reads calls made through it as calls of the
@@ -840,6 +842,17 @@ func namesAReader(expr ast.Expr, aliases map[string]bool, bound map[string]bool)
 			}
 			qualifier, ok := parenQualifier(read.X)
 			return ok && bound[qualifier.Name]
+		case *ast.CompositeLit:
+			for _, element := range read.Elts {
+				value := element
+				if pair, isPair := element.(*ast.KeyValueExpr); isPair {
+					value = pair.Value
+				}
+				if namesAReader(value, aliases, bound) {
+					return true
+				}
+			}
+			return false
 		default:
 			return false
 		}
@@ -1714,6 +1727,14 @@ func (b *Workbench) storedOuter(root, id string) error {
 			count:     1,
 		},
 		{
+			name: "a package-level var holding a reader inside a composite literal",
+			files: map[string]string{"internal/bench/check.go": `var h = holder{read: LoadCard}
+`},
+			allowlist: oneProbeEntry(),
+			want:      []string{"a package-level var holding a free reader as a value"},
+			count:     1,
+		},
+		{
 			name: "a binding taken from an alias binds an alias in turn",
 			files: map[string]string{"internal/bench/check.go": `func (b *Workbench) rebind(root, id string) error {
 	read := LoadCard
@@ -1748,6 +1769,34 @@ func (b *Workbench) storedOuter(root, id string) error {
 `},
 			allowlist: oneProbeEntry(),
 			want:      []string{"a free reader was handed as a call argument"},
+			count:     1,
+		},
+		{
+			name: "a composite literal storing a reader, answered as a value",
+			files: map[string]string{
+				"internal/bench/check.go": `func (b *Workbench) literal(root, id string) (holder, error) {
+	h := holder{read: LoadCard}
+	return h, nil
+}
+`,
+				"internal/bench/types.go": `type holder struct {
+	read any
+}
+`,
+			},
+			allowlist: oneProbeEntry(),
+			want:      []string{"a free reader was answered in a return"},
+			count:     1,
+		},
+		{
+			name: "a slice literal storing a reader, answered as a value",
+			files: map[string]string{"internal/bench/check.go": `func (b *Workbench) literalSlice(root, id string) ([]any, error) {
+	cs := []any{LoadCard}
+	return cs, nil
+}
+`},
+			allowlist: oneProbeEntry(),
+			want:      []string{"a free reader was answered in a return"},
 			count:     1,
 		},
 		{
