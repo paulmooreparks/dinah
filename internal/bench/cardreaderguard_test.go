@@ -231,8 +231,10 @@ func scanForFreeCardReaders(root, prefix string, allowed []readerExemption) ([]r
 				// A bare reference to a reader is read before the card-pointer
 				// test and carries its own storage, because a var holding
 				// the reader as a value is an escape of the reader rather
-				// than storage for a card.
-				if namesAReader(value.Values[0], bound) {
+				// than storage for a card. There is no alias map to read
+				// here, because the aliases are function-local and this is
+				// the package scope.
+				if namesAReader(value.Values[0], nil, bound) {
 					record(value, "2b", "a package-level var holding a free reader as a value")
 					continue
 				}
@@ -422,7 +424,7 @@ func valueFindings(function *ast.FuncDecl, bound map[string]bool, at position, c
 			if len(n.Names) == 0 || len(n.Values) == 0 || n.Names[0].Name == "_" {
 				return true
 			}
-			if namesAReader(n.Values[0], bound) {
+			if namesAReader(n.Values[0], aliases, bound) {
 				aliases[n.Names[0].Name] = true
 			}
 			if carriesTheCard(n.Values[0], tracked, aliases, bound) {
@@ -454,7 +456,7 @@ func valueFindings(function *ast.FuncDecl, bound map[string]bool, at position, c
 				return true
 			}
 			if ident, ok := n.Lhs[0].(*ast.Ident); ok && ident.Name != "_" {
-				if namesAReader(n.Rhs[0], bound) {
+				if namesAReader(n.Rhs[0], aliases, bound) {
 					aliases[ident.Name] = true
 				}
 				if carriesTheCard(n.Rhs[0], tracked, aliases, bound) {
@@ -486,7 +488,7 @@ func valueFindings(function *ast.FuncDecl, bound map[string]bool, at position, c
 			// handed on to and the taint-following below it is about cards
 			// rather than about references.
 			for _, argument := range n.Args {
-				if namesAReader(argument, bound) {
+				if namesAReader(argument, aliases, bound) {
 					record(n, "a free reader was handed as a call argument")
 					break
 				}
@@ -720,17 +722,19 @@ func isReaderCall(call *ast.CallExpr, aliases map[string]bool, bound map[string]
 // namesAReader reports whether an expression is a bare reference to one of the
 // free readers rather than a call of one, read through parentheses, and either
 // as a plain identifier in a file of this package or through a qualifier that
-// file's imports bind to it. Binding such a reference spends one of rule 1's
-// references and answers a function value that calls the reader when called,
-// so the walk tracks the bound name as an alias and reads calls made through
-// it as calls of the reader itself.
-func namesAReader(expr ast.Expr, bound map[string]bool) bool {
+// file's imports bind to it. A name the walk itself bound from a reference is
+// read the same way, so a binding taken from an alias binds an alias in turn.
+// Binding such a reference spends one of rule 1's references and answers a
+// function value that calls the reader when called, so the walk tracks the
+// bound name as an alias and reads calls made through it as calls of the
+// reader itself.
+func namesAReader(expr ast.Expr, aliases map[string]bool, bound map[string]bool) bool {
 	for {
 		switch read := expr.(type) {
 		case *ast.ParenExpr:
 			expr = read.X
 		case *ast.Ident:
-			return theFreeReaders[read.Name]
+			return theFreeReaders[read.Name] || aliases[read.Name]
 		case *ast.SelectorExpr:
 			if !theFreeReaders[read.Sel.Name] {
 				return false
@@ -1527,6 +1531,19 @@ func read(b *w.Workbench, root, id, slug string) (string, bool) {
 `},
 			allowlist: oneProbeEntry(),
 			want:      []string{"a package-level var holding a free reader as a value"},
+			count:     1,
+		},
+		{
+			name: "a binding taken from an alias binds an alias in turn",
+			files: map[string]string{"internal/bench/check.go": `func (b *Workbench) rebind(root, id string) error {
+	read := LoadCard
+	second := read
+	stash(second(root, id))
+	return nil
+}
+`},
+			allowlist: oneProbeEntry(),
+			want:      []string{"a free reader was called inside a call argument"},
 			count:     1,
 		},
 		{
