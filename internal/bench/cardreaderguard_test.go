@@ -232,9 +232,15 @@ func scanForFreeCardReaders(root, prefix string, allowed []readerExemption) ([]r
 				// in the declaration loop below, with the same clauses any
 				// declared function gets, because a closure kept in package
 				// state answers cards from outside every declared function
-				// the walk reaches.
+				// the walk reaches. The literal is searched out anywhere
+				// under the initializer and not only as the initializer
+				// itself, because one standing inside a composite literal is
+				// stored all the same, and the search stops at a literal once
+				// it meets one, because the walk over that literal reports
+				// the literals nested inside it and a second entry here
+				// would report their bodies twice.
 				for _, initial := range value.Values {
-					if literal, isLiteral := initial.(*ast.FuncLit); isLiteral {
+					for _, literal := range outermostLiteralsIn(initial) {
 						found = append(found, valueFindings(literal, literal.Type, bound, at, composed)...)
 					}
 				}
@@ -585,7 +591,9 @@ func bindAssignment(n *ast.AssignStmt, tracked, aliases, bound map[string]bool) 
 
 // bindRange reads a range clause for the names it binds, and it binds both the
 // key and the element, because the walk reads syntax and cannot tell which of
-// the two holds the element.
+// the two holds the element. The same both-names ground binds aliases when the
+// ranged subject names a reader, so a binding taken out of the clause reads as
+// the reader the container holds.
 func bindRange(n *ast.RangeStmt, tracked, aliases, bound map[string]bool) {
 	if carriesTheCard(n.X, tracked, aliases, bound) {
 		for _, target := range []ast.Expr{n.Key, n.Value} {
@@ -594,6 +602,30 @@ func bindRange(n *ast.RangeStmt, tracked, aliases, bound map[string]bool) {
 			}
 		}
 	}
+	if namesAReader(n.X, aliases, bound) {
+		for _, target := range []ast.Expr{n.Key, n.Value} {
+			if ident, ok := target.(*ast.Ident); ok && ident.Name != "_" {
+				aliases[ident.Name] = true
+			}
+		}
+	}
+}
+
+// outermostLiteralsIn collects the function literals standing anywhere under a
+// package-level initializer, and it stops descending at the first literal it
+// meets, because the walk over that literal reports the bodies of the literals
+// nested inside it on its own, and a second entry in the collected list would
+// report those bodies twice.
+func outermostLiteralsIn(expr ast.Expr) []*ast.FuncLit {
+	var literals []*ast.FuncLit
+	ast.Inspect(expr, func(node ast.Node) bool {
+		if literal, isLiteral := node.(*ast.FuncLit); isLiteral {
+			literals = append(literals, literal)
+			return false
+		}
+		return true
+	})
+	return literals
 }
 
 // collectLiteralBindings collects the bindings a function literal makes
@@ -861,8 +893,15 @@ func carriesTheCard(expr ast.Expr, tracked map[string]bool, aliases map[string]b
 
 // aliasReads reports whether an expression is a tracked identifier, read
 // through any number of parentheses, address-of operators and dereference
-// operators. Those operators copy or re-address the card rather than reading
-// a field off it, so a binding from them carries the whole card.
+// operators, and through an index or a slice read of a container, which
+// carries what the container holds, because the walk cannot tell which of
+// its elements is the card. Those operators copy or re-address the card
+// rather than reading a field off it, so a binding from them carries the
+// whole card. A field read is not among them, because a card's own fields
+// are read all over the tree and are not cards themselves; the half that
+// leaves open is a card wrapped in a struct and read back out through its
+// field name, which launders through a binding. A future narrowing should
+// say which half it closes.
 func aliasReads(expr ast.Expr, tracked map[string]bool) bool {
 	if len(tracked) == 0 {
 		return false
@@ -877,6 +916,15 @@ func aliasReads(expr ast.Expr, tracked map[string]bool) bool {
 			if read.Op != token.AND {
 				return false
 			}
+			expr = read.X
+		case *ast.IndexExpr:
+			// An index read takes what the container holds, and only the
+			// container is read, because the index itself positions the
+			// read rather than supplying the value.
+			expr = read.X
+		case *ast.SliceExpr:
+			// A slice read hands on a slice of what the container holds,
+			// and its bounds position the read the way an index does.
 			expr = read.X
 		case *ast.Ident:
 			return tracked[read.Name]
@@ -933,36 +981,12 @@ func callsAReaderInside(node ast.Node, aliases map[string]bool, bound map[string
 // isReaderCall reports whether a call names one of the free readers, either
 // bare in a file of this package, through a qualifier that file's imports
 // bind to it, or through a name the walk itself bound from a bare reference
-// to a reader. The function expression is unwrapped through parentheses and
-// the address-of and dereference operators first, on the model the alias
-// walk uses, so a call spelled through those operators is a call of the
-// reader, and a qualifier written through parentheses reads the same way a
-// bare one does.
+// to a reader. The function expression is read by namesAReader's own reads,
+// so an extraction of an alias, through an index, a slice, an assertion, or
+// a field, calls the reader that alias holds, on the same ground a binding
+// from such an extraction binds an alias.
 func isReaderCall(call *ast.CallExpr, aliases map[string]bool, bound map[string]bool) bool {
-	fun := call.Fun
-	for {
-		switch read := fun.(type) {
-		case *ast.ParenExpr:
-			fun = read.X
-		case *ast.StarExpr:
-			fun = read.X
-		case *ast.UnaryExpr:
-			if read.Op != token.AND {
-				return false
-			}
-			fun = read.X
-		case *ast.Ident:
-			return theFreeReaders[read.Name] || aliases[read.Name]
-		case *ast.SelectorExpr:
-			if !theFreeReaders[read.Sel.Name] {
-				return false
-			}
-			qualifier, ok := parenQualifier(read.X)
-			return ok && bound[qualifier.Name]
-		default:
-			return false
-		}
-	}
+	return namesAReader(call.Fun, aliases, bound)
 }
 
 // namesAReader reports whether an expression is a bare reference to one of the
@@ -974,7 +998,11 @@ func isReaderCall(call *ast.CallExpr, aliases map[string]bool, bound map[string]
 // turn. A composite literal is read through its element values and the keys
 // of a literal whose type says map, without entering a call, so a reader
 // stored in a literal reads as a reference the way a bare one does and a
-// binding from such a literal binds an alias.
+// binding from such a literal binds an alias. An index read, a slice read, a
+// type assertion, and a selector naming a field are read through what they
+// read out of, because a holder the walk carries as an alias holds the reader
+// somewhere inside it and the syntax cannot say which element or field it is,
+// the same ground the range clause's both-names binding rests on.
 // Binding such a reference spends one of rule 1's references and answers a
 // function value that calls the reader when called, so the walk tracks the
 // bound name as an alias and reads calls made through it as calls of the
@@ -991,11 +1019,28 @@ func namesAReader(expr ast.Expr, aliases map[string]bool, bound map[string]bool)
 				return false
 			}
 			expr = read.X
+		case *ast.IndexExpr:
+			// An index read takes what the container holds, and only the
+			// container is read, because the index itself positions the
+			// read rather than supplying the value.
+			expr = read.X
+		case *ast.SliceExpr:
+			// A slice read hands on a slice of what the container holds,
+			// and its bounds position the read the way an index does.
+			expr = read.X
+		case *ast.TypeAssertExpr:
+			// An assertion unwraps the value the holder carries, on the
+			// same ground the card half's assertion read rests on.
+			expr = read.X
 		case *ast.Ident:
 			return theFreeReaders[read.Name] || aliases[read.Name]
 		case *ast.SelectorExpr:
 			if !theFreeReaders[read.Sel.Name] {
-				return false
+				// A selector whose field is not a reader's own name
+				// reads its holder instead, because a holder the walk
+				// carries as an alias holds the reader in one of its
+				// fields and the syntax cannot say which.
+				return namesAReader(read.X, aliases, bound)
 			}
 			qualifier, ok := parenQualifier(read.X)
 			return ok && bound[qualifier.Name]
@@ -1347,6 +1392,34 @@ func oneProbeEntry() []readerExemption {
 // so round 3 planted three of those rather than the two its handoff counted.
 // Every clause round 4 pins is armed the same way, by removing the clause and
 // watching its plant answer zero violations where the shape owes one.
+//
+// Round 4's sweep planted fifteen cases beyond the review's list and found
+// two escapes. A closure in a package var capturing a later-filled package
+// var and a conversion laundering a card held in another package var are
+// plants over clauses already shipped. The first escape was a literal
+// standing inside a composite literal in a package var: the discovery read
+// only an initializer that was a literal itself, so the search now reaches
+// anywhere under the initializer and stops at the first literal it meets,
+// because the walk over that literal reports the literals nested inside it.
+// Its reader and card forms are planted, and a star target and a named
+// result storing inside a package var literal are planted over the arms the
+// discovery now delivers. The second escape was the extraction class: the
+// walk read every binding form and no form that reads a value back out of
+// one, so an index, a slice, a type assertion, a type switch, and a field
+// read out of a holder the walk carried as an alias all laundered, on the
+// reader half through namesAReader and on the card half through aliasReads,
+// a range clause bound no alias out of an alias container, and a call
+// placed through such an extraction was invisible to isReaderCall, which
+// now reads its callee with namesAReader's own reads. Nine plants pin those
+// reads: five alias forms, two card forms, a range clause bound out of an
+// alias container, and a call placed through an index extraction. A card
+// read off its holder by a field is the half the card side leaves open,
+// because a card's own fields are read all over the tree and are not cards;
+// the aliasReads comment names that half. The sweep also probed the elided
+// inner literal key the residual names and watched it escape, so that
+// limit is accurate as written. Every clause the sweep pins is armed by
+// removal, per plant, and so is the discovery search, whose removal turns
+// the nested-literal plants red.
 func TestTheLoadCardGuardGoesRed(t *testing.T) {
 	cases := []plantedEscape{
 		{
@@ -2360,6 +2433,188 @@ var launderHeld = holder{read: any(LoadCard)}
 `},
 			allowlist: []readerExemption{{path: "internal/bench/check.go", references: 0}},
 			want:      []string{"a package-level var holding a *Card"},
+			count:     1,
+		},
+		{
+			name: "a closure in a package var capturing a later-filled package var",
+			files: map[string]string{"internal/bench/check.go": `var slot any
+var read = func() any { return slot }
+
+func init() { slot, _ = LoadCard("cards", "andon-1") }
+`},
+			allowlist: oneProbeEntry(),
+			want:      []string{"a tracked card was stored on a name the function does not introduce"},
+			count:     1,
+		},
+		{
+			name: "a conversion laundering a card held in another package var",
+			files: map[string]string{"internal/bench/check.go": `var held = &Card{}
+var laundered = any(held)
+`},
+			allowlist: []readerExemption{{path: "internal/bench/check.go", references: 0}},
+			want:      []string{"a package-level var holding a *Card"},
+			count:     1,
+		},
+		{
+			name: "a literal nested inside a composite literal in a package var",
+			files: map[string]string{"internal/bench/check.go": `var reads = []func() any{func() any { return LoadCard("cards", "andon-1") }}
+`},
+			allowlist: oneProbeEntry(),
+			want:      []string{"a free reader was called inside a return"},
+			count:     1,
+		},
+		{
+			name: "a literal nested inside a composite literal answering the card",
+			files: map[string]string{"internal/bench/check.go": `var reads = []func() any{func() any {
+	c, err := LoadCard("cards", "andon-1")
+	if err != nil {
+		return nil
+	}
+	return c
+}}
+`},
+			allowlist: oneProbeEntry(),
+			want:      []string{"a tracked card was answered in a return"},
+			count:     1,
+		},
+		{
+			name: "a star target storing a reader inside a package var literal",
+			files: map[string]string{"internal/bench/check.go": `var fill = func() {
+	var slot *func(string, string) (*Card, error)
+	*slot = LoadCard
+}
+`},
+			allowlist: oneProbeEntry(),
+			want:      []string{"a package-level var holding a *Card", "a free reader was stored through a field, an index, or a pointer"},
+			count:     2,
+		},
+		{
+			name: "a named result storing a reader inside a package var literal",
+			files: map[string]string{"internal/bench/check.go": `var answer = func() (out func(string, string) (*Card, error)) {
+	out = LoadCard
+	return
+}
+`},
+			allowlist: oneProbeEntry(),
+			want:      []string{"a package-level var holding a *Card", "a free reader was stored on a named result"},
+			count:     2,
+		},
+		{
+			name: "an alias read out of its container by index",
+			files: map[string]string{"internal/bench/check.go": `func (b *Workbench) laundered(root, id string) any {
+	held := []any{LoadCard}
+	read := held[0]
+	return read
+}
+`},
+			allowlist: oneProbeEntry(),
+			want:      []string{"a free reader was answered in a return"},
+			count:     1,
+		},
+		{
+			name: "a tracked card read out of its container by index",
+			files: map[string]string{"internal/bench/check.go": `func (b *Workbench) launderedCard(root, id string) any {
+	c, err := LoadCard(root, id)
+	if err != nil {
+		return nil
+	}
+	held := []*Card{c}
+	second := held[0]
+	return second
+}
+`},
+			allowlist: oneProbeEntry(),
+			want:      []string{"a tracked card was answered in a return"},
+			count:     1,
+		},
+		{
+			name: "an alias read out of its container by slice",
+			files: map[string]string{"internal/bench/check.go": `func (b *Workbench) launderedSlice() any {
+	held := []any{LoadCard}
+	return held[0:1]
+}
+`},
+			allowlist: oneProbeEntry(),
+			want:      []string{"a free reader was answered in a return"},
+			count:     1,
+		},
+		{
+			name: "a tracked card read out of its container by slice",
+			files: map[string]string{"internal/bench/check.go": `func (b *Workbench) launderedCardSlice(root, id string) any {
+	c, err := LoadCard(root, id)
+	if err != nil {
+		return nil
+	}
+	held := []*Card{c}
+	second := held[0:1]
+	return second
+}
+`},
+			allowlist: oneProbeEntry(),
+			want:      []string{"a tracked card was answered in a return"},
+			count:     1,
+		},
+		{
+			name: "an alias read out of its holder by a type assertion",
+			files: map[string]string{"internal/bench/check.go": `func (b *Workbench) launderedAssert() any {
+	held := LoadCard
+	return held.(func(string, string) (*Card, error))
+}
+`},
+			allowlist: oneProbeEntry(),
+			want:      []string{"a free reader was answered in a return"},
+			count:     1,
+		},
+		{
+			name: "an alias read out of its holder by a type switch",
+			files: map[string]string{"internal/bench/check.go": `func (b *Workbench) launderedSwitch() any {
+	held := LoadCard
+	switch read := held.(type) {
+	case func(string, string) (*Card, error):
+		return read
+	}
+	return nil
+}
+`},
+			allowlist: oneProbeEntry(),
+			want:      []string{"a free reader was answered in a return"},
+			count:     1,
+		},
+		{
+			name: "an alias read off its holder by a field",
+			files: map[string]string{"internal/bench/check.go": `func (b *Workbench) launderedField() any {
+	held := holder{read: LoadCard}
+	return held.read
+}
+`},
+			allowlist: oneProbeEntry(),
+			want:      []string{"a free reader was answered in a return"},
+			count:     1,
+		},
+		{
+			name: "an alias bound out of a range clause",
+			files: map[string]string{"internal/bench/check.go": `func (b *Workbench) launderedRange(root, id string) error {
+	held := []any{LoadCard}
+	for _, read := range held {
+		stash(read(root, id))
+	}
+	return nil
+}
+`},
+			allowlist: oneProbeEntry(),
+			want:      []string{"a free reader was called inside a call argument"},
+			count:     1,
+		},
+		{
+			name: "a call placed through an alias read out of its container by index",
+			files: map[string]string{"internal/bench/check.go": `func (b *Workbench) launderedCall(root, id string) error {
+	held := []any{LoadCard}
+	stash(held[0].(func(string, string) (*Card, error))(root, id))
+	return nil
+}
+`},
+			allowlist: oneProbeEntry(),
+			want:      []string{"a free reader was called inside a call argument"},
 			count:     1,
 		},
 	}
