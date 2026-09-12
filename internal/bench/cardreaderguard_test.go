@@ -245,6 +245,21 @@ func scanForFreeCardReaders(root, prefix string, allowed []readerExemption) ([]r
 					record(value, "2b", "a package-level var holding a free reader as a value")
 					continue
 				}
+				// A call in the initializer is one more spelling of the same
+				// storage, read for the same reason: a conversion hands its
+				// argument to the type it names and the var still holds the
+				// reader, and inside a function the same spelling is caught
+				// where it stands by the call-argument clause, which package
+				// scope has no walk of its own to answer.
+				// A call in the initializer is one more spelling of the same
+				// storage, read for the same reason: a conversion hands its
+				// argument to the type it names and the var still holds the
+				// reader, and inside a function the same spelling is caught
+				// where it stands by the call-argument clause, which package
+				// scope has no walk of its own to answer.
+				if namesAReaderInsideACall(value.Values[0], bound) {
+					record(value, "2b", "a package-level var holding a free reader through a call")
+				}
 				if valueMentionsACardPointer(value.Values[0], bound) {
 					record(value, "2b", "a package-level var holding a *Card")
 				}
@@ -985,6 +1000,38 @@ func namesAReader(expr ast.Expr, aliases map[string]bool, bound map[string]bool)
 			return false
 		}
 	}
+}
+
+// namesAReaderInsideACall reports whether any call inside a package-level
+// initializer takes a bare reference to one of the free readers as an argument.
+// A conversion is a call, so the spelling any(LoadCard) hands the reader to
+// the type it names and the var still holds it, and a call of any other
+// function taking the reader hands it on the same way, while the bare
+// reference the walk reads directly stays invisible because namesAReader
+// reads a reference and stops at the call that carries one. The read does not
+// enter a function literal, because a literal standing in a package
+// initializer is walked as a function of its own and the calls inside its body
+// are reported there.
+func namesAReaderInsideACall(expr ast.Expr, bound map[string]bool) bool {
+	found := false
+	ast.Inspect(expr, func(node ast.Node) bool {
+		if found {
+			return false
+		}
+		switch read := node.(type) {
+		case *ast.FuncLit:
+			return false
+		case *ast.CallExpr:
+			for _, argument := range read.Args {
+				if namesAReader(argument, nil, bound) {
+					found = true
+					return false
+				}
+			}
+		}
+		return true
+	})
+	return found
 }
 
 // isAppend reports whether a call is the builtin append, whose taint the walk
@@ -2193,6 +2240,26 @@ var held = []*Card{}
 `},
 			allowlist: oneProbeEntry(),
 			want:      []string{"a free reader was answered in a return"},
+			count:     1,
+		},
+		{
+			name: "a package-level conversion holding the reader",
+			files: map[string]string{"internal/bench/check.go": `var laundered = any(LoadCard)
+`},
+			allowlist: oneProbeEntry(),
+			want:      []string{"a package-level var holding a free reader through a call"},
+			count:     1,
+		},
+		{
+			name: "a package-level conversion holding the reader inside a composite literal",
+			files: map[string]string{"internal/bench/check.go": `type holder struct {
+	read any
+}
+
+var launderHeld = holder{read: any(LoadCard)}
+`},
+			allowlist: oneProbeEntry(),
+			want:      []string{"a package-level var holding a free reader through a call"},
 			count:     1,
 		},
 	}
