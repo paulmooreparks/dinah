@@ -430,7 +430,8 @@ func isNewCard(call *ast.CallExpr) bool {
 // index, or a pointer, on a named result, and on a name the function does
 // not introduce, are read for the value with the same ground, because
 // handing a reader to outer state answers it as surely as a call argument
-// does.
+// does. The key of an index store is read with them, because a container
+// holds a value stored in its key as surely as one stored in its element.
 func valueFindings(function *ast.FuncDecl, bound map[string]bool, at position, composed string) []readerFinding {
 	var findings []readerFinding
 	tracked := map[string]bool{}
@@ -474,6 +475,17 @@ func valueFindings(function *ast.FuncDecl, bound map[string]bool, at position, c
 					}
 					if namesAReader(n.Rhs[i], aliases, bound) {
 						record(n, "a free reader was stored through a field, an index, or a pointer")
+					}
+					if index, isIndex := target.(*ast.IndexExpr); isIndex {
+						// The key of an index store holds its value as surely
+						// as the element does, so a card or a reader standing
+						// in it is stored rather than merely mentioned.
+						if carriesTheCard(index.Index, tracked, aliases, bound) {
+							record(n, "a tracked card was stored as a container key")
+						}
+						if namesAReader(index.Index, aliases, bound) {
+							record(n, "a free reader was stored as a container key")
+						}
 					}
 				case *ast.Ident:
 					if target.Name == "_" {
@@ -1598,6 +1610,34 @@ func (b *Workbench) storedOuter(root, id string) error {
 `},
 			allowlist: oneProbeEntry(),
 			want:      []string{"a free reader was stored on a name the function does not introduce"},
+			count:     1,
+		},
+		{
+			name: "a tracked card stored as a container key",
+			files: map[string]string{"internal/bench/check.go": `func (b *Workbench) keyed(root, id string) (map[any]int, error) {
+	c, err := LoadCard(root, id)
+	if err != nil {
+		return nil, err
+	}
+	m := map[any]int{}
+	m[c] = 1
+	return m, nil
+}
+`},
+			allowlist: oneProbeEntry(),
+			want:      []string{"a tracked card was stored as a container key"},
+			count:     1,
+		},
+		{
+			name: "a reader value stored as a container key",
+			files: map[string]string{"internal/bench/check.go": `func (b *Workbench) keyedReader(root, id string) (map[any]int, error) {
+	m := map[any]int{}
+	m[LoadCard] = 1
+	return m, nil
+}
+`},
+			allowlist: oneProbeEntry(),
+			want:      []string{"a free reader was stored as a container key"},
 			count:     1,
 		},
 		{
