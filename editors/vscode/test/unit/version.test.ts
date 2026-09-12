@@ -76,7 +76,7 @@ const rows: {
 		row: "format outside the supported set",
 		outcome: reported("v0.1.0-dev.42", "dinah-core/0.4", 99),
 		expected: "format-skew",
-		detailHas: ["99", "1, 2"],
+		detailHas: ["99", "1, 2, 3"],
 	},
 	{
 		row: "profile name differs",
