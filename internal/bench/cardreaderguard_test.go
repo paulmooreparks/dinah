@@ -403,7 +403,10 @@ func isNewCard(call *ast.CallExpr) bool {
 // alias reads as a call of the reader itself. A bare reference standing in
 // a call's argument list is reported alongside a call of the reader, and
 // append's argument list is read too, because a function value handed on is
-// as good an escape as a call.
+// as good an escape as a call. A channel send is read the same way, for the
+// value and for a call inside it, though a call standing in a send value
+// cannot compile, because a reader answers two values where a send takes
+// one.
 func valueFindings(function *ast.FuncDecl, bound map[string]bool, at position, composed string) []readerFinding {
 	var findings []readerFinding
 	tracked := map[string]bool{}
@@ -481,6 +484,12 @@ func valueFindings(function *ast.FuncDecl, bound map[string]bool, at position, c
 		case *ast.SendStmt:
 			if mentionsTrackedIdentifier(n.Value, tracked) {
 				record(n, "a tracked card was sent on a channel")
+			}
+			if namesAReader(n.Value, aliases, bound) {
+				record(n, "a free reader was sent on a channel as a value")
+			}
+			if callsAReaderInside(n.Value, aliases, bound) {
+				record(n, "a free reader was called inside a channel send")
 			}
 		case *ast.CallExpr:
 			// The reference pass runs before the append test, because the
@@ -1544,6 +1553,28 @@ func read(b *w.Workbench, root, id, slug string) (string, bool) {
 `},
 			allowlist: oneProbeEntry(),
 			want:      []string{"a free reader was called inside a call argument"},
+			count:     1,
+		},
+		{
+			name: "a reader value sent on a channel",
+			files: map[string]string{"internal/bench/check.go": `func (b *Workbench) shipped(root, id string, ch chan func(string, string) (*Card, error)) error {
+	ch <- LoadCard
+	return nil
+}
+`},
+			allowlist: oneProbeEntry(),
+			want:      []string{"a free reader was sent on a channel as a value"},
+			count:     1,
+		},
+		{
+			name: "a reader call standing in a channel send",
+			files: map[string]string{"internal/bench/check.go": `func (b *Workbench) shippedCall(root, id string, ch chan *Card) error {
+	ch <- LoadCard(root, id)
+	return nil
+}
+`},
+			allowlist: oneProbeEntry(),
+			want:      []string{"a free reader was called inside a channel send"},
 			count:     1,
 		},
 		{
