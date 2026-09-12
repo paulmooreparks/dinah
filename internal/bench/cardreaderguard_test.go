@@ -390,11 +390,11 @@ func isNewCard(call *ast.CallExpr) bool {
 //
 // The walk reads an assignment, a var declaration, and a range clause, which
 // are every binding form Go has, because a type-switch guard and the receive
-// clause of a select are assignments too. Only the first target of an
-// assignment or a var declaration takes the value, because a free reader
-// answers the card in its first result and its error in its second, and
-// tracking every target would taint that error and report every error return
-// in the file. A range clause binds both its variables, because the walk
+// clause of a select are assignments too. Each target of an assignment or a
+// var declaration takes the value only from its own pair on the right, so
+// the error a free reader answers in its second result pairs with nothing
+// and no error return in the file is tainted. A range clause binds both its
+// variables, because the walk
 // reads syntax and cannot tell which of the two holds the element. A type
 // assertion over a tracked identifier carries the taint to whatever it
 // binds, because the asserted value is the card itself, so a type-switch
@@ -455,14 +455,21 @@ func valueFindings(function *ast.FuncDecl, bound map[string]bool, at position, c
 					}
 				}
 			}
-			if len(n.Lhs) == 0 || len(n.Rhs) == 0 {
-				return true
-			}
-			if ident, ok := n.Lhs[0].(*ast.Ident); ok && ident.Name != "_" {
-				if namesAReader(n.Rhs[0], aliases, bound) {
+			// Each target takes the value only from its own pair, so the
+			// error a free reader answers in its second result pairs with
+			// nothing and no error return in the file is tainted.
+			for i, target := range n.Lhs {
+				if i >= len(n.Rhs) {
+					break
+				}
+				ident, ok := target.(*ast.Ident)
+				if !ok || ident.Name == "_" {
+					continue
+				}
+				if namesAReader(n.Rhs[i], aliases, bound) {
 					aliases[ident.Name] = true
 				}
-				if carriesTheCard(n.Rhs[0], tracked, aliases, bound) {
+				if carriesTheCard(n.Rhs[i], tracked, aliases, bound) {
 					tracked[ident.Name] = true
 				}
 			}
@@ -1615,6 +1622,22 @@ func read(b *w.Workbench, root, id, slug string) (string, bool) {
 		return nil, err
 	}
 	return c, nil
+}
+`},
+			allowlist: oneProbeEntry(),
+			want:      []string{"a tracked card was answered in a return"},
+			count:     1,
+		},
+		{
+			name: "a second assignment target laundering a tracked card",
+			files: map[string]string{"internal/bench/check.go": `func (b *Workbench) retook(root, id string) (any, error) {
+	card, err := LoadCard(root, id)
+	if err != nil {
+		return nil, err
+	}
+	var first, second *Card
+	first, second = card, card
+	return second, nil
 }
 `},
 			allowlist: oneProbeEntry(),
