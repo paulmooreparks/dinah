@@ -746,7 +746,8 @@ func callsAReaderInside(node ast.Node, aliases map[string]bool, bound map[string
 // to a reader. The function expression is unwrapped through parentheses and
 // the address-of and dereference operators first, on the model the alias
 // walk uses, so a call spelled through those operators is a call of the
-// reader.
+// reader, and a qualifier written through parentheses reads the same way a
+// bare one does.
 func isReaderCall(call *ast.CallExpr, aliases map[string]bool, bound map[string]bool) bool {
 	fun := call.Fun
 	for {
@@ -766,7 +767,7 @@ func isReaderCall(call *ast.CallExpr, aliases map[string]bool, bound map[string]
 			if !theFreeReaders[read.Sel.Name] {
 				return false
 			}
-			qualifier, ok := read.X.(*ast.Ident)
+			qualifier, ok := parenQualifier(read.X)
 			return ok && bound[qualifier.Name]
 		default:
 			return false
@@ -803,7 +804,7 @@ func namesAReader(expr ast.Expr, aliases map[string]bool, bound map[string]bool)
 			if !theFreeReaders[read.Sel.Name] {
 				return false
 			}
-			qualifier, ok := read.X.(*ast.Ident)
+			qualifier, ok := parenQualifier(read.X)
 			return ok && bound[qualifier.Name]
 		default:
 			return false
@@ -1732,6 +1733,35 @@ func unstampedQualified(root, id string) (*w.Card, error) {
 `},
 			allowlist: []readerExemption{{path: "internal/bench/check.go", references: 0}},
 			want:      []string{"internal/verb/escape.go", "refers to the free card reader"},
+			count:     1,
+		},
+		{
+			name: "a parenthesized qualifier laundering a tracked card",
+			files: map[string]string{"internal/verb/escape.go": `import w "dinah/internal/bench"
+
+func unstampedParenCall(root, id string) (int, error) {
+	c, err := (w).LoadCard(root, id)
+	if err != nil {
+		return 0, err
+	}
+	return c.Number, nil
+}
+`},
+			allowlist: []readerExemption{{path: "internal/verb/escape.go", references: 1}},
+			want:      []string{"a tracked card was answered in a return"},
+			count:     1,
+		},
+		{
+			name: "a parenthesized qualifier handing a reader to a call",
+			files: map[string]string{"internal/verb/escape.go": `import w "dinah/internal/bench"
+
+func unstampedParenValue(root, id string) error {
+	stash((w).LoadCard)
+	return nil
+}
+`},
+			allowlist: []readerExemption{{path: "internal/verb/escape.go", references: 1}},
+			want:      []string{"a free reader was handed as a call argument"},
 			count:     1,
 		},
 		{
