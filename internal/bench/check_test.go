@@ -130,11 +130,20 @@ kind: work
 Column text.
 `
 
+// registryBenchDefinition raises the fixture to the format the registry
+// arrived at. The stored benchDefinition stays at format 1, because the
+// container tests derive their planted anchors from it by replacing the
+// literal "format: 1", so a fixture a plain string replacement can lift is
+// one those tests can plant at any format they need.
+var registryBenchDefinition = strings.Replace(
+	benchDefinition, "format: 1", "format: "+strconv.Itoa(RegistryFormat), 1)
+
 // cleanCard is a card carrying no defect, which every case below breaks in
-// exactly one way.
+// exactly one way. Its number lives in the registry line newFixture writes
+// beside it, and the anchor carries no number key at all, which is the shape
+// the migration leaves behind.
 const cleanCard = `---
 title: A card
-number: 1
 column: b00000000001
 state: ready
 ---
@@ -145,11 +154,19 @@ Framing.
 const cleanJournal = `{"ts":"2026-08-17T09:00:00Z","event":"created","actor":"alka","title":"A card","to":"b00000000001","to_title":"Only"}
 `
 
-// newFixture writes a clean bench and returns its root.
+// newFixture writes a clean bench and returns its root. The root sits in a
+// container under a name IsWorkbenchID admits, because the fixture declares
+// the registry's format and a workbench declaring any format at or past the
+// containment rule's is held to where that rule says a workbench lives. The
+// fixture also carries the registry line that claims its one card, because the
+// card's number stopped living in its anchor when the registry arrived, and a
+// fixture with no line would report the card as carrying no number rather
+// than as clean.
 func newFixture(t *testing.T) string {
 	t.Helper()
-	root := t.TempDir()
-	write(t, filepath.Join(root, WorkbenchAnchor), benchDefinition)
+	root := containedPath(t.TempDir())
+	write(t, filepath.Join(root, WorkbenchAnchor), registryBenchDefinition)
+	write(t, filepath.Join(root, CardNumbersName), "1 c00000000001\n")
 	write(t, filepath.Join(root, ColumnsDir, "b00000000001", ColumnAnchor), columnDefinition)
 	write(t, filepath.Join(root, CardsDir, "c00000000001", CardAnchor), cleanCard)
 	write(t, filepath.Join(root, CardsDir, "c00000000001", JournalName), cleanJournal)
@@ -269,11 +286,48 @@ func TestCheckFindsEachInvariantViolation(t *testing.T) {
 			key: "",
 		},
 		{
-			name: "a card carrying no creation ordinal",
+			name: "a registry line the grammar refuses",
 			breakIt: func(t *testing.T, root string) {
-				edit(t, root, "number: 1", "number: 0")
+				write(t, filepath.Join(root, CardNumbersName), "1 c00000000001\none c00000000001\n")
 			},
-			key: FindingOrdinalMissing,
+			key: FindingCardNumberMalformed,
+		},
+		{
+			name: "two registry lines claiming one number",
+			breakIt: func(t *testing.T, root string) {
+				write(t, filepath.Join(root, CardsDir, "c00000000002", CardAnchor), cleanCard)
+				write(t, filepath.Join(root, CardsDir, "c00000000002", JournalName), cleanJournal)
+				write(t, filepath.Join(root, CardNumbersName), "1 c00000000001\n1 c00000000002\n")
+			},
+			key: FindingCardNumberDuplicate,
+		},
+		{
+			name: "two registry lines claiming one identifier",
+			breakIt: func(t *testing.T, root string) {
+				write(t, filepath.Join(root, CardNumbersName), "1 c00000000001\n2 c00000000001\n")
+			},
+			key: FindingCardNumberRepeated,
+		},
+		{
+			name: "a registry line naming no card",
+			breakIt: func(t *testing.T, root string) {
+				write(t, filepath.Join(root, CardNumbersName), "1 c00000000001\n2 c00000000002\n")
+			},
+			key: FindingCardNumberStranded,
+		},
+		{
+			name: "a card no registry line claims",
+			breakIt: func(t *testing.T, root string) {
+				write(t, filepath.Join(root, CardNumbersName), "")
+			},
+			key: FindingCardNumberMissing,
+		},
+		{
+			name: "a card still carrying its number in frontmatter",
+			breakIt: func(t *testing.T, root string) {
+				edit(t, root, "state: ready", "state: ready\nnumber: 1")
+			},
+			key: FindingCardNumberInFrontmatter,
 		},
 		{
 			name: "a workbench carrying no slug",
@@ -2399,16 +2453,19 @@ func TestAKindGivenAnAttachmentsMountStopsBeingReported(t *testing.T) {
 // plantCard writes a second card into the fixture, so a sweep reading every
 // card can be given several to read and be held to the set it reported. The
 // journal is the clean one every fixture card opens with, because a card whose
-// journal will not open is passed over before the later checks run.
+// journal will not open is passed over before the later checks run. The
+// card's number lands in the registry rather than in its anchor, on the same
+// terms as the fixture's own card, and the line is appended so the planted
+// numbers keep ascending over the line the fixture already wrote.
 func plantCard(t *testing.T, root, id string, number int) {
 	t.Helper()
 	fm := NewFrontmatter()
 	fm.Set(TitleField, "A card")
-	fm.Set("number", strconv.Itoa(number))
 	fm.Set("column", "b00000000001")
 	fm.Set("state", contract.StateReady)
 	write(t, filepath.Join(root, CardsDir, id, CardAnchor), fm.Render("Framing.\n"))
 	write(t, filepath.Join(root, CardsDir, id, JournalName), cleanJournal)
+	appendText(t, filepath.Join(root, CardNumbersName), strconv.Itoa(number)+" "+id+"\n")
 }
 
 // plantItemColumn writes one checklist item carrying the column value given,

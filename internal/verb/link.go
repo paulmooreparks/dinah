@@ -65,7 +65,7 @@ func (l *Library) Link(req *Request) *Response {
 	// Reloaded under the lock on SetCardTierAt's own reasoning: Save rewrites
 	// the whole anchor from the frontmatter the caller holds, and a copy read
 	// before the lock would revert whatever landed after it.
-	reloaded, err := bench.LoadCard(filepath.Dir(found.Card.Dir), found.Card.ID)
+	reloaded, err := l.Bench.LoadCardIn(filepath.Dir(found.Card.Dir), found.Card.ID)
 	if err != nil {
 		return l.FromError(req, err)
 	}
@@ -108,7 +108,7 @@ func (l *Library) Unlink(req *Request) *Response {
 		return l.FromError(req, err)
 	}
 	defer lock.Release()
-	reloaded, err := bench.LoadCard(filepath.Dir(found.Card.Dir), found.Card.ID)
+	reloaded, err := l.Bench.LoadCardIn(filepath.Dir(found.Card.Dir), found.Card.ID)
 	if err != nil {
 		return l.FromError(req, err)
 	}

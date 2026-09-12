@@ -21,6 +21,7 @@ const (
 	CommentAnchor    = "comment.md"
 	AttachmentAnchor = "attachment.md"
 	ItemAnchor       = "item.md"
+	CardNumbersName  = "card-numbers.txt"
 	JournalName      = "journal.ndjson"
 	PayloadDir       = "payload"
 	UserBaseName     = ".dinah"
@@ -66,14 +67,17 @@ const (
 // declaring a higher number is refused loudly, naming the version it wanted.
 //
 // The number moved from 1 to 2 at dinah-285, which fixed where a workbench is
-// allowed to sit and how wide its directory name is. Neither of those is an
-// interchange fact, so the dinah-core profile did not move with it: nothing
-// about the abstract card, column or verb model changed, and the Versioning
-// section of docs/design/format.md already calls the on-disk layout Dinah's
-// private business. A workbench declaring 2 is held to the containment rule
-// Contained states; one declaring 1, or declaring no format at all, predates
-// the rule and opens as it always did.
-const StorageFormat = 2
+// allowed to sit and how wide its directory name is, and from 2 to 3 at
+// dinah-488, which moved a card's number out of its anchor and into the
+// registry at the workbench root. Neither of those is an interchange fact, so
+// the dinah-core profile did not move with either: nothing about the abstract
+// card, column or verb model changed, and the Versioning section of
+// docs/design/format.md already calls the on-disk layout Dinah's private
+// business. A workbench declaring 2 is held to the containment rule Contained
+// states and still reads its numbers from card frontmatter; one declaring 1,
+// or declaring no format at all, predates both rules and opens as it always
+// did.
+const StorageFormat = 3
 
 // ContainerFormat is the storage format from which the containment rule binds.
 // A workbench declaring this number or a higher one is held to Contained; one
@@ -85,6 +89,26 @@ const StorageFormat = 2
 // this build writes, and this is the revision one rule arrived at. A later
 // format bump moves the first and leaves this one alone.
 const ContainerFormat = 2
+
+// RegistryFormat is the storage format from which the card-number registry
+// binds. A workbench declaring this number or a higher one carries its card
+// numbers in card-numbers.txt; one declaring less carries them in card
+// frontmatter and is read that way until it is migrated.
+//
+// It is a constant of its own on the same reasoning ContainerFormat gives: a
+// later format bump moves StorageFormat and leaves this one alone, so a
+// workbench this build has not imagined yet still reads its numbers from the
+// registry.
+const RegistryFormat = 3
+
+// UndeclaredFormat is the format a workbench whose anchor declares no format
+// key is opened as carrying. Such a workbench predates the key itself, and
+// the key predates the registry, so the value is the newest format the
+// registry arrived after: its card numbers are read from the anchors, check
+// reports every card as carrying no registry line, and an act that would
+// allocate a number is refused until `dinah check --migrate-numbers --yes`
+// has run.
+const UndeclaredFormat = ContainerFormat
 
 // The profile revision this build conforms to. The two numbers are the
 // conformance claim CORE-VER-1 requires, and no channel name joins them,
@@ -418,6 +442,13 @@ type Bench struct {
 	Profile string
 	// FM is the anchor's header, kept so a write preserves unknown keys.
 	FM *Frontmatter
+	// Numbers is the card-number registry, read once at Open and reloaded
+	// after every mutation of the file. On a workbench below RegistryFormat
+	// the file is absent and only the by-number index is synthesized, from
+	// the numbers the cards still carry in frontmatter, so resolution and
+	// the ambiguity refusal keep working over a workbench the migration has
+	// not reached.
+	Numbers *NumberRegistry
 	// retiredVocabulary marks a bench the lenient opener admitted, whose
 	// cards are written in the vocabulary this build retired. It is
 	// unexported because only this package reads it and only the vocabulary
@@ -1581,7 +1612,7 @@ func openWithVocabulary(root string, vocab columnVocabulary, admit func(declared
 	if err != nil {
 		return nil, err
 	}
-	b.Format = StorageFormat
+	b.Format = UndeclaredFormat
 	if declared := fm.Value("format"); declared != "" {
 		n, err := strconv.Atoi(declared)
 		if err != nil {
@@ -1595,6 +1626,9 @@ func openWithVocabulary(root string, vocab columnVocabulary, admit func(declared
 			return nil, contract.Refuse(contract.NeedsContainerMigration, root)
 		}
 	}
+	// The card-number registry is read once here, after the format gate, so
+	// every later read of a number comes from one load and one parser.
+	b.Numbers = b.readNumbers()
 	ids := fm.Seq(vocab.SequenceKey)
 	if len(ids) == 0 {
 		return nil, contract.RefuseWith(contract.Malformed, vocab.SequenceKey, anchor)
@@ -2055,29 +2089,23 @@ const WorkbenchRef = "workbench"
 // than reading a column identifier as the card's condition.
 //
 // This is the live half of the collection and the routing stops here on
-// purpose. Every archive reader goes through LoadCard directly, which is
-// strict, and nothing reaches one during a migration run because the migration
-// reads anchors through ParseAnchor rather than through either reader. So the
-// archive half is deliberately not routed rather than routed by oversight, and
-// whoever gives a Bench an archive-reading method next owes it the same choice
-// this method makes.
+// purpose. The archive half is read through the strict door on every route,
+// and nothing reaches a lenient archive read, because the lenient opener
+// admits a bench whose cards are written to match its own anchor and a card
+// in the mirror that disagrees with that is exactly the disagreement the
+// strict reader refuses. So the archive half is deliberately not routed
+// rather than routed by oversight, and whoever gives this type an
+// archive-reading method next owes it the same choice this method makes.
+//
+// Both routes stamp the number the workbench holds for each card, which is
+// what keeps ByArrival computing CORE-QUEUE-3's tie-break from a number that
+// is still there. A caller that wants one card reads it through the same
+// stamping door this walk reads fifty through.
 func (b *Bench) Cards() ([]*Card, error) {
 	if b.retiredVocabulary {
-		return retiredCardsIn(b.CardsRoot())
+		return cardsWith(b.CardsRoot(), b.loadRetiredCardIn)
 	}
-	return cardsIn(b.CardsRoot())
-}
-
-// cardsIn reads every card of one half of the collection, in ascending
-// identifier order.
-func cardsIn(root string) ([]*Card, error) {
-	return cardsWith(root, LoadCard)
-}
-
-// retiredCardsIn is cardsIn for a bench written in the retired vocabulary,
-// which the lenient opener is the only source of.
-func retiredCardsIn(root string) ([]*Card, error) {
-	return cardsWith(root, loadRetiredCard)
+	return cardsWith(b.CardsRoot(), b.LoadCardIn)
 }
 
 // cardsWith is the body both readers share, given the one-card reader that
@@ -2109,34 +2137,25 @@ func (b *Bench) HasIdentifier(id string) bool {
 }
 
 // NextNumber returns the number a newly filed card carries: one past the
-// highest in use across both halves of the collection. Numbers are the
-// durable half of a card reference, so a number is never reused.
+// highest number the registry holds. The answer is a read of the high-water
+// mark rather than a claim of it, so the workbench lock the caller holds is
+// what keeps two filings from taking the same number.
 //
-// A half that cannot be listed is reported rather than contributing nothing.
-// The archived half is the one that makes the damage reachable: a caller
-// filing a card claims its identifier in the live collection alone, so a live
-// collection that will not read aborts the filing by itself, while an
-// archived collection that will not read would leave every archived number
-// out of the maximum and stamp the new card with a number an archived card
-// already carries.
+// A number is never reused from the migration forward: a card deleted after
+// the migration leaves a tombstoned line, the mark never falls, and the number
+// is gone for good. Below the migration the registry is built from the cards
+// that survive, so a card deleted before it leaves no tombstone and its number
+// is reissuable, which is exactly as good as the collection scan this answer
+// replaced. The workbench journal does record deletions, and a migration
+// could mine those events for tombstones, but a deleted event names an
+// identifier and not a number, and reading the number would mean reading an
+// anchor that is gone.
+//
+// The error return survives the rewrite because every caller already answers
+// one, and the collection read that could fail is the thing the registry
+// replaced: the mark is in one file that Open has already read.
 func (b *Bench) NextNumber() (int, error) {
-	highest := 0
-	for _, root := range []string{b.CardsRoot(), b.ArchivedCardsRoot()} {
-		ids, err := ListIDs(root)
-		if err != nil {
-			return 0, err
-		}
-		for _, id := range ids {
-			card, err := LoadCard(root, id)
-			if err != nil {
-				continue
-			}
-			if card.Number > highest {
-				highest = card.Number
-			}
-		}
-	}
-	return highest + 1, nil
+	return b.Numbers.Highest + 1, nil
 }
 
 // Save writes the workbench anchor back, preserving every key it does not

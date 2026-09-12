@@ -170,7 +170,7 @@ func (l *Library) Search(req *Request) (*SearchResults, error) {
 			return nil, err
 		}
 		for _, id := range archived {
-			card, err := bench.LoadCard(root, id)
+			card, err := l.Bench.LoadCardIn(root, id)
 			if err != nil {
 				continue
 			}

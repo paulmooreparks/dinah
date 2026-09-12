@@ -625,9 +625,59 @@
       "source": "dea3c47b046eca46"
     },
     "check.card-number-duplicate": {
-      "text": "{detail} एक ऐसा कार्ड क्रमांक है जिसे दो कार्ड धारण करते हैं, इसलिए क्रमांक से दिया गया संदर्भ इनमें से किसी एक का उत्तर देता है",
-      "context": "A check finding: two cards hold one number, which leaves the durable half of a card reference ambiguous.",
-      "source": "272f347a93a5c261"
+      "text": "{detail} एक ऐसा क्रमांक दावा करती है जिसे दूसरी पंक्ति भी दावा करती है, इसलिए क्रमांक से किया गया संदर्भ एक से अधिक कार्डों का उत्तर देता है",
+      "context": "A check finding: two or more lines of the card-number registry claim one number, which leaves the durable half of a card reference ambiguous. {detail} carries the line as stored, which is what a reader searches the file for. `dinah check --renumber --yes` repairs it, moving every later claimant.",
+      "source": "e0a7083f7826dbbf"
+    },
+    "check.card-number-repeated": {
+      "text": "{detail} एक ही कार्ड को नामती हुई दो या अधिक पंक्तियों में से एक है, इसलिए कार्ड एक से अधिक क्रमांकों का उत्तर देता है",
+      "context": "A check finding: two or more lines of the card-number registry name one identifier, so one card holds two numbers. {detail} carries the line as stored, which is what a reader searches the file for. No marker repairs it, because choosing what a card is called is the operator's.",
+      "source": "24f38ce6e2ad8766"
+    },
+    "check.card-number-missing": {
+      "text": "{detail} की कार्ड-क्रमांक रजिस्ट्री में कोई पंक्ति नहीं है, इसलिए कोई क्रमांक उसे नामता नहीं",
+      "context": "A check finding: a card in either half of the collection that no line of the card-number registry claims. {detail} carries the card's identifier. A workbench still declaring the older format draws this for every card it holds, which is the flood that ends when `dinah check --migrate-numbers --yes` builds the registry.",
+      "source": "59c3ef542b3cb7d9"
+    },
+    "check.card-number-stranded": {
+      "text": "{detail} न किसी कार्ड को नामती है न किसी वापस किए गए क्रमांक को, इसलिए जिस क्रमांक का वह दावा करती है वह किसी के पास नहीं है",
+      "context": "A check finding: a line of the card-number registry whose identifier is neither a tombstone nor a card in either half of the collection. {detail} carries the line as stored, which is what a reader searches the file for. No marker removes it, because removing the line would release the number for reuse, which is the operator's call.",
+      "source": "3fa1ca89440589f2"
+    },
+    "check.card-number-malformed": {
+      "text": "{detail} रजिस्ट्री के व्याकरण में नहीं पढ़ी जाने वाली पंक्ति है, इसलिए वह न कोई क्रमांक दावा करती है और न किसी कार्ड को",
+      "context": "A check finding: a line of card-numbers.txt that does not parse under the registry's grammar. {detail} carries the line verbatim, which is what a reader searches the file for. No marker repairs it; the operator rewrites the line by hand.",
+      "source": "985e6af2ae5095cc"
+    },
+    "check.card-number-in-frontmatter": {
+      "text": "{detail} के एंकर में अब भी क्रमांक कुंजी बनी है, ऐसी वर्कबेंच पर जिसकी रजिस्ट्री ही क्रमांक का घर है",
+      "context": "A check finding: a card of a workbench declaring the registry's format that still carries a number key in its anchor, which the migration strips and nothing else writes. {detail} carries the card's identifier. `dinah check --migrate-numbers --yes` strips it.",
+      "source": "2cbf37261c4e535f"
+    },
+    "check.card-number-renumbered": {
+      "text": "{detail} का क्रमांक बदल दिया गया, इसलिए जो संदर्भ किसी ने उसके पुराने क्रमांक के लिए लिखा है वह मिलना बंद कर देता है",
+      "context": "A check finding a number repair raises: the card left the run holding a number it did not arrive holding. The renumbered event on the card's journal says the same thing where history keeps it. {detail} carries the card's identifier.",
+      "source": "e2a0c7d4cda06b4e"
+    },
+    "check.card-numbers-written.one": {
+      "text": "कार्ड-क्रमांक रजिस्ट्री की {count} पंक्ति लिखी।",
+      "context": "The line the number migration prints for what it wrote, for exactly one line.",
+      "source": "267695e001aa601a"
+    },
+    "check.card-numbers-written.other": {
+      "text": "कार्ड-क्रमांक रजिस्ट्री की {count} पंक्तियाँ लिखीं।",
+      "context": "The line the number migration prints for what it wrote, for any other number. The count is zero on a run over a workbench whose registry already covered every card, which is that run's own answer.",
+      "source": "55540a915ed7de23"
+    },
+    "check.cards-renumbered.one": {
+      "text": "{count} कार्ड का क्रमांक बदला।",
+      "context": "The line a number repair prints for what it moved, for exactly one card. The moved cards are counted and not listed, because each draws a check.card-number-renumbered finding naming it immediately below.",
+      "source": "a858ad624fbece13"
+    },
+    "check.cards-renumbered.other": {
+      "text": "{count} कार्डों के क्रमांक बदले।",
+      "context": "The line a number repair prints for what it moved, for any other number. The moved cards are counted and not listed, because each draws a check.card-number-renumbered finding naming it immediately below.",
+      "source": "ceb1d90d823ebdae"
     },
     "check.ordinal-guessed": {
       "text": "{detail} को निर्देशिका सूची से रखा गया, क्योंकि कार्ड की पंजिका में उसकी रचना का कोई अभिलेख नहीं, इसलिए उसका स्थान एक अनुमान है",
@@ -2255,6 +2305,11 @@
       "context": "The detail of a recorded attachment_renamed, carrying the old filename as {from} and the new filename as {to}.",
       "source": "dff97f4b63c30b11"
     },
+    "log.renumbered": {
+      "text": "{from} से {to}",
+      "context": "The detail of a recorded renumbered, carrying the number the card arrived holding as {from} and the number the repair gave it as {to}.",
+      "source": "dff97f4b63c30b11"
+    },
     "ls.empty": {
       "text": "यहाँ कोई कार्ड नहीं।",
       "context": "Printed when a listing has nothing in it.",
@@ -2619,6 +2674,16 @@
       "context": "The sentence printed after the refusal name dinah.unconfirmed. {detail} carries the identifier, owner or column the refusal is about.",
       "source": "e9eed56f85c4ff5"
     },
+    "refusal.dinah.unconfirmed.check": {
+      "text": "{detail} मरम्मत बदल देती है कि एक कार्ड किस नाम से बुलाया जाता है, और जो संदर्भ किसी ने लिख रखा है वह मिलना बंद कर देता है।",
+      "context": "The sentence printed after the refusal name dinah.unconfirmed when the check command raised it, which is a number repair carrying no confirmation. {detail} is the repair flag the reader typed.",
+      "source": "98877dcf5a943c29"
+    },
+    "refusal.dinah.unconfirmed.check.next": {
+      "text": " आदेश को --yes के साथ फिर से चलाएँ।",
+      "context": "The next step of refusal.dinah.unconfirmed when the check command raised it. The flag inside it is syntax and stays as it is.",
+      "source": "36b7012eed26cc03"
+    },
     "refusal.dinah.unconfirmed.next": {
       "text": ", इसलिए --yes चाहिए",
       "context": "Spliced onto refusal.dinah.unconfirmed as the next step, carrying the clause that base entry used to end with.",
@@ -2908,6 +2973,16 @@
       "text": "; इसे किसी कंटेनर में ले जाने के लिए `dinah check --root {detail} --migrate-container` चलाएँ, फिर इसे दोबारा खोलें",
       "context": "Spliced onto refusal.dinah.needs-container-migration as the next step. It names the preview rather than the applied run, so the reader sees what the repair would move before he types the flag that moves it, which is what the other two sentences of this family already do. The command name is machine vocabulary and is not translated.",
       "source": "b06c3e162e0a89c6"
+    },
+    "refusal.dinah.needs-number-migration": {
+      "text": "{detail} कार्ड-क्रमांक रजिस्ट्री से पहले का है, इसलिए नए कार्ड को कोई क्रमांक नहीं दिया जा सकता",
+      "context": "The sentence printed after the refusal name dinah.needs-number-migration, which add raises on a workbench declaring a format older than the registry's. {detail} carries the workbench directory the refusal was raised over.",
+      "source": "cf3abf14d7bfcd74"
+    },
+    "refusal.dinah.needs-number-migration.next": {
+      "text": "; रजिस्ट्री बनाने के लिए `dinah check --migrate-numbers --yes` चलाएँ, फिर कार्ड दोबारा दाखिल करें",
+      "context": "Spliced onto refusal.dinah.needs-number-migration as the next step. It names the applied run, because this repair has no preview: the migration refuses without --yes rather than reporting what it would do. The command name is machine vocabulary and is not translated.",
+      "source": "42a3bb6503f38e52"
     },
     "refusal.dinah.add-needs-a-column": {
       "text": "इस वर्कबेंच में नया कार्ड दाखिल करने के लिए कोई कॉलम नहीं बचा है",
@@ -3396,6 +3471,11 @@
       "context": "How the canonical token restored is rendered where a person reads it. The machine surface always carries the canonical spelling.",
       "source": "3b21bcbea811aef"
     },
+    "token.renumbered": {
+      "text": "पुनर्क्रमांकित",
+      "context": "How the canonical token renumbered is rendered where a person reads it. The machine surface always carries the canonical spelling.",
+      "source": "7085d91404a85558"
+    },
     "token.search": {
       "text": "खोज",
       "context": "How the canonical token search is rendered where a person reads it, naming the rung a workbench answer came from: the ancestor walk resolved it, in the settings listing and on the status line alike. The machine surface always carries the canonical spelling.",
@@ -3688,6 +3768,16 @@
       "text": "इस वर्कबेंच को .dinah कंटेनर में, Dinah द्वारा गढ़े गए पहचानकर्ता के नाम पर ले जाएँ, या --root के नीचे की हर वर्कबेंच को",
       "context": "The one-line summary of the check command flag --migrate-container, printed by `dinah help check`.",
       "source": "26ead382b2d32a9a"
+    },
+    "param.check.migrate-numbers.summary": {
+      "text": "कार्ड-क्रमांक रजिस्ट्री को उन क्रमांकों से बनाएँ जो इस वर्कबेंच के कार्ड अब भी लिए हुए हैं",
+      "context": "The meaning of the migrate-numbers argument of `dinah check`, printed in that command's arguments table.",
+      "source": "a851aea8e7bdda8d"
+    },
+    "param.check.renumber.summary": {
+      "text": "जब दो कार्ड एक ही क्रमांक लेकर आते हैं तो हर बाद में दावा करने वाली पंक्ति को नए क्रमांक पर खिसकाएँ",
+      "context": "The meaning of the renumber argument of `dinah check`, printed in that command's arguments table.",
+      "source": "fac92e4e93b81d82"
     },
     "param.check.migrate-workstreams.summary": {
       "text": "हर उस वर्कस्ट्रीम को अपनाएँ जिसे कोई कार्ड नाम देता है और यह वर्कबेंच नहीं रखता",

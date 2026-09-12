@@ -354,6 +354,100 @@ func TestTwoBranchesAppendingToOneJournalMergeWithoutAConflict(t *testing.T) {
 	}
 }
 
+// TestTwoBranchesFilingACardConflictOnTheRegistry holds the other half of
+// the format's merge story, and the half the registry exists for. The journal
+// is union-merged, so two clones that each append a line to their own copy
+// of one come back together without a conflict anybody has to resolve, and
+// the registry is the one file where that behaviour would be silent damage:
+// under a union driver, two clones that each allocate a number keep both
+// lines, and the workbench answers a number two cards carry without a
+// conflict anybody sees. So the registry carries no merge driver at all, and
+// the same two clones meet a conflict over the one file whose collision is
+// worth being loud about.
+//
+// The attributes half is asked of git itself rather than of a matcher
+// written here, because the question is which patterns git reads as covering
+// a path and check-attr is git's own answer to it. The card journal is asked
+// first in the positive direction, so the unspecified answer over the
+// registry is a tool that can say yes saying no.
+func TestTwoBranchesFilingACardConflictOnTheRegistry(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git is not on the path, so the merge behaviour cannot be exercised")
+	}
+	tree := resolvedDir(t, emptyTree(t))
+	if got := runCLI(t, tree, "init", tree, "--slug", "mg", "--operator", "alka"); got.code != 0 {
+		t.Fatalf("init: %d %s%s", got.code, got.out, got.errw)
+	}
+	root := benchDir(t, tree)
+	git := func(args ...string) string {
+		t.Helper()
+		full := append([]string{"-C", root, "-c", "user.name=dinah test", "-c", "user.email=dinah@example.invalid"}, args...)
+		out, err := exec.Command("git", full...).CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %s: %v\n%s", strings.Join(args, " "), err, out)
+		}
+		return string(out)
+	}
+	git("init", "--quiet", "--initial-branch=trunk")
+	git("add", ".")
+	git("commit", "--quiet", "-m", "the workbench as it was written")
+
+	git("checkout", "--quiet", "-b", "left")
+	if got := runCLI(t, tree, "--workbench", root, "add", "a card filed on the left"); got.code != 0 {
+		t.Fatalf("the left filing: %d %s%s", got.code, got.out, got.errw)
+	}
+	// A filing writes files git has never seen, so the branch commits stage
+	// the tree rather than committing tracked files alone.
+	git("add", ".")
+	git("commit", "--quiet", "-m", "the left branch files a card")
+
+	// Both files exist now, so git answers about both. The registry is
+	// unspecified, and the card journal the left filing wrote is union,
+	// which is the answer that makes the registry's answer mean something.
+	asks := func(path string) string {
+		t.Helper()
+		out, err := exec.Command("git", "-C", root, "check-attr", "merge", "--", path).CombinedOutput()
+		if err != nil {
+			t.Fatalf("git check-attr %s: %v\n%s", path, err, out)
+		}
+		return string(out)
+	}
+	cards, listedErr := bench.ListIDs(filepath.Join(root, bench.CardsDir))
+	if listedErr != nil || len(cards) != 1 {
+		t.Fatalf("listing the left branch's cards: %v %v", cards, listedErr)
+	}
+	if journal := asks(filepath.ToSlash(filepath.Join(bench.CardsDir, cards[0], bench.JournalName))); !strings.Contains(journal, "union") {
+		t.Errorf("git does not read the card journal as union, so the attributes half cannot tell a covering pattern from a broken probe:\n%s", journal)
+	}
+	if registry := asks(bench.CardNumbersName); !strings.Contains(registry, "unspecified") {
+		t.Errorf("git reads some pattern in the attributes as covering %s, and a union merge over the registry is two clones each keeping the number the other allocated:\n%s", bench.CardNumbersName, registry)
+	}
+
+	git("checkout", "--quiet", "trunk")
+	git("checkout", "--quiet", "-b", "right")
+	if got := runCLI(t, tree, "--workbench", root, "add", "a card filed on the right"); got.code != 0 {
+		t.Fatalf("the right filing: %d %s%s", got.code, got.out, got.errw)
+	}
+	git("add", ".")
+	git("commit", "--quiet", "-m", "the right branch files a card")
+
+	merge := exec.Command("git", "-C", root, "-c", "user.name=dinah test", "-c", "user.email=dinah@example.invalid", "merge", "--no-edit", "left")
+	merged, mergeErr := merge.CombinedOutput()
+	if mergeErr == nil {
+		t.Fatalf("the merge of two filings succeeded, so two clones minted the same number silently:\n%s", merged)
+	}
+	if !strings.Contains(string(merged), bench.CardNumbersName) {
+		t.Errorf("the merge refused over something other than the registry:\n%s", merged)
+	}
+	conflicted, err := os.ReadFile(filepath.Join(root, bench.CardNumbersName))
+	if err != nil {
+		t.Fatalf("reading the registry after the merge: %v", err)
+	}
+	if !strings.Contains(string(conflicted), "<<<<<<<") {
+		t.Errorf("the registry came back from the merge without conflict markers, so the collision was resolved without anybody seeing it:\n%s", conflicted)
+	}
+}
+
 // TestTheProfileDocumentIsUntouchedByTheContainerRule asserts the half of
 // dinah-285 AC-14 that is a property of the diff rather than of the build:
 // docs/spec/core-profile.md declares no storage format and says nothing about
@@ -701,6 +795,10 @@ func TestTheSweepLeavesAContainedWorkbenchItCannotOpenAlone(t *testing.T) {
 	anchor := filepath.Join(written, bench.WorkbenchAnchor)
 	beyond := bench.ProfileName + "/" + strconv.Itoa(bench.ProfileMajor+99) + ".0"
 	editAnchorAt(t, anchor, "profile: "+bench.ProfileVersion, "profile: "+beyond)
+	// init stamps this build's own storage number, and the fixture wants the
+	// containment rule's, which is the older number the rule arrived at, so
+	// the line is rewritten down to it before the premise is asserted.
+	editAnchorAt(t, anchor, "format: "+strconv.Itoa(bench.StorageFormat), "format: "+strconv.Itoa(bench.ContainerFormat))
 	if !anchorDeclares(t, anchor, "format: "+strconv.Itoa(bench.ContainerFormat)) {
 		t.Fatalf("the fixture does not declare the format the containment rule arrived at:\n%s", readAnchorText(t, anchor))
 	}

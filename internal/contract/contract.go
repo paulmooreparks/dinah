@@ -221,6 +221,15 @@ const (
 	// is a move rather than an edit: `dinah check --migrate-container` carries
 	// it into a container and names it there.
 	NeedsContainerMigration = LayerPrefix + "needs-container-migration"
+	// NeedsNumberMigration is Add refusing to file a card into a workbench
+	// that still carries its card numbers in frontmatter, because the
+	// registry a filing allocates from is the half of the format that
+	// workbench has not reached. It is distinct from Malformed because
+	// nothing inside the workbench is wrong, and the repair is a migration
+	// rather than an edit: `dinah check --migrate-numbers --yes` builds the
+	// registry, strips the number keys and stamps the format the registry
+	// arrived at.
+	NeedsNumberMigration = LayerPrefix + "needs-number-migration"
 	// VocabularyMixed is a header carrying a key from each of the two
 	// vocabularies this format has had, which no writer produces and which
 	// Dinah refuses rather than guessing its way through. Two shapes reach
@@ -548,7 +557,7 @@ var Introduced = []string{
 	NoWorkbenchFound, AmbiguousWorkbench, LastColumn, UnreadableBench, DamagedBench, UnreadableContainer,
 	NoConfiguredWorkbench,
 	WorkbenchNotApplicable, RepairWouldEmptyColumns, NeedsVocabularyMigration,
-	AddNeedsAColumn, MultipleWords, EmptySearch,
+	AddNeedsAColumn, NeedsNumberMigration, MultipleWords, EmptySearch,
 	UnknownField, UnknownValue, UnknownAxis, RepeatedAxis, ChainTooLong,
 	UnknownDepth, UnknownWorkstream, Referenced, WorkstreamSlugTaken,
 	ColumnSlugTaken, ColumnRoutingDisrupted,
@@ -739,6 +748,19 @@ const (
 	// and these two do not.
 	EventLinked   = "linked"
 	EventUnlinked = "unlinked"
+	// EventRenumbered records a change to the creation ordinal a card answers
+	// to, on that card's own journal, so the operator whose card is called
+	// something else this morning can read why. Two acts write it: the number
+	// migration, whose tie-break moves a card so two cards of one workbench
+	// cannot share a number, and the renumber repair, which moves the later
+	// claimant of a number two cards hold. It carries the number the card
+	// answered to before in From and the number it answers to now in To.
+	//
+	// It joins this block rather than carrying LayerPrefix for the reason the
+	// checklist events give: the creation ordinal is a declared concept and
+	// this is its lifecycle event, where the prefix is reserved for what
+	// Dinah invents beyond what the format declares.
+	EventRenumbered = "renumbered"
 )
 
 // Events lists the event names a query over cards accepts in its event field,
@@ -767,6 +789,7 @@ var Events = []string{
 	EventItemFiled, EventItemCited, EventItemResolved, EventItemVerified,
 	EventItemFailed, EventItemReopened,
 	EventLinked, EventUnlinked,
+	EventRenumbered,
 }
 
 // Refusal is the error a verb returns when a rule says no. It carries the one

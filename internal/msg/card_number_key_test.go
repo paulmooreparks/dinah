@@ -6,8 +6,8 @@ import (
 	"testing"
 )
 
-// TestTheCardNumberKeyReachesEveryCatalogue holds the one key this card mints
-// to what every other key on this project is held to, following
+// TestTheCardNumberKeysReachEveryCatalogue holds the family of finding keys
+// this card mints to what every other key on this project is held to, following
 // TestTheCollectionKeysReachEveryCatalogue in collection_keys_test.go.
 //
 // The catalogue directory is enumerated rather than listed, so a ninth
@@ -19,10 +19,18 @@ import (
 // and carries the fingerprint of the English of the day. Difference is
 // asserted rather than presence because a translated entry holding English is
 // the failure a fingerprint cannot see.
-func TestTheCardNumberKeyReachesEveryCatalogue(t *testing.T) {
-	keys := []string{"check.card-number-duplicate"}
-	if len(keys) != 1 {
-		t.Fatalf("the subject set holds %d keys and this card mints one", len(keys))
+func TestTheCardNumberKeysReachEveryCatalogue(t *testing.T) {
+	keys := []string{
+		"check.card-number-duplicate",
+		"check.card-number-repeated",
+		"check.card-number-missing",
+		"check.card-number-stranded",
+		"check.card-number-malformed",
+		"check.card-number-in-frontmatter",
+		"check.card-number-renumbered",
+	}
+	if len(keys) != 7 {
+		t.Fatalf("the subject set holds %d keys and this card mints seven", len(keys))
 	}
 
 	files, err := filepath.Glob(filepath.Join("locales", "*.json"))
@@ -84,7 +92,7 @@ func TestTheCardNumberKeyReachesEveryCatalogue(t *testing.T) {
 		}
 	}
 	t.Logf("%d catalogue files enumerated, %d entries read", len(files), entries)
-	if entries != 8 {
-		t.Fatalf("the sweep read %d entries and one key across eight catalogues is eight", entries)
+	if entries != 56 {
+		t.Fatalf("the sweep read %d entries and seven keys across eight catalogues is fifty-six", entries)
 	}
 }

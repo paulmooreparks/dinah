@@ -1048,7 +1048,7 @@ func (l *Library) carryReshapedCards(req *Request, plan *reshapePlan, now string
 // the state the severe half of reshapeHeldCards refuses and the state no other
 // guard would ever report.
 func (l *Library) carryOneCard(req *Request, entry *reshapeRetirement, destination *bench.Column, id string, fresh *bench.Bench, now string) (bool, error) {
-	card, err := bench.LoadCard(fresh.CardsRoot(), id)
+	card, err := fresh.LoadCardIn(fresh.CardsRoot(), id)
 	if err != nil {
 		return false, err
 	}

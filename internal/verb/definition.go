@@ -623,6 +623,8 @@ var params = map[string][]Param{
 		{Name: "migrate-columns", Flag: true, Marker: true, Field: "MigrateColumns"},
 		{Name: "migrate-vocabulary", Flag: true, Marker: true, Field: "MigrateVocabulary"},
 		{Name: "migrate-container", Flag: true, Marker: true, Field: "MigrateContainer"},
+		{Name: "migrate-numbers", Flag: true, Marker: true, Field: "MigrateNumbers"},
+		{Name: "renumber", Flag: true, Marker: true, Field: "Renumber"},
 		// remint takes a path rather than standing alone, because it repairs
 		// the one condition the tree sweep refuses to decide: two directories
 		// claiming one identifier. Naming the directory is the whole of the
@@ -630,13 +632,16 @@ var params = map[string][]Param{
 		{Name: "remint", Flag: true, Value: "dir", Field: "Remint"},
 		{Name: "migrate-workstreams", Flag: true, Marker: true, Field: "MigrateWorkstreams"},
 		{Name: "witness", Flag: true, Marker: true, Field: "MigrateWitness"},
-		// Read by migrate-vocabulary and by migrate-container, which are the
-		// two repairs here that walk a whole tree of workbenches under --root
-		// rather than acting on the one the caller is standing in, and whose
-		// rewrites have no undo. Without it either repair reports what it
-		// would carry forward and writes nothing. None of the other markers
-		// reads it, and check accepts it beside them rather than refusing,
-		// because a marker that runs unconditionally is not made more or less
+		// Read by four repairs. Migrate-vocabulary and migrate-container walk
+		// a whole tree of workbenches under --root rather than acting on the
+		// one the caller is standing in, and their rewrites have no undo, so
+		// without --yes either repair reports what it would carry forward and
+		// writes nothing. Migrate-numbers and renumber act on the one
+		// workbench the caller stands in, and without --yes both refuse
+		// outright, because they change what a card is called and a reference
+		// somebody wrote down stops resolving. The other markers do not read
+		// it, and check accepts it beside them rather than refusing, because
+		// a marker that runs unconditionally is not made more or less
 		// dangerous by a confirmation nothing consults.
 		{Name: "yes", Flag: true, Marker: true, Shared: "yes", Field: "Confirm"},
 		// root and max-depth are the same pair status, ls, next, tree and

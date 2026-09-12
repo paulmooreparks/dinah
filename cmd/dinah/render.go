@@ -733,6 +733,8 @@ func (s *session) eventDetail(ev bench.Event) string {
 		return s.r.T("log.attachment-renamed", "from", ev.From, "to", ev.Filename)
 	case contract.EventManualCorrection:
 		return s.r.T("log.manual-correction", "from", ev.FromTitle, "to", ev.ToTitle)
+	case contract.EventRenumbered:
+		return s.r.T("log.renumbered", "from", ev.From, "to", ev.To)
 	case contract.EventTierOverridden:
 		return s.tierOverriddenDetail(ev)
 	}
@@ -865,6 +867,14 @@ func (s *session) renderCheck(report *verb.CheckReport) int {
 			witnessed.rows = append(witnessed.rows, tableRow{fields: []string{id}})
 		}
 		s.table(witnessed)
+	}
+	if report.MigratedNumbers {
+		s.line(s.r.TN("check.card-numbers-written", *report.RegistryLines))
+	}
+	// The moved cards are counted and not listed, because each draws a
+	// check.card-number-renumbered finding naming it immediately below.
+	if report.MigratedNumbers || report.RenumberedNumbers {
+		s.line(s.r.TN("check.cards-renumbered", len(report.RenumberedCards)))
 	}
 	return s.renderFindings(report.Findings)
 }

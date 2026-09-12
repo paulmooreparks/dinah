@@ -2,12 +2,32 @@ package bench
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
 	"dinah/internal/contract"
 )
+
+// preRegistryFixture answers the fixture as a workbench still waiting for the
+// number migration: no registry file, the format below the one the registry
+// arrived at, and the fixture card's number back in its anchor. These tests
+// drive the synthesis that reads numbers out of frontmatter, which is the
+// state every workbench the migration has not reached is still read through,
+// and the registry's own route is driven by
+// TestResolveCardReadsTheRegistry.
+func preRegistryFixture(t *testing.T) string {
+	t.Helper()
+	root := newFixture(t)
+	if err := os.Remove(filepath.Join(root, CardNumbersName)); err != nil {
+		t.Fatalf("remove the registry: %v", err)
+	}
+	editWorkbench(t, root, "format: "+strconv.Itoa(RegistryFormat), "format: "+strconv.Itoa(ContainerFormat))
+	edit(t, root, "state: ready", "state: ready\nnumber: 1")
+	return root
+}
 
 // ambiguousNumberFixture writes the workbench dinah-487's criteria are driven
 // against and answers its root.
@@ -25,10 +45,13 @@ import (
 // green on the defect.
 //
 // Every number is written by hand, because add mints by scanning for the
-// highest in use and counts up, so the tool cannot produce this state.
+// highest in use and counts up, so the tool cannot produce this state. The
+// workbench is dropped below the registry's format, because the synthesized
+// index reads the numbers these anchors carry and the registry would read
+// none of them.
 func ambiguousNumberFixture(t *testing.T) string {
 	t.Helper()
-	root := newFixture(t)
+	root := preRegistryFixture(t)
 	card := func(id, title string, number int) string {
 		dir := filepath.Join(root, CardsDir, id)
 		write(t, filepath.Join(dir, CardAnchor),
@@ -48,7 +71,7 @@ func ambiguousNumberFixture(t *testing.T) string {
 // nothing in the archive, so the refusal's rows can be asserted whole.
 func orderingFixture(t *testing.T) string {
 	t.Helper()
-	root := newFixture(t)
+	root := preRegistryFixture(t)
 	for _, id := range []string{"c00000000002", "c00000000003"} {
 		dir := filepath.Join(root, CardsDir, id)
 		write(t, filepath.Join(dir, CardAnchor),
@@ -90,7 +113,7 @@ func mustRefuse(t *testing.T, err error) *contract.Refusal {
 // resolves to that card and a number no card carries refuses unknown-card,
 // either side of the mirror.
 func TestAUniqueNumberResolvesExactlyAsBefore(t *testing.T) {
-	root := newFixture(t)
+	root := preRegistryFixture(t)
 	archived := filepath.Join(root, CardsDir, "c00000000002")
 	write(t, filepath.Join(archived, CardAnchor),
 		"---\ntitle: The archived card\nnumber: 2\ncolumn: b00000000001\nstate: ready\n---\nFraming.\n")
@@ -152,14 +175,16 @@ func TestAnAmbiguousNumberNamesEveryCandidateInOrder(t *testing.T) {
 // fx-1 is the live collision, where the unwrap under test is the live one and
 // the archive holds a card on the same number for the fall-through to land on.
 // fx-3 is the archive collision, where the live attempt refuses unknown-card
-// first and only the archived unwrap can carry the ambiguity out.
+// first and only the archived unwrap can carry the ambiguity out. The
+// synthesized index walks the live half before the archived one, so fx-1's
+// rows carry the archive's claimant behind the live pair.
 func TestALinkTargetRefusesAnAmbiguousNumber(t *testing.T) {
 	b := openAmbiguityFixture(t, ambiguousNumberFixture(t))
 	for _, c := range []struct {
 		ref  string
 		want []string
 	}{
-		{ref: "fx-1", want: []string{"c00000000001", "c00000000002"}},
+		{ref: "fx-1", want: []string{"c00000000001", "c00000000002", "c00000000004"}},
 		{ref: "fx-3", want: []string{"c00000000005", "c00000000006"}},
 	} {
 		id, refusal := b.ResolveLinkTarget(c.ref)

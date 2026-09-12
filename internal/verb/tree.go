@@ -1238,7 +1238,7 @@ func (l *Library) containedNode(
 			node.Ref, node.Title = columnRef(column), column.Title
 		}
 	case bench.KindCard:
-		card, err := bench.LoadCard(collection, id)
+		card, err := l.Bench.LoadCardIn(collection, id)
 		if err == nil {
 			node.Ref, node.Title = card.Ref(l.Bench.Slug), card.Title
 		}

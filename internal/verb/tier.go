@@ -68,7 +68,7 @@ func (l *Library) SetCardTierAt(req *Request) *Response {
 	// the reloaded value, for the reason writeField gives: Save rewrites the
 	// whole anchor from the frontmatter the caller holds, and a stale copy
 	// would revert whatever landed after it was read.
-	reloaded, err := bench.LoadCard(filepath.Dir(card.Dir), card.ID)
+	reloaded, err := l.Bench.LoadCardIn(filepath.Dir(card.Dir), card.ID)
 	if err != nil {
 		return l.FromError(req, err)
 	}

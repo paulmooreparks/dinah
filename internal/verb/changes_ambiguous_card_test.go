@@ -13,18 +13,18 @@ import (
 // ambiguousCardFixture builds the shape dinah-487's spec calls for and answers
 // the six identifiers in filing order.
 //
-// The live half answers fx-1 with two cards, fx-2 with one, and fx-3 with
-// none. The archive answers fx-1 with one and fx-3 with two. The live
-// collision reaches watchedCard's live unwrap, with the archived card on the
-// same number standing where the unrepaired fall-through would land. The
-// archive collision reaches the archived unwrap, which nothing else can: a
-// live card on the number answers the first attempt and the mirror is never
-// read.
+// The registry names every claimant of a number, live and archived alike, so
+// fx-1 answers with the two live twins and the archived odd one beside them,
+// fx-2 with one, and fx-3 with the two archived twins. The archived odd one on
+// fx-1's number is what keeps the test from accepting an answer that names
+// only the live half, and the lone live card on fx-2 is what keeps the third
+// arm below honest, because a filter that closed on the ambiguous case and
+// refused every number would pass a test that never resolved anything.
 //
 // The cards are filed through the verb and archived through the verb, and only
-// then are the numbers rewritten, because add mints by counting up from the
-// highest in use and a reference stops resolving the moment its number
-// collides.
+// then are the numbers rewritten in the card-number registry, because add
+// allocates the next number above the registry's high-water mark and a
+// reference stops resolving the moment its number collides.
 func ambiguousCardFixture(t *testing.T) (*harness, []string) {
 	t.Helper()
 	h := newHarness(t)
@@ -42,54 +42,38 @@ func ambiguousCardFixture(t *testing.T) (*harness, []string) {
 		}
 		h.reopen()
 	}
-	live := h.library.Bench.CardsRoot()
-	archived := h.library.Bench.ArchivedCardsRoot()
-	for _, c := range []struct {
-		root   string
-		id     string
-		number int
-	}{
-		{live, ids[0], 1}, {live, ids[1], 1}, {live, ids[2], 2},
-		{archived, ids[3], 1}, {archived, ids[4], 3}, {archived, ids[5], 3},
-	} {
-		renumberIn(t, c.root, c.id, c.number)
+	// The registry is one file, so the rewrite lands there in one write
+	// rather than per card: the live collision sits on fx-1, the lone live
+	// card on fx-2, and the archive collision on fx-3, and the half each card
+	// stands in is the half the archive step above already put it in.
+	lines := []string{
+		"1 " + ids[0], "1 " + ids[1], "2 " + ids[2],
+		"1 " + ids[3], "3 " + ids[4], "3 " + ids[5],
+	}
+	if err := bench.WriteNumberLines(filepath.Join(h.library.Bench.Root, bench.CardNumbersName), lines); err != nil {
+		t.Fatalf("rewrite the registry: %v", err)
 	}
 	h.reopen()
 	return h, ids
 }
 
-// renumberIn rewrites one card's ordinal in its own anchor, naming the root so
-// the same helper reaches a live card and an archived one. Nothing in the tool
-// offers this, because a number is set at birth and never reused, and this is
-// the only way to build the state add refuses to mint.
-func renumberIn(t *testing.T, root, id string, number int) {
-	t.Helper()
-	card, err := bench.LoadCard(root, id)
-	if err != nil {
-		t.Fatalf("load %s under %s: %v", id, filepath.Base(root), err)
-	}
-	card.Number = number
-	if err := card.Save(); err != nil {
-		t.Fatalf("renumber %s: %v", id, err)
-	}
-}
-
 // TestTheChangesCardFilterRefusesAnAmbiguousNumber is dinah-487 AC-9's bench
 // leg and AC-11's second caller.
 //
-// fx-1 is the live collision, where the archived card on the same number is
-// exactly what the unrepaired fall-through would key the watch on. fx-3 is the
-// archive collision, where the live attempt refuses unknown-card first, so
-// only the archived unwrap can carry the ambiguity out rather than flattening
-// it to unknown-card at the third arm.
+// The rows come out in the registry's file order, which the fixture wrote, so
+// fx-1 carries the two live twins with the archived odd one beside them and
+// fx-3 carries the two archived twins. Naming the claimants whole is the point
+// the registry route makes over the half-by-half route the below-format tests
+// in internal/bench drive: a number with three cards behind it answers with
+// three rows, and a caller reaching for any one of them can see it.
 func TestTheChangesCardFilterRefusesAnAmbiguousNumber(t *testing.T) {
 	h, ids := ambiguousCardFixture(t)
 	for _, c := range []struct {
 		ref  string
 		want []string
 	}{
-		{ref: "fx-1", want: sortedPair(ids[0], ids[1])},
-		{ref: "fx-3", want: sortedPair(ids[4], ids[5])},
+		{ref: "fx-1", want: []string{ids[0], ids[1], ids[3]}},
+		{ref: "fx-3", want: []string{ids[4], ids[5]}},
 	} {
 		id, err := h.library.watchedCard(c.ref)
 		if id != "" {
@@ -121,15 +105,4 @@ func TestTheChangesCardFilterRefusesAnAmbiguousNumber(t *testing.T) {
 			t.Errorf("%s answered %q and %v, and it should answer %s", c.ref, id, err, c.want)
 		}
 	}
-}
-
-// sortedPair answers two identifiers in ascending order, which is the order
-// the refusal's rows come out in because the scan preserves what os.ReadDir
-// gives it. The fixture's identifiers are minted rather than written, so a
-// check cannot name them in the order it happens to have filed them.
-func sortedPair(first, second string) []string {
-	if first > second {
-		first, second = second, first
-	}
-	return []string{first, second}
 }

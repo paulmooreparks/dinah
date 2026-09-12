@@ -308,7 +308,7 @@ func (l *Library) pullTransaction(req *Request, head *bench.Card) *Response {
 	if l.Interleave != nil {
 		l.Interleave()
 	}
-	card, err := bench.LoadCard(l.Bench.CardsRoot(), head.ID)
+	card, err := l.Bench.LoadCardIn(l.Bench.CardsRoot(), head.ID)
 	if err != nil {
 		return l.FromError(req, err)
 	}

@@ -81,7 +81,7 @@ func (b *Bench) WriteWitnesses(actor, now string) ([]string, []Finding, error) {
 			findings = append(findings, Finding{Path: dir, Key: FindingWitnessLocked, Detail: id})
 			continue
 		}
-		card, err := LoadCard(b.CardsRoot(), id)
+		card, err := b.LoadCardIn(b.CardsRoot(), id)
 		if err != nil {
 			lock.Release()
 			findings = append(findings, Finding{Path: dir, Key: unreadableCardFinding(err), Detail: id})

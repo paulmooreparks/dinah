@@ -51,6 +51,7 @@ var wantedTemplates = []string{
 	".gitignore",
 	"workbench.md",
 	"journal.ndjson",
+	bench.CardNumbersName,
 	"columns/<id>/column.md",
 	"archive/columns/<id>/column.md",
 	"cards/<id>/card.md",
@@ -77,8 +78,8 @@ var wantedKeys = map[string][]string{
 	"workbench.md":                                      {"format", "profile", "title", "slug", "operator", "columns", "levels"},
 	"columns/<id>/column.md":                            {"title", "slug", "kind", "operator_owned", "wip_limit", "tier"},
 	"archive/columns/<id>/column.md":                    {"title", "slug", "kind", "operator_owned", "wip_limit"},
-	"cards/<id>/card.md":                                {"title", "number", "column", "state", "severity", "priority", "tier", "tier_at", "links", "claim_holder", "claim_since", "claim_expires", "block_reason", "block_kind", "block_since", "workstreams"},
-	"archive/cards/<id>/card.md":                        {"title", "number", "column", "state"},
+	"cards/<id>/card.md":                                {"title", "column", "state", "severity", "priority", "tier", "tier_at", "links", "claim_holder", "claim_since", "claim_expires", "block_reason", "block_kind", "block_since", "workstreams"},
+	"archive/cards/<id>/card.md":                        {"title", "column", "state"},
 	"cards/<id>/comments/<id>/comment.md":               {"ts", "author", "ordinal"},
 	"cards/<id>/archive/comments/<id>/comment.md":       {"ts", "author", "ordinal"},
 	"cards/<id>/attachments/<id>/attachment.md":         {"filename", "description", "provenance", "ordinal"},
@@ -135,12 +136,23 @@ var wantedEvents = map[string][]string{
 	contract.EventUnlinked: {"ts", "event", "actor", "kind", "to"},
 }
 
-// unwrittenEvents are the event names internal/contract declares that this
-// tool never writes, each with the reason it never does. The coverage alarm
-// holds the population sequence to the difference between this table and the
-// declared set, so adding an event constant turns the build red in the commit
-// that adds it.
-var unwrittenEvents = map[string]string{}
+// absentEvents are the event names internal/contract declares that the sample
+// fixture carries no line of, each with the reason it carries none. The
+// coverage alarm holds the population sequence to the difference between this
+// table and the declared set, so adding an event constant turns the build red
+// in the commit that adds it.
+//
+// The table used to be named for a stronger claim, that this tool never
+// writes the event, and renumbered broke it: the repair flags write that
+// event and nothing else does, and a replay of the population sequence never
+// runs a repair, because the workbench it replays holds no duplicate for
+// one to fix. The sample predates the registry entirely, so no capture the
+// frozen fixtures hold can carry the line, and the entry stands until the
+// card that next moves the build's claim grows the sequence past a repair
+// and captures a fresh sample.
+var absentEvents = map[string]string{
+	contract.EventRenumbered: "only the two repair flags write it, and the population sequence runs no repair, so no capture the sequence drives can carry it",
+}
 
 // shape is what a fixture and a freshly populated workbench are compared on.
 // None of the three sets reads a value the tool generates.
@@ -184,11 +196,31 @@ func TestReplayingThePopulationSequenceReachesEveryShapeItNames(t *testing.T) {
 	}
 }
 
+// frozenSampleTemplates are the path templates this build writes that the
+// sample fixture cannot carry, and the sample alarm skips exactly these in
+// its containment. Every entry rests on the fixture set's own key: the set is
+// keyed on the profile revision, the build's claim has not moved, and the
+// card that introduced the card-number registry ruled the fixtures frozen
+// rather than captured a new one, so the sample stays the format-2 capture
+// that predates the file. The card that next moves the claim captures a
+// fresh sample carrying the file, and this set empties.
+//
+// Skipping a template here takes nothing out from under test. The shape-reach
+// table above holds the sequence's write of every one of these under test
+// against the fresh replay, so a build that stops writing the file turns red
+// there, and what this alarm loses is only the demand that the frozen sample
+// carry a shape its own capture predates.
+var frozenSampleTemplates = map[string]bool{
+	bench.CardNumbersName: true,
+}
+
 // TestTheSampleFixtureCarriesEveryShapeThisBuildWrites is the sample alarm. It
 // creates a workbench with the build under test, replays the same sequence
 // against it, and asserts the sample fixture contains that tree's shape. The
 // containment runs in one direction on purpose, so a fixture carrying a key an
-// older build wrote and this one no longer does still passes.
+// older build wrote and this one no longer does still passes. The templates
+// frozenSampleTemplates names are the one exception, each carrying there the
+// reason the frozen sample cannot hold it.
 //
 // The comparison is against the one fixture the manifest marks rather than
 // against the union of every fixture declaring the revision, because a union
@@ -210,6 +242,9 @@ func TestTheSampleFixtureCarriesEveryShapeThisBuildWrites(t *testing.T) {
 	sample := readShape(t, sampleFixture(t))
 	fresh := readShape(t, replayPopulation(t))
 	for template := range fresh.templates {
+		if frozenSampleTemplates[template] {
+			continue
+		}
 		if !sample.templates[template] {
 			t.Errorf("the sample fixture carries no %s, which this build writes", template)
 		}
@@ -240,10 +275,10 @@ func TestTheSampleFixtureCarriesEveryJournalEventTheContractDeclares(t *testing.
 		if sample.members[event] != nil {
 			continue
 		}
-		if _, exempt := unwrittenEvents[event]; exempt {
+		if _, exempt := absentEvents[event]; exempt {
 			continue
 		}
-		t.Errorf("internal/contract declares the %s event, the sample fixture carries no line of it, and unwrittenEvents says nothing about why. Extend %s until the event lands in a capture, or add it to unwrittenEvents with the reason nothing writes it", event, populateName)
+		t.Errorf("internal/contract declares the %s event, the sample fixture carries no line of it, and absentEvents says nothing about why. Extend %s until the event lands in a capture, or add it to absentEvents with the reason the sample carries none", event, populateName)
 	}
 }
 
@@ -270,7 +305,7 @@ var cardJournalTemplates = map[string]bool{
 //
 // The pair does not close every route, and the routes it leaves open are worth
 // naming so the next reader does not read a closure that is not there. An
-// event listed in unwrittenEvents is exempt from the alarm, which is a human
+// event listed in absentEvents is exempt from the alarm, which is a human
 // step carrying a written reason rather than a silent gap. An event that lands
 // on a card journal and on another journal as well can satisfy the alarm from
 // the other one, because readShape records members per event name and not per

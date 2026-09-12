@@ -38,6 +38,6 @@
 
 1130 reason=the line carries a pipe and a redirection, which the in-process head cannot honour quotes=none because=the one line of output is a bare refusal name, which the refusal-name check already holds
 
-1352 reason=the workbench listing is ordered by an identifier the tool mints at random quotes=column.slugs.slug,column.columns.slug,column.workbenches.path,column.workbenches.slug,column.workbenches.workbench,init.done,refusal.dinah.ambiguous-workbench,refusal.dinah.ambiguous-workbench.next,token.created
+1351 reason=the workbench listing is ordered by an identifier the tool mints at random quotes=column.slugs.slug,column.columns.slug,column.workbenches.path,column.workbenches.slug,column.workbenches.workbench,init.done,refusal.dinah.ambiguous-workbench,refusal.dinah.ambiguous-workbench.next,token.created
 
-1382 reason=the workbench listing is ordered by an identifier the tool mints at random quotes=column.slugs.slug,column.columns.slug,column.workbenches.path,column.workbenches.slug,column.workbenches.workbench
+1381 reason=the workbench listing is ordered by an identifier the tool mints at random quotes=column.slugs.slug,column.columns.slug,column.workbenches.path,column.workbenches.slug,column.workbenches.workbench

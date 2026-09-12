@@ -12,8 +12,12 @@ import (
 )
 
 // Add files a new card. It enters the first column of the ordered list with
-// state ready, its identifier is claimed by mkdir of the hex directory,
-// and its journal opens with the created event.
+// state ready, its identifier is claimed by mkdir of the hex directory, its
+// journal opens with the created event, and the number it answers to is
+// appended to the registry under the workbench lock, one past the highest
+// number already there. A workbench still carrying its numbers in card
+// frontmatter is refused rather than half-migrated, because the registry is
+// the half of the format that workbench has not reached.
 //
 // A named column honours that column's capacity limit while a filing into the
 // first column never does, because work has to be able to enter the bench and
@@ -64,9 +68,24 @@ func (l *Library) Add(req *Request) *Response {
 	if refusal := l.admitLevels(levels); refusal != nil {
 		return l.refuseWith(req, nil, refusal.Name, refusal.Detail, refusal.Extra)
 	}
-	// The number is read before the identifier is claimed, so a collection
-	// neither half of which can be listed refuses the filing instead of
-	// stamping the card with a number an archived card already carries.
+	now := bench.Stamp(l.Now())
+	// The workbench lock holds the allocation. The high-water mark is read and
+	// then claimed in two steps rather than one, so two filings at once would
+	// read the same mark and mint the same number, which is exactly the state
+	// the registry exists to make loud.
+	lock, err := bench.Acquire(l.Bench.Root, req.Actor, now)
+	if err != nil {
+		return l.FromError(req, err)
+	}
+	defer lock.Release()
+	// A workbench below the format the registry arrived at has no registry to
+	// allocate from: its numbers still live in card frontmatter, and a filing
+	// there would write a line into a format the workbench does not declare.
+	// The migration carries the workbench across first, and the refusal names
+	// the command that runs it.
+	if l.Bench.Format < bench.RegistryFormat {
+		return l.refuse(req, nil, contract.NeedsNumberMigration, l.Bench.Root)
+	}
 	number, err := l.Bench.NextNumber()
 	if err != nil {
 		return l.FromError(req, err)
@@ -76,7 +95,7 @@ func (l *Library) Add(req *Request) *Response {
 		return l.FromError(req, err)
 	}
 	dir := filepath.Join(l.Bench.CardsRoot(), id)
-	// A creation takes no lock, so the destination's sibling is read once
+	// A creation takes no card lock, so the destination's sibling is read once
 	// mkdir has claimed the identifier and before the anchor lands. Giving
 	// the identifier up means giving up the directory too, since an empty
 	// hex directory makes every listing on the bench fail.
@@ -86,7 +105,6 @@ func (l *Library) Add(req *Request) *Response {
 	}
 	fm := bench.NewFrontmatter()
 	fm.Set("title", title)
-	fm.Set("number", strconv.Itoa(number))
 	fm.Set("column", destination.ID)
 	fm.Set("state", contract.StateReady)
 	// Set appends, and state is the last key written above, so the pair
@@ -102,7 +120,7 @@ func (l *Library) Add(req *Request) *Response {
 		return l.FromError(req, err)
 	}
 	ev := bench.Event{
-		TS:      bench.Stamp(l.Now()),
+		TS:      now,
 		Event:   contract.EventCreated,
 		Actor:   req.Actor,
 		Title:   title,
@@ -112,7 +130,20 @@ func (l *Library) Add(req *Request) *Response {
 	if err := bench.AppendEvent(filepath.Join(dir, bench.JournalName), ev); err != nil {
 		return l.FromError(req, err)
 	}
-	card, err := bench.LoadCard(l.Bench.CardsRoot(), id)
+	// The registry line lands after the card it names, so a crash between the
+	// two leaves a card with no line rather than a line naming a card that was
+	// never created. The first is a state check reports and the migration
+	// repairs; the second is a number nobody can give back. The write is an
+	// append-open followed by Sync on AppendEvent's terms, so a crash mid-line
+	// can tear the final line alone and never the ones already in the file.
+	if err := bench.AppendNumberLine(filepath.Join(l.Bench.Root, bench.CardNumbersName), number, id); err != nil {
+		return l.FromError(req, err)
+	}
+	// The registry is read back from the file rather than extended in memory,
+	// so the bench and the disk cannot disagree about what the new card
+	// answers to, and the response below stamps the number it was filed under.
+	l.Bench.ReloadNumbers()
+	card, err := l.Bench.LoadCardIn(l.Bench.CardsRoot(), id)
 	if err != nil {
 		return l.FromError(req, err)
 	}
@@ -326,6 +357,10 @@ func halfFor(req *Request) bench.ResolutionHalf {
 // is required and there is no prompt, so the command behaves the same in a
 // script and at a terminal.
 //
+// A deleted card's registry line is rewritten to the tombstone rather than
+// removed, so the number stays allocated and the next filing cannot hand out
+// a number a deleted card once answered to.
+//
 // A card another card's link names is deleted without refusal, because a
 // reference never refuses an act; the dangling `to:` is what check reports
 // afterwards.
@@ -358,14 +393,57 @@ func (l *Library) Delete(req *Request) *Response {
 		ColumnRef:     columnRefSubject(entity),
 		WorkstreamID:  workstreamSubject(entity),
 		WorkstreamRef: workstreamRefSubject(entity),
-		Record:        func() error { return bench.AppendEvent(journal, ev) },
+		Record: func() error {
+			if err := bench.AppendEvent(journal, ev); err != nil {
+				return err
+			}
+			if entity.Kind != bench.KindCard {
+				return nil
+			}
+			return l.tombstoneNumber(entity.ID)
+		},
 	}
 	if err := l.Bench.Run(act); err != nil {
 		return l.FromError(req, err)
 	}
+	if entity.Kind == bench.KindCard {
+		l.Bench.ReloadNumbers()
+	}
 	response := l.ok(req, nil)
 	response.Detail = entity.ID
 	return response
+}
+
+// tombstoneNumber rewrites the first registry line claiming the identifier to
+// the tombstone, which keeps the number allocated: NextNumber answers one
+// past the registry's high-water mark, so removing the line instead would let
+// the next filing hand out a number a deleted card once answered to. The
+// rewrite goes through WriteNumberLines because it is a modification rather
+// than an append, and it runs inside the structural act's Record callback,
+// under the workbench lock the act holds first, so a filing appending a line
+// at the same moment cannot have its line lost to the rewrite.
+//
+// A card no line claims is left alone, which is every card on a workbench
+// below the registry's format: there is nothing to tombstone, and the number
+// such a workbench reads from frontmatter is reissuable exactly as it is
+// today. A later line claiming the same identifier stands, because a repeated
+// identifier is the state check.card-number-repeated reports and an operator,
+// not a deletion, is who resolves it.
+func (l *Library) tombstoneNumber(id string) error {
+	rewritten := make([]string, 0, len(l.Bench.Numbers.Lines))
+	tombstoned := false
+	for _, line := range l.Bench.Numbers.Lines {
+		if !tombstoned && line.ID == id {
+			rewritten = append(rewritten, strconv.Itoa(line.Number)+" -")
+			tombstoned = true
+			continue
+		}
+		rewritten = append(rewritten, line.Raw)
+	}
+	if !tombstoned {
+		return nil
+	}
+	return bench.WriteNumberLines(filepath.Join(l.Bench.Root, bench.CardNumbersName), rewritten)
 }
 
 // Rename carries an attachment's payload under a new filename and rewrites

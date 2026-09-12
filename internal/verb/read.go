@@ -1244,10 +1244,10 @@ func attachmentRef(ownerRef string, ordinal int) string {
 // that is no longer findable, archived or otherwise, still shows something
 // typeable: the bare identifier the link already carried.
 func (l *Library) linkRef(id string) string {
-	if card, err := bench.LoadCard(l.Bench.CardsRoot(), id); err == nil {
+	if card, err := l.Bench.LoadCardIn(l.Bench.CardsRoot(), id); err == nil {
 		return card.Ref(l.Bench.Slug)
 	}
-	if card, err := bench.LoadCard(l.Bench.ArchivedCardsRoot(), id); err == nil {
+	if card, err := l.Bench.LoadCardIn(l.Bench.ArchivedCardsRoot(), id); err == nil {
 		return card.Ref(l.Bench.Slug)
 	}
 	return id
@@ -1425,6 +1425,27 @@ type CheckReport struct {
 	// MigratedWorkstreams says the adoption repair ran, so a caller can tell
 	// an empty list of adoptions from a migration nobody asked for.
 	MigratedWorkstreams bool `json:"migrated_workstreams,omitempty"`
+	// RegistryLines counts the lines the number migration wrote to the
+	// registry, and is absent from a request that did not ask for the
+	// migration. A run over a workbench whose registry already covers every
+	// card answers zero, which is the migration's own word that it found
+	// nothing to build, so the field is set whenever the migration ran
+	// rather than only when it wrote.
+	RegistryLines *int `json:"registry_lines,omitempty"`
+	// MigratedNumbers says the number migration ran, so a caller can tell a
+	// zero line count from a migration nobody asked for.
+	MigratedNumbers bool `json:"migrated_numbers,omitempty"`
+	// RenumberedCards are the identifiers of the cards that left a repair
+	// holding a number they did not arrive holding, whether the number
+	// migration renumbered a loser of a collision or the renumber repair
+	// moved a later claimant of a number two lines both claimed. It is
+	// absent from a request that asked for neither repair and from a request
+	// that asked and found nothing to move, which the MigratedNumbers and
+	// RenumberedNumbers flags are what separate.
+	RenumberedCards []string `json:"renumbered_cards,omitempty"`
+	// RenumberedNumbers says the renumber repair ran, so a caller can tell
+	// an empty list of renumbered cards from a repair nobody asked for.
+	RenumberedNumbers bool `json:"renumbered_numbers,omitempty"`
 }
 
 // Check checks the bench for structural defects, and repairs nothing unless a
@@ -1442,7 +1463,15 @@ type CheckReport struct {
 // request carrying the migrate-columns marker removes every stranded
 // identifier from the workbench's own columns list. A request carrying the
 // witness marker records a manual-correction event on every live card whose
-// anchor and journal disagree about where it stands.
+// anchor and journal disagree about where it stands. A request carrying the
+// migrate-numbers marker builds the card-number registry from the numbers the
+// cards still carry in their anchors, strips the number key from every anchor,
+// and stamps the workbench with the format that declares the registry. A
+// request carrying the renumber marker repairs duplicated registry numbers,
+// leaving the number with the line that claimed it first and moving every
+// later claimant above the highest number anything holds. Both refuse without
+// the confirm flag, because each changes what a card is called and a reference
+// somebody wrote down stops resolving.
 //
 // A non-nil error return still carries a non-nil report when the migration
 // ran: the report is what the run had already stamped and already guessed
@@ -1496,6 +1525,36 @@ func (l *Library) Check(req *Request) (*CheckReport, error) {
 	if req != nil && req.MigrateOrdinals {
 		stamped, reported, err := l.Bench.BackfillOrdinals(req.Actor, bench.Stamp(l.Now()))
 		report.StampedOrdinals = &stamped
+		report.Findings = append(report.Findings, reported...)
+		if err != nil {
+			return report, err
+		}
+	}
+	// The two number repairs refuse before they run when the request carries
+	// no confirm, and the report travels beside the refusal rather than being
+	// discarded for it, because a request may name an earlier repair whose
+	// account has already been gathered here and the refusal does not undo
+	// that work.
+	if req != nil && req.MigrateNumbers {
+		if !req.Confirm {
+			return report, contract.Refuse(contract.Unconfirmed, "--migrate-numbers")
+		}
+		written, renumbered, reported, err := l.Bench.MigrateNumbers(req.Actor, bench.Stamp(l.Now()))
+		report.MigratedNumbers = true
+		report.RegistryLines = &written
+		report.RenumberedCards = append(report.RenumberedCards, renumbered...)
+		report.Findings = append(report.Findings, reported...)
+		if err != nil {
+			return report, err
+		}
+	}
+	if req != nil && req.Renumber {
+		if !req.Confirm {
+			return report, contract.Refuse(contract.Unconfirmed, "--renumber")
+		}
+		renumbered, reported, err := l.Bench.RenumberCards(req.Actor, bench.Stamp(l.Now()))
+		report.RenumberedNumbers = true
+		report.RenumberedCards = append(report.RenumberedCards, renumbered...)
 		report.Findings = append(report.Findings, reported...)
 		if err != nil {
 			return report, err

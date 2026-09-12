@@ -113,6 +113,7 @@ asked.
 <workbench>/
   workbench.md              # anchor: definition and overview
   journal.ndjson            # append-only history of workbench-scoped acts
+  card-numbers.txt          # registry: one line per allocated card number
   attachments/
     <12-hex>/...            # workbench-level attachments, same shape as below
   columns/
@@ -372,14 +373,46 @@ for it. The first hand-executed run demonstrated the shape unprompted,
 carrying its framing in the card body and producing its research and its
 concept as attachments.
 
+### The card-number registry
+
+A card's number does not live in the card's own anchor. It lives in
+`card-numbers.txt` at the workbench root, one line per allocated number: a
+decimal number with no leading zero and no sign, one ASCII space, and
+either the 12-hex identifier of the card the number was given to or a
+tombstone `-` marking a number a deleted card gave back. The file is
+created at the first allocation, a filing appends one line to it, and the
+next number is one past the highest line the file carries, taken under the
+workbench lock, so two filings inside one workbench never mint the same
+number.
+
+The number left the anchor because the anchor is the wrong file for a fact
+of this scope. Two clones of one workbench can each file a card from the
+same base, and their card directories are disjoint, so git merges both with
+no conflict at all; a workbench-unique number stored per card would be
+minted twice with nothing to report it. One file at the root turns that
+case into a conflict, and two cards holding one number is a state a
+workbench has to answer for loudly rather than a difference a merge should
+absorb.
+
+The hex identifier is the identity, and the number is a label. A reference
+names the identifier because the identifier survives a merge, while a
+number can be reallocated when two copies of one workbench are reconciled
+and two cards arrive holding the same one. A number is never reused once
+the registry holds it: a deleted card's line is tombstoned, and the
+high-water mark never falls. A workbench whose storage format predates the
+registry still carries its numbers in card frontmatter, and `dinah check
+--migrate-numbers --yes` carries it across; until then a filing is refused
+rather than half-performed, and check reports every card as carrying no
+line.
+
 ### Lifecycle defaults
 
 A new card enters the first column of the ordered list, state `ready`, and
 its journal opens with the created event. Pull order is deterministic, so two
 implementations agree on what "the next card" is. CORE-QUEUE-3 in the profile
 fixes that order: the card that entered the column earliest, ties broken by
-ascending creation ordinal, which for a card is the `number` it was born
-with. Severity and priority are declared, visible, and filterable, but
+ascending creation ordinal, which for a card is the number the registry
+allocated it. Severity and priority are declared, visible, and filterable, but
 neither takes part in that order. CORE-QUEUE-4 lets a tool offer another
 order alongside the fixed one, and a priority-ordered pull would be such an
 order, not a replacement for it. A pull honors the destination's WIP limit,
@@ -1300,18 +1333,22 @@ by construction, so shipping them later leaks into no interface.
 A counted entity carries an `ordinal` field: a positive integer recording
 where the entity fell in the order somebody wrote the members of its
 collection. Comments, attachments, and checklist items carry one, and a
-card's own ordinal is the `number` it was born with rather than a second
-field saying the same thing twice.
+card's own ordinal is the number the registry allocated it rather than a
+second field saying the same thing twice.
 
-The ordinal is unique within one collection instance and nowhere wider. A
-particular card's `comments/` is one sequence, that card's `attachments/`
-is another, each of its comments has an `attachments/` of its own, and its
-`checklist/` is one more. That is the scope a positional reference asks
-about, since `<card>/comments/2` selects the second comment of one card and
-has nothing to say about any other collection.
+The ordinal is unique within one collection instance and nowhere wider, and
+a below-card ordinal keeps exactly that scope. A particular card's
+`comments/` is one sequence, that card's `attachments/` is another, each of
+its comments has an `attachments/` of its own, and its `checklist/` is one
+more. That is the scope a positional reference asks about, since
+`<card>/comments/2` selects the second comment of one card and has nothing
+to say about any other collection. A card's own number is the one ordinal
+that escapes the rule: it is unique across the workbench, both halves of
+the cards collection included, because the registry allocates it from one
+file rather than from the collection the card was filed into.
 
 Assignment happens at creation, inside the lock the creating verb already
-holds over the nearest enclosing journal-bearing entity, so the scan for
+holds over the nearest enclosing journal-bearing entity, so the search for
 the highest ordinal in use and the write that follows it cannot be
 interleaved with another writer. `dinah file` creates a checklist item under
 the card's own lock and assigns its ordinal on exactly those terms.
@@ -1901,8 +1938,10 @@ never conflated:
   that opens a workbench with a higher number than it knows refuses loudly
   and names the version it wanted. This is Dinah's private business; the git
   precedent (`core.repositoryformatversion`, carried always, bumped
-  approximately once) is the model, and the number has moved once, from 1 to 2,
-  when the rule that a workbench lives inside a `.dinah` container landed.
+  approximately once) is the model, and the number has moved twice, from 1
+  to 2 when the rule that a workbench lives inside a `.dinah` container
+  landed, and from 2 to 3 when the card number left the card anchor for the
+  registry.
 - **Profile version.** The contract's public promise, with the channel and
   increment rules recorded with the contract-profile work. `format:` is an
   integer read by exactly one implementation, this one, and it carries no
@@ -1999,6 +2038,15 @@ write-temp-then-rename. Mutations lock at card scope: a move or claim takes
 a lockfile inside that card's directory, so two processes working different
 cards never contend. Creating an entity needs no separate lock, because
 `mkdir` of the hex directory is itself the atomic test-and-claim of the id.
+
+Filing a card is the one creation that takes a lock above its own
+directory. The registry's high-water mark is read and then claimed in two
+steps rather than one, so two filings at once would read the same mark and
+mint the same number, and `mkdir` cannot help because both new cards take
+different directories either way. The workbench lock holds the allocation:
+the read of the mark and the append of the line land on the same side of
+one acquisition, and a second filing that arrives to find the lock held
+refuses, as every acquisition in this format does rather than block.
 
 The lockfile is specified concretely so any process, including a careful
 human, can participate. It is named `lock`, sits directly inside the entity
@@ -2157,7 +2205,16 @@ never relies on. The supported remote story is git as transport: clone the
 workbench, work, push, pull. The format merges well by construction, since
 entity directories keep concurrent card work in disjoint files and
 append-only journals take a union merge; a conflict inside one card's
-frontmatter is real contention, rare, and resolved by a human. Real-time
+frontmatter is real contention, rare, and resolved by a human.
+
+That reasoning has one hole a per-card file cannot cover, and the card
+number is why it no longer lives in one. Two clones of one workbench can
+each file a new card from the same base; the card directories they create
+are disjoint, so git merges both with no conflict at all, and a number
+kept inside each card's own anchor would be minted twice with nothing to
+report it. The registry turns that case into a conflict, because both
+sides appended to one file, and the conflict is wanted; the alternative is
+a clean merge that leaves two cards answering to one number. Real-time
 multi-writer coordination is the hosted product's job, not this format's.
 
 ## The two planes
@@ -2290,6 +2347,18 @@ answers. Journal lost: the frontmatter still carries present truth, the
 history is gone, and check records a witnessed history-lost event rather
 than pretending otherwise. Torn journal tail after a crash: readers
 tolerate a trailing partial line, and check trims it with a witness.
+Registry line damaged or duplicated: the file is plain text, a line that
+fails its grammar is reported as stored rather than guessed at, and the
+readers keep the workbench openable because a malformed line enters no
+index. Two lines claiming one number have an automatic repair, `dinah
+check --renumber --yes`, which keeps the first claimant's number in file
+order and moves every later one to the next numbers above the high-water
+mark. A workbench still carrying its numbers in card frontmatter has the
+other automatic repair, `dinah check --migrate-numbers --yes`, which
+builds the file from the numbers the cards hold. Both repairs refuse
+without `--yes`, and both journal a renumbered event on every card they
+move, so a reference somebody wrote down for the old number is told where
+it stopped resolving.
 Sibling lock left behind: a structural act was interrupted, and the protocol
 in the Concurrency and atomicity section says which way it finishes and what
 check refuses to decide.

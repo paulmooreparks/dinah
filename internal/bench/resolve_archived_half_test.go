@@ -152,10 +152,13 @@ func buildArchivedHalfFixture(t *testing.T) archivedHalfFixture {
 	}
 
 	// A second card, archived whole, carries the two rows whose head is the
-	// reference's deepest collection step.
+	// reference's deepest collection step. Its claim on number 2 sits in the
+	// registry rather than in its anchor, and the line is appended beside the
+	// one the fixture's own card holds.
 	write(t, filepath.Join(root, CardsDir, "c00000000002", CardAnchor),
-		"---\ntitle: The archived card\nnumber: 2\ncolumn: b00000000001\nstate: ready\n---\nFraming.\n")
+		"---\ntitle: The archived card\ncolumn: b00000000001\nstate: ready\n---\nFraming.\n")
 	write(t, filepath.Join(root, CardsDir, "c00000000002", JournalName), cleanJournal)
+	appendText(t, filepath.Join(root, CardNumbersName), "2 c00000000002\n")
 	archivedCard := archiveDir(t, filepath.Join(root, CardsDir, "c00000000002"))
 	add("an archived card by its bare head", "fx-2", filepath.Join(archivedCard, CardAnchor))
 	add("an archived card's journal", "fx-2/journal", filepath.Join(archivedCard, JournalName))

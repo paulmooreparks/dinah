@@ -120,6 +120,13 @@ You do not address a card this way. You write the card's identifier on its
 own, and Dinah refuses `wb-4f0a1c2b8d31`, because a card's reference joins
 your workbench's slug to the card's number and to nothing else.
 
+A card's number can change when two copies of one workbench meet. Both
+copies can have filed a card that took the same number, the first card to
+claim it keeps it, and `dinah check --renumber --yes` moves the other to
+the next free number, which the card's history shows as a renumbered act.
+The identifier is the reference that survives the merge, so when a
+reference has to last, write the identifier.
+
 Type the number and keep the identifier. Deleting an earlier member of a
 collection moves every number after it, and the identifier an entity is
 born with never changes. Dinah shows you the number because the number is

@@ -421,7 +421,7 @@ func (l *Library) writeField(req *Request, entity *bench.EntityRef, field bench.
 func (l *Library) wroteField(req *Request, entity *bench.EntityRef, value string) *Response {
 	card := entity.Card
 	if entity.Kind == bench.KindCard {
-		if reloaded, err := bench.LoadCard(filepath.Dir(entity.Dir), entity.ID); err == nil {
+		if reloaded, err := l.Bench.LoadCardIn(filepath.Dir(entity.Dir), entity.ID); err == nil {
 			card = reloaded
 		}
 	}
