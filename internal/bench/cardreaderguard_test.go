@@ -424,7 +424,8 @@ func isNewCard(call *ast.CallExpr) bool {
 // as good an escape as a call. A channel send is read the same way, for the
 // value and for a call inside it, though a call standing in a send value
 // cannot compile, because a reader answers two values where a send takes
-// one.
+// one. A return's results are read for the value too, because answering a
+// reader out of a function hands it on exactly as a call argument does.
 func valueFindings(function *ast.FuncDecl, bound map[string]bool, at position, composed string) []readerFinding {
 	var findings []readerFinding
 	tracked := map[string]bool{}
@@ -510,6 +511,12 @@ func valueFindings(function *ast.FuncDecl, bound map[string]bool, at position, c
 			}
 			if callsAReaderInside(n, aliases, bound) {
 				record(n, "a free reader was called inside a return")
+			}
+			for _, result := range n.Results {
+				if namesAReader(result, aliases, bound) {
+					record(n, "a free reader was answered in a return")
+					break
+				}
 			}
 		case *ast.SendStmt:
 			if mentionsTrackedIdentifier(n.Value, tracked) {
@@ -1663,6 +1670,16 @@ func read(b *w.Workbench, root, id, slug string) (string, bool) {
 			allowlist: oneProbeEntry(),
 			want:      []string{"a free reader was called inside a channel send"},
 			count:     1,
+		},
+		{
+			name: "a reader value answered in a return",
+			files: map[string]string{"internal/bench/check.go": `func (b *Workbench) handed(root, id string) (func(string, string) (*Card, error), error) {
+	return LoadCard, nil
+}
+`},
+			allowlist: oneProbeEntry(),
+			want:      []string{"handed, which answers a card", "a free reader was answered in a return"},
+			count:     2,
 		},
 		{
 			name: "a parenthesized reader call",
