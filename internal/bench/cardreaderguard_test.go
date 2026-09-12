@@ -387,7 +387,10 @@ func isNewCard(call *ast.CallExpr) bool {
 // binds, because the asserted value is the card itself, so a type-switch
 // guard launders nothing. A name bound from a bare reference to a reader
 // rather than from its call is tracked as an alias, and a call through that
-// alias reads as a call of the reader itself.
+// alias reads as a call of the reader itself. A bare reference standing in
+// a call's argument list is reported alongside a call of the reader, and
+// append's argument list is read too, because a function value handed on is
+// as good an escape as a call.
 func valueFindings(function *ast.FuncDecl, bound map[string]bool, at position, composed string) []readerFinding {
 	var findings []readerFinding
 	tracked := map[string]bool{}
@@ -467,6 +470,16 @@ func valueFindings(function *ast.FuncDecl, bound map[string]bool, at position, c
 				record(n, "a tracked card was sent on a channel")
 			}
 		case *ast.CallExpr:
+			// The reference pass runs before the append test, because the
+			// builtin's argument list is one more place a reader value is
+			// handed on to and the taint-following below it is about cards
+			// rather than about references.
+			for _, argument := range n.Args {
+				if namesAReader(argument, bound) {
+					record(n, "a free reader was handed as a call argument")
+					break
+				}
+			}
 			if isAppend(n) {
 				return true
 			}
@@ -1484,6 +1497,17 @@ func read(b *w.Workbench, root, id, slug string) (string, bool) {
 `},
 			allowlist: oneProbeEntry(),
 			want:      []string{"a tracked card was sent on a channel"},
+			count:     1,
+		},
+		{
+			name: "a reader handed to a call as a value",
+			files: map[string]string{"internal/bench/check.go": `func (b *Workbench) stashedValue(root, id string) error {
+	stash(LoadCard)
+	return nil
+}
+`},
+			allowlist: oneProbeEntry(),
+			want:      []string{"a free reader was handed as a call argument"},
 			count:     1,
 		},
 		{
