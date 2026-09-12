@@ -226,6 +226,18 @@ func scanForFreeCardReaders(root, prefix string, allowed []readerExemption) ([]r
 				if !ok {
 					continue
 				}
+				// A function literal standing in a package-level var's
+				// initializer is a function the file stores rather than one
+				// it declares, so it is walked under rule 2c here instead of
+				// in the declaration loop below, with the same clauses any
+				// declared function gets, because a closure kept in package
+				// state answers cards from outside every declared function
+				// the walk reaches.
+				for _, initial := range value.Values {
+					if literal, isLiteral := initial.(*ast.FuncLit); isLiteral {
+						found = append(found, valueFindings(literal, literal.Type, bound, at, composed)...)
+					}
+				}
 				if value.Type != nil {
 					if typeMentionsACardPointer(value.Type) {
 						record(value, "2b", "a package-level var holding a *Card")
@@ -293,7 +305,7 @@ func scanForFreeCardReaders(root, prefix string, allowed []readerExemption) ([]r
 			if namesFunction(exemption, function) {
 				continue
 			}
-			found = append(found, valueFindings(function, bound, at, composed)...)
+			found = append(found, valueFindings(function, function.Type, bound, at, composed)...)
 		}
 		return nil
 	}
@@ -419,9 +431,14 @@ func isNewCard(call *ast.CallExpr) bool {
 	return mentionsTypeNamedCard(call.Args[0])
 }
 
-// valueFindings walks one function of an allowlisted file under rule 2c,
+// valueFindings walks one function, or one function literal standing in a
+// package-level var's initializer, of an allowlisted file under rule 2c,
 // tracking the identifiers a free reader's value is bound to and reporting
-// every shape in which that value leaves the function. The walk reads the
+// every shape in which that value leaves the declaration. A literal stored
+// in package state is a function the file keeps rather than one it declares,
+// and a closure that answers a card from package state is as much an escape
+// as a declared function answering one, so it is walked with the same clauses
+// a declared function gets. The walk reads the
 // function's own statements in source order, because a plain statement
 // standing above the binding that fills a name copies the empty value, so
 // reading it early hands nothing on. A function literal is the exception. The
@@ -460,20 +477,20 @@ func isNewCard(call *ast.CallExpr) bool {
 // handing a reader to outer state answers it as surely as a call argument
 // does. The key of an index store is read with them, because a container
 // holds a value stored in its key as surely as one stored in its element.
-func valueFindings(function *ast.FuncDecl, bound map[string]bool, at position, composed string) []readerFinding {
+func valueFindings(declaration ast.Node, functionType *ast.FuncType, bound map[string]bool, at position, composed string) []readerFinding {
 	var findings []readerFinding
 	tracked := map[string]bool{}
 	named := map[string]bool{}
 	aliases := map[string]bool{}
 	introduced := map[string]bool{}
-	collectNamed(named, function.Type)
-	collectIntroduced(introduced, function)
+	collectNamed(named, functionType)
+	collectIntroduced(introduced, declaration)
 	record := func(node ast.Node, clause string) {
 		line, text := at(node)
 		findings = append(findings, readerFinding{Path: composed, Line: line, Rule: "2c", Detail: clause, Text: text})
 	}
 	var literals []*ast.FuncLit
-	ast.Inspect(function, func(node ast.Node) bool {
+	ast.Inspect(declaration, func(node ast.Node) bool {
 		switch n := node.(type) {
 		case *ast.FuncLit:
 			collectNamed(named, n.Type)
@@ -719,22 +736,23 @@ func collectNamed(named map[string]bool, functionType *ast.FuncType) {
 	}
 }
 
-// collectIntroduced adds every name the function itself binds to the set: the
-// receiver, every parameter and named result of the function and of each
-// function literal inside it, every name a var declaration or a short
-// declaration binds, and every variable a range clause declares. The set is
-// what separates a name a function introduces from one it merely assigns, and
-// a package-level variable is the second kind, so storing a card on it is an
-// escape rather than a local binding.
-func collectIntroduced(introduced map[string]bool, function *ast.FuncDecl) {
-	if function.Recv != nil {
+// collectIntroduced adds every name the declaration itself binds to the set: a
+// function's receiver when the declaration has one, every parameter and named
+// result of the declaration and of each function literal inside it, every
+// name a var declaration or a short declaration binds, and every variable a
+// range clause declares. The set is what separates a name a declaration
+// introduces from one it merely assigns, and a package-level variable is the
+// second kind, so storing a card on it is an escape rather than a local
+// binding.
+func collectIntroduced(introduced map[string]bool, declaration ast.Node) {
+	if function, isFunction := declaration.(*ast.FuncDecl); isFunction && function.Recv != nil {
 		for _, field := range function.Recv.List {
 			for _, name := range field.Names {
 				introduced[name.Name] = true
 			}
 		}
 	}
-	ast.Inspect(function, func(node ast.Node) bool {
+	ast.Inspect(declaration, func(node ast.Node) bool {
 		switch n := node.(type) {
 		case *ast.FuncType:
 			collectFieldNames(introduced, n.Params)
@@ -2260,6 +2278,30 @@ var launderHeld = holder{read: any(LoadCard)}
 `},
 			allowlist: oneProbeEntry(),
 			want:      []string{"a package-level var holding a free reader through a call"},
+			count:     1,
+		},
+		{
+			name: "a function literal stored in a package var answering the card",
+			files: map[string]string{"internal/bench/check.go": `var leaky = func(collection, id string) any {
+	c, err := LoadCard(collection, id)
+	if err != nil {
+		return nil
+	}
+	return c
+}
+`},
+			allowlist: oneProbeEntry(),
+			want:      []string{"a tracked card was answered in a return"},
+			count:     1,
+		},
+		{
+			name: "a function literal stored in a package var answering the reader",
+			files: map[string]string{"internal/bench/check.go": `var handoff = func() any {
+	return LoadCard
+}
+`},
+			allowlist: oneProbeEntry(),
+			want:      []string{"a free reader was answered in a return"},
 			count:     1,
 		},
 	}
