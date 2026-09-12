@@ -1139,6 +1139,15 @@ func oneProbeEntry() []readerExemption {
 // was added, and a tracked card sent on a channel, which is the arm the
 // receive residual's defense rests on, planted so that arm cannot be
 // removed silently.
+//
+// Round 3's cases are the nine escapes the second review planted against
+// the widened guard, and the eighteen further shapes this round's own
+// sweep found beyond them: the reader handed around as a value through call
+// argument lists, returns, channel sends, stores through every target form,
+// composite literals and container keys, the call and the qualifier spelled
+// through parentheses and operators, and bindings read one element of a pair
+// or one level of a nesting. Every clause those cases pin is armed, because
+// removing it turns its plant red and restoring it turns the corpus green.
 func TestTheLoadCardGuardGoesRed(t *testing.T) {
 	cases := []plantedEscape{
 		{
