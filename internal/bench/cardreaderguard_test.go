@@ -50,6 +50,11 @@ type readerFinding struct {
 // that line.
 type position func(node ast.Node) (int, string)
 
+// recorder is the clause-writing closure valueFindings hands its helpers, so a
+// helper reads one node for the shapes it owns without carrying the finding
+// slice, the position function, and the composed path along with it.
+type recorder func(node ast.Node, clause string)
+
 // readerExemption is one file the guard admits, together with how many
 // references to a free reader it may carry, why it may carry them, and which
 // functions in it are permitted to answer a card at all. The reference budget
@@ -401,10 +406,18 @@ func isNewCard(call *ast.CallExpr) bool {
 
 // valueFindings walks one function of an allowlisted file under rule 2c,
 // tracking the identifiers a free reader's value is bound to and reporting
-// every shape in which that value leaves the function. The walk is one pass in
-// source order, so a binding is tracked before the statements below it read,
-// and it enters function literals, because a closure that answers a card is
-// as much an escape as a return is.
+// every shape in which that value leaves the function. The walk reads the
+// function's own statements in source order, because a plain statement
+// standing above the binding that fills a name copies the empty value, so
+// reading it early hands nothing on. A function literal is the exception. The
+// walk collects the bindings inside it where the literal stands, so the
+// function's own statements keep their order, but it reports the literal's
+// body only once the whole function has been walked, because a closure holds
+// its captures by reference and reads them when it runs, which is after the
+// enclosing function has made every binding it makes. A capture is therefore
+// judged against every binding in the function rather than only the ones
+// standing above its literal, and a closure that answers a card is as much
+// an escape as a return is.
 //
 // The walk reads an assignment, a var declaration, and a range clause, which
 // are every binding form Go has, because a type-switch guard and the receive
@@ -444,146 +457,237 @@ func valueFindings(function *ast.FuncDecl, bound map[string]bool, at position, c
 		line, text := at(node)
 		findings = append(findings, readerFinding{Path: composed, Line: line, Rule: "2c", Detail: clause, Text: text})
 	}
+	var literals []*ast.FuncLit
 	ast.Inspect(function, func(node ast.Node) bool {
 		switch n := node.(type) {
 		case *ast.FuncLit:
 			collectNamed(named, n.Type)
+			literals = append(literals, n)
+			collectLiteralBindings(n, tracked, aliases, named, bound, &literals)
+			// The literal's body is reported below, once every binding the
+			// function makes is in place, and not here in source order,
+			// because a closure reads its captures when it runs.
+			return false
 		case *ast.ValueSpec:
-			for i, name := range n.Names {
-				if i >= len(n.Values) {
-					break
-				}
-				if name.Name == "_" {
-					continue
-				}
-				if namesAReader(n.Values[i], aliases, bound) {
-					aliases[name.Name] = true
-				}
-				if carriesTheCard(n.Values[i], tracked, aliases, bound) {
-					tracked[name.Name] = true
-				}
-			}
+			bindValueSpec(n, tracked, aliases, bound)
 		case *ast.AssignStmt:
-			for i, target := range n.Lhs {
-				if i >= len(n.Rhs) {
-					break
-				}
-				switch target := target.(type) {
-				case *ast.SelectorExpr, *ast.IndexExpr, *ast.StarExpr:
-					if carriesTheCard(n.Rhs[i], tracked, aliases, bound) {
-						record(n, "a tracked card was stored through a field, an index, or a pointer")
-					}
-					if namesAReader(n.Rhs[i], aliases, bound) {
-						record(n, "a free reader was stored through a field, an index, or a pointer")
-					}
-					if index, isIndex := target.(*ast.IndexExpr); isIndex {
-						// The key of an index store holds its value as surely
-						// as the element does, so a card or a reader standing
-						// in it is stored rather than merely mentioned.
-						if carriesTheCard(index.Index, tracked, aliases, bound) {
-							record(n, "a tracked card was stored as a container key")
-						}
-						if namesAReader(index.Index, aliases, bound) {
-							record(n, "a free reader was stored as a container key")
-						}
-					}
-				case *ast.Ident:
-					if target.Name == "_" {
-						break
-					}
-					if named[target.Name] && carriesTheCard(n.Rhs[i], tracked, aliases, bound) {
-						record(n, "a tracked card was stored on a named result")
-					}
-					if !introduced[target.Name] && carriesTheCard(n.Rhs[i], tracked, aliases, bound) {
-						record(n, "a tracked card was stored on a name the function does not introduce")
-					}
-					if named[target.Name] && namesAReader(n.Rhs[i], aliases, bound) {
-						record(n, "a free reader was stored on a named result")
-					}
-					if !introduced[target.Name] && namesAReader(n.Rhs[i], aliases, bound) {
-						record(n, "a free reader was stored on a name the function does not introduce")
-					}
-				}
-			}
-			// Each target takes the value only from its own pair, so the
-			// error a free reader answers in its second result pairs with
-			// nothing and no error return in the file is tainted.
-			for i, target := range n.Lhs {
-				if i >= len(n.Rhs) {
-					break
-				}
-				ident, ok := target.(*ast.Ident)
-				if !ok || ident.Name == "_" {
-					continue
-				}
-				if namesAReader(n.Rhs[i], aliases, bound) {
-					aliases[ident.Name] = true
-				}
-				if carriesTheCard(n.Rhs[i], tracked, aliases, bound) {
-					tracked[ident.Name] = true
-				}
-			}
+			reportAssignmentStores(n, record, tracked, aliases, named, introduced, bound)
+			bindAssignment(n, tracked, aliases, bound)
 		case *ast.RangeStmt:
-			if carriesTheCard(n.X, tracked, aliases, bound) {
-				for _, target := range []ast.Expr{n.Key, n.Value} {
-					if ident, ok := target.(*ast.Ident); ok && ident.Name != "_" {
-						tracked[ident.Name] = true
-					}
-				}
-			}
-		case *ast.ReturnStmt:
-			if mentionsTrackedIdentifier(n, tracked) {
-				record(n, "a tracked card was answered in a return")
-			}
-			if callsAReaderInside(n, aliases, bound) {
-				record(n, "a free reader was called inside a return")
-			}
-			for _, result := range n.Results {
-				if namesAReader(result, aliases, bound) {
-					record(n, "a free reader was answered in a return")
-					break
-				}
-			}
-		case *ast.SendStmt:
-			if mentionsTrackedIdentifier(n.Value, tracked) {
-				record(n, "a tracked card was sent on a channel")
-			}
-			if namesAReader(n.Value, aliases, bound) {
-				record(n, "a free reader was sent on a channel as a value")
-			}
-			if callsAReaderInside(n.Value, aliases, bound) {
-				record(n, "a free reader was called inside a channel send")
-			}
-		case *ast.CallExpr:
-			// The reference pass runs before the append test, because the
-			// builtin's argument list is one more place a reader value is
-			// handed on to and the taint-following below it is about cards
-			// rather than about references.
-			for _, argument := range n.Args {
-				if namesAReader(argument, aliases, bound) {
-					record(n, "a free reader was handed as a call argument")
-					break
-				}
-			}
-			if isAppend(n) {
-				return true
-			}
-			for _, argument := range n.Args {
-				if mentionsTrackedIdentifier(argument, tracked) {
-					record(n, "a tracked card was passed as a call argument")
-					break
-				}
-			}
-			for _, argument := range n.Args {
-				if callsAReaderInside(argument, aliases, bound) {
-					record(n, "a free reader was called inside a call argument")
-					break
-				}
-			}
+			bindRange(n, tracked, aliases, bound)
+		case *ast.ReturnStmt, *ast.SendStmt, *ast.CallExpr:
+			reportEscapes(n, record, tracked, aliases, bound)
 		}
 		return true
 	})
+	for _, literal := range literals {
+		ast.Inspect(literal.Body, func(node ast.Node) bool {
+			switch n := node.(type) {
+			case *ast.FuncLit:
+				// A literal nested inside this one is in the collected
+				// list with its own entry, and it is skipped here so
+				// its statements are reported exactly once.
+				return false
+			case *ast.AssignStmt:
+				reportAssignmentStores(n, record, tracked, aliases, named, introduced, bound)
+			case *ast.ReturnStmt, *ast.SendStmt, *ast.CallExpr:
+				reportEscapes(n, record, tracked, aliases, bound)
+			}
+			return true
+		})
+	}
 	return findings
+}
+
+// bindValueSpec reads a var declaration for the names it binds, tracking a
+// name whose own value carries a card and marking one whose value names a
+// reader as an alias. Each name is paired with the value on its own side,
+// because a reader standing in the second element answers nothing for the
+// first.
+func bindValueSpec(n *ast.ValueSpec, tracked, aliases, bound map[string]bool) {
+	for i, name := range n.Names {
+		if i >= len(n.Values) {
+			break
+		}
+		if name.Name == "_" {
+			continue
+		}
+		if namesAReader(n.Values[i], aliases, bound) {
+			aliases[name.Name] = true
+		}
+		if carriesTheCard(n.Values[i], tracked, aliases, bound) {
+			tracked[name.Name] = true
+		}
+	}
+}
+
+// bindAssignment reads the binding half of an assignment, pairing each target
+// with the value on its own side.
+func bindAssignment(n *ast.AssignStmt, tracked, aliases, bound map[string]bool) {
+	// Each target takes the value only from its own pair, so the
+	// error a free reader answers in its second result pairs with
+	// nothing and no error return in the file is tainted.
+	for i, target := range n.Lhs {
+		if i >= len(n.Rhs) {
+			break
+		}
+		ident, ok := target.(*ast.Ident)
+		if !ok || ident.Name == "_" {
+			continue
+		}
+		if namesAReader(n.Rhs[i], aliases, bound) {
+			aliases[ident.Name] = true
+		}
+		if carriesTheCard(n.Rhs[i], tracked, aliases, bound) {
+			tracked[ident.Name] = true
+		}
+	}
+}
+
+// bindRange reads a range clause for the names it binds, and it binds both the
+// key and the element, because the walk reads syntax and cannot tell which of
+// the two holds the element.
+func bindRange(n *ast.RangeStmt, tracked, aliases, bound map[string]bool) {
+	if carriesTheCard(n.X, tracked, aliases, bound) {
+		for _, target := range []ast.Expr{n.Key, n.Value} {
+			if ident, ok := target.(*ast.Ident); ok && ident.Name != "_" {
+				tracked[ident.Name] = true
+			}
+		}
+	}
+}
+
+// collectLiteralBindings collects the bindings a function literal makes
+// without reporting anything, and it gathers the literals nested inside that
+// literal, so that by the time any literal's body is reported every binding
+// the function makes is in place. Bindings inside a literal are collected
+// where the literal stands, which keeps the source order the function's own
+// statements are read in.
+func collectLiteralBindings(literal *ast.FuncLit, tracked, aliases, named, bound map[string]bool, literals *[]*ast.FuncLit) {
+	ast.Inspect(literal.Body, func(node ast.Node) bool {
+		switch n := node.(type) {
+		case *ast.FuncLit:
+			collectNamed(named, n.Type)
+			*literals = append(*literals, n)
+		case *ast.ValueSpec:
+			bindValueSpec(n, tracked, aliases, bound)
+		case *ast.AssignStmt:
+			bindAssignment(n, tracked, aliases, bound)
+		case *ast.RangeStmt:
+			bindRange(n, tracked, aliases, bound)
+		}
+		return true
+	})
+}
+
+// reportAssignmentStores reads the store half of an assignment, which is the
+// reporting the walk does wherever it reads an assignment: through a field,
+// an index, or a pointer, on a named result, and on a name the function does
+// not introduce, each for a tracked card and for a free reader. The key of an
+// index store is read with them, because a container holds a value stored in
+// its key as surely as one stored in its element.
+func reportAssignmentStores(n *ast.AssignStmt, record recorder, tracked, aliases, named, introduced, bound map[string]bool) {
+	for i, target := range n.Lhs {
+		if i >= len(n.Rhs) {
+			break
+		}
+		switch target := target.(type) {
+		case *ast.SelectorExpr, *ast.IndexExpr, *ast.StarExpr:
+			if carriesTheCard(n.Rhs[i], tracked, aliases, bound) {
+				record(n, "a tracked card was stored through a field, an index, or a pointer")
+			}
+			if namesAReader(n.Rhs[i], aliases, bound) {
+				record(n, "a free reader was stored through a field, an index, or a pointer")
+			}
+			if index, isIndex := target.(*ast.IndexExpr); isIndex {
+				// The key of an index store holds its value as surely
+				// as the element does, so a card or a reader standing
+				// in it is stored rather than merely mentioned.
+				if carriesTheCard(index.Index, tracked, aliases, bound) {
+					record(n, "a tracked card was stored as a container key")
+				}
+				if namesAReader(index.Index, aliases, bound) {
+					record(n, "a free reader was stored as a container key")
+				}
+			}
+		case *ast.Ident:
+			if target.Name == "_" {
+				break
+			}
+			if named[target.Name] && carriesTheCard(n.Rhs[i], tracked, aliases, bound) {
+				record(n, "a tracked card was stored on a named result")
+			}
+			if !introduced[target.Name] && carriesTheCard(n.Rhs[i], tracked, aliases, bound) {
+				record(n, "a tracked card was stored on a name the function does not introduce")
+			}
+			if named[target.Name] && namesAReader(n.Rhs[i], aliases, bound) {
+				record(n, "a free reader was stored on a named result")
+			}
+			if !introduced[target.Name] && namesAReader(n.Rhs[i], aliases, bound) {
+				record(n, "a free reader was stored on a name the function does not introduce")
+			}
+		}
+	}
+}
+
+// reportEscapes reads the hand-on shapes the walk reports wherever it meets
+// them: a return, a channel send, and a call, each read for a tracked card
+// it answers, sends, or passes, for a free reader answered, sent, or handed
+// as an argument, and for a reader called inside. append's argument list is
+// read for the reference but not for the taint, because a call that stores
+// its argument back is not a hand-on.
+func reportEscapes(node ast.Node, record recorder, tracked, aliases, bound map[string]bool) {
+	switch n := node.(type) {
+	case *ast.ReturnStmt:
+		if mentionsTrackedIdentifier(n, tracked) {
+			record(n, "a tracked card was answered in a return")
+		}
+		if callsAReaderInside(n, aliases, bound) {
+			record(n, "a free reader was called inside a return")
+		}
+		for _, result := range n.Results {
+			if namesAReader(result, aliases, bound) {
+				record(n, "a free reader was answered in a return")
+				break
+			}
+		}
+	case *ast.SendStmt:
+		if mentionsTrackedIdentifier(n.Value, tracked) {
+			record(n, "a tracked card was sent on a channel")
+		}
+		if namesAReader(n.Value, aliases, bound) {
+			record(n, "a free reader was sent on a channel as a value")
+		}
+		if callsAReaderInside(n.Value, aliases, bound) {
+			record(n, "a free reader was called inside a channel send")
+		}
+	case *ast.CallExpr:
+		// The reference pass runs before the append test, because the
+		// builtin's argument list is one more place a reader value is
+		// handed on to and the taint-following below it is about cards
+		// rather than about references.
+		for _, argument := range n.Args {
+			if namesAReader(argument, aliases, bound) {
+				record(n, "a free reader was handed as a call argument")
+				break
+			}
+		}
+		if isAppend(n) {
+			return
+		}
+		for _, argument := range n.Args {
+			if mentionsTrackedIdentifier(argument, tracked) {
+				record(n, "a tracked card was passed as a call argument")
+				break
+			}
+		}
+		for _, argument := range n.Args {
+			if callsAReaderInside(argument, aliases, bound) {
+				record(n, "a free reader was called inside a call argument")
+				break
+			}
+		}
+	}
 }
 
 // collectNamed adds a function type's own named results to the set, because a
@@ -2063,6 +2167,33 @@ var held = []*Card{}
 			allowlist: oneProbeEntry(),
 			want:      []string{"a package-level var holding a *Card"},
 			count:     4,
+		},
+		{
+			name: "a closure defined above the binding that fills its capture",
+			files: map[string]string{"internal/bench/check.go": `func leaky(root, id string) (func() any, error) {
+	var d any
+	var err error
+	f := func() any { return d }
+	d, err = LoadCard(root, id)
+	return f, err
+}
+`},
+			allowlist: oneProbeEntry(),
+			want:      []string{"a tracked card was answered in a return"},
+			count:     1,
+		},
+		{
+			name: "a closure defined above the binding that names the reader",
+			files: map[string]string{"internal/bench/check.go": `func aliasedReader(root, id string) any {
+	var read func(string, string) (*Card, error)
+	f := func() any { return read }
+	read = LoadCard
+	return f
+}
+`},
+			allowlist: oneProbeEntry(),
+			want:      []string{"a free reader was answered in a return"},
+			count:     1,
 		},
 	}
 	for _, c := range cases {
