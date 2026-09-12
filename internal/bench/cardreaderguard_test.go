@@ -713,19 +713,35 @@ func callsAReaderInside(node ast.Node, aliases map[string]bool, bound map[string
 // isReaderCall reports whether a call names one of the free readers, either
 // bare in a file of this package, through a qualifier that file's imports
 // bind to it, or through a name the walk itself bound from a bare reference
-// to a reader.
+// to a reader. The function expression is unwrapped through parentheses and
+// the address-of and dereference operators first, on the model the alias
+// walk uses, so a call spelled through those operators is a call of the
+// reader.
 func isReaderCall(call *ast.CallExpr, aliases map[string]bool, bound map[string]bool) bool {
-	switch fun := call.Fun.(type) {
-	case *ast.Ident:
-		return theFreeReaders[fun.Name] || aliases[fun.Name]
-	case *ast.SelectorExpr:
-		if !theFreeReaders[fun.Sel.Name] {
+	fun := call.Fun
+	for {
+		switch read := fun.(type) {
+		case *ast.ParenExpr:
+			fun = read.X
+		case *ast.StarExpr:
+			fun = read.X
+		case *ast.UnaryExpr:
+			if read.Op != token.AND {
+				return false
+			}
+			fun = read.X
+		case *ast.Ident:
+			return theFreeReaders[read.Name] || aliases[read.Name]
+		case *ast.SelectorExpr:
+			if !theFreeReaders[read.Sel.Name] {
+				return false
+			}
+			qualifier, ok := read.X.(*ast.Ident)
+			return ok && bound[qualifier.Name]
+		default:
 			return false
 		}
-		qualifier, ok := fun.X.(*ast.Ident)
-		return ok && bound[qualifier.Name]
 	}
-	return false
 }
 
 // namesAReader reports whether an expression is a bare reference to one of the
@@ -1575,6 +1591,34 @@ func read(b *w.Workbench, root, id, slug string) (string, bool) {
 `},
 			allowlist: oneProbeEntry(),
 			want:      []string{"a free reader was called inside a channel send"},
+			count:     1,
+		},
+		{
+			name: "a parenthesized reader call",
+			files: map[string]string{"internal/bench/check.go": `func (b *Workbench) wrappedCall(root, id string) (any, error) {
+	c, err := (LoadCard)(root, id)
+	if err != nil {
+		return nil, err
+	}
+	return c, nil
+}
+`},
+			allowlist: oneProbeEntry(),
+			want:      []string{"a tracked card was answered in a return"},
+			count:     1,
+		},
+		{
+			name: "an operator-laundered reader call",
+			files: map[string]string{"internal/bench/check.go": `func (b *Workbench) relaundered(root, id string) (any, error) {
+	c, err := (*&LoadCard)(root, id)
+	if err != nil {
+		return nil, err
+	}
+	return c, nil
+}
+`},
+			allowlist: oneProbeEntry(),
+			want:      []string{"a tracked card was answered in a return"},
 			count:     1,
 		},
 		{
