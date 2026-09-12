@@ -1739,6 +1739,18 @@ func (b *Workbench) storedOuter(root, id string) error {
 			count:     1,
 		},
 		{
+			name: "a reader value handed to append as an argument",
+			files: map[string]string{"internal/bench/check.go": `func (b *Workbench) appended(root, id string) error {
+	var cards []any
+	cards = append(cards, LoadCard)
+	return nil
+}
+`},
+			allowlist: oneProbeEntry(),
+			want:      []string{"a free reader was handed as a call argument"},
+			count:     1,
+		},
+		{
 			name: "a reader value sent on a channel",
 			files: map[string]string{"internal/bench/check.go": `func (b *Workbench) shipped(root, id string, ch chan func(string, string) (*Card, error)) error {
 	ch <- LoadCard
