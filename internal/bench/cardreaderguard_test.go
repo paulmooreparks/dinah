@@ -1008,9 +1008,15 @@ func namesAReader(expr ast.Expr, aliases map[string]bool, bound map[string]bool)
 					// struct literal's key is a field name, which a struct
 					// elsewhere in the tree may spell as a reader's own
 					// name, so the key is read only where the literal's
-					// type says map. An elided type carries no such word,
-					// which is the syntax-not-types limit the walk already
-					// documents.
+					// type says map. An elided type is not read, and the
+					// ground for that holds where the elided literal stands
+					// under a named element type, because the name's kind
+					// is outside the syntax. Where an enclosing literal
+					// spells the element kind the map-ness is in the
+					// syntax, and a reader held in that inner literal's
+					// key escapes this read. That is the half the limit
+					// rests on, so a future narrowing should say which
+					// half it closes.
 					if _, isMap := read.Type.(*ast.MapType); isMap && namesAReader(pair.Key, aliases, bound) {
 						return true
 					}
@@ -1324,6 +1330,23 @@ func oneProbeEntry() []readerExemption {
 // through parentheses and operators, and bindings read one element of a pair
 // or one level of a nesting. Every clause those cases pin is armed, because
 // removing it turns its plant red and restoring it turns the corpus green.
+//
+// Round 4's cases plant each of the fourth review's four blockers twice and
+// its minor once. A closure defined above the binding that fills its capture
+// and one defined above the binding that names the reader are the
+// use-before-bind pair, and the walk that read a literal's body in source
+// order answered neither. A package-level conversion holding the reader, the
+// same conversion inside a composite literal, a function literal stored in a
+// package var answering the card, and the same literal answering the reader
+// are the storage shapes the package arm never walked, and a second package
+// var name laundering a free reader and a second name laundering a card
+// pointer are the ones it read only in its first element. A star target
+// receiving a free reader is the pin the round-3 handoff claimed and never
+// planted. Round 3's record carries one correction of its own: a reader call
+// standing in a channel send was itself a plant over clauses already shipped,
+// so round 3 planted three of those rather than the two its handoff counted.
+// Every clause round 4 pins is armed the same way, by removing the clause and
+// watching its plant answer zero violations where the shape owes one.
 func TestTheLoadCardGuardGoesRed(t *testing.T) {
 	cases := []plantedEscape{
 		{
@@ -1735,6 +1758,18 @@ func read(b *w.Workbench, root, id, slug string) (string, bool) {
 `},
 			allowlist: oneProbeEntry(),
 			want:      []string{"a tracked card was stored through a field, an index, or a pointer"},
+			count:     1,
+		},
+		{
+			name: "a star target receiving a free reader",
+			files: map[string]string{"internal/bench/check.go": `func (b *Workbench) handed(root, id string) error {
+	var slot *func(string, string) (*Card, error)
+	*slot = LoadCard
+	return nil
+}
+`},
+			allowlist: oneProbeEntry(),
+			want:      []string{"a free reader was stored through a field, an index, or a pointer"},
 			count:     1,
 		},
 		{
