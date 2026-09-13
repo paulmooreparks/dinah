@@ -55,11 +55,11 @@ jobs:
       targets: ${{ steps.targets.outputs.targets }}
     steps:
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version-file: go.mod
 
@@ -167,10 +167,10 @@ jobs:
 
     steps:
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version-file: go.mod
 
@@ -186,7 +186,7 @@ jobs:
             ./cmd/dinah
 
       - name: Upload the binary
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: binaries-${{ matrix.goos }}-${{ matrix.goarch }}
           path: dist/
@@ -200,16 +200,18 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write # creates the release and uploads its assets
+      id-token: write # mints the token the provenance attestation is signed with
+      attestations: write # records that attestation against the repository
     steps:
       # The checkout comes before the download because actions/checkout cleans
       # the workspace it lands in, and the binaries would go with it.
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       # The asset check below runs the same declaration the build matrix read,
       # so this job needs a toolchain even though it compiles nothing itself.
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version-file: go.mod
 
@@ -227,7 +229,7 @@ jobs:
       # is asked for and can say nothing about what an artifact carries inside
       # it, so the two are not alternatives.
       - name: Download every binary
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           pattern: binaries-*
           path: dist/
@@ -287,8 +289,29 @@ jobs:
           tag: ${{ needs.compute-version.outputs.tag }}
           repository: ${{ github.repository }}
 
+      # A release names a URL, and a URL says nothing about where the bytes
+      # behind it were built. This records a signed statement, against this
+      # repository, that these exact binaries came out of this workflow at this
+      # commit, so somebody who distrusts the download can check it rather than
+      # take it on faith:
+      #
+      #     gh attestation verify dinah-windows-amd64.exe --repo paulmooreparks/dinah
+      #
+      # It attests the binaries and not SHA256SUMS.txt, because that file is
+      # derived from them and an attestation over a list of hashes proves only
+      # that the list was built here.
+      #
+      # The two extra permissions are what signing costs. id-token mints the
+      # short-lived token the signature is made with, and attestations records
+      # the result against the repository. Neither grants any further reach
+      # over the repository's contents.
+      - name: Attest that these binaries were built here
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: dist/dinah-*
+
       - name: Create the GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:
           tag_name: ${{ needs.compute-version.outputs.tag }}
           prerelease: true

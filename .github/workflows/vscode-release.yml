@@ -66,8 +66,8 @@ jobs:
       tag: ${{ steps.version.outputs.tag }}
       version: ${{ steps.version.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: "20"
 
@@ -132,14 +132,16 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write # creates the release and uploads its asset
+      id-token: write # mints the token the provenance attestation is signed with
+      attestations: write # records that attestation against the repository
     env:
       VSCE_PAT: ${{ secrets.VSCE_PAT }}
     defaults:
       run:
         working-directory: editors/vscode
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: "20"
           cache: npm
@@ -236,8 +238,21 @@ jobs:
       # The paths here are repository-relative rather than relative to the
       # job's working directory, because this step is an action rather than a
       # run step and the defaults.run setting above does not reach it.
+      # The extension gets the same signed provenance the CLI binaries get, so
+      # a person who downloads the .vsix from a release page can confirm it was
+      # packaged by this workflow rather than uploaded by somebody:
+      #
+      #     gh attestation verify dinah-universal.vsix --repo paulmooreparks/dinah
+      #
+      # subject-path is repository-relative for the reason the release step
+      # below spells out: an action does not inherit defaults.run.
+      - name: Attest that this extension was built here
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: editors/vscode/vsix/dinah-universal.vsix
+
       - name: Create the GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:
           tag_name: ${{ needs.compute-version.outputs.tag }}
           name: "Dinah for VS Code ${{ needs.compute-version.outputs.version }}"
