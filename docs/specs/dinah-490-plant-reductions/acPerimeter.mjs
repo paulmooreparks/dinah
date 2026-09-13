@@ -122,13 +122,19 @@ await check("two cards sharing no destination: the reader is told once", async (
 });
 
 console.log("AC-32 clause 2: collectingHost over each of the three host shapes");
-for (const [shape, members] of [
-  ["CommandHost", ["showError", "showInfo", "showWarning"]],
-  ["WorkbenchCommandHost", ["showError", "showInfo", "showWarning"]],
-  ["ColumnCommandHost", ["showError", "showInfo", "showWarning"]],
+for (const [shape, prompts] of [
+  // The three shapes differ in the prompt members they declare, because they differ
+  // in the source: only CommandHost carries pick, input and confirmDestructive.
+  ["CommandHost", ["pick", "input", "confirmDestructive"]],
+  ["WorkbenchCommandHost", []],
+  ["ColumnCommandHost", []],
 ]) {
   await check(`${shape}: every report channel is captured and nothing is shown`, async () => {
-    const host = realHost({ pick: async () => "picked", input: async () => "typed", confirmDestructive: async () => true });
+    const extras = {};
+    if (prompts.includes("pick")) extras.pick = async () => "picked";
+    if (prompts.includes("input")) extras.input = async () => "typed";
+    if (prompts.includes("confirmDestructive")) extras.confirmDestructive = async () => true;
+    const host = realHost(extras);
     const { host: wrapped, drain } = collectingHost(host);
     wrapped.showError("e");
     wrapped.showInfo("i");
@@ -138,8 +144,17 @@ for (const [shape, members] of [
     const drained = drain();
     assert.deepEqual(drained.errors, ["e"]);
     assert.deepEqual(drained.notes.map((n) => n.level), ["info", "warning"]);
-    assert.deepEqual(members, REPORT_CHANNELS);
-    for (const prompt of PROMPT_CHANNELS) assert.equal(wrapped[prompt], host[prompt]);
+    assert.deepEqual(
+      Object.keys(host).filter((k) => REPORT_CHANNELS.includes(k)).sort(),
+      [...REPORT_CHANNELS].sort(),
+    );
+    // The prompt-identity clause is asserted over the prompt members this shape
+    // actually declares, and the number compared is asserted per shape, so a shape
+    // declaring none reports zero rather than reading as a pass on undefined.
+    const compared = PROMPT_CHANNELS.filter((k) => Object.prototype.hasOwnProperty.call(host, k));
+    assert.deepEqual(compared, prompts);
+    assert.equal(compared.length, prompts.length, `${shape} compared ${compared.length} prompt members`);
+    for (const prompt of compared) assert.equal(wrapped[prompt], host[prompt]);
   });
 }
 
