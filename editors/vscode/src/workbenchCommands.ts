@@ -10,28 +10,30 @@
 // board moved, and neither of these moves it: check passes no migration flag,
 // and copying a path makes no invocation at all (dinah-330 D-8).
 
+import type { BulkReport, RowOutcome } from "./bulk";
+import { runBulk } from "./bulk";
 import type { CliOutcome, Spawner } from "./cli";
 import { runCheck, runDinah } from "./cli";
-import { refusalMessage, isRow } from "./cardCommands";
+import { refusalMessage, isRow, rowOutcomeFor, rowRef } from "./cardCommands";
+import type { Wiring } from "./commandTable";
 import { COMMAND_EDIT_WORKBENCH_DEFINITION } from "./identity";
 import { ENGLISH } from "./l10n";
 import type { Localizer } from "./l10n";
+import type { ReporterHost } from "./reporter";
 import type { TreeElement } from "./tree";
 import { treeItemFor } from "./tree";
 import type { CheckAnswer, CheckFinding, PathAnswer } from "./wire";
 import { READ_FINDINGS } from "./wire";
 
-/** The window calls a workbench-row command makes, injected so tests watch them. */
-export interface WorkbenchCommandHost {
-	/** Renders one message in the language the editor is displaying. */
-	readonly t: Localizer;
-	readonly showInfo: (message: string) => void;
-	readonly showWarning: (
-		message: string,
-		actions: readonly string[],
-	) => Promise<string | undefined>;
-	readonly appendLines: (lines: readonly string[]) => void;
-	readonly revealOutput: () => void;
+/**
+ * The window calls a workbench-row command makes, injected so tests watch them.
+ *
+ * It extends ReporterHost rather than declaring its own reporting members, so
+ * that a run over several workbench rows can collect what each row would have
+ * shown (dinah-490 D-25). showError arrives with that, and it is one of the
+ * four message bindings this card adds in extension.ts.
+ */
+export interface WorkbenchCommandHost extends ReporterHost {
 	readonly copyToClipboard: (text: string) => Promise<void>;
 	/** Opens a file as an ordinary, writable text document. */
 	readonly openDocument: (path: string) => Promise<void>;
@@ -252,13 +254,27 @@ export async function checkWorkbench(
  * (dinah-330 D-3). The path is always present and is the value `--workbench`
  * takes from any working directory, which is what a reader is copying it for.
  */
-export async function copyWorkbenchPath(
-	context: WorkbenchCommandContext,
+export async function copyWorkbenchPaths(
+	finished: readonly WorkbenchCommandContext[],
+	host: WorkbenchCommandHost,
 ): Promise<void> {
-	await context.host.copyToClipboard(context.path);
-	context.host.showInfo(
-		context.host.t("dialog.workbench.copiedPath", { path: context.path }),
-	);
+	await host.copyToClipboard(finished.map((context) => context.path).join("\n"));
+}
+
+/**
+ * The sentence a successful Copy Path shows, whatever the row count.
+ *
+ * The singular key when exactly one row finished, which is the sentence that
+ * ships today, and the plural when more did. Filling the singular key's
+ * {path} with a newline-joined list is the defect this pair replaces.
+ */
+export function copiedPathMessage(
+	finished: readonly WorkbenchCommandContext[],
+	t: Localizer,
+): string {
+	return finished.length === 1
+		? t("dialog.workbench.copiedPath", { path: finished[0].path })
+		: t("dialog.workbench.copiedPath.many", { count: String(finished.length) });
 }
 
 /**
@@ -286,7 +302,7 @@ export async function copyWorkbenchPath(
  */
 export async function editWorkbenchDefinition(
 	context: WorkbenchCommandContext,
-): Promise<void> {
+): Promise<RowOutcome> {
 	const outcome = await runDinah(
 		context.spawner,
 		context.exe,
@@ -306,14 +322,124 @@ export async function editWorkbenchDefinition(
 				workbench: context.label,
 			}),
 		);
-		return;
+		return { kind: "failed", failure: refusalMessage(outcome) };
 	}
 	const path = (outcome.json as PathAnswer).path;
 	if (path === undefined || path === "") {
 		context.host.log(
 			`${COMMAND_EDIT_WORKBENCH_DEFINITION} answered with no path`,
 		);
-		return;
+		return { kind: "failed", failure: "path answered with no path" };
 	}
 	await context.host.openDocument(path);
+	return { kind: "done" };
+}
+
+// ---------------------------------------------------------------------------
+// What the registration loop calls: one invoke per workbench-row command
+// ---------------------------------------------------------------------------
+
+/** The channel line a row that names no workbench gets. */
+const NO_WORKBENCH = "names no workbench";
+
+/** One run of a workbench-row command over the rows it was aimed at. */
+async function workbenchRun<A>(
+	elements: readonly TreeElement[],
+	wiring: Wiring,
+	ask: (
+		resolved: readonly WorkbenchCommandContext[],
+		host: WorkbenchCommandHost,
+	) => Promise<A | undefined>,
+	act: (
+		context: WorkbenchCommandContext,
+		answer: A,
+		host: WorkbenchCommandHost,
+	) => Promise<RowOutcome>,
+	extra: {
+		readonly finish?: (
+			finished: readonly WorkbenchCommandContext[],
+			host: WorkbenchCommandHost,
+		) => Promise<void>;
+		readonly successMessage?: (
+			finished: readonly WorkbenchCommandContext[],
+			t: Localizer,
+		) => string;
+	} = {},
+): Promise<BulkReport> {
+	return runBulk(
+		elements,
+		(element) => rowRef(element, wiring.t),
+		(element) =>
+			contextForWorkbench(
+				element,
+				wiring.exe,
+				wiring.binaryLabel,
+				wiring.workbenchHost,
+				wiring.spawner,
+			),
+		{
+			host: wiring.workbenchHost,
+			t: wiring.t,
+			skipReason: NO_WORKBENCH,
+			...extra,
+		},
+		ask,
+		act,
+	);
+}
+
+/** A fanOut workbench command asks nothing, so its ask answers a unit value. */
+async function noQuestion(): Promise<true> {
+	return true;
+}
+
+/**
+ * Checks each selected workbench, and updates the Problems panel from the
+ * answer each check already fetched.
+ *
+ * The manual check pays for one invocation and both surfaces read it, which is
+ * the arrangement that shipped before multi-select and is unchanged here.
+ */
+export async function invokeCheckWorkbench(
+	elements: readonly TreeElement[],
+	wiring: Wiring,
+): Promise<BulkReport> {
+	return workbenchRun(
+		elements,
+		wiring,
+		noQuestion,
+		async (context, _answer, host) => {
+			const outcome = await checkWorkbench({ ...context, host });
+			await wiring.applyCheckResult(context.path, context.label, outcome);
+			return rowOutcomeFor(outcome);
+		},
+	);
+}
+
+/** Puts every selected workbench's path on the clipboard, in one write. */
+export async function invokeCopyWorkbenchPath(
+	elements: readonly TreeElement[],
+	wiring: Wiring,
+): Promise<BulkReport> {
+	return workbenchRun(
+		elements,
+		wiring,
+		noQuestion,
+		async () => ({ kind: "done" }),
+		{ finish: copyWorkbenchPaths, successMessage: copiedPathMessage },
+	);
+}
+
+/** Opens each selected workbench's own definition file. */
+export async function invokeEditWorkbenchDefinition(
+	elements: readonly TreeElement[],
+	wiring: Wiring,
+): Promise<BulkReport> {
+	return workbenchRun(
+		elements,
+		wiring,
+		noQuestion,
+		async (context, _answer, host) =>
+			editWorkbenchDefinition({ ...context, host }),
+	);
 }

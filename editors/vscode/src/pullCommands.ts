@@ -12,10 +12,13 @@
 // would promise a targeting the verb cannot honour and would move a different
 // card than the one the reader clicked.
 
+import type { BulkReport } from "./bulk";
+import { runBulk } from "./bulk";
 import type { CommandHost } from "./cardCommands";
-import { isRow, pinnedArgv, refusalMessage } from "./cardCommands";
+import { isRow, pinnedArgv, refusalMessage, rowOutcomeFor, rowRef } from "./cardCommands";
 import type { CliOutcome, Spawner } from "./cli";
 import { runDinah } from "./cli";
+import type { Wiring } from "./commandTable";
 import type { TreeElement } from "./tree";
 import { ENGLISH } from "./l10n";
 import type { Localizer } from "./l10n";
@@ -160,4 +163,34 @@ export function emptyPullMessage(
 	const from = answer.message_values?.upstream ?? label;
 	const into = answer.message_values?.destination ?? destination;
 	return t("dialog.pull.empty", { from, into });
+}
+
+// ---------------------------------------------------------------------------
+// What the registration loop calls
+// ---------------------------------------------------------------------------
+
+/** The channel line a row that cannot be pulled from gets. */
+const NOT_PULLABLE = "cannot be pulled from";
+
+/**
+ * Pulls once from each selected queue column.
+ *
+ * An empty column's toast is collected into a channel note rather than shown,
+ * so five selected queues of which four are empty produce four channel lines
+ * and one message rather than five toasts.
+ */
+export async function invokePull(
+	elements: readonly TreeElement[],
+	wiring: Wiring,
+): Promise<BulkReport> {
+	return runBulk(
+		elements,
+		(element) => rowRef(element, wiring.t),
+		(element) =>
+			contextForPull(element, wiring.exe, wiring.cardHost, wiring.spawner),
+		{ host: wiring.cardHost, t: wiring.t, skipReason: NOT_PULLABLE },
+		async () => true,
+		async (context, _answer, host) =>
+			rowOutcomeFor(await pullFromColumn({ ...context, host })),
+	);
 }

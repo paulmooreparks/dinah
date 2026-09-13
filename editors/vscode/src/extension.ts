@@ -11,31 +11,10 @@ import * as vscode from "vscode";
 
 import type { DinahApi, WorkbenchResolution } from "./api";
 import { resolveBinary } from "./binary";
-import type { CommandContext, CommandHost, PickItem } from "./cardCommands";
-import {
-	blockCard,
-	claimCard,
-	contextFor,
-	copyCardRef,
-	deleteAttachment,
-	moveCard,
-	openAttachment,
-	openCard,
-	openHistory,
-	openInstructions,
-	pinnedArgv,
-	refusalMessage,
-	releaseCard,
-	unblockCard,
-} from "./cardCommands";
+import type { CommandHost, PickItem } from "./cardCommands";
+import { pinnedArgv, refusalMessage } from "./cardCommands";
 import type { CheckpointEntry, Watcher } from "./changes";
-import type { DragPayload } from "./dragAndDrop";
-import {
-	applyDropVerdict,
-	classifyDrop,
-	dropColumnFor,
-	offerDrag,
-} from "./dragAndDrop";
+import { applyDropVerdicts, dragRowsFrom, dropColumnFor, offerDrag } from "./dragAndDrop";
 import { CheckpointLoop, systemClock } from "./changes";
 import { runDinah, runDinahText } from "./cli";
 import { CountdownTicker, redrawAfterRefresh } from "./countdown";
@@ -50,45 +29,13 @@ import { CheckDiagnostics } from "./diagnostics";
 // fourth command on the column row and needs no alias, because it declines
 // more rows than either of those two and so was given its own name at its own
 // module.
-import type {
-	ColumnCommandContext,
-	ColumnCommandHost,
-} from "./columnCommands";
-import {
-	contextForColumn as contextForInstructions,
-	editColumnInstructions,
-} from "./columnCommands";
-import {
-	ATTACH_DIALOG_OPTIONS,
-	attachFile,
-	contextForAttach,
-	contextForColumn as contextForNewCard,
-	newCard,
-	pickedFilePath,
-} from "./creationCommands";
+import type { ColumnCommandHost } from "./columnCommands";
+import { ATTACH_DIALOG_OPTIONS, pickedFilePath } from "./creationCommands";
 import { PAIRED_RELEASE } from "./generated/pairing";
 import {
-	COMMAND_ATTACH_FILE,
-	COMMAND_BLOCK,
-	COMMAND_CHECK_WORKBENCH,
-	COMMAND_CLAIM,
-	COMMAND_COPY_CARD_REF,
-	COMMAND_COPY_WORKBENCH_PATH,
-	COMMAND_DELETE_ATTACHMENT,
-	COMMAND_EDIT_COLUMN_INSTRUCTIONS,
-	COMMAND_EDIT_WORKBENCH_DEFINITION,
-	COMMAND_MOVE,
-	COMMAND_NEW_CARD,
-	COMMAND_OPEN_ATTACHMENT,
-	COMMAND_OPEN_CARD,
-	COMMAND_OPEN_HISTORY,
-	COMMAND_OPEN_INSTRUCTIONS,
-	COMMAND_PULL,
 	COMMAND_REFRESH,
 	COMMAND_REFRESH_VERB_CATALOG,
-	COMMAND_RELEASE,
 	COMMAND_RUN_VERB,
-	COMMAND_UNBLOCK,
 	DRAG_MIME_TYPE,
 	COMMAND_OPEN_FIRST_SESSION_GUIDE,
 	MCP_PROVIDER_ID,
@@ -103,7 +50,9 @@ import {
 } from "./identity";
 import type { McpServerPlan } from "./mcpServers";
 import { mcpPlansDiffer, publishedMcpServers } from "./mcpServers";
-import { contextForPull, pullFromColumn } from "./pullCommands";
+import type { Wiring } from "./commandTable";
+import { ROW_COMMAND_TABLE } from "./commandTable";
+import { targetsFor } from "./selection";
 import { assertCommandsFullyRegistered } from "./registrationGuard";
 import {
 	GUIDE_ROOT,
@@ -130,21 +79,12 @@ import {
 	summarizeHolding,
 } from "./status";
 import type { TreeElement, TreeItemSpec } from "./tree";
-import { DinahTreeProvider } from "./tree";
+import { DinahTreeProvider, elementKey } from "./tree";
 import { classifyVersion, describeVersion } from "./version";
 import type { JournalEvent, PathAnswer, ServedAnswer } from "./wire";
 import { VerbCatalog } from "./verbCatalog";
 import { NO_WORKBENCH_FOUND, resolveWorkbench } from "./workbench";
-import type {
-	WorkbenchCommandContext,
-	WorkbenchCommandHost,
-} from "./workbenchCommands";
-import {
-	checkWorkbench,
-	contextForWorkbench,
-	copyWorkbenchPath,
-	editWorkbenchDefinition,
-} from "./workbenchCommands";
+import type { WorkbenchCommandHost } from "./workbenchCommands";
 
 let statusItem: vscode.StatusBarItem | undefined;
 let output: vscode.OutputChannel | undefined;
@@ -225,6 +165,19 @@ function commandHost(
 		showInfo: (message) => {
 			void vscode.window.showInformationMessage(message);
 		},
+		// The three members CommandHost gained when every host came to extend
+		// ReporterHost (dinah-490 D-25). The warning is the documented
+		// three-argument overload the other two factories already write, and
+		// the channel pair binds to the output channel rather than to the
+		// window, which is why neither counts as a message call.
+		showWarning: async (message, actions) =>
+			vscode.window.showWarningMessage(message, ...actions),
+		appendLines: (lines) => {
+			for (const line of lines) {
+				channel.appendLine(line);
+			}
+		},
+		revealOutput: () => channel.show(),
 		copyToClipboard: async (text) => vscode.env.clipboard.writeText(text),
 		// A row marked as a separator becomes the editor's own label-only
 		// divider, which a reader cannot select and which showQuickPick
@@ -300,6 +253,11 @@ function workbenchCommandHost(
 ): WorkbenchCommandHost {
 	return {
 		t,
+		// showError arrives with ReporterHost (dinah-490 D-25), so a workbench
+		// command's refusals are collectable like every other host's.
+		showError: (message) => {
+			void vscode.window.showErrorMessage(message);
+		},
 		showInfo: (message) => {
 			void vscode.window.showInformationMessage(message);
 		},
@@ -329,6 +287,13 @@ function columnCommandHost(
 ): ColumnCommandHost {
 	return {
 		t,
+		// showError and showInfo arrive with ReporterHost (dinah-490 D-25).
+		showError: (message) => {
+			void vscode.window.showErrorMessage(message);
+		},
+		showInfo: (message) => {
+			void vscode.window.showInformationMessage(message);
+		},
 		showWarning: async (message, actions) =>
 			vscode.window.showWarningMessage(message, ...actions),
 		appendLines: (lines) => {
@@ -668,24 +633,24 @@ export async function activate(
 				source,
 				DRAG_MIME_TYPE,
 				dataTransfer,
-				(payload) => new vscode.DataTransferItem(payload),
+				(rows) => new vscode.DataTransferItem(rows),
+				t,
 			);
 		},
 		handleDrop: async (target, dataTransfer) => {
-			// An entry this controller did not put there, and a drag that
-			// started on a row carrying no card, both arrive as no entry at
-			// all, and neither is this controller's to act on.
-			const payload = dataTransfer.get(DRAG_MIME_TYPE)?.value as
-				| DragPayload
-				| undefined;
-			if (payload === undefined) {
+			// An entry this controller did not put there, a value of a shape
+			// it could not have set, and a drag that started on rows carrying
+			// no card at all, all arrive as undefined here, and none of them
+			// is this controller's to act on. The read is a function rather
+			// than a cast because the first thing the drop path does with the
+			// value is iterate it.
+			const rows = dragRowsFrom(dataTransfer.get(DRAG_MIME_TYPE)?.value);
+			if (rows === undefined) {
 				return;
 			}
-			const drop = dropColumnFor(target);
-			await applyDropVerdict(
-				classifyDrop(payload, drop),
-				payload,
-				drop,
+			await applyDropVerdicts(
+				rows,
+				dropColumnFor(target),
 				binary.state === "ok" ? binary.path : "",
 				host,
 				nodeSpawner,
@@ -699,6 +664,11 @@ export async function activate(
 			getChildren: (element) => provider.getChildren(element),
 		},
 		dragAndDropController,
+		// TreeViewOptions.canSelectMany documents that with it set "the first
+		// argument to the command is the tree item that the command was
+		// executed on and the second argument is an array containing all
+		// selected tree items". Every row command is registered to read both.
+		canSelectMany: true,
 	});
 	context.subscriptions.push(treeView);
 
@@ -854,7 +824,10 @@ export async function activate(
 	const registeredIds: string[] = [];
 	function register(
 		id: string,
-		handler: (element: TreeElement | undefined) => Promise<unknown>,
+		handler: (
+			element: TreeElement | undefined,
+			selection?: readonly TreeElement[],
+		) => Promise<unknown>,
 	): void {
 		registeredIds.push(id);
 		context.subscriptions.push(vscode.commands.registerCommand(id, handler));
@@ -1007,171 +980,41 @@ export async function activate(
 	);
 
 	const host = commandHost(channel, (folder) => checkpointing.checkNow(folder), t);
-	const flowCommands: [string, (c: CommandContext) => Promise<unknown>][] = [
-		[COMMAND_CLAIM, claimCard],
-		[COMMAND_MOVE, moveCard],
-		[COMMAND_RELEASE, releaseCard],
-		[COMMAND_BLOCK, blockCard],
-		[COMMAND_UNBLOCK, unblockCard],
-		[COMMAND_COPY_CARD_REF, copyCardRef],
-		[COMMAND_OPEN_CARD, openCard],
-		[COMMAND_OPEN_INSTRUCTIONS, openInstructions],
-		[COMMAND_OPEN_HISTORY, openHistory],
-	];
-	for (const [id, run] of flowCommands) {
-		register(id, async (element: TreeElement | undefined) => {
-			const target = contextFor(
-				element,
-				binary.state === "ok" ? binary.path : "",
-				host,
-			);
-			if (target === undefined) {
-				channel.appendLine(`${id} was invoked on a row that names no card`);
-				return;
-			}
-			await run(target);
-		});
-	}
-	// The workbench-row commands get a loop of their own rather than joining the
-	// one above. The two families take different contexts and different hosts,
-	// and a single loop over both would have to widen each of those to a union
-	// that neither handler can use without narrowing it again.
 	const workbenchHost = workbenchCommandHost(channel, t);
-	const workbenchCommands: [
-		string,
-		(c: WorkbenchCommandContext) => Promise<unknown>,
-	][] = [
-		// The manual check pays for one invocation and both surfaces read it.
-		// checkWorkbench already returns the outcome it fetched, so the panel
-		// is updated from that answer rather than from a second sweep, and
-		// nothing about the channel report or the toast changes.
-		[
-			COMMAND_CHECK_WORKBENCH,
-			async (c: WorkbenchCommandContext) => {
-				const outcome = await checkWorkbench(c);
-				await diagnostics.applyResult(c.path, c.label, outcome);
-				return outcome;
-			},
-		],
-		[COMMAND_COPY_WORKBENCH_PATH, copyWorkbenchPath],
-		[COMMAND_EDIT_WORKBENCH_DEFINITION, editWorkbenchDefinition],
-	];
-	for (const [id, run] of workbenchCommands) {
-		register(id, async (element: TreeElement | undefined) => {
-			const target = contextForWorkbench(
-				element,
-				binary.state === "ok" ? binary.path : "",
-				// describeVersion rather than a second spelling of the same
-				// line: the status tooltip and the demotion diagnostic already
-				// describe a binary this way, and this is display, the only
-				// thing version.ts's header allows the release tag inside it to
-				// be used for.
-				binary.state === "ok" ? describeVersion(binary.version) : "",
-				workbenchHost,
-				nodeSpawner,
-			);
-			if (target === undefined) {
-				channel.appendLine(`${id} was invoked on a row that names no workbench`);
-				return;
-			}
-			await run(target);
-		});
-	}
-	// Four commands stand on the column row, and each is registered on its own
-	// rather than gathered into a third loop: they agree on nothing a loop
-	// could hold, since Edit Instructions, Pull, New Card and Attach File each
-	// compose a different context and the first two do not even share a host.
-	// Edit Instructions is the one that takes the column host, which opens a
-	// file and carries no checkpoint.
 	const columnHost = columnCommandHost(channel, t);
-	register(
-		COMMAND_EDIT_COLUMN_INSTRUCTIONS,
-		async (element: TreeElement | undefined) => {
-			const target: ColumnCommandContext | undefined = contextForInstructions(
-				element,
-				binary.state === "ok" ? binary.path : "",
-				columnHost,
-				nodeSpawner,
-			);
-			if (target === undefined) {
-				channel.appendLine(
-					`${COMMAND_EDIT_COLUMN_INSTRUCTIONS} was invoked on a row that names no column`,
-				);
-				return;
-			}
-			await editColumnInstructions(target);
+	const wiring: Wiring = {
+		exe: binary.state === "ok" ? binary.path : "",
+		// describeVersion rather than a second spelling of the same line: the
+		// status tooltip and the demotion diagnostic already describe a binary
+		// this way, and this is display, the only thing version.ts's header
+		// allows the release tag inside it to be used for.
+		binaryLabel: binary.state === "ok" ? describeVersion(binary.version) : "",
+		spawner: nodeSpawner,
+		t,
+		cardHost: host,
+		workbenchHost,
+		columnHost,
+		// Check Workbench needed a closure over activate() before dinah-490,
+		// because the diagnostics object is not in any command's context. It
+		// travels as this one structural member instead, so commandTable.ts
+		// names no type from a module owning a DiagnosticCollection and every
+		// entry there can be a value rather than a closure.
+		applyCheckResult: async (path, label, outcome) => {
+			await diagnostics.applyResult(path, label, outcome);
 		},
-	);
-	// Pull takes the flow host rather than the column one, because a pull
-	// mutates the board and columnHost carries no checkpoint (dinah-375).
-	register(COMMAND_PULL, async (element: TreeElement | undefined) => {
-		const target = contextForPull(
-			element,
-			binary.state === "ok" ? binary.path : "",
-			host,
-			nodeSpawner,
+	};
+
+	// One loop registers every command that reads rows, and it is the only
+	// place a selection is resolved. targetsFor answers the rows the reader
+	// aimed at, the entry's invoke is handed that list whole, and nothing
+	// between here and runBulk filters it (dinah-490 D-16). The four commands
+	// that read no row keep their own registrations below.
+	for (const { id, invoke } of ROW_COMMAND_TABLE) {
+		register(id, async (element, selection) =>
+			invoke(targetsFor(element, selection, elementKey), wiring),
 		);
-		if (target === undefined) {
-			channel.appendLine(
-				`${COMMAND_PULL} was invoked on a row that cannot be pulled from`,
-			);
-			return;
-		}
-		await pullFromColumn(target);
-	});
-	// An attachment row is registered on its own rather than through the loop
-	// above, because it is not a card and carries no CommandContext: the path
-	// it was drawn from is the whole of what opening it needs.
-	register(COMMAND_OPEN_ATTACHMENT, async (element: TreeElement | undefined) => {
-		await openAttachment(element, host, (line) => channel.appendLine(line));
-	});
-	// Delete is registered beside it and for the same reason: it acts on an
-	// attachment row rather than on a card, so it composes its own context
-	// from the element instead of taking one from the loop above.
-	register(COMMAND_DELETE_ATTACHMENT, async (element: TreeElement | undefined) => {
-		await deleteAttachment(
-			element,
-			binary.state === "ok" ? binary.path : "",
-			host,
-			nodeSpawner,
-			(line) => channel.appendLine(line),
-		);
-	});
-	// The two creation commands are registered on their own for the reason the
-	// loops above are separate from each other: New Card takes a column context
-	// and Attach File takes an entity context, and neither fits CommandContext,
-	// which names a card. Both need the checkpoint the flow host carries, so
-	// both take that host rather than the workbench one.
-	register(COMMAND_NEW_CARD, async (element: TreeElement | undefined) => {
-		const target = contextForNewCard(
-			element,
-			binary.state === "ok" ? binary.path : "",
-			host,
-			nodeSpawner,
-		);
-		if (target === undefined) {
-			channel.appendLine(
-				`${COMMAND_NEW_CARD} was invoked on a row that names no column`,
-			);
-			return;
-		}
-		await newCard(target);
-	});
-	register(COMMAND_ATTACH_FILE, async (element: TreeElement | undefined) => {
-		const target = contextForAttach(
-			element,
-			binary.state === "ok" ? binary.path : "",
-			host,
-			nodeSpawner,
-		);
-		if (target === undefined) {
-			channel.appendLine(
-				`${COMMAND_ATTACH_FILE} was invoked on a row that names no attachable entity`,
-			);
-			return;
-		}
-		await attachFile(target, host.pickFile);
-	});
+	}
+
 	// The walkthrough's button, and a Command Palette entry beside it. The
 	// root passed here is a fixed word rather than a directory: a guide has no
 	// directory to be pinned to, the guide resolver never reads it, and

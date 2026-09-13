@@ -199,6 +199,11 @@ function driver(
 		t: ENGLISH,
 		showError: (message) => errors.push(message),
 		showInfo: () => undefined,
+		// The three CommandHost gained with ReporterHost (dinah-490 D-25).
+		// The command palette reaches none of them.
+		showWarning: async () => undefined,
+		appendLines: () => undefined,
+		revealOutput: () => undefined,
 		copyToClipboard: async () => undefined,
 		pick: async (items) => {
 			offered.push([...items]);

@@ -590,6 +590,71 @@
 			"text": "Command palette: could not resolve {argument} for {verb}. {detail}",
 			"context": "Output channel line beside the toast above, carrying the full failure. {argument} and {verb} are their own untranslated names, {detail} the refusal.",
 			"skeleton": true
+		},
+		"dialog.archive.confirm.one": {
+			"text": "Archive {ref}? The card leaves the board. This extension cannot show you the archive or put the card back. To put it back, run dinah restore {ref} in a terminal.",
+			"context": "The modal shown before one card is archived from the sidebar. {ref} is the card's own reference and appears twice, once in the question and once in the command that reverses it. The sentence says outright that the archive cannot be reached from here, because that is true until dinah-491 lands; that card adds the archive view and makes this sentence wrong, so correct it there.",
+			"skeleton": true
+		},
+		"dialog.archive.confirm.many": {
+			"text": "Archive {count} card(s)? They leave the board. This extension cannot show you the archive or put them back. Dinah lists every reference it archived in the Dinah output channel, and dinah restore puts one back from a terminal.",
+			"context": "The modal shown before several cards are archived at once. {count} is how many of the selected rows resolved to a card, which is why it can be smaller than the number of rows selected. The sentence points at the output channel because that is where the run writes every reference it archived. dinah-491 adds the archive view and makes this sentence wrong; correct it there.",
+			"skeleton": true
+		},
+		"dialog.archive.action": {
+			"text": "Archive",
+			"context": "The affirmative button of the archive confirmation. The modal supplies its own Cancel, so only this label comes from the catalogue.",
+			"skeleton": true
+		},
+		"dialog.bulk.allSucceeded": {
+			"text": "Dinah finished all {count} selected row(s).",
+			"context": "Toast after a run over several rows in which every row finished and no row had anything else to say. {count} is how many rows finished, not how many were selected.",
+			"skeleton": true
+		},
+		"dialog.bulk.allSucceededNotes": {
+			"text": "Dinah finished all {count} selected row(s) and wrote {notes} note(s) to its output channel.",
+			"context": "Toast after a run over several rows in which every row finished and some rows had something to report. {count} is how many rows finished and {notes} is how many notes reached the channel. The toast is a warning when any note was a warning and plain information otherwise.",
+			"skeleton": true
+		},
+		"dialog.bulk.partial": {
+			"text": "Dinah finished {succeeded} of {selected} selected row(s). It refused {refused} and could not act on {skipped}. See the Dinah output channel for details.",
+			"context": "Toast after a run over several rows that did not wholly succeed. {selected} is how many rows the reader aimed at, {succeeded} how many finished, {refused} how many the tool refused, and {skipped} how many were rows this command cannot act on. The channel carries one line per row that did not finish.",
+			"skeleton": true
+		},
+		"dialog.bulk.oneRowOnly": {
+			"text": "Dinah runs this command on one row at a time. Select a single row and try again.",
+			"context": "The refusal a command that acts on one row shows when several rows were selected. New Card is the only command that raises it today, because one title makes one card.",
+			"skeleton": true
+		},
+		"dialog.move.noSharedDestination": {
+			"text": "Dinah found no destination that all {count} selected cards can move to.",
+			"context": "The refusal Move shows when the selected cards share no legal destination. {count} is how many rows resolved to a card. It is never one here, because a single card with no legal moves reaches dialog.move.noLegalMoves instead, so the plural is plain rather than the (s) form and should not be corrected into one.",
+			"skeleton": true
+		},
+		"dialog.move.placeholder.many": {
+			"text": "Move {count} cards to",
+			"context": "Placeholder of the quick pick listing the destinations several selected cards share. {count} is how many rows resolved to a card. It is never one here, because one card reaches dialog.move.placeholder instead, so the plural is plain rather than the (s) form. A placeholder is a fragment by the same convention dialog.move.placeholder already follows.",
+			"skeleton": true
+		},
+		"dialog.block.reasonPrompt.many": {
+			"text": "Why are these {count} cards blocked?",
+			"context": "Prompt of the input box Block raises over several selected cards, whose one answer is recorded against each of them. {count} is how many rows resolved to a card. It is never one here, because one card reaches dialog.block.reasonPrompt instead, so the plural is plain rather than the (s) form.",
+			"skeleton": true
+		},
+		"dialog.card.copiedRef.many": {
+			"text": "Copied {count} card references.",
+			"context": "Toast after Copy Reference over several cards, whose references reach the clipboard as one newline-joined write. {count} is how many were copied. It is never one here, because one card reaches dialog.card.copiedRef instead, so the plural is plain rather than the (s) form.",
+			"skeleton": true
+		},
+		"dialog.workbench.copiedPath.many": {
+			"text": "Copied {count} workbench paths.",
+			"context": "Toast after Copy Path over several workbench rows, whose paths reach the clipboard as one newline-joined write. {count} is how many were copied. It is never one here, because one row reaches dialog.workbench.copiedPath instead, so the plural is plain rather than the (s) form.",
+			"skeleton": true
+		},
+		"dialog.attachment.delete.confirm.many": {
+			"text": "Delete {count} attachment(s)? Dinah destroys the files and cannot bring them back.",
+			"context": "The modal shown before several attachments are deleted at once. {count} is how many of the selected rows resolved to an attachment, which is why it can be smaller than the number of rows selected. It carries the (s) form because nothing stops a later card reaching it with one attachment.",
+			"skeleton": true
 		}
 	}
 }

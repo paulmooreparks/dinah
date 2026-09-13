@@ -308,6 +308,66 @@ export type TreeElement =
 			readonly view: AttachmentView;
 	  };
 
+/**
+ * The character that joins the parts of an element key.
+ *
+ * A NUL cannot appear in a path, a reference, a column identifier or a row's
+ * drawn text on any platform this extension runs on, so two different rows
+ * cannot compose one key by their parts running together.
+ */
+const KEY_SEPARATOR = "\u0000";
+
+/** The workbench a root row stands for, however the row resolved. */
+function rootPathOf(row: RootRow): string {
+	return row.data?.path ?? row.candidate?.path ?? row.folder;
+}
+
+/**
+ * A row's identity, for deduplicating a selection against the invoked row.
+ *
+ * The editor hands a command the row it was executed on and, separately, the
+ * rows that were selected, and nothing in TreeViewOptions.canSelectMany
+ * promises that the same object appears in both. So targetsFor deduplicates by
+ * a key rather than by object identity, and this is the key the tree's own
+ * rows compose: the kind, then the workbench root, then whichever of the
+ * reference, the node reference, the attachment identifier or the text the row
+ * carries.
+ *
+ * It is a key rather than a display string and nothing renders it. The
+ * reference a run records for a row is a different thing and already exists:
+ * treeItemFor(element, t).label is the label the reader sees in the tree.
+ */
+export function elementKey(element: TreeElement): string {
+	const parts: readonly (string | undefined)[] = keyPartsOf(element);
+	return [element.kind, ...parts]
+		.map((part) => part ?? "")
+		.join(KEY_SEPARATOR);
+}
+
+/** The parts that tell two rows of one kind apart. */
+function keyPartsOf(element: TreeElement): readonly (string | undefined)[] {
+	switch (element.kind) {
+		case "root":
+			return [rootPathOf(element.row)];
+		case "note":
+			return [rootPathOf(element.owner), element.text];
+		case "column":
+			return [rootPathOf(element.row), element.view?.id ?? element.node.value];
+		case "group":
+			return [
+				rootPathOf(element.row),
+				element.column?.id,
+				element.node.value,
+			];
+		case "card":
+			return [rootPathOf(element.row), element.view?.ref ?? element.node.ref];
+		case "attachmentsGroup":
+			return [element.root, element.ref];
+		case "attachment":
+			return [element.root, element.owner, element.view.id];
+	}
+}
+
 // ---------------------------------------------------------------------------
 // The joins
 // ---------------------------------------------------------------------------

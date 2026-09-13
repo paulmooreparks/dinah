@@ -100,6 +100,19 @@ function recorder(): Recorder {
 			showInfo: (message) => {
 				infos.push(message);
 			},
+			// The three CommandHost gained with ReporterHost (dinah-490 D-25).
+			// Pull reaches none of them, so each records into the unused pile
+			// exactly as the members below it do.
+			showWarning: async () => {
+				unused.push("showWarning");
+				return undefined;
+			},
+			appendLines: () => {
+				unused.push("appendLines");
+			},
+			revealOutput: () => {
+				unused.push("revealOutput");
+			},
 			copyToClipboard: async () => {
 				unused.push("copyToClipboard");
 			},

@@ -24,6 +24,8 @@ import type { CommandHost } from "../../src/cardCommands";
 import type { SpawnOutcome, Spawner } from "../../src/cli";
 import {
 	ATTACH_DIALOG_OPTIONS,
+	askAttachment,
+	askNewCardTitle,
 	attachFile,
 	contextForAttach,
 	contextForColumn,
@@ -157,6 +159,19 @@ function recorder(typed: (string | undefined)[] = []): Recorder {
 			t: ENGLISH,
 			showError: (message) => {
 				errors.push(message);
+			},
+			// The three CommandHost gained with ReporterHost (dinah-490 D-25).
+			// Neither creation command reaches them, so each records into the
+			// unused pile exactly as the members below it do.
+			showWarning: async () => {
+				unused.push("showWarning");
+				return undefined;
+			},
+			appendLines: () => {
+				unused.push("appendLines");
+			},
+			revealOutput: () => {
+				unused.push("revealOutput");
 			},
 			// Neither creation command reports anything on success, copies
 			// anything, or opens anything, so each of these answers nothing and
@@ -348,7 +363,7 @@ test("a dismissed title prompt files nothing and says nothing", async () => {
 	// nothing is spawned, nothing is reported, and no checkpoint runs: the
 	// board did not move, so there is nothing to repaint.
 	const r = recorder([undefined]);
-	assert.equal(await newCard(columnContext(r)), undefined);
+	assert.equal(await fileNewCard(r), undefined);
 	assert.deepEqual(r.calls, []);
 	assert.deepEqual(r.errors, []);
 	assert.deepEqual(r.checkpoints, []);
@@ -358,7 +373,7 @@ test("a title of nothing but spaces is treated as a dismissal", async () => {
 	// `add` refuses an empty title itself, so sending one would trade a quiet
 	// no-op for a refusal notification the operator did not ask for.
 	const r = recorder(["   "]);
-	assert.equal(await newCard(columnContext(r)), undefined);
+	assert.equal(await fileNewCard(r), undefined);
 	assert.deepEqual(r.calls, []);
 	assert.deepEqual(r.checkpoints, []);
 });
@@ -369,7 +384,7 @@ test("a title files one card, trimmed, with the column behind its flag", async (
 	// the column into a column named after the title, and dinah would refuse
 	// the unknown column rather than say what happened.
 	const r = recorder(["  Fix the thing  "]);
-	await newCard(columnContext(r));
+	await fileNewCard(r);
 	assert.equal(r.calls.length, 1);
 	assert.deepEqual(r.calls[0].argv, [
 		// runDinah composes --json itself, so the machine surface is pinned
@@ -394,7 +409,7 @@ test("the filing runs the binary it was handed, in the workbench it is pinned to
 	// context carries, and EXE, ROOT and FOLDER are three distinct values so
 	// that any such swap reddens this row.
 	const r = recorder(["Fix the thing"]);
-	await newCard(columnContext(r));
+	await fileNewCard(r);
 	assert.equal(r.calls.length, 1);
 	assert.equal(r.calls[0].exe, EXE);
 	assert.equal(r.calls[0].cwd, ROOT);
@@ -402,7 +417,7 @@ test("the filing runs the binary it was handed, in the workbench it is pinned to
 
 test("the title prompt names the column the card is being filed into", async () => {
 	const r = recorder(["Fix the thing"]);
-	await newCard(columnContext(r));
+	await fileNewCard(r);
 	assert.equal(r.prompts.length, 1);
 	assert.ok(
 		r.prompts[0].includes("Intake"),
@@ -423,7 +438,7 @@ test("a refused filing is reported and the row is repainted anyway", async () =>
 	// notification is "at-capacity: doing".
 	const r = recorder(["Fix the thing"]);
 	r.answer = refused("at-capacity", "doing");
-	await newCard(columnContext(r));
+	await fileNewCard(r);
 	assert.equal(r.errors.length, 1);
 	assert.equal(r.errors[0], "at-capacity: doing");
 	assert.ok(r.errors[0].includes("at-capacity"));
@@ -538,6 +553,21 @@ test("a candidate row that has not been expanded attaches to its candidate path"
 // AC-7 and AC-8: what Attach File sends, and when it sends nothing
 // ---------------------------------------------------------------------------
 
+/**
+ * Asks for a title and files the card, which is what runBulk does in order.
+ *
+ * dinah-490 split the prompt from the spawn, because one prompt now stands
+ * over a whole selection while the filing stays a function of one column.
+ */
+async function fileNewCard(r: Recorder): Promise<unknown> {
+	const context = columnContext(r);
+	const title = await askNewCardTitle([context], r.host);
+	if (title === undefined) {
+		return undefined;
+	}
+	return newCard(context, title);
+}
+
 /** The context every attachFile test drives, over the recorder and row given. */
 function attachContext(r: Recorder, element: TreeElement = cardRow({})) {
 	const context = contextForAttach(element, EXE, r.host, r.spawner);
@@ -545,12 +575,32 @@ function attachContext(r: Recorder, element: TreeElement = cardRow({})) {
 	return context as NonNullable<typeof context>;
 }
 
+/**
+ * Asks for a file and a description and attaches it, in runBulk's own order.
+ *
+ * The picker is still driven per test, as a member of the host the ask is
+ * handed rather than as a parameter of the attach: dinah-490 moved both
+ * prompts into askAttachment, which reads the host it was given.
+ */
+async function attachOneFile(
+	r: Recorder,
+	pickFile: () => Promise<string | undefined>,
+	element: TreeElement = cardRow({}),
+): Promise<unknown> {
+	const context = attachContext(r, element);
+	const answer = await askAttachment([context], { ...r.host, pickFile });
+	if (answer === undefined) {
+		return undefined;
+	}
+	return attachFile(context, answer);
+}
+
 test("a dismissed file picker attaches nothing and never asks for a description", async () => {
 	// dinah-331 AC-7. File first and description second (Decision 4) is what
 	// makes this possible: an operator who cancels the pick is never left
 	// having typed a description for an attachment that will not happen.
 	const r = recorder(["a screenshot"]);
-	assert.equal(await attachFile(attachContext(r), async () => undefined), undefined);
+	assert.equal(await attachOneFile(r, async () => undefined), undefined);
 	assert.deepEqual(r.calls, []);
 	assert.deepEqual(r.prompts, []);
 	assert.deepEqual(r.checkpoints, []);
@@ -562,7 +612,7 @@ test("a dismissed description prompt attaches nothing", async () => {
 	// that separates it from the empty answer the next test pins.
 	const r = recorder([undefined]);
 	assert.equal(
-		await attachFile(attachContext(r), async () => "/tmp/x.png"),
+		await attachOneFile(r, async () => "/tmp/x.png"),
 		undefined,
 	);
 	assert.deepEqual(r.calls, []);
@@ -576,7 +626,7 @@ test("an empty description is an answer, and the attach goes through without the
 	// say. The flag is absent rather than empty, because `--description=` would
 	// be a description of nothing rather than none.
 	const r = recorder([""]);
-	await attachFile(attachContext(r), async () => "/tmp/x.png");
+	await attachOneFile(r, async () => "/tmp/x.png");
 	assert.equal(r.calls.length, 1);
 	assert.deepEqual(r.calls[0].argv, [
 		"--json",
@@ -597,7 +647,7 @@ test("a typed description rides in one --description word, trimmed", async () =>
 	// dinah-331 AC-7. One word rather than two, because a description holding
 	// a space would otherwise arrive as a description and a stray positional.
 	const r = recorder(["  a screenshot  "]);
-	await attachFile(attachContext(r), async () => "/tmp/x.png");
+	await attachOneFile(r, async () => "/tmp/x.png");
 	assert.deepEqual(r.calls[0].argv, [
 		"--json",
 		"--workbench",
@@ -616,7 +666,7 @@ test("the attach runs the binary it was handed, in the workbench it is pinned to
 	// each needs its own row; one assertion covering only newCard would leave
 	// attachFile's pair unexercised.
 	const r = recorder([""]);
-	await attachFile(attachContext(r), async () => "/tmp/x.png");
+	await attachOneFile(r, async () => "/tmp/x.png");
 	assert.equal(r.calls.length, 1);
 	assert.equal(r.calls[0].exe, EXE);
 	assert.equal(r.calls[0].cwd, ROOT);
@@ -631,7 +681,10 @@ test("the workbench's own attach sends the empty ref as a word rather than omitt
 	const r = recorder([""]);
 	const context = attachContext(r, { kind: "root", row: rowFixture() });
 	assert.equal(context.ref, "");
-	await attachFile(context, async () => "/tmp/x.png");
+	await attachOneFile(r, async () => "/tmp/x.png", {
+		kind: "root",
+		row: rowFixture(),
+	});
 	assert.deepEqual(r.calls[0].argv, ["--json", "--workbench", ROOT, "attach", "", "/tmp/x.png"]);
 	// Spelled again as a position, because the deep-equal above would go on
 	// passing if the empty word vanished and the file path shifted into it
@@ -654,7 +707,7 @@ test("a refused attach is reported and the row is repainted anyway", async () =>
 	// operator sees when it loses.
 	const r = recorder([""]);
 	r.answer = refused("dinah.locked", "bob");
-	await attachFile(attachContext(r), async () => "/tmp/x.png");
+	await attachOneFile(r, async () => "/tmp/x.png");
 	assert.equal(r.errors.length, 1);
 	assert.ok(r.errors[0].includes("dinah.locked"));
 	assert.ok(r.errors[0].includes("bob"));
@@ -676,16 +729,17 @@ test("neither creation command reveals, selects or opens what it made", async ()
 	// rest of its methods with undefined and record nothing, so a command that
 	// began opening its own creation would have passed the whole file.
 	const filing = recorder(["Fix the thing"]);
-	await newCard(columnContext(filing));
+	await fileNewCard(filing);
 	assert.deepEqual(filing.checkpoints, [FOLDER]);
 	assert.deepEqual(filing.unused, []);
 	assert.deepEqual(filing.errors, []);
 
 	const attaching = recorder([""]);
-	await attachFile(attachContext(attaching), async () => "/tmp/x.png");
+	await attachOneFile(attaching, async () => "/tmp/x.png");
 	assert.deepEqual(attaching.checkpoints, [FOLDER]);
-	// The picker rides in as a parameter, so the host's own field stays
-	// untouched; a command reading it instead would name it here.
+	// The picker is the one member the ask was handed an override for, so
+	// every other member of the host stays untouched; a command reaching for
+	// one of them would name it here.
 	assert.deepEqual(attaching.unused, []);
 	assert.deepEqual(attaching.errors, []);
 });
@@ -709,6 +763,18 @@ const EXTENSION_SOURCE = readFileSync(
 	join(__dirname, "..", "..", "..", "src", "extension.ts"),
 	"utf8",
 ).replace(/\s+/g, " ");
+
+/**
+ * This module's own source, read for the one invariant no value can carry.
+ *
+ * dinah-490 moved both creation commands' row resolution into the invokes at
+ * the foot of creationCommands.ts, so the claim that each resolves a context
+ * before it acts is a claim about this file rather than about extension.ts.
+ */
+const CREATION_SOURCE = readFileSync(
+	join(__dirname, "..", "..", "..", "src", "creationCommands.ts"),
+	"utf8",
+);
 
 test("the attach dialog asks for one file and never for a folder", () => {
 	// dinah-331 AC-12. Each option is asserted on its own rather than as one
@@ -784,10 +850,11 @@ test("both creation handlers resolve a context before they act", () => {
 	// compares values and a literal of the same value satisfies it.
 	//
 	// Each handler resolves a context before it acts, which is what keeps a
-	// palette invocation carrying no row from throwing (dinah-342). The column
-	// resolver is named here under the alias extension.ts imports it as, because
-	// dinah-332's columnCommands exports a contextForColumn of its own and the
-	// two cannot both be called by their module's name in one file.
-	assert.ok(EXTENSION_SOURCE.includes("contextForNewCard("));
-	assert.ok(EXTENSION_SOURCE.includes("contextForAttach("));
+	// palette invocation carrying no row from throwing (dinah-342). dinah-490
+	// moved both resolutions out of extension.ts and into this module's own
+	// invokes, where runBulk calls them once per targeted row and records the
+	// row either way, so the source read here is this module's rather than
+	// extension.ts's and the alias extension.ts used is gone with the import.
+	assert.ok(CREATION_SOURCE.includes("contextForColumn("));
+	assert.ok(CREATION_SOURCE.includes("contextForAttach("));
 });

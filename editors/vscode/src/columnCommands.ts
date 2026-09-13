@@ -22,12 +22,16 @@
 // save that follows is the operator's own and the extension's `**/*.md`
 // watcher already fires on it.
 
+import type { BulkReport, RowOutcome } from "./bulk";
+import { runBulk } from "./bulk";
 import type { Spawner } from "./cli";
 import { runDinah } from "./cli";
-import { refusalMessage, isRow } from "./cardCommands";
+import { refusalMessage, isRow, rowRef } from "./cardCommands";
+import type { Wiring } from "./commandTable";
 import { COMMAND_EDIT_COLUMN_INSTRUCTIONS } from "./identity";
 import { ENGLISH } from "./l10n";
 import type { Localizer } from "./l10n";
+import type { ReporterHost } from "./reporter";
 import type { TreeElement } from "./tree";
 import { treeItemFor } from "./tree";
 import type { PathAnswer } from "./wire";
@@ -43,16 +47,15 @@ export function openOutputLabel(t: Localizer = ENGLISH): string {
 	return t("dialog.openOutput.label");
 }
 
-/** The window calls the column row's command makes, injected so tests watch them. */
-export interface ColumnCommandHost {
-	/** Renders one message in the language the editor is displaying. */
-	readonly t: Localizer;
-	readonly showWarning: (
-		message: string,
-		actions: readonly string[],
-	) => Promise<string | undefined>;
-	readonly appendLines: (lines: readonly string[]) => void;
-	readonly revealOutput: () => void;
+/**
+ * The window calls the column row's command makes, injected so tests watch them.
+ *
+ * It extends ReporterHost rather than declaring its own reporting members, so
+ * that a run over several column rows can collect what each row would have
+ * shown (dinah-490 D-25). showError and showInfo arrive with that, and they
+ * are two of the four message bindings this card adds in extension.ts.
+ */
+export interface ColumnCommandHost extends ReporterHost {
 	/** Opens a file as an ordinary, writable text document. */
 	readonly openDocument: (path: string) => Promise<void>;
 	readonly log: (line: string) => void;
@@ -149,7 +152,7 @@ export function contextForColumn(
  */
 export async function editColumnInstructions(
 	context: ColumnCommandContext,
-): Promise<void> {
+): Promise<RowOutcome> {
 	const outcome = await runDinah(
 		context.spawner,
 		context.exe,
@@ -172,12 +175,37 @@ export async function editColumnInstructions(
 		if (picked !== undefined) {
 			context.host.revealOutput();
 		}
-		return;
+		return { kind: "failed", failure: refusalMessage(outcome) };
 	}
 	const path = (outcome.json as PathAnswer).path;
 	if (path === undefined || path === "") {
 		context.host.log(`${COMMAND_EDIT_COLUMN_INSTRUCTIONS} answered with no path`);
-		return;
+		return { kind: "failed", failure: "path answered with no path" };
 	}
 	await context.host.openDocument(path);
+	return { kind: "done" };
+}
+
+// ---------------------------------------------------------------------------
+// What the registration loop calls
+// ---------------------------------------------------------------------------
+
+/** The channel line a row that names no column gets. */
+const NO_COLUMN = "names no column";
+
+/** Opens each selected column's own instructions file. */
+export async function invokeEditColumnInstructions(
+	elements: readonly TreeElement[],
+	wiring: Wiring,
+): Promise<BulkReport> {
+	return runBulk(
+		elements,
+		(element) => rowRef(element, wiring.t),
+		(element) =>
+			contextForColumn(element, wiring.exe, wiring.columnHost, wiring.spawner),
+		{ host: wiring.columnHost, t: wiring.t, skipReason: NO_COLUMN },
+		async () => true,
+		async (context, _answer, host) =>
+			editColumnInstructions({ ...context, host }),
+	);
 }

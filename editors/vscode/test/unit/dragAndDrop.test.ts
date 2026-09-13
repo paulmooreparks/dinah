@@ -19,13 +19,14 @@ import { test } from "node:test";
 import { ENGLISH } from "../../src/l10n";
 
 import type { CommandHost, PickItem } from "../../src/cardCommands";
-import { moveCard, refusalMessage } from "../../src/cardCommands";
+import { askMoveDestination, moveCardTo, refusalMessage } from "../../src/cardCommands";
 import type { SpawnOutcome, Spawner } from "../../src/cli";
-import type { DragPayload, DropTarget } from "../../src/dragAndDrop";
+import type { DragPayload, DragRow, DropTarget } from "../../src/dragAndDrop";
 import {
-	applyDropVerdict,
+	applyDropVerdicts,
 	classifyDrop,
-	dragPayloadFor,
+	dragRowsFor,
+	dragRowsFrom,
 	dropColumnFor,
 	offerDrag,
 } from "../../src/dragAndDrop";
@@ -162,6 +163,12 @@ function watcher(answer: SpawnOutcome = ok({})): Watcher {
 		t: ENGLISH,
 		showError: (message) => errors.push(message),
 		showInfo: (message) => infos.push(message),
+		// The three CommandHost gained with ReporterHost (dinah-490 D-25).
+		// A single-row drop reaches none of them: the summary stays silent at
+		// one row, and the channel line is the run's own.
+		showWarning: async () => undefined,
+		appendLines: () => {},
+		revealOutput: () => {},
 		copyToClipboard: async () => {},
 		pick: async () => state.picked,
 		input: async () => undefined,
@@ -198,12 +205,18 @@ test("the drag mime type is composed from VIEW_ID rather than typed twice", () =
 // ---------------------------------------------------------------------------
 
 test("a card row carries its reference, its workbench, its folder and its column", () => {
-	assert.deepEqual(dragPayloadFor([cardRow()]), {
-		ref: "tr-4",
-		root: ROOT,
-		folder: FOLDER,
-		columnId: "c-doing",
-	});
+	assert.deepEqual(dragRowsFor([cardRow()]), [
+		{
+			kind: "card",
+			ref: "tr-4",
+			payload: {
+				ref: "tr-4",
+				root: ROOT,
+				folder: FOLDER,
+				columnId: "c-doing",
+			},
+		},
+	]);
 });
 
 test("no other row kind is draggable", () => {
@@ -217,9 +230,14 @@ test("no other row kind is draggable", () => {
 		{ kind: "attachment", row: owner, root: ROOT, owner: "tr-4", view: attachment() },
 	];
 	for (const element of kinds) {
+		// dinah-490 carries such a row rather than dropping it, so the drop can
+		// name the rows it could not act on. What it must not do is compose a
+		// payload, and the kind is what says so.
+		const rows = dragRowsFor([element]);
+		assert.equal(rows.length, 1);
 		assert.equal(
-			dragPayloadFor([element]),
-			undefined,
+			rows[0].kind,
+			"other",
 			`a ${element.kind} row offered a drag payload`,
 		);
 	}
@@ -233,17 +251,20 @@ test("a card missing anything the move needs carries nothing", () => {
 	// names nothing to move, one whose workbench did not resolve names nowhere
 	// to run, and one whose column the status join missed cannot say where it
 	// started, so a drop back onto that column would read as a real move.
-	assert.equal(dragPayloadFor([cardRow("ref")]), undefined);
-	assert.equal(dragPayloadFor([cardRow("emptyRef")]), undefined);
-	assert.equal(dragPayloadFor([cardRow("root")]), undefined);
-	assert.equal(dragPayloadFor([cardRow("column")]), undefined);
+	for (const missing of ["ref", "emptyRef", "root", "column"] as const) {
+		assert.equal(
+			dragRowsFor([cardRow(missing)])[0].kind,
+			"other",
+			`a card missing its ${missing} still composed a payload`,
+		);
+	}
 	// The same fixture with nothing named missing does carry a payload, so the
 	// four assertions above cannot be passing because the fixture is broken.
-	assert.notEqual(dragPayloadFor([cardRow()]), undefined);
+	assert.equal(dragRowsFor([cardRow()])[0].kind, "card");
 });
 
 test("an empty drag carries nothing", () => {
-	assert.equal(dragPayloadFor([]), undefined);
+	assert.deepEqual(dragRowsFor([]), []);
 });
 
 // ---------------------------------------------------------------------------
@@ -260,7 +281,7 @@ test("a drag starting on a row that is not a card sets no mime entry", () => {
 	];
 	for (const element of kinds) {
 		const sets: string[] = [];
-		offerDrag([element], DRAG_MIME_TYPE, { set: (mime) => sets.push(mime) }, (p) => p);
+		offerDrag([element], DRAG_MIME_TYPE, { set: (mime) => sets.push(mime) }, (rows) => rows);
 		assert.deepEqual(sets, [], `a ${element.kind} row set a mime entry`);
 	}
 });
@@ -268,16 +289,17 @@ test("a drag starting on a row that is not a card sets no mime entry", () => {
 test("a drag starting on a card sets the one mime entry, carrying the payload", () => {
 	// The sibling above asserts a call that never happens, which passes just as
 	// well when nothing sets an entry at all, so this is what keeps it honest.
-	const sets: [string, DragPayload][] = [];
+	const sets: [string, readonly DragRow[]][] = [];
 	offerDrag(
 		[cardRow()],
 		DRAG_MIME_TYPE,
-		{ set: (mime, item: DragPayload) => sets.push([mime, item]) },
-		(p) => p,
+		{ set: (mime, item: readonly DragRow[]) => sets.push([mime, item]) },
+		(rows) => rows,
 	);
 	assert.equal(sets.length, 1);
 	assert.equal(sets[0][0], DRAG_MIME_TYPE);
-	assert.equal(sets[0][1].ref, "tr-4");
+	assert.equal(sets[0][1].length, 1);
+	assert.equal(sets[0][1][0].ref, "tr-4");
 });
 
 // ---------------------------------------------------------------------------
@@ -367,14 +389,7 @@ test("a drop into another workbench is reported, even at the same column id", ()
 
 test("an ignored drop runs no dinah, checkpoints nothing and shows nothing", async () => {
 	const w = watcher();
-	await applyDropVerdict(
-		{ kind: "ignore" },
-		payload(),
-		undefined,
-		"dinah",
-		w.host,
-		w.spawner,
-	);
+	await applyDropVerdicts(dragRowsFor([cardRow()]), undefined, "dinah", w.host, w.spawner);
 	assert.deepEqual(w.calls, []);
 	assert.deepEqual(w.checkpoints, []);
 	assert.deepEqual(w.errors, []);
@@ -388,7 +403,7 @@ test("an ignored drop runs no dinah, checkpoints nothing and shows nothing", asy
 test("a cross-workbench drop names the card and the destination, and runs nothing", async () => {
 	const w = watcher();
 	const drop: DropTarget = { view: column("c-doing", "doing", "Doing"), root: OTHER_ROOT };
-	await applyDropVerdict({ kind: "crossWorkbench" }, payload(), drop, "dinah", w.host, w.spawner);
+	await applyDropVerdicts(dragRowsFor([cardRow()]), drop, "dinah", w.host, w.spawner);
 	assert.equal(w.errors.length, 1);
 	assert.ok(w.errors[0].includes("tr-4"), w.errors[0]);
 	assert.ok(w.errors[0].includes("Doing"), w.errors[0]);
@@ -403,9 +418,8 @@ test("a cross-workbench drop names the card and the destination, and runs nothin
 
 test("an act runs move, pinned to the workbench, and checkpoints the folder", async () => {
 	const w = watcher(ok({}));
-	await applyDropVerdict(
-		{ kind: "act", destinationRef: "review" },
-		payload(),
+	await applyDropVerdicts(
+		dragRowsFor([cardRow()]),
 		{ view: column("c-review", "review"), root: ROOT },
 		"dinah",
 		w.host,
@@ -432,9 +446,8 @@ test("a refused drop shows the sentence the Move command shows for that refusal"
 		const outcome = refused(refusal, detail);
 
 		const dragged = watcher(outcome);
-		await applyDropVerdict(
-			{ kind: "act", destinationRef: "review" },
-			payload(),
+		await applyDropVerdicts(
+			dragRowsFor([cardRow()]),
 			{ view: column("c-review", "review"), root: ROOT },
 			"dinah",
 			dragged.host,
@@ -443,14 +456,17 @@ test("a refused drop shows the sentence the Move command shows for that refusal"
 
 		const picked = watcher(outcome);
 		picked.picked = { label: "Review", value: "review" };
-		await moveCard({
+		const context = {
 			spawner: picked.spawner,
 			exe: "dinah",
 			host: picked.host,
 			folder: FOLDER,
 			root: ROOT,
 			ref: "tr-4",
-		});
+		};
+		const destination = await askMoveDestination([context], picked.host);
+		assert.equal(typeof destination, "string");
+		await moveCardTo(context, destination ?? "");
 
 		assert.equal(dragged.errors.length, 1);
 		assert.deepEqual(dragged.errors, picked.errors);
@@ -462,4 +478,147 @@ test("a refused drop shows the sentence the Move command shows for that refusal"
 		// shows them why. It runs on a refusal exactly as it runs on success.
 		assert.deepEqual(dragged.checkpoints, [FOLDER]);
 	}
+});
+
+// ---------------------------------------------------------------------------
+// dinah-490 AC-15: the drag round trip, driven end to end
+// ---------------------------------------------------------------------------
+//
+// Nothing in the chain below is typed by the test. offerDrag sets an entry
+// into a recording sink, dragRowsFrom reads back the value that sink was
+// handed, and applyDropVerdicts acts on THAT answer. Round 4 of this card
+// shipped a criterion that drove applyDropVerdicts with a hand-built list,
+// which went green over a list the shipping wiring never builds.
+//
+// What this does not prove is that extension.ts wires the two halves this way.
+// test/unit/wiring.test.ts asserts that separately over the AST.
+
+/** A card row carrying a reference of its own, for a multi-row drag. */
+function namedCardRow(ref: string): TreeElement {
+	return {
+		kind: "card",
+		row: row(),
+		node: node(ref),
+		column: column("c-doing", "doing"),
+	};
+}
+
+/** A column row, which is a dragged row composing no payload. */
+function draggedColumnRow(): TreeElement {
+	return {
+		kind: "column",
+		row: row(),
+		node: { kind: "column", value: "doing", count: 0 },
+		view: column("c-doing", "doing", "Doing"),
+	};
+}
+
+/** The four rows every clause below drags: three cards and a column header. */
+function mixedDrag(): TreeElement[] {
+	return [
+		namedCardRow("tr-1"),
+		namedCardRow("tr-2"),
+		namedCardRow("tr-3"),
+		draggedColumnRow(),
+	];
+}
+
+/** A sink that records what it was set, with the identity as its wrapper. */
+function recordingSink(): {
+	readonly sink: { set: (mime: string, item: readonly DragRow[]) => void };
+	readonly entries: [string, readonly DragRow[]][];
+} {
+	const entries: [string, readonly DragRow[]][] = [];
+	return {
+		sink: { set: (mime, item) => entries.push([mime, item]) },
+		entries,
+	};
+}
+
+test("a mixed drag answers one row per dragged element, cards and header alike", () => {
+	const rows = dragRowsFor(mixedDrag());
+	assert.equal(rows.length, 4);
+	assert.deepEqual(
+		rows.map((dragged: DragRow) => dragged.kind),
+		["card", "card", "card", "other"],
+	);
+	// The header's entry names the row rather than being a synthetic hole, so
+	// the report can say what it could not act on.
+	assert.equal(rows[3].ref, "Doing");
+});
+
+test("the whole gesture crosses the mime entry, and the drop acts on what came back", async () => {
+	const recorder = recordingSink();
+	offerDrag(mixedDrag(), DRAG_MIME_TYPE, recorder.sink, (rows) => rows);
+	assert.equal(recorder.entries.length, 1);
+	assert.equal(recorder.entries[0][0], DRAG_MIME_TYPE);
+
+	const readBack = dragRowsFrom(recorder.entries[0][1]);
+	assert.notEqual(readBack, undefined);
+	assert.equal(readBack?.length, 4);
+	assert.equal(
+		readBack?.filter((dragged: DragRow) => dragged.kind === "other").length,
+		1,
+	);
+
+	const w = watcher(ok({}));
+	const report = await applyDropVerdicts(
+		readBack ?? [],
+		{ view: column("c-review", "review", "Review"), root: ROOT },
+		"dinah",
+		w.host,
+		w.spawner,
+	);
+	const moved = w.calls.filter((argv) => argv.includes("move"));
+	assert.equal(moved.length, 3);
+	for (const argv of moved) {
+		assert.equal(argv[argv.length - 1], "review");
+	}
+	assert.equal(report.selected, 4);
+	assert.deepEqual(
+		report.entries.map((entry) => entry.outcome.kind),
+		["done", "done", "done", "skipped"],
+	);
+	// The ref on the skipped entry is what catches a synthetic fourth entry:
+	// an implementation padding the report to make it reconcile fails here.
+	assert.equal(report.entries[3].ref, "Doing");
+});
+
+test("a drag holding no card row sets no entry, and no shape without one reads back", () => {
+	const recorder = recordingSink();
+	offerDrag([draggedColumnRow()], DRAG_MIME_TYPE, recorder.sink, (rows) => rows);
+	assert.deepEqual(recorder.entries, []);
+	// The two halves of that rule are written once on each side, so they
+	// cannot drift apart.
+	assert.equal(dragRowsFrom(payload()), undefined);
+	assert.equal(dragRowsFrom([payload(), payload()]), undefined);
+	assert.equal(dragRowsFrom([{ kind: "other", ref: "Doing" }]), undefined);
+	assert.equal(dragRowsFrom(undefined), undefined);
+	assert.equal(dragRowsFrom([]), undefined);
+	assert.equal(dragRowsFrom("a string an unrelated extension set"), undefined);
+});
+
+test("a drop where every verdict is ignore spawns nothing and calls no member of the host", async () => {
+	// A drag is a gesture that can miss, and a gesture that missed has to go
+	// on looking like a gesture that missed. This is the one place the drop
+	// path's reporting differs from a menu command's, and the assertion is on
+	// the whole host rather than on the spawn count, because an absence of
+	// spawns is what a run that reported loudly would also show.
+	const recorder = recordingSink();
+	offerDrag(mixedDrag(), DRAG_MIME_TYPE, recorder.sink, (rows) => rows);
+	const readBack = dragRowsFrom(recorder.entries[0][1]);
+	const w = watcher(ok({}));
+	const report = await applyDropVerdicts(
+		readBack ?? [],
+		{ view: column("c-doing", "doing", "Doing"), root: ROOT },
+		"dinah",
+		w.host,
+		w.spawner,
+	);
+	assert.deepEqual(w.calls, []);
+	assert.deepEqual(w.errors, []);
+	assert.deepEqual(w.infos, []);
+	assert.deepEqual(w.checkpoints, []);
+	assert.equal(report.selected, 4);
+	assert.ok(report.entries.every((entry) => entry.outcome.kind === "skipped"));
 });

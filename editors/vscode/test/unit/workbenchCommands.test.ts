@@ -22,7 +22,8 @@ import {
 	openOutputLabel,
 	checkWorkbench,
 	contextForWorkbench,
-	copyWorkbenchPath,
+	copiedPathMessage,
+	copyWorkbenchPaths,
 	editWorkbenchDefinition,
 } from "../../src/workbenchCommands";
 
@@ -61,6 +62,8 @@ interface Recorder {
 	/** Every argv the spawner was handed, in call order. */
 	readonly calls: string[][];
 	readonly infos: string[];
+	/** Every message showError was handed, which no command here reaches today. */
+	readonly errors: string[];
 	readonly warnings: string[];
 	readonly appended: string[];
 	readonly copied: string[];
@@ -83,12 +86,19 @@ function recorder(outcome: SpawnOutcome = CLEAN): Recorder {
 		infos: [],
 		warnings: [],
 		appended: [],
+		errors: [],
 		copied: [],
 		opened: [],
 		logged: [],
 		revealed: 0,
 		host: {
 			t: ENGLISH,
+			// showError arrives with ReporterHost (dinah-490 D-25). No
+			// workbench command reaches it today, so it records where a test
+			// can see it rather than answering nothing.
+			showError: (message) => {
+				r.errors.push(message);
+			},
 			showInfo: (message) => {
 				r.infos.push(message);
 			},
@@ -151,6 +161,7 @@ function rootRow(overrides: Partial<RootRow> = {}): RootRow {
 
 const silentHost: WorkbenchCommandHost = {
 	t: ENGLISH,
+	showError: () => undefined,
 	showInfo: () => undefined,
 	showWarning: async () => undefined,
 	appendLines: () => undefined,
@@ -473,17 +484,20 @@ test("copyWorkbenchPath copies the path and names what it copied", async () => {
 	// AC-8. The path rather than the row's description, which is empty on the
 	// ordinary single-workbench row and would put nothing on the clipboard
 	// while reporting success (dinah-330 D-3).
+	// The sentence now comes from the run's own summary rather than from the
+	// per-row act, because the copy family reports once over a whole selection
+	// (dinah-490 D-23). It is still the singular key over one row.
 	const r = recorder();
-	await copyWorkbenchPath(r.context);
+	await copyWorkbenchPaths([r.context], r.host);
 	assert.deepEqual(r.copied, [BENCH]);
-	assert.deepEqual(r.infos, [`Copied ${BENCH}`]);
+	assert.equal(copiedPathMessage([r.context], ENGLISH), `Copied ${BENCH}`);
 });
 
 test("copyWorkbenchPath runs dinah not at all", async () => {
 	// The clipboard already holds everything this act needs, and a spawn here
 	// would make a copy cost a process against somebody's board.
 	const r = recorder();
-	await copyWorkbenchPath(r.context);
+	await copyWorkbenchPaths([r.context], r.host);
 	assert.deepEqual(r.calls, []);
 });
 
@@ -501,7 +515,7 @@ test("copyWorkbenchPath copies an unexpanded candidate's own path", async () => 
 	const r = recorder();
 	const target = contextForWorkbench(element, "dinah", TOOL, r.host, silentSpawner);
 	assert.notEqual(target, undefined);
-	await copyWorkbenchPath(target as WorkbenchCommandContext);
+	await copyWorkbenchPaths([target as WorkbenchCommandContext], r.host);
 	assert.deepEqual(r.copied, ["C:/work/other"]);
 });
 

@@ -50,6 +50,8 @@ interface Recorder {
 	/** Every argv the spawner was handed, in call order. */
 	readonly calls: string[][];
 	readonly warnings: string[];
+	/** Every message a reporting member this command never reaches was handed. */
+	readonly unreached: string[];
 	readonly appended: string[];
 	readonly opened: string[];
 	readonly logged: string[];
@@ -67,12 +69,22 @@ function recorder(outcome: SpawnOutcome = RESOLVED): Recorder {
 	const r: Recorder = {
 		calls: [],
 		warnings: [],
+		unreached: [],
 		appended: [],
 		opened: [],
 		logged: [],
 		revealed: 0,
 		host: {
 			t: ENGLISH,
+			// Both arrive with ReporterHost (dinah-490 D-25). This command
+			// reaches neither, so each records where a test can see it rather
+			// than answering nothing.
+			showError: (message) => {
+				r.unreached.push(message);
+			},
+			showInfo: (message) => {
+				r.unreached.push(message);
+			},
 			showWarning: async (message, actions) => {
 				r.warnings.push(message);
 				// The action list is asserted here rather than in each test,
@@ -111,6 +123,8 @@ function recorder(outcome: SpawnOutcome = RESOLVED): Recorder {
 
 const silentHost: ColumnCommandHost = {
 	t: ENGLISH,
+	showError: () => undefined,
+	showInfo: () => undefined,
 	showWarning: async () => undefined,
 	appendLines: () => undefined,
 	revealOutput: () => undefined,
