@@ -19,9 +19,9 @@ const run = (rows) => {
     async (ref, dest) => { spawns.push(["move", ref, dest]); return { kind: "done" }; })
     .then((rep) => ({ rep, host }));
 };
-let ran = 0;
+let ran = 0, red = 0;
 const check = (n, f) => { ran++; return f().then(() => console.log("  green", n),
-  (e) => console.log("  RED  ", n, "::", String(e.message).split("\n")[0])); };
+  (e) => { red++; console.log("  RED  ", n, "::", String(e.message).split("\n")[0]); }); };
 
 const cards = (...r) => r.map((x) => ({ kind: "card", ref: x, label: x }));
 const cols = (...l) => l.map((x) => ({ kind: "column", label: x }));
@@ -48,4 +48,5 @@ await check("asks nothing, spawns nothing, warns like Claim does", async () => {
   assert.equal(rep.entries.filter((e) => e.outcome.kind === "skipped").length, 3);
   assert.deepEqual(summaryFor(rep), { level: "warning", message: "partial 0/3 f0 s3" });
 });
-console.log("assertions run:", ran);
+console.log("assertions run:", ran, "red:", red);
+if (red > 0) process.exitCode = 1;

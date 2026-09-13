@@ -7,9 +7,9 @@ const source = [
   { kind: "card", ref: "wb-3", root: "/wb", folder: "/f", columnId: "c1" },
   { kind: "column", label: "Doing" },
 ];
-let ran = 0;
+let ran = 0, red = 0;
 function check(name, fn) { ran++; try { fn(); console.log("  green", name); }
-  catch (e) { console.log("  RED  ", name, "::", e.message.split("\n")[0]); } }
+  catch (e) { red++; console.log("  RED  ", name, "::", e.message.split("\n")[0]); } }
 
 console.log("clause 1 (dragRowsFor answers one row per dragged row)");
 check("four rows, three card one other, other names the label", () => {
@@ -42,4 +42,5 @@ check("dragRowsFrom refuses a bare payload and a foreign object", () => {
   assert.equal(dragRowsFrom([{ ref: "wb-1", root: "/wb", folder: "/f", columnId: "c1" }]), undefined);
   assert.equal(dragRowsFrom([{ kind: "other", ref: "Doing" }]), undefined);
 });
-console.log("assertions run:", ran);
+console.log("assertions run:", ran, "red:", red);
+if (red > 0) process.exitCode = 1;
