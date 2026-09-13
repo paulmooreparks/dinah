@@ -7,20 +7,31 @@
 // the host to the real window.
 //
 // Every mutating call is followed by one off-cycle checkpoint, whatever the
-// outcome. A command that mutates nothing runs neither, which is why
-// copyCardRef below reaches for the host directly instead of runVerb. The receipt is not read back into the tree: the next checkpoint
-// repaints it from a fresh read, which is one rule rather than two and cannot
-// drift from what the board actually says.
+// outcome. A command that mutates nothing runs neither, which is why the copy
+// family below reaches for the host directly instead of runVerb. The receipt
+// is not read back into the tree: the next checkpoint repaints it from a fresh
+// read, which is one rule rather than two and cannot drift from what the board
+// actually says.
+//
+// Each contributed command appears here twice over: as the function that acts
+// on one resolved row, and as the invoke at the foot of this file that the
+// registration loop calls with every row the reader aimed at. The split is
+// what lets one confirmation, one prompt or one clipboard write stand over a
+// whole selection while the act itself stays a function of one row.
 
+import type { BulkDeps, BulkReport, RowOutcome } from "./bulk";
+import { runBulk } from "./bulk";
 import type { Spawner } from "./cli";
 import { runDinah } from "./cli";
 import type { CliOutcome } from "./cli";
-import { COMMAND_DELETE_ATTACHMENT, COMMAND_OPEN_ATTACHMENT } from "./identity";
+import type { Wiring } from "./commandTable";
 import { ENGLISH } from "./l10n";
 import type { Localizer } from "./l10n";
+import type { ReporterHost } from "./reporter";
 import { KIND_HISTORY, KIND_INSTRUCTIONS } from "./servedText";
 import { nodeSpawner } from "./spawn";
 import type { TreeElement } from "./tree";
+import { treeItemFor } from "./tree";
 import type { DetailAnswer, LegalMove, ServedAnswer } from "./wire";
 import { ATTACHMENTS_SEGMENT, BACKWARD, FORWARD } from "./wire";
 
@@ -43,20 +54,16 @@ export interface PickItem {
 	readonly kind?: "separator";
 }
 
-/** The window calls these commands make, injected so tests can watch them. */
-export interface CommandHost {
-	/**
-	 * Renders one message in the language the editor is displaying.
-	 *
-	 * Injected alongside the window calls rather than imported, for the reason
-	 * l10n.ts's own header gives: this module imports no vscode symbol, so it
-	 * cannot reach vscode.l10n, and extension.ts is the one place that reads
-	 * the editor's display language and binds a Localizer to it.
-	 */
-	readonly t: Localizer;
-	readonly showError: (message: string) => void;
-	/** Reports an act that succeeded and shows nothing else, such as a copy. */
-	readonly showInfo: (message: string) => void;
+/**
+ * The window calls these commands make, injected so tests can watch them.
+ *
+ * It extends ReporterHost rather than declaring its own reporting members, so
+ * that one wrapper can collect any host's reporting and a command that can
+ * speak is a command whose messages a run can collect (dinah-490 D-25). The
+ * localizer, showError, showInfo, showWarning, appendLines and revealOutput
+ * all arrive from there.
+ */
+export interface CommandHost extends ReporterHost {
 	/** Puts text on the system clipboard. */
 	readonly copyToClipboard: (text: string) => Promise<void>;
 	readonly pick: (
@@ -169,11 +176,19 @@ export function isRow<K extends TreeElement["kind"]>(
  * lives here rather than in extension.ts so the unit layer can reach it: it
  * touches no vscode value, and the guard went six commands deep unexercised
  * while it sat in the one module no test can import.
+ *
+ * The spawner is injected rather than reached for, which is what
+ * contextForAttach and contextForColumn already do and for the same reason: a
+ * command composing its own context from an element is otherwise a command no
+ * unit test can watch spawn, since nothing between the element and the call
+ * belongs to the caller. dinah-490 made that bite, because the registration
+ * loop now composes every card context through here.
  */
 export function contextFor(
 	element: TreeElement | undefined,
 	exe: string,
 	host: CommandHost,
+	spawner: Spawner = nodeSpawner,
 ): CommandContext | undefined {
 	if (!isRow(element, "card")) {
 		return undefined;
@@ -184,7 +199,7 @@ export function contextFor(
 		return undefined;
 	}
 	return {
-		spawner: nodeSpawner,
+		spawner,
 		exe,
 		host,
 		folder: element.row.folder,
@@ -242,39 +257,80 @@ export async function unblockCard(
 }
 
 /**
- * Copies the card's own reference to the clipboard.
+ * Puts a whole selection's references on the clipboard, in one write.
  *
  * The reference rather than the title, because the reference is what every
  * dinah verb takes as an argument and what the operator writes when he names
- * a card to somebody else. No dinah invocation and no checkpoint follow, for
+ * a card to somebody else. No dinah invocation and no checkpoint follows, for
  * the reason copyWorkbenchPath makes neither (dinah-330 D-8): a copy reads
  * only what the row already holds and changes nothing on the board, so a
  * checkpoint would repaint a tree that cannot have moved.
+ *
+ * One write rather than one per row, and one sentence rather than one per row.
+ * The copy family is declared `oneCall` for that reason, and it reports
+ * nothing inside the loop: reporting per row fills a one-card sentence with a
+ * newline-joined list, which is the shape dinah-490's round-5 review found
+ * (D-23).
  */
-export async function copyCardRef(context: CommandContext): Promise<void> {
-	await context.host.copyToClipboard(context.ref);
-	context.host.showInfo(
-		context.host.t("dialog.card.copiedRef", { ref: context.ref }),
-	);
+export async function copyCardRefs(
+	finished: readonly CommandContext[],
+	host: CommandHost,
+): Promise<void> {
+	await host.copyToClipboard(finished.map((context) => context.ref).join("\n"));
 }
 
 /**
- * Blocks the card, after asking for the reason the verb requires.
+ * The sentence a successful Copy Reference shows, whatever the row count.
+ *
+ * The singular key when exactly one row finished, which is the sentence that
+ * ships today, and the plural when more did. Making the copy always plural
+ * would regress the one-row gesture to "Copied 1 card references.", which is
+ * why both counts are pinned rather than only the plural one.
+ */
+export function copiedRefMessage(
+	finished: readonly CommandContext[],
+	t: Localizer,
+): string {
+	return finished.length === 1
+		? t("dialog.card.copiedRef", { ref: finished[0].ref })
+		: t("dialog.card.copiedRef.many", { count: String(finished.length) });
+}
+
+/**
+ * Asks once for the reason the block verb requires, over the whole selection.
  *
  * An empty reason cancels rather than sending one, because `dinah block` takes
  * the reason as an argument and a blank one would record a block nobody can
  * act on.
+ *
+ * The prompt names how many cards resolved rather than asking about "this
+ * card", because one sentence is raised over the whole selection and the
+ * shipped English asks about one card. The singular key is unchanged and is
+ * still what a one-card gesture shows.
  */
-export async function blockCard(
-	context: CommandContext,
-): Promise<CliOutcome | undefined> {
-	const reason = await context.host.input(
-		context.host.t("dialog.block.reasonPrompt"),
+export async function askBlockReason(
+	resolved: readonly CommandContext[],
+	host: CommandHost,
+): Promise<string | undefined> {
+	const reason = await host.input(
+		resolved.length === 1
+			? host.t("dialog.block.reasonPrompt")
+			: host.t("dialog.block.reasonPrompt.many", {
+					count: String(resolved.length),
+				}),
 	);
 	if (reason === undefined || reason.trim() === "") {
 		return undefined;
 	}
-	return runVerb(context, ["block", context.ref, reason.trim()]);
+	return reason.trim();
+}
+
+/** Blocks one card with the reason the reader gave for the whole selection. */
+export async function blockCardWith(
+	context: CommandContext,
+	reason: string,
+): Promise<CliOutcome> {
+	return runVerb(context, ["block", context.ref, reason]);
 }
 
 /**
@@ -310,40 +366,111 @@ export function movePick(move: LegalMove, t: Localizer = ENGLISH): PickItem {
 }
 
 /**
- * Moves the card, after asking which destination.
+ * The destinations every card in the selection will accept, in the first
+ * card's order.
  *
- * The destination list is fetched when the item is invoked rather than
- * eagerly for every card in the tree, because a tree of two hundred cards
- * would otherwise cost two hundred spawns to draw.
+ * The intersection is keyed by `move.column`, which movePick already
+ * establishes as the value the move verb takes. The titles and the direction
+ * shown are the first card's, because a destination is one column whatever
+ * card is looking at it and the first card's rendering is as true as any
+ * other's.
  */
-export async function moveCard(
-	context: CommandContext,
-): Promise<CliOutcome | undefined> {
-	const served = await runDinah(
-		context.spawner,
-		context.exe,
-		pinnedArgv(context.root, ["instructions", context.ref]),
-		{ cwd: context.root },
-	);
-	if (served.kind !== "ok") {
-		context.host.showError(refusalMessage(served));
-		return served;
+export function sharedLegalMoves(
+	perCard: readonly (readonly LegalMove[])[],
+): readonly LegalMove[] {
+	const first = perCard[0];
+	if (first === undefined) {
+		return [];
 	}
-	const moves = (served.json as ServedAnswer).legal_moves ?? [];
-	if (moves.length === 0) {
-		context.host.showError(
-			context.host.t("dialog.move.noLegalMoves", { ref: context.ref }),
+	const shared = new Set(first.map((move) => move.column));
+	for (const moves of perCard.slice(1)) {
+		const here = new Set(moves.map((move) => move.column));
+		for (const column of [...shared]) {
+			if (!here.has(column)) {
+				shared.delete(column);
+			}
+		}
+	}
+	return first.filter((move) => shared.has(move.column));
+}
+
+/**
+ * Reads every resolved card's legal moves and asks once for the destination
+ * they share.
+ *
+ * Asking once rather than once per card is the decision (D-4). A prompt per
+ * card over a dozen cards is the shape a reader abandons halfway, and
+ * abandoning halfway is exactly the partial result this card exists to make
+ * visible. The `instructions` calls are reads, so a reader who cancels the
+ * single prompt has changed nothing on the board.
+ *
+ * Every branch keys on the number of cards that resolved rather than on the
+ * number of rows targeted, which is what the signature enforces: this function
+ * is handed the resolved list and can read no other count.
+ */
+export async function askMoveDestination(
+	resolved: readonly CommandContext[],
+	host: CommandHost,
+): Promise<string | undefined> {
+	const perCard: (readonly LegalMove[])[] = [];
+	for (const context of resolved) {
+		const served = await runDinah(
+			context.spawner,
+			context.exe,
+			pinnedArgv(context.root, ["instructions", context.ref]),
+			{ cwd: context.root },
+		);
+		if (served.kind !== "ok") {
+			host.showError(refusalMessage(served));
+			return undefined;
+		}
+		perCard.push((served.json as ServedAnswer).legal_moves ?? []);
+	}
+	// No card resolved at all, which is the mixed or all-column selection.
+	// Nothing is spawned, nothing is asked and nothing is said here: the run
+	// proceeds with every row skipped and the summary tells the reader that
+	// the gesture came to nothing. Answering undefined instead would suppress
+	// that summary and leave a menu invocation saying nothing at all.
+	if (resolved.length === 0) {
+		return "";
+	}
+	const shared = sharedLegalMoves(perCard);
+	// Two branches rather than one sentence with a ternary in it. One card
+	// with no legal moves is today's shipped message and names that card;
+	// several cards sharing no destination is this card's new sentence and
+	// names how many of them resolved.
+	if (shared.length === 0 && resolved.length === 1) {
+		host.showError(host.t("dialog.move.noLegalMoves", { ref: resolved[0].ref }));
+		return undefined;
+	}
+	if (shared.length === 0) {
+		host.showError(
+			host.t("dialog.move.noSharedDestination", {
+				count: String(resolved.length),
+			}),
 		);
 		return undefined;
 	}
-	const picked = await context.host.pick(
-		orderLegalMoves(moves).map((move) => movePick(move, context.host.t)),
-		context.host.t("dialog.move.placeholder", { ref: context.ref }),
+	const picked = await host.pick(
+		orderLegalMoves(shared).map((move) => movePick(move, host.t)),
+		resolved.length === 1
+			? host.t("dialog.move.placeholder", { ref: resolved[0].ref })
+			: host.t("dialog.move.placeholder.many", {
+					count: String(resolved.length),
+				}),
 	);
 	if (picked === undefined) {
 		return undefined;
 	}
-	return runVerb(context, ["move", context.ref, picked.value]);
+	return picked.value;
+}
+
+/** Moves one card to the destination the reader chose for the selection. */
+export async function moveCardTo(
+	context: CommandContext,
+	column: string,
+): Promise<CliOutcome> {
+	return runVerb(context, ["move", context.ref, column]);
 }
 
 /**
@@ -389,7 +516,7 @@ export async function openHistory(context: CommandContext): Promise<void> {
  * (dinah-272), and a path this extension built itself would be a second
  * spelling of a layout the binary already owns.
  */
-export async function openCard(context: CommandContext): Promise<void> {
+export async function openCard(context: CommandContext): Promise<RowOutcome> {
 	const outcome = await runDinah(
 		context.spawner,
 		context.exe,
@@ -398,47 +525,73 @@ export async function openCard(context: CommandContext): Promise<void> {
 	);
 	if (outcome.kind !== "ok") {
 		context.host.showError(refusalMessage(outcome));
-		return;
+		return { kind: "failed", failure: refusalMessage(outcome) };
 	}
 	const path = (outcome.json as DetailAnswer).path;
 	if (path === undefined || path === "") {
 		context.host.log(`dinah show ${context.ref} answered with no path`);
-		return;
+		return { kind: "failed", failure: "show answered with no path" };
 	}
 	await context.host.openDocument(path);
+	return { kind: "done" };
+}
+
+/** What opening an attachment needs, which is its own file's path. */
+export interface AttachmentOpenContext {
+	readonly path: string;
+}
+
+/**
+ * The path an attachment row names, when it names one.
+ *
+ * An attachment element carries no CommandContext, because that shape names a
+ * card and the workbench the card stands in, while an attachment's path is the
+ * whole of what opening one needs and it already rides the element the row was
+ * drawn from. The absent element is checked by isRow before any field is read
+ * off it, which is the one place that check lives (dinah-342).
+ */
+export function contextForAttachmentOpen(
+	element: TreeElement | undefined,
+): AttachmentOpenContext | undefined {
+	if (!isRow(element, "attachment")) {
+		return undefined;
+	}
+	const path = element.view.path;
+	if (path === undefined || path === "") {
+		return undefined;
+	}
+	return { path };
 }
 
 /**
  * Opens an attachment's own file, handing the editor a path and nothing else.
  *
- * An attachment element carries no CommandContext, because that shape names a
- * card and the workbench the card stands in, while an attachment's path is
- * the whole of what opening one needs and it already rides the element the
- * row was drawn from. `openFile` rather than `openDocument`, because an
- * attachment is arbitrary bytes and the editor is the one to decide how to
- * render them (dinah-335's Decision 3). The plain click is the whole of what
- * this handler offers; the row's context menu arrived with dinah-451 and is
- * deleteAttachment below.
- *
- * The channel line goes through a callback of its own rather than through
- * the host, so a row that names no openable file reports itself without
- * asking the host for anything at all.
+ * `openFile` rather than `openDocument`, because an attachment is arbitrary
+ * bytes and the editor is the one to decide how to render them (dinah-335's
+ * Decision 3). The plain click is the whole of what this handler offers; the
+ * row's context menu arrived with dinah-451 and is the delete below.
  */
 export async function openAttachment(
-	element: TreeElement | undefined,
+	context: AttachmentOpenContext,
 	host: CommandHost,
-	log: (line: string) => void,
-): Promise<void> {
-	if (!isRow(element, "attachment")) {
-		log(`${COMMAND_OPEN_ATTACHMENT} was invoked on a row that names no attachment`);
-		return;
-	}
-	const path = element.view.path;
-	if (path === undefined || path === "") {
-		log(`${COMMAND_OPEN_ATTACHMENT} was invoked on an attachment with no path`);
-		return;
-	}
-	await host.openFile(path);
+): Promise<RowOutcome> {
+	await host.openFile(context.path);
+	return { kind: "done" };
+}
+
+/**
+ * An attachment row's context, and the two strings its confirmation names.
+ *
+ * The verb takes `ref`, which is composed from the attachment's identifier so
+ * that a position shifting under a concurrent delete cannot address a
+ * different file. The confirmation shows `filename` and `drawnRef`, which are
+ * what the row itself was drawn from, because a reader recognises the file by
+ * its name and the address they would type rather than by an identifier.
+ */
+export interface AttachmentCommandContext extends CommandContext {
+	readonly filename: string;
+	/** The address the listing drew, which is what the singular confirmation names. */
+	readonly drawnRef: string;
 }
 
 /**
@@ -466,7 +619,7 @@ export function contextForAttachment(
 	exe: string,
 	host: CommandHost,
 	spawner: Spawner,
-): CommandContext | undefined {
+): AttachmentCommandContext | undefined {
 	if (!isRow(element, "attachment")) {
 		return undefined;
 	}
@@ -480,50 +633,309 @@ export function contextForAttachment(
 		folder: element.row.folder,
 		root: element.root,
 		ref: `${element.owner}/${ATTACHMENTS_SEGMENT}/${element.view.id}`,
+		filename: element.view.filename,
+		drawnRef: element.view.ref,
 	};
 }
 
 /**
- * Deletes an attachment, after asking the reader to confirm it.
+ * Asks once, before anything spawns, whether to delete what was selected.
  *
  * The confirmation is the extension's own, because the tool's answer to the
  * same question is a required `--yes` marker rather than a prompt, and a
- * marker composed in code asks nobody anything. The sentence names the file
- * and the address the row was drawn from, since an attachment row is labelled
- * by filename alone and one entity may carry several.
+ * marker composed in code asks nobody anything. The singular sentence names
+ * the file and the address the row was drawn from, since an attachment row is
+ * labelled by filename alone and one entity may carry several; the plural
+ * names how many attachments resolved, because a sentence naming one filename
+ * can fill nothing from a run over several.
  *
- * A declined confirmation returns undefined having spawned nothing, so the
- * board is not re-read for an act that did not happen. Everything after the
- * confirmation is runVerb's, which reports a refusal and checkpoints either
- * way.
+ * The count is the resolved one rather than the targeted one, which is what
+ * the signature enforces: this function is handed the resolved list, so a
+ * selection of two attachments and a column row asks about two.
  */
-export async function deleteAttachment(
-	element: TreeElement | undefined,
-	exe: string,
+export async function askDeleteAttachmentConfirmation(
+	resolved: readonly AttachmentCommandContext[],
 	host: CommandHost,
-	spawner: Spawner,
-	log: (line: string) => void,
-): Promise<CliOutcome | undefined> {
-	if (!isRow(element, "attachment")) {
-		log(`${COMMAND_DELETE_ATTACHMENT} was invoked on a row that names no attachment`);
-		return undefined;
-	}
-	const context = contextForAttachment(element, exe, host, spawner);
-	if (context === undefined) {
-		log(
-			`${COMMAND_DELETE_ATTACHMENT} was invoked on an attachment row that composes no reference`,
-		);
-		return undefined;
-	}
+): Promise<true | undefined> {
 	const confirmed = await host.confirmDestructive(
-		host.t("dialog.attachment.delete.confirm", {
-			filename: element.view.filename,
-			ref: element.view.ref,
-		}),
+		resolved.length === 1
+			? host.t("dialog.attachment.delete.confirm", {
+					filename: resolved[0].filename,
+					ref: resolved[0].drawnRef,
+				})
+			: host.t("dialog.attachment.delete.confirm.many", {
+					count: String(resolved.length),
+				}),
 		host.t("dialog.attachment.delete.action"),
 	);
-	if (!confirmed) {
-		return undefined;
-	}
+	return confirmed ? true : undefined;
+}
+
+/** Deletes one attachment the reader has already confirmed. */
+export async function deleteAttachmentAt(
+	context: AttachmentCommandContext,
+): Promise<CliOutcome> {
 	return runVerb(context, ["delete", context.ref, "--yes"]);
+}
+
+/**
+ * Archives one card, which takes it off the board.
+ *
+ * A sibling of claimCard and releaseCard, running the verb the CLI already
+ * carries. `dinah archive` takes exactly one reference per invocation, so a
+ * selection is a loop rather than a flag, and the confirmation is deliberately
+ * not inside this function: a later card offering Archive on a column row
+ * writes its own ask, because the sentence a column needs is not this one, and
+ * reuses this verb and the whole bulk layer unchanged (D-2).
+ */
+export async function archiveCard(context: CommandContext): Promise<CliOutcome> {
+	return runVerb(context, ["archive", context.ref]);
+}
+
+/**
+ * Asks once, before anything spawns, whether to archive what was selected.
+ *
+ * The copy says outright that this extension cannot show the archive or put
+ * the card back, because that is true until the companion card lands and a
+ * reader deserves to know it at the moment they act rather than afterwards
+ * (D-9). It names `dinah restore` as the route back, which was confirmed by a
+ * run rather than read off the help.
+ */
+export async function askArchiveConfirmation(
+	resolved: readonly CommandContext[],
+	host: CommandHost,
+): Promise<true | undefined> {
+	const confirmed = await host.confirmDestructive(
+		resolved.length === 1
+			? host.t("dialog.archive.confirm.one", { ref: resolved[0].ref })
+			: host.t("dialog.archive.confirm.many", {
+					count: String(resolved.length),
+				}),
+		host.t("dialog.archive.action"),
+	);
+	return confirmed ? true : undefined;
+}
+
+// ---------------------------------------------------------------------------
+// What the registration loop calls: one invoke per contributed card command
+// ---------------------------------------------------------------------------
+//
+// Each function below takes the rows the reader aimed at, whole and
+// unfiltered, and hands them to runBulk. No command filters its own rows:
+// resolve inside runBulk is the one place this extension reads whether a row
+// yielded a context, and it records the row either way (D-16). So the number
+// of rows a run reports is the number of rows the reader aimed at.
+
+/** The channel line a row that names no card gets. */
+const NO_CARD = "names no card";
+
+/** The channel line a row that names no attachment gets. */
+const NO_ATTACHMENT = "names no attachment";
+
+/** What a verb's answer comes to for the row that ran it. */
+export function rowOutcomeFor(outcome: CliOutcome): RowOutcome {
+	// A row is failed when the outcome's kind is anything other than ok.
+	// Defining failure as a refusal would record a vanished binary
+	// (spawn-failed) or an out-of-date one (stale) as a run of successes.
+	return outcome.kind === "ok"
+		? { kind: "done" }
+		: { kind: "failed", failure: refusalMessage(outcome) };
+}
+
+/** The label a row shows in the tree, which is what a run records for it. */
+export function rowRef(element: TreeElement, t: Localizer): string {
+	return treeItemFor(element, t).label;
+}
+
+/** One run of a card-row command over the rows it was aimed at. */
+async function cardRun<A>(
+	elements: readonly TreeElement[],
+	wiring: Wiring,
+	ask: (
+		resolved: readonly CommandContext[],
+		host: CommandHost,
+	) => Promise<A | undefined>,
+	act: (
+		context: CommandContext,
+		answer: A,
+		host: CommandHost,
+	) => Promise<RowOutcome>,
+	extra: Partial<BulkDeps<CommandContext, CommandHost>> = {},
+): Promise<BulkReport> {
+	return runBulk(
+		elements,
+		(element) => rowRef(element, wiring.t),
+		(element) => contextFor(element, wiring.exe, wiring.cardHost, wiring.spawner),
+		{
+			host: wiring.cardHost,
+			t: wiring.t,
+			skipReason: NO_CARD,
+			...extra,
+		},
+		ask,
+		act,
+	);
+}
+
+/** A fanOut card command asks nothing, so its ask answers a unit value. */
+async function noQuestion(): Promise<true> {
+	return true;
+}
+
+/** Opens each selected card's own file. */
+export async function invokeOpenCard(
+	elements: readonly TreeElement[],
+	wiring: Wiring,
+): Promise<BulkReport> {
+	return cardRun(elements, wiring, noQuestion, async (context, _answer, host) =>
+		openCard({ ...context, host }),
+	);
+}
+
+/** Claims each selected card, continuing past a refusal. */
+export async function invokeClaim(
+	elements: readonly TreeElement[],
+	wiring: Wiring,
+): Promise<BulkReport> {
+	return cardRun(elements, wiring, noQuestion, async (context, _answer, host) =>
+		rowOutcomeFor(await claimCard({ ...context, host })),
+	);
+}
+
+/** Releases each selected card. */
+export async function invokeRelease(
+	elements: readonly TreeElement[],
+	wiring: Wiring,
+): Promise<BulkReport> {
+	return cardRun(elements, wiring, noQuestion, async (context, _answer, host) =>
+		rowOutcomeFor(await releaseCard({ ...context, host })),
+	);
+}
+
+/** Unblocks each selected card. */
+export async function invokeUnblock(
+	elements: readonly TreeElement[],
+	wiring: Wiring,
+): Promise<BulkReport> {
+	return cardRun(elements, wiring, noQuestion, async (context, _answer, host) =>
+		rowOutcomeFor(await unblockCard({ ...context, host })),
+	);
+}
+
+/** Opens each selected card's served instruction chain as a tab. */
+export async function invokeOpenInstructions(
+	elements: readonly TreeElement[],
+	wiring: Wiring,
+): Promise<BulkReport> {
+	return cardRun(elements, wiring, noQuestion, async (context, _answer, host) => {
+		await openInstructions({ ...context, host });
+		return { kind: "done" };
+	});
+}
+
+/** Opens each selected card's own journal as a tab. */
+export async function invokeOpenHistory(
+	elements: readonly TreeElement[],
+	wiring: Wiring,
+): Promise<BulkReport> {
+	return cardRun(elements, wiring, noQuestion, async (context, _answer, host) => {
+		await openHistory({ ...context, host });
+		return { kind: "done" };
+	});
+}
+
+/** Asks once for a destination every selected card accepts, then moves each. */
+export async function invokeMove(
+	elements: readonly TreeElement[],
+	wiring: Wiring,
+): Promise<BulkReport> {
+	return cardRun(
+		elements,
+		wiring,
+		askMoveDestination,
+		async (context, column, host) =>
+			rowOutcomeFor(await moveCardTo({ ...context, host }, column)),
+	);
+}
+
+/** Asks once for a reason, then blocks every selected card with it. */
+export async function invokeBlock(
+	elements: readonly TreeElement[],
+	wiring: Wiring,
+): Promise<BulkReport> {
+	return cardRun(
+		elements,
+		wiring,
+		askBlockReason,
+		async (context, reason, host) =>
+			rowOutcomeFor(await blockCardWith({ ...context, host }, reason)),
+	);
+}
+
+/** Asks once, then archives every selected card. */
+export async function invokeArchiveCard(
+	elements: readonly TreeElement[],
+	wiring: Wiring,
+): Promise<BulkReport> {
+	return cardRun(
+		elements,
+		wiring,
+		askArchiveConfirmation,
+		async (context, _answer, host) =>
+			rowOutcomeFor(await archiveCard({ ...context, host })),
+		// Archive alone lines every attempted row, the finished ones included,
+		// because the confirmation promises the channel carries every
+		// reference it archived and `dinah restore` is the route back (D-17).
+		{ lineEveryRow: true, doneLine: "archived" },
+	);
+}
+
+/** Puts every selected card's reference on the clipboard, in one write. */
+export async function invokeCopyCardRef(
+	elements: readonly TreeElement[],
+	wiring: Wiring,
+): Promise<BulkReport> {
+	return cardRun(
+		elements,
+		wiring,
+		noQuestion,
+		// The per-row act performs no effect and reports nothing. The one
+		// clipboard write happens in finish and the one sentence comes from
+		// successMessage, which is what keeps the summary the only route this
+		// command speaks through (D-23).
+		async () => ({ kind: "done" }),
+		{ finish: copyCardRefs, successMessage: copiedRefMessage },
+	);
+}
+
+/** Opens each selected attachment's own file. */
+export async function invokeOpenAttachment(
+	elements: readonly TreeElement[],
+	wiring: Wiring,
+): Promise<BulkReport> {
+	return runBulk(
+		elements,
+		(element) => rowRef(element, wiring.t),
+		contextForAttachmentOpen,
+		{ host: wiring.cardHost, t: wiring.t, skipReason: NO_ATTACHMENT },
+		noQuestion,
+		async (context, _answer, host) => openAttachment(context, host),
+	);
+}
+
+/** Asks once, then deletes every selected attachment. */
+export async function invokeDeleteAttachment(
+	elements: readonly TreeElement[],
+	wiring: Wiring,
+): Promise<BulkReport> {
+	return runBulk(
+		elements,
+		(element) => rowRef(element, wiring.t),
+		(element) =>
+			contextForAttachment(element, wiring.exe, wiring.cardHost, wiring.spawner),
+		{ host: wiring.cardHost, t: wiring.t, skipReason: NO_ATTACHMENT },
+		askDeleteAttachmentConfirmation,
+		async (context, _answer, host) =>
+			rowOutcomeFor(await deleteAttachmentAt({ ...context, host })),
+	);
 }

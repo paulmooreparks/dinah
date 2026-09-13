@@ -14,6 +14,7 @@ import { test } from "node:test";
 import * as ts from "typescript";
 
 import {
+	COMMAND_ARCHIVE_CARD,
 	COMMAND_ATTACH_FILE,
 	COMMAND_CHECK_WORKBENCH,
 	COMMAND_COPY_CARD_REF,
@@ -2590,4 +2591,62 @@ test("the README names every setting the manifest contributes", () => {
 		[],
 		`the README names none of these settings: ${unmentioned.join(", ")}`,
 	);
+});
+
+test("Archive Card is declared where the roster puts it, classified, and hidden from the palette", () => {
+	// dinah-490 AC-5. Four declarations have to agree: identity.ts's three
+	// arrays, the contributes.commands entry at the position TREE_COMMANDS
+	// gives it, the commandPalette entry that keeps a row command out of a
+	// place that hands it no row, and the context-menu entry below.
+	assert.ok(TREE_COMMANDS.includes(COMMAND_ARCHIVE_CARD));
+	assert.ok(ROW_COMMANDS.includes(COMMAND_ARCHIVE_CARD));
+	assert.ok(!GLOBAL_COMMANDS.includes(COMMAND_ARCHIVE_CARD));
+
+	const commands = contributes.commands as { command: string; title: string }[];
+	// The position rather than mere presence, because contributes.commands is
+	// held against TREE_COMMANDS by deepEqual elsewhere in this file and a
+	// command declared in the wrong place there would move every entry after
+	// it.
+	assert.equal(
+		commands[TREE_COMMANDS.indexOf(COMMAND_ARCHIVE_CARD)].command,
+		COMMAND_ARCHIVE_CARD,
+	);
+	const titles = new Map(commands.map((entry) => [entry.command, entry.title]));
+	// Resolved against package.nls.json before it reaches here, so this is the
+	// English a reader sees on the menu item.
+	assert.equal(titles.get(COMMAND_ARCHIVE_CARD), "Dinah: Archive Card");
+
+	const menus = contributes.menus as Record<
+		string,
+		{ command: string; when: string }[]
+	>;
+	const palette = menus.commandPalette.filter(
+		(entry) => entry.command === COMMAND_ARCHIVE_CARD,
+	);
+	assert.equal(palette.length, 1);
+	assert.equal(palette[0].when, "false");
+});
+
+test("Archive Card is offered on every card row, in the destructive group", () => {
+	// dinah-490 AC-5 and D-11. Every card state is offered the act, because
+	// archiving a card Dinah will not let you claim is exactly the case a
+	// reader reaches for, so the clause is the prefix anchor rather than a
+	// state-gated one. The group sorts last, so a destructive item does not
+	// sit against Claim.
+	const menus = contributes.menus as Record<
+		string,
+		{ command: string; when: string; group: string }[]
+	>;
+	const matched = menus["view/item/context"].filter(
+		(entry) => entry.command === COMMAND_ARCHIVE_CARD,
+	);
+	// The count is what stops a second entry being added later while this test
+	// goes on passing on the first one.
+	assert.equal(
+		matched.length,
+		1,
+		`${COMMAND_ARCHIVE_CARD} has ${String(matched.length)} menu entries, wanted 1`,
+	);
+	assert.equal(matched[0].when, CARD_ROW_CLAUSE);
+	assert.equal(matched[0].group, "9_destructive@1");
 });

@@ -594,6 +594,71 @@
 			"text": "Befehlspalette: {argument} für {verb} konnte nicht aufgelöst werden. {detail}",
 			"context": "Output channel line beside the toast above, carrying the full failure. {argument} and {verb} are their own untranslated names, {detail} the refusal.",
 			"source": "22600771c417ac05"
+		},
+		"dialog.archive.confirm.one": {
+			"text": "{ref} archivieren? Die Karte verlässt das Board. Diese Erweiterung kann Ihnen das Archiv nicht zeigen und die Karte nicht zurückholen. Zum Zurückholen führen Sie dinah restore {ref} in einem Terminal aus.",
+			"context": "The modal shown before one card is archived from the sidebar. {ref} is the card's own reference and appears twice, once in the question and once in the command that reverses it. The sentence says outright that the archive cannot be reached from here, because that is true until dinah-491 lands; that card adds the archive view and makes this sentence wrong, so correct it there.",
+			"source": "5332cbcea813ac4c"
+		},
+		"dialog.archive.confirm.many": {
+			"text": "{count} Karte(n) archivieren? Sie verlassen das Board. Diese Erweiterung kann Ihnen das Archiv nicht zeigen und die Karten nicht zurückholen. Dinah listet jede archivierte Referenz im Dinah-Ausgabekanal auf, und dinah restore holt eine davon in einem Terminal zurück.",
+			"context": "The modal shown before several cards are archived at once. {count} is how many of the selected rows resolved to a card, which is why it can be smaller than the number of rows selected. The sentence points at the output channel because that is where the run writes every reference it archived. dinah-491 adds the archive view and makes this sentence wrong; correct it there.",
+			"source": "1da48c815e77fdfc"
+		},
+		"dialog.archive.action": {
+			"text": "Archivieren",
+			"context": "The affirmative button of the archive confirmation. The modal supplies its own Cancel, so only this label comes from the catalogue.",
+			"source": "a0ca791d0f13f0e5"
+		},
+		"dialog.bulk.allSucceeded": {
+			"text": "Dinah hat alle {count} ausgewählten Zeile(n) abgeschlossen.",
+			"context": "Toast after a run over several rows in which every row finished and no row had anything else to say. {count} is how many rows finished, not how many were selected.",
+			"source": "32cf4913fadc428c"
+		},
+		"dialog.bulk.allSucceededNotes": {
+			"text": "Dinah hat alle {count} ausgewählten Zeile(n) abgeschlossen und {notes} Notiz(en) in den Ausgabekanal geschrieben.",
+			"context": "Toast after a run over several rows in which every row finished and some rows had something to report. {count} is how many rows finished and {notes} is how many notes reached the channel. The toast is a warning when any note was a warning and plain information otherwise.",
+			"source": "7dee1c24e250a6d2"
+		},
+		"dialog.bulk.partial": {
+			"text": "Dinah hat {succeeded} von {selected} ausgewählten Zeile(n) abgeschlossen. {refused} wurden abgelehnt und bei {skipped} war keine Aktion möglich. Einzelheiten stehen im Dinah-Ausgabekanal.",
+			"context": "Toast after a run over several rows that did not wholly succeed. {selected} is how many rows the reader aimed at, {succeeded} how many finished, {refused} how many the tool refused, and {skipped} how many were rows this command cannot act on. The channel carries one line per row that did not finish.",
+			"source": "89052e16f9953879"
+		},
+		"dialog.bulk.oneRowOnly": {
+			"text": "Dinah führt diesen Befehl jeweils für eine Zeile aus. Wählen Sie eine einzelne Zeile und versuchen Sie es erneut.",
+			"context": "The refusal a command that acts on one row shows when several rows were selected. New Card is the only command that raises it today, because one title makes one card.",
+			"source": "b3accd1c56c4c4a3"
+		},
+		"dialog.move.noSharedDestination": {
+			"text": "Dinah hat kein Ziel gefunden, das alle {count} ausgewählten Karten annimmt.",
+			"context": "The refusal Move shows when the selected cards share no legal destination. {count} is how many rows resolved to a card. It is never one here, because a single card with no legal moves reaches dialog.move.noLegalMoves instead, so the plural is plain rather than the (s) form and should not be corrected into one.",
+			"source": "f67d4045e8614cd5"
+		},
+		"dialog.move.placeholder.many": {
+			"text": "{count} Karten verschieben nach",
+			"context": "Placeholder of the quick pick listing the destinations several selected cards share. {count} is how many rows resolved to a card. It is never one here, because one card reaches dialog.move.placeholder instead, so the plural is plain rather than the (s) form. A placeholder is a fragment by the same convention dialog.move.placeholder already follows.",
+			"source": "422dbc1fd762949"
+		},
+		"dialog.block.reasonPrompt.many": {
+			"text": "Warum sind diese {count} Karten blockiert?",
+			"context": "Prompt of the input box Block raises over several selected cards, whose one answer is recorded against each of them. {count} is how many rows resolved to a card. It is never one here, because one card reaches dialog.block.reasonPrompt instead, so the plural is plain rather than the (s) form.",
+			"source": "e4e22ad7b28349cd"
+		},
+		"dialog.card.copiedRef.many": {
+			"text": "{count} Kartenreferenzen kopiert.",
+			"context": "Toast after Copy Reference over several cards, whose references reach the clipboard as one newline-joined write. {count} is how many were copied. It is never one here, because one card reaches dialog.card.copiedRef instead, so the plural is plain rather than the (s) form.",
+			"source": "5a950cbd4508eaf0"
+		},
+		"dialog.workbench.copiedPath.many": {
+			"text": "{count} Werkbank-Pfade kopiert.",
+			"context": "Toast after Copy Path over several workbench rows, whose paths reach the clipboard as one newline-joined write. {count} is how many were copied. It is never one here, because one row reaches dialog.workbench.copiedPath instead, so the plural is plain rather than the (s) form.",
+			"source": "6863fec22e448b73"
+		},
+		"dialog.attachment.delete.confirm.many": {
+			"text": "{count} Anhang/Anhänge löschen? Dinah zerstört die Dateien und kann sie nicht wiederherstellen.",
+			"context": "The modal shown before several attachments are deleted at once. {count} is how many of the selected rows resolved to an attachment, which is why it can be smaller than the number of rows selected. It carries the (s) form because nothing stops a later card reaching it with one attachment.",
+			"source": "43dd2333127a0345"
 		}
 	}
 }

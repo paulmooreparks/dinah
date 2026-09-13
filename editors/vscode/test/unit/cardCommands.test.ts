@@ -15,12 +15,18 @@ import { ENGLISH } from "../../src/l10n";
 import type { SpawnOutcome, Spawner } from "../../src/cli";
 import type { CommandContext, CommandHost, PickItem } from "../../src/cardCommands";
 import {
-	blockCard,
+	askBlockReason,
+	askDeleteAttachmentConfirmation,
+	askMoveDestination,
+	blockCardWith,
 	claimCard,
 	contextFor,
-	copyCardRef,
-	deleteAttachment,
-	moveCard,
+	contextForAttachment,
+	contextForAttachmentOpen,
+	copiedRefMessage,
+	copyCardRefs,
+	deleteAttachmentAt,
+	moveCardTo,
 	movePick,
 	openAttachment,
 	openCard,
@@ -40,6 +46,12 @@ interface Recorder {
 	readonly checkpoints: string[];
 	/** The messages the host was asked to show as plain information. */
 	readonly infos: string[];
+	/** The messages the host was asked to show as warnings, in order. */
+	readonly warnings: string[];
+	/** Every line the host was asked to write to the output channel. */
+	readonly channelLines: string[];
+	/** How many times the host was asked to reveal the output channel. */
+	revealed: number;
 	/** Every string the host was asked to put on the clipboard, in order. */
 	readonly copied: string[];
 	readonly opened: string[];
@@ -77,6 +89,8 @@ function recorder(answers: Record<string, SpawnOutcome> = {}): Recorder {
 	const errors: string[] = [];
 	const checkpoints: string[] = [];
 	const infos: string[] = [];
+	const warnings: string[] = [];
+	const channelLines: string[] = [];
 	const copied: string[] = [];
 	const opened: string[] = [];
 	const files: string[] = [];
@@ -89,6 +103,9 @@ function recorder(answers: Record<string, SpawnOutcome> = {}): Recorder {
 		errors,
 		checkpoints,
 		infos,
+		warnings,
+		channelLines,
+		revealed: 0,
 		copied,
 		opened,
 		files,
@@ -116,6 +133,16 @@ function recorder(answers: Record<string, SpawnOutcome> = {}): Recorder {
 		t: ENGLISH,
 		showError: (message) => errors.push(message),
 		showInfo: (message) => infos.push(message),
+		showWarning: async (message) => {
+			warnings.push(message);
+			return undefined;
+		},
+		appendLines: (lines) => {
+			channelLines.push(...lines);
+		},
+		revealOutput: () => {
+			state.revealed += 1;
+		},
 		copyToClipboard: async (text) => {
 			copied.push(text);
 		},
@@ -171,7 +198,7 @@ test("copying a card's reference puts the reference itself on the clipboard", as
 	// reaching for the wrong field would still copy something, so the assertion
 	// names the value rather than counting the calls.
 	const r = recorder();
-	await copyCardRef(r.context);
+	await copyCardRefs([r.context], r.host);
 	assert.deepEqual(r.copied, ["tr-4"]);
 });
 
@@ -179,12 +206,16 @@ test("copying a card's reference tells the reader which reference it copied", as
 	// A clipboard write leaves no trace on screen, so the message is the only
 	// confirmation. It names the reference so that a reader who clicked the
 	// wrong row finds out before pasting.
+	// The sentence now comes from the run's own summary rather than from the
+	// per-row act, because the copy family reports once over a whole selection
+	// (dinah-490 D-23). It is still the singular key over one card.
 	const r = recorder();
-	await copyCardRef(r.context);
-	assert.equal(r.infos.length, 1);
+	await copyCardRefs([r.context], r.host);
+	const message = copiedRefMessage([r.context], ENGLISH);
+	assert.equal(message, ENGLISH("dialog.card.copiedRef", { ref: "tr-4" }));
 	assert.ok(
-		r.infos[0].includes("tr-4"),
-		`the message did not name the reference: ${r.infos[0]}`,
+		message.includes("tr-4"),
+		`the message did not name the reference: ${message}`,
 	);
 	assert.deepEqual(r.errors, []);
 });
@@ -196,7 +227,7 @@ test("copying a card's reference spawns no dinah and runs no checkpoint", async 
 	// because runVerb would produce both together and either alone is a
 	// half-finished mistake this catches.
 	const r = recorder();
-	await copyCardRef(r.context);
+	await copyCardRefs([r.context], r.host);
 	assert.deepEqual(r.calls, []);
 	assert.deepEqual(r.checkpoints, []);
 });
@@ -344,7 +375,9 @@ test("invoking the second forward entry moves to that entry's own column", async
 	const r = recorder({ instructions: ok({ legal_moves: MIXED_MOVES }) });
 	// The second forward entry is Done, whose column identifier is col-done.
 	r.picked = movePick(MIXED_MOVES[2]);
-	await moveCard(r.context);
+	const column = await askMoveDestination([r.context], r.host);
+	assert.equal(typeof column, "string");
+	await moveCardTo(r.context, column ?? "");
 	const move = r.calls.find((argv) => argv.includes("move"));
 	assert.deepEqual(move, [
 		"--json",
@@ -368,7 +401,7 @@ test("the destination passed is the Column field and not the Ref or the Title", 
 
 test("the quick-pick is offered the destinations in the order the ordering gives", async () => {
 	const r = recorder({ instructions: ok({ legal_moves: MIXED_MOVES }) });
-	await moveCard(r.context);
+	await askMoveDestination([r.context], r.host);
 	assert.deepEqual(
 		r.offered.map((item) => item.label),
 		["Doing", "Done", "Intake"],
@@ -382,7 +415,7 @@ test("the quick-pick is offered the destinations in the order the ordering gives
 test("dismissing the quick-pick moves nothing", async () => {
 	const r = recorder({ instructions: ok({ legal_moves: MIXED_MOVES }) });
 	r.picked = undefined;
-	await moveCard(r.context);
+	assert.equal(await askMoveDestination([r.context], r.host), undefined);
 	assert.equal(
 		r.calls.find((argv) => argv.includes("move")),
 		undefined,
@@ -392,7 +425,7 @@ test("dismissing the quick-pick moves nothing", async () => {
 
 test("a card with no legal moves says so rather than opening an empty picker", async () => {
 	const r = recorder({ instructions: ok({ legal_moves: [] }) });
-	await moveCard(r.context);
+	await askMoveDestination([r.context], r.host);
 	assert.deepEqual(r.offered, []);
 	assert.equal(r.errors.length, 1);
 	assert.ok(r.errors[0].includes("tr-4"));
@@ -405,7 +438,9 @@ test("a card with no legal moves says so rather than opening an empty picker", a
 test("blocking sends the reason that was typed", async () => {
 	const r = recorder();
 	r.typed = "  waiting on the printer  ";
-	await blockCard(r.context);
+	const reason = await askBlockReason([r.context], r.host);
+	assert.equal(reason, "waiting on the printer");
+	await blockCardWith(r.context, reason ?? "");
 	assert.deepEqual(r.calls[0].slice(3), ["block", "tr-4", "waiting on the printer"]);
 });
 
@@ -415,7 +450,7 @@ test("an empty reason blocks nothing", async () => {
 	for (const typed of [undefined, "", "   "]) {
 		const r = recorder();
 		r.typed = typed;
-		await blockCard(r.context);
+		assert.equal(await askBlockReason([r.context], r.host), undefined);
 		assert.deepEqual(r.calls, []);
 		assert.deepEqual(r.checkpoints, []);
 	}
@@ -461,11 +496,11 @@ function attachmentRow(path: string | undefined): TreeElement {
 test("an attachment with a file opens it through openFile and touches nothing else on the host", async () => {
 	const r = recorder();
 	const lines: string[] = [];
-	await openAttachment(
+	const context = contextForAttachmentOpen(
 		attachmentRow("C:\\bench\\cards\\tr-4\\attachments\\screenshot.png"),
-		r.host,
-		(line) => lines.push(line),
 	);
+	assert.notEqual(context, undefined);
+	await openAttachment(context ?? { path: "" }, r.host);
 	assert.deepEqual(r.files, ["C:\\bench\\cards\\tr-4\\attachments\\screenshot.png"]);
 	// No other call the host offers was made: no document forced open, no
 	// checkpoint spent, no error surface, no picker, and no channel line
@@ -479,22 +514,20 @@ test("an attachment with a file opens it through openFile and touches nothing el
 	assert.deepEqual(lines, []);
 });
 
-test("an attachment with no path opens nothing, calls nothing on the host, and says so once", async () => {
+test("an attachment with no path resolves to no context, so nothing opens", async () => {
+	// The channel line moved with dinah-490: a row that yields no context is
+	// recorded as a skipped row of the run and reaches the channel from there,
+	// with the run's own skip reason, so the resolution is what this asserts
+	// and the line is asserted where the run writes it.
 	for (const path of [undefined, ""]) {
 		const r = recorder();
-		const lines: string[] = [];
-		await openAttachment(attachmentRow(path), r.host, (line) => lines.push(line));
+		assert.equal(contextForAttachmentOpen(attachmentRow(path)), undefined);
 		assert.deepEqual(r.files, []);
 		assert.deepEqual(r.opened, []);
 		assert.deepEqual(r.checkpoints, []);
 		assert.deepEqual(r.errors, []);
 		assert.deepEqual(r.offered, []);
 		assert.deepEqual(r.logged, []);
-		assert.equal(lines.length, 1, `the handler said: ${lines.join(" | ")}`);
-		assert.ok(
-			lines[0].includes("no path"),
-			`the row did not say why it opened nothing: ${lines.join(" | ")}`,
-		);
 	}
 });
 
@@ -507,6 +540,9 @@ const silentHost: CommandHost = {
 	t: ENGLISH,
 	showError: () => undefined,
 	showInfo: () => undefined,
+	showWarning: async () => undefined,
+	appendLines: () => undefined,
+	revealOutput: () => undefined,
 	copyToClipboard: async () => undefined,
 	pick: async () => undefined,
 	input: async () => undefined,
@@ -584,9 +620,8 @@ test("contextFor answers undefined for a row that is not a card", () => {
 	}
 });
 
-test("a row that names no attachment at all opens nothing and says which command was misaimed", async () => {
+test("a row that names no attachment at all resolves to no context", async () => {
 	const r = recorder();
-	const lines: string[] = [];
 	// A note row is a row of the wrong kind, and the same guard has to fire
 	// for every kind the tree composes.
 	const wrong: TreeElement = {
@@ -595,13 +630,8 @@ test("a row that names no attachment at all opens nothing and says which command
 		text: "nothing to open here",
 		tooltip: "nothing to open here",
 	};
-	await openAttachment(wrong, r.host, (line) => lines.push(line));
+	assert.equal(contextForAttachmentOpen(wrong), undefined);
 	assert.deepEqual(r.files, []);
-	assert.equal(lines.length, 1);
-	assert.ok(
-		lines[0].includes("dinah.tree.openAttachment"),
-		`the row did not name the command that was misaimed: ${lines.join(" | ")}`,
-	);
 });
 
 test("openAttachment survives the argument the Command Palette does not pass", async () => {
@@ -615,19 +645,13 @@ test("openAttachment survives the argument the Command Palette does not pass", a
 	// closes the route rather than the hole; both are wanted, because a
 	// keybinding and another extension reach the handler past the manifest.
 	const r = recorder();
-	const lines: string[] = [];
-	await openAttachment(undefined, r.host, (line) => lines.push(line));
+	assert.equal(contextForAttachmentOpen(undefined), undefined);
 	assert.deepEqual(r.files, []);
 	assert.deepEqual(r.opened, []);
 	assert.deepEqual(r.checkpoints, []);
 	assert.deepEqual(r.errors, []);
 	assert.deepEqual(r.offered, []);
 	assert.deepEqual(r.logged, []);
-	assert.equal(lines.length, 1, `the handler said: ${lines.join(" | ")}`);
-	assert.ok(
-		lines[0].includes("dinah.tree.openAttachment"),
-		`the absent row did not name the command that was misaimed: ${lines.join(" | ")}`,
-	);
 });
 
 test("contextFor still composes the context a card row names", () => {
@@ -661,17 +685,19 @@ const extensionSource = readFileSync(
 	"utf8",
 );
 
-test("the command handler hands its argument straight to contextFor", () => {
+test("the command handler hands its argument straight on, reading no field", () => {
 	// Testing the decision and not the wiring is how the defect survived. The
-	// handler reads nothing off the element itself: it passes the binding to
-	// contextFor, which is the function the three tests above hold to the
-	// missing-element contract. A regression that read a field first, which is
-	// exactly what shipped, would leave those three green, so this reads the
-	// one module the unit layer cannot import the way layers.ts and
-	// spawn-sites.ts already read src for a single-site invariant.
+	// handler reads nothing off the element itself: dinah-490 moved the
+	// resolution out of extension.ts entirely, so the one registration loop
+	// passes its two parameters to targetsFor and the entry's own invoke calls
+	// the contextFor the three tests above hold to the missing-element
+	// contract. A regression that read a field first, which is exactly what
+	// shipped, would leave those three green, so this reads the one module the
+	// unit layer cannot import the way layers.ts and spawn-sites.ts already
+	// read src for a single-site invariant.
 	assert.ok(
-		extensionSource.includes("contextFor("),
-		"extension.ts no longer calls contextFor, so this check proved nothing",
+		extensionSource.includes("targetsFor("),
+		"extension.ts no longer calls targetsFor, so this check proved nothing",
 	);
 	const dereferences = extensionSource
 		.split(/\r?\n/)
@@ -686,10 +712,20 @@ test("the command handler hands its argument straight to contextFor", () => {
 test("the handler's parameter admits the argument the palette does not pass", () => {
 	// The type is half the guard. A handler declared to take a TreeElement
 	// tells every later reader that an element always arrives, and the compiler
-	// then agrees that reading a field off it is safe.
+	// then agrees that reading a field off it is safe. dinah-490 moved the
+	// declaration onto the one register helper every command goes through, so
+	// the spelling this reads for is the helper's parameter rather than one
+	// handler's.
 	assert.ok(
-		extensionSource.includes("async (element: TreeElement | undefined) =>"),
-		"the flow-command handler no longer declares its element as possibly absent",
+		extensionSource.includes("element: TreeElement | undefined,"),
+		"the register helper no longer declares its element as possibly absent",
+	);
+	// The selection is the second half, and it is optional for the same
+	// reason: a palette invocation, a keybinding and another extension all
+	// reach a command with neither argument.
+	assert.ok(
+		extensionSource.includes("selection?: readonly TreeElement[],"),
+		"the register helper no longer declares the selection as possibly absent",
 	);
 });
 
@@ -790,6 +826,32 @@ function deletableRow(): TreeElement {
 	};
 }
 
+/**
+ * Resolves the deletable row, asks once, and deletes if the answer was yes.
+ *
+ * dinah-490 split the confirmation from the verb, because one confirmation
+ * now stands over a whole selection while the delete stays a function of one
+ * attachment. This helper is the two halves in the order runBulk runs them,
+ * so the assertions below say what they said before the split.
+ */
+async function deleteConfirmedAttachment(r: Recorder): Promise<unknown> {
+	const context = contextForAttachment(
+		deletableRow(),
+		"dinah",
+		r.host,
+		r.context.spawner,
+	);
+	assert.notEqual(context, undefined);
+	if (context === undefined) {
+		return undefined;
+	}
+	const confirmed = await askDeleteAttachmentConfirmation([context], r.host);
+	if (confirmed === undefined) {
+		return undefined;
+	}
+	return deleteAttachmentAt(context);
+}
+
 test("deleting an attachment addresses it by its identifier and not by its position", async () => {
 	// dinah-451 AC-5. view.ref ends in the attachment's position within its
 	// collection, and a position shifts the moment somebody deletes an earlier
@@ -799,7 +861,7 @@ test("deleting an attachment addresses it by its identifier and not by its posit
 	// has already asked.
 	const r = recorder();
 	r.confirmed = true;
-	await deleteAttachment(deletableRow(), "dinah", r.host, r.context.spawner, () => undefined);
+	await deleteConfirmedAttachment(r);
 	assert.equal(r.calls.length, 1);
 	assert.deepEqual(r.calls[0], [
 		"--json",
@@ -817,14 +879,7 @@ test("a declined confirmation deletes nothing and asks dinah nothing", async () 
 	// identical in a screenshot and identical in review.
 	const r = recorder();
 	r.confirmed = false;
-	const outcome = await deleteAttachment(
-		deletableRow(),
-		"dinah",
-		r.host,
-		r.context.spawner,
-		() => undefined,
-	);
-	assert.equal(outcome, undefined);
+	assert.equal(await deleteConfirmedAttachment(r), undefined);
 	assert.equal(r.calls.length, 0);
 	assert.equal(r.checkpoints.length, 0);
 	assert.equal(r.errors.length, 0);
@@ -834,10 +889,7 @@ test("a declined confirmation deletes nothing and asks dinah nothing", async () 
 	// whose confirmation answers false stands for both.
 	const dismissed = recorder();
 	dismissed.confirmed = false;
-	assert.equal(
-		await deleteAttachment(deletableRow(), "dinah", dismissed.host, dismissed.context.spawner, () => undefined),
-		undefined,
-	);
+	assert.equal(await deleteConfirmedAttachment(dismissed), undefined);
 	assert.equal(dismissed.calls.length, 0);
 	assert.equal(dismissed.checkpoints.length, 0);
 });
@@ -849,7 +901,7 @@ test("the confirmation names the file and the address the row was drawn from", a
 	// with two attachments of the same name needs the address as well.
 	const r = recorder();
 	r.confirmed = true;
-	await deleteAttachment(deletableRow(), "dinah", r.host, r.context.spawner, () => undefined);
+	await deleteConfirmedAttachment(r);
 	assert.equal(r.confirmations.length, 1);
 	assert.equal(
 		r.confirmations[0].message,
@@ -868,7 +920,7 @@ test("a delete checkpoints the folder the row stands in, whichever way dinah ans
 	// because a refusal usually means the board moved under the reader.
 	const accepted = recorder();
 	accepted.confirmed = true;
-	await deleteAttachment(deletableRow(), "dinah", accepted.host, accepted.context.spawner, () => undefined);
+	await deleteConfirmedAttachment(accepted);
 	assert.deepEqual(accepted.checkpoints, ["C:\\work\\bench"]);
 	assert.equal(accepted.errors.length, 0);
 
@@ -876,7 +928,7 @@ test("a delete checkpoints the folder the row stands in, whichever way dinah ans
 		delete: refused("dinah.unknown-path", "tr-4/attachments/0b2c3d4e5f61"),
 	});
 	denied.confirmed = true;
-	await deleteAttachment(deletableRow(), "dinah", denied.host, denied.context.spawner, () => undefined);
+	await deleteConfirmedAttachment(denied);
 	assert.deepEqual(denied.checkpoints, ["C:\\work\\bench"]);
 	assert.equal(denied.errors.length, 1);
 	assert.equal(

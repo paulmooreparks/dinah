@@ -126,6 +126,16 @@ export const COMMAND_REFRESH_VERB_CATALOG = "dinah.refreshVerbCatalog";
 export const COMMAND_OPEN_HISTORY = "dinah.tree.openHistory";
 
 /**
+ * The card row's act that archives the card off the board (dinah-490).
+ *
+ * The name carries `Card` so that offering the same act on a column row later
+ * is a second command rather than a rename of this one. A column refuses under
+ * `dinah.occupied` and `dinah.last-column`, and explaining either to a reader
+ * is work that card will own.
+ */
+export const COMMAND_ARCHIVE_CARD = "dinah.tree.archiveCard";
+
+/**
  * The walkthrough a reader with no workbench is offered, and its one step.
  *
  * VS Code addresses a walkthrough as `<publisher>.<name>#<walkthroughId>`, so
@@ -165,6 +175,7 @@ export const TREE_COMMANDS: readonly string[] = [
 	COMMAND_PULL,
 	COMMAND_OPEN_INSTRUCTIONS,
 	COMMAND_OPEN_HISTORY,
+	COMMAND_ARCHIVE_CARD,
 	COMMAND_OPEN_FIRST_SESSION_GUIDE,
 	COMMAND_RUN_VERB,
 	COMMAND_REFRESH_VERB_CATALOG,
@@ -200,6 +211,7 @@ export const ROW_COMMANDS: readonly string[] = [
 	COMMAND_PULL,
 	COMMAND_OPEN_INSTRUCTIONS,
 	COMMAND_OPEN_HISTORY,
+	COMMAND_ARCHIVE_CARD,
 ];
 
 /**

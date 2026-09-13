@@ -12,10 +12,13 @@
 // reveals, selects or opens the row it created: the next checkpoint repaints
 // it from a fresh read (dinah-331 Decision 5).
 
+import type { BulkReport } from "./bulk";
+import { runBulk } from "./bulk";
 import type { CommandHost } from "./cardCommands";
-import { isRow, pinnedArgv, refusalMessage } from "./cardCommands";
+import { isRow, pinnedArgv, refusalMessage, rowOutcomeFor, rowRef } from "./cardCommands";
 import type { CliOutcome, Spawner } from "./cli";
 import { runDinah } from "./cli";
+import type { Wiring } from "./commandTable";
 import type { TreeElement } from "./tree";
 import { columnRef } from "./tree";
 
@@ -79,24 +82,40 @@ export function contextForColumn(
  * a form to offer safely, so a free-text prompt for either would be guessing
  * against a vocabulary nothing has published.
  */
-export async function newCard(
-	context: ColumnCommandContext,
-): Promise<CliOutcome | undefined> {
-	const title = await context.host.input(
-		context.host.t("dialog.newCard.titlePrompt", { column: context.label }),
+export async function askNewCardTitle(
+	resolved: readonly ColumnCommandContext[],
+	host: CommandHost,
+): Promise<string | undefined> {
+	// One title makes one card, so a selection of several columns is refused
+	// rather than narrowed in silence (D-6). The refusal is stated here, inside
+	// the one question this command asks, so the reader is told why and the
+	// run ends without a second message on top of it.
+	if (resolved.length > 1) {
+		host.showError(host.t("dialog.bulk.oneRowOnly"));
+		return undefined;
+	}
+	const first = resolved[0];
+	if (first === undefined) {
+		return undefined;
+	}
+	const title = await host.input(
+		host.t("dialog.newCard.titlePrompt", { column: first.label }),
 	);
 	if (title === undefined || title.trim() === "") {
 		return undefined;
 	}
+	return title.trim();
+}
+
+/** Files the card the reader named into the column they aimed at. */
+export async function newCard(
+	context: ColumnCommandContext,
+	title: string,
+): Promise<CliOutcome> {
 	const outcome = await runDinah(
 		context.spawner,
 		context.exe,
-		pinnedArgv(context.root, [
-			"add",
-			title.trim(),
-			"--column",
-			context.column,
-		]),
+		pinnedArgv(context.root, ["add", title, "--column", context.column]),
 		{ cwd: context.root },
 	);
 	if (outcome.kind !== "ok") {
@@ -244,15 +263,15 @@ export function pickedFilePath(
 }
 
 /**
- * Attaches a file to the entity, after asking which file and, once one is
- * picked, an optional description.
+ * Attaches the file the reader chose to one entity.
  *
- * `pickFile` is a parameter rather than a CommandHost field read implicitly,
- * so a test drives it exactly like every other prompt this module makes. File
- * first and description second (Decision 4), so a cancelled file pick never
- * leaves a typed description stranded. An empty description submission is a
- * real answer meaning no description and the call still proceeds; only a
- * cancellation, which arrives as undefined, aborts the act at either step.
+ * Both prompts live in askAttachment above, which runs once before anything
+ * spawns, so this function receives an answer rather than asking for one and
+ * the same file reaches every selected owner. File first and description
+ * second (Decision 4), so a cancelled file pick never leaves a typed
+ * description stranded. An empty description submission is a real answer
+ * meaning no description and the call still proceeds; only a cancellation,
+ * which arrives as undefined, aborts the act at either step.
  *
  * The ref goes into the argv as its own element even when it is the empty
  * string, because `runAttach` reads its two words positionally with no
@@ -260,25 +279,50 @@ export function pickedFilePath(
  * itself is named. The spawner takes an argv array with no shell in between,
  * so that element reaches the process as a genuine empty argument.
  */
-export async function attachFile(
-	context: AttachCommandContext,
-	pickFile: () => Promise<string | undefined>,
-): Promise<CliOutcome | undefined> {
-	const file = await pickFile();
+export interface AttachAnswer {
+	readonly file: string;
+	/** The description the reader typed, already trimmed, empty when none. */
+	readonly description: string;
+}
+
+/**
+ * Asks once which file to attach and how to describe it, before anything
+ * spawns.
+ *
+ * One file picker and one description prompt whatever the row count, because
+ * the file being attached is one file and the description is about that file
+ * rather than about the rows receiving it. That is why the description prompt
+ * needed no plural: it is true over any selection.
+ */
+export async function askAttachment(
+	_resolved: readonly AttachCommandContext[],
+	host: CommandHost,
+): Promise<AttachAnswer | undefined> {
+	const file = await host.pickFile();
 	if (file === undefined) {
 		return undefined;
 	}
-	const description = await context.host.input(
-		context.host.t("dialog.attach.descriptionPrompt"),
-	);
+	const description = await host.input(host.t("dialog.attach.descriptionPrompt"));
 	if (description === undefined) {
 		return undefined;
 	}
-	const trimmed = description.trim();
+	return { file, description: description.trim() };
+}
+
+/** Attaches the chosen file to one selected owner. */
+export async function attachFile(
+	context: AttachCommandContext,
+	answer: AttachAnswer,
+): Promise<CliOutcome> {
 	const args =
-		trimmed === ""
-			? ["attach", context.ref, file]
-			: ["attach", context.ref, file, `--description=${trimmed}`];
+		answer.description === ""
+			? ["attach", context.ref, answer.file]
+			: [
+					"attach",
+					context.ref,
+					answer.file,
+					`--description=${answer.description}`,
+				];
 	const outcome = await runDinah(
 		context.spawner,
 		context.exe,
@@ -290,4 +334,48 @@ export async function attachFile(
 	}
 	await context.host.checkpoint(context.folder);
 	return outcome;
+}
+
+// ---------------------------------------------------------------------------
+// What the registration loop calls
+// ---------------------------------------------------------------------------
+
+/** The channel line a row that names no column gets. */
+const NO_COLUMN = "names no column";
+
+/** The channel line a row that can receive no attachment gets. */
+const NOT_ATTACHABLE = "names no attachable entity";
+
+/** Files one new card into the one column the reader aimed at. */
+export async function invokeNewCard(
+	elements: readonly TreeElement[],
+	wiring: Wiring,
+): Promise<BulkReport> {
+	return runBulk(
+		elements,
+		(element) => rowRef(element, wiring.t),
+		(element) =>
+			contextForColumn(element, wiring.exe, wiring.cardHost, wiring.spawner),
+		{ host: wiring.cardHost, t: wiring.t, skipReason: NO_COLUMN },
+		askNewCardTitle,
+		async (context, title, host) =>
+			rowOutcomeFor(await newCard({ ...context, host }, title)),
+	);
+}
+
+/** Attaches one chosen file to every selected owner. */
+export async function invokeAttachFile(
+	elements: readonly TreeElement[],
+	wiring: Wiring,
+): Promise<BulkReport> {
+	return runBulk(
+		elements,
+		(element) => rowRef(element, wiring.t),
+		(element) =>
+			contextForAttach(element, wiring.exe, wiring.cardHost, wiring.spawner),
+		{ host: wiring.cardHost, t: wiring.t, skipReason: NOT_ATTACHABLE },
+		askAttachment,
+		async (context, answer, host) =>
+			rowOutcomeFor(await attachFile({ ...context, host }, answer)),
+	);
 }
