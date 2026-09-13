@@ -25,6 +25,33 @@ number in the hundreds and a stable number in the single digits are counting
 different things, so nothing compares one against the other, and no code in
 this repository does.
 
+## Checking that a download came from here
+
+Every release attaches `SHA256SUMS.txt`, which answers whether the bytes you
+have are the bytes the release names. It cannot answer where those bytes came
+from, because anybody who could replace a file could replace a list of hashes
+beside it.
+
+So each published binary, and the VS Code extension's `.vsix`, also carries a
+signed provenance attestation recorded against this repository. It states which
+workflow built the file, from which commit, and it is verified against GitHub's
+own transparency log rather than against anything this project hosts:
+
+```
+gh attestation verify dinah-windows-amd64.exe --repo paulmooreparks/dinah
+```
+
+A file that was not built by this repository's workflows fails that check, and
+so does one whose bytes changed after the build. Neither the checksum file nor
+the release page is consulted, which is the point.
+
+Nothing signs the Windows binary for Windows itself. It carries no Authenticode
+signature, so SmartScreen has no publisher to recognise and Microsoft Defender
+judges a freshly published build on heuristics alone. A machine-learning
+detection on a new dev build, the kind whose name ends in `!ml`, is expected
+rather than surprising, and the attestation above is how you settle it: it says
+where the file came from, which is the question a virus name does not answer.
+
 ## Why a beta is not a dev build under a second name
 
 A promotion is a choice. The operator decides which of the cards that have
