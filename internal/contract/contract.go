@@ -436,6 +436,12 @@ const (
 	// the reference and the kind rides beside it, so the caller sees what the
 	// reference reached rather than what they hoped it would reach.
 	NotAttachable = LayerPrefix + "not-attachable"
+	// NotCommentable is a comment aimed at a reference that resolves to a
+	// kind the containment table gives no comments collection. The detail
+	// names the reference and the kind rides beside it, on the terms
+	// NotAttachable already carries both, so the caller sees what the
+	// reference reached rather than what they hoped it would reach.
+	NotCommentable = LayerPrefix + "not-commentable"
 	// NotArchived is raised when the archive mirror holds nothing the
 	// reference names and the reader can nevertheless see the thing they
 	// typed, either because it is live or because it travelled inside an
@@ -562,7 +568,7 @@ var Introduced = []string{
 	UnknownDepth, UnknownWorkstream, Referenced, WorkstreamSlugTaken,
 	ColumnSlugTaken, ColumnRoutingDisrupted,
 	UnknownRoot, OutsideRoot, ConflictingScope, DepthWithoutRoot, MalformedDepth,
-	AmbiguousName, NotRenamable, NotAttachable, IsACollection, NotArchived,
+	AmbiguousName, NotRenamable, NotAttachable, NotCommentable, IsACollection, NotArchived,
 	AmbiguousCard, AmbiguousColumn, NoUpstream, AwaitingOutside, TakesNoWork,
 	NoLevels, UnknownLevel, UnknownFormat,
 	NoTierDefault, TierOutOfRange, BelowTier, TierNotHigher,

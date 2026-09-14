@@ -1105,26 +1105,31 @@ func expectMatches(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
 // sweptItemRecord is one checklist item the fixture typed into a file, which
 // is what the checklist block's expectation is built from.
 type sweptItemRecord struct {
-	id    string
-	kind  string
-	state string
-	owner string
-	text  string
-	note  string
+	id       string
+	kind     string
+	state    string
+	owner    string
+	text     string
+	note     string
+	comments int
 }
 
 // expectChecklist is a card's checklist items, in the order the fixture wrote
-// them. The block draws four columns: the item's reference, its state, whoever
-// answers it, and the item's own text last. The reference is composed here the
-// way a person types one, out of the card's own reference, the kind's word
-// and the item's position among the items of that one kind, so a view
-// composing it from the overall ordinal instead would fail this rather than
-// agreeing with itself.
+// them. The block draws five columns: the item's reference, its state,
+// whoever answers it, how many comments it carries, and the item's own text
+// last. The reference is composed here the way a person types one, out of the
+// card's own reference, the kind's word and the item's position among the
+// items of that one kind, so a view composing it from the overall ordinal
+// instead would fail this rather than agreeing with itself.
 //
-// The state and the owner are cells of their own rather than parts of one
-// packed string, which is what the block has to draw for a reader to run an
-// eye down the states. A render packing them back together would put one cell
-// where this expects three and fail here.
+// The state, the owner and the comment count are cells of their own rather
+// than parts of one packed string, which is what the block has to draw for a
+// reader to run an eye down the states. A render packing them back together
+// would put one cell where this expects four and fail here.
+//
+// The comment count is blank rather than "0" where the fixture wrote none,
+// which is what the render draws for an item carrying none, on the terms the
+// resolution note already left blank rather than empty-stringed.
 //
 // The item's resolution note is not expected anywhere: the block stopped
 // drawing it when the operator ruled it out of the human render, and it
@@ -1137,7 +1142,11 @@ func expectChecklist(t *testing.T, r *sweptRecord, tag string) sweptExpectation 
 	for _, item := range r.checklist {
 		within[item.kind]++
 		ref := "ck-1/" + words[item.kind] + "/" + strconv.Itoa(within[item.kind])
-		rows = append(rows, sweptTexts(ref, item.state, item.owner, item.text))
+		count := ""
+		if item.comments > 0 {
+			count = strconv.Itoa(item.comments)
+		}
+		rows = append(rows, sweptTexts(ref, item.state, item.owner, count, item.text))
 	}
 	return sweptExpectation{rows: rows, source: "the record's checklist items"}
 }

@@ -182,7 +182,9 @@ var beyondChecks = map[string][]Check{
 	},
 	"comment": {
 		{Refusal: contract.UnknownCard, Key: "check.comment.1"},
+		{Refusal: contract.UnknownPath, Key: "check.comment.4"},
 		{Refusal: contract.NoOwner, Key: "check.comment.2"},
+		{Refusal: contract.NotCommentable, Key: "check.comment.5"},
 		{Refusal: contract.Malformed, Key: "check.comment.3"},
 	},
 	"attach": {

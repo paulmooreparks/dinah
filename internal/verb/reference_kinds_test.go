@@ -50,7 +50,7 @@ func TestEveryReferenceTakingCommandDeclaresItsKinds(t *testing.T) {
 //
 // It reads the parameter's own Guide field rather than grepping the source,
 // because two spellings of that guide's name are what makes a source grep
-// answer sixteen where the truth is eighteen.
+// answer sixteen where the truth is nineteen.
 func TestNoReferenceTakingParameterAlsoDeclaresAVocabulary(t *testing.T) {
 	roster := ReferenceTakingCommands()
 	if len(roster) == 0 {

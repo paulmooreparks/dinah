@@ -975,13 +975,14 @@ var Shapes = []Shape{
 		NextStep:  []string{"refusal.dinah.not-renamable.next"},
 	},
 	{
-		// attach is the only verb that writes a new entity below the
-		// reference it is handed, so it is the only one that can be aimed at
-		// a kind the containment grammar gives nothing to hang from. The next
-		// step splits on the kind, because the honest advice differs: an item
-		// takes its evidence by citation, an attachment wraps bytes and holds
-		// nothing, and the unconditional member covers every other kind the
-		// table leaves out, which is the workstream today.
+		// attach and comment are the only verbs that write a new entity
+		// below the reference they are handed, so between them they are the
+		// only ones that can be aimed at a kind the containment grammar
+		// gives nothing to hang from. The next step splits on the kind,
+		// because the honest advice differs: an item takes its evidence by
+		// citation, an attachment wraps bytes and holds nothing, and the
+		// unconditional member covers every other kind the table leaves
+		// out, which is the workstream today.
 		Name:   NotAttachable,
 		Values: []string{"kind", "item", "attachment"},
 		Fragments: []Fragment{
@@ -994,6 +995,17 @@ var Shapes = []Shape{
 			"refusal.dinah.not-attachable.next-attachment",
 			"refusal.dinah.not-attachable.next",
 		},
+	},
+	{
+		// A comment aimed at a kind the containment table gives no comments
+		// collection: a comment, an attachment, a column, a workstream or
+		// the workbench itself. No alternation, because the honest advice
+		// is the same for every kind that fails it: a comment hangs on a
+		// card or on one of that card's checklist items.
+		Name:      NotCommentable,
+		Values:    []string{"kind"},
+		Fragments: []Fragment{{Key: "refusal.dinah.not-commentable.next"}},
+		NextStep:  []string{"refusal.dinah.not-commentable.next"},
 	},
 	{
 		// A collection reference resolves, so the reader is told what it

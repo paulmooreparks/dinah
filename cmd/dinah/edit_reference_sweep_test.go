@@ -23,12 +23,13 @@ import (
 // item of each of the three kinds and an attachment, one live workstream and
 // one archived workstream.
 //
-// Group A walks the containment table from the workbench and emits eight
+// Group A walks the containment table from the workbench and emits nine
 // collection shapes (columns, cards and attachments under the workbench,
 // attachments under the column, comments, checklist and attachments under
-// the card, attachments under the comment) and eight member shapes. Two of
-// those collections hold a kind addressed in its own right, so they refuse
-// unknown-path where the other six refuse is-a-collection.
+// the card, attachments under the comment, comments under a checklist item)
+// and eight member shapes. Two of those collections hold a kind addressed in
+// its own right, so they refuse unknown-path where the other seven refuse
+// is-a-collection.
 //
 // Group B emits the fourteen shapes the grammar declares outside that table:
 // the workbench's two spellings, an attachment reached through the bare
@@ -39,9 +40,9 @@ import (
 // Group C emits the seventeen degenerate references of the spec's own table
 // that are not already a Group A or Group B shape.
 const (
-	wantEditShapes   = 47
+	wantEditShapes   = 48
 	wantEditOpens    = 24
-	wantEditRefusals = 23
+	wantEditRefusals = 24
 )
 
 // editShape is one generated reference and the verdict declared for it. The

@@ -289,6 +289,16 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "37dac5acd188c446"
     },
+    "check.comment.4": {
+      "text": "die Referenz etwas erreicht",
+      "context": "One row of the precondition list of a command outside the five the profile specifies. This row is checked ahead of check.comment.2 and check.comment.3, which is why it takes a fresh key rather than the next one in sequence: a key number is a catalog key here and not a printed position.",
+      "source": "b923aa739825636e"
+    },
+    "check.comment.5": {
+      "text": "das Genannte Kommentare aufnimmt",
+      "context": "One row of the precondition list of a command outside the five the profile specifies. This row is checked last, ahead of check.comment.3, which is why it takes a fresh key rather than the next one in sequence: a key number is a catalog key here and not a printed position.",
+      "source": "b7f75df28345afa9"
+    },
     "check.comment.2": {
       "text": "die Anfrage nennt einen Akteur",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
@@ -1175,9 +1185,9 @@
       "source": "cf0108628c37a783"
     },
     "cmd.comment.summary": {
-      "text": "Einen Kommentar auf einer Karte festhalten",
+      "text": "Einen Kommentar auf einer Karte oder auf einem ihrer Checklistenpunkte festhalten",
       "context": "The one-line summary of the comment command, shown beside its syntax in the help block.",
-      "source": "91ac9e59d009c93e"
+      "source": "d80a5fa7a5a0fa6b"
     },
     "cmd.config.summary": {
       "text": "Ihre Benutzereinstellungen auflisten oder eine davon lesen oder schreiben",
@@ -1833,6 +1843,11 @@
       "text": "Akteur",
       "context": "Heading over who the item names as its answerer, in the checklist block of `dinah show`. The block draws no heading row, so a reader meets this heading only where a narrow window stacks each field on a line of its own. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "b971debc37bf0b54"
+    },
+    "column.checklist.comments": {
+      "text": "Kommentare",
+      "context": "Heading over how many comments the item carries, empty where it carries none, in the checklist block of `dinah show`. The block draws no heading row, so a reader meets this heading only where a narrow window stacks each field on a line of its own. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "source": "dc12d4d35420eeb7"
     },
     "column.checklist.description": {
       "text": "Beschreibung",
@@ -2622,6 +2637,16 @@
       "text": "; Anhänge hängen an der Werkbank, an einer Spalte, an einer Karte oder an einem Kommentar",
       "context": "The last member of refusal.dinah.not-attachable's alternation, printed for any kind the two branches above do not name. It carries no condition, because the last member of an alternation is what a reader gets when none of the branches matches.",
       "source": "c45dbccd232c8bf9"
+    },
+    "refusal.dinah.not-commentable": {
+      "text": "{detail} ist {kind}, und Dinah führt an {kind} keine Kommentare",
+      "context": "The sentence printed after the refusal name dinah.not-commentable, when comment is aimed at a reference that resolves to a kind that holds no comments. {detail} is the reference the caller named, in the canonical spelling the resolver reports, and {kind} names what it resolved to, which is machine vocabulary and is never translated.",
+      "source": "a8e7e1399a02cf47"
+    },
+    "refusal.dinah.not-commentable.next": {
+      "text": "; ein Kommentar hängt an einer Karte oder an einem Checklistenpunkt dieser Karte",
+      "context": "The one next step of refusal.dinah.not-commentable, printed whatever kind the reference resolved to, because the honest advice is the same for every kind that fails it.",
+      "source": "2f3b07a98bf4cfcb"
     },
     "refusal.dinah.not-archived": {
       "text": "im Archiv hört nichts auf {detail}",
@@ -3686,6 +3711,11 @@
       "text": "die Karte, auf die Sie einwirken, geschrieben als ihre Referenz, etwa wb-1",
       "context": "The meaning of the card argument, shared by every command that takes a card and nothing else.",
       "source": "16824e77ab43d6e4"
+    },
+    "param.comment.card.summary": {
+      "text": "die Karte oder der Checklistenpunkt, den Sie kommentieren, geschrieben als ihre Referenz, etwa wb-1 oder wb-1/questions/2",
+      "context": "The meaning of comment's own card argument, which comment no longer shares with the plain-card commands because it also takes a checklist item below one.",
+      "source": "51c2476ca6cc6573"
     },
     "param.raise.tier.summary": {
       "text": "die Stufe, die die Arbeit wirklich braucht, als Name oder als Schritt wie +1; sie muss über dem liegen, was die Karte hier bereits verlangt",

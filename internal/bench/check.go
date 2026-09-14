@@ -774,7 +774,7 @@ func (b *Bench) RegressiveDepartures(events []Event, columnID string) int {
 // reported because it leaves a position with two answers.
 func checkOrdinals(cardDir string) ([]Finding, error) {
 	var findings []Finding
-	collections, err := ordinalCollections(cardDir)
+	collections, err := ordinalCollections(cardDir, KindCard)
 	if err != nil {
 		return nil, err
 	}

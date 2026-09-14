@@ -401,6 +401,9 @@ export interface JournalEvent {
 	readonly attachment?: string;
 	readonly filename?: string;
 	readonly comment?: string;
+	/** The checklist item a comment hangs below, present only on an item
+	 * comment's line and absent on a card comment's. */
+	readonly item?: string;
 	readonly field?: string;
 	readonly workstream?: string;
 	readonly column?: string;

@@ -289,6 +289,16 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "37dac5acd188c446"
     },
+    "check.comment.4": {
+      "text": "संदर्भ किसी चीज़ तक पहुंचता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies. This row is checked ahead of check.comment.2 and check.comment.3, which is why it takes a fresh key rather than the next one in sequence: a key number is a catalog key here and not a printed position.",
+      "source": "b923aa739825636e"
+    },
+    "check.comment.5": {
+      "text": "नामित वस्तु टिप्पणियां स्वीकार करती है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies. This row is checked last, ahead of check.comment.3, which is why it takes a fresh key rather than the next one in sequence: a key number is a catalog key here and not a printed position.",
+      "source": "b7f75df28345afa9"
+    },
     "check.comment.2": {
       "text": "निवेदन किसी स्वामी को नामता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
@@ -1175,9 +1185,9 @@
       "source": "cf0108628c37a783"
     },
     "cmd.comment.summary": {
-      "text": "कार्ड पर टिप्पणी दर्ज करें",
+      "text": "किसी कार्ड या उसकी किसी चेकलिस्ट मद पर टिप्पणी दर्ज करें",
       "context": "The one-line summary of the comment command, shown beside its syntax in the help block.",
-      "source": "91ac9e59d009c93e"
+      "source": "d80a5fa7a5a0fa6b"
     },
     "cmd.config.summary": {
       "text": "अपनी उपयोगकर्ता सेटिंग सूचीबद्ध करें, या कोई एक पढ़ें या लिखें",
@@ -1833,6 +1843,11 @@
       "text": "स्वामी",
       "context": "Heading over who the item names as its answerer, in the checklist block of `dinah show`. The block draws no heading row, so a reader meets this heading only where a narrow window stacks each field on a line of its own. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "b971debc37bf0b54"
+    },
+    "column.checklist.comments": {
+      "text": "टिप्पणियां",
+      "context": "Heading over how many comments the item carries, empty where it carries none, in the checklist block of `dinah show`. The block draws no heading row, so a reader meets this heading only where a narrow window stacks each field on a line of its own. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "source": "dc12d4d35420eeb7"
     },
     "column.checklist.description": {
       "text": "विवरण",
@@ -2613,6 +2628,16 @@
       "text": "; संलग्नक वर्कबेंच, किसी कॉलम, किसी कार्ड, या किसी टिप्पणी से जुड़ते हैं",
       "context": "The last member of refusal.dinah.not-attachable's alternation, printed for any kind the two branches above do not name. It carries no condition, because the last member of an alternation is what a reader gets when none of the branches matches.",
       "source": "c45dbccd232c8bf9"
+    },
+    "refusal.dinah.not-commentable": {
+      "text": "{detail} {kind} है, और Dinah {kind} पर कोई टिप्पणी नहीं रखती",
+      "context": "The sentence printed after the refusal name dinah.not-commentable, when comment is aimed at a reference that resolves to a kind that holds no comments. {detail} is the reference the caller named, in the canonical spelling the resolver reports, and {kind} names what it resolved to, which is machine vocabulary and is never translated.",
+      "source": "a8e7e1399a02cf47"
+    },
+    "refusal.dinah.not-commentable.next": {
+      "text": "; एक टिप्पणी किसी कार्ड पर या उस कार्ड की किसी चेकलिस्ट मद पर टिकी होती है",
+      "context": "The one next step of refusal.dinah.not-commentable, printed whatever kind the reference resolved to, because the honest advice is the same for every kind that fails it.",
+      "source": "2f3b07a98bf4cfcb"
     },
     "refusal.dinah.not-archived": {
       "text": "अभिलेखागार में {detail} के नाम से कुछ नहीं मिला",
@@ -3673,6 +3698,11 @@
       "text": "जिस कार्ड पर आप काम कर रहे हैं, उसके संदर्भ के रूप में लिखा गया, जैसे wb-1",
       "context": "The meaning of the card argument, shared by every command that takes a card and nothing else.",
       "source": "16824e77ab43d6e4"
+    },
+    "param.comment.card.summary": {
+      "text": "वह कार्ड या चेकलिस्ट मद जिस पर आप टिप्पणी कर रहे हैं, इसके संदर्भ के रूप में लिखा गया, जैसे wb-1 या wb-1/questions/2",
+      "context": "The meaning of comment's own card argument, which comment no longer shares with the plain-card commands because it also takes a checklist item below one.",
+      "source": "51c2476ca6cc6573"
     },
     "param.raise.tier.summary": {
       "text": "वह स्तर जो काम को वास्तव में चाहिए, नाम से या +1 जैसे कदम के रूप में; उसे उससे ऊपर होना चाहिए जो कार्ड यहाँ पहले से माँगता है",

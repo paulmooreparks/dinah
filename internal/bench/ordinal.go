@@ -405,7 +405,7 @@ func (b *Bench) backfillCard(dir string) (int, []Finding, error) {
 	order := journalOrder(events)
 	stamped := 0
 	var findings []Finding
-	collections, err := ordinalCollections(dir)
+	collections, err := ordinalCollections(dir, KindCard)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -429,39 +429,29 @@ type ordinalCollection struct {
 	anchor string
 }
 
-// ordinalCollections lists the collections below one card that a positional
-// reference selects a member of: everything a card mounts, and everything each
-// of its comments mounts.
+// ordinalCollections lists the collections below one entity that a positional
+// reference selects a member of, together with every collection below each of
+// their members, to whatever depth the grammar goes.
 //
 // The list is derived from Contains rather than written out here, so a kind
 // gaining a collection reaches the ordinal migration without this function
 // being edited.
-func ordinalCollections(cardDir string) ([]ordinalCollection, error) {
+func ordinalCollections(dir, kind string) ([]ordinalCollection, error) {
 	var collections []ordinalCollection
-	for _, mount := range Contains(KindCard) {
-		dir := filepath.Join(cardDir, mount.Dir)
-		collections = append(collections, ordinalCollection{dir: dir, anchor: mount.Anchor})
-		if mount.Kind != KindComment {
-			continue
-		}
-		ids, err := ListIDs(dir)
+	for _, mount := range Contains(kind) {
+		collection := filepath.Join(dir, mount.Dir)
+		collections = append(collections, ordinalCollection{dir: collection, anchor: mount.Anchor})
+		ids, err := ListIDs(collection)
 		if err != nil {
 			return nil, err
 		}
 		for _, id := range ids {
-			collections = append(collections, belowComment(filepath.Join(dir, id))...)
+			below, err := ordinalCollections(filepath.Join(collection, id), mount.Kind)
+			if err != nil {
+				return nil, err
+			}
+			collections = append(collections, below...)
 		}
 	}
 	return collections, nil
-}
-
-// belowComment lists the collections one comment mounts, which the card walk
-// above reaches for each comment it finds.
-func belowComment(commentDir string) []ordinalCollection {
-	var collections []ordinalCollection
-	for _, mount := range Contains(KindComment) {
-		dir := filepath.Join(commentDir, mount.Dir)
-		collections = append(collections, ordinalCollection{dir: dir, anchor: mount.Anchor})
-	}
-	return collections
 }

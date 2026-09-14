@@ -66,7 +66,9 @@ var containment = map[string][]Mount{
 	KindComment: {
 		{Dir: AttachmentsDir, Kind: KindAttachment, Anchor: AttachmentAnchor, NameField: "filename"},
 	},
-	KindItem:       {},
+	KindItem: {
+		{Dir: CommentsDir, Kind: KindComment, Anchor: CommentAnchor},
+	},
 	KindAttachment: {},
 }
 

@@ -155,32 +155,49 @@ func (l *Library) Add(req *Request) *Response {
 	return l.ok(req, card)
 }
 
-// Comment records a comment on a card: an entity of its own carrying the
-// timestamp and the author in frontmatter and the text as the body.
+// Comment records a comment on a card or on one of that card's checklist
+// items: an entity of its own carrying the timestamp and the author in
+// frontmatter and the text as the body.
 func (l *Library) Comment(req *Request) *Response {
 	if l.Bench.Operator == "" {
 		return l.refuse(req, nil, contract.NoOperator, "")
 	}
-	found, err := l.Bench.ResolveCard(req.Card)
+	// A blank reference resolves to the workbench under ResolveEntity, which
+	// is right for attach and wrong here: this parameter names a card or a
+	// checklist item, never the workbench by omission, so the check this
+	// verb has always run first, that the card exists, is run before the
+	// reference is handed to the general resolver.
+	if strings.TrimSpace(req.Card) == "" {
+		return l.refuse(req, nil, contract.UnknownCard, "")
+	}
+	entity, err := l.Bench.ResolveEntity(req.Card)
 	if err != nil {
 		return l.FromError(req, err)
 	}
 	if req.Actor == "" {
-		return l.refuse(req, found.Card, contract.NoOwner, "")
+		return l.refuse(req, entity.Card, contract.NoOwner, "")
+	}
+	// Two kinds mount comments and every other kind is refused, the same
+	// question Attach already asks about attachments. The kind is carried
+	// beside the reference so the caller reads what the reference reached.
+	if _, mounts := bench.MountOf(entity.Kind, bench.CommentsDir); !mounts {
+		return l.refuseWith(req, entity.Card, contract.NotCommentable, entity.Ref,
+			map[string]string{"kind": entity.Kind, entity.Kind: entity.Ref})
 	}
 	if strings.TrimSpace(req.Text) == "" {
-		return l.refuse(req, found.Card, contract.Malformed, "text")
+		return l.refuse(req, entity.Card, contract.Malformed, "text")
 	}
 	now := bench.Stamp(l.Now())
 	// The comment is its own entity, so its identifier needs no lock, but the
-	// event lands in the card's journal and that journal belongs to the card,
-	// so the write happens under the card's own lock like any other.
-	lock, err := bench.Acquire(found.Card.Dir, req.Actor, now)
+	// event lands in the nearest enclosing journal-bearing entity's journal,
+	// which is the card's for both a card comment and an item comment, so the
+	// write happens under that entity's own lock like any other.
+	lock, err := bench.Acquire(l.lockDirFor(entity), req.Actor, now)
 	if err != nil {
 		return l.FromError(req, err)
 	}
 	defer lock.Release()
-	comment, err := bench.AddComment(found.Card.Dir, req.Actor, now, req.Text)
+	comment, err := bench.AddComment(entity.Dir, req.Actor, now, req.Text)
 	if err != nil {
 		return l.FromError(req, err)
 	}
@@ -190,10 +207,16 @@ func (l *Library) Comment(req *Request) *Response {
 		Actor:   req.Actor,
 		Comment: comment.ID,
 	}
-	if err := bench.AppendEvent(found.Card.JournalPath(), ev); err != nil {
+	// An item comment carries the item's identifier beside the comment's own,
+	// which is how a reader of the journal tells an item comment from a card
+	// comment: a card comment's line carries comment and no item at all.
+	if entity.Kind == bench.KindItem {
+		ev.Item = entity.ID
+	}
+	if err := bench.AppendEvent(l.journalFor(entity), ev); err != nil {
 		return l.FromError(req, err)
 	}
-	response := l.ok(req, found.Card)
+	response := l.ok(req, entity.Card)
 	response.Detail = comment.ID
 	return response
 }

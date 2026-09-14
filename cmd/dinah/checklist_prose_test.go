@@ -8,11 +8,12 @@ import (
 	"dinah/internal/msg"
 )
 
-// The checklist block draws each item as one row of four columns: its
-// reference, its state, whoever answers it, and its own text last. The row
-// sweep pairs all four in eight locales, and this file holds the same
-// association in one locale from the other side, walking the row's own values
-// in order rather than reading a column position off the ink.
+// The checklist block draws each item as one row of five columns: its
+// reference, its state, whoever answers it, how many comments it carries, and
+// its own text last. The row sweep pairs all five in eight locales, and this
+// file holds the same association in one locale from the other side, walking
+// the row's own values in order rather than reading a column position off the
+// ink.
 //
 // Two guards live here. The first is the association: an item's text has to
 // sit on the row bearing that item's own reference, since text drawn against
@@ -72,10 +73,10 @@ func TestAChecklistItemsTextPrintsOnItsOwnRow(t *testing.T) {
 		// leading values back into one field still passes here, and fails in
 		// the sweep, which is what holds the columns to lining up.
 		head := lines[at[i]]
-		cut, ok := afterTheRowsOwnValues(head, refs[i], item.state, item.owner)
+		cut, ok := afterTheRowsOwnValues(head, refs[i], item.state, item.owner, strconv.Itoa(item.comments))
 		if !ok {
-			t.Errorf("the item %s draws the row %q, which does not carry its reference, its state %q and its owner %q in that order separated by padding",
-				item.id, head, item.state, item.owner)
+			t.Errorf("the item %s draws the row %q, which does not carry its reference, its state %q, its owner %q and its comment count %d in that order separated by padding",
+				item.id, head, item.state, item.owner, item.comments)
 			continue
 		}
 		drawn := []string{strings.TrimSpace(head[cut:])}

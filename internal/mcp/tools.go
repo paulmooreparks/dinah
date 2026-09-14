@@ -677,12 +677,15 @@ func cardAffordances(l *verb.Library, r *verb.Request) []string {
 // caller's choice on the call rather than this head's choice on every call,
 // and the head stays a projection of the library and nothing else.
 func readShow(l *verb.Library, r *verb.Request) any {
-	detail, listing, text, err := l.Show(r)
+	detail, listing, item, text, err := l.Show(r)
 	if err != nil {
 		return l.FromError(r, err)
 	}
 	if listing != nil {
 		return wrap(map[string]any{"collection": listing}, readAffordances)
+	}
+	if item != nil {
+		return wrap(map[string]any{"item": item}, cardAffordances(l, r))
 	}
 	if detail == nil {
 		return wrap(map[string]any{"text": text}, readAffordances)

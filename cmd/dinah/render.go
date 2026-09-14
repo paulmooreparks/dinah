@@ -602,12 +602,7 @@ func (s *session) renderDetail(detail *verb.Detail) {
 	if len(detail.Comments) > 0 {
 		gap()
 		s.line(s.r.T("show.comments"))
-		comments := table{indent: 2, columns: s.columns("comments", "ref", "when", "who")}
-		for _, comment := range detail.Comments {
-			fields := []string{comment.Ref, comment.TS, comment.Author}
-			comments.rows = append(comments.rows, tableRow{fields: fields, note: comment.Body})
-		}
-		s.table(comments)
+		s.renderComments(detail.Comments)
 	}
 	if len(detail.Checklist) > 0 {
 		gap()
@@ -630,10 +625,14 @@ func (s *session) renderDetail(detail *verb.Detail) {
 		// a machine reader, and a person reaches it through the item's own
 		// reference, which `dinah show <card>/questions/1` answers with; two runs of
 		// prose in the same position read as one run of prose.
-		checklist := table{indent: 2, columns: s.columns("checklist", "ref", "state", "owner", "description"),
+		checklist := table{indent: 2, columns: s.columns("checklist", "ref", "state", "owner", "comments", "description"),
 			labels: labelInTheStack, wrapTail: true}
 		for _, item := range detail.Checklist {
-			fields := []string{item.Ref, item.State, item.Owner, item.Text}
+			count := ""
+			if item.CommentCount > 0 {
+				count = strconv.Itoa(item.CommentCount)
+			}
+			fields := []string{item.Ref, item.State, item.Owner, count, item.Text}
 			checklist.rows = append(checklist.rows, tableRow{fields: fields})
 		}
 		s.table(checklist)
@@ -642,6 +641,31 @@ func (s *session) renderDetail(detail *verb.Detail) {
 		gap()
 		s.line(s.r.T("show.withheld", "members", strings.Join(detail.Withheld, ", ")))
 		s.line(s.r.T("show.reread", "reread", detail.Reread))
+	}
+}
+
+// renderComments draws one comments block: each comment's reference, when it
+// was written and who wrote it, with the body carried as the row's note.
+// renderDetail and renderItemDetail both draw this, so a card's comments and
+// an item's comments print in one shape.
+func (s *session) renderComments(comments []verb.CommentView) {
+	block := table{indent: 2, columns: s.columns("comments", "ref", "when", "who")}
+	for _, comment := range comments {
+		fields := []string{comment.Ref, comment.TS, comment.Author}
+		block.rows = append(block.rows, tableRow{fields: fields, note: comment.Body})
+	}
+	s.table(block)
+}
+
+// renderItemDetail prints the item show answers for the item's own reference:
+// the item's anchor, unchanged from what show printed for it before item
+// comments existed, then the item's comments where it carries any.
+func (s *session) renderItemDetail(item *verb.ItemDetail) {
+	s.write(item.Text)
+	if len(item.Comments) > 0 {
+		s.line("")
+		s.line(s.r.T("show.comments"))
+		s.renderComments(item.Comments)
 	}
 }
 
