@@ -923,9 +923,10 @@ type Item struct {
 
 // LoadItem reads one checklist item from its directory.
 //
-// Every field but the two CORE-CLAIM-9 decides on is read for a reader rather
-// than for the claim, and an anchor carrying none of them still answers the
-// claim exactly as it did: a key a header does not carry reads as empty.
+// Every field but the three CORE-CLAIM-10 decides on is read for a reader
+// rather than for the claim, and an anchor carrying none of them still
+// answers the claim exactly as it did: a key a header does not carry reads as
+// empty, and an empty column names no column any workbench declares.
 func LoadItem(dir string) (*Item, error) {
 	text, err := ReadText(filepath.Join(dir, ItemAnchor))
 	if err != nil {
@@ -967,23 +968,45 @@ func Items(cardDir string) ([]*Item, error) {
 	return items, nil
 }
 
-// ItemBlocksClaim reports whether an item is one CORE-CLAIM-9 refuses a claim
+// ItemBlocksClaim reports whether an item is one CORE-CLAIM-10 refuses a claim
 // over.
 //
-// Two rulings live here rather than in the profile, because the core asks a
-// tool whether an item is resolved and leaves the answer to the layer holding
-// the items. An acceptance criterion never blocks: it is verified after the
-// work rather than before it, so blocking a claim on one would refuse the
-// card the very work that lets anybody verify it. And a blocking-kind item
-// whose state is absent, empty or outside the closed set is read as pending,
+// Three clauses, and only the third reads the workbench. An acceptance
+// criterion never blocks: it is verified after the work rather than before
+// it, so blocking a claim on one would refuse the card the very work that
+// lets anybody verify it. That ruling reaches a criterion naming no column as
+// well as one naming a column, which is why the kind test stays here rather
+// than being absorbed into the column test below. A blocking-kind item whose
+// state is absent, empty or outside the closed set is read as pending,
 // because reading a damaged file as resolved lets through exactly the
 // unanswered question the refusal exists to catch, where reading it as
 // pending costs a claim until somebody repairs the file.
-func ItemBlocksClaim(item *Item) bool {
+//
+// The third clause is CORE-CLAIM-10's own. An item naming a column the
+// workbench declares is left to that column's hold, wherever the card is
+// standing and whichever way that column holds, because the column the item
+// names is what decides where the card stops. What is left for the claim to
+// refuse over is an item naming no column at all and an item whose column
+// field carries an identifier this workbench does not declare, neither of
+// which any column's hold can ever reach.
+//
+// No hold is read here, so HoldsOnEntry and HoldsOnExit are not consulted and
+// Dinah's exit hold stays off the claim path. The profile can say that a
+// column is declared and cannot say which way a workbench holds at one, so a
+// tool refusing more than the document states would answer differently from a
+// second tool reading the same workbench.
+//
+// The lookup is Column rather than ColumnByRef, because an item's column
+// field carries an identifier and a reference read would admit an item whose
+// field happens to match some column's slug or title.
+func (b *Bench) ItemBlocksClaim(item *Item) bool {
 	if item.Kind != "open_question" && item.Kind != "decision" {
 		return false
 	}
-	return !ItemIsResolved(item)
+	if ItemIsResolved(item) {
+		return false
+	}
+	return b.Column(item.Column) == nil
 }
 
 // ItemIsResolved reports whether an item has been settled, which is the
@@ -1041,8 +1064,12 @@ func ItemLiftsColumnHold(item *Item) bool {
 // BlockingItems reads the checklist items of a card that would refuse a claim
 // right now, in identifier order. The reading itself, and what it does with an
 // item whose anchor will not open, are itemsWhere's below.
-func BlockingItems(cardDir string) ([]*Item, error) {
-	return itemsWhere(cardDir, ItemBlocksClaim)
+//
+// It is a method because the question it puts to each item reads the columns
+// the workbench declares, and itemsWhere stays a free function taking a
+// predicate, so the receiver reaches it through the closure alone.
+func (b *Bench) BlockingItems(cardDir string) ([]*Item, error) {
+	return itemsWhere(cardDir, b.ItemBlocksClaim)
 }
 
 // GatingItems reads the checklist items of a card that hold it against one
@@ -1093,8 +1120,8 @@ func itemsWhere(cardDir string, keep func(*Item) bool) ([]*Item, error) {
 
 // CountBlockingItems reports how many of a card's checklist items would refuse
 // a claim right now, for a reader that wants the number rather than the items.
-func CountBlockingItems(cardDir string) (int, error) {
-	items, err := BlockingItems(cardDir)
+func (b *Bench) CountBlockingItems(cardDir string) (int, error) {
+	items, err := b.BlockingItems(cardDir)
 	if err != nil {
 		return 0, err
 	}

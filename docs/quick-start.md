@@ -91,7 +91,7 @@ The leading `$` marks a command line. Do not type it.
 ```console
 $ dinah version
 dinah 0.1.0
-conforms to dinah-core/0.12
+conforms to dinah-core/0.15
 storage format 3
 [exit 0]
 ```
@@ -339,7 +339,7 @@ transcript:
 ```file path=<workbench>/workbench.md
 ---
 format: 3
-profile: dinah-core/0.12
+profile: dinah-core/0.15
 title: Release 0.2
 slug: rel
 operator: ana
@@ -1246,7 +1246,7 @@ carries, ask:
 ```console
 $ dinah version --catalogs
 dinah 0.1.0
-conforms to dinah-core/0.12
+conforms to dinah-core/0.15
 storage format 3
 
 Catalogs:
@@ -1436,7 +1436,7 @@ $ dinah export
     }
   ],
   "instructions": "Every card on this workbench ends with a line in the changelog.\n",
-  "profile": "dinah-core/0.12",
+  "profile": "dinah-core/0.15",
   "title": "Release 0.2"
 }
 [exit 0]
@@ -1605,18 +1605,18 @@ What you may write:
   [--tier <level>]        the tier you say you are, taken on trust and never verified; only what the card itself asks for can refuse you, never a column's own default, and what a claim is refused for is what next and pull withhold
 
 What can go wrong, in the order each is checked:
-  Order  What can go wrong                                             Refusal
-  -----  ------------------------------------------------------------  -------------------
-  1      the workbench declares a profile version the tool implements  unsupported-version
-  2      the workbench designates an operator                          no-operator
-  3      the card exists                                               unknown-card
-  4      the request names an owner                                    no-owner
-  5      the owner named as holder is the owner asking                 not-requester
-  6      the card's state is not `blocked`                             blocked
-  7      the card's state is not `active`                              held
-  8      taking the card up is legal for whoever asks                  not-operator
-  9      the card carries no structured item that is not resolved      unresolved-item
-  10     your declared tier is at or above what the card asks          dinah.below-tier
+  Order  What can go wrong                                               Refusal
+  -----  --------------------------------------------------------------  -------------------
+  1      the workbench declares a profile version the tool implements    unsupported-version
+  2      the workbench designates an operator                            no-operator
+  3      the card exists                                                 unknown-card
+  4      the request names an owner                                      no-owner
+  5      the owner named as holder is the owner asking                   not-requester
+  6      the card's state is not `blocked`                               blocked
+  7      the card's state is not `active`                                held
+  8      taking the card up is legal for whoever asks                    not-operator
+  9      every unresolved item the card carries names a declared column  unresolved-item
+  10     your declared tier is at or above what the card asks            dinah.below-tier
 
 Exit codes: 0 ok, 2 refused, 3 stale, 4 unreachable.
 [exit 0]
