@@ -54,6 +54,14 @@ type ColumnView struct {
 	PullDestination string `json:"pull_destination,omitempty"`
 	// Capacity is the declared limit, zero for unlimited.
 	Capacity int `json:"capacity,omitempty"`
+	// RequireFields are the declared field keys a card must hold a value for
+	// before it enters this column, in the column's own declaration order,
+	// which is the order the refusal names them in. It is absent on a column
+	// declaring none.
+	RequireFields []string `json:"require_fields,omitempty"`
+	// Fields are the values the column itself carries for the fields its
+	// workbench declares, on the terms CardView.Fields carries a card's.
+	Fields map[string]string `json:"fields,omitempty"`
 	// RejectTo is the column a card goes to when the work at this column is
 	// refused, empty where the column declares no such destination. It is
 	// published as the reference the declaration carries rather than as a
@@ -180,6 +188,8 @@ func (l *Library) columnViews(counts map[string]int) ([]ColumnView, error) {
 			RejectTo:        column.RejectTo,
 			Count:           counts[column.ID],
 			AttachmentCount: attachments,
+			RequireFields:   column.RequireFields,
+			Fields:          l.declaredFieldValues(column.FM, bench.KindColumn),
 		}
 		if destination := carriesInto(column, l.Bench.Columns); destination != nil {
 			view.PullDestination = columnRef(destination)
@@ -1534,6 +1544,12 @@ type CheckReport struct {
 	// RenumberedNumbers says the renumber repair ran, so a caller can tell
 	// an empty list of renumbered cards from a repair nobody asked for.
 	RenumberedNumbers bool `json:"renumbered_numbers,omitempty"`
+	// MigratedBranches is the branch migration's own account of the run, and
+	// is absent from a request that did not ask for the migration. It carries
+	// its own conflicts rather than raising them as findings, because a
+	// caller that discarded the report on an error path would show an
+	// operator one word and none of the cards to repair.
+	MigratedBranches *bench.BranchMigration `json:"migrated_branches,omitempty"`
 }
 
 // Check checks the bench for structural defects, and repairs nothing unless a
@@ -1636,6 +1652,18 @@ func (l *Library) Check(req *Request) (*CheckReport, error) {
 			return report, err
 		}
 	}
+	// The branch migration runs between the two number repairs, which is the
+	// order the parameter table declares the three flags in and the order
+	// checkStarvedMarkers prints them in. It reports rather than refusing when
+	// it carries no confirmation, which is what makes its preview readable,
+	// and that is where it parts company with the two either side of it.
+	if req != nil && req.MigrateBranches {
+		migrated, err := l.Bench.MigrateBranches(req.Actor, bench.Stamp(l.Now()), req.Confirm)
+		report.MigratedBranches = migrated
+		if err != nil {
+			return report, err
+		}
+	}
 	if req != nil && req.Renumber {
 		if !req.Confirm {
 			return report, contract.Refuse(contract.Unconfirmed, "--renumber")
@@ -1690,9 +1718,18 @@ func (l *Library) Check(req *Request) (*CheckReport, error) {
 // time the caller reads it.
 func (r *CheckReport) stampOutcome() {
 	r.Outcome = contract.ReadOK
-	if len(r.Findings) > 0 {
+	if len(r.Findings) > 0 || !r.branchMigrationClean() {
 		r.Outcome = contract.ReadFindings
 	}
+}
+
+// branchMigrationClean reports whether the branch migration, where one ran,
+// left nothing for a person to do. A conflict is what it did not: the run
+// wrote nothing and the cards it named have to be repaired before a second run
+// completes, so the outcome carries that outward as the command's exit code
+// rather than letting a run that migrated nothing exit zero.
+func (r *CheckReport) branchMigrationClean() bool {
+	return r.MigratedBranches == nil || r.MigratedBranches.Clean()
 }
 
 // adoptWorkstreams creates a workstream at every identifier the live cards

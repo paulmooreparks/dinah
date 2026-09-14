@@ -267,6 +267,24 @@ const (
 	// read. Path is the card's anchor and Detail is the card's identifier,
 	// the shape every card-scoped finding in this file keeps.
 	FindingCardNumberRenumbered = "check.card-number-renumbered"
+	// FindingFieldDeclarationMalformed names one entry of the workbench's
+	// fields block the declaration reader refused: a key the grammar refuses,
+	// a type absent or outside the five, or a meaning absent or blank. The
+	// entry declares nothing and the workbench still opens, which is the
+	// posture readLevels keeps for a level block it cannot parse.
+	FindingFieldDeclarationMalformed = "check.field-declaration-malformed"
+	// FindingRequiredFieldUndeclared names a column whose require_fields
+	// declaration carries a key the workbench does not declare. It holds
+	// nothing, because a key nothing can ever be written under would make the
+	// column unreachable, so the posture matches FindingItemColumnUnresolved,
+	// which reports rather than refusing the workbench.
+	FindingRequiredFieldUndeclared = "check.required-field-undeclared"
+	// FindingBranchHeadingInBody names a card whose body still carries the
+	// heading the declared field git.branch replaced, on a workbench that
+	// declares FieldsFormat or higher. A workbench declaring less has not been
+	// carried across the retirement, so the heading is still its convention
+	// and nothing is reported.
+	FindingBranchHeadingInBody = "check.branch-heading-in-body"
 	// FindingWitnessLocked names a card the witness repair could not reach,
 	// because a lock stood on it while the walk passed. The walk stepped over
 	// it and carried on, so the card stays diverged until the repair is run
@@ -338,6 +356,8 @@ func (b *Bench) Check() ([]Finding, error) {
 		}
 		findings = append(findings, cardFindings...)
 	}
+	findings = append(findings, b.checkFieldDeclarations()...)
+	findings = append(findings, b.checkRequiredFields()...)
 	findings = append(findings, b.checkColumnKinds()...)
 	findings = append(findings, b.checkRejectTargets()...)
 	findings = append(findings, b.checkColumnLevels()...)
@@ -678,6 +698,13 @@ func (b *Bench) checkCard(card *Card) ([]Finding, error) {
 			continue
 		}
 		findings = append(findings, Finding{Path: anchor, Key: FindingUnknownLevel, Detail: axis + " " + stored})
+	}
+	// The heading is reported only on a workbench the retirement has reached,
+	// which is what the format number is for here and the whole of what it
+	// gates: a declared field works on a workbench declaring any format this
+	// build opens.
+	if b.Format >= FieldsFormat && CarriesBranchHeading(card.Body) {
+		findings = append(findings, Finding{Path: anchor, Key: FindingBranchHeadingInBody, Detail: card.ID})
 	}
 	findings = append(findings, b.checkTierOverrides(card)...)
 	itemColumnFindings, err := b.checkItemColumns(card)
@@ -1025,4 +1052,38 @@ func unreadableCardFinding(err error) string {
 		return FindingCardVocabularyRetired
 	}
 	return FindingMissingAnchor
+}
+
+// checkFieldDeclarations reports every entry of the workbench's fields block
+// the declaration reader refused. The reader has already skipped them, so this
+// is where a person meets the damage, and the finding names the key rather
+// than counting the entries because a count tells nobody which line to open.
+func (b *Bench) checkFieldDeclarations() []Finding {
+	var findings []Finding
+	anchor := filepath.Join(b.Root, WorkbenchAnchor)
+	for _, key := range b.malformedFields {
+		findings = append(findings, Finding{Path: anchor, Key: FindingFieldDeclarationMalformed, Detail: key})
+	}
+	return findings
+}
+
+// checkRequiredFields reports every require_fields entry naming a key the
+// workbench does not declare. The detail carries the column's reference and
+// then the key, in that order, which is the shape FindingUnknownTierColumn
+// already uses for a finding about a column and a value together.
+func (b *Bench) checkRequiredFields() []Finding {
+	var findings []Finding
+	for _, column := range b.Columns {
+		for _, key := range column.RequireFields {
+			if b.DeclaredFieldOf(key) != nil {
+				continue
+			}
+			findings = append(findings, Finding{
+				Path:   filepath.Join(b.Root, ColumnsDir, column.ID, ColumnAnchor),
+				Key:    FindingRequiredFieldUndeclared,
+				Detail: column.Ref() + " " + key,
+			})
+		}
+	}
+	return findings
 }

@@ -279,7 +279,7 @@ func (s *session) vocabularyValues(command string, param verb.Param) []string {
 	if !ok {
 		return nil
 	}
-	if set.Source == columnsVocabulary && s.library == nil {
+	if benchVocabularies[set.Source] && s.library == nil {
 		if _, err := s.open(); err != nil {
 			return nil
 		}
@@ -287,10 +287,25 @@ func (s *session) vocabularyValues(command string, param verb.Param) []string {
 	return resolve(s)
 }
 
-// columnsVocabulary is the one vocabulary source that lives in the reader's own
-// workbench rather than in the binary, so it is the one that needs a workbench
-// opened before it can answer.
+// benchVocabularies are the vocabulary sources that live in the reader's own
+// workbench rather than in the binary, so they are the ones that need a
+// workbench opened before they can answer.
+//
+// There were two the day this became a set. The columns source reads the flow,
+// and the fields source reads the fields of every kind together with the keys
+// the workbench declares, which is a set no static list can carry.
+var benchVocabularies = map[string]bool{
+	columnsVocabulary: true,
+	fieldsVocabulary:  true,
+}
+
+// columnsVocabulary is the vocabulary source that reads the reader's own flow.
 const columnsVocabulary = "columns"
+
+// fieldsVocabulary is the vocabulary source that reads what `dinah set` will
+// take as a field name: every field of every kind, and every key the reader's
+// own workbench declares.
+const fieldsVocabulary = "fields"
 
 // wrapNote breaks a command's note into the lines the window holds, and
 // answers with the note whole where no window was measured. It takes no

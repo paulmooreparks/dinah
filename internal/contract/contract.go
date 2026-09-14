@@ -86,7 +86,7 @@ func ExitCodeForRead(outcome string) int {
 	return 1
 }
 
-// The seventeen refusal names section 6.1 of the profile declares. A refusal
+// The nineteen refusal names section 6.1 of the profile declares. A refusal
 // Dinah reports that is not one of these carries the layer prefix of
 // LayerPrefix, which CORE-OUT-3 admits and DOC-LAYER-1 keeps collision-free.
 const (
@@ -107,15 +107,29 @@ const (
 	Malformed         = "malformed"
 	LayerCollisionErr = "layer-collision"
 	UnresolvedItem    = "unresolved-item"
+	// UndeclaredField is a write naming a field key the workbench does not
+	// declare, and a write naming a declared key whose declaration does not
+	// reach the kind the reference resolved to. One name covers both because
+	// to a reader they are the same mistake, which is the reasoning
+	// UnknownField's own comment already records for its two cases.
+	//
+	// It is spelled apart from UnknownField, which means a query or a write
+	// naming a field the tool does not have. The two mistakes have different
+	// repairs: the first is fixed by typing a different word, the second by
+	// declaring the key.
+	UndeclaredField = "undeclared-field"
+	// MissingField is a move or a pull into a column whose require_fields
+	// declaration names a key the card holds no value for.
+	MissingField = "missing-field"
 )
 
-// Declared lists the profile's seventeen refusal names in the order section 6.1
+// Declared lists the profile's nineteen refusal names in the order section 6.1
 // prints them.
 var Declared = []string{
 	UnknownCard, UnknownColumn, UnsupportedVer, Held, NotRequester,
 	Blocked, NotBlocked, NotHolder, AtCapacity, NotOperator,
 	NoOperator, NoOwner, NoReason, Terminal, Malformed, LayerCollisionErr,
-	UnresolvedItem,
+	UnresolvedItem, UndeclaredField, MissingField,
 }
 
 // LayerPrefix is the prefix every refusal name Dinah introduces carries. The
@@ -801,7 +815,7 @@ var Events = []string{
 // Refusal is the error a verb returns when a rule says no. It carries the one
 // refusal name CORE-OUT-2 requires and a detail the head renders for a person.
 type Refusal struct {
-	// Name is the refusal name, from the profile's seventeen or dotted.
+	// Name is the refusal name, from the profile's nineteen or dotted.
 	Name string
 	// Detail names what the refusal was about: the column asked for, the
 	// owner holding the card, the version wanted. It is not a sentence and

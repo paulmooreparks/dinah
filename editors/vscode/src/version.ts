@@ -30,8 +30,14 @@ import type { VersionReport } from "./api";
  * resolves through the verb surface exactly as it did, and what changed is
  * where the binary keeps the numbers it allocates, which the extension never
  * reads.
+ *
+ * 4 joined the set at dinah-498, which retired a heading a card body carried
+ * a value under into a field the workbench declares. The value moved from the
+ * body to the front matter of the same anchor, and the extension reads
+ * neither: it asks the verb surface for a card and is answered a card, with
+ * one more member on it that an older reader ignores.
  */
-export const SUPPORTED_FORMATS: readonly number[] = [1, 2, 3];
+export const SUPPORTED_FORMATS: readonly number[] = [1, 2, 3, 4];
 
 /**
  * The conformance claim this extension needs. A different name or major is

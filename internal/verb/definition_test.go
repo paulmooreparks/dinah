@@ -143,8 +143,16 @@ func isASCIIText(s string) bool {
 }
 
 // TestEveryDeclaredVocabularyResolves asserts that an argument naming a closed
-// set names one that exists, and that a set is either carried here or named as
-// a source a head can answer.
+// set names one that exists, and that the set is answerable at all: it carries
+// members, or it names a source a head resolves, or it does both.
+//
+// Carrying both was a defect until dinah-498 and is now a shape of its own. A
+// vocabulary whose members this package can fix in the source and whose full
+// set only a head can resolve publishes the members for discovery and the
+// source for resolution, and the schema is what keeps the two from being read
+// as one closed list: the members go under a vendor key rather than under an
+// enum. The field argument of set is the case, since it reaches a field of a
+// kind's own set and a key the reader's own workbench declares alike.
 func TestEveryDeclaredVocabularyResolves(t *testing.T) {
 	declared := 0
 	for _, name := range Commands() {
@@ -161,9 +169,7 @@ func TestEveryDeclaredVocabularyResolves(t *testing.T) {
 			if len(set.Values) == 0 && set.Source == "" {
 				t.Errorf("%s %s names a vocabulary that carries no members and no source", name, param.Name)
 			}
-			if len(set.Values) > 0 && set.Source != "" {
-				t.Errorf("%s %s names a vocabulary carrying both members and a source, so which one answers is undecided", name, param.Name)
-			}
+
 		}
 	}
 	if declared == 0 {

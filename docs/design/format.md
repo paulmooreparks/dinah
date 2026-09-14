@@ -1755,6 +1755,132 @@ is tracked on its own board.) Domain fields generally, such as `project` and
 `repository` on a ticket card, live on the card without the core knowing
 them; unknown keys are tolerated.
 
+## Declared fields
+
+Severity, priority and tier are the enumerated special case, and everything
+below is the general one. A workbench declares fields of its own, under the
+top-level `fields` key of `workbench.md`, and the core owns the slot and the
+rules a value is written under while the workbench owns the names:
+
+```yaml
+fields:
+  git.branch:
+    type: string
+    meaning: the branch the card's code lives on
+    on: [card]
+  git.trunk:
+    type: string
+    meaning: the branch cards merge into
+    on: [workbench, column]
+```
+
+One entry carries three members, one to a line. `type` is required and holds
+one of `string`, `number`, `boolean`, `url` and `date`. `meaning` is required
+and holds one line of prose, which runs unparsed to the end of its line so a
+meaning carrying a comma or a colon needs no quoting rule. `on` is optional,
+holds the entity kinds the field applies to as a flow sequence or a block of
+dashed entries, and an entry declaring none applies to a card, a column and
+the workbench alike. No declaration reaches a comment, a checklist item, an
+attachment or a workstream.
+
+A key is two or more segments joined by full stops, and a segment begins with
+a lowercase letter, ends with a lowercase letter or a digit, and carries
+lowercase letters, digits and single interior hyphens between the two. A
+hyphen joins the words of one name, as in `gk-software.customer`, and a full
+stop separates the levels of a hierarchy, as in `git.branch` and `git.pr`. A
+key is at most 128 characters and a segment at most 64. Nothing enforces
+global uniqueness and nothing tries to: two workbenches declaring
+`customer.id` for two different things are two workbenches, and the tool has
+no standing to arbitrate. The convention for a key that has to mean one thing
+everywhere is that its first segment is a name the declarer controls, with
+reverse-DNS (`com-example.customer.id`) where that is not enough, and no code
+reads the convention.
+
+The reader posture is the one the `levels` block keeps: an entry it cannot
+read is skipped rather than raised over, so a hand-damaged block leaves the
+workbench openable, and `dinah check` reports what it skipped under
+`check.field-declaration-malformed`.
+A duplicate key keeps its first occurrence. Declaration order is the order a
+reader typed, and it is the order `dinah show` prints an entity's fields in.
+
+A value is stored in the entity's own anchor, inside a nested block under the
+top-level key `field_values`:
+
+```yaml
+field_values:
+  git.branch: dinah-498-declared-fields
+```
+
+A value is never written as a bare top-level key, and the reason is the layer
+namespace. A layer declares itself at the top level of the workbench
+definition under a name containing a full stop, and a declared field key contains one by
+construction, so a value written there would be indistinguishable from a
+layer declaration a second tool is required to preserve and may be required
+to refuse. Nesting removes the question rather than answering it, and the
+rule is uniform across the three kinds so that one reader and one writer
+serve all of them. A key inside the block that the workbench does not declare
+is preserved unchanged and is readable, which is the posture an unrecognised
+top-level key already gets.
+
+`dinah get` and `dinah set` reach a declared field exactly as they reach
+`severity`. A read never refuses on the ground that a key is undeclared,
+because a card imported from somewhere else carries keys this workbench never
+declared and refusing to read one would make the preservation rule
+unobservable. A write under a key the workbench does not declare for the kind
+the reference resolved to is refused `undeclared-field`, naming the key and
+listing the keys that kind does carry. A value failing its declared type is
+refused `malformed`. Every declared field is clearable, because what makes a
+field required at a point in the flow is a column's own declaration and not
+the field's.
+
+A column declares that requirement in its own front matter:
+
+```yaml
+require_fields: [git.branch]
+```
+
+A card entering such a column while it carries no value for one of those keys
+is refused `missing-field`, naming the first such key in the column's own
+declaration order. The row runs in `canLand`, so it holds on the way in and
+it serves a pull as it serves a move, and there is no exit form of it. An
+entry naming a key the workbench does not declare holds nothing and is
+reported under `check.required-field-undeclared`, because a key nothing can
+ever be written under would make the column unreachable.
+
+### Retiring the branch heading
+
+This project's own workbench carried a card's branch name in the card body,
+under the literal heading `## Branch`, on a line of its own. That convention
+predates declared fields, it was taught in the bodies of the columns that read
+it, and it was invisible to `dinah check`. `dinah check --migrate-branches --yes` carries one
+workbench across: each heading's value becomes the card's `git.branch` value,
+the heading leaves the body, the workbench declares the key where a card
+carried one, and the anchor is stamped `format: 4`.
+
+The run is all or nothing over one workbench, and it achieves that by
+classifying every card before it writes any card. A card carrying no heading
+is untouched; one carrying exactly one heading with a value beneath it is a
+lift; one carrying the heading with nothing beneath it loses the heading and
+gains no value; and a card whose anchor already carries a different value,
+whose body carries two headings, or whose anchor will not open is a conflict.
+A single conflict reports every conflict found, writes nothing, stamps no
+format, and exits non-zero. Without `--yes` the run classifies exactly as it
+would and writes nothing.
+
+One case the format cannot make atomic is a failure part-way through the
+write pass, because there is no transaction across files. The run reports
+which cards it had written when it stopped, and re-running is safe: a card
+already lifted classifies as untouched the second time, since its heading is
+gone.
+
+The format number gates the migration and nothing else. Declared fields work
+on a workbench declaring any format this build opens, because a declaration
+is a key in front matter and so is a value. What the number says is whether
+this workbench has been carried across the retirement, which is what lets
+`dinah check` report a surviving heading under
+`check.branch-heading-in-body` on a workbench that has been and stay silent
+on one that has not.
+
 ## Tier: what class of worker a card needs at each stop
 
 Tier is the third level axis, and a workbench declares it exactly as it
@@ -1951,8 +2077,11 @@ never conflated:
   precedent (`core.repositoryformatversion`, carried always, bumped
   approximately once) is the model, and the number has moved twice, from 1
   to 2 when the rule that a workbench lives inside a `.dinah` container
-  landed, and from 2 to 3 when the card number left the card anchor for the
-  registry.
+  landed, from 2 to 3 when the card number left the card anchor for the
+  registry, and from 3 to 4 when the heading a card body carried its branch
+  name under was retired into a declared field. The fourth move is the first
+  that is not private business: the mechanism behind it is one the profile
+  states, and the profile moved with it.
 - **Profile version.** The contract's public promise, with the channel and
   increment rules recorded with the contract-profile work. `format:` is an
   integer read by exactly one implementation, this one, and it carries no

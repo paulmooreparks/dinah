@@ -770,11 +770,12 @@ func TestPullChecksAgainstTheFullEighteenRowTable(t *testing.T) {
 		{Refusal: contract.Terminal, Key: "check.pull.9"},
 		{Refusal: contract.AtCapacity, Key: "check.pull.10"},
 		{Refusal: contract.UnresolvedItem, Key: "check.pull.11"},
-		{Refusal: contract.UnresolvedItemExit, Key: "check.pull.12"},
-		{Refusal: contract.NotOperator, Key: "check.pull.13"},
-		{Refusal: contract.Locked, Key: "check.pull.14"},
-		{Refusal: contract.UnresolvedItem, Key: "check.pull.15"},
-		{Refusal: contract.BelowTier, Key: "check.pull.16"},
+		{Refusal: contract.MissingField, Key: "check.pull.12"},
+		{Refusal: contract.UnresolvedItemExit, Key: "check.pull.13"},
+		{Refusal: contract.NotOperator, Key: "check.pull.14"},
+		{Refusal: contract.Locked, Key: "check.pull.15"},
+		{Refusal: contract.UnresolvedItem, Key: "check.pull.16"},
+		{Refusal: contract.BelowTier, Key: "check.pull.17"},
 	}
 	if len(checks) != len(want) {
 		t.Fatalf("wanted %d rows, got %d", len(want), len(checks))

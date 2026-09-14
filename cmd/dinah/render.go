@@ -124,12 +124,41 @@ func (s *session) renderCard(card *verb.CardView) {
 	if card.Priority != "" {
 		s.line(s.r.T("card.priority", "priority", card.Priority))
 	}
+	// The declared fields stand after the two levels and before the holder,
+	// in the order the workbench declares them. A declared field the card does
+	// not carry draws no line, and a key the card stores that the workbench
+	// does not declare never reaches the view, because printing it would make
+	// an undeclared key look like a supported one.
+	for _, key := range s.declaredFieldOrder() {
+		if value, carried := card.Fields[key]; carried {
+			s.line(s.r.T("card.field", "field", key, "value", value))
+		}
+	}
 	if card.Holder != "" {
 		s.line(s.r.T("card.holder", "holder", card.Holder))
 	}
 	if card.BlockReason != "" {
 		s.line(s.r.T("card.blocked", "reason", card.BlockReason))
 	}
+}
+
+// declaredFieldOrder is the keys of the fields this workbench declares, in
+// declaration order, which is the order an entity's own values print in.
+//
+// It reads the open workbench rather than the view, because declaration order
+// is a property of the workbench and the view carries a mapping. A session
+// with no workbench open draws no declared field, which is right: a response
+// composed before a workbench opened carries no declared value either.
+func (s *session) declaredFieldOrder() []string {
+	if s.library == nil {
+		return nil
+	}
+	declared := s.library.Bench.DeclaredFields()
+	keys := make([]string, 0, len(declared))
+	for _, field := range declared {
+		keys = append(keys, field.Key)
+	}
+	return keys
 }
 
 // flattenMessageValues turns a Message's named values into the variadic pair
@@ -892,6 +921,9 @@ func (s *session) renderCheck(report *verb.CheckReport) int {
 		}
 		s.table(witnessed)
 	}
+	if report.MigratedBranches != nil {
+		s.renderBranchMigration(report.MigratedBranches)
+	}
 	if report.MigratedNumbers {
 		s.line(s.r.TN("check.card-numbers-written", *report.RegistryLines))
 	}
@@ -900,7 +932,79 @@ func (s *session) renderCheck(report *verb.CheckReport) int {
 	if report.MigratedNumbers || report.RenumberedNumbers {
 		s.line(s.r.TN("check.cards-renumbered", len(report.RenumberedCards)))
 	}
-	return s.renderFindings(report.Findings)
+	code := s.renderFindings(report.Findings)
+	// A repair can need a person while the checker finds nothing, which is
+	// the branch migration meeting a conflict: it wrote nothing, it named the
+	// cards to repair, and the defect it met is in no finding. The report's
+	// own outcome already carries that, so the exit code is taken from there
+	// rather than from the finding count alone.
+	if code == 0 && report.Outcome == contract.ReadFindings {
+		code = contract.ExitCodeForRead(report.Outcome)
+	}
+	return code
+}
+
+// branchConflictKeys names the catalog entry each conflict condition prints,
+// so the tokens the migration reports stay tokens and the words stay in the
+// catalog where a translator can reach them.
+var branchConflictKeys = map[string]string{
+	bench.BranchConflictAnchorDiffers: "check.branch-conflict.anchor-differs",
+	bench.BranchConflictTwoHeadings:   "check.branch-conflict.two-headings",
+	bench.BranchConflictUnreadable:    "check.branch-conflict.unreadable",
+}
+
+// renderBranchMigration prints the branch migration's own account: what the
+// classification found, and then either the conflicts that stopped the run or
+// what the write pass did.
+//
+// The conflicts are drawn instead of the write rather than beside it, because a
+// run that met one wrote nothing at all, and a count of lifted cards printed
+// under them would describe work that did not happen.
+//
+// The preview draws the same cards under sentences of its own. One sentence
+// serving both phases is true of one of them, and this is the output an
+// operator reads before authorising a repair that has no undo, so a line
+// saying a card now carries a value under a line saying nothing was written
+// is the worst place in the tool for that class of defect.
+//
+// Each card is one sentence rather than one row of a table, because a
+// migration's account is read once by a person deciding whether to run it
+// again, and a table here would owe the row-layout sweep a fixture and a
+// language pass for a block nobody scans.
+func (s *session) renderBranchMigration(report *bench.BranchMigration) {
+	if report.Preview {
+		s.line(s.r.T("check.branches-preview"))
+	}
+	s.line(s.r.TN("check.branches-lifted", len(report.Lifted)))
+	s.line(s.r.TN("check.branches-untouched", report.Untouched))
+	if len(report.Conflicts) > 0 {
+		s.line(s.r.TN("check.branches-conflicted", len(report.Conflicts)))
+		for _, conflict := range report.Conflicts {
+			if key, named := branchConflictKeys[conflict.Condition]; named {
+				s.line(s.r.T(key, "card", conflict.Card))
+			}
+		}
+		return
+	}
+	lift, emptiedHeading, emptied := "check.branch-lift", "check.branches-emptied", "check.branch-emptied"
+	if report.Preview {
+		lift, emptiedHeading, emptied = "check.branch-would-lift", "check.branches-would-empty", "check.branch-would-empty"
+	}
+	for _, carried := range report.Lifted {
+		s.line(s.r.T(lift, "card", carried.Card, "branch", carried.Value))
+	}
+	if len(report.Emptied) > 0 {
+		s.line(s.r.TN(emptiedHeading, len(report.Emptied)))
+		for _, ref := range report.Emptied {
+			s.line(s.r.T(emptied, "card", ref))
+		}
+	}
+	if report.Declared {
+		s.line(s.r.T("check.branches-declared", "field", bench.BranchFieldKey))
+	}
+	if report.Stamped {
+		s.line(s.r.T("check.branches-stamped", "format", strconv.Itoa(bench.FieldsFormat)))
+	}
 }
 
 // renderFindings prints what check found and returns the read's own exit
@@ -980,6 +1084,22 @@ var refusalListings = map[string]func(*session) []string{
 	},
 	"guides":   func(s *session) []string { return guide.Topics() },
 	"settings": func(s *session) []string { return bench.ConfigKeys },
+	// The fields a `dinah set` may name are the union of every kind's own
+	// fields and every key the open workbench declares, because the argument
+	// reaches both and a caller offered only the first half would never learn
+	// the second exists. The declared keys follow the built-in names in
+	// declaration order rather than being sorted in among them, so a reader
+	// can see which half a name came from.
+	fieldsVocabulary: func(s *session) []string {
+		names := bench.AllFields()
+		if s.library == nil {
+			return names
+		}
+		for _, field := range s.library.Bench.DeclaredFields() {
+			names = append(names, field.Key)
+		}
+		return names
+	},
 }
 
 // refusalBlocks are the listings that arrive already laid out, because their

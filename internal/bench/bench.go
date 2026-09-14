@@ -76,8 +76,10 @@ const (
 // business. A workbench declaring 2 is held to the containment rule Contained
 // states and still reads its numbers from card frontmatter; one declaring 1,
 // or declaring no format at all, predates both rules and opens as it always
-// did.
-const StorageFormat = 3
+// did. It moved from 3 to 4 at dinah-498, which retired the branch heading a
+// card body carried into a declared field, so the number says whether a
+// workbench has been carried across that retirement.
+const StorageFormat = 4
 
 // ContainerFormat is the storage format from which the containment rule binds.
 // A workbench declaring this number or a higher one is held to Contained; one
@@ -100,6 +102,17 @@ const ContainerFormat = 2
 // workbench this build has not imagined yet still reads its numbers from the
 // registry.
 const RegistryFormat = 3
+
+// FieldsFormat is the storage format from which a `## Branch` heading
+// surviving in a card's body is a defect. A workbench declaring this number or
+// a higher one has been carried across the heading retirement, so `dinah
+// check` reports a heading it still finds; one declaring less has not, and the
+// heading is still its convention.
+//
+// It is a constant of its own on the reasoning ContainerFormat gives: the
+// number gates the migration and nothing else, since a declared field works on
+// a workbench declaring any format this build opens.
+const FieldsFormat = 4
 
 // UndeclaredFormat is the format a workbench whose anchor declares no format
 // key is opened as carrying. Such a workbench predates the key itself, and
@@ -127,7 +140,7 @@ const UndeclaredFormat = ContainerFormat
 const (
 	ProfileName  = "dinah-core"
 	ProfileMajor = 0
-	ProfileMinor = 15
+	ProfileMinor = 16
 )
 
 // The oldest profile revision this build opens. dinah-core 0.7 renamed the
@@ -240,6 +253,16 @@ type Column struct {
 	// from which items name it, so no kind of item is named here and none
 	// is named where the hold is applied either.
 	Hold string
+	// RequireFields are the declared field keys a card must hold a value for
+	// before it enters this column, as the column's own require_fields
+	// declaration carries them, and nil where the column declares none. The
+	// requirement holds on the way in and has no exit form, which is the
+	// direction the column's own hold already reads for a structured item.
+	//
+	// A key the workbench does not declare holds nothing, because a key
+	// nothing can ever be written under would make the column unreachable.
+	// `dinah check` reports it under FindingRequiredFieldUndeclared instead.
+	RequireFields []string
 	// Instructions is the column's own body, the last layer of the chain.
 	Instructions string
 	// Position is the column's zero-based index in the flow.
@@ -483,6 +506,14 @@ type Bench struct {
 	// levels block at Open. It is unexported because every reader wants one
 	// axis rather than the map, and Levels and Level are how they ask.
 	levels map[string][]Level
+	// declaredFields are the fields this workbench declares, in declaration
+	// order, read out of the fields block at Open. It is unexported because
+	// every reader wants one field or the fields of one kind, and
+	// DeclaredFields, DeclaredFieldOf and DeclaredFieldsOn are how they ask.
+	declaredFields []DeclaredField
+	// malformedFields are the keys of the declaration entries the reader
+	// refused, which `dinah check` reports and nothing else reads.
+	malformedFields []string
 	// Passed is the workbench.md files the discovery walk found and did not
 	// claim on its way to resolving this bench, each one a directory holding
 	// somebody else's document rather than a Dinah workbench. It is set by
@@ -1599,6 +1630,7 @@ func openWithVocabulary(root string, vocab columnVocabulary, admit func(declared
 		FM:                fm,
 		levels:            readLevels(fm),
 	}
+	b.declaredFields, b.malformedFields = readDeclaredFields(fm)
 	if b.Title == "" {
 		return nil, contract.RefuseWith(contract.Malformed, "title", anchor)
 	}
@@ -1890,6 +1922,7 @@ func readColumnIn(root string, vocab columnVocabulary, id string, position int) 
 		}
 		column.LoopLimit = n
 	}
+	column.RequireFields = fm.Seq(RequireFieldsKey)
 	// The value is exactly true or false, which is wip_limit's discipline
 	// above and deliberately not operator_owned's == "true" leniency, under
 	// which a value of yes reads as false and tells nobody.

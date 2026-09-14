@@ -421,14 +421,6 @@
       "text": "the card carries no unresolved item that names the destination",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile."
     },
-    "check.move.10": {
-      "text": "the card has not reached the departure column's loop limit",
-      "context": "One row of the ordered precondition list of move. This row is Dinah's own addition; the core profile's own section 6.4 list ends at check.move.9."
-    },
-    "check.move.11": {
-      "text": "the card carries no unresolved item that names the departure column",
-      "context": "One row of the ordered precondition list of move. This row is Dinah's own addition; the core profile's own section 6.4 list ends at check.move.9. It is the departure's own hold, read at the column the card is leaving rather than the one it would land in."
-    },
     "check.next.1": {
       "text": "the named column is one the workbench declares",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
@@ -480,26 +472,6 @@
     "check.pull.11": {
       "text": "the card carries no unresolved item that names the destination",
       "context": "One row of the ordered precondition list of pull: the destination's own hold, read at the column the card would land in."
-    },
-    "check.pull.12": {
-      "text": "the card carries no unresolved item that names the departure column",
-      "context": "One row of the ordered precondition list of pull: the departure's own hold, read at the column the card is leaving rather than the one it would land in."
-    },
-    "check.pull.13": {
-      "text": "taking the card up at the destination is legal for whoever asks",
-      "context": "One row of the ordered precondition list of pull: the operator-owned reservation applied to the column the card would land in and be claimed at."
-    },
-    "check.pull.14": {
-      "text": "the destination is not being retired",
-      "context": "One row of the ordered precondition list of pull: a destination whose retirement is in flight refuses, in the words move refuses it."
-    },
-    "check.pull.15": {
-      "text": "every unresolved item the card carries names a declared column",
-      "context": "One row of the ordered precondition list of pull: a pull that takes the card up answers claim's own last row, in the words claim refuses it."
-    },
-    "check.pull.16": {
-      "text": "your declared tier is at or above what the card asks there",
-      "context": "One row of the ordered precondition list of pull: a pull that takes the card up answers claim's own tier row, asked at the column it lands in."
     },
     "check.ordinal-duplicate": {
       "text": "{detail} carries a creation ordinal that another member of its collection already carries, so one position names two of them",
@@ -3872,6 +3844,162 @@
     "columns.new.unlimited": {
       "text": "unlimited",
       "context": "The capacity field of columns.new.line for a column carrying no limit at all."
+    },
+    "check.pull.17": {
+      "text": "your declared tier is at or above what the card asks there",
+      "context": "One row of the ordered precondition list of pull: a pull that takes the card up answers claim's own tier row, asked at the column it lands in."
+    },
+    "check.pull.16": {
+      "text": "every unresolved item the card carries names a declared column",
+      "context": "One row of the ordered precondition list of pull: a pull that takes the card up answers claim's own last row, in the words claim refuses it."
+    },
+    "check.pull.15": {
+      "text": "the destination is not being retired",
+      "context": "One row of the ordered precondition list of pull: a destination whose retirement is in flight refuses, in the words move refuses it."
+    },
+    "check.pull.14": {
+      "text": "taking the card up at the destination is legal for whoever asks",
+      "context": "One row of the ordered precondition list of pull: the operator-owned reservation applied to the column the card would land in and be claimed at."
+    },
+    "check.pull.13": {
+      "text": "the card carries no unresolved item that names the departure column",
+      "context": "One row of the ordered precondition list of pull: the departure's own hold, read at the column the card is leaving rather than the one it would land in."
+    },
+    "check.move.12": {
+      "text": "the card carries no unresolved item that names the departure column",
+      "context": "One row of the ordered precondition list of move. This row is Dinah's own addition; the core profile's own section 6.4 list ends at check.move.10. It is the departure's own hold, read at the column the card is leaving rather than the one it would land in."
+    },
+    "check.move.11": {
+      "text": "the card has not reached the departure column's loop limit",
+      "context": "One row of the ordered precondition list of move. This row is Dinah's own addition; the core profile's own section 6.4 list ends at check.move.10."
+    },
+    "refusal.undeclared-field": {
+      "text": "this workbench declares no field {detail} on {kind}",
+      "context": "The sentence printed after the refusal name undeclared-field, which is what a write naming a key this workbench does not declare on the resolved kind meets. {detail} is the key the reader typed. {kind} is the kind the reference resolved to, read off the tool rather than written here, so it is machine vocabulary and is never translated. No word of the sentence may agree with {kind}, because the token substituted there is untranslated English and no language can predict its gender, its number or the sound it starts with. The keys this workbench does declare on that kind print beneath as rows, one to a row."
+    },
+    "refusal.undeclared-field.elsewhere": {
+      "text": " It is declared on {kinds}.",
+      "context": "Spliced onto refusal.undeclared-field where this workbench declares the key on some other kind, which tells a reader the key exists somewhere rather than nowhere. {kinds} carries the kinds the declaration does name, read off the declaration, so it is machine vocabulary and is never translated."
+    },
+    "refusal.undeclared-field.next": {
+      "text": " Declare it in the `fields` block of `workbench.md`, or name a key listed above.",
+      "context": "The next step of refusal.undeclared-field. It names the block a reader edits to declare the key, and the rows above it are the keys already declared. The file name and the block name are syntax and stay as they are."
+    },
+    "refusal.missing-field": {
+      "text": "column {column} requires {detail}, and this card carries no value for it",
+      "context": "The sentence printed after the refusal name missing-field, which a move or a pull into a column that requires a field the card holds no value for meets. {detail} is the first such key in the column's own declaration order, and {column} names the column that asked."
+    },
+    "refusal.missing-field.next": {
+      "text": "; write a value for it with `dinah set`, and this column will take the card",
+      "context": "Spliced onto refusal.missing-field as the next step. It names the command that writes the value and says what the write buys, and it names neither of the two acts the row refuses, because the row fires on a move and on a pull alike and a reader refused at a pull never moved. The command name is syntax and stays as it is."
+    },
+    "check.field-declaration-malformed": {
+      "text": "the fields block declares {detail} with no usable type or meaning, so nothing is declared under that key",
+      "context": "A check finding: one entry of this workbench's fields block that the declaration reader refused, which is an entry whose key the grammar refuses, whose type is absent or outside the five, or whose meaning is absent or blank. {detail} carries the key as written. The entry declares nothing and the workbench still opens, so the repair is an edit to the block."
+    },
+    "check.required-field-undeclared": {
+      "text": "a column requires a field this workbench does not declare: {detail}",
+      "context": "A check finding: a column whose require_fields declaration names a key this workbench does not declare. {detail} carries the column's reference and then the key, in that order. The entry holds nothing, because a key nothing can ever be written under would make the column unreachable."
+    },
+    "check.branch-heading-in-body": {
+      "text": "{detail} still carries the retired heading in its body, which this store's format says was lifted into a declared field",
+      "context": "A check finding: a card whose body still carries the retired heading, on a workbench whose declared format says that heading was lifted into a declared field. {detail} carries the card's reference. A workbench declaring a lower format is not reported, because it has not been carried across the retirement and the heading is still its convention."
+    },
+    "card.field": {
+      "text": "  {field}: {value}",
+      "context": "Printed under the card line for one field this workbench declares that the card carries a value for, one line per field, in declaration order. {field} is the declared key and {value} is what the card stores under it, both read off the store rather than written here, so both are machine vocabulary and neither is translated."
+    },
+    "check.branches-preview": {
+      "text": "Nothing was written, because this run carried no confirmation.",
+      "context": "The first line the branch migration prints when it ran without the confirmation flag, so that a reader cannot take the counts below it for work that happened."
+    },
+    "check.branches-lifted.one": {
+      "text": "{count} card carries a value to lift.",
+      "context": "The line the branch migration prints for what its classification found to lift, for exactly one card. It reports the classification rather than the write, so it reads the same whether the run went on to write or stopped at a conflict."
+    },
+    "check.branches-lifted.other": {
+      "text": "{count} cards carry a value to lift.",
+      "context": "The line the branch migration prints for what its classification found to lift, for any other number. A count of zero is a run that found no heading to lift, which is that run's own answer."
+    },
+    "check.branches-untouched.one": {
+      "text": "{count} card carries no such heading.",
+      "context": "The line the branch migration prints for the cards its classification found nothing to do to, for exactly one card. It is printed beside the count above so that a run which classified nothing cannot read as a run which found nothing to do."
+    },
+    "check.branches-untouched.other": {
+      "text": "{count} cards carry no such heading.",
+      "context": "The line the branch migration prints for the cards its classification found nothing to do to, for any other number. It is printed beside the count above so that a run which classified nothing cannot read as a run which found nothing to do."
+    },
+    "check.branches-conflicted.one": {
+      "text": "Wrote nothing, because {count} card cannot be carried across:",
+      "context": "The heading over the cards the classification refused, for exactly one card. A single one of them stops the run before any write, so the rows beneath name what has to be repaired before a second run completes."
+    },
+    "check.branches-conflicted.other": {
+      "text": "Wrote nothing, because {count} cards cannot be carried across:",
+      "context": "The heading over the cards the classification refused, for any other number. A single one of them stops the run before any write, so the rows beneath name what has to be repaired before a second run completes."
+    },
+    "check.branch-conflict.anchor-differs": {
+      "text": "{card} already stores a different value for that field",
+      "context": "One row of the branch migration's conflict report: a card whose stored value for the declared field differs from the value its body carries, so the run cannot tell which of the two the operator meant. {card} carries the card's reference."
+    },
+    "check.branch-conflict.two-headings": {
+      "text": "{card} carries that heading more than once",
+      "context": "One row of the branch migration's conflict report: a card whose body carries the retired heading more than once, so the run cannot tell which of them is the value. {card} carries the card's reference."
+    },
+    "check.branch-conflict.unreadable": {
+      "text": "{card} will not open, so the run could not read it",
+      "context": "One row of the branch migration's conflict report: a card whose anchor will not open, so the run cannot classify it and will not write a workbench it has not read whole. {card} carries the card's identifier."
+    },
+    "check.branches-emptied.one": {
+      "text": "Removed an empty heading from {count} card:",
+      "context": "The heading over the cards that carried the retired heading with nothing beneath it, for exactly one card. Each loses the heading and gains no value, so they are named rather than counted alone."
+    },
+    "check.branches-emptied.other": {
+      "text": "Removed an empty heading from {count} cards:",
+      "context": "The heading over the cards that carried the retired heading with nothing beneath it, for any other number. Each loses the heading and gains no value, so they are named rather than counted alone."
+    },
+    "check.branches-declared": {
+      "text": "Declared the field {field}.",
+      "context": "The line the branch migration prints when it added the declaration for the key it lifted into. A workbench that already declared the key keeps its own declaration and this line is not printed. {field} carries the key, read off the store, so it is machine vocabulary and is never translated."
+    },
+    "check.branches-stamped": {
+      "text": "Stamped the store format {format}.",
+      "context": "The line the branch migration prints when it wrote the format number onto the workbench anchor, which is what says the retirement has happened here. {format} carries the number."
+    },
+    "param.check.migrate-branches.summary": {
+      "text": "lift the retired heading out of every card body into a declared field and stamp this store's format",
+      "context": "The meaning of the migrate-branches argument of `dinah check`, printed in that command's arguments table."
+    },
+    "check.move.10": {
+      "text": "the card carries a value for every field the destination requires",
+      "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile."
+    },
+    "check.pull.12": {
+      "text": "the card carries a value for every field the destination requires",
+      "context": "One row of the ordered precondition list of pull: the destination's own field requirement, read at the column the card would land in."
+    },
+    "check.branch-lift": {
+      "text": "{card} now carries {branch}.",
+      "context": "One line of the branch migration's own report, naming a card and the value the migration lifted out of its body into the declared field. {card} carries the card's reference and {branch} the value now stored under that field, both read off the store, so both are machine vocabulary and neither is translated."
+    },
+    "check.branch-emptied": {
+      "text": "{card} lost a heading with nothing under it.",
+      "context": "One line of the branch migration's own report, naming a card that carried the retired heading with nothing beneath it. Such a card loses the heading and gains no value, so it is named rather than counted alone. {card} carries the card's reference."
+    },
+    "check.branch-would-lift": {
+      "text": "{card} would come to carry {branch}.",
+      "context": "One line of the branch migration's preview, naming a card and the value a confirmed run would lift out of its body into the declared field. It is spelled apart from check.branch-lift because a preview writes nothing, and the same sentence under both would tell an operator a write had happened. {card} carries the card's reference and {branch} the value the body holds, both read off the store, so both are machine vocabulary and neither is translated."
+    },
+    "check.branches-would-empty.one": {
+      "text": "An empty heading would be removed from {count} card:",
+      "context": "The heading over the cards carrying the retired heading with nothing beneath it, in the branch migration's preview, for exactly one card."
+    },
+    "check.branches-would-empty.other": {
+      "text": "An empty heading would be removed from {count} cards:",
+      "context": "The heading over the cards carrying the retired heading with nothing beneath it, in the branch migration's preview, for any other number."
+    },
+    "check.branch-would-empty": {
+      "text": "{card} would lose a heading with nothing under it.",
+      "context": "One line of the branch migration's preview, naming a card that carries the retired heading with nothing beneath it. A confirmed run would take the heading away and write no value. {card} carries the card's reference."
     }
   }
 }

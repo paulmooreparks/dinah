@@ -361,8 +361,9 @@ func (l *Library) canRoute(req *Request, card *bench.Card) (*bench.Column, *benc
 // destination, in that list's order: the card is not blocked, the card is
 // not held by somebody else, the move is not a forward move out of a done
 // column, the destination stands below its capacity, the destination holds no
-// unresolved item of this card's that names it, the departure has not reached
-// its own declared loop_limit for this card, the departure holds no unresolved
+// unresolved item of this card's that names it, the card carries a value for
+// every field the destination requires, the departure has not reached its own
+// declared loop_limit for this card, the departure holds no unresolved
 // item of this card's that names it for departure, the destination does not
 // wait on somebody outside the workbench, the destination does not reserve
 // to the operator the claim an arriving act would take there, and the
@@ -420,6 +421,24 @@ func (l *Library) canLand(req *Request, card *bench.Card, destination, departure
 			if !req.Override {
 				return false, l.refuse(req, card, contract.UnresolvedItem, holding[0].ID), nil
 			}
+		}
+	}
+	// A column may require more of a card than room and more than a settled
+	// item: it names declared field keys the card has to hold a value for
+	// before it enters. The row reads the destination, so it holds on the way
+	// in, which is the direction the entry hold above reads and the direction
+	// an acceptance criterion already relies on. There is no exit form.
+	//
+	// The refusal names the first such key in the column's declaration order,
+	// which is claimableItems's own convention: a count tells whoever is
+	// holding the card nothing about what to go and set.
+	requiredMissing := false
+	if missing := l.missingRequiredField(card, destination); missing != "" {
+		requiredMissing = true
+		if !req.Override {
+			return false, l.refuseWith(req, card, contract.MissingField, missing, map[string]string{
+				contract.ValueColumn: columnRef(destination),
+			}), nil
 		}
 	}
 	// The cap is absolute, on the operator's own ruling: an override carries
@@ -490,7 +509,26 @@ func (l *Library) canLand(req *Request, card *bench.Card, destination, departure
 	if holder, retiring := l.retiring(destination.ID); retiring {
 		return false, l.refuse(req, card, contract.Locked, holder), nil
 	}
-	return (reached || loopReached || gateHeld || exitGateHeld) && req.Override, nil, nil
+	return (reached || loopReached || gateHeld || exitGateHeld || requiredMissing) && req.Override, nil, nil
+}
+
+// missingRequiredField names the first declared field key the destination
+// requires that the card holds no value for, and the empty string where the
+// card satisfies every one of them.
+//
+// A key the workbench does not declare is skipped rather than refused, because
+// a key nothing can ever be written under would make the column unreachable;
+// `dinah check` reports it under check.required-field-undeclared instead.
+func (l *Library) missingRequiredField(card *bench.Card, destination *bench.Column) string {
+	for _, key := range destination.RequireFields {
+		if l.Bench.DeclaredFieldOf(key) == nil {
+			continue
+		}
+		if bench.FieldValue(card.FM, key) == "" {
+			return key
+		}
+	}
+	return ""
 }
 
 // move carries a card from one column to another. The list is CORE-MOVE's, in

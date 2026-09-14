@@ -203,6 +203,7 @@ var argumentExemptions = map[string]map[string]string{
 		"migrate-columns":     "rewrites the column layout of an ageing store, which is a one-time repair of it",
 		"migrate-vocabulary":  "rewrites the vocabulary of every workbench under a root, and its rewrite has no undo",
 		"migrate-container":   "rewrites the container layout of every workbench under a root, and its rewrite has no undo",
+		"migrate-branches":    "lifts a retired heading out of every card body into a declared field and stamps the store's format, which is a one-time repair of an ageing store",
 		"migrate-numbers":     "builds the card-number registry and strips the number key from every anchor, which is a one-time repair of an ageing store",
 		"renumber":            "renumbers the later claimant of a number two cards hold, and a reference somebody wrote down for that card stops resolving",
 		"migrate-workstreams": "rewrites the workstream records of an ageing store, which is a one-time repair of it",
@@ -432,7 +433,10 @@ func declaredArgNames(t tool) map[string]bool {
 // comma-separated list of those members is the case that reversal does not
 // cover, because a legal answer naming two of them is not itself a member, so
 // such a parameter publishes the members under a vendor key rather than under
-// enum and keeps a strict client free to compose them.
+// enum and keeps a strict client free to compose them. A parameter whose set a
+// head resolves and which also fixes members in the source is that same case
+// read from the other side: the resolved set is wider than the members, so the
+// members are published and the enum is not.
 func schemaFor(t tool) map[string]any {
 	catalog := msg.For(msg.Base)
 	properties := map[string]any{}
@@ -513,6 +517,13 @@ func vocabularyKeys(command string, param verb.Param) map[string]any {
 		switch {
 		case set.Source != "":
 			keys["x-dinah-vocabulary-source"] = set.Source
+			// A source that also fixes members in the source publishes them
+			// beside it rather than as an enum, because the resolved set is
+			// wider than those members and a strict validator told to enforce
+			// an enum would reject a legal answer.
+			if len(set.Values) > 0 {
+				keys["x-dinah-vocabulary-members"] = set.Values
+			}
 		case list:
 			keys["x-dinah-vocabulary-members"] = set.Values
 		default:

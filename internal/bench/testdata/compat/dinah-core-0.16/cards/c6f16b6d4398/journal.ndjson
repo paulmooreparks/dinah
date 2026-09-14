@@ -1,0 +1,39 @@
+{"ts":"2026-09-14T15:41:28Z","event":"created","actor":"sam","title":"first card","to":"004acda2c28a","to_title":"Intake"}
+{"ts":"2026-09-14T15:41:28Z","event":"commented","actor":"sam","comment":"b3dddb2508a2"}
+{"ts":"2026-09-14T15:41:28Z","event":"commented","actor":"sam","comment":"133b37b83caa"}
+{"ts":"2026-09-14T15:41:28Z","event":"archived","actor":"sam","note":"b3dddb2508a2"}
+{"ts":"2026-09-14T15:41:28Z","event":"attached","actor":"sam","attachment":"93cb580f8a6a","filename":"payload-one.txt"}
+{"ts":"2026-09-14T15:41:28Z","event":"attached","actor":"sam","attachment":"1f6a95c36201","filename":"payload-two.txt"}
+{"ts":"2026-09-14T15:41:28Z","event":"attachment_replaced","actor":"sam","attachment":"93cb580f8a6a","filename":"payload-two.txt"}
+{"ts":"2026-09-14T15:41:28Z","event":"attachment_removed","actor":"sam","attachment":"1f6a95c36201","filename":"payload-two.txt","note":"1f6a95c36201"}
+{"ts":"2026-09-14T15:41:28Z","event":"attached","actor":"sam","attachment":"e82fc9a886fd","filename":"payload-three.txt"}
+{"ts":"2026-09-14T15:41:28Z","event":"archived","actor":"sam","note":"e82fc9a886fd"}
+{"ts":"2026-09-14T15:41:28Z","event":"attached","actor":"sam","attachment":"1ee6134c6377","filename":"payload-two.txt"}
+{"ts":"2026-09-14T15:41:28Z","event":"attachment_renamed","actor":"sam","from":"payload-two.txt","attachment":"93cb580f8a6a","filename":"renamed-payload.txt"}
+{"ts":"2026-09-14T15:41:28Z","event":"moved","actor":"sam","from":"004acda2c28a","to":"3f9c17ade5b2","from_title":"Intake","to_title":"Review"}
+{"ts":"2026-09-14T15:41:28Z","event":"card_updated","actor":"sam","to":"apex","field":"tier"}
+{"ts":"2026-09-14T15:41:28Z","event":"tier_overridden","actor":"sam","to":"frontier","column":"7b5cfe51cb3b","expr":"frontier"}
+{"ts":"2026-09-14T15:41:28Z","event":"tier_overridden","actor":"sam","to":"apex","column":"3f9c17ade5b2","expr":"+1","against":"frontier"}
+{"ts":"2026-09-14T15:41:28Z","event":"tier_overridden","actor":"sam","from":"frontier","to":"apex","column":"7b5cfe51cb3b","expr":"apex"}
+{"ts":"2026-09-14T15:41:29Z","event":"card_updated","actor":"sam","to":"minor","field":"severity"}
+{"ts":"2026-09-14T15:41:29Z","event":"card_updated","actor":"sam","from":"minor","to":"major","field":"severity"}
+{"ts":"2026-09-14T15:41:29Z","event":"card_updated","actor":"sam","to":"now","field":"priority"}
+{"ts":"2026-09-14T15:41:29Z","event":"item_filed","actor":"sam","kind":"acceptance_criterion","item":"c4c118f803fe"}
+{"ts":"2026-09-14T15:41:29Z","event":"item_filed","actor":"sam","kind":"open_question","item":"c8eff3a61d96"}
+{"ts":"2026-09-14T15:41:29Z","event":"item_filed","actor":"sam","kind":"decision","item":"750ce7267a99"}
+{"ts":"2026-09-14T15:41:29Z","event":"item_cited","actor":"sam","item":"c4c118f803fe","scheme":"test","target":"internal/verb/mutate_test.go#TestTheCardLockCoversTheWholeTransaction"}
+{"ts":"2026-09-14T15:41:29Z","event":"item_verified","actor":"sam","from":"pending","to":"verified","item":"c4c118f803fe"}
+{"ts":"2026-09-14T15:41:29Z","event":"item_reopened","actor":"sam","from":"verified","to":"pending","reason":"the reviewer found the fixture predates the fix","item":"c4c118f803fe"}
+{"ts":"2026-09-14T15:41:29Z","event":"item_failed","actor":"sam","from":"pending","to":"failed","item":"c4c118f803fe"}
+{"ts":"2026-09-14T15:41:29Z","event":"item_resolved","actor":"sam","from":"pending","to":"resolved","item":"c8eff3a61d96"}
+{"ts":"2026-09-14T15:41:29Z","event":"item_resolved","actor":"sam","from":"pending","to":"resolved","item":"750ce7267a99"}
+{"ts":"2026-09-14T15:41:29Z","event":"linked","actor":"sam","to":"ceb564136bfa","kind":"duplicates"}
+{"ts":"2026-09-14T15:41:29Z","event":"linked","actor":"sam","to":"9cc702dba8de","kind":"relates"}
+{"ts":"2026-09-14T15:41:29Z","event":"linked","actor":"sam","to":"ceb564136bfa","kind":"spawned_from"}
+{"ts":"2026-09-14T15:41:29Z","event":"unlinked","actor":"sam","to":"ceb564136bfa","kind":"spawned_from"}
+{"ts":"2026-09-14T15:41:29Z","event":"item_updated","actor":"sam","from":"the operator confirmed the deadline is the 15th","to":"the operator confirmed the deadline is the 15th, and said so twice","field":"note","note":"c8eff3a61d96"}
+{"ts":"2026-09-14T15:41:29Z","event":"commented","actor":"sam","comment":"cfef942f9fc7"}
+{"ts":"2026-09-14T15:41:29Z","event":"archived","actor":"sam","note":"cfef942f9fc7"}
+{"ts":"2026-09-14T15:41:29Z","event":"restored","actor":"sam","note":"cfef942f9fc7"}
+{"ts":"2026-09-14T15:41:29Z","event":"moved","actor":"sam","from":"3f9c17ade5b2","to":"7b5cfe51cb3b","from_title":"Review","to_title":"Doing, renamed","reshape":true}
+{"ts":"2026-09-14T15:41:29Z","event":"tier_override_dropped","actor":"sam","from":"apex","column":"3f9c17ade5b2"}

@@ -53,7 +53,9 @@ func TestTheClaimsSeventhRowReadsOneSentenceEverywhere(t *testing.T) {
 	}
 
 	catalog := msg.For(msg.Base)
-	for _, key := range []string{"check.claim.7", "check.pull.15"} {
+	// The pull list's copy of this row moved from 15 to 16 at dinah-498,
+	// which inserted the destination's field requirement above it.
+	for _, key := range []string{"check.claim.7", "check.pull.16"} {
 		if rendered := catalog.T(key); rendered != claimRowSentence {
 			t.Errorf("%s renders %q, wanted %q", key, rendered, claimRowSentence)
 		}

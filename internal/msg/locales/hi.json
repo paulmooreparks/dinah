@@ -529,16 +529,6 @@
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
       "source": "d6e9e1f4780da9c4"
     },
-    "check.move.10": {
-      "text": "कार्ड प्रस्थान कॉलम की लूप सीमा पर नहीं पहुँचा है",
-      "context": "One row of the ordered precondition list of move. This row is Dinah's own addition; the core profile's own section 6.4 list ends at check.move.9.",
-      "source": "193dcb5974ead6b"
-    },
-    "check.move.11": {
-      "text": "कार्ड पर ऐसी कोई अनसुलझी मद नहीं है जो प्रस्थान कॉलम को नामित करती हो",
-      "context": "One row of the ordered precondition list of move. This row is Dinah's own addition; the core profile's own section 6.4 list ends at check.move.9. It is the departure's own hold, read at the column the card is leaving rather than the one it would land in.",
-      "source": "8186a705a5b6534a"
-    },
     "check.next.1": {
       "text": "नामित कॉलम वर्कबेंच घोषित करती है",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
@@ -603,31 +593,6 @@
       "text": "कार्ड पर ऐसा कोई अनसुलझा मद नहीं है जो गंतव्य का नाम लेता हो",
       "context": "One row of the ordered precondition list of pull: the destination's own hold, read at the column the card would land in.",
       "source": "d6e9e1f4780da9c4"
-    },
-    "check.pull.12": {
-      "text": "कार्ड पर ऐसी कोई अनसुलझी मद नहीं है जो प्रस्थान कॉलम को नामित करती हो",
-      "context": "One row of the ordered precondition list of pull: the departure's own hold, read at the column the card is leaving rather than the one it would land in.",
-      "source": "8186a705a5b6534a"
-    },
-    "check.pull.13": {
-      "text": "माँगने वाले के लिए गंतव्य पर कार्ड उठाना वैध है",
-      "context": "One row of the ordered precondition list of pull: the operator-owned reservation applied to the column the card would land in and be claimed at.",
-      "source": "93e6ab0cb424ce6d"
-    },
-    "check.pull.14": {
-      "text": "गंतव्य को सेवामुक्त नहीं किया जा रहा है",
-      "context": "One row of the ordered precondition list of pull: a destination whose retirement is in flight refuses, in the words move refuses it.",
-      "source": "64b7abf44b69542b"
-    },
-    "check.pull.15": {
-      "text": "कार्ड पर मौजूद हर अनसुलझा मद किसी घोषित कॉलम का नाम लेता है",
-      "context": "One row of the ordered precondition list of pull: a pull that takes the card up answers claim's own last row, in the words claim refuses it.",
-      "source": "1978b6454d989315"
-    },
-    "check.pull.16": {
-      "text": "आपका बताया गया स्तर उससे बराबर या ऊपर है जो कार्ड वहाँ माँगता है",
-      "context": "One row of the ordered precondition list of pull: a pull that takes the card up answers claim's own tier row, asked at the column it lands in.",
-      "source": "3a872f98880c416e"
     },
     "check.ordinal-duplicate": {
       "text": "{detail} का रचना-क्रमांक उसी संग्रह के किसी और सदस्य के क्रमांक जैसा है, इसलिए एक ही स्थान दो को नामित करता है",
@@ -4851,6 +4816,202 @@
       "text": "असीमित",
       "context": "The capacity field of columns.new.line for a column carrying no limit at all.",
       "source": "f1856e19ec8a2da0"
+    },
+    "check.pull.17": {
+      "text": "आपका बताया गया स्तर उससे बराबर या ऊपर है जो कार्ड वहाँ माँगता है",
+      "context": "One row of the ordered precondition list of pull: a pull that takes the card up answers claim's own tier row, asked at the column it lands in.",
+      "source": "3a872f98880c416e"
+    },
+    "check.pull.16": {
+      "text": "कार्ड पर मौजूद हर अनसुलझा मद किसी घोषित कॉलम का नाम लेता है",
+      "context": "One row of the ordered precondition list of pull: a pull that takes the card up answers claim's own last row, in the words claim refuses it.",
+      "source": "1978b6454d989315"
+    },
+    "check.pull.15": {
+      "text": "गंतव्य को सेवामुक्त नहीं किया जा रहा है",
+      "context": "One row of the ordered precondition list of pull: a destination whose retirement is in flight refuses, in the words move refuses it.",
+      "source": "64b7abf44b69542b"
+    },
+    "check.pull.14": {
+      "text": "माँगने वाले के लिए गंतव्य पर कार्ड उठाना वैध है",
+      "context": "One row of the ordered precondition list of pull: the operator-owned reservation applied to the column the card would land in and be claimed at.",
+      "source": "93e6ab0cb424ce6d"
+    },
+    "check.pull.13": {
+      "text": "कार्ड पर ऐसी कोई अनसुलझी मद नहीं है जो प्रस्थान कॉलम को नामित करती हो",
+      "context": "One row of the ordered precondition list of pull: the departure's own hold, read at the column the card is leaving rather than the one it would land in.",
+      "source": "8186a705a5b6534a"
+    },
+    "check.move.12": {
+      "text": "कार्ड पर ऐसी कोई अनसुलझी मद नहीं है जो प्रस्थान कॉलम को नामित करती हो",
+      "context": "One row of the ordered precondition list of move. This row is Dinah's own addition; the core profile's own section 6.4 list ends at check.move.10. It is the departure's own hold, read at the column the card is leaving rather than the one it would land in.",
+      "source": "8186a705a5b6534a"
+    },
+    "check.move.11": {
+      "text": "कार्ड प्रस्थान कॉलम की लूप सीमा पर नहीं पहुँचा है",
+      "context": "One row of the ordered precondition list of move. This row is Dinah's own addition; the core profile's own section 6.4 list ends at check.move.10.",
+      "source": "193dcb5974ead6b"
+    },
+    "refusal.undeclared-field": {
+      "text": "यह वर्कबेंच {kind} पर {detail} नाम का कोई फ़ील्ड घोषित नहीं करती",
+      "context": "The sentence printed after the refusal name undeclared-field, which is what a write naming a key this workbench does not declare on the resolved kind meets. {detail} is the key the reader typed. {kind} is the kind the reference resolved to, read off the tool rather than written here, so it is machine vocabulary and is never translated. No word of the sentence may agree with {kind}, because the token substituted there is untranslated English and no language can predict its gender, its number or the sound it starts with. The keys this workbench does declare on that kind print beneath as rows, one to a row.",
+      "source": "54b988b4dc437538"
+    },
+    "refusal.undeclared-field.elsewhere": {
+      "text": " यह {kinds} पर घोषित है।",
+      "context": "Spliced onto refusal.undeclared-field where this workbench declares the key on some other kind, which tells a reader the key exists somewhere rather than nowhere. {kinds} carries the kinds the declaration does name, read off the declaration, so it is machine vocabulary and is never translated.",
+      "source": "112cdd46f9484070"
+    },
+    "refusal.undeclared-field.next": {
+      "text": " इसे `workbench.md` के `fields` ब्लॉक में घोषित करें, या ऊपर सूचीबद्ध कोई कुंजी नाम दें।",
+      "context": "The next step of refusal.undeclared-field. It names the block a reader edits to declare the key, and the rows above it are the keys already declared. The file name and the block name are syntax and stay as they are.",
+      "source": "77fb72201bc81b39"
+    },
+    "refusal.missing-field": {
+      "text": "कॉलम {column} को {detail} चाहिए, और यह कार्ड उसके लिए कोई मान नहीं रखता",
+      "context": "The sentence printed after the refusal name missing-field, which a move or a pull into a column that requires a field the card holds no value for meets. {detail} is the first such key in the column's own declaration order, and {column} names the column that asked.",
+      "source": "f5c2c2baf717c096"
+    },
+    "refusal.missing-field.next": {
+      "text": "; `dinah set` से उसके लिए एक मान लिखें, फिर यह कॉलम कार्ड को ले लेगा",
+      "context": "Spliced onto refusal.missing-field as the next step. It names the command that writes the value and says what the write buys, and it names neither of the two acts the row refuses, because the row fires on a move and on a pull alike and a reader refused at a pull never moved. The command name is syntax and stays as it is.",
+      "source": "b4a3067f6fba90d6"
+    },
+    "check.field-declaration-malformed": {
+      "text": "fields ब्लॉक {detail} को बिना किसी उपयोगी प्रकार या अर्थ के घोषित करता है, इसलिए उस कुंजी के नीचे कुछ भी घोषित नहीं है",
+      "context": "A check finding: one entry of this workbench's fields block that the declaration reader refused, which is an entry whose key the grammar refuses, whose type is absent or outside the five, or whose meaning is absent or blank. {detail} carries the key as written. The entry declares nothing and the workbench still opens, so the repair is an edit to the block.",
+      "source": "6f6962dc44a13ab4"
+    },
+    "check.required-field-undeclared": {
+      "text": "एक कॉलम ऐसा फ़ील्ड माँगता है जिसे यह वर्कबेंच घोषित नहीं करती: {detail}",
+      "context": "A check finding: a column whose require_fields declaration names a key this workbench does not declare. {detail} carries the column's reference and then the key, in that order. The entry holds nothing, because a key nothing can ever be written under would make the column unreachable.",
+      "source": "6fceed149b239901"
+    },
+    "check.branch-heading-in-body": {
+      "text": "{detail} अपने मुख्य भाग में अब भी वह वापस ली गई शीर्षक रखता है, जिसे इस भंडार का फ़ॉर्मैट कहता है कि एक घोषित फ़ील्ड में उठा लिया गया था",
+      "context": "A check finding: a card whose body still carries the retired heading, on a workbench whose declared format says that heading was lifted into a declared field. {detail} carries the card's reference. A workbench declaring a lower format is not reported, because it has not been carried across the retirement and the heading is still its convention.",
+      "source": "8ca9b8dac72c44f9"
+    },
+    "card.field": {
+      "text": "  {field}: {value}",
+      "context": "Printed under the card line for one field this workbench declares that the card carries a value for, one line per field, in declaration order. {field} is the declared key and {value} is what the card stores under it, both read off the store rather than written here, so both are machine vocabulary and neither is translated.",
+      "verbatim": true,
+      "source": "6c87a65dc1f1867c"
+    },
+    "check.branches-preview": {
+      "text": "कुछ भी नहीं लिखा गया, क्योंकि इस रन के साथ कोई पुष्टि नहीं थी।",
+      "context": "The first line the branch migration prints when it ran without the confirmation flag, so that a reader cannot take the counts below it for work that happened.",
+      "source": "2dad7f625d9f7cab"
+    },
+    "check.branches-lifted.one": {
+      "text": "{count} कार्ड में उठाने योग्य एक मान है।",
+      "context": "The line the branch migration prints for what its classification found to lift, for exactly one card. It reports the classification rather than the write, so it reads the same whether the run went on to write or stopped at a conflict.",
+      "source": "4b78114688c06849"
+    },
+    "check.branches-lifted.other": {
+      "text": "{count} कार्डों में उठाने योग्य मान हैं।",
+      "context": "The line the branch migration prints for what its classification found to lift, for any other number. A count of zero is a run that found no heading to lift, which is that run's own answer.",
+      "source": "b7640fa7f72e1fa"
+    },
+    "check.branches-untouched.one": {
+      "text": "{count} कार्ड में ऐसी कोई शीर्षक नहीं है।",
+      "context": "The line the branch migration prints for the cards its classification found nothing to do to, for exactly one card. It is printed beside the count above so that a run which classified nothing cannot read as a run which found nothing to do.",
+      "source": "cd81b306aa5f2761"
+    },
+    "check.branches-untouched.other": {
+      "text": "{count} कार्डों में ऐसी कोई शीर्षक नहीं है।",
+      "context": "The line the branch migration prints for the cards its classification found nothing to do to, for any other number. It is printed beside the count above so that a run which classified nothing cannot read as a run which found nothing to do.",
+      "source": "7852fe9942b21c6a"
+    },
+    "check.branches-conflicted.one": {
+      "text": "कुछ नहीं लिखा गया, क्योंकि {count} कार्ड को पार नहीं ले जाया जा सकता:",
+      "context": "The heading over the cards the classification refused, for exactly one card. A single one of them stops the run before any write, so the rows beneath name what has to be repaired before a second run completes.",
+      "source": "ee3f69d711fa16ab"
+    },
+    "check.branches-conflicted.other": {
+      "text": "कुछ नहीं लिखा गया, क्योंकि {count} कार्डों को पार नहीं ले जाया जा सकता:",
+      "context": "The heading over the cards the classification refused, for any other number. A single one of them stops the run before any write, so the rows beneath name what has to be repaired before a second run completes.",
+      "source": "f3dc6e229a7062a6"
+    },
+    "check.branch-conflict.anchor-differs": {
+      "text": "{card} उस फ़ील्ड के लिए पहले से एक अलग मान रखता है",
+      "context": "One row of the branch migration's conflict report: a card whose stored value for the declared field differs from the value its body carries, so the run cannot tell which of the two the operator meant. {card} carries the card's reference.",
+      "source": "6f438c87d4aadc3c"
+    },
+    "check.branch-conflict.two-headings": {
+      "text": "{card} उस शीर्षक को एक से अधिक बार रखता है",
+      "context": "One row of the branch migration's conflict report: a card whose body carries the retired heading more than once, so the run cannot tell which of them is the value. {card} carries the card's reference.",
+      "source": "50dc872c82fe3b04"
+    },
+    "check.branch-conflict.unreadable": {
+      "text": "{card} खुलता नहीं, इसलिए रन उसे पढ़ नहीं सका",
+      "context": "One row of the branch migration's conflict report: a card whose anchor will not open, so the run cannot classify it and will not write a workbench it has not read whole. {card} carries the card's identifier.",
+      "source": "5ef671c5b8302a5d"
+    },
+    "check.branches-emptied.one": {
+      "text": "{count} कार्ड से एक खाली शीर्षक हटाई गई:",
+      "context": "The heading over the cards that carried the retired heading with nothing beneath it, for exactly one card. Each loses the heading and gains no value, so they are named rather than counted alone.",
+      "source": "2f5eccbee79373f0"
+    },
+    "check.branches-emptied.other": {
+      "text": "{count} कार्डों से एक खाली शीर्षक हटाई गई:",
+      "context": "The heading over the cards that carried the retired heading with nothing beneath it, for any other number. Each loses the heading and gains no value, so they are named rather than counted alone.",
+      "source": "10ceb4637eeed073"
+    },
+    "check.branches-declared": {
+      "text": "{field} फ़ील्ड घोषित किया गया।",
+      "context": "The line the branch migration prints when it added the declaration for the key it lifted into. A workbench that already declared the key keeps its own declaration and this line is not printed. {field} carries the key, read off the store, so it is machine vocabulary and is never translated.",
+      "source": "5d3c2f9616743660"
+    },
+    "check.branches-stamped": {
+      "text": "भंडार फ़ॉर्मैट {format} अंकित किया गया।",
+      "context": "The line the branch migration prints when it wrote the format number onto the workbench anchor, which is what says the retirement has happened here. {format} carries the number.",
+      "source": "acb79e1dac505c53"
+    },
+    "param.check.migrate-branches.summary": {
+      "text": "हर कार्ड के मुख्य भाग से वापस ली गई शीर्षक को एक घोषित फ़ील्ड में उठाएं और इस भंडार का फ़ॉर्मैट अंकित करें",
+      "context": "The meaning of the migrate-branches argument of `dinah check`, printed in that command's arguments table.",
+      "source": "68fe961658821781"
+    },
+    "check.move.10": {
+      "text": "कार्ड उस हर फ़ील्ड के लिए मान रखता है जिसकी माँग गंतव्य करता है",
+      "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
+      "source": "766cfa42c960fe8"
+    },
+    "check.pull.12": {
+      "text": "कार्ड उस हर फ़ील्ड के लिए मान रखता है जिसकी माँग गंतव्य करता है",
+      "context": "One row of the ordered precondition list of pull: the destination's own field requirement, read at the column the card would land in.",
+      "source": "766cfa42c960fe8"
+    },
+    "check.branch-lift": {
+      "text": "{card} अब {branch} रखता है।",
+      "context": "One line of the branch migration's own report, naming a card and the value the migration lifted out of its body into the declared field. {card} carries the card's reference and {branch} the value now stored under that field, both read off the store, so both are machine vocabulary and neither is translated.",
+      "source": "bfe56e31c195b422"
+    },
+    "check.branch-emptied": {
+      "text": "{card} ने ऐसी शीर्षक खोई जिसके नीचे कुछ नहीं था।",
+      "context": "One line of the branch migration's own report, naming a card that carried the retired heading with nothing beneath it. Such a card loses the heading and gains no value, so it is named rather than counted alone. {card} carries the card's reference.",
+      "source": "cf5f6c594705fa50"
+    },
+    "check.branch-would-lift": {
+      "text": "{card} तब {branch} रखने लगता।",
+      "context": "One line of the branch migration's preview, naming a card and the value a confirmed run would lift out of its body into the declared field. It is spelled apart from check.branch-lift because a preview writes nothing, and the same sentence under both would tell an operator a write had happened. {card} carries the card's reference and {branch} the value the body holds, both read off the store, so both are machine vocabulary and neither is translated.",
+      "source": "4774523ee8f2de96"
+    },
+    "check.branches-would-empty.one": {
+      "text": "{count} कार्ड से एक खाली शीर्षक हटाई जाती:",
+      "context": "The heading over the cards carrying the retired heading with nothing beneath it, in the branch migration's preview, for exactly one card.",
+      "source": "ddf9df4016f583f8"
+    },
+    "check.branches-would-empty.other": {
+      "text": "{count} कार्डों से एक खाली शीर्षक हटाई जाती:",
+      "context": "The heading over the cards carrying the retired heading with nothing beneath it, in the branch migration's preview, for any other number.",
+      "source": "25dc1de703d3f7eb"
+    },
+    "check.branch-would-empty": {
+      "text": "{card} ऐसी शीर्षक खो देता जिसके नीचे कुछ नहीं है।",
+      "context": "One line of the branch migration's preview, naming a card that carries the retired heading with nothing beneath it. A confirmed run would take the heading away and write no value. {card} carries the card's reference.",
+      "source": "fe04eacfd40e994"
     }
   }
 }
