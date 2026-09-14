@@ -1,9 +1,10 @@
 ---
 kind: acceptance_criterion
-state: pending
+state: verified
 column: 6c5b9d6f4414
 ts: 2026-09-14T02:17:43Z
 ordinal: 6
+note: "Verified 2026-09-14 over all fourteen rewritten bodies, read whole rather than line by line, with the file count (14) and total bytes (83535) printed before anything else. HALF ONE: every snake_case token extracted, and each checked against a set DERIVED from the repository at 78ff230 from the four named sources, including source (a), the fm.Value(\"...\") literals across internal/bench, which is what admits reject_to, loop_limit, awaiting_outside and operator_owned. Result: 7 distinct tokens found, 0 outside the derived set. The same derivation run against the ORIGINAL extracted bodies gives 35 distinct and 31 outside, including all 18 Andoneer command names, so the check has not been narrowed into something that cannot fail. HALF TWO: every hyphenated token anywhere inside a backticked span, 7 distinct, printed with file and span: agent-code-review, dinah-123, ls-remote, operator-code-review, operator-ruling, unresolved-item, unresolved-item-exit. Not one names an Andoneer subagent, an Andoneer typed-directive value, or the human-id card-reference form; they are Dinah column slugs, a Dinah card reference, a git flag, this workbench's own block-reason word and two Dinah refusal names. The count is not zero, so the extractor did not break. FINDING on the criterion itself: its stated figure of 15 is a lowercase-only artefact. A case-insensitive extraction of the ORIGINAL bodies gives 20, and the five it adds are AC-3, D-1, OQ-2, Branch-pattern and Push-policy, of which the last two are exactly the Andoneer typed-directive names this half exists to catch. The criterion's own wording does not restrict case, so the wider reading is the correct one and the number should be 20."
 ---
 No column's instructions still speak Andoneer's vocabulary, checked in both of the shapes that vocabulary takes. The sweep reads each of the fourteen column bodies whole rather than line by line, and prints the file count (14) and total bytes read before anything else, so a sweep that read nothing reports zero rather than passing.
 

@@ -1,8 +1,9 @@
 ---
 kind: acceptance_criterion
-state: pending
+state: verified
 column: 6c5b9d6f4414
 ts: 2026-09-14T02:17:43Z
 ordinal: 4
+note: "Verified 2026-09-14. The parsed dinah export was swept for operator_owned: exactly 1 of the 14 elements carries it and its slug is acceptance, with both the count found and the total swept printed, so a sweep over an empty array would report zero rather than pass. Neither operator-design-review nor operator-code-review carries it, and both carry gate_items \"out\". The second half was provoked on a scratch copy carrying the identical configuration, never against the real workbench: at BOTH unowned review stations, with a pending item owned by the operator and naming that station, the OPERATOR'S OWN move out is refused dinah.unresolved-item-exit, forward and backward; with the item settled the same move succeeds for a plain agent. The refusal is actor-blind because canLand reads the card's items and names no actor, which is what gives his stations a stop now that they are not owned."
 ---
 Exactly one column is owned by the operator outright, and it is Acceptance. The parsed `dinah export` output is swept for `operator_owned`: exactly one of the 14 elements carries it, that element's slug is `acceptance`, and the run prints both the count it found and the total it swept, so a sweep over an empty array reports zero rather than passing. Neither `operator-design-review` nor `operator-code-review` carries it, and both carry `gate_items` set to `"out"`. Then the thing that makes this shape work rather than merely permissive is proven by provoking it on a scratch copy, because a hold that never refuses the operator would leave his stations with no stop at all: at each of those two stations, with the card carrying a pending item owned by the operator and naming that station, THE OPERATOR'S OWN move out is refused `dinah.unresolved-item-exit`, and with the item settled the same move succeeds. A failing run is a count other than one, the wrong slug, either review station still owned, either missing `gate_items`, or a refusal that does not fire against the operator himself.

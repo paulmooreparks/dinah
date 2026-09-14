@@ -41,3 +41,14 @@
 {"ts":"2026-09-14T02:17:45Z","event":"item_filed","actor":"paul","kind":"open_question","item":"d85229f10c8d"}
 {"ts":"2026-09-14T02:17:45Z","event":"item_resolved","actor":"paul","from":"pending","to":"resolved","item":"d85229f10c8d"}
 {"ts":"2026-09-14T02:17:45Z","event":"moved","actor":"paul","from":"5ea2db0272fc","to":"4fda9c9ca779","from_title":"Intake","to_title":"Implement"}
+{"ts":"2026-09-14T02:30:16Z","event":"item_verified","actor":"paul","from":"pending","to":"verified","item":"069cf47385ab"}
+{"ts":"2026-09-14T02:30:16Z","event":"item_verified","actor":"paul","from":"pending","to":"verified","item":"660c4dcd7118"}
+{"ts":"2026-09-14T02:30:16Z","event":"item_verified","actor":"paul","from":"pending","to":"verified","item":"badae9c516e3"}
+{"ts":"2026-09-14T02:30:16Z","event":"item_verified","actor":"paul","from":"pending","to":"verified","item":"7d0c569821bf"}
+{"ts":"2026-09-14T02:30:16Z","event":"item_verified","actor":"paul","from":"pending","to":"verified","item":"2ef558e60203"}
+{"ts":"2026-09-14T02:30:16Z","event":"item_verified","actor":"paul","from":"pending","to":"verified","item":"f024e3d11cf8"}
+{"ts":"2026-09-14T02:30:16Z","event":"item_verified","actor":"paul","from":"pending","to":"verified","item":"dadd9f458824"}
+{"ts":"2026-09-14T02:30:17Z","event":"item_verified","actor":"paul","from":"pending","to":"verified","item":"df3addbc3855"}
+{"ts":"2026-09-14T02:30:17Z","event":"item_verified","actor":"paul","from":"pending","to":"verified","item":"b6aa798f9ea2"}
+{"ts":"2026-09-14T02:30:17Z","event":"item_verified","actor":"paul","from":"pending","to":"verified","item":"e1cb0a21e3a5"}
+{"ts":"2026-09-14T02:30:17Z","event":"item_verified","actor":"paul","from":"pending","to":"verified","item":"156ee063fd52"}
