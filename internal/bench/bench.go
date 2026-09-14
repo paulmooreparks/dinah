@@ -2138,8 +2138,10 @@ func (b *Bench) HasIdentifier(id string) bool {
 
 // NextNumber returns the number a newly filed card carries: one past the
 // highest number the registry holds. The answer is a read of the high-water
-// mark rather than a claim of it, so the workbench lock the caller holds is
-// what keeps two filings from taking the same number.
+// mark rather than a claim of it, and the lock alone guarantees nothing about
+// that mark: a caller must re-read the registry from disk after taking the
+// workbench lock and before calling NextNumber, or it can mint a number
+// another process already took while the caller's own snapshot went stale.
 //
 // A number is never reused from the migration forward: a card deleted after
 // the migration leaves a tombstoned line, the mark never falls, and the number
