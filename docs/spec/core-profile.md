@@ -2263,9 +2263,9 @@ not already opted into `dinah-core 0.15`.
 
 Identifiers affected: CORE-FIELD-1 through CORE-FIELD-11, introduced, which
 are the fields a workbench declares for itself and the column requirement
-built on them. CORE-JSON-11, introduced, which blesses the four interchange
-members those fields travel under. CORE-JSON-12, introduced, which does the
-same for the two a column object carries. No identifier of the prior revision is
+built on them. CORE-JSON-11, introduced, which blesses the two members
+the interchange object carries. CORE-JSON-12, introduced, which does the same
+for the two a column object carries. No identifier of the prior revision is
 retired, reworded or weakened.
 
 The difference is a minor increment under DOC-VER-8, which classifies a

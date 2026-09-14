@@ -961,6 +961,12 @@ var branchConflictKeys = map[string]string{
 // run that met one wrote nothing at all, and a count of lifted cards printed
 // under them would describe work that did not happen.
 //
+// The preview draws the same cards under sentences of its own. One sentence
+// serving both phases is true of one of them, and this is the output an
+// operator reads before authorising a repair that has no undo, so a line
+// saying a card now carries a value under a line saying nothing was written
+// is the worst place in the tool for that class of defect.
+//
 // Each card is one sentence rather than one row of a table, because a
 // migration's account is read once by a person deciding whether to run it
 // again, and a table here would owe the row-layout sweep a fixture and a
@@ -980,13 +986,17 @@ func (s *session) renderBranchMigration(report *bench.BranchMigration) {
 		}
 		return
 	}
-	for _, lift := range report.Lifted {
-		s.line(s.r.T("check.branch-lift", "card", lift.Card, "branch", lift.Value))
+	lift, emptiedHeading, emptied := "check.branch-lift", "check.branches-emptied", "check.branch-emptied"
+	if report.Preview {
+		lift, emptiedHeading, emptied = "check.branch-would-lift", "check.branches-would-empty", "check.branch-would-empty"
+	}
+	for _, carried := range report.Lifted {
+		s.line(s.r.T(lift, "card", carried.Card, "branch", carried.Value))
 	}
 	if len(report.Emptied) > 0 {
-		s.line(s.r.TN("check.branches-emptied", len(report.Emptied)))
+		s.line(s.r.TN(emptiedHeading, len(report.Emptied)))
 		for _, ref := range report.Emptied {
-			s.line(s.r.T("check.branch-emptied", "card", ref))
+			s.line(s.r.T(emptied, "card", ref))
 		}
 	}
 	if report.Declared {

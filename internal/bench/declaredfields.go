@@ -219,8 +219,16 @@ func AdmitsFieldValue(declaredType, value string) bool {
 var fieldBlockMember = regexp.MustCompile(`^( +)([^\s:][^:]*):(.*)$`)
 
 // fieldBlockEntry matches one dashed entry beneath a member, which is the
-// second spelling an `on` list may take.
-var fieldBlockEntry = regexp.MustCompile(`^ *-\s*(.*)$`)
+// second spelling an `on` list may take, keeping the indentation that says
+// which level of the block the line belongs to.
+//
+// It is tried ahead of the member pattern, so a line opening with a hyphen is
+// a dashed entry wherever it stands and is never read as a key. The indent is
+// what tells the two apart: an `on` list's entries stand deeper than the entry
+// key above them, and a line opening with a hyphen at the entry key's own
+// depth is a key the grammar refuses. readDeclaredFields reports that one
+// rather than letting it pass into whatever `on` list happens to be open.
+var fieldBlockEntry = regexp.MustCompile(`^( *)-\s*(.*)$`)
 
 // readDeclaredFields reads the workbench's fields block, answering the fields
 // it declares in declaration order and the keys of the entries it refused.
@@ -249,10 +257,18 @@ func readDeclaredFields(fm *Frontmatter) ([]DeclaredField, []string) {
 			continue
 		}
 		if m := fieldBlockEntry.FindStringSubmatch(line); m != nil {
-			if current >= 0 && member == fieldOnMember {
-				if named := unquote(stripComment(m[1])); named != "" {
+			if current >= 0 && member == fieldOnMember && len(m[1]) > entryIndent {
+				if named := unquote(stripComment(m[2])); named != "" {
 					entries[current].On = append(entries[current].On, named)
 				}
+			} else {
+				// A dashed line is an entry of an `on` list and nothing else.
+				// Met anywhere else, or met at the depth an entry key stands
+				// at, it is reported rather than skipped: the pattern above is
+				// tried first, so a key spelled with a leading hyphen reads as
+				// a dashed entry, and without this it would be swallowed into
+				// whichever `on` list was open and named nowhere.
+				malformed = append(malformed, strings.TrimSpace(line))
 			}
 			continue
 		}

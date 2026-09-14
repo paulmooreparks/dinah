@@ -4887,9 +4887,9 @@
       "source": "f5c2c2baf717c096"
     },
     "refusal.missing-field.next": {
-      "text": "; schreiben Sie dafür mit `dinah set` einen Wert und verschieben Sie dann erneut",
-      "context": "Spliced onto refusal.missing-field as the next step. It names the command that writes the value, which is what lets the move through. The command name is syntax and stays as it is.",
-      "source": "d982e293b0d6514f"
+      "text": "; schreiben Sie dafür mit `dinah set` einen Wert, dann nimmt diese Spalte die Karte auf",
+      "context": "Spliced onto refusal.missing-field as the next step. It names the command that writes the value and says what the write buys, and it names neither of the two acts the row refuses, because the row fires on a move and on a pull alike and a reader refused at a pull never moved. The command name is syntax and stays as it is.",
+      "source": "b4a3067f6fba90d6"
     },
     "check.field-declaration-malformed": {
       "text": "der fields-Block erklärt {detail} ohne brauchbaren Typ und ohne brauchbare Bedeutung, daher ist unter diesem Schlüssel nichts erklärt",
@@ -5006,6 +5006,26 @@
       "text": "{card} hat eine Überschrift ohne Inhalt verloren.",
       "context": "One line of the branch migration's own report, naming a card that carried the retired heading with nothing beneath it. Such a card loses the heading and gains no value, so it is named rather than counted alone. {card} carries the card's reference.",
       "source": "cf5f6c594705fa50"
+    },
+    "check.branch-would-lift": {
+      "text": "{card} würde dann {branch} tragen.",
+      "context": "One line of the branch migration's preview, naming a card and the value a confirmed run would lift out of its body into the declared field. It is spelled apart from check.branch-lift because a preview writes nothing, and the same sentence under both would tell an operator a write had happened. {card} carries the card's reference and {branch} the value the body holds, both read off the store, so both are machine vocabulary and neither is translated.",
+      "source": "4774523ee8f2de96"
+    },
+    "check.branches-would-empty.one": {
+      "text": "Aus {count} Karte würde eine leere Überschrift entfernt:",
+      "context": "The heading over the cards carrying the retired heading with nothing beneath it, in the branch migration's preview, for exactly one card.",
+      "source": "ddf9df4016f583f8"
+    },
+    "check.branches-would-empty.other": {
+      "text": "Aus {count} Karten würde eine leere Überschrift entfernt:",
+      "context": "The heading over the cards carrying the retired heading with nothing beneath it, in the branch migration's preview, for any other number.",
+      "source": "25dc1de703d3f7eb"
+    },
+    "check.branch-would-empty": {
+      "text": "{card} würde eine Überschrift ohne Inhalt verlieren.",
+      "context": "One line of the branch migration's preview, naming a card that carries the retired heading with nothing beneath it. A confirmed run would take the heading away and write no value. {card} carries the card's reference.",
+      "source": "fe04eacfd40e994"
     }
   }
 }

@@ -1376,8 +1376,8 @@ var checkStarvedMarkers = []string{
 	"migrate-columns",
 	"migrate-workstreams",
 	"witness",
-	"migrate-branches",
 	"migrate-numbers",
+	"migrate-branches",
 	"renumber",
 }
 

@@ -1252,14 +1252,14 @@ storage format 4
 Catalogs:
   Language  Translated
   --------  ----------
-  en        996/996
-  af        0/996
-  cs        0/996
-  de        996/996
-  es        0/996
-  fil       0/996
-  hi        996/996
-  id        0/996
+  en        1000/1000
+  af        0/1000
+  cs        0/1000
+  de        1000/1000
+  es        0/1000
+  fil       0/1000
+  hi        1000/1000
+  id        0/1000
 [exit 0]
 ```
 

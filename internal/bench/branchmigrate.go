@@ -84,10 +84,11 @@ type BranchMigration struct {
 	Declared bool `json:"declared,omitempty"`
 	// Stamped says the run wrote the format number onto the workbench anchor.
 	Stamped bool `json:"stamped,omitempty"`
-	// Written are the cards the write pass had rewritten when it stopped, in
-	// the order it wrote them. A run that finished names every card it wrote;
-	// a run that failed part-way names the ones that landed, which is the one
-	// case the format cannot make atomic and which re-running is safe over.
+	// Written are the cards the write pass rewrote, by the reference every
+	// other member of this report names a card by, in the order it wrote them.
+	// A run that finished names every card it wrote; a run that failed
+	// part-way names the ones that landed, which is the one case the format
+	// cannot make atomic and which re-running is safe over.
 	Written []string `json:"written,omitempty"`
 }
 
@@ -114,13 +115,16 @@ func headingLines(body string) []int {
 }
 
 // branchMigrant is one card the classification pass cleared for the write
-// pass: where it stands and what it is called. The value and the rewritten
-// body are deliberately not carried, because the write pass reads the anchor
-// again under the card's own lock and recomputes both from what it finds
-// there rather than from a copy read outside that lock.
+// pass: where it stands and what a reader calls it. The value and the
+// rewritten body are deliberately not carried, because the write pass reads
+// the anchor again under the card's own lock and recomputes both from what it
+// finds there rather than from a copy read outside that lock.
+//
+// The reference is carried rather than the identifier, so that one report
+// prints one spelling of a card wherever it names one.
 type branchMigrant struct {
 	dir string
-	id  string
+	ref string
 }
 
 // MigrateBranches carries every card of one workbench across the retirement of
@@ -191,7 +195,7 @@ func (b *Bench) MigrateBranches(actor, now string, apply bool) (*BranchMigration
 		} else {
 			report.Lifted = append(report.Lifted, BranchLift{Card: card.Ref(b.Slug), Value: value})
 		}
-		migrants = append(migrants, branchMigrant{dir: card.Dir, id: card.ID})
+		migrants = append(migrants, branchMigrant{dir: card.Dir, ref: card.Ref(b.Slug)})
 	}
 	// A single conflict stops the run here, before any write. The conflicts
 	// travel in the report rather than as an error, because a caller that
@@ -205,10 +209,17 @@ func (b *Bench) MigrateBranches(actor, now string, apply bool) (*BranchMigration
 		return report, nil
 	}
 	for _, migrant := range migrants {
-		if err := b.writeBranchMigrant(migrant, actor, now); err != nil {
+		wrote, err := b.writeBranchMigrant(migrant, actor, now)
+		if err != nil {
 			return report, err
 		}
-		report.Written = append(report.Written, migrant.id)
+		// A card whose heading has gone between the two passes is not
+		// recorded, because the account this report gives of what it wrote is
+		// what a re-run is decided from, and naming a card it did not touch
+		// would put the operator one card out.
+		if wrote {
+			report.Written = append(report.Written, migrant.ref)
+		}
 	}
 	if len(migrants) > 0 && b.DeclaredFieldOf(BranchFieldKey) == nil {
 		declaration := append(b.DeclaredFields(), DeclaredField{
@@ -234,30 +245,31 @@ func (b *Bench) MigrateBranches(actor, now string, apply bool) (*BranchMigration
 	return report, nil
 }
 
-// writeBranchMigrant performs one card's half of the write pass: the value
-// lands in the anchor under the declared key, the heading leaves the body, and
-// one line is appended to the card's own journal so the write is as visible as
-// any other field write.
+// writeBranchMigrant performs one card's half of the write pass and reports
+// whether it wrote: the value lands in the anchor under the declared key, the
+// heading leaves the body, and one line is appended to the card's own journal
+// so the write is as visible as any other field write.
 //
 // The anchor is read again under the card's own lock rather than carried from
 // the classification pass, on the discipline MigrateNumbers keeps for its own
 // strip: the pass stood outside the lock and the body could have changed
-// since.
-func (b *Bench) writeBranchMigrant(migrant branchMigrant, actor, now string) error {
+// since. A card whose heading has gone in between is already carried across,
+// so it answers false and the caller leaves it out of the account.
+func (b *Bench) writeBranchMigrant(migrant branchMigrant, actor, now string) (bool, error) {
 	held, err := Acquire(migrant.dir, actor, now)
 	if err != nil {
-		return err
+		return false, err
 	}
 	defer held.Release()
 	anchor := filepath.Join(migrant.dir, CardAnchor)
 	text, err := ReadText(anchor)
 	if err != nil {
-		return err
+		return false, err
 	}
 	fm, body := ParseAnchor(text)
 	headings := headingLines(body)
 	if len(headings) != 1 {
-		return nil
+		return false, nil
 	}
 	value, rewritten := liftBranchHeading(body, headings[0])
 	was := FieldValue(fm, BranchFieldKey)
@@ -265,7 +277,7 @@ func (b *Bench) writeBranchMigrant(migrant branchMigrant, actor, now string) err
 		SetFieldValue(fm, BranchFieldKey, value)
 	}
 	if err := WriteText(anchor, fm.Render(rewritten)); err != nil {
-		return err
+		return false, err
 	}
 	ev := Event{
 		TS:    now,
@@ -275,7 +287,7 @@ func (b *Bench) writeBranchMigrant(migrant branchMigrant, actor, now string) err
 		From:  was,
 		To:    value,
 	}
-	return AppendEvent(filepath.Join(migrant.dir, JournalName), ev)
+	return true, AppendEvent(filepath.Join(migrant.dir, JournalName), ev)
 }
 
 // liftBranchHeading reads the value one heading carries and answers the body

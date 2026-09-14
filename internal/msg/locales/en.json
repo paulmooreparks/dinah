@@ -3890,8 +3890,8 @@
       "context": "The sentence printed after the refusal name missing-field, which a move or a pull into a column that requires a field the card holds no value for meets. {detail} is the first such key in the column's own declaration order, and {column} names the column that asked."
     },
     "refusal.missing-field.next": {
-      "text": "; write a value for it with `dinah set`, then move again",
-      "context": "Spliced onto refusal.missing-field as the next step. It names the command that writes the value, which is what lets the move through. The command name is syntax and stays as it is."
+      "text": "; write a value for it with `dinah set`, and this column will take the card",
+      "context": "Spliced onto refusal.missing-field as the next step. It names the command that writes the value and says what the write buys, and it names neither of the two acts the row refuses, because the row fires on a move and on a pull alike and a reader refused at a pull never moved. The command name is syntax and stays as it is."
     },
     "check.field-declaration-malformed": {
       "text": "the fields block declares {detail} with no usable type or meaning, so nothing is declared under that key",
@@ -3984,6 +3984,22 @@
     "check.branch-emptied": {
       "text": "{card} lost a heading with nothing under it.",
       "context": "One line of the branch migration's own report, naming a card that carried the retired heading with nothing beneath it. Such a card loses the heading and gains no value, so it is named rather than counted alone. {card} carries the card's reference."
+    },
+    "check.branch-would-lift": {
+      "text": "{card} would come to carry {branch}.",
+      "context": "One line of the branch migration's preview, naming a card and the value a confirmed run would lift out of its body into the declared field. It is spelled apart from check.branch-lift because a preview writes nothing, and the same sentence under both would tell an operator a write had happened. {card} carries the card's reference and {branch} the value the body holds, both read off the store, so both are machine vocabulary and neither is translated."
+    },
+    "check.branches-would-empty.one": {
+      "text": "An empty heading would be removed from {count} card:",
+      "context": "The heading over the cards carrying the retired heading with nothing beneath it, in the branch migration's preview, for exactly one card."
+    },
+    "check.branches-would-empty.other": {
+      "text": "An empty heading would be removed from {count} cards:",
+      "context": "The heading over the cards carrying the retired heading with nothing beneath it, in the branch migration's preview, for any other number."
+    },
+    "check.branch-would-empty": {
+      "text": "{card} would lose a heading with nothing under it.",
+      "context": "One line of the branch migration's preview, naming a card that carries the retired heading with nothing beneath it. A confirmed run would take the heading away and write no value. {card} carries the card's reference."
     }
   }
 }

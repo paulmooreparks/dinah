@@ -175,6 +175,33 @@ func TestTheBranchMigrationReportsItsClassificationAndItsWrites(t *testing.T) {
 			t.Errorf("the preview does not say %q:\n%s", want, preview.out)
 		}
 	}
+	// Every card the preview names is named under a sentence about what a
+	// confirmed run would do. The written phrasings are read off the catalog
+	// rather than typed here, so a rewording moves the assertion with the
+	// output, and each is asked for in both directions: a preview carrying one
+	// of them contradicts its own first line, and a confirmed run carrying the
+	// conditional one describes work it did do as work it might.
+	catalog := msg.For(msg.Base)
+	written := []string{
+		catalog.T("check.branch-lift", "card", "fx-1", "branch", "dinah-498-declared-fields"),
+		catalog.T("check.branch-emptied", "card", "fx-2"),
+		catalog.TN("check.branches-emptied", 1),
+	}
+	conditional := []string{
+		catalog.T("check.branch-would-lift", "card", "fx-1", "branch", "dinah-498-declared-fields"),
+		catalog.T("check.branch-would-empty", "card", "fx-2"),
+		catalog.TN("check.branches-would-empty", 1),
+	}
+	for _, line := range written {
+		if strings.Contains(preview.out, line) {
+			t.Errorf("the preview says %q, and it wrote nothing:\n%s", line, preview.out)
+		}
+	}
+	for _, line := range conditional {
+		if !strings.Contains(preview.out, line) {
+			t.Errorf("the preview does not say %q:\n%s", line, preview.out)
+		}
+	}
 	if bodyOf(t, root, "fx-1") == "" || !strings.Contains(bodyOf(t, root, "fx-1"), "## Branch") {
 		t.Error("the preview rewrote a body")
 	}
@@ -186,6 +213,16 @@ func TestTheBranchMigrationReportsItsClassificationAndItsWrites(t *testing.T) {
 	for _, want := range []string{"dinah-498-declared-fields", "git.branch", "4"} {
 		if !strings.Contains(applied.out, want) {
 			t.Errorf("the migration does not report %q:\n%s", want, applied.out)
+		}
+	}
+	for _, line := range written {
+		if !strings.Contains(applied.out, line) {
+			t.Errorf("the confirmed run does not say %q:\n%s", line, applied.out)
+		}
+	}
+	for _, line := range conditional {
+		if strings.Contains(applied.out, line) {
+			t.Errorf("the confirmed run says %q, and it did write:\n%s", line, applied.out)
 		}
 	}
 	if strings.Contains(bodyOf(t, root, "fx-1"), "## Branch") {
@@ -437,7 +474,11 @@ func TestTheRenumberedCheckKeysCarryTheirNewTextInEveryCatalogue(t *testing.T) {
 		"check.branch-conflict.two-headings",
 		"check.branch-conflict.unreadable",
 		"check.branch-lift",
+		"check.branch-would-lift",
 		"check.branch-emptied",
+		"check.branch-would-empty",
+		"check.branches-would-empty.one",
+		"check.branches-would-empty.other",
 		"check.branches-emptied.one",
 		"check.branches-emptied.other",
 		"check.branches-declared",

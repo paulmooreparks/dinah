@@ -123,6 +123,20 @@ func TestTheMigrationLiftsTheHeadingAndReportsWhatItCannotLift(t *testing.T) {
 	if !report.Declared || !report.Stamped {
 		t.Errorf("the run declared %v and stamped %v, wanted both", report.Declared, report.Stamped)
 	}
+	// Every member of the report names a card the one way, so a reader is
+	// never shown two spellings of one card. The lifted card's reference is
+	// the comparison rather than its identifier, which is what it used to be.
+	if len(report.Written) != 2 {
+		t.Fatalf("the run records %v as written, wanted the two cards it changed", report.Written)
+	}
+	for _, ref := range report.Written {
+		if strings.HasPrefix(ref, "c0000") {
+			t.Errorf("the written account names %q, which is an identifier where every other member names a reference", ref)
+		}
+	}
+	if report.Written[0] != report.Lifted[0].Card && report.Written[1] != report.Lifted[0].Card {
+		t.Errorf("the written account %v names neither of the cards Lifted and Emptied name", report.Written)
+	}
 
 	migrated, err := Open(root)
 	if err != nil {

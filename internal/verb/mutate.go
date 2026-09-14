@@ -361,8 +361,9 @@ func (l *Library) canRoute(req *Request, card *bench.Card) (*bench.Column, *benc
 // destination, in that list's order: the card is not blocked, the card is
 // not held by somebody else, the move is not a forward move out of a done
 // column, the destination stands below its capacity, the destination holds no
-// unresolved item of this card's that names it, the departure has not reached
-// its own declared loop_limit for this card, the departure holds no unresolved
+// unresolved item of this card's that names it, the card carries a value for
+// every field the destination requires, the departure has not reached its own
+// declared loop_limit for this card, the departure holds no unresolved
 // item of this card's that names it for departure, the destination does not
 // wait on somebody outside the workbench, the destination does not reserve
 // to the operator the claim an arriving act would take there, and the

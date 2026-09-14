@@ -815,7 +815,7 @@ var Events = []string{
 // Refusal is the error a verb returns when a rule says no. It carries the one
 // refusal name CORE-OUT-2 requires and a detail the head renders for a person.
 type Refusal struct {
-	// Name is the refusal name, from the profile's seventeen or dotted.
+	// Name is the refusal name, from the profile's nineteen or dotted.
 	Name string
 	// Detail names what the refusal was about: the column asked for, the
 	// owner holding the card, the version wanted. It is not a sentence and

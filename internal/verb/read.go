@@ -1652,10 +1652,11 @@ func (l *Library) Check(req *Request) (*CheckReport, error) {
 			return report, err
 		}
 	}
-	// The branch migration runs before the two number repairs so that a
-	// request naming several repairs meets them in the order this list
-	// declares them, and it reports rather than refusing when it carries no
-	// confirmation, which is what makes its preview readable.
+	// The branch migration runs between the two number repairs, which is the
+	// order the parameter table declares the three flags in and the order
+	// checkStarvedMarkers prints them in. It reports rather than refusing when
+	// it carries no confirmation, which is what makes its preview readable,
+	// and that is where it parts company with the two either side of it.
 	if req != nil && req.MigrateBranches {
 		migrated, err := l.Bench.MigrateBranches(req.Actor, bench.Stamp(l.Now()), req.Confirm)
 		report.MigratedBranches = migrated

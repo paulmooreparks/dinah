@@ -158,6 +158,58 @@ func TestADeclarationEntryIsRefusedWithoutATypeOrAMeaning(t *testing.T) {
 	}
 }
 
+// TestALineOpeningWithAHyphenIsReportedRatherThanSwallowed drives CORE-FIELD-2
+// at the one shape the reader cannot see as a key.
+//
+// The dashed-entry pattern is tried ahead of the member pattern, so a key
+// spelled with a leading hyphen reads as an entry of an `on` list wherever it
+// stands, and before this guard it was neither declared nor reported: the
+// grammar refuses it, and nothing said so. A dashed line met outside an `on`
+// list is now reported, naming the line as written.
+//
+// The entry beside it declares a legitimate `on` list in the dashed spelling,
+// which is what keeps this from passing against a reader that reports every
+// dashed line and stops reading the one it is for.
+func TestALineOpeningWithAHyphenIsReportedRatherThanSwallowed(t *testing.T) {
+	root := containedPath(t.TempDir())
+	block := `fields:
+  good.key:
+    type: string
+    meaning: a fact worth keeping
+    on:
+      - card
+      - column
+  -hyphen.led:
+    type: string
+    meaning: a key the grammar refuses and the dashed pattern swallows
+`
+	write(t, filepath.Join(root, WorkbenchAnchor), strings.Replace(
+		strings.Replace(benchDefinition, "format: 1", "format: "+strconv.Itoa(RegistryFormat), 1),
+		"columns:\n", block+"columns:\n", 1))
+	write(t, filepath.Join(root, CardNumbersName), "1 c00000000001\n")
+	write(t, filepath.Join(root, ColumnsDir, "b00000000001", ColumnAnchor), columnDefinition)
+	write(t, filepath.Join(root, CardsDir, "c00000000001", CardAnchor), cleanCard)
+	write(t, filepath.Join(root, CardsDir, "c00000000001", JournalName), cleanJournal)
+	opened, err := Open(root)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	declared := opened.DeclaredFields()
+	if len(declared) != 1 || declared[0].Key != "good.key" {
+		t.Fatalf("the workbench declares %+v, wanted good.key alone", declared)
+	}
+	if got := declared[0].Kinds(); !reflect.DeepEqual(got, []string{KindCard, KindColumn}) {
+		t.Errorf("the dashed `on` list read as %v, wanted [card column]", got)
+	}
+	named := []string{}
+	for _, finding := range declaredFindings(t, opened, FindingFieldDeclarationMalformed) {
+		named = append(named, finding.Detail)
+	}
+	if !reflect.DeepEqual(named, []string{"-hyphen.led:"}) {
+		t.Errorf("check reports %v, wanted the line opening with a hyphen and nothing else", named)
+	}
+}
+
 // TestADeclarationNamingNoKindsReachesAllThree drives CORE-FIELD-4. A key
 // declaring `on` reaches exactly the kinds it names, and a key declaring none
 // reaches a workbench, a column and a card alike.

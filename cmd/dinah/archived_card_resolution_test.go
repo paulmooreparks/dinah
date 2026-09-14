@@ -227,10 +227,10 @@ var archivedResolutionFamilies = []resolutionFamily{
 		name: "E", axis: "reading",
 		what:      "rendering a card's human reference: every call whose selector is Ref and which carries exactly one argument",
 		files:     9,
-		mentions:  20,
+		mentions:  21,
 		functions: 15,
 		sites: []resolutionSite{
-			{"internal/bench/branchmigrate.go", "MigrateBranches", 4, "naming a card in the branch migration's own report, four times over the four classes it sorts a card into; the run walks the live half alone, on the rule MigrateNumbers keeps for the archive, so no archived card reaches these calls"},
+			{"internal/bench/branchmigrate.go", "MigrateBranches", 5, "naming a card in the branch migration's own report, once for each of the four classes it sorts a card into and once more for the account of what the write pass wrote; the run walks the live half alone, on the rule MigrateNumbers keeps for the archive, so no archived card reaches these calls"},
 			{"internal/bench/check.go", "checkTierOverrides", 1, "naming a card in a finding"},
 			{"internal/bench/check.go", "checkItemColumns", 1, "naming a card in a finding"},
 			{"internal/bench/resolve.go", "resolveReferenceBody", 2, "composing the reference a resolution answers with"},

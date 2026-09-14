@@ -1811,9 +1811,9 @@ field_values:
   git.branch: dinah-498-declared-fields
 ```
 
-Never as a bare top-level key, and the reason is the layer namespace. A layer
-declares itself at the top level of the workbench definition under a name
-containing a full stop, and a declared field key contains one by
+A value is never written as a bare top-level key, and the reason is the layer
+namespace. A layer declares itself at the top level of the workbench
+definition under a name containing a full stop, and a declared field key contains one by
 construction, so a value written there would be indistinguishable from a
 layer declaration a second tool is required to preserve and may be required
 to refuse. Nesting removes the question rather than answering it, and the
@@ -1851,8 +1851,8 @@ ever be written under would make the column unreachable.
 
 This project's own workbench carried a card's branch name in the card body,
 under the literal heading `## Branch`, on a line of its own. That convention
-predates declared fields, it was taught in five column bodies, and it was
-invisible to `dinah check`. `dinah check --migrate-branches --yes` carries one
+predates declared fields, it was taught in the bodies of the columns that read
+it, and it was invisible to `dinah check`. `dinah check --migrate-branches --yes` carries one
 workbench across: each heading's value becomes the card's `git.branch` value,
 the heading leaves the body, the workbench declares the key where a card
 carried one, and the anchor is stamped `format: 4`.
