@@ -32,6 +32,9 @@ const (
 	ItemOwnerField = "owner"
 	// ItemOwnerOperator is the one owner value the tool enforces, and it
 	// names the workbench's operator rather than any particular person.
+	// What enforces it is closeItem in internal/verb, which refuses a
+	// terminal verb on an item recording this value to anybody else, and
+	// SetField beside it, which refuses a rewrite of the owner key on one.
 	ItemOwnerOperator = "operator"
 	// ItemNoteField is the resolution note a terminal verb requires, kept
 	// apart from the item's body, which is the text the item was filed with

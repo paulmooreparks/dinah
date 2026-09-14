@@ -902,8 +902,11 @@ type Item struct {
 	// Column is the column the item names for gating, empty when the item
 	// was filed without one.
 	Column string
-	// Owner is who the item names as its answerer, recorded rather than
-	// enforced.
+	// Owner is who the item names as its answerer. ItemOwnerOperator is the
+	// one value enforced against the actor: closeItem in internal/verb
+	// refuses a terminal verb on such an item to anybody but the operator,
+	// and SetField refuses a rewrite of this key on one. Every other value
+	// is enforced against nobody.
 	Owner string
 	// Note is the resolution note: what was decided, empty until somebody
 	// records it.

@@ -22,20 +22,42 @@ different one.
 Run `dinah whoami`. Dinah prints the actor it will record for you, and whether
 that actor is the operator.
 
-Four sources can supply that name. The `--actor <name>` flag names it for one
-command, the `DINAH_ACTOR` variable names it for a shell, `dinah config set
-actor <name>` writes it down until you change it, and `dinah init --operator
-<name>` wrote it when Dinah did not already know you. Run `dinah config` to
-see every setting beside the source that supplied it, so you can read which
-one answered before you write anything.
+Dinah reads that name off a ladder and takes the first rung that answers. The
+`--actor <name>` flag names it for one command, the `DINAH_ACTOR` variable
+names it for a shell, and `dinah config set actor <name>` writes it down until
+you change it. `dinah init --operator <name>` is not a rung of its own: it
+wrote that last one for you when Dinah did not already know you. Run `dinah
+config` to see every setting beside the source that supplied it, so you can
+read which one answered before you write anything.
 
 Set your own name before your first act. Dinah records the actor on every act,
 the journal only ever grows, and no later command corrects a name already
 written.
 
-The operator holds acts nobody else may take. `dinah unblock` refuses anybody
-else with `not-operator`, and `dinah move --override` carries a card into a
-column that has reached its limit.
+Dinah compares the name that ladder answers with against the workbench's
+recorded operator, and refuses a named set of acts to anybody else under the
+refusal name `not-operator`. It refuses `unblock`, a move out of an
+operator-owned column, a move carrying `--override`, and `resolve`, `verify` or
+`fail` on an item filed `--owner operator`.
+
+The flag outranks the variable and the file. An invocation carrying `--actor`
+and the operator's own name is treated as the operator whatever `DINAH_ACTOR`
+holds in the shell that ran it, so a caller who wants past that refusal pays
+one flag for it.
+
+A caller who can write the files under `.dinah` pays nothing at all. `dinah
+path <reference>` prints the anchor of whatever it names, an item's state is a
+line of frontmatter in that anchor, and an editor changes it. Afterwards `dinah
+check` reports no structural defect, and the journal carries no record that the
+item was settled.
+
+The comparison therefore separates names rather than people. It stops you
+acting under somebody else's name by mistake, which is worth having in a tool
+that records the actor on every act and corrects none of them afterwards, and
+it is not a boundary against doing so on purpose. Do not build anything on it
+that needs the stronger reading. `ACTOR-4` in the core profile is a rule
+addressed to whoever works a card rather than a refusal Dinah enforces against
+a caller who has decided otherwise.
 
 ## Read what this workbench asks of you
 
@@ -92,7 +114,8 @@ holding tells everybody else that somebody is busy with it. Run `dinah status`
 to see what you have left behind.
 
 Run `dinah block <card> <reason>` when the work cannot go on. A block frees the
-card and records why, and only the operator lifts one.
+card and records why, and Dinah refuses `dinah unblock` to any actor but the
+operator.
 
 ## When Dinah refuses
 

@@ -43,8 +43,10 @@ Three reads give you the workbench you have been handed.
 
 `status` reports the workbench itself: who its operator is, whether you are
 that person, and the columns of the flow with each one's occupancy. The
-`operator_owned` flag on a column is the answer to whether that column is yours
-to move cards out of, and it repeats the rule in `initialize`. Read the
+`operator_owned` flag on a column says that Dinah refuses a move out of that
+column to every actor but the workbench's operator, and it repeats the rule in
+`initialize`. The actor your own request names is the name that refusal reads,
+so a request naming the operator is answered as the operator's. Read the
 `awaiting_outside` flag beside it, which answers a different question: a column
 carrying it waits on somebody outside the workbench, so no claim of yours will
 be taken there and no pull will take a card out of it or land one in it. What
@@ -267,10 +269,11 @@ follows everywhere on this surface.
 {"jsonrpc":"2.0","id":3,"result":{"content":[{"type":"text","text":"{\n  \"outcome\": \"refused\",\n  \"verb\": \"claim\",\n  \"refusal\": \"unknown-card\",\n  \"detail\": \"0\",\n  \"affordances\": [\"status\", \"columns\", \"list_cards\", \"next_card\"]\n}"}]}}
 ```
 
-`unknown-card` names what the call did wrong, and the affordances name where
-to go to recover. A card you name must exist, a card another owner holds is
-not yours to claim, and a card in an operator-owned column is not yours to
-move. The refusal tells you which rule stopped you and on what.
+`unknown-card` names what the call did wrong, and the affordances name where to
+go to recover. A card you name must exist, Dinah refuses a claim on a card
+another owner already holds, and it refuses a move out of an operator-owned
+column to every actor but the operator. The refusal tells you which rule
+stopped you and on what.
 
 A transport error is a different thing. An unknown `method` or a malformed
 request answers with an `error` block and a JSON-RPC code. A refusal lives

@@ -1335,9 +1335,9 @@
       "source": "199d469bb36d196c"
     },
     "param.file.owner.summary": {
-      "text": "मद किसके लिए है, जो मद पर दर्ज होता है और कभी लागू नहीं किया जाता",
-      "context": "The written meaning of file's owner flag. It says the value is recorded rather than checked, so a reader does not take it for an authorisation.",
-      "source": "f9ad74968b960ee7"
+      "text": "मद किसके लिए है; जिस मद का स्वामी operator है, उस पर resolve, verify और fail संचालक के अलावा सभी के लिए अस्वीकृत हैं",
+      "context": "The written meaning of file's owner flag. It states what the tool refuses: on an item whose owner reads operator, resolve, verify and fail are refused not-operator to every actor but the workbench's operator, and so is a write to that item's own owner key.",
+      "source": "fa3990f5d36622de"
     },
     "param.file.text.summary": {
       "text": "मद का अपना पाठ, एक शेल शब्द में या उद्धरण चिह्नों में; अकेला - इसे पाइप से पढ़ता है",

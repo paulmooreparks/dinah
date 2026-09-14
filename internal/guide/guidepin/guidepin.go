@@ -10,8 +10,8 @@
 // tree read that sentence, so it went stale under a green suite.
 //
 // The pins live here rather than in either test package because two of the
-// proving tests are in internal/bench and three are in cmd/dinah, and a test
-// in one package cannot read a helper declared in another package's test
+// proving tests are in internal/bench and the rest are in cmd/dinah, and a
+// test in one package cannot read a helper declared in another package's test
 // files. It takes no *testing.T, so it never imports testing, and it imports
 // internal/guide and nothing else from this tree.
 package guidepin
@@ -40,7 +40,8 @@ type Statement struct {
 
 // The five claims the references guide's "Reading the archive" section makes,
 // each named for what it claims. The text lives here and nowhere else, so a
-// reworded guide is corrected in one place.
+// reworded guide is corrected in one place. The three first-session claims
+// below them follow the same rule.
 const (
 	// ArchivedReadsTheDeepestCollectionStep says which half of the workbench
 	// each step of a reference is resolved in under the flag.
@@ -66,13 +67,37 @@ const (
 	AnArchivedContentsRowIsTheAddressAfterRestore = "A reference printed under `dinah contents --archived` below the walk's root is the address that child will have once the root is restored, and it does not resolve while the root is archived. The listing says so on the line under the sentence naming the root."
 )
 
-// pinned is the roster, in the order the references guide carries it.
+// The three claims the first-session guide's "Find out whose name you are
+// acting under" section makes about the operator comparison. dinah-495 wrote
+// them, and they are pinned because each is a claim about behaviour that a
+// test drives, and because a guide saying the comparison is stronger than it
+// is was the defect that card existed to correct.
+const (
+	// TheOperatorComparisonRefusesByName says the comparison is real and
+	// says what the refusal is called.
+	TheOperatorComparisonRefusesByName = "Dinah compares the name that ladder answers with against the workbench's recorded operator, and refuses a named set of acts to anybody else under the refusal name `not-operator`."
+
+	// TheActorFlagOutranksTheOtherRungs says what the refusal costs a
+	// caller who wants past it, which is one flag.
+	TheActorFlagOutranksTheOtherRungs = "An invocation carrying `--actor` and the operator's own name is treated as the operator whatever `DINAH_ACTOR` holds in the shell that ran it, so a caller who wants past that refusal pays one flag for it."
+
+	// TheFilesystemNeedsNoVerb says the other defeat, which costs nothing
+	// at all because a workbench is files and an item's state is a line of
+	// one of them.
+	TheFilesystemNeedsNoVerb = "`dinah path <reference>` prints the anchor of whatever it names, an item's state is a line of frontmatter in that anchor, and an editor changes it."
+)
+
+// pinned is the roster, guide by guide, each guide's claims in the order it
+// carries them.
 var pinned = []Statement{
 	{Topic: "references", Text: ArchivedReadsTheDeepestCollectionStep, Provenance: "TestTheArchivedHalfIsReadAtTheDeepestCollectionStep"},
 	{Topic: "references", Text: PositionsCountTheMirrorsOwnMembers, Provenance: "TestAPositionUnderTheFlagCountsTheMirrorsOwnMembers"},
 	{Topic: "references", Text: AnEntityComesBackWithItsHolder, Provenance: "TestANestedArchiveRestoresInTwoActs"},
 	{Topic: "references", Text: ARestoredColumnLandsAtTheEndOfTheOrder, Provenance: "TestRestoringAColumnReturnsItToTheOrderAndRepairsAStrandedCard"},
 	{Topic: "references", Text: AnArchivedContentsRowIsTheAddressAfterRestore, Provenance: "TestAnArchivedReadShowsOneHalfAndWritesNothing"},
+	{Topic: "first-session", Text: TheOperatorComparisonRefusesByName, Provenance: "TestAnOperatorOwnedItemIsSettledByTheOperatorAlone"},
+	{Topic: "first-session", Text: TheActorFlagOutranksTheOtherRungs, Provenance: "TestTheOperatorRefusalIsDefeatedByTheActorFlag"},
+	{Topic: "first-session", Text: TheFilesystemNeedsNoVerb, Provenance: "TestTheOperatorRefusalIsDefeatedByWritingTheFile"},
 }
 
 // Pinned returns every pinned statement, in the order its guide carries them.
