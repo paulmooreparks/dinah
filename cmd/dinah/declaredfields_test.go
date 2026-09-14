@@ -3,10 +3,15 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 
 	"dinah/internal/bench"
+	"dinah/internal/contract"
+	"dinah/internal/msg"
+	"dinah/internal/verb"
 )
 
 // declareFieldsOn writes a fields block into a workbench's own anchor, which
@@ -296,5 +301,164 @@ func TestHelpForSetOffersTheDeclaredKeysBesideTheBuiltInNames(t *testing.T) {
 	}
 	if strings.Contains(away.out, "git.branch") {
 		t.Errorf("the help page away from a workbench offers a key no workbench declared:\n%s", away.out)
+	}
+}
+
+// TestThePublishedCheckListsCarryTheFieldRowWhereCanLandRunsIt asserts both
+// renumbered lists on the surface a reader meets them on.
+//
+// The printed position of a row is its catalog key's number plus two, because
+// each page prefixes the two workbench rows Checks supplies, so the two are
+// asserted apart rather than conflated. The printed count is asserted as well,
+// which is what catches a row inserted in the table and dropped by the
+// renderer.
+//
+// The rows are read out of verb.Checks rather than written out here, so a
+// reordering the renderer does not follow fails rather than passing against a
+// list this test carries its own copy of.
+func TestThePublishedCheckListsCarryTheFieldRowWhereCanLandRunsIt(t *testing.T) {
+	cases := []struct {
+		command  string
+		rows     int
+		position int
+	}{
+		{command: "move", rows: 14, position: 12},
+		{command: "pull", rows: 19, position: 14},
+	}
+	numbered := regexp.MustCompile(`^  (\d+) `)
+	root := newBench(t)
+	for _, c := range cases {
+		t.Run(c.command, func(t *testing.T) {
+			declared := verb.Checks(c.command)
+			if len(declared) != c.rows {
+				t.Fatalf("Checks(%q) answers %d rows, wanted %d", c.command, len(declared), c.rows)
+			}
+			if got := declared[c.position-1].Refusal; got != contract.MissingField {
+				t.Errorf("row %d of %s refuses %s, wanted %s", c.position, c.command, got, contract.MissingField)
+			}
+			got := runCLI(t, root, "help", c.command)
+			if got.code != 0 {
+				t.Fatalf("help %s: %d %s", c.command, got.code, got.errw)
+			}
+			printed := 0
+			at := 0
+			catalog := msg.For(msg.Base)
+			want := catalog.T(declared[c.position-1].Key)
+			for _, line := range strings.Split(got.out, "\n") {
+				m := numbered.FindStringSubmatch(line)
+				if m == nil {
+					continue
+				}
+				printed++
+				if strings.Contains(line, want) {
+					number, err := strconv.Atoi(m[1])
+					if err != nil {
+						t.Fatalf("reading the row number of %q: %v", line, err)
+					}
+					at = number
+				}
+			}
+			if printed != c.rows {
+				t.Errorf("help %s prints %d rows, wanted %d", c.command, printed, c.rows)
+			}
+			if at != c.position {
+				t.Errorf("help %s prints the field row at %d, wanted %d", c.command, at, c.position)
+			}
+		})
+	}
+}
+
+// TestTheRenumberedCheckKeysCarryTheirNewTextInEveryCatalogue asserts what the
+// renumbering owed the catalogs. Moving a row is a rewrite in eight files
+// rather than a rename in one, and a key that moved and kept the text of its
+// old position is the defect this catches.
+//
+// The expectation is the English text of each key, read off the base catalog,
+// which is the text the check list itself is generated from. Every shipped
+// catalog is then asked whether it carries that key at all, because
+// TestEveryDeclaredLanguageShips answers presence and says nothing about which
+// sentence a moved key came to rest on.
+func TestTheRenumberedCheckKeysCarryTheirNewTextInEveryCatalogue(t *testing.T) {
+	moved := map[string]string{
+		"check.move.10": "the card carries a value for every field the destination requires",
+		"check.move.11": "the card has not reached the departure column's loop limit",
+		"check.move.12": "the card carries no unresolved item that names the departure column",
+		"check.pull.12": "the card carries a value for every field the destination requires",
+		"check.pull.13": "the card carries no unresolved item that names the departure column",
+		"check.pull.14": "taking the card up at the destination is legal for whoever asks",
+		"check.pull.15": "the destination is not being retired",
+		"check.pull.16": "every unresolved item the card carries names a declared column",
+		"check.pull.17": "your declared tier is at or above what the card asks there",
+	}
+	base := msg.For(msg.Base)
+	checked := 0
+	for key, want := range moved {
+		if got := base.T(key); got != want {
+			t.Errorf("%s reads %q in English, wanted %q", key, got, want)
+		}
+		for _, tag := range msg.Tags() {
+			entry, carried := msg.CatalogEntry(tag, key)
+			if !carried || entry.Text == "" {
+				t.Errorf("%s carries no %s", tag, key)
+				continue
+			}
+			checked++
+		}
+	}
+	if want := len(moved) * len(msg.Tags()); checked != want {
+		t.Errorf("the sweep read %d entries, wanted %d", checked, want)
+	}
+	if checked == 0 {
+		t.Fatal("the sweep read no entry, so it asserts nothing")
+	}
+
+	// The keys that arrived rather than moved get their own count, because the
+	// two populations fail apart: a key added to English alone leaves the
+	// sweep above untouched, and a key that moved and kept its old text leaves
+	// this one untouched.
+	arrived := []string{
+		"refusal.undeclared-field",
+		"refusal.undeclared-field.elsewhere",
+		"refusal.undeclared-field.next",
+		"refusal.missing-field",
+		"refusal.missing-field.next",
+		"check.field-declaration-malformed",
+		"check.required-field-undeclared",
+		"check.branch-heading-in-body",
+		"card.field",
+		"check.branches-preview",
+		"check.branches-lifted.one",
+		"check.branches-lifted.other",
+		"check.branches-untouched.one",
+		"check.branches-untouched.other",
+		"check.branches-conflicted.one",
+		"check.branches-conflicted.other",
+		"check.branch-conflict.anchor-differs",
+		"check.branch-conflict.two-headings",
+		"check.branch-conflict.unreadable",
+		"check.branch-lift",
+		"check.branch-emptied",
+		"check.branches-emptied.one",
+		"check.branches-emptied.other",
+		"check.branches-declared",
+		"check.branches-stamped",
+		"param.check.migrate-branches.summary",
+	}
+	if len(arrived) == 0 {
+		t.Fatal("this card added no catalog key, so the sweep below asserts nothing")
+	}
+	present := 0
+	for _, key := range arrived {
+		for _, tag := range msg.Tags() {
+			entry, carried := msg.CatalogEntry(tag, key)
+			if !carried || entry.Text == "" {
+				t.Errorf("%s carries no %s", tag, key)
+				continue
+			}
+			present++
+		}
+	}
+	if want := len(arrived) * len(msg.Tags()); present != want {
+		t.Errorf("the sweep over the keys this card added read %d entries, wanted %d", present, want)
 	}
 }
