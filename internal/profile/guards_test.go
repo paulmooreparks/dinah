@@ -215,8 +215,12 @@ func TestTheProductSaysWorkbenchEverywhereItIsRead(t *testing.T) {
 		files++
 		if extension != ".go" {
 			report(t, name, 0, name, "")
+			subjects := lines
+			if extension == ".md" {
+				subjects = markdownProseOnly(lines)
+			}
 			for number, line := range lines {
-				report(t, name, number+1, line, line)
+				report(t, name, number+1, subjects[number], line)
 			}
 			return nil
 		}
@@ -236,6 +240,142 @@ func TestTheProductSaysWorkbenchEverywhereItIsRead(t *testing.T) {
 	if files == 0 || literals == 0 {
 		t.Errorf("nothing was scanned, so this guard proves nothing: %d files, %d string literals", files, literals)
 	}
+}
+
+// markdownFenceOpen matches the line that opens or closes a fenced code block:
+// up to three spaces of indent, then a run of at least three backticks or
+// tildes.
+var markdownFenceOpen = regexp.MustCompile("^ {0,3}(`{3,}|~{3,})")
+
+// markdownListItem matches a list marker, which is what tells an indented
+// continuation paragraph apart from an indented code block. A paragraph
+// indented under a list item is that item's prose and stays prose here.
+var markdownListItem = regexp.MustCompile(`^ {0,3}([-*+]|[0-9]{1,9}[.)])( |\t|$)`)
+
+// markdownProseOnly returns one subject per input line with everything the
+// document marks as code blanked out: a fenced code block, an indented code
+// block, and a backtick code span. What survives is the prose a person reads,
+// which is the surface this guard is about. Line numbers are preserved, so a
+// failure still names the line the prose sits on.
+//
+// This is not another entry in vocabularyExceptions, and vocabularyReason
+// still holds: whoever trips the guard rewrites the text. The guard already
+// draws this same boundary in Go, where it scans a file's string literals
+// alone and leaves the identifiers and the doc comments naming them out of the
+// scan entirely. Markdown is the one other kind of file here where code and
+// prose share a page, and markdown marks the boundary itself, so code in a
+// markdown file is scanned the way a Go identifier is, which is not at all.
+//
+// It applies to .md alone. A backtick carries no such meaning in a message
+// catalog, in the byte-enforced help fixture, or in a workflow file, so .json,
+// .txt, .yml and .yaml stay scanned whole.
+//
+// The parse is deliberately the small one. An indented code block is admitted
+// only where a blank line precedes it and the paragraph above is not a list
+// item, and a backtick run that never closes on its own line is left as an
+// ordinary character. The failure mode of reading narrowly is a false
+// positive, which a person meets and answers, rather than a word reaching a
+// reader unseen.
+func markdownProseOnly(lines []string) []string {
+	subjects := make([]string, len(lines))
+	fence := ""
+	indented := false
+	previousBlank := true
+	previousParagraphIsListItem := false
+	for number, line := range lines {
+		blank := strings.TrimSpace(line) == ""
+		switch {
+		case fence != "":
+			subjects[number] = ""
+			if closesMarkdownFence(line, fence) {
+				fence = ""
+			}
+		case markdownFenceOpen.MatchString(line):
+			fence = markdownFenceOpen.FindStringSubmatch(line)[1]
+			subjects[number] = ""
+			indented = false
+		case indented && (blank || isMarkdownIndented(line)):
+			subjects[number] = ""
+		case !indented && previousBlank && !previousParagraphIsListItem && isMarkdownIndented(line):
+			indented = true
+			subjects[number] = ""
+		default:
+			indented = false
+			subjects[number] = withoutBacktickSpans(line)
+		}
+		if !blank {
+			previousParagraphIsListItem = markdownListItem.MatchString(line)
+		}
+		previousBlank = blank
+	}
+	return subjects
+}
+
+// closesMarkdownFence reports whether a line ends the fenced block that the
+// given run opened: the same character, a run at least as long, and nothing
+// else on the line.
+func closesMarkdownFence(line, opening string) bool {
+	rest := strings.TrimLeft(line, " ")
+	if len(line)-len(rest) > 3 {
+		return false
+	}
+	marker := opening[0]
+	run := 0
+	for run < len(rest) && rest[run] == marker {
+		run++
+	}
+	return run >= len(opening) && strings.TrimSpace(rest[run:]) == ""
+}
+
+// isMarkdownIndented reports whether a line carries the four spaces or the tab
+// that open an indented code block.
+func isMarkdownIndented(line string) bool {
+	return strings.HasPrefix(line, "    ") || strings.HasPrefix(line, "\t")
+}
+
+// withoutBacktickSpans replaces each backtick code span with blanks of the
+// same width, so the prose around it keeps its shape and a reported line still
+// lines up with the file it came from.
+func withoutBacktickSpans(line string) string {
+	var out strings.Builder
+	for index := 0; index < len(line); {
+		if line[index] != '`' {
+			out.WriteByte(line[index])
+			index++
+			continue
+		}
+		opening := index
+		for index < len(line) && line[index] == '`' {
+			index++
+		}
+		closing := closingBacktickRun(line, index, index-opening)
+		if closing < 0 {
+			out.WriteString(line[opening:index])
+			continue
+		}
+		out.WriteString(strings.Repeat(" ", closing-opening))
+		index = closing
+	}
+	return out.String()
+}
+
+// closingBacktickRun returns the index just past the first run of exactly the
+// given width at or after from, or -1 when the rest of the line holds none.
+func closingBacktickRun(line string, from, width int) int {
+	for index := from; index < len(line); {
+		if line[index] != '`' {
+			index++
+			continue
+		}
+		start := index
+		for index < len(line) && line[index] == '`' {
+			index++
+		}
+		if index-start == width {
+			return index
+		}
+	}
+	return -1
 }
 
 // skippedTrees are the directories this guard does not walk: git's own
