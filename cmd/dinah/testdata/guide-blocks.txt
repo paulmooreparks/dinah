@@ -28,10 +28,10 @@
 #             what holds the tree, or why nothing can.
 
 internal/guide/guides/getting-started.md:9 shows=commands
-internal/guide/guides/getting-started.md:43 shows=commands
-internal/guide/guides/getting-started.md:50 shows=commands
-internal/guide/guides/getting-started.md:57 shows=commands
-internal/guide/guides/getting-started.md:70 shows=commands
+internal/guide/guides/getting-started.md:42 shows=commands
+internal/guide/guides/getting-started.md:49 shows=commands
+internal/guide/guides/getting-started.md:56 shows=commands
+internal/guide/guides/getting-started.md:69 shows=commands
 internal/guide/guides/mcp.md:23 shows=json
 internal/guide/guides/mcp.md:27 shows=json
 internal/guide/guides/mcp.md:68 shows=json

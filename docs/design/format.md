@@ -341,11 +341,10 @@ that reversal and its cost.
 
 ### State
 
-`state` is one of `ready`, `active`, `blocked`. The invariants: `active`
-and the presence of claim fields imply each other; `blocked` carries a reason,
+`state` is one of `ready`, `active`, `blocked`. The invariants: `active` and
+the presence of claim fields imply each other; `blocked` carries a reason,
 and the tool refuses the clearing of it to an actor who is not the operator;
-`ready` means pullable. This maps onto
-Andoneer's zone concept.
+`ready` means pullable. This maps onto Andoneer's zone concept.
 
 ### Claims and blocks
 

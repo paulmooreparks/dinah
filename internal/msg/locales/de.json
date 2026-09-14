@@ -1335,9 +1335,9 @@
       "source": "199d469bb36d196c"
     },
     "param.file.owner.summary": {
-      "text": "für wen der Punkt gedacht ist; einen Punkt, dessen Akteur operator lautet, kann nur der Betreiber abschließen",
-      "context": "The written meaning of file's owner flag. It says that an item whose owner reads operator is the workbench operator's to settle, because resolve, verify and fail are refused not-operator to anybody else on such an item.",
-      "source": "517c2d4bd61f1c36"
+      "text": "für wen der Punkt gedacht ist; bei einem Punkt, dessen Akteur operator lautet, werden resolve, verify und fail allen außer dem Betreiber verweigert",
+      "context": "The written meaning of file's owner flag. It states what the tool refuses: on an item whose owner reads operator, resolve, verify and fail are refused not-operator to every actor but the workbench's operator, and so is a write to that item's own owner key.",
+      "source": "fa3990f5d36622de"
     },
     "param.file.text.summary": {
       "text": "der eigene Text des Punktes, in einem Shell-Wort oder in Anführungszeichen; ein einzelnes - liest ihn aus einer Pipe",

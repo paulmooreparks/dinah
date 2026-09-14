@@ -269,8 +269,8 @@ follows everywhere on this surface.
 {"jsonrpc":"2.0","id":3,"result":{"content":[{"type":"text","text":"{\n  \"outcome\": \"refused\",\n  \"verb\": \"claim\",\n  \"refusal\": \"unknown-card\",\n  \"detail\": \"0\",\n  \"affordances\": [\"status\", \"columns\", \"list_cards\", \"next_card\"]\n}"}]}}
 ```
 
-`unknown-card` names what the call did wrong, and the affordances name where
-to go to recover. A card you name must exist, Dinah refuses a claim on a card
+`unknown-card` names what the call did wrong, and the affordances name where to
+go to recover. A card you name must exist, Dinah refuses a claim on a card
 another owner already holds, and it refuses a move out of an operator-owned
 column to every actor but the operator. The refusal tells you which rule
 stopped you and on what.

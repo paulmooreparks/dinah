@@ -56,8 +56,8 @@ acting under somebody else's name by mistake, which is worth having in a tool
 that records the actor on every act and corrects none of them afterwards, and
 it is not a boundary against doing so on purpose. Do not build anything on it
 that needs the stronger reading. `ACTOR-4` in the core profile is a rule
-addressed to whoever works a card rather than a refusal Dinah enforces
-against a caller who has decided otherwise.
+addressed to whoever works a card rather than a refusal Dinah enforces against
+a caller who has decided otherwise.
 
 ## Read what this workbench asks of you
 

@@ -145,8 +145,8 @@ will derive one from the directory name.
 The operator owns the workbench and answers for it. Dinah refuses the lifting of
 a block, and the forcing of a move past a limit, to every actor it does not read
 as that operator. If you leave that seat empty, nobody can perform those
-actions. If you don't name an operator with the `--operator`
-option, Dinah records whoever you are acting as.
+actions. If you don't name an operator with the `--operator` option, Dinah
+records whoever you are acting as.
 
 You run every command from here on inside the workbench directory, and you never
 have to give any of them a path. Dinah finds the workbench by walking up from
@@ -184,15 +184,15 @@ Read that refusal for what it is before you rely on it. The `--actor` flag
 outranks both the environment variable and the configuration file, so an
 invocation that names the operator on the flag is treated as the operator no
 matter which name you wrote down above. Anybody who can edit the files under
-`.dinah` does not need even that much: `dinah path` hands over the file an
-item is stored in, the item's state is a line of frontmatter in it, and
-`dinah check` reports no defect once the line has been changed by hand. The
-comparison is there so that you do not act under the wrong name by accident,
-and it will not stop somebody who means to.
+`.dinah` does not need even that much: `dinah path` hands over the file an item
+is stored in, the item's state is a line of frontmatter in it, and `dinah check`
+reports no defect once the line has been changed by hand. The comparison is
+there so that you do not act under the wrong name by accident, and it will not
+stop somebody who means to.
 
-Dinah keeps your settings in `config.md`, under `.dinah` in your home
-directory. They belong to you rather than to the workbench, and they follow you
-to every workbench you work.
+Dinah keeps your settings in `config.md`, under `.dinah` in your home directory.
+They belong to you rather than to the workbench, and they follow you to every
+workbench you work.
 
 If you do not give `config` an argument, Dinah lists every setting it knows, the
 value each one currently resolves to, and where that value came from:
@@ -514,8 +514,8 @@ at-capacity column doing has reached its limit; move a card out of doing first, 
 [exit 2]
 ```
 
-Dinah refuses a move into a full column to any owner not carrying the
-operator's override marker, and it records the override:
+Dinah refuses a move into a full column to any owner not carrying the operator's
+override marker, and it records the override:
 
 ```console
 $ dinah pull doing --override
@@ -932,9 +932,8 @@ workstream/autumn  Autumn release  [finished]
 
 A workstream that already exists can still be renamed, and Dinah refuses that
 write to every actor but the operator, whoever created the workstream. Changing
-the slug needs
-`--yes`, because every reference to the workstream you have written down
-elsewhere names the old one:
+the slug needs `--yes`, because every reference to the workstream you have
+written down elsewhere names the old one:
 
 ```console
 $ dinah set workstream/autumn slug autumn-2025 --yes

@@ -1066,8 +1066,8 @@
       "context": "The written meaning of file's kind argument. The three kind names are machine vocabulary and are never translated."
     },
     "param.file.owner.summary": {
-      "text": "who the item is meant for; an item whose owner reads operator is the workbench operator's to settle",
-      "context": "The written meaning of file's owner flag. It says that an item whose owner reads operator is the workbench operator's to settle, because resolve, verify and fail are refused not-operator to anybody else on such an item."
+      "text": "who the item is meant for; on an item whose owner reads operator, resolve, verify and fail are refused to anybody but the operator",
+      "context": "The written meaning of file's owner flag. It states what the tool refuses: on an item whose owner reads operator, resolve, verify and fail are refused not-operator to every actor but the workbench's operator, and so is a write to that item's own owner key."
     },
     "param.file.text.summary": {
       "text": "the item's own text, in one shell word or in quotation marks; a single - reads it from a pipe",

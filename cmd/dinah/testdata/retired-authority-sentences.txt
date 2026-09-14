@@ -15,15 +15,26 @@
 # it keys on is the retired bytes, which is what makes it unevadable for the
 # sentences it holds.
 #
+# The last three entries are the owner flag's help text, which is this card's
+# narrower instance. The first two are what dinah-206 wrote and dinah-484 left
+# standing. The third is what this card wrote in their place on its first pass,
+# and it is here because it carried the same defect in new words: strip it and
+# what is left is "settling such an item is the operator's", which is the shape
+# the nineteen above were retired for. It was copied out of the design
+# document's own sentence, which says that much and then continues past a colon
+# with the refusal that makes it true, and only the first half travelled.
+#
 # What it does not cover, and this is the limit worth meeting here rather than
-# discovering later. The ledger holds these nineteen sentences and nothing
+# discovering later. The ledger holds these twenty-two sentences and nothing
 # else. Add `Only the operator can rename a column.` to
 # internal/guide/guides/verbs.md and the suite stays green, because no check
 # in the tree recognises the claim, only these strings. Recognising the claim
 # would mean recognising a claim rather than a string, and the string-shaped
 # approximations are a list of forbidden phrasings, which fits only the
 # phrasings somebody thought of, or a ledger over all 141 operator-mentioning
-# sentences of these twelve documents. dinah-495 D-6 records that call.
+# sentences of the twelve documents. dinah-495 D-6 records that call. The
+# ledger also holds English bytes alone, so a retired sentence returning as a
+# translation of itself is not found.
 #
 # A line opening with `#` is a comment and a blank line is ignored. Every
 # other line is one entry, flattened to single spaces exactly as the search
@@ -48,3 +59,6 @@ The invariants: `active` and the presence of claim fields imply each other; `blo
 Clearing a block is the operator's act and is journaled.
 A column marked operator-owned is one an agent never moves a card out of; only the operator does.
 A column may declare both, and then the workbench waits there and only the operator moves the card onward.
+who the item is meant for, recorded on the item and never enforced
+It says the value is recorded rather than checked, so a reader does not take it for an authorisation.
+who the item is meant for; an item whose owner reads operator is the workbench operator's to settle

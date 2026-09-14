@@ -15,15 +15,22 @@ var retiredAuthorityLedger = filepath.Join("testdata", "retired-authority-senten
 
 // retiredAuthorityDocuments is the corpus the ledger is searched over: the
 // eight embedded guides, the quick start, the format design document, the
-// published profile and the README. Those are the documents a reader meets
-// operator authority in, and the sweep that produced the ledger read all
-// twelve rather than searching a few of them.
+// published profile, the README, and the eight message catalogues.
 //
-// The set is written out rather than derived from guide.Topics(), because the
-// count assertion below is the point: a corpus that silently grew or shrank
-// would move the number this check holds itself to, and the whole reason the
-// ledger exists is that an earlier count of these sentences was low three
-// times running.
+// The catalogues are in the corpus because leaving them out is what let this
+// card ship the defect a second time. dinah-495 retired the owner flag's help
+// text, wrote a replacement in the same shape the card was retiring
+// everywhere else, and neither guard it shipped could see the catalogues at
+// all, so the one line the card called its narrower instance sat in the blind
+// spot of both. A catalogue is read as bytes like every other file here,
+// which works because a JSON string escapes a quotation mark and a backslash
+// and nothing an entry below carries.
+//
+// The set is written out rather than derived from guide.Topics() or from
+// msg.Tags(), because the count assertion below is the point: a corpus that
+// silently grew or shrank would move the number this check holds itself to,
+// and the whole reason the ledger exists is that an earlier count of these
+// sentences was low three times running.
 var retiredAuthorityDocuments = []string{
 	filepath.Join("internal", "guide", "guides", "first-session.md"),
 	filepath.Join("internal", "guide", "guides", "getting-started.md"),
@@ -37,16 +44,24 @@ var retiredAuthorityDocuments = []string{
 	filepath.Join("docs", "design", "format.md"),
 	filepath.Join("docs", "spec", "core-profile.md"),
 	"README.md",
+	filepath.Join("internal", "msg", "locales", "af.json"),
+	filepath.Join("internal", "msg", "locales", "cs.json"),
+	filepath.Join("internal", "msg", "locales", "de.json"),
+	filepath.Join("internal", "msg", "locales", "en.json"),
+	filepath.Join("internal", "msg", "locales", "es.json"),
+	filepath.Join("internal", "msg", "locales", "fil.json"),
+	filepath.Join("internal", "msg", "locales", "hi.json"),
+	filepath.Join("internal", "msg", "locales", "id.json"),
 }
 
 // retiredAuthorityEntries is how many sentences the ledger must hold, and
-// retiredAuthorityFiles how many documents the search must read. Both are
+// retiredAuthorityFiles how many files the search must read. Both are
 // equalities rather than floors. A floor passes a fixture somebody half
 // deleted and a corpus somebody trimmed, and each failure would read exactly
 // like a clean sweep.
 const (
-	retiredAuthorityEntries = 19
-	retiredAuthorityFiles   = 12
+	retiredAuthorityEntries = 22
+	retiredAuthorityFiles   = 20
 )
 
 // readRetiredAuthorityLedger reads the ledger's entries, dropping comments and
@@ -86,11 +101,20 @@ func readRetiredAuthorityLedger(t *testing.T) []string {
 // form overstates what the tool guarantees, and a reader who builds on it
 // builds on a guard that one flag walks past.
 //
-// The search flattens each document before looking, so a sentence that comes
-// back across a line break, or rewrapped to a different width, is still found.
-// The two count assertions are what stop this reading nothing: a ledger that
-// lost its entries and a corpus that lost its documents would both otherwise
-// report a clean sweep.
+// The search flattens each file before looking, so a sentence that comes back
+// across a line break, or rewrapped to a different width, is still found. The
+// two count assertions are what stop this reading nothing: a ledger that lost
+// its entries and a corpus that lost its files would both otherwise report a
+// clean sweep.
+//
+// One thing the corpus does not buy, now that the catalogues are in it. The
+// ledger holds English bytes, so a retired sentence coming back as a
+// translation is not found. That is not hypothetical: the German rendering of
+// the entry this card retired twice is what made the second defect plain to a
+// reader, while the English it was translated from read as though it had been
+// repaired. TestATranslationTracksItsEnglishSource does force a translation to
+// be rewritten whenever its English changes, which is what keeps the two from
+// drifting apart, and nothing here reads the rewrite.
 func TestNoRetiredAuthoritySentenceStandsInTheDocumentation(t *testing.T) {
 	entries := readRetiredAuthorityLedger(t)
 	if len(entries) != retiredAuthorityEntries {
@@ -119,6 +143,6 @@ func TestNoRetiredAuthoritySentenceStandsInTheDocumentation(t *testing.T) {
 		}
 	}
 	if read != retiredAuthorityFiles {
-		t.Errorf("the sweep read %d documents and dinah-495 swept %d, so it covers less than it claims", read, retiredAuthorityFiles)
+		t.Errorf("the sweep read %d files and dinah-495 swept %d, so it covers less than it claims", read, retiredAuthorityFiles)
 	}
 }
