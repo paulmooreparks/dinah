@@ -69,10 +69,10 @@ func (l *Library) Add(req *Request) *Response {
 		return l.refuseWith(req, nil, refusal.Name, refusal.Detail, refusal.Extra)
 	}
 	now := bench.Stamp(l.Now())
-	// The workbench lock holds the allocation. The high-water mark is read and
-	// then claimed in two steps rather than one, so two filings at once would
-	// read the same mark and mint the same number, which is exactly the state
-	// the registry exists to make loud.
+	// The workbench lock alone guarantees nothing about the mark a caller reads
+	// after taking it. It stops two filings from writing at once, but a caller
+	// holding a stale in-memory snapshot from before the lock was ever
+	// contested would still mint a number another process already took.
 	lock, err := bench.Acquire(l.Bench.Root, req.Actor, now)
 	if err != nil {
 		return l.FromError(req, err)
@@ -86,6 +86,11 @@ func (l *Library) Add(req *Request) *Response {
 	if l.Bench.Format < bench.RegistryFormat {
 		return l.refuse(req, nil, contract.NeedsNumberMigration, l.Bench.Root)
 	}
+	// The mark is read fresh from disk under the lock just taken, rather than
+	// from whatever snapshot this caller opened with, so a long-lived caller
+	// sitting on a stale mark cannot mint a number another process already
+	// claimed since. See ReloadNumbers in internal/bench/numbers.go.
+	l.Bench.ReloadNumbers()
 	number, err := l.Bench.NextNumber()
 	if err != nil {
 		return l.FromError(req, err)

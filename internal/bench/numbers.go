@@ -141,6 +141,10 @@ func (b *Bench) readNumbers() *NumberRegistry {
 // bench the caller holds and the file on disk cannot disagree about what
 // number a card answers to. One file, one parser: every mutation goes through
 // a write below and then through here.
+//
+// A read path does not call this on its own. A long-lived caller can resolve
+// a reference against a stale mark until something else, a write of its own
+// or a fresh process, reloads it.
 func (b *Bench) ReloadNumbers() {
 	b.Numbers = b.readNumbers()
 }

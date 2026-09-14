@@ -72,6 +72,49 @@ func TestAddFilesACard(t *testing.T) {
 	}
 }
 
+// TestAddReloadsTheRegistryBeforeMinting reproduces dinah-499: a long-lived
+// caller's Add must not mint the number a second process already took while
+// the caller's own in-memory snapshot went unrefreshed. h.secondLibrary()
+// stands for that second process, the way it already does for
+// TestATwoWriterCiteKeepsBothCitations in checklist_test.go. The second
+// library files first, leaving a line on disk that h.library never read; the
+// held library then files through its own unreopened Add, and the two
+// numbers, read back from card-numbers.txt rather than trusted from either
+// response, must be adjacent with one line each.
+func TestAddReloadsTheRegistryBeforeMinting(t *testing.T) {
+	h := newHarness(t)
+	other := h.secondLibrary()
+
+	intruder := other.Add(&Request{Verb: "add", Actor: "bob", Title: "second process's filing"})
+	if intruder.Outcome != contract.OutcomeOK {
+		t.Fatalf("the second library's filing: %s %s", intruder.Outcome, intruder.Refusal)
+	}
+
+	held := h.library.Add(&Request{Verb: "add", Actor: "alka", Title: "held library's filing"})
+	if held.Outcome != contract.OutcomeOK {
+		t.Fatalf("the held library's filing: %s %s", held.Outcome, held.Refusal)
+	}
+
+	registry := bench.LoadNumberRegistry(filepath.Join(h.library.Bench.Root, bench.CardNumbersName))
+	intruderNumber, ok := registry.ByID[intruder.Card.ID]
+	if !ok {
+		t.Fatalf("card-numbers.txt carries no line for the second library's card %s", intruder.Card.ID)
+	}
+	heldNumber, ok := registry.ByID[held.Card.ID]
+	if !ok {
+		t.Fatalf("card-numbers.txt carries no line for the held library's card %s", held.Card.ID)
+	}
+	if heldNumber != intruderNumber+1 {
+		t.Errorf("held library's ref %s: wanted number %d, one above the second library's %d, got %d",
+			held.Card.Ref, intruderNumber+1, intruderNumber, heldNumber)
+	}
+	for _, number := range []int{intruderNumber, heldNumber} {
+		if ids := registry.ByNumber[number]; len(ids) != 1 {
+			t.Errorf("card-numbers.txt: wanted exactly one line for number %d, got %d (%v)", number, len(ids), ids)
+		}
+	}
+}
+
 // TestAddRefusesRatherThanPanicsWithNoLiveColumns asserts AC-7 and AC-8: Add
 // against a workbench whose live columns list is empty raises
 // contract.AddNeedsAColumn rather than indexing Bench.Columns[0], which is the
