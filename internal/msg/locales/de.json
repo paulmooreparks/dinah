@@ -270,9 +270,9 @@
       "source": "62a48e4b2f8032fd"
     },
     "check.claim.7": {
-      "text": "die Karte trägt keinen strukturierten Eintrag, der nicht aufgelöst ist",
+      "text": "jeder ungelöste Eintrag, den die Karte trägt, nennt eine deklarierte Spalte",
       "context": "One row of the ordered precondition list of claim, quoted from section 6 of the core profile.",
-      "source": "50228523d584f48"
+      "source": "1978b6454d989315"
     },
     "check.claim.8": {
       "text": "Ihre angegebene Stufe liegt auf oder über dem, was die Karte verlangt",
@@ -610,9 +610,9 @@
       "source": "64b7abf44b69542b"
     },
     "check.pull.15": {
-      "text": "die Karte trägt keinen strukturierten Eintrag, der nicht aufgelöst ist",
+      "text": "jeder ungelöste Eintrag, den die Karte trägt, nennt eine deklarierte Spalte",
       "context": "One row of the ordered precondition list of pull: a pull that takes the card up answers claim's own last row, in the words claim refuses it.",
-      "source": "50228523d584f48"
+      "source": "1978b6454d989315"
     },
     "check.pull.16": {
       "text": "Ihre angegebene Stufe liegt auf oder über dem, was die Karte dort verlangt",

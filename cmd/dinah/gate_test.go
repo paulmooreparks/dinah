@@ -84,7 +84,7 @@ func gatedCard(t *testing.T, kind string) (string, string) {
 // would pass a case that filed all three and counted one refusal.
 //
 // The kind that matters most here is the acceptance criterion, which the claim
-// refusal exempts unconditionally under CORE-CLAIM-9. A build that reused that
+// refusal exempts unconditionally under CORE-CLAIM-10. A build that reused that
 // exemption would let this move through.
 func TestAGatedColumnHoldsEveryKindOnItsOwn(t *testing.T) {
 	for _, kind := range bench.ItemKinds {

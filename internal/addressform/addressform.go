@@ -392,7 +392,7 @@ var exemptions = []Exemption{
 	{Function: "Attachments", Ground: GroundLists, Reason: "answers every attachment below a holder"},
 	{Function: "workstreamsIn", Ground: GroundLists, Reason: "answers every workstream in a half of the workbench"},
 	{Function: "cardsWith", Ground: GroundLists, Reason: "answers every card matching a condition"},
-	{Function: "BlockingItems", Ground: GroundLists, Reason: "answers every checklist item that blocks a claim"},
+	{Function: "BlockingItems", Ground: GroundLists, Reason: "answers every checklist item that is unresolved and names no column the workbench declares"},
 	{Function: "GatingItems", Ground: GroundLists, Reason: "answers every checklist item that gates a column"},
 	{Function: "itemsWhere", Ground: GroundLists, Reason: "answers every checklist item matching a condition"},
 

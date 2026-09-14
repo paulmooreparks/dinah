@@ -252,8 +252,9 @@ func TestFileRefusesAnUnknownKindAndAnEmptyArgument(t *testing.T) {
 }
 
 // TestResolvingAnOpenQuestionClearsTheClaimRefusal asserts dinah-206 AC-3: the
-// state changes, the note is persisted, and the claim CORE-CLAIM-9 was
-// refusing on this item's account is admitted afterwards.
+// state changes, the note is persisted, and the claim CORE-CLAIM-10 was
+// refusing on this item's account is admitted afterwards. The item names no
+// column, which is what leaves the refusal reaching it at all.
 func TestResolvingAnOpenQuestionClearsTheClaimRefusal(t *testing.T) {
 	h := newHarness(t)
 	card := h.ready("first card")

@@ -1,6 +1,6 @@
 # The core profile
 
-Version identity: `dinah-core 0.14`, maturity channel `dev`.
+Version identity: `dinah-core 0.15`, maturity channel `dev`.
 
 ## 1. Scope and audience
 
@@ -55,7 +55,7 @@ that would bring it in.
 
 ## 2. Version identity and compatibility
 
-This document is version 0.14 of the profile whose identity string is
+This document is version 0.15 of the profile whose identity string is
 `dinah-core`. The version of this profile is a property of this document. It
 is unrelated to the release numbering of any tool, and a tool's own version
 number tells a reader nothing about which profile version that tool
@@ -92,7 +92,7 @@ in the changelog like any other change, and the promise starts to bind at
 that event. The move of this document's own major number from 0 to 1 is a
 named event of the same kind, recorded in the entry that promotes the
 document to `stable`, so no revision is ever `dev` or `beta` and major 1 at
-once. A conformance claim names `dinah-core 0.14` and says nothing about
+once. A conformance claim names `dinah-core 0.15` and says nothing about
 the channel, because the channel belongs to the document's history and the
 number belongs to the contract.
 
@@ -631,7 +631,7 @@ with the meanings RFC 8259 gives them.
 
 ```json
 {
-  "profile": "dinah-core/0.14",
+  "profile": "dinah-core/0.15",
   "title": "Wedding",
   "columns": [
     { "id": "s1", "title": "Ideas",   "kind": "intake" },
@@ -713,24 +713,28 @@ A structured item is that record. It belongs to the card that carries it,
 and the profile fixes only the one distinction every use of an item needs:
 whether it is resolved. What the item is for, what values a workbench
 tracks about it beyond that distinction, and what kind of judgement it
-records are for the workbench to define; the core takes no vocabulary here
-beyond the item's existence and whether it has been answered.
+records are for the workbench to define; the core takes three things here
+and no more, which are the item's existence, whether it has been answered,
+and the column it names.
 
 An item that is not yet resolved may cause a tool to refuse a claim or a
-move on that ground. Section 6.4 states the one place this profile itself
-requires such a refusal, at a column a workbench has marked as needing the
-item resolved before a card enters it; a workbench that refuses a claim on
-the same ground, or refuses a move under a condition this profile does not
-itself require, does so under a rule of its own rather than under a rule
-this section states, and CORE-ITEM-3 fixes the one name either refusal
-reports so a caller meeting it from any conforming tool reads the same
-thing whichever verb produced it.
+move on that ground. This profile itself requires two such refusals. Section
+6.3 requires a claim to be refused by an unresolved item naming no column the
+workbench declares, and section 6.4 requires a move to be refused at a column
+a workbench has marked as needing the item resolved before a card enters it. A
+workbench that refuses either verb under a condition this profile does not
+itself require does so under a rule of its own rather than under a rule this
+section states, and CORE-ITEM-3 fixes the one name every such refusal reports
+so a caller meeting it from any conforming tool reads the same thing whichever
+verb produced it.
 
 [CORE-ITEM-1] A card MAY carry structured items.
 
 [CORE-ITEM-2] A tool MUST answer, for a structured item it reports, whether that item is resolved.
 
 [CORE-ITEM-3] A tool MUST NOT report a refusal name other than `unresolved-item` for a claim or a move refused on the ground that a card carries a structured item that is not resolved.
+
+[CORE-ITEM-4] A structured item MAY name a column of the workbench that carries it.
 
 ## 6. The verbs
 
@@ -850,6 +854,14 @@ much work a column accepts; this rule governs who decides that a piece of it
 begins. A tool wanting to point an owner at a card offers that owner the
 card, and the owner claims it or does not.
 
+The seventh row reads the items the card carries against the columns the
+workbench declares. An item that names a column is an item some column of the
+workbench may one day stop the card for, whether the workbench marks that
+column under CORE-GATE-1 or under a layer of its own, so the claim leaves it
+to that column. An item that names no column the workbench declares is an item
+no column can ever be asked about, so the claim is the last place anything can
+refuse over it.
+
 ```
 1  the card exists                                  unknown-card
 2  the request names an owner                       no-owner
@@ -857,7 +869,7 @@ card, and the owner claims it or does not.
 4  the card's state is not `blocked`             blocked
 5  the card's state is not `active`              held
 6  taking the card up is legal for whoever asks     not-operator
-7  the card carries no structured item that is not resolved   unresolved-item
+7  every unresolved item the card carries names a declared column   unresolved-item
 ```
 
 Effect: the state becomes `active`, and the card carries its holder and
@@ -879,7 +891,7 @@ the time.
 
 [CORE-CLAIM-8] A tool MUST refuse a claim on a card standing at an operator-owned column, asked for by an owner that is not the operator, reporting the refusal name `not-operator`.
 
-[CORE-CLAIM-9] A tool MUST refuse a claim on a card carrying a structured item that is not resolved, reporting the refusal name `unresolved-item`.
+[CORE-CLAIM-10] A tool MUST refuse a claim on a card carrying a structured item that is not resolved and naming no column the workbench declares, reporting the refusal name `unresolved-item`.
 
 ### 6.4 Move
 
@@ -1292,7 +1304,7 @@ quietly.
 | Views across several workbenches at once | out | The core is scoped to one workbench, and a view over many is a reading built on top of conforming tools rather than a rule inside one. | Two tools need to agree how a card in one workbench refers to a card in another. | |
 | Measurement and reporting over a workbench's history | out | History is already in the core, and a measurement is a reading of it. Fixing the measurements would freeze somebody's dashboard into the contract. | Two tools must produce identical numbers from identical history. | |
 | Free prose attached to a card by its readers [comments] | out | The core loses nothing, because no verb consults prose, and a workbench can hold conversation in any field it likes. | A recorded act needs to reference a piece of that prose. | |
-| Structured items on a card recording judgements | in | Two rulings need one name a caller can act on: a citation-less acceptance criterion refuses a move into Done, and elsewhere a pending open question is meant to refuse a claim. Both are the same concept, an item that is not yet resolved, so the core takes the item's existence and whether it is resolved, and fixes the one refusal name either case reports, without fixing what a workbench tracks about the item beyond that. | | CORE-ITEM-1, CORE-ITEM-2, CORE-ITEM-3, CORE-CLAIM-9 |
+| Structured items on a card recording judgements | in | Two rulings need one name a caller can act on: a move into a column marked as requiring an item resolved is refused while that item is unresolved, and a claim is refused by an unresolved item naming no column the workbench declares. Both are the same concept, an item that is not yet resolved, so the core takes the item's existence, whether it is resolved, and the column it names, and fixes the one refusal name either case reports, without fixing what a workbench tracks about the item beyond that. The claim refusal was first stated over every unresolved item a card carried, which refused the claim at every column ahead of the one meant to settle the item; narrowing it to the items that name no column is what leaves every other item to the column it names. | | CORE-ITEM-1, CORE-ITEM-2, CORE-ITEM-3, CORE-ITEM-4, CORE-CLAIM-10 |
 | The link a card carries to another card | in | Owners record that one card repeats, follows from or bears on another whether or not the contract has a place for it, and a reference kept in prose is text to the second tool rather than a reference. The kind stays open on the same ground as a block's kind, since nothing in the core consults it, and the card a link names stays inside the workbench because the profile is scoped to one throughout. The behaviour such a reference might carry is a separate concept and is ruled out in the row below. | | CORE-LINK-1, CORE-LINK-2, CORE-LINK-3, CORE-LINK-4, CORE-LINK-5, CORE-LINK-6 |
 | Behaviour attached to a reference between cards [dependency ordering, ready-work listing] | out | The core would gain enforcement whose meaning each workbench sets differently, and what a workbench should do about a reference is exactly the judgement that differs between them. A tool that wants one card to hold another back declares a layer and refuses under that layer's own name, which CORE-LINK-5 leaves it free to do. | A relationship must refuse an act, such as one card holding another back. | |
 | Documents belonging to a workbench rather than a card | out | Standing prose already has a home in the workbench's instructions, so a second one would be a slot with no rule attached. | A document must be served differently from the standing instructions. | |
@@ -1488,6 +1500,7 @@ themselves carry meaning.
 | CORE-ITEM-1 | may | tool | A card offered with a structured item is accepted. |
 | CORE-ITEM-2 | must | tool | For a structured item the tool reports, the tool answers whether that item is resolved. |
 | CORE-ITEM-3 | must not | tool | A refusal of a claim or a move on the ground that a card carries an unresolved structured item carries no refusal name other than `unresolved-item`. |
+| CORE-ITEM-4 | may | tool | A structured item naming a column of its own workbench is accepted. |
 | CORE-OUT-1 | must | tool | Every verb response carries exactly one of the four outcome tokens. |
 | CORE-OUT-2 | must | tool | Every response of `refused` carries exactly one refusal name. |
 | CORE-OUT-3 | must | tool | Every refusal name reported is one section 6.1 declares or one containing a full stop. |
@@ -1509,7 +1522,7 @@ themselves carry meaning.
 | CORE-CLAIM-6 | must not | tool | No sequence other than release, expiry or block changes a card's holder. |
 | CORE-CLAIM-7 | must | tool | A claim naming as holder an owner other than the one asking is refused with `not-requester`. |
 | CORE-CLAIM-8 | must | tool | A claim on a card standing at an operator-owned column is refused with `not-operator` when the owner asking is not the operator. |
-| CORE-CLAIM-9 | must | tool | A claim on a card carrying a structured item that is not resolved is refused with `unresolved-item`. |
+| CORE-CLAIM-10 | must | tool | A claim on a card carrying an unresolved structured item that names no column the workbench declares is refused with `unresolved-item`. |
 | CORE-MOVE-1 | must | tool | A move to a column the workbench does not declare is refused with `unknown-column`. |
 | CORE-MOVE-2 | must | tool | A move of a `blocked` card is refused with `blocked`. |
 | CORE-MOVE-3 | must | tool | A move asked for by an owner other than the holder is refused with `held`. |
@@ -1561,12 +1574,12 @@ themselves carry meaning.
 | CORE-LAYER-2 | must | tool | A workbench carrying a declared layer the tool does not understand still carries that layer's content after a read and a write. |
 | CORE-LAYER-3 | must | tool | A definition declaring a layer under a name this profile defines is refused with `layer-collision`. |
 
-The index carries 139 rows, which is the number of identifiers an extraction
+The index carries 140 rows, which is the number of identifiers an extraction
 over this revision returns.
 
 ## 12. Changelog
 
-The current revision is `dinah-core 0.14`. Entries below stay in the order
+The current revision is `dinah-core 0.15`. Entries below stay in the order
 they were published rather than in numeric order. The fourth entry renamed
 the first three from `1.0`, `2.0`, and `3.0` to `0.1`, `0.2`, and `0.3`, so
 it reads here as a drop from `3.0` to `0.4` even though nothing was undone.
@@ -2113,3 +2126,36 @@ section 5.7 carries columns and no cards, so no field of a card travels
 in it, and the parenthetical is wrong about the interchange form. The
 reference implementations the sentence also names are another matter,
 and this revision says nothing about where a tool keeps the ordinal.
+
+### 0.15, channel `dev`, 2026-09-14
+
+Identifiers affected: CORE-CLAIM-9, retired. CORE-CLAIM-10, introduced,
+carrying CORE-CLAIM-9's refusal narrowed to an unresolved item that names no
+column the workbench declares. CORE-ITEM-4, introduced: a structured item may
+name a column of the workbench that carries it. No other identifier in the
+section 11 index is affected.
+
+The difference is a minor increment under DOC-VER-7, which classifies a
+revision that has lost an identifier while the document's major number is
+still 0, and DOC-VER-11 is satisfied because the changelog entry marks the
+lost identifier retired. CORE-CLAIM-9 could not be reworded where it stood,
+because DOC-VER-4 requires the texts an identifier carries across two
+revisions to match unless the keyword weakened, so the narrowed rule takes an
+identifier of its own on the pattern 0.13 used for CORE-GATE-2 and
+CORE-GATE-3.
+
+CORE-CLAIM-9 refused a claim over any unresolved item a card carried, and an
+item already names at most one column. The two rules together refused the
+claim at every column ahead of the column meant to settle the item, and at
+that column too, so the station whose job was to answer the item could not
+take the card up. Section 5.9 also gains CORE-ITEM-4, because the narrowed
+rule rests on an item naming a column and the profile had so far stated that
+relation only inside CORE-GATE-1's permission.
+
+Consequence for a caller. A caller conforming to an earlier revision was
+entitled to a refusal it no longer gets: a claim on a card carrying an
+unresolved item is now admitted unless that item names no column the workbench
+declares. Nothing that was admitted before is refused now, because every item
+the older rule refused over that names no declared column is refused still.
+The document sits on the `dev` channel, so nothing here binds a caller who has
+not already opted into `dinah-core 0.15`.
