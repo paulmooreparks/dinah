@@ -615,8 +615,21 @@ func TestTheOperatorRefusalIsDefeatedByWritingTheFile(t *testing.T) {
 	if printed.code != 0 {
 		t.Fatalf("path: %d %s", printed.code, printed.errw)
 	}
-	if got := strings.TrimSpace(printed.out); got != path {
-		t.Fatalf("path printed %q, wanted the item's own anchor %q", got, path)
+	// os.SameFile rather than a string comparison, because the two spellings
+	// are allowed to differ: on macOS the temporary directory reaches the
+	// test as /var/... and the tool answers with the resolved /private/var/...
+	// What the assertion is about is that path hands over this item's own
+	// anchor, and SameFile is the documented way to ask that.
+	printedInfo, err := os.Stat(strings.TrimSpace(printed.out))
+	if err != nil {
+		t.Fatalf("stat what path printed: %v", err)
+	}
+	anchorInfo, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("stat the item's anchor: %v", err)
+	}
+	if !os.SameFile(printedInfo, anchorInfo) {
+		t.Fatalf("path printed %q, which is not the item's own anchor %q", strings.TrimSpace(printed.out), path)
 	}
 
 	before, err := bench.ReadText(path)
