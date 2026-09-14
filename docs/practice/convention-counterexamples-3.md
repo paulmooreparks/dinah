@@ -293,7 +293,7 @@ A review that asks an author to strengthen a justification is asking for a bette
     // file, where nothing about permissions is at fault and --workbench
     // does not route around the directory the search has to open.
 
-`DiscoverSource` (internal/bench/bench.go) returns as soon as its `override` argument is non-empty, before it calls `walk`, and `--workbench` and `DINAH_WORKBENCH` are the two values that populate that argument. A reader who passes either one never reaches the container at all. The stored next step was then written to match the comment, so it told a stuck reader to restore the container from a backup or from git and withheld the remedy that would have had them working in ten seconds.
+`DiscoverSource` (`internal/bench/bench.go`) returns as soon as its `override` argument is non-empty, before it calls `walk`, and `--workbench` and `DINAH_WORKBENCH` are the two values that populate that argument. A reader who passes either one never reaches the container at all. The stored next step was then written to match the comment, so it told a stuck reader to restore the container from a backup or from git and withheld the remedy that would have had them working in ten seconds.
 
 The design review's own minor finding had said the milder true thing, which is that the sibling refusal's escape generalises to a broken container fine. The half of the justification that was sound, that "fix its permissions" is wrong advice for a plain file sitting where a directory belongs, carried the false half past a second reader.
 
