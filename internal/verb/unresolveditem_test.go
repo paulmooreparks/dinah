@@ -235,9 +235,18 @@ const (
 	holdLanded = "f00000000006"
 
 	// holdUndeclared is well formed and names no column this flow carries,
-	// which is the second of the two shapes CORE-CLAIM-10 refuses over and
-	// the one a build resolving the field loosely would admit.
+	// which is the second of the two shapes CORE-CLAIM-10 refuses over.
 	holdUndeclared = "f0000000dead"
+
+	// holdMergeTitle and holdMergeSlug are the title Merge is declared under
+	// above and the slug Instantiate derives from it. Neither is an
+	// identifier, so the strict lookup finds no column for either and the
+	// claim is refused; ColumnByRef resolves both and would admit them. They
+	// are what holds ItemBlocksClaim to Column rather than ColumnByRef, and
+	// holdUndeclared cannot do that job, because a spelling no column
+	// answers to under any reading is answered the same way by both lookups.
+	holdMergeTitle = "Merge"
+	holdMergeSlug  = "merge"
 )
 
 // newHoldingHarness builds a harness over the holding flow above.
@@ -304,15 +313,28 @@ func claimIsRefusedOverTheItem(h *harness, name, ref, item string) {
 // declared column to the column it names and refuses over the items no
 // column's hold can ever reach.
 //
-// Five fixtures differ in the item's column field and in nothing else. Three
-// of the five carry the weight. The column declaring no hold is what tells
-// this build apart from one that read a hold instead of a declaration, since
-// an item filed against such a column stops nothing anywhere and is admitted
-// anyway. The undeclared identifier is what tells it apart from a build
-// resolving the field through ColumnByRef, which would match a slug or a
-// title, and from one reading a failed lookup as a column it found. And the
-// item naming no column is what keeps the refusal from becoming a refusal
-// nothing satisfies.
+// Seven fixtures differ in the item's column field and in nothing else, and
+// four of the seven carry the weight.
+//
+// The column declaring no hold is what tells this build apart from one that
+// read a hold instead of a declaration, since an item filed against such a
+// column stops nothing anywhere and is admitted anyway.
+//
+// The declared column's title and its slug are what hold the lookup to
+// Column rather than ColumnByRef. An item's column field carries an
+// identifier, so a spelling that is only a title or only a slug names no
+// column as far as this rule is concerned, and the claim is refused over it.
+// ColumnByRef resolves both and would admit them, which is the whole of the
+// difference between the two lookups on this rule. The undeclared identifier
+// beside them cannot show that, and the first round of this card wrongly
+// claimed it could: a spelling no column answers to under any reading is
+// answered the same way by either lookup, so swapping in ColumnByRef left
+// every test green. What the undeclared identifier does show is the other
+// thing worth pinning, which is that a failed lookup is read as a failed
+// lookup rather than as a column found.
+//
+// The item naming no column is what keeps the refusal from becoming a
+// refusal nothing satisfies.
 func TestAnItemNamingADeclaredColumnDoesNotRefuseTheClaim(t *testing.T) {
 	admitted := []struct {
 		name   string
@@ -336,7 +358,9 @@ func TestAnItemNamingADeclaredColumnDoesNotRefuseTheClaim(t *testing.T) {
 		column string
 	}{
 		{"no column at all", ""},
-		{"a column the workbench does not declare", holdUndeclared},
+		{"an identifier the workbench does not declare", holdUndeclared},
+		{"a declared column's title, which is not an identifier", holdMergeTitle},
+		{"a declared column's slug, which is not an identifier either", holdMergeSlug},
 	}
 	for _, c := range refused {
 		t.Run(c.name+" refuses the claim", func(t *testing.T) {

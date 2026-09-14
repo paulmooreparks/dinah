@@ -999,6 +999,18 @@ func Items(cardDir string) ([]*Item, error) {
 // The lookup is Column rather than ColumnByRef, because an item's column
 // field carries an identifier and a reference read would admit an item whose
 // field happens to match some column's slug or title.
+//
+// Which columns count as declared is narrower here than the profile's phrase
+// sounds, and it is worth saying so where somebody meets a refusal they did
+// not expect. Column reads Columns, which is the flow the workbench anchor's
+// own sequence resolves to directories. A column the anchor names whose
+// directory is gone lands in StrandedColumns instead, and an archived column
+// is read from a separate root and never enters Columns at all, so an item
+// naming either is refused even though a reader can still see the stranded
+// one in the anchor. Both readings are fail-closed and deliberate: the
+// refusal is a misfiling alarm, and a column no flow carries is a column no
+// hold can ever act on, whichever way the identifier came to be there.
+// dinah check is what reports the stranded column itself.
 func (b *Bench) ItemBlocksClaim(item *Item) bool {
 	if item.Kind != "open_question" && item.Kind != "decision" {
 		return false
