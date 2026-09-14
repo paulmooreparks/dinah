@@ -79,21 +79,47 @@ func TestAKindsFieldSetIsPublishedRatherThanGuessed(t *testing.T) {
 	// The third publication. A tool schema is fixed before a reference is
 	// known, so what it can declare is the union over every kind, and the
 	// refusal above narrows that to the resolved kind.
-	published := setFieldVocabulary(t, root)
+	//
+	// The shape changed at dinah-498, on the operator's ruling of that day.
+	// A workbench declares fields of its own, and no key a workbench mints at
+	// run time can appear in a list fixed in the source, so the argument
+	// stopped publishing an enum: a strict client reading one would have
+	// refused to send a declared key before the call left it. The members this
+	// package does know travel under the vendor key instead, beside the name
+	// of the source a head resolves the rest from, which is the shape
+	// internal/mcp/tools.go already used for an argument whose legal answer is
+	// not itself one member.
+	published, source, enum := setFieldVocabulary(t, root)
 	want := bench.AllFields()
 	if len(want) == 0 {
 		t.Fatal("the union of every kind's fields is empty, so this check read nothing")
 	}
+	if len(enum) != 0 {
+		t.Errorf("the set_field tool publishes the enum %v, and a workbench-declared key can never appear in one", enum)
+	}
+	if source != setFieldVocabularySource {
+		t.Errorf("the set_field tool publishes the vocabulary source %q, wanted %q", source, setFieldVocabularySource)
+	}
 	if strings.Join(published, " ") != strings.Join(want, " ") {
-		t.Errorf("the set_field tool publishes\n  %s\nand the union of every kind's fields is\n  %s",
+		t.Errorf("the set_field tool publishes the members\n  %s\nand the union of every kind's fields is\n  %s",
 			strings.Join(published, " "), strings.Join(want, " "))
 	}
 }
 
-// setFieldVocabulary reads the enum the set_field tool declares for its field
+// setFieldVocabularySource is the name the set_field tool publishes for the
+// set a head resolves, written here so that the schema and the assertion read
+// one string rather than two that happen to agree today.
+const setFieldVocabularySource = "fields"
+
+// setFieldVocabulary reads what the set_field tool declares for its field
 // argument, off a live tools/list answer rather than off the declaration the
-// schema is generated from.
-func setFieldVocabulary(t *testing.T, root string) []string {
+// schema is generated from: the members it publishes, the vocabulary source it
+// names, and the enum it does not publish.
+//
+// The enum is read as well as the members, because this test's whole subject
+// is which of the two a client meets, and reading only the half that should be
+// there would pass against a schema publishing both.
+func setFieldVocabulary(t *testing.T, root string) (members []string, source string, enum []string) {
 	t.Helper()
 	dir := soleBenchDir(t, root)
 	opened, err := bench.Open(dir)
@@ -112,7 +138,9 @@ func setFieldVocabulary(t *testing.T, root string) []string {
 				Name        string `json:"name"`
 				InputSchema struct {
 					Properties map[string]struct {
-						Enum []string `json:"enum"`
+						Enum    []string `json:"enum"`
+						Members []string `json:"x-dinah-vocabulary-members"`
+						Source  string   `json:"x-dinah-vocabulary-source"`
 					} `json:"properties"`
 				} `json:"inputSchema"`
 			} `json:"tools"`
@@ -129,10 +157,10 @@ func setFieldVocabulary(t *testing.T, root string) []string {
 		if !published {
 			t.Fatal("the set_field tool publishes no field argument")
 		}
-		return field.Enum
+		return field.Members, field.Source, field.Enum
 	}
 	t.Fatal("this head serves no set_field tool")
-	return nil
+	return nil, "", nil
 }
 
 // TestABareWorkstreamSlugIsSentToItsPrefixedSpelling asserts what a reader who

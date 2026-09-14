@@ -529,16 +529,6 @@
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
       "source": "d6e9e1f4780da9c4"
     },
-    "check.move.10": {
-      "text": "die Karte hat die Schleifengrenze der Ausgangsspalte nicht erreicht",
-      "context": "One row of the ordered precondition list of move. This row is Dinah's own addition; the core profile's own section 6.4 list ends at check.move.9.",
-      "source": "193dcb5974ead6b"
-    },
-    "check.move.11": {
-      "text": "die Karte trägt keinen ungelösten Eintrag, der die Ausgangsspalte nennt",
-      "context": "One row of the ordered precondition list of move. This row is Dinah's own addition; the core profile's own section 6.4 list ends at check.move.9. It is the departure's own hold, read at the column the card is leaving rather than the one it would land in.",
-      "source": "8186a705a5b6534a"
-    },
     "check.next.1": {
       "text": "die Werkbank deklariert die genannte Spalte",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
@@ -603,31 +593,6 @@
       "text": "die Karte trägt keinen ungelösten Eintrag, der das Ziel nennt",
       "context": "One row of the ordered precondition list of pull: the destination's own hold, read at the column the card would land in.",
       "source": "d6e9e1f4780da9c4"
-    },
-    "check.pull.12": {
-      "text": "die Karte trägt keinen ungelösten Eintrag, der die Ausgangsspalte nennt",
-      "context": "One row of the ordered precondition list of pull: the departure's own hold, read at the column the card is leaving rather than the one it would land in.",
-      "source": "8186a705a5b6534a"
-    },
-    "check.pull.13": {
-      "text": "das Aufnehmen der Karte am Ziel ist für die anfragende Person zulässig",
-      "context": "One row of the ordered precondition list of pull: the operator-owned reservation applied to the column the card would land in and be claimed at.",
-      "source": "93e6ab0cb424ce6d"
-    },
-    "check.pull.14": {
-      "text": "das Ziel wird nicht gerade stillgelegt",
-      "context": "One row of the ordered precondition list of pull: a destination whose retirement is in flight refuses, in the words move refuses it.",
-      "source": "64b7abf44b69542b"
-    },
-    "check.pull.15": {
-      "text": "jeder ungelöste Eintrag, den die Karte trägt, nennt eine deklarierte Spalte",
-      "context": "One row of the ordered precondition list of pull: a pull that takes the card up answers claim's own last row, in the words claim refuses it.",
-      "source": "1978b6454d989315"
-    },
-    "check.pull.16": {
-      "text": "Ihre angegebene Stufe liegt auf oder über dem, was die Karte dort verlangt",
-      "context": "One row of the ordered precondition list of pull: a pull that takes the card up answers claim's own tier row, asked at the column it lands in.",
-      "source": "3a872f98880c416e"
     },
     "check.ordinal-duplicate": {
       "text": "{detail} trägt eine Erstellungs-Ordnungszahl, die ein anderes Mitglied seiner Sammlung bereits trägt, sodass eine Position zwei von ihnen benennt",
@@ -4865,6 +4830,182 @@
       "text": "unbegrenzt",
       "context": "The capacity field of columns.new.line for a column carrying no limit at all.",
       "source": "f1856e19ec8a2da0"
+    },
+    "check.pull.17": {
+      "text": "Ihre angegebene Stufe liegt auf oder über dem, was die Karte dort verlangt",
+      "context": "One row of the ordered precondition list of pull: a pull that takes the card up answers claim's own tier row, asked at the column it lands in.",
+      "source": "3a872f98880c416e"
+    },
+    "check.pull.16": {
+      "text": "jeder ungelöste Eintrag, den die Karte trägt, nennt eine deklarierte Spalte",
+      "context": "One row of the ordered precondition list of pull: a pull that takes the card up answers claim's own last row, in the words claim refuses it.",
+      "source": "1978b6454d989315"
+    },
+    "check.pull.15": {
+      "text": "das Ziel wird nicht gerade stillgelegt",
+      "context": "One row of the ordered precondition list of pull: a destination whose retirement is in flight refuses, in the words move refuses it.",
+      "source": "64b7abf44b69542b"
+    },
+    "check.pull.14": {
+      "text": "das Aufnehmen der Karte am Ziel ist für die anfragende Person zulässig",
+      "context": "One row of the ordered precondition list of pull: the operator-owned reservation applied to the column the card would land in and be claimed at.",
+      "source": "93e6ab0cb424ce6d"
+    },
+    "check.pull.13": {
+      "text": "die Karte trägt keinen ungelösten Eintrag, der die Ausgangsspalte nennt",
+      "context": "One row of the ordered precondition list of pull: the departure's own hold, read at the column the card is leaving rather than the one it would land in.",
+      "source": "8186a705a5b6534a"
+    },
+    "check.move.12": {
+      "text": "die Karte trägt keinen ungelösten Eintrag, der die Ausgangsspalte nennt",
+      "context": "One row of the ordered precondition list of move. This row is Dinah's own addition; the core profile's own section 6.4 list ends at check.move.10. It is the departure's own hold, read at the column the card is leaving rather than the one it would land in.",
+      "source": "8186a705a5b6534a"
+    },
+    "check.move.11": {
+      "text": "die Karte hat die Schleifengrenze der Ausgangsspalte nicht erreicht",
+      "context": "One row of the ordered precondition list of move. This row is Dinah's own addition; the core profile's own section 6.4 list ends at check.move.10.",
+      "source": "193dcb5974ead6b"
+    },
+    "refusal.undeclared-field": {
+      "text": "diese Werkbank erklärt kein Feld {detail} auf {kind}",
+      "context": "The sentence printed after the refusal name undeclared-field, which is what a write naming a key this workbench does not declare on the resolved kind meets. {detail} is the key the reader typed. {kind} is the kind the reference resolved to, read off the tool rather than written here, so it is machine vocabulary and is never translated. No word of the sentence may agree with {kind}, because the token substituted there is untranslated English and no language can predict its gender, its number or the sound it starts with. The keys this workbench does declare on that kind print beneath as rows, one to a row.",
+      "source": "54b988b4dc437538"
+    },
+    "refusal.undeclared-field.elsewhere": {
+      "text": " Es ist auf {kinds} erklärt.",
+      "context": "Spliced onto refusal.undeclared-field where this workbench declares the key on some other kind, which tells a reader the key exists somewhere rather than nowhere. {kinds} carries the kinds the declaration does name, read off the declaration, so it is machine vocabulary and is never translated.",
+      "source": "112cdd46f9484070"
+    },
+    "refusal.undeclared-field.next": {
+      "text": " Erklären Sie ihn im `fields`-Block von `workbench.md`, oder nennen Sie einen oben aufgeführten Schlüssel.",
+      "context": "The next step of refusal.undeclared-field. It names the block a reader edits to declare the key, and the rows above it are the keys already declared. The file name and the block name are syntax and stay as they are.",
+      "source": "77fb72201bc81b39"
+    },
+    "refusal.missing-field": {
+      "text": "Spalte {column} verlangt {detail}, und diese Karte trägt dafür keinen Wert",
+      "context": "The sentence printed after the refusal name missing-field, which a move or a pull into a column that requires a field the card holds no value for meets. {detail} is the first such key in the column's own declaration order, and {column} names the column that asked.",
+      "source": "f5c2c2baf717c096"
+    },
+    "refusal.missing-field.next": {
+      "text": "; schreiben Sie dafür mit `dinah set` einen Wert und verschieben Sie dann erneut",
+      "context": "Spliced onto refusal.missing-field as the next step. It names the command that writes the value, which is what lets the move through. The command name is syntax and stays as it is.",
+      "source": "d982e293b0d6514f"
+    },
+    "check.field-declaration-malformed": {
+      "text": "der fields-Block erklärt {detail} ohne brauchbaren Typ und ohne brauchbare Bedeutung, daher ist unter diesem Schlüssel nichts erklärt",
+      "context": "A check finding: one entry of this workbench's fields block that the declaration reader refused, which is an entry whose key the grammar refuses, whose type is absent or outside the five, or whose meaning is absent or blank. {detail} carries the key as written. The entry declares nothing and the workbench still opens, so the repair is an edit to the block.",
+      "source": "6f6962dc44a13ab4"
+    },
+    "check.required-field-undeclared": {
+      "text": "eine Spalte verlangt ein Feld, das diese Werkbank nicht erklärt: {detail}",
+      "context": "A check finding: a column whose require_fields declaration names a key this workbench does not declare. {detail} carries the column's reference and then the key, in that order. The entry holds nothing, because a key nothing can ever be written under would make the column unreachable.",
+      "source": "6fceed149b239901"
+    },
+    "check.branch-heading-in-body": {
+      "text": "{detail} trägt im Rumpf noch die zurückgezogene Überschrift, die laut Format dieses Speichers in ein erklärtes Feld gehoben wurde",
+      "context": "A check finding: a card whose body still carries the retired heading, on a workbench whose declared format says that heading was lifted into a declared field. {detail} carries the card's reference. A workbench declaring a lower format is not reported, because it has not been carried across the retirement and the heading is still its convention.",
+      "source": "8ca9b8dac72c44f9"
+    },
+    "card.field": {
+      "text": "  {field}: {value}",
+      "context": "Printed under the card line for one field this workbench declares that the card carries a value for, one line per field, in declaration order. {field} is the declared key and {value} is what the card stores under it, both read off the store rather than written here, so both are machine vocabulary and neither is translated.",
+      "verbatim": true,
+      "source": "6c87a65dc1f1867c"
+    },
+    "check.branches-preview": {
+      "text": "Es wurde nichts geschrieben, weil dieser Lauf keine Bestätigung trug.",
+      "context": "The first line the branch migration prints when it ran without the confirmation flag, so that a reader cannot take the counts below it for work that happened.",
+      "source": "2dad7f625d9f7cab"
+    },
+    "check.branches-lifted.one": {
+      "text": "{count} Karte trägt einen Wert zum Heben.",
+      "context": "The line the branch migration prints for what its classification found to lift, for exactly one card. It reports the classification rather than the write, so it reads the same whether the run went on to write or stopped at a conflict.",
+      "source": "4b78114688c06849"
+    },
+    "check.branches-lifted.other": {
+      "text": "{count} Karten tragen einen Wert zum Heben.",
+      "context": "The line the branch migration prints for what its classification found to lift, for any other number. A count of zero is a run that found no heading to lift, which is that run's own answer.",
+      "source": "b7640fa7f72e1fa"
+    },
+    "check.branches-untouched.one": {
+      "text": "{count} Karte trägt keine solche Überschrift.",
+      "context": "The line the branch migration prints for the cards its classification found nothing to do to, for exactly one card. It is printed beside the count above so that a run which classified nothing cannot read as a run which found nothing to do.",
+      "source": "cd81b306aa5f2761"
+    },
+    "check.branches-untouched.other": {
+      "text": "{count} Karten tragen keine solche Überschrift.",
+      "context": "The line the branch migration prints for the cards its classification found nothing to do to, for any other number. It is printed beside the count above so that a run which classified nothing cannot read as a run which found nothing to do.",
+      "source": "7852fe9942b21c6a"
+    },
+    "check.branches-conflicted.one": {
+      "text": "Nichts geschrieben, weil {count} Karte nicht hinübergetragen werden kann:",
+      "context": "The heading over the cards the classification refused, for exactly one card. A single one of them stops the run before any write, so the rows beneath name what has to be repaired before a second run completes.",
+      "source": "ee3f69d711fa16ab"
+    },
+    "check.branches-conflicted.other": {
+      "text": "Nichts geschrieben, weil {count} Karten nicht hinübergetragen werden können:",
+      "context": "The heading over the cards the classification refused, for any other number. A single one of them stops the run before any write, so the rows beneath name what has to be repaired before a second run completes.",
+      "source": "f3dc6e229a7062a6"
+    },
+    "check.branch-conflict.anchor-differs": {
+      "text": "{card} speichert für dieses Feld bereits einen anderen Wert",
+      "context": "One row of the branch migration's conflict report: a card whose stored value for the declared field differs from the value its body carries, so the run cannot tell which of the two the operator meant. {card} carries the card's reference.",
+      "source": "6f438c87d4aadc3c"
+    },
+    "check.branch-conflict.two-headings": {
+      "text": "{card} trägt diese Überschrift mehr als einmal",
+      "context": "One row of the branch migration's conflict report: a card whose body carries the retired heading more than once, so the run cannot tell which of them is the value. {card} carries the card's reference.",
+      "source": "50dc872c82fe3b04"
+    },
+    "check.branch-conflict.unreadable": {
+      "text": "{card} lässt sich nicht öffnen, daher konnte der Lauf sie nicht lesen",
+      "context": "One row of the branch migration's conflict report: a card whose anchor will not open, so the run cannot classify it and will not write a workbench it has not read whole. {card} carries the card's identifier.",
+      "source": "5ef671c5b8302a5d"
+    },
+    "check.branches-emptied.one": {
+      "text": "Eine leere Überschrift aus {count} Karte entfernt:",
+      "context": "The heading over the cards that carried the retired heading with nothing beneath it, for exactly one card. Each loses the heading and gains no value, so they are named rather than counted alone.",
+      "source": "2f5eccbee79373f0"
+    },
+    "check.branches-emptied.other": {
+      "text": "Eine leere Überschrift aus {count} Karten entfernt:",
+      "context": "The heading over the cards that carried the retired heading with nothing beneath it, for any other number. Each loses the heading and gains no value, so they are named rather than counted alone.",
+      "source": "10ceb4637eeed073"
+    },
+    "check.branches-declared": {
+      "text": "Das Feld {field} erklärt.",
+      "context": "The line the branch migration prints when it added the declaration for the key it lifted into. A workbench that already declared the key keeps its own declaration and this line is not printed. {field} carries the key, read off the store, so it is machine vocabulary and is never translated.",
+      "source": "5d3c2f9616743660"
+    },
+    "check.branches-stamped": {
+      "text": "Das Speicherformat {format} gestempelt.",
+      "context": "The line the branch migration prints when it wrote the format number onto the workbench anchor, which is what says the retirement has happened here. {format} carries the number.",
+      "source": "acb79e1dac505c53"
+    },
+    "param.check.migrate-branches.summary": {
+      "text": "die zurückgezogene Überschrift aus jedem Kartenrumpf in ein erklärtes Feld heben und das Format dieses Speichers stempeln",
+      "context": "The meaning of the migrate-branches argument of `dinah check`, printed in that command's arguments table.",
+      "source": "68fe961658821781"
+    },
+    "check.move.10": {
+      "text": "die Karte trägt für jedes Feld, das das Ziel verlangt, einen Wert",
+      "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
+      "source": "766cfa42c960fe8"
+    },
+    "check.pull.12": {
+      "text": "die Karte trägt für jedes Feld, das das Ziel verlangt, einen Wert",
+      "context": "One row of the ordered precondition list of pull: the destination's own field requirement, read at the column the card would land in.",
+      "source": "766cfa42c960fe8"
+    },
+    "check.branch-lift": {
+      "text": "{card} trägt jetzt {branch}.",
+      "context": "One line of the branch migration's own report, naming a card and the value the migration lifted out of its body into the declared field. {card} carries the card's reference and {branch} the value now stored under that field, both read off the store, so both are machine vocabulary and neither is translated.",
+      "source": "bfe56e31c195b422"
+    },
+    "check.branch-emptied": {
+      "text": "{card} hat eine Überschrift ohne Inhalt verloren.",
+      "context": "One line of the branch migration's own report, naming a card that carried the retired heading with nothing beneath it. Such a card loses the heading and gains no value, so it is named rather than counted alone. {card} carries the card's reference.",
+      "source": "cf5f6c594705fa50"
     }
   }
 }

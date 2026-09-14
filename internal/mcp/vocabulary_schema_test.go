@@ -61,7 +61,13 @@ func TestTheSchemaPublishesEachVocabularyAndDurationKeyExactlyWhereTheTableDecla
 			set, hasVocabulary := verb.VocabularyFor(served.command, param.Name)
 			wantList := param.Value == listPlaceholder
 			wantEnum := hasVocabulary && set.Source == "" && !wantList
-			wantMembers := hasVocabulary && set.Source == "" && wantList
+			// A vocabulary is published as an enum only where the whole legal
+			// answer is one member of a set this package can fix. The two
+			// cases where it cannot publish the members beside the rest
+			// instead: a list-valued argument, whose legal answer may name
+			// two members and so is not itself one, and a source-bearing
+			// argument whose resolved set is wider than the members.
+			wantMembers := hasVocabulary && ((set.Source == "" && wantList) || (set.Source != "" && len(set.Values) > 0))
 			wantSource := hasVocabulary && set.Source != ""
 			gotList, carriesList := property["x-dinah-value-list"]
 			if wantList != carriesList {
@@ -195,22 +201,28 @@ func TestNoListValuedParameterPublishesAnEnum(t *testing.T) {
 	}
 }
 
-// TestEveryVocabularySourceAServedToolPublishesIsTheOneColumnsSource asserts
-// dinah-420 AC2: the distinct Vocabulary.Source values reachable from a served
-// tool's published parameters are exactly {"columns"}.
+// TestEveryVocabularySourceAServedToolPublishesIsDeclared asserts dinah-420
+// AC2, widened by dinah-498: the distinct Vocabulary.Source values reachable
+// from a served tool's published parameters are exactly {"columns", "fields"}.
 //
 // The VS Code extension's command palette resolves a source-bearing argument
 // by calling a tool of its own, and it carries a table of the sources it knows
-// how to resolve. That table has one entry, and this test is what stands
-// between it and a source it has never heard of: a card that serves guide or
-// config as a tool, or that gives a served tool a parameter declaring a new
-// source, fails here and is told to extend the table in the same diff.
+// how to resolve. This test is what stands between that table and a source it
+// has never heard of: a card that serves guide or config as a tool, or that
+// gives a served tool a parameter declaring a new source, fails here and is
+// told to extend the table in the same diff.
+//
+// The fields source arrived at dinah-498, where the field argument of set
+// stopped publishing a closed enum because a key the reader's own workbench
+// declares can never appear in one. That argument publishes the members this
+// package can fix beside the source, so a palette that resolves neither still
+// offers the fields of every kind.
 //
 // The second half is what keeps the first from passing vacuously. dinah
-// declares two resolved sources today and serves tools for the commands
-// naming one of them, so the set below is narrower than verb's own set for a
+// declares three resolved sources today and serves tools for the commands
+// naming two of them, so the set above is narrower than verb's own set for a
 // reason, and that reason is checked rather than described.
-func TestEveryVocabularySourceAServedToolPublishesIsTheOneColumnsSource(t *testing.T) {
+func TestEveryVocabularySourceAServedToolPublishesIsDeclared(t *testing.T) {
 	reachable := map[string]bool{}
 	for _, served := range tools {
 		for _, param := range verb.Params(served.command) {
@@ -228,13 +240,13 @@ func TestEveryVocabularySourceAServedToolPublishesIsTheOneColumnsSource(t *testi
 		got = append(got, source)
 	}
 	sort.Strings(got)
-	if !reflect.DeepEqual(got, []string{"columns"}) {
-		t.Errorf("served tools reach the vocabulary sources %v, wanted exactly [columns]; a client resolving these carries a table with one entry, so extend that table in the same diff", got)
+	if !reflect.DeepEqual(got, []string{"columns", "fields"}) {
+		t.Errorf("served tools reach the vocabulary sources %v, wanted exactly [columns fields]; a client resolving these carries a table naming those two, so extend that table in the same diff", got)
 	}
 
 	declared := verb.VocabularySources()
-	if !reflect.DeepEqual(declared, []string{"columns", "guides"}) {
-		t.Errorf("the library declares the vocabulary sources %v, wanted [columns guides]; the set above is narrower than this one and this test says why", declared)
+	if !reflect.DeepEqual(declared, []string{"columns", "fields", "guides"}) {
+		t.Errorf("the library declares the vocabulary sources %v, wanted [columns fields guides]; the set above is narrower than this one and this test says why", declared)
 	}
 	if _, exempt := toolExemptions["guide"]; !exempt {
 		t.Error("guide is served as a tool, so the guides source is now reachable from the surface and the set above should have caught it")

@@ -312,6 +312,37 @@ var Shapes = []Shape{
 		NextStep:  []string{"refusal.unresolved-item.next"},
 	},
 	{
+		// The detail names the key the caller typed, and the rows name the
+		// keys the workbench does declare on the kind the reference resolved
+		// to. The rows ride as a Carried set rather than a Listing because
+		// the set depends on that kind, and no enumerable listing names it.
+		//
+		// One shape answers both mistakes this name covers. Where the
+		// workbench declares the key on some other kind, the raise site fills
+		// kinds with the kinds it does declare it on, and the fragment that
+		// clause switches on is what tells the reader the key exists
+		// somewhere rather than nowhere.
+		Name:    UndeclaredField,
+		Values:  []string{"kind", "kinds"},
+		Carried: "declared",
+		Fragments: []Fragment{
+			{Key: "refusal.undeclared-field.elsewhere", When: "kinds"},
+			{Key: "refusal.undeclared-field.next"},
+		},
+		NextStep: []string{"refusal.undeclared-field.next"},
+	},
+	{
+		// The detail names the key the column requires, and the sentence
+		// names the column, because the reader has to know which station
+		// asked before they can decide whether to set the value or to move
+		// somewhere else. The next step is the write that would let the move
+		// through.
+		Name:      MissingField,
+		Values:    []string{ValueColumn},
+		Fragments: []Fragment{{Key: "refusal.missing-field.next"}},
+		NextStep:  []string{"refusal.missing-field.next"},
+	},
+	{
 		// The departure's own hold, mirroring the entry shape above down
 		// to which entity the detail names, because the two refusals send
 		// a reader to the same item and differ only in which side of the

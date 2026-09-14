@@ -151,8 +151,15 @@ type Vocabulary struct {
 	// Values are the members when the set is fixed in the source.
 	Values []string
 	// Source names a set a head resolves when it runs, because the set lives
-	// outside this package: "columns" reads the workbench's own columns, and
-	// "guides" reads the topics embedded in the binary.
+	// outside this package: "columns" reads the workbench's own columns,
+	// "guides" reads the topics embedded in the binary, and "fields" reads
+	// the fields of every kind together with the keys the reader's own
+	// workbench declares.
+	//
+	// A vocabulary may declare both. Values then names the members this
+	// package can fix in the source, and Source names where the rest come
+	// from, so a schema publishes a discoverable list without telling a
+	// strict client that the value has to be one of them.
 	Source string
 }
 
@@ -160,8 +167,14 @@ type Vocabulary struct {
 // the sets the commands themselves check against, so neither can drift from
 // what a command accepts, and two name a set only a head can resolve.
 var vocabularies = map[string]Vocabulary{
-	"key":          {Values: bench.ConfigKeys},
-	"entity-field": {Values: bench.AllFields()},
+	"key": {Values: bench.ConfigKeys},
+	// The field argument of set reaches a field of the resolved kind's own
+	// set and a key the workbench declares alike, and no static list can
+	// carry the second half, so the set is resolved by a head. The members
+	// this package does know are published beside the source rather than as
+	// an enum, which keeps the discoverability dinah-420 bought while still
+	// admitting a declared key.
+	"entity-field": {Values: bench.AllFields(), Source: "fields"},
 	"column-kind":  {Values: contract.Kinds},
 	"detail-field": {Values: DetailFields},
 	"item-kind":    {Values: bench.ItemKinds},
@@ -625,6 +638,7 @@ var params = map[string][]Param{
 		{Name: "migrate-vocabulary", Flag: true, Marker: true, Field: "MigrateVocabulary"},
 		{Name: "migrate-container", Flag: true, Marker: true, Field: "MigrateContainer"},
 		{Name: "migrate-numbers", Flag: true, Marker: true, Field: "MigrateNumbers"},
+		{Name: "migrate-branches", Flag: true, Marker: true, Field: "MigrateBranches"},
 		{Name: "renumber", Flag: true, Marker: true, Field: "Renumber"},
 		// remint takes a path rather than standing alone, because it repairs
 		// the one condition the tree sweep refuses to decide: two directories

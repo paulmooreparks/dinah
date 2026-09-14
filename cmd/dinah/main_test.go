@@ -1376,11 +1376,12 @@ func TestPerCommandHelpFollowsTheProfile(t *testing.T) {
 			rows++
 		}
 	}
-	// The two workbench-level rows, then the profile's own move rows, then
-	// Dinah's two appended rows: the departure column's loop_limit, and the
-	// departure column's own hold read on the way out. The count is composed
-	// from the profile document rather than written down, so a row added or
-	// removed there moves this expectation with it.
+	// The two workbench-level rows, then the profile's own move rows, which
+	// the tenth of grew at dinah-498, then Dinah's two appended rows: the
+	// departure column's loop_limit, and the departure column's own hold read
+	// on the way out. The count is composed from the profile document rather
+	// than written down, so a row added or removed there moves this
+	// expectation with it.
 	wantedRows := len(workbench) + len(lists[verb.Move]) + 2
 	if rows != wantedRows {
 		t.Errorf("wanted %d rows, got %d", wantedRows, rows)
@@ -1839,7 +1840,7 @@ func TestCheckDeclaresItsRepairFlagsOnEverySurface(t *testing.T) {
 	if err != nil {
 		t.Fatalf("fixture: %v", err)
 	}
-	const line = "check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-columns] [--migrate-vocabulary] [--migrate-container] [--migrate-numbers] [--renumber] [--remint <dir>] [--migrate-workstreams] [--witness] [--yes] [--root <path>] [--max-depth <n>]"
+	const line = "check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-columns] [--migrate-vocabulary] [--migrate-container] [--migrate-numbers] [--migrate-branches] [--renumber] [--remint <dir>] [--migrate-workstreams] [--witness] [--yes] [--root <path>] [--max-depth <n>]"
 	if !blockLists(string(fixture), line) {
 		t.Error("the ratified block's check line does not name every repair flag")
 	}
@@ -1860,7 +1861,7 @@ func TestCheckDeclaresItsRepairFlagsOnEverySurface(t *testing.T) {
 	// --migrate-numbers and --renumber change what a card is called, which
 	// is why they refuse without --yes, so the clean case below runs them
 	// confirmed rather than bare.
-	for _, flag := range []string{"--finish", "--migrate-ordinals", "--migrate-slugs", "--migrate-columns", "--migrate-vocabulary", "--migrate-container", "--migrate-numbers", "--renumber", "--migrate-workstreams", "--witness"} {
+	for _, flag := range []string{"--finish", "--migrate-ordinals", "--migrate-slugs", "--migrate-columns", "--migrate-vocabulary", "--migrate-container", "--migrate-numbers", "--migrate-branches", "--renumber", "--migrate-workstreams", "--witness"} {
 		if !strings.Contains(generated.out, flag) {
 			t.Errorf("the generated help does not name %s:\n%s", flag, generated.out)
 		}
@@ -7204,7 +7205,8 @@ func TestTheFlagSetsTheParserAcceptsAreDerivedFromTheParameterTable(t *testing.T
 		"tier", "workbench",
 	}
 	wantMarkers := []string{
-		"archived", "catalogs", "finish", "help", "json", "migrate-columns",
+		"archived", "catalogs", "finish", "help", "json", "migrate-branches",
+		"migrate-columns",
 		"migrate-container", "migrate-numbers", "migrate-ordinals",
 		"migrate-slugs", "migrate-vocabulary", "migrate-workstreams",
 		"no-claim", "override", "quiet", "ready", "renumber", "replace",

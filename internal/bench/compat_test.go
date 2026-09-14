@@ -92,16 +92,17 @@ func TestAdmitProfileReadsThePublishedLineAndRefusesTheRest(t *testing.T) {
 		"dinah-core/0.13",
 		"dinah-core/0.14",
 		"dinah-core/0.15",
+		"dinah-core/0.16",
 	}
 	refused := []string{
 		"dinah-core/0.0",
 		// The case CORE-BENCH-4's major-only text could not reach, and the one
 		// CORE-BENCH-5 names: this build's own major, a minor above the
 		// ceiling it implements. The example moved from 0.10 to 0.13 when
-		// dinah-382 raised the claim to 0.12, and to 0.16 when dinah-501 raised
-		// it to 0.15, because a revision this build now implements cannot stand
-		// for one it does not.
-		"dinah-core/0.16",
+		// dinah-382 raised the claim to 0.12, to 0.16 when dinah-501 raised it
+		// to 0.15, and to 0.17 when dinah-498 raised it to 0.16, because a
+		// revision this build now implements cannot stand for one it does not.
+		"dinah-core/0.17",
 		"dinah-core/1.1",
 		"dinah-core/2.0",
 		"dinah-core/3.0",

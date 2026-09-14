@@ -18,10 +18,15 @@ import (
 // nested block the level model reads, and Export emits it explicitly beside
 // profile and title with its axes in the one published order, rather than
 // letting the loop below skip it for being known.
+//
+// The declaration block and the workbench's own declared field values are two
+// more. They are named apart because one object carries both, and a member
+// named fields holding sometimes a declaration and sometimes values would be a
+// member no reader could write code against.
 var knownBenchKeys = map[string]bool{
 	"profile": true, "title": true, "columns": true,
 	"format": true, "slug": true, "operator": true,
-	LevelsKey: true,
+	LevelsKey: true, FieldsKey: true, FieldValuesKey: true,
 }
 
 // knownColumnKeys are the column frontmatter keys the interchange form carries
@@ -29,6 +34,7 @@ var knownBenchKeys = map[string]bool{
 var knownColumnKeys = map[string]bool{
 	"title": true, "kind": true, "operator_owned": true, "wip_limit": true,
 	"slug": true, "awaiting_outside": true, "gate_items": true,
+	FieldValuesKey: true, RequireFieldsKey: true,
 }
 
 // Export writes the interchange form of a bench definition.
@@ -48,6 +54,15 @@ func (b *Bench) Export() ([]byte, error) {
 	object["title"] = mustMarshal(b.Title)
 	if b.FM.Has(LevelsKey) {
 		object[LevelsKey] = orderedLevels(blockValue(b.FM, LevelsKey))
+	}
+	// Both blocks travel as the nested value they already are, read by the
+	// one reader every structured frontmatter value is read by, so the
+	// declaration order the file carries survives the trip.
+	if b.FM.Has(FieldsKey) {
+		object[FieldsKey] = blockValue(b.FM, FieldsKey)
+	}
+	if b.FM.Has(FieldValuesKey) {
+		object[FieldValuesKey] = blockValue(b.FM, FieldValuesKey)
 	}
 	if b.Standing != "" {
 		object["instructions"] = mustMarshal(b.Standing)
@@ -107,6 +122,12 @@ func exportColumn(column *Column) map[string]json.RawMessage {
 	}
 	if column.Capacity > 0 {
 		element["capacity"] = mustMarshal(column.Capacity)
+	}
+	if column.FM.Has(FieldValuesKey) {
+		element[FieldValuesKey] = blockValue(column.FM, FieldValuesKey)
+	}
+	if len(column.RequireFields) > 0 {
+		element[RequireFieldsKey] = mustMarshal(column.RequireFields)
 	}
 	return element
 }
@@ -250,6 +271,11 @@ func Instantiate(root, slug, operator string, definition *Definition) error {
 			fm.Set(LevelsKey, string(raw))
 		}
 	}
+	for _, member := range []string{FieldsKey, FieldValuesKey} {
+		if raw, ok := definition.Object[member]; ok {
+			writeMember(fm, member, raw)
+		}
+	}
 	for _, member := range sortedMembers(definition.Object) {
 		if knownBenchKeys[member] {
 			continue
@@ -361,6 +387,15 @@ func writeColumnFromMember(root, id, slug string, element map[string]json.RawMes
 	if raw, ok := element["capacity"]; ok {
 		if err := json.Unmarshal(raw, &capacity); err == nil && capacity > 0 {
 			fm.Set("wip_limit", strconv.Itoa(capacity))
+		}
+	}
+	if raw, ok := element[FieldValuesKey]; ok {
+		writeMember(fm, FieldValuesKey, raw)
+	}
+	var required []string
+	if raw, ok := element[RequireFieldsKey]; ok {
+		if err := json.Unmarshal(raw, &required); err == nil {
+			fm.SetSeq(RequireFieldsKey, required)
 		}
 	}
 	for _, member := range sortedMembers(element) {

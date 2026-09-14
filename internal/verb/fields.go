@@ -24,7 +24,20 @@ func (l *Library) GetField(req *Request) (string, error) {
 	}
 	field, known := bench.FieldOf(entity.Kind, req.Field)
 	if !known {
-		return "", unknownEntityField(entity.Kind, req.Field)
+		// A read never refuses on the ground that a key is undeclared, which
+		// is what makes CORE-LAYER-2's preservation visible: a key an
+		// imported card carries, or one somebody wrote by hand, survives a
+		// read and a write of its neighbours and can be read back. A name
+		// with no full stop is not a declared field key at all, so it keeps
+		// today's refusal, which lists what the resolved kind records.
+		if !bench.DeclaredFieldKey(req.Field) {
+			return "", unknownEntityField(entity.Kind, req.Field)
+		}
+		fm, _, err := l.entityAnchor(entity)
+		if err != nil {
+			return "", err
+		}
+		return bench.FieldValue(fm, req.Field), nil
 	}
 	return l.readField(entity, field)
 }
@@ -57,6 +70,9 @@ func (l *Library) SetField(req *Request) *Response {
 	}
 	field, known := bench.FieldOf(entity.Kind, req.Field)
 	if !known {
+		if bench.DeclaredFieldKey(req.Field) {
+			return l.setDeclaredField(req, entity)
+		}
 		return l.FromError(req, unknownEntityField(entity.Kind, req.Field))
 	}
 	// The two flags are legal beside one field each, and every other use is a
@@ -119,7 +135,106 @@ func (l *Library) SetField(req *Request) *Response {
 	if field.Guard == bench.GuardHold {
 		return l.writeHold(req, entity, field, value)
 	}
-	return l.writeField(req, entity, field, value)
+	return l.writeField(req, entity, builtInTarget(field), value)
+}
+
+// fieldWrite is where one write puts its value and what the journal calls it.
+// The built-in fields and the declared ones differ in exactly these answers,
+// so one writer serves both rather than two writers drifting apart over the
+// lock discipline, the no-op rule and the journal line.
+type fieldWrite struct {
+	// name is what the event's field slot carries and what the ok response
+	// reports back, which is the name a reader typed.
+	name string
+	// key is the frontmatter key the value is stored under, unread on a prose
+	// write, which has no key at all.
+	key string
+	// prose is true where the value is the anchor's body rather than a
+	// frontmatter key.
+	prose bool
+	// nested is true where the value is stored inside the field_values block
+	// rather than at the top level of the anchor. The top level of a
+	// workbench definition is the namespace a layer declares itself in, and a
+	// declared field key carries a full stop by construction, so a value
+	// written there could not be told from a layer declaration.
+	nested bool
+}
+
+// builtInTarget is where a field of a kind's own declared set is written.
+func builtInTarget(field bench.Field) fieldWrite {
+	return fieldWrite{name: field.Name, key: field.Stored(), prose: field.Prose}
+}
+
+// declaredTarget is where a workbench-declared field is written, which is
+// inside the entity's own field_values block under the key itself.
+func declaredTarget(key string) fieldWrite {
+	return fieldWrite{name: key, key: key, nested: true}
+}
+
+// setDeclaredField writes one workbench-declared field, in the order the
+// contract fixes and the order that decides which name a caller meets: the
+// workbench declares the key, the declaration reaches the kind the reference
+// resolved to, the value satisfies the declared type, and then the write runs
+// down SetField's own remaining list, which is the owner check, the kind's
+// write authority and the journalled rewrite under the entity's lock.
+//
+// The write authority is the kind's and is unchanged here. A declared field on
+// a card is any owner's to write, and one on a column or on the workbench is
+// the operator's, because WriteAuthorityOf is read below exactly as it is read
+// for a field of the kind's own set.
+//
+// A write to a comment, a checklist item, an attachment or a workstream is
+// refused whatever the key, and no branch here says so: a declaration reaches
+// only a card, a column and the workbench, so DeclaredFieldOf answers a field
+// no declaration can reach and the first row below refuses it.
+func (l *Library) setDeclaredField(req *Request, entity *bench.EntityRef) *Response {
+	// Neither flag is legal beside a declared field, and the refusal is the
+	// one a flag carried beside the wrong field of a kind's own set meets.
+	if strings.TrimSpace(req.At) != "" {
+		return l.refuse(req, entity.Card, contract.Usage, "--at")
+	}
+	if strings.TrimSpace(req.Note) != "" {
+		return l.refuse(req, entity.Card, contract.Usage, "--note")
+	}
+	declared := l.Bench.DeclaredFieldOf(req.Field)
+	if declared == nil || !declared.Declares(entity.Kind) {
+		return l.FromError(req, undeclaredField(l.Bench, entity.Kind, req.Field, declared))
+	}
+	value := strings.TrimSpace(req.Value)
+	// Every declared field is clearable, because what makes a field required
+	// at a point in the flow is a column's own require_fields and not the
+	// declaration. A write carrying no value deletes the key and runs no
+	// guard, which is the rule a level write already keeps.
+	if value != "" && !bench.AdmitsFieldValue(declared.Type, value) {
+		return l.refuse(req, entity.Card, contract.Malformed, req.Field)
+	}
+	if req.Actor == "" {
+		return l.refuse(req, entity.Card, contract.NoOwner, "")
+	}
+	if bench.WriteAuthorityOf(entity.Kind) == bench.AuthorityOperator && req.Actor != l.Bench.Operator {
+		return l.refuse(req, entity.Card, contract.NotOperator, req.Actor)
+	}
+	return l.writeField(req, entity, declaredTarget(req.Field), value)
+}
+
+// undeclaredField raises the refusal a write naming a key the workbench does
+// not declare on the resolved kind meets. The rows are the keys the workbench
+// does declare on that kind, drawn from the declaration rather than from a
+// sentence, so a workbench that declares a key later reaches the message with
+// nobody editing a catalog.
+//
+// A key the workbench declares on some other kind fills the kinds value too,
+// which is what switches on the clause telling the reader the key exists
+// somewhere rather than nowhere.
+func undeclaredField(b *bench.Bench, kind, key string, declared *bench.DeclaredField) error {
+	context := map[string]string{
+		"kind":     kind,
+		"declared": strings.Join(b.DeclaredFieldKeysOn(kind), "\n"),
+	}
+	if declared != nil {
+		context["kinds"] = strings.Join(declared.Kinds(), ", ")
+	}
+	return contract.RefuseWith(contract.UndeclaredField, key, context)
 }
 
 // writeHold performs a hold write in the storage spelling and answers in the
@@ -133,7 +248,7 @@ func (l *Library) SetField(req *Request) *Response {
 // about something else.
 func (l *Library) writeHold(req *Request, entity *bench.EntityRef, field bench.Field, typed string) *Response {
 	stored := storedHold(typed)
-	response := l.writeField(req, entity, field, stored)
+	response := l.writeField(req, entity, builtInTarget(field), stored)
 	if response.Outcome == contract.OutcomeOK && response.Detail == stored {
 		response.Detail = typed
 	}
@@ -359,7 +474,7 @@ func (l *Library) entityAnchor(entity *bench.EntityRef) (*bench.Frontmatter, str
 // A write storing the value the entity already carries succeeds, writes
 // nothing and journals nothing, on the terms join already returns ok for a
 // workstream the card already belongs to.
-func (l *Library) writeField(req *Request, entity *bench.EntityRef, field bench.Field, value string) *Response {
+func (l *Library) writeField(req *Request, entity *bench.EntityRef, target fieldWrite, value string) *Response {
 	now := bench.Stamp(l.Now())
 	lock, err := bench.Acquire(l.lockDirFor(entity), req.Actor, now)
 	if err != nil {
@@ -373,14 +488,20 @@ func (l *Library) writeField(req *Request, entity *bench.EntityRef, field bench.
 	if err != nil {
 		return l.FromError(req, err)
 	}
-	was := fm.Value(field.Stored())
-	if field.Prose {
+	var was string
+	switch {
+	case target.prose:
 		was = body
 		body = value
-	} else if value == "" {
-		fm.Delete(field.Stored())
-	} else {
-		fm.Set(field.Stored(), value)
+	case target.nested:
+		was = bench.FieldValue(fm, target.key)
+		bench.SetFieldValue(fm, target.key, value)
+	case value == "":
+		was = fm.Value(target.key)
+		fm.Delete(target.key)
+	default:
+		was = fm.Value(target.key)
+		fm.Set(target.key, value)
 	}
 	if was == value {
 		response := l.ok(req, entity.Card)
@@ -398,14 +519,23 @@ func (l *Library) writeField(req *Request, entity *bench.EntityRef, field bench.
 	if err := bench.WriteText(path, fm.Render(body)); err != nil {
 		return l.FromError(req, err)
 	}
-	ev := fieldEvent(entity, field, was, value)
+	ev := fieldEvent(entity, target, was, value)
 	ev.TS = now
 	ev.Actor = req.Actor
 	if err := bench.AppendEvent(l.journalFor(entity), ev); err != nil {
 		return l.FromError(req, err)
 	}
 	if entity.Kind == bench.KindWorkbench {
-		l.Bench.SetWorkbenchField(field.Name, value)
+		if target.nested {
+			// The bench's own header is the copy every later read in this
+			// process draws from, and the write above rendered the file from
+			// a header read afresh under the lock, so the two are reconciled
+			// here the way a workbench field of the kind's own set already
+			// is.
+			bench.SetFieldValue(l.Bench.FM, target.key, value)
+		} else {
+			l.Bench.SetWorkbenchField(target.name, value)
+		}
 	}
 	return l.wroteField(req, entity, value)
 }
@@ -452,9 +582,9 @@ func (l *Library) wroteField(req *Request, entity *bench.EntityRef, value string
 // file that changed, and copying a whole instructions body into an append-only
 // journal on every edit would grow the journal without bound and put a second
 // copy of the text where nobody edits it.
-func fieldEvent(entity *bench.EntityRef, field bench.Field, was, value string) bench.Event {
-	ev := bench.Event{Event: updatedEvents[entity.Kind], Field: field.Name}
-	if !field.Prose {
+func fieldEvent(entity *bench.EntityRef, target fieldWrite, was, value string) bench.Event {
+	ev := bench.Event{Event: updatedEvents[entity.Kind], Field: target.name}
+	if !target.prose {
 		ev.From = was
 		ev.To = value
 	}

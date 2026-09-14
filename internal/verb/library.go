@@ -217,6 +217,13 @@ type Request struct {
 	// because a card that changes what it is called leaves a reference
 	// somebody wrote down resolving to nothing.
 	MigrateNumbers bool
+	// MigrateBranches asks check to lift every `## Branch` heading a card
+	// body carries into the declared field git.branch, declare that key where
+	// a card carried one, and stamp the workbench with the format that says
+	// the retirement has happened. Without Confirm it reports what it would
+	// do and writes nothing, which is the two-phase shape the tree sweeps
+	// already run.
+	MigrateBranches bool
 	// Renumber asks check to repair the registry's duplicated numbers before
 	// it reports, leaving the number with the line that claimed it first. It
 	// refuses without Confirm, on the terms MigrateNumbers does.
@@ -330,6 +337,17 @@ type CardView struct {
 	// now, ones CORE-CLAIM-10 would refuse a claim over. A reader sees the
 	// refusal coming rather than meeting it and being told afterwards.
 	BlockingItems int `json:"blocking_items,omitempty"`
+	// Fields are the values the card carries for the fields its workbench
+	// declares, keyed by the declared key, and absent where the card carries
+	// none. A key the card stores that the workbench does not declare is
+	// preserved on disk and is left out here, because publishing it would
+	// make an undeclared key look like a supported one.
+	//
+	// Every response carrying a card view carries them, the serve on a
+	// successful claim and on a successful move included, because a reader
+	// scanning a column for a value is the case this exists for and a second
+	// call per card would defeat it.
+	Fields map[string]string `json:"fields,omitempty"`
 }
 
 // The three names a withheld layer is reported under, general to specific,
@@ -506,7 +524,32 @@ func (l *Library) view(card *bench.Card) (*CardView, error) {
 	if column := l.Bench.Column(card.Column); column != nil {
 		v.ColumnTitle = column.Title
 	}
+	v.Fields = l.declaredFieldValues(card.FM, bench.KindCard)
 	return v, nil
+}
+
+// declaredFieldValues are the values one anchor carries for the fields the
+// workbench declares on a kind, keyed by the declared key. It answers nil
+// where the entity carries none, so the member is absent rather than empty.
+//
+// The values come from the header already loaded for the view, so no view
+// performs a read it did not already perform.
+func (l *Library) declaredFieldValues(fm *bench.Frontmatter, kind string) map[string]string {
+	if fm == nil {
+		return nil
+	}
+	var values map[string]string
+	for _, field := range l.Bench.DeclaredFieldsOn(kind) {
+		stored := bench.FieldValue(fm, field.Key)
+		if stored == "" {
+			continue
+		}
+		if values == nil {
+			values = map[string]string{}
+		}
+		values[field.Key] = stored
+	}
+	return values
 }
 
 // serve composes the instruction chain for a card's current position, and

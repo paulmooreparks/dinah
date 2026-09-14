@@ -109,8 +109,13 @@ func TestTierNotHigherIsMintedOnceAndCostsTheProfileNothing(t *testing.T) {
 			t.Errorf("the profile's own set carries %s, which Dinah minted", name)
 		}
 	}
-	if len(Declared) != 17 {
-		t.Errorf("the profile declares %d refusal names, and raise was to leave that seventeen unchanged", len(Declared))
+	// The count moved from seventeen to nineteen at dinah-498, which took
+	// the fields a workbench declares for itself into the profile and with
+	// them the two refusal names that mechanism reports. Raise still leaves
+	// the set alone, which is what this row asserts: the number is pinned so
+	// that a card adding to the profile's own set has to say so here.
+	if len(Declared) != 19 {
+		t.Errorf("the profile declares %d refusal names, and raise was to leave that nineteen unchanged", len(Declared))
 	}
 	// The count is pinned rather than derived, so minting an event is a
 	// deliberate act that fails here first. It stood at twenty-one while

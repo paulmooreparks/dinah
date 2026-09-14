@@ -215,6 +215,18 @@ export function classifyProperty(property: unknown): Classification {
 		VOCABULARY_SOURCE_KEY,
 		"format",
 	].filter((key) => property[key] !== undefined);
+	// Members beside a source is one shape rather than two keys colliding, and
+	// it arrived at dinah-498. The whole set is wider than anything this
+	// process can fix, because a workbench declares names of its own at run
+	// time, so the members are published for discovery and the source names
+	// where the rest come from. The pair is collapsed here so the count below
+	// still refuses the combinations that really are contradictory, such as an
+	// enum beside a source.
+	const membersBesideASource =
+		property[VOCABULARY_MEMBERS_KEY] !== undefined &&
+		property[VOCABULARY_SOURCE_KEY] !== undefined &&
+		property["enum"] === undefined &&
+		property["format"] === undefined;
 	const marker = property[VALUE_LIST_KEY];
 	if (marker !== undefined && marker !== true) {
 		return {
@@ -232,8 +244,11 @@ export function classifyProperty(property: unknown): Classification {
 		}
 		return { kind: "prompt", prompt: { kind: "boolean" } };
 	}
-	if (carried.length > 1) {
+	if (carried.length > 1 && !membersBesideASource) {
 		return { kind: "unrenderable", detail: `${carried.join(" and ")} at once` };
+	}
+	if (membersBesideASource) {
+		return classifyResolvedVocabulary(property, isList);
 	}
 	if (property[VOCABULARY_MEMBERS_KEY] !== undefined) {
 		const values = property[VOCABULARY_MEMBERS_KEY];
@@ -534,4 +549,49 @@ export class VerbCatalog {
 		this.invalidate();
 		return this.get();
 	}
+}
+
+/**
+ * Classifies a property whose members this process can fix and whose whole set
+ * only a head can resolve.
+ *
+ * A resolvable source wins, because the resolved answer is the complete one
+ * and the members are a subset of it. Where this build carries no resolver for
+ * the source, the members are not offered as a choice: a choice would refuse
+ * the very names the source exists to reach, which on the field argument of
+ * `set` is every key the reader's own workbench declares. The reader types the
+ * name instead, and the verb refuses an unknown one by name.
+ *
+ * The value-list marker is refused here rather than ignored. No argument
+ * carries it beside a source today, and a list whose members are only half the
+ * legal set is a prompt nobody has decided the shape of.
+ */
+function classifyResolvedVocabulary(
+	property: Record<string, unknown>,
+	isList: boolean,
+): Classification {
+	if (isList) {
+		return {
+			kind: "unrenderable",
+			detail: `${VALUE_LIST_KEY} on a property whose vocabulary a head resolves, so what the members bound is undeclared`,
+		};
+	}
+	const values = property[VOCABULARY_MEMBERS_KEY];
+	if (!isStringArray(values) || values.length === 0) {
+		return {
+			kind: "unrenderable",
+			detail: `a ${VOCABULARY_MEMBERS_KEY} that is not a non-empty list of strings`,
+		};
+	}
+	const source = property[VOCABULARY_SOURCE_KEY];
+	if (typeof source !== "string" || source === "") {
+		return {
+			kind: "unrenderable",
+			detail: `a ${VOCABULARY_SOURCE_KEY} that is not a non-empty string`,
+		};
+	}
+	if (VOCABULARY_RESOLVERS[source] !== undefined) {
+		return { kind: "prompt", prompt: { kind: "vocabulary", source } };
+	}
+	return { kind: "prompt", prompt: { kind: "text" } };
 }

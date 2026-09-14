@@ -220,6 +220,59 @@ test("each published property shape classifies as the prompt it earns", () => {
 	});
 });
 
+// Members beside a source is the shape dinah-498 added, for an argument whose
+// whole set only a head can resolve and whose members this process can still
+// name. The resolvable source wins, because the resolved answer is the
+// complete one. A source this build carries no resolver for falls to free
+// text rather than to the members, because offering the members as a choice
+// would refuse the very names the source exists to reach, and rather than to
+// an exclusion, because excluding it would take `set` out of the palette over
+// an argument a reader can perfectly well type.
+test("members beside a source are the wider set's members and never its bound", () => {
+	assert.deepEqual(
+		classifyProperty({
+			type: "string",
+			"x-dinah-vocabulary-members": ["severity", "title"],
+			"x-dinah-vocabulary-source": "columns",
+		}),
+		{ kind: "prompt", prompt: { kind: "vocabulary", source: "columns" } },
+	);
+	assert.deepEqual(
+		classifyProperty({
+			type: "string",
+			"x-dinah-vocabulary-members": ["severity", "title"],
+			"x-dinah-vocabulary-source": "fields",
+		}),
+		{ kind: "prompt", prompt: { kind: "text" } },
+	);
+	for (const property of [
+		{
+			type: "string",
+			"x-dinah-vocabulary-members": [],
+			"x-dinah-vocabulary-source": "fields",
+		},
+		{
+			type: "string",
+			"x-dinah-vocabulary-members": ["severity"],
+			"x-dinah-vocabulary-source": "fields",
+			"x-dinah-value-list": true,
+		},
+		{
+			type: "string",
+			"x-dinah-vocabulary-members": ["severity"],
+			"x-dinah-vocabulary-source": "fields",
+			enum: ["severity"],
+		},
+	]) {
+		const verdict = classifyProperty(property);
+		assert.equal(
+			verdict.kind,
+			"unrenderable",
+			`wanted ${JSON.stringify(property)} refused, got ${JSON.stringify(verdict)}`,
+		);
+	}
+});
+
 test("a shape this build has no rule for is unrenderable and says which", () => {
 	// The singular spelling is in here on purpose. dinah publishes the source
 	// `columns`, and a resolver table keyed on `column` would match nothing

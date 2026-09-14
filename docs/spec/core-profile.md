@@ -1,6 +1,6 @@
 # The core profile
 
-Version identity: `dinah-core 0.15`, maturity channel `dev`.
+Version identity: `dinah-core 0.16`, maturity channel `dev`.
 
 ## 1. Scope and audience
 
@@ -55,7 +55,7 @@ that would bring it in.
 
 ## 2. Version identity and compatibility
 
-This document is version 0.15 of the profile whose identity string is
+This document is version 0.16 of the profile whose identity string is
 `dinah-core`. The version of this profile is a property of this document. It
 is unrelated to the release numbering of any tool, and a tool's own version
 number tells a reader nothing about which profile version that tool
@@ -92,7 +92,7 @@ in the changelog like any other change, and the promise starts to bind at
 that event. The move of this document's own major number from 0 to 1 is a
 named event of the same kind, recorded in the entry that promotes the
 document to `stable`, so no revision is ever `dev` or `beta` and major 1 at
-once. A conformance claim names `dinah-core 0.15` and says nothing about
+once. A conformance claim names `dinah-core 0.16` and says nothing about
 the channel, because the channel belongs to the document's history and the
 number belongs to the contract.
 
@@ -330,6 +330,9 @@ one of three and says whether cards enter there, are worked there, or come to
 rest there. A block's kind names the class of the obstacle and is drawn from
 whatever set a workbench finds useful. A link's kind names what one card is
 to another and is drawn from whatever set a workbench finds useful.
+
+**Field.** One fact about a workbench, a column or a card that the workbench
+definition declares a place for, named by a key and carrying a value.
 
 **Flow.** The ordered sequence of a workbench's columns.
 
@@ -631,7 +634,7 @@ with the meanings RFC 8259 gives them.
 
 ```json
 {
-  "profile": "dinah-core/0.15",
+  "profile": "dinah-core/0.16",
   "title": "Wedding",
   "columns": [
     { "id": "s1", "title": "Ideas",   "kind": "intake" },
@@ -653,6 +656,10 @@ with the meanings RFC 8259 gives them.
 [CORE-JSON-5] Each element of `columns` MUST be a JSON object carrying the members `id`, `title` and `kind`.
 
 [CORE-JSON-10] A column object MAY carry the members `instructions`, `operator_owned`, `capacity`, `slug`, and `gate_items`.
+
+[CORE-JSON-11] The interchange object MAY carry the members `fields` and `field_values`.
+
+[CORE-JSON-12] A column object MAY carry the members `field_values` and `require_fields`.
 
 [CORE-JSON-7] A tool MUST preserve the members it does not recognize in an interchange object it has read and written back.
 
@@ -736,6 +743,83 @@ verb produced it.
 
 [CORE-ITEM-4] A structured item MAY name a column of the workbench that carries it.
 
+### 5.10 Fields a workbench declares
+
+A workbench usually tracks a fact about every card that this profile has no
+place for. The date a deposit falls due, the supplier a card is about, the
+short name under which the work for it is kept somewhere else: each is a fact
+a later step reads, and each of them, with nowhere to live, ends up in prose
+where the next step is told to go and look for it. Prose is where a second
+tool cannot find it, where nothing notices a misspelling, and where no
+requirement can ever rest.
+
+So a workbench definition may declare fields of its own. The core owns the
+slot and the rules a value is written under; the workbench owns the names that
+go in it, and no part of this profile enumerates them. A declaration carries
+three things: the key a reader types, the type its value takes, and one line
+of prose saying what the field means. It may also name the entity kinds the
+field applies to, and a declaration naming none applies to all three.
+
+A key is two or more segments joined by full stops, as in
+`venue.deposit-paid`. The full stop is what keeps a workbench's own name out
+of the namespace this revision and every later one mint names in, which is the
+separation DOC-LAYER-1 already fixes from the other side. A hyphen joins the
+words of one name and a full stop separates the levels of a hierarchy, so a
+workbench that needs a key to mean one thing everywhere makes its first
+segment a name it controls.
+
+A value is one scalar and never a list or a nested object. A fact that wants
+either is a document, and a workbench already has places for a document: the
+prose an entity carries, and whatever a tool attaches to it.
+
+A key the workbench does not declare is refused on the way in and kept on the
+way out, and the asymmetry is the point. A definition nothing enforces is a
+comment, and the failure a declaration exists to catch is one step writing a
+key one letter away from the one every later step reads. Preservation is the
+other half: a card that arrived from somewhere else, or one somebody edited by
+hand, carries keys this workbench never declared, and CORE-LAYER-2 already
+requires content a tool does not understand to survive. A tool that refused to
+report such a value would make that preservation unobservable.
+
+Where a value is carried matters, and it matters in exactly one place. Section
+9 makes the top level of the workbench definition the namespace a layer
+declares itself in, a layer's name is required to contain a full stop, and a
+declared field key contains one by construction. A value written at that top
+level would therefore be indistinguishable from a layer declaration that a
+second tool is required to preserve and may be required to refuse. The rule
+below removes the question instead of answering it: a value is carried under a
+member of its own, the top level stays the layer namespace, and nothing under
+that member is ever read as a declaration.
+
+A column may require a field. The requirement is a property of the column
+rather than of the workbench as a whole, the way a capacity limit is, and it
+reads only the card arriving: a card that carries no value under a key the
+column requires does not enter. The way through is the way through a capacity
+limit, for the reason given there, and the operator marks the request as an
+override.
+
+[CORE-FIELD-1] A workbench definition MAY declare fields of its own, each named by a key and carrying a type and a meaning.
+
+[CORE-FIELD-2] A declared field's key MUST be two or more segments joined by full stops, where a segment begins with a lowercase letter, ends with a lowercase letter or a digit, and carries lowercase letters, digits and single interior hyphens between the two.
+
+[CORE-FIELD-3] A declared field's type MUST be one of `string`, `number`, `boolean`, `url` and `date`.
+
+[CORE-FIELD-4] A declared field's declaration MAY name the entity kinds it applies to, and a declaration naming none applies to a workbench, a column and a card alike.
+
+[CORE-FIELD-5] A declared field's value MUST be one scalar.
+
+[CORE-FIELD-6] A tool MUST refuse a write of a value under a key the workbench does not declare for the kind of entity the request names, reporting the refusal name `undeclared-field`.
+
+[CORE-FIELD-7] A tool MUST preserve a value it finds stored under a key the workbench does not declare.
+
+[CORE-FIELD-8] A tool MUST NOT refuse a read of a value on the ground that the key it is stored under is one the workbench does not declare.
+
+[CORE-FIELD-9] A tool MUST carry a declared field's value under a member of its own rather than under a name at the top level of the entity that carries it.
+
+[CORE-FIELD-10] A workbench definition MAY mark a column as requiring a card to carry a value under a named declared field before that card enters it.
+
+[CORE-FIELD-11] A tool MUST refuse a move into a column so marked, reporting the refusal name `missing-field`, while the card carries no value under a key that column requires, except where the request carries an override marker and the owner asking is the operator of the workbench.
+
 ## 6. The verbs
 
 Every verb reports an outcome, and the outcomes are kept apart deliberately.
@@ -763,10 +847,10 @@ statement that names it:
 unknown-card, unknown-column, unsupported-version, held, not-requester,
 blocked, not-blocked, not-holder, at-capacity, not-operator,
 no-operator, no-owner, no-reason, terminal, malformed, layer-collision,
-unresolved-item
+unresolved-item, undeclared-field, missing-field
 ```
 
-One of the seventeen is general where the others are particular. Something
+One of the nineteen is general where the others are particular. Something
 offered to a tool without what section 5 requires it to carry is refused as
 `malformed`, because a separate name for each missing title and each absent
 member would leave a caller holding a dozen names it cannot act on
@@ -911,6 +995,7 @@ waiting.
 7  the move is not a forward move out of a `done` column terminal
 8  the destination is below its capacity limit          at-capacity
 9  the card carries no unresolved item that names the destination unresolved-item
+10  the card carries a value for every field the destination requires missing-field
 ```
 
 Effect: the card's column becomes the destination.
@@ -1305,6 +1390,7 @@ quietly.
 | Measurement and reporting over a workbench's history | out | History is already in the core, and a measurement is a reading of it. Fixing the measurements would freeze somebody's dashboard into the contract. | Two tools must produce identical numbers from identical history. | |
 | Free prose attached to a card by its readers [comments] | out | The core loses nothing, because no verb consults prose, and a workbench can hold conversation in any field it likes. | A recorded act needs to reference a piece of that prose. | |
 | Structured items on a card recording judgements | in | Two rulings need one name a caller can act on: a move into a column marked as requiring an item resolved is refused while that item is unresolved, and a claim is refused by an unresolved item naming no column the workbench declares. Both are the same concept, an item that is not yet resolved, so the core takes the item's existence, whether it is resolved, and the column it names, and fixes the one refusal name either case reports, without fixing what a workbench tracks about the item beyond that. The claim refusal was first stated over every unresolved item a card carried, which refused the claim at every column ahead of the one meant to settle the item; narrowing it to the items that name no column is what leaves every other item to the column it names. | | CORE-ITEM-1, CORE-ITEM-2, CORE-ITEM-3, CORE-ITEM-4, CORE-CLAIM-10 |
+| Fields a workbench declares for itself | in | Every workbench tracks facts this profile has no place for, and a fact with nowhere to live ends up in prose, where a second tool cannot find it and where no requirement can rest. The core takes the slot and the rules a value is written under, and leaves the names to the workbench, so nothing here enumerates anybody's domain. The scalar rule is what keeps the slot from becoming a second body: a fact wanting a list or a nested object is a document, and a workbench already has places for one. Where a value is carried is fixed too, because the top level of a workbench definition is the namespace section 9 gives a layer, and a key with a full stop in it would be indistinguishable there from a layer declaration. A column requiring one is the same concept read at the moment a card arrives, so it rides on this row rather than on one of its own. | | CORE-FIELD-1, CORE-FIELD-2, CORE-FIELD-3, CORE-FIELD-4, CORE-FIELD-5, CORE-FIELD-6, CORE-FIELD-7, CORE-FIELD-8, CORE-FIELD-9, CORE-FIELD-10, CORE-FIELD-11, CORE-JSON-11, CORE-JSON-12 |
 | The link a card carries to another card | in | Owners record that one card repeats, follows from or bears on another whether or not the contract has a place for it, and a reference kept in prose is text to the second tool rather than a reference. The kind stays open on the same ground as a block's kind, since nothing in the core consults it, and the card a link names stays inside the workbench because the profile is scoped to one throughout. The behaviour such a reference might carry is a separate concept and is ruled out in the row below. | | CORE-LINK-1, CORE-LINK-2, CORE-LINK-3, CORE-LINK-4, CORE-LINK-5, CORE-LINK-6 |
 | Behaviour attached to a reference between cards [dependency ordering, ready-work listing] | out | The core would gain enforcement whose meaning each workbench sets differently, and what a workbench should do about a reference is exactly the judgement that differs between them. A tool that wants one card to hold another back declares a layer and refuses under that layer's own name, which CORE-LINK-5 leaves it free to do. | A relationship must refuse an act, such as one card holding another back. | |
 | Documents belonging to a workbench rather than a card | out | Standing prose already has a home in the workbench's instructions, so a second one would be a slot with no rule attached. | A document must be served differently from the standing instructions. | |
@@ -1316,7 +1402,7 @@ quietly.
 | Several people sharing one workbench, and who may do what | out | The core names an owner on every act and reserves some acts to the operator, which is the whole of what the model needs. Anything further is deployment. | Two tools must agree on a permission, rather than each enforcing its own. | |
 | Proving that an owner name belongs to whoever presents it | out | A single-person tool has nobody to prove anything to, and a shared one has its own means. Fixing one would exclude both. No statement of this profile rests on the question, which is why section 5.4 settles it in prose: the core neither requires such proof nor forbids it. | Two tools must accept each other's evidence about an owner. | |
 
-Rows ruled in: 37. Rows ruled out: 22. Total rows: 59.
+Rows ruled in: 38. Rows ruled out: 22. Total rows: 60.
 
 ### 10.1 Walking a wedding through the whole profile
 
@@ -1489,6 +1575,8 @@ themselves carry meaning.
 | CORE-JSON-4 | must | tool | The order of `columns` in the written object is the order of the flow. |
 | CORE-JSON-5 | must | tool | Every element of `columns` carries `id`, `title` and `kind`, and an element missing one of them is refused with `malformed`. |
 | CORE-JSON-10 | may | tool | A column object carrying `slug` or `gate_items` alongside `instructions`, `operator_owned`, or `capacity` is accepted. |
+| CORE-JSON-11 | may | tool | An interchange object carrying `fields` or `field_values` is accepted. |
+| CORE-JSON-12 | may | tool | A column object carrying `field_values` or `require_fields` is accepted. |
 | CORE-JSON-7 | must | tool | An interchange object read and written back carries the unrecognized member it arrived with. |
 | CORE-JSON-8 | may | tool | A tool holding definitions in some other form still produces the interchange form on request. |
 | CORE-LINK-1 | may | tool | A card offered with a link is accepted. |
@@ -1501,6 +1589,17 @@ themselves carry meaning.
 | CORE-ITEM-2 | must | tool | For a structured item the tool reports, the tool answers whether that item is resolved. |
 | CORE-ITEM-3 | must not | tool | A refusal of a claim or a move on the ground that a card carries an unresolved structured item carries no refusal name other than `unresolved-item`. |
 | CORE-ITEM-4 | may | tool | A structured item naming a column of its own workbench is accepted. |
+| CORE-FIELD-1 | may | tool | A workbench definition declaring a field of its own, with a key, a type and a meaning, is accepted. |
+| CORE-FIELD-2 | must | tool | A key of two or more well-formed segments joined by full stops is declared, and a key of any other shape is not. |
+| CORE-FIELD-3 | must | tool | A declaration naming a type outside `string`, `number`, `boolean`, `url` and `date` declares nothing. |
+| CORE-FIELD-4 | may | tool | A declaration naming entity kinds reaches those kinds, and one naming none reaches a workbench, a column and a card alike. |
+| CORE-FIELD-5 | must | tool | A value that is not one scalar is refused. |
+| CORE-FIELD-6 | must | tool | A write under a key the workbench does not declare for the kind named is refused with `undeclared-field`. |
+| CORE-FIELD-7 | must | tool | A value stored under an undeclared key is still stored after a read and a write of its neighbours. |
+| CORE-FIELD-8 | must not | tool | No read of a value is refused on the ground that its key is undeclared. |
+| CORE-FIELD-9 | must | tool | No declared field's value is written at the top level of the entity that carries it. |
+| CORE-FIELD-10 | may | tool | A column marked as requiring a named declared field is accepted. |
+| CORE-FIELD-11 | must | tool | A move into a column so marked is refused with `missing-field` while the card carries no value under a key it requires, unless the operator carries an override marker. |
 | CORE-OUT-1 | must | tool | Every verb response carries exactly one of the four outcome tokens. |
 | CORE-OUT-2 | must | tool | Every response of `refused` carries exactly one refusal name. |
 | CORE-OUT-3 | must | tool | Every refusal name reported is one section 6.1 declares or one containing a full stop. |
@@ -1574,12 +1673,12 @@ themselves carry meaning.
 | CORE-LAYER-2 | must | tool | A workbench carrying a declared layer the tool does not understand still carries that layer's content after a read and a write. |
 | CORE-LAYER-3 | must | tool | A definition declaring a layer under a name this profile defines is refused with `layer-collision`. |
 
-The index carries 140 rows, which is the number of identifiers an extraction
+The index carries 153 rows, which is the number of identifiers an extraction
 over this revision returns.
 
 ## 12. Changelog
 
-The current revision is `dinah-core 0.15`. Entries below stay in the order
+The current revision is `dinah-core 0.16`. Entries below stay in the order
 they were published rather than in numeric order. The fourth entry renamed
 the first three from `1.0`, `2.0`, and `3.0` to `0.1`, `0.2`, and `0.3`, so
 it reads here as a drop from `3.0` to `0.4` even though nothing was undone.
@@ -2159,3 +2258,46 @@ declares. Nothing that was admitted before is refused now, because every item
 the older rule refused over that names no declared column is refused still.
 The document sits on the `dev` channel, so nothing here binds a caller who has
 not already opted into `dinah-core 0.15`.
+
+### 0.16, channel `dev`, 2026-09-14
+
+Identifiers affected: CORE-FIELD-1 through CORE-FIELD-11, introduced, which
+are the fields a workbench declares for itself and the column requirement
+built on them. CORE-JSON-11, introduced, which blesses the four interchange
+members those fields travel under. CORE-JSON-12, introduced, which does the
+same for the two a column object carries. No identifier of the prior revision is
+retired, reworded or weakened.
+
+The difference is a minor increment under DOC-VER-8, which classifies a
+revision whose difference falls under none of the other rules, and DOC-VER-11
+is satisfied because every identifier of 0.15 appears in this extraction. The
+section 6.4 precondition list grows a tenth row, which DOC-ORDER-2 requires a
+minor increment for while the major number is still 0, and this revision
+carries that increment already.
+
+A workbench tracks facts this profile has no place for, and until now such a
+fact had to live in prose that a later step was told to go and read. Prose is
+where a second tool cannot find a fact, where nothing notices a misspelling,
+and where no requirement can rest. So the core gains the slot and the rules a
+value is written under, and leaves every name to the workbench: a declaration
+carries a key, a type drawn from five, one line of prose, and optionally the
+entity kinds it reaches.
+
+Two rules in that set are worth reading twice. A value is carried under a
+member of its own rather than at the top level of the entity that carries it,
+because section 9 makes that top level the namespace a layer declares itself
+in, a layer's name is required to contain a full stop, and a declared field's
+key contains one by construction. A value written there could not be told from
+a layer declaration a tool is required to preserve and may be required to
+refuse. And a key the workbench does not declare is refused on a write while
+being preserved and reported on a read, because CORE-LAYER-2 already requires
+a tool to keep what it does not understand, and a tool that refused to report
+such a value would make that requirement unobservable.
+
+Consequence for a caller. Two refusal names join section 6.1's closed set,
+which moves it from seventeen names to nineteen, so a caller that enumerated
+the seventeen now meets two names it has not seen. Nothing admitted before is
+refused now: a workbench that declares no field can raise neither name, and
+`undeclared-field` reaches only a write under a dotted key, which no earlier
+revision defined a meaning for. The document sits on the `dev` channel, so
+nothing here binds a caller who has not already opted into `dinah-core 0.16`.

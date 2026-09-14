@@ -226,10 +226,11 @@ var archivedResolutionFamilies = []resolutionFamily{
 	{
 		name: "E", axis: "reading",
 		what:      "rendering a card's human reference: every call whose selector is Ref and which carries exactly one argument",
-		files:     8,
-		mentions:  16,
-		functions: 14,
+		files:     9,
+		mentions:  20,
+		functions: 15,
 		sites: []resolutionSite{
+			{"internal/bench/branchmigrate.go", "MigrateBranches", 4, "naming a card in the branch migration's own report, four times over the four classes it sorts a card into; the run walks the live half alone, on the rule MigrateNumbers keeps for the archive, so no archived card reaches these calls"},
 			{"internal/bench/check.go", "checkTierOverrides", 1, "naming a card in a finding"},
 			{"internal/bench/check.go", "checkItemColumns", 1, "naming a card in a finding"},
 			{"internal/bench/resolve.go", "resolveReferenceBody", 2, "composing the reference a resolution answers with"},
@@ -249,10 +250,11 @@ var archivedResolutionFamilies = []resolutionFamily{
 	{
 		name: "F", axis: "reading",
 		what:      "reading the number out of frontmatter: every basic string literal \"number\"",
-		files:     3,
-		mentions:  6,
-		functions: 4,
+		files:     4,
+		mentions:  7,
+		functions: 5,
 		sites: []resolutionSite{
+			{"internal/bench/declaredfields.go", "<package-level>", 1, "FieldTypeNumber, the name of one of the five types a declared field may take; it is the word number and never a card's number, and nothing reads a frontmatter key with it"},
 			{"internal/bench/card.go", "stamp", 1, "c.FM.Value(\"number\"), the below-format half of the stamping reader, where the legacy read path still takes the number from the card's own frontmatter"},
 			{"internal/bench/check.go", "checkCardNumbers", 1, "card.FM.Has(\"number\"), the in-frontmatter finding, which reports a card on a migrated workbench still carrying the key"},
 			{"internal/bench/numbermigrate.go", "readMigrant", 2, "fm.Has(\"number\") and fm.Value(\"number\"), the free reader the migration reads pre-registry anchors through, where a stamping reader would answer nothing the run can use"},
