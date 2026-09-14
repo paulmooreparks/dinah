@@ -52,3 +52,8 @@
 {"ts":"2026-09-14T02:30:17Z","event":"item_verified","actor":"paul","from":"pending","to":"verified","item":"b6aa798f9ea2"}
 {"ts":"2026-09-14T02:30:17Z","event":"item_verified","actor":"paul","from":"pending","to":"verified","item":"e1cb0a21e3a5"}
 {"ts":"2026-09-14T02:30:17Z","event":"item_verified","actor":"paul","from":"pending","to":"verified","item":"156ee063fd52"}
+{"ts":"2026-09-14T02:33:25Z","event":"item_filed","actor":"paul","kind":"open_question","item":"43dd7b978e1c"}
+{"ts":"2026-09-14T02:34:42Z","event":"commented","actor":"paul","comment":"546178fab618"}
+{"ts":"2026-09-14T02:34:42Z","event":"item_updated","actor":"paul","to":"See the comment on this card for the three shapes and their costs, and dinah-494 for why the argument is not in this note.","field":"note","note":"43dd7b978e1c"}
+{"ts":"2026-09-14T02:35:24Z","event":"item_reopened","actor":"paul","from":"verified","to":"pending","reason":"carrying the corrected note","item":"069cf47385ab"}
+{"ts":"2026-09-14T02:35:24Z","event":"item_verified","actor":"paul","from":"pending","to":"verified","item":"069cf47385ab"}
