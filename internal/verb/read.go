@@ -1075,11 +1075,11 @@ func (l *Library) detailOf(card *bench.Card, chosen detailSelection) (*Detail, *
 			Note:    item.Note,
 		}
 		view.Ref = itemRef(cardRef, item.Kind, kindPosition[item.Kind], position)
-		itemComments, err := bench.Comments(item.Dir)
+		count, err := bench.CountComments(item.Dir)
 		if err != nil {
 			return nil, nil, "", err
 		}
-		view.CommentCount = len(itemComments)
+		view.CommentCount = count
 		if item.Column != "" {
 			if column := l.Bench.Column(item.Column); column != nil {
 				view.ColumnTitle = column.Title

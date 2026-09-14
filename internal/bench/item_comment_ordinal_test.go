@@ -1,6 +1,7 @@
 package bench
 
 import (
+	"os"
 	"path/filepath"
 	"strconv"
 	"testing"
@@ -167,5 +168,51 @@ func TestOrdinalCheckAndMigrationReachAnItemsComments(t *testing.T) {
 		if finding.Key == FindingOrdinalMissing {
 			t.Errorf("check still reports %s after the migration ran: %+v", FindingOrdinalMissing, finding)
 		}
+	}
+}
+
+// TestCountCommentsAnswersWithoutOpeningAnAnchor asserts dinah-502 Agent Code
+// Review round 1's second minor finding: CountComments answers a checklist
+// item's comment count from the directory listing alone, the way
+// CountAttachments already answers an attachment count, rather than opening
+// and parsing every comment's own anchor the way Comments does.
+//
+// The fixture plants a comment directory carrying no anchor file at all,
+// which Comments reads past (an unreadable comment is a defect check
+// reports rather than one a read discovers) and which a read-every-anchor
+// implementation would therefore undercount by one. CountComments has to
+// count it anyway, because it answers from ListIDs and never opens the file
+// whose absence is what Comments skips on.
+//
+// Arming: writing CountComments in terms of len(Comments(...)) instead of
+// len(ListIDs(...)) reddens this test, since the comment with no anchor
+// would then be silently dropped from the count.
+func TestCountCommentsAnswersWithoutOpeningAnAnchor(t *testing.T) {
+	root := newFixture(t)
+	itemDir := filepath.Join(root, CardsDir, "c00000000001", ChecklistDir, "d00000000001")
+	writeItem(t, root, "d00000000001", 1)
+	writeItemComment(t, root, "d00000000001", "f00000000001", "2026-08-17T09:01:00Z", 1, "a readable comment")
+
+	// A comment directory with no anchor file: ListIDs still names it,
+	// because ListIDs reads the directory rather than the file inside it,
+	// and Comments skips it, because ReadText on the missing anchor fails.
+	if err := os.MkdirAll(filepath.Join(itemDir, CommentsDir, "f00000000002"), 0o755); err != nil {
+		t.Fatalf("mkdir the anchorless comment: %v", err)
+	}
+
+	loaded, err := Comments(itemDir)
+	if err != nil {
+		t.Fatalf("Comments: %v", err)
+	}
+	if len(loaded) != 1 {
+		t.Fatalf("Comments loaded %d, wanted 1 (the anchorless directory is not a comment Comments can read)", len(loaded))
+	}
+
+	counted, err := CountComments(itemDir)
+	if err != nil {
+		t.Fatalf("CountComments: %v", err)
+	}
+	if counted != 2 {
+		t.Errorf("CountComments answered %d, wanted 2 (the directory listing, not the loaded comments)", counted)
 	}
 }
