@@ -1335,9 +1335,9 @@
       "source": "199d469bb36d196c"
     },
     "param.file.owner.summary": {
-      "text": "für wen der Punkt gedacht ist, auf dem Punkt festgehalten und nie erzwungen",
-      "context": "The written meaning of file's owner flag. It says the value is recorded rather than checked, so a reader does not take it for an authorisation.",
-      "source": "f9ad74968b960ee7"
+      "text": "für wen der Punkt gedacht ist; einen Punkt, dessen Akteur operator lautet, kann nur der Betreiber abschließen",
+      "context": "The written meaning of file's owner flag. It says that an item whose owner reads operator is the workbench operator's to settle, because resolve, verify and fail are refused not-operator to anybody else on such an item.",
+      "source": "517c2d4bd61f1c36"
     },
     "param.file.text.summary": {
       "text": "der eigene Text des Punktes, in einem Shell-Wort oder in Anführungszeichen; ein einzelnes - liest ihn aus einer Pipe",

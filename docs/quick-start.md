@@ -142,9 +142,10 @@ you passed `rel` above, the first card you file here will be `rel-1`, the second
 `rel-2`, and so on. If you don't provide a slug with the `--slug` option, Dinah
 will derive one from the directory name.
 
-The operator owns the workbench and answers for it. Only the operator can lift a
-block or force a move past a limit. If you leave that seat empty, nobody can
-perform those actions. If you don't name an operator with the `--operator`
+The operator owns the workbench and answers for it. Dinah refuses the lifting of
+a block, and the forcing of a move past a limit, to every actor it does not read
+as that operator. If you leave that seat empty, nobody can perform those
+actions. If you don't name an operator with the `--operator`
 option, Dinah records whoever you are acting as.
 
 You run every command from here on inside the workbench directory, and you never
@@ -176,10 +177,22 @@ ana, operator: yes
 ```
 
 `whoami` tells you who you are acting as and whether you are the operator. You
-want that second answer, because Dinah lets the operator do things it will not
-let anybody else do. Dinah keeps your settings in `config.md`, under `.dinah` in
-your home directory. They belong to you rather than to the workbench, and they
-follow you to every workbench you work.
+want that second answer, because Dinah refuses a named set of acts to every
+actor it does not read as the operator.
+
+Read that refusal for what it is before you rely on it. The `--actor` flag
+outranks both the environment variable and the configuration file, so an
+invocation that names the operator on the flag is treated as the operator no
+matter which name you wrote down above. Anybody who can edit the files under
+`.dinah` does not need even that much: `dinah path` hands over the file an
+item is stored in, the item's state is a line of frontmatter in it, and
+`dinah check` reports no defect once the line has been changed by hand. The
+comparison is there so that you do not act under the wrong name by accident,
+and it will not stop somebody who means to.
+
+Dinah keeps your settings in `config.md`, under `.dinah` in your home
+directory. They belong to you rather than to the workbench, and they follow you
+to every workbench you work.
 
 If you do not give `config` an argument, Dinah lists every setting it knows, the
 value each one currently resolves to, and where that value came from:
@@ -256,9 +269,9 @@ count is how many cards stand there. Dinah runs the flow in the order
 it forward, and when you move it to an earlier column you move it backward.
 
 The last column says who may move a card out of the column. It reads `agent` for
-a column anybody can work and `operator` for one where the departure is the
-operator's alone, and you choose the second by writing `operator_owned: true`
-into the column's own file. Every column starts out an agent's.
+a column anybody can work and `operator` for one where Dinah refuses the
+departure to every actor but the operator, and you choose the second by writing
+`operator_owned: true` into the column's own file. Every column starts out an agent's.
 
 The column before it says whether work is taken up at the column at all, and it
 reads one of three things. It reads `taken` for a column where somebody works a
@@ -501,8 +514,8 @@ at-capacity column doing has reached its limit; move a card out of doing first, 
 [exit 2]
 ```
 
-Only the operator can carry a card through a full column, and Dinah records the
-override:
+Dinah refuses a move into a full column to any owner not carrying the
+operator's override marker, and it records the override:
 
 ```console
 $ dinah pull doing --override
@@ -664,8 +677,8 @@ Blocked, waiting on the operator:
 [exit 0]
 ```
 
-Only the operator can lift a block. When you block a card, you hand the obstacle
-to whoever answers for the workbench:
+Dinah refuses `unblock` to every actor but the operator. When you block a card,
+you hand the obstacle to whoever answers for the workbench:
 
 ```console
 $ dinah unblock rel-2 --actor bo
@@ -917,8 +930,9 @@ workstream/autumn  Autumn release  [finished]
 [exit 0]
 ```
 
-A workstream that already exists can still be renamed, and that write belongs
-to the operator rather than to whoever created it. Changing the slug needs
+A workstream that already exists can still be renamed, and Dinah refuses that
+write to every actor but the operator, whoever created the workstream. Changing
+the slug needs
 `--yes`, because every reference to the workstream you have written down
 elsewhere names the old one:
 

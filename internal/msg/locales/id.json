@@ -1332,8 +1332,8 @@
       "skeleton": true
     },
     "param.file.owner.summary": {
-      "text": "who the item is meant for, recorded on the item and never enforced",
-      "context": "The written meaning of file's owner flag. It says the value is recorded rather than checked, so a reader does not take it for an authorisation.",
+      "text": "who the item is meant for; an item whose owner reads operator is the workbench operator's to settle",
+      "context": "The written meaning of file's owner flag. It says that an item whose owner reads operator is the workbench operator's to settle, because resolve, verify and fail are refused not-operator to anybody else on such an item.",
       "skeleton": true
     },
     "param.file.text.summary": {

@@ -1,0 +1,50 @@
+# The retired authority sentences.
+#
+# Each entry below is one sentence the documentation used to carry, in the
+# bytes it carried, and dinah-495 retired every one of them. They asserted
+# that the operator alone can do a thing, or that an act belongs to him, and
+# each was replaced by a description of the refusal Dinah performs. The
+# difference is that the refusal is true as written: the actor ladder puts the
+# `--actor` flag above the environment and the config, so any caller presents
+# the operator's name for the cost of one flag, and a caller who can write the
+# files under `.dinah` settles an item with an editor and no verb at all.
+#
+# TestNoRetiredAuthoritySentenceStandsInTheDocumentation reads this file. It
+# flattens each document to single spaces before searching, so a re-wrap, a
+# reflow, or a copy pasted back at a different column width still fails. What
+# it keys on is the retired bytes, which is what makes it unevadable for the
+# sentences it holds.
+#
+# What it does not cover, and this is the limit worth meeting here rather than
+# discovering later. The ledger holds these nineteen sentences and nothing
+# else. Add `Only the operator can rename a column.` to
+# internal/guide/guides/verbs.md and the suite stays green, because no check
+# in the tree recognises the claim, only these strings. Recognising the claim
+# would mean recognising a claim rather than a string, and the string-shaped
+# approximations are a list of forbidden phrasings, which fits only the
+# phrasings somebody thought of, or a ledger over all 141 operator-mentioning
+# sentences of these twelve documents. dinah-495 D-6 records that call.
+#
+# A line opening with `#` is a comment and a blank line is ignored. Every
+# other line is one entry, flattened to single spaces exactly as the search
+# flattens the documents.
+
+The operator holds acts nobody else may take.
+A block frees the card and records why, and only the operator lifts one.
+Dinah assigns an operator to every workbench, the person who owns it and answers for it, and only that operator may lift a block, so a workbench with nobody in that seat has actions nobody can perform.
+The `operator_owned` flag on a column is the answer to whether that column is yours to move cards out of, and it repeats the rule in `initialize`.
+A card you name must exist, a card another owner holds is not yours to claim, and a card in an operator-owned column is not yours to move.
+Only the operator lifts a block, with `dinah unblock <card>`.
+Writing a hold is the operator's, the way every other write to a column is; reading it is open to anybody.
+A column may declare a limit on how much work it holds, and a move into a full column is refused; the operator may carry one through with `--override`, which is recorded on the move.
+`unblock` lifts a block, and only the operator may do it.
+Only the operator can lift a block or force a move past a limit.
+You want that second answer, because Dinah lets the operator do things it will not let anybody else do.
+It reads `agent` for a column anybody can work and `operator` for one where the departure is the operator's alone, and you choose the second by writing `operator_owned: true` into the column's own file.
+Only the operator can carry a card through a full column, and Dinah records the override:
+Only the operator can lift a block.
+A workstream that already exists can still be renamed, and that write belongs to the operator rather than to whoever created it.
+The invariants: `active` and the presence of claim fields imply each other; `blocked` carries a reason and is cleared only by the operator; `ready` means pullable.
+Clearing a block is the operator's act and is journaled.
+A column marked operator-owned is one an agent never moves a card out of; only the operator does.
+A column may declare both, and then the workbench waits there and only the operator moves the card onward.

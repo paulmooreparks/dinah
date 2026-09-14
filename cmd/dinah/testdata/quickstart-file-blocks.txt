@@ -16,6 +16,6 @@
 # why under `because=`. Every rule here is evaluated for every `file` block the
 # document carries, whether or not the comparison reaches that block.
 
-326 teaches=title reason=the section tells the reader to give the workbench a real title
-344 teaches=none because=every key this block writes either agrees with what dinah init wrote or is absent from it, so the block seeds the wip limit without overwriting anything the tool decided
-724 unwritten reason=notes.txt is a file the reader creates, so the tool wrote nothing here to hold it against
+339 teaches=title reason=the section tells the reader to give the workbench a real title
+357 teaches=none because=every key this block writes either agrees with what dinah init wrote or is absent from it, so the block seeds the wip limit without overwriting anything the tool decided
+737 unwritten reason=notes.txt is a file the reader creates, so the tool wrote nothing here to hold it against

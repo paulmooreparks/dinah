@@ -753,8 +753,11 @@ type ItemView struct {
 	// CardView.ColumnTitle resolves the card's own, absent when Column names
 	// no column this workbench still has.
 	ColumnTitle string `json:"column_title,omitempty"`
-	// Owner is who the item names as its answerer, recorded rather than
-	// enforced.
+	// Owner is who the item names as its answerer. bench.ItemOwnerOperator
+	// is the one value enforced against the actor, by closeItem, which
+	// refuses a terminal verb on such an item to anybody but the operator,
+	// and by SetField, which refuses a rewrite of this key on one. Every
+	// other value is enforced against nobody.
 	Owner string `json:"owner,omitempty"`
 	// Text is the item's own body: the judgement it records, unchanged from
 	// when it was filed.

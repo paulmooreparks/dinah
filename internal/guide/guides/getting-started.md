@@ -15,8 +15,9 @@ slug `proj`, Dinah names your workbench's first card `proj-1`. If you leave
 `--slug` out, Dinah derives one from the directory name.
 
 Dinah assigns an operator to every workbench, the person who owns it and
-answers for it, and only that operator may lift a block, so a workbench with
-nobody in that seat has actions nobody can perform. If you leave
+answers for it, and Dinah refuses the lifting of a block to every actor but
+that operator, so a workbench with nobody in that seat has actions nothing
+carries out. If you leave
 `--operator` out, Dinah records whoever you are acting as, called the actor;
 you carry that name on every action you take, and Dinah prints it back when
 you run `dinah whoami`.

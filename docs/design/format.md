@@ -342,8 +342,9 @@ that reversal and its cost.
 ### State
 
 `state` is one of `ready`, `active`, `blocked`. The invariants: `active`
-and the presence of claim fields imply each other; `blocked` carries a reason
-and is cleared only by the operator; `ready` means pullable. This maps onto
+and the presence of claim fields imply each other; `blocked` carries a reason,
+and the tool refuses the clearing of it to an actor who is not the operator;
+`ready` means pullable. This maps onto
 Andoneer's zone concept.
 
 ### Claims and blocks
@@ -353,8 +354,9 @@ string, see Actors below) and `claim_since` (a timestamp). Present together
 with `state: active`, absent together otherwise; check enforces the
 implication both ways. A block is `block_reason` (required, posed so the
 operator can answer it without opening the card) and optionally `block_kind`
-and `block_since`, present exactly when `state: blocked`. Clearing a block
-is the operator's act and is journaled.
+and `block_since`, present exactly when `state: blocked`. A clearing is
+refused to every actor the workbench does not record as its operator, and is
+journaled.
 
 ### What the card file carries
 
@@ -462,9 +464,9 @@ answers, unimplemented today.
 
 Each `columns/<id>/column.md` carries the column's own nature in frontmatter
 (title, kind, operator flag) and its instructions as the body. `kind` is one
-of `intake`, `work`, `done`, and `dinah.buffer`. A column marked
-operator-owned is one an agent never moves a card out of; only the operator
-does.
+of `intake`, `work`, `done`, and `dinah.buffer`. A move out of a column marked
+operator-owned is refused to anybody the workbench does not name as its
+operator.
 
 `dinah column new "<title>"` creates a column the same way a hand-authored
 `columns/<id>/column.md` plus a line in `workbench.md`'s own `columns:`
@@ -627,8 +629,8 @@ lands one in it. A card standing there is `ready` in the ordinary way and
 carries no block, and departure stays an ordinary move open to any owner, which
 is what separates this flag from `operator_owned` beside it: one answers whether
 work is taken up at the station, the other answers who may move a card on from
-it. A column may declare both, and then the workbench waits there and only the
-operator moves the card onward. Absent means false, and the value is exactly
+it. A column may declare both, and then the workbench waits there and the
+onward move is refused to every actor but the operator. Absent means false, and the value is exactly
 `true` or `false`, following `wip_limit` below rather than `operator_owned`,
 whose lenient reading takes anything else for false and says nothing about it.
 
@@ -2028,6 +2030,18 @@ the user config, and it refuses to write an event with no actor rather than
 inventing one. One seat running many agents is therefore many actors in one
 workbench, and that is what makes the journal's story readable after the
 fact.
+
+The tool nonetheless compares the actor it resolved against the operator the
+workbench records, and refuses a fixed set of acts by name when the two
+differ. That comparison is defeated twice over. The per-invocation flag
+outranks the environment and the config, so a caller who wants to present the
+operator's name writes it on the flag. And a workbench is files on disk, so a
+caller who can write those files sets any field and settles any item without
+going through a verb, leaving the journal with nothing to record. The
+comparison therefore separates names rather than people, which is the position
+a single-seat format with no account system has: it is the same stance as the
+paragraph above, carried through to the one place the tool does make a
+comparison, rather than an exception to it.
 
 ## Concurrency and atomicity
 

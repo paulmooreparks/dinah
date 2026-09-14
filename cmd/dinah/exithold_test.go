@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -559,5 +560,104 @@ func TestAnOperatorOwnedItemsOwnerIsTheOperatorsToRewrite(t *testing.T) {
 	claimed := runCLI(t, root, "set", "fx-1/questions/1", bench.ItemOwnerField, bench.ItemOwnerOperator, "--actor", "sam")
 	if claimed.code != contract.ExitCode(contract.OutcomeRefused) {
 		t.Fatalf("a non-operator wrote the operator's name onto an existing item: %d %s", claimed.code, claimed.errw)
+	}
+}
+
+// TestTheOperatorRefusalIsDefeatedByTheActorFlag is dinah-495 AC-3. The
+// refusal above is real and this test does not weaken it: what it establishes
+// is what the refusal costs a caller who wants past it, which is one flag.
+//
+// The ladder resolves the actor from the flag first, then from DINAH_ACTOR,
+// then from the user's config, so a shell standing as somebody who is not the
+// operator still yields the operator on an invocation that names him. Both
+// halves run against one workbench and one item, because a test that only
+// showed the refusal would pass against a build refusing everything and a test
+// that only showed the flag landing would pass against a build refusing
+// nothing.
+func TestTheOperatorRefusalIsDefeatedByTheActorFlag(t *testing.T) {
+	root, _ := operatorOwnedItem(t, "open_question")
+	t.Setenv("DINAH_ACTOR", "bo")
+
+	refused := runCLI(t, root, "resolve", "fx-1/questions/1", "answered")
+	if refused.code != contract.ExitCode(contract.OutcomeRefused) {
+		t.Fatalf("resolve as bo exited %d, wanted the refusal: %s", refused.code, refused.errw)
+	}
+	if name := refusalNameOf(refused.errw); name != contract.NotOperator {
+		t.Fatalf("the refusal name is %s, wanted %s", name, contract.NotOperator)
+	}
+	if state := soleItemState(t, root, "fx-1"); state != bench.ItemPending {
+		t.Fatalf("the refused resolve left the item at %q, so the refusal landed something", state)
+	}
+
+	landed := runCLI(t, root, "resolve", "fx-1/questions/1", "answered", "--actor", "alka")
+	if landed.code != 0 {
+		t.Fatalf("the same invocation naming the operator on the flag: %d %s", landed.code, landed.errw)
+	}
+	if state := soleItemState(t, root, "fx-1"); state != bench.ItemResolved {
+		t.Errorf("the item stands at %q after the flag named the operator, wanted %q", state, bench.ItemResolved)
+	}
+}
+
+// TestTheOperatorRefusalIsDefeatedByWritingTheFile is dinah-495 AC-4, and it
+// is the defeat that needs no flag. A workbench is files on disk, an item's
+// state is a line of frontmatter, and dinah path hands the caller the file, so
+// whoever holds the filesystem settles an operator-owned item with an editor.
+//
+// The test asserts what the tool says afterwards as well as what the file
+// says, because the point is not that a hand edit is possible but that nothing
+// downstream reports it: the item reads as settled, dinah check finds no
+// structural defect, and the journal carries no event saying it was settled.
+func TestTheOperatorRefusalIsDefeatedByWritingTheFile(t *testing.T) {
+	root, item := operatorOwnedItem(t, "open_question")
+	path := itemAnchorPath(t, root, "fx-1", item)
+
+	printed := runCLI(t, root, "path", "fx-1/questions/1")
+	if printed.code != 0 {
+		t.Fatalf("path: %d %s", printed.code, printed.errw)
+	}
+	if got := strings.TrimSpace(printed.out); got != path {
+		t.Fatalf("path printed %q, wanted the item's own anchor %q", got, path)
+	}
+
+	before, err := bench.ReadText(path)
+	if err != nil {
+		t.Fatalf("read the item: %v", err)
+	}
+	pending := bench.ItemStateField + ": " + bench.ItemPending
+	if !strings.Contains(before, pending) {
+		t.Fatalf("the anchor carries no %q line, so this test is not editing what it thinks it is:\n%s", pending, before)
+	}
+	edited := strings.Replace(before, pending, bench.ItemStateField+": "+bench.ItemResolved, 1)
+	if err := os.WriteFile(path, []byte(edited), 0o644); err != nil {
+		t.Fatalf("write the item: %v", err)
+	}
+
+	if state := soleItemState(t, root, "fx-1"); state != bench.ItemResolved {
+		t.Fatalf("the edited item reads %q, wanted %q", state, bench.ItemResolved)
+	}
+	shown := runCLI(t, root, "show", "fx-1")
+	if shown.code != 0 {
+		t.Fatalf("show: %d %s", shown.code, shown.errw)
+	}
+	if !strings.Contains(shown.out, bench.ItemResolved) {
+		t.Errorf("show does not report the item resolved:\n%s", shown.out)
+	}
+	checked := runCLI(t, root, "check")
+	if checked.code != 0 {
+		t.Errorf("check exited %d after the hand edit, wanted 0: %s %s", checked.code, checked.out, checked.errw)
+	}
+
+	journal := filepath.Join(soleBenchDir(t, root), bench.CardsDir, cardID(t, root, "fx-1"), bench.JournalName)
+	events, _, err := bench.ReadJournal(journal)
+	if err != nil {
+		t.Fatalf("read the journal: %v", err)
+	}
+	if len(events) == 0 {
+		t.Fatal("the card's journal is empty, so the absence asserted below would hold against a journal nothing ever wrote")
+	}
+	for _, event := range events {
+		if event.Event == contract.EventItemResolved {
+			t.Errorf("the journal records %s, so the hand edit was journaled after all", event.Event)
+		}
 	}
 }

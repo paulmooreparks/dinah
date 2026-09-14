@@ -28,23 +28,23 @@
 #             what holds the tree, or why nothing can.
 
 internal/guide/guides/getting-started.md:9 shows=commands
-internal/guide/guides/getting-started.md:42 shows=commands
-internal/guide/guides/getting-started.md:49 shows=commands
-internal/guide/guides/getting-started.md:56 shows=commands
-internal/guide/guides/getting-started.md:69 shows=commands
+internal/guide/guides/getting-started.md:43 shows=commands
+internal/guide/guides/getting-started.md:50 shows=commands
+internal/guide/guides/getting-started.md:57 shows=commands
+internal/guide/guides/getting-started.md:70 shows=commands
 internal/guide/guides/mcp.md:23 shows=json
 internal/guide/guides/mcp.md:27 shows=json
-internal/guide/guides/mcp.md:66 shows=json
-internal/guide/guides/mcp.md:70 shows=json
-internal/guide/guides/mcp.md:85 shows=json
-internal/guide/guides/mcp.md:109 shows=json fragment=members reason=the block shows the instructions member of a response rather than a whole document, so it is parsed inside a wrapping pair of braces
-internal/guide/guides/mcp.md:122 shows=json
-internal/guide/guides/mcp.md:157 shows=json
-internal/guide/guides/mcp.md:169 shows=json fragment=members reason=the block shows the two members a shaped answer withholds rather than a whole document, so it is parsed inside a wrapping pair of braces
-internal/guide/guides/mcp.md:195 shows=shell reason=the line drives a shell loop around dinah path, which no replay here runs
-internal/guide/guides/mcp.md:262 shows=json
-internal/guide/guides/mcp.md:266 shows=json
-internal/guide/guides/mcp.md:345 shows=json
-internal/guide/guides/mcp.md:358 shows=json
+internal/guide/guides/mcp.md:68 shows=json
+internal/guide/guides/mcp.md:72 shows=json
+internal/guide/guides/mcp.md:87 shows=json
+internal/guide/guides/mcp.md:111 shows=json fragment=members reason=the block shows the instructions member of a response rather than a whole document, so it is parsed inside a wrapping pair of braces
+internal/guide/guides/mcp.md:124 shows=json
+internal/guide/guides/mcp.md:159 shows=json
+internal/guide/guides/mcp.md:171 shows=json fragment=members reason=the block shows the two members a shaped answer withholds rather than a whole document, so it is parsed inside a wrapping pair of braces
+internal/guide/guides/mcp.md:197 shows=shell reason=the line drives a shell loop around dinah path, which no replay here runs
+internal/guide/guides/mcp.md:264 shows=json
+internal/guide/guides/mcp.md:268 shows=json
+internal/guide/guides/mcp.md:348 shows=json
+internal/guide/guides/mcp.md:361 shows=json
 internal/guide/guides/principles.md:29 shows=table command=columns
 internal/guide/guides/workbench-layout.md:6 shows=tree reason=TestTheLayoutGuideDrawsPathsTheToolWrites holds every path this block draws

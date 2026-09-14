@@ -12,8 +12,9 @@ queue with the lapse recorded.
 `move` carries a card to another column. It changes where the card is and
 nothing else, so a holder who moves a card still holds it and a waiting card
 that is moved is still waiting. A column may declare a limit on how much work
-it holds, and a move into a full column is refused; the operator may carry one
-through with `--override`, which is recorded on the move.
+it holds, and a move into a full column is refused; `--override` carries one
+through, Dinah refuses that marker to any actor but the operator, and the move
+records it.
 
 `release` gives a card back. Release it as soon as you stop working it, so
 that the queue is honest about what is available.
@@ -23,7 +24,8 @@ obstacles that stop real work are various. A block frees the card, which is
 what makes the obstacle visible as an obstacle rather than as somebody being
 slow.
 
-`unblock` lifts a block, and only the operator may do it. An obstacle raised
+`unblock` lifts a block, and Dinah refuses the verb to an actor the workbench
+does not record as its operator. An obstacle raised
 is an obstacle handed to whoever answers for the workbench.
 
 `pull` is not a sixth verb. It is a claim and a move run as one act, over a

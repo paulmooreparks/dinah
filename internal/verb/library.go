@@ -131,9 +131,12 @@ type Request struct {
 	Title string
 	// Text is a comment's body.
 	Text string
-	// Owner is the owner a checklist item names, blank for none said. It is
-	// recorded on the item and never enforced against the actor calling a
-	// terminal verb, on the terms Comment is unauthenticated today.
+	// Owner is the owner a checklist item names, blank for none said.
+	// bench.ItemOwnerOperator is the one value enforced against the actor
+	// calling a terminal verb: closeItem refuses resolve, verify and fail
+	// on such an item to anybody but the operator, and SetField refuses a
+	// rewrite of this key on one. Every other value is enforced against
+	// nobody, on the terms Comment is unauthenticated today.
 	Owner string
 	// Scheme and CiteTarget are a citation's scheme and the target that
 	// scheme names, each as the caller typed it. Nothing resolves either at
