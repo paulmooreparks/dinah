@@ -383,9 +383,13 @@ func (l *Library) pull(req *Request, card *bench.Card) *Response {
 	if refusal != nil {
 		return refusal
 	}
-	// A pull that takes the card up is a claim, so it answers CORE-CLAIM-9
-	// as a plain claim does. A --no-claim pull leaves the card ready and
-	// takes nothing up, so nothing about an unresolved item refuses it.
+	// A pull that takes the card up is a claim, so it answers CORE-CLAIM-10
+	// as a plain claim does. The rule reads the card's items against the
+	// columns the workbench declares and never the card's position, so asking
+	// it here, where the card has left one column and not yet landed at
+	// another, gets the same answer either column would have given. A
+	// --no-claim pull leaves the card ready and takes nothing up, so nothing
+	// about an unresolved item refuses it.
 	if !req.NoClaim {
 		if refusal := l.claimableItems(req, card); refusal != nil {
 			return refusal

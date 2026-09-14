@@ -198,7 +198,7 @@ func (h *harness) attach(ref, name, body string) {
 // because the format is a tree of plain files a person is meant to be able to
 // edit and these cases have to plant what no verb would write. The frontmatter
 // is written as text rather than through Frontmatter so that a test can plant
-// a key that is absent or malformed, which is what CORE-CLAIM-9's own
+// a key that is absent or malformed, which is what CORE-CLAIM-10's own
 // fail-closed reading needs exercised.
 func (h *harness) item(ref, id, frontmatter, text string) string {
 	h.t.Helper()

@@ -270,9 +270,9 @@
       "source": "62a48e4b2f8032fd"
     },
     "check.claim.7": {
-      "text": "कार्ड पर ऐसा कोई संरचित मद नहीं है जो अनसुलझी हो",
+      "text": "कार्ड पर मौजूद हर अनसुलझा मद किसी घोषित कॉलम का नाम लेता है",
       "context": "One row of the ordered precondition list of claim, quoted from section 6 of the core profile.",
-      "source": "50228523d584f48"
+      "source": "1978b6454d989315"
     },
     "check.claim.8": {
       "text": "आपका बताया गया स्तर उससे बराबर या ऊपर है जो कार्ड माँगता है",
@@ -620,9 +620,9 @@
       "source": "64b7abf44b69542b"
     },
     "check.pull.15": {
-      "text": "कार्ड पर ऐसा कोई संरचित मद नहीं है जो अनसुलझी हो",
+      "text": "कार्ड पर मौजूद हर अनसुलझा मद किसी घोषित कॉलम का नाम लेता है",
       "context": "One row of the ordered precondition list of pull: a pull that takes the card up answers claim's own last row, in the words claim refuses it.",
-      "source": "50228523d584f48"
+      "source": "1978b6454d989315"
     },
     "check.pull.16": {
       "text": "आपका बताया गया स्तर उससे बराबर या ऊपर है जो कार्ड वहाँ माँगता है",

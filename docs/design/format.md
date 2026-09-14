@@ -1065,10 +1065,14 @@ collection under absence-means-empty is invisible until used. A board
 whose method never files a criterion carries no checklist anywhere. What
 is fixed is only the shape when used, which is what lets shared method
 packs speak one vocabulary. Contract behaviour now attaches to one case:
-CORE-CLAIM-9 refuses a claim on a card carrying a pending `open_question`
-or `decision` item, reporting `unresolved-item`. An `acceptance_criterion`
-item never triggers this refusal, whatever its state; its own resolution
-belongs to a citation check at Move into Done that no card has built yet.
+CORE-CLAIM-10 refuses a claim on a card carrying a pending `open_question`
+or `decision` item that names no column the workbench declares, reporting
+`unresolved-item`. An item naming a declared column refuses no claim
+anywhere, because the column it names is what stops the card, and that
+narrowing is what retired CORE-CLAIM-9 at `dinah-core 0.15`. An
+`acceptance_criterion` item never triggers this refusal, whatever its state;
+its own resolution belongs to a citation check at Move into Done that no card
+has built yet.
 `dinah file` creates an item and `dinah resolve` settles one, so exercising
 this refusal and clearing it are each a command. Hand-editing an item's
 `state` key reaches the same place, which the format's own plain-text,

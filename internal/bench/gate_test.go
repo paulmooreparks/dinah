@@ -128,6 +128,26 @@ func TestHoldsOnEntryAndExitReadTheFourStates(t *testing.T) {
 	}
 }
 
+// openGated instantiates the two-column gated workbench above and opens it,
+// for a test whose subject needs a workbench to ask about a column rather
+// than a directory tree to read cards out of.
+func openGated(t *testing.T) *Bench {
+	t.Helper()
+	root := containedPath(filepath.Join(t.TempDir(), "gated"))
+	definition, err := ReadDefinition([]byte(gatedDefinition))
+	if err != nil {
+		t.Fatalf("definition: %v", err)
+	}
+	if err := Instantiate(root, "gt", "alka", definition); err != nil {
+		t.Fatalf("instantiate: %v", err)
+	}
+	opened, err := Open(root)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	return opened
+}
+
 // TestTheGateFlagRidesTheInterchange is dinah-450 AC-2, and it is the member
 // CORE-JSON-10 blesses. The round trip is what catches a field added to the
 // parser and forgotten in exportColumn or in knownColumnKeys, which is the
@@ -204,10 +224,14 @@ func TestTheGateFlagRidesTheInterchange(t *testing.T) {
 // in it would pass a table that exercised one kind.
 //
 // The second half is the guard on what did not change: ItemBlocksClaim goes on
-// exempting an acceptance criterion in every state, which is CORE-CLAIM-9's
+// exempting an acceptance criterion in every state, which is CORE-CLAIM-10's
 // own ruling and not this card's to move, and it goes on reading failed as
-// settled, which the column hold no longer does.
+// settled, which the column hold no longer does. Every item here carries an
+// empty column, which names no column any workbench declares, so the column
+// clause CORE-CLAIM-10 added admits none of them and the kind and the state
+// are what decide, which is what this table is about.
 func TestItemIsResolvedAnswersTheSameForEveryKind(t *testing.T) {
+	opened := openGated(t)
 	states := []struct {
 		state    string
 		resolved bool
@@ -230,7 +254,7 @@ func TestItemIsResolvedAnswersTheSameForEveryKind(t *testing.T) {
 				t.Errorf("ItemLiftsColumnHold(%s in %q) is %v, wanted %v", kind, want.state, got, want.lifts)
 			}
 			blocks := kind != "acceptance_criterion" && !want.resolved
-			if got := ItemBlocksClaim(item); got != blocks {
+			if got := opened.ItemBlocksClaim(item); got != blocks {
 				t.Errorf("ItemBlocksClaim(%s in %q) is %v, wanted %v", kind, want.state, got, blocks)
 			}
 		}
@@ -376,6 +400,7 @@ func TestGatingItemsSkipsAnItemWhoseAnchorWillNotOpen(t *testing.T) {
 // underneath it would move behaviour nobody ruled on.
 func TestAFailedItemHoldsAColumnThatTheClaimRefusalLetsThrough(t *testing.T) {
 	held := "e00000000002"
+	opened := openGated(t)
 	for _, kind := range ItemKinds {
 		item := &Item{ID: "b00000000001", Kind: kind, State: ItemFailed, Column: held}
 		if ItemLiftsColumnHold(item) {
@@ -384,7 +409,7 @@ func TestAFailedItemHoldsAColumnThatTheClaimRefusalLetsThrough(t *testing.T) {
 		if !ItemIsResolved(item) {
 			t.Errorf("a failed %s stopped reading as resolved, which the claim refusal turns on", kind)
 		}
-		if ItemBlocksClaim(item) {
+		if opened.ItemBlocksClaim(item) {
 			t.Errorf("a failed %s began blocking a claim, which no ruling asked for", kind)
 		}
 	}

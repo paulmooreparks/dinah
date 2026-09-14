@@ -267,7 +267,7 @@
       "skeleton": true
     },
     "check.claim.7": {
-      "text": "the card carries no structured item that is not resolved",
+      "text": "every unresolved item the card carries names a declared column",
       "context": "One row of the ordered precondition list of claim, quoted from section 6 of the core profile.",
       "skeleton": true
     },
@@ -617,7 +617,7 @@
       "skeleton": true
     },
     "check.pull.15": {
-      "text": "the card carries no structured item that is not resolved",
+      "text": "every unresolved item the card carries names a declared column",
       "context": "One row of the ordered precondition list of pull: a pull that takes the card up answers claim's own last row, in the words claim refuses it.",
       "skeleton": true
     },

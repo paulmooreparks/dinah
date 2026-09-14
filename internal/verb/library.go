@@ -327,7 +327,7 @@ type CardView struct {
 	// asked about.
 	AttachmentCount int `json:"attachment_count,omitempty"`
 	// BlockingItems is how many of the card's checklist items are, right
-	// now, ones CORE-CLAIM-9 would refuse a claim over. A reader sees the
+	// now, ones CORE-CLAIM-10 would refuse a claim over. A reader sees the
 	// refusal coming rather than meeting it and being told afterwards.
 	BlockingItems int `json:"blocking_items,omitempty"`
 }
@@ -480,7 +480,7 @@ func (l *Library) view(card *bench.Card) (*CardView, error) {
 	if err != nil {
 		return nil, err
 	}
-	blocking, err := bench.CountBlockingItems(card.Dir)
+	blocking, err := l.Bench.CountBlockingItems(card.Dir)
 	if err != nil {
 		return nil, err
 	}

@@ -159,17 +159,21 @@ func (l *Library) canClaim(req *Request, card *bench.Card) *Response {
 	return l.claimableTier(req, card, l.Bench.Column(card.Column))
 }
 
-// claimableItems carries the last row of the claim's list, CORE-CLAIM-9. It
+// claimableItems carries the last row of the claim's list, CORE-CLAIM-10. It
 // stands after claimableColumn because every row ahead of it asks about the
 // card's state or the column the card stands in, where this one reads the
-// card's own checklist, which neither of those touches.
+// card's own checklist and the columns the workbench declares, which neither
+// of those touches.
 //
-// No column declares this and no workbench opts into it. An unanswered
-// question is a property of the card carrying it rather than of wherever the
-// card happens to be standing when somebody reaches for it, so the refusal
-// binds every claim on every workbench.
+// No column declares this and no workbench opts into it, so the refusal binds
+// every claim on every workbench. What it refuses over is narrower than the
+// card's whole checklist: an item naming a column the workbench declares is
+// left to that column's own hold, and what reaches this row is the item no
+// column can ever be asked about. The card's position is not read, on either
+// side, so pull's own row answers the same way at the column the card leaves
+// and at the column it lands in.
 func (l *Library) claimableItems(req *Request, card *bench.Card) *Response {
-	blocking, err := bench.BlockingItems(card.Dir)
+	blocking, err := l.Bench.BlockingItems(card.Dir)
 	if err != nil {
 		return l.FromError(req, err)
 	}
