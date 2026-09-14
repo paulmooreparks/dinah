@@ -1,0 +1,10 @@
+---
+kind: decision
+state: resolved
+column: 0d86ad99cdbc
+owner: holder
+ts: 2026-09-14T02:18:18Z
+ordinal: 15
+note: Round 1 recorded this as one finding with a proposed repair. Round 2's reviewer ruled on it and the ruling split it. (1) `param.edit.card.summary` and `param.path.card.summary` are dinah-470's, and its spec deletes the sentences round 1 proposed rewriting, moving the kinds out of prose into a rendered clause driven by a new `referenceKinds` declaration in `internal/verb`; round 1's proposal to copy `param.contents.ref.summary` is therefore obsolete and must not be handed to anyone. (2) dinah-470's declaration knows five kinds and workstream is not one, because the guide's table it reproduces keeps workstreams out, so after it lands eight commands still will not say they take a workstream. That is raised on dinah-470 itself with two ways out; nothing about it is this card's and this card files nothing for it. (3) Two residues stay here as notes rather than as a card, per the workbench's filing rule. `cmd.edit.summary` and `cmd.path.summary`, the one-line command summaries, are outside dinah-470's scope entirely, since that card rewrites only `param.*` keys, and both omit a column and a workstream; verified in internal/msg/locales/en.json at 808d105. And `edit`'s refusal table at internal/verb/checks.go:212 still declares only check.edit.1 (UnknownPath) and check.edit.2 (NoEditor), never having gained a row for the `dinah.is-a-collection` refusal dinah-455 added; both cards leave it untouched. This card does not add that row either, because it would mint a catalogue key and D-2 records that this card mints none. Spec section 7 carries all three in full.
+---
+The under-declared help prose splits three ways: two parameter sentences are dinah-470's, the workstream gap is dinah-470's structural gap, and two residues are recorded here.

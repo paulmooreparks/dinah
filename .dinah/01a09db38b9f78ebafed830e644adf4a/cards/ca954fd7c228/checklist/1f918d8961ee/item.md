@@ -1,0 +1,9 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+ts: 2026-09-14T02:17:23Z
+ordinal: 3
+note: "citation: scheme=test, target=editors/vscode/test/unit/l10n-keys.test.ts#\"each declared key family names exactly the catalogue entries its table reaches\", observed before=fail after=pass. The assertion is a deepEqual over both difference lists, so both directions fail loudly. Armed twice, each in isolation: deleting `archived:` from HISTORY_ROWS (tsc exit 0, so it compiles) reported `catalogue carries history.event.archived, nothing reaches it`, the spec's own observed text; adding \"history.event.bogus\" to all eight runtime catalogues reported `catalogue carries history.event.bogus, nothing reaches it` on this check and on AC-4's. Measured against the clean tree: 21 members read off HISTORY_ROWS, 22 catalogue keys under the prefix, the 22nd being the literal ask history.event.unknown, and zero fires."
+---
+Each declared key family's catalogue keys equal the union of its table's property names, prefixed, with any literal key under that prefix the code asks for directly, and the equality is asserted in both directions. Armed twice, each in isolation: deleting the `archived:` property from `HISTORY_ROWS` in `src/servedText.ts` (which compiles, the table being typed `Record<string, ...>`) reports `history.event.archived` as a catalogue key nothing reaches; adding `"history.event.bogus"` to the eight runtime catalogues reports that key the same way. Against the unmodified tree the check fires zero times over 21 table members, which with the literal ask `history.event.unknown` account for the catalogue's 22 keys under the prefix.

@@ -1,0 +1,9 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+ts: 2026-09-14T02:18:48Z
+ordinal: 17
+note: "Verified at Test by reading the three comments rather than by a text search, and the criterion admits that it is the weaker kind. A search finds copies of a phrase and not copies of a claim, and a stale sentence spelled some other way passes it, so nothing mechanical is claimed here. What makes the claim survivable is that the sentences are not load-bearing after this card: AC-1 reads the actual call site, so the code's behaviour rests on the property rather than on the prose. Two sentences at 4c33c2c must be gone. In `dragPayloadFor`'s doc comment at src/dragAndDrop.ts:71: \"Only the first element is read. The view does not set canSelectMany, so a drag carries one row, and this card neither adds multi-select nor makes a column row draggable for reordering.\" And in `offerDrag`'s doc comment in the same file: \"A drag that starts on a column, a state group, a workbench or an attachment row sets no entry at all, so a drop afterward is indistinguishable from a drag this controller never handled.\" The second is false under `dragRowsFor` whenever the selection also holds a card, and §8 declares that change rather than leaving it to be found. The function that replaces `dragPayloadFor` is `dragRowsFor`, named in §8 and in D-14; round 2's `dragPayloadsFor` is gone, so a comment naming it would be stale on the day it was written."
+---
+No comment in `editors/vscode/src/` asserts that the tree view is single-select, and none asserts that a drag starting on a non-card row sets no mime entry. The `dragAndDrop.ts` module header, the doc comment on the function that replaces `dragPayloadFor`, and `offerDrag`'s own doc comment describe what a multi-row drag does, and none of them claims that column rows are draggable for reordering.

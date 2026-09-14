@@ -1,0 +1,8 @@
+---
+kind: acceptance_criterion
+state: pending
+column: 6c5b9d6f4414
+ts: 2026-09-14T02:17:43Z
+ordinal: 2
+---
+Card identity survives the crossing, achieved in the order that works rather than the order that does not. The pass demonstrates, in one recorded run against a scratch workbench before it touches the real one, the full sequence: both migrations, then card creation, then the registry rewrite, then a read-back. Specifically it shows that a card created before the rewrite takes the next number above the registry's high-water mark and NOT any number seeded in advance, that after `card-numbers.txt` is rewritten from whole lines the cards resolve by their intended numbers, that `dinah check` reports no structural defect against the rewritten file, and that the next card filed takes one above the tombstone rather than one above the highest carried number. Against the real workbench afterwards: `card-numbers.txt` exists at the workbench root, every line parses as `<number> <identifier>` or `<number> -` with zero malformed lines, no two non-tombstone lines claim the same number, the numbers it carries are a superset of the open cards' Andoneer numbers, and a tombstone line sits at or above the highest number the Andoneer board had ever issued at the cutover instant. The run prints the cardinality of both number sets, so a sweep over an empty file reports zero rather than passing. `dinah show 449` resolves to this card. A failing run is a missing file, any malformed or duplicate line, a carried number absent, a missing tombstone, or a resolution landing on the wrong card.

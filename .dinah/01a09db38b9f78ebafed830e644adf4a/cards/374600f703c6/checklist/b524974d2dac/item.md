@@ -1,0 +1,10 @@
+---
+kind: decision
+state: resolved
+column: 0d86ad99cdbc
+owner: holder
+ts: 2026-09-14T02:17:36Z
+ordinal: 21
+note: "Resolved at Spec round two, adopting the Agent Design Review's recommendation, which is the seam this file already documents rather than a new convention.\n\nThe plain file remains right for every os.ReadDir site, and the reasons hold: a read-denying ACL is awkward to set from a test on Windows and behaves differently under elevation, a root-running POSIX CI job ignores mode bits, and the plain file behaves identically everywhere. What round one drew from that was too wide. A plain file cannot make a directory that exists fail to read, and that is what the walk at container.go:706 needs.\n\nMeasured again in round two from C:/dinah-scratch/dinah-439-spec2/probe: filepath.WalkDir over a path holding a plain file calls its callback exactly once with err nil (calls=1 sawErr=<nil> walkErr=<nil>), so the fixture never reaches the swallow and the plant round one prescribed could not redden it. The same probe shows WalkDir over an absent path calling the callback once with a non-nil error, but that is no route either: memberPaths (container.go:93) filters every member through Exists before the walk starts, so reaching it wants a deletion racing the walk.\n\nmemberWalk = filepath.WalkDir becomes a package variable beside containerRename, readAnchorContent and statPath at container.go:111, whose own comment already explains those three as how this file makes a filesystem condition reachable from a test. The test substitutes a walk yielding one callback with a non-nil error. AC-3 and AC-4 are rewritten onto that seam."
+---
+The unreadable-directory fixture is a plain file planted where a directory belongs, and every test proves its own fixture reads as a failure before it exercises anything. That fixture reaches every os.ReadDir site and no WalkDir site, so the three WalkDir sites are reached instead through a memberWalk package variable added beside containerRename at container.go:111.

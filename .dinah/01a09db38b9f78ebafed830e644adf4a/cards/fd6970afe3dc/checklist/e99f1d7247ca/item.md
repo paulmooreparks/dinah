@@ -1,0 +1,10 @@
+---
+kind: open_question
+state: resolved
+column: 0789fd2dbefd
+owner: operator
+ts: 2026-09-14T02:17:20Z
+ordinal: 10
+note: "**Withdrawn on 2026-09-11, not answered.** This question belongs to scope the operator rejected, and it should have been withdrawn when the card was reset rather than left standing.\n\nThe card was moved back to Intake on 2026-09-07 on Paul's own instruction, and its own move note records why: the spec that ran narrowed the card to the distance a move travels, lost two of the three things it originally asked for, and rested on an incident that happened on Andoneer rather than in Dinah. The title and description were restored to the original scope in that same move. This question was written for the narrowed card, so it asks about work that is no longer what the card is for.\n\n**Why withdrawing matters rather than being tidiness.** A pending operator-owned question puts the card in the operator's decision queue whatever column it sits in. This card sits in Intake, which is not a decision station, so the question could only ever surface as a queue row and never as something met at a stop. On 2026-09-11 the fast-track parent session read that queue, reported both this card and dinah-387 to Paul as waiting on him, and was corrected: he had already dealt with them. The question did not merely sit there, it produced a wrong report.\n\nNothing about the distance-of-a-move design is lost. The move note records that the narrowed work reached Operator Design Review with six criteria and stands on its own if anyone wants it as a separate card, and this card's six pending acceptance criteria are still here for whoever picks it up.\n\nIf the card is worked again, a question is raised then, against whatever scope it is worked under."
+---
+When a move's destination is more than one column past its departure, what should the workbench do: refuse it as a new move-contract rule, admissible only under the operator's override; record it on the moved event and let it stand; report it later as a new finding on a health read; or some combination?

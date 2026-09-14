@@ -1,0 +1,9 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+ts: 2026-09-14T02:18:48Z
+ordinal: 23
+note: "This is the criterion that makes \"the report cannot lie\" checkable rather than asserted, and it is the second of the two defences AC-25 names the first of. They cover different attacks and neither covers both. The mark stops a report fabricated from nothing, because the symbol is unexported and a literal cannot obtain one. Reconciliation stops a real report mutated after the fact, which is what the spread in this criterion's text performs: object spread copies own enumerable symbol keys, so the copy carries the mark and reaches the reconciliation arm rather than being refused by the mark arm, which is why the criterion says how the report is built instead of leaving a hand-built literal to satisfy it for the wrong reason. The honest limit of the pair, stated so nobody credits it with more: a caller holding a real report can spread it and change the counts, and only reconciliation catches that; a caller can also compose a message without a report at all, and only AC-26's one-caller assertion catches that. The `selected` 3 partner is what stops an implementation that throws on every report from passing, and it matters more than usual here, because a `summaryFor` that threw unconditionally would satisfy the refusing half and would also fail AC-9, so the two report the defect from two directions. Red run to produce at Test: delete the reconciliation arm and watch this criterion redden while AC-9's third half reddens with it."
+---
+`summaryFor` handed the report `runOverRows` returned over three rows, spread into a copy whose `selected` has been overridden to 5, throws rather than answering any level or composing any message, and the throw's message names both the selected count and the entry count; handed the unmodified three-entry report it answers normally.

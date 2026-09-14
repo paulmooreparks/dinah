@@ -1,0 +1,4 @@
+{"ts":"2026-09-14T02:17:21Z","event":"created","actor":"paul","title":"The Go style standard document says the mechanical floor is unscoped gofmt -l ., but the repository runs gofmt -l cmd internal","to":"5ea2db0272fc","to_title":"Intake"}
+{"ts":"2026-09-14T02:17:21Z","event":"card_updated","actor":"paul","field":"body"}
+{"ts":"2026-09-14T02:17:21Z","event":"card_updated","actor":"paul","to":"minor","field":"severity"}
+{"ts":"2026-09-14T02:17:22Z","event":"card_updated","actor":"paul","to":"soon","field":"priority"}

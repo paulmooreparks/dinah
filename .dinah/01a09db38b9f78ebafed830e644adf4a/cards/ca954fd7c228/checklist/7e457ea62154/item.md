@@ -1,0 +1,9 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+ts: 2026-09-14T02:17:23Z
+ordinal: 2
+note: "citation: scheme=test, target=editors/vscode/test/unit/l10n-keys.test.ts#\"a key expression no rule resolves is reported, and a module constant still resolves\", observed before=fail after=pass. Both halves are asserted in the one test over test/fixtures/unresolvable-key-call-site.ts.txt: the unresolved entry matching /unresolvable-key-call-site\\.ts\\.txt:\\d+ chosenKey/, and literals equal to [\"fixture.resolved\"]. The line is matched as a line rather than as a number, because two fixtures in this repository key on source line numbers and shift when a comment is added above them; the file and a line are still reported. Armed twice: replacing context.host.t(chosenKey) with a literal emptied unresolved and the test went red; moving FIXTURE_KEY inside the function left nothing resolving by rule 2 and it went red again. Both restored byte-identically to green."
+---
+A key expression resolving by none of the three declared rules fails the test rather than being passed over. Driven by `test/fixtures/unresolvable-key-call-site.ts.txt`, whose `context.host.t(chosenKey)` call takes a function parameter: `sweepKeys` reports it in `unresolved` with its file and line. The same fixture also carries `context.host.t(FIXTURE_KEY)` with `const FIXTURE_KEY = "fixture.resolved"` at module level, and the test asserts that one resolves to `fixture.resolved` and is absent from `unresolved`. Both halves are asserted in the same test, so a sweep that refused every identifier cannot satisfy this criterion.

@@ -1,0 +1,10 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+owner: holder
+ts: 2026-09-14T02:17:55Z
+ordinal: 7
+note: "VERIFIED. cmd/dinah/collection_reference_test.go TestAttachmentsAnswersACollectionFromItsHolder. Run: `go test ./cmd/dinah/ -run TestAttachmentsAnswersACollectionFromItsHolder -v`. All three pairs print identical bytes in the human format and identical payloads under --json: fx-1/attachments against fx-1, fx/attachments against workbench, and fx-1/comments/1/attachments against fx-1/comments/1, each on a head carrying at least one attachment. `attachments fx-1/comments` exits 0, prints \"fx-1/comments carries no attachments.\", and under --json carries ref \"fx-1/comments\", kind \"collection\", and an attachments array asserted both as non-nil in Go and as the literal `\"attachments\": []` in the payload, so a null cannot pass for an empty array. ARMED: dropped the holder branch so every collection answered the empty listing; the plant compiled and ran, and the assertion at collection_reference_test.go:440 reddened, reporting attachments fx-1/attachments printing the empty sentence where attachments fx-1 printed its listing; restored byte-identically, green."
+---
+`dinah attachments pb-1/attachments` and `dinah attachments pb-1` print identical bytes in the human format and identical payloads under --json, on a card carrying at least one attachment, and the same holds for the workbench pair `dinah attachments pb/attachments` against `dinah attachments workbench` and for a comment's own attachments through `dinah attachments pb-1/comments/1/attachments`. `dinah attachments pb-1/comments` exits 0, prints the attachments.empty sentence naming pb-1/comments, and under --json carries ref "pb-1/comments", kind "collection" and an empty attachments array rather than a null.

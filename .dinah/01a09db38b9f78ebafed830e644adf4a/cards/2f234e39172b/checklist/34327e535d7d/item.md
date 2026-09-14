@@ -1,0 +1,9 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+ts: 2026-09-14T02:18:35Z
+ordinal: 3
+note: "test: internal/bench/gate_test.go#TestEveryHoldDirectionRidesTheInterchange (a four-column definition declaring off/on/out/both, instantiated, opened, exported with the member absent on the first column, the boolean true on the second and the strings \"out\" and \"both\" on the third and fourth, then read back through ReadDefinition and Instantiate with all four holds preserved and the second export byte-identical to the first), plus internal/bench/gate_test.go#TestAnUnreadableHoldMemberIsDroppedRatherThanRefused for the lenient half (a JSON number, list, object, an unknown string and the retired \"in\", each silently dropped rather than refusing the import). observed before: fail, after: pass. Armed by deleting the HoldOut case from exportColumn, which reddened gate_test.go:442 with `column 2 exported as , wanted the string \"out\"` and :460 with the import reading it back empty; restored byte-identically."
+---
+`gate_items` round-trips through `Export`/`ReadDefinition`/`Instantiate` for all four states of `Hold`: an `interchange_test.go` case exports a column with `Hold == bench.HoldOn` and asserts the member is present and `true` (unchanged from today); cases with `Hold == bench.HoldOut` and `Hold == bench.HoldBoth` assert the member is present as the string `"out"` and `"both"` respectively; a case with `Hold == ""` asserts the member is absent. An export-then-`Instantiate` round trip preserves the flag for all four states. A case importing a `gate_items` member carrying a JSON number or list (a shape the reader recognizes for no field) is silently dropped rather than refused, matching the existing lenient discipline for a malformed `awaiting_outside`/`operator_owned` member.

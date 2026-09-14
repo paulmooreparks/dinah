@@ -1,0 +1,9 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+ts: 2026-09-14T02:18:19Z
+ordinal: 2
+note: "Verified. `go test ./cmd/dinah/ -run TestTheReferencesGuideTableDrawsTheDeclaredReferenceKinds -v -count=1` passes and logs \"18 rows and 90 cells compared\" (cmd/dinah/references_guide_test.go, t.Logf after the comparison loop; the two t.Fatalf count guards follow it). The unmapped-kind assertion is the t.Fatalf reading \"the guide's table draws a column for every declared kind but the workstream\". All three plants armed. Flipping the guide's show/workbench cell to yes reddened \"the references guide's table says yes against \\\"A workbench\\\" for show and internal/verb declares no\"; adding ReferenceKindWorkbench to referenceKinds[\"show\"] reddened the same cell from the other side, \"says no ... and internal/verb declares yes\"; adding a seventh kind (ReferenceKindJournal) to ReferenceKindOrder with no heading reddened on the unmapped-kind assertion, \"these are unmapped instead: [workstream journal]\", rather than passing with a cell nobody compares. Restored byte-identically after each and green."
+---
+`go test ./cmd/dinah/ -run TestTheReferencesGuideTableDrawsTheDeclaredReferenceKinds -v` passes and logs eighteen rows and ninety cells compared, and asserts that exactly one kind of `ReferenceKindOrder()` maps to no table column and that it is `ReferenceKindWorkstream`; flipping the guide table's `show` workbench cell from `no` to `yes` reddens naming show, "A workbench", the table's yes and the declaration's no, flipping `referenceKinds["show"]` to carry `ReferenceKindWorkbench` instead reddens naming the same cell from the other side, and adding a seventh kind to `ReferenceKindOrder()` without a heading reddens on the unmapped-kind assertion rather than passing with a cell nobody compares.

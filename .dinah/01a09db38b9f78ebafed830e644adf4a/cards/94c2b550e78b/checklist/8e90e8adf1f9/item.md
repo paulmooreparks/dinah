@@ -1,0 +1,9 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+ts: 2026-09-14T02:18:32Z
+ordinal: 10
+note: "Verified at 5a88bec, and the arming changed the code. Both refusals are sentinels, ErrNoSentence and ErrUnknownTopic, compared with errors.Is in internal/guide/guidepin/guidepin_test.go, following internal/bench's ErrRenameCollides idiom. The reason is a defect the arming caught: with a plain non-nil check, removing the unknown-topic refusal left the test GREEN, because an unknown topic yields an empty guide text and the containment test then answers no on its own. That is the \"a refusal any value satisfies\" shape, so the refusal was made distinguishable. Four plants, each compiling and running: (a) `if folded == \"\"` to `if false` reddens TestCarriesRefusesAnEmptySentence on all three empty spellings; (b) the topic refusal disabled reddens TestCarriesRefusesAnUnknownTopic, which it did not before the sentinels; (c) the guide-folding removed reddens TestCarriesToleratesAReWrapOfTheGuidesSource, which is the re-wrap tolerance; (d) comparing against folded+\"zzz\", so Carries refuses everything, reddens the accepting case TestCarriesAnswersTheSentenceItIsGiven, which is what stops a Carries that refused everything from passing. All restored byte-identically (cmp clean) and green."
+---
+guidepin.Carries refuses an empty sentence and refuses an unknown topic, returning an error in each case rather than nil, so a pin naming nothing cannot pass. It folds the guide to single spaces before comparing, so re-wrapping the source of a pinned paragraph does not fail it. Both refusals and the re-wrap tolerance are covered by their own test cases.

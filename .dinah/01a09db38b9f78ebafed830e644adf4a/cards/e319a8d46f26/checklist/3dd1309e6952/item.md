@@ -1,0 +1,10 @@
+---
+kind: decision
+state: resolved
+column: 0d86ad99cdbc
+owner: holder
+ts: 2026-09-14T02:18:51Z
+ordinal: 53
+note: "Two changes from round 2, and they point in opposite directions. Round 2's rule was failures only, with Archive widening it to every attempted row. The failures-only half was too narrow: the channel line a handler writes today for a row it cannot act on is exactly a skipped row's line, so a rule that lines only failures would have deleted shipped behaviour, and AC-27 pins the single-row case where that shows. Lining every row that is not done keeps it, and it is what a reader needs when a gesture did less than they expected, since the summary gives them a count and the channel gives them which rows. Archive still widens it one step further, and it is still the only command that does. The only route back from an archive is `dinah restore <ref>`, and after a twelve-card archive the reader knows none of the references: the dialog names a count and the archived rows leave the tree. Round 1's copy told them to run the command \"if you know each card's reference\", which sent them to a route they could not take. Writing every attempted reference to the channel, as `<ref>: archived` or `<ref>: <failure>`, makes the summary's existing Open Output action hand them exactly that list. No other command needs the successes, because a successful row leaves visible evidence in the tree or in a tab, so widening the rule everywhere would fill the channel with lines nobody reads and make the one case that matters harder to find. The asymmetry is declared in §4 rather than left implicit, it rides `deps.lineEveryRow` so that one command sets it and the rest inherit the default, and AC-9's `appendLines` assertions are written over a fanOut command so that the two rules are tested separately."
+---
+Every row that did not finish reaches the output channel; Archive alone also lines the rows that did.

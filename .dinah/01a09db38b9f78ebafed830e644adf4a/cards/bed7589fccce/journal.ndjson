@@ -1,0 +1,5 @@
+{"ts":"2026-09-14T02:16:27Z","event":"created","actor":"paul","title":"Jira-resolution workbench definition for the first external tester","to":"5ea2db0272fc","to_title":"Intake"}
+{"ts":"2026-09-14T02:16:27Z","event":"card_updated","actor":"paul","field":"body"}
+{"ts":"2026-09-14T02:16:27Z","event":"card_updated","actor":"paul","to":"minor","field":"severity"}
+{"ts":"2026-09-14T02:16:28Z","event":"card_updated","actor":"paul","to":"next","field":"priority"}
+{"ts":"2026-09-14T02:16:28Z","event":"workstream_joined","actor":"paul","workstream":"fdfdeaaff2dd"}

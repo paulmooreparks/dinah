@@ -1,0 +1,9 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+ts: 2026-09-14T02:17:18Z
+ordinal: 4
+note: "Independently re-derived at Test using the evidence folder at C:\\dinah-scratch\\dinah-368-impl\\ (snapshot.md, part1.md, part2.md). Stripping the added pointer text from each (part1: drop the one \"part 1 of 2\" line; part2: drop everything up to its first \"## \" heading, which is \"## A construct excluded from a guard's threat model...\", not \"A vocabulary rename...\" as the spec's stale worked example named, since the live corpus had grown by Implement's turn) and concatenating gives a byte-for-byte, 162-entry match against the snapshot: sha256 7cfcb0d00128cf660b62ea11ab2f68bb84ea62a4bd5f5a82b4eea0158028966a on both sides, common prefix/suffix covering the entire 329,763-byte string, zero-byte diff. This is a stronger result than the implementer's own note (which reported a 1-byte seam residue) and matches the code reviewer's re-derivation exactly. Separately confirmed the live document 47 equals part1.md minus its final trailing newline (that one byte is real, but it's a property of the archived scratch copy vs. the live document, not of the reconstruction against the snapshot). Live document 52 is exactly part2.md plus one appended entry (the documented AC-2 ratchet, confirmed by entry count: 107 entries in live doc 47 + 56 in live doc 52 = 163 = 162 original + 1 ratchet). Document 47's version is 171, exactly 157 (snapshot) + 14 (the split's own writes), confirming no other agent touched it since the split."
+---
+Concatenating every part's entries in title order (1, 2, 3, ...) and stripping only the added pointer/position header lines reproduces the pre-split document's entries verbatim, in the same order, against the pre-split snapshot Implement captured immediately before performing the split (not against this spec's 2026-09-04 snapshot, which the corpus will have outgrown by Implement's turn).

@@ -1,0 +1,10 @@
+---
+kind: decision
+state: resolved
+column: c9428b3bc921
+owner: holder
+ts: 2026-09-14T02:16:31Z
+ordinal: 19
+note: "The Translation staleness contract's ordinary branch applies: this diff changes an existing translation rather than filling skeletons, and help.environment is the one existing key whose English moved, so it takes one per-key decision item and the three added keys take none.\n\nWhat changed in the English is `DINAH_FORMAT=json` becoming `DINAH_FORMAT=json|compact`, inside the run of variable names. The entry's own context says the variable names are machine vocabulary and are never translated, so that span carries no translation in any catalog and reads identically in all eight.\n\nGerman: the sentence is `Umgebung: ` followed by the same run of names. `Umgebung` is unchanged and still renders \"Environment\" for this line. Read against the new English, the German says what the English says, so nothing was retranslated; the run of names was carried across so the two lines stay in step, and `source` was refreshed from 4387bf055b0f716f to 1da148f5755e9a98.\n\nHindi: the same, with `परिवेश: ` unchanged ahead of the same run of names, and `source` refreshed from 4387bf055b0f716f to 1da148f5755e9a98. Both catalogs held the same old fingerprint and both now hold the same new one, which is what one shared English text should produce.\n\nThe five skeleton catalogs (af, cs, es, fil, id) carry the English under `\"skeleton\": true` and record no source, so the guard exempts them and the per-key record does not reach them.\n\nThe fingerprints were not hand-computed: TestATranslationTracksItsEnglishSource is what would report a stale or absent source, and it passes on this branch."
+---
+`help.environment`: read against the current English and its context; the translated prose is unchanged and only the untranslated machine span moved, so both translations were carried across and their fingerprints refreshed to record the reading.

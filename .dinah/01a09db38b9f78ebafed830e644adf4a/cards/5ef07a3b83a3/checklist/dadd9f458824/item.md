@@ -1,0 +1,8 @@
+---
+kind: acceptance_criterion
+state: pending
+column: 6c5b9d6f4414
+ts: 2026-09-14T02:17:43Z
+ordinal: 7
+---
+The gating guidance in the column bodies teaches the direction dinah-484 introduced, and the superseded rule is gone. The workbench is located by discovery from `c:\Users\paul\source\repos\dinah` rather than by a hardcoded directory name, because the container migration renames the workbench directory. Two halves, both swept whole-file over the fourteen column bodies plus the workbench anchor, with the number of files read reported as 15. First, the superseded formulation is absent: a case-insensitive whole-file search for a gate or a hold within 120 characters of any of "column after", "next column along", "the column after the one that answers", "the column that follows" returns zero matches. A line-oriented search does not satisfy this half, because the formulation spans line breaks in the text it replaces. Second, every body that tells an agent where to file an item states the replacement rule in both directions: an item is filed against the column that settles it and held there on the way out, and an item that must already be settled before a station is reached is filed against that station and held on the way in. The count of bodies giving filing guidance is reported and each is named, so a sweep that found no such body reports zero rather than passing. A failing run is any match in the first half, any named body missing either direction, or a reported body count of zero. This fails today: the extracted bodies predate both formulations, and ten of the fourteen route by lane instead.

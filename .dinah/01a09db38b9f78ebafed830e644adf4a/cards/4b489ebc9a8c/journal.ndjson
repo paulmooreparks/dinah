@@ -1,0 +1,4 @@
+{"ts":"2026-09-14T02:18:19Z","event":"created","actor":"paul","title":"Three contract rules are credited to a test that proves the opposite of what they require","to":"5ea2db0272fc","to_title":"Intake"}
+{"ts":"2026-09-14T02:18:19Z","event":"card_updated","actor":"paul","field":"body"}
+{"ts":"2026-09-14T02:18:19Z","event":"card_updated","actor":"paul","to":"major","field":"severity"}
+{"ts":"2026-09-14T02:18:19Z","event":"card_updated","actor":"paul","to":"next","field":"priority"}

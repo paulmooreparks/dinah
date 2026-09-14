@@ -1,0 +1,8 @@
+---
+kind: acceptance_criterion
+state: pending
+column: 6c5b9d6f4414
+ts: 2026-09-14T02:17:43Z
+ordinal: 1
+---
+The real Dinah workbench holds this project's open cards, proven by running the tool against it rather than by any document, and holds exactly the ones that were meant to cross. The workbench is reached by standing in `c:\Users\paul\source\repos\dinah` and letting discovery find it, never by naming a workbench directory, because the container migration renames that directory and any hardcoded path goes stale at step 1 of the order. In one run: `dinah ls --format json` reports a card count equal to the open-card count recorded at the cutover instant, and that recorded count is produced by a command over the whole Andoneer board in the same run rather than typed from memory. For each column that held open cards on Andoneer at the cutover instant, the Dinah count equals the Andoneer count, and the per-column comparison is printed with both sides so a reader sees which columns were compared. The Done column holds zero cards, and the cards that stood in Andoneer's Complete and Refused columns are absent, because finished and refused work does not cross. `dinah show 449` resolves and prints a card titled "Move this project's own development onto Dinah". A failing run is any count that differs, any column missing from the comparison, a non-empty Done, or a `dinah show 449` that reports no such card. This fails today with certainty, because the workbench holds zero cards.

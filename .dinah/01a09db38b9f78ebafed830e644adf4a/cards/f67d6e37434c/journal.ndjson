@@ -1,0 +1,9 @@
+{"ts":"2026-09-14T02:17:06Z","event":"created","actor":"paul","title":"Rung three: the integrations VS Code gives away","to":"5ea2db0272fc","to_title":"Intake"}
+{"ts":"2026-09-14T02:17:06Z","event":"card_updated","actor":"paul","field":"body"}
+{"ts":"2026-09-14T02:17:06Z","event":"card_updated","actor":"paul","to":"minor","field":"severity"}
+{"ts":"2026-09-14T02:17:06Z","event":"card_updated","actor":"paul","to":"soon","field":"priority"}
+{"ts":"2026-09-14T02:17:06Z","event":"card_updated","actor":"paul","to":"frontier","field":"tier"}
+{"ts":"2026-09-14T02:17:06Z","event":"workstream_joined","actor":"paul","workstream":"58f3e3eb621a"}
+{"ts":"2026-09-14T02:17:06Z","event":"moved","actor":"paul","from":"5ea2db0272fc","to":"a2eb2436b77d","from_title":"Intake","to_title":"Triage"}
+{"ts":"2026-09-14T02:18:54Z","event":"linked","actor":"paul","to":"049295437f6e","kind":"relates_to"}
+{"ts":"2026-09-14T02:18:54Z","event":"linked","actor":"paul","to":"81b9d0726b36","kind":"spawned_from"}

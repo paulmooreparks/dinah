@@ -1,0 +1,4 @@
+{"ts":"2026-09-14T02:17:22Z","event":"created","actor":"paul","title":"Nothing parses the workflow files, so a workflow can be broken beyond running and the whole suite stays green","to":"5ea2db0272fc","to_title":"Intake"}
+{"ts":"2026-09-14T02:17:22Z","event":"card_updated","actor":"paul","field":"body"}
+{"ts":"2026-09-14T02:17:22Z","event":"card_updated","actor":"paul","to":"major","field":"severity"}
+{"ts":"2026-09-14T02:17:22Z","event":"card_updated","actor":"paul","to":"soon","field":"priority"}

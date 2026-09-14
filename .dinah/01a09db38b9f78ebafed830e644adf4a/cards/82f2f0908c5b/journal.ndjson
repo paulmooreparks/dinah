@@ -1,0 +1,9 @@
+{"ts":"2026-09-14T02:18:39Z","event":"created","actor":"paul","title":"A whole-tree guard holds every directory read to answering its own failure","to":"5ea2db0272fc","to_title":"Intake"}
+{"ts":"2026-09-14T02:18:39Z","event":"card_updated","actor":"paul","field":"body"}
+{"ts":"2026-09-14T02:18:39Z","event":"card_updated","actor":"paul","to":"major","field":"severity"}
+{"ts":"2026-09-14T02:18:39Z","event":"card_updated","actor":"paul","to":"soon","field":"priority"}
+{"ts":"2026-09-14T02:18:39Z","event":"item_filed","actor":"paul","kind":"acceptance_criterion","item":"480f697cff99"}
+{"ts":"2026-09-14T02:18:39Z","event":"item_filed","actor":"paul","kind":"acceptance_criterion","item":"0e970c4b4f84"}
+{"ts":"2026-09-14T02:18:39Z","event":"item_filed","actor":"paul","kind":"acceptance_criterion","item":"df5a1b446899"}
+{"ts":"2026-09-14T02:18:39Z","event":"item_filed","actor":"paul","kind":"decision","item":"a8473538fa31"}
+{"ts":"2026-09-14T02:18:55Z","event":"linked","actor":"paul","to":"374600f703c6","kind":"spawned_from"}

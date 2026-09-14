@@ -1,0 +1,9 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+ts: 2026-09-14T02:18:47Z
+ordinal: 8
+note: "Compares the recorded argv list and the returned report against expected values in a pure test, entry by entry rather than by counting. The assertion runs against `report.entries` as returned by `runOverRows`, which is the array `selected` is defined to equal the length of, so a report that disagrees with itself cannot satisfy it. This is the stop-or-continue decision made checkable: an implementation that stops at the first refusal spawns three times and fails both the spawn count and the entry count, and one that loses the successes fails the per-entry comparison.\n\nRed run to produce at Test, with what intercepts it named rather than discovered. The plant is a `break` in `runOverRows`'s loop when an outcome is not `done`, which leaves the code compiling. It produces three spawns and three entries against a `selected` of 5, so `runBulk` reaches `summaryFor`, whose reconciliation arm throws before this criterion's assertions run. The red is therefore a thrown error naming 5 and 3, not a failed assertion, and a thrown error here is the plant working rather than the plant misfiring. To see the criterion's own assertions redden, run the same five rows against `runOverRows` directly, where nothing calls `summaryFor` and the entry-count assertion fails with 3 against 5."
+---
+A five-card run whose third spawn answers a refusal spawns five times, the fourth and fifth calls carry the fourth and fifth cards' references, and the returned `BulkReport` holds `selected` 5 and exactly five entries in selection order, four of them `{ kind: "done" }` and the third `{ kind: "failed", failure: <refusalMessage of that outcome> }`.

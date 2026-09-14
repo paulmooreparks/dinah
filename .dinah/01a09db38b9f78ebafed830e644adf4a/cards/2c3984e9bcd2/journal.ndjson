@@ -1,0 +1,4 @@
+{"ts":"2026-09-14T02:16:45Z","event":"created","actor":"paul","title":"A language tag Dinah does not ship is ignored rather than refused","to":"5ea2db0272fc","to_title":"Intake"}
+{"ts":"2026-09-14T02:16:45Z","event":"card_updated","actor":"paul","field":"body"}
+{"ts":"2026-09-14T02:16:45Z","event":"card_updated","actor":"paul","to":"minor","field":"severity"}
+{"ts":"2026-09-14T02:16:45Z","event":"card_updated","actor":"paul","to":"soon","field":"priority"}

@@ -1,0 +1,9 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+ts: 2026-09-14T02:18:24Z
+ordinal: 6
+note: "TestANonCanonicalNumberSpellingAnswersWithTheReferenceDinahWrites logged \"4 tolerated spellings each answered with fx-1\", naming fx-01, fx--1, FX-1 and a padded fx-1 and failing when fewer than four ran. The spec's plant is not performable as written: Card.Ref takes the workbench slug and never sees what the caller typed, and Library.view has no typed reference in scope either. Performing it exposed a second defect and the check was corrected before it was armed. The expected reference was read back off Card.Ref, so it compared the composition against itself and every plant moved both sides together; it now composes fx-1 from the slug in workbench.md and the number in card.md, read off disk. The substitute plant is Card.Ref composing `slug + \"-0\" + number`, which reddened address_form_run_test.go:421 four times, once per spelling, each saying the reference answered was the careless spelling rather than what Dinah writes. Resolve with: `go test ./cmd/dinah/ -run TestANonCanonicalNumberSpellingAnswersWithTheReferenceDinahWrites -v`."
+---
+`TestANonCanonicalNumberSpellingAnswersWithTheReferenceDinahWrites` runs `dinah show --json` on `wb-01`, `wb--1`, `WB-1` and a reference padded with a leading and a trailing space, asserts each exits 0, and asserts the `ref` the payload carries is `wb-1` in every case. It names the four spellings rather than counting them, and fails when fewer than four were run. Arming plant: make `Card.Ref` echo the prefix the caller typed instead of composing the workbench's slug; every one of the four then answers with the spelling it was given and the test goes red.

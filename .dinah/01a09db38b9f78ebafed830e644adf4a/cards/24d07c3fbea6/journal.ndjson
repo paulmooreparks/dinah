@@ -1,0 +1,5 @@
+{"ts":"2026-09-14T02:18:39Z","event":"created","actor":"paul","title":"Nothing holds the CLI's message catalogue to the Go code that asks for it, in either direction","to":"5ea2db0272fc","to_title":"Intake"}
+{"ts":"2026-09-14T02:18:39Z","event":"card_updated","actor":"paul","field":"body"}
+{"ts":"2026-09-14T02:18:39Z","event":"card_updated","actor":"paul","to":"major","field":"severity"}
+{"ts":"2026-09-14T02:18:39Z","event":"card_updated","actor":"paul","to":"soon","field":"priority"}
+{"ts":"2026-09-14T02:18:54Z","event":"linked","actor":"paul","to":"ca954fd7c228","kind":"spawned_from"}

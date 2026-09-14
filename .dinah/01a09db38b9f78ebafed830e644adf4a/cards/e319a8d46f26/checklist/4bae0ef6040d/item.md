@@ -1,0 +1,9 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+ts: 2026-09-14T02:18:50Z
+ordinal: 36
+note: "PERFORMED at round 6, against `docs/specs/dinah-490-plant-reductions/perimeter.mjs` driven by `acPerimeter.mjs`, the AC-36 clause. Baseline 9 assertions, 0 red, exit 0.\n\nThis is the criterion that makes \"a collected `showError` is discarded\" safe to state. The drained error and the row's recorded failure carry the same text today at every act-reachable site, so writing both would double every line in the channel. The plant, for Test: append the drained errors to the channel alongside the per-row lines and confirm the line count reddens at 6 rather than 3. The reverse plant, for the other direction: change one act to show a different text from the one it records, and confirm the line naming that row still appears once, so a reader learns that this criterion pins the count rather than the completeness of what was collected.\n\nWhat this does not prove, stated because it is the honest limit: it does not prove that the discarded text was redundant at every call site, only that the channel carries one line per row. If a later command shows an error whose text is not what it records as the failure, the shown text is lost and nothing here reddens. §3a records that the two are the same text at every act-reachable site today, and AC-34 is what makes a new site visible to whoever adds it.\n\nThe clause was written at round 6 to close the question round 5's design left open: §3b said `drain()` answered the errors and never said what became of them."
+---
+A three-row run in which every row's act calls `showError` and returns `{ kind: "failed" }` carrying that same text writes exactly three channel lines, one per row, each of the form `<ref>: <failure>` naming its own row, and calls the real host's `REPORT_CHANNELS` members exactly once in total, that call being the partial warning.

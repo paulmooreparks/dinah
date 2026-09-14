@@ -1,0 +1,10 @@
+---
+kind: decision
+state: resolved
+column: 0d86ad99cdbc
+owner: holder
+ts: 2026-09-14T02:17:36Z
+ordinal: 23
+note: "Three calls, each of which could reasonably have gone the other way, so they are recorded rather than left to the implementer.\n\nReporting every member of the group departs from checkOrdinals (check.go:655), which reports only the second sighting with a seen map. That is right there, because a collection's members arrive in one order and the second one met is the interloper. Here the walk reads b.CardsRoot() before b.ArchivedCardsRoot(), and the archived card is the one that held the number first, so reporting the second sighting would name the innocent card and leave the newly filed one unreported. The operator's instruction was a finding that names the duplicates, and naming one of two does not.\n\nDetail carries the number and Path the card's anchor, because render.go:884 prints T(finding.Key, \"detail\", finding.Detail) followed by the path in parentheses. With the number in the sentence and the path beside it, two findings of one collision read as one number against two openable paths. Putting the identifier in Detail instead, as checkOrdinals does, would print the collision without ever printing what collided.\n\nBoth halves are walked because NextNumber reads both, and a detector reading less than the minter would miss precisely the case the minter creates. It is also the first thing on this card to read the archived half at all, which is why the archived half's anchor health is recorded in the spec's Out of scope rather than folded in here."
+---
+The duplicate-number finding reports every card in a colliding group rather than only the second one met, its Detail carries the number and its Path carries the card's anchor, and it walks both halves of the collection.

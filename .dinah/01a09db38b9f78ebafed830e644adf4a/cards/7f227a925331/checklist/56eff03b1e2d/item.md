@@ -1,0 +1,9 @@
+---
+kind: decision
+state: resolved
+owner: operator
+ts: 2026-09-14T02:18:43Z
+ordinal: 18
+note: "Paul ruled on 2026-09-11, agreeing with the recommendation put to him by the session working dinah-439. That card is in code review with pull request 251 open and green, and it already ships a `dinah check` finding for a number claimed twice, which this card's deliverable list also names.\n\nRe-point the existing finding at the registry rather than writing a fresh one, and keep the two properties it cost real work to find. It must report an archived entity whose file it cannot read rather than skipping it, because the archived half is exactly where a duplicate hides and a detector that goes quiet there hides the case it exists to find. And it must skip an entity carrying no number rather than grouping every such entity on zero: without that guard each numberless card drew a false collision, and the people who see those are precisely the people the check is written for, since a workbench mid-repair is full of them.\n\nOne route in this card's problem statement is also already closed by 251. The minter scanning a card collection it could not fully read, handing out a number an archived card already held, and letting the filing go through cleanly, now refuses. The clone-and-merge route this card is named for is untouched and remains open.\n\nWrite the spec against a tree that has 251 in it. See comment 7492 for what 251 actually ships, and dinah-487's comment 7493 for the sentence in that card's description this makes stale."
+---
+dinah-439 merges first, and this card adapts the duplicate-number check it ships rather than writing a second one.

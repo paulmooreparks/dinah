@@ -1,0 +1,9 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+ts: 2026-09-14T02:18:20Z
+ordinal: 9
+note: "Verified against the built binary in C:/dinah-scratch/dinah-470-impl/probe/wb, a throwaway workbench with DINAH_HOME inside my own scratch. `dinah help path`'s <ref> row reads \"the thing whose file path you are printing, such as wb-1/comments/1 (one of: this workbench, written as `workbench` or `.`; a workstream, written as `workstream/<slug>`; a column; a card; something below a card; a whole collection)\", which names a column, a whole collection AND a workstream. `dinah help show`'s reads \"the thing whose detail you are reading, such as wb-1 or wb-1/comments/1 (one of: a column; a card; something below a card; a whole collection)\", which names a column and a whole collection. That is the reader-visible defect this card was filed for, gone on both pages. Second half: `git diff origin/main --numstat -- internal/guide/guides/references.md cmd/dinah/testdata/prose-figures.txt` reports exactly \"1 1\" against each of the two files, re-run against current origin/main (417f52d, dinah-474) after merging it into the branch, and `git diff origin/main -U0 -- internal/guide/guides/references.md` reports the hunk header \"@@ -127 +127 @@\", so the changed line is 127."
+---
+`dinah help path` and `dinah help show`, run from the built binary, each print a `<ref>` row whose clause names a column and a whole collection, and `dinah help path`'s clause also names a workstream, which is the reader-visible defect this card was filed for; `git diff origin/main --numstat -- internal/guide/guides/references.md cmd/dinah/testdata/prose-figures.txt` reports exactly `1 1` against each of the two files, and the references guide's changed line is line 127.

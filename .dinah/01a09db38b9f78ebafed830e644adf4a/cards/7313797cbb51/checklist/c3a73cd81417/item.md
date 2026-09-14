@@ -1,0 +1,9 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+ts: 2026-09-14T02:18:24Z
+ordinal: 9
+note: "All three checks pass and log their sizes: \"17 constants of type AddressForm read from 25 const specs, held against 17 declarations\", \"14 head forms naming 4 reference kinds, 3 selector forms carrying none\", and \"18 resolver rows, 11 of them naming 38 form references\". The constant set comes from a go/ast read of internal/addressform/addressform.go rather than from a second hand-written list, since two copies of one list cannot see the failure the check exists to catch. Armed twice: minting MemberNickname with no declaration reddened the first at address_form_roster_test.go:97 naming the constant; giving card-number verb.ReferenceKindBelowCard reddened the second at :146 naming the form and the kind. Both left the build sound. Resolve with: `go test ./cmd/dinah/ -run 'TestEveryAddressFormConstantStandsInExactlyOneDeclaration|TestEveryHeadFormNamesADeclaredReferenceKind|TestEveryDeclaredResolverFormIsADeclaredForm' -v`."
+---
+`TestEveryAddressFormConstantStandsInExactlyOneDeclaration` asserts the declared `AddressForm` constants and the entries of `addressform.Declarations()` are the same set in both directions. `TestEveryHeadFormNamesADeclaredReferenceKind` asserts the set of kinds the head forms name is exactly `{verb.ReferenceKindWorkbench, verb.ReferenceKindWorkstream, verb.ReferenceKindColumn, verb.ReferenceKindCard}`, that every kind in that set is named by at least one head form, and that every selector form's `Kind` is empty. `TestEveryDeclaredResolverFormIsADeclaredForm` asserts each `Forms` entry of `addressform.Resolvers()` names a declared constant. All three log the roster size and fail when it is zero. Arming plant: add a constant with no declaration, which reddens the first; change one head form's `Kind` to `verb.ReferenceKindBelowCard`, which reddens the second while the build stays sound.

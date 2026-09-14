@@ -1,0 +1,9 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+ts: 2026-09-14T02:18:48Z
+ordinal: 21
+note: "Compares the returned entry list against expected entries and the summary's level and counts against expected values, in a pure test with no editor. The paths that need this are live rather than hypothetical: `openDocument`, `copyToClipboard`, `openFile` and `openServedText` all reach the editor and all can reject, so a fan-out over Open Card or Copy Reference can lose a whole run at row three today. The third-entry assertion is the one that proves the loop advanced rather than merely that the rejection was swallowed.\n\nRed run to produce at Test, NOT performed: remove the catch inside `runOverRows` so the rejection propagates. Round 4 said the entry-count assertion and the does-not-reject assertion \"redden together\", and comment 7558 finding 4 is right that they cannot. Once the rejection propagates, the awaited call rejects and the test fails there; the entry-count assertion is never reached, because there is no report to inspect. The red is the call rejecting, and it is readable, which is what the plant needs to be worth performing; it is the description that overstated what a reader sees. The plant leaves the code compiling, so the run executes rather than dying in `tsc`."
+---
+A three-row run whose second act rejects with an `Error` returns a report holding three entries, the second `{ kind: "failed", failure: <that error's message> }` and the third recording the outcome of an act that did run; `runOverRows` itself does not reject; and `summaryFor` over that report counts the throw among the failed rows and answers a `warning`.

@@ -1,0 +1,10 @@
+---
+kind: decision
+state: resolved
+column: 4b38abe7ebd5
+owner: holder
+ts: 2026-09-14T02:18:12Z
+ordinal: 39
+note: "The new keys are the two command summaries, seven parameter summaries, four unknown-field variants and next steps, the malformed one-line splice, the three unconfirmed entries for set, and the ten check rows of get and set.\n\nMost were produced by taking the neighbouring entry that already said nearly the same thing and moving what changed. `cmd.get.summary` and `cmd.set.summary` follow `cmd.path.summary`'s shape; the two ref summaries follow `param.path.card.summary` word for word except for the verb; `param.set.at.summary` is the retired `param.card.at.summary` with one clause narrowed from tier to a card's tier; the check rows follow the check rows of the lists they replace, three of which they reuse verbatim.\n\nSix were written fresh against the register of their neighbours: the two field summaries, the value summary, the note summary, the one-line splice and the unconfirmed sentence for set. The vocabulary they needed is one word, the English \"entity\", for which German takes Einheit and Hindi इकाई. That is the term to look at first: neither catalogue had one, because until this card no sentence in the tool spoke about an entity in the abstract, and both languages offer alternatives a reader might expect instead.\n\nThe glossary terms these sentences trigger are used as the glossary declares them: Sammlung and संग्रह for a collection, Akteur and स्वामी for an owner, Spalte and कॉलम for a column. Field names, command names and flags stay in backticks and untranslated, which is what the contract-token guard already requires.\n\nNo fluent reader has read any of this, which is the project's standing practice and not a claim of correctness."
+---
+The twenty-two new keys were translated fresh, and this is where they came from.

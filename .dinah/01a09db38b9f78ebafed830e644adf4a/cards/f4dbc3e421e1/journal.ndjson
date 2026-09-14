@@ -1,0 +1,5 @@
+{"ts":"2026-09-14T02:16:45Z","event":"created","actor":"paul","title":"The query's workstream vocabulary stops being the identifiers live cards happen to list","to":"5ea2db0272fc","to_title":"Intake"}
+{"ts":"2026-09-14T02:16:45Z","event":"card_updated","actor":"paul","field":"body"}
+{"ts":"2026-09-14T02:16:45Z","event":"card_updated","actor":"paul","to":"minor","field":"severity"}
+{"ts":"2026-09-14T02:16:45Z","event":"card_updated","actor":"paul","to":"next","field":"priority"}
+{"ts":"2026-09-14T02:16:45Z","event":"card_updated","actor":"paul","to":"workhorse","field":"tier"}

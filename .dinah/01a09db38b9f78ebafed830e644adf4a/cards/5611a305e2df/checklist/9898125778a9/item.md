@@ -1,0 +1,9 @@
+---
+kind: decision
+state: resolved
+owner: holder
+ts: 2026-09-14T02:17:42Z
+ordinal: 26
+note: "\"One of four outcomes\" and \"Seven of the eight that are missing\" are true sentences no derivation can check, and no rule short of parsing English separates them from a total. Forbidding them would push writing around to suit a mechanism. Round 1 bounded the escape hatch by forbidding it on a figure whose noun carried a derivation, which is unusable because one noun counts many sets; see D-11. The bound is now that entries sharing a counts= phrase must agree on figure and holding, and that a derivation no entry names fails. Round 3 corrects what the two pointer classes are worth. An unreachable entry names a file, a line, and the identifier declared there, and the mechanism checks that the line carries that identifier, because round 2 checked only that the line was non-blank and its own seed pointer was a doc-comment line one above the declaration. An elsewhere entry names a test the mechanism confirms is declared, and nothing more: the mechanism cannot tell whether that test opens the document or counts anything, so the entry carries a reason= phrase stating how the test holds the figure and a person is the one who checked it. Round 2's seed proved the difference by declaring mcp.md:298 held by TestBasisIsPublishedExactlyWhereItIsConsumed, which never reads mcp.md and never counts. That entry is now unreachable, pointing at injectedProperties at internal/mcp/tools.go:305."
+---
+A figure the guard cannot derive is declared with a reason rather than forbidden, in one of four classes: partitive, elsewhere, unreachable, or prose.

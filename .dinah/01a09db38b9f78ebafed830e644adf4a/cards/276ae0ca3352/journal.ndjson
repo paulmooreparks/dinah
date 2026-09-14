@@ -1,0 +1,4 @@
+{"ts":"2026-09-14T02:17:26Z","event":"created","actor":"paul","title":"Selection offers a card whose claim would be refused for an unanswered question","to":"5ea2db0272fc","to_title":"Intake"}
+{"ts":"2026-09-14T02:17:26Z","event":"card_updated","actor":"paul","field":"body"}
+{"ts":"2026-09-14T02:17:26Z","event":"card_updated","actor":"paul","to":"major","field":"severity"}
+{"ts":"2026-09-14T02:17:26Z","event":"card_updated","actor":"paul","to":"next","field":"priority"}

@@ -1,0 +1,4 @@
+{"ts":"2026-09-14T02:18:34Z","event":"created","actor":"paul","title":"A column titled 1 shadows card 1, and the tool refuses the slug that would not have","to":"5ea2db0272fc","to_title":"Intake"}
+{"ts":"2026-09-14T02:18:34Z","event":"card_updated","actor":"paul","field":"body"}
+{"ts":"2026-09-14T02:18:34Z","event":"card_updated","actor":"paul","to":"major","field":"severity"}
+{"ts":"2026-09-14T02:18:34Z","event":"card_updated","actor":"paul","to":"soon","field":"priority"}

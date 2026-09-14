@@ -1,0 +1,9 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+ts: 2026-09-14T02:18:36Z
+ordinal: 11
+note: "test: internal/verb/beyond_test.go#TestEveryRefusalNameIsLegal and the internal/profile guards pass with contract.UnresolvedItemExit added to contract.Introduced and to shape.go's Shapes (`go test ./internal/verb/... ./internal/profile/...` both ok; internal/profile's checkOneRefusalIsOneDeclaration is the one that would fail on a name carrying no shape or a shape carrying no catalog sentence, and it reads Introduced directly). The catalog half is the new internal/verb/checkkeys_test.go#TestEveryPullCheckKeyIsCarriedByEveryCatalog, which reads the keys off Checks(Pull) itself rather than a hand-written list and asserts msg.CatalogEntry answers for every one of the eight shipped tags, with a sibling for the move's list. observed before: fail, after: pass. Armed by renaming check.pull.16 back to check.pull.15 in de.json alone, which reddened checkkeys_test.go:28 with `de/check.pull.16: the row is declared and this catalog carries no sentence for it`; restored byte-identically."
+---
+`TestEveryRefusalNameIsLegal` (`internal/verb/beyond_test.go`) and `checkOneRefusalIsOneDeclaration`/its sibling checks (`internal/profile/guards_test.go`) pass with `contract.UnresolvedItemExit` added to `contract.Introduced` and to `internal/contract/shape.go`'s `Shapes`, and with matching catalog entries (`refusal.dinah.unresolved-item-exit` and its `.next`) present in all eight locale files under `internal/msg/locales/`. Separately, a test (existing or extended) confirms every `check.pull.N` key referenced by `pullChecks` (1 through 16, after this card's renumbering) has a matching catalog entry in all eight locale files, catching a locale file left un-renumbered.

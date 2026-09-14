@@ -1,0 +1,9 @@
+---
+kind: open_question
+state: resolved
+owner: operator
+ts: 2026-09-14T02:16:51Z
+ordinal: 40
+note: "Operator ruling (Paul, relayed by Devin on BARN): a path alone. Slugs are not accepted.\n\nHis reason, and it is the general one rather than a judgement about this argument: if this is the MCP surface, the caller should be unambiguous. A machine caller has no reason to prefer a short spelling, and the surface has every reason to refuse an address that can mean two things.\n\nThis supersedes an earlier ruling on this same item, recorded minutes before, which accepted slugs as well as paths. That answer is withdrawn in full rather than narrowed, and nothing in the spec should carry it forward.\n\nWhat the withdrawal removes, so the spec shrinks rather than growing. There is no collision case, because a path names one directory and nothing else. There is no ambiguity refusal to mint or reuse. And the interaction with OQ-2 that the earlier ruling created is gone: resolving an address needs a stat rather than the enumeration, so the cached listing's staleness no longer reaches address resolution at all. OQ-4, which existed only to settle the collision, is resolved as moot.\n\nOne consequence of the cache survives and belongs to the listing rather than to resolution: a workbench created after the server started is absent from what the listing reports until the server restarts, while its path can be named and opened immediately. That is a smaller and more explicable surprise than the one the withdrawn answer would have shipped, because a caller who already knows a path is not asking the listing anything."
+---
+Does the workbench property accept a workbench's slug as well as its path, or a path alone?

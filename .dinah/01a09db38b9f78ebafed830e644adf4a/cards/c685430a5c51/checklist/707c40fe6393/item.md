@@ -1,0 +1,9 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+ts: 2026-09-14T02:18:05Z
+ordinal: 1
+note: "Verified at 4a8c66a. Test: internal/verb/beyond_test.go, TestAttachRefusesAKindTheContainmentTableGivesNoMount, subtests \"a checklist item\", \"an attachment\", \"a workstream\". Command: go test ./internal/verb/ -run TestAttachRefusesAKindTheContainmentTableGivesNoMount -v. Green. The three targets are built by Library.File, Library.Attach and Library.NewWorkstream in the same test. Plant: the MountOf guard deleted from Library.Attach, replaced by `_ = replacing` so the tree still compiled. Red run, all three rows, each on four assertions: beyond_test.go:3268 \"attach to fx-1/checklist/1: wanted refused dinah.not-attachable, got ok\", :3271 `the refusal carries kind \"\", wanted \"item\"`, :3274 the reference value, and :3280 \"a refused attach left ...\\checklist\\6f5509ed434a\\attachments behind\". The same four reddened for the attachment row and for the workstream row, whose reference reads the bare slug \"probe-stream\" per D-10. The outcome check is t.Errorf rather than t.Fatalf precisely so the on-disk assertion still runs, which is what separates a refusal from a verb that answers refused and writes anyway. Restored from a byte-identical copy and green again."
+---
+AC-1. `internal/verb/beyond_test.go`, `TestAttachRefusesAKindTheContainmentTableGivesNoMount`: for each of a checklist item reference, a card attachment reference, and a workstream reference, `Library.Attach` answers `Outcome` refused with `Refusal` equal to `dinah.not-attachable`, carries `kind` equal to `item`, `attachment`, and `workstream` respectively, and leaves no `attachments` directory below the target on disk. A false failure is impossible because the three targets are created by the library's own verbs in the same test rather than planted by hand.

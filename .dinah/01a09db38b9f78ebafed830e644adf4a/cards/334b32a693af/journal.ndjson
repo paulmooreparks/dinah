@@ -1,0 +1,5 @@
+{"ts":"2026-09-14T02:17:09Z","event":"created","actor":"paul","title":"The reader never checks that a card's condition is a condition","to":"5ea2db0272fc","to_title":"Intake"}
+{"ts":"2026-09-14T02:17:09Z","event":"card_updated","actor":"paul","field":"body"}
+{"ts":"2026-09-14T02:17:09Z","event":"card_updated","actor":"paul","to":"major","field":"severity"}
+{"ts":"2026-09-14T02:17:09Z","event":"card_updated","actor":"paul","to":"next","field":"priority"}
+{"ts":"2026-09-14T02:17:09Z","event":"card_updated","actor":"paul","to":"frontier","field":"tier"}

@@ -1,0 +1,9 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+ts: 2026-09-14T02:17:50Z
+ordinal: 5
+note: "Verified on 3b9c51c. Test: internal/verb/tree_ref_test.go, TestTheContainmentWalkAndShowAgreeOnEveryItemReference. Command: go test ./internal/verb -run TestTheContainmentWalkAndShowAgreeOnEveryItemReference. Plant: containedNode kept parentRef + \"/\" + mount.Dir + \"/\" + position for the item mount; built clean, and the run went red on three of the four items at tree_ref_test.go:48, the first reading \"the item c95d93d5bd88 is drawn by contents as \\\"fx-1/checklist/1\\\" and by show as \\\"fx-1/oq/1\\\"\". The criterion predicted the second open question; the plant in fact reddens every aliased item, which is a stronger result and worth recording rather than smoothing over. Restored byte-identically (cmp clean) and green again."
+---
+`dinah contents <card>` and `dinah show <card>` print the same reference for the same item. In internal/verb/tree_ref_test.go, TestTheContainmentWalkAndShowAgreeOnEveryItemReference calls Library.Contents and Library.Show on one card carrying two open questions, one acceptance criterion and one item of an undeclared kind, pairs the item nodes with the ItemViews by identifier, and asserts the two Ref values are equal for every pair and that each resolves through Bench.ResolveEntity to the item it names. The pairing is by identifier rather than by position, so a walk that emits the right refs in the wrong order still fails. Arm it by having containedNode keep its `parentRef + "/" + mount.Dir + "/" + position` composition for the item mount, which compiles and turns the equality assertion red on the second open question.

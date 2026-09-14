@@ -1,0 +1,10 @@
+---
+kind: decision
+state: resolved
+column: 4b38abe7ebd5
+owner: holder
+ts: 2026-09-14T02:18:38Z
+ordinal: 38
+note: "No. `bench.HoldValues` is added as the one statement of which values are legal, with `bench.KnownHold` reading it, modeled on `ItemStates` and `KnownItemKind` directly beside them in the same file, and `admitFieldValue`'s `GuardHold` case now calls `KnownHold` instead of listing the four again. This is what makes AC-17's guide check worth anything: the set the guide is held against has to be the set the command actually admits, or the check pins the guide to a copy. CORRECTED on round 3, after Agent Code Review acted on the claim instead of reading it. The round-2 wording of this note and of the declaration's own doc comment both closed by saying a fifth value moves this list \"and nothing else\", and that is false in the direction that costs most, because it tells the next reader the job is done when it is half done. Membership is the whole of what the list settles. Seven readers each decide what to do with a value and each has to be taught a new one: `storedHold` and `typedHold` in `internal/verb`, `readColumnIn` in `internal/bench/bench.go`, `exportColumn` and `writeColumnFromMember` in `internal/bench/interchange.go`, and `HoldsOnEntry` and `HoldsOnExit` on `Column`. Review's own plant is what a value added to the list alone does: `dinah set doing hold sideways` exits 0, reports the write, stores nothing, and `dinah get doing hold` answers `off`. Both copies of the sentence are corrected to name the seven, and AC-18 builds the guard that holds them to the list rather than to a reader's memory."
+---
+Round 1 left the legal hold values spelled out in a switch inside admitFieldValue, which is a second declaration beside the four constants. Does round 2 leave it there?

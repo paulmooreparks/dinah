@@ -1,0 +1,9 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+ts: 2026-09-14T02:18:35Z
+ordinal: 1
+note: "test: internal/bench/gate_test.go#TestTheGateFlagIsParsedStrictly, subtest \"each declared value reads as the direction it names\" (the four-row table asserting Hold, HoldsOnEntry and HoldsOnExit for true/false/out/both), plus subtest \"a value outside the four refuses the workbench\" (nine values including bogus and the retired \"in\", each asserting contract.Malformed naming the column), subtest \"a workbench with no such key opens unchanged\", and TestHoldsOnEntryAndExitReadTheFourStates (both predicates over all four states). observed before: fail, after: pass. Armed twice: making readColumnIn read \"out\" as HoldOn reddened gate_test.go:78 with `gate_items: out read as \"on\", wanted \"out\"`; making HoldsOnExit read HoldOn reddened gate_test.go:84 and :126. Both restored byte-identically (cmp against the backup)."
+---
+`bench.Column` gains `Hold string` (replacing `GateItems bool`), plus `HoldsOnEntry()`/`HoldsOnExit()` methods; `readColumnIn` parses `gate_items` under a strict discipline: empty or `"false"` → `Hold == ""`, `"true"` → `Hold == bench.HoldOn` (the legacy spelling of holding on entry, unchanged), `"out"` → `Hold == bench.HoldOut`, `"both"` → `Hold == bench.HoldBoth`, any other value → `contract.Malformed` naming the column. Check: a `bench_test.go` case loading a `column.md` carrying `gate_items: true` round-trips `Hold == bench.HoldOn`; cases carrying `out` and `both` round-trip to `bench.HoldOut` and `bench.HoldBoth` respectively; a case carrying `gate_items: bogus` is refused `Malformed`; a case carrying no key at all reads `Hold == ""`; `HoldsOnEntry()` returns true only for `HoldOn`/`HoldBoth` and `HoldsOnExit()` only for `HoldOut`/`HoldBoth`, proven for all four states.

@@ -1,0 +1,7 @@
+{"ts":"2026-09-14T02:18:26Z","event":"created","actor":"paul","title":"A checklist item's four states cannot say \"let this through anyway\" and cannot say \"this no longer applies\"","to":"5ea2db0272fc","to_title":"Intake"}
+{"ts":"2026-09-14T02:18:26Z","event":"card_updated","actor":"paul","field":"body"}
+{"ts":"2026-09-14T02:18:26Z","event":"card_updated","actor":"paul","to":"major","field":"severity"}
+{"ts":"2026-09-14T02:18:26Z","event":"card_updated","actor":"paul","to":"next","field":"priority"}
+{"ts":"2026-09-14T02:18:26Z","event":"workstream_joined","actor":"paul","workstream":"b3f924406e4c"}
+{"ts":"2026-09-14T02:18:53Z","event":"linked","actor":"paul","to":"2f234e39172b","kind":"relates_to"}
+{"ts":"2026-09-14T02:18:53Z","event":"linked","actor":"paul","to":"5ef07a3b83a3","kind":"relates_to"}

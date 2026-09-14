@@ -1,0 +1,10 @@
+---
+kind: decision
+state: resolved
+column: 0d86ad99cdbc
+owner: holder
+ts: 2026-09-14T02:18:52Z
+ordinal: 61
+note: "Round 5 shipped `collectingHost(host: CommandHost)` intercepting `showError` and `checkpoint`, and §3a claimed on the strength of it that nothing else in `src/` could speak about a multi-row run. Three host interfaces exist, they carry three different subsets of the message members, and only one of them was wrapped, so a workbench command's `showInfo` and a column command's `showWarning` were never anything's to collect.\n\nThe obvious repair was to add `showInfo` and `showWarning` to the wrapper. It was rejected because it leaves the same shape one layer down: the wrapper would still name members of `CommandHost` while `WorkbenchCommandHost` and `ColumnCommandHost` went unwrapped, and a fourth host would arrive outside the perimeter with nothing to say so.\n\nWhat ships instead is `src/reporter.ts`: `REPORT_CHANNELS` and `PROMPT_CHANNELS` as declared constants, and `ReporterHost` as the interface all three host interfaces extend. `collectingHost` becomes generic over `H extends ReporterHost`, so a host that can speak is a host a run can collect, by construction rather than by anybody remembering. The cost is six one-line bindings in `extension.ts`, four of them `vscode.window.show*Message` calls and two of them the `appendLines` and `revealOutput` bindings that reach the channel, and the benefit is that AC-31 can hold the whole set mechanically. Round 6 wrote four here and meant the four message calls, which is the figure AC-31 now derives per factory.\n\nThis is the same replacement the card made twice before, once when the counts came off the callers and once when the report became a value only `bulk.ts` can mint. A rule that depends on every caller behaving is the shape that fails here, and it has now failed three times on three different surfaces of one card."
+---
+The perimeter is declared as one interface every host extends, rather than as a wrapper that names the members of one host.

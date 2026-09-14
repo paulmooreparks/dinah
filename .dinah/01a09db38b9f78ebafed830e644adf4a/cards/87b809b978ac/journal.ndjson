@@ -1,0 +1,4 @@
+{"ts":"2026-09-14T02:17:12Z","event":"created","actor":"paul","title":"A glossary term in the plural is not the term, so the guard walks past it","to":"5ea2db0272fc","to_title":"Intake"}
+{"ts":"2026-09-14T02:17:12Z","event":"card_updated","actor":"paul","field":"body"}
+{"ts":"2026-09-14T02:17:12Z","event":"card_updated","actor":"paul","to":"minor","field":"severity"}
+{"ts":"2026-09-14T02:17:12Z","event":"card_updated","actor":"paul","to":"soon","field":"priority"}

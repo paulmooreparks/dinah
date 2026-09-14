@@ -1,0 +1,9 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+ts: 2026-09-14T02:18:32Z
+ordinal: 11
+note: "Verified at 5a88bec. guidepin.Pinned() holds five entries and the shipped sweep logs \"5 pinned statements checked, 171 _test.go files scanned for their provenance\". Five plants and five red runs, each cutting one pinned sentence out of internal/guide/guides/references.md (matched whitespace-insensitively, so the hard wrap did not defeat the cut) and running that statement's own Provenance test: TestTheArchivedHalfIsReadAtTheDeepestCollectionStep red at resolve_archived_half_test.go:64; TestAPositionUnderTheFlagCountsTheMirrorsOwnMembers red at :100; TestANestedArchiveRestoresInTwoActs red at restore_test.go:801; TestRestoringAColumnReturnsItToTheOrderAndRepairsAStrandedCard red at :434; TestAnArchivedReadShowsOneHalfAndWritesNothing red at :644. Each failure named the topic and quoted the sentence, and because the call sites use t.Error rather than t.Fatal, each run still verified the behaviour it was written for. References.md restored byte-identically (cmp clean) after every plant."
+---
+All five pinned statements are wired: guidepin.Pinned() holds five entries, and TestTheArchivedHalfIsReadAtTheDeepestCollectionStep, TestAPositionUnderTheFlagCountsTheMirrorsOwnMembers, TestANestedArchiveRestoresInTwoActs, TestRestoringAColumnReturnsItToTheOrderAndRepairsAStrandedCard and TestAnArchivedReadShowsOneHalfAndWritesNothing each call guidepin.Carries with its own constant. Deleting each sentence from internal/guide/guides/references.md in turn turns that one test red naming the topic and the sentence, five plants and five red runs, each recorded.

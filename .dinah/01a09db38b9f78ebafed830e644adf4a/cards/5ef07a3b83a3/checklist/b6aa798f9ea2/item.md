@@ -1,0 +1,8 @@
+---
+kind: acceptance_criterion
+state: pending
+column: 6c5b9d6f4414
+ts: 2026-09-14T02:17:44Z
+ordinal: 9
+---
+The arbiter is flipped in writing, in both places, and the two texts agree. First half: a whole-file read of the Dinah workbench anchor, located by discovery from `c:\Users\paul\source\repos\dinah` rather than by a hardcoded directory name, finds none of its four superseded claims, each searched whole-file because two of them wrap across line breaks: that the workbench "is not a mirror of anything happening now", that "the hosted board stays the arbiter of live work until somebody deliberately cuts over", that it "is a rehearsal of the extraction command that does not exist yet" (false since `dinah extract` shipped: `runExtract` at cmd/dinah/commands.go:1102, `Library.Extract` at internal/verb/read.go:1656), and that it "carries no cards". The same read finds a sentence naming this workbench as the arbiter of live work for this project and a sentence naming the Andoneer board as the archive of everything before the cutover. Second half: the Andoneer workbench's own instructions carry a sentence naming the Dinah workbench as the arbiter and saying the board is closed to new work, and that sentence identifies the workbench by its post-migration identifier, which is recorded on this card when the migration mints it. A failing run is any superseded claim still present, either naming sentence absent from its own side, or a naming sentence quoting the retired 12-hex directory name.

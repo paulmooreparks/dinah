@@ -1,0 +1,4 @@
+{"ts":"2026-09-14T02:16:59Z","event":"created","actor":"paul","title":"three resolvers read the environment directly while a fourth already takes it as a parameter","to":"5ea2db0272fc","to_title":"Intake"}
+{"ts":"2026-09-14T02:16:59Z","event":"card_updated","actor":"paul","field":"body"}
+{"ts":"2026-09-14T02:16:59Z","event":"card_updated","actor":"paul","to":"minor","field":"severity"}
+{"ts":"2026-09-14T02:16:59Z","event":"card_updated","actor":"paul","to":"next","field":"priority"}

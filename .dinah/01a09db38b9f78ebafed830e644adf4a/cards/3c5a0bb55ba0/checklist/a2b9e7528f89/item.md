@@ -1,0 +1,10 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+owner: holder
+ts: 2026-09-14T02:17:54Z
+ordinal: 6
+note: "VERIFIED. cmd/dinah/collection_reference_test.go TestAWalkRootedAtACollectionDrawsTheHoldersRowsForIt. Run: `go test ./cmd/dinah/ -run TestAWalkRootedAtACollectionDrawsTheHoldersRowsForIt -v`. The Reference and Entity cells of the walk rooted at each of fx-1/comments, fx-1/attachments and fx-1/checklist are compared against the same-kind rows of the walk rooted at fx-1, and each subject set has its size asserted first (2 comments, 1 attachment, 2 items) so a parse finding nothing reports 0 rather than passing on an empty comparison. The narrowed fx-1/questions draws exactly one row and it is the question's own address. The root reads back the typed reference, carries kind \"collection\" with no id and no title, counts 2, and the header prints \"fx-1/comments contains 2 entities.\". ARMED: seeded the collection walk's children with collection.Ref instead of the holder's seed; the plant compiled and ran, and the assertion at collection_reference_test.go:354 reddened, reporting the two walks drawing different rows (fx-1/comments/comments/1 against fx-1/comments/1); restored byte-identically, green."
+---
+A walk rooted at a collection draws the rows the walk rooted at its holder draws under that collection, and no others. On a card carrying two comments, one open question, one acceptance criterion and one attachment, the Reference and Entity cells of `dinah contents pb-1/comments` equal the comment rows of `dinah contents pb-1`, and the run asserts that set is non-empty and holds 2 rows. The same comparison is made for `dinah contents pb-1/attachments`, for `dinah contents pb-1/checklist`, and for the narrowed `dinah contents pb-1/questions`, which draws exactly the question rows and asserts a row count of 1. The root header names the reference the reader typed and a count equal to the entities at or below the collection, and `dinah contents pb-1/comments --json` carries root.kind "collection" with no id and no title.

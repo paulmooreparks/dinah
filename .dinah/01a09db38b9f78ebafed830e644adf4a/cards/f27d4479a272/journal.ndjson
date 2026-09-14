@@ -1,0 +1,4 @@
+{"ts":"2026-09-14T02:16:59Z","event":"created","actor":"paul","title":"the coverage guard gives up and says nothing whenever another test is red","to":"5ea2db0272fc","to_title":"Intake"}
+{"ts":"2026-09-14T02:16:59Z","event":"card_updated","actor":"paul","field":"body"}
+{"ts":"2026-09-14T02:16:59Z","event":"card_updated","actor":"paul","to":"major","field":"severity"}
+{"ts":"2026-09-14T02:16:59Z","event":"card_updated","actor":"paul","to":"soon","field":"priority"}

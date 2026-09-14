@@ -1,0 +1,5 @@
+{"ts":"2026-09-14T02:17:15Z","event":"created","actor":"paul","title":"The ui pages: server-rendered HTML over the verbs, one frontend for every container","to":"5ea2db0272fc","to_title":"Intake"}
+{"ts":"2026-09-14T02:17:15Z","event":"card_updated","actor":"paul","field":"body"}
+{"ts":"2026-09-14T02:17:15Z","event":"card_updated","actor":"paul","to":"minor","field":"severity"}
+{"ts":"2026-09-14T02:17:15Z","event":"card_updated","actor":"paul","to":"soon","field":"priority"}
+{"ts":"2026-09-14T02:18:55Z","event":"linked","actor":"paul","to":"017d7be2bdd2","kind":"relates_to"}

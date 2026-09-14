@@ -1,0 +1,5 @@
+{"ts":"2026-09-14T02:16:29Z","event":"created","actor":"paul","title":"A search verb with structured hits","to":"5ea2db0272fc","to_title":"Intake"}
+{"ts":"2026-09-14T02:16:29Z","event":"card_updated","actor":"paul","field":"body"}
+{"ts":"2026-09-14T02:16:29Z","event":"card_updated","actor":"paul","to":"minor","field":"severity"}
+{"ts":"2026-09-14T02:16:29Z","event":"card_updated","actor":"paul","to":"soon","field":"priority"}
+{"ts":"2026-09-14T02:16:29Z","event":"workstream_joined","actor":"paul","workstream":"fdfdeaaff2dd"}

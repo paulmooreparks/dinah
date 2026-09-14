@@ -1,0 +1,5 @@
+{"ts":"2026-09-14T02:18:33Z","event":"created","actor":"paul","title":"Three conformance statements are excused as out of reach, and all three are things the tool now does","to":"5ea2db0272fc","to_title":"Intake"}
+{"ts":"2026-09-14T02:18:33Z","event":"card_updated","actor":"paul","field":"body"}
+{"ts":"2026-09-14T02:18:34Z","event":"card_updated","actor":"paul","to":"major","field":"severity"}
+{"ts":"2026-09-14T02:18:34Z","event":"card_updated","actor":"paul","to":"soon","field":"priority"}
+{"ts":"2026-09-14T02:18:34Z","event":"workstream_joined","actor":"paul","workstream":"f1fd8d672caf"}

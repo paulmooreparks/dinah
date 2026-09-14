@@ -1,0 +1,10 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+owner: holder
+ts: 2026-09-14T02:17:55Z
+ordinal: 12
+note: "VERIFIED. The twelve decision items are filed on this card, one per new English key per translated catalogue (D-15 through D-26), each stating how the rendering was produced and what it was based on, in the shape the \"Translation staleness contract\" prescribes. No open question asks whether any German or Hindi wording reads naturally. GLOSSARY SWEEP, run and acted on rather than waved through: the reading found \"collection\" recurring. Three English entries carried it before this diff (check.dangling-link, check.dangling-workstream, check.ordinal-duplicate) and this card's three refusal keys bring it to six, so the term now qualifies. It was added to internal/msg/glossary.json with the forms the corpus already evidences, de [\"Sammlung\", \"sammlung\"] and hi [\"संग्रह\"], both read off the existing translations rather than invented. Declaring it exposed one entry that had dropped the word entirely, hi check.dangling-link, which rendered \"in neither half of the collection\" as \"किसी भी आधे में\"; it takes its own sibling's wording, \"संग्रह के किसी भी आधे में\", so the repair restores dropped meaning rather than changing any. internal/msg's TestATranslationUsesTheDeclaredWord passes with the term declared."
+---
+The locale diff carries its decision record. The card carries one decision-kind checklist item per new English key per translated catalogue, twelve items for the six keys across de and hi, each stating how the rendering was produced and what it was based on, in the shape the workbench document "Translation staleness contract" prescribes. No open question asks whether any German or Hindi wording reads naturally, which that document forbids by name. The glossary sweep the new English keys trigger was run and its outcome is recorded, either as a term added to internal/msg/glossary.json with evidenced forms or as a sentence saying the reading found none.

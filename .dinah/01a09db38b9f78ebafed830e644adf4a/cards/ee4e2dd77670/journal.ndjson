@@ -1,0 +1,4 @@
+{"ts":"2026-09-14T02:17:21Z","event":"created","actor":"paul","title":"One rule in the conformance scanner has no test, and it is the one that decides where a doc comment ends","to":"5ea2db0272fc","to_title":"Intake"}
+{"ts":"2026-09-14T02:17:21Z","event":"card_updated","actor":"paul","field":"body"}
+{"ts":"2026-09-14T02:17:21Z","event":"card_updated","actor":"paul","to":"minor","field":"severity"}
+{"ts":"2026-09-14T02:17:21Z","event":"card_updated","actor":"paul","to":"next","field":"priority"}

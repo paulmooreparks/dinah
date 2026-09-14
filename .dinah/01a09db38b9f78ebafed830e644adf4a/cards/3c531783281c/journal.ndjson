@@ -1,0 +1,4 @@
+{"ts":"2026-09-14T02:16:46Z","event":"created","actor":"paul","title":"Asking a workbench for a field it does not have offers the wrong list","to":"5ea2db0272fc","to_title":"Intake"}
+{"ts":"2026-09-14T02:16:46Z","event":"card_updated","actor":"paul","field":"body"}
+{"ts":"2026-09-14T02:16:46Z","event":"card_updated","actor":"paul","to":"major","field":"severity"}
+{"ts":"2026-09-14T02:16:46Z","event":"card_updated","actor":"paul","to":"next","field":"priority"}

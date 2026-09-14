@@ -1,0 +1,9 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+ts: 2026-09-14T02:17:48Z
+ordinal: 10
+note: "Verified. Test: internal/verb/changes_test.go, TestDeletingAnAttachmentIsReportedAsAChangeOnItsOwnEntity. It attaches notes.txt to a card, mints a cursor, deletes the attachment by its reference, and calls Changes with that cursor. Command: go test ./internal/verb/ -run TestDeletingAnAttachmentIsReportedAsAChangeOnItsOwnEntity -v (PASS); the whole package is also green, go test ./internal/verb/ ok in 50.4s.\n\nAssertions: Changed is true; exactly one event carries contract.EventAttachmentRemoved; its Scope is ScopeCard and its ID is the card's identifier; its Filename is \"notes.txt\". Changed alone would not distinguish, because the workbench journal is a watched entity too and a record sent to the wrong journal moves the digest just the same.\n\nArmed twice, both plants compiling.\n1. Plant: the `if attachment, err := bench.LoadAttachment(entity.Dir); err == nil { ev.Filename = attachment.Filename }` block deleted from removalRecord (internal/verb/beyond.go). Red assertion: changes_test.go:1310, \"wanted the filename as of the event, got \\\"\\\"\". Scope and ID stayed green.\n2. Plant: removalRecord returns l.Bench.JournalPath() for an attachment instead of l.journalFor(entity). Red assertions: changes_test.go:1304, \"wanted the event on the card's own journal, got scope \\\"workbench\\\"\", and :1307, \"wanted the event keyed to 90b91739932d, got \\\"\\\"\".\n\nThis adds no product code. `grep -c ttachment internal/verb/changes_test.go` answered 0 before this card, so the extension's whole refresh path rested on behaviour nothing guarded."
+---
+Deleting an attachment is reported by dinah changes as a change, carrying an attachment_removed event scoped to the entity that held it and naming the filename.

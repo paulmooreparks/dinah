@@ -1,0 +1,4 @@
+{"ts":"2026-09-14T02:17:38Z","event":"created","actor":"paul","title":"Nothing requires the operator to read a diff before it lands","to":"5ea2db0272fc","to_title":"Intake"}
+{"ts":"2026-09-14T02:17:38Z","event":"card_updated","actor":"paul","field":"body"}
+{"ts":"2026-09-14T02:17:38Z","event":"card_updated","actor":"paul","to":"major","field":"severity"}
+{"ts":"2026-09-14T02:17:38Z","event":"card_updated","actor":"paul","to":"soon","field":"priority"}

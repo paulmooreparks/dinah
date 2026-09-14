@@ -1,0 +1,9 @@
+---
+kind: acceptance_criterion
+state: verified
+column: aa6cd1c6ae5f
+ts: 2026-09-14T02:16:49Z
+ordinal: 20
+note: "PASS on behaviour, but the criterion's own arming instruction is inert and that is a finding in itself. Unarmed, `dinah --workbench <workbench outside the root> mcp --root <nonexistent>` exits 2 with dinah.unknown-root leading stderr, so the declared order answers.\n\nThe criterion says to arm it by swapping the two rows in beyondChecks[\"mcp\"]. The verifier did exactly that, rebuilt, and the answer did not change. beyondChecks has one consumer, cmd/dinah/help.go:185 via verb.Checks; it is a declaration table for the help page and nothing reads it at runtime. runMCP in cmd/dinah/commands.go hard-codes the order. Swapping the rows changed only the help table, which then printed the two refusal names against the wrong sentences.\n\nArming the place the runtime actually reads, by hoisting the containment refusal ahead of the root-existence refusal inside runMCP, did flip the answer to dinah.outside-root while AC-11's case still answered dinah.unknown-root, so the guard can fail and the arm was targeted rather than blanket.\n\nThe criterion therefore passes, but anyone following its arming instruction literally would conclude the guard was dead when it is not. The deeper defect is that the order is declared in one place and implemented in another with nothing tying them together, so the help page can drift from the runtime silently. Filed separately."
+---
+`dinah --workbench <a workbench outside the root> mcp --root <a directory that does not exist>` writes `dinah.unknown-root` as the first whitespace-delimited token on stderr and exits 2.

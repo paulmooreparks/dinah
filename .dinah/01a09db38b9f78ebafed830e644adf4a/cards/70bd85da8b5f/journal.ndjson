@@ -1,0 +1,5 @@
+{"ts":"2026-09-14T02:17:19Z","event":"created","actor":"paul","title":"A recorded count is taken before the last edit, so it is wrong by exactly what that edit added","to":"5ea2db0272fc","to_title":"Intake"}
+{"ts":"2026-09-14T02:17:19Z","event":"card_updated","actor":"paul","field":"body"}
+{"ts":"2026-09-14T02:17:19Z","event":"card_updated","actor":"paul","to":"minor","field":"severity"}
+{"ts":"2026-09-14T02:17:19Z","event":"card_updated","actor":"paul","to":"next","field":"priority"}
+{"ts":"2026-09-14T02:17:19Z","event":"workstream_joined","actor":"paul","workstream":"4fd7a9f0b8ff"}

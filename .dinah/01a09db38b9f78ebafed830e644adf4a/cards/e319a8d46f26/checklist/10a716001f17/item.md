@@ -1,0 +1,9 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+ts: 2026-09-14T02:18:47Z
+ordinal: 6
+note: "Rewritten at round 4 only in its subject: round 3 drove a function taking `readonly CommandContext[]`, which is the filtered shape finding 1 rejected, and the entry's `invoke` takes the targeted rows instead. Nothing else about the criterion changes.\n\nWhat it compares at the moment it runs: the recorded argv arrays of a fake Spawner against expected arrays, in order, and on the decline the returned report's entry list against the three input rows. The declining half is the accepting case's partner and is what stops a guard that refuses everything from passing: an entry that never spawned at all would satisfy the decline assertion and fail the accept one. The report assertions on the decline are round 2's blocker 1 made checkable: the cancelled report is built by `runBulk` rather than by the caller, so it reconciles like any other and `summaryFor` never meets a report whose `selected` exceeds its entry count. AC-24 is the partner that pins the refusal of the hand-built shape.\n\nThe argv is not a guess. `runVerb` passes `pinnedArgv(root, args)`, which returns `[\"--workbench\", root, ...args]`, into `runDinah`, which calls `composeArgv`, which returns `[\"--json\", ...args]`. Both read at 4c33c2c."
+---
+The `ROW_COMMAND_TABLE` entry whose id is `dinah.tree.archiveCard`, invoked over three card rows, spawns exactly three times when the confirmation is accepted, and the argv of each call is `["--json", "--workbench", <that card's root>, "archive", <that card's ref>]` in selection order; over the same three rows with the confirmation declined it spawns zero times and answers a report whose `selected` is 3, whose `entries` are three `skipped` naming the three rows, and whose `cancelled` is true, over which `summaryFor` answers level `none` without throwing.

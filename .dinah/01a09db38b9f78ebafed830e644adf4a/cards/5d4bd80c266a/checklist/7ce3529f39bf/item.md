@@ -1,0 +1,10 @@
+---
+kind: open_question
+state: resolved
+column: c9428b3bc921
+owner: operator
+ts: 2026-09-14T02:17:47Z
+ordinal: 17
+note: "**Operator ruling, 2026-09-10: move the check, do not renumber the page.**\n\nThe gate check moves ahead of the loop-limit block so the code runs the checks in the order the help page publishes them. That restores the standing invariant rather than documenting an exception to it.\n\n**Why this way round.** The invariant is that the published numbering decides the evaluation order rather than the other way round, and the tool's own comment says so. Renumbering the page would have satisfied the letter by changing the promise to match the code, which leaves the invariant intact only in the sense that nothing contradicts it any more. Moving the check keeps the promise the page makes to a reader.\n\n**What it costs, which is nearly nothing, and why that did not decide it.** Only a move failing both rows at once is affected: a regressive move into a held column, out of a column already at its loop limit. Such a move is refused either way and only the refusal's name differs, and the same operator override lifts both. The reason to fix it is not the reachable consequence but that the exception was surviving in two comments a later reader has to trust, and a rule kept alive by comments is a rule already decaying.\n\n**A note for the implementer.** The criterion that fixed the placement said in as many words that the check sits after the loop block, so it was built exactly as specified and nobody departed from the contract. That criterion is now wrong and needs correcting in the same pass, in both the spec prose and the checklist item, since nothing reconciles the two stores. Quote the corrected criterion in the handoff."
+---
+The gate row is published ninth and the loop-limit row tenth, but the code runs the loop row first, so a regressive move failing both answers dinah.at-loop-limit where the page says unresolved-item. Move the gate check ahead of the loop block so the code follows the published order, or move the loop row to publish ninth?

@@ -1,0 +1,4 @@
+{"ts":"2026-09-14T02:17:13Z","event":"created","actor":"paul","title":"The profile's pointer guard checks only the first path in a section","to":"5ea2db0272fc","to_title":"Intake"}
+{"ts":"2026-09-14T02:17:13Z","event":"card_updated","actor":"paul","field":"body"}
+{"ts":"2026-09-14T02:17:13Z","event":"card_updated","actor":"paul","to":"minor","field":"severity"}
+{"ts":"2026-09-14T02:17:13Z","event":"card_updated","actor":"paul","to":"soon","field":"priority"}

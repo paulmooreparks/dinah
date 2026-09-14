@@ -1,0 +1,6 @@
+{"ts":"2026-09-14T02:17:06Z","event":"created","actor":"paul","title":"Needs You: the view that answers what is waiting on me","to":"5ea2db0272fc","to_title":"Intake"}
+{"ts":"2026-09-14T02:17:06Z","event":"card_updated","actor":"paul","field":"body"}
+{"ts":"2026-09-14T02:17:06Z","event":"card_updated","actor":"paul","to":"minor","field":"severity"}
+{"ts":"2026-09-14T02:17:06Z","event":"card_updated","actor":"paul","to":"soon","field":"priority"}
+{"ts":"2026-09-14T02:17:06Z","event":"workstream_joined","actor":"paul","workstream":"58f3e3eb621a"}
+{"ts":"2026-09-14T02:18:54Z","event":"linked","actor":"paul","to":"81b9d0726b36","kind":"spawned_from"}

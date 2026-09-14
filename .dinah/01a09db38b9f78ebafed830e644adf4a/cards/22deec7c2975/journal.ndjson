@@ -1,0 +1,4 @@
+{"ts":"2026-09-14T02:17:22Z","event":"created","actor":"paul","title":"The promotion workflow still names the six platforms by hand, so adding a seventh ships six from the stable channel with no error","to":"5ea2db0272fc","to_title":"Intake"}
+{"ts":"2026-09-14T02:17:22Z","event":"card_updated","actor":"paul","field":"body"}
+{"ts":"2026-09-14T02:17:22Z","event":"card_updated","actor":"paul","to":"major","field":"severity"}
+{"ts":"2026-09-14T02:17:22Z","event":"card_updated","actor":"paul","to":"soon","field":"priority"}

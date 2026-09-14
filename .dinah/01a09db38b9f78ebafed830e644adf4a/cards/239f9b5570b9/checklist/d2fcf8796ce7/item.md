@@ -1,0 +1,9 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+ts: 2026-09-14T02:17:50Z
+ordinal: 6
+note: "Verified on 3b9c51c. Tests: internal/bench/workstream_ref_test.go, TestAWorkstreamIsPrintedInTheSpellingTheGrammarTakes; and cmd/dinah/address_sweep_test.go, TestEveryPrintedReferenceResolves case \"workstream listing\", whose companion runs `dinah workstream get <that same cell> title` and requires exit 0. Commands: go test ./internal/bench -run TestAWorkstreamIsPrintedInTheSpellingTheGrammarTakes and go test ./cmd/dinah -run 'TestEveryPrintedReferenceResolves'. Plant: WorkstreamByRef stripped the prefix in a loop rather than once; built clean, and the run went red at workstream_ref_test.go:56, \"\\\"workstream/workstream/portfolio\\\" resolves to the workstream f00000000001, and no surface prints that spelling, so exactly one prefix is stripped\". Restored byte-identically (cmp clean) and green again."
+---
+A workstream's printed address resolves, and both spellings reach the commands that take a workstream. In internal/bench/workstream_ref_test.go, TestAWorkstreamIsPrintedInTheSpellingTheGrammarTakes asserts that Workstream.Ref() returns "workstream/" followed by the slug, that Bench.ResolveEntity of that value returns the workstream, that WorkstreamByRef accepts the bare slug, the prefixed spelling and the bare identifier, and that it returns nil for "workstream/workstream/<slug>". In cmd/dinah/address_sweep_test.go the "workstream listing" case round-trips the listing's first cell through `dinah path`, and a companion assertion runs `dinah workstream get <that same cell> title` and requires exit 0. Arm it by having WorkstreamByRef strip the prefix repeatedly with strings.TrimLeft-style looping, which compiles and turns the doubled-prefix assertion red.

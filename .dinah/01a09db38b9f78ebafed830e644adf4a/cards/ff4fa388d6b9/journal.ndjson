@@ -1,0 +1,4 @@
+{"ts":"2026-09-14T02:17:25Z","event":"created","actor":"paul","title":"Nothing in the review loop compares two acceptance criteria against each other, so a contradiction between them ships","to":"5ea2db0272fc","to_title":"Intake"}
+{"ts":"2026-09-14T02:17:25Z","event":"card_updated","actor":"paul","field":"body"}
+{"ts":"2026-09-14T02:17:25Z","event":"card_updated","actor":"paul","to":"major","field":"severity"}
+{"ts":"2026-09-14T02:17:26Z","event":"card_updated","actor":"paul","to":"next","field":"priority"}

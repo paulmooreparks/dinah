@@ -1,0 +1,10 @@
+---
+kind: decision
+state: resolved
+column: 0d86ad99cdbc
+owner: holder
+ts: 2026-09-14T02:18:21Z
+ordinal: 20
+note: "Re-answered in round 2 after review defeated the round-1 reason, which had the obstacle backwards. Re-measured at 808d105 and again at ab5debc, one fresh workbench per invocation. The `no` cells are observable: `archive .` exits 2 (dinah.unknown-path), `restore .` exits 2 (dinah.not-archived), `delete . --yes` exits 2 (dinah.unknown-path), and referenceProbeArgs already supplies that --yes, so the arguments half is solved in the tree. The obstacle is on the `yes` cells: `restore intake`, `restore wb-1` and `restore wb-1/comments/1` all exit 2 with dinah.not-archived, and `archive intake` and `delete intake --yes` both exit 2 with dinah.occupied, a third pre-kind refusal the round-1 spec named nowhere, against five references the guide's table grants. Classifying by refusal name cannot rescue it, since `restore .` (a `no` cell) and `restore intake` (a `yes` cell) answer the same refusal. Round 3 adds what the round-2 reviewer asked for and closes the remaining door: the two refusals do carry different sentences after the name, and discriminating on those means reading refusal prose for meaning in eight languages, which dinah-460 and dinah-461 each refused and which this card's section 3 refuses again. Arranging the state is what works: archive first and all three restores exit 0; use an empty column and archive and delete exit 0. So the residue is a per-command, per-kind setup table rather than a classification table, and section 5.8 now builds that declaration at the workstream column's width so a future card widens it rather than inventing it. The ruling is unchanged and both reviewers endorsed it."
+---
+Widening the binary probe to all eighteen commands across the five kinds the guide's table draws is cut, because a uniform probe would fire falsely against a correct declaration, and the spec says what that leaves unproven. The sixth kind, the workstream, is probed across all eighteen by section 5.8.

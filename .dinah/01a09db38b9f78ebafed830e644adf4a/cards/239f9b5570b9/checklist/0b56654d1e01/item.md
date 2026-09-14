@@ -1,0 +1,9 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+ts: 2026-09-14T02:17:50Z
+ordinal: 1
+note: "Verified on 3b9c51c. Test: cmd/dinah/address_sweep_test.go, TestEveryPrintedReferenceResolves case \"show, comments block\". Command: go test ./cmd/dinah -run 'TestEveryPrintedReferenceResolves/show,_comments_block'. Plant: internal/verb/read.go commentRef composed against bench.ChecklistDir in place of bench.CommentsDir; the tree built (go build ./... clean) and the run went red on the identity assertion at address_sweep_test.go:207, \"show, comments block row 1 draws \\\"fx-1/checklist/1\\\", and the reference for that row is \\\"fx-1/comments/1\\\"\", plus the same for row 2. Restored byte-identically (cmp clean) and green again. One correction to the criterion as written: the identity expectation is composed in the test (the card's reference, bench.CommentsDir, and the row's position) rather than read off the machine payload, because both heads fill a comment's reference from the one composer, so a payload-derived expectation moves with the code under test and this plant would have passed against itself. The round-trip arm did pass under the plant, exactly as the criterion's note predicted, since the fixture holds checklist items."
+---
+`dinah show <card>` draws every comment with a reference that resolves. In cmd/dinah/address_sweep_test.go, TestEveryPrintedReferenceResolves case "show, comments block" reads the first cell of each comment row and hands that text to `dinah path`; the case passes only when path exits 0 and names a file that exists, and a second assertion requires the cell to equal `<card>/comments/<n>` for the row at position n counted the way bench.SortByOrdinal orders the collection. A blank cell fails as an empty argument path refuses. Arm it by changing commentRef to compose against bench.ChecklistDir instead of bench.CommentsDir, which compiles and turns the identity assertion red.

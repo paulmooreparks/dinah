@@ -1,0 +1,10 @@
+---
+kind: decision
+state: resolved
+column: 0d86ad99cdbc
+owner: holder
+ts: 2026-09-14T02:17:36Z
+ordinal: 19
+note: "Amended at Spec round two on two counts, and the boundary itself survives both.\n\nFirst, the Agent Design Review falsified this decision's claim that returning the partial findings keeps a useful report. Bench.Check already returns ([]Finding, error), and both of its callers, internal/verb/read.go:1452 and internal/verb/read.go:1464, do findings, err := l.Bench.Check() followed by if err != nil { return nil, err }, so the findings are discarded. The behaviour is still right and still ships, because the partial report survives at the library boundary and dinah-462 is what decides whether a reader ever sees it. What changed is the reason: this preserves a report for dinah-462 to present, rather than preserving one anybody currently reads.\n\nSecond, the operator ruled on 2026-09-11 that a duplicate-card-number detector ships on this card, so the flat \"no finding key is decided here\" no longer holds. The boundary is drawn by subject rather than by machinery. dinah-462 owns what the surface says when a sweep could not look at all, its exit code and its machine form, and this card decides none of those. A duplicate card number is a defect the workbench really has, reported through the Finding constant and catalogue machinery that already exists, and it says nothing about a failed sweep. D-6 carries the ruling and D-9 the shape.\n\nThe handoff to dinah-462 also grew: the implementer's comment there carries the fifteen-site survey table and the two caller line numbers above, because dinah-462's description opens by asking which sweeps swallow a read error and this card has answered that in full."
+---
+The check surface's presentation stays with dinah-462. The eight check-walk sites propagate into Bench.Check's existing error return, which also returns the findings gathered so far, and no catalogue sentence about a sweep that could not look, and no exit code, is decided here. The one finding key this card mints, check.card-number-duplicate, is an ordinary defect finding rather than part of that surface.

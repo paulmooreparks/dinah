@@ -1,0 +1,10 @@
+---
+kind: decision
+state: resolved
+column: 0d86ad99cdbc
+owner: holder
+ts: 2026-09-14T02:18:01Z
+ordinal: 31
+note: "Spec section 6, rewritten in round 2. The round-1 rule was built on a false count: it asserted that all nine toolExemptions entries give a shell-or-filesystem reason and proposed to make that binding. Read at 22a35fc, five do (path, edit, init, extract, reshape) and four do not: config is exempt because it writes the user's machine settings rather than workbench data, mcp because a tool for it would be the server offering to start itself, guide because it is served as a resource rather than a tool, and help because the surface's own tools/list already carries every tool's schema. The comment above `tools` states the single-ground version and then carves `workbenches` out of it by name, which is the same overreach admitting its counter-example. So the rule would have refused four shipped entries the day it landed. What lands instead keeps the guard's real purpose, which is that no exemption reaches a green build unargued, without deciding that only one argument can ever be made: toolExemptions becomes a map to a struct of `ground` and `reason`, the four grounds are declared as constants (shell-or-filesystem, machine-not-workbench, the-head-itself, protocol-serves-it), and the roster test asserts every entry's ground is one of them. A ground is a declaration a test reads; a test grepping the reason prose for \"shell\" would pass config the day somebody wrote \"the user's own shell profile\" into it and fail init the day somebody reworded it. Child card 5 (dinah-460) carries this, because it is the card that puts get_field and set_field on the roster."
+---
+An MCP tool exemption carries a declared ground drawn from a closed set of four constants, rather than a rule requiring every exemption reason to turn on a shell or a filesystem.

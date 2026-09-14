@@ -1,0 +1,9 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+ts: 2026-09-14T02:17:18Z
+ordinal: 6
+note: Re-fetched all three columns' live instructions at Test with list_columns(columns="Spec,Agent Design Review,Agent Code Review", fields="id,name,instructions", max_bytes=262144) and searched the text directly rather than trusting check_instructions. All three name get_workbench_document(id=<id>) as the route that "serves the whole body and declares no size ceiling", all three instruct enumerating via list_workbench_documents(fields="id,title") for every document whose title begins with "Convention counterexamples" rather than assuming a fixed count, and all three warn against list_workbench_documents/list_project_documents with the body field, naming both the 262,144-byte cap (empty array, no error, past it) and the lower 48,000-byte default. Wording is consistent across all three columns.
+---
+The stored instructions text of columns Spec (ca3badf49985), Agent Design Review (0d86ad99cdbc), and Agent Code Review (4b38abe7ebd5) each name get_workbench_document(id=...) as the route to read the corpus, name every document whose title starts with "Convention counterexamples" as needing to be enumerated (via list_workbench_documents, not assumed as a fixed count) and read, and explicitly warn against list_workbench_documents/list_project_documents with the body field for this corpus. Verify by re-fetching each column's instructions after the edit and checking for the three elements; do not rely on check_instructions' literal-title search alone, since it already missed two of the three existing references (Spec and Agent Design Review name the document without the exact capitalized title).

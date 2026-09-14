@@ -1,0 +1,9 @@
+---
+kind: decision
+state: resolved
+column: 0d86ad99cdbc
+ts: 2026-09-14T02:18:11Z
+ordinal: 27
+note: "The retired read printed a field table and a member-card listing in one screen, and section 7.4 rules that nothing single replaces it: the fields come from `get` and the members from `query`. Writing a two-command block is what makes the passage true; an earlier draft said only that every retired line \"becomes the generic form\", which is false of this one, and the sentence above it, \"Naming one reads its fields and the cards belonging to it\", would have been left describing a command that no longer exists. The `skip=` annotation carries over verbatim rather than approximately, and that was checked rather than assumed: `Library.membersOf` at `internal/verb/beyond.go:1012` and `Library.Query` reached from `internal/verb/query.go:123` both sort with the same `sortByArrival` at `internal/verb/library.go:768`, so the tie between two cards created inside one second is the identical hazard under the identical comparison. The `get` takes the prefixed reference because a bare slug no longer resolves, D-8; the query term takes the bare slug because a query names a workstream by slug or identifier rather than by reference, which `workstreamRoster` at `internal/verb/query.go:509` builds. Both halves are replayed against live output by `TestTheQuickStartMatchesTheTool`, so a wrong transcript reddens rather than merely reading wrong."
+---
+The quick start's workstream detail-read passage becomes a sentence and one block running `dinah get workstream/autumn status` and `dinah query workstream:autumn`, rather than a single replacement command, and the block's `skip=` annotation moves onto it unchanged.

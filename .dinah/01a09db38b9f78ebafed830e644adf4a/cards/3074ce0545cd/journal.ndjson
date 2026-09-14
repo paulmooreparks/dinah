@@ -1,0 +1,4 @@
+{"ts":"2026-09-14T02:17:37Z","event":"created","actor":"paul","title":"A gate on the output queue did not stop a card entering it","to":"5ea2db0272fc","to_title":"Intake"}
+{"ts":"2026-09-14T02:17:37Z","event":"card_updated","actor":"paul","field":"body"}
+{"ts":"2026-09-14T02:17:37Z","event":"card_updated","actor":"paul","to":"major","field":"severity"}
+{"ts":"2026-09-14T02:17:37Z","event":"card_updated","actor":"paul","to":"soon","field":"priority"}

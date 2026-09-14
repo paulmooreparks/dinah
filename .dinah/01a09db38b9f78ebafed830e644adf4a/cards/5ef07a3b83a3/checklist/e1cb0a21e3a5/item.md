@@ -1,0 +1,8 @@
+---
+kind: acceptance_criterion
+state: pending
+column: 6c5b9d6f4414
+ts: 2026-09-14T02:17:44Z
+ordinal: 11
+---
+The workbench is carried onto the current storage format, in the one order that works, and the identity change is recorded. The format is read from the `format:` key in the workbench anchor file directly, and the check says so, because NO command reports it: `dinah export`, `dinah status --format json`, `dinah workbench --format json` and `dinah check --format json` were each run and none carries a `format` member. The key reads at the value `internal/bench/bench.go`'s `StorageFormat` declares at the commit being verified, which is 3 today. Two observable consequences of format 3 are checked beside it, because a key is a claim and these are its effects: `card-numbers.txt` exists at the workbench root, and no card anchor carries a `number:` key, swept over every card with the count of anchors read printed so a sweep over zero cards fails. The workbench directory's own name satisfies `IsWorkbenchID` (internal/bench/storage.go:245): 32 lowercase hex characters decoding to a UUID whose version field is 7, checked by running the predicate rather than by counting characters. All fourteen column directory names are unchanged from the twelve-hex identifiers this card's spec lists, compared as a set with both cardinalities printed, because column identity is what the hold table and every item's stored column are keyed on. The new workbench identifier is recorded on this card as a comment. A failing run is a format below the declared one, a missing registry, any card anchor still carrying a number key, a directory name failing the predicate, any column identifier changed or missing, or no recorded identifier.

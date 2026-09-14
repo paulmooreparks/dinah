@@ -1,0 +1,9 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+ts: 2026-09-14T02:17:34Z
+ordinal: 1
+note: "TestListIDsSeparatesAnAbsentCollectionFromAnUnreadableOne in internal/bench/storage_readfailure_test.go pins all three cases in one run. Resolve with: go test ./internal/bench/ -run TestListIDsSeparates -v. The assertion that reddens is storage_readfailure_test.go:51, \"ListIDs read a plain file as an empty collection\". Armed 2026-09-11 by the spec's own plant, readCollection's os.Stat branch returning nil, nil unconditionally on the error path: the run went red at that line reporting \"answering [] with no error\" while the absent and empty assertions still passed, and green again after a byte-identical restore (filecmp confirmed)."
+---
+ListIDs has the signature func ListIDs(collection string) ([]string, error) and separates the three cases in one run. Test: TestListIDsSeparatesAnAbsentCollectionFromAnUnreadableOne in internal/bench/storage_readfailure_test.go. It plants three fixtures under t.TempDir(): a plain file at cards-unreadable, nothing at all at cards-absent, and a real empty directory at cards-empty. It first asserts os.ReadDir(unreadable) returns a non-nil error, failing with "the fixture at %s reads cleanly, so this test proves nothing" if it does not. It then asserts ListIDs(unreadable) returns a non-nil error, ListIDs(absent) returns (nil, nil), and ListIDs(empty) returns (nil, nil), all three in the same run, so a build that errors on everything fails the second and third assertions. Plant that compiles and runs: in readCollection, change the os.Stat branch to return nil, nil unconditionally on the error path; the test reddens at the unreadable assertion with "ListIDs read a plain file as an empty collection".

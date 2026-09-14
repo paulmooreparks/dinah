@@ -1,0 +1,9 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+ts: 2026-09-14T02:18:24Z
+ordinal: 2
+note: "TestTheReferencesGuideNoLongerAddressesACardByItsHoldersIdentifier asserts the retired string absent and both new strings present; TestTheRetiredMemberIdentifierWordingStandsOnlyWhereItIsAllowed sweeps internal/guide/guides, docs and cmd/dinah and logged \"111 files read, 2 carrying the retired sentence: [cmd/dinah/address_form_guide_test.go docs/specs/dinah-172-help-ux-sketch.md]\". The second allowed site is this check's own file, which has to spell the sentence to assert its absence; both are named rather than pattern-matched, so a third copy fails. Armed by restoring `entity's` in place of `collection member's`: both checks reddened, at address_form_guide_test.go:172 (\"the references guide still carries ...\") and :255 (\"internal/guide/guides/references.md carries ...\"). Resolve with: `go test ./cmd/dinah/ -run 'TestTheReferencesGuideNoLongerAddressesACardByItsHoldersIdentifier|TestTheRetiredMemberIdentifierWordingStandsOnlyWhereItIsAllowed' -v`."
+---
+The references guide's `## The number and the identifier` section no longer carries the string "You may write an entity's own identifier in place of its number", and does carry "You may write a collection member's own identifier in place of its number" and "You do not address a card this way." A search for the retired wording over `internal/guide/guides/`, `docs/` and `cmd/dinah/` returns only `docs/specs/dinah-172-help-ux-sketch.md:272`, which is a retired design sketch rather than shipped prose. Arming plant: restore the word `entity's` in place of `collection member's` and re-run.

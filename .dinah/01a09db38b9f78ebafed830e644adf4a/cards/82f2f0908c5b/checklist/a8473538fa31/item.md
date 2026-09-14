@@ -1,0 +1,9 @@
+---
+kind: decision
+state: pending
+column: 0d86ad99cdbc
+owner: holder
+ts: 2026-09-14T02:18:39Z
+ordinal: 4
+---
+A whole-tree AST guard, TestEveryDirectoryReadAnswersItsFailure in internal/profile/guards_test.go, holds five rules over an examined set with two halves: every qualified os.ReadDir, filepath.WalkDir and fs.WalkDir call, and every call to the four collection readers readCollection, ListIDs, ListWorkbenchIDs and heldLocks. The set is collected by walking every call node rather than every statement, because a collector walking statements misses a call nested inside another call and would reach 29 of the second half's 40 sites while reporting success. The fifth rule is that the enclosing function answers no ordinary absent-or-empty result anywhere on the read's failure path, where the failure path covers the err != nil branch, a branch whose condition is any boolean combination containing err != nil, the fallthrough past an if ...; err == nil that has no else, and the else branch of one that has an else, and where the question is asked of every exit reachable on that path rather than of the branch's last statement, a continue or a break failing it as squarely as a return setting a nil error. Rule 5 asks nothing of a call whose callee declares no error result. Rule 1 accepts four answering forms rather than three, the fourth being an error bound in the init of an if whose own condition reads it. Rules 1 and 5 are applied in every statement context rather than in the five statement kinds the prototype descends. The guard holds each half of the examined set against a declared floor constant measured on the tree with dinah-439 already landed, rather than against zero. The exemption table is an inclusion set whose entries each carry a reason, it holds exactly one entry, readCollection against rule 5, and a companion proves that emptying it reddens the run.

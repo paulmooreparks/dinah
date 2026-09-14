@@ -1,0 +1,9 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+ts: 2026-09-14T02:18:32Z
+ordinal: 14
+note: "Verified at 5a88bec. TestTheReferencesGuideNamesEveryCommandThatTakesTheArchivedFlag derives the set by walking verb.Commands() and reading verb.Params(name) for a parameter named archived whose Shared is \"archived\", then compares it against the backticked names of the guide's sentence, failing on a name standing in either side alone. The reviewer's minor is applied: the locator is minted rather than gestured at, so the test finds the paragraph opening \"`--archived` reads the archive mirror\", requires exactly one of its sentences to end \"take it.\", and reads backticked names out of that sentence alone. It fails if either set is empty and logs both sizes (\"internal/verb declares 4 commands taking the shared archived flag and the guide's sentence names 4\"). Armed in both directions: removing `Shared: \"archived\"` from path's archived parameter reddened it with \"the references guide says `dinah path` takes `--archived` and internal/verb declares no archived parameter sharing that meaning for it\"; adding `Shared: \"archived\"` to search's archived parameter reddened BOTH halves, the excluded-case assertion and the set comparison. internal/verb/definition.go restored byte-identically after each plant."
+---
+TestTheReferencesGuideNamesEveryCommandThatTakesTheArchivedFlag derives the set from internal/verb rather than reading it out of the guide: it collects the commands whose archived parameter carries Shared "archived", compares that set against the names the guide's sentence backticks, and fails on a name standing in either side alone. It also asserts that search declares an archived parameter with an empty Shared and that the same paragraph names dinah search separately, and it fails if either set is empty. Armed in both directions, by removing Shared from path's archived parameter and by adding Shared to search's.

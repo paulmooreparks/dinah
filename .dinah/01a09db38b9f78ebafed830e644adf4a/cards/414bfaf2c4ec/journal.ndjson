@@ -1,0 +1,5 @@
+{"ts":"2026-09-14T02:17:08Z","event":"created","actor":"paul","title":"The English-in-source guard cannot follow a value that reaches a map by a second name","to":"5ea2db0272fc","to_title":"Intake"}
+{"ts":"2026-09-14T02:17:08Z","event":"card_updated","actor":"paul","field":"body"}
+{"ts":"2026-09-14T02:17:08Z","event":"card_updated","actor":"paul","to":"major","field":"severity"}
+{"ts":"2026-09-14T02:17:08Z","event":"card_updated","actor":"paul","to":"next","field":"priority"}
+{"ts":"2026-09-14T02:17:08Z","event":"card_updated","actor":"paul","to":"frontier","field":"tier"}

@@ -1,0 +1,4 @@
+{"ts":"2026-09-14T02:18:33Z","event":"created","actor":"paul","title":"A column setting written to disk does not reach a running machine-head session until it restarts","to":"5ea2db0272fc","to_title":"Intake"}
+{"ts":"2026-09-14T02:18:33Z","event":"card_updated","actor":"paul","field":"body"}
+{"ts":"2026-09-14T02:18:33Z","event":"card_updated","actor":"paul","to":"major","field":"severity"}
+{"ts":"2026-09-14T02:18:33Z","event":"card_updated","actor":"paul","to":"next","field":"priority"}

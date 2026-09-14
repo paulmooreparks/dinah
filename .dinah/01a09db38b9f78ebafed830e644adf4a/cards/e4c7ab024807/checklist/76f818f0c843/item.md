@@ -1,0 +1,9 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+ts: 2026-09-14T02:17:48Z
+ordinal: 9
+note: "Verified. Two changes to editors/vscode/test/unit/l10n-coverage.test.ts. visitCall gained the branch `if (name === \"confirmDestructive\" && args.length >= 2) { inspect(args[0], \"host.confirmDestructive message\"); inspect(args[1], \"host.confirmDestructive label\"); return; }`, because SOLE_ARGUMENT_CALLS covers one-argument calls alone and a two-argument confirmation would otherwise ship a raw English literal the audit cannot see. The new test is \"the audit reads both arguments of a confirmation\", running auditFile against the new fixture editors/vscode/test/fixtures/confirmDestructive-call-site.ts.txt, whose body is the single line `context.host.confirmDestructive(\"Delete it?\", \"Delete\");`, and asserting the audit returns exactly the two findings, by text and by label.\n\nThe fixture is named .ts.txt so sources() never sweeps it and tsc never compiles it, while auditFile parses it because it passes ts.ScriptKind.TS explicitly; its receiver is spelled context.host because onAHost matches /(^|\\.)host$/.\n\nArmed once. Plant: the new branch deleted from visitCall. The plant compiles and the run executed 540 tests. Red assertion: the findings deepEqual, reporting + [] against - [ '\"Delete it?\"', '\"Delete\"' ]. The standing sweep over src/ stayed green under the same plant, which is exactly why the fixture test is needed rather than the sweep alone.\n\nCommand: npm --prefix editors/vscode run test:unit."
+---
+The English-sentence audit inspects both arguments of confirmDestructive, and its own fixture proves it does.

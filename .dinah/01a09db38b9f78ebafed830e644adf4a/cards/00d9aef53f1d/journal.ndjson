@@ -1,0 +1,8 @@
+{"ts":"2026-09-14T02:17:34Z","event":"created","actor":"paul","title":"blockValue's array reader drops every field but the first on a multi-key dashed entry","to":"5ea2db0272fc","to_title":"Intake"}
+{"ts":"2026-09-14T02:17:34Z","event":"card_updated","actor":"paul","field":"body"}
+{"ts":"2026-09-14T02:17:34Z","event":"card_updated","actor":"paul","to":"minor","field":"severity"}
+{"ts":"2026-09-14T02:17:34Z","event":"card_updated","actor":"paul","to":"next","field":"priority"}
+{"ts":"2026-09-14T02:17:34Z","event":"card_updated","actor":"paul","to":"workhorse","field":"tier"}
+{"ts":"2026-09-14T02:17:34Z","event":"workstream_joined","actor":"paul","workstream":"b3f924406e4c"}
+{"ts":"2026-09-14T02:17:34Z","event":"moved","actor":"paul","from":"5ea2db0272fc","to":"b69abf918c42","from_title":"Intake","to_title":"Acceptance"}
+{"ts":"2026-09-14T02:18:55Z","event":"linked","actor":"paul","to":"5ef07a3b83a3","kind":"relates_to"}

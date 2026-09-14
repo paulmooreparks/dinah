@@ -1,0 +1,4 @@
+{"ts":"2026-09-14T02:17:26Z","event":"created","actor":"paul","title":"German and Hindi each translate \"operator\" two different ways in the help tables","to":"5ea2db0272fc","to_title":"Intake"}
+{"ts":"2026-09-14T02:17:26Z","event":"card_updated","actor":"paul","field":"body"}
+{"ts":"2026-09-14T02:17:26Z","event":"card_updated","actor":"paul","to":"minor","field":"severity"}
+{"ts":"2026-09-14T02:17:26Z","event":"card_updated","actor":"paul","to":"next","field":"priority"}

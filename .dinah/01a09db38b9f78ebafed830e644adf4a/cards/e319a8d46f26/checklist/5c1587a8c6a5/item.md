@@ -1,0 +1,10 @@
+---
+kind: decision
+state: resolved
+column: 0d86ad99cdbc
+owner: holder
+ts: 2026-09-14T02:18:52Z
+ordinal: 55
+note: "Round 2's reviewer found the gap: drag two cards and a column header onto the cards' own column, and every row is skipped, so under the general rule the reader gets \"could not act on 1\" where today they see nothing. The two paths genuinely differ and the difference is not arbitrary. A menu invocation is an explicit request, so a run that attempted nothing has to say so, which is the \"reports success because it never looked\" failure the summary's partial case exists to prevent. A drag is a gesture that can miss, and today a drop back onto a card's own column, a drop on a row naming no column, and a drag that set no mime entry are all silent; a drag that missed has to go on looking like a drag that missed. The reviewer read it the same way and said the spec had to decide it either way. What makes this a decision rather than a loophole is where it is declared. `deps.emptyRun` is set by one caller, `runBulk` copies it onto the report, and `summaryFor` reads it off the report, so the drop path does not get to skip the summary and the summary does not get a second code path. AC-28 asserts exactly one site in `src/` declares it, because an exception any caller may take is not an exception, and the ordinary way this kind of thing spreads is somebody quietening a noisy summary one command at a time. The silence is bounded further by reading only `done === 0 && failed === 0`: a drop that moved even one card reports normally, so the exception cannot hide a partial result."
+---
+A run that acted on nothing still answers, except on the drop path, where it stays silent; the exception rides the report as a declared value rather than living as a special case in the drop path.

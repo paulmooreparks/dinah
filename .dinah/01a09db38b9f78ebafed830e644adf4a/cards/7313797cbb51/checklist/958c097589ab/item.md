@@ -1,0 +1,9 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+ts: 2026-09-14T02:18:24Z
+ordinal: 1
+note: "All five sentences stand and Carries finds each. Armed twice: deleting `also` from the identifier sentence reddened TestEveryDeclaredAddressFormIsTaughtByTheReferencesGuide at address_form_guide_test.go:39 with \"card-identifier: the references guide no longer carries the sentence a test proves\"; deleting the whole identifier paragraph reddened the same test alone while the shared-groups sibling stayed green. Wrap-safety proved by re-flowing every paragraph of references.md at 29 columns, destroying every original line break with no word changed (assertion `new.split() == s.split()`), after which all four guide checks passed and the sweep logged \"17 declared forms held against the references guide\". Resolve with: `go test ./cmd/dinah/ -run TestEveryDeclaredAddressFormIsTaughtByTheReferencesGuide -v`."
+---
+`internal/guide/guides/references.md` teaches five forms it did not teach before, and `guidepin.Carries("references", ...)` finds each after the guide has been re-wrapped: "You may also write the card's identifier on its own", "You may also write the card's number on its own", "Dinah reads a bare head as a column before it reads it as a card", "a reference carrying a prefix that names no current slug still opens the card it named", and "The commands that take a workstream also accept the slug or the identifier on its own". Arming plant: delete the word `also` from the identifier sentence and re-run; `Carries` folds the guide to single spaces before it searches, so the failure is the sentence no longer standing rather than a line break, and the run stays compiling.

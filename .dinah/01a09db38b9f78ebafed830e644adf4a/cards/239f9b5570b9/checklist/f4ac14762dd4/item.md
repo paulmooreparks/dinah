@@ -1,0 +1,10 @@
+---
+kind: decision
+state: resolved
+column: 0d86ad99cdbc
+owner: holder
+ts: 2026-09-14T02:17:53Z
+ordinal: 32
+note: "Round 1 derived the roster with a regular expression over s.columns and shipped a hole. Five tables in cmd/dinah are built through listColumn and carry no s.columns call: the two identifier listings a check repair prints at render.go:807 and :815, the findings table at :834, and the two listings a refusal draws at :962 and :979. AC-8's claim that no table reaches a green build unargued was therefore false as written. renderSitesInSource at cmd/dinah/output_check_test.go reads both constructors, excludes table.go where the two live, and TestEveryTableSiteIsRegistered already holds sweptBlocks to it in both directions, so the roster is enforced in the tree today. Three rows of the section 3 sweep are new in round 2, and the two reasons are not the same reason, which round 2's version of this note blurred. Two of the five listColumn sites were invisible to round 1 and turn out to draw entities: the refusal listings at :962 and :979 draw column.Ref() one per row. The legal-moves table is the third row and it was never invisible; it is built at render.go:182 through s.columns(\"moves\", ...), so round 1's regular expression did see it and mis-filed it as drawing no entity, when its first cell is move.Ref, a column's own reference. Missed and mis-classified are different failures and the roster fixes only the first, which is why section 3 lists what each site draws rather than trusting the walk to imply it. All three become cases rather than exemptions and none changes what the tool prints; they were simply unasserted. The guard also asserts that exactly two functions in the package return []tableColumn, produced by `grep -rn ') \\[\\]tableColumn' cmd/dinah/*.go | grep -v _test.go`, which prints table.go:224 and table.go:231 and nothing else at 22a35fc, so a third constructor fails the test and names itself instead of quietly shrinking the roster."
+---
+The completeness guard reads renderSitesInSource, the roster the package already parses and already enforces, rather than parsing the head a second time.

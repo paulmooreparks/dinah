@@ -1,0 +1,10 @@
+---
+kind: decision
+state: resolved
+column: c9428b3bc921
+owner: holder
+ts: 2026-09-14T02:16:31Z
+ordinal: 17
+note: "The spec's Equivalence clause governs and the table is incomplete rather than the contract ambiguous: \"For every field the canonical JSON carries, the compact record carries the identical string, byte for byte, decoded. No field is dropped, renamed, truncated, or summarized.\" The table's `off` row lists three fields where verb.Offer carries five, its `move` row lists four where verb.LegalMove carries five, and its Response ordering names no record for verb.Response.Workstream at all, which would have left `workstream new` and `workstream set`, two of the eighteen commands the spec explicitly says this encoding covers, with no subject in the compact form. The omissions are also unsatisfiable against AC-3, AC-4 and AC-5, each of which asks for identical field values: a next answer over the shipped fixture carries no_taker on two of its four offers, so a three-field `off` record fails AC-4 outright, and the armed test in cmd/dinah/compact_test.go names the missing member when the field is removed. No reading of the spec makes dropping them correct, so this was completed rather than ruled on.\n\nAgent Code Review 2026-08-27, count corrected from \"three fields\" to \"four fields\". The original text said three and then enumerated four, and the reasoning below it (two missing on `off`, one on `move`, one for `Workstream`) sums to four. Checked against the structs on the branch: verb.Offer (internal/verb/read.go) carries State, Title, Card, AwaitingOutside, NoTaker and TakenByPull; verb.LegalMove (internal/verb/library.go) carries State, Ref, Title, Direction and Reject; verb.Response carries Workstream *WorkstreamView. Only the number changed; the enumeration, the reasoning and the ruling are untouched. The same miscount is repeated in the WHAT SHIPPED move-note, which cannot be edited."
+---
+The compact record table carries four fields the spec's own table omitted: Offer.NoTaker and Offer.TakenByPull on the `off` record, LegalMove.Reject on the `move` record, and Response.Workstream as a new `wstream` record.

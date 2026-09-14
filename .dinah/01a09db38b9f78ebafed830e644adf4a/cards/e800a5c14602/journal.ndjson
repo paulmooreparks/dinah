@@ -1,0 +1,5 @@
+{"ts":"2026-09-14T02:17:30Z","event":"created","actor":"paul","title":"A workbench whose own definition file cannot be resolved is marked confirmed clean, because the panel has nowhere to write","to":"5ea2db0272fc","to_title":"Intake"}
+{"ts":"2026-09-14T02:17:30Z","event":"card_updated","actor":"paul","field":"body"}
+{"ts":"2026-09-14T02:17:31Z","event":"card_updated","actor":"paul","to":"major","field":"severity"}
+{"ts":"2026-09-14T02:17:31Z","event":"card_updated","actor":"paul","to":"soon","field":"priority"}
+{"ts":"2026-09-14T02:17:31Z","event":"workstream_joined","actor":"paul","workstream":"58f3e3eb621a"}

@@ -1,0 +1,9 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+ts: 2026-09-14T02:18:48Z
+ordinal: 25
+note: "This is what makes \"the summary is unreachable without a report\" a property rather than a convention, and it is the answer to round 2's question of what stops a future route from skipping the construction. Round 2's defence was the reconciliation arm, which a fabricated report satisfies by being arithmetically consistent; the mark is what a fabricated report cannot obtain, because the symbol is module-private and a later caller has nothing to copy. The accepting partner is not optional here: a `summaryFor` that threw on everything would satisfy the refusing half, and it would also fail AC-9 and AC-23, so three criteria report that defect from three directions. The export assertion is the half that keeps the first half honest over time, because exporting the symbol would reopen the door while leaving every runtime assertion green. Red run to produce at Test: export `reportMark` and watch the third clause redden while the first two stay green; then delete the mark check from `summaryFor` and watch the first clause redden alone."
+---
+`summaryFor` handed an object that carries a correct `selected`, a matching `entries` array, `cancelled` false and every other field the interface names, but that was not built by `src/bulk.ts`, throws, and the thrown message says the report was not built by the bulk layer. Handed the report `runOverRows` returns over those same rows, it answers normally. `reportMark` is not exported from `src/bulk.ts`, asserted by a TypeScript compiler walk of that file's export statements.

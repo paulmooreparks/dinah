@@ -1,0 +1,4 @@
+{"ts":"2026-09-14T02:16:42Z","event":"created","actor":"paul","title":"Bench lifecycle over MCP: init, extract, and discovery, or a ruled cut","to":"5ea2db0272fc","to_title":"Intake"}
+{"ts":"2026-09-14T02:16:42Z","event":"card_updated","actor":"paul","field":"body"}
+{"ts":"2026-09-14T02:16:42Z","event":"card_updated","actor":"paul","to":"minor","field":"severity"}
+{"ts":"2026-09-14T02:16:43Z","event":"card_updated","actor":"paul","to":"soon","field":"priority"}

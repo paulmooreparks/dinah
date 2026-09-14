@@ -1,0 +1,10 @@
+---
+kind: decision
+state: resolved
+column: aa6cd1c6ae5f
+owner: operator
+ts: 2026-09-14T02:16:51Z
+ordinal: 39
+note: "Operator ruling, Paul, 2026-08-24.\n\n1. The no-default handshake stands as shipped. It says only that the server is serving no default, and does not name the refusal a workbench-less call will get.\n2. The six rewritten refusal and argument sentences stand as shipped. No re-translation pass.\n3. The workbench argument description stands as shipped, \"but make sure docs agree\".\n4. The first row of the mcp help refusal table returns to the sketch: the sentence is shortened so the refusal name sits in its own column.\n\nItems 1 and 2 need no work. Items 3 and 4 do, and item 3 carries one judgement that the ruling does not settle by itself, recorded here so the implementer does not have to guess and the next reader can see it was decided rather than assumed.\n\nThe shipped description says the argument takes \"the absolute path\". AC-22 is a verified criterion of this card and it requires a relative path to work, tested against a running server. Both are true today: absolute is what the workbenches tool hands back and what a registration should store, and a relative path resolves against the server's working directory. Making the docs agree therefore means removing the contradictions, not withdrawing the tested behaviour, since withdrawing it would fail a criterion the operator's own acceptance rests on and would turn a tested promise into an accident. The sweep keeps the shipped sentence as the canonical description and makes every other surface say the same thing, adding to the mcp guide the one fact no surface currently states: that a relative path is resolved against the directory the server was started in. If the operator meant instead that relative paths should stop working, that is a different card and it retires AC-22."
+---
+Of the four places the shipped MCP wording differs from the accepted UX sketch, three stand as shipped and the fourth returns to the sketch.

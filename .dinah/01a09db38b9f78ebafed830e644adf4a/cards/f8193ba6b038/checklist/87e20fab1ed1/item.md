@@ -1,0 +1,8 @@
+---
+kind: decision
+state: resolved
+ts: 2026-09-14T02:16:31Z
+ordinal: 11
+note: "Corrected on review push-back: the previously cited precedent, cmd/dinah/commands.go:815, is the mistyped-flag case (a flag typed where config get's key argument was expected), not the unknown-key case. The actual unknown-config-key refusal, commands.go:820-821, already carries a dedicated name, contract.UnknownKey, not contract.Usage. Reading the whole Unknown* family (UnknownKey, UnknownGuide, UnknownDepth, UnknownWorkstream, UnknownLevel) shows the codebase's convention for a value outside a closed set is a dedicated name per flag family, not a shared generic one. contract.UnknownValue looked like the generic member of that family, but its own doc comment scopes it to a query's closed-vocabulary field, distinct from an empty result; --format is not a query and has no result set to be confused with, so that reasoning does not transfer. The refusal is a new name, contract.UnknownFormat, following the established convention rather than either alternative."
+---
+An unrecognized format name (via --format or DINAH_FORMAT) refuses with contract.UnknownFormat instead of silently falling back to the human rendering, which is DINAH_FORMAT's behavior today for any value other than "json". A conflicting --json/--format pair (see Format selection step 1) is a separate, genuine usage error and keeps contract.Usage.

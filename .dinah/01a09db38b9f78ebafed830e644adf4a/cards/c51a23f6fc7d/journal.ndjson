@@ -1,0 +1,6 @@
+{"ts":"2026-09-14T02:17:15Z","event":"created","actor":"paul","title":"the compatibility-window section still describes the floor as the oldest revision published","to":"5ea2db0272fc","to_title":"Intake"}
+{"ts":"2026-09-14T02:17:15Z","event":"card_updated","actor":"paul","field":"body"}
+{"ts":"2026-09-14T02:17:15Z","event":"card_updated","actor":"paul","to":"minor","field":"severity"}
+{"ts":"2026-09-14T02:17:15Z","event":"card_updated","actor":"paul","to":"soon","field":"priority"}
+{"ts":"2026-09-14T02:17:15Z","event":"card_updated","actor":"paul","to":"workhorse","field":"tier"}
+{"ts":"2026-09-14T02:17:15Z","event":"workstream_joined","actor":"paul","workstream":"f1fd8d672caf"}

@@ -1,0 +1,9 @@
+---
+kind: decision
+state: resolved
+column: 0d86ad99cdbc
+ts: 2026-09-14T02:18:11Z
+ordinal: 30
+note: "Two published statements go false the moment `set` writes a column field: `docs/design/format.md:861`'s row, whose conditional column is empty, and `EventColumnUpdated`'s doc comment at `internal/contract/contract.go:626`, which says \"Reshape is the only writer today\". Both are edited, and neither edit is caught by anything as the card first stood. `scripts/derive_event_counts.py` derives counts and placements and never reads a row's member list, and section 5.3's populate work added a line per new event, which leaves an existing event's changed shape unfixtured. So the sequence gains `set <column> title \"<something>\"`. `TestTheSampleFixtureCarriesEveryShapeThisBuildWrites` at `cmd/dinah/compat_test.go:200` compares the freshly replayed tree's per-event member map against the fixture's, so once the replay writes `field` on a `column_updated` line the recaptured fixture has to carry it. `wantedEvents` gains the row because `column_updated` is absent from it today despite being written by `reshape`, so the sequence's only writer of that event has been unpinned; the table is a union per event, so one row covers both writers, `reshape` supplying `note` and `set` supplying `field`. The doc comment stays a doc comment and nothing reads it, which is why the fixture is what actually guards the change and the comment edit is bookkeeping beside it."
+---
+Giving `column_updated` a `field` member is a change to an existing event's shape, so `populate.txt` gains a column-field write and `wantedEvents` gains a `column_updated` row, which is what makes the change checkable at all.

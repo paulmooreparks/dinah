@@ -1,0 +1,8 @@
+---
+kind: decision
+state: resolved
+ts: 2026-09-14T02:18:44Z
+ordinal: 27
+note: "The build claims 0.12 and the document is at 0.13 before this card touches it. Claiming 0.14 would assert conformance with 0.13's CORE-JSON-10, CORE-GATE-3 and CORE-GATE-4 as well as with 0.14's CORE-CARD-10; this card implements one of the four and evaluates none of the other three. Claiming 0.13 would assert the three it does not implement and would not assert the one it does. The profile permits the lag: section 2 says the profile's version is unrelated to any tool's release numbering, and internal/profile/amendment_test.go:165 records the operator's ruling in dinah-321 D-3 that no guard may require the build and the document to agree. Round 3's reviewer verified this argument independently from the code and confirmed it. Consequences: internal/bench/compat_test.go:85 keeps its admitted list ending at 0.12 and keeps 0.13 in its refused list, cmd/dinah/compat_test.go:730 keeps reading \"through dinah-core 0.12\", scripts/capture_fixture.py is NOT run (:47 names the fixture directory from the binary's claim, so running it would rewrite the frozen 0.12 fixture and fail TestTheFixtureManifestMatchesWhatIsCommitted), and the dinah-core/0.12 strings in fixtures and docs/quick-start.md stay. Whoever bumps the claim next reckons with 0.13 and 0.14 together on a separate card."
+---
+The build's conformance claim does not move on this card. `ProfileMinor` stays 12 while the document goes to 0.14, so the compatibility window, the compat test lists, and every compatibility fixture are untouched.

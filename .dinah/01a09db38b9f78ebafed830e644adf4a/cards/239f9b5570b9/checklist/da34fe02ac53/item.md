@@ -1,0 +1,9 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+ts: 2026-09-14T02:17:51Z
+ordinal: 10
+note: "Verified on 3b9c51c. Test: internal/msg/address_keys_test.go, TestTheAddressHeadingsShipInEveryCatalogue. Command: go test ./internal/msg -run TestTheAddressHeadingsShipInEveryCatalogue. Plant: the de entry for column.comments.ref had its source line removed, which is valid JSON; the run went red at address_keys_test.go:49 reading \"de/column.comments.ref records the source \\\"\\\", wanted \\\"9ff1e019feac1ee2\\\", which is the fingerprint of the English it was read against\". Restored byte-identically (cmp clean) and green again, and the whole internal/msg package is green, which is what holds the retirement of column.attachments.position and column.workstreams.slug across all eight catalogues."
+---
+The catalogue edits land in all eight locales in the shape the staleness contract requires. In internal/msg/address_keys_test.go, TestTheAddressHeadingsShipInEveryCatalogue asserts for each of column.comments.ref, column.attachments.ref and column.workstreams.reference that every tag returned by msg.Tags() carries the key; that en carries the English text and a non-empty context; that de and hi carry a non-skeleton entry whose source equals msg.Fingerprint of the English text at that key; and that cs, id, es, fil and af carry the English text with Skeleton true and an empty source. It further asserts that no catalogue still carries column.attachments.position or column.workstreams.slug. Arm it by copying the de entry for column.comments.ref without its source field, which is valid JSON and turns the source assertion red.

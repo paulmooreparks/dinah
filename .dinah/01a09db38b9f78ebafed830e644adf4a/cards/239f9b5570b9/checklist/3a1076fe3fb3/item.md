@@ -1,0 +1,9 @@
+---
+kind: decision
+state: resolved
+column: 4b38abe7ebd5
+ts: 2026-09-14T02:17:54Z
+ordinal: 39
+note: "Nothing durable stores one, and I checked rather than assumed. I swept the whole worktree, including the fifteen tracked files under .dinah/, for `/oq/`, `/ac/` and `/d/<n>`, and read the only two writers that could persist a composed reference. ItemView.Ref and TreeNode.Ref are both computed at view time through itemRef and never written back, exactly as linkRef's comment says a link stores an identifier rather than a reference, so no anchor, no frontmatter and no journal line carries an address. What the sweep did find is six spellings used as INPUT, all of them short forms, all still resolving: internal/bench/testdata/compat/populate.txt lines 63 to 68 drive cite, verify, reopen, fail and resolve at `sample-1/ac/1`, `sample-1/oq/1` and `sample-1/d/1`, and that file is a frozen compatibility fixture whose bless would have had to be reopened if the short forms had stopped working; plus three test inputs, at cmd/dinah/address_sweep_test.go:390, cmd/dinah/attachments_command_test.go:205 and internal/verb/checklist_test.go:147. I left all six on the short form deliberately. They are now the incidental proof that a reference written before this card goes on working, and rewriting them would have removed that proof and reopened the compat bless for nothing. One document outside the code carries the retired teaching: docs/specs/dinah-172-help-ux-sketch.md line 268 quotes the old guide block inside a fenced sketch of what dinah-172 proposed. No test reads it and it is a record of a past proposal rather than current instruction, so I left it and am naming it here rather than editing a shipped card's design record."
+---
+What stores an address rather than composing one, and does the rename break any of it?

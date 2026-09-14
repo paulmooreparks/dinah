@@ -1,0 +1,10 @@
+---
+kind: decision
+state: resolved
+column: 0d86ad99cdbc
+owner: holder
+ts: 2026-09-14T02:17:29Z
+ordinal: 27
+note: "The addition is one field, one package-level seam and one test. Nothing else in the product wants it today, so nobody would pick it up on its own, and the workbench's own filing rule says a finding that will only ever be fixed as part of the card that needs it is not a card. Splitting it would also put a gate between two halves of one change and leave this card blocked on a predecessor whose whole content is a line of Go.\n\nThe reach was checked rather than assumed. `grep -rn \"os\\.Executable\" --include=*.go .` over the whole tree returns nothing on `65a80ad`, so the CLI does not report its own location today by that route; `grep -rn \"Executable\\|os\\.Args\\[0\\]\\|LookPath\\|exec\\.Command\"` over the non-test tree finds the editor ladder's `LookPath` and four `exec.Command` sites and no executable-path reporting, so the capability is absent under any spelling rather than merely under the name I first searched for. `grep -rn \"VersionReport\"` returns five sites and no more: the type and its constructor in `internal/verb/read.go`, the human rendering at `cmd/dinah/render.go:898`, `runVersion` at `cmd/dinah/commands.go:1594`, and the MCP head's `readVersion` at `internal/mcp/tools.go:787`. No test anywhere pins the report's key set; the only two that decode it are `cmd/dinah/readexit_gate_test.go:105`, which decodes into a struct naming three fields and therefore ignores a fourth, and `cmd/dinah/compact_test.go:961`, which compares the compact and canonical forms of the same run against each other. The MCP head serves the same value under the `version` tool, so the field appears there too, which is correct and costs nothing: `internal/mcp/tools_inventory_test.go` pins that tool's parameters rather than its response shape."
+---
+The CLI addition that makes D-9 possible, one `executable` field on `--json version`, is in scope on this card rather than on a predecessor.

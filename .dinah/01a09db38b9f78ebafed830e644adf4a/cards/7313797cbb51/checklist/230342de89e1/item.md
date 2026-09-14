@@ -1,0 +1,10 @@
+---
+kind: decision
+state: resolved
+column: 0d86ad99cdbc
+owner: holder
+ts: 2026-09-14T02:18:26Z
+ordinal: 24
+note: "Answered at Spec, round 3, while minting the seventeen values section 6.1 now carries. Three sentences in the guide each teach several forms at once, and pinning the nearest sentence on every row would have made five groups where AC-5 asserts three, so four rows pin something narrower.\n\n`workbench-word` pins the example line `dinah path workbench` and `workbench-dot` pins `dinah path .`, because the sentence above them, \"You may write this workbench in three ways, and the three name one workbench\", teaches all three workbench forms and only `workbench-slug-head` has prose of its own. `Carries` searches the whole guide text rather than its prose alone, so an example line is a pin like any other. `member-position` pins \"The number counts in the order the entities were created\" and not \"Dinah tries the identifier first, then the position, then the filename\", which teaches all three selectors; `member-identifier` and `member-name` then take the two halves of the narrowed sentence section 5 rewrites.\n\nChecked rather than assumed. All seventeen pins were run against the guide as section 5 leaves it, folded to single spaces the way `Carries` folds, and again against that same text re-wrapped at forty-one columns. All seventeen stand under both, and grouping by value gives thirteen distinct strings with exactly three multi-member groups, which is what AC-5 asserts. AC-5 also carries a plant that must stay GREEN, a re-wrap of the guide changing no word, because the failure this pins against is a criterion keyed on the file's line breaks rather than on its sentences."
+---
+Four of the seventeen `Guide` values pin something other than the nearest teaching sentence, so that the multi-member groups stay at the three AC-5 declares.

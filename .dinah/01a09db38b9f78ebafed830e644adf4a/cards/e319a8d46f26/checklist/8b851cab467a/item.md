@@ -1,0 +1,10 @@
+---
+kind: decision
+state: resolved
+column: 0d86ad99cdbc
+owner: holder
+ts: 2026-09-14T02:18:51Z
+ordinal: 45
+note: "Saying it cannot be undone would be false: `dinah restore <ref>` puts an archived entity back, and the reviewer ran it. Against the card archived in D-11's run, `dinah restore wb-1` with a plain reference and no flag answered `{\"outcome\":\"ok\",\"verb\":\"restore\"}` and the card came back to Doing. What is also true is that the extension offers no way to see the archive or to reach that command, so the dialog says so and names the terminal command. Round 1 got that half right and left the reader unable to act on it: after a twelve-card archive they know none of the references, because the dialog names a count and the archived rows leave the tree, so \"if you know each card's reference\" pointed at a route nobody could take. Two repairs. Archive writes one channel line per attempted row rather than per failed row, so the summary's existing Open Output action hands the reader exactly the list `dinah restore` needs, and it is the only command that widens step 7 this way. And the copy points at the channel instead of at the reader's memory. Neither sentence carries a code span: `confirmDestructive` calls `vscode.window.showWarningMessage(message, { modal: true }, label)`, whose message parameter is documented as a string with no promise of Markdown, so a backtick would reach the reader as a backtick in eight languages, and `dialog.attachment.delete.confirm` is the precedent in the same family that carries none. The context note on both keys records that dinah-491 makes these sentences wrong, so the card adding the archive view finds the obligation in the catalogue rather than having to remember it."
+---
+The confirmation names `dinah restore` as the route back, rather than saying the act cannot be undone.

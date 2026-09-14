@@ -1,0 +1,9 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+ts: 2026-09-14T02:18:24Z
+ordinal: 4
+note: "TestEveryDeclaredNearMissRefusesWithItsDeclaredRefusal logged \"6 declared near misses probed against the fixture\", each through `dinah --json path`, each asserted non-zero and asserted on the payload's `refusal` key. Five raise unknown-card and card-through-its-holder raises dinah.unknown-path, as declared. Armed by widening the card lookup so a reference whose tail is a twelve-hex identifier resolves (an arm widened in place, added ahead of the IsID check in resolveCardIn): the package compiled, address_form_run_test.go:358 reddened with \"card-slug-and-identifier: `dinah path fx-2d5d8e95b359` is declared refused and it exited 0\", and the arm-count guard stayed green, which is the stated limit of the counts demonstrated live rather than only written down. Resolve with: `go test ./cmd/dinah/ -run TestEveryDeclaredNearMissRefusesWithItsDeclaredRefusal -v`."
+---
+`TestEveryDeclaredNearMissRefusesWithItsDeclaredRefusal` runs one generated example per entry of `addressform.NearMisses()` through the command that entry declares, asserts a non-zero exit, and asserts the `refusal` key of the `--json` payload equals the entry's declared refusal name. The six entries are `card-slug-and-identifier`, `card-through-its-holder`, `workbench-bare-slug`, `workbench-directory-name`, `column-with-a-kind-prefix` and `workstream-bare-handle-as-an-address`, all six declared against `path`, five raising `unknown-card` and `card-through-its-holder` raising `dinah.unknown-path`. It logs the number probed and fails when it is zero. Arming plant: widen `splitRef` to return the identifier as a match, which makes the `card-slug-and-identifier` example exit 0 and reddens this test while leaving the build sound.

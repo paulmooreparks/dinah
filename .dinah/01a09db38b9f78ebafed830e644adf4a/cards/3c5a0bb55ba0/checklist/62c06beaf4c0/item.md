@@ -1,0 +1,10 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+owner: holder
+ts: 2026-09-14T02:17:54Z
+ordinal: 2
+note: "VERIFIED. cmd/dinah/collection_reference_test.go TestEveryReferenceTakingCommandAnswersACollectionOrRefusesIt. Run: `go test ./cmd/dinah/ -run TestEveryReferenceTakingCommandAnswersACollectionOrRefusesIt -v`. Fifteen invocations against fx-1/comments on a card carrying two comments, an open question, an acceptance criterion and an attachment. It logs \"fifteen invocations ran: 4 accepted, 11 refused with dinah.is-a-collection\", and asserts ran==15, accepted==4, refused==11. The refusal name is read off the --json payload rather than the sentence, and each refuser is checked for exit 2 and for not answering dinah.unknown-path. The sweep's own command set is held against verb.ReferenceTakingCommands(), so a sixteenth reference-taking command reddens this rather than being missed. ARMED: changed CollectionRef.Refuse's non-empty raise site from contract.IsACollection to contract.UnknownPath; the plant compiled and ran, and the assertion at collection_reference_test.go:154 reddened with `fail answered \"dinah.unknown-path\" ... and it is one of the eleven that refuse a collection with dinah.is-a-collection`; restored byte-identically, green."
+---
+Every one of the fifteen is run against one collection reference in a probe workbench whose card pb-1 carries at least one comment, one open question and one attachment, and the sweep asserts fifteen invocations ran. Exactly four exit 0: path prints the collection directory, show prints the members, contents draws the tree, attachments answers a listing. Exactly eleven exit 2 with refusal name dinah.is-a-collection read from the --json payload: edit, attach, archive, delete, rename, instructions, cite, resolve, verify, fail, reopen. No invocation in the sweep answers dinah.unknown-path. The run prints both counts, 4 and 11, and asserts each.

@@ -1,0 +1,4 @@
+{"ts":"2026-09-14T02:16:57Z","event":"created","actor":"paul","title":"The Implement column's self-test does not run every check CI runs","to":"5ea2db0272fc","to_title":"Intake"}
+{"ts":"2026-09-14T02:16:57Z","event":"card_updated","actor":"paul","field":"body"}
+{"ts":"2026-09-14T02:16:57Z","event":"card_updated","actor":"paul","to":"minor","field":"severity"}
+{"ts":"2026-09-14T02:16:57Z","event":"card_updated","actor":"paul","to":"next","field":"priority"}

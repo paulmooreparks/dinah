@@ -1,0 +1,9 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+ts: 2026-09-14T02:18:36Z
+ordinal: 10
+note: "Proven twice, once in the suite and once against a workbench the SHIPPED binary wrote. test: cmd/dinah/exithold_test.go#TestADeclarationWrittenBeforeTheDirectionBehavesExactlyAsBefore, which reads the declaration back as gate_items: true off disk, asserts `dinah get` still answers \"on\", asserts the entry move is refused unresolved-item (the profile's name, not the new one) naming the item, and asserts the card leaves forward and backward with exit 0. The stronger run: the trunk binary built from 65a80ad created the workbench and ran `dinah set doing hold on`, writing `gate_items: true`; the new binary was then pointed at that untouched workbench and answered `get doing hold` = on, refused the entry move with `unresolved-item this card carries the item 25196d87ff73, which is not resolved`, and released the card forward and backward with exit 0; the anchor line after all of it still reads `gate_items: true`. observed before: fail, after: pass. Armed by making HoldsOnExit read HoldOn, which reddened exithold_test.go:355 with `the forward departure was held: 2 dinah.unresolved-item-exit`; restored byte-identically."
+---
+**Regression, run against the built binary:** a column carrying only `gate_items: true` (`hold: on`, an existing-workbench shape unmodified by this card, with no direction word ever written to it) refuses card entry exactly as it does on trunk today, and a card standing there leaves freely in both directions, proving the existing entry-hold behavior is unchanged by this card's addition.

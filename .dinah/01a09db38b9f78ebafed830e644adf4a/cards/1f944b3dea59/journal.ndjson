@@ -1,0 +1,7 @@
+{"ts":"2026-09-14T02:16:55Z","event":"created","actor":"paul","title":"Lanes, so that some cards travel a different path than others","to":"5ea2db0272fc","to_title":"Intake"}
+{"ts":"2026-09-14T02:16:55Z","event":"card_updated","actor":"paul","field":"body"}
+{"ts":"2026-09-14T02:16:55Z","event":"card_updated","actor":"paul","to":"minor","field":"severity"}
+{"ts":"2026-09-14T02:16:55Z","event":"card_updated","actor":"paul","to":"next","field":"priority"}
+{"ts":"2026-09-14T02:16:55Z","event":"workstream_joined","actor":"paul","workstream":"b3f924406e4c"}
+{"ts":"2026-09-14T02:16:55Z","event":"workstream_joined","actor":"paul","workstream":"2cdb633015c1"}
+{"ts":"2026-09-14T02:18:55Z","event":"linked","actor":"paul","to":"5ef07a3b83a3","kind":"parked_behind"}

@@ -1,0 +1,4 @@
+{"ts":"2026-09-14T02:16:41Z","event":"created","actor":"paul","title":"Table rules line up under Devanagari headings","to":"5ea2db0272fc","to_title":"Intake"}
+{"ts":"2026-09-14T02:16:41Z","event":"card_updated","actor":"paul","field":"body"}
+{"ts":"2026-09-14T02:16:41Z","event":"card_updated","actor":"paul","to":"major","field":"severity"}
+{"ts":"2026-09-14T02:16:41Z","event":"card_updated","actor":"paul","to":"soon","field":"priority"}

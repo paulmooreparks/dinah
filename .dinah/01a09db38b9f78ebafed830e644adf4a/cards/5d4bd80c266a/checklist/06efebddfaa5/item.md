@@ -1,0 +1,10 @@
+---
+kind: open_question
+state: resolved
+column: c9428b3bc921
+owner: operator
+ts: 2026-09-14T02:17:47Z
+ordinal: 18
+note: "**Operator ruling, 2026-09-10: resolve the column reference at write time, as its own card.**\n\nThe file command resolves a column reference the way the move and pull commands already resolve theirs, and refuses when the reference names nothing. It does not stay stored verbatim, and it does not become a health-check finding instead.\n\n**Why the fix rather than the cheaper half.** A health-check finding tells somebody afterwards that an item has been holding nothing. Resolving at write time means the item never exists in that state. The failure this closes is a hold that silently does not fire, which is the same shape as a refusal any value satisfies: everything looks configured, nothing is enforced, and the only signal is the absence of one. That is worth closing at the point of writing rather than reporting later.\n\n**Why its own card rather than widening this one.** It changes what the write path stores, which this card's criteria do not name, and this card is built and green. Existing items are unaffected either way, because they already carry identifiers in practice: the only reader that ever consumed the field resolves it through a lookup that takes identifiers and nothing else, so a value that was not one already produced a blank rather than a match.\n\n**What made this urgent enough to fix at all.** Until this card the field was decoration and a mistyped value cost a blank title in one view. The hold makes it load-bearing, so the same typo now means a card sails through the step the workbench meant to hold it at, and nothing anywhere reports that."
+---
+An item's column is stored exactly as typed and the hold matches it by identifier, so somebody who types `dinah file --column doing` files an item that holds nothing and is told nothing. Should `file --column` resolve the reference to the column's identifier at write time, as every other column argument in the tool already does?

@@ -1,0 +1,8 @@
+---
+kind: acceptance_criterion
+state: pending
+column: 6c5b9d6f4414
+ts: 2026-09-14T02:17:44Z
+ordinal: 10
+---
+OPERATOR-VERIFIED. The operator works from the Dinah workbench, sustained over a window rather than observed at an instant. Over 14 consecutive days after the cutover instant, two things hold and both are produced by a command rather than by recollection. (1) The Andoneer board records no card created and no card moved in that window, other than whatever the operator did to close it out, read by listing the board's cards updated since the cutover instant and printing the count and the list. (2) The Dinah workbench's card journals record cards created and cards moved in that window by the actor `paul`, read by sweeping the journals beneath the workbench that discovery finds from `c:\Users\paul\source\repos\dinah` rather than a hardcoded directory name, with the run printing how many journals it read and how many events it found; a sweep that read zero journals fails rather than passing. Beyond what those two commands see, the operator states plainly whether he is in fact reading the board with `dinah next`, `dinah ls` and `dinah show` and moving cards with `dinah move`, rather than opening Andoneer's web board to find out where something stands. That last part is his to answer and nobody else can check it, which is why this criterion is marked operator-verified rather than dressed up as automatic. A failing run is any Andoneer activity in the window beyond the close-out, a zero-journal sweep on the Dinah side, or his answering no.

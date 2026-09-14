@@ -1,0 +1,4 @@
+{"ts":"2026-09-14T02:17:08Z","event":"created","actor":"paul","title":"The order the mcp refusals are checked in is declared in one place and implemented in another","to":"5ea2db0272fc","to_title":"Intake"}
+{"ts":"2026-09-14T02:17:08Z","event":"card_updated","actor":"paul","field":"body"}
+{"ts":"2026-09-14T02:17:08Z","event":"card_updated","actor":"paul","to":"major","field":"severity"}
+{"ts":"2026-09-14T02:17:08Z","event":"card_updated","actor":"paul","to":"soon","field":"priority"}

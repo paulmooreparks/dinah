@@ -1,0 +1,9 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+ts: 2026-09-14T02:18:32Z
+ordinal: 13
+note: "Verified at 5a88bec. The criterion's own text carried the spec author's wording, which the operator rejected; it has been updated to the ruled wording, since the reviewer noted the criterion pins the sentence verbatim and so its text moves with it. internal/guide/guides/references.md now reads \"The listing says so on the line under the sentence naming the root.\", byte-for-byte as ruled, and guidepin's fifth constant carries the same text. Armed by moving the s.line(s.r.T(\"contents.archived\", ...)) call above s.line(s.treeHeader(tree)) in cmd/dinah/render.go: the tightened assertion reddened with 'the references guide says the archived listing carries its notice on the line under the sentence naming the root; the second line reads \"a card whose claim lapses (fx-2) contains nothing.\"'. The counterproof was measured rather than asserted: with the same render.go plant in place AND the retired strings.Contains form restored, the test PASSED, so the retired form genuinely could not see the reorder. Both files restored byte-identically (cmp clean) and green."
+---
+The references guide no longer says the archived listing's notice stands on the listing's own first line. The sentence reads "The listing says so on the line under the sentence naming the root.", which is the wording the operator ruled on 2026-09-11 and is not the implementer's to improve, and TestAnArchivedReadShowsOneHalfAndWritesNothing asserts the notice's line position rather than its mere presence, failing with the line it found instead. Armed by moving the contents.archived line above the header call in cmd/dinah/render.go and confirming the tightened assertion goes red where the retired strings.Contains form would have passed.

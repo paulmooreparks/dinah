@@ -1,0 +1,9 @@
+---
+kind: acceptance_criterion
+state: verified
+column: aa6cd1c6ae5f
+ts: 2026-09-14T02:17:40Z
+ordinal: 8
+note: "Armed four times, each restored before the next. (1) noun refusals: \"testdata\\prose-figures.txt registers the noun \\\"refusals\\\" and it matches nothing in the corpus, so the scan carries a word no document uses\". (2) by= repointed at TestNobodyDeclaresThisAtAll: \"rests the figure at internal/guide/guides/references.md:60 on TestNobodyDeclaresThisAtAll, and no test file in the module declares a function by that name\". (3) at= set to internal/verb/query.go:99999: \"points at internal/verb/query.go:99999, and internal/verb/query.go carries 789 lines\". (4) at= repointed at line 71: \"says internal/verb/query.go:71 declares actPlane, and line 71 of internal/verb/query.go does not carry that name: // rather than against the card as it stands.\" That fourth run is what proves at= is a pointer rather than a line number. Restored, green."
+---
+A dead reference in the vocabulary or in a pointer is caught. Arming, four runs of `go test ./cmd/dinah -run TestEveryLedgerReferenceIsLive`, each restored before the next: add `noun refusals` to the ledger and watch it fail saying the noun matches nothing in the corpus; change the `by=` of the `internal/guide/guides/references.md:60` entry to a test name no file declares and watch it fail naming that test; change the `at=` of the `internal/guide/guides/query.md:80` entry to a line past the end of `internal/verb/query.go` and watch it fail naming the file and the line; repoint that same `at=` at `internal/verb/query.go:71`, which is the second line of `actPlane`'s doc comment and is neither blank nor a declaration, and watch it fail saying line 71 does not carry `actPlane`.

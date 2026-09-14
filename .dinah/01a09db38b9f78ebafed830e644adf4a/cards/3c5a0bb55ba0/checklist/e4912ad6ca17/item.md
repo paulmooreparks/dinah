@@ -1,0 +1,9 @@
+---
+kind: decision
+state: resolved
+owner: holder
+ts: 2026-09-14T02:17:58Z
+ordinal: 40
+note: "Filed by Agent Code Review at round 2, not by the implementer, because commit 86bdf5e changed one locale line and carried no per-key record for it, which the column's \"Locale diffs carry a decision record\" heading makes a [major]. The substance was verified rather than assumed, so the record is real rather than paperwork closed to make a finding go away.\n\nThe edit replaced the single precomposed U+095E in `internal/msg/locales/hi.json` with the decomposed pair U+092B U+093C. Nothing else on the line moved. The English at the key did not move, and the entry's `source` fingerprint is unchanged, which is correct: the staleness mechanism fingerprints the English, and no English changed. Verified on the branch at 86bdf5e that the file now carries 0 precomposed U+095E and 60 decomposed pairs, against 1 and 59 before, so the entry joined the spelling the rest of the catalogue already used and the rendered text is identical either way.\n\nUnder \"Who checks a translation, ruled 2026-08-31\", this is at the mechanical end of a mechanical edit: it moves no noun and rewrites no clause, so the act to record is a normalisation and the reading is unchanged. The stray codepoint landed with dinah-454 and was raised as a [nit] in this card's round-1 review; correcting it here rather than deferring it is why this diff touches a locale file at all."
+---
+`refusal.dinah.vocabulary-mixed.next-named` (hi): read against the current English and its context; unchanged because the edit was a Unicode normalisation rather than a translation change.

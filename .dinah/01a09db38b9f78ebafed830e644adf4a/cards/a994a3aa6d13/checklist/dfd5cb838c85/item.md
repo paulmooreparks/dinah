@@ -1,0 +1,8 @@
+---
+kind: decision
+state: resolved
+ts: 2026-09-14T02:16:50Z
+ordinal: 31
+note: "Both spellings ship because a client writing a registration can set process arguments, environment, or both, and this tool already ships the workbench pointer in both spellings for that reason. The two resolve through `bench.Resolve` with `bench.SourceFlag` first and `bench.SourceEnvironment` second, which is the ladder `--workbench` and `DINAH_WORKBENCH` already climb, so the precedence rule is the board's own rather than a new one.\n\nThe flag belongs to `mcp` rather than to the invocation. No other command has any use for a root, and a global flag is a promise to every command.\n\nThe variable is named for the command that reads it. `DINAH_WORKBENCH_ROOT` would read as a bound on `--workbench` everywhere, which it is not.\n\nThe flag is declared as `{Name: \"root\", Flag: true, Value: \"dir\"}` in `params[\"mcp\"]`, so the syntax line, the generated help page, and the parser's accepted set all follow from one declaration and none of them can drift from the others. Verified by building a throwaway binary from f065620 with that declaration and running `dinah help mcp`, whose page grew the arguments row and whose syntax line became `mcp [--root <dir>]` with nothing written by hand.\n\nRepository claims verified for this decision: 3 (the `bench.Resolve` ladder and its two source constants, the derivation of `valuedFlags` from the parameter tables, and the rendered help page from the throwaway build)."
+---
+The root arrives as --root <dir> on dinah mcp and as DINAH_MCP_ROOT, with the flag winning, and it defaults to the workbench discovered at startup.

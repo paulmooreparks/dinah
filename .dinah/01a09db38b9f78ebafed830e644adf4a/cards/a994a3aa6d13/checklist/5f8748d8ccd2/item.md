@@ -1,0 +1,8 @@
+---
+kind: decision
+state: resolved
+ts: 2026-09-14T02:16:50Z
+ordinal: 29
+note: "This is D-1 applied rather than reopened: the operator ruled that the surface takes the workbench as a parameter, and a current workbench is not a parameter.\n\nThe reasoning, verified against the code rather than assumed. `Serve` in internal/mcp/mcp.go reads one line, `dispatch` answers it, and nothing survives between calls except the library the process started with, so this head holds no session state today. A tool that set a current workbench would add the first piece, and every later call would mean something different depending on a call that may not be in front of whoever reads the transcript. Two agents sharing one registration would have to serialise around a mode neither can see, and the refusal they meet when they get it wrong reads unknown-card, which is true of the workbench they were pointed at and useless as a diagnosis.\n\nThe argument is optional and defaults to the workbench discovery resolved at startup, because D-2 requires an unchanged registration to keep today's behaviour.\n\nThe property is injected by `schemaFor` in internal/mcp/tools.go beside `actor` and `basis`, which is one site rather than twenty-six. Confirmed by building a throwaway binary from f065620 with the injection added and reading tools/list back: every schema carried the property, no schema needed editing, and the surface still answered.\n\nRepository claims verified for this decision: 4 (the absence of session state in Serve and dispatch, the two properties schemaFor already injects, the generated tools/list output, and the tool count of twenty-six)."
+---
+Every tool takes the workbench as an optional argument, and the head carries no current workbench a call can change.

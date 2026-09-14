@@ -1,0 +1,8 @@
+{"ts":"2026-09-14T02:16:54Z","event":"created","actor":"paul","title":"A state has a title and a body and nothing between","to":"5ea2db0272fc","to_title":"Intake"}
+{"ts":"2026-09-14T02:16:54Z","event":"card_updated","actor":"paul","field":"body"}
+{"ts":"2026-09-14T02:16:55Z","event":"card_updated","actor":"paul","to":"minor","field":"severity"}
+{"ts":"2026-09-14T02:16:55Z","event":"card_updated","actor":"paul","to":"later","field":"priority"}
+{"ts":"2026-09-14T02:16:55Z","event":"card_updated","actor":"paul","to":"workhorse","field":"tier"}
+{"ts":"2026-09-14T02:16:55Z","event":"workstream_joined","actor":"paul","workstream":"3fce00c6e629"}
+{"ts":"2026-09-14T02:16:55Z","event":"workstream_joined","actor":"paul","workstream":"2cdb633015c1"}
+{"ts":"2026-09-14T02:16:55Z","event":"moved","actor":"paul","from":"5ea2db0272fc","to":"2f6c18c9f5d0","from_title":"Intake","to_title":"Design Queue"}

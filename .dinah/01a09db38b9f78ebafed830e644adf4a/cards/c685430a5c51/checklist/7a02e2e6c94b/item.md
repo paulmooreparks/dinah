@@ -1,0 +1,9 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+ts: 2026-09-14T02:18:06Z
+ordinal: 7
+note: "Verified at 4a8c66a. Test: cmd/dinah/attachments_command_test.go, TestTheAttachHelpPageNamesTheKindPrecondition. Command: go test ./cmd/dinah/ -run TestTheAttachHelpPageNamesTheKindPrecondition. Green. The wanted order is a literal slice {contract.UnknownPath, contract.NoOwner, contract.NotAttachable, contract.UnknownPath}, compared element by element BOTH against verb.Checks(\"attach\") and against the four numbered rows scraped from `dinah help attach`, so neither comparison recomputes its expectation from the other. Every line of the page is also checked against displayWidth at t.Setenv(\"COLUMNS\",\"80\"). Plant: rows 3 and 4 swapped in beyondChecks. Red four times, attachments_command_test.go:260 twice (\"precondition 3 is dinah.unknown-path, wanted dinah.not-attachable\" and its mirror) and :283 twice for the same two rows on the page. Restored byte-identically and green again. Live: the page at COLUMNS=80 draws rows 1-4 as the reference, the owner, the kind and the file, and the separator row is exactly 80 columns wide, so the new middle-column English at 49 columns fits with zero slack, which is the review's correction to the spec's stated 48."
+---
+AC-7. `cmd/dinah/attachments_command_test.go`, `TestTheAttachHelpPageNamesTheKindPrecondition`: `dinah help attach` draws four numbered precondition rows whose refusal column reads, in order, `dinah.unknown-path`, `no-owner`, `dinah.not-attachable`, `dinah.unknown-path`. That order is written into the test as a literal slice and is also compared element by element against `verb.Checks("attach")`, so the test pins the contract rather than only proving that the page is generated from the table. At `COLUMNS=80` no line of the page exceeds 80 display columns.

@@ -1,0 +1,5 @@
+{"ts":"2026-09-14T02:17:06Z","event":"created","actor":"paul","title":"Are the cards on a real board the product's negative space","to":"5ea2db0272fc","to_title":"Intake"}
+{"ts":"2026-09-14T02:17:06Z","event":"card_updated","actor":"paul","field":"body"}
+{"ts":"2026-09-14T02:17:06Z","event":"card_updated","actor":"paul","to":"minor","field":"severity"}
+{"ts":"2026-09-14T02:17:06Z","event":"card_updated","actor":"paul","to":"soon","field":"priority"}
+{"ts":"2026-09-14T02:17:06Z","event":"workstream_joined","actor":"paul","workstream":"f302445714bb"}

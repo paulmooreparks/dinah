@@ -1,0 +1,9 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+ts: 2026-09-14T02:17:45Z
+ordinal: 3
+note: "ItemIsResolved is extracted from ItemBlocksClaim's four-state switch and reads the state alone; ItemBlocksClaim becomes the kind filter over it and its exported behaviour is unchanged.\n\nCitation: internal/bench/gate_test.go, TestItemIsResolvedAnswersTheSameForEveryKind. The table runs all three kinds of bench.ItemKinds across pending, resolved, verified, failed, plus an empty state and an unknown one, and asserts ItemIsResolved answers identically for every kind at a given state. The same loop asserts ItemBlocksClaim against wanted := kind != \"acceptance_criterion\" && !resolved, which is the exemption held still.\n\nObserved: fail before, pass after. Dropping ItemFailed from the resolved set turned it red at gate_test.go:187 for all three kinds (\"ItemIsResolved(open_question in \\\"failed\\\") is false, wanted true\") and at gate_test.go:191 for the two blocking kinds; restored byte-identical (cmp reports identical) and green again.\n\nResolve with: go test ./internal/bench/ -run TestItemIsResolvedAnswersTheSameForEveryKind"
+---
+A kind-agnostic bench.ItemIsResolved(item *Item) bool is extracted from ItemBlocksClaim's existing four-state switch (entity.go:914-936); ItemBlocksClaim is rewritten to call it, its own exported behavior (kind restricted to open_question/decision) unchanged. Check: an entity_test.go table exercising all three kinds across all four states (pending, resolved, verified, failed) asserts ItemIsResolved answers identically for every kind given the same state, and that ItemBlocksClaim still answers false for every acceptance_criterion regardless of state.

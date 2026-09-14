@@ -1,0 +1,4 @@
+{"ts":"2026-09-14T02:17:04Z","event":"created","actor":"paul","title":"a board using the block workaround has no way to find its own workaround blocks","to":"5ea2db0272fc","to_title":"Intake"}
+{"ts":"2026-09-14T02:17:04Z","event":"card_updated","actor":"paul","field":"body"}
+{"ts":"2026-09-14T02:17:04Z","event":"card_updated","actor":"paul","to":"minor","field":"severity"}
+{"ts":"2026-09-14T02:17:04Z","event":"card_updated","actor":"paul","to":"next","field":"priority"}

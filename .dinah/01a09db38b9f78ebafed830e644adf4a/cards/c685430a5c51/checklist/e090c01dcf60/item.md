@@ -1,0 +1,9 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+ts: 2026-09-14T02:18:05Z
+ordinal: 2
+note: "Verified at 4a8c66a, same test and command as AC-1. The five permitted rows are \"the workbench/a column/a card/a comment still takes a file\", each asserting the payload at <target>/attachments/<id>/payload/evidence.txt, and \"an attachment's bytes are still replaced\", which reads the payload back as the replacement bytes and asserts no attachments directory below the attachment. Plant 1, refuse everything: the guard's condition changed to `true || (!mounts && !replacing)`. Red. What actually happened differs from this criterion's predicted shape and is reported rather than smoothed: the run died in the test's own setup at beyond_test.go:3230, \"attach to fx-1: refused dinah.not-attachable\", because the setup's own attach to the card is itself one of the permitted acts. So a fix that refuses everything cannot reach a green here, but AC-1's rows do not run under that plant rather than staying green. Plant 2, `&& !replacing` dropped from the guard: exactly one row red, \"an attachment's bytes are still replaced\", beyond_test.go:3322 \"replace: refused dinah.not-attachable\", with all three refused rows and all four permitted rows passing. That is the trap this criterion exists for. Both plants restored byte-identically and green again."
+---
+AC-2. The same test asserts the permission half in the same run: `Library.Attach` against the workbench, against a column, against a card, and against a comment each answers `Outcome` ok and writes the payload under `<target>/attachments/<id>/payload/<original name>`; and `Attach` with `Replace` set against a card attachment answers ok, leaves that attachment's payload holding the new bytes, and creates no `attachments` directory below it.

@@ -1,0 +1,9 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+ts: 2026-09-14T02:18:18Z
+ordinal: 10
+note: "All four plants planted, seen red and restored byte-identically with `git checkout --`, each confirmed to have compiled and run by the \"--- FAIL: <test>\" line rather than a build failure. Plant 1 (return b.ResolvePath(ref)) needed one extra line to compile, `var _ = fmt.Sprintf`, because the arm it deletes is fmt's only user; it reddened exactly eleven shapes, the nine dinah.is-a-collection shapes with \"is required to refuse ... and it answered <a directory>\" and the two workstream shapes with \"is not a regular file\", and workbench/cards and workbench/columns stayed green, which reconciles with section 8's derivation of six containment collection mounts plus three checklist words plus two workstream spellings. Plant 2 reddened exactly 24 shapes, every declared opening one, and no refusing one. Plant 3 reddened the shape count at 45, the opens count at 22, and the named-kind assertion for workstream. Plant 4 reddened the three whitespace shapes at the resolver (each reporting it opened workbench.md) plus the no-argument case and the empty-reference case at the command, with every other shape green, which is M-2's corrected arithmetic rather than round 2's four-at-the-resolver. A fifth plant armed the new containment-coverage assertion. Full transcripts are in the WHAT SHIPPED comment."
+---
+Each of the four plants in spec section 8 was planted, seen red, and restored green, and the handoff quotes what each red run printed together with the test count that proves the plant compiled and ran. The four are the pre-fix body (`return b.ResolvePath(ref)`), the unconditional refusal, the deleted workstream shapes, and the deleted arm 1 that lets the empty reference open the workbench. For the first plant the handoff records the observed reddening set and reconciles it against section 8's derivation rather than against a number.

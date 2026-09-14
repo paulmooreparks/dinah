@@ -1,0 +1,9 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+ts: 2026-09-14T02:18:20Z
+ordinal: 8
+note: "Verified. `go test ./internal/mcp/ -run 'TestTheFieldToolsCarryTheSameSentencesTheTerminalPrints|TestEveryReferenceTakingToolPublishesTheKindsItsReferenceMayName' -v -count=1` passes and the second logs \"16 reference-taking tools read\", which is at least one. Independence held: `grep -c ArgumentMeaning internal/mcp/reference_kinds_schema_test.go` returns 1, and that single occurrence is in the doc comment saying the function is named nowhere in the logic; the expected clause is built from catalog.T on the catalogue entries and from verb.ReferenceKindsFor. Both plants armed. Reverting internal/mcp/tools.go to catalog.T(param.SummaryKey(t.command)) reddened BOTH, naming get_field and its ref property: levels_test.go \"the get_field tool describes ref as ... and the terminal prints ...\" and reference_kinds_schema_test.go \"the get_field tool describes ref as ..., which is not the summary wrapped in the kinds template\". Making verb.ArgumentMeaning drop the last declared kind reddened the second while leaving the FIRST GREEN, which is the proof that the second is the independent one and the first is now one expression on both sides. Restored byte-identically after each and green."
+---
+`go test ./internal/mcp/ -run 'TestTheFieldToolsCarryTheSameSentencesTheTerminalPrints|TestEveryReferenceTakingToolPublishesTheKindsItsReferenceMayName' -v` passes and the second logs how many reference-taking tools it found, which is at least one; the second builds its expected clause from the catalogue entries and the declaration and its source names `verb.ArgumentMeaning` nowhere; reverting `internal/mcp/tools.go` to `catalog.T(param.SummaryKey(t.command))` reddens both, naming `get_field` and its `ref` property; and a plant that makes `verb.ArgumentMeaning` drop the last declared kind reddens the second while leaving the first green.

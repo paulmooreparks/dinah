@@ -1,0 +1,5 @@
+{"ts":"2026-09-14T02:16:59Z","event":"created","actor":"paul","title":"the isolation guard proves nothing on any machine that is already clean","to":"5ea2db0272fc","to_title":"Intake"}
+{"ts":"2026-09-14T02:16:59Z","event":"card_updated","actor":"paul","field":"body"}
+{"ts":"2026-09-14T02:16:59Z","event":"card_updated","actor":"paul","to":"minor","field":"severity"}
+{"ts":"2026-09-14T02:16:59Z","event":"card_updated","actor":"paul","to":"next","field":"priority"}
+{"ts":"2026-09-14T02:16:59Z","event":"workstream_joined","actor":"paul","workstream":"4fd7a9f0b8ff"}

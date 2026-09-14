@@ -1,0 +1,9 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+ts: 2026-09-14T02:17:35Z
+ordinal: 5
+note: "TestResumableLiftReportsAContainerItCannotRead in internal/bench/container_readfailure_test.go, three subtests. Resolve with: go test ./internal/bench/ -run TestResumableLiftReportsAContainerItCannotRead -v. The fixture proves its own unreadability through plantUnreadable's direct os.ReadDir before anything is exercised. Two succeeding cases run in the same test: an absent container still answers (\"\", nil), and a container holding one anchorless member directory still answers that directory with no error. Armed 2026-09-11 by restoring `entries, err := os.ReadDir(container); if err != nil { return \"\", nil }`: red at container_readfailure_test.go:256 with \"resumableLift answered no interrupted lift for a container it could not read\" while both succeeding assertions still passed; green after a byte-identical restore."
+---
+resumableLift returns its container-read error instead of answering that no interrupted lift exists. Test: TestResumableLiftReportsAContainerItCannotRead in internal/bench/container_readfailure_test.go. The fixture proves its own unreadability with a direct os.ReadDir first, then asserts resumableLift returns a non-nil error. Two succeeding cases are pinned in the same run: a container that does not exist yet still answers ("", nil), which is the ordinary first-run migration path, and a container holding exactly one anchorless member directory still answers that directory with a nil error. Plant that compiles and runs: restore if err != nil { return "", nil }; the test reddens with "resumableLift answered no interrupted lift for a container it could not read" while both succeeding assertions still pass.

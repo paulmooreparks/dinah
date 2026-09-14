@@ -1,0 +1,4 @@
+{"ts":"2026-09-14T02:17:15Z","event":"created","actor":"paul","title":"A guard greps for a variable name, so renaming the variable disarms it","to":"5ea2db0272fc","to_title":"Intake"}
+{"ts":"2026-09-14T02:17:15Z","event":"card_updated","actor":"paul","field":"body"}
+{"ts":"2026-09-14T02:17:15Z","event":"card_updated","actor":"paul","to":"minor","field":"severity"}
+{"ts":"2026-09-14T02:17:15Z","event":"card_updated","actor":"paul","to":"soon","field":"priority"}

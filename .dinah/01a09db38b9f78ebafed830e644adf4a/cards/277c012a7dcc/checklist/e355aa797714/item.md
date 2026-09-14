@@ -1,0 +1,9 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+ts: 2026-09-14T02:18:20Z
+ordinal: 10
+note: "Verified by CI on the merged result. Current trunk (417f52d, dinah-474) was merged into the branch as fbf4f16 before the push, and `git merge-base --is-ancestor origin/main HEAD` confirms the branch carries trunk. All six checks on PR #245 (https://github.com/paulmooreparks/dinah/pull/245) finished and are green, read rather than assumed and polled until none was pending: test (macos-latest) pass 2m20s, test (ubuntu-latest) pass 1m30s, test (windows-latest) pass 5m12s, extension (ubuntu-latest) pass 1m55s, extension (windows-latest) pass 2m47s, gofmt pass 14s. The whole-tree `go test ./...` is those three test jobs; I did not run the repo-wide sweep locally, because this column's instructions reserve it for Test and reading a CI result is not a test run. The families AC-10's note names were swept by searching the tree for each old English rather than by trusting the list, which found and moved: cmd/dinah/levels_test.go:ratifiedSetHelp, the carries literals in cmd/dinah/main_test.go:TestEveryPageSaysWhatEachArgumentIs (path, edit, show, instructions, archive and attach), cmd/dinah/row_pairing_test.go:expectArguments (now verb.ArgumentMeaning), the two sketch goldens in cmd/dinah/help_format_test.go, cmd/dinah/testdata/help.txt, the wrap-continuation literal in TestTheArgumentsTableWrapsAndNoOtherTableMoved, cmd/dinah/testdata/quickstart-exempt.txt (the damaged-workbench block now renders the short label \"a card\"), and docs/quick-start.md's catalogue counts."
+---
+`go test ./... -count=1` passes over the whole tree after current trunk is merged into the branch, and the pull request's six checks are green on macOS, Ubuntu and Windows.

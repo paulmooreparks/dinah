@@ -1,0 +1,10 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+owner: holder
+ts: 2026-09-14T02:17:55Z
+ordinal: 8
+note: "VERIFIED. cmd/dinah/collection_reference_test.go TestTheRefusalThisCardReplacesStillAnswers. Run: `go test ./cmd/dinah/ -run TestTheRefusalThisCardReplacesStillAnswers -v`. Six invocations still answer dinah.unknown-path (show fx/cards/1, show fx/columns/1, delete fx/cards --yes, show fx-1/comments/9, show fx-1/nonsense, instructions nonsense-9), and a seventh naming a real collection answers dinah.is-a-collection. The run logs \"the sweep saw dinah.unknown-path 6 times and dinah.is-a-collection 1 times\" and asserts both counts, so a sweep that reached nothing reports 0 for both and fails. The addressed context is checked too: fx/cards/1 carries addressed \"card\" and fx/columns/1 carries \"column\", which is the refusal raised above the collection branch and the one most at risk of being swallowed. ARMED: made addressedInItsOwnRight return false; the plant compiled and ran, and the assertion at collection_reference_test.go:492 reddened with \"[show fx/cards/1] exited 0 and every one of these names nothing\"; restored byte-identically, green."
+---
+The refusal the card replaces still answers everywhere it should, so the new name has not swallowed the old one. `dinah show pb/cards/1` and `dinah show pb/columns/1` each exit 2 with dinah.unknown-path carrying the addressed context, card and column respectively; `dinah delete pb/cards --yes` does the same. `dinah show pb-1/comments/9` and `dinah show pb-1/nonsense` each exit 2 with dinah.unknown-path. `dinah instructions nonsense-9` exits 2 with dinah.unknown-path quoting the whole reference. The run tallies the refusal names it saw across its own invocations and asserts both names occur, reporting how many of each rather than that some refused.

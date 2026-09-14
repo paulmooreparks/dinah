@@ -1,0 +1,4 @@
+{"ts":"2026-09-14T02:16:37Z","event":"created","actor":"paul","title":"The README stops saying there is no downloadable build","to":"5ea2db0272fc","to_title":"Intake"}
+{"ts":"2026-09-14T02:16:37Z","event":"card_updated","actor":"paul","field":"body"}
+{"ts":"2026-09-14T02:16:37Z","event":"card_updated","actor":"paul","to":"minor","field":"severity"}
+{"ts":"2026-09-14T02:16:37Z","event":"card_updated","actor":"paul","to":"soon","field":"priority"}

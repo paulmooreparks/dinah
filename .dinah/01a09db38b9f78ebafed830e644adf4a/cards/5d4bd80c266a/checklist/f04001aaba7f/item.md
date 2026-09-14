@@ -1,0 +1,9 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+ts: 2026-09-14T02:17:45Z
+ordinal: 1
+note: "Column.GateItems lands in internal/bench/bench.go beside LoopLimit, and readColumnIn parses gate_items in the switch immediately after awaiting_outside's, under the same empty/true/false/Malformed discipline.\n\nCitation: internal/bench/gate_test.go, TestTheGateFlagIsParsedStrictly. Its four subtests are the three cases the criterion names plus the true case: \"a value outside the two refuses the workbench\" walks yes, 1, True, no and bogus and asserts contract.Malformed naming the column; \"true reads as a column that holds\"; \"false reads as a column that never carried the key\"; \"a workbench with no such key opens unchanged\", which also asserts the reader invented no frontmatter key.\n\nObserved: fail before, pass after. Replacing the switch with the lenient column.GateItems = fm.Value(\"gate_items\") == \"true\" turned it red at gate_test.go:40, \"gate_items: yes opened the workbench\"; the file was restored from a byte-identical backup (cmp reports identical) and the run went green again.\n\nResolve with: go test ./internal/bench/ -run TestTheGateFlagIsParsedStrictly"
+---
+internal/bench.Column gains GateItems bool; readColumnIn (bench.go) parses gate_items under the strict true/false discipline awaiting_outside already uses (empty->false, "true"->true, "false"->false, any other value->contract.Malformed). Check: a bench_test.go case loading a column.md carrying gate_items: true round-trips GateItems==true; a case carrying gate_items: bogus is refused Malformed; a case carrying no key at all reads GateItems==false.

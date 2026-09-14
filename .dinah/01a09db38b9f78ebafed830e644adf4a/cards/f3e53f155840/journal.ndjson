@@ -1,0 +1,6 @@
+{"ts":"2026-09-14T02:18:53Z","event":"created","actor":"paul","title":"Nothing shows what has been archived, so an archived card can only be reached by somebody who already knows its reference","to":"5ea2db0272fc","to_title":"Intake"}
+{"ts":"2026-09-14T02:18:53Z","event":"card_updated","actor":"paul","field":"body"}
+{"ts":"2026-09-14T02:18:53Z","event":"card_updated","actor":"paul","to":"major","field":"severity"}
+{"ts":"2026-09-14T02:18:53Z","event":"card_updated","actor":"paul","to":"soon","field":"priority"}
+{"ts":"2026-09-14T02:18:53Z","event":"workstream_joined","actor":"paul","workstream":"58f3e3eb621a"}
+{"ts":"2026-09-14T02:18:54Z","event":"linked","actor":"paul","to":"e319a8d46f26","kind":"spawned_from"}

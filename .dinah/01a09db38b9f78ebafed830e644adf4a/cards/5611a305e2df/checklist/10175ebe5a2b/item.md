@@ -1,0 +1,10 @@
+---
+kind: open_question
+state: resolved
+column: aa6cd1c6ae5f
+owner: holder
+ts: 2026-09-14T02:17:43Z
+ordinal: 34
+note: "Answered in the work rather than by the operator, as the dispatch directed. Yes, the fourth residual is now named, and it is named in the two places a reader meets it rather than only in the spec. The header comment of cmd/dinah/testdata/prose-figures.txt describes holds=unreachable as proving the named line carries the named identifier, \"which points a reader at the declaration and holds nothing\", and says in the same paragraph that \"a figure of this class goes stale in silence when the set it names grows, and two of the entries below sit in that state today\". The doc comment of cmd/dinah/prose_figure_test.go carries the matching bullet under what the guard cannot see: the class \"never compares the figure against the set, so a ninth basis-consuming tool or a sixth journal field leaves the sentence stale with every check here green. Two of the twenty-three entries sit in that state today.\" The two entries are internal/guide/guides/mcp.md:298 and internal/guide/guides/query.md:80. The spec's own prose is not editable from Implement, so the answer lands where AC-19 governs and where a later author will actually read it."
+---
+Does "What this closes and what it does not" name the fourth residual of gap one, which is that a `holds=unreachable` figure is pointed at rather than held? The class checks that the named line declares the named identifier and never compares the figure against the set, so a ninth basis-consuming tool or a sixth journal field leaves `internal/guide/guides/mcp.md:298` or `internal/guide/guides/query.md:80` stale with every check green. Two of the twenty-three seed figures sit in that state on day one. The answer is one sentence in the section that already names three residuals, and a matching line in the ledger's header comment under AC-19.

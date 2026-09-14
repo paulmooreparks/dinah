@@ -1,0 +1,5 @@
+{"ts":"2026-09-14T02:17:07Z","event":"created","actor":"paul","title":"Do send-backs and spawns tell a decomposed card from a ground one","to":"5ea2db0272fc","to_title":"Intake"}
+{"ts":"2026-09-14T02:17:07Z","event":"card_updated","actor":"paul","field":"body"}
+{"ts":"2026-09-14T02:17:07Z","event":"card_updated","actor":"paul","to":"minor","field":"severity"}
+{"ts":"2026-09-14T02:17:07Z","event":"card_updated","actor":"paul","to":"soon","field":"priority"}
+{"ts":"2026-09-14T02:17:07Z","event":"workstream_joined","actor":"paul","workstream":"f302445714bb"}

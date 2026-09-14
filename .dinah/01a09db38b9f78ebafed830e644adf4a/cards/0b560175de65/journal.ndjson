@@ -1,0 +1,4 @@
+{"ts":"2026-09-14T02:16:36Z","event":"created","actor":"paul","title":"Session-wide flag names are still eaten from free text","to":"5ea2db0272fc","to_title":"Intake"}
+{"ts":"2026-09-14T02:16:36Z","event":"card_updated","actor":"paul","field":"body"}
+{"ts":"2026-09-14T02:16:36Z","event":"card_updated","actor":"paul","to":"major","field":"severity"}
+{"ts":"2026-09-14T02:16:36Z","event":"card_updated","actor":"paul","to":"next","field":"priority"}

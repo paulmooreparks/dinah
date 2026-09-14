@@ -1,0 +1,10 @@
+---
+kind: decision
+state: resolved
+column: 0d86ad99cdbc
+owner: holder
+ts: 2026-09-14T02:18:51Z
+ordinal: 47
+note: "`dinah archive` does not refuse a claimed card, established by running the binary rather than by reading it. `Library.Archive` in internal/verb/beyond.go refuses an absent operator, an unresolvable reference, an absent actor and an entity of workbench kind, and reads nothing about a claim. internal/verb/checks.go is a table of declared preconditions rather than the verb's refusal order, and the verb refuses on two conditions that table does not list, so it is the wrong citation for this claim. The run: a fresh workbench under a scratch directory with DINAH_HOME pointed at a scratch path, a card pulled into Doing so it stood active and held, then `dinah --json --workbench <wb> archive wb-1`, which answered `{\"outcome\":\"ok\",\"verb\":\"archive\"}`. So the confirmation dialog is the only thing between a misclick and an active card leaving the board, and the menu clause is the whole card family, `viewItem =~ /^dinah\\.card\\./`. Narrowing the clause to ready cards would hide the act from the case a reader most often wants it for, which is a card Dinah will not let them claim. One further effect observed in that run: archiving a held card leaves the claim behind, so `dinah status` showed Doing with `Cards 0` and `Work taken`. A later `dinah pull` into that column still succeeded, so nothing wedges and the effect is cosmetic until the claim expires or the card is restored. The confirmation does not mention it, deliberately: the reader can do nothing about it, it clears itself, and spending a line of a destructive-act modal on something that changes nothing they can decide makes the sentences they must read longer."
+---
+Archive is offered on every card state, including a card somebody holds.

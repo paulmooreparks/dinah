@@ -1,0 +1,4 @@
+{"ts":"2026-09-14T02:17:21Z","event":"created","actor":"paul","title":"The health check blames the wrong column when a column is appended past a done column","to":"5ea2db0272fc","to_title":"Intake"}
+{"ts":"2026-09-14T02:17:21Z","event":"card_updated","actor":"paul","field":"body"}
+{"ts":"2026-09-14T02:17:21Z","event":"card_updated","actor":"paul","to":"minor","field":"severity"}
+{"ts":"2026-09-14T02:17:21Z","event":"card_updated","actor":"paul","to":"next","field":"priority"}

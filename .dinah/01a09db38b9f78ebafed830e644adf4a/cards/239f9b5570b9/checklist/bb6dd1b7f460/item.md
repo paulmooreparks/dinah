@@ -1,0 +1,9 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+ts: 2026-09-14T02:17:50Z
+ordinal: 3
+note: "Verified on 3b9c51c. Test: internal/verb/read_ref_test.go, TestACommentViewCarriesAReferenceThatResolves. Command: go test ./internal/verb -run TestACommentViewCarriesAReferenceThatResolves. Plant: Library.Show filled the comment's reference from comment.Ordinal in place of memberPosition; built clean, and the run went red on both surviving comments, at read_ref_test.go:54 (\"\\\"fx-1/comments/2\\\" resolves to the comment 5ac4d5c62eb3, and it is drawn on the row of 19f82bb49e27\") and at read_ref_test.go:47 (\"the comment 5ac4d5c62eb3 is addressed \\\"fx-1/comments/3\\\", which resolves to nothing: dinah.unknown-path: 3\"). Restored byte-identically (cmp clean) and green again. The deletion of the first comment lives in the standing fixture, so the plant is a code change alone."
+---
+The machine surface carries a comment's address, and the address is the position in the collection rather than the stored ordinal. In internal/verb/read_ref_test.go, TestACommentViewCarriesAReferenceThatResolves writes three comments to a card, deletes the first through Library.Delete, then calls Library.Show and asserts for each of the two surviving verb.CommentView values that Ref is non-empty, that Bench.ResolveEntity(Ref) returns an EntityRef whose Kind is bench.KindComment and whose ID equals the view's own ID, and that the two Refs differ. Resolving through the resolver rather than comparing against a composed string is what stops the guard recomputing its expectation from the code under test, and the deleted first comment is what makes the fixture able to tell memberPosition from Comment.Ordinal. Arm it by filling Ref from comment.Ordinal instead of memberPosition, which compiles and turns the case red on both surviving comments.

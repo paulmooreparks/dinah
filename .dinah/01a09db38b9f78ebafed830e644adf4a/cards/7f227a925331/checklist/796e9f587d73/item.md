@@ -1,0 +1,9 @@
+---
+kind: acceptance_criterion
+state: verified
+column: aa6cd1c6ae5f
+ts: 2026-09-14T02:18:42Z
+ordinal: 6
+note: "Verified 2026-09-12 on head 995636e: go test ./internal/bench -run TestMigrateNumbersBuildsTheRegistry passed within the 41-test -run match, over the handwritten old-format fixture (format 2 anchor, number keys in frontmatter, one archived card, the pair at 5 differing by a second, the pair at 9 with identical timestamps). The earlier created card kept 5, the later took the next number above the high-water mark, the identical-timestamp pair broke by ascending identifier, every anchor lost its number key, the workbench anchor declares format 3, and each renumbered card's journal carries a renumbered event with the old and new numbers."
+---
+The migration builds the registry from an old-format fixture and applies the stated tie-break. The fixture is written directly on disk with the helpers at internal/bench/check_test.go:149 rather than minted through the tool, because the tool cannot produce a duplicate: a workbench anchor declaring `format: 2`, cards carrying `number:` in frontmatter, one archived card among them, one pair of cards both carrying `number: 5` whose `created` events differ by a second, and one further pair both carrying `number: 9` whose `created` timestamps are identical so the identifier tie-break is driven. `go test ./internal/bench -run TestMigrateNumbersBuildsTheRegistry` passes: the earlier-created card keeps 5, the later one takes the next number above the high-water mark, the identical-timestamp pair is decided by ascending identifier, every anchor has lost its `number:` key, the workbench anchor declares `format: 3`, and each renumbered card's journal carries a `renumbered` event with the old and new numbers.

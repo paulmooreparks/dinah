@@ -1,0 +1,9 @@
+---
+kind: acceptance_criterion
+state: verified
+column: aa6cd1c6ae5f
+ts: 2026-09-14T02:16:30Z
+ordinal: 1
+note: "Re-verified independently on Test cycle 2026-08-27, on the re-merged tree at a50b68c (branch pushed after merging trunk's a01014e, which had moved past the 43fe53b this card was last checked against). `go test ./cmd/dinah/ -run 'TestFormatResolvesFromTheFlagTheMarkerAndTheEnvironment|TestAnUnknownFormatIsRefusedBeforeTheWorkbenchOpens' -v -count=1` passes all cases, env cleared of DINAH_EDITOR/EDITOR/VISUAL/COLUMNS/DINAH_FORMAT/DINAH_WORKBENCH. Armed by replacing the contract.UnknownFormat refusal in format.go with `return formatHuman, nil`: two subtests of TestFormatResolves... and all of TestAnUnknownFormatIsRefusedBeforeTheWorkbenchOpens reddened naming exactly the missing refusal, then reverted and confirmed green again. Manually confirmed refusal text with the built binary: --json+--format compact -> \"--json conflicts with --format compact\" (exit 2); --format bogus and DINAH_FORMAT=bogus -> \"dinah.unknown-format ...\" (exit 2)."
+---
+Given --json alone, --format json alone, DINAH_FORMAT=json alone, or --json together with --format json, the session resolves to formatJSON; given no flag and no DINAH_FORMAT, it resolves to formatHuman; given --format compact or DINAH_FORMAT=compact, it resolves to formatCompact; given --json together with --format compact (or any --format value other than json), the command refuses contract.Usage before opening the workbench; given --format <anything else> or DINAH_FORMAT=<anything else other than "", "json", "compact">, the command refuses contract.UnknownFormat with that value as the detail. Verified by a table-driven test over these nine cases.

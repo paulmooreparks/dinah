@@ -1,0 +1,9 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+ts: 2026-09-14T02:18:35Z
+ordinal: 9
+note: "test: cmd/dinah/exithold_test.go#TestAnOperatorOwnedItemsOwnerIsTheOperatorsToRewrite. Two refused shapes are run, `set <item> owner sam` and the bare `set <item> owner` clear, each asserting exit code 2, refusal name not-operator, and the item's anchor bytes identical before and after; then the operator's own write succeeds and the owner reads back as sam. The last third asserts a non-operator may still `dinah file --owner operator` (exit 0) and is still refused when writing the operator's name onto an existing item. The clear is the case that decides where the guard lives: admitFieldValue runs no guard on an empty value, so the check stands in SetField itself. Also run against the built binary: both a non-operator `dinah set pf-2/questions/1 owner sam` and the bare clear answered not-operator with exit=2. observed before: fail, after: pass. Armed by deleting the admitOwnerWrite call site, which reddened exithold_test.go:532 with `[owner sam] by somebody who is not the operator exited 0`; restored byte-identically."
+---
+**End-to-end, run against the built binary, proving the owner-field write-around is closed:** file an item with `--owner operator`; as a non-operator actor, attempt `dinah set <item> owner someone-else` and confirm it is refused `not-operator`, with the item's anchor file byte-identical before and after the refused call; the same write as the operator succeeds. Separately, confirm a non-operator *may* still file a fresh item with `--owner operator` in the first place (the routing-to-the-operator direction stays open), by running `dinah file <card> open_question "text" --owner operator` as a non-operator and confirming it exits 0.

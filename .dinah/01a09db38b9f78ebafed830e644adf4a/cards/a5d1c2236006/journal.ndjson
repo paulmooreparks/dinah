@@ -1,0 +1,4 @@
+{"ts":"2026-09-14T02:17:30Z","event":"created","actor":"paul","title":"Criteria that pin a refusal build their expected sentence from the catalog they are checking","to":"5ea2db0272fc","to_title":"Intake"}
+{"ts":"2026-09-14T02:17:30Z","event":"card_updated","actor":"paul","field":"body"}
+{"ts":"2026-09-14T02:17:30Z","event":"card_updated","actor":"paul","to":"major","field":"severity"}
+{"ts":"2026-09-14T02:17:30Z","event":"card_updated","actor":"paul","to":"next","field":"priority"}

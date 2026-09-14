@@ -1,0 +1,8 @@
+---
+kind: decision
+state: resolved
+ts: 2026-09-14T02:18:42Z
+ordinal: 24
+note: "Four rounds of push-back on the guard while the fix stood untouched is the shape of a card carrying two pieces of work, so the split was considered out loud and rejected. The fix removes three fall-throughs and stops no fourth from being written, and section 6's sweep is the evidence that three is all there is, which decays the day somebody adds a resolver. The guard is what carries that evidence forward, and building it here, beside the enumeration that produced it, is cheaper than building it on a card that would have to re-derive the sweep first. What the rounds bought is real: six families rather than three, two name sets derived from declarations rather than written down, and thirteen attacks with verdicts. The second half of this decision is the reason round 4 pushed back rather than noting a gap: the previous floor sentence told the reader that a route through ArchivedCardsRoot was caught when no family collected that name, which is this card's own defect one level up. The floor is now written from the six rules as they stand, every name it claims is collected was checked against the tree at c1ae4a9, and the one surviving attack is named in the limits rather than absorbed into a claim of completeness. If a reviewer still reads the guard as a second card, the split is theirs and the operator's to make; the fix is independently shippable either way."
+---
+The standing guard ships with the fix rather than moving to a card of its own, and the guard's floor is stated from the rules rather than from the intent behind them.

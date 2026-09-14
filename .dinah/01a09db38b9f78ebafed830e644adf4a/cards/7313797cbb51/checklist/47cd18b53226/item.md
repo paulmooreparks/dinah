@@ -1,0 +1,9 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+ts: 2026-09-14T02:18:24Z
+ordinal: 7
+note: "TestEveryDeclaredResolverCarriesTheArmsItDeclares recomputed both columns for all eighteen rows and logged each, ending \"18 rostered functions counted over 31 files of internal/bench\". Every one of the thirty-six numbers matched the roster, and matched the independent sweep I ran before writing the roster. Armed with the spec's own plant, a fourth arm in ColumnByRef matching SlugifyDashed(asciiLower(column.Title)): the package compiled, and address_form_arms_test.go:197 reddened with \"bench.go ColumnByRef carries 5 returns and 4 accepting arms, and the roster declares 4 and 3\", which is the pair the spec predicted. Resolve with: `go test ./cmd/dinah/ -run TestEveryDeclaredResolverCarriesTheArmsItDeclares -v`."
+---
+`TestEveryDeclaredResolverCarriesTheArmsItDeclares` parses each file named by `addressform.Resolvers()` under `internal/bench` with `go/ast` and, for each declared function, counts over the function's own body while descending into no function literal: `Returns` is every `return` statement, and `Accepting` is every `return` whose first result is not the literal `nil` and whose last result, on a return of more than one value, is the literal `nil`. Both counts are compared against the declaration and both are logged. It fails when the roster is empty and when any named function is not found in the file the row names. Arming plant: add a fourth arm to `ColumnByRef` matching a column whose title lowercased and dashed equals the reference; the package still compiles, `Returns` reads 5 against a declared 4 and `Accepting` reads 4 against a declared 3, and the failure names the function.

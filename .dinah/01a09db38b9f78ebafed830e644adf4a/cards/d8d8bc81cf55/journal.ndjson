@@ -1,0 +1,6 @@
+{"ts":"2026-09-14T02:17:09Z","event":"created","actor":"paul","title":"An empty list of checks reads as nothing failing","to":"5ea2db0272fc","to_title":"Intake"}
+{"ts":"2026-09-14T02:17:09Z","event":"card_updated","actor":"paul","field":"body"}
+{"ts":"2026-09-14T02:17:09Z","event":"card_updated","actor":"paul","to":"major","field":"severity"}
+{"ts":"2026-09-14T02:17:09Z","event":"card_updated","actor":"paul","to":"now","field":"priority"}
+{"ts":"2026-09-14T02:17:09Z","event":"card_updated","actor":"paul","to":"workhorse","field":"tier"}
+{"ts":"2026-09-14T02:17:09Z","event":"moved","actor":"paul","from":"5ea2db0272fc","to":"2f6c18c9f5d0","from_title":"Intake","to_title":"Design Queue"}

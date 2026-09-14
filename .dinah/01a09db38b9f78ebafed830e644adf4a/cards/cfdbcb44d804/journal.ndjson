@@ -1,0 +1,8 @@
+{"ts":"2026-09-14T02:17:04Z","event":"created","actor":"paul","title":"check reports a citation that names nothing","to":"5ea2db0272fc","to_title":"Intake"}
+{"ts":"2026-09-14T02:17:04Z","event":"card_updated","actor":"paul","field":"body"}
+{"ts":"2026-09-14T02:17:04Z","event":"card_updated","actor":"paul","to":"major","field":"severity"}
+{"ts":"2026-09-14T02:17:04Z","event":"card_updated","actor":"paul","to":"next","field":"priority"}
+{"ts":"2026-09-14T02:17:04Z","event":"card_updated","actor":"paul","to":"workhorse","field":"tier"}
+{"ts":"2026-09-14T02:17:04Z","event":"workstream_joined","actor":"paul","workstream":"b3f924406e4c"}
+{"ts":"2026-09-14T02:17:04Z","event":"workstream_joined","actor":"paul","workstream":"de90dc7a5ac4"}
+{"ts":"2026-09-14T02:17:04Z","event":"workstream_joined","actor":"paul","workstream":"4fd7a9f0b8ff"}

@@ -1,0 +1,7 @@
+{"ts":"2026-09-14T02:16:33Z","event":"created","actor":"paul","title":"The design documents catch up with the landed contract","to":"5ea2db0272fc","to_title":"Intake"}
+{"ts":"2026-09-14T02:16:33Z","event":"card_updated","actor":"paul","field":"body"}
+{"ts":"2026-09-14T02:16:33Z","event":"card_updated","actor":"paul","to":"minor","field":"severity"}
+{"ts":"2026-09-14T02:16:33Z","event":"card_updated","actor":"paul","to":"soon","field":"priority"}
+{"ts":"2026-09-14T02:16:33Z","event":"workstream_joined","actor":"paul","workstream":"c51696dd44b0"}
+{"ts":"2026-09-14T02:16:33Z","event":"workstream_joined","actor":"paul","workstream":"e9e7b3a9280b"}
+{"ts":"2026-09-14T02:16:33Z","event":"workstream_joined","actor":"paul","workstream":"fdfdeaaff2dd"}

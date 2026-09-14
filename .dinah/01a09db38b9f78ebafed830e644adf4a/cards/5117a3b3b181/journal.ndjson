@@ -1,0 +1,4 @@
+{"ts":"2026-09-14T02:18:18Z","event":"created","actor":"paul","title":"A test's own cleanup can fail on Windows and take the extension release down with it","to":"5ea2db0272fc","to_title":"Intake"}
+{"ts":"2026-09-14T02:18:19Z","event":"card_updated","actor":"paul","field":"body"}
+{"ts":"2026-09-14T02:18:19Z","event":"card_updated","actor":"paul","to":"major","field":"severity"}
+{"ts":"2026-09-14T02:18:19Z","event":"card_updated","actor":"paul","to":"soon","field":"priority"}

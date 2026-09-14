@@ -1,0 +1,10 @@
+---
+kind: decision
+state: resolved
+column: 4b38abe7ebd5
+owner: holder
+ts: 2026-09-14T02:18:13Z
+ordinal: 47
+note: "The review said a rule with one known violation usually has others, and it did. Subject: the seven entries whose English interpolates {kind} or {addressed}, which is the whole class the no-agreement rule governs, enumerated from en.json rather than guessed. German answered one further violation, `refusal.dinah.not-renamable`, which read \"{kind} ist kein Anhang, und rename ändert seinen Namen nicht\"; \"seinen\" selects masculine or neuter for {kind}. It now reads \"rename ändert den Namen nicht\", the definite article carrying the inalienable-possession reading German uses for exactly this. The other five are clean: every determiner in them heads a German noun (Feld, Verknüpfung, Anhänge, Felder) rather than the placeholder, and `columns.new.line` is a table row with no prose. Hindi's \"उसका नाम\" agrees with नाम rather than with {kind} and was rightly left alone. The entry's context did not carry the rule, which is how the violation got in, so the rule is now written there in all eight catalogues; a context is never translated and Fingerprint reads the English text alone (internal/msg/msg.go:69), so no source moved. Sweep armed both ways: planting \"seinen Namen\" back named `refusal.dinah.not-renamable`, planting the old next-addressed text back named that entry and both its words, each restore was byte-identical under `cmp`, and the sweep logs its subject size so an empty subject cannot pass for a clean one. No committed guard holds this: over the whole German catalogue the same pattern reports five hits that are all the preposition \"an\", which is the nuisance the reviewer confirmed, and grading German is outside what any stage here can do."
+---
+`refusal.dinah.not-renamable`: German retranslated and the class rule written into its context in all eight catalogues, found by sweeping the class rather than by report.

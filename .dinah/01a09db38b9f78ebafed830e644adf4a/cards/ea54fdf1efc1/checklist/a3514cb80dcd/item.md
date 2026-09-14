@@ -1,0 +1,9 @@
+---
+kind: decision
+state: resolved
+column: 0d86ad99cdbc
+ts: 2026-09-14T02:18:11Z
+ordinal: 28
+note: The block exists to show one command taking a workstream's bare slug beside one refusing it. Its refusing half, `dinah contents autumn-2025`, stays; its accepting half was `dinah workstream get workstream/autumn-2025 status`, which this card retires. Re-pointing that line at `dinah get` was the obvious move and is wrong, because `get` refuses a bare slug too (D-8), so the block would carry two refusing commands under a sentence claiming a split and under a guard whose own doc comment says the block demonstrates the accepting side. `join` and `leave` keep the accepting behaviour after this card, so the accepting half moves to `join`. `rel-2` left the workstream earlier in the narrative at the `dinah leave rel-2 autumn` block, so re-joining it is a live act rather than a no-op repeat. The doc comment moves with the wanted lines because it names the claim the block illustrates, and after this card that claim is the one about `join` and `leave` rather than the one about the retired pair; a guard whose name and comment describe something it no longer holds is the shape this workstream has already paid for. The printed output of the `join` line is captured from the tool rather than typed, because `TestTheQuickStartMatchesTheTool` replays it.
+---
+The quick start's both-spellings block changes commands rather than spellings: its accepting half becomes `dinah join rel-2 autumn-2025`, and `TestTheQuickStartShowsBothWorkstreamSpellings` has both wanted lines and its doc comment rewritten with it.

@@ -1,0 +1,10 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+owner: holder
+ts: 2026-09-14T02:17:54Z
+ordinal: 5
+note: "VERIFIED. cmd/dinah/collection_reference_test.go TestPathAnswersACollectionWhetherOrNotItsDirectoryExists. Run: `go test ./cmd/dinah/ -run TestPathAnswersACollectionWhetherOrNotItsDirectoryExists -v`. `path fx-1/comments` exits 0 on a card carrying comments; `path fx-2/comments` exits 0 on a card that has never carried one and prints an absolute path whose last segment is comments and whose parent is the directory `path fx-2` sits in, compared against the tool's own answer rather than against a path the test builds. `path fx-2/comments/1` still exits 2 with dinah.unknown-path, which is the arm that proves dropping the Exists guard did not extend resolution to a member that is not there. ONE OBSERVED DIFFERENCE the spec's own review predicted and this run confirms: that member refusal now quotes the selector 1 rather than the whole absolute collection directory, because pick raises it where the guard used to. The name is unchanged, which is all this criterion asserts, and the change removes a second leaked filesystem path. ARMED: restored the Exists guard on descend's collection branch; the plant compiled and ran, and the assertion at collection_reference_test.go:308 reddened with \"path refused a collection the containment table declares: 2 dinah.unknown-path nothing in this workbench answers to C:\\...\\comments\"; restored byte-identically, green."
+---
+`dinah path` answers a collection reference whether or not the collection directory exists. On a card carrying comments, `dinah path pb-1/comments` prints the same absolute path it printed at b825059 and exits 0. On a card that has never carried one, `dinah path pb-2/comments` exits 0 and prints an absolute path whose last segment is comments and whose parent is the directory `dinah path pb-2` sits in. `dinah path pb-2/comments/1` still exits 2 with dinah.unknown-path, so extending resolution to the collection has not extended it to a member that is not there.

@@ -1,0 +1,5 @@
+{"ts":"2026-09-14T02:17:49Z","event":"created","actor":"paul","title":"A design document says the binary has two heads it does not have","to":"5ea2db0272fc","to_title":"Intake"}
+{"ts":"2026-09-14T02:17:49Z","event":"card_updated","actor":"paul","field":"body"}
+{"ts":"2026-09-14T02:17:49Z","event":"card_updated","actor":"paul","to":"minor","field":"severity"}
+{"ts":"2026-09-14T02:17:49Z","event":"card_updated","actor":"paul","to":"next","field":"priority"}
+{"ts":"2026-09-14T02:18:55Z","event":"linked","actor":"paul","to":"38d8c2b09eb7","kind":"spawned_from"}

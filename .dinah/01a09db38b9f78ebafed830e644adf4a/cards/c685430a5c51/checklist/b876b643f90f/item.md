@@ -1,0 +1,9 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+ts: 2026-09-14T02:18:06Z
+ordinal: 11
+note: "The branch is current origin/main (22a35fc) plus this card's one commit 4a8c66a; `git merge origin/main` answered \"Already up to date\" immediately before the push, so the merged result and the branch are the same tree. Pull request 232 ran the full suite on all three platforms, and every check finished and passed: test (windows-latest) 5m8s, test (ubuntu-latest) 1m37s, test (macos-latest) 1m53s, extension (windows-latest) 2m58s, extension (ubuntu-latest) 1m48s, gofmt 13s. Run 34228926346. The repo-wide `go test ./...` was left to CI rather than run locally, because this column's boundary reserves the sweep for Test and CI has already paid for the execution; locally the touched packages were run individually and all were green (cmd/dinah 124s, internal/verb 63s, internal/profile 43s, internal/bench, internal/msg, internal/contract, internal/guide). cmd/dinah/testdata/uncovered.txt is unchanged: `git diff --stat` names it nowhere, and TestEveryStatementOfTheRenderingHeadIsCoveredOrNamed passed on the local cmd/dinah run and on all three CI platforms."
+---
+AC-11. `go test ./...` is green on the branch merged with current `origin/main`, and the pull request's checks are green on every platform the workflow runs. `cmd/dinah/testdata/uncovered.txt` is unchanged, because this card adds no statement to the files `TestEveryStatementOfTheRenderingHeadIsCoveredOrNamed` scans; if the implementer finds otherwise, the new entry carries its reason and the card says which block it names.

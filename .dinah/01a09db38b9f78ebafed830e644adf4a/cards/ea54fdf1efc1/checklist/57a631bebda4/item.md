@@ -1,0 +1,9 @@
+---
+kind: decision
+state: resolved
+column: 0d86ad99cdbc
+ts: 2026-09-14T02:18:10Z
+ordinal: 20
+note: "The card's own framing is that an agent should reach what a person reaches, and an agent that has to guess a field name has not been given the capability. The refusal already listed a set, so widening it from `bench.CardFields` to `FieldsOf(kind)` is free. The guide table is hand-written markdown held in both directions by a test, which is the shape dinah-457 built for the command table at `internal/guide/guides/references.md:104` and the shape that stops a hand list rotting. It is not generated, and an earlier version of this decision said \"generated\", which contradicted nothing in the tree so much as itself: no guide generator exists, the guides are static embedded markdown, and a table generated from `FieldsOf` and then compared against `FieldsOf` would pass on every input, including a wrong one, so the comparison AC-9 makes would be unable to fail. Section 9.1 now says so and names `TestTheReferencesGuideNamesEveryFieldOfEveryKind` as the guard. The schema vocabulary is the union rather than a per-kind set because a tool schema is fixed before a reference is known; the union is closed in the sense the `Vocabulary` doc comment means, since every accepted value is in it, and `param.set.field.summary` says in one clause that which names are legal depends on the kind. AC-9 pins all three, and AC-1's two-directional sample table is what pins the content of `FieldsOf` itself."
+---
+A kind's field names are published three ways: the refusal lists the kind's own set, the references guide carries a hand-written per-kind table held to `bench.FieldsOf` by a test, and the `set` schema declares the union as a vocabulary.

@@ -1,0 +1,10 @@
+---
+kind: decision
+state: resolved
+column: 0d86ad99cdbc
+owner: holder
+ts: 2026-09-14T02:17:37Z
+ordinal: 26
+note: "Round five's F3, applied here rather than travelling with the guard, because section 10's detector stays on this card.\n\nThe review found that section 10 claimed the unreadable archived report surfaced \"exactly as the live half's does\" while naming the anchor file, where the live walk names the card directory. I checked the live walk myself in C:/dinah-scratch/dinah-439-spec6/wt at e8c0eb0: internal/bench/check.go writes Finding{Path: dir, Key: FindingMissingAnchor, Detail: id} and Finding{Path: dir, Key: unreadableCardFinding(err), Detail: id}, where dir is filepath.Join(b.CardsRoot(), id). The reviewer cited those two as check.go:267 and check.go:272; they are at 268 and 273, one line lower than the comment says, and the corrected numbers are what the spec and AC-16 now carry. The ListIDs call the survey table gives as check.go:258 is at 258 exactly, so the numbering is not offset generally.\n\nThree stores changed together. The code block in section 10 now writes Finding{Path: filepath.Join(root, id), ...} with the reason in its comment, the prose that claimed \"exactly as the live half's does\" now says which spelling Path takes and why, and AC-16's fourth case asserts the directory spelling specifically with a plant that arms it, which is appending CardAnchor to that path and watching the test redden.\n\nThe duplicate finding is deliberately not aligned with it. Its Path is the card's anchor for the reason \"The finding key\" gives: render.go:884 prints that path in parentheses after the sentence, and two findings of one collision are two openable anchors."
+---
+The unreadable-archived-card finding carries the card's DIRECTORY as its Path, matching what Bench.Check's live walk writes, while the duplicate-number finding keeps the card's anchor file. One key does not print two spellings depending on which half of the collection found the card.

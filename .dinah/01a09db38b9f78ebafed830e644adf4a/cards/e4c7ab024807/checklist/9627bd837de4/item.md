@@ -1,0 +1,9 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+ts: 2026-09-14T02:17:48Z
+ordinal: 4
+note: "Verified. Test: editors/vscode/test/unit/tree.test.ts, \"an attachment element names the workbench it was read from and the entity it hangs from\", driving the new forestAttachingBench(): a one-member forest loaded from C:\\customers whose member path is C:\\customers\\carter\\board, answering `attachments` with the new WORKBENCH_ATTACHMENTS listing (kind workbench, ref \"workbench\"). Command: npm --prefix editors/vscode run test:unit.\n\nArmed twice, both plants compiling and both runs executing 540 tests.\n1. Plant: `owner: element.ref` in the attachmentsGroup arm of getChildren. Red assertion: assert.equal(attachment.owner, \"workbench\") reporting '' !== 'workbench'. The group's own ref is \"\", which composes nothing resolvable.\n2. Plant: `root: element.row.folder`. Red assertion: assert.equal(attachment.root, \"C:\\customers\\carter\\board\") reporting + 'C:\\customers' - 'C:\\customers\\carter\\board'. The notEqual pair is behind it in the same test.\n\nThe non-vacuity pair (assert.notEqual on root against row.folder, and on owner against the group's ref) is asserted rather than assumed, so flattening the fixture reddens the test instead of quietly disarming it. The forest shape is load-bearing: attachingBench() spells every path C:\\work\\bench and THREE_LISTING gives card ddd the same ref TWO_ATTACHMENTS reports, so neither value's two sources are distinguishable there."
+---
+An attachment element carries the workbench root its listing was pinned to and the owner reference that listing resolved, proved on a forest fixture where neither value equals the row's folder or the group's own ref.

@@ -1,0 +1,20 @@
+{"ts":"2026-09-14T02:17:20Z","event":"created","actor":"paul","title":"A claim cannot tell a genuine conflict from the asker's own claim still settling","to":"5ea2db0272fc","to_title":"Intake"}
+{"ts":"2026-09-14T02:17:20Z","event":"card_updated","actor":"paul","field":"body"}
+{"ts":"2026-09-14T02:17:20Z","event":"card_updated","actor":"paul","to":"major","field":"severity"}
+{"ts":"2026-09-14T02:17:20Z","event":"card_updated","actor":"paul","to":"next","field":"priority"}
+{"ts":"2026-09-14T02:17:20Z","event":"card_updated","actor":"paul","to":"frontier","field":"tier"}
+{"ts":"2026-09-14T02:17:20Z","event":"workstream_joined","actor":"paul","workstream":"e9e7b3a9280b"}
+{"ts":"2026-09-14T02:17:20Z","event":"item_filed","actor":"paul","kind":"acceptance_criterion","item":"6f617d4adaef"}
+{"ts":"2026-09-14T02:17:20Z","event":"item_filed","actor":"paul","kind":"acceptance_criterion","item":"6e2eb2ce4dc9"}
+{"ts":"2026-09-14T02:17:20Z","event":"item_filed","actor":"paul","kind":"acceptance_criterion","item":"ef46c44586b2"}
+{"ts":"2026-09-14T02:17:20Z","event":"item_filed","actor":"paul","kind":"acceptance_criterion","item":"7ae1942622d5"}
+{"ts":"2026-09-14T02:17:20Z","event":"item_filed","actor":"paul","kind":"acceptance_criterion","item":"f5448bb0f25b"}
+{"ts":"2026-09-14T02:17:20Z","event":"item_filed","actor":"paul","kind":"decision","item":"3a637494ca90"}
+{"ts":"2026-09-14T02:17:20Z","event":"item_resolved","actor":"paul","from":"pending","to":"resolved","item":"3a637494ca90"}
+{"ts":"2026-09-14T02:17:20Z","event":"item_filed","actor":"paul","kind":"decision","item":"6caa47ad7bf5"}
+{"ts":"2026-09-14T02:17:20Z","event":"item_resolved","actor":"paul","from":"pending","to":"resolved","item":"6caa47ad7bf5"}
+{"ts":"2026-09-14T02:17:20Z","event":"item_filed","actor":"paul","kind":"decision","item":"09063eb2f80a"}
+{"ts":"2026-09-14T02:17:21Z","event":"item_resolved","actor":"paul","from":"pending","to":"resolved","item":"09063eb2f80a"}
+{"ts":"2026-09-14T02:17:21Z","event":"item_filed","actor":"paul","kind":"open_question","item":"315fe2bf50f7"}
+{"ts":"2026-09-14T02:17:21Z","event":"item_resolved","actor":"paul","from":"pending","to":"resolved","item":"315fe2bf50f7"}
+{"ts":"2026-09-14T02:18:54Z","event":"linked","actor":"paul","to":"fd6970afe3dc","kind":"relates_to"}

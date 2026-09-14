@@ -1,0 +1,10 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+owner: holder
+ts: 2026-09-14T02:17:11Z
+ordinal: 8
+note: "Test wrote the check per the criterion's own instruction. Two tests added, both exercising the existing (unchanged) contract.UnreadableBench refusal that dinah-312 now reaches from the root: TestEnumerateRefusesARootWithAnUnreadableAnchor (internal/bench/rootenumeration_test.go, uses the existing readAnchorContent test seam) and TestWorkbenchesRefusesARootWithAnUnreadableAnchor (internal/mcp/mcp_test.go, makes the anchor path a directory instead of a file, since os.ReadFile refuses to read a directory as text on every platform including this Windows machine, confirmed by a standalone probe: \"read ...workbench.md: Incorrect function.\"). Both rerun: `go test ./internal/bench/ -run TestEnumerateRefusesARootWithAnUnreadableAnchor -v` and `go test ./internal/mcp/ -run TestWorkbenchesRefusesARootWithAnUnreadableAnchor -v`, both green. Both armed by reverting the enumerate root probe (the same mutation AC-1/AC-2/AC-5 use) and confirmed red, then bench.go restored byte-identical (git status clean) and reconfirmed green. Committed f728666 and pushed to the card's branch."
+---
+A root whose own workbench.md exists and cannot be read makes bench.Enumerate refuse (contract.UnreadableBench) instead of listing the workbenches beneath it, and the MCP workbenches tool answers that refusal when DINAH_MCP_ROOT points at such a directory. The behaviour is intended and unchanged by this card in kind (Enumerate's doc comment already commits to it, and the same refusal has always come back from any child); what dinah-312 changed is that the root is now asked the question at all, so a root that previously listed its descendants now refuses. Exercise it at Test rather than changing it.

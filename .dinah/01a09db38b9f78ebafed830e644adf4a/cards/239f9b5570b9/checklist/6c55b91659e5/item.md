@@ -1,0 +1,9 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+ts: 2026-09-14T02:17:50Z
+ordinal: 9
+note: "Verified on 3b9c51c. Test: internal/verb/address_view_test.go, TestEveryViewCarryingAnIdentifierCarriesAReference. Command: go test ./internal/verb -run TestEveryViewCarryingAnIdentifierCarriesAReference. Plant: a struct PlantView appended to internal/verb/read.go, a non-test file, declaring ID with the json tag id, no Ref, and no exemption; an unused type is legal Go, so go build ./... stayed clean, and the run went red at address_view_test.go:136 reading \"verb.PlantView declares ID with the json tag id, declares no Ref, and is named in no exemption\", which is the message the criterion predicted. Restored byte-identically (cmp clean) and green again. The walk skips every path ending _test.go, and the exemption list carries four entries with a ground from the closed set of two, as dinah-454 D-6 settled."
+---
+No view carrying an entity's identifier can reach a green build without a reference or an argued exemption. In internal/verb/address_view_test.go, TestEveryViewCarryingAnIdentifierCarriesAReference parses the package's non-test sources with go/parser, which is internal/verb/*.go with every path ending _test.go skipped, the same exclusion section 2.2's derivation script makes; it collects every struct type declaring a field named ID whose json tag is "id", and requires each to declare a field named Ref or to appear in the declared exemption list with a ground from the closed set of two. It fails a struct in neither, an exemption naming a type the parser does not find, and a ground outside the set. Arm it by adding to a non-test file in internal/verb a struct type that declares ID with the json tag "id", declares no Ref, and appears in no exemption; an unused type is legal Go, so the tree still builds and the test goes red naming that type before any other test runs.

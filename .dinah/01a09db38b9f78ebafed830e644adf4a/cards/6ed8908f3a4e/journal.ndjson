@@ -1,0 +1,5 @@
+{"ts":"2026-09-14T02:17:39Z","event":"created","actor":"paul","title":"The extension and the tier system are invisible from the documentation","to":"5ea2db0272fc","to_title":"Intake"}
+{"ts":"2026-09-14T02:17:39Z","event":"card_updated","actor":"paul","field":"body"}
+{"ts":"2026-09-14T02:17:39Z","event":"card_updated","actor":"paul","to":"minor","field":"severity"}
+{"ts":"2026-09-14T02:17:39Z","event":"card_updated","actor":"paul","to":"next","field":"priority"}
+{"ts":"2026-09-14T02:18:54Z","event":"linked","actor":"paul","to":"38d8c2b09eb7","kind":"relates_to"}

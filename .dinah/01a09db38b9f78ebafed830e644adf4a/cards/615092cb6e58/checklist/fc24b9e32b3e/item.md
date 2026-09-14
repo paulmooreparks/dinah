@@ -1,0 +1,9 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+ts: 2026-09-14T02:18:14Z
+ordinal: 12
+note: "VERIFIED at Test (second pass, head a8932db with origin/main 243285c8 already merged in). Command: go test ./cmd/dinah/ -run TestTheReferencesGuideDeniesNoCommandTheToolHas -count=1 -v, green. ARMED TWICE with plants nobody had used, both different in wording and in command from code review's verbatim replant. (1) Replaced \"Run `dinah reshape` to move it where you want it.\" in the new archive-reading section with \"Dinah offers no reshape, so the order stands where it lands.\": the run executed and references_guide_test.go:739 reddened, \"the references guide says \\\"offers no reshape\\\" and `dinah reshape` is a command this build carries\", quoting the whole paragraph. (2) To prove the rewritten sentence's own paragraph is scanned rather than folded away, replaced its tail with \"and Dinah has no delete\": the same assertion reddened naming \"has no delete\" and dinah delete. Both restored byte-identically (sha256 028c12a2dc36b9a6a944a2d72bf24b502b95ef981b39d975e15c79a1fdce3007 before and after each), git status clean, and the check green again after each restore. The new sentence is present at internal/guide/guides/references.md:82-86 and true: only path, show, contents and attachments accept a collection reference and all four are reads, so no write command takes one, and internal/contract/contract.go declares no collection-scoped event, so nothing records how many times such an act would write."
+---
+The references guide denies no command the build carries. A check reads the guide's prose (its tables and indented blocks removed) and fails on a sentence of the shape "has no <name>" / "is no <name>" naming any command in verb.Commands(), so a row added to the guide's table while a sentence elsewhere in the same guide says that command does not exist reddens the suite.

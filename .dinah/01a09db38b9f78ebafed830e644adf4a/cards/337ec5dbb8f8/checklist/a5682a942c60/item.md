@@ -1,0 +1,9 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+ts: 2026-09-14T02:18:03Z
+ordinal: 9
+note: "Both ledger guards armed and observed at c25c20f, and they need different plants because they catch the change at different points. Changing only the guide to \"Fourteen commands take a reference\" failed the staleness guard: `prose_figure_test.go:517: testdata\\prose-figures.txt:72: the entry expects the figure Fifteen beside commands at internal/guide/guides/references.md:100, and that line carries no such figure`, which is the entry no longer finding the figure it names. Changing the guide AND the ledger entry together to \"Fourteen\" failed the derivation guard instead: `prose_figure_test.go:559: internal/guide/guides/references.md:100 says Fourteen commands, and the derivation referenceCommands yields 15, which the documents spell 15`. Both restored byte-identically, both tests ok. The two entries stand at lines 100 and 120, read off the file rather than counted from the spec, and the Fifteen entry is derives=referenceCommands, a new entry in derivationsByName calling commandsTakingAReference."
+---
+With the guide correct, change `Fifteen commands take a reference` to `Fourteen commands take a reference` and run `go test ./cmd/dinah/ -run 'TestEveryDerivedProseFigureMatchesTheBinary|TestNoProseFigureEntryIsStale'`. The first fails because the derivation `referenceCommands` yields 15, and the second fails because the ledger entry at that line no longer finds the figure it names. Both pass once the word is restored and the two ledger entries name the lines the sentences actually stand on.

@@ -1,0 +1,9 @@
+---
+kind: acceptance_criterion
+state: verified
+column: aa6cd1c6ae5f
+ts: 2026-09-14T02:16:52Z
+ordinal: 5
+note: "Independently reproduced 5 of 5 documented mutations against TestTheCardSectionPointsAtADocumentTheRepositoryCarries, restoring the tree (md5 cf8074979443df323a6d0d6f629fac8b) after each: (1) paragraph deleted -> FAIL \"names no document outside the profile\"; (2) docs/design/format.md renamed away -> FAIL \"the repository carries no file there\"; (3) path rewritten to docs/design/format-x.md -> FAIL, message quotes \"format-x.md\" back and stats that path (proves extraction, not a hard-coded constant); (4) paragraph moved into section 5.4 -> FAIL \"names no document\", confirming section() scoping; (5) heading \"### 5.3 Cards\" renamed -> FAIL, same message. Additionally probed two \"wrong reason\" cases the prior agents did not: an emptied section 5.3 fails correctly (same message), and a path missing its .md extension fails correctly (regex doesn't match, reported as \"no document\" rather than \"malformed path\", but still red, not a false pass). One real gap found and reported as a finding, not a blocking defect: a second bogus/nonexistent Markdown path added alongside the real one in the same section is NOT checked (regexp.FindStringSubmatch takes only the first match), so a second dangling pointer in section 5.3 would pass silently today. This does not affect AC-5 as stated (single pointer, both halves verified) but is worth a follow-up card if section 5.3 ever grows a second document reference."
+---
+A guard in internal/profile fails on either half independently: it fails when section 5.3 no longer names docs/design/format.md, and it fails when the working tree carries no file at the path section 5.3 names.

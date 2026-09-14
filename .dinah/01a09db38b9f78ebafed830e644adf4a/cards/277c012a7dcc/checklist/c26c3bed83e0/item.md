@@ -1,0 +1,9 @@
+---
+kind: acceptance_criterion
+state: verified
+column: 6c5b9d6f4414
+ts: 2026-09-14T02:18:20Z
+ordinal: 12
+note: "Verified, with the round-3 reviewer's corrected grep applied rather than the one written. All six summaries (cmd.archive/delete/edit/path/restore/show.summary) carry the new English in all eight catalogues, with de and hi retranslated and refingerprinted; the whole internal/msg suite is green, including TestATranslationTracksItsEnglishSource. `dinah help edit` heads with \"Open an entity of this workbench in your editor\", which names no address kind, while its <ref> row names five: \"(one of: this workbench, written as `workbench` or `.`; a workstream, written as `workstream/<slug>`; a column; a card; something below a card)\". The grep half: the criterion's own pattern \"below a card|this workbench\" CANNOT pass against section 4.3's prescribed English, because three of the six replacements contain \"this workbench\", so I applied the reviewer's written correction, \"below a card|below it|a card, a column\". Run over those six keys in en.json it returns nothing. I also ran it against the six PRE-CARD texts to prove it is not vacuous: it hits all six (archive, delete, restore on \"a card, a column\"; edit, path on \"below a card\"; show on \"below it\"), which the criterion's original pattern would not have done, since it would have missed cmd.show.summary's old \"A card, or anything below it\" entirely."
+---
+The six command summaries of spec section 4.3, `cmd.archive.summary`, `cmd.delete.summary`, `cmd.edit.summary`, `cmd.path.summary`, `cmd.restore.summary` and `cmd.show.summary`, carry the new English in all eight catalogues with `de` and `hi` retranslated and refingerprinted; `dinah help edit` heads with a summary that names no address kind while its `<ref>` row names five, and `grep -riE "below a card|this workbench" ` over those six keys in `internal/msg/locales/en.json` returns nothing.
