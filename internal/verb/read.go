@@ -765,6 +765,28 @@ type ItemView struct {
 	// Note is the resolution note, absent while the item is pending and
 	// absent whenever an item on disk carries none.
 	Note string `json:"note,omitempty"`
+	// CommentCount is how many comments the item carries. The count rather
+	// than the comments themselves, because a card's checklist is read far
+	// more often than any one item's argument is, and `dinah show <card>`
+	// would otherwise carry every item's prose on every read. The threads
+	// are reached through the item's own reference, which ItemDetail
+	// answers.
+	CommentCount int `json:"comment_count,omitempty"`
+}
+
+// ItemDetail is one checklist item as show answers for the item's own
+// reference: the item's anchor exactly as a read of the file gives it, and
+// the comments written on the item, in ordinal order.
+type ItemDetail struct {
+	// Ref is the item's own reference.
+	Ref string `json:"ref"`
+	// Text is the item's anchor, exactly as bench.ReadText returns it, which
+	// is what show printed for an item reference before this change. An item
+	// carrying no comments therefore prints byte for byte what it printed
+	// before.
+	Text string `json:"text"`
+	// Comments are the comments written on the item, in ordinal order.
+	Comments []CommentView `json:"comments,omitempty"`
 }
 
 // CollectionListing is what show answers for a reference naming a whole
@@ -807,12 +829,12 @@ type CollectionMember struct {
 // a CollectionListing. Every other reference comes back as a nil Detail beside
 // the text of the file it named, since nothing but a card has a view to build.
 // A caller reads whichever of the three is filled rather than assuming one.
-func (l *Library) Show(req *Request) (*Detail, *CollectionListing, string, error) {
+func (l *Library) Show(req *Request) (*Detail, *CollectionListing, *ItemDetail, string, error) {
 	// The field list is read before anything is resolved, so a call naming a
 	// field this tool does not have performs no read and mutates nothing.
 	chosen, err := parseDetailFields(req.Fields)
 	if err != nil {
-		return nil, nil, "", err
+		return nil, nil, nil, "", err
 	}
 	head, rest, _ := strings.Cut(req.Card, "/")
 	// A bare head under the flag gets a branch of its own, because neither of
@@ -831,19 +853,20 @@ func (l *Library) Show(req *Request) (*Detail, *CollectionListing, string, error
 	if rest == "" && req.Archived {
 		entity, _, err := l.Bench.ResolveReferenceIn(bench.ArchivedHalf, req.Card)
 		if err != nil {
-			return nil, nil, "", err
+			return nil, nil, nil, "", err
 		}
 		if entity.Kind != bench.KindCard {
 			if chosen != nil {
-				return nil, nil, "", unknownDetailField(strings.TrimSpace(req.Fields), head)
+				return nil, nil, nil, "", unknownDetailField(strings.TrimSpace(req.Fields), head)
 			}
 			text, err := bench.ReadText(filepath.Join(entity.Dir, bench.ColumnAnchor))
 			if err != nil {
-				return nil, nil, "", contract.Refuse(contract.UnknownPath, head)
+				return nil, nil, nil, "", contract.Refuse(contract.UnknownPath, head)
 			}
-			return nil, nil, text, nil
+			return nil, nil, nil, text, nil
 		}
-		return l.detailOf(entity.Card, chosen)
+		detail, listing, text, err := l.detailOf(entity.Card, chosen)
+		return detail, listing, nil, text, err
 	}
 	// A column is an entity of the workbench, and the containment walk prints
 	// a reference for one, so show reads it the way path and edit do rather
@@ -851,13 +874,13 @@ func (l *Library) Show(req *Request) (*Detail, *CollectionListing, string, error
 	if rest == "" {
 		if column := l.Bench.ColumnByRef(head); column != nil {
 			if chosen != nil {
-				return nil, nil, "", unknownDetailField(strings.TrimSpace(req.Fields), head)
+				return nil, nil, nil, "", unknownDetailField(strings.TrimSpace(req.Fields), head)
 			}
 			text, err := bench.ReadText(l.Bench.ColumnAnchorPath(column.ID))
 			if err != nil {
-				return nil, nil, "", contract.Refuse(contract.UnknownPath, head)
+				return nil, nil, nil, "", contract.Refuse(contract.UnknownPath, head)
 			}
-			return nil, nil, text, nil
+			return nil, nil, nil, text, nil
 		}
 	}
 	// A composed reference is whatever the resolver reaches, which is why the
@@ -868,7 +891,7 @@ func (l *Library) Show(req *Request) (*Detail, *CollectionListing, string, error
 		// A composed reference never names a card, so it has no members to
 		// select from and the refusal is raised ahead of the resolution.
 		if chosen != nil {
-			return nil, nil, "", unknownDetailField(strings.TrimSpace(req.Fields), req.Card)
+			return nil, nil, nil, "", unknownDetailField(strings.TrimSpace(req.Fields), req.Card)
 		}
 		// The collection question is asked ahead of the resolution this
 		// command already performs, and the resolver's error is ignored, so
@@ -877,12 +900,25 @@ func (l *Library) Show(req *Request) (*Detail, *CollectionListing, string, error
 		// payload, which this resolver refuses because a payload file carries
 		// no anchor, and answering the collection first leaves that where it
 		// is.
-		if _, collection, err := l.Bench.ResolveReferenceIn(halfFor(req), req.Card); err == nil && collection != nil {
-			listing, err := l.collectionListing(collection)
-			if err != nil {
-				return nil, nil, "", err
+		if entity, collection, err := l.Bench.ResolveReferenceIn(halfFor(req), req.Card); err == nil {
+			if collection != nil {
+				listing, err := l.collectionListing(collection)
+				if err != nil {
+					return nil, nil, nil, "", err
+				}
+				return nil, listing, nil, "", nil
 			}
-			return nil, listing, "", nil
+			// An item reference answers a payload of its own, built beside
+			// the card detail rather than as a bare text read, so `dinah
+			// show <item>` prints the comments the checklist table only
+			// counts.
+			if entity != nil && entity.Kind == bench.KindItem {
+				item, err := l.itemDetailOf(entity)
+				if err != nil {
+					return nil, nil, nil, "", err
+				}
+				return nil, nil, item, "", nil
+			}
 		}
 		// The discarded error above stays discarded under the flag too, and
 		// that is safe rather than lucky: ResolvePathIn on this line raises
@@ -890,23 +926,83 @@ func (l *Library) Show(req *Request) (*Detail, *CollectionListing, string, error
 		// rule sits in both entry points rather than in one.
 		path, err := l.Bench.ResolvePathIn(halfFor(req), req.Card)
 		if err != nil {
-			return nil, nil, "", err
+			return nil, nil, nil, "", err
 		}
 		text, err := bench.ReadText(path)
 		if err != nil {
-			return nil, nil, "", contract.Refuse(contract.UnknownPath, rest)
+			return nil, nil, nil, "", contract.Refuse(contract.UnknownPath, rest)
 		}
-		return nil, nil, text, nil
+		return nil, nil, nil, text, nil
 	}
 	found, err := l.Bench.ResolveCard(head)
 	if err != nil {
-		return nil, nil, "", err
+		return nil, nil, nil, "", err
 	}
 	card := found.Card
 	if err := l.lapseRead(card, req.Actor); err != nil {
-		return nil, nil, "", err
+		return nil, nil, nil, "", err
 	}
-	return l.detailOf(card, chosen)
+	detail, listing, text, err := l.detailOf(card, chosen)
+	return detail, listing, nil, text, err
+}
+
+// itemDetailOf builds the answer show gives for one checklist item's own
+// reference: the item's anchor, unchanged from what show printed for it
+// before this change, and its comments in ordinal order.
+func (l *Library) itemDetailOf(entity *bench.EntityRef) (*ItemDetail, error) {
+	anchor, ok := bench.AnchorPathOf(entity)
+	if !ok {
+		return nil, contract.Refuse(contract.UnknownPath, entity.Ref)
+	}
+	text, err := bench.ReadText(anchor)
+	if err != nil {
+		return nil, contract.Refuse(contract.UnknownPath, entity.Ref)
+	}
+	// The reference this prints is the kind-narrowed one the checklist table
+	// already composes for the item, on the rule collectionListing's own doc
+	// comment states: one entity has one printed spelling, and
+	// pb-1/checklist/1 is not it where pb-1/questions/1 is what filed it.
+	// rootOf in tree.go composes the same form for a walk rooted at an item,
+	// through this same method, so a third composition is not written here.
+	ref, err := l.itemRefOf(entity)
+	if err != nil {
+		return nil, err
+	}
+	comments, err := l.commentViews(entity.Dir, ref)
+	if err != nil {
+		return nil, err
+	}
+	return &ItemDetail{Ref: ref, Text: text, Comments: comments}, nil
+}
+
+// commentViews reads the comments written directly below one entity, in
+// ordinal order, each carrying a reference composed against the holder's own
+// reference. A card and a checklist item are the two kinds a comment hangs
+// from directly.
+func (l *Library) commentViews(dir, holderRef string) ([]CommentView, error) {
+	stored, err := bench.Comments(dir)
+	if err != nil {
+		return nil, err
+	}
+	var comments []CommentView
+	for _, comment := range stored {
+		position, err := memberPosition(comment.Dir, bench.CommentAnchor)
+		if err != nil {
+			return nil, err
+		}
+		ref := commentRef(holderRef, position)
+		view := CommentView{ID: comment.ID, Ref: ref, TS: comment.TS, Author: comment.Author, Body: comment.Body}
+		// A comment's attachments compose their references against the
+		// comment's own address rather than the holder's, so a reference the
+		// view prints reaches the attachment the view describes.
+		below, err := attachmentViews(comment.Dir, ref)
+		if err != nil {
+			return nil, err
+		}
+		view.Attachments = below
+		comments = append(comments, view)
+	}
+	return comments, nil
 }
 
 // detailOf builds the answer show gives for one card: every member the card
@@ -941,27 +1037,9 @@ func (l *Library) detailOf(card *bench.Card, chosen detailSelection) (*Detail, *
 	if err != nil {
 		return nil, nil, "", err
 	}
-	stored, err := bench.Comments(card.Dir)
+	comments, err := l.commentViews(card.Dir, cardRef)
 	if err != nil {
 		return nil, nil, "", err
-	}
-	var comments []CommentView
-	for _, comment := range stored {
-		position, err := memberPosition(comment.Dir, bench.CommentAnchor)
-		if err != nil {
-			return nil, nil, "", err
-		}
-		ref := commentRef(cardRef, position)
-		view := CommentView{ID: comment.ID, Ref: ref, TS: comment.TS, Author: comment.Author, Body: comment.Body}
-		// A comment's attachments compose their references against the
-		// comment's own address rather than the card's, so a reference the
-		// view prints reaches the attachment the view describes.
-		below, err := attachmentViews(comment.Dir, ref)
-		if err != nil {
-			return nil, nil, "", err
-		}
-		view.Attachments = below
-		comments = append(comments, view)
 	}
 	items, err := bench.Items(card.Dir)
 	if err != nil {
@@ -997,6 +1075,11 @@ func (l *Library) detailOf(card *bench.Card, chosen detailSelection) (*Detail, *
 			Note:    item.Note,
 		}
 		view.Ref = itemRef(cardRef, item.Kind, kindPosition[item.Kind], position)
+		count, err := bench.CountComments(item.Dir)
+		if err != nil {
+			return nil, nil, "", err
+		}
+		view.CommentCount = count
 		if item.Column != "" {
 			if column := l.Bench.Column(item.Column); column != nil {
 				view.ColumnTitle = column.Title
@@ -1044,9 +1127,11 @@ func (l *Library) detailOf(card *bench.Card, chosen detailSelection) (*Detail, *
 	return detail, nil, "", nil
 }
 
-// collectionListing reads every member of a collection the way show reads one
-// member asked for alone, so a member reads identically whichever way it was
-// asked for.
+// collectionListing reads every member of a collection and prints each
+// member's anchor alone, nothing below it. A member asked for on its own
+// reference may print more, the way an item now prints its comments, so a
+// collection listing is the anchor text rather than a promise the two reads
+// agree.
 //
 // The addresses come from the containment walk's own composer rather than from
 // the collection reference plus a position, because one entity has one printed

@@ -1252,14 +1252,14 @@ storage format 3
 Catalogs:
   Language  Translated
   --------  ----------
-  en        962/962
-  af        0/962
-  cs        0/962
-  de        962/962
-  es        0/962
-  fil       0/962
-  hi        962/962
-  id        0/962
+  en        968/968
+  af        0/968
+  cs        0/968
+  de        968/968
+  es        0/968
+  fil       0/968
+  hi        968/968
+  id        0/968
 [exit 0]
 ```
 

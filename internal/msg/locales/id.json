@@ -286,6 +286,16 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
+    "check.comment.4": {
+      "text": "the reference reaches something",
+      "context": "One row of the precondition list of a command outside the five the profile specifies. This row is checked ahead of check.comment.2 and check.comment.3, which is why it takes a fresh key rather than the next one in sequence: a key number is a catalog key here and not a printed position.",
+      "skeleton": true
+    },
+    "check.comment.5": {
+      "text": "the thing named takes comments",
+      "context": "One row of the precondition list of a command outside the five the profile specifies. This row is checked last, ahead of check.comment.3, which is why it takes a fresh key rather than the next one in sequence: a key number is a catalog key here and not a printed position.",
+      "skeleton": true
+    },
     "check.comment.2": {
       "text": "the request names an owner",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
@@ -1172,7 +1182,7 @@
       "skeleton": true
     },
     "cmd.comment.summary": {
-      "text": "Record a comment on a card",
+      "text": "Record a comment on a card or on one of its checklist items",
       "context": "The one-line summary of the comment command, shown beside its syntax in the help block.",
       "skeleton": true
     },
@@ -1829,6 +1839,11 @@
     "column.checklist.owner": {
       "text": "Owner",
       "context": "Heading over who the item names as its answerer, in the checklist block of `dinah show`. The block draws no heading row, so a reader meets this heading only where a narrow window stacks each field on a line of its own. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.checklist.comments": {
+      "text": "Comments",
+      "context": "Heading over how many comments the item carries, empty where it carries none, in the checklist block of `dinah show`. The block draws no heading row, so a reader meets this heading only where a narrow window stacks each field on a line of its own. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "skeleton": true
     },
     "column.checklist.description": {
@@ -2608,6 +2623,16 @@
     "refusal.dinah.not-attachable.next": {
       "text": "; attachments hang from the workbench, a column, a card, or a comment",
       "context": "The last member of refusal.dinah.not-attachable's alternation, printed for any kind the two branches above do not name. It carries no condition, because the last member of an alternation is what a reader gets when none of the branches matches.",
+      "skeleton": true
+    },
+    "refusal.dinah.not-commentable": {
+      "text": "{detail} is {kind}, and Dinah keeps no comments on {kind}",
+      "context": "The sentence printed after the refusal name dinah.not-commentable, when comment is aimed at a reference that resolves to a kind that holds no comments. {detail} is the reference the caller named, in the canonical spelling the resolver reports, and {kind} names what it resolved to, which is machine vocabulary and is never translated.",
+      "skeleton": true
+    },
+    "refusal.dinah.not-commentable.next": {
+      "text": "; a comment hangs on a card or on one of that card's checklist items",
+      "context": "The one next step of refusal.dinah.not-commentable, printed whatever kind the reference resolved to, because the honest advice is the same for every kind that fails it.",
       "skeleton": true
     },
     "refusal.dinah.not-archived": {
@@ -3663,6 +3688,11 @@
     "param.card.summary": {
       "text": "the card you are acting on, written as its reference, such as wb-1",
       "context": "The meaning of the card argument, shared by every command that takes a card and nothing else.",
+      "skeleton": true
+    },
+    "param.comment.card.summary": {
+      "text": "the card or the checklist item you are commenting on, written as its reference, such as wb-1 or wb-1/questions/2",
+      "context": "The meaning of comment's own card argument, which comment no longer shares with the plain-card commands because it also takes a checklist item below one.",
       "skeleton": true
     },
     "param.raise.tier.summary": {

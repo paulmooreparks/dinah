@@ -258,6 +258,7 @@ var guides = map[string][]string{
 	"show":         {"references"},
 	"instructions": {"references"},
 	"attach":       {"references"},
+	"comment":      {"references"},
 	"cite":         {"references"},
 	"resolve":      {"references"},
 	"verify":       {"references"},
@@ -343,7 +344,7 @@ var params = map[string][]Param{
 		{Name: "workstream", Required: true, Shared: "workstream", Field: "Workstream"},
 	},
 	"comment": {
-		{Name: "card", Required: true, Shared: "card", Field: "Card"},
+		{Name: "card", Display: "ref", Required: true, Guide: "references", Field: "Card"},
 		{Name: "text", Display: "text|-", Required: true, Rest: true, Field: "Text"},
 	},
 	"attach": {

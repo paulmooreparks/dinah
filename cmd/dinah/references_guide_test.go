@@ -253,7 +253,7 @@ func TestTheReferencesGuideTableNamesEveryCommandThatTakesAReference(t *testing.
 // referenceProbeArgs returns the arguments a command needs after its
 // reference. It is the one hand-written table in this file, and it is
 // arguments rather than roster: a command it does not know stops the run
-// naming that command, so an eighteenth command entering the roster is probed
+// naming that command, so a fresh command entering the roster is probed
 // deliberately rather than with the wrong line.
 func referenceProbeArgs(t *testing.T, command string) []string {
 	t.Helper()
@@ -274,6 +274,8 @@ func referenceProbeArgs(t *testing.T, command string) []string {
 			t.Fatalf("write %s: %v", file, err)
 		}
 		return []string{file}
+	case "comment":
+		return []string{"a remark"}
 	case "cite":
 		return []string{"url", "https://example.invalid/evidence"}
 	case "resolve", "verify", "fail", "reopen":
@@ -410,8 +412,8 @@ func TestTheReferencesGuideNamesTheCommandsThatTakeAWorkstream(t *testing.T) {
 	if len(reached) != 9 {
 		t.Fatalf("%d commands reached the workstream and nine take one", len(reached))
 	}
-	if refused != 9 {
-		t.Fatalf("%d commands were refused the workstream and nine refuse one", refused)
+	if refused != 10 {
+		t.Fatalf("%d commands were refused the workstream and ten refuse one", refused)
 	}
 }
 

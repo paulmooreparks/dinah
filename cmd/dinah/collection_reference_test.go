@@ -85,9 +85,9 @@ func collectionBench(t *testing.T) (string, string) {
 	return root, source
 }
 
-// TestEveryReferenceTakingCommandAnswersACollectionOrRefusesIt runs all fifteen
-// commands that take a reference against one collection reference and pins the
-// four that accept it beside the eleven that refuse it.
+// TestEveryReferenceTakingCommandAnswersACollectionOrRefusesIt runs all
+// nineteen commands that take a reference against one collection reference
+// and pins the four that accept it beside the fifteen that refuse it.
 //
 // Both halves are asserted in one sweep on purpose. A guard asserting only the
 // refusal passes against code that refuses every collection, which is a shape
@@ -109,6 +109,7 @@ func TestEveryReferenceTakingCommandAnswersACollectionOrRefusesIt(t *testing.T) 
 		"attachments": {"attachments", "fx-1/comments"},
 	}
 	refusing := map[string][]string{
+		"comment":      {"comment", "fx-1/comments", "text"},
 		"edit":         {"edit", "fx-1/comments"},
 		"attach":       {"attach", "fx-1/comments", source},
 		"archive":      {"archive", "fx-1/comments"},
@@ -126,7 +127,7 @@ func TestEveryReferenceTakingCommandAnswersACollectionOrRefusesIt(t *testing.T) 
 	}
 
 	// The roster this sweep covers is held against the one internal/verb
-	// derives from its own parameter tables, so an eighteenth command taking a
+	// derives from its own parameter tables, so a nineteenth command taking a
 	// reference reddens here rather than being missed.
 	covered := make([]string, 0, len(accepting)+len(refusing))
 	for name := range accepting {
@@ -154,7 +155,7 @@ func TestEveryReferenceTakingCommandAnswersACollectionOrRefusesIt(t *testing.T) 
 		ran++
 		answer := answerOf(t, root, argv...)
 		if answer.refusal != contract.IsACollection {
-			t.Errorf("%s answered %q with exit %d, and it is one of the eleven that refuse a collection with %s:\n%s%s",
+			t.Errorf("%s answered %q with exit %d, and it is one of the fifteen that refuse a collection with %s:\n%s%s",
 				name, answer.refusal, answer.code, contract.IsACollection, answer.out, answer.errw)
 			continue
 		}
@@ -167,13 +168,13 @@ func TestEveryReferenceTakingCommandAnswersACollectionOrRefusesIt(t *testing.T) 
 		}
 		refused++
 	}
-	if ran != 18 {
-		t.Fatalf("the sweep ran %d invocations and the roster is eighteen", ran)
+	if ran != 19 {
+		t.Fatalf("the sweep ran %d invocations and the roster is nineteen", ran)
 	}
-	if accepted != 4 || refused != 14 {
-		t.Fatalf("the sweep accepted %d and refused %d, and the split is four and fourteen", accepted, refused)
+	if accepted != 4 || refused != 15 {
+		t.Fatalf("the sweep accepted %d and refused %d, and the split is four and fifteen", accepted, refused)
 	}
-	t.Logf("eighteen invocations ran: %d accepted, %d refused with %s", accepted, refused, contract.IsACollection)
+	t.Logf("nineteen invocations ran: %d accepted, %d refused with %s", accepted, refused, contract.IsACollection)
 }
 
 // TestShowDrawsACollectionsMembersInCreationOrder pins the members, their

@@ -135,7 +135,7 @@ attachments --json` give you both.
 
 ## Which command takes what
 
-Eighteen commands take a reference, and between them they accept six different sets of things. This table says what each one accepts:
+Nineteen commands take a reference, and between them they accept seven different sets of things. This table says what each one accepts:
 
 | Command      | A workbench | A column | A card | Below a card | A collection |
 |--------------|-------------|----------|--------|--------------|--------------|
@@ -146,6 +146,7 @@ Eighteen commands take a reference, and between them they accept six different s
 | show         | no          | yes      | yes    | yes          | yes          |
 | instructions | no          | yes      | yes    | no           | no           |
 | attach       | yes         | yes      | yes    | yes          | no           |
+| comment      | no          | no       | yes    | yes          | no           |
 | archive      | no          | yes      | yes    | yes          | no           |
 | restore      | no          | yes      | yes    | yes          | no           |
 | delete       | no          | yes      | yes    | yes          | no           |
@@ -160,11 +161,13 @@ Eighteen commands take a reference, and between them they accept six different s
 
 Nine commands take a workstream: `path`, `edit`, `get`, `set`, `archive`, `restore`, `delete`, `contents`, and `attachments`. The others refuse one, and the table leaves the workstream out rather than carrying a column for it, so this sentence is where that answer lives.
 
-Nine of those rows carry a detail the table is too coarse to hold.
+Ten of those rows carry a detail the table is too coarse to hold.
 `attach` takes a comment below a card, and it takes an attachment only
 with `--replace`, which replaces that attachment's bytes rather than
 hanging a new file below it. It takes nothing else below a card, so `dinah
-attach wb-1/questions/1 notes.md` is refused. `instructions` takes a card
+attach wb-1/questions/1 notes.md` is refused. `comment` takes a card or a
+checklist item below one, and nothing else below a card, so `dinah comment
+wb-1/comments/1` is refused. `instructions` takes a card
 or a column and nothing else at all. `contents` takes a card by the card's
 own reference and never through what holds it, so `dinah contents
 wb/cards/1` is refused and `dinah contents wb-1` is what you write.

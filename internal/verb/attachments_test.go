@@ -21,7 +21,7 @@ func TestAnAttachmentPublishesThePathOfItsPayload(t *testing.T) {
 	ref := h.add("a card carrying bytes")
 	h.attach(ref, "notes.txt", "the bytes")
 
-	detail, _, _, err := h.library.Show(&Request{Verb: "show", Actor: "alka", Card: ref})
+	detail, _, _, _, err := h.library.Show(&Request{Verb: "show", Actor: "alka", Card: ref})
 	if err != nil {
 		t.Fatalf("show: %v", err)
 	}
@@ -80,7 +80,7 @@ func TestAnUnreadablePayloadEmptiesOnePathAndNoOther(t *testing.T) {
 		t.Fatalf("remove the payload: %v", err)
 	}
 
-	detail, _, _, err := h.library.Show(&Request{Verb: "show", Actor: "alka", Card: ref})
+	detail, _, _, _, err := h.library.Show(&Request{Verb: "show", Actor: "alka", Card: ref})
 	if err != nil {
 		t.Fatalf("show: %v", err)
 	}
@@ -113,7 +113,7 @@ func TestACommentPublishesItsOwnAttachments(t *testing.T) {
 	h.comment(ref, "a thought with a file under it")
 	h.attach(ref+"/"+bench.CommentsDir+"/1", "on-the-comment.txt", "the comment's own bytes")
 
-	detail, _, _, err := h.library.Show(&Request{Verb: "show", Actor: "alka", Card: ref})
+	detail, _, _, _, err := h.library.Show(&Request{Verb: "show", Actor: "alka", Card: ref})
 	if err != nil {
 		t.Fatalf("show: %v", err)
 	}
@@ -247,12 +247,15 @@ func TestAttachmentsReadsEveryKindTheGrammarMounts(t *testing.T) {
 	writeItem(t, h.card(ref).Dir, "a criterion", 1)
 	h.reopen()
 
-	// AC-9 rests on these two kinds mounting nothing, so the premise is
-	// asserted rather than assumed: a grammar that gave either one an
-	// attachments collection would make the empty answer below wrong.
+	// AC-9 rests on these two kinds mounting no attachments, so the premise
+	// is asserted rather than assumed: a grammar that gave either one an
+	// attachments collection would make the empty answer below wrong. An
+	// item mounts comments after dinah-502, which this loop does not ask
+	// about, so it asks the attachments mount by name rather than reading
+	// Contains for any collection at all.
 	for _, kind := range []string{bench.KindItem, bench.KindAttachment} {
-		if mounts := bench.Contains(kind); len(mounts) != 0 {
-			t.Fatalf("%s mounts %d collections, and this test's premise is that it mounts none", kind, len(mounts))
+		if _, mounts := bench.MountOf(kind, bench.AttachmentsDir); mounts {
+			t.Fatalf("%s mounts an attachments collection, and this test's premise is that it mounts none", kind)
 		}
 	}
 

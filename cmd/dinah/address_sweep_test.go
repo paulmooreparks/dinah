@@ -684,7 +684,7 @@ func (w *addressWorkbench) array(t *testing.T, argv ...string) []any {
 // and by `dinah attachments` through one renderer, and both are driven here so
 // that neither command can drift from the other.
 func addressCases() []addressCase {
-	show := renderSite{File: "render.go", Function: "renderDetail", Label: "comments", Ordinal: 1}
+	show := renderSite{File: "render.go", Function: "renderComments", Label: "block", Ordinal: 1}
 	attachments := renderSite{File: "render.go", Function: "renderAttachments", Label: "attachments", Ordinal: 1}
 	tree := renderSite{File: "render.go", Function: "renderTree", Label: "t", Ordinal: 1}
 	return []addressCase{

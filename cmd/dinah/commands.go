@@ -894,7 +894,7 @@ func runShow(s *session, parsed *arguments) int {
 		}
 	}
 	return s.withBench(func(l *verb.Library) int {
-		detail, listing, text, err := l.Show(req)
+		detail, listing, item, text, err := l.Show(req)
 		if err != nil {
 			return s.reportError(err)
 		}
@@ -903,6 +903,13 @@ func runShow(s *session, parsed *arguments) int {
 				return s.emitMachine(listing)
 			}
 			s.renderCollectionListing(listing)
+			return 0
+		}
+		if item != nil {
+			if s.format != formatHuman {
+				return s.emitMachine(item)
+			}
+			s.renderItemDetail(item)
 			return 0
 		}
 		if detail == nil {

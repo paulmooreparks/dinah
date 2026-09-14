@@ -55,7 +55,7 @@ Containment is a closed grammar, stated here once and in full. The
 workbench contains columns, cards, workstreams, and attachments. A card
 contains comments, checklist items, and attachments (and bears a journal,
 as do the workbench and each workstream). A comment contains attachments,
-and so does a checklist item. An attachment contains exactly
+and a checklist item contains comments. An attachment contains exactly
 its payload. A folder contains attachments and folders, and may itself
 exist only inside an `attachments/` collection. Two asymmetries carry the
 design. Attachments may belong to any entity, and folders may belong only
@@ -73,7 +73,7 @@ workbench   ::= workbench.md journal.ndjson? attachments? columns?
 column       ::= column.md attachments?
 card        ::= card.md journal.ndjson comments? checklist? attachments?
 checklist   ::= item*
-item        ::= item.md attachments?
+item        ::= item.md comments?
 workstream  ::= workstream.md journal.ndjson? attachments?
 comment     ::= comment.md attachments?
 attachment  ::= attachment.md payload/
@@ -944,7 +944,7 @@ so a `claimed` line with no `expires` records an unbounded claim.
 | `blocked` | `reason` | `kind`, whatever the caller passed, since nothing validates it |
 | `unblocked` | | |
 | `expired` | `expires` | |
-| `commented` | `comment` | |
+| `commented` | `comment` | `item`, the identifier of the checklist item the comment hangs below, written only on a comment written on an item and absent on a comment written on the card |
 | `attached` | `attachment`, `filename` | |
 | `attachment_replaced` | `attachment`, `filename` | |
 | `attachment_removed` | `attachment`, `note` (the removed entity's own id) | `filename`, best effort, present only when the attachment's anchor could still be read at the moment of removal |
@@ -1032,8 +1032,14 @@ stays readable by every build after it.
 A checklist item is a card-scoped entity recording a structured judgment:
 `checklist/<12-hex>/item.md`, with `kind`, `column`, `owner`, `state`,
 `citations`, timestamps, and a creation ordinal in frontmatter, the item's
-text as the body, a resolution note required to leave pending, and
-attachments for evidence per the universal rule. Kinds are a closed set of three
+text as the body, and a resolution note required to leave pending. An item
+takes its evidence by citation rather than by holding a copy: it carries no
+`attachments/` collection of its own, and `dinah attach` aimed at one is
+refused. It carries its own `comments/` collection instead. The reasoning an
+item was filed with, the recommendation and the tradeoffs, belongs there as
+comments written on the item, and `resolve`, `verify` and `fail` are what
+write the note, which is reserved for what settled the item rather than for
+the argument it was raised with. Kinds are a closed set of three
 (acceptance_criterion, open_question, decision) and states a closed set
 (pending, resolved, verified, failed), closed because method text travels
 between boards and "file it with owner operator" must mean the same thing
@@ -1301,8 +1307,8 @@ payload's namespace contains no reserved names, so filename collisions
 with anchors are unrepresentable. The payload is content, never inspected
 by the format; the
 entity around it is what makes the attachment referenceable, replaceable
-accountably, and archivable. Any entity may carry an `attachments/`
-collection: the workbench itself (reference documents that belong to the
+accountably, and archivable. Four kinds carry an `attachments/` collection:
+the workbench itself (reference documents that belong to the
 board rather than to any card), a column, a card, a comment. Replacing a
 payload is a journaled act (attached, attachment_replaced,
 attachment_renamed, and attachment_removed are registry members of the

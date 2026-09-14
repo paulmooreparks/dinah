@@ -2329,6 +2329,70 @@ func strayFixture(t *testing.T) (string, []string) {
 	return root, []string{item, below, stream}
 }
 
+// TestCheckReportsAnAttachmentsDirectoryBelowAnItemsComment asserts dinah-502
+// Agent Code Review round 1's major finding: a stray sitting below a
+// checklist item's own comment, reached only by descending through the
+// item's comments collection and then that comment's attachments
+// collection, is found, exactly as the reviewer reproduced it.
+//
+// This is a fixture of its own rather than a fourth planted directory on
+// strayFixture, because TestAKindGivenAnAttachmentsMountStopsBeingReported
+// replaces KindItem's whole mount list with one that carries no comments
+// collection at all, which would make a stray reached through an item's
+// comments undiscoverable there for a reason that test is not about.
+//
+// Arming: reverting mountlessAttachmentsBelow to return the moment a kind
+// mounts no attachments, without descending into Contains(kind) first,
+// reddens this test; TestCheckReportsAnAttachmentsDirectoryUnderAKindThatMountsNone
+// stays green either way, because every stray it plants sits at most one
+// level below a kind that mounts no attachments.
+func TestCheckReportsAnAttachmentsDirectoryBelowAnItemsComment(t *testing.T) {
+	root := newFixture(t)
+	card := filepath.Join(root, CardsDir, "c00000000001")
+	writeItem(t, root, "d00000000001", 1)
+	writeItemComment(t, root, "d00000000001", "f00000000002", "2026-08-17T09:01:00Z", 1, "The reasoning")
+
+	// The legitimate attachment on the item's comment, and the stray
+	// attachments directory nested below it, since an attachment mounts
+	// nothing.
+	commentAttachments := filepath.Join(card, ChecklistDir, "d00000000001", CommentsDir, "f00000000002", AttachmentsDir)
+	plantAttachment(t, commentAttachments, "e00000000002")
+	stray := filepath.Join(commentAttachments, "e00000000002", AttachmentsDir)
+	plantAttachment(t, stray, "b00000000009")
+
+	opened, err := Open(root)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	findings, err := opened.Check()
+	if err != nil {
+		t.Fatalf("check: %v", err)
+	}
+	found := 0
+	for _, finding := range findings {
+		if finding.Key != FindingAttachmentsWithoutAMount {
+			continue
+		}
+		found++
+		if finding.Path != stray {
+			t.Errorf("check reported %s, wanted %s", finding.Path, stray)
+			continue
+		}
+		if finding.Detail != KindAttachment {
+			t.Errorf("check named the stray's kind %q, wanted %q", finding.Detail, KindAttachment)
+		}
+	}
+	if found != 1 {
+		t.Fatalf("check reported %d mountless-attachment findings below the item's comment, wanted 1: %+v", found, findings)
+	}
+	// The legitimate attachment's own bytes prove the walk descended through
+	// it rather than stopping at the comment.
+	payload := filepath.Join(commentAttachments, "e00000000002", PayloadDir, "evidence.txt")
+	if !Exists(payload) {
+		t.Errorf("check removed or never reached %s", payload)
+	}
+}
+
 // plantAttachment writes one attachment, anchor and payload alike, into a
 // collection directory the caller names. It is what writes the strays, which
 // no verb will produce once attach refuses them.

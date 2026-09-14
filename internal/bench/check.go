@@ -421,19 +421,24 @@ func (b *Bench) checkAttachmentsWithoutAMount() ([]Finding, error) {
 // table says hangs below it, reporting an attachments directory wherever the
 // kind mounts none.
 //
-// A kind mounting no attachments is a leaf of the grammar, so the walk reports
-// what it finds there and descends no further: a directory below a stray is
-// unreachable for the same reason the stray is, and one finding names the whole
-// of what an operator has to look at.
+// A kind mounting no attachments is not a leaf of the grammar: it may still
+// mount some other collection, a checklist item's own comments among them,
+// and a stray below one of those members is exactly as much a stray as one
+// sitting directly under the kind that mounts none. So the walk reports what
+// it finds at this entity and then descends over every collection Contains
+// names for this kind regardless of whether this kind itself mounts
+// attachments, rather than stopping the moment attachments is the collection
+// missing. Stopping at the first kind mounting no attachments was the
+// defect: it left everything below a checklist item unreached the day an
+// item gained a comments collection of its own.
 func (b *Bench) mountlessAttachmentsBelow(dir, kind string) ([]Finding, error) {
+	var findings []Finding
 	if _, mounts := MountOf(kind, AttachmentsDir); !mounts {
 		attachments := filepath.Join(dir, AttachmentsDir)
-		if !Exists(attachments) {
-			return nil, nil
+		if Exists(attachments) {
+			findings = append(findings, Finding{Path: attachments, Key: FindingAttachmentsWithoutAMount, Detail: kind})
 		}
-		return []Finding{{Path: attachments, Key: FindingAttachmentsWithoutAMount, Detail: kind}}, nil
 	}
-	var findings []Finding
 	for _, mount := range Contains(kind) {
 		collection := filepath.Join(dir, mount.Dir)
 		ids, err := ListIDs(collection)
@@ -774,7 +779,7 @@ func (b *Bench) RegressiveDepartures(events []Event, columnID string) int {
 // reported because it leaves a position with two answers.
 func checkOrdinals(cardDir string) ([]Finding, error) {
 	var findings []Finding
-	collections, err := ordinalCollections(cardDir)
+	collections, err := ordinalCollections(cardDir, KindCard)
 	if err != nil {
 		return nil, err
 	}

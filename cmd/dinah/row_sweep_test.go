@@ -1566,7 +1566,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: renderSite{File: "render.go", Function: "renderDetail", Label: "comments", Ordinal: 1}, label: "a card's comments",
+			site: renderSite{File: "render.go", Function: "renderComments", Label: "block", Ordinal: 1}, label: "a card's comments",
 			keys: []string{"column.comments.ref", "column.comments.when", "column.comments.who"}, varies: noCell,
 			blanksAreLost: true,
 			opensAt:       "show.comments", expect: expectComments,
@@ -1579,7 +1579,7 @@ func sweptBlocks() []sweptBlock {
 		{
 			site: renderSite{File: "render.go", Function: "renderDetail", Label: "checklist", Ordinal: 1}, label: "a card's checklist items",
 			keys: []string{"column.checklist.ref", "column.checklist.state", "column.checklist.owner",
-				"column.checklist.description"},
+				"column.checklist.comments", "column.checklist.description"},
 			noHeadingRow: true, wrapsTail: true,
 			opensAt: "show.checklist", expect: expectChecklist,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -2706,19 +2706,30 @@ func sweptSearchTree(t *testing.T, base string, record *sweptRecord) string {
 // record a resolution note, which the block does not draw, so a note leaking
 // back into the render fails the guard in checklist_prose_test.go rather than
 // passing unnoticed.
+//
+// Every item also carries a distinct count of comments, which
+// sweptChecklistTree writes after the anchors exist. The comments column
+// joins the columns no row leaves blank, on the same rule the rest of this
+// comment states: deriveHeadinglessColumns finds a column's own boundary by
+// the gap after it, and a row that leaves the column blank offers the
+// boundary of the column after it instead, which the sweep's own
+// rightmost-candidate rule would then adopt for the blank column too. A
+// fixture that ever leaves this column blank corrupts the boundary of every
+// column after it, which is what a card testing the blank render for real
+// does in internal/verb rather than here.
 var sweptChecklistItems = []sweptItemRecord{
 	{id: "b00000000001", kind: "open_question", state: "pending", owner: "operator",
-		text: "Which vendor do we cite?"},
+		text: "Which vendor do we cite?", comments: 2},
 	{id: "b00000000002", kind: "open_question", state: "resolved", owner: "operator",
-		text: "Who signs the wording off?", note: "the operator answered Acme"},
+		text: "Who signs the wording off?", note: "the operator answered Acme", comments: 1},
 	{id: "b00000000003", kind: "acceptance_criterion", state: "pending", owner: "holder",
-		text: "The endpoint answers 404."},
+		text: "The endpoint answers 404.", comments: 3},
 	{id: "b00000000004", kind: "acceptance_criterion", state: "verified", owner: "holder",
-		text: "The listing keeps its count.", note: "run against this fixture"},
+		text: "The listing keeps its count.", note: "run against this fixture", comments: 1},
 	{id: "b00000000005", kind: "decision", state: "pending", owner: "holder",
-		text: "Where the member sits."},
+		text: "Where the member sits.", comments: 2},
 	{id: "b00000000006", kind: "decision", state: "resolved", owner: "holder",
-		text: "Which order the rows take.", note: "creation order, as the loader reads them"},
+		text: "Which order the rows take.", note: "creation order, as the loader reads them", comments: 4},
 }
 
 // sweptChecklistTree builds the tree the checklist block draws from and
@@ -2739,6 +2750,8 @@ func sweptChecklistTree(t *testing.T, base string, record *sweptRecord) (string,
 		t.Fatalf("path %s: %d %s", ref, got.code, got.errw)
 	}
 	cardDir := filepath.Dir(strings.TrimSpace(got.out))
+	words := map[string]string{"open_question": "questions", "acceptance_criterion": "criteria", "decision": "decisions"}
+	within := map[string]int{}
 	for i, item := range sweptChecklistItems {
 		header := "kind: " + item.kind + "\n" +
 			"state: " + item.state + "\n" +
@@ -2750,6 +2763,16 @@ func sweptChecklistTree(t *testing.T, base string, record *sweptRecord) (string,
 		anchor := filepath.Join(cardDir, bench.ChecklistDir, item.id, bench.ItemAnchor)
 		if err := bench.WriteText(anchor, "---\n"+header+"---\n"+item.text+"\n"); err != nil {
 			t.Fatalf("write the item %s: %v", item.id, err)
+		}
+		within[item.kind]++
+		if item.comments == 0 {
+			continue
+		}
+		itemRef := ref + "/" + words[item.kind] + "/" + strconv.Itoa(within[item.kind])
+		for n := 1; n <= item.comments; n++ {
+			if got := runCLI(t, dir, "comment", itemRef, "a comment"); got.code != 0 {
+				t.Fatalf("comment %s: %d %s", itemRef, got.code, got.errw)
+			}
 		}
 	}
 	record.checklist = sweptChecklistItems

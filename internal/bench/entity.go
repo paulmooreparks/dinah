@@ -94,6 +94,23 @@ func Comments(cardDir string) ([]*Comment, error) {
 	return comments, nil
 }
 
+// CountComments reports how many comments a directory's own collection
+// holds, and it opens no comment's anchor to do it, on the terms
+// CountAttachments already carries for attachments: one directory read
+// instead of one file read per comment.
+//
+// A card here carries up to thirty-six checklist items, and detailOf counts
+// every one of them on every dinah show <card>, which is the most-run read
+// on this workbench. Loading every comment's body to answer len() would pay
+// that cost on disk for a number the caller never reads the body to get.
+func CountComments(dir string) (int, error) {
+	ids, err := ListIDs(filepath.Join(dir, CommentsDir))
+	if err != nil {
+		return 0, err
+	}
+	return len(ids), nil
+}
+
 // Attachments reads a card's attachments in creation order.
 //
 // The order is the ordinal's rather than the directory listing's, on the same
