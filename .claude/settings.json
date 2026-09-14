@@ -1,4 +1,7 @@
 {
+  "env": {
+    "DINAH_ACTOR": "claude"
+  },
   "hooks": {
     "PreToolUse": [
       {
