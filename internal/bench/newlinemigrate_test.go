@@ -357,6 +357,14 @@ func TestAReadOnlyDestinationRefusesTheWholeRun(t *testing.T) {
 			t.Errorf("%s was written, and one refusal stops the whole run", rewrite.Path)
 		}
 	}
+	// The criterion asks the run to exit non-zero, and Clean is the mechanism
+	// that carries a conflict out to the command's exit code. It is asserted
+	// here rather than left to the renderer, because Clean stopped counting
+	// rewrites while this card was in review and a conflict has to keep
+	// answering unclean on its own.
+	if applied.Clean() || preview.Clean() {
+		t.Error("a run that refused a destination reports itself clean, so the command would exit zero over a repair that did not happen")
+	}
 	for path, text := range everyFileUnder(t, root) {
 		if before[path] != text {
 			t.Errorf("%s changed, and a refused run writes nothing at all", path)
@@ -836,7 +844,11 @@ func TestCheckReportsEachStoredFormAndCanTellACleanStoreFromADirtyOne(t *testing
 	}
 	reported := map[string]string{}
 	for _, finding := range findings {
-		if finding.Key != FindingStoredCarriageReturn {
+		// Three keys are legal here, one per shape, and which shape gets which
+		// is asserted by TestEachShapeTheSweepReportsGetsASentenceTrueOfIt.
+		switch finding.Key {
+		case FindingStoredCarriageReturn, FindingLooseCarriageReturn, FindingNewlineRepairUnsupported:
+		default:
 			t.Errorf("the sweep reported %s", finding.Key)
 		}
 		reported[finding.Path] = finding.Detail
@@ -1058,3 +1070,155 @@ func TestTheRehearsalHoldsTheLockItRewritesUnder(t *testing.T) {
 // dirtyCard is a card anchor whose body line ends CRLF, which is the smallest
 // destination a case can plant.
 const dirtyCard = "---\ntitle: A card\ncolumn: b00000000001\nstate: ready\n---\nFraming.\r\n"
+
+// TestEachShapeTheSweepReportsGetsASentenceTrueOfIt is the first of the two
+// findings code review pushed this card back for.
+//
+// Three shapes reach checkStoredNewlines and one finding key covered all three,
+// whose sentence says the file stores a carriage return standing for a line
+// ending. That is false of two of them. A file whose header does not round-trip
+// was reported that way while carrying no carriage return of any kind, so
+// somebody acting on the report would have repaired a file that was never
+// dirty, and a file whose only carriage returns are the loose ones this card
+// decided to keep was reported the same way.
+//
+// The assertion is on the key rather than on the rendered sentence, because the
+// key is what selects the sentence and the catalogue is asserted separately.
+func TestEachShapeTheSweepReportsGetsASentenceTrueOfIt(t *testing.T) {
+	root := newlineFixture(t)
+	dirty := filepath.Join(root, CardsDir, "c00000000001", CardAnchor)
+	loose := filepath.Join(root, CardsDir, "c00000000002", CardAnchor)
+	damaged := filepath.Join(root, CardsDir, "c00000000001", CommentsDir, "m00000000001", CommentAnchor)
+	write(t, dirty, dirtyCard)
+	write(t, loose, "---\ntitle: \"one\rtwo\"\ncolumn: b00000000001\nstate: ready\n---\nFraming.\n")
+	// A comment anchor whose header does not round-trip, and which carries no
+	// carriage return anywhere in it.
+	write(t, damaged, "---\n\nA comment anchor somebody broke.\n\n---\n\nMore.\n")
+	if bytes.Contains([]byte(readFile(t, damaged)), []byte("\r")) {
+		t.Fatal("the damaged fixture carries a carriage return, so it cannot show what this case is for")
+	}
+
+	opened, err := Open(root)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	findings, err := opened.checkStoredNewlines()
+	if err != nil {
+		t.Fatalf("check: %v", err)
+	}
+	reported := map[string]Finding{}
+	for _, finding := range findings {
+		reported[finding.Path] = finding
+	}
+	for _, c := range []struct {
+		path string
+		key  string
+		what string
+	}{
+		{dirty, FindingStoredCarriageReturn, "a file that really does store a line ending"},
+		{loose, FindingLooseCarriageReturn, "a file whose only carriage returns are loose ones"},
+		{damaged, FindingNewlineRepairUnsupported, "a file the repair will not decide"},
+	} {
+		got, named := reported[c.path]
+		if !named {
+			t.Errorf("%s was not reported at all", c.what)
+			continue
+		}
+		if got.Key != c.key {
+			t.Errorf("%s is reported under %s, wanted %s: a sentence written for one shape is false of the other two", c.what, got.Key, c.key)
+		}
+	}
+	if got := reported[damaged].Detail; got != "header does not round-trip" {
+		t.Errorf("the refused file's detail reads %q", got)
+	}
+	if got := reported[loose].Detail; !strings.HasPrefix(got, "0 line-ending") {
+		t.Errorf("the loose file's detail reads %q, and its line-ending count is zero by construction", got)
+	}
+}
+
+// TestAConfirmedRepairThatSucceededExitsClean is the second finding code review
+// pushed this card back for.
+//
+// A confirmed run that repaired every destination left the store with no defect
+// at all, and the report said so, and the run then reported itself unclean
+// anyway, because Clean counted the rewrites it had just performed. The sibling
+// migration this one says it copies counts only its conflicts. The cost is an
+// exit code, which is the part of a command a script reads and a person does
+// not, so the human-readable output said success while the status said failure.
+func TestAConfirmedRepairThatSucceededExitsClean(t *testing.T) {
+	root := newlineFixture(t)
+	write(t, filepath.Join(root, CardsDir, "c00000000001", CardAnchor), dirtyCard)
+
+	preview := migrate(t, root, false)
+	if len(preview.Rewrites) != 1 {
+		t.Fatalf("wanted one destination, got %d", len(preview.Rewrites))
+	}
+	if !preview.Clean() {
+		t.Error("a preview that met no conflict reports itself unclean, and the files it found are already named by the check finding that reports them")
+	}
+
+	applied := migrate(t, root, true)
+	if len(applied.Conflicts) != 0 {
+		t.Fatalf("the confirmed run met conflicts: %+v", applied.Conflicts)
+	}
+	if !applied.Clean() {
+		t.Error("a confirmed run that repaired every destination and met no conflict reports itself unclean, so a check that ran it exits non-zero over work that succeeded")
+	}
+
+	// The store really is clean afterwards, which is what makes the exit code
+	// above the whole of what was wrong.
+	opened, err := Open(root)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	findings, err := opened.checkStoredNewlines()
+	if err != nil {
+		t.Fatalf("check: %v", err)
+	}
+	if len(findings) != 0 {
+		t.Errorf("the repaired store still reports %+v", findings)
+	}
+
+	// A conflict is the thing that is genuinely unclean, so the same function
+	// has to keep saying so.
+	busy := newlineFixture(t)
+	write(t, filepath.Join(busy, CardsDir, "c00000000001", CardAnchor), dirtyCard)
+	lock, err := Acquire(filepath.Join(busy, CardsDir, "c00000000001"), "somebody-else", Stamp(time.Now()))
+	if err != nil {
+		t.Fatalf("acquire: %v", err)
+	}
+	defer lock.Release()
+	if held := migrate(t, busy, true); held.Clean() {
+		t.Error("a run that skipped a busy file reports itself clean, and nothing else tells a reader that file was left behind")
+	}
+}
+
+// TestALockedFileTheRunWouldNotHaveTouchedIsNotReportedBusy is the nit from the
+// same review. A clean file whose lock another process holds was listed beside
+// the dirty file next to it, under a line telling the reader to run the command
+// again, and a second run finds nothing to do with it.
+func TestALockedFileTheRunWouldNotHaveTouchedIsNotReportedBusy(t *testing.T) {
+	root := newlineFixture(t)
+	card := filepath.Join(root, CardsDir, "c00000000001")
+	dirty := filepath.Join(card, CardAnchor)
+	clean := filepath.Join(card, JournalName)
+	write(t, dirty, dirtyCard)
+	write(t, clean, cleanJournal)
+	lock, err := Acquire(card, "somebody-else", Stamp(time.Now()))
+	if err != nil {
+		t.Fatalf("acquire: %v", err)
+	}
+	defer lock.Release()
+
+	report := migrate(t, root, true)
+	busy := map[string]bool{}
+	for _, conflict := range report.Conflicts {
+		busy[conflict.Path] = true
+	}
+	if !busy[dirty] {
+		t.Errorf("the dirty file under a held lock was not reported busy: %+v", report.Conflicts)
+	}
+	if busy[clean] {
+		t.Error("a clean file under a held lock was reported busy, and a second run has nothing to do with it")
+	}
+}

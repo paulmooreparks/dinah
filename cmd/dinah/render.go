@@ -1674,9 +1674,27 @@ func (s *session) renderNewlineMigration(report *bench.NewlineMigration) {
 		// migration's report is read once by a person deciding whether to run
 		// the command again, and a table here would owe the row-layout sweep a
 		// fixture and a language pass for a block nobody scans.
+		//
+		// The tense is taken from the file rather than from the run, because a
+		// confirmed run can carry a destination it did not reach: a file whose
+		// lock was busy, or one a partial failure stopped short of. Saying
+		// "repaired" over either would describe work that did not happen, and
+		// saying "to repair" over a file whose bytes are already gone was the
+		// other half of the same defect.
+		//
+		// The counts are pluralised, which needs one key per count, because a
+		// plural category is chosen from a number and this line carries two.
+		// The loose clause is drawn only where there is one, so the ordinary
+		// destination reads as one sentence.
 		for _, rewrite := range report.Rewrites {
-			s.line(s.r.T("check.newline-rewrite", "path", rewrite.Path,
-				"returns", strconv.Itoa(rewrite.Returns), "loose", strconv.Itoa(rewrite.Loose)))
+			line := "check.newline-would-rewrite-file"
+			if rewrite.Written {
+				line = "check.newline-rewrote-file"
+			}
+			s.line(s.r.TN(line, rewrite.Returns, "path", rewrite.Path))
+			if rewrite.Loose > 0 {
+				s.line(s.r.TN("check.newline-rewrite-loose", rewrite.Loose))
+			}
 		}
 	}
 	if len(busy) > 0 {

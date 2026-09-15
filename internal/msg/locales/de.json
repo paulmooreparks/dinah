@@ -5197,11 +5197,6 @@
       "context": "The line the newline repair prints when no examined file stores a carriage return standing for a line ending. A second run of a repair that succeeded prints this, because the repair is idempotent by construction: a file is a destination exactly when its own transform changes it.",
       "source": "4d285e137fbfff"
     },
-    "check.newline-rewrite": {
-      "text": "{path} trägt {returns} gespeicherte Zeilenenden zur Reparatur und {loose} Wagenrückläufe, die keine Zeilenenden sind.",
-      "context": "One destination of the newline repair. {path} is the file, {returns} is what the file's own transform would remove, and {loose} is what it would leave alone. The second number is legal and the first is not, which is why they are reported apart: a carriage return not followed by a line feed is a character the prose meant to carry rather than a line ending.",
-      "source": "9c2535411dc8b0d1"
-    },
     "check.newlines-refused.one": {
       "text": "{count} Ziel abgelehnt; es wurde nichts geschrieben.",
       "context": "The line the newline repair prints when one destination met a condition that stops the whole run, so a preview predicts the outcome instead of a run discovering a refusal half way through.",
@@ -5266,6 +5261,46 @@
       "text": "; benennen Sie dieses Element im Dokument um und lesen Sie es erneut",
       "context": "The next step of refusal.dinah.malformed-member-name. Every other line ending in this contract is normalised rather than refused; this one cannot be, because normalising leaves a line feed that still splits the header.",
       "source": "800ab41179da1bc"
+    },
+    "check.newline-would-rewrite-file.one": {
+      "text": "{path} trägt {count} gespeichertes Zeilenende zur Reparatur.",
+      "context": "One destination a newline preview found, for exactly one stored line ending. {path} is the file and {count} is what the file's own transform would remove. The tense is the file's rather than the run's, because a confirmed run can carry a destination it did not reach.",
+      "source": "c2b3b8a78e931d4e"
+    },
+    "check.newline-would-rewrite-file.other": {
+      "text": "{path} trägt {count} gespeicherte Zeilenenden zur Reparatur.",
+      "context": "One destination a newline preview found, for any other number. A count of zero cannot occur here, because a file with nothing to remove is not a destination.",
+      "source": "5248fab183d4384d"
+    },
+    "check.newline-rewrote-file.one": {
+      "text": "{path}: {count} gespeichertes Zeilenende repariert.",
+      "context": "One destination a confirmed newline repair wrote, for exactly one stored line ending. It is drawn only for a file the run actually rewrote, so a busy file or one a partial failure did not reach keeps the preview's tense instead.",
+      "source": "a0a98021ba92c103"
+    },
+    "check.newline-rewrote-file.other": {
+      "text": "{path}: {count} gespeicherte Zeilenenden repariert.",
+      "context": "One destination a confirmed newline repair wrote, for any other number.",
+      "source": "536e18f529948a24"
+    },
+    "check.newline-rewrite-loose.one": {
+      "text": "Sie trägt außerdem {count} Wagenrücklauf, der kein Zeilenende ist und den die Reparatur unangetastet lässt.",
+      "context": "The clause drawn under a destination that also carries a carriage return the repair does not touch, for exactly one. A carriage return not followed by a line feed is a character the prose meant to carry rather than a line ending, so it is reported and kept. The line is drawn only where the count is above zero.",
+      "source": "5298a11d838b09cb"
+    },
+    "check.newline-rewrite-loose.other": {
+      "text": "Sie trägt außerdem {count} Wagenrückläufe, die keine Zeilenenden sind und die die Reparatur unangetastet lässt.",
+      "context": "The same clause for any other number.",
+      "source": "a331518a5e0c8230"
+    },
+    "check.loose-carriage-return": {
+      "text": "diese Datei trägt einen Wagenrücklauf, der kein Zeilenende ist und den dieses Format behält ({detail})",
+      "context": "A check finding: a workbench text file whose carriage returns are all ones the format stores as the prose meant them, none of which stands for a line ending. {detail} carries the two counts, the first of which is zero for this finding by construction. It is reported so a reader can tell a file whose bytes were looked at and left alone from a file nothing looked at, and it is a separate finding from check.stored-carriage-return because that sentence would be false of it.",
+      "source": "90fda58db3e984f7"
+    },
+    "check.newline-repair-unsupported": {
+      "text": "die Zeilenumbruch-Reparatur entscheidet über diese Datei nicht, daher bleibt sie genau so, wie sie ist ({detail})",
+      "context": "A check finding: a workbench text file the newline repair refuses rather than guessing at. {detail} says which case, either that a file bearing one of the anchor names the format fixes does not round-trip through the anchor reader, or the frontmatter key whose shape the repair cannot re-render. Such a file need carry no carriage return at all, which is why this is not reported as a stored line ending; deciding what a damaged header should become is separate work from deciding what a line ending should be.",
+      "source": "ca43055799b06a49"
     }
   }
 }

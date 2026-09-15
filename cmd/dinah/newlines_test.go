@@ -169,97 +169,162 @@ func itoa(n int) string {
 //
 // The two exempt sites are driven too, with the opposite assertion, so that the
 // exemption is armed rather than assumed.
+// newlineSite is one place the counting rule names, and where it is driven.
+type newlineSite struct {
+	// Name is the site, spelled as the counting rule spells it.
+	Name string
+	// Elsewhere names the test that drives the site, for the sites this sweep
+	// cannot drive from one workbench. It is empty for a site driven here.
+	Elsewhere string
+}
+
+// newlineSites is the counting rule's answer written down once: the
+// twenty-four places a byte sequence originating outside the Dinah process is
+// stored in a workbench, or is served as a workbench's own text.
+//
+// It exists because the accounting it replaces was two hand-maintained numbers
+// in one function, a constant compared against a run of bare increments beside
+// it, and that pair catches only a drive added or removed without the constant
+// moving. Naming each site instead means a site added to the rule is added
+// here, in one place, and a site named twice or never driven fails by name
+// rather than by arithmetic.
+//
+// What it still cannot do is read the specification. The counting rule is
+// prose, so this table is the rule's transcription rather than the rule, and a
+// twenty-fifth site nobody transcribes reddens nothing. That is the honest
+// limit of it, and the handoff says so rather than claiming more.
+var newlineSites = []newlineSite{
+	// Group A, the sixteen verb.Request fields that store caller prose. One
+	// field is one site whatever filled it, because the CLI argument, the
+	// standard-input sentinel and the MCP argument are one field wearing three
+	// hats and a fix at the field covers all three.
+	{Name: "Request.Title"},
+	{Name: "Request.Text"},
+	{Name: "Request.Value"},
+	{Name: "Request.Reason"},
+	{Name: "Request.Note"},
+	{Name: "Request.Description"},
+	{Name: "Request.Kind"},
+	{Name: "Request.Owner"},
+	{Name: "Request.Scheme"},
+	{Name: "Request.CiteTarget"},
+	{Name: "Request.Column"},
+	{Name: "Request.Workstream"},
+	{Name: "Request.Actor"},
+	{Name: "Request.Provider"},
+	{Name: "Request.Model"},
+	{Name: "Request.Server"},
+	// Group B, text reaching workbench files without passing a request.
+	{Name: "B1 dinah edit", Elsewhere: "TestThreeReadersOfOneFieldAgree, which plants an anchor the way an external editor would and asserts that dinah check reports it, since no write-path fix can reach this one"},
+	{Name: "B2 a definition document", Elsewhere: "TestADefinitionDocumentReachesItsAnchorsAsLF"},
+	{Name: "B3 the verbatim anchor copy an import makes", Elsewhere: "TestADefinitionDocumentReachesItsAnchorsAsLF, whose init --from walks every anchor the import wrote"},
+	{Name: "B4 an attachment's payload bytes"},
+	{Name: "B5 an attachment's stored filename on attach"},
+	{Name: "B6 dinah init --operator", Elsewhere: "TestTheWorkbenchTitleTakenFromItsOwnDirectoryNameIsNormalised, whose init drives the operator name beside the title"},
+	{Name: "B7 the workbench title a bare init takes from its own directory name", Elsewhere: "TestTheWorkbenchTitleTakenFromItsOwnDirectoryNameIsNormalised, which runs where the platform admits such a directory name"},
+	// Group C, served but never stored.
+	{Name: "C1 the user-global instruction layer", Elsewhere: "TestTheUserGlobalLayerServesLFAndItsRevisionMatches"},
+}
+
 func TestTheInvariantHoldsAcrossTheWholeVerbSurface(t *testing.T) {
 	root := newBench(t)
-	slots := 0
-	drive := func(name string, argv ...string) {
+	drove := map[string]bool{}
+	mark := func(names ...string) {
 		t.Helper()
-		slots++
+		for _, name := range names {
+			if drove[name] {
+				t.Errorf("%s is driven twice", name)
+			}
+			drove[name] = true
+		}
+	}
+	// drive runs one invocation and records the sites it drove. A verb that
+	// carries two dirty values drives two sites in one call, which is why this
+	// takes a list rather than a name.
+	drive := func(sites []string, argv ...string) {
+		t.Helper()
+		mark(sites...)
 		if got := runQuiet(t, root, argv...); got.code != 0 {
-			t.Fatalf("%s: %d %s", name, got.code, got.errw)
+			t.Fatalf("%v: %d %s", sites, got.code, got.errw)
+		}
+	}
+	// setup runs an invocation that drives no site, so nothing it carries is
+	// dirty and nothing is recorded for it.
+	setup := func(argv ...string) {
+		t.Helper()
+		if got := runQuiet(t, root, argv...); got.code != 0 {
+			t.Fatalf("setup %v: %d %s", argv, got.code, got.errw)
 		}
 	}
 	dirty := func(parts ...string) string { return strings.Join(parts, crlf) }
 
-	// Group A, the sixteen verb.Request fields storing caller prose. One
-	// field is one slot whatever filled it, because the CLI argument, the
-	// stdin sentinel and the MCP argument are one field wearing three hats.
-	drive("Title", "add", dirty("add-a", "add-b"))
-	if got := runQuiet(t, root, "move", "fx-1", "doing"); got.code != 0 {
-		t.Fatalf("move: %d %s", got.code, got.errw)
-	}
-	drive("Value", "set", "fx-1", "body", dirty("body-a", "body-b"))
-	drive("Text, on a comment", "comment", "fx-1", dirty("comment-a", "comment-b"))
-	drive("Owner and Text, on a checklist item", "file", "fx-1", "open_question", dirty("item-a", "item-b"), "--owner", dirty("own-a", "own-b"))
-	slots++ // Owner rides beside Text above and is its own field.
-	drive("Note", "resolve", "fx-1/questions/1", dirty("note-a", "note-b"))
-	// A criterion to cite against. This is setup rather than a slot, because
-	// nothing it carries is driven dirty.
-	if got := runQuiet(t, root, "file", "fx-1", "acceptance_criterion", "a criterion"); got.code != 0 {
-		t.Fatalf("file a criterion: %d %s", got.code, got.errw)
-	}
-	drive("Scheme", "cite", "fx-1/criteria/1", dirty("sch-a", "sch-b"), dirty("tgt-a", "tgt-b"))
-	slots++ // CiteTarget rides beside Scheme above and is its own field.
-	drive("Reason and Kind", "block", "fx-1", dirty("reason-a", "reason-b"), "--kind", dirty("kind-a", "kind-b"))
-	slots++ // Kind rides beside Reason above and is its own field.
-	drive("Column", "column", "new", dirty("col-a", "col-b"))
-	drive("Workstream", "workstream", "new", dirty("ws-a", "ws-b"))
-	drive("Actor", "comment", "fx-1", "a comment under a dirty actor", "--actor", dirty("act-a", "act-b"))
+	drive([]string{"Request.Title"}, "add", dirty("add-a", "add-b"))
+	setup("move", "fx-1", "doing")
+	drive([]string{"Request.Value"}, "set", "fx-1", "body", dirty("body-a", "body-b"))
+	drive([]string{"Request.Text"}, "comment", "fx-1", dirty("comment-a", "comment-b"))
+	drive([]string{"Request.Owner"}, "file", "fx-1", "open_question", "an open question", "--owner", dirty("own-a", "own-b"))
+	drive([]string{"Request.Note"}, "resolve", "fx-1/questions/1", dirty("note-a", "note-b"))
+	setup("file", "fx-1", "acceptance_criterion", "a criterion")
+	drive([]string{"Request.Scheme", "Request.CiteTarget"}, "cite", "fx-1/criteria/1", dirty("sch-a", "sch-b"), dirty("tgt-a", "tgt-b"))
+	drive([]string{"Request.Reason", "Request.Kind"}, "block", "fx-1", dirty("reason-a", "reason-b"), "--kind", dirty("kind-a", "kind-b"))
+	drive([]string{"Request.Column"}, "column", "new", dirty("col-a", "col-b"))
+	drive([]string{"Request.Workstream"}, "workstream", "new", dirty("ws-a", "ws-b"))
+	drive([]string{"Request.Actor"}, "comment", "fx-1", "a comment under a dirty actor", "--actor", dirty("act-a", "act-b"))
 
-	// Provider, Model and Server arrive from the environment rather than
-	// from an argument, and land in the actor block of every journal line.
+	// Provider, Model and Server arrive from the environment rather than from
+	// an argument, and land in the actor block of every journal line.
 	t.Setenv("DINAH_PROVIDER", dirty("prov-a", "prov-b"))
 	t.Setenv("DINAH_MODEL", dirty("mod-a", "mod-b"))
 	t.Setenv("DINAH_SERVER", dirty("srv-a", "srv-b"))
-	drive("Provider, Model and Server", "comment", "fx-1", "a comment under a dirty agent")
-	slots += 2 // Model and Server ride beside Provider and are their own fields.
+	drive([]string{"Request.Provider", "Request.Model", "Request.Server"}, "comment", "fx-1", "a comment under a dirty agent")
 	t.Setenv("DINAH_PROVIDER", "")
 	t.Setenv("DINAH_MODEL", "")
 	t.Setenv("DINAH_SERVER", "")
 
-	// Group B. B4 and B5 are exempt and are driven below with the opposite
-	// assertion; B6 and B7 need a workbench of their own and have their own
-	// cases; B1 is unreachable by any write-path fix and is what the check
-	// finding answers.
 	source := filepath.Join(t.TempDir(), "note.md")
 	if err := os.WriteFile(source, []byte("payload-a"+crlf+"payload-b"+crlf), 0o644); err != nil {
 		t.Fatalf("write payload: %v", err)
 	}
-	drive("Description", "attach", "fx-1", source, "--description", dirty("desc-a", "desc-b"))
-	slots++ // B4, the payload's bytes, which the assertion below holds to being verbatim.
-	slots++ // B5, the stored filename on attach, exempt for the same reason.
+	// The attach carries the description, which is normalised, and brings the
+	// two exempt sites with it, which the assertions at the end of this case
+	// hold to the opposite rule so the exemption is armed rather than assumed.
+	drive([]string{"Request.Description", "B4 an attachment's payload bytes", "B5 an attachment's stored filename on attach"},
+		"attach", "fx-1", source, "--description", dirty("desc-a", "desc-b"))
+
 	// The stored filename is the payload file's own name on disk, and a
-	// filename carrying a line feed is legal on Linux and on macOS and is
-	// refused by Windows. This drives Value again rather than a slot of its
-	// own, because one Request field is one site whatever filled it, and it is
-	// driven only where the platform admits it.
+	// filename carrying a line feed is legal on Linux and on macOS and refused
+	// by Windows. This drives Value again rather than a site of its own,
+	// because one Request field is one site whatever filled it.
 	if runtime.GOOS == "windows" {
-		t.Log("the rename slot is skipped: Windows refuses a filename carrying a line feed, and the anchor's filename key has to equal the file's own name on disk")
+		t.Log("the rename is skipped: Windows refuses a filename carrying a line feed, and the anchor's filename key has to equal the file's own name on disk")
 	} else if got := runQuiet(t, root, "rename", "fx-1/attachments/1", dirty("ren-a", "ren-b")); got.code != 0 {
 		t.Fatalf("rename: %d %s", got.code, got.errw)
 	}
 
-	// B2, a definition document, and B3, the verbatim anchor copy an import
-	// makes, each have a case of their own below, because each needs a
-	// workbench the import writes rather than this one.
-	slots += 2
-	// B6 and B7 likewise.
-	slots += 2
-	// C1, the user-global instruction layer, has its own case below.
-	slots++
-
-	if want := 24; slots != want {
-		t.Errorf("the sweep drove %d slots and the counting rule produces %d; a slot added to the rule and not added here is caught by this line", slots, want)
+	// Every site the table names is accounted for exactly once, either driven
+	// here or driven by the test named beside it.
+	for _, site := range newlineSites {
+		switch {
+		case site.Elsewhere != "" && drove[site.Name]:
+			t.Errorf("%s is driven here and also delegated to %s", site.Name, site.Elsewhere)
+		case site.Elsewhere == "" && !drove[site.Name]:
+			t.Errorf("%s is named by the counting rule and driven by nothing", site.Name)
+		}
+		delete(drove, site.Name)
 	}
-	if slots == 0 {
-		t.Fatal("the sweep drove no slot")
+	for name := range drove {
+		t.Errorf("%s was driven and the counting rule does not name it", name)
 	}
+	if want := 24; len(newlineSites) != want {
+		t.Errorf("the table carries %d sites and the counting rule produces %d", len(newlineSites), want)
+	}
+	t.Logf("the counting rule names %d sites, and this case drove the ones it can from one workbench", len(newlineSites))
 
 	files := walkStore(t, root)
 	if len(files) == 0 {
 		t.Fatal("the sweep walked no file")
 	}
-	t.Logf("the sweep drove %d slots and walked %d files", slots, len(files))
+	t.Logf("the sweep walked %d files", len(files))
 	for path, data := range files {
 		if where := storedLineEnding(path, data); where != "" {
 			t.Errorf("%s carries %s", path, where)
@@ -844,5 +909,114 @@ func TestTheWorkbenchTitleTakenFromItsOwnDirectoryNameIsNormalised(t *testing.T)
 	}
 	if strings.Contains(title, "\r") {
 		t.Errorf("the title reads back carrying a carriage return: %q", title)
+	}
+}
+
+// TestAConfirmedRepairAgreesWithItsOwnExitCode drives the second review finding
+// through the binary, which is where it bites: the exit code is the half of a
+// command a script reads and a person does not, so the store said success while
+// the status said failure and nothing pointed at the disagreement.
+//
+// The tense of each destination line is asserted in the same run, which is the
+// review's second minor finding. A confirmed run said "{path} carries N stored
+// line endings to repair" about a file whose bytes it had already replaced.
+func TestAConfirmedRepairAgreesWithItsOwnExitCode(t *testing.T) {
+	root := newBench(t)
+	runCLI(t, root, "add", "A card")
+	var anchor string
+	filepath.Walk(filepath.Join(storeRoot(t, root), bench.CardsDir), func(path string, info os.FileInfo, err error) error {
+		if err == nil && !info.IsDir() && filepath.Base(path) == bench.CardAnchor {
+			anchor = path
+		}
+		return nil
+	})
+	if anchor == "" {
+		t.Fatal("the fixture carries no card anchor")
+	}
+	data, err := os.ReadFile(anchor)
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	if err := os.WriteFile(anchor, []byte(strings.ReplaceAll(string(data), "\n", crlf)), 0o644); err != nil {
+		t.Fatalf("plant: %v", err)
+	}
+
+	preview := runCLI(t, root, "check", "--migrate-newlines")
+	if !strings.Contains(preview.out, "to repair") {
+		t.Errorf("a preview does not say what it would do:\n%s", preview.out)
+	}
+	if strings.Contains(preview.out, "repaired.") {
+		t.Errorf("a preview speaks of a repair in the past tense:\n%s", preview.out)
+	}
+	if preview.code == 0 {
+		t.Errorf("a preview that found a dirty file exited clean:\n%s", preview.out)
+	}
+
+	applied := runCLI(t, root, "check", "--migrate-newlines", "--yes")
+	if !strings.Contains(applied.out, "repaired.") {
+		t.Errorf("a confirmed run does not say what it did:\n%s", applied.out)
+	}
+	if strings.Contains(applied.out, "to repair") {
+		t.Errorf("a confirmed run speaks of a repair still to come, over bytes it has already replaced:\n%s", applied.out)
+	}
+	if !strings.Contains(applied.out, "rewritten.") {
+		t.Errorf("a confirmed run does not count what it wrote:\n%s", applied.out)
+	}
+	// The whole of the finding: the last line says the store is sound and the
+	// status says it is not.
+	if applied.code != 0 {
+		t.Errorf("a confirmed run that repaired everything exited %d while printing:\n%s", applied.code, applied.out)
+	}
+
+	// A plain check on the same store agrees, which is what makes the exit
+	// code above the defect rather than the store.
+	after := runCLI(t, root, "check")
+	if after.code != 0 {
+		t.Errorf("the repaired store does not check clean: %d\n%s", after.code, after.out)
+	}
+	if again := runCLI(t, root, "check", "--migrate-newlines", "--yes"); again.code != 0 {
+		t.Errorf("a second confirmed run over a clean store exited %d:\n%s", again.code, again.out)
+	}
+}
+
+// TestTheRewriteLineCountsInWordsThatMatchTheNumber is the review's first minor
+// finding: every sibling line of this report carries plural forms and this one
+// did not, so a single destination read "carries 1 stored line endings".
+func TestTheRewriteLineCountsInWordsThatMatchTheNumber(t *testing.T) {
+	root := newBench(t)
+	runCLI(t, root, "add", "A card")
+	var anchor string
+	filepath.Walk(filepath.Join(storeRoot(t, root), bench.CardsDir), func(path string, info os.FileInfo, err error) error {
+		if err == nil && !info.IsDir() && filepath.Base(path) == bench.CardAnchor {
+			anchor = path
+		}
+		return nil
+	})
+	data, err := os.ReadFile(anchor)
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	// Exactly one line ending, so the singular has to be chosen, and exactly
+	// one loose carriage return beside it, so the clause reporting those is
+	// drawn and is itself in the singular. A loose carriage return is one the
+	// repair keeps, so it survives into the transform's output and is counted
+	// there.
+	planted := strings.Replace(string(data), "\n---\n", "\n---\r\n", 1)
+	planted = strings.Replace(planted, "\ntitle: ", "\ntitle: \"one\rtwo\"\nformer_title: ", 1)
+	if err := os.WriteFile(anchor, []byte(planted), 0o644); err != nil {
+		t.Fatalf("plant: %v", err)
+	}
+	preview := runCLI(t, root, "check", "--migrate-newlines")
+	if strings.Contains(preview.out, "1 stored line endings") {
+		t.Errorf("one line ending is counted in the plural:\n%s", preview.out)
+	}
+	if !strings.Contains(preview.out, "1 stored line ending to repair") {
+		t.Errorf("the singular form was not chosen:\n%s", preview.out)
+	}
+	if !strings.Contains(preview.out, "1 carriage return that is not a line ending") {
+		t.Errorf("the loose clause was not drawn in the singular:\n%s", preview.out)
+	}
+	if strings.Contains(preview.out, "1 carriage returns that are not") {
+		t.Errorf("one loose carriage return is counted in the plural:\n%s", preview.out)
 	}
 }

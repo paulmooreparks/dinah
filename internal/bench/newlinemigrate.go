@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -49,10 +50,24 @@ type NewlineMigration struct {
 	Applied   bool              `json:"applied"` // false on a preview
 }
 
-// Clean reports whether the run found nothing to do and met no conflict, which
-// is what decides whether a check that ran this repair still exits clean.
+// Clean reports whether the run left anything a person has to act on that
+// nothing else reports, which is what decides whether a check that ran this
+// repair still exits clean.
+//
+// A conflict is exactly that, so a conflict is unclean. A rewrite is not, and
+// this counted rewrites once and was wrong for it: a confirmed run that
+// repaired every destination printed "No structural defects found." and then
+// exited non-zero, because the files it had just cleaned were still in the
+// count. A preview that found work exits non-zero anyway, since the check
+// finding names those same files, so counting rewrites here buys nothing and
+// costs the confirmed run its exit code.
+//
+// That is also what BranchMigration.Clean counts, and this function says so
+// deliberately rather than by coincidence: the two migrations answer the same
+// situation the same way, which is what the doc comment on MigrateNewlines
+// claims when it says the shape is copied.
 func (m *NewlineMigration) Clean() bool {
-	return m == nil || (len(m.Rewrites) == 0 && len(m.Conflicts) == 0)
+	return m == nil || len(m.Conflicts) == 0
 }
 
 // newlineTransform is one file's repair, and it is also that file's detector.
@@ -131,6 +146,21 @@ func (b *Bench) MigrateNewlines(actor, now string, apply bool) (*NewlineMigratio
 	for _, path := range paths {
 		held, taken, err := b.holdForFile(path, actor, now)
 		if err != nil {
+			// A file the run would not have touched is not worth reporting
+			// busy, and reporting one told a reader to run the command again
+			// over a file a second run finds nothing to do with. Whether it
+			// was a destination is decided from a read taken without the lock,
+			// which is safe because nothing is written on this path and
+			// because every write in this format lands by rename, so an
+			// unlocked read sees the old bytes or the new ones and never a
+			// half-written file. A file that turns dirty a moment later is
+			// picked up by the next run, which is what a busy file gets
+			// anyway.
+			if candidate, readErr := os.ReadFile(path); readErr == nil {
+				if result := transformNewlines(path, candidate); result.Condition == "" && bytes.Equal(result.Out, candidate) {
+					continue
+				}
+			}
 			report.Conflicts = append(report.Conflicts, b.lockConflict(path, err))
 			continue
 		}
@@ -724,6 +754,13 @@ func literalEnd(record string, start int) int {
 // spelling rather than the document's, and those are changes to bytes and not
 // to the record. This is the check that says so for every record rather than an
 // argument that says so in prose.
+//
+// The comparison is reflect.DeepEqual rather than one written here. What
+// json.Unmarshal produces into an any is a closed set, a map, a slice, a
+// string, a float64, a bool and nil, and DeepEqual answers every one of them,
+// so a hand-written comparison would duplicate the standard library for no
+// reading a reader gains. This package already imports reflect for the event
+// walk.
 func verifyRecord(original, repaired string) bool {
 	var before, after any
 	if err := json.Unmarshal([]byte(original), &before); err != nil {
@@ -732,7 +769,7 @@ func verifyRecord(original, repaired string) bool {
 	if err := json.Unmarshal([]byte(repaired), &after); err != nil {
 		return false
 	}
-	return sameValue(normalizeDecoded(before), after)
+	return reflect.DeepEqual(normalizeDecoded(before), after)
 }
 
 // normalizeDecoded answers a decoded document with every string it carries, at
@@ -757,36 +794,12 @@ func normalizeDecoded(value any) any {
 	return value
 }
 
-// sameValue compares two decoded documents. It is written here rather than
-// reached for in reflect because the values are what encoding/json produces and
-// nothing else, which is four scalar kinds, a slice and a map.
-func sameValue(left, right any) bool {
-	switch typedLeft := left.(type) {
-	case map[string]any:
-		typedRight, ok := right.(map[string]any)
-		if !ok || len(typedLeft) != len(typedRight) {
-			return false
-		}
-		for name, element := range typedLeft {
-			other, carried := typedRight[name]
-			if !carried || !sameValue(element, other) {
-				return false
-			}
-		}
-		return true
-	case []any:
-		typedRight, ok := right.([]any)
-		if !ok || len(typedLeft) != len(typedRight) {
-			return false
-		}
-		for i, element := range typedLeft {
-			if !sameValue(element, typedRight[i]) {
-				return false
-			}
-		}
-		return true
-	}
-	return left == right
+// newlineCounts renders the detail the two counting findings carry: what the
+// file's own transform would remove, and separately what it would leave alone.
+// The second number is legal and the first is not, which is why they are
+// reported apart rather than summed.
+func newlineCounts(result newlineTransform) string {
+	return strconv.Itoa(result.Returns) + " line-ending, " + strconv.Itoa(result.Loose) + " loose"
 }
 
 // checkStoredNewlines reports every workbench text file storing a carriage
@@ -817,14 +830,21 @@ func (b *Bench) checkStoredNewlines() ([]Finding, error) {
 			continue
 		}
 		result := transformNewlines(path, data)
-		if result.Condition == NewlineConflictUnsupported {
-			findings = append(findings, Finding{Path: path, Key: FindingStoredCarriageReturn, Detail: result.Detail})
-			continue
+		// Three shapes reach this sweep and they are three different things to
+		// tell a person, so each gets a finding whose sentence is true of it.
+		// One key covered all three once, and its sentence said the file stores
+		// a carriage return standing for a line ending, which is false of a
+		// file the repair will not decide (one was reported carrying zero
+		// carriage returns of any kind) and false of a file whose only
+		// carriage returns are the loose ones this card decided to keep.
+		switch {
+		case result.Condition == NewlineConflictUnsupported:
+			findings = append(findings, Finding{Path: path, Key: FindingNewlineRepairUnsupported, Detail: result.Detail})
+		case result.Returns > 0:
+			findings = append(findings, Finding{Path: path, Key: FindingStoredCarriageReturn, Detail: newlineCounts(result)})
+		case result.Loose > 0:
+			findings = append(findings, Finding{Path: path, Key: FindingLooseCarriageReturn, Detail: newlineCounts(result)})
 		}
-		if result.Returns == 0 && result.Loose == 0 {
-			continue
-		}
-		findings = append(findings, Finding{Path: path, Key: FindingStoredCarriageReturn, Detail: strconv.Itoa(result.Returns) + " line-ending, " + strconv.Itoa(result.Loose) + " loose"})
 	}
 	return findings, nil
 }

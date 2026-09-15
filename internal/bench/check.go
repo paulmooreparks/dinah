@@ -190,6 +190,22 @@ const (
 	// dirty. It is what catches the one site no write-path change can reach,
 	// which is an external editor writing an anchor.
 	FindingStoredCarriageReturn = "check.stored-carriage-return"
+	// FindingLooseCarriageReturn names a workbench text file carrying a
+	// carriage return that is NOT a line ending, which this format stores as
+	// the prose meant it and which the repair leaves alone. It is reported so
+	// that a reader can tell a file whose bytes were looked at and left from a
+	// file nothing looked at, and it is a separate key from the one above
+	// because the sentence above is false of it.
+	FindingLooseCarriageReturn = "check.loose-carriage-return"
+	// FindingNewlineRepairUnsupported names a workbench text file the newline
+	// repair refuses to decide: a file bearing one of the anchor names the
+	// format fixes whose header does not round-trip, or a frontmatter key
+	// whose shape the repair cannot re-render. The detail carries which.
+	//
+	// It is its own key rather than the one above because such a file need
+	// carry no carriage return at all, and reporting one as storing a line
+	// ending told a reader to repair a file that was never dirty.
+	FindingNewlineRepairUnsupported = "check.newline-repair-unsupported"
 	// FindingRejectTargetIsSelf names a column whose reject_to names itself.
 	FindingRejectTargetIsSelf = "check.reject-target-is-self"
 	// FindingRejectTargetForward names a column whose reject_to names a column

@@ -1833,10 +1833,15 @@ func (r *CheckReport) stampOutcome() {
 }
 
 // migrationsClean reports whether the repairs that report rather than refusing,
-// where one ran, left nothing for a person to do. A conflict is what they did
-// not: the run wrote nothing and what it named has to be repaired before a
-// second run completes, so the outcome carries that outward as the command's
-// exit code rather than letting a run that migrated nothing exit zero.
+// where one ran, met a conflict. A conflict is work a person has to do that no
+// finding names, so the outcome carries it outward as the command's exit code
+// rather than letting a run that migrated nothing exit zero.
+//
+// It asks about conflicts and not about repairs, and the difference is the
+// whole of what this function is for. A repair that happened is not work left
+// over, and a repair still pending is already named by the finding that reports
+// the same file, so counting either would make a confirmed run that succeeded
+// completely print that there are no defects and then exit non-zero.
 func (r *CheckReport) migrationsClean() bool {
 	if r.MigratedBranches != nil && !r.MigratedBranches.Clean() {
 		return false
