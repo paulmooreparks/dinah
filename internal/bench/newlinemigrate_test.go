@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -582,7 +583,7 @@ func TestAMarkdownFileThatIsNotARecordFileComesBackByteForByte(t *testing.T) {
 	refusal := migrate(t, damaged, true)
 	named := false
 	for _, conflict := range refusal.Conflicts {
-		if conflict.Condition == NewlineConflictUnsupported && conflict.Detail == "header does not round-trip" {
+		if conflict.Condition == NewlineConflictUnsupported && conflict.Detail == "does not round-trip through the anchor reader" {
 			named = true
 		}
 	}
@@ -1128,7 +1129,7 @@ func TestEachShapeTheSweepReportsGetsASentenceTrueOfIt(t *testing.T) {
 			t.Errorf("%s is reported under %s, wanted %s: a sentence written for one shape is false of the other two", c.what, got.Key, c.key)
 		}
 	}
-	if got := reported[damaged].Detail; got != "header does not round-trip" {
+	if got := reported[damaged].Detail; got != "does not round-trip through the anchor reader" {
 		t.Errorf("the refused file's detail reads %q", got)
 	}
 	if got := reported[loose].Detail; !strings.HasPrefix(got, "0 line-ending") {
@@ -1220,5 +1221,169 @@ func TestALockedFileTheRunWouldNotHaveTouchedIsNotReportedBusy(t *testing.T) {
 	}
 	if busy[clean] {
 		t.Error("a clean file under a held lock was reported busy, and a second run has nothing to do with it")
+	}
+}
+
+// TestNormalisationIsTrueOfItsOwnAnswer is the first blocker code review pushed
+// this card back for, and it is the card's headline claim.
+//
+// The pass replaced the CRLF pair once, without overlapping, so in a run of
+// carriage returns it consumed the one adjacent to the line feed and left the
+// one in front of it sitting against the new line feed. CR CR LF came back as
+// CR LF. The writer therefore stored the exact thing this card exists to stop
+// it storing, through the ordinary comment verb and with no editor involved.
+//
+// The property to hold is not that some particular input works. It is that the
+// function's answer is one it would not change again, for every input, because
+// every claim of idempotence made of the repair rests on that.
+func TestNormalisationIsTrueOfItsOwnAnswer(t *testing.T) {
+	for _, c := range []struct{ in, want string }{
+		{"a\r\nb", "a\nb"},
+		{"a\r\r\nb", "a\nb"},
+		{"a\r\r\r\r\r\nb", "a\nb"},
+		{"\r\n", "\n"},
+		{"\r\r\n", "\n"},
+		// A carriage return that ends at no line feed is prose and survives,
+		// however many of them there are.
+		{"a\rb", "a\rb"},
+		{"a\r\rb", "a\r\rb"},
+		{"a\r", "a\r"},
+		{"\r", "\r"},
+		{"", ""},
+		{"a\nb", "a\nb"},
+		// A run that ends at a line feed goes whole, and a run that does not
+		// stays whole, in the same text.
+		{"a\r\rb\r\r\nc", "a\r\rb\nc"},
+	} {
+		got := NormalizeNewlines(c.in)
+		if got != c.want {
+			t.Errorf("NormalizeNewlines(%q) = %q, wanted %q", c.in, got, c.want)
+		}
+		if again := NormalizeNewlines(got); again != got {
+			t.Errorf("NormalizeNewlines(%q) = %q and answers %q on the second pass, so its own answer is not settled", c.in, got, again)
+		}
+		if strings.Contains(got, "\r\n") {
+			t.Errorf("NormalizeNewlines(%q) = %q, which still carries a pair", c.in, got)
+		}
+	}
+}
+
+// TestTheRepairIsAFixedPointOverEveryShape is the second blocker, at the level
+// the claim is made. Four places say a second run finds nothing: the
+// specification, newlineTransform's own doc comment, the catalogue context on
+// check.newlines-nothing, and the last clause of dinah-514/criteria/21. Each of
+// them is true only if a transform's output is a fixed point of that transform,
+// and it was not: a file carrying a run of three carriage returns took three
+// confirmed runs to clean, each reporting success.
+//
+// This asserts the property rather than the number of runs, over every branch
+// the transform has, because the number of runs is a symptom and the property
+// is the thing the four sentences claim.
+func TestTheRepairIsAFixedPointOverEveryShape(t *testing.T) {
+	cases := []struct{ name, file, text string }{
+		{"an anchor body carrying a run", CardAnchor, "---\ntitle: A card\ncolumn: b00000000001\nstate: ready\n---\none\r\r\rtwo\r\r\nthree\r\n"},
+		{"a frontmatter value carrying a run", CardAnchor, "---\ntitle: \"add-a\r\r\\nadd-b\"\ncolumn: b00000000001\nstate: ready\n---\nFraming.\n"},
+		{"a journal record carrying a run", JournalName, `{"ts":"2026-08-17T09:00:00Z","event":"blocked","actor":"alka","reason":"a\r\r\nb"}` + "\n"},
+		{"a journal separated by runs", JournalName, `{"ts":"2026-08-17T09:00:00Z","event":"created","actor":"alka"}` + "\r\r\n" + `{"ts":"2026-08-17T09:01:00Z","event":"moved","actor":"alka"}` + "\r\r\n"},
+		{"a note that is not a record file", "note.md", "A note.\r\r\nMore prose.\r\n"},
+		{"a body whose final byte is a bare carriage return", CommentAnchor, "---\nactor: alka\nts: \"2026-08-17T09:00:00Z\"\n---\ntext\r"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			once := transformNewlines(c.file, []byte(c.text))
+			if once.Condition != "" {
+				t.Fatalf("refused as %s (%s)", once.Condition, once.Detail)
+			}
+			twice := transformNewlines(c.file, once.Out)
+			if !bytes.Equal(once.Out, twice.Out) {
+				t.Errorf("the transform's answer is not settled:\n in    %q\n once  %q\n twice %q", c.text, once.Out, twice.Out)
+			}
+			if twice.Returns != 0 {
+				t.Errorf("a second pass over %q still removes %d, so the first pass did not finish", once.Out, twice.Returns)
+			}
+			if where := storedNewlineForm(string(once.Out), c.file); where != "" {
+				t.Errorf("the repaired form of %q is %q, which carries %s", c.text, once.Out, where)
+			}
+		})
+	}
+}
+
+// storedNewlineForm reports the first stored form of a line-ending carriage
+// return a repaired file still carries, and the empty string where it carries
+// none. It is the bench-side twin of the sweep's own reader in cmd/dinah.
+func storedNewlineForm(text, name string) string {
+	if strings.Contains(text, "\r\n") {
+		return "a CRLF pair"
+	}
+	if strings.Contains(text, "\r\\n") {
+		return "the split frontmatter form"
+	}
+	if filepath.Ext(name) != ".ndjson" {
+		return ""
+	}
+	for index, record := range strings.Split(text, "\n") {
+		if strings.TrimSpace(record) == "" {
+			continue
+		}
+		var decoded map[string]any
+		if err := json.Unmarshal([]byte(record), &decoded); err != nil {
+			continue
+		}
+		for member, value := range decoded {
+			if carried, ok := value.(string); ok && strings.Contains(carried, "\r\n") {
+				return "an encoded CRLF in record " + strconv.Itoa(index+1) + " at " + member
+			}
+		}
+	}
+	return ""
+}
+
+// TestAnAnchorDinahWroteIsNeverCalledDamaged is the second major, and the
+// fourth route into the sentence defect.
+//
+// A body whose final byte is a bare carriage return is something this format
+// keeps on purpose and something Dinah writes through its own comment verb.
+// ParseAnchor strips a trailing carriage return from the last line whether or
+// not a line feed follows it, so Render cannot put it back, and the gate,
+// comparing against NormalizeNewlines, read that as a file that does not parse.
+// The file bears a fixed anchor name, so it was refused as damaged, under a
+// detail blaming a header that was perfectly well formed, and the refusal
+// stopped every other file in the store from being repaired.
+//
+// The gate now compares against what the anchor reader itself yields, which is
+// the question it was always asking.
+func TestAnAnchorDinahWroteIsNeverCalledDamaged(t *testing.T) {
+	root := newlineFixture(t)
+	comment := filepath.Join(root, CardsDir, "c00000000001", CommentsDir, "m00000000001", CommentAnchor)
+	write(t, comment, "---\nactor: alka\nts: \"2026-08-17T09:00:00Z\"\n---\ntext\r")
+	// A dirty file elsewhere in the store, so the denial of repair to
+	// everything else is what fails if the refusal comes back.
+	elsewhere := filepath.Join(root, CardsDir, "c00000000002", CardAnchor)
+	write(t, elsewhere, dirtyCard)
+
+	report := migrate(t, root, true)
+	for _, conflict := range report.Conflicts {
+		t.Errorf("%s was refused as %s (%s), and Dinah wrote it through its own verb", conflict.Path, conflict.Condition, conflict.Detail)
+	}
+	if strings.Contains(readFile(t, elsewhere), "\r") {
+		t.Error("a file elsewhere in the store was not repaired, so one comment denied the repair to everything around it")
+	}
+	if got := readFile(t, comment); strings.Contains(got, "\r") {
+		t.Errorf("the comment still carries the trailing carriage return no reader of this format returns: %q", got)
+	}
+
+	// A file that really is damaged still refuses, so the fix has not turned
+	// the gate off.
+	damaged := newlineFixture(t)
+	write(t, filepath.Join(damaged, CardsDir, "c00000000002", CardAnchor), "---\n\nA card anchor somebody broke.\n\n---\n\nMore.\n")
+	refused := migrate(t, damaged, true)
+	named := false
+	for _, conflict := range refused.Conflicts {
+		if conflict.Condition == NewlineConflictUnsupported {
+			named = true
+		}
+	}
+	if !named {
+		t.Errorf("a genuinely damaged anchor was not refused: %+v", refused.Conflicts)
 	}
 }

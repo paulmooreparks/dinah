@@ -36,15 +36,60 @@ func ParseStamp(s string) time.Time {
 // format writes text without one, so it is stripped on read.
 const byteOrderMark = "\ufeff"
 
-// NormalizeNewlines answers the text with every CRLF pair reduced to LF, which
-// is the transformation SplitLines already performs on read. A carriage return
-// not followed by a line feed is left alone: it is not a line ending under this
-// format, and stripping it would destroy a character the prose meant to carry.
+// NormalizeNewlines answers the text with every run of carriage returns that
+// ends at a line feed reduced to that line feed. A carriage return not followed
+// by a line feed is left alone: it is not a line ending under this format, and
+// stripping it would destroy a character the prose meant to carry.
+//
+// The unit is the whole run rather than one pair, and that is the difference
+// between this function being true of its own answer and not. A single
+// non-overlapping replacement of the pair consumes the carriage return adjacent
+// to the line feed and leaves the one in front of it sitting against the new
+// line feed, forming a fresh pair the pass never revisits: CR CR LF came back
+// as CR LF, so the writer stored the very thing this normalisation exists to
+// stop it storing, and the repair took one run per carriage return to clean a
+// file while reporting each run as a success.
+//
+// Reducing the run instead is a fixed point by construction. Its output carries
+// no carriage return immediately before a line feed, so running it again can
+// find nothing to do, and every claim of idempotence made of the repair rests
+// on that rather than on a promise.
+//
+// A run of two or more is prose no reader of this format could return intact
+// anyway. SplitLines strips one trailing carriage return per line, so CR CR LF
+// already reads back as a line carrying one carriage return, and rendering that
+// line again puts a fresh pair on disk. The only way to store such a run and
+// read it back unchanged is for the format to stop treating a trailing carriage
+// return as part of the line ending, which is a different contract from this
+// one.
 func NormalizeNewlines(text string) string {
 	if !strings.Contains(text, crlf) {
 		return text
 	}
-	return strings.ReplaceAll(text, crlf, "\n")
+	var out strings.Builder
+	out.Grow(len(text))
+	for i := 0; i < len(text); i++ {
+		if text[i] != '\r' {
+			out.WriteByte(text[i])
+			continue
+		}
+		run := i
+		for run < len(text) && text[run] == '\r' {
+			run++
+		}
+		if run < len(text) && text[run] == '\n' {
+			// The whole run is the line ending, and the line feed is what it
+			// reduces to.
+			out.WriteByte('\n')
+			i = run
+			continue
+		}
+		// Every carriage return in the run is prose, because none of them ends
+		// at a line feed.
+		out.WriteString(text[i:run])
+		i = run - 1
+	}
+	return out.String()
 }
 
 // crlf is the pair NormalizeNewlines reduces, named rather than spelled at each

@@ -1527,12 +1527,26 @@ corrupt a value: it splits the header and invents a key. Normalising would not
 help, since the line feed a CRLF becomes still splits it, so such a document is
 refused `dinah.malformed-member-name`.
 
-Normalisation is CRLF to LF and nothing else. A carriage return not followed by
-a line feed is left exactly where it is, on read, on write and by the repair,
-because the reader rule above strips only a TRAILING carriage return per line,
-so an interior one survives a read and comes back to the caller. It is a
-character the prose carries rather than a line ending, and deleting it would
-lose content.
+Normalisation reduces a run of one or more carriage returns that ends at a line
+feed to that line feed, and does nothing else. A carriage return that ends at no
+line feed is left exactly where it is, on read, on write and by the repair,
+because it is a character the prose carries rather than a line ending, and
+deleting it would lose content.
+
+The unit is the whole run rather than one pair, and the difference is whether
+the rule is true of its own answer. Reducing one pair at a time consumes the
+carriage return next to the line feed and leaves the one in front of it sitting
+against the new line feed, which is a fresh pair: CR CR LF comes back as CR LF,
+so a writer following that rule stores what this section forbids and a repair
+following it needs one pass per carriage return. Reducing the run is a fixed
+point, and every claim of idempotence below rests on that rather than on a
+promise.
+
+Three readers and writers in the tool compose with this rule and each had to
+take the whole run rather than one: the normalisation itself, the anchor branch
+of the repair, whose SplitLines strips one trailing carriage return per line and
+can therefore hand a fresh pair back to the renderer, and the repair's journal
+branch, where a record's terminator is a run and not a pair.
 
 The price of that keep is that "the store carries no `0x0D`" is not the
 invariant. The invariant is that the store carries no carriage return standing
@@ -1555,7 +1569,18 @@ matching: an anchor goes through the anchor reader and is re-set through
 `quote`, a journal record's every string literal is decoded and re-encoded only
 where its value changed, and everything else is normalised whole. A file is a
 destination exactly when its own transform changes it, so detection and repair
-cannot disagree and a second run rewrites nothing.
+cannot disagree, and because every transform answers bytes it would not change
+again, one confirmed run finishes and a second rewrites nothing.
+
+A file the repair will not decide is refused by name and left exactly as it is,
+rather than being guessed at. That is a `.md` bearing one of the anchor names
+this format fixes which does not round-trip through the anchor reader even after
+normalising, or a frontmatter key whose shape the repair cannot re-render. The
+question is asked of the normalised text rather than of the bytes, because
+normalising is the one thing the repair may do to any file, so asking afterwards
+asks it of the file the repair would produce; asking it of the raw bytes refused
+files that were perfectly repairable and stopped the repair of every other file
+in the store.
 
 Lowercase-only is load-bearing for a second reason: identifiers and anchor
 names are directory and file names, and a workbench travels between

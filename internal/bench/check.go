@@ -199,8 +199,9 @@ const (
 	FindingLooseCarriageReturn = "check.loose-carriage-return"
 	// FindingNewlineRepairUnsupported names a workbench text file the newline
 	// repair refuses to decide: a file bearing one of the anchor names the
-	// format fixes whose header does not round-trip, or a frontmatter key
-	// whose shape the repair cannot re-render. The detail carries which.
+	// format fixes that does not round-trip through the anchor reader, or a
+	// frontmatter key whose shape the repair cannot re-render. The detail
+	// carries which.
 	//
 	// It is its own key rather than the one above because such a file need
 	// carry no carriage return at all, and reporting one as storing a line

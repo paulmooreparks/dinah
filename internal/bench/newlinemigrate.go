@@ -29,8 +29,17 @@ const (
 type NewlineRewrite struct {
 	Path    string `json:"path"`    // absolute path to the file
 	Returns int    `json:"returns"` // line-ending carriage returns the transform removed
-	Loose   int    `json:"loose"`   // carriage returns left alone, which are not line endings
-	Written bool   `json:"written"` // false on a preview, and on a file the run did not reach
+	// Loose counts the carriage returns the transform left alone, which are
+	// the ones that are not line endings.
+	//
+	// In a journal it spans two stored forms under one number, and that is
+	// deliberate rather than an oversight. A carriage return inside a record is
+	// stored as an escape and one outside every record is a raw byte, so the
+	// count is of carriage returns the file carries rather than of bytes it
+	// carries. Splitting it would need a third number, and the detail the check
+	// finding renders is fixed at two by dinah-514/criteria/5.
+	Loose   int  `json:"loose"`
+	Written bool `json:"written"` // false on a preview, and on a file the run did not reach
 }
 
 // NewlineConflict is one destination the plan pass refused, with the condition
@@ -75,6 +84,17 @@ func (m *NewlineMigration) Clean() bool {
 // destination, so detection and repair cannot disagree about which files are
 // dirty and idempotence is a property of the definition rather than a claim
 // about it.
+//
+// That property is only as true as the transform is, and it was not true once.
+// A file is a destination exactly when the transform changes it, so a transform
+// whose own output it would change again is a file that selects itself for
+// repair after being repaired, and a run of carriage returns took one confirmed
+// run each to clear while every run reported success. Three separate paths
+// carried that flaw, each stripping a carriage return one at a time:
+// NormalizeNewlines itself, the anchor branch through SplitLines, and the
+// journal's record terminator. All three take the whole run now, and
+// TestTheRepairIsAFixedPointOverEveryShape holds each branch to answering the
+// same bytes twice.
 type newlineTransform struct {
 	Out     []byte
 	Returns int // line-ending carriage returns removed
@@ -123,7 +143,9 @@ type newlineTransform struct {
 // lock is held for milliseconds, a run takes one per file across thousands of
 // files and several sessions work a busy workbench at once, so a run that
 // refused over a transient lock would refuse most of the time. The repair is
-// per file and idempotent, which is what makes skipping safe.
+// per file and idempotent, which is what makes skipping safe. Idempotent means
+// one confirmed run finishes: the transform's answer is a fixed point of the
+// transform, so the second run has nothing to do rather than less to do.
 //
 // The run as a whole is not atomic across files and this does not pretend
 // otherwise. WriteText renames a whole temporary into place, so a file that
@@ -422,15 +444,53 @@ func transformNewlines(path string, data []byte) newlineTransform {
 	if filepath.Ext(path) != ".md" {
 		return transformWholeFile(data)
 	}
-	text := string(data)
+	// The gate is asked of the normalised text rather than of the bytes, and
+	// the file is parsed from the normalised text too. Normalising is the one
+	// thing this repair is allowed to do to any file, and it can only reduce a
+	// run of carriage returns that ends at a line feed, so asking the question
+	// afterwards asks it of the file the repair would produce.
+	//
+	// Asking it of the raw bytes refused files that were perfectly repairable.
+	// Frontmatter.Render writes a fence as three hyphens and a line feed, so an
+	// anchor whose fence lines carry a doubled carriage return could not
+	// round-trip, and a file bearing a fixed anchor name was refused as damaged
+	// and stopped the repair of every other file in the store. Normalised
+	// first, the same file parses cleanly and is repaired.
+	text := NormalizeNewlines(string(data))
 	fm, body := ParseAnchor(text)
-	if fm.Render(body) != NormalizeNewlines(text) {
+	if fm.Render(body) != anchorReaderForm(text) {
 		if isFixedAnchorName(filepath.Base(path)) {
-			return newlineTransform{Out: data, Condition: NewlineConflictUnsupported, Detail: "header does not round-trip"}
+			return newlineTransform{Out: data, Condition: NewlineConflictUnsupported, Detail: "does not round-trip through the anchor reader"}
 		}
 		return transformWholeFile(data)
 	}
 	return transformAnchor(fm, body, data)
+}
+
+// anchorReaderForm answers what this format's own anchor reader yields for a
+// file's bytes, which is the form the round-trip gate compares a re-render
+// against.
+//
+// It is SplitLines joined by line feeds, because SplitLines is the reader the
+// format defines and ParseAnchor reads every line through it. That is one byte
+// more forgiving than NormalizeNewlines, and the difference is the whole reason
+// this function exists: SplitLines strips a trailing carriage return from the
+// last line whether or not a line feed follows it, so a body whose final byte
+// is a bare carriage return reads back without it and cannot be rendered back
+// to its own bytes.
+//
+// Comparing against NormalizeNewlines instead failed such a file, and Dinah
+// writes such a file itself through the ordinary comment verb, since a lone
+// carriage return is a byte this format keeps on purpose. The file then bore a
+// fixed anchor name, so it was refused as damaged, under a detail blaming a
+// header that was perfectly well formed, and the refusal stopped every other
+// file in the store from being repaired. The tool called its own output damaged
+// and denied the repair to everything around it.
+//
+// The gate is about whether the parse is faithful, so the form it compares
+// against has to be what the parse would see, and that is this.
+func anchorReaderForm(text string) string {
+	return strings.Join(SplitLines(text), "\n")
 }
 
 // isFixedAnchorName reports whether a file name is one the format fixes for an
@@ -514,7 +574,14 @@ func transformAnchor(fm *Frontmatter, body string, data []byte) newlineTransform
 		}
 		return newlineTransform{Out: data, Condition: NewlineConflictUnsupported, Detail: key}
 	}
-	out := []byte(fm.Render(body))
+	// The render is normalised rather than trusted, because the reader this
+	// branch composes with strips a carriage return one at a time. SplitLines
+	// takes one trailing carriage return off each line, which is the tolerance
+	// the format documents, so a line ending in a run of them comes back
+	// carrying the rest and the join puts a fresh pair on disk. Reducing the
+	// whole run afterwards is what makes this branch's answer one it would not
+	// change again, which is what every claim of idempotence here rests on.
+	out := []byte(NormalizeNewlines(fm.Render(body)))
 	return newlineTransform{
 		Out:     out,
 		Returns: bytes.Count(data, []byte("\r")) - bytes.Count(out, []byte("\r")),
@@ -635,8 +702,13 @@ func splitRecordTerminator(record string) (string, string) {
 		return record, ""
 	}
 	content := strings.TrimSuffix(record, "\n")
-	if strings.HasSuffix(content, "\r") {
-		return strings.TrimSuffix(content, "\r"), "\r\n"
+	// The whole run of carriage returns belongs to the terminator rather than
+	// one of them. Taking one left the rest sitting against the line feed, so
+	// the repaired file carried a pair the run had not finished removing and a
+	// second run found more to do.
+	trimmed := strings.TrimRight(content, "\r")
+	if len(trimmed) != len(content) {
+		return trimmed, content[len(trimmed):] + "\n"
 	}
 	return content, "\n"
 }

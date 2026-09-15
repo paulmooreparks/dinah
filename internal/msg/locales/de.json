@@ -5194,7 +5194,7 @@
     },
     "check.newlines-nothing": {
       "text": "Nichts neu zu schreiben.",
-      "context": "The line the newline repair prints when no examined file stores a carriage return standing for a line ending. A second run of a repair that succeeded prints this, because the repair is idempotent by construction: a file is a destination exactly when its own transform changes it.",
+      "context": "The line the newline repair prints when no examined file stores a carriage return standing for a line ending. A second run of a repair that succeeded prints this, because the repair is idempotent by construction: a file is a destination exactly when its own transform changes it, and every transform answers bytes it would not change again.",
       "source": "4d285e137fbfff"
     },
     "check.newlines-refused.one": {
@@ -5234,7 +5234,7 @@
     },
     "check.newline-conflict.unsupported": {
       "text": "{path} trägt etwas, worüber diese Reparatur nicht entscheidet: {detail}.",
-      "context": "One row of the newline repair's refusal report: a file whose transform refuses it. {path} carries the file and {detail} carries the frontmatter key, the record number, or the words saying that a header does not round-trip. Deciding what a damaged header or a damaged record should become is a different piece of work from deciding what a line ending should be.",
+      "context": "One row of the newline repair's refusal report: a file whose transform refuses it. {path} carries the file and {detail} carries the frontmatter key, the record number, or the words saying that the file does not round-trip through the anchor reader. Deciding what a damaged file or a damaged record should become is a different piece of work from deciding what a line ending should be.",
       "source": "4f3ac26f10d27466"
     },
     "check.newline-conflict.locked": {

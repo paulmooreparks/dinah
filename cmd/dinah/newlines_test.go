@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -157,42 +158,35 @@ func itoa(n int) string {
 	return digits
 }
 
-// TestTheInvariantHoldsAcrossTheWholeVerbSurface drives a CRLF value into every
-// free-text slot the specification's counting rule produces, then walks every
-// file of the workbench outside a payload directory and asserts that none
-// carries any stored form of a line-ending carriage return.
-//
-// The slot list is derived from the counting rule rather than from a review
-// comment, and the test states how many slots it drove and how many files it
-// walked, failing if either is zero, on this workbench's rule that a sweep
-// asserts the size of the set it swept.
-//
-// The two exempt sites are driven too, with the opposite assertion, so that the
-// exemption is armed rather than assumed.
-// newlineSite is one place the counting rule names, and where it is driven.
+// newlineSite is one place the counting rule names.
 type newlineSite struct {
 	// Name is the site, spelled as the counting rule spells it.
 	Name string
-	// Elsewhere names the test that drives the site, for the sites this sweep
-	// cannot drive from one workbench. It is empty for a site driven here.
-	Elsewhere string
+	// WindowsRefuses marks the one site whose slot is a name the operating
+	// system itself will not accept on Windows, so the sweep records the
+	// platform's refusal there instead of a drive.
+	WindowsRefuses bool
 }
 
 // newlineSites is the counting rule's answer written down once: the
 // twenty-four places a byte sequence originating outside the Dinah process is
 // stored in a workbench, or is served as a workbench's own text.
 //
-// It exists because the accounting it replaces was two hand-maintained numbers
-// in one function, a constant compared against a run of bare increments beside
-// it, and that pair catches only a drive added or removed without the constant
-// moving. Naming each site instead means a site added to the rule is added
-// here, in one place, and a site named twice or never driven fails by name
-// rather than by arithmetic.
+// Every site is driven by the one case below, and the accounting is a set of
+// names that case records as it drives them. There is no delegation to another
+// test, and that is deliberate rather than tidy. The first version of this
+// table discharged five sites with a sentence naming the test that covered
+// them, and two of those five sentences were false: one named a test that
+// passed no --operator at all, and one named a test whose init --from never
+// reaches the function the site is about. Prose in a table is not an assertion,
+// and a site discharged by prose is a site nothing drives. Anything this case
+// cannot drive is either marked as the platform refusing it or is not in the
+// table.
 //
-// What it still cannot do is read the specification. The counting rule is
-// prose, so this table is the rule's transcription rather than the rule, and a
-// twenty-fifth site nobody transcribes reddens nothing. That is the honest
-// limit of it, and the handoff says so rather than claiming more.
+// What the table still cannot do is read the specification. The counting rule
+// is prose there, so this list is its transcription and a twenty-fifth site
+// nobody transcribes reddens nothing. Two independent walks of the request
+// surface have now produced twenty-four, which is the only real check on it.
 var newlineSites = []newlineSite{
 	// Group A, the sixteen verb.Request fields that store caller prose. One
 	// field is one site whatever filled it, because the CLI argument, the
@@ -215,19 +209,39 @@ var newlineSites = []newlineSite{
 	{Name: "Request.Model"},
 	{Name: "Request.Server"},
 	// Group B, text reaching workbench files without passing a request.
-	{Name: "B1 dinah edit", Elsewhere: "TestThreeReadersOfOneFieldAgree, which plants an anchor the way an external editor would and asserts that dinah check reports it, since no write-path fix can reach this one"},
-	{Name: "B2 a definition document", Elsewhere: "TestADefinitionDocumentReachesItsAnchorsAsLF"},
-	{Name: "B3 the verbatim anchor copy an import makes", Elsewhere: "TestADefinitionDocumentReachesItsAnchorsAsLF, whose init --from walks every anchor the import wrote"},
+	{Name: "B1 dinah edit"},
+	{Name: "B2 a definition document"},
+	{Name: "B3 the verbatim anchor copy dinah extract makes"},
 	{Name: "B4 an attachment's payload bytes"},
 	{Name: "B5 an attachment's stored filename on attach"},
-	{Name: "B6 dinah init --operator", Elsewhere: "TestTheWorkbenchTitleTakenFromItsOwnDirectoryNameIsNormalised, whose init drives the operator name beside the title"},
-	{Name: "B7 the workbench title a bare init takes from its own directory name", Elsewhere: "TestTheWorkbenchTitleTakenFromItsOwnDirectoryNameIsNormalised, which runs where the platform admits such a directory name"},
+	{Name: "B6 dinah init --operator"},
+	{Name: "B7 the workbench title a bare init takes from its own directory name", WindowsRefuses: true},
 	// Group C, served but never stored.
-	{Name: "C1 the user-global instruction layer", Elsewhere: "TestTheUserGlobalLayerServesLFAndItsRevisionMatches"},
+	{Name: "C1 the user-global instruction layer"},
 }
 
+// dirtyValues are what every site is driven with. Each carries a line ending
+// the store must not keep, and the doubled one is there because a single
+// non-overlapping replacement of the pair left a fresh pair behind and the
+// writer stored it.
+func dirtyValues(stem string) []string {
+	return []string{stem + "-a" + crlf + stem + "-b", stem + "-c" + crlf + crlf + stem + "-d"}
+}
+
+// TestTheInvariantHoldsAcrossTheWholeVerbSurface drives a value carrying a line
+// ending into every site the counting rule names, and asserts after each drive
+// that no file of the store carries any stored form of one.
+//
+// Every value carries a doubled carriage return as well as a single one,
+// because a pass that reduced one pair at a time left a fresh pair behind and
+// the writer stored it.
+//
+// The two exempt sites are driven too, with the opposite assertion, so that the
+// exemption is armed rather than assumed, and the sweep states how many sites
+// it drove and how many files it walked, failing if either is zero.
 func TestTheInvariantHoldsAcrossTheWholeVerbSurface(t *testing.T) {
 	root := newBench(t)
+	stores := []string{root}
 	drove := map[string]bool{}
 	mark := func(names ...string) {
 		t.Helper()
@@ -238,76 +252,199 @@ func TestTheInvariantHoldsAcrossTheWholeVerbSurface(t *testing.T) {
 			drove[name] = true
 		}
 	}
-	// drive runs one invocation and records the sites it drove. A verb that
-	// carries two dirty values drives two sites in one call, which is why this
-	// takes a list rather than a name.
+	// Each drive is checked where it lands rather than only at the end of the
+	// case. A later verb reads an anchor through ParseAnchor and renders it
+	// back, and that read strips a trailing carriage return per line, so one
+	// verb's damage is cleaned by the next verb that touches the same file. A
+	// sweep that walked the store only once at the end would call such a site
+	// covered while the site stored a carriage return at the moment it was
+	// driven. Value was exactly that: set wrote a dirty body and the block
+	// that followed it rewrote the anchor clean.
 	drive := func(sites []string, argv ...string) {
 		t.Helper()
 		mark(sites...)
 		if got := runQuiet(t, root, argv...); got.code != 0 {
 			t.Fatalf("%v: %d %s", sites, got.code, got.errw)
 		}
+		for path, data := range walkStore(t, root) {
+			if where := storedLineEnding(path, data); where != "" {
+				t.Errorf("driving %v left %s carrying %s", sites, path, where)
+			}
+		}
 	}
-	// setup runs an invocation that drives no site, so nothing it carries is
-	// dirty and nothing is recorded for it.
 	setup := func(argv ...string) {
 		t.Helper()
 		if got := runQuiet(t, root, argv...); got.code != 0 {
 			t.Fatalf("setup %v: %d %s", argv, got.code, got.errw)
 		}
 	}
-	dirty := func(parts ...string) string { return strings.Join(parts, crlf) }
+	// Every value carries a doubled carriage return as well as a single one,
+	// so a pass that reduces only one pair per run stores the other.
+	dirty := func(stem string) string { return strings.Join(dirtyValues(stem), crlf+crlf) }
 
-	drive([]string{"Request.Title"}, "add", dirty("add-a", "add-b"))
+	drive([]string{"Request.Title"}, "add", dirty("add"))
 	setup("move", "fx-1", "doing")
-	drive([]string{"Request.Value"}, "set", "fx-1", "body", dirty("body-a", "body-b"))
-	drive([]string{"Request.Text"}, "comment", "fx-1", dirty("comment-a", "comment-b"))
-	drive([]string{"Request.Owner"}, "file", "fx-1", "open_question", "an open question", "--owner", dirty("own-a", "own-b"))
-	drive([]string{"Request.Note"}, "resolve", "fx-1/questions/1", dirty("note-a", "note-b"))
+	drive([]string{"Request.Value"}, "set", "fx-1", "body", dirty("body"))
+	drive([]string{"Request.Text"}, "comment", "fx-1", dirty("comment"))
+	drive([]string{"Request.Owner"}, "file", "fx-1", "open_question", "an open question", "--owner", dirty("own"))
+	drive([]string{"Request.Note"}, "resolve", "fx-1/questions/1", dirty("note"))
 	setup("file", "fx-1", "acceptance_criterion", "a criterion")
-	drive([]string{"Request.Scheme", "Request.CiteTarget"}, "cite", "fx-1/criteria/1", dirty("sch-a", "sch-b"), dirty("tgt-a", "tgt-b"))
-	drive([]string{"Request.Reason", "Request.Kind"}, "block", "fx-1", dirty("reason-a", "reason-b"), "--kind", dirty("kind-a", "kind-b"))
-	drive([]string{"Request.Column"}, "column", "new", dirty("col-a", "col-b"))
-	drive([]string{"Request.Workstream"}, "workstream", "new", dirty("ws-a", "ws-b"))
-	drive([]string{"Request.Actor"}, "comment", "fx-1", "a comment under a dirty actor", "--actor", dirty("act-a", "act-b"))
+	drive([]string{"Request.Scheme", "Request.CiteTarget"}, "cite", "fx-1/criteria/1", dirty("sch"), dirty("tgt"))
+	drive([]string{"Request.Reason", "Request.Kind"}, "block", "fx-1", dirty("reason"), "--kind", dirty("kind"))
+	drive([]string{"Request.Column"}, "column", "new", dirty("col"))
+	drive([]string{"Request.Workstream"}, "workstream", "new", dirty("ws"))
+	drive([]string{"Request.Actor"}, "comment", "fx-1", "a comment under a dirty actor", "--actor", dirty("act"))
 
 	// Provider, Model and Server arrive from the environment rather than from
 	// an argument, and land in the actor block of every journal line.
-	t.Setenv("DINAH_PROVIDER", dirty("prov-a", "prov-b"))
-	t.Setenv("DINAH_MODEL", dirty("mod-a", "mod-b"))
-	t.Setenv("DINAH_SERVER", dirty("srv-a", "srv-b"))
+	t.Setenv("DINAH_PROVIDER", dirty("prov"))
+	t.Setenv("DINAH_MODEL", dirty("mod"))
+	t.Setenv("DINAH_SERVER", dirty("srv"))
 	drive([]string{"Request.Provider", "Request.Model", "Request.Server"}, "comment", "fx-1", "a comment under a dirty agent")
 	t.Setenv("DINAH_PROVIDER", "")
 	t.Setenv("DINAH_MODEL", "")
 	t.Setenv("DINAH_SERVER", "")
 
+	payload := "payload-a" + crlf + "payload-b" + crlf + crlf + "payload-c" + crlf
 	source := filepath.Join(t.TempDir(), "note.md")
-	if err := os.WriteFile(source, []byte("payload-a"+crlf+"payload-b"+crlf), 0o644); err != nil {
+	if err := os.WriteFile(source, []byte(payload), 0o644); err != nil {
 		t.Fatalf("write payload: %v", err)
 	}
 	// The attach carries the description, which is normalised, and brings the
-	// two exempt sites with it, which the assertions at the end of this case
-	// hold to the opposite rule so the exemption is armed rather than assumed.
+	// two exempt sites with it, which the assertions below hold to the opposite
+	// rule so the exemption is armed rather than assumed.
 	drive([]string{"Request.Description", "B4 an attachment's payload bytes", "B5 an attachment's stored filename on attach"},
-		"attach", "fx-1", source, "--description", dirty("desc-a", "desc-b"))
+		"attach", "fx-1", source, "--description", dirty("desc"))
 
 	// The stored filename is the payload file's own name on disk, and a
 	// filename carrying a line feed is legal on Linux and on macOS and refused
-	// by Windows. This drives Value again rather than a site of its own,
-	// because one Request field is one site whatever filled it.
-	if runtime.GOOS == "windows" {
-		t.Log("the rename is skipped: Windows refuses a filename carrying a line feed, and the anchor's filename key has to equal the file's own name on disk")
-	} else if got := runQuiet(t, root, "rename", "fx-1/attachments/1", dirty("ren-a", "ren-b")); got.code != 0 {
-		t.Fatalf("rename: %d %s", got.code, got.errw)
+	// by Windows. This is a second route into Value rather than a site of its
+	// own, because one Request field is one site whatever filled it.
+	if runtime.GOOS != "windows" {
+		if got := runQuiet(t, root, "rename", "fx-1/attachments/1", dirty("ren")); got.code != 0 {
+			t.Fatalf("rename: %d %s", got.code, got.errw)
+		}
 	}
 
-	// Every site the table names is accounted for exactly once, either driven
-	// here or driven by the test named beside it.
+	// B1, an external editor writing an anchor, which no write-path change can
+	// reach. It is driven by planting what such an editor would leave and
+	// asserting that the check reports it and the repair clears it, which is
+	// the whole of this card's answer to the site.
+	editor := newBench(t)
+	stores = append(stores, editor)
+	mark("B1 dinah edit")
+	editorAnchor := filepath.Join(storeRoot(t, editor), bench.WorkbenchAnchor)
+	planted, err := os.ReadFile(editorAnchor)
+	if err != nil {
+		t.Fatalf("read the workbench anchor: %v", err)
+	}
+	if err := os.WriteFile(editorAnchor, []byte(strings.ReplaceAll(string(planted), "\n", crlf)), 0o644); err != nil {
+		t.Fatalf("plant an editor's bytes: %v", err)
+	}
+	if got := runCLI(t, editor, "check"); !strings.Contains(got.out, "carriage return") {
+		t.Errorf("the check does not report what an external editor wrote:\n%s", got.out)
+	}
+	if got := runCLI(t, editor, "check", "--migrate-newlines", "--yes"); got.code != 0 {
+		t.Errorf("the repair of an editor's bytes exited %d:\n%s", got.code, got.out)
+	}
+
+	// B2, a definition document, and B6, the operator a bare init records,
+	// which is not a Request field at all. One init drives both.
+	imported := filepath.Join(t.TempDir(), "imported")
+	if err := os.MkdirAll(imported, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	document := filepath.Join(t.TempDir(), "definition.json")
+	body := `{"profile":"dinah-core/0.7","title":"Imported","slug":"im","instructions":"stand-a\r\nstand-b\r\r\nstand-c","columns":[{"id":"b00000000001","title":"Only","kind":"work","slug":"only","instructions":"inst-a\r\r\ninst-b"}]}`
+	if err := os.WriteFile(document, []byte(body), 0o644); err != nil {
+		t.Fatalf("write the definition: %v", err)
+	}
+	mark("B2 a definition document", "B6 dinah init --operator")
+	if got := runQuiet(t, imported, "init", "--from", document, "--operator", dirty("op")); got.code != 0 {
+		t.Fatalf("init --from: %d %s", got.code, got.errw)
+	}
+	stores = append(stores, imported)
+
+	// B3, the verbatim anchor copy dinah extract makes, which reads each
+	// anchor with ReadText and writes it with WriteText. It is driven against
+	// a store whose column anchor an editor has dirtied, so the copy has
+	// something to normalise.
+	donor := newBench(t)
+	stores = append(stores, donor)
+	var donorColumn string
+	filepath.Walk(filepath.Join(storeRoot(t, donor), bench.ColumnsDir), func(path string, info os.FileInfo, err error) error {
+		if err == nil && !info.IsDir() && filepath.Base(path) == bench.ColumnAnchor {
+			donorColumn = path
+		}
+		return nil
+	})
+	if donorColumn == "" {
+		t.Fatal("the donor store carries no column anchor")
+	}
+	donorBytes, err := os.ReadFile(donorColumn)
+	if err != nil {
+		t.Fatalf("read the donor column: %v", err)
+	}
+	if err := os.WriteFile(donorColumn, []byte(strings.ReplaceAll(string(donorBytes), "\n", crlf)), 0o644); err != nil {
+		t.Fatalf("plant: %v", err)
+	}
+	extracted := filepath.Join(t.TempDir(), "extracted")
+	mark("B3 the verbatim anchor copy dinah extract makes")
+	if got := runQuiet(t, donor, "extract", extracted); got.code != 0 {
+		t.Fatalf("extract: %d %s", got.code, got.errw)
+	}
+	for path, data := range walkStore(t, extracted) {
+		if where := storedLineEnding(path, data); where != "" {
+			t.Errorf("the extracted copy of %s carries %s", path, where)
+		}
+	}
+	// The donor is repaired so the walk below reads a store this card's own
+	// write path produced rather than the editor's plant.
+	if got := runCLI(t, donor, "check", "--migrate-newlines", "--yes"); got.code != 0 {
+		t.Errorf("repairing the donor exited %d:\n%s", got.code, got.out)
+	}
+
+	// B7, the workbench title a bare init takes from the directory it runs in.
+	if runtime.GOOS == "windows" {
+		mark("B7 the workbench title a bare init takes from its own directory name")
+		t.Log("B7 records the platform's refusal rather than a drive: Windows will not accept a directory name carrying a line ending, and Linux and macOS do")
+	} else {
+		named := filepath.Join(t.TempDir(), "wb-a"+crlf+"wb-b")
+		if err := os.MkdirAll(named, 0o755); err != nil {
+			t.Fatalf("%s refuses a directory name carrying a line ending, which the counting rule says it accepts: %v", runtime.GOOS, err)
+		}
+		mark("B7 the workbench title a bare init takes from its own directory name")
+		if got := runQuiet(t, named, "init", "--slug", "nm"); got.code != 0 {
+			t.Fatalf("bare init: %d %s", got.code, got.errw)
+		}
+		stores = append(stores, named)
+	}
+
+	// C1, the user-global instruction layer, which is normalised on read
+	// rather than on write and is served rather than stored.
+	mark("C1 the user-global instruction layer")
+	home := t.TempDir()
+	base := bench.UserBase(home)
+	if err := os.MkdirAll(base, 0o755); err != nil {
+		t.Fatalf("mkdir the user base: %v", err)
+	}
+	prose := "one\ntwo\nthree\n"
+	// The middle line ends with a doubled carriage return, so a pass that
+	// reduces one pair at a time serves a carriage return the layer's own
+	// revision would then differ over.
+	if err := os.WriteFile(filepath.Join(base, bench.InstructionsName), []byte("one"+crlf+"two\r"+crlf+"three"+crlf), 0o644); err != nil {
+		t.Fatalf("write the user-global instructions: %v", err)
+	}
+	if served := bench.GlobalInstructions(home); strings.Contains(served, "\r") {
+		t.Errorf("the user-global layer serves %q", served)
+	} else if bench.TextRevision(served) != bench.TextRevision(prose) {
+		t.Errorf("the layer's revision is %s and the same prose in LF is %s", bench.TextRevision(served), bench.TextRevision(prose))
+	}
+
+	// Every site the table names is driven exactly once, and nothing is driven
+	// that the table does not name.
 	for _, site := range newlineSites {
-		switch {
-		case site.Elsewhere != "" && drove[site.Name]:
-			t.Errorf("%s is driven here and also delegated to %s", site.Name, site.Elsewhere)
-		case site.Elsewhere == "" && !drove[site.Name]:
+		if !drove[site.Name] {
 			t.Errorf("%s is named by the counting rule and driven by nothing", site.Name)
 		}
 		delete(drove, site.Name)
@@ -318,18 +455,22 @@ func TestTheInvariantHoldsAcrossTheWholeVerbSurface(t *testing.T) {
 	if want := 24; len(newlineSites) != want {
 		t.Errorf("the table carries %d sites and the counting rule produces %d", len(newlineSites), want)
 	}
-	t.Logf("the counting rule names %d sites, and this case drove the ones it can from one workbench", len(newlineSites))
+	t.Logf("the counting rule names %d sites and this case drove all of them across %d stores", len(newlineSites), len(stores))
 
-	files := walkStore(t, root)
-	if len(files) == 0 {
-		t.Fatal("the sweep walked no file")
-	}
-	t.Logf("the sweep walked %d files", len(files))
-	for path, data := range files {
-		if where := storedLineEnding(path, data); where != "" {
-			t.Errorf("%s carries %s", path, where)
+	walked := 0
+	for _, store := range stores {
+		files := walkStore(t, store)
+		walked += len(files)
+		for path, data := range files {
+			if where := storedLineEnding(path, data); where != "" {
+				t.Errorf("%s carries %s", path, where)
+			}
 		}
 	}
+	if walked == 0 {
+		t.Fatal("the sweep walked no file")
+	}
+	t.Logf("the sweep walked %d files", walked)
 
 	// The exemption, armed rather than assumed: the payload's bytes are the
 	// source file's bytes, exactly.
@@ -343,12 +484,12 @@ func TestTheInvariantHoldsAcrossTheWholeVerbSurface(t *testing.T) {
 	if stored == "" {
 		t.Fatal("no payload file was found, so the exemption is not armed")
 	}
-	data, err := os.ReadFile(stored)
+	storedBytes, err := os.ReadFile(stored)
 	if err != nil {
 		t.Fatalf("read payload: %v", err)
 	}
-	if string(data) != "payload-a"+crlf+"payload-b"+crlf {
-		t.Errorf("the payload reads %q and was written with CRLF endings", data)
+	if string(storedBytes) != payload {
+		t.Errorf("the payload reads %q and was written as %q", storedBytes, payload)
 	}
 }
 
@@ -824,9 +965,15 @@ func TestTheFormatDocumentAndTheHelpTextSayWhatTheToolNowDoes(t *testing.T) {
 		"`ReadDefinition` normalises an interchange document at its single read boundary",
 		// The member name, which is the one place the answer is a refusal.
 		"refused `dinah.malformed-member-name`",
-		// That a lone carriage return survives.
-		"Normalisation is CRLF to LF and nothing else. A carriage return not followed by a line feed is left exactly where it is",
-		"the reader rule above strips only a TRAILING carriage return per line",
+		// That a carriage return which is not a line ending survives.
+		"A carriage return that ends at no line feed is left exactly where it is, on read, on write and by the repair",
+		// That the unit is the run rather than the pair, which is what makes
+		// the rule true of its own answer and every claim of idempotence
+		// below it true.
+		"The unit is the whole run rather than one pair, and the difference is whether the rule is true of its own answer",
+		"Reducing the run is a fixed point",
+		// That one confirmed run finishes.
+		"one confirmed run finishes and a second rewrites nothing",
 		// The three forms, and the warning that they are not a detector.
 		"the store carries no carriage return standing for a line ending, and such a carriage return takes three stored forms",
 		"| A CRLF pair |",
@@ -1018,5 +1165,136 @@ func TestTheRewriteLineCountsInWordsThatMatchTheNumber(t *testing.T) {
 	}
 	if strings.Contains(preview.out, "1 carriage returns that are not") {
 		t.Errorf("one loose carriage return is counted in the plural:\n%s", preview.out)
+	}
+}
+
+// TestOneConfirmedRunSuffices is the end-to-end half of the idempotence
+// blocker, and it is written against the promise rather than against the cause.
+//
+// Four places say a second run finds nothing: the specification, the doc
+// comment on newlineTransform, the catalogue context on check.newlines-nothing,
+// and the last clause of dinah-514/criteria/21. A file carrying a run of three
+// carriage returns took three confirmed runs to clean, and each of the first
+// two reported "1 file rewritten." So the promise was false four times over and
+// the report said otherwise every time.
+//
+// The assertion is that the SECOND run has nothing to do, whatever the length
+// of the run, which is what all four sentences claim. Counting runs would pass
+// a build that needed two.
+func TestOneConfirmedRunSuffices(t *testing.T) {
+	for _, returns := range []int{1, 2, 3, 6} {
+		t.Run("a run of "+strconv.Itoa(returns), func(t *testing.T) {
+			root := newBench(t)
+			runCLI(t, root, "add", "A card")
+			var anchor string
+			filepath.Walk(filepath.Join(storeRoot(t, root), bench.CardsDir), func(path string, info os.FileInfo, err error) error {
+				if err == nil && !info.IsDir() && filepath.Base(path) == bench.CardAnchor {
+					anchor = path
+				}
+				return nil
+			})
+			if anchor == "" {
+				t.Fatal("the fixture carries no card anchor")
+			}
+			data, err := os.ReadFile(anchor)
+			if err != nil {
+				t.Fatalf("read: %v", err)
+			}
+			ending := strings.Repeat("\r", returns) + "\n"
+			if err := os.WriteFile(anchor, []byte(strings.ReplaceAll(string(data), "\n", ending)), 0o644); err != nil {
+				t.Fatalf("plant: %v", err)
+			}
+
+			first := runCLI(t, root, "check", "--migrate-newlines", "--yes")
+			if !strings.Contains(first.out, "rewritten.") {
+				t.Fatalf("the first run wrote nothing:\n%s", first.out)
+			}
+			if first.code != 0 {
+				t.Errorf("the first run exited %d:\n%s", first.code, first.out)
+			}
+			second := runCLI(t, root, "check", "--migrate-newlines", "--yes")
+			if !strings.Contains(second.out, "Nothing to rewrite") {
+				t.Errorf("a run of %d carriage returns needs more than one confirmed run:\n%s", returns, second.out)
+			}
+			if second.code != 0 {
+				t.Errorf("the second run exited %d:\n%s", second.code, second.out)
+			}
+			if repaired, err := os.ReadFile(anchor); err != nil {
+				t.Fatalf("read back: %v", err)
+			} else if strings.Contains(string(repaired), "\r") {
+				t.Errorf("one confirmed run left %q", repaired)
+			}
+		})
+	}
+}
+
+// TestTheWriterNeverStoresWhatThisCardForbids is the first blocker at the level
+// a person meets it: the ordinary comment verb, a body carrying a run of
+// carriage returns, no editor and no hand editing anywhere.
+//
+// Before the pass reduced the whole run, this stored a CRLF pair and dinah
+// check then reported the file the tool had just written.
+func TestTheWriterNeverStoresWhatThisCardForbids(t *testing.T) {
+	root := newBench(t)
+	runCLI(t, root, "add", "A card")
+	carryToDoing(t, root, "fx-1")
+	body := "before" + strings.Repeat("\r", 3) + "\nafter" + crlf + crlf + "end"
+	if got := runCLIWithInput(t, root, strings.NewReader(body), "--json", "comment", "fx-1", "-"); got.code != 0 {
+		t.Fatalf("comment: %d %s", got.code, got.errw)
+	}
+	for path, data := range walkStore(t, root) {
+		if where := storedLineEnding(path, data); where != "" {
+			t.Errorf("the tool's own comment verb stored %s in %s: %q", where, path, data)
+		}
+	}
+	report := runCLI(t, root, "check")
+	if strings.Contains(report.out, "carriage return") {
+		t.Errorf("the check reports a file the tool had just written:\n%s", report.out)
+	}
+	if report.code != 0 {
+		t.Errorf("a store the tool had just written does not check clean: %d\n%s", report.code, report.out)
+	}
+}
+
+// TestAnAnchorWhoseBodyEndsInACarriageReturnIsRepairedNotRefused is the second
+// blocker at the level a person meets it. Dinah writes such a file through its
+// own comment verb, because a lone carriage return is a byte this format keeps,
+// and its own repair then called the file damaged, blamed a header that was
+// fine, and refused to repair anything else in the store.
+func TestAnAnchorWhoseBodyEndsInACarriageReturnIsRepairedNotRefused(t *testing.T) {
+	root := newBench(t)
+	runCLI(t, root, "add", "A card")
+	carryToDoing(t, root, "fx-1")
+	if got := runCLIWithInput(t, root, strings.NewReader("text\r"), "--json", "comment", "fx-1", "-"); got.code != 0 {
+		t.Fatalf("comment: %d %s", got.code, got.errw)
+	}
+	// Something genuinely dirty elsewhere, so a refusal that denies the repair
+	// to the rest of the store is what fails rather than going unnoticed.
+	var column string
+	filepath.Walk(filepath.Join(storeRoot(t, root), bench.ColumnsDir), func(path string, info os.FileInfo, err error) error {
+		if err == nil && !info.IsDir() && filepath.Base(path) == bench.ColumnAnchor {
+			column = path
+		}
+		return nil
+	})
+	data, err := os.ReadFile(column)
+	if err != nil {
+		t.Fatalf("read the column anchor: %v", err)
+	}
+	if err := os.WriteFile(column, []byte(strings.ReplaceAll(string(data), "\n", crlf)), 0o644); err != nil {
+		t.Fatalf("plant: %v", err)
+	}
+
+	applied := runCLI(t, root, "check", "--migrate-newlines", "--yes")
+	if strings.Contains(applied.out, "will not decide") {
+		t.Errorf("the repair called a file Dinah wrote damaged:\n%s", applied.out)
+	}
+	if applied.code != 0 {
+		t.Errorf("the repair exited %d:\n%s", applied.code, applied.out)
+	}
+	if repaired, err := os.ReadFile(column); err != nil {
+		t.Fatalf("read back: %v", err)
+	} else if strings.Contains(string(repaired), "\r") {
+		t.Error("one comment denied the repair to the column anchor beside it")
 	}
 }
