@@ -3,6 +3,7 @@ package bench
 import (
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -70,14 +71,23 @@ func TestTheWorkbenchRootedSweepVisitsBothHalvesAndSkipsTheUnstamped(t *testing.
 	}
 }
 
-// isBelow reports whether a path sits inside a directory, compared segment by
-// segment rather than as a text prefix.
+// isBelow reports whether a path sits strictly inside a directory, compared
+// segment by segment rather than as a text prefix, so a sibling whose name
+// merely begins with the directory's own name is outside it.
+//
+// The first segment of the relative path is what decides it. Where that
+// segment is "..", the path climbs out; where it is ".", the path is the
+// directory itself rather than something below it; and the separator is what
+// ends the segment, which is why the prefix tested carries one.
 func isBelow(path, dir string) bool {
 	rel, err := filepath.Rel(dir, path)
 	if err != nil {
 		return false
 	}
-	return rel != ".." && !filepath.IsAbs(rel) && len(rel) >= 2 && rel[:2] != ".."
+	if filepath.IsAbs(rel) || rel == "." || rel == ".." {
+		return false
+	}
+	return !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
 // writeColumnComment puts a comment under a column by hand, which is what a

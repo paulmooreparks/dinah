@@ -20,8 +20,10 @@ import (
 // card comment draws an empty detail, unchanged from trunk, which is what
 // keeps every commented line already written rendering as it did.
 //
-// The assertion is on the title's exact bytes, so a build whose arm composes a
-// sentence around the title fails.
+// The assertion is on the title's exact bytes. Each row's detail column is
+// read as a field and compared whole, so a build whose arm composes a
+// sentence around the title fails: the composed sentence is not the title,
+// however much of the title it contains.
 func TestChangesNamesTheColumnAColumnCommentWasLeftOn(t *testing.T) {
 	root := newBench(t)
 	dir := benchDir(t, root)
@@ -42,6 +44,12 @@ func TestChangesNamesTheColumnAColumnCommentWasLeftOn(t *testing.T) {
 	column := opened.Columns[0]
 	if column.Title == "" {
 		t.Fatal("the fixture's first column carries no title, so the title half would assert nothing")
+	}
+	// A detail is read back off a padded row, so a title carrying a run of
+	// two spaces could not be told from the padding, and the comparison
+	// below would be against a value the renderer never drew.
+	if strings.Join(strings.Fields(column.Title), " ") != column.Title {
+		t.Fatalf("the fixture's column title %q does not survive being read back off a drawn row", column.Title)
 	}
 
 	// A line carrying a column and no title, which no verb writes and which a
@@ -79,24 +87,35 @@ func TestChangesNamesTheColumnAColumnCommentWasLeftOn(t *testing.T) {
 	if changes.code != 0 {
 		t.Fatalf("changes: %d %s", changes.code, changes.errw)
 	}
-	titled, bare := 0, 0
-	for _, line := range strings.Split(changes.out, "\n") {
-		if !strings.Contains(line, "commented") {
+	// Each detail is read off its own row's detail column and compared
+	// whole, which is what the criterion says and what the old containment
+	// test did not do. A row whose detail composed a sentence around the
+	// title still contained the title, so the assertion passed against
+	// exactly the build it was written to catch.
+	titled, bare, empty := 0, 0, 0
+	for _, row := range changeRows(t, changes.out) {
+		if !strings.Contains(row.line, "commented") {
 			continue
 		}
-		if strings.Contains(line, column.Title) {
+		switch row.detail {
+		case column.Title:
 			titled++
-			continue
-		}
-		if strings.Contains(line, column.ID) {
+		case column.ID:
 			bare++
+		case "":
+			empty++
+		default:
+			t.Errorf("a commented row's detail column reads %q, which is neither the column's title, nor its identifier, nor empty:\n%s", row.detail, changes.out)
 		}
 	}
 	if titled != 1 {
-		t.Errorf("%d commented rows carry the column's title, wanted 1:\n%s", titled, changes.out)
+		t.Errorf("%d commented rows draw the column's title and nothing else, wanted 1:\n%s", titled, changes.out)
 	}
 	if bare != 1 {
-		t.Errorf("%d commented rows fall back to the column's identifier, wanted 1:\n%s", bare, changes.out)
+		t.Errorf("%d commented rows fall back to the column's identifier and nothing else, wanted 1:\n%s", bare, changes.out)
+	}
+	if empty != 1 {
+		t.Errorf("%d commented rows draw an empty detail, wanted 1 for the card comment:\n%s", empty, changes.out)
 	}
 
 	// The card comment's own line is in the card's journal, and it renders

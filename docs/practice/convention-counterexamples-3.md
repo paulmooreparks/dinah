@@ -963,7 +963,7 @@ The count is where this goes wrong in practice. A sentence saying "four shapes f
 
 ## A rule over a set, tested against the members its author had in mind
 
-Caught at design review on dinah-518, 2026-09-16, and it is the third sighting of this class. A rule selects members of a set: a filter deciding which collections a sweep visits, a switch deciding which stored events a renderer draws, a pattern deciding which context values a menu entry appears under. The test then exercises the rule over a list of members, and that list is written by the same person in the same sitting as the rule. The two agree by construction, and the test catches nothing its author had not already thought of.
+Caught at design review on dinah-518, 2026-09-15, and it is the third sighting of this class. A rule selects members of a set: a filter deciding which collections a sweep visits, a switch deciding which stored events a renderer draws, a pattern deciding which context values a menu entry appears under. The test then exercises the rule over a list of members, and that list is written by the same person in the same sitting as the rule. The two agree by construction, and the test catches nothing its author had not already thought of.
 
 The population is not a matter of judgement, and it is not a list to be recalled. Something in the code produces the members, and whatever that is, its own output is the whole population. Derive the list by calling it.
 
@@ -973,16 +973,17 @@ The population is not a matter of judgement, and it is not a list to be recalled
 
 ```ts
 function everyColumnContextValue(): string[] {
-	const values = [
+	const drawn = [
 		columnActionsFor(undefined),
 		columnActionsFor(view({ count: 1, capacity: 0 })),
 		columnActionsFor(view({ count: 2, capacity: 2 })),
 		columnActionsFor(view({ count: 1, capacity: 0, takes_work_up: false }), "doing"),
 		columnActionsFor(view({ count: 2, capacity: 2, takes_work_up: false }), "doing"),
 	];
-	return [...new Set(values)];
+	return [...new Set(drawn)];
 }
 
+const values = everyColumnContextValue();
 assert.equal(values.length, 5);
 assert.ok(values.includes("dinah.column"));
 ```
@@ -994,3 +995,57 @@ The same card carries the same class away from any menu. `ordinalCollections` ap
 **The test:** for any rule that selects members of a set, ask what produces a member, and write the population by calling that thing rather than by listing what you expect it to return. Assert the population's size, so a member added later is somebody's problem before it is nobody's. Where two candidate rules are both plausible, find the member that separates them and assert it by name, because every other member passes both. A criterion that describes the population in words, such as "each of the suffixes the code emits", is the tell: the words were written after the rule, and they select what the rule already matches.
 
 **Related:** "A zero-spawn assertion whose driver was never answered far enough to spawn" is the same failure sitting in the driver rather than in the population. "A refusal that any value satisfies is not a refusal" is the degenerate case, where the population is the whole input space and the rule accepts all of it.
+
+## A derived figure copied into a contract, where the command that derived it would have kept
+
+Caught at code review on dinah-518, 2026-09-15, twice on one card and in two different shapes, which is what makes it a class rather than two accidents.
+
+A criterion, a table or a handoff states something a command worked out: how many lines a sweep answered, which files it named, which sites carry a falsified sentence. The command ran and its answer was right. Then somebody copied the answer into prose, and from that moment the prose is a fact about a revision nobody names, checked by nobody, and drifting from the moment the next merge lands.
+
+**Wrong.** Two instances, one dropping a row and one keying a count to a dead revision.
+
+A specification swept every source comment asserting a comment's containment, published the command that did it, and listed the nineteen sites the answer carried. The answer carried twenty. One fell out between the sweep and the table, the sentence it named shipped falsified, and the same sentence four files away was corrected during a merge, so the repository shipped one file saying a comment hangs only below a card and its neighbour saying it hangs below a column too.
+
+The same document asserted that its sweep answers "128 lines across 37 files before the edits". It did, at the trunk the round was written against. Another card landed in between, the branch's own merge base answers 156 lines across 39 files, and the criterion could no longer be satisfied by anything. The handoff had listed which counts the merge moved and this one was not among them.
+
+**Right.** Where a figure or a list comes from a command, put the command and the revision it runs at into the contract, and leave the answer out of it.
+
+```
+Wrong: "the sweep answers 128 lines across 37 files before the edits"
+Right: "the sweep is re-run at this branch's merge base, which
+        git merge-base origin/main HEAD names, and what it answers there is
+        recorded in the handoff beside the base it was taken at"
+```
+
+Better still, where the population is walkable by a test, walk it. The nineteen-site table became a test that reads every non-test Go and TypeScript file under the three trees the sweep reads and fails on the stale clauses by name. A sweep that runs on every build cannot drop a row while somebody copies it, and it cannot go stale against a revision, because it has no revision in it.
+
+**The test:** for every number and every list in a contract, ask which command produced it. If one did, the contract names that command and the base it runs at; if the contract names the answer instead, the answer is already a claim about a revision the reader cannot see. A merge is the event that falsifies these, and a handoff that lists "the counts this merge moved" is enumerating by hand the very thing this entry says not to enumerate by hand.
+
+**Related:** "A review finding repaired at the sites the reviewer listed, when the finding names a class", in `convention-counterexamples-2.md`, is the same loss between a scan and the repair it drives. "A rule over a set, tested against the members its author had in mind", above, is its sibling on the other side: there the population is recalled instead of derived, here it is derived and then transcribed.
+
+## A phrase quoted from a wrapped sentence, asserted to answer nothing
+
+Caught at code review on dinah-518, 2026-09-15, in the criterion written to prevent it.
+
+A contract requires that a stale sentence is gone, and spells the requirement as a grep that must answer nothing. The phrase is quoted out of the source by eye, out of a doc comment that wraps. A line-oriented grep never answered for it, before the edit or after, so the clause is satisfied by a tree in which nothing whatever was done.
+
+**Wrong.** The criterion quoted "a comment hangs on a card or on one of that card's checklist items" from a doc comment reading
+
+```go
+// same for every kind that fails it: a comment hangs on a
+// card or on one of that card's checklist items.
+```
+
+and required that it answer nothing after the edits. It answered nothing before them either. The criterion carried, two sentences later, the rule that would have caught it: each phrase is first run against the merge base and asserted to answer at least one line there. That rule was written because the same defect had already been found in a third phrase of the same list, and the fifth phrase was not put through it.
+
+**Right.** Run every phrase at the base before you write it down, and where the text is prose rather than code, join the comment's continuation lines before scanning so the wrap cannot decide the answer.
+
+```go
+// commentProseContinuation matches the break between two lines of one
+// comment, in both styles this repository writes.
+var commentProseContinuation = regexp.MustCompile(`[ \t]*\r?\n[ \t]*(?://|\*)[ \t]*`)
+
+joined := commentProseContinuation.ReplaceAllString(string(body), " ")
+```
+
+**The test:** an assertion that something answers nothing proves nothing until you have watched it answer something. Run it where the defect is known to live, which for a repair is the base the repair was cut from. A rule of this shape written into a contract binds every clause of that contract, including the ones added after it was written, and the clause added last is the one nobody puts through it.

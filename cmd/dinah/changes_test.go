@@ -76,9 +76,10 @@ func TestTheCheckpointPrintsItsEventsAndItsCursor(t *testing.T) {
 }
 
 // changeRow is one drawn line of a checkpoint, split far enough to read the
-// card column off it.
+// card column and the detail column off it.
 type changeRow struct {
 	subject string
+	detail  string
 	line    string
 }
 
@@ -113,6 +114,21 @@ func changeRows(t *testing.T, out string) []changeRow {
 			t.Fatalf("a checkpoint row carries no card column: %q", rows[i].line)
 		}
 		rows[i].subject = fields[1]
+		// The detail is the last of the five columns, and the four in front
+		// of it never hold a space, so what is left after them is the whole
+		// of it. Reading it as a field rather than searching the row for a
+		// string is what lets a caller assert the exact bytes a renderer
+		// drew: a row containing a value and a row whose detail is that
+		// value are different claims, and only the second is what a
+		// criterion about the detail column means.
+		//
+		// A detail carrying a run of two spaces does not survive this,
+		// because the drawn row's padding is indistinguishable from it. No
+		// caller has one, and a caller that did would have to read the cell
+		// off the machine surface instead.
+		if len(fields) > 4 {
+			rows[i].detail = strings.Join(fields[4:], " ")
+		}
 	}
 	return rows
 }

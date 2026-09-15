@@ -66,6 +66,14 @@ type Mount struct {
 // folder contains folders, and it obliges each of those five walks to carry an
 // explicit bound. Adding any other self-reaching mount does the same.
 var containment = map[string][]Mount{
+	// The workbench mounts no comments collection, and that is a ruling the
+	// operator gave on 2026-09-15 rather than anything the grammar requires.
+	// Nothing above forbids it: a comments collection here reaches no kind
+	// that reaches the workbench, so the acyclicity argument survives it
+	// untouched, and the entry costs one line. He judged that a note about
+	// the whole workbench has no reader, where a note about a column has an
+	// obvious one. Reversing it is that line and the refusal's own list of
+	// what is commentable.
 	KindWorkbench: {
 		{Dir: ColumnsDir, Kind: KindColumn, Anchor: ColumnAnchor},
 		{Dir: CardsDir, Kind: KindCard, Anchor: CardAnchor},
