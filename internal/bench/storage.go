@@ -173,6 +173,17 @@ func readCollection(dir string) ([]os.DirEntry, error) {
 	return entries, nil
 }
 
+// ListIDsObserver is a seam over the collection read, so a test can count the
+// directory listings a composition performs rather than infer them from the
+// numbers it answered. When it is not nil, ListIDs calls it with every
+// collection directory it is asked for, and it changes nothing else.
+//
+// It is exported for the reason verb.ExecutablePath is: the composition whose
+// listings are counted is Library.view, which lives in another package, and an
+// unexported seam would put that count out of its reach. A test setting it
+// restores it and declares itself non-parallel, because it is package state.
+var ListIDsObserver func(collection string)
+
 // ListIDs returns the identifiers of a collection directory, sorted
 // ascending, ignoring anything that is not a hex directory. An absent
 // collection is an empty one, which is the absent-means-empty rule, and it is
@@ -180,6 +191,9 @@ func readCollection(dir string) ([]os.DirEntry, error) {
 // will not read is answered with the error, so a caller receiving an empty
 // list and a nil error has been told the collection really was read.
 func ListIDs(collection string) ([]string, error) {
+	if ListIDsObserver != nil {
+		ListIDsObserver(collection)
+	}
 	entries, err := readCollection(collection)
 	if err != nil {
 		return nil, err

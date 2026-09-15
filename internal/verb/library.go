@@ -362,6 +362,12 @@ type CardView struct {
 	// now, ones CORE-CLAIM-10 would refuse a claim over. A reader sees the
 	// refusal coming rather than meeting it and being told afterwards.
 	BlockingItems int `json:"blocking_items,omitempty"`
+	// ChildCount is how many entities sit directly below the card, summed
+	// across every collection the containment grammar gives a card. A
+	// reader deciding whether the card has anything to expand asks this one
+	// number rather than one per collection, and gains nothing to ask when
+	// the grammar gains a mount.
+	ChildCount int `json:"child_count,omitempty"`
 	// Fields are the values the card carries for the fields its workbench
 	// declares, keyed by the declared key, and absent where the card carries
 	// none. A key the card stores that the workbench does not declare is
@@ -513,21 +519,22 @@ type Response struct {
 	ChainServed []string `json:"-"`
 }
 
-// view renders a card for a response. The two counts it carries are
-// directory reads, so a collection that will not read is reported rather than
-// counted as none: a view answering zero attachments for a card whose
-// attachments collection nobody could list says the same thing as a view of a
-// card that has none.
+// view renders a card for a response. The counts it carries are directory
+// reads, so a collection that will not read is reported rather than counted as
+// none: a view answering zero attachments for a card whose attachments
+// collection nobody could list says the same thing as a view of a card that
+// has none.
+//
+// One walk of the containment grammar answers all three collection numbers.
+// The per-collection counts are read out of that one result rather than
+// re-listing the same two directories, so publishing the total costs one
+// listing per card view rather than three.
 func (l *Library) view(card *bench.Card) (*CardView, error) {
-	attachments, err := bench.CountAttachments(card.Dir)
+	counts, err := bench.ChildCounts(card.Dir, bench.KindCard)
 	if err != nil {
 		return nil, err
 	}
 	blocking, err := l.Bench.CountBlockingItems(card.Dir)
-	if err != nil {
-		return nil, err
-	}
-	items, err := bench.CountItems(card.Dir)
 	if err != nil {
 		return nil, err
 	}
@@ -547,9 +554,10 @@ func (l *Library) view(card *bench.Card) (*CardView, error) {
 		Workstreams: card.Workstreams,
 		Revision:    card.Revision,
 
-		AttachmentCount: attachments,
-		ChecklistCount:  items,
+		AttachmentCount: counts[bench.AttachmentsDir],
+		ChecklistCount:  counts[bench.ChecklistDir],
 		BlockingItems:   blocking,
+		ChildCount:      bench.ChildTotal(counts),
 	}
 	if column := l.Bench.Column(card.Column); column != nil {
 		v.ColumnTitle = column.Title
