@@ -1937,7 +1937,7 @@ tiers:
   minimal:
     meaning: strictly mechanical edits
     models:
-      - {provider: ollama, model: "qwen3:8b"}
+      - {provider: ollama, model: "qwen3:8b", server: localhost}
 ```
 
 Each key names a member of `levels.tier`. The order of the keys carries

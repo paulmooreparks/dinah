@@ -102,19 +102,25 @@ var tierBlockEntry = regexp.MustCompile(`^( *)-\s*(.*)$`)
 func readTiers(fm *Frontmatter) ([]TierEntry, []MalformedTierEntry) {
 	var entries []TierEntry
 	var malformed []MalformedTierEntry
+	unreadable := map[int]bool{}
 	seen := map[string]bool{}
 	entryIndent := -1
 	current := -1
 	member := ""
-	for _, line := range fm.Raw(TiersKey) {
-		if strings.TrimSpace(line) == "" {
+	// The block's own key line opens the raw lines and belongs to no entry, so
+	// the walk starts under it. An annotation comment is a person writing to a
+	// person and is not a line the reader failed to place.
+	raw := fm.Raw(TiersKey)
+	if len(raw) > 0 {
+		raw = raw[1:]
+	}
+	for _, line := range raw {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
 			continue
 		}
 		if m := tierBlockEntry.FindStringSubmatch(line); m != nil {
-			tier := ""
-			if current >= 0 {
-				tier = entries[current].Tier
-			}
+			tier := openTier(entries, current)
 			if current < 0 || member != tierModelsMember || len(m[1]) <= entryIndent {
 				malformed = append(malformed, MalformedTierEntry{Tier: tier, Line: strings.TrimSpace(line)})
 				continue
@@ -129,6 +135,18 @@ func readTiers(fm *Frontmatter) ([]TierEntry, []MalformedTierEntry) {
 		}
 		m := tierBlockMember.FindStringSubmatch(line)
 		if m == nil {
+			// A line inside the block that is neither a dashed entry nor a
+			// member is one the reader cannot place, and the commonest is a
+			// meaning wrapped onto a second line. Skipping it silently
+			// truncated the sentence, left check reporting nothing, and let an
+			// export write the truncation back into the file, which is what
+			// Agent Code Review found at round one of dinah-496. So it is
+			// reported, and the entry it stands in declares nothing, because a
+			// half-read entry is worse than an absent one.
+			malformed = append(malformed, MalformedTierEntry{Tier: openTier(entries, current), Line: strings.TrimSpace(line)})
+			if current >= 0 {
+				unreadable[current] = true
+			}
 			continue
 		}
 		indent, name, rest := len(m[1]), unquote(strings.TrimSpace(m[2])), m[3]
@@ -154,7 +172,10 @@ func readTiers(fm *Frontmatter) ([]TierEntry, []MalformedTierEntry) {
 		}
 	}
 	declared := make([]TierEntry, 0, len(entries))
-	for _, entry := range entries {
+	for at, entry := range entries {
+		if unreadable[at] {
+			continue
+		}
 		if strings.TrimSpace(entry.Meaning) == "" || len(entry.Models) == 0 {
 			malformed = append(malformed, MalformedTierEntry{Tier: entry.Tier, Line: entry.Tier + ":"})
 			continue
@@ -162,6 +183,15 @@ func readTiers(fm *Frontmatter) ([]TierEntry, []MalformedTierEntry) {
 		declared = append(declared, entry)
 	}
 	return declared, malformed
+}
+
+// openTier is the tier key the reader is standing inside, and the empty string
+// where a line stands under no readable key at all.
+func openTier(entries []TierEntry, current int) string {
+	if current < 0 {
+		return ""
+	}
+	return entries[current].Tier
 }
 
 // readTierModel reads one dashed model entry, which is one flow mapping on one

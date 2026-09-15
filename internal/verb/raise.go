@@ -42,6 +42,9 @@ func (l *Library) Raise(req *Request) *Response {
 	if l.Bench.Operator == "" {
 		return l.refuse(req, nil, contract.NoOperator, "")
 	}
+	if refused := l.malformedHarness(req, nil); refused != nil {
+		return refused
+	}
 	found, err := l.Bench.ResolveCard(req.Card)
 	if err != nil {
 		return l.FromError(req, err)

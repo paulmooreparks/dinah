@@ -746,9 +746,10 @@ const reservedAmbiguousDefinition = `{
 }`
 
 // TestPullChecksAgainstTheFullEighteenRowTable asserts that the ordered
-// precondition list Pull's help is generated from is the workbench pair
-// followed by the fifteen pull rows the spec owns and Dinah's own tier row,
-// in the order they are checked. This is the test the help renders against.
+// precondition list Pull's help is generated from is the workbench pair, the
+// harness row every writing command carries, the fifteen pull rows the spec
+// owns and Dinah's own three tier rows, in the order they are checked. This is
+// the test the help renders against.
 //
 // Row 11 is the destination's own hold, CORE-GATE-2, which dinah-450 stated
 // here rather than leaving it to arrive silently through canLand. Row 12 is
@@ -759,6 +760,7 @@ func TestPullChecksAgainstTheFullEighteenRowTable(t *testing.T) {
 	want := []Check{
 		{Refusal: contract.UnsupportedVer, Key: "check.workbench.1"},
 		{Refusal: contract.NoOperator, Key: "check.workbench.2"},
+		harnessCheck,
 		{Refusal: contract.NoOwner, Key: "check.pull.1"},
 		{Refusal: contract.UnknownColumn, Key: "check.pull.2"},
 		{Refusal: contract.NotOperator, Key: "check.pull.3"},
@@ -776,6 +778,8 @@ func TestPullChecksAgainstTheFullEighteenRowTable(t *testing.T) {
 		{Refusal: contract.Locked, Key: "check.pull.15"},
 		{Refusal: contract.UnresolvedItem, Key: "check.pull.16"},
 		{Refusal: contract.BelowTier, Key: "check.pull.17"},
+		{Refusal: contract.UnlistedModel, Key: "check.pull.18"},
+		{Refusal: contract.UndeclaredModel, Key: "check.pull.19"},
 	}
 	if len(checks) != len(want) {
 		t.Fatalf("wanted %d rows, got %d", len(want), len(checks))
@@ -806,6 +810,8 @@ func TestClaimChecksAgainstTheFullEightRowTable(t *testing.T) {
 		{Refusal: contract.NotOperator, Key: "check.claim.6"},
 		{Refusal: contract.UnresolvedItem, Key: "check.claim.7"},
 		{Refusal: contract.BelowTier, Key: "check.claim.8"},
+		{Refusal: contract.UnlistedModel, Key: "check.claim.9"},
+		{Refusal: contract.UndeclaredModel, Key: "check.claim.10"},
 	}
 	if len(own) != len(wantOwn) {
 		t.Fatalf("wanted %d own rows, got %d", len(wantOwn), len(own))
@@ -815,7 +821,8 @@ func TestClaimChecksAgainstTheFullEightRowTable(t *testing.T) {
 			t.Errorf("own row %d: wanted %+v, got %+v", i, row, own[i])
 		}
 	}
-	want := append(append([]Check{}, WorkbenchChecks...), wantOwn...)
+	want := append(append([]Check{}, WorkbenchChecks...), harnessCheck)
+	want = append(want, wantOwn...)
 	checks := Checks(Claim)
 	if len(checks) != len(want) {
 		t.Fatalf("wanted %d rows, got %d", len(want), len(checks))

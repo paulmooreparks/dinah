@@ -52,6 +52,9 @@ import (
 // journals nothing, on SetCardTierAt's own precedent for a write that changes
 // no value.
 func (l *Library) Link(req *Request) *Response {
+	if refused := l.malformedHarness(req, nil); refused != nil {
+		return refused
+	}
 	found, kind, to, refused := l.linkArguments(req)
 	if refused != nil {
 		return refused
@@ -98,6 +101,9 @@ func (l *Library) Link(req *Request) *Response {
 // treated as already done, because a caller who names the wrong kind or the
 // wrong card has made a mistake worth hearing about, and nothing was removed.
 func (l *Library) Unlink(req *Request) *Response {
+	if refused := l.malformedHarness(req, nil); refused != nil {
+		return refused
+	}
 	found, kind, to, refused := l.linkArguments(req)
 	if refused != nil {
 		return refused

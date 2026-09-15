@@ -356,6 +356,20 @@ func unreadableCount(report classification) int {
 // splitJournal cuts a journal into its lines and reports whether the final one
 // is torn. A blank line is dropped, exactly as the reader drops one.
 //
+// What this cannot see, said where somebody meets it. The promise that every
+// byte outside the actor value survives holds for a journal this tool wrote,
+// and not for any journal at all: the split normalizes a carriage return and a
+// line feed to a line feed alone, drops a blank line between records, and the
+// write pass always ends the file with one newline. A journal carrying any of
+// those three therefore differs outside the actor value after a run.
+//
+// Nothing live is at risk and the bound is stated rather than guarded.
+// .gitattributes pins every text file in this repository to line feeds, every
+// journal in its own workbench is written that way, and AppendEvent writes one
+// record per line with a final newline. To reproduce the difference, write a
+// journal whose records are separated by a carriage return and a line feed and
+// compare the file before and after a run.
+//
 // Torn means what ReadJournal means by it: the last line does not parse. Every
 // earlier line that does not parse is not tornness at all, and actorSpan is
 // where such a line is refused.

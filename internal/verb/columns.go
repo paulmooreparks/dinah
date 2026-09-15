@@ -33,6 +33,9 @@ func (l *Library) NewColumn(req *Request) *Response {
 	if l.Bench.Operator == "" {
 		return l.refuse(req, nil, contract.NoOperator, "")
 	}
+	if refused := l.malformedHarness(req, nil); refused != nil {
+		return refused
+	}
 	title := strings.TrimSpace(req.Column)
 	if title == "" {
 		return l.refuse(req, nil, contract.Malformed, "title")

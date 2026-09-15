@@ -2,9 +2,13 @@ package main
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
+	"dinah/internal/bench"
 	"dinah/internal/contract"
 	"dinah/internal/verb"
 )
@@ -192,5 +196,199 @@ func TestTheRetiredTierFlagIsRefusedAsAnUnknownArgument(t *testing.T) {
 	}
 	if kept != 2 {
 		t.Fatalf("the sweep drove %d surviving commands, wanted 2", kept)
+	}
+}
+
+// illegalHarness is a value outside the one-segment grammar, chosen so that a
+// journal line carrying it is findable by one search over the whole store.
+const illegalHarness = "Bad_Harness!"
+
+// TestNoWritingCommandTakesAMalformedHarnessName is the completeness half of
+// dinah-496's harness criterion, and it is the guard Agent Code Review's first
+// round asked for.
+//
+// The first draft ran the refusal from three places, and the reviewer set an
+// illegal DINAH_HARNESS and watched comment, link and file each succeed and
+// each write the illegal name into the journal's actor object. So the assertion
+// here is not that some verbs refuse: it is that after every writing command
+// this tool offers has been driven with that name set, no journal anywhere in
+// the store carries it. That property cannot be satisfied by remembering to
+// edit a verb, and a verb added later that forgets the refusal fails here.
+//
+// The reads are driven in the same run and asserted to succeed, because the
+// refusal is for an act that writes and a mistyped variable that stopped show
+// and ls would take the whole tool away from whoever has to repair it.
+func TestNoWritingCommandTakesAMalformedHarnessName(t *testing.T) {
+	root := newBenchFromDefinition(t, tierDefinition)
+	// The fixture is built with no harness set at all, so every reference the
+	// sweep below names exists before the illegal name is exported.
+	for _, argv := range [][]string{
+		{"add", "a card to work"},
+		{"add", "a card to link to"},
+		{"add", "a card to archive"},
+		{"move", "fx-1", "plain"},
+		{"move", "fx-2", "plain"},
+		{"file", "fx-1", "decision", "something to settle"},
+		{"comment", "fx-1", "a comment written before the sweep"},
+		{"workstream", "new", "A workstream"},
+	} {
+		if got := runCLI(t, root, argv...); got.code != 0 {
+			t.Fatalf("`dinah %s` exited %d building the fixture: %s", strings.Join(argv, " "), got.code, got.errw)
+		}
+	}
+
+	t.Setenv("DINAH_HARNESS", illegalHarness)
+	writes := [][]string{
+		{"add", "a card filed under a malformed harness"},
+		{"claim", "fx-1"},
+		{"move", "fx-1", "test"},
+		{"release", "fx-1"},
+		{"block", "fx-1", "an obstacle"},
+		{"unblock", "fx-1"},
+		{"pull", "test"},
+		{"comment", "fx-1", "a comment written under a malformed harness"},
+		{"link", "fx-1", "relates_to", "fx-2"},
+		{"unlink", "fx-1", "relates_to", "fx-2"},
+		{"file", "fx-1", "decision", "a decision filed under a malformed harness"},
+		{"resolve", "fx-1/decisions/1", "settled"},
+		{"cite", "fx-1/decisions/1", "test", "somewhere"},
+		{"reopen", "fx-1/decisions/1", "not settled after all"},
+		{"set", "fx-1", "severity", "major"},
+		{"set", "fx-1", "tier", "workhorse"},
+		{"raise", "fx-1", "apex", "this needs somebody senior"},
+		{"rename", "fx-1", "A renamed card"},
+		{"archive", "fx-3"},
+		{"restore", "fx-3", "--archived"},
+		{"delete", "fx-3", "--yes"},
+		{"column", "new", "Another station"},
+		{"workstream", "new", "Another workstream"},
+		{"join", "fx-1", "a-workstream"},
+		{"leave", "fx-1", "a-workstream"},
+		{"check", "--witness"},
+	}
+	refused, admitted := 0, []string{}
+	for _, argv := range writes {
+		got := runCLI(t, root, argv...)
+		// The name is read only where one was printed. A command that
+		// succeeded prints nothing on the error stream, and reading a refusal
+		// name out of an empty stream is how this guard panicked instead of
+		// reporting the first time it was armed.
+		name := ""
+		if strings.TrimSpace(got.errw) != "" {
+			name = refusalNameOf(got.errw)
+		}
+		if got.code == 2 && name == contract.MalformedHarness {
+			refused++
+			continue
+		}
+		admitted = append(admitted, strings.Join(argv, " ")+" -> exit "+strconv.Itoa(got.code)+" "+name)
+	}
+	if len(admitted) > 0 {
+		t.Errorf("%d of %d writing commands did not refuse a malformed harness name:\n  %s",
+			len(admitted), len(writes), strings.Join(admitted, "\n  "))
+	}
+	if refused < 20 {
+		t.Errorf("the sweep drove %d writing commands to the refusal, and the surface carries more than twenty", refused)
+	}
+
+	// The property the verbs above are only a way of reaching: nothing in the
+	// store carries the name, whatever any one command did.
+	journals, lines := 0, 0
+	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() || filepath.Base(path) != bench.JournalName {
+			return err
+		}
+		journals++
+		data, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return readErr
+		}
+		for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
+			if strings.TrimSpace(line) == "" {
+				continue
+			}
+			lines++
+			if strings.Contains(line, illegalHarness) {
+				t.Errorf("%s carries the malformed harness name: %s", path, line)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk the store: %v", err)
+	}
+	if journals == 0 || lines == 0 {
+		t.Fatalf("the walk read %d journals and %d lines, so it is asserting nothing", journals, lines)
+	}
+
+	// The reads all answer under the same name.
+	for _, argv := range [][]string{{"show", "fx-1"}, {"ls"}, {"whoami"}, {"log", "fx-1"}, {"check"}, {"columns"}, {"next"}} {
+		if got := runCLI(t, root, argv...); got.code != 0 && got.code != 5 {
+			t.Errorf("`dinah %s` exited %d under a malformed harness name: %s", strings.Join(argv, " "), got.code, got.errw)
+		}
+	}
+}
+
+// TestACommandRefusesAnyFlagItDoesNotDeclare is the test for the rule
+// undeclaredFlagOn states, rather than for the one flag dinah-496 retired.
+//
+// Agent Code Review's first round asked for it by name: the refusal itself is
+// right, and a behaviour change with no test of its own scope is a behaviour
+// change nobody can read. The rule fires widely, and each case below was
+// accepted and ignored before this card: show carries no expires, ls carries no
+// override, log carries no kind, comment carries no at. Each is a flag another
+// command declares, which is why the parser admitted it at all.
+//
+// The second half is the other direction, and it is what stops the rule being
+// a refusal every flag satisfies: the same flag on the command that does
+// declare it is accepted.
+func TestACommandRefusesAnyFlagItDoesNotDeclare(t *testing.T) {
+	root := newBenchFromDefinition(t, tierDefinition)
+	if got := runCLI(t, root, "add", "a card"); got.code != 0 {
+		t.Fatalf("add: %d %s", got.code, got.errw)
+	}
+	if got := runCLI(t, root, "move", "fx-1", "plain"); got.code != 0 {
+		t.Fatalf("move: %d %s", got.code, got.errw)
+	}
+
+	refused := []struct {
+		argv []string
+		flag string
+	}{
+		{argv: []string{"show", "fx-1", "--expires", "1h"}, flag: "--expires"},
+		{argv: []string{"ls", "--override"}, flag: "--override"},
+		{argv: []string{"log", "fx-1", "--kind", "external"}, flag: "--kind"},
+		{argv: []string{"comment", "fx-1", "a comment", "--at", "plain"}, flag: "--at"},
+	}
+	for _, want := range refused {
+		got := runCLI(t, root, want.argv...)
+		if got.code != 2 {
+			t.Errorf("`dinah %s` exited %d, wanted the refused code 2: %s", strings.Join(want.argv, " "), got.code, got.errw)
+			continue
+		}
+		if name := refusalNameOf(got.errw); name != contract.Usage {
+			t.Errorf("`dinah %s` refused under %s, wanted %s", strings.Join(want.argv, " "), name, contract.Usage)
+		}
+		if !strings.Contains(got.errw, want.flag) {
+			t.Errorf("`dinah %s` does not name %s, so a reader cannot see what to drop:\n%s",
+				strings.Join(want.argv, " "), want.flag, got.errw)
+		}
+	}
+	if len(refused) != 4 {
+		t.Fatalf("the sweep drove %d commands, wanted the four it names", len(refused))
+	}
+
+	// The same four flags on the four commands that do declare them.
+	for _, argv := range [][]string{
+		{"claim", "fx-1", "--expires", "1h"},
+		{"release", "fx-1"},
+		{"block", "fx-1", "an obstacle", "--kind", "external"},
+		{"unblock", "fx-1"},
+		{"set", "fx-1", "tier", "workhorse", "--at", "plain"},
+	} {
+		if got := runCLI(t, root, argv...); got.code != 0 {
+			t.Errorf("`dinah %s` exited %d, so the rule refuses a flag the command declares: %s",
+				strings.Join(argv, " "), got.code, got.errw)
+		}
 	}
 }

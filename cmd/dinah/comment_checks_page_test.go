@@ -1,7 +1,6 @@
 package main
 
 import (
-	"strconv"
 	"strings"
 	"testing"
 
@@ -23,7 +22,10 @@ import (
 func TestTheCommentHelpPageNamesFivePreconditionsInCheckOrder(t *testing.T) {
 	root := newBench(t)
 	t.Setenv("COLUMNS", "80")
+	// The harness row heads this list at dinah-496, ahead of the five rows
+	// comment declares for itself.
 	wanted := []string{
+		contract.MalformedHarness,
 		contract.UnknownCard,
 		contract.UnknownPath,
 		contract.NoOwner,
@@ -31,6 +33,7 @@ func TestTheCommentHelpPageNamesFivePreconditionsInCheckOrder(t *testing.T) {
 		contract.Malformed,
 	}
 	wantedKeys := []string{
+		"check.harness",
 		"check.comment.1",
 		"check.comment.4",
 		"check.comment.2",
@@ -55,14 +58,7 @@ func TestTheCommentHelpPageNamesFivePreconditionsInCheckOrder(t *testing.T) {
 	if page.code != 0 {
 		t.Fatalf("help comment: %d %s", page.code, page.errw)
 	}
-	var rows []string
-	for _, line := range strings.Split(page.out, "\n") {
-		fields := strings.Fields(line)
-		if len(fields) < 2 || fields[0] != strconv.Itoa(len(rows)+1) {
-			continue
-		}
-		rows = append(rows, fields[len(fields)-1])
-	}
+	rows := refusalRowsOf(page.out)
 	if len(rows) != len(wanted) {
 		t.Fatalf("the page draws %d numbered rows, wanted %d:\n%s", len(rows), len(wanted), page.out)
 	}

@@ -1252,14 +1252,14 @@ storage format 5
 Catalogs:
   Language  Translated
   --------  ----------
-  en        1020/1020
-  af        0/1020
-  cs        0/1020
-  de        1020/1020
-  es        0/1020
-  fil       0/1020
-  hi        1020/1020
-  id        0/1020
+  en        1025/1025
+  af        0/1025
+  cs        0/1025
+  de        1025/1025
+  es        0/1025
+  fil       0/1025
+  hi        1025/1025
+  id        0/1025
 [exit 0]
 ```
 
@@ -1605,17 +1605,20 @@ What you may write:
 
 What can go wrong, in the order each is checked:
   Order  What can go wrong                                               Refusal
-  -----  --------------------------------------------------------------  -------------------
+  -----  --------------------------------------------------------------  -----------------------
   1      the workbench declares a profile version the tool implements    unsupported-version
   2      the workbench designates an operator                            no-operator
-  3      the card exists                                                 unknown-card
-  4      the request names an owner                                      no-owner
-  5      the owner named as holder is the owner asking                   not-requester
-  6      the card's state is not `blocked`                               blocked
-  7      the card's state is not `active`                                held
-  8      taking the card up is legal for whoever asks                    not-operator
-  9      every unresolved item the card carries names a declared column  unresolved-item
-  10     your model resolves at or above what the card asks              dinah.below-tier
+  3      the harness you declared is a legal name                        dinah.malformed-harness
+  4      the card exists                                                 unknown-card
+  5      the request names an owner                                      no-owner
+  6      the owner named as holder is the owner asking                   not-requester
+  7      the card's state is not `blocked`                               blocked
+  8      the card's state is not `active`                                held
+  9      taking the card up is legal for whoever asks                    not-operator
+  10     every unresolved item the card carries names a declared column  unresolved-item
+  11     your model resolves at or above what the card asks              dinah.below-tier
+  12     this workbench's table lists the model you declared             dinah.unlisted-model
+  13     this call declared a provider and a model                       dinah.undeclared-model
 
 Exit codes: 0 ok, 2 refused, 3 stale, 4 unreachable.
 [exit 0]

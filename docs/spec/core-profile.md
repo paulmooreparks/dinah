@@ -885,13 +885,33 @@ CORE-CAP-5 is what keeps a workbench that declares no capability conforming
 without implementing any of this, and it is also what stops CORE-CAP-4 being a
 refusal every claim satisfies.
 
+CORE-CAP-4 carries its two exceptions inside its own sentence rather than in the
+prose around it, on CORE-FIELD-11's shape, because a statement is read alone by
+whoever checks conformance and an exception a checker never sees is an exception
+a conforming tool fails on.
+
+The first exception is the workbench that declares no capabilities. Such a
+workbench may still carry cards requiring one, either because somebody wrote a
+requirement before writing the declaration or because the declaration was
+removed, and a tool that refused every one of those claims would lock a
+workbench on the strength of a set that does not exist. Declaring the set is how
+a workbench asks for the refusal, and one that has not declared it has not
+asked.
+
+The second is the operator. Which owners satisfy which capability is the
+workbench's own declaration, and a tool that can name an owner it will always
+admit is a tool somebody can still use when that declaration is wrong or absent.
+The operator is that owner, and the exception opens nothing a tool's own owner
+model does not already open, because every act this profile reserves to the
+operator is reserved by the same name comparison.
+
 [CORE-CAP-1] A workbench definition MAY declare an ordered set of capabilities.
 
 [CORE-CAP-2] A workbench definition MAY declare, for each capability, the owner descriptions that satisfy it.
 
 [CORE-CAP-3] A card MAY require a capability at a column of its workbench.
 
-[CORE-CAP-4] A tool MUST refuse a claim on a card at a column where the card requires a capability the owner asking does not satisfy.
+[CORE-CAP-4] A tool MUST refuse a claim on a card at a column where the card requires a capability the owner asking does not satisfy, except where the workbench declares no capabilities at all or the owner asking is the operator of the workbench.
 
 [CORE-CAP-5] A tool MUST NOT refuse a claim on this ground where the card requires no capability at that column.
 
@@ -1272,12 +1292,18 @@ reach back and change what an earlier act recorded. Re-encoding a record into a
 different serialization is not an act on the workbench at all. It changes how
 the record is written down and leaves the owner, the act, the time and every
 other member exactly as they stood, so a tool carrying its own storage across a
-format change is not altering history. The statement below binds the tool that
-re-encodes rather than granting it permission to, which is what keeps the
-permission and the bound one thing: there is no half of this a tool can take
-while leaving the other behind.
+format change is not altering history. The permission is the half that matters,
+because CORE-HIST-3 is what a reader holds a storage migration against, and a
+tool carrying its own format forward needs to be able to point at a sentence
+that says so.
 
-[CORE-HIST-7] A tool re-encoding a recorded act into a different serialization MUST NOT change what the act records.
+The bound rides in the permission's own proviso rather than in a second
+statement, because this document admits one keyword to a statement and two
+statements would let a tool cite the first and ignore the second. A tool that
+re-encodes and changes what the act records has not satisfied CORE-HIST-7, and
+CORE-HIST-3 forbids the change over again from the other side.
+
+[CORE-HIST-7] A tool MAY re-encode a recorded act into a different serialization, provided what the act records is unchanged.
 
 ### 6.9 The outcome as a number
 
@@ -1706,7 +1732,7 @@ themselves carry meaning.
 | CORE-CAP-1 | may | tool | A workbench definition declaring an ordered set of capabilities is accepted. |
 | CORE-CAP-2 | may | tool | A definition declaring the owner descriptions that satisfy each capability is accepted. |
 | CORE-CAP-3 | may | tool | A card requiring a capability at a column of its workbench is accepted. |
-| CORE-CAP-4 | must | tool | A claim at a column where the card requires a capability the owner asking does not satisfy comes back refused. |
+| CORE-CAP-4 | must | tool | A claim at a column where the card requires a capability the owner asking does not satisfy comes back refused, unless the workbench declares no capabilities or the owner asking is its operator. |
 | CORE-CAP-5 | must not | tool | A claim at a column where the card requires no capability is not refused on that ground. |
 | CORE-JSON-13 | may | tool | An interchange object carrying `tiers` is accepted. |
 | CORE-OUT-1 | must | tool | Every verb response carries exactly one of the four outcome tokens. |
@@ -1763,7 +1789,7 @@ themselves carry meaning.
 | CORE-HIST-4 | must | tool | A recorded move carries the identifier and the title of the column left and of the column entered. |
 | CORE-HIST-5 | must | tool | The order of acts reported matches the order in which they were performed. |
 | CORE-HIST-6 | must not | tool | A recorded act still reports its titles after the columns it names have been renamed or removed. |
-| CORE-HIST-7 | must not | tool | A recorded act re-encoded into a different serialization still reports the owner, the act and the time it reported before. |
+| CORE-HIST-7 | may | tool | A recorded act re-encoded into a different serialization still reports the owner, the act and the time it reported before. |
 | CORE-OUT-7 | must | tool | Where the tool answers whoever invoked it with a number, the number carrying `refused` carries no other outcome the tool reports. |
 | CORE-INSTR-1 | may | tool | A column carrying instructions is accepted. |
 | CORE-INSTR-2 | may | tool | A workbench carrying standing instructions is accepted. |
@@ -2419,8 +2445,8 @@ are the description of what performed a recorded act. CORE-CAP-1 through
 CORE-CAP-5, introduced, which are the capability a workbench declares, the
 requirement a card carries and the claim refusal built on them. CORE-JSON-13,
 introduced, which blesses the member the interchange object carries for the
-declaration. CORE-HIST-7, introduced, which binds a tool re-encoding a record
-to leave what the record says alone. No identifier of the prior revision is retired, reworded or
+declaration. CORE-HIST-7, introduced, which permits a tool to re-encode a
+record provided what the record says is unchanged. No identifier of the prior revision is retired, reworded or
 weakened, and CORE-HIST-3 in particular keeps its text exactly: the new
 statement sits beside it rather than under it.
 
@@ -2444,7 +2470,11 @@ to is satisfied rather than in the way, because the scale, the requirement, the
 gate and the raise have all run on a real workbench. CORE-CAP-4 requires a
 refusal and fixes no name for it, which no other statement here does, and
 section 5.11 carries the argument: the ground covers three situations leading
-to three different repairs, and one name would be a worse answer than none.
+to three different repairs, and one name would be a worse answer than none. It
+carries its own two exceptions inside its own sentence, on CORE-FIELD-11's
+shape, because a statement is read alone by whoever checks conformance: a
+workbench declaring no capabilities refuses nobody on this ground, and the
+operator of a workbench is admitted whatever the declaration says.
 
 Consequence for a caller. Nothing admitted before is refused now. A workbench
 that declares no capability raises no refusal on this ground, which CORE-CAP-5

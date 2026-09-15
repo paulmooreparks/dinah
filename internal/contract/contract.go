@@ -929,3 +929,15 @@ func With(err error, name, value string) error {
 	extra[name] = value
 	return RefuseWith(refusal.Name, refusal.Detail, extra)
 }
+
+// EventNames are every event name this build declares, which is the closed set
+// a journal line's event member is drawn from.
+//
+// It is Events plus the three an entity other than a card records: a column's
+// own rewrite, a workstream's own rewrite, and the workbench's own. Events
+// stayed the card-journal set it has always been, and a caller asking what
+// names exist at all reads this.
+func EventNames() []string {
+	return append(append([]string(nil), Events...),
+		EventColumnUpdated, EventWorkstreamUpdated, EventWorkbenchUpdated)
+}

@@ -1113,7 +1113,11 @@ func TestTheLogFallsBackToTheStoredColumnIdentifier(t *testing.T) {
 // page and the format document state that the reason is required and never
 // verified.
 func TestTheRaiseHelpTableMatchesTheEvaluationOrder(t *testing.T) {
+	// The harness row heads the list at dinah-496, ahead of raise's own ten,
+	// because raise writes a journal line. The workbench pair is still absent,
+	// which is what the row count below is really guarding.
 	wanted := []string{
+		contract.MalformedHarness,
 		contract.NoOperator,
 		contract.UnknownCard,
 		contract.NoOwner,
@@ -1136,7 +1140,10 @@ func TestTheRaiseHelpTableMatchesTheEvaluationOrder(t *testing.T) {
 		if checks[i].Refusal != want {
 			t.Errorf("row %d reports %s, wanted %s", i+1, checks[i].Refusal, want)
 		}
-		if got, key := checks[i].Key, "check.raise."+strconv.Itoa(i+1); got != key {
+		if i == 0 {
+			continue
+		}
+		if got, key := checks[i].Key, "check.raise."+strconv.Itoa(i); got != key {
 			t.Errorf("row %d carries the key %s, wanted %s", i+1, got, key)
 		}
 	}
@@ -1149,7 +1156,13 @@ func TestTheRaiseHelpTableMatchesTheEvaluationOrder(t *testing.T) {
 	flat := flattenWords(page.out)
 	previous := -1
 	for i := range wanted {
-		row := flattenWords(msg.For(msg.Base).T("check.raise." + strconv.Itoa(i+1)))
+		// Row 1 is the harness row every writing command carries, under the one
+		// key they share; raise's own ten follow it and keep their own numbers.
+		key := "check.harness"
+		if i > 0 {
+			key = "check.raise." + strconv.Itoa(i)
+		}
+		row := flattenWords(msg.For(msg.Base).T(key))
 		at := strings.Index(flat, row)
 		if at < 0 {
 			t.Errorf("the page does not print row %d (%q):\n%s", i+1, row, page.out)

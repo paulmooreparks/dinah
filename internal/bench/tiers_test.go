@@ -416,3 +416,61 @@ func reports(findings []Finding, key string) bool {
 	}
 	return false
 }
+
+// TestAMeaningWrappedOntoASecondLineIsReported is the repair for what Agent
+// Code Review found at round one of dinah-496.
+//
+// A meaning written across two lines matched no member pattern on its
+// continuation, so the sentence was truncated to its first line, nothing was
+// reported, and an export carried the truncation back into the file. The
+// contract's own section 10 drafts all three meanings across two lines each,
+// which is the block the operator is to paste at Acceptance, so the silence was
+// pointed straight at the one workbench that was going to meet it.
+//
+// A line the reader cannot place is now reported, and the entry it stands in
+// declares nothing, because a half-read entry written back is worse than an
+// absent one.
+func TestAMeaningWrappedOntoASecondLineIsReported(t *testing.T) {
+	wrapped := strings.Replace(tieredDefinition,
+		"    meaning: mechanical edits\n",
+		"    meaning: mechanical edits whose correctness is visible in the\n      diff\n", 1)
+	opened := openTiered(t, wrapped)
+
+	for _, entry := range opened.Tiers() {
+		if entry.Tier == "minimal" {
+			t.Errorf("the rung whose meaning wrapped still declares %+v, so a truncated sentence can be written back", entry)
+		}
+	}
+	reported := ""
+	for _, entry := range opened.MalformedTierEntries() {
+		if strings.Contains(entry.Line, "diff") {
+			reported = entry.Detail()
+		}
+	}
+	if reported == "" {
+		t.Fatalf("the continuation line is not reported: %+v", opened.MalformedTierEntries())
+	}
+	if !strings.Contains(reported, "minimal") {
+		t.Errorf("the report does not name the tier the line stands under: %q", reported)
+	}
+	findings, err := opened.Check()
+	if err != nil {
+		t.Fatalf("check: %v", err)
+	}
+	if !reports(findings, FindingTiersEntryMalformed) {
+		t.Errorf("check reports no %s: %+v", FindingTiersEntryMalformed, findings)
+	}
+
+	// An annotation comment inside the block is a person writing to a person
+	// and is not a line the reader failed to place.
+	annotated := strings.Replace(tieredDefinition,
+		"    meaning: mechanical edits\n",
+		"    # the cheapest rung, and the one most work lands at\n    meaning: mechanical edits\n", 1)
+	clean := openTiered(t, annotated)
+	if got := clean.MalformedTierEntries(); len(got) != 0 {
+		t.Errorf("an annotation comment is reported as an unreadable line: %+v", got)
+	}
+	if len(clean.Tiers()) != 3 {
+		t.Errorf("a block carrying a comment declares %d entries, wanted 3", len(clean.Tiers()))
+	}
+}

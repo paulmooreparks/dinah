@@ -56,3 +56,18 @@ func (l *Library) malformedHarness(req *Request, card *bench.Card) *Response {
 	}
 	return l.refuse(req, card, contract.MalformedHarness, req.Harness)
 }
+
+// Repairs reports whether this request asks check to repair anything, which is
+// the difference between a read that reports and a run that writes.
+//
+// It is a list of the markers rather than a property of any one of them,
+// because a marker is a field of the request and nothing else about the request
+// says which fields are repairs. A marker added later and left out here is a
+// repair the malformed-harness refusal stops reaching, which is why
+// TestEveryRepairMarkerIsNamedByRepairs holds the list against the request's
+// own fields.
+func (r *Request) Repairs() bool {
+	return r.Finish || r.MigrateOrdinals || r.MigrateNumbers || r.MigrateBranches ||
+		r.Renumber || r.MigrateSlugs || r.MigrateColumns || r.MigrateVocabulary ||
+		r.MigrateContainer || r.MigrateWorkstreams || r.MigrateWitness || r.Remint != ""
+}

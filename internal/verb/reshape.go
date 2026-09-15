@@ -272,6 +272,9 @@ type reshapePlan struct {
 // identifier is derived from the run's own frozen inputs for that reason; see
 // bench.DeriveColumnID, which also states how far that guarantee reaches.
 func (l *Library) Reshape(req *Request) (*ReshapeReport, error) {
+	if req.Harness != "" && !bench.HarnessName(req.Harness) {
+		return nil, contract.Refuse(contract.MalformedHarness, req.Harness)
+	}
 	if l.Bench.Operator == "" {
 		return nil, contract.Refuse(contract.NoOperator, "")
 	}

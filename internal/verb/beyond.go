@@ -33,6 +33,9 @@ func (l *Library) Add(req *Request) *Response {
 	if l.Bench.Operator == "" {
 		return l.refuse(req, nil, contract.NoOperator, "")
 	}
+	if refused := l.malformedHarness(req, nil); refused != nil {
+		return refused
+	}
 	if req.Actor == "" {
 		return l.refuse(req, nil, contract.NoOwner, "")
 	}
@@ -162,6 +165,9 @@ func (l *Library) Comment(req *Request) *Response {
 	if l.Bench.Operator == "" {
 		return l.refuse(req, nil, contract.NoOperator, "")
 	}
+	if refused := l.malformedHarness(req, nil); refused != nil {
+		return refused
+	}
 	// A blank reference resolves to the workbench under ResolveEntity, which
 	// is right for attach and wrong here: this parameter names a card or a
 	// checklist item, never the workbench by omission, so the check this
@@ -228,6 +234,9 @@ func (l *Library) Attach(req *Request) *Response {
 	if l.Bench.Operator == "" {
 		return l.refuse(req, nil, contract.NoOperator, "")
 	}
+	if refused := l.malformedHarness(req, nil); refused != nil {
+		return refused
+	}
 	entity, err := l.Bench.ResolveEntity(req.Ref)
 	if err != nil {
 		return l.FromError(req, err)
@@ -293,6 +302,9 @@ func (l *Library) Archive(req *Request) *Response {
 	if l.Bench.Operator == "" {
 		return l.refuse(req, nil, contract.NoOperator, "")
 	}
+	if refused := l.malformedHarness(req, nil); refused != nil {
+		return refused
+	}
 	entity, err := l.Bench.ResolveEntity(req.Ref)
 	if err != nil {
 		return l.FromError(req, err)
@@ -341,6 +353,9 @@ func (l *Library) Archive(req *Request) *Response {
 func (l *Library) Restore(req *Request) *Response {
 	if l.Bench.Operator == "" {
 		return l.refuse(req, nil, contract.NoOperator, "")
+	}
+	if refused := l.malformedHarness(req, nil); refused != nil {
+		return refused
 	}
 	entity, err := l.Bench.ResolveEntityIn(bench.ArchivedHalf, req.Ref)
 	if err != nil {
@@ -395,6 +410,9 @@ func halfFor(req *Request) bench.ResolutionHalf {
 func (l *Library) Delete(req *Request) *Response {
 	if l.Bench.Operator == "" {
 		return l.refuse(req, nil, contract.NoOperator, "")
+	}
+	if refused := l.malformedHarness(req, nil); refused != nil {
+		return refused
 	}
 	entity, err := l.Bench.ResolveEntity(req.Ref)
 	if err != nil {
@@ -487,6 +505,9 @@ func (l *Library) tombstoneNumber(id string) error {
 func (l *Library) Rename(req *Request) *Response {
 	if l.Bench.Operator == "" {
 		return l.refuse(req, nil, contract.NoOperator, "")
+	}
+	if refused := l.malformedHarness(req, nil); refused != nil {
+		return refused
 	}
 	entity, err := l.Bench.ResolveEntity(req.Ref)
 	if err != nil {
@@ -954,6 +975,9 @@ func (l *Library) Workstreams() (*WorkstreamListing, error) {
 func (l *Library) NewWorkstream(req *Request) *Response {
 	if l.Bench.Operator == "" {
 		return l.refuse(req, nil, contract.NoOperator, "")
+	}
+	if refused := l.malformedHarness(req, nil); refused != nil {
+		return refused
 	}
 	title := strings.TrimSpace(req.Workstream)
 	if title == "" {

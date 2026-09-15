@@ -1659,6 +1659,13 @@ type CheckReport struct {
 // loses that account the same way the run it is reporting on must not.
 func (l *Library) Check(req *Request) (*CheckReport, error) {
 	report := &CheckReport{}
+	// A bare check reads and repairs nothing, and a read is never refused over
+	// a malformed harness name. A check carrying a repair marker writes, and
+	// several of the repairs write journal lines, so the refusal reaches those
+	// runs on the same rule every other writing act is held to.
+	if req != nil && req.Repairs() && req.Harness != "" && !bench.HarnessName(req.Harness) {
+		return report, contract.Refuse(contract.MalformedHarness, req.Harness)
+	}
 	if req != nil && req.MigrateSlugs {
 		assigned, reported := l.Bench.BackfillColumnSlugs()
 		report.MigratedSlugs = true

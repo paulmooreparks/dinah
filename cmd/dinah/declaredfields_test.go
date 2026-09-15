@@ -359,8 +359,12 @@ func TestThePublishedCheckListsCarryTheFieldRowWhereCanLandRunsIt(t *testing.T) 
 		rows     int
 		position int
 	}{
-		{command: "move", rows: 14, position: 12},
-		{command: "pull", rows: 19, position: 14},
+		// Each count and each position moved by one at dinah-496, which put the
+		// harness row at the head of every writing command's list, and pull's
+		// count moved by three because the tier gate's other two answers were
+		// appended behind its own tier row.
+		{command: "move", rows: 15, position: 13},
+		{command: "pull", rows: 22, position: 15},
 	}
 	numbered := regexp.MustCompile(`^  (\d+) `)
 	root := newBench(t)

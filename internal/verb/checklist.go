@@ -46,6 +46,9 @@ func (l *Library) File(req *Request) *Response {
 	if l.Bench.Operator == "" {
 		return l.refuse(req, nil, contract.NoOperator, "")
 	}
+	if refused := l.malformedHarness(req, nil); refused != nil {
+		return refused
+	}
 	found, err := l.Bench.ResolveCard(req.Card)
 	if err != nil {
 		return l.FromError(req, err)
@@ -274,6 +277,9 @@ const itemStepUnlocked = "item-unlocked"
 func (l *Library) withItem(req *Request, work func(*itemTarget) (*bench.Event, *Response)) *Response {
 	if l.Bench.Operator == "" {
 		return l.refuse(req, nil, contract.NoOperator, "")
+	}
+	if refused := l.malformedHarness(req, nil); refused != nil {
+		return refused
 	}
 	entity, err := l.Bench.ResolveEntity(req.Ref)
 	if err != nil {

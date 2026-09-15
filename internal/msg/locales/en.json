@@ -1218,8 +1218,8 @@
       "context": "The next step of refusal.dinah.tier-out-of-range. {levels} is the tier axis's declared members in declaration order, read off the workbench rather than written here, so a tier name is never translated."
     },
     "refusal.dinah.below-tier": {
-      "text": "this card asks for tier {required} at column {column}, and this workbench lists {model} lower",
-      "context": "The sentence printed after the refusal name dinah.below-tier, which a claim by a caller whose model the tiers table lists below what the card requires carries. {required} is the tier the card itself asks for, and {detail} carries the same name; {column} is the column being claimed into; {model} is the caller's own provider and model, rendered provider/model or provider/model@server. The requirement is the card's own, so the sentence says the card asks rather than the column."
+      "text": "this card asks for tier {required} at column {column}, and {model} resolves below it",
+      "context": "The sentence printed after the refusal name dinah.below-tier, which a claim by a caller whose model resolves below what the card requires carries. {required} is the tier the card itself asks for, and {detail} carries the same name; {column} is the column being claimed into; {model} is the caller's own declaration, rendered provider/model or provider/model@server. The sentence says the declaration resolves below the requirement rather than that the workbench lists it there: a caller declaring a server the table never mentions matches a serverless entry through the second pass, and a sentence saying the workbench listed that pair at that address would assert a row nobody could find."
     },
     "refusal.dinah.below-tier.next": {
       "text": "; run a model this workbench lists at {required} or above, which is {satisfied_by}",
@@ -4080,6 +4080,26 @@
     "whoami.tier": {
       "text": "tier: {tier}",
       "context": "The tier line dinah whoami prints, shown only where the workbench's tiers table resolves the declared provider and model to a rung."
+    },
+    "check.harness": {
+      "text": "the harness you declared is a legal name",
+      "context": "One row of the ordered precondition list of every command that writes a journal line, spliced ahead of the command's own list because it reads the request rather than the card. One row under one key serves all of them, since it is the same check on the same value. A read is never refused over it, so no read's list carries it. The sentence is short because the table it prints in is bounded by the reader's window and this row stands on pages whose other rows are long."
+    },
+    "check.claim.9": {
+      "text": "this workbench's table lists the model you declared",
+      "context": "One row of the ordered precondition list of claim. It is the second of the three answers the tier gate can refuse with, and it reports dinah.unlisted-model. The row is kept short because the table it prints in is bounded by the reader's window."
+    },
+    "check.claim.10": {
+      "text": "this call declared a provider and a model",
+      "context": "One row of the ordered precondition list of claim. It is the third of the three answers the tier gate can refuse with, and it reports dinah.undeclared-model. Its reader is a harness nobody configured rather than one running the wrong model."
+    },
+    "check.pull.18": {
+      "text": "this workbench's table lists the model you declared",
+      "context": "One row of the ordered precondition list of pull, which is claim's own row 9 reached at the destination. The sentence is claim's, because the check is claim's."
+    },
+    "check.pull.19": {
+      "text": "this call declared a provider and a model",
+      "context": "One row of the ordered precondition list of pull, which is claim's own row 10 reached at the destination. The sentence is claim's, because the check is claim's."
     }
   }
 }

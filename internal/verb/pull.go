@@ -28,11 +28,11 @@ import (
 // pull refuses, and the option changes what pull writes rather than what pull
 // allows.
 func (l *Library) Pull(req *Request) *Response {
-	if refused := l.malformedHarness(req, nil); refused != nil {
-		return refused
-	}
 	if l.Bench.Operator == "" {
 		return l.refuse(req, nil, contract.NoOperator, "")
+	}
+	if refused := l.malformedHarness(req, nil); refused != nil {
+		return refused
 	}
 	if req.Actor == "" {
 		return l.refuse(req, nil, contract.NoOwner, "")
