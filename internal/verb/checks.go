@@ -441,6 +441,15 @@ var beyondChecks = map[string][]Check{
 		{Refusal: contract.UnknownRoot, Key: "check.mcp.1"},
 		{Refusal: contract.OutsideRoot, Key: "check.mcp.2"},
 	},
+	// lsp carries the two checks its startup path raises, in the order it
+	// evaluates them: the directory --root names has to exist, and
+	// --poll-seconds has to be a positive whole number. Both are existing
+	// contract refusals rather than names minted here, malformed being what
+	// this tool already raises over a flag value it cannot parse.
+	"lsp": {
+		{Refusal: contract.UnknownRoot, Key: "check.lsp.1"},
+		{Refusal: contract.Malformed, Key: "check.lsp.2"},
+	},
 	// raise checks the operator itself, as Library.Raise's own first line,
 	// the same way reshape does, so the operator row sits in this table
 	// rather than being prefixed by Checks: raise is a beyond-contract

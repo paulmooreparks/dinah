@@ -43,6 +43,12 @@ var viewExemptions = []viewExemption{
 			"identifier resolves only in the selector slot of a path that already names the card.",
 	},
 	{
+		typeName: "ColumnChange", ground: groundIdentifierResolves,
+		reason: "a change notice about a column addresses it on exactly the grounds ColumnView does, its identifier " +
+			"and its slug both being accepted in the head position of a reference. dinah-515 fixes the type at five " +
+			"members, so the reference a Ref member would carry is one a holder already composes from the identifier.",
+	},
+	{
 		typeName: "ReshapeColumn", ground: groundNotAnEntityView,
 		reason: "a reshape preview reports what a run would do, and the column it names does not exist yet.",
 	},

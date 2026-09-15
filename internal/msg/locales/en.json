@@ -373,6 +373,14 @@
       "text": "the workbench you name lies under the root",
       "context": "The second row of the precondition list of mcp, raised when --workbench names a workbench outside --root or when an MCP call names a workbench outside the root. Keep a translation at or under 52 display columns. A longer sentence takes the table row to itself and pushes the refusal name down to the line beneath."
     },
+    "check.lsp.1": {
+      "text": "--root names a directory that exists",
+      "context": "The first row of the precondition list of lsp, raised before the server starts when --root names a directory that does not exist. Keep a translation at or under 52 display columns. A longer sentence takes the table row to itself and pushes the refusal name down to the line beneath."
+    },
+    "check.lsp.2": {
+      "text": "--poll-seconds is a positive whole number",
+      "context": "The second row of the precondition list of lsp, raised before the server starts when --poll-seconds is not a positive whole number. Keep a translation at or under 52 display columns. A longer sentence takes the table row to itself and pushes the refusal name down to the line beneath."
+    },
     "check.missing-anchor": {
       "text": "directory {detail} carries no anchor file, so it does not count as part of the workbench",
       "context": "A check finding: a hex directory without its anchor."
@@ -988,6 +996,90 @@
     "cmd.mcp.summary": {
       "text": "Serve workbenches over MCP on stdio",
       "context": "The one-line summary of the mcp command, shown beside its syntax in the help block."
+    },
+    "cmd.lsp.summary": {
+      "text": "Serve one workbench to an editor over LSP on stdio",
+      "context": "The one-line summary of the lsp command, shown beside its syntax in the help block."
+    },
+    "lsp.label.card": {
+      "text": "{title}, in {column}",
+      "context": "The inline annotation and hover line for a card reference with no holder. {title} is the card's title and {column} is the title of the column it stands in."
+    },
+    "lsp.label.card.held": {
+      "text": "{title}, in {column}, held by {holder}",
+      "context": "The inline annotation and hover line for a card somebody is holding. {holder} is the owner name recorded on the claim."
+    },
+    "lsp.label.column": {
+      "text": "{title}",
+      "context": "The inline annotation and hover line for a column that holds a card neither on the way in nor on the way out. {title} is the column's title."
+    },
+    "lsp.label.column.holds-in": {
+      "text": "{title}, holds a card entering",
+      "context": "The inline annotation and hover line for a column that holds a card on the way in while an item naming it is unresolved."
+    },
+    "lsp.label.column.holds-out": {
+      "text": "{title}, holds a card leaving",
+      "context": "The inline annotation and hover line for a column that holds a card on the way out while an item naming it is unresolved."
+    },
+    "lsp.label.column.holds-both": {
+      "text": "{title}, holds a card both ways",
+      "context": "The inline annotation and hover line for a column that holds a card on the way in and on the way out."
+    },
+    "lsp.label.workstream": {
+      "text": "{title}",
+      "context": "The inline annotation and hover line for a workstream reference. {title} is the workstream's title."
+    },
+    "lsp.label.item": {
+      "text": "{kind}, {state}",
+      "context": "The inline annotation and hover line for a checklist item naming no owner. {kind} and {state} are canonical tokens spliced untranslated, such as open_question and pending."
+    },
+    "lsp.label.item.owned": {
+      "text": "{kind}, {state}, for {owner}",
+      "context": "The inline annotation and hover line for a checklist item that names an owner. {kind} and {state} are canonical tokens spliced untranslated; {owner} is the owner name."
+    },
+    "lsp.label.attachment": {
+      "text": "{filename}",
+      "context": "The inline annotation and hover line for an attachment reference. {filename} is the payload's original name."
+    },
+    "lsp.label.unresolved": {
+      "text": "names nothing on this workbench",
+      "context": "The inline annotation and hover line for a value at a declared front-matter reference position that resolves to no entity. It is a report of what the value names and not a diagnostic."
+    },
+    "lsp.hover.workbench": {
+      "text": "on {workbench}",
+      "context": "The last line of every hover the language server answers, so a reader with two repositories open knows which workbench answered. {workbench} is the workbench's title."
+    },
+    "lsp.completion.column.detail": {
+      "text": "column {slug}, step {position} of the flow",
+      "context": "The detail line beside one column candidate in a completion list. {slug} is the column's own handle and {position} is its one-based place in the flow."
+    },
+    "lsp.completion.workstream.detail": {
+      "text": "workstream {slug}",
+      "context": "The detail line beside one workstream candidate in a completion list. {slug} is the workstream's own handle."
+    },
+    "lsp.completion.card.detail": {
+      "text": "{column}, {state}",
+      "context": "The detail line beside one card candidate in a completion list. {column} is the title of the column the card stands in and {state} is its condition."
+    },
+    "lsp.no-workbench": {
+      "text": "Dinah found no workbench here, so nothing is annotated yet",
+      "context": "The one message the language server shows a reader when no workbench resolved at startup. The server keeps serving and retries on every poll, so this says what is missing rather than reporting a failure."
+    },
+    "lsp.log.workbench": {
+      "text": "serving the workbench at {root}",
+      "context": "The line the language server writes to the editor's log once at startup, naming which workbench answered. {root} is that workbench's directory."
+    },
+    "lsp.log.no-refresh-support": {
+      "text": "this editor declared no inlay-hint refresh support, so an inline annotation will not update until its document is edited or reopened",
+      "context": "The line the language server writes to the editor's log once at startup when the client declared no inlay-hint refresh support. It tells a reader why a label may go stale, rather than leaving them to conclude the annotation lies."
+    },
+    "lsp.log.slow-walk.entered": {
+      "text": "the workbench walk took {duration} against a poll interval of {interval}, so refresh latency is now bounded by the walk rather than by the interval",
+      "context": "The warning the language server writes to the editor's log on entering the state where a change walk outruns the poll interval. {duration} is the measured walk and {interval} is the interval it outran. It is sent once on the edge and never once per tick."
+    },
+    "lsp.log.slow-walk.left": {
+      "text": "the workbench walk took {duration} against a poll interval of {interval}, so refresh latency is back at the interval",
+      "context": "The warning the language server writes to the editor's log on leaving the state where a change walk outruns the poll interval. {duration} is the walk that left the state and {interval} is the interval the loop is again sleeping."
     },
     "cmd.reopen.summary": {
       "text": "Return a closed checklist item to pending",
@@ -3120,6 +3212,18 @@
     "param.mcp.root.summary": {
       "text": "directory every workbench this server serves lies under; the workbench discovered at startup when you name none",
       "context": "The meaning of the --root argument of `dinah mcp`, printed in that command's arguments table."
+    },
+    "param.lsp.root.summary": {
+      "text": "directory the workbench this server serves lies under; the workbench discovered at startup when you name none",
+      "context": "The meaning of the --root argument of `dinah lsp`, printed in that command's arguments table."
+    },
+    "param.lsp.annotate-prose.summary": {
+      "text": "draw the inline annotation in prose as well as in front matter, for an editor that sends no settings",
+      "context": "The meaning of the --annotate-prose argument of `dinah lsp`, printed in that command's arguments table."
+    },
+    "param.lsp.poll-seconds.summary": {
+      "text": "how often the server rereads the workbench for a change; 2 when you name none",
+      "context": "The meaning of the --poll-seconds argument of `dinah lsp`, printed in that command's arguments table."
     },
     "param.next.column.summary": {
       "text": "which column to offer a card from, also written --column <column>; every column when you name none",

@@ -665,7 +665,16 @@ var params = map[string][]Param{
 	"version": {
 		{Name: "catalogs", Flag: true, Marker: true},
 	},
-	"mcp":  {{Name: "root", Flag: true, Value: "dir"}},
+	"mcp": {{Name: "root", Flag: true, Value: "dir"}},
+	// lsp declares its own root rather than sharing mcp's, because the two
+	// mean different things: mcp's root bounds every workbench that head may
+	// serve, and this one is a directory to search for the single workbench
+	// this head binds to at startup.
+	"lsp": {
+		{Name: "root", Flag: true, Value: "dir"},
+		{Name: "annotate-prose", Flag: true, Marker: true},
+		{Name: "poll-seconds", Flag: true, Value: "n"},
+	},
 	"help": {{Name: "command", Required: true}},
 }
 
@@ -1149,6 +1158,7 @@ var derivationExemptions = map[string]string{
 	"guide":   "prints an embedded guide; the terminal never builds a Request for it",
 	"help":    "prints a command's own help; the terminal never builds a Request for it",
 	"init":    "creates a workbench in a directory; the terminal never builds a Request for it",
+	"lsp":     "starts this head; the terminal never builds a Request for it",
 	"mcp":     "starts this head; the terminal never builds a Request for it",
 	"path":    "resolves a filesystem path for a shell; the terminal never builds a Request for it",
 	"version": "runVersion reads catalogs straight off the parsed arguments; no Request carries it",

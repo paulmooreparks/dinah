@@ -52,7 +52,11 @@
 			"manifest.command.dinah.tree.fileItem.title",
 			"manifest.command.dinah.tree.openComment.title",
 			"manifest.command.dinah.comment.post.title",
-			"manifest.command.dinah.comment.discard.title"
+			"manifest.command.dinah.comment.discard.title",
+			"manifest.configuration.dinah.lsp.enabled.markdownDescription",
+			"manifest.configuration.dinah.lsp.annotateProse.markdownDescription",
+			"manifest.configuration.dinah.lsp.pollIntervalSeconds.markdownDescription",
+			"manifest.configuration.dinah.lsp.trace.server.markdownDescription"
 		],
 		"cs": [
 			"manifest.viewsContainers.dinah.title",
@@ -106,7 +110,11 @@
 			"manifest.command.dinah.tree.fileItem.title",
 			"manifest.command.dinah.tree.openComment.title",
 			"manifest.command.dinah.comment.post.title",
-			"manifest.command.dinah.comment.discard.title"
+			"manifest.command.dinah.comment.discard.title",
+			"manifest.configuration.dinah.lsp.enabled.markdownDescription",
+			"manifest.configuration.dinah.lsp.annotateProse.markdownDescription",
+			"manifest.configuration.dinah.lsp.pollIntervalSeconds.markdownDescription",
+			"manifest.configuration.dinah.lsp.trace.server.markdownDescription"
 		],
 		"de": [],
 		"es": [
@@ -161,7 +169,11 @@
 			"manifest.command.dinah.tree.fileItem.title",
 			"manifest.command.dinah.tree.openComment.title",
 			"manifest.command.dinah.comment.post.title",
-			"manifest.command.dinah.comment.discard.title"
+			"manifest.command.dinah.comment.discard.title",
+			"manifest.configuration.dinah.lsp.enabled.markdownDescription",
+			"manifest.configuration.dinah.lsp.annotateProse.markdownDescription",
+			"manifest.configuration.dinah.lsp.pollIntervalSeconds.markdownDescription",
+			"manifest.configuration.dinah.lsp.trace.server.markdownDescription"
 		],
 		"fil": [
 			"manifest.viewsContainers.dinah.title",
@@ -215,7 +227,11 @@
 			"manifest.command.dinah.tree.fileItem.title",
 			"manifest.command.dinah.tree.openComment.title",
 			"manifest.command.dinah.comment.post.title",
-			"manifest.command.dinah.comment.discard.title"
+			"manifest.command.dinah.comment.discard.title",
+			"manifest.configuration.dinah.lsp.enabled.markdownDescription",
+			"manifest.configuration.dinah.lsp.annotateProse.markdownDescription",
+			"manifest.configuration.dinah.lsp.pollIntervalSeconds.markdownDescription",
+			"manifest.configuration.dinah.lsp.trace.server.markdownDescription"
 		],
 		"hi": [],
 		"id": [
@@ -270,7 +286,11 @@
 			"manifest.command.dinah.tree.fileItem.title",
 			"manifest.command.dinah.tree.openComment.title",
 			"manifest.command.dinah.comment.post.title",
-			"manifest.command.dinah.comment.discard.title"
+			"manifest.command.dinah.comment.discard.title",
+			"manifest.configuration.dinah.lsp.enabled.markdownDescription",
+			"manifest.configuration.dinah.lsp.annotateProse.markdownDescription",
+			"manifest.configuration.dinah.lsp.pollIntervalSeconds.markdownDescription",
+			"manifest.configuration.dinah.lsp.trace.server.markdownDescription"
 		]
 	},
 	"verbatim": {
@@ -425,7 +445,11 @@
 			"manifest.command.dinah.tree.fileItem.title": "1f6b72367f3c33d8",
 			"manifest.command.dinah.tree.openComment.title": "6bebcdac3a5058d6",
 			"manifest.command.dinah.comment.post.title": "16e4c94839dd8bf8",
-			"manifest.command.dinah.comment.discard.title": "6c482fb573649c84"
+			"manifest.command.dinah.comment.discard.title": "6c482fb573649c84",
+			"manifest.configuration.dinah.lsp.enabled.markdownDescription": "9b5dc5b1c3d1f489",
+			"manifest.configuration.dinah.lsp.annotateProse.markdownDescription": "ec8bd1b338d88291",
+			"manifest.configuration.dinah.lsp.pollIntervalSeconds.markdownDescription": "dde0cd6457a527d7",
+			"manifest.configuration.dinah.lsp.trace.server.markdownDescription": "cda82dd57562a6a2"
 		},
 		"hi": {
 			"manifest.viewsContainers.dinah.title": "4f7f4ffab37b3e1",
@@ -479,7 +503,11 @@
 			"manifest.command.dinah.tree.fileItem.title": "1f6b72367f3c33d8",
 			"manifest.command.dinah.tree.openComment.title": "6bebcdac3a5058d6",
 			"manifest.command.dinah.comment.post.title": "16e4c94839dd8bf8",
-			"manifest.command.dinah.comment.discard.title": "6c482fb573649c84"
+			"manifest.command.dinah.comment.discard.title": "6c482fb573649c84",
+			"manifest.configuration.dinah.lsp.enabled.markdownDescription": "9b5dc5b1c3d1f489",
+			"manifest.configuration.dinah.lsp.annotateProse.markdownDescription": "ec8bd1b338d88291",
+			"manifest.configuration.dinah.lsp.pollIntervalSeconds.markdownDescription": "dde0cd6457a527d7",
+			"manifest.configuration.dinah.lsp.trace.server.markdownDescription": "cda82dd57562a6a2"
 		}
 	}
 }

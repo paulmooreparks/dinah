@@ -2008,8 +2008,10 @@ const theOneTable = "cmd/dinah/table.go"
 // is the stderr half of reportError, split out for the one caller whose
 // machine answer is its own report rather than a bare refusal. The rest hand a stream to
 // something outside the head. runPath writes the path it resolved, editCmd
-// gives the child process an editor runs in its stdio, and runMCP serves the
-// MCP server on stdio. editCmd holds the naming runEdit used to do itself, so
+// gives the child process an editor runs in its stdio, runMCP serves the
+// MCP server on stdio, and runLSP serves the language server on stdio for the
+// same reason: a protocol server is handed the process's own streams and
+// writes frames rather than rows. editCmd holds the naming runEdit used to do itself, so
 // runEdit is off this list: it builds no command of its own since dinah-199
 // and names no stream.
 //
@@ -2030,6 +2032,7 @@ var streamWriters = []string{
 	"runPath",
 	"editCmd",
 	"runMCP",
+	"runLSP",
 }
 
 // processStreamHolders are the two functions that may name the process's own

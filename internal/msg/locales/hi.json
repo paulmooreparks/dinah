@@ -469,6 +469,16 @@
       "context": "The second row of the precondition list of mcp, raised when --workbench names a workbench outside --root or when an MCP call names a workbench outside the root. Keep a translation at or under 52 display columns. A longer sentence takes the table row to itself and pushes the refusal name down to the line beneath.",
       "source": "af2ab98a7a859f37"
     },
+    "check.lsp.1": {
+      "text": "--root जिस डायरेक्टरी को नामता है वह मौजूद है",
+      "context": "The first row of the precondition list of lsp, raised before the server starts when --root names a directory that does not exist. Keep a translation at or under 52 display columns. A longer sentence takes the table row to itself and pushes the refusal name down to the line beneath.",
+      "source": "cb1cd98b0eaed2b8"
+    },
+    "check.lsp.2": {
+      "text": "--poll-seconds एक धनात्मक पूर्ण संख्या है",
+      "context": "The second row of the precondition list of lsp, raised before the server starts when --poll-seconds is not a positive whole number. Keep a translation at or under 52 display columns. A longer sentence takes the table row to itself and pushes the refusal name down to the line beneath.",
+      "source": "9a704aa449242d58"
+    },
     "check.missing-anchor": {
       "text": "निर्देशिका {detail} में आधार फ़ाइल नहीं, इसलिए वह वर्कबेंच का हिस्सा नहीं मानी जाती",
       "context": "A check finding: a hex directory without its anchor.",
@@ -1238,6 +1248,116 @@
       "text": "MCP पर stdio से वर्कबेंच परोसें",
       "context": "The one-line summary of the mcp command, shown beside its syntax in the help block.",
       "source": "7d3198fa32547f63"
+    },
+    "cmd.lsp.summary": {
+      "text": "stdio पर LSP के ज़रिये एक वर्कबेंच को संपादक को परोसें",
+      "context": "The one-line summary of the lsp command, shown beside its syntax in the help block.",
+      "source": "db3ca5ba7a69701"
+    },
+    "lsp.label.card": {
+      "text": "{title}, {column} में",
+      "context": "The inline annotation and hover line for a card reference with no holder. {title} is the card's title and {column} is the title of the column it stands in.",
+      "source": "a071319f9a260016"
+    },
+    "lsp.label.card.held": {
+      "text": "{title}, {column} में, {holder} के पास",
+      "context": "The inline annotation and hover line for a card somebody is holding. {holder} is the owner name recorded on the claim.",
+      "source": "ffa17b33a7332c38"
+    },
+    "lsp.label.column": {
+      "text": "{title}",
+      "context": "The inline annotation and hover line for a column that holds a card neither on the way in nor on the way out. {title} is the column's title.",
+      "verbatim": true,
+      "source": "981efd4748b03a23"
+    },
+    "lsp.label.column.holds-in": {
+      "text": "{title}, प्रवेश करती कार्ड को रोकता है",
+      "context": "The inline annotation and hover line for a column that holds a card on the way in while an item naming it is unresolved.",
+      "source": "7c51a0ebd8ae16c0"
+    },
+    "lsp.label.column.holds-out": {
+      "text": "{title}, निकलती कार्ड को रोकता है",
+      "context": "The inline annotation and hover line for a column that holds a card on the way out while an item naming it is unresolved.",
+      "source": "97536f5c7f46ecd6"
+    },
+    "lsp.label.column.holds-both": {
+      "text": "{title}, दोनों दिशाओं में कार्ड रोकता है",
+      "context": "The inline annotation and hover line for a column that holds a card on the way in and on the way out.",
+      "source": "66aa45fa69dc356f"
+    },
+    "lsp.label.workstream": {
+      "text": "{title}",
+      "context": "The inline annotation and hover line for a workstream reference. {title} is the workstream's title.",
+      "verbatim": true,
+      "source": "981efd4748b03a23"
+    },
+    "lsp.label.item": {
+      "text": "{kind}, {state}",
+      "context": "The inline annotation and hover line for a checklist item naming no owner. {kind} and {state} are canonical tokens spliced untranslated, such as open_question and pending.",
+      "verbatim": true,
+      "source": "7489aae09fae568c"
+    },
+    "lsp.label.item.owned": {
+      "text": "{kind}, {state}, {owner} के लिए",
+      "context": "The inline annotation and hover line for a checklist item that names an owner. {kind} and {state} are canonical tokens spliced untranslated; {owner} is the owner name.",
+      "source": "ab8442dd281ab210"
+    },
+    "lsp.label.attachment": {
+      "text": "{filename}",
+      "context": "The inline annotation and hover line for an attachment reference. {filename} is the payload's original name.",
+      "verbatim": true,
+      "source": "dd3a10b6a42e323e"
+    },
+    "lsp.label.unresolved": {
+      "text": "इस वर्कबेंच पर कुछ भी नामित नहीं करता",
+      "context": "The inline annotation and hover line for a value at a declared front-matter reference position that resolves to no entity. It is a report of what the value names and not a diagnostic.",
+      "source": "3bffeafe3131f814"
+    },
+    "lsp.hover.workbench": {
+      "text": "{workbench} पर",
+      "context": "The last line of every hover the language server answers, so a reader with two repositories open knows which workbench answered. {workbench} is the workbench's title.",
+      "source": "f41d447df6fe9a6d"
+    },
+    "lsp.completion.column.detail": {
+      "text": "कॉलम {slug}, प्रवाह का चरण {position}",
+      "context": "The detail line beside one column candidate in a completion list. {slug} is the column's own handle and {position} is its one-based place in the flow.",
+      "source": "29777175cff73d51"
+    },
+    "lsp.completion.workstream.detail": {
+      "text": "कार्यधारा {slug}",
+      "context": "The detail line beside one workstream candidate in a completion list. {slug} is the workstream's own handle.",
+      "source": "647dc9669227dc3d"
+    },
+    "lsp.completion.card.detail": {
+      "text": "{column}, {state}",
+      "context": "The detail line beside one card candidate in a completion list. {column} is the title of the column the card stands in and {state} is its condition.",
+      "verbatim": true,
+      "source": "c0b536815e17a7f8"
+    },
+    "lsp.no-workbench": {
+      "text": "Dinah को यहाँ कोई वर्कबेंच नहीं मिली, इसलिए अभी कुछ भी चिह्नित नहीं है",
+      "context": "The one message the language server shows a reader when no workbench resolved at startup. The server keeps serving and retries on every poll, so this says what is missing rather than reporting a failure.",
+      "source": "33d85bbedb644f4c"
+    },
+    "lsp.log.workbench": {
+      "text": "{root} पर मौजूद वर्कबेंच परोसी जा रही है",
+      "context": "The line the language server writes to the editor's log once at startup, naming which workbench answered. {root} is that workbench's directory.",
+      "source": "94a08960af8e3b62"
+    },
+    "lsp.log.no-refresh-support": {
+      "text": "इस संपादक ने इनले-संकेत ताज़ा करने का समर्थन घोषित नहीं किया, इसलिए इनलाइन चिह्न तब तक नहीं बदलेगा जब तक उसका दस्तावेज़ संपादित या दोबारा खोला न जाए",
+      "context": "The line the language server writes to the editor's log once at startup when the client declared no inlay-hint refresh support. It tells a reader why a label may go stale, rather than leaving them to conclude the annotation lies.",
+      "source": "64a619e68b7da3e8"
+    },
+    "lsp.log.slow-walk.entered": {
+      "text": "वर्कबेंच का चक्कर {duration} लगा, जबकि पोल अंतराल {interval} है, इसलिए ताज़ा होने की देरी अब अंतराल के बजाय चक्कर से तय होती है",
+      "context": "The warning the language server writes to the editor's log on entering the state where a change walk outruns the poll interval. {duration} is the measured walk and {interval} is the interval it outran. It is sent once on the edge and never once per tick.",
+      "source": "355264fef00444b2"
+    },
+    "lsp.log.slow-walk.left": {
+      "text": "वर्कबेंच का चक्कर {duration} लगा, जबकि पोल अंतराल {interval} है, इसलिए ताज़ा होने की देरी फिर अंतराल पर आ गई है",
+      "context": "The warning the language server writes to the editor's log on leaving the state where a change walk outruns the poll interval. {duration} is the walk that left the state and {interval} is the interval the loop is again sleeping.",
+      "source": "3a1eefc1f2fef836"
     },
     "cmd.reopen.summary": {
       "text": "बंद चेकलिस्ट मद को फिर से लंबित करें",
@@ -3908,6 +4028,21 @@
       "text": "वह डायरेक्टरी जिसके नीचे यह सर्वर की परोसी हर वर्कबेंच पड़ती है; आप कोई न नामें, तो शुरुआत में मिली वर्कबेंच",
       "context": "The meaning of the --root argument of `dinah mcp`, printed in that command's arguments table.",
       "source": "b4a7679728c79e03"
+    },
+    "param.lsp.root.summary": {
+      "text": "वह डायरेक्टरी जिसके नीचे यह सर्वर की परोसी वर्कबेंच पड़ती है; आप कोई न नामें, तो शुरुआत में मिली वर्कबेंच",
+      "context": "The meaning of the --root argument of `dinah lsp`, printed in that command's arguments table.",
+      "source": "28f6d0d2410eff9b"
+    },
+    "param.lsp.annotate-prose.summary": {
+      "text": "चिह्न को केवल शीर्ष-खंड में नहीं, गद्य में भी बनाएँ, उस संपादक के लिए जो कोई सेटिंग नहीं भेजता",
+      "context": "The meaning of the --annotate-prose argument of `dinah lsp`, printed in that command's arguments table.",
+      "source": "8d096d60b99186f8"
+    },
+    "param.lsp.poll-seconds.summary": {
+      "text": "सर्वर कितनी बार वर्कबेंच को बदलाव के लिए दोबारा पढ़ता है; आप कुछ न नामें, तो 2",
+      "context": "The meaning of the --poll-seconds argument of `dinah lsp`, printed in that command's arguments table.",
+      "source": "b2cf4aacf5a11512"
     },
     "param.next.column.summary": {
       "text": "किस कॉलम से कार्ड देना है, इसे --column <column> भी लिखा जाता है; कुछ न लिखने पर हर कॉलम",

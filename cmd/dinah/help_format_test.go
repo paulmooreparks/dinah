@@ -106,6 +106,8 @@ WORKBENCH
 
 SERVE
   mcp [--root <dir>]                                     Serve workbenches over MCP on stdio
+  lsp [--root <dir>] [--annotate-prose]                  Serve one workbench to an editor over LSP on stdio
+    [--poll-seconds <n>]
 
 Global flags:
   Option             What it does
@@ -191,6 +193,7 @@ WORKBENCH
 
 SERVE
   mcp [--root <dir>]                                                                                    Serve workbenches over MCP on stdio
+  lsp [--root <dir>] [--annotate-prose] [--poll-seconds <n>]                                            Serve one workbench to an editor over LSP on stdio
 
 Global flags:
   Option             What it does
