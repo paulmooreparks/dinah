@@ -59,6 +59,17 @@ type ColumnView struct {
 	// which is the order the refusal names them in. It is absent on a column
 	// declaring none.
 	RequireFields []string `json:"require_fields,omitempty"`
+	// Hold is the column's item hold in the words a person types, which is
+	// on, out or both, and absent on a column holding neither way. It is
+	// bench.Column.Hold unchanged. Open already parses gate_items into that
+	// vocabulary and refuses anything else, so this member translates
+	// nothing, and a translation put here would be the second one.
+	//
+	// A client needs it to say which way an item filed against this column
+	// would hold, and the alternative is a client-side copy of the rule
+	// that goes stale the next time the rule changes, which is the argument
+	// PullDestination above already carries.
+	Hold string `json:"hold,omitempty"`
 	// Fields are the values the column itself carries for the fields its
 	// workbench declares, on the terms CardView.Fields carries a card's.
 	Fields map[string]string `json:"fields,omitempty"`
@@ -189,6 +200,7 @@ func (l *Library) columnViews(counts map[string]int) ([]ColumnView, error) {
 			Count:           counts[column.ID],
 			AttachmentCount: attachments,
 			RequireFields:   column.RequireFields,
+			Hold:            column.Hold,
 			Fields:          l.declaredFieldValues(column.FM, bench.KindColumn),
 		}
 		if destination := carriesInto(column, l.Bench.Columns); destination != nil {

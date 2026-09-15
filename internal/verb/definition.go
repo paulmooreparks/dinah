@@ -373,7 +373,7 @@ var params = map[string][]Param{
 		{Name: "card", Required: true, Shared: "card", Field: "Card"},
 		{Name: "kind", Required: true, Vocabulary: "item-kind", Field: "Kind"},
 		{Name: "text", Display: "text|-", Required: true, Rest: true, Field: "Text"},
-		{Name: "column", Flag: true, Value: "column", Field: "Column"},
+		{Name: "column", Flag: true, Value: "column", Vocabulary: "column", Field: "Column"},
 		{Name: "owner", Flag: true, Value: "owner", Field: "Owner"},
 	},
 	"cite": {

@@ -72,6 +72,18 @@ interface KeyFamily {
  */
 const KEY_FAMILIES: readonly KeyFamily[] = [
 	{ prefix: "history.event.", module: "servedText.ts", table: "HISTORY_ROWS" },
+	// Both hold groups read the same six tokens off the same object literal,
+	// which is what keeps one twelve-cell branch serving three surfaces
+	// without a second list to drift from. The prefixes differ because the
+	// form speaks about an item that does not exist yet and the two item
+	// surfaces speak about one that does, so the tense differs on every one
+	// of the six.
+	{ prefix: "item.hold.", module: "tree.ts", table: "HOLD_DIRECTIONS" },
+	{
+		prefix: "form.file.column.detail.",
+		module: "tree.ts",
+		table: "HOLD_DIRECTIONS",
+	},
 ];
 
 /** What one sweep read, and what it made of it. */

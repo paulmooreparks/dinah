@@ -107,17 +107,41 @@ export interface CommandHost extends ReporterHost {
 	readonly log: (line: string) => void;
 }
 
-/** What every command needs: how to spawn, and where the card stands. */
-export interface CommandContext {
+/**
+ * The two calls runVerb itself makes, and nothing else.
+ *
+ * Only one of the two is a window call. showError is; checkpoint is not, and
+ * extension.ts binds it to the off-cycle refresh rather than to anything on
+ * vscode.window, which is why this interface is not named for the window.
+ *
+ * A caller that only ever spawns a verb should not have to hand over a
+ * clipboard, a quick pick or a file dialog it does not own. The comment draft
+ * host is the case that made this explicit: it carries neither, it posts
+ * through runVerb, and asserting it into CommandHost bought a compiling call
+ * at the price of the check that would catch the next member runVerb reads.
+ */
+export interface VerbHost {
+	readonly showError: (message: string) => void;
+	/** Runs one off-cycle checkpoint for the folder the card stands in. */
+	readonly checkpoint: (folder: string) => Promise<void>;
+}
+
+/** What spawning a verb needs: how to spawn, and where the card stands. */
+export interface VerbContext {
 	readonly spawner: Spawner;
 	readonly exe: string;
-	readonly host: CommandHost;
+	readonly host: VerbHost;
 	/** The workspace folder the card's row belongs to. */
 	readonly folder: string;
 	/** The workbench the card stands in, which the call is pinned to. */
 	readonly root: string;
 	/** The card's own reference, which every verb below takes. */
 	readonly ref: string;
+}
+
+/** What every command needs, which is a verb context with a full host. */
+export interface CommandContext extends VerbContext {
+	readonly host: CommandHost;
 }
 
 /**
@@ -219,16 +243,28 @@ export function pinnedArgv(root: string, args: readonly string[]): string[] {
  * The checkpoint runs on a refusal too. A refusal often means the board moved
  * under the reader (somebody else claimed the card), so the read that follows
  * is exactly what shows them why.
+ *
+ * The third parameter is what a verb reading a bare dash takes on stdin, which
+ * is how a comment composed in an editor reaches `dinah comment <item> -`.
+ * SpawnOptions.stdin already existed for the MCP surface and nodeSpawner
+ * already writes and closes the stream, so nothing in the spawn layer changed
+ * and every existing caller keeps its current argument list.
  */
 export async function runVerb(
-	context: CommandContext,
+	context: VerbContext,
 	args: readonly string[],
+	stdin?: string,
 ): Promise<CliOutcome> {
 	const outcome = await runDinah(
 		context.spawner,
 		context.exe,
 		pinnedArgv(context.root, args),
-		{ cwd: context.root },
+		// The key is spread in rather than written as `stdin` so that a caller
+		// passing nothing leaves it absent rather than present and undefined.
+		// nodeSpawner writes and closes the stream on a set key, so an
+		// always-present key would give every verb an empty stdin it never
+		// asked for, and Object.hasOwn is what dinah-506/criteria/30 reads.
+		{ cwd: context.root, ...(stdin === undefined ? {} : { stdin }) },
 	);
 	if (outcome.kind !== "ok") {
 		context.host.showError(refusalMessage(outcome));

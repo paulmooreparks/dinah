@@ -748,3 +748,89 @@ This survives review by default for the same reason a wrong count does. A criter
 ```
 
 **The test:** every path a comment spells is a claim about the filesystem, so resolve it. Grep the tree for each cited filename before the diff leaves your hands, and treat a single hit, the citation itself, as the failure rather than as the match. A file that was renamed during the work, or that was named while the author still meant to create it, reads exactly like one that is there.
+
+## A double assertion telling the compiler an object is a type it does not satisfy
+
+Caught at Agent Code Review on dinah-506, 2026-09-15, at two sites in one diff, which is what makes it a class rather than a slip. `as unknown as` is not a widening and it is not a conversion. It switches the check off for one expression, and what is left holding the code up is an unrecorded fact about the callee's body: that the function happens to read only the members the value really has. That fact is true when the cast is written and nobody is told when it stops being true, so the next member the callee reads compiles, ships, and fails at run time with `undefined is not a function`.
+
+Both sites were live. In `editors/vscode/src/commentDrafts.ts` a `DraftHost`, which carries filesystem calls and two window calls, was asserted into `CommandHost`, which declares a clipboard, a quick pick, an input box, two file openers, a served-text opener, a confirmation dialog, and a checkpoint. The object had none of the first six. The call survived because `runVerb` reads `host.showError` and `host.checkpoint` and nothing else. In `editors/vscode/src/itemCommands.ts` a `FileItemContext` was asserted into `ItemCommandContext`, which requires `card: string` and `view: ItemView`; the object had neither, and that assertion bought nothing at all, because `FileItemContext` already declares every member the function it was passed to reads.
+
+**Wrong:** the value is asserted into the type the parameter names, and a comment is not even available to record why it holds, because the reason lives in another module's body:
+
+```ts
+const context: CommandContext = {
+	spawner,
+	exe,
+	host: host as unknown as CommandHost,
+	folder: entry.folder,
+	root: entry.root,
+	ref: entry.target,
+};
+const outcome = await runVerb(context, entry.argv, text);
+```
+
+**Right:** the parameter asks for what the function actually reads, so the value satisfies it and the compiler goes on checking. `runVerb` takes a `VerbContext` whose host declares the two members it uses, `CommandContext` extends that context with the full host, and every existing caller is unchanged:
+
+```ts
+export interface VerbHost {
+	readonly showError: (message: string) => void;
+	readonly checkpoint: (folder: string) => Promise<void>;
+}
+
+export interface VerbContext {
+	readonly spawner: Spawner;
+	readonly exe: string;
+	readonly host: VerbHost;
+	readonly folder: string;
+	readonly root: string;
+	readonly ref: string;
+}
+
+export interface CommandContext extends VerbContext {
+	readonly host: CommandHost;
+}
+```
+
+The second site needs no new type. Deleting the assertion is the whole fix, and the call then type-checks on `FileItemContext` as it stands.
+
+**The test:** grep the diff for `as unknown as` and read each hit against the type it lands in, member by member. Where the value is missing a member the target declares, the cast is load-bearing on the callee's body and the repair is to narrow the parameter or to give the value the members it claims. Where the value is missing nothing, the cast is dead and the repair is to delete it. Neither repair is a comment, and neither is a test: a test around a lie asserts what the code does today, and the compiler is the only reader that will still be checking when somebody edits the callee. A narrowing widening, such as a JSON import read as its declared shape or an unknown error read as an error, is a different class and is not this.
+
+## A zero-spawn assertion whose driver was never answered far enough to spawn
+
+A command's refusal is proved by driving the command and asserting that nothing was spawned. The driver supplies no answers to the form the command opens, so the first prompt declines, the command returns on the cancellation path, and the count is zero for a reason that has nothing to do with the guard under test. A guard that complained about the selection and then acted anyway satisfies the same assertion word for word.
+
+Caught twice on dinah-506, both times inside the fix written to close the previous round's unarmed-test finding. In the second instance the five-step filing form was driven with an empty host log, so `host.pick` answered `undefined` at the first step, `askFileItem` returned long before the multi-row guard could matter, and `assert.deepEqual(raise.calls, [])` held. Deleting that guard's `return undefined;` while leaving its error toast in place kept all 696 unit tests green.
+
+**Wrong.** Every other arm of the same sweep scripts its inputs, which is what makes this arm's silence invisible.
+
+```ts
+const raise = await invoke(COMMAND_FILE_ITEM, [raiseRow("wb-1"), raiseRow("wb-2")]);
+assert.deepEqual(raise.calls, [], "Raise spawned over a two-row selection");
+```
+
+**Right.** Answer every prompt that stands between the entry point and the action, so that a zero reads as a refusal rather than as a cancellation.
+
+```ts
+const raiseLog = emptyLog();
+raiseLog.typed = "Which column settles this?";
+const raiseAnswers = [
+	{ label: "Open question", value: "open_question" },
+	{ label: "here", value: "here" },
+	{ label: "The operator", value: "operator" },
+];
+let raiseAt = 0;
+const raisePicking: HostLog = {
+	...raiseLog,
+	get picked() {
+		return raiseAnswers[Math.min(raiseAt++, raiseAnswers.length - 1)];
+	},
+} as HostLog;
+const raise = await invoke(COMMAND_FILE_ITEM, [raiseRow("wb-1"), raiseRow("wb-2")], {
+	log: raisePicking,
+});
+assert.deepEqual(raise.calls, [], "Raise spawned over a two-row selection");
+```
+
+**The test:** for any assertion that a count is zero, walk the prompts between the entry point and the action and ask what the driver answered at each one. A prompt the driver never answered is an early return, and an early return makes the zero free. The plant that settles it is to leave the guard complaining and remove only its refusal, so the code says no and then does the thing. A plant that deletes the guard outright is weaker, because it can redden the error assertion while the spawn assertion stays untested.
+
+**Related:** "An absence assertion with no control that the thing ever existed" is the same zero misread, but there the fixture does drive the path and the code loses the subject upstream, so the tell sits in the code; here it sits in the driver's own inputs and the code is innocent. "A negative table row refused by a guard other than the one it is named for" covers the run that reaches a guard, just not the one the row is named for. "A test written against a refusal the build cannot reach" is the compile-time form of the same unreachability.

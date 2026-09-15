@@ -659,6 +659,315 @@
 			"text": "{count} Anhang/Anhänge löschen? Dinah zerstört die Dateien und kann sie nicht wiederherstellen.",
 			"context": "The modal shown before several attachments are deleted at once. {count} is how many of the selected rows resolved to an attachment, which is why it can be smaller than the number of rows selected. It carries the (s) form because nothing stops a later card reaching it with one attachment.",
 			"source": "43dd2333127a0345"
+		},
+		"item.kind.criterion": {
+			"text": "Abnahmekriterium",
+			"context": "The word for an item of kind acceptance_criterion. The same word on the tree row, in the item document and in the filing form, so a reader meets one name for one thing.",
+			"source": "7468cc87ac6f9265"
+		},
+		"item.kind.question": {
+			"text": "Offene Frage",
+			"context": "The word for an item of kind open_question, on the terms the criterion word above is shared.",
+			"source": "ae11ae95fef957af"
+		},
+		"item.kind.decision": {
+			"text": "Entscheidung",
+			"context": "The word for an item of kind decision, on the terms the criterion word above is shared.",
+			"source": "ef92ffa038c78883"
+		},
+		"item.state.pending": {
+			"text": "offen",
+			"context": "The word for an item nobody has settled yet. Lowercase because it is joined into a row description beside the kind word.",
+			"source": "52dea0d6eeb5083c"
+		},
+		"item.state.resolved": {
+			"text": "geklärt",
+			"context": "The word for a question or a decision that has been settled.",
+			"source": "805a3ebccf7b5625"
+		},
+		"item.state.verified": {
+			"text": "bestätigt",
+			"context": "The word for an acceptance criterion the work satisfied.",
+			"source": "b64c8390aa317e05"
+		},
+		"item.state.failed": {
+			"text": "fehlgeschlagen",
+			"context": "The word for an acceptance criterion the work did not satisfy.",
+			"source": "d7338946b42394f4"
+		},
+		"item.hold.entryAhead": {
+			"text": "die Karte hält an, bevor sie {0} betritt, solange dieser Punkt offen ist",
+			"context": "What an item's own column is doing to the card, on an item that already exists. {0} is the column's title. The column holds on the way in and the card has not reached it yet.",
+			"source": "bf3e8d5eacf0480e"
+		},
+		"item.hold.entryPassed": {
+			"text": "die Karte hat {0} bereits betreten, dieser Punkt hält sie an ihrer jetzigen Stelle also nicht auf",
+			"context": "The same sentence for a column the card has already entered. It says the item does not stop the card where it now stands rather than that it never will, because a card sent back to a passed column meets the hold again on its next move.",
+			"source": "2b534a2d414fd55e"
+		},
+		"item.hold.exitHere": {
+			"text": "die Karte steht in {0} und kann sie nicht verlassen, solange dieser Punkt offen ist",
+			"context": "The same sentence for the column the card is standing in, where that column holds on the way out.",
+			"source": "b73f046a8a08b227"
+		},
+		"item.hold.exitAhead": {
+			"text": "die Karte hält an, wenn sie {0} verlassen will, solange dieser Punkt offen ist",
+			"context": "The same sentence for a column ahead of the card that holds on the way out.",
+			"source": "bab246ee57128ec9"
+		},
+		"item.hold.exitPassed": {
+			"text": "die Karte hat {0} bereits verlassen, dieser Punkt hält sie an ihrer jetzigen Stelle also nicht auf",
+			"context": "The same sentence for a column the card has already left, worded like entryPassed above and for the same reason.",
+			"source": "207e09ce2d82660c"
+		},
+		"item.hold.nothing": {
+			"text": "{0} hält nichts auf, dieser Punkt stoppt die Karte also nirgends",
+			"context": "The same sentence for a column declaring no hold in either direction, which is true wherever the card stands and whatever it does next.",
+			"source": "5d10faee5116b60b"
+		},
+		"item.owner": {
+			"text": "Akteur:",
+			"context": "The label before an item's owner, on the tree row's tooltip and in the item document. It is drawn only where the item records one.",
+			"source": "db88e7d2b9a06bea"
+		},
+		"item.note": {
+			"text": "Notiz:",
+			"context": "The label before an item's resolution note on the tree row's tooltip.",
+			"source": "500cd82b70b565"
+		},
+		"item.comments": {
+			"text": "{count} Kommentare",
+			"context": "How many comments an item carries, shown in the row description and in its tooltip. {count} is that number and is never zero here, because the line is drawn only where there is at least one.",
+			"source": "34eee342ca38384e"
+		},
+		"item.locked": {
+			"text": "Diesen Punkt kann nur der Betreiber abschließen.",
+			"context": "The last line of a locked item's tooltip. It is the only place a reader is told why the row offers no closing action, so an absent menu entry is not mistaken for a defect.",
+			"source": "3e749734b57b912f"
+		},
+		"item.row.description": {
+			"text": "{kind} · {state}{comments}",
+			"context": "The grey text beside a checklist item's label. {kind} and {state} are the words above, and {comments} is either empty or the comment line with its own separator already in front of it.",
+			"verbatim": true,
+			"source": "d25557d05462e1c9"
+		},
+		"tree.checklistGroup.label": {
+			"text": "Prüfliste",
+			"context": "The label of the group row a card's checklist items hang under, beside the Attachments row.",
+			"source": "f834fd8bbd22502f"
+		},
+		"tree.checklist.unreadable": {
+			"text": "Diese Prüfung konnte die Prüfliste hier nicht lesen.",
+			"context": "The one row a checklist group yields when the call that lists its items was refused.",
+			"source": "2b9b728ba84d5404"
+		},
+		"item.document.title": {
+			"text": "{ref} ({kind})",
+			"context": "The item document's own heading and its tab's title. {ref} is the item's reference and {kind} is the kind word above.",
+			"verbatim": true,
+			"source": "addaed2f2914d6f7"
+		},
+		"item.document.heading.status": {
+			"text": "Status",
+			"context": "The heading above the item document's standing line, which carries the state, the hold sentence, and the owner.",
+			"verbatim": true,
+			"source": "ad3e3c8146fc920f"
+		},
+		"item.document.heading.text": {
+			"text": "Wortlaut",
+			"context": "The heading above the item's own text in its document.",
+			"source": "3887a8cbbd2e1a38"
+		},
+		"item.document.heading.note": {
+			"text": "Notiz",
+			"context": "The heading above the item's resolution note, drawn only where the item carries one.",
+			"source": "6686fcc6d2c8f0bd"
+		},
+		"item.document.heading.comments": {
+			"text": "Kommentare",
+			"context": "The heading above the item's comment thread. It is drawn even where the thread is empty, because an absent heading and an empty thread look the same to a reader who came expecting reasoning.",
+			"source": "dc12d4d35420eeb7"
+		},
+		"item.document.comment.heading": {
+			"text": "{ordinal} · {author} · {ts}",
+			"context": "One comment's own heading in the item document. {ordinal} is its one-based position in the thread, {author} wrote it and {ts} is when.",
+			"verbatim": true,
+			"source": "e08675deb3abea54"
+		},
+		"item.document.commentsEmpty": {
+			"text": "Zu diesem Punkt wurde noch nichts geschrieben.",
+			"context": "What stands under the Comments heading on an item whose thread carries nothing.",
+			"source": "4b215e939f53350d"
+		},
+		"item.document.textUnavailable": {
+			"text": "Der Wortlaut von {ref} konnte nicht gelesen werden.",
+			"context": "What the document says in place of the item's own text when the call carrying it was refused. The comment thread is still drawn below it, and nothing falls back to the item's anchor file.",
+			"source": "5f0dcf60ce692f7c"
+		},
+		"prompt.item.resolve": {
+			"text": "Was klärt {ref}?",
+			"context": "The input box a question or a decision is resolved with. {ref} is the item's reference. One line, because VS Code contributes no multi-line input control.",
+			"source": "49b1bd92bb08e4a3"
+		},
+		"prompt.item.verify": {
+			"text": "Was hat die Prüfung für {ref} ergeben?",
+			"context": "The input box an acceptance criterion is verified with, on the terms the resolve prompt above is one line.",
+			"source": "3271015ea814f499"
+		},
+		"prompt.item.fail": {
+			"text": "Warum schlägt {ref} fehl?",
+			"context": "The input box an acceptance criterion is failed with, on the terms the resolve prompt above is one line.",
+			"source": "4c8ca2264a68211a"
+		},
+		"prompt.item.reopen": {
+			"text": "Warum wird er wieder geöffnet? {count} ausgewählt.",
+			"context": "The one reason Reopen asks for before it acts on every selected row. {count} is how many rows were selected.",
+			"source": "4865c9bef97e1ae7"
+		},
+		"form.file.kind.placeholder": {
+			"text": "Was für ein Punkt ist das?",
+			"context": "The filing form's first step, over the kinds the file_item tool's own schema publishes.",
+			"source": "d5a23937bf6bce34"
+		},
+		"form.file.text.prompt": {
+			"text": "Was besagt der Punkt?",
+			"context": "The filing form's second step, which is free prose and carries no trap.",
+			"source": "69b8508c73e977d2"
+		},
+		"form.file.column.placeholder": {
+			"text": "Welche Spalte klärt ihn?",
+			"context": "The filing form's third step. The pick has no empty entry, because an item naming no column refuses every claim on its card and nothing on the card says why.",
+			"source": "fcbcb836ce8d8e"
+		},
+		"form.file.owner.placeholder": {
+			"text": "Wer beantwortet ihn?",
+			"context": "The filing form's fourth step. There is no default, because an unstamped item reads downstream as the operator's.",
+			"source": "39a04593f4ed8f22"
+		},
+		"form.file.owner.operator": {
+			"text": "Der Betreiber",
+			"context": "The owner choice that stamps the item as the operator's own.",
+			"source": "ed309d11cdc9dec4"
+		},
+		"form.file.owner.operatorDetail": {
+			"text": "nur er kann ihn abschließen",
+			"context": "The grey text under the operator choice, which is what that choice costs: the tool refuses a closing verb on such an item to anybody else.",
+			"source": "16953d7a6404f149"
+		},
+		"form.file.owner.holder": {
+			"text": "Wer die Karte hält",
+			"context": "The owner choice that stamps the item for the card's own holder.",
+			"source": "4de82779b034ed00"
+		},
+		"form.file.owner.other": {
+			"text": "Jemand anderes",
+			"context": "The owner choice that opens an input box, so a workbench using another word for its holders is not blocked by a two-entry pick.",
+			"source": "ae98ea770a754dba"
+		},
+		"form.file.owner.otherPrompt": {
+			"text": "Wer beantwortet ihn?",
+			"context": "The input box the third owner choice opens. The answer is sent verbatim and is enforced against nobody but the operator's own value.",
+			"source": "39a04593f4ed8f22"
+		},
+		"form.file.column.detail.nothing": {
+			"text": "diese Spalte hält nichts auf, der Punkt wird die Karte also nirgends stoppen",
+			"context": "The grey text under one column choice in the filing form, on a column declaring no hold. The form speaks about an item that does not exist yet, which is why this set and item.hold.* differ in tense. It says this column rather than naming one, and interpolates nothing, because the pick's label already carries the title.",
+			"source": "ea27a3ec6ec957f7"
+		},
+		"form.file.column.detail.entryAhead": {
+			"text": "die Karte wird anhalten, bevor sie diese Spalte betritt",
+			"context": "The same grey text on a column ahead of the card that holds on the way in. This is one of the two sentences the form exists to say.",
+			"source": "373624541e1cbc8f"
+		},
+		"form.file.column.detail.entryPassed": {
+			"text": "die Karte hat diese Spalte bereits betreten, das wird sie an ihrer jetzigen Stelle also nicht aufhalten",
+			"context": "The same grey text on a column the card has already entered. It says the item will not stop the card where it now stands rather than that it never will, because a card sent back to a passed column meets the hold again on its next move.",
+			"source": "7490a146f24cb48"
+		},
+		"form.file.column.detail.exitHere": {
+			"text": "die Karte kann diese Spalte erst verlassen, wenn der Punkt geklärt ist",
+			"context": "The same grey text on the card's own column, where that column holds on the way out.",
+			"source": "f850065ead86f1df"
+		},
+		"form.file.column.detail.exitAhead": {
+			"text": "die Karte wird anhalten, wenn sie diese Spalte verlassen will",
+			"context": "The same grey text on a column ahead of the card that holds on the way out. This is the second of the two sentences the form exists to say.",
+			"source": "fc06bd6cee6fa3e"
+		},
+		"form.file.column.detail.exitPassed": {
+			"text": "die Karte hat diese Spalte bereits verlassen, das wird sie an ihrer jetzigen Stelle also nicht aufhalten",
+			"context": "The same grey text on a column the card has already left, worded like entryPassed above and for the same reason.",
+			"source": "c033f5e9ddc86ace"
+		},
+		"skip.notAnItemRow": {
+			"text": "benennt keinen Prüfpunkt",
+			"context": "The output channel line for a selected row an item command cannot act on, because the row is not a checklist item.",
+			"source": "f5aa7c93cbd73f65"
+		},
+		"skip.notACardRow": {
+			"text": "benennt keine Karte",
+			"context": "The output channel line for a selected row the filing form cannot act on, because the row is not a card.",
+			"source": "b00b8f23ccce4784"
+		},
+		"draft.created": {
+			"text": "Entwurf eines Kommentars zu {ref}. Mit Kommentar senden abschicken oder mit Entwurf verwerfen wegwerfen.",
+			"context": "Toast when the Comment command has created an empty draft and opened it. {ref} is the item's reference and {path} is the draft's absolute path, which the message carries so a reader whose row later disappears can still find their words.",
+			"source": "227a600a54b0c5d1"
+		},
+		"draft.reopened": {
+			"text": "Der Kommentarentwurf zu {ref} wurde wieder geöffnet.",
+			"context": "Toast when Comment found a draft already on disk and opened it unchanged. {ref} is the item's reference and {path} is the draft's absolute path. Nothing was written over, which is what this message is telling the reader.",
+			"source": "311f726f7a54efb6"
+		},
+		"draft.storageUnavailable": {
+			"text": "Das Entwurfsverzeichnis unter {path} konnte nicht angelegt werden: {detail}",
+			"context": "Error when the extension's own global storage could not be reached, so no draft could be written. {path} is that directory and {detail} is what the editor said.",
+			"source": "7acc8aae856581eb"
+		},
+		"draft.post.saveFailed": {
+			"text": "Der Entwurf unter {path} konnte nicht gespeichert werden, es wurde nichts gesendet.",
+			"context": "Error when the document would not save. Nothing is spawned and nothing is deleted, because the bytes on disk would not have been the bytes that were sent.",
+			"source": "64b89f9a02347300"
+		},
+		"draft.post.missingFile": {
+			"text": "Unter {path} gibt es keine Entwurfsdatei. Es wurde nichts gesendet und nichts entfernt.",
+			"context": "Error when the file is gone at the moment of posting, which is what somebody who deleted it under an open tab meets. The index entry is left where it is, because a command that sent nothing removes nothing.",
+			"source": "a328f5e92f1887a7"
+		},
+		"draft.post.empty": {
+			"text": "Der Entwurf unter {path} ist leer, es gibt nichts zu senden.",
+			"context": "Error when the saved buffer is whitespace alone. The tool would refuse a blank comment anyway, and saying so locally costs no spawn.",
+			"source": "ee031190bd4b7870"
+		},
+		"draft.unknown": {
+			"text": "Dinah weiß nicht, wovon die Datei unter {path} ein Entwurf ist. Ihr Text steht weiterhin im Tab und auf der Platte.",
+			"context": "Error when Post or Discard was aimed at a path the drafts index does not carry. Nothing is deleted on this branch, which is what keeps Discard off a file the extension never created.",
+			"source": "f81e38a83528db6c"
+		},
+		"draft.post.posted": {
+			"text": "Der Kommentar zu {ref} wurde gesendet.",
+			"context": "Toast after a post the tool answered ok. {ref} is the item the comment landed on, taken from the index entry rather than from the filename.",
+			"source": "e4b3f891f2065aee"
+		},
+		"draft.post.keptAfterRefusal": {
+			"text": "Der Entwurf wurde unter {path} aufbewahrt.",
+			"context": "Toast beside a refusal, saying that nothing was lost. The refusal itself is shown through the ordinary refusal path, so this line says only where the words are.",
+			"source": "fccb7aa1f6c03e87"
+		},
+		"draft.post.postedButNotRemoved": {
+			"text": "Der Kommentar zu {ref} wurde gesendet, der Entwurf unter {path} konnte aber nicht entfernt werden: {detail}",
+			"context": "Toast for a delete that failed after a post that succeeded. The comment exists at that point, so a message saying the post failed would be false.",
+			"source": "8469a69d1c094baa"
+		},
+		"draft.discard.confirm": {
+			"text": "Den Entwurf unter {path} wegwerfen? Das lässt sich nicht rückgängig machen.",
+			"context": "The modal confirmation Discard asks before it deletes. {path} is the draft's absolute path.",
+			"source": "d16b0dc75bae122d"
+		},
+		"draft.discard.confirmLabel": {
+			"text": "Entwurf verwerfen",
+			"context": "The affirmative button of the discard confirmation. The modal supplies its own Cancel, so only this label comes from the catalogue.",
+			"source": "9224e28d2eb0b25e"
 		}
 	}
 }

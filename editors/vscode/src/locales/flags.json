@@ -42,7 +42,16 @@
 			"manifest.command.dinah.runVerb.title",
 			"manifest.command.dinah.refreshVerbCatalog.title",
 			"manifest.command.dinah.tree.openHistory.title",
-			"manifest.command.dinah.tree.archiveCard.title"
+			"manifest.command.dinah.tree.archiveCard.title",
+			"manifest.command.dinah.tree.openItem.title",
+			"manifest.command.dinah.tree.commentOnItem.title",
+			"manifest.command.dinah.tree.resolveItem.title",
+			"manifest.command.dinah.tree.verifyItem.title",
+			"manifest.command.dinah.tree.failItem.title",
+			"manifest.command.dinah.tree.reopenItem.title",
+			"manifest.command.dinah.tree.fileItem.title",
+			"manifest.command.dinah.comment.post.title",
+			"manifest.command.dinah.comment.discard.title"
 		],
 		"cs": [
 			"manifest.viewsContainers.dinah.title",
@@ -86,7 +95,16 @@
 			"manifest.command.dinah.runVerb.title",
 			"manifest.command.dinah.refreshVerbCatalog.title",
 			"manifest.command.dinah.tree.openHistory.title",
-			"manifest.command.dinah.tree.archiveCard.title"
+			"manifest.command.dinah.tree.archiveCard.title",
+			"manifest.command.dinah.tree.openItem.title",
+			"manifest.command.dinah.tree.commentOnItem.title",
+			"manifest.command.dinah.tree.resolveItem.title",
+			"manifest.command.dinah.tree.verifyItem.title",
+			"manifest.command.dinah.tree.failItem.title",
+			"manifest.command.dinah.tree.reopenItem.title",
+			"manifest.command.dinah.tree.fileItem.title",
+			"manifest.command.dinah.comment.post.title",
+			"manifest.command.dinah.comment.discard.title"
 		],
 		"de": [],
 		"es": [
@@ -131,7 +149,16 @@
 			"manifest.command.dinah.runVerb.title",
 			"manifest.command.dinah.refreshVerbCatalog.title",
 			"manifest.command.dinah.tree.openHistory.title",
-			"manifest.command.dinah.tree.archiveCard.title"
+			"manifest.command.dinah.tree.archiveCard.title",
+			"manifest.command.dinah.tree.openItem.title",
+			"manifest.command.dinah.tree.commentOnItem.title",
+			"manifest.command.dinah.tree.resolveItem.title",
+			"manifest.command.dinah.tree.verifyItem.title",
+			"manifest.command.dinah.tree.failItem.title",
+			"manifest.command.dinah.tree.reopenItem.title",
+			"manifest.command.dinah.tree.fileItem.title",
+			"manifest.command.dinah.comment.post.title",
+			"manifest.command.dinah.comment.discard.title"
 		],
 		"fil": [
 			"manifest.viewsContainers.dinah.title",
@@ -175,7 +202,16 @@
 			"manifest.command.dinah.runVerb.title",
 			"manifest.command.dinah.refreshVerbCatalog.title",
 			"manifest.command.dinah.tree.openHistory.title",
-			"manifest.command.dinah.tree.archiveCard.title"
+			"manifest.command.dinah.tree.archiveCard.title",
+			"manifest.command.dinah.tree.openItem.title",
+			"manifest.command.dinah.tree.commentOnItem.title",
+			"manifest.command.dinah.tree.resolveItem.title",
+			"manifest.command.dinah.tree.verifyItem.title",
+			"manifest.command.dinah.tree.failItem.title",
+			"manifest.command.dinah.tree.reopenItem.title",
+			"manifest.command.dinah.tree.fileItem.title",
+			"manifest.command.dinah.comment.post.title",
+			"manifest.command.dinah.comment.discard.title"
 		],
 		"hi": [],
 		"id": [
@@ -220,7 +256,16 @@
 			"manifest.command.dinah.runVerb.title",
 			"manifest.command.dinah.refreshVerbCatalog.title",
 			"manifest.command.dinah.tree.openHistory.title",
-			"manifest.command.dinah.tree.archiveCard.title"
+			"manifest.command.dinah.tree.archiveCard.title",
+			"manifest.command.dinah.tree.openItem.title",
+			"manifest.command.dinah.tree.commentOnItem.title",
+			"manifest.command.dinah.tree.resolveItem.title",
+			"manifest.command.dinah.tree.verifyItem.title",
+			"manifest.command.dinah.tree.failItem.title",
+			"manifest.command.dinah.tree.reopenItem.title",
+			"manifest.command.dinah.tree.fileItem.title",
+			"manifest.command.dinah.comment.post.title",
+			"manifest.command.dinah.comment.discard.title"
 		]
 	},
 	"verbatim": {
@@ -365,7 +410,16 @@
 			"manifest.command.dinah.runVerb.title": "eaa3141b4f0a01ab",
 			"manifest.command.dinah.refreshVerbCatalog.title": "d47308fc7756dee4",
 			"manifest.command.dinah.tree.openHistory.title": "5023ccb1323ec290",
-			"manifest.command.dinah.tree.archiveCard.title": "f67fe9f64bffe373"
+			"manifest.command.dinah.tree.archiveCard.title": "f67fe9f64bffe373",
+			"manifest.command.dinah.tree.openItem.title": "46bb9bb09f33e1ee",
+			"manifest.command.dinah.tree.commentOnItem.title": "77267e2e238ede98",
+			"manifest.command.dinah.tree.resolveItem.title": "56bdc0dd4dfd1200",
+			"manifest.command.dinah.tree.verifyItem.title": "1ba8a6bc6e132a01",
+			"manifest.command.dinah.tree.failItem.title": "fa87025bb24614e8",
+			"manifest.command.dinah.tree.reopenItem.title": "595e961fa8a3ac7d",
+			"manifest.command.dinah.tree.fileItem.title": "1f6b72367f3c33d8",
+			"manifest.command.dinah.comment.post.title": "16e4c94839dd8bf8",
+			"manifest.command.dinah.comment.discard.title": "6c482fb573649c84"
 		},
 		"hi": {
 			"manifest.viewsContainers.dinah.title": "4f7f4ffab37b3e1",
@@ -409,7 +463,16 @@
 			"manifest.command.dinah.runVerb.title": "eaa3141b4f0a01ab",
 			"manifest.command.dinah.refreshVerbCatalog.title": "d47308fc7756dee4",
 			"manifest.command.dinah.tree.openHistory.title": "5023ccb1323ec290",
-			"manifest.command.dinah.tree.archiveCard.title": "f67fe9f64bffe373"
+			"manifest.command.dinah.tree.archiveCard.title": "f67fe9f64bffe373",
+			"manifest.command.dinah.tree.openItem.title": "46bb9bb09f33e1ee",
+			"manifest.command.dinah.tree.commentOnItem.title": "77267e2e238ede98",
+			"manifest.command.dinah.tree.resolveItem.title": "56bdc0dd4dfd1200",
+			"manifest.command.dinah.tree.verifyItem.title": "1ba8a6bc6e132a01",
+			"manifest.command.dinah.tree.failItem.title": "fa87025bb24614e8",
+			"manifest.command.dinah.tree.reopenItem.title": "595e961fa8a3ac7d",
+			"manifest.command.dinah.tree.fileItem.title": "1f6b72367f3c33d8",
+			"manifest.command.dinah.comment.post.title": "16e4c94839dd8bf8",
+			"manifest.command.dinah.comment.discard.title": "6c482fb573649c84"
 		}
 	}
 }

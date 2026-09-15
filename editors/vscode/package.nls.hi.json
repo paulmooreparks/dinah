@@ -40,5 +40,14 @@
 	"manifest.command.dinah.walkthrough.openFirstSessionGuide.title": "Dinah: पहले सत्र का गाइड खोलें",
 	"manifest.command.dinah.runVerb.title": "Dinah: कमांड चलाएँ…",
 	"manifest.command.dinah.refreshVerbCatalog.title": "Dinah: कमांड पैलेट ताज़ा करें",
-	"manifest.command.dinah.tree.archiveCard.title": "Dinah: कार्ड अभिलेखागार में भेजें"
+	"manifest.command.dinah.tree.archiveCard.title": "Dinah: कार्ड अभिलेखागार में भेजें",
+	"manifest.command.dinah.tree.openItem.title": "Dinah: बिंदु खोलें",
+	"manifest.command.dinah.tree.commentOnItem.title": "Dinah: बिंदु पर टिप्पणी करें",
+	"manifest.command.dinah.tree.resolveItem.title": "Dinah: बिंदु सुलझाएँ",
+	"manifest.command.dinah.tree.verifyItem.title": "Dinah: मानदंड सत्यापित करें",
+	"manifest.command.dinah.tree.failItem.title": "Dinah: मानदंड विफल करें",
+	"manifest.command.dinah.tree.reopenItem.title": "Dinah: बिंदु फिर से खोलें",
+	"manifest.command.dinah.tree.fileItem.title": "Dinah: जाँच बिंदु दर्ज करें",
+	"manifest.command.dinah.comment.post.title": "Dinah: टिप्पणी भेजें",
+	"manifest.command.dinah.comment.discard.title": "Dinah: मसौदा हटाएँ"
 }

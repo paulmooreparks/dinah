@@ -35,12 +35,12 @@ test("the policy table and the command roster are the same set", () => {
 	);
 });
 
-test("the roster holds the twenty-three commands this extension contributes", () => {
+test("the roster holds the thirty-two commands this extension contributes", () => {
 	// The literal is the doubling the set comparison above cannot do on its
 	// own: a command deleted from both lists at once leaves them equal, and
 	// only a count notices. A later card adding a command edits this number,
 	// and that is the intended cost.
-	assert.equal(TREE_COMMANDS.length, 23);
+	assert.equal(TREE_COMMANDS.length, 32);
 });
 
 test("every policy but noRow carries an entry in the table the editor iterates", () => {
