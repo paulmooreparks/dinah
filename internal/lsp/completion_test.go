@@ -6,6 +6,7 @@ import (
 	"go/parser"
 	"go/token"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -135,6 +136,9 @@ func TestCompletionFiresAtTheEightDeclaredPositionsAndNowhereElse(t *testing.T) 
 	if silent != len(quiet) {
 		t.Errorf("swept %d non-reference positions, wanted %d", silent, len(quiet))
 	}
+	if len(quiet) != 4 {
+		t.Errorf("the quiet half names %d positions, and it is written to carry four", len(quiet))
+	}
 }
 
 // drawnFrom reports whether a completion list is drawn from the set a
@@ -238,22 +242,70 @@ func stem(text string) string {
 	return text
 }
 
+// messageMember answers the Message member of a window/logMessage or
+// window/showMessage payload written as a composite literal, and whether the
+// literal carried one at all.
+func messageMember(literal *ast.CompositeLit) (ast.Expr, bool) {
+	for _, element := range literal.Elts {
+		pair, ok := element.(*ast.KeyValueExpr)
+		if !ok {
+			continue
+		}
+		if key, ok := pair.Key.(*ast.Ident); ok && key.Name == "Message" {
+			return pair.Value, true
+		}
+	}
+	return nil, false
+}
+
+// fromCatalogue reports whether an expression is a call to the catalogue
+// renderer, which is the only composer a sentence bound for a person may have.
+// A string literal fails it, and so does every other expression, because the
+// question the guard asks is where the sentence came from rather than which
+// shapes of hard-coded text somebody has thought to enumerate.
+func fromCatalogue(expr ast.Expr) bool {
+	call, ok := expr.(*ast.CallExpr)
+	if !ok {
+		return false
+	}
+	selector, ok := call.Fun.(*ast.SelectorExpr)
+	return ok && selector.Sel.Name == "T"
+}
+
+// payloadLiteral answers the logMessageParams composite literal an expression
+// is, and whether it is one.
+func payloadLiteral(expr ast.Expr) (*ast.CompositeLit, bool) {
+	literal, ok := expr.(*ast.CompositeLit)
+	if !ok {
+		return nil, false
+	}
+	name, ok := literal.Type.(*ast.Ident)
+	if !ok || name.Name != "logMessageParams" {
+		return nil, false
+	}
+	return literal, true
+}
+
 // TestNoStringLiteralReachesTheEditorsOwnChannels asserts the second half of
 // dinah-515 criterion 27: every argument that becomes the Message member of a
 // log line or a shown message is composed by the catalogue renderer, and none
 // is a Go string literal written at the call site.
 //
-// The two channels are reached through Server.log and Server.show, each of
-// which takes a catalogue key rather than a sentence, so the scan reads the
-// call sites of those two and asserts the key argument is a declared constant
-// rather than a literal.
+// The scan reads the channel rather than the helpers. Server.log and
+// Server.show are the only route into window/logMessage and
+// window/showMessage today, so a scan of those two agrees with the code it
+// reads whatever else the package grows: a notification composed anywhere
+// else passes it untouched. So the first two halves below sweep every
+// notify call carrying one of the two methods and every construction of the
+// payload type, and the third keeps the helper scan, each half reporting the
+// size of the set it swept.
 func TestNoStringLiteralReachesTheEditorsOwnChannels(t *testing.T) {
 	sources, err := filepath.Glob("*.go")
 	if err != nil {
 		t.Fatalf("list the package's sources: %v", err)
 	}
 	fileset := token.NewFileSet()
-	inspected := 0
+	channels, payloads, helpers := 0, 0, 0
 	for _, source := range sources {
 		if strings.HasSuffix(source, "_test.go") {
 			continue
@@ -262,32 +314,80 @@ func TestNoStringLiteralReachesTheEditorsOwnChannels(t *testing.T) {
 		if err != nil {
 			t.Fatalf("parse %s: %v", source, err)
 		}
+		where := func(node ast.Node) string {
+			return source + ":" + strconv.Itoa(fileset.Position(node.Pos()).Line)
+		}
 		ast.Inspect(file, func(node ast.Node) bool {
+			// The payload type, wherever it is built. A notification handed a
+			// payload assembled into a variable first reaches the channel by a
+			// route the call-site scan cannot read, and this half reads it.
+			if literal, ok := node.(*ast.CompositeLit); ok {
+				if payload, ok := payloadLiteral(literal); ok {
+					payloads++
+					message, carried := messageMember(payload)
+					switch {
+					case !carried:
+						t.Errorf("%s builds a message payload carrying no Message member, so it would show a person an empty line", where(payload))
+					case !fromCatalogue(message):
+						t.Errorf("%s builds a message payload whose Message member is composed at the call site rather than by the catalogue", where(payload))
+					}
+				}
+			}
+
 			call, ok := node.(*ast.CallExpr)
 			if !ok {
 				return true
 			}
 			selector, ok := call.Fun.(*ast.SelectorExpr)
-			if !ok || (selector.Sel.Name != "log" && selector.Sel.Name != "show") {
+			if !ok {
 				return true
 			}
-			inspected++
+
+			// The channel itself: every notification sent under either of the
+			// two methods a person reads.
+			if selector.Sel.Name == "notify" && len(call.Args) == 2 {
+				method, ok := call.Args[0].(*ast.Ident)
+				if ok && (method.Name == "methodLogMessage" || method.Name == "methodShowMessage") {
+					channels++
+					payload, ok := payloadLiteral(call.Args[1])
+					if !ok {
+						t.Errorf("%s sends %s a payload this scan cannot read, so nothing here can tell where its sentence came from", where(call), method.Name)
+						return true
+					}
+					message, carried := messageMember(payload)
+					switch {
+					case !carried:
+						t.Errorf("%s sends %s a payload carrying no Message member", where(call), method.Name)
+					case !fromCatalogue(message):
+						t.Errorf("%s sends %s a sentence composed at the call site rather than drawn from the catalogue", where(call), method.Name)
+					}
+				}
+				return true
+			}
+
+			// The helpers, which take a catalogue key rather than a sentence.
+			if selector.Sel.Name != "log" && selector.Sel.Name != "show" {
+				return true
+			}
+			helpers++
 			if len(call.Args) < 2 {
-				t.Errorf("%s:%d calls %s with %d arguments, and it takes a level and a key",
-					source, fileset.Position(call.Pos()).Line, selector.Sel.Name, len(call.Args))
+				t.Errorf("%s calls %s with %d arguments, and it takes a level and a key",
+					where(call), selector.Sel.Name, len(call.Args))
 				return true
 			}
 			if _, literal := call.Args[1].(*ast.BasicLit); literal {
-				t.Errorf("%s:%d hands %s a string literal where a catalogue key belongs",
-					source, fileset.Position(call.Pos()).Line, selector.Sel.Name)
+				t.Errorf("%s hands %s a string literal where a catalogue key belongs", where(call), selector.Sel.Name)
 			}
 			return true
 		})
 	}
-	if inspected == 0 {
-		t.Fatal("the scan inspected no call site, so it proves nothing")
+	if channels != 2 {
+		t.Errorf("the scan read %d notifications bound for a person's own channels, and this server sends them on two", channels)
 	}
-	if inspected != 5 {
-		t.Errorf("the scan inspected %d call sites, and this server sends a person five messages", inspected)
+	if payloads != 2 {
+		t.Errorf("the scan read %d constructions of the message payload, and this server builds two", payloads)
+	}
+	if helpers != 5 {
+		t.Errorf("the scan inspected %d helper call sites, and this server sends a person five messages", helpers)
 	}
 }

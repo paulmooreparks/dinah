@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -219,6 +220,65 @@ func TestAnUnresolvedFrontMatterValueIsReportedAndNeverDiagnosed(t *testing.T) {
 	}
 }
 
+// TestAFileURIIsSpelledOutRatherThanRoundTripped pins the spelling of the one
+// location shape this server hands a client, against text written here rather
+// than against fileURI's own answer.
+//
+// Every other location assertion in this package composes its expectation with
+// fileURI and reads the server's reply back with uriPath, so a pair that is
+// wrong and mutually inverse, one dropping the scheme or mangling a drive
+// letter, leaves those assertions green while no link an editor receives can
+// be opened. This is the test that tells the pair apart from its own mistakes,
+// so it names no helper on the expected side.
+func TestAFileURIIsSpelledOutRatherThanRoundTripped(t *testing.T) {
+	composed := []struct {
+		path string
+		want string
+	}{
+		{"/tmp/plain.md", "file:///tmp/plain.md"},
+		{"/tmp/a b/card.md", "file:///tmp/a%20b/card.md"},
+		{"", ""},
+	}
+	if runtime.GOOS == "windows" {
+		composed = append(composed, struct {
+			path string
+			want string
+		}{`C:\dinah scratch\card.md`, "file:///C:/dinah%20scratch/card.md"})
+	}
+	for _, row := range composed {
+		if got := fileURI(row.path); got != row.want {
+			t.Errorf("the path %q composes the URI %q, wanted %q", row.path, got, row.want)
+		}
+	}
+	if len(composed) < 3 {
+		t.Fatalf("the spelling half read %d paths, so it proves nothing", len(composed))
+	}
+
+	read := []struct {
+		uri  string
+		want string
+	}{
+		{"file:///tmp/plain.md", filepath.FromSlash("/tmp/plain.md")},
+		{"file:///tmp/a%20b/card.md", filepath.FromSlash("/tmp/a b/card.md")},
+		{"untitled:Untitled-1", ""},
+		{"https://example.invalid/card.md", ""},
+	}
+	if runtime.GOOS == "windows" {
+		read = append(read, struct {
+			uri  string
+			want string
+		}{"file:///C:/dinah%20scratch/card.md", `C:\dinah scratch\card.md`})
+	}
+	for _, row := range read {
+		if got := uriPath(row.uri); got != row.want {
+			t.Errorf("the URI %q reads back as %q, wanted %q", row.uri, got, row.want)
+		}
+	}
+	if len(read) < 4 {
+		t.Fatalf("the reading half read %d URIs, so it proves nothing", len(read))
+	}
+}
+
 // TestTheFourStandardHandlersAnswerContent asserts dinah-515 criterion 15:
 // each of hover, documentLink, definition and completion answers a value
 // rather than null, pinned per handler and each assertion naming what it
@@ -428,6 +488,17 @@ func TestTheInlineAnnotationSetIsTheFiveKinds(t *testing.T) {
 	ref := card.Ref(f.bench.Slug)
 	inline := []string{ref, ref + "/questions/1", f.bench.Columns[0].ID, "workstream/" + f.workstreamSlug, ref + "/attachments/1"}
 	further := []string{ref + "/comments/1", ref + "/questions", ref + "/journal", ref + "/attachments/1/payload"}
+	// The numbers the contract states, written here rather than left to the
+	// two lists above. Every assertion below counts against those lists, so a
+	// later edit dropping a spelling from either would move the expectation
+	// with it and leave this test green over a smaller set than the one
+	// criterion 17 names.
+	if len(inline) != 5 {
+		t.Errorf("the fixture names %d annotated kinds, and the contract enumerates five", len(inline))
+	}
+	if len(further) != 4 {
+		t.Errorf("the fixture names %d further forms, and the contract enumerates four", len(further))
+	}
 	var lines []string
 	for _, write := range append(append([]string{}, inline...), further...) {
 		lines = append(lines, "Here stands "+write+" alone.")
@@ -511,11 +582,21 @@ func TestAnEmptyCollectionAnswersHoverAndNeitherLinkNorDefinition(t *testing.T) 
 	}
 }
 
+// contractCap is the completion cap the contract states, written here as a
+// number rather than read from completionCap. A test drawing its expectation
+// from the constant under test agrees with whatever that constant says, so
+// moving the cap to any other value leaves it green while the contract still
+// says two hundred.
+const contractCap = 200
+
 // TestCardCompletionIsCappedAndSaysSo asserts dinah-515 criterion 18: against
 // a workbench carrying more than the cap, completion answers exactly the cap
 // and reports the list incomplete; against a smaller one it answers all of
 // them and reports it whole. Both halves name the number the fixture held.
 func TestCardCompletionIsCappedAndSaysSo(t *testing.T) {
+	if completionCap != contractCap {
+		t.Errorf("the server caps completion at %d, and the contract states %d", completionCap, contractCap)
+	}
 	f := build(t)
 	h, _ := f.serve(t)
 	h.initialize(nil)
@@ -532,7 +613,7 @@ func TestCardCompletionIsCappedAndSaysSo(t *testing.T) {
 
 	small := ask()
 	held := cardsOf(f.bench)
-	if held >= completionCap {
+	if held >= contractCap {
 		t.Fatalf("the fixture already holds %d cards, so the whole-list half proves nothing", held)
 	}
 	if small.IsIncomplete {
@@ -542,7 +623,7 @@ func TestCardCompletionIsCappedAndSaysSo(t *testing.T) {
 		t.Errorf("a workbench of %d cards answered %d candidates", held, len(small.Items))
 	}
 
-	for len(mustCards(t, f)) <= completionCap {
+	for len(mustCards(t, f)) <= contractCap {
 		f.add(t, "Filler")
 	}
 	grown := len(mustCards(t, f))
@@ -556,8 +637,8 @@ func TestCardCompletionIsCappedAndSaysSo(t *testing.T) {
 	if !large.IsIncomplete {
 		t.Errorf("a workbench of %d cards answered a complete list", grown)
 	}
-	if len(large.Items) != completionCap {
-		t.Errorf("a workbench of %d cards answered %d candidates, wanted the cap of %d", grown, len(large.Items), completionCap)
+	if len(large.Items) != contractCap {
+		t.Errorf("a workbench of %d cards answered %d candidates, wanted the cap of %d", grown, len(large.Items), contractCap)
 	}
 }
 
