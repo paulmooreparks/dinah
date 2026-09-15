@@ -1301,4 +1301,32 @@ func TestAnAnchorWhoseBodyEndsInACarriageReturnIsRepairedNotRefused(t *testing.T
 	} else if strings.Contains(string(repaired), "\r") {
 		t.Error("one comment denied the repair to the column anchor beside it")
 	}
+
+	// The comment's own byte survives, which this case did not ask when it was
+	// written. It asked only that the run was not refused and that the file
+	// beside it was repaired, and a repair that deleted the byte satisfied
+	// both, so the deletion reached a push with this test green.
+	var comment string
+	filepath.Walk(filepath.Join(storeRoot(t, root), bench.CardsDir), func(path string, info os.FileInfo, err error) error {
+		if err == nil && !info.IsDir() && filepath.Base(path) == bench.CommentAnchor {
+			comment = path
+		}
+		return nil
+	})
+	if comment == "" {
+		t.Fatal("the comment was not written, so nothing here is about a file Dinah wrote")
+	}
+	if stored, err := os.ReadFile(comment); err != nil {
+		t.Fatalf("read the comment: %v", err)
+	} else if !strings.HasSuffix(string(stored), "text\r") {
+		t.Errorf("the repair deleted the carriage return Dinah itself stored, which dinah-514/decisions/7 keeps: %q", stored)
+	}
+	// A second confirmed run still finds nothing, so the byte is not being
+	// removed and put back, and the store checks clean while carrying it.
+	if again := runCLI(t, root, "check", "--migrate-newlines", "--yes"); !strings.Contains(again.out, "Nothing to rewrite") {
+		t.Errorf("a second run found work:\n%s", again.out)
+	}
+	if report := runCLI(t, root, "check"); report.code != 0 {
+		t.Errorf("a store carrying only a byte this format keeps does not check clean: %d\n%s", report.code, report.out)
+	}
 }

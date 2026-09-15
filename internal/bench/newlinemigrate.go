@@ -444,53 +444,48 @@ func transformNewlines(path string, data []byte) newlineTransform {
 	if filepath.Ext(path) != ".md" {
 		return transformWholeFile(data)
 	}
-	// The gate is asked of the normalised text rather than of the bytes, and
-	// the file is parsed from the normalised text too. Normalising is the one
-	// thing this repair is allowed to do to any file, and it can only reduce a
-	// run of carriage returns that ends at a line feed, so asking the question
-	// afterwards asks it of the file the repair would produce.
+	// The gate is asked of the normalised text rather than of the bytes.
+	// Normalising is the one thing this repair is allowed to do to any file,
+	// and it can only reduce a run of carriage returns that ends at a line
+	// feed, so asking the question afterwards asks it of the file the repair
+	// would produce. Asking it of the raw bytes refused files that were
+	// perfectly repairable: Frontmatter.Render writes a fence as three hyphens
+	// and a line feed, so an anchor whose fence lines carry a doubled carriage
+	// return could not round-trip, and a file bearing a fixed anchor name was
+	// refused as damaged and stopped the repair of every other file in the
+	// store.
 	//
-	// Asking it of the raw bytes refused files that were perfectly repairable.
-	// Frontmatter.Render writes a fence as three hyphens and a line feed, so an
-	// anchor whose fence lines carry a doubled carriage return could not
-	// round-trip, and a file bearing a fixed anchor name was refused as damaged
-	// and stopped the repair of every other file in the store. Normalised
-	// first, the same file parses cleanly and is repaired.
+	// The carriage returns at the very end of the file are set aside before the
+	// parse and put back after the render, because no line feed follows them,
+	// so they are prose rather than a line ending and the anchor reader cannot
+	// carry them. SplitLines strips a trailing carriage return from every line
+	// including the last, whether or not a line feed follows it, so such a byte
+	// reads back missing and a render cannot put it back.
+	//
+	// That fact was found once before and answered the wrong way. The gate was
+	// widened to compare against what the reader yields, which made the
+	// comparison ask whether the reader agreed with itself, so the answer was
+	// always yes and the lossy render was written back as the repair. Dinah
+	// stored the byte correctly through its own comment verb, called it a line
+	// ending and deleted it, which dinah-514/decisions/7 and
+	// dinah-514/criteria/12 both forbid. A byte a reader cannot carry has to be
+	// kept away from that reader, not handed to it under a weaker question.
+	//
+	// With the tail set aside, the comparison is against the file's own
+	// normalised bytes, which is exact: nothing else in a normalised text can
+	// make SplitLines strip anything, so a faithful parse renders the bytes it
+	// was parsed from.
 	text := NormalizeNewlines(string(data))
-	fm, body := ParseAnchor(text)
-	if fm.Render(body) != anchorReaderForm(text) {
+	core := strings.TrimRight(text, "\r")
+	tail := text[len(core):]
+	fm, body := ParseAnchor(core)
+	if fm.Render(body) != core {
 		if isFixedAnchorName(filepath.Base(path)) {
 			return newlineTransform{Out: data, Condition: NewlineConflictUnsupported, Detail: "does not round-trip through the anchor reader"}
 		}
 		return transformWholeFile(data)
 	}
-	return transformAnchor(fm, body, data)
-}
-
-// anchorReaderForm answers what this format's own anchor reader yields for a
-// file's bytes, which is the form the round-trip gate compares a re-render
-// against.
-//
-// It is SplitLines joined by line feeds, because SplitLines is the reader the
-// format defines and ParseAnchor reads every line through it. That is one byte
-// more forgiving than NormalizeNewlines, and the difference is the whole reason
-// this function exists: SplitLines strips a trailing carriage return from the
-// last line whether or not a line feed follows it, so a body whose final byte
-// is a bare carriage return reads back without it and cannot be rendered back
-// to its own bytes.
-//
-// Comparing against NormalizeNewlines instead failed such a file, and Dinah
-// writes such a file itself through the ordinary comment verb, since a lone
-// carriage return is a byte this format keeps on purpose. The file then bore a
-// fixed anchor name, so it was refused as damaged, under a detail blaming a
-// header that was perfectly well formed, and the refusal stopped every other
-// file in the store from being repaired. The tool called its own output damaged
-// and denied the repair to everything around it.
-//
-// The gate is about whether the parse is faithful, so the form it compares
-// against has to be what the parse would see, and that is this.
-func anchorReaderForm(text string) string {
-	return strings.Join(SplitLines(text), "\n")
+	return transformAnchor(fm, body, tail, data)
 }
 
 // isFixedAnchorName reports whether a file name is one the format fixes for an
@@ -545,7 +540,7 @@ func transformWholeFile(data []byte) newlineTransform {
 // repair either, and it would rather say so than guess. No such value is known
 // to exist: every nested block this tool writes renders its scalars through
 // quote.
-func transformAnchor(fm *Frontmatter, body string, data []byte) newlineTransform {
+func transformAnchor(fm *Frontmatter, body, tail string, data []byte) newlineTransform {
 	for _, key := range fm.Keys() {
 		raw := fm.Raw(key)
 		if !strings.Contains(strings.Join(raw, "\n"), "\r") {
@@ -581,7 +576,7 @@ func transformAnchor(fm *Frontmatter, body string, data []byte) newlineTransform
 	// carrying the rest and the join puts a fresh pair on disk. Reducing the
 	// whole run afterwards is what makes this branch's answer one it would not
 	// change again, which is what every claim of idempotence here rests on.
-	out := []byte(NormalizeNewlines(fm.Render(body)))
+	out := []byte(NormalizeNewlines(fm.Render(body)) + tail)
 	return newlineTransform{
 		Out:     out,
 		Returns: bytes.Count(data, []byte("\r")) - bytes.Count(out, []byte("\r")),

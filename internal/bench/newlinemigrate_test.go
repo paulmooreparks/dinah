@@ -927,35 +927,110 @@ func TestAnAttachmentPayloadIsUntouched(t *testing.T) {
 	}
 }
 
-// TestALoneCarriageReturnSurvivesEverywhere holds the one deliberate keep: a
-// 0x0D not followed by a 0x0A is a character the prose meant to carry rather
-// than a line ending, because SplitLines strips only a TRAILING carriage return
-// per line, so an interior one is returned to the caller today.
+// TestALoneCarriageReturnSurvivesEverywhere holds the one deliberate keep of
+// dinah-514/decisions/7: a 0x0D that no 0x0A follows is a character the prose
+// meant to carry rather than a line ending, and the repair must leave it.
+//
+// "Everywhere" is the word this case kept failing to earn. Every fixture it
+// carried put the byte in the interior of a line, which is the easiest position
+// there is, and the repair deleted it at the end of a file for a whole round
+// while this stayed green. The positions below are the ones an interior fixture
+// never reaches, and each is planted in an anchor body, in a frontmatter value
+// and in a journal record so that no branch of the repair is left untested:
+//
+//   - the interior of a line, which was all this case had;
+//   - the last byte of the file, with no line feed after it, which is what
+//     dinah comment writes and what the repair deleted;
+//   - a run of them at the last byte of the file;
+//   - a final line consisting of nothing else;
+//   - immediately before another carriage return, inside a line.
+//
+// A carriage return at the end of a line that a line feed DOES follow is a line
+// ending and is not in this list: that one must go, and
+// TestTheRepairIsAFixedPointOverEveryShape holds it to going.
 func TestALoneCarriageReturnSurvivesEverywhere(t *testing.T) {
-	root := newlineFixture(t)
-	anchor := filepath.Join(root, CardsDir, "c00000000001", CardAnchor)
-	journal := filepath.Join(root, CardsDir, "c00000000001", JournalName)
-	write(t, anchor, "---\ntitle: \"one\rtwo\"\ncolumn: b00000000001\nstate: ready\n---\nbody one\rbody two\n")
-	record, err := json.Marshal(map[string]string{"ts": "2026-08-17T09:00:00Z", "event": "blocked", "actor": "alka", "reason": "a\rb"})
-	if err != nil {
-		t.Fatalf("marshal: %v", err)
+	bodies := []struct{ name, body string }{
+		{"in the interior of a line", "body one\rbody two\n"},
+		{"as the last byte of the file", "body one\r"},
+		{"as a run at the last byte of the file", "body one\r\r"},
+		{"as a final line of its own", "body one\n\r"},
+		{"beside another carriage return", "body\r\rone\n"},
 	}
-	write(t, journal, string(record)+"\n")
-	before := everyFileUnder(t, root)
+	values := []struct{ name, value string }{
+		{"in the interior", "one\rtwo"},
+		{"at the end", "one\r"},
+		{"twice over", "one\r\rtwo"},
+	}
+	for _, b := range bodies {
+		for _, v := range values {
+			t.Run(b.name+", with a value "+v.name, func(t *testing.T) {
+				root := newlineFixture(t)
+				anchor := filepath.Join(root, CardsDir, "c00000000001", CardAnchor)
+				journal := filepath.Join(root, CardsDir, "c00000000001", JournalName)
+				fm := NewFrontmatter()
+				fm.Set("title", v.value)
+				fm.Set("column", "b00000000001")
+				fm.Set("state", "ready")
+				write(t, anchor, fm.Render(b.body))
+				record, err := json.Marshal(map[string]string{
+					"ts": "2026-08-17T09:00:00Z", "event": "blocked", "actor": "alka",
+					"reason": b.body, "kind": v.value,
+				})
+				if err != nil {
+					t.Fatalf("marshal: %v", err)
+				}
+				write(t, journal, string(record)+"\n")
+				before := everyFileUnder(t, root)
 
-	migrate(t, root, true)
-	if got := readFile(t, anchor); got != before[anchor] {
-		t.Errorf("the anchor came back as %q and was %q", got, before[anchor])
-	}
-	if got := readFile(t, journal); got != before[journal] {
-		t.Errorf("the journal came back as %q and was %q", got, before[journal])
-	}
-	fm, body := ParseAnchor(readFile(t, anchor))
-	if got := fm.Value("title"); got != "one\rtwo" {
-		t.Errorf("the value reads back as %q", got)
-	}
-	if !strings.Contains(body, "body one\rbody two") {
-		t.Errorf("the body reads back as %q", body)
+				// Nothing here is a line ending, so the repair has nothing to
+				// do and every file comes back byte for byte.
+				report := migrate(t, root, true)
+				for _, conflict := range report.Conflicts {
+					t.Errorf("%s was refused as %s (%s)", conflict.Path, conflict.Condition, conflict.Detail)
+				}
+				for path, was := range before {
+					if got := readFile(t, path); got != was {
+						t.Errorf("%s came back as %q and was %q", path, got, was)
+					}
+				}
+				if len(report.Rewrites) != 0 {
+					t.Errorf("the repair planned %d rewrites over a store carrying no line ending at all", len(report.Rewrites))
+				}
+
+				// And the store reports nothing, since a file whose carriage
+				// returns are all of this kind conforms.
+				opened, err := Open(root)
+				if err != nil {
+					t.Fatalf("open: %v", err)
+				}
+				findings, err := opened.checkStoredNewlines()
+				if err != nil {
+					t.Fatalf("check: %v", err)
+				}
+				for _, finding := range findings {
+					t.Errorf("%s is reported as %s (%s), and every carriage return in this store is one the format keeps", finding.Path, finding.Key, finding.Detail)
+				}
+
+				// The reader still hands back what it handed back before, for
+				// the positions the reader can carry. It cannot carry one at
+				// the end of a file, which is exactly why the repair must not
+				// be allowed to decide that it therefore does not exist.
+				parsed, body := ParseAnchor(readFile(t, anchor))
+				if got := parsed.Value("title"); got != v.value {
+					t.Errorf("the value reads back as %q and was written as %q", got, v.value)
+				}
+				if trimmed := strings.TrimRight(b.body, "\r"); !strings.Contains(body, strings.TrimRight(trimmed, "\n")) {
+					t.Errorf("the body reads back as %q", body)
+				}
+				var decoded map[string]string
+				if err := json.Unmarshal([]byte(strings.TrimSpace(readFile(t, journal))), &decoded); err != nil {
+					t.Fatalf("the journal record does not decode: %v", err)
+				}
+				if decoded["reason"] != b.body || decoded["kind"] != v.value {
+					t.Errorf("the journal reads back reason %q and kind %q, written as %q and %q", decoded["reason"], decoded["kind"], b.body, v.value)
+				}
+			})
+		}
 	}
 }
 
@@ -1319,6 +1394,14 @@ func TestTheRepairIsAFixedPointOverEveryShape(t *testing.T) {
 			if where := storedNewlineForm(string(once.Out), c.file); where != "" {
 				t.Errorf("the repaired form of %q is %q, which carries %s", c.text, once.Out, where)
 			}
+			// The carriage returns at the very end of the file are prose, and
+			// deleting them satisfies both assertions above: a deletion is
+			// settled and carries no stored line ending. This case reached the
+			// end-of-file position for a whole round while the repair deleted
+			// the byte, because it asked only those two questions.
+			if got, want := trailingCarriageReturns(string(once.Out)), trailingCarriageReturns(NormalizeNewlines(c.text)); got != want {
+				t.Errorf("the repair left %d carriage returns at the end of %q and there were %d: %q", got, c.text, want, once.Out)
+			}
 		})
 	}
 }
@@ -1383,8 +1466,14 @@ func TestAnAnchorDinahWroteIsNeverCalledDamaged(t *testing.T) {
 	if strings.Contains(readFile(t, elsewhere), "\r") {
 		t.Error("a file elsewhere in the store was not repaired, so one comment denied the repair to everything around it")
 	}
-	if got := readFile(t, comment); strings.Contains(got, "\r") {
-		t.Errorf("the comment still carries the trailing carriage return no reader of this format returns: %q", got)
+	// The byte survives. This assertion said the opposite when it was written,
+	// which is how the deletion got past a green suite: the file was held to
+	// coming back WITHOUT the carriage return, on the reasoning that no reader
+	// of this format returns it. That reasoning is true of the reader and says
+	// nothing about what the repair may delete, and dinah-514/decisions/7 says
+	// the repair may not.
+	if got := readFile(t, comment); !strings.HasSuffix(got, "text\r") {
+		t.Errorf("the repair deleted the trailing carriage return, which this format keeps: %q", got)
 	}
 
 	// A file that really is damaged still refuses, so the fix has not turned
@@ -1426,8 +1515,11 @@ func TestAConformingStoreChecksClean(t *testing.T) {
 	root := newlineFixture(t)
 	loose := filepath.Join(root, CardsDir, "c00000000001", CardAnchor)
 	both := filepath.Join(root, CardsDir, "c00000000002", CardAnchor)
-	// Carriage returns in the interior of a line, which no line feed follows.
-	write(t, loose, "---\ntitle: \"one\rtwo\"\ncolumn: b00000000001\nstate: ready\n---\nbody one\rbody two\n")
+	// One in the interior of a line and one as the last byte of the file. The
+	// end-of-file position is here because it is the one a repair can delete
+	// while every other assertion in this case stays green, and because it is
+	// what dinah comment writes.
+	write(t, loose, "---\ntitle: \"one\rtwo\"\ncolumn: b00000000001\nstate: ready\n---\nbody one\rbody two\r")
 	// The same, and a real stored line ending beside it.
 	write(t, both, "---\ntitle: \"one\rtwo\"\ncolumn: b00000000001\nstate: ready\n---\nbody one\rbody two\r\nbody three\n")
 
@@ -1471,6 +1563,9 @@ func TestAConformingStoreChecksClean(t *testing.T) {
 	if strings.Contains(repaired, "\r\n") {
 		t.Errorf("the file carrying both kinds was not repaired: %q", repaired)
 	}
+	if !strings.HasSuffix(readFile(t, loose), "body two\r") {
+		t.Errorf("the repair deleted the carriage return at the end of the file: %q", readFile(t, loose))
+	}
 	if strings.Count(repaired, "\r") != 2 {
 		t.Errorf("the repair kept %d loose carriage returns and the file carried two: %q", strings.Count(repaired, "\r"), repaired)
 	}
@@ -1484,4 +1579,139 @@ func TestAConformingStoreChecksClean(t *testing.T) {
 	if len(after) != 0 {
 		t.Errorf("a conforming store still reports %+v", after)
 	}
+}
+
+// TestTheGateAndTheRepairOverEveryShapeThisToolWrites is the probe that hunted
+// for a route into the refusal, promoted from a throwaway to a case that ships.
+//
+// It ran once as a scratch program over 294 combinations of body and
+// frontmatter value and reported no failure, and that was honest evidence which
+// simply did not contain the shape that mattered: every body in it put a
+// carriage return inside a line. The sixth route into the gate was a carriage
+// return at the END of a body, which the anchor reader cannot carry, and the
+// answer to finding it was not to add one case for it but to add the positions
+// the old set never reached and keep the search.
+//
+// The positions now driven, for a body and for a frontmatter value alike:
+// inside a line, at the end of a line that a line feed follows, at the very end
+// of the file with no line feed after it, as a run at the end of the file, as a
+// final line consisting of nothing else, and doubled inside a line.
+//
+// Four properties, each stated over every combination.
+//
+//  1. The writer stores no carriage return that stands for a line ending. That
+//     is this card's headline claim, made of the tool's own writer.
+//  2. The gate routes the file somewhere that can carry it. A file this tool
+//     wrote is never refused.
+//  3. The repair is settled: its answer is one it would not change again.
+//  4. The repair keeps every carriage return the format keeps. Counted at the
+//     end of the file, which is the position a repair can delete while every
+//     other property here stays true.
+func TestTheGateAndTheRepairOverEveryShapeThisToolWrites(t *testing.T) {
+	bodies := []string{
+		"", "plain", "plain\n", "two\n\nlines",
+		"inside\rline", "doubled\r\rinside",
+		"ends with a return\r", "ends with a run\r\r",
+		"own line\n\r", "own line run\n\r\r",
+		"line ending\r\nafter", "run ending\r\r\nafter",
+		"mixed\rinterior and ending\r\nand tail\r",
+		"---", "---\nmore", "- dashed", "ends with backslash \\",
+		"  leading space", "trailing space  ", "tab\tin it",
+	}
+	values := []string{
+		"plain", "", "inside\rvalue", "doubled\r\rvalue",
+		"ends with a return\r", "ends with a run\r\r",
+		"value ending\r\nafter", "value run ending\r\r\nafter",
+		`literal \n backslash`, `quote " inside`, `back \ slash`,
+		"colon: space", " leading", "trailing ", "#hash", "-dash",
+	}
+	names := []string{CardAnchor, CommentAnchor, "note.md"}
+
+	shapes := 0
+	for _, name := range names {
+		for _, body := range bodies {
+			for _, value := range values {
+				shapes++
+				fm := NewFrontmatter()
+				fm.Set("title", value)
+				fm.Set("column", "b00000000001")
+				// What the tool's own writer would put on disk.
+				stored := NormalizeNewlines(fm.Render(body))
+
+				if strings.Contains(stored, "\r\n") {
+					t.Errorf("%s: the writer stored a CRLF pair for body=%q value=%q: %q", name, body, value, stored)
+				}
+				if strings.Contains(stored, "\r\\n") {
+					t.Errorf("%s: the writer stored the split frontmatter form for body=%q value=%q: %q", name, body, value, stored)
+				}
+
+				once := transformNewlines(name, []byte(stored))
+				if once.Condition != "" {
+					t.Errorf("%s: a file this tool wrote was refused as %s (%s) for body=%q value=%q: %q",
+						name, once.Condition, once.Detail, body, value, stored)
+					continue
+				}
+				twice := transformNewlines(name, once.Out)
+				if !bytes.Equal(once.Out, twice.Out) {
+					t.Errorf("%s: the repair is not settled for body=%q value=%q:\n once  %q\n twice %q",
+						name, body, value, once.Out, twice.Out)
+				}
+				if got, want := trailingCarriageReturns(string(once.Out)), trailingCarriageReturns(stored); got != want {
+					t.Errorf("%s: the repair left %d carriage returns at the end of the file and there were %d, for body=%q value=%q: %q",
+						name, got, want, body, value, once.Out)
+				}
+				// A file the tool wrote carries nothing to repair, so the
+				// repair has nothing to do with it at all. This is the
+				// strongest of the four and the one that would have caught the
+				// deletion on its own.
+				if !bytes.Equal(once.Out, []byte(stored)) {
+					t.Errorf("%s: the repair changed a file this tool wrote, for body=%q value=%q:\n was %q\n now %q",
+						name, body, value, stored, once.Out)
+				}
+
+				// The same file as an external editor would leave it, which is
+				// the one site no write-path change reaches and the shape the
+				// fifth route into the refusal lived in: an anchor whose fence
+				// lines carried a doubled carriage return was refused as
+				// damaged and stopped the repair of the whole store.
+				//
+				// Normalising an editor's variant gives back the bytes the
+				// tool wrote, so the repair has to land on exactly those, and
+				// nothing here may be refused.
+				for _, ending := range []string{"\r\n", "\r\r\n", "\r\r\r\n"} {
+					mangled := strings.ReplaceAll(stored, "\n", ending)
+					result := transformNewlines(name, []byte(mangled))
+					if result.Condition != "" {
+						t.Errorf("%s: an editor's variant was refused as %s (%s) for body=%q value=%q: %q",
+							name, result.Condition, result.Detail, body, value, mangled)
+						continue
+					}
+					if !bytes.Equal(result.Out, []byte(stored)) {
+						t.Errorf("%s: an editor's variant did not come back to what the tool wrote, for body=%q value=%q:\n wrote   %q\n mangled %q\n got     %q",
+							name, body, value, stored, mangled, result.Out)
+					}
+					if settled := transformNewlines(name, result.Out); !bytes.Equal(settled.Out, result.Out) {
+						t.Errorf("%s: an editor's variant is not settled for body=%q value=%q: %q then %q",
+							name, body, value, result.Out, settled.Out)
+					}
+				}
+			}
+		}
+	}
+	if shapes == 0 {
+		t.Fatal("the probe drove no shape")
+	}
+	t.Logf("drove %d shapes across %d file names", shapes, len(names))
+}
+
+// trailingCarriageReturns counts the carriage returns at the very end of a
+// text, which no line feed follows and which are therefore prose rather than a
+// line ending.
+//
+// It exists because a deletion of them satisfies every other question these
+// cases ask: a deleted byte leaves a file that is settled, that carries no
+// stored line ending, and that a second run finds nothing to do with. Counting
+// them is the one question that separates a repair from a deletion.
+func trailingCarriageReturns(text string) int {
+	return len(text) - len(strings.TrimRight(text, "\r"))
 }
