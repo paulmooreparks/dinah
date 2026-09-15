@@ -1021,7 +1021,7 @@ Better still, where the population is walkable by a test, walk it. The nineteen-
 
 **The test:** for every number and every list in a contract, ask which command produced it. If one did, the contract names that command and the base it runs at; if the contract names the answer instead, the answer is already a claim about a revision the reader cannot see. A merge is the event that falsifies these, and a handoff that lists "the counts this merge moved" is enumerating by hand the very thing this entry says not to enumerate by hand.
 
-**Related:** "A review finding repaired at the sites the reviewer listed, when the finding names a class", in `convention-counterexamples-2.md`, is the same loss between a scan and the repair it drives. "A rule over a set, tested against the members its author had in mind", above, is its sibling on the other side: there the population is recalled instead of derived, here it is derived and then transcribed.
+**Related:** "A mechanical sweep whose recorded output a later stage reads instead of re-running", in `convention-counterexamples-2.md`, is the nearest neighbour and the entry this one extends. That entry stops a reader trusting a sweep's recorded answer; this one says where the answer should have gone instead, which is nowhere, with the command left in its place. "A review finding repaired at the sites the reviewer listed, when the finding names a class", in the same file, is the same loss between a scan and the repair it drives. "A rule over a set, tested against the members its author had in mind", above, is its sibling on the other side: there the population is recalled instead of derived, here it is derived and then transcribed.
 
 ## A phrase quoted from a wrapped sentence, asserted to answer nothing
 

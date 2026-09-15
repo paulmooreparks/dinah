@@ -24,9 +24,21 @@ import (
 // read as a field and compared whole, so a build whose arm composes a
 // sentence around the title fails: the composed sentence is not the title,
 // however much of the title it contains.
+//
+// The column is renamed to a title carrying a space before anything is
+// commented on, and the fixture's own titles are all one word, which is why
+// the rename is here rather than left to the flow a fresh bench carries.
+// Against a one-word title a whole-field read and a read of the first token
+// answer alike, so an arm drawing only the first word of the title passed this
+// check while truncating every column on a real workbench whose title carries
+// a space, which is most of them.
 func TestChangesNamesTheColumnAColumnCommentWasLeftOn(t *testing.T) {
 	root := newBench(t)
 	dir := benchDir(t, root)
+
+	if got := runCLI(t, root, "set", "intake", "title", "Intake Queue"); got.code != 0 {
+		t.Fatalf("rename the column: %d %s", got.code, got.errw)
+	}
 
 	card := addCard(t, root, "a card")
 	cursor := mintedCursor(t, root)
@@ -44,6 +56,11 @@ func TestChangesNamesTheColumnAColumnCommentWasLeftOn(t *testing.T) {
 	column := opened.Columns[0]
 	if column.Title == "" {
 		t.Fatal("the fixture's first column carries no title, so the title half would assert nothing")
+	}
+	// A title of one word cannot tell a whole-field read from a read of its
+	// first token, so the check would admit a build that truncates.
+	if !strings.Contains(column.Title, " ") {
+		t.Fatalf("the fixture's column title %q carries no space, so a build drawing only its first word would pass this check", column.Title)
 	}
 	// A detail is read back off a padded row, so a title carrying a run of
 	// two spaces could not be told from the padding, and the comparison

@@ -951,7 +951,7 @@ so a `claimed` line with no `expires` records an unbounded claim.
 | `blocked` | `reason` | `kind`, whatever the caller passed, since nothing validates it |
 | `unblocked` | | |
 | `expired` | `expires` | |
-| `commented` | `comment` | `item`, the identifier of the checklist item the comment hangs below, written only on a comment written on an item and absent on a comment written on the card |
+| `commented` | `comment` | `item`, the identifier of the checklist item the comment hangs below, written only on a comment written on an item; `column` and `column_title`, the identifier of the column the comment was left on and that column's title as of the write, both written only on a comment written on a column |
 | `attached` | `attachment`, `filename` | |
 | `attachment_replaced` | `attachment`, `filename` | |
 | `attachment_removed` | `attachment`, `note` (the removed entity's own id) | `filename`, best effort, present only when the attachment's anchor could still be read at the moment of removal |
@@ -980,6 +980,16 @@ that carries one, so a comment's and an item's line lands on the card's, and an
 attachment's lands on the card's below a card and on the workbench's below a
 column or below the workbench itself. An `attachment_renamed` line records a
 filename change instead, because the payload moves with the name.
+
+A `commented` line carries one locator naming the holder the comment hangs on,
+and a line carrying no locator at all means the holder is the journal's own
+entity. A comment on a checklist item carries `item` and lands on the card's
+journal; a comment on a column carries `column` and `column_title` and lands on
+the workbench's; a comment on a card carries neither and lands on that card's
+own journal, which is the entity a locator would otherwise have to name. A
+reader meeting a `commented` line on the workbench journal with no `column`
+therefore knows the comment was left on the workbench itself, should a build
+ever admit one, and needs no separate field to tell the two apart.
 
 A field write to a field stored as the entity's prose body carries `field` and
 carries neither `from` nor `to`. The journal records that the act happened and

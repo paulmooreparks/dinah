@@ -93,6 +93,21 @@ type changeRow struct {
 // it never hold a space.
 func changeRows(t *testing.T, out string) []changeRow {
 	t.Helper()
+	// The reading below rests on the four columns in front of the detail
+	// holding no space, and three of those four are identifiers the format
+	// constrains. The fourth is the actor's name, which is free text that
+	// nothing in the format stops carrying a space, and a spaced one would
+	// shift every detail silently by one word rather than failing. So the
+	// name this run acts under is checked rather than assumed, in the way
+	// the column title's own precondition is checked by its caller.
+	//
+	// The check reaches the name the tool acts under and no further: a line
+	// planted by hand carries whatever actor its planter wrote, and a
+	// planter wanting a spaced name has to read the cell off the machine
+	// surface instead.
+	if actor := os.Getenv("DINAH_ACTOR"); strings.ContainsAny(actor, " \t") {
+		t.Fatalf("this run acts as %q, whose name carries a space, so the detail column cannot be read as the fields after the fourth", actor)
+	}
 	var rows []changeRow
 	for _, line := range strings.Split(out, "\n") {
 		fields := strings.Fields(line)
@@ -115,8 +130,10 @@ func changeRows(t *testing.T, out string) []changeRow {
 		}
 		rows[i].subject = fields[1]
 		// The detail is the last of the five columns, and the four in front
-		// of it never hold a space, so what is left after them is the whole
-		// of it. Reading it as a field rather than searching the row for a
+		// of it hold no space, which the fatal at the top of this helper
+		// checks for the one of the four that is free text. What is left
+		// after them is therefore the whole of it. Reading it as a field
+		// rather than searching the row for a
 		// string is what lets a caller assert the exact bytes a renderer
 		// drew: a row containing a value and a row whose detail is that
 		// value are different claims, and only the second is what a
