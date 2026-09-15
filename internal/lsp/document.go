@@ -178,7 +178,7 @@ func (s *Server) lookedAt(doc *document) bool {
 // is the narrower set: an anchor filename, under the workbench's own root. An
 // attachment payload is prose only, which is right.
 func (s *Server) schema(path string) bool {
-	return anchorNames[filepath.Base(path)] && under(s.bench.Root, path)
+	return anchorName(filepath.Base(path)) && under(s.bench.Root, path)
 }
 
 // under reports containment, segment by segment over cleaned absolute paths.

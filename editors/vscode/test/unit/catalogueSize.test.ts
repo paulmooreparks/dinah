@@ -26,9 +26,9 @@ test("the English runtime catalogue carries exactly 192 entries", () => {
 	assert.equal(Object.keys(catalogue.entries).length, 192);
 });
 
-test("the base manifest catalogue carries exactly 51 keys", () => {
+test("the base manifest catalogue carries exactly 55 keys", () => {
 	const catalogue = JSON.parse(
 		readFileSync(join(extensionRoot, "package.nls.json"), "utf8"),
 	) as Record<string, unknown>;
-	assert.equal(Object.keys(catalogue).length, 51);
+	assert.equal(Object.keys(catalogue).length, 55);
 });

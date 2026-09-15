@@ -186,7 +186,7 @@ var archivedResolutionFamilies = []resolutionFamily{
 			{"internal/bench/numbers.go", "LoadNumberRegistry", 6, "the registry loader, which reads each line's number into the two indexes and the high-water mark; the registry is this file's whole subject"},
 			{"internal/bench/numbers.go", "readNumbers", 3, "the below-format synthesis, which reads a stamped card's number into the by-number index so resolution keeps answering over a workbench the migration has not reached"},
 			{"internal/verb/beyond.go", "tombstoneNumber", 1, "a deletion rewriting the first line claiming the card into the tombstone, which keeps the number allocated; it writes a line and answers no card"},
-			{"internal/lsp/handlers.go", "cardCandidates", 3, "the language server's card completion, which sorts the candidates newest first and composes a zero-padded sort key from the number; the list it sorts is Bench.Cards, the live half alone, so no archived card reaches these reads and no reference is resolved by number"},
+			{"internal/lsp/handlers.go", "cardCandidates", 3, "the language server's card completion, which sorts the candidates newest first and composes a zero-padded sort key from the number; the list it sorts is the live half alone, so no archived card reaches these reads and no reference is resolved by number"},
 		},
 	},
 	{
@@ -248,7 +248,7 @@ var archivedResolutionFamilies = []resolutionFamily{
 			{"internal/verb/tree.go", "itemRefOf", 1, "rendering a checklist item's holder"},
 			{"internal/verb/tree.go", "containedNode", 1, "rendering a contained entity"},
 			{"internal/lsp/annotate.go", "cardAnnotation", 1, "composing the canonical reference the language server prints in a card's hover and carries on the annotation's target; the card came out of a live resolution or out of a document's own reference, and the archive is never read here"},
-			{"internal/lsp/handlers.go", "cardCandidates", 1, "composing the label of one card candidate in a completion list, over Bench.Cards, which is the live half alone"},
+			{"internal/lsp/handlers.go", "cardCandidates", 1, "composing the label of one card candidate in a completion list, over the live half alone"},
 		},
 	},
 	{

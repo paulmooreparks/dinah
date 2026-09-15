@@ -55,18 +55,27 @@ const (
 	keyRejectTo    = "reject_to"
 )
 
-// anchorNames are the base filenames the narrower front-matter handling of
-// section 4.1 applies to. A document under the workbench root whose name is
-// one of these is read as a schema; everything else, an attachment payload
-// included, is prose throughout.
-var anchorNames = map[string]bool{
-	bench.WorkbenchAnchor:  true,
-	bench.ColumnAnchor:     true,
-	bench.CardAnchor:       true,
-	bench.WorkstreamAnchor: true,
-	bench.ItemAnchor:       true,
-	bench.CommentAnchor:    true,
-	bench.AttachmentAnchor: true,
+// anchorName reports whether a base filename is an anchor of the format,
+// which is the narrower front-matter handling of section 4.1: a document
+// under the workbench root whose name is one of these is read as a schema,
+// and everything else, an attachment payload included, is prose throughout.
+//
+// The set is derived from the containment grammar rather than listed. That
+// grammar says which kind mounts which collection and which anchor each kind
+// carries, and it is declared in one place; a map keyed on the anchor
+// constants here would be a second copy of it, and a kind added there would
+// silently not be read as a schema here.
+//
+// The two the grammar does not mount are named outright. The workbench is the
+// root the grammar hangs from rather than a member of any collection, and a
+// workstream resolves through its own prefix rather than through the
+// containment walk.
+func anchorName(name string) bool {
+	if name == bench.WorkbenchAnchor || name == bench.WorkstreamAnchor {
+		return true
+	}
+	_, declared := bench.KindOfAnchor(name)
+	return declared
 }
 
 // scanFrontMatter reads the declared reference positions of one anchor, by
@@ -78,7 +87,7 @@ var anchorNames = map[string]bool{
 // which is bench.ParseAnchor's own reading, and this scan does not invent a
 // second one.
 func scanFrontMatter(name string, lines []string) (slots []slot, bodyFrom int) {
-	if !anchorNames[name] || len(lines) == 0 || strings.TrimSpace(lines[0]) != "---" {
+	if !anchorName(name) || len(lines) == 0 || strings.TrimSpace(lines[0]) != "---" {
 		return nil, 0
 	}
 	end := -1

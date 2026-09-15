@@ -184,3 +184,47 @@ func TestTheTrimSetIsDerivedFromTheSegmentClass(t *testing.T) {
 		t.Error("the derived trim set carries a slash, which a consumed candidate can never end in")
 	}
 }
+
+// TestABareIdentifierIsAMaximalHexRun pins head 2 on its own, which the table
+// above cannot.
+//
+// The boundary rule and this head each refuse a twelve-hex window inside a
+// longer hexadecimal run, so no single plant reddens those rows of that
+// table: breaking either rule leaves the other one catching them. That is the
+// conjunction working rather than a gap, and it is also why maximality needs
+// an assertion of its own. This one calls the head directly, where the
+// boundary rule is not in the way.
+//
+// The last row is what makes the conjunction visible: a twelve-hex run
+// followed by an ordinary letter is admitted here and refused by the boundary
+// rule, so head 2 is genuinely not the whole guard.
+func TestABareIdentifierIsAMaximalHexRun(t *testing.T) {
+	rows := []struct {
+		name  string
+		write string
+		want  int
+		ok    bool
+	}{
+		{"exactly twelve lowercase hexadecimal", "0dff709e0f3c", 12, true},
+		{"eleven", "0dff709e0f3", 0, false},
+		{"thirteen", "0dff709e0f3ca", 0, false},
+		{"a forty-character object name", strings.Repeat("ab", 20), 0, false},
+		{"a thirty-two-character workbench identifier", strings.Repeat("0123", 8), 0, false},
+		{"twelve characters carrying an uppercase digit", "0dff709e0F3c", 0, false},
+		{"twelve hexadecimal followed by an ordinary letter", "0dff709e0f3cz", 12, true},
+	}
+	swept := 0
+	for _, row := range rows {
+		end, ok := identifierHead(row.write, 0)
+		if ok != row.ok {
+			t.Errorf("%s (%q) was admitted=%v, wanted %v", row.name, row.write, ok, row.ok)
+		}
+		if ok && end != row.want {
+			t.Errorf("%s (%q) ended at %d, wanted %d", row.name, row.write, end, row.want)
+		}
+		swept++
+	}
+	if swept != len(rows) {
+		t.Errorf("swept %d rows, wanted %d", swept, len(rows))
+	}
+}

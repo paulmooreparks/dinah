@@ -8,6 +8,8 @@
 import { basename, dirname } from "node:path";
 
 import * as vscode from "vscode";
+import { LanguageClient, Trace, TransportKind } from "vscode-languageclient/node";
+import type { LanguageClientOptions, ServerOptions } from "vscode-languageclient/node";
 
 import type { DinahApi, WorkbenchResolution } from "./api";
 import { resolveBinary } from "./binary";
@@ -17,6 +19,14 @@ import type { CheckpointEntry, Watcher } from "./changes";
 import { applyDropVerdicts, dragRowsFrom, dropColumnFor, offerDrag } from "./dragAndDrop";
 import { CheckpointLoop, systemClock } from "./changes";
 import { runDinah, runDinahText } from "./cli";
+import type { AnnotationsAnswer, AnnotationsChanged, Chip } from "./lsp";
+import {
+	ANNOTATIONS_CHANGED,
+	ANNOTATIONS_REQUEST,
+	LSP_SECTION,
+	chipsFrom,
+	suppressInlayHints,
+} from "./lsp";
 import { CountdownTicker, redrawAfterRefresh } from "./countdown";
 import type { DiagnosticEntry, DiagnosticPlan, StatKind } from "./diagnostics";
 import { CheckDiagnostics } from "./diagnostics";
@@ -44,6 +54,8 @@ import {
 	SERVED_TEXT_SCHEME,
 	SETTING_PATH,
 	SETTING_POLL_INTERVAL,
+	SETTING_LSP_ENABLED,
+	SETTING_LSP_TRACE,
 	SETTING_REGISTER_MCP,
 	SETTING_WATCH_FILES,
 	SETTING_WORKBENCH,
@@ -907,6 +919,13 @@ export async function activate(
 	const counting = ticker;
 	context.subscriptions.push({ dispose: () => counting.stop() });
 
+	// dinah-515's head. It reads and never writes, so it is started wherever
+	// there is a binary to run it and the reader has left it on, and it is
+	// stopped with the extension.
+	if (binary.state === "ok" && settingOf<boolean>(SETTING_LSP_ENABLED, true)) {
+		context.subscriptions.push(startLanguageServer(binary.path));
+	}
+
 	// Every command this extension contributes is registered through this one
 	// helper, so that registeredIds is a record of what activation actually
 	// did rather than a second hand-maintained roster. The completeness check
@@ -1359,4 +1378,119 @@ export function deactivate(): void {
 	servedText = undefined;
 	treeView = undefined;
 	output = undefined;
+}
+
+/**
+ * The chip a card reference is drawn with, one decoration type per tone.
+ *
+ * A tone is decided from the canonical tokens the server publishes rather
+ * than from the sentence it publishes beside them, which is what lets this
+ * client change how a chip looks without the server changing at all.
+ */
+const CHIP_COLOURS: Record<Chip["tone"], string> = {
+	blocked: "editorError.foreground",
+	active: "editorInfo.foreground",
+	holding: "editorWarning.foreground",
+	unresolved: "descriptionForeground",
+	plain: "editorCodeLens.foreground",
+};
+
+/**
+ * Starts the language server and draws its annotations.
+ *
+ * The standard inlay hints are suppressed by a middleware that asks the
+ * server anyway and delivers none of what it answered, so a chip and a hint
+ * never draw together. The chip itself is built from the namespaced answer,
+ * because no member of a protocol inlay hint carries a payload an extension
+ * can read.
+ */
+function startLanguageServer(exe: string): vscode.Disposable {
+	const server: ServerOptions = {
+		run: { command: exe, args: ["lsp"], transport: TransportKind.stdio },
+		debug: { command: exe, args: ["lsp"], transport: TransportKind.stdio },
+	};
+	const decorations = new Map<Chip["tone"], vscode.TextEditorDecorationType>();
+	for (const [tone, colour] of Object.entries(CHIP_COLOURS)) {
+		decorations.set(
+			tone as Chip["tone"],
+			vscode.window.createTextEditorDecorationType({
+				after: { color: new vscode.ThemeColor(colour), margin: "0 0 0 0.6em" },
+			}),
+		);
+	}
+	// The two settings the server itself reads, dinah.lsp.annotateProse and
+	// dinah.lsp.pollIntervalSeconds, are not passed here. The client declares
+	// the configuration capability, so the server pulls the section at
+	// startup and is sent it again on every change, which is the route
+	// section 5.4 of the card's contract specifies.
+	const options: LanguageClientOptions = {
+		documentSelector: [
+			{ scheme: "file", language: "markdown" },
+			{ scheme: "file", language: "plaintext" },
+		],
+		synchronize: { configurationSection: LSP_SECTION },
+		outputChannel: output,
+		middleware: suppressInlayHints<vscode.InlayHint>(),
+	};
+	const client = new LanguageClient("dinah", "Dinah", server, options);
+	const trace = settingOf<string>(SETTING_LSP_TRACE, "off");
+	if (trace !== "off") {
+		void client.setTrace(trace === "verbose" ? Trace.Verbose : Trace.Messages);
+	}
+
+	const draw = async (uri: string): Promise<void> => {
+		const editor = vscode.window.visibleTextEditors.find(
+			(open) => open.document.uri.toString() === uri,
+		);
+		if (editor === undefined) {
+			return;
+		}
+		const answer = await client.sendRequest<AnnotationsAnswer>(ANNOTATIONS_REQUEST, {
+			textDocument: { uri },
+		});
+		const drawn = new Map<Chip["tone"], vscode.DecorationOptions[]>();
+		for (const tone of decorations.keys()) {
+			drawn.set(tone, []);
+		}
+		for (const chip of chipsFrom(answer)) {
+			drawn.get(chip.tone)?.push({
+				range: new vscode.Range(
+					chip.range.start.line,
+					chip.range.start.character,
+					chip.range.end.line,
+					chip.range.end.character,
+				),
+				renderOptions: { after: { contentText: chip.text } },
+				hoverMessage: new vscode.MarkdownString(chip.tooltip),
+			});
+		}
+		for (const [tone, type] of decorations) {
+			editor.setDecorations(type, drawn.get(tone) ?? []);
+		}
+	};
+
+	void client.start().then(() => {
+		client.onNotification(ANNOTATIONS_CHANGED, (params: AnnotationsChanged) => {
+			for (const uri of params.uris) {
+				void draw(uri);
+			}
+		});
+		for (const editor of vscode.window.visibleTextEditors) {
+			void draw(editor.document.uri.toString());
+		}
+	});
+	const opened = vscode.window.onDidChangeVisibleTextEditors((editors) => {
+		for (const editor of editors) {
+			void draw(editor.document.uri.toString());
+		}
+	});
+	return {
+		dispose: () => {
+			opened.dispose();
+			for (const type of decorations.values()) {
+				type.dispose();
+			}
+			void client.stop();
+		},
+	};
 }

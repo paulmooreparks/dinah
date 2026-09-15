@@ -344,7 +344,7 @@ func TestALinkAndADefinitionAnswerTheSameFile(t *testing.T) {
 				t.Fatalf("resolve the workstream path: %v", err)
 			}
 			if link.Target == fileURI(directory) {
-				t.Error("a workstream reference opens the directory Bench.ResolvePath answers, which is not a file an editor can open")
+				t.Error("a workstream reference opens the directory the path resolver answers, which is not a file an editor can open")
 			}
 		case "attachment":
 			attachments, err := bench.Attachments(filepath.Join(f.bench.CardsRoot(), f.card))
