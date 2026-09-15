@@ -3,8 +3,11 @@ package lsp
 import (
 	"errors"
 	"go/ast"
+	"go/constant"
+	"go/importer"
 	"go/parser"
 	"go/token"
+	"go/types"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -242,48 +245,154 @@ func stem(text string) string {
 	return text
 }
 
-// messageMember answers the Message member of a window/logMessage or
-// window/showMessage payload written as a composite literal, and whether the
-// literal carried one at all.
-func messageMember(literal *ast.CompositeLit) (ast.Expr, bool) {
+// connNotify, serverLog, serverShow and catalogueT are the four methods this
+// scan cares about, written as go/types spells a method's full name. Naming
+// them by what they are rather than by how a call site spells them is the
+// whole point of type-checking the package first.
+const (
+	connNotify = "(*dinah/internal/lsp.conn).notify"
+	serverLog  = "(*dinah/internal/lsp.Server).log"
+	serverShow = "(*dinah/internal/lsp.Server).show"
+	catalogueT = "(*dinah/internal/msg.Renderer).T"
+)
+
+// scanTypes parses and type-checks this package's own non-test sources, and
+// answers the file set, the files, the checked package and the recorded types
+// and selections. A scan that reads the syntax alone can only compare
+// spellings, and a guard that compares spellings guards one spelling.
+func scanTypes(t *testing.T) (*token.FileSet, []*ast.File, *types.Package, *types.Info) {
+	t.Helper()
+	sources, err := filepath.Glob("*.go")
+	if err != nil {
+		t.Fatalf("list the package's sources: %v", err)
+	}
+	fileset := token.NewFileSet()
+	files := make([]*ast.File, 0, len(sources))
+	for _, source := range sources {
+		if strings.HasSuffix(source, "_test.go") {
+			continue
+		}
+		file, err := parser.ParseFile(fileset, source, nil, 0)
+		if err != nil {
+			t.Fatalf("parse %s: %v", source, err)
+		}
+		files = append(files, file)
+	}
+	if len(files) == 0 {
+		t.Fatalf("the scan found none of its own package's sources to read")
+	}
+	info := &types.Info{
+		Types:      make(map[ast.Expr]types.TypeAndValue),
+		Uses:       make(map[*ast.Ident]types.Object),
+		Selections: make(map[*ast.SelectorExpr]*types.Selection),
+	}
+	config := types.Config{Importer: importer.ForCompiler(fileset, "source", nil)}
+	checked, err := config.Check("dinah/internal/lsp", fileset, files, info)
+	if err != nil {
+		t.Fatalf("type-check dinah/internal/lsp: %v", err)
+	}
+	return fileset, files, checked, info
+}
+
+// isCall reports whether a selector expression denotes a call of the named
+// method. The name is resolved against what the receiver's type declares, so
+// another type's method of the same name is not it, and this one still is
+// whatever the receiver expression is spelled like.
+func isCall(info *types.Info, selector *ast.SelectorExpr, method string) bool {
+	selection := info.Selections[selector]
+	if selection == nil {
+		return false
+	}
+	function, ok := selection.Obj().(*types.Func)
+	return ok && function.FullName() == method
+}
+
+// constantText answers the string an expression denotes, and whether it
+// denotes one at all. Any spelling the compiler folds to a string constant
+// answers the same value, so an identifier, a local alias and a concatenation
+// of constants are read alike. A variable, a function's answer and anything
+// else the compiler cannot fold answer false, and the caller reports those
+// rather than passing over them.
+func constantText(info *types.Info, expr ast.Expr) (string, bool) {
+	value := info.Types[expr].Value
+	if value == nil || value.Kind() != constant.String {
+		return "", false
+	}
+	return constant.StringVal(value), true
+}
+
+// declaredText answers the value of a string constant this package declares,
+// found by the name it is declared under. The scan resolves the two
+// person-facing methods here, once, at their declaration, and compares values
+// rather than names at every call site.
+func declaredText(t *testing.T, checked *types.Package, name string) string {
+	t.Helper()
+	declared, ok := checked.Scope().Lookup(name).(*types.Const)
+	if !ok {
+		t.Fatalf("%s is not a string constant this package declares, so the scan cannot say which notifications a person reads", name)
+	}
+	if declared.Val().Kind() != constant.String {
+		t.Fatalf("%s is a constant of kind %v rather than a string", name, declared.Val().Kind())
+	}
+	return constant.StringVal(declared.Val())
+}
+
+// messageField answers the payload type, its Message field, and where that
+// field stands in the struct. The position is what lets a positional
+// composite literal be read as well as a keyed one.
+func messageField(t *testing.T, checked *types.Package) (types.Type, *types.Var, int) {
+	t.Helper()
+	declared := checked.Scope().Lookup("logMessageParams")
+	if declared == nil {
+		t.Fatalf("this package declares no logMessageParams, so the scan cannot tell a message payload from any other value")
+	}
+	structure, ok := declared.Type().Underlying().(*types.Struct)
+	if !ok {
+		t.Fatalf("logMessageParams is %v rather than a struct", declared.Type().Underlying())
+	}
+	for index := range structure.NumFields() {
+		if field := structure.Field(index); field.Name() == "Message" {
+			return declared.Type(), field, index
+		}
+	}
+	t.Fatalf("logMessageParams carries no Message field, and a message payload is what this scan reads")
+	return nil, nil, 0
+}
+
+// messageMember answers the expression that becomes the Message member of a
+// payload literal. Both spellings of a composite literal are read: a keyed
+// element whose key resolves to the field itself, and, where the literal is
+// positional, the element standing at the field's own position.
+func messageMember(info *types.Info, field *types.Var, index int, literal *ast.CompositeLit) (ast.Expr, bool) {
+	keyed := false
 	for _, element := range literal.Elts {
 		pair, ok := element.(*ast.KeyValueExpr)
 		if !ok {
 			continue
 		}
-		if key, ok := pair.Key.(*ast.Ident); ok && key.Name == "Message" {
+		keyed = true
+		if key, ok := pair.Key.(*ast.Ident); ok && info.Uses[key] == field {
 			return pair.Value, true
 		}
 	}
-	return nil, false
+	if keyed || index >= len(literal.Elts) {
+		return nil, false
+	}
+	return literal.Elts[index], true
 }
 
 // fromCatalogue reports whether an expression is a call to the catalogue
-// renderer, which is the only composer a sentence bound for a person may have.
-// A string literal fails it, and so does every other expression, because the
-// question the guard asks is where the sentence came from rather than which
-// shapes of hard-coded text somebody has thought to enumerate.
-func fromCatalogue(expr ast.Expr) bool {
+// renderer's own T method, resolved through the receiver's type. Every other
+// expression fails it, because the question the guard asks is where the
+// sentence came from rather than which shapes of hard-coded text somebody has
+// thought to enumerate.
+func fromCatalogue(info *types.Info, expr ast.Expr) bool {
 	call, ok := expr.(*ast.CallExpr)
 	if !ok {
 		return false
 	}
 	selector, ok := call.Fun.(*ast.SelectorExpr)
-	return ok && selector.Sel.Name == "T"
-}
-
-// payloadLiteral answers the logMessageParams composite literal an expression
-// is, and whether it is one.
-func payloadLiteral(expr ast.Expr) (*ast.CompositeLit, bool) {
-	literal, ok := expr.(*ast.CompositeLit)
-	if !ok {
-		return nil, false
-	}
-	name, ok := literal.Type.(*ast.Ident)
-	if !ok || name.Name != "logMessageParams" {
-		return nil, false
-	}
-	return literal, true
+	return ok && isCall(info, selector, catalogueT)
 }
 
 // TestNoStringLiteralReachesTheEditorsOwnChannels asserts the second half of
@@ -291,46 +400,48 @@ func payloadLiteral(expr ast.Expr) (*ast.CompositeLit, bool) {
 // log line or a shown message is composed by the catalogue renderer, and none
 // is a Go string literal written at the call site.
 //
-// The scan reads the channel rather than the helpers. Server.log and
-// Server.show are the only route into window/logMessage and
-// window/showMessage today, so a scan of those two agrees with the code it
-// reads whatever else the package grows: a notification composed anywhere
-// else passes it untouched. So the first two halves below sweep every
-// notify call carrying one of the two methods and every construction of the
-// payload type, and the third keeps the helper scan, each half reporting the
-// size of the set it swept.
+// The scan type-checks the package and asks what each notification denotes.
+// It sweeps every call of conn.notify, resolves each one's method argument to
+// the string constant it stands for, and reads a notification as a person's
+// channel when that value is what methodLogMessage or methodShowMessage
+// denotes. The method may therefore be spelled as either identifier, as the
+// protocol URI itself, as a local alias or as any other constant expression,
+// and every one of those is read alike. The second half sweeps every
+// composite literal of the payload type wherever it is built, which reaches a
+// payload constructed away from any call site, and the third keeps the older
+// helper scan. Each half reports the size of the set it swept.
+//
+// Two shapes the scan cannot resolve, and it names each rather than passing
+// over it. A method argument the compiler cannot fold to a constant, which is
+// what a variable holding the method gives, is reported with its file and
+// line. So is a payload that is not a composite literal at the call site,
+// which is what assembling one field by field into a variable gives. Neither
+// can reach a person unremarked, but neither is read either, so what this
+// guard proves about them is that they exist rather than what they say.
 func TestNoStringLiteralReachesTheEditorsOwnChannels(t *testing.T) {
-	sources, err := filepath.Glob("*.go")
-	if err != nil {
-		t.Fatalf("list the package's sources: %v", err)
-	}
-	fileset := token.NewFileSet()
-	channels, payloads, helpers := 0, 0, 0
-	for _, source := range sources {
-		if strings.HasSuffix(source, "_test.go") {
-			continue
-		}
-		file, err := parser.ParseFile(fileset, source, nil, parser.SkipObjectResolution)
-		if err != nil {
-			t.Fatalf("parse %s: %v", source, err)
-		}
+	fileset, files, checked, info := scanTypes(t)
+	logMessage := declaredText(t, checked, "methodLogMessage")
+	showMessage := declaredText(t, checked, "methodShowMessage")
+	payloadType, field, index := messageField(t, checked)
+
+	notifications, channels, payloads, helpers := 0, 0, 0, 0
+	for _, file := range files {
 		where := func(node ast.Node) string {
-			return source + ":" + strconv.Itoa(fileset.Position(node.Pos()).Line)
+			position := fileset.Position(node.Pos())
+			return position.Filename + ":" + strconv.Itoa(position.Line)
 		}
 		ast.Inspect(file, func(node ast.Node) bool {
 			// The payload type, wherever it is built. A notification handed a
-			// payload assembled into a variable first reaches the channel by a
-			// route the call-site scan cannot read, and this half reads it.
-			if literal, ok := node.(*ast.CompositeLit); ok {
-				if payload, ok := payloadLiteral(literal); ok {
-					payloads++
-					message, carried := messageMember(payload)
-					switch {
-					case !carried:
-						t.Errorf("%s builds a message payload carrying no Message member, so it would show a person an empty line", where(payload))
-					case !fromCatalogue(message):
-						t.Errorf("%s builds a message payload whose Message member is composed at the call site rather than by the catalogue", where(payload))
-					}
+			// payload assembled away from its call site reaches the channel by
+			// a route the call-site scan cannot read, and this half reads it.
+			if literal, ok := node.(*ast.CompositeLit); ok && types.Identical(info.Types[literal].Type, payloadType) {
+				payloads++
+				message, carried := messageMember(info, field, index, literal)
+				switch {
+				case !carried:
+					t.Errorf("%s builds a message payload carrying no Message member, so it would show a person an empty line", where(literal))
+				case !fromCatalogue(info, message):
+					t.Errorf("%s builds a message payload whose Message member is composed at the call site rather than by the catalogue", where(literal))
 				}
 			}
 
@@ -343,30 +454,36 @@ func TestNoStringLiteralReachesTheEditorsOwnChannels(t *testing.T) {
 				return true
 			}
 
-			// The channel itself: every notification sent under either of the
-			// two methods a person reads.
-			if selector.Sel.Name == "notify" && len(call.Args) == 2 {
-				method, ok := call.Args[0].(*ast.Ident)
-				if ok && (method.Name == "methodLogMessage" || method.Name == "methodShowMessage") {
-					channels++
-					payload, ok := payloadLiteral(call.Args[1])
-					if !ok {
-						t.Errorf("%s sends %s a payload this scan cannot read, so nothing here can tell where its sentence came from", where(call), method.Name)
-						return true
-					}
-					message, carried := messageMember(payload)
-					switch {
-					case !carried:
-						t.Errorf("%s sends %s a payload carrying no Message member", where(call), method.Name)
-					case !fromCatalogue(message):
-						t.Errorf("%s sends %s a sentence composed at the call site rather than drawn from the catalogue", where(call), method.Name)
-					}
+			// The channel itself: every notification this package sends, read
+			// by what its method argument denotes.
+			if isCall(info, selector, connNotify) && len(call.Args) == 2 {
+				notifications++
+				method, resolved := constantText(info, call.Args[0])
+				if !resolved {
+					t.Errorf("%s sends a notification whose method this scan cannot resolve to a constant, so nothing here can tell whether a person reads it", where(call))
+					return true
+				}
+				if method != logMessage && method != showMessage {
+					return true
+				}
+				channels++
+				literal, ok := call.Args[1].(*ast.CompositeLit)
+				if !ok || !types.Identical(info.Types[literal].Type, payloadType) {
+					t.Errorf("%s sends %s a payload this scan cannot read, so nothing here can tell where its sentence came from", where(call), method)
+					return true
+				}
+				message, carried := messageMember(info, field, index, literal)
+				switch {
+				case !carried:
+					t.Errorf("%s sends %s a payload carrying no Message member", where(call), method)
+				case !fromCatalogue(info, message):
+					t.Errorf("%s sends %s a sentence composed at the call site rather than drawn from the catalogue", where(call), method)
 				}
 				return true
 			}
 
 			// The helpers, which take a catalogue key rather than a sentence.
-			if selector.Sel.Name != "log" && selector.Sel.Name != "show" {
+			if !isCall(info, selector, serverLog) && !isCall(info, selector, serverShow) {
 				return true
 			}
 			helpers++
@@ -380,6 +497,9 @@ func TestNoStringLiteralReachesTheEditorsOwnChannels(t *testing.T) {
 			}
 			return true
 		})
+	}
+	if notifications != 3 {
+		t.Errorf("the scan read %d notifications, and this server sends three", notifications)
 	}
 	if channels != 2 {
 		t.Errorf("the scan read %d notifications bound for a person's own channels, and this server sends them on two", channels)

@@ -980,3 +980,110 @@ Caught at Test on dinah-515, 2026-09-15, on two of twenty-seven criteria, and a 
 **The test:** for every assertion, ask whether it would still fail if the behaviour it names were wrong but the code it reads were self-consistent. A count compared against `len(fixture)` where the fixture is the test's own hand-written table passes that question, because nothing under test wrote the table. A count compared against a production constant fails it. A value composed by a helper from the package under test fails it, and it fails it twice over where the same package also reads the value back, since an inverse pair of mistakes cancels. The tell is that the expected side of the comparison names a symbol the diff could change.
 
 **Related:** the workbench discipline "Where a check sweeps a set, assert how big the set was", whose remedy this entry borrows. A set the test itself writes still wants its size pinned, because a later edit that drops a row moves the expectation with it. Two further instances on the same card took that one-line fix, one on a list of five annotated kinds and one on a four-row quiet half.
+
+## A guard that parses the construct and then matches an identifier's name inside it
+
+Caught at Agent Code Review on dinah-515, 2026-09-15, in the repair of an
+earlier finding rather than in the shipped behaviour. The corpus already holds
+"A guard that reads source text reads one spelling of the thing it is
+guarding", whose remedy is to parse the construct instead of matching text.
+This entry is where that remedy is followed one step and stopped: the guard
+parses, walks a real syntax tree, reaches the right node, and then asks what
+the node's identifier is called. Everything a compiler would answer about that
+identifier goes unasked, so the guard covers the spelling its author had in
+front of him and nothing else. The failure is harder to see than the text one,
+because the code around it is structural and reads as though the question had
+been settled.
+
+**Wrong:** a sweep that enters its check only for two literal identifier
+names. `TestNoStringLiteralReachesTheEditorsOwnChannels` in `internal/lsp`
+walked every `conn.notify` call in the package and tested the method argument
+with `call.Args[0].(*ast.Ident)`, admitting it only when `Name` read
+`methodLogMessage` or `methodShowMessage`. Any other spelling returned without
+a report, and, worse, without incrementing the count, so the sweep-size
+assertion did not catch it either. Two routes were written against the shipped
+code and both compiled clean and both passed the guard. The first writes the
+method as the protocol URI and assembles the payload field by field:
+
+```go
+func (s *Server) hostileA() error {
+	var payload logMessageParams
+	payload.Type = messageTypeWarning
+	payload.Message = "the walk is running slowly and nobody translated this"
+	return s.conn.notify("window/logMessage", payload)
+}
+```
+
+The second holds the method in a package-level variable and returns the
+payload from a helper, so no composite literal is written anywhere:
+
+```go
+var aliasMethod = methodShowMessage
+
+func (s *Server) hostileB() error { return s.conn.notify(aliasMethod, s.hostilePayload()) }
+```
+
+An untranslated English sentence reached `window/logMessage` under the first
+and `window/showMessage` under the second, and the guard reported success both
+times. The same file held the miniature: a helper answering whether an
+expression came from the message catalogue accepted any call through a
+selector named `T`, so any type at all could satisfy it by declaring a method
+of that name.
+
+**Right:** type-check the package and ask what each expression denotes.
+`go/types` is in the standard library and a package's own sources can be
+checked with `importer.ForCompiler(fileset, "source", nil)`, which cost 2.7
+seconds here on ten files. The method argument is then read with
+`info.Types[expr].Value`, which folds an identifier, a local `const` alias, a
+concatenation of constants and the literal URI to one string, and the two
+person-facing methods are resolved once at their own declaration through
+`pkg.Scope().Lookup("methodLogMessage")` so that every call site is compared
+by value. The catalogue helper resolves through `info.Selections`, comparing
+the selected object's `FullName()` against `(*dinah/internal/msg.Renderer).T`,
+which a lookalike method on another type cannot satisfy. The composite literal
+is recognised by `types.Identical` against the payload type rather than by the
+type name written at the site, and its Message member is found either by a key
+whose `info.Uses` entry is the field itself or, where the literal is
+positional, by the field's own index in the struct.
+
+**Where the repaired guard still cannot see, said in the guard:** a method
+argument the compiler cannot fold to a constant, which is what a variable
+holding the method gives, and a payload that is not a composite literal at the
+call site, which is what assembling one field by field gives. Neither is
+resolved and neither is passed over. Each is reported with its file and line,
+in a message saying that the scan cannot read it, and the doc comment says
+which two shapes those are and that what the guard proves about them is that
+they exist rather than what they say. That is the workbench rule about saying
+where a guard cannot see, met at the place somebody meets the guard.
+
+**The test:** having parsed the construct, read every comparison the guard
+makes inside it and ask of each whether it compares a name or a value. A
+comparison against a string that happens to be a Go identifier is the tell,
+and it is a tell whether the identifier belongs to a constant, a type, a field
+or a method. Then arm the repair against spellings nobody has used yet, and
+three are enough to separate a fix from a widening: the shape the reviewer
+wrote, a second shape that reaches the same channel by a different route, and
+one the repair was not designed around. The third is what settles it. Here it
+was a local `const chatter = "window/" + "showMessage"` handed a payload a
+helper assembled into a variable, and the name-matching guard answered `ok`
+against it while the resolving guard folded the concatenation to
+`window/showMessage` and named the call, the unreadable payload and both
+counts. A fourth spelling is worth recording because it failed in a way that
+looks like success: a positional `logMessageParams{messageTypeWarning, "..."}`
+did redden the name-matching guard, but on `builds a message payload carrying
+no Message member`, which is the wrong defect, since the member was there and
+the guard could only read keyed elements. A guard reporting the wrong reason
+is not evidence that it saw the thing. Pin the accepting case beside the
+refusing ones, since a guard that refuses everything passes a criterion about
+refusal. A legitimate catalogue call reached through a local variable holding
+the renderer still passes the repaired guard, with only the sweep-size
+assertions firing on the extra notification.
+
+**Related:** "A guard that reads source text reads one spelling of the thing
+it is guarding", in `convention-counterexamples-2.md`, is this entry one level
+down, and the two together say that parsing is the direction of the remedy
+rather than the whole of it. "A source guard matching the spelling of the
+lookup that is there, saying nothing about the lookup that is not" is the
+neighbour on exclusivity, and its bounds paragraph is the model for the
+saying-where-it-cannot-see clause above. The workbench discipline "A guard
+widened by example fits only its examples" is what the third spelling is for.
