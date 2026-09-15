@@ -795,6 +795,15 @@ var Shapes = []Shape{
 		NextStep:  []string{"refusal.dinah.malformed-harness.next"},
 	},
 	{
+		// The member's name travels in the detail alone, written as a JSON
+		// string literal so the line ending in it is an escape: printing the
+		// name raw would split this refusal's own line, which is the very
+		// thing the refusal exists to stop the document doing to a header.
+		Name:      MalformedMemberName,
+		Fragments: []Fragment{{Key: "refusal.dinah.malformed-member-name.next"}},
+		NextStep:  []string{"refusal.dinah.malformed-member-name.next"},
+	},
+	{
 		// Both tiers ride as values for the reason BelowTier gives: the base
 		// sentence names what the card already asks for and what the raise
 		// resolved to, and the next step names the first of them again, so

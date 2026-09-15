@@ -1,12 +1,14 @@
 package bench
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
+	"strings"
 
 	"dinah/internal/contract"
 )
@@ -171,6 +173,11 @@ type Definition struct {
 // unsupported-version, on the same window Open applies, so the function that
 // clones a workbench admits exactly what the function that opens one admits.
 func ReadDefinition(data []byte) (*Definition, error) {
+	normalized, err := normalizeDefinitionText(data)
+	if err != nil {
+		return nil, err
+	}
+	data = normalized
 	object := map[string]json.RawMessage{}
 	if err := json.Unmarshal(data, &object); err != nil {
 		return nil, contract.Refuse(contract.Malformed, "interchange")
@@ -481,4 +488,164 @@ func (b *Bench) Extract(target string) error {
 		}
 	}
 	return nil
+}
+
+// normalizeDefinitionText answers the interchange document with every string
+// VALUE it carries, at any depth, normalised, and refuses a member NAME
+// carrying a line ending.
+//
+// It walks the decoded document rather than its bytes because a JSON string
+// spells a carriage return as an escape, which no byte replacement over the
+// file would find, and it runs at this one read boundary rather than at each
+// renderer because renderScalar guards its output by comparing it against the
+// raw message with sameJSON: a renderer that normalised would fail its own
+// guard and fall through to a raw JSON line, storing the escape in the anchor.
+// Normalising the message first puts both sides of that comparison in the same
+// form and the guard passes unchanged.
+//
+// A value nothing inside changed comes back as its own bytes, whitespace,
+// member order and number spelling and all, because CORE-JSON-7 requires a
+// member this tool does not understand to travel unchanged and a member the
+// renderer cannot read travels as its own raw line. Only a value carrying a
+// string the normalisation touched is rendered afresh.
+//
+// Values and names are treated differently on purpose. A name becomes the
+// left-hand side of a frontmatter line, which nothing quotes, so a line ending
+// in one does not corrupt a value, it invents a key.
+//
+// A document that does not parse comes back unchanged with no error, because
+// the refusal for that is the caller's own and saying it twice in two voices
+// would make one document refuse under two names.
+func normalizeDefinitionText(data []byte) ([]byte, error) {
+	return normalizeDefinitionValue(json.RawMessage(data))
+}
+
+// jsonSpace is the whitespace RFC 8259 admits between the tokens of a
+// document, which is what a value's leading bytes are trimmed of before its
+// first real byte says which kind of value it is.
+const jsonSpace = " \t\r\n"
+
+// lineEndings are the two bytes a member name may not carry, named here so the
+// refusal below reads as a rule rather than as a pair of escapes.
+const lineEndings = "\r\n"
+
+// normalizeDefinitionValue is normalizeDefinitionText's recursion, over one
+// JSON value at a time.
+func normalizeDefinitionValue(raw json.RawMessage) (json.RawMessage, error) {
+	trimmed := bytes.TrimLeft(raw, jsonSpace)
+	if len(trimmed) == 0 {
+		return raw, nil
+	}
+	switch trimmed[0] {
+	case '"':
+		var value string
+		if err := json.Unmarshal(raw, &value); err != nil {
+			return raw, nil
+		}
+		normalized := NormalizeNewlines(value)
+		if normalized == value {
+			return raw, nil
+		}
+		return json.Marshal(normalized)
+	case '{':
+		return normalizeDefinitionObject(raw)
+	case '[':
+		return normalizeDefinitionArray(raw)
+	}
+	return raw, nil
+}
+
+// normalizeDefinitionObject rewrites one object, refusing any member name
+// carrying a line ending. The detail names the member with its line ending
+// written as an escape, since printing the name raw would split the refusal's
+// own line too.
+func normalizeDefinitionObject(raw json.RawMessage) (json.RawMessage, error) {
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.UseNumber()
+	if _, err := dec.Token(); err != nil {
+		return raw, nil
+	}
+	var out bytes.Buffer
+	out.WriteByte('{')
+	first, changed := true, false
+	for dec.More() {
+		tok, err := dec.Token()
+		if err != nil {
+			return raw, nil
+		}
+		name, named := tok.(string)
+		if !named {
+			return raw, nil
+		}
+		if strings.ContainsAny(name, lineEndings) {
+			escaped, err := json.Marshal(name)
+			if err != nil {
+				return nil, contract.Refuse(contract.MalformedMemberName, name)
+			}
+			return nil, contract.Refuse(contract.MalformedMemberName, string(escaped))
+		}
+		var value json.RawMessage
+		if err := dec.Decode(&value); err != nil {
+			return raw, nil
+		}
+		rewritten, err := normalizeDefinitionValue(value)
+		if err != nil {
+			return nil, err
+		}
+		if !bytes.Equal(rewritten, value) {
+			changed = true
+		}
+		if !first {
+			out.WriteByte(',')
+		}
+		first = false
+		encoded, err := json.Marshal(name)
+		if err != nil {
+			return raw, nil
+		}
+		out.Write(encoded)
+		out.WriteByte(':')
+		out.Write(rewritten)
+	}
+	out.WriteByte('}')
+	if !changed {
+		return raw, nil
+	}
+	return out.Bytes(), nil
+}
+
+// normalizeDefinitionArray rewrites one array, element by element, and answers
+// the original bytes where no element changed.
+func normalizeDefinitionArray(raw json.RawMessage) (json.RawMessage, error) {
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.UseNumber()
+	if _, err := dec.Token(); err != nil {
+		return raw, nil
+	}
+	var out bytes.Buffer
+	out.WriteByte('[')
+	first, changed := true, false
+	for dec.More() {
+		var value json.RawMessage
+		if err := dec.Decode(&value); err != nil {
+			return raw, nil
+		}
+		rewritten, err := normalizeDefinitionValue(value)
+		if err != nil {
+			return nil, err
+		}
+		if !bytes.Equal(rewritten, value) {
+			changed = true
+		}
+		if !first {
+			out.WriteByte(',')
+		}
+		first = false
+		out.Write(rewritten)
+	}
+	out.WriteByte(']')
+	if !changed {
+		return raw, nil
+	}
+	return out.Bytes(), nil
 }

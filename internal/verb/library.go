@@ -239,6 +239,13 @@ type Request struct {
 	// do and writes nothing, which is the two-phase shape the tree sweeps
 	// already run.
 	MigrateBranches bool
+	// MigrateNewlines asks check to repair every workbench text file storing
+	// a carriage return that stands for a line ending, which the format's
+	// Encoding section forbids a writer to produce. Without Confirm it reports
+	// what it would do, on the two-phase shape MigrateBranches runs, and the
+	// preview rewrites each destination with that destination's own bytes to
+	// establish that the write will be permitted.
+	MigrateNewlines bool
 	// Renumber asks check to repair the registry's duplicated numbers before
 	// it reports, leaving the number with the line that claimed it first. It
 	// refuses without Confirm, on the terms MigrateNumbers does.

@@ -635,6 +635,7 @@ var params = map[string][]Param{
 		{Name: "migrate-container", Flag: true, Marker: true, Field: "MigrateContainer"},
 		{Name: "migrate-numbers", Flag: true, Marker: true, Field: "MigrateNumbers"},
 		{Name: "migrate-branches", Flag: true, Marker: true, Field: "MigrateBranches"},
+		{Name: "migrate-newlines", Flag: true, Marker: true, Field: "MigrateNewlines"},
 		{Name: "renumber", Flag: true, Marker: true, Field: "Renumber"},
 		// remint takes a path rather than standing alone, because it repairs
 		// the one condition the tree sweep refuses to decide: two directories

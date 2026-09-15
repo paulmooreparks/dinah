@@ -204,6 +204,7 @@ var argumentExemptions = map[string]map[string]string{
 		"migrate-vocabulary":  "rewrites the vocabulary of every workbench under a root, and its rewrite has no undo",
 		"migrate-container":   "rewrites the container layout of every workbench under a root, and its rewrite has no undo",
 		"migrate-branches":    "lifts a retired heading out of every card body into a declared field and stamps the store's format, which is a one-time repair of an ageing store",
+		"migrate-newlines":    "repairs every workbench text file storing a carriage return that stands for a line ending, and its preview rewrites each destination with that destination's own bytes",
 		"migrate-numbers":     "builds the card-number registry and strips the number key from every anchor, which is a one-time repair of an ageing store",
 		"renumber":            "renumbers the later claimant of a number two cards hold, and a reference somebody wrote down for that card stops resolving",
 		"migrate-workstreams": "rewrites the workstream records of an ageing store, which is a one-time repair of it",
