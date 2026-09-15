@@ -226,7 +226,15 @@ test("no other row kind is draggable", () => {
 		{ kind: "note", owner, text: "", tooltip: "" },
 		{ kind: "column", row: owner, node: { kind: "column", count: 0 }, view: column("c-doing") },
 		{ kind: "group", row: owner, node: { kind: "group", count: 0 }, column: column("c-doing") },
-		{ kind: "attachmentsGroup", row: owner, root: ROOT, ref: "tr-4", count: 1 },
+		{
+			kind: "collection",
+			row: owner,
+			root: ROOT,
+			holder: "tr-4",
+			holderKind: "card",
+			memberKind: "attachment",
+			members: [],
+		},
 		{ kind: "attachment", row: owner, root: ROOT, owner: "tr-4", view: attachment() },
 	];
 	for (const element of kinds) {
@@ -329,7 +337,15 @@ test("a row naming no column resolves to nothing", () => {
 		undefined,
 		{ kind: "root", row: owner },
 		{ kind: "note", owner, text: "", tooltip: "" },
-		{ kind: "attachmentsGroup", row: owner, root: ROOT, ref: "tr-4", count: 1 },
+		{
+			kind: "collection",
+			row: owner,
+			root: ROOT,
+			holder: "tr-4",
+			holderKind: "card",
+			memberKind: "attachment",
+			members: [],
+		},
 		{ kind: "attachment", row: owner, root: ROOT, owner: "tr-4", view: attachment() },
 		// The status/tree join missed this column, so the row carries no view.
 		{ kind: "column", row: owner, node: { kind: "column", count: 0 } },

@@ -756,44 +756,34 @@
 			"context": "The one row a checklist group yields when the call that lists its items was refused.",
 			"skeleton": true
 		},
-		"item.document.title": {
-			"text": "{ref} ({kind})",
-			"context": "The item document's own heading and its tab's title. {ref} is the item's reference and {kind} is the kind word above.",
-			"skeleton": true
-		},
-		"item.document.heading.status": {
-			"text": "Status",
-			"context": "The heading above the item document's standing line, which carries the state, the hold sentence, and the owner.",
-			"skeleton": true
-		},
-		"item.document.heading.text": {
-			"text": "What it says",
-			"context": "The heading above the item's own text in its document.",
-			"skeleton": true
-		},
-		"item.document.heading.note": {
-			"text": "Note",
-			"context": "The heading above the item's resolution note, drawn only where the item carries one.",
-			"skeleton": true
-		},
-		"item.document.heading.comments": {
+		"tree.collection.comments": {
 			"text": "Comments",
-			"context": "The heading above the item's comment thread. It is drawn even where the thread is empty, because an absent heading and an empty thread look the same to a reader who came expecting reasoning.",
+			"context": "The label of the collection row a thread hangs under, beside the Checklist and Attachments rows.",
 			"skeleton": true
 		},
-		"item.document.comment.heading": {
+		"comment.row.description": {
 			"text": "{ordinal} · {author} · {ts}",
-			"context": "One comment's own heading in the item document. {ordinal} is its one-based position in the thread, {author} wrote it and {ts} is when.",
+			"context": "The grey text beside a comment row's label. {ordinal} is the comment's one-based position in its thread, {author} wrote it and {ts} is when.",
 			"skeleton": true
 		},
-		"item.document.commentsEmpty": {
-			"text": "Nothing has been written on this item yet.",
-			"context": "What stands under the Comments heading on an item whose thread carries nothing.",
+		"comment.row.author": {
+			"text": "{author} wrote this at {ts}",
+			"context": "The second hover line on a comment row, above the comment's own text. {author} wrote it and {ts} is when.",
 			"skeleton": true
 		},
-		"item.document.textUnavailable": {
-			"text": "The text of {ref} could not be read.",
-			"context": "What the document says in place of the item's own text when the call carrying it was refused. The comment thread is still drawn below it, and nothing falls back to the item's anchor file.",
+		"tree.contents.unreadable": {
+			"text": "This checkpoint could not read what this holds.",
+			"context": "The one row an entity yields when the call that lists what it contains was refused.",
+			"skeleton": true
+		},
+		"tree.comments.unreadable": {
+			"text": "This checkpoint could not read the comments here.",
+			"context": "The output channel line when the call carrying a thread's authors and times was refused. The comment rows are still drawn, from what the containment walk answered.",
+			"skeleton": true
+		},
+		"tree.attachments.unreadable": {
+			"text": "This checkpoint could not read the attachments here.",
+			"context": "The output channel line when the call listing an entity's attachments was refused. It was an untranslated English literal until dinah-519 rewrote the arm it sits in.",
 			"skeleton": true
 		},
 		"prompt.item.resolve": {

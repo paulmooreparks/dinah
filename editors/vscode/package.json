@@ -199,6 +199,10 @@
         "title": "%manifest.command.dinah.tree.fileItem.title%"
       },
       {
+        "command": "dinah.tree.openComment",
+        "title": "%manifest.command.dinah.tree.openComment.title%"
+      },
+      {
         "command": "dinah.comment.post",
         "title": "%manifest.command.dinah.comment.post.title%",
         "icon": "$(check)"
@@ -313,6 +317,10 @@
         },
         {
           "command": "dinah.tree.fileItem",
+          "when": "false"
+        },
+        {
+          "command": "dinah.tree.openComment",
           "when": "false"
         },
         {
@@ -455,6 +463,11 @@
         {
           "command": "dinah.tree.openItem",
           "when": "view == dinah.workbenchView && viewItem =~ /^dinah\\.item\\./",
+          "group": "2_open@1"
+        },
+        {
+          "command": "dinah.tree.openComment",
+          "when": "view == dinah.workbenchView && viewItem == dinah.comment",
           "group": "2_open@1"
         },
         {

@@ -13,14 +13,7 @@
 
 import type { Clock } from "./changes";
 import type { Localizer } from "./l10n";
-import type { HoldDirection } from "./tree";
-import type {
-	CommentView,
-	InstructionChain,
-	ItemDetail,
-	ItemView,
-	JournalEvent,
-} from "./wire";
+import type { InstructionChain, JournalEvent } from "./wire";
 
 /** The first kind served here, which is a card's own instruction chain. */
 export const KIND_INSTRUCTIONS = "instructions";
@@ -356,111 +349,6 @@ export function renderHistoryMarkdown(
 			return t(`history.event.${event.event}`, row(event, t));
 		})
 		.join("\n");
-}
-
-/**
- * The fourth kind, which is one checklist item read whole.
- *
- * It is the one kind whose resolver composes two calls rather than one, and
- * the reason is in the shapes dinah publishes. `dinah show <item>` answers an
- * ItemDetail, whose text member is the anchor file with its frontmatter still
- * attached, so the item's own prose, kind, state, column, owner and note are
- * not readable from it without splitting human output. Those all ride
- * ItemView, which only `dinah show <card>` serves. So the resolver asks twice
- * and this renderer takes both answers.
- */
-export const KIND_ITEM = "item";
-
-/** Every string the item document draws, already translated. */
-export interface ItemLabels {
-	/** The level-one heading, taking the item's ref and its kind word. */
-	readonly title: string;
-	/** The level-two headings, in the order the document draws them. */
-	readonly textHeading: string;
-	readonly statusHeading: string;
-	readonly noteHeading: string;
-	readonly commentsHeading: string;
-	/** The state word, already looked up for this item's own state. */
-	readonly state: string;
-	/**
-	 * The six hold sentences, already interpolated with the column's title.
-	 *
-	 * All six rather than the one this item needs, because the object is
-	 * composed once per render and picking the sentence here is what lets the
-	 * direction stay a token the three item surfaces share. A test can then
-	 * make the six distinguishable and watch the right one reach the page.
-	 */
-	readonly hold: Readonly<Record<HoldDirection, string>>;
-	/** The label before the owner, drawn only where the item records one. */
-	readonly owner: string;
-	/** The line a thread carrying nothing draws in place of its comments. */
-	readonly commentsEmpty: string;
-	/** What the document says where the item's own text could not be read. */
-	readonly textUnavailable: string;
-	/** Composes one comment's own heading from its ordinal, author and time. */
-	readonly commentHeading: (
-		ordinal: number,
-		author: string,
-		ts: string,
-	) => string;
-}
-
-/**
- * One checklist item as a Markdown document: its text, its note and its
- * thread.
- *
- * All three prose surfaces are drawn, and which of them exist is the only
- * thing that varies. The note's own condition is its emptiness and never the
- * item's state: an item raised before item comments existed carries its whole
- * argument in the note while still reading as pending, and a renderer
- * suppressing the note under a pending state shows that reader nothing. The
- * operator ruled that no sweep converts those items, so the case is permanent
- * rather than transitional.
- *
- * A thread carrying nothing draws its heading and a line saying so, rather
- * than being dropped, because an absent heading and an empty thread look the
- * same to a reader who came expecting reasoning.
- *
- * `view` arrives undefined when the second call was refused or carried no
- * matching ItemView. The document then says the item's own text could not be
- * read and draws the thread, and it never falls back to `detail.text`: that
- * member is the anchor file including its frontmatter, and splitting it here
- * would put this extension back to parsing dinah's human output, which is
- * what the repository's check on spawn sites exists to prevent.
- */
-export function renderItemMarkdown(
-	view: ItemView | undefined,
-	detail: ItemDetail,
-	labels: ItemLabels,
-	direction: HoldDirection,
-): string {
-	const sections: string[] = [`# ${labels.title}`];
-	if (view === undefined) {
-		sections.push(labels.textUnavailable);
-	} else {
-		sections.push(`## ${labels.textHeading}`, view.text);
-		const standing = [labels.state, labels.hold[direction]];
-		if (view.owner !== undefined && view.owner !== "") {
-			standing.push(`${labels.owner} ${view.owner}`);
-		}
-		sections.push(`## ${labels.statusHeading}`, standing.join(" \u00b7 "));
-		if (view.note !== undefined && view.note !== "") {
-			sections.push(`## ${labels.noteHeading}`, view.note);
-		}
-	}
-	sections.push(`## ${labels.commentsHeading}`);
-	const comments: readonly CommentView[] = detail.comments ?? [];
-	if (comments.length === 0) {
-		sections.push(labels.commentsEmpty);
-	} else {
-		comments.forEach((comment, at) => {
-			sections.push(
-				`### ${labels.commentHeading(at + 1, comment.author, comment.ts)}`,
-				comment.body,
-			);
-		});
-	}
-	return sections.join("\n\n");
 }
 
 /** The card a checklist item hangs from, which is its ref up to the first slash. */

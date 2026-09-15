@@ -23,16 +23,17 @@ import { runBulk } from "./bulk";
 import type { CommandHost, PickItem } from "./cardCommands";
 import {
 	isRow,
+	pinnedArgv,
 	refusalMessage,
 	rowOutcomeFor,
 	rowRef,
 	runVerb,
 } from "./cardCommands";
 import type { CliOutcome, Spawner } from "./cli";
+import { runDinah } from "./cli";
 import type { Wiring } from "./commandTable";
 import { openCommentDraft } from "./commentDrafts";
 import type { Localizer } from "./l10n";
-import { KIND_ITEM } from "./servedText";
 import type { HoldDirection, TreeElement, WorkbenchData } from "./tree";
 import {
 	cardColumnRefOf,
@@ -42,7 +43,7 @@ import {
 	itemKindWord,
 } from "./tree";
 import type { CatalogBuild, CatalogOk } from "./verbCatalog";
-import type { ItemView } from "./wire";
+import type { ItemView, PathAnswer } from "./wire";
 
 /** The tool the filing form reads its kind choices from. */
 export const FILE_ITEM_TOOL = "file_item";
@@ -60,7 +61,15 @@ export interface ItemCommandContext {
 	readonly ref: string;
 	/** The card the item hangs from, which the reading document composes from. */
 	readonly card: string;
-	readonly view: ItemView;
+	/**
+	 * The item's joined view, absent where the detail call did not answer.
+	 *
+	 * A row drawn without one carries no contextValue, so no menu clause
+	 * matches it and none of the acting commands can be aimed at it. Open Item
+	 * is the exception and it reads no view: it asks `path` about the item's
+	 * own reference.
+	 */
+	readonly view?: ItemView;
 	/** This workbench's own data, which the hold sentence is computed from. */
 	readonly data?: WorkbenchData;
 }
@@ -80,7 +89,8 @@ export function contextForItem(
 	if (!isRow(element, "item")) {
 		return undefined;
 	}
-	if (element.view.ref === "") {
+	const ref = element.node.ref ?? element.view?.ref ?? "";
+	if (ref === "") {
 		return undefined;
 	}
 	return {
@@ -89,25 +99,75 @@ export function contextForItem(
 		host,
 		folder: element.row.folder,
 		root: element.root,
-		ref: element.view.ref,
+		ref,
 		card: element.card,
 		view: element.view,
 		data: element.row.data,
 	};
 }
 
-/** Opens one item's own document as a read-only tab. */
+/**
+ * Opens the anchor file one reference resolves to.
+ *
+ * `dinah path <ref>` takes the entity's own reference and resolves it whatever
+ * holds it, so no holder is composed and nothing is cut off the reference. The
+ * call is pinned and run from the root like every other call this extension
+ * makes, and a refusal is shown and nothing is opened, which is what openCard
+ * already does on both of those arms. No catalogue key is needed for the
+ * failure, because refusalMessage composes one out of what the binary said.
+ *
+ * `path` rather than `show`, and that is forced rather than preferred:
+ * `show <item> --fields path` is refused, because only a card takes a field
+ * selector, and `show <comment>` answers the anchor's raw text rather than
+ * JSON at all. openCard reads its path off `show` and is left alone, because
+ * rewriting a working handler is not this card's work.
+ *
+ * It lives here rather than beside each of its two callers because there is
+ * one call and one hand-off, and a second copy of them is a second thing to
+ * get wrong. It reads no item and takes none.
+ */
+export async function openAnchorFile(
+	spawner: Spawner,
+	exe: string,
+	host: CommandHost,
+	root: string,
+	ref: string,
+): Promise<void> {
+	const outcome = await runDinah(spawner, exe, pinnedArgv(root, ["path", ref]), {
+		cwd: root,
+	});
+	if (outcome.kind !== "ok") {
+		host.showError(refusalMessage(outcome));
+		return;
+	}
+	const path = (outcome.json as PathAnswer).path;
+	if (path === undefined || path === "") {
+		host.log(`dinah path ${ref} answered with no path`);
+		return;
+	}
+	await host.openDocument(path);
+}
+
+/**
+ * Opens the item's own anchor file.
+ *
+ * No document is composed over it. Clicking a card already opens `card.md`
+ * with its front matter and lets the reader edit it, and an item behaves the
+ * same way from here: the operator ruled on 2026-09-15 that he wants to deal
+ * with what is in the workbench rather than with a page this extension
+ * assembles over it.
+ *
+ * Editing that file bypasses the verb, so no journal entry is made. That is
+ * already true of `card.md` and of `workbench.md`, whose own format
+ * documentation calls a hand edit legal and deliberately unjournaled.
+ */
 export async function openItem(context: ItemCommandContext): Promise<void> {
-	await context.host.openServedText(
-		KIND_ITEM,
+	await openAnchorFile(
+		context.spawner,
+		context.exe,
+		context.host,
 		context.root,
 		context.ref,
-		// The tab's own title is the document's own heading, so a reader
-		// scanning tabs and a reader reading one meet the same line.
-		context.host.t("item.document.title", {
-			ref: context.ref,
-			kind: itemKindWord(context.view.kind, context.host.t),
-		}),
 	);
 }
 
@@ -624,17 +684,22 @@ export async function invokeFileItem(
 }
 
 /**
- * The hold sentence one item row shows, exported so the document and the row
- * read one function.
+ * The hold sentence one item row shows.
  *
  * It is a thin name over tree.ts's own itemHoldDirection rather than a second
  * computation, because a second copy of a twelve-cell branch is what would
  * drift.
+ *
+ * A row whose detail call did not answer carries no ItemView, and there is
+ * nothing for a hold sentence to be composed out of, so it reads as nothing
+ * held rather than as a direction guessed at.
  */
 export function directionForItem(
 	context: ItemCommandContext,
 ): HoldDirection {
-	return itemHoldDirection(context.data, context.card, context.view);
+	return context.view === undefined
+		? "nothing"
+		: itemHoldDirection(context.data, context.card, context.view);
 }
 
 /** Re-exported so a caller composing a refusal message names one function. */
