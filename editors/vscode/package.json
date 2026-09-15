@@ -179,6 +179,10 @@
         "title": "%manifest.command.dinah.tree.commentOnItem.title%"
       },
       {
+        "command": "dinah.tree.commentOnColumn",
+        "title": "%manifest.command.dinah.tree.commentOnColumn.title%"
+      },
+      {
         "command": "dinah.tree.resolveItem",
         "title": "%manifest.command.dinah.tree.resolveItem.title%"
       },
@@ -300,6 +304,10 @@
           "when": "false"
         },
         {
+          "command": "dinah.tree.commentOnColumn",
+          "when": "false"
+        },
+        {
           "command": "dinah.tree.resolveItem",
           "when": "false"
         },
@@ -409,6 +417,11 @@
           "command": "dinah.tree.attachFile",
           "when": "view == dinah.workbenchView && viewItem =~ /^dinah\\.column\\./",
           "group": "1_column@4"
+        },
+        {
+          "command": "dinah.tree.commentOnColumn",
+          "when": "view == dinah.workbenchView && viewItem =~ /^dinah\\.column(\\.open|\\.full)?(\\.pull)?$/",
+          "group": "1_column@5"
         },
         {
           "command": "dinah.tree.attachFile",

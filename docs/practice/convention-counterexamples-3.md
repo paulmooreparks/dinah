@@ -960,3 +960,114 @@ Then give the escapes as demonstrated examples, each with a reproduction, and sa
 The count is where this goes wrong in practice. A sentence saying "four shapes fall outside" reads as an exhaustive partition, so a reader holding a fifth shape checks it against the four, finds no match, and concludes the guard sees it. Naming the shapes without a count of what falls outside, and saying outright that the list is open, costs one clause and closes that reading off. A count of the runs on the record is a different number and stays, because it measures how much evidence there is rather than partitioning what escapes. This entry's own first draft named one hole and implied the rest were covered, and its second named four and implied the same. Each was caught by the next reviewer with a plant from outside the count.
 
 **Related:** "A universal claim generalised from the cases the reviewer named", in `convention-counterexamples-1.md`, is the general form of the two false sentences this entry kept producing, and its test applies here unchanged: for every universal quantifier, and a closed count is one, name the run that would falsify it before you write it. "A sweep bucketed by the preceding word, run over a tree whose identifiers are CamelCase" is the nearest neighbour on the guard itself, and it is a neighbour rather than the same entry: there the sweep reads the right construct and mis-tokenises it, here the sweep reads a spelling instead of a construct. "A walk that finds its target by asserting the top-level node, missing the same node nested inside a container" is the same failure inside an AST walk that is otherwise structural.
+
+## A rule over a set, tested against the members its author had in mind
+
+Caught at design review on dinah-518, 2026-09-15, and it is the third sighting of this class. A rule selects members of a set: a filter deciding which collections a sweep visits, a switch deciding which stored events a renderer draws, a pattern deciding which context values a menu entry appears under. The test then exercises the rule over a list of members, and that list is written by the same person in the same sitting as the rule. The two agree by construction, and the test catches nothing its author had not already thought of.
+
+The population is not a matter of judgement, and it is not a list to be recalled. Something in the code produces the members, and whatever that is, its own output is the whole population. Derive the list by calling it.
+
+**Wrong.** Three rounds of dinah-518's contract prescribed `/^dinah\.column\./` for the pattern deciding which context values a new command appears under, and its criterion asked that the pattern be run against "each of the context-value suffixes the extension already emits". `columnActionsFor` (`editors/vscode/src/tree.ts`) returns five values, and four of them carry a suffix. The criterion's own phrasing selects those four, every one of which the prescribed pattern matches, so the criterion passed while its first sentence, "on every column row", was false of the build that passed it. The fifth value carries no suffix, and the function returns it whenever two answers of one checkpoint disagree, which happens on every first paint.
+
+**Right.** Derive the population by calling the producer, and assert its size before using it.
+
+```ts
+function everyColumnContextValue(): string[] {
+	const drawn = [
+		columnActionsFor(undefined),
+		columnActionsFor(view({ count: 1, capacity: 0 })),
+		columnActionsFor(view({ count: 2, capacity: 2 })),
+		columnActionsFor(view({ count: 1, capacity: 0, takes_work_up: false }), "doing"),
+		columnActionsFor(view({ count: 2, capacity: 2, takes_work_up: false }), "doing"),
+	];
+	return [...new Set(drawn)];
+}
+
+const values = everyColumnContextValue();
+assert.equal(values.length, 5);
+assert.ok(values.includes("dinah.column"));
+```
+
+The two assertions do different work. The count catches a branch somebody adds to the producer later and does not enumerate here. Naming the one member that separates the candidate rules catches the rule this entry is about, which is why it is named rather than left to the count.
+
+The same card carries the same class away from any menu. `ordinalCollections` appended every collection it walked to its answer and `checkOrdinals` reported every unstamped member of one, which was harmless while a card was the only root because every collection below a card holds stamped members. Rooting the walk at the workbench brought the columns and cards collections into the set for the first time, and the run that showed it was the one over a workbench written entirely by the verbs: it reported one finding per column and one per card. A findings-only test with a planted defect passes against that build, because the planted finding is in the answer along with all the noise.
+
+**The test:** for any rule that selects members of a set, ask what produces a member, and write the population by calling that thing rather than by listing what you expect it to return. Assert the population's size, so a member added later is somebody's problem before it is nobody's. Where two candidate rules are both plausible, find the member that separates them and assert it by name, because every other member passes both. A criterion that describes the population in words, such as "each of the suffixes the code emits", is the tell: the words were written after the rule, and they select what the rule already matches.
+
+**Related:** "A zero-spawn assertion whose driver was never answered far enough to spawn" is the same failure sitting in the driver rather than in the population. "A refusal that any value satisfies is not a refusal" is the degenerate case, where the population is the whole input space and the rule accepts all of it.
+
+## A derived figure copied into a contract, where the command that derived it would have kept
+
+Caught at code review on dinah-518, 2026-09-15, twice on one card and in two different shapes, which is what makes it a class rather than two accidents.
+
+A criterion, a table or a handoff states something a command worked out: how many lines a sweep answered, which files it named, which sites carry a falsified sentence. The command ran and its answer was right. Then somebody copied the answer into prose, and from that moment the prose is a fact about a revision nobody names, checked by nobody, and drifting from the moment the next merge lands.
+
+**Wrong.** Two instances, one dropping a row and one keying a count to a dead revision.
+
+A specification swept every source comment asserting a comment's containment, published the command that did it, and listed the nineteen sites the answer carried. The answer carried twenty. One fell out between the sweep and the table, the sentence it named shipped falsified, and the same sentence four files away was corrected during a merge, so the repository shipped one file saying a comment hangs only below a card and its neighbour saying it hangs below a column too.
+
+The same document asserted that its sweep answers "128 lines across 37 files before the edits". It did, at the trunk the round was written against. Another card landed in between, the branch's own merge base answers 156 lines across 39 files, and the criterion could no longer be satisfied by anything. The handoff had listed which counts the merge moved and this one was not among them.
+
+**Right.** Where a figure or a list comes from a command, put the command and the revision it runs at into the contract, and leave the answer out of it.
+
+```
+Wrong: "the sweep answers 128 lines across 37 files before the edits"
+Right: "the sweep is re-run at this branch's merge base, which
+        git merge-base origin/main HEAD names, and what it answers there is
+        recorded in the handoff beside the base it was taken at"
+```
+
+Better still, where the population is walkable by a test, walk it. The nineteen-site table became a test that reads every non-test Go and TypeScript file under the three trees the sweep reads and fails on the stale clauses by name. A sweep that runs on every build cannot drop a row while somebody copies it, and it cannot go stale against a revision, because it has no revision in it.
+
+**The test:** for every number and every list in a contract, ask which command produced it. If one did, the contract names that command and the base it runs at; if the contract names the answer instead, the answer is already a claim about a revision the reader cannot see. A merge is the event that falsifies these, and a handoff that lists "the counts this merge moved" is enumerating by hand the very thing this entry says not to enumerate by hand.
+
+**Related:** "A mechanical sweep whose recorded output a later stage reads instead of re-running", in `convention-counterexamples-2.md`, is the nearest neighbour and the entry this one extends. That entry stops a reader trusting a sweep's recorded answer; this one says where the answer should have gone instead, which is nowhere, with the command left in its place. "A review finding repaired at the sites the reviewer listed, when the finding names a class", in the same file, is the same loss between a scan and the repair it drives. "A rule over a set, tested against the members its author had in mind", above, is its sibling on the other side: there the population is recalled instead of derived, here it is derived and then transcribed.
+
+## A phrase quoted from a wrapped sentence, asserted to answer nothing
+
+Caught at code review on dinah-518, 2026-09-15, in the criterion written to prevent it.
+
+A contract requires that a stale sentence is gone, and spells the requirement as a grep that must answer nothing. The phrase is quoted out of the source by eye, out of a doc comment that wraps. A line-oriented grep never answered for it, before the edit or after, so the clause is satisfied by a tree in which nothing whatever was done.
+
+**Wrong.** The criterion quoted "a comment hangs on a card or on one of that card's checklist items" from a doc comment reading
+
+```go
+// same for every kind that fails it: a comment hangs on a
+// card or on one of that card's checklist items.
+```
+
+and required that it answer nothing after the edits. It answered nothing before them either. The criterion carried, two sentences later, the rule that would have caught it: each phrase is first run against the merge base and asserted to answer at least one line there. That rule was written because the same defect had already been found in a third phrase of the same list, and the fifth phrase was not put through it.
+
+**Right.** Run every phrase at the base before you write it down, and where the text is prose rather than code, join the comment's continuation lines before scanning so the wrap cannot decide the answer.
+
+```go
+// commentProseContinuation matches the break between two lines of one
+// comment, in both styles this repository writes.
+var commentProseContinuation = regexp.MustCompile(`[ \t]*\r?\n[ \t]*(?://|\*)[ \t]*`)
+
+joined := commentProseContinuation.ReplaceAllString(string(body), " ")
+```
+
+**The test:** an assertion that something answers nothing proves nothing until you have watched it answer something. Run it where the defect is known to live, which for a repair is the base the repair was cut from. A rule of this shape written into a contract binds every clause of that contract, including the ones added after it was written, and the clause added last is the one nobody puts through it.
+
+## A check that builds its own driver, where the package already holds a fuller one
+
+Caught at code review on dinah-518, 2026-09-15, on the check written to close the same card's earlier finding.
+
+A guard that compares a document against the code needs something to drive it: a tree to read, a walker to read it with, and a list of what it may not cover. Writing those three by hand produces a guard whose reach is whatever its author thought to exercise, and the author thinks of the shape the card is about. The repository usually already holds a driver with a coverage alarm attached to it, and one line of reuse buys every shape nobody thought of.
+
+**Wrong.** `cmd/dinah/format_event_fields_test.go` built a fixture of eleven acts, a journal walker decoding each line as a raw object, and an exemption list of nine events. All three already stood in `cmd/dinah/compat_test.go`, one file away in the same package: `readShape` returns each event's member names, `sampleFixture` is the tree it reads, and `TestTheSampleFixtureCarriesEveryJournalEventTheContractDeclares` holds that tree to the whole declared vocabulary. The hand-built fixture reached nine events. The one already there reaches thirty-five. Two rows of the very table the new check pinned were false against the current build and sat underneath a green run of it: a `created` line carries `note` when a column is created, and a `moved` line carries `reshape` when a reshape wrote it.
+
+The exemption list inherited the same bound. Deleting `"linked"` from it compiled and left the check green, because nothing in the hand-built fixture wrote a `linked` line, so the list could not self-clean in the direction its own doc comment claimed.
+
+**Right.** Keep the hand-built fixture only for the shape it alone can carry, which here is a locator younger than the frozen capture, and union it with the tree that carries the coverage alarm. Hold the exemption list against the vocabulary the code declares rather than against whatever a fixture happens to write, and assert the reach as a number rather than logging it.
+
+```go
+live := readShape(t, benchDir(t, exerciseTheJournalWriters(t))).members
+frozen := readShape(t, sampleFixture(t)).members
+// walk the union, and fail on a declared event neither half carries
+```
+
+**The test:** before writing a fixture, a walker or an exemption list for a guard, grep the guard's own package for the thing it is about. Where a fixture already exists with a test holding it to a declared vocabulary, that test is a coverage alarm you inherit for free and your own fixture has none. Then ask what each half of the union can and cannot carry, and say it in the doc comment, because a frozen capture cannot carry a shape invented after it and a live run reaches only the acts somebody wrote down. Assert the count of what was walked; a guard that reads nine of thirty-five reports success exactly as one that reads all of them.
+
+**Related:** "A rule over a set, tested against the members its author had in mind", above, is the same failure in the population of a rule rather than in the driver of a check. "A guard reported absent after a run bounded to the packages the change touched", in `convention-counterexamples-2.md`, is the bound arriving from the run rather than from the fixture. "A source-walking guard rooted at the package's parent while its claim names the tree", in the same file, is this one level up, where the reach shortfall is in what the walk is rooted at.

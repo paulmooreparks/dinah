@@ -37,7 +37,10 @@ import {
 	invokeUnblock,
 } from "./cardCommands";
 import type { ColumnCommandHost } from "./columnCommands";
-import { invokeEditColumnInstructions } from "./columnCommands";
+import {
+	invokeCommentOnColumn,
+	invokeEditColumnInstructions,
+} from "./columnCommands";
 import { invokeOpenComment } from "./commentCommands";
 import type { DraftHost } from "./commentDrafts";
 import { invokeAttachFile, invokeNewCard } from "./creationCommands";
@@ -57,6 +60,7 @@ import {
 	COMMAND_BLOCK,
 	COMMAND_CHECK_WORKBENCH,
 	COMMAND_CLAIM,
+	COMMAND_COMMENT_ON_COLUMN,
 	COMMAND_COMMENT_ON_ITEM,
 	COMMAND_COPY_CARD_REF,
 	COMMAND_COPY_WORKBENCH_PATH,
@@ -169,6 +173,7 @@ export const ROW_COMMAND_TABLE: readonly RowCommand[] = [
 	{ id: COMMAND_ARCHIVE_CARD, invoke: invokeArchiveCard },
 	{ id: COMMAND_OPEN_ITEM, invoke: invokeOpenItem },
 	{ id: COMMAND_COMMENT_ON_ITEM, invoke: invokeCommentOnItem },
+	{ id: COMMAND_COMMENT_ON_COLUMN, invoke: invokeCommentOnColumn },
 	{ id: COMMAND_RESOLVE_ITEM, invoke: invokeResolveItem },
 	{ id: COMMAND_VERIFY_ITEM, invoke: invokeVerifyItem },
 	{ id: COMMAND_FAIL_ITEM, invoke: invokeFailItem },

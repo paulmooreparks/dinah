@@ -128,7 +128,7 @@ var referenceKinds = map[string][]ReferenceKind{
 		ReferenceKindWorkbench, ReferenceKindWorkstream, ReferenceKindColumn,
 		ReferenceKindCard, ReferenceKindBelowCard, ReferenceKindCollection,
 	},
-	"comment": {ReferenceKindCard, ReferenceKindBelowCard},
+	"comment": {ReferenceKindColumn, ReferenceKindCard, ReferenceKindBelowCard},
 	"rename":  {ReferenceKindBelowCard},
 	"cite":    {ReferenceKindBelowCard},
 	"resolve": {ReferenceKindBelowCard},

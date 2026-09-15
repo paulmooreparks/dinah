@@ -166,13 +166,23 @@ export const COMMAND_REOPEN_ITEM = "dinah.tree.reopenItem";
 export const COMMAND_FILE_ITEM = "dinah.tree.fileItem";
 
 /**
+ * The comment command a column row offers, contributed by dinah-518.
+ *
+ * It sits beside the item command above rather than with it, because the
+ * column is a second holder of comments rather than a second kind of item.
+ * Its draft route is the item command's own, and only the row it is invoked
+ * on and the reference that row resolves to differ.
+ */
+export const COMMAND_COMMENT_ON_COLUMN = "dinah.tree.commentOnColumn";
+
+/**
  * The one command a comment row offers, which opens the comment's own anchor
  * file (dinah-519).
  *
- * Nothing else is offered. `dinah comment` records a comment on a card or on
- * one of its items and refuses a comment's own reference, so a Reply entry
- * here would offer a refusal, and Dinah has no verb that edits or deletes a
- * comment.
+ * Nothing else is offered. `dinah comment` records a comment on a card, on a
+ * column, or on one of a card's items, and refuses a comment's own reference,
+ * so a Reply entry here would offer a refusal, and Dinah has no verb that
+ * edits or deletes a comment.
  */
 export const COMMAND_OPEN_COMMENT = "dinah.tree.openComment";
 
@@ -219,6 +229,7 @@ export const TREE_COMMANDS: readonly string[] = [
 	COMMAND_REFRESH_VERB_CATALOG,
 	COMMAND_OPEN_ITEM,
 	COMMAND_COMMENT_ON_ITEM,
+	COMMAND_COMMENT_ON_COLUMN,
 	COMMAND_RESOLVE_ITEM,
 	COMMAND_VERIFY_ITEM,
 	COMMAND_FAIL_ITEM,
@@ -262,6 +273,7 @@ export const ROW_COMMANDS: readonly string[] = [
 	COMMAND_ARCHIVE_CARD,
 	COMMAND_OPEN_ITEM,
 	COMMAND_COMMENT_ON_ITEM,
+	COMMAND_COMMENT_ON_COLUMN,
 	COMMAND_RESOLVE_ITEM,
 	COMMAND_VERIFY_ITEM,
 	COMMAND_FAIL_ITEM,

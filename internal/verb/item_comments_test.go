@@ -119,17 +119,17 @@ func TestAnItemCommentsReferenceComposesAndResolvesBothWays(t *testing.T) {
 	}
 }
 
-// TestCommentRefusesByNameAndAdmitsByName asserts dinah-502 AC-3. A comment
-// mounts on a card and on an item, and is refused by name on every other
-// kind the containment grammar declares plus on a reference that resolves to
-// nothing at all.
+// TestCommentRefusesByNameAndAdmitsByName asserts dinah-502 AC-3, widened by
+// dinah-518. A comment mounts on a card, on an item and on a column, and is
+// refused by name on every other kind the containment grammar declares plus
+// on a reference that resolves to nothing at all.
 func TestCommentRefusesByNameAndAdmitsByName(t *testing.T) {
 	h := newHarness(t)
 	ref := h.add("a card")
 	item := h.file(ref, "open_question", "a question")
 	h.comment(ref, "a first remark")
 
-	admits := []string{ref, item}
+	admits := []string{ref, item, "intake"}
 	for _, target := range admits {
 		response := h.library.Comment(&Request{Verb: "comment", Actor: "alka", Card: target, Text: "text"})
 		if response.Outcome != contract.OutcomeOK {
@@ -155,7 +155,6 @@ func TestCommentRefusesByNameAndAdmitsByName(t *testing.T) {
 	}{
 		{"a comment", ref + "/comments/1", bench.KindComment},
 		{"an attachment", ref + "/attachments/1", bench.KindAttachment},
-		{"a column", "intake", bench.KindColumn},
 		{"the workbench", "workbench", bench.KindWorkbench},
 	}
 	for _, c := range refuses {

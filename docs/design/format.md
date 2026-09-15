@@ -52,12 +52,15 @@ its payload, carrying identity, metadata, and a journaled lifecycle around
 bytes the format never inspects.
 
 Containment is a closed grammar, stated here once and in full. The
-workbench contains columns, cards, workstreams, and attachments. A card
-contains comments, checklist items, and attachments (and bears a journal,
-as do the workbench and each workstream). A comment contains attachments,
-and a checklist item contains comments. An attachment contains exactly
-its payload. A folder contains attachments and folders, and may itself
-exist only inside an `attachments/` collection. Two asymmetries carry the
+workbench contains columns, cards, workstreams, and attachments. A column
+contains comments and attachments. A card contains comments, checklist
+items, and attachments (and bears a journal, as do the workbench and each
+workstream). A comment contains attachments, and a checklist item contains
+comments. An attachment contains exactly its payload. A folder contains
+attachments and folders, and may itself exist only inside an `attachments/`
+collection. The folder kind is deferred and unbuilt, as the Folders section
+below already records, so the grammar as written is cyclic through it while
+the grammar any build implements is acyclic. Two asymmetries carry the
 design. Attachments may belong to any entity, and folders may belong only
 to attachments. Anything the grammar does not say is thereby refused; a
 containment this map lacks arrives only as a versioned spec change or as a
@@ -70,7 +73,7 @@ governed by absent-means-empty:
 ```
 workbench   ::= workbench.md journal.ndjson? attachments? columns?
                 cards? workstreams? archive?
-column       ::= column.md attachments?
+column       ::= column.md comments? attachments?
 card        ::= card.md journal.ndjson comments? checklist? attachments?
 checklist   ::= item*
 item        ::= item.md comments?
@@ -117,7 +120,10 @@ asked.
   attachments/
     <12-hex>/...            # workbench-level attachments, same shape as below
   columns/
-    <12-hex>/column.md       # anchor: one column of the flow
+    <12-hex>/
+      column.md             # anchor: one column of the flow
+      comments/
+        <12-hex>/comment.md # anchor: one comment; attachments/ on demand
   cards/
     <12-hex>/
       card.md               # anchor: identity, position, content
@@ -938,14 +944,14 @@ so a `claimed` line with no `expires` records an unbounded claim.
 
 | event | always present | conditional |
 |---|---|---|
-| `created` | | `title`, on a card's line and on a new workstream's, absent on the line that records a workstream `check` adopted; `to` and `to_title`, on a card's line only, since a workstream stands in no column |
+| `created` | | `title`, on a card's line, on a new workstream's and on a new column's, absent on the line that records a workstream `check` adopted; `to` and `to_title`, on a card's line only, since a workstream stands in no column; `note`, the new column's own identifier, on a column's line only, written both by the verb that adds one column and by a `reshape` for each column its new definition adds |
 | `claimed` | | `expires`, when the claim carried a duration |
-| `moved` | `from`, `from_title`, `to`, `to_title` | `override`, true only where a declared limit or hold stood in the way and the operator carried the move past it, which is a CORE-MOVE-9 capacity override, the departure column's own `loop_limit`, the destination column's own `gate_items` hold under CORE-GATE-4, or the departure column's own `gate_items` hold read on the way out; `reject`, true only when the destination is the departure column's own `reject_to` target |
+| `moved` | `from`, `from_title`, `to`, `to_title` | `override`, true only where a declared limit or hold stood in the way and the operator carried the move past it, which is a CORE-MOVE-9 capacity override, the departure column's own `loop_limit`, the destination column's own `gate_items` hold under CORE-GATE-4, or the departure column's own `gate_items` hold read on the way out; `reject`, true only when the destination is the departure column's own `reject_to` target; `reshape`, true only on a line a `reshape` wrote, marking a card carried out of a column the workbench no longer declares rather than a move somebody decided on, and a reader that does not know the marker reads an ordinary move, which is what the line already is |
 | `released` | | |
 | `blocked` | `reason` | `kind`, whatever the caller passed, since nothing validates it |
 | `unblocked` | | |
 | `expired` | `expires` | |
-| `commented` | `comment` | `item`, the identifier of the checklist item the comment hangs below, written only on a comment written on an item and absent on a comment written on the card |
+| `commented` | `comment` | `item`, the identifier of the checklist item the comment hangs below, written only on a comment written on an item; `column` and `column_title`, the identifier of the column the comment was left on and that column's title as of the write, both written only on a comment written on a column |
 | `attached` | `attachment`, `filename` | |
 | `attachment_replaced` | `attachment`, `filename` | |
 | `attachment_removed` | `attachment`, `note` (the removed entity's own id) | `filename`, best effort, present only when the attachment's anchor could still be read at the moment of removal |
@@ -974,6 +980,16 @@ that carries one, so a comment's and an item's line lands on the card's, and an
 attachment's lands on the card's below a card and on the workbench's below a
 column or below the workbench itself. An `attachment_renamed` line records a
 filename change instead, because the payload moves with the name.
+
+A `commented` line carries one locator naming the holder the comment hangs on,
+and a line carrying no locator at all means the holder is the journal's own
+entity. A comment on a checklist item carries `item` and lands on the card's
+journal; a comment on a column carries `column` and `column_title` and lands on
+the workbench's; a comment on a card carries neither and lands on that card's
+own journal, which is the entity a locator would otherwise have to name. A
+reader meeting a `commented` line on the workbench journal with no `column`
+therefore knows the comment was left on the workbench itself, should a build
+ever admit one, and needs no separate field to tell the two apart.
 
 A field write to a field stored as the entity's prose body carries `field` and
 carries neither `from` nor `to`. The journal records that the act happened and

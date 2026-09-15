@@ -43,6 +43,7 @@
 	"manifest.command.dinah.tree.archiveCard.title": "Dinah: Archive Card",
 	"manifest.command.dinah.tree.openItem.title": "Dinah: Open Item",
 	"manifest.command.dinah.tree.commentOnItem.title": "Dinah: Comment on Item",
+	"manifest.command.dinah.tree.commentOnColumn.title": "Dinah: Comment on Column",
 	"manifest.command.dinah.tree.resolveItem.title": "Dinah: Resolve Item",
 	"manifest.command.dinah.tree.verifyItem.title": "Dinah: Verify Criterion",
 	"manifest.command.dinah.tree.failItem.title": "Dinah: Fail Criterion",

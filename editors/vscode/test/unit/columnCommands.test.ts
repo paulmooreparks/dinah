@@ -117,6 +117,7 @@ function recorder(outcome: SpawnOutcome = RESOLVED): Recorder {
 		root: BENCH,
 		columnRef: COLUMN_ID,
 		label: "Spec",
+		folder: BENCH,
 	};
 	return r;
 }
