@@ -51,6 +51,10 @@ import {
 	MCP_PROVIDER_ID,
 	PUBLISHER,
 	ROW_COMMANDS,
+	SETTING_LSP_ANNOTATE_PROSE,
+	SETTING_LSP_ENABLED,
+	SETTING_LSP_POLL_INTERVAL,
+	SETTING_LSP_TRACE,
 	SETTING_PATH,
 	SETTING_POLL_INTERVAL,
 	SETTING_REGISTER_MCP,
@@ -235,13 +239,19 @@ test("the manifest and identity.ts spell the same extension identifier", () => {
 	assert.equal(`${String(manifest.publisher)}.${String(manifest.name)}`, EXTENSION_ID);
 });
 
-test("activation is the two declared events and nothing else", () => {
+test("activation is the three declared events and nothing else", () => {
 	// onStartupFinished and * are both forbidden: a window with no Dinah
 	// content must cost nothing, and this is the only mechanical guard against
 	// either being added later for convenience.
+	//
+	// The third is dinah-515's. A markdown file is where a workbench's own
+	// references are written, and the language server has nothing to answer
+	// until one is open, so the event is narrow in the same way the other two
+	// are: a window that opens no markdown still costs nothing.
 	assert.deepEqual(manifest.activationEvents, [
 		"workspaceContains:**/workbench.md",
 		`onView:${VIEW_ID}`,
+		"onLanguage:markdown",
 	]);
 });
 
@@ -381,6 +391,10 @@ test("the settings are contributed with the scopes their subjects need", () => {
 		SETTING_POLL_INTERVAL,
 		SETTING_WATCH_FILES,
 		SETTING_REGISTER_MCP,
+		SETTING_LSP_ENABLED,
+		SETTING_LSP_ANNOTATE_PROSE,
+		SETTING_LSP_POLL_INTERVAL,
+		SETTING_LSP_TRACE,
 	]);
 	// A binary path is a property of the machine and must not travel through
 	// settings sync to a different one.
@@ -410,6 +424,31 @@ test("the settings are contributed with the scopes their subjects need", () => {
 	// no registration while a test asserting only that the key exists stayed
 	// green.
 	assert.equal(register.default, true);
+
+	// dinah-515's four. Whether the language server runs at all is a property
+	// of the window, since one server serves one workbench to one editor.
+	const server = configuration.properties[SETTING_LSP_ENABLED];
+	assert.equal(server.scope, "window");
+	assert.equal(server.type, "boolean");
+	assert.equal(server.default, true);
+	// The two the server itself reads are properties of the folder, because
+	// they say what is annotated in that folder and how often it is reread.
+	const prose = configuration.properties[SETTING_LSP_ANNOTATE_PROSE];
+	assert.equal(prose.scope, "resource");
+	assert.equal(prose.type, "boolean");
+	// Off until asked for: a specification can name twenty cards in one
+	// paragraph, and twenty chips in a paragraph is not a feature.
+	assert.equal(prose.default, false);
+	const reread = configuration.properties[SETTING_LSP_POLL_INTERVAL];
+	assert.equal(reread.scope, "resource");
+	assert.equal(reread.type, "integer");
+	assert.equal(reread.default, 2);
+	// The floor is one second, which is the server's own.
+	assert.equal(reread.minimum, 1);
+	// A trace is a property of the window, like the server it traces.
+	const trace = configuration.properties[SETTING_LSP_TRACE];
+	assert.equal(trace.scope, "window");
+	assert.equal(trace.default, "off");
 });
 
 // The vocabulary an affirmative claim reaches for. This set is deliberately
@@ -972,7 +1011,7 @@ test("no manifest string offers the extension itself as a place dinah comes from
 		welcomeBlocks().length +
 		mcpProviders().length;
 	assert.equal(strings.length, declared);
-	assert.equal(strings.length, 13);
+	assert.equal(strings.length, 17);
 	for (const { where, text } of strings) {
 		assert.deepEqual(
 			claimsToCarryDinah(text),

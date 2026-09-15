@@ -27,6 +27,15 @@ one for the first time, and nothing here writes to your settings or to an
 `mcp.json` file. If you would rather nothing were offered, set
 `dinah.registerMcpServer` to false.
 
+The extension also runs Dinah's language server over the markdown files in
+your folder, so a workbench's twelve-hex identifiers read back as names. A
+card reference carries the card's title and the column it stands in, beside
+the identifier and not instead of it, and hovering one tells you the same
+thing at more length. Clicking through opens what the reference names. The
+labels are live. The server rereads the workbench rather than remembering what
+it last saw, so a card somebody moved a moment ago reads as moved. Turn the
+whole of it off with `dinah.lsp.enabled`.
+
 ## Requirements
 
 You need the `dinah` binary. The extension finds it on your PATH, or you can
@@ -34,6 +43,12 @@ name it yourself with the `dinah.path` setting. `dinah.workbench` chooses a
 workbench when the folder resolves to more than one, `dinah.pollIntervalSeconds`
 sets how often the view re-reads, `dinah.watchFiles` turns file watching on and
 off, and `dinah.registerMcpServer` turns the MCP server offer on and off.
+
+Four more settings belong to the language server. `dinah.lsp.enabled` turns it
+on and off, `dinah.lsp.annotateProse` draws the inline label in prose as well
+as in front matter, `dinah.lsp.pollIntervalSeconds` sets how often the server
+rereads the workbench, and `dinah.lsp.trace.server` writes the server's own
+wire into an output channel.
 
 Install the CLI from the project's own instructions at
 https://github.com/paulmooreparks/dinah#install.

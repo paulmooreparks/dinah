@@ -12,6 +12,7 @@ import (
 	"dinah/internal/bench"
 	"dinah/internal/contract"
 	"dinah/internal/guide"
+	"dinah/internal/lsp"
 	"dinah/internal/mcp"
 	"dinah/internal/verb"
 )
@@ -127,6 +128,9 @@ func init() {
 		{name: "version", group: groupBench, run: runVersion},
 
 		{name: "mcp", group: groupServe, run: runMCP},
+		// lsp declares no bounded positional, every argument it reads being
+		// a flag, so a stray word is refused rather than silently ignored.
+		{name: "lsp", group: groupServe, run: runLSP},
 
 		{name: "help", run: runHelp, bounded: 1},
 	}
@@ -1711,6 +1715,61 @@ func runMCP(s *session, parsed *arguments) int {
 	}
 	libraries := map[string]*verb.Library{}
 	if err := mcp.Serve(s.mcpRoot, library, libraries, s.in, s.out); err != nil {
+		return s.reportError(err)
+	}
+	return 0
+}
+
+// runLSP serves one workbench to an editor over the Language Server Protocol
+// on stdio, which is the head docs/design/surfaces.md already names beside
+// this binary's other three.
+//
+// Two refusals exit before any framing is written, in the order the command's
+// own check list declares them: a --root naming a directory that is not there,
+// and a --poll-seconds that is not a positive whole number. Both are existing
+// contract refusals rather than names minted for this head.
+//
+// Nothing else refuses. A directory under which no workbench resolves is
+// served anyway, every capability declared and every answer empty, because an
+// editor restarts a server that exits and then stops trying, which would turn
+// a folder that will carry a workbench in a minute into a dead feature until
+// the window is reloaded. dinah mcp faces the same choice and already serves.
+// The server resolves the workbench itself, at initialize, because two of the
+// rungs of its ladder are values the client sends rather than values this
+// process holds.
+func runLSP(s *session, parsed *arguments) int {
+	root := parsed.value("root")
+	if root != "" {
+		abs, err := filepath.Abs(root)
+		if err != nil || !bench.Exists(abs) {
+			path := root
+			if abs != "" {
+				path = abs
+			}
+			return s.reportError(contract.Refuse(contract.UnknownRoot, path))
+		}
+		root = abs
+	}
+	seconds := 0
+	if declared := parsed.value("poll-seconds"); declared != "" {
+		read, err := strconv.Atoi(declared)
+		if err != nil || read < 1 {
+			return s.reportError(contract.Refuse(contract.Malformed, "--poll-seconds "+declared))
+		}
+		seconds = read
+	}
+	wd, _ := os.Getwd()
+	server := lsp.New(lsp.Options{
+		Workbench:     s.benchFlag,
+		Root:          root,
+		AnnotateProse: parsed.has("annotate-prose"),
+		PollSeconds:   seconds,
+		Getenv:        os.Getenv,
+		Wd:            wd,
+		Messages:      s.r,
+		Version:       verb.ToolRelease,
+	}, s.in, s.out)
+	if err := server.Serve(); err != nil {
 		return s.reportError(err)
 	}
 	return 0

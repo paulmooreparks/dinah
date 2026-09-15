@@ -21,13 +21,20 @@ const (
 // Watched is one entity of the change walk: where its history and its anchor
 // live, and the two values a call compares against the caller's cursor.
 //
-// The set of them is exactly the set journalFor can name, with one stated
-// exclusion described on WatchedEntities. Nothing here is written and no lock
-// is taken, so a walk is safe to run at any moment and against any bench.
+// The live and archive halves are exactly the set journalFor can name, with
+// one stated exclusion described on WatchedEntities. The column half is the
+// one part of the walk that is not, because a column has no journal of its
+// own; it carries an anchor and nothing else. Nothing here is written and no
+// lock is taken, so a walk is safe to run at any moment and against any bench.
 type Watched struct {
-	// Key names the entity: workbench, workstreams/<id>, or cards/<id>.
+	// Key names the entity: workbench, workstreams/<id>, cards/<id>, or
+	// columns/<id>.
 	Key string
-	// Journal is the entity's own journal, which may not exist yet.
+	// Journal is the entity's own journal, which may not exist yet, and
+	// which is empty for an entity that carries no journal at all. A
+	// reader tests the empty string before it reads, because an empty path
+	// is a fact about this struct rather than a file whose absence happens
+	// to be reported as one errno on one platform.
 	Journal string
 	// Anchor is the entity's anchor file, empty for an archived card, whose
 	// anchor is deliberately outside every fingerprint.
@@ -39,14 +46,16 @@ type Watched struct {
 	Revision string
 }
 
-// WatchedEntities walks the bench and reports the two halves of the change
+// WatchedEntities walks the bench and reports the three halves of the change
 // set: the live half, which is the workbench, every live workstream and every
-// live card, and the archive half, which is every archived card.
+// live card; the archive half, which is every archived card; and the column
+// half, which is every live column's anchor.
 //
-// Both slices come back sorted by key, which is the order Digest renders them
-// in, so a caller never sorts them again. A collection that cannot be listed
-// is reported rather than contributing nothing, because a change set missing
-// half the workbench reads exactly like a workbench where nothing changed.
+// All three slices come back sorted by key, which is the order Digest renders
+// them in, so a caller never sorts them again. A collection that cannot be
+// listed is reported rather than contributing nothing, because a change set
+// missing half the workbench reads exactly like a workbench where nothing
+// changed.
 //
 // Two exclusions are deliberate and neither is an oversight. An archived
 // card contributes its journal size alone, because its anchor describes no
@@ -56,11 +65,19 @@ type Watched struct {
 // archiving a workstream drops its key out of the live term, so a caller
 // still learns the board moved, and the acts recorded inside an archived
 // entity are not acts a caller has anything left to do about.
-func (b *Bench) WatchedEntities() (live, archive []Watched, err error) {
+//
+// The column half is its own term rather than part of the live one. A column
+// carries no journal, so an edit to a column anchor delivers no line, and a
+// live term that moved with nothing delivered is the unexplained case that
+// resyncs every live card. Folding columns into the live half would therefore
+// make a hand-edited column instructions file trigger a full card read on
+// every caller of Changes. A separate term costs one more sha256 and keeps
+// the two questions apart.
+func (b *Bench) WatchedEntities() (live, archive, columns []Watched, err error) {
 	live = append(live, watch(WorkbenchKey, b.JournalPath(), filepath.Join(b.Root, WorkbenchAnchor)))
 	workstreamIDs, err := ListIDs(b.WorkstreamsRoot())
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	for _, id := range workstreamIDs {
 		dir := filepath.Join(b.WorkstreamsRoot(), id)
@@ -68,7 +85,7 @@ func (b *Bench) WatchedEntities() (live, archive []Watched, err error) {
 	}
 	cardIDs, err := ListIDs(b.CardsRoot())
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	for _, id := range cardIDs {
 		dir := filepath.Join(b.CardsRoot(), id)
@@ -76,25 +93,35 @@ func (b *Bench) WatchedEntities() (live, archive []Watched, err error) {
 	}
 	archivedIDs, err := ListIDs(b.ArchivedCardsRoot())
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	for _, id := range archivedIDs {
 		dir := filepath.Join(b.ArchivedCardsRoot(), id)
 		archive = append(archive, watch(CardsDir+"/"+id, filepath.Join(dir, JournalName), ""))
 	}
+	// The column half reads the flow the bench opened with rather than
+	// listing the collection, so a directory carrying no anchor, which
+	// dinah check reports as orphaned, contributes nothing here either.
+	for _, column := range b.Columns {
+		columns = append(columns, watch(ColumnsDir+"/"+column.ID, "", b.ColumnAnchorPath(column.ID)))
+	}
 	sortWatched(live)
 	sortWatched(archive)
-	return live, archive, nil
+	sortWatched(columns)
+	return live, archive, columns, nil
 }
 
 // watch reads one entity's two values off the filesystem. An absent journal
 // is size zero and an anchor that will not read carries no revision, which is
 // the absent-means-empty rule applied to a comparison rather than to a
-// listing.
+// listing. An entity carrying no journal at all is not stat-ed, the empty
+// path being tested rather than the error a stat of it happens to give.
 func watch(key, journal, anchor string) Watched {
 	entry := Watched{Key: key, Journal: journal, Anchor: anchor}
-	if info, err := os.Stat(journal); err == nil {
-		entry.Size = info.Size()
+	if journal != "" {
+		if info, err := os.Stat(journal); err == nil {
+			entry.Size = info.Size()
+		}
 	}
 	if anchor != "" {
 		if revision, err := Revision(anchor); err == nil {

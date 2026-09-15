@@ -464,6 +464,16 @@
       "context": "The second row of the precondition list of mcp, raised when --workbench names a workbench outside --root or when an MCP call names a workbench outside the root. Keep a translation at or under 52 display columns. A longer sentence takes the table row to itself and pushes the refusal name down to the line beneath.",
       "source": "af2ab98a7a859f37"
     },
+    "check.lsp.1": {
+      "text": "--root nennt ein vorhandenes Verzeichnis",
+      "context": "The first row of the precondition list of lsp, raised before the server starts when --root names a directory that does not exist. Keep a translation at or under 52 display columns. A longer sentence takes the table row to itself and pushes the refusal name down to the line beneath.",
+      "source": "cb1cd98b0eaed2b8"
+    },
+    "check.lsp.2": {
+      "text": "--poll-seconds ist eine positive ganze Zahl",
+      "context": "The second row of the precondition list of lsp, raised before the server starts when --poll-seconds is not a positive whole number. Keep a translation at or under 52 display columns. A longer sentence takes the table row to itself and pushes the refusal name down to the line beneath.",
+      "source": "9a704aa449242d58"
+    },
     "check.missing-anchor": {
       "text": "Verzeichnis {detail} trägt keine Ankerdatei und zählt daher nicht zur Werkbank",
       "context": "A check finding: a hex directory without its anchor.",
@@ -1238,6 +1248,117 @@
       "text": "Werkbänke über MCP auf stdio bereitstellen",
       "context": "The one-line summary of the mcp command, shown beside its syntax in the help block.",
       "source": "7d3198fa32547f63"
+    },
+    "cmd.lsp.summary": {
+      "text": "Eine Werkbank einem Editor über LSP auf stdio bereitstellen",
+      "context": "The one-line summary of the lsp command, shown beside its syntax in the help block.",
+      "source": "db3ca5ba7a69701"
+    },
+    "lsp.label.card": {
+      "text": "{title}, in {column}",
+      "context": "The inline annotation and hover line for a card reference with no holder. {title} is the card's title and {column} is the title of the column it stands in.",
+      "verbatim": true,
+      "source": "a071319f9a260016"
+    },
+    "lsp.label.card.held": {
+      "text": "{title}, in {column}, gehalten von {holder}",
+      "context": "The inline annotation and hover line for a card somebody is holding. {holder} is the owner name recorded on the claim.",
+      "source": "ffa17b33a7332c38"
+    },
+    "lsp.label.column": {
+      "text": "{title}",
+      "context": "The inline annotation and hover line for a column that holds a card neither on the way in nor on the way out. {title} is the column's title.",
+      "verbatim": true,
+      "source": "981efd4748b03a23"
+    },
+    "lsp.label.column.holds-in": {
+      "text": "{title}, hält eine eintreffende Karte auf",
+      "context": "The inline annotation and hover line for a column that holds a card on the way in while an item naming it is unresolved.",
+      "source": "7c51a0ebd8ae16c0"
+    },
+    "lsp.label.column.holds-out": {
+      "text": "{title}, hält eine abgehende Karte auf",
+      "context": "The inline annotation and hover line for a column that holds a card on the way out while an item naming it is unresolved.",
+      "source": "97536f5c7f46ecd6"
+    },
+    "lsp.label.column.holds-both": {
+      "text": "{title}, hält eine Karte in beide Richtungen auf",
+      "context": "The inline annotation and hover line for a column that holds a card on the way in and on the way out.",
+      "source": "66aa45fa69dc356f"
+    },
+    "lsp.label.workstream": {
+      "text": "{title}",
+      "context": "The inline annotation and hover line for a workstream reference. {title} is the workstream's title.",
+      "verbatim": true,
+      "source": "981efd4748b03a23"
+    },
+    "lsp.label.item": {
+      "text": "{kind}, {state}",
+      "context": "The inline annotation and hover line for a checklist item naming no owner. {kind} and {state} are canonical tokens spliced untranslated, such as open_question and pending.",
+      "verbatim": true,
+      "source": "7489aae09fae568c"
+    },
+    "lsp.label.item.owned": {
+      "text": "{kind}, {state}, für {owner}",
+      "context": "The inline annotation and hover line for a checklist item that names an owner. {kind} and {state} are canonical tokens spliced untranslated; {owner} is the owner name.",
+      "source": "ab8442dd281ab210"
+    },
+    "lsp.label.attachment": {
+      "text": "{filename}",
+      "context": "The inline annotation and hover line for an attachment reference. {filename} is the payload's original name.",
+      "verbatim": true,
+      "source": "dd3a10b6a42e323e"
+    },
+    "lsp.label.unresolved": {
+      "text": "benennt nichts auf dieser Werkbank",
+      "context": "The inline annotation and hover line for a value at a declared front-matter reference position that resolves to no entity. It is a report of what the value names and not a diagnostic.",
+      "source": "3bffeafe3131f814"
+    },
+    "lsp.hover.workbench": {
+      "text": "auf {workbench}",
+      "context": "The last line of every hover the language server answers, so a reader with two repositories open knows which workbench answered. {workbench} is the workbench's title.",
+      "source": "f41d447df6fe9a6d"
+    },
+    "lsp.completion.column.detail": {
+      "text": "Spalte {slug}, Schritt {position} des Ablaufs",
+      "context": "The detail line beside one column candidate in a completion list. {slug} is the column's own handle and {position} is its one-based place in the flow.",
+      "source": "29777175cff73d51"
+    },
+    "lsp.completion.workstream.detail": {
+      "text": "Arbeitsstrang {slug}",
+      "context": "The detail line beside one workstream candidate in a completion list. {slug} is the workstream's own handle.",
+      "source": "647dc9669227dc3d"
+    },
+    "lsp.completion.card.detail": {
+      "text": "{column}, {state}",
+      "context": "The detail line beside one card candidate in a completion list. {column} is the title of the column the card stands in and {state} is its condition.",
+      "verbatim": true,
+      "source": "c0b536815e17a7f8"
+    },
+    "lsp.no-workbench": {
+      "text": "Dinah hat hier keine Werkbank gefunden, daher ist noch nichts annotiert",
+      "context": "The one message the language server shows a reader when no workbench resolved at startup. The server keeps serving and retries on every poll, so this says what is missing rather than reporting a failure.",
+      "source": "33d85bbedb644f4c"
+    },
+    "lsp.log.workbench": {
+      "text": "die Werkbank unter {root} wird bereitgestellt",
+      "context": "The line the language server writes to the editor's log once at startup, naming which workbench answered. {root} is that workbench's directory.",
+      "source": "94a08960af8e3b62"
+    },
+    "lsp.log.no-refresh-support": {
+      "text": "dieser Editor hat keine Unterstützung für das Auffrischen von Inlay-Hinweisen angegeben, daher wird eine Inline-Annotation erst aktualisiert, wenn ihr Dokument bearbeitet oder erneut geöffnet wird",
+      "context": "The line the language server writes to the editor's log once at startup when the client declared no inlay-hint refresh support. It tells a reader why a label may go stale, rather than leaving them to conclude the annotation lies.",
+      "source": "64a619e68b7da3e8"
+    },
+    "lsp.log.slow-walk.entered": {
+      "text": "der Werkbank-Durchlauf dauerte {duration} bei einem Abfrageintervall von {interval}, daher wird die Auffrischverzögerung jetzt vom Durchlauf statt vom Intervall bestimmt",
+      "context": "The warning the language server writes to the editor's log on entering the state where a change walk outruns the poll interval. {duration} is the measured walk and {interval} is the interval it outran. It is sent once on the edge and never once per tick.",
+      "source": "355264fef00444b2"
+    },
+    "lsp.log.slow-walk.left": {
+      "text": "der Werkbank-Durchlauf dauerte {duration} bei einem Abfrageintervall von {interval}, daher liegt die Auffrischverzögerung wieder beim Intervall",
+      "context": "The warning the language server writes to the editor's log on leaving the state where a change walk outruns the poll interval. {duration} is the walk that left the state and {interval} is the interval the loop is again sleeping.",
+      "source": "3a1eefc1f2fef836"
     },
     "cmd.reopen.summary": {
       "text": "Einen abgeschlossenen Checklistenpunkt wieder auf offen setzen",
@@ -3911,6 +4032,21 @@
       "text": "Verzeichnis, unterhalb dessen jede Werkbank liegt, die dieser Server bereitstellt; die beim Start entdeckte Werkbank, wenn Sie kein Verzeichnis nennen",
       "context": "The meaning of the --root argument of `dinah mcp`, printed in that command's arguments table.",
       "source": "b4a7679728c79e03"
+    },
+    "param.lsp.root.summary": {
+      "text": "Verzeichnis, unterhalb dessen die von diesem Server bereitgestellte Werkbank liegt; die beim Start entdeckte Werkbank, wenn Sie kein Verzeichnis nennen",
+      "context": "The meaning of the --root argument of `dinah lsp`, printed in that command's arguments table.",
+      "source": "28f6d0d2410eff9b"
+    },
+    "param.lsp.annotate-prose.summary": {
+      "text": "die Inline-Annotation auch im Fließtext zeichnen, nicht nur im Vorspann, für einen Editor, der keine Einstellungen sendet",
+      "context": "The meaning of the --annotate-prose argument of `dinah lsp`, printed in that command's arguments table.",
+      "source": "8d096d60b99186f8"
+    },
+    "param.lsp.poll-seconds.summary": {
+      "text": "wie oft der Server die Werkbank erneut auf eine Änderung liest; 2, wenn Sie nichts nennen",
+      "context": "The meaning of the --poll-seconds argument of `dinah lsp`, printed in that command's arguments table.",
+      "source": "b2cf4aacf5a11512"
     },
     "param.next.column.summary": {
       "text": "aus welcher Spalte eine Karte angeboten wird, auch geschrieben --column <Spalte>; jede Spalte, wenn Sie keine nennen",
