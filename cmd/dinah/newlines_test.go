@@ -820,7 +820,11 @@ func TestTheWorkbenchTitleTakenFromItsOwnDirectoryNameIsNormalised(t *testing.T)
 
 	root := filepath.Join(base, "wb-a"+crlf+"wb-b")
 	if err := os.MkdirAll(root, 0o755); err != nil {
-		t.Skipf("this platform refuses a directory name carrying a line ending: %v", err)
+		// Not a skip. The counting rule admits this site on the claim that
+		// Linux and macOS accept the byte, so a platform that is neither
+		// Windows nor accepts it contradicts the rule rather than excusing the
+		// case, and the rule is what would need changing.
+		t.Fatalf("%s refuses a directory name carrying a line ending, which the counting rule says it accepts: %v", runtime.GOOS, err)
 	}
 	if got := runQuiet(t, root, "init", "--slug", "fx"); got.code != 0 {
 		t.Fatalf("init: %d %s", got.code, got.errw)
