@@ -107,17 +107,37 @@ export interface CommandHost extends ReporterHost {
 	readonly log: (line: string) => void;
 }
 
-/** What every command needs: how to spawn, and where the card stands. */
-export interface CommandContext {
+/**
+ * The two window calls runVerb itself makes, and nothing else.
+ *
+ * A caller that only ever spawns a verb should not have to hand over a
+ * clipboard, a quick pick or a file dialog it does not own. The comment draft
+ * host is the case that made this explicit: it carries neither, it posts
+ * through runVerb, and asserting it into CommandHost bought a compiling call
+ * at the price of the check that would catch the next member runVerb reads.
+ */
+export interface VerbHost {
+	readonly showError: (message: string) => void;
+	/** Runs one off-cycle checkpoint for the folder the card stands in. */
+	readonly checkpoint: (folder: string) => Promise<void>;
+}
+
+/** What spawning a verb needs: how to spawn, and where the card stands. */
+export interface VerbContext {
 	readonly spawner: Spawner;
 	readonly exe: string;
-	readonly host: CommandHost;
+	readonly host: VerbHost;
 	/** The workspace folder the card's row belongs to. */
 	readonly folder: string;
 	/** The workbench the card stands in, which the call is pinned to. */
 	readonly root: string;
 	/** The card's own reference, which every verb below takes. */
 	readonly ref: string;
+}
+
+/** What every command needs, which is a verb context with a full host. */
+export interface CommandContext extends VerbContext {
+	readonly host: CommandHost;
 }
 
 /**
@@ -227,7 +247,7 @@ export function pinnedArgv(root: string, args: readonly string[]): string[] {
  * and every existing caller keeps its current argument list.
  */
 export async function runVerb(
-	context: CommandContext,
+	context: VerbContext,
 	args: readonly string[],
 	stdin?: string,
 ): Promise<CliOutcome> {

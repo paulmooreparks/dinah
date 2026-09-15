@@ -313,7 +313,7 @@ export function columnPickItems(
 			{
 				label: view.title,
 				detail: t(`form.file.column.detail.${direction}`),
-				value: columnValueOf(view, ref),
+				value: columnValueOf(view),
 			},
 		];
 	});
@@ -325,11 +325,11 @@ export function columnPickItems(
  * Library.File resolves either spelling to an identifier before it writes, so
  * a stored value can never be a spelling a gate would fail to match.
  */
-function columnValueOf(
-	view: { readonly slug?: string; readonly id: string },
-	ref: string,
-): string {
-	return view.slug !== undefined && view.slug !== "" ? view.slug : (view.id ?? ref);
+function columnValueOf(view: {
+	readonly slug?: string;
+	readonly id: string;
+}): string {
+	return view.slug !== undefined && view.slug !== "" ? view.slug : view.id;
 }
 
 /** The one value the tool enforces, whose meaning its own schema publishes. */
@@ -461,7 +461,7 @@ export async function fileItem(
 	context: FileItemContext,
 	answer: FileItemAnswer,
 ): Promise<CliOutcome> {
-	return runVerb(context as unknown as ItemCommandContext, [
+	return runVerb(context, [
 		"file",
 		context.ref,
 		answer.kind,

@@ -20,8 +20,10 @@
 // Nothing here imports vscode. Every filesystem call and every window call
 // arrives through DraftHost, which extension.ts binds to vscode.workspace.fs
 // and to the window, on the same terms cardCommands.ts takes its CommandHost.
+// DraftHost satisfies VerbContext's host without an assertion, because runVerb
+// asks for the two members a spawn needs rather than for a whole CommandHost.
 
-import type { CommandContext, CommandHost } from "./cardCommands";
+import type { VerbContext } from "./cardCommands";
 import { runVerb } from "./cardCommands";
 import type { Spawner } from "./cli";
 import { fingerprint } from "./fingerprint";
@@ -288,10 +290,10 @@ export async function postCommentDraft(
 		host.showError(host.t("draft.post.unknown", { path }));
 		return;
 	}
-	const context: CommandContext = {
+	const context: VerbContext = {
 		spawner,
 		exe,
-		host: host as unknown as CommandHost,
+		host,
 		folder: entry.folder,
 		root: entry.root,
 		ref: entry.target,
