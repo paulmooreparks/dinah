@@ -219,16 +219,28 @@ export function pinnedArgv(root: string, args: readonly string[]): string[] {
  * The checkpoint runs on a refusal too. A refusal often means the board moved
  * under the reader (somebody else claimed the card), so the read that follows
  * is exactly what shows them why.
+ *
+ * The third parameter is what a verb reading a bare dash takes on stdin, which
+ * is how a comment composed in an editor reaches `dinah comment <item> -`.
+ * SpawnOptions.stdin already existed for the MCP surface and nodeSpawner
+ * already writes and closes the stream, so nothing in the spawn layer changed
+ * and every existing caller keeps its current argument list.
  */
 export async function runVerb(
 	context: CommandContext,
 	args: readonly string[],
+	stdin?: string,
 ): Promise<CliOutcome> {
 	const outcome = await runDinah(
 		context.spawner,
 		context.exe,
 		pinnedArgv(context.root, args),
-		{ cwd: context.root },
+		// The key is spread in rather than written as `stdin` so that a caller
+		// passing nothing leaves it absent rather than present and undefined.
+		// nodeSpawner writes and closes the stream on a set key, so an
+		// always-present key would give every verb an empty stdin it never
+		// asked for, and Object.hasOwn is what dinah-506/criteria/30 reads.
+		{ cwd: context.root, ...(stdin === undefined ? {} : { stdin }) },
 	);
 	if (outcome.kind !== "ok") {
 		context.host.showError(refusalMessage(outcome));

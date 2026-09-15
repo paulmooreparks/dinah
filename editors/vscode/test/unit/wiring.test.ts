@@ -21,6 +21,7 @@ import { test } from "node:test";
 import * as ts from "typescript";
 
 import * as identity from "../../src/identity";
+import { EDITOR_COMMANDS } from "../../src/identity";
 import { PROMPT_CHANNELS, REPORT_CHANNELS } from "../../src/reporter";
 import { SELECTION_POLICIES } from "../../src/selection";
 
@@ -116,13 +117,13 @@ function idNamed(name: string): string | undefined {
 	return typeof value === "string" ? value : undefined;
 }
 
-test("extension.ts registers in exactly two shapes and no others", () => {
+test("extension.ts registers in exactly three shapes and no others", () => {
 	const registered = registrations();
 	// The literal is the doubling: a walk that matched nothing would otherwise
 	// satisfy every classification below by vacuity.
 	assert.equal(
 		registered.length,
-		5,
+		7,
 		`extension.ts holds ${String(registered.length)} register calls`,
 	);
 
@@ -136,21 +137,52 @@ test("extension.ts registers in exactly two shapes and no others", () => {
 	});
 	assert.equal(
 		rowless.length,
-		4,
+		6,
 		`${String(rowless.length)} register calls name a command declaring noRow`,
 	);
+	// A rowless command is one of two things, and dinah-506 is where the
+	// second appeared. A global command reads nothing at all and so declares
+	// no parameter, which is what this guard asserted when every rowless
+	// command was global. An editor command reads the active editor, and the
+	// editor title bar hands its command a Uri, so it declares one parameter
+	// and reads it as a Uri rather than as a row. Both shapes are pinned,
+	// because a global command that grew a parameter would be reading
+	// something a palette invocation never supplies.
 	for (const call of rowless) {
 		const handler = call.arguments[1];
 		assert.ok(
 			handler !== undefined && ts.isArrowFunction(handler),
 			"a rowless command registers something other than an arrow function",
 		);
+		const id = idNamed((call.arguments[0] as ts.Identifier).text) ?? "";
+		const editor = (EDITOR_COMMANDS as readonly string[]).includes(id);
 		assert.equal(
 			handler.parameters.length,
-			0,
-			`${call.arguments[0].getText()} registers a handler declaring a parameter`,
+			editor ? 1 : 0,
+			`${call.arguments[0].getText()} registers a handler declaring ${String(handler.parameters.length)} parameters`,
 		);
+		if (editor) {
+			assert.match(
+				handler.getText(),
+				/draftPathOf\(/,
+				`${call.arguments[0].getText()} reads its argument some other way than through draftPathOf`,
+			);
+		}
 	}
+	// The one helper both editor commands read their argument through, which
+	// is where the Uri test and the active-editor fallback live. A command
+	// invoked with no draft in front of the reader has been asked for nothing,
+	// so both handlers return without calling the pure module.
+	assert.equal(
+		(extension.getText().match(/argument instanceof vscode\.Uri/g) ?? []).length,
+		1,
+		"the Uri test is spelled more than once, or not at all",
+	);
+	assert.equal(
+		(EDITOR_COMMANDS as readonly string[]).length,
+		2,
+		"the editor classification is empty or has grown, so the shapes above read nothing",
+	);
 
 	// The one remaining call is the loop, and what it iterates is the claim
 	// worth making: a loop over a second array of the same shape satisfies
@@ -314,18 +346,22 @@ function messageBindings(): ts.CallExpression[] {
 	});
 }
 
-test("extension.ts binds exactly ten message calls, one per declared channel per host", () => {
+test("extension.ts binds exactly thirteen message calls, one per declared channel per host", () => {
 	const bound = messageBindings();
-	// Ten is forced rather than chosen. The return-type clause below forbids a
-	// shared bindings helper spread into all three factories, so each factory
+	// Thirteen is forced rather than chosen. The return-type clause below
+	// forbids a shared bindings helper spread into the factories, so each
 	// spells its own: commandHost 4, workbenchCommandHost 3, columnCommandHost
-	// 3. An implementer meeting a different number raises the criterion rather
-	// than binding fewer, because binding fewer leaves WorkbenchCommandHost
-	// and ColumnCommandHost short of ReporterHost, which is the hole the
-	// perimeter exists to close.
+	// 3, and draftCommandHost 3. An implementer meeting a different number
+	// raises the criterion rather than binding fewer, because binding fewer
+	// leaves a host short of the channels its own interface declares, which is
+	// the hole the perimeter exists to close.
+	//
+	// draftCommandHost carries three rather than four because it reports and
+	// confirms but never warns: DraftHost declares showError, showInfo and
+	// confirmDestructive, and the one destructive act it offers is Discard.
 	assert.equal(
 		bound.length,
-		10,
+		13,
 		`extension.ts holds ${String(bound.length)} vscode.window message calls`,
 	);
 
@@ -349,7 +385,9 @@ test("extension.ts binds exactly ten message calls, one per declared channel per
 		) as ts.FunctionDeclaration | undefined;
 		const returns = owner?.type?.getText() ?? "";
 		assert.ok(
-			["CommandHost", "WorkbenchCommandHost", "ColumnCommandHost"].includes(returns),
+			["CommandHost", "WorkbenchCommandHost", "ColumnCommandHost", "DraftHost"].includes(
+				returns,
+			),
 			`a message binding sits in a function returning ${returns}`,
 		);
 	}
@@ -412,7 +450,7 @@ function sources(): string[] {
 	return found.sort();
 }
 
-test("the command modules hold exactly eighteen report-channel call sites", () => {
+test("the command modules hold exactly thirty-three report-channel call sites", () => {
 	// A tripwire rather than a correctness check. A per-row report site added
 	// after this card cannot land silently, because its author has to raise
 	// this figure and, in doing so, decide whether the new site belongs inside
@@ -440,12 +478,13 @@ test("the command modules hold exactly eighteen report-channel call sites", () =
 	}
 	assert.equal(
 		sites.length,
-		18,
+		33,
 		`the command modules hold ${String(sites.length)} report-channel call sites:\n${sites.join("\n")}`,
 	);
 	// Stated as at least six, which is what the criterion declares, so a file
 	// legitimately losing its last call does not redden the sweep while a walk
-	// that read almost nothing still does. Seven is the figure today.
+	// that read almost nothing still does. Nine is the figure today, after
+	// dinah-506 added commentDrafts.ts and itemCommands.ts.
 	assert.ok(
 		files.size >= 6,
 		`the sites are spread over ${String(files.size)} files: ${[...files].join(", ")}`,

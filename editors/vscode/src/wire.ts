@@ -25,6 +25,17 @@ export interface ColumnView {
 	readonly reject_to?: string;
 	readonly count: number;
 	readonly attachment_count?: number;
+	/**
+	 * Which way this column holds an item filed against it: `on`, `out`,
+	 * `both`, or absent on a column holding neither way.
+	 *
+	 * The typed spelling rather than the stored one. bench.Open parses
+	 * `gate_items` into this vocabulary and refuses anything else, so the
+	 * four values above are the only ones a healthy server sends, and
+	 * holdDirection answers for anything outside them the way it answers for
+	 * a column declaring no hold.
+	 */
+	readonly hold?: string;
 }
 
 /** verb.CardView, one card as a read reports it. */
@@ -45,7 +56,61 @@ export interface CardView {
 	readonly workstreams?: readonly string[];
 	readonly revision?: string;
 	readonly attachment_count?: number;
+	/**
+	 * How many checklist items the card carries.
+	 *
+	 * The count rather than the items, on the terms attachment_count above
+	 * carries its own collection. blocking_items beside it is a different
+	 * number and not this one: it counts only the items a claim would be
+	 * refused over, which is zero on most cards carrying items.
+	 */
+	readonly checklist_count?: number;
 	readonly blocking_items?: number;
+}
+
+/**
+ * verb.ItemView, one checklist item as a read reports it.
+ *
+ * `dinah show <card> --fields card,checklist` is the one call that serves
+ * these. `dinah show <item>` answers an ItemDetail instead, whose text member
+ * is the item's anchor file with its frontmatter still on it, so the item's
+ * own prose, kind, state, column, owner and note are read from here and from
+ * nowhere else.
+ */
+export interface ItemView {
+	readonly id: string;
+	readonly ordinal: number;
+	readonly ref: string;
+	readonly kind: string;
+	readonly state: string;
+	readonly column?: string;
+	readonly column_title?: string;
+	readonly owner?: string;
+	readonly text: string;
+	readonly note?: string;
+	readonly comment_count?: number;
+}
+
+/**
+ * verb.ItemDetail, what `dinah --json show <item>` emits.
+ *
+ * Only `comments` is read. `text` is the anchor file including its
+ * frontmatter delimiters, which is human output, and splitting it in this
+ * extension would put the extension back to parsing what dinah printed.
+ */
+export interface ItemDetail {
+	readonly ref: string;
+	readonly text: string;
+	readonly comments?: readonly CommentView[];
+}
+
+/** verb.CommentView, one comment on a card or on one of its items. */
+export interface CommentView {
+	readonly id: string;
+	readonly ref: string;
+	readonly ts: string;
+	readonly author: string;
+	readonly body: string;
 }
 
 /**

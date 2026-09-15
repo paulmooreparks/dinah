@@ -45,6 +45,7 @@ import {
 	CONTEXT_WORKBENCH_ROOT,
 	EXTENSION_ID,
 	EXTENSION_NAME,
+	EDITOR_COMMANDS,
 	GLOBAL_COMMANDS,
 	MCP_PROVIDER_ID,
 	PUBLISHER,
@@ -1009,11 +1010,18 @@ test("the openAttachment entry is declared where identity.ts puts it, under the 
 
 /** The commandPalette entries, which are absent from a manifest declaring none. */
 function paletteEntries(): { command: string; when?: string }[] {
+	return menuEntries("commandPalette");
+}
+
+/** Every entry of one contributed menu, as the shipped manifest carries it. */
+function menuEntries(
+	menu: string,
+): { command: string; when?: string; group?: string }[] {
 	const menus = contributes.menus as Record<
 		string,
-		{ command: string; when?: string }[]
+		{ command: string; when?: string; group?: string }[]
 	>;
-	return menus.commandPalette ?? [];
+	return menus[menu] ?? [];
 }
 
 test("the two card-row view acts sit in one menu group, in the order they were added", () => {
@@ -1042,27 +1050,109 @@ test("the two card-row view acts sit in one menu group, in the order they were a
 	assert.equal(instructions[0].group, "2_view@1");
 });
 
-test("every tree command is classified as either a row command or a global one", () => {
+test("every tree command is classified under exactly one of the three arrays", () => {
 	// This is the check that fails on a command nobody classified, which is
-	// the whole point of the two arrays. Six commands shipped reading their
+	// the whole point of the arrays. Six commands shipped reading their
 	// element argument before anyone noticed that the Command Palette passes
 	// none, and dinah-330 and dinah-335 each add more; a command added to
-	// TREE_COMMANDS and to neither array goes red here rather than reaching a
+	// TREE_COMMANDS and to no array goes red here rather than reaching a
 	// reader as a palette entry that throws.
-	const row = new Set(ROW_COMMANDS);
-	const global = new Set(GLOBAL_COMMANDS);
-	const classified = [...ROW_COMMANDS, ...GLOBAL_COMMANDS];
+	//
+	// dinah-506 widened it from two arrays to three, and both defects it was
+	// written for survive the widening because neither depends on how many
+	// buckets there are. The sorted-set equality still reddens on a command
+	// classified nowhere; the length equality still reddens on one named
+	// twice, including twice inside one array, where the set comparison cannot
+	// see it; and the pairwise loop reddens on a command classified in two
+	// buckets, which the single row-versus-global check it replaces could only
+	// catch for one pair.
+	//
+	// Both the loop and the set comparison read the one `arrays` object, so a
+	// fourth classification a later card mints is one edit here and not two.
+	// There is no way to add a bucket to the comparison and forget it in the
+	// loop.
+	const arrays = { ROW_COMMANDS, GLOBAL_COMMANDS, EDITOR_COMMANDS };
+	const classified = Object.values(arrays).flat();
 	assert.deepEqual(
 		[...new Set(classified)].sort(),
 		[...TREE_COMMANDS].sort(),
-		"ROW_COMMANDS and GLOBAL_COMMANDS together are not the declared commands",
+		"the classification arrays together are not the declared commands",
 	);
-	const both = [...row].filter((command) => global.has(command));
-	assert.deepEqual(both, [], "a command is classified as both row-scoped and global");
 	assert.equal(
 		classified.length,
 		TREE_COMMANDS.length,
-		"a command is named twice across the two classification arrays",
+		"a command is named twice across the classification arrays",
+	);
+	for (const [name, first] of Object.entries(arrays)) {
+		for (const [otherName, second] of Object.entries(arrays)) {
+			if (name >= otherName) {
+				continue;
+			}
+			assert.deepEqual(
+				first.filter((command) => second.includes(command)),
+				[],
+				`a command is classified as both ${name} and ${otherName}`,
+			);
+		}
+	}
+});
+
+/**
+ * The clause both draft commands are offered under, spelled once here.
+ *
+ * It names the draft's filename suffix and nothing else. The drafts directory
+ * is composed at run time from the extension's own storage path, so it is not
+ * a literal anybody can write into a manifest, and a resourceDirname clause
+ * would have to be a pattern loose enough to be wrong.
+ */
+const DRAFT_CLAUSE = "resourceFilename =~ /\\.dinah-comment\\.md$/";
+
+test("every editor command is offered in the palette under a clause of its own", () => {
+	// The third bucket's own palette rule. Without it EDITOR_COMMANDS would be
+	// the one classification forcing no shape at all, which is exactly what
+	// the two older arrays were written to prevent.
+	//
+	// The assertion is an equality against the clause rather than a check that
+	// the when is merely neither absent nor "false", because an equality is
+	// what the other two palette tests assert and a weaker check would admit a
+	// clause that is true everywhere.
+	const entries = paletteEntries();
+	assert.ok(EDITOR_COMMANDS.length > 0, "there are no editor commands to check");
+	for (const command of EDITOR_COMMANDS) {
+		const matched = entries.filter((entry) => entry.command === command);
+		assert.equal(
+			matched.length,
+			1,
+			`${command} has ${matched.length} commandPalette entries, wanted 1`,
+		);
+		assert.equal(matched[0].when, DRAFT_CLAUSE);
+	}
+});
+
+test("the two draft commands are reachable only on a draft", () => {
+	// dinah-506/criteria/31's manifest arm. The editor title bar is the route
+	// a reader meets first, and the palette is the route a keyboard reader
+	// meets; both are offered under the one clause, and neither command is
+	// hidden behind "when": "false", which would take the palette route away.
+	const titles = menuEntries("editor/title");
+	assert.ok(titles.length > 0, "the manifest contributes no editor/title entries");
+	for (const command of EDITOR_COMMANDS) {
+		const matched = titles.filter((entry) => entry.command === command);
+		assert.equal(
+			matched.length,
+			1,
+			`${command} has ${matched.length} editor/title entries, wanted 1`,
+		);
+		assert.equal(matched[0].when, DRAFT_CLAUSE);
+	}
+	const hidden = paletteEntries().filter(
+		(entry) =>
+			EDITOR_COMMANDS.includes(entry.command) && entry.when === "false",
+	);
+	assert.deepEqual(
+		hidden.map((entry) => entry.command),
+		[],
+		"a draft command is hidden from the palette, which is its only keyboard route",
 	);
 });
 

@@ -169,6 +169,17 @@ func CountAttachments(dir string) (int, error) {
 	return len(ids), nil
 }
 
+// CountItems is how many checklist items a card's collection holds. It reads
+// the collection's directory and opens no item anchor, which is what makes it
+// affordable on a listing that renders every card.
+func CountItems(cardDir string) (int, error) {
+	ids, err := ListIDs(filepath.Join(cardDir, ChecklistDir))
+	if err != nil {
+		return 0, err
+	}
+	return len(ids), nil
+}
+
 // Attachment is one attachment: the entity wrapping bytes the format never
 // inspects, carrying the original filename, a description and provenance.
 type Attachment struct {

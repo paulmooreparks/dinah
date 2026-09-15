@@ -40,5 +40,14 @@
 	"manifest.command.dinah.walkthrough.openFirstSessionGuide.title": "Dinah: Open the First-Session Guide",
 	"manifest.command.dinah.runVerb.title": "Dinah: Run Command…",
 	"manifest.command.dinah.refreshVerbCatalog.title": "Dinah: Refresh Command Palette",
-	"manifest.command.dinah.tree.archiveCard.title": "Dinah: Archive Card"
+	"manifest.command.dinah.tree.archiveCard.title": "Dinah: Archive Card",
+	"manifest.command.dinah.tree.openItem.title": "Dinah: Open Item",
+	"manifest.command.dinah.tree.commentOnItem.title": "Dinah: Comment on Item",
+	"manifest.command.dinah.tree.resolveItem.title": "Dinah: Resolve Item",
+	"manifest.command.dinah.tree.verifyItem.title": "Dinah: Verify Criterion",
+	"manifest.command.dinah.tree.failItem.title": "Dinah: Fail Criterion",
+	"manifest.command.dinah.tree.reopenItem.title": "Dinah: Reopen Item",
+	"manifest.command.dinah.tree.fileItem.title": "Dinah: File Checklist Item",
+	"manifest.command.dinah.comment.post.title": "Dinah: Post Comment",
+	"manifest.command.dinah.comment.discard.title": "Dinah: Discard Draft"
 }

@@ -17,18 +17,18 @@ import { test } from "node:test";
 // This file is compiled to out/test/unit/, so the extension root is three up.
 const extensionRoot = join(__dirname, "..", "..", "..");
 
-test("the English runtime catalogue carries exactly 131 entries", () => {
+test("the English runtime catalogue carries exactly 192 entries", () => {
 	// The count is taken over `entries` rather than over the file's top level,
 	// which carries two members: the tag and the entries themselves.
 	const catalogue = JSON.parse(
 		readFileSync(join(extensionRoot, "src", "locales", "en.json"), "utf8"),
 	) as { entries: Record<string, unknown> };
-	assert.equal(Object.keys(catalogue.entries).length, 131);
+	assert.equal(Object.keys(catalogue.entries).length, 192);
 });
 
-test("the base manifest catalogue carries exactly 42 keys", () => {
+test("the base manifest catalogue carries exactly 51 keys", () => {
 	const catalogue = JSON.parse(
 		readFileSync(join(extensionRoot, "package.nls.json"), "utf8"),
 	) as Record<string, unknown>;
-	assert.equal(Object.keys(catalogue).length, 42);
+	assert.equal(Object.keys(catalogue).length, 51);
 });

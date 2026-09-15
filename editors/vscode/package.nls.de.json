@@ -40,5 +40,14 @@
 	"manifest.command.dinah.walkthrough.openFirstSessionGuide.title": "Dinah: Leitfaden zur ersten Sitzung öffnen",
 	"manifest.command.dinah.runVerb.title": "Dinah: Befehl ausführen…",
 	"manifest.command.dinah.refreshVerbCatalog.title": "Dinah: Befehlspalette aktualisieren",
-	"manifest.command.dinah.tree.archiveCard.title": "Dinah: Karte archivieren"
+	"manifest.command.dinah.tree.archiveCard.title": "Dinah: Karte archivieren",
+	"manifest.command.dinah.tree.openItem.title": "Dinah: Punkt öffnen",
+	"manifest.command.dinah.tree.commentOnItem.title": "Dinah: Punkt kommentieren",
+	"manifest.command.dinah.tree.resolveItem.title": "Dinah: Punkt klären",
+	"manifest.command.dinah.tree.verifyItem.title": "Dinah: Kriterium bestätigen",
+	"manifest.command.dinah.tree.failItem.title": "Dinah: Kriterium ablehnen",
+	"manifest.command.dinah.tree.reopenItem.title": "Dinah: Punkt wieder öffnen",
+	"manifest.command.dinah.tree.fileItem.title": "Dinah: Prüfpunkt anlegen",
+	"manifest.command.dinah.comment.post.title": "Dinah: Kommentar senden",
+	"manifest.command.dinah.comment.discard.title": "Dinah: Entwurf verwerfen"
 }

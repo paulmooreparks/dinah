@@ -15,11 +15,15 @@ import {
 	COMMAND_BLOCK,
 	COMMAND_CHECK_WORKBENCH,
 	COMMAND_CLAIM,
+	COMMAND_COMMENT_ON_ITEM,
 	COMMAND_COPY_CARD_REF,
 	COMMAND_COPY_WORKBENCH_PATH,
 	COMMAND_DELETE_ATTACHMENT,
+	COMMAND_DISCARD_DRAFT,
 	COMMAND_EDIT_COLUMN_INSTRUCTIONS,
 	COMMAND_EDIT_WORKBENCH_DEFINITION,
+	COMMAND_FAIL_ITEM,
+	COMMAND_FILE_ITEM,
 	COMMAND_MOVE,
 	COMMAND_NEW_CARD,
 	COMMAND_OPEN_ATTACHMENT,
@@ -27,12 +31,17 @@ import {
 	COMMAND_OPEN_FIRST_SESSION_GUIDE,
 	COMMAND_OPEN_HISTORY,
 	COMMAND_OPEN_INSTRUCTIONS,
+	COMMAND_OPEN_ITEM,
+	COMMAND_POST_COMMENT,
 	COMMAND_PULL,
 	COMMAND_REFRESH,
 	COMMAND_REFRESH_VERB_CATALOG,
 	COMMAND_RELEASE,
+	COMMAND_REOPEN_ITEM,
+	COMMAND_RESOLVE_ITEM,
 	COMMAND_RUN_VERB,
 	COMMAND_UNBLOCK,
+	COMMAND_VERIFY_ITEM,
 } from "./identity";
 
 /** How one command treats a selection of more than one row. */
@@ -96,6 +105,33 @@ export const SELECTION_POLICIES: Readonly<Record<string, SelectionEntry>> = {
 	[COMMAND_OPEN_FIRST_SESSION_GUIDE]: { policy: "noRow" },
 	[COMMAND_RUN_VERB]: { policy: "noRow" },
 	[COMMAND_REFRESH_VERB_CATALOG]: { policy: "noRow" },
+	// Open is fanOut for the reason Open Attachment is: three selected items
+	// open three tabs and no answer is shared between them.
+	[COMMAND_OPEN_ITEM]: { policy: "fanOut", effect: "perRow" },
+	// Comment asks nothing and spawns nothing. It writes a draft and opens
+	// it, and the post happens later from an editor with the tree selection
+	// long gone, so oneInput's definition does not describe it. One draft
+	// naming three items would also put a partial failure inside the one act
+	// the draft design exists to make safe: a post that succeeded on the
+	// first and was refused on the second cannot be retried without
+	// commenting twice on the first.
+	[COMMAND_COMMENT_ON_ITEM]: { policy: "rowOnly" },
+	// The three terminal verbs are rowOnly because one note applied to five
+	// different questions is a false record, and the tool would accept it
+	// without complaint.
+	[COMMAND_RESOLVE_ITEM]: { policy: "rowOnly" },
+	[COMMAND_VERIFY_ITEM]: { policy: "rowOnly" },
+	[COMMAND_FAIL_ITEM]: { policy: "rowOnly" },
+	// Reopen asks once for a reason and applies it to every selected row,
+	// which is what oneInput means: one reason for returning several items to
+	// pending is a true record rather than a flattened one.
+	[COMMAND_REOPEN_ITEM]: { policy: "oneInput" },
+	// Filing one item across several cards would multiply the column mistake
+	// the form exists to prevent.
+	[COMMAND_FILE_ITEM]: { policy: "rowOnly" },
+	// The two draft commands read the active editor rather than any row.
+	[COMMAND_POST_COMMENT]: { policy: "noRow" },
+	[COMMAND_DISCARD_DRAFT]: { policy: "noRow" },
 };
 
 /**

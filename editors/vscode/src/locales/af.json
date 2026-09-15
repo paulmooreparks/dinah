@@ -655,6 +655,311 @@
 			"text": "Delete {count} attachment(s)? Dinah destroys the files and cannot bring them back.",
 			"context": "The modal shown before several attachments are deleted at once. {count} is how many of the selected rows resolved to an attachment, which is why it can be smaller than the number of rows selected. It carries the (s) form because nothing stops a later card reaching it with one attachment.",
 			"skeleton": true
+		},
+		"item.kind.criterion": {
+			"text": "Acceptance criterion",
+			"context": "The word for an item of kind acceptance_criterion. The same word on the tree row, in the item document and in the filing form, so a reader meets one name for one thing.",
+			"skeleton": true
+		},
+		"item.kind.question": {
+			"text": "Open question",
+			"context": "The word for an item of kind open_question, on the terms the criterion word above is shared.",
+			"skeleton": true
+		},
+		"item.kind.decision": {
+			"text": "Decision",
+			"context": "The word for an item of kind decision, on the terms the criterion word above is shared.",
+			"skeleton": true
+		},
+		"item.state.pending": {
+			"text": "pending",
+			"context": "The word for an item nobody has settled yet. Lowercase because it is joined into a row description beside the kind word.",
+			"skeleton": true
+		},
+		"item.state.resolved": {
+			"text": "resolved",
+			"context": "The word for a question or a decision that has been settled.",
+			"skeleton": true
+		},
+		"item.state.verified": {
+			"text": "verified",
+			"context": "The word for an acceptance criterion the work satisfied.",
+			"skeleton": true
+		},
+		"item.state.failed": {
+			"text": "failed",
+			"context": "The word for an acceptance criterion the work did not satisfy.",
+			"skeleton": true
+		},
+		"item.hold.entryAhead": {
+			"text": "the card stops before it enters {0} while this item is unsettled",
+			"context": "What an item's own column is doing to the card, on an item that already exists. {0} is the column's title. The column holds on the way in and the card has not reached it yet.",
+			"skeleton": true
+		},
+		"item.hold.entryPassed": {
+			"text": "the card entered {0} already, so this item does not stop it where it stands",
+			"context": "The same sentence for a column the card has already entered. It says the item does not stop the card where it now stands rather than that it never will, because a card sent back to a passed column meets the hold again on its next move.",
+			"skeleton": true
+		},
+		"item.hold.exitHere": {
+			"text": "the card is in {0} and cannot leave it while this item is unsettled",
+			"context": "The same sentence for the column the card is standing in, where that column holds on the way out.",
+			"skeleton": true
+		},
+		"item.hold.exitAhead": {
+			"text": "the card stops when it tries to leave {0} while this item is unsettled",
+			"context": "The same sentence for a column ahead of the card that holds on the way out.",
+			"skeleton": true
+		},
+		"item.hold.exitPassed": {
+			"text": "the card left {0} already, so this item does not stop it where it stands",
+			"context": "The same sentence for a column the card has already left, worded like entryPassed above and for the same reason.",
+			"skeleton": true
+		},
+		"item.hold.nothing": {
+			"text": "{0} holds nothing, so this item stops the card nowhere",
+			"context": "The same sentence for a column declaring no hold in either direction, which is true wherever the card stands and whatever it does next.",
+			"skeleton": true
+		},
+		"item.owner": {
+			"text": "Owner:",
+			"context": "The label before an item's owner, on the tree row's tooltip and in the item document. It is drawn only where the item records one.",
+			"skeleton": true
+		},
+		"item.note": {
+			"text": "Note:",
+			"context": "The label before an item's resolution note on the tree row's tooltip.",
+			"skeleton": true
+		},
+		"item.comments": {
+			"text": "{count} comments",
+			"context": "How many comments an item carries, shown in the row description and in its tooltip. {count} is that number and is never zero here, because the line is drawn only where there is at least one.",
+			"skeleton": true
+		},
+		"item.locked": {
+			"text": "This item is the operator's to settle.",
+			"context": "The last line of a locked item's tooltip. It is the only place a reader is told why the row offers no closing action, so an absent menu entry is not mistaken for a defect.",
+			"skeleton": true
+		},
+		"item.row.description": {
+			"text": "{kind} · {state}{comments}",
+			"context": "The grey text beside a checklist item's label. {kind} and {state} are the words above, and {comments} is either empty or the comment line with its own separator already in front of it.",
+			"skeleton": true
+		},
+		"tree.checklistGroup.label": {
+			"text": "Checklist",
+			"context": "The label of the group row a card's checklist items hang under, beside the Attachments row.",
+			"skeleton": true
+		},
+		"tree.checklist.unreadable": {
+			"text": "This checkpoint could not read the checklist here.",
+			"context": "The one row a checklist group yields when the call that lists its items was refused.",
+			"skeleton": true
+		},
+		"item.document.title": {
+			"text": "{ref} ({kind})",
+			"context": "The item document's own heading and its tab's title. {ref} is the item's reference and {kind} is the kind word above.",
+			"skeleton": true
+		},
+		"item.document.heading.status": {
+			"text": "Status",
+			"context": "The heading above the item document's standing line, which carries the state, the hold sentence and the owner.",
+			"skeleton": true
+		},
+		"item.document.heading.text": {
+			"text": "What it says",
+			"context": "The heading above the item's own text in its document.",
+			"skeleton": true
+		},
+		"item.document.heading.note": {
+			"text": "Note",
+			"context": "The heading above the item's resolution note, drawn only where the item carries one.",
+			"skeleton": true
+		},
+		"item.document.heading.comments": {
+			"text": "Comments",
+			"context": "The heading above the item's comment thread. It is drawn even where the thread is empty, because an absent heading and an empty thread look the same to a reader who came expecting reasoning.",
+			"skeleton": true
+		},
+		"item.document.comment.heading": {
+			"text": "{ordinal} · {author} · {ts}",
+			"context": "One comment's own heading in the item document. {ordinal} is its one-based position in the thread, {author} wrote it and {ts} is when.",
+			"skeleton": true
+		},
+		"item.document.commentsEmpty": {
+			"text": "Nothing has been written on this item yet.",
+			"context": "What stands under the Comments heading on an item whose thread carries nothing.",
+			"skeleton": true
+		},
+		"item.document.textUnavailable": {
+			"text": "The text of {ref} could not be read.",
+			"context": "What the document says in place of the item's own text when the call carrying it was refused. The comment thread is still drawn below it, and nothing falls back to the item's anchor file.",
+			"skeleton": true
+		},
+		"prompt.item.resolve": {
+			"text": "What settles {ref}?",
+			"context": "The input box a question or a decision is resolved with. {ref} is the item's reference. One line, because VS Code contributes no multi-line input control.",
+			"skeleton": true
+		},
+		"prompt.item.verify": {
+			"text": "What did the check show for {ref}?",
+			"context": "The input box an acceptance criterion is verified with, on the terms the resolve prompt above is one line.",
+			"skeleton": true
+		},
+		"prompt.item.fail": {
+			"text": "Why does {ref} fail?",
+			"context": "The input box an acceptance criterion is failed with, on the terms the resolve prompt above is one line.",
+			"skeleton": true
+		},
+		"prompt.item.reopen": {
+			"text": "Why is it being opened again? {count} selected.",
+			"context": "The one reason Reopen asks for before it acts on every selected row. {count} is how many rows were selected.",
+			"skeleton": true
+		},
+		"form.file.kind.placeholder": {
+			"text": "What kind of item is this?",
+			"context": "The filing form's first step, over the kinds the file_item tool's own schema publishes.",
+			"skeleton": true
+		},
+		"form.file.text.prompt": {
+			"text": "What does the item say?",
+			"context": "The filing form's second step, which is free prose and carries no trap.",
+			"skeleton": true
+		},
+		"form.file.column.placeholder": {
+			"text": "Which column settles it?",
+			"context": "The filing form's third step. The pick has no empty entry, because an item naming no column refuses every claim on its card and nothing on the card says why.",
+			"skeleton": true
+		},
+		"form.file.owner.placeholder": {
+			"text": "Who answers it?",
+			"context": "The filing form's fourth step. There is no default, because an unstamped item reads downstream as the operator's.",
+			"skeleton": true
+		},
+		"form.file.owner.operator": {
+			"text": "The operator",
+			"context": "The owner choice that stamps the item as the operator's own.",
+			"skeleton": true
+		},
+		"form.file.owner.operatorDetail": {
+			"text": "only he can close it",
+			"context": "The grey text under the operator choice, which is what that choice costs: the tool refuses a closing verb on such an item to anybody else.",
+			"skeleton": true
+		},
+		"form.file.owner.holder": {
+			"text": "Whoever holds the card",
+			"context": "The owner choice that stamps the item for the card's own holder.",
+			"skeleton": true
+		},
+		"form.file.owner.other": {
+			"text": "Somebody else",
+			"context": "The owner choice that opens an input box, so a workbench using another word for its holders is not blocked by a two-entry pick.",
+			"skeleton": true
+		},
+		"form.file.owner.otherPrompt": {
+			"text": "Who answers it?",
+			"context": "The input box the third owner choice opens. The answer is sent verbatim and is enforced against nobody but the operator's own value.",
+			"skeleton": true
+		},
+		"form.file.column.detail.nothing": {
+			"text": "this column holds nothing, so the item will stop the card nowhere",
+			"context": "The grey text under one column choice in the filing form, on a column declaring no hold. The form speaks about an item that does not exist yet, which is why this set and item.hold.* differ in tense. It says this column rather than naming one, and interpolates nothing, because the pick's label already carries the title.",
+			"skeleton": true
+		},
+		"form.file.column.detail.entryAhead": {
+			"text": "the card will stop before it enters this column",
+			"context": "The same grey text on a column ahead of the card that holds on the way in. This is one of the two sentences the form exists to say.",
+			"skeleton": true
+		},
+		"form.file.column.detail.entryPassed": {
+			"text": "the card has already entered this column, so this will not stop it where it stands",
+			"context": "The same grey text on a column the card has already entered. It says the item will not stop the card where it now stands rather than that it never will, because a card sent back to a passed column meets the hold again on its next move.",
+			"skeleton": true
+		},
+		"form.file.column.detail.exitHere": {
+			"text": "the card cannot leave this column until the item is settled",
+			"context": "The same grey text on the card's own column, where that column holds on the way out.",
+			"skeleton": true
+		},
+		"form.file.column.detail.exitAhead": {
+			"text": "the card will stop when it tries to leave this column",
+			"context": "The same grey text on a column ahead of the card that holds on the way out. This is the second of the two sentences the form exists to say.",
+			"skeleton": true
+		},
+		"form.file.column.detail.exitPassed": {
+			"text": "the card has already left this column, so this will not stop it where it stands",
+			"context": "The same grey text on a column the card has already left, worded like entryPassed above and for the same reason.",
+			"skeleton": true
+		},
+		"skip.notAnItemRow": {
+			"text": "names no checklist item",
+			"context": "The output channel line for a selected row an item command cannot act on, because the row is not a checklist item.",
+			"skeleton": true
+		},
+		"skip.notACardRow": {
+			"text": "names no card",
+			"context": "The output channel line for a selected row the filing form cannot act on, because the row is not a card.",
+			"skeleton": true
+		},
+		"draft.created": {
+			"text": "Drafting a comment on {ref}. Post it with Post Comment, or throw it away with Discard Draft.",
+			"context": "Toast when the Comment command has created an empty draft and opened it. {ref} is the item's reference and {path} is the draft's absolute path, which the message carries so a reader whose row later disappears can still find their words.",
+			"skeleton": true
+		},
+		"draft.reopened": {
+			"text": "Reopened the draft comment on {ref}.",
+			"context": "Toast when Comment found a draft already on disk and opened it unchanged. {ref} is the item's reference and {path} is the draft's absolute path. Nothing was written over, which is what this message is telling the reader.",
+			"skeleton": true
+		},
+		"draft.storageUnavailable": {
+			"text": "The drafts directory at {path} could not be created: {detail}",
+			"context": "Error when the extension's own global storage could not be reached, so no draft could be written. {path} is that directory and {detail} is what the editor said.",
+			"skeleton": true
+		},
+		"draft.post.saveFailed": {
+			"text": "The draft at {path} could not be saved, so nothing was posted.",
+			"context": "Error when the document would not save. Nothing is spawned and nothing is deleted, because the bytes on disk would not have been the bytes that were sent.",
+			"skeleton": true
+		},
+		"draft.post.missingFile": {
+			"text": "There is no draft file at {path}. Nothing was posted and nothing was removed.",
+			"context": "Error when the file is gone at the moment of posting, which is what somebody who deleted it under an open tab meets. The index entry is left where it is, because a command that sent nothing removes nothing.",
+			"skeleton": true
+		},
+		"draft.post.empty": {
+			"text": "The draft at {path} is empty, so there is nothing to post.",
+			"context": "Error when the saved buffer is whitespace alone. The tool would refuse a blank comment anyway, and saying so locally costs no spawn.",
+			"skeleton": true
+		},
+		"draft.post.unknown": {
+			"text": "Dinah does not know what the file at {path} is a draft of. Your text is still in the tab and on disk.",
+			"context": "Error when the post was aimed at a path the drafts index does not carry. Nothing is deleted on this branch.",
+			"skeleton": true
+		},
+		"draft.post.posted": {
+			"text": "Posted the comment on {ref}.",
+			"context": "Toast after a post the tool answered ok. {ref} is the item the comment landed on, taken from the index entry rather than from the filename.",
+			"skeleton": true
+		},
+		"draft.post.keptAfterRefusal": {
+			"text": "The draft has been kept at {path}.",
+			"context": "Toast beside a refusal, saying that nothing was lost. The refusal itself is shown through the ordinary refusal path, so this line says only where the words are.",
+			"skeleton": true
+		},
+		"draft.post.postedButNotRemoved": {
+			"text": "The comment on {ref} was posted, but the draft at {path} could not be removed: {detail}",
+			"context": "Toast for a delete that failed after a post that succeeded. The comment exists at that point, so a message saying the post failed would be false.",
+			"skeleton": true
+		},
+		"draft.discard.confirm": {
+			"text": "Throw away the draft at {path}? This cannot be undone.",
+			"context": "The modal confirmation Discard asks before it deletes. {path} is the draft's absolute path.",
+			"skeleton": true
+		},
+		"draft.discard.confirmLabel": {
+			"text": "Discard Draft",
+			"context": "The affirmative button of the discard confirmation. The modal supplies its own Cancel, so only this label comes from the catalogue.",
+			"skeleton": true
 		}
 	}
 }

@@ -8,12 +8,14 @@
 // Nothing here imports vscode, and nothing here starts a process.
 
 import type { CommandHost, PickItem } from "../../src/cardCommands";
-import type { CliOutcome, SpawnOutcome, Spawner } from "../../src/cli";
+import type { CliOutcome, SpawnOptions, SpawnOutcome, Spawner } from "../../src/cli";
 import type { ColumnCommandHost } from "../../src/columnCommands";
 import type { Wiring } from "../../src/commandTable";
+import type { DraftHost, DraftIndex } from "../../src/commentDrafts";
 import { ENGLISH } from "../../src/l10n";
-import type { RootRow, TreeElement } from "../../src/tree";
-import type { AttachmentView, ColumnView } from "../../src/wire";
+import type { RootRow, TreeElement, WorkbenchData } from "../../src/tree";
+import type { CatalogBuild } from "../../src/verbCatalog";
+import type { AttachmentView, ColumnView, ItemView } from "../../src/wire";
 import type { WorkbenchCommandHost } from "../../src/workbenchCommands";
 
 export const ROOT = "C:/work/bench";
@@ -105,6 +107,46 @@ export function attachmentRowFor(
 		path: `${root}/attachments/${filename}`,
 	};
 	return { kind: "attachment", row: rootRow(root), root, owner: "tr-1", view };
+}
+
+/** One checklist item, as `show <card> --fields card,checklist` reports it. */
+export function itemView(overrides: Partial<ItemView> = {}): ItemView {
+	return {
+		id: "b00000000001",
+		ordinal: 1,
+		ref: "tr-1/questions/1",
+		kind: "open_question",
+		state: "pending",
+		text: "Which vendor do we cite for the SLA numbers?",
+		...overrides,
+	};
+}
+
+/** An item row, whole, hanging from the card and workbench given. */
+export function itemRow(
+	overrides: Partial<ItemView> = {},
+	isOperator = false,
+	root = ROOT,
+	data?: WorkbenchData,
+): TreeElement {
+	const row = rootRow(root);
+	return {
+		kind: "item",
+		row: data === undefined ? row : { ...row, data },
+		root,
+		card: "tr-1",
+		view: itemView(overrides),
+		isOperator,
+	};
+}
+
+/** A checklist group row, as a card's own expansion yields one. */
+export function checklistGroupRow(
+	count = 2,
+	ref = "tr-1",
+	root = ROOT,
+): TreeElement {
+	return { kind: "checklistGroup", row: rootRow(root), root, ref, count };
 }
 
 /** A row no command on this card can act on. */
@@ -279,6 +321,14 @@ export function columnHost(log: HostLog): ColumnCommandHost {
 export interface SpawnerLog {
 	readonly spawner: Spawner;
 	readonly calls: string[][];
+	/**
+	 * The options object each call was handed, in the same order as calls.
+	 *
+	 * It is the object itself rather than a copy of the fields this fixture
+	 * knows about, because dinah-506/criteria/30 asks whether the stdin key is
+	 * present at all, by Object.hasOwn, and a copy would answer for the copy.
+	 */
+	readonly options: SpawnOptions[];
 	/** Answers consumed one per call; the default answers once they run out. */
 	readonly queue: SpawnOutcome[];
 	fallback: SpawnOutcome;
@@ -298,16 +348,175 @@ export function refused(refusal: string, detail?: string): SpawnOutcome {
 export function spawnerLog(fallback: SpawnOutcome = ok()): SpawnerLog {
 	const calls: string[][] = [];
 	const queue: SpawnOutcome[] = [];
+	const options: SpawnOptions[] = [];
 	const state: SpawnerLog = {
 		calls,
+		options,
 		queue,
 		fallback,
-		spawner: async (_exe, argv) => {
+		spawner: async (_exe, argv, spawnOptions) => {
 			calls.push([...argv]);
+			options.push(spawnOptions);
 			return queue.shift() ?? state.fallback;
 		},
 	};
 	return state;
+}
+
+/** Everything a fake DraftHost was asked to do, in call order. */
+export interface DraftLog {
+	/** Every call, named, in the order they were made. */
+	readonly order: string[];
+	readonly ensured: string[];
+	readonly written: { path: string; text: string }[];
+	readonly read: string[];
+	readonly deleted: string[];
+	readonly saved: string[];
+	readonly opened: string[];
+	readonly errors: string[];
+	readonly infos: string[];
+	readonly lines: string[];
+	readonly checkpoints: string[];
+	readonly logged: string[];
+	readonly confirmations: { message: string; label: string }[];
+	/** The bytes on the fake disk, keyed by path. */
+	readonly disk: Map<string, string>;
+	/** The index the fake Memento holds. */
+	index: DraftIndex;
+	/** What saveDocument answers. */
+	saves: boolean;
+	/** What confirmDestructive answers. */
+	confirmed: boolean;
+}
+
+/** A fresh, empty draft log. */
+export function emptyDraftLog(): DraftLog {
+	return {
+		order: [],
+		ensured: [],
+		written: [],
+		read: [],
+		deleted: [],
+		saved: [],
+		opened: [],
+		errors: [],
+		infos: [],
+		lines: [],
+		checkpoints: [],
+		logged: [],
+		confirmations: [],
+		disk: new Map(),
+		index: {},
+		saves: true,
+		confirmed: false,
+	};
+}
+
+/** The storage root every draft fixture composes paths under. */
+export const STORAGE_ROOT = "C:/storage";
+
+/**
+ * A DraftHost that records every call rather than making one.
+ *
+ * The disk is a Map rather than a set of flags, because two of this card's
+ * criteria assert that three paragraphs came back byte for byte after a second
+ * Comment, and a fixture recording only that a write happened cannot answer
+ * that.
+ */
+export function draftHost(log: DraftLog): DraftHost {
+	return {
+		t: ENGLISH,
+		storageRoot: STORAGE_ROOT,
+		ensureDirectory: async (path) => {
+			log.order.push(`ensureDirectory ${path}`);
+			log.ensured.push(path);
+		},
+		writeDraft: async (path, text) => {
+			log.order.push(`writeDraft ${path}`);
+			log.written.push({ path, text });
+			log.disk.set(path, text);
+		},
+		readDraft: async (path) => {
+			log.order.push(`readDraft ${path}`);
+			log.read.push(path);
+			return log.disk.get(path);
+		},
+		deleteDraft: async (path) => {
+			log.order.push(`deleteDraft ${path}`);
+			log.deleted.push(path);
+			log.disk.delete(path);
+		},
+		saveDocument: async (path) => {
+			log.order.push(`saveDocument ${path}`);
+			log.saved.push(path);
+			return log.saves;
+		},
+		openDocument: async (path) => {
+			log.order.push(`openDocument ${path}`);
+			log.opened.push(path);
+		},
+		readIndex: () => log.index,
+		writeIndex: async (index) => {
+			log.order.push("writeIndex");
+			log.index = index;
+		},
+		confirmDestructive: async (message, label) => {
+			log.confirmations.push({ message, label });
+			return log.confirmed;
+		},
+		showError: (message) => {
+			log.errors.push(message);
+		},
+		showInfo: (message) => {
+			log.infos.push(message);
+		},
+		appendLines: (lines) => {
+			log.lines.push(...lines);
+		},
+		checkpoint: async (folder) => {
+			log.order.push(`checkpoint ${folder}`);
+			log.checkpoints.push(folder);
+		},
+		log: (line) => {
+			log.logged.push(line);
+		},
+	};
+}
+
+/**
+ * A catalogue answering one file_item tool whose kind enum carries the members
+ * given.
+ *
+ * The members are a parameter rather than the three dinah publishes today,
+ * because dinah-506/criteria/14 drives the form over a fabricated fourth kind
+ * and a fixture hard-coding three could not reach it.
+ */
+export function catalogueWithKinds(
+	values: readonly string[] = [
+		"acceptance_criterion",
+		"open_question",
+		"decision",
+	],
+): CatalogBuild {
+	return {
+		kind: "ok",
+		verbs: [
+			{
+				name: "file_item",
+				args: [
+					{ name: "card", required: true, prompt: { kind: "text" } },
+					{
+						name: "kind",
+						required: true,
+						prompt: { kind: "choice", values: [...values] },
+					},
+					{ name: "text", required: true, prompt: { kind: "text" } },
+				],
+			},
+		],
+		excluded: [],
+		unnamed: 0,
+	};
 }
 
 /** What a check answered, so the Problems panel can be updated from it. */
@@ -320,6 +529,8 @@ export function wiringFor(
 	log: HostLog,
 	spawner: Spawner,
 	results: CheckResults = { applied: [] },
+	drafts: DraftLog = emptyDraftLog(),
+	catalogue: CatalogBuild = catalogueWithKinds(),
 ): Wiring {
 	return {
 		exe: EXE,
@@ -332,5 +543,7 @@ export function wiringFor(
 		applyCheckResult: async (path, label, outcome) => {
 			results.applied.push({ path, label, outcome });
 		},
+		draftHost: draftHost(drafts),
+		verbCatalog: async () => catalogue,
 	};
 }

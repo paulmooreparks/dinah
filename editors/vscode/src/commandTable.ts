@@ -38,9 +38,21 @@ import {
 } from "./cardCommands";
 import type { ColumnCommandHost } from "./columnCommands";
 import { invokeEditColumnInstructions } from "./columnCommands";
+import type { DraftHost } from "./commentDrafts";
 import { invokeAttachFile, invokeNewCard } from "./creationCommands";
 import {
+	invokeCommentOnItem,
+	invokeFailItem,
+	invokeFileItem,
+	invokeOpenItem,
+	invokeReopenItem,
+	invokeResolveItem,
+	invokeVerifyItem,
+} from "./itemCommands";
+import type { CatalogBuild } from "./verbCatalog";
+import {
 	COMMAND_ARCHIVE_CARD,
+	COMMAND_COMMENT_ON_ITEM,
 	COMMAND_ATTACH_FILE,
 	COMMAND_BLOCK,
 	COMMAND_CHECK_WORKBENCH,
@@ -50,15 +62,21 @@ import {
 	COMMAND_DELETE_ATTACHMENT,
 	COMMAND_EDIT_COLUMN_INSTRUCTIONS,
 	COMMAND_EDIT_WORKBENCH_DEFINITION,
+	COMMAND_FAIL_ITEM,
+	COMMAND_FILE_ITEM,
 	COMMAND_MOVE,
 	COMMAND_NEW_CARD,
 	COMMAND_OPEN_ATTACHMENT,
 	COMMAND_OPEN_CARD,
 	COMMAND_OPEN_HISTORY,
 	COMMAND_OPEN_INSTRUCTIONS,
+	COMMAND_OPEN_ITEM,
 	COMMAND_PULL,
 	COMMAND_RELEASE,
+	COMMAND_REOPEN_ITEM,
+	COMMAND_RESOLVE_ITEM,
 	COMMAND_UNBLOCK,
+	COMMAND_VERIFY_ITEM,
 } from "./identity";
 import type { Localizer } from "./l10n";
 import { invokePull } from "./pullCommands";
@@ -93,6 +111,20 @@ export interface Wiring {
 		label: string,
 		outcome: CliOutcome,
 	) => Promise<void>;
+	/**
+	 * What the Comment command writes a draft through, bound to the editor's
+	 * global storage and to vscode.workspace.fs.
+	 */
+	readonly draftHost: DraftHost;
+	/**
+	 * The catalogue the filing form reads its kind choices from.
+	 *
+	 * A function rather than the built catalogue, because the build is one
+	 * round trip against a process that has to start and the form is the only
+	 * caller here that needs it. It is the same VerbCatalog the command
+	 * palette holds, so opening the form after the palette costs no spawn.
+	 */
+	readonly verbCatalog: () => Promise<CatalogBuild>;
 }
 
 /** One contributed command that reads rows. */
@@ -133,4 +165,11 @@ export const ROW_COMMAND_TABLE: readonly RowCommand[] = [
 	{ id: COMMAND_OPEN_INSTRUCTIONS, invoke: invokeOpenInstructions },
 	{ id: COMMAND_OPEN_HISTORY, invoke: invokeOpenHistory },
 	{ id: COMMAND_ARCHIVE_CARD, invoke: invokeArchiveCard },
+	{ id: COMMAND_OPEN_ITEM, invoke: invokeOpenItem },
+	{ id: COMMAND_COMMENT_ON_ITEM, invoke: invokeCommentOnItem },
+	{ id: COMMAND_RESOLVE_ITEM, invoke: invokeResolveItem },
+	{ id: COMMAND_VERIFY_ITEM, invoke: invokeVerifyItem },
+	{ id: COMMAND_FAIL_ITEM, invoke: invokeFailItem },
+	{ id: COMMAND_REOPEN_ITEM, invoke: invokeReopenItem },
+	{ id: COMMAND_FILE_ITEM, invoke: invokeFileItem },
 ];
