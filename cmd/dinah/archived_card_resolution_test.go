@@ -192,10 +192,11 @@ var archivedResolutionFamilies = []resolutionFamily{
 	{
 		name: "D", axis: "reaching",
 		what:      "reaching the archived anchors: every mention of ArchivedCardsRoot, cardsRootIn or ArchiveDir",
-		files:     14,
-		mentions:  35,
-		functions: 27,
+		files:     15,
+		mentions:  37,
+		functions: 28,
 		sites: []resolutionSite{
+			{"internal/bench/newlinemigrate.go", "lockDirForFile", 2, "the newline repair's file-to-lock mapping, which composes the archived cards root and the archived workstreams root from the constants so that a file inside an archived card takes that card's own lock; it answers a directory to lock and resolves no reference"},
 			{benchPackageOwnFile, packageLevel, 1, "the declaration of the directory name, standing in the file's const block"},
 			{benchPackageOwnFile, "ArchivedCardsRoot", 2, "the accessor this family is named for, and its own body's use of the directory constant"},
 			{benchPackageOwnFile, "ArchivedColumnsRoot", 1, "the columns half of the mirror, which holds no cards"},

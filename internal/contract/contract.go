@@ -450,6 +450,19 @@ const (
 	// away from whoever has to repair it, and a read stamps nothing a
 	// malformed name could damage.
 	MalformedHarness = LayerPrefix + "malformed-harness"
+	// MalformedMemberName is a definition document carrying an object member
+	// whose name carries a line ending. A member name becomes the left-hand
+	// side of a frontmatter line, which nothing quotes, so such a name would
+	// split the header and store a key the document never carried. The detail
+	// names the member with its line ending written as an escape, since
+	// printing the name raw would split the refusal's own line too.
+	//
+	// It sits beside MalformedHarness because both name a caller-declared name
+	// outside the grammar its destination can carry, and it is the one place in
+	// the line-ending contract where the answer is a refusal rather than a
+	// normalisation: normalising would not help, because the line feed a CRLF
+	// becomes still splits the header.
+	MalformedMemberName = LayerPrefix + "malformed-member-name"
 	// TierNotHigher is a raise whose resolved tier does not rank above what
 	// the card already requires at the column being raised. Equal counts as
 	// not higher: a raise that changes nothing is not a raise. The comparison
@@ -607,7 +620,7 @@ var Introduced = []string{
 	AmbiguousCard, AmbiguousColumn, NoUpstream, AwaitingOutside, TakesNoWork,
 	NoLevels, UnknownLevel, UnknownFormat,
 	NoTierDefault, TierOutOfRange, BelowTier, TierNotHigher,
-	UnlistedModel, UndeclaredModel, MalformedHarness,
+	UnlistedModel, UndeclaredModel, MalformedHarness, MalformedMemberName,
 	ReshapeNeedsDestination, ReshapeHeldCardInQueue, ReshapeMapSourceEmpty,
 	ReshapeDestinationRetiring, ReshapeDestinationAmbiguous,
 	UnknownItemKind, WrongItemKind, NotPending, NotResolved, Uncited,

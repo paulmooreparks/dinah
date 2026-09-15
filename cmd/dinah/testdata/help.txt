@@ -98,9 +98,9 @@ WORKBENCH
     [--migrate-vocabulary]
     [--migrate-container]
     [--migrate-numbers] [--migrate-branches]
-    [--renumber] [--remint <dir>]
-    [--migrate-workstreams] [--witness]
-    [--yes] [--root <path>]
+    [--migrate-newlines] [--renumber]
+    [--remint <dir>] [--migrate-workstreams]
+    [--witness] [--yes] [--root <path>]
     [--max-depth <n>]
   whoami                                    The actor your actions carry, and
                                               whether it is the operator

@@ -1862,8 +1862,9 @@ func TestTheGuidesTeachOnlyDeclaredFlags(t *testing.T) {
 // removes the stranded identifiers from the columns list, one creates a
 // workstream at every membership the live cards carry that names none, one
 // builds the card-number registry from the frontmatter a workbench predating
-// the registry carries, and one renumbers the later claimants of a number two
-// lines claim.
+// the registry carries, one repairs every text file storing a carriage return
+// that stands for a line ending, and one renumbers the later claimants of a
+// number two lines claim.
 //
 // The change to the fixture's check line is a ratified one rather than drift.
 // The MCP head's schema is generated from the same parameter list and is
@@ -1873,7 +1874,7 @@ func TestCheckDeclaresItsRepairFlagsOnEverySurface(t *testing.T) {
 	if err != nil {
 		t.Fatalf("fixture: %v", err)
 	}
-	const line = "check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-columns] [--migrate-vocabulary] [--migrate-container] [--migrate-numbers] [--migrate-branches] [--renumber] [--remint <dir>] [--migrate-workstreams] [--witness] [--yes] [--root <path>] [--max-depth <n>]"
+	const line = "check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-columns] [--migrate-vocabulary] [--migrate-container] [--migrate-numbers] [--migrate-branches] [--migrate-newlines] [--renumber] [--remint <dir>] [--migrate-workstreams] [--witness] [--yes] [--root <path>] [--max-depth <n>]"
 	if !blockLists(string(fixture), line) {
 		t.Error("the ratified block's check line does not name every repair flag")
 	}
@@ -7241,7 +7242,8 @@ func TestTheFlagSetsTheParserAcceptsAreDerivedFromTheParameterTable(t *testing.T
 		"annotate-prose", "archived", "catalogs", "finish", "help", "json",
 		"migrate-branches",
 		"migrate-columns",
-		"migrate-container", "migrate-numbers", "migrate-ordinals",
+		"migrate-container", "migrate-newlines", "migrate-numbers",
+		"migrate-ordinals",
 		"migrate-slugs", "migrate-vocabulary", "migrate-workstreams",
 		"no-claim", "override", "quiet", "ready", "renumber", "replace",
 		"version", "witness", "yes",

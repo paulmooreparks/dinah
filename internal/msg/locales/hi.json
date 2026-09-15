@@ -5274,6 +5274,151 @@
       "text": "इस कॉल ने एक प्रदाता और एक मॉडल बताया है",
       "context": "One row of the ordered precondition list of pull, which is claim's own row 10 reached at the destination. The sentence is claim's, because the check is claim's.",
       "source": "fefe1b8d3d2e5b22"
+    },
+    "check.newlines-heading": {
+      "text": "पंक्ति-अंत स्थानांतरण।",
+      "context": "The heading the newline repair prints for a confirmed run, which is the run that writes the repaired bytes.",
+      "source": "b4fb78e288187ab"
+    },
+    "check.newlines-preview": {
+      "text": "पंक्ति-अंत स्थानांतरण (पूर्वावलोकन)। नीचे दिया गया प्रत्येक गंतव्य उसी के अपने बाइट्स से पुनः लिखा गया, यह सिद्ध करने के लिए कि वह लिखा जा सकता है; सामग्री अपरिवर्तित है और गंतव्य का संशोधन समय अब है।",
+      "context": "The heading the newline repair prints when it was asked for without --yes. It says that the preview writes rather than claiming that nothing was written, because the preview does write: nothing short of performing the rename predicts whether the rename will be permitted, so the only way a preview can promise that the confirmed run will succeed is to rehearse each destination's write with that destination's own bytes.",
+      "source": "270b92b70451deee"
+    },
+    "check.newlines-examined.one": {
+      "text": "{count} पाठ फ़़ाइल जाँची गई।",
+      "context": "The line the newline repair prints for the size of the set it read, for exactly one file. A sweep says how many files it walked, because a sweep that reports nothing and walked nothing reads the same as a clean store.",
+      "source": "7937d429ad0fdd0e"
+    },
+    "check.newlines-examined.other": {
+      "text": "{count} पाठ फ़़ाइलें जाँची गईं।",
+      "context": "The line the newline repair prints for the size of the set it read, for any other number. A count of zero is a run that found no text file to read, which is that run's own answer.",
+      "source": "f0436517b7e76509"
+    },
+    "check.newlines-would-rewrite.one": {
+      "text": "{count} फ़़ाइल पुनः लिखी जाएगी।",
+      "context": "The line a newline preview prints for what it found to repair, for exactly one file.",
+      "source": "d73c1192651810da"
+    },
+    "check.newlines-would-rewrite.other": {
+      "text": "{count} फ़़ाइलें पुनः लिखी जाएंगी।",
+      "context": "The line a newline preview prints for what it found to repair, for any other number.",
+      "source": "2b1d8cb5fc741103"
+    },
+    "check.newlines-rewritten.one": {
+      "text": "{count} फ़़ाइल पुनः लिखी गई।",
+      "context": "The line a confirmed newline repair prints for what it wrote, for exactly one file.",
+      "source": "89112c16db5296a0"
+    },
+    "check.newlines-rewritten.other": {
+      "text": "{count} फ़़ाइलें पुनः लिखी गईं।",
+      "context": "The line a confirmed newline repair prints for what it wrote, for any other number.",
+      "source": "f6d212fe76841297"
+    },
+    "check.newlines-nothing": {
+      "text": "पुनः लिखने को कुछ नहीं।",
+      "context": "The line the newline repair prints when no examined file stores a carriage return standing for a line ending. A second run of a repair that succeeded prints this, because the repair is idempotent by construction: a file is a destination exactly when its own transform changes it, and every transform answers bytes it would not change again.",
+      "source": "4d285e137fbfff"
+    },
+    "check.newlines-refused.one": {
+      "text": "{count} गंतव्य अस्वीकृत; कुछ भी नहीं लिखा गया।",
+      "context": "The line the newline repair prints when one destination met a condition that stops the whole run, so a preview predicts the outcome instead of a run discovering a refusal half way through.",
+      "source": "b0a2d21141315e14"
+    },
+    "check.newlines-refused.other": {
+      "text": "{count} गंतव्य अस्वीकृत; कुछ भी नहीं लिखा गया।",
+      "context": "The line the newline repair prints for any other number of destinations meeting a condition that stops the whole run.",
+      "source": "6ab7e9bedf33c951"
+    },
+    "check.newlines-busy.one": {
+      "text": "{count} फ़़ाइल व्यस्त थी और पुनः नहीं लिखी गई; उसे लेने के लिए यह फ़िर से चलाएँ।",
+      "context": "The line the newline repair prints for one file whose lock another process holds. A held lock is the one condition that does not stop the run: a lock is held for milliseconds, a run takes one per file across thousands of files, and several sessions work a busy workbench at once, so a run refusing over a transient lock would refuse most of the time.",
+      "source": "ea84b85abba61175"
+    },
+    "check.newlines-busy.other": {
+      "text": "{count} फ़़ाइलें व्यस्त थीं और पुनः नहीं लिखी गईं; उन्हें लेने के लिए यह फ़िर से चलाएँ।",
+      "context": "The line the newline repair prints for any other number of files whose locks another process holds.",
+      "source": "774a70bb47e30f51"
+    },
+    "check.newlines-confirm": {
+      "text": "लिखने के लिए --yes के साथ फ़िर से चलाएँ।",
+      "context": "The line a newline preview prints under what it would repair. It parts company with the two number repairs either side of it, which refuse without confirmation rather than previewing.",
+      "source": "b6ab94a8bacd7efb"
+    },
+    "check.newline-conflict.unreadable": {
+      "text": "{path} खुलती नहीं, इसलिए रन उसे पढ़ नहीं सका।",
+      "context": "One row of the newline repair's refusal report: a file the run cannot read, and it will not write a store it has not read whole. {path} carries the file.",
+      "source": "1eb76d718de925fc"
+    },
+    "check.newline-conflict.unwritable": {
+      "text": "{path} लिखी नहीं जा सकी, इसलिए कुछ भी नहीं लिखा गया।",
+      "context": "One row of the newline repair's refusal report: a destination whose rehearsed write failed, which is what the rehearsal exists to find. {path} carries the file. The rehearsal renames the file's own bytes back over it, so a failure here is the failure the confirmed run would meet.",
+      "source": "ccd2d8890d606ec7"
+    },
+    "check.newline-conflict.unsupported": {
+      "text": "{path} में ऐसा कुछ है जिस पर यह मरम्मत निर्णय नहीं करती: {detail}।",
+      "context": "One row of the newline repair's refusal report: a file whose transform refuses it. {path} carries the file and {detail} carries the frontmatter key, the record number, or the words saying that the file does not round-trip through the anchor reader. Deciding what a damaged file or a damaged record should become is a different piece of work from deciding what a line ending should be.",
+      "source": "4f3ac26f10d27466"
+    },
+    "check.newline-conflict.locked": {
+      "text": "{path} को {detail} ने रोका हुआ है।",
+      "context": "One row of the newline repair's busy report: a file whose lock another process holds, read from the lock's own content. {path} carries the file and {detail} carries the holder.",
+      "source": "b150c52c2d39e21b"
+    },
+    "check.stored-carriage-return": {
+      "text": "यह फ़़ाइल एक ऐसा कैरिज रिटर्न संग्रहीत करती है जो पंक्ति-अंत के लिए खड़ा है ({detail})",
+      "context": "A check finding: a workbench text file carrying a carriage return the format's Encoding section forbids a writer to produce. {detail} carries the count the file's own transform would remove and, separately, the count of carriage returns that are not line endings, because the second number is legal and the first is not. The counts come from the transform rather than from a pattern search, so this finding and dinah check --migrate-newlines can never disagree about which files are dirty.",
+      "source": "31a9caaafe806721"
+    },
+    "param.check.migrate-newlines.summary": {
+      "text": "प्रत्येक ऐसी पाठ फ़़ाइल की मरम्मत करें जो पंक्ति-अंत के रूप में कैरिज रिटर्न संग्रहीत करती है; पहले प्रत्येक गंतव्य को उसी के बाइट्स से पुनः लिखा जाता है; एक बाधित रन किसी ऐंकर के पास .dinah-* फ़़ाइल छोड़ सकता है, जिसे मिटाना सुरक्षित है क्योंकि उसे कोई नहीं पढ़ता",
+      "context": "The meaning of the migrate-newlines argument of `dinah check`, printed in that command's arguments table.",
+      "source": "eedda84009725d89"
+    },
+    "refusal.dinah.malformed-member-name": {
+      "text": "दस्तावेज़ में {detail} नाम का एक सदस्य है, और सदस्य का नाम पंक्ति-अंत नहीं रख सकता",
+      "context": "The sentence printed after the refusal name dinah.malformed-member-name, which a definition document carrying an object member whose name carries a line ending meets. {detail} names the member with its line ending written as an escape, because printing the name raw would split this line too. A member name becomes the left-hand side of a frontmatter line, which nothing quotes, so such a name would split the header and store a key the document never carried.",
+      "source": "7aa6d749aa9b908c"
+    },
+    "refusal.dinah.malformed-member-name.next": {
+      "text": "; उस सदस्य का नाम दस्तावेज़ में बदलें और उसे फ़िर से पढ़ें",
+      "context": "The next step of refusal.dinah.malformed-member-name. Every other line ending in this contract is normalised rather than refused; this one cannot be, because normalising leaves a line feed that still splits the header.",
+      "source": "800ab41179da1bc"
+    },
+    "check.newline-would-rewrite-file.one": {
+      "text": "{path} में मरम्मत के लिए {count} संग्रहीत पंक्ति-अंत है।",
+      "context": "One destination a newline preview found, for exactly one stored line ending. {path} is the file and {count} is what the file's own transform would remove. The tense is the file's rather than the run's, because a confirmed run can carry a destination it did not reach.",
+      "source": "c2b3b8a78e931d4e"
+    },
+    "check.newline-would-rewrite-file.other": {
+      "text": "{path} में मरम्मत के लिए {count} संग्रहीत पंक्ति-अंत हैं।",
+      "context": "One destination a newline preview found, for any other number. A count of zero cannot occur here, because a file with nothing to remove is not a destination.",
+      "source": "5248fab183d4384d"
+    },
+    "check.newline-rewrote-file.one": {
+      "text": "{path}: {count} संग्रहीत पंक्ति-अंत की मरम्मत हुई।",
+      "context": "One destination a confirmed newline repair wrote, for exactly one stored line ending. It is drawn only for a file the run actually rewrote, so a busy file or one a partial failure did not reach keeps the preview's tense instead.",
+      "source": "a0a98021ba92c103"
+    },
+    "check.newline-rewrote-file.other": {
+      "text": "{path}: {count} संग्रहीत पंक्ति-अंतों की मरम्मत हुई।",
+      "context": "One destination a confirmed newline repair wrote, for any other number.",
+      "source": "536e18f529948a24"
+    },
+    "check.newline-rewrite-loose.one": {
+      "text": "इसमें {count} ऐसा कैरिज रिटर्न भी है जो पंक्ति-अंत नहीं है, और जिसे मरम्मत अछूता छोड़ देती है।",
+      "context": "The clause drawn under a destination that also carries a carriage return the repair does not touch, for exactly one. A carriage return not followed by a line feed is a character the prose meant to carry rather than a line ending, so it is reported and kept. The line is drawn only where the count is above zero.",
+      "source": "5298a11d838b09cb"
+    },
+    "check.newline-rewrite-loose.other": {
+      "text": "इसमें {count} ऐसे कैरिज रिटर्न भी हैं जो पंक्ति-अंत नहीं हैं, और जिन्हें मरम्मत अछूता छोड़ देती है।",
+      "context": "The same clause for any other number.",
+      "source": "a331518a5e0c8230"
+    },
+    "check.newline-repair-unsupported": {
+      "text": "पंक्ति-अंत मरम्मत इस फ़़ाइल पर निर्णय नहीं करती, इसलिए यह ठीक वैसी ही छोड़ दी जाती है ({detail})",
+      "context": "A check finding: a workbench text file the newline repair refuses rather than guessing at. {detail} says which case, either that a file bearing one of the anchor names the format fixes does not round-trip through the anchor reader, or the frontmatter key whose shape the repair cannot re-render. Such a file need carry no carriage return at all, which is why this is not reported as a stored line ending; deciding what a damaged header should become is separate work from deciding what a line ending should be.",
+      "source": "ca43055799b06a49"
     }
   }
 }

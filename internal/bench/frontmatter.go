@@ -290,7 +290,30 @@ func unquote(s string) string {
 // quote wraps a value in double quotes when leaving it bare would change how
 // it reads back: an empty value, one with leading or trailing space, or one
 // whose first character would start some other YAML construct.
+//
+// It normalises the value's line endings on entry, and it is the one function
+// in this codebase where a frontmatter scalar can be normalised: every scalar
+// that becomes a frontmatter line passes through here, Set and SetSeq and
+// SetRaw's own renderers alike, so normalising at the callers instead would be
+// an enumeration that goes stale the next time somebody renders a line. The
+// escape below turns a line feed into the two characters backslash and n and
+// leaves a carriage return raw, so a value carrying CRLF that reached this
+// function unnormalised would be stored as a carriage return followed by that
+// escape, which is a stored line ending no search for a CRLF pair can find.
+//
+// Normalising changes no rendering decision. A value carrying CRLF carries a
+// line feed, so it takes the quoted branch before and after alike.
 func quote(value string) string {
+	return quoteVerbatim(NormalizeNewlines(value))
+}
+
+// quoteVerbatim is quote's rendering with no normalisation, for the one reader
+// that has to ask what a value's stored lines would have been before the
+// normalisation existed. The newline migration is that reader: it decides
+// whether a key's stored lines are a plain re-render of the value it parsed,
+// and comparing against the normalising form would answer no for every key it
+// is about to repair.
+func quoteVerbatim(value string) string {
 	if value == "" {
 		return `""`
 	}
