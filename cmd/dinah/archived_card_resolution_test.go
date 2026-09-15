@@ -172,11 +172,10 @@ var archivedResolutionFamilies = []resolutionFamily{
 	{
 		name: "C", axis: "reading",
 		what:      "reading a card's number field: every mention of Number in a selector expression",
-		files:     7,
-		mentions:  30,
-		functions: 11,
+		files:     6,
+		mentions:  29,
+		functions: 10,
 		sites: []resolutionSite{
-			{"internal/bench/interchange.go", "normalizeJSONValue", 1, "the same false positive the row below records: the selector is the type json.Number, read by the definition document's newline walk so a number's own spelling survives it, and no card's number is anywhere near it"},
 			{"internal/bench/blockjson.go", "jsonNumber", 1, "a false positive recognised by name: the selector is the type json.Number, and telling it apart would mean running go/types over the tree to remove one row"},
 			{"internal/bench/card.go", "Ref", 2, "composes the human reference, which is why family E exists"},
 			{"internal/bench/card.go", "ByArrival", 2, "sorts on it"},

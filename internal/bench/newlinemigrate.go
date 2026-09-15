@@ -140,6 +140,7 @@ func (b *Bench) MigrateNewlines(actor, now string, apply bool) (*NewlineMigratio
 		// The rehearsal's read and its rename sit on the same side of one
 		// acquisition, so a concurrent write cannot land between them and be
 		// silently reverted by the rename.
+		newlinePause(newlinePhaseRehearse, path)
 		rehearsal := writeBytes(path, original)
 		release(held, taken)
 		if rehearsal != nil {
@@ -153,6 +154,7 @@ func (b *Bench) MigrateNewlines(actor, now string, apply bool) (*NewlineMigratio
 		return report, nil
 	}
 	for index, path := range destinations {
+		newlinePause(newlinePhaseWrite, path)
 		written, err := b.rewriteNewlines(path, actor, now)
 		if err != nil {
 			return report, err
@@ -160,6 +162,33 @@ func (b *Bench) MigrateNewlines(actor, now string, apply bool) (*NewlineMigratio
 		report.Rewrites[index].Written = written
 	}
 	return report, nil
+}
+
+// The two moments a run can be interrupted at from a test. The first is
+// between a rehearsal's read and its rename, and the second is before one
+// destination's real write.
+const (
+	newlinePhaseRehearse = "rehearse"
+	newlinePhaseWrite    = "write"
+)
+
+// newlineHook runs at the two moments above and is nil in a shipped binary.
+//
+// It exists because two properties of this run cannot be asserted from outside
+// it. The lock protocol is one: a test whose hook attempts to take the file's
+// own lock during a rehearsal has to be refused, because a hook that succeeds
+// proves the rehearsal is not holding it, and that refusal is what a second
+// process would meet, so the window a concurrent write could land in does not
+// exist. The partial-failure account is the other: a destination has to become
+// unwritable after its rehearsal and before its write, which is the state a run
+// meets when somebody changes a permission underneath it.
+var newlineHook func(phase, path string)
+
+// newlinePause runs the hook where one is set.
+func newlinePause(phase, path string) {
+	if newlineHook != nil {
+		newlineHook(phase, path)
+	}
 }
 
 // poisoned reports whether the conflicts the plan pass met stop the whole run.
@@ -316,7 +345,7 @@ func transformNewlines(path string, data []byte) newlineTransform {
 	text := string(data)
 	fm, body := ParseAnchor(text)
 	if fm.Render(body) != NormalizeNewlines(text) {
-		if fixedAnchorNames[filepath.Base(path)] {
+		if isFixedAnchorName(filepath.Base(path)) {
 			return newlineTransform{Out: data, Condition: NewlineConflictUnsupported, Detail: "header does not round-trip"}
 		}
 		return transformWholeFile(data)
@@ -324,13 +353,24 @@ func transformNewlines(path string, data []byte) newlineTransform {
 	return transformAnchor(fm, body, data)
 }
 
-// fixedAnchorNames are the file names the format fixes for an anchor, the
-// retired state.md included, because a workbench written before the vocabulary
-// migration still carries one and this repair runs against such a store.
-var fixedAnchorNames = map[string]bool{
-	WorkbenchAnchor: true, ColumnAnchor: true, CardAnchor: true,
-	ItemAnchor: true, CommentAnchor: true, AttachmentAnchor: true,
-	WorkstreamAnchor: true, PreVocabularyAnchor: true,
+// isFixedAnchorName reports whether a file name is one the format fixes for an
+// anchor, which is the question that decides whether a .md failing the
+// round-trip gate is a damaged store or somebody's note.
+//
+// The mounted kinds are asked of the containment grammar rather than listed
+// here, so an anchor a later kind brings with it is covered without this
+// function being revisited. Three names the grammar does not mount are added:
+// the workbench's own anchor and a workstream's, which no collection contains,
+// and the retired state.md a pre-vocabulary workbench still carries.
+func isFixedAnchorName(name string) bool {
+	if _, mounted := KindOfAnchor(name); mounted {
+		return true
+	}
+	switch name {
+	case WorkbenchAnchor, WorkstreamAnchor, PreVocabularyAnchor:
+		return true
+	}
+	return false
 }
 
 // transformWholeFile is NormalizeNewlines over the file and nothing else. It
@@ -355,7 +395,16 @@ func transformWholeFile(data []byte) newlineTransform {
 // and n, which carries no CRLF pair at all. A key whose parsed value carries a
 // pair after that is re-set through quote, which normalises. Every other key's
 // stored lines are left exactly as they are, so a key the tool has never heard
-// of is neither re-quoted nor re-ordered.
+// of is neither re-quoted nor re-ordered, and neither is a key whose only
+// carriage returns are loose ones.
+//
+// A key whose stored lines carry a carriage return and whose shape is neither a
+// scalar nor a block of dashed entries refuses the file, with its own name in
+// the detail. That errs toward refusing, a lone carriage return in such a block
+// included, because a shape this repair cannot re-render is a shape it cannot
+// repair either, and it would rather say so than guess. No such value is known
+// to exist: every nested block this tool writes renders its scalars through
+// quote.
 func transformAnchor(fm *Frontmatter, body string, data []byte) newlineTransform {
 	for _, key := range fm.Keys() {
 		raw := fm.Raw(key)
@@ -364,13 +413,22 @@ func transformAnchor(fm *Frontmatter, body string, data []byte) newlineTransform
 		}
 		scalar := fm.Value(key)
 		if len(raw) == 1 && !isFlowSequence(scalar) {
-			if raw[0] != key+": "+quoteVerbatim(scalar) {
+			verbatim := key + ": " + quoteVerbatim(scalar)
+			if verbatim == key+": "+quote(scalar) {
+				// Every carriage return this value carries is a loose one,
+				// which the repair leaves exactly where it is.
+				continue
+			}
+			if raw[0] != verbatim {
 				return newlineTransform{Out: data, Condition: NewlineConflictUnsupported, Detail: key}
 			}
 			fm.Set(key, scalar)
 			continue
 		}
 		if items, dashed := dashedSequence(fm, key, raw); dashed {
+			if !carriesPair(items) {
+				continue
+			}
 			fm.SetSeq(key, items)
 			continue
 		}
@@ -391,6 +449,18 @@ func transformAnchor(fm *Frontmatter, body string, data []byte) newlineTransform
 // carriage return is known to exist.
 func isFlowSequence(value string) bool {
 	return strings.HasPrefix(value, "[") && strings.HasSuffix(value, "]")
+}
+
+// carriesPair reports whether any entry of a sequence carries a pair this
+// repair reduces, so a sequence whose only carriage returns are loose ones is
+// left alone rather than re-rendered.
+func carriesPair(items []string) bool {
+	for _, item := range items {
+		if strings.Contains(item, crlf) {
+			return true
+		}
+	}
+	return false
 }
 
 // dashedSequence answers a key's entries when its stored lines are a block of
@@ -438,7 +508,7 @@ func transformJournal(data []byte) newlineTransform {
 	if len(records) > 0 && records[len(records)-1] == "" {
 		records = records[:len(records)-1]
 	}
-	last := lastDecodableIndex(records)
+	final := lastRecordIndex(records)
 	var out strings.Builder
 	result := newlineTransform{}
 	for index, record := range records {
@@ -449,16 +519,15 @@ func transformJournal(data []byte) newlineTransform {
 			result.Loose += strings.Count(NormalizeNewlines(content+terminator), "\r")
 			continue
 		}
-		if index > last {
-			// The torn tail. Its bytes are copied exactly as ReadJournal
-			// reads past them.
+		if index == final && !decodesAsJSON(content) {
+			// The torn tail a crash left. Its bytes are copied exactly as
+			// ReadJournal reads past them.
 			out.WriteString(content)
 			out.WriteString(terminator)
 			result.Loose += strings.Count(content+terminator, "\r")
 			continue
 		}
-		var probe any
-		if err := json.Unmarshal([]byte(content), &probe); err != nil {
+		if !decodesAsJSON(content) {
 			return newlineTransform{Out: data, Condition: NewlineConflictUnsupported, Detail: "record " + strconv.Itoa(index+1)}
 		}
 		repaired, returns, loose, refusal := transformRecord(content)
@@ -492,21 +561,31 @@ func splitRecordTerminator(record string) (string, string) {
 	return content, "\n"
 }
 
-// lastDecodableIndex answers the index of the last record that decodes, so the
-// records after it are the torn tail a crash left and every record at or before
-// it is one this repair holds to the whole contract.
-func lastDecodableIndex(records []string) int {
+// lastRecordIndex answers the index of the final record a journal carries,
+// which is the one place a torn record is tolerated.
+//
+// A journal is appended to a line at a time, so a crash can tear the final line
+// and no other, which is what ReadJournal already tolerates by design and what
+// check.torn-journal carries its own repair for. A record that does not decode
+// anywhere else is a damaged store rather than a torn tail, and deciding what a
+// damaged record should become is a different piece of work from deciding what
+// a line ending should be.
+func lastRecordIndex(records []string) int {
 	for index := len(records) - 1; index >= 0; index-- {
 		content, _ := splitRecordTerminator(records[index])
-		if strings.TrimSpace(content) == "" {
-			continue
-		}
-		var probe any
-		if err := json.Unmarshal([]byte(content), &probe); err == nil {
+		if strings.TrimSpace(content) != "" {
 			return index
 		}
 	}
 	return -1
+}
+
+// decodesAsJSON reports whether one record is a JSON document this build can
+// read at all, which is the question that separates a torn record from a whole
+// one.
+func decodesAsJSON(content string) bool {
+	var probe any
+	return json.Unmarshal([]byte(content), &probe) == nil
 }
 
 // transformRecord rewrites one record's string literals, and answers the
