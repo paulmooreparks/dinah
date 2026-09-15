@@ -835,6 +835,55 @@ assert.deepEqual(raise.calls, [], "Raise spawned over a two-row selection");
 
 **Related:** "An absence assertion with no control that the thing ever existed" is the same zero misread, but there the fixture does drive the path and the code loses the subject upstream, so the tell sits in the code; here it sits in the driver's own inputs and the code is innocent. "A negative table row refused by a guard other than the one it is named for" covers the run that reaches a guard, just not the one the row is named for. "A test written against a refusal the build cannot reach" is the compile-time form of the same unreachability.
 
+## A permission test that seals the file, where the format document already says the directory governs
+
+Caught by continuous integration on dinah-514, 2026-09-15, after the same suite ran green on Windows. Two tests passed on `test (windows-latest)` and failed on `test (ubuntu-latest)` and `test (macos-latest)`, and the red was the honest answer: the write the tests expected to be refused had genuinely succeeded.
+
+Every write in this format is a temporary renamed over its target, so the right that governs a write is the right to replace a name. POSIX grants that right through the containing directory and says nothing about the mode of the file being replaced. Windows asks the file's own attribute instead. The two are exact mirror images, and `docs/design/format.md` states the rule in full, under the ordinal migration, along with the reason the tool checks no permission ahead of a write.
+
+The tell is a test that constructs "cannot be written" out of one platform's spelling. `os.Chmod(path, 0o444)` on the destination reads like the obvious way to make a file unwritable, and on Windows it is. On POSIX it changes nothing that matters, the write succeeds, and the assertion that a conflict was reported fails. Worse is the version that notices the failure and skips on POSIX, which converts a test that found three defects on that card into one that cannot fail on two of the three platforms it ships to.
+
+**Wrong.** Seal the file, on every platform, from the criterion's own literal wording.
+
+```go
+locked := dirty[0]
+if err := os.Chmod(locked, 0o444); err != nil {
+	t.Fatalf("chmod: %v", err)
+}
+t.Cleanup(func() { os.Chmod(locked, 0o644) })
+```
+
+**Right.** Seal whatever the platform says governs, in one helper that carries the rule and cites where it is written down, so every platform runs the case and none of them runs a vacuous one.
+
+```go
+// sealDestination makes one destination genuinely impossible to write, in the
+// way that is real on the platform the test runs on, and restores it when the
+// case ends.
+//
+// Windows and POSIX disagree about what governs replacing a file, and the
+// format document already says so, under the ordinal migration: every write in
+// this format is a temporary renamed over its target, so the right that governs
+// is the right to replace a name, POSIX grants that right through the
+// containing directory, and Windows asks the file's own attribute instead.
+func sealDestination(t *testing.T, path string) {
+	t.Helper()
+	target, sealed, open := path, os.FileMode(0o444), os.FileMode(0o644)
+	if runtime.GOOS != "windows" {
+		target, sealed, open = filepath.Dir(path), os.FileMode(0o555), os.FileMode(0o755)
+	}
+	if err := os.Chmod(target, sealed); err != nil {
+		t.Fatalf("seal %s: %v", target, err)
+	}
+	t.Cleanup(func() { os.Chmod(target, open) })
+}
+```
+
+**The test:** for any test that constructs a filesystem refusal, name the operation the code actually performs and ask which platform right governs that operation. Where the answer differs by platform, the helper carries the difference and every platform keeps running the case. The plant that settles it is to seal the wrong one of the two and require the case to go red; a case that stays green under the wrong seal was asserting nothing on that platform. Grep the format document before writing the rule down afresh, because a rule already stated there is a rule the reviewer will hold the test to.
+
+The same question reaches the implementation, and on this card it found a live defect. The repair took a per-file lock before reading, and read any failed acquisition as "another process holds this". On POSIX a sealed directory refuses the lock file first, so a permission failure was reported as a busy file, under the one condition the run is built to tolerate and retry. A reader would have been told to run the command again over a condition that running it again cannot clear. Distinguishing the refusal that means "held" from every other failure to acquire is the fix, and nothing on Windows could have shown it.
+
+**Related:** "A criterion whose fixture exercises nothing the ordinary fixture beside it does not" is the same vacuity arriving through the fixture rather than through the platform. The entry on a guard whose justification carried a false half past a second reader is the nearest instance of prose about permissions going unchecked.
+
 ## A source guard matching the spelling of the lookup that is there, saying nothing about the lookup that is not
 
 Caught twice on dinah-519, once by the implementer and once by Agent Code Review. The card deletes a composed page served for a checklist item, and part of its purpose is that the page cannot come back in disguise. A page is served by registering a renderer against a kind in a resolver table, so the guard has to establish that the served-text path consults exactly one such table. What shipped instead read the source of `extension.ts` for occurrences of `resolvers[...]` and asserted the set of hits.
@@ -908,6 +957,6 @@ Write the positive list, which is short and exact, and let the negative follow f
 
 Then give the escapes as demonstrated examples, each with a reproduction, and say what the list of them is worth. Six are on the record for this guard, and every one of the six was written into the source and run rather than argued from reading the collectors: a dispatch consulting no table at all, of the shape `if (parsed.kind === "item") { return renderItem(...); }`; a lookup two calls out, where a followed helper calls a second helper that holds the table; a lookup in a helper the module imports rather than declares, or obtains from a factory call, or binds through a cast or a `satisfies`, since none of those is an initializer the walk reads as a function; a lookup behind a call through a property access, whose callee carries no bare name to resolve; a second table read by computed destructuring, `const { [parsed.kind]: page } = itemPages;`, written into the site's own body; and `Reflect.get(itemPages, parsed.kind)`, which is a call but not a call through a property named `get`. That list is not known to be complete, and it must not be written as though it were. It records the shapes somebody has run. Nothing in it rules out a seventh, because the positive list above is a list of constructs and the language spells an indexed read in more ways than anybody here has enumerated.
 
-The count is where this goes wrong in practice. A sentence saying "four shapes fall outside" reads as an exhaustive partition, so a reader holding a fifth shape checks it against the four, finds no match, and concludes the guard sees it. Naming the shapes without a count, and saying outright that the list is open, costs one clause and closes that reading off. This entry's own first draft named one hole and implied the rest were covered, and its second named four and implied the same. Each was caught by the next reviewer with a plant from outside the count.
+The count is where this goes wrong in practice. A sentence saying "four shapes fall outside" reads as an exhaustive partition, so a reader holding a fifth shape checks it against the four, finds no match, and concludes the guard sees it. Naming the shapes without a count of what falls outside, and saying outright that the list is open, costs one clause and closes that reading off. A count of the runs on the record is a different number and stays, because it measures how much evidence there is rather than partitioning what escapes. This entry's own first draft named one hole and implied the rest were covered, and its second named four and implied the same. Each was caught by the next reviewer with a plant from outside the count.
 
 **Related:** "A universal claim generalised from the cases the reviewer named", in `convention-counterexamples-1.md`, is the general form of the two false sentences this entry kept producing, and its test applies here unchanged: for every universal quantifier, and a closed count is one, name the run that would falsify it before you write it. "A sweep bucketed by the preceding word, run over a tree whose identifiers are CamelCase" is the nearest neighbour on the guard itself, and it is a neighbour rather than the same entry: there the sweep reads the right construct and mis-tokenises it, here the sweep reads a spelling instead of a construct. "A walk that finds its target by asserting the top-level node, missing the same node nested inside a container" is the same failure inside an AST walk that is otherwise structural.

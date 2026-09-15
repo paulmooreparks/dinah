@@ -395,8 +395,8 @@ test("the served-text path dispatches through that one table and consults no sec
 	// arrow.
 	//
 	// Six escapes are on the record, every one of them written into
-	// extension.ts and run against this file on 2026-09-16 rather than
-	// argued from reading the walks. THIS LIST IS NOT KNOWN TO BE COMPLETE
+	// extension.ts and run against this file rather than argued from
+	// reading the walks. THIS LIST IS NOT KNOWN TO BE COMPLETE
 	// and must not be read as a partition of what escapes: it records the
 	// shapes somebody has actually run, and nothing here rules out a
 	// seventh, because the positive list is a list of constructs and the

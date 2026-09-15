@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 )
 
@@ -194,6 +195,7 @@ func AppendEvent(path string, ev Event) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
+	ev = normalizeEventText(ev)
 	line, err := json.Marshal(ev)
 	if err != nil {
 		return err
@@ -241,4 +243,50 @@ func ReadJournal(path string) ([]Event, bool, error) {
 		events = append(events, ev)
 	}
 	return events, torn, nil
+}
+
+// normalizeEventText answers the event with every string member normalised.
+// The walk is total rather than a list of the prose-bearing members, because
+// normalisation is a no-op on a timestamp, an event name and an identifier, so
+// totality costs nothing and removes a list that would go stale the next time
+// a member is added. It recurses into a nested struct so that a member which
+// later becomes one is covered without this function being revisited.
+//
+// The recursion is load-bearing rather than tidy. Actor is a struct of five
+// strings, so a walk over top-level string members alone would reach the
+// actor's name not at all, and the actor's name is on every line this journal
+// carries.
+//
+// A carriage return needs removing here rather than being left to the encoder,
+// because json.Marshal stores one as an escape: the NDJSON line structure
+// stays intact and the carriage return is stored anyway.
+func normalizeEventText(ev Event) Event {
+	value := reflect.ValueOf(&ev).Elem()
+	normalizeStringsIn(value)
+	return ev
+}
+
+// normalizeStringsIn normalises every settable string this value reaches, at
+// any depth, walking a struct's own fields and following a pointer and a slice
+// to whatever they hold. An unexported field is not settable, so it is passed
+// over rather than panicking the walk.
+func normalizeStringsIn(value reflect.Value) {
+	switch value.Kind() {
+	case reflect.String:
+		if value.CanSet() {
+			value.SetString(NormalizeNewlines(value.String()))
+		}
+	case reflect.Struct:
+		for i := 0; i < value.NumField(); i++ {
+			normalizeStringsIn(value.Field(i))
+		}
+	case reflect.Ptr, reflect.Interface:
+		if !value.IsNil() {
+			normalizeStringsIn(value.Elem())
+		}
+	case reflect.Slice, reflect.Array:
+		for i := 0; i < value.Len(); i++ {
+			normalizeStringsIn(value.Index(i))
+		}
+	}
 }
