@@ -111,19 +111,35 @@ func TestTheTransformIsTheDetectorOverARealPopulation(t *testing.T) {
 		if result := transformNewlines(path, data); !bytes.Equal(result.Out, data) {
 			changed[path] = true
 		}
-		if bytes.Contains(data, []byte("\r")) {
+		// The set to compare against is the files carrying a carriage return
+		// that STANDS FOR A LINE ENDING, read independently of the transform
+		// through the three stored forms. Comparing against every file
+		// carrying any carriage return at all was this case's claim when it
+		// was written, and it is not the claim the code should keep: a
+		// carriage return this format keeps is one the transform is required
+		// to leave, so such a file is correctly unchanged and the old
+		// comparison called that a defect. It passed only because the corpus
+		// carried no such file, which is the same easy-position avoidance this
+		// card has now found three times, so the corpus carries one
+		// deliberately.
+		if storedNewlineForm(string(data), path) != "" {
 			carrying[path] = true
 		}
 	}
-	t.Logf("the corpus carries %d files, of which %d are changed by their own transform and %d carry a carriage return", len(paths), len(changed), len(carrying))
+	t.Logf("the corpus carries %d files, of which %d are changed by their own transform and %d carry a stored line ending", len(paths), len(changed), len(carrying))
+	// Both sides have a member, so the equality below is a comparison rather
+	// than two empty sets agreeing.
+	if len(changed) == 0 || len(carrying) == 0 {
+		t.Error("one side of the equality is empty, so it is satisfied by carrying nothing rather than by agreeing")
+	}
 	for path := range changed {
 		if !carrying[path] {
-			t.Errorf("%s is changed by its own transform and carries no carriage return, so the detector produces a false destination", path)
+			t.Errorf("%s is changed by its own transform and carries no stored line ending, so the detector produces a false destination", path)
 		}
 	}
 	for path := range carrying {
 		if !changed[path] {
-			t.Errorf("%s carries a carriage return and its own transform leaves it alone", path)
+			t.Errorf("%s carries a stored line ending and its own transform leaves it alone", path)
 		}
 	}
 
@@ -168,6 +184,14 @@ func everyAnchorShape(t *testing.T) string {
 	write(t, filepath.Join(root, WorkstreamsDir, "f00000000001", JournalName), cleanJournal)
 	write(t, filepath.Join(root, JournalName), cleanJournal)
 	write(t, filepath.Join(root, "README.md"), "A note somebody dropped here.\n")
+	// Two notes the equality needs, one on each side of it. The first carries a
+	// carriage return this format keeps, so the transform must leave it and it
+	// must not be counted dirty; comparing against every file carrying any
+	// carriage return called exactly this file a defect. The second carries a
+	// real stored line ending, so both sets have a member and the equality is
+	// not satisfied by being empty on both sides.
+	write(t, filepath.Join(root, "LOOSE.md"), "A note carrying one\rinside a line.\n")
+	write(t, filepath.Join(root, "DIRTY.md"), "A note an editor wrote.\r\nWith two lines.\r\n")
 	return root
 }
 
@@ -1436,20 +1460,31 @@ func storedNewlineForm(text, name string) string {
 	return ""
 }
 
-// TestAnAnchorDinahWroteIsNeverCalledDamaged is the second major, and the
-// fourth route into the sentence defect.
+// TestAnAnchorDinahWroteIsNeverCalledDamaged holds the repair to never calling
+// a file the tool itself wrote damaged, and to never quietly improving one
+// either.
 //
 // A body whose final byte is a bare carriage return is something this format
 // keeps on purpose and something Dinah writes through its own comment verb.
 // ParseAnchor strips a trailing carriage return from the last line whether or
-// not a line feed follows it, so Render cannot put it back, and the gate,
-// comparing against NormalizeNewlines, read that as a file that does not parse.
-// The file bears a fixed anchor name, so it was refused as damaged, under a
-// detail blaming a header that was perfectly well formed, and the refusal
-// stopped every other file in the store from being repaired.
+// not a line feed follows it, so Render cannot put it back.
 //
-// The gate now compares against what the anchor reader itself yields, which is
-// the question it was always asking.
+// What the repair does about that now is keep the byte away from the reader:
+// the carriage returns at the very end of a file are set aside before the parse
+// and put back after the render, and the gate then compares the render against
+// the file's own normalised bytes, which is exact. A file Dinah wrote parses,
+// renders back to itself, and is left alone.
+//
+// Both wrong answers to it were shipped before that one, so this case asserts
+// against both. The gate first compared against the normalised bytes with the
+// byte still in them, so the parse looked unfaithful, and a file bearing a
+// fixed anchor name was refused as damaged under a detail blaming a header that
+// was perfectly well formed, which stopped every other file in the store from
+// being repaired. The gate was then widened to compare against what the anchor
+// reader yields, which asks whether the reader agrees with itself, so the
+// answer was always yes and the lossy render was written back: the byte was
+// deleted instead. A refusal and a deletion are the two halves of one mistake,
+// which is handing a byte to a reader that cannot carry it.
 func TestAnAnchorDinahWroteIsNeverCalledDamaged(t *testing.T) {
 	root := newlineFixture(t)
 	comment := filepath.Join(root, CardsDir, "c00000000001", CommentsDir, "m00000000001", CommentAnchor)

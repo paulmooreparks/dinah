@@ -428,15 +428,22 @@ func (b *Bench) newlineFiles() ([]string, error) {
 // damaged store rather than somebody's note, so it is refused. Everything else
 // takes the whole-file branch.
 //
+// That last claim is only true because of what the gate is asked of, and it was
+// false twice while it was not. The question is put to the normalised text with
+// the end-of-file carriage returns set aside, so a file this tool wrote parses
+// and is never refused; asked of the raw bytes it refused an anchor an editor
+// had doubled the line endings in, and asked with the tail still in it, it
+// refused a comment Dinah had just written.
+//
 // The gate is a round trip rather than a test of how the file starts, and the
 // difference is not cosmetic. A Markdown note whose first line is a horizontal
 // rule opens with a fence, and ParseAnchor then drops every header line that is
 // not a key, so such a note comes back with the prose between its first two
 // rules gone. Because the transform is also the detector, such a file would
 // select itself for repair and the confirmed run would write the mangled form.
-// The gate errs toward the whole-file branch, which can only reduce a CRLF pair
-// to LF and can never move a line, so a file it misroutes is under-repaired
-// rather than damaged.
+// The gate errs toward the whole-file branch, which can only reduce a run of
+// carriage returns that ends at a line feed and can never move a line or lose
+// one, so a file it misroutes is under-repaired rather than damaged.
 func transformNewlines(path string, data []byte) newlineTransform {
 	if filepath.Ext(path) == ".ndjson" {
 		return transformJournal(data)
@@ -861,10 +868,11 @@ func normalizeDecoded(value any) any {
 	return value
 }
 
-// newlineCounts renders the detail the two counting findings carry: what the
+// newlineCounts renders the detail the counting finding carries: what the
 // file's own transform would remove, and separately what it would leave alone.
 // The second number is legal and the first is not, which is why they are
-// reported apart rather than summed.
+// reported apart rather than summed, and why a file whose first number is zero
+// is not reported at all.
 func newlineCounts(result newlineTransform) string {
 	return strconv.Itoa(result.Returns) + " line-ending, " + strconv.Itoa(result.Loose) + " loose"
 }

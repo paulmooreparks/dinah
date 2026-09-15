@@ -92,9 +92,15 @@ func NormalizeNewlines(text string) string {
 	return out.String()
 }
 
-// crlf is the pair NormalizeNewlines reduces, named rather than spelled at each
-// use so that a reader meets the one place this file says what a line ending
-// the format forbids a writer to produce actually is.
+// crlf is the smallest run of carriage returns that ends at a line feed, which
+// makes it the cheap test for whether a text carries anything to reduce: every
+// longer run contains it, so a text not containing it has no line ending of the
+// kind this format forbids a writer to produce.
+//
+// It is not what NormalizeNewlines reduces. That is the whole run, and reducing
+// the pair instead is the defect this constant's own name is a reminder of: a
+// non-overlapping replacement of it leaves a fresh one behind. Nothing here
+// should replace this value; it is read, never written with.
 const crlf = "\r\n"
 
 // ReadText reads a text file, strips a byte-order mark and normalises its line
