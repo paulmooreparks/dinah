@@ -176,6 +176,7 @@ func TestAColumnMoveOnDiskReachesAnOpenDocument(t *testing.T) {
 	}
 
 	destination := f.bench.Columns[1]
+	tick.baseline(t)
 	refreshes := h.quiet(methodInlayHintRefresh)
 	changed := h.quiet(methodAnnotationsChanged)
 	f.run(t, "move", &verb.Request{Card: f.card, Column: destination.ID})
@@ -225,6 +226,7 @@ func TestAHandEditedColumnAnchorReachesAnOpenDocument(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read the column anchor: %v", err)
 	}
+	tick.baseline(t)
 	renamed := strings.Replace(string(raw), "title: "+column.Title, "title: "+column.Title+"RENAMED", 1)
 	if renamed == string(raw) {
 		t.Fatalf("the column anchor carries no title line to edit:\n%s", raw)
@@ -298,6 +300,7 @@ func TestAFailedReadNeverChangesWhatIsShown(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read: %v", err)
 	}
+	tick.baseline(t)
 	if err := os.Remove(anchor); err != nil {
 		t.Fatalf("remove the anchor: %v", err)
 	}
@@ -463,6 +466,7 @@ func TestTheRefreshDegradationIsReportedRatherThanSilent(t *testing.T) {
 			}
 			_ = card
 			h.openText(f.cardAnchor(f.other), "---\ntitle: A second card\nlinks:\n  - kind: relates_to\n    to: "+f.card+"\n---\n")
+			tick.baseline(t)
 			f.run(t, "move", &verb.Request{Card: f.card, Column: f.bench.Columns[1].ID})
 			tick.step(t)
 			h.await(methodAnnotationsChanged, 1)

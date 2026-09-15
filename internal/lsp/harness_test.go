@@ -465,6 +465,21 @@ func (c *ticker) takes(d time.Duration) {
 	c.walk = d
 }
 
+// baseline drives one whole walk, so the change cursor has been minted over
+// the workbench as it stands before the test edits it.
+//
+// The first checkpoint a server runs mints a cursor and reports nothing,
+// which is what a first call is specified to do. A test that edits the
+// workbench before that first walk has run therefore has its edit absorbed
+// into the baseline and never reported, and the tick it drives afterwards
+// finds nothing changed. Which of the two happened first is a race between
+// the poll goroutine, which starts at initialize, and the test. Driving one
+// walk first settles it rather than making the wrong order unlikely.
+func (c *ticker) baseline(t *testing.T) {
+	t.Helper()
+	c.step(t)
+}
+
 // step lets exactly one more walk run and returns once that walk has
 // finished, answering what the loop then slept for.
 //
