@@ -834,3 +834,47 @@ assert.deepEqual(raise.calls, [], "Raise spawned over a two-row selection");
 **The test:** for any assertion that a count is zero, walk the prompts between the entry point and the action and ask what the driver answered at each one. A prompt the driver never answered is an early return, and an early return makes the zero free. The plant that settles it is to leave the guard complaining and remove only its refusal, so the code says no and then does the thing. A plant that deletes the guard outright is weaker, because it can redden the error assertion while the spawn assertion stays untested.
 
 **Related:** "An absence assertion with no control that the thing ever existed" is the same zero misread, but there the fixture does drive the path and the code loses the subject upstream, so the tell sits in the code; here it sits in the driver's own inputs and the code is innocent. "A negative table row refused by a guard other than the one it is named for" covers the run that reaches a guard, just not the one the row is named for. "A test written against a refusal the build cannot reach" is the compile-time form of the same unreachability.
+
+## A source guard matching the spelling of the lookup that is there, saying nothing about the lookup that is not
+
+Caught twice on dinah-519, once by the implementer and once by Agent Code Review. The card deletes a composed page served for a checklist item, and part of its purpose is that the page cannot come back in disguise. A page is served by registering a renderer against a kind in a resolver table, so the guard has to establish that the served-text path consults exactly one such table. What shipped instead read the source of `extension.ts` for occurrences of `resolvers[...]` and asserted the set of hits.
+
+A regular expression over a lookup finds copies of that lookup. It cannot see a lookup written against something else, which is the only way the defect ever arrives: an implementer restoring the page does not rename the table that is already there, they add a second one beside it. The reviewer wrote that second table into `provideTextDocumentContent`, ahead of the surviving lookup, and the whole suite stayed green.
+
+**Wrong.** The set of spellings, matched as text.
+
+```ts
+const source = readFileSync(join(__dirname, "..", "..", "..", "src", "extension.ts"), "utf8");
+const lookups = [...source.matchAll(/resolvers\[[a-zA-Z.]+\]/g)].map((hit) => hit[0]);
+assert.deepEqual(
+	[...new Set(lookups)].sort(),
+	["resolvers[kind]", "resolvers[parsed.kind]"],
+	`the resolver table is read from an unexpected site: ${lookups.join(", ")}`,
+);
+```
+
+**Right.** Find the construct the behaviour actually hangs from, then read what it does. The served-text path is the two function bodies the platform and the refresh loop call, located by the registration that installs each. Inside each one, collect every lookup keyed by a value rather than by a literal, in both spellings a table can be consulted by, and assert that the thing being looked up in is always the one table.
+
+```ts
+const sites = servedTextSites(file);
+assert.deepEqual(
+	[...sites.keys()].sort(),
+	["provideTextDocumentContent", "refreshLoop.resolve"],
+	"the walk did not find both served-text sites, so it read nothing it claims to read",
+);
+for (const [name, site] of sites) {
+	const lookups = keyedLookupsIn(site);
+	assert.ok(lookups.length > 0, `${name} performs no keyed lookup at all, so this walk read nothing`);
+	assert.deepEqual(
+		[...new Set(lookups)].sort(),
+		["resolvers"],
+		`${name} consults a registry other than resolvers: ${lookups.join(", ")}`,
+	);
+}
+```
+
+**The test:** read the assertion and ask what it does when the defect is spelled a way the author did not picture. A guard naming the good value can only report that the good value is still present, and presence is not exclusivity. Turn the question round so the guard enumerates what is there and holds the whole enumeration against an expected set, which makes an unforeseen spelling an extra member rather than a miss. The plant that settles it is the defect itself: add the second table, consult it ahead of the first, and watch the guard name it. Widening the pattern to cover the plant is the wrong repair and this project has paid for it twice, because the widened pattern fits its examples and nothing else.
+
+**What such a guard still cannot see, and saying so.** Reading lookups leaves a page served from a hand-written branch that consults no table at all. Where that hole exists, write it into the guard's own comment with the reproduction that walks through it, rather than leaving a later reader to infer a reach the code does not have. A guard that cannot see something is worse than no guard while it reads as though it can.
+
+**Related:** "A sweep bucketed by the preceding word, run over a tree whose identifiers are CamelCase" is the nearest neighbour, and it is a neighbour rather than the same entry: there the sweep reads the right construct and mis-tokenises it, here the sweep reads a spelling instead of a construct. "A walk that finds its target by asserting the top-level node, missing the same node nested inside a container" is the same failure inside an AST walk that is otherwise structural.

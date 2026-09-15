@@ -235,7 +235,14 @@ test("no other row kind is draggable", () => {
 			memberKind: "attachment",
 			members: [],
 		},
-		{ kind: "attachment", row: owner, root: ROOT, owner: "tr-4", view: attachment() },
+		{
+			kind: "attachment",
+			row: owner,
+			root: ROOT,
+			owner: "tr-4",
+			node: { kind: "attachment", ref: "tr-4/attachments/1", count: 0 },
+			view: attachment(),
+		},
 	];
 	for (const element of kinds) {
 		// dinah-490 carries such a row rather than dropping it, so the drop can
@@ -285,7 +292,14 @@ test("a drag starting on a row that is not a card sets no mime entry", () => {
 		{ kind: "column", row: owner, node: { kind: "column", count: 0 }, view: column("c-doing") },
 		{ kind: "group", row: owner, node: { kind: "group", count: 0 }, column: column("c-doing") },
 		{ kind: "root", row: owner },
-		{ kind: "attachment", row: owner, root: ROOT, owner: "tr-4", view: attachment() },
+		{
+			kind: "attachment",
+			row: owner,
+			root: ROOT,
+			owner: "tr-4",
+			node: { kind: "attachment", ref: "tr-4/attachments/1", count: 0 },
+			view: attachment(),
+		},
 	];
 	for (const element of kinds) {
 		const sets: string[] = [];
@@ -346,7 +360,14 @@ test("a row naming no column resolves to nothing", () => {
 			memberKind: "attachment",
 			members: [],
 		},
-		{ kind: "attachment", row: owner, root: ROOT, owner: "tr-4", view: attachment() },
+		{
+			kind: "attachment",
+			row: owner,
+			root: ROOT,
+			owner: "tr-4",
+			node: { kind: "attachment", ref: "tr-4/attachments/1", count: 0 },
+			view: attachment(),
+		},
 		// The status/tree join missed this column, so the row carries no view.
 		{ kind: "column", row: owner, node: { kind: "column", count: 0 } },
 		// The join found the column, but the workbench itself did not resolve.

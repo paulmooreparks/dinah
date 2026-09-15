@@ -1287,8 +1287,8 @@ function carryingChildren(
 
 /** The same attachment element with the payload path replaced. */
 function withPath(element: TreeElement, path: string | undefined): TreeElement {
-	if (element.kind !== "attachment") {
-		throw new Error("the fixture element is not an attachment");
+	if (element.kind !== "attachment" || element.view === undefined) {
+		throw new Error("the fixture element is not an attachment the listing answered for");
 	}
 	return { ...element, view: { ...element.view, path } };
 }

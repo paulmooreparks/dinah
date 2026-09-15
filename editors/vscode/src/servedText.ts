@@ -351,12 +351,6 @@ export function renderHistoryMarkdown(
 		.join("\n");
 }
 
-/** The card a checklist item hangs from, which is its ref up to the first slash. */
-export function cardRefOf(itemRef: string): string {
-	const cut = itemRef.indexOf("/");
-	return cut < 0 ? itemRef : itemRef.slice(0, cut);
-}
-
 /** What the refresh loop needs in order to run. */
 export interface ServedTextRefreshDeps {
 	/** The same Clock the checkpoint loop takes, injected for the same reason. */

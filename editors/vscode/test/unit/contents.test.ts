@@ -17,6 +17,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+import { contextForAttachmentOpen } from "../../src/cardCommands";
 import type { Spawner } from "../../src/cli";
 import { ENGLISH } from "../../src/l10n";
 import type { Localizer } from "../../src/l10n";
@@ -222,9 +223,10 @@ test("a card's children come from the grammar and not from its published counts"
 		[undefined, "2"],
 	);
 
-	// The request, and not only the answer. Exactly one argv, and it carries
-	// the depth that answers below a card: a build asking at the default depth
-	// is correct for a card row and silently empty below one.
+	// This checks what was asked as well as what came back. Exactly one argv
+	// is spawned, and it carries the depth that answers below a card, because
+	// a build asking at the default depth is correct for a card row and
+	// silently empty below one.
 	assert.equal(calls.length, 1, `the card's expansion spawned ${String(calls.length)} calls`);
 	assert.deepEqual(calls[0], pinned("contents", "wb-1", "--depth", "all"));
 });
@@ -353,9 +355,11 @@ test("commentLabel takes the opening words and strips exactly one construct", ()
 test("every comment row draws the comment icon, whoever wrote it", () => {
 	// The operator withdrew the icon distinction on 2026-09-15, and this is
 	// what stops it coming back from an earlier draft of the contract. The
-	// fixture is the one the withdrawn criterion used, with the workbench's
-	// operator and this window's actor deliberately different, so a build
-	// reading either of them to mark a row fails here.
+	// fixture sets this window's actor to somebody other than the comment's
+	// author, so a build rebuilding the distinction off `data.actor` fails
+	// here. It spreads an `operator` property too, which WorkbenchData
+	// declares no member for and which is therefore typed away and inert; the
+	// operator half of the distinction is guarded by nothing here.
 	const row = rootRow();
 	const data = { ...row.data!, operator: "paul", actor: "claude", isOperator: false };
 	const owner = { ...row, data };
@@ -934,6 +938,91 @@ test("an attachment collection asks against its own holder, at every holder the 
 		assert.equal(drawn.length, 1);
 		assert.equal(treeItemFor(drawn[0], ENGLISH).label, "shot.png");
 	}
+});
+
+test("a refused attachments call still draws every member row, losing only what the listing supplied", async () => {
+	// The blocker Agent Code Review caught on 2026-09-15. The rows used to be
+	// dropped outright on a refusal, so a collection row reading "Attachments
+	// 3" expanded onto nothing and the only trace was a line in a channel
+	// nobody has open. Section 4.3 of the contract admits no such exception: a
+	// row loses what the view supplied and nothing else.
+	//
+	// What the view supplied here is the filename, the description, the
+	// tooltip, the icon, the open command and the delete menu. What survives
+	// is the contents node's own title, which is the attachment's description,
+	// and the fixture gives the two members different titles so a build
+	// labelling every degraded row the same way fails.
+	const members = [
+		node("attachment", "wb-1/attachments/1", "The specification"),
+		node("attachment", "wb-1/attachments/2", "The review transcript"),
+	];
+	const logged: string[] = [];
+	const children = await providerOver(stub({}).spawner, logged).getChildren({
+		kind: "collection",
+		row: rootRow(),
+		root: ROOT,
+		holder: "wb-1",
+		holderKind: "card",
+		memberKind: "attachment",
+		members,
+	});
+
+	assert.deepEqual(
+		children.map((child) => child.kind),
+		["attachment", "attachment"],
+	);
+	assert.deepEqual(
+		children.map((child) => treeItemFor(child, ENGLISH).label),
+		["The specification", "The review transcript"],
+	);
+	for (const child of children) {
+		const drawn = treeItemFor(child, ENGLISH);
+		assert.equal(drawn.description, undefined);
+		assert.equal(drawn.tooltip, undefined);
+		assert.equal(drawn.icon, undefined);
+		// No command and no menu, because both address the attachment by an
+		// identifier only the listing carries.
+		assert.equal(drawn.command, undefined);
+		assert.equal(drawn.contextValue, undefined);
+	}
+	assert.equal(contextForAttachmentOpen(children[0]), undefined);
+	assert.ok(
+		logged.includes(ENGLISH("tree.attachments.unreadable")),
+		`the refusal never reached the channel: ${logged.join(" | ")}`,
+	);
+});
+
+test("the comments diagnostic is written on a refusal and withheld where nothing was read", async () => {
+	// readComments answers absent for two unrelated situations, and only one
+	// of them is a failure. A card's detail call can be refused, and that is
+	// worth a line in the channel. A column has no structured reader at all,
+	// so no call is made, and a line there would report a read failure for a
+	// read that never happened. Today only the first is reachable; the day
+	// dinah-518 gives a column comments the second is every expansion of a
+	// column thread.
+	const refused: string[] = [];
+	await providerOver(stub({}).spawner, refused).getChildren(
+		commentCollection("wb-1", "card", [node("comment", "wb-1/comments/1", "A thought")]),
+	);
+	assert.ok(
+		refused.includes(ENGLISH("tree.comments.unreadable")),
+		`a refused detail call said nothing: ${refused.join(" | ")}`,
+	);
+
+	const unasked: string[] = [];
+	const columnStub = stub({});
+	const drawn = await providerOver(columnStub.spawner, unasked).getChildren(
+		commentCollection("doing", "column", [node("comment", "doing/comments/1", "A notice")]),
+	);
+	// The control: the rows really did draw, so the absent line is the
+	// diagnostic being withheld rather than the expansion never happening.
+	assert.equal(drawn.length, 1);
+	assert.deepEqual(columnStub.calls, []);
+	assert.deepEqual(
+		unasked.filter((line) => line === ENGLISH("tree.comments.unreadable")),
+		[],
+		`a read that was never made reported a failure: ${unasked.join(" | ")}`,
+	);
 });
 
 // ---------------------------------------------------------------------------

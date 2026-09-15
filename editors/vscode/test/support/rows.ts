@@ -112,7 +112,14 @@ export function attachmentRowFor(
 		provenance: "import",
 		path: `${root}/attachments/${filename}`,
 	};
-	return { kind: "attachment", row: rootRow(root), root, owner: "tr-1", view };
+	return {
+		kind: "attachment",
+		row: rootRow(root),
+		root,
+		owner: "tr-1",
+		node: { kind: "attachment", ref: view.ref, title: filename, count: 0 },
+		view,
+	};
 }
 
 /** One checklist item, as `show <card> --fields card,checklist` reports it. */

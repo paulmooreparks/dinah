@@ -28,7 +28,6 @@ import {
 import { ENGLISH } from "../../src/l10n";
 import type { Localizer } from "../../src/l10n";
 import { columnPickItems, kindPickItems } from "../../src/itemCommands";
-import { cardRefOf } from "../../src/servedText";
 import type {
 	CardStanding,
 	HoldDirection,
@@ -171,11 +170,6 @@ test("a card carrying nothing at all still draws no arrow", async () => {
 		column: columnView(),
 	};
 	assert.equal(treeItemFor(element, ENGLISH).collapsibleState, "none");
-});
-
-test("cardRefOf takes the reference up to its first slash, and leaves a bare card alone", () => {
-	assert.equal(cardRefOf("dinah-506/questions/1"), "dinah-506");
-	assert.equal(cardRefOf("dinah-506"), "dinah-506");
 });
 
 // ---------------------------------------------------------------------------

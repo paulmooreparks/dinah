@@ -369,7 +369,10 @@ export type TreeElement =
 			 * later call can resolve.
 			 */
 			readonly owner: string;
-			readonly view: AttachmentView;
+			/** The `contents` node, which carries the ref and the title below. */
+			readonly node: TreeNode;
+			/** The joined view, absent when the listing call did not answer. */
+			readonly view?: AttachmentView;
 	  }
 	| {
 			readonly kind: "item";
@@ -441,7 +444,7 @@ function keyPartsOf(element: TreeElement): readonly (string | undefined)[] {
 		case "collection":
 			return [element.root, element.holder, element.memberKind];
 		case "attachment":
-			return [element.root, element.owner, element.view.id];
+			return [element.root, element.owner, element.view?.id ?? element.node.ref];
 		case "comment":
 		case "entity":
 			return [element.root, element.node.ref];
@@ -1580,6 +1583,18 @@ export function treeItemFor(
 		}
 		case "attachment": {
 			const view = element.view;
+			if (view === undefined) {
+				// The listing did not answer for this member. The filename,
+				// the description, the tooltip, the icon and the open command
+				// are all composed out of an AttachmentView, so the row keeps
+				// the contents node's title and loses every one of them. No
+				// contextValue either, because the delete verb addresses the
+				// attachment by an identifier only the listing carries.
+				return {
+					label: element.node.title ?? element.node.ref ?? "",
+					collapsibleState: "none",
+				};
+			}
 			const openable = view.path !== undefined && view.path !== "";
 			const tooltip = [
 				view.filename,
@@ -2066,7 +2081,21 @@ export async function readContents(
  * out of the shape of the reference. Reading a reference's shape is the
  * extension restating the containment grammar, which is the shape this whole
  * design refuses.
+ *
+ * Three answers rather than two, because a refusal and an unasked question are
+ * different events and only the first of them is worth telling a reader about.
+ * A single absent answer conflated them, and the day a column's comments reach
+ * the grammar every expansion of a column thread would have written a read
+ * failure to the channel for a read that never happened.
  */
+export type CommentsRead =
+	/** The call was made and answered. */
+	| { readonly kind: "answered"; readonly views: readonly CommentView[] }
+	/** The call was made and refused. */
+	| { readonly kind: "refused" }
+	/** No call was made, because this holder kind has no structured reader. */
+	| { readonly kind: "unasked" };
+
 export async function readComments(
 	spawner: Spawner,
 	exe: string,
@@ -2074,7 +2103,7 @@ export async function readComments(
 	holder: string,
 	holderKind: TreeElement["kind"],
 	log: (line: string) => void,
-): Promise<readonly CommentView[] | undefined> {
+): Promise<CommentsRead> {
 	const args =
 		holderKind === "card"
 			? ["show", holder, "--fields", "comments"]
@@ -2082,14 +2111,17 @@ export async function readComments(
 				? ["show", holder]
 				: undefined;
 	if (args === undefined) {
-		return undefined;
+		return { kind: "unasked" };
 	}
 	const outcome = await runDinah(spawner, exe, pinned(root, args), { cwd: root });
 	if (outcome.kind !== "ok") {
 		log(`dinah ${args.join(" ")} at ${root}: ${outcome.kind}`);
-		return undefined;
+		return { kind: "refused" };
 	}
-	return (outcome.json as { comments?: readonly CommentView[] }).comments ?? [];
+	return {
+		kind: "answered",
+		views: (outcome.json as { comments?: readonly CommentView[] }).comments ?? [],
+	};
 }
 
 /**
@@ -2832,7 +2864,7 @@ export class DinahTreeProvider {
 		element: Extract<TreeElement, { kind: "collection" }>,
 		members: readonly TreeNode[],
 	): Promise<TreeElement[]> {
-		const views = await readComments(
+		const read = await readComments(
 			this.deps.spawner,
 			this.deps.exe,
 			element.root,
@@ -2840,16 +2872,20 @@ export class DinahTreeProvider {
 			element.holderKind,
 			this.deps.log,
 		);
-		if (views === undefined) {
+		if (read.kind === "refused") {
 			// The rows are drawn from the grammar's own nodes and nothing is
 			// appended to say so, because a note row here would stand where a
 			// comment belongs and take a row the design does not have. The
 			// sentence goes to the output channel instead, which is where a
 			// reader who wants to know why a row is bare looks.
+			//
+			// Only on a refusal. A holder kind with no structured reader was
+			// never asked, so there is no failure to report and a sentence
+			// here would be a false one.
 			const t = this.deps.t ?? ENGLISH;
 			this.deps.log(t("tree.comments.unreadable"));
 		}
-		const byRef = indexByRef(views);
+		const byRef = indexByRef(read.kind === "answered" ? read.views : undefined);
 		return members.map((node) => ({
 			kind: "comment" as const,
 			row: element.row,
@@ -2909,25 +2945,22 @@ export class DinahTreeProvider {
 		}
 		const byRef = indexByRef(listing?.attachments);
 		const owner = listing?.ref ?? element.holder;
-		const rows: TreeElement[] = [];
-		for (const node of members) {
-			const view = byRef.get(node.ref ?? "");
-			// An attachment row is drawn out of its AttachmentView alone: the
-			// filename, the description and the payload path all ride it, and
-			// the contents node carries none of them. A member the listing did
-			// not answer for is therefore the one row this design cannot draw
-			// in the degraded form.
-			if (view !== undefined) {
-				rows.push({
-					kind: "attachment" as const,
-					row: element.row,
-					root: element.root,
-					owner,
-					view,
-				});
-			}
-		}
-		return rows;
+		// Every member draws, whether or not the listing answered for it. The
+		// filename, the description and the payload path ride the
+		// AttachmentView, so a member the listing missed loses those three;
+		// what it keeps is the contents node's own title, which is the
+		// attachment's description, on the same terms the comment and item
+		// arms already degrade. A row the reader can see is what a refusal
+		// owes them: dropping the row leaves the collection's own count
+		// promising members that open onto nothing (dinah-519 section 4.3).
+		return members.map((node) => ({
+			kind: "attachment" as const,
+			row: element.row,
+			root: element.root,
+			owner,
+			node,
+			view: byRef.get(node.ref ?? ""),
+		}));
 	}
 
 	/** Resolves a candidate row on its first expansion and no time after. */

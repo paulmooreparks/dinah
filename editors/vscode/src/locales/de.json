@@ -662,7 +662,7 @@
 		},
 		"item.kind.criterion": {
 			"text": "Abnahmekriterium",
-			"context": "The word for an item of kind acceptance_criterion. The same word on the tree row, in the item document and in the filing form, so a reader meets one name for one thing.",
+			"context": "The word for an item of kind acceptance_criterion. The same word on the tree row and in the filing form, so a reader meets one name for one thing.",
 			"source": "7468cc87ac6f9265"
 		},
 		"item.kind.question": {
@@ -727,7 +727,7 @@
 		},
 		"item.owner": {
 			"text": "Akteur:",
-			"context": "The label before an item's owner, on the tree row's tooltip and in the item document. It is drawn only where the item records one.",
+			"context": "The label before an item's owner, on the tree row's tooltip. It is drawn only where the item records one.",
 			"source": "db88e7d2b9a06bea"
 		},
 		"item.note": {

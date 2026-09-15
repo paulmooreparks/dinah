@@ -210,22 +210,144 @@ test("no served-text kind is registered for an item or for a comment", () => {
 	assert.deepEqual([...kinds].sort(), ["guide", "history", "instructions"]);
 });
 
-test("the refresh loop resolves through that one table and holds no second registry", () => {
-	// The refresh loop reads a kind and asks the same resolvers object for it,
-	// so the key set above is the whole of what any served-text surface can be
-	// keyed by. registeredKinds refuses a second declaration of the table
-	// outright; this names the two sites that read it, so a lookup against
-	// some other map is visible here rather than making the key set partial.
-	const source = readFileSync(
-		join(__dirname, "..", "..", "..", "src", "extension.ts"),
-		"utf8",
+/**
+ * The two function bodies that serve text, found by the construct that
+ * registers each rather than by their position in the file.
+ *
+ * `provideTextDocumentContent` is the property VS Code calls to fill a served
+ * document, and the `resolve` property of the ServedTextRefreshLoop argument
+ * is what the poll calls to refetch one. Between them they are the whole of
+ * the served-text path: no third caller can serve a document without
+ * registering itself through one of these two constructs.
+ */
+function servedTextSites(file: ts.SourceFile): Map<string, ts.Node> {
+	const sites = new Map<string, ts.Node>();
+	const propertyOf = (argument: ts.Expression, name: string): ts.Node | undefined => {
+		if (!ts.isObjectLiteralExpression(argument)) {
+			return undefined;
+		}
+		for (const property of argument.properties) {
+			if (
+				(ts.isPropertyAssignment(property) || ts.isMethodDeclaration(property)) &&
+				property.name !== undefined &&
+				(ts.isIdentifier(property.name) || ts.isStringLiteral(property.name)) &&
+				property.name.text === name
+			) {
+				return property;
+			}
+		}
+		return undefined;
+	};
+	const find = (node: ts.Node): void => {
+		if (
+			ts.isCallExpression(node) &&
+			ts.isPropertyAccessExpression(node.expression) &&
+			node.expression.name.text === "registerTextDocumentContentProvider" &&
+			node.arguments.length >= 2
+		) {
+			const site = propertyOf(node.arguments[1], "provideTextDocumentContent");
+			assert.notEqual(site, undefined, "the content provider declares no provideTextDocumentContent");
+			assert.equal(sites.has("provideTextDocumentContent"), false, "extension.ts registers more than one served-text content provider");
+			sites.set("provideTextDocumentContent", site as ts.Node);
+		}
+		if (
+			ts.isNewExpression(node) &&
+			ts.isIdentifier(node.expression) &&
+			node.expression.text === "ServedTextRefreshLoop" &&
+			node.arguments !== undefined &&
+			node.arguments.length >= 1
+		) {
+			const site = propertyOf(node.arguments[0], "resolve");
+			assert.notEqual(site, undefined, "the refresh loop is constructed with no resolve");
+			assert.equal(sites.has("refreshLoop.resolve"), false, "extension.ts constructs more than one ServedTextRefreshLoop");
+			sites.set("refreshLoop.resolve", site as ts.Node);
+		}
+		ts.forEachChild(node, find);
+	};
+	find(file);
+	return sites;
+}
+
+/**
+ * Every lookup keyed by a value inside one served-text site, reported as the
+ * text of the thing being looked up in.
+ *
+ * Both spellings a table can be consulted by are collected: the subscript
+ * `table[kind]` and the map call `table.get(kind)`. A lookup whose key is a
+ * string or numeric literal is not a kind-keyed dispatch and is skipped, which
+ * is what keeps an ordinary array index out of the answer.
+ */
+function keyedLookupsIn(site: ts.Node): string[] {
+	const found: string[] = [];
+	const walk = (node: ts.Node): void => {
+		if (ts.isElementAccessExpression(node)) {
+			const key = node.argumentExpression;
+			if (!ts.isStringLiteral(key) && !ts.isNumericLiteral(key)) {
+				found.push(node.expression.getText());
+			}
+		}
+		if (
+			ts.isCallExpression(node) &&
+			ts.isPropertyAccessExpression(node.expression) &&
+			node.expression.name.text === "get" &&
+			node.arguments.length === 1
+		) {
+			found.push(node.expression.expression.getText());
+		}
+		ts.forEachChild(node, walk);
+	};
+	walk(site);
+	return found;
+}
+
+test("the served-text path dispatches through that one table and consults no second registry", () => {
+	// This is the structural form of the claim, and it replaces a regular
+	// expression over `resolvers[...]` sites that a reviewer defeated on
+	// 2026-09-15 by writing a second table named itemPages beside the first,
+	// consulted ahead of the resolvers lookup and serving a composed page for
+	// kind item. Matching the spelling of the lookup that is there says
+	// nothing about a lookup that is not.
+	//
+	// What is asserted instead is the shape: the served-text path is exactly
+	// the two function bodies VS Code and the refresh loop call, and inside
+	// each of them every value-keyed lookup is against `resolvers` and
+	// nothing else. A second table has to be consulted to be reached, so the
+	// consultation is what this reads.
+	//
+	// WHAT THIS GUARD DOES NOT SEE, stated plainly because a guard that
+	// cannot see something is worse than useless while it reads as though it
+	// can. It reads lookups, so it does not see a page served from a hand
+	// written branch that consults no table at all, of the shape
+	// `if (parsed.kind === "item") { return renderItem(...); }` written
+	// directly into provideTextDocumentContent. Nothing here refuses that.
+	// What refuses it is the other half of this pair: such a branch serves a
+	// kind, and a served kind has to be reachable from a URI the tree
+	// composes, which is why openItem's own registration and the absence of
+	// every item.document.* catalogue key are pinned separately. The
+	// reproduction, for anybody who wants to watch the hole: paste that
+	// branch above the resolve lookup and watch this file stay green.
+	const extensionSource = join(__dirname, "..", "..", "..", "src", "extension.ts");
+	const file = ts.createSourceFile(
+		extensionSource,
+		readFileSync(extensionSource, "utf8"),
+		ts.ScriptTarget.Latest,
+		true,
 	);
-	const lookups = [...source.matchAll(/resolvers\[[a-zA-Z.]+\]/g)].map((hit) => hit[0]);
+	const sites = servedTextSites(file);
 	assert.deepEqual(
-		[...new Set(lookups)].sort(),
-		["resolvers[kind]", "resolvers[parsed.kind]"],
-		`the resolver table is read from an unexpected site: ${lookups.join(", ")}`,
+		[...sites.keys()].sort(),
+		["provideTextDocumentContent", "refreshLoop.resolve"],
+		"the walk did not find both served-text sites, so it read nothing it claims to read",
 	);
+	for (const [name, site] of sites) {
+		const lookups = keyedLookupsIn(site);
+		assert.ok(lookups.length > 0, `${name} performs no keyed lookup at all, so this walk read nothing`);
+		assert.deepEqual(
+			[...new Set(lookups)].sort(),
+			["resolvers"],
+			`${name} consults a registry other than resolvers: ${lookups.join(", ")}`,
+		);
+	}
 });
 
 test("no module under src/ renders a composed page for an item", () => {
