@@ -272,10 +272,13 @@ function servedTextSites(file: ts.SourceFile): Map<string, ts.Node> {
  * Every lookup keyed by a value inside one served-text site, reported as the
  * text of the thing being looked up in.
  *
- * Both spellings a table can be consulted by are collected: the subscript
- * `table[kind]` and the map call `table.get(kind)`. A lookup whose key is a
- * string or numeric literal is not a kind-keyed dispatch and is skipped, which
- * is what keeps an ordinary array index out of the answer.
+ * Two spellings are collected and no others: the subscript `table[kind]` and
+ * the one-argument map call `table.get(kind)`. A lookup whose key is a string
+ * or numeric literal is not a kind-keyed dispatch and is skipped, which is
+ * what keeps an ordinary array index out of the answer. Every other way of
+ * reading a value out of a table is invisible here, a computed property in an
+ * object binding pattern and `Reflect.get` among them, and the test's own
+ * comment carries the list of escapes and says that list is open.
  */
 function keyedLookupsIn(site: ts.Node): string[] {
 	const found: string[] = [];
@@ -305,10 +308,13 @@ function keyedLookupsIn(site: ts.Node): string[] {
  * reach it under.
  *
  * Two declaration shapes are collected, because both are ordinary here: a
- * `function` declaration with a name, and a `const` bound to a function
- * expression or an arrow. A binding whose initializer is anything else, a
- * factory call among them, is not a function this walk can follow, so it is
- * left out rather than recorded under a body it does not have.
+ * `function` declaration with a name, and a `const` bound directly to a
+ * function expression or an arrow. A binding whose initializer is anything
+ * else is not a function this walk can follow, so it is left out rather than
+ * recorded under a body it does not have. "Anything else" includes a factory
+ * call, and it also includes the same arrow wrapped in an `as` cast, a
+ * `satisfies`, or parentheses, which look like declarations to a reader and
+ * are not initializers this walk reads as functions.
  */
 function moduleFunctions(file: ts.SourceFile): Map<string, ts.Node> {
 	const declared = new Map<string, ts.Node>();
@@ -372,29 +378,59 @@ test("the served-text path dispatches through that one table and consults no sec
 	//
 	// WHAT THIS GUARD DOES NOT SEE, stated plainly because a guard that
 	// cannot see something is worse than useless while it reads as though it
-	// can. Its limit is the region it reads, not the spelling of what it
-	// finds there, and four shapes fall outside that region.
+	// can. Two bounds hold it, distance and spelling, and both are real.
+	// Distance is the region described above. Spelling is the closed list of
+	// syntactic constructs the three walks recognise, and every other way of
+	// writing the same operation escapes them wherever it sits, inside the
+	// region as much as outside it.
 	//
-	//   1. A dispatch that consults no table at all, of the shape
-	//      `if (parsed.kind === "item") { return renderItem(...); }` written
-	//      into either site. It reads lookups, and that is not one.
-	//   2. A lookup two calls out, where a followed helper calls a second
-	//      helper that holds the table.
-	//   3. A lookup in a helper extension.ts imports rather than declares,
-	//      or in one it obtains from a factory call, since neither has a
-	//      body this file can read.
-	//   4. A lookup behind a call through a property access, `host.serve(k)`,
-	//      whose callee carries no bare name to resolve.
+	// The positive list is short and exact, so read it as the statement of
+	// reach and read the shapes below as illustration. keyedLookupsIn
+	// collects an element access whose key is not a string or numeric
+	// literal, and a one-argument call through a property named `get`.
+	// directCalleesIn collects a call whose callee is a bare identifier, and
+	// the walk follows such a call exactly one step. moduleFunctions
+	// resolves that name only against a named `function` declaration or a
+	// variable whose initializer is directly a function expression or an
+	// arrow.
 	//
-	// What refuses those four is the other half of this pair, and it refuses
-	// them by a different route: any of them serves a kind, and a served kind
-	// has to be reachable from a URI the tree composes, which is why
-	// openItem's own registration and the absence of every item.document.*
-	// catalogue key are pinned separately. The reproductions, for anybody who
-	// wants to watch the holes: paste the branch of 1 above the resolve
-	// lookup, or write the module-scope helper of the 2026-09-15 defeat and
-	// put a third helper between it and the table, and watch this file stay
-	// green either way.
+	// Six escapes are on the record, every one of them written into
+	// extension.ts and run against this file on 2026-09-16 rather than
+	// argued from reading the walks. THIS LIST IS NOT KNOWN TO BE COMPLETE
+	// and must not be read as a partition of what escapes: it records the
+	// shapes somebody has actually run, and nothing here rules out a
+	// seventh, because the positive list is a list of constructs and the
+	// language spells an indexed read in more ways than anybody has
+	// enumerated here. Each entry carries its reproduction.
+	//
+	//   - A dispatch that consults no table at all, of the shape
+	//     `if (parsed.kind === "item") { return renderItem(...); }` written
+	//     into either site. The walk reads lookups, and that is not one.
+	//   - A lookup two calls out, where a followed helper calls a second
+	//     helper that holds the table. Write the module-scope helper of the
+	//     2026-09-15 defeat and put a third helper between it and the table.
+	//   - A lookup in a helper extension.ts imports rather than declares, or
+	//     obtains from a factory call, or binds through an `as` cast or a
+	//     `satisfies`, since none of those is an initializer moduleFunctions
+	//     reads as a function.
+	//   - A lookup behind a call through a property access, `host.serve(k)`,
+	//     whose callee carries no bare name to resolve.
+	//   - A second table read by computed destructuring in the site's own
+	//     body, `const { [parsed.kind]: page } = itemPages;`. Zero calls out
+	//     and squarely inside the region, and it escapes on spelling alone,
+	//     because a computed property in an object binding pattern is not an
+	//     element access.
+	//   - `Reflect.get(itemPages, parsed.kind)`, which is a call but not a
+	//     call through a property named `get`. A two-argument `.get(k, d)`
+	//     falls the same way, on the argument count.
+	//
+	// What refuses a good many of those is the other half of this pair, and
+	// it refuses them by a different route: any of them serves a kind, and a
+	// served kind has to be reachable from a URI the tree composes, which is
+	// why openItem's own registration and the absence of every
+	// item.document.* catalogue key are pinned separately. That pairing is
+	// the reason a hole here is survivable, and it is not a reason to
+	// describe this walk as reaching further than it does.
 	const extensionSource = join(__dirname, "..", "..", "..", "src", "extension.ts");
 	const file = ts.createSourceFile(
 		extensionSource,

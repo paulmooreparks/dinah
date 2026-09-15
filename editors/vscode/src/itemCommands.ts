@@ -342,8 +342,9 @@ function labelForKind(token: string, t: Localizer): string {
  * tool allows, and the form removes it by construction.
  *
  * The detail is composed from the same twelve-cell holdDirection the item row
- * reads, so the two surfaces cannot disagree about what a column is doing. The sentences say "this column" and interpolate nothing,
- * because the pick's own label already carries the title.
+ * reads, so the two surfaces cannot disagree about what a column is doing. The
+ * sentences say "this column" and interpolate nothing, because the pick's own
+ * label already carries the title.
  *
  * The three sentences saying the column will hold nothing are the ones that
  * matter most. They are the silent failure this form exists to surface, and it
