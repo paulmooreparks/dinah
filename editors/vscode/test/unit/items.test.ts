@@ -13,9 +13,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 
-import { pinnedArgv, refusalMessage } from "../../src/cardCommands";
 import type { SpawnOutcome, Spawner } from "../../src/cli";
-import { runDinah } from "../../src/cli";
 import { ROW_COMMAND_TABLE } from "../../src/commandTable";
 import {
 	COMMAND_CLAIM,
@@ -30,8 +28,6 @@ import {
 import { ENGLISH } from "../../src/l10n";
 import type { Localizer } from "../../src/l10n";
 import { columnPickItems, kindPickItems } from "../../src/itemCommands";
-import type { ItemLabels } from "../../src/servedText";
-import { cardRefOf, renderItemMarkdown } from "../../src/servedText";
 import type {
 	CardStanding,
 	HoldDirection,
@@ -44,18 +40,17 @@ import {
 	actionsFor,
 	holdDirection,
 	itemContextValue,
-	itemHoldDirection,
 	itemLabel,
 	treeItemFor,
 } from "../../src/tree";
-import type { CardView, ColumnView, ItemDetail, ItemView } from "../../src/wire";
+import type { CardView, ColumnView, ItemView } from "../../src/wire";
 import type { CheckResults, DraftLog, HostLog } from "../support/rows";
 import {
 	EXE,
 	FOLDER,
 	ROOT,
 	catalogueWithKinds,
-	checklistGroupRow,
+	collectionRow,
 	columnView,
 	emptyDraftLog,
 	emptyLog,
@@ -64,7 +59,6 @@ import {
 	ok,
 	refused,
 	rootRow,
-	spawnerLog,
 	wiringFor,
 } from "../support/rows";
 
@@ -113,12 +107,17 @@ function pinned(root: string, ...args: string[]): string[] {
 // dinah-506/criteria/3: a card carrying items and no attachments expands
 // ---------------------------------------------------------------------------
 
-test("a card with checklist items and no attachments draws an arrow and yields one checklist group", async () => {
-	// Two objects rather than one. VS Code asks for the tree item before it
-	// asks for children, so an arrow decided from attachment_count alone means
-	// getChildren is never called at all, and either half alone leaves the
-	// other half of that defect live.
-	const view: CardView = { id: "wb1", ref: "wb-1", checklist_count: 2 };
+test("a card with checklist items and no attachments draws an arrow and yields one Checklist row", async () => {
+	// VS Code asks for the tree item before it asks for children, so an arrow
+	// the checkpoint withholds means getChildren is never called at all. One
+	// published total decides it now, summed across every collection the
+	// grammar gives a card, and the rows beneath come from the grammar.
+	const view: CardView = {
+		id: "wb1",
+		ref: "wb-1",
+		checklist_count: 2,
+		child_count: 2,
+	};
 	const element: TreeElement = {
 		kind: "card",
 		row: rootRow(),
@@ -131,21 +130,36 @@ test("a card with checklist items and no attachments draws an arrow and yields o
 
 	const provider = new DinahTreeProvider({
 		exe: EXE,
-		spawner: async () => ok(),
+		spawner: async () =>
+			ok({
+				root: {
+					kind: "card",
+					ref: "wb-1",
+					count: 2,
+					children: [
+						{ kind: "item", ref: "wb-1/questions/1", title: "First", count: 0 },
+						{ kind: "item", ref: "wb-1/questions/2", title: "Second", count: 0 },
+					],
+				},
+			}),
 		log: () => undefined,
 		t: ENGLISH,
 	} as unknown as ConstructorParameters<typeof DinahTreeProvider>[0]);
 	const children = await provider.getChildren(element);
 	assert.equal(children.length, 1);
-	assert.equal(children[0].kind, "checklistGroup");
+	const group = children[0];
+	if (group.kind !== "collection") {
+		assert.fail(`the card drew a ${group.kind} row, wanted a collection`);
+	}
+	assert.equal(group.memberKind, "item");
 	assert.equal(
-		(children[0] as { readonly count: number }).count,
+		group.members.length,
 		2,
-		"the group row carries a count other than the one the card published",
+		"the collection row carries a member count other than the one the grammar answered",
 	);
 });
 
-test("a card carrying neither attachments nor items still draws no arrow", async () => {
+test("a card carrying nothing at all still draws no arrow", async () => {
 	// The accepting case beside the refusing one. A collapsibleState that
 	// answered collapsed unconditionally would satisfy the test above.
 	const element: TreeElement = {
@@ -156,281 +170,6 @@ test("a card carrying neither attachments nor items still draws no arrow", async
 		column: columnView(),
 	};
 	assert.equal(treeItemFor(element, ENGLISH).collapsibleState, "none");
-	const provider = new DinahTreeProvider({
-		exe: EXE,
-		spawner: async () => ok(),
-		log: () => undefined,
-		t: ENGLISH,
-	} as unknown as ConstructorParameters<typeof DinahTreeProvider>[0]);
-	assert.deepEqual(await provider.getChildren(element), []);
-});
-
-// ---------------------------------------------------------------------------
-// dinah-506/criteria/4 to 7: the item document
-// ---------------------------------------------------------------------------
-
-/** Labels whose six hold sentences are distinguishable from each other. */
-function labels(overrides: Partial<ItemLabels> = {}): ItemLabels {
-	return {
-		title: "dinah-506/questions/1 (Open question)",
-		textHeading: "WHAT-IT-SAYS",
-		statusHeading: "STATUS",
-		noteHeading: "NOTE",
-		commentsHeading: "COMMENTS",
-		state: "STATE-PENDING",
-		hold: {
-			entryAhead: "HOLD-ENTRY-AHEAD",
-			entryPassed: "HOLD-ENTRY-PASSED",
-			exitHere: "HOLD-EXIT-HERE",
-			exitAhead: "HOLD-EXIT-AHEAD",
-			exitPassed: "HOLD-EXIT-PASSED",
-			nothing: "HOLD-NOTHING",
-		},
-		owner: "OWNER",
-		commentsEmpty: "THREAD-EMPTY",
-		textUnavailable: "TEXT-UNAVAILABLE",
-		commentHeading: (ordinal, author, ts) => `${String(ordinal)}|${author}|${ts}`,
-		...overrides,
-	};
-}
-
-/** One comment, as `show <item>` reports it. */
-function comment(ordinal: number, body: string) {
-	return {
-		id: `c${String(ordinal)}`,
-		ref: `dinah-506/questions/1/comments/${String(ordinal)}`,
-		ts: `2026-09-15T0${String(ordinal)}:00:00Z`,
-		author: `author-${String(ordinal)}`,
-		body,
-	};
-}
-
-test("the item document puts the text, the note and the whole thread on one page", () => {
-	const view = itemView({
-		ref: "dinah-506/questions/1",
-		text: "Is the one-line comment prompt enough to ship?",
-		note: "Settled at Implement on the operator's ruling.",
-	});
-	const detail: ItemDetail = {
-		ref: view.ref,
-		text: "---\nkind: open_question\n---\nthe anchor body",
-		comments: [comment(1, "The alternative is an untitled tab."), comment(2, "A file loses nothing.")],
-	};
-	const rendered = renderItemMarkdown(view, detail, labels(), "exitHere");
-	for (const wanted of [
-		view.text,
-		view.note as string,
-		"The alternative is an untitled tab.",
-		"A file loses nothing.",
-		"1|author-1|2026-09-15T01:00:00Z",
-		"2|author-2|2026-09-15T02:00:00Z",
-	]) {
-		assert.ok(rendered.includes(wanted), `the document omits ${wanted}`);
-	}
-});
-
-test("a pending item's note renders, because the condition is the note and never the state", () => {
-	// Exactly one of the pending items on the workbench this was written
-	// against carries a note, and nothing will convert those items, so the
-	// case is permanent rather than transitional. A renderer suppressing the
-	// note while the state reads pending shows that reader nothing.
-	const note = "The reasoning this item was raised with, before item comments existed.";
-	const rendered = renderItemMarkdown(
-		itemView({ state: "pending", note }),
-		{ ref: "tr-1/questions/1", text: "" },
-		labels(),
-		"nothing",
-	);
-	assert.ok(rendered.includes(note), "a pending item's note was suppressed");
-	assert.ok(rendered.includes("NOTE"), "the note heading was suppressed");
-});
-
-test("the renderer never emits an anchor's frontmatter", () => {
-	// The fixture is a verbatim copy of a real payload, frontmatter delimiters
-	// and all, because ItemDetail.text is the anchor file exactly as
-	// bench.ReadText returns it.
-	const anchor = [
-		"---",
-		"kind: open_question",
-		"state: resolved",
-		"column: 5729d4578008",
-		"owner: operator",
-		"ts: 2026-09-14T07:30:15Z",
-		"ordinal: 23",
-		"---",
-		"Is a write naming an undeclared key refused, or accepted and preserved?",
-	].join("\n");
-	const rendered = renderItemMarkdown(
-		itemView({ text: "the item's own text" }),
-		{ ref: "tr-1/questions/1", text: anchor, comments: [comment(1, "a body")] },
-		labels(),
-		"nothing",
-	);
-	assert.ok(
-		!rendered.split("\n").some((line) => line === "---"),
-		"the document carries a frontmatter delimiter on a line of its own",
-	);
-	assert.ok(!rendered.includes("kind:"), "the document carries a frontmatter key");
-});
-
-test("the document falls back without parsing the anchor", () => {
-	const body = "Is a write naming an undeclared key refused, or accepted and preserved?";
-	const rendered = renderItemMarkdown(
-		undefined,
-		{
-			ref: "dinah-506/questions/1",
-			text: `---\nkind: open_question\n---\n${body}`,
-			comments: [comment(1, "first body"), comment(2, "second body")],
-		},
-		labels(),
-		"nothing",
-	);
-	// All three assertions are needed: the first two alone pass on a renderer
-	// that also emits the anchor.
-	assert.ok(rendered.includes("dinah-506/questions/1"), "the reference is missing");
-	assert.ok(rendered.includes("first body") && rendered.includes("second body"));
-	assert.ok(!rendered.includes(body), "the document fell back to the anchor's own text");
-	assert.ok(rendered.includes("TEXT-UNAVAILABLE"));
-});
-
-test("a thread carrying nothing draws its heading and says so", () => {
-	const rendered = renderItemMarkdown(
-		itemView(),
-		{ ref: "tr-1/questions/1", text: "" },
-		labels(),
-		"nothing",
-	);
-	assert.ok(rendered.includes("COMMENTS"), "the comments heading was dropped");
-	assert.ok(rendered.includes("THREAD-EMPTY"));
-});
-
-// ---------------------------------------------------------------------------
-// dinah-506/criteria/8: the two calls the item resolver makes
-// ---------------------------------------------------------------------------
-
-/**
- * What extension.ts's KIND_ITEM entry does, with its dependencies injected.
- *
- * Composed here rather than imported, because extension.ts loads vscode as a
- * value and no unit test can import it. servedText.test.ts's resolveHistory
- * is the precedent and the shape is the same one: the body is recomposed out
- * of the importable pieces the shipped entry composes it from, the
- * recomposition is driven against the recording spawner the support module
- * already carries, and a source-shape test beside it holds the shipped entry
- * to the same two calls, so the recomposition cannot drift away from the code
- * it stands for without one of the two reddening.
- */
-async function resolveItemDocument(
-	spawner: Spawner,
-	root: string,
-	ref: string,
-	data: WorkbenchData | undefined,
-): Promise<string> {
-	const detailOutcome = await runDinah(spawner, EXE, pinnedArgv(root, ["show", ref]), {
-		cwd: root,
-	});
-	if (detailOutcome.kind !== "ok") {
-		throw new Error(refusalMessage(detailOutcome));
-	}
-	const detail = detailOutcome.json as ItemDetail;
-	const cardOutcome = await runDinah(
-		spawner,
-		EXE,
-		pinnedArgv(root, ["show", cardRefOf(ref), "--fields", "card,checklist"]),
-		{ cwd: root },
-	);
-	const view =
-		cardOutcome.kind === "ok"
-			? (cardOutcome.json as { checklist?: readonly ItemView[] }).checklist?.find(
-					(candidate) => candidate.ref === ref,
-				)
-			: undefined;
-	const direction =
-		view === undefined ? "nothing" : itemHoldDirection(data, cardRefOf(ref), view);
-	return renderItemMarkdown(view, detail, labels(), direction);
-}
-
-test("the item document resolver makes exactly the two calls the contract names", async () => {
-	const ref = "wb-1/questions/1";
-	const view = itemView({ ref, column: "col-b", text: "the item's own prose" });
-	const log = spawnerLog();
-	log.queue.push(
-		ok({
-			ref,
-			text: `---\nkind: open_question\n---\nthe anchor`,
-			comments: [],
-		}),
-		ok({ card: { ref: "wb-1" }, checklist: [view] }),
-	);
-	const rendered = await resolveItemDocument(log.spawner, ROOT, ref, flowData());
-	// The two recorded argv arrays, whole. --json is composed by cli.ts and
-	// refused to a caller who spells it, so what the resolver hands over
-	// carries the workbench pin and the verb alone.
-	assert.equal(log.calls.length, 2, "the resolver made a number of calls other than two");
-	assert.deepEqual(log.calls[0], ["--json", "--workbench", ROOT, "show", ref]);
-	assert.deepEqual(log.calls[1], [
-		"--json",
-		"--workbench",
-		ROOT,
-		"show",
-		"wb-1",
-		"--fields",
-		"card,checklist",
-	]);
-	assert.equal(log.options[0].cwd, ROOT);
-	assert.equal(log.options[1].cwd, ROOT);
-	// The second call is the one carrying the item's own prose, which is the
-	// whole reason it exists: the anchor's frontmatter is never split here.
-	assert.ok(rendered.includes("the item's own prose"), "the view's text never reached the page");
-	assert.ok(!rendered.includes("kind: open_question"), "the anchor's frontmatter reached the page");
-});
-
-test("a refused item detail throws what the existing refusal path already renders", async () => {
-	const log = spawnerLog();
-	log.queue.push(refused("unknown-item", "wb-1/questions/9"));
-	await assert.rejects(
-		() => resolveItemDocument(log.spawner, ROOT, "wb-1/questions/9", undefined),
-		/^Error: unknown-item: wb-1\/questions\/9$/,
-	);
-	// The second call is never made, so a refusal costs one spawn and not two.
-	assert.equal(log.calls.length, 1);
-});
-
-test("the shipped KIND_ITEM entry composes the same two calls the driven resolver does", () => {
-	// The tie between the recomposition above and the code it stands for,
-	// read as source on the terms servedText.test.ts already reads the
-	// history entry.
-	const source = readFileSync(
-		join(__dirname, "..", "..", "..", "src", "extension.ts"),
-		"utf8",
-	);
-	const at = source.indexOf("[KIND_ITEM]:");
-	assert.notEqual(at, -1, "extension.ts declares no KIND_ITEM resolver");
-	const entry = source.slice(at, source.indexOf("\n\t};\n", at));
-	assert.equal(
-		(entry.match(/runDinah\(/g) ?? []).length,
-		2,
-		"the item resolver makes a number of calls other than two",
-	);
-	assert.match(
-		entry,
-		/pinnedArgv\(root, \["show", ref\]\)/,
-		"the first call is not show <item> through pinnedArgv",
-	);
-	assert.match(
-		entry,
-		/pinnedArgv\(root, \["show", cardRefOf\(ref\), "--fields", "card,checklist"\]\)/,
-		"the second call is not show <card> --fields card,checklist through pinnedArgv",
-	);
-	assert.doesNotMatch(entry, /--json/, "the item resolver spells --json by hand");
-	// The anchor is never split, which is the whole reason the second call
-	// exists.
-	assert.doesNotMatch(entry, /detail\.text/, "the item resolver reads the anchor's text");
-});
-
-test("cardRefOf takes the reference up to its first slash, and leaves a bare card alone", () => {
-	assert.equal(cardRefOf("dinah-506/questions/1"), "dinah-506");
-	assert.equal(cardRefOf("dinah-506"), "dinah-506");
 });
 
 // ---------------------------------------------------------------------------
@@ -544,10 +283,31 @@ test("Resolve on one row sends the verb, the reference and the note", async () =
 	assert.deepEqual(run.log.checkpoints, [FOLDER]);
 });
 
-test("Open Item opens the item's own document under the item kind", async () => {
-	const run = await invoke(COMMAND_OPEN_ITEM, [itemRow({ ref: "tr-1/questions/1" })]);
-	assert.deepEqual(run.log.served, ["item:tr-1/questions/1"]);
-	assert.deepEqual(run.calls, [], "opening a document spawned dinah");
+test("Open Item asks path for the item's own reference and opens what it answered", async () => {
+	// dinah-519/criteria/9. The composed document is gone: opening an item
+	// opens `item.md`, through one call and with no holder composed out of the
+	// reference. THE ITEM'S REFERENCE IS MADE TO LIE ABOUT ITS SHAPE, carrying
+	// no /checklist/ segment and no segment the deleted resolver would have
+	// cut, so a build that still composes a holder records a different argv
+	// rather than passing by accident.
+	const run = await invoke(COMMAND_OPEN_ITEM, [itemRow({ ref: "tr-1/questions/1" })], {
+		answer: () =>
+			ok({ path: "C:\\work\\bench\\cards\\aa\\checklist\\bb\\item.md" }),
+	});
+	assert.deepEqual(run.calls, [pinned(ROOT, "path", "tr-1/questions/1")]);
+	assert.deepEqual(run.log.opened, [
+		"C:\\work\\bench\\cards\\aa\\checklist\\bb\\item.md",
+	]);
+	assert.deepEqual(run.log.served, [], "opening an anchor file served a composed page");
+});
+
+test("a refused path shows the refusal and opens nothing", async () => {
+	const run = await invoke(COMMAND_OPEN_ITEM, [itemRow({ ref: "tr-1/questions/1" })], {
+		answer: () => refused("dinah.unknown-item", "tr-1/questions/1"),
+	});
+	assert.deepEqual(run.calls, [pinned(ROOT, "path", "tr-1/questions/1")]);
+	assert.deepEqual(run.log.opened, []);
+	assert.deepEqual(run.log.errors, ["dinah.unknown-item: tr-1/questions/1"]);
 });
 
 // ---------------------------------------------------------------------------
@@ -594,32 +354,6 @@ test("a hold no healthy server sends answers the way no hold at all does", () =>
 	// rather than inventing a policy of its own.
 	for (const stored of ["true", "off", "false", "yes", ""]) {
 		assert.equal(holdDirection(stored, 5, 3), "nothing", stored);
-	}
-});
-
-test("renderItemMarkdown carries the hold sentence belonging to the token it was given", () => {
-	const tokens = Object.keys(HOLD_DIRECTIONS) as HoldDirection[];
-	assert.equal(tokens.length, 6, "the token set is not the six the table gives");
-	const sentences = labels().hold;
-	for (const token of tokens) {
-		const rendered = renderItemMarkdown(
-			itemView(),
-			{ ref: "tr-1/questions/1", text: "" },
-			labels(),
-			token,
-		);
-		assert.ok(
-			rendered.includes(sentences[token]),
-			`the document carries no sentence for ${token}`,
-		);
-		for (const other of tokens) {
-			if (other !== token) {
-				assert.ok(
-					!rendered.includes(sentences[other]),
-					`the document carries ${other}'s sentence under ${token}`,
-				);
-			}
-		}
 	}
 });
 
@@ -894,9 +628,12 @@ test("an item row draws a bounded one-line label and says its kind, state and th
 	assert.equal(itemLabel(long).length, 120);
 	assert.ok(itemLabel(long).endsWith("…"));
 
+	// An item is no longer a leaf: three comments below it are three rows, and
+	// the arrow comes from the grammar's own count. dinah-519/criteria/7 is
+	// where the two sources are made to disagree.
 	const element = itemRow({ comment_count: 3 }, false, ROOT, flowData());
 	const item = treeItemFor(element, ENGLISH);
-	assert.equal(item.collapsibleState, "none");
+	assert.equal(item.collapsibleState, "collapsed");
 	assert.equal(item.command?.command, COMMAND_OPEN_ITEM);
 	assert.ok((item.description as string).includes(ENGLISH("item.kind.question")));
 	assert.ok((item.description as string).includes(ENGLISH("item.state.pending")));
@@ -935,25 +672,54 @@ test("a row's tooltip states its column's hold, and a locked row's says why its 
 	}
 });
 
-test("a checklist group row carries the eager count and expands", () => {
-	const item = treeItemFor(checklistGroupRow(4), ENGLISH);
+test("a Checklist collection row counts the members the grammar answered and expands", () => {
+	const members = [1, 2, 3, 4].map((at) => ({
+		kind: "item",
+		ref: `tr-1/questions/${String(at)}`,
+		title: `Item ${String(at)}`,
+		count: 0,
+	}));
+	const item = treeItemFor(collectionRow("item", members), ENGLISH);
 	assert.equal(item.label, ENGLISH("tree.checklistGroup.label"));
 	assert.equal(item.description, "4");
 	assert.equal(item.collapsibleState, "collapsed");
+	assert.equal(item.contextValue, "dinah.collection.item");
 });
 
-test("a checklist group whose listing was refused yields one localized note", async () => {
+test("a Checklist collection whose listing was refused still draws every member row", async () => {
+	// dinah-519/criteria/8's other half, on the item arm. The grammar answered
+	// and it is the detail that did not, so the rows are drawn from the
+	// contents nodes and nothing is appended to say so.
+	const members = [1, 2].map((at) => ({
+		kind: "item",
+		ref: `tr-1/questions/${String(at)}`,
+		title: `Item ${String(at)}`,
+		count: 0,
+	}));
+	const logged: string[] = [];
 	const provider = new DinahTreeProvider({
 		exe: EXE,
 		spawner: async () => refused("dinah.unknown-card"),
-		log: () => undefined,
+		log: (line: string) => logged.push(line),
 		t: ENGLISH as Localizer,
 	} as unknown as ConstructorParameters<typeof DinahTreeProvider>[0]);
-	const children = await provider.getChildren(checklistGroupRow());
-	assert.equal(children.length, 1);
-	assert.equal(children[0].kind, "note");
-	assert.equal(
-		(children[0] as { readonly text: string }).text,
-		ENGLISH("tree.checklist.unreadable"),
+	const children = await provider.getChildren(collectionRow("item", members));
+	assert.deepEqual(
+		children.map((element) => element.kind),
+		["item", "item"],
+	);
+	for (const child of children) {
+		const drawn = treeItemFor(child, ENGLISH);
+		assert.equal(drawn.description, undefined);
+		assert.equal(drawn.contextValue, undefined);
+		assert.equal(drawn.icon, undefined);
+	}
+	assert.deepEqual(
+		children.map((element) => treeItemFor(element, ENGLISH).label),
+		["Item 1", "Item 2"],
+	);
+	assert.ok(
+		logged.includes(ENGLISH("tree.checklist.unreadable")),
+		`the refusal never reached the channel: ${logged.join(" | ")}`,
 	);
 });

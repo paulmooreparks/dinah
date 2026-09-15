@@ -592,6 +592,12 @@ export function contextForAttachmentOpen(
 	if (!isRow(element, "attachment")) {
 		return undefined;
 	}
+	// A row the listing did not answer for carries no view and so names no
+	// path. It is drawn, so that a refusal is visible where the reader is
+	// looking, and it opens nothing.
+	if (element.view === undefined) {
+		return undefined;
+	}
 	const path = element.view.path;
 	if (path === undefined || path === "") {
 		return undefined;
@@ -657,6 +663,12 @@ export function contextForAttachment(
 	spawner: Spawner,
 ): AttachmentCommandContext | undefined {
 	if (!isRow(element, "attachment")) {
+		return undefined;
+	}
+	// The verb addresses the attachment by the identifier the listing
+	// reported, so a degraded row drawn without a view offers it nothing to
+	// address and is refused here as well as being drawn without a menu.
+	if (element.view === undefined) {
 		return undefined;
 	}
 	if (element.owner === "" || element.root === "" || element.view.id === "") {

@@ -38,6 +38,7 @@ import {
 } from "./cardCommands";
 import type { ColumnCommandHost } from "./columnCommands";
 import { invokeEditColumnInstructions } from "./columnCommands";
+import { invokeOpenComment } from "./commentCommands";
 import type { DraftHost } from "./commentDrafts";
 import { invokeAttachFile, invokeNewCard } from "./creationCommands";
 import {
@@ -68,6 +69,7 @@ import {
 	COMMAND_NEW_CARD,
 	COMMAND_OPEN_ATTACHMENT,
 	COMMAND_OPEN_CARD,
+	COMMAND_OPEN_COMMENT,
 	COMMAND_OPEN_HISTORY,
 	COMMAND_OPEN_INSTRUCTIONS,
 	COMMAND_OPEN_ITEM,
@@ -172,4 +174,5 @@ export const ROW_COMMAND_TABLE: readonly RowCommand[] = [
 	{ id: COMMAND_FAIL_ITEM, invoke: invokeFailItem },
 	{ id: COMMAND_REOPEN_ITEM, invoke: invokeReopenItem },
 	{ id: COMMAND_FILE_ITEM, invoke: invokeFileItem },
+	{ id: COMMAND_OPEN_COMMENT, invoke: invokeOpenComment },
 ];

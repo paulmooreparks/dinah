@@ -37,6 +37,7 @@ import {
 	COMMAND_MOVE,
 	COMMAND_NEW_CARD,
 	COMMAND_OPEN_ATTACHMENT,
+	COMMAND_OPEN_COMMENT,
 	COMMAND_OPEN_ITEM,
 	COMMAND_PULL,
 } from "../../src/identity";
@@ -54,6 +55,7 @@ import {
 	cardRow,
 	columnRowFor,
 	emptyLog,
+	commentRow,
 	itemRow,
 	noteRow,
 	ok,
@@ -886,6 +888,12 @@ function rowsFor(id: string): readonly TreeElement[] {
 			itemRow({ ref: "tr-1/questions/2", id: "b00000000002", ordinal: 2 }),
 		];
 	}
+	if (id === COMMAND_OPEN_COMMENT) {
+		return [
+			commentRow({ ref: "tr-1/comments/1" }),
+			commentRow({ ref: "tr-1/comments/2", id: "c00000000002" }),
+		];
+	}
 	return [cardRow("wb-1"), cardRow("wb-2")];
 }
 
@@ -914,7 +922,7 @@ test("every fanOut command is driven over two rows and produces the effect it de
 	);
 	// Asserted against a literal so that re-declaring a command out of the
 	// family reddens this run rather than shrinking the sweep in silence.
-	assert.equal(subjects.length, 14);
+	assert.equal(subjects.length, 15);
 	let exercised = 0;
 	for (const [id, entry] of subjects) {
 		const table = ROW_COMMAND_TABLE.find((row) => row.id === id);

@@ -30,7 +30,8 @@ import { runDinah } from "./cli";
 import {
 	CONTEXT_ATTACHMENT,
 	CONTEXT_CARD_ACTIVE,
-	CONTEXT_CHECKLIST_GROUP,
+	CONTEXT_COLLECTION_PREFIX,
+	CONTEXT_COMMENT,
 	CONTEXT_ITEM_CLOSED,
 	CONTEXT_ITEM_LOCKED_SUFFIX,
 	CONTEXT_ITEM_PENDING,
@@ -49,6 +50,7 @@ import {
 	CONTEXT_WORKBENCH_ROOT,
 	COMMAND_OPEN_ATTACHMENT,
 	COMMAND_OPEN_CARD,
+	COMMAND_OPEN_COMMENT,
 	COMMAND_OPEN_ITEM,
 } from "./identity";
 import { ENGLISH } from "./l10n";
@@ -58,6 +60,7 @@ import type {
 	AttachmentView,
 	CardView,
 	ColumnView,
+	CommentView,
 	ForestAnswer,
 	ItemView,
 	ListingAnswer,
@@ -289,49 +292,87 @@ export type TreeElement =
 			readonly groupValue?: string;
 	  }
 	| {
-			readonly kind: "attachmentsGroup";
-			readonly row: RootRow;
-			/** The workbench root this group's own fetch is pinned to. */
-			readonly root: string;
 			/**
-			 * What `attachments` is called with: "" for the workbench itself,
-			 * because an omitted argument is how the binary is asked about the
-			 * workbench, and the entity's own ref for a column or a card.
+			 * One collection under an entity row: the Comments, Checklist or
+			 * Attachments heading a reader opens to reach its members.
+			 *
+			 * One arm for all three, because the grammar decides which
+			 * collections an entity has and the extension states no list of
+			 * its own. What varies between them is the kind they hold.
 			 */
-			readonly ref: string;
-			/** The eager count status or ls already reported, shown beside the label. */
-			readonly count: number;
+			readonly kind: "collection";
+			readonly row: RootRow;
+			/** The workbench root this collection's own fetch is pinned to. */
+			readonly root: string;
+			/** The reference of the entity this collection hangs from. */
+			readonly holder: string;
+			/** The row kind of the element this collection was drawn under. */
+			readonly holderKind: TreeElement["kind"];
+			/** The entity kind this collection holds, as `contents` spells it. */
+			readonly memberKind: string;
+			/** The member nodes, in the order `contents` returned them. */
+			readonly members: readonly TreeNode[];
+			/**
+			 * The collection's own reference, present only where the members
+			 * have still to be fetched.
+			 *
+			 * Every collection below a card arrives with its members, because
+			 * its holder's own `contents` answer carried them. The workbench
+			 * root is the exception: it composes its collection rows from
+			 * ROOT_COLLECTIONS before any call is made, so the row carries the
+			 * reference its own expansion asks `contents` about.
+			 */
+			readonly ref?: string;
+	  }
+	| {
+			readonly kind: "comment";
+			readonly row: RootRow;
+			readonly root: string;
+			/** The reference of the entity the comment hangs from. */
+			readonly holder: string;
+			/** The `contents` node, which carries the ref and the count below. */
+			readonly node: TreeNode;
+			/** The joined view, absent when the detail call did not answer. */
+			readonly view?: CommentView;
+	  }
+	| {
+			/**
+			 * The row a member whose kind this extension has no view for still
+			 * gets (dinah-519 section 3.3).
+			 *
+			 * Unreachable against the grammar as it stands, and not dead code:
+			 * it is what makes the claim true that a kind added to
+			 * `containment` reaches the tree with no edit here.
+			 */
+			readonly kind: "entity";
+			readonly row: RootRow;
+			readonly root: string;
+			readonly holder: string;
+			readonly node: TreeNode;
 	  }
 	| {
 			readonly kind: "attachment";
 			readonly row: RootRow;
 			/**
 			 * The workbench root the listing that produced this row was pinned
-			 * to, taken from the group element's own `root` rather than from
-			 * `row.folder`. A forest row's folder holds several workbenches, so
-			 * the folder is not a workbench root at all there.
+			 * to, taken from the collection element's own `root` rather than
+			 * from `row.folder`. A forest row's folder holds several
+			 * workbenches, so the folder is not a workbench root at all there.
 			 */
 			readonly root: string;
 			/**
 			 * The reference of the entity this attachment hangs from, taken
-			 * from the listing's own `ref` rather than from the group's.
+			 * from the listing's own `ref` rather than from the collection's.
 			 *
 			 * The listing resolves the workbench's own reference to the literal
-			 * `workbench`, while the group carries the empty string the binary
-			 * is asked with, so only the listing's answer composes a reference
-			 * a later call can resolve.
+			 * `workbench`, so only the listing's answer composes a reference a
+			 * later call can resolve.
 			 */
 			readonly owner: string;
-			readonly view: AttachmentView;
-	  }
-	| {
-			readonly kind: "checklistGroup";
-			readonly row: RootRow;
-			readonly root: string;
-			/** The card whose checklist this is. */
-			readonly ref: string;
-			/** The eager count ls already reported. */
-			readonly count: number;
+			/** The `contents` node, which carries the ref and the title below. */
+			readonly node: TreeNode;
+			/** The joined view, absent when the listing call did not answer. */
+			readonly view?: AttachmentView;
 	  }
 	| {
 			readonly kind: "item";
@@ -339,7 +380,10 @@ export type TreeElement =
 			readonly root: string;
 			/** The card the item hangs from, so a later call composes. */
 			readonly card: string;
-			readonly view: ItemView;
+			/** The `contents` node, which carries the ref and the count below. */
+			readonly node: TreeNode;
+			/** The joined view, absent when the detail call did not answer. */
+			readonly view?: ItemView;
 			/** Whether this window acts as the workbench's operator. */
 			readonly isOperator: boolean;
 	  };
@@ -397,14 +441,15 @@ function keyPartsOf(element: TreeElement): readonly (string | undefined)[] {
 			];
 		case "card":
 			return [rootPathOf(element.row), element.view?.ref ?? element.node.ref];
-		case "attachmentsGroup":
-			return [element.root, element.ref];
+		case "collection":
+			return [element.root, element.holder, element.memberKind];
 		case "attachment":
-			return [element.root, element.owner, element.view.id];
-		case "checklistGroup":
-			return [element.root, element.ref];
+			return [element.root, element.owner, element.view?.id ?? element.node.ref];
+		case "comment":
+		case "entity":
+			return [element.root, element.node.ref];
 		case "item":
-			return [element.root, element.view.ref];
+			return [element.root, element.node.ref ?? element.view?.ref];
 	}
 }
 
@@ -524,6 +569,200 @@ export function itemLabel(text: string): string {
 		? `${collapsed.slice(0, ITEM_LABEL_LIMIT - 1)}\u2026`
 		: collapsed;
 }
+
+/** The RootRow any element belongs to, whichever member its arm spells it in. */
+function rowOf(element: TreeElement): RootRow {
+	return element.kind === "note" ? element.owner : element.row;
+}
+
+/**
+ * A row of `contents` children, grouped by the kind each one declares.
+ *
+ * The groups come out in the order the kinds were first met, which is the
+ * order `contents` emitted them, which is the mount order the containment
+ * table declares. Sorting them here, or ordering them from a table of this
+ * extension's own, would be a second statement of the grammar; under a card
+ * the answer already reads Comments, Checklist, Attachments.
+ */
+export function partitionByKind(
+	nodes: readonly TreeNode[],
+): readonly (readonly [string, readonly TreeNode[]])[] {
+	const groups = new Map<string, TreeNode[]>();
+	for (const node of nodes) {
+		const existing = groups.get(node.kind);
+		if (existing === undefined) {
+			groups.set(node.kind, [node]);
+		} else {
+			existing.push(node);
+		}
+	}
+	return [...groups.entries()];
+}
+
+/**
+ * A detail answer's views indexed by the reference the join reads.
+ *
+ * By reference rather than by position, because `contents` and the detail
+ * readers can disagree about which members exist and a positional join shifts
+ * every row after the divergence onto somebody else's view.
+ */
+function indexByRef<T extends { readonly ref: string }>(
+	views: readonly T[] | undefined,
+): Map<string, T> {
+	const byRef = new Map<string, T>();
+	for (const view of views ?? []) {
+		byRef.set(view.ref, view);
+	}
+	return byRef;
+}
+
+/**
+ * A comment's opening words as one bounded line.
+ *
+ * A comment has no title, so this is the whole of what a row can be named by,
+ * and the author and the timestamp go in the grey description instead: every
+ * comment on this workbench but a handful is the agent's, and a label opening
+ * with the author would spend the left edge of a narrow panel, which is the
+ * part clipping takes last, on a constant string.
+ *
+ * Three steps and no more. The text up to the first newline; then a leading
+ * ATX heading marker stripped, meaning a run of one or more `#` followed by at
+ * least one space; then the whitespace collapsed and the line elided, which is
+ * itemLabel's own body and limit. General Markdown stripping is refused: a
+ * guard widened by example fits only its examples, and the heading marker is
+ * the one construct the data shows, five of one card's thirty-one comments
+ * opening `## WHAT SHIPPED`.
+ *
+ * A comment whose label collapses to nothing falls back to the reference the
+ * caller passed, so the row is still addressable.
+ */
+export function commentLabel(text: string, fallback = ""): string {
+	const firstLine = text.split("\n", 1)[0] ?? "";
+	const stripped = firstLine.replace(/^#+[ \t]+/, "");
+	const label = itemLabel(stripped);
+	return label === "" ? fallback : label;
+}
+
+/**
+ * A comment row's tooltip: its reference, who wrote it and when, and the body.
+ *
+ * The body verbatim rather than a prefix of it, because the tooltip is where a
+ * reader settles whether this is the comment they wanted without opening a
+ * tab.
+ */
+export function commentTooltip(
+	view: CommentView,
+	ref: string,
+	t: Localizer = ENGLISH,
+): string {
+	return [
+		ref,
+		t("comment.row.author", { author: view.author, ts: view.ts }),
+		view.body,
+	].join("\n");
+}
+
+/**
+ * A comment row's description: its position in the thread, its author and its
+ * time.
+ *
+ * The ordinal is the trailing segment of the reference, which is the comment's
+ * one-based position among its holder's comments, so the number a reader sees
+ * is the one they would type. The timestamp is rendered exactly as Dinah
+ * stores it, because every other Dinah surface prints it that way and a second
+ * spelling is a second thing to translate and to test.
+ */
+export function commentDescription(
+	view: CommentView,
+	ref: string,
+	t: Localizer = ENGLISH,
+): string {
+	const ordinal = ref.slice(ref.lastIndexOf("/") + 1);
+	return t("comment.row.description", {
+		ordinal,
+		author: view.author,
+		ts: view.ts,
+	});
+}
+
+/**
+ * The label a collection row carries, by the entity kind it holds.
+ *
+ * The one per-kind list this design keeps at the structural level, and it
+ * states no containment: an entry missing from it costs a translated noun and
+ * not a row, because the fallback is the kind token itself.
+ *
+ * Each entry names its key as a literal rather than composing one, because the
+ * guard in test/unit/l10n-keys.test.ts reads call sites and an interpolated
+ * key is a key it cannot check.
+ */
+const COLLECTION_LABELS: Readonly<
+	Record<string, (t: Localizer) => string>
+> = {
+	comment: (t) => t("tree.collection.comments"),
+	item: (t) => t("tree.checklistGroup.label"),
+	attachment: (t) => t("tree.attachments.label"),
+};
+
+/** A collection row's label: its kind's translated noun, or the kind token. */
+export function collectionLabel(memberKind: string, t: Localizer = ENGLISH): string {
+	const named = COLLECTION_LABELS[memberKind];
+	return named === undefined ? memberKind : named(t);
+}
+
+/**
+ * One of the workbench's own collections, as the root row has to know it
+ * before any call is made.
+ */
+interface RootCollection {
+	/**
+	 * The collection's directory name, which is the trailing segment of the
+	 * reference the row is opened with: `workbench/<dir>`.
+	 */
+	readonly dir: string;
+	/**
+	 * The entity kind this collection holds, as `contents` spells it and
+	 * therefore singular where `dir` is plural.
+	 *
+	 * The collection row needs a memberKind at compose time, for its label,
+	 * its contextValue and its partition, and the root composes its element
+	 * before it has any member to read a kind off. Deriving it from `dir`
+	 * would be either a dir-to-kind mapping, which is a second statement of
+	 * the grammar, or the plural directory name, which misses
+	 * COLLECTION_LABELS and yields a contextValue no other collection row
+	 * carries. So it is written down.
+	 */
+	readonly memberKind: string;
+	/**
+	 * How many members the checkpoint says the collection holds, read only to
+	 * decide whether the row is drawn at all.
+	 */
+	readonly count: (data: WorkbenchData) => number;
+}
+
+/**
+ * The workbench's own collections the grouped projection does not already
+ * draw. Columns and cards are absent because the kanban draws them.
+ *
+ * This table is the one place in this extension that states a piece of the
+ * containment grammar, and it is here because `contents` counts rank from the
+ * workbench: no depth of it answers the root's own mounts without also
+ * answering every card. The remedy is a depth counted from the named
+ * reference, or a kind filter, either of which changes the verb and belongs to
+ * a card of its own.
+ *
+ * A directory is listed here only so the root can skip the call when the count
+ * is zero, which today it is for every one of them. The member rows come from
+ * `contents workbench/<dir> --depth all` and never from this table; only the
+ * row that holds them is composed from it.
+ */
+const ROOT_COLLECTIONS: readonly RootCollection[] = [
+	{
+		dir: "attachments",
+		memberKind: "attachment",
+		count: (data) => data.attachmentCount ?? 0,
+	},
+];
 
 /**
  * The six things an item's column can be doing to the card that carries it.
@@ -811,8 +1050,8 @@ export function itemDescription(view: ItemView, t: Localizer): string {
  * Everything an item row says on hover, one fact per line.
  *
  * The hold sentence is the one a reader can get nowhere else, and it is keyed
- * by the same holdDirection the filing form and the item document read, so the
- * three surfaces cannot disagree about what a column is doing.
+ * by the same holdDirection the filing form reads, so the two surfaces cannot
+ * disagree about what a column is doing.
  */
 export function itemTooltip(
 	view: ItemView,
@@ -1239,11 +1478,8 @@ export function treeItemFor(
 					t,
 				),
 				contextValue: actionsFor({ state, column: element.column }),
-				// An arrow only when a count says something is there to expand.
-				// Both counts are read, because a card carrying items and no
-				// attachments would otherwise draw no arrow at all and its
-				// getChildren would never be called: VS Code asks for the tree
-				// item first and decides from what it answers.
+				// An arrow only when the checkpoint's own total says something
+				// is there to expand.
 				collapsibleState: cardExpands(element.view) ? "collapsed" : "none",
 				icon: cardIcon(state),
 				command: {
@@ -1253,21 +1489,72 @@ export function treeItemFor(
 				},
 			};
 		}
-		case "attachmentsGroup":
+		case "collection":
 			return {
-				label: t("tree.attachments.label"),
-				description: String(element.count),
+				label: collectionLabel(element.memberKind, t),
+				description: String(element.members.length),
+				contextValue: `${CONTEXT_COLLECTION_PREFIX}.${element.memberKind}`,
 				collapsibleState: "collapsed",
 			};
-		case "checklistGroup":
+		case "comment": {
+			const ref = element.node.ref ?? "";
+			const view = element.view;
 			return {
-				label: t("tree.checklistGroup.label"),
-				description: String(element.count),
-				contextValue: CONTEXT_CHECKLIST_GROUP,
-				collapsibleState: "collapsed",
+				label: commentLabel(view?.body ?? element.node.title ?? "", ref),
+				// The description is the one thing the view supplies, so it is
+				// the one thing a refused detail call costs the row.
+				...(view === undefined
+					? {}
+					: {
+							description: commentDescription(view, ref, t),
+							tooltip: commentTooltip(view, ref, t),
+						}),
+				// The same glyph on every comment row, whoever wrote it. An
+				// icon marking the operator's own comments was specified for
+				// four rounds and withdrawn on 2026-09-15: a reader opens one
+				// card and reads one thread, and on eighteen of the nineteen
+				// cards carrying comments every comment has the same author,
+				// so the column would have drawn one repeated glyph.
+				icon: { id: "comment" },
+				contextValue: CONTEXT_COMMENT,
+				// The grammar's own count and never the view's attachments,
+				// which answer a different question and are absent on a row
+				// whose detail call was refused.
+				collapsibleState: element.node.count > 0 ? "collapsed" : "none",
+				command: {
+					command: COMMAND_OPEN_COMMENT,
+					title: "Open Comment",
+					args: [element],
+				},
 			};
+		}
+		case "entity": {
+			const count = element.node.count;
+			return {
+				label: element.node.title ?? element.node.ref ?? "",
+				...(count > 0 ? { description: String(count) } : {}),
+				// No contextValue at all rather than an empty string, because
+				// toTreeItem already relies on that distinction and a `when`
+				// clause comparing against "" would match an empty one.
+				collapsibleState: count > 0 ? "collapsed" : "none",
+			};
+		}
 		case "item": {
 			const view = element.view;
+			if (view === undefined) {
+				// The detail call did not answer. The description, the icon
+				// and the context value are all composed out of an ItemView,
+				// so the row keeps its label and loses the three of them.
+				return {
+					label: itemLabel(element.node.title ?? ""),
+					collapsibleState: element.node.count > 0 ? "collapsed" : "none",
+					command: {
+						command: COMMAND_OPEN_ITEM,
+						title: "Open Item",
+						args: [element],
+					},
+				};
+			}
 			const direction = itemHoldDirection(element.row.data, element.card, view);
 			const contextValue = itemContextValue(view, element.isOperator);
 			return {
@@ -1282,8 +1569,11 @@ export function treeItemFor(
 				),
 				icon: itemIcon(view),
 				contextValue,
-				// An item's comments are in its document and are not rows.
-				collapsibleState: "none",
+				// An item's own comments are rows now, and the arrow comes
+				// from the grammar's count rather than from comment_count,
+				// which the row's description already carries and which says
+				// nothing about the mounts a later grammar might add.
+				collapsibleState: element.node.count > 0 ? "collapsed" : "none",
 				command: {
 					command: COMMAND_OPEN_ITEM,
 					title: "Open Item",
@@ -1293,6 +1583,18 @@ export function treeItemFor(
 		}
 		case "attachment": {
 			const view = element.view;
+			if (view === undefined) {
+				// The listing did not answer for this member. The filename,
+				// the description, the tooltip, the icon and the open command
+				// are all composed out of an AttachmentView, so the row keeps
+				// the contents node's title and loses every one of them. No
+				// contextValue either, because the delete verb addresses the
+				// attachment by an identifier only the listing carries.
+				return {
+					label: element.node.title ?? element.node.ref ?? "",
+					collapsibleState: "none",
+				};
+			}
 			const openable = view.path !== undefined && view.path !== "";
 			const tooltip = [
 				view.filename,
@@ -1702,14 +2004,16 @@ function firstSet(...values: (string | undefined)[]): string | undefined {
 /**
  * One entity's attachments, fetched when a reader asks for them.
  *
- * An empty `ref` asks about the workbench itself, because an omitted argument
- * is how the binary expects that question and composing "workbench" here would
- * be a second spelling of a reference the resolver already owns. The answer is
- * never cached (dinah-335's Decision 2): the call runs on every expansion of
- * the row and the count on the row itself still comes from the checkpoint, so
- * an attachment added or renamed since the last expansion is shown as it now
- * stands, and the only cost of that freshness is one call a row somebody
- * opened once more.
+ * The reference is the collection's own holder, whatever kind that is, so a
+ * comment's attachments are asked for against the comment and the workbench's
+ * against the literal `workbench`. Asking the card instead would succeed,
+ * answer the card's own attachments, and join none of them to the comment's
+ * rows, so the call and not the output is where this has to be right.
+ *
+ * The answer is never cached (dinah-335's Decision 2): the call runs on every
+ * expansion of the row, so an attachment added or renamed since the last
+ * expansion is shown as it now stands, and the only cost of that freshness is
+ * one call a row somebody opened once more.
  */
 export async function readAttachments(
 	spawner: Spawner,
@@ -1718,7 +2022,7 @@ export async function readAttachments(
 	ref: string,
 	log: (line: string) => void,
 ): Promise<AttachmentListing | undefined> {
-	const args = ref === "" ? ["attachments"] : ["attachments", ref];
+	const args = ["attachments", ref];
 	const outcome = await runDinah(spawner, exe, pinned(root, args), { cwd: root });
 	if (outcome.kind !== "ok") {
 		log(`dinah attachments ${ref} at ${root}: ${outcome.kind}`);
@@ -1728,17 +2032,110 @@ export async function readAttachments(
 }
 
 /**
+ * The children one entity holds, as the containment grammar answers them.
+ *
+ * `--depth all` rather than the default, and that is forced rather than
+ * preferred. contentsLimit counts ranks from the workbench and not from the
+ * reference the caller named, so the default level yields the children of a
+ * card and yields nothing at all below an item or a comment: such a row would
+ * draw an arrow, because the node's count is filled whatever depth the walk
+ * was cut at, and open onto nothing. Choosing the level per kind would mean
+ * holding a copy of rankOfKind here, which is the second statement of the
+ * grammar this whole design removes.
+ *
+ * The answer is never cached, on the terms readAttachments is not: the call
+ * runs on every expansion, so a comment posted since the last one is drawn as
+ * it now stands.
+ */
+export async function readContents(
+	spawner: Spawner,
+	exe: string,
+	root: string,
+	ref: string,
+	log: (line: string) => void,
+): Promise<readonly TreeNode[] | undefined> {
+	const outcome = await runDinah(
+		spawner,
+		exe,
+		pinned(root, ["contents", ref, "--depth", "all"]),
+		{ cwd: root },
+	);
+	if (outcome.kind !== "ok") {
+		log(`dinah contents ${ref} --depth all at ${root}: ${outcome.kind}`);
+		return undefined;
+	}
+	return (outcome.json as TreeAnswer).root.children ?? [];
+}
+
+/**
+ * One entity's comments, fetched when a reader opens the thread.
+ *
+ * Which call serves them depends on what holds them, and the holder's row kind
+ * is what decides: `show <card> --fields comments` answers a card's, and
+ * `show <item>` answers an item's, because only a card takes a field selector
+ * and `show <item> --fields comments` is refused outright. A column's and the
+ * workbench's comments have no structured reader at all, so they are not asked
+ * for and their rows draw from their `contents` nodes alone.
+ *
+ * The holder's kind is read off the element the tree already composed, never
+ * out of the shape of the reference. Reading a reference's shape is the
+ * extension restating the containment grammar, which is the shape this whole
+ * design refuses.
+ *
+ * Three answers rather than two, because a refusal and an unasked question are
+ * different events and only the first of them is worth telling a reader about.
+ * A single absent answer conflated them, and the day a column's comments reach
+ * the grammar every expansion of a column thread would have written a read
+ * failure to the channel for a read that never happened.
+ */
+export type CommentsRead =
+	/** The call was made and answered. */
+	| { readonly kind: "answered"; readonly views: readonly CommentView[] }
+	/** The call was made and refused. */
+	| { readonly kind: "refused" }
+	/** No call was made, because this holder kind has no structured reader. */
+	| { readonly kind: "unasked" };
+
+export async function readComments(
+	spawner: Spawner,
+	exe: string,
+	root: string,
+	holder: string,
+	holderKind: TreeElement["kind"],
+	log: (line: string) => void,
+): Promise<CommentsRead> {
+	const args =
+		holderKind === "card"
+			? ["show", holder, "--fields", "comments"]
+			: holderKind === "item"
+				? ["show", holder]
+				: undefined;
+	if (args === undefined) {
+		return { kind: "unasked" };
+	}
+	const outcome = await runDinah(spawner, exe, pinned(root, args), { cwd: root });
+	if (outcome.kind !== "ok") {
+		log(`dinah ${args.join(" ")} at ${root}: ${outcome.kind}`);
+		return { kind: "refused" };
+	}
+	return {
+		kind: "answered",
+		views: (outcome.json as { comments?: readonly CommentView[] }).comments ?? [],
+	};
+}
+
+/**
  * Whether a card row draws an expand arrow.
  *
- * Both counts, because either group alone is enough to give the row children,
- * and this is the one place the question is asked: getChildren composes the
- * groups from the same two counts, so an arrow and a set of children cannot
- * disagree.
+ * One number, summed across every collection the containment grammar gives a
+ * card, rather than one per collection. The per-collection counts said nothing
+ * about a card whose only content is comments, so such a card drew no arrow,
+ * its getChildren was never called, and its comments were unreachable: VS Code
+ * asks for the tree item first and decides from what it answers. A mount added
+ * to a card is counted in this one number with no edit here.
  */
 export function cardExpands(view: CardView | undefined): boolean {
-	const attachments = view?.attachment_count ?? 0;
-	const items = view?.checklist_count ?? 0;
-	return attachments > 0 || items > 0;
+	return (view?.child_count ?? 0) > 0;
 }
 
 /**
@@ -2226,30 +2623,6 @@ export class DinahTreeProvider {
 	 * is what reduces them to one plan, so the deduplication rule is asserted
 	 * against the code that performs it.
 	 */
-	/**
-	 * What the last good checkpoint knows about one workbench, by its root.
-	 *
-	 * The item document's own hold sentence reads it, so that sentence costs
-	 * no third spawn: the columns and their declared order are already joined
-	 * on every checkpoint, and asking dinah for them again per poll per open
-	 * tab would pay for an answer this provider is holding.
-	 *
-	 * An answer of undefined means no row has resolved that root yet, and the
-	 * caller says it knows of no stop rather than inventing one.
-	 */
-	dataFor(root: string): WorkbenchData | undefined {
-		const wanted = this.rootKey(root);
-		for (const state of this.folders.values()) {
-			for (const row of state.rows) {
-				const data = row.data;
-				if (data !== undefined && this.rootKey(data.path) === wanted) {
-					return data;
-				}
-			}
-		}
-		return undefined;
-	}
-
 	mcpTargets(): readonly McpTarget[] {
 		const found: McpTarget[] = [];
 		for (const state of this.folders.values()) {
@@ -2305,7 +2678,6 @@ export class DinahTreeProvider {
 				return this.rootChildren(element.row);
 			case "note":
 				return [];
-			case "column":
 			case "group":
 				return childElements(
 					element.row,
@@ -2313,113 +2685,258 @@ export class DinahTreeProvider {
 					element,
 					this.deps.log,
 				);
-			case "card": {
-				// The eager counts decide here. Each list is one call the
-				// group row's own expansion makes, never one the checkpoint
-				// makes, so a tree of two hundred cards still costs no
-				// attachments call and no checklist call to draw.
-				const attachments = element.view?.attachment_count ?? 0;
-				const items = element.view?.checklist_count ?? 0;
-				if (attachments === 0 && items === 0) {
-					return [];
+			case "column": {
+				// A column's cards come from the grouped projection, because a
+				// column does not contain a card in the grammar at all: the
+				// workbench contains every card, and the column a card stands
+				// at is a field of the card. The column's own mounts come from
+				// the grammar like every other entity's, so its comments draw
+				// the day the grammar gives it a comments mount, with no edit
+				// here.
+				const cards = childElements(
+					element.row,
+					element.node,
+					element,
+					this.deps.log,
+				);
+				const root = element.row.data?.path;
+				const ref =
+					element.view !== undefined ? columnRef(element.view) : undefined;
+				if (root === undefined || ref === undefined) {
+					return cards;
 				}
+				return [...cards, ...(await this.collectionsOf(element, root, ref))];
+			}
+			case "card": {
 				const root = element.row.data?.path;
 				const ref = element.view?.ref ?? element.node.ref;
 				if (root === undefined || ref === undefined || ref === "") {
 					return [];
 				}
-				const groups: TreeElement[] = [];
-				if (attachments > 0) {
-					groups.push({
-						kind: "attachmentsGroup",
-						row: element.row,
-						root,
-						ref,
-						count: attachments,
-					});
-				}
-				// The checklist stands after the attachments, in the order
-				// the two counts are read above, so a card that gains items
-				// does not move the row a reader already knows where to find.
-				if (items > 0) {
-					groups.push({
-						kind: "checklistGroup",
-						row: element.row,
-						root,
-						ref,
-						count: items,
-					});
-				}
-				return groups;
+				return this.collectionsOf(element, root, ref);
 			}
-			case "attachmentsGroup": {
-				const listing = await readAttachments(
-					this.deps.spawner,
-					this.deps.exe,
+			case "comment":
+			case "entity":
+				return this.collectionsOf(
+					element,
 					element.root,
-					element.ref,
-					this.deps.log,
+					element.node.ref ?? "",
 				);
-				if (listing === undefined) {
-					return [
-						{
-							kind: "note",
-							owner: element.row,
-							text: "This checkpoint could not read the attachments here.",
-							tooltip:
-								"dinah attachments did not answer; see the Dinah output channel.",
-						},
-					];
-				}
-				return listing.attachments.map((view) => ({
-					kind: "attachment" as const,
-					row: element.row,
-					root: element.root,
-					owner: listing.ref,
-					view,
-				}));
-			}
+			case "item":
+				return this.collectionsOf(
+					element,
+					element.root,
+					element.node.ref ?? element.view?.ref ?? "",
+				);
 			case "attachment":
 				return [];
-			case "checklistGroup": {
-				const items = await readChecklist(
-					this.deps.spawner,
-					this.deps.exe,
-					element.root,
-					element.ref,
-					this.deps.log,
-				);
-				if (items === undefined) {
-					// The localizer is bound to a name before it is called,
-					// because the guard in test/unit/l10n-keys.test.ts reads a
-					// call site off the callee's own name and a parenthesised
-					// fallback expression is a call site it cannot see.
-					const t = this.deps.t ?? ENGLISH;
-					const unreadable = t("tree.checklist.unreadable");
-					return [
-						{
-							kind: "note",
-							owner: element.row,
-							text: unreadable,
-							tooltip: unreadable,
-						},
-					];
-				}
-				return items.map((view) => ({
-					kind: "item" as const,
+			case "collection":
+				return this.collectionMembers(element);
+		}
+	}
+
+	/**
+	 * One entity row's collection rows, from the grammar and from nothing else.
+	 *
+	 * The children of any reference arrive in one call, partitioned by their
+	 * own kind into one collection row per kind, in the order `contents`
+	 * returned them, which is the mount order the containment table declares.
+	 * No count on the checkpoint decides which rows exist and no per-kind list
+	 * is consulted, so a kind the grammar gains reaches the tree here with no
+	 * edit: it draws under its own kind token, through the entity row.
+	 */
+	private async collectionsOf(
+		element: TreeElement,
+		root: string,
+		ref: string,
+	): Promise<TreeElement[]> {
+		if (ref === "") {
+			return [];
+		}
+		const children = await readContents(
+			this.deps.spawner,
+			this.deps.exe,
+			root,
+			ref,
+			this.deps.log,
+		);
+		if (children === undefined) {
+			return [this.contentsNote(rowOf(element))];
+		}
+		return partitionByKind(children).map(([memberKind, members]) => ({
+			kind: "collection" as const,
+			row: rowOf(element),
+			root,
+			holder: ref,
+			holderKind: element.kind,
+			memberKind,
+			members,
+		}));
+	}
+
+	/** The one row a refused `contents` call draws, in place of the members. */
+	private contentsNote(row: RootRow): TreeElement {
+		// The localizer is bound to a name before it is called, because the
+		// guard in test/unit/l10n-keys.test.ts reads a call site off the
+		// callee's own name and a parenthesised fallback expression is a call
+		// site it cannot see.
+		const t = this.deps.t ?? ENGLISH;
+		const unreadable = t("tree.contents.unreadable");
+		return { kind: "note", owner: row, text: unreadable, tooltip: unreadable };
+	}
+
+	/**
+	 * One collection row's member rows: the structure from the grammar, the
+	 * detail from the kind's own reader, joined on the reference.
+	 *
+	 * The grammar decides which rows exist. A member the detail call did not
+	 * answer for still draws, from its own `contents` node, because the
+	 * grammar answered and it is the detail that did not; a view the grammar
+	 * named no node for is dropped. The join is on the reference rather than
+	 * on position, because `contents` keeps a member `Show` skips, so a
+	 * successful detail call can answer one view short and a positional join
+	 * would shift every row after it onto somebody else's author.
+	 */
+	private async collectionMembers(
+		element: Extract<TreeElement, { kind: "collection" }>,
+	): Promise<TreeElement[]> {
+		// The workbench root composes its collection rows before any call is
+		// made, so this is where its own members are fetched. Every collection
+		// below a card arrived with its holder's own answer.
+		let members = element.members;
+		if (element.ref !== undefined) {
+			const children = await readContents(
+				this.deps.spawner,
+				this.deps.exe,
+				element.root,
+				element.ref,
+				this.deps.log,
+			);
+			if (children === undefined) {
+				return [this.contentsNote(element.row)];
+			}
+			members = children;
+		}
+		switch (element.memberKind) {
+			case "comment":
+				return this.commentRows(element, members);
+			case "item":
+				return this.itemRows(element, members);
+			case "attachment":
+				return this.attachmentRows(element, members);
+			default:
+				return members.map((node) => ({
+					kind: "entity" as const,
 					row: element.row,
 					root: element.root,
-					card: element.ref,
-					view,
-					// An absent answer is read as not-the-operator, which
-					// withholds a verb rather than offering one the tool would
-					// refuse, and the next checkpoint repaints the row.
-					isOperator: element.row.data?.isOperator === true,
+					holder: element.holder,
+					node,
 				}));
-			}
-			case "item":
-				return [];
 		}
+	}
+
+	/** The comment rows of one thread. */
+	private async commentRows(
+		element: Extract<TreeElement, { kind: "collection" }>,
+		members: readonly TreeNode[],
+	): Promise<TreeElement[]> {
+		const read = await readComments(
+			this.deps.spawner,
+			this.deps.exe,
+			element.root,
+			element.holder,
+			element.holderKind,
+			this.deps.log,
+		);
+		if (read.kind === "refused") {
+			// The rows are drawn from the grammar's own nodes and nothing is
+			// appended to say so, because a note row here would stand where a
+			// comment belongs and take a row the design does not have. The
+			// sentence goes to the output channel instead, which is where a
+			// reader who wants to know why a row is bare looks.
+			//
+			// Only on a refusal. A holder kind with no structured reader was
+			// never asked, so there is no failure to report and a sentence
+			// here would be a false one.
+			const t = this.deps.t ?? ENGLISH;
+			this.deps.log(t("tree.comments.unreadable"));
+		}
+		const byRef = indexByRef(read.kind === "answered" ? read.views : undefined);
+		return members.map((node) => ({
+			kind: "comment" as const,
+			row: element.row,
+			root: element.root,
+			holder: element.holder,
+			node,
+			view: byRef.get(node.ref ?? ""),
+		}));
+	}
+
+	/** The item rows of one card's checklist. */
+	private async itemRows(
+		element: Extract<TreeElement, { kind: "collection" }>,
+		members: readonly TreeNode[],
+	): Promise<TreeElement[]> {
+		const views = await readChecklist(
+			this.deps.spawner,
+			this.deps.exe,
+			element.root,
+			element.holder,
+			this.deps.log,
+		);
+		if (views === undefined) {
+			const t = this.deps.t ?? ENGLISH;
+			this.deps.log(t("tree.checklist.unreadable"));
+		}
+		const byRef = indexByRef(views);
+		return members.map((node) => ({
+			kind: "item" as const,
+			row: element.row,
+			root: element.root,
+			card: element.holder,
+			node,
+			view: byRef.get(node.ref ?? ""),
+			// An absent answer is read as not-the-operator, which withholds a
+			// verb rather than offering one the tool would refuse, and the
+			// next checkpoint repaints the row.
+			isOperator: element.row.data?.isOperator === true,
+		}));
+	}
+
+	/** The attachment rows of one entity's attachments. */
+	private async attachmentRows(
+		element: Extract<TreeElement, { kind: "collection" }>,
+		members: readonly TreeNode[],
+	): Promise<TreeElement[]> {
+		const listing = await readAttachments(
+			this.deps.spawner,
+			this.deps.exe,
+			element.root,
+			element.holder,
+			this.deps.log,
+		);
+		if (listing === undefined) {
+			const t = this.deps.t ?? ENGLISH;
+			this.deps.log(t("tree.attachments.unreadable"));
+		}
+		const byRef = indexByRef(listing?.attachments);
+		const owner = listing?.ref ?? element.holder;
+		// Every member draws, whether or not the listing answered for it. The
+		// filename, the description and the payload path ride the
+		// AttachmentView, so a member the listing missed loses those three;
+		// what it keeps is the contents node's own title, which is the
+		// attachment's description, on the same terms the comment and item
+		// arms already degrade. A row the reader can see is what a refusal
+		// owes them: dropping the row leaves the collection's own count
+		// promising members that open onto nothing (dinah-519 section 4.3).
+		return members.map((node) => ({
+			kind: "attachment" as const,
+			row: element.row,
+			root: element.root,
+			owner,
+			node,
+			view: byRef.get(node.ref ?? ""),
+		}));
 	}
 
 	/** Resolves a candidate row on its first expansion and no time after. */
@@ -2468,23 +2985,29 @@ export class DinahTreeProvider {
 				tooltip: data.unanswered,
 			});
 		}
-		// The workbench's own attachments stand after the columns, as one row,
-		// carrying the count status already reported. The ref is empty because
-		// an omitted argument is how the binary is asked about the workbench
-		// itself, and the list is this row's own expansion to fetch.
-		const attachmentEntries: TreeElement[] =
-			data.attachmentCount !== undefined && data.attachmentCount > 0
-				? [
-						{
-							kind: "attachmentsGroup",
-							row,
-							root: data.path,
-							ref: "",
-							count: data.attachmentCount,
-						},
-					]
-				: [];
-		return [...notes, ...this.columnsOf(row, data), ...attachmentEntries];
+		// The workbench's own collections stand after the columns, one row
+		// each, composed from ROOT_COLLECTIONS. The table is read only to
+		// decide which rows exist and what kind each holds; the members come
+		// from `contents workbench/<dir> --depth all` when the row is opened.
+		// A count of zero skips the row and therefore skips the call, which is
+		// the whole reason the checkpoint's count is read here at all.
+		const collections: TreeElement[] = [];
+		for (const entry of ROOT_COLLECTIONS) {
+			if (entry.count(data) <= 0) {
+				continue;
+			}
+			collections.push({
+				kind: "collection",
+				row,
+				root: data.path,
+				holder: "workbench",
+				holderKind: "root",
+				memberKind: entry.memberKind,
+				members: [],
+				ref: `workbench/${entry.dir}`,
+			});
+		}
+		return [...notes, ...this.columnsOf(row, data), ...collections];
 	}
 
 	/**
@@ -2717,11 +3240,9 @@ export class DinahTreeProvider {
  * travel the same code path, which is why one fixture of the second shape
  * stands for every column that produces it.
  *
- * A column row's children carry one row the tree did not return: the
- * column's own attachments, appended last. The count came with the status
- * answer rather than the tree, and the row sits under the column itself
- * rather than under a state group, because a state group is a heading over
- * cards and the attachments belong to the station.
+ * The card rows alone. A column's own mounts are collection rows drawn from
+ * the containment grammar, which the provider appends after these, because
+ * that takes a call and this composition takes none.
  */
 export function childElements(
 	row: RootRow,
@@ -2757,18 +3278,6 @@ export function childElements(
 				column,
 				groupValue,
 			});
-		}
-	}
-	// The column's own attachments, after every card, when the status answer
-	// says there are any. Under the column row alone, never repeated beneath
-	// each state group, and carrying the count status reported so the row can
-	// be drawn before the list it stands for is fetched.
-	if (parent.kind === "column") {
-		const count = column?.attachment_count ?? 0;
-		const root = row.data?.path;
-		const ref = column !== undefined ? columnRef(column) : undefined;
-		if (count > 0 && root !== undefined && ref !== undefined) {
-			children.push({ kind: "attachmentsGroup", row, root, ref, count });
 		}
 	}
 	return children;

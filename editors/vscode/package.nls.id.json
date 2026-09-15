@@ -52,6 +52,7 @@
 	"manifest.command.dinah.tree.failItem.title": "Dinah: Fail Criterion",
 	"manifest.command.dinah.tree.reopenItem.title": "Dinah: Reopen Item",
 	"manifest.command.dinah.tree.fileItem.title": "Dinah: File Checklist Item",
+	"manifest.command.dinah.tree.openComment.title": "Dinah: Open Comment",
 	"manifest.command.dinah.comment.post.title": "Dinah: Post Comment",
 	"manifest.command.dinah.comment.discard.title": "Dinah: Discard Draft"
 }
