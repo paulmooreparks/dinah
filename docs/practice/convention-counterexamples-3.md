@@ -1049,3 +1049,25 @@ joined := commentProseContinuation.ReplaceAllString(string(body), " ")
 ```
 
 **The test:** an assertion that something answers nothing proves nothing until you have watched it answer something. Run it where the defect is known to live, which for a repair is the base the repair was cut from. A rule of this shape written into a contract binds every clause of that contract, including the ones added after it was written, and the clause added last is the one nobody puts through it.
+
+## A check that builds its own driver, where the package already holds a fuller one
+
+Caught at code review on dinah-518, 2026-09-15, on the check written to close the same card's earlier finding.
+
+A guard that compares a document against the code needs something to drive it: a tree to read, a walker to read it with, and a list of what it may not cover. Writing those three by hand produces a guard whose reach is whatever its author thought to exercise, and the author thinks of the shape the card is about. The repository usually already holds a driver with a coverage alarm attached to it, and one line of reuse buys every shape nobody thought of.
+
+**Wrong.** `cmd/dinah/format_event_fields_test.go` built a fixture of eleven acts, a journal walker decoding each line as a raw object, and an exemption list of nine events. All three already stood in `cmd/dinah/compat_test.go`, one file away in the same package: `readShape` returns each event's member names, `sampleFixture` is the tree it reads, and `TestTheSampleFixtureCarriesEveryJournalEventTheContractDeclares` holds that tree to the whole declared vocabulary. The hand-built fixture reached nine events. The one already there reaches thirty-five. Two rows of the very table the new check pinned were false against the current build and sat underneath a green run of it: a `created` line carries `note` when a column is created, and a `moved` line carries `reshape` when a reshape wrote it.
+
+The exemption list inherited the same bound. Deleting `"linked"` from it compiled and left the check green, because nothing in the hand-built fixture wrote a `linked` line, so the list could not self-clean in the direction its own doc comment claimed.
+
+**Right.** Keep the hand-built fixture only for the shape it alone can carry, which here is a locator younger than the frozen capture, and union it with the tree that carries the coverage alarm. Hold the exemption list against the vocabulary the code declares rather than against whatever a fixture happens to write, and assert the reach as a number rather than logging it.
+
+```go
+live := readShape(t, benchDir(t, exerciseTheJournalWriters(t))).members
+frozen := readShape(t, sampleFixture(t)).members
+// walk the union, and fail on a declared event neither half carries
+```
+
+**The test:** before writing a fixture, a walker or an exemption list for a guard, grep the guard's own package for the thing it is about. Where a fixture already exists with a test holding it to a declared vocabulary, that test is a coverage alarm you inherit for free and your own fixture has none. Then ask what each half of the union can and cannot carry, and say it in the doc comment, because a frozen capture cannot carry a shape invented after it and a live run reaches only the acts somebody wrote down. Assert the count of what was walked; a guard that reads nine of thirty-five reports success exactly as one that reads all of them.
+
+**Related:** "A rule over a set, tested against the members its author had in mind", above, is the same failure in the population of a rule rather than in the driver of a check. "A guard reported absent after a run bounded to the packages the change touched", in `convention-counterexamples-2.md`, is the bound arriving from the run rather than from the fixture. "A source-walking guard rooted at the package's parent while its claim names the tree", in the same file, is this one level up, where the reach shortfall is in what the walk is rooted at.

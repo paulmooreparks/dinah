@@ -44,7 +44,7 @@ var staleCommentContainment = []string{
 // matches the corrected text, and one long enough to miss the corrected text
 // misses two of the three stale sites as well. The rule is therefore written
 // over the sentences the opening words select: a sentence may say what the
-// verb records, provided it names the column among the kinds.
+// verb records, provided it names the column somewhere in that same sentence.
 //
 // It asks whether the column is named anywhere in that sentence rather than
 // whether the sentence continues with one particular spelling. An earlier
@@ -52,6 +52,17 @@ var staleCommentContainment = []string{
 // author's word order wearing the doc comment of a test for the rule, and it
 // reddened on honest sentences naming the column in another order while
 // telling their author they had not named it.
+//
+// What the bound admits, said plainly rather than left for the next reader to
+// discover. A sentence that denies a column its comments and then mentions
+// columns for an unrelated reason before its full stop passes, because the
+// test is containment of the word and not an account of what the sentence
+// does with it. Refusing that sentence would take a reading of negation in
+// English prose, and a guard that reads negation fires falsely on honest text
+// in a way nobody here can adjudicate line by line, which costs more than the
+// residual does. The residual is narrow: the word has to appear inside the
+// one sentence that makes the claim, so the ordinary way a stale sentence
+// goes stale, by saying a card and its items and stopping, is caught.
 const (
 	commentVerbClaim = "records a comment on a card"
 	// commentVerbHolder is the word the sentence has to carry. Its lower

@@ -944,9 +944,9 @@ so a `claimed` line with no `expires` records an unbounded claim.
 
 | event | always present | conditional |
 |---|---|---|
-| `created` | | `title`, on a card's line and on a new workstream's, absent on the line that records a workstream `check` adopted; `to` and `to_title`, on a card's line only, since a workstream stands in no column |
+| `created` | | `title`, on a card's line, on a new workstream's and on a new column's, absent on the line that records a workstream `check` adopted; `to` and `to_title`, on a card's line only, since a workstream stands in no column; `note`, the new column's own identifier, on a column's line only, written both by the verb that adds one column and by a `reshape` for each column its new definition adds |
 | `claimed` | | `expires`, when the claim carried a duration |
-| `moved` | `from`, `from_title`, `to`, `to_title` | `override`, true only where a declared limit or hold stood in the way and the operator carried the move past it, which is a CORE-MOVE-9 capacity override, the departure column's own `loop_limit`, the destination column's own `gate_items` hold under CORE-GATE-4, or the departure column's own `gate_items` hold read on the way out; `reject`, true only when the destination is the departure column's own `reject_to` target |
+| `moved` | `from`, `from_title`, `to`, `to_title` | `override`, true only where a declared limit or hold stood in the way and the operator carried the move past it, which is a CORE-MOVE-9 capacity override, the departure column's own `loop_limit`, the destination column's own `gate_items` hold under CORE-GATE-4, or the departure column's own `gate_items` hold read on the way out; `reject`, true only when the destination is the departure column's own `reject_to` target; `reshape`, true only on a line a `reshape` wrote, marking a card carried out of a column the workbench no longer declares rather than a move somebody decided on, and a reader that does not know the marker reads an ordinary move, which is what the line already is |
 | `released` | | |
 | `blocked` | `reason` | `kind`, whatever the caller passed, since nothing validates it |
 | `unblocked` | | |
