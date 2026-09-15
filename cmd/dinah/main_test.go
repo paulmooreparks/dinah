@@ -299,7 +299,7 @@ func TestHelpBlockIsTheRatifiedSurface(t *testing.T) {
 		t.Errorf("the emitted block differs from the spec's section 2:\n%s", diffLines(string(fixture), got.out))
 	}
 
-	// The block lists fifty-five commands, and every command the binary
+	// The block lists fifty-six commands, and every command the binary
 	// offers is either one of them or `help`, which the block's own last
 	// line names.
 	listed := 0
@@ -315,8 +315,8 @@ func TestHelpBlockIsTheRatifiedSurface(t *testing.T) {
 			t.Errorf("the block does not list %s", c.name)
 		}
 	}
-	if listed != 55 {
-		t.Errorf("wanted fifty-five listed commands, got %d", listed)
+	if listed != 56 {
+		t.Errorf("wanted fifty-six listed commands, got %d", listed)
 	}
 }
 
@@ -7234,11 +7234,12 @@ func TestTheFlagSetsTheParserAcceptsAreDerivedFromTheParameterTable(t *testing.T
 		"actor", "at", "before", "capacity", "card", "column", "depth",
 		"description", "expires", "fields", "format", "from", "group-by", "kind",
 		"lang", "map", "max-depth", "note", "observed", "operator", "owner",
-		"priority", "query", "remint", "root", "severity", "since", "slug",
-		"tier", "workbench",
+		"poll-seconds", "priority", "query", "remint", "root", "severity",
+		"since", "slug", "tier", "workbench",
 	}
 	wantMarkers := []string{
-		"archived", "catalogs", "finish", "help", "json", "migrate-branches",
+		"annotate-prose", "archived", "catalogs", "finish", "help", "json",
+		"migrate-branches",
 		"migrate-columns",
 		"migrate-container", "migrate-numbers", "migrate-ordinals",
 		"migrate-slugs", "migrate-vocabulary", "migrate-workstreams",

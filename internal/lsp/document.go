@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"time"
 
 	"dinah/internal/bench"
@@ -180,15 +181,41 @@ func (s *Server) schema(path string) bool {
 	return anchorNames[filepath.Base(path)] && under(s.bench.Root, path)
 }
 
-// under reports containment, through the library's own test so the editor and
-// the command line agree on what lies inside what.
+// under reports containment, segment by segment over cleaned absolute paths.
+//
+// bench.PathUnderRoot is the library's own test and is deliberately not used
+// here. Its own comment says every stat the comparison makes has to be
+// answered and that a stat failure refuses for any reason at all, which is
+// right for a verb acting on a path that exists and wrong for a document an
+// editor has open: a file the reader has typed into and not yet saved is not
+// on disk, and refusing to annotate it would make this server useless on the
+// first file of a new card.
+//
+// Testing segment by segment rather than as a text prefix is what keeps a
+// sibling directory whose name merely begins with the root's last segment
+// outside it.
 func under(root, path string) bool {
-	abs, err := filepath.Abs(path)
+	rootAbs, err := filepath.Abs(root)
 	if err != nil {
 		return false
 	}
-	contained, err := bench.PathUnderRoot(root, abs)
-	return err == nil && contained
+	pathAbs, err := filepath.Abs(path)
+	if err != nil {
+		return false
+	}
+	relative, err := filepath.Rel(rootAbs, pathAbs)
+	if err != nil {
+		return false
+	}
+	if relative == "." {
+		return true
+	}
+	for _, segment := range strings.Split(filepath.ToSlash(relative), "/") {
+		if segment == ".." {
+			return false
+		}
+	}
+	return true
 }
 
 // recompute rebuilds every open document's model and answers the documents

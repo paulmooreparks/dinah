@@ -1744,8 +1744,7 @@ func runLSP(s *session, parsed *arguments) int {
 			if abs != "" {
 				path = abs
 			}
-			s.errLine(contract.UnknownRoot + " " + path)
-			return contract.ExitCode(contract.OutcomeRefused)
+			return s.reportError(contract.Refuse(contract.UnknownRoot, path))
 		}
 		root = abs
 	}

@@ -311,10 +311,22 @@ func renderingsOfTheCatalog(t *testing.T) []rendering {
 // identifiesNothing reports whether an entry's stored text is placeholders
 // joined by a single punctuation mark, which recognises any line carrying that
 // mark and so cannot be evidence that the entry itself was rendered.
+//
+// An entry that is one placeholder and nothing else is the stronger case of
+// the same defect and is excluded here too. Its compiled form carries no
+// literal text at all, so it matches every field of every block, and a rule
+// that finds it everywhere has found it nowhere. dinah-515 mints four such
+// entries, an inline annotation for a column, a workstream, a checklist item
+// and an attachment each being the entity's own title or filename and nothing
+// besides, and without this clause each of them is reported as rendered into
+// three blocks of the quick start that show no annotation at all.
 func identifiesNothing(text string) bool {
 	literal := placeholder.ReplaceAllString(text, "")
 	if literal == text {
 		return false
+	}
+	if strings.TrimSpace(literal) == "" {
+		return true
 	}
 	return separatorLiteral.MatchString(literal)
 }
