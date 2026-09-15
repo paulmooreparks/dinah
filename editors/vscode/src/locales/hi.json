@@ -767,7 +767,7 @@
 		},
 		"item.document.heading.status": {
 			"text": "स्थिति",
-			"context": "The heading above the item document's standing line, which carries the state, the hold sentence and the owner.",
+			"context": "The heading above the item document's standing line, which carries the state, the hold sentence, and the owner.",
 			"source": "ad3e3c8146fc920f"
 		},
 		"item.document.heading.text": {

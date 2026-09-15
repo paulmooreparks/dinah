@@ -341,14 +341,17 @@ export async function postCommentDraft(
  * The index lookup is what keeps this command off a file the extension never
  * created, and it is the same lookup postCommentDraft makes for the same
  * reason. The manifest offers both commands on any file whose name ends in
- * DRAFT_SUFFIX, wherever it sits, because a when-clause has nothing
- * resource-scoped to test the directory with: the drafts live under
- * globalStorageUri, whose layout VS Code documents nothing about and which no
- * manifest literal can therefore name, and a custom context key set through
- * setContext is one value for the whole window rather than one per resource,
- * so it answers for the active editor and gets a second editor's title bar
- * wrong. So a reader with an unrelated notes.dinah-comment.md open is offered
- * the command, and what happens when they press it is decided here. An
+ * DRAFT_SUFFIX, wherever it sits, because no clause it can carry answers the
+ * directory question accurately. A resource-scoped test does exist, since VS
+ * Code documents resourcePath and resourceDirname as when-clause context
+ * keys, but the drafts live under globalStorageUri, whose layout VS Code
+ * documents nothing about, so any directory literal written into the manifest
+ * would have to be a pattern loose enough to be wrong. The other route is a
+ * custom context key set through setContext, which is one value for the whole
+ * window rather than one per resource, so it answers for the active editor
+ * and gets a second editor's title bar wrong. So a reader with an unrelated
+ * notes.dinah-comment.md open is offered the command, and what happens when
+ * they press it is decided here. An
  * earlier form of this function confirmed and then deleted whatever path it
  * was handed, which destroyed that file.
  *

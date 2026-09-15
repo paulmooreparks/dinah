@@ -437,7 +437,7 @@ test("cardRefOf takes the reference up to its first slash, and leaves a bare car
 // dinah-506/criteria/10, 11: the selection policies, driven
 // ---------------------------------------------------------------------------
 
-test("Comment, Resolve, Verify and Fail each refuse a multi-row selection and spawn nothing", async () => {
+test("Comment, Resolve, Verify, Fail and Raise each refuse a multi-row selection and spawn nothing", async () => {
 	// Zero spawns is the assertion rather than "not two", because a command
 	// that spawned once and reported an error would pass a weaker check.
 	let driven = 0;
@@ -465,6 +465,28 @@ test("Comment, Resolve, Verify and Fail each refuse a multi-row selection and sp
 		driven += 1;
 	}
 	assert.equal(driven, 4, "the sweep drove a number of commands other than four");
+
+	// Raise is the fifth rowOnly command and it is driven beside the loop
+	// rather than inside it, because it acts on card rows and the four above
+	// act on item rows. SELECTION_POLICIES declares it rowOnly, but the guard
+	// that reads that table drives only the commands declared fanOut, so a
+	// command declaring rowOnly and then fanning out is caught here or
+	// nowhere.
+	const raiseRow = (ref: string): TreeElement => ({
+		kind: "card",
+		row: { ...rootRow(), data: flowData() },
+		node: { kind: "card", ref, count: 1 },
+		view: { id: ref.replace("-", ""), ref },
+		column: columnView(),
+	});
+	const raise = await invoke(COMMAND_FILE_ITEM, [raiseRow("wb-1"), raiseRow("wb-2")]);
+	assert.deepEqual(raise.calls, [], "Raise spawned over a two-row selection");
+	assert.equal(
+		raise.log.errors.length,
+		1,
+		`Raise recorded ${String(raise.log.errors.length)} errors`,
+	);
+	assert.equal(raise.log.errors[0], ENGLISH("dialog.bulk.oneRowOnly"));
 });
 
 test("Reopen asks once and acts on every selected row", async () => {
@@ -860,12 +882,36 @@ test("an item row draws a bounded one-line label and says its kind, state and th
 	assert.ok((item.description as string).includes(ENGLISH("item.comments", { count: "3" })));
 });
 
-test("a locked row's tooltip says why its menu is short, and an unlocked one's does not", () => {
+test("a row's tooltip states its column's hold, and a locked row's says why its menu is short", () => {
 	const owned: Partial<ItemView> = { owner: "operator", state: "pending" };
 	const locked = treeItemFor(itemRow(owned, false, ROOT, flowData()), ENGLISH);
 	const unlocked = treeItemFor(itemRow(owned, true, ROOT, flowData()), ENGLISH);
 	assert.ok((locked.tooltip as string).includes(ENGLISH("item.locked")));
 	assert.ok(!(unlocked.tooltip as string).includes(ENGLISH("item.locked")));
+
+	// The hold sentence is the line of the tooltip a reader can get nowhere
+	// else, so it is read off a row driven through the same treeItemFor the
+	// tree calls rather than off itemTooltip alone. The row names a column
+	// ahead of the card that holds on the way in, which the column pick's own
+	// table above fixes at entryAhead, and the five sentences that do not
+	// belong to that token are asserted absent, because a tooltip carrying all
+	// six would satisfy a check that only looked for the right one.
+	const built = itemRow({ ...owned, column: "ahead-on" }, false, ROOT, flowData());
+	assert.equal(built.kind, "item", "the helper stopped building an item row");
+	const held = treeItemFor(
+		{ ...(built as Extract<TreeElement, { kind: "item" }>), card: "wb-1" },
+		ENGLISH,
+	);
+	const tooltip = held.tooltip as string;
+	const tokens = Object.keys(HOLD_DIRECTIONS) as HoldDirection[];
+	assert.equal(tokens.length, 6, "the token set is not the six the table gives");
+	for (const token of tokens) {
+		assert.equal(
+			tooltip.includes(ENGLISH(`item.hold.${token}`, { 0: "ahead-on" })),
+			token === "entryAhead",
+			`the tooltip's hold sentence for ${token}`,
+		);
+	}
 });
 
 test("a checklist group row carries the eager count and expands", () => {
