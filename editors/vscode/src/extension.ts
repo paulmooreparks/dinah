@@ -33,6 +33,8 @@ import type { ColumnCommandHost } from "./columnCommands";
 import { ATTACH_DIALOG_OPTIONS, pickedFilePath } from "./creationCommands";
 import { PAIRED_RELEASE } from "./generated/pairing";
 import {
+	COMMAND_DISCARD_DRAFT,
+	COMMAND_POST_COMMENT,
 	COMMAND_REFRESH,
 	COMMAND_REFRESH_VERB_CATALOG,
 	COMMAND_RUN_VERB,
@@ -60,12 +62,16 @@ import {
 	KIND_GUIDE,
 	KIND_HISTORY,
 	KIND_INSTRUCTIONS,
+	KIND_ITEM,
 	ServedTextRefreshLoop,
 	parseServedTextUri,
+	cardRefOf,
 	renderHistoryMarkdown,
+	renderItemMarkdown,
 	renderInstructionsMarkdown,
 	servedTextUriParts,
 } from "./servedText";
+import type { ItemDetail, ItemView } from "./wire";
 import type { RunVerbContext } from "./runVerbCommand";
 import { refreshVerbCatalog, runVerbFromPalette } from "./runVerbCommand";
 import { nodeSpawner } from "./spawn";
@@ -79,7 +85,20 @@ import {
 	summarizeHolding,
 } from "./status";
 import type { TreeElement, TreeItemSpec } from "./tree";
-import { DinahTreeProvider, elementKey } from "./tree";
+import {
+	DinahTreeProvider,
+	elementKey,
+	itemHoldDirection,
+	itemKindWord,
+	itemStateWord,
+} from "./tree";
+import type { DraftHost, DraftIndex } from "./commentDrafts";
+import {
+	DRAFT_INDEX_KEY,
+	discardCommentDraft,
+	postCommentDraft,
+	sweepDraftIndex,
+} from "./commentDrafts";
 import { classifyVersion, describeVersion } from "./version";
 import type { JournalEvent, PathAnswer, ServedAnswer } from "./wire";
 import { VerbCatalog } from "./verbCatalog";
@@ -240,6 +259,99 @@ function commandHost(
 				confirmLabel,
 			);
 			return picked === confirmLabel;
+		},
+		checkpoint,
+		log: (line) => channel.appendLine(line),
+	};
+}
+
+/**
+ * What the two draft commands ask the window and the disk for, bound to the
+ * real editor.
+ *
+ * Every filesystem call goes through vscode.workspace.fs rather than through
+ * node:fs, which keeps the filesystem in the one module already holding every
+ * other vscode value. globalStorageUri is documented as a directory the
+ * extension may store state in, with the documented caveat that it might not
+ * exist, so the directory is created before anything is written into it and
+ * createDirectory is documented to create missing parents and to succeed when
+ * the directory is already there.
+ */
+function draftCommandHost(
+	context: vscode.ExtensionContext,
+	channel: vscode.OutputChannel,
+	t: Localizer,
+	checkpoint: (folder: string) => Promise<void>,
+): DraftHost {
+	const decoder = new TextDecoder();
+	const encoder = new TextEncoder();
+	return {
+		t,
+		storageRoot: context.globalStorageUri.fsPath,
+		ensureDirectory: async (path) => {
+			await vscode.workspace.fs.createDirectory(vscode.Uri.file(path));
+		},
+		writeDraft: async (path, text) => {
+			await vscode.workspace.fs.writeFile(
+				vscode.Uri.file(path),
+				encoder.encode(text),
+			);
+		},
+		// A read that throws is read as no file rather than propagated,
+		// because the one question this call answers is whether prose is
+		// there, and every arm above it treats "not there" as a fact rather
+		// than as a failure.
+		readDraft: async (path) => {
+			try {
+				return decoder.decode(
+					await vscode.workspace.fs.readFile(vscode.Uri.file(path)),
+				);
+			} catch {
+				return undefined;
+			}
+		},
+		deleteDraft: async (path) => {
+			await vscode.workspace.fs.delete(vscode.Uri.file(path));
+		},
+		// TextDocument.save() is documented to answer whether the save
+		// happened. A document the editor is not holding open cannot be saved
+		// by this route, and there is nothing unsaved in it either, so it
+		// answers true and the read below is what decides.
+		saveDocument: async (path) => {
+			const open = vscode.workspace.textDocuments.find(
+				(document) => document.uri.fsPath === path,
+			);
+			return open === undefined ? true : open.save();
+		},
+		openDocument: async (path) => {
+			const document = await vscode.workspace.openTextDocument(
+				vscode.Uri.file(path),
+			);
+			await vscode.window.showTextDocument(document);
+		},
+		readIndex: () =>
+			context.globalState.get<DraftIndex>(DRAFT_INDEX_KEY) ?? {},
+		writeIndex: async (index) => {
+			await context.globalState.update(DRAFT_INDEX_KEY, index);
+		},
+		confirmDestructive: async (message, confirmLabel) => {
+			const picked = await vscode.window.showWarningMessage(
+				message,
+				{ modal: true },
+				confirmLabel,
+			);
+			return picked === confirmLabel;
+		},
+		showError: (message) => {
+			void vscode.window.showErrorMessage(message);
+		},
+		showInfo: (message) => {
+			void vscode.window.showInformationMessage(message);
+		},
+		appendLines: (lines) => {
+			for (const line of lines) {
+				channel.appendLine(line);
+			}
 		},
 		checkpoint,
 		log: (line) => channel.appendLine(line),
@@ -899,6 +1011,75 @@ export async function activate(
 			}
 			return outcome.text;
 		},
+		// One checklist item, composed from two calls. `show <item>` answers
+		// an ItemDetail whose text member is the anchor file with its
+		// frontmatter still on it, so only its comments are read; the item's
+		// own prose, kind, state, column, owner and note ride ItemView, which
+		// `show <card> --fields card,checklist` is the one surface serving.
+		// Splitting the anchor here would put this extension back to parsing
+		// dinah's human output.
+		[KIND_ITEM]: async (root, ref) => {
+			const exe = binary.state === "ok" ? binary.path : "";
+			const detailOutcome = await runDinah(nodeSpawner, exe, pinnedArgv(root, ["show", ref]), {
+				cwd: root,
+			});
+			if (detailOutcome.kind !== "ok") {
+				throw new Error(refusalMessage(detailOutcome));
+			}
+			const detail = detailOutcome.json as ItemDetail;
+			const cardOutcome = await runDinah(
+				nodeSpawner,
+				exe,
+				pinnedArgv(root, ["show", cardRefOf(ref), "--fields", "card,checklist"]),
+				{ cwd: root },
+			);
+			const view =
+				cardOutcome.kind === "ok"
+					? (
+							cardOutcome.json as { checklist?: readonly ItemView[] }
+						).checklist?.find((candidate) => candidate.ref === ref)
+					: undefined;
+			const data = provider.dataFor(root);
+			const direction =
+				view === undefined
+					? "nothing"
+					: itemHoldDirection(data, cardRefOf(ref), view);
+			const columnTitle = view?.column_title ?? view?.column ?? "";
+			const hold = {
+				entryAhead: t("item.hold.entryAhead", { 0: columnTitle }),
+				entryPassed: t("item.hold.entryPassed", { 0: columnTitle }),
+				exitHere: t("item.hold.exitHere", { 0: columnTitle }),
+				exitAhead: t("item.hold.exitAhead", { 0: columnTitle }),
+				exitPassed: t("item.hold.exitPassed", { 0: columnTitle }),
+				nothing: t("item.hold.nothing", { 0: columnTitle }),
+			};
+			return renderItemMarkdown(
+				view,
+				detail,
+				{
+					title: t("item.document.title", {
+						ref,
+						kind: view === undefined ? "" : itemKindWord(view.kind, t),
+					}),
+					textHeading: t("item.document.heading.text"),
+					statusHeading: t("item.document.heading.status"),
+					noteHeading: t("item.document.heading.note"),
+					commentsHeading: t("item.document.heading.comments"),
+					state: view === undefined ? "" : itemStateWord(view.state, t),
+					hold,
+					owner: t("item.owner"),
+					commentsEmpty: t("item.document.commentsEmpty"),
+					textUnavailable: t("item.document.textUnavailable", { ref }),
+					commentHeading: (ordinal, author, ts) =>
+						t("item.document.comment.heading", {
+							ordinal: String(ordinal),
+							author,
+							ts,
+						}),
+				},
+				direction,
+			);
+		},
 	};
 	// The Uri a tab opened under, kept so that a change can be announced for
 	// the same value the editor holds. onDidChange takes a Uri and the loop
@@ -982,6 +1163,27 @@ export async function activate(
 	const host = commandHost(channel, (folder) => checkpointing.checkNow(folder), t);
 	const workbenchHost = workbenchCommandHost(channel, t);
 	const columnHost = columnCommandHost(channel, t);
+	const draftHost = draftCommandHost(context, channel, t, (folder) =>
+		checkpointing.checkNow(folder),
+	);
+	// The command palette's own catalogue, built here rather than below it
+	// because the filing form reads its kind choices from the same object and
+	// the wiring has to carry it. The build is still lazy, so a window that
+	// never opens either surface never spawns for one.
+	//
+	// The wizard is pinned to the primary folder's own workbench, because a
+	// verb has to run against one and this is the same workbench the status
+	// bar and the first tree root already name. A window whose folder resolved
+	// to nothing falls back to the folder itself, which is what the binary
+	// would walk from at a terminal opened there.
+	const verbRoot =
+		primary?.state === "ok" ? primary.root : (first?.uri.fsPath ?? "");
+	const verbCatalog = new VerbCatalog({
+		spawner: nodeSpawner,
+		exe: binary.state === "ok" ? binary.path : "",
+		options: { cwd: verbRoot === "" ? undefined : verbRoot },
+		log: (line) => channel.appendLine(line),
+	});
 	const wiring: Wiring = {
 		exe: binary.state === "ok" ? binary.path : "",
 		// describeVersion rather than a second spelling of the same line: the
@@ -1002,6 +1204,8 @@ export async function activate(
 		applyCheckResult: async (path, label, outcome) => {
 			await diagnostics.applyResult(path, label, outcome);
 		},
+		draftHost,
+		verbCatalog: () => verbCatalog.get(),
 	};
 
 	// One loop registers every command that reads rows, and it is the only
@@ -1033,21 +1237,49 @@ export async function activate(
 		emitter.fire(undefined);
 	});
 
-	// The command palette's two commands, and the catalog behind them.
-	//
-	// The wizard is pinned to the primary folder's own workbench, because a
-	// verb has to run against one and this is the same workbench the status
-	// bar and the first tree root already name. A window whose folder
-	// resolved to nothing falls back to the folder itself, which is what the
-	// binary would walk from at a terminal opened there.
-	const verbRoot =
-		primary?.state === "ok" ? primary.root : (first?.uri.fsPath ?? "");
-	const verbCatalog = new VerbCatalog({
-		spawner: nodeSpawner,
-		exe: binary.state === "ok" ? binary.path : "",
-		options: { cwd: verbRoot === "" ? undefined : verbRoot },
-		log: (line) => channel.appendLine(line),
+	// The two draft commands. The path is read from the command's first
+	// argument when that argument is a Uri, which is what the editor title bar
+	// passes, and from the active editor otherwise, which is what the palette
+	// leaves. Where neither yields a path the run returns saying nothing: a
+	// command invoked with no draft in front of the reader has been asked for
+	// nothing and has nothing to report, and keeping the arm here is what lets
+	// the pure module take a plain path rather than an optional one.
+	const draftPathOf = (argument: unknown): string | undefined => {
+		if (argument instanceof vscode.Uri) {
+			return argument.fsPath;
+		}
+		return vscode.window.activeTextEditor?.document.uri.fsPath;
+	};
+	register(COMMAND_POST_COMMENT, async (argument) => {
+		const path = draftPathOf(argument);
+		if (path === undefined) {
+			return;
+		}
+		await postCommentDraft(
+			draftHost,
+			nodeSpawner,
+			binary.state === "ok" ? binary.path : "",
+			path,
+		);
 	});
+	register(COMMAND_DISCARD_DRAFT, async (argument) => {
+		const path = draftPathOf(argument);
+		if (path === undefined) {
+			return;
+		}
+		await discardCommentDraft(draftHost, path);
+	});
+	// The one piece of draft housekeeping there is: an index entry whose file
+	// a reader deleted by hand is dropped, which costs one read per entry. It
+	// drops entries and never files, and it is not awaited, because nothing in
+	// activation depends on it.
+	void sweepDraftIndex(draftHost).catch((err: unknown) => {
+		channel.appendLine(
+			`comment draft sweep: ${err instanceof Error ? err.message : String(err)}`,
+		);
+	});
+
+	// The command palette's two commands, over the catalogue built above.
 	const verbContext = (): RunVerbContext => ({
 		spawner: nodeSpawner,
 		exe: binary.state === "ok" ? binary.path : "",

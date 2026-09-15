@@ -348,6 +348,16 @@ type CardView struct {
 	// attachments themselves are one read away for the one card somebody
 	// asked about.
 	AttachmentCount int `json:"attachment_count,omitempty"`
+	// ChecklistCount is how many checklist items the card carries, on the
+	// terms AttachmentCount reports its own collection: the number rather
+	// than the list, so a reader decides whether the card has anything to
+	// expand without a second call per card.
+	//
+	// It counts the collection's members and reads no item anchor, which is
+	// what keeps it affordable on a listing. BlockingItems beside it answers
+	// a different question and is not this number: it counts only the items
+	// CORE-CLAIM-10 would refuse a claim over.
+	ChecklistCount int `json:"checklist_count,omitempty"`
 	// BlockingItems is how many of the card's checklist items are, right
 	// now, ones CORE-CLAIM-10 would refuse a claim over. A reader sees the
 	// refusal coming rather than meeting it and being told afterwards.
@@ -517,6 +527,10 @@ func (l *Library) view(card *bench.Card) (*CardView, error) {
 	if err != nil {
 		return nil, err
 	}
+	items, err := bench.CountItems(card.Dir)
+	if err != nil {
+		return nil, err
+	}
 	v := &CardView{
 		ID:          card.ID,
 		Ref:         card.Ref(l.Bench.Slug),
@@ -534,6 +548,7 @@ func (l *Library) view(card *bench.Card) (*CardView, error) {
 		Revision:    card.Revision,
 
 		AttachmentCount: attachments,
+		ChecklistCount:  items,
 		BlockingItems:   blocking,
 	}
 	if column := l.Bench.Column(card.Column); column != nil {

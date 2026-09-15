@@ -151,6 +151,33 @@ export const WALKTHROUGH_STEP_READ_GUIDE = "dinah.firstSession.readGuide";
 export const COMMAND_OPEN_FIRST_SESSION_GUIDE = "dinah.walkthrough.openFirstSessionGuide";
 
 /**
+ * The seven checklist-item commands dinah-506 contributes.
+ *
+ * Six are invoked on an item row and the seventh, File Item, on a card row,
+ * because filing is how an item comes to exist and a card is what it is filed
+ * against.
+ */
+export const COMMAND_OPEN_ITEM = "dinah.tree.openItem";
+export const COMMAND_COMMENT_ON_ITEM = "dinah.tree.commentOnItem";
+export const COMMAND_RESOLVE_ITEM = "dinah.tree.resolveItem";
+export const COMMAND_VERIFY_ITEM = "dinah.tree.verifyItem";
+export const COMMAND_FAIL_ITEM = "dinah.tree.failItem";
+export const COMMAND_REOPEN_ITEM = "dinah.tree.reopenItem";
+export const COMMAND_FILE_ITEM = "dinah.tree.fileItem";
+
+/**
+ * The two commands a comment draft's own editor tab offers.
+ *
+ * They carry the `dinah.comment.` prefix rather than `dinah.tree.` because
+ * neither reads a tree row. TREE_COMMANDS is documented as every command this
+ * extension contributes rather than as a list of tree commands, and it
+ * already carries the walkthrough's own command, so naming these two tree
+ * commands would be the only false thing in the roster.
+ */
+export const COMMAND_POST_COMMENT = "dinah.comment.post";
+export const COMMAND_DISCARD_DRAFT = "dinah.comment.discard";
+
+/**
  * Every command this extension contributes, in the order package.json
  * declares them. A manifest test reads this array back, which is what keeps
  * a command registered in code but undeclared (or the reverse) from shipping.
@@ -179,6 +206,15 @@ export const TREE_COMMANDS: readonly string[] = [
 	COMMAND_OPEN_FIRST_SESSION_GUIDE,
 	COMMAND_RUN_VERB,
 	COMMAND_REFRESH_VERB_CATALOG,
+	COMMAND_OPEN_ITEM,
+	COMMAND_COMMENT_ON_ITEM,
+	COMMAND_RESOLVE_ITEM,
+	COMMAND_VERIFY_ITEM,
+	COMMAND_FAIL_ITEM,
+	COMMAND_REOPEN_ITEM,
+	COMMAND_FILE_ITEM,
+	COMMAND_POST_COMMENT,
+	COMMAND_DISCARD_DRAFT,
 ];
 
 /**
@@ -212,15 +248,23 @@ export const ROW_COMMANDS: readonly string[] = [
 	COMMAND_OPEN_INSTRUCTIONS,
 	COMMAND_OPEN_HISTORY,
 	COMMAND_ARCHIVE_CARD,
+	COMMAND_OPEN_ITEM,
+	COMMAND_COMMENT_ON_ITEM,
+	COMMAND_RESOLVE_ITEM,
+	COMMAND_VERIFY_ITEM,
+	COMMAND_FAIL_ITEM,
+	COMMAND_REOPEN_ITEM,
+	COMMAND_FILE_ITEM,
 ];
 
 /**
  * Commands that need no row and stay visible in the Command Palette.
  *
- * Every entry of TREE_COMMANDS belongs to exactly one of this array and
- * ROW_COMMANDS. A manifest test holds the two to being a complete and
- * non-overlapping partition of TREE_COMMANDS, so a command added there
- * without a classification fails a test rather than shipping unclassified.
+ * Every entry of TREE_COMMANDS belongs to exactly one of this array,
+ * ROW_COMMANDS and EDITOR_COMMANDS. A manifest test holds the three to being
+ * a complete and non-overlapping partition of TREE_COMMANDS, so a command
+ * added there without a classification fails a test rather than shipping
+ * unclassified.
  */
 export const GLOBAL_COMMANDS: readonly string[] = [
 	COMMAND_REFRESH,
@@ -228,6 +272,51 @@ export const GLOBAL_COMMANDS: readonly string[] = [
 	COMMAND_RUN_VERB,
 	COMMAND_REFRESH_VERB_CATALOG,
 ];
+
+/**
+ * Commands that read no tree row and are reachable in the Command Palette
+ * only under a clause of their own.
+ *
+ * A row command is hidden from the palette outright because a palette
+ * invocation names no row, and a global command is left undeclared there
+ * because VS Code's own default makes it visible everywhere. An editor
+ * command is neither: it acts on the active editor, so a palette invocation
+ * reaches it correctly while that editor is open and nowhere else, and the
+ * clause in the manifest is what says where. dinah-506's two draft commands
+ * are the first of these.
+ */
+export const EDITOR_COMMANDS: readonly string[] = [
+	COMMAND_POST_COMMENT,
+	COMMAND_DISCARD_DRAFT,
+];
+
+/**
+ * The nine contextValues a checklist item row carries, composed as
+ * `dinah.item.<kind>.<state>` with an optional `.locked` suffix.
+ *
+ * The state axis collapses resolved, verified and failed to `closed`, because
+ * all three offer exactly Reopen and nothing else, and a state outside the
+ * four the format declares reads as closed too, so a damaged anchor offers
+ * Reopen rather than a terminal verb.
+ *
+ * The suffix is what withholds the terminal verbs from a window that is not
+ * the operator on an item the operator owns. Only the pending values take it,
+ * because closeItem is where the owner is checked and Reopen deliberately
+ * does not land there: reopening can only re-impose a hold and never lift
+ * one. The manifest's clauses anchor on `pending$`, so a suffixed value
+ * matches none of them.
+ */
+export const CONTEXT_ITEM_PREFIX = "dinah.item";
+export const CONTEXT_ITEM_LOCKED_SUFFIX = "locked";
+
+/** The state word a contextValue carries for an item that is still open. */
+export const CONTEXT_ITEM_PENDING = "pending";
+
+/** The state word every closed item carries, whichever way it closed. */
+export const CONTEXT_ITEM_CLOSED = "closed";
+
+/** The contextValue a card's checklist group row carries. */
+export const CONTEXT_CHECKLIST_GROUP = "dinah.checklistGroup";
 
 /**
  * The four answers actionsFor composes for a card row, and the row kinds

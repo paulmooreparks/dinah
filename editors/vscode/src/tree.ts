@@ -30,6 +30,11 @@ import { runDinah } from "./cli";
 import {
 	CONTEXT_ATTACHMENT,
 	CONTEXT_CARD_ACTIVE,
+	CONTEXT_CHECKLIST_GROUP,
+	CONTEXT_ITEM_CLOSED,
+	CONTEXT_ITEM_LOCKED_SUFFIX,
+	CONTEXT_ITEM_PENDING,
+	CONTEXT_ITEM_PREFIX,
 	CONTEXT_CARD_BLOCKED,
 	CONTEXT_CARD_READY_CLAIM,
 	CONTEXT_CARD_READY_NONE,
@@ -44,6 +49,7 @@ import {
 	CONTEXT_WORKBENCH_ROOT,
 	COMMAND_OPEN_ATTACHMENT,
 	COMMAND_OPEN_CARD,
+	COMMAND_OPEN_ITEM,
 } from "./identity";
 import { ENGLISH } from "./l10n";
 import type { Localizer } from "./l10n";
@@ -53,6 +59,7 @@ import type {
 	CardView,
 	ColumnView,
 	ForestAnswer,
+	ItemView,
 	ListingAnswer,
 	RootListingAnswer,
 	RootStatusAnswer,
@@ -158,6 +165,16 @@ export interface WorkbenchData {
 	 * answer, for the reason `root` is.
 	 */
 	readonly actor?: string;
+	/**
+	 * Whether this window acts as the workbench's own operator, as `status`
+	 * reports it. Held from the last good checkpoint when this one's status
+	 * did not answer, for the reason `actor` beside it is.
+	 *
+	 * The item rows read it, because an item the operator owns can be settled
+	 * by nobody else and a row that offered the act anyway would be offering
+	 * a refusal.
+	 */
+	readonly isOperator?: boolean;
 	/**
 	 * The cards that actor holds in this workbench right now, as `status`
 	 * reports them. Empty is a real answer meaning the actor holds nothing,
@@ -306,6 +323,25 @@ export type TreeElement =
 			 */
 			readonly owner: string;
 			readonly view: AttachmentView;
+	  }
+	| {
+			readonly kind: "checklistGroup";
+			readonly row: RootRow;
+			readonly root: string;
+			/** The card whose checklist this is. */
+			readonly ref: string;
+			/** The eager count ls already reported. */
+			readonly count: number;
+	  }
+	| {
+			readonly kind: "item";
+			readonly row: RootRow;
+			readonly root: string;
+			/** The card the item hangs from, so a later call composes. */
+			readonly card: string;
+			readonly view: ItemView;
+			/** Whether this window acts as the workbench's operator. */
+			readonly isOperator: boolean;
 	  };
 
 /**
@@ -365,6 +401,10 @@ function keyPartsOf(element: TreeElement): readonly (string | undefined)[] {
 			return [element.root, element.ref];
 		case "attachment":
 			return [element.root, element.owner, element.view.id];
+		case "checklistGroup":
+			return [element.root, element.ref];
+		case "item":
+			return [element.root, element.view.ref];
 	}
 }
 
@@ -461,6 +501,341 @@ export function cardDescription(view: CardView | undefined): string {
 		(part): part is string => part !== undefined && part !== "",
 	);
 	return parts.join(" · ");
+}
+
+// ---------------------------------------------------------------------------
+// Checklist items: their labels, their hold direction and their contextValues
+// ---------------------------------------------------------------------------
+
+/** How long an item's one-line label may run before it is elided. */
+const ITEM_LABEL_LIMIT = 120;
+
+/**
+ * An item's text as one bounded line.
+ *
+ * An item's own text is prose and may carry paragraphs, and a tree row is one
+ * line whatever it is given, so the whitespace is collapsed rather than left
+ * to the editor to flatten however it likes. It is exported so a unit test
+ * drives the function the tree calls rather than a copy of it.
+ */
+export function itemLabel(text: string): string {
+	const collapsed = text.replace(/\s+/g, " ").trim();
+	return collapsed.length > ITEM_LABEL_LIMIT
+		? `${collapsed.slice(0, ITEM_LABEL_LIMIT - 1)}\u2026`
+		: collapsed;
+}
+
+/**
+ * The six things an item's column can be doing to the card that carries it.
+ *
+ * An object rather than a union, because two catalogue groups are keyed by
+ * these six tokens and the guard in test/unit/l10n-keys.test.ts reads a
+ * family's members off a module-level object literal's property names. Writing
+ * the six here once is what keeps `item.hold.*` and
+ * `form.file.column.detail.*` from each needing a hand-copied list.
+ */
+export const HOLD_DIRECTIONS = {
+	entryAhead: true,
+	entryPassed: true,
+	exitHere: true,
+	exitAhead: true,
+	exitPassed: true,
+	nothing: true,
+};
+
+/** One of the six, as every surface that reads the direction spells it. */
+export type HoldDirection = keyof typeof HOLD_DIRECTIONS;
+
+/**
+ * What a column declaring `hold` does to a card standing at `cardIndex`, given
+ * that the column stands at `candidateIndex` in the same declared flow order.
+ *
+ * Twelve inputs and twelve answers, which is the four hold values crossed with
+ * the three positions. The table is written out rather than reduced to a pair
+ * of nested conditions, because three of the twelve overlap two plausible
+ * rules and a reduction would let branch order settle them silently.
+ *
+ * The `both` row is where that matters. A column holding both ways offers two
+ * true sentences at each position, so each of its three cells is a call rather
+ * than a consequence. Ahead of the card the answer is the entry, because both
+ * holds are still in the card's future and entry is the one it reaches first.
+ * At the card's own column the answer is the exit, and that cell is not a
+ * matter of wording: the card is standing there, so the entry has happened,
+ * and saying the entry is passed would claim the item stops the card where it
+ * stands when the item will in fact refuse the card's next move out. Behind
+ * the card both sentences are true and differ only in which event they name,
+ * so that cell goes to the exit, the later of the two events the card passed.
+ *
+ * The first parameter is ColumnView.hold as wire.ts declares it, which is
+ * `string | undefined` like every other optional wire member, so this function
+ * has to answer for a value outside the three typed words. It answers
+ * "nothing", the way it answers for the two spellings that already mean no
+ * hold, rather than inventing a policy of its own.
+ */
+export function holdDirection(
+	hold: string | undefined,
+	candidateIndex: number,
+	cardIndex: number,
+): HoldDirection {
+	const ahead = candidateIndex > cardIndex;
+	const here = candidateIndex === cardIndex;
+	switch (hold) {
+		case "on":
+			return ahead ? "entryAhead" : "entryPassed";
+		case "out":
+			if (ahead) {
+				return "exitAhead";
+			}
+			return here ? "exitHere" : "exitPassed";
+		case "both":
+			if (ahead) {
+				return "entryAhead";
+			}
+			return here ? "exitHere" : "exitPassed";
+		default:
+			return "nothing";
+	}
+}
+
+/**
+ * The columns of one workbench in the flow's own declared order, by the ref a
+ * tree node names them with.
+ *
+ * It reads the same AXIS_COLUMN nodes columnsOf draws the column rows from, so
+ * the positions this answers are the positions the reader sees.
+ */
+export function columnOrderOf(
+	data: WorkbenchData | undefined,
+): readonly string[] {
+	return (data?.root?.children ?? [])
+		.filter((node) => node.kind === NODE_GROUP && node.axis === AXIS_COLUMN)
+		.map((node) => node.value ?? "");
+}
+
+/**
+ * The ref of the column a card stands in, given the workbench's own data.
+ *
+ * CardView.column carries the column's identifier and the flow order carries
+ * the ref, which is the slug where a column has one, so the two are joined
+ * through the ColumnView rather than compared directly.
+ */
+export function cardColumnRefOf(
+	data: WorkbenchData | undefined,
+	cardRef: string,
+): string | undefined {
+	if (data === undefined) {
+		return undefined;
+	}
+	let columnId: string | undefined;
+	for (const view of data.cards.values()) {
+		if (view.ref === cardRef) {
+			columnId = view.column;
+			break;
+		}
+	}
+	if (columnId === undefined || columnId === "") {
+		return undefined;
+	}
+	for (const [ref, view] of data.columns) {
+		if (view.id === columnId) {
+			return ref;
+		}
+	}
+	return undefined;
+}
+
+/** The ref of the column an item names, joined through the ColumnView map. */
+function itemColumnRefOf(
+	data: WorkbenchData | undefined,
+	item: ItemView,
+): string | undefined {
+	if (item.column === undefined || item.column === "") {
+		return undefined;
+	}
+	for (const [ref, view] of data?.columns ?? []) {
+		if (view.id === item.column || ref === item.column) {
+			return ref;
+		}
+	}
+	return undefined;
+}
+
+/**
+ * What one item's own column is doing to the card that carries it.
+ *
+ * A column neither the item nor the card resolves to answers "nothing", which
+ * is what a column declaring no hold answers. An item filed against a column
+ * this workbench no longer declares is one dinah-501 refuses every claim over,
+ * and saying so is that card's sentence rather than this one's; what this line
+ * can honestly say is that it knows of no stop.
+ */
+export function itemHoldDirection(
+	data: WorkbenchData | undefined,
+	cardRef: string,
+	item: ItemView,
+): HoldDirection {
+	const order = columnOrderOf(data);
+	const cardColumn = cardColumnRefOf(data, cardRef);
+	const itemColumn = itemColumnRefOf(data, item);
+	if (cardColumn === undefined || itemColumn === undefined) {
+		return "nothing";
+	}
+	const candidateIndex = order.indexOf(itemColumn);
+	const cardIndex = order.indexOf(cardColumn);
+	if (candidateIndex < 0 || cardIndex < 0) {
+		return "nothing";
+	}
+	return holdDirection(
+		data?.columns.get(itemColumn)?.hold,
+		candidateIndex,
+		cardIndex,
+	);
+}
+
+/**
+ * The word for an item's kind, which every item surface shares.
+ *
+ * It answers the rendered word rather than the catalogue key, so each of the
+ * three keys is spelled as a literal at the one call site the guard in
+ * test/unit/l10n-keys.test.ts can read. A reader who meets "Open question" in
+ * the filing form and "question" on the row has been given two names for one
+ * thing, which is why the form calls this too.
+ */
+export function itemKindWord(kind: string, t: Localizer): string {
+	switch (kind) {
+		case "open_question":
+			return t("item.kind.question");
+		case "decision":
+			return t("item.kind.decision");
+		default:
+			return t("item.kind.criterion");
+	}
+}
+
+/**
+ * The word for an item's state.
+ *
+ * A state outside the four the format declares reads as pending, which is the
+ * direction that says least: a damaged anchor is shown as unsettled rather
+ * than as settled by somebody.
+ */
+export function itemStateWord(state: string, t: Localizer): string {
+	switch (state) {
+		case "resolved":
+			return t("item.state.resolved");
+		case "verified":
+			return t("item.state.verified");
+		case "failed":
+			return t("item.state.failed");
+		default:
+			return t("item.state.pending");
+	}
+}
+
+/** The kind segment of a contextValue, which is one word per item kind. */
+function contextKindOf(kind: string): string {
+	switch (kind) {
+		case "open_question":
+			return "question";
+		case "decision":
+			return "decision";
+		default:
+			return "criterion";
+	}
+}
+
+/**
+ * The contextValue one item row carries.
+ *
+ * The state axis collapses the three closed states to one word, because all
+ * three offer exactly Reopen, and a state outside the four the format declares
+ * reads as closed too: a damaged anchor then offers Reopen rather than a
+ * terminal verb, which is the conservative direction.
+ *
+ * The `.locked` suffix withholds the terminal verbs from a window that is not
+ * the operator, on an item the operator owns. Only a pending value takes it,
+ * because closeItem is where the owner is checked and Reopen is deliberately
+ * left open. The row is not hidden and is not greyed: its tooltip says the
+ * item is the operator's to settle, and Open and Comment stay on it, so
+ * anybody can read the question and argue on it.
+ *
+ * One race is accepted here rather than guarded. isOperator comes from the
+ * last checkpoint, so a window whose status has gone stale can offer a verb
+ * the tool then refuses by name, and the next checkpoint repaints the row.
+ * That is the race actionsFor already accepts for a card somebody else claimed
+ * between the paint and the click.
+ */
+export function itemContextValue(view: ItemView, isOperator: boolean): string {
+	const pending = view.state === "pending";
+	const state = pending ? CONTEXT_ITEM_PENDING : CONTEXT_ITEM_CLOSED;
+	const base = `${CONTEXT_ITEM_PREFIX}.${contextKindOf(view.kind)}.${state}`;
+	return pending && view.owner === ITEM_OWNER_OPERATOR && !isOperator
+		? `${base}.${CONTEXT_ITEM_LOCKED_SUFFIX}`
+		: base;
+}
+
+/** The one owner value dinah enforces against the actor. */
+export const ITEM_OWNER_OPERATOR = "operator";
+
+/** The icon a row draws for one item, by its kind and its state. */
+function itemIcon(view: ItemView): { readonly id: string } {
+	if (view.state === "failed") {
+		return { id: "error" };
+	}
+	if (view.state !== "pending") {
+		return { id: "pass" };
+	}
+	switch (view.kind) {
+		case "open_question":
+			return { id: "question" };
+		case "decision":
+			return { id: "lightbulb" };
+		default:
+			return { id: "circle-large-outline" };
+	}
+}
+
+/** The description beside an item's label: its kind, its state, its thread. */
+export function itemDescription(view: ItemView, t: Localizer): string {
+	return t("item.row.description", {
+		kind: itemKindWord(view.kind, t),
+		state: itemStateWord(view.state, t),
+		comments:
+			view.comment_count !== undefined && view.comment_count > 0
+				? ` \u00b7 ${t("item.comments", { count: String(view.comment_count) })}`
+				: "",
+	});
+}
+
+/**
+ * Everything an item row says on hover, one fact per line.
+ *
+ * The hold sentence is the one a reader can get nowhere else, and it is keyed
+ * by the same holdDirection the filing form and the item document read, so the
+ * three surfaces cannot disagree about what a column is doing.
+ */
+export function itemTooltip(
+	view: ItemView,
+	direction: HoldDirection,
+	columnTitle: string,
+	locked: boolean,
+	t: Localizer,
+): string {
+	const lines = [view.text];
+	if (view.note !== undefined && view.note !== "") {
+		lines.push(`${t("item.note")} ${view.note}`);
+	}
+	lines.push(t(`item.hold.${direction}`, { 0: columnTitle }));
+	if (view.owner !== undefined && view.owner !== "") {
+		lines.push(`${t("item.owner")} ${view.owner}`);
+	}
+	if (view.comment_count !== undefined && view.comment_count > 0) {
+		lines.push(t("item.comments", { count: String(view.comment_count) }));
+	}
+	if (locked) {
+		lines.push(t("item.locked"));
+	}
+	return lines.join("\n");
 }
 
 /**
@@ -864,14 +1239,12 @@ export function treeItemFor(
 					t,
 				),
 				contextValue: actionsFor({ state, column: element.column }),
-				// An arrow only when the count says something is there to expand.
-				// A card the ls join missed reads no count, and a card carrying
-				// none renders exactly as it did before attachments existed.
-				collapsibleState:
-					element.view?.attachment_count !== undefined &&
-					element.view.attachment_count > 0
-						? "collapsed"
-						: "none",
+				// An arrow only when a count says something is there to expand.
+				// Both counts are read, because a card carrying items and no
+				// attachments would otherwise draw no arrow at all and its
+				// getChildren would never be called: VS Code asks for the tree
+				// item first and decides from what it answers.
+				collapsibleState: cardExpands(element.view) ? "collapsed" : "none",
 				icon: cardIcon(state),
 				command: {
 					command: COMMAND_OPEN_CARD,
@@ -886,6 +1259,38 @@ export function treeItemFor(
 				description: String(element.count),
 				collapsibleState: "collapsed",
 			};
+		case "checklistGroup":
+			return {
+				label: t("tree.checklistGroup.label"),
+				description: String(element.count),
+				contextValue: CONTEXT_CHECKLIST_GROUP,
+				collapsibleState: "collapsed",
+			};
+		case "item": {
+			const view = element.view;
+			const direction = itemHoldDirection(element.row.data, element.card, view);
+			const contextValue = itemContextValue(view, element.isOperator);
+			return {
+				label: itemLabel(view.text),
+				description: itemDescription(view, t),
+				tooltip: itemTooltip(
+					view,
+					direction,
+					view.column_title ?? view.column ?? "",
+					contextValue.endsWith(`.${CONTEXT_ITEM_LOCKED_SUFFIX}`),
+					t,
+				),
+				icon: itemIcon(view),
+				contextValue,
+				// An item's comments are in its document and are not rows.
+				collapsibleState: "none",
+				command: {
+					command: COMMAND_OPEN_ITEM,
+					title: "Open Item",
+					args: [element],
+				},
+			};
+		}
 		case "attachment": {
 			const view = element.view;
 			const openable = view.path !== undefined && view.path !== "";
@@ -1096,16 +1501,22 @@ function heldHand(
 	status: StatusAnswer | undefined,
 	held: WorkbenchData | undefined,
 	now: () => number,
-): Pick<WorkbenchData, "actor" | "holding" | "fetchedAt"> {
+): Pick<WorkbenchData, "actor" | "isOperator" | "holding" | "fetchedAt"> {
 	if (status === undefined) {
 		return {
 			actor: held?.actor,
+			isOperator: held?.isOperator,
 			holding: held?.holding ?? [],
 			fetchedAt: held?.fetchedAt,
 		};
 	}
 	return {
 		actor: status.actor ?? held?.actor,
+		// A binary older than the field omits it, which arrives as undefined
+		// and is read as the last checkpoint's answer rather than as false.
+		// Reading an absent key as false would lock the operator out of his
+		// own items on the checkpoint after an upgrade.
+		isOperator: status.is_operator ?? held?.isOperator,
 		holding: status.holding ?? held?.holding ?? [],
 		fetchedAt: now(),
 	};
@@ -1314,6 +1725,52 @@ export async function readAttachments(
 		return undefined;
 	}
 	return outcome.json as AttachmentListing;
+}
+
+/**
+ * Whether a card row draws an expand arrow.
+ *
+ * Both counts, because either group alone is enough to give the row children,
+ * and this is the one place the question is asked: getChildren composes the
+ * groups from the same two counts, so an arrow and a set of children cannot
+ * disagree.
+ */
+export function cardExpands(view: CardView | undefined): boolean {
+	const attachments = view?.attachment_count ?? 0;
+	const items = view?.checklist_count ?? 0;
+	return attachments > 0 || items > 0;
+}
+
+/**
+ * One card's checklist items, fetched when a reader expands the group row.
+ *
+ * `--fields card,checklist` rather than a bare show, because the item views
+ * are the whole of what this row needs and a bare show would carry the card's
+ * body, its links, its attachments and its comments on every expansion.
+ *
+ * The answer is never cached, on the terms readAttachments is not: the call
+ * runs on every expansion, so an item somebody answered since the last one is
+ * shown as it now stands, and the only cost of that freshness is one call a
+ * row somebody opened once more.
+ */
+export async function readChecklist(
+	spawner: Spawner,
+	exe: string,
+	root: string,
+	ref: string,
+	log: (line: string) => void,
+): Promise<readonly ItemView[] | undefined> {
+	const outcome = await runDinah(
+		spawner,
+		exe,
+		pinned(root, ["show", ref, "--fields", "card,checklist"]),
+		{ cwd: root },
+	);
+	if (outcome.kind !== "ok") {
+		log(`dinah show ${ref} --fields card,checklist at ${root}: ${outcome.kind}`);
+		return undefined;
+	}
+	return (outcome.json as { checklist?: readonly ItemView[] }).checklist ?? [];
 }
 
 // ---------------------------------------------------------------------------
@@ -1769,6 +2226,30 @@ export class DinahTreeProvider {
 	 * is what reduces them to one plan, so the deduplication rule is asserted
 	 * against the code that performs it.
 	 */
+	/**
+	 * What the last good checkpoint knows about one workbench, by its root.
+	 *
+	 * The item document's own hold sentence reads it, so that sentence costs
+	 * no third spawn: the columns and their declared order are already joined
+	 * on every checkpoint, and asking dinah for them again per poll per open
+	 * tab would pay for an answer this provider is holding.
+	 *
+	 * An answer of undefined means no row has resolved that root yet, and the
+	 * caller says it knows of no stop rather than inventing one.
+	 */
+	dataFor(root: string): WorkbenchData | undefined {
+		const wanted = this.rootKey(root);
+		for (const state of this.folders.values()) {
+			for (const row of state.rows) {
+				const data = row.data;
+				if (data !== undefined && this.rootKey(data.path) === wanted) {
+					return data;
+				}
+			}
+		}
+		return undefined;
+	}
+
 	mcpTargets(): readonly McpTarget[] {
 		const found: McpTarget[] = [];
 		for (const state of this.folders.values()) {
@@ -1833,12 +2314,13 @@ export class DinahTreeProvider {
 					this.deps.log,
 				);
 			case "card": {
-				// The eager count decides here. The list itself is one call
-				// this row's own expansion makes, never one the checkpoint
+				// The eager counts decide here. Each list is one call the
+				// group row's own expansion makes, never one the checkpoint
 				// makes, so a tree of two hundred cards still costs no
-				// attachments call to draw.
-				const count = element.view?.attachment_count ?? 0;
-				if (count === 0) {
+				// attachments call and no checklist call to draw.
+				const attachments = element.view?.attachment_count ?? 0;
+				const items = element.view?.checklist_count ?? 0;
+				if (attachments === 0 && items === 0) {
 					return [];
 				}
 				const root = element.row.data?.path;
@@ -1846,7 +2328,29 @@ export class DinahTreeProvider {
 				if (root === undefined || ref === undefined || ref === "") {
 					return [];
 				}
-				return [{ kind: "attachmentsGroup", row: element.row, root, ref, count }];
+				const groups: TreeElement[] = [];
+				if (attachments > 0) {
+					groups.push({
+						kind: "attachmentsGroup",
+						row: element.row,
+						root,
+						ref,
+						count: attachments,
+					});
+				}
+				// The checklist stands after the attachments, in the order
+				// the two counts are read above, so a card that gains items
+				// does not move the row a reader already knows where to find.
+				if (items > 0) {
+					groups.push({
+						kind: "checklistGroup",
+						row: element.row,
+						root,
+						ref,
+						count: items,
+					});
+				}
+				return groups;
 			}
 			case "attachmentsGroup": {
 				const listing = await readAttachments(
@@ -1876,6 +2380,44 @@ export class DinahTreeProvider {
 				}));
 			}
 			case "attachment":
+				return [];
+			case "checklistGroup": {
+				const items = await readChecklist(
+					this.deps.spawner,
+					this.deps.exe,
+					element.root,
+					element.ref,
+					this.deps.log,
+				);
+				if (items === undefined) {
+					// The localizer is bound to a name before it is called,
+					// because the guard in test/unit/l10n-keys.test.ts reads a
+					// call site off the callee's own name and a parenthesised
+					// fallback expression is a call site it cannot see.
+					const t = this.deps.t ?? ENGLISH;
+					const unreadable = t("tree.checklist.unreadable");
+					return [
+						{
+							kind: "note",
+							owner: element.row,
+							text: unreadable,
+							tooltip: unreadable,
+						},
+					];
+				}
+				return items.map((view) => ({
+					kind: "item" as const,
+					row: element.row,
+					root: element.root,
+					card: element.ref,
+					view,
+					// An absent answer is read as not-the-operator, which
+					// withholds a verb rather than offering one the tool would
+					// refuse, and the next checkpoint repaints the row.
+					isOperator: element.row.data?.isOperator === true,
+				}));
+			}
+			case "item":
 				return [];
 		}
 	}

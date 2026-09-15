@@ -169,6 +169,44 @@
         "command": "dinah.refreshVerbCatalog",
         "title": "%manifest.command.dinah.refreshVerbCatalog.title%",
         "enablement": "dinah.binary == 'ok' && workspaceFolderCount != 0"
+      },
+      {
+        "command": "dinah.tree.openItem",
+        "title": "%manifest.command.dinah.tree.openItem.title%"
+      },
+      {
+        "command": "dinah.tree.commentOnItem",
+        "title": "%manifest.command.dinah.tree.commentOnItem.title%"
+      },
+      {
+        "command": "dinah.tree.resolveItem",
+        "title": "%manifest.command.dinah.tree.resolveItem.title%"
+      },
+      {
+        "command": "dinah.tree.verifyItem",
+        "title": "%manifest.command.dinah.tree.verifyItem.title%"
+      },
+      {
+        "command": "dinah.tree.failItem",
+        "title": "%manifest.command.dinah.tree.failItem.title%"
+      },
+      {
+        "command": "dinah.tree.reopenItem",
+        "title": "%manifest.command.dinah.tree.reopenItem.title%"
+      },
+      {
+        "command": "dinah.tree.fileItem",
+        "title": "%manifest.command.dinah.tree.fileItem.title%"
+      },
+      {
+        "command": "dinah.comment.post",
+        "title": "%manifest.command.dinah.comment.post.title%",
+        "icon": "$(check)"
+      },
+      {
+        "command": "dinah.comment.discard",
+        "title": "%manifest.command.dinah.comment.discard.title%",
+        "icon": "$(trash)"
       }
     ],
     "menus": {
@@ -248,6 +286,42 @@
         {
           "command": "dinah.tree.archiveCard",
           "when": "false"
+        },
+        {
+          "command": "dinah.tree.openItem",
+          "when": "false"
+        },
+        {
+          "command": "dinah.tree.commentOnItem",
+          "when": "false"
+        },
+        {
+          "command": "dinah.tree.resolveItem",
+          "when": "false"
+        },
+        {
+          "command": "dinah.tree.verifyItem",
+          "when": "false"
+        },
+        {
+          "command": "dinah.tree.failItem",
+          "when": "false"
+        },
+        {
+          "command": "dinah.tree.reopenItem",
+          "when": "false"
+        },
+        {
+          "command": "dinah.tree.fileItem",
+          "when": "false"
+        },
+        {
+          "command": "dinah.comment.post",
+          "when": "resourceFilename =~ /\\.dinah-comment\\.md$/"
+        },
+        {
+          "command": "dinah.comment.discard",
+          "when": "resourceFilename =~ /\\.dinah-comment\\.md$/"
         }
       ],
       "view/title": [
@@ -352,6 +426,53 @@
           "command": "dinah.tree.deleteAttachment",
           "when": "view == dinah.workbenchView && viewItem == dinah.attachment",
           "group": "1_attachment@1"
+        },
+        {
+          "command": "dinah.tree.resolveItem",
+          "when": "view == dinah.workbenchView && viewItem =~ /^dinah\\.item\\.(question|decision)\\.pending$/",
+          "group": "1_flow@1"
+        },
+        {
+          "command": "dinah.tree.verifyItem",
+          "when": "view == dinah.workbenchView && viewItem == dinah.item.criterion.pending",
+          "group": "1_flow@2"
+        },
+        {
+          "command": "dinah.tree.failItem",
+          "when": "view == dinah.workbenchView && viewItem == dinah.item.criterion.pending",
+          "group": "1_flow@3"
+        },
+        {
+          "command": "dinah.tree.reopenItem",
+          "when": "view == dinah.workbenchView && viewItem =~ /^dinah\\.item\\.[a-z]+\\.closed$/",
+          "group": "1_flow@4"
+        },
+        {
+          "command": "dinah.tree.commentOnItem",
+          "when": "view == dinah.workbenchView && viewItem =~ /^dinah\\.item\\./",
+          "group": "1_flow@5"
+        },
+        {
+          "command": "dinah.tree.openItem",
+          "when": "view == dinah.workbenchView && viewItem =~ /^dinah\\.item\\./",
+          "group": "2_open@1"
+        },
+        {
+          "command": "dinah.tree.fileItem",
+          "when": "view == dinah.workbenchView && viewItem =~ /^dinah\\.card\\./",
+          "group": "2_create@1"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "dinah.comment.post",
+          "when": "resourceFilename =~ /\\.dinah-comment\\.md$/",
+          "group": "navigation@1"
+        },
+        {
+          "command": "dinah.comment.discard",
+          "when": "resourceFilename =~ /\\.dinah-comment\\.md$/",
+          "group": "navigation@2"
         }
       ]
     },
