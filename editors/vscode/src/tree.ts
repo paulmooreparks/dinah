@@ -1730,13 +1730,13 @@ export async function readWorkbench(
 	const [status, tree, listing] = await Promise.all([
 		runDinah(spawner, exe, pinned(root, ["status"]), { cwd: root }),
 		runDinah(spawner, exe, pinned(root, ["tree"]), { cwd: root }),
-		runDinah(spawner, exe, pinned(root, ["ls"]), { cwd: root }),
+		runDinah(spawner, exe, pinned(root, ["list", "cards"]), { cwd: root }),
 	]);
 
 	for (const [name, outcome] of [
 		["status", status],
 		["tree", tree],
-		["ls", listing],
+		["list cards", listing],
 	] as const) {
 		if (outcome.kind !== "ok") {
 			log(`dinah ${name} at ${root}: ${outcome.kind}`);
@@ -1876,13 +1876,13 @@ export async function readForest(
 	const [status, tree, listing] = await Promise.all([
 		runDinah(spawner, exe, ["status", "--root", folder], { cwd: folder }),
 		runDinah(spawner, exe, ["tree", "--root", folder], { cwd: folder }),
-		runDinah(spawner, exe, ["ls", "--root", folder], { cwd: folder }),
+		runDinah(spawner, exe, ["list", "cards", "--root", folder], { cwd: folder }),
 	]);
 
 	for (const [name, outcome] of [
 		["status --root", status],
 		["tree --root", tree],
-		["ls --root", listing],
+		["list cards --root", listing],
 	] as const) {
 		if (outcome.kind !== "ok") {
 			log(`dinah ${name} at ${folder}: ${outcome.kind}`);
@@ -2022,10 +2022,17 @@ export async function readAttachments(
 	ref: string,
 	log: (line: string) => void,
 ): Promise<AttachmentListing | undefined> {
-	const args = ["attachments", ref];
+	// The workbench's own attachments are asked for by the roster word, which
+	// is the shorter of the two spellings that answer the same bytes and the
+	// one the references guide teaches. Everything else is the entity's
+	// attachments collection, addressed below it.
+	const args =
+		ref === "" || ref === "workbench"
+			? ["list", "attachments"]
+			: ["list", `${ref}/attachments`];
 	const outcome = await runDinah(spawner, exe, pinned(root, args), { cwd: root });
 	if (outcome.kind !== "ok") {
-		log(`dinah attachments ${ref} at ${root}: ${outcome.kind}`);
+		log(`dinah list ${ref}/attachments at ${root}: ${outcome.kind}`);
 		return undefined;
 	}
 	return outcome.json as AttachmentListing;
@@ -2057,11 +2064,11 @@ export async function readContents(
 	const outcome = await runDinah(
 		spawner,
 		exe,
-		pinned(root, ["contents", ref, "--depth", "all"]),
+		pinned(root, ["list", ref, "--depth", "all"]),
 		{ cwd: root },
 	);
 	if (outcome.kind !== "ok") {
-		log(`dinah contents ${ref} --depth all at ${root}: ${outcome.kind}`);
+		log(`dinah list ${ref} --depth all at ${root}: ${outcome.kind}`);
 		return undefined;
 	}
 	return (outcome.json as TreeAnswer).root.children ?? [];

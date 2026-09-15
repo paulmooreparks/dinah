@@ -1,0 +1,5 @@
+  Slug    Name    Kind    Cards  Work        Owner
+  ------  ------  ------  -----  ----------  -----
+  intake  Intake  intake  1      none taken  agent
+  doing   Doing   work    0      taken       agent
+  done    Done    done    0      none taken  agent

@@ -218,7 +218,7 @@ func TestABareWorkstreamSlugIsSentToItsPrefixedSpelling(t *testing.T) {
 	if name := refusalNameOf(stranger.errw); name != contract.UnknownCard {
 		t.Fatalf("a name that is neither refused %s, wanted %s", name, contract.UnknownCard)
 	}
-	if !strings.Contains(stranger.errw, "dinah ls") {
+	if !strings.Contains(stranger.errw, "dinah list cards") {
 		t.Errorf("a name that is neither lost the card listing:\n%s", stranger.errw)
 	}
 	if strings.Contains(stranger.errw, "workstream/") {

@@ -1082,20 +1082,25 @@ var Shapes = []Shape{
 	{
 		// A collection reference resolves, so the reader is told what it
 		// names rather than that it names nothing. The next step is an
-		// alternation of two, because a collection holding members can
-		// offer one of them to type and an empty collection cannot, and
-		// the empty branch carries no condition so every rendering ends on
-		// a next step. count is carried for a machine caller and named in
+		// alternation of three. show is answered first and by name, because
+		// show reads one entity and the command that lists a collection is
+		// list, so the sentence hands the reader that invocation. Every
+		// other command falls to the pair below it: a collection holding
+		// members can offer one of them to type and an empty collection
+		// cannot, and the empty branch carries no condition so every
+		// rendering ends on a next step. count is carried for a machine caller and named in
 		// no entry, so it is not declared here: the guard reads Values to
 		// find a name that outlived the entry using it, and a declared
 		// value no sentence carries fails it.
 		Name:   IsACollection,
 		Values: []string{"member"},
 		Fragments: []Fragment{
+			{Key: "refusal.dinah.is-a-collection.next-list", WhenCommand: "show"},
 			{Key: "refusal.dinah.is-a-collection.next-member", When: "member"},
 			{Key: "refusal.dinah.is-a-collection.empty"},
 		},
 		NextStep: []string{
+			"refusal.dinah.is-a-collection.next-list",
 			"refusal.dinah.is-a-collection.next-member",
 			"refusal.dinah.is-a-collection.empty",
 		},

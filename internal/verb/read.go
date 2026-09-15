@@ -891,14 +891,76 @@ type CollectionMember struct {
 	Text string `json:"text"`
 }
 
-// Show reads a card, the file any other reference names, or the members of a
-// reference naming a whole collection.
+// Record is what show prints for an entity whose answer is a set of fields
+// rather than a body or a card detail. The workbench and the workstream are
+// the two, and each carries the fields the references guide's field table
+// gives its kind.
 //
-// A card comes back as a Detail with an empty text. A collection comes back as
-// a CollectionListing. Every other reference comes back as a nil Detail beside
-// the text of the file it named, since nothing but a card has a view to build.
-// A caller reads whichever of the three is filled rather than assuming one.
-func (l *Library) Show(req *Request) (*Detail, *CollectionListing, *ItemDetail, string, error) {
+// It is a type of its own rather than a reuse of WorkstreamView, because that
+// view is what `list workstreams` publishes and giving it a notes member would
+// widen an envelope this change was not asked to touch.
+type Record struct {
+	// Kind is the entity kind, as the containment grammar spells it.
+	Kind string `json:"kind"`
+	// Ref is the reference a reader types to reach the entity.
+	Ref string `json:"ref"`
+	// Fields are the entity's own fields, in the order the kind declares
+	// them, each carrying the name a reader types back and what is stored
+	// under it. A field the entity carries nothing under is drawn with an
+	// empty value rather than left out, because a record with a row missing
+	// reads as a record of a different shape.
+	Fields []RecordField `json:"fields"`
+}
+
+// RecordField is one row of a record: the field name, which is machine
+// vocabulary and travels untranslated, and the value stored under it.
+type RecordField struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
+}
+
+// workbenchRecord is the workbench's own record, which carries the three
+// fields the bare `dinah workbench` listing prints.
+func (l *Library) workbenchRecord() *Record {
+	record := &Record{Kind: bench.KindWorkbench, Ref: bench.WorkbenchRef}
+	for _, name := range bench.WorkbenchListingFields {
+		record.Fields = append(record.Fields, RecordField{Name: name, Value: l.Bench.WorkbenchField(name)})
+	}
+	return record
+}
+
+// workstreamRecord is one workstream's own record. The card count belongs to
+// the set rather than to the record, so it is drawn by `list workstreams` and
+// not here.
+func (l *Library) workstreamRecord(workstream *bench.Workstream) *Record {
+	record := &Record{Kind: bench.KindWorkstream, Ref: workstream.Ref()}
+	for _, name := range bench.FieldsOf(bench.KindWorkstream) {
+		record.Fields = append(record.Fields, RecordField{Name: name, Value: workstream.Field(name)})
+	}
+	return record
+}
+
+// Show reads a card, the record of the workbench or of a workstream, or the
+// file any other reference names.
+//
+// It reads one entity and never a collection. A reference that stops at a
+// collection is refused dinah.is-a-collection, whose next-step clause names
+// the list invocation that answers, because listing a collection is what list
+// is for and two commands answering one question is what this change removed.
+//
+// Every dinah.unknown-path this function raises carries req.Card, which is the
+// reference exactly as the caller wrote it. Two of the three sites used to
+// refuse on the head and one on the tail, so `dinah show workstream/addressing`
+// reported a failure on `addressing`, a word the reader had not typed on its
+// own. A refusal that rewrites what it was asked about tells the reader to go
+// looking for the wrong thing.
+//
+// A card comes back as a Detail with an empty text. The workbench and a
+// workstream come back as a Record. Every other reference comes back as a nil
+// Detail beside the text of the file it named, since nothing but a card has a
+// view to build. A caller reads whichever of the four is filled rather than
+// assuming one.
+func (l *Library) Show(req *Request) (*Detail, *Record, *ItemDetail, string, error) {
 	// The field list is read before anything is resolved, so a call naming a
 	// field this tool does not have performs no read and mutates nothing.
 	chosen, err := parseDetailFields(req.Fields)
@@ -906,6 +968,32 @@ func (l *Library) Show(req *Request) (*Detail, *CollectionListing, *ItemDetail, 
 		return nil, nil, nil, "", err
 	}
 	head, rest, _ := strings.Cut(req.Card, "/")
+	// The workbench and the workstream are answered ahead of everything
+	// else, because each has a record of its own and neither reaches a
+	// branch below that could build one. The workstream is the reference the
+	// card's framing records the operator typing, and answering it here is
+	// the repair.
+	if !req.Archived {
+		if req.Card != "" && bench.IsWorkbenchRef(req.Card) {
+			if chosen != nil {
+				return nil, nil, nil, "", unknownDetailField(strings.TrimSpace(req.Fields), req.Card)
+			}
+			return nil, l.workbenchRecord(), nil, "", nil
+		}
+		if strings.HasPrefix(req.Card, bench.WorkstreamRefPrefix) {
+			workstream, err := l.Bench.WorkstreamByRef(req.Card)
+			if err != nil {
+				return nil, nil, nil, "", err
+			}
+			if workstream == nil {
+				return nil, nil, nil, "", contract.Refuse(contract.UnknownWorkstream, strings.TrimPrefix(req.Card, bench.WorkstreamRefPrefix))
+			}
+			if chosen != nil {
+				return nil, nil, nil, "", unknownDetailField(strings.TrimSpace(req.Fields), req.Card)
+			}
+			return nil, l.workstreamRecord(workstream), nil, "", nil
+		}
+	}
 	// A bare head under the flag gets a branch of its own, because neither of
 	// the two branches below it reaches the resolver whose refusal the
 	// archived half rests on: the column branch reads an anchor with no
@@ -930,12 +1018,12 @@ func (l *Library) Show(req *Request) (*Detail, *CollectionListing, *ItemDetail, 
 			}
 			text, err := bench.ReadText(filepath.Join(entity.Dir, bench.ColumnAnchor))
 			if err != nil {
-				return nil, nil, nil, "", contract.Refuse(contract.UnknownPath, head)
+				return nil, nil, nil, "", contract.Refuse(contract.UnknownPath, req.Card)
 			}
 			return nil, nil, nil, text, nil
 		}
-		detail, listing, text, err := l.detailOf(entity.Card, chosen)
-		return detail, listing, nil, text, err
+		detail, text, err := l.detailOf(entity.Card, chosen)
+		return detail, nil, nil, text, err
 	}
 	// A column is an entity of the workbench, and the containment walk prints
 	// a reference for one, so show reads it the way path and edit do rather
@@ -947,7 +1035,7 @@ func (l *Library) Show(req *Request) (*Detail, *CollectionListing, *ItemDetail, 
 			}
 			text, err := bench.ReadText(l.Bench.ColumnAnchorPath(column.ID))
 			if err != nil {
-				return nil, nil, nil, "", contract.Refuse(contract.UnknownPath, head)
+				return nil, nil, nil, "", contract.Refuse(contract.UnknownPath, req.Card)
 			}
 			return nil, nil, nil, text, nil
 		}
@@ -971,11 +1059,7 @@ func (l *Library) Show(req *Request) (*Detail, *CollectionListing, *ItemDetail, 
 		// is.
 		if entity, collection, err := l.Bench.ResolveReferenceIn(halfFor(req), req.Card); err == nil {
 			if collection != nil {
-				listing, err := l.collectionListing(collection)
-				if err != nil {
-					return nil, nil, nil, "", err
-				}
-				return nil, listing, nil, "", nil
+				return nil, nil, nil, "", collection.Refuse()
 			}
 			// An item reference answers a payload of its own, built beside
 			// the card detail rather than as a bare text read, so `dinah
@@ -999,7 +1083,7 @@ func (l *Library) Show(req *Request) (*Detail, *CollectionListing, *ItemDetail, 
 		}
 		text, err := bench.ReadText(path)
 		if err != nil {
-			return nil, nil, nil, "", contract.Refuse(contract.UnknownPath, rest)
+			return nil, nil, nil, "", contract.Refuse(contract.UnknownPath, req.Card)
 		}
 		return nil, nil, nil, text, nil
 	}
@@ -1011,8 +1095,8 @@ func (l *Library) Show(req *Request) (*Detail, *CollectionListing, *ItemDetail, 
 	if err := l.lapseRead(card, req.Actor); err != nil {
 		return nil, nil, nil, "", err
 	}
-	detail, listing, text, err := l.detailOf(card, chosen)
-	return detail, listing, nil, text, err
+	detail, text, err := l.detailOf(card, chosen)
+	return detail, nil, nil, text, err
 }
 
 // itemDetailOf builds the answer show gives for one checklist item's own
@@ -1081,7 +1165,7 @@ func (l *Library) commentViews(dir, holderRef string) ([]CommentView, error) {
 //
 // It is the whole of what show does once it has a card, so nothing about
 // which half the card came from reaches inside it.
-func (l *Library) detailOf(card *bench.Card, chosen detailSelection) (*Detail, *CollectionListing, string, error) {
+func (l *Library) detailOf(card *bench.Card, chosen detailSelection) (*Detail, string, error) {
 	cardRef := card.Ref(l.Bench.Slug)
 	// Every member is built before the selection is applied, because withheld
 	// reports what the card holds rather than what the caller left out, and
@@ -1091,7 +1175,7 @@ func (l *Library) detailOf(card *bench.Card, chosen detailSelection) (*Detail, *
 	if chosen.carries("card") {
 		view, err := l.view(card)
 		if err != nil {
-			return nil, nil, "", err
+			return nil, "", err
 		}
 		detail.Card = *view
 	}
@@ -1104,15 +1188,15 @@ func (l *Library) detailOf(card *bench.Card, chosen detailSelection) (*Detail, *
 	}
 	views, err := attachmentViews(card.Dir, cardRef)
 	if err != nil {
-		return nil, nil, "", err
+		return nil, "", err
 	}
 	comments, err := l.commentViews(card.Dir, cardRef)
 	if err != nil {
-		return nil, nil, "", err
+		return nil, "", err
 	}
 	items, err := bench.Items(card.Dir)
 	if err != nil {
-		return nil, nil, "", err
+		return nil, "", err
 	}
 	var checklist []ItemView
 	// The position a reference carries is counted within the item's own kind,
@@ -1131,7 +1215,7 @@ func (l *Library) detailOf(card *bench.Card, chosen detailSelection) (*Detail, *
 		kindPosition[item.Kind]++
 		position, err := memberPosition(item.Dir, bench.ItemAnchor)
 		if err != nil {
-			return nil, nil, "", err
+			return nil, "", err
 		}
 		view := ItemView{
 			ID:      item.ID,
@@ -1146,7 +1230,7 @@ func (l *Library) detailOf(card *bench.Card, chosen detailSelection) (*Detail, *
 		view.Ref = itemRef(cardRef, item.Kind, kindPosition[item.Kind], position)
 		count, err := bench.CountComments(item.Dir)
 		if err != nil {
-			return nil, nil, "", err
+			return nil, "", err
 		}
 		view.CommentCount = count
 		if item.Column != "" {
@@ -1193,7 +1277,7 @@ func (l *Library) detailOf(card *bench.Card, chosen detailSelection) (*Detail, *
 			detail.Reread = cardRef
 		}
 	}
-	return detail, nil, "", nil
+	return detail, "", nil
 }
 
 // collectionListing reads every member of a collection and prints each

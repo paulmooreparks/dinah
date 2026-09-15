@@ -155,7 +155,22 @@ function stubSpawner(answers: Record<string, unknown>): {
 	const calls: string[][] = [];
 	const spawner: Spawner = async (_exe, argv) => {
 		calls.push([...argv]);
+		// One verb answers every collection now, so the stub reads the
+		// reference the way the binary does: a reference stopping at an
+		// attachments collection, with no depth beside it, is the attachments
+		// listing, and everything else falls to the keys below.
+		const attachments = answers["attachments"];
+		if (
+			attachments !== undefined &&
+			!argv.includes("--depth") &&
+			argv.some((word) => word === "attachments" || word.endsWith("/attachments"))
+		) {
+			return ok(attachments);
+		}
 		for (const [verb, payload] of Object.entries(answers)) {
+			if (verb === "attachments") {
+				continue;
+			}
 			if (argv.includes(verb)) {
 				return ok(payload);
 			}
@@ -296,8 +311,8 @@ async function loadedBench(): Promise<DinahTreeProvider> {
 	const { spawner } = stubSpawner({
 		status: THREE_STATUS,
 		tree: THREE_COLUMNS,
-		ls: THREE_LISTING,
-		contents: EMPTY_CONTENTS,
+		cards: THREE_LISTING,
+		list: EMPTY_CONTENTS,
 	});
 	const view = provider(spawner);
 	await view.load([folder({ folder: "C:\\work\\bench" })]);
@@ -387,8 +402,8 @@ test("a queue column that does carry a state group draws it, and its cards still
 	const { spawner } = stubSpawner({
 		status: THREE_STATUS,
 		tree: carried,
-		ls: THREE_LISTING,
-		contents: EMPTY_CONTENTS,
+		cards: THREE_LISTING,
+		list: EMPTY_CONTENTS,
 	});
 	const view = provider(spawner);
 	await view.load([folder({ folder: "C:\\work\\bench" })]);
@@ -495,7 +510,7 @@ test("a card the ls join missed renders undecorated rather than throwing", async
 	const { spawner } = stubSpawner({
 		status: THREE_STATUS,
 		tree: THREE_COLUMNS,
-		ls: { cards: [] },
+		cards: { cards: [] },
 	});
 	const view = provider(spawner);
 	await view.load([folder({ folder: "C:\\work\\bench" })]);
@@ -692,7 +707,7 @@ test("a column the status join missed decorates conservatively and says so", asy
 	const { spawner } = stubSpawner({
 		status: { workbench: "Trees", columns: [] },
 		tree: THREE_COLUMNS,
-		ls: THREE_LISTING,
+		cards: THREE_LISTING,
 	});
 	const view = provider(spawner, logged);
 	await view.load([folder({ folder: "C:\\work\\bench" })]);
@@ -780,7 +795,7 @@ test("three folders produce one resolved row, two candidate rows and one dead en
 	const { spawner } = stubSpawner({
 		status: THREE_STATUS,
 		tree: THREE_COLUMNS,
-		ls: THREE_LISTING,
+		cards: THREE_LISTING,
 	});
 	// The third folder's own walk finds nothing, which is the case the single
 	// informational row survives for.
@@ -826,7 +841,7 @@ test("a window holding exactly one row opens it, and a window holding several do
 	const { spawner } = stubSpawner({
 		status: THREE_STATUS,
 		tree: THREE_COLUMNS,
-		ls: THREE_LISTING,
+		cards: THREE_LISTING,
 	});
 	const several = provider(spawner);
 	await several.load([
@@ -889,7 +904,7 @@ test("a folder holding a nested forest draws one row per member from three calls
 	assert.equal(calls.length, 3);
 	assert.deepEqual(
 		calls.map((argv) => argv[1]).sort(),
-		["ls", "status", "tree"],
+		["list", "status", "tree"],
 	);
 	for (const argv of calls) {
 		assert.ok(argv.includes("--root"));
@@ -1018,7 +1033,7 @@ test("expanding a candidate joins once, scoped to that candidate's own path", as
 	const { spawner, calls } = stubSpawner({
 		status: THREE_STATUS,
 		tree: THREE_COLUMNS,
-		ls: THREE_LISTING,
+		cards: THREE_LISTING,
 	});
 	const view = provider(spawner);
 	await view.load([folder({ folder: "C:\\multi\\second", resolution: AMBIGUOUS })]);
@@ -1099,7 +1114,7 @@ test("two expands racing each other still join once", async () => {
 	const { spawner, calls } = stubSpawner({
 		status: THREE_STATUS,
 		tree: THREE_COLUMNS,
-		ls: THREE_LISTING,
+		cards: THREE_LISTING,
 	});
 	const view = provider(spawner);
 	await view.load([folder({ folder: "C:\\multi\\second", resolution: AMBIGUOUS })]);
@@ -1123,7 +1138,7 @@ test("a forest row carries its path and a folder-rooted row carries none", async
 	const { spawner: plain } = stubSpawner({
 		status: { workbench: "Board", root: "C:\\work\\bench", columns: [] },
 		tree: treeAnswer([]),
-		ls: { cards: [] },
+		cards: { cards: [] },
 	});
 	const flat = provider(plain);
 	await flat.load([folder({ folder: "C:\\work\\bench" })]);
@@ -1259,8 +1274,8 @@ async function attachingBench(): Promise<{
 	const { spawner, calls } = stubSpawner({
 		status: ATTACHING_STATUS,
 		tree: THREE_COLUMNS,
-		ls: THREE_LISTING,
-		contents: TWO_ATTACHMENT_NODES,
+		cards: THREE_LISTING,
+		list: TWO_ATTACHMENT_NODES,
 		attachments: TWO_ATTACHMENTS,
 	});
 	const view = provider(spawner);
@@ -1378,7 +1393,7 @@ test("a card's Attachments row comes from the grammar, at one call for the card"
 		"--json",
 		"--workbench",
 		"C:\\work\\bench",
-		"contents",
+		"list",
 		"tr-4",
 		"--depth",
 		"all",
@@ -1397,8 +1412,8 @@ test("expanding a card's Attachments row asks once, named by the card's own ref"
 		"--json",
 		"--workbench",
 		"C:\\work\\bench",
-		"attachments",
-		"tr-4",
+		"list",
+		"tr-4/attachments",
 	]);
 });
 
@@ -1423,7 +1438,7 @@ test("expanding the workbench's own Attachments row asks about the collection, t
 		"--json",
 		"--workbench",
 		"C:\\work\\bench",
-		"contents",
+		"list",
 		"workbench/attachments",
 		"--depth",
 		"all",
@@ -1432,8 +1447,8 @@ test("expanding the workbench's own Attachments row asks about the collection, t
 		"--json",
 		"--workbench",
 		"C:\\work\\bench",
+		"list",
 		"attachments",
-		"workbench",
 	]);
 });
 
@@ -1461,7 +1476,7 @@ test("a card whose contents would not read draws one note row and names the fail
 	const { spawner } = stubSpawner({
 		status: ATTACHING_STATUS,
 		tree: THREE_COLUMNS,
-		ls: THREE_LISTING,
+		cards: THREE_LISTING,
 		attachments: TWO_ATTACHMENTS,
 	});
 	const logged: string[] = [];
@@ -1591,7 +1606,7 @@ test("a workbench whose status reports no attachments draws no Attachments row",
 	const { spawner } = stubSpawner({
 		status: { ...THREE_STATUS, attachment_count: 0 },
 		tree: THREE_COLUMNS,
-		ls: THREE_LISTING,
+		cards: THREE_LISTING,
 	});
 	const zero = provider(spawner);
 	await zero.load([folder({ folder: "C:\\work\\bench" })]);
@@ -1617,7 +1632,7 @@ test("a checkpoint whose reads fail keeps the attachment count the last good one
 		for (const [verb, payload] of Object.entries({
 			status: ATTACHING_STATUS,
 			tree: THREE_COLUMNS,
-			ls: THREE_LISTING,
+			cards: THREE_LISTING,
 		})) {
 			if (argv.includes(verb)) {
 				return ok(payload);
@@ -1699,10 +1714,10 @@ const WORKBENCH_ATTACHMENTS: AttachmentListing = {
  */
 async function forestAttachingBench(): Promise<DinahTreeProvider> {
 	const spawner: Spawner = async (_exe, argv) => {
-		if (argv.includes("attachments")) {
+		if (!argv.includes("--depth") && argv.some((word) => word === "attachments" || word.endsWith("/attachments"))) {
 			return ok(WORKBENCH_ATTACHMENTS);
 		}
-		if (argv.includes("contents")) {
+		if (argv.includes("list")) {
 			return ok({
 				producer: "containment",
 				subject: "entity",
@@ -1906,7 +1921,7 @@ test("the row's own tooltip names the column standing after it, resolved to its 
 			],
 		},
 		tree: THREE_COLUMNS,
-		ls: THREE_LISTING,
+		cards: THREE_LISTING,
 	});
 	const treeView = provider(spawner);
 	await treeView.load([folder({ folder: "C:\\work\\bench" })]);
@@ -1941,7 +1956,7 @@ test("two queues standing in a row each pull into their own next column", async 
 			],
 		},
 		tree: THREE_COLUMNS,
-		ls: THREE_LISTING,
+		cards: THREE_LISTING,
 	});
 	const treeView = provider(spawner);
 	await treeView.load([folder({ folder: "C:\\work\\bench" })]);
@@ -2006,7 +2021,7 @@ test("a column standing at its declared capacity draws the full suffix through t
 			],
 		},
 		tree: THREE_COLUMNS,
-		ls: THREE_LISTING,
+		cards: THREE_LISTING,
 	});
 	const treeView = provider(spawner);
 	await treeView.load([folder({ folder: "C:\\work\\bench" })]);
@@ -2082,7 +2097,7 @@ function malformedTreeSpawner(context: Record<string, string>): {
 		if (argv.includes("status")) {
 			return ok(DAMAGED_STATUS);
 		}
-		if (argv.includes("ls")) {
+		if (argv.includes("cards")) {
 			return ok(DAMAGED_LISTING);
 		}
 		return { code: 2, stdout: JSON.stringify({ refusal: "dinah.no-such-verb" }), stderr: "" };
@@ -2258,7 +2273,7 @@ test("a status answer carrying no holding list leaves an empty hand rather than 
 	const { spawner } = stubSpawner({
 		status: { workbench: "Trees", root: "C:\\work\\bench", columns: [] },
 		tree: treeAnswer([]),
-		ls: { cards: [] },
+		cards: { cards: [] },
 	});
 	const data = await readWorkbench(spawner, "dinah", "C:\\work\\bench", () => {});
 	assert.deepEqual([...data.holding], []);
@@ -2286,7 +2301,7 @@ test("what the reader holds is read off the status call the tree already makes",
 			blocked: [],
 		},
 		tree: treeAnswer([]),
-		ls: { cards: [] },
+		cards: { cards: [] },
 	});
 	const data = await readWorkbench(
 		spawner,
@@ -2304,7 +2319,7 @@ test("what the reader holds is read off the status call the tree already makes",
 	assert.equal(calls.length, 3);
 	assert.deepEqual(
 		calls.map((argv) => argv[argv.length - 1]).sort(),
-		["ls", "status", "tree"],
+		["cards", "status", "tree"],
 	);
 });
 
@@ -3192,7 +3207,7 @@ const FAILURE_ROUTES: readonly FailureRoute[] = [
 			const { spawner } = stubSpawner({
 				status: THREE_STATUS,
 				tree: THREE_COLUMNS,
-				ls: THREE_LISTING,
+				cards: THREE_LISTING,
 			});
 			const view = clocked(spawner, () => 1_000);
 			await view.load([folder({ folder: "C:\\work\\bench" })]);
@@ -3253,7 +3268,7 @@ test("a confident empty hand takes an answer, and takes a recent one", async () 
 		stubSpawner({
 			status: THREE_STATUS,
 			tree: THREE_COLUMNS,
-			ls: THREE_LISTING,
+			cards: THREE_LISTING,
 		}).spawner,
 		() => 1_000,
 	);
@@ -3310,7 +3325,7 @@ test("a broken workbench beside a healthy one still warns", async () => {
 	const healthy = stubSpawner({
 		status: THREE_STATUS,
 		tree: THREE_COLUMNS,
-		ls: THREE_LISTING,
+		cards: THREE_LISTING,
 	}).spawner;
 
 	// The control, and it is what a bar made to warn at everything fails.
@@ -3392,7 +3407,7 @@ test("mcpTargets carries the answered rows and nothing else", async () => {
 	const { spawner } = stubSpawner({
 		status: THREE_STATUS,
 		tree: THREE_COLUMNS,
-		ls: THREE_LISTING,
+		cards: THREE_LISTING,
 	});
 	const mixed: Spawner = async (exe, argv, options) => {
 		if (argv.includes("--root")) {
@@ -3482,7 +3497,7 @@ test("an untitled workbench reaches the provider unsubstituted and is labelled b
 	const { spawner } = stubSpawner({
 		status: UNTITLED_STATUS,
 		tree: treeAnswer([columnGroup("intake", [], 0)]),
-		ls: { cards: [] },
+		cards: { cards: [] },
 	});
 	const view = provider(spawner);
 	await view.load([

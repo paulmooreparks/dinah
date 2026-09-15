@@ -132,7 +132,7 @@ func TestAMalformedHarnessRefusesAWriteAndNoRead(t *testing.T) {
 		}
 		// The three reads all answer, which is what keeps a mistyped variable
 		// from taking the whole tool away from whoever has to repair it.
-		for _, argv := range [][]string{{"show", "fx-1"}, {"ls"}, {"whoami"}} {
+		for _, argv := range [][]string{{"show", "fx-1"}, {"list", "cards"}, {"whoami"}} {
 			if got := runCLI(t, root, argv...); got.code != 0 {
 				t.Errorf("`dinah %s` exited %d under a malformed harness name: %s", strings.Join(argv, " "), got.code, got.errw)
 			}
@@ -322,7 +322,7 @@ func TestNoWritingCommandTakesAMalformedHarnessName(t *testing.T) {
 	}
 
 	// The reads all answer under the same name.
-	for _, argv := range [][]string{{"show", "fx-1"}, {"ls"}, {"whoami"}, {"log", "fx-1"}, {"check"}, {"columns"}, {"next"}} {
+	for _, argv := range [][]string{{"show", "fx-1"}, {"list", "cards"}, {"whoami"}, {"list", "fx-1/journal"}, {"check"}, {"list", "columns"}, {"next"}} {
 		if got := runCLI(t, root, argv...); got.code != 0 && got.code != 5 {
 			t.Errorf("`dinah %s` exited %d under a malformed harness name: %s", strings.Join(argv, " "), got.code, got.errw)
 		}
@@ -356,8 +356,8 @@ func TestACommandRefusesAnyFlagItDoesNotDeclare(t *testing.T) {
 		flag string
 	}{
 		{argv: []string{"show", "fx-1", "--expires", "1h"}, flag: "--expires"},
-		{argv: []string{"ls", "--override"}, flag: "--override"},
-		{argv: []string{"log", "fx-1", "--kind", "external"}, flag: "--kind"},
+		{argv: []string{"list", "cards", "--override"}, flag: "--override"},
+		{argv: []string{"list", "fx-1/journal", "--kind", "external"}, flag: "--kind"},
 		{argv: []string{"comment", "fx-1", "a comment", "--at", "plain"}, flag: "--at"},
 	}
 	for _, want := range refused {

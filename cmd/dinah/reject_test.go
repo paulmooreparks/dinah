@@ -127,7 +127,7 @@ func TestLogMarksARejectMove(t *testing.T) {
 	}
 
 	marker := msg.For("en").T("log.reject")
-	logged := runCLI(t, root, "log", "fx-1")
+	logged := runCLI(t, root, "list", "fx-1/journal")
 	if logged.code != 0 {
 		t.Fatalf("log: %d %s", logged.code, logged.errw)
 	}
@@ -147,7 +147,7 @@ func TestLogMarksARejectMove(t *testing.T) {
 	if got := runCLI(t, root, "move", "fx-1", "done"); got.code != 0 {
 		t.Fatalf("the ordinary move: %d %s", got.code, got.errw)
 	}
-	again := runCLI(t, root, "log", "fx-1")
+	again := runCLI(t, root, "list", "fx-1/journal")
 	marked = 0
 	for _, line := range strings.Split(again.out, "\n") {
 		if strings.Contains(line, marker) {

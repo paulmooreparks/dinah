@@ -185,7 +185,7 @@ function driver(
 				stderr: "",
 			};
 		}
-		if (params["name"] === "columns") {
+		if (params["name"] === "list") {
 			return {
 				code: 0,
 				stdout: rpc(1, {}) + rpc(REQUEST_ID, { columns }),

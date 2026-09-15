@@ -169,15 +169,15 @@ func TestEveryHelpPageNamesTheReferenceKindsItDeclares(t *testing.T) {
 			switch command {
 			case "attach":
 				sawAttach = true
-			case "attachments":
+			case "list":
 				sawAttachments = true
 			}
 		}
 	}
 	if !sawAttach || !sawAttachments {
-		t.Errorf("the sweep did not reach attach (%t) and attachments (%t), whose summaries carry the separator themselves and are what a naive split would fire against", sawAttach, sawAttachments)
+		t.Errorf("the sweep did not reach attach (%t) and list (%t), whose summaries carry the separator themselves and are what a naive split would fire against", sawAttach, sawAttachments)
 	}
-	t.Logf("%d catalogues enumerated from internal/msg/locales/, %d help pages read, attach and attachments among them", len(tags), pages/2)
+	t.Logf("%d catalogues enumerated from internal/msg/locales/, %d help pages read, attach and list among them", len(tags), pages/2)
 	if want := len(tags) * len(roster); pages/2 != want {
 		t.Fatalf("the sweep read %d help pages and %d commands across %d catalogues is %d", pages/2, len(roster), len(tags), want)
 	}

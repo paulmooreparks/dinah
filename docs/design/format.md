@@ -2412,7 +2412,7 @@ the layer name `harness.<name>` from it and a layer name has to be a legal
 dotted name. A value outside that grammar is refused under
 `dinah.malformed-harness` rather than dropped, and the refusal reaches an act
 that writes a journal line and never a read: a mistyped variable that stopped
-`dinah show` and `dinah ls` would take the whole tool away from whoever has to
+`dinah show` and `dinah list` would take the whole tool away from whoever has to
 repair it. `dinah whoami` is where a person meets it, reporting the value and
 saying it is malformed. The provider and the model are free strings, and no
 part of Dinah enumerates or pattern-matches either, because a provider that

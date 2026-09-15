@@ -13,7 +13,7 @@ import (
 	"dinah/internal/verb"
 )
 
-// TestTheAttachmentsCommandAnswersForEveryKindThatCarriesOne asserts the new
+// TestTheAttachmentsReferenceAnswersForEveryKindThatCarriesOne asserts the new
 // read at the terminal: it answers for the workbench, a column, a card and a
 // comment, its JSON carries a path that opens the attachment's own bytes, and
 // its human form draws the sentence and the table (dinah-334 AC-10).
@@ -22,7 +22,7 @@ import (
 // looking for the key. The field is optional in the wire format, so a check
 // for its presence would pass against a build publishing a path that points
 // at nothing, which is the failure worth catching.
-func TestTheAttachmentsCommandAnswersForEveryKindThatCarriesOne(t *testing.T) {
+func TestTheAttachmentsReferenceAnswersForEveryKindThatCarriesOne(t *testing.T) {
 	root := newBench(t)
 	ref := addCard(t, root, "a card with things below it")
 	if got := runCLI(t, root, "comment", ref, "a thought"); got.code != 0 {
@@ -44,15 +44,15 @@ func TestTheAttachmentsCommandAnswersForEveryKindThatCarriesOne(t *testing.T) {
 		kind string
 		ref  string
 	}{
-		{name: "the workbench, named by nothing", argv: nil, kind: "workbench", ref: "workbench"},
-		{name: "the workbench, named", argv: []string{"workbench"}, kind: "workbench", ref: "workbench"},
-		{name: "a column", argv: []string{"intake"}, kind: "column", ref: "intake"},
-		{name: "a card", argv: []string{ref}, kind: "card", ref: ref},
-		{name: "a comment", argv: []string{ref + "/comments/1"}, kind: "comment", ref: ref + "/comments/1"},
+		{name: "the workbench, named by the roster word", argv: []string{"attachments"}, kind: "workbench", ref: "workbench"},
+		{name: "the workbench, named by its own reference", argv: []string{"workbench/attachments"}, kind: "workbench", ref: "workbench"},
+		{name: "a column", argv: []string{"intake/attachments"}, kind: "column", ref: "intake"},
+		{name: "a card", argv: []string{ref + "/attachments"}, kind: "card", ref: ref},
+		{name: "a comment", argv: []string{ref + "/comments/1/attachments"}, kind: "comment", ref: ref + "/comments/1"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			got := runCLI(t, root, append([]string{"--json", "attachments"}, c.argv...)...)
+			got := runCLI(t, root, append([]string{"--json", "list"}, c.argv...)...)
 			if got.code != 0 {
 				t.Fatalf("attachments %v: %d %s", c.argv, got.code, got.errw)
 			}
@@ -84,7 +84,7 @@ func TestTheAttachmentsCommandAnswersForEveryKindThatCarriesOne(t *testing.T) {
 			// The human form draws the entity it was asked about and the
 			// attachment's own filename, which is the pair a reader needs in
 			// order to know whose attachment they are looking at.
-			human := runCLI(t, root, append([]string{"attachments"}, c.argv...)...)
+			human := runCLI(t, root, append([]string{"list"}, c.argv...)...)
 			if human.code != 0 {
 				t.Fatalf("attachments %v: %d %s", c.argv, human.code, human.errw)
 			}
@@ -106,7 +106,7 @@ func TestTheAttachmentsCommandSaysSoWhenThereAreNone(t *testing.T) {
 	root := newBench(t)
 	ref := addCard(t, root, "a card with nothing attached")
 
-	got := runCLI(t, root, "--json", "attachments", ref)
+	got := runCLI(t, root, "--json", "list", ref+"/attachments")
 	if got.code != 0 {
 		t.Fatalf("attachments %s: %d %s", ref, got.code, got.errw)
 	}
@@ -124,7 +124,7 @@ func TestTheAttachmentsCommandSaysSoWhenThereAreNone(t *testing.T) {
 		t.Error("the decoded list is nil, and an entity carrying none reports an empty list")
 	}
 
-	human := runCLI(t, root, "attachments", ref)
+	human := runCLI(t, root, "list", ref+"/attachments")
 	if human.code != 0 {
 		t.Fatalf("attachments %s: %d %s", ref, human.code, human.errw)
 	}
@@ -153,7 +153,7 @@ func TestAListingCarriesTheAttachmentCountRatherThanTheList(t *testing.T) {
 		}
 	}
 
-	got := runCLI(t, root, "--json", "ls")
+	got := runCLI(t, root, "--json", "list", "cards")
 	if got.code != 0 {
 		t.Fatalf("ls: %d %s", got.code, got.errw)
 	}

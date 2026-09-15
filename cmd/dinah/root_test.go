@@ -103,7 +103,7 @@ var rootScopedVerbs = []struct {
 }{
 	{"tree", "tree"},
 	{"status", "status"},
-	{"ls", "listing"},
+	{"list", "listing"},
 	{"next", "offers"},
 	{"changes", "changes"},
 }
@@ -113,7 +113,7 @@ var rootScopedVerbs = []struct {
 // beneath the path, in both output forms.
 func TestWorkbenchesBeneathAPathListsEveryWorkbenchThere(t *testing.T) {
 	root := newForest(t, "alpha", "customer/beta", "customer/deep/gamma")
-	got := runCLI(t, root, "workbenches", root, "--json")
+	got := runCLI(t, root, "list", "workbenches", "--root", root, "--json")
 	if got.code != 0 {
 		t.Fatalf("workbenches <path>: %d %s", got.code, got.errw)
 	}
@@ -124,7 +124,7 @@ func TestWorkbenchesBeneathAPathListsEveryWorkbenchThere(t *testing.T) {
 	if len(listed) != 3 {
 		t.Errorf("the walk reported %d workbenches, wanted the three the fixture holds: %s", len(listed), got.out)
 	}
-	human := runCLI(t, root, "workbenches", root)
+	human := runCLI(t, root, "list", "workbenches", "--root", root)
 	if human.code != 0 {
 		t.Fatalf("the human form: %d %s", human.code, human.errw)
 	}
@@ -145,14 +145,14 @@ func TestWorkbenchesBeneathAPathListsEveryWorkbenchThere(t *testing.T) {
 // and is what this asserts against.
 func TestWorkbenchesWithNoPathStillAnswersTheUpwardSearch(t *testing.T) {
 	root := newForest(t, "alpha", "customer/beta", "customer/deep/gamma")
-	bare := runCLI(t, root, "workbenches")
+	bare := runCLI(t, root, "list", "workbenches")
 	if bare.code != 0 {
 		t.Fatalf("the bare form: %d %s", bare.code, bare.errw)
 	}
 	if strings.TrimSpace(bare.out) != strings.TrimSpace(msg.For(msg.Base).T("workbenches.empty")) {
 		t.Errorf("the bare form answered %q, wanted the unchanged reachable-from-here sentence", bare.out)
 	}
-	walked := runCLI(t, root, "workbenches", root, "--json")
+	walked := runCLI(t, root, "list", "workbenches", "--root", root, "--json")
 	if listed, ok := decode(t, walked.out).([]any); !ok || len(listed) != 3 {
 		t.Errorf("the positional form reported %s, wanted the three beneath the path", walked.out)
 	}
@@ -168,20 +168,20 @@ func TestWorkbenchesRefusesTwoScopesAtOnce(t *testing.T) {
 	inside := filepath.Join(root, "alpha")
 
 	t.Setenv("DINAH_WORKBENCH", soleBenchDir(t, inside))
-	refused := runCLI(t, root, "workbenches", root)
+	refused := runCLI(t, root, "list", "workbenches", "--root", root)
 	if refused.code == 0 {
 		t.Fatalf("the two scopes were accepted: %s", refused.out)
 	}
 	if leading := leadingToken(refused.errw); leading != contract.ConflictingScope {
 		t.Errorf("leading token %q, wanted %s", leading, contract.ConflictingScope)
 	}
-	bare := runCLI(t, root, "workbenches")
+	bare := runCLI(t, root, "list", "workbenches")
 	if bare.code != 0 {
 		t.Errorf("the bare form with a workbench pointer set should be unaffected: %d %s", bare.code, bare.errw)
 	}
 
 	t.Setenv("DINAH_WORKBENCH", "")
-	clean := runCLI(t, root, "workbenches", root, "--json")
+	clean := runCLI(t, root, "list", "workbenches", "--root", root, "--json")
 	if clean.code != 0 {
 		t.Errorf("with neither pointer set the positional form should succeed: %d %s", clean.code, clean.errw)
 	}
@@ -219,15 +219,15 @@ func TestADepthWithNothingToBoundRefuses(t *testing.T) {
 			}
 		})
 	}
-	t.Run("workbenches", func(t *testing.T) {
-		got := runCLI(t, root, "workbenches", "--max-depth", "2")
+	t.Run("list workbenches", func(t *testing.T) {
+		got := runCLI(t, root, "list", "workbenches", "--max-depth", "2")
 		if leading := leadingToken(got.errw); leading != contract.DepthWithoutRoot {
 			t.Errorf("leading token %q, wanted %s", leading, contract.DepthWithoutRoot)
 		}
 	})
 	t.Run("a depth that is not a count of rungs", func(t *testing.T) {
 		for _, value := range []string{"deep", "-1", "2.5"} {
-			got := runCLI(t, root, "workbenches", root, "--max-depth", value)
+			got := runCLI(t, root, "list", "workbenches", "--root", root, "--max-depth", value)
 			if leading := leadingToken(got.errw); leading != contract.MalformedDepth {
 				t.Errorf("%q: leading token %q, wanted %s", value, leading, contract.MalformedDepth)
 			}
@@ -257,7 +257,7 @@ func TestMaxDepthBoundsEveryRootScopedRead(t *testing.T) {
 			label = "the default"
 		}
 		t.Run("workbenches at "+label, func(t *testing.T) {
-			argv := []string{"workbenches", root, "--json"}
+			argv := []string{"list", "workbenches", "--root", root, "--json"}
 			if c.depth != "" {
 				argv = append(argv, "--max-depth", c.depth)
 			}
@@ -583,7 +583,7 @@ var unansweredCases = []struct {
 		retiredVocabularyCard(t, filepath.Join(root, "alpha"))
 		retiredVocabularyCard(t, filepath.Join(root, "beta"))
 	}},
-	{verb: "ls", argv: []string{"ls", "--column", "nosuchcolumn"}, refusal: contract.UnknownColumn},
+	{verb: "list", argv: []string{"list", "nosuchcolumn"}, refusal: contract.UnknownColumn},
 	{verb: "next", argv: []string{"next", "--column", "nosuchcolumn"}, refusal: contract.UnknownColumn},
 	{verb: "changes", argv: []string{"changes", "--column", "nosuchcolumn"}, refusal: contract.UnknownColumn},
 }
@@ -607,16 +607,16 @@ var unansweredCases = []struct {
 // is the right moment to revisit the sentence above.
 func TestARootScopedReadInCompactFormAnswersCanonicalJSON(t *testing.T) {
 	root := newForest(t, "alpha", "beta")
-	scoped := runCLI(t, root, "ls", "--root", root, "--format", "compact")
+	scoped := runCLI(t, root, "list", "cards", "--root", root, "--format", "compact")
 	if scoped.code != 0 {
-		t.Fatalf("ls --root --format compact: %d %s", scoped.code, scoped.errw)
+		t.Fatalf("list cards --root --format compact: %d %s", scoped.code, scoped.errw)
 	}
 	if _, ok := decode(t, scoped.out).(map[string]any); !ok {
 		t.Errorf("a root-scoped read in compact form answered something that is not canonical JSON:\n%s", scoped.out)
 	}
-	single := runCLI(t, filepath.Join(root, "alpha"), "ls", "--format", "compact")
+	single := runCLI(t, filepath.Join(root, "alpha"), "list", "intake", "--format", "compact")
 	if single.code != 0 {
-		t.Fatalf("ls --format compact: %d %s", single.code, single.errw)
+		t.Fatalf("list intake --format compact: %d %s", single.code, single.errw)
 	}
 	if strings.HasPrefix(strings.TrimSpace(single.out), "{") {
 		t.Errorf("the single-workbench control answered JSON, so this case cannot tell the two apart:\n%s", single.out)
@@ -712,7 +712,7 @@ func TestAWorkbenchThatWouldNotReadIsToldApartFromOneThatDidNotAnswer(t *testing
 		root := newForest(t, "alpha", "beta")
 		broken := soleBenchDir(t, filepath.Join(root, "beta"))
 		unreadableAnchor(t, broken)
-		rows := members(t, forestJSON(t, root, "ls", "--root", root))
+		rows := members(t, forestJSON(t, root, "list", "cards", "--root", root))
 		var row map[string]any
 		for _, one := range rows {
 			if one["path"] == broken {
@@ -731,7 +731,7 @@ func TestAWorkbenchThatWouldNotReadIsToldApartFromOneThatDidNotAnswer(t *testing
 		if row["title"] == "" || row["slug"] == "" {
 			t.Errorf("the anchor read and the row threw its identity away: %v", row)
 		}
-		got := runCLI(t, root, "ls", "--root", root)
+		got := runCLI(t, root, "list", "cards", "--root", root)
 		heading := identityLine(row)
 		if !strings.Contains(got.out, heading) {
 			t.Errorf("the human form lost the identity line %q:\n%s", heading, got.out)

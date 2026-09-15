@@ -3,6 +3,7 @@ package mcp
 import (
 	"sort"
 
+	"dinah/internal/contract"
 	"dinah/internal/msg"
 	"dinah/internal/verb"
 )
@@ -12,7 +13,7 @@ import (
 //
 // Tool names are the cli head's own verb spellings, expanded where the short
 // unixy form reads as an abbreviation to a reader who never saw the cli. That
-// gives list_cards, add_card and next_card, and leaves every other name as it
+// gives add_card and next_card, and leaves every other name as it
 // stands.
 //
 // summaryKey overrides the catalog key toolList reads to describe a tool. It
@@ -81,17 +82,13 @@ var tools = []tool{
 	{name: "delete", command: "delete", run: func(l *verb.Library, r *verb.Request) any { return l.Delete(r) }},
 	{name: "rename", command: "rename", run: func(l *verb.Library, r *verb.Request) any { return l.Rename(r) }},
 	{name: "status", command: "status", run: readStatus},
-	{name: "columns", command: "columns", run: readColumns},
-	{name: "list_cards", command: "ls", run: readList},
+	{name: "list", command: "list", run: readList},
 	{name: "next_card", command: "next", run: readNext},
 	{name: "pull", command: verb.Pull, run: func(l *verb.Library, r *verb.Request) any { return l.Pull(r) }},
 	{name: "query", command: "query", run: readQuery, wrapper: "matches"},
 	{name: "search_cards", command: "search", run: readSearch, wrapper: "results"},
 	{name: "tree", command: "tree", run: readTree, wrapper: "tree"},
-	{name: "contents", command: "contents", run: readContents},
-	{name: "attachments", command: "attachments", run: readAttachments},
 	{name: "show", command: "show", run: readShow},
-	{name: "log", command: "log", run: readLog},
 	{name: "changes", command: "changes", run: readChanges},
 	{name: "instructions", command: "instructions", run: readInstructions},
 	{name: "whoami", command: "whoami", run: readWhoami},
@@ -109,7 +106,6 @@ var tools = []tool{
 	{name: "version", command: "version", run: readVersion},
 	{name: "export", command: "export", run: readExport},
 	{name: "check", command: "check", run: readCheck},
-	{name: "workbenches", command: "workbenches", run: nil, summaryKey: "tool.workbenches.summary"},
 }
 
 // exemption is one command this head does not serve: the ground it is held out
@@ -355,7 +351,7 @@ var injectedProperties = []injectedProperty{
 		"join_workstream", "leave_workstream", "pull",
 	)},
 	{name: "workbench", key: "schema.workbench.description",
-		consumers: everyToolExcept("workbenches")},
+		consumers: everyTool()},
 }
 
 // namedTools is the consumer set of a property only some tools read. Every
@@ -579,7 +575,12 @@ func wrap(payload map[string]any, affordances []string) map[string]any {
 
 // readAffordances are what a caller may do next after a read of the bench
 // rather than of one card.
-var readAffordances = []string{"status", "columns", "list_cards", "next_card"}
+//
+// Every name here is a tool this head serves, and
+// TestEveryPublishedAffordanceNamesAServedTool holds it to that off the same
+// tools table tools/list is built from. The list lost columns and gained list
+// in one move, because the collapse left one tool answering both questions.
+var readAffordances = []string{"status", "list", "next_card"}
 
 // readStatus answers the status tool.
 func readStatus(l *verb.Library, r *verb.Request) any {
@@ -590,22 +591,35 @@ func readStatus(l *verb.Library, r *verb.Request) any {
 	return wrap(map[string]any{"status": status}, readAffordances)
 }
 
-// readColumns answers the columns tool.
-func readColumns(l *verb.Library, r *verb.Request) any {
-	columns, err := l.Columns()
-	if err != nil {
-		return l.FromError(r, err)
-	}
-	return wrap(map[string]any{"columns": columns}, readAffordances)
-}
-
-// readList answers the list_cards tool.
+// readList answers the list tool, which is every read of a collection this
+// surface serves.
+//
+// The member each shape is published under is the member the retired tool
+// published it under, so a caller that read columns off the columns tool goes
+// on reading columns off the same key. The one new member is rosters, which no
+// retired tool had, because no retired tool answered the bare question.
 func readList(l *verb.Library, r *verb.Request) any {
-	listing, err := l.List(r)
+	result, err := l.ListRef(r)
 	if err != nil {
 		return l.FromError(r, err)
 	}
-	return wrap(map[string]any{"listing": listing}, readAffordances)
+	switch result.Shape {
+	case verb.ShapeRosters:
+		return wrap(map[string]any{"rosters": result.Rosters}, readAffordances)
+	case verb.ShapeColumns:
+		return wrap(map[string]any{"columns": result.Columns}, readAffordances)
+	case verb.ShapeWorkstreams:
+		return wrap(map[string]any{"listing": result.Workstreams}, readAffordances)
+	case verb.ShapeAttachments:
+		return wrap(map[string]any{"attachments": result.Attachments}, readAffordances)
+	case verb.ShapeMatches:
+		return wrap(map[string]any{"matches": result.Matches}, readAffordances)
+	case verb.ShapeQueue:
+		return wrap(map[string]any{"listing": result.Queue}, readAffordances)
+	case verb.ShapeHistory:
+		return wrap(map[string]any{"events": result.History}, readAffordances)
+	}
+	return wrap(map[string]any{"tree": result.Contents}, readAffordances)
 }
 
 // readNext answers the next_card tool, which changes nothing: offering a card
@@ -620,7 +634,7 @@ func readNext(l *verb.Library, r *verb.Request) any {
 	if err != nil {
 		return l.FromError(r, err)
 	}
-	return wrap(map[string]any{"offers": offers}, []string{"claim", "pull", "show", "log"})
+	return wrap(map[string]any{"offers": offers}, []string{"claim", "pull", "show", "list"})
 }
 
 // readQuery answers the query tool. It carries the same Matches object the
@@ -661,30 +675,6 @@ func readTree(l *verb.Library, r *verb.Request) any {
 	return wrap(map[string]any{"tree": tree}, readAffordances)
 }
 
-// readContents answers the contents tool.
-func readContents(l *verb.Library, r *verb.Request) any {
-	level := r.Depth
-	if level == "" {
-		level = verb.LevelEntities
-	}
-	tree, err := l.Contents(r, level)
-	if err != nil {
-		return l.FromError(r, err)
-	}
-	return wrap(map[string]any{"tree": tree}, readAffordances)
-}
-
-// readAttachments answers the attachments tool. It publishes the same listing
-// the terminal head prints, so the two heads report one entity's attachments
-// identically and neither carries a shape of its own.
-func readAttachments(l *verb.Library, r *verb.Request) any {
-	listing, err := l.Attachments(r)
-	if err != nil {
-		return l.FromError(r, err)
-	}
-	return wrap(map[string]any{"attachments": listing}, readAffordances)
-}
-
 // cardAffordances asks the library what a caller may do with the card a
 // request names, and puts the answer into this surface's vocabulary before it
 // is published. A read never returns a *verb.Response, so nothing else
@@ -706,12 +696,12 @@ func cardAffordances(l *verb.Library, r *verb.Request) []string {
 // caller's choice on the call rather than this head's choice on every call,
 // and the head stays a projection of the library and nothing else.
 func readShow(l *verb.Library, r *verb.Request) any {
-	detail, listing, item, text, err := l.Show(r)
+	detail, record, item, text, err := l.Show(r)
 	if err != nil {
 		return l.FromError(r, err)
 	}
-	if listing != nil {
-		return wrap(map[string]any{"collection": listing}, readAffordances)
+	if record != nil {
+		return wrap(map[string]any{"record": record}, readAffordances)
 	}
 	if item != nil {
 		return wrap(map[string]any{"item": item}, cardAffordances(l, r))
@@ -720,16 +710,6 @@ func readShow(l *verb.Library, r *verb.Request) any {
 		return wrap(map[string]any{"text": text}, readAffordances)
 	}
 	return wrap(map[string]any{"detail": detail}, cardAffordances(l, r))
-}
-
-// readLog answers the log tool, and asks for its affordances for the same
-// reason readShow does.
-func readLog(l *verb.Library, r *verb.Request) any {
-	events, err := l.History(r)
-	if err != nil {
-		return l.FromError(r, err)
-	}
-	return journalView{Events: events, Affordances: cardAffordances(l, r)}
 }
 
 // readChanges answers the changes tool. It carries the same ChangeSet the cli
@@ -799,20 +779,16 @@ func doWorkbench(l *verb.Library, r *verb.Request) any {
 	return wrap(map[string]any{"workbench": fields}, readAffordances)
 }
 
-// doWorkstream answers the workstream tool, which lists the workbench's
-// workstreams or creates one, exactly as the command does. The action selects,
-// so an agent reaches the same two acts a person reaches from a terminal, and
-// a workstream's own fields are read and written through get_field and
-// set_field.
+// doWorkstream answers the workstream tool, which creates a workstream and
+// does nothing else, exactly as the command does. Its listing action retired
+// into the list tool under the reference workstreams, so the tool refuses the
+// retired action by name the way the workbench tool refuses its own two, and a
+// workstream's fields are read and written through get_field and set_field.
 func doWorkstream(l *verb.Library, r *verb.Request) any {
 	if r.Action == "new" {
 		return l.NewWorkstream(r)
 	}
-	listing, err := l.Workstreams()
-	if err != nil {
-		return l.FromError(r, err)
-	}
-	return wrap(map[string]any{"listing": listing}, readAffordances)
+	return l.FromError(r, contract.Refuse(contract.Usage, r.Action))
 }
 
 // readVersion answers the version tool, always with catalog coverage, since a

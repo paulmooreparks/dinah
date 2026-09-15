@@ -860,8 +860,8 @@ func TestEachCommandRefusesADepthAgainstItsOwnLadder(t *testing.T) {
 			_, err := h.library.Tree(&Request{Verb: "tree"}, nil, level)
 			return err
 		}},
-		{what: "contents", level: LevelGroups, levels: ContentsLevels, run: func(level string) error {
-			_, err := h.library.Contents(&Request{Verb: "contents", Ref: ref}, level)
+		{what: "list", level: LevelGroups, levels: ListLevels, run: func(level string) error {
+			_, err := h.library.Contents(&Request{Verb: "list", Ref: ref}, level)
 			return err
 		}},
 	}

@@ -46,5 +46,5 @@ internal/guide/guides/mcp.md:264 shows=json
 internal/guide/guides/mcp.md:268 shows=json
 internal/guide/guides/mcp.md:348 shows=json
 internal/guide/guides/mcp.md:361 shows=json
-internal/guide/guides/principles.md:29 shows=table command=columns
+internal/guide/guides/principles.md:29 shows=table command=list columns
 internal/guide/guides/workbench-layout.md:6 shows=tree reason=TestTheLayoutGuideDrawsPathsTheToolWrites holds every path this block draws

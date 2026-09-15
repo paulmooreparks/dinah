@@ -1,0 +1,3 @@
+  Card  Standing  Title
+  ----  --------  -----------------------------------
+  fx-1  ready     A card the goldens are read against

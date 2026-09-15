@@ -23,12 +23,12 @@
     },
     "attachments.empty": {
       "text": "{ref} में कोई संलग्नक नहीं है।",
-      "context": "Printed when `dinah attachments` is asked about an entity that carries none. No table follows, and the call succeeds: an entity with nothing attached is an answer rather than a mistake.",
+      "context": "Printed when `dinah list attachments` is asked about an entity that carries none. No table follows, and the call succeeds: an entity with nothing attached is an answer rather than a mistake.",
       "source": "a28b198befaf8664"
     },
     "attachments.header": {
       "text": "{ref} में {count} संलग्नक हैं।",
-      "context": "The sentence above the table `dinah attachments` prints, naming the entity the attachments hang from. {count} is how many that entity carries.",
+      "context": "The sentence above the table `dinah list attachments` prints, naming the entity the attachments hang from. {count} is how many that entity carries.",
       "source": "7a8989b658661606"
     },
     "card.blocked": {
@@ -113,6 +113,21 @@
       "text": "वर्कबेंच में कम से कम एक कॉलम बना रहता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "5166e1a76d1e4f39"
+    },
+    "check.list.1": {
+      "text": "नामित कॉलम वर्कबेंच घोषित करती है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "7037e94c3b8968f0"
+    },
+    "check.list.2": {
+      "text": "संदर्भ इस वर्कबेंच में किसी वस्तु को नामित करता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "8aa86f2d95ed91c9"
+    },
+    "check.list.3": {
+      "text": "गहराई स्तर वह है जिसे यह आदेश घोषित करता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "9f7fb892144ebc7d"
     },
     "check.restore.1": {
       "text": "संदर्भ अभिलेखागार में रखी किसी वस्तु तक पहुँचता है",
@@ -443,16 +458,6 @@
       "text": "वर्कस्ट्रीम मौजूद है",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "1c1e8ef1fba280ab"
-    },
-    "check.log.1": {
-      "text": "कार्ड मौजूद है",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "37dac5acd188c446"
-    },
-    "check.ls.1": {
-      "text": "नामित कॉलम वर्कबेंच घोषित करती है",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "7037e94c3b8968f0"
     },
     "check.mcp.1": {
       "text": "--root जिस डायरेक्टरी को नामता है वह मौजूद है",
@@ -1099,6 +1104,11 @@
       "context": "The one-line summary of the archive command, shown beside its syntax in the help block.",
       "source": "6a93f0542e7f5026"
     },
+    "cmd.list.summary": {
+      "text": "इस वर्कबेंच की किसी इकाई में क्या है",
+      "context": "The one-line summary of the list command, shown beside its syntax in the help block.",
+      "source": "190155bdea9f2b71"
+    },
     "cmd.restore.summary": {
       "text": "किसी संग्रहित इकाई को वापस जीवित समूह में रखें",
       "context": "The one-line summary of the restore command, shown beside its syntax in the help block. It is the inverse of cmd.archive.summary and is worded to read as its pair.",
@@ -1224,16 +1234,6 @@
       "context": "The one-line summary of the link command, shown beside its syntax in the help block.",
       "source": "5e8c58645f06d7af"
     },
-    "cmd.log.summary": {
-      "text": "कार्ड की दर्ज क्रियाएँ, सबसे पुरानी पहले",
-      "context": "The one-line summary of the log command, shown beside its syntax in the help block.",
-      "source": "bed8f87abcb3e98a"
-    },
-    "cmd.ls.summary": {
-      "text": "किसी कॉलम के कार्ड, कतार के क्रम में",
-      "context": "The one-line summary of the ls command, shown beside its syntax in the help block.",
-      "source": "c155ca5b8a9da70f"
-    },
     "cmd.mcp.summary": {
       "text": "MCP पर stdio से वर्कबेंच परोसें",
       "context": "The one-line summary of the mcp command, shown beside its syntax in the help block.",
@@ -1268,6 +1268,21 @@
       "text": "स्वीकृति मानदंड को सत्यापित के रूप में दर्ज करें",
       "context": "The one-line summary of the verify command, printed in the command list and above its own help.",
       "source": "71a47229cd4003a5"
+    },
+    "column.roster.count": {
+      "text": "गणना",
+      "context": "Heading over how many members a roster holds, in the roster a bare `dinah list` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "source": "71a5c9f4b68ef4d4"
+    },
+    "column.roster.holds": {
+      "text": "रखता है",
+      "context": "Heading over the kind of entity a roster holds, in the roster a bare `dinah list` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "source": "30d10fe142ae7a51"
+    },
+    "column.roster.reference": {
+      "text": "संदर्भ",
+      "context": "Heading over the word a reader types back to list one of the workbench’s own collections, in the roster a bare `dinah list` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "source": "fe88d270aa3e71da"
     },
     "param.add.priority.summary": {
       "text": "कार्ड किस प्राथमिकता स्तर के साथ दर्ज करना है, उन स्तरों में से जो यह वर्कबेंच घोषित करती है",
@@ -1324,6 +1339,21 @@
       "context": "The written meaning of the item argument, shared by every command naming one checklist item. wb-1 stands for a card reference and is not translated.",
       "source": "d40f3765418bee37"
     },
+    "param.list.depth.summary": {
+      "text": "कितनी गहराई तक खींचना है, root, members, cards, entities, या all के रूप में लिखा गया; कुछ न लिखने पर members",
+      "context": "The meaning of the depth argument of `dinah list`, printed in that command’s arguments table.",
+      "source": "381ae129ceba0ed9"
+    },
+    "param.list.ready.summary": {
+      "text": "केवल वही कार्ड दिखाएँ जो लिए जाने को तैयार हैं",
+      "context": "The meaning of the ready argument of `dinah list`, printed in that command’s arguments table.",
+      "source": "36fbc940df2d68dc"
+    },
+    "param.list.ref.summary": {
+      "text": "आप क्या सूचीबद्ध कर रहे हैं, उसके संदर्भ के रूप में या सूची-शब्दों columns, cards, workstreams, attachments और workbenches में से एक के रूप में लिखा गया; कुछ न लिखने पर यह वर्कबेंच",
+      "context": "The meaning of the ref argument of `dinah list`, printed in that command’s arguments table. The five roster words are the command’s own grammar rather than addresses, so they are spelled here as a reader types them and are not translated.",
+      "source": "953fcb38cb1abf4f"
+    },
     "param.note.summary": {
       "text": "जाँच में क्या दिखा, एक शेल शब्द में या उद्धरण चिह्नों में; अकेला - इसे पाइप से पढ़ता है",
       "context": "The written meaning of the note argument, shared by resolve, verify and fail.",
@@ -1343,6 +1373,11 @@
       "text": "एक हटाए जा रहे कॉलम के कार्ड दूसरे कॉलम में भेजें, retired=destination के रूप में लिखा और हर हटाए जा रहे कॉलम के लिए एक बार दोहराया; बाईं ओर वह कॉलम पहचानकर्ता भी हो सकता है जिसे कोई कार्ड अब भी रखता है और यह वर्कबेंच अब नहीं बताता, जिसे `dinah check` check.unknown-column के रूप में बताता है",
       "context": "The meaning of the map argument of `dinah reshape`, printed in that command's arguments table. It names `dinah check` because that is the command an operator runs to find a stranded column identifier before writing this flag.",
       "source": "be7a7c10a7313389"
+    },
+    "refusal.dinah.is-a-collection.next-list": {
+      "text": "; यह क्या रखता है यह देखने के लिए `dinah list {detail}` चलाएँ",
+      "context": "Spliced onto refusal.dinah.is-a-collection when the command that raised it is show, which reads one entity and never a collection. {detail} is the reference as the reader typed it, so the sentence hands them the invocation that answers.",
+      "source": "3d3de089943d563f"
     },
     "refusal.dinah.no-levels": {
       "text": "यह वर्कबेंच कोई {axis} स्तर घोषित नहीं करती, इसलिए सेट करने को कोई स्तर नहीं है",
@@ -1669,11 +1704,6 @@
       "context": "The label naming what a bare word after resolve, verify or fail was meant to be, printed when several unquoted words arrive where one argument belongs.",
       "source": "a72e6ab58cd4bb60"
     },
-    "tool.workbenches.summary": {
-      "text": "वे वर्कबेंच जिन्हें यह सर्वर परोस सकता है",
-      "context": "The one-line summary of the workbenches tool, shown beside its name in the MCP surface. Overrides the command's own summary, which reads about reachability from here and is false on a server bounded by a root, and is now a partial rather than a false answer on a server with no root at all, when a default is being served (dinah-301): the one row it carries is real, but the tool cannot promise it is the only workbench this server may serve.",
-      "source": "e803d837439b3c74"
-    },
     "cmd.move.summary": {
       "text": "कार्ड को दूसरे कॉलम में ले जाएँ",
       "context": "The one-line summary of the move command, shown beside its syntax in the help block.",
@@ -1714,11 +1744,6 @@
       "context": "The one-line summary of the show command, shown beside its syntax in the help block.",
       "source": "dc2332719d859856"
     },
-    "cmd.columns.summary": {
-      "text": "प्रवाह, क्रम में",
-      "context": "The one-line summary of the columns command, shown beside its syntax in the help block.",
-      "source": "e2922fed8868b3df"
-    },
     "cmd.status.summary": {
       "text": "यह वर्कबेंच कहाँ खड़ी है, और आप क्या रोके हुए हैं",
       "context": "The one-line summary of the status command, shown beside its syntax in the help block.",
@@ -1749,15 +1774,10 @@
       "context": "The one-line summary of the workbench command, shown beside its syntax in the help block.",
       "source": "23bcfa1d77894f2d"
     },
-    "cmd.workbenches.summary": {
-      "text": "किसी डायरेक्टरी के नीचे की वर्कबेंच, या यहाँ से पहुँच योग्य वर्कबेंच",
-      "context": "The one-line summary of the workbenches command, shown beside its syntax in the help block. It names both directions the command answers in, since dinah-281 gave it a positional path: downward from a directory you name, and the upward search it runs when you name none.",
-      "source": "f45cb9666975067c"
-    },
     "cmd.workstream.summary": {
-      "text": "इस वर्कबेंच की वर्कस्ट्रीम पढ़ें, या एक नई बनाएँ",
+      "text": "इस वर्कबेंच पर एक वर्कस्ट्रीम बनाएँ",
       "context": "The one-line summary of the workstream command, shown beside its syntax in the help block.",
-      "source": "6bba9fcad30efac1"
+      "source": "596e98e8460e2069"
     },
     "column.blocked.card": {
       "text": "कार्ड",
@@ -1781,7 +1801,7 @@
     },
     "column.attachments.ref": {
       "text": "संदर्भ",
-      "context": "Heading over the reference a person types to reach the attachment, in the attachments block of `dinah show` and in the listing `dinah attachments` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "context": "Heading over the reference a person types to reach the attachment, in the attachments block of `dinah show` and in the listing `dinah list attachments` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "9ff1e019feac1ee2"
     },
     "column.attachments.filename": {
@@ -1914,49 +1934,49 @@
       "context": "Heading over the kind of link, in the links of `dinah show`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "3cf89cb47fdde7e9"
     },
-    "column.log.action": {
+    "column.journal.action": {
       "text": "क्रिया",
-      "context": "Heading over what was done to the card, in the history `dinah log` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "context": "Heading over what was done to the card, in the history `dinah list <card>/journal` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "a442044b586ec8bf"
     },
-    "column.log.actor": {
+    "column.journal.actor": {
       "text": "कर्ता",
-      "context": "Heading over who did it, in the history `dinah log` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "context": "Heading over who did it, in the history `dinah list <card>/journal` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "f865a44470a1eb3a"
     },
-    "column.log.detail": {
+    "column.journal.detail": {
       "text": "विवरण",
-      "context": "Heading over what the act carried, such as the columns a move ran between, in the history `dinah log` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "context": "Heading over what the act carried, such as the columns a move ran between, in the history `dinah list <card>/journal` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "8daa1db5187d4ad4"
     },
-    "column.log.when": {
+    "column.journal.when": {
       "text": "कब",
-      "context": "Heading over when the act was recorded, in the history `dinah log` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "context": "Heading over when the act was recorded, in the history `dinah list <card>/journal` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "c683c10250a1b719"
     },
-    "column.ls.card": {
+    "column.queue.card": {
       "text": "कार्ड",
-      "context": "Heading over the reference a person types to name the card, in the card listing `dinah ls` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "context": "Heading over the reference a person types to name the card, in the card listing `dinah list` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "dfef4f9ce9ebb93f"
     },
-    "column.ls.priority": {
+    "column.queue.priority": {
       "text": "प्राथमिकता",
-      "context": "Heading over the card's priority, in the card listing `dinah ls` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "context": "Heading over the card's priority, in the card listing `dinah list` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "a4e407b3a0fe4669"
     },
-    "column.ls.severity": {
+    "column.queue.severity": {
       "text": "गंभीरता",
-      "context": "Heading over the card's severity, in the card listing `dinah ls` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "context": "Heading over the card's severity, in the card listing `dinah list` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "cd0cfe87af6f2ff2"
     },
-    "column.ls.standing": {
+    "column.queue.standing": {
       "text": "दशा",
-      "context": "Heading over whether the card is ready, active, or blocked, in the card listing `dinah ls` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "context": "Heading over whether the card is ready, active, or blocked, in the card listing `dinah list` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "989261d5eefc4735"
     },
-    "column.ls.title": {
+    "column.queue.title": {
       "text": "शीर्षक",
-      "context": "Heading over the card's title, in the card listing `dinah ls` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "context": "Heading over the card's title, in the card listing `dinah list` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "99f110d27e30b289"
     },
     "column.moves.direction": {
@@ -2026,27 +2046,27 @@
     },
     "column.columns.cards": {
       "text": "कार्ड",
-      "context": "Heading over how many live cards the column holds, with its limit where it declares one, in the columns listing, which `dinah columns` prints and `dinah status` repeats. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "context": "Heading over how many live cards the column holds, with its limit where it declares one, in the columns listing, which `dinah list columns` prints and `dinah status` repeats. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "6f5d93a17b8bdc24"
     },
     "column.columns.kind": {
       "text": "प्रकार",
-      "context": "Heading over the column's kind: intake, work or done, in the columns listing, which `dinah columns` prints and `dinah status` repeats. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "context": "Heading over the column's kind: intake, work or done, in the columns listing, which `dinah list columns` prints and `dinah status` repeats. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "70af97de3ad8fb23"
     },
     "column.columns.name": {
       "text": "नाम",
-      "context": "Heading over the column's display name, in the columns listing, which `dinah columns` prints and `dinah status` repeats. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "context": "Heading over the column's display name, in the columns listing, which `dinah list columns` prints and `dinah status` repeats. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "ef49aec68fd1dc66"
     },
     "column.columns.owner": {
       "text": "स्वामी",
-      "context": "Heading over who may move a card out of the column, reading agent or operator, in the columns listing, which `dinah columns` prints and `dinah status` repeats. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "context": "Heading over who may move a card out of the column, reading agent or operator, in the columns listing, which `dinah list columns` prints and `dinah status` repeats. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "b971debc37bf0b54"
     },
     "column.columns.slug": {
       "text": "उपनाम",
-      "context": "Heading over the column's short handle, which is what a person types to name it, in the columns listing, which `dinah columns` prints and `dinah status` repeats. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "context": "Heading over the column's short handle, which is what a person types to name it, in the columns listing, which `dinah list columns` prints and `dinah status` repeats. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "91f70424f5d5d23e"
     },
     "column.workbench.field": {
@@ -2061,37 +2081,37 @@
     },
     "column.workbenches.path": {
       "text": "पथ",
-      "context": "Heading over where the workbench sits on disk, which is what --workbench takes, in the workbench listing, which `dinah workbenches` prints and the ambiguous-workbench refusal repeats. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "context": "Heading over where the workbench sits on disk, which is what --workbench takes, in the workbench listing, which `dinah list workbenches` prints and the ambiguous-workbench refusal repeats. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "2e532e19ed477a56"
     },
     "column.workbenches.slug": {
       "text": "उपनाम",
-      "context": "Heading over the workbench's short handle, in the workbench listing, which `dinah workbenches` prints and the ambiguous-workbench refusal repeats. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "context": "Heading over the workbench's short handle, in the workbench listing, which `dinah list workbenches` prints and the ambiguous-workbench refusal repeats. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "91f70424f5d5d23e"
     },
     "column.workbenches.workbench": {
       "text": "वर्कबेंच",
-      "context": "Heading over the workbench's title, in the workbench listing, which `dinah workbenches` prints and the ambiguous-workbench refusal repeats. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "context": "Heading over the workbench's title, in the workbench listing, which `dinah list workbenches` prints and the ambiguous-workbench refusal repeats. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "28958cab917f71fe"
     },
     "column.workstreams.cards": {
       "text": "कार्ड",
-      "context": "Heading over how many live cards belong to the workstream, in the listing `dinah workstream` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "context": "Heading over how many live cards belong to the workstream, in the listing `dinah list workstreams` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "6f5d93a17b8bdc24"
     },
     "column.workstreams.name": {
       "text": "नाम",
-      "context": "Heading over the workstream's title, in the listing `dinah workstream` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "context": "Heading over the workstream's title, in the listing `dinah list workstreams` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "ef49aec68fd1dc66"
     },
     "column.workstreams.reference": {
       "text": "संदर्भ",
-      "context": "Heading over what a person types to reach the workstream, in the listing `dinah workstream` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "context": "Heading over what a person types to reach the workstream, in the listing `dinah list workstreams` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "fe88d270aa3e71da"
     },
     "column.workstreams.status": {
       "text": "स्थिति",
-      "context": "Heading over the value stored under status, which people read and Dinah never acts on, in the listing `dinah workstream` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "context": "Heading over the value stored under status, which people read and Dinah never acts on, in the listing `dinah list workstreams` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "ad3e3c8146fc920f"
     },
     "extract.done": {
@@ -2290,7 +2310,7 @@
       "context": "The detail of a recorded renumbered, carrying the number the card arrived holding as {from} and the number the repair gave it as {to}.",
       "source": "dff97f4b63c30b11"
     },
-    "ls.empty": {
+    "queue.empty": {
       "text": "यहाँ कोई कार्ड नहीं।",
       "context": "Printed when a listing has nothing in it.",
       "source": "e3bcc853e3228d2d"
@@ -2526,9 +2546,9 @@
       "source": "6a5c5807c6b66cc2"
     },
     "refusal.dinah.no-workbench-found.next": {
-      "text": "; यहां एक बनाने के लिए `dinah init` चलाएँ, मौजूदा वर्कबेंच दिखाने के लिए --workbench <dir> दें, या किसी निर्देशिका के नीचे खोजने के लिए `dinah check` को --root <dir> दें, या `dinah workbenches` को एक निर्देशिका दें",
+      "text": "; यहां एक बनाने के लिए `dinah init` चलाएँ, मौजूदा वर्कबेंच दिखाने के लिए --workbench <dir> दें, या किसी निर्देशिका के नीचे खोजने के लिए `dinah check` को --root <dir> दें, या `dinah list workbenches` को `--root <dir>` दें",
       "context": "Spliced onto refusal.dinah.no-workbench-found as the next step, carrying the clause that base entry used to end with.",
-      "source": "bf92ad15c8e843c8"
+      "source": "dcd4a60de8c824c2"
     },
     "refusal.dinah.no-workbench-found.bare": {
       "text": "; {bare} पर एक workbench.md किसी भी .dinah कंटेनर के बाहर रखी है, इसलिए कोई खोज उस तक नहीं पहुँचती; उसे कंटेनर में ले जाने के लिए वहाँ `dinah check --root . --migrate-container` चलाएँ",
@@ -2780,9 +2800,9 @@
       "source": "239c67aad72c8145"
     },
     "refusal.dinah.unknown-path.next": {
-      "text": "; इस वर्कबेंच में क्या है यह देखने के लिए `dinah ls` चलाएँ",
+      "text": "; इस वर्कबेंच में क्या है यह देखने के लिए `dinah list` चलाएँ",
       "context": "Spliced onto refusal.dinah.unknown-path as the next step when the refusal names no file, which is the reader who typed something the workbench does not answer to.",
-      "source": "a389d86eb8c557de"
+      "source": "b90472935d366093"
     },
     "refusal.dinah.unknown-root": {
       "text": "{detail} ऐसी कोई डायरेक्टरी नहीं जिसे फ़ाइल सिस्टम रखता हो",
@@ -2825,9 +2845,9 @@
       "source": "4bd28ab1e5993cea"
     },
     "refusal.dinah.unknown-workstream.next": {
-      "text": "; इस वर्कबेंच की वर्कस्ट्रीम देखने के लिए `dinah workstream` चलाएँ",
+      "text": "; इस वर्कबेंच की वर्कस्ट्रीम देखने के लिए `dinah list workstreams` चलाएँ",
       "context": "Spliced onto refusal.dinah.unknown-workstream as the next step.",
-      "source": "79e1c9e88254d8df"
+      "source": "c96397457b8577ca"
     },
     "refusal.dinah.damaged-workbench": {
       "text": "{detail} एक वर्कबेंच का अपना पता है, लेकिन उसकी workbench.md अब Dinah लंगर के रूप में नहीं पढ़ी जाती",
@@ -3185,9 +3205,9 @@
       "source": "f947d3d5e8795007"
     },
     "refusal.unknown-card.next": {
-      "text": "; इस वर्कबेंच के कार्ड देखने के लिए `dinah ls` चलाएँ",
+      "text": "; इस वर्कबेंच के कार्ड देखने के लिए `dinah list cards` चलाएँ",
       "context": "Spliced onto refusal.unknown-card as the next step.",
-      "source": "cc7f9fefb530b2c4"
+      "source": "57b5aa96f3df9cbe"
     },
     "refusal.unknown-card.workstream.next": {
       "text": "; {workstream} एक वर्कस्ट्रीम का नाम है, इसलिए संदर्भ इसी तरह लिखें, या यह देखने के लिए कि संदर्भ कैसे लिखा जाता है `dinah guide references` चलाएँ",
@@ -3864,16 +3884,6 @@
       "context": "The meaning of the card argument of `dinah instructions`, printed in that command's arguments table.",
       "source": "bbea5b44dfebd901"
     },
-    "param.ls.column.summary": {
-      "text": "कौन-सा कॉलम दिखाना है, इसे --column <column> भी लिखा जाता है; कुछ न लिखने पर हर कॉलम",
-      "context": "The meaning of the column argument of `dinah ls`, printed in that command's arguments table.",
-      "source": "8f967e423be24761"
-    },
-    "param.ls.ready.summary": {
-      "text": "केवल वही कार्ड दिखाएँ जो लिए जाने को तैयार हैं",
-      "context": "The meaning of the ready argument of `dinah ls`, printed in that command's arguments table.",
-      "source": "36fbc940df2d68dc"
-    },
     "param.link-kind.summary": {
       "text": "दोनों कार्ड आपस में कैसे जुड़े हैं, इसके लिए शब्द, जैसे duplicates या relates; कोई भी शब्द स्वीकार किया जाता है",
       "context": "The meaning of the kind argument, shared by link and unlink. Nothing checks the word against a set, so a workbench writes whatever term it uses. duplicates and relates are suggested spellings and are never translated.",
@@ -3985,13 +3995,13 @@
       "source": "c1016c1ef09e7a7d"
     },
     "param.workstream.action.summary": {
-      "text": "एक वर्कस्ट्रीम बनाएँ; कुछ न लिखने पर हर वर्कस्ट्रीम",
-      "context": "The meaning of the action argument of `dinah workstream`, printed in that command's arguments table.",
-      "source": "f33d8a862f718508"
+      "text": "एक वर्कस्ट्रीम बनाएँ, new के रूप में लिखा गया",
+      "context": "The meaning of the action argument of `dinah list workstreams`, printed in that command's arguments table.",
+      "source": "d84d9568c60b5b40"
     },
     "param.workstream.slug.summary": {
       "text": "वर्कस्ट्रीम किस उपनाम के साथ बनानी है, शीर्षक से निकाले गए उपनाम के बजाय",
-      "context": "The meaning of the slug argument of `dinah workstream`, printed in that command's arguments table.",
+      "context": "The meaning of the slug argument of `dinah list workstreams`, printed in that command's arguments table.",
       "source": "5b716c838dbd0efe"
     },
     "param.workstream.summary": {
@@ -4001,18 +4011,8 @@
     },
     "param.workstream.workstream.summary": {
       "text": "जिस वर्कस्ट्रीम को आप बना रहे हैं उसका शीर्षक",
-      "context": "The meaning of the workstream argument of `dinah workstream`, printed in that command's arguments table.",
+      "context": "The meaning of the workstream argument of `dinah list workstreams`, printed in that command's arguments table.",
       "source": "99cc69f289d4e69f"
-    },
-    "check.contents.1": {
-      "text": "संदर्भ इस वर्कबेंच में किसी वस्तु को नामित करता है",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "8aa86f2d95ed91c9"
-    },
-    "check.contents.2": {
-      "text": "गहराई स्तर वह है जिसे यह आदेश घोषित करता है",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "9f7fb892144ebc7d"
     },
     "check.tree.1": {
       "text": "नामित प्रत्येक अक्ष वह है जिस पर यह उपकरण समूहन करता है",
@@ -4033,16 +4033,6 @@
       "text": "गहराई स्तर वह है जिसे यह आदेश घोषित करता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "9f7fb892144ebc7d"
-    },
-    "cmd.attachments.summary": {
-      "text": "वर्कबेंच की किसी इकाई से क्या संलग्न है",
-      "context": "The one-line summary of the attachments command, shown beside its syntax in the help block.",
-      "source": "8d731c6126a2b24d"
-    },
-    "cmd.contents.summary": {
-      "text": "वर्कबेंच की किसी इकाई में क्या है",
-      "context": "The one-line summary of the contents command, shown beside its syntax in the help block.",
-      "source": "f6a076421f668675"
     },
     "cmd.tree.summary": {
       "text": "अक्षों की श्रृंखला पर नियोजित वर्कबेंच के कार्ड",
@@ -4066,7 +4056,7 @@
     },
     "column.tree.reference": {
       "text": "संदर्भ",
-      "context": "Heading over what a person types to reach a node, in the tree both `dinah tree` and `dinah contents` print. On a group row the cell carries the value the group gathered at, which nothing addresses, and the Entity cell beside it says so. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "context": "Heading over what a person types to reach a node, in the tree both `dinah tree` and `dinah list` print. On a group row the cell carries the value the group gathered at, which nothing addresses, and the Entity cell beside it says so. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "fe88d270aa3e71da"
     },
     "column.tree.title": {
@@ -4076,43 +4066,28 @@
     },
     "contents.empty": {
       "text": "{title} ({ref}) में कुछ नहीं है।",
-      "context": "Printed when `dinah contents` is asked about an entity with nothing below it. No table follows, and the call succeeds: an entity that contains nothing is an answer rather than a mistake.",
+      "context": "Printed when `dinah list` is asked about an entity with nothing below it. No table follows, and the call succeeds: an entity that contains nothing is an answer rather than a mistake.",
       "source": "2b7896241257de2d"
     },
     "contents.header": {
       "text": "{title} ({ref}) में {count} इकाइयाँ हैं।",
-      "context": "The sentence above the tree `dinah contents` prints, naming the entity the walk started from. {count} is how many entities sit below it, at every depth and not only the ones drawn.",
+      "context": "The sentence above the tree `dinah list` prints, naming the entity the walk started from. {count} is how many entities sit below it, at every depth and not only the ones drawn.",
       "source": "fbbebbe584d94da8"
     },
     "contents.header.collection": {
       "text": "{ref} में {count} इकाइयाँ हैं।",
-      "context": "The sentence above the tree `dinah contents` prints when the reference names a whole collection rather than one entity. A collection has no title of its own, so it is named by the reference alone, and {count} is how many entities sit below it at every depth rather than only the ones drawn.",
+      "context": "The sentence above the tree `dinah list` prints when the reference names a whole collection rather than one entity. A collection has no title of its own, so it is named by the reference alone, and {count} is how many entities sit below it at every depth rather than only the ones drawn.",
       "source": "f43f145e7030430f"
     },
     "contents.empty.collection": {
       "text": "{ref} में कुछ नहीं है।",
-      "context": "Printed when `dinah contents` is asked about a collection with no members. No table follows and the call succeeds, for the reason contents.empty gives for an entity.",
+      "context": "Printed when `dinah list` is asked about a collection with no members. No table follows and the call succeeds, for the reason contents.empty gives for an entity.",
       "source": "c3b658c29527aa78"
     },
     "contents.archived": {
       "text": "{ref} के वापस आने पर ये पते हल होंगे।",
-      "context": "The line printed under the heading of `dinah contents --archived`, once per listing. The rows below it carry the addresses the walk's children will have when the root is restored, and none of them resolves while the root is archived. {ref} is the root's own reference, an address rather than prose, and no word may agree with it.",
+      "context": "The line printed under the heading of `dinah list --archived`, once per listing. The rows below it carry the addresses the walk's children will have when the root is restored, and none of them resolves while the root is archived. {ref} is the root's own reference, an address rather than prose, and no word may agree with it.",
       "source": "c3e882c83ac25674"
-    },
-    "param.attachments.ref.summary": {
-      "text": "जिस इकाई के संलग्नक आप सूचीबद्ध कर रहे हैं; कुछ न लिखने पर यह वर्कबेंच",
-      "context": "The meaning of the ref argument of `dinah attachments`, printed in that command's arguments table. attachments writes its own sentence rather than taking the shared one, because the shared sentence ends \"not this workbench\" and the workbench is one of the entities this read is asked about.",
-      "source": "d25479de711b9eea"
-    },
-    "param.contents.depth.summary": {
-      "text": "कितनी गहराई तक खींचना है, root, cards, entities, या all के रूप में लिखा गया; कुछ न लिखने पर entities",
-      "context": "The meaning of the depth argument of `dinah contents`, printed in that command's arguments table.",
-      "source": "a52db472a25cc33a"
-    },
-    "param.contents.ref.summary": {
-      "text": "जिस इकाई की सामग्री आप ले रहे हैं, उसके संदर्भ के रूप में लिखी गई",
-      "context": "The meaning of the ref argument of `dinah contents`, printed in that command's arguments table. contents writes its own sentence rather than taking the shared one, because the shared sentence ends \"not this workbench\" and the workbench is the reference contents is most often given.",
-      "source": "141ee2fd0e8e55be"
     },
     "param.tree.depth.summary": {
       "text": "कितनी गहराई तक खींचना है, root, groups, या cards के रूप में लिखा गया; कुछ न लिखने पर cards",
@@ -4282,7 +4257,7 @@
     },
     "column.columns.work": {
       "text": "कार्य",
-      "context": "Heading over whether work is taken up at the column, reading taken or waiting, in the columns listing, which `dinah columns` prints and `dinah status` repeats. It answers a different question from the Owner heading beside it, which is about who may move a card out. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "context": "Heading over whether work is taken up at the column, reading taken or waiting, in the columns listing, which `dinah list columns` prints and `dinah status` repeats. It answers a different question from the Owner heading beside it, which is about who may move a card out. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "9ae6ef0237d899a0"
     },
     "columns.work.taken": {
@@ -4596,7 +4571,7 @@
     },
     "root.empty": {
       "text": "{root} के नीचे कोई वर्कबेंच नहीं है",
-      "context": "The whole answer to a root-scoped read, and to dinah workbenches given a path, that walked a real directory and found nothing. {root} is the directory walked. Finding nothing is an ordinary answer rather than a refusal, so the command exits 0 having printed this.",
+      "context": "The whole answer to a root-scoped read, and to dinah list workbenches given a path, that walked a real directory and found nothing. {root} is the directory walked. Finding nothing is an ordinary answer rather than a refusal, so the command exits 0 having printed this.",
       "source": "aae1604098f8d56"
     },
     "workbenches.refused": {
@@ -4614,11 +4589,6 @@
       "text": "रूट से नीचे गिनते हुए कितनी डायरेक्टरी गहराई तक देखना है; आप कोई न नामें तो 8, और बिना सीमा के लिए 0",
       "context": "The meaning of the max-depth argument, shared by every command that walks downward from a root. It bounds the walk so a workspace holding a deep dependency directory is not read in full on every poll.",
       "source": "e7c9be226dcac8a2"
-    },
-    "param.workbenches.path.summary": {
-      "text": "इस डायरेक्टरी के नीचे की हर वर्कबेंच सूचीबद्ध करें; कोई न नामें तो इसके बजाय यहाँ से पहुँच योग्य वर्कबेंच सूचीबद्ध होती हैं",
-      "context": "The meaning of the path argument of `dinah workbenches`, printed in that command's arguments table. It names the two directions the command answers in: downward from a directory you name, and the upward search it runs when you name none.",
-      "source": "9317b074ba10abb2"
     },
     "status.workbench.unsourced": {
       "text": "{title}  ({root})",

@@ -281,8 +281,7 @@ var guides = map[string][]string{
 	"restore":      {"references"},
 	"delete":       {"references"},
 	"rename":       {"references"},
-	"contents":     {"references"},
-	"attachments":  {"references"},
+	"list":         {"references"},
 	"get":          {"references"},
 	"set":          {"references"},
 	"query":        {"query"},
@@ -444,10 +443,16 @@ var params = map[string][]Param{
 		{Name: "root", Flag: true, Value: "path", Shared: "root", Field: "Root"},
 		{Name: "max-depth", Flag: true, Value: "n", Shared: "max-depth", Field: "MaxDepth"},
 	},
-	"columns": {},
-	"ls": {
-		{Name: "column", Vocabulary: "column", AlsoFlag: true, Field: "Column"},
+	// list writes its own sentence for ref rather than taking the shared one,
+	// on contents' own reasoning: the shared sentence ends "not this
+	// workbench", and the workbench is what a bare list answers about. The
+	// parameter is not required, because a bare invocation draws the
+	// workbench's rosters.
+	"list": {
+		{Name: "ref", Guide: "references", Field: "Ref"},
+		{Name: "depth", Flag: true, Value: "level", Field: "Depth"},
 		{Name: "ready", Flag: true, Marker: true, Field: "ReadyOnly"},
+		{Name: "archived", Flag: true, Marker: true, Shared: "archived", Field: "Archived"},
 		{Name: "root", Flag: true, Value: "path", Shared: "root", Field: "Root"},
 		{Name: "max-depth", Flag: true, Value: "n", Shared: "max-depth", Field: "MaxDepth"},
 	},
@@ -503,18 +508,6 @@ var params = map[string][]Param{
 		{Name: "root", Flag: true, Value: "path", Shared: "root", Field: "Root"},
 		{Name: "max-depth", Flag: true, Value: "n", Shared: "max-depth", Field: "MaxDepth"},
 	},
-	// contents writes its own sentence for ref rather than taking the shared
-	// one, because the shared sentence ends "not this workbench" and the
-	// workbench is the one reference contents is most often given.
-	"contents": {
-		{Name: "ref", Required: true, Guide: "references", Field: "Ref"},
-		{Name: "depth", Flag: true, Value: "level", Field: "Depth"},
-		{Name: "archived", Flag: true, Marker: true, Shared: "archived", Field: "Archived"},
-	},
-	// attachments writes its own sentence for ref, the way contents does and
-	// for the same reason: the shared sentence ends "not this workbench" and
-	// the workbench is one of the four kinds this read is asked about.
-	"attachments": {{Name: "ref", Guide: "references", Field: "Ref"}},
 	// fields is declared here, as a parameter of show, rather than as an
 	// injected property of the MCP head. The schema generator then publishes
 	// it on show and on no other tool, a person at a terminal gains
@@ -525,7 +518,6 @@ var params = map[string][]Param{
 		{Name: "fields", Flag: true, Value: "list", Vocabulary: "detail-field", Field: "Fields"},
 		{Name: "archived", Flag: true, Marker: true, Shared: "archived", Field: "Archived"},
 	},
-	"log": {{Name: "card", Required: true, Shared: "card", Field: "Card"}},
 	// Every argument of changes is a flag, including the two a read usually
 	// takes positionally, because the cursor is the argument a caller reaches
 	// for and a positional slot ahead of it would be the one they type by
@@ -589,7 +581,7 @@ var params = map[string][]Param{
 	// The bare invocation lists every live workstream, so neither the action
 	// nor the title is required; new still needs both, which the command
 	// refuses over rather than the syntax line.
-	// The bare invocation is not offered: dinah columns already lists the
+	// The bare invocation is not offered: dinah list columns already lists the
 	// flow, and a bare dinah column would either duplicate that listing or
 	// read as a typo for it. new is the only action this build implements,
 	// so the action is required, and get and set are left for the cards that
@@ -603,9 +595,12 @@ var params = map[string][]Param{
 		{Name: "slug", Flag: true, Value: "slug", Field: "Slug"},
 		{Name: "before", Flag: true, Value: "column", Field: "Before"},
 	},
+	// workstream creates a workstream and does nothing else. Its bare listing
+	// retired into `dinah list workstreams`, because listing is addressing and
+	// creating is not: no reference expresses a thing that does not exist yet.
 	"workstream": {
-		{Name: "action", Display: "new", Field: "Action"},
-		{Name: "workstream", Display: "title", Field: "Workstream"},
+		{Name: "action", Display: "new", Required: true, Field: "Action"},
+		{Name: "workstream", Display: "title", Required: true, Field: "Workstream"},
 		{Name: "slug", Flag: true, Value: "slug", Field: "Slug"},
 	},
 	// get and set reach every field of every kind through one reference, so
@@ -667,16 +662,6 @@ var params = map[string][]Param{
 		{Name: "max-depth", Flag: true, Value: "n", Shared: "max-depth", Field: "MaxDepth"},
 	},
 	"whoami": {},
-	// workbenches takes its scope as a positional rather than as --workbench,
-	// because the two name different things: --workbench names one workbench to
-	// act on, and this path names a directory to walk downward from. The
-	// positional declares no request field, since neither head puts it on a
-	// verb.Request; each reads it where it arrives, the terminal off the parsed
-	// words and the machine surface off the tool call's own arguments.
-	"workbenches": {
-		{Name: "path"},
-		{Name: "max-depth", Flag: true, Value: "n", Shared: "max-depth"},
-	},
 	"version": {
 		{Name: "catalogs", Flag: true, Marker: true},
 	},
@@ -1158,17 +1143,16 @@ func renderParamValue(field reflect.Value) (values []string, ok bool) {
 // head's own toolExemptions and argumentExemptions do: by somebody writing the
 // reason down, checked by TestEveryCommandDerivesOrIsExempted.
 var derivationExemptions = map[string]string{
-	"config":      "the terminal dispatches config on its own parsed arguments and never builds a Request for it",
-	"edit":        "opens a path in the reader's own editor; the terminal never builds a Request for it",
-	"extract":     "Library.Extract takes a target string, not a *Request; there is no request to read a value from",
-	"guide":       "prints an embedded guide; the terminal never builds a Request for it",
-	"help":        "prints a command's own help; the terminal never builds a Request for it",
-	"init":        "creates a workbench in a directory; the terminal never builds a Request for it",
-	"mcp":         "starts this head; the terminal never builds a Request for it",
-	"path":        "resolves a filesystem path for a shell; the terminal never builds a Request for it",
-	"version":     "runVersion reads catalogs straight off the parsed arguments; no Request carries it",
-	"workbenches": "enumerates the workbenches on disk directly rather than through a Library verb (dinah-282); no Request is ever built for it",
-	"export":      "Library.Export takes no arguments at all; there is no request to read a value from",
+	"config":  "the terminal dispatches config on its own parsed arguments and never builds a Request for it",
+	"edit":    "opens a path in the reader's own editor; the terminal never builds a Request for it",
+	"extract": "Library.Extract takes a target string, not a *Request; there is no request to read a value from",
+	"guide":   "prints an embedded guide; the terminal never builds a Request for it",
+	"help":    "prints a command's own help; the terminal never builds a Request for it",
+	"init":    "creates a workbench in a directory; the terminal never builds a Request for it",
+	"mcp":     "starts this head; the terminal never builds a Request for it",
+	"path":    "resolves a filesystem path for a shell; the terminal never builds a Request for it",
+	"version": "runVersion reads catalogs straight off the parsed arguments; no Request carries it",
+	"export":  "Library.Export takes no arguments at all; there is no request to read a value from",
 }
 
 // DerivationExemptions returns a copy of derivationExemptions, for a caller

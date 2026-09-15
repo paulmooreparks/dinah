@@ -19,7 +19,7 @@ import (
 var rootToolFor = map[string]string{
 	"tree":    "forest",
 	"status":  "root_status",
-	"ls":      "root_listing",
+	"list":    "root_listing",
 	"next":    "root_offers",
 	"changes": "root_changes",
 }
@@ -129,18 +129,19 @@ func TestBothHeadsAnswerARootScopedReadAlike(t *testing.T) {
 	}
 }
 
-// TestBothHeadsAnswerTheWorkbenchesWalkAlike asserts dinah-281 AC-14: the
-// terminal's positional path and the tool's path argument, given the same
-// fixture and the same depth, answer the same listing.
+// TestBothHeadsAnswerTheWorkbenchesWalkAlike asserts dinah-281 AC-14 against
+// the reference the walk moved onto: the terminal's --root and the tool's own
+// root argument, given the same fixture and the same depth, answer the same
+// listing.
 func TestBothHeadsAnswerTheWorkbenchesWalkAlike(t *testing.T) {
 	root := newForest(t, "one", "two/three", "two/four/five", "two-extra")
 	for _, depth := range []string{"1", "2", "0"} {
 		t.Run("at depth "+depth, func(t *testing.T) {
-			got := runCLI(t, root, "workbenches", root, "--max-depth", depth, "--json")
+			got := runCLI(t, root, "list", "workbenches", "--root", root, "--max-depth", depth, "--json")
 			if got.code != 0 {
 				t.Fatalf("the terminal: %d %s", got.code, got.errw)
 			}
-			served := serveForest(t, root, "workbenches", map[string]any{"path": root, "max-depth": depth})
+			served := serveForest(t, root, "list", map[string]any{"ref": "workbenches", "root": root, "max-depth": depth})
 			listed, named := served["workbenches"]
 			if !named {
 				t.Fatalf("the tool published no workbenches member: %v", served)

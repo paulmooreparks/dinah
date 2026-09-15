@@ -134,7 +134,37 @@ func (s *session) renderRootListing(answer *verb.RootListing) {
 		if s.rootHeading(member.Candidate, member.Unanswered) {
 			continue
 		}
-		s.renderListing(member.Listing)
+		s.renderListAnswer(member.Listing)
+	}
+}
+
+// renderListAnswer draws one workbench's list answer inside a forest row.
+//
+// Which shape a row carries is fixed by the reference the caller wrote, and it
+// is read here off which member the row filled rather than by classifying the
+// reference a second time. The queue arm is told from the cards arm by the
+// column member, which a column's listing always fills with that column's
+// identifier and a query answer never fills at all.
+func (s *session) renderListAnswer(answer *verb.ListAnswer) {
+	switch {
+	case answer == nil:
+		return
+	case answer.Rosters != nil:
+		s.renderRosters(&verb.RosterListing{Rosters: answer.Rosters})
+	case answer.Columns != nil:
+		s.renderColumns(answer.Columns)
+	case answer.Workstreams != nil:
+		s.renderWorkstreams(&verb.WorkstreamListing{Workstreams: answer.Workstreams})
+	case answer.Attachments != nil:
+		s.renderAttachmentListing(&verb.AttachmentListing{
+			Kind:        answer.Kind,
+			Ref:         answer.Ref,
+			Attachments: answer.Attachments,
+		})
+	case answer.Column != "":
+		s.renderListing(&verb.Listing{Column: answer.Column, Cards: answer.Cards})
+	default:
+		s.renderMatches(&verb.Matches{Query: answer.Query, Cards: answer.Cards, Count: answer.Count})
 	}
 }
 

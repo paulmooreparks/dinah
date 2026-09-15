@@ -80,7 +80,7 @@ func TestEveryExemptionNamesACommandAndAReason(t *testing.T) {
 // correct empty one always was, and the coverage guard above must not be
 // satisfied by adding one.
 func TestAZeroParameterCommandDerivesWithoutAnExemption(t *testing.T) {
-	for _, name := range []string{"whoami", "columns"} {
+	for _, name := range []string{"whoami"} {
 		if len(Params(name)) != 0 {
 			t.Fatalf("%s now declares parameters, so this check no longer reads the case it was written for", name)
 		}

@@ -1,0 +1,7 @@
+  When                  Action      Actor  Detail
+  --------------------  ----------  -----  -----------------------------------
+  <when>  created     alka   A card the goldens are read against
+  <when>  commented   alka
+  <when>  item_filed  alka
+  <when>  attached    alka   note.md
+  <when>  joined      alka

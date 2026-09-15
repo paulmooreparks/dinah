@@ -62,7 +62,7 @@ You write a column as its slug, its name, or its identifier:
 You write a workstream as the word workstream, a slash, and the
 workstream's slug or its identifier:
 
-    dinah contents workstream/addressing
+    dinah list workstream/addressing
 
 The commands that take a workstream also accept the slug or the identifier
 on its own, so `dinah join wb-1 addressing` names the same workstream. You
@@ -130,12 +130,12 @@ reference has to last, write the identifier.
 Type the number and keep the identifier. Deleting an earlier member of a
 collection moves every number after it, and the identifier an entity is
 born with never changes. Dinah shows you the number because the number is
-what you are about to type, and `dinah contents --json` and `dinah
-attachments --json` give you both.
+what you are about to type, and `dinah list --json` and `dinah list
+<ref>/attachments --json` give you both.
 
 ## Which command takes what
 
-Nineteen commands take a reference, and between them they accept seven different sets of things. This table says what each one accepts:
+Eighteen commands take a reference, and between them they accept six different sets of things. This table says what each one accepts:
 
 | Command      | A workbench | A column | A card | Below a card | A collection |
 |--------------|-------------|----------|--------|--------------|--------------|
@@ -143,15 +143,14 @@ Nineteen commands take a reference, and between them they accept seven different
 | edit         | yes         | yes      | yes    | yes          | no           |
 | get          | yes         | yes      | yes    | yes          | no           |
 | set          | yes         | yes      | yes    | yes          | no           |
-| show         | no          | yes      | yes    | yes          | yes          |
+| show         | yes         | yes      | yes    | yes          | no           |
 | instructions | no          | yes      | yes    | no           | no           |
 | attach       | yes         | yes      | yes    | yes          | no           |
 | comment      | no          | no       | yes    | yes          | no           |
 | archive      | no          | yes      | yes    | yes          | no           |
 | restore      | no          | yes      | yes    | yes          | no           |
 | delete       | no          | yes      | yes    | yes          | no           |
-| contents     | yes         | yes      | yes    | yes          | yes          |
-| attachments  | yes         | yes      | yes    | yes          | yes          |
+| list         | yes         | yes      | yes    | yes          | yes          |
 | rename       | no          | no       | no     | yes          | no           |
 | cite         | no          | no       | no     | yes          | no           |
 | resolve      | no          | no       | no     | yes          | no           |
@@ -159,7 +158,7 @@ Nineteen commands take a reference, and between them they accept seven different
 | fail         | no          | no       | no     | yes          | no           |
 | reopen       | no          | no       | no     | yes          | no           |
 
-Nine commands take a workstream: `path`, `edit`, `get`, `set`, `archive`, `restore`, `delete`, `contents`, and `attachments`. The others refuse one, and the table leaves the workstream out rather than carrying a column for it, so this sentence is where that answer lives.
+Nine commands take a workstream: `path`, `edit`, `get`, `set`, `archive`, `restore`, `delete`, `list`, and `show`. The others refuse one, and the table leaves the workstream out rather than carrying a column for it, so this sentence is where that answer lives.
 
 Ten of those rows carry a detail the table is too coarse to hold.
 `attach` takes a comment below a card, and it takes an attachment only
@@ -168,9 +167,9 @@ hanging a new file below it. It takes nothing else below a card, so `dinah
 attach wb-1/questions/1 notes.md` is refused. `comment` takes a card or a
 checklist item below one, and nothing else below a card, so `dinah comment
 wb-1/comments/1` is refused. `instructions` takes a card
-or a column and nothing else at all. `contents` takes a card by the card's
-own reference and never through what holds it, so `dinah contents
-wb/cards/1` is refused and `dinah contents wb-1` is what you write.
+or a column and nothing else at all. `list` takes a card by the card's
+own reference and never through what holds it, so `dinah list
+wb/cards/1` is refused and `dinah list wb-1` is what you write.
 `rename` takes an attachment below a card and nothing else below one, so
 `dinah rename wb-1/comments/1` is refused. The checklist verbs `cite`,
 `resolve`, `verify`, `fail`, and `reopen` take a checklist item and nothing
@@ -180,11 +179,29 @@ Each command's own help page carries the same answer for that one command,
 so run `dinah help attach` when you want it beside the arguments rather
 than here.
 
+## The rosters
+
+`list` accepts five words that are not references at all: `columns`, `cards`,
+`workstreams`, `attachments` and `workbenches`. Each names a set rather than
+addressing one thing in it, no other command takes any of them, and a bare
+`dinah list` prints the first four with a count beside each, so the word you
+type next is the word the answer already showed you.
+
+The words belong to the command's grammar and a slug belongs to the
+workbench's data, so a column or a workstream slugged with one of them does
+not take the word over. `dinah list cards` answers the roster word, and a
+column slugged `cards` stays reachable from `list` by its identifier and by
+its name, and from every other command by its slug as well.
+
+A workstream's attachments are addressed rather than walked. Write
+`dinah list workstream/<slug>/attachments` for them, because a depth walk from
+a workstream draws the cards that joined it and a workstream contains nothing.
+
 ## Reading the archive
 
 `--archived` reads the archive mirror at a reference's deepest collection
 step, and the live half at every step above it. `restore`, `show`, `path` and
-`contents` take it. A read under the flag shows the archived half alone, where
+`list` take it. A read under the flag shows the archived half alone, where
 the same flag on `dinah search` scans both halves and marks each hit. One
 sentence covers both: `--archived` admits the archive mirror, and a command
 that resolves a reference admits it by resolving in it, where a command that
@@ -206,7 +223,7 @@ A restored column lands at the end of the column order, because the order is
 what the workbench's own definition records and a restore appends to it. Run
 `dinah reshape` to move it where you want it.
 
-A reference printed under `dinah contents --archived` below the walk's root is
+A reference printed under `dinah list --archived` below the walk's root is
 the address that child will have once the root is restored, and it does not
 resolve while the root is archived. The listing says so on the line under the
 sentence naming the root.

@@ -75,7 +75,7 @@ func TestACardMissingTheColumnKeyIsRefusedWhateverElseItCarries(t *testing.T) {
 	// reported that the workbench held no such card, which is untrue of a card
 	// whose file is right there, so which route a reader took decided which
 	// answer they got.
-	for _, argv := range [][]string{{"ls"}, {"status"}, {"show", "fx-1"}, {"show", ids[0]}} {
+	for _, argv := range [][]string{{"list", "cards"}, {"status"}, {"show", "fx-1"}, {"show", ids[0]}} {
 		got := runCLI(t, root, append([]string{"--workbench", current}, argv...)...)
 		if got.code == 0 {
 			t.Errorf("%v over a workbench holding a card that never came across the rename exited 0:\n%s", argv, got.out)
@@ -91,7 +91,7 @@ func TestACardMissingTheColumnKeyIsRefusedWhateverElseItCarries(t *testing.T) {
 	// The listing must not print the card's column identifier as though it
 	// were the card's condition, which is the misread itself rather than the
 	// exit status that reports it.
-	listed := runCLI(t, root, "--workbench", current, "ls")
+	listed := runCLI(t, root, "--workbench", current, "list", "cards")
 	column := columnOfCard(t, current, ids[0])
 	if strings.Contains(listed.out, column) {
 		t.Errorf("the listing prints the column identifier %s where the card's condition belongs:\n%s", column, listed.out)
@@ -175,7 +175,7 @@ func TestACardCarryingHalfOfEachVocabularyIsRefusedAsMixed(t *testing.T) {
 	}
 	mixOneCard(t, current, ids[0])
 
-	got := runCLI(t, root, "--workbench", current, "ls")
+	got := runCLI(t, root, "--workbench", current, "list", "cards")
 	if got.code == 0 {
 		t.Errorf("a workbench holding a card in both vocabularies listed and exited 0:\n%s", got.out)
 	}

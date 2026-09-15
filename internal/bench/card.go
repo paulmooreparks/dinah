@@ -147,7 +147,7 @@ func loadCard(collection, id string, refuseRetired bool) (*Card, error) {
 	//
 	// The gate cannot see this, and that is the whole reason for the check.
 	// It reads the revision the anchor declares, so a workbench carried across
-	// the rename at its anchor and not in its cards passes it, and dinah ls
+	// the rename at its anchor and not in its cards passes it, and dinah list
 	// then prints a column identifier under the heading that names the card's
 	// condition and exits 0. This migration writes the anchor last and so
 	// cannot produce that shape, but a hand edit or another tool can, and a

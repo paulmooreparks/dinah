@@ -72,16 +72,12 @@ func init() {
 		{name: "rename", group: groupWork, run: runRename, bounded: 2},
 
 		{name: "status", group: groupRead, run: runStatus},
-		{name: "columns", group: groupRead, run: runColumns},
-		{name: "ls", group: groupRead, run: runList, bounded: 1},
+		{name: "list", group: groupRead, run: runListRef, bounded: 1},
 		{name: "next", group: groupRead, run: runNext, bounded: 1},
 		{name: "query", group: groupRead, run: runQuery, openTail: true},
 		{name: "search", group: groupRead, run: runSearch, openTail: true},
 		{name: "tree", group: groupRead, run: runTree, openTail: true},
-		{name: "contents", group: groupRead, run: runContents, bounded: 1},
-		{name: "attachments", group: groupRead, run: runAttachments, bounded: 1},
 		{name: "show", group: groupRead, run: runShow, bounded: 1},
-		{name: "log", group: groupRead, run: runLog, bounded: 1},
 		// changes declares no bounded positional at all, so a stray word
 		// anywhere in the invocation is refused rather than silently
 		// ignored. Every argument it reads is a flag, the cursor included.
@@ -120,10 +116,6 @@ func init() {
 		// rather than groupWork because it authors a station of the flow,
 		// which is workbench structure rather than an act on a card.
 		{name: "column", group: groupBench, run: runColumn, openTail: true},
-		// workbenches takes one positional, which is the directory to walk
-		// downward from. Without it the command keeps answering what is
-		// reachable from here, which is the upward search it has always run.
-		{name: "workbenches", group: groupBench, run: runWorkbenches, bounded: 1},
 		{name: "version", group: groupBench, run: runVersion},
 
 		{name: "mcp", group: groupServe, run: runMCP},
@@ -562,47 +554,106 @@ func runStatus(s *session, parsed *arguments) int {
 	})
 }
 
-// runColumns reports the flow in order.
-func runColumns(s *session, parsed *arguments) int {
-	return s.withBench(func(l *verb.Library) int {
-		columns, err := l.Columns()
-		if err != nil {
-			return s.reportError(err)
-		}
-		if s.format != formatHuman {
-			return s.emitMachine(columns)
-		}
-		s.renderColumns(columns)
-		return 0
-	})
-}
-
-// runList presents a column's cards in queue order.
-func runList(s *session, parsed *arguments) int {
-	req := s.request("ls", parsed)
-	if req.Column == "" {
-		req.Column = at(parsed.rest(), 0)
-	}
+// runListRef answers what a reference holds, which is one command over nine
+// reference shapes. The library decides which shape a reference names and
+// which library call answers it; this function decides nothing but where the
+// answer is drawn and what is published under --json.
+//
+// Three branches sit ahead of the library call. A bare --root fans the
+// question out over every workbench beneath a directory, so the reference is
+// classified before anything is opened and a reference the fan-out cannot
+// carry is refused here. The roster word workbenches is the one reference
+// where --root names the walk itself rather than the set of workbenches to
+// ask, because its answer is already an answer about a directory, and asking
+// every workbench beneath a directory to enumerate the workbenches beneath
+// that directory would answer one question once per workbench.
+func runListRef(s *session, parsed *arguments) int {
+	req := s.request("list", parsed)
+	req.Ref = at(parsed.rest(), 0)
+	req.Depth = parsed.value("depth")
+	req.Archived = parsed.has("archived")
+	req.Root = parsed.value("root")
 	walk, refusal := s.rootWalkFor(parsed, parsed.value("root"))
 	if refusal != nil {
 		return s.reportError(refusal)
 	}
 	if walk != nil {
+		if word, roster := verb.RosterWordOf(req.Ref); roster && word == verb.RosterWorkbenches {
+			if refusal := verb.CheckWorkbenchesFlags(req); refusal != nil {
+				return s.reportError(refusal)
+			}
+			return s.emitWorkbenchWalk(walk)
+		}
+		if ok, subject := verb.RootScopedReference(req.Ref); !ok {
+			return s.reportError(contract.Refuse(contract.Usage, "--root beside "+subject))
+		}
 		return emitForest(s,
 			func() (*verb.RootListing, error) { return verb.ListForest(walk.Root, s.home, req, walk.Depth) },
 			s.renderRootListing)
 	}
+	if word, roster := verb.RosterWordOf(req.Ref); roster && word == verb.RosterWorkbenches {
+		if refusal := verb.CheckWorkbenchesFlags(req); refusal != nil {
+			return s.reportError(refusal)
+		}
+		return s.emitWorkbenchWalk(nil)
+	}
 	return s.withBench(func(l *verb.Library) int {
-		listing, err := l.List(req)
+		result, err := l.ListRef(req)
 		if err != nil {
 			return s.reportError(err)
 		}
-		if s.format != formatHuman {
-			return s.emitMachine(listing)
-		}
-		s.renderListing(listing)
-		return 0
+		return s.emitListResult(result)
 	})
+}
+
+// emitListResult draws or publishes whichever arm of a list answer the
+// reference filled. What is published is the envelope of the library call the
+// reference routed to, unchanged, so a client reading one shape reads what
+// that call has always published for it.
+func (s *session) emitListResult(result *verb.ListResult) int {
+	switch result.Shape {
+	case verb.ShapeRosters:
+		if s.format != formatHuman {
+			return s.emitMachine(result.Rosters)
+		}
+		s.renderRosters(result.Rosters)
+	case verb.ShapeColumns:
+		if s.format != formatHuman {
+			return s.emitMachine(result.Columns)
+		}
+		s.renderColumns(result.Columns)
+	case verb.ShapeWorkstreams:
+		if s.format != formatHuman {
+			return s.emitMachine(result.Workstreams)
+		}
+		s.renderWorkstreams(result.Workstreams)
+	case verb.ShapeAttachments:
+		if s.format != formatHuman {
+			return s.emitMachine(result.Attachments)
+		}
+		s.renderAttachmentListing(result.Attachments)
+	case verb.ShapeMatches:
+		if s.format != formatHuman {
+			return s.emitMachine(result.Matches)
+		}
+		s.renderMatches(result.Matches)
+	case verb.ShapeQueue:
+		if s.format != formatHuman {
+			return s.emitMachine(result.Queue)
+		}
+		s.renderListing(result.Queue)
+	case verb.ShapeHistory:
+		if s.format != formatHuman {
+			return s.emitMachine(result.History)
+		}
+		s.renderHistory(result.History)
+	default:
+		if s.format != formatHuman {
+			return s.emitMachine(result.Contents)
+		}
+		s.renderTree(result.Contents)
+	}
+	return 0
 }
 
 // runNext reports the card each column offers next, and changes nothing.
@@ -755,46 +806,6 @@ func runTree(s *session, parsed *arguments) int {
 	})
 }
 
-// runContents walks the containment grammar down from any entity.
-func runContents(s *session, parsed *arguments) int {
-	req := s.request("contents", parsed)
-	req.Ref = at(parsed.rest(), 0)
-	req.Archived = parsed.has("archived")
-	level := depthOr(parsed, verb.LevelEntities)
-	return s.withBench(func(l *verb.Library) int {
-		tree, err := l.Contents(req, level)
-		if err != nil {
-			return s.reportError(err)
-		}
-		if s.format != formatHuman {
-			return s.emitMachine(tree)
-		}
-		s.renderTree(tree)
-		return 0
-	})
-}
-
-// runAttachments reports the attachments of any entity that can carry one.
-//
-// An omitted reference asks about the workbench itself, which is what the
-// empty reference already means to the entity resolver, so the reader who
-// types the command bare is answered rather than refused.
-func runAttachments(s *session, parsed *arguments) int {
-	req := s.request("attachments", parsed)
-	req.Ref = at(parsed.rest(), 0)
-	return s.withBench(func(l *verb.Library) int {
-		listing, err := l.Attachments(req)
-		if err != nil {
-			return s.reportError(err)
-		}
-		if s.format != formatHuman {
-			return s.emitMachine(listing)
-		}
-		s.renderAttachmentListing(listing)
-		return 0
-	})
-}
-
 // depthOr reads the depth flag, falling back to the command's own default when
 // the caller named none.
 func depthOr(parsed *arguments, fallback string) string {
@@ -900,15 +911,15 @@ func runShow(s *session, parsed *arguments) int {
 		}
 	}
 	return s.withBench(func(l *verb.Library) int {
-		detail, listing, item, text, err := l.Show(req)
+		detail, record, item, text, err := l.Show(req)
 		if err != nil {
 			return s.reportError(err)
 		}
-		if listing != nil {
+		if record != nil {
 			if s.format != formatHuman {
-				return s.emitMachine(listing)
+				return s.emitMachine(record)
 			}
-			s.renderCollectionListing(listing)
+			s.renderRecord(record)
 			return 0
 		}
 		if item != nil {
@@ -926,23 +937,6 @@ func runShow(s *session, parsed *arguments) int {
 			return s.emitMachine(detail)
 		}
 		s.renderDetail(detail)
-		return 0
-	})
-}
-
-// runLog reports a card's recorded acts, oldest first.
-func runLog(s *session, parsed *arguments) int {
-	req := s.request("log", parsed)
-	req.Card = at(parsed.rest(), 0)
-	return s.withBench(func(l *verb.Library) int {
-		events, err := l.History(req)
-		if err != nil {
-			return s.reportError(err)
-		}
-		if s.format != formatHuman {
-			return s.emitMachine(events)
-		}
-		s.renderHistory(events)
 		return 0
 	})
 }
@@ -1550,38 +1544,23 @@ func (s *session) emitWorkbenchFields(l *verb.Library, req *verb.Request) int {
 	return 0
 }
 
-// runWorkbenches answers where the workbenches are, in either of the two
-// directions that question has.
-//
-// With no positional it lists what is reachable from here, which is the upward
-// search it has always run: it opens nothing and never refuses over what the
-// search found, because a question about what is reachable is answered by zero
-// rows as truthfully as by several. A --workbench naming a directory that holds
-// no workbench is the one refusal that path has, and it belongs to the caller's
-// argument.
-//
-// With a positional it walks downward from that directory instead, listing
-// every workbench beneath it. The two are different questions rather than two
-// spellings of one, which is why the path is a positional and not a value for
-// --workbench: that flag names a workbench to act on, and naming both is a
-// refusal rather than a preference.
-func runWorkbenches(s *session, parsed *arguments) int {
-	walk, refusal := s.rootWalkFor(parsed, at(parsed.rest(), 0))
-	if refusal != nil {
-		return s.reportError(refusal)
-	}
-	if walk != nil {
-		rows, err := bench.EnumerateDeep(walk.Root, walk.Depth)
+// emitWorkbenchWalk answers the roster word workbenches, which is the one
+// reference where --root names the directory to walk down from rather than the
+// set of workbenches to ask. A nil walk is the bare form, which answers what is
+// reachable from where the caller stands.
+func (s *session) emitWorkbenchWalk(walk *rootWalk) int {
+	if walk == nil {
+		rows, err := bench.Reachable(s.cwd, s.benchFlag, s.home, s.nativeHome)
 		if err != nil {
 			return s.reportError(err)
 		}
-		return s.emitWorkbenches(rows, walk.Root)
+		return s.emitWorkbenches(rows, "")
 	}
-	rows, err := bench.Reachable(s.cwd, s.benchFlag, s.home, s.nativeHome)
+	rows, err := bench.EnumerateDeep(walk.Root, walk.Depth)
 	if err != nil {
 		return s.reportError(err)
 	}
-	return s.emitWorkbenches(rows, "")
+	return s.emitWorkbenches(rows, walk.Root)
 }
 
 // ambiguousWorkbenches reports the reachable workbenches when there is a
@@ -1742,13 +1721,13 @@ func runHelp(s *session, parsed *arguments) int {
 // helpFor prints the whole surface, or one command's page when a command was
 // named. It is what the help command runs and what a help flag written
 // anywhere on the line runs, so the two reach one composition rather than two
-// that can drift: `dinah ls --help` and `dinah help ls` print the same page,
+// that can drift: `dinah list --help` and `dinah help list` print the same page,
 // and a first word naming no command refuses the same way whichever spelling
 // asked.
 //
 // The two doors part company past that first word, and only there. The command
 // goes through run()'s own arity walk, so `dinah help ls extra` refuses the
-// stray word; the flag is answered ahead of that walk, so `dinah ls -h extra`
+// stray word; the flag is answered ahead of that walk, so `dinah list -h extra`
 // prints the page. A caller who asks what a command takes is told what it
 // takes rather than told they asked wrongly, which is the whole point of the
 // card, so the flag is the door that gets this right.
@@ -1799,19 +1778,14 @@ func runWorkstream(s *session, parsed *arguments) int {
 	if looksLikeMistypedFlag(first) {
 		return s.fail(contract.Usage, first)
 	}
+	// The bare form is refused by name rather than over an empty detail. Its
+	// listing retired into `dinah list workstreams`, so what a reader typed
+	// here is a command with no action, and a refusal whose detail was the
+	// empty string would print two spaces where the argument should be.
+	if first == "" {
+		return s.fail(contract.Usage, "workstream")
+	}
 	switch first {
-	case "":
-		return s.withBench(func(l *verb.Library) int {
-			listing, err := l.Workstreams()
-			if err != nil {
-				return s.reportError(err)
-			}
-			if s.format != formatHuman {
-				return s.emitMachine(listing)
-			}
-			s.renderWorkstreams(listing)
-			return 0
-		})
 	case "new":
 		title, refusal := s.freeText([]string{"workstream", "new"}, words[min(1, len(words)):], "slot.title")
 		if refusal != nil {
@@ -1846,7 +1820,7 @@ func (s *session) emitWorkstream(response *verb.Response) int {
 }
 
 // runColumn authors a column. Only new is implemented, and every other first
-// word, the empty one included, refuses under usage; dinah columns is the read
+// word, the empty one included, refuses under usage; dinah status is the read
 // path this build offers beside it.
 func runColumn(s *session, parsed *arguments) int {
 	words := parsed.rest()

@@ -304,11 +304,11 @@ func TestEnglishCommandListStartsEverySummaryAtOneColumn(t *testing.T) {
 			t.Errorf("the block does not carry a first line for %s's syntax", c.name)
 		}
 	}
-	if summaries != 55 {
-		t.Errorf("read %d command entries out of the block, want 55", summaries)
+	if summaries != 50 {
+		t.Errorf("read %d command entries out of the block, want 50", summaries)
 	}
-	if wrapped != 17 {
-		t.Errorf("%d entries wrapped across more than one line, want the seventeen whose syntax is wider than half the window", wrapped)
+	if wrapped != 16 {
+		t.Errorf("%d entries wrapped across more than one line, want the sixteen whose syntax is wider than half the window", wrapped)
 	}
 	if summariesWrapped == 0 {
 		t.Error("no summary wrapped across more than one line, so the tail-wrapping half of this shape is not exercised here")
@@ -372,7 +372,7 @@ func TestAWideWorkbenchTitleStartsTheColumnsAfterItWhereTheyBelong(t *testing.T)
 	if got := runCLI(t, root, "init", "--slug", "wb", "--operator", "alka"); got.code != 0 {
 		t.Fatalf("init: %d %s", got.code, got.errw)
 	}
-	got := runCLI(t, root, "workbenches")
+	got := runCLI(t, root, "list", "workbenches")
 	if got.code != 0 {
 		t.Fatalf("workbenches: %d %s", got.code, got.errw)
 	}

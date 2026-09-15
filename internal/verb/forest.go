@@ -202,7 +202,7 @@ func StatusForest(root, home string, req *Request, maxDepth int) (*RootStatus, e
 	return answer, nil
 }
 
-// RootListing is one dinah ls --root answer.
+// RootListing is one root-scoped dinah list answer.
 type RootListing struct {
 	// Root is the directory the walk started from, as the caller named it.
 	Root string `json:"root"`
@@ -224,17 +224,24 @@ type WorkbenchListing struct {
 	Unanswered string `json:"unanswered,omitempty"`
 	// Listing is this workbench's own answer, absent on a row that would not
 	// read and on a row that read and did not answer.
-	Listing *Listing `json:"listing,omitempty"`
+	//
+	// It is a ListAnswer rather than a Listing because list answers seven
+	// different shapes and a type carrying a column name and an array of
+	// cards cannot hold six of them. Which members one row carries is fixed
+	// by the reference the caller wrote, so a client reads the members for
+	// the shape it asked for.
+	Listing *ListAnswer `json:"listing,omitempty"`
 }
 
-// ListForest asks every workbench beneath root the same List question, with
-// req.Column and req.ReadyOnly applied identically in each.
+// ListForest asks every workbench beneath root the same list question, with
+// req.Ref and req.ReadyOnly applied identically in each.
 //
 // A column reference is resolved inside each workbench rather than once, which
 // is the only reading available: the columns of one workbench are not the
 // columns of another, so a reference naming a column here and nothing there
 // leaves that second workbench refusing on its own row while the first still
-// answers.
+// answers. The reference a fan-out cannot carry is refused by the head before
+// this runs, on the rule RootScopedReference states.
 func ListForest(root, home string, req *Request, maxDepth int) (*RootListing, error) {
 	rows, err := forestCandidates(root, home, maxDepth)
 	if err != nil {
@@ -244,11 +251,11 @@ func ListForest(root, home string, req *Request, maxDepth int) (*RootListing, er
 	for _, row := range rows {
 		member := WorkbenchListing{Candidate: row.Candidate}
 		if row.Library != nil {
-			listing, err := row.Library.List(req)
+			result, err := row.Library.ListRef(req)
 			if err != nil {
 				member.Unanswered = refusalNameOf(err)
 			} else {
-				member.Listing = listing
+				member.Listing = result.Answer()
 			}
 		}
 		answer.Workbenches = append(answer.Workbenches, member)

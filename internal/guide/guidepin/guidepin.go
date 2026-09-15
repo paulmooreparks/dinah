@@ -64,7 +64,7 @@ const (
 	// sentence is the one dinah-478 corrected: the tool prints the sentence
 	// naming the root first, so the notice never stood on the listing's own
 	// first line.
-	AnArchivedContentsRowIsTheAddressAfterRestore = "A reference printed under `dinah contents --archived` below the walk's root is the address that child will have once the root is restored, and it does not resolve while the root is archived. The listing says so on the line under the sentence naming the root."
+	AnArchivedContentsRowIsTheAddressAfterRestore = "A reference printed under `dinah list --archived` below the walk's root is the address that child will have once the root is restored, and it does not resolve while the root is archived. The listing says so on the line under the sentence naming the root."
 )
 
 // The three claims the first-session guide's "Find out whose name you are

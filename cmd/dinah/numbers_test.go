@@ -207,14 +207,14 @@ func TestRenumberRepairsTheLaterClaimant(t *testing.T) {
 	// to open the journal to learn why a card answers to a number it was not
 	// born with: log draws the act with the numbers the event carries, and
 	// the card that kept its number draws no such line.
-	logged := runCLI(t, root, "log", ids[1])
+	logged := runCLI(t, root, "list", ids[1]+"/journal")
 	if logged.code != 0 {
 		t.Fatalf("log on the renumbered card: %d %s", logged.code, logged.errw)
 	}
 	if flat := flattenWords(logged.out); !strings.Contains(flat, "renumbered") || !strings.Contains(flat, "1 to 4") {
 		t.Errorf("the log does not draw the renumbered act with its numbers:\n%s", logged.out)
 	}
-	unmoved := runCLI(t, root, "log", ids[0])
+	unmoved := runCLI(t, root, "list", ids[0]+"/journal")
 	if unmoved.code != 0 {
 		t.Fatalf("log on the card that kept its number: %d %s", unmoved.code, unmoved.errw)
 	}
@@ -249,7 +249,7 @@ func TestAnUnmigratedWorkbenchReadsAndRefusesToAllocate(t *testing.T) {
 		t.Errorf("show resolved the card but did not print its reference:\n%s", shown.out)
 	}
 
-	listed := runCLI(t, workbench, "ls")
+	listed := runCLI(t, workbench, "list", "cards")
 	if listed.code != 0 {
 		t.Fatalf("ls over the same workbench: %d %s%s", listed.code, listed.out, listed.errw)
 	}
@@ -426,7 +426,7 @@ func TestEveryCardReferenceComesFromTheRegistry(t *testing.T) {
 			name string
 			argv []string
 		}{
-			{"ls", []string{"ls"}},
+			{"list", []string{"list", "cards"}},
 			{"next", []string{"next"}},
 			{"search card", []string{"search", "card"}},
 			{"tree", []string{"tree"}},
@@ -533,7 +533,7 @@ func TestEveryCardReferenceComesFromTheRegistry(t *testing.T) {
 	// a command printing one reference too many is half this criterion's
 	// complaint.
 	wanted := map[string]map[int]bool{
-		"ls":          {1001: true, 1002: true, 1003: true},
+		"list":        {1001: true, 1002: true, 1003: true},
 		"next":        {1002: true},
 		"search card": {1001: true, 1002: true, 1003: true},
 		"tree":        {1001: true, 1002: true, 1003: true},
@@ -568,7 +568,7 @@ func TestEveryCardReferenceComesFromTheRegistry(t *testing.T) {
 		{"before the offset", before},
 		{"after the offset", after},
 	} {
-		for _, name := range []string{"ls", "next", "search card", "tree", "show", "status"} {
+		for _, name := range []string{"list", "next", "search card", "tree", "show", "status"} {
 			if found := bareIdentifiers(t, phase.runs[name]); len(found) > 0 {
 				t.Errorf("%s %s printed the bare identifiers %v where a reference belongs", phase.label, name, found)
 			}

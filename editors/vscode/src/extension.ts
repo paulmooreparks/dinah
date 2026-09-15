@@ -979,7 +979,7 @@ export async function activate(
 			const outcome = await runDinah(
 				nodeSpawner,
 				binary.state === "ok" ? binary.path : "",
-				pinnedArgv(root, ["log", ref]),
+				pinnedArgv(root, ["list", `${ref}/journal`]),
 				{ cwd: root },
 			);
 			if (outcome.kind !== "ok") {

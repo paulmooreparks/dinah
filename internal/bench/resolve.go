@@ -637,8 +637,8 @@ func walkBelowCard(card *Card, rest string, landed *landing, half ResolutionHalf
 	// collection, so they are answered ahead of the grammar. Neither is an
 	// entity of the containment table: the anchor is the card itself and the
 	// journal is content.
-	if cardOwnFileSegment(head) {
-		if head == CardAnchor || head == KindCard {
+	if file, own := CardOwnFile(head); own {
+		if file == CardFileAnchor {
 			return card.AnchorPath(), nil
 		}
 		return card.JournalPath(), nil
@@ -654,6 +654,35 @@ func walkBelowCard(card *Card, rest string, landed *landing, half ResolutionHalf
 	return descend(card.Dir, KindCard, segments, nil, landed, half)
 }
 
+// The two files a card owns, as CardOwnFile names them. They are the answer
+// rather than the spelling, because each of the two is reachable under two
+// spellings and a caller acting on the file has no use for which one the
+// reader typed.
+const (
+	// CardFileAnchor is the card's own anchor, reached as `<card>/card` and
+	// as `<card>/card.md`.
+	CardFileAnchor = "card"
+	// CardFileJournal is the card's journal, reached as `<card>/journal` and
+	// as `<card>/journal.ndjson`.
+	CardFileJournal = "journal"
+)
+
+// CardOwnFile reports which of a card's own two files a segment below a card
+// names, and whether it names one at all. Four spellings reach two files, and
+// a caller that has to tell the two apart asks here rather than comparing the
+// segment against a literal, which is how `<card>/journal` and
+// `<card>/journal.ndjson` came to be one spelling to the resolver and two to
+// everything reading the resolver's answer.
+func CardOwnFile(segment string) (string, bool) {
+	switch segment {
+	case CardAnchor, KindCard:
+		return CardFileAnchor, true
+	case CardFileJournal, JournalName:
+		return CardFileJournal, true
+	}
+	return "", false
+}
+
 // cardOwnFileSegment reports whether a segment below a card names one of the
 // card's own two files rather than a collection. walkBelowCard answers those
 // segments ahead of the containment grammar, and the archived-half resolution
@@ -661,7 +690,8 @@ func walkBelowCard(card *Card, rest string, landed *landing, half ResolutionHalf
 // deepest collection step, so the set is declared once rather than written
 // out in both places.
 func cardOwnFileSegment(segment string) bool {
-	return segment == CardAnchor || segment == KindCard || segment == "journal" || segment == JournalName
+	_, own := CardOwnFile(segment)
+	return own
 }
 
 // checklistMount is the collection a checklist segment such as questions
@@ -1299,4 +1329,47 @@ func (b *Bench) probeBelow(dir, kind, ref, holder string, typed, walk []string, 
 		return b.probeBelow(member, mount.Kind, below, holder, typed[2:], walk[2:], nil)
 	}
 	return "", "", false, nil
+}
+
+// ReadsAsCardRef reports whether a bare word is spelled the way the card
+// grammar spells a reference, which is a twelve-character identifier, a
+// positive number, or a prefix and a positive number joined by a hyphen.
+//
+// It answers how a word reads rather than whether a card answers to it, and it
+// exists for the one caller that has no workbench to ask: a root-scoped read
+// classifies its reference before it opens anything. Every caller that holds a
+// workbench resolves against that workbench instead.
+func ReadsAsCardRef(ref string) bool {
+	trimmed := strings.TrimSpace(ref)
+	if trimmed == "" {
+		return false
+	}
+	if IsID(trimmed) {
+		return true
+	}
+	_, _, ok := splitRef(trimmed)
+	return ok
+}
+
+// CollectionRootIn is the directory one of the workbench's own top-level
+// collections occupies in one half. The live half mounts each collection
+// directly under the workbench root and the archive half mirrors them under
+// the archive directory, which is one rule rather than a case per collection.
+func (b *Bench) CollectionRootIn(half ResolutionHalf, dir string) string {
+	if half == ArchivedHalf {
+		return filepath.Join(b.Root, ArchiveDir, dir)
+	}
+	return filepath.Join(b.Root, dir)
+}
+
+// CountIn reports how many members a collection directory holds, answering
+// zero for a directory that is not there. A collection nothing has been filed
+// into yet is an ordinary state of a workbench rather than a fault, so it
+// counts zero rather than refusing.
+func CountIn(collection string) (int, error) {
+	ids, err := ListIDs(collection)
+	if err != nil {
+		return 0, err
+	}
+	return len(ids), nil
 }

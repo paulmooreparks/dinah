@@ -297,7 +297,7 @@ func TestTheMixedVocabularyAdviceIsACommandThatWorks(t *testing.T) {
 				where, scope = tree, []string{"--workbench", workbench}
 			}
 
-			refused := runCLI(t, where, append(scope, "ls")...)
+			refused := runCLI(t, where, append(scope, "list", "cards")...)
 			if !strings.Contains(refused.errw, contract.VocabularyMixed) {
 				t.Fatalf("a card carrying both vocabularies does not refuse %s: %d %s%s", contract.VocabularyMixed, refused.code, refused.out, refused.errw)
 			}
@@ -315,7 +315,7 @@ func TestTheMixedVocabularyAdviceIsACommandThatWorks(t *testing.T) {
 			if carried.code != 0 {
 				t.Fatalf("taking the refusal's own advice, dinah %v, exited %d: %s%s", argv, carried.code, carried.out, carried.errw)
 			}
-			listed := runCLI(t, where, append(scope, "ls")...)
+			listed := runCLI(t, where, append(scope, "list", "cards")...)
 			if listed.code != 0 {
 				t.Errorf("the workbench does not list after the advice was followed: %d %s", listed.code, listed.errw)
 			}
@@ -522,7 +522,7 @@ func TestTheInterruptedActAdviceIsACommandThatWorks(t *testing.T) {
 			if took.code != 0 {
 				t.Fatalf("taking the refusal's own advice, dinah %v, exited %d: %s%s", argv, took.code, took.out, took.errw)
 			}
-			listed := runCLI(t, where, append(scope, "ls")...)
+			listed := runCLI(t, where, append(scope, "list", "cards")...)
 			if listed.code != 0 {
 				t.Fatalf("the workbench does not list after the advice was followed: %d %s", listed.code, listed.errw)
 			}
@@ -559,7 +559,7 @@ func TestTheLockedEntityAdviceIsACommandThatWorks(t *testing.T) {
 			if took.code != 0 {
 				t.Fatalf("taking the refusal's own advice, dinah %v, exited %d: %s%s", argv, took.code, took.out, took.errw)
 			}
-			listed := runCLI(t, where, append(scope, "ls")...)
+			listed := runCLI(t, where, append(scope, "list", "cards")...)
 			if listed.code != 0 {
 				t.Errorf("the workbench does not list after the advice was followed: %d %s", listed.code, listed.errw)
 			}

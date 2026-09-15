@@ -323,11 +323,20 @@ func call(root string, defaultLib *verb.Library, libraries map[string]*verb.Libr
 	if err := json.Unmarshal(params, &args); err != nil {
 		return nil, err
 	}
-	if args.Name == "workbenches" {
-		if err := checkArguments(toolsByName["workbenches"], args.Arguments); err != nil {
-			return nil, err
+	// The roster word workbenches asks about directories rather than about a
+	// workbench, so it is answered off the server's own root before any
+	// library is resolved. It is the one reference the list tool answers
+	// without opening a workbench at all.
+	if args.Name == "list" {
+		if ref, _ := args.Arguments["ref"].(string); strings.TrimSpace(ref) == verb.RosterWorkbenches {
+			if err := checkArguments(toolsByName["list"], args.Arguments); err != nil {
+				return nil, err
+			}
+			if err := verb.CheckWorkbenchesFlags(request2Args("list", args.Arguments)); err != nil {
+				return nil, err
+			}
+			return answerWorkbenches(root, defaultLib, args.Arguments)
 		}
-		return answerWorkbenches(root, defaultLib, args.Arguments)
 	}
 	tool, ok := toolsByName[args.Name]
 	if !ok {
@@ -402,7 +411,17 @@ var rootScoped = map[string]func(root, home string, req *verb.Request) (any, err
 	"status": func(root, home string, req *verb.Request) (any, error) {
 		return verb.StatusForest(root, home, req, walkDepth(req))
 	},
-	"list_cards": func(root, home string, req *verb.Request) (any, error) {
+	// The roster word workbenches never reaches here, because call answers it
+	// off the server's own root ahead of every library resolution: its answer
+	// is already an answer about a directory, and asking every workbench
+	// beneath a directory to enumerate the workbenches beneath it would answer
+	// one question once per workbench. Every other reference takes the root as
+	// the set of workbenches to ask, and one this fan-out cannot carry is
+	// refused here rather than answered per workbench.
+	"list": func(root, home string, req *verb.Request) (any, error) {
+		if ok, subject := verb.RootScopedReference(req.Ref); !ok {
+			return nil, contract.Refuse(contract.Usage, "--root beside "+subject)
+		}
 		return verb.ListForest(root, home, req, walkDepth(req))
 	},
 	"next_card": func(root, home string, req *verb.Request) (any, error) {
@@ -422,7 +441,7 @@ var rootScoped = map[string]func(root, home string, req *verb.Request) (any, err
 var forestMember = map[string]string{
 	"tree":         "forest",
 	"status":       "root_status",
-	"list_cards":   "root_listing",
+	"list":         "root_listing",
 	"next_card":    "root_offers",
 	"changes":      "root_changes",
 	"search_cards": "root_search",
@@ -499,9 +518,9 @@ func answerForest(root, tool string, defaultLib *verb.Library, request *verb.Req
 	return textResult(payload)
 }
 
-// answerWorkbenches serves the workbenches tool.
+// answerWorkbenches serves the list tool given the roster word workbenches.
 //
-// With no path argument it keeps its existing contract exactly, down to how
+// With no root argument it keeps its existing contract exactly, down to how
 // its refusals travel: bench.Enumerate walks the server's own configured root
 // and whatever comes back reaches the caller as it did before this argument
 // existed. An unbounded server has no directory to search, and the refusal
@@ -512,22 +531,22 @@ func answerForest(root, tool string, defaultLib *verb.Library, request *verb.Req
 // rather than refusing (dinah-301). bench.Enumerate("") still cannot run a
 // search, so what comes back is not a listing but the one identity the server
 // already holds, and it is marked unbounded so a caller can tell the two
-// apart. That branch sits inside the no-path arm alone, so a call carrying a
-// path walks the path it names whether or not a default exists.
+// apart. That branch sits inside the no-root arm alone, so a call carrying a
+// root walks the directory it names whether or not a default exists.
 //
-// With a non-empty path argument it switches to the same downward walk
-// dinah workbenches <path> runs at a terminal: the path is resolved and checked
+// With a non-empty root argument it switches to the same downward walk
+// `dinah list workbenches --root <path>` runs at a terminal: the path is resolved and checked
 // against the root with bench.PathUnderRoot, refusing contract.OutsideRoot on
 // escape, and bench.EnumerateDeep replaces bench.Enumerate. Those refusals are
 // about an argument the caller sent, so they travel on the response the way
 // every other argument-level refusal on this surface does, which is what
 // resolveLibrary already does for a workbench argument that escapes the root.
 func answerWorkbenches(root string, defaultLib *verb.Library, arguments map[string]any) (map[string]any, error) {
-	named, _ := arguments["path"].(string)
+	named, _ := arguments["root"].(string)
 	named = strings.TrimSpace(named)
 	depth, _ := arguments["max-depth"].(string)
 	if named == "" {
-		// A depth bound with no path to bound would be read and dropped, and
+		// A depth bound with no root to bound would be read and dropped, and
 		// the terminal refuses that rather than accepting an argument that
 		// changes nothing. The two heads answer one question, so this one
 		// refuses it too, and it is an argument-level refusal like the rest.
@@ -580,7 +599,7 @@ func walkFromPath(root, named, depth string) ([]bench.Candidate, *contract.Refus
 // where this surface carries a refusal the caller can correct by sending
 // different arguments.
 func workbenchesRefusal(refusal *contract.Refusal) map[string]any {
-	return answerRefusal(&verb.Request{Verb: "workbenches"}, refusal)
+	return answerRefusal(&verb.Request{Verb: "list"}, refusal)
 }
 
 // workbenchesPayload renders a listing, sorted by path so the two modes and
@@ -589,7 +608,7 @@ func workbenchesPayload(listed []bench.Candidate) (map[string]any, error) {
 	sort.SliceStable(listed, func(i, j int) bool {
 		return listed[i].Path < listed[j].Path
 	})
-	payload := wrap(map[string]any{"workbenches": listed}, []string{"status", "columns", "list_cards", "next_card", "workbenches"})
+	payload := wrap(map[string]any{"workbenches": listed}, readAffordances)
 	return textResult(payload)
 }
 
@@ -622,7 +641,7 @@ func workbenchesDefaultOnly(defaultLib *verb.Library) (map[string]any, error) {
 	payload := wrap(map[string]any{
 		"workbenches": []bench.Candidate{row},
 		"unbounded":   true,
-	}, []string{"status", "columns", "list_cards", "next_card", "workbenches"})
+	}, readAffordances)
 	return textResult(payload)
 }
 
@@ -695,12 +714,13 @@ func resolveLibrary(root string, defaultLib *verb.Library, libraries map[string]
 }
 
 // commandTool maps a library command name to the tool an agent calls on this
-// surface. Most affordances keep the same spelling in both vocabularies; the
-// two reads the surface names in full form are the exceptions, and a refusal
-// that carried the library's short forms would point an agent at a tool this
-// surface does not serve.
+// surface. Most affordances keep the same spelling in both vocabularies; the one
+// read the surface names in full form is the exception, and a refusal that
+// carried the library's short form would point an agent at a tool this surface
+// does not serve. The list entry left this table when the collapse gave the
+// command and the tool one spelling, and surfaceAffordances passes an unmapped
+// name through unchanged.
 var commandTool = map[string]string{
-	"ls":   "list_cards",
 	"next": "next_card",
 }
 
