@@ -1,6 +1,7 @@
 package lsp
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -15,6 +16,134 @@ import (
 func annotationsOf(t *testing.T, h *harness, uri string) []wireAnnotation {
 	t.Helper()
 	return decode[annotationsResult](t, h.send(methodAnnotations, map[string]any{"textDocument": map[string]any{"uri": uri}})).Annotations
+}
+
+// hintsOf asks the server for one document's inlay hints.
+func hintsOf(t *testing.T, h *harness, uri string) []inlayHint {
+	t.Helper()
+	return decode[[]inlayHint](t, h.send(methodInlayHint, map[string]any{"textDocument": map[string]any{"uri": uri}}))
+}
+
+// clientPulling builds the initialize params of a client that declares both
+// the inlay-hint refresh and the configuration pull, which is what a client
+// asked for its own settings has to declare.
+func clientPulling() map[string]any {
+	return map[string]any{
+		"capabilities": map[string]any{
+			"workspace": map[string]any{
+				"inlayHint":     map[string]any{"refreshSupport": true},
+				"configuration": true,
+			},
+		},
+	}
+}
+
+// proseSettingOn is the notification a client sends when somebody turns the
+// prose annotation on while the editor is running.
+var proseSettingOn = map[string]any{"settings": map[string]any{"dinah.lsp": map[string]any{"annotateProse": true}}}
+
+// TestTheProseSettingReachesAServerAlreadyRunning is the experiment the cycle
+// 1 reviewer ran on dinah-515, kept as a test. The same setting arrives by
+// the two routes contract section 5.4 names, once on the command line before
+// anything is open and once through workspace/didChangeConfiguration after a
+// document is open and its model is already built, and the two servers have
+// to draw the same thing.
+//
+// Every other test of this setting sends it before the first didOpen, which
+// is why the defect survived a green suite. A setting read only while a model
+// is being built for the first time is indistinguishable from one read
+// whenever the model is built.
+func TestTheProseSettingReachesAServerAlreadyRunning(t *testing.T) {
+	f := build(t)
+	card, err := f.bench.LoadCardIn(f.bench.CardsRoot(), f.card)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	text := "The work is on " + card.Ref(f.bench.Slug) + " today.\n"
+	doc := filepath.Join(f.bench.Root, "notes.md")
+
+	// The control, told on the command line, so the setting is in force
+	// before any model exists. Without it the probe below is an empty read
+	// and an empty read proves nothing.
+	control, _ := f.serveWith(t, func(o *Options) { o.AnnotateProse = true })
+	control.initialize(nil)
+	wanted := hintsOf(t, control, control.openText(doc, text))
+	if len(wanted) != 1 {
+		t.Fatalf("a server told to annotate prose from the start drew %d hints, wanted one", len(wanted))
+	}
+
+	// The same setting a moment later, on a server that has already built
+	// this document's model without it.
+	running, _ := f.serve(t)
+	running.initialize(nil)
+	uri := running.openText(doc, text)
+	if before := hintsOf(t, running, uri); len(before) != 0 {
+		t.Fatalf("a server not told to annotate prose drew %d hints, wanted none", len(before))
+	}
+	running.notify(methodDidChangeConfiguration, proseSettingOn)
+	running.settle()
+
+	got := hintsOf(t, running, uri)
+	if len(got) != len(wanted) {
+		t.Fatalf("after the setting arrived on a running server the document drew %d hints, and the server told from the start drew %d", len(got), len(wanted))
+	}
+	for i := range got {
+		if got[i].Label != wanted[i].Label {
+			t.Errorf("hint %d reads %q on the running server and %q on the one told from the start", i, got[i].Label, wanted[i].Label)
+		}
+		if got[i].Position != wanted[i].Position {
+			t.Errorf("hint %d stands at %+v on the running server and at %+v on the one told from the start", i, got[i].Position, wanted[i].Position)
+		}
+	}
+
+	// An editor asks for hints again when it is told to, so the setting
+	// taking effect and the redraw are one thing rather than two.
+	running.await(methodInlayHintRefresh, 1)
+	running.await(methodAnnotationsChanged, 1)
+}
+
+// TestTheStartupConfigurationPullIsRead asserts that the answer to the
+// workspace/configuration request sent at initialize reaches the settings.
+// That request is the other of the two routes section 5.4 names, and a reply
+// nothing correlates costs a round trip and reads nothing.
+func TestTheStartupConfigurationPullIsRead(t *testing.T) {
+	f := build(t)
+	card, err := f.bench.LoadCardIn(f.bench.CardsRoot(), f.card)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	text := "The work is on " + card.Ref(f.bench.Slug) + " today.\n"
+	doc := filepath.Join(f.bench.Root, "notes.md")
+
+	h, _ := f.serve(t)
+	h.initialize(clientPulling())
+	asked := h.await(methodConfiguration, 1)
+	var params configurationParams
+	if err := json.Unmarshal(asked[0].Params, &params); err != nil {
+		t.Fatalf("the configuration request carried %s: %v", asked[0].Params, err)
+	}
+	if len(params.Items) != 1 || params.Items[0].Section != "dinah.lsp" {
+		t.Fatalf("the server asked for %+v, wanted the one section dinah.lsp", params.Items)
+	}
+
+	// The protocol answers one member per item asked for.
+	h.answer(asked[0], []map[string]any{{"annotateProse": true}})
+	h.settle()
+
+	uri := h.openText(doc, text)
+	if hints := hintsOf(t, h, uri); len(hints) != 1 {
+		t.Fatalf("after the client answered the configuration pull the document drew %d hints, wanted one", len(hints))
+	}
+
+	// The accepting case beside a refusing one: a client that declares no
+	// configuration capability is asked nothing, so the two routes are not
+	// one route read twice.
+	quiet, _ := f.serve(t)
+	quiet.initialize(clientDeclaring(true))
+	quiet.settle()
+	if sent := quiet.quiet(methodConfiguration); sent != 0 {
+		t.Errorf("a client declaring no configuration capability was sent %d configuration requests, wanted none", sent)
+	}
 }
 
 // TestAColumnMoveOnDiskReachesAnOpenDocument asserts dinah-515 criterion 5: a

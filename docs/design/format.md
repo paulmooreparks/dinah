@@ -807,9 +807,8 @@ what decides how. The change checkpoint carries a digest term over every live
 column's anchor, separate from the term over the live entities, so an edit to
 a column reports that something in the flow moved without delivering a line
 and without being mistaken for a card nobody can name. What it reports is the
-column's identity and which way it holds, and no occupancy: counting the cards
-a column holds is a read of every card anchor, and avoiding that read is why
-the term is separate in the first place.
+column's identity and which way it holds, and no occupancy. Counting the cards
+a column holds is a read of every card anchor.
 
 ### No structural inheritance
 

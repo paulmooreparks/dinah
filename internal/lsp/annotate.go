@@ -79,7 +79,9 @@ type annotation struct {
 	File string
 	// Inline reports whether an inline annotation is drawn for this
 	// reference, which the five kinds of section 4.4 and an unresolved
-	// front-matter value get and the four further forms do not.
+	// front-matter value get and the four further forms do not. On a
+	// reference in prose it is also subject to the annotateProse setting,
+	// which Server.annotate applies as it builds the model.
 	Inline bool
 	// Present reports that there is an annotation here at all. A prose
 	// candidate both resolvers refused is a completed read establishing
@@ -108,6 +110,14 @@ type memoKey struct {
 }
 
 // annotate turns one document's slots into its annotation model.
+//
+// The prose setting is read here rather than where the annotation is
+// composed, and that placement is the whole of what makes the setting take
+// effect on a running server. A resolution is memoised, so a decision taken
+// inside it survives every later read of the same reference and no later
+// write of the setting can reach it. This loop runs afresh on every model
+// build, so the value in force when the model was built is the value the
+// model carries.
 func (s *Server) annotate(slots []slot) []annotation {
 	var model []annotation
 	for _, at := range slots {
@@ -119,6 +129,9 @@ func (s *Server) annotate(slots []slot) []annotation {
 			continue
 		}
 		resolved.Slot = at
+		if at.Kind == slotProse && !s.annotateProse {
+			resolved.Inline = false
+		}
 		model = append(model, resolved)
 	}
 	return model
@@ -472,6 +485,12 @@ func (s *Server) unresolvedAnnotation(at slot) annotation {
 }
 
 // compose assembles one annotation out of the parts every kind supplies.
+//
+// The inline flag it stores is the kind's own, meaning whether this sort of
+// reference earns an inline annotation at all. Whether a prose reference
+// draws one is a setting, and Server.annotate applies it, because what
+// compose produces is memoised and a memoised value must not carry a
+// decision a later setting can change.
 func (s *Server) compose(at slot, label, ref string, target *annotationTarget, fields map[string]string, file string, inline bool) annotation {
 	return annotation{
 		Slot:    at,
@@ -480,7 +499,7 @@ func (s *Server) compose(at slot, label, ref string, target *annotationTarget, f
 		Target:  target,
 		Fields:  fields,
 		File:    file,
-		Inline:  inline && (at.Kind != slotProse || s.annotateProse),
+		Inline:  inline,
 		Present: true,
 	}
 }

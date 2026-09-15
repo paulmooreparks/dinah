@@ -32,7 +32,7 @@ your folder, so a workbench's twelve-hex identifiers read back as names. A
 card reference carries the card's title and the column it stands in, beside
 the identifier and not instead of it, and hovering one tells you the same
 thing at more length. Clicking through opens what the reference names. The
-labels are live: the server rereads the workbench rather than remembering what
+labels are live. The server rereads the workbench rather than remembering what
 it last saw, so a card somebody moved a moment ago reads as moved. Turn the
 whole of it off with `dinah.lsp.enabled`.
 

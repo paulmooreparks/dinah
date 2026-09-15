@@ -71,12 +71,27 @@ type conn struct {
 	// nextID mints the identifiers of the requests this server originates.
 	// It is guarded by write, which every originating path already holds.
 	nextID int
+
+	// pendingMu guards pending. It is separate from write because a
+	// response arrives on the read loop while the poll loop may be
+	// originating a request, and because a handler runs outside it.
+	pendingMu sync.Mutex
+	// pending is what is waiting on an answer, keyed by the identifier the
+	// request went out under. A request whose answer nothing reads records
+	// nothing here, so the map holds only what somebody asked a question
+	// for.
+	pending map[string]func(json.RawMessage, *responseError)
 }
 
 // newConn wraps a reader and a writer in the framing.
 func newConn(in io.Reader, out io.Writer) *conn {
 	body := bufio.NewReader(in)
-	return &conn{reader: textproto.NewReader(body), body: body, out: out}
+	return &conn{
+		reader:  textproto.NewReader(body),
+		body:    body,
+		out:     out,
+		pending: map[string]func(json.RawMessage, *responseError){},
+	}
 }
 
 // read takes the next frame off the wire. It answers io.EOF when the client
@@ -150,13 +165,22 @@ func (c *conn) notify(method string, params any) error {
 	return c.send(message{JSONRPC: jsonrpcVersion, Method: method, Params: encoded})
 }
 
-// request sends a request this server originates. The answer is not waited
-// for: the two requests this server originates, the inlay-hint refresh and
-// the configuration pull, are both acted on by what the client does next
-// rather than by what it answers, and a server blocking on a client's reply
-// inside its own poll loop would stop reading the stream that reply arrives
-// on.
+// request sends a request this server originates and reads no answer to it.
+// The inlay-hint refresh is the one such request. What the client does next
+// is to ask for the hints again, and that is the whole of the answer it
+// needs.
 func (c *conn) request(method string, params any) error {
+	return c.requestWith(method, params, nil)
+}
+
+// requestWith sends a request this server originates and records who is
+// waiting for its answer, so a reply reaches the code that asked the
+// question.
+//
+// The wait is not a blocking one. The handler runs on the read loop when the
+// reply arrives, because a server blocking on a client's reply would stop
+// reading the stream that reply arrives on.
+func (c *conn) requestWith(method string, params any, handle func(json.RawMessage, *responseError)) error {
 	encoded, err := json.Marshal(params)
 	if err != nil {
 		return err
@@ -165,5 +189,37 @@ func (c *conn) request(method string, params any) error {
 	c.nextID++
 	id := json.RawMessage(strconv.Itoa(c.nextID))
 	c.write.Unlock()
-	return c.send(message{JSONRPC: jsonrpcVersion, ID: id, Method: method, Params: encoded})
+	if handle != nil {
+		c.pendingMu.Lock()
+		c.pending[string(id)] = handle
+		c.pendingMu.Unlock()
+	}
+	if err := c.send(message{JSONRPC: jsonrpcVersion, ID: id, Method: method, Params: encoded}); err != nil {
+		// A request that never reached the wire will never be answered, so
+		// what was recorded for it is dropped rather than left waiting.
+		c.pendingMu.Lock()
+		delete(c.pending, string(id))
+		c.pendingMu.Unlock()
+		return err
+	}
+	return nil
+}
+
+// deliver hands a response to whatever originated the request it answers, and
+// reports whether anything was waiting on it. A response nothing waits on is
+// dropped, which is what the inlay-hint refresh's own reply gets.
+func (c *conn) deliver(read *message) bool {
+	if len(read.ID) == 0 {
+		return false
+	}
+	key := strings.TrimSpace(string(read.ID))
+	c.pendingMu.Lock()
+	handle, waiting := c.pending[key]
+	delete(c.pending, key)
+	c.pendingMu.Unlock()
+	if !waiting {
+		return false
+	}
+	handle(read.Result, read.Error)
+	return true
 }

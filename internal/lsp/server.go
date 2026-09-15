@@ -180,8 +180,10 @@ func (s *Server) Serve() error {
 			return err
 		}
 		if read.Method == "" {
-			// A response to a request this server originated. Nothing here
-			// waits on one, so there is nothing to deliver it to.
+			// A response to a request this server originated. It goes to
+			// whatever asked the question, and one nothing is waiting on is
+			// dropped.
+			s.conn.deliver(read)
 			continue
 		}
 		if err := s.handle(read); err != nil {
@@ -286,12 +288,33 @@ func (s *Server) initialize(read *message) error {
 		}
 	}
 	if s.configuration {
-		if err := s.conn.request(methodConfiguration, configurationParams{Items: []configurationItem{{Section: "dinah.lsp"}}}); err != nil {
+		if err := s.conn.requestWith(methodConfiguration,
+			configurationParams{Items: []configurationItem{{Section: "dinah.lsp"}}},
+			s.settingsPulled); err != nil {
 			return err
 		}
 	}
 	go s.poll()
 	return nil
+}
+
+// settingsPulled takes the client's answer to the startup configuration pull.
+// The protocol answers one member per item asked for, and this server asks
+// for the one section it owns.
+//
+// A client that refuses the pull, or answers a shape this server does not
+// read, leaves the settings where the command line put them. That is the same
+// place they stand for a client declaring no configuration capability at all,
+// so no route needs a fallback of its own.
+func (s *Server) settingsPulled(result json.RawMessage, refused *responseError) {
+	if refused != nil || len(result) == 0 {
+		return
+	}
+	var sections []json.RawMessage
+	if err := json.Unmarshal(result, &sections); err != nil || len(sections) == 0 {
+		return
+	}
+	s.applySettings(sections[0])
 }
 
 // declaredCapabilities is the whole of what this server offers. No

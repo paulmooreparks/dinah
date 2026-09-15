@@ -92,6 +92,15 @@ func (s *Server) didChangeConfiguration(read *message) error {
 // applySettings reads the server's own section out of whatever shape the
 // client sent, accepting both the section on its own and a settings object
 // carrying it under dinah.lsp or under nested dinah and lsp members.
+//
+// A setting that shapes what the model says has to reach the model that was
+// already built, so annotateProse moving rebuilds every open document and
+// tells the client to redraw. Nothing is re-read from disk to do it. The
+// resolutions are memoised free of the setting, so the rebuild is the loop in
+// Server.annotate deciding again over the values already held.
+//
+// pollIntervalSeconds needs none of that. The loop reads the interval afresh
+// at the end of each turn, so the next sleep is the new one.
 func (s *Server) applySettings(raw json.RawMessage) {
 	if len(raw) == 0 {
 		return
@@ -105,13 +114,18 @@ func (s *Server) applySettings(raw json.RawMessage) {
 			continue
 		}
 		s.mu.Lock()
-		if read.AnnotateProse != nil {
+		var moved []string
+		if read.AnnotateProse != nil && *read.AnnotateProse != s.annotateProse {
 			s.annotateProse = *read.AnnotateProse
+			moved = s.recompute()
 		}
 		if read.PollIntervalSeconds != nil && *read.PollIntervalSeconds >= minimumPollSeconds {
 			s.interval = time.Duration(*read.PollIntervalSeconds) * time.Second
 		}
 		s.mu.Unlock()
+		if len(moved) > 0 {
+			s.publish()
+		}
 		return
 	}
 }

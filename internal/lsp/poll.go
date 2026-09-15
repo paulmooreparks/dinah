@@ -118,8 +118,7 @@ func (s *Server) tick() bool {
 // That selective rule is wrong for the case the widened checkpoint exists to
 // fix: a hand-edited column moves the column term and names nothing in
 // events, cards or gone, so a selective drop would keep the stale column
-// label for good. A whole discard is also cheaper than it looks, the re-open
-// above having already re-read every anchor.
+// label for good.
 func (s *Server) refresh(root string, set *verb.ChangeSet) []string {
 	if opened, err := bench.Open(root); err == nil {
 		s.bench = opened

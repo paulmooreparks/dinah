@@ -127,6 +127,15 @@ func (h *harness) send(method string, params any) json.RawMessage {
 	return nil
 }
 
+// answer replies to a request the server originated, under the identifier
+// that request went out on. A client that never answers is the ordinary case
+// for the inlay-hint refresh; the configuration pull is the one the server
+// asks a question with.
+func (h *harness) answer(asked *message, result any) {
+	h.t.Helper()
+	h.write(message{JSONRPC: jsonrpcVersion, ID: asked.ID, Result: encode(h.t, result)})
+}
+
 // notify writes one notification, which is never answered.
 func (h *harness) notify(method string, params any) {
 	h.t.Helper()
@@ -395,14 +404,26 @@ func (f *fixture) columnAnchor(id string) string {
 // ladder, with the poll loop parked until a test releases it.
 func (f *fixture) serve(t *testing.T) (*harness, *ticker) {
 	t.Helper()
+	return f.serveWith(t, nil)
+}
+
+// serveWith is serve with a chance to shape the options first, which is what
+// a test comparing a server told something on the command line against one
+// told the same thing later needs. Both go through the one construction site,
+// so the two servers differ in exactly what the shaping function changed.
+func (f *fixture) serveWith(t *testing.T, shape func(*Options)) (*harness, *ticker) {
+	t.Helper()
 	tick := newTicker()
-	h := start(t, Options{
+	opts := Options{
 		Workbench: f.root,
 		Sleep:     tick.sleep,
 		Now:       tick.now,
 		Since:     tick.since,
-	})
-	return h, tick
+	}
+	if shape != nil {
+		shape(&opts)
+	}
+	return start(t, opts), tick
 }
 
 // ticker is a clock a test drives by hand, so a poll loop runs exactly as

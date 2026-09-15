@@ -29,9 +29,9 @@ CLI, MCP, HTTP, and LSP surfaces to be four of them.
 
 Three of the four are built. `dinah lsp` serves one workbench to an editor
 over stdio and reads a workbench's twelve-hex identifiers back as names, on
-hover, as an inline annotation, and through go-to-definition. It is a reader:
-it runs no verb, takes no lock, and holds no value past the next time it
-rereads the workbench.
+hover, as an inline annotation, and through go-to-definition. It is a reader.
+No verb runs there and no lock is taken, and it holds no value past the next
+time it rereads the workbench.
 
 The language is Go: static single binary, trivial cross-compilation, stdlib
 HTTP, cheap concurrency for the servers, and language coherence with the
