@@ -51,6 +51,7 @@
 			"manifest.command.dinah.tree.failItem.title",
 			"manifest.command.dinah.tree.reopenItem.title",
 			"manifest.command.dinah.tree.fileItem.title",
+			"manifest.command.dinah.tree.openComment.title",
 			"manifest.command.dinah.comment.post.title",
 			"manifest.command.dinah.comment.discard.title"
 		],
@@ -105,6 +106,7 @@
 			"manifest.command.dinah.tree.failItem.title",
 			"manifest.command.dinah.tree.reopenItem.title",
 			"manifest.command.dinah.tree.fileItem.title",
+			"manifest.command.dinah.tree.openComment.title",
 			"manifest.command.dinah.comment.post.title",
 			"manifest.command.dinah.comment.discard.title"
 		],
@@ -160,6 +162,7 @@
 			"manifest.command.dinah.tree.failItem.title",
 			"manifest.command.dinah.tree.reopenItem.title",
 			"manifest.command.dinah.tree.fileItem.title",
+			"manifest.command.dinah.tree.openComment.title",
 			"manifest.command.dinah.comment.post.title",
 			"manifest.command.dinah.comment.discard.title"
 		],
@@ -214,6 +217,7 @@
 			"manifest.command.dinah.tree.failItem.title",
 			"manifest.command.dinah.tree.reopenItem.title",
 			"manifest.command.dinah.tree.fileItem.title",
+			"manifest.command.dinah.tree.openComment.title",
 			"manifest.command.dinah.comment.post.title",
 			"manifest.command.dinah.comment.discard.title"
 		],
@@ -269,6 +273,7 @@
 			"manifest.command.dinah.tree.failItem.title",
 			"manifest.command.dinah.tree.reopenItem.title",
 			"manifest.command.dinah.tree.fileItem.title",
+			"manifest.command.dinah.tree.openComment.title",
 			"manifest.command.dinah.comment.post.title",
 			"manifest.command.dinah.comment.discard.title"
 		]
@@ -424,6 +429,7 @@
 			"manifest.command.dinah.tree.failItem.title": "fa87025bb24614e8",
 			"manifest.command.dinah.tree.reopenItem.title": "595e961fa8a3ac7d",
 			"manifest.command.dinah.tree.fileItem.title": "1f6b72367f3c33d8",
+			"manifest.command.dinah.tree.openComment.title": "6bebcdac3a5058d6",
 			"manifest.command.dinah.comment.post.title": "16e4c94839dd8bf8",
 			"manifest.command.dinah.comment.discard.title": "6c482fb573649c84"
 		},
@@ -478,6 +484,7 @@
 			"manifest.command.dinah.tree.failItem.title": "fa87025bb24614e8",
 			"manifest.command.dinah.tree.reopenItem.title": "595e961fa8a3ac7d",
 			"manifest.command.dinah.tree.fileItem.title": "1f6b72367f3c33d8",
+			"manifest.command.dinah.tree.openComment.title": "6bebcdac3a5058d6",
 			"manifest.command.dinah.comment.post.title": "16e4c94839dd8bf8",
 			"manifest.command.dinah.comment.discard.title": "6c482fb573649c84"
 		}

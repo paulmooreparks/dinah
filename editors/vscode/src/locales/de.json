@@ -662,7 +662,7 @@
 		},
 		"item.kind.criterion": {
 			"text": "Abnahmekriterium",
-			"context": "The word for an item of kind acceptance_criterion. The same word on the tree row, in the item document and in the filing form, so a reader meets one name for one thing.",
+			"context": "The word for an item of kind acceptance_criterion. The same word on the tree row and in the filing form, so a reader meets one name for one thing.",
 			"source": "7468cc87ac6f9265"
 		},
 		"item.kind.question": {
@@ -727,7 +727,7 @@
 		},
 		"item.owner": {
 			"text": "Akteur:",
-			"context": "The label before an item's owner, on the tree row's tooltip and in the item document. It is drawn only where the item records one.",
+			"context": "The label before an item's owner, on the tree row's tooltip. It is drawn only where the item records one.",
 			"source": "db88e7d2b9a06bea"
 		},
 		"item.note": {
@@ -761,48 +761,36 @@
 			"context": "The one row a checklist group yields when the call that lists its items was refused.",
 			"source": "2b9b728ba84d5404"
 		},
-		"item.document.title": {
-			"text": "{ref} ({kind})",
-			"context": "The item document's own heading and its tab's title. {ref} is the item's reference and {kind} is the kind word above.",
-			"verbatim": true,
-			"source": "addaed2f2914d6f7"
-		},
-		"item.document.heading.status": {
-			"text": "Status",
-			"context": "The heading above the item document's standing line, which carries the state, the hold sentence, and the owner.",
-			"verbatim": true,
-			"source": "ad3e3c8146fc920f"
-		},
-		"item.document.heading.text": {
-			"text": "Wortlaut",
-			"context": "The heading above the item's own text in its document.",
-			"source": "3887a8cbbd2e1a38"
-		},
-		"item.document.heading.note": {
-			"text": "Notiz",
-			"context": "The heading above the item's resolution note, drawn only where the item carries one.",
-			"source": "6686fcc6d2c8f0bd"
-		},
-		"item.document.heading.comments": {
+		"tree.collection.comments": {
 			"text": "Kommentare",
-			"context": "The heading above the item's comment thread. It is drawn even where the thread is empty, because an absent heading and an empty thread look the same to a reader who came expecting reasoning.",
+			"context": "The label of the collection row a thread hangs under, beside the Checklist and Attachments rows.",
 			"source": "dc12d4d35420eeb7"
 		},
-		"item.document.comment.heading": {
+		"comment.row.description": {
 			"text": "{ordinal} · {author} · {ts}",
-			"context": "One comment's own heading in the item document. {ordinal} is its one-based position in the thread, {author} wrote it and {ts} is when.",
+			"context": "The grey text beside a comment row's label. {ordinal} is the comment's one-based position in its thread, {author} wrote it and {ts} is when.",
 			"verbatim": true,
 			"source": "e08675deb3abea54"
 		},
-		"item.document.commentsEmpty": {
-			"text": "Zu diesem Punkt wurde noch nichts geschrieben.",
-			"context": "What stands under the Comments heading on an item whose thread carries nothing.",
-			"source": "4b215e939f53350d"
+		"comment.row.author": {
+			"text": "{author} hat dies um {ts} geschrieben",
+			"context": "The second hover line on a comment row, above the comment's own text. {author} wrote it and {ts} is when.",
+			"source": "19f6bd3806da370f"
 		},
-		"item.document.textUnavailable": {
-			"text": "Der Wortlaut von {ref} konnte nicht gelesen werden.",
-			"context": "What the document says in place of the item's own text when the call carrying it was refused. The comment thread is still drawn below it, and nothing falls back to the item's anchor file.",
-			"source": "5f0dcf60ce692f7c"
+		"tree.contents.unreadable": {
+			"text": "Diese Prüfung konnte nicht lesen, was hier enthalten ist.",
+			"context": "The one row an entity yields when the call that lists what it contains was refused.",
+			"source": "a3e3192173a5f0d7"
+		},
+		"tree.comments.unreadable": {
+			"text": "Diese Prüfung konnte die Kommentare hier nicht lesen.",
+			"context": "The output channel line when the call carrying a thread's authors and times was refused. The comment rows are still drawn, from what the containment walk answered.",
+			"source": "3fb584cfa4aff976"
+		},
+		"tree.attachments.unreadable": {
+			"text": "Diese Prüfung konnte die Anhänge hier nicht lesen.",
+			"context": "The output channel line when the call listing an entity's attachments was refused. It was an untranslated English literal until dinah-519 rewrote the arm it sits in.",
+			"source": "28c38e57c1873f6"
 		},
 		"prompt.item.resolve": {
 			"text": "Was klärt {ref}?",

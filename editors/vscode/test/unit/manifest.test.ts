@@ -24,6 +24,7 @@ import {
 	COMMAND_EDIT_WORKBENCH_DEFINITION,
 	COMMAND_NEW_CARD,
 	COMMAND_OPEN_ATTACHMENT,
+	COMMAND_OPEN_COMMENT,
 	COMMAND_OPEN_HISTORY,
 	COMMAND_OPEN_FIRST_SESSION_GUIDE,
 	COMMAND_OPEN_INSTRUCTIONS,
@@ -1006,6 +1007,41 @@ test("the openAttachment entry is declared where identity.ts puts it, under the 
 	);
 	assert.equal(declared, TREE_COMMANDS.indexOf(COMMAND_OPEN_ATTACHMENT));
 	assert.equal(commands[declared].title, "Dinah: Open Attachment");
+});
+
+test("the comment row's one command is declared, menued on an equality, and hidden from the palette", () => {
+	// dinah-519/criteria/15. The roster tests above hold the three arrays to
+	// being a complete partition of TREE_COMMANDS in general; this names the
+	// command dinah-519 adds, because a partition test passes over a command
+	// nobody declared at all.
+	assert.ok(
+		(TREE_COMMANDS as readonly string[]).includes(COMMAND_OPEN_COMMENT),
+		"identity.ts does not name the comment row's command",
+	);
+	assert.ok(
+		(ROW_COMMANDS as readonly string[]).includes(COMMAND_OPEN_COMMENT),
+		"the command reads a row and is not classified as one that does",
+	);
+	assert.equal((GLOBAL_COMMANDS as readonly string[]).includes(COMMAND_OPEN_COMMENT), false);
+	assert.equal((EDITOR_COMMANDS as readonly string[]).includes(COMMAND_OPEN_COMMENT), false);
+
+	const commands = contributes.commands as { command: string; title: string }[];
+	const declared = commands.findIndex((entry) => entry.command === COMMAND_OPEN_COMMENT);
+	assert.equal(declared, TREE_COMMANDS.indexOf(COMMAND_OPEN_COMMENT));
+	assert.equal(commands[declared].title, "Dinah: Open Comment");
+
+	// An equality rather than a regular expression, because dinah.comment has
+	// no axes: a comment has no state, no owner and no kind for one to name.
+	const rows = menuEntries("view/item/context").filter(
+		(entry) => entry.command === COMMAND_OPEN_COMMENT,
+	);
+	assert.equal(rows.length, 1);
+	assert.equal(rows[0].when, "view == dinah.workbenchView && viewItem == dinah.comment");
+	assert.equal(rows[0].group, "2_open@1");
+
+	const hidden = paletteEntries().filter((entry) => entry.command === COMMAND_OPEN_COMMENT);
+	assert.equal(hidden.length, 1);
+	assert.equal(hidden[0].when, "false");
 });
 
 /** The commandPalette entries, which are absent from a manifest declaring none. */

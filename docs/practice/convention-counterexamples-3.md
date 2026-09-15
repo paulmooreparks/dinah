@@ -884,6 +884,83 @@ The same question reaches the implementation, and on this card it found a live d
 
 **Related:** "A criterion whose fixture exercises nothing the ordinary fixture beside it does not" is the same vacuity arriving through the fixture rather than through the platform. The entry on a guard whose justification carried a false half past a second reader is the nearest instance of prose about permissions going unchecked.
 
+## A source guard matching the spelling of the lookup that is there, saying nothing about the lookup that is not
+
+Caught twice on dinah-519, once by the implementer and once by Agent Code Review. The card deletes a composed page served for a checklist item, and part of its purpose is that the page cannot come back in disguise. A page is served by registering a renderer against a kind in a resolver table, so the guard has to establish that the served-text path consults exactly one such table. What shipped instead read the source of `extension.ts` for occurrences of `resolvers[...]` and asserted the set of hits.
+
+A regular expression over a lookup finds copies of that lookup. It cannot see a lookup written against something else, which is the only way the defect ever arrives: an implementer restoring the page does not rename the table that is already there, they add a second one beside it. The reviewer wrote that second table into `provideTextDocumentContent`, ahead of the surviving lookup, and the whole suite stayed green.
+
+The replacement then had to be defeated twice more before it was finished. Parsing the registration construct and enumerating what its body consults refuses a table name nobody foresaw, which is the whole gain over matching text. It refuses only the lookup constructs the walk collects, so a third way of spelling a lookup inside that same body escapes it, and Agent Code Review escaped it on the second pass with a computed property in an object binding pattern. It also does not refuse the same table consulted one function call out, because a walk over a lexical body stops at the body. The third block below carries the call-following repair, and the reach a guard claims is as much part of it as the reach it has.
+
+**Wrong.** The set of spellings, matched as text.
+
+```ts
+const source = readFileSync(join(__dirname, "..", "..", "..", "src", "extension.ts"), "utf8");
+const lookups = [...source.matchAll(/resolvers\[[a-zA-Z.]+\]/g)].map((hit) => hit[0]);
+assert.deepEqual(
+	[...new Set(lookups)].sort(),
+	["resolvers[kind]", "resolvers[parsed.kind]"],
+	`the resolver table is read from an unexpected site: ${lookups.join(", ")}`,
+);
+```
+
+**Right.** Find the construct the behaviour actually hangs from, then read what it does. The served-text path is the two function bodies the platform and the refresh loop call, located by the registration that installs each. Inside each one, collect every lookup keyed by a value rather than by a literal, in the two spellings this walk recognises, and assert that the thing being looked up in is always the one table.
+
+```ts
+const sites = servedTextSites(file);
+assert.deepEqual(
+	[...sites.keys()].sort(),
+	["provideTextDocumentContent", "refreshLoop.resolve"],
+	"the walk did not find both served-text sites, so it read nothing it claims to read",
+);
+for (const [name, site] of sites) {
+	const lookups = keyedLookupsIn(site);
+	assert.ok(lookups.length > 0, `${name} performs no keyed lookup at all, so this walk read nothing`);
+	assert.deepEqual(
+		[...new Set(lookups)].sort(),
+		["resolvers"],
+		`${name} consults a registry other than resolvers: ${lookups.join(", ")}`,
+	);
+}
+```
+
+**Righter.** Extend the region by one bounded step, so that the lookup cannot escape by moving into a helper the site calls. Collect the names each site calls directly, resolve those names against the functions the same module declares, and read the bodies that resolve as part of the site. One step rather than a fixed point, because following call names without a type checker resolves nothing reliably once shadowing and re-export are in play, and a region a reader can state exactly is worth more than one nobody can characterise.
+
+```ts
+const declared = moduleFunctions(file);
+assert.ok(
+	declared.size > 0,
+	"the walk found no function declared in extension.ts, so it can follow no call and read nothing",
+);
+for (const [name, site] of sites) {
+	const callees = directCalleesIn(site);
+	assert.ok(
+		callees.length > 0,
+		`${name} calls nothing by name, so the call-following half of this walk read nothing`,
+	);
+	const lookups = keyedLookupsIn(site);
+	for (const callee of callees) {
+		const body = declared.get(callee);
+		if (body !== undefined) {
+			lookups.push(...keyedLookupsIn(body));
+		}
+	}
+	// ... same enumeration assertion as above
+}
+```
+
+**The test:** read the assertion and ask what it does when the defect is spelled a way the author did not picture. A guard naming the good value can only report that the good value is still present, and presence is not exclusivity. Turn the question round so the guard enumerates what is there and holds the whole enumeration against an expected set, which makes an unforeseen table name an extra member rather than a miss. The plant that settles it is the defect itself: add the second table, consult it ahead of the first, and watch the guard name it. Then run the same plant again with the lookup moved into a helper, because that is where the first structural repair stopped and its comment did not say so. Widening the pattern to cover the plant is the wrong repair and this project has paid for it twice, because the widened pattern fits its examples and nothing else.
+
+**What such a guard still cannot see, and saying so.** A structural guard is bounded twice over, and a comment naming one of the two bounds misleads about the other. Distance bounds it, because it reads a stated region of code and nothing outside that region. Spelling bounds it inside that region as well, because it recognises a closed list of syntactic constructs and declines every other way of writing the same operation.
+
+Write the positive list, which is short and exact, and let the negative follow from it. This guard collects a lookup written as an element access whose key is not a literal, and a lookup written as a one-argument call through a property named `get`. It follows a call whose callee is a bare identifier, one step and no further, and it resolves that name only against a named `function` declaration or a variable whose initializer is directly a function expression or an arrow. Everything else that reads a value out of a table is invisible to it, wherever it sits.
+
+Then give the escapes as demonstrated examples, each with a reproduction, and say what the list of them is worth. Six are on the record for this guard, and every one of the six was written into the source and run rather than argued from reading the collectors: a dispatch consulting no table at all, of the shape `if (parsed.kind === "item") { return renderItem(...); }`; a lookup two calls out, where a followed helper calls a second helper that holds the table; a lookup in a helper the module imports rather than declares, or obtains from a factory call, or binds through a cast or a `satisfies`, since none of those is an initializer the walk reads as a function; a lookup behind a call through a property access, whose callee carries no bare name to resolve; a second table read by computed destructuring, `const { [parsed.kind]: page } = itemPages;`, written into the site's own body; and `Reflect.get(itemPages, parsed.kind)`, which is a call but not a call through a property named `get`. That list is not known to be complete, and it must not be written as though it were. It records the shapes somebody has run. Nothing in it rules out a seventh, because the positive list above is a list of constructs and the language spells an indexed read in more ways than anybody here has enumerated.
+
+The count is where this goes wrong in practice. A sentence saying "four shapes fall outside" reads as an exhaustive partition, so a reader holding a fifth shape checks it against the four, finds no match, and concludes the guard sees it. Naming the shapes without a count of what falls outside, and saying outright that the list is open, costs one clause and closes that reading off. A count of the runs on the record is a different number and stays, because it measures how much evidence there is rather than partitioning what escapes. This entry's own first draft named one hole and implied the rest were covered, and its second named four and implied the same. Each was caught by the next reviewer with a plant from outside the count.
+
+**Related:** "A universal claim generalised from the cases the reviewer named", in `convention-counterexamples-1.md`, is the general form of the two false sentences this entry kept producing, and its test applies here unchanged: for every universal quantifier, and a closed count is one, name the run that would falsify it before you write it. "A sweep bucketed by the preceding word, run over a tree whose identifiers are CamelCase" is the nearest neighbour on the guard itself, and it is a neighbour rather than the same entry: there the sweep reads the right construct and mis-tokenises it, here the sweep reads a spelling instead of a construct. "A walk that finds its target by asserting the top-level node, missing the same node nested inside a container" is the same failure inside an AST walk that is otherwise structural.
+
 ## A rule over a set, tested against the members its author had in mind
 
 Caught at design review on dinah-518, 2026-09-16, and it is the third sighting of this class. A rule selects members of a set: a filter deciding which collections a sweep visits, a switch deciding which stored events a renderer draws, a pattern deciding which context values a menu entry appears under. The test then exercises the rule over a list of members, and that list is written by the same person in the same sitting as the rule. The two agree by construction, and the test catches nothing its author had not already thought of.

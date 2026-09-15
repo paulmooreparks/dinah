@@ -176,6 +176,17 @@ export const COMMAND_FILE_ITEM = "dinah.tree.fileItem";
 export const COMMAND_COMMENT_ON_COLUMN = "dinah.tree.commentOnColumn";
 
 /**
+ * The one command a comment row offers, which opens the comment's own anchor
+ * file (dinah-519).
+ *
+ * Nothing else is offered. `dinah comment` records a comment on a card, on a
+ * column, or on one of a card's items, and refuses a comment's own reference,
+ * so a Reply entry here would offer a refusal, and Dinah has no verb that
+ * edits or deletes a comment.
+ */
+export const COMMAND_OPEN_COMMENT = "dinah.tree.openComment";
+
+/**
  * The two commands a comment draft's own editor tab offers.
  *
  * They carry the `dinah.comment.` prefix rather than `dinah.tree.` because
@@ -224,6 +235,7 @@ export const TREE_COMMANDS: readonly string[] = [
 	COMMAND_FAIL_ITEM,
 	COMMAND_REOPEN_ITEM,
 	COMMAND_FILE_ITEM,
+	COMMAND_OPEN_COMMENT,
 	COMMAND_POST_COMMENT,
 	COMMAND_DISCARD_DRAFT,
 ];
@@ -267,6 +279,7 @@ export const ROW_COMMANDS: readonly string[] = [
 	COMMAND_FAIL_ITEM,
 	COMMAND_REOPEN_ITEM,
 	COMMAND_FILE_ITEM,
+	COMMAND_OPEN_COMMENT,
 ];
 
 /**
@@ -327,8 +340,26 @@ export const CONTEXT_ITEM_PENDING = "pending";
 /** The state word every closed item carries, whichever way it closed. */
 export const CONTEXT_ITEM_CLOSED = "closed";
 
-/** The contextValue a card's checklist group row carries. */
-export const CONTEXT_CHECKLIST_GROUP = "dinah.checklistGroup";
+/**
+ * The head of the contextValue every collection row carries, completed with
+ * the entity kind the collection holds: `dinah.collection.item` for a card's
+ * checklist, `dinah.collection.attachment` for any attachments row, and
+ * `dinah.collection.comment` for a thread.
+ *
+ * The kind is singular, as `contents` spells it, rather than the plural
+ * directory name, so the attachments row under a card and the one under the
+ * workbench root carry one value between them (dinah-519).
+ */
+export const CONTEXT_COLLECTION_PREFIX = "dinah.collection";
+
+/**
+ * The contextValue every comment row carries.
+ *
+ * One value and no axes, on the terms CONTEXT_ATTACHMENT carries one. A
+ * comment has no state, no owner and no kind, so there is nothing for an axis
+ * to say.
+ */
+export const CONTEXT_COMMENT = "dinah.comment";
 
 /**
  * The four answers actionsFor composes for a card row, and the row kinds

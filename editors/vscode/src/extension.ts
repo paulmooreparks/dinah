@@ -62,16 +62,12 @@ import {
 	KIND_GUIDE,
 	KIND_HISTORY,
 	KIND_INSTRUCTIONS,
-	KIND_ITEM,
 	ServedTextRefreshLoop,
 	parseServedTextUri,
-	cardRefOf,
 	renderHistoryMarkdown,
-	renderItemMarkdown,
 	renderInstructionsMarkdown,
 	servedTextUriParts,
 } from "./servedText";
-import type { ItemDetail, ItemView } from "./wire";
 import type { RunVerbContext } from "./runVerbCommand";
 import { refreshVerbCatalog, runVerbFromPalette } from "./runVerbCommand";
 import { nodeSpawner } from "./spawn";
@@ -85,13 +81,7 @@ import {
 	summarizeHolding,
 } from "./status";
 import type { TreeElement, TreeItemSpec } from "./tree";
-import {
-	DinahTreeProvider,
-	elementKey,
-	itemHoldDirection,
-	itemKindWord,
-	itemStateWord,
-} from "./tree";
+import { DinahTreeProvider, elementKey } from "./tree";
 import type { DraftHost, DraftIndex } from "./commentDrafts";
 import {
 	DRAFT_INDEX_KEY,
@@ -1010,75 +1000,6 @@ export async function activate(
 				throw new Error(refusalMessage(outcome));
 			}
 			return outcome.text;
-		},
-		// One checklist item, composed from two calls. `show <item>` answers
-		// an ItemDetail whose text member is the anchor file with its
-		// frontmatter still on it, so only its comments are read; the item's
-		// own prose, kind, state, column, owner and note ride ItemView, which
-		// `show <card> --fields card,checklist` is the one surface serving.
-		// Splitting the anchor here would put this extension back to parsing
-		// dinah's human output.
-		[KIND_ITEM]: async (root, ref) => {
-			const exe = binary.state === "ok" ? binary.path : "";
-			const detailOutcome = await runDinah(nodeSpawner, exe, pinnedArgv(root, ["show", ref]), {
-				cwd: root,
-			});
-			if (detailOutcome.kind !== "ok") {
-				throw new Error(refusalMessage(detailOutcome));
-			}
-			const detail = detailOutcome.json as ItemDetail;
-			const cardOutcome = await runDinah(
-				nodeSpawner,
-				exe,
-				pinnedArgv(root, ["show", cardRefOf(ref), "--fields", "card,checklist"]),
-				{ cwd: root },
-			);
-			const view =
-				cardOutcome.kind === "ok"
-					? (
-							cardOutcome.json as { checklist?: readonly ItemView[] }
-						).checklist?.find((candidate) => candidate.ref === ref)
-					: undefined;
-			const data = provider.dataFor(root);
-			const direction =
-				view === undefined
-					? "nothing"
-					: itemHoldDirection(data, cardRefOf(ref), view);
-			const columnTitle = view?.column_title ?? view?.column ?? "";
-			const hold = {
-				entryAhead: t("item.hold.entryAhead", { 0: columnTitle }),
-				entryPassed: t("item.hold.entryPassed", { 0: columnTitle }),
-				exitHere: t("item.hold.exitHere", { 0: columnTitle }),
-				exitAhead: t("item.hold.exitAhead", { 0: columnTitle }),
-				exitPassed: t("item.hold.exitPassed", { 0: columnTitle }),
-				nothing: t("item.hold.nothing", { 0: columnTitle }),
-			};
-			return renderItemMarkdown(
-				view,
-				detail,
-				{
-					title: t("item.document.title", {
-						ref,
-						kind: view === undefined ? "" : itemKindWord(view.kind, t),
-					}),
-					textHeading: t("item.document.heading.text"),
-					statusHeading: t("item.document.heading.status"),
-					noteHeading: t("item.document.heading.note"),
-					commentsHeading: t("item.document.heading.comments"),
-					state: view === undefined ? "" : itemStateWord(view.state, t),
-					hold,
-					owner: t("item.owner"),
-					commentsEmpty: t("item.document.commentsEmpty"),
-					textUnavailable: t("item.document.textUnavailable", { ref }),
-					commentHeading: (ordinal, author, ts) =>
-						t("item.document.comment.heading", {
-							ordinal: String(ordinal),
-							author,
-							ts,
-						}),
-				},
-				direction,
-			);
 		},
 	};
 	// The Uri a tab opened under, kept so that a change can be announced for

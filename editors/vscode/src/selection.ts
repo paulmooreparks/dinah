@@ -29,6 +29,7 @@ import {
 	COMMAND_NEW_CARD,
 	COMMAND_OPEN_ATTACHMENT,
 	COMMAND_OPEN_CARD,
+	COMMAND_OPEN_COMMENT,
 	COMMAND_OPEN_FIRST_SESSION_GUIDE,
 	COMMAND_OPEN_HISTORY,
 	COMMAND_OPEN_INSTRUCTIONS,
@@ -109,6 +110,9 @@ export const SELECTION_POLICIES: Readonly<Record<string, SelectionEntry>> = {
 	// Open is fanOut for the reason Open Attachment is: three selected items
 	// open three tabs and no answer is shared between them.
 	[COMMAND_OPEN_ITEM]: { policy: "fanOut", effect: "perRow" },
+	// Open Comment is the same shape as Open Item: three selected comments
+	// open three files and no answer is shared between them.
+	[COMMAND_OPEN_COMMENT]: { policy: "fanOut", effect: "perRow" },
 	// Comment asks nothing and spawns nothing. It writes a draft and opens
 	// it, and the post happens later from an editor with the tree selection
 	// long gone, so oneInput's definition does not describe it. One draft
