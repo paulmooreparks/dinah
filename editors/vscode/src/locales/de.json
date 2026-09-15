@@ -939,9 +939,9 @@
 			"context": "Error when the saved buffer is whitespace alone. The tool would refuse a blank comment anyway, and saying so locally costs no spawn.",
 			"source": "ee031190bd4b7870"
 		},
-		"draft.post.unknown": {
+		"draft.unknown": {
 			"text": "Dinah weiß nicht, wovon die Datei unter {path} ein Entwurf ist. Ihr Text steht weiterhin im Tab und auf der Platte.",
-			"context": "Error when the post was aimed at a path the drafts index does not carry. Nothing is deleted on this branch.",
+			"context": "Error when Post or Discard was aimed at a path the drafts index does not carry. Nothing is deleted on this branch, which is what keeps Discard off a file the extension never created.",
 			"source": "f81e38a83528db6c"
 		},
 		"draft.post.posted": {

@@ -271,6 +271,56 @@ test("Discard deletes only after the destructive confirmation", async () => {
 	assert.equal(accepted.index[pathFor()], undefined);
 });
 
+test("Discard refuses a path the index does not know, deleting nothing and asking nothing", async () => {
+	// The data-loss route this guard exists to close. The manifest offers both
+	// draft commands on any file whose name ends in DRAFT_SUFFIX, wherever it
+	// sits, so an operator's own notes.dinah-comment.md can be the file in
+	// front of the command. An earlier form of discardCommentDraft confirmed
+	// and then deleted whatever path it was handed, which destroyed that file.
+	const foreign = emptyDraftLog();
+	foreign.confirmed = true;
+	const outsider = `C:\\Users\\somebody\\notes${DRAFT_SUFFIX}`;
+	foreign.disk.set(outsider, "an argument the operator was drafting");
+	// The index knows a real draft, and it is not this path. An empty index
+	// would pass a guard that refused every path, so the entry has to be here.
+	foreign.index = { [pathFor()]: entryFor() };
+
+	await discardCommentDraft(draftHost(foreign), outsider);
+
+	assert.deepEqual(foreign.deleted, [], "Discard deleted a file the index does not know");
+	assert.equal(foreign.disk.get(outsider), "an argument the operator was drafting");
+	// No modal either. A confirmation for a delete that is not going to happen
+	// has already told the reader something false about what is about to
+	// happen, so the refusal comes first.
+	assert.deepEqual(foreign.confirmations, []);
+	assert.deepEqual(foreign.errors, [ENGLISH("draft.unknown", { path: outsider })]);
+	// The real entry is still in the index, so the refusal dropped nothing.
+	assert.notEqual(foreign.index[pathFor()], undefined);
+});
+
+test("Post and Discard refuse an unknown path through the one catalogue entry", async () => {
+	// The two commands say the same thing on the same branch, so the entry is
+	// the shared draft.unknown rather than a post-specific one. Driving both
+	// is what keeps a later rename from splitting them silently.
+	const posting = emptyDraftLog();
+	posting.saves = true;
+	const outsider = `C:\\Users\\somebody\\notes${DRAFT_SUFFIX}`;
+	posting.disk.set(outsider, "an argument the operator was drafting");
+	posting.index = { [pathFor()]: entryFor() };
+	const spawner = recorder();
+	await postCommentDraft(draftHost(posting), spawner.spawner, EXE, outsider);
+	assert.deepEqual(spawner.calls, []);
+	assert.deepEqual(posting.deleted, []);
+	assert.deepEqual(posting.errors, [ENGLISH("draft.unknown", { path: outsider })]);
+
+	const discarding = emptyDraftLog();
+	discarding.confirmed = true;
+	discarding.disk.set(outsider, "an argument the operator was drafting");
+	discarding.index = { [pathFor()]: entryFor() };
+	await discardCommentDraft(draftHost(discarding), outsider);
+	assert.deepEqual(discarding.errors, posting.errors);
+});
+
 // ---------------------------------------------------------------------------
 // dinah-506/criteria/29: identity is the index, the filename is display
 // ---------------------------------------------------------------------------

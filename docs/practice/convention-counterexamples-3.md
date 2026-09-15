@@ -748,6 +748,7 @@ This survives review by default for the same reason a wrong count does. A criter
 ```
 
 **The test:** every path a comment spells is a claim about the filesystem, so resolve it. Grep the tree for each cited filename before the diff leaves your hands, and treat a single hit, the citation itself, as the failure rather than as the match. A file that was renamed during the work, or that was named while the author still meant to create it, reads exactly like one that is there.
+
 ## A double assertion telling the compiler an object is a type it does not satisfy
 
 Caught at Agent Code Review on dinah-506, 2026-09-15, at two sites in one diff, which is what makes it a class rather than a slip. `as unknown as` is not a widening and it is not a conversion. It switches the check off for one expression, and what is left holding the code up is an unrecorded fact about the callee's body: that the function happens to read only the members the value really has. That fact is true when the cast is written and nobody is told when it stops being true, so the next member the callee reads compiles, ships, and fails at run time with `undefined is not a function`.

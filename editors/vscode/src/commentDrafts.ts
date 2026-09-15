@@ -287,7 +287,7 @@ export async function postCommentDraft(
 	}
 	const entry = host.readIndex()[path];
 	if (entry === undefined) {
-		host.showError(host.t("draft.post.unknown", { path }));
+		host.showError(host.t("draft.unknown", { path }));
 		return;
 	}
 	const context: VerbContext = {
@@ -329,18 +329,42 @@ export async function postCommentDraft(
 }
 
 /**
- * Throws one draft away, after the modal confirmation.
+ * Throws one draft away, after the index has owned it and the reader has
+ * confirmed, in that order.
  *
  * A post the tool answered ok and this command are the only two things that
  * delete a draft. Not a closed tab, not a window reload, not a refusal, not a
  * timeout, not a spawn failure and not an age. An author saves to make their
  * words safe, which is what a save means everywhere else in the editor, so no
  * save handler, no watcher and no timer posts or removes anything here.
+ *
+ * The index lookup is what keeps this command off a file the extension never
+ * created, and it is the same lookup postCommentDraft makes for the same
+ * reason. The manifest offers both commands on any file whose name ends in
+ * DRAFT_SUFFIX, wherever it sits, because a when-clause has nothing
+ * resource-scoped to test the directory with: the drafts live under
+ * globalStorageUri, whose layout VS Code documents nothing about and which no
+ * manifest literal can therefore name, and a custom context key set through
+ * setContext is one value for the whole window rather than one per resource,
+ * so it answers for the active editor and gets a second editor's title bar
+ * wrong. So a reader with an unrelated notes.dinah-comment.md open is offered
+ * the command, and what happens when they press it is decided here. An
+ * earlier form of this function confirmed and then deleted whatever path it
+ * was handed, which destroyed that file.
+ *
+ * The refusal comes before the confirmation rather than after it. A modal
+ * asking whether to throw away a file the extension does not own has already
+ * told the reader something false about what it is about to do, and the
+ * answer does not depend on which button they press.
  */
 export async function discardCommentDraft(
 	host: DraftHost,
 	path: string,
 ): Promise<void> {
+	if (host.readIndex()[path] === undefined) {
+		host.showError(host.t("draft.unknown", { path }));
+		return;
+	}
 	const confirmed = await host.confirmDestructive(
 		host.t("draft.discard.confirm", { path }),
 		host.t("draft.discard.confirmLabel"),

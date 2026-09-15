@@ -108,7 +108,11 @@ export interface CommandHost extends ReporterHost {
 }
 
 /**
- * The two window calls runVerb itself makes, and nothing else.
+ * The two calls runVerb itself makes, and nothing else.
+ *
+ * Only one of the two is a window call. showError is; checkpoint is not, and
+ * extension.ts binds it to the off-cycle refresh rather than to anything on
+ * vscode.window, which is why this interface is not named for the window.
  *
  * A caller that only ever spawns a verb should not have to hand over a
  * clipboard, a quick pick or a file dialog it does not own. The comment draft

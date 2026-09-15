@@ -13,7 +13,9 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 
+import { pinnedArgv, refusalMessage } from "../../src/cardCommands";
 import type { SpawnOutcome, Spawner } from "../../src/cli";
+import { runDinah } from "../../src/cli";
 import { ROW_COMMAND_TABLE } from "../../src/commandTable";
 import {
 	COMMAND_CLAIM,
@@ -30,13 +32,19 @@ import type { Localizer } from "../../src/l10n";
 import { columnPickItems, kindPickItems } from "../../src/itemCommands";
 import type { ItemLabels } from "../../src/servedText";
 import { cardRefOf, renderItemMarkdown } from "../../src/servedText";
-import type { HoldDirection, TreeElement, WorkbenchData } from "../../src/tree";
+import type {
+	CardStanding,
+	HoldDirection,
+	TreeElement,
+	WorkbenchData,
+} from "../../src/tree";
 import {
 	DinahTreeProvider,
 	HOLD_DIRECTIONS,
 	actionsFor,
 	holdDirection,
 	itemContextValue,
+	itemHoldDirection,
 	itemLabel,
 	treeItemFor,
 } from "../../src/tree";
@@ -56,6 +64,7 @@ import {
 	ok,
 	refused,
 	rootRow,
+	spawnerLog,
 	wiringFor,
 } from "../support/rows";
 
@@ -299,10 +308,98 @@ test("a thread carrying nothing draws its heading and says so", () => {
 // dinah-506/criteria/8: the two calls the item resolver makes
 // ---------------------------------------------------------------------------
 
-test("the item document resolver makes exactly the two calls the contract names", () => {
-	// The resolver lives in extension.ts, which no unit test can import
-	// because it loads vscode as a value, so the shipped entry is read as
-	// source, on the terms servedText.test.ts already reads the history entry.
+/**
+ * What extension.ts's KIND_ITEM entry does, with its dependencies injected.
+ *
+ * Composed here rather than imported, because extension.ts loads vscode as a
+ * value and no unit test can import it. servedText.test.ts's resolveHistory
+ * is the precedent and the shape is the same one: the body is recomposed out
+ * of the importable pieces the shipped entry composes it from, the
+ * recomposition is driven against the recording spawner the support module
+ * already carries, and a source-shape test beside it holds the shipped entry
+ * to the same two calls, so the recomposition cannot drift away from the code
+ * it stands for without one of the two reddening.
+ */
+async function resolveItemDocument(
+	spawner: Spawner,
+	root: string,
+	ref: string,
+	data: WorkbenchData | undefined,
+): Promise<string> {
+	const detailOutcome = await runDinah(spawner, EXE, pinnedArgv(root, ["show", ref]), {
+		cwd: root,
+	});
+	if (detailOutcome.kind !== "ok") {
+		throw new Error(refusalMessage(detailOutcome));
+	}
+	const detail = detailOutcome.json as ItemDetail;
+	const cardOutcome = await runDinah(
+		spawner,
+		EXE,
+		pinnedArgv(root, ["show", cardRefOf(ref), "--fields", "card,checklist"]),
+		{ cwd: root },
+	);
+	const view =
+		cardOutcome.kind === "ok"
+			? (cardOutcome.json as { checklist?: readonly ItemView[] }).checklist?.find(
+					(candidate) => candidate.ref === ref,
+				)
+			: undefined;
+	const direction =
+		view === undefined ? "nothing" : itemHoldDirection(data, cardRefOf(ref), view);
+	return renderItemMarkdown(view, detail, labels(), direction);
+}
+
+test("the item document resolver makes exactly the two calls the contract names", async () => {
+	const ref = "wb-1/questions/1";
+	const view = itemView({ ref, column: "col-b", text: "the item's own prose" });
+	const log = spawnerLog();
+	log.queue.push(
+		ok({
+			ref,
+			text: `---\nkind: open_question\n---\nthe anchor`,
+			comments: [],
+		}),
+		ok({ card: { ref: "wb-1" }, checklist: [view] }),
+	);
+	const rendered = await resolveItemDocument(log.spawner, ROOT, ref, flowData());
+	// The two recorded argv arrays, whole. --json is composed by cli.ts and
+	// refused to a caller who spells it, so what the resolver hands over
+	// carries the workbench pin and the verb alone.
+	assert.equal(log.calls.length, 2, "the resolver made a number of calls other than two");
+	assert.deepEqual(log.calls[0], ["--json", "--workbench", ROOT, "show", ref]);
+	assert.deepEqual(log.calls[1], [
+		"--json",
+		"--workbench",
+		ROOT,
+		"show",
+		"wb-1",
+		"--fields",
+		"card,checklist",
+	]);
+	assert.equal(log.options[0].cwd, ROOT);
+	assert.equal(log.options[1].cwd, ROOT);
+	// The second call is the one carrying the item's own prose, which is the
+	// whole reason it exists: the anchor's frontmatter is never split here.
+	assert.ok(rendered.includes("the item's own prose"), "the view's text never reached the page");
+	assert.ok(!rendered.includes("kind: open_question"), "the anchor's frontmatter reached the page");
+});
+
+test("a refused item detail throws what the existing refusal path already renders", async () => {
+	const log = spawnerLog();
+	log.queue.push(refused("unknown-item", "wb-1/questions/9"));
+	await assert.rejects(
+		() => resolveItemDocument(log.spawner, ROOT, "wb-1/questions/9", undefined),
+		/^Error: unknown-item: wb-1\/questions\/9$/,
+	);
+	// The second call is never made, so a refusal costs one spawn and not two.
+	assert.equal(log.calls.length, 1);
+});
+
+test("the shipped KIND_ITEM entry composes the same two calls the driven resolver does", () => {
+	// The tie between the recomposition above and the code it stands for,
+	// read as source on the terms servedText.test.ts already reads the
+	// history entry.
 	const source = readFileSync(
 		join(__dirname, "..", "..", "..", "src", "extension.ts"),
 		"utf8",
@@ -692,18 +789,42 @@ test("a closed item of any kind reads as closed, and so does a state the format 
 });
 
 test("no card row's actions changed", () => {
-	// The four standings, each driven twice: once with the new count on the
-	// view and once without it, and the two answers compared. The count of
-	// standings is asserted, so a sweep that drove none cannot pass.
-	const standings = [
-		{ state: "ready", column: columnView({ takes_work_up: true }) },
-		{ state: "ready", column: columnView({ takes_work_up: false }) },
-		{ state: "active", column: columnView() },
-		{ state: "blocked", column: columnView() },
+	// The four standings, each driven twice: once bare and once with the new
+	// count on the view, and each answer compared against the contextValue
+	// spelled out here rather than against another call of actionsFor. An
+	// earlier form of this test asserted actionsFor(x) === actionsFor({...x}),
+	// which is true of any deterministic function and stayed green while a
+	// planted swap of the two contextValues reddened seven other tests. The
+	// expected strings are literals rather than the identity constants, so a
+	// rename that moved a constant's value would redden here too.
+	const standings: { standing: CardStanding; want: string }[] = [
+		{
+			standing: { state: "ready", column: columnView({ takes_work_up: true }) },
+			want: "dinah.card.ready.claim",
+		},
+		{
+			standing: { state: "ready", column: columnView({ takes_work_up: false }) },
+			want: "dinah.card.ready.none",
+		},
+		{ standing: { state: "active", column: columnView() }, want: "dinah.card.active" },
+		{ standing: { state: "blocked", column: columnView() }, want: "dinah.card.blocked" },
 	];
 	assert.equal(standings.length, 4);
-	for (const standing of standings) {
-		assert.equal(actionsFor(standing), actionsFor({ ...standing }));
+	// The four wanted values are distinct, so a function collapsing two
+	// branches onto one answer cannot satisfy all four.
+	assert.equal(new Set(standings.map((each) => each.want)).size, 4);
+	for (const { standing, want } of standings) {
+		assert.equal(actionsFor(standing), want, standing.state);
+		// checklist_count is what this card adds to CardView. It is not a
+		// member of CardStanding, so it cannot reach actionsFor at all, and
+		// driving it through anyway is what says so out loud. The extra
+		// member is declared in the variable's own type rather than asserted
+		// past the compiler, so nothing here claims a shape it does not have.
+		const counted: CardStanding & { readonly checklist_count: number } = {
+			...standing,
+			checklist_count: 7,
+		};
+		assert.equal(actionsFor(counted), want, standing.state);
 	}
 	const manifest = JSON.parse(
 		readFileSync(join(__dirname, "..", "..", "..", "package.json"), "utf8"),

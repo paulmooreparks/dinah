@@ -931,9 +931,9 @@
 			"context": "Error when the saved buffer is whitespace alone. The tool would refuse a blank comment anyway, and saying so locally costs no spawn.",
 			"skeleton": true
 		},
-		"draft.post.unknown": {
+		"draft.unknown": {
 			"text": "Dinah does not know what the file at {path} is a draft of. Your text is still in the tab and on disk.",
-			"context": "Error when the post was aimed at a path the drafts index does not carry. Nothing is deleted on this branch.",
+			"context": "Error when Post or Discard was aimed at a path the drafts index does not carry. Nothing is deleted on this branch, which is what keeps Discard off a file the extension never created.",
 			"skeleton": true
 		},
 		"draft.post.posted": {
