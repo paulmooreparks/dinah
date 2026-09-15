@@ -17,7 +17,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { contextForAttachmentOpen } from "../../src/cardCommands";
+import { contextForAttachment, contextForAttachmentOpen } from "../../src/cardCommands";
 import type { Spawner } from "../../src/cli";
 import { ENGLISH } from "../../src/l10n";
 import type { Localizer } from "../../src/l10n";
@@ -29,7 +29,7 @@ import {
 	treeItemFor,
 } from "../../src/tree";
 import type { CardView, CommentView, TreeNode } from "../../src/wire";
-import { EXE, ROOT, columnView, ok, refused, rootRow } from "../support/rows";
+import { EXE, ROOT, cardHost, columnView, emptyLog, ok, refused, rootRow } from "../support/rows";
 
 // ---------------------------------------------------------------------------
 // The harness
@@ -986,6 +986,29 @@ test("a refused attachments call still draws every member row, losing only what 
 		assert.equal(drawn.contextValue, undefined);
 	}
 	assert.equal(contextForAttachmentOpen(children[0]), undefined);
+	// The delete verb is refused on the same terms, and it is the one where a
+	// wrong identifier costs a file rather than a window. The accepting case
+	// sits beside it, because an assertion that a degraded row is refused
+	// passes just as well against a helper that refuses every row.
+	const host = cardHost(emptyLog());
+	const spawner = stub({}).spawner;
+	const degraded = children[0];
+	assert.equal(contextForAttachment(degraded, EXE, host, spawner), undefined);
+	assert.equal(degraded.kind, "attachment");
+	if (degraded.kind !== "attachment") {
+		return;
+	}
+	const healthy: TreeElement = {
+		...degraded,
+		view: {
+			id: "0b2c3d4e5f61",
+			ordinal: 1,
+			ref: "wb-1/attachments/1",
+			filename: "specification.md",
+			provenance: "import",
+		},
+	};
+	assert.notEqual(contextForAttachment(healthy, EXE, host, spawner), undefined);
 	assert.ok(
 		logged.includes(ENGLISH("tree.attachments.unreadable")),
 		`the refusal never reached the channel: ${logged.join(" | ")}`,

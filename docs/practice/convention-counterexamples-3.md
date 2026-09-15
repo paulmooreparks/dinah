@@ -841,6 +841,8 @@ Caught twice on dinah-519, once by the implementer and once by Agent Code Review
 
 A regular expression over a lookup finds copies of that lookup. It cannot see a lookup written against something else, which is the only way the defect ever arrives: an implementer restoring the page does not rename the table that is already there, they add a second one beside it. The reviewer wrote that second table into `provideTextDocumentContent`, ahead of the surviving lookup, and the whole suite stayed green.
 
+The replacement then had to be defeated a second time before it was finished. Parsing the registration construct and enumerating what its body consults refuses both spellings of a second table written inside that body, and it refuses a table name nobody foresaw. It does not refuse the same table consulted one function call out, because a walk over a lexical body stops at the body. The second repair is the one the third block below carries, and the reach a guard claims is as much part of it as the reach it has.
+
 **Wrong.** The set of spellings, matched as text.
 
 ```ts
@@ -873,8 +875,35 @@ for (const [name, site] of sites) {
 }
 ```
 
-**The test:** read the assertion and ask what it does when the defect is spelled a way the author did not picture. A guard naming the good value can only report that the good value is still present, and presence is not exclusivity. Turn the question round so the guard enumerates what is there and holds the whole enumeration against an expected set, which makes an unforeseen spelling an extra member rather than a miss. The plant that settles it is the defect itself: add the second table, consult it ahead of the first, and watch the guard name it. Widening the pattern to cover the plant is the wrong repair and this project has paid for it twice, because the widened pattern fits its examples and nothing else.
+**Righter.** Extend the region by one bounded step, so that the lookup cannot escape by moving into a helper the site calls. Collect the names each site calls directly, resolve those names against the functions the same module declares, and read the bodies that resolve as part of the site. One step rather than a fixed point, because following call names without a type checker resolves nothing reliably once shadowing and re-export are in play, and a region a reader can state exactly is worth more than one nobody can characterise.
 
-**What such a guard still cannot see, and saying so.** Reading lookups leaves a page served from a hand-written branch that consults no table at all. Where that hole exists, write it into the guard's own comment with the reproduction that walks through it, rather than leaving a later reader to infer a reach the code does not have. A guard that cannot see something is worse than no guard while it reads as though it can.
+```ts
+const declared = moduleFunctions(file);
+assert.ok(
+	declared.size > 0,
+	"the walk found no function declared in extension.ts, so it can follow no call and read nothing",
+);
+for (const [name, site] of sites) {
+	const callees = directCalleesIn(site);
+	assert.ok(
+		callees.length > 0,
+		`${name} calls nothing by name, so the call-following half of this walk read nothing`,
+	);
+	const lookups = keyedLookupsIn(site);
+	for (const callee of callees) {
+		const body = declared.get(callee);
+		if (body !== undefined) {
+			lookups.push(...keyedLookupsIn(body));
+		}
+	}
+	// ... same enumeration assertion as above
+}
+```
+
+**The test:** read the assertion and ask what it does when the defect is spelled a way the author did not picture. A guard naming the good value can only report that the good value is still present, and presence is not exclusivity. Turn the question round so the guard enumerates what is there and holds the whole enumeration against an expected set, which makes an unforeseen spelling an extra member rather than a miss. The plant that settles it is the defect itself: add the second table, consult it ahead of the first, and watch the guard name it. Then run the same plant again with the lookup moved into a helper, because that is where the first structural repair stopped and its comment did not say so. Widening the pattern to cover the plant is the wrong repair and this project has paid for it twice, because the widened pattern fits its examples and nothing else.
+
+**What such a guard still cannot see, and saying so.** A structural guard has a region, and everything outside that region escapes it. Four shapes escape this one: a dispatch consulting no table at all, of the shape `if (parsed.kind === "item") { return renderItem(...); }`; a lookup two calls out, where a followed helper calls a second helper that holds the table; a lookup in a helper the module imports rather than declares, or obtains from a factory call, neither of which has a body the walk can read; and a lookup behind a call through a property access, whose callee carries no bare name to resolve.
+
+Write that list into the guard's own comment, with a reproduction for each shape, rather than leaving a later reader to infer a reach the code does not have. The sentence to refuse is the one that names a single hole and implies the rest are covered, which is what the first draft of this entry did and what Agent Code Review caught: naming the tableless branch and stopping there read as a claim that everything consulting a table was seen, and the helper one frame out consulted a table and was not. State the region rather than an example of what falls outside it, because a reader checks an example against their own case and a region answers every case.
 
 **Related:** "A sweep bucketed by the preceding word, run over a tree whose identifiers are CamelCase" is the nearest neighbour, and it is a neighbour rather than the same entry: there the sweep reads the right construct and mis-tokenises it, here the sweep reads a spelling instead of a construct. "A walk that finds its target by asserting the top-level node, missing the same node nested inside a container" is the same failure inside an AST walk that is otherwise structural.

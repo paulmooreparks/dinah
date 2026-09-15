@@ -308,8 +308,8 @@ export interface FileItemAnswer {
  * They are not written into this extension, which is dinah-420's operator
  * ruling applied unchanged: a fourth kind added to the tool reaches this form
  * without anybody editing it. The value sent is the token verbatim, and the
- * label is the kind word the tree row and the item document already use, so a
- * reader who meets one name in the form meets the same name on the row.
+ * label is the kind word the tree row already uses, so a reader who meets one
+ * name in the form meets the same name on the row.
  *
  * A token this extension has no word for renders as the token. That is what
  * keeps the ruling true rather than nominally true, and the fallback is the
@@ -342,8 +342,7 @@ function labelForKind(token: string, t: Localizer): string {
  * tool allows, and the form removes it by construction.
  *
  * The detail is composed from the same twelve-cell holdDirection the item row
- * and the item document read, so the three surfaces cannot disagree about what
- * a column is doing. The sentences say "this column" and interpolate nothing,
+ * reads, so the two surfaces cannot disagree about what a column is doing. The sentences say "this column" and interpolate nothing,
  * because the pick's own label already carries the title.
  *
  * The three sentences saying the column will hold nothing are the ones that

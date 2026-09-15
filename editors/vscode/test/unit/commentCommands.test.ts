@@ -300,6 +300,54 @@ function keyedLookupsIn(site: ts.Node): string[] {
 	return found;
 }
 
+/**
+ * Every function declared in this module, keyed by the name a call would
+ * reach it under.
+ *
+ * Two declaration shapes are collected, because both are ordinary here: a
+ * `function` declaration with a name, and a `const` bound to a function
+ * expression or an arrow. A binding whose initializer is anything else, a
+ * factory call among them, is not a function this walk can follow, so it is
+ * left out rather than recorded under a body it does not have.
+ */
+function moduleFunctions(file: ts.SourceFile): Map<string, ts.Node> {
+	const declared = new Map<string, ts.Node>();
+	const find = (node: ts.Node): void => {
+		if (ts.isFunctionDeclaration(node) && node.name !== undefined && node.body !== undefined) {
+			declared.set(node.name.text, node.body);
+		}
+		if (
+			ts.isVariableDeclaration(node) &&
+			ts.isIdentifier(node.name) &&
+			node.initializer !== undefined &&
+			(ts.isArrowFunction(node.initializer) || ts.isFunctionExpression(node.initializer))
+		) {
+			declared.set(node.name.text, node.initializer.body);
+		}
+		ts.forEachChild(node, find);
+	};
+	find(file);
+	return declared;
+}
+
+/**
+ * The names a site calls directly, meaning a call whose callee is a bare
+ * identifier. A call through a property access, `host.serve(kind)`, has no
+ * bare name to resolve against a declaration in this module, so it is not
+ * collected and the section below says so.
+ */
+function directCalleesIn(site: ts.Node): string[] {
+	const called: string[] = [];
+	const walk = (node: ts.Node): void => {
+		if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)) {
+			called.push(node.expression.text);
+		}
+		ts.forEachChild(node, walk);
+	};
+	walk(site);
+	return called;
+}
+
 test("the served-text path dispatches through that one table and consults no second registry", () => {
 	// This is the structural form of the claim, and it replaces a regular
 	// expression over `resolvers[...]` sites that a reviewer defeated on
@@ -308,24 +356,45 @@ test("the served-text path dispatches through that one table and consults no sec
 	// kind item. Matching the spelling of the lookup that is there says
 	// nothing about a lookup that is not.
 	//
-	// What is asserted instead is the shape: the served-text path is exactly
-	// the two function bodies VS Code and the refresh loop call, and inside
-	// each of them every value-keyed lookup is against `resolvers` and
-	// nothing else. A second table has to be consulted to be reached, so the
-	// consultation is what this reads.
+	// What is asserted instead is the shape: the served-text path is the two
+	// function bodies VS Code and the refresh loop call, together with the
+	// bodies of the functions those two call directly by name and that
+	// extension.ts declares itself. Inside that region every value-keyed
+	// lookup is against `resolvers` and nothing else.
+	//
+	// The one step of call-following is here because a reviewer defeated the
+	// body-only form of this walk on 2026-09-15 by extracting the same second
+	// table's lookup into a module-scope helper and calling the helper from
+	// provideTextDocumentContent. The region is one step and stops there,
+	// because a fixed-point walk over call names alone resolves nothing and
+	// would have to guess at shadowing, and the honest report of a bounded
+	// region is worth more than an unbounded one nobody can characterise.
 	//
 	// WHAT THIS GUARD DOES NOT SEE, stated plainly because a guard that
 	// cannot see something is worse than useless while it reads as though it
-	// can. It reads lookups, so it does not see a page served from a hand
-	// written branch that consults no table at all, of the shape
-	// `if (parsed.kind === "item") { return renderItem(...); }` written
-	// directly into provideTextDocumentContent. Nothing here refuses that.
-	// What refuses it is the other half of this pair: such a branch serves a
-	// kind, and a served kind has to be reachable from a URI the tree
-	// composes, which is why openItem's own registration and the absence of
-	// every item.document.* catalogue key are pinned separately. The
-	// reproduction, for anybody who wants to watch the hole: paste that
-	// branch above the resolve lookup and watch this file stay green.
+	// can. Its limit is the region it reads, not the spelling of what it
+	// finds there, and four shapes fall outside that region.
+	//
+	//   1. A dispatch that consults no table at all, of the shape
+	//      `if (parsed.kind === "item") { return renderItem(...); }` written
+	//      into either site. It reads lookups, and that is not one.
+	//   2. A lookup two calls out, where a followed helper calls a second
+	//      helper that holds the table.
+	//   3. A lookup in a helper extension.ts imports rather than declares,
+	//      or in one it obtains from a factory call, since neither has a
+	//      body this file can read.
+	//   4. A lookup behind a call through a property access, `host.serve(k)`,
+	//      whose callee carries no bare name to resolve.
+	//
+	// What refuses those four is the other half of this pair, and it refuses
+	// them by a different route: any of them serves a kind, and a served kind
+	// has to be reachable from a URI the tree composes, which is why
+	// openItem's own registration and the absence of every item.document.*
+	// catalogue key are pinned separately. The reproductions, for anybody who
+	// wants to watch the holes: paste the branch of 1 above the resolve
+	// lookup, or write the module-scope helper of the 2026-09-15 defeat and
+	// put a third helper between it and the table, and watch this file stay
+	// green either way.
 	const extensionSource = join(__dirname, "..", "..", "..", "src", "extension.ts");
 	const file = ts.createSourceFile(
 		extensionSource,
@@ -339,8 +408,24 @@ test("the served-text path dispatches through that one table and consults no sec
 		["provideTextDocumentContent", "refreshLoop.resolve"],
 		"the walk did not find both served-text sites, so it read nothing it claims to read",
 	);
+	const declared = moduleFunctions(file);
+	assert.ok(
+		declared.size > 0,
+		"the walk found no function declared in extension.ts, so it can follow no call and read nothing",
+	);
 	for (const [name, site] of sites) {
+		const callees = directCalleesIn(site);
+		assert.ok(
+			callees.length > 0,
+			`${name} calls nothing by name, so the call-following half of this walk read nothing`,
+		);
 		const lookups = keyedLookupsIn(site);
+		for (const callee of callees) {
+			const body = declared.get(callee);
+			if (body !== undefined) {
+				lookups.push(...keyedLookupsIn(body));
+			}
+		}
 		assert.ok(lookups.length > 0, `${name} performs no keyed lookup at all, so this walk read nothing`);
 		assert.deepEqual(
 			[...new Set(lookups)].sort(),

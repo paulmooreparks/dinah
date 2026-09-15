@@ -1050,8 +1050,8 @@ export function itemDescription(view: ItemView, t: Localizer): string {
  * Everything an item row says on hover, one fact per line.
  *
  * The hold sentence is the one a reader can get nowhere else, and it is keyed
- * by the same holdDirection the filing form and the item document read, so the
- * three surfaces cannot disagree about what a column is doing.
+ * by the same holdDirection the filing form reads, so the two surfaces cannot
+ * disagree about what a column is doing.
  */
 export function itemTooltip(
 	view: ItemView,
@@ -2623,30 +2623,6 @@ export class DinahTreeProvider {
 	 * is what reduces them to one plan, so the deduplication rule is asserted
 	 * against the code that performs it.
 	 */
-	/**
-	 * What the last good checkpoint knows about one workbench, by its root.
-	 *
-	 * The item document's own hold sentence reads it, so that sentence costs
-	 * no third spawn: the columns and their declared order are already joined
-	 * on every checkpoint, and asking dinah for them again per poll per open
-	 * tab would pay for an answer this provider is holding.
-	 *
-	 * An answer of undefined means no row has resolved that root yet, and the
-	 * caller says it knows of no stop rather than inventing one.
-	 */
-	dataFor(root: string): WorkbenchData | undefined {
-		const wanted = this.rootKey(root);
-		for (const state of this.folders.values()) {
-			for (const row of state.rows) {
-				const data = row.data;
-				if (data !== undefined && this.rootKey(data.path) === wanted) {
-					return data;
-				}
-			}
-		}
-		return undefined;
-	}
-
 	mcpTargets(): readonly McpTarget[] {
 		const found: McpTarget[] = [];
 		for (const state of this.folders.values()) {
