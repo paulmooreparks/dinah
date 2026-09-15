@@ -180,6 +180,39 @@ func CountItems(cardDir string) (int, error) {
 	return len(ids), nil
 }
 
+// ChildCounts is how many members sit in each collection the containment
+// grammar gives a kind, keyed by the collection's directory name. It is the
+// one place a caller can learn what an entity holds without naming the
+// collections, so a kind that gains a mount is counted here with no edit.
+//
+// One level only, and one directory listing per mount rather than a walk of
+// the subtree, which is what keeps it affordable on a listing that renders
+// every card.
+//
+// A collection that will not read is reported rather than counted as none, on
+// the terms CountAttachments already states: a zero is what an entity holding
+// nothing answers, and a caller cannot tell the two apart.
+func ChildCounts(dir, kind string) (map[string]int, error) {
+	counts := map[string]int{}
+	for _, mount := range Contains(kind) {
+		ids, err := ListIDs(filepath.Join(dir, mount.Dir))
+		if err != nil {
+			return nil, err
+		}
+		counts[mount.Dir] = len(ids)
+	}
+	return counts, nil
+}
+
+// ChildTotal sums what ChildCounts answered.
+func ChildTotal(counts map[string]int) int {
+	total := 0
+	for _, count := range counts {
+		total += count
+	}
+	return total
+}
+
 // Attachment is one attachment: the entity wrapping bytes the format never
 // inspects, carrying the original filename, a description and provenance.
 type Attachment struct {

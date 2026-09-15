@@ -15,7 +15,13 @@ import type { DraftHost, DraftIndex } from "../../src/commentDrafts";
 import { ENGLISH } from "../../src/l10n";
 import type { RootRow, TreeElement, WorkbenchData } from "../../src/tree";
 import type { CatalogBuild } from "../../src/verbCatalog";
-import type { AttachmentView, ColumnView, ItemView } from "../../src/wire";
+import type {
+	AttachmentView,
+	ColumnView,
+	CommentView,
+	ItemView,
+	TreeNode,
+} from "../../src/wire";
 import type { WorkbenchCommandHost } from "../../src/workbenchCommands";
 
 export const ROOT = "C:/work/bench";
@@ -106,7 +112,14 @@ export function attachmentRowFor(
 		provenance: "import",
 		path: `${root}/attachments/${filename}`,
 	};
-	return { kind: "attachment", row: rootRow(root), root, owner: "tr-1", view };
+	return {
+		kind: "attachment",
+		row: rootRow(root),
+		root,
+		owner: "tr-1",
+		node: { kind: "attachment", ref: view.ref, title: filename, count: 0 },
+		view,
+	};
 }
 
 /** One checklist item, as `show <card> --fields card,checklist` reports it. */
@@ -122,31 +135,89 @@ export function itemView(overrides: Partial<ItemView> = {}): ItemView {
 	};
 }
 
-/** An item row, whole, hanging from the card and workbench given. */
+/**
+ * An item row, whole, hanging from the card and workbench given.
+ *
+ * The node is the `contents` node the row's structure comes from, and its
+ * count is what decides the row's arrow. It is set from the view's own
+ * comment_count only as a convenience for a caller that names neither, and a
+ * test whose subject is which of the two the code reads passes both.
+ */
 export function itemRow(
 	overrides: Partial<ItemView> = {},
 	isOperator = false,
 	root = ROOT,
 	data?: WorkbenchData,
+	count?: number,
 ): TreeElement {
 	const row = rootRow(root);
+	const view = itemView(overrides);
 	return {
 		kind: "item",
 		row: data === undefined ? row : { ...row, data },
 		root,
 		card: "tr-1",
-		view: itemView(overrides),
+		node: {
+			kind: "item",
+			ref: view.ref,
+			title: view.text,
+			count: count ?? view.comment_count ?? 0,
+		},
+		view,
 		isOperator,
 	};
 }
 
-/** A checklist group row, as a card's own expansion yields one. */
-export function checklistGroupRow(
-	count = 2,
-	ref = "tr-1",
+/** One comment, as a structured read reports it. */
+export function commentView(
+	overrides: Partial<CommentView> = {},
+): CommentView {
+	return {
+		id: "c00000000001",
+		ref: "tr-1/comments/1",
+		ts: "2026-09-15T09:00:00Z",
+		author: "claude",
+		body: "## WHAT SHIPPED\n\nThe row family, and the calls behind it.",
+		...overrides,
+	};
+}
+
+/** A comment row, hanging from the holder given. */
+export function commentRow(
+	overrides: Partial<CommentView> = {},
+	count = 0,
+	holder = "tr-1",
+	root = ROOT,
+	joined = true,
+): TreeElement {
+	const view = commentView(overrides);
+	return {
+		kind: "comment",
+		row: rootRow(root),
+		root,
+		holder,
+		node: { kind: "comment", ref: view.ref, title: view.body, count },
+		...(joined ? { view } : {}),
+	};
+}
+
+/** A collection row, as an entity's own expansion yields one. */
+export function collectionRow(
+	memberKind = "item",
+	members: readonly TreeNode[] = [],
+	holder = "tr-1",
+	holderKind: TreeElement["kind"] = "card",
 	root = ROOT,
 ): TreeElement {
-	return { kind: "checklistGroup", row: rootRow(root), root, ref, count };
+	return {
+		kind: "collection",
+		row: rootRow(root),
+		root,
+		holder,
+		holderKind,
+		memberKind,
+		members,
+	};
 }
 
 /** A row no command on this card can act on. */

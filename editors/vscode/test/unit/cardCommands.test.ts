@@ -482,6 +482,7 @@ function attachmentRow(path: string | undefined): TreeElement {
 		row: rowFixture(),
 		root: "C:\\work\\bench",
 		owner: "tr-4",
+		node: { kind: "attachment", ref: "tr-4/attachments/1", count: 0 },
 		view: {
 			id: "9a1b2c3d4e5f",
 			ordinal: 1,
@@ -816,6 +817,7 @@ function deletableRow(): TreeElement {
 		row: rowFixture(),
 		root: "C:\\work\\bench",
 		owner: "tr-4",
+		node: { kind: "attachment", ref: "tr-4/attachments/1", count: 0 },
 		view: {
 			id: "0b2c3d4e5f61",
 			ordinal: 2,

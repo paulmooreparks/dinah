@@ -8,6 +8,11 @@
 //
 // The floors here are real numbers rather than a more-than-zero check, and a
 // card that adds or removes a key edits them. That is the intended cost.
+//
+// dinah-519 AC-14 added the third and fourth tests. The totals alone admit an
+// implementation that adds a seventh key and drops a ninth, reaching the same
+// number by substitution, so the keys this card moves are named one at a time
+// beside the counts.
 
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -17,18 +22,91 @@ import { test } from "node:test";
 // This file is compiled to out/test/unit/, so the extension root is three up.
 const extensionRoot = join(__dirname, "..", "..", "..");
 
-test("the English runtime catalogue carries exactly 192 entries", () => {
-	// The count is taken over `entries` rather than over the file's top level,
-	// which carries two members: the tag and the entries themselves.
+/**
+ * The six runtime keys dinah-519 adds: the collection row over a thread, the
+ * two strings a comment row composes itself out of, and the three sentences a
+ * refused read shows. The third of those three replaces an untranslated
+ * English literal in the arm this card rewrites.
+ */
+const RUNTIME_ADDED: readonly string[] = [
+	"tree.collection.comments",
+	"comment.row.description",
+	"comment.row.author",
+	"tree.contents.unreadable",
+	"tree.comments.unreadable",
+	"tree.attachments.unreadable",
+];
+
+/**
+ * The eight runtime keys dinah-519 removes, which is the whole `item.document`
+ * family.
+ *
+ * Six are the composed document's invented headings. The other two go with the
+ * document itself: the title was the served-text tab's own, and an anchor
+ * file's tab is titled by its filename, and the fallback body was what a
+ * document with no readable ItemView showed, and there is no document to fall
+ * back.
+ */
+const RUNTIME_REMOVED: readonly string[] = [
+	"item.document.heading.status",
+	"item.document.heading.text",
+	"item.document.heading.note",
+	"item.document.heading.comments",
+	"item.document.comment.heading",
+	"item.document.commentsEmpty",
+	"item.document.title",
+	"item.document.textUnavailable",
+];
+
+/** The one manifest key dinah-519 adds, for the comment row's one command. */
+const MANIFEST_ADDED = "manifest.command.dinah.tree.openComment.title";
+
+function runtimeKeys(): Set<string> {
 	const catalogue = JSON.parse(
 		readFileSync(join(extensionRoot, "src", "locales", "en.json"), "utf8"),
 	) as { entries: Record<string, unknown> };
-	assert.equal(Object.keys(catalogue.entries).length, 192);
-});
+	return new Set(Object.keys(catalogue.entries));
+}
 
-test("the base manifest catalogue carries exactly 51 keys", () => {
+function manifestKeys(): Set<string> {
 	const catalogue = JSON.parse(
 		readFileSync(join(extensionRoot, "package.nls.json"), "utf8"),
 	) as Record<string, unknown>;
-	assert.equal(Object.keys(catalogue).length, 51);
+	return new Set(Object.keys(catalogue));
+}
+
+test("the English runtime catalogue carries exactly 190 entries", () => {
+	// The count is taken over `entries` rather than over the file's top level,
+	// which carries two members: the tag and the entries themselves.
+	//
+	// 192 before dinah-519, less its eight removals, plus its six additions.
+	assert.equal(runtimeKeys().size, 190);
+});
+
+test("the base manifest catalogue carries exactly 52 keys", () => {
+	// 51 before dinah-519, plus the one command a comment row contributes.
+	assert.equal(manifestKeys().size, 52);
+});
+
+test("the six runtime keys dinah-519 adds are present and its eight removals are gone", () => {
+	const keys = runtimeKeys();
+	assert.equal(RUNTIME_ADDED.length, 6);
+	assert.equal(RUNTIME_REMOVED.length, 8);
+	assert.deepEqual(
+		RUNTIME_ADDED.filter((key) => !keys.has(key)),
+		[],
+		"each key above was added by dinah-519 and is not in the catalogue",
+	);
+	assert.deepEqual(
+		RUNTIME_REMOVED.filter((key) => keys.has(key)),
+		[],
+		"each key above belongs to the composed item document, which dinah-519 deleted",
+	);
+});
+
+test("the one manifest key dinah-519 adds is present", () => {
+	assert.ok(
+		manifestKeys().has(MANIFEST_ADDED),
+		`${MANIFEST_ADDED} is what titles the comment row's one command`,
+	);
 });

@@ -281,11 +281,23 @@ const THREE_LISTING = {
 	],
 };
 
+/**
+ * What `contents` answers for an entity holding nothing, which is what every
+ * column on a workbench with no column-level mounts answers today.
+ */
+const EMPTY_CONTENTS = {
+	producer: "containment",
+	subject: "entity",
+	depth: "all",
+	root: { kind: "column", ref: "intake", count: 0 },
+};
+
 async function loadedBench(): Promise<DinahTreeProvider> {
 	const { spawner } = stubSpawner({
 		status: THREE_STATUS,
 		tree: THREE_COLUMNS,
 		ls: THREE_LISTING,
+		contents: EMPTY_CONTENTS,
 	});
 	const view = provider(spawner);
 	await view.load([folder({ folder: "C:\\work\\bench" })]);
@@ -376,6 +388,7 @@ test("a queue column that does carry a state group draws it, and its cards still
 		status: THREE_STATUS,
 		tree: carried,
 		ls: THREE_LISTING,
+		contents: EMPTY_CONTENTS,
 	});
 	const view = provider(spawner);
 	await view.load([folder({ folder: "C:\\work\\bench" })]);
@@ -1217,6 +1230,27 @@ const ATTACHING_STATUS = {
 	}),
 };
 
+/**
+ * A `contents` answer whose children are two attachment members.
+ *
+ * The structure of every row at or below a card comes from this call now, so
+ * the fixture that used to be a count is a pair of nodes.
+ */
+const TWO_ATTACHMENT_NODES = {
+	producer: "containment",
+	subject: "entity",
+	depth: "all",
+	root: {
+		kind: "card",
+		ref: "tr-4",
+		count: 2,
+		children: [
+			{ kind: "attachment", ref: "tr-4/attachments/1", title: "screenshot.png", count: 0 },
+			{ kind: "attachment", ref: "tr-4/attachments/2", title: "spec.pdf", count: 0 },
+		],
+	},
+};
+
 /** A bench whose status reports attachments at the workbench and two columns. */
 async function attachingBench(): Promise<{
 	view: DinahTreeProvider;
@@ -1226,6 +1260,7 @@ async function attachingBench(): Promise<{
 		status: ATTACHING_STATUS,
 		tree: THREE_COLUMNS,
 		ls: THREE_LISTING,
+		contents: TWO_ATTACHMENT_NODES,
 		attachments: TWO_ATTACHMENTS,
 	});
 	const view = provider(spawner);
@@ -1233,21 +1268,27 @@ async function attachingBench(): Promise<{
 	return { view, calls };
 }
 
-/** The same card element with the attachment count replaced. */
-function carryingAttachments(
+/**
+ * The same card element with its published child count replaced.
+ *
+ * One number, summed over every collection the grammar gives a card, rather
+ * than one per collection: the arrow and the rows beneath it are two different
+ * questions now, and only the arrow is answered from the checkpoint.
+ */
+function carryingChildren(
 	element: TreeElement,
 	count: number | undefined,
 ): TreeElement {
 	if (element.kind !== "card" || element.view === undefined) {
 		throw new Error("the fixture element is not a card the ls join found");
 	}
-	return { ...element, view: { ...element.view, attachment_count: count } };
+	return { ...element, view: { ...element.view, child_count: count } };
 }
 
 /** The same attachment element with the payload path replaced. */
 function withPath(element: TreeElement, path: string | undefined): TreeElement {
-	if (element.kind !== "attachment") {
-		throw new Error("the fixture element is not an attachment");
+	if (element.kind !== "attachment" || element.view === undefined) {
+		throw new Error("the fixture element is not an attachment the listing answered for");
 	}
 	return { ...element, view: { ...element.view, path } };
 }
@@ -1279,7 +1320,7 @@ function specOf(element: TreeElement): TreeItemSpec {
 			};
 }
 
-test("a card carrying attachments grows an expand arrow and changes nothing else about its row", async () => {
+test("a card carrying anything grows an expand arrow and changes nothing else about its row", async () => {
 	// The plain card is the control: a view carrying no count at all, which
 	// is what every card rendered as before attachments existed.
 	const view = await loadedBench();
@@ -1292,7 +1333,7 @@ test("a card carrying attachments grows an expand arrow and changes nothing else
 	// A positive count grows the arrow. Every other field of the row is held
 	// against the plain one, so a count that moved a label, a tooltip or a
 	// menu answer fails here rather than shipping.
-	const carrying = carryingAttachments(aaa, 2);
+	const carrying = carryingChildren(aaa, 2);
 	const arrow = treeItemFor(carrying);
 	assert.equal(arrow.collapsibleState, "collapsed");
 	assert.deepEqual(specOf(carrying), {
@@ -1304,39 +1345,51 @@ test("a card carrying attachments grows an expand arrow and changes nothing else
 
 	// A zero and an explicit undefined read as absence: no arrow, and the
 	// row a reader already knew.
-	assert.deepEqual(specOf(carryingAttachments(aaa, 0)), specOf(aaa));
-	assert.deepEqual(specOf(carryingAttachments(aaa, undefined)), specOf(aaa));
+	assert.deepEqual(specOf(carryingChildren(aaa, 0)), specOf(aaa));
+	assert.deepEqual(specOf(carryingChildren(aaa, undefined)), specOf(aaa));
 });
 
-test("a card with attachments holds one Attachments row beneath it, drawn at no spawn", async () => {
+test("a card's Attachments row comes from the grammar, at one call for the card", async () => {
 	const { view, calls } = await attachingBench();
 	const [, review] = await view.getChildren((await view.getChildren())[0]);
 	const [ddd] = await view.getChildren(review);
-	// The fixture's card view carries no count, so the card draws nothing
-	// beneath it and costs nothing.
-	const before = calls.length;
-	assert.deepEqual(await view.getChildren(ddd), []);
 
-	const carrying = carryingAttachments(ddd, 2);
-	const children = await view.getChildren(carrying);
+	const before = calls.length;
+	const children = await view.getChildren(ddd);
 	assert.equal(children.length, 1);
 	const group = children[0];
-	if (group.kind !== "attachmentsGroup") {
-		assert.fail(`the card drew a ${group.kind} row, wanted an attachmentsGroup`);
+	if (group.kind !== "collection") {
+		assert.fail(`the card drew a ${group.kind} row, wanted a collection`);
 	}
-	// The group carries the card's own ref, which is what its expansion asks
-	// about, and the eager count status already reported.
-	assert.equal(group.ref, "tr-4");
-	assert.equal(group.count, 2);
+	// The collection carries the card's own ref as its holder, which is what
+	// its detail call asks about, and the members the grammar answered.
+	assert.equal(group.holder, "tr-4");
+	assert.equal(group.holderKind, "card");
+	assert.equal(group.memberKind, "attachment");
+	assert.equal(group.members.length, 2);
 	assert.equal(group.root, "C:\\work\\bench");
-	assert.equal(calls.length, before, "drawing the Attachments row spawned a call");
+	assert.equal(treeItemFor(group).description, "2");
+	assert.equal(
+		calls.length - before,
+		1,
+		"expanding the card did not cost exactly one call",
+	);
+	assert.deepEqual(calls[calls.length - 1], [
+		"--json",
+		"--workbench",
+		"C:\\work\\bench",
+		"contents",
+		"tr-4",
+		"--depth",
+		"all",
+	]);
 });
 
 test("expanding a card's Attachments row asks once, named by the card's own ref", async () => {
 	const { view, calls } = await attachingBench();
 	const [, review] = await view.getChildren((await view.getChildren())[0]);
 	const [ddd] = await view.getChildren(review);
-	const [group] = await view.getChildren(carryingAttachments(ddd, 2));
+	const [group] = await view.getChildren(ddd);
 	const before = calls.length;
 	await view.getChildren(group);
 	assert.equal(calls.length - before, 1, "expanding the row did not cost exactly one call");
@@ -1349,26 +1402,38 @@ test("expanding a card's Attachments row asks once, named by the card's own ref"
 	]);
 });
 
-test("expanding the workbench's own Attachments row asks with no ref at all", async () => {
+test("expanding the workbench's own Attachments row asks about the collection, then about the workbench", async () => {
 	const { view, calls } = await attachingBench();
 	const [root] = await view.getChildren();
 	const children = await view.getChildren(root);
 	const last = children[children.length - 1];
-	if (last.kind !== "attachmentsGroup") {
-		assert.fail(`the root drew a ${last.kind} row last, wanted an attachmentsGroup`);
+	if (last.kind !== "collection") {
+		assert.fail(`the root drew a ${last.kind} row last, wanted a collection`);
 	}
-	// The workbench is asked about by omitting the argument, which is the
-	// spelling the resolver owns; composing "workbench" here would be a second
-	// spelling of a reference the binary already holds.
-	assert.equal(last.ref, "");
+	// The root composes its collection row before any call is made, from the
+	// one table in this extension that states a piece of the grammar, so the
+	// row knows it holds attachments and carries the reference its own
+	// expansion asks about.
+	assert.equal(last.memberKind, "attachment");
+	assert.equal(last.holder, "workbench");
+	assert.equal(last.ref, "workbench/attachments");
 	const before = calls.length;
 	await view.getChildren(last);
-	assert.equal(calls.length - before, 1, "expanding the row did not cost exactly one call");
+	assert.deepEqual(calls[before], [
+		"--json",
+		"--workbench",
+		"C:\\work\\bench",
+		"contents",
+		"workbench/attachments",
+		"--depth",
+		"all",
+	]);
 	assert.deepEqual(calls[calls.length - 1], [
 		"--json",
 		"--workbench",
 		"C:\\work\\bench",
 		"attachments",
+		"workbench",
 	]);
 });
 
@@ -1376,7 +1441,7 @@ test("an expanded Attachments row draws the listing's own order, one row per att
 	const { view } = await attachingBench();
 	const [, review] = await view.getChildren((await view.getChildren())[0]);
 	const [ddd] = await view.getChildren(review);
-	const [group] = await view.getChildren(carryingAttachments(ddd, 2));
+	const [group] = await view.getChildren(ddd);
 	const attachments = await view.getChildren(group);
 	assert.deepEqual(
 		attachments.map((element) => element.kind),
@@ -1388,27 +1453,28 @@ test("an expanded Attachments row draws the listing's own order, one row per att
 	);
 });
 
-test("an Attachments row that could not read draws one note row and names the failure", async () => {
-	// No `attachments` entry in the answers, so the stub answers the call
-	// with a refusal, which is what a checkpoint whose call failed looks
-	// like here.
+test("a card whose contents would not read draws one note row and names the failure", async () => {
+	// No `contents` entry in the answers, so the stub refuses the call, which
+	// is what a checkpoint whose call failed looks like here. The structure
+	// call is the one that can yield a note, because a row whose members
+	// nobody could list has no member rows to draw instead.
 	const { spawner } = stubSpawner({
 		status: ATTACHING_STATUS,
 		tree: THREE_COLUMNS,
 		ls: THREE_LISTING,
+		attachments: TWO_ATTACHMENTS,
 	});
 	const logged: string[] = [];
 	const view = provider(spawner, logged);
 	await view.load([folder({ folder: "C:\\work\\bench" })]);
 	const [, review] = await view.getChildren((await view.getChildren())[0]);
 	const [ddd] = await view.getChildren(review);
-	const [group] = await view.getChildren(carryingAttachments(ddd, 2));
-	const children = await view.getChildren(group);
+	const children = await view.getChildren(ddd);
 	assert.equal(children.length, 1);
 	assert.equal(children[0].kind, "note");
 	const item = treeItemFor(children[0]);
 	assert.ok(
-		item.label.includes("could not read the attachments"),
+		item.label.includes("could not read what this holds"),
 		`the note said: ${item.label}`,
 	);
 	// The channel line names both the ref and the root, which is what lets a
@@ -1423,7 +1489,7 @@ test("an attachment with a file opens on a plain click, and one without a file o
 	const { view } = await attachingBench();
 	const [, review] = await view.getChildren((await view.getChildren())[0]);
 	const [ddd] = await view.getChildren(review);
-	const [group] = await view.getChildren(carryingAttachments(ddd, 2));
+	const [group] = await view.getChildren(ddd);
 	const [shot, spec] = await view.getChildren(group);
 
 	// The openable half, which is also the control that proves the key can
@@ -1447,24 +1513,27 @@ test("an attachment with a file opens on a plain click, and one without a file o
 	assert.equal("command" in blanked, false);
 });
 
-test("a column with attachments carries its own Attachments row after every card", async () => {
+test("a column carries its own mounts after every card, from the grammar", async () => {
 	const { view } = await attachingBench();
 	const columns = await view.getChildren((await view.getChildren())[0]);
 
 	// The queue shape: two card leaves directly beneath the column, then the
-	// column's own Attachments row last, in the tree's own order.
+	// column's own collection rows last. The cards come from the grouped
+	// projection, because a column contains no card in the grammar at all;
+	// the collections come from the grammar, like every other entity's.
 	const review = columns[1];
 	const children = await view.getChildren(review);
 	assert.deepEqual(
 		children.map((element) => element.kind),
-		["card", "card", "attachmentsGroup"],
+		["card", "card", "collection"],
 	);
 	const group = children[children.length - 1];
-	if (group.kind !== "attachmentsGroup") {
-		assert.fail("the column's own Attachments row was not drawn last");
+	if (group.kind !== "collection") {
+		assert.fail("the column's own collection row was not drawn last");
 	}
-	assert.equal(group.count, 4);
-	assert.equal(group.ref, "review");
+	assert.equal(group.memberKind, "attachment");
+	assert.equal(group.holder, "review");
+	assert.equal(group.holderKind, "column");
 	assert.equal(group.root, "C:\\work\\bench");
 
 	// The grouped shape draws its state groups, then the same row last.
@@ -1472,11 +1541,11 @@ test("a column with attachments carries its own Attachments row after every card
 	const groups = await view.getChildren(intake);
 	assert.deepEqual(
 		groups.map((element) => element.kind),
-		["group", "group", "attachmentsGroup"],
+		["group", "group", "collection"],
 	);
 
 	// Under a state group the row is absent, because a state group is a
-	// heading over cards and the attachments belong to the station.
+	// heading over cards and a column's own mounts belong to the station.
 	const [ready] = groups;
 	const underReady = await view.getChildren(ready);
 	assert.deepEqual(
@@ -1494,12 +1563,14 @@ test("a workbench with attachments draws its own Attachments row after every col
 		["Intake", "Customer approval", "Done", "Attachments"],
 	);
 	const last = children[children.length - 1];
-	if (last.kind !== "attachmentsGroup") {
+	if (last.kind !== "collection") {
 		assert.fail("the workbench's own Attachments row was not drawn last");
 	}
-	assert.equal(last.count, 5);
-	assert.equal(last.ref, "");
-	assert.equal(treeItemFor(last).description, "5");
+	assert.equal(last.memberKind, "attachment");
+	assert.equal(last.ref, "workbench/attachments");
+	// The row is composed before any call is made, so it stands for members it
+	// has not fetched and its description is the zero it holds so far.
+	assert.equal(treeItemFor(last).description, "0");
 });
 
 test("a workbench whose status reports no attachments draws no Attachments row", async () => {
@@ -1510,7 +1581,7 @@ test("a workbench whose status reports no attachments draws no Attachments row",
 	const children = await view.getChildren(root);
 	assert.ok(children.length > 0, "the bench drew no rows to check");
 	assert.equal(
-		children.some((element) => element.kind === "attachmentsGroup"),
+		children.some((element) => element.kind === "collection"),
 		false,
 		"a row with no count to stand on was drawn",
 	);
@@ -1526,7 +1597,7 @@ test("a workbench whose status reports no attachments draws no Attachments row",
 	await zero.load([folder({ folder: "C:\\work\\bench" })]);
 	const [zeroRoot] = await zero.getChildren();
 	const zeroChildren = await zero.getChildren(zeroRoot);
-	assert.equal(zeroChildren.some((element) => element.kind === "attachmentsGroup"), false);
+	assert.equal(zeroChildren.some((element) => element.kind === "collection"), false);
 });
 
 test("a checkpoint whose reads fail keeps the attachment count the last good one carried", async () => {
@@ -1631,6 +1702,26 @@ async function forestAttachingBench(): Promise<DinahTreeProvider> {
 		if (argv.includes("attachments")) {
 			return ok(WORKBENCH_ATTACHMENTS);
 		}
+		if (argv.includes("contents")) {
+			return ok({
+				producer: "containment",
+				subject: "entity",
+				depth: "all",
+				root: {
+					kind: "collection",
+					ref: "workbench/attachments",
+					count: 1,
+					children: [
+						{
+							kind: "attachment",
+							ref: "workbench/attachments/1",
+							title: "policy.pdf",
+							count: 0,
+						},
+					],
+				},
+			});
+		}
 		const member = {
 			title: "Carter LLP",
 			slug: "carter",
@@ -1658,7 +1749,7 @@ test("an attachment row carries the contextValue its context menu is registered 
 	const { view } = await attachingBench();
 	const [, review] = await view.getChildren((await view.getChildren())[0]);
 	const [ddd] = await view.getChildren(review);
-	const [group] = await view.getChildren(carryingAttachments(ddd, 2));
+	const [group] = await view.getChildren(ddd);
 	const [shot, spec] = await view.getChildren(group);
 	assert.equal(treeItemFor(shot).contextValue, CONTEXT_ATTACHMENT);
 	assert.equal(treeItemFor(spec).contextValue, CONTEXT_ATTACHMENT);
@@ -1674,22 +1765,23 @@ test("an attachment element names the workbench it was read from and the entity 
 	const [root] = await view.getChildren();
 	const children = await view.getChildren(root);
 	const group = children[children.length - 1];
-	if (group.kind !== "attachmentsGroup") {
-		assert.fail(`the member drew a ${group.kind} row last, wanted an attachmentsGroup`);
+	if (group.kind !== "collection") {
+		assert.fail(`the member drew a ${group.kind} row last, wanted a collection`);
 	}
 	const [attachment] = await view.getChildren(group);
 	if (attachment.kind !== "attachment") {
 		assert.fail(`the group drew a ${attachment.kind} row, wanted an attachment`);
 	}
 	// The listing resolved the workbench's own reference to the literal
-	// "workbench"; the group carries the empty string the binary is asked with.
+	// "workbench", and the row takes the owner from that answer rather than
+	// from the collection it was drawn under.
 	assert.equal(attachment.owner, "workbench");
 	assert.equal(attachment.root, "C:\\customers\\carter\\board");
 	// The non-vacuity pair, asserted rather than assumed of the fixture. If
 	// somebody later flattens forestAttachingBench() so the paths coincide,
 	// these go red instead of the two above quietly becoming unfalsifiable.
 	assert.notEqual(attachment.root, attachment.row.folder);
-	assert.notEqual(attachment.owner, group.ref);
+	assert.notEqual(attachment.root, group.holder);
 });
 
 // ---------------------------------------------------------------------------

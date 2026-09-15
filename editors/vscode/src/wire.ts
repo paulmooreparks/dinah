@@ -66,6 +66,16 @@ export interface CardView {
 	 */
 	readonly checklist_count?: number;
 	readonly blocking_items?: number;
+	/**
+	 * How many entities sit directly below the card, summed across every
+	 * collection the containment grammar gives a card.
+	 *
+	 * The one number a reader deciding whether the card has anything to expand
+	 * asks, rather than one per collection, so a card that gains a mount draws
+	 * its arrow on the day the grammar gains it. attachment_count and
+	 * checklist_count above stay published and answer their own questions.
+	 */
+	readonly child_count?: number;
 }
 
 /**
@@ -111,6 +121,15 @@ export interface CommentView {
 	readonly ts: string;
 	readonly author: string;
 	readonly body: string;
+	/**
+	 * The comment's own attachments, each carrying a reference composed
+	 * against the comment rather than against the card.
+	 *
+	 * The Go struct has carried this since verb.CommentView was declared and
+	 * this mirror never spelled it, which made it an incomplete mirror of a
+	 * struct whose header promises a complete one (dinah-519 section 9.5).
+	 */
+	readonly attachments?: readonly AttachmentView[];
 }
 
 /**

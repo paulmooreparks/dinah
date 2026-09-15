@@ -450,7 +450,7 @@ function sources(): string[] {
 	return found.sort();
 }
 
-test("the command modules hold exactly thirty-four report-channel call sites", () => {
+test("the command modules hold exactly thirty-five report-channel call sites", () => {
 	// A tripwire rather than a correctness check. A per-row report site added
 	// after this card cannot land silently, because its author has to raise
 	// this figure and, in doing so, decide whether the new site belongs inside
@@ -478,13 +478,14 @@ test("the command modules hold exactly thirty-four report-channel call sites", (
 	}
 	assert.equal(
 		sites.length,
-		34,
+		35,
 		`the command modules hold ${String(sites.length)} report-channel call sites:\n${sites.join("\n")}`,
 	);
 	// Stated as at least six, which is what the criterion declares, so a file
 	// legitimately losing its last call does not redden the sweep while a walk
 	// that read almost nothing still does. Nine is the figure today, after
-	// dinah-506 added commentDrafts.ts and itemCommands.ts.
+	// dinah-506 added commentDrafts.ts and itemCommands.ts, and dinah-519
+	// added openAnchorFile's own showError in itemCommands.ts.
 	assert.ok(
 		files.size >= 6,
 		`the sites are spread over ${String(files.size)} files: ${[...files].join(", ")}`,
