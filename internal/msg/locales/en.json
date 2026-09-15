@@ -4213,10 +4213,6 @@
       "text": "It also carries {count} carriage returns that are not line endings, which the repair leaves alone.",
       "context": "The same clause for any other number."
     },
-    "check.loose-carriage-return": {
-      "text": "this file carries a carriage return that is not a line ending, which this format keeps ({detail})",
-      "context": "A check finding: a workbench text file whose carriage returns are all ones the format stores as the prose meant them, none of which stands for a line ending. {detail} carries the two counts, the first of which is zero for this finding by construction. It is reported so a reader can tell a file whose bytes were looked at and left alone from a file nothing looked at, and it is a separate finding from check.stored-carriage-return because that sentence would be false of it."
-    },
     "check.newline-repair-unsupported": {
       "text": "the newline repair will not decide this file, so it is left exactly as it is ({detail})",
       "context": "A check finding: a workbench text file the newline repair refuses rather than guessing at. {detail} says which case, either that a file bearing one of the anchor names the format fixes does not round-trip through the anchor reader, or the frontmatter key whose shape the repair cannot re-render. Such a file need carry no carriage return at all, which is why this is not reported as a stored line ending; deciding what a damaged header should become is separate work from deciding what a line ending should be."

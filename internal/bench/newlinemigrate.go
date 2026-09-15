@@ -886,10 +886,17 @@ func newlineCounts(result newlineTransform) string {
 // so routing this sweep through it would leave a sweep that cannot fail, which
 // is worse than no sweep.
 //
-// A file whose only carriage returns are loose ones is reported with a
-// line-ending count of zero and is not a destination. Reporting it costs a line
-// and tells a reader that the bytes were looked at, and refusing to rewrite it
-// is what keeps the decision to leave a lone carriage return alone true.
+// A file whose only carriage returns are loose ones is neither a destination
+// nor a finding. It conforms: the byte is legal prose under
+// dinah-514/decisions/7 and the repair is required to leave it exactly where it
+// is, so a report on it was a report nothing could ever clear, and every
+// finding counts toward the command's exit code. The specification weighed the
+// report as costing one line of output; it cost the exit code of every run
+// against a conforming store, and the operator ruled it out on 2026-09-15.
+//
+// A file carrying one of each is still reported, for the one that is not legal.
+// The silence is for a file whose carriage returns are ALL loose, not for any
+// file carrying one, which is the reading the switch below is written against.
 func (b *Bench) checkStoredNewlines() ([]Finding, error) {
 	paths, err := b.newlineFiles()
 	if err != nil {
@@ -902,20 +909,32 @@ func (b *Bench) checkStoredNewlines() ([]Finding, error) {
 			continue
 		}
 		result := transformNewlines(path, data)
-		// Three shapes reach this sweep and they are three different things to
-		// tell a person, so each gets a finding whose sentence is true of it.
-		// One key covered all three once, and its sentence said the file stores
-		// a carriage return standing for a line ending, which is false of a
-		// file the repair will not decide (one was reported carrying zero
-		// carriage returns of any kind) and false of a file whose only
-		// carriage returns are the loose ones this card decided to keep.
+		// Two shapes are reported and each gets a finding whose sentence is
+		// true of it. One key covered every shape once, and its sentence said
+		// the file stores a carriage return standing for a line ending, which
+		// was false of a file the repair will not decide, since one was
+		// reported carrying no carriage return of any kind.
+		//
+		// A file whose carriage returns are ALL loose ones is reported by
+		// nothing, on the operator's ruling of 2026-09-15. Such a file is
+		// conforming: the byte is legal prose under dinah-514/decisions/7 and
+		// the repair is required to leave it exactly where it is, so reporting
+		// it made dinah check exit non-zero for ever over a store with nothing
+		// wrong with it, and the only act that could clear it was editing the
+		// prose the decision exists to protect. What is lost is the line
+		// telling a reader the bytes were looked at and deliberately left; an
+		// informational tier of finding that reports without counting toward
+		// the exit code is the end state and is a card of its own.
+		//
+		// The silence is for a file whose carriage returns are all loose, not
+		// for any file that carries one. A file carrying a real stored line
+		// ending is reported for that, whatever else it also carries, which is
+		// why the arm below asks about Returns rather than about Loose.
 		switch {
 		case result.Condition == NewlineConflictUnsupported:
 			findings = append(findings, Finding{Path: path, Key: FindingNewlineRepairUnsupported, Detail: result.Detail})
 		case result.Returns > 0:
 			findings = append(findings, Finding{Path: path, Key: FindingStoredCarriageReturn, Detail: newlineCounts(result)})
-		case result.Loose > 0:
-			findings = append(findings, Finding{Path: path, Key: FindingLooseCarriageReturn, Detail: newlineCounts(result)})
 		}
 	}
 	return findings, nil

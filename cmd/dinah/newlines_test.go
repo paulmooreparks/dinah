@@ -974,6 +974,10 @@ func TestTheFormatDocumentAndTheHelpTextSayWhatTheToolNowDoes(t *testing.T) {
 		"Reducing the run is a fixed point",
 		// That one confirmed run finishes.
 		"one confirmed run finishes and a second rewrites nothing",
+		// What the checker reports, and what it deliberately does not, which
+		// is the operator's ruling of 2026-09-15.
+		"A file whose carriage returns are all of the kind this format keeps is reported by nothing",
+		"A file carrying one of each is still reported, for the one that is not legal",
 		// The three forms, and the warning that they are not a detector.
 		"the store carries no carriage return standing for a line ending, and such a carriage return takes three stored forms",
 		"| A CRLF pair |",

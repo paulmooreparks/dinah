@@ -185,18 +185,17 @@ const (
 	// carriage returns that are not line endings, because the second number is
 	// legal and the first is not.
 	//
+	// A file whose carriage returns are all of the legal kind is reported by
+	// nothing at all, on the operator's ruling of 2026-09-15: such a file
+	// conforms, and reporting it made dinah check exit non-zero for ever over a
+	// store nothing could clear. A file carrying one of each is still reported
+	// here, for the one that is not legal.
+	//
 	// The counts come from the transform rather than from a pattern, so the
 	// finding and the migration can never disagree about which files are
 	// dirty. It is what catches the one site no write-path change can reach,
 	// which is an external editor writing an anchor.
 	FindingStoredCarriageReturn = "check.stored-carriage-return"
-	// FindingLooseCarriageReturn names a workbench text file carrying a
-	// carriage return that is NOT a line ending, which this format stores as
-	// the prose meant it and which the repair leaves alone. It is reported so
-	// that a reader can tell a file whose bytes were looked at and left from a
-	// file nothing looked at, and it is a separate key from the one above
-	// because the sentence above is false of it.
-	FindingLooseCarriageReturn = "check.loose-carriage-return"
 	// FindingNewlineRepairUnsupported names a workbench text file the newline
 	// repair refuses to decide: a file bearing one of the anchor names the
 	// format fixes that does not round-trip through the anchor reader, or a

@@ -817,9 +817,17 @@ func TestProseThatLooksLikeAnEncodedLineEndingSurvivesEndToEnd(t *testing.T) {
 }
 
 // TestCheckReportsEachStoredFormAndCanTellACleanStoreFromADirtyOne holds the
-// finding to the three forms, to agreeing with the migration about which files
-// are dirty, and to leaving a file whose only carriage returns are loose ones
-// out of the destinations.
+// finding to the three stored forms of a line-ending carriage return, to
+// agreeing with the migration about which files are dirty, and to leaving a
+// file whose only carriage returns are loose ones out of the destinations and
+// out of the report.
+//
+// The report was once asked for on a loose-only file too. The operator ruled it
+// out on 2026-09-15, because such a file conforms and reporting it made dinah
+// check exit non-zero for ever over a store nothing could clear, and
+// dinah-514/criteria/5 changed with the ruling rather than being left
+// contradicting the code. TestAConformingStoreChecksClean carries that half,
+// including the case the ruling must not silence.
 func TestCheckReportsEachStoredFormAndCanTellACleanStoreFromADirtyOne(t *testing.T) {
 	root := newlineFixture(t)
 	pair := filepath.Join(root, ColumnsDir, "b00000000001", ColumnAnchor)
@@ -845,32 +853,38 @@ func TestCheckReportsEachStoredFormAndCanTellACleanStoreFromADirtyOne(t *testing
 	}
 	reported := map[string]string{}
 	for _, finding := range findings {
-		// Three keys are legal here, one per shape, and which shape gets which
-		// is asserted by TestEachShapeTheSweepReportsGetsASentenceTrueOfIt.
+		// Two keys are legal here, one per shape the sweep reports, and which
+		// shape gets which is asserted by
+		// TestEachShapeTheSweepReportsGetsASentenceTrueOfIt.
 		switch finding.Key {
-		case FindingStoredCarriageReturn, FindingLooseCarriageReturn, FindingNewlineRepairUnsupported:
+		case FindingStoredCarriageReturn, FindingNewlineRepairUnsupported:
 		default:
 			t.Errorf("the sweep reported %s", finding.Key)
 		}
 		reported[finding.Path] = finding.Detail
 	}
-	for _, path := range []string{pair, split, escaped, loose} {
+	for _, path := range []string{pair, split, escaped} {
 		if _, named := reported[path]; !named {
 			t.Errorf("%s was not reported", path)
 		}
 	}
-	if got := reported[loose]; !strings.HasPrefix(got, "0 line-ending") {
-		t.Errorf("the file carrying only loose carriage returns reads %q, and it is reported with a line-ending count of zero", got)
+	if got, named := reported[loose]; named {
+		t.Errorf("the file whose only carriage returns are loose ones is reported as %q, and such a file conforms", got)
 	}
 
 	// The finding and the preview agree about which files are dirty, asserted
-	// as a set against a set.
+	// as a set against a set. A file nothing reports is a file the preview does
+	// not plan, which is the same agreement read from the other side.
 	preview := migrate(t, root, false)
 	planned := destinations(preview)
-	for path, detail := range reported {
-		dirty := !strings.HasPrefix(detail, "0 line-ending")
-		if dirty != planned[path] {
-			t.Errorf("%s is reported as %q and the preview %v it as a destination", path, detail, planned[path])
+	for path := range reported {
+		if !planned[path] {
+			t.Errorf("%s is reported and the preview does not plan it", path)
+		}
+	}
+	for path := range planned {
+		if _, named := reported[path]; !named {
+			t.Errorf("%s is planned by the preview and reported by nothing", path)
 		}
 	}
 
@@ -880,9 +894,7 @@ func TestCheckReportsEachStoredFormAndCanTellACleanStoreFromADirtyOne(t *testing
 		t.Fatalf("check again: %v", err)
 	}
 	for _, finding := range after {
-		if finding.Path != loose {
-			t.Errorf("%s is still reported after the repair: %s", finding.Path, finding.Detail)
-		}
+		t.Errorf("%s is still reported after the repair: %s", finding.Path, finding.Detail)
 	}
 	if strings.Contains(readFile(t, loose), "\r") {
 		// Correct. The loose byte survives.
@@ -1111,13 +1123,18 @@ func TestEachShapeTheSweepReportsGetsASentenceTrueOfIt(t *testing.T) {
 	for _, finding := range findings {
 		reported[finding.Path] = finding
 	}
+	// A file whose carriage returns are all loose ones is reported by nothing
+	// at all, on the operator's ruling, and TestAConformingStoreChecksClean is
+	// where that is asserted along with the case the ruling must not silence.
+	if got, named := reported[loose]; named {
+		t.Errorf("a file whose only carriage returns are loose ones is reported as %s", got.Key)
+	}
 	for _, c := range []struct {
 		path string
 		key  string
 		what string
 	}{
 		{dirty, FindingStoredCarriageReturn, "a file that really does store a line ending"},
-		{loose, FindingLooseCarriageReturn, "a file whose only carriage returns are loose ones"},
 		{damaged, FindingNewlineRepairUnsupported, "a file the repair will not decide"},
 	} {
 		got, named := reported[c.path]
@@ -1132,9 +1149,7 @@ func TestEachShapeTheSweepReportsGetsASentenceTrueOfIt(t *testing.T) {
 	if got := reported[damaged].Detail; got != "does not round-trip through the anchor reader" {
 		t.Errorf("the refused file's detail reads %q", got)
 	}
-	if got := reported[loose].Detail; !strings.HasPrefix(got, "0 line-ending") {
-		t.Errorf("the loose file's detail reads %q, and its line-ending count is zero by construction", got)
-	}
+
 }
 
 // TestAConfirmedRepairThatSucceededExitsClean is the second finding code review
@@ -1385,5 +1400,88 @@ func TestAnAnchorDinahWroteIsNeverCalledDamaged(t *testing.T) {
 	}
 	if !named {
 		t.Errorf("a genuinely damaged anchor was not refused: %+v", refused.Conflicts)
+	}
+}
+
+// TestAConformingStoreChecksClean is the operator's ruling of 2026-09-15 on
+// dinah-514/checklist/388cbe456fbe, taken as option A.
+//
+// A carriage return not followed by a line feed is legal prose under
+// dinah-514/decisions/7 and the repair is required to leave it exactly where it
+// is. Reporting such a file made dinah check exit non-zero for ever over a
+// store with nothing wrong with it, and the only act that could clear the
+// report was editing the prose the decision exists to protect.
+//
+// Three things are asserted, and the second is the one the ruling is easy to
+// implement too widely against.
+//
+//  1. A file whose carriage returns are ALL loose is reported by nothing.
+//  2. A file carrying BOTH kinds is still reported, and reported for the real
+//     one. The ruling silences a file whose carriage returns are all loose, not
+//     any file that carries one, and widening it to the second would be silent.
+//  3. The repair still leaves every loose carriage return exactly where it is,
+//     which is what dinah-514/decisions/7 says and what this ruling does not
+//     touch.
+func TestAConformingStoreChecksClean(t *testing.T) {
+	root := newlineFixture(t)
+	loose := filepath.Join(root, CardsDir, "c00000000001", CardAnchor)
+	both := filepath.Join(root, CardsDir, "c00000000002", CardAnchor)
+	// Carriage returns in the interior of a line, which no line feed follows.
+	write(t, loose, "---\ntitle: \"one\rtwo\"\ncolumn: b00000000001\nstate: ready\n---\nbody one\rbody two\n")
+	// The same, and a real stored line ending beside it.
+	write(t, both, "---\ntitle: \"one\rtwo\"\ncolumn: b00000000001\nstate: ready\n---\nbody one\rbody two\r\nbody three\n")
+
+	opened, err := Open(root)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	findings, err := opened.checkStoredNewlines()
+	if err != nil {
+		t.Fatalf("check: %v", err)
+	}
+	reported := map[string]Finding{}
+	for _, finding := range findings {
+		reported[finding.Path] = finding
+	}
+	if got, named := reported[loose]; named {
+		t.Errorf("a file whose carriage returns are all loose ones is reported as %s (%s), and such a file conforms", got.Key, got.Detail)
+	}
+	got, named := reported[both]
+	if !named {
+		t.Fatalf("a file carrying a real stored line ending is reported by nothing, so the ruling was taken too widely: %+v", findings)
+	}
+	if got.Key != FindingStoredCarriageReturn {
+		t.Errorf("a file carrying both kinds is reported under %s, and it is reported for the one that is not legal", got.Key)
+	}
+	if !strings.HasPrefix(got.Detail, "1 line-ending") {
+		t.Errorf("the detail reads %q and the file carries one stored line ending", got.Detail)
+	}
+	if !strings.HasSuffix(got.Detail, "2 loose") {
+		t.Errorf("the detail reads %q and the file carries two carriage returns the repair keeps", got.Detail)
+	}
+
+	// The repair leaves every loose carriage return where it is, which is the
+	// half of the contract this ruling does not touch.
+	before := readFile(t, loose)
+	migrate(t, root, true)
+	if after := readFile(t, loose); after != before {
+		t.Errorf("the repair touched a file it was to leave alone:\n was %q\n now %q", before, after)
+	}
+	repaired := readFile(t, both)
+	if strings.Contains(repaired, "\r\n") {
+		t.Errorf("the file carrying both kinds was not repaired: %q", repaired)
+	}
+	if strings.Count(repaired, "\r") != 2 {
+		t.Errorf("the repair kept %d loose carriage returns and the file carried two: %q", strings.Count(repaired, "\r"), repaired)
+	}
+
+	// Nothing is reported once the one real defect is gone, so the store checks
+	// clean while still carrying legal prose no tool will ever remove.
+	after, err := opened.checkStoredNewlines()
+	if err != nil {
+		t.Fatalf("check again: %v", err)
+	}
+	if len(after) != 0 {
+		t.Errorf("a conforming store still reports %+v", after)
 	}
 }

@@ -5292,11 +5292,6 @@
       "context": "The same clause for any other number.",
       "source": "a331518a5e0c8230"
     },
-    "check.loose-carriage-return": {
-      "text": "diese Datei trägt einen Wagenrücklauf, der kein Zeilenende ist und den dieses Format behält ({detail})",
-      "context": "A check finding: a workbench text file whose carriage returns are all ones the format stores as the prose meant them, none of which stands for a line ending. {detail} carries the two counts, the first of which is zero for this finding by construction. It is reported so a reader can tell a file whose bytes were looked at and left alone from a file nothing looked at, and it is a separate finding from check.stored-carriage-return because that sentence would be false of it.",
-      "source": "90fda58db3e984f7"
-    },
     "check.newline-repair-unsupported": {
       "text": "die Zeilenumbruch-Reparatur entscheidet über diese Datei nicht, daher bleibt sie genau so, wie sie ist ({detail})",
       "context": "A check finding: a workbench text file the newline repair refuses rather than guessing at. {detail} says which case, either that a file bearing one of the anchor names the format fixes does not round-trip through the anchor reader, or the frontmatter key whose shape the repair cannot re-render. Such a file need carry no carriage return at all, which is why this is not reported as a stored line ending; deciding what a damaged header should become is separate work from deciding what a line ending should be.",

@@ -1582,6 +1582,16 @@ asks it of the file the repair would produce; asking it of the raw bytes refused
 files that were perfectly repairable and stopped the repair of every other file
 in the store.
 
+A file whose carriage returns are all of the kind this format keeps is reported
+by nothing. Such a file conforms, the repair is required to leave it exactly as
+it is, and every finding counts toward the exit code of `dinah check`, so
+reporting it would have made a conforming store exit non-zero on every run with
+no act available to clear it but editing the prose the rule exists to protect.
+A file carrying one of each is still reported, for the one that is not legal.
+What is given up is the line telling a reader the bytes were looked at and
+deliberately left, which wants a finding that reports without counting toward
+the exit code and does not exist yet.
+
 Lowercase-only is load-bearing for a second reason: identifiers and anchor
 names are directory and file names, and a workbench travels between
 case-sensitive filesystems (Linux) and case-insensitive ones (Windows and
