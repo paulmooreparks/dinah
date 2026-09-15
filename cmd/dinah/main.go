@@ -58,6 +58,14 @@ type session struct {
 	// carried one. It is empty rather than refused here, because the
 	// refusal belongs inside the verb's own order.
 	actor string
+	// agent is what the environment declared about what is performing the
+	// act, which the request carries to the journal and to the tier
+	// resolution. The ladder for each member is the environment and nothing
+	// else, which is narrower than the actor ladder above deliberately: the
+	// user config is one file shared by every process on the machine, so a
+	// model recorded there would be stamped on acts performed by something
+	// else entirely.
+	agent bench.Agent
 	// benchFlag is the bench named by --workbench or DINAH_WORKBENCH.
 	benchFlag string
 	// benchFlagSource names which of the two named it, SourceFlag or
@@ -174,6 +182,7 @@ func run(argv []string, in io.Reader, out, errw io.Writer) int {
 	if actor, err := bench.ResolveActor(parsed.value("actor"), cfg); err == nil {
 		s.actor = actor
 	}
+	s.agent = bench.ResolveAgent()
 	// A request for help is answered before any command runs, so
 	// `dinah move --help` prints move's page rather than refusing that move
 	// was given no card. It is read ahead of --version for the same reason
@@ -231,7 +240,36 @@ func run(argv []string, in io.Reader, out, errw io.Writer) int {
 	if word := unreadWordIn(command, parsed.rest()); word != "" {
 		return s.fail(contract.Usage, word)
 	}
+	if flag := undeclaredFlagOn(command, parsed); flag != "" {
+		return s.fail(contract.Usage, "--"+flag)
+	}
 	return command.run(s, parsed)
+}
+
+// undeclaredFlagOn reports the first flag this invocation carried that the
+// command does not declare, empty when it carried none.
+//
+// A flag one command declares is a legal spelling everywhere in the parser,
+// because the parser reads one table of names across the whole tool and has no
+// command in hand when it reads it. That left a flag accepted on a command that
+// never reads it, which is the silent drop dinah-496 met when `--tier` left
+// claim, next and pull: the flag went on parsing, went on being ignored, and a
+// harness still passing it was told nothing.
+//
+// A session flag is exempt, because the six of them are the tool's own rather
+// than any command's and every command honours them.
+func undeclaredFlagOn(c *command, parsed *arguments) string {
+	declared := map[string]bool{}
+	for _, param := range verb.Params(c.name) {
+		declared[param.Name] = true
+	}
+	for _, capture := range parsed.domainCaptures {
+		if declared[capture.name] || sessionFlagNames[capture.name] {
+			continue
+		}
+		return capture.name
+	}
+	return ""
 }
 
 // unreadWordIn reports the first word in a command's own arguments that the

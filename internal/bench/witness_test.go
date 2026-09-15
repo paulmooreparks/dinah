@@ -125,7 +125,7 @@ func TestWitnessDivergenceRecordsTheEditItFound(t *testing.T) {
 	if got.ToTitle != "Done" {
 		t.Errorf("to_title is %q, wanted Done", got.ToTitle)
 	}
-	if got.Actor != "alka" {
+	if got.Actor.Name != "alka" {
 		t.Errorf("actor is %q, wanted the actor the caller passed", got.Actor)
 	}
 	if got.TS != "2026-08-18T09:00:00Z" {

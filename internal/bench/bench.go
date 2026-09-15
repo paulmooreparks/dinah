@@ -78,8 +78,10 @@ const (
 // or declaring no format at all, predates both rules and opens as it always
 // did. It moved from 3 to 4 at dinah-498, which retired the branch heading a
 // card body carried into a declared field, so the number says whether a
-// workbench has been carried across that retirement.
-const StorageFormat = 4
+// workbench has been carried across that retirement. It moved from 4 to 5 at
+// dinah-496, which made a journal line's actor an object, so the number says
+// whether a workbench's journals have been re-encoded.
+const StorageFormat = 5
 
 // ContainerFormat is the storage format from which the containment rule binds.
 // A workbench declaring this number or a higher one is held to Contained; one
@@ -114,6 +116,17 @@ const RegistryFormat = 3
 // a workbench declaring any format this build opens.
 const FieldsFormat = 4
 
+// ActorObjectFormat is the storage format from which a journal line's actor
+// is an object rather than a string. A workbench declaring this number or a
+// higher one has had every journal re-encoded by cmd/dinah-migrate-actors; one
+// declaring less still carries string actors, which the tolerant unmarshaller
+// on Actor reads.
+//
+// It is a constant of its own on the reasoning ContainerFormat gives: the
+// number records which migration a store has crossed, and no read path refuses
+// a workbench over it.
+const ActorObjectFormat = 5
+
 // UndeclaredFormat is the format a workbench whose anchor declares no format
 // key is opened as carrying. Such a workbench predates the key itself, and
 // the key predates the registry, so the value is the newest format the
@@ -140,7 +153,7 @@ const UndeclaredFormat = ContainerFormat
 const (
 	ProfileName  = "dinah-core"
 	ProfileMajor = 0
-	ProfileMinor = 16
+	ProfileMinor = 17
 )
 
 // The oldest profile revision this build opens. dinah-core 0.7 renamed the
@@ -511,6 +524,12 @@ type Bench struct {
 	// every reader wants one field or the fields of one kind, and
 	// DeclaredFields, DeclaredFieldOf and DeclaredFieldsOn are how they ask.
 	declaredFields []DeclaredField
+	// tiers are the tier table's entries in declaration order, read out of
+	// the tiers block at Open, and empty on a workbench declaring no table.
+	tiers []TierEntry
+	// malformedTiers are the tier-table entries the reader refused, which
+	// dinah check reports and nothing else reads.
+	malformedTiers []MalformedTierEntry
 	// malformedFields are the keys of the declaration entries the reader
 	// refused, which `dinah check` reports and nothing else reads.
 	malformedFields []string
@@ -1631,6 +1650,7 @@ func openWithVocabulary(root string, vocab columnVocabulary, admit func(declared
 		levels:            readLevels(fm),
 	}
 	b.declaredFields, b.malformedFields = readDeclaredFields(fm)
+	b.tiers, b.malformedTiers = readTiers(fm)
 	if b.Title == "" {
 		return nil, contract.RefuseWith(contract.Malformed, "title", anchor)
 	}

@@ -529,21 +529,21 @@ func TestAFreshWorkbenchCarriesTheUnionMergeAttributes(t *testing.T) {
 
 // TestTheStorageFormatMovedAndAnOlderWorkbenchStillOpens asserts dinah-285
 // AC-14 in this package, carried forward through each later move: the constant
-// reads 4 after the retirement of the body heading on dinah-498, which
-// followed the registry's arrival on dinah-488 and the container's own move
-// to 2 on dinah-285, and a workbench declaring the older format beside a
-// profile revision inside the window still opens in the bare layout it was
-// written in.
+// reads 5 after a journal line's actor became an object on dinah-496, which
+// followed the retirement of the body heading on dinah-498, the registry's
+// arrival on dinah-488 and the container's own move to 2 on dinah-285, and a
+// workbench declaring the older format beside a profile revision inside the
+// window still opens in the bare layout it was written in.
 //
 // The name lost its second clause at dinah-498. The storage format and the
-// profile revision moved together on that card, which is the first time they
-// have, because the mechanism the format number gates is one the profile now
-// states rather than one Dinah keeps to itself. The independence the old name
-// asserted is still real and is still worth reading: two of the four format
-// moves so far disturbed no statement of the profile at all.
+// profile revision moved together on that card and again on dinah-496, because
+// the mechanism each number gates is one the profile now states rather than one
+// Dinah keeps to itself. The independence the old name asserted is still real
+// and is still worth reading: two of the five format moves so far disturbed no
+// statement of the profile at all.
 func TestTheStorageFormatMovedAndAnOlderWorkbenchStillOpens(t *testing.T) {
-	if StorageFormat != 4 {
-		t.Errorf("StorageFormat is %d, wanted 4", StorageFormat)
+	if StorageFormat != 5 {
+		t.Errorf("StorageFormat is %d, wanted 5", StorageFormat)
 	}
 	older := strings.Replace(benchDefinition, "profile: dinah-core/0.7", "profile: dinah-core/0.9", 1)
 	root := plantBench(t, filepath.Join(t.TempDir(), "workbench"), older)

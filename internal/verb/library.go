@@ -56,6 +56,20 @@ type Request struct {
 	// before the request is made. An empty actor is refused inside the
 	// verb's own order rather than ahead of it.
 	Actor string
+	// Harness, Provider, Model and Server are what the caller declared about
+	// what is performing the act: the harness the process ran under, the
+	// provider and model behind it, and the address the model was reached at.
+	// Each is resolved before the request is made, from the environment at a
+	// terminal and from the call's own properties over MCP, and each is
+	// optional. Nothing here verifies any of them: a workbench is files on a
+	// disk with no server, no account and no credential, so a declared
+	// provider and model is a self-report. What changes is who does the
+	// reporting, which is the harness that started the process rather than
+	// the text that composed the command.
+	Harness  string
+	Provider string
+	Model    string
+	Server   string
 	// Card is the card reference the verb names.
 	Card string
 	// Ref is the entity reference the entity-shaped commands name.
@@ -85,16 +99,17 @@ type Request struct {
 	// field.
 	Severity string
 	Priority string
-	// Tier is what a claim, a next and a pull declare about the caller, what a
-	// column creation gives the new column as its default, and what a raise
-	// asks the card to require at the column it is standing in, which are three
-	// different acts sharing one argument name the way Kind already serves a
-	// block and a column creation. On the three reading and claiming verbs the
-	// value is self-reported and nothing verifies it: the claim gate refuses
-	// below it and selection withholds above it, and neither establishes
-	// anything about who is asking. A raise's value is an expression rather
-	// than a name: it resolves through ResolveTierWrite exactly as a per-column
-	// tier write does, so it may be a declared member or a relative step.
+	// Tier is what a column creation gives the new column as its default, and
+	// what a raise asks the card to require at the column it is standing in,
+	// which are two different acts sharing one argument name the way Kind
+	// already serves a block and a column creation. A raise's value is an
+	// expression rather than a name: it resolves through ResolveTierWrite
+	// exactly as a per-column tier write does, so it may be a declared member
+	// or a relative step.
+	//
+	// No claim, next or pull carries it. What a caller is is resolved from the
+	// provider and the model it declared against the workbench's own table,
+	// and the three commands that used to take a declaration take none.
 	Tier string
 	// At is the column a per-column write names, empty when the write is
 	// about the card as a whole. A tier write carrying it sets an override

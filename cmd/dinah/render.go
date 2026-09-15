@@ -756,7 +756,7 @@ func (s *session) renderAttachments(views []verb.AttachmentView) {
 func (s *session) renderHistory(events []bench.Event) {
 	t := table{indent: 2, columns: s.columns("log", "when", "action", "actor", "detail")}
 	for _, ev := range events {
-		fields := []string{ev.TS, s.token(ev.Event), ev.Actor, s.eventDetail(ev)}
+		fields := []string{ev.TS, s.token(ev.Event), ev.Actor.Name, s.eventDetail(ev)}
 		t.rows = append(t.rows, tableRow{fields: fields})
 	}
 	s.table(t)
@@ -849,7 +849,7 @@ func (s *session) renderChangesBody(set *verb.ChangeSet) {
 		// ev.Event.Event is the act's own name. The two are spelled apart
 		// here rather than aliased, since the shape is the one the machine
 		// surface publishes.
-		fields := []string{ev.TS, changeSubject(ev), s.token(ev.Event.Event), ev.Actor, s.eventDetail(ev.Event)}
+		fields := []string{ev.TS, changeSubject(ev), s.token(ev.Event.Event), ev.Actor.Name, s.eventDetail(ev.Event)}
 		t.rows = append(t.rows, tableRow{fields: fields})
 	}
 	s.table(t)
@@ -1027,9 +1027,36 @@ func (s *session) renderFindings(findings []bench.Finding) int {
 	return contract.ExitCodeForRead(contract.ReadFindings)
 }
 
-// renderIdentity prints the actor and whether it is the operator.
+// renderIdentity prints the actor and whether it is the operator, and then,
+// where the caller declared anything about what is performing the act, the
+// declared facts and the tier the workbench resolved from them.
+//
+// A person who declared nothing sees the one line they see today and nothing
+// further, so they can tell that the tool read nothing rather than that it read
+// something empty. The harness line says the value is malformed rather than
+// dropping it, because a person repairing a mistyped variable needs to see what
+// it says, and no read is ever refused over it.
 func (s *session) renderIdentity(identity *verb.Identity) {
 	s.line(s.r.T("whoami.line", "actor", identity.Actor, "operator", s.yesNo(identity.IsOperator)))
+	if identity.Harness != "" {
+		key := "whoami.harness"
+		if identity.MalformedHarness {
+			key = "whoami.harness.malformed"
+		}
+		s.line(s.r.T(key, "harness", identity.Harness))
+	}
+	if identity.Provider != "" {
+		s.line(s.r.T("whoami.provider", "provider", identity.Provider))
+	}
+	if identity.Model != "" {
+		s.line(s.r.T("whoami.model", "model", identity.Model))
+	}
+	if identity.Server != "" {
+		s.line(s.r.T("whoami.server", "server", identity.Server))
+	}
+	if identity.Tier != "" {
+		s.line(s.r.T("whoami.tier", "tier", identity.Tier))
+	}
 }
 
 // renderVersion prints what this binary is and what it conforms to.

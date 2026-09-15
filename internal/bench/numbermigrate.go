@@ -343,7 +343,7 @@ func (b *Bench) MigrateNumbers(actor, now string) (int, []string, []Finding, err
 		ev := Event{
 			TS:    now,
 			Event: contract.EventRenumbered,
-			Actor: actor,
+			Actor: NamedActor(actor),
 			From:  strconv.Itoa(moved.from),
 			To:    strconv.Itoa(moved.to),
 		}
@@ -488,7 +488,7 @@ func (b *Bench) RenumberCards(actor, now string) ([]string, []Finding, error) {
 		ev := Event{
 			TS:    now,
 			Event: contract.EventRenumbered,
-			Actor: actor,
+			Actor: NamedActor(actor),
 			From:  strconv.Itoa(entry.from),
 			To:    strconv.Itoa(entry.to),
 		}

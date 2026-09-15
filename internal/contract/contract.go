@@ -429,6 +429,27 @@ const (
 	// a floor rather than a match: declaring more than the card asks for is
 	// waste rather than an error, and only declaring less is refused.
 	BelowTier = LayerPrefix + "below-tier"
+	// UnlistedModel is a claim by a caller whose declared provider and model
+	// the workbench's tier table lists under no tier, on a card that requires
+	// a tier at the column being claimed into. It is separate from BelowTier
+	// because the two lead to two different repairs: a model the table lists
+	// below the requirement is a model to switch away from, and a model the
+	// table lists nowhere is a model to add to the table or to switch away
+	// from, and the reader cannot tell which without being told.
+	UnlistedModel = LayerPrefix + "unlisted-model"
+	// UndeclaredModel is a claim by a caller that declared no model at all,
+	// on a card that requires a tier at the column being claimed into. It is
+	// separate from UnlistedModel because its reader is a harness that has
+	// not been configured rather than one running the wrong model, so the
+	// sentence names the variable to set and the parameter to send.
+	UndeclaredModel = LayerPrefix + "undeclared-model"
+	// MalformedHarness is an act that writes a journal line under a declared
+	// harness name outside the one-segment grammar bench.HarnessName admits.
+	// It refuses only such an act: a read is never refused over it, because a
+	// mistyped variable that stopped show and ls would take the whole tool
+	// away from whoever has to repair it, and a read stamps nothing a
+	// malformed name could damage.
+	MalformedHarness = LayerPrefix + "malformed-harness"
 	// TierNotHigher is a raise whose resolved tier does not rank above what
 	// the card already requires at the column being raised. Equal counts as
 	// not higher: a raise that changes nothing is not a raise. The comparison
@@ -586,6 +607,7 @@ var Introduced = []string{
 	AmbiguousCard, AmbiguousColumn, NoUpstream, AwaitingOutside, TakesNoWork,
 	NoLevels, UnknownLevel, UnknownFormat,
 	NoTierDefault, TierOutOfRange, BelowTier, TierNotHigher,
+	UnlistedModel, UndeclaredModel, MalformedHarness,
 	ReshapeNeedsDestination, ReshapeHeldCardInQueue, ReshapeMapSourceEmpty,
 	ReshapeDestinationRetiring, ReshapeDestinationAmbiguous,
 	UnknownItemKind, WrongItemKind, NotPending, NotResolved, Uncited,
@@ -906,4 +928,16 @@ func With(err error, name, value string) error {
 	}
 	extra[name] = value
 	return RefuseWith(refusal.Name, refusal.Detail, extra)
+}
+
+// EventNames are every event name this build declares, which is the closed set
+// a journal line's event member is drawn from.
+//
+// It is Events plus the three an entity other than a card records: a column's
+// own rewrite, a workstream's own rewrite, and the workbench's own. Events
+// stayed the card-journal set it has always been, and a caller asking what
+// names exist at all reads this.
+func EventNames() []string {
+	return append(append([]string(nil), Events...),
+		EventColumnUpdated, EventWorkstreamUpdated, EventWorkbenchUpdated)
 }

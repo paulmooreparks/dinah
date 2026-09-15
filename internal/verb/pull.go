@@ -31,6 +31,9 @@ func (l *Library) Pull(req *Request) *Response {
 	if l.Bench.Operator == "" {
 		return l.refuse(req, nil, contract.NoOperator, "")
 	}
+	if refused := l.malformedHarness(req, nil); refused != nil {
+		return refused
+	}
 	if req.Actor == "" {
 		return l.refuse(req, nil, contract.NoOwner, "")
 	}
@@ -73,8 +76,8 @@ func (l *Library) Pull(req *Request) *Response {
 	// still answers its own name. Only when it holds no ready card does the
 	// pull look further back, through the columns that carry into this
 	// destination, nearest first.
-	by := selectionAdmission(req)
-	head, sawReady := headOfReadyForTier(l.Bench, upstream.ID, destination, cards, by)
+	by := selectionAdmission(l.Bench, req)
+	head, sawReady, _ := headOfReadyForTier(l.Bench, upstream.ID, destination, cards, by)
 	if head == nil {
 		var furtherReady bool
 		head, furtherReady = headOfFurtherSource(l.Bench, destination, upstream, cards, by)
@@ -83,8 +86,8 @@ func (l *Library) Pull(req *Request) *Response {
 	if head == nil {
 		// Finding nothing to take has two causes and they are different
 		// answers. Either no source holds a ready card, or one does and the
-		// declared tier is admitted for none of it, which is work waiting on
-		// a more senior caller rather than an empty workbench.
+		// caller's resolved tier is admitted for none of it, which is work
+		// waiting on a more senior caller rather than an empty workbench.
 		if sawReady {
 			return l.okAboveTier(req, destination)
 		}
@@ -174,7 +177,7 @@ func (l *Library) pullDestination(req *Request, named *bench.Column) (*bench.Col
 // answer is the one the caller is given.
 func (l *Library) pullCandidates(req *Request, cards []*bench.Card) ([]string, bool) {
 	operator := req.Actor == l.Bench.Operator
-	by := selectionAdmission(req)
+	by := selectionAdmission(l.Bench, req)
 	var qualifying []string
 	aboveTier := false
 	for _, column := range l.Bench.Columns {
@@ -223,7 +226,7 @@ func (l *Library) someSourceIsReady(destination *bench.Column, cards []*bench.Ca
 		if source.OperatorOwned && !operator {
 			continue
 		}
-		head, sawReady := headOfReadyForTier(l.Bench, source.ID, destination, cards, by)
+		head, sawReady, _ := headOfReadyForTier(l.Bench, source.ID, destination, cards, by)
 		switch {
 		case head != nil:
 			ready = true
@@ -423,7 +426,7 @@ func (l *Library) pull(req *Request, card *bench.Card) *Response {
 		events = append(events, bench.Event{
 			TS:      stamp,
 			Event:   contract.EventClaimed,
-			Actor:   req.Actor,
+			Actor:   req.Acting(),
 			Expires: card.Expires,
 		})
 	}
@@ -436,7 +439,7 @@ func (l *Library) pull(req *Request, card *bench.Card) *Response {
 	events = append(events, bench.Event{
 		TS:        stamp,
 		Event:     contract.EventMoved,
-		Actor:     req.Actor,
+		Actor:     req.Acting(),
 		From:      from,
 		FromTitle: titleOf(departure),
 		To:        destination.ID,
@@ -513,7 +516,7 @@ func headOfFurtherSource(b *bench.Bench, destination, upstream *bench.Column, ca
 		if source == upstream {
 			continue
 		}
-		head, ready := headOfReadyForTier(b, source.ID, destination, cards, by)
+		head, ready, _ := headOfReadyForTier(b, source.ID, destination, cards, by)
 		if ready {
 			sawReady = true
 		}

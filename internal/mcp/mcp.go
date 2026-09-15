@@ -771,10 +771,35 @@ func request2Args(command string, arguments map[string]any) *verb.Request {
 	if actor, ok := arguments["actor"].(string); ok {
 		req.Actor = actor
 	}
+	// A per-call value outranks the connection's environment, member by
+	// member. An orchestrator and the subagent it dispatches share one server
+	// process, so the process environment is the connection's default and the
+	// call is where a particular model says what it is. The resolution is per
+	// member rather than all-or-nothing: a call naming only model takes the
+	// process environment's harness, provider and server, because a harness
+	// that names its model per call should not have to repeat its own name on
+	// every call.
+	agent := bench.ResolveAgent()
+	req.Harness = declaredOr(arguments, "harness", agent.Harness)
+	req.Provider = declaredOr(arguments, "provider", agent.Provider)
+	req.Model = declaredOr(arguments, "model", agent.Model)
+	req.Server = declaredOr(arguments, "server", agent.Server)
 	if basis, ok := arguments["basis"].(string); ok {
 		req.Basis = basis
 	}
 	return req
+}
+
+// declaredOr reads one identity property off the call, falling back to what
+// the server process's own environment carries. A member the call did not name
+// at all, and a member it named empty, both take the fallback, because a
+// caller declaring nothing about one fact is not a caller asserting that the
+// fact is absent.
+func declaredOr(arguments map[string]any, name, fallback string) string {
+	if value, ok := arguments[name].(string); ok && strings.TrimSpace(value) != "" {
+		return strings.TrimSpace(value)
+	}
+	return fallback
 }
 
 // unknownArgument is what call returns when a tools/call names an argument

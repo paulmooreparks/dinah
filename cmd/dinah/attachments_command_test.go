@@ -249,7 +249,9 @@ func TestTheNotAttachableRefusalPrintsTheAdviceForItsKind(t *testing.T) {
 func TestTheAttachHelpPageNamesTheKindPrecondition(t *testing.T) {
 	root := newBench(t)
 	t.Setenv("COLUMNS", "80")
-	wanted := []string{contract.UnknownPath, contract.NoOwner, contract.NotAttachable, contract.UnknownPath}
+	// The harness row heads every writing command's list at dinah-496, ahead of
+	// the four rows attach declares for itself.
+	wanted := []string{contract.MalformedHarness, contract.UnknownPath, contract.NoOwner, contract.NotAttachable, contract.UnknownPath}
 
 	declared := verb.Checks("attach")
 	if len(declared) != len(wanted) {
@@ -265,16 +267,7 @@ func TestTheAttachHelpPageNamesTheKindPrecondition(t *testing.T) {
 	if page.code != 0 {
 		t.Fatalf("help attach: %d %s", page.code, page.errw)
 	}
-	var rows []string
-	for _, line := range strings.Split(page.out, "\n") {
-		fields := strings.Fields(line)
-		// A numbered row of the refusal table opens with its ordinal and
-		// closes with the refusal name, and no other line of the page does.
-		if len(fields) < 2 || fields[0] != strconv.Itoa(len(rows)+1) {
-			continue
-		}
-		rows = append(rows, fields[len(fields)-1])
-	}
+	rows := refusalRowsOf(page.out)
 	if len(rows) != len(wanted) {
 		t.Fatalf("the page draws %d numbered rows, wanted %d:\n%s", len(rows), len(wanted), page.out)
 	}
@@ -288,4 +281,33 @@ func TestTheAttachHelpPageNamesTheKindPrecondition(t *testing.T) {
 			t.Errorf("help attach draws a line %d columns wide:\n%q", displayWidth(line), line)
 		}
 	}
+}
+
+// refusalRowsOf reads the refusal name of each numbered row of a help page's
+// precondition table, in order.
+//
+// A row's name is its last field, and a row whose sentence is too wide for the
+// window draws the name on the continuation line beneath it instead. The
+// renderer has always wrapped that way; no page reached the width that produced
+// one until dinah-496 put a twenty-three character refusal name on every
+// writing command's list, which narrowed the sentence column on the pages whose
+// own names are short. A reader of a wrapped row still meets the name under the
+// sentence, so what changed is the parsing here rather than the page.
+func refusalRowsOf(page string) []string {
+	var rows []string
+	lines := strings.Split(page, "\n")
+	for at, line := range lines {
+		fields := strings.Fields(line)
+		if len(fields) < 2 || fields[0] != strconv.Itoa(len(rows)+1) {
+			continue
+		}
+		name := fields[len(fields)-1]
+		if !strings.Contains(name, "-") && at+1 < len(lines) {
+			if beneath := strings.Fields(lines[at+1]); len(beneath) == 1 {
+				name = beneath[0]
+			}
+		}
+		rows = append(rows, name)
+	}
+	return rows
 }

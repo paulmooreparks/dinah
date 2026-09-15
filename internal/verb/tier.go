@@ -33,6 +33,9 @@ func (l *Library) SetCardTierAt(req *Request) *Response {
 	if l.Bench.Operator == "" {
 		return l.refuse(req, nil, contract.NoOperator, "")
 	}
+	if refused := l.malformedHarness(req, nil); refused != nil {
+		return refused
+	}
 	found, err := l.Bench.ResolveCard(req.Card)
 	if err != nil {
 		return l.FromError(req, err)
@@ -85,7 +88,7 @@ func (l *Library) SetCardTierAt(req *Request) *Response {
 	ev := bench.Event{
 		TS:      now,
 		Event:   contract.EventTierOverridden,
-		Actor:   req.Actor,
+		Actor:   req.Acting(),
 		Column:  column.ID,
 		From:    was,
 		To:      absolute,
@@ -100,8 +103,9 @@ func (l *Library) SetCardTierAt(req *Request) *Response {
 	return response
 }
 
-// claimableTier refuses a claim declaring a tier below what the card requires
-// at the column it is being taken up in, and passes every other claim.
+// claimableTier refuses a claim by a caller whose resolved tier is below what
+// the card requires at the column it is being taken up in, and passes every
+// other claim.
 //
 // The requirement comes from the card and from nowhere else: its own per-column
 // override where one names this column, its own baseline otherwise, and nothing
@@ -111,16 +115,25 @@ func (l *Library) SetCardTierAt(req *Request) *Response {
 // floor this gate enforces protects the cards somebody has assessed rather than
 // the columns they pass through.
 //
-// A claim declaring nothing, or declaring a name the workbench does not carry,
-// cannot be shown to meet a floor and is refused wherever one applies. That is
-// the strict reading on purpose: a gate admitting an absent declaration would
-// be a refusal any value satisfies, which is a refusal in appearance alone. It
-// costs nothing where no card declares a requirement, because the gate has
-// already passed by then.
+// What the caller is is resolved rather than declared. The provider and the
+// model the caller reported are matched against the workbench's own tiers
+// table, and the rung that match sits at is what meets the floor. A caller that
+// resolves to nothing cannot be shown to meet a floor and is refused wherever
+// one applies. That is the strict reading on purpose: a gate admitting an
+// absent declaration would be a refusal any value satisfies.
 //
-// The comparison is a floor rather than a match. A claimant declaring more than
-// the card asks for is admitted, since somebody over-qualified taking work is
-// waste rather than an error, and waste is not this gate's business.
+// Three things run in a fixed order, and the order is what makes the exemption
+// reachable. The card's requirement comes first, so a card asking for nothing
+// admits everybody without any of the rest being read. The workbench's table
+// comes next, because a workbench that declares none has not asked for the
+// gate. The operator's exemption comes after that and before either refusal,
+// so the person at the terminal can still claim a tiered card while declaring
+// nothing. Everybody else is admitted only by a resolved tier at or above the
+// requirement.
+//
+// The comparison is a floor rather than a match. A claimant resolving to more
+// than the card asks for is admitted, since somebody over-qualified taking work
+// is waste rather than an error, and waste is not this gate's business.
 func (l *Library) claimableTier(req *Request, card *bench.Card, column *bench.Column) *Response {
 	// The comparison itself lives on the workbench, in TierAdmission, because
 	// selection asks the same question of the same card at the same column and
@@ -131,9 +144,30 @@ func (l *Library) claimableTier(req *Request, card *bench.Card, column *bench.Co
 	// An admitted claim covers three cases the refusal never sees: the card
 	// asks for nothing here, it asks for a tier this workbench does not
 	// declare, which dinah check reports and no gate can honestly refuse, and
-	// the declaration clears the floor.
-	admitted, required := l.Bench.TierAdmission(card, column, req.Tier)
+	// the caller's resolved tier clears the floor.
+	resolved, _ := l.Bench.TierOf(req.Provider, req.Model, req.Server)
+	admitted, required := l.Bench.TierAdmission(card, column, resolved)
 	if admitted {
+		return nil
+	}
+	// A workbench that declares no tiers block refuses no claim on tier
+	// grounds, whatever its cards require and whatever any caller declares.
+	// Without that rule, installing this build would lock every claim on every
+	// existing workbench that declares a tier axis, because none of them has a
+	// table yet and every caller would resolve to nothing. The rule is not a
+	// grace period and does not expire: a table is how a workbench asks for
+	// the gate, and a workbench that has not written one has not asked.
+	// check.requirements-without-table is where such a workbench learns that
+	// its requirements refuse nobody.
+	if !l.Bench.DeclaresTierTable() {
+		return nil
+	}
+	// The operator of the workbench is admitted at every tier whatever he
+	// declares, and he is the only owner who is. The exemption opens no hole an
+	// agent does not already have, because an agent that sets DINAH_ACTOR to
+	// the operator's name already holds every operator-reserved act: the
+	// comparison separates names rather than people.
+	if req.Actor != "" && req.Actor == l.Bench.Operator {
 		return nil
 	}
 	// The column can be nil here, and the refusal still has to name one. A
@@ -149,8 +183,26 @@ func (l *Library) claimableTier(req *Request, card *bench.Card, column *bench.Co
 	if column != nil {
 		ref = columnRef(column)
 	}
-	return l.refuseWith(req, card, contract.BelowTier, required, map[string]string{
-		"required": required,
-		"column":   ref,
-	})
+	extra := map[string]string{
+		"required":     required,
+		"column":       ref,
+		"satisfied_by": bench.RenderTierModels(l.Bench.SatisfyingModels(required)),
+	}
+	// The three refusals lead to three different repairs, which is why they are
+	// three names rather than one. A caller that declared no model is a harness
+	// nobody configured, and its sentence names the variable to set. A caller
+	// the table lists nowhere is a model to add to the table or to switch away
+	// from. A caller the table lists below the requirement is a model to switch
+	// away from, and that one keeps the name the gate has always carried.
+	declared := bench.TierModel{Provider: req.Provider, Model: req.Model, Server: req.Server}
+	switch {
+	case req.Provider == "" || req.Model == "":
+		return l.refuseWith(req, card, contract.UndeclaredModel, required, extra)
+	case resolved == "":
+		extra["model"] = declared.Render()
+		return l.refuseWith(req, card, contract.UnlistedModel, declared.Render(), extra)
+	default:
+		extra["model"] = declared.Render()
+		return l.refuseWith(req, card, contract.BelowTier, required, extra)
+	}
 }

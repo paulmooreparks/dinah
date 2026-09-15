@@ -37,7 +37,7 @@ import type { VersionReport } from "./api";
  * neither: it asks the verb surface for a card and is answered a card, with
  * one more member on it that an older reader ignores.
  */
-export const SUPPORTED_FORMATS: readonly number[] = [1, 2, 3, 4];
+export const SUPPORTED_FORMATS: readonly number[] = [1, 2, 3, 4, 5];
 
 /**
  * The conformance claim this extension needs. A different name or major is

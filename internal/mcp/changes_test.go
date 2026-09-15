@@ -164,7 +164,7 @@ func benchWithSomethingInEveryCollection(t *testing.T, library *verb.Library) *v
 	if err := handle.Close(); err != nil {
 		t.Fatalf("close %s: %v", journal, err)
 	}
-	if err := bench.AppendEvent(journal, bench.Event{TS: bench.Stamp(time.Now().UTC()), Event: contract.EventCommented, Actor: "alka"}); err != nil {
+	if err := bench.AppendEvent(journal, bench.Event{TS: bench.Stamp(time.Now().UTC()), Event: contract.EventCommented, Actor: bench.NamedActor("alka")}); err != nil {
 		t.Fatalf("append past the bad line: %v", err)
 	}
 	return newLibraryAt(t, root)

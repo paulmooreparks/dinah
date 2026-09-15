@@ -29,10 +29,14 @@ func TestTheCommentToolsCardDescriptionNamesTheItemToo(t *testing.T) {
 		t.Errorf("the comment tool declares no text property: %v", properties)
 	}
 	// The parameter table's own two entries, card and text, are what this
-	// card touches; actor and workbench are the transport's own injected
-	// properties and carry no new property either.
+	// card touches; the rest are the transport's own injected properties and
+	// carry no new parameter either.
+	injected := map[string]bool{
+		"actor": true, "workbench": true,
+		"harness": true, "provider": true, "model": true, "server": true,
+	}
 	for name := range properties {
-		if name != "card" && name != "text" && name != "actor" && name != "workbench" {
+		if name != "card" && name != "text" && !injected[name] {
 			t.Errorf("the comment tool declares a property this card did not expect: %s", name)
 		}
 	}

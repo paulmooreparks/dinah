@@ -194,7 +194,7 @@ func writeAnchorlessCard(t *testing.T, container string) string {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatalf("mkdir %s: %v", dir, err)
 	}
-	event := bench.Event{TS: bench.Stamp(bench.ParseStamp("2099-01-01T00:00:00Z")), Event: contract.EventCreated, Actor: "alka", Title: "A card with no anchor"}
+	event := bench.Event{TS: bench.Stamp(bench.ParseStamp("2099-01-01T00:00:00Z")), Event: contract.EventCreated, Actor: bench.NamedActor("alka"), Title: "A card with no anchor"}
 	if err := bench.AppendEvent(filepath.Join(dir, bench.JournalName), event); err != nil {
 		t.Fatalf("write the history: %v", err)
 	}

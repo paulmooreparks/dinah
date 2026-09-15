@@ -89,6 +89,17 @@ const editorRecordVar = testenv.EditorRecordVar
 // caller that exports this variable, so the reader who meets those failures
 // reads a working trunk as broken.
 //
+// ResolveAgent (internal/bench/config.go) reads DINAH_HARNESS, DINAH_PROVIDER,
+// DINAH_MODEL and DINAH_SERVER, and is the reason this list is twelve rather
+// than eight. dinah-496 gave the binary those four inputs, and a developer who
+// exports any of them changes what three tests see: whoami prints a line per
+// declared fact, so both cases of TestInitRecordsTheActorWhenNothingElseNamesOne
+// and the quick start's own whoami transcript read four lines their fixtures do
+// not expect. Two of the three have nothing to do with that card, which is the
+// shape docs/practice/convention-counterexamples-1.md records under "A new
+// environment input read by the product and neutralized in only the new tests",
+// and which this project paid for once already on COLUMNS at dinah-229.
+//
 // The list deliberately stops short of DINAH_ACTOR and DINAH_LANG. Fixtures
 // set both on purpose, and clearing them at the binary boundary would change
 // what currently-passing tests start from.
@@ -99,6 +110,7 @@ var isolatedEnv = []string{
 	"DINAH_FORMAT",
 	"COLUMNS", "DINAH_EDITOR", "VISUAL", "EDITOR",
 	"LC_ALL", "LC_MESSAGES", "LANG",
+	"DINAH_HARNESS", "DINAH_PROVIDER", "DINAH_MODEL", "DINAH_SERVER",
 }
 
 // TestIsolatedEnvNamesEveryVariableTheBinaryClears guards the isolation this
@@ -109,7 +121,7 @@ var isolatedEnv = []string{
 // a golden list on purpose: reading the names off the list under test would
 // assert only that a slice equals itself. It catches a name dropped from
 // isolatedEnv later, and it fails on any machine, including a CI runner
-// exporting none of the eight.
+// exporting none of the twelve.
 //
 // The second half asserts that TestMain actually made the call, by reading
 // each name back while tests run. That one can only fail where the name is
@@ -121,6 +133,7 @@ func TestIsolatedEnvNamesEveryVariableTheBinaryClears(t *testing.T) {
 		"DINAH_FORMAT",
 		"COLUMNS", "DINAH_EDITOR", "VISUAL", "EDITOR",
 		"LC_ALL", "LC_MESSAGES", "LANG",
+		"DINAH_HARNESS", "DINAH_PROVIDER", "DINAH_MODEL", "DINAH_SERVER",
 	}
 	for _, name := range want {
 		if !namesVariable(isolatedEnv, name) {
@@ -1311,24 +1324,29 @@ func TestPathAnswersTheWorkbenchWhereTheOpenDemandsMigrationFirst(t *testing.T) 
 // follow fails the build, which is what DOC-ORDER-1 asks of a tool.
 //
 // A verb may carry rows the profile does not declare, which dinah-364's
-// loop_limit row is the first of. Those rows are held to two conditions
-// rather than admitted freely: they come after every row the profile
-// declares, so the profile's own numbering is untouched, and each carries a
-// refusal name in Dinah's own layer, so nothing can smuggle in a profile-named
-// refusal as an extra row. A reordered list, a dropped row, a sentence that
-// drifted from the profile's wording, and a profile row replaced by a
-// Dinah-named one all fail exactly as they did, because each of them lands
-// inside the window compared positionally.
+// loop_limit row is the first of. Those rows are held to two conditions rather
+// than admitted freely: every row that is not one the profile declares carries
+// a refusal name in Dinah's own layer, so nothing can smuggle in a
+// profile-named refusal as an extra row, and the rows the profile does declare
+// appear in the profile's own relative order with the profile's own wording. A
+// reordered list, a dropped row, a sentence that drifted from the profile's
+// wording, and a profile row replaced by a Dinah-named one all fail.
 //
-// Something was traded to get there, and it is narrower than the shape
-// suggests but it is real. The guard this replaced refused any extra row on
-// any verb, and this one admits appended Dinah-layer rows on every verb. Only
-// move is still bounded, because its rendered row count is composed as
-// len(workbench) + len(lists[Move]) + 1 and pins the number. So a second
-// dinah-prefixed row appended to claim, pull, release or block would now pass
-// unremarked where it used to fail the build. That is surplus over what
-// dinah-364 needed, and it is the cost of making the loop row expressible at
-// all.
+// The comparison walks the rendered list rather than reading a fixed window of
+// it, which is what lets a layer's own row stand anywhere. dinah-364's row sat
+// at the end and a window sufficed; dinah-496's malformed-harness row runs
+// before every row of every list, because it reads the request rather than the
+// workbench or the card and refuses before a lock is taken or a byte is
+// written. A window would have forced that row to be listed in a position the
+// code does not check it in, and a published list whose order is not the order
+// each is checked is the one thing this table must not be.
+//
+// The profile is not weakened by that. CORE-OUT-6 fixes which of two checks
+// the profile itself declares wins, and it says nothing about a check a layer
+// adds; DOC-ORDER-1 asks a tool to follow the profile's order, which is the
+// relative order this walk asserts. What is given up against the earlier form
+// is the bound on how many extra rows a verb may carry, which move alone still
+// pins through its rendered row count.
 func TestPerCommandHelpFollowsTheProfile(t *testing.T) {
 	text, err := os.ReadFile(filepath.Join("..", "..", "docs", "spec", "core-profile.md"))
 	if err != nil {
@@ -1347,19 +1365,31 @@ func TestPerCommandHelpFollowsTheProfile(t *testing.T) {
 			t.Errorf("%s: wanted at least the profile's %d rows, got %d", name, len(wanted), len(got))
 			continue
 		}
-		for i, check := range got[:len(wanted)] {
-			if check.Refusal != wanted[i].Refusal {
-				t.Errorf("%s row %d: wanted %s, got %s", name, i+1, wanted[i].Refusal, check.Refusal)
+		// The walk pairs each rendered row with the profile's next unmatched
+		// row where the two agree, and holds every other row to the layer
+		// rule. A profile row rendered out of order therefore fails, because
+		// the row it should have matched is still waiting when the list runs
+		// out.
+		at := 0
+		for i, check := range got {
+			if at < len(wanted) && check.Refusal == wanted[at].Refusal &&
+				catalog.T(check.Key) == wanted[at].Check {
+				at++
+				continue
 			}
-			if rendered := catalog.T(check.Key); rendered != wanted[i].Check {
-				t.Errorf("%s row %d: wanted %q, got %q", name, i+1, wanted[i].Check, rendered)
+			if at < len(wanted) && check.Refusal == wanted[at].Refusal {
+				t.Errorf("%s row %d: wanted %q, got %q", name, i+1, wanted[at].Check, catalog.T(check.Key))
+				at++
+				continue
+			}
+			if !strings.HasPrefix(check.Refusal, contract.LayerPrefix) {
+				t.Errorf("%s row %d: a row outside the profile's list refuses %s, which is not a name in Dinah's own layer",
+					name, i+1, check.Refusal)
 			}
 		}
-		for i, extra := range got[len(wanted):] {
-			if !strings.HasPrefix(extra.Refusal, contract.LayerPrefix) {
-				t.Errorf("%s row %d: a row past the profile's list refuses %s, which is not a name in Dinah's own layer",
-					name, len(wanted)+i+1, extra.Refusal)
-			}
+		if at != len(wanted) {
+			t.Errorf("%s: the rendered list matched %d of the profile's %d rows, so a row the profile declares is missing or out of order",
+				name, at, len(wanted))
 		}
 	}
 
@@ -1376,13 +1406,13 @@ func TestPerCommandHelpFollowsTheProfile(t *testing.T) {
 			rows++
 		}
 	}
-	// The two workbench-level rows, then the profile's own move rows, which
-	// the tenth of grew at dinah-498, then Dinah's two appended rows: the
-	// departure column's loop_limit, and the departure column's own hold read
-	// on the way out. The count is composed from the profile document rather
-	// than written down, so a row added or removed there moves this
-	// expectation with it.
-	wantedRows := len(workbench) + len(lists[verb.Move]) + 2
+	// The two workbench-level rows, then the harness row every writing command
+	// carries, then the profile's own move rows, which the tenth of grew at
+	// dinah-498, then Dinah's two appended rows: the departure column's
+	// loop_limit, and the departure column's own hold read on the way out. The
+	// count is composed from the profile document rather than written down, so
+	// a row added or removed there moves this expectation with it.
+	wantedRows := len(workbench) + len(lists[verb.Move]) + 3
 	if rows != wantedRows {
 		t.Errorf("wanted %d rows, got %d", wantedRows, rows)
 	}
@@ -1391,6 +1421,9 @@ func TestPerCommandHelpFollowsTheProfile(t *testing.T) {
 	}
 	if !strings.Contains(got.out, contract.UnresolvedItemExit) {
 		t.Error("the rendered help should carry Dinah's own appended exit-hold row")
+	}
+	if !strings.Contains(got.out, contract.MalformedHarness) {
+		t.Error("the rendered help should carry the harness row every writing command carries")
 	}
 	if !strings.Contains(got.out, contract.AtCapacity) {
 		t.Error("the rendered help should carry each check's refusal name")
@@ -7540,17 +7573,17 @@ const ratifiedMoveRefusalTable = `  Order  What can go wrong                    
   1      the workbench declares a profile version the tool implements
                                                       unsupported-version
   2      the workbench designates an operator         no-operator
-  3      the card exists                              unknown-card
-  4      the destination is a column the workbench declares
+  3      the harness you declared is a legal name     dinah.malformed-harness
+  4      the card exists                              unknown-card
+  5      the destination is a column the workbench declares
                                                       unknown-column
-  5      an override marker, if carried, is the operator's
+  6      an override marker, if carried, is the operator's
                                                       not-operator
-  6      the departure is legal for whoever asks      not-operator
-  7      the card's state is not ` + "`" + `blocked` + "`" + `            blocked
-  8      the card is unheld or held by whoever asks   held
-  9      the move is not a forward move out of a ` + "`" + `done` + "`" + ` column
-                                                      terminal
-  10     the destination is below its capacity limit  at-capacity`
+  7      the departure is legal for whoever asks      not-operator
+  8      the card's state is not ` + "`" + `blocked` + "`" + `            blocked
+  9      the card is unheld or held by whoever asks   held
+  10     the move is not a forward move out of a ` + "`" + `done` + "`" + ` column
+                                                      terminal`
 
 // TestTheArgumentsTableWrapsAndNoOtherTableMoved asserts dinah-172 AC-17: at an
 // eighty-column window the arguments table breaks its last column between

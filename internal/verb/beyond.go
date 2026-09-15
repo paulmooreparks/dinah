@@ -33,6 +33,9 @@ func (l *Library) Add(req *Request) *Response {
 	if l.Bench.Operator == "" {
 		return l.refuse(req, nil, contract.NoOperator, "")
 	}
+	if refused := l.malformedHarness(req, nil); refused != nil {
+		return refused
+	}
 	if req.Actor == "" {
 		return l.refuse(req, nil, contract.NoOwner, "")
 	}
@@ -127,7 +130,7 @@ func (l *Library) Add(req *Request) *Response {
 	ev := bench.Event{
 		TS:      now,
 		Event:   contract.EventCreated,
-		Actor:   req.Actor,
+		Actor:   req.Acting(),
 		Title:   title,
 		To:      destination.ID,
 		ToTitle: destination.Title,
@@ -161,6 +164,9 @@ func (l *Library) Add(req *Request) *Response {
 func (l *Library) Comment(req *Request) *Response {
 	if l.Bench.Operator == "" {
 		return l.refuse(req, nil, contract.NoOperator, "")
+	}
+	if refused := l.malformedHarness(req, nil); refused != nil {
+		return refused
 	}
 	// A blank reference resolves to the workbench under ResolveEntity, which
 	// is right for attach and wrong here: this parameter names a card or a
@@ -204,7 +210,7 @@ func (l *Library) Comment(req *Request) *Response {
 	ev := bench.Event{
 		TS:      now,
 		Event:   contract.EventCommented,
-		Actor:   req.Actor,
+		Actor:   req.Acting(),
 		Comment: comment.ID,
 	}
 	// An item comment carries the item's identifier beside the comment's own,
@@ -227,6 +233,9 @@ func (l *Library) Comment(req *Request) *Response {
 func (l *Library) Attach(req *Request) *Response {
 	if l.Bench.Operator == "" {
 		return l.refuse(req, nil, contract.NoOperator, "")
+	}
+	if refused := l.malformedHarness(req, nil); refused != nil {
+		return refused
 	}
 	entity, err := l.Bench.ResolveEntity(req.Ref)
 	if err != nil {
@@ -259,7 +268,7 @@ func (l *Library) Attach(req *Request) *Response {
 	if l.Interleave != nil {
 		l.Interleave()
 	}
-	ev := bench.Event{TS: now, Actor: req.Actor}
+	ev := bench.Event{TS: now, Actor: req.Acting()}
 	if replacing {
 		attachment, err := bench.ReplaceAttachment(entity.Dir, req.File)
 		if err != nil {
@@ -293,6 +302,9 @@ func (l *Library) Archive(req *Request) *Response {
 	if l.Bench.Operator == "" {
 		return l.refuse(req, nil, contract.NoOperator, "")
 	}
+	if refused := l.malformedHarness(req, nil); refused != nil {
+		return refused
+	}
 	entity, err := l.Bench.ResolveEntity(req.Ref)
 	if err != nil {
 		return l.FromError(req, err)
@@ -305,7 +317,7 @@ func (l *Library) Archive(req *Request) *Response {
 	}
 	now := bench.Stamp(l.Now())
 	journal := l.journalFor(entity)
-	ev := bench.Event{TS: now, Event: contract.EventArchived, Actor: req.Actor, Note: entity.ID}
+	ev := bench.Event{TS: now, Event: contract.EventArchived, Actor: req.Acting(), Note: entity.ID}
 	act := &bench.StructuralAct{
 		Dir:       entity.Dir,
 		LockDir:   l.lockDirFor(entity),
@@ -342,6 +354,9 @@ func (l *Library) Restore(req *Request) *Response {
 	if l.Bench.Operator == "" {
 		return l.refuse(req, nil, contract.NoOperator, "")
 	}
+	if refused := l.malformedHarness(req, nil); refused != nil {
+		return refused
+	}
 	entity, err := l.Bench.ResolveEntityIn(bench.ArchivedHalf, req.Ref)
 	if err != nil {
 		return l.FromError(req, err)
@@ -351,7 +366,7 @@ func (l *Library) Restore(req *Request) *Response {
 	}
 	now := bench.Stamp(l.Now())
 	journal := l.journalFor(entity)
-	ev := bench.Event{TS: now, Event: contract.EventRestored, Actor: req.Actor, Note: entity.ID}
+	ev := bench.Event{TS: now, Event: contract.EventRestored, Actor: req.Acting(), Note: entity.ID}
 	act := &bench.StructuralAct{
 		Dir:       entity.Dir,
 		LockDir:   l.lockDirFor(entity),
@@ -396,6 +411,9 @@ func (l *Library) Delete(req *Request) *Response {
 	if l.Bench.Operator == "" {
 		return l.refuse(req, nil, contract.NoOperator, "")
 	}
+	if refused := l.malformedHarness(req, nil); refused != nil {
+		return refused
+	}
 	entity, err := l.Bench.ResolveEntity(req.Ref)
 	if err != nil {
 		return l.FromError(req, err)
@@ -410,7 +428,7 @@ func (l *Library) Delete(req *Request) *Response {
 		return l.refuse(req, nil, contract.UnknownPath, req.Ref)
 	}
 	now := bench.Stamp(l.Now())
-	journal, ev := l.removalRecord(entity, req.Actor, now)
+	journal, ev := l.removalRecord(req, entity, now)
 	act := &bench.StructuralAct{
 		Dir:           entity.Dir,
 		LockDir:       l.lockDirFor(entity),
@@ -488,6 +506,9 @@ func (l *Library) Rename(req *Request) *Response {
 	if l.Bench.Operator == "" {
 		return l.refuse(req, nil, contract.NoOperator, "")
 	}
+	if refused := l.malformedHarness(req, nil); refused != nil {
+		return refused
+	}
 	entity, err := l.Bench.ResolveEntity(req.Ref)
 	if err != nil {
 		return l.FromError(req, err)
@@ -522,7 +543,7 @@ func (l *Library) Rename(req *Request) *Response {
 	ev := bench.Event{
 		TS:         now,
 		Event:      contract.EventAttachmentRenamed,
-		Actor:      req.Actor,
+		Actor:      req.Acting(),
 		Attachment: after.ID,
 		Filename:   after.Filename,
 		From:       before.Filename,
@@ -703,8 +724,8 @@ func workstreamRefSubject(entity *bench.EntityRef) string {
 // Deleting a card destroys the journal inside it, so the record goes to the
 // bench's, carrying the identifier and the title as of the event. A deleted
 // attachment keeps the attachment event it has always carried.
-func (l *Library) removalRecord(entity *bench.EntityRef, actor, now string) (string, bench.Event) {
-	ev := bench.Event{TS: now, Actor: actor, Event: contract.EventDeleted, Note: entity.ID}
+func (l *Library) removalRecord(req *Request, entity *bench.EntityRef, now string) (string, bench.Event) {
+	ev := bench.Event{TS: now, Actor: req.Acting(), Event: contract.EventDeleted, Note: entity.ID}
 	if entity.Kind == bench.KindAttachment {
 		ev.Event = contract.EventAttachmentRemoved
 		ev.Attachment = entity.ID
@@ -955,6 +976,9 @@ func (l *Library) NewWorkstream(req *Request) *Response {
 	if l.Bench.Operator == "" {
 		return l.refuse(req, nil, contract.NoOperator, "")
 	}
+	if refused := l.malformedHarness(req, nil); refused != nil {
+		return refused
+	}
 	title := strings.TrimSpace(req.Workstream)
 	if title == "" {
 		return l.refuse(req, nil, contract.Malformed, "title")
@@ -982,7 +1006,7 @@ func (l *Library) NewWorkstream(req *Request) *Response {
 	ev := bench.Event{
 		TS:    now,
 		Event: contract.EventCreated,
-		Actor: req.Actor,
+		Actor: req.Acting(),
 		Title: title,
 	}
 	if err := bench.AppendEvent(workstream.JournalPath(), ev); err != nil {
