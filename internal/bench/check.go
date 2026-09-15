@@ -178,6 +178,18 @@ const (
 	// posture the two above keep, since the write path is where a typo is
 	// caught and a read tolerates a column that has since been retired.
 	FindingItemColumnUnresolved = "check.item-column-unresolved"
+	// FindingStoredCarriageReturn names a workbench text file carrying a
+	// carriage return that stands for a line ending, which the format's
+	// Encoding section forbids a writer to produce. The detail carries the
+	// count the file's own transform would remove, and separately the count of
+	// carriage returns that are not line endings, because the second number is
+	// legal and the first is not.
+	//
+	// The counts come from the transform rather than from a pattern, so the
+	// finding and the migration can never disagree about which files are
+	// dirty. It is what catches the one site no write-path change can reach,
+	// which is an external editor writing an anchor.
+	FindingStoredCarriageReturn = "check.stored-carriage-return"
 	// FindingRejectTargetIsSelf names a column whose reject_to names itself.
 	FindingRejectTargetIsSelf = "check.reject-target-is-self"
 	// FindingRejectTargetForward names a column whose reject_to names a column
@@ -389,6 +401,11 @@ func (b *Bench) Check() ([]Finding, error) {
 		findings = append(findings, cardFindings...)
 	}
 	findings = append(findings, b.checkFieldDeclarations()...)
+	newlineFindings, err := b.checkStoredNewlines()
+	if err != nil {
+		return findings, err
+	}
+	findings = append(findings, newlineFindings...)
 	tierFindings, err := b.checkTierTable()
 	if err != nil {
 		return findings, err

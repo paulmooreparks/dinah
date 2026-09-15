@@ -1494,6 +1494,69 @@ correctness bug (an uppercase I lowercased under a Turkish locale is not
 `i`), and a workbench must parse identically on a machine in Istanbul and a
 machine in Iowa.
 
+A writer emits LF everywhere by normalising rather than by remembering. Five
+functions do it, and each is the narrowest function every path to its own kind
+of destination passes through, which is what keeps the rule from decaying into
+a list of callers somebody has to keep up to date.
+
+- `ReadText` normalises what it read, because a file an external editor wrote
+  is the one destination no write-path change can reach, and because three
+  readers of one column's instructions disagreed until it did: `dinah get` and
+  `dinah instructions` reach the text through the anchor parser, which strips,
+  while `dinah show` served this function's answer straight.
+- `WriteText` normalises the text it is handed, which covers every anchor body
+  and every plain text file the tool writes.
+- `AppendEvent` normalises the event's string members before encoding, because
+  a carriage return survives JSON encoding as an escape: the record structure
+  stays intact and the carriage return is stored anyway.
+- `quote` normalises a frontmatter scalar, and it is the only function that
+  can. Every scalar in the tool becomes a frontmatter line by passing through
+  it, and the escape below it turns a line feed into two characters and leaves
+  a carriage return raw, so an unnormalised value is stored as a carriage
+  return followed by that escape and carries no CRLF pair for anybody to find.
+- `ReadDefinition` normalises an interchange document at its single read
+  boundary, because a JSON string spells a carriage return as an escape that no
+  replacement over the file's bytes would see, and because each renderer below
+  it guards its own output against the raw message, so a renderer that
+  normalised would fail its own guard.
+
+A definition document's member NAME is the one piece of caller text this rule
+refuses rather than normalising. A name becomes the left-hand side of a
+frontmatter line, which nothing quotes, so a line ending in one does not
+corrupt a value: it splits the header and invents a key. Normalising would not
+help, since the line feed a CRLF becomes still splits it, so such a document is
+refused `dinah.malformed-member-name`.
+
+Normalisation is CRLF to LF and nothing else. A carriage return not followed by
+a line feed is left exactly where it is, on read, on write and by the repair,
+because the reader rule above strips only a TRAILING carriage return per line,
+so an interior one survives a read and comes back to the caller. It is a
+character the prose carries rather than a line ending, and deleting it would
+lose content.
+
+The price of that keep is that "the store carries no `0x0D`" is not the
+invariant. The invariant is that the store carries no carriage return standing
+for a line ending, and such a carriage return takes three stored forms.
+
+| Form | Where | Bytes |
+|---|---|---|
+| A CRLF pair | an anchor body, a plain text file, a journal's record separators | `0D 0A` |
+| Split across a frontmatter escape | a frontmatter scalar value | `0D 5C 6E` |
+| A pair of JSON escapes | inside a journal line's string literal | either escape in either spelling JSON admits |
+
+**That table describes what the writers produce. It is not a way of detecting
+the forms, and nothing in the tool detects them by pattern.** The third row
+gives no bytes on purpose: JSON spells a carriage return as the two characters
+backslash and `r` or as a six-character unicode escape of the same code point,
+and a line feed likewise, so four byte sequences spell one pair. A repair that
+enumerated them would be correct today and correct because of something Go does
+not document. `dinah check --migrate-newlines` therefore parses rather than
+matching: an anchor goes through the anchor reader and is re-set through
+`quote`, a journal record's every string literal is decoded and re-encoded only
+where its value changed, and everything else is normalised whole. A file is a
+destination exactly when its own transform changes it, so detection and repair
+cannot disagree and a second run rewrites nothing.
+
 Lowercase-only is load-bearing for a second reason: identifiers and anchor
 names are directory and file names, and a workbench travels between
 case-sensitive filesystems (Linux) and case-insensitive ones (Windows and

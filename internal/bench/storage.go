@@ -36,21 +36,66 @@ func ParseStamp(s string) time.Time {
 // format writes text without one, so it is stripped on read.
 const byteOrderMark = "\ufeff"
 
-// ReadText reads a text file and strips a byte-order mark. The format writes
-// UTF-8 without one; a mark reaching the tree came from an editor, and
-// stripping it on read is the same tolerance the CRLF rule extends.
+// NormalizeNewlines answers the text with every CRLF pair reduced to LF, which
+// is the transformation SplitLines already performs on read. A carriage return
+// not followed by a line feed is left alone: it is not a line ending under this
+// format, and stripping it would destroy a character the prose meant to carry.
+func NormalizeNewlines(text string) string {
+	if !strings.Contains(text, crlf) {
+		return text
+	}
+	return strings.ReplaceAll(text, crlf, "\n")
+}
+
+// crlf is the pair NormalizeNewlines reduces, named rather than spelled at each
+// use so that a reader meets the one place this file says what a line ending
+// the format forbids a writer to produce actually is.
+const crlf = "\r\n"
+
+// ReadText reads a text file, strips a byte-order mark and normalises its line
+// endings. The format writes UTF-8 without a mark and with LF everywhere; a
+// mark or a CRLF reaching the tree came from an editor, and the format's
+// encoding rule is that a reader tolerates both rather than failing.
+//
+// Normalising here is what makes the three readers of a column's instructions
+// agree: `dinah get` and `dinah instructions` reach the text through
+// ParseAnchor, which strips, while `dinah show` returns this function's answer
+// straight, and before this line one field had two spellings depending on
+// which reader asked.
+//
+// A caller that has to see a file's stored bytes, which is the newline
+// migration and the check finding behind it, reads with os.ReadFile rather
+// than with this function, because this function strips the very condition
+// those two exist to find.
 func ReadText(path string) (string, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return "", err
 	}
-	return strings.TrimPrefix(string(data), byteOrderMark), nil
+	return NormalizeNewlines(strings.TrimPrefix(string(data), byteOrderMark)), nil
 }
 
-// WriteText writes a file by writing a temporary beside it and renaming, so a
+// WriteText writes a text file, normalising its line endings first, which is
+// what makes "writers emit LF everywhere" true of the writer rather than true
+// of whoever remembered to call a helper.
+//
+// The write goes through a temporary beside the destination and a rename, so a
 // reader sees either the old bytes or the new ones and never a half-written
 // file. This is the write half of the format's concurrency answer.
 func WriteText(path, text string) error {
+	return writeBytes(path, []byte(NormalizeNewlines(text)))
+}
+
+// writeBytes is WriteText's temporary-and-rename mechanism with no
+// normalisation, for the one caller that has to write a file's own bytes back
+// unchanged. It stays unexported so that normalisation cannot be bypassed from
+// outside this package.
+//
+// The newline migration is that caller. Its plan pass rehearses each
+// destination's real write by renaming the file's own bytes back over it,
+// because nothing short of performing the rename predicts whether the rename
+// will be permitted.
+func writeBytes(path string, data []byte) error {
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
@@ -60,7 +105,7 @@ func WriteText(path, text string) error {
 		return err
 	}
 	name := tmp.Name()
-	if _, err := tmp.WriteString(text); err != nil {
+	if _, err := tmp.Write(data); err != nil {
 		tmp.Close()
 		os.Remove(name)
 		return err

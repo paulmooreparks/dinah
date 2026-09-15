@@ -37,7 +37,15 @@ const (
 // everybody who clones. Nothing the tool reads is affected either way, since
 // every listing walks the identifiers of a collection and no lock is ever a
 // member of one; this is about what git picks up.
-const ignoreLocks = "lock\n*.lock\n"
+//
+// The temporary is here for the same reason. Every write in this format goes
+// through a temporary beside the destination and a rename, and a process killed
+// between the two leaves the temporary behind. Nothing reads it and deleting it
+// is safe, so what it costs is an untracked file in a repository that keeps its
+// workbench in version control, which this line answers. A workbench written
+// before this line does not get its ignore file rewritten, and that is stated
+// rather than silently true.
+const ignoreLocks = "lock\n*.lock\n.dinah-*\n"
 
 // unionJournals is what a new bench's .gitattributes carries. A journal is
 // append-only, so two branches that each add a line to one have not disagreed

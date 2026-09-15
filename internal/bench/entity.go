@@ -282,6 +282,11 @@ func RenameAttachment(dir, name string) (*Attachment, *Attachment, error) {
 	if err != nil {
 		return nil, nil, err
 	}
+	// The name is normalised above the no-op comparison, so the anchor's
+	// filename key and the payload file's own name on disk take one value.
+	// Normalising only inside quote would clean the anchor's copy and leave it
+	// naming a file that is not there.
+	name = NormalizeNewlines(name)
 	if attachment.Filename == name {
 		return attachment, attachment, nil
 	}

@@ -4100,6 +4100,98 @@
     "check.pull.19": {
       "text": "this call declared a provider and a model",
       "context": "One row of the ordered precondition list of pull, which is claim's own row 10 reached at the destination. The sentence is claim's, because the check is claim's."
+    },
+    "check.newlines-heading": {
+      "text": "Newline migration.",
+      "context": "The heading the newline repair prints for a confirmed run, which is the run that writes the repaired bytes."
+    },
+    "check.newlines-preview": {
+      "text": "Newline migration (preview). Each destination below was rewritten with its own bytes, to prove it can be written; content is unchanged and a destination's modification time is now.",
+      "context": "The heading the newline repair prints when it was asked for without --yes. It says that the preview writes rather than claiming that nothing was written, because the preview does write: nothing short of performing the rename predicts whether the rename will be permitted, so the only way a preview can promise that the confirmed run will succeed is to rehearse each destination's write with that destination's own bytes."
+    },
+    "check.newlines-examined.one": {
+      "text": "{count} text file examined.",
+      "context": "The line the newline repair prints for the size of the set it read, for exactly one file. A sweep says how many files it walked, because a sweep that reports nothing and walked nothing reads the same as a clean store."
+    },
+    "check.newlines-examined.other": {
+      "text": "{count} text files examined.",
+      "context": "The line the newline repair prints for the size of the set it read, for any other number. A count of zero is a run that found no text file to read, which is that run's own answer."
+    },
+    "check.newlines-would-rewrite.one": {
+      "text": "{count} file would be rewritten.",
+      "context": "The line a newline preview prints for what it found to repair, for exactly one file."
+    },
+    "check.newlines-would-rewrite.other": {
+      "text": "{count} files would be rewritten.",
+      "context": "The line a newline preview prints for what it found to repair, for any other number."
+    },
+    "check.newlines-rewritten.one": {
+      "text": "{count} file rewritten.",
+      "context": "The line a confirmed newline repair prints for what it wrote, for exactly one file."
+    },
+    "check.newlines-rewritten.other": {
+      "text": "{count} files rewritten.",
+      "context": "The line a confirmed newline repair prints for what it wrote, for any other number."
+    },
+    "check.newlines-nothing": {
+      "text": "Nothing to rewrite.",
+      "context": "The line the newline repair prints when no examined file stores a carriage return standing for a line ending. A second run of a repair that succeeded prints this, because the repair is idempotent by construction: a file is a destination exactly when its own transform changes it."
+    },
+    "check.newline-rewrite": {
+      "text": "{path} carries {returns} stored line endings to repair and {loose} carriage returns that are not line endings.",
+      "context": "One destination of the newline repair. {path} is the file, {returns} is what the file's own transform would remove, and {loose} is what it would leave alone. The second number is legal and the first is not, which is why they are reported apart: a carriage return not followed by a line feed is a character the prose meant to carry rather than a line ending."
+    },
+    "check.newlines-refused.one": {
+      "text": "{count} destination refused; nothing was written.",
+      "context": "The line the newline repair prints when one destination met a condition that stops the whole run, so a preview predicts the outcome instead of a run discovering a refusal half way through."
+    },
+    "check.newlines-refused.other": {
+      "text": "{count} destinations refused; nothing was written.",
+      "context": "The line the newline repair prints for any other number of destinations meeting a condition that stops the whole run."
+    },
+    "check.newlines-busy.one": {
+      "text": "{count} file was busy and was not rewritten; run this again to pick it up.",
+      "context": "The line the newline repair prints for one file whose lock another process holds. A held lock is the one condition that does not stop the run: a lock is held for milliseconds, a run takes one per file across thousands of files, and several sessions work a busy workbench at once, so a run refusing over a transient lock would refuse most of the time."
+    },
+    "check.newlines-busy.other": {
+      "text": "{count} files were busy and were not rewritten; run this again to pick them up.",
+      "context": "The line the newline repair prints for any other number of files whose locks another process holds."
+    },
+    "check.newlines-confirm": {
+      "text": "Run again with --yes to write.",
+      "context": "The line a newline preview prints under what it would repair. It parts company with the two number repairs either side of it, which refuse without confirmation rather than previewing."
+    },
+    "check.newline-conflict.unreadable": {
+      "text": "{path} will not open, so the run could not read it.",
+      "context": "One row of the newline repair's refusal report: a file the run cannot read, and it will not write a store it has not read whole. {path} carries the file."
+    },
+    "check.newline-conflict.unwritable": {
+      "text": "{path} could not be written, so nothing was written at all.",
+      "context": "One row of the newline repair's refusal report: a destination whose rehearsed write failed, which is what the rehearsal exists to find. {path} carries the file. The rehearsal renames the file's own bytes back over it, so a failure here is the failure the confirmed run would meet."
+    },
+    "check.newline-conflict.unsupported": {
+      "text": "{path} carries something this repair will not decide: {detail}.",
+      "context": "One row of the newline repair's refusal report: a file whose transform refuses it. {path} carries the file and {detail} carries the frontmatter key, the record number, or the words saying that a header does not round-trip. Deciding what a damaged header or a damaged record should become is a different piece of work from deciding what a line ending should be."
+    },
+    "check.newline-conflict.locked": {
+      "text": "{path} is held by {detail}.",
+      "context": "One row of the newline repair's busy report: a file whose lock another process holds, read from the lock's own content. {path} carries the file and {detail} carries the holder."
+    },
+    "check.stored-carriage-return": {
+      "text": "this file stores a carriage return that stands for a line ending ({detail})",
+      "context": "A check finding: a workbench text file carrying a carriage return the format's Encoding section forbids a writer to produce. {detail} carries the count the file's own transform would remove and, separately, the count of carriage returns that are not line endings, because the second number is legal and the first is not. The counts come from the transform rather than from a pattern search, so this finding and dinah check --migrate-newlines can never disagree about which files are dirty."
+    },
+    "param.check.migrate-newlines.summary": {
+      "text": "repair every text file storing a carriage return that stands for a line ending, rewriting each destination with its own bytes first to prove it can be written; an interrupted run may leave a .dinah-* file beside an anchor, which is safe to delete because nothing reads it",
+      "context": "The meaning of the migrate-newlines argument of `dinah check`, printed in that command's arguments table."
+    },
+    "refusal.dinah.malformed-member-name": {
+      "text": "the document carries a member named {detail}, and a member name cannot carry a line ending",
+      "context": "The sentence printed after the refusal name dinah.malformed-member-name, which a definition document carrying an object member whose name carries a line ending meets. {detail} names the member with its line ending written as an escape, because printing the name raw would split this line too. A member name becomes the left-hand side of a frontmatter line, which nothing quotes, so such a name would split the header and store a key the document never carried."
+    },
+    "refusal.dinah.malformed-member-name.next": {
+      "text": "; rename that member in the document and read it again",
+      "context": "The next step of refusal.dinah.malformed-member-name. Every other line ending in this contract is normalised rather than refused; this one cannot be, because normalising leaves a line feed that still splits the header."
     }
   }
 }

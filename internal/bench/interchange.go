@@ -1,12 +1,15 @@
 package bench
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
+	"strings"
 
 	"dinah/internal/contract"
 )
@@ -171,6 +174,11 @@ type Definition struct {
 // unsupported-version, on the same window Open applies, so the function that
 // clones a workbench admits exactly what the function that opens one admits.
 func ReadDefinition(data []byte) (*Definition, error) {
+	normalized, err := normalizeDefinitionText(data)
+	if err != nil {
+		return nil, err
+	}
+	data = normalized
 	object := map[string]json.RawMessage{}
 	if err := json.Unmarshal(data, &object); err != nil {
 		return nil, contract.Refuse(contract.Malformed, "interchange")
@@ -482,3 +490,158 @@ func (b *Bench) Extract(target string) error {
 	}
 	return nil
 }
+
+// normalizeDefinitionText answers the interchange document with every string
+// VALUE it carries, at any depth, normalised, and refuses a member NAME
+// carrying a line ending.
+//
+// It walks the decoded document rather than its bytes because a JSON string
+// spells a carriage return as an escape, which no byte replacement over the
+// file would find, and it runs at this one read boundary rather than at each
+// renderer because renderScalar guards its output by comparing it against the
+// raw message with sameJSON: a renderer that normalised would fail its own
+// guard and fall through to a raw JSON line, storing the escape in the anchor.
+// Normalising the message first puts both sides of that comparison in the same
+// form and the guard passes unchanged.
+//
+// The walk rebuilds the document from a token stream rather than from a decoded
+// map, so member order survives it, and it decodes numbers as json.Number so a
+// number's own spelling survives it too. Whitespace does not survive, and
+// nothing needs it to: this document is parsed and never stored.
+//
+// Values and names are treated differently on purpose. A name becomes the
+// left-hand side of a frontmatter line, which nothing quotes, so a line ending
+// in one does not corrupt a value, it invents a key.
+//
+// A document that does not parse comes back unchanged with no error, because
+// the refusal for that is the caller's own and saying it twice in two voices
+// would make one document refuse under two names.
+func normalizeDefinitionText(data []byte) ([]byte, error) {
+	dec := json.NewDecoder(bytes.NewReader(data))
+	dec.UseNumber()
+	var out bytes.Buffer
+	if err := normalizeJSONValue(dec, &out); err != nil {
+		if refusal := (*contract.Refusal)(nil); errors.As(err, &refusal) {
+			return nil, err
+		}
+		return data, nil
+	}
+	if _, err := dec.Token(); err != io.EOF {
+		return data, nil
+	}
+	return out.Bytes(), nil
+}
+
+// normalizeJSONValue reads one JSON value off the decoder and writes its
+// normalised form, recursing through objects and arrays. It is the walk
+// normalizeDefinitionText documents.
+func normalizeJSONValue(dec *json.Decoder, out *bytes.Buffer) error {
+	tok, err := dec.Token()
+	if err != nil {
+		return err
+	}
+	switch value := tok.(type) {
+	case json.Delim:
+		switch value {
+		case '{':
+			return normalizeJSONObject(dec, out)
+		case '[':
+			return normalizeJSONArray(dec, out)
+		}
+		return errNotJSON
+	case string:
+		return writeJSONString(out, NormalizeNewlines(value))
+	case json.Number:
+		out.WriteString(value.String())
+		return nil
+	case bool:
+		if value {
+			out.WriteString("true")
+		} else {
+			out.WriteString("false")
+		}
+		return nil
+	case nil:
+		out.WriteString("null")
+		return nil
+	}
+	return errNotJSON
+}
+
+// normalizeJSONObject writes one object, refusing any member name carrying a
+// line ending. The detail names the member with its line ending written as an
+// escape, since printing the name raw would split the refusal's own line too.
+func normalizeJSONObject(dec *json.Decoder, out *bytes.Buffer) error {
+	out.WriteByte('{')
+	first := true
+	for dec.More() {
+		tok, err := dec.Token()
+		if err != nil {
+			return err
+		}
+		name, ok := tok.(string)
+		if !ok {
+			return errNotJSON
+		}
+		if strings.ContainsAny(name, "\r\n") {
+			escaped, err := json.Marshal(name)
+			if err != nil {
+				return contract.Refuse(contract.MalformedMemberName, name)
+			}
+			return contract.Refuse(contract.MalformedMemberName, string(escaped))
+		}
+		if !first {
+			out.WriteByte(',')
+		}
+		first = false
+		if err := writeJSONString(out, name); err != nil {
+			return err
+		}
+		out.WriteByte(':')
+		if err := normalizeJSONValue(dec, out); err != nil {
+			return err
+		}
+	}
+	if _, err := dec.Token(); err != nil {
+		return err
+	}
+	out.WriteByte('}')
+	return nil
+}
+
+// normalizeJSONArray writes one array, normalising each element in place.
+func normalizeJSONArray(dec *json.Decoder, out *bytes.Buffer) error {
+	out.WriteByte('[')
+	first := true
+	for dec.More() {
+		if !first {
+			out.WriteByte(',')
+		}
+		first = false
+		if err := normalizeJSONValue(dec, out); err != nil {
+			return err
+		}
+	}
+	if _, err := dec.Token(); err != nil {
+		return err
+	}
+	out.WriteByte(']')
+	return nil
+}
+
+// writeJSONString writes a Go string as a JSON string literal, spelled the way
+// encoding/json spells one, which is the same spelling AppendEvent writes a
+// journal line with.
+func writeJSONString(out *bytes.Buffer, value string) error {
+	encoded, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	out.Write(encoded)
+	return nil
+}
+
+// errNotJSON reports a token stream that is not a document this walk can
+// rebuild, which the caller answers by handing the original bytes back for the
+// ordinary parse to refuse in its own words.
+var errNotJSON = errors.New("bench: the token stream is not a JSON document")
