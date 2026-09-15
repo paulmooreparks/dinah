@@ -209,7 +209,7 @@ func TestMigrateNumbersBuildsTheRegistry(t *testing.T) {
 		if events[1].From != moved.from || events[1].To != moved.to {
 			t.Errorf("the renumbered line on %s reads %s to %s, wanted %s to %s", moved.id, events[1].From, events[1].To, moved.from, moved.to)
 		}
-		if events[1].Actor != "alka" || events[1].TS != "2026-08-18T09:00:00Z" {
+		if events[1].Actor.Name != "alka" || events[1].TS != "2026-08-18T09:00:00Z" {
 			t.Errorf("the renumbered line on %s reads actor %s at %s, wanted alka at the fixed now", moved.id, events[1].Actor, events[1].TS)
 		}
 	}

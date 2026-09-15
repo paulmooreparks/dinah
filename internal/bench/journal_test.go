@@ -89,7 +89,7 @@ func TestReadJournalToleratesALineMissingADeclaredRequiredField(t *testing.T) {
 		t.Fatalf("read %d events, want the one sparse line", len(events))
 	}
 	ev := events[0]
-	if ev.Event != contract.EventMoved || ev.TS != "2026-01-01T00:00:03Z" || ev.Actor != "sam" {
+	if ev.Event != contract.EventMoved || ev.TS != "2026-01-01T00:00:03Z" || ev.Actor.Name != "sam" {
 		t.Fatalf("the skeleton read back as %+v", ev)
 	}
 	absent := map[string]string{

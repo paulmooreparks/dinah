@@ -754,7 +754,7 @@ func (l *Library) cardValues(field string, card *bench.Card) []string {
 func (l *Library) actValues(field string, event bench.Event) []string {
 	switch field {
 	case FieldActor:
-		return []string{event.Actor}
+		return []string{event.Actor.Name}
 	case FieldEvent:
 		return []string{event.Event}
 	case FieldEntered:

@@ -3,6 +3,7 @@ package bench
 import (
 	"errors"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"dinah/internal/contract"
@@ -290,6 +291,37 @@ const (
 	// it and carried on, so the card stays diverged until the repair is run
 	// again or a touch that reads its position reaches it.
 	FindingWitnessLocked = "check.witness-locked"
+
+	// FindingTierWithoutModels names a member of levels.tier that the table
+	// lists no model for, on a workbench that declares a table. A tier
+	// nothing satisfies strands every card that asks for it.
+	FindingTierWithoutModels = "check.tier-without-models"
+
+	// FindingTiersWithoutLevels names a tiers block on a workbench that
+	// declares no levels.tier. The block declares nothing, and the finding
+	// says so rather than leaving a reader to wonder why a table they wrote
+	// has no effect.
+	FindingTiersWithoutLevels = "check.tiers-without-levels"
+
+	// FindingRequirementsWithoutTable names a workbench whose cards carry
+	// tier requirements and which declares no tiers block. Those requirements
+	// refuse nobody, and this is where the workbench learns it. The detail
+	// carries how many cards carry a requirement, so a reader can tell a
+	// workbench midway through adopting the table from one that never meant
+	// to.
+	FindingRequirementsWithoutTable = "check.requirements-without-table"
+
+	// FindingModelListedTwice names one model entry listed under more than
+	// one tier. It keys on the whole triple of provider, model and server, so
+	// the same model name listed once for a hosted address and once with no
+	// address is two entries rather than a duplicate.
+	FindingModelListedTwice = "check.model-listed-twice"
+
+	// FindingTiersEntryMalformed names one entry of the tiers block the
+	// reader refused: a model entry missing provider or model, an entry
+	// naming a member outside the three, or a tier carrying no meaning or no
+	// models sequence.
+	FindingTiersEntryMalformed = "check.tiers-entry-malformed"
 )
 
 // The directions an interrupted structural act is reported and finished in.
@@ -357,6 +389,11 @@ func (b *Bench) Check() ([]Finding, error) {
 		findings = append(findings, cardFindings...)
 	}
 	findings = append(findings, b.checkFieldDeclarations()...)
+	tierFindings, err := b.checkTierTable()
+	if err != nil {
+		return findings, err
+	}
+	findings = append(findings, tierFindings...)
 	findings = append(findings, b.checkRequiredFields()...)
 	findings = append(findings, b.checkColumnKinds()...)
 	findings = append(findings, b.checkRejectTargets()...)
@@ -1065,6 +1102,120 @@ func (b *Bench) checkFieldDeclarations() []Finding {
 		findings = append(findings, Finding{Path: anchor, Key: FindingFieldDeclarationMalformed, Detail: key})
 	}
 	return findings
+}
+
+// checkTierTable reports the five defects a workbench's tier table can carry.
+//
+// Each sweep counts what it examined rather than reporting only what it found,
+// because a sweep that reads nothing reports success and reads exactly like a
+// sweep that found nothing wrong. The counts travel in the findings' own
+// details where a reader needs them and in the tests otherwise.
+func (b *Bench) checkTierTable() ([]Finding, error) {
+	anchor := filepath.Join(b.Root, WorkbenchAnchor)
+	var findings []Finding
+	declaresTable := b.FM.Has(TiersKey)
+	rungs := b.Levels(TierField)
+	for _, entry := range b.malformedTiers {
+		findings = append(findings, Finding{Path: anchor, Key: FindingTiersEntryMalformed, Detail: entry.Detail()})
+	}
+	if declaresTable && len(rungs) == 0 {
+		findings = append(findings, Finding{Path: anchor, Key: FindingTiersWithoutLevels})
+	}
+	if declaresTable {
+		listed := map[string]bool{}
+		for _, entry := range b.tiers {
+			if len(entry.Models) > 0 {
+				listed[entry.Tier] = true
+			}
+		}
+		for _, rung := range rungs {
+			if listed[rung.Name] {
+				continue
+			}
+			findings = append(findings, Finding{Path: anchor, Key: FindingTierWithoutModels, Detail: rung.Name})
+		}
+		findings = append(findings, b.checkDuplicateModels(anchor)...)
+	}
+	if !declaresTable {
+		requiring, err := b.cardsRequiringATier()
+		if err != nil {
+			return findings, err
+		}
+		if requiring > 0 {
+			findings = append(findings, Finding{
+				Path:   anchor,
+				Key:    FindingRequirementsWithoutTable,
+				Detail: strconv.Itoa(requiring),
+			})
+		}
+	}
+	return findings, nil
+}
+
+// checkDuplicateModels reports one model entry listed under more than one
+// tier, keyed on the whole triple of provider, model and server. The first
+// occurrence wins, and the finding names both tiers so the duplicate can be
+// removed from the wrong one.
+func (b *Bench) checkDuplicateModels(anchor string) []Finding {
+	var findings []Finding
+	first := map[string]string{}
+	for _, entry := range b.tiers {
+		for _, model := range entry.Models {
+			triple := model.Render()
+			held, seen := first[triple]
+			if !seen {
+				first[triple] = entry.Tier
+				continue
+			}
+			if held == entry.Tier {
+				continue
+			}
+			findings = append(findings, Finding{
+				Path:   anchor,
+				Key:    FindingModelListedTwice,
+				Detail: triple + " " + held + " " + entry.Tier,
+			})
+		}
+	}
+	return findings
+}
+
+// cardsRequiringATier counts the live cards carrying a tier requirement,
+// either as their own baseline or as a per-column override.
+//
+// The walk is Check's own rather than Bench.Cards, which refuses the whole read
+// over one card it cannot load. A card a structural act is in the middle of, a
+// card with no anchor and a card the reader refuses are each stepped over here
+// exactly as the card walk above steps over them, because a workbench carrying
+// one damaged card still deserves to be told that its tier requirements refuse
+// nobody.
+func (b *Bench) cardsRequiringATier() (int, error) {
+	ids, err := ListIDs(b.CardsRoot())
+	if err != nil {
+		return 0, err
+	}
+	requiring := 0
+	for _, id := range ids {
+		dir := filepath.Join(b.CardsRoot(), id)
+		if Exists(SiblingPath(dir)) || !Exists(filepath.Join(dir, CardAnchor)) {
+			continue
+		}
+		card, err := b.LoadCardIn(b.CardsRoot(), id)
+		if err != nil {
+			continue
+		}
+		if card.Tier != "" {
+			requiring++
+			continue
+		}
+		for _, override := range card.ColumnTiers {
+			if override.Tier != "" {
+				requiring++
+				break
+			}
+		}
+	}
+	return requiring, nil
 }
 
 // checkRequiredFields reports every require_fields entry naming a key the

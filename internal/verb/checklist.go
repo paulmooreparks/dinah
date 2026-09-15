@@ -89,7 +89,7 @@ func (l *Library) File(req *Request) *Response {
 	ev := bench.Event{
 		TS:    now,
 		Event: contract.EventItemFiled,
-		Actor: req.Actor,
+		Actor: req.Acting(),
 		Item:  item.ID,
 		Kind:  kind,
 	}
@@ -131,7 +131,7 @@ func (l *Library) Cite(req *Request) *Response {
 			return nil, l.refuse(req, entity.card, contract.ObservationRequired, scheme)
 		}
 		bench.AppendCitation(entity.fm, bench.Citation{Scheme: scheme, Target: target, Before: before, After: after})
-		return &bench.Event{Event: contract.EventItemCited, Scheme: scheme, Target: target}, nil
+		return &bench.Event{Actor: req.Acting(), Event: contract.EventItemCited, Scheme: scheme, Target: target}, nil
 	})
 }
 
@@ -187,7 +187,7 @@ func (l *Library) closeItem(req *Request, event, state string) *Response {
 		prior := entity.item.State
 		entity.fm.Set(bench.ItemStateField, state)
 		entity.fm.Set(bench.ItemNoteField, note)
-		return &bench.Event{Event: event, From: prior, To: state}, nil
+		return &bench.Event{Actor: req.Acting(), Event: event, From: prior, To: state}, nil
 	})
 }
 
@@ -209,6 +209,7 @@ func (l *Library) Reopen(req *Request) *Response {
 		prior := entity.item.State
 		entity.fm.Set(bench.ItemStateField, bench.ItemPending)
 		return &bench.Event{
+			Actor:  req.Acting(),
 			Event:  contract.EventItemReopened,
 			From:   prior,
 			To:     bench.ItemPending,
@@ -308,7 +309,6 @@ func (l *Library) withItem(req *Request, work func(*itemTarget) (*bench.Event, *
 		return l.FromError(req, err)
 	}
 	ev.TS = now
-	ev.Actor = req.Actor
 	ev.Item = item.ID
 	if err := bench.AppendEvent(entity.Card.JournalPath(), *ev); err != nil {
 		return l.FromError(req, err)

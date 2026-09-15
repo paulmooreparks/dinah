@@ -191,9 +191,9 @@ var archivedResolutionFamilies = []resolutionFamily{
 	{
 		name: "D", axis: "reaching",
 		what:      "reaching the archived anchors: every mention of ArchivedCardsRoot, cardsRootIn or ArchiveDir",
-		files:     13,
-		mentions:  33,
-		functions: 26,
+		files:     14,
+		mentions:  35,
+		functions: 27,
 		sites: []resolutionSite{
 			{benchPackageOwnFile, packageLevel, 1, "the declaration of the directory name, standing in the file's const block"},
 			{benchPackageOwnFile, "ArchivedCardsRoot", 2, "the accessor this family is named for, and its own body's use of the directory constant"},
@@ -221,6 +221,7 @@ var archivedResolutionFamilies = []resolutionFamily{
 			{"internal/verb/changes.go", "anchorOf", 1, "an identifier-keyed live-then-archive pair, which parses no number"},
 			{"internal/verb/read.go", "linkRef", 1, "the other identifier-keyed pair, harmless for the same reason"},
 			{"internal/verb/search.go", "Search", 1, "searching the archived half, which matches text against loaded cards and answers no reference by number"},
+			{"cmd/dinah-migrate-actors/main.go", "journalsUnder", 2, "the actor migration's journal walk, which lists both archived collections to reach the journals inside them and reads no card anchor and no number at all"},
 		},
 	},
 	{

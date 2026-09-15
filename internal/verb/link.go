@@ -76,7 +76,7 @@ func (l *Library) Link(req *Request) *Response {
 	if err := reloaded.Save(); err != nil {
 		return l.FromError(req, err)
 	}
-	ev := bench.Event{TS: now, Event: contract.EventLinked, Actor: req.Actor, Kind: kind, To: to}
+	ev := bench.Event{TS: now, Event: contract.EventLinked, Actor: req.Acting(), Kind: kind, To: to}
 	if err := bench.AppendEvent(reloaded.JournalPath(), ev); err != nil {
 		return l.FromError(req, err)
 	}
@@ -122,7 +122,7 @@ func (l *Library) Unlink(req *Request) *Response {
 	if err := reloaded.Save(); err != nil {
 		return l.FromError(req, err)
 	}
-	ev := bench.Event{TS: now, Event: contract.EventUnlinked, Actor: req.Actor, Kind: kind, To: to}
+	ev := bench.Event{TS: now, Event: contract.EventUnlinked, Actor: req.Acting(), Kind: kind, To: to}
 	if err := bench.AppendEvent(reloaded.JournalPath(), ev); err != nil {
 		return l.FromError(req, err)
 	}

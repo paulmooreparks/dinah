@@ -30,10 +30,10 @@ Usage: dinah <command> [arguments]
 WORK
   add <title> [--column <column>] [--severity <level>]   File a new card in the first column
     [--priority <level>]
-  claim <card> [--expires <duration>] [--tier <level>]   Take up a ready card
+  claim <card> [--expires <duration>]                    Take up a ready card
   move <card> <column> [--override]                      Carry a card to another column
   pull [column] [--no-claim] [--expires <duration>]      Claim the head of a column's queue and move it
-    [--override] [--tier <level>]                          there in one act
+    [--override]                                           there in one act
   release <card>                                         Give the card back to its queue
   block <card> <reason> [--kind <kind>]                  Raise an obstacle and free the card
   unblock <card>                                         Lift a block (operator only)
@@ -65,8 +65,7 @@ READ
   columns                                                The flow, in order
   ls [column] [--ready] [--root <path>]                  The cards of a column, in queue order
     [--max-depth <n>]
-  next [column] [--tier <level>] [--root <path>]         The card a column offers next
-    [--max-depth <n>]
+  next [column] [--root <path>] [--max-depth <n>]        The card a column offers next
   query [query]                                          The cards of the workbench that match a query
   search <phrase> [--query <terms>] [--archived]         Every place a phrase occurs in this workbench
     [--root <path>] [--max-depth <n>]
@@ -139,9 +138,9 @@ Usage: dinah <command> [arguments]
 
 WORK
   add <title> [--column <column>] [--severity <level>] [--priority <level>]                             File a new card in the first column
-  claim <card> [--expires <duration>] [--tier <level>]                                                  Take up a ready card
+  claim <card> [--expires <duration>]                                                                   Take up a ready card
   move <card> <column> [--override]                                                                     Carry a card to another column
-  pull [column] [--no-claim] [--expires <duration>] [--override] [--tier <level>]                       Claim the head of a column's queue and move it there in one act
+  pull [column] [--no-claim] [--expires <duration>] [--override]                                        Claim the head of a column's queue and move it there in one act
   release <card>                                                                                        Give the card back to its queue
   block <card> <reason> [--kind <kind>]                                                                 Raise an obstacle and free the card
   unblock <card>                                                                                        Lift a block (operator only)
@@ -167,7 +166,7 @@ READ
   status [--root <path>] [--max-depth <n>]                                                              Where this workbench stands, and what you hold
   columns                                                                                               The flow, in order
   ls [column] [--ready] [--root <path>] [--max-depth <n>]                                               The cards of a column, in queue order
-  next [column] [--tier <level>] [--root <path>] [--max-depth <n>]                                      The card a column offers next
+  next [column] [--root <path>] [--max-depth <n>]                                                       The card a column offers next
   query [query]                                                                                         The cards of the workbench that match a query
   search <phrase> [--query <terms>] [--archived] [--root <path>] [--max-depth <n>]                      Every place a phrase occurs in this workbench
   tree [query] [--group-by <axes>] [--depth <level>] [--root <path>] [--max-depth <n>]                  The workbench's cards nested along a chain of axes

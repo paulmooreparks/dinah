@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strings"
 	"testing"
 
 	"dinah/internal/bench/compattest"
@@ -93,6 +92,7 @@ func TestAdmitProfileReadsThePublishedLineAndRefusesTheRest(t *testing.T) {
 		"dinah-core/0.14",
 		"dinah-core/0.15",
 		"dinah-core/0.16",
+		"dinah-core/0.17",
 	}
 	refused := []string{
 		"dinah-core/0.0",
@@ -100,9 +100,10 @@ func TestAdmitProfileReadsThePublishedLineAndRefusesTheRest(t *testing.T) {
 		// CORE-BENCH-5 names: this build's own major, a minor above the
 		// ceiling it implements. The example moved from 0.10 to 0.13 when
 		// dinah-382 raised the claim to 0.12, to 0.16 when dinah-501 raised it
-		// to 0.15, and to 0.17 when dinah-498 raised it to 0.16, because a
-		// revision this build now implements cannot stand for one it does not.
-		"dinah-core/0.17",
+		// to 0.15, to 0.17 when dinah-498 raised it to 0.16, and to 0.18 when
+		// dinah-496 raised it to 0.17, because a revision this build now
+		// implements cannot stand for one it does not.
+		"dinah-core/0.18",
 		"dinah-core/1.1",
 		"dinah-core/2.0",
 		"dinah-core/3.0",
@@ -501,16 +502,30 @@ func copyTree(t *testing.T, from, to string) {
 	}
 }
 
-// TestSomeFixtureDeclaresTheRevisionThisBuildStamps is the bump alarm. Moving
-// ProfileMajor or ProfileMinor fails the build in the commit that moves it, and
-// the way to make it pass is to capture a fixture in the outgoing shape.
+// TestSomeFixtureDeclaresTheRevisionThisBuildStamps was the bump alarm, and
+// what it asserts now is the newest captured revision rather than this build's
+// own claim.
+//
+// The operator ruled on dinah-496, answering that card's sixth open question,
+// that the ten fixtures stay exactly as they stand, that no fixture is captured
+// at 0.17, and that the fixture set is dinah-511's to settle now that
+// back-compatibility is retired until the format is stable. A guard keyed on
+// this build's claim would therefore fail on that ruling rather than on a
+// defect, so what stands here is the part of the alarm the ruling leaves: the
+// corpus carries a capture, and that capture declares a revision this build
+// opens. dinah-511 is where the stronger form comes back.
 func TestSomeFixtureDeclaresTheRevisionThisBuildStamps(t *testing.T) {
+	newest := ""
 	for _, fixture := range compatFixtures(t) {
-		if declaredProfile(t, fixture) == ProfileVersion {
-			return
+		declared := declaredProfile(t, fixture)
+		if _, _, err := admitProfile(declared); err != nil {
+			continue
 		}
+		newest = declared
 	}
-	t.Fatalf("no fixture under %s declares %s. Replay populate.txt through this build, commit the capture as %s/%s, and mark its manifest row sample: true", compatDir, ProfileVersion, compatDir, strings.ReplaceAll(ProfileVersion, "/", "-"))
+	if newest == "" {
+		t.Fatalf("no fixture under %s declares a revision this build opens", compatDir)
+	}
 }
 
 // TestSomeFixtureDeclaresTheFloor keeps the oldest revision this build opens
@@ -617,13 +632,13 @@ func TestExactlyOneFixtureIsMarkedTheSampleForThisRevision(t *testing.T) {
 		if !row.Sample {
 			continue
 		}
-		if declaredProfile(t, row.Directory) != ProfileVersion {
-			continue
-		}
 		marked = append(marked, row.Directory)
 	}
 	if len(marked) != 1 {
-		t.Fatalf("%d fixtures declaring %s carry sample: true in %s (%v), wanted exactly one", len(marked), ProfileVersion, manifestName, marked)
+		t.Fatalf("%d fixtures carry sample: true in %s (%v), wanted exactly one", len(marked), manifestName, marked)
+	}
+	if declared := declaredProfile(t, marked[0]); declared == "" {
+		t.Fatalf("the marked fixture %s declares no profile revision", marked[0])
 	}
 }
 

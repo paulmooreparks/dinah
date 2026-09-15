@@ -231,7 +231,7 @@ func TestTwoEventsInOneSecondAreBothDeliveredOnce(t *testing.T) {
 
 	stamp := bench.Stamp(h.clock.Add(time.Hour))
 	for _, ref := range []string{first, second} {
-		if err := bench.AppendEvent(h.journalOf(ref), bench.Event{TS: stamp, Event: contract.EventCommented, Actor: "alka"}); err != nil {
+		if err := bench.AppendEvent(h.journalOf(ref), bench.Event{TS: stamp, Event: contract.EventCommented, Actor: bench.NamedActor("alka")}); err != nil {
 			t.Fatalf("append to %s: %v", ref, err)
 		}
 	}
@@ -628,11 +628,11 @@ func TestAnUnreadableJournalDegradesOneEntityAndNotTheCall(t *testing.T) {
 	minted := h.mint()
 
 	h.appendRaw(h.journalOf(damaged), "this line is not JSON\n")
-	if err := bench.AppendEvent(h.journalOf(damaged), bench.Event{TS: bench.Stamp(h.clock.Add(time.Hour)), Event: contract.EventCommented, Actor: "alka"}); err != nil {
+	if err := bench.AppendEvent(h.journalOf(damaged), bench.Event{TS: bench.Stamp(h.clock.Add(time.Hour)), Event: contract.EventCommented, Actor: bench.NamedActor("alka")}); err != nil {
 		t.Fatalf("append past the bad line: %v", err)
 	}
 	h.appendRaw(h.library.Bench.JournalPath(), "this line is not JSON either\n")
-	if err := bench.AppendEvent(h.library.Bench.JournalPath(), bench.Event{TS: bench.Stamp(h.clock.Add(time.Hour)), Event: contract.EventWorkbenchUpdated, Actor: "alka", Field: "title"}); err != nil {
+	if err := bench.AppendEvent(h.library.Bench.JournalPath(), bench.Event{TS: bench.Stamp(h.clock.Add(time.Hour)), Event: contract.EventWorkbenchUpdated, Actor: bench.NamedActor("alka"), Field: "title"}); err != nil {
 		t.Fatalf("append past the workbench journal's bad line: %v", err)
 	}
 	h.comment(sound, "a line the sound card carries")
@@ -750,7 +750,7 @@ func TestTheArchiveIsSkippedUntilTheArchiveItselfMoves(t *testing.T) {
 
 	mirror := filepath.Join(h.library.Bench.ArchivedCardsRoot(), archivedID, bench.JournalName)
 	h.appendRaw(mirror, "this line is not JSON\n")
-	if err := bench.AppendEvent(mirror, bench.Event{TS: bench.Stamp(h.clock.Add(time.Hour)), Event: contract.EventCommented, Actor: "alka"}); err != nil {
+	if err := bench.AppendEvent(mirror, bench.Event{TS: bench.Stamp(h.clock.Add(time.Hour)), Event: contract.EventCommented, Actor: bench.NamedActor("alka")}); err != nil {
 		t.Fatalf("append past the archived bad line: %v", err)
 	}
 
@@ -795,7 +795,7 @@ func TestAnInterruptedArchiveIsReportedGoneAndNotAlsoLive(t *testing.T) {
 
 	// The event without the move, which is exactly the window a crash leaves.
 	if err := bench.AppendEvent(h.journalOf(ref), bench.Event{
-		TS: bench.Stamp(h.clock.Add(time.Hour)), Event: contract.EventArchived, Actor: "alka", Note: id,
+		TS: bench.Stamp(h.clock.Add(time.Hour)), Event: contract.EventArchived, Actor: bench.NamedActor("alka"), Note: id,
 	}); err != nil {
 		t.Fatalf("append the archived event: %v", err)
 	}
@@ -1247,7 +1247,7 @@ func TestACorruptedArchiveDoesNotExplainAMovedLiveTerm(t *testing.T) {
 	// and is tolerated.
 	archived := filepath.Join(h.archivedDir(leavingID), bench.JournalName)
 	h.appendRaw(archived, "this line is not JSON\n")
-	if err := bench.AppendEvent(archived, bench.Event{TS: bench.Stamp(h.clock.Add(time.Hour)), Event: contract.EventCommented, Actor: "alka"}); err != nil {
+	if err := bench.AppendEvent(archived, bench.Event{TS: bench.Stamp(h.clock.Add(time.Hour)), Event: contract.EventCommented, Actor: bench.NamedActor("alka")}); err != nil {
 		t.Fatalf("append past the bad line: %v", err)
 	}
 

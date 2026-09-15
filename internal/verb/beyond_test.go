@@ -2171,7 +2171,7 @@ func TestAWorkbenchFieldWriteRunsUnderOneLockAndJournalsWhatChanged(t *testing.T
 		t.Fatalf("wanted one %s event per write, got %d", contract.EventWorkbenchUpdated, len(journalled))
 	}
 	for i, ev := range journalled {
-		if ev.TS == "" || ev.Actor != "alka" {
+		if ev.TS == "" || ev.Actor.Name != "alka" {
 			t.Errorf("event %d carries ts %q and actor %q", i, ev.TS, ev.Actor)
 		}
 		if ev.Field != writes[i].field || ev.From != writes[i].was || ev.To != writes[i].value {
@@ -2277,7 +2277,7 @@ func TestAWorkstreamIsBornWithASlugAStatusAnOrdinalAndAJournal(t *testing.T) {
 		t.Errorf("the creation ordinal is %d, wanted 1", stored.Ordinal)
 	}
 	events := h.workstreamEvents(view.ID)
-	if len(events) != 1 || events[0].Event != contract.EventCreated || events[0].Actor != "alka" {
+	if len(events) != 1 || events[0].Event != contract.EventCreated || events[0].Actor.Name != "alka" {
 		t.Errorf("the journal opens with %+v, wanted one created event naming alka", events)
 	}
 	listing, err := h.library.Workstreams()

@@ -1,6 +1,6 @@
 # The core profile
 
-Version identity: `dinah-core 0.16`, maturity channel `dev`.
+Version identity: `dinah-core 0.17`, maturity channel `dev`.
 
 ## 1. Scope and audience
 
@@ -55,7 +55,7 @@ that would bring it in.
 
 ## 2. Version identity and compatibility
 
-This document is version 0.16 of the profile whose identity string is
+This document is version 0.17 of the profile whose identity string is
 `dinah-core`. The version of this profile is a property of this document. It
 is unrelated to the release numbering of any tool, and a tool's own version
 number tells a reader nothing about which profile version that tool
@@ -92,7 +92,7 @@ in the changelog like any other change, and the promise starts to bind at
 that event. The move of this document's own major number from 0 to 1 is a
 named event of the same kind, recorded in the entry that promotes the
 document to `stable`, so no revision is ever `dev` or `beta` and major 1 at
-once. A conformance claim names `dinah-core 0.16` and says nothing about
+once. A conformance claim names `dinah-core 0.17` and says nothing about
 the channel, because the channel belongs to the document's history and the
 number belongs to the contract.
 
@@ -295,18 +295,19 @@ model this document never states:
 
 ```
 lane, gate, loop limit, station, swimlane, zone, persona,
-capability tier, shopping queue, external wait, workstream
+shopping queue, external wait, workstream
 ```
 
-One word left this list at 0.7, and the removal is recorded here rather than
-left for a reader to infer, the same way the paragraph above records
-`release`. The word `column` now names one of this profile's own concepts,
-defined in section 4 and used by the statements below, so the reason the list
-existed no longer applies to it: a reader does not have to know another
-tool's model to know what a column is here, because this document says what
-one is. The test the list exists for is whether a word arrives carrying a
-meaning this document never states, and a word this document defines cannot
-fail it.
+Two words have left this list, at 0.7 and at 0.17, and each removal is
+recorded here rather than left for a reader to infer, the same way the
+paragraph above records `release`. The word `column` left at 0.7 and
+`capability tier` left at 0.17. Each now names one of this profile's own
+concepts, defined in section 4 and used by the statements below, so the reason
+the list existed no longer applies to either: a reader does not have to know
+another tool's model to know what a column or a capability is here, because
+this document says what each one is. The test the list exists for is whether a
+word arrives carrying a meaning this document never states, and a word this
+document defines cannot fail it.
 
 The boundary table of section 10 falls outside all three places, because
 naming what stayed out is that table's whole function and it could not do its
@@ -316,6 +317,12 @@ word helps a reader who already knows one, it follows in brackets, so no
 reader meets an undefined name standing alone.
 
 ## 4. Core vocabulary
+
+**Capability.** A class of worker. A workbench declares an ordered set of
+them, a card may require one at a column of its workbench, and an owner
+satisfies one or does not. What a capability means, and which owners belong to
+which, are the workbench's to settle; the profile fixes only that the set is
+ordered and that a claim turns on it.
 
 **Workbench.** One coordinated body of work, carrying a flow of columns and
 the cards travelling it.
@@ -587,6 +594,32 @@ rather than serving one whose two reserved acts are dead.
 
 [CORE-VERB-2] A tool MUST refuse a verb naming no owner, reporting the refusal name `no-owner`.
 
+#### 5.4.1 What performed an act, inside who took it
+
+The owner model above treats a name as attribution. What this adds is that the
+owner a recorded act names may carry a description of what performed the act,
+which is a different fact from who is answerable for it. A person and the
+assistant they ran are one owner and two descriptions, and a reader of the
+history that cannot tell them apart cannot audit either.
+
+The description is optional throughout. The owner's name stays required, which
+CORE-OWNER-1 already fixes, so a workbench that records nothing but a name
+conforms exactly as it did before this revision. Nothing here verifies the
+description either: a tool records what the caller reported about itself, and
+whether that report is true is a question of deployment, on the same terms
+section 5.4 already settles for the name.
+
+Two of the four members below are spelled as an external vocabulary spells
+them, and section 9 says why that is not a name this profile defines.
+
+[CORE-ACTING-1] The owner a recorded act names MAY carry a description of what performed the act, alongside the owner's own name.
+
+[CORE-ACTING-2] Such a description MAY carry the harness, the provider, the model and the address the model was reached at.
+
+[CORE-ACTING-3] A tool MUST NOT refuse an act on the ground that the description is absent or incomplete.
+
+[CORE-ACTING-4] A tool MUST preserve a member of such a description it does not understand.
+
 ### 5.5 Queues
 
 The queue of a column is the cards waiting there. Two tools reading one
@@ -634,7 +667,7 @@ with the meanings RFC 8259 gives them.
 
 ```json
 {
-  "profile": "dinah-core/0.16",
+  "profile": "dinah-core/0.17",
   "title": "Wedding",
   "columns": [
     { "id": "s1", "title": "Ideas",   "kind": "intake" },
@@ -819,6 +852,50 @@ override.
 [CORE-FIELD-10] A workbench definition MAY mark a column as requiring a card to carry a value under a named declared field before that card enters it.
 
 [CORE-FIELD-11] A tool MUST refuse a move into a column so marked, reporting the refusal name `missing-field`, while the card carries no value under a key that column requires, except where the request carries an override marker and the owner asking is the operator of the workbench.
+
+### 5.11 Capabilities
+
+Some work wants a particular class of worker, and a workbench that cannot say
+so is one where the assignment happens outside the tool and nothing records it.
+So a workbench may declare an ordered set of capabilities, may say which owner
+descriptions satisfy each one, and a card may require one at a column of its
+flow. A claim at that column by an owner who does not satisfy the requirement
+is refused.
+
+The set is ordered, and the order is what makes the requirement a floor rather
+than a match: an owner satisfying a capability above the one a card requires is
+admitted, because over-qualified work is waste rather than an error. What the
+capabilities are called, how many there are, and which descriptions satisfy
+each are the workbench's to declare, and this profile enumerates none of them.
+
+CORE-CAP-4 is the one statement in this profile that requires a refusal and
+fixes no name for it, and the exception is argued rather than left to be
+noticed. The ground covers three situations leading to three different
+repairs: an owner satisfying a capability below the requirement changes what it
+runs, an owner the declaration lists nowhere is added to the declaration or
+changes what it runs, and an owner that described nothing gets configured.
+CORE-ITEM-3 collapsed a comparable set to one name on purpose, because there
+the caller's next move is the same whichever item is unresolved, and here it is
+not. CORE-OUT-3 already admits a refusal name carrying a full stop, so a tool
+reports its own names under its own prefix and conforms, and a conformance run
+asserts that some refusal comes back rather than asserting a name this profile
+never fixed.
+
+CORE-CAP-5 is what keeps a workbench that declares no capability conforming
+without implementing any of this, and it is also what stops CORE-CAP-4 being a
+refusal every claim satisfies.
+
+[CORE-CAP-1] A workbench definition MAY declare an ordered set of capabilities.
+
+[CORE-CAP-2] A workbench definition MAY declare, for each capability, the owner descriptions that satisfy it.
+
+[CORE-CAP-3] A card MAY require a capability at a column of its workbench.
+
+[CORE-CAP-4] A tool MUST refuse a claim on a card at a column where the card requires a capability the owner asking does not satisfy.
+
+[CORE-CAP-5] A tool MUST NOT refuse a claim on this ground where the card requires no capability at that column.
+
+[CORE-JSON-13] The interchange object MAY carry the member `tiers`.
 
 ## 6. The verbs
 
@@ -1189,6 +1266,19 @@ overridden move produces one act and not two.
 
 [CORE-HIST-6] A tool MUST NOT resolve an identifier carried in a recorded act against the workbench's present contents when it presents that act.
 
+CORE-HIST-3 governs a tool operating on a workbench: a claim, a move, a block,
+anything a person or an automated owner does through a verb, none of which may
+reach back and change what an earlier act recorded. Re-encoding a record into a
+different serialization is not an act on the workbench at all. It changes how
+the record is written down and leaves the owner, the act, the time and every
+other member exactly as they stood, so a tool carrying its own storage across a
+format change is not altering history. The statement below binds the tool that
+re-encodes rather than granting it permission to, which is what keeps the
+permission and the bound one thing: there is no half of this a tool can take
+while leaving the other behind.
+
+[CORE-HIST-7] A tool re-encoding a recorded act into a different serialization MUST NOT change what the act records.
+
 ### 6.9 The outcome as a number
 
 A tool serving an automated caller often has one number to answer with and
@@ -1299,6 +1389,14 @@ all conforms, and a workbench that declares a layer a tool has never heard of
 is still readable by that tool, which keeps the declaration and leaves it
 alone.
 
+DOC-LAYER-1 governs the names this profile mints. A name this profile cites
+from an external vocabulary is not one it defines, so such a name may contain a
+full stop and CORE-OUT-3 already treats a dotted name as the mark of something
+from outside. The collision DOC-LAYER-1 exists to prevent can only happen at
+the top level of a workbench definition, where a layer declares itself, and a
+cited name that names a member of an object elsewhere in the model declares no
+layer and collides with nothing.
+
 No layer content ships in this revision. Section 10 records what a layer
 would be for.
 
@@ -1354,7 +1452,8 @@ quietly.
 | The reason on a block, as free prose | in | The obstacles that stop real work are various, and a closed list would send whoever hits an unlisted one to the nearest wrong answer. | | CORE-BLOCK-1, CORE-BLOCK-2, CORE-BLOCK-5 |
 | The kind on a block, as an open value | in | Counting obstacles by class is worth having, and leaving the values open costs nothing because no rule hangs on them. | | CORE-BLOCK-4 |
 | The owner and operator identity model | in | Every act names who took it, and several rules turn on whether that owner is the operator, so the concept cannot be deferred, and a workbench that designates none has reserved acts nobody can take. Whether a name is proved is left to deployment, which is what lets one tool serve one person and another serve many. | | CORE-OWNER-1, CORE-OWNER-2, CORE-OWNER-3 |
-| Recorded history | in | A workbench that cannot say who did what is not answerable, and the append-only rule is what makes the record worth reading. | | CORE-HIST-1, CORE-HIST-3, CORE-HIST-5 |
+| Recorded history | in | A workbench that cannot say who did what is not answerable, and the append-only rule is what makes the record worth reading. Re-encoding a record into a different serialization is a property of the same concept rather than a second one, so the permission and its bound ride here rather than on a row of their own. | | CORE-HIST-1, CORE-HIST-3, CORE-HIST-5, CORE-HIST-7 |
+| The record of what performed an act | in | An owner's name says who is answerable and says nothing about what did the work, and the two are different facts. A tool that recorded only the name would leave a reader of the history unable to tell a person from the assistant they ran, which is the one question anybody auditing an automated workbench asks first. The description is optional throughout and nothing verifies it, so a workbench recording nothing but a name conforms exactly as it did before. | | CORE-ACTING-1, CORE-ACTING-2, CORE-ACTING-3, CORE-ACTING-4 |
 | Self-contained references in history | in | History that resolved its names against the present would turn ordinary renaming into apparent corruption. | | CORE-HIST-4, CORE-HIST-6 |
 | Column kinds | in | Where cards enter, where they are worked and where they come to rest are three different situations, and a tool has to tell them apart to know what to offer. A tool meeting a kind it does not implement has to keep the card movable rather than refuse the board, and reading such a column as an ordinary work column is the reading that constrains nothing. | | CORE-STATE-11, CORE-STATE-12 |
 | Terminal columns | in | Somewhere the journey ends, and a tool that offered a forward move out of the end would be inviting a card into nowhere. | | CORE-STATE-9, CORE-MOVE-7 |
@@ -1382,8 +1481,8 @@ quietly.
 | A group of columns behaving as one stage of the flow | out | The core would gain a second notion of position competing with the column, and two positions is one too many. | A workbench needs to move a card between groups without naming a column. | |
 | Named groupings of cards within one workbench | out | The core loses only convenience. Grouping is a view over cards, and no verb changes behaviour because of one. | Membership starts constraining an act, such as a limit counted per grouping. | |
 | Declared working identities with attached configuration [personas] | out | Configuration for whoever drives a tool is a property of that tool rather than of the shared model, and putting it here would make every conforming tool carry somebody else's settings. | Two tools need to agree on the identity of an automated owner beyond its name. | |
-| A declared capability level attached to a card | out | Rating a card's difficulty is a judgement each workbench makes differently, and the core gains nothing by fixing the scale. | A capability level is used to refuse an act, at which point the refusal belongs to the contract. | |
-| Refusing a claim on the ground of the owner's capability | out | A refusal that no other tool can evaluate would be a refusal name nobody can implement. | The preceding row is ruled in, since a refusal needs something to evaluate. | |
+| A declared capability level attached to a card | in | The condition this row excluded has fired: a capability level is used to refuse an act, and has been on a real workbench for months, so the promotion path this document holds every concept to is satisfied rather than in the way. What the core takes is the ordered set, the descriptions that satisfy each member, the requirement a card carries at a column, and the interchange member that carries the declaration. What the scale means, what its members are called, and which owners belong to which stay with the workbench, so nothing here fixes anybody's rating of anybody's difficulty. | | CORE-CAP-1, CORE-CAP-2, CORE-CAP-3, CORE-JSON-13 |
+| Refusing a claim on the ground of the owner's capability | in | The preceding row is ruled in, so the refusal now has something to evaluate. The statement requires the refusal and fixes no name for it, which is the only such statement in this profile, and section 5.11 argues the exception: the ground covers three situations leading to three different repairs, so one name would be a worse answer here than none. | | CORE-CAP-4, CORE-CAP-5 |
 | Ranked priority levels on a card | out | The core's waiting order deliberately consults only arrival, and admitting ranks would make the order depend on a scale the profile does not define. | A shared ordering across tools is needed and arrival order proves insufficient. | |
 | Ranked severity levels on a card | out | Severity changes no act and constrains nothing, so it is a field a workbench declares for its people to read. | Severity begins to constrain an act. | |
 | Views across several workbenches at once | out | The core is scoped to one workbench, and a view over many is a reading built on top of conforming tools rather than a rule inside one. | Two tools need to agree how a card in one workbench refers to a card in another. | |
@@ -1402,7 +1501,7 @@ quietly.
 | Several people sharing one workbench, and who may do what | out | The core names an owner on every act and reserves some acts to the operator, which is the whole of what the model needs. Anything further is deployment. | Two tools must agree on a permission, rather than each enforcing its own. | |
 | Proving that an owner name belongs to whoever presents it | out | A single-person tool has nobody to prove anything to, and a shared one has its own means. Fixing one would exclude both. No statement of this profile rests on the question, which is why section 5.4 settles it in prose: the core neither requires such proof nor forbids it. | Two tools must accept each other's evidence about an owner. | |
 
-Rows ruled in: 38. Rows ruled out: 22. Total rows: 60.
+Rows ruled in: 41. Rows ruled out: 20. Total rows: 61.
 
 ### 10.1 Walking a wedding through the whole profile
 
@@ -1563,6 +1662,10 @@ themselves carry meaning.
 | CORE-OWNER-3 | must | tool | A verb asked on a workbench that designates no operator is refused with `no-operator`. |
 | CORE-VERB-1 | must | tool | A verb naming a card the workbench does not carry is refused with `unknown-card`. |
 | CORE-VERB-2 | must | tool | A verb naming no owner is refused with `no-owner`. |
+| CORE-ACTING-1 | may | tool | A recorded act whose owner carries a description of what performed it is accepted. |
+| CORE-ACTING-2 | may | tool | Such a description carrying a harness, a provider, a model and an address is accepted. |
+| CORE-ACTING-3 | must not | tool | An act whose description is absent or incomplete is not refused on that ground. |
+| CORE-ACTING-4 | must | tool | A member of such a description the tool does not understand survives a read and a write. |
 | CORE-QUEUE-3 | must | tool | Over a fixture with known arrival times, the next card is the earliest `ready` arrival, ties broken by ascending creation ordinal. |
 | CORE-QUEUE-4 | may | tool | A tool offering another order still returns the CORE-QUEUE-3 order when asked for it. |
 | CORE-TEXT-1 | must | tool | Text the tool writes decodes as UTF-8. |
@@ -1600,6 +1703,12 @@ themselves carry meaning.
 | CORE-FIELD-9 | must | tool | No declared field's value is written at the top level of the entity that carries it. |
 | CORE-FIELD-10 | may | tool | A column marked as requiring a named declared field is accepted. |
 | CORE-FIELD-11 | must | tool | A move into a column so marked is refused with `missing-field` while the card carries no value under a key it requires, unless the operator carries an override marker. |
+| CORE-CAP-1 | may | tool | A workbench definition declaring an ordered set of capabilities is accepted. |
+| CORE-CAP-2 | may | tool | A definition declaring the owner descriptions that satisfy each capability is accepted. |
+| CORE-CAP-3 | may | tool | A card requiring a capability at a column of its workbench is accepted. |
+| CORE-CAP-4 | must | tool | A claim at a column where the card requires a capability the owner asking does not satisfy comes back refused. |
+| CORE-CAP-5 | must not | tool | A claim at a column where the card requires no capability is not refused on that ground. |
+| CORE-JSON-13 | may | tool | An interchange object carrying `tiers` is accepted. |
 | CORE-OUT-1 | must | tool | Every verb response carries exactly one of the four outcome tokens. |
 | CORE-OUT-2 | must | tool | Every response of `refused` carries exactly one refusal name. |
 | CORE-OUT-3 | must | tool | Every refusal name reported is one section 6.1 declares or one containing a full stop. |
@@ -1654,6 +1763,7 @@ themselves carry meaning.
 | CORE-HIST-4 | must | tool | A recorded move carries the identifier and the title of the column left and of the column entered. |
 | CORE-HIST-5 | must | tool | The order of acts reported matches the order in which they were performed. |
 | CORE-HIST-6 | must not | tool | A recorded act still reports its titles after the columns it names have been renamed or removed. |
+| CORE-HIST-7 | must not | tool | A recorded act re-encoded into a different serialization still reports the owner, the act and the time it reported before. |
 | CORE-OUT-7 | must | tool | Where the tool answers whoever invoked it with a number, the number carrying `refused` carries no other outcome the tool reports. |
 | CORE-INSTR-1 | may | tool | A column carrying instructions is accepted. |
 | CORE-INSTR-2 | may | tool | A workbench carrying standing instructions is accepted. |
@@ -1673,12 +1783,12 @@ themselves carry meaning.
 | CORE-LAYER-2 | must | tool | A workbench carrying a declared layer the tool does not understand still carries that layer's content after a read and a write. |
 | CORE-LAYER-3 | must | tool | A definition declaring a layer under a name this profile defines is refused with `layer-collision`. |
 
-The index carries 153 rows, which is the number of identifiers an extraction
+The index carries 164 rows, which is the number of identifiers an extraction
 over this revision returns.
 
 ## 12. Changelog
 
-The current revision is `dinah-core 0.16`. Entries below stay in the order
+The current revision is `dinah-core 0.17`. Entries below stay in the order
 they were published rather than in numeric order. The fourth entry renamed
 the first three from `1.0`, `2.0`, and `3.0` to `0.1`, `0.2`, and `0.3`, so
 it reads here as a drop from `3.0` to `0.4` even though nothing was undone.
@@ -2301,3 +2411,45 @@ refused now: a workbench that declares no field can raise neither name, and
 `undeclared-field` reaches only a write under a dotted key, which no earlier
 revision defined a meaning for. The document sits on the `dev` channel, so
 nothing here binds a caller who has not already opted into `dinah-core 0.16`.
+
+### 0.17, channel `dev`, 2026-09-15
+
+Identifiers affected: CORE-ACTING-1 through CORE-ACTING-4, introduced, which
+are the description of what performed a recorded act. CORE-CAP-1 through
+CORE-CAP-5, introduced, which are the capability a workbench declares, the
+requirement a card carries and the claim refusal built on them. CORE-JSON-13,
+introduced, which blesses the member the interchange object carries for the
+declaration. CORE-HIST-7, introduced, which binds a tool re-encoding a record
+to leave what the record says alone. No identifier of the prior revision is retired, reworded or
+weakened, and CORE-HIST-3 in particular keeps its text exactly: the new
+statement sits beside it rather than under it.
+
+The difference is a minor increment under DOC-VER-8, which classifies a
+revision whose difference falls under none of the other rules, and DOC-VER-11
+is satisfied because every identifier of 0.16 appears in this extraction. No
+precondition list changes, so DOC-ORDER-2 is not engaged.
+
+An owner's name says who is answerable for an act and says nothing about what
+did the work. On a workbench where most of the owners are automated, those are
+different facts, and a reader who cannot tell a person from the assistant they
+ran cannot audit either. So the owner a recorded act names may now carry a
+description of what performed it, which may say the harness, the provider, the
+model and the address the model was reached at. Every member is optional, and
+nothing verifies any of them: a tool records what the caller reported about
+itself, on the same terms section 5.4 already settles for the name.
+
+The capability rows of section 10 move from ruled out to ruled in. Both reopen
+conditions had fired, and the promotion path this document holds every concept
+to is satisfied rather than in the way, because the scale, the requirement, the
+gate and the raise have all run on a real workbench. CORE-CAP-4 requires a
+refusal and fixes no name for it, which no other statement here does, and
+section 5.11 carries the argument: the ground covers three situations leading
+to three different repairs, and one name would be a worse answer than none.
+
+Consequence for a caller. Nothing admitted before is refused now. A workbench
+that declares no capability raises no refusal on this ground, which CORE-CAP-5
+fixes, and a recorded act carrying no description of what performed it is
+refused on no ground, which CORE-ACTING-3 fixes. What a caller gains is a
+member it may read and a member it must preserve. The document sits on the
+`dev` channel, so nothing here binds a caller who has not already opted into
+`dinah-core 0.17`.

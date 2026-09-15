@@ -75,7 +75,7 @@ var wantedTemplates = []string{
 // entries under the anchor's columns sequence and under a card's links and
 // workstreams, and the head writes none of them as mappings today.
 var wantedKeys = map[string][]string{
-	"workbench.md":                                      {"format", "profile", "title", "slug", "operator", "columns", "levels"},
+	"workbench.md":                                      {"format", "profile", "title", "slug", "operator", "columns", "levels", "tiers"},
 	"columns/<id>/column.md":                            {"title", "slug", "kind", "operator_owned", "wip_limit", "tier"},
 	"archive/columns/<id>/column.md":                    {"title", "slug", "kind", "operator_owned", "wip_limit"},
 	"cards/<id>/card.md":                                {"title", "column", "state", "severity", "priority", "tier", "tier_at", "links", "claim_holder", "claim_since", "claim_expires", "block_reason", "block_kind", "block_since", "workstreams"},
@@ -214,6 +214,24 @@ var frozenSampleTemplates = map[string]bool{
 	bench.CardNumbersName: true,
 }
 
+// frozenSampleKeys are the frontmatter keys this build writes that the sample
+// fixture cannot carry, per path template, and the sample alarm skips exactly
+// these in its containment. It is frozenSampleTemplates' sibling and rests on
+// the same key: the fixture set is keyed on the profile revision, the sample is
+// a capture taken before the key existed, and the operator ruled on dinah-496
+// that no fixture is captured at 0.17.
+//
+// The tiers block is the one entry. dinah-496 gave the sample definition a tier
+// table, because without one the sequence's own `check --witness` step reports
+// check.requirements-without-table over the cards the sequence raises, which is
+// the finding working rather than a defect in the sequence. The fresh replay is
+// what holds the block under test: wantedKeys below names it, so a build that
+// stops writing it turns red there, and what this exemption gives up is only
+// the demand that a capture predating the block carry it.
+var frozenSampleKeys = map[string]map[string]bool{
+	bench.WorkbenchAnchor: {bench.TiersKey: true},
+}
+
 // TestTheSampleFixtureCarriesEveryShapeThisBuildWrites is the sample alarm. It
 // creates a workbench with the build under test, replays the same sequence
 // against it, and asserts the sample fixture contains that tree's shape. The
@@ -225,6 +243,16 @@ var frozenSampleTemplates = map[string]bool{
 // The comparison is against the one fixture the manifest marks rather than
 // against the union of every fixture declaring the revision, because a union
 // lets a second fixture cover the first one's gaps.
+//
+// The marked fixture is the one the manifest names and no longer has to declare
+// the revision this build claims. The two used to be the same question, and
+// dinah-496 separated them: the operator ruled on that card that no fixture is
+// captured at 0.17 and that the fixture set is dinah-511's to settle now that
+// back-compatibility is retired until the format is stable. Keying on the
+// build's claim would therefore have failed on a ruling rather than on a
+// defect, and what the alarm is for, which is that the sample holds every shape
+// this build writes, is answered by the marked fixture whatever revision it
+// declares.
 //
 // What this test does not prove (spec section 6.5): the containment shows the
 // sample fixture holds every shape this build's own replay writes, and that
@@ -251,6 +279,9 @@ func TestTheSampleFixtureCarriesEveryShapeThisBuildWrites(t *testing.T) {
 	}
 	for template, keys := range fresh.keys {
 		for key := range keys {
+			if frozenSampleKeys[template][key] {
+				continue
+			}
 			if !sample.keys[template][key] {
 				t.Errorf("the sample fixture's %s carries no %s key, which this build writes", template, key)
 			}
@@ -394,13 +425,10 @@ func sampleFixture(t *testing.T) string {
 		if !row.Sample {
 			continue
 		}
-		if anchorProfile(t, filepath.Join(compatDir, row.Directory)) != bench.ProfileVersion {
-			continue
-		}
 		marked = append(marked, row.Directory)
 	}
 	if len(marked) != 1 {
-		t.Fatalf("%d fixtures declaring %s are marked sample: true (%v), wanted exactly one", len(marked), bench.ProfileVersion, marked)
+		t.Fatalf("%d fixtures are marked sample: true (%v), wanted exactly one", len(marked), marked)
 	}
 	return filepath.Join(compatDir, marked[0])
 }
@@ -770,7 +798,7 @@ func TestTheUnsupportedVersionRefusalNamesTheWindow(t *testing.T) {
 	// build stamps, and the clause is composed from the constants rather than
 	// spelled there, so this reads the sentence's shape while naming the two
 	// numbers a later bump moves.
-	wanted := "; this build reads dinah-core 0.7 through dinah-core 0.16"
+	wanted := "; this build reads dinah-core 0.7 through dinah-core 0.17"
 	if !strings.Contains(got.errw, wanted) {
 		t.Errorf("the refusal reads %q, wanted it to carry %q", got.errw, wanted)
 	}

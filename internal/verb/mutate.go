@@ -25,6 +25,9 @@ import (
 // processes reaching the same card therefore cannot both see it ready, since
 // the second is refused the lock outright.
 func (l *Library) Do(req *Request) *Response {
+	if refused := l.malformedHarness(req, nil); refused != nil {
+		return refused
+	}
 	if l.Bench.Operator == "" {
 		return l.refuse(req, nil, contract.NoOperator, "")
 	}
@@ -114,7 +117,7 @@ func (l *Library) lapse(card *bench.Card) error {
 	ev := bench.Event{
 		TS:      bench.Stamp(l.Now()),
 		Event:   contract.EventExpired,
-		Actor:   holder,
+		Actor:   bench.NamedActor(holder),
 		Expires: card.Expires,
 	}
 	card.State = contract.StateReady
@@ -277,7 +280,7 @@ func (l *Library) claim(req *Request, card *bench.Card) *Response {
 	ev := bench.Event{
 		TS:      card.ClaimSince,
 		Event:   contract.EventClaimed,
-		Actor:   req.Actor,
+		Actor:   req.Acting(),
 		Expires: card.Expires,
 	}
 	response, err := l.commit(req, card, ev)
@@ -544,7 +547,7 @@ func (l *Library) move(req *Request, card *bench.Card) *Response {
 	ev := bench.Event{
 		TS:        bench.Stamp(l.Now()),
 		Event:     contract.EventMoved,
-		Actor:     req.Actor,
+		Actor:     req.Acting(),
 		From:      card.Column,
 		FromTitle: titleOf(departure),
 		To:        destination.ID,
@@ -615,7 +618,7 @@ func (l *Library) release(req *Request, card *bench.Card) *Response {
 	ev := bench.Event{
 		TS:    bench.Stamp(l.Now()),
 		Event: contract.EventReleased,
-		Actor: req.Actor,
+		Actor: req.Acting(),
 	}
 	response, err := l.commit(req, card, ev)
 	if err != nil {
@@ -646,7 +649,7 @@ func (l *Library) block(req *Request, card *bench.Card) *Response {
 	ev := bench.Event{
 		TS:     now,
 		Event:  contract.EventBlocked,
-		Actor:  req.Actor,
+		Actor:  req.Acting(),
 		Reason: req.Reason,
 		Kind:   req.Kind,
 	}
@@ -678,7 +681,7 @@ func (l *Library) unblock(req *Request, card *bench.Card) *Response {
 	ev := bench.Event{
 		TS:    bench.Stamp(l.Now()),
 		Event: contract.EventUnblocked,
-		Actor: req.Actor,
+		Actor: req.Acting(),
 	}
 	response, err := l.commit(req, card, ev)
 	if err != nil {
@@ -717,7 +720,7 @@ func (l *Library) join(req *Request, card *bench.Card) *Response {
 	ev := bench.Event{
 		TS:         bench.Stamp(l.Now()),
 		Event:      contract.EventWorkstreamJoined,
-		Actor:      req.Actor,
+		Actor:      req.Acting(),
 		Workstream: workstream.ID,
 	}
 	response, err := l.commit(req, card, ev)
@@ -755,7 +758,7 @@ func (l *Library) leave(req *Request, card *bench.Card) *Response {
 	ev := bench.Event{
 		TS:         bench.Stamp(l.Now()),
 		Event:      contract.EventWorkstreamLeft,
-		Actor:      req.Actor,
+		Actor:      req.Acting(),
 		Workstream: workstream.ID,
 	}
 	response, err := l.commit(req, card, ev)

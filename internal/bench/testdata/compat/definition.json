@@ -21,6 +21,36 @@
       "apex"
     ]
   },
+  "tiers": {
+    "workhorse": {
+      "meaning": "scoped implementation against a clear contract",
+      "models": [
+        {
+          "provider": "sample",
+          "model": "workhorse-1"
+        }
+      ]
+    },
+    "frontier": {
+      "meaning": "novel design judgement, or work where a wrong answer costs a lot",
+      "models": [
+        {
+          "provider": "sample",
+          "model": "frontier-1"
+        }
+      ]
+    },
+    "apex": {
+      "meaning": "the hardest work this workbench carries",
+      "models": [
+        {
+          "provider": "sample",
+          "model": "apex-1",
+          "server": "apex.example"
+        }
+      ]
+    }
+  },
   "columns": [
     {
       "id": "004acda2c28a",

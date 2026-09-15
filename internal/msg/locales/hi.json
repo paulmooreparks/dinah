@@ -275,9 +275,9 @@
       "source": "1978b6454d989315"
     },
     "check.claim.8": {
-      "text": "आपका बताया गया स्तर उससे बराबर या ऊपर है जो कार्ड माँगता है",
-      "context": "One row of the ordered precondition list of claim. This row is Dinah's own addition; the core profile's own section 6.3 list ends at check.claim.7. What the card asks for is its own baseline or its override for this column, never the column's own default.",
-      "source": "eb323a49241afd2c"
+      "text": "आपका मॉडल उस tier या उससे ऊपर हल होता है जो कार्ड माँगता है",
+      "context": "One row of the ordered precondition list of claim. This row is Dinah's own addition; the core profile's own section 6.3 list ends at check.claim.7. What the card asks for is its own baseline or its override for this column, never the column's own default. The tier a model resolves to is read off the workbench's own tiers table rather than declared by the caller, and a workbench that declares no table refuses nobody here. The row is kept short because the table it prints in is bounded by the reader's window.",
+      "source": "13d457ec2fb83c70"
     },
     "check.clean": {
       "text": "कोई संरचनात्मक दोष नहीं मिला।",
@@ -1525,14 +1525,14 @@
       "source": "272296a3cbc23d55"
     },
     "refusal.dinah.below-tier": {
-      "text": "यह कार्ड कॉलम {column} पर tier {required} माँगता है, और आपका दावा उससे कम बताता है",
-      "context": "The sentence printed after the refusal name dinah.below-tier, which a claim declaring a tier below what the card requires carries. {required} is the tier the card itself asks for, and {detail} carries the same name; {column} is the column being claimed into. The requirement is the card's own, so the sentence says the card asks rather than the column.",
-      "source": "2a044b8e9d7387a"
+      "text": "यह कार्ड कॉलम {column} पर tier {required} माँगता है, और यह वर्कबेंच {model} को उससे नीचे रखती है",
+      "context": "The sentence printed after the refusal name dinah.below-tier, which a claim by a caller whose model the tiers table lists below what the card requires carries. {required} is the tier the card itself asks for, and {detail} carries the same name; {column} is the column being claimed into; {model} is the caller's own provider and model, rendered provider/model or provider/model@server. The requirement is the card's own, so the sentence says the card asks rather than the column.",
+      "source": "86536326d4a1242d"
     },
     "refusal.dinah.below-tier.next": {
-      "text": "; इसे `--tier` {required} या उससे ऊपर के साथ लें, या इसे किसी सक्षम व्यक्ति के लिए छोड़ दें",
-      "context": "The next step of refusal.dinah.below-tier. The gate is a floor, so declaring more than the card asks for is admitted, which is why the sentence says or above.",
-      "source": "320838a210fd95aa"
+      "text": "; ऐसा मॉडल चलाइए जिसे यह वर्कबेंच {required} या उससे ऊपर रखती है, अर्थात् {satisfied_by}",
+      "context": "The next step of refusal.dinah.below-tier. The gate is a floor, so a model listed above what the card asks for is admitted, which is why the sentence says or above. {satisfied_by} is every entry of the tiers table at or above the requirement, cheapest rung first, joined by a comma and a space, and it is read off the workbench so a model identifier is never translated.",
+      "source": "6ccc43c67629e47a"
     },
     "refusal.dinah.wrong-item-kind": {
       "text": "यह कमांड {detail} प्रकार के मद को बंद नहीं कर सकता।",
@@ -3799,11 +3799,6 @@
       "context": "The meaning of the expires argument of `dinah claim`, printed in that command's arguments table.",
       "source": "89b79368080416a1"
     },
-    "param.tier.summary": {
-      "text": "वह स्तर जो आप स्वयं को बताते हैं, भरोसे पर लिया जाता है और कभी सत्यापित नहीं होता; केवल वही जो कार्ड स्वयं माँगता है आपको मना कर सकता है, कॉलम का अपना डिफ़ॉल्ट कभी नहीं, और जिस कारण से दावा अस्वीकृत होता है उसी कारण next और pull कार्ड रोक लेते हैं",
-      "context": "The meaning of the tier argument of `dinah claim`, `dinah next` and `dinah pull`, printed in each command's arguments table. One flag says one thing, so the three commands take one sentence rather than three that have to be kept in step. It carries the limits a caller has to meet before relying on any of them: Dinah has no server and no credential, so a declared tier is self-reported and nothing verifies it; a column's tier default never refuses a claim by itself; and selection withholds a card on the same rule the claim gate refuses one.",
-      "source": "30dedfbf06194d6"
-    },
     "param.comment.text.summary": {
       "text": "टिप्पणी, एक ही शब्द में या उद्धरण चिह्नों के भीतर; अकेला - इसे पाइप से पढ़ता है",
       "context": "The meaning of the text argument of `dinah comment`, printed in that command's arguments table.",
@@ -5012,6 +5007,113 @@
       "text": "{card} ऐसी शीर्षक खो देता जिसके नीचे कुछ नहीं है।",
       "context": "One line of the branch migration's preview, naming a card that carries the retired heading with nothing beneath it. A confirmed run would take the heading away and write no value. {card} carries the card's reference.",
       "source": "fe04eacfd40e994"
+    },
+    "schema.harness.description": {
+      "text": "वह harness जिसके नीचे यह कॉल चल रहा है, छोटे अक्षरों वाला एक खंड; यदि कॉल कोई नहीं बताता तो सर्वर प्रक्रिया का अपना DINAH_HARNESS",
+      "context": "The description of the harness property, which every generated machine schema carries and no command declares. A per-call value outranks the server process's environment member by member, which is what the second clause says.",
+      "source": "5692c4115a26491c"
+    },
+    "schema.provider.description": {
+      "text": "इस कॉल के मॉडल को देने वाला प्रदाता; यदि कॉल कोई नहीं बताता तो सर्वर प्रक्रिया का अपना DINAH_PROVIDER",
+      "context": "The description of the provider property, which every generated machine schema carries and no command declares. The value is stamped on the journal under OpenTelemetry's gen_ai.provider.name and is one half of what the workbench's tiers table resolves a tier from.",
+      "source": "721773aa2b5150b9"
+    },
+    "schema.model.description": {
+      "text": "इस कॉल का मॉडल, उसी वर्तनी में जो प्रदाता देता है; यदि कॉल कोई नहीं बताता तो सर्वर प्रक्रिया का अपना DINAH_MODEL",
+      "context": "The description of the model property, which every generated machine schema carries and no command declares. The value is stamped on the journal under OpenTelemetry's gen_ai.request.model and is the other half of what the tiers table resolves a tier from.",
+      "source": "1b15c65962a25f5c"
+    },
+    "schema.server.description": {
+      "text": "वह पता जहाँ मॉडल तक पहुँचा गया, केवल तब भेजें जब प्रदाता का नाम उसे स्वयं नहीं बताता; यदि कॉल कोई नहीं बताता तो सर्वर प्रक्रिया का अपना DINAH_SERVER",
+      "context": "The description of the server property, which every generated machine schema carries and no command declares. The value is stamped on the journal under OpenTelemetry's server.address and lets a tiers table tell one model name on a laptop from the same name on a vendor's cloud.",
+      "source": "c34395093aa32f3e"
+    },
+    "refusal.dinah.unlisted-model": {
+      "text": "यह वर्कबेंच {model} को किसी भी tier में नहीं रखती, और यह कार्ड कॉलम {column} पर tier {required} माँगता है",
+      "context": "The sentence printed after the refusal name dinah.unlisted-model, which a claim by a caller whose declared provider and model the tiers table lists nowhere carries. {model} is that declaration, rendered provider/model or provider/model@server, and {detail} carries the same rendering; {required} is the tier the card asks for; {column} is the column being claimed into. A model listed at a hosted address alone is unlisted for a call that named no address, which is why the rendering carries the server.",
+      "source": "b65ad6b77fb1da81"
+    },
+    "refusal.dinah.unlisted-model.next": {
+      "text": "; उस प्रविष्टि को workbench.md के tiers में जोड़िए, या {satisfied_by} में से कोई एक चलाइए",
+      "context": "The next step of refusal.dinah.unlisted-model. The two repairs are the two this refusal leads to, and they are offered in that order because adding the entry is the one the caller can make without changing what it runs. {satisfied_by} is every entry of the tiers table at or above the requirement, cheapest rung first, joined by a comma and a space.",
+      "source": "3b492f7950d55fb0"
+    },
+    "refusal.dinah.undeclared-model": {
+      "text": "इस कॉल ने कोई मॉडल नहीं बताया, और यह कार्ड कॉलम {column} पर tier {required} माँगता है",
+      "context": "The sentence printed after the refusal name dinah.undeclared-model, which a claim by a caller that declared no provider or no model carries. {required} is the tier the card asks for, and {detail} carries the same name; {column} is the column being claimed into. The reader is a harness nobody configured rather than one running the wrong model, which is why this name is separate from dinah.unlisted-model.",
+      "source": "50e483a7f49a2355"
+    },
+    "refusal.dinah.undeclared-model.next": {
+      "text": "; DINAH_PROVIDER और DINAH_MODEL सेट कीजिए, या कॉल पर provider और model भेजिए और {satisfied_by} में से कोई एक बताइए",
+      "context": "The next step of refusal.dinah.undeclared-model. The two rungs are the two places a declaration can come from, the environment at a terminal and the call itself over MCP. DINAH_PROVIDER, DINAH_MODEL, provider and model are machine names and are never translated. {satisfied_by} is every entry of the tiers table at or above the requirement, cheapest rung first, joined by a comma and a space.",
+      "source": "757784f77ce8c8e"
+    },
+    "refusal.dinah.malformed-harness": {
+      "text": "{detail} harness का नाम नहीं है, जो अक्षरों, अंकों और भीतरी एकल हाइफ़न वाला छोटे अक्षरों का एक खंड होता है",
+      "context": "The sentence printed after the refusal name dinah.malformed-harness, which an act that would write a journal line under a harness name outside that grammar carries. {detail} is the declared value. The bound exists because a layer name is formed from the harness name, so a name outside the grammar cannot become one.",
+      "source": "4184c70754172a8e"
+    },
+    "refusal.dinah.malformed-harness.next": {
+      "text": "; DINAH_HARNESS को ऐसा ही नाम दीजिए, या उसे खाली छोड़िए",
+      "context": "The next step of refusal.dinah.malformed-harness. No read is ever refused over this, so the repair can be made with the tool itself; DINAH_HARNESS is a machine name and is never translated.",
+      "source": "d414d900f4e9077"
+    },
+    "check.tier-without-models": {
+      "text": "यह वर्कबेंच tier {detail} घोषित करती है और उसकी tiers तालिका उसके लिए कोई मॉडल नहीं रखती",
+      "context": "A check finding: every member of levels.tier that a tiers table exists for is listed with at least one model. {detail} is the tier's own name. A tier nothing satisfies strands every card that asks for it, so a rung nobody runs a model at is a rung to drop from levels.tier rather than one to leave empty.",
+      "source": "9e1d29ac015a981"
+    },
+    "check.tiers-without-levels": {
+      "text": "यह वर्कबेंच एक tiers तालिका घोषित करती है और कोई levels.tier नहीं जिसे उसकी कुंजियाँ नाम दे सकें",
+      "context": "A check finding: a tiers table names members of the tier axis, so a workbench carrying the table and no axis has written a table that declares nothing. The finding names no detail, because the defect is the absence of the axis rather than any one entry.",
+      "source": "fc6ef4481c33447"
+    },
+    "check.requirements-without-table": {
+      "text": "{detail} कार्ड एक tier माँगते हैं और यह वर्कबेंच कोई tiers तालिका घोषित नहीं करती, इसलिए वे माँगें किसी को नहीं रोकतीं",
+      "context": "A check finding: a workbench whose cards carry tier requirements declares the table that resolves a claimant's tier. {detail} is how many cards carry a requirement, which is what lets a reader tell a workbench midway through adopting the table from one that never meant to.",
+      "source": "ab1c008bc0bca93e"
+    },
+    "check.model-listed-twice": {
+      "text": "एक ही मॉडल दो tier में दर्ज है: {detail}",
+      "context": "A check finding: a model is listed once, at the highest tier it qualifies for. {detail} carries the entry, the tier that keeps it and the tier the duplicate stands under, in that order. The comparison is the whole triple of provider, model and server, so one model name listed once for a hosted address and once with no address is two entries rather than a duplicate.",
+      "source": "63d6f07e66150e3f"
+    },
+    "check.tiers-entry-malformed": {
+      "text": "tiers तालिका की एक प्रविष्टि पढ़ी नहीं जाती: {detail}",
+      "context": "A check finding: every entry of the tiers table carries a meaning, a models sequence, and model entries written as one flow mapping of provider, model and an optional server. {detail} carries the tier and then the line, in that order. The reader skips such an entry rather than refusing the workbench, so this is where a person meets the damage.",
+      "source": "72259d44a3b61a74"
+    },
+    "whoami.harness": {
+      "text": "harness: {harness}",
+      "context": "The harness line dinah whoami prints, shown only where the caller declared one. It is a labelled line rather than a padded column, on the rule that every columnar line in this tool is laid out by the row renderer and no catalog entry composes columns of its own.",
+      "source": "e618d82328c844b9",
+      "verbatim": true
+    },
+    "whoami.harness.malformed": {
+      "text": "harness: {harness} (दोषयुक्त)",
+      "context": "The harness line dinah whoami prints where the declared value is outside the one-segment grammar. The value is still shown, because a person repairing a mistyped variable needs to see what it says, and the parenthesis is what tells them it is not being read as a harness.",
+      "source": "2f12ddd78106d019"
+    },
+    "whoami.provider": {
+      "text": "प्रदाता: {provider}",
+      "context": "The provider line dinah whoami prints, shown only where the caller declared one.",
+      "source": "8eb3ac8d4c89ef21"
+    },
+    "whoami.model": {
+      "text": "मॉडल: {model}",
+      "context": "The model line dinah whoami prints, shown only where the caller declared one.",
+      "source": "a342e6700e90b7d1"
+    },
+    "whoami.server": {
+      "text": "सर्वर: {server}",
+      "context": "The server line dinah whoami prints, shown only where the caller declared an address.",
+      "source": "3c1106be5ffbbcc9"
+    },
+    "whoami.tier": {
+      "text": "tier: {tier}",
+      "context": "The tier line dinah whoami prints, shown only where the workbench's tiers table resolves the declared provider and model to a rung.",
+      "source": "5f8404aa3ff23ab",
+      "verbatim": true
     }
   }
 }

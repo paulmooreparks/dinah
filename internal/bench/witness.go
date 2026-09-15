@@ -37,7 +37,7 @@ func (b *Bench) WitnessDivergence(actor, now string, card *Card) (bool, error) {
 	ev := Event{
 		TS:        now,
 		Event:     contract.EventManualCorrection,
-		Actor:     actor,
+		Actor:     NamedActor(actor),
 		From:      believed,
 		FromTitle: fromTitle,
 		To:        card.Column,

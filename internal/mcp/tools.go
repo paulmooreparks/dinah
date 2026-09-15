@@ -308,10 +308,11 @@ type injectedProperty struct {
 	consumers map[string]bool
 }
 
-// injectedProperties are the three such properties. None is a parameter, so
+// injectedProperties are the seven such properties. None is a parameter, so
 // each is resolved by name: actor takes the sentence the global flag row
-// already prints, basis takes one written for it, and workbench takes one
-// written for the address space the MCP head binds.
+// already prints, basis takes one written for it, workbench takes one written
+// for the address space the MCP head binds, and the four identity properties
+// take one each.
 //
 // Where each is consumed, and where the consumption is proved:
 //
@@ -330,8 +331,24 @@ type injectedProperty struct {
 // workbench is read by every tool but workbenches, whose scope argument is the
 // positional path instead, so on that one tool the name would carry a value
 // the tool does not consume. That exception lives here and nowhere else.
+//
+// harness, provider, model and server are read on every call, on actor's own
+// argument: the four facts are stamped on whatever the call writes, and a read
+// still reports them through whoami. Publishing them on every tool and
+// consuming them on every tool is what keeps the schema test honest without an
+// exemption.
+//
+// That test also fails where an injected property and a command's own declared
+// parameter answer to one name, which is worth knowing here because model,
+// provider, harness and server are ordinary words a later command could want
+// as an argument. Any command needing one of the four as a parameter of its own
+// has to pick another spelling, and the test is what says so at build time.
 var injectedProperties = []injectedProperty{
 	{name: "actor", key: "flag.actor.summary", consumers: everyTool()},
+	{name: "harness", key: "schema.harness.description", consumers: everyTool()},
+	{name: "provider", key: "schema.provider.description", consumers: everyTool()},
+	{name: "model", key: "schema.model.description", consumers: everyTool()},
+	{name: "server", key: "schema.server.description", consumers: everyTool()},
 	{name: "basis", key: "schema.basis.description", consumers: namedTools(
 		"claim", "move", "release", "block", "unblock",
 		"join_workstream", "leave_workstream", "pull",

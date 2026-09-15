@@ -21,57 +21,63 @@ import (
 //
 // check's row is the one capability-reducing ruling on dinah-397, taken by the
 // operator at Operator Design Review on 2026-09-06. The ten store-repair
-// markers are held back from this head and the row reads exactly actor and
-// workbench. Restoring them means deleting their rows from argumentExemptions
-// and editing this row in the same commit.
+// markers are held back from this head, so the row carries the injected
+// properties every tool carries and nothing of check's own. Restoring the
+// markers means deleting their rows from argumentExemptions and editing this
+// row in the same commit.
+//
+// Every row gained harness, provider, model and server at dinah-496. They are
+// injected properties rather than any command's parameters, and every tool
+// consumes all four: the facts are stamped on whatever a call writes, and a
+// read reports them through whoami.
 var publishedProperties = map[string][]string{
-	"claim":            {"actor", "basis", "card", "expires", "tier", "workbench"},
-	"move":             {"actor", "basis", "card", "column", "override", "workbench"},
-	"release":          {"actor", "basis", "card", "workbench"},
-	"block":            {"actor", "basis", "card", "kind", "reason", "workbench"},
-	"unblock":          {"actor", "basis", "card", "workbench"},
-	"raise":            {"actor", "card", "reason", "tier", "workbench"},
-	"join_workstream":  {"actor", "basis", "card", "workbench", "workstream"},
-	"leave_workstream": {"actor", "basis", "card", "workbench", "workstream"},
-	"add_card":         {"actor", "column", "priority", "severity", "title", "workbench"},
-	"comment":          {"actor", "card", "text", "workbench"},
-	"attach":           {"actor", "description", "file", "ref", "replace", "workbench"},
-	"file_item":        {"actor", "card", "column", "kind", "owner", "text", "workbench"},
-	"cite_item":        {"actor", "item", "observed", "scheme", "target", "workbench"},
-	"resolve_item":     {"actor", "item", "note", "workbench"},
-	"verify_item":      {"actor", "item", "note", "workbench"},
-	"fail_item":        {"actor", "item", "note", "workbench"},
-	"reopen_item":      {"actor", "item", "reason", "workbench"},
-	"link_card":        {"actor", "card", "kind", "to", "workbench"},
-	"unlink_card":      {"actor", "card", "kind", "to", "workbench"},
-	"archive":          {"actor", "ref", "workbench"},
-	"restore":          {"actor", "archived", "ref", "workbench"},
-	"delete":           {"actor", "ref", "workbench", "yes"},
-	"rename":           {"actor", "name", "ref", "workbench"},
-	"status":           {"actor", "max-depth", "root", "workbench"},
-	"columns":          {"actor", "workbench"},
-	"list_cards":       {"actor", "column", "max-depth", "ready", "root", "workbench"},
-	"next_card":        {"actor", "column", "max-depth", "root", "tier", "workbench"},
-	"pull":             {"actor", "basis", "column", "expires", "no-claim", "override", "tier", "workbench"},
-	"query":            {"actor", "query", "workbench"},
-	"search_cards":     {"actor", "archived", "max-depth", "phrase", "query", "root", "workbench"},
-	"tree":             {"actor", "depth", "group-by", "max-depth", "query", "root", "workbench"},
-	"contents":         {"actor", "archived", "depth", "ref", "workbench"},
-	"attachments":      {"actor", "ref", "workbench"},
-	"show":             {"actor", "archived", "card", "fields", "workbench"},
-	"log":              {"actor", "card", "workbench"},
-	"changes":          {"actor", "card", "column", "max-depth", "root", "since", "workbench"},
-	"instructions":     {"actor", "card", "workbench"},
-	"whoami":           {"actor", "workbench"},
-	"workbench":        {"actor", "workbench"},
-	"workstream":       {"action", "actor", "slug", "workbench", "workstream"},
-	"get_field":        {"actor", "field", "ref", "workbench"},
-	"set_field":        {"actor", "at", "field", "note", "ref", "value", "workbench", "yes"},
-	"new_column":       {"actor", "before", "capacity", "column", "kind", "slug", "tier", "workbench"},
-	"version":          {"actor", "catalogs", "workbench"},
-	"export":           {"actor", "workbench"},
-	"check":            {"actor", "workbench"},
-	"workbenches":      {"actor", "max-depth", "path"},
+	"claim":            {"actor", "basis", "card", "expires", "harness", "model", "provider", "server", "workbench"},
+	"move":             {"actor", "basis", "card", "column", "harness", "model", "override", "provider", "server", "workbench"},
+	"release":          {"actor", "basis", "card", "harness", "model", "provider", "server", "workbench"},
+	"block":            {"actor", "basis", "card", "harness", "kind", "model", "provider", "reason", "server", "workbench"},
+	"unblock":          {"actor", "basis", "card", "harness", "model", "provider", "server", "workbench"},
+	"raise":            {"actor", "card", "harness", "model", "provider", "reason", "server", "tier", "workbench"},
+	"join_workstream":  {"actor", "basis", "card", "harness", "model", "provider", "server", "workbench", "workstream"},
+	"leave_workstream": {"actor", "basis", "card", "harness", "model", "provider", "server", "workbench", "workstream"},
+	"add_card":         {"actor", "column", "harness", "model", "priority", "provider", "server", "severity", "title", "workbench"},
+	"comment":          {"actor", "card", "harness", "model", "provider", "server", "text", "workbench"},
+	"attach":           {"actor", "description", "file", "harness", "model", "provider", "ref", "replace", "server", "workbench"},
+	"file_item":        {"actor", "card", "column", "harness", "kind", "model", "owner", "provider", "server", "text", "workbench"},
+	"cite_item":        {"actor", "harness", "item", "model", "observed", "provider", "scheme", "server", "target", "workbench"},
+	"resolve_item":     {"actor", "harness", "item", "model", "note", "provider", "server", "workbench"},
+	"verify_item":      {"actor", "harness", "item", "model", "note", "provider", "server", "workbench"},
+	"fail_item":        {"actor", "harness", "item", "model", "note", "provider", "server", "workbench"},
+	"reopen_item":      {"actor", "harness", "item", "model", "provider", "reason", "server", "workbench"},
+	"link_card":        {"actor", "card", "harness", "kind", "model", "provider", "server", "to", "workbench"},
+	"unlink_card":      {"actor", "card", "harness", "kind", "model", "provider", "server", "to", "workbench"},
+	"archive":          {"actor", "harness", "model", "provider", "ref", "server", "workbench"},
+	"restore":          {"actor", "archived", "harness", "model", "provider", "ref", "server", "workbench"},
+	"delete":           {"actor", "harness", "model", "provider", "ref", "server", "workbench", "yes"},
+	"rename":           {"actor", "harness", "model", "name", "provider", "ref", "server", "workbench"},
+	"status":           {"actor", "harness", "max-depth", "model", "provider", "root", "server", "workbench"},
+	"columns":          {"actor", "harness", "model", "provider", "server", "workbench"},
+	"list_cards":       {"actor", "column", "harness", "max-depth", "model", "provider", "ready", "root", "server", "workbench"},
+	"next_card":        {"actor", "column", "harness", "max-depth", "model", "provider", "root", "server", "workbench"},
+	"pull":             {"actor", "basis", "column", "expires", "harness", "model", "no-claim", "override", "provider", "server", "workbench"},
+	"query":            {"actor", "harness", "model", "provider", "query", "server", "workbench"},
+	"search_cards":     {"actor", "archived", "harness", "max-depth", "model", "phrase", "provider", "query", "root", "server", "workbench"},
+	"tree":             {"actor", "depth", "group-by", "harness", "max-depth", "model", "provider", "query", "root", "server", "workbench"},
+	"contents":         {"actor", "archived", "depth", "harness", "model", "provider", "ref", "server", "workbench"},
+	"attachments":      {"actor", "harness", "model", "provider", "ref", "server", "workbench"},
+	"show":             {"actor", "archived", "card", "fields", "harness", "model", "provider", "server", "workbench"},
+	"log":              {"actor", "card", "harness", "model", "provider", "server", "workbench"},
+	"changes":          {"actor", "card", "column", "harness", "max-depth", "model", "provider", "root", "server", "since", "workbench"},
+	"instructions":     {"actor", "card", "harness", "model", "provider", "server", "workbench"},
+	"whoami":           {"actor", "harness", "model", "provider", "server", "workbench"},
+	"workbench":        {"actor", "harness", "model", "provider", "server", "workbench"},
+	"workstream":       {"action", "actor", "harness", "model", "provider", "server", "slug", "workbench", "workstream"},
+	"get_field":        {"actor", "field", "harness", "model", "provider", "ref", "server", "workbench"},
+	"set_field":        {"actor", "at", "field", "harness", "model", "note", "provider", "ref", "server", "value", "workbench", "yes"},
+	"new_column":       {"actor", "before", "capacity", "column", "harness", "kind", "model", "provider", "server", "slug", "tier", "workbench"},
+	"version":          {"actor", "catalogs", "harness", "model", "provider", "server", "workbench"},
+	"export":           {"actor", "harness", "model", "provider", "server", "workbench"},
+	"check":            {"actor", "harness", "model", "provider", "server", "workbench"},
+	"workbenches":      {"actor", "harness", "max-depth", "model", "path", "provider", "server"},
 }
 
 // TestThePublishedPropertyInventoryMatchesTheSurface asserts dinah-397 AC-5:
@@ -114,8 +120,8 @@ func TestThePublishedPropertyInventoryMatchesTheSurface(t *testing.T) {
 	}
 	// The one row the operator ruled on, asserted by itself so that a reversal
 	// cannot ride in under a bulk edit of the table.
-	if want := "actor, workbench"; strings.Join(served["check"], ", ") != want {
-		t.Errorf("check publishes [%s], want [%s], which is the ruling of 2026-09-06",
+	if want := "actor, harness, model, provider, server, workbench"; strings.Join(served["check"], ", ") != want {
+		t.Errorf("check publishes [%s], want [%s], which is the ruling of 2026-09-06 plus the four injected identity properties and no marker of check's own",
 			strings.Join(served["check"], ", "), want)
 	}
 }
@@ -234,24 +240,18 @@ func TestTheVerbSelectionFixtureNamesEveryPublishedTool(t *testing.T) {
 	}
 }
 
-// tierTakingTools are the three tools that take a caller's own tier
-// declaration. claim gates on it (dinah-408) and next_card and pull select on
-// it (dinah-410), and all three read it from one parameter table, so a caller
-// that has learned to declare a tier on one of them has learned it on all
-// three.
-var tierTakingTools = []string{"claim", "next_card", "pull"}
-
-// TestTheTierParameterIsOneShapeAcrossEveryToolThatTakesIt asserts dinah-410
-// AC-11: the tier property the schema publishes for next_card and for pull is
-// claim's property, byte for byte, rather than a second way of saying the
-// same thing.
+// TestOnlyTheTwoWritingCommandsPublishATierProperty asserts dinah-496's half
+// of the retirement dinah-410 AC-11 used to cover. claim, next_card and pull
+// took a declaration of what the caller is, and they take none now: a tier is
+// resolved from the provider and the model against the workbench's own table,
+// so a property saying it would be a declaration nothing reads.
 //
-// The comparison is over the property's whole serialized JSON rather than
-// over its type alone, so a description that drifts, a default that appears
-// on one tool, or an enumeration added to one schema fails here. A reader of
-// this failure gets the two JSON objects and can see which field moved.
-func TestTheTierParameterIsOneShapeAcrossEveryToolThatTakesIt(t *testing.T) {
-	served := map[string]string{}
+// The two commands that still publish one are writing a requirement rather than
+// declaring a claimant. raise writes what a card requires at the column it
+// stands in, and new_column writes a column's own default, and naming both here
+// says the survival is deliberate rather than an oversight.
+func TestOnlyTheTwoWritingCommandsPublishATierProperty(t *testing.T) {
+	served := map[string]bool{}
 	for _, entry := range toolList() {
 		name, _ := entry["name"].(string)
 		schema, ok := entry["inputSchema"].(map[string]any)
@@ -262,36 +262,21 @@ func TestTheTierParameterIsOneShapeAcrossEveryToolThatTakesIt(t *testing.T) {
 		if !ok {
 			continue
 		}
-		property, published := properties["tier"]
-		if !published {
-			continue
-		}
-		encoded, err := json.Marshal(property)
-		if err != nil {
-			t.Fatalf("%s: encode the tier property: %v", name, err)
-		}
-		served[name] = string(encoded)
-	}
-	for _, name := range tierTakingTools {
-		if _, published := served[name]; !published {
-			t.Errorf("%s publishes no tier property, so a caller cannot declare one", name)
+		if _, published := properties["tier"]; published {
+			served[name] = true
 		}
 	}
-	if t.Failed() {
-		return
-	}
-	want := served["claim"]
-	for _, name := range tierTakingTools {
-		if served[name] != want {
-			t.Errorf("%s publishes tier as %s, and claim publishes it as %s", name, served[name], want)
+	for _, name := range []string{"claim", "next_card", "pull"} {
+		if served[name] {
+			t.Errorf("%s publishes a tier property, and the three claiming commands take no declaration of what the caller is", name)
 		}
 	}
-	// new_column also carries a tier parameter, and it is a different act:
-	// the column's own default rather than a declaration about the caller.
-	// Naming it here says the exclusion is deliberate rather than an
-	// oversight, and a reader comparing the two shapes is looking at the
-	// wrong pair.
-	if _, published := served["new_column"]; !published {
-		t.Errorf("new_column publishes no tier property, so this exclusion is describing something that is not there")
+	for _, name := range []string{"raise", "new_column"} {
+		if !served[name] {
+			t.Errorf("%s publishes no tier property, and it writes what a card or a column requires", name)
+		}
+	}
+	if len(served) != 2 {
+		t.Errorf("%d tools publish a tier property, wanted the two that write a requirement", len(served))
 	}
 }
