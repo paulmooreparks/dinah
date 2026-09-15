@@ -721,3 +721,124 @@ func TestTheNewlineRepairReadsAsItsOwnAccount(t *testing.T) {
 // timeNowForTest is the clock a lock record is stamped with, named so the case
 // above reads without a second import standing in one line.
 func timeNowForTest() time.Time { return time.Now() }
+
+// TestTheFormatDocumentAndTheHelpTextSayWhatTheToolNowDoes is the criterion
+// that pins the prose rather than the behaviour, and it is asserted rather than
+// read, because a document nobody checks drifts from the code it describes and
+// this one is the only statement of the storage contract a later implementer
+// will have.
+//
+// Three things are checked in the document. It says that a writer normalises
+// rather than merely emitting LF, and it names each of the five functions that
+// do it together with a clause saying why that function is the narrowest one
+// every path to its kind of destination passes through. It says that a carriage
+// return not followed by a line feed is left alone. And it names the three
+// forms a stored line-ending carriage return takes, with the warning that the
+// table describes what the writers produce and is not a way of detecting them,
+// which is the sentence three separate drafts of this card were broken for
+// lacking.
+//
+// Two are checked in the tool. `dinah help check` lists the flag, and the
+// flag's own text carries the sentence about the file an interrupted run can
+// leave behind.
+func TestTheFormatDocumentAndTheHelpTextSayWhatTheToolNowDoes(t *testing.T) {
+	doc, err := os.ReadFile(filepath.Join("..", "..", "docs", "design", "format.md"))
+	if err != nil {
+		t.Fatalf("read the format document: %v", err)
+	}
+	prose := flattenWords(string(doc))
+	for _, clause := range []string{
+		// That a writer normalises rather than merely emitting LF.
+		"A writer emits LF everywhere by normalising rather than by remembering",
+		"each is the narrowest function every path to its own kind of destination passes through",
+		// The five functions, each with the clause saying why it is the one.
+		"`ReadText` normalises what it read, because a file an external editor wrote is the one destination no write-path change can reach",
+		"`WriteText` normalises the text it is handed, which covers every anchor body and every plain text file the tool writes",
+		"`AppendEvent` normalises the event's string members before encoding, because a carriage return survives JSON encoding as an escape",
+		"`quote` normalises a frontmatter scalar, and it is the only function that can. Every scalar in the tool becomes a frontmatter line by passing through it",
+		"`ReadDefinition` normalises an interchange document at its single read boundary",
+		// The member name, which is the one place the answer is a refusal.
+		"refused `dinah.malformed-member-name`",
+		// That a lone carriage return survives.
+		"Normalisation is CRLF to LF and nothing else. A carriage return not followed by a line feed is left exactly where it is",
+		"the reader rule above strips only a TRAILING carriage return per line",
+		// The three forms, and the warning that they are not a detector.
+		"the store carries no carriage return standing for a line ending, and such a carriage return takes three stored forms",
+		"| A CRLF pair |",
+		"| Split across a frontmatter escape |",
+		"| A pair of JSON escapes |",
+		"**That table describes what the writers produce. It is not a way of detecting the forms, and nothing in the tool detects them by pattern.**",
+	} {
+		if !strings.Contains(prose, flattenWords(clause)) {
+			t.Errorf("docs/design/format.md does not state %q", clause)
+		}
+	}
+
+	root := newBench(t)
+	help := flattenWords(runCLI(t, root, "help", "check").out)
+	if !strings.Contains(help, "--migrate-newlines") {
+		t.Errorf("dinah help check does not list the flag:\n%s", help)
+	}
+	for _, clause := range []string{
+		"repair every text file storing a carriage return that stands for a line ending",
+		"rewriting each destination with its own bytes first to prove it can be written",
+		"an interrupted run may leave a .dinah-* file beside an anchor, which is safe to delete because nothing reads it",
+	} {
+		if !strings.Contains(help, flattenWords(clause)) {
+			t.Errorf("dinah help check does not say %q:\n%s", clause, help)
+		}
+	}
+}
+
+// TestTheWorkbenchTitleTakenFromItsOwnDirectoryNameIsNormalised is site B7, the
+// one site of the counting rule that no test could reach while this card was
+// worked on Windows.
+//
+// A bare `dinah init` derives the workbench's title from the name of the
+// directory it is run in, so the slot is a directory name, and a directory name
+// carrying a line ending is legal on Linux and on macOS and refused outright by
+// Windows. The site was counted anyway rather than excluded, because the
+// alternative was an exclusion of the form "not reachable on the operator's own
+// machine", which is not a rule this format can hold. Now that the checks run
+// on three platforms, the two that admit the byte drive it and the one that
+// does not says so.
+//
+// B7 is also the one site the interchange document's own fix does not cover:
+// defaultDefinition builds its definition in memory and never passes
+// ReadDefinition, so what covers it is quote, through the frontmatter writer,
+// which is the same thing that covers every other frontmatter-borne site.
+func TestTheWorkbenchTitleTakenFromItsOwnDirectoryNameIsNormalised(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows refuses a directory name carrying a line ending, so this site is unreachable here; Linux and macOS drive it")
+	}
+	base := t.TempDir()
+	t.Setenv("DINAH_HOME", filepath.Join(base, "home"))
+	t.Setenv("DINAH_ACTOR", "alka")
+	t.Setenv("DINAH_LANG", "")
+	t.Setenv("DINAH_FORMAT", "")
+	t.Setenv("DINAH_WORKBENCH", "")
+
+	root := filepath.Join(base, "wb-a"+crlf+"wb-b")
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Skipf("this platform refuses a directory name carrying a line ending: %v", err)
+	}
+	if got := runQuiet(t, root, "init", "--slug", "fx"); got.code != 0 {
+		t.Fatalf("init: %d %s", got.code, got.errw)
+	}
+	anchor := filepath.Join(storeRoot(t, root), bench.WorkbenchAnchor)
+	data, err := os.ReadFile(anchor)
+	if err != nil {
+		t.Fatalf("read the workbench anchor: %v", err)
+	}
+	if strings.Contains(string(data), "\r") {
+		t.Errorf("the workbench anchor carries a carriage return: %q", data)
+	}
+	fm, _ := bench.ParseAnchor(string(data))
+	title := fm.Value("title")
+	if !strings.Contains(title, "wb-a") || !strings.Contains(title, "wb-b") {
+		t.Fatalf("the title is %q and did not come from the directory name", title)
+	}
+	if strings.Contains(title, "\r") {
+		t.Errorf("the title reads back carrying a carriage return: %q", title)
+	}
+}

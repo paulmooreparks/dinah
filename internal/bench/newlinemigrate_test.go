@@ -47,6 +47,34 @@ func destinations(report *NewlineMigration) map[string]bool {
 	return set
 }
 
+// sealDestination makes one destination genuinely impossible to write, in the
+// way that is real on the platform the test runs on, and restores it when the
+// case ends.
+//
+// Windows and POSIX disagree about what governs replacing a file, and both
+// sides of the disagreement are documented rather than measured. Every write in
+// this format goes through a temporary beside the destination and a rename.
+// POSIX rename(2) requires write permission on the DIRECTORY holding each name
+// and says nothing at all about the mode of the file being replaced, so a
+// read-only file there is replaced without complaint. Windows refuses to
+// replace a file carrying the read-only attribute.
+//
+// A case that sealed the file on every platform would therefore assert a
+// Windows fact and pass vacuously on the other two, which is exactly what
+// happened: this case was green on Windows and red on Linux and on macOS, and
+// the red was the honest answer. The rehearsal had genuinely succeeded.
+func sealDestination(t *testing.T, path string) {
+	t.Helper()
+	target, sealed, open := path, os.FileMode(0o444), os.FileMode(0o644)
+	if runtime.GOOS != "windows" {
+		target, sealed, open = filepath.Dir(path), os.FileMode(0o555), os.FileMode(0o755)
+	}
+	if err := os.Chmod(target, sealed); err != nil {
+		t.Fatalf("seal %s: %v", target, err)
+	}
+	t.Cleanup(func() { os.Chmod(target, open) })
+}
+
 // TestTheTransformIsTheDetectorOverARealPopulation is the criterion the whole
 // design rests on. The migration has no separate classification pass, so a
 // clean file the transform changes would select itself for repair and be
@@ -274,11 +302,16 @@ func TestAPreviewWritesOnlyItsDestinations(t *testing.T) {
 }
 
 // TestAReadOnlyDestinationRefusesTheWholeRun is the criterion a probe cannot
-// pass. The destination is made genuinely read-only and nothing is injected,
+// pass. The destination is made genuinely unwritable and nothing is injected,
 // because a writability check hard-coded to succeed passes any test that
-// injects its failure, and because a probe of the containing directory passes
-// this exact case: os.CreateTemp there answers nil while the write then fails
-// on the rename.
+// injects its failure.
+//
+// What unwritable has to mean is platform-specific, and sealDestination is
+// where that is stated and argued. The criterion's own wording asks for
+// os.Chmod(path, 0o444) on the file, which is the Windows spelling of it and is
+// very nearly a no-op on POSIX, where the containing directory governs instead;
+// following that wording literally is what made this case pass on Windows and
+// fail on Linux and on macOS.
 //
 // The writable half is carried beside it so that an implementation refusing
 // everything cannot pass either.
@@ -306,10 +339,7 @@ func TestAReadOnlyDestinationRefusesTheWholeRun(t *testing.T) {
 
 	root, dirty := plant(t)
 	locked := dirty[0]
-	if err := os.Chmod(locked, 0o444); err != nil {
-		t.Fatalf("chmod: %v", err)
-	}
-	t.Cleanup(func() { os.Chmod(locked, 0o644) })
+	sealDestination(t, locked)
 	before := everyFileUnder(t, root)
 	preview := migrate(t, root, false)
 	refused := false
@@ -474,11 +504,9 @@ func TestAMidRunWriteFailureReportsWhatLanded(t *testing.T) {
 		if phase != newlinePhaseWrite || path != first {
 			return
 		}
-		if err := os.Chmod(second, 0o444); err != nil {
-			t.Errorf("chmod: %v", err)
-		}
+		sealDestination(t, second)
 	}
-	t.Cleanup(func() { newlineHook = nil; os.Chmod(second, 0o644) })
+	t.Cleanup(func() { newlineHook = nil })
 
 	applied, err := opened.MigrateNewlines("alka", Stamp(time.Now()), true)
 	if err == nil {

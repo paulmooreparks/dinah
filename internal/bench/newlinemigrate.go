@@ -3,6 +3,7 @@ package bench
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -10,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"unicode/utf8"
+
+	"dinah/internal/contract"
 )
 
 // The conditions the plan pass refuses a destination for. Each is a token
@@ -79,12 +82,22 @@ type newlineTransform struct {
 // without --yes and applies with it.
 //
 // A preview WRITES. For each destination it rehearses the real write by
-// renaming the file's own unmodified bytes back over it, because nothing short
-// of performing the rename predicts whether the rename will be permitted: a
-// probe of the containing directory answers writable for a directory holding a
-// read-only anchor, and the write then fails on the rename. The content is
-// unchanged and the modification time becomes now, and the report says both in
-// its own heading rather than claiming that nothing was written.
+// writing the file's own unmodified bytes back over it, because nothing short
+// of performing that write predicts whether it will be permitted. The content
+// is unchanged and the modification time becomes now, and the report says both
+// in its own heading rather than claiming that nothing was written.
+//
+// A probe of the containing directory is not that prediction, and the reason is
+// the one the format document already states under the ordinal migration: every
+// write in this format is a temporary renamed over its target, so the right
+// that governs is the right to replace a name, POSIX grants that right through
+// the containing directory, and Windows asks the file's own attribute instead.
+// A directory probe therefore answers for one platform and not the other.
+// Measured both ways: a read-only file in a writable directory is replaced
+// without complaint on Linux and refused on Windows, and a writable file in a
+// read-only directory is refused on Linux and replaced on Windows. Performing
+// the write is the only question that is the same question everywhere, which is
+// also why nothing here reads a permission bit ahead of it.
 //
 // A run carrying an unreadable, unwritable or unsupported conflict rewrites
 // nothing at all, so a preview predicts the outcome instead of a run
@@ -118,7 +131,7 @@ func (b *Bench) MigrateNewlines(actor, now string, apply bool) (*NewlineMigratio
 	for _, path := range paths {
 		held, taken, err := b.holdForFile(path, actor, now)
 		if err != nil {
-			report.Conflicts = append(report.Conflicts, NewlineConflict{Path: path, Condition: NewlineConflictLocked, Detail: LockHolder(filepath.Join(b.lockDirForFile(path), LockName))})
+			report.Conflicts = append(report.Conflicts, b.lockConflict(path, err))
 			continue
 		}
 		original, err := os.ReadFile(path)
@@ -216,7 +229,15 @@ func poisoned(conflicts []NewlineConflict) bool {
 func (b *Bench) rewriteNewlines(path, actor, now string) (bool, error) {
 	held, taken, err := b.holdForFile(path, actor, now)
 	if err != nil {
-		return false, nil
+		// A lock another process holds is the skip this repair is built to
+		// tolerate. Any other failure to take one is a failure to prepare the
+		// write, and reporting it as a file somebody else is busy with would
+		// tell a reader to run the command again over a condition running it
+		// again cannot clear.
+		if lockHeld(err) {
+			return false, nil
+		}
+		return false, err
 	}
 	defer release(held, taken)
 	original, err := os.ReadFile(path)
@@ -231,6 +252,35 @@ func (b *Bench) rewriteNewlines(path, actor, now string) (bool, error) {
 		return false, err
 	}
 	return true, nil
+}
+
+// lockConflict reads a failed acquisition and answers the condition it really
+// is.
+//
+// Acquire refuses with contract.Locked when the lock file already stands, and
+// answers the underlying error for everything else, and the two mean opposite
+// things to a reader. A held lock is transient and the run says to try again; a
+// lock that cannot be created at all is the directory refusing a write, which
+// is the same condition the rehearsal exists to find and which running the
+// command again will meet identically.
+//
+// The platforms differ here in a way that made this matter. Replacing a file
+// through a temporary and a rename is governed by the mode of the DIRECTORY on
+// POSIX and by the mode of the FILE on Windows, so a POSIX store whose
+// directory refuses a write refuses the lock first and never reaches the
+// rehearsal at all.
+func (b *Bench) lockConflict(path string, err error) NewlineConflict {
+	if !lockHeld(err) {
+		return NewlineConflict{Path: path, Condition: NewlineConflictUnwritable}
+	}
+	return NewlineConflict{Path: path, Condition: NewlineConflictLocked, Detail: LockHolder(filepath.Join(b.lockDirForFile(path), LockName))}
+}
+
+// lockHeld reports whether a failed acquisition failed because another process
+// holds the lock, rather than because the lock could not be created.
+func lockHeld(err error) bool {
+	var refusal *contract.Refusal
+	return errors.As(err, &refusal) && refusal.Name == contract.Locked
 }
 
 // holdForFile takes the lock guarding one workbench file, and reports whether
