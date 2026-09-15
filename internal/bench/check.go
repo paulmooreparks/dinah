@@ -178,6 +178,34 @@ const (
 	// posture the two above keep, since the write path is where a typo is
 	// caught and a read tolerates a column that has since been retired.
 	FindingItemColumnUnresolved = "check.item-column-unresolved"
+	// FindingStoredCarriageReturn names a workbench text file carrying a
+	// carriage return that stands for a line ending, which the format's
+	// Encoding section forbids a writer to produce. The detail carries the
+	// count the file's own transform would remove, and separately the count of
+	// carriage returns that are not line endings, because the second number is
+	// legal and the first is not.
+	//
+	// A file whose carriage returns are all of the legal kind is reported by
+	// nothing at all, on the operator's ruling of 2026-09-15: such a file
+	// conforms, and reporting it made dinah check exit non-zero for ever over a
+	// store nothing could clear. A file carrying one of each is still reported
+	// here, for the one that is not legal.
+	//
+	// The counts come from the transform rather than from a pattern, so the
+	// finding and the migration can never disagree about which files are
+	// dirty. It is what catches the one site no write-path change can reach,
+	// which is an external editor writing an anchor.
+	FindingStoredCarriageReturn = "check.stored-carriage-return"
+	// FindingNewlineRepairUnsupported names a workbench text file the newline
+	// repair refuses to decide: a file bearing one of the anchor names the
+	// format fixes that does not round-trip through the anchor reader, or a
+	// frontmatter key whose shape the repair cannot re-render. The detail
+	// carries which.
+	//
+	// It is its own key rather than the one above because such a file need
+	// carry no carriage return at all, and reporting one as storing a line
+	// ending told a reader to repair a file that was never dirty.
+	FindingNewlineRepairUnsupported = "check.newline-repair-unsupported"
 	// FindingRejectTargetIsSelf names a column whose reject_to names itself.
 	FindingRejectTargetIsSelf = "check.reject-target-is-self"
 	// FindingRejectTargetForward names a column whose reject_to names a column
@@ -389,6 +417,11 @@ func (b *Bench) Check() ([]Finding, error) {
 		findings = append(findings, cardFindings...)
 	}
 	findings = append(findings, b.checkFieldDeclarations()...)
+	newlineFindings, err := b.checkStoredNewlines()
+	if err != nil {
+		return findings, err
+	}
+	findings = append(findings, newlineFindings...)
 	tierFindings, err := b.checkTierTable()
 	if err != nil {
 		return findings, err

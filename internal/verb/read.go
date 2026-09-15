@@ -1648,6 +1648,10 @@ type CheckReport struct {
 	// caller that discarded the report on an error path would show an
 	// operator one word and none of the cards to repair.
 	MigratedBranches *bench.BranchMigration `json:"migrated_branches,omitempty"`
+	// MigratedNewlines is the newline migration's own account of the run, on
+	// the terms MigratedBranches is one: absent where the flag was not asked
+	// for, and present with its own preview marker where it was.
+	MigratedNewlines *bench.NewlineMigration `json:"migrated_newlines,omitempty"`
 }
 
 // Check checks the bench for structural defects, and repairs nothing unless a
@@ -1769,6 +1773,16 @@ func (l *Library) Check(req *Request) (*CheckReport, error) {
 			return report, err
 		}
 	}
+	// The newline repair runs beside the branch migration and on the same
+	// two-phase shape: it reports rather than refusing when it carries no
+	// confirmation, which is what makes its preview readable.
+	if req != nil && req.MigrateNewlines {
+		migrated, err := l.Bench.MigrateNewlines(req.Actor, bench.Stamp(l.Now()), req.Confirm)
+		report.MigratedNewlines = migrated
+		if err != nil {
+			return report, err
+		}
+	}
 	if req != nil && req.Renumber {
 		if !req.Confirm {
 			return report, contract.Refuse(contract.Unconfirmed, "--renumber")
@@ -1823,18 +1837,26 @@ func (l *Library) Check(req *Request) (*CheckReport, error) {
 // time the caller reads it.
 func (r *CheckReport) stampOutcome() {
 	r.Outcome = contract.ReadOK
-	if len(r.Findings) > 0 || !r.branchMigrationClean() {
+	if len(r.Findings) > 0 || !r.migrationsClean() {
 		r.Outcome = contract.ReadFindings
 	}
 }
 
-// branchMigrationClean reports whether the branch migration, where one ran,
-// left nothing for a person to do. A conflict is what it did not: the run
-// wrote nothing and the cards it named have to be repaired before a second run
-// completes, so the outcome carries that outward as the command's exit code
+// migrationsClean reports whether the repairs that report rather than refusing,
+// where one ran, met a conflict. A conflict is work a person has to do that no
+// finding names, so the outcome carries it outward as the command's exit code
 // rather than letting a run that migrated nothing exit zero.
-func (r *CheckReport) branchMigrationClean() bool {
-	return r.MigratedBranches == nil || r.MigratedBranches.Clean()
+//
+// It asks about conflicts and not about repairs, and the difference is the
+// whole of what this function is for. A repair that happened is not work left
+// over, and a repair still pending is already named by the finding that reports
+// the same file, so counting either would make a confirmed run that succeeded
+// completely print that there are no defects and then exit non-zero.
+func (r *CheckReport) migrationsClean() bool {
+	if r.MigratedBranches != nil && !r.MigratedBranches.Clean() {
+		return false
+	}
+	return r.MigratedNewlines == nil || r.MigratedNewlines.Clean()
 }
 
 // adoptWorkstreams creates a workstream at every identifier the live cards

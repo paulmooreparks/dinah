@@ -933,6 +933,9 @@ func (s *session) renderCheck(report *verb.CheckReport) int {
 	if report.MigratedBranches != nil {
 		s.renderBranchMigration(report.MigratedBranches)
 	}
+	if report.MigratedNewlines != nil {
+		s.renderNewlineMigration(report.MigratedNewlines)
+	}
 	if report.MigratedNumbers {
 		s.line(s.r.TN("check.card-numbers-written", *report.RegistryLines))
 	}
@@ -1623,4 +1626,104 @@ func (s *session) renderSearch(results *verb.SearchResults) {
 		t.rows = append(t.rows, tableRow{fields: fields})
 	}
 	s.table(t)
+}
+
+// newlineConflictKeys names the catalog entry each conflict condition prints,
+// so the tokens the migration reports stay tokens and the words stay in the
+// catalog where a translator can reach them.
+var newlineConflictKeys = map[string]string{
+	bench.NewlineConflictUnreadable:  "check.newline-conflict.unreadable",
+	bench.NewlineConflictUnwritable:  "check.newline-conflict.unwritable",
+	bench.NewlineConflictUnsupported: "check.newline-conflict.unsupported",
+	bench.NewlineConflictLocked:      "check.newline-conflict.locked",
+}
+
+// renderNewlineMigration prints the newline repair's own account.
+//
+// The preview's heading says that each destination was rewritten with its own
+// bytes and that its modification time is now, rather than saying that nothing
+// was written, because the preview does write and a reader meeting that
+// sentence afterwards has already paid for it. The rehearsal is the only way to
+// establish that the real write will be permitted.
+//
+// A refused plan is drawn instead of the rewrites rather than beside them,
+// because a run that met an unreadable, unwritable or unsupported destination
+// wrote nothing at all. A busy file is the exception and is drawn beside them,
+// with the sentence saying that running the command again picks it up.
+func (s *session) renderNewlineMigration(report *bench.NewlineMigration) {
+	if report.Applied {
+		s.line(s.r.T("check.newlines-heading"))
+	} else {
+		s.line(s.r.T("check.newlines-preview"))
+	}
+	s.line(s.r.TN("check.newlines-examined", report.Examined))
+	var busy, refused []bench.NewlineConflict
+	for _, conflict := range report.Conflicts {
+		if conflict.Condition == bench.NewlineConflictLocked {
+			busy = append(busy, conflict)
+			continue
+		}
+		refused = append(refused, conflict)
+	}
+	if len(refused) > 0 {
+		s.line(s.r.TN("check.newlines-refused", len(refused)))
+		s.drawNewlineConflicts(refused)
+		return
+	}
+	if len(report.Rewrites) == 0 {
+		s.line(s.r.T("check.newlines-nothing"))
+	} else {
+		heading := "check.newlines-would-rewrite"
+		if report.Applied {
+			heading = "check.newlines-rewritten"
+		}
+		s.line(s.r.TN(heading, len(report.Rewrites)))
+		// Each destination is one sentence rather than one row of a table, on
+		// the reasoning renderBranchMigration states for its own account: a
+		// migration's report is read once by a person deciding whether to run
+		// the command again, and a table here would owe the row-layout sweep a
+		// fixture and a language pass for a block nobody scans.
+		//
+		// The tense is taken from the file rather than from the run, because a
+		// confirmed run can carry a destination it did not reach: a file whose
+		// lock was busy, or one a partial failure stopped short of. Saying
+		// "repaired" over either would describe work that did not happen, and
+		// saying "to repair" over a file whose bytes are already gone was the
+		// other half of the same defect.
+		//
+		// The counts are pluralised, which needs one key per count, because a
+		// plural category is chosen from a number and this line carries two.
+		// The loose clause is drawn only where there is one, so the ordinary
+		// destination reads as one sentence.
+		for _, rewrite := range report.Rewrites {
+			line := "check.newline-would-rewrite-file"
+			if rewrite.Written {
+				line = "check.newline-rewrote-file"
+			}
+			s.line(s.r.TN(line, rewrite.Returns, "path", rewrite.Path))
+			if rewrite.Loose > 0 {
+				s.line(s.r.TN("check.newline-rewrite-loose", rewrite.Loose))
+			}
+		}
+	}
+	if len(busy) > 0 {
+		s.line(s.r.TN("check.newlines-busy", len(busy)))
+		s.drawNewlineConflicts(busy)
+	}
+	if !report.Applied && len(report.Rewrites) > 0 {
+		s.line(s.r.T("check.newlines-confirm"))
+	}
+}
+
+// drawNewlineConflicts prints one line per refused destination, naming the
+// condition it met and whatever the condition carries: the frontmatter key, the
+// record number, or the lock's holder.
+func (s *session) drawNewlineConflicts(conflicts []bench.NewlineConflict) {
+	for _, conflict := range conflicts {
+		key, named := newlineConflictKeys[conflict.Condition]
+		if !named {
+			continue
+		}
+		s.line(s.r.T(key, "path", conflict.Path, "detail", conflict.Detail))
+	}
 }

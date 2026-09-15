@@ -85,7 +85,14 @@ func (l *Library) SetField(req *Request) *Response {
 	if strings.TrimSpace(req.Note) != "" && field.Name != bench.ItemStateField {
 		return l.refuse(req, entity.Card, contract.Usage, "--note")
 	}
-	value := req.Value
+	// The value is normalised here rather than only on the way to disk,
+	// because writeField compares the parsed stored value against this one to
+	// decide whether there is anything to write. The parsed value carries no
+	// carriage return, so an unnormalised request value makes that comparison
+	// see an inequality that is not there, takes the write branch, and appends
+	// an updated journal line whose from and to are the same prose. A get, a
+	// CRLF-ification and a set has to be able to journal nothing.
+	value := bench.NormalizeNewlines(req.Value)
 	if !field.Prose {
 		value = strings.TrimSpace(value)
 	}
@@ -187,6 +194,13 @@ func declaredTarget(key string) fieldWrite {
 // refused whatever the key, and no branch here says so: a declaration reaches
 // only a card, a column and the workbench, so DeclaredFieldOf answers a field
 // no declaration can reach and the first row below refuses it.
+//
+// It needs no line normalising the request's value, and the asymmetry with
+// SetField above is a decision rather than an oversight. AdmitsFieldValue
+// refuses any value containing a carriage return or a line feed, so a CRLF is
+// refused before normalisation and the LF it would become is refused after, and
+// no input exists for which such a line could change an outcome. A line no
+// criterion can arm is a line nobody can prove right.
 func (l *Library) setDeclaredField(req *Request, entity *bench.EntityRef) *Response {
 	// Neither flag is legal beside a declared field, and the refusal is the
 	// one a flag carried beside the wrong field of a kind's own set meets.
