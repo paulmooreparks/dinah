@@ -26,14 +26,16 @@ var tradeTerms = []string{
 // of tools that already implement work like this one, which a reader of the
 // profile alone has no way to interpret.
 //
-// `column` left this list at profile 0.7, which is the revision that made it
-// one of the profile's own words. The list bars a word that arrives carrying a
-// meaning the document never states; section 4 now states this one, so it no
-// longer qualifies, and section 3.5 records the removal in the document
-// itself rather than leaving this file as the only place it is written down.
+// Two words have left this list, and each left on the same argument. `column`
+// left at profile 0.7 and `capability tier` left at 0.17, which are the
+// revisions that made each one of the profile's own words. The list bars a word
+// that arrives carrying a meaning the document never states; section 4 now
+// states both, so neither qualifies any longer, and section 3.5 records each
+// removal in the document itself rather than leaving this file as the only
+// place it is written down.
 var productTerms = []string{
 	"lane", "gate", "loop limit", "station", "swimlane", "zone",
-	"persona", "capability tier", "shopping queue", "external wait",
+	"persona", "shopping queue", "external wait",
 	"workstream",
 }
 
