@@ -479,7 +479,28 @@ test("Comment, Resolve, Verify, Fail and Raise each refuse a multi-row selection
 		view: { id: ref.replace("-", ""), ref },
 		column: columnView(),
 	});
-	const raise = await invoke(COMMAND_FILE_ITEM, [raiseRow("wb-1"), raiseRow("wb-2")]);
+	// The form is driven with every answer it would need, so that zero spawns
+	// is a refusal rather than a cancellation. Left unscripted, the first
+	// quick pick declines on its own and the form answers undefined whether
+	// the guard is present or not, which is the reading a guard that
+	// complained and then filed anyway would also pass.
+	const raiseLog = emptyLog();
+	raiseLog.typed = "Which column settles this?";
+	const raiseAnswers = [
+		{ label: "Open question", value: "open_question" },
+		{ label: "here", value: "here" },
+		{ label: "The operator", value: "operator" },
+	];
+	let raiseAt = 0;
+	const raisePicking: HostLog = {
+		...raiseLog,
+		get picked() {
+			return raiseAnswers[Math.min(raiseAt++, raiseAnswers.length - 1)];
+		},
+	} as HostLog;
+	const raise = await invoke(COMMAND_FILE_ITEM, [raiseRow("wb-1"), raiseRow("wb-2")], {
+		log: raisePicking,
+	});
 	assert.deepEqual(raise.calls, [], "Raise spawned over a two-row selection");
 	assert.equal(
 		raise.log.errors.length,
