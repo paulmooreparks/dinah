@@ -884,15 +884,15 @@ The same question reaches the implementation, and on this card it found a live d
 
 **Related:** "A criterion whose fixture exercises nothing the ordinary fixture beside it does not" is the same vacuity arriving through the fixture rather than through the platform. The entry on a guard whose justification carried a false half past a second reader is the nearest instance of prose about permissions going unchecked.
 
-## A rule over row shapes tested against the shapes its author had in mind
+## A rule over a set, tested against the members its author had in mind
 
-Caught at design review on dinah-518, 2026-09-16, and it is the third sighting of this class. A rule selects rows: a manifest `when` clause deciding which tree rows a command appears on, a filter deciding which entities a sweep visits, a switch deciding which events a renderer draws. The test then exercises the rule over a list of row shapes, and that list is written by the same person in the same sitting as the rule. The two agree by construction, and the test catches nothing the author had not already thought of.
+Caught at design review on dinah-518, 2026-09-16, and it is the third sighting of this class. A rule selects members of a set: a filter deciding which collections a sweep visits, a switch deciding which stored events a renderer draws, a pattern deciding which context values a menu entry appears under. The test then exercises the rule over a list of members, and that list is written by the same person in the same sitting as the rule. The two agree by construction, and the test catches nothing its author had not already thought of.
 
-The population is not a matter of judgement. Some function produces the row shapes, and its own returns are the whole population.
+The population is not a matter of judgement, and it is not a list to be recalled. Something in the code produces the members, and whatever that is, its own output is the whole population. Derive the list by calling it.
 
-**Wrong.** Three rounds of dinah-518's contract prescribed `/^dinah\.column\./` for a column command's `when` clause, and its criterion asked that the clause be run against "each of the context-value suffixes the extension already emits". `columnActionsFor` (`editors/vscode/src/tree.ts`) returns five values, and four of them carry a suffix. The criterion's phrasing selects those four, all of which the prescribed pattern matches, so the criterion passed while its own first sentence, "on every column row", was false of the build that passed it. The fifth value is the bare `dinah.column`, which the function returns whenever the status and tree answers of one checkpoint disagree, which happens on every first paint. That is the row the command was missing.
+**Wrong.** Three rounds of dinah-518's contract prescribed `/^dinah\.column\./` for the pattern deciding which context values a new command appears under, and its criterion asked that the pattern be run against "each of the context-value suffixes the extension already emits". `columnActionsFor` (`editors/vscode/src/tree.ts`) returns five values, and four of them carry a suffix. The criterion's own phrasing selects those four, every one of which the prescribed pattern matches, so the criterion passed while its first sentence, "on every column row", was false of the build that passed it. The fifth value carries no suffix, and the function returns it whenever two answers of one checkpoint disagree, which happens on every first paint.
 
-**Right.** Derive the population from the producing function and assert its size before using it.
+**Right.** Derive the population by calling the producer, and assert its size before using it.
 
 ```ts
 function everyColumnContextValue(): string[] {
@@ -910,8 +910,10 @@ assert.equal(values.length, 5);
 assert.ok(values.includes("dinah.column"));
 ```
 
-The two assertions do different work. The count catches a branch the extension adds later and nobody enumerates here. Naming the one value that separates the candidate rules catches the rule this entry is about, which is why it is named rather than left to the count.
+The two assertions do different work. The count catches a branch somebody adds to the producer later and does not enumerate here. Naming the one member that separates the candidate rules catches the rule this entry is about, which is why it is named rather than left to the count.
 
-**The test:** for any rule that selects rows, ask which function produces a row's selector, and write the population by calling it rather than by listing what you expect it to return. Where two candidate rules are both plausible, find the input that separates them and assert that input by name, because every other input passes both. A criterion that describes the population in words, such as "each of the suffixes the code emits", is the tell: the words were written after the rule and they select what the rule already matches.
+The same card carries the same class away from any menu. `ordinalCollections` appended every collection it walked to its answer and `checkOrdinals` reported every unstamped member of one, which was harmless while a card was the only root because every collection below a card holds stamped members. Rooting the walk at the workbench brought the columns and cards collections into the set for the first time, and the run that showed it was the one over a workbench written entirely by the verbs: it reported one finding per column and one per card. A findings-only test with a planted defect passes against that build, because the planted finding is in the answer along with all the noise.
 
-**Related:** "A zero-spawn assertion whose driver was never answered far enough to spawn" is the same failure in the driver rather than in the population. "A refusal that any value satisfies is not a refusal" is the degenerate case, where the population is the whole input space and the rule accepts all of it.
+**The test:** for any rule that selects members of a set, ask what produces a member, and write the population by calling that thing rather than by listing what you expect it to return. Assert the population's size, so a member added later is somebody's problem before it is nobody's. Where two candidate rules are both plausible, find the member that separates them and assert it by name, because every other member passes both. A criterion that describes the population in words, such as "each of the suffixes the code emits", is the tell: the words were written after the rule, and they select what the rule already matches.
+
+**Related:** "A zero-spawn assertion whose driver was never answered far enough to spawn" is the same failure sitting in the driver rather than in the population. "A refusal that any value satisfies is not a refusal" is the degenerate case, where the population is the whole input space and the rule accepts all of it.
