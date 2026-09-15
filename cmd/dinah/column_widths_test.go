@@ -195,8 +195,8 @@ func TestHindiCommandHelpStartsEveryRefusalNameAtOneColumn(t *testing.T) {
 	order := displayWidth(hindi.T("column.help.order"))
 	check := displayWidth(hindi.T("column.help.check"))
 	checks := verb.Checks("add")
-	if len(checks) != 5 {
-		t.Fatalf("add declares %d checks, and this test is written for the five it carries", len(checks))
+	if len(checks) != 6 {
+		t.Fatalf("add declares %d checks, and this test is written for the six it carries", len(checks))
 	}
 	for i, one := range checks {
 		if drawn := displayWidth(strconv.Itoa(i + 1)); drawn > order {
@@ -208,20 +208,35 @@ func TestHindiCommandHelpStartsEveryRefusalNameAtOneColumn(t *testing.T) {
 	}
 	want := 2 + order + 2 + check + 2
 	names := []string{
+		contract.MalformedHarness,
 		contract.Malformed, contract.UnknownColumn, contract.AtCapacity,
 		contract.NoLevels, contract.UnknownLevel,
 	}
+	// A row's name is read as its last field rather than searched for inside
+	// the line. dinah.malformed-harness carries malformed as a substring, so a
+	// search found the shorter name inside the longer one, measured a column no
+	// row starts at, and counted one row twice.
+	wanted := map[string]bool{}
+	for _, name := range names {
+		wanted[name] = true
+	}
 	found := 0
 	for _, line := range strings.Split(got.out, "\n") {
-		for _, name := range names {
-			at := startColumnOf(line, name)
-			if at < 0 {
-				continue
-			}
-			found++
-			if at != want {
-				t.Errorf("the refusal name %s begins at display column %d and the measured layout puts it at %d:\n%q", name, at, want, line)
-			}
+		fields := strings.Fields(line)
+		if len(fields) == 0 {
+			continue
+		}
+		name := fields[len(fields)-1]
+		if !wanted[name] {
+			continue
+		}
+		at := startColumnOf(line, name)
+		if at < 0 {
+			continue
+		}
+		found++
+		if at != want {
+			t.Errorf("the refusal name %s begins at display column %d and the measured layout puts it at %d:\n%q", name, at, want, line)
 		}
 	}
 	if found != len(names) {
@@ -292,8 +307,8 @@ func TestEnglishCommandListStartsEverySummaryAtOneColumn(t *testing.T) {
 	if summaries != 55 {
 		t.Errorf("read %d command entries out of the block, want 55", summaries)
 	}
-	if wrapped != 18 {
-		t.Errorf("%d entries wrapped across more than one line, want the eighteen whose syntax is wider than half the window", wrapped)
+	if wrapped != 17 {
+		t.Errorf("%d entries wrapped across more than one line, want the seventeen whose syntax is wider than half the window", wrapped)
 	}
 	if summariesWrapped == 0 {
 		t.Error("no summary wrapped across more than one line, so the tail-wrapping half of this shape is not exercised here")

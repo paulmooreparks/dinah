@@ -187,6 +187,49 @@ func ResolveActorSource(flag string, cfg *Config) (string, string) {
 	return actor, source
 }
 
+// Agent is what the caller declared about what is performing the act: the
+// harness around it, the provider and model behind it, and the address the
+// model was reached at. Every member is optional and nothing verifies any of
+// them.
+type Agent struct {
+	// Harness is the harness name, one segment of the declared-field key
+	// grammar. A value that does not match is carried here as it was declared
+	// and refused at the write, so whoami can report it as malformed rather
+	// than silently dropping it.
+	Harness string
+	// Provider is the provider, stamped under OpenTelemetry's
+	// gen_ai.provider.name.
+	Provider string
+	// Model is the model, stamped under gen_ai.request.model.
+	Model string
+	// Server is the address the model was reached at, stamped under
+	// server.address and declared only where the provider's own name does not
+	// imply it.
+	Server string
+}
+
+// ResolveAgent reads the four declared facts from the environment, which is
+// the whole of the ladder for each of them.
+//
+// There is no flag and no user-config rung, which is a narrower ladder than
+// the one DINAH_ACTOR runs. The user config is one file shared by every
+// process on the machine, so a model recorded there would be stamped on acts
+// performed by something else entirely, which is the failure this reading
+// exists to remove. A flag would put the declaration on the same line as the
+// act, where the text that composes the command chooses it; the environment is
+// set once by whatever started the process.
+//
+// A person at a terminal typically sets none of the four, and every command
+// still succeeds.
+func ResolveAgent() Agent {
+	return Agent{
+		Harness:  strings.TrimSpace(os.Getenv("DINAH_HARNESS")),
+		Provider: strings.TrimSpace(os.Getenv("DINAH_PROVIDER")),
+		Model:    strings.TrimSpace(os.Getenv("DINAH_MODEL")),
+		Server:   strings.TrimSpace(os.Getenv("DINAH_SERVER")),
+	}
+}
+
 // ResolveWorkbenchSource resolves which workbench a session would open right
 // now, without opening it, sharing DiscoverSource's own resolution rather
 // than restating it, so a listing can never report a rung that would not

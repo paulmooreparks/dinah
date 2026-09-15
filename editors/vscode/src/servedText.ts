@@ -213,49 +213,49 @@ export const HISTORY_ROWS: Readonly<
 	Record<string, (event: JournalEvent, t: Localizer) => HistoryParams>
 > = {
 	created: (event) => ({
-		actor: event.actor,
+		actor: event.actor.name,
 		title: field(event.title),
 		toTitle: field(event.to_title),
 	}),
-	claimed: (event) => ({ actor: event.actor }),
+	claimed: (event) => ({ actor: event.actor.name }),
 	moved: (event) => ({
-		actor: event.actor,
+		actor: event.actor.name,
 		fromTitle: field(event.from_title),
 		toTitle: field(event.to_title),
 	}),
-	released: (event) => ({ actor: event.actor }),
-	blocked: (event) => ({ actor: event.actor, reason: field(event.reason) }),
-	unblocked: (event) => ({ actor: event.actor }),
-	expired: (event) => ({ actor: event.actor }),
-	commented: (event) => ({ actor: event.actor }),
-	attached: (event) => ({ actor: event.actor, filename: field(event.filename) }),
+	released: (event) => ({ actor: event.actor.name }),
+	blocked: (event) => ({ actor: event.actor.name, reason: field(event.reason) }),
+	unblocked: (event) => ({ actor: event.actor.name }),
+	expired: (event) => ({ actor: event.actor.name }),
+	commented: (event) => ({ actor: event.actor.name }),
+	attached: (event) => ({ actor: event.actor.name, filename: field(event.filename) }),
 	attachment_replaced: (event) => ({
-		actor: event.actor,
+		actor: event.actor.name,
 		filename: field(event.filename),
 	}),
 	attachment_removed: (event) => ({
-		actor: event.actor,
+		actor: event.actor.name,
 		filename: field(event.filename),
 	}),
 	attachment_renamed: (event) => ({
-		actor: event.actor,
+		actor: event.actor.name,
 		from: field(event.from),
 		filename: field(event.filename),
 	}),
-	archived: (event) => ({ actor: event.actor }),
-	restored: (event) => ({ actor: event.actor }),
-	deleted: (event) => ({ actor: event.actor }),
+	archived: (event) => ({ actor: event.actor.name }),
+	restored: (event) => ({ actor: event.actor.name }),
+	deleted: (event) => ({ actor: event.actor.name }),
 	manual_correction: (event) => ({
-		actor: event.actor,
+		actor: event.actor.name,
 		fromTitle: field(event.from_title),
 		toTitle: field(event.to_title),
 	}),
 	workstream_joined: (event) => ({
-		actor: event.actor,
+		actor: event.actor.name,
 		workstream: field(event.workstream),
 	}),
 	workstream_left: (event) => ({
-		actor: event.actor,
+		actor: event.actor.name,
 		workstream: field(event.workstream),
 	}),
 	// An absent from or to is a first write to a field that carried nothing or
@@ -263,7 +263,7 @@ export const HISTORY_ROWS: Readonly<
 	// gaps in the record, so each fills with the catalogue's own word for it
 	// instead of leaving an empty span or an unfilled token on screen.
 	card_updated: (event, t) => ({
-		actor: event.actor,
+		actor: event.actor.name,
 		field: field(event.field),
 		from: event.from ?? t("history.value.none"),
 		to: event.to ?? t("history.value.none"),
@@ -273,13 +273,13 @@ export const HISTORY_ROWS: Readonly<
 	// field says a renderer falls back to Column for every line carrying one
 	// without the other.
 	tier_overridden: (event) => ({
-		actor: event.actor,
+		actor: event.actor.name,
 		columnTitle: event.column_title ?? field(event.column),
 		to: field(event.to),
 		expr: field(event.expr),
 	}),
 	tier_override_dropped: (event) => ({
-		actor: event.actor,
+		actor: event.actor.name,
 		column: field(event.column),
 		from: field(event.from),
 	}),
@@ -349,7 +349,7 @@ export function renderHistoryMarkdown(
 				: undefined;
 			if (row === undefined) {
 				return t("history.event.unknown", {
-					actor: event.actor,
+					actor: event.actor.name,
 					event: event.event,
 				});
 			}

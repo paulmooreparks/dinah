@@ -475,6 +475,9 @@ func (l *Library) entityAnchor(entity *bench.EntityRef) (*bench.Frontmatter, str
 // nothing and journals nothing, on the terms join already returns ok for a
 // workstream the card already belongs to.
 func (l *Library) writeField(req *Request, entity *bench.EntityRef, target fieldWrite, value string) *Response {
+	if refused := l.malformedHarness(req, entity.Card); refused != nil {
+		return refused
+	}
 	now := bench.Stamp(l.Now())
 	lock, err := bench.Acquire(l.lockDirFor(entity), req.Actor, now)
 	if err != nil {
@@ -519,9 +522,8 @@ func (l *Library) writeField(req *Request, entity *bench.EntityRef, target field
 	if err := bench.WriteText(path, fm.Render(body)); err != nil {
 		return l.FromError(req, err)
 	}
-	ev := fieldEvent(entity, target, was, value)
+	ev := fieldEvent(req, entity, target, was, value)
 	ev.TS = now
-	ev.Actor = req.Actor
 	if err := bench.AppendEvent(l.journalFor(entity), ev); err != nil {
 		return l.FromError(req, err)
 	}
@@ -582,8 +584,8 @@ func (l *Library) wroteField(req *Request, entity *bench.EntityRef, value string
 // file that changed, and copying a whole instructions body into an append-only
 // journal on every edit would grow the journal without bound and put a second
 // copy of the text where nobody edits it.
-func fieldEvent(entity *bench.EntityRef, target fieldWrite, was, value string) bench.Event {
-	ev := bench.Event{Event: updatedEvents[entity.Kind], Field: target.name}
+func fieldEvent(req *Request, entity *bench.EntityRef, target fieldWrite, was, value string) bench.Event {
+	ev := bench.Event{Actor: req.Acting(), Event: updatedEvents[entity.Kind], Field: target.name}
 	if !target.prose {
 		ev.From = was
 		ev.To = value

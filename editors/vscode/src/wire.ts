@@ -445,13 +445,37 @@ export const READ_FINDINGS = "findings";
  * `omitempty`, so they arrive on every line. The rest belong to particular
  * events and are absent everywhere else.
  */
+/**
+ * bench.Actor, the actor member of a journal line.
+ *
+ * `name` is written on every line, because Dinah refuses to write an event with
+ * no actor rather than inventing one. The other four are written only where the
+ * caller declared them, and an absent member is a fact nobody declared rather
+ * than a fact that is unknown.
+ *
+ * The three provenance keys are spelled as OpenTelemetry spells the attributes
+ * they carry, full stops included, so they are read with bracket notation.
+ */
+export interface JournalActor {
+	/** Who acted. */
+	readonly name: string;
+	/** The harness the process ran under, one lowercase segment. */
+	readonly harness?: string;
+	/** The provider, under OpenTelemetry's own attribute name. */
+	readonly 'gen_ai.provider.name'?: string;
+	/** The model, under OpenTelemetry's own attribute name. */
+	readonly 'gen_ai.request.model'?: string;
+	/** The address the model was reached at, under OpenTelemetry's own attribute name. */
+	readonly 'server.address'?: string;
+}
+
 export interface JournalEvent {
 	/** When the event happened, RFC 3339 in UTC. */
 	readonly ts: string;
 	/** The event name, from the closed set internal/contract declares. */
 	readonly event: string;
-	/** Who acted, self-declared attribution rather than authority. */
-	readonly actor: string;
+	/** Who acted and what performed the act, self-declared attribution rather than authority. */
+	readonly actor: JournalActor;
 	readonly title?: string;
 	readonly from?: string;
 	readonly to?: string;

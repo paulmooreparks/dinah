@@ -107,6 +107,31 @@ const (
 
 var declaredFieldKey = regexp.MustCompile(DeclaredFieldKeyExpression)
 
+// HarnessNameExpression is the grammar a declared harness name matches, which
+// is one segment of the key grammar above. The bound is what lets dinah-497
+// form the layer name `harness.<name>` from it, since a layer name has to be a
+// legal dotted name.
+//
+// It is written out rather than cut out of DeclaredFieldKeyExpression at run
+// time, on the reasoning that expression is written out for: a grammar
+// somebody derived is a grammar that can drift from the one the specification
+// publishes. TestTheHarnessGrammarIsOneSegmentOfTheKeyGrammar is what holds
+// the two together, by composing the key expression out of this one and
+// comparing.
+const HarnessNameExpression = `^[a-z][a-z0-9]*(-[a-z0-9]+)*$`
+
+var harnessName = regexp.MustCompile(HarnessNameExpression)
+
+// HarnessName reports whether a value is a well-formed harness name. It is the
+// one gate both the environment path and the MCP call path run, so a name a
+// harness may declare is a name a layer may later be formed from.
+func HarnessName(name string) bool {
+	if len(name) == 0 || len(name) > DeclaredFieldSegmentLimit {
+		return false
+	}
+	return harnessName.MatchString(name)
+}
+
 // DeclaredFieldKey reports whether a name is a well-formed declared field key.
 // It is the one gate both the declaration reader and the write path run, so a
 // key a workbench can declare is a key a reader can type.

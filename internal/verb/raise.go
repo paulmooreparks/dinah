@@ -42,6 +42,9 @@ func (l *Library) Raise(req *Request) *Response {
 	if l.Bench.Operator == "" {
 		return l.refuse(req, nil, contract.NoOperator, "")
 	}
+	if refused := l.malformedHarness(req, nil); refused != nil {
+		return refused
+	}
 	found, err := l.Bench.ResolveCard(req.Card)
 	if err != nil {
 		return l.FromError(req, err)
@@ -99,7 +102,7 @@ func (l *Library) Raise(req *Request) *Response {
 	raised := bench.Event{
 		TS:          now,
 		Event:       contract.EventTierOverridden,
-		Actor:       req.Actor,
+		Actor:       req.Acting(),
 		Column:      column.ID,
 		ColumnTitle: column.Title,
 		From:        was,
@@ -114,7 +117,7 @@ func (l *Library) Raise(req *Request) *Response {
 	freed := bench.Event{
 		TS:    now,
 		Event: contract.EventReleased,
-		Actor: req.Actor,
+		Actor: req.Acting(),
 	}
 	if err := bench.AppendEvent(reloaded.JournalPath(), freed); err != nil {
 		return l.FromError(req, err)

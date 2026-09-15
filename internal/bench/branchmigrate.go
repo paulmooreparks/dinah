@@ -282,7 +282,7 @@ func (b *Bench) writeBranchMigrant(migrant branchMigrant, actor, now string) (bo
 	ev := Event{
 		TS:    now,
 		Event: contract.EventCardUpdated,
-		Actor: actor,
+		Actor: NamedActor(actor),
 		Field: BranchFieldKey,
 		From:  was,
 		To:    value,

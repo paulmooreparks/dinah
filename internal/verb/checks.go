@@ -70,6 +70,16 @@ var checkLists = map[string][]Check{
 		// profile numbers. canClaim runs it where this list prints it, after
 		// the unresolved-item row.
 		{Refusal: contract.BelowTier, Key: "check.claim.8"},
+		// Rows 9 and 10 are the other two answers the same gate gives, and
+		// they are listed after it because a reader of this list is reading
+		// what a claim can come back with rather than a decision tree. The
+		// gate resolves the caller's provider and model against the
+		// workbench's own table and then answers once: the model is listed at
+		// or above what the card asks, it is listed lower, it is listed
+		// nowhere, or none was declared. One step, four answers, three of them
+		// refusals.
+		{Refusal: contract.UnlistedModel, Key: "check.claim.9"},
+		{Refusal: contract.UndeclaredModel, Key: "check.claim.10"},
 	},
 	Move: {
 		{Refusal: contract.UnknownCard, Key: "check.move.1"},
@@ -177,6 +187,51 @@ var pullChecks = []Check{
 	// Row 17 is Dinah's own tier gate, the claim list's row 8 reached at the
 	// destination, and it is appended for the same reason.
 	{Refusal: contract.BelowTier, Key: "check.pull.17"},
+	// Rows 18 and 19 are the claim list's rows 9 and 10 reached at the
+	// destination, appended for the same reason.
+	{Refusal: contract.UnlistedModel, Key: "check.pull.18"},
+	{Refusal: contract.UndeclaredModel, Key: "check.pull.19"},
+}
+
+// harnessCheck is the row every command that writes a journal line carries
+// ahead of its own list, which is where the malformed-harness refusal runs.
+//
+// It is one row under one key rather than a row per command, because it is the
+// same check reading the same field and a reader meeting it on two commands is
+// owed one sentence. Every other row of every list here is a check on what the
+// command was given or on what the card is; this one is a check on the request
+// itself, which is why it precedes them all and why it is spliced rather than
+// written into each list.
+//
+// Agent Code Review found the refusal reaching three write paths and missing
+// twenty at round one of dinah-496. Splicing the row from one place is the
+// listing half of that repair: a command named in historyWriters carries the
+// row, and a command that writes and is not named there is caught by
+// TestEveryWritingCommandListsTheHarnessRow.
+var harnessCheck = Check{Refusal: contract.MalformedHarness, Key: "check.harness"}
+
+// historyWriters names every command whose library entry writes a journal line
+// and therefore runs the malformed-harness refusal ahead of its own
+// preconditions.
+//
+// It is the listing side of a fact the code holds on its own side, and the two
+// are held together from both ends: TestEveryWritingCommandListsTheHarnessRow
+// compares this set against the commands whose entries run the refusal, and
+// cmd/dinah's own sweep drives every one of them with an illegal name set and
+// asserts that no journal in the store carries it.
+//
+// check is here on one condition rather than two. A bare check reads and
+// repairs nothing and is never refused; a check carrying a repair marker writes
+// journal lines and is. The row is listed because the refusal is reachable from
+// the command, which is what a reader of the list is owed.
+var historyWriters = map[string]bool{
+	Claim: true, Move: true, Release: true, Block: true, Unblock: true,
+	Join: true, Leave: true, Pull: true, Raise: true,
+	"add": true, "comment": true, "attach": true, "archive": true,
+	"restore": true, "delete": true, "rename": true, "workstream": true,
+	"set": true, "column": true, "file": true, "resolve": true, "verify": true,
+	"fail": true, "reopen": true, "cite": true, "link": true, "unlink": true,
+	"reshape": true, "check": true,
 }
 
 // beyondChecks are the refusals the commands outside the five contract verbs
@@ -447,10 +502,17 @@ func Checks(name string) []Check {
 	if !found {
 		return nil
 	}
-	if !runsWorkbenchChecks(name) {
-		return append([]Check{}, own...)
+	list := []Check{}
+	if runsWorkbenchChecks(name) {
+		list = append(list, WorkbenchChecks...)
 	}
-	return append(append([]Check{}, WorkbenchChecks...), own...)
+	// The harness row sits between the workbench's own pair and the command's
+	// own list, which is where the refusal runs: after the workbench has been
+	// found to have an operator and before anything about the card is read.
+	if historyWriters[name] {
+		list = append(list, harnessCheck)
+	}
+	return append(list, own...)
 }
 
 // ownChecks returns a command's own precondition list, without the workbench

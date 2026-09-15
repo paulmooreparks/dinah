@@ -69,7 +69,7 @@ func TestAClaimWitnessesAHandEditedPositionBeforeItsOwnEffect(t *testing.T) {
 	if lines[0].From != aftercare {
 		t.Errorf("the witness records from %q, wanted the column the journal believed", lines[0].From)
 	}
-	if lines[0].Actor != "alka" {
+	if lines[0].Actor.Name != "alka" {
 		t.Errorf("the witness records actor %q, wanted whoever ran the verb", lines[0].Actor)
 	}
 	events := h.events(ref)
@@ -199,7 +199,7 @@ func TestAReadThatLapsesAClaimWitnessesTheHandEditItFinds(t *testing.T) {
 	if lines[0].To != doing {
 		t.Errorf("the witness records to %q, wanted the column the anchor named", lines[0].To)
 	}
-	if lines[0].Actor != "bela" {
+	if lines[0].Actor.Name != "bela" {
 		t.Errorf("the witness records actor %q, wanted whoever ran the read", lines[0].Actor)
 	}
 	expired := -1

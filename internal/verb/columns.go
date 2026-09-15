@@ -33,6 +33,9 @@ func (l *Library) NewColumn(req *Request) *Response {
 	if l.Bench.Operator == "" {
 		return l.refuse(req, nil, contract.NoOperator, "")
 	}
+	if refused := l.malformedHarness(req, nil); refused != nil {
+		return refused
+	}
 	title := strings.TrimSpace(req.Column)
 	if title == "" {
 		return l.refuse(req, nil, contract.Malformed, "title")
@@ -120,7 +123,7 @@ func (l *Library) NewColumn(req *Request) *Response {
 	if err != nil {
 		return l.FromError(req, err)
 	}
-	ev := bench.Event{TS: now, Event: contract.EventCreated, Actor: req.Actor, Title: title, Note: column.ID}
+	ev := bench.Event{TS: now, Event: contract.EventCreated, Actor: req.Acting(), Title: title, Note: column.ID}
 	if err := bench.AppendEvent(fresh.JournalPath(), ev); err != nil {
 		return l.FromError(req, err)
 	}

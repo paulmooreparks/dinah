@@ -299,7 +299,7 @@ func TestDepartureFromAWaitingColumnStaysOpenToAnyOwner(t *testing.T) {
 	if last.From != aftercare || last.FromTitle != "Aftercare" {
 		t.Errorf("the moved event should name the departure, got %q %q", last.From, last.FromTitle)
 	}
-	if last.Actor != "brin" {
+	if last.Actor.Name != "brin" {
 		t.Errorf("the moved event should name the owner who moved it, got %q", last.Actor)
 	}
 

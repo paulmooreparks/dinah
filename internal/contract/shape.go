@@ -756,11 +756,43 @@ var Shapes = []Shape{
 		// because the base sentence and the next step both name it and a
 		// detail cannot be spliced into the fragment. The column rides
 		// alongside it, since what the card asks for depends on which column
-		// the claim is being made at.
+		// the claim is being made at. The caller's own model and the entries
+		// that would satisfy the requirement ride with them, because the
+		// repair is to run one of those and a reader cannot compose that list
+		// from anything else the refusal carries.
 		Name:      BelowTier,
-		Values:    []string{"required", "column"},
+		Values:    []string{"required", "column", "model", "satisfied_by"},
 		Fragments: []Fragment{{Key: "refusal.dinah.below-tier.next"}},
 		NextStep:  []string{"refusal.dinah.below-tier.next"},
+	},
+	{
+		// The three values BelowTier carries plus the caller's own
+		// declaration, for the same reasons. The sentence differs because the
+		// repair does: a model the table lists nowhere is added to the table
+		// or switched away from, where one listed below the requirement can
+		// only be switched away from.
+		Name:      UnlistedModel,
+		Values:    []string{"required", "column", "model", "satisfied_by"},
+		Fragments: []Fragment{{Key: "refusal.dinah.unlisted-model.next"}},
+		NextStep:  []string{"refusal.dinah.unlisted-model.next"},
+	},
+	{
+		// No model value here, because this refusal is raised by a caller
+		// that declared none. Its reader is a harness nobody configured, so
+		// the next step names the variables to set and the parameters to
+		// send rather than a model to switch to.
+		Name:      UndeclaredModel,
+		Values:    []string{"required", "column", "satisfied_by"},
+		Fragments: []Fragment{{Key: "refusal.dinah.undeclared-model.next"}},
+		NextStep:  []string{"refusal.dinah.undeclared-model.next"},
+	},
+	{
+		// The declared name travels in the detail alone, because the sentence
+		// names it once and the next step names the variable to set rather
+		// than the value again.
+		Name:      MalformedHarness,
+		Fragments: []Fragment{{Key: "refusal.dinah.malformed-harness.next"}},
+		NextStep:  []string{"refusal.dinah.malformed-harness.next"},
 	},
 	{
 		// Both tiers ride as values for the reason BelowTier gives: the base

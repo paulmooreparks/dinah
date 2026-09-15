@@ -272,6 +272,9 @@ type reshapePlan struct {
 // identifier is derived from the run's own frozen inputs for that reason; see
 // bench.DeriveColumnID, which also states how far that guarantee reaches.
 func (l *Library) Reshape(req *Request) (*ReshapeReport, error) {
+	if req.Harness != "" && !bench.HarnessName(req.Harness) {
+		return nil, contract.Refuse(contract.MalformedHarness, req.Harness)
+	}
 	if l.Bench.Operator == "" {
 		return nil, contract.Refuse(contract.NoOperator, "")
 	}
@@ -960,7 +963,7 @@ func (l *Library) writeAddedColumns(req *Request, plan *reshapePlan, now string)
 	if err := fresh.SetColumnSequence(sequence); err != nil {
 		return written, err
 	}
-	ev := bench.Event{TS: now, Event: contract.EventCreated, Actor: req.Actor}
+	ev := bench.Event{TS: now, Event: contract.EventCreated, Actor: req.Acting()}
 	for _, element := range added {
 		ev.Title = element.title()
 		ev.Note = element.id
@@ -1067,7 +1070,7 @@ func (l *Library) carryOneCard(req *Request, entry *reshapeRetirement, destinati
 	ev := bench.Event{
 		TS:        now,
 		Event:     contract.EventMoved,
-		Actor:     req.Actor,
+		Actor:     req.Acting(),
 		From:      card.Column,
 		FromTitle: reshapeDepartureTitle(entry),
 		To:        destination.ID,
@@ -1086,7 +1089,7 @@ func (l *Library) carryOneCard(req *Request, entry *reshapeRetirement, destinati
 		drop := bench.Event{
 			TS:     now,
 			Event:  contract.EventTierOverrideDropped,
-			Actor:  req.Actor,
+			Actor:  req.Acting(),
 			Column: entry.id,
 			From:   dropped,
 		}
@@ -1174,7 +1177,7 @@ func (l *Library) archiveRetiredColumns(req *Request, plan *reshapePlan, now str
 			ColumnID:  entry.id,
 			ColumnRef: entry.column.Ref(),
 			Record: func() error {
-				ev := bench.Event{TS: now, Event: contract.EventArchived, Actor: req.Actor, Note: entry.id}
+				ev := bench.Event{TS: now, Event: contract.EventArchived, Actor: req.Acting(), Note: entry.id}
 				return bench.AppendEvent(fresh.JournalPath(), ev)
 			},
 		}
@@ -1251,7 +1254,7 @@ func (l *Library) rewriteKeptColumns(req *Request, plan *reshapePlan, now string
 		return nil, nil
 	}
 	for _, id := range updated {
-		ev := bench.Event{TS: now, Event: contract.EventColumnUpdated, Actor: req.Actor, Note: id}
+		ev := bench.Event{TS: now, Event: contract.EventColumnUpdated, Actor: req.Acting(), Note: id}
 		if err := bench.AppendEvent(current.JournalPath(), ev); err != nil {
 			return updated, err
 		}

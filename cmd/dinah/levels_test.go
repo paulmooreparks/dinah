@@ -570,16 +570,17 @@ What you may write:
   [--yes]          confirm the act, which Dinah does not carry out without it
 
 What can go wrong, in the order each is checked:
-  Order  What can go wrong                                Refusal
-  -----  -----------------------------------------------  -------------------
-  1      this workbench designates an operator            no-operator
-  2      the reference resolves to one entity             dinah.unknown-path
-  3      the field is one that kind records               dinah.unknown-field
-  4      the value is present, and one line unless prose  malformed
-  5      the field's own guard admits the value           dinah.unknown-level
-  6      the request names an owner                       no-owner
-  7      that owner is the operator, where a write asks   not-operator
-  8      a slug change carries the confirmation flag      dinah.unconfirmed
+  Order  What can go wrong                               Refusal
+  -----  ----------------------------------------------  -----------------------
+  1      the harness you declared is a legal name        dinah.malformed-harness
+  2      this workbench designates an operator           no-operator
+  3      the reference resolves to one entity            dinah.unknown-path
+  4      the field is one that kind records              dinah.unknown-field
+  5      the value is present, and one line unless prose malformed
+  6      the field's own guard admits the value          dinah.unknown-level
+  7      the request names an owner                      no-owner
+  8      that owner is the operator, where a write asks  not-operator
+  9      a slug change carries the confirmation flag     dinah.unconfirmed
 
 For more, run ` + "`" + `dinah guide references` + "`" + `.
 
@@ -712,6 +713,22 @@ func parseRefusalTable(t *testing.T, page string) []refusalRow {
 		fields := make([]string, 0, len(spans))
 		for _, span := range spans {
 			fields = append(fields, strings.TrimSpace(runeSlice(line, span[0], span[1])))
+		}
+		// A check cell exactly wider than its own column eats the gutter
+		// beside it, and the slice above then cuts the sentence a character
+		// short and reads the cut-off tail as part of the next column. The two
+		// are read apart by the last run of spaces on the line instead, which
+		// is where the renderer put the boundary whatever the rule says.
+		// dinah-496 met this on the set page, whose check column narrowed by
+		// four when a twenty-three character refusal name joined the list and
+		// whose widest sentence is one wider than what was left.
+		if !strings.HasSuffix(runeSlice(line, spans[1][0], spans[1][1]), " ") {
+			whole := strings.TrimRight(line, " ")
+			at := strings.LastIndex(whole, " ")
+			if at >= 0 {
+				fields[1] = strings.TrimSpace(runeSlice(whole, spans[1][0], len([]rune(whole[:at]))))
+				fields[2] = strings.TrimSpace(whole[at+1:])
+			}
 		}
 		order, err := strconv.Atoi(fields[0])
 		if err != nil {

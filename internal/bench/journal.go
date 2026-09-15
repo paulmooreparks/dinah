@@ -1,11 +1,81 @@
 package bench
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 )
+
+// Actor is who acted, together with whatever the caller declared about what
+// performed the act. The name is written on every line, because Dinah refuses
+// to write an event with no actor rather than inventing one; the other four
+// members are written only where the caller declared them.
+//
+// The three provenance members spell their keys as OpenTelemetry spells the
+// attributes they carry. A name this format cites from an external vocabulary
+// is not a name this format defines, so the full stops inside them belong to
+// the vocabulary they came from.
+//
+// An absent member is a fact nobody declared. Nothing is ever stamped with a
+// literal unknown, because a workbench is free to run a provider named
+// unknown and a magic value would collide with it.
+type Actor struct {
+	// Name is who acted, which is the string the actor member carried before
+	// storage format 5.
+	Name string `json:"name"`
+	// Harness is the harness the process ran under, one lowercase segment of
+	// the declared-field key grammar.
+	Harness string `json:"harness,omitempty"`
+	// Provider is the provider the model was served by.
+	Provider string `json:"gen_ai.provider.name,omitempty"`
+	// Model is the model the harness loaded.
+	Model string `json:"gen_ai.request.model,omitempty"`
+	// Server is the address the model was reached at, declared only where the
+	// provider's own name does not imply it.
+	Server string `json:"server.address,omitempty"`
+}
+
+// NamedActor composes an actor block from a name alone, which is what a write
+// with no declaring caller records. It is one of the two functions that
+// compose an actor, the other being Request.Acting in internal/verb, so no
+// event is ever built from a bare struct literal at a construction site.
+func NamedActor(name string) Actor {
+	return Actor{Name: name}
+}
+
+// actorObject is Actor's own shape without the unmarshaller, which is what
+// lets UnmarshalJSON decode the object form without recursing into itself.
+type actorObject Actor
+
+// UnmarshalJSON reads either shape a journal can carry: a JSON string, which
+// is the actor of every line written before storage format 5 and reads as the
+// name alone, or the object this format writes.
+//
+// It is the one tolerant branch this format adds, and retiring it is deleting
+// this method. It is ungated, where every other tolerant branch in this
+// package compares a workbench's declared format inside a read path, because
+// the question it answers is about a line rather than about a workbench: a
+// store part-way through the migration carries both shapes in one file, and
+// no Bench is in hand here to consult a format against.
+func (a *Actor) UnmarshalJSON(data []byte) error {
+	trimmed := bytes.TrimSpace(data)
+	if len(trimmed) > 0 && trimmed[0] == '"' {
+		var name string
+		if err := json.Unmarshal(data, &name); err != nil {
+			return err
+		}
+		*a = Actor{Name: name}
+		return nil
+	}
+	var object actorObject
+	if err := json.Unmarshal(data, &object); err != nil {
+		return err
+	}
+	*a = Actor(object)
+	return nil
+}
 
 // Event is one line of a journal: the universal skeleton (a timestamp, an
 // event name and an actor) plus the fields a particular event carries.
@@ -19,8 +89,9 @@ type Event struct {
 	TS string `json:"ts"`
 	// Event is the event name, from the closed set in the contract package.
 	Event string `json:"event"`
-	// Actor is who acted, self-declared attribution rather than authority.
-	Actor string `json:"actor"`
+	// Actor is who acted and what performed the act, self-declared
+	// attribution rather than authority.
+	Actor Actor `json:"actor"`
 	// Title is the card's own title, carried by the created event.
 	Title string `json:"title,omitempty"`
 	// From and To are the state identifiers a move left and entered, the

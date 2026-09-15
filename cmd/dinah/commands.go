@@ -138,6 +138,10 @@ func (s *session) request(name string, parsed *arguments) *verb.Request {
 	req := &verb.Request{
 		Verb:              name,
 		Actor:             s.actor,
+		Harness:           s.agent.Harness,
+		Provider:          s.agent.Provider,
+		Model:             s.agent.Model,
+		Server:            s.agent.Server,
 		Column:            parsed.value("column"),
 		Kind:              parsed.value("kind"),
 		Description:       parsed.value("description"),

@@ -274,7 +274,7 @@ func TestExpiryLapsesTheClaim(t *testing.T) {
 			continue
 		}
 		found = true
-		if ev.Actor != "bob" {
+		if ev.Actor.Name != "bob" {
 			t.Errorf("expiry actor: wanted bob, got %q", ev.Actor)
 		}
 	}

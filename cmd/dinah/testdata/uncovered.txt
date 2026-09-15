@@ -41,6 +41,5 @@ render.go:reportOutcome#4  the stale outcome of a response, which the cli head c
 render.go:reportOutcome#5  the same, on the branch where the stale response carries a card.
 render.go:reportOutcome#6  the same, writing the stale sentence.
 render.go:reportOutcome#7  the unreachable outcome, which is by construction the outcome no invocation produces.
-render.go:token#2  a token the catalog carries no rendering for, and every token the head prints has one.
 render.go:workstreamRef#2  workstreamRef reading a session that has opened no workbench, which no card line reaches: a card line is drawn from a response, and there is no response until a workbench is open.
 table.go:recordTableSite#2  the shipped binary's branch, where no test hook is armed. The suite arms the recorder for its whole run, so this is unreachable from a test by construction.

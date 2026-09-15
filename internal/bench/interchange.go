@@ -26,7 +26,7 @@ import (
 var knownBenchKeys = map[string]bool{
 	"profile": true, "title": true, "columns": true,
 	"format": true, "slug": true, "operator": true,
-	LevelsKey: true, FieldsKey: true, FieldValuesKey: true,
+	LevelsKey: true, FieldsKey: true, FieldValuesKey: true, TiersKey: true,
 }
 
 // knownColumnKeys are the column frontmatter keys the interchange form carries
@@ -58,6 +58,14 @@ func (b *Bench) Export() ([]byte, error) {
 	// Both blocks travel as the nested value they already are, read by the
 	// one reader every structured frontmatter value is read by, so the
 	// declaration order the file carries survives the trip.
+	// The tier table travels as the entries the reader declared rather than
+	// as the anchor's raw lines, because a model entry is a flow mapping
+	// inside a dashed entry and the generic block reader has no spelling for
+	// one. ExportTiers is where that is argued and where the key order is
+	// settled.
+	if tiers, declared := b.ExportTiers(); declared {
+		object[TiersKey] = tiers
+	}
 	if b.FM.Has(FieldsKey) {
 		object[FieldsKey] = blockValue(b.FM, FieldsKey)
 	}
@@ -269,6 +277,13 @@ func Instantiate(root, slug, operator string, definition *Definition) error {
 			fm.SetRaw(LevelsKey, lines)
 		} else {
 			fm.Set(LevelsKey, string(raw))
+		}
+	}
+	if raw, ok := definition.Object[TiersKey]; ok {
+		if lines, readable := renderTiersMember(raw); readable {
+			fm.SetRaw(TiersKey, lines)
+		} else {
+			fm.Set(TiersKey, string(raw))
 		}
 	}
 	for _, member := range []string{FieldsKey, FieldValuesKey} {

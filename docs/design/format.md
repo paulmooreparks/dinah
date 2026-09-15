@@ -927,9 +927,10 @@ renders no detail and takes no part in replay, while surviving the read
 unchanged.
 
 Three fields are present on every line whatever the event: `ts`, the RFC 3339
-timestamp; `event`, the name; and `actor`, who acted. Dinah refuses to write
-an event with no actor rather than inventing one, per the Actors and
-attribution section. Beyond those three, each event carries fields of its own.
+timestamp; `event`, the name; and `actor`, who acted and what performed the
+act. Dinah refuses to write an event with no actor rather than inventing one,
+per the Actors and attribution section. Beyond those three, each event carries
+fields of its own.
 A field listed below as always present is written every time that event is
 written. A field listed as conditional is written only when its stated
 condition holds, and its absence is that line's own story rather than damage,
@@ -1916,6 +1917,69 @@ beside `kind` and `wip_limit`. The default says what the work at that station
 usually needs. It has two jobs and refuses nothing, and the section on the
 gate below says what it deliberately does not do.
 
+### The table that says which models satisfy which rung
+
+A workbench that declares a tier axis may also declare which provider-and-model
+entries satisfy each rung of it, in a top-level `tiers:` block that sits beside
+`levels:` and `fields:`.
+
+```yaml
+tiers:
+  frontier:
+    meaning: novel design judgement, or work where a wrong answer costs a lot
+    models:
+      - {provider: anthropic, model: claude-opus-5}
+  workhorse:
+    meaning: scoped implementation against a clear contract
+    models:
+      - {provider: anthropic, model: claude-sonnet-5}
+      - {provider: ollama, model: "qwen3:235b", server: ollama.com}
+  minimal:
+    meaning: strictly mechanical edits
+    models:
+      - {provider: ollama, model: "qwen3:8b", server: localhost}
+```
+
+Each key names a member of `levels.tier`. The order of the keys carries
+nothing; the rank is `levels.tier`'s declaration order, which is where it
+already lives. Each entry carries `meaning`, one line of prose a person reads,
+and `models`, a sequence of entries.
+
+One model entry occupies one line in flow-mapping form. It carries `provider`
+and `model`, both required, and `server`, optional, and a member name outside
+those three makes the entry malformed. There is no block form and no multi-line
+entry, so the reader stays the shape `levels:` and `fields:` already are: a
+member line or a dashed line, told apart by depth. Splitting each part on its
+first colon is what lets a model named `qwen3:235b` be written without quotes,
+and quoting it works the same way. A comma is not representable in a value and
+quoting does not rescue one, because the split on commas runs before the
+unquote, exactly as a flow sequence is already split.
+
+Every value is compared byte for byte after the unquote and the trim. No
+wildcard is admitted anywhere and no case folding is performed, because
+`claude-*` would promote whatever ships next without anybody deciding to, and a
+provider that distinguishes two models by case would be silently collapsed.
+
+A model is listed once, at the highest tier it qualifies for, since the order of
+`levels.tier` supplies "at least". The optional `server` distinguishes a model
+name that means one thing on a laptop and another on a vendor's cloud, and the
+matching runs in two passes so the answer does not depend on the order somebody
+wrote the table in. The first pass looks for an entry whose provider, model and
+server all equal what the caller declared. The second, run only where the first
+found nothing, looks for an entry whose provider and model match and which
+declares no `server` at all. So an entry declaring no server matches a caller
+whatever server it declared, an entry declaring one matches only a caller
+declaring that same address, and a specific entry always beats a general one.
+
+Five findings report a table that will not do its job:
+`check.tier-without-models` for a rung the table lists no model for,
+`check.tiers-without-levels` for a table on a workbench declaring no tier axis,
+`check.requirements-without-table` for a workbench whose cards carry
+requirements and which declares no table at all,
+`check.model-listed-twice` for one entry listed under two rungs, keyed on the
+whole triple of provider, model and server, and `check.tiers-entry-malformed`
+for an entry the reader refused.
+
 ### Writing a tier relatively, and what lands on disk
 
 An override may be written as a departure from the column's own default, as
@@ -1953,12 +2017,35 @@ taken up in, which is the first of these that says anything:
 2. the card's own baseline `tier`;
 3. nothing, in which case the gate does not fire.
 
-The comparison is a floor rather than a match. A claim declaring a tier at or
-above what the card asks for is admitted, and only one declaring less is
+What the caller brings to that comparison is resolved rather than declared. The
+provider and the model the caller reported are matched against the workbench's
+own `tiers` table, and the rung that match sits at is what meets the floor.
+
+The comparison is a floor rather than a match. A caller resolving to a tier at
+or above what the card asks for is admitted, and only one resolving lower is
 refused, under `dinah.below-tier`. Somebody over-qualified taking a card is
-waste rather than an error, and the format has no view on waste. A claim
-declaring nothing at all, or declaring a name the workbench does not carry,
-cannot be shown to meet a floor and is refused wherever one applies.
+waste rather than an error, and the format has no view on waste. A caller whose
+provider and model the table lists nowhere is refused under
+`dinah.unlisted-model`, and one that declared no model at all is refused under
+`dinah.undeclared-model`. Those are three names rather than one because they
+lead to three different repairs: switch model, add the entry to the table, or
+configure the harness.
+
+A workbench that declares no `tiers` block refuses no claim on tier grounds at
+all, whatever its cards require and whatever any caller declares. The table is
+how a workbench asks for the gate, and a workbench that has not written one has
+not asked. It is not a grace period and it does not expire, and
+`check.requirements-without-table` is where such a workbench learns that its
+requirements refuse nobody.
+
+The gate carries one exemption, and it is the workbench's own operator, who is
+admitted at every tier whatever he declares. Without it the person at the
+terminal, who typically sets none of the four variables, could claim no tiered
+card at all. The exemption opens no hole an agent does not already have,
+because an agent that sets `DINAH_ACTOR` to the operator's name already holds
+every operator-reserved act: the comparison separates names rather than people.
+The order is therefore the card's requirement first, then the table's
+existence, then the exemption, then the caller's resolved tier.
 
 The card's side of that comparison is read the other way, and the asymmetry is
 deliberate rather than an oversight. Where the card asks for a tier the
@@ -1974,24 +2061,33 @@ repairs the workbench with.
 ### Selection: what next and pull withhold
 
 The gate above is not the only surface that reads a card's requirement.
-`next` and `pull` take the same `--tier` declaration a claim takes, and they
-answer with a card that declaration is admitted for rather than with the head
+`next` and `pull` resolve the caller's tier exactly as the claim does, and they
+answer with a card that resolved tier is admitted for rather than with the head
 of the queue. The comparison is the gate's own, read against the column the
 call would land the card in: the column being reported for `next`, the column
 a pull would carry the card into where the one it stands at takes no work up,
 and the resolved destination for `pull`. A requirement declared for a column
 further down the route withholds nothing here, because it is checked again at
-that column against whatever the caller who reaches it declares.
+that column against whatever the caller who reaches it resolves to.
+
+None of the three commands takes a declaration of its own any more. `claim`,
+`next` and `pull` each carried a `--tier` flag, and each now refuses it as an
+argument the command does not take, because a caller's tier is read off the
+table rather than taken on trust from the command line. `dinah raise` and
+`dinah column new` keep theirs, which write what a card or a column requires
+rather than declaring what a caller is.
 
 Selection adds no ordering of its own. It walks the arrival order and answers
 with the first card the declaration admits, so no caller's eligible run is
 reordered by what somebody else's card asks for.
 
-A queue holding ready work the declaration is admitted for none of gets a
-different answer from a queue holding nothing, and the two are published
-separately. `next` sets `above_tier` on that column's offer, and `pull`
-answers `answer.pull.above-tier.bare` or `answer.pull.above-tier.named` where
-an empty queue answers `answer.pull.empty.bare` or `answer.pull.empty.named`.
+A queue holding ready work the caller is admitted for none of gets a different
+answer from a queue holding nothing, and the two are published separately.
+`next` sets `above_tier` on that column's offer, beside `required_tier` and
+`satisfied_by`, which name the tier the withheld work requires and every entry
+of the table at or above it, cheapest rung first. `pull` answers
+`answer.pull.above-tier.bare` or `answer.pull.above-tier.named` where an empty
+queue answers `answer.pull.empty.bare` or `answer.pull.empty.named`.
 
 A pull carrying `--no-claim` takes nothing up, so no requirement the card
 carries can refuse it. The gate does not run for such a pull, and selection
@@ -2023,12 +2119,17 @@ requires.
 
 ### Three limits worth knowing before you rely on any of this
 
-**Dinah cannot verify a declared tier.** A workbench is files on a disk, with
-no server, no account system and no credential, so `--tier apex` is a claim
-the tool takes on trust rather than a capability it checks. The gate stops an
-honest claimant who has not noticed what the card asks for. It does nothing at
-all against a dishonest declaration, and no part of this design should be read
-as saying otherwise.
+**Dinah cannot verify a declared provider and model.** A workbench is files on
+a disk, with no server, no account system and no credential, so a caller
+reporting `anthropic` and `claude-opus-5` is making a claim the tool takes on
+trust rather than a capability it checks. What the tiers table changes is who
+does the reporting, and that is worth something: the declaration comes from the
+environment the harness set when it started the process rather than from the
+text that composed the command, so a prompt can no longer talk an agent into
+saying it is senior. The gate stops an honest claimant whose model the table
+does not list high enough. It does nothing at all against a caller that sets
+the variables to something else, and no part of this design should be read as
+saying otherwise.
 
 **A raise's reason is trusted prose.** Dinah checks that one was typed and
 stops there. It does not, and structurally cannot, check that the reason is
@@ -2157,17 +2258,67 @@ revision that sample declared.
 
 ## Actors and attribution
 
-Every journal event and comment carries an `actor`, a free string
-identifying who acted: a person's handle, an agent's name, a harness's
-session label. Actors are self-declared attribution, not authorization; the
-format has no account system, and honesty is enforced socially and by the
-journal being append-only, which is the same stance Andoneer takes with
-self-reported agent identity. The tool resolves the actor the same way it
-resolves language: per-invocation flag, then environment, then `actor:` in
-the user config, and it refuses to write an event with no actor rather than
-inventing one. One seat running many agents is therefore many actors in one
-workbench, and that is what makes the journal's story readable after the
-fact.
+Every journal event carries an `actor` object and every comment carries an
+`actor` string. Both name who acted: a person's handle, an agent's name, a
+harness's session label. Actors are self-declared attribution, not
+authorization; the format has no account system, and honesty is enforced
+socially and by the journal being append-only, which is the same stance
+Andoneer takes with self-reported agent identity. The tool resolves the name
+the same way it resolves language: per-invocation flag, then environment, then
+`actor:` in the user config, and it refuses to write an event with no actor
+rather than inventing one. One seat running many agents is therefore many
+actors in one workbench, and that is what makes the journal's story readable
+after the fact.
+
+A journal line's `actor` carries the name under `name` and, beside it, whatever
+the caller declared about what performed the act:
+
+```json
+{"ts":"2026-09-20T09:14:02Z","event":"claimed",
+ "actor":{"name":"claude",
+          "harness":"claude-code",
+          "gen_ai.provider.name":"anthropic",
+          "gen_ai.request.model":"claude-opus-5",
+          "server.address":"ollama.com"}}
+```
+
+The object carries five members and no others. `name` is written on every
+line. The other four carry `omitempty` and are written only where the caller
+declared them, and the three that name a model are spelled as OpenTelemetry
+spells the attributes they carry, full stops included, because a name this
+format cites from an external vocabulary is not one this format mints.
+
+An absent member is a fact nobody declared. Nothing is ever stamped with a
+literal `unknown`, because a workbench is free to run a provider named
+`unknown` and a magic value would collide with it. An object carrying `name`
+alone was written by a person at a terminal, by a harness that sets nothing, or
+by any build before storage format 5.
+
+A comment's own anchor carries an `actor` field of its own and it stays a
+string. A comment records who wrote a piece of prose; the act that wrote it is
+on the journal, where the record of what was acting belongs.
+
+The four facts are read from the environment at a terminal, under
+`DINAH_HARNESS`, `DINAH_PROVIDER`, `DINAH_MODEL` and `DINAH_SERVER`, and from
+the call's own properties over MCP, where a value the call names outranks the
+server process's environment member by member. There is no flag and no
+user-config rung for any of them, which is a narrower ladder than the one
+`DINAH_ACTOR` runs: the user config is one file shared by every process on the
+machine, so a model recorded there would be stamped on acts performed by
+something else entirely, and a flag would put the declaration on the same line
+as the act, where the text that composes the command chooses it.
+
+The harness name is one segment matching `^[a-z][a-z0-9]*(-[a-z0-9]+)*$`, which
+is one segment of the declared-field key grammar, because a later card forms
+the layer name `harness.<name>` from it and a layer name has to be a legal
+dotted name. A value outside that grammar is refused under
+`dinah.malformed-harness` rather than dropped, and the refusal reaches an act
+that writes a journal line and never a read: a mistyped variable that stopped
+`dinah show` and `dinah ls` would take the whole tool away from whoever has to
+repair it. `dinah whoami` is where a person meets it, reporting the value and
+saying it is malformed. The provider and the model are free strings, and no
+part of Dinah enumerates or pattern-matches either, because a provider that
+ships next month must not need a Dinah release.
 
 The tool nonetheless compares the actor it resolved against the operator the
 workbench records, and refuses a fixed set of acts by name when the two

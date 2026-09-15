@@ -289,6 +289,31 @@ type Offer struct {
 	// senior caller, where a reader of an empty offer carrying no flag knows
 	// there is nothing waiting on anyone yet.
 	AboveTier bool `json:"above_tier,omitempty"`
+	// RequiredTier is the tier the withheld work requires at the column the
+	// act would land it in, and SatisfiedBy is every entry of the workbench's
+	// table at or above that tier, in levels.tier order from the lowest
+	// satisfying rung upward, so the cheapest model that would do the work is
+	// first. Both are present only on an offer carrying AboveTier, because on
+	// any other offer there is nothing being withheld to explain.
+	RequiredTier string      `json:"required_tier,omitempty"`
+	SatisfiedBy  []ModelView `json:"satisfied_by,omitempty"`
+}
+
+// ModelView is one entry of a workbench's tier table as an offer carries it.
+type ModelView struct {
+	Provider string `json:"provider"`
+	Model    string `json:"model"`
+	Server   string `json:"server,omitempty"`
+}
+
+// modelViews renders the entries at or above one rung in the shape an offer
+// carries them.
+func modelViews(models []bench.TierModel) []ModelView {
+	views := make([]ModelView, 0, len(models))
+	for _, model := range models {
+		views = append(views, ModelView{Provider: model.Provider, Model: model.Model, Server: model.Server})
+	}
+	return views
 }
 
 // Next reports the card a column offers, and changes nothing. Offering a card
@@ -339,7 +364,7 @@ func (l *Library) Next(req *Request) ([]Offer, error) {
 			if byPull {
 				landing = beyond
 			}
-			head, hadReady := headOfReadyForTier(l.Bench, column.ID, landing, cards, selectionAdmission(req))
+			head, hadReady, withheld := headOfReadyForTier(l.Bench, column.ID, landing, cards, selectionAdmission(l.Bench, req))
 			switch {
 			case head != nil:
 				view, err := l.view(head)
@@ -350,6 +375,8 @@ func (l *Library) Next(req *Request) ([]Offer, error) {
 				offer.TakenByPull = byPull
 			case hadReady:
 				offer.AboveTier = true
+				offer.RequiredTier = withheld
+				offer.SatisfiedBy = modelViews(l.Bench.SatisfyingModels(withheld))
 			}
 		}
 		offers = append(offers, offer)
@@ -396,15 +423,25 @@ func (a admission) admits(b *bench.Bench, card *bench.Card, landing *bench.Colum
 // refuse, and would answer a caller that declared no tier that ready work
 // stands above one.
 //
-// A caller passing --no-claim and --tier together is therefore answered as a
-// caller passing neither. The declaration describes a claimant, and this
+// A caller passing --no-claim is therefore answered as a caller whose model
+// the gate never reads. What the caller is describes a claimant, and this
 // invocation does not claim.
 //
-// next carries no --no-claim of its own, so it always filters. What it reports
-// is what a claim or a claiming pull would take, which is the act the gate
-// governs.
-func selectionAdmission(req *Request) admission {
-	return admission{declared: req.Tier, filters: !req.NoClaim}
+// next carries no --no-claim of its own, so it filters wherever the gate does.
+// What it reports is what a claim or a claiming pull would take, which is the
+// act the gate governs.
+func selectionAdmission(b *bench.Bench, req *Request) admission {
+	resolved, _ := b.TierOf(req.Provider, req.Model, req.Server)
+	// The three exemptions the gate takes are taken here too, so the offer and
+	// the gate cannot disagree about a card. A pull carrying --no-claim takes
+	// nothing up. A workbench declaring no tiers block refuses no claim on
+	// tier grounds. The operator is admitted at every tier whatever he
+	// declares.
+	filters := !req.NoClaim && b.DeclaresTierTable()
+	if req.Actor != "" && req.Actor == b.Operator {
+		filters = false
+	}
+	return admission{declared: resolved, filters: filters}
 }
 
 // headOfReadyForTier returns the card pull (or next) would take from the
@@ -431,15 +468,21 @@ func selectionAdmission(req *Request) admission {
 //
 // hadReady says whether the column held any ready card at all, admitted or
 // not, and it is what lets a caller tell a queue with nothing in it from a
-// queue whose work stands above the tier the caller declared. Those are
+// queue whose work stands above the tier the caller resolved to. Those are
 // different answers to a reader deciding what to do next, so nothing here
 // collapses them into a nil card.
+//
+// The third answer is the tier the first withheld card requires at the landing
+// column, which is what an offer and a refusal name so that a caller reads the
+// obstacle rather than deriving it. It is the first in arrival order rather
+// than the highest, because that is the card the caller would have been handed
+// had it resolved high enough.
 //
 // The declaration is self-reported and nothing verifies it, exactly as it is
 // on a claim. This filters what a caller is shown; it establishes nothing
 // about the caller. Where the act being selected for is one no requirement can
 // refuse, by carries no filter and every ready card is eligible.
-func headOfReadyForTier(b *bench.Bench, columnID string, landing *bench.Column, cards []*bench.Card, by admission) (*bench.Card, bool) {
+func headOfReadyForTier(b *bench.Bench, columnID string, landing *bench.Column, cards []*bench.Card, by admission) (*bench.Card, bool, string) {
 	var ready []*bench.Card
 	for _, card := range cards {
 		if card.Column == columnID && card.State == contract.StateReady {
@@ -447,15 +490,19 @@ func headOfReadyForTier(b *bench.Bench, columnID string, landing *bench.Column, 
 		}
 	}
 	if len(ready) == 0 {
-		return nil, false
+		return nil, false, ""
 	}
 	sortByArrival(ready)
+	withheld := ""
 	for _, card := range ready {
 		if by.admits(b, card, landing) {
-			return card, true
+			return card, true, ""
+		}
+		if withheld == "" {
+			withheld = card.RequiredTier(b, landing)
 		}
 	}
-	return nil, true
+	return nil, true, withheld
 }
 
 // Detail is a card and everything below it a reader asked to see.
@@ -1450,7 +1497,9 @@ func (l *Library) Instructions(req *Request) (*Served, error) {
 	return served, nil
 }
 
-// Identity is who the actor is and whether that owner is the operator.
+// Identity is who the actor is, whether that owner is the operator, what the
+// caller declared about what is performing the act, and the rung the
+// workbench's table resolves that declaration to.
 type Identity struct {
 	// Actor is the owner the ladder produced.
 	Actor string `json:"actor"`
@@ -1458,17 +1507,44 @@ type Identity struct {
 	IsOperator bool `json:"is_operator"`
 	// Operator is the owner reserved acts belong to.
 	Operator string `json:"operator,omitempty"`
+	// Harness, Provider, Model and Server are what the caller declared, each
+	// absent where it declared nothing.
+	Harness  string `json:"harness,omitempty"`
+	Provider string `json:"provider,omitempty"`
+	Model    string `json:"model,omitempty"`
+	Server   string `json:"server,omitempty"`
+	// MalformedHarness says the declared harness name is outside the grammar
+	// one segment of a declared field key matches. The value is still reported
+	// under Harness, because a person repairing a mistyped variable needs to
+	// see what it says, and this is what tells them it is not being read as a
+	// harness. A read is never refused over it, so whoami is where a person
+	// meets it.
+	MalformedHarness bool `json:"malformed_harness,omitempty"`
+	// Tier is the rung the workbench's table resolved for this provider and
+	// model. It is absent where the workbench declares no table, where it
+	// declares no tier axis, and where the table lists neither this model nor
+	// this model at this server.
+	Tier string `json:"tier,omitempty"`
 }
 
-// Whoami reports the resolved actor and whether it is the operator.
+// Whoami reports the resolved actor, whether it is the operator, what the
+// caller declared about what is performing the act, and the tier that
+// declaration resolves to.
 func (l *Library) Whoami(req *Request) (*Identity, error) {
 	if req.Actor == "" {
 		return nil, contract.Refuse(contract.NoOwner, "")
 	}
+	tier, _ := l.Bench.TierOf(req.Provider, req.Model, req.Server)
 	identity := &Identity{
-		Actor:      req.Actor,
-		IsOperator: req.Actor == l.Bench.Operator,
-		Operator:   l.Bench.Operator,
+		Actor:            req.Actor,
+		IsOperator:       req.Actor == l.Bench.Operator,
+		Operator:         l.Bench.Operator,
+		Harness:          req.Harness,
+		Provider:         req.Provider,
+		Model:            req.Model,
+		Server:           req.Server,
+		MalformedHarness: req.Harness != "" && !bench.HarnessName(req.Harness),
+		Tier:             tier,
 	}
 	return identity, nil
 }
@@ -1595,6 +1671,13 @@ type CheckReport struct {
 // loses that account the same way the run it is reporting on must not.
 func (l *Library) Check(req *Request) (*CheckReport, error) {
 	report := &CheckReport{}
+	// A bare check reads and repairs nothing, and a read is never refused over
+	// a malformed harness name. A check carrying a repair marker writes, and
+	// several of the repairs write journal lines, so the refusal reaches those
+	// runs on the same rule every other writing act is held to.
+	if req != nil && req.Repairs() && req.Harness != "" && !bench.HarnessName(req.Harness) {
+		return report, contract.Refuse(contract.MalformedHarness, req.Harness)
+	}
 	if req != nil && req.MigrateSlugs {
 		assigned, reported := l.Bench.BackfillColumnSlugs()
 		report.MigratedSlugs = true
@@ -1775,7 +1858,7 @@ func (l *Library) adoptWorkstreams(req *Request) ([]string, error) {
 		if err != nil {
 			return adopted, err
 		}
-		ev := bench.Event{TS: now, Event: contract.EventCreated, Actor: req.Actor}
+		ev := bench.Event{TS: now, Event: contract.EventCreated, Actor: req.Acting()}
 		if err := bench.AppendEvent(workstream.JournalPath(), ev); err != nil {
 			return adopted, err
 		}

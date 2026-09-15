@@ -402,7 +402,7 @@ const CONTRACT_EVENTS: readonly string[] = [
 
 /** Fills the skeleton every journal line carries, so a fixture names only its own fields. */
 function event(fields: Partial<JournalEvent> & { event: string }): JournalEvent {
-	return { ts: "2026-09-08T10:00:00Z", actor: "paul", ...fields };
+	return { ts: "2026-09-08T10:00:00Z", actor: { name: "paul" }, ...fields };
 }
 
 test("the render table names exactly the events the contract declares", () => {
@@ -459,7 +459,7 @@ test("events render one line each, in the order they arrive", () => {
 	const rendered = renderHistoryMarkdown(
 		[
 			event({ event: "claimed", ts: "2026-09-08T12:00:00Z" }),
-			event({ event: "released", ts: "2026-09-08T09:00:00Z", actor: "ana" }),
+			event({ event: "released", ts: "2026-09-08T09:00:00Z", actor: { name: "ana" } }),
 		],
 		ENGLISH,
 	);
