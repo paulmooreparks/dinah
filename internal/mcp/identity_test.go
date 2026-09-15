@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"dinah/internal/bench"
+	"dinah/internal/contract"
 	"dinah/internal/verb"
 )
 
@@ -105,4 +106,38 @@ func claimedEvents(t *testing.T, library *verb.Library) []bench.Event {
 		}
 	}
 	return claimed
+}
+
+// TestAMalformedHarnessOnACallRefusesTheWrite drives the MCP half of
+// dinah-496's harness criterion, whose terminal half sits in cmd/dinah. A name
+// outside the one-segment grammar, sent on the call rather than set in the
+// environment, refuses the act that would write a journal line, and the same
+// call under a legal name is admitted.
+func TestAMalformedHarnessOnACallRefusesTheWrite(t *testing.T) {
+	t.Setenv("DINAH_HARNESS", "")
+	legal := newLibrary(t)
+	admitted := ask(t, legal, callLine(t, 1, "claim", map[string]any{
+		"actor": "alka", "card": "fx-1", "harness": "claude-code",
+	}))
+	if admitted.Error != nil {
+		t.Fatalf("a claim under a legal harness name: %+v", admitted.Error)
+	}
+	if outcome, _ := payload(t, admitted)["outcome"].(string); outcome != "ok" {
+		t.Errorf("a claim under a legal harness name answered %q, wanted ok", outcome)
+	}
+
+	refusing := newLibrary(t)
+	refused := ask(t, refusing, callLine(t, 2, "claim", map[string]any{
+		"actor": "alka", "card": "fx-1", "harness": "Claude Code",
+	}))
+	if refused.Error != nil {
+		t.Fatalf("a claim under a malformed harness name: %+v", refused.Error)
+	}
+	answer := payload(t, refused)
+	if outcome, _ := answer["outcome"].(string); outcome != "refused" {
+		t.Fatalf("a claim under a malformed harness name answered %q, wanted refused: %+v", outcome, answer)
+	}
+	if name, _ := answer["refusal"].(string); name != contract.MalformedHarness {
+		t.Errorf("the refusal name is %q, wanted %s", name, contract.MalformedHarness)
+	}
 }
