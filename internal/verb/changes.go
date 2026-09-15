@@ -29,6 +29,14 @@ type ChangeSet struct {
 	// Gone reports what left, one entry per archived or deleted event after
 	// the cursor's position. Read Kind before assuming an entry is a card.
 	Gone []GoneEntity `json:"gone,omitempty"`
+	// Columns are the live columns this call has a reason to report, as they
+	// now stand. A column carries no journal, so a call has evidence that
+	// the column half moved and no evidence of which column moved it, and
+	// the member therefore carries the whole flow whenever the column term
+	// moved and nothing when it did not. The flow is a small fixed set, so
+	// reporting all of it costs one anchor read per column rather than the
+	// read of every card anchor that a truthful occupancy would cost.
+	Columns []ColumnChange `json:"columns,omitempty"`
 	// Unreadable names the entities whose journals this call could not
 	// parse, whose events are therefore absent from this answer. It reports
 	// what this walk hit rather than the health of the bench, since a call
@@ -76,6 +84,27 @@ type GoneEntity struct {
 	Fate string `json:"fate"`
 }
 
+// ColumnChange is one column a checkpoint reports as moved. It is the
+// column's identity and the one fact the move is usually about, and it
+// deliberately carries no occupancy, because counting cards is the read the
+// column digest term exists to avoid.
+type ColumnChange struct {
+	// ID is the column's identifier.
+	ID string `json:"id"`
+	// Slug is the column's short handle, absent where the column carries none.
+	Slug string `json:"slug,omitempty"`
+	// Title is the column's title as it now stands.
+	Title string `json:"title"`
+	// HoldsOnEntry reports whether an item naming this column can hold a
+	// card entering it. It is Column.HoldsOnEntry, published rather than
+	// derived, because Column.Hold's own comment directs a reader to those
+	// two rather than to a comparison against the raw string.
+	HoldsOnEntry bool `json:"holds_on_entry"`
+	// HoldsOnExit reports whether an item naming this column can hold a card
+	// leaving it.
+	HoldsOnExit bool `json:"holds_on_exit"`
+}
+
 // The scopes a change event names, which say which journal the line was read
 // from rather than what the line is about.
 const (
@@ -110,11 +139,11 @@ var archiveEvents = map[string]bool{
 
 // cursorVersion is the shape number the token carries, so a token minted by a
 // later shape is refused by an earlier binary rather than misread by it.
-const cursorVersion = 2
+const cursorVersion = 3
 
 // cursor is what a caller hands back, rendered as base64url of this object.
 //
-// The two digest terms answer "did anything change" against file bytes. What
+// The three digest terms answer "did anything change" against file bytes. What
 // the caller has already been told is a boundary second plus a frontier
 // within it, and the shape is chosen because the merged order is not monotone
 // with arrival.
@@ -155,6 +184,11 @@ type cursor struct {
 	Workbench string `json:"workbench"`
 	Live      string `json:"live"`
 	Archive   string `json:"archive"`
+	// Columns is the term over every live column's anchor. It is separate
+	// from Live because a column has no journal, so a column edit that
+	// moved the live term would deliver no line to explain it and would
+	// resync every card on the board.
+	Columns string `json:"columns"`
 	// TS is the boundary second: the stored stamp of the newest line this
 	// cursor covers. Empty on a cursor that covers nothing.
 	TS string `json:"ts,omitempty"`
@@ -185,7 +219,7 @@ func decodeCursor(token string) (cursor, error) {
 	if err := json.Unmarshal(raw, &read); err != nil {
 		return cursor{}, contract.Refuse(contract.Malformed, token)
 	}
-	if read.Version != cursorVersion || read.Live == "" || read.Archive == "" {
+	if read.Version != cursorVersion || read.Live == "" || read.Archive == "" || read.Columns == "" {
 		return cursor{}, contract.Refuse(contract.Malformed, token)
 	}
 	return read, nil
@@ -289,7 +323,7 @@ func (c cursor) coverThrough(delivered []position) cursor {
 // expired claim the way the other reads of the bench do: reporting a card as
 // stored is the honest answer from a call that is not allowed to change it.
 func (l *Library) Changes(req *Request) (*ChangeSet, error) {
-	live, archive, err := l.Bench.WatchedEntities()
+	live, archive, columns, err := l.Bench.WatchedEntities()
 	if err != nil {
 		return nil, err
 	}
@@ -298,6 +332,7 @@ func (l *Library) Changes(req *Request) (*ChangeSet, error) {
 		Workbench: l.Bench.Slug,
 		Live:      bench.Digest(live),
 		Archive:   bench.Digest(archive),
+		Columns:   bench.Digest(columns),
 	}
 	// The cursor is read before the two filters, which is the order the
 	// command's own check list declares: a call carrying a bad token is not a
@@ -322,7 +357,7 @@ func (l *Library) Changes(req *Request) (*ChangeSet, error) {
 	if minting {
 		return l.mintedChangeSet(terms, live, archive)
 	}
-	if held.Live == terms.Live && held.Archive == terms.Archive {
+	if held.Live == terms.Live && held.Archive == terms.Archive && held.Columns == terms.Columns {
 		// The token comes back byte for byte rather than re-encoded, so a
 		// caller comparing two answers compares tokens without decoding one.
 		return &ChangeSet{Cursor: req.Since, Changed: false, Affordances: l.changeAffordances()}, nil
@@ -457,6 +492,9 @@ func (l *Library) changedSince(held, terms cursor, live, archive []bench.Watched
 
 	answer := &ChangeSet{Cursor: token, Changed: true, Affordances: l.changeAffordances()}
 	answer.Gone = l.goneFrom(delivered, wantedCard, wantedColumn)
+	if held.Columns != terms.Columns {
+		answer.Columns = l.columnChanges()
+	}
 	// Evidence is counted across every entity the walk delivered, not only
 	// across cards. A workbench field rewrite, a workstream act, a deletion
 	// and a completed archiving each move the live term and each is a
@@ -490,6 +528,14 @@ func (l *Library) changedSince(held, terms cursor, live, archive []bench.Watched
 // the corruption rather than reporting it forever.
 func readHalf(entries []bench.Watched, held cursor, only map[string]bool) (delivered []position, unreadable []string) {
 	for _, entry := range entries {
+		// An entity carrying no journal is skipped on the empty string
+		// rather than on the error reading an empty path gives, which is a
+		// fact about the struct rather than about an errno. A column is the
+		// entity that reaches this, and reading its absence as corruption
+		// would name it unreadable on every call.
+		if entry.Journal == "" {
+			continue
+		}
 		events, _, err := bench.ReadJournal(entry.Journal)
 		if err != nil {
 			unreadable = append(unreadable, entry.Key)
@@ -623,6 +669,36 @@ func (l *Library) changedCards(delivered []position, unreadable []string, live [
 		views = append(views, view)
 	}
 	return views, nil
+}
+
+// columnChanges reports the flow as it now stands, for a call whose column
+// term moved.
+//
+// It answers every live column rather than the one that moved, and that is
+// forced rather than chosen. A column has no journal, so no line names the
+// column an edit touched, and the cursor carries one term over the whole
+// column half rather than a revision per column, so there is nothing to
+// compare a single column against. This is changedCards' own unexplained
+// case, reached every time instead of rarely, and it is affordable here for
+// the reason that case is expensive there: the flow is a handful of anchors
+// the bench has already read, while the cards are the board.
+//
+// Nothing here reads a card. The entry carries the column's identity and
+// which way it holds, and no occupancy, because tallying cards per column is
+// a full read of every card anchor and that read is the cost the column
+// digest term exists to avoid.
+func (l *Library) columnChanges() []ColumnChange {
+	var changes []ColumnChange
+	for _, column := range l.Bench.Columns {
+		changes = append(changes, ColumnChange{
+			ID:           column.ID,
+			Slug:         column.Slug,
+			Title:        column.Title,
+			HoldsOnEntry: column.HoldsOnEntry(),
+			HoldsOnExit:  column.HoldsOnExit(),
+		})
+	}
+	return changes
 }
 
 // goneFrom derives what left from the events this call delivered, never from

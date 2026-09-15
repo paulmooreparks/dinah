@@ -994,7 +994,7 @@ The same card carries the same class away from any menu. `ordinalCollections` ap
 
 **The test:** for any rule that selects members of a set, ask what produces a member, and write the population by calling that thing rather than by listing what you expect it to return. Assert the population's size, so a member added later is somebody's problem before it is nobody's. Where two candidate rules are both plausible, find the member that separates them and assert it by name, because every other member passes both. A criterion that describes the population in words, such as "each of the suffixes the code emits", is the tell: the words were written after the rule, and they select what the rule already matches.
 
-**Related:** "A zero-spawn assertion whose driver was never answered far enough to spawn" is the same failure sitting in the driver rather than in the population. "A refusal that any value satisfies is not a refusal" is the degenerate case, where the population is the whole input space and the rule accepts all of it.
+**Related:** "A zero-spawn assertion whose driver was never answered far enough to spawn" is the same failure sitting in the driver rather than in the population. "An invariant asserted from one side only", in `convention-counterexamples-1.md`, is the degenerate case, where the population is the whole input space and the rule accepts all of it.
 
 ## A derived figure copied into a contract, where the command that derived it would have kept
 
@@ -1071,3 +1071,130 @@ frozen := readShape(t, sampleFixture(t)).members
 **The test:** before writing a fixture, a walker or an exemption list for a guard, grep the guard's own package for the thing it is about. Where a fixture already exists with a test holding it to a declared vocabulary, that test is a coverage alarm you inherit for free and your own fixture has none. Then ask what each half of the union can and cannot carry, and say it in the doc comment, because a frozen capture cannot carry a shape invented after it and a live run reaches only the acts somebody wrote down. Assert the count of what was walked; a guard that reads nine of thirty-five reports success exactly as one that reads all of them.
 
 **Related:** "A rule over a set, tested against the members its author had in mind", above, is the same failure in the population of a rule rather than in the driver of a check. "A guard reported absent after a run bounded to the packages the change touched", in `convention-counterexamples-2.md`, is the bound arriving from the run rather than from the fixture. "A source-walking guard rooted at the package's parent while its claim names the tree", in the same file, is this one level up, where the reach shortfall is in what the walk is rooted at.
+
+## A test that edits the state it is watching before the watch has taken its baseline
+
+**Wrong:** driving a change checkpoint from a test that makes the change first. On dinah-515 four tests in `internal/lsp/live_test.go` opened a document, edited the workbench, and then drove one turn of the poll loop, expecting the loop to report what had been edited. The loop's first walk mints a cursor and reports nothing, which is what a first checkpoint is specified to do, and that walk starts on a goroutine the `initialize` handler launches. So which happened first, the mint or the edit, was a race between that goroutine and the test. When the goroutine won, everything behaved as the tests assumed. When the test won, the edit was folded into the baseline and never reported, and the tick driven afterwards found nothing changed. All four passed on Windows and on macOS through a whole implementation cycle and a whole review cycle, and the ubuntu job went red on one of them with "the server sent 0 dinah/annotationsChanged, wanted 1" only after unrelated tests were added ahead of them in the same package. Nothing about the test's own source says an order is being assumed: every line is sequential, and the thing running out of order is not in the file.
+
+**Right:** drive one whole turn of the watch before touching the state, so the baseline is taken at a point the test chose. A named seam is worth more than an inline call here, because the reason belongs in one place rather than at each site: `ticker.baseline(t)` does what `step` does and carries the paragraph explaining what a first checkpoint answers. Arm the fix by making the race a certainty rather than by running the test more times. Delaying the poll loop's first walk by a few hundred milliseconds turns the losing order into the only order, and with the baseline calls removed under that delay three of the four tests reddened, one of them reproducing the continuous-integration message word for word.
+
+**Related:** "An arming claim whose fixture leaves the deciding order to a random identifier", in `convention-counterexamples-1.md`, is the same class pointed the other way. There the falsification depended on an order the fixture did not choose, so the arming evidence was a coin toss; here the passing run depends on an order the test did not choose, so the guard is a coin toss. The shared rule is that a fixture whose outcome turns on an ordering chooses that ordering. The tell peculiar to this direction is concurrency the test never names: a goroutine somebody else's constructor started, a watcher, a background flush. Ask what has already run by the time the first assertion is reached, and where the answer is "it depends", make the test decide.
+
+## A test whose expected value is computed by the code it is meant to be checking
+
+Caught at Test on dinah-515, 2026-09-15, on two of twenty-seven criteria, and a third instance found by the implementer while sweeping the rest of the card for the same shape. All three guarded behaviour that was correct, and all three stayed green against a build where it was not. The corpus already holds "A test asserting the value the write happened to produce, where the write was the defect", which is the same failure reached by hand-writing the wrong expected form. This entry is the mechanical route to it, where nobody wrote an expectation at all.
+
+**Wrong:** a test that reads its expectation out of the production symbol it is asserting about. The completion cap is stated as two hundred in the contract, and `TestCardCompletionIsCappedAndSaysSo` never wrote that number. It grew its fixture with `for len(cards) <= completionCap` and asserted `len(answer.Items) == completionCap`, so both halves moved with the constant. Test changed `completionCap` to 500 and the test passed, obligingly growing the fixture to 501 cards on the way. The same shape reaches the round trip: every location assertion in `internal/lsp` composed its expectation with `fileURI` and read the reply back with `uriPath`, so a pair that was wrong and mutually inverse, one dropping the scheme or mangling a drive letter, left them all green while no link the editor received could be opened. A build with both halves broken was planted and `TestTheFourStandardHandlersAnswerContent` passed against it.
+
+**Right:** write the number, or the string, that the contract states. Where the production symbol should equal it, pin that separately, in its own assertion with its own message, and let the behaviour assertions run against the test's own value rather than the code's. On dinah-515 that meant `const contractCap = 200` beside a check that `completionCap` equals it, with the three fixture assertions counting against `contractCap`. For the round trip it meant one test that names neither helper on the expected side and spells the composed URI out, `file:///tmp/a%20b/card.md` for a path with a space in it, with the reading half given literal URIs rather than the output of the composing half.
+
+**The test:** for every assertion, ask whether it would still fail if the behaviour it names were wrong but the code it reads were self-consistent. A count compared against `len(fixture)` where the fixture is the test's own hand-written table passes that question, because nothing under test wrote the table. A count compared against a production constant fails it. A value composed by a helper from the package under test fails it, and it fails it twice over where the same package also reads the value back, since an inverse pair of mistakes cancels. The tell is that the expected side of the comparison names a symbol the diff could change.
+
+**Related:** the workbench discipline "Where a check sweeps a set, assert how big the set was", whose remedy this entry borrows. A set the test itself writes still wants its size pinned, because a later edit that drops a row moves the expectation with it. Two further instances on the same card took that one-line fix, one on a list of five annotated kinds and one on a four-row quiet half.
+
+## A guard that parses the construct and then matches an identifier's name inside it
+
+Caught at Agent Code Review on dinah-515, 2026-09-15, in the repair of an
+earlier finding rather than in the shipped behaviour. The corpus already holds
+"A guard that reads source text reads one spelling of the thing it is
+guarding", whose remedy is to parse the construct instead of matching text.
+This entry is where that remedy is followed one step and stopped: the guard
+parses, walks a real syntax tree, reaches the right node, and then asks what
+the node's identifier is called. Everything a compiler would answer about that
+identifier goes unasked, so the guard covers the spelling its author had in
+front of him and nothing else. The failure is harder to see than the text one,
+because the code around it is structural and reads as though the question had
+been settled.
+
+**Wrong:** a sweep that enters its check only for two literal identifier
+names. `TestNoStringLiteralReachesTheEditorsOwnChannels` in `internal/lsp`
+walked every `conn.notify` call in the package and tested the method argument
+with `call.Args[0].(*ast.Ident)`, admitting it only when `Name` read
+`methodLogMessage` or `methodShowMessage`. Any other spelling returned without
+a report, and, worse, without incrementing the count, so the sweep-size
+assertion did not catch it either. Two routes were written against the shipped
+code and both compiled clean and both passed the guard. The first writes the
+method as the protocol URI and assembles the payload field by field:
+
+```go
+func (s *Server) hostileA() error {
+	var payload logMessageParams
+	payload.Type = messageTypeWarning
+	payload.Message = "the walk is running slowly and nobody translated this"
+	return s.conn.notify("window/logMessage", payload)
+}
+```
+
+The second holds the method in a package-level variable and returns the
+payload from a helper, so no composite literal is written anywhere:
+
+```go
+var aliasMethod = methodShowMessage
+
+func (s *Server) hostileB() error { return s.conn.notify(aliasMethod, s.hostilePayload()) }
+```
+
+An untranslated English sentence reached `window/logMessage` under the first
+and `window/showMessage` under the second, and the guard reported success both
+times. The same file held the miniature: a helper answering whether an
+expression came from the message catalogue accepted any call through a
+selector named `T`, so any type at all could satisfy it by declaring a method
+of that name.
+
+**Right:** type-check the package and ask what each expression denotes.
+`go/types` is in the standard library and a package's own sources can be
+checked with `importer.ForCompiler(fileset, "source", nil)`, which cost 2.7
+seconds here on ten files. The method argument is then read with
+`info.Types[expr].Value`, which folds an identifier, a local `const` alias, a
+concatenation of constants and the literal URI to one string, and the two
+person-facing methods are resolved once at their own declaration through
+`pkg.Scope().Lookup("methodLogMessage")` so that every call site is compared
+by value. The catalogue helper resolves through `info.Selections`, comparing
+the selected object's `FullName()` against `(*dinah/internal/msg.Renderer).T`,
+which a lookalike method on another type cannot satisfy. The composite literal
+is recognised by `types.Identical` against the payload type rather than by the
+type name written at the site, and its Message member is found either by a key
+whose `info.Uses` entry is the field itself or, where the literal is
+positional, by the field's own index in the struct.
+
+**Where the repaired guard still cannot see, said in the guard:** a method
+argument the compiler cannot fold to a constant, which is what a variable
+holding the method gives, and a payload that is not a composite literal at the
+call site, which is what assembling one field by field gives. Neither is
+resolved and neither is passed over. Each is reported with its file and line,
+in a message saying that the scan cannot read it, and the doc comment says
+which two shapes those are and that what the guard proves about them is that
+they exist rather than what they say. That is the workbench rule about saying
+where a guard cannot see, met at the place somebody meets the guard.
+
+**The test:** having parsed the construct, read every comparison the guard
+makes inside it and ask of each whether it compares a name or a value. A
+comparison against a string that happens to be a Go identifier is the tell,
+and it is a tell whether the identifier belongs to a constant, a type, a field
+or a method. Then arm the repair against spellings nobody has used yet, and
+three are enough to separate a fix from a widening: the shape the reviewer
+wrote, a second shape that reaches the same channel by a different route, and
+one the repair was not designed around. The third is what settles it. Here it
+was a local `const chatter = "window/" + "showMessage"` handed a payload a
+helper assembled into a variable, and the name-matching guard answered `ok`
+against it while the resolving guard folded the concatenation to
+`window/showMessage` and named the call, the unreadable payload and both
+counts. A fourth spelling is worth recording because it failed in a way that
+looks like success: a positional `logMessageParams{messageTypeWarning, "..."}`
+did redden the name-matching guard, but on `builds a message payload carrying
+no Message member`, which is the wrong defect, since the member was there and
+the guard could only read keyed elements. A guard reporting the wrong reason
+is not evidence that it saw the thing. Pin the accepting case beside the
+refusing ones, since a guard that refuses everything passes a criterion about
+refusal. A legitimate catalogue call reached through a local variable holding
+the renderer still passes the repaired guard, with only the sweep-size
+assertions firing on the extra notification.
+
+**Related:** "A guard that reads source text reads one spelling of the thing
+it is guarding", in `convention-counterexamples-2.md`, is this entry one level
+down, and the two together say that parsing is the direction of the remedy
+rather than the whole of it. "A source guard matching the spelling of the
+lookup that is there, saying nothing about the lookup that is not" is the
+neighbour on exclusivity, and its bounds paragraph is the model for the
+saying-where-it-cannot-see clause above. The workbench discipline "A guard
+widened by example fits only its examples" is what the third spelling is for.

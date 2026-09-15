@@ -68,6 +68,25 @@ export const SETTING_WATCH_FILES = "dinah.watchFiles";
 /** The settings key a reader turns MCP registration off with. */
 export const SETTING_REGISTER_MCP = "dinah.registerMcpServer";
 
+/** The settings key a reader turns the language server off with. */
+export const SETTING_LSP_ENABLED = "dinah.lsp.enabled";
+
+/**
+ * The settings key that draws the inline annotation in prose as well as in
+ * front matter. The server reads it, because the server decides what an
+ * annotation says.
+ */
+export const SETTING_LSP_ANNOTATE_PROSE = "dinah.lsp.annotateProse";
+
+/**
+ * The settings key holding how often the language server rereads the
+ * workbench. The server reads this one too, for the same reason.
+ */
+export const SETTING_LSP_POLL_INTERVAL = "dinah.lsp.pollIntervalSeconds";
+
+/** The settings key that traces the language server's own wire. */
+export const SETTING_LSP_TRACE = "dinah.lsp.trace.server";
+
 /** The view title bar's refresh command. */
 export const COMMAND_REFRESH = "dinah.tree.refresh";
 

@@ -13,6 +13,9 @@
 // implementation that adds a seventh key and drops a ninth, reaching the same
 // number by substitution, so the keys this card moves are named one at a time
 // beside the counts.
+//
+// dinah-515 adds the fifth test, on the same reasoning, for the four settings
+// the language server contributes.
 
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -61,6 +64,14 @@ const RUNTIME_REMOVED: readonly string[] = [
 /** The one manifest key dinah-519 adds, for the comment row's one command. */
 const MANIFEST_ADDED = "manifest.command.dinah.tree.openComment.title";
 
+/** The four manifest keys dinah-515 adds, one per language-server setting. */
+const MANIFEST_ADDED_515: readonly string[] = [
+	"manifest.configuration.dinah.lsp.enabled.markdownDescription",
+	"manifest.configuration.dinah.lsp.annotateProse.markdownDescription",
+	"manifest.configuration.dinah.lsp.pollIntervalSeconds.markdownDescription",
+	"manifest.configuration.dinah.lsp.trace.server.markdownDescription",
+];
+
 function runtimeKeys(): Set<string> {
 	const catalogue = JSON.parse(
 		readFileSync(join(extensionRoot, "src", "locales", "en.json"), "utf8"),
@@ -81,13 +92,15 @@ test("the English runtime catalogue carries exactly 191 entries", () => {
 	//
 	// 192 before dinah-519, less its eight removals, plus its six additions,
 	// plus the one skip reason dinah-518 adds for a row that names no column.
+	// dinah-515 adds no runtime key, its four strings being manifest ones.
 	assert.equal(runtimeKeys().size, 191);
 });
 
-test("the base manifest catalogue carries exactly 53 keys", () => {
-	// 51 before dinah-519, plus the one command a comment row contributes and
-	// the one dinah-518 puts on a column row.
-	assert.equal(manifestKeys().size, 53);
+test("the base manifest catalogue carries exactly 57 keys", () => {
+	// 51 before dinah-519, plus the one command its comment row contributes,
+	// the one command dinah-518 puts on a column row, and the four settings
+	// dinah-515's language server contributes.
+	assert.equal(manifestKeys().size, 57);
 });
 
 test("the six runtime keys dinah-519 adds are present and its eight removals are gone", () => {
@@ -110,5 +123,15 @@ test("the one manifest key dinah-519 adds is present", () => {
 	assert.ok(
 		manifestKeys().has(MANIFEST_ADDED),
 		`${MANIFEST_ADDED} is what titles the comment row's one command`,
+	);
+});
+
+test("the four manifest keys dinah-515 adds are present", () => {
+	const keys = manifestKeys();
+	assert.equal(MANIFEST_ADDED_515.length, 4);
+	assert.deepEqual(
+		MANIFEST_ADDED_515.filter((key) => !keys.has(key)),
+		[],
+		"each key above describes one of the language server's settings",
 	);
 });

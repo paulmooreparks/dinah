@@ -22,7 +22,8 @@
   "main": "./dist/extension.js",
   "activationEvents": [
     "workspaceContains:**/workbench.md",
-    "onView:dinah.workbenchView"
+    "onView:dinah.workbenchView",
+    "onLanguage:markdown"
   ],
   "contributes": {
     "viewsContainers": {
@@ -535,6 +536,36 @@
           "default": true,
           "scope": "window",
           "markdownDescription": "%manifest.configuration.dinah.registerMcpServer.markdownDescription%"
+        },
+        "dinah.lsp.enabled": {
+          "type": "boolean",
+          "default": true,
+          "scope": "window",
+          "markdownDescription": "%manifest.configuration.dinah.lsp.enabled.markdownDescription%"
+        },
+        "dinah.lsp.annotateProse": {
+          "type": "boolean",
+          "default": false,
+          "scope": "resource",
+          "markdownDescription": "%manifest.configuration.dinah.lsp.annotateProse.markdownDescription%"
+        },
+        "dinah.lsp.pollIntervalSeconds": {
+          "type": "integer",
+          "default": 2,
+          "minimum": 1,
+          "scope": "resource",
+          "markdownDescription": "%manifest.configuration.dinah.lsp.pollIntervalSeconds.markdownDescription%"
+        },
+        "dinah.lsp.trace.server": {
+          "type": "string",
+          "enum": [
+            "off",
+            "messages",
+            "verbose"
+          ],
+          "default": "off",
+          "scope": "window",
+          "markdownDescription": "%manifest.configuration.dinah.lsp.trace.server.markdownDescription%"
         }
       }
     },
@@ -577,6 +608,9 @@
     "package": "npm run check-types && npm run lint && npm run compile && node scripts/package.mjs",
     "verify-package": "node scripts/verify-package.mjs",
     "vscode:prepublish": "npm run compile"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",

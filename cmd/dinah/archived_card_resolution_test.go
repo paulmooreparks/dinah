@@ -172,9 +172,9 @@ var archivedResolutionFamilies = []resolutionFamily{
 	{
 		name: "C", axis: "reading",
 		what:      "reading a card's number field: every mention of Number in a selector expression",
-		files:     6,
-		mentions:  29,
-		functions: 10,
+		files:     7,
+		mentions:  32,
+		functions: 11,
 		sites: []resolutionSite{
 			{"internal/bench/blockjson.go", "jsonNumber", 1, "a false positive recognised by name: the selector is the type json.Number, and telling it apart would mean running go/types over the tree to remove one row"},
 			{"internal/bench/card.go", "Ref", 2, "composes the human reference, which is why family E exists"},
@@ -186,6 +186,7 @@ var archivedResolutionFamilies = []resolutionFamily{
 			{"internal/bench/numbers.go", "LoadNumberRegistry", 6, "the registry loader, which reads each line's number into the two indexes and the high-water mark; the registry is this file's whole subject"},
 			{"internal/bench/numbers.go", "readNumbers", 3, "the below-format synthesis, which reads a stamped card's number into the by-number index so resolution keeps answering over a workbench the migration has not reached"},
 			{"internal/verb/beyond.go", "tombstoneNumber", 1, "a deletion rewriting the first line claiming the card into the tombstone, which keeps the number allocated; it writes a line and answers no card"},
+			{"internal/lsp/handlers.go", "cardCandidates", 3, "the language server's card completion, which sorts the candidates newest first and composes a zero-padded sort key from the number; the list it sorts is the live half alone, so no archived card reaches these reads and no reference is resolved by number"},
 		},
 	},
 	{
@@ -228,9 +229,9 @@ var archivedResolutionFamilies = []resolutionFamily{
 	{
 		name: "E", axis: "reading",
 		what:      "rendering a card's human reference: every call whose selector is Ref and which carries exactly one argument",
-		files:     9,
-		mentions:  21,
-		functions: 15,
+		files:     11,
+		mentions:  23,
+		functions: 17,
 		sites: []resolutionSite{
 			{"internal/bench/branchmigrate.go", "MigrateBranches", 5, "naming a card in the branch migration's own report, once for each of the four classes it sorts a card into and once more for the account of what the write pass wrote; the run walks the live half alone, on the rule MigrateNumbers keeps for the archive, so no archived card reaches these calls"},
 			{"internal/bench/check.go", "checkTierOverrides", 1, "naming a card in a finding"},
@@ -247,6 +248,8 @@ var archivedResolutionFamilies = []resolutionFamily{
 			{"internal/verb/tree.go", "rootOf", 1, "rendering the root of a tree"},
 			{"internal/verb/tree.go", "itemRefOf", 1, "rendering a checklist item's holder"},
 			{"internal/verb/tree.go", "containedNode", 1, "rendering a contained entity"},
+			{"internal/lsp/annotate.go", "cardAnnotation", 1, "composing the canonical reference the language server prints in a card's hover and carries on the annotation's target; the card came out of a live resolution or out of a document's own reference, and the archive is never read here"},
+			{"internal/lsp/handlers.go", "cardCandidates", 1, "composing the label of one card candidate in a completion list, over the live half alone"},
 		},
 	},
 	{
