@@ -790,6 +790,15 @@ func (s *session) eventDetail(ev bench.Event) string {
 		return s.r.T("log.renumbered", "from", ev.From, "to", ev.To)
 	case contract.EventTierOverridden:
 		return s.tierOverriddenDetail(ev)
+	case contract.EventCommented:
+		// A column comment names its column, which is the locator the verb
+		// writes and which a reader of the workbench journal otherwise has
+		// no way to recover. Every other commented line carries no column
+		// and draws the empty detail it has always drawn.
+		if ev.ColumnTitle != "" {
+			return ev.ColumnTitle
+		}
+		return ev.Column
 	}
 	return ""
 }

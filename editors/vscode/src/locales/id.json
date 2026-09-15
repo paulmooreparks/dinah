@@ -896,6 +896,11 @@
 			"context": "The output channel line for a selected row an item command cannot act on, because the row is not a checklist item.",
 			"skeleton": true
 		},
+		"skip.notAColumnRow": {
+			"text": "names no column",
+			"context": "The output channel line for a selected row a column command cannot act on, because the row is not a column.",
+			"skeleton": true
+		},
 		"skip.notACardRow": {
 			"text": "names no card",
 			"context": "The output channel line for a selected row the filing form cannot act on, because the row is not a card.",

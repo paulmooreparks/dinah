@@ -11,7 +11,8 @@ const (
 	KindColumn = "column"
 	// KindCard is one card.
 	KindCard = "card"
-	// KindComment is one comment below a card.
+	// KindComment is one comment. It hangs below a card, below one of that
+	// card's checklist items, or below a column.
 	KindComment = "comment"
 	// KindItem is one checklist item below a card.
 	KindItem = "item"
@@ -40,6 +41,11 @@ type Mount struct {
 	// and a name selector against it refuses unknown-path, the same way it
 	// does against one this table does not list.
 	NameField string
+	// Stamped says whether this collection's members carry an ordinal, which
+	// the writer sets at creation and a positional reference resolves through.
+	// A collection of unstamped members is not swept for the ordinal
+	// invariants, because every member of it would be reported as missing one.
+	Stamped bool
 }
 
 // containment is the one statement of what contains what. Every reader of the
@@ -49,25 +55,36 @@ type Mount struct {
 //
 // A kind mounting nothing is listed with no mounts rather than left out, so a
 // caller can tell a leaf of the grammar from a kind the grammar does not have.
+//
+// The table is acyclic, and no kind reaches itself through any chain of
+// mounts. Five recursive readers of Contains rest on that property for their
+// termination argument, carrying neither a depth bound nor a visited set:
+// containedCount and containedChildren in internal/verb/tree.go,
+// ordinalCollections in ordinal.go, collectionsBelow in finish.go, and
+// mountlessAttachmentsBelow in check.go. Building the folder kind that
+// docs/design/format.md declares and defers retires the property, because a
+// folder contains folders, and it obliges each of those five walks to carry an
+// explicit bound. Adding any other self-reaching mount does the same.
 var containment = map[string][]Mount{
 	KindWorkbench: {
 		{Dir: ColumnsDir, Kind: KindColumn, Anchor: ColumnAnchor},
 		{Dir: CardsDir, Kind: KindCard, Anchor: CardAnchor},
-		{Dir: AttachmentsDir, Kind: KindAttachment, Anchor: AttachmentAnchor, NameField: "filename"},
+		{Dir: AttachmentsDir, Kind: KindAttachment, Anchor: AttachmentAnchor, NameField: "filename", Stamped: true},
 	},
 	KindColumn: {
-		{Dir: AttachmentsDir, Kind: KindAttachment, Anchor: AttachmentAnchor, NameField: "filename"},
+		{Dir: CommentsDir, Kind: KindComment, Anchor: CommentAnchor, Stamped: true},
+		{Dir: AttachmentsDir, Kind: KindAttachment, Anchor: AttachmentAnchor, NameField: "filename", Stamped: true},
 	},
 	KindCard: {
-		{Dir: CommentsDir, Kind: KindComment, Anchor: CommentAnchor},
-		{Dir: ChecklistDir, Kind: KindItem, Anchor: ItemAnchor},
-		{Dir: AttachmentsDir, Kind: KindAttachment, Anchor: AttachmentAnchor, NameField: "filename"},
+		{Dir: CommentsDir, Kind: KindComment, Anchor: CommentAnchor, Stamped: true},
+		{Dir: ChecklistDir, Kind: KindItem, Anchor: ItemAnchor, Stamped: true},
+		{Dir: AttachmentsDir, Kind: KindAttachment, Anchor: AttachmentAnchor, NameField: "filename", Stamped: true},
 	},
 	KindComment: {
-		{Dir: AttachmentsDir, Kind: KindAttachment, Anchor: AttachmentAnchor, NameField: "filename"},
+		{Dir: AttachmentsDir, Kind: KindAttachment, Anchor: AttachmentAnchor, NameField: "filename", Stamped: true},
 	},
 	KindItem: {
-		{Dir: CommentsDir, Kind: KindComment, Anchor: CommentAnchor},
+		{Dir: CommentsDir, Kind: KindComment, Anchor: CommentAnchor, Stamped: true},
 	},
 	KindAttachment: {},
 }

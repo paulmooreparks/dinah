@@ -10,8 +10,9 @@ import (
 	"dinah/internal/contract"
 )
 
-// Comment is one comment of a card: an entity like every other, ordered by
-// the creation ordinal its anchor carries rather than by its directory name.
+// Comment is one comment: an entity like every other, ordered by the creation
+// ordinal its anchor carries rather than by its directory name. It hangs below
+// a card, below one of that card's checklist items, or below a column.
 type Comment struct {
 	// ID is the comment's 12-hex identifier.
 	ID string
@@ -19,8 +20,8 @@ type Comment struct {
 	Dir string
 	// TS is when the comment was written.
 	TS string
-	// Ordinal is the comment's one-based position among the card's comments,
-	// assigned when it was written.
+	// Ordinal is the comment's one-based position among its holder's
+	// comments, assigned when it was written.
 	Ordinal int
 	// Author is who wrote it.
 	Author string
@@ -28,10 +29,13 @@ type Comment struct {
 	Body string
 }
 
-// AddComment writes a comment entity under a card and returns it. The caller
-// holds the card's lock, which is what makes the ordinal scan race-free.
-func AddComment(cardDir, author, ts, body string) (*Comment, error) {
-	collection := filepath.Join(cardDir, CommentsDir)
+// AddComment writes a comment entity under its holder and returns it. The
+// holder is a card, a checklist item or a column, and the caller holds that
+// holder's own lock, which is the card's directory for the first two and the
+// workbench root for a column, and which is what makes the ordinal scan
+// race-free.
+func AddComment(holderDir, author, ts, body string) (*Comment, error) {
+	collection := filepath.Join(holderDir, CommentsDir)
 	id, err := ClaimID(collection, nil)
 	if err != nil {
 		return nil, err
@@ -59,16 +63,19 @@ func AddComment(cardDir, author, ts, body string) (*Comment, error) {
 	return comment, nil
 }
 
-// Comments reads a card's comments in creation order.
+// Comments reads a holder's comments in creation order. The holder is a card,
+// a checklist item or a column.
 //
 // The order is the ordinal's rather than the timestamp's, because a timestamp
 // is wall-clock and two processes commenting inside one second record the same
 // one, which leaves the reader's order to the directory listing. A comment
-// carrying no ordinal sorts ahead of every stamped one, and SortByOrdinal
-// recovers the order such comments were written in from the card's journal,
-// which is the order check --migrate-ordinals will stamp them in.
-func Comments(cardDir string) ([]*Comment, error) {
-	collection := filepath.Join(cardDir, CommentsDir)
+// carrying no ordinal sorts ahead of every stamped one. For a collection below
+// a card, SortByOrdinal recovers the order such comments were written in from
+// the card's journal, which is the order check --migrate-ordinals will stamp
+// them in. For a collection below a column, journalPathFor answers the empty
+// string, so nothing is recovered and the listing order stands.
+func Comments(holderDir string) ([]*Comment, error) {
+	collection := filepath.Join(holderDir, CommentsDir)
 	ids, err := ListIDs(collection)
 	if err != nil {
 		return nil, err

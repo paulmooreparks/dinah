@@ -904,6 +904,11 @@
 			"context": "The output channel line for a selected row an item command cannot act on, because the row is not a checklist item.",
 			"source": "f5aa7c93cbd73f65"
 		},
+		"skip.notAColumnRow": {
+			"text": "benennt keine Spalte",
+			"context": "The output channel line for a selected row a column command cannot act on, because the row is not a column.",
+			"source": "75f52361210d33ac"
+		},
 		"skip.notACardRow": {
 			"text": "benennt keine Karte",
 			"context": "The output channel line for a selected row the filing form cannot act on, because the row is not a card.",

@@ -15,8 +15,8 @@ WORK
   unblock <card>                            Lift a block (operator only)
   raise <card> <tier> <reason>              Raise the tier this stop needs and
                                               hand the card back
-  comment <ref> <text|->                    Record a comment on a card or on one
-                                              of its checklist items
+  comment <ref> <text|->                    Record a comment on a card, a
+                                              column, or a card's checklist item
   attach <ref> <file>                       Attach a file, or replace its bytes
     [--description <text>] [--replace]
   file <card> <kind> <text|->               File a checklist item on a card

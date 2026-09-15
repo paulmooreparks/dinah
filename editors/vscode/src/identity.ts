@@ -166,6 +166,16 @@ export const COMMAND_REOPEN_ITEM = "dinah.tree.reopenItem";
 export const COMMAND_FILE_ITEM = "dinah.tree.fileItem";
 
 /**
+ * The comment command a column row offers, contributed by dinah-518.
+ *
+ * It sits beside the item command above rather than with it, because the
+ * column is a second holder of comments rather than a second kind of item.
+ * Its draft route is the item command's own, and only the row it is invoked
+ * on and the reference that row resolves to differ.
+ */
+export const COMMAND_COMMENT_ON_COLUMN = "dinah.tree.commentOnColumn";
+
+/**
  * The two commands a comment draft's own editor tab offers.
  *
  * They carry the `dinah.comment.` prefix rather than `dinah.tree.` because
@@ -208,6 +218,7 @@ export const TREE_COMMANDS: readonly string[] = [
 	COMMAND_REFRESH_VERB_CATALOG,
 	COMMAND_OPEN_ITEM,
 	COMMAND_COMMENT_ON_ITEM,
+	COMMAND_COMMENT_ON_COLUMN,
 	COMMAND_RESOLVE_ITEM,
 	COMMAND_VERIFY_ITEM,
 	COMMAND_FAIL_ITEM,
@@ -250,6 +261,7 @@ export const ROW_COMMANDS: readonly string[] = [
 	COMMAND_ARCHIVE_CARD,
 	COMMAND_OPEN_ITEM,
 	COMMAND_COMMENT_ON_ITEM,
+	COMMAND_COMMENT_ON_COLUMN,
 	COMMAND_RESOLVE_ITEM,
 	COMMAND_VERIFY_ITEM,
 	COMMAND_FAIL_ITEM,

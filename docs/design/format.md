@@ -52,12 +52,15 @@ its payload, carrying identity, metadata, and a journaled lifecycle around
 bytes the format never inspects.
 
 Containment is a closed grammar, stated here once and in full. The
-workbench contains columns, cards, workstreams, and attachments. A card
-contains comments, checklist items, and attachments (and bears a journal,
-as do the workbench and each workstream). A comment contains attachments,
-and a checklist item contains comments. An attachment contains exactly
-its payload. A folder contains attachments and folders, and may itself
-exist only inside an `attachments/` collection. Two asymmetries carry the
+workbench contains columns, cards, workstreams, and attachments. A column
+contains comments and attachments. A card contains comments, checklist
+items, and attachments (and bears a journal, as do the workbench and each
+workstream). A comment contains attachments, and a checklist item contains
+comments. An attachment contains exactly its payload. A folder contains
+attachments and folders, and may itself exist only inside an `attachments/`
+collection. The folder kind is deferred and unbuilt, as the Folders section
+below already records, so the grammar as written is cyclic through it while
+the grammar any build implements is acyclic. Two asymmetries carry the
 design. Attachments may belong to any entity, and folders may belong only
 to attachments. Anything the grammar does not say is thereby refused; a
 containment this map lacks arrives only as a versioned spec change or as a
@@ -70,7 +73,7 @@ governed by absent-means-empty:
 ```
 workbench   ::= workbench.md journal.ndjson? attachments? columns?
                 cards? workstreams? archive?
-column       ::= column.md attachments?
+column       ::= column.md comments? attachments?
 card        ::= card.md journal.ndjson comments? checklist? attachments?
 checklist   ::= item*
 item        ::= item.md comments?
@@ -117,7 +120,10 @@ asked.
   attachments/
     <12-hex>/...            # workbench-level attachments, same shape as below
   columns/
-    <12-hex>/column.md       # anchor: one column of the flow
+    <12-hex>/
+      column.md             # anchor: one column of the flow
+      comments/
+        <12-hex>/comment.md # anchor: one comment; attachments/ on demand
   cards/
     <12-hex>/
       card.md               # anchor: identity, position, content

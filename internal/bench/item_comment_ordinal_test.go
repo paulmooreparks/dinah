@@ -118,7 +118,7 @@ func TestOrdinalCheckAndMigrationReachAnItemsComments(t *testing.T) {
 	}
 
 	// The walk this card ships reaches both.
-	after, err := ordinalCollections(cardDir, KindCard)
+	after, err := ordinalCollections(cardDir, KindCard, nil)
 	if err != nil {
 		t.Fatalf("ordinalCollections: %v", err)
 	}

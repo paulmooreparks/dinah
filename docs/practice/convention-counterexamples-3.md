@@ -834,3 +834,35 @@ assert.deepEqual(raise.calls, [], "Raise spawned over a two-row selection");
 **The test:** for any assertion that a count is zero, walk the prompts between the entry point and the action and ask what the driver answered at each one. A prompt the driver never answered is an early return, and an early return makes the zero free. The plant that settles it is to leave the guard complaining and remove only its refusal, so the code says no and then does the thing. A plant that deletes the guard outright is weaker, because it can redden the error assertion while the spawn assertion stays untested.
 
 **Related:** "An absence assertion with no control that the thing ever existed" is the same zero misread, but there the fixture does drive the path and the code loses the subject upstream, so the tell sits in the code; here it sits in the driver's own inputs and the code is innocent. "A negative table row refused by a guard other than the one it is named for" covers the run that reaches a guard, just not the one the row is named for. "A test written against a refusal the build cannot reach" is the compile-time form of the same unreachability.
+
+## A rule over row shapes tested against the shapes its author had in mind
+
+Caught at design review on dinah-518, 2026-09-16, and it is the third sighting of this class. A rule selects rows: a manifest `when` clause deciding which tree rows a command appears on, a filter deciding which entities a sweep visits, a switch deciding which events a renderer draws. The test then exercises the rule over a list of row shapes, and that list is written by the same person in the same sitting as the rule. The two agree by construction, and the test catches nothing the author had not already thought of.
+
+The population is not a matter of judgement. Some function produces the row shapes, and its own returns are the whole population.
+
+**Wrong.** Three rounds of dinah-518's contract prescribed `/^dinah\.column\./` for a column command's `when` clause, and its criterion asked that the clause be run against "each of the context-value suffixes the extension already emits". `columnActionsFor` (`editors/vscode/src/tree.ts`) returns five values, and four of them carry a suffix. The criterion's phrasing selects those four, all of which the prescribed pattern matches, so the criterion passed while its own first sentence, "on every column row", was false of the build that passed it. The fifth value is the bare `dinah.column`, which the function returns whenever the status and tree answers of one checkpoint disagree, which happens on every first paint. That is the row the command was missing.
+
+**Right.** Derive the population from the producing function and assert its size before using it.
+
+```ts
+function everyColumnContextValue(): string[] {
+	const values = [
+		columnActionsFor(undefined),
+		columnActionsFor(view({ count: 1, capacity: 0 })),
+		columnActionsFor(view({ count: 2, capacity: 2 })),
+		columnActionsFor(view({ count: 1, capacity: 0, takes_work_up: false }), "doing"),
+		columnActionsFor(view({ count: 2, capacity: 2, takes_work_up: false }), "doing"),
+	];
+	return [...new Set(values)];
+}
+
+assert.equal(values.length, 5);
+assert.ok(values.includes("dinah.column"));
+```
+
+The two assertions do different work. The count catches a branch the extension adds later and nobody enumerates here. Naming the one value that separates the candidate rules catches the rule this entry is about, which is why it is named rather than left to the count.
+
+**The test:** for any rule that selects rows, ask which function produces a row's selector, and write the population by calling it rather than by listing what you expect it to return. Where two candidate rules are both plausible, find the input that separates them and assert that input by name, because every other input passes both. A criterion that describes the population in words, such as "each of the suffixes the code emits", is the tell: the words were written after the rule and they select what the rule already matches.
+
+**Related:** "A zero-spawn assertion whose driver was never answered far enough to spawn" is the same failure in the driver rather than in the population. "A refusal that any value satisfies is not a refusal" is the degenerate case, where the population is the whole input space and the rule accepts all of it.
