@@ -394,6 +394,19 @@ func (s *session) renderTree(tree *verb.Tree) {
 	s.table(t)
 }
 
+// withoutEmptyTitle applies the empty-title rule of the entity sentences: a
+// title that is empty draws no leading space. The renderer omits the title
+// and the space that follows it together rather than interpolating an empty
+// string and keeping the space. Every locale template for the pair opens with
+// `{title} ({ref})`, so an empty title leaves exactly one leading space, and
+// dropping that one space is the whole of the omission.
+func withoutEmptyTitle(sentence, title string) string {
+	if title == "" {
+		return strings.TrimPrefix(sentence, " ")
+	}
+	return sentence
+}
+
 // treeHeader is the sentence above the table. Under a filter it says what the
 // workbench holds and how much of that matched, so the first number is the
 // root's count added to what the filter removed and the second is the count
@@ -412,9 +425,9 @@ func (s *session) treeHeader(tree *verb.Tree) string {
 			return s.r.T("contents.header.collection", "ref", root.Ref, "count", count)
 		}
 		if root.Count == 0 {
-			return s.r.T("contents.empty", "title", root.Title, "ref", root.Ref)
+			return withoutEmptyTitle(s.r.T("contents.empty", "title", root.Title, "ref", root.Ref), root.Title)
 		}
-		return s.r.T("contents.header", "title", root.Title, "ref", root.Ref, "count", count)
+		return withoutEmptyTitle(s.r.T("contents.header", "title", root.Title, "ref", root.Ref, "count", count), root.Title)
 	}
 	if root.Hidden == nil || root.Hidden.Filtered == 0 {
 		return s.r.T("tree.header", "title", root.Title, "ref", root.Ref, "count", count)

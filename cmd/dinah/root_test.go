@@ -14,6 +14,7 @@ import (
 	"dinah/internal/bench"
 	"dinah/internal/contract"
 	"dinah/internal/msg"
+	"dinah/internal/verb"
 )
 
 // newForest builds a directory holding a workbench at each relative place
@@ -375,6 +376,130 @@ func TestARootScopedMemberIsTheSingleWorkbenchAnswer(t *testing.T) {
 				if !reflect.DeepEqual(wrapped, alone) {
 					t.Errorf("%s at %s:\nroot-scoped member: %s\nsingle-workbench:   %s",
 						c.verb, path, mustJSON(t, wrapped), mustJSON(t, alone))
+				}
+			}
+		})
+	}
+}
+
+// TestAWorkbenchRowCarriesTheMembersItsReferenceNames is
+// dinah-523/criteria/36: inside a root-scoped list answer, each workbench
+// row's listing member carries exactly the members the reference's shape
+// names and no others, and it is the answer that workbench's own call to the
+// same reference gives.
+//
+// Parity alone would not hold the table. The test above compares a row against
+// the single-workbench answer, and the single-workbench envelopes are swept in
+// list_surface_test.go, but a shape whose row and whose own answer drifted
+// together would pass both, so the members a row carries are named here
+// directly, shape by shape.
+//
+// The columns row answers a bare array rather than an object carrying
+// `columns`. That is the byte-for-byte rule on a listing winning over the
+// table's literal reading of the member it carries: the row must read exactly
+// as the workbench's own `dinah list columns` does, and that is an array.
+func TestAWorkbenchRowCarriesTheMembersItsReferenceNames(t *testing.T) {
+	root := newForest(t, "alpha", "customer/beta")
+	dirs := map[string]string{
+		"alpha":         soleBenchDir(t, filepath.Join(root, "alpha")),
+		"customer/beta": soleBenchDir(t, filepath.Join(root, "customer", "beta")),
+	}
+	for place, dir := range dirs {
+		if got := runCLI(t, root, "add", "A card in "+place, "--workbench", dir); got.code != 0 {
+			t.Fatalf("add in %s: %d %s", place, got.code, got.errw)
+		}
+	}
+	if got := runCLI(t, dirs["alpha"], "workstream", "new", "Autumn release", "--slug", "autumn"); got.code != 0 {
+		t.Fatalf("workstream: %d %s", got.code, got.errw)
+	}
+	source := filepath.Join(filepath.Dir(root), "notes.txt")
+	if err := os.WriteFile(source, []byte("some bytes"), 0o644); err != nil {
+		t.Fatalf("write the attachment source: %v", err)
+	}
+	if got := runCLI(t, dirs["alpha"], "attach", "workbench", source); got.code != 0 {
+		t.Fatalf("attach: %d %s", got.code, got.errw)
+	}
+
+	// The declaration comes first: the row's listing member is the minted
+	// ListAnswer, not the one-shape Listing it was retyped from.
+	declared, ok := reflect.TypeOf(verb.WorkbenchListing{}).FieldByName("Listing")
+	if !ok {
+		t.Fatal("WorkbenchListing carries no Listing field")
+	}
+	if want := reflect.TypeOf((*verb.ListAnswer)(nil)); declared.Type != want {
+		t.Errorf("WorkbenchListing.Listing is %v, want %v", declared.Type, want)
+	}
+
+	rows := []struct {
+		name    string
+		ref     []string
+		members []string
+		array   bool
+	}{
+		{name: "bare", ref: nil, members: []string{"rosters"}},
+		{name: "the workbench", ref: []string{"workbench"}, members: []string{"rosters"}},
+		{name: "the workbench, written .", ref: []string{"."}, members: []string{"rosters"}},
+		{name: "columns", ref: []string{"columns"}, array: true},
+		{name: "cards", ref: []string{"cards"}, members: []string{"query", "cards", "count"}},
+		{name: "workstreams", ref: []string{"workstreams"}, members: []string{"workstreams"}},
+		{name: "attachments", ref: []string{"attachments"}, members: []string{"kind", "ref", "attachments"}},
+		{name: "a column", ref: []string{"intake"}, members: []string{"column", "cards"}},
+		{name: "a workstream", ref: []string{"workstream/autumn"}, members: []string{"query", "cards", "count"}},
+	}
+	for _, row := range rows {
+		t.Run(row.name, func(t *testing.T) {
+			argv := append(append([]string{"list"}, row.ref...), "--root", root)
+			answer := forestJSON(t, root, argv...)
+			if walked, _ := answer["root"].(string); walked == "" {
+				t.Fatalf("the answer carries no root member: %s", mustJSON(t, answer))
+			}
+			reached := members(t, answer)
+			if len(reached) != 2 {
+				t.Fatalf("the walk reached %d workbenches, wanted the two the case built", len(reached))
+			}
+			var alphaRow map[string]any
+			for _, benchRow := range reached {
+				if path, _ := benchRow["path"].(string); path == dirs["alpha"] {
+					alphaRow = benchRow
+				}
+			}
+			if alphaRow == nil {
+				t.Fatalf("the walk's rows carry no row for alpha: %v", memberPaths(t, root, reached))
+			}
+			listing := withoutInvocationMembers(alphaRow["listing"])
+
+			// The single-workbench answer, produced independently, stripped on
+			// both sides as the test above strips it.
+			single := append(append([]string{"list"}, row.ref...), "--workbench", dirs["alpha"])
+			got := runCLI(t, root, append(single, "--json")...)
+			if got.code != 0 {
+				t.Fatalf("%v: %d %s", single, got.code, got.errw)
+			}
+			if !reflect.DeepEqual(listing, withoutInvocationMembers(decode(t, got.out))) {
+				t.Errorf("%v inside a forest row:\nrow:   %s\nalone: %s", single, mustJSON(t, listing), mustJSON(t, decode(t, got.out)))
+			}
+
+			if row.array {
+				if _, isObject := listing.(map[string]any); isObject {
+					t.Errorf("the row's listing is an object, wanted the bare array the workbench's own columns answer is: %s", mustJSON(t, listing))
+				}
+				if listed, isArray := listing.([]any); isArray && len(listed) == 0 {
+					t.Errorf("the row's listing is an empty array, so this row asserts nothing about its members")
+				}
+				return
+			}
+			carried, ok := listing.(map[string]any)
+			if !ok {
+				t.Fatalf("the row's listing is not an object: %s", mustJSON(t, listing))
+			}
+			for _, member := range row.members {
+				if _, held := carried[member]; !held {
+					t.Errorf("the row's listing carries no %q member: %s", member, mustJSON(t, carried))
+				}
+			}
+			for member := range carried {
+				if !carries(row.members, member) {
+					t.Errorf("the row's listing carries the member %q, which the table does not name for this reference: %s", member, mustJSON(t, carried))
 				}
 			}
 		})

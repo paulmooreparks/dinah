@@ -144,7 +144,7 @@ func TestChangesCarriesTheColumnsMember(t *testing.T) {
 	}
 
 	// A column retitled by hand is what the widened checkpoint exists to see.
-	columns := runCLI(t, root, "--json", "columns")
+	columns := runCLI(t, root, "--json", "list", "columns")
 	if columns.code != 0 {
 		t.Fatalf("columns: %d %s", columns.code, columns.errw)
 	}

@@ -279,6 +279,71 @@ func TestAnEmptyCollectionIsAnEmptySetRatherThanAnError(t *testing.T) {
 	}
 }
 
+// TestAnUntitledEntityIsNamedByItsReferenceAlone asserts the empty-title rule
+// of the entity sentences: a workstream whose title is empty is named by its
+// reference alone, with no space in front of the parenthesis, while one
+// carrying a title opens with the title as before. The titled half beside the
+// untitled one stops the rule passing against a build that drops the title
+// everywhere, and the untitled half stops the opposite build, the one that
+// interpolates an empty string and keeps the space the template put after it.
+func TestAnUntitledEntityIsNamedByItsReferenceAlone(t *testing.T) {
+	root := newBench(t)
+	mustRun(t, root, "workstream", "new", "Autumn release", "--slug", "titled")
+	mustRun(t, root, "workstream", "new", "Placeholder", "--slug", "untitled")
+
+	// The workstream carries its title in the frontmatter of its anchor, so
+	// the untitled case is made the way a repair that created the workstream
+	// and gave it no title leaves one: with a title line naming nothing.
+	blanked := false
+	anchors, err := filepath.Glob(filepath.Join(soleBenchDir(t, root), "workstreams", "*", "workstream.md"))
+	if err != nil {
+		t.Fatalf("glob the workstream anchors: %v", err)
+	}
+	for _, anchor := range anchors {
+		raw, err := os.ReadFile(anchor)
+		if err != nil {
+			t.Fatalf("read %s: %v", anchor, err)
+		}
+		if !strings.Contains(string(raw), "slug: untitled") {
+			continue
+		}
+		edited := strings.Replace(string(raw), "title: Placeholder", "title:", 1)
+		if edited == string(raw) {
+			t.Fatalf("the untitled workstream's anchor carries no title line to blank:\n%s", raw)
+		}
+		if err := os.WriteFile(anchor, []byte(edited), 0o644); err != nil {
+			t.Fatalf("write %s: %v", anchor, err)
+		}
+		blanked = true
+		break
+	}
+	if !blanked {
+		t.Fatal("no workstream anchor carries the slug untitled")
+	}
+
+	drawn := runCLI(t, root, "--lang", "en", "list", "workstream/untitled", "--depth", "all")
+	if drawn.code != 0 {
+		t.Fatalf("the walk of the untitled workstream exited %d: %s", drawn.code, drawn.errw)
+	}
+	if !strings.Contains(drawn.out, "(workstream/untitled) contains nothing.") {
+		t.Errorf("the walk of an untitled workstream does not name the bare reference:\n%s", drawn.out)
+	}
+	for _, line := range strings.Split(strings.TrimSuffix(drawn.out, "\n"), "\n") {
+		if strings.HasPrefix(line, " ") {
+			t.Errorf("the walk of an untitled workstream drew a line opening with a space:\n%s", drawn.out)
+			break
+		}
+	}
+
+	drawn = runCLI(t, root, "--lang", "en", "list", "workstream/titled", "--depth", "all")
+	if drawn.code != 0 {
+		t.Fatalf("the walk of the titled workstream exited %d: %s", drawn.code, drawn.errw)
+	}
+	if !strings.Contains(drawn.out, "Autumn release (workstream/titled) contains nothing.") {
+		t.Errorf("the walk of a titled workstream does not open with the title:\n%s", drawn.out)
+	}
+}
+
 // TestPathAnswersACollectionWhetherOrNotItsDirectoryExists is the one place
 // this card changes path, and the last clause is the arm that can fail:
 // dropping the guard on the collection branch must not make a positional
