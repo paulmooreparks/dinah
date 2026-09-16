@@ -30,11 +30,17 @@ import (
 // declared field or a read of the parameter by name, since a positional slot
 // is read out of the word list by index and has no name to find.
 //
-// This is source inspection rather than execution, and it is one level deep. A
-// command that read a parameter inside a function two calls away, or through a
-// local variable renamed on the way, would escape it. That is a real limit and
-// it is worth stating, because the alternative on offer today is no check at
-// all.
+// For an ordinary parameter this is source inspection rather than execution,
+// and it is one level deep. A command that read a parameter inside a function
+// two calls away, or through a local variable renamed on the way, would escape
+// it. That is a real limit and it is worth stating, because the alternative on
+// offer today is no check at all. It escapes in the safe direction: a read
+// this cannot see fails the parameter rather than clearing it.
+//
+// A parameter declared Inert is the one case that also executes, because there
+// the same blindness would clear the parameter instead of failing it. See
+// assertInertChangesNothing, which is honest about how little that execution
+// reaches.
 func TestEveryDeclaredParameterIsReadByItsCommand(t *testing.T) {
 	head := parseHead(t)
 	ordered := append([]string(nil), verb.Commands()...)
@@ -147,7 +153,7 @@ func TestEveryDeclaredParameterIsReadByItsCommand(t *testing.T) {
 // assertInertChangesNothing drives the flag through the command and requires
 // the run to be indistinguishable from the run without it.
 //
-// This is the half that carries the claim, and the source scan above is not.
+// This exists because the source scan above cannot carry the claim on its own.
 // A scan decides what a read looks like and then reports every other spelling
 // as absent, which is the fail-open direction for an inert parameter: an
 // ordinary parameter that this package cannot see being read fails, and an
@@ -155,9 +161,11 @@ func TestEveryDeclaredParameterIsReadByItsCommand(t *testing.T) {
 // scan in one attempt by reading the flag through a named constant instead of
 // a quoted literal, which is a perfectly ordinary thing to write, and the
 // guard reported success on a flag that was genuinely load-bearing. Teaching
-// the scan that spelling would leave the next one, so inertness is established
-// by behaviour instead, where a read has to change something to matter and the
-// spelling it was written in cannot help it hide.
+// the scan that spelling would leave the next one, so this adds a check the
+// spelling cannot reach: a read has to change something to matter.
+//
+// It adds that and no more. How much it actually reaches is the next
+// paragraph, and the answer is less than this one might suggest.
 //
 // What this does not cover, stated rather than left to be discovered, and
 // stated this plainly because the first draft of this comment claimed the
