@@ -159,11 +159,30 @@ func TestEveryDeclaredParameterIsReadByItsCommand(t *testing.T) {
 // by behaviour instead, where a read has to change something to matter and the
 // spelling it was written in cannot help it hide.
 //
-// What this does not cover, stated rather than left to be discovered: a read
-// whose effect never reaches the exit code or either stream is invisible here.
-// That is the boundary of the claim rather than a hole in it, because a flag
-// whose presence changes nothing a caller can observe is inert in the only
-// sense this table is asserting.
+// What this does not cover, stated rather than left to be discovered, and
+// stated this plainly because the first draft of this comment claimed the
+// probe established something much larger and code review broke that claim
+// twice with one-line experiments.
+//
+// This drives ONE bare invocation of the command against an EMPTY workbench
+// and compares the exit code and both streams. It is therefore blind to any
+// flag whose effect depends on input the command reads, on what the workbench
+// holds, or on a live session. A flag that hid every card that was not ready
+// passed it, because an empty workbench has no card to hide; a flag that
+// turned prose annotation on for every real editor session passed it too.
+//
+// For --stdio on lsp, which is the one parameter this currently guards, the
+// blindness is close to total: a server handed a closed stream exits before it
+// serves anything, so almost nothing this flag could do would show up here.
+// What actually holds that flag inert today is the source scan above, which
+// sees the quoted-literal read, plus a reading of runLSP; this probe adds the
+// spellings the scan cannot see and nothing more. Neither is a proof, and
+// calling the pair a proof is the mistake this paragraph exists to stop
+// somebody repeating.
+//
+// The version that would carry the claim for a server drives the command with
+// a workbench that has contents and a stream that stays open, and compares
+// what the two runs actually do. That is its own card rather than a line here.
 //
 // The baseline run is required to succeed, so that the comparison is made
 // between two real runs of the command rather than between two refusals that
