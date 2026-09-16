@@ -3217,6 +3217,10 @@
       "text": "how often the server rereads the workbench for a change; 2 when you name none",
       "context": "The meaning of the --poll-seconds argument of `dinah lsp`, printed in that command's arguments table."
     },
+    "param.lsp.stdio.summary": {
+      "text": "serve on stdin and stdout, which is what an LSP client names when it spawns this server; the transport this server serves either way",
+      "context": "The meaning of the --stdio argument of `dinah lsp`, printed in that command's arguments table."
+    },
     "param.next.column.summary": {
       "text": "which column to offer a card from, also written --column <column>; every column when you name none",
       "context": "The meaning of the column argument of `dinah next`, printed in that command's arguments table."

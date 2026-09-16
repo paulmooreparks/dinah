@@ -4048,6 +4048,11 @@
       "context": "The meaning of the --poll-seconds argument of `dinah lsp`, printed in that command's arguments table.",
       "source": "b2cf4aacf5a11512"
     },
+    "param.lsp.stdio.summary": {
+      "text": "auf Standardeingabe und Standardausgabe bereitstellen, was ein LSP-Client beim Starten dieses Servers angibt; ohnehin der Transportweg, den dieser Server bedient",
+      "context": "The meaning of the --stdio argument of `dinah lsp`, printed in that command's arguments table.",
+      "source": "bb33042dc15e7af1"
+    },
     "param.next.column.summary": {
       "text": "aus welcher Spalte eine Karte angeboten wird, auch geschrieben --column <Spalte>; jede Spalte, wenn Sie keine nennen",
       "context": "The meaning of the column argument of `dinah next`, printed in that command's arguments table.",

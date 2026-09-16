@@ -7246,6 +7246,7 @@ func TestTheFlagSetsTheParserAcceptsAreDerivedFromTheParameterTable(t *testing.T
 		"migrate-ordinals",
 		"migrate-slugs", "migrate-vocabulary", "migrate-workstreams",
 		"no-claim", "override", "quiet", "ready", "renumber", "replace",
+		"stdio",
 		"version", "witness", "yes",
 	}
 	if got := strings.Join(valuedFlags, " "); got != strings.Join(wantValued, " ") {

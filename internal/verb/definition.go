@@ -30,6 +30,20 @@ type Param struct {
 	Required bool
 	// Value is the placeholder a valued flag shows.
 	Value string
+	// Inert marks a flag this tool accepts and then reads nowhere, because
+	// naming it asserts something that is already true and selects nothing.
+	// It is the one honest way to declare that, and it exists so that the
+	// coverage guard over parameters can be told about a single flag rather
+	// than only about a whole command. Exempting the command would have cost
+	// the guard on every other parameter that command declares, and it is
+	// that constraint, rather than the design, that would otherwise push an
+	// author into inventing a use for the value so the guard stays quiet.
+	//
+	// Declaring this is a claim a reviewer can check: an inert flag must
+	// change nothing about what the command does. A flag whose presence
+	// alters any behaviour is not inert, and belongs in the ordinary path
+	// where the guard can see it read.
+	Inert bool
 	// Rest marks a positional argument that takes every remaining word,
 	// which is what a prose reason or a title needs.
 	Rest bool
@@ -689,6 +703,25 @@ var params = map[string][]Param{
 		{Name: "root", Flag: true, Value: "dir"},
 		{Name: "annotate-prose", Flag: true, Marker: true},
 		{Name: "poll-seconds", Flag: true, Value: "n"},
+		// An LSP client names on the command line the transport it opened,
+		// and vscode-languageclient appends --stdio for every stdio server
+		// it spawns. Dinah serves stdio and serves nothing else, so the
+		// flag names the transport this server already has rather than
+		// selecting between transports. It is declared so that a client
+		// naming the transport correctly is served instead of refused, and
+		// it is inert because that is the whole of what it does: the server
+		// frames on stdin and stdout whether or not the word is written.
+		//
+		// It is declared last because it is the one flag here a person never
+		// types, so it reads last in the syntax line and in the arguments
+		// table. The usage line wraps rather than truncating, so nothing is
+		// hidden by the order either way.
+		//
+		// The three transports Dinah does not serve, --pipe, --socket and
+		// --node-ipc, stay on the generic unknown-option refusal. Declaring
+		// them here to improve their message would print them in this
+		// command's arguments table as though a caller could write them.
+		{Name: "stdio", Flag: true, Marker: true, Inert: true},
 	},
 	"help": {{Name: "command", Required: true}},
 }

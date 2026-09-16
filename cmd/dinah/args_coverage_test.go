@@ -59,6 +59,7 @@ func TestEveryDeclaredParameterIsReadByItsCommand(t *testing.T) {
 
 	dispatch := runFunctions(t, head)
 	checked := 0
+	inert := 0
 	for _, command := range ordered {
 		if _, exempted := commandExemptions[command]; exempted {
 			continue
@@ -74,6 +75,30 @@ func TestEveryDeclaredParameterIsReadByItsCommand(t *testing.T) {
 			continue
 		}
 		for _, param := range verb.Params(command) {
+			// An inert flag is accepted and read nowhere by declaration, so
+			// the absence this guard would otherwise report is the answer
+			// rather than the defect. The claim is checked in the direction
+			// the declaration makes it, which is the half a skip cannot see:
+			// a parameter declared inert that IS read is a table that has
+			// fallen behind its code, and that is the drift this card has
+			// already produced twice. Skipping alone would permit it
+			// silently.
+			//
+			// It is counted as well, so a command whose every parameter were
+			// inert could not empty this check without saying so.
+			if param.Inert {
+				inert++
+				checked++
+				if readsParamByName(reachable, param.Name) {
+					t.Errorf("%s: the table declares the parameter %q inert, meaning this tool reads it nowhere, and %s reads it by name; either the declaration is stale or the read is",
+						command, param.Name, function)
+				}
+				if param.Field != "" {
+					t.Errorf("%s: the table declares the parameter %q inert and also names the request field %q, and a parameter that reaches a field is read somewhere",
+						command, param.Name, param.Field)
+				}
+				continue
+			}
 			checked++
 			if _, isShared := shared[param.Name]; isShared && param.Field != "" && callsByName(reachable, "request") {
 				continue
@@ -93,6 +118,12 @@ func TestEveryDeclaredParameterIsReadByItsCommand(t *testing.T) {
 	}
 	if checked == 0 {
 		t.Fatal("no command declared a parameter, so this check read nothing")
+	}
+	// The inert set is small and every member of it is a deliberate
+	// exemption, so its size is pinned here: a new one has to be argued for
+	// in review rather than arriving as a quiet way past this guard.
+	if inert != 1 {
+		t.Errorf("the table declares %d inert parameters and this tool declares one, --stdio on lsp", inert)
 	}
 }
 
