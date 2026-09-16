@@ -158,9 +158,9 @@ func (l *Library) Add(req *Request) *Response {
 	return l.ok(req, card)
 }
 
-// Comment records a comment on a card or on one of that card's checklist
-// items: an entity of its own carrying the timestamp and the author in
-// frontmatter and the text as the body.
+// Comment writes one comment below its holder, which is a card, a column, or
+// one of a card's checklist items: an entity of its own carrying the
+// timestamp and the author in frontmatter and the text as the body.
 func (l *Library) Comment(req *Request) *Response {
 	if l.Bench.Operator == "" {
 		return l.refuse(req, nil, contract.NoOperator, "")
@@ -169,10 +169,10 @@ func (l *Library) Comment(req *Request) *Response {
 		return refused
 	}
 	// A blank reference resolves to the workbench under ResolveEntity, which
-	// is right for attach and wrong here: this parameter names a card or a
-	// checklist item, never the workbench by omission, so the check this
-	// verb has always run first, that the card exists, is run before the
-	// reference is handed to the general resolver.
+	// is right for attach and wrong here: this parameter names a card, a
+	// column or a checklist item, never the workbench by omission, so the
+	// check this verb has always run first, that the card exists, is run
+	// before the reference is handed to the general resolver.
 	if strings.TrimSpace(req.Card) == "" {
 		return l.refuse(req, nil, contract.UnknownCard, "")
 	}
@@ -183,9 +183,11 @@ func (l *Library) Comment(req *Request) *Response {
 	if req.Actor == "" {
 		return l.refuse(req, entity.Card, contract.NoOwner, "")
 	}
-	// Two kinds mount comments and every other kind is refused, the same
-	// question Attach already asks about attachments. The kind is carried
-	// beside the reference so the caller reads what the reference reached.
+	// Three kinds mount comments, a card, a column and a checklist item, and
+	// every other kind is refused: an attachment, a comment, a workstream and
+	// the workbench. It is the same question Attach already asks about
+	// attachments. The kind is carried beside the reference so the caller
+	// reads what the reference reached.
 	if _, mounts := bench.MountOf(entity.Kind, bench.CommentsDir); !mounts {
 		return l.refuseWith(req, entity.Card, contract.NotCommentable, entity.Ref,
 			map[string]string{"kind": entity.Kind, entity.Kind: entity.Ref})
@@ -195,9 +197,11 @@ func (l *Library) Comment(req *Request) *Response {
 	}
 	now := bench.Stamp(l.Now())
 	// The comment is its own entity, so its identifier needs no lock, but the
-	// event lands in the nearest enclosing journal-bearing entity's journal,
-	// which is the card's for both a card comment and an item comment, so the
-	// write happens under that entity's own lock like any other.
+	// event lands in the nearest enclosing journal-bearing entity's journal.
+	// That is the card's journal for a card comment and for an item comment,
+	// and the workbench's for a column comment, because a column bears no
+	// journal of its own. The write happens under that entity's own lock like
+	// any other.
 	lock, err := bench.Acquire(l.lockDirFor(entity), req.Actor, now)
 	if err != nil {
 		return l.FromError(req, err)
@@ -213,11 +217,19 @@ func (l *Library) Comment(req *Request) *Response {
 		Actor:   req.Acting(),
 		Comment: comment.ID,
 	}
-	// An item comment carries the item's identifier beside the comment's own,
-	// which is how a reader of the journal tells an item comment from a card
-	// comment: a card comment's line carries comment and no item at all.
+	// A commented line carries one locator naming the holder, and a line
+	// carrying none means the holder is the journal's own entity. An item
+	// comment carries the item, a column comment carries the column and its
+	// title as of the write, and a card comment carries neither, sitting in
+	// the journal of the card it hangs on.
 	if entity.Kind == bench.KindItem {
 		ev.Item = entity.ID
+	}
+	if entity.Kind == bench.KindColumn {
+		ev.Column = entity.ID
+		if column := l.Bench.Column(entity.ID); column != nil {
+			ev.ColumnTitle = column.Title
+		}
 	}
 	if err := bench.AppendEvent(l.journalFor(entity), ev); err != nil {
 		return l.FromError(req, err)

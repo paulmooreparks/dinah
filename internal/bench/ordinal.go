@@ -351,8 +351,10 @@ func (b *Bench) beforeOrdinalStamp(id string) error {
 // The walk covers the three collections a positional reference reaches below a
 // card: the card's comments, the card's attachments and the card's checklist,
 // plus the attachments of each comment. Collections hanging off the workbench
-// itself and off a column are left alone, because no reference syntax selects a
-// member of one by position and an ordinal there would order nothing.
+// itself and off a column are left alone, because every member of one is
+// stamped at creation by the verb that writes it, so this repair has nothing
+// to find there. A positional reference does select a member of one, which is
+// why check sweeps them for the ordinal invariants.
 //
 // A locked card, and an entity this run cannot write to, are each reported and
 // stepped over rather than ending the walk. A repair that abandons the
@@ -405,7 +407,7 @@ func (b *Bench) backfillCard(dir string) (int, []Finding, error) {
 	order := journalOrder(events)
 	stamped := 0
 	var findings []Finding
-	collections, err := ordinalCollections(dir, KindCard)
+	collections, err := ordinalCollections(dir, KindCard, nil)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -436,17 +438,30 @@ type ordinalCollection struct {
 // The list is derived from Contains rather than written out here, so a kind
 // gaining a collection reaches the ordinal migration without this function
 // being edited.
-func ordinalCollections(dir, kind string) ([]ordinalCollection, error) {
+//
+// Whether a collection is listed and whether the walk descends into its
+// members are separate questions, and the workbench is where they first give
+// different answers. A collection is listed only when its mount is Stamped,
+// because a collection whose members carry no ordinal would report every one
+// of them as missing one; skip names the kinds the walk does not descend into,
+// and a caller rooting the walk at the workbench passes KindCard so that each
+// card keeps the per-card sweep a card-rooted walk applies to it.
+func ordinalCollections(dir, kind string, skip map[string]bool) ([]ordinalCollection, error) {
 	var collections []ordinalCollection
 	for _, mount := range Contains(kind) {
 		collection := filepath.Join(dir, mount.Dir)
-		collections = append(collections, ordinalCollection{dir: collection, anchor: mount.Anchor})
+		if mount.Stamped {
+			collections = append(collections, ordinalCollection{dir: collection, anchor: mount.Anchor})
+		}
+		if skip[mount.Kind] {
+			continue
+		}
 		ids, err := ListIDs(collection)
 		if err != nil {
 			return nil, err
 		}
 		for _, id := range ids {
-			below, err := ordinalCollections(filepath.Join(collection, id), mount.Kind)
+			below, err := ordinalCollections(filepath.Join(collection, id), mount.Kind, skip)
 			if err != nil {
 				return nil, err
 			}

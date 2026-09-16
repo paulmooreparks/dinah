@@ -47,6 +47,7 @@
 	"manifest.command.dinah.tree.archiveCard.title": "Dinah: Karte archivieren",
 	"manifest.command.dinah.tree.openItem.title": "Dinah: Punkt öffnen",
 	"manifest.command.dinah.tree.commentOnItem.title": "Dinah: Punkt kommentieren",
+	"manifest.command.dinah.tree.commentOnColumn.title": "Dinah: Spalte kommentieren",
 	"manifest.command.dinah.tree.resolveItem.title": "Dinah: Punkt klären",
 	"manifest.command.dinah.tree.verifyItem.title": "Dinah: Kriterium bestätigen",
 	"manifest.command.dinah.tree.failItem.title": "Dinah: Kriterium ablehnen",

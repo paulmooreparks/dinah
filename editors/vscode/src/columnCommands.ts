@@ -1,4 +1,4 @@
-// The one act a column row offers, as a pure function over an injected host.
+// The two acts a column row offers, as pure functions over an injected host.
 //
 // This module mirrors workbenchCommands.ts rather than inventing a second
 // shape. A column command is pinned to a column standing in a workbench, which
@@ -28,6 +28,7 @@ import type { Spawner } from "./cli";
 import { runDinah } from "./cli";
 import { refusalMessage, isRow, rowRef } from "./cardCommands";
 import type { Wiring } from "./commandTable";
+import { openCommentDraft } from "./commentDrafts";
 import { COMMAND_EDIT_COLUMN_INSTRUCTIONS } from "./identity";
 import { ENGLISH } from "./l10n";
 import type { Localizer } from "./l10n";
@@ -61,7 +62,10 @@ export interface ColumnCommandHost extends ReporterHost {
 	readonly log: (line: string) => void;
 }
 
-/** What the column row's command needs: how to spawn, and which column. */
+/**
+ * What a column row's commands need: how to spawn, which column, and which
+ * workspace folder the row belongs to.
+ */
 export interface ColumnCommandContext {
 	readonly spawner: Spawner;
 	readonly exe: string;
@@ -75,6 +79,12 @@ export interface ColumnCommandContext {
 	readonly columnRef: string;
 	/** The row's own drawn label, reused rather than composed a second time. */
 	readonly label: string;
+	/**
+	 * The workspace folder the column's row belongs to, which a comment draft
+	 * records so the post runs where the row was drawn. It is the field
+	 * ItemCommandContext already carries for the same purpose.
+	 */
+	readonly folder: string;
 }
 
 /**
@@ -132,6 +142,7 @@ export function contextForColumn(
 		root,
 		columnRef,
 		label: treeItemFor(element, host.t).label,
+		folder: element.row.folder,
 	};
 }
 
@@ -207,5 +218,52 @@ export async function invokeEditColumnInstructions(
 		async () => true,
 		async (context, _answer, host) =>
 			editColumnInstructions({ ...context, host }),
+	);
+}
+
+/**
+ * Writes a draft for the one selected column and opens it, and spawns nothing.
+ *
+ * This is invokeCommentOnItem with a column row in place of an item row. The
+ * draft's own commands post it and throw it away from its editor tab, so this
+ * command asks nothing and reports nothing but where the draft is, and the
+ * verb is still what writes the comment.
+ *
+ * It resolves through contextForColumn rather than through the creation
+ * commands' own resolver, because commenting reads no ColumnView field: the
+ * reference is enough, and contextForColumn answers one on a row the status
+ * join has not reached yet. That is the same reasoning that puts Comment on
+ * Column under the when-clause Edit Column Instructions carries rather than
+ * the narrower one Attach File carries.
+ */
+export async function invokeCommentOnColumn(
+	elements: readonly TreeElement[],
+	wiring: Wiring,
+): Promise<BulkReport> {
+	return runBulk(
+		elements,
+		(element) => rowRef(element, wiring.t),
+		(element) =>
+			contextForColumn(element, wiring.exe, wiring.columnHost, wiring.spawner),
+		{
+			host: wiring.columnHost,
+			t: wiring.t,
+			skipReason: wiring.t("skip.notAColumnRow"),
+		},
+		async (resolved, host) => {
+			if (resolved.length > 1) {
+				host.showError(host.t("dialog.bulk.oneRowOnly"));
+				return undefined;
+			}
+			return resolved.length === 1 ? (true as const) : undefined;
+		},
+		async (context) => {
+			await openCommentDraft(wiring.draftHost, {
+				root: context.root,
+				folder: context.folder,
+				ref: context.columnRef,
+			});
+			return { kind: "done" } as const;
+		},
 	);
 }

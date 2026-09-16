@@ -285,9 +285,9 @@
       "source": "f2564022fedfa73b"
     },
     "check.comment.1": {
-      "text": "कार्ड मौजूद है",
+      "text": "संदर्भ दिया गया है, और यह जिस कार्ड को नामित करता है वह मौजूद है",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "37dac5acd188c446"
+      "source": "9b6cc8a47652f1fe"
     },
     "check.comment.4": {
       "text": "संदर्भ किसी चीज़ तक पहुंचता है",
@@ -1160,9 +1160,9 @@
       "source": "cf0108628c37a783"
     },
     "cmd.comment.summary": {
-      "text": "किसी कार्ड या उसकी किसी चेकलिस्ट मद पर टिप्पणी दर्ज करें",
+      "text": "किसी कार्ड, किसी कॉलम, या किसी कार्ड की चेकलिस्ट मद पर टिप्पणी दर्ज करें",
       "context": "The one-line summary of the comment command, shown beside its syntax in the help block.",
-      "source": "d80a5fa7a5a0fa6b"
+      "source": "6e8ef5dc12ce2544"
     },
     "cmd.config.summary": {
       "text": "अपनी उपयोगकर्ता सेटिंग सूचीबद्ध करें, या कोई एक पढ़ें या लिखें",
@@ -2720,9 +2720,9 @@
       "source": "a8e7e1399a02cf47"
     },
     "refusal.dinah.not-commentable.next": {
-      "text": "; एक टिप्पणी किसी कार्ड पर या उस कार्ड की किसी चेकलिस्ट मद पर टिकी होती है",
+      "text": "; एक टिप्पणी किसी कॉलम पर, किसी कार्ड पर, या उस कार्ड की किसी चेकलिस्ट मद पर टिकी होती है",
       "context": "The one next step of refusal.dinah.not-commentable, printed whatever kind the reference resolved to, because the honest advice is the same for every kind that fails it.",
-      "source": "2f3b07a98bf4cfcb"
+      "source": "16f5bd7e36e71b03"
     },
     "refusal.dinah.not-archived": {
       "text": "अभिलेखागार में {detail} के नाम से कुछ नहीं मिला",
@@ -3785,9 +3785,9 @@
       "source": "16824e77ab43d6e4"
     },
     "param.comment.card.summary": {
-      "text": "वह कार्ड या चेकलिस्ट मद जिस पर आप टिप्पणी कर रहे हैं, इसके संदर्भ के रूप में लिखा गया, जैसे wb-1 या wb-1/questions/2",
-      "context": "The meaning of comment's own card argument, which comment no longer shares with the plain-card commands because it also takes a checklist item below one.",
-      "source": "51c2476ca6cc6573"
+      "text": "वह कार्ड, कॉलम या चेकलिस्ट मद जिस पर आप टिप्पणी कर रहे हैं, इसके संदर्भ के रूप में लिखा गया, जैसे wb-1, triage या wb-1/questions/2",
+      "context": "The meaning of comment's own card argument, which comment no longer shares with the plain-card commands because it also takes a column and a checklist item below a card.",
+      "source": "b4e262a23c5934f8"
     },
     "param.raise.tier.summary": {
       "text": "वह स्तर जो काम को वास्तव में चाहिए, नाम से या +1 जैसे कदम के रूप में; उसे उससे ऊपर होना चाहिए जो कार्ड यहाँ पहले से माँगता है",

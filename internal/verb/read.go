@@ -87,6 +87,10 @@ type ColumnView struct {
 	// which is a rubric or a reference document somebody attached to the
 	// station rather than to any card standing at it.
 	AttachmentCount int `json:"attachment_count,omitempty"`
+	// CommentCount is how many comments hang from the column itself,
+	// which is a note somebody left on the station rather than on any card
+	// standing at it.
+	CommentCount int `json:"comment_count,omitempty"`
 }
 
 // Status is where the bench stands and what the reader holds.
@@ -187,6 +191,10 @@ func (l *Library) columnViews(counts map[string]int) ([]ColumnView, error) {
 		if err != nil {
 			return nil, err
 		}
+		comments, err := bench.CountComments(l.Bench.ColumnDir(column.ID))
+		if err != nil {
+			return nil, err
+		}
 		view := ColumnView{
 			ID:              column.ID,
 			Slug:            column.Slug,
@@ -199,6 +207,7 @@ func (l *Library) columnViews(counts map[string]int) ([]ColumnView, error) {
 			RejectTo:        column.RejectTo,
 			Count:           counts[column.ID],
 			AttachmentCount: attachments,
+			CommentCount:    comments,
 			RequireFields:   column.RequireFields,
 			Hold:            column.Hold,
 			Fields:          l.declaredFieldValues(column.FM, bench.KindColumn),
@@ -769,9 +778,10 @@ type LinkView struct {
 type CommentView struct {
 	// ID is the comment's identifier.
 	ID string `json:"id"`
-	// Ref is what a person types to reach the comment: the card's own
-	// reference, then comments and the comment's one-based position among the
-	// card's comments. It is the spelling internal/bench/resolve.go resolves,
+	// Ref is what a person types to reach the comment: the holder's own
+	// reference, which is a card, a checklist item or a column, then comments
+	// and the comment's one-based position among that holder's comments. It
+	// is the spelling internal/bench/resolve.go resolves,
 	// and it is a spelling to type now rather than a handle to keep, because a
 	// position stops naming the same comment once an earlier one is deleted.
 	// The identifier beside it is the handle, and the resolver accepts that in
@@ -1046,8 +1056,8 @@ func (l *Library) itemDetailOf(entity *bench.EntityRef) (*ItemDetail, error) {
 
 // commentViews reads the comments written directly below one entity, in
 // ordinal order, each carrying a reference composed against the holder's own
-// reference. A card and a checklist item are the two kinds a comment hangs
-// from directly.
+// reference. A card, a checklist item and a column are the three kinds a
+// comment hangs from directly.
 func (l *Library) commentViews(dir, holderRef string) ([]CommentView, error) {
 	stored, err := bench.Comments(dir)
 	if err != nil {

@@ -114,7 +114,7 @@ export interface ItemDetail {
 	readonly comments?: readonly CommentView[];
 }
 
-/** verb.CommentView, one comment on a card or on one of its items. */
+/** verb.CommentView, one comment on a card, a column, or a card's item. */
 export interface CommentView {
 	readonly id: string;
 	readonly ref: string;

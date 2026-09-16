@@ -1,4 +1,6 @@
-// Composing an item comment in the editor, and posting it through the verb.
+// Composing a comment in the editor, and posting it through the verb. The
+// holder is a checklist item or a column, and this module does not know which:
+// it is handed a reference and it records an invocation.
 //
 // The operator ruled on 2026-09-15 that VS Code is an editor, so a prose
 // comment is written in one. The house pattern for that already exists twice,
@@ -11,8 +13,10 @@
 // no path to ask for and something has to decide when the author is finished.
 //
 // The verb writes, not the editor. Library.Comment stamps the author and the
-// clock, mints the comment's identifier, appends an event to the card's
-// journal and stamps the item's identifier on that event. An extension writing
+// clock, mints the comment's identifier, appends an event to the journal of
+// the entity the comment hangs below, which is the card for an item comment
+// and the workbench for a column comment, and stamps a locator naming the
+// holder on that event. An extension writing
 // the comment file itself would produce a comment with no journal entry and a
 // reference it invented. So the buffer supplies the text and `dinah comment`
 // still does the writing.

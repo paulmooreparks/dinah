@@ -150,18 +150,18 @@ type Event struct {
 	// concerns, carried by workstream_joined and workstream_left on the
 	// card's own journal.
 	Workstream string `json:"workstream,omitempty"`
-	// Column is the identifier of the column a tier override concerns,
-	// carried by tier_overridden and tier_override_dropped. It is the
-	// resolved identifier rather than the reference somebody typed, because
-	// the reference can be a slug a later rename changes and the line is
-	// history.
+	// Column is the identifier of the column a tier override or a column
+	// comment concerns, carried by tier_overridden, tier_override_dropped and
+	// commented. It is the resolved identifier rather than the reference
+	// somebody typed, because the reference can be a slug a later rename
+	// changes and the line is history.
 	Column string `json:"column,omitempty"`
 	// ColumnTitle is that column's title as of the event, captured at write
 	// time the way FromTitle and ToTitle capture a move's states, so a reader
 	// is not left holding a bare identifier for a column that may since have
-	// been renamed or retired. Only a raise populates it today; the ordinary
-	// per-column tier write does not, and the renderer falls back to Column
-	// for every line that carries none.
+	// been renamed or retired. A raise and a column comment each populate it;
+	// the ordinary per-column tier write does not, and the renderer falls
+	// back to Column for every line that carries none.
 	ColumnTitle string `json:"column_title,omitempty"`
 	// Expr is what a person typed for a tier override, absolute or relative,
 	// carried by tier_overridden alongside the resolved value in To. Keeping
@@ -173,7 +173,8 @@ type Event struct {
 	// absolute write, which needed no baseline to be relative to.
 	Against string `json:"against,omitempty"`
 	// Item is the identifier of the checklist item a lifecycle event
-	// concerns, carried by the six item events on the card's own journal. The
+	// concerns, carried by the six item events on the card's own journal and
+	// by a commented line for a comment left on an item. The
 	// line points at the item the way a comment event points at the comment,
 	// so the item's own text and note are read from its anchor rather than
 	// copied into history.

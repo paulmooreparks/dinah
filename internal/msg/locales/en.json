@@ -226,7 +226,7 @@
       "context": "Printed when check finds nothing."
     },
     "check.comment.1": {
-      "text": "the card exists",
+      "text": "the reference is given, and any card it names exists",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.comment.2": {
@@ -926,7 +926,7 @@
       "context": "The one-line summary of the claim command, shown beside its syntax in the help block."
     },
     "cmd.comment.summary": {
-      "text": "Record a comment on a card or on one of its checklist items",
+      "text": "Record a comment on a card, a column, or a card's checklist item",
       "context": "The one-line summary of the comment command, shown beside its syntax in the help block."
     },
     "cmd.config.summary": {
@@ -2170,7 +2170,7 @@
       "context": "The sentence printed after the refusal name dinah.not-commentable, when comment is aimed at a reference that resolves to a kind that holds no comments. {detail} is the reference the caller named, in the canonical spelling the resolver reports, and {kind} names what it resolved to, which is machine vocabulary and is never translated."
     },
     "refusal.dinah.not-commentable.next": {
-      "text": "; a comment hangs on a card or on one of that card's checklist items",
+      "text": "; a comment hangs on a column, on a card, or on one of that card's checklist items",
       "context": "The one next step of refusal.dinah.not-commentable, printed whatever kind the reference resolved to, because the honest advice is the same for every kind that fails it."
     },
     "refusal.dinah.not-archived": {
@@ -3018,8 +3018,8 @@
       "context": "The meaning of the card argument, shared by every command that takes a card and nothing else."
     },
     "param.comment.card.summary": {
-      "text": "the card or the checklist item you are commenting on, written as its reference, such as wb-1 or wb-1/questions/2",
-      "context": "The meaning of comment's own card argument, which comment no longer shares with the plain-card commands because it also takes a checklist item below one."
+      "text": "the card, the column or the checklist item you are commenting on, written as its reference, such as wb-1, triage or wb-1/questions/2",
+      "context": "The meaning of comment's own card argument, which comment no longer shares with the plain-card commands because it also takes a column and a checklist item below a card."
     },
     "param.raise.tier.summary": {
       "text": "the tier the work actually needs, by name or as a step like +1; it has to rank above what the card already asks for here",
