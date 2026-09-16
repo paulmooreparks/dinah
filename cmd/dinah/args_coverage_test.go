@@ -30,11 +30,17 @@ import (
 // declared field or a read of the parameter by name, since a positional slot
 // is read out of the word list by index and has no name to find.
 //
-// This is source inspection rather than execution, and it is one level deep. A
-// command that read a parameter inside a function two calls away, or through a
-// local variable renamed on the way, would escape it. That is a real limit and
-// it is worth stating, because the alternative on offer today is no check at
-// all.
+// For an ordinary parameter this is source inspection rather than execution,
+// and it is one level deep. A command that read a parameter inside a function
+// two calls away, or through a local variable renamed on the way, would escape
+// it. That is a real limit and it is worth stating, because the alternative on
+// offer today is no check at all. It escapes in the safe direction: a read
+// this cannot see fails the parameter rather than clearing it.
+//
+// A parameter declared Inert is the one case that also executes, because there
+// the same blindness would clear the parameter instead of failing it. See
+// assertInertChangesNothing, which is honest about how little that execution
+// reaches.
 func TestEveryDeclaredParameterIsReadByItsCommand(t *testing.T) {
 	head := parseHead(t)
 	ordered := append([]string(nil), verb.Commands()...)
@@ -59,6 +65,7 @@ func TestEveryDeclaredParameterIsReadByItsCommand(t *testing.T) {
 
 	dispatch := runFunctions(t, head)
 	checked := 0
+	var inert []string
 	for _, command := range ordered {
 		if _, exempted := commandExemptions[command]; exempted {
 			continue
@@ -74,6 +81,43 @@ func TestEveryDeclaredParameterIsReadByItsCommand(t *testing.T) {
 			continue
 		}
 		for _, param := range verb.Params(command) {
+			// An inert flag is accepted and read nowhere by declaration, so
+			// the absence this guard would otherwise report is the answer
+			// rather than the defect. The claim is checked in the direction
+			// the declaration makes it, which is the half a skip cannot see:
+			// a parameter declared inert that IS read is a table that has
+			// fallen behind its code, and that is the drift this card has
+			// already produced twice. Skipping alone would permit it
+			// silently.
+			//
+			// It is counted as well, so a command whose every parameter were
+			// inert could not empty this check without saying so.
+			if param.Inert {
+				inert = append(inert, command+" --"+param.Name)
+				checked++
+				// An inert flag carries no value and is given as a flag, so
+				// there is no value for a caller to lose. A positional or a
+				// valued flag declared inert would be a caller's own text
+				// dropped on the floor, and this guard would be the thing
+				// saying that was intended.
+				if !param.Flag || !param.Marker {
+					t.Errorf("%s: the parameter %q is declared inert and is not a marker flag, so a caller's value would be read by nothing and discarded",
+						command, param.Name)
+				}
+				if param.Field != "" {
+					t.Errorf("%s: the table declares the parameter %q inert and also names the request field %q, and a parameter that reaches a field is read somewhere",
+						command, param.Name, param.Field)
+				}
+				// The source scan is kept, because a read it CAN see is
+				// evidence outright. It is not the proof: see
+				// assertInertChangesNothing for why it cannot be.
+				if readsParamByName(reachable, param.Name) {
+					t.Errorf("%s: the table declares the parameter %q inert, meaning this tool reads it nowhere, and %s reads it by name; either the declaration is stale or the read is",
+						command, param.Name, function)
+				}
+				assertInertChangesNothing(t, command, param.Name)
+				continue
+			}
 			checked++
 			if _, isShared := shared[param.Name]; isShared && param.Field != "" && callsByName(reachable, "request") {
 				continue
@@ -93,6 +137,85 @@ func TestEveryDeclaredParameterIsReadByItsCommand(t *testing.T) {
 	}
 	if checked == 0 {
 		t.Fatal("no command declared a parameter, so this check read nothing")
+	}
+	// The inert set is small and every member of it is a deliberate
+	// exemption, so it is pinned by name here rather than by size: a new one
+	// has to be argued for in review rather than arriving as a quiet way
+	// past this guard, and a reader who trips this is told which parameter
+	// to go and look at rather than a number.
+	sort.Strings(inert)
+	const declaredInert = "lsp --stdio"
+	if got := strings.Join(inert, ", "); got != declaredInert {
+		t.Errorf("the inert parameters are %q and this tool declares %q", got, declaredInert)
+	}
+}
+
+// assertInertChangesNothing drives the flag through the command and requires
+// the run to be indistinguishable from the run without it.
+//
+// This exists because the source scan above cannot carry the claim on its own.
+// A scan decides what a read looks like and then reports every other spelling
+// as absent, which is the fail-open direction for an inert parameter: an
+// ordinary parameter that this package cannot see being read fails, and an
+// inert one that it cannot see being read passes. Code review defeated the
+// scan in one attempt by reading the flag through a named constant instead of
+// a quoted literal, which is a perfectly ordinary thing to write, and the
+// guard reported success on a flag that was genuinely load-bearing. Teaching
+// the scan that spelling would leave the next one, so this adds a check the
+// spelling cannot reach: a read has to change something to matter.
+//
+// It adds that and no more. How much it actually reaches is the next
+// paragraph, and the answer is less than this one might suggest.
+//
+// What this does not cover, stated rather than left to be discovered, and
+// stated this plainly because the first draft of this comment claimed the
+// probe established something much larger and code review broke that claim
+// twice with one-line experiments.
+//
+// This drives ONE bare invocation of the command against an EMPTY workbench
+// and compares the exit code and both streams. It is therefore blind to any
+// flag whose effect depends on input the command reads, on what the workbench
+// holds, or on a live session. A flag that hid every card that was not ready
+// passed it, because an empty workbench has no card to hide; a flag that
+// turned prose annotation on for every real editor session passed it too.
+//
+// For --stdio on lsp, which is the one parameter this currently guards, the
+// blindness is close to total: a server handed a closed stream exits before it
+// serves anything, so almost nothing this flag could do would show up here.
+// What actually holds that flag inert today is the source scan above, which
+// sees the quoted-literal read, plus a reading of runLSP; this probe adds the
+// spellings the scan cannot see and nothing more. Neither is a proof, and
+// calling the pair a proof is the mistake this paragraph exists to stop
+// somebody repeating.
+//
+// The version that would carry the claim for a server drives the command with
+// a workbench that has contents and a stream that stays open, and compares
+// what the two runs actually do. That is its own card rather than a line here.
+//
+// The baseline run is required to succeed, so that the comparison is made
+// between two real runs of the command rather than between two refusals that
+// would agree whatever the flag did. A command that cannot be run bare needs
+// somebody to decide what its baseline is, and failing here is how this asks.
+func assertInertChangesNothing(t *testing.T, command, name string) {
+	t.Helper()
+	root := newBench(t)
+	without := runCLI(t, root, command)
+	if without.code != 0 {
+		t.Errorf("%s: the baseline run exited %d with %q, so the inert comparison for %q would be between two refusals rather than between two runs",
+			command, without.code, without.errw, name)
+		return
+	}
+	with := runCLI(t, root, command, "--"+name)
+	switch {
+	case with.code != without.code:
+		t.Errorf("%s: --%s is declared inert and changes the exit code from %d to %d",
+			command, name, without.code, with.code)
+	case with.out != without.out:
+		t.Errorf("%s: --%s is declared inert and changes what the command writes to its output stream",
+			command, name)
+	case with.errw != without.errw:
+		t.Errorf("%s: --%s is declared inert and changes what the command writes to its error stream",
+			command, name)
 	}
 }
 

@@ -4034,6 +4034,11 @@
       "context": "The meaning of the --poll-seconds argument of `dinah lsp`, printed in that command's arguments table.",
       "source": "b2cf4aacf5a11512"
     },
+    "param.lsp.stdio.summary": {
+      "text": "मानक इनपुट और मानक आउटपुट पर सेवा दें, जो एक LSP क्लाइंट इस सर्वर को शुरू करते समय बताता है; वैसे भी यही वह ट्रांसपोर्ट है जिसे यह सर्वर चलाता है",
+      "context": "The meaning of the --stdio argument of `dinah lsp`, printed in that command's arguments table.",
+      "source": "bb33042dc15e7af1"
+    },
     "param.next.column.summary": {
       "text": "किस कॉलम से कार्ड देना है, इसे --column <column> भी लिखा जाता है; कुछ न लिखने पर हर कॉलम",
       "context": "The meaning of the column argument of `dinah next`, printed in that command's arguments table.",
