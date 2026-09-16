@@ -1070,10 +1070,10 @@ var Shapes = []Shape{
 	},
 	{
 		// A comment aimed at a kind the containment table gives no comments
-		// collection: a comment, an attachment, a column, a workstream or
-		// the workbench itself. No alternation, because the honest advice
-		// is the same for every kind that fails it: a comment hangs on a
-		// card or on one of that card's checklist items.
+		// collection: a comment, an attachment, a workstream or the
+		// workbench itself. No alternation, because the honest advice is the
+		// same for every kind that fails it: a comment hangs on a column, on
+		// a card, or on one of that card's checklist items.
 		Name:      NotCommentable,
 		Values:    []string{"kind"},
 		Fragments: []Fragment{{Key: "refusal.dinah.not-commentable.next"}},

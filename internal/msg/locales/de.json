@@ -300,9 +300,9 @@
       "source": "f2564022fedfa73b"
     },
     "check.comment.1": {
-      "text": "die Karte existiert",
+      "text": "die Referenz ist angegeben, und jede Karte, die sie benennt, existiert",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "37dac5acd188c446"
+      "source": "9b6cc8a47652f1fe"
     },
     "check.comment.4": {
       "text": "die Referenz etwas erreicht",
@@ -1170,9 +1170,9 @@
       "source": "cf0108628c37a783"
     },
     "cmd.comment.summary": {
-      "text": "Einen Kommentar auf einer Karte oder auf einem ihrer Checklistenpunkte festhalten",
+      "text": "Einen Kommentar auf einer Karte, einer Spalte oder einem Checklistenpunkt einer Karte festhalten",
       "context": "The one-line summary of the comment command, shown beside its syntax in the help block.",
-      "source": "d80a5fa7a5a0fa6b"
+      "source": "6e8ef5dc12ce2544"
     },
     "cmd.config.summary": {
       "text": "Ihre Benutzereinstellungen auflisten oder eine davon lesen oder schreiben",
@@ -2750,9 +2750,9 @@
       "source": "a8e7e1399a02cf47"
     },
     "refusal.dinah.not-commentable.next": {
-      "text": "; ein Kommentar hängt an einer Karte oder an einem Checklistenpunkt dieser Karte",
+      "text": "; ein Kommentar hängt an einer Spalte, an einer Karte oder an einem Checklistenpunkt dieser Karte",
       "context": "The one next step of refusal.dinah.not-commentable, printed whatever kind the reference resolved to, because the honest advice is the same for every kind that fails it.",
-      "source": "2f3b07a98bf4cfcb"
+      "source": "16f5bd7e36e71b03"
     },
     "refusal.dinah.not-archived": {
       "text": "im Archiv hört nichts auf {detail}",
@@ -3819,9 +3819,9 @@
       "source": "16824e77ab43d6e4"
     },
     "param.comment.card.summary": {
-      "text": "die Karte oder der Checklistenpunkt, den Sie kommentieren, geschrieben als ihre Referenz, etwa wb-1 oder wb-1/questions/2",
-      "context": "The meaning of comment's own card argument, which comment no longer shares with the plain-card commands because it also takes a checklist item below one.",
-      "source": "51c2476ca6cc6573"
+      "text": "die Karte, die Spalte oder der Checklistenpunkt, den Sie kommentieren, geschrieben als ihre Referenz, etwa wb-1, triage oder wb-1/questions/2",
+      "context": "The meaning of comment's own card argument, which comment no longer shares with the plain-card commands because it also takes a column and a checklist item below a card.",
+      "source": "b4e262a23c5934f8"
     },
     "param.raise.tier.summary": {
       "text": "die Stufe, die die Arbeit wirklich braucht, als Name oder als Schritt wie +1; sie muss über dem liegen, was die Karte hier bereits verlangt",
@@ -4057,6 +4057,11 @@
       "text": "wie oft der Server die Werkbank erneut auf eine Änderung liest; 2, wenn Sie nichts nennen",
       "context": "The meaning of the --poll-seconds argument of `dinah lsp`, printed in that command's arguments table.",
       "source": "b2cf4aacf5a11512"
+    },
+    "param.lsp.stdio.summary": {
+      "text": "auf Standardeingabe und Standardausgabe bereitstellen, was ein LSP-Client beim Starten dieses Servers angibt; ohnehin der Transportweg, den dieser Server bedient",
+      "context": "The meaning of the --stdio argument of `dinah lsp`, printed in that command's arguments table.",
+      "source": "bb33042dc15e7af1"
     },
     "param.next.column.summary": {
       "text": "aus welcher Spalte eine Karte angeboten wird, auch geschrieben --column <Spalte>; jede Spalte, wenn Sie keine nennen",

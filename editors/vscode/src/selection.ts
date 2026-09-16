@@ -15,6 +15,7 @@ import {
 	COMMAND_BLOCK,
 	COMMAND_CHECK_WORKBENCH,
 	COMMAND_CLAIM,
+	COMMAND_COMMENT_ON_COLUMN,
 	COMMAND_COMMENT_ON_ITEM,
 	COMMAND_COPY_CARD_REF,
 	COMMAND_COPY_WORKBENCH_PATH,
@@ -120,6 +121,7 @@ export const SELECTION_POLICIES: Readonly<Record<string, SelectionEntry>> = {
 	// first and was refused on the second cannot be retried without
 	// commenting twice on the first.
 	[COMMAND_COMMENT_ON_ITEM]: { policy: "rowOnly" },
+	[COMMAND_COMMENT_ON_COLUMN]: { policy: "rowOnly" },
 	// The three terminal verbs are rowOnly because one note applied to five
 	// different questions is a false record, and the tool would accept it
 	// without complaint.

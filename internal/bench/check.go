@@ -441,6 +441,11 @@ func (b *Bench) Check() ([]Finding, error) {
 		return findings, err
 	}
 	findings = append(findings, mountlessFindings...)
+	benchOrdinalFindings, err := b.checkBenchOrdinals()
+	if err != nil {
+		return findings, err
+	}
+	findings = append(findings, benchOrdinalFindings...)
 	numberFindings, err := b.checkCardNumbers()
 	if err != nil {
 		return findings, err
@@ -875,11 +880,36 @@ func (b *Bench) RegressiveDepartures(events []Event, columnID string) int {
 // rewrite a historical fact on entities nobody touched. A duplicate is
 // reported because it leaves a position with two answers.
 func checkOrdinals(cardDir string) ([]Finding, error) {
-	var findings []Finding
-	collections, err := ordinalCollections(cardDir, KindCard)
+	collections, err := ordinalCollections(cardDir, KindCard, nil)
 	if err != nil {
 		return nil, err
 	}
+	return ordinalFindings(collections)
+}
+
+// checkBenchOrdinals applies the ordinal invariants to the collections a
+// positional reference reaches below the workbench itself and below each
+// column. Cards are not descended into, because checkCard sweeps each card
+// under the per-card guards a workbench-rooted walk does not apply.
+//
+// The collections it covers are the workbench's own attachments, each
+// column's comments and attachments, and the attachments of each column
+// comment. A collection whose members carry no ordinal, which is the
+// workbench's columns and its cards, is outside the sweep because the mount
+// says so rather than because this function names the kinds.
+func (b *Bench) checkBenchOrdinals() ([]Finding, error) {
+	collections, err := ordinalCollections(b.Root, KindWorkbench, map[string]bool{KindCard: true})
+	if err != nil {
+		return nil, err
+	}
+	return ordinalFindings(collections)
+}
+
+// ordinalFindings applies the two invariants to a list of collections. Both
+// rooted sweeps share it, so the invariants are stated once and a collection
+// reached from the workbench is judged exactly as one reached from a card is.
+func ordinalFindings(collections []ordinalCollection) ([]Finding, error) {
+	var findings []Finding
 	for _, collection := range collections {
 		seen := map[int]bool{}
 		ids, err := ListIDs(collection.dir)

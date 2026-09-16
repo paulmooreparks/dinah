@@ -723,8 +723,10 @@ const (
 	// column's prose body.
 	EventColumnUpdated = "column_updated"
 	// EventCommentUpdated records a write to a comment's own field, on the
-	// journal of the card the comment hangs below, and carries the comment's
-	// identifier in Note beside the Field. It is the comment's own event
+	// journal of the entity the comment hangs below, which is the card for a
+	// card comment and for an item comment and the workbench for a comment
+	// left on a column, and carries the comment's identifier in Note beside
+	// the Field. It is the comment's own event
 	// rather than EventCardUpdated so that a query for the card's own field
 	// changing stays a question a reader can ask.
 	EventCommentUpdated = "comment_updated"

@@ -8,18 +8,20 @@ import (
 	"dinah/internal/verb"
 )
 
-// TestTheCommentHelpPageNamesFivePreconditionsInCheckOrder asserts dinah-502
-// AC-8. dinah help comment prints five rows, in the order the verb checks
-// them, and the two rows dinah-502 adds take fresh catalog keys rather than
-// the next ones in sequence: check.comment.4 and check.comment.5 rather than
-// check.comment.5 renumbering nothing. The page carries no row for
-// dinah.is-a-collection, following attach's own precedent, and the same run
-// pins that the behaviour still fires though the page is silent about it.
+// TestTheCommentHelpPageNamesSixPreconditionsInCheckOrder asserts dinah-502
+// AC-8. dinah help comment prints six rows, in the order the verb checks
+// them, being the harness row dinah-496 prepends followed by the five rows
+// comment declares for itself, and the two rows dinah-502 adds take fresh
+// catalog keys rather than the next ones in sequence: check.comment.4 and
+// check.comment.5 rather than check.comment.5 renumbering nothing. The page
+// carries no row for dinah.is-a-collection, following attach's own
+// precedent, and the same run pins that the behaviour still fires though the
+// page is silent about it.
 //
 // Arming: swapping two rows of beyondChecks["comment"] reddens the literal
 // comparison and leaves the generated one green, on the same terms
 // TestTheAttachHelpPageNamesTheKindPrecondition already arms itself.
-func TestTheCommentHelpPageNamesFivePreconditionsInCheckOrder(t *testing.T) {
+func TestTheCommentHelpPageNamesSixPreconditionsInCheckOrder(t *testing.T) {
 	root := newBench(t)
 	t.Setenv("COLUMNS", "80")
 	// The harness row heads this list at dinah-496, ahead of the five rows

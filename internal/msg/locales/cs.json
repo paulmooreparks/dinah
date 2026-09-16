@@ -297,7 +297,7 @@
       "skeleton": true
     },
     "check.comment.1": {
-      "text": "the card exists",
+      "text": "the reference is given, and any card it names exists",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
@@ -1167,7 +1167,7 @@
       "skeleton": true
     },
     "cmd.comment.summary": {
-      "text": "Record a comment on a card or on one of its checklist items",
+      "text": "Record a comment on a card, a column, or a card's checklist item",
       "context": "The one-line summary of the comment command, shown beside its syntax in the help block.",
       "skeleton": true
     },
@@ -2731,7 +2731,7 @@
       "skeleton": true
     },
     "refusal.dinah.not-commentable.next": {
-      "text": "; a comment hangs on a card or on one of that card's checklist items",
+      "text": "; a comment hangs on a column, on a card, or on one of that card's checklist items",
       "context": "The one next step of refusal.dinah.not-commentable, printed whatever kind the reference resolved to, because the honest advice is the same for every kind that fails it.",
       "skeleton": true
     },
@@ -3791,8 +3791,8 @@
       "skeleton": true
     },
     "param.comment.card.summary": {
-      "text": "the card or the checklist item you are commenting on, written as its reference, such as wb-1 or wb-1/questions/2",
-      "context": "The meaning of comment's own card argument, which comment no longer shares with the plain-card commands because it also takes a checklist item below one.",
+      "text": "the card, the column or the checklist item you are commenting on, written as its reference, such as wb-1, triage or wb-1/questions/2",
+      "context": "The meaning of comment's own card argument, which comment no longer shares with the plain-card commands because it also takes a column and a checklist item below a card.",
       "skeleton": true
     },
     "param.raise.tier.summary": {
@@ -4028,6 +4028,11 @@
     "param.lsp.poll-seconds.summary": {
       "text": "how often the server rereads the workbench for a change; 2 when you name none",
       "context": "The meaning of the --poll-seconds argument of `dinah lsp`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.lsp.stdio.summary": {
+      "text": "serve on stdin and stdout, which is what an LSP client names when it spawns this server; the transport this server serves either way",
+      "context": "The meaning of the --stdio argument of `dinah lsp`, printed in that command's arguments table.",
       "skeleton": true
     },
     "param.next.column.summary": {

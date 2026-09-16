@@ -15,7 +15,7 @@ import (
 // exactly as the rest of the tree already raises it over an argument that
 // will not parse. The draft's refusal column is corrected here rather than a
 // name being minted for one head.
-const desiredLSPPage = `lsp [--root <dir>] [--annotate-prose] [--poll-seconds <n>]
+const desiredLSPPage = `lsp [--root <dir>] [--annotate-prose] [--poll-seconds <n>] [--stdio]
 
 Serve one workbench to an editor over LSP on stdio
 
@@ -28,6 +28,9 @@ What you may write:
                         matter, for an editor that sends no settings
   [--poll-seconds <n>]  how often the server rereads the workbench for a change;
                         2 when you name none
+  [--stdio]             serve on stdin and stdout, which is what an LSP client
+                        names when it spawns this server; the transport this
+                        server serves either way
 
 What can go wrong, in the order each is checked:
   Order  What can go wrong                          Refusal
@@ -71,6 +74,33 @@ func TestLSPRefusesABadPollInterval(t *testing.T) {
 	}
 	if got := runCLI(t, root, "lsp", "--poll-seconds", "3"); got.code != 0 {
 		t.Errorf("--poll-seconds 3 exited %d with %q, and three is a positive whole number", got.code, got.errw)
+	}
+}
+
+// TestLSPAcceptsTheTransportItServes asserts the criterion this card's second
+// pass adds: `dinah lsp --stdio` serves rather than refusing.
+//
+// The flag is what vscode-languageclient appends to the command line of every
+// stdio server it spawns, so before this the extension's server died at
+// startup on every launch, five times in three minutes until the client's own
+// circuit breaker stopped restarting it. The feature this card shipped had
+// therefore never once run in the editor.
+//
+// The refusing case is pinned beside the accepting one, because a criterion
+// asserting that a flag is accepted passes against a build that accepts every
+// flag. --pipe is a transport Dinah does not serve and must still be refused:
+// serving stdio to a client waiting on a pipe would hang it rather than tell
+// it anything.
+func TestLSPAcceptsTheTransportItServes(t *testing.T) {
+	root := newBench(t)
+	if got := runCLI(t, root, "lsp", "--stdio"); got.code != 0 {
+		t.Errorf("lsp --stdio exited %d with %q, and it is the transport this server serves", got.code, got.errw)
+	}
+	for _, refused := range []string{"--pipe=name", "--socket=9000", "--node-ipc"} {
+		got := runCLI(t, root, "lsp", refused)
+		if got.code != 2 {
+			t.Errorf("lsp %s exited %d, wanted 2: Dinah serves no transport but stdio", refused, got.code)
+		}
 	}
 }
 

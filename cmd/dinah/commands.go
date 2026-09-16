@@ -331,8 +331,9 @@ func runSet(s *session, parsed *arguments) int {
 	})
 }
 
-// runComment records a comment on a card, reading the text from stdin when
-// the caller wrote a single dash in its place.
+// runComment records one comment against whatever the reference names, which
+// is a card, a column or a card's checklist item, reading the text from stdin
+// when the caller wrote a single dash in its place.
 func runComment(s *session, parsed *arguments) int {
 	words := parsed.rest()
 	req := s.request("comment", parsed)

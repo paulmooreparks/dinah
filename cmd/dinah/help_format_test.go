@@ -39,8 +39,8 @@ WORK
   unblock <card>                                         Lift a block (operator only)
   raise <card> <tier> <reason>                           Raise the tier this stop needs and hand the card
                                                            back
-  comment <ref> <text|->                                 Record a comment on a card or on one of its
-                                                           checklist items
+  comment <ref> <text|->                                 Record a comment on a card, a column, or a card's
+                                                           checklist item
   attach <ref> <file> [--description <text>]             Attach a file, or replace its bytes
     [--replace]
   file <card> <kind> <text|-> [--column <column>]        File a checklist item on a card
@@ -107,7 +107,7 @@ WORKBENCH
 SERVE
   mcp [--root <dir>]                                     Serve workbenches over MCP on stdio
   lsp [--root <dir>] [--annotate-prose]                  Serve one workbench to an editor over LSP on stdio
-    [--poll-seconds <n>]
+    [--poll-seconds <n>] [--stdio]
 
 Global flags:
   Option             What it does
@@ -142,7 +142,7 @@ WORK
   block <card> <reason> [--kind <kind>]                                                                 Raise an obstacle and free the card
   unblock <card>                                                                                        Lift a block (operator only)
   raise <card> <tier> <reason>                                                                          Raise the tier this stop needs and hand the card back
-  comment <ref> <text|->                                                                                Record a comment on a card or on one of its checklist items
+  comment <ref> <text|->                                                                                Record a comment on a card, a column, or a card's checklist item
   attach <ref> <file> [--description <text>] [--replace]                                                Attach a file, or replace its bytes
   file <card> <kind> <text|-> [--column <column>] [--owner <owner>]                                     File a checklist item on a card
   cite <item> <scheme> <target> [--observed <before:after>]                                             Cite evidence on a checklist item
@@ -193,7 +193,7 @@ WORKBENCH
 
 SERVE
   mcp [--root <dir>]                                                                                    Serve workbenches over MCP on stdio
-  lsp [--root <dir>] [--annotate-prose] [--poll-seconds <n>]                                            Serve one workbench to an editor over LSP on stdio
+  lsp [--root <dir>] [--annotate-prose] [--poll-seconds <n>] [--stdio]                                  Serve one workbench to an editor over LSP on stdio
 
 Global flags:
   Option             What it does

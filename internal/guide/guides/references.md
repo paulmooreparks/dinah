@@ -146,7 +146,7 @@ Eighteen commands take a reference, and between them they accept six different s
 | show         | yes         | yes      | yes    | yes          | no           |
 | instructions | no          | yes      | yes    | no           | no           |
 | attach       | yes         | yes      | yes    | yes          | no           |
-| comment      | no          | no       | yes    | yes          | no           |
+| comment      | no          | yes      | yes    | yes          | no           |
 | archive      | no          | yes      | yes    | yes          | no           |
 | restore      | no          | yes      | yes    | yes          | no           |
 | delete       | no          | yes      | yes    | yes          | no           |

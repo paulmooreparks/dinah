@@ -86,19 +86,21 @@ function manifestKeys(): Set<string> {
 	return new Set(Object.keys(catalogue));
 }
 
-test("the English runtime catalogue carries exactly 190 entries", () => {
+test("the English runtime catalogue carries exactly 191 entries", () => {
 	// The count is taken over `entries` rather than over the file's top level,
 	// which carries two members: the tag and the entries themselves.
 	//
-	// 192 before dinah-519, less its eight removals, plus its six additions.
+	// 192 before dinah-519, less its eight removals, plus its six additions,
+	// plus the one skip reason dinah-518 adds for a row that names no column.
 	// dinah-515 adds no runtime key, its four strings being manifest ones.
-	assert.equal(runtimeKeys().size, 190);
+	assert.equal(runtimeKeys().size, 191);
 });
 
-test("the base manifest catalogue carries exactly 56 keys", () => {
-	// 51 before these two cards, plus the one command a comment row
-	// contributes and the four settings the language server contributes.
-	assert.equal(manifestKeys().size, 56);
+test("the base manifest catalogue carries exactly 57 keys", () => {
+	// 51 before dinah-519, plus the one command its comment row contributes,
+	// the one command dinah-518 puts on a column row, and the four settings
+	// dinah-515's language server contributes.
+	assert.equal(manifestKeys().size, 57);
 });
 
 test("the six runtime keys dinah-519 adds are present and its eight removals are gone", () => {

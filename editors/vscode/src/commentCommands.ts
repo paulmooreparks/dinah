@@ -7,9 +7,10 @@
 // window.
 //
 // One command and no more, because Dinah offers no more. `dinah comment`
-// records a comment on a card or on one of its items and refuses a comment's
-// own reference, so a Reply entry here would offer a refusal, and there is no
-// verb that edits or deletes a comment for an entry to run.
+// records a comment on a card, on a column, or on one of a card's items, and
+// it refuses a comment's own reference, so a Reply entry here would offer a
+// refusal, and there is no verb that edits or deletes a comment for an entry
+// to run.
 
 import type { BulkReport } from "./bulk";
 import { runBulk } from "./bulk";
