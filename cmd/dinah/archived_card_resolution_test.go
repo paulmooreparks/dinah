@@ -253,7 +253,7 @@ var archivedResolutionFamilies = []resolutionFamily{
 			{"internal/verb/tree.go", "rootOf", 1, "rendering the root of a tree"},
 			{"internal/verb/tree.go", "itemRefOf", 1, "rendering a checklist item's holder"},
 			{"internal/verb/tree.go", "containedNode", 1, "rendering a contained entity"},
-			{"internal/verb/tree.go", "workstreamContents", 1, "naming a card the walk from a workstream drew as a member; the membership comes off Library.selection, which reads Bench.Cards over the live half alone, so no archived card reaches this call"},
+			{"internal/verb/tree.go", "workstreamContents", 1, "naming a card the walk from a workstream drew as a member; the membership comes off Library.selection, which reads the workbench's own cards over the live half alone, so no archived card reaches this call"},
 			{"internal/lsp/annotate.go", "cardAnnotation", 1, "composing the canonical reference the language server prints in a card's hover and carries on the annotation's target; the card came out of a live resolution or out of a document's own reference, and the archive is never read here"},
 			{"internal/lsp/handlers.go", "cardCandidates", 1, "composing the label of one card candidate in a completion list, over the live half alone"},
 		},

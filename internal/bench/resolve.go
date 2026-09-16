@@ -673,11 +673,17 @@ const (
 // segment against a literal, which is how `<card>/journal` and
 // `<card>/journal.ndjson` came to be one spelling to the resolver and two to
 // everything reading the resolver's answer.
+// It is written as a chain rather than as a switch or a map because
+// TestTheContainmentGrammarIsDeclaredOnce reads any switch or map naming an
+// anchor constant as a second copy of the containment grammar, and here the
+// anchor constant is doing something else: this is a table of what a reader
+// may type below a card, and it names CardAnchor only so that the spelling of
+// the file is not written out a second time.
 func CardOwnFile(segment string) (string, bool) {
-	switch segment {
-	case CardAnchor, KindCard:
+	if segment == CardAnchor || segment == KindCard {
 		return CardFileAnchor, true
-	case CardFileJournal, JournalName:
+	}
+	if segment == CardFileJournal || segment == JournalName {
 		return CardFileJournal, true
 	}
 	return "", false

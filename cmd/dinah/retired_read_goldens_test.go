@@ -135,7 +135,27 @@ func stabilise(text, root string) string {
 		out = strings.ReplaceAll(out, strings.ReplaceAll(path, `\`, `/`), "<root>")
 	}
 	out = timestamp.ReplaceAllString(out, "<when>")
-	return mintedID.ReplaceAllString(out, "<id>")
+	return foldPathSeparators(mintedID.ReplaceAllString(out, "<id>"))
+}
+
+// tokenisedPath is a path the stabiliser has already rooted: the token, then
+// whatever the printed path carried below it, up to the first space.
+var tokenisedPath = regexp.MustCompile(`<root>\S*`)
+
+// foldPathSeparators writes every separator below the rooted path as a forward
+// slash, on both sides of the comparison.
+//
+// The goldens were captured on Windows, where a workbench enumeration prints
+// `<root>\.dinah\<id>`, and the same enumeration on Linux and macOS prints the
+// same path with forward slashes. That difference is the host's and not the
+// command's, so folding it is what lets one captured golden hold the bytes on
+// every platform the checks run. Only the rooted path is touched, because the
+// separator is the only thing being folded and a backslash anywhere else in a
+// listing means something else.
+func foldPathSeparators(text string) string {
+	return tokenisedPath.ReplaceAllStringFunc(text, func(path string) string {
+		return strings.ReplaceAll(path, `\`, `/`)
+	})
 }
 
 // TestTheCollapsedReadsPrintWhatTheRetiredOnesPrinted asserts that each
@@ -166,8 +186,11 @@ func TestTheCollapsedReadsPrintWhatTheRetiredOnesPrinted(t *testing.T) {
 		if got.code != 0 {
 			t.Fatalf("%v: exit %d, %s", row.after, got.code, got.errw)
 		}
-		if stabilise(got.out, root) != string(want) {
-			t.Errorf("%v prints\n%s\nwhere %s holds\n%s", row.after, stabilise(got.out, root), row.file, want)
+		// The golden goes through the separator fold as well, because it was
+		// captured on Windows and holds that host's separators below the
+		// rooted path.
+		if stabilise(got.out, root) != foldPathSeparators(string(want)) {
+			t.Errorf("%v prints\n%s\nwhere %s holds\n%s", row.after, stabilise(got.out, root), row.file, foldPathSeparators(string(want)))
 		}
 	}
 }
