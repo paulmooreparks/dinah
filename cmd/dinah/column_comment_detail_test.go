@@ -137,7 +137,9 @@ func TestChangesNamesTheColumnAColumnCommentWasLeftOn(t *testing.T) {
 
 	// The card comment's own line is in the card's journal, and it renders
 	// with an empty detail exactly as it does on trunk.
-	log := runCLI(t, root, "log", card)
+	// `log` retired into `list <card>/journal` on dinah-523, which renders
+	// the same journal through the same library call.
+	log := runCLI(t, root, "list", card+"/journal")
 	if log.code != 0 {
 		t.Fatalf("log: %d %s", log.code, log.errw)
 	}
