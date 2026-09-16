@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -127,15 +128,35 @@ var mintedID = regexp.MustCompile(`[0-9a-f]{12,32}`)
 // wherever a table has already laid the line out.
 func stabilise(text, root string) string {
 	out := text
-	// The workbench directory is replaced before the directory above it, so
-	// that the longer path is matched first and the shorter one does not eat
-	// its prefix.
-	for _, path := range []string{root, filepath.Dir(root)} {
+	// Every path is replaced longest first, so that a shorter one does not
+	// eat a longer one's prefix and leave the tail behind.
+	for _, path := range rootSpellings(root) {
 		out = strings.ReplaceAll(out, path, "<root>")
 		out = strings.ReplaceAll(out, strings.ReplaceAll(path, `\`, `/`), "<root>")
 	}
 	out = timestamp.ReplaceAllString(out, "<when>")
 	return foldPathSeparators(mintedID.ReplaceAllString(out, "<id>"))
+}
+
+// rootSpellings is every spelling of the fixture's own directory and of the
+// directory above it that a printed path may carry, longest first.
+//
+// Each of the two is spelled twice, because macOS hands out a temporary
+// directory under /var/folders and reaches the same directory at
+// /private/var/folders, and the enumeration prints whichever spelling the
+// tool resolved rather than the one the test was handed. A run whose
+// symbolic links do not resolve, which is every run on Linux and Windows,
+// yields the same string twice and the duplicate replaces nothing.
+func rootSpellings(root string) []string {
+	spellings := []string{}
+	for _, path := range []string{root, filepath.Dir(root)} {
+		spellings = append(spellings, path)
+		if resolved, err := filepath.EvalSymlinks(path); err == nil && resolved != path {
+			spellings = append(spellings, resolved)
+		}
+	}
+	sort.Slice(spellings, func(i, j int) bool { return len(spellings[i]) > len(spellings[j]) })
+	return spellings
 }
 
 // tokenisedPath is a path the stabiliser has already rooted: the token, then
