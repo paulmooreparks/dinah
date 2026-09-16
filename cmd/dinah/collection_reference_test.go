@@ -344,6 +344,97 @@ func TestAnUntitledEntityIsNamedByItsReferenceAlone(t *testing.T) {
 	}
 }
 
+// TestAWalkFromAWorkstreamDrawsTheCardsThatJoinedIt pins the walk the
+// specification's section 3.6 declares, over a workstream that actually holds
+// cards.
+//
+// The position this reaches is the one the two tests above cannot: both of
+// them create a workstream nobody has joined, so a walk that draws the
+// membership and a walk that draws nothing print the same sentence there, and
+// the shipped defect (a workstream routed to the containment table, which
+// leaves the kind out) passed them both. A card is joined here before the
+// walk runs, so a build whose walk drops the membership prints "contains
+// nothing" and fails on the first assertion.
+//
+// Two further positions ride along, each of which a different wrong build
+// reaches. The members rung draws the joined card and not what the card
+// holds, which a walk seeded at the wrong rank gets wrong in one direction or
+// the other. And the card that joined nothing is absent, which a walk reading
+// every card of the workbench rather than the membership would draw.
+func TestAWalkFromAWorkstreamDrawsTheCardsThatJoinedIt(t *testing.T) {
+	root := newBench(t)
+	mustRun(t, root, "add", "the card that joins the workstream")
+	mustRun(t, root, "add", "the card that joins nothing")
+	mustRun(t, root, "comment", "fx-1", "the thought the deepest rung draws")
+	mustRun(t, root, "workstream", "new", "Autumn release", "--slug", "autumn")
+	mustRun(t, root, "join", "fx-1", "autumn")
+
+	walked := runCLI(t, root, "--lang", "en", "list", "workstream/autumn", "--depth", "all")
+	if walked.code != 0 {
+		t.Fatalf("the walk of a joined workstream exited %d: %s", walked.code, walked.errw)
+	}
+	if strings.Contains(walked.out, "contains nothing") {
+		t.Fatalf("the walk of a workstream holding a card reports it holds nothing:\n%s", walked.out)
+	}
+	if !strings.Contains(walked.out, "fx-1") {
+		t.Errorf("the walk of a workstream does not draw the card that joined it:\n%s", walked.out)
+	}
+	if !strings.Contains(walked.out, "the thought the deepest rung draws") {
+		t.Errorf("the deepest rung does not draw what the joined card holds:\n%s", walked.out)
+	}
+	if strings.Contains(walked.out, "fx-2") {
+		t.Errorf("the walk of a workstream draws a card that joined nothing:\n%s", walked.out)
+	}
+
+	members := runCLI(t, root, "--lang", "en", "list", "workstream/autumn", "--depth", "members")
+	if members.code != 0 {
+		t.Fatalf("the members rung over a workstream exited %d: %s", members.code, members.errw)
+	}
+	if !strings.Contains(members.out, "fx-1") {
+		t.Errorf("the members rung does not draw the card that joined the workstream:\n%s", members.out)
+	}
+	if strings.Contains(members.out, "the thought the deepest rung draws") {
+		t.Errorf("the members rung draws what the joined card holds:\n%s", members.out)
+	}
+}
+
+// TestArchivedBesideAWorkstreamIsRefusedByName pins the ruling recorded as
+// dinah-523/decisions/12, which the specification left open: --archived
+// beside a workstream reference is refused rather than answered.
+//
+// A workstream holds a membership rather than a containment, and since the
+// walk from one draws that membership, neither of a workstream's two readings
+// has an archive half to read. The flag is therefore refused by name, as it
+// already is beside the roster word workstreams, which is what stops the
+// combination answering a live membership under a flag that asked for the
+// archive.
+//
+// The workstream is archived first, because the resolver's own not-archived
+// refusal fires ahead of the flag check for a workstream that is still live,
+// and an archived workstream is the only state in which this ruling is the
+// thing being read.
+func TestArchivedBesideAWorkstreamIsRefusedByName(t *testing.T) {
+	root := newBench(t)
+	mustRun(t, root, "add", "the card that joins the workstream")
+	mustRun(t, root, "workstream", "new", "Autumn release", "--slug", "autumn")
+	mustRun(t, root, "join", "fx-1", "autumn")
+	mustRun(t, root, "archive", "workstream/autumn")
+
+	for _, argv := range [][]string{
+		{"list", "workstream/autumn", "--archived"},
+		{"list", "workstream/autumn", "--archived", "--depth", "all"},
+	} {
+		answer := answerOf(t, root, argv...)
+		if answer.refusal != contract.Usage {
+			t.Errorf("%v answered %q rather than %s:\n%s%s", argv, answer.refusal, contract.Usage, answer.out, answer.errw)
+		}
+	}
+	sentence := runCLI(t, root, "--lang", "en", "list", "workstream/autumn", "--archived").errw
+	if !strings.Contains(sentence, "--archived beside a workstream reference") {
+		t.Errorf("the refusal does not name the combination the reader wrote:\n%s", sentence)
+	}
+}
+
 // TestPathAnswersACollectionWhetherOrNotItsDirectoryExists is the one place
 // this card changes path, and the last clause is the arm that can fail:
 // dropping the guard on the collection branch must not make a positional

@@ -193,9 +193,12 @@ not take the word over. `dinah list cards` answers the roster word, and a
 column slugged `cards` stays reachable from `list` by its identifier and by
 its name, and from every other command by its slug as well.
 
-A workstream's attachments are addressed rather than walked. Write
-`dinah list workstream/<slug>/attachments` for them, because a depth walk from
-a workstream draws the cards that joined it and a workstream contains nothing.
+A depth walk from a workstream draws the cards that joined it, and the deeper
+rungs draw what each of those cards holds. The workstream itself contains
+nothing, and there is no reference below one to write: what a workstream
+carries is a membership, and nothing hangs off it. `--archived` is refused
+beside a workstream reference for the same reason, since a membership is held
+in the live half alone.
 
 ## Reading the archive
 

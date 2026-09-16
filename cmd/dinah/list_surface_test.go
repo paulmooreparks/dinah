@@ -124,10 +124,18 @@ func TestListReadsOrRefusesEachFlagAgainstEachReferenceShape(t *testing.T) {
 			"--archived": {flag: []string{"--archived"}, reads: true},
 			"--root":     {flag: []string{"--root", forest}, reads: true},
 		}},
+		// The workstream is the one shape that refuses --archived while
+		// resolving in the archive half, on the ruling recorded as
+		// dinah-523/decisions/12. Both of its readings answer the
+		// membership, which is held in the live half alone, so the flag has
+		// nothing to read here and is refused by name. The archived
+		// reference is still named, because the resolver's own
+		// not-archived refusal would otherwise fire ahead of the flag check
+		// and this cell would pin the wrong refusal.
 		{name: "a workstream", ref: []string{"workstream/autumn"}, archived: []string{"workstream/spring"}, cells: map[string]cell{
 			"--depth":    {flag: []string{"--depth", "all"}, reads: true},
 			"--ready":    {flag: []string{"--ready"}, reads: true},
-			"--archived": {flag: []string{"--archived"}, reads: true},
+			"--archived": {flag: []string{"--archived"}},
 			"--root":     {flag: []string{"--root", forest}, reads: true},
 		}},
 		{name: "a card", ref: []string{"fx-1"}, archived: []string{"fx-2"}, cells: map[string]cell{

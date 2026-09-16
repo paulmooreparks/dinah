@@ -235,8 +235,8 @@ var archivedResolutionFamilies = []resolutionFamily{
 		name: "E", axis: "reading",
 		what:      "rendering a card's human reference: every call whose selector is Ref and which carries exactly one argument",
 		files:     11,
-		mentions:  23,
-		functions: 17,
+		mentions:  24,
+		functions: 18,
 		sites: []resolutionSite{
 			{"internal/bench/branchmigrate.go", "MigrateBranches", 5, "naming a card in the branch migration's own report, once for each of the four classes it sorts a card into and once more for the account of what the write pass wrote; the run walks the live half alone, on the rule MigrateNumbers keeps for the archive, so no archived card reaches these calls"},
 			{"internal/bench/check.go", "checkTierOverrides", 1, "naming a card in a finding"},
@@ -253,6 +253,7 @@ var archivedResolutionFamilies = []resolutionFamily{
 			{"internal/verb/tree.go", "rootOf", 1, "rendering the root of a tree"},
 			{"internal/verb/tree.go", "itemRefOf", 1, "rendering a checklist item's holder"},
 			{"internal/verb/tree.go", "containedNode", 1, "rendering a contained entity"},
+			{"internal/verb/tree.go", "workstreamContents", 1, "naming a card the walk from a workstream drew as a member; the membership comes off Library.selection, which reads Bench.Cards over the live half alone, so no archived card reaches this call"},
 			{"internal/lsp/annotate.go", "cardAnnotation", 1, "composing the canonical reference the language server prints in a card's hover and carries on the annotation's target; the card came out of a live resolution or out of a document's own reference, and the archive is never read here"},
 			{"internal/lsp/handlers.go", "cardCandidates", 1, "composing the label of one card candidate in a completion list, over the live half alone"},
 		},

@@ -915,6 +915,9 @@ func (l *Library) Contents(req *Request, level string) (*Tree, error) {
 		tree.Archived = collection.Archived
 		return tree, nil
 	}
+	if entity.Kind == bench.KindWorkstream {
+		return l.workstreamContents(req, entity, level)
+	}
 	root, err := l.rootOf(entity)
 	if err != nil {
 		return nil, err
@@ -1004,6 +1007,69 @@ func (l *Library) collectionContents(collection *bench.CollectionRef, level stri
 			return nil, err
 		}
 		tree.Root.Count += 1 + count
+	}
+	placeChildren(&tree.Root, children, rank, limit)
+	return tree, nil
+}
+
+// workstreamContents is the walk rooted at a workstream, whose children are
+// the cards that joined it and what each of those cards holds.
+//
+// The root is seeded at rank zero, the workbench's own rank, because a
+// workstream's cards are the workbench's cards seen through a membership, so
+// its members sit at the rank a card sits at anywhere else and the absolute
+// rungs cut this walk where they cut a walk from the workbench. Reading the
+// membership off the same selection Library.Query runs is what keeps the two
+// readings of one workstream reference answering one set of cards: the walk
+// draws the cards the no-depth answer prints, in the arrival order it prints
+// them in.
+//
+// Nothing the workstream itself holds is drawn, at any rung, and there is
+// nothing for it to hold: KindWorkstream is absent from the containment table
+// on purpose and stays absent, so this walk reads the membership alone and
+// never claims that a workstream contains anything. The format grammar does
+// admit an attachments directory below a workstream, but no command creates
+// one and the resolver reaches no reference below a workstream, so that arm
+// of the grammar is unreachable today and this walk draws nothing for it.
+func (l *Library) workstreamContents(req *Request, entity *bench.EntityRef, level string) (*Tree, error) {
+	root, err := l.rootOf(entity)
+	if err != nil {
+		return nil, err
+	}
+	tree := &Tree{
+		Producer: ProducerContainment,
+		Subject:  SubjectEntity,
+		Depth:    level,
+		Root:     root,
+	}
+	members, _, err := l.selection(workstreamSelector(l.Bench, entity), req.Actor)
+	if err != nil {
+		return nil, err
+	}
+	sortByArrival(members)
+	const rank = 0
+	limit := contentsLimit(level, rank)
+	children := make([]TreeNode, 0, len(members))
+	for _, card := range members {
+		// The count is walked rather than added up from the children the
+		// projection drew, so it is the same number whatever the depth left
+		// out, which is the rule containedCount already carries.
+		count, err := containedCount(card.Dir, bench.KindCard)
+		if err != nil {
+			return nil, err
+		}
+		node := TreeNode{
+			Kind:  bench.KindCard,
+			ID:    card.ID,
+			Ref:   card.Ref(l.Bench.Slug),
+			Title: card.Title,
+			Count: count,
+		}
+		if err := l.fillContained(&node, card.Dir, bench.KindCard, node.Ref, rank+1, limit); err != nil {
+			return nil, err
+		}
+		tree.Root.Count += 1 + count
+		children = append(children, node)
 	}
 	placeChildren(&tree.Root, children, rank, limit)
 	return tree, nil
