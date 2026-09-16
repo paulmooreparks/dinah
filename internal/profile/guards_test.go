@@ -4260,6 +4260,19 @@ var anchorConstants = map[string]bool{
 	"ItemAnchor":       true,
 }
 
+// exemptedAnchorTables are the functions that name an anchor constant inside a
+// construct this guard reads and are not a copy of the containment grammar,
+// keyed by the file they stand in and named by the function.
+//
+// bench.CardOwnFile is the one such function. It is a table of the segments a
+// reader may type below a card, keyed on what somebody wrote and answering
+// which of the card's own two files they meant, and it names CardAnchor only so
+// that the anchor's own spelling is not written out a second time. Nothing in
+// it maps a kind to an anchor, which is what the grammar declares.
+var exemptedAnchorTables = map[string]string{
+	"internal/bench/resolve.go": "CardOwnFile",
+}
+
 // TestTheContainmentGrammarIsDeclaredOnce asserts that no anchor constant
 // appears inside a switch statement or a map literal anywhere but the table
 // that declares the grammar.
@@ -4273,11 +4286,34 @@ var anchorConstants = map[string]bool{
 //
 // Test sources are outside the scan, since a test naming an anchor is reading
 // what the tool wrote rather than deciding what contains what.
+//
+// # What this guard cannot see
+//
+// It reads three constructs and no others: a switch statement, a type switch,
+// and a map literal. An anchor constant named anywhere else is invisible to
+// it, and the shapes that reach the same decision are an if chain comparing a
+// kind against a constant, a slice or array literal of anchors, a bare
+// equality test, and a kind-to-anchor mapping a function computes rather than
+// declares. So a genuine fifth copy of the grammar written as an if chain
+// passes this guard, and what the green run proves is narrower than the name
+// of the test: it proves no copy is written in one of the three constructs.
+//
+// The guard is left reading constructs rather than taught to tell a
+// kind-to-anchor mapping from a segment-to-file table, and the exemption above
+// is what carries the one case where the two are confusable. Telling them
+// apart means reading what a switch is keyed on and what its arms yield, and
+// the tag can be a parameter, a field, a call or absent altogether, so the
+// guard would be answering a question about meaning off a shape that varies.
+// That trades a blind spot a reader can check, which is this paragraph and a
+// two-line exemption table, for one nobody can, which is a heuristic that
+// quietly reads a copy as a table. A false exemption is visible; a false
+// classification is not.
 func TestTheContainmentGrammarIsDeclaredOnce(t *testing.T) {
 	root := filepath.Join("..", "..")
 	if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(theOneContainmentTable))); err != nil {
 		t.Fatalf("the one containment table is not where this guard exempts it: %v", err)
 	}
+	exempted := map[string]bool{}
 	scanned := 0
 	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
@@ -4300,8 +4336,13 @@ func TestTheContainmentGrammarIsDeclaredOnce(t *testing.T) {
 			return nil
 		}
 		scanned++
-		for _, finding := range anchorsInDecisions(t, path) {
-			t.Errorf("%s: %s, and %s is where the containment grammar is declared", filepath.ToSlash(relative), finding, theOneContainmentTable)
+		slashed := filepath.ToSlash(relative)
+		findings, skipped := anchorsInDecisions(t, path, exemptedAnchorTables[slashed])
+		if skipped {
+			exempted[slashed] = true
+		}
+		for _, finding := range findings {
+			t.Errorf("%s: %s, and %s is where the containment grammar is declared", slashed, finding, theOneContainmentTable)
 		}
 		return nil
 	})
@@ -4311,20 +4352,37 @@ func TestTheContainmentGrammarIsDeclaredOnce(t *testing.T) {
 	if scanned == 0 {
 		t.Error("the walk read no source at all, so this guard proves nothing")
 	}
+	// An exemption that matches nothing is an exemption nobody can check, so
+	// it is a failure here rather than a line left behind by a rename.
+	for file, function := range exemptedAnchorTables {
+		if !exempted[file] {
+			t.Errorf("%s exempts %s and the walk found no such function there, so the exemption states a reason for code that has moved", file, function)
+		}
+	}
 }
 
 // anchorsInDecisions reports every anchor constant one source names inside a
-// switch statement or a map literal, with the line it stands on.
-func anchorsInDecisions(t *testing.T, path string) []string {
+// switch statement or a map literal, with the line it stands on. The second
+// answer says whether the named function was met and skipped, which is what
+// lets the caller refuse an exemption that has gone stale.
+//
+// The exemption is a whole function rather than a line, because the construct
+// a reader argues about is the function's body and a line number moves under
+// every edit above it.
+func anchorsInDecisions(t *testing.T, path, exempt string) (found []string, skipped bool) {
 	t.Helper()
 	set := token.NewFileSet()
 	file, err := parser.ParseFile(set, path, nil, 0)
 	if err != nil {
 		t.Fatalf("parse %s: %v", path, err)
 	}
-	var found []string
 	ast.Inspect(file, func(node ast.Node) bool {
 		switch typed := node.(type) {
+		case *ast.FuncDecl:
+			if exempt != "" && typed.Name != nil && typed.Name.Name == exempt {
+				skipped = true
+				return false
+			}
 		case *ast.SwitchStmt:
 			found = append(found, anchorsNamed(set, typed, "a switch statement")...)
 		case *ast.TypeSwitchStmt:
@@ -4337,7 +4395,7 @@ func anchorsInDecisions(t *testing.T, path string) []string {
 		return true
 	})
 	sort.Strings(found)
-	return found
+	return found, skipped
 }
 
 // anchorsNamed reports the anchor constants one node names, wherever they sit

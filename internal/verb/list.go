@@ -152,8 +152,9 @@ type ListResult struct {
 
 // Answer projects a result onto the flat union a forest row publishes. It
 // answers nil for the two shapes no forest row can carry, which are a journal
-// and a containment walk, because --root refuses the references that reach
-// them.
+// and a containment walk. Neither reaches a row: --root refuses a journal
+// reference and every reference whose plain reading is a walk, and it refuses
+// --depth, which is the other door a walk could arrive through.
 func (r *ListResult) Answer() *ListAnswer {
 	answer := &ListAnswer{shape: r.Shape, Cards: []CardView{}}
 	switch r.Shape {
@@ -307,6 +308,29 @@ func RootScopedReference(ref string) (bool, string) {
 		return false, subjectCard
 	}
 	return true, ""
+}
+
+// archivedReadingWalks reports whether --archived turns this reference into a
+// containment walk, which is the reading a forest row cannot publish. It
+// answers the question syntactically, for the same reason RootScopedReference
+// does: --root fans one question out before any workbench is open, so nothing
+// has resolved the reference yet.
+//
+// A bare invocation and the workbench spellings count the archive half's
+// rosters, and a roster word refuses the flag outright, so neither reads as a
+// walk. A workstream refuses the flag by name on dinah-523/decisions/12, and
+// that refusal is the one a reader wants to be told about, so it is left to
+// fire inside each workbench rather than overwritten here. Everything else
+// --root admits is a column reference, whose archive-half reading is the walk.
+func archivedReadingWalks(ref string) bool {
+	trimmed := strings.TrimSpace(ref)
+	if trimmed == "" || bench.IsWorkbenchRef(trimmed) {
+		return false
+	}
+	if _, roster := RosterWordOf(trimmed); roster {
+		return false
+	}
+	return !strings.HasPrefix(trimmed, bench.WorkstreamRefPrefix)
 }
 
 // ListRef answers what a reference holds, which is the whole of the list
@@ -480,22 +504,34 @@ func (l *Library) rosterWord(req *Request, word string) (*ListResult, error) {
 // `list cards --ready` and `query state:ready` print the same bytes and the
 // published query member reads what the reader would otherwise have typed.
 func (l *Library) listMatches(req *Request, selector string) (*ListResult, error) {
-	query := selector
-	if req.ReadyOnly {
-		ready := FieldState + ":" + contract.StateReady
-		if query == "" {
-			query = ready
-		} else {
-			query += " " + ready
-		}
-	}
 	asked := *req
-	asked.Query = query
+	asked.Query = narrowToReady(selector, req.ReadyOnly)
 	matches, err := l.Query(&asked)
 	if err != nil {
 		return nil, err
 	}
 	return &ListResult{Shape: ShapeMatches, Matches: matches}, nil
+}
+
+// narrowToReady composes --ready onto a selector, and it is the one place the
+// flag becomes a query term. Composing rather than filtering an answer is what
+// makes the published query member read what the reader would otherwise have
+// typed, and it is why both readings of a reference narrow the same way: the
+// membership a walk is rooted on is selected by the same string the no-depth
+// answer selects by, so `list workstream/<slug> --ready` and
+// `list workstream/<slug> --depth all --ready` cannot part company over which
+// cards the flag admits. That is the ruling recorded as dinah-523/decisions/14,
+// and section 3.6 of the contract is the sentence behind it: --depth over a
+// workstream draws the same membership and then walks below it.
+func narrowToReady(selector string, readyOnly bool) string {
+	if !readyOnly {
+		return selector
+	}
+	ready := FieldState + ":" + contract.StateReady
+	if selector == "" {
+		return ready
+	}
+	return selector + " " + ready
 }
 
 // workstreamSelector is the query that answers a workstream's cards. The

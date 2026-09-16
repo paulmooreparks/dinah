@@ -127,6 +127,16 @@ var mintedID = regexp.MustCompile(`[0-9a-f]{12,32}`)
 // preserved, because the token is written to the width of what it replaces
 // wherever a table has already laid the line out.
 func stabilise(text, root string) string {
+	return foldPathSeparators(rootedText(text, root))
+}
+
+// rootedText is stabilise without the separator fold: the fixture's directory
+// and the instants and identifiers a run mints are replaced, and every
+// separator is left as the run printed it.
+//
+// It is separate so that one check can read the bytes the fold erases, which
+// is TestTheEnumeratedPathCarriesTheHostsOwnSeparator below.
+func rootedText(text, root string) string {
 	out := text
 	// Every path is replaced longest first, so that a shorter one does not
 	// eat a longer one's prefix and leave the tail behind.
@@ -135,7 +145,7 @@ func stabilise(text, root string) string {
 		out = strings.ReplaceAll(out, strings.ReplaceAll(path, `\`, `/`), "<root>")
 	}
 	out = timestamp.ReplaceAllString(out, "<when>")
-	return foldPathSeparators(mintedID.ReplaceAllString(out, "<id>"))
+	return mintedID.ReplaceAllString(out, "<id>")
 }
 
 // rootSpellings is every spelling of the fixture's own directory and of the
@@ -177,6 +187,42 @@ func foldPathSeparators(text string) string {
 	return tokenisedPath.ReplaceAllStringFunc(text, func(path string) string {
 		return strings.ReplaceAll(path, `\`, `/`)
 	})
+}
+
+// TestTheEnumeratedPathCarriesTheHostsOwnSeparator reads the bytes the
+// separator fold erases from the golden comparison.
+//
+// The fold is applied to the golden and to the output alike, which is what
+// lets one captured file hold on three hosts, and the cost is that no
+// comparison in that test can say anything about a separator below the rooted
+// path any more. This is the assertion that can: the workbench enumeration
+// prints a path the host's own filesystem spells, so the separator it carries
+// is filepath.Separator and nothing else, and it is read here off the
+// unfolded text rather than off the golden.
+//
+// Only the separator is asserted. What the path is, and the rest of the table
+// around it, are the golden's business.
+func TestTheEnumeratedPathCarriesTheHostsOwnSeparator(t *testing.T) {
+	root, _, _, _ := seedRetiredBench(t)
+	got := runCLI(t, root, "list", "workbenches", "--root", "..", "--max-depth", "4")
+	if got.code != 0 {
+		t.Fatalf("the enumeration exited %d: %s", got.code, got.errw)
+	}
+	printed := tokenisedPath.FindString(rootedText(got.out, root))
+	if printed == "" {
+		t.Fatalf("the enumeration printed no path below the fixture's own directory:\n%s", got.out)
+	}
+	wanted := "<root>" + string(filepath.Separator) + ".dinah"
+	if !strings.HasPrefix(printed, wanted) {
+		t.Errorf("the enumeration printed %q, and this host spells the separator %q", printed, string(filepath.Separator))
+	}
+	foreign := `\`
+	if filepath.Separator == '\\' {
+		foreign = "/"
+	}
+	if strings.Contains(printed, foreign) {
+		t.Errorf("the enumeration printed %q, which carries the separator of another host", printed)
+	}
 }
 
 // TestTheCollapsedReadsPrintWhatTheRetiredOnesPrinted asserts that each

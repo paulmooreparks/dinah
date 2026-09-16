@@ -396,6 +396,44 @@ func TestAWalkFromAWorkstreamDrawsTheCardsThatJoinedIt(t *testing.T) {
 	if strings.Contains(members.out, "the thought the deepest rung draws") {
 		t.Errorf("the members rung draws what the joined card holds:\n%s", members.out)
 	}
+
+	// The pair --depth and --ready is the ruling recorded as
+	// dinah-523/decisions/14: the walk is rooted on the membership --ready
+	// selected, so one workstream reference answers one set of cards under
+	// that flag however the reader asked for it. A third card joins and the
+	// first is taken up, which is the position the ruling is about, since a
+	// workstream whose every card is ready cannot tell a narrowed walk from
+	// an unnarrowed one.
+	mustRun(t, root, "add", "the ready card that joined")
+	mustRun(t, root, "join", "fx-3", "autumn")
+	mustRun(t, root, "move", "fx-1", "doing")
+	mustRun(t, root, "claim", "fx-1")
+
+	narrowed := runCLI(t, root, "--lang", "en", "list", "workstream/autumn", "--ready")
+	if narrowed.code != 0 {
+		t.Fatalf("--ready over a workstream exited %d: %s", narrowed.code, narrowed.errw)
+	}
+	walkedReady := runCLI(t, root, "--lang", "en", "list", "workstream/autumn", "--depth", "all", "--ready")
+	if walkedReady.code != 0 {
+		t.Fatalf("--depth with --ready over a workstream exited %d: %s", walkedReady.code, walkedReady.errw)
+	}
+	for _, one := range []struct {
+		name string
+		out  string
+	}{{"the narrowed answer", narrowed.out}, {"the narrowed walk", walkedReady.out}} {
+		if !strings.Contains(one.out, "fx-3") {
+			t.Errorf("%s drops the ready card that joined:\n%s", one.name, one.out)
+		}
+		if strings.Contains(one.out, "fx-1") {
+			t.Errorf("%s draws fx-1, which is taken up and is what --ready excludes:\n%s", one.name, one.out)
+		}
+		if strings.Contains(one.out, "fx-2") {
+			t.Errorf("%s draws fx-2, which joined nothing:\n%s", one.name, one.out)
+		}
+	}
+	if strings.Contains(walkedReady.out, "the thought the deepest rung draws") {
+		t.Errorf("the narrowed walk draws what the excluded card holds:\n%s", walkedReady.out)
+	}
 }
 
 // TestArchivedBesideAWorkstreamIsRefusedByName pins the ruling recorded as

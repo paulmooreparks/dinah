@@ -206,6 +206,105 @@ func TestListReadsOrRefusesEachFlagAgainstEachReferenceShape(t *testing.T) {
 	t.Logf("%d cells run: %d read, %d refused, plus the one refusal --max-depth carries", cells, readCells, refusedCells)
 }
 
+// TestListAnswersEachAdmittedFlagPairOrRefusesItByName is the pair half of the
+// sweep above, which runs one cell per flag and so reads no combination at all.
+//
+// The rulings it pins are dinah-523/decisions/14, that --depth and --ready over
+// a workstream narrow one membership rather than two, and
+// dinah-523/decisions/15, that a root-scoped question whose answer would be a
+// containment walk is refused by name rather than computed per workbench and
+// published nowhere. The pairs a reader can actually write are what the rows
+// enumerate: a flag the table refuses beside a shape is already refused alone,
+// so the pairs worth reading are the ones both cells admit, plus the two the
+// workstream ruling of dinah-523/decisions/12 refuses.
+//
+// A row saying reads asserts an answer rather than an exit code alone, because
+// the failure this test exists to catch is a flag admitted and then dropped,
+// and a dropped flag exits zero.
+func TestListAnswersEachAdmittedFlagPairOrRefusesItByName(t *testing.T) {
+	root := listBench(t)
+	// The fan-out is rooted at the fixture's own directory rather than at an
+	// empty one, so every --root row carries a workbench that answers and a
+	// pair whose answer went missing is visible as a row with nothing in it.
+	forest := filepath.Dir(root)
+
+	const (
+		reads   = "reads"
+		refused = "refused"
+		// perRow is the fan-out answering while every row carries the
+		// refusal that workbench's own list raised, which is what a
+		// reference no workbench can answer under the flag looks like.
+		perRow = "per row"
+	)
+	rows := []struct {
+		name string
+		argv []string
+		want string
+		// refusal is the name a refused row expects, dinah.usage where the
+		// row leaves it empty, because a pair refused for naming a
+		// combination is the common case and a pair the resolver refuses
+		// on its own grounds says so in its own name.
+		refusal string
+		detail  string
+	}{
+		{name: "--depth with --ready over a workstream", argv: []string{"list", "workstream/autumn", "--depth", "all", "--ready"}, want: reads},
+		{name: "--ready with --root over a workstream", argv: []string{"list", "workstream/autumn", "--ready", "--root", forest}, want: reads},
+		{name: "--depth with --root over a workstream", argv: []string{"list", "workstream/autumn", "--depth", "all", "--root", forest}, want: refused, detail: "--depth beside --root"},
+		{name: "--archived with --depth over a workstream", argv: []string{"list", "workstream/spring", "--archived", "--depth", "all"}, want: refused, detail: "--archived beside a workstream reference"},
+		{name: "--archived with --ready over a workstream", argv: []string{"list", "workstream/spring", "--archived", "--ready"}, want: refused, detail: "--archived beside a workstream reference"},
+		{name: "--archived with --root over a workstream", argv: []string{"list", "workstream/spring", "--archived", "--root", forest}, want: perRow},
+		{name: "--depth with --ready over a column", argv: []string{"list", "intake", "--depth", "all", "--ready"}, want: reads},
+		{name: "--ready with --root over a column", argv: []string{"list", "intake", "--ready", "--root", forest}, want: reads},
+		{name: "--depth with --root over a column", argv: []string{"list", "intake", "--depth", "all", "--root", forest}, want: refused, detail: "--depth beside --root"},
+		{name: "--archived with --root over a column", argv: []string{"list", "retired", "--archived", "--root", forest}, want: refused, detail: "--archived beside --root"},
+		// --archived alone over the workbench counts the archive half's
+		// rosters, and --depth switches it onto the walk, which has no
+		// archived workbench to walk from. The resolver says so in its own
+		// name, so this row reads dinah.not-archived rather than a usage
+		// refusal about the combination.
+		{name: "--archived with --depth over the workbench", argv: []string{"list", "workbench", "--archived", "--depth", "all"}, want: refused, refusal: contract.NotArchived, detail: "is never archived"},
+		{name: "--archived with --root over the workbench", argv: []string{"list", "workbench", "--archived", "--root", forest}, want: reads},
+		{name: "--depth with --root over the workbench", argv: []string{"list", "workbench", "--depth", "all", "--root", forest}, want: refused, detail: "--depth beside --root"},
+		{name: "--ready with --root over the roster word cards", argv: []string{"list", "cards", "--ready", "--root", forest}, want: reads},
+	}
+	for _, row := range rows {
+		t.Run(row.name, func(t *testing.T) {
+			got := runCLI(t, root, append([]string{"--lang", "en"}, row.argv...)...)
+			switch row.want {
+			case refused:
+				wanted := row.refusal
+				if wanted == "" {
+					wanted = contract.Usage
+				}
+				if got.code != contract.ExitCode(contract.OutcomeRefused) {
+					t.Fatalf("`dinah %s` exited %d, and this pair is refused: %s%s", strings.Join(row.argv, " "), got.code, got.out, got.errw)
+				}
+				if name := refusalNameOf(got.errw); name != wanted {
+					t.Errorf("`dinah %s` refused %s, wanted %s", strings.Join(row.argv, " "), name, wanted)
+				}
+				if !strings.Contains(got.errw, row.detail) {
+					t.Errorf("the refusal does not name %q, so it does not say which combination was written:\n%s", row.detail, got.errw)
+				}
+			case perRow:
+				if got.code != 0 {
+					t.Fatalf("`dinah %s` exited %d, and the fan-out answers: %s%s", strings.Join(row.argv, " "), got.code, got.out, got.errw)
+				}
+				if !strings.Contains(got.out, contract.Usage) {
+					t.Errorf("no row names the refusal the flag raises inside a workbench:\n%s", got.out)
+				}
+			default:
+				if got.code != 0 {
+					t.Fatalf("`dinah %s` exited %d, and this pair reads: %s", strings.Join(row.argv, " "), got.code, got.errw)
+				}
+				if strings.TrimSpace(got.out) == "" {
+					t.Errorf("`dinah %s` printed nothing, so one of the two flags was admitted and dropped", strings.Join(row.argv, " "))
+				}
+			}
+		})
+	}
+	t.Logf("%d flag pairs run", len(rows))
+}
+
 // TestListPublishesTheEnvelopeEachReferenceNames is dinah-523/criteria/29: the
 // members --json carries for each reference shape are the members of the
 // library call that reference routes to, unchanged.

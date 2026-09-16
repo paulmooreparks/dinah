@@ -242,7 +242,26 @@ type WorkbenchListing struct {
 // leaves that second workbench refusing on its own row while the first still
 // answers. The reference a fan-out cannot carry is refused by the head before
 // this runs, on the rule RootScopedReference states.
+//
+// A question whose answer is a containment walk is refused here rather than
+// fanned out, on the ruling recorded as dinah-523/decisions/15. A row
+// publishes a WorkbenchListing, whose listing member is the ListAnswer the
+// contract's section 3.7 declares, and that type carries no walk: the six
+// shapes it holds are the rosters, the columns, the workstreams, the
+// attachments, a query's matches and a column's queue. So a walked question
+// would compute a walk per workbench and publish none of them, which is the
+// shape of failure this card exists to remove. Both heads reach the fan-out
+// through this call, so the refusals are raised here and the terminal and the
+// machine surface cannot answer the same pair two ways. Refusing once is also
+// truer than refusing once per row, which is the reading TreeForest already
+// takes for an unknown axis.
 func ListForest(root, home string, req *Request, maxDepth int) (*RootListing, error) {
+	if req.Depth != "" {
+		return nil, refuseListFlag(flagDepth, flagRoot)
+	}
+	if req.Archived && archivedReadingWalks(req.Ref) {
+		return nil, refuseListFlag(flagArchived, flagRoot)
+	}
 	rows, err := forestCandidates(root, home, maxDepth)
 	if err != nil {
 		return nil, err

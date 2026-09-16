@@ -1024,6 +1024,15 @@ func (l *Library) collectionContents(collection *bench.CollectionRef, level stri
 // draws the cards the no-depth answer prints, in the arrival order it prints
 // them in.
 //
+// --ready travels into that selector rather than past it, through
+// narrowToReady, which is the same call the no-depth answer composes with. So
+// the membership this walk is rooted on is the narrowed membership whenever
+// the reader asked for one, which is what the contract's section 3.6 means by
+// drawing the same membership and then walking below it. Building the walk off
+// the unnarrowed selector is what let one build answer a workstream two ways,
+// and dinah-523/decisions/14 records why the pair is narrowed rather than
+// refused.
+//
 // Nothing the workstream itself holds is drawn, at any rung, and there is
 // nothing for it to hold: KindWorkstream is absent from the containment table
 // on purpose and stays absent, so this walk reads the membership alone and
@@ -1042,7 +1051,7 @@ func (l *Library) workstreamContents(req *Request, entity *bench.EntityRef, leve
 		Depth:    level,
 		Root:     root,
 	}
-	members, _, err := l.selection(workstreamSelector(l.Bench, entity), req.Actor)
+	members, _, err := l.selection(narrowToReady(workstreamSelector(l.Bench, entity), req.ReadyOnly), req.Actor)
 	if err != nil {
 		return nil, err
 	}
