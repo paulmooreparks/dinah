@@ -135,10 +135,11 @@ var archivedResolutionFamilies = []resolutionFamily{
 	{
 		name: "A", axis: "reaching",
 		what:      "card resolution by number against a chosen root: every mention of resolveCardIn or ResolveArchivedCard",
-		files:     2,
-		mentions:  10,
-		functions: 8,
+		files:     3,
+		mentions:  11,
+		functions: 9,
 		sites: []resolutionSite{
+			{"internal/verb/list.go", "history", 1, "list reading a journal under --archived, which resolves the card in the mirror and then reads the file that card carried in with it; it answers events rather than a card and composes no reference"},
 			{"internal/bench/resolve.go", "ResolveCard", 1, "the live accessor, named rather than filtered out because the rule no longer inspects the root argument"},
 			{"internal/bench/resolve.go", "ResolveArchivedCard", 2, "the exported archived accessor, whose declaration's own name is the first mention"},
 			{"internal/bench/resolve.go", "resolveCardIn", 1, "the declaration of the function this family is about; its number branch reads the registry's by-number index rather than a card's field, which is why family C no longer carries it"},
@@ -152,9 +153,9 @@ var archivedResolutionFamilies = []resolutionFamily{
 	{
 		name: "B", axis: "reaching",
 		what:      "the half-taking resolvers anywhere, and ArchivedHalf named from outside internal/bench",
-		files:     6,
-		mentions:  17,
-		functions: 11,
+		files:     7,
+		mentions:  22,
+		functions: 14,
 		sites: []resolutionSite{
 			{"cmd/dinah/commands.go", "runPath", 2, "the --archived flag of dinah path, propagating the resolver's error"},
 			{"internal/bench/entity.go", "ResolveEntity", 1, "the one-line live delegate for an entity"},
@@ -167,6 +168,9 @@ var archivedResolutionFamilies = []resolutionFamily{
 			{"internal/verb/beyond.go", "halfFor", 1, "the flag-to-half mapping, which is where the archived half is minted outside the package"},
 			{"internal/verb/read.go", "Show", 4, "three resolutions, one spelling the half out and two taking it from halfFor; the discard-and-retry re-raises the same refusal on the next line"},
 			{"internal/verb/tree.go", "Contents", 1, "under --archived this resolves a card by number against the archived half while naming no half at all, which is why the rule is keyed on the resolver"},
+			{"internal/bench/resolve.go", "CollectionRootIn", 1, "composes the directory one top-level collection occupies in a half, which reaches no card and resolves no reference"},
+			{"internal/verb/list.go", "ListRef", 1, "the one resolution list performs, taking the half from halfFor exactly as show does"},
+			{"internal/verb/list.go", "Rosters", 3, "the roster counts, which name the half and compose each collection's directory in it; they count directory entries and reach no card"},
 		},
 	},
 	{
@@ -193,12 +197,13 @@ var archivedResolutionFamilies = []resolutionFamily{
 		name: "D", axis: "reaching",
 		what:      "reaching the archived anchors: every mention of ArchivedCardsRoot, cardsRootIn or ArchiveDir",
 		files:     15,
-		mentions:  37,
-		functions: 28,
+		mentions:  38,
+		functions: 29,
 		sites: []resolutionSite{
 			{"internal/bench/newlinemigrate.go", "lockDirForFile", 2, "the newline repair's file-to-lock mapping, which composes the archived cards root and the archived workstreams root from the constants so that a file inside an archived card takes that card's own lock; it answers a directory to lock and resolves no reference"},
 			{benchPackageOwnFile, packageLevel, 1, "the declaration of the directory name, standing in the file's const block"},
 			{benchPackageOwnFile, "ArchivedCardsRoot", 2, "the accessor this family is named for, and its own body's use of the directory constant"},
+			{"internal/bench/resolve.go", "CollectionRootIn", 1, "composes a top-level collection's directory under the archive mirror, which reaches no card"},
 			{benchPackageOwnFile, "ArchivedColumnsRoot", 1, "the columns half of the mirror, which holds no cards"},
 			{benchPackageOwnFile, "HasIdentifier", 1, "existence across both halves, which reads no number"},
 			{"internal/bench/changes.go", "WatchedEntities", 2, "fingerprinting, which lists identifiers and reads journals rather than resolving a reference"},
@@ -230,8 +235,8 @@ var archivedResolutionFamilies = []resolutionFamily{
 		name: "E", axis: "reading",
 		what:      "rendering a card's human reference: every call whose selector is Ref and which carries exactly one argument",
 		files:     11,
-		mentions:  23,
-		functions: 17,
+		mentions:  24,
+		functions: 18,
 		sites: []resolutionSite{
 			{"internal/bench/branchmigrate.go", "MigrateBranches", 5, "naming a card in the branch migration's own report, once for each of the four classes it sorts a card into and once more for the account of what the write pass wrote; the run walks the live half alone, on the rule MigrateNumbers keeps for the archive, so no archived card reaches these calls"},
 			{"internal/bench/check.go", "checkTierOverrides", 1, "naming a card in a finding"},
@@ -248,6 +253,7 @@ var archivedResolutionFamilies = []resolutionFamily{
 			{"internal/verb/tree.go", "rootOf", 1, "rendering the root of a tree"},
 			{"internal/verb/tree.go", "itemRefOf", 1, "rendering a checklist item's holder"},
 			{"internal/verb/tree.go", "containedNode", 1, "rendering a contained entity"},
+			{"internal/verb/tree.go", "workstreamContents", 1, "naming a card the walk from a workstream drew as a member; the membership comes off Library.selection, which reads the workbench's own cards over the live half alone, so no archived card reaches this call"},
 			{"internal/lsp/annotate.go", "cardAnnotation", 1, "composing the canonical reference the language server prints in a card's hover and carries on the annotation's target; the card came out of a live resolution or out of a document's own reference, and the archive is never read here"},
 			{"internal/lsp/handlers.go", "cardCandidates", 1, "composing the label of one card candidate in a completion list, over the live half alone"},
 		},
@@ -482,7 +488,12 @@ func TestEveryArchivedCardResolutionIsDeclared(t *testing.T) {
 	sources := readTreeSources(t, fileset)
 
 	derived := benchMethodsTakingAHalf(sources)
-	wantedDerived := []string{"ResolveEntityIn", "ResolvePathIn", "ResolveReferenceIn"}
+	// CollectionRootIn joined the set on dinah-523. It composes the directory
+	// one of the workbench's own top-level collections occupies in a half
+	// rather than resolving a reference in one, so it reads a half without
+	// being a resolver, and it is named here so that the roster stays derived
+	// rather than pruned to the shape the guard was written for.
+	wantedDerived := []string{"CollectionRootIn", "ResolveEntityIn", "ResolvePathIn", "ResolveReferenceIn"}
 	if strings.Join(derived, ",") != strings.Join(wantedDerived, ",") {
 		t.Fatalf("internal/bench declares the half-taking resolvers %v and the guard's family B is written against %v; a new one joins the set here before any caller exists", derived, wantedDerived)
 	}

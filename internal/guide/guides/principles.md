@@ -24,7 +24,7 @@ The contract: CORE-CLAIM-6 and CORE-CLAIM-7.
 
 If you let a column accept every card offered to it, you stop having a station and start having a pile. Cards standing in a column are inventory. None of them are finished, and the time they spend waiting is time you have already paid for. A card that sits does not announce what stopped it either, so whatever stalled it stays out of sight for as long as you tolerate the pile. Setting a limit on how much a column holds means you meet that cost on the day the queue grows, as a refusal, instead of working it out a month later.
 
-You set a column's limit by writing `wip_limit` into `columns/<id>/column.md`. Dinah then refuses a move into that column once it is full, and `dinah columns` shows you the count against the limit while you still have room:
+You set a column's limit by writing `wip_limit` into `columns/<id>/column.md`. Dinah then refuses a move into that column once it is full, and `dinah list columns` shows you the count against the limit while you still have room:
 
 ```
   Slug    Name    Kind    Cards  Work        Owner
@@ -68,7 +68,7 @@ The contract: CORE-BLOCK-1, CORE-BLOCK-3, CORE-BLOCK-5, CORE-BLOCK-6, and CORE-U
 
 You cannot improve work you cannot see afterwards, and afterwards you can only see what somebody wrote down at the time.
 
-Every claim, move, release, block, and unblock lands in the card's journal, with the time and the owner who did it, in the order the acts happened. Dinah never rewrites a line of it. `dinah log <card>` reads it back to you. Each entry keeps the names of the things it referred to as those names stood that day, so renaming a column this month leaves last month's history saying what it always said.
+Every claim, move, release, block, and unblock lands in the card's journal, with the time and the owner who did it, in the order the acts happened. Dinah never rewrites a line of it. `dinah list <card>/journal` reads it back to you. Each entry keeps the names of the things it referred to as those names stood that day, so renaming a column this month leaves last month's history saying what it always said.
 
 A workbench that forgets cannot tell you why last month took as long as it did. You are left asking the people who were there, and they will remember the week that annoyed them rather than the week that cost you.
 

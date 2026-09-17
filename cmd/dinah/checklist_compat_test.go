@@ -147,7 +147,7 @@ func shapeOfFiledItems(t *testing.T, root string) map[string]string {
 // this case reaches an old fixture's cards the same way a person would.
 func firstCardRef(t *testing.T, root string) string {
 	t.Helper()
-	listed := runCLI(t, root, "--workbench", root, "--json", "ls")
+	listed := runCLI(t, root, "--workbench", root, "--json", "list", "cards")
 	if listed.code != 0 {
 		t.Fatalf("ls: exit %d, %s", listed.code, listed.errw)
 	}

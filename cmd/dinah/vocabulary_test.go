@@ -778,7 +778,7 @@ func TestACardWrittenInTheRetiredVocabularyIsRefusedRatherThanMisread(t *testing
 	root, _, _, _, current := buildTreeFixture(t)
 	unwindCards(t, current)
 
-	for _, argv := range [][]string{{"ls"}, {"status"}, {"show", "fx-1"}} {
+	for _, argv := range [][]string{{"list", "cards"}, {"status"}, {"show", "fx-1"}} {
 		got := runCLI(t, root, append([]string{"--workbench", current}, argv...)...)
 		if got.code == 0 {
 			t.Errorf("%v over a workbench whose cards were never carried across exited 0:\n%s", argv, got.out)
@@ -798,7 +798,7 @@ func TestACardWrittenInTheRetiredVocabularyIsRefusedRatherThanMisread(t *testing
 	if len(ids) == 0 {
 		t.Fatalf("%s holds no cards, so this test asserts nothing", current)
 	}
-	got := runCLI(t, root, "--workbench", current, "ls")
+	got := runCLI(t, root, "--workbench", current, "list", "cards")
 	if !strings.Contains(got.errw, ids[0]) {
 		t.Errorf("the refusal does not name the card %s:\n%s", ids[0], got.errw)
 	}

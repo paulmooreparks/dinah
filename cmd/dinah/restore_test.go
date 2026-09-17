@@ -279,7 +279,12 @@ var archivedHalfCommands = []archivedHalfCommand{
 	{name: "restore", argv: func(ref string) []string { return []string{"restore", ref} }},
 	{name: "show", argv: func(ref string) []string { return []string{"show", "--archived", ref} }},
 	{name: "path", argv: func(ref string) []string { return []string{"path", "--archived", ref} }},
-	{name: "contents", argv: func(ref string) []string { return []string{"contents", "--archived", ref} }},
+	// list names a depth beside the flag, and the depth is what makes the row
+	// a read of the archive half for every reference this sweep drives. A bare
+	// `dinah list --archived` counts the workbench's four rosters over the
+	// mirror rather than resolving a reference in it, so without the depth the
+	// workbench row would answer where this sweep asks for a refusal.
+	{name: "list", argv: func(ref string) []string { return []string{"list", "--archived", ref, "--depth", "entities"} }},
 }
 
 // archivedHalfCase is one reference the sweep drives, with the branch of the
@@ -446,7 +451,7 @@ func TestRestoringAColumnReturnsItToTheOrderAndRepairsAStrandedCard(t *testing.T
 	if got := runCLI(t, root, "archive", "spare"); got.code != 0 {
 		t.Fatalf("archive spare: %d %s", got.code, got.errw)
 	}
-	if listing := runCLI(t, root, "columns"); strings.Contains(listing.out, "spare") {
+	if listing := runCLI(t, root, "list", "columns"); strings.Contains(listing.out, "spare") {
 		t.Errorf("spare is archived and `dinah columns` still lists it:\n%s", listing.out)
 	}
 	if body, err := os.ReadFile(anchor); err != nil {
@@ -458,7 +463,7 @@ func TestRestoringAColumnReturnsItToTheOrderAndRepairsAStrandedCard(t *testing.T
 	if got := runCLI(t, root, "restore", "spare"); got.code != 0 {
 		t.Fatalf("restore spare: %d %s", got.code, got.errw)
 	}
-	listing := runCLI(t, root, "columns")
+	listing := runCLI(t, root, "list", "columns")
 	rows := strings.Split(strings.TrimRight(listing.out, "\n"), "\n")
 	if len(rows) == 0 || !strings.Contains(rows[len(rows)-1], "spare") {
 		t.Errorf("a restored column lands at the end of the order and the listing ends with %q:\n%s", rows[len(rows)-1], listing.out)
@@ -660,16 +665,16 @@ func TestAnArchivedReadShowsOneHalfAndWritesNothing(t *testing.T) {
 	// the archived half twice, and asserting only that the two differ passes
 	// against a build that returns nothing under the flag, so both counts are
 	// asserted and so is the absence of any shared member.
-	archived := collectionRefs(t, runCLI(t, root, "show", "--archived", "fx-1/comments", "--json"))
-	live := collectionRefs(t, runCLI(t, root, "show", "fx-1/comments", "--json"))
+	archived := collectionRefs(t, runCLI(t, root, "list", "--archived", "fx-1/comments", "--json"))
+	live := collectionRefs(t, runCLI(t, root, "list", "fx-1/comments", "--json"))
 	if len(archived) != 1 {
 		t.Errorf("the flagged listing carries %d members and the archive holds one: %v", len(archived), archived)
 	}
 	if len(live) != 2 {
 		t.Errorf("the unflagged listing carries %d members and the live half holds two: %v", len(live), live)
 	}
-	archivedText := collectionTexts(t, runCLI(t, root, "show", "--archived", "fx-1/comments", "--json"))
-	liveText := collectionTexts(t, runCLI(t, root, "show", "fx-1/comments", "--json"))
+	archivedText := collectionTexts(t, runCLI(t, root, "list", "--archived", "fx-1/comments", "--json"))
+	liveText := collectionTexts(t, runCLI(t, root, "list", "fx-1/comments", "--json"))
 	for _, text := range archivedText {
 		for _, other := range liveText {
 			if text == other {
@@ -709,7 +714,7 @@ func TestAnArchivedReadShowsOneHalfAndWritesNothing(t *testing.T) {
 
 	// contents says, once, that the addresses below the root do not resolve
 	// yet, and the machine view carries the half on the tree.
-	machine := runCLI(t, root, "contents", "--archived", "fx-2", "--json")
+	machine := runCLI(t, root, "list", "--archived", "--depth", "entities", "fx-2", "--json")
 	if machine.code != 0 {
 		t.Fatalf("contents --archived --json: %d %s", machine.code, machine.errw)
 	}
@@ -725,7 +730,7 @@ func TestAnArchivedReadShowsOneHalfAndWritesNothing(t *testing.T) {
 	if !tree.Archived {
 		t.Error("the tree of an archived read does not carry archived true")
 	}
-	human := runCLI(t, root, "contents", "--archived", "fx-2")
+	human := runCLI(t, root, "list", "--archived", "--depth", "entities", "fx-2")
 	if human.code != 0 {
 		t.Fatalf("contents --archived: %d %s", human.code, human.errw)
 	}
@@ -746,29 +751,31 @@ func TestAnArchivedReadShowsOneHalfAndWritesNothing(t *testing.T) {
 }
 
 // collectionRefs reads the member references out of a machine-format
-// collection listing.
+// containment walk of a collection.
 func collectionRefs(t *testing.T, got invocation) []string {
 	t.Helper()
 	if got.code != 0 {
 		t.Fatalf("the listing exited %d: %s", got.code, got.errw)
 	}
 	var listing struct {
-		Members []struct {
-			Ref string `json:"ref"`
-		} `json:"members"`
+		Root struct {
+			Children []struct {
+				Ref string `json:"ref"`
+			} `json:"children"`
+		} `json:"root"`
 	}
 	if err := json.Unmarshal([]byte(got.out), &listing); err != nil {
 		t.Fatalf("the listing does not parse: %v\n%s", err, got.out)
 	}
-	refs := make([]string, 0, len(listing.Members))
-	for _, member := range listing.Members {
+	refs := make([]string, 0, len(listing.Root.Children))
+	for _, member := range listing.Root.Children {
 		refs = append(refs, member.Ref)
 	}
 	return refs
 }
 
-// collectionTexts reads the member anchors out of a machine-format collection
-// listing. A reference names a position and a position is counted per half, so
+// collectionTexts reads the member titles out of a machine-format containment
+// walk of a collection. A reference names a position and a position is counted per half, so
 // the two halves are compared on what the members say rather than on what they
 // are called.
 func collectionTexts(t *testing.T, got invocation) []string {
@@ -777,16 +784,18 @@ func collectionTexts(t *testing.T, got invocation) []string {
 		t.Fatalf("the listing exited %d: %s", got.code, got.errw)
 	}
 	var listing struct {
-		Members []struct {
-			Text string `json:"text"`
-		} `json:"members"`
+		Root struct {
+			Children []struct {
+				Title string `json:"title"`
+			} `json:"children"`
+		} `json:"root"`
 	}
 	if err := json.Unmarshal([]byte(got.out), &listing); err != nil {
 		t.Fatalf("the listing does not parse: %v\n%s", err, got.out)
 	}
-	texts := make([]string, 0, len(listing.Members))
-	for _, member := range listing.Members {
-		texts = append(texts, member.Text)
+	texts := make([]string, 0, len(listing.Root.Children))
+	for _, member := range listing.Root.Children {
+		texts = append(texts, member.Title)
 	}
 	return texts
 }
@@ -809,7 +818,7 @@ func TestANestedArchiveRestoresInTwoActs(t *testing.T) {
 			t.Fatalf("comment: %d %s", got.code, got.errw)
 		}
 	}
-	travellerText := collectionTexts(t, runCLI(t, root, "show", "fx-1/comments", "--json"))[0]
+	travellerText := collectionTexts(t, runCLI(t, root, "list", "fx-1/comments", "--json"))[0]
 
 	if got := runCLI(t, root, "archive", "fx-1/comments/1"); got.code != 0 {
 		t.Fatalf("archive the comment: %d %s", got.code, got.errw)
@@ -855,7 +864,7 @@ func TestANestedArchiveRestoresInTwoActs(t *testing.T) {
 		t.Fatalf("restore the comment: %d %s", back.code, foldedStderr(back.errw))
 	}
 
-	texts := collectionTexts(t, runCLI(t, root, "show", "fx-1/comments", "--json"))
+	texts := collectionTexts(t, runCLI(t, root, "list", "fx-1/comments", "--json"))
 	if len(texts) != 2 {
 		t.Fatalf("the card carries %d comments and both came back", len(texts))
 	}

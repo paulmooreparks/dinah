@@ -71,6 +71,14 @@ var addressExemptions = []addressExemption{
 		ground: groundOutsideWorkbench, reason: "the rows are workbenches under a directory, addressed by the path the row already prints and passed back through --workbench",
 	},
 	{
+		site:   renderSite{File: "render.go", Function: "renderRosters", Label: "t", Ordinal: 1},
+		ground: groundNoEntity, reason: "the rows are the workbench's own top-level collections, and the reference cell is the roster word the reader types back rather than an address in the reference grammar",
+	},
+	{
+		site:   renderSite{File: "render.go", Function: "renderRecord", Label: "t", Ordinal: 1},
+		ground: groundNoEntity, reason: "the rows are one entity's own fields, named by the field names a caller types back, and the entity itself is named by the reference the reader already wrote",
+	},
+	{
 		site:   renderSite{File: "render.go", Function: "renderCheck", Label: "assigned", Ordinal: 1},
 		ground: groundActNotEntity, reason: "the rows are the column slugs one repair assigned",
 	},
@@ -715,11 +723,11 @@ func addressCases() []addressCase {
 			},
 		},
 		{
-			site: attachments, label: "attachments command",
-			argv: []string{"attachments", "fx-1"}, at: 0,
+			site: attachments, label: "the attachments reference",
+			argv: []string{"list", "fx-1/attachments"}, at: 0,
 			wantHeadings: []string{"column.attachments.ref", "column.attachments.filename", "column.attachments.description"},
 			want: func(t *testing.T, w *addressWorkbench) []addressExpectation {
-				return refsOf(t, w.payload(t, "attachments", "fx-1"), "attachments", "ref")
+				return refsOf(t, w.payload(t, "list", "fx-1/attachments"), "attachments", "ref")
 			},
 		},
 		{
@@ -742,9 +750,9 @@ func addressCases() []addressCase {
 		},
 		{
 			site: tree, label: "contents, containment table",
-			argv: []string{"contents", "fx-1"}, at: 0, guided: true,
+			argv: []string{"list", "fx-1", "--depth", "entities"}, at: 0, guided: true,
 			want: func(t *testing.T, w *addressWorkbench) []addressExpectation {
-				return treeExpectations(t, w.payload(t, "contents", "fx-1"))
+				return treeExpectations(t, w.payload(t, "list", "fx-1", "--depth", "entities"))
 			},
 		},
 		{
@@ -757,9 +765,9 @@ func addressCases() []addressCase {
 		{
 			site:  renderSite{File: "render.go", Function: "renderListing", Label: "t", Ordinal: 1},
 			label: "ls",
-			argv:  []string{"ls", "intake"}, at: 0,
+			argv:  []string{"list", "intake"}, at: 0,
 			want: func(t *testing.T, w *addressWorkbench) []addressExpectation {
-				return refsOf(t, w.payload(t, "ls", "intake"), "cards", "ref")
+				return refsOf(t, w.payload(t, "list", "intake"), "cards", "ref")
 			},
 		},
 		{
@@ -798,9 +806,9 @@ func addressCases() []addressCase {
 		{
 			site:  renderSite{File: "render.go", Function: "renderColumns", Label: "t", Ordinal: 1},
 			label: "columns",
-			argv:  []string{"columns"}, at: 0,
+			argv:  []string{"list", "columns"}, at: 0,
 			want: func(t *testing.T, w *addressWorkbench) []addressExpectation {
-				return refsOfArray(t, w.array(t, "columns"), "slug")
+				return refsOfArray(t, w.array(t, "list", "columns"), "slug")
 			},
 		},
 		{
@@ -819,9 +827,9 @@ func addressCases() []addressCase {
 			// it does declare, one reference to a row, through listColumn.
 			site:  renderSite{File: "render.go", Function: "composeRefusal", Label: "t", Ordinal: 1},
 			label: "the columns a refusal lists",
-			argv:  []string{"ls", "nosuch"}, stderr: true, headingless: true, at: 0,
+			argv:  []string{"list", "nosuch"}, stderr: true, headingless: true, at: 0,
 			want: func(t *testing.T, w *addressWorkbench) []addressExpectation {
-				return refsOfArray(t, w.array(t, "columns"), "slug")
+				return refsOfArray(t, w.array(t, "list", "columns"), "slug")
 			},
 		},
 		{
@@ -849,10 +857,10 @@ func addressCases() []addressCase {
 		{
 			site:  renderSite{File: "render.go", Function: "renderWorkstreams", Label: "t", Ordinal: 1},
 			label: "workstream listing",
-			argv:  []string{"workstream"}, at: 0,
+			argv:  []string{"list", "workstreams"}, at: 0,
 			wantHeadings: []string{"column.workstreams.reference", "column.workstreams.name", "column.workstreams.status", "column.workstreams.cards"},
 			want: func(t *testing.T, w *addressWorkbench) []addressExpectation {
-				return refsOf(t, w.payload(t, "workstream"), "workstreams", "ref")
+				return refsOf(t, w.payload(t, "list", "workstreams"), "workstreams", "ref")
 			},
 			// Printing a spelling the general reference commands take is only
 			// half of it. The commands that take a workstream and nothing else

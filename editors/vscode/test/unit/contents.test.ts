@@ -106,9 +106,22 @@ function stub(answers: Record<string, unknown>): Stub {
 	const calls: string[][] = [];
 	const spawner: Spawner = async (_exe, argv) => {
 		calls.push([...argv]);
-		const at = argv.indexOf("contents");
+		const at = argv.indexOf("list");
 		if (at >= 0) {
 			const ref = argv[at + 1] ?? "";
+			// One verb answers both questions now, so the stub dispatches on
+			// the reference the way the binary does: a reference stopping at an
+			// attachments collection is the attachments listing, and the roster
+			// word is the workbench's own.
+			const walking = argv.includes("--depth");
+			if (!walking && (ref === "attachments" || ref.endsWith("/attachments"))) {
+				const holder = ref === "attachments" ? "workbench" : ref.slice(0, -"/attachments".length);
+				const listing = answers[`attachments ${holder}`];
+				if (listing === undefined) {
+					return refused("dinah.unknown-reference", ref);
+				}
+				return ok(listing);
+			}
 			const payload = answers[`contents ${ref}`];
 			if (payload === undefined) {
 				return refused("dinah.unknown-reference", ref);
@@ -129,7 +142,7 @@ function stub(answers: Record<string, unknown>): Stub {
 			return ok(payload);
 		}
 		for (const [key, payload] of Object.entries(answers)) {
-			if (key.startsWith("contents ")) {
+			if (key.startsWith("contents ") || key.startsWith("attachments ")) {
 				continue;
 			}
 			const [verb, ref] = key.split(" ");
@@ -228,7 +241,7 @@ test("a card's children come from the grammar and not from its published counts"
 	// a build asking at the default depth is correct for a card row and
 	// silently empty below one.
 	assert.equal(calls.length, 1, `the card's expansion spawned ${String(calls.length)} calls`);
-	assert.deepEqual(calls[0], pinned("contents", "wb-1", "--depth", "all"));
+	assert.deepEqual(calls[0], pinned("list", "wb-1", "--depth", "all"));
 });
 
 // ---------------------------------------------------------------------------
@@ -613,7 +626,7 @@ test("a column draws its own mounts from the grammar, after its card rows", asyn
 		["entity"],
 	);
 
-	assert.deepEqual(callsTo(calls, "contents")[0], pinned("contents", "doing", "--depth", "all"));
+	assert.deepEqual(callsTo(calls, "list")[0], pinned("list", "doing", "--depth", "all"));
 });
 
 test("the workbench root composes its collection row from the table and fetches its members", async () => {
@@ -664,8 +677,8 @@ test("the workbench root composes its collection row from the table and fetches 
 		["attachment"],
 	);
 	assert.deepEqual(
-		callsTo(calls, "contents")[0],
-		pinned("contents", "workbench/attachments", "--depth", "all"),
+		callsTo(calls, "list")[0],
+		pinned("list", "workbench/attachments", "--depth", "all"),
 	);
 });
 
@@ -678,7 +691,7 @@ test("a workbench whose checkpoint reports no attachments draws no row and spawn
 		false,
 		"a row with no count to stand on was drawn",
 	);
-	assert.deepEqual(callsTo(calls, "contents"), []);
+	assert.deepEqual(callsTo(calls, "list"), []);
 });
 
 // ---------------------------------------------------------------------------
@@ -728,8 +741,8 @@ test("an item, a comment and an entity row each ask contents at the depth that a
 	assert.equal(itemGroups[0].members.length, 2);
 	assert.equal((await view.getChildren(itemGroups[0])).length, 2);
 	assert.deepEqual(
-		callsTo(calls, "contents")[0],
-		pinned("contents", "wb-1/questions/1", "--depth", "all"),
+		callsTo(calls, "list")[0],
+		pinned("list", "wb-1/questions/1", "--depth", "all"),
 	);
 
 	const comment: TreeElement = {
@@ -746,8 +759,8 @@ test("an item, a comment and an entity row each ask contents at the depth that a
 	);
 	assert.equal(commentGroups[0].members.length, 1);
 	assert.deepEqual(
-		callsTo(calls, "contents")[1],
-		pinned("contents", "wb-1/comments/1", "--depth", "all"),
+		callsTo(calls, "list")[1],
+		pinned("list", "wb-1/comments/1", "--depth", "all"),
 	);
 
 	// The entity row, which is unreachable against today's grammar and
@@ -765,8 +778,8 @@ test("an item, a comment and an entity row each ask contents at the depth that a
 	assert.equal(entityGroups.length, 1);
 	assert.equal(entityGroups[0].members.length, 1);
 	assert.deepEqual(
-		callsTo(calls, "contents")[2],
-		pinned("contents", "wb-1/sketches/1", "--depth", "all"),
+		callsTo(calls, "list")[2],
+		pinned("list", "wb-1/sketches/1", "--depth", "all"),
 	);
 });
 
@@ -930,9 +943,10 @@ test("an attachment collection asks against its own holder, at every holder the 
 			memberKind: "attachment",
 			members: [node("attachment", member, "shot.png")],
 		});
+		const wantedRef = holder === "workbench" ? "attachments" : `${holder}/attachments`;
 		assert.deepEqual(
-			callsTo(calls, "attachments"),
-			[pinned("attachments", holder)],
+			callsTo(calls, "list").filter((argv) => argv.includes(wantedRef)),
+			[pinned("list", wantedRef)],
 			`the collection under ${holderKind} ${holder} asked the wrong entity`,
 		);
 		assert.equal(drawn.length, 1);

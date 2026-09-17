@@ -524,7 +524,7 @@ func handEditStep(t *testing.T, root, step string) {
 	if anchor.code != 0 {
 		t.Fatalf("path %s: %d %s", fields[0], anchor.code, anchor.errw)
 	}
-	listed := runCLI(t, root, "--json", "columns")
+	listed := runCLI(t, root, "--json", "list", "columns")
 	if listed.code != 0 {
 		t.Fatalf("columns: %d %s", listed.code, listed.errw)
 	}
@@ -772,7 +772,7 @@ func TestAWorkbenchDeclaringEachRevisionOpensOrIsRefused(t *testing.T) {
 // profile resolution cannot quietly let an unreadable workbench through one
 // command while the others go on refusing it.
 func TestEveryCommandThatOpensAWorkbenchRefusesAnUnsupportedRevision(t *testing.T) {
-	for _, command := range []string{"status", "columns", "check"} {
+	for _, command := range []string{"status", "check"} {
 		root := newBench(t)
 		editAnchor(t, root, "profile: "+bench.ProfileVersion, "profile: dinah-core/9.9")
 		got := runCLI(t, root, command)
@@ -875,7 +875,7 @@ func migratedCopy(t *testing.T, fixture string) string {
 	if got := runCLI(t, copied, "--workbench", copied, "check", "--migrate-vocabulary", "--yes"); got.code != 0 {
 		t.Fatalf("migrate %s: %d %s", fixture, got.code, got.errw)
 	}
-	if got := runCLI(t, copied, "--workbench", copied, "columns"); got.code != 0 {
+	if got := runCLI(t, copied, "--workbench", copied, "list", "columns"); got.code != 0 {
 		t.Fatalf("the migrated %s does not open: %d %s", fixture, got.code, got.errw)
 	}
 	return copied
@@ -972,7 +972,7 @@ func TestThePreSlugFixtureOpensAndReportsItsMissingSlugs(t *testing.T) {
 	t.Setenv("DINAH_LANG", "")
 	t.Setenv("DINAH_FORMAT", "")
 	t.Setenv("DINAH_WORKBENCH", "")
-	if got := runCLI(t, root, "--workbench", fixture, "columns"); got.code != 0 {
+	if got := runCLI(t, root, "--workbench", fixture, "list", "columns"); got.code != 0 {
 		t.Fatalf("columns: %d %s", got.code, got.errw)
 	}
 	checked := runCLI(t, root, "--workbench", fixture, "check")

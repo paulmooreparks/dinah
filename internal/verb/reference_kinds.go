@@ -98,8 +98,8 @@ var referenceKinds = map[string][]ReferenceKind{
 		ReferenceKindCard, ReferenceKindBelowCard,
 	},
 	"show": {
-		ReferenceKindColumn, ReferenceKindCard, ReferenceKindBelowCard,
-		ReferenceKindCollection,
+		ReferenceKindWorkbench, ReferenceKindWorkstream, ReferenceKindColumn,
+		ReferenceKindCard, ReferenceKindBelowCard,
 	},
 	"instructions": {
 		ReferenceKindColumn, ReferenceKindCard,
@@ -120,11 +120,7 @@ var referenceKinds = map[string][]ReferenceKind{
 		ReferenceKindWorkstream, ReferenceKindColumn, ReferenceKindCard,
 		ReferenceKindBelowCard,
 	},
-	"contents": {
-		ReferenceKindWorkbench, ReferenceKindWorkstream, ReferenceKindColumn,
-		ReferenceKindCard, ReferenceKindBelowCard, ReferenceKindCollection,
-	},
-	"attachments": {
+	"list": {
 		ReferenceKindWorkbench, ReferenceKindWorkstream, ReferenceKindColumn,
 		ReferenceKindCard, ReferenceKindBelowCard, ReferenceKindCollection,
 	},

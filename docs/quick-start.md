@@ -102,7 +102,7 @@ release publishes a new one. The second line names the shared rule set that buil
 other tool built to those same rules can read this workbench and reach the same
 answers about it. The third line names the format Dinah writes on disk.
 
-`dinah help` lists all fifty-six commands, in the four groups Dinah sorts
+`dinah help` lists all fifty-one commands, in the four groups Dinah sorts
 them into. Running `dinah` with no arguments at all prints the same list. So
 does whichever spelling of the help flag you already have the habit of typing,
 because Dinah answers to `--help`, `-help`, `-h`, `-?`, `--?` and `/?` alike.
@@ -253,7 +253,7 @@ where you put it.
 ## Look at the flow
 
 ```console
-$ dinah columns
+$ dinah list columns
   Slug    Name    Kind    Cards  Work        Owner
   ------  ------  ------  -----  ----------  -----
   intake  Intake  intake  0      none taken  agent
@@ -463,19 +463,19 @@ it falls back to the order you filed them in. You get that same order however
 fast you type.
 
 ```console
-$ dinah ls
+$ dinah list cards
+  Card   Column  Standing  Title
+  -----  ------  --------  ------------------------
+  rel-1  Intake  ready     Write the release notes
+  rel-2  Intake  ready     Draft the changelog
+  rel-3  Doing   ready     Check the download links
+[exit 0]
+$ dinah list doing
   Card   Standing  Title
   -----  --------  ------------------------
-  rel-1  ready     Write the release notes
-  rel-2  ready     Draft the changelog
   rel-3  ready     Check the download links
 [exit 0]
-$ dinah ls doing
-  Card   Standing  Title
-  -----  --------  ------------------------
-  rel-3  ready     Check the download links
-[exit 0]
-$ dinah ls intake --ready
+$ dinah list intake --ready
   Card   Standing  Title
   -----  --------  -----------------------
   rel-1  ready     Write the release notes
@@ -562,7 +562,7 @@ Under that one command Dinah did two things, and the card's own history shows
 both of them:
 
 ```console
-$ dinah log rel-1
+$ dinah list rel-1/journal
   When                  Action   Actor  Detail
   --------------------  -------  -----  --------------------------
   2026-01-05T09:00:00Z  created  ana    Write the release notes
@@ -825,7 +825,7 @@ $ dinah path rel-1
 $ dinah path rel-1/journal
 /home/ana/release-notes/.dinah/d0e41d414bb5/cards/73ca475d0aaa/journal.ndjson
 [exit 0]
-$ dinah log rel-1
+$ dinah list rel-1/journal
   When                  Action              Actor  Detail
   --------------------  ------------------  -----  ---------------------------
   2026-08-18T21:02:23Z  created             ana    Write the release notes
@@ -887,11 +887,11 @@ rel-2  Draft the changelog  [Intake / ready]  workstream/autumn
 ```
 
 The workstreams a card belongs to print at the end of its line, and they print
-there after every command that draws one. `dinah workstream` with no argument
+there after every command that draws one. `dinah list workstreams`
 lists what the workbench carries, with the number of live cards in each:
 
 ```console
-$ dinah workstream
+$ dinah list workstreams
   Reference          Name            Status  Cards
   -----------------  --------------  ------  -----
   workstream/autumn  Autumn release  active  2
@@ -961,7 +961,7 @@ which is that split on one screen:
 $ dinah join rel-2 autumn-2025
 rel-2  Draft the changelog  [Intake / ready]  workstream/autumn-2025
 [exit 0]
-$ dinah contents autumn-2025
+$ dinah list autumn-2025
 unknown-card this workbench carries no card autumn-2025; workstream/autumn-2025 names a workstream, so write the reference that way, or run `dinah guide references` for how a reference is spelled
 [exit 2]
 ```
@@ -975,7 +975,7 @@ and their history. Dinah says nothing to you when either one succeeds.
 ```console
 $ dinah archive rel-3
 [exit 0]
-$ dinah ls done
+$ dinah list done
   Card   Standing  Title
   -----  --------  -----------------------
   rel-1  ready     Write the release notes
@@ -1118,8 +1118,7 @@ $ dinah claim rel-9 --json
   "detail": "rel-9",
   "affordances": [
     "status",
-    "columns",
-    "ls",
+    "list",
     "next"
   ]
 }
@@ -1132,7 +1131,7 @@ Dinah puts the name of the rule at the front of it:
 
 ```console stream=err
 $ dinah claim rel-9
-unknown-card this workbench carries no card rel-9; run `dinah ls` to see the cards this workbench carries
+unknown-card this workbench carries no card rel-9; run `dinah list cards` to see the cards this workbench carries
 [exit 2]
 ```
 
@@ -1177,7 +1176,7 @@ and never translates them. You get the same bytes from the same command under
 any language setting.
 
 ```console
-$ dinah ls intake --json
+$ dinah list intake --json
 {
   "column": "003b09ee6e31",
   "cards": [
@@ -1252,14 +1251,14 @@ storage format 5
 Catalogs:
   Language  Translated
   --------  ----------
-  en        1081/1081
-  af        0/1081
-  cs        0/1081
-  de        1081/1081
-  es        0/1081
-  fil       0/1081
-  hi        1081/1081
-  id        0/1081
+  en        1075/1075
+  af        0/1075
+  cs        0/1075
+  de        1075/1075
+  es        0/1075
+  fil       0/1075
+  hi        1075/1075
+  id        0/1075
 [exit 0]
 ```
 
@@ -1309,17 +1308,17 @@ If you set none of those and Dinah finds no fallback editor on the machine,
 
 Dinah walks up from the working directory to find its workbench. You can stand
 anywhere inside one. To see what that walk reaches from where you are standing
-now, run `workbenches`. Dinah answers you with rows rather than an error, and it
+now, run `list workbenches`. Dinah answers you with rows rather than an error, and it
 tells you plainly when it reached none:
 
 ```console
-$ dinah workbenches
+$ dinah list workbenches
   Workbench    Slug  Path
   -----------  ----  -------------------------------------------
   Release 0.2  rel   /home/ana/release-notes/.dinah/d0e41d414bb5
 [exit 0]
 $ cd ..
-$ dinah workbenches
+$ dinah list workbenches
 no workbench is reachable from here
 [exit 0]
 ```
@@ -1350,7 +1349,7 @@ its own yet:
 
 ```console
 $ dinah status
-dinah.no-workbench-found no workbench was found walking up from /home/ana, or in the user base at /home/ana/.dinah; run `dinah init` here to create one, pass --workbench <dir> to point at one that exists, or pass --root <dir> to `dinah check`, or a bare directory argument to `dinah workbenches`, to look for one beneath a directory instead
+dinah.no-workbench-found no workbench was found walking up from /home/ana, or in the user base at /home/ana/.dinah; run `dinah init` here to create one, pass --workbench <dir> to point at one that exists, or pass --root <dir> to `dinah check`, or `--root <dir>` to `dinah list workbenches`, to look for one beneath a directory instead
 [exit 2]
 ```
 
@@ -1368,7 +1367,7 @@ Workbench created at /home/ana/.dinah/cd20d36303bc.
 $ dinah init --slug bet --operator ana
 Workbench created at /home/ana/.dinah/2ae23a55a39c.
 [exit 0]
-$ dinah workbenches
+$ dinah list workbenches
   Workbench     Slug  Path
   ------------  ----  -----------------------------
   Household     bet   /home/ana/.dinah/2ae23a55a39c
@@ -1463,7 +1462,7 @@ $ cd release-0.3
 $ dinah init --from ../release-template --slug rel3 --operator ana
 Workbench created at /home/ana/release-0.3/.dinah/e65a73e02874.
 [exit 0]
-$ dinah columns
+$ dinah list columns
   Slug    Name    Kind    Cards  Work        Owner
   ------  ------  ------  -----  ----------  -----
   intake  Intake  intake  0      none taken  agent
@@ -1506,7 +1505,7 @@ $ cd ../release-0.3
 $ dinah column new "Review" --kind work --capacity 3 --before done
 review  Review  [work]  capacity 3
 [exit 0]
-$ dinah columns
+$ dinah list columns
   Slug    Name    Kind    Cards  Work        Owner
   ------  ------  ------  -----  ----------  -----
   intake  Intake  intake  0      none taken  agent

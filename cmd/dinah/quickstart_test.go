@@ -2030,7 +2030,7 @@ func TestTheQuickStartShowsBothWorkstreamSpellings(t *testing.T) {
 	lines := strings.Split(string(source), "\n")
 	wanted := []string{
 		"$ dinah join rel-2 autumn-2025",
-		"$ dinah contents autumn-2025",
+		"$ dinah list autumn-2025",
 	}
 	for i, line := range lines {
 		if strings.TrimRight(line, "\r") != wanted[0] {

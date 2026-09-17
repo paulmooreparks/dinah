@@ -6,23 +6,23 @@ import (
 	"testing"
 )
 
-// TestTheReferenceTakingRosterIsNineteen derives the roster at the commit
+// TestTheReferenceTakingRosterIsEighteen derives the roster at the commit
 // under test rather than reading it off a card, because three separate
 // statements of this number, in a card's own framing and in its parent's
 // prose, disagreed with the tables.
 //
 // It cannot pass vacuously. An empty parse yields nothing rather than
-// nineteen, and the two declarations that carry the fact are compared against
+// eighteen, and the two declarations that carry the fact are compared against
 // each other as well as against the named set, so a command declaring the
 // guide on one of them and not the other is left out and the count fails.
-func TestTheReferenceTakingRosterIsNineteen(t *testing.T) {
+func TestTheReferenceTakingRosterIsEighteen(t *testing.T) {
 	roster := ReferenceTakingCommands()
-	if len(roster) != 19 {
-		t.Fatalf("the roster holds %d commands and it is nineteen: %s", len(roster), strings.Join(roster, " "))
+	if len(roster) != 18 {
+		t.Fatalf("the roster holds %d commands and it is eighteen: %s", len(roster), strings.Join(roster, " "))
 	}
 	want := []string{
-		"archive", "attach", "attachments", "cite", "comment", "contents", "delete", "edit",
-		"fail", "get", "instructions", "path", "rename", "reopen", "resolve",
+		"archive", "attach", "cite", "comment", "delete", "edit",
+		"fail", "get", "instructions", "list", "path", "rename", "reopen", "resolve",
 		"restore", "set", "show", "verify",
 	}
 	if strings.Join(roster, " ") != strings.Join(want, " ") {
@@ -48,8 +48,8 @@ func TestTheReferenceTakingRosterIsNineteen(t *testing.T) {
 			}
 		}
 	}
-	if byGuide != 19 || byParam != 19 {
-		t.Errorf("the guide table names %d commands and the parameter table names %d, and both are nineteen", byGuide, byParam)
+	if byGuide != 18 || byParam != 18 {
+		t.Errorf("the guide table names %d commands and the parameter table names %d, and both are eighteen", byGuide, byParam)
 	}
 	t.Logf("the roster derived at this commit holds %d commands", len(roster))
 }

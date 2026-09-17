@@ -48,7 +48,7 @@ which means anybody may pull it. Ask what is waiting:
 
 ```
 dinah next
-dinah ls
+dinah list cards
 ```
 
 You can also see the whole workbench at once, rather than one column at a time:

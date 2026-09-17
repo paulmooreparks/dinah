@@ -1,7 +1,7 @@
 # Asking questions of a workbench
 
-`dinah ls` answers a positional question, which is what one column is holding
-right now. `dinah query` answers the rest. You write one string of conditions,
+`dinah list <column>` answers a positional question, which is what one column
+is holding right now. `dinah query` answers the rest. You write one string of conditions,
 Dinah returns every live card that meets all of them, and the same string works
 the same way from the command line and from an agent's tool call.
 

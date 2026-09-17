@@ -69,7 +69,7 @@ func TestTheRestoreToolIsServedWithItsReference(t *testing.T) {
 // pass while that one command silently ignored the flag.
 func TestTheArchivedFlagIsPublishedAndHonouredOnEveryCommandThatTakesIt(t *testing.T) {
 	library := newLibrary(t)
-	for _, name := range []string{"show", "contents"} {
+	for _, name := range []string{"show", "list"} {
 		schema := publishedSchema(t, library, name)
 		properties, held := schema["properties"].(map[string]any)
 		if !held {

@@ -103,12 +103,11 @@ func TestEveryReferenceTakingCommandAnswersACollectionOrRefusesIt(t *testing.T) 
 	t.Setenv("DINAH_EDITOR", "dinah-no-such-editor")
 
 	accepting := map[string][]string{
-		"path":        {"path", "fx-1/comments"},
-		"show":        {"show", "fx-1/comments"},
-		"contents":    {"contents", "fx-1/comments"},
-		"attachments": {"attachments", "fx-1/comments"},
+		"path": {"path", "fx-1/comments"},
+		"list": {"list", "fx-1/comments"},
 	}
 	refusing := map[string][]string{
+		"show":         {"show", "fx-1/comments"},
 		"comment":      {"comment", "fx-1/comments", "text"},
 		"edit":         {"edit", "fx-1/comments"},
 		"attach":       {"attach", "fx-1/comments", source},
@@ -146,7 +145,7 @@ func TestEveryReferenceTakingCommandAnswersACollectionOrRefusesIt(t *testing.T) 
 		ran++
 		answer := answerOf(t, root, argv...)
 		if answer.code != 0 {
-			t.Errorf("%s refused a collection reference with %s, and it is one of the four that answer one:\n%s", name, answer.refusal, answer.errw)
+			t.Errorf("%s refused a collection reference with %s, and it is one of the two that answer one:\n%s", name, answer.refusal, answer.errw)
 			continue
 		}
 		accepted++
@@ -155,7 +154,7 @@ func TestEveryReferenceTakingCommandAnswersACollectionOrRefusesIt(t *testing.T) 
 		ran++
 		answer := answerOf(t, root, argv...)
 		if answer.refusal != contract.IsACollection {
-			t.Errorf("%s answered %q with exit %d, and it is one of the fifteen that refuse a collection with %s:\n%s%s",
+			t.Errorf("%s answered %q with exit %d, and it is one of the sixteen that refuse a collection with %s:\n%s%s",
 				name, answer.refusal, answer.code, contract.IsACollection, answer.out, answer.errw)
 			continue
 		}
@@ -168,66 +167,59 @@ func TestEveryReferenceTakingCommandAnswersACollectionOrRefusesIt(t *testing.T) 
 		}
 		refused++
 	}
-	if ran != 19 {
-		t.Fatalf("the sweep ran %d invocations and the roster is nineteen", ran)
+	if ran != 18 {
+		t.Fatalf("the sweep ran %d invocations and the roster is eighteen", ran)
 	}
-	if accepted != 4 || refused != 15 {
-		t.Fatalf("the sweep accepted %d and refused %d, and the split is four and fifteen", accepted, refused)
+	if accepted != 2 || refused != 16 {
+		t.Fatalf("the sweep accepted %d and refused %d, and the split is two and sixteen", accepted, refused)
 	}
-	t.Logf("nineteen invocations ran: %d accepted, %d refused with %s", accepted, refused, contract.IsACollection)
+	t.Logf("eighteen invocations ran: %d accepted, %d refused with %s", accepted, refused, contract.IsACollection)
 }
 
-// TestShowDrawsACollectionsMembersInCreationOrder pins the members, their
+// TestListDrawsACollectionsMembersInCreationOrder pins the members, their
 // order, and above all the address printed beside each one.
 //
 // The address is the arm most likely to be wrong, because appending a position
 // to the reference the reader typed is the easier implementation and it prints
 // fx-1/checklist/1 for an item every other surface prints as fx-1/questions/1.
-// One entity has one printed spelling, so the last clause hands the printed
+// One entity has one printed spelling, so the last clause hands each printed
 // address back to show and requires it to resolve.
-func TestShowDrawsACollectionsMembersInCreationOrder(t *testing.T) {
+//
+// The command moved from show to list on dinah-523 and the assertion moved
+// with it. What it reads is the containment walk one level below the
+// collection rather than a listing of its own, because listing a collection is
+// what list does and show refuses one.
+func TestListDrawsACollectionsMembersInCreationOrder(t *testing.T) {
 	root, _ := collectionBench(t)
 
-	human := mustRun(t, root, "--lang", "en", "show", "fx-1/comments").out
+	human := mustRun(t, root, "--lang", "en", "list", "fx-1/comments").out
 	first := strings.Index(human, "fx-1/comments/1")
 	second := strings.Index(human, "fx-1/comments/2")
 	if first < 0 || second < 0 {
-		t.Fatalf("show prints no address for one of the two comments:\n%s", human)
+		t.Fatalf("list prints no address for one of the two comments:\n%s", human)
 	}
 	if first > second {
-		t.Errorf("show prints fx-1/comments/2 before fx-1/comments/1, and creation order is the order:\n%s", human)
-	}
-	if !strings.Contains(human, "the first thought") || !strings.Contains(human, "the second thought") {
-		t.Errorf("show prints an address without the text it names:\n%s", human)
+		t.Errorf("list prints fx-1/comments/2 before fx-1/comments/1, and creation order is the order:\n%s", human)
 	}
 
-	var listing verb.CollectionListing
-	payload := mustRun(t, root, "show", "fx-1/comments", "--json").out
-	if err := json.Unmarshal([]byte(payload), &listing); err != nil {
+	var walk verb.Tree
+	payload := mustRun(t, root, "list", "fx-1/comments", "--json").out
+	if err := json.Unmarshal([]byte(payload), &walk); err != nil {
 		t.Fatalf("the collection payload will not parse: %v\n%s", err, payload)
 	}
-	if listing.Ref != "fx-1/comments" {
-		t.Errorf("the payload reads back %q rather than the reference the reader typed", listing.Ref)
+	if walk.Root.Ref != "fx-1/comments" {
+		t.Errorf("the payload reads back %q rather than the reference the reader typed", walk.Root.Ref)
 	}
-	if listing.Kind != "comment" {
-		t.Errorf("the payload calls the collection's members %q rather than comment", listing.Kind)
+	if len(walk.Root.Children) != 2 {
+		t.Fatalf("the payload carries %d members and the card carries two:\n%s", len(walk.Root.Children), payload)
 	}
-	if len(listing.Members) != 2 {
-		t.Fatalf("the payload carries %d members and the card carries two:\n%s", len(listing.Members), payload)
-	}
-	for position, member := range listing.Members {
+	for position, member := range walk.Root.Children {
 		want := []string{"fx-1/comments/1", "fx-1/comments/2"}[position]
 		if member.Ref != want {
 			t.Errorf("member %d is addressed %q rather than %q", position+1, member.Ref, want)
 		}
-		// The head writes a trailing newline of its own after the text it
-		// was handed, so the comparison is against what it was handed.
-		alone := strings.TrimRight(mustRun(t, root, "show", want).out, "\n")
-		if alone == "" {
-			t.Fatalf("show prints nothing for %s, so this comparison would pass on two empty strings", want)
-		}
-		if member.Text != alone {
-			t.Errorf("%s reads differently through its collection than on its own:\n through: %q\n alone:   %q", want, member.Text, alone)
+		if got := runCLI(t, root, "show", want); got.code != 0 {
+			t.Errorf("list printed the address %q and then show refused it: %d %s", want, got.code, got.errw)
 		}
 	}
 
@@ -235,20 +227,20 @@ func TestShowDrawsACollectionsMembersInCreationOrder(t *testing.T) {
 	// appending a position to the typed reference: the question was filed
 	// first, so it is member one of the checklist and fx-1/questions/1
 	// everywhere it is printed.
-	var checklist verb.CollectionListing
-	payload = mustRun(t, root, "show", "fx-1/checklist", "--json").out
+	var checklist verb.Tree
+	payload = mustRun(t, root, "list", "fx-1/checklist", "--json").out
 	if err := json.Unmarshal([]byte(payload), &checklist); err != nil {
 		t.Fatalf("the checklist payload will not parse: %v\n%s", err, payload)
 	}
-	if len(checklist.Members) != 2 {
-		t.Fatalf("the checklist carries %d members and the card carries two:\n%s", len(checklist.Members), payload)
+	if len(checklist.Root.Children) != 2 {
+		t.Fatalf("the checklist carries %d members and the card carries two:\n%s", len(checklist.Root.Children), payload)
 	}
-	if checklist.Members[0].Ref != "fx-1/questions/1" {
-		t.Errorf("the open question is addressed %q rather than fx-1/questions/1", checklist.Members[0].Ref)
+	if checklist.Root.Children[0].Ref != "fx-1/questions/1" {
+		t.Errorf("the open question is addressed %q rather than fx-1/questions/1", checklist.Root.Children[0].Ref)
 	}
-	for _, member := range checklist.Members {
+	for _, member := range checklist.Root.Children {
 		if got := runCLI(t, root, "show", member.Ref); got.code != 0 {
-			t.Errorf("show printed the address %q and then refused it: %d %s", member.Ref, got.code, got.errw)
+			t.Errorf("list printed the address %q and then show refused it: %d %s", member.Ref, got.code, got.errw)
 		}
 	}
 }
@@ -263,20 +255,12 @@ func TestShowDrawsACollectionsMembersInCreationOrder(t *testing.T) {
 func TestAnEmptyCollectionIsAnEmptySetRatherThanAnError(t *testing.T) {
 	root, _ := collectionBench(t)
 
-	shown := runCLI(t, root, "--lang", "en", "show", "fx-2/comments")
-	if shown.code != 0 {
-		t.Fatalf("show refused an empty collection: %d %s", shown.code, shown.errw)
-	}
-	if !strings.Contains(shown.out, "fx-2/comments holds nothing.") {
-		t.Errorf("show does not print the show.collection.empty sentence naming the collection:\n%s", shown.out)
-	}
-
-	drawn := runCLI(t, root, "--lang", "en", "contents", "fx-2/comments")
+	drawn := runCLI(t, root, "--lang", "en", "list", "fx-2/comments", "--depth", "entities")
 	if drawn.code != 0 {
-		t.Fatalf("contents refused an empty collection: %d %s", drawn.code, drawn.errw)
+		t.Fatalf("list refused an empty collection: %d %s", drawn.code, drawn.errw)
 	}
 	if !strings.Contains(drawn.out, "fx-2/comments contains nothing.") {
-		t.Errorf("contents does not print the contents.empty.collection sentence:\n%s", drawn.out)
+		t.Errorf("list does not print the contents.empty.collection sentence:\n%s", drawn.out)
 	}
 
 	name, context := refusalContextOf(t, root, "delete", "fx-2/comments", "--yes")
@@ -292,6 +276,200 @@ func TestAnEmptyCollectionIsAnEmptySetRatherThanAnError(t *testing.T) {
 	sentence := runCLI(t, root, "--lang", "en", "delete", "fx-2/comments", "--yes").errw
 	if !strings.Contains(sentence, "it holds nothing") {
 		t.Errorf("the refusal ends on the next-member splice rather than on the empty one:\n%s", sentence)
+	}
+}
+
+// TestAnUntitledEntityIsNamedByItsReferenceAlone asserts the empty-title rule
+// of the entity sentences: a workstream whose title is empty is named by its
+// reference alone, with no space in front of the parenthesis, while one
+// carrying a title opens with the title as before. The titled half beside the
+// untitled one stops the rule passing against a build that drops the title
+// everywhere, and the untitled half stops the opposite build, the one that
+// interpolates an empty string and keeps the space the template put after it.
+func TestAnUntitledEntityIsNamedByItsReferenceAlone(t *testing.T) {
+	root := newBench(t)
+	mustRun(t, root, "workstream", "new", "Autumn release", "--slug", "titled")
+	mustRun(t, root, "workstream", "new", "Placeholder", "--slug", "untitled")
+
+	// The workstream carries its title in the frontmatter of its anchor, so
+	// the untitled case is made the way a repair that created the workstream
+	// and gave it no title leaves one: with a title line naming nothing.
+	blanked := false
+	anchors, err := filepath.Glob(filepath.Join(soleBenchDir(t, root), "workstreams", "*", "workstream.md"))
+	if err != nil {
+		t.Fatalf("glob the workstream anchors: %v", err)
+	}
+	for _, anchor := range anchors {
+		raw, err := os.ReadFile(anchor)
+		if err != nil {
+			t.Fatalf("read %s: %v", anchor, err)
+		}
+		if !strings.Contains(string(raw), "slug: untitled") {
+			continue
+		}
+		edited := strings.Replace(string(raw), "title: Placeholder", "title:", 1)
+		if edited == string(raw) {
+			t.Fatalf("the untitled workstream's anchor carries no title line to blank:\n%s", raw)
+		}
+		if err := os.WriteFile(anchor, []byte(edited), 0o644); err != nil {
+			t.Fatalf("write %s: %v", anchor, err)
+		}
+		blanked = true
+		break
+	}
+	if !blanked {
+		t.Fatal("no workstream anchor carries the slug untitled")
+	}
+
+	drawn := runCLI(t, root, "--lang", "en", "list", "workstream/untitled", "--depth", "all")
+	if drawn.code != 0 {
+		t.Fatalf("the walk of the untitled workstream exited %d: %s", drawn.code, drawn.errw)
+	}
+	if !strings.Contains(drawn.out, "(workstream/untitled) contains nothing.") {
+		t.Errorf("the walk of an untitled workstream does not name the bare reference:\n%s", drawn.out)
+	}
+	for _, line := range strings.Split(strings.TrimSuffix(drawn.out, "\n"), "\n") {
+		if strings.HasPrefix(line, " ") {
+			t.Errorf("the walk of an untitled workstream drew a line opening with a space:\n%s", drawn.out)
+			break
+		}
+	}
+
+	drawn = runCLI(t, root, "--lang", "en", "list", "workstream/titled", "--depth", "all")
+	if drawn.code != 0 {
+		t.Fatalf("the walk of the titled workstream exited %d: %s", drawn.code, drawn.errw)
+	}
+	if !strings.Contains(drawn.out, "Autumn release (workstream/titled) contains nothing.") {
+		t.Errorf("the walk of a titled workstream does not open with the title:\n%s", drawn.out)
+	}
+}
+
+// TestAWalkFromAWorkstreamDrawsTheCardsThatJoinedIt pins the walk the
+// specification's section 3.6 declares, over a workstream that actually holds
+// cards.
+//
+// The position this reaches is the one the two tests above cannot: both of
+// them create a workstream nobody has joined, so a walk that draws the
+// membership and a walk that draws nothing print the same sentence there, and
+// the shipped defect (a workstream routed to the containment table, which
+// leaves the kind out) passed them both. A card is joined here before the
+// walk runs, so a build whose walk drops the membership prints "contains
+// nothing" and fails on the first assertion.
+//
+// Two further positions ride along, each of which a different wrong build
+// reaches. The members rung draws the joined card and not what the card
+// holds, which a walk seeded at the wrong rank gets wrong in one direction or
+// the other. And the card that joined nothing is absent, which a walk reading
+// every card of the workbench rather than the membership would draw.
+func TestAWalkFromAWorkstreamDrawsTheCardsThatJoinedIt(t *testing.T) {
+	root := newBench(t)
+	mustRun(t, root, "add", "the card that joins the workstream")
+	mustRun(t, root, "add", "the card that joins nothing")
+	mustRun(t, root, "comment", "fx-1", "the thought the deepest rung draws")
+	mustRun(t, root, "workstream", "new", "Autumn release", "--slug", "autumn")
+	mustRun(t, root, "join", "fx-1", "autumn")
+
+	walked := runCLI(t, root, "--lang", "en", "list", "workstream/autumn", "--depth", "all")
+	if walked.code != 0 {
+		t.Fatalf("the walk of a joined workstream exited %d: %s", walked.code, walked.errw)
+	}
+	if strings.Contains(walked.out, "contains nothing") {
+		t.Fatalf("the walk of a workstream holding a card reports it holds nothing:\n%s", walked.out)
+	}
+	if !strings.Contains(walked.out, "fx-1") {
+		t.Errorf("the walk of a workstream does not draw the card that joined it:\n%s", walked.out)
+	}
+	if !strings.Contains(walked.out, "the thought the deepest rung draws") {
+		t.Errorf("the deepest rung does not draw what the joined card holds:\n%s", walked.out)
+	}
+	if strings.Contains(walked.out, "fx-2") {
+		t.Errorf("the walk of a workstream draws a card that joined nothing:\n%s", walked.out)
+	}
+
+	members := runCLI(t, root, "--lang", "en", "list", "workstream/autumn", "--depth", "members")
+	if members.code != 0 {
+		t.Fatalf("the members rung over a workstream exited %d: %s", members.code, members.errw)
+	}
+	if !strings.Contains(members.out, "fx-1") {
+		t.Errorf("the members rung does not draw the card that joined the workstream:\n%s", members.out)
+	}
+	if strings.Contains(members.out, "the thought the deepest rung draws") {
+		t.Errorf("the members rung draws what the joined card holds:\n%s", members.out)
+	}
+
+	// The pair --depth and --ready is the ruling recorded as
+	// dinah-523/decisions/14: the walk is rooted on the membership --ready
+	// selected, so one workstream reference answers one set of cards under
+	// that flag however the reader asked for it. A third card joins and the
+	// first is taken up, which is the position the ruling is about, since a
+	// workstream whose every card is ready cannot tell a narrowed walk from
+	// an unnarrowed one.
+	mustRun(t, root, "add", "the ready card that joined")
+	mustRun(t, root, "join", "fx-3", "autumn")
+	mustRun(t, root, "move", "fx-1", "doing")
+	mustRun(t, root, "claim", "fx-1")
+
+	narrowed := runCLI(t, root, "--lang", "en", "list", "workstream/autumn", "--ready")
+	if narrowed.code != 0 {
+		t.Fatalf("--ready over a workstream exited %d: %s", narrowed.code, narrowed.errw)
+	}
+	walkedReady := runCLI(t, root, "--lang", "en", "list", "workstream/autumn", "--depth", "all", "--ready")
+	if walkedReady.code != 0 {
+		t.Fatalf("--depth with --ready over a workstream exited %d: %s", walkedReady.code, walkedReady.errw)
+	}
+	for _, one := range []struct {
+		name string
+		out  string
+	}{{"the narrowed answer", narrowed.out}, {"the narrowed walk", walkedReady.out}} {
+		if !strings.Contains(one.out, "fx-3") {
+			t.Errorf("%s drops the ready card that joined:\n%s", one.name, one.out)
+		}
+		if strings.Contains(one.out, "fx-1") {
+			t.Errorf("%s draws fx-1, which is taken up and is what --ready excludes:\n%s", one.name, one.out)
+		}
+		if strings.Contains(one.out, "fx-2") {
+			t.Errorf("%s draws fx-2, which joined nothing:\n%s", one.name, one.out)
+		}
+	}
+	if strings.Contains(walkedReady.out, "the thought the deepest rung draws") {
+		t.Errorf("the narrowed walk draws what the excluded card holds:\n%s", walkedReady.out)
+	}
+}
+
+// TestArchivedBesideAWorkstreamIsRefusedByName pins the ruling recorded as
+// dinah-523/decisions/12, which the specification left open: --archived
+// beside a workstream reference is refused rather than answered.
+//
+// A workstream holds a membership rather than a containment, and since the
+// walk from one draws that membership, neither of a workstream's two readings
+// has an archive half to read. The flag is therefore refused by name, as it
+// already is beside the roster word workstreams, which is what stops the
+// combination answering a live membership under a flag that asked for the
+// archive.
+//
+// The workstream is archived first, because the resolver's own not-archived
+// refusal fires ahead of the flag check for a workstream that is still live,
+// and an archived workstream is the only state in which this ruling is the
+// thing being read.
+func TestArchivedBesideAWorkstreamIsRefusedByName(t *testing.T) {
+	root := newBench(t)
+	mustRun(t, root, "add", "the card that joins the workstream")
+	mustRun(t, root, "workstream", "new", "Autumn release", "--slug", "autumn")
+	mustRun(t, root, "join", "fx-1", "autumn")
+	mustRun(t, root, "archive", "workstream/autumn")
+
+	for _, argv := range [][]string{
+		{"list", "workstream/autumn", "--archived"},
+		{"list", "workstream/autumn", "--archived", "--depth", "all"},
+	} {
+		answer := answerOf(t, root, argv...)
+		if answer.refusal != contract.Usage {
+			t.Errorf("%v answered %q rather than %s:\n%s%s", argv, answer.refusal, contract.Usage, answer.out, answer.errw)
+		}
+	}
+	sentence := runCLI(t, root, "--lang", "en", "list", "workstream/autumn", "--archived").errw
+	if !strings.Contains(sentence, "--archived beside a workstream reference") {
+		t.Errorf("the refusal does not name the combination the reader wrote:\n%s", sentence)
 	}
 }
 
@@ -384,7 +562,7 @@ func TestAWalkRootedAtACollectionDrawsTheHoldersRowsForIt(t *testing.T) {
 	if collection.Root.Count != 2 {
 		t.Errorf("the root counts %d entities at or below fx-1/comments and there are two", collection.Root.Count)
 	}
-	header := runCLI(t, root, "--lang", "en", "contents", "fx-1/comments")
+	header := runCLI(t, root, "--lang", "en", "list", "fx-1/comments", "--depth", "entities")
 	if !strings.Contains(header.out, "fx-1/comments contains 2 entities.") {
 		t.Errorf("the header does not name the reference and the count:\n%s", header.out)
 	}
@@ -393,7 +571,7 @@ func TestAWalkRootedAtACollectionDrawsTheHoldersRowsForIt(t *testing.T) {
 // treeOf reads one contents tree as the machine form reports it.
 func treeOf(t *testing.T, root, ref string) verb.Tree {
 	t.Helper()
-	payload := mustRun(t, root, "contents", ref, "--depth", "all", "--json").out
+	payload := mustRun(t, root, "list", ref, "--depth", "all", "--json").out
 	var tree verb.Tree
 	if err := json.Unmarshal([]byte(payload), &tree); err != nil {
 		t.Fatalf("the tree for %s will not parse: %v\n%s", ref, err, payload)
@@ -434,42 +612,34 @@ func TestAttachmentsAnswersACollectionFromItsHolder(t *testing.T) {
 	mustRun(t, root, "attach", "fx-1/comments/1", source, "--description", "the comment's own file")
 
 	for _, pair := range []struct{ long, short string }{
-		{long: "fx-1/attachments", short: "fx-1"},
-		{long: "fx/attachments", short: "workbench"},
-		{long: "fx-1/comments/1/attachments", short: "fx-1/comments/1"},
+		{long: "fx-1/attachments", short: "fx-1/attachments"},
+		{long: "fx/attachments", short: "attachments"},
+		{long: "fx-1/comments/1/attachments", short: "fx-1/comments/1/attachments"},
 	} {
-		human := mustRun(t, root, "--lang", "en", "attachments", pair.long).out
-		want := mustRun(t, root, "--lang", "en", "attachments", pair.short).out
+		human := mustRun(t, root, "--lang", "en", "list", pair.long).out
+		want := mustRun(t, root, "--lang", "en", "list", pair.short).out
 		if human != want {
 			t.Errorf("attachments %s prints\n%s\nand attachments %s prints\n%s", pair.long, human, pair.short, want)
 		}
-		payload := mustRun(t, root, "attachments", pair.long, "--json").out
-		wantPayload := mustRun(t, root, "attachments", pair.short, "--json").out
+		payload := mustRun(t, root, "list", pair.long, "--json").out
+		wantPayload := mustRun(t, root, "list", pair.short, "--json").out
 		if payload != wantPayload {
 			t.Errorf("attachments %s answers\n%s\nand attachments %s answers\n%s", pair.long, payload, pair.short, wantPayload)
 		}
 	}
 
-	empty := runCLI(t, root, "--lang", "en", "attachments", "fx-1/comments")
-	if empty.code != 0 {
-		t.Fatalf("attachments refused a collection that hangs nothing: %d %s", empty.code, empty.errw)
+	// Asking a collection for its own attachments was reachable while the
+	// question had a command of its own, because `dinah attachments` took any
+	// reference at all and answered a collection with the empty listing. The
+	// question is not spellable now: `dinah list fx-1/comments` lists the
+	// comments, and `fx-1/comments/attachments` is a collection under a
+	// collection, which no address reaches and the resolver refuses.
+	unspellable := runCLI(t, root, "--lang", "en", "list", "fx-1/comments/attachments")
+	if unspellable.code == 0 {
+		t.Errorf("a collection under a collection answered rather than refusing:\n%s", unspellable.out)
 	}
-	if !strings.Contains(empty.out, "fx-1/comments carries no attachments.") {
-		t.Errorf("attachments does not print the attachments.empty sentence naming the collection:\n%s", empty.out)
-	}
-	payload := mustRun(t, root, "attachments", "fx-1/comments", "--json").out
-	var listing verb.AttachmentListing
-	if err := json.Unmarshal([]byte(payload), &listing); err != nil {
-		t.Fatalf("the listing will not parse: %v\n%s", err, payload)
-	}
-	if listing.Ref != "fx-1/comments" || listing.Kind != verb.KindCollection {
-		t.Errorf("the listing reports ref %q and kind %q", listing.Ref, listing.Kind)
-	}
-	if listing.Attachments == nil {
-		t.Error("the listing carries a null where an empty array belongs, and the two read differently to a machine caller")
-	}
-	if !strings.Contains(payload, `"attachments": []`) {
-		t.Errorf("the payload does not carry an empty attachments array:\n%s", payload)
+	if name := refusalNameOf(unspellable.errw); name != contract.UnknownPath {
+		t.Errorf("a collection under a collection refused %s, wanted %s", name, contract.UnknownPath)
 	}
 }
 

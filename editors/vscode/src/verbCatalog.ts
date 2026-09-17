@@ -69,10 +69,16 @@ export const DURATION_FORMAT = "duration";
 
 /** How one runtime-resolved vocabulary is turned into a list of choices. */
 export interface VocabularyResolver {
-	/** The tool called to resolve it, with no arguments. */
+	/** The tool called to resolve it. */
 	readonly tool: string;
 	/** The member of that tool's result carrying the rows. */
 	readonly member: string;
+	/**
+	 * The reference the call passes, absent where the tool needs none. The
+	 * columns source needs one, because the tool that answers it answers every
+	 * collection of the workbench and the reference is what says which.
+	 */
+	readonly ref?: string;
 }
 
 /**
@@ -83,18 +89,23 @@ export interface VocabularyResolver {
  * declares the vocabulary named `column` with `Source: "columns"`, and the
  * schema publishes the source rather than the vocabulary's own name, so a
  * table keyed on the singular matches nothing. It fails silently too: an
- * unmatched source is an unrenderable argument, which would take move,
- * list_cards, next_card and pull out of the palette with a count and no
- * further explanation.
+ * unmatched source is an unrenderable argument, which would take move, list,
+ * next_card and pull out of the palette with a count and no further
+ * explanation.
  *
- * A Go test (TestEveryVocabularySourceAServedToolPublishesIsTheOneColumnsSource)
- * pins the sources a served tool can reach to exactly this set, so a card that
- * gives a served tool an argument with a new source fails there and is told to
- * extend this table in the same diff.
+ * Two guards hold this table. A Go test
+ * (TestEveryVocabularySourceAServedToolPublishesIsDeclared, in
+ * internal/mcp/vocabulary_schema_test.go) pins the vocabulary source names a
+ * served tool can reach to exactly columns and fields, so a card that gives a
+ * served tool an argument with a new source fails there and is told to extend
+ * this table in the same diff. A unit test in verbCatalog-live.test.ts pins
+ * every tool named here to a name the binary's own tools/list answer carries,
+ * which is the half that was missing when a tool this table hard-codes was
+ * renamed.
  */
 export const VOCABULARY_RESOLVERS: Readonly<Record<string, VocabularyResolver>> =
 	{
-		columns: { tool: "columns", member: "columns" },
+		columns: { tool: "list", member: "columns", ref: "columns" },
 	};
 
 /** What a reader is asked for one argument, once its schema has classified. */

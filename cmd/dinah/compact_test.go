@@ -649,12 +649,16 @@ func TestTheCompactGrammarSurvivesTheBytesItEscapes(t *testing.T) {
 // green.
 func TestTheCompactListingCarriesEveryFieldTheCanonicalListingCarries(t *testing.T) {
 	root := newCompactBench(t)
+	// The bare listing has no row: `list cards` answers through the query
+	// call after dinah-523 and carries the query envelope rather than a
+	// column's queue, and TestTheCompactMatchesCarry... is what pins that
+	// shape. Every card of the fixture still passes under one of the four
+	// column rows below.
 	listings := [][]string{
-		{"ls"},
-		{"ls", "intake"},
-		{"ls", "doing"},
-		{"ls", "approval"},
-		{"ls", "done"},
+		{"list", "intake"},
+		{"list", "doing"},
+		{"list", "approval"},
+		{"list", "done"},
 	}
 	awkward, workstreams, empty, leased, blocked := 0, 0, 0, 0, 0
 	for _, argv := range listings {
@@ -950,16 +954,15 @@ func TestAPreVerbRefusalDecodesTheSameUnderBothMachineForms(t *testing.T) {
 func TestAShapeWithNoCompactRenderingEmitsTheCanonicalJSON(t *testing.T) {
 	root := newCompactBench(t)
 	for _, argv := range [][]string{
-		{"columns"},
+		{"list", "columns"},
 		{"show", "fx-2"},
 		{"status"},
 		{"config"},
 		{"check"},
 		{"query", "column:doing"},
-		{"log", "fx-2"},
-		{"workbenches"},
+		{"list", "fx-2/journal"},
+		{"list", "workbenches"},
 		{"version"},
-		{"workstream"},
 	} {
 		t.Run(strings.Join(argv, " "), func(t *testing.T) {
 			compact, canonical := machineForms(t, root, argv...)
@@ -993,7 +996,7 @@ const wantVersionLine = "fmt|compact|2"
 // wb record an id field ahead of its title.
 func TestTheCompactFormOpensOnItsVersionRecord(t *testing.T) {
 	root := newCompactBench(t)
-	for _, argv := range [][]string{{"ls"}, {"next"}, {"claim", "fx-2"}} {
+	for _, argv := range [][]string{{"list", "intake"}, {"next"}, {"claim", "fx-2"}} {
 		got := runCLI(t, root, append([]string{"--format", "compact"}, argv...)...)
 		opening, _, _ := strings.Cut(got.out, "\n")
 		if opening != wantVersionLine {

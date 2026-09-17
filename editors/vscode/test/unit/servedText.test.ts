@@ -704,7 +704,7 @@ function historySpawner(outcome: SpawnOutcome): {
 
 /** What extension.ts's KIND_HISTORY entry does, with its dependencies injected. */
 async function resolveHistory(spawner: Spawner, root: string, ref: string): Promise<string> {
-	const outcome = await runDinah(spawner, "dinah", pinnedArgv(root, ["log", ref]), {
+	const outcome = await runDinah(spawner, "dinah", pinnedArgv(root, ["list", `${ref}/journal`]), {
 		cwd: root,
 	});
 	if (outcome.kind !== "ok") {
@@ -728,7 +728,7 @@ test("the journal is asked for with the pinned argv and no hand-built flag", () 
 	});
 	return resolveHistory(spawner, "/bench", "dinah-422").then((text) => {
 		assert.equal(text, "No history is recorded for this card.");
-		assert.deepEqual(calls[0].argv, ["--json", "--workbench", "/bench", "log", "dinah-422"]);
+		assert.deepEqual(calls[0].argv, ["--json", "--workbench", "/bench", "list", "dinah-422/journal"]);
 		assert.equal(calls[0].options.cwd, "/bench");
 	});
 });
@@ -784,7 +784,7 @@ test("a bare identifier renders as itself, with no second call to resolve it", a
 	});
 	const text = await resolveHistory(spawner, "/bench", "dinah-422");
 	assert.equal(calls.length, 1, "rendering a history spawned dinah more than once");
-	assert.deepEqual(calls[0].argv.slice(-2), ["log", "dinah-422"]);
+	assert.deepEqual(calls[0].argv.slice(-2), ["list", "dinah-422/journal"]);
 	assert.ok(text.includes("ws-editor"), "the workstream identifier was not printed");
 	assert.ok(text.includes("col-3"), "the column identifier was not printed");
 	assert.equal(text.split("\n").length, 4);
@@ -806,8 +806,8 @@ test("extension.ts's own history entry asks for log through the pinned argv", ()
 	const entry = source.slice(at, source.indexOf("[KIND_GUIDE]:", at));
 	assert.match(
 		entry,
-		/pinnedArgv\(root, \["log", ref\]\)/,
-		"the history resolver no longer composes the log verb through pinnedArgv",
+		/pinnedArgv\(root, \["list", `\$\{ref\}\/journal`\]\)/,
+		"the history resolver no longer composes the journal reference through pinnedArgv",
 	);
 	assert.doesNotMatch(entry, /--json/, "the history resolver spells --json by hand");
 	assert.match(entry, /renderHistoryMarkdown\(/);

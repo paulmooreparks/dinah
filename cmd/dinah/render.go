@@ -324,13 +324,29 @@ func (s *session) renderColumns(columns []verb.ColumnView) {
 	s.table(t)
 }
 
+// renderRosters prints the workbench's top-level collections, each with the
+// count of what it holds. The Reference cell is the word a reader types back,
+// which is what makes the advice a refusal gives true: a reader told to run
+// `dinah list` meets, in that answer, every word the next question needs.
+func (s *session) renderRosters(listing *verb.RosterListing) {
+	t := table{indent: 2, columns: s.columns("roster", "reference", "holds", "count")}
+	for _, roster := range listing.Rosters {
+		t.rows = append(t.rows, tableRow{fields: []string{
+			roster.Reference,
+			s.token(roster.Holds),
+			strconv.Itoa(roster.Count),
+		}})
+	}
+	s.table(t)
+}
+
 // renderListing prints a column's cards in queue order.
 func (s *session) renderListing(listing *verb.Listing) {
 	if len(listing.Cards) == 0 {
-		s.line(s.r.T("ls.empty"))
+		s.line(s.r.T("queue.empty"))
 		return
 	}
-	t := table{indent: 2, columns: s.columns("ls", "card", "standing", "severity", "priority", "title")}
+	t := table{indent: 2, columns: s.columns("queue", "card", "standing", "severity", "priority", "title")}
 	for _, card := range listing.Cards {
 		t.rows = append(t.rows, tableRow{fields: []string{card.Ref, s.token(card.State), card.Severity, card.Priority, card.Title}})
 	}
@@ -378,6 +394,19 @@ func (s *session) renderTree(tree *verb.Tree) {
 	s.table(t)
 }
 
+// withoutEmptyTitle applies the empty-title rule of the entity sentences: a
+// title that is empty draws no leading space. The renderer omits the title
+// and the space that follows it together rather than interpolating an empty
+// string and keeping the space. Every locale template for the pair opens with
+// `{title} ({ref})`, so an empty title leaves exactly one leading space, and
+// dropping that one space is the whole of the omission.
+func withoutEmptyTitle(sentence, title string) string {
+	if title == "" {
+		return strings.TrimPrefix(sentence, " ")
+	}
+	return sentence
+}
+
 // treeHeader is the sentence above the table. Under a filter it says what the
 // workbench holds and how much of that matched, so the first number is the
 // root's count added to what the filter removed and the second is the count
@@ -396,9 +425,9 @@ func (s *session) treeHeader(tree *verb.Tree) string {
 			return s.r.T("contents.header.collection", "ref", root.Ref, "count", count)
 		}
 		if root.Count == 0 {
-			return s.r.T("contents.empty", "title", root.Title, "ref", root.Ref)
+			return withoutEmptyTitle(s.r.T("contents.empty", "title", root.Title, "ref", root.Ref), root.Title)
 		}
-		return s.r.T("contents.header", "title", root.Title, "ref", root.Ref, "count", count)
+		return withoutEmptyTitle(s.r.T("contents.header", "title", root.Title, "ref", root.Ref, "count", count), root.Title)
 	}
 	if root.Hidden == nil || root.Hidden.Filtered == 0 {
 		return s.r.T("tree.header", "title", root.Title, "ref", root.Ref, "count", count)
@@ -495,7 +524,7 @@ func (s *session) renderWorkbenches(rows []bench.Candidate, root string) {
 }
 
 // formatCandidateRows renders each candidate as the padded title, slug and
-// path columns dinah workbenches prints, one row per string with its own
+// path columns the workbenches listing prints, one row per string with its own
 // two-space lead. dinah.ambiguous-workbench prints the same rows beneath its
 // opening sentence, so this is the one place the column widths live; the two
 // callers can never draw the same candidates in different columns.
@@ -698,33 +727,31 @@ func (s *session) renderItemDetail(item *verb.ItemDetail) {
 	}
 }
 
-// renderCollectionListing prints the members of a collection: each member's
-// own address on a line of its own, then the text that address reads on its
-// own, with a blank line between members.
+// renderRecord prints the fields of an entity whose answer is a record rather
+// than a body, which is the workbench and the workstream.
 //
-// The address line carries no words, so it needs no catalogue entry and reads
-// the same in every language. A collection holding nothing prints one sentence
-// and succeeds, because an empty collection is an answer rather than a
-// mistake, on the same terms `dinah attachments` and `dinah contents` already
-// answer an entity that holds nothing.
-func (s *session) renderCollectionListing(listing *verb.CollectionListing) {
-	if len(listing.Members) == 0 {
-		s.line(s.r.T("show.collection.empty", "ref", listing.Ref))
-		return
-	}
-	for i, member := range listing.Members {
-		if i > 0 {
-			s.line("")
+// It draws the two-column table the bare `dinah workbench` listing already
+// draws, so one kind of answer reads one way wherever it is asked for. The
+// field names travel untranslated, the way that listing's do and the way
+// config's keys do, because a field name is machine vocabulary a caller types
+// back. The slug row is served through slugCell, so an entity carrying none
+// names its repair rather than standing blank.
+func (s *session) renderRecord(record *verb.Record) {
+	t := table{indent: 2, columns: s.columns("workbench", "field", "value")}
+	for _, field := range record.Fields {
+		value := field.Value
+		if field.Name == "slug" {
+			value = s.slugCell(value)
 		}
-		s.line(member.Ref)
-		s.write(member.Text)
+		t.rows = append(t.rows, tableRow{fields: []string{field.Name, value}})
 	}
+	s.table(t)
 }
 
 // renderAttachmentListing prints the attachments of whatever entity was asked
 // about, under a sentence naming that entity, and says so plainly when the
 // entity carries none. An entity with nothing attached is an answer rather
-// than a mistake, on the same terms `dinah contents` already draws an entity
+// than a mistake, on the same terms `dinah list` already draws an entity
 // that contains nothing.
 func (s *session) renderAttachmentListing(listing *verb.AttachmentListing) {
 	if len(listing.Attachments) == 0 {
@@ -754,7 +781,7 @@ func (s *session) renderAttachments(views []verb.AttachmentView) {
 // identifier carried in an act is never resolved against the bench as it now
 // stands, so the titles printed are the ones the act itself carries.
 func (s *session) renderHistory(events []bench.Event) {
-	t := table{indent: 2, columns: s.columns("log", "when", "action", "actor", "detail")}
+	t := table{indent: 2, columns: s.columns("journal", "when", "action", "actor", "detail")}
 	for _, ev := range events {
 		fields := []string{ev.TS, s.token(ev.Event), ev.Actor.Name, s.eventDetail(ev)}
 		t.rows = append(t.rows, tableRow{fields: fields})
@@ -1322,7 +1349,7 @@ func sortedKeys(values map[string]string) []string {
 // The field names travel untranslated, the way `config`'s keys do, because a
 // field name is machine vocabulary a caller types back. The slug row is served
 // through slugCell, so a workbench carrying none names its repair rather than
-// standing blank, and this listing says what `dinah columns` and `dinah
+// standing blank, and this listing says what `dinah list columns` and `dinah list
 // workbenches` already say about a missing slug.
 func (s *session) renderWorkbenchFields(fields *verb.WorkbenchView) {
 	t := table{indent: 2, columns: s.columns("workbench", "field", "value")}
@@ -1338,7 +1365,7 @@ func (s *session) renderWorkbenchFields(fields *verb.WorkbenchView) {
 
 // renderWorkstreams prints every live workstream of the workbench, and the
 // sentence that says so when the workbench carries none. The columns are the
-// shape dinah columns already draws, and the first cell is the reference a
+// shape the columns listing already draws, and the first cell is the reference a
 // reader types rather than the bare slug, so it needs no slugCell: Ref falls
 // back to the identifier and is never empty.
 func (s *session) renderWorkstreams(listing *verb.WorkstreamListing) {

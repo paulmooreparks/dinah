@@ -249,9 +249,9 @@ func TestScanLangFlagAgreesWithParseArgsOnASuccessfulParse(t *testing.T) {
 		{"move", "card1", "--" + domain, "de", "--lang", "hi"},
 		{"comment", "fx-1", "--" + session, "--lang", "de"},
 		{"add", "--", "--lang", "de"},
-		{"ls", "--lang", "de", "--json"},
-		{"ls", "--lang=de"},
-		{"ls"},
+		{"list", "cards", "--lang", "de", "--json"},
+		{"list", "cards", "--lang=de"},
+		{"list", "cards"},
 	}
 	for _, argv := range lines {
 		parsed, err := parseArgs(argv, testValued())

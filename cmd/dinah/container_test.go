@@ -84,9 +84,9 @@ func TestTheContainerMigrationPreviewsBeforeItMoves(t *testing.T) {
 	}
 	// The workbench answers as itself afterwards, which is the point of the
 	// move: the card it carried is still there and still reachable by name.
-	listed := runCLI(t, filepath.Join(tree, "project"), "ls")
+	listed := runCLI(t, filepath.Join(tree, "project"), "list", "cards")
 	if listed.code != 0 {
-		t.Fatalf("ls after the migration: %d %s", listed.code, listed.errw)
+		t.Fatalf("the card listing after the migration: %d %s", listed.code, listed.errw)
 	}
 	if !strings.Contains(listed.out, "a card the migration must keep") {
 		t.Errorf("the migrated workbench lost its card:\n%s", listed.out)
@@ -247,7 +247,7 @@ func TestEveryWorkbenchListingCarriesTheIdentifier(t *testing.T) {
 
 	// The compact form carries the same identifier in the same record, which
 	// is what makes the two machine forms one answer rather than two.
-	compact := runCLI(t, tree, "--format", "compact", "workbenches", tree)
+	compact := runCLI(t, tree, "--format", "compact", "list", "workbenches", "--root", tree)
 	if compact.code != 0 {
 		t.Fatalf("workbenches --format compact: %d %s", compact.code, compact.errw)
 	}
@@ -262,7 +262,7 @@ func TestEveryWorkbenchListingCarriesTheIdentifier(t *testing.T) {
 // for a key that was never there.
 func workbenchRows(t *testing.T, from, path string) []map[string]any {
 	t.Helper()
-	got := runCLI(t, from, "--json", "workbenches", path)
+	got := runCLI(t, from, "--json", "list", "workbenches", "--root", path)
 	if got.code != 0 {
 		t.Fatalf("workbenches --json: %d %s", got.code, got.errw)
 	}

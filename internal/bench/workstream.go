@@ -255,7 +255,7 @@ func (b *Bench) HasWorkstream(id string) bool {
 
 // WorkstreamCounts reports how many live cards belong to each workstream,
 // keyed by identifier. Membership is card-owned, so the count is derived by
-// walking the cards the way the Cards column of dinah columns already is.
+// walking the cards the way the Cards column of dinah list columns already is.
 func (b *Bench) WorkstreamCounts() (map[string]int, error) {
 	cards, err := b.Cards()
 	if err != nil {

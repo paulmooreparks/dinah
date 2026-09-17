@@ -25,7 +25,7 @@ import { after, test } from "node:test";
 
 import { REQUEST_ID, callMcp } from "../../src/mcpClient";
 import { nodeSpawner } from "../../src/spawn";
-import { INJECTED_KEY, buildCatalog } from "../../src/verbCatalog";
+import { INJECTED_KEY, VOCABULARY_RESOLVERS, buildCatalog } from "../../src/verbCatalog";
 import type { FixtureRoot } from "../support/fixtures";
 import { buildBinary, fixtureEnv } from "../support/fixtures";
 
@@ -180,4 +180,44 @@ test("the live transport answers the request it was sent and not the handshake",
 		outcome.kind === "ok" && Array.isArray(outcome.result["tools"]),
 		`id ${String(REQUEST_ID)} answered with something other than the tool table`,
 	);
+});
+
+test("every tool the vocabulary resolvers name is a tool this commit's binary serves", async () => {
+	// dinah-523/criteria/19. VOCABULARY_RESOLVERS hard-codes a tool name, and
+	// nothing in Go reads that table, so a rename on the Go side used to leave
+	// the column-typed half of the palette calling a tool the head no longer
+	// served. The resolver would go unresolved, verbCatalog would drop every
+	// verb with a column-typed argument with a count and no explanation, and
+	// nothing would fail anywhere.
+	const root = binary();
+	const listed = await callMcp(
+		nodeSpawner,
+		root.binary,
+		"tools/list",
+		{},
+		options(root),
+	);
+	assert.equal(
+		listed.kind,
+		"ok",
+		`the binary answered tools/list with ${listed.kind === "ok" ? "ok" : listed.detail}`,
+	);
+	if (listed.kind !== "ok") {
+		return;
+	}
+	const tools = listed.result["tools"];
+	assert.ok(Array.isArray(tools), "tools/list answered with no tools array");
+	const served = (tools as { name: string }[]).map((tool) => tool.name).sort();
+	const sources = Object.keys(VOCABULARY_RESOLVERS);
+	assert.ok(
+		sources.length > 0,
+		"this build declares no vocabulary resolver, so the check below reads nothing",
+	);
+	for (const source of sources) {
+		const resolver = VOCABULARY_RESOLVERS[source];
+		assert.ok(
+			served.includes(resolver.tool),
+			`the ${source} vocabulary is resolved through the tool ${resolver.tool}, which this binary does not serve; it serves ${served.join(", ")}`,
+		);
+	}
 });

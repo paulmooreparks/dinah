@@ -54,8 +54,8 @@ func TestTheMachineHeadAnswersACollectionAsTheTerminalDoes(t *testing.T) {
 		names = append(names, command)
 	}
 	sort.Strings(names)
-	if len(names) != 17 {
-		t.Fatalf("this head serves %d of the nineteen reference-taking commands and it serves seventeen: %s", len(names), strings.Join(names, " "))
+	if len(names) != 16 {
+		t.Fatalf("this head serves %d of the eighteen reference-taking commands and it serves sixteen: %s", len(names), strings.Join(names, " "))
 	}
 	for _, held := range []string{"path", "edit"} {
 		if _, exempt := toolExemptions[held]; !exempt {
@@ -72,8 +72,7 @@ func TestTheMachineHeadAnswersACollectionAsTheTerminalDoes(t *testing.T) {
 	arguments := map[string]string{
 		"show":         `{"actor":"alka","card":"fx-1/comments"}`,
 		"comment":      `{"actor":"alka","card":"fx-1/comments","text":"a remark"}`,
-		"contents":     `{"actor":"alka","ref":"fx-1/comments","depth":"all"}`,
-		"attachments":  `{"actor":"alka","ref":"fx-1/comments"}`,
+		"list":         `{"actor":"alka","ref":"fx-1/comments","depth":"all"}`,
 		"instructions": `{"actor":"alka","card":"fx-1/comments"}`,
 		"archive":      `{"actor":"alka","ref":"fx-1/comments"}`,
 		"restore":      `{"actor":"alka","ref":"fx-1/comments"}`,
@@ -109,29 +108,11 @@ func TestTheMachineHeadAnswersACollectionAsTheTerminalDoes(t *testing.T) {
 			continue
 		}
 		switch command {
-		case "show":
-			listing, carried := answer["collection"].(map[string]any)
-			if !carried {
-				t.Errorf("the show tool answered a collection reference without a collection member: %v", answer)
-				continue
-			}
-			members, ok := listing["members"].([]any)
-			if !ok || len(members) != 2 {
-				t.Errorf("the show tool carried %v members and the card carries two", listing["members"])
-				continue
-			}
-			refs := make([]string, 0, len(members))
-			for _, member := range members {
-				refs = append(refs, fmt.Sprint(member.(map[string]any)["ref"]))
-			}
-			if strings.Join(refs, " ") != "fx-1/comments/1 fx-1/comments/2" {
-				t.Errorf("the show tool carries the members in the order [%s], and creation order is the order", strings.Join(refs, " "))
-			}
-		case "contents":
+		case "list":
 			tree, carried := answer["tree"].(map[string]any)
 			if !carried {
 				encoded, _ := json.Marshal(answer)
-				t.Errorf("the contents tool answered no tree: %s", encoded)
+				t.Errorf("the list tool answered no tree: %s", encoded)
 				continue
 			}
 			root, drawn := tree["root"].(map[string]any)
@@ -160,8 +141,8 @@ func TestTheMachineHeadAnswersACollectionAsTheTerminalDoes(t *testing.T) {
 		}
 		answered++
 	}
-	t.Logf("seventeen tools called: %d answered, %d refused with %s", answered, refused, contract.IsACollection)
-	if answered != 3 || refused != 14 {
-		t.Fatalf("the sweep answered %d and refused %d, and the split is three and fourteen", answered, refused)
+	t.Logf("sixteen tools called: %d answered, %d refused with %s", answered, refused, contract.IsACollection)
+	if answered != 1 || refused != 15 {
+		t.Fatalf("the sweep answered %d and refused %d, and the split is one and fifteen", answered, refused)
 	}
 }

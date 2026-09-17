@@ -331,9 +331,6 @@ var beyondChecks = map[string][]Check{
 		{Refusal: contract.Malformed, Key: "check.rename.4"},
 		{Refusal: contract.Malformed, Key: "check.rename.5"},
 	},
-	"log": {
-		{Refusal: contract.UnknownCard, Key: "check.log.1"},
-	},
 	// The cursor is asked first because a call carrying a bad one is not a
 	// call about a card or a column yet. A malformed token and a token minted
 	// against another workbench raise the one name, since both are the same
@@ -343,8 +340,14 @@ var beyondChecks = map[string][]Check{
 		{Refusal: contract.UnknownCard, Key: "check.changes.2"},
 		{Refusal: contract.UnknownColumn, Key: "check.changes.3"},
 	},
-	"ls": {
-		{Refusal: contract.UnknownColumn, Key: "check.ls.1"},
+	// The three rows run in the order the command asks them: a column
+	// reference is resolved against the workbench's own table, any other
+	// reference against the containment grammar, and the depth level is read
+	// last because a level is only asked about once there is a walk to bound.
+	"list": {
+		{Refusal: contract.UnknownColumn, Key: "check.list.1"},
+		{Refusal: contract.UnknownPath, Key: "check.list.2"},
+		{Refusal: contract.UnknownDepth, Key: "check.list.3"},
 	},
 	"next": {
 		{Refusal: contract.UnknownColumn, Key: "check.next.1"},
@@ -366,10 +369,6 @@ var beyondChecks = map[string][]Check{
 		{Refusal: contract.RepeatedAxis, Key: "check.tree.2"},
 		{Refusal: contract.ChainTooLong, Key: "check.tree.3"},
 		{Refusal: contract.UnknownDepth, Key: "check.tree.4"},
-	},
-	"contents": {
-		{Refusal: contract.UnknownPath, Key: "check.contents.1"},
-		{Refusal: contract.UnknownDepth, Key: "check.contents.2"},
 	},
 	"instructions": {
 		{Refusal: contract.UnknownPath, Key: "check.instructions.1"},

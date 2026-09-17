@@ -55,18 +55,14 @@ var publishedProperties = map[string][]string{
 	"delete":           {"actor", "harness", "model", "provider", "ref", "server", "workbench", "yes"},
 	"rename":           {"actor", "harness", "model", "name", "provider", "ref", "server", "workbench"},
 	"status":           {"actor", "harness", "max-depth", "model", "provider", "root", "server", "workbench"},
-	"columns":          {"actor", "harness", "model", "provider", "server", "workbench"},
-	"list_cards":       {"actor", "column", "harness", "max-depth", "model", "provider", "ready", "root", "server", "workbench"},
 	"next_card":        {"actor", "column", "harness", "max-depth", "model", "provider", "root", "server", "workbench"},
 	"pull":             {"actor", "basis", "column", "expires", "harness", "model", "no-claim", "override", "provider", "server", "workbench"},
 	"query":            {"actor", "harness", "model", "provider", "query", "server", "workbench"},
 	"search_cards":     {"actor", "archived", "harness", "max-depth", "model", "phrase", "provider", "query", "root", "server", "workbench"},
 	"tree":             {"actor", "depth", "group-by", "harness", "max-depth", "model", "provider", "query", "root", "server", "workbench"},
-	"contents":         {"actor", "archived", "depth", "harness", "model", "provider", "ref", "server", "workbench"},
-	"attachments":      {"actor", "harness", "model", "provider", "ref", "server", "workbench"},
 	"show":             {"actor", "archived", "card", "fields", "harness", "model", "provider", "server", "workbench"},
-	"log":              {"actor", "card", "harness", "model", "provider", "server", "workbench"},
 	"changes":          {"actor", "card", "column", "harness", "max-depth", "model", "provider", "root", "server", "since", "workbench"},
+	"list":             {"actor", "archived", "depth", "harness", "max-depth", "model", "provider", "ready", "ref", "root", "server", "workbench"},
 	"instructions":     {"actor", "card", "harness", "model", "provider", "server", "workbench"},
 	"whoami":           {"actor", "harness", "model", "provider", "server", "workbench"},
 	"workbench":        {"actor", "harness", "model", "provider", "server", "workbench"},
@@ -77,7 +73,6 @@ var publishedProperties = map[string][]string{
 	"version":          {"actor", "catalogs", "harness", "model", "provider", "server", "workbench"},
 	"export":           {"actor", "harness", "model", "provider", "server", "workbench"},
 	"check":            {"actor", "harness", "model", "provider", "server", "workbench"},
-	"workbenches":      {"actor", "harness", "max-depth", "model", "path", "provider", "server"},
 }
 
 // TestThePublishedPropertyInventoryMatchesTheSurface asserts dinah-397 AC-5:

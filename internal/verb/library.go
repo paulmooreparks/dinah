@@ -734,17 +734,17 @@ func columnRef(column *bench.Column) string {
 // most likely to act on it is an agent that cannot see the board.
 func (l *Library) affordances(card *bench.Card) []string {
 	if card == nil {
-		return []string{"status", "columns", "ls", "next"}
+		return []string{"status", "list", "next"}
 	}
 	switch card.State {
 	case contract.StateReady:
-		return append(l.takeUpActs(l.Bench.Column(card.Column)), Move, Block, "comment", "show", "log")
+		return append(l.takeUpActs(l.Bench.Column(card.Column)), Move, Block, "comment", "show", "list")
 	case contract.StateActive:
-		return []string{Move, Release, Block, "comment", "show", "log"}
+		return []string{Move, Release, Block, "comment", "show", "list"}
 	case contract.StateBlocked:
-		return []string{Unblock, "comment", "show", "log"}
+		return []string{Unblock, "comment", "show", "list"}
 	}
-	return []string{"show", "log"}
+	return []string{"show", "list"}
 }
 
 // takeUpActs names the act that would take a ready card up at a column. It
@@ -807,7 +807,7 @@ func (l *Library) ServedAffordances(req *Request, served *Served) []string {
 		return nil
 	}
 	if l.instructionColumn(req) != nil {
-		return append(l.takeUpActs(l.Bench.Column(served.Column)), "ls", "next", "show")
+		return append(l.takeUpActs(l.Bench.Column(served.Column)), "list", "next", "show")
 	}
 	return l.CardAffordances(req)
 }

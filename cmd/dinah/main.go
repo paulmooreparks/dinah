@@ -347,7 +347,7 @@ type refusalReport struct {
 	// refusal that needs none.
 	Context map[string]string `json:"context,omitempty"`
 	// Workbenches carries the candidates a dinah.ambiguous-workbench refusal
-	// found, the same rows dinah workbenches would print for this same
+	// found, the same rows dinah list workbenches would print for this same
 	// invocation, so a script reads them as structured fields rather than
 	// splitting a prose string. Every other refusal leaves this nil, and
 	// omitempty drops it.

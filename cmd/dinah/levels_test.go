@@ -463,7 +463,7 @@ func TestAStoredLevelNobodyDeclaresIsToleratedAndReported(t *testing.T) {
 		t.Fatalf("add: %d %s", got.code, got.errw)
 	}
 	handWrite(t, root, "fx-1", "severity: urgent")
-	for _, argv := range [][]string{{"ls"}, {"show", "fx-1"}, {"get", "fx-1", "severity"}} {
+	for _, argv := range [][]string{{"list", "cards"}, {"show", "fx-1"}, {"get", "fx-1", "severity"}} {
 		if got := runCLI(t, root, argv...); got.code != 0 {
 			t.Errorf("%v refused a card carrying an undeclared level: %d %s", argv, got.code, got.errw)
 		}
@@ -875,7 +875,7 @@ func TestLsGainsSeverityAndPriorityColumnsBetweenStandingAndTitle(t *testing.T) 
 	if got := runCLI(t, root, "add", "--severity", "minor", "a card carrying only a severity"); got.code != 0 {
 		t.Fatalf("add: %d %s", got.code, got.errw)
 	}
-	got := runCLI(t, root, "ls", "intake")
+	got := runCLI(t, root, "list", "intake")
 	if got.code != 0 {
 		t.Fatalf("ls: %d %s", got.code, got.errw)
 	}
@@ -941,7 +941,7 @@ func TestLsDropsAnAxisColumnNobodyPopulates(t *testing.T) {
 	if got := runCLI(t, root, "add", "--severity", "major", "another card carrying only a severity"); got.code != 0 {
 		t.Fatalf("add: %d %s", got.code, got.errw)
 	}
-	got := runCLI(t, root, "ls", "intake")
+	got := runCLI(t, root, "list", "intake")
 	if got.code != 0 {
 		t.Fatalf("ls: %d %s", got.code, got.errw)
 	}
@@ -966,7 +966,7 @@ func TestUndeclaredLevelDisplaysUnmarkedOnAllThreeSurfaces(t *testing.T) {
 	}
 	handWrite(t, root, "fx-1", "severity: urgent")
 
-	listing := runCLI(t, root, "ls", "intake")
+	listing := runCLI(t, root, "list", "intake")
 	if listing.code != 0 {
 		t.Fatalf("ls: %d %s", listing.code, listing.errw)
 	}
@@ -1031,7 +1031,7 @@ func TestLevelNamesNeverPassThroughTheTokenCatalog(t *testing.T) {
 		if strings.Contains(shown.out, "aktiv") {
 			t.Errorf("%s: the level name reached the German token catalog:\n%s", tag, shown.out)
 		}
-		listing := runCLI(t, root, "ls", "intake", "--lang", tag)
+		listing := runCLI(t, root, "list", "intake", "--lang", tag)
 		if listing.code != 0 {
 			t.Fatalf("%s: ls: %d %s", tag, listing.code, listing.errw)
 		}

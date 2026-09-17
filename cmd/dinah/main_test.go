@@ -299,9 +299,8 @@ func TestHelpBlockIsTheRatifiedSurface(t *testing.T) {
 		t.Errorf("the emitted block differs from the spec's section 2:\n%s", diffLines(string(fixture), got.out))
 	}
 
-	// The block lists fifty-six commands, and every command the binary
-	// offers is either one of them or `help`, which the block's own last
-	// line names.
+	// The block lists fifty-one commands, and every command the binary offers is
+	// either one of them or `help`, which the block's own last line names.
 	listed := 0
 	for _, c := range commands {
 		if c.group == "" {
@@ -315,8 +314,8 @@ func TestHelpBlockIsTheRatifiedSurface(t *testing.T) {
 			t.Errorf("the block does not list %s", c.name)
 		}
 	}
-	if listed != 56 {
-		t.Errorf("wanted fifty-six listed commands, got %d", listed)
+	if listed != 51 {
+		t.Errorf("wanted fifty-one listed commands, got %d", listed)
 	}
 }
 
@@ -868,11 +867,11 @@ func TestJSONIsIdenticalUnderEveryLanguage(t *testing.T) {
 
 	commands := [][]string{
 		{"status"},
-		{"columns"},
-		{"ls"},
+		{"list", "columns"},
+		{"list", "cards"},
 		{"next"},
 		{"show", "fx-1"},
-		{"log", "fx-1"},
+		{"list", "fx-1/journal"},
 		{"instructions", "fx-1"},
 		{"whoami"},
 		{"version", "--catalogs"},
@@ -898,8 +897,8 @@ func TestJSONIsIdenticalUnderEveryLanguage(t *testing.T) {
 
 	// The human rendering does change with the language, or the catalog is
 	// doing nothing.
-	english := runCLI(t, root, "ls", "--lang", "en")
-	hindi := runCLI(t, root, "ls", "--lang", "hi")
+	english := runCLI(t, root, "list", "cards", "--lang", "en")
+	hindi := runCLI(t, root, "list", "cards", "--lang", "hi")
 	if english.out == hindi.out {
 		t.Error("the human rendering should differ by language")
 	}
@@ -915,7 +914,7 @@ func TestHindiRendersDevanagari(t *testing.T) {
 	runCLI(t, root, "move", "fx-1", "Doing", "--quiet")
 	runCLI(t, root, "block", "fx-1", "the printer is on fire")
 
-	got := runCLI(t, root, "ls", "--lang", "hi")
+	got := runCLI(t, root, "list", "cards", "--lang", "hi")
 	if !strings.Contains(got.out, "बाधित") {
 		t.Errorf("wanted the Devanagari rendering of the blocked state, got %q", got.out)
 	}
@@ -2500,7 +2499,7 @@ func TestTheOrdinalMigrationSaysWhatItGuessed(t *testing.T) {
 func TestColumnsCarryTheirSlugOnBothSurfaces(t *testing.T) {
 	root := newBench(t)
 
-	human := runCLI(t, root, "columns")
+	human := runCLI(t, root, "list", "columns")
 	if human.code != 0 {
 		t.Fatalf("columns: %d %s", human.code, human.errw)
 	}
@@ -2510,7 +2509,7 @@ func TestColumnsCarryTheirSlugOnBothSurfaces(t *testing.T) {
 		}
 	}
 
-	machine := runCLI(t, root, "--json", "columns")
+	machine := runCLI(t, root, "--json", "list", "columns")
 	if machine.code != 0 {
 		t.Fatalf("columns --json: %d %s", machine.code, machine.errw)
 	}
@@ -2530,9 +2529,9 @@ func TestColumnsCarryTheirSlugOnBothSurfaces(t *testing.T) {
 	if got := runCLI(t, root, "add", "A card"); got.code != 0 {
 		t.Fatalf("add: %d %s", got.code, got.errw)
 	}
-	listed := runCLI(t, root, "ls", "--column", "intake")
+	listed := runCLI(t, root, "list", "intake")
 	if listed.code != 0 {
-		t.Fatalf("ls by slug: %d %s", listed.code, listed.errw)
+		t.Fatalf("the listing by slug: %d %s", listed.code, listed.errw)
 	}
 	if !strings.Contains(listed.out, "A card") {
 		t.Errorf("a slug should name a column on the command line:\n%s", listed.out)
@@ -2545,7 +2544,7 @@ func TestColumnsCarryTheirSlugOnBothSurfaces(t *testing.T) {
 func TestColumnsRenderNamesTheRepairInsteadOfPaddingBlank(t *testing.T) {
 	root := newBench(t)
 	stripSlugs(t, root)
-	got := runCLI(t, root, "columns")
+	got := runCLI(t, root, "list", "columns")
 	if got.code != 0 {
 		t.Fatalf("columns: %d %s", got.code, got.errw)
 	}
@@ -2567,7 +2566,7 @@ func TestWorkbenchesRenderNamesTheRepairInsteadOfPaddingBlank(t *testing.T) {
 	root := newBench(t)
 	editAnchor(t, root, "slug: fx\n", "")
 
-	human := runCLI(t, root, "workbenches")
+	human := runCLI(t, root, "list", "workbenches")
 	if human.code != 0 {
 		t.Fatalf("workbenches: %d %s", human.code, human.errw)
 	}
@@ -2575,7 +2574,7 @@ func TestWorkbenchesRenderNamesTheRepairInsteadOfPaddingBlank(t *testing.T) {
 		t.Errorf("the listing should name the repair for a workbench with no slug:\n%s", human.out)
 	}
 
-	machine := runCLI(t, root, "--json", "workbenches")
+	machine := runCLI(t, root, "--json", "list", "workbenches")
 	if machine.code != 0 {
 		t.Fatalf("workbenches --json: %d %s", machine.code, machine.errw)
 	}
@@ -2593,7 +2592,7 @@ func TestWorkbenchesRenderNamesTheRepairInsteadOfPaddingBlank(t *testing.T) {
 	if !strings.Contains(repaired.out, "Assigned the workbench slug workbench.") {
 		t.Errorf("the migration did not say what it derived for the workbench:\n%s", repaired.out)
 	}
-	again := runCLI(t, root, "workbenches")
+	again := runCLI(t, root, "list", "workbenches")
 	if again.code != 0 {
 		t.Fatalf("workbenches after repair: %d %s", again.code, again.errw)
 	}
@@ -2692,7 +2691,7 @@ func TestCheckMigrateColumnsNamesWhatItRemovedOnTheTerminal(t *testing.T) {
 // workbench.md's columns list, and returns the identifier left dangling.
 func strandColumn(t *testing.T, root string, position int) string {
 	t.Helper()
-	machine := runCLI(t, root, "--json", "columns")
+	machine := runCLI(t, root, "--json", "list", "columns")
 	var columns []verb.ColumnView
 	if err := json.Unmarshal([]byte(machine.out), &columns); err != nil {
 		t.Fatalf("decode: %v\n%s", err, machine.out)
@@ -2718,7 +2717,7 @@ func strandColumn(t *testing.T, root string, position int) string {
 // last one was retired or removed under the pre-dinah-49 code.
 func strandAllColumns(t *testing.T, root string) []string {
 	t.Helper()
-	machine := runCLI(t, root, "--json", "columns")
+	machine := runCLI(t, root, "--json", "list", "columns")
 	var columns []verb.ColumnView
 	if err := json.Unmarshal([]byte(machine.out), &columns); err != nil {
 		t.Fatalf("decode: %v\n%s", err, machine.out)
@@ -2829,7 +2828,7 @@ func TestAHandTypedSlugLeavesTheWorkbenchOpenable(t *testing.T) {
 		stripSlugs(t, root)
 		column, anchor := writeColumnSlug(t, root, 0, "Caf--Corner")
 
-		listed := runCLI(t, root, "columns")
+		listed := runCLI(t, root, "list", "columns")
 		if listed.code != 0 {
 			t.Fatalf("the workbench should still open: %d %s", listed.code, listed.errw)
 		}
@@ -2852,7 +2851,7 @@ func TestAHandTypedSlugLeavesTheWorkbenchOpenable(t *testing.T) {
 			t.Errorf("the repair stopped naming the column it left alone:\n%s", migrated.out)
 		}
 
-		reopened := runCLI(t, root, "columns")
+		reopened := runCLI(t, root, "list", "columns")
 		if reopened.code != 0 {
 			t.Fatalf("the repaired workbench should open: %d %s", reopened.code, reopened.errw)
 		}
@@ -2867,7 +2866,7 @@ func TestAHandTypedSlugLeavesTheWorkbenchOpenable(t *testing.T) {
 		root := newBench(t)
 		writeColumnSlug(t, root, 0, "done")
 
-		listed := runCLI(t, root, "columns")
+		listed := runCLI(t, root, "list", "columns")
 		if listed.code != 0 {
 			t.Fatalf("the workbench should still open: %d %s", listed.code, listed.errw)
 		}
@@ -2894,7 +2893,7 @@ func TestAHandTypedSlugLeavesTheWorkbenchOpenable(t *testing.T) {
 // and the anchor's path, which are the two things a report about it names.
 func writeColumnSlug(t *testing.T, root string, position int, slug string) (string, string) {
 	t.Helper()
-	machine := runCLI(t, root, "--json", "columns")
+	machine := runCLI(t, root, "--json", "list", "columns")
 	var columns []verb.ColumnView
 	if err := json.Unmarshal([]byte(machine.out), &columns); err != nil {
 		t.Fatalf("decode: %v\n%s", err, machine.out)
@@ -3408,20 +3407,20 @@ func TestBareShowStillRefusesWhereThereIsNoChoice(t *testing.T) {
 func TestWorkbenchesReportsWhateverTheSearchFinds(t *testing.T) {
 	t.Run("several reachable", func(t *testing.T) {
 		tree, rooms := ambiguousTree(t)
-		if listed := listedRows(t, runCLI(t, tree, "workbenches")); !sameDirs(t, listed, rooms) {
+		if listed := listedRows(t, runCLI(t, tree, "list", "workbenches")); !sameDirs(t, listed, rooms) {
 			t.Errorf("wanted %v, got %v", rooms, listed)
 		}
-		if rows := jsonRows(t, runCLI(t, tree, "--json", "workbenches")); len(rows) != 2 {
+		if rows := jsonRows(t, runCLI(t, tree, "--json", "list", "workbenches")); len(rows) != 2 {
 			t.Errorf("wanted two rows, got %d", len(rows))
 		}
 	})
 
 	t.Run("one reachable", func(t *testing.T) {
 		sole := newBench(t)
-		if listed := listedRows(t, runCLI(t, sole, "workbenches")); !sameDirs(t, listed, []string{benchDir(t, sole)}) {
+		if listed := listedRows(t, runCLI(t, sole, "list", "workbenches")); !sameDirs(t, listed, []string{benchDir(t, sole)}) {
 			t.Errorf("wanted the one workbench, got %v", listed)
 		}
-		rows := jsonRows(t, runCLI(t, sole, "--json", "workbenches"))
+		rows := jsonRows(t, runCLI(t, sole, "--json", "list", "workbenches"))
 		if len(rows) != 1 || rows[0].Slug != "fx" {
 			t.Errorf("wanted the one workbench with its slug, got %+v", rows)
 		}
@@ -3429,7 +3428,7 @@ func TestWorkbenchesReportsWhateverTheSearchFinds(t *testing.T) {
 
 	t.Run("none reachable", func(t *testing.T) {
 		tree := emptyTree(t)
-		got := runCLI(t, tree, "workbenches")
+		got := runCLI(t, tree, "list", "workbenches")
 		if got.code != 0 {
 			t.Fatalf("the listing should never refuse, got %d (%s)", got.code, got.errw)
 		}
@@ -3439,7 +3438,7 @@ func TestWorkbenchesReportsWhateverTheSearchFinds(t *testing.T) {
 		if strings.TrimSpace(got.out) != msg.For(msg.Base).T("workbenches.empty") {
 			t.Errorf("wanted the line that says nothing is reachable, got %q", got.out)
 		}
-		if rows := jsonRows(t, runCLI(t, tree, "--json", "workbenches")); len(rows) != 0 {
+		if rows := jsonRows(t, runCLI(t, tree, "--json", "list", "workbenches")); len(rows) != 0 {
 			t.Errorf("wanted an empty array, got %+v", rows)
 		}
 	})
@@ -3452,12 +3451,12 @@ func TestWorkbenchesReportsWhateverTheSearchFinds(t *testing.T) {
 // sequence.
 func TestTheListingAndTheRefusalNameTheSameCandidates(t *testing.T) {
 	tree, rooms := ambiguousTree(t)
-	listing := listedRows(t, runCLI(t, tree, "workbenches"))
+	listing := listedRows(t, runCLI(t, tree, "list", "workbenches"))
 	shown := listedRows(t, runCLI(t, tree, "show"))
 	if !reflect.DeepEqual(listing, shown) {
 		t.Errorf("the two listings disagree: %v against %v", listing, shown)
 	}
-	refusal := runCLI(t, tree, "columns")
+	refusal := runCLI(t, tree, "list", "columns")
 	if refusal.code != 2 {
 		t.Fatalf("a command needing one workbench should still refuse, got %d", refusal.code)
 	}
@@ -3493,7 +3492,7 @@ func TestTheListingReportsOnlyTheClosestAmbiguity(t *testing.T) {
 	populateBase(t, filepath.Join(tree, bench.UserBaseName), "farone", "fartwo")
 	near := populateBase(t, filepath.Join(inner, bench.UserBaseName), "nearone", "neartwo")
 
-	for _, argv := range [][]string{{"workbenches"}, {"show"}} {
+	for _, argv := range [][]string{{"list", "workbenches"}, {"show"}} {
 		got := runCLI(t, inner, argv...)
 		if listed := listedRows(t, got); !sameDirs(t, listed, near) {
 			t.Errorf("%v: wanted the inner pair %v, got %v", argv, near, listed)
@@ -3504,16 +3503,16 @@ func TestTheListingReportsOnlyTheClosestAmbiguity(t *testing.T) {
 	}
 }
 
-// TestWorkbenchesHelpCarriesNoRefusals asserts that the per-command help of a
+// TestARefuselessCommandsHelpCarriesNoRefusals asserts that the per-command help of a
 // command that never refuses prints its summary and its exit codes with no
 // precondition table between them.
-func TestWorkbenchesHelpCarriesNoRefusals(t *testing.T) {
-	got := runCLI(t, newBench(t), "help", "workbenches")
+func TestARefuselessCommandsHelpCarriesNoRefusals(t *testing.T) {
+	got := runCLI(t, newBench(t), "help", "version")
 	if got.code != 0 {
-		t.Fatalf("help workbenches: %d %s", got.code, got.errw)
+		t.Fatalf("help version: %d %s", got.code, got.errw)
 	}
 	catalog := msg.For(msg.Base)
-	for _, wanted := range []string{"workbenches", catalog.T("cmd.workbenches.summary"), catalog.T("help.exitcodes")} {
+	for _, wanted := range []string{"version", catalog.T("cmd.version.summary"), catalog.T("help.exitcodes")} {
 		if !strings.Contains(got.out, wanted) {
 			t.Errorf("the help should carry %q, got %q", wanted, got.out)
 		}
@@ -3545,7 +3544,7 @@ func TestAnOverrideNamingTheContainingDirectoryIsGivenTheStorePath(t *testing.T)
 	store := filepath.Join(container, entries[0].Name())
 
 	catalog := msg.For(msg.Base)
-	refused := runCLI(t, root, "workbenches", "--workbench", root)
+	refused := runCLI(t, root, "list", "workbenches", "--workbench", root)
 	if refused.code != 2 {
 		t.Fatalf("exit code: wanted 2, got %d (%s)", refused.code, refused.errw)
 	}
@@ -3557,7 +3556,7 @@ func TestAnOverrideNamingTheContainingDirectoryIsGivenTheStorePath(t *testing.T)
 	}
 
 	tree := emptyTree(t)
-	nowhere := runCLI(t, tree, "workbenches", "--workbench", filepath.Join(tree, "nowhere"))
+	nowhere := runCLI(t, tree, "list", "workbenches", "--workbench", filepath.Join(tree, "nowhere"))
 	if nowhere.code != 2 {
 		t.Fatalf("exit code: wanted 2, got %d (%s)", nowhere.code, nowhere.errw)
 	}
@@ -3580,11 +3579,11 @@ func TestAnOverrideNamingTheContainingDirectoryIsGivenTheStorePath(t *testing.T)
 func TestTheOverrideIsSpelledInFull(t *testing.T) {
 	tree, rooms := ambiguousTree(t)
 
-	pointed := runCLI(t, tree, "workbenches", "--workbench", rooms[1])
+	pointed := runCLI(t, tree, "list", "workbenches", "--workbench", rooms[1])
 	if listed := listedRows(t, pointed); !sameDirs(t, listed, []string{rooms[1]}) {
 		t.Errorf("an override should report the workbench it names, wanted %v, got %v", rooms[1:], listed)
 	}
-	wrong := runCLI(t, tree, "workbenches", "--workbench", filepath.Join(tree, "nowhere"))
+	wrong := runCLI(t, tree, "list", "workbenches", "--workbench", filepath.Join(tree, "nowhere"))
 	if wrong.code != 2 {
 		t.Fatalf("exit code: wanted 2, got %d (%s)", wrong.code, wrong.errw)
 	}
@@ -3593,7 +3592,7 @@ func TestTheOverrideIsSpelledInFull(t *testing.T) {
 	}
 
 	retiredFlag := "--bench" // retired spelling, named deliberately
-	retired := runCLI(t, tree, "workbenches", retiredFlag, rooms[1])
+	retired := runCLI(t, tree, "list", "workbenches", retiredFlag, rooms[1])
 	if retired.code != 2 {
 		t.Fatalf("the retired flag should be refused as an unknown one, got %d (%s)", retired.code, retired.out)
 	}
@@ -3605,7 +3604,7 @@ func TestTheOverrideIsSpelledInFull(t *testing.T) {
 	}
 
 	t.Setenv("DINAH_WORKBENCH", rooms[1])
-	named := runCLI(t, tree, "workbenches")
+	named := runCLI(t, tree, "list", "workbenches")
 	if listed := listedRows(t, named); !sameDirs(t, listed, []string{rooms[1]}) {
 		t.Errorf("DINAH_WORKBENCH should select a workbench, wanted %v, got %v", rooms[1:], listed)
 	}
@@ -3613,7 +3612,7 @@ func TestTheOverrideIsSpelledInFull(t *testing.T) {
 	retiredVariable := "DINAH_BENCH" // retired spelling, named deliberately
 	t.Setenv("DINAH_WORKBENCH", "")
 	t.Setenv(retiredVariable, rooms[1])
-	ignored := runCLI(t, tree, "workbenches")
+	ignored := runCLI(t, tree, "list", "workbenches")
 	if listed := listedRows(t, ignored); sameDirs(t, listed, []string{rooms[1]}) {
 		t.Error("the retired variable should select nothing, and it selected a workbench")
 	}
@@ -3634,7 +3633,7 @@ func TestAForeignWorkbenchFileIsPassedOverByTheClimb(t *testing.T) {
 		t.Fatalf("write: %v", err)
 	}
 
-	got := runCLI(t, notes, "workbenches")
+	got := runCLI(t, notes, "list", "workbenches")
 	if got.code != 0 {
 		t.Fatalf("a foreign workbench.md should not stop the search, got %d %q", got.code, got.errw)
 	}
@@ -3720,7 +3719,7 @@ func TestCardAliasResolvesAcrossTheDeclaredCommandSurface(t *testing.T) {
 	}
 
 	// ls and next show the alias, not the bare identifier.
-	if listed := runCLI(t, root, "ls"); listed.code != 0 || !strings.Contains(listed.out, first) || !strings.Contains(listed.out, second) {
+	if listed := runCLI(t, root, "list", "cards"); listed.code != 0 || !strings.Contains(listed.out, first) || !strings.Contains(listed.out, second) {
 		t.Fatalf("ls did not show both aliases: %d %q", listed.code, listed.out)
 	}
 	if offered := runCLI(t, root, "next"); offered.code != 0 || !strings.Contains(offered.out, first) {
@@ -3754,7 +3753,7 @@ func TestCardAliasResolvesAcrossTheDeclaredCommandSurface(t *testing.T) {
 	if moved := runCLI(t, root, "move", first, "doing"); moved.code != 0 || !strings.Contains(moved.out, first) {
 		t.Fatalf("move %s: %d %q", first, moved.code, moved.out)
 	}
-	if logged := runCLI(t, root, "log", first); logged.code != 0 || !strings.Contains(logged.out, "moved") {
+	if logged := runCLI(t, root, "list", first+"/journal"); logged.code != 0 || !strings.Contains(logged.out, "moved") {
 		t.Fatalf("log %s: %d %q", first, logged.code, logged.out)
 	}
 
@@ -4045,7 +4044,7 @@ func TestAttachmentHistoryEventsAlignTheirActorColumn(t *testing.T) {
 		t.Fatalf("delete attachment: %d %s", got.code, got.errw)
 	}
 
-	got := runCLI(t, benchRoot, "log", ref)
+	got := runCLI(t, benchRoot, "list", ref+"/journal")
 	if got.code != 0 {
 		t.Fatalf("log: %d %s", got.code, got.errw)
 	}
@@ -4059,7 +4058,7 @@ func TestAttachmentHistoryEventsAlignTheirActorColumn(t *testing.T) {
 	if len(lines) < 3 {
 		t.Fatalf("the history drew no rows under its heading:\n%s", got.out)
 	}
-	actorColumn := startColumnOf(lines[0], msg.For(msg.Base).T("column.log.actor"))
+	actorColumn := startColumnOf(lines[0], msg.For(msg.Base).T("column.journal.actor"))
 	if actorColumn < 0 {
 		t.Fatalf("the history carries no actor heading:\n%s", got.out)
 	}
@@ -4103,7 +4102,7 @@ func wantUsage(t *testing.T, got invocation, word string) {
 // refuses with dinah.usage naming the word, in place of today's silent exit
 // 0, and that nothing about a successful run of the same command changes.
 func TestMistypedSingleDashRefusesOnAZeroBoundedCommand(t *testing.T) {
-	for _, name := range []string{"status", "columns", "version", "workbenches", "export", "mcp", "check", "whoami"} {
+	for _, name := range []string{"status", "version", "export", "mcp", "check", "whoami"} {
 		t.Run(name, func(t *testing.T) {
 			wantUsage(t, runCLI(t, t.TempDir(), name, "-w"), "-w")
 		})
@@ -4131,7 +4130,7 @@ func TestWorkbenchesListingSurvivesAMissingSlug(t *testing.T) {
 	noSlugRoot := soleBenchDir(t, noSlug)
 	editWorkbenchAnchor(t, filepath.Join(noSlugRoot, "workbench.md"), "slug: noslug\n", "slug:\n")
 
-	got := runCLI(t, container, "--workbench", noSlugRoot, "workbenches")
+	got := runCLI(t, container, "--workbench", noSlugRoot, "list", "workbenches")
 	if got.code != 0 {
 		t.Fatalf("workbenches: %d %s", got.code, got.errw)
 	}
@@ -4178,10 +4177,9 @@ func TestMistypedSingleDashRefusesBeforeTheDomainCheck(t *testing.T) {
 		{"unblock", []string{"unblock", "-w"}},
 		{"archive", []string{"archive", "-w"}},
 		{"delete", []string{"delete", "-w"}},
-		{"log", []string{"log", "-w"}},
+		{"list", []string{"list", "-w"}},
 		{"instructions", []string{"instructions", "-w"}},
 		{"show", []string{"show", "-w"}},
-		{"ls", []string{"ls", "-w"}},
 		{"next", []string{"next", "-w"}},
 		{"guide", []string{"guide", "-w"}},
 		{"help", []string{"help", "-w"}},
@@ -4286,7 +4284,7 @@ func TestOpenTailContinuesToAcceptALeadingDashWord(t *testing.T) {
 	}
 
 	// The top-level command name itself is unaffected.
-	got = runCLI(t, root, "-w", "ls")
+	got = runCLI(t, root, "-w", "list", "cards")
 	leading = strings.SplitN(strings.TrimSpace(got.errw), " ", 2)[0]
 	if leading != contract.UnknownVerb {
 		t.Errorf("a mistyped command name: wanted %s, got %q", contract.UnknownVerb, got.errw)
@@ -4334,7 +4332,7 @@ func TestMistypedSingleDashBeyondACommandsOwnArityStillRefuses(t *testing.T) {
 // leading dash) refuses with dinah.usage naming that exact word, in place of
 // today's silent exit 0.
 func TestPlainWordBeyondAZeroBoundedCommandRefuses(t *testing.T) {
-	for _, name := range []string{"status", "columns", "version", "export", "mcp", "check", "whoami"} {
+	for _, name := range []string{"status", "version", "export", "mcp", "check", "whoami"} {
 		t.Run(name, func(t *testing.T) {
 			wantUsage(t, runCLI(t, t.TempDir(), name, "somejunk"), "somejunk")
 		})
@@ -4356,20 +4354,19 @@ func TestPlainWordBeyondAOneBoundedCommandRefuses(t *testing.T) {
 		{"unblock", []string{"unblock", "fx-1"}},
 		{"archive", []string{"archive", "fx-1"}},
 		{"delete", []string{"delete", "fx-1"}},
-		{"log", []string{"log", "fx-1"}},
+		{"list", []string{"list", "fx-1/journal"}},
 		{"instructions", []string{"instructions", "fx-1"}},
 		{"show", []string{"show", "fx-1"}},
-		{"ls", []string{"ls", "ready"}},
 		{"next", []string{"next", "ready"}},
 		{"guide", []string{"guide", "claim"}},
 		{"help", []string{"help", "claim"}},
 		{"extract", []string{"extract", filepath.Join(t.TempDir(), "out")}},
 		{"path", []string{"path", "fx-1"}},
-		// workbenches joined this table on dinah-281, which gave it a
-		// positional: the directory to walk downward from. Its own bounded
-		// slot is a path rather than a card reference, so the baseline call
-		// names a real directory.
-		{"workbenches", []string{"workbenches", t.TempDir()}},
+		// The workbenches roster word joined this table on dinah-281, which
+		// gave the retired command a positional: the directory to walk
+		// downward from. That directory is now --root, so the baseline call
+		// names a real directory under the flag.
+		{"list workbenches", []string{"list", "workbenches", "--root", t.TempDir()}},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -5357,7 +5354,7 @@ func TestAMembershipRefusalPrintsWhatTheToolAccepts(t *testing.T) {
 	english := msg.For(msg.Base)
 
 	t.Run("the columns a workbench declares", func(t *testing.T) {
-		got := runCLI(t, root, "ls", "nowhere")
+		got := runCLI(t, root, "list", "nowhere")
 		if got.code != 2 {
 			t.Fatalf("listing an unknown column exited %d, wanted 2", got.code)
 		}
@@ -5366,7 +5363,7 @@ func TestAMembershipRefusalPrintsWhatTheToolAccepts(t *testing.T) {
 				t.Errorf("the listing should carry %q, got %q", want, got.errw)
 			}
 		}
-		if !strings.HasSuffix(got.errw, english.T("refusal.unknown-column.next", "command", "ls")+"\n") {
+		if !strings.HasSuffix(got.errw, english.T("refusal.unknown-column.next", "command", "list")+"\n") {
 			t.Errorf("the next step should name the command the reader typed, got %q", got.errw)
 		}
 		moved := runCLI(t, root, "move", "fx-1", "nowhere")
@@ -5726,7 +5723,7 @@ func TestRenamingTheSlugAsksOnceAndLeavesTheOldReferenceResolving(t *testing.T) 
 		t.Errorf("the slug read back as %q, so a position swallowed the flag or the value", got.out)
 	}
 
-	listed := runCLI(t, root, "ls")
+	listed := runCLI(t, root, "list", "cards")
 	for _, ref := range []string{"fx-later-1", "fx-later-2"} {
 		if !strings.Contains(listed.out, ref) {
 			t.Errorf("the listing does not report %s under the new prefix:\n%s", ref, listed.out)
@@ -5936,7 +5933,7 @@ func TestADashedWorkbenchSlugResolvesEveryReference(t *testing.T) {
 		t.Fatalf("the rename: %d %s", got.code, got.errw)
 	}
 	for _, argv := range [][]string{
-		{"ls"},
+		{"list", "cards"},
 		{"show", "fx-dev-1"},
 		{"path", "fx-dev-1"},
 		{"move", "fx-dev-1", "doing"},
@@ -6348,7 +6345,7 @@ func workstreamBench(t *testing.T) string {
 // and no padding.
 func TestAWorkstreamIsCreatedListedAndReadFromATerminal(t *testing.T) {
 	root := newBench(t)
-	empty := runCLI(t, root, "workstream")
+	empty := runCLI(t, root, "list", "workstreams")
 	if empty.code != 0 || empty.out != msg.For(msg.Base).T("workstreams.empty")+"\n" {
 		t.Errorf("a workbench carrying no workstream printed %d %q", empty.code, empty.out)
 	}
@@ -6361,7 +6358,7 @@ func TestAWorkstreamIsCreatedListedAndReadFromATerminal(t *testing.T) {
 		t.Errorf("creation printed %q", created.out)
 	}
 
-	listing := runCLI(t, root, "workstream")
+	listing := runCLI(t, root, "list", "workstreams")
 	for _, want := range []string{"portfolio-work", "Portfolio work", "active", "0"} {
 		if !strings.Contains(listing.out, want) {
 			t.Errorf("the listing does not carry %q:\n%s", want, listing.out)
@@ -6508,13 +6505,13 @@ func TestAWorkstreamAndAColumnMayShareAName(t *testing.T) {
 	if got := runCLI(t, root, "archive", "workstream/review"); got.code != 0 {
 		t.Fatalf("archiving the workstream: %d %s", got.code, got.errw)
 	}
-	if got := runCLI(t, root, "columns"); !strings.Contains(got.out, "review") {
+	if got := runCLI(t, root, "list", "columns"); !strings.Contains(got.out, "review") {
 		t.Errorf("archiving the workstream took the column with it:\n%s", got.out)
 	}
 	if got := runCLI(t, root, "archive", "review"); got.code != 0 {
 		t.Fatalf("archiving the column: %d %s", got.code, got.errw)
 	}
-	if got := runCLI(t, root, "columns"); strings.Contains(got.out, "review") {
+	if got := runCLI(t, root, "list", "columns"); strings.Contains(got.out, "review") {
 		t.Errorf("the column survived its own archiving:\n%s", got.out)
 	}
 }
@@ -6618,7 +6615,7 @@ func TestEveryMachineSurfaceCarriesAWorkstream(t *testing.T) {
 	}
 	id := detail.Card.Workstreams[0]
 
-	listed := runCLI(t, root, "--json", "ls")
+	listed := runCLI(t, root, "--json", "list", "cards")
 	var listing verb.Listing
 	if err := json.Unmarshal([]byte(listed.out), &listing); err != nil {
 		t.Fatalf("decode ls: %v\n%s", err, listed.out)
@@ -6627,7 +6624,7 @@ func TestEveryMachineSurfaceCarriesAWorkstream(t *testing.T) {
 		t.Errorf("the listing carries %+v, wanted the card with its membership", listing.Cards)
 	}
 
-	workstreams := runCLI(t, root, "--json", "workstream")
+	workstreams := runCLI(t, root, "--json", "list", "workstreams")
 	var all verb.WorkstreamListing
 	if err := json.Unmarshal([]byte(workstreams.out), &all); err != nil {
 		t.Fatalf("decode the workstream listing: %v\n%s", err, workstreams.out)
@@ -6681,7 +6678,7 @@ func TestAHandWrittenWorkstreamDirectoryIsSkippedRatherThanRefused(t *testing.T)
 		t.Fatalf("mkdir: %v", err)
 	}
 
-	listing := runCLI(t, root, "workstream")
+	listing := runCLI(t, root, "list", "workstreams")
 	if listing.code != 0 {
 		t.Fatalf("the listing refused over a directory it did not write: %d %s", listing.code, listing.errw)
 	}
@@ -7025,7 +7022,7 @@ func TestEveryPageSaysWhatEachArgumentIs(t *testing.T) {
 			"For more, run `dinah guide references`.",
 		}},
 		{command: "show", carries: []string{
-			"show <ref>", "a column; a card; something below a card; a whole collection",
+			"show <ref>", "this workbench, written as `workbench` or `.`; a workstream, written as `workstream/<slug>`; a column; a card; something below a card",
 			"For more, run `dinah guide references`.",
 		}},
 		{command: "instructions", carries: []string{
@@ -7084,9 +7081,9 @@ func TestEveryPageSaysWhatEachArgumentIs(t *testing.T) {
 // the guard in vocabularyValues is doing the work.
 func TestTheColumnVocabularyAnswersInsideAWorkbenchAndIsSilentOutside(t *testing.T) {
 	t.Setenv("COLUMNS", "80")
-	inside := runCLI(t, newBench(t), "help", "ls")
+	inside := runCLI(t, newBench(t), "help", "next")
 	if inside.code != 0 {
-		t.Fatalf("help ls inside a workbench: %d %s", inside.code, inside.errw)
+		t.Fatalf("help next inside a workbench: %d %s", inside.code, inside.errw)
 	}
 	flat := strings.Join(strings.Fields(inside.out), " ")
 	if !strings.Contains(flat, "(one of: intake, doing, done)") {
@@ -7097,12 +7094,12 @@ func TestTheColumnVocabularyAnswersInsideAWorkbenchAndIsSilentOutside(t *testing
 	}
 
 	tree := emptyTree(t)
-	if got := runCLI(t, tree, "ls"); got.code == 0 {
-		t.Fatalf("the tree should carry no workbench, and ls answered: %s", got.out)
+	if got := runCLI(t, tree, "list", "cards"); got.code == 0 {
+		t.Fatalf("the tree should carry no workbench, and the listing answered: %s", got.out)
 	}
-	outside := runCLI(t, tree, "help", "ls")
+	outside := runCLI(t, tree, "help", "next")
 	if outside.code != 0 {
-		t.Fatalf("help ls outside a workbench: %d %s", outside.code, outside.errw)
+		t.Fatalf("help next outside a workbench: %d %s", outside.code, outside.errw)
 	}
 	if strings.Contains(outside.out, "one of:") {
 		t.Errorf("the page names a set it cannot read from here:\n%s", outside.out)
@@ -7117,9 +7114,9 @@ func TestTheColumnVocabularyAnswersInsideAWorkbenchAndIsSilentOutside(t *testing
 	// are swallowed in the one place, so these two exercise the swallow; the
 	// other four need a fixture apiece and are driven against the commands
 	// that raise them elsewhere in this suite.
-	named := runCLI(t, tree, "help", "ls", "--workbench", filepath.Join(tree, "nowhere"))
+	named := runCLI(t, tree, "help", "next", "--workbench", filepath.Join(tree, "nowhere"))
 	if named.code != 0 {
-		t.Fatalf("help ls with a workbench flag naming nothing: %d %s", named.code, named.errw)
+		t.Fatalf("help next with a workbench flag naming nothing: %d %s", named.code, named.errw)
 	}
 	if strings.Contains(named.out, "one of:") {
 		t.Errorf("the page names a set the stated workbench cannot answer for:\n%s", named.out)
@@ -7140,9 +7137,9 @@ func TestEveryHelpSpellingReachesTheSamePage(t *testing.T) {
 	if surface.code != 0 {
 		t.Fatalf("dinah help: %d %s", surface.code, surface.errw)
 	}
-	page := runCLI(t, tree, "help", "ls")
+	page := runCLI(t, tree, "help", "list")
 	if page.code != 0 {
-		t.Fatalf("dinah help ls: %d %s", page.code, page.errw)
+		t.Fatalf("dinah help list: %d %s", page.code, page.errw)
 	}
 	version := runCLI(t, tree, "version")
 	if version.code != 0 {
@@ -7165,11 +7162,11 @@ func TestEveryHelpSpellingReachesTheSamePage(t *testing.T) {
 		// command's own page. Both orders are asserted because a caller who
 		// has already typed the command name adds the flag on the end, and
 		// one who has not writes it first.
-		after := runCLI(t, tree, "ls", spelling)
+		after := runCLI(t, tree, "list", spelling)
 		if after.code != 0 || after.out != page.out {
 			t.Errorf("dinah ls %s: wanted ls's page, got %d\n%s", spelling, after.code, after.out)
 		}
-		before := runCLI(t, tree, spelling, "ls")
+		before := runCLI(t, tree, spelling, "list", "cards")
 		if before.code != 0 || before.out != page.out {
 			t.Errorf("dinah %s ls: wanted ls's page, got %d\n%s", spelling, before.code, before.out)
 		}
@@ -7220,7 +7217,7 @@ func TestEveryHelpSpellingReachesTheSamePage(t *testing.T) {
 	}
 	// A command name in front of the version flag is read and still prints
 	// the version, since no command carries a version page of its own.
-	if got := runCLI(t, tree, "ls", "--version"); got.code != 0 || got.out != version.out {
+	if got := runCLI(t, tree, "list", "cards", "--version"); got.code != 0 || got.out != version.out {
 		t.Errorf("dinah ls --version: wanted the version report, got %d\n%s", got.code, got.out)
 	}
 }
@@ -7272,7 +7269,7 @@ func TestTheFlagSetsTheParserAcceptsAreDerivedFromTheParameterTable(t *testing.T
 	if got := runCLI(t, root, "attach", "fx-1", file, "--description", "x"); got.code != 0 {
 		t.Errorf("attach with a description: %d %s", got.code, got.errw)
 	}
-	if got := runCLI(t, root, "ls", "--nonsense"); got.code == 0 {
+	if got := runCLI(t, root, "list", "cards", "--nonsense"); got.code == 0 {
 		t.Errorf("an unknown flag was accepted: %s", got.out)
 	}
 }
@@ -7301,7 +7298,7 @@ func TestTheReferencesGuideSaysWhichCommandTakesWhat(t *testing.T) {
 		"wb-1/questions", "wb-1/criteria", "wb-1/decisions",
 		"accepts `oq`, `ac`, and `d` for those same three",
 		"in the order the entities were created",
-		"dinah contents workstream/addressing",
+		"dinah list workstream/addressing",
 		"every live member of that collection",
 		"an empty answer rather than a mistake",
 	} {
@@ -7314,13 +7311,12 @@ func TestTheReferencesGuideSaysWhichCommandTakesWhat(t *testing.T) {
 	for _, row := range []string{
 		"| path         | yes         | yes      | yes    | yes          | yes          |",
 		"| edit         | yes         | yes      | yes    | yes          | no           |",
-		"| show         | no          | yes      | yes    | yes          | yes          |",
+		"| show         | yes         | yes      | yes    | yes          | no           |",
 		"| instructions | no          | yes      | yes    | no           | no           |",
 		"| attach       | yes         | yes      | yes    | yes          | no           |",
 		"| archive      | no          | yes      | yes    | yes          | no           |",
 		"| delete       | no          | yes      | yes    | yes          | no           |",
-		"| contents     | yes         | yes      | yes    | yes          | yes          |",
-		"| attachments  | yes         | yes      | yes    | yes          | yes          |",
+		"| list         | yes         | yes      | yes    | yes          | yes          |",
 		"| rename       | no          | no       | no     | yes          | no           |",
 		"| cite         | no          | no       | no     | yes          | no           |",
 		"| resolve      | no          | no       | no     | yes          | no           |",
@@ -8296,7 +8292,7 @@ func TestAGappedAttachmentCollectionAgreesAcrossEveryReadSurface(t *testing.T) {
 	if human.code != 0 {
 		t.Fatalf("show: %d %s", human.code, human.errw)
 	}
-	listed := runCLI(t, root, "contents", "fx-1")
+	listed := runCLI(t, root, "list", "fx-1", "--depth", "entities")
 	if listed.code != 0 {
 		t.Fatalf("contents: %d %s", listed.code, listed.errw)
 	}
@@ -8569,7 +8565,7 @@ func TestColumnNewCreatesAColumnFromTheTerminal(t *testing.T) {
 		t.Errorf("the line printed reads %q, wanted %q", placed.out, want)
 	}
 
-	listed := runCLI(t, root, "columns")
+	listed := runCLI(t, root, "list", "columns")
 	if listed.code != 0 {
 		t.Fatalf("columns: %d %s", listed.code, listed.errw)
 	}

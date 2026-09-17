@@ -1,0 +1,11 @@
+workbench (workbench) contains 7 entities.
+  Reference                   Entity      Title                            Count
+  --------------------------  ----------  -------------------------------  -----
+  |-- intake                  column      Intake                           0
+  |-- doing                   column      Doing                            0
+  |-- done                    column      Done                             0
+  `-- fx-1                    card        A card the goldens are read against
+                                                            3
+      |-- fx-1/comments/1     comment     A comment the walk draws         0
+      |-- fx-1/decisions/1    item        A decision the walk draws        0
+      `-- fx-1/attachments/1  attachment  A file the listing draws         0

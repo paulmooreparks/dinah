@@ -51,7 +51,7 @@ func handEditColumn(t *testing.T, root, card, column string) string {
 // anchor names a column by identifier and a person names one by slug.
 func columnIdentifier(t *testing.T, root, slug string) string {
 	t.Helper()
-	machine := runCLI(t, root, "--json", "columns")
+	machine := runCLI(t, root, "--json", "list", "columns")
 	if machine.code != 0 {
 		t.Fatalf("columns: %d %s", machine.code, machine.errw)
 	}
@@ -206,7 +206,7 @@ func TestTheLogGivesAWitnessedCorrectionADetailOfItsOwn(t *testing.T) {
 		t.Fatalf("check --witness: %d %s", got.code, got.errw)
 	}
 
-	log := runCLI(t, root, "log", "fx-1")
+	log := runCLI(t, root, "list", "fx-1/journal")
 	if log.code != 0 {
 		t.Fatalf("log: %d %s", log.code, log.errw)
 	}

@@ -62,7 +62,7 @@ func TestEveryAddressTheContentsTreeDrawsResolvesThroughTheCommandsThatDeclareIt
 
 	declared := parseReferencesGuideTable(t)
 
-	built := runCLI(t, root, "contents", "workbench", "--depth", "all", "--json")
+	built := runCLI(t, root, "list", "workbench", "--depth", "all", "--json")
 	if built.code != 0 {
 		t.Fatalf("contents: %d %s", built.code, built.errw)
 	}
@@ -88,7 +88,7 @@ func TestEveryAddressTheContentsTreeDrawsResolvesThroughTheCommandsThatDeclareIt
 				t.Fatalf("the contents tree drew a node of kind %q, which classifies as %s, and the references guide's table draws no column for it", node.Kind, kind)
 			}
 			seen[col] = true
-			for _, cmd := range []string{"show", "path", "edit", "attachments"} {
+			for _, cmd := range []string{"show", "path", "edit", "list"} {
 				accepts, ok := declared[cmd][col]
 				if !ok {
 					t.Fatalf("the references guide's table declares nothing for %s against %q", cmd, col)

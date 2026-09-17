@@ -62,7 +62,7 @@ a caller who has decided otherwise.
 ## Read what this workbench asks of you
 
 Every workbench states its own rules, and reading them is part of the work
-rather than a courtesy you pay it. Run `dinah columns` for the flow in order,
+rather than a courtesy you pay it. Run `dinah list columns` for the flow in order,
 with each column's slug, name, kind, how many cards it holds, and who owns it.
 
 Run `dinah instructions <card>` for the standing prose of the workbench and of
@@ -75,7 +75,7 @@ printed means nobody has written anything rather than that something is wrong.
 
 You take work here rather than waiting to be given it, so you choose your own
 card and nobody assigns you one. `dinah next` shows what each column offers
-next, `dinah ls <column>` lists one column in the order its cards arrived, and
+next, `dinah list <column>` lists one column in the order its cards arrived, and
 `dinah query` answers the questions those two cannot. The language `query`
 reads is written down in `dinah guide query`.
 
@@ -87,7 +87,7 @@ may make, and `--quiet` suppresses all of it when you have read it already.
 
 ## Read the card before you work it
 
-Run `dinah show <card>` for the card itself and `dinah log <card>` for
+Run `dinah show <card>` for the card itself and `dinah list <card>/journal` for
 everything that has happened to it, oldest first. Whoever wrote the card is
 not here to answer questions about it, so what the card says is what you have.
 

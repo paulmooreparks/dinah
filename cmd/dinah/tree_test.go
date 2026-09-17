@@ -94,7 +94,7 @@ func TestTheNotShownCellPrintsTheChildrenTheDepthCutOff(t *testing.T) {
 		runCLI(t, root, "comment", "fx-1", note)
 	}
 
-	built := treeJSON(t, root, "contents", "workbench", "--depth", "cards")
+	built := treeJSON(t, root, "list", "workbench", "--depth", "cards")
 	var card *verb.TreeNode
 	for i := range built.Root.Children {
 		if built.Root.Children[i].Ref == "fx-1" {
@@ -108,7 +108,7 @@ func TestTheNotShownCellPrintsTheChildrenTheDepthCutOff(t *testing.T) {
 		t.Fatalf("the card reports %d children and %d subjects, want 5 and 0",
 			card.Hidden.Children, card.Hidden.Subjects)
 	}
-	got := runCLI(t, root, "contents", "workbench", "--depth", "cards")
+	got := runCLI(t, root, "list", "workbench", "--depth", "cards")
 	if got.code != 0 {
 		t.Fatalf("contents: exit %d\n%s", got.code, got.errw)
 	}
@@ -130,7 +130,7 @@ func TestAnEntityWithNothingBelowItPrintsOneSentence(t *testing.T) {
 	root := newBench(t)
 	runCLI(t, root, "add", "a card with nothing below it")
 
-	got := runCLI(t, root, "contents", "fx-1")
+	got := runCLI(t, root, "list", "fx-1", "--depth", "entities")
 	if got.code != 0 {
 		t.Fatalf("contents: exit %d\n%s", got.code, got.errw)
 	}
@@ -142,7 +142,7 @@ func TestAnEntityWithNothingBelowItPrintsOneSentence(t *testing.T) {
 	if lines[0] != want {
 		t.Errorf("the empty answer reads %q, want %q", lines[0], want)
 	}
-	built := treeJSON(t, root, "contents", "fx-1")
+	built := treeJSON(t, root, "list", "fx-1", "--depth", "entities")
 	if built.Root.Count != 0 || len(built.Root.Children) != 0 || built.Root.Hidden != nil {
 		t.Errorf("the machine form counts %d with %d children and reports %v", built.Root.Count, len(built.Root.Children), built.Root.Hidden)
 	}
@@ -250,14 +250,14 @@ func TestARefusalReadsInHindiWithTheAxesInLatin(t *testing.T) {
 // missing a sentence this card added.
 func TestEveryKeyOfTheTreeShipsInEveryLocale(t *testing.T) {
 	keys := []string{
-		"cmd.tree.summary", "cmd.contents.summary",
+		"cmd.tree.summary", "cmd.list.summary",
 		"column.tree.reference", "column.tree.entity", "column.tree.title",
 		"column.tree.count", "column.tree.hidden",
 		"tree.header", "tree.header.filtered", "tree.unset", "tree.empty",
 		"tree.hidden.depth", "tree.hidden.filter", "tree.hidden.join",
 		"contents.header", "contents.empty",
 		"check.tree.1", "check.tree.2", "check.tree.3", "check.tree.4",
-		"check.contents.1", "check.contents.2",
+		"check.list.1", "check.list.2", "check.list.3",
 		"refusal.dinah.unknown-axis", "refusal.dinah.unknown-axis.next",
 		"refusal.dinah.repeated-axis", "refusal.dinah.repeated-axis.next",
 		"refusal.dinah.chain-too-long", "refusal.dinah.chain-too-long.next",

@@ -62,19 +62,15 @@ WORK
 
 READ
   status [--root <path>] [--max-depth <n>]               Where this workbench stands, and what you hold
-  columns                                                The flow, in order
-  ls [column] [--ready] [--root <path>]                  The cards of a column, in queue order
-    [--max-depth <n>]
+  list [ref] [--depth <level>] [--ready] [--archived]    What an entity of this workbench holds
+    [--root <path>] [--max-depth <n>]
   next [column] [--root <path>] [--max-depth <n>]        The card a column offers next
   query [query]                                          The cards of the workbench that match a query
   search <phrase> [--query <terms>] [--archived]         Every place a phrase occurs in this workbench
     [--root <path>] [--max-depth <n>]
   tree [query] [--group-by <axes>] [--depth <level>]     The workbench's cards nested along a chain of axes
     [--root <path>] [--max-depth <n>]
-  contents <ref> [--depth <level>] [--archived]          What an entity of the workbench contains
-  attachments [ref]                                      What is attached to an entity of the workbench
   show <ref> [--fields <list>] [--archived]              The detail of an entity of this workbench
-  log <card>                                             The recorded actions of a card, oldest first
   changes [--since <cursor>] [--card <ref>]              What has happened on this workbench since a cursor
     [--column <column>] [--root <path>] [--max-depth <n>]
   instructions <card|column>                             The instructions served at a position
@@ -103,11 +99,9 @@ WORKBENCH
   whoami                                                 The actor your actions carry, and whether it is
                                                            the operator
   workbench                                              Read this workbench's own fields
-  workstream [new] [title] [--slug <slug>]               Read this workbench's workstreams, or create one
+  workstream <new> <title> [--slug <slug>]               Create a workstream on this workbench
   column <new> <title> [--kind <kind>] [--tier <level>]  Create a column in this workbench's flow
     [--capacity <n>] [--slug <slug>] [--before <column>]
-  workbenches [path] [--max-depth <n>]                   The workbenches beneath a directory, or the ones
-                                                           reachable from here
   version [--catalogs]                                   What Dinah is and what it conforms to
 
 SERVE
@@ -167,16 +161,12 @@ WORK
 
 READ
   status [--root <path>] [--max-depth <n>]                                                              Where this workbench stands, and what you hold
-  columns                                                                                               The flow, in order
-  ls [column] [--ready] [--root <path>] [--max-depth <n>]                                               The cards of a column, in queue order
+  list [ref] [--depth <level>] [--ready] [--archived] [--root <path>] [--max-depth <n>]                 What an entity of this workbench holds
   next [column] [--root <path>] [--max-depth <n>]                                                       The card a column offers next
   query [query]                                                                                         The cards of the workbench that match a query
   search <phrase> [--query <terms>] [--archived] [--root <path>] [--max-depth <n>]                      Every place a phrase occurs in this workbench
   tree [query] [--group-by <axes>] [--depth <level>] [--root <path>] [--max-depth <n>]                  The workbench's cards nested along a chain of axes
-  contents <ref> [--depth <level>] [--archived]                                                         What an entity of the workbench contains
-  attachments [ref]                                                                                     What is attached to an entity of the workbench
   show <ref> [--fields <list>] [--archived]                                                             The detail of an entity of this workbench
-  log <card>                                                                                            The recorded actions of a card, oldest first
   changes [--since <cursor>] [--card <ref>] [--column <column>] [--root <path>] [--max-depth <n>]       What has happened on this workbench since a cursor
   instructions <card|column>                                                                            The instructions served at a position
   guide [topic]                                                                                         The embedded guides, or one of them
@@ -196,10 +186,9 @@ WORKBENCH
     [--remint <dir>] [--migrate-workstreams] [--witness] [--yes] [--root <path>] [--max-depth <n>]
   whoami                                                                                                The actor your actions carry, and whether it is the operator
   workbench                                                                                             Read this workbench's own fields
-  workstream [new] [title] [--slug <slug>]                                                              Read this workbench's workstreams, or create one
+  workstream <new> <title> [--slug <slug>]                                                              Create a workstream on this workbench
   column <new> <title> [--kind <kind>] [--tier <level>] [--capacity <n>] [--slug <slug>]                Create a column in this workbench's flow
     [--before <column>]
-  workbenches [path] [--max-depth <n>]                                                                  The workbenches beneath a directory, or the ones reachable from here
   version [--catalogs]                                                                                  What Dinah is and what it conforms to
 
 SERVE

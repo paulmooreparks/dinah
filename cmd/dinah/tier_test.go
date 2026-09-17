@@ -590,7 +590,7 @@ func TestCreatingAColumnValidatesItsTierDefault(t *testing.T) {
 	if name := refusalNameOf(refused.errw); name != contract.UnknownLevel {
 		t.Errorf("the refusal name is %s, wanted %s", name, contract.UnknownLevel)
 	}
-	if got := runCLI(t, root, "columns"); strings.Contains(got.out, "Review") {
+	if got := runCLI(t, root, "list", "columns"); strings.Contains(got.out, "Review") {
 		t.Errorf("the refused column was created anyway:\n%s", got.out)
 	}
 	if got := runCLI(t, root, "column", "new", "Review", "--tier", "apex"); got.code != 0 {
@@ -781,7 +781,7 @@ func heldAt(t *testing.T, root, title, column string) {
 // does not need this file edited.
 func lastCardRef(t *testing.T, root string) string {
 	t.Helper()
-	got := runCLI(t, root, "ls", "--json")
+	got := runCLI(t, root, "list", "cards", "--json")
 	if got.code != 0 {
 		t.Fatalf("ls: %d %s", got.code, got.errw)
 	}
@@ -1059,7 +1059,7 @@ func TestTheLogPrintsARaisesColumnTitleReasonAndRanks(t *testing.T) {
 		t.Fatalf("raise: %d %s", got.code, got.errw)
 	}
 
-	got := runCLI(t, root, "log", "fx-1")
+	got := runCLI(t, root, "list", "fx-1/journal")
 	if got.code != 0 {
 		t.Fatalf("log: %d %s", got.code, got.errw)
 	}
@@ -1094,7 +1094,7 @@ func TestTheLogFallsBackToTheStoredColumnIdentifier(t *testing.T) {
 		t.Fatalf("the ordinary write captured a column title, so this test no longer builds the state it names: %+v", overrides[0])
 	}
 
-	got := runCLI(t, root, "log", "fx-1")
+	got := runCLI(t, root, "list", "fx-1/journal")
 	if got.code != 0 {
 		t.Fatalf("log: %d %s", got.code, got.errw)
 	}
@@ -1500,7 +1500,7 @@ func TestNamedPullTakesTheFirstCardTheDeclaredTierAdmits(t *testing.T) {
 	if answer.Card.Ref != "fx-2" {
 		t.Errorf("the pull took %s, wanted fx-2", answer.Card.Ref)
 	}
-	listing := runCLI(t, root, "ls", "queue")
+	listing := runCLI(t, root, "list", "queue")
 	if listing.code != 0 {
 		t.Fatalf("ls: %d %s", listing.code, listing.errw)
 	}
@@ -1686,7 +1686,7 @@ func TestANoClaimPullTakesWorkNoRequirementCouldRefuseIt(t *testing.T) {
 	if answer.Card.Ref != "fx-1" {
 		t.Errorf("the --no-claim pull moved %s, wanted fx-1", answer.Card.Ref)
 	}
-	listing := runCLI(t, root, "ls", "doing")
+	listing := runCLI(t, root, "list", "doing")
 	if listing.code != 0 {
 		t.Fatalf("ls doing: %d %s", listing.code, listing.errw)
 	}

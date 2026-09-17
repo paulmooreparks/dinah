@@ -11,7 +11,7 @@ import (
 	"dinah/internal/verb"
 )
 
-// TestTheColumnsToolCarriesTheWaitingFlag is the MCP half of dinah-201 AC-8. An
+// TestTheColumnsReferenceCarriesTheWaitingFlag is the MCP half of dinah-201 AC-8. An
 // agent orienting itself reads the columns object, and the flag has to be there
 // or the agent learns the station is unavailable only by being refused.
 //
@@ -19,11 +19,11 @@ import (
 // operator_owned answer different questions, and an implementation collapsing
 // them would tell every agent that a waiting column is the operator's, which is
 // the confusion this card removes.
-func TestTheColumnsToolCarriesTheWaitingFlag(t *testing.T) {
+func TestTheColumnsReferenceCarriesTheWaitingFlag(t *testing.T) {
 	library := newLibrary(t)
 	declareWaiting(t, library, "a00000000002")
 
-	answer := ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"columns","arguments":{"actor":"alka"}}}`)
+	answer := ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"list","arguments":{"actor":"alka","ref":"columns"}}}`)
 	decoded := payload(t, answer)
 	raw, err := json.Marshal(decoded["columns"])
 	if err != nil {
@@ -72,15 +72,15 @@ func declareWaiting(t *testing.T, library *verb.Library, id string) {
 	library.Bench = reopened
 }
 
-// TestTheColumnsToolCarriesTakesWorkUp is dinah-273 AC-26, on the pattern the
+// TestTheColumnsReferenceCarriesTakesWorkUp is dinah-273 AC-26, on the pattern the
 // test above establishes. A member an agent parses is a member it depends on,
 // so the spelling on the wire is asserted by name rather than through the Go
 // field, and the false answer is the one that matters: an agent reading it is
 // told to reach for a pull rather than meet a refusal it was not warned about.
-func TestTheColumnsToolCarriesTakesWorkUp(t *testing.T) {
+func TestTheColumnsReferenceCarriesTakesWorkUp(t *testing.T) {
 	library := newLibrary(t)
 
-	answer := ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"columns","arguments":{"actor":"alka"}}}`)
+	answer := ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"list","arguments":{"actor":"alka","ref":"columns"}}}`)
 	decoded := payload(t, answer)
 	raw, err := json.Marshal(decoded["columns"])
 	if err != nil {
@@ -124,7 +124,7 @@ func TestTheNextCardToolOffersAPull(t *testing.T) {
 	if err := json.Unmarshal(raw, &affordances); err != nil {
 		t.Fatalf("decode the affordances member: %v", err)
 	}
-	for _, name := range []string{"claim", "pull", "show", "log"} {
+	for _, name := range []string{"claim", "pull", "show", "list"} {
 		found := false
 		for _, offered := range affordances {
 			if offered == name {

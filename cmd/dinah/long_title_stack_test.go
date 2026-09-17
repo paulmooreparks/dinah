@@ -70,7 +70,7 @@ func TestALongTitleStacksTheWorkbenchListingRatherThanGluingTheNextColumnToIt(t 
 	sweptRetitle(t, rooms[1], ".")
 
 	resolved := filepath.Join(resolvedDir(t, container), bench.UserBaseName)
-	got := sweptRun(t, container, "en", "workbenches")
+	got := sweptRun(t, container, "en", "list", "workbenches")
 
 	wanted := strings.Join([]string{
 		longTitleStackedRecord(longTitleOverrunningItsHeading, "long", filepath.Join(resolved, filepath.Base(rooms[0]))),

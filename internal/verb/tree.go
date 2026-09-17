@@ -120,6 +120,7 @@ const KindCollection = "collection"
 const (
 	LevelRoot     = "root"
 	LevelGroups   = "groups"
+	LevelMembers  = "members"
 	LevelCards    = "cards"
 	LevelEntities = "entities"
 	LevelAll      = "all"
@@ -135,9 +136,14 @@ const (
 // TreeLevels is the depth ladder of tree, in the order a refusal lists it.
 var TreeLevels = []string{LevelRoot, LevelGroups, LevelCards}
 
-// ContentsLevels is the depth ladder of contents, in the order a refusal lists
-// it.
-var ContentsLevels = []string{LevelRoot, LevelCards, LevelEntities, LevelAll}
+// ListLevels is the depth ladder of list, in the order a refusal lists it.
+//
+// Four of the five rungs are absolute, counted from the workbench, and members
+// is the one relative rung. That is why members is the ladder's default and
+// none of the other four could be: a walk rooted at a card already sits at
+// rank one, so a cut at rank one would draw nothing at all, where one level
+// below the reference means one level wherever the reader typed it.
+var ListLevels = []string{LevelRoot, LevelMembers, LevelCards, LevelEntities, LevelAll}
 
 // MaxChain is how many axes one group-by chain may nest along. A five-level
 // nesting of a local workbench's cards is unreadable before it is useful, and
@@ -305,14 +311,22 @@ func groupedLimit(level string, chain int) int {
 	return chain + 1
 }
 
-// contentsLimit is the rank the containment walk stops at. The ranks are
-// absolute rather than counted from the root the caller named, which is what
-// makes a level name mean one thing wherever it is typed: the workbench is
-// rank zero, a column and a card rank one, and what a card contains rank two.
-func contentsLimit(level string) int {
+// contentsLimit is the rank the containment walk stops at. Four of the five
+// ranks are absolute rather than counted from the root the caller named, which
+// is what makes those level names mean one thing wherever they are typed: the
+// workbench is rank zero, a column and a card rank one, and what a card
+// contains rank two.
+//
+// The members rung is the one relative reading, so the function takes the rank
+// the walk is rooted at and answers one past it. rootRank is ignored by every
+// other rung, and a caller that does not know its root's rank cannot ask for
+// members.
+func contentsLimit(level string, rootRank int) int {
 	switch level {
 	case LevelRoot:
 		return 0
+	case LevelMembers:
+		return rootRank + 1
 	case LevelCards:
 		return 1
 	case LevelEntities:
@@ -890,7 +904,7 @@ func (l *Library) Contents(req *Request, level string) (*Tree, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := checkLevel(level, ContentsLevels); err != nil {
+	if err := checkLevel(level, ListLevels); err != nil {
 		return nil, err
 	}
 	if collection != nil {
@@ -900,6 +914,9 @@ func (l *Library) Contents(req *Request, level string) (*Tree, error) {
 		}
 		tree.Archived = collection.Archived
 		return tree, nil
+	}
+	if entity.Kind == bench.KindWorkstream {
+		return l.workstreamContents(req, entity, level)
 	}
 	root, err := l.rootOf(entity)
 	if err != nil {
@@ -929,7 +946,7 @@ func (l *Library) Contents(req *Request, level string) (*Tree, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := l.fillContained(&tree.Root, entity.Dir, entity.Kind, childRef, rank, contentsLimit(level)); err != nil {
+	if err := l.fillContained(&tree.Root, entity.Dir, entity.Kind, childRef, rank, contentsLimit(level, rank)); err != nil {
 		return nil, err
 	}
 	return tree, nil
@@ -968,7 +985,7 @@ func (l *Library) collectionContents(collection *bench.CollectionRef, level stri
 		Root:     TreeNode{Kind: KindCollection, Ref: collection.Ref},
 	}
 	rank := rankOfKind(collection.Holder.Kind)
-	limit := contentsLimit(level)
+	limit := contentsLimit(level, rank)
 	seed, err := l.childSeed(collection.Holder)
 	if err != nil {
 		return nil, err
@@ -990,6 +1007,78 @@ func (l *Library) collectionContents(collection *bench.CollectionRef, level stri
 			return nil, err
 		}
 		tree.Root.Count += 1 + count
+	}
+	placeChildren(&tree.Root, children, rank, limit)
+	return tree, nil
+}
+
+// workstreamContents is the walk rooted at a workstream, whose children are
+// the cards that joined it and what each of those cards holds.
+//
+// The root is seeded at rank zero, the workbench's own rank, because a
+// workstream's cards are the workbench's cards seen through a membership, so
+// its members sit at the rank a card sits at anywhere else and the absolute
+// rungs cut this walk where they cut a walk from the workbench. Reading the
+// membership off the same selection Library.Query runs is what keeps the two
+// readings of one workstream reference answering one set of cards: the walk
+// draws the cards the no-depth answer prints, in the arrival order it prints
+// them in.
+//
+// --ready travels into that selector rather than past it, through
+// narrowToReady, which is the same call the no-depth answer composes with. So
+// the membership this walk is rooted on is the narrowed membership whenever
+// the reader asked for one, which is what the contract's section 3.6 means by
+// drawing the same membership and then walking below it. Building the walk off
+// the unnarrowed selector is what let one build answer a workstream two ways,
+// and dinah-523/decisions/14 records why the pair is narrowed rather than
+// refused.
+//
+// Nothing the workstream itself holds is drawn, at any rung, and there is
+// nothing for it to hold: KindWorkstream is absent from the containment table
+// on purpose and stays absent, so this walk reads the membership alone and
+// never claims that a workstream contains anything. The format grammar does
+// admit an attachments directory below a workstream, but no command creates
+// one and the resolver reaches no reference below a workstream, so that arm
+// of the grammar is unreachable today and this walk draws nothing for it.
+func (l *Library) workstreamContents(req *Request, entity *bench.EntityRef, level string) (*Tree, error) {
+	root, err := l.rootOf(entity)
+	if err != nil {
+		return nil, err
+	}
+	tree := &Tree{
+		Producer: ProducerContainment,
+		Subject:  SubjectEntity,
+		Depth:    level,
+		Root:     root,
+	}
+	members, _, err := l.selection(narrowToReady(workstreamSelector(l.Bench, entity), req.ReadyOnly), req.Actor)
+	if err != nil {
+		return nil, err
+	}
+	sortByArrival(members)
+	const rank = 0
+	limit := contentsLimit(level, rank)
+	children := make([]TreeNode, 0, len(members))
+	for _, card := range members {
+		// The count is walked rather than added up from the children the
+		// projection drew, so it is the same number whatever the depth left
+		// out, which is the rule containedCount already carries.
+		count, err := containedCount(card.Dir, bench.KindCard)
+		if err != nil {
+			return nil, err
+		}
+		node := TreeNode{
+			Kind:  bench.KindCard,
+			ID:    card.ID,
+			Ref:   card.Ref(l.Bench.Slug),
+			Title: card.Title,
+			Count: count,
+		}
+		if err := l.fillContained(&node, card.Dir, bench.KindCard, node.Ref, rank+1, limit); err != nil {
+			return nil, err
+		}
+		tree.Root.Count += 1 + count
+		children = append(children, node)
 	}
 	placeChildren(&tree.Root, children, rank, limit)
 	return tree, nil
@@ -1019,6 +1108,18 @@ func (l *Library) rootOf(entity *bench.EntityRef) (TreeNode, error) {
 			Ref:   entity.Card.Ref(l.Bench.Slug),
 			Title: entity.Card.Title,
 		}, nil
+	case bench.KindWorkstream:
+		// A workstream is absent from the containment table on purpose,
+		// because it holds a membership rather than a containment, so the
+		// default arm below would ask anchorOfKind for an anchor the table
+		// does not carry and title the node with the empty string. The title
+		// comes off the workstream's own record instead, the way the column
+		// arm above reads the column's.
+		node := TreeNode{Kind: entity.Kind, ID: entity.ID, Ref: entity.Ref}
+		if workstream := l.Bench.Workstream(entity.ID); workstream != nil {
+			node.Title = workstream.Title
+		}
+		return node, nil
 	case bench.KindItem:
 		// An item is the one kind whose printed spelling is not the one the
 		// resolver composes. The resolver answers the collection form, and

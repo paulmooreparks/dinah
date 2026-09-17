@@ -1,0 +1,6 @@
+A card the goldens are read against (fx-1) contains 3 entities.
+  Reference               Entity      Title                      Count
+  ----------------------  ----------  -------------------------  -----
+  |-- fx-1/comments/1     comment     A comment the walk draws   0
+  |-- fx-1/decisions/1    item        A decision the walk draws  0
+  `-- fx-1/attachments/1  attachment  A file the listing draws   0

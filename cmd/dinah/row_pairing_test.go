@@ -1082,10 +1082,20 @@ func expectListing(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
 	t.Helper()
 	var rows [][]sweptCell
 	for _, card := range r.cards {
+		if card.column != sweptQueueColumn {
+			continue
+		}
 		rows = append(rows, sweptTexts(card.ref, sweptToken(tag, card.standing), card.severity, card.priority, card.title))
 	}
-	return sweptExpectation{rows: rows, source: "the record's cards, since the entry runs ls with no column"}
+	return sweptExpectation{rows: rows, source: "the record's cards standing in the column the entry lists"}
 }
+
+// sweptQueueColumn is the column the queue entry lists, by its position in the
+// fixture's flow. The queue table is drawn for one column at a time, and the
+// column has to be one whose cards carry both level axes, or the block draws
+// four columns where the entry declares five and the sweep reads a heading it
+// was not given.
+const sweptQueueColumn = 0
 
 // expectMatches is dinah query with no query, which selects every card of the
 // workbench and carries the column's title where the listing has no column
@@ -1508,6 +1518,20 @@ func expectWorkbenchFields(t *testing.T, r *sweptRecord, tag string) sweptExpect
 	return sweptExpectation{rows: rows, source: "the fields workbench lists"}
 }
 
+// expectRosters is the roster a bare list draws: the workbench's own four
+// top-level collections, in the fixed order the guide's table gives them, with
+// the count each holds read off the fixture rather than off the answer.
+func expectRosters(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
+	t.Helper()
+	rows := [][]sweptCell{
+		sweptTexts("columns", sweptToken(tag, "column"), strconv.Itoa(len(r.columns))),
+		sweptTexts("cards", sweptToken(tag, "card"), strconv.Itoa(len(r.cards))),
+		sweptTexts("workstreams", sweptToken(tag, "workstream"), strconv.Itoa(len(r.workstreams))),
+		sweptTexts("attachments", sweptToken(tag, "attachment"), "0"),
+	}
+	return sweptExpectation{rows: rows, source: "the collections the fixture filed into"}
+}
+
 // expectWorkstreams is dinah workstream, one row per workstream the fixture
 // created, with the member count derived from the joins the fixture ran rather
 // than read back off the workstream.
@@ -1608,7 +1632,7 @@ func sweptControlBlock() sweptBlock {
 	return sweptBlock{
 		site:  renderSite{File: "row_sweep_test.go"},
 		label: "the control block the pairing assertion arms itself with",
-		keys:  []string{"column.ls.card", "column.ls.standing", "column.ls.title"},
+		keys:  []string{"column.queue.card", "column.queue.standing", "column.queue.title"},
 	}
 }
 
@@ -1642,7 +1666,7 @@ func sweptControlExpectation() sweptExpectation {
 // composed itself.
 func sweptControlLines(tag string) []string {
 	s := &session{r: msg.For(tag), width: sweptWindow}
-	built := table{indent: sweptIndent, columns: s.columns("ls", "card", "standing", "title")}
+	built := table{indent: sweptIndent, columns: s.columns("queue", "card", "standing", "title")}
 	for _, row := range sweptShifted(sweptControlRows()) {
 		built.rows = append(built.rows, tableRow{fields: row})
 	}

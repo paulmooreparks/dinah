@@ -168,8 +168,8 @@ func TestToolSurfaceIsTheProjection(t *testing.T) {
 	if err := json.Unmarshal(encoded, &listed); err != nil {
 		t.Fatalf("tools/list: %v", err)
 	}
-	if len(listed.Tools) != 47 {
-		t.Errorf("wanted forty-seven tools, got %d", len(listed.Tools))
+	if len(listed.Tools) != 42 {
+		t.Errorf("wanted forty-two tools, got %d", len(listed.Tools))
 	}
 	names := map[string]bool{}
 	for _, tool := range listed.Tools {
@@ -198,7 +198,7 @@ func TestToolSurfaceIsTheProjection(t *testing.T) {
 			t.Errorf("%s: every tool takes an actor", tool.Name)
 		}
 	}
-	for _, wanted := range []string{"claim", "move", "pull", "release", "block", "unblock", "add_card", "list_cards", "next_card", "query", "workbench", "workbenches", "workstream", "join_workstream", "leave_workstream"} {
+	for _, wanted := range []string{"claim", "move", "pull", "release", "block", "unblock", "add_card", "list", "next_card", "query", "workbench", "workstream", "join_workstream", "leave_workstream"} {
 		if !names[wanted] {
 			t.Errorf("the surface is missing the tool %s", wanted)
 		}
@@ -268,11 +268,11 @@ func TestEveryToolResponseCarriesAffordances(t *testing.T) {
 	}
 	calls := []string{
 		`{"name":"status","arguments":{"actor":"alka"}}`,
-		`{"name":"columns","arguments":{"actor":"alka"}}`,
-		`{"name":"list_cards","arguments":{"actor":"alka"}}`,
+		`{"name":"list","arguments":{"actor":"alka","ref":"columns"}}`,
+		`{"name":"list","arguments":{"actor":"alka","ref":"cards"}}`,
 		`{"name":"next_card","arguments":{"actor":"alka"}}`,
 		`{"name":"show","arguments":{"actor":"alka","card":"fx-1"}}`,
-		`{"name":"log","arguments":{"actor":"alka","card":"fx-1"}}`,
+		`{"name":"list","arguments":{"actor":"alka","ref":"fx-1/journal"}}`,
 		`{"name":"instructions","arguments":{"actor":"alka","card":"fx-1"}}`,
 		`{"name":"whoami","arguments":{"actor":"alka"}}`,
 		`{"name":"version","arguments":{}}`,
@@ -771,7 +771,7 @@ func TestTheWorkbenchToolReadsAndGuardsTheSameWayTheTerminalDoes(t *testing.T) {
 		for i, a := range affordances {
 			got[i], _ = a.(string)
 		}
-		want := []string{"status", "columns", "list_cards", "next_card"}
+		want := []string{"status", "list", "next_card"}
 		if strings.Join(got, ",") != strings.Join(want, ",") {
 			t.Errorf("a refusal's affordances: got [%s], want surface tool names [%s]", strings.Join(got, ","), strings.Join(want, ","))
 		}
@@ -810,7 +810,7 @@ func TestARefusalFromWorkbenchResolutionNamesRecoveryInToolNames(t *testing.T) {
 	for i, a := range affordances {
 		got[i], _ = a.(string)
 	}
-	want := []string{"status", "columns", "list_cards", "next_card"}
+	want := []string{"status", "list", "next_card"}
 	if strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Errorf("an outside-root refusal's affordances: got [%s], want [%s]", strings.Join(got, ","), strings.Join(want, ","))
 	}
@@ -928,7 +928,7 @@ func TestTheWorkstreamToolsAnswerTheWayTheTerminalDoes(t *testing.T) {
 	}
 
 	root := library.Bench.Root
-	listed := payload(t, ask(t, newLibraryAt(t, root), `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"workstream","arguments":{"actor":"alka"}}}`))
+	listed := payload(t, ask(t, newLibraryAt(t, root), `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"list","arguments":{"actor":"alka","ref":"workstreams"}}}`))
 	listing, ok := listed["listing"].(map[string]any)
 	if !ok {
 		t.Fatalf("the listing carries no listing member: %v", listed)
@@ -1041,13 +1041,14 @@ func TestEverySchemaPropertyIsDescribed(t *testing.T) {
 	}
 	// An injected property is published on exactly the tools that consume it,
 	// so the count is a sum over the three consumer sets rather than three per
-	// tool. actor reaches every tool, workbench reaches every tool but
-	// workbenches, and basis reaches the eight tools whose verb reads it.
-	// The eight are claim, move, release, block, unblock, join_workstream,
+	// tool. actor reaches every tool, workbench now reaches every tool as
+	// well, since the one tool that withheld it retired with the workbenches
+	// command, and basis reaches the eight tools whose verb reads it. The
+	// eight are claim, move, release, block, unblock, join_workstream,
 	// leave_workstream and pull, which the inventory in tools_inventory_test.go
 	// names one by one.
 	const basisTools = 8
-	want := 2*len(listed.Tools) - 1 + basisTools
+	want := 2*len(listed.Tools) + basisTools
 	if beyond != want {
 		t.Errorf("read %d injected properties across %d tools, want %d, the sum of the three consumer sets",
 			beyond, len(listed.Tools), want)
@@ -1216,7 +1217,7 @@ func TestEveryWorkbenchesParameterChangesTheAnswer(t *testing.T) {
 		t.Skip("workbenches declares no parameters yet, so there is nothing for the handler to read")
 	}
 	library := newLibrary(t)
-	bare := payload(t, ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"workbenches","arguments":{}}}`))
+	bare := payload(t, ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"list","arguments":{"ref":"workbenches"}}}`))
 	plain, err := json.Marshal(bare)
 	if err != nil {
 		t.Fatalf("marshal the bare answer: %v", err)
@@ -1498,7 +1499,7 @@ func TestWorkingAgreementNamesNoBoundaryWhenUnboundedWithADefault(t *testing.T) 
 // the refusal travels on the response and does not end the session.
 func TestWorkbenchesToolRefusesCleanlyWhenUnbounded(t *testing.T) {
 	answers := askUnboundedStream(t, "", nil,
-		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"workbenches","arguments":{}}}`,
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"list","arguments":{"ref":"workbenches"}}}`,
 		`{"jsonrpc":"2.0","id":2,"method":"ping","params":{}}`)
 
 	if len(answers) != 2 {
@@ -1525,7 +1526,7 @@ func TestWorkbenchesToolRefusesCleanlyWhenUnbounded(t *testing.T) {
 func TestWorkbenchesToolAnswersOnlyTheDefaultWhenUnbounded(t *testing.T) {
 	library := newLibrary(t)
 	answer := askUnderRoot(t, "", library,
-		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"workbenches","arguments":{}}}`)
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"list","arguments":{"ref":"workbenches"}}}`)
 
 	if answer.Error != nil {
 		t.Fatalf("workbenches against an unbounded server carrying a default refused rather than answered: %+v", answer.Error)
@@ -1546,11 +1547,11 @@ func TestWorkbenchesToolAnswersOnlyTheDefaultWhenUnbounded(t *testing.T) {
 	}
 }
 
-// TestWorkbenchesToolWithAPathIgnoresAnUnboundedDefault is dinah-301 AC-3. The
+// TestTheWorkbenchesRosterWordWithARootIgnoresAnUnboundedDefault is dinah-301 AC-3. The
 // answer that names the default is reached only by a call that names no path,
 // so a call that names one walks the directory it was given, and the default
 // the server happens to carry changes nothing about what comes back.
-func TestWorkbenchesToolWithAPathIgnoresAnUnboundedDefault(t *testing.T) {
+func TestTheWorkbenchesRosterWordWithARootIgnoresAnUnboundedDefault(t *testing.T) {
 	elsewhere := t.TempDir()
 	written := containedPath(filepath.Join(elsewhere, "second"))
 	read, err := bench.ReadDefinition([]byte(definition))
@@ -1573,8 +1574,8 @@ func TestWorkbenchesToolWithAPathIgnoresAnUnboundedDefault(t *testing.T) {
 		"id":      1,
 		"method":  "tools/call",
 		"params": map[string]any{
-			"name":      "workbenches",
-			"arguments": map[string]any{"path": elsewhere},
+			"name":      "list",
+			"arguments": map[string]any{"ref": "workbenches", "root": elsewhere},
 		},
 	}
 	line, err := json.Marshal(request)
@@ -1585,7 +1586,7 @@ func TestWorkbenchesToolWithAPathIgnoresAnUnboundedDefault(t *testing.T) {
 
 	decoded := payload(t, answer)
 	if _, present := decoded["unbounded"]; present {
-		t.Errorf("a call naming a path was marked unbounded: %+v", decoded)
+		t.Errorf("a call naming a root was marked unbounded: %+v", decoded)
 	}
 	rows := decodedCandidates(t, decoded)
 	want := []bench.Candidate{{
@@ -1595,7 +1596,7 @@ func TestWorkbenchesToolWithAPathIgnoresAnUnboundedDefault(t *testing.T) {
 		Path:  second.Bench.Root,
 	}}
 	if !reflect.DeepEqual(rows, want) {
-		t.Errorf("workbenches under %s: got %+v, want %+v", elsewhere, rows, want)
+		t.Errorf("the workbenches roster word under %s: got %+v, want %+v", elsewhere, rows, want)
 	}
 }
 
@@ -1633,7 +1634,7 @@ func TestWorkbenchesListsTheWorkbenchInTheRootsOwnContainer(t *testing.T) {
 	}
 
 	answer := askUnderRoot(t, root, newLibrary(t),
-		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"workbenches","arguments":{}}}`)
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"list","arguments":{"ref":"workbenches"}}}`)
 	decoded := payload(t, answer)
 	rows, ok := decoded["workbenches"].([]any)
 	if !ok {
@@ -1686,9 +1687,9 @@ func TestWorkbenchesRefusesARootWithAnUnreadableAnchor(t *testing.T) {
 	}
 
 	answer := askUnderRoot(t, root, newLibrary(t),
-		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"workbenches","arguments":{}}}`)
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"list","arguments":{"ref":"workbenches"}}}`)
 	if answer.Error == nil {
-		t.Fatalf("workbenches under %s: wanted a refusal, got a clean answer", root)
+		t.Fatalf("the workbenches roster word under %s: wanted a refusal, got a clean answer", root)
 	}
 	if answer.Error.Code != codeInvalidParams {
 		t.Errorf("refusal transport code: wanted %d, got %d (%s)", codeInvalidParams, answer.Error.Code, answer.Error.Message)
@@ -1763,8 +1764,8 @@ func callLine(t *testing.T, id int, tool string, arguments map[string]any) strin
 // all.
 func TestAnUnrecognizedArgumentIsRefusedAtTheTransport(t *testing.T) {
 	library := newLibrary(t)
-	arguments := map[string]any{"column": "Intake", "sortby": "priority"}
-	answer := ask(t, library, callLine(t, 1, "list_cards", arguments))
+	arguments := map[string]any{"ref": "Intake", "sortby": "priority"}
+	answer := ask(t, library, callLine(t, 1, "list", arguments))
 	if answer.Error == nil {
 		t.Fatalf("an invented argument was accepted: %+v", answer)
 	}
@@ -1775,20 +1776,20 @@ func TestAnUnrecognizedArgumentIsRefusedAtTheTransport(t *testing.T) {
 		t.Errorf("the refusal carried a result as well as an error: %v", answer.Result)
 	}
 	message := answer.Error.Message
-	wanted := []string{`"list_cards"`, `"sortby"`, "column", "max-depth", "ready", "root", "workbench", "actor"}
+	wanted := []string{`"list"`, `"sortby"`, "ref", "depth", "max-depth", "ready", "root", "workbench", "actor"}
 	for _, want := range wanted {
 		if !strings.Contains(message, want) {
 			t.Errorf("the message %q does not carry %s, which an agent correcting its own call needs", message, want)
 		}
 	}
-	// list_cards reads no basis, so the name is neither published nor
+	// list reads no basis, so the name is neither published nor
 	// accepted, and a message offering it would send a correcting agent to an
 	// argument the next call would be refused for.
 	if strings.Contains(message, "basis") {
 		t.Errorf("the accepted set names basis, which this tool does not take: %q", message)
 	}
 	delete(arguments, "sortby")
-	control := ask(t, library, callLine(t, 2, "list_cards", arguments))
+	control := ask(t, library, callLine(t, 2, "list", arguments))
 	if control.Error != nil {
 		t.Fatalf("the same call without the invented argument was refused too, so the refusal above proves nothing: %+v", control.Error)
 	}
@@ -1823,43 +1824,13 @@ func TestEveryUnrecognizedArgumentIsNamedInOneStableOrder(t *testing.T) {
 	}
 }
 
-// TestTheWorkbenchesToolRefusesTheNameItsSchemaWithholds asserts that the one
-// tool dispatched ahead of the table lookup is checked too.
+// The withheld-name check the workbenches tool carried retired with that tool.
+// It asserted that a caller naming a workbench was refused, because
+// workbenches declared path where every other tool declared workbench and
+// schemaFor published no workbench property for it. The list tool that answers
+// the roster word now takes the directory as --root and declares workbench
+// like every other tool, so there is no withheld name left to refuse over.
 //
-// workbenches answers about the root rather than about one workbench, so it
-// declares path where every other tool declares workbench, and schemaFor
-// deliberately publishes no workbench property for it. A caller that sends one
-// anyway is exactly the caller this card exists for: it believes it has named
-// a workbench, and before this check it was answered about all of them.
-func TestTheWorkbenchesToolRefusesTheNameItsSchemaWithholds(t *testing.T) {
-	library := newLibrary(t)
-	root := library.Bench.Root
-	answer := askUnderRoot(t, root, library, callLine(t, 1, "workbenches", map[string]any{"workbench": root}))
-	if answer.Error == nil {
-		t.Fatalf("the workbenches tool accepted a workbench argument: %+v", answer)
-	}
-	if answer.Error.Code != codeInvalidParams {
-		t.Errorf("the refusal came back on code %d, want %d", answer.Error.Code, codeInvalidParams)
-	}
-	message := answer.Error.Message
-	for _, want := range []string{`"workbenches"`, `"workbench"`, "path", "max-depth", "actor"} {
-		if !strings.Contains(message, want) {
-			t.Errorf("the message %q does not carry %s", message, want)
-		}
-	}
-	if strings.Contains(message, "it accepts: actor, max-depth, path, workbench") {
-		t.Errorf("the accepted set names workbench, which this tool does not take: %q", message)
-	}
-	// workbenches reads no basis either, so the accepted set names neither of
-	// the two withheld names.
-	if strings.Contains(message, "basis") {
-		t.Errorf("the accepted set names basis, which this tool does not take: %q", message)
-	}
-	control := askUnderRoot(t, root, library, callLine(t, 2, "workbenches", map[string]any{"path": root}))
-	if control.Error != nil {
-		t.Fatalf("the same tool refused its own declared path argument, so the refusal above proves nothing: %+v", control.Error)
-	}
-}
 
 // TestAnUnrecognizedToolNameIsRefusedAheadOfItsArguments asserts that a call
 // naming no tool this head serves is still turned away by the tool-name
@@ -1918,7 +1889,7 @@ func TestEveryDeclaredArgumentNameIsAccepted(t *testing.T) {
 		}
 	}
 	library := newLibrary(t)
-	for id, name := range []string{"whoami", "list_cards"} {
+	for id, name := range []string{"whoami", "list"} {
 		entry, ok := toolsByName[name]
 		if !ok {
 			t.Fatalf("the surface no longer serves %s, so this test names a tool that is gone", name)
@@ -2038,7 +2009,7 @@ func TestTheWorkstreamToolTakesASlugAndRefusesItTheWayTheTerminalDoes(t *testing
 		t.Errorf("the tool answered %s/%s/%s and the terminal answered %s/%s/%s for the same malformed slug", gotOutcome, gotRefusal, gotDetail, wantOutcome, wantRefusal, wantDetail)
 	}
 
-	listed := payload(t, ask(t, newLibraryAt(t, root), `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"workstream","arguments":{"actor":"alka"}}}`))
+	listed := payload(t, ask(t, newLibraryAt(t, root), `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"list","arguments":{"actor":"alka","ref":"workstreams"}}}`))
 	listing, ok := listed["listing"].(map[string]any)
 	if !ok {
 		t.Fatalf("the listing carries no listing member: %v", listed)
@@ -2083,7 +2054,7 @@ func TestTheColumnToolAnswersTheWayTheTerminalDoes(t *testing.T) {
 		t.Errorf("a done column reads takes_work_up %v", made["takes_work_up"])
 	}
 
-	listed := payload(t, ask(t, newLibraryAt(t, root), `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"columns","arguments":{"actor":"alka"}}}`))
+	listed := payload(t, ask(t, newLibraryAt(t, root), `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"list","arguments":{"actor":"alka","ref":"columns"}}}`))
 	rows, ok := listed["columns"].([]any)
 	if !ok || len(rows) != 3 {
 		t.Fatalf("the flow now reads %v, wanted the three columns the creation leaves", listed["columns"])
@@ -2164,7 +2135,7 @@ func TestTheColumnToolRefusesTheActionItsSchemaWithholds(t *testing.T) {
 		}
 	}
 
-	listed := payload(t, ask(t, newLibraryAt(t, root), callLine(t, 2, "columns", map[string]any{"actor": "alka"})))
+	listed := payload(t, ask(t, newLibraryAt(t, root), callLine(t, 2, "list", map[string]any{"actor": "alka", "ref": "columns"})))
 	rows, ok := listed["columns"].([]any)
 	if !ok || len(rows) != 2 {
 		t.Fatalf("the refused call left the flow reading %v, wanted the two columns the fixture ships", listed["columns"])

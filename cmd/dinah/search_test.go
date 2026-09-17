@@ -118,7 +118,7 @@ func TestSearchAcrossARootGroupsByWorkbench(t *testing.T) {
 	}
 	answer := forestJSON(t, root, "search", searchWord, "--root", root)
 	rows := members(t, answer)
-	listed := members(t, forestJSON(t, root, "ls", "--root", root))
+	listed := members(t, forestJSON(t, root, "list", "cards", "--root", root))
 	if len(rows) != len(listed) {
 		t.Fatalf("the search answered for %d workbenches and the listing for %d", len(rows), len(listed))
 	}

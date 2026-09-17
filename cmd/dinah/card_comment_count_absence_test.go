@@ -41,7 +41,9 @@ func TestNoCardViewPublishesACommentCount(t *testing.T) {
 
 	surfaces := [][]string{
 		{"status", "--json"},
-		{"ls", "--json"},
+		// `ls` retired into `list cards` on dinah-523, which answers the
+		// same card views under the same envelope.
+		{"list", "cards", "--json"},
 		{"show", "fx-1", "--json"},
 	}
 	total := 0

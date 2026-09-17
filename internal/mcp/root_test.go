@@ -273,22 +273,23 @@ func TestARootArgumentOutsideTheServersRootIsRefused(t *testing.T) {
 		})
 	}
 	t.Run("workbenches", func(t *testing.T) {
-		answer := callWithArguments(t, root, library, "workbenches", map[string]any{"path": outside})
+		answer := callWithArguments(t, root, library, "list", map[string]any{"ref": "workbenches", "root": outside})
 		if got, _ := answer["refusal"].(string); got != wanted {
-			t.Errorf("the path argument's escape answered %q, wanted %s", got, wanted)
+			t.Errorf("the root argument's escape answered %q, wanted %s", got, wanted)
 		}
 	})
 }
 
-// TestTheWorkbenchesToolReadsItsPathAndItsDepth asserts dinah-281 AC-13: the
-// two arguments the tool's generated schema advertises are the two its handler
-// applies, through bench.EnumerateDeep, and a call naming neither answers
-// exactly as it did before this card.
-func TestTheWorkbenchesToolReadsItsPathAndItsDepth(t *testing.T) {
+// TestTheWorkbenchesRosterWordReadsItsRootAndItsDepth asserts dinah-281 AC-13
+// against the reference the walk moved onto: the two arguments the list tool's
+// generated schema advertises for it are the two its handler applies, through
+// bench.EnumerateDeep, and a call naming neither answers exactly as the
+// retired workbenches tool answered a bare call.
+func TestTheWorkbenchesRosterWordReadsItsRootAndItsDepth(t *testing.T) {
 	root, library := mcpForest(t, "one", "two/three", "two/four/five")
 
-	t.Run("the path is walked downward", func(t *testing.T) {
-		answer := callWithArguments(t, root, library, "workbenches", map[string]any{"path": root})
+	t.Run("the root is walked downward", func(t *testing.T) {
+		answer := callWithArguments(t, root, library, "list", map[string]any{"ref": "workbenches", "root": root})
 		listed, _ := answer["workbenches"].([]any)
 		if len(listed) != 3 {
 			t.Errorf("reported %d workbenches, wanted the three beneath the path", len(listed))
@@ -296,22 +297,22 @@ func TestTheWorkbenchesToolReadsItsPathAndItsDepth(t *testing.T) {
 	})
 	t.Run("the depth bounds the walk", func(t *testing.T) {
 		for depth, want := range map[string]int{"1": 1, "2": 2, "3": 3, "0": 3} {
-			answer := callWithArguments(t, root, library, "workbenches",
-				map[string]any{"path": root, "max-depth": depth})
+			answer := callWithArguments(t, root, library, "list",
+				map[string]any{"ref": "workbenches", "root": root, "max-depth": depth})
 			listed, _ := answer["workbenches"].([]any)
 			if len(listed) != want {
 				t.Errorf("at depth %s reported %d workbenches, wanted %d", depth, len(listed), want)
 			}
 		}
 	})
-	t.Run("a depth with no path to bound is refused", func(t *testing.T) {
-		answer := callWithArguments(t, root, library, "workbenches", map[string]any{"max-depth": "2"})
+	t.Run("a depth with no root to bound is refused", func(t *testing.T) {
+		answer := callWithArguments(t, root, library, "list", map[string]any{"ref": "workbenches", "max-depth": "2"})
 		if got, _ := answer["refusal"].(string); got != contract.DepthWithoutRoot {
 			t.Errorf("refusal %q, wanted %s", got, contract.DepthWithoutRoot)
 		}
 	})
 	t.Run("naming neither is the walk from the server's own root", func(t *testing.T) {
-		answer := callWithArguments(t, root, library, "workbenches", map[string]any{})
+		answer := callWithArguments(t, root, library, "list", map[string]any{"ref": "workbenches"})
 		listed, ok := answer["workbenches"].([]any)
 		if !ok {
 			t.Fatalf("the bare call carries no listing: %v", answer)

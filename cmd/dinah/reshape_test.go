@@ -145,7 +145,7 @@ func TestTheReshapeReportReadsAsAPreviewAndThenAsAnApply(t *testing.T) {
 	// A preview writes nothing, so the card has not moved and the column is
 	// still in the flow, which `dinah columns` is the reader's own way of
 	// seeing.
-	if listed := runCLI(t, root, "columns"); !strings.Contains(listed.out, "Doing") {
+	if listed := runCLI(t, root, "list", "columns"); !strings.Contains(listed.out, "Doing") {
 		t.Errorf("the preview retired a column:\n%s", listed.out)
 	}
 
@@ -159,7 +159,7 @@ func TestTheReshapeReportReadsAsAPreviewAndThenAsAnApply(t *testing.T) {
 	if strings.Contains(applied.out, "Nothing was written") {
 		t.Errorf("the apply printed the preview's opening line:\n%s", applied.out)
 	}
-	if listed := runCLI(t, root, "columns"); strings.Contains(listed.out, "Doing") {
+	if listed := runCLI(t, root, "list", "columns"); strings.Contains(listed.out, "Doing") {
 		t.Errorf("the retired column is still in the flow:\n%s", listed.out)
 	}
 	// The card came through blocked, which is what CORE-MOVE-8 requires of
@@ -192,7 +192,7 @@ func TestAnEmptyRetirementNeedsNoDestination(t *testing.T) {
 	if applied := runCLI(t, root, "reshape", "--from", source, "--yes"); applied.code != 0 {
 		t.Fatalf("the apply: %d %s", applied.code, applied.errw)
 	}
-	if listed := runCLI(t, root, "columns"); strings.Contains(listed.out, "Done") {
+	if listed := runCLI(t, root, "list", "columns"); strings.Contains(listed.out, "Done") {
 		t.Errorf("the empty column was not retired:\n%s", listed.out)
 	}
 }
@@ -242,7 +242,7 @@ func TestARepeatedMapIsReadOccurrenceByOccurrence(t *testing.T) {
 	if applied.code != 0 {
 		t.Fatalf("the apply: %d %s\n%s", applied.code, applied.errw, applied.out)
 	}
-	listed := runCLI(t, root, "ls", "intake")
+	listed := runCLI(t, root, "list", "intake")
 	for _, card := range []string{"fx-1", "fx-2"} {
 		if !strings.Contains(listed.out, card) {
 			t.Errorf("%s was not carried into the one surviving column:\n%s", card, listed.out)
@@ -347,7 +347,7 @@ func TestAReshapeRefusedAfterItHadWrittenSaysSo(t *testing.T) {
 	}
 	// The report is describing something real: the added column is in the
 	// flow, and the retirement the run did not reach is still there.
-	listed := runCLI(t, root, "columns")
+	listed := runCLI(t, root, "list", "columns")
 	for _, title := range []string{"Triage", "Doing"} {
 		if !strings.Contains(listed.out, title) {
 			t.Errorf("wanted %s in the flow after the half-applied run:\n%s", title, listed.out)
@@ -366,7 +366,7 @@ func TestAReshapeRefusedAfterItHadWrittenSaysSo(t *testing.T) {
 	if !strings.Contains(finished.out, "now carries the new shape") {
 		t.Errorf("the second run does not report the shape as applied:\n%s", finished.out)
 	}
-	if again := runCLI(t, root, "columns"); strings.Contains(again.out, "Doing") {
+	if again := runCLI(t, root, "list", "columns"); strings.Contains(again.out, "Doing") {
 		t.Errorf("the second run did not finish the retirement:\n%s", again.out)
 	}
 	if checked := runCLI(t, root, "check"); checked.code != 0 {

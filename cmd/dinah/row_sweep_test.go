@@ -380,13 +380,13 @@ func assertTheStackedCheckCanFail(t *testing.T) {
 	block := sweptBlock{
 		site:  renderSite{File: "row_sweep_test.go"},
 		label: "the control block the narrow pass arms itself with",
-		keys:  []string{"column.ls.card", "column.ls.standing", "column.ls.title"},
+		keys:  []string{"column.queue.card", "column.queue.standing", "column.queue.title"},
 	}
 	for _, tag := range msg.Tags() {
 		s := &session{r: msg.For(tag), width: sweptWindow}
 		lines := s.tableLines(table{
 			indent:  sweptIndent,
-			columns: s.columns("ls", "card", "standing", "title"),
+			columns: s.columns("queue", "card", "standing", "title"),
 			rows: []tableRow{
 				{fields: []string{"demo-reference-0000000001", msg.For(tag).T("token.ready"), "a card of some length"}},
 				{fields: []string{"demo-reference-0000000002", "", "a second card of some length"}},
@@ -1407,20 +1407,36 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
+			site: renderSite{File: "render.go", Function: "renderRosters", Label: "t", Ordinal: 1}, label: "dinah list, the roster",
+			keys: []string{"column.roster.reference", "column.roster.holds", "column.roster.count"}, varies: lastCell,
+			expect: expectRosters,
+			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
+				return sweptRun(t, w.healthy, tag, "list")
+			},
+		},
+		{
+			site: renderSite{File: "render.go", Function: "renderRecord", Label: "t", Ordinal: 1}, label: "dinah show workbench",
+			keys: []string{"column.workbench.field", "column.workbench.value"}, varies: lastCell,
+			expect: expectWorkbenchFields,
+			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
+				return sweptRun(t, w.healthy, tag, "show", "workbench")
+			},
+		},
+		{
 			site: renderSite{File: "render.go", Function: "renderColumns", Label: "t", Ordinal: 1}, label: "dinah columns",
 			keys: []string{"column.columns.slug", "column.columns.name", "column.columns.kind", "column.columns.cards",
 				"column.columns.work", "column.columns.owner"},
 			varies: lastCell, expect: expectColumns,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
-				return sweptRun(t, w.healthy, tag, "columns")
+				return sweptRun(t, w.healthy, tag, "list", "columns")
 			},
 		},
 		{
-			site: renderSite{File: "render.go", Function: "renderListing", Label: "t", Ordinal: 1}, label: "dinah ls",
-			keys: []string{"column.ls.card", "column.ls.standing", "column.ls.severity", "column.ls.priority", "column.ls.title"}, varies: lastCell,
+			site: renderSite{File: "render.go", Function: "renderListing", Label: "t", Ordinal: 1}, label: "dinah list, a column's queue",
+			keys: []string{"column.queue.card", "column.queue.standing", "column.queue.severity", "column.queue.priority", "column.queue.title"}, varies: lastCell,
 			expect: expectListing,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
-				return sweptRun(t, w.healthy, tag, "ls")
+				return sweptRun(t, w.healthy, tag, "list", "intake")
 			},
 		},
 		{
@@ -1458,11 +1474,11 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: renderSite{File: "render.go", Function: "renderTree", Label: "t", Ordinal: 1}, label: "dinah contents",
+			site: renderSite{File: "render.go", Function: "renderTree", Label: "t", Ordinal: 1}, label: "dinah list, a containment walk",
 			keys:   []string{"column.tree.reference", "column.tree.entity", "column.tree.title", "column.tree.count"},
 			expect: expectContents,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
-				return sweptRun(t, w.healthy, tag, "contents", "workbench")
+				return sweptRun(t, w.healthy, tag, "list", "workbench", "--depth", "entities")
 			},
 		},
 		{
@@ -1474,11 +1490,11 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: renderSite{File: "render.go", Function: "formatCandidateRows", Label: "t", Ordinal: 1}, label: "dinah workbenches",
+			site: renderSite{File: "render.go", Function: "formatCandidateRows", Label: "t", Ordinal: 1}, label: "dinah list workbenches",
 			keys: []string{"column.workbenches.workbench", "column.workbenches.slug", "column.workbenches.path"}, varies: lastCell,
 			expect: expectWorkbenches,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
-				return sweptRun(t, w.ambiguous, tag, "workbenches")
+				return sweptRun(t, w.ambiguous, tag, "list", "workbenches")
 			},
 		},
 		{
@@ -1587,11 +1603,11 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: renderSite{File: "render.go", Function: "renderHistory", Label: "t", Ordinal: 1}, label: "dinah log",
-			keys:   []string{"column.log.when", "column.log.action", "column.log.actor", "column.log.detail"},
+			site: renderSite{File: "render.go", Function: "renderHistory", Label: "t", Ordinal: 1}, label: "dinah list, a journal",
+			keys:   []string{"column.journal.when", "column.journal.action", "column.journal.actor", "column.journal.detail"},
 			varies: lastCell, expect: expectHistory,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
-				return sweptRun(t, w.healthy, tag, "log", w.held)
+				return sweptRun(t, w.healthy, tag, "list", w.held+"/journal")
 			},
 		},
 		{
@@ -1629,7 +1645,7 @@ func sweptBlocks() []sweptBlock {
 			site: renderSite{File: "render.go", Function: "composeRefusal", Label: "t", Ordinal: 1}, label: "the columns a refusal lists", varies: noCell,
 			constantReason: "this block declares one column and no heading, so it has no column to misplace",
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
-				return sweptRefused(t, w.healthy, tag, "ls", "nowhere")
+				return sweptRefused(t, w.healthy, tag, "list", "nowhere")
 			},
 		},
 		{
@@ -1718,7 +1734,7 @@ func sweptBlocks() []sweptBlock {
 			keys:   []string{"column.workstreams.reference", "column.workstreams.name", "column.workstreams.status", "column.workstreams.cards"},
 			varies: lastCell, expect: expectWorkstreams,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
-				return sweptRun(t, w.healthy, tag, "workstream")
+				return sweptRun(t, w.healthy, tag, "list", "workstreams")
 			},
 		},
 		{
@@ -1908,7 +1924,7 @@ func buildSweptWorkbenches(t *testing.T) *sweptWorkbenches {
 		// destination and the refusal that lists them is reachable. The third
 		// is the one chosen because nothing below claims or moves it.
 		at := 1
-		if i == 2 {
+		if i == 2 || i == 5 {
 			at = 0
 		}
 		sweptAddAt(t, benches, sweptTitles[i%len(sweptTitles)], at)
@@ -1916,6 +1932,14 @@ func buildSweptWorkbenches(t *testing.T) *sweptWorkbenches {
 	sweptSetLevel(t, benches, "fx-1", "severity", "major")
 	sweptSetLevel(t, benches, "fx-1", "priority", "now")
 	sweptSetLevel(t, benches, "fx-3", "severity", "minor")
+	// fx-3 and fx-6 both stand at the intake column and both carry both level
+	// axes, because the queue table is drawn for one column at a time and the
+	// sweep reads every heading its entry declares. A column holding one card,
+	// or holding cards that carry no priority, draws fewer columns than the
+	// entry names.
+	sweptSetLevel(t, benches, "fx-3", "priority", "soon")
+	sweptSetLevel(t, benches, "fx-6", "severity", "major")
+	sweptSetLevel(t, benches, "fx-6", "priority", "later")
 	sweptClaim(t, benches, "fx-1", "")
 	sweptClaim(t, benches, "fx-11", "")
 	sweptClaim(t, benches, "fx-2", "bo")

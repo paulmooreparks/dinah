@@ -332,7 +332,7 @@ both build the same node so that one renderer draws them and one shape
 carries them to every head. `dinah tree` nests the cards along an ordered
 chain of axes, taking the query language as its filter, and its
 no-argument form is the status tree of columns over states over cards.
-`dinah contents` walks the containment grammar down from any entity the
+`dinah list` walks the containment grammar down from any entity the
 reference resolver reaches, reading a table of what contains what rather
 than kind-specific code, so a declared extension kind appears in it with
 no line written for it. Every node truncated by depth or thinned by the

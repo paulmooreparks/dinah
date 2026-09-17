@@ -10,14 +10,14 @@ import (
 	"dinah/internal/verb"
 )
 
-// TestTheAttachmentsToolPublishesTheSameListingTheTerminalPrints asserts that
+// TestTheAttachmentsReferencePublishesTheSameListingTheTerminalPrints asserts that
 // the second head serves the new read and serves the library's own listing
 // through it, path included (dinah-334 AC-10).
 //
 // The path is asserted by opening the file it names. A check that the key is
 // there would pass against a head that published an empty or wrong path, and
 // opening an attachment is the whole reason the field exists.
-func TestTheAttachmentsToolPublishesTheSameListingTheTerminalPrints(t *testing.T) {
+func TestTheAttachmentsReferencePublishesTheSameListingTheTerminalPrints(t *testing.T) {
 	library := newLibrary(t)
 	source := filepath.Join(t.TempDir(), "notes.txt")
 	if err := os.WriteFile(source, []byte("the bytes"), 0o644); err != nil {
@@ -36,12 +36,12 @@ func TestTheAttachmentsToolPublishesTheSameListingTheTerminalPrints(t *testing.T
 		kind      string
 		ref       string
 	}{
-		{name: "the workbench, named by nothing", arguments: `{"actor":"alka"}`, kind: "workbench", ref: "workbench"},
-		{name: "a card", arguments: `{"actor":"alka","ref":"fx-1"}`, kind: "card", ref: "fx-1"},
+		{name: "the workbench, named by the roster word", arguments: `{"actor":"alka","ref":"attachments"}`, kind: "workbench", ref: "workbench"},
+		{name: "a card", arguments: `{"actor":"alka","ref":"fx-1/attachments"}`, kind: "card", ref: "fx-1"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			answer := ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"attachments","arguments":`+c.arguments+`}}`)
+			answer := ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"list","arguments":`+c.arguments+`}}`)
 			decoded := payload(t, answer)
 			if _, carried := decoded["affordances"]; !carried {
 				t.Errorf("the response carries no affordances member: %v", decoded)

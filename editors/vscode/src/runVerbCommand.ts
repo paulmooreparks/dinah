@@ -116,7 +116,7 @@ async function askText(
  *
  * Escape is not that way. It cancels the whole wizard, which is what a reader
  * who has changed their mind about running anything wants, and it is not what
- * a reader who wants an unfiltered `list_cards` wants. Without this row nine
+ * a reader who wants an unfiltered `list` wants. Without this row nine
  * of the served tools could not be run in their ordinary form from the
  * palette at all, because every one of them constrains an argument it does
  * not require.
@@ -196,7 +196,10 @@ async function askVocabulary(
 		context.spawner,
 		context.exe,
 		"tools/call",
-		{ name: resolver.tool, arguments: {} },
+		{
+			name: resolver.tool,
+			arguments: resolver.ref === undefined ? {} : { ref: resolver.ref },
+		},
 		options,
 	);
 	if (outcome.kind !== "ok") {
