@@ -213,14 +213,21 @@ func TestListReadsOrRefusesEachFlagAgainstEachReferenceShape(t *testing.T) {
 // a workstream narrow one membership rather than two, and
 // dinah-523/decisions/15, that a root-scoped question whose answer would be a
 // containment walk is refused by name rather than computed per workbench and
-// published nowhere. The pairs a reader can actually write are what the rows
-// enumerate: a flag the table refuses beside a shape is already refused alone,
-// so the pairs worth reading are the ones both cells admit, plus the two the
-// workstream ruling of dinah-523/decisions/12 refuses.
+// published nowhere. A flag the table refuses beside a shape is already
+// refused alone, so a pair worth a row is one both cells admit, plus the two
+// the workstream ruling of dinah-523/decisions/12 refuses. These fourteen rows
+// are not every such pair: five more, over a column and over a card, a
+// below-card reference and a collection, admit both cells the same way and
+// carry no row here. They were checked by hand rather than added as rows,
+// against a workbench with no archived column, and no defect stands behind
+// any of the five.
 //
-// A row saying reads asserts an answer rather than an exit code alone, because
-// the failure this test exists to catch is a flag admitted and then dropped,
-// and a dropped flag exits zero.
+// A row saying reads asserts that the pair is admitted and answers at exit
+// zero with a non-blank output, which is weaker than it sounds: a dropped
+// flag does not reliably blank the output either, so a reads row alone would
+// not catch one. The narrowing a dropped flag would break is guarded
+// elsewhere, in TestAWalkFromAWorkstreamDrawsTheCardsThatJoinedIt, which
+// reddens when the selector composition is undone.
 func TestListAnswersEachAdmittedFlagPairOrRefusesItByName(t *testing.T) {
 	root := listBench(t)
 	// The fan-out is rooted at the fixture's own directory rather than at an

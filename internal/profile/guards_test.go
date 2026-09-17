@@ -4293,21 +4293,24 @@ var exemptedAnchorTables = map[string]string{
 // and a map literal. An anchor constant named anywhere else is invisible to
 // it, and the shapes that reach the same decision are an if chain comparing a
 // kind against a constant, a slice or array literal of anchors, a bare
-// equality test, and a kind-to-anchor mapping a function computes rather than
-// declares. So a genuine fifth copy of the grammar written as an if chain
-// passes this guard, and what the green run proves is narrower than the name
-// of the test: it proves no copy is written in one of the three constructs.
+// equality test, a kind-to-anchor mapping a function computes rather than
+// declares, and an anchor reached through a local alias or held in a
+// variable, since anchorsNamed decides an identifier is an anchor by matching
+// its name against anchorConstants rather than by resolving what it refers
+// to. So a genuine fifth copy of the grammar written as an if chain, or a
+// switch keyed on an aliased anchor, passes this guard, and what the green
+// run proves is narrower than the name of the test: it proves no copy is
+// written in one of the three constructs using the anchor constants by name.
 //
 // The guard is left reading constructs rather than taught to tell a
 // kind-to-anchor mapping from a segment-to-file table, and the exemption above
 // is what carries the one case where the two are confusable. Telling them
 // apart means reading what a switch is keyed on and what its arms yield, and
-// the tag can be a parameter, a field, a call or absent altogether, so the
+// the tag can be a parameter, a field, a call, or absent altogether, so the
 // guard would be answering a question about meaning off a shape that varies.
 // That trades a blind spot a reader can check, which is this paragraph and a
 // two-line exemption table, for one nobody can, which is a heuristic that
-// quietly reads a copy as a table. A false exemption is visible; a false
-// classification is not.
+// quietly reads a copy as a table.
 func TestTheContainmentGrammarIsDeclaredOnce(t *testing.T) {
 	root := filepath.Join("..", "..")
 	if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(theOneContainmentTable))); err != nil {

@@ -248,7 +248,7 @@ type WorkbenchListing struct {
 // publishes a WorkbenchListing, whose listing member is the ListAnswer the
 // contract's section 3.7 declares, and that type carries no walk: the six
 // shapes it holds are the rosters, the columns, the workstreams, the
-// attachments, a query's matches and a column's queue. So a walked question
+// attachments, a query's matches, and a column's queue. So a walked question
 // would compute a walk per workbench and publish none of them, which is the
 // shape of failure this card exists to remove. Both heads reach the fan-out
 // through this call, so the refusals are raised here and the terminal and the
