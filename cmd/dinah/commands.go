@@ -578,6 +578,8 @@ func runListRef(s *session, parsed *arguments) int {
 	req.Depth = parsed.value("depth")
 	req.Archived = parsed.has("archived")
 	req.Root = parsed.value("root")
+	req.SinceComment = parsed.value("since")
+	req.Unresolved = parsed.has("unresolved")
 	walk, refusal := s.rootWalkFor(parsed, parsed.value("root"))
 	if refusal != nil {
 		return s.reportError(refusal)
@@ -637,6 +639,16 @@ func (s *session) emitListResult(result *verb.ListResult) int {
 			return s.emitMachine(result.Attachments)
 		}
 		s.renderAttachmentListing(result.Attachments)
+	case verb.ShapeComments:
+		if s.format != formatHuman {
+			return s.emitMachine(result.Comments)
+		}
+		s.renderCommentListing(result.Comments)
+	case verb.ShapeItems:
+		if s.format != formatHuman {
+			return s.emitMachine(result.Items)
+		}
+		s.renderItemListing(result.Items)
 	case verb.ShapeMatches:
 		if s.format != formatHuman {
 			return s.emitMachine(result.Matches)

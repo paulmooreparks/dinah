@@ -341,7 +341,7 @@ func TestListPublishesTheEnvelopeEachReferenceNames(t *testing.T) {
 		{name: "a journal", argv: []string{"list", "fx-1/journal"}, array: true},
 		{name: "a card", argv: []string{"list", "fx-1"}, members: []string{"producer", "subject", "depth", "root"}},
 		{name: "a card under a depth", argv: []string{"list", "fx-1", "--depth", "all"}, members: []string{"producer", "subject", "depth", "root"}},
-		{name: "a collection", argv: []string{"list", "fx-1/comments"}, members: []string{"producer", "subject", "depth", "root"}},
+		{name: "a collection", argv: []string{"list", "fx-1/comments"}, members: []string{"ref", "kind", "members"}},
 	}
 	for _, row := range rows {
 		t.Run(row.name, func(t *testing.T) {

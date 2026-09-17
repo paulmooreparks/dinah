@@ -757,25 +757,42 @@ func collectionRefs(t *testing.T, got invocation) []string {
 	if got.code != 0 {
 		t.Fatalf("the listing exited %d: %s", got.code, got.errw)
 	}
-	var listing struct {
+	// The comment and item listing shapes carry members at the top level,
+	// while the tree walk nests them under root.children.
+	var flat struct {
+		Members []struct {
+			Ref string `json:"ref"`
+		} `json:"members"`
+	}
+	if err := json.Unmarshal([]byte(got.out), &flat); err != nil {
+		t.Fatalf("the listing does not parse: %v\n%s", err, got.out)
+	}
+	if len(flat.Members) > 0 {
+		refs := make([]string, 0, len(flat.Members))
+		for _, member := range flat.Members {
+			refs = append(refs, member.Ref)
+		}
+		return refs
+	}
+	var nested struct {
 		Root struct {
 			Children []struct {
 				Ref string `json:"ref"`
 			} `json:"children"`
 		} `json:"root"`
 	}
-	if err := json.Unmarshal([]byte(got.out), &listing); err != nil {
-		t.Fatalf("the listing does not parse: %v\n%s", err, got.out)
+	if err := json.Unmarshal([]byte(got.out), &nested); err != nil {
+		t.Fatalf("the listing does not parse as nested either: %v\n%s", err, got.out)
 	}
-	refs := make([]string, 0, len(listing.Root.Children))
-	for _, member := range listing.Root.Children {
+	refs := make([]string, 0, len(nested.Root.Children))
+	for _, member := range nested.Root.Children {
 		refs = append(refs, member.Ref)
 	}
 	return refs
 }
 
-// collectionTexts reads the member titles out of a machine-format containment
-// walk of a collection. A reference names a position and a position is counted per half, so
+// collectionTexts reads the member subjects out of a collection listing.
+// A reference names a position and a position is counted per half, so
 // the two halves are compared on what the members say rather than on what they
 // are called.
 func collectionTexts(t *testing.T, got invocation) []string {
@@ -783,18 +800,35 @@ func collectionTexts(t *testing.T, got invocation) []string {
 	if got.code != 0 {
 		t.Fatalf("the listing exited %d: %s", got.code, got.errw)
 	}
-	var listing struct {
+	// The comment and item listing shapes carry members at the top level,
+	// while the tree walk nests them under root.children.
+	var flat struct {
+		Members []struct {
+			Subject string `json:"subject"`
+		} `json:"members"`
+	}
+	if err := json.Unmarshal([]byte(got.out), &flat); err != nil {
+		t.Fatalf("the listing does not parse: %v\n%s", err, got.out)
+	}
+	if len(flat.Members) > 0 {
+		texts := make([]string, 0, len(flat.Members))
+		for _, member := range flat.Members {
+			texts = append(texts, member.Subject)
+		}
+		return texts
+	}
+	var nested struct {
 		Root struct {
 			Children []struct {
 				Title string `json:"title"`
 			} `json:"children"`
 		} `json:"root"`
 	}
-	if err := json.Unmarshal([]byte(got.out), &listing); err != nil {
-		t.Fatalf("the listing does not parse: %v\n%s", err, got.out)
+	if err := json.Unmarshal([]byte(got.out), &nested); err != nil {
+		t.Fatalf("the listing does not parse as nested either: %v\n%s", err, got.out)
 	}
-	texts := make([]string, 0, len(listing.Root.Children))
-	for _, member := range listing.Root.Children {
+	texts := make([]string, 0, len(nested.Root.Children))
+	for _, member := range nested.Root.Children {
 		texts = append(texts, member.Title)
 	}
 	return texts

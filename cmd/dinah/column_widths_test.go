@@ -436,41 +436,13 @@ func TestAnUnusableWindowRendersUnbounded(t *testing.T) {
 	}
 }
 
-// TestANarrowWindowClampsEveryContinuationLine asserts both bounds of the
-// clamp at a window of 40: no continuation line is indented past display
-// column 20, and none is indented below its own row's indent.
-//
-// The block it renders holds a field wider than the window itself, which is
-// the case the clamp still governs. A block whose columns stand at their
-// headings while a field under one of them reaches its column no longer draws
-// a continuation line at all, since it stacks.
-func TestANarrowWindowClampsEveryContinuationLine(t *testing.T) {
-	drawn := tableSession(40).tableLines(table{
-		indent:  2,
-		columns: headed("Command", "What it does"),
-		rows: rowsOf(
-			[]string{"add <title> [--column]", "file a card"},
-			[]string{strings.Repeat("x", 60), "does a thing"},
-		),
-	})
-	continuations := 0
-	for _, line := range drawn {
-		if strings.TrimSpace(line) == "" || !strings.HasPrefix(line, "   ") {
-			continue
-		}
-		continuations++
-		indent := displayWidth(line) - displayWidth(strings.TrimLeft(line, " "))
-		if indent > 20 {
-			t.Errorf("a continuation line is indented to display column %d, past the 20 the clamp allows:\n%q", indent, line)
-		}
-		if indent < 2 {
-			t.Errorf("a continuation line is indented to display column %d, below its row's own indent:\n%q", indent, line)
-		}
-	}
-	if continuations == 0 {
-		t.Error("no continuation line was drawn, so this test asserts nothing about the clamp")
-	}
-}
+// The continuation clamp is exercised directly by
+// TestFormatRowKeepsEveryContinuationWithinTheWindow in row_test.go, which
+// calls formatRow with cells that overflow their column widths. The clamp
+// cannot be reached through tableLines for columnar tables: any non-last,
+// non-ceiling cell that overflows triggers stacks(), and the table is drawn
+// by stackLines() instead. The tail column never produces continuation lines
+// (formatRow writes it whole or word-wraps it).
 
 // staleItemColumn files a decision against a card and writes a column value
 // into that item's anchor by hand, answering the item's identifier. The value

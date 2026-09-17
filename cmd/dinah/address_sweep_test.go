@@ -114,6 +114,14 @@ var addressExemptions = []addressExemption{
 		site:   renderSite{File: "render.go", Function: "renderWorkbenchFields", Label: "t", Ordinal: 1},
 		ground: groundNamedByCaller, reason: "the table lists the workbench's own stored fields, and the reader named the workbench to reach it",
 	},
+	{
+		site:   renderSite{File: "render.go", Function: "renderCommentListing", Label: "block", Ordinal: 1},
+		ground: groundNoEntity, reason: "the rows are comments, which belong to the card the reader already named",
+	},
+	{
+		site:   renderSite{File: "render.go", Function: "renderItemListing", Label: "block", Ordinal: 1},
+		ground: groundNoEntity, reason: "the rows are checklist items, which belong to the card the reader already named",
+	},
 }
 
 // addressExpectation is what one drawn row's reference cell must hold, and

@@ -776,9 +776,6 @@ func (laid laidTable) stacks() bool {
 			if laid.hasCeiling && c == laid.ceilingColumn {
 				continue
 			}
-			if laid.widths[c] > displayWidth(laid.columns[c].heading) {
-				continue
-			}
 			if displayWidth(field) >= laid.widths[c]+tableGutter {
 				return true
 			}
