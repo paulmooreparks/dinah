@@ -4580,7 +4580,13 @@ func TestOpenTailAsksForQuotingItselfWhenTheTextHasAQuote(t *testing.T) {
 // read: the title, the block reason, and the comments in order.
 func showDetail(t *testing.T, dir, ref string) verb.Detail {
 	t.Helper()
-	got := runCLI(t, dir, "--json", "show", ref)
+	// The field list names every member and both full forms, which is the
+	// call that answers what a bare show answered before the collections
+	// became indexes. Every caller of this helper is asking about something
+	// else, mostly about what the flag parser stored, so each wants the
+	// bodies back rather than the read default this card changed.
+	got := runCLI(t, dir, "--json", "show", ref,
+		"--fields", "card,body,links,attachments,comments.full,checklist.full,path")
 	if got.code != 0 {
 		t.Fatalf("--json show %s: %d %s", ref, got.code, got.errw)
 	}
@@ -7244,7 +7250,7 @@ func TestTheFlagSetsTheParserAcceptsAreDerivedFromTheParameterTable(t *testing.T
 		"migrate-slugs", "migrate-vocabulary", "migrate-workstreams",
 		"no-claim", "override", "quiet", "ready", "renumber", "replace",
 		"stdio",
-		"version", "witness", "yes",
+		"unresolved", "version", "witness", "yes",
 	}
 	if got := strings.Join(valuedFlags, " "); got != strings.Join(wantValued, " ") {
 		t.Errorf("the derived valued flags are %q and the parser accepted %q", got, strings.Join(wantValued, " "))
@@ -8614,7 +8620,11 @@ func TestShowShapedByAFieldListPrintsWhatItHeldBack(t *testing.T) {
 	first := addCard(t, root, "First")
 	second := addCard(t, root, "Second")
 	addLink(t, root, first, "relates_to", cardID(t, root, second))
-	if got := runCLI(t, root, "comment", first, "A remark worth keeping"); got.code != 0 {
+	// The comment's first line and its body differ, because the index draws
+	// the first line as the row's subject: a one-line comment would make
+	// "the body was not drawn" impossible to tell from "the subject was".
+	const remark = "## A remark\n\nworth keeping in full"
+	if got := runCLI(t, root, "comment", first, remark); got.code != 0 {
 		t.Fatalf("comment %s: %d %s", first, got.code, got.errw)
 	}
 
@@ -8622,18 +8632,44 @@ func TestShowShapedByAFieldListPrintsWhatItHeldBack(t *testing.T) {
 	if whole.code != 0 {
 		t.Fatalf("show %s: %d %s", first, whole.code, whole.errw)
 	}
-	if !strings.Contains(whole.out, "A remark worth keeping") {
-		t.Fatalf("the unshaped answer carries no comment, so the shaped one proves nothing: %q", whole.out)
+	// The unshaped answer draws the comment as an index row rather than as a
+	// body, so the subject is what says the comment reached the block at all
+	// and the absence of the body is the change this card made.
+	if !strings.Contains(whole.out, first+"/comments/1") {
+		t.Fatalf("the unshaped answer carries no comment row, so the shaped one proves nothing: %q", whole.out)
 	}
-	if strings.Contains(whole.out, msg.For(msg.Base).T("show.withheld", "members", "links")) {
-		t.Errorf("the unshaped answer announced a withheld member and it withheld nothing: %q", whole.out)
+	if !strings.Contains(whole.out, "A remark") {
+		t.Errorf("the index row carries no subject: %q", whole.out)
+	}
+	if strings.Contains(whole.out, "worth keeping in full") {
+		t.Errorf("the unshaped answer drew a comment body: %q", whole.out)
+	}
+	announcedWhole := msg.For(msg.Base).T("show.withheld", "members", "comments.full")
+	if !strings.Contains(whole.out, announcedWhole) {
+		t.Errorf("wanted the line %q, which teaches the recovery, got %q", announcedWhole, whole.out)
+	}
+	if !strings.Contains(whole.out, msg.For(msg.Base).T("show.reread", "reread", first)) {
+		t.Errorf("the unshaped answer does not say how to be served the bodies: %q", whole.out)
+	}
+
+	// The recovery the announcement names, run. It draws the body the index
+	// withheld and announces no comment name of its own.
+	recovered := runCLI(t, root, "show", first, "--fields", "comments.full")
+	if recovered.code != 0 {
+		t.Fatalf("show %s --fields comments.full: %d %s", first, recovered.code, recovered.errw)
+	}
+	if !strings.Contains(recovered.out, "worth keeping in full") {
+		t.Errorf("the recovery did not draw the body it was written to fetch: %q", recovered.out)
+	}
+	if strings.Contains(recovered.out, announcedWhole) {
+		t.Errorf("the recovery announced the bodies it had just served: %q", recovered.out)
 	}
 
 	shaped := runCLI(t, root, "show", first, "--fields", "card,body")
 	if shaped.code != 0 {
 		t.Fatalf("show %s --fields card,body: %d %s", first, shaped.code, shaped.errw)
 	}
-	if strings.Contains(shaped.out, "A remark worth keeping") {
+	if strings.Contains(shaped.out, "A remark") {
 		t.Errorf("the shaped answer carried a comment the field list left out: %q", shaped.out)
 	}
 	// The card carries links, a comment and an anchor path and no

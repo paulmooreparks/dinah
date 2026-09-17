@@ -60,7 +60,8 @@ READ
     [--depth <level>] [--root <path>]         chain of axes
     [--max-depth <n>]
   show <ref> [--fields <list>]              The detail of an entity of this
-    [--archived]                              workbench
+    [--archived] [--since <ordinal>]          workbench
+    [--unresolved]
   changes [--since <cursor>]                What has happened on this workbench
     [--card <ref>] [--column <column>]        since a cursor
     [--root <path>] [--max-depth <n>]

@@ -151,37 +151,75 @@ where you expected it withheld.
 ## Ask show for the members you want
 
 `show` takes an optional `fields` argument, and it selects which members of a
-card the answer carries. The six names are `card`, `body`, `links`,
-`attachments`, `comments`, and `path`. Write them comma-separated, and leave
-the argument out to be served all six, which is what `show` answers when
-nobody asks:
+card the answer carries. The card has seven members, which are `card`, `body`,
+`links`, `attachments`, `comments`, `checklist`, and `path`. Two further names
+are written in the same argument and are not members of the card: `comments.full`
+and `checklist.full` each name a member and ask for it in full rather than as an
+index, so there are nine names you may write over seven members. Write them
+comma-separated:
 
 ```json
 {"jsonrpc":"2.0","id":11,"method":"tools/call","params":{"name":"show","arguments":{"card":"wb-1","fields":"card,body"}}}
 ```
 
+Leave the argument out and you are served every member, with two of them
+served as indexes. A comment index entry carries the comment's reference, its
+ordinal, when it was written, who wrote it, its first line and how many bytes
+its body runs to, and it carries the body empty. A checklist index entry
+carries the item's first line and no resolution note. On a card that has
+passed several stations those two members are most of what a whole answer
+costs, so an index is what an unasked read serves and the bodies are what you
+ask for.
+
+Two filters answer the two questions a reader usually has, and each answers it
+in the round that opens the card. `since` takes a comment's one-based ordinal
+and fills the body of every comment past it, leaving the index to carry the
+rest, which is how you read the handoffs written since you last looked.
+`unresolved` carries only the checklist items whose state releases no column
+hold, which are the pending items, the failed ones, and any item whose state
+the format does not declare, and that is the same question a move asks before
+it refuses:
+
+```json
+{"jsonrpc":"2.0","id":12,"method":"tools/call","params":{"name":"show","arguments":{"card":"wb-1","since":"28"}}}
+```
+
 Naming what you want on the first call costs nothing. Coming back for a member
 you did not ask for costs a whole round trip, which is the most expensive thing
 on this surface, because the conversation so far is sent again with it. Ask
-narrowly where you know what you want, and leave the argument out where you do
-not.
+narrowly where you know what you want, and reach for a filter rather than for
+the whole of a member.
 
-A shaped answer says what it held back:
+Every answer says what it held back:
 
 ```json
-"withheld": ["links", "comments"], "reread": "wb-1"
+"withheld": ["comments.full", "checklist.full"], "reread": "wb-1"
 ```
 
 `withheld` is a statement rather than a silence, on the same terms the
-instruction chain's marker is. Each name says the card holds that member and
-this answer did not carry it, so a member that is neither carried nor named is
-empty on the card and no second call is needed to learn that. `reread` is the
-card's own reference, and you pass it back to `show` with the fields you now
-want.
+instruction chain's marker is. A member's own name says the card holds an
+entry this answer did not carry, whether your field list left the member out
+or a filter dropped an entry of it. A name ending in `.full` says this answer
+carried an entry of that member without the entry's body. A member that is
+neither carried nor named is empty on the card, and no second call is needed
+to learn that. `reread` is the card's own reference, and you pass it back to
+`show` with the names you now want.
 
-A name outside the six is refused with `dinah.unknown-field`. The refusal names
-every unrecognised name you gave, sorted, together with the set you may choose
-from, and nothing is read before it is raised.
+An unasked read therefore announces `comments.full` and `checklist.full` on a
+card holding either, which is the announcement teaching you the recovery you
+were not asked to know about.
+
+A filter is refused with `dinah.usage` where the answer it shapes is not one
+this call carries: `since` beside a field list leaving the comments out,
+`unresolved` beside one leaving the checklist out, either of them on a
+reference that is not a card, and `since` beside `comments.full`, which asks
+the same question about the same member twice. `unresolved` beside
+`checklist.full` is not refused, because one chooses which items the answer
+carries and the other how much of each.
+
+A name outside the nine is refused with `dinah.unknown-field`. The refusal
+names every unrecognised name you gave, sorted, together with the set you may
+choose from, and nothing is read before it is raised.
 
 ## Reading the bodies of many cards at once
 

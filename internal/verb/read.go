@@ -551,6 +551,14 @@ type Detail struct {
 	// caller left out and a member the card carries empty are the same value
 	// once the answer is built, and the payload has to tell them apart.
 	selected detailSelection
+	// narrowedBy are the filter flags that dropped an entry this card holds,
+	// spelled as a caller types them. It is unexported for the reason
+	// selected is: it reaches no payload, because a machine reader recovers
+	// by reading the reference again and a fresh call carries no flag from
+	// the last one. A person at a terminal is the reader who needs it, since
+	// the sentence under the announcement would otherwise tell them to name
+	// a member they have already named.
+	narrowedBy []string
 }
 
 // MarshalJSON writes the members this answer carries and no others.
@@ -626,13 +634,54 @@ func (d Detail) Carries(name string) bool {
 	return d.selected.carries(name)
 }
 
-// DetailFields are the members of a Detail that show's fields argument may
-// name, in the order withheld reports them. The vocabulary table declares the
-// closed set by pointing at this slice and Library.Show selects against the
-// same slice, so the help table, the refusal sentence, and the selection cannot
-// drift apart. A member added to Detail that a caller may ask for is added
-// here in the position the JSON payload prints it.
+// NarrowedBy reports the filter flags that dropped an entry this card holds,
+// spelled as a caller types them. The terminal reads it to decide which
+// recovery it can honestly offer: a member the field list left out is served
+// by naming it, and a member a filter narrowed is served by dropping the
+// flag, and a reader told to do the first when the second is what they need
+// has been sent to write a call they have already written.
+func (d Detail) NarrowedBy() []string {
+	if len(d.narrowedBy) == 0 {
+		return nil
+	}
+	flags := make([]string, len(d.narrowedBy))
+	copy(flags, d.narrowedBy)
+	return flags
+}
+
+// DetailFields are the members of a Detail, in the order withheld reports
+// them. A member added to Detail that a caller may ask for is added here in
+// the position the JSON payload prints it.
+//
+// A name a caller may write is not always a member of the payload.
+// DetailSelectors is the set the fields argument accepts, and it is what the
+// vocabulary table, the refusal sentence and the selection all read, so the
+// help table, the refusal sentence and the selection cannot drift apart.
 var DetailFields = []string{"card", "body", "links", "attachments", "comments", "checklist", "path"}
+
+// DetailModifiers are the names show's fields argument accepts that are not
+// members of a Detail. Each one names a member and asks for that member in
+// full rather than as an index, so each is a depth rather than a member.
+var DetailModifiers = []string{"comments.full", "checklist.full"}
+
+// DetailSelectors are every name the fields argument accepts, in the order
+// withheld reports them: the members of a Detail, with each modifier inserted
+// after the member it names.
+var DetailSelectors = []string{"card", "body", "links", "attachments",
+	"comments", "comments.full", "checklist", "checklist.full", "path"}
+
+// modifierSuffix is what a selector carries beyond the member's own name when
+// it asks for that member's bodies. It is syntax a caller types rather than
+// prose, so it lives here rather than in a catalogue.
+const modifierSuffix = ".full"
+
+// modifierFor is the selector that asks for one member in full.
+func modifierFor(member string) string { return member + modifierSuffix }
+
+// baseOfModifier is the member a modifier names.
+func baseOfModifier(modifier string) string {
+	return strings.TrimSuffix(modifier, modifierSuffix)
+}
 
 // detailSelection is the set of members one answer carries, or nil where the
 // caller named no field set and the answer carries every member.
@@ -647,10 +696,115 @@ func (s detailSelection) carries(name string) bool {
 	return s[name]
 }
 
+// full reports whether the bodies of a collection member were asked for. A nil
+// selection is the unshaped read, which carries each collection as an index,
+// so it answers false for every name.
+func (s detailSelection) full(name string) bool {
+	if s == nil {
+		return false
+	}
+	return s[modifierFor(name)]
+}
+
+// The two flag words show's filters are typed as. They are spelled here as a
+// reader types them, because a refusal's detail names what the reader wrote
+// rather than a field of a request, which is the rule list.go's own flag
+// constants already follow.
+const (
+	flagSince      = "--since"
+	flagUnresolved = "--unresolved"
+)
+
+// detailFilters are the two narrowings a caller may put on show, already
+// parsed. sinceSet tells an ordinal of zero, which serves every body, apart
+// from no ordinal at all, which serves none.
+type detailFilters struct {
+	since      int
+	sinceSet   bool
+	unresolved bool
+}
+
+// named reports whether the caller wrote either filter.
+func (f detailFilters) named() bool { return f.sinceSet || f.unresolved }
+
+// flagWord is the filter a refusal about this call names: the first one the
+// caller wrote, in the order show's own parameters declare them.
+func (f detailFilters) flagWord() string {
+	if f.sinceSet {
+		return flagSince
+	}
+	if f.unresolved {
+		return flagUnresolved
+	}
+	return ""
+}
+
+// parseDetailFilters reads show's two filter arguments off the request.
+//
+// An ordinal that is not a non-negative whole number is refused dinah.usage,
+// which is the name this tool already raises over an argument it declares and
+// this call may not carry. An ordinal larger than the number of comments the
+// card holds is not refused, on the card's own decision: a station polling
+// with an ordinal it remembers must not be turned away for having remembered
+// a comment that has since been deleted.
+func parseDetailFilters(req *Request) (detailFilters, error) {
+	filters := detailFilters{unresolved: req.Unresolved}
+	written := strings.TrimSpace(req.SinceComment)
+	if written == "" {
+		return filters, nil
+	}
+	ordinal, err := strconv.Atoi(written)
+	if err != nil || ordinal < 0 {
+		return detailFilters{}, contract.Refuse(contract.Usage, flagSince+" "+written)
+	}
+	filters.since, filters.sinceSet = ordinal, true
+	return filters, nil
+}
+
+// refuseDetailFilter composes the refusal a filter raises where the answer it
+// shapes is not one this call carries. The detail is the flag word alone
+// where the whole of the fault is that the flag was written, and it names the
+// combination where each half is legal and the pair is not, which is the
+// shape refuseListFlag already composes for list's own flags.
+func refuseDetailFilter(detail string) error {
+	return contract.Refuse(contract.Usage, detail)
+}
+
+// checkDetailFilters refuses a filter that shapes a member this answer would
+// not carry. Dinah's stated rule is that an argument a tool would accept and
+// then drop tells the caller a narrowing ran when none did, so the surface
+// turns the call away instead of answering a question nobody asked.
+//
+// The two questions are asked in the order a reader meets them. A filter
+// whose member the field list leaves out is the plainer mistake, and the
+// refusal names the flag alone. A filter meeting the modifier of its own
+// member is the pair, since both names are legal and only the combination is
+// not, so that detail names the combination.
+func checkDetailFilters(chosen detailSelection, filters detailFilters) error {
+	if chosen == nil {
+		return nil
+	}
+	if filters.sinceSet && !chosen.carries("comments") {
+		return refuseDetailFilter(flagSince)
+	}
+	if filters.unresolved && !chosen.carries("checklist") {
+		return refuseDetailFilter(flagUnresolved)
+	}
+	if filters.sinceSet && chosen.full("comments") {
+		return refuseDetailFilter(flagSince + " beside " + modifierFor("comments"))
+	}
+	return nil
+}
+
 // parseDetailFields reads show's fields argument into the members the answer
 // is to carry. The argument absent, empty, or blank means every member, which
 // is what show has always returned, so an unshaped call is untouched by this
 // whole mechanism.
+//
+// A modifier sets its own name and the member it names, so a selection built
+// from `comments.full` answers true to carries("comments") as well: the full
+// form is the index plus the bodies rather than a second member, and naming
+// both names is the same as naming the modifier alone.
 //
 // Surrounding whitespace on each name is ignored and a repeated name carries
 // its member once. Every unrecognised name is reported, sorted, rather than
@@ -662,7 +816,7 @@ func parseDetailFields(fields string) (detailSelection, error) {
 		return nil, nil
 	}
 	declared := map[string]bool{}
-	for _, name := range DetailFields {
+	for _, name := range DetailSelectors {
 		declared[name] = true
 	}
 	chosen := detailSelection{}
@@ -677,6 +831,9 @@ func parseDetailFields(fields string) (detailSelection, error) {
 			continue
 		}
 		chosen[name] = true
+		if base := baseOfModifier(name); base != name {
+			chosen[base] = true
+		}
 	}
 	if len(unknown) > 0 {
 		named := make([]string, 0, len(unknown))
@@ -705,9 +862,9 @@ func parseDetailFields(fields string) (detailSelection, error) {
 // one the name already covers: a field this tool does not have, named where a
 // field was asked for.
 //
-// The declared set rides as a value read off DetailFields rather than written
-// into the catalog, so a seventh member reaches the sentence without a
-// translator being asked for anything.
+// The declared set rides as a value read off DetailSelectors rather than
+// written into the catalog, so a name a caller may write reaches the sentence
+// without a translator being asked for anything.
 //
 // The base sentence says which read was refused and what a card carries, and
 // it says neither of the two things that are true at only one of the raise
@@ -721,7 +878,7 @@ func parseDetailFields(fields string) (detailSelection, error) {
 // every raise site, so the detail cannot be the condition that tells the two
 // sites apart.
 func unknownDetailField(detail, reference string) error {
-	extra := map[string]string{"fields": strings.Join(DetailFields, ", ")}
+	extra := map[string]string{"fields": strings.Join(DetailSelectors, ", ")}
 	if reference != "" {
 		extra["reference"] = reference
 	} else {
@@ -787,11 +944,24 @@ type CommentView struct {
 	// The identifier beside it is the handle, and the resolver accepts that in
 	// the same slot.
 	Ref string `json:"ref"`
+	// Ordinal is the comment's one-based position among its holder's
+	// comments, counted the way AttachmentView.Ordinal is counted.
+	Ordinal int `json:"ordinal"`
 	// TS is when it was written.
 	TS string `json:"ts"`
 	// Author is who wrote it.
 	Author string `json:"author"`
-	// Body is the comment itself.
+	// Subject is the comment's first line carrying anything, with a leading
+	// run of number signs and spaces removed so a comment opening with a
+	// Markdown heading reads as that heading's words. It is capped at
+	// subjectCap runes, and a capped value ends in a single ellipsis.
+	Subject string `json:"subject"`
+	// Size is the body's length in bytes, so a caller can price the read
+	// that would fetch it before spending a round on it.
+	Size int `json:"size"`
+	// Body is the comment itself. It is the empty string on an entry a
+	// card's answer serves as an index, and detailOf is what clears it, so
+	// every other route to a comment view goes on carrying the whole of it.
 	Body string `json:"body"`
 	// Attachments are the comment's own attachments, on the terms a card's
 	// are: the full list, each carrying its path. A comment is one of the
@@ -977,6 +1147,15 @@ func (l *Library) Show(req *Request) (*Detail, *Record, *ItemDetail, string, err
 	if err != nil {
 		return nil, nil, nil, "", err
 	}
+	// The two filters are read and checked in the same place and for the
+	// same reason: a refused call reads nothing and mutates nothing.
+	filters, err := parseDetailFilters(req)
+	if err != nil {
+		return nil, nil, nil, "", err
+	}
+	if err := checkDetailFilters(chosen, filters); err != nil {
+		return nil, nil, nil, "", err
+	}
 	head, rest, _ := strings.Cut(req.Card, "/")
 	// The workbench and the workstream are answered ahead of everything
 	// else, because each has a record of its own and neither reaches a
@@ -987,6 +1166,9 @@ func (l *Library) Show(req *Request) (*Detail, *Record, *ItemDetail, string, err
 		if req.Card != "" && bench.IsWorkbenchRef(req.Card) {
 			if chosen != nil {
 				return nil, nil, nil, "", unknownDetailField(strings.TrimSpace(req.Fields), req.Card)
+			}
+			if filters.named() {
+				return nil, nil, nil, "", refuseDetailFilter(filters.flagWord())
 			}
 			return nil, l.workbenchRecord(), nil, "", nil
 		}
@@ -1000,6 +1182,9 @@ func (l *Library) Show(req *Request) (*Detail, *Record, *ItemDetail, string, err
 			}
 			if chosen != nil {
 				return nil, nil, nil, "", unknownDetailField(strings.TrimSpace(req.Fields), req.Card)
+			}
+			if filters.named() {
+				return nil, nil, nil, "", refuseDetailFilter(filters.flagWord())
 			}
 			return nil, l.workstreamRecord(workstream), nil, "", nil
 		}
@@ -1026,13 +1211,16 @@ func (l *Library) Show(req *Request) (*Detail, *Record, *ItemDetail, string, err
 			if chosen != nil {
 				return nil, nil, nil, "", unknownDetailField(strings.TrimSpace(req.Fields), head)
 			}
+			if filters.named() {
+				return nil, nil, nil, "", refuseDetailFilter(filters.flagWord())
+			}
 			text, err := bench.ReadText(filepath.Join(entity.Dir, bench.ColumnAnchor))
 			if err != nil {
 				return nil, nil, nil, "", contract.Refuse(contract.UnknownPath, req.Card)
 			}
 			return nil, nil, nil, text, nil
 		}
-		detail, text, err := l.detailOf(entity.Card, chosen)
+		detail, text, err := l.detailOf(entity.Card, chosen, filters)
 		return detail, nil, nil, text, err
 	}
 	// A column is an entity of the workbench, and the containment walk prints
@@ -1042,6 +1230,9 @@ func (l *Library) Show(req *Request) (*Detail, *Record, *ItemDetail, string, err
 		if column := l.Bench.ColumnByRef(head); column != nil {
 			if chosen != nil {
 				return nil, nil, nil, "", unknownDetailField(strings.TrimSpace(req.Fields), head)
+			}
+			if filters.named() {
+				return nil, nil, nil, "", refuseDetailFilter(filters.flagWord())
 			}
 			text, err := bench.ReadText(l.Bench.ColumnAnchorPath(column.ID))
 			if err != nil {
@@ -1059,6 +1250,9 @@ func (l *Library) Show(req *Request) (*Detail, *Record, *ItemDetail, string, err
 		// select from and the refusal is raised ahead of the resolution.
 		if chosen != nil {
 			return nil, nil, nil, "", unknownDetailField(strings.TrimSpace(req.Fields), req.Card)
+		}
+		if filters.named() {
+			return nil, nil, nil, "", refuseDetailFilter(filters.flagWord())
 		}
 		// The collection question is asked ahead of the resolution this
 		// command already performs, and the resolver's error is ignored, so
@@ -1105,7 +1299,7 @@ func (l *Library) Show(req *Request) (*Detail, *Record, *ItemDetail, string, err
 	if err := l.lapseRead(card, req.Actor); err != nil {
 		return nil, nil, nil, "", err
 	}
-	detail, text, err := l.detailOf(card, chosen)
+	detail, text, err := l.detailOf(card, chosen, filters)
 	return detail, nil, nil, text, err
 }
 
@@ -1138,10 +1332,51 @@ func (l *Library) itemDetailOf(entity *bench.EntityRef) (*ItemDetail, error) {
 	return &ItemDetail{Ref: ref, Text: text, Comments: comments}, nil
 }
 
+// subjectCap is how many runes of a first line an index entry carries. It is
+// a rune count rather than a byte count, so a line of Thai or Chinese carries
+// as many characters as a line of English.
+const subjectCap = 120
+
+// subjectEllipsis closes a value the cap cut short. One character rather than
+// three full stops, so the cap costs a capped subject one rune.
+const subjectEllipsis = "\u2026"
+
+// subjectOf is what an index entry offers a reader in place of the comment
+// itself: the first line of the body carrying anything, with a leading run of
+// number signs and spaces dropped so a comment opening with a Markdown
+// heading reads as that heading's words.
+//
+// firstLine in tree.go is what finds the line, and anchorTitle beside it is
+// the prior art for treating a comment's first line as its title. The trim
+// and the cap are what this adds, because a title drawn in a tree is not a
+// value a caller prices a second read against.
+func subjectOf(body string) string {
+	line := strings.TrimSpace(firstLine(body))
+	line = strings.TrimSpace(strings.TrimLeft(line, "#"))
+	return capRunes(line, subjectCap)
+}
+
+// capRunes cuts a value to a rune count and closes a cut value with one
+// ellipsis. The cut falls on a rune boundary, so a multi-byte rune straddling
+// the limit is dropped whole rather than halved into bytes no reader can
+// render.
+func capRunes(value string, limit int) string {
+	runes := []rune(value)
+	if len(runes) <= limit {
+		return value
+	}
+	return string(runes[:limit]) + subjectEllipsis
+}
+
 // commentViews reads the comments written directly below one entity, in
 // ordinal order, each carrying a reference composed against the holder's own
 // reference. A card, a checklist item and a column are the three kinds a
 // comment hangs from directly.
+//
+// Body is filled on every view, whatever the caller asked for. A card's own
+// answer clears it on each entry it serves as an index, in detailOf, so that
+// `dinah show <card>/comments/<n>` and an item's own comments go on serving
+// what they serve today: both reach this function by another path.
 func (l *Library) commentViews(dir, holderRef string) ([]CommentView, error) {
 	stored, err := bench.Comments(dir)
 	if err != nil {
@@ -1154,7 +1389,16 @@ func (l *Library) commentViews(dir, holderRef string) ([]CommentView, error) {
 			return nil, err
 		}
 		ref := commentRef(holderRef, position)
-		view := CommentView{ID: comment.ID, Ref: ref, TS: comment.TS, Author: comment.Author, Body: comment.Body}
+		view := CommentView{
+			ID:      comment.ID,
+			Ref:     ref,
+			Ordinal: position,
+			TS:      comment.TS,
+			Author:  comment.Author,
+			Subject: subjectOf(comment.Body),
+			Size:    len(comment.Body),
+			Body:    comment.Body,
+		}
 		// A comment's attachments compose their references against the
 		// comment's own address rather than the holder's, so a reference the
 		// view prints reaches the attachment the view describes.
@@ -1175,7 +1419,7 @@ func (l *Library) commentViews(dir, holderRef string) ([]CommentView, error) {
 //
 // It is the whole of what show does once it has a card, so nothing about
 // which half the card came from reaches inside it.
-func (l *Library) detailOf(card *bench.Card, chosen detailSelection) (*Detail, string, error) {
+func (l *Library) detailOf(card *bench.Card, chosen detailSelection, filters detailFilters) (*Detail, string, error) {
 	cardRef := card.Ref(l.Bench.Slug)
 	// Every member is built before the selection is applied, because withheld
 	// reports what the card holds rather than what the caller left out, and
@@ -1209,6 +1453,13 @@ func (l *Library) detailOf(card *bench.Card, chosen detailSelection) (*Detail, s
 		return nil, "", err
 	}
 	var checklist []ItemView
+	// The unresolved filter is applied over the items the card holds rather
+	// than over the views this answer carries, so the announcement can say
+	// that the card holds an item this answer dropped. It reads
+	// bench.ItemLiftsColumnHold, which is the predicate a column hold reads
+	// through GatingItems, so a station asking what still holds the card and
+	// a station running dinah move get one answer about the same card.
+	var carriedChecklist []ItemView
 	// The position a reference carries is counted within the item's own kind,
 	// which is what descend narrows a checklist segment by, so the two are
 	// counted the same way over the same order rather than composed from the
@@ -1249,6 +1500,31 @@ func (l *Library) detailOf(card *bench.Card, chosen detailSelection) (*Detail, s
 			}
 		}
 		checklist = append(checklist, view)
+		if !filters.unresolved || !bench.ItemLiftsColumnHold(item) {
+			carriedChecklist = append(carriedChecklist, view)
+		}
+	}
+	// Each collection is reduced to its index unless the caller asked for
+	// that member in full, and the count of entries reduced is what the
+	// announcement below reads: a member carried with every body filled
+	// announces no modifier, and one carried with a single body missing
+	// announces it.
+	indexed := map[string]int{}
+	if chosen.carries("comments") && !chosen.full("comments") {
+		for i := range comments {
+			if filters.sinceSet && comments[i].Ordinal > filters.since {
+				continue
+			}
+			comments[i].Body = ""
+			indexed["comments"]++
+		}
+	}
+	if chosen.carries("checklist") && !chosen.full("checklist") {
+		for i := range carriedChecklist {
+			carriedChecklist[i].Text = capRunes(firstLine(carriedChecklist[i].Text), subjectCap)
+			carriedChecklist[i].Note = ""
+			indexed["checklist"]++
+		}
 	}
 	if chosen.carries("links") {
 		detail.Links = links
@@ -1260,32 +1536,58 @@ func (l *Library) detailOf(card *bench.Card, chosen detailSelection) (*Detail, s
 		detail.Comments = comments
 	}
 	if chosen.carries("checklist") {
-		detail.Checklist = checklist
+		detail.Checklist = carriedChecklist
 	}
 	if !chosen.carries("path") {
 		detail.Path = ""
 	}
-	// The announcement names only members the card actually holds, in the
-	// order DetailFields declares, so two runs against one card compose one
-	// string. An unshaped answer withholds nothing and carries neither member.
-	if chosen != nil {
-		held := map[string]bool{
-			"card":        true,
-			"body":        card.Body != "",
-			"links":       len(links) > 0,
-			"attachments": len(views) > 0,
-			"comments":    len(comments) > 0,
-			"checklist":   len(checklist) > 0,
-			"path":        card.AnchorPath() != "",
-		}
-		for _, name := range DetailFields {
-			if !chosen[name] && held[name] {
+	// The announcement says what the card holds and this answer did not
+	// carry, in the order DetailSelectors declares, so two runs against one
+	// card compose one string. A member is named where the card holds an
+	// entry the answer left out, whether the field list dropped the member
+	// or a filter dropped an entry of it, and a modifier is named where the
+	// answer carried an entry of its member without that entry's body.
+	//
+	// Both halves are read off what the answer carried rather than off the
+	// selection, which is what lets the rule cover the unshaped read: a nil
+	// selection carries every member, and a loop asking the selection what
+	// it left out would answer that a nil map left out all nine.
+	held := map[string]bool{
+		"card":        true,
+		"body":        card.Body != "",
+		"links":       len(links) > 0,
+		"attachments": len(views) > 0,
+		"comments":    len(comments) > 0,
+		"checklist":   len(checklist) > 0,
+		"path":        card.AnchorPath() != "",
+	}
+	// A filter that dropped nothing narrowed nothing, so the recovery the
+	// terminal offers names a flag only where dropping it would change the
+	// answer.
+	narrowedChecklist := len(carriedChecklist) < len(checklist)
+	if narrowedChecklist {
+		detail.narrowedBy = append(detail.narrowedBy, flagUnresolved)
+	}
+	for _, name := range DetailSelectors {
+		if base := baseOfModifier(name); base != name {
+			if indexed[base] > 0 {
 				detail.Withheld = append(detail.Withheld, name)
 			}
+			continue
 		}
-		if len(detail.Withheld) > 0 {
-			detail.Reread = cardRef
+		if !held[name] {
+			continue
 		}
+		if !chosen.carries(name) {
+			detail.Withheld = append(detail.Withheld, name)
+			continue
+		}
+		if name == "checklist" && narrowedChecklist {
+			detail.Withheld = append(detail.Withheld, name)
+		}
+	}
+	if len(detail.Withheld) > 0 {
+		detail.Reread = cardRef
 	}
 	return detail, "", nil
 }

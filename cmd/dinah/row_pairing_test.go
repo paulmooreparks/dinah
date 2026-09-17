@@ -1276,7 +1276,12 @@ func expectComments(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
 	var rows [][]sweptCell
 	for i, comment := range r.comments {
 		ref := comment.card + "/" + bench.CommentsDir + "/" + strconv.Itoa(i+1)
-		rows = append(rows, sweptTexts(ref, "", comment.actor))
+		// The subject is the body's first line and the size is the body's
+		// length in bytes, because the block draws an index of the comments
+		// rather than their bodies. The fixture writes a one-line body, so
+		// the subject is that body and the size is its length.
+		rows = append(rows, sweptTexts(ref, "", comment.actor,
+			comment.body, strconv.Itoa(len(comment.body))))
 	}
 	opaque, why := sweptStampColumn(1, "a comment's stamp is the moment the fixture ran, which the fixture cannot know before it runs")
 	return sweptExpectation{

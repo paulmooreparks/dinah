@@ -1058,8 +1058,14 @@ ATTRIBUTION = {
         "content": ["detail.card", "detail.body"],
         "chain": [],
         "prose_content": ["detail.body"],
+        # withheld and reread joined the envelope at dinah-527, which made
+        # an unshaped read announce the bodies it serves as an index. Both
+        # are statements about the answer rather than content the act asked
+        # for, which is the side of the line the card's own members sit on
+        # when the act did not name them.
         "envelope": ["affordances", "detail.links", "detail.attachments",
-                     "detail.comments", "detail.path"],
+                     "detail.comments", "detail.checklist", "detail.path",
+                     "detail.withheld", "detail.reread"],
     },
     "instructions": {
         "wrapper": "served",

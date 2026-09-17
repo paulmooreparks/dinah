@@ -1583,11 +1583,10 @@ func sweptBlocks() []sweptBlock {
 		},
 		{
 			site: renderSite{File: "render.go", Function: "renderComments", Label: "block", Ordinal: 1}, label: "a card's comments",
-			keys: []string{"column.comments.ref", "column.comments.when", "column.comments.who"}, varies: noCell,
+			keys: []string{"column.comments.ref", "column.comments.when", "column.comments.who",
+				"column.comments.subject", "column.comments.size"}, varies: lastCell,
 			blanksAreLost: true,
 			opensAt:       "show.comments", expect: expectComments,
-			constantReason: "a timestamp is one format in one time zone, so every comment header draws its stamp " +
-				"at the same width; the author in the last column is what this block's assertion rests on",
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
 				return sweptRun(t, w.healthy, tag, "show", w.card)
 			},
