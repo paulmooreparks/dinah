@@ -59,10 +59,11 @@ type CommentIndexEntry struct {
     Author  string `json:"author"`
     Subject string `json:"subject"`
     Size    int    `json:"size"`
+    Body    string `json:"body"`
 }
 ```
 
-Every field is the same as the identically named field on `CommentView` in `show`, and is filled from the same source. `Subject` is `subjectOf` applied to the comment's body, and `Size` is `len(comment.Body)`, both computed the same way `commentViews` at `read.go:1380` computes them. A comment's attachments do not travel in the listing, because a comment's attachments cost what the one card costs and are reachable through the comment's own reference.
+Every field is the same as the identically named field on `CommentView` in `show`, and is filled from the same source. `Subject` is `subjectOf` applied to the comment's body, and `Size` is `len(comment.Body)`, both computed the same way `commentViews` at `read.go:1380` computes them. `Body` is the empty string on every entry the listing serves as an index, and is filled from `comment.Body` on entries after the `--since` ordinal, exactly the way `detailOf` fills it on the show side. A comment's attachments do not travel in the listing, because a comment's attachments cost what the one card costs and are reachable through the comment's own reference.
 
 `CommentListing` carries the collection's reference and kind:
 
@@ -75,7 +76,7 @@ type CommentListing struct {
 }
 ```
 
-The shape mirrors `CollectionListing` for the wrapper and `CommentView` for each entry, with the body and attachments removed. A machine reader sees:
+The shape mirrors `CollectionListing` for the wrapper and `CommentView` for each entry, with the body empty on index entries and attachments removed. A machine reader sees:
 
 ```json
 {
@@ -125,7 +126,7 @@ type ItemIndexEntry struct {
 }
 ```
 
-Every field is the same as the identically named field on `ItemView` in `show`. `Text` carries the item's first line capped at 120 runes by `capRunes(firstLine(item.Text), subjectCap)`, which is the same cap the show index applies. `Note` is empty and omitted, because a listing that serves the index does not carry resolution notes.
+Every field is the same as the identically named field on `ItemView` in `show`. `Text` carries the item's first line capped at 120 runes by `capRunes(firstLine(item.Text), subjectCap)`, which is the same cap the show index applies. `Note` is the empty string on every entry the listing serves as an index, and is filled from `item.Note` on entries carried by `--unresolved`, exactly the way `detailOf` fills it on the show side. A listing that carries no filter or that carries `--unresolved` without `checklist.full` omits `Note` from every entry, because the index does not carry resolution notes and `--unresolved` without `.full` is the combination dinah-527's contract already composes on the show side.
 
 `ItemListing` carries the same wrapper as the comment listing:
 
