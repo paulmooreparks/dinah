@@ -74,7 +74,7 @@ and fix whatever it names. Run `go test` on each package the diff changed, by
 package or by test name. Run the arming proof. Smoke the command surface
 against a throwaway workbench you created yourself.
 
-Do not run the repository-wide sweep, coverage runs or benchmarks. Those
+Do not run the repository-wide sweep, coverage runs or timing runs. Those
 belong to Test, and pre-empting Test burns budget this station does not have.
 
 Two packages are worth knowing about. `internal/profile` holds guards that a
