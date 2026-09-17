@@ -1974,6 +1974,16 @@
       "context": "Heading over the reference a person types to reach the comment, in the comments block of `dinah show`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "9ff1e019feac1ee2"
     },
+    "column.comments.size": {
+      "text": "आकार",
+      "context": "Heading over how many bytes the comment's body runs to, in the comments of `dinah show`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "source": "78789724e789221c"
+    },
+    "column.comments.subject": {
+      "text": "विषय",
+      "context": "Heading over the comment's first line, in the comments of `dinah show`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "source": "bbc53e0e54d7946f"
+    },
     "column.comments.when": {
       "text": "कब",
       "context": "Heading over when the comment was written, in the comments of `dinah show`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
@@ -3389,6 +3399,11 @@
       "context": "The sentence printed under show.withheld, telling the reader how to be served a member that was held back. {reread} is the card's own reference. The flag spelling inside it is syntax and stays as it is.",
       "source": "f341fc582260bf03"
     },
+    "show.refilter": {
+      "text": "यह कार्ड उन सदस्यों में से अधिक रखता है जितना यह उत्तर लाया। {reread} को फिर पढ़ें, जो सदस्य चाहिए उन्हें --fields में नाम दें और {flags} हटा दें।",
+      "context": "The sentence printed under show.withheld in place of show.reread when a filter narrowed the answer. Naming the member again would serve no more of it, because the caller has already named it and the flag is what dropped the rest, so this sentence names both levers. {reread} is the card's own reference and {flags} is the flag words the caller wrote. Those words and the flag spelling inside the sentence are syntax and stay as they are.",
+      "source": "5a8fd07727da9955"
+    },
     "show.collection.empty": {
       "text": "{ref} में कुछ नहीं है।",
       "context": "Printed when `dinah show` is asked for a collection that has no members. No text follows and the call succeeds, because a collection holding nothing is an answer rather than a mistake. It reads as attachments.empty and contents.empty read, since the three commands are answering the same shape of question.",
@@ -4125,9 +4140,19 @@
       "source": "d9ac8e6674501327"
     },
     "param.show.fields.summary": {
-      "text": "उत्तर कार्ड के कौन से सदस्य ले जाए, अल्पविराम से अलग की गई सूची के रूप में लिखा; कोई न बताने पर हर सदस्य",
-      "context": "The meaning of the fields argument of `dinah show`, printed in that command's arguments table. The table appends the closed set of member names after this sentence, read off the tool, so the sentence does not spell the set itself.",
-      "source": "d9fd26ca9e82957c"
+      "text": "उत्तर कार्ड के कौन से सदस्य ले जाए, अल्पविराम से अलग की गई सूची के रूप में लिखा; कोई न बताने पर हर सदस्य, जिसमें टिप्पणियाँ और जाँच-सूची सूची के रूप में आती हैं, और .full पर समाप्त होने वाला नाम उस संग्रह के पाठ लाता है",
+      "context": "The meaning of the fields argument of `dinah show`, printed in that command's arguments table. The table appends the closed set of names a caller may write after this sentence, read off the tool, so the sentence does not spell the set itself.",
+      "source": "504eea1c32ecf740"
+    },
+    "param.show.since.summary": {
+      "text": "इस एक-आधारित क्रमांक के बाद वाली टिप्पणियों का पूरा पाठ दें, शेष के लिए केवल सूची",
+      "context": "The meaning of the since argument of `dinah show`, printed in that command's arguments table. The word is spelled as it is on `dinah changes`, and this sentence is where the two part: that one takes an opaque cursor and this one takes a comment's position.",
+      "source": "d86456467a8e062b"
+    },
+    "param.show.unresolved.summary": {
+      "text": "केवल वे जाँच-सूची मद दें जिनकी स्थिति कॉलम-रोक नहीं हटाती, अर्थात् लंबित मद, विफल मद, और हर वह मद जिसकी स्थिति को प्रारूप घोषित नहीं करता",
+      "context": "The meaning of the unresolved argument of `dinah show`, printed in that command's arguments table. The state words it stands over are machine vocabulary a reader meets on the item itself.",
+      "source": "61e5cd88ea104a9e"
     },
     "param.version.catalogs.summary": {
       "text": "हर उपलब्ध भाषा और उसका कितना अनुवाद हुआ है, यह बताएँ",

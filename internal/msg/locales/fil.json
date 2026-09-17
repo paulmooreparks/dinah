@@ -1966,6 +1966,16 @@
       "context": "Heading over the reference a person types to reach the comment, in the comments block of `dinah show`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "skeleton": true
     },
+    "column.comments.size": {
+      "text": "Size",
+      "context": "Heading over how many bytes the comment's body runs to, in the comments of `dinah show`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.comments.subject": {
+      "text": "Subject",
+      "context": "Heading over the comment's first line, in the comments of `dinah show`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
     "column.comments.when": {
       "text": "When",
       "context": "Heading over when the comment was written, in the comments of `dinah show`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
@@ -3380,6 +3390,11 @@
       "context": "The sentence printed under show.withheld, telling the reader how to be served a member that was held back. {reread} is the card's own reference. The flag spelling inside it is syntax and stays as it is.",
       "skeleton": true
     },
+    "show.refilter": {
+      "text": "This card holds more of those members than this answer carried. Read {reread} again, naming the members you want in --fields and dropping {flags}.",
+      "context": "The sentence printed under show.withheld in place of show.reread when a filter narrowed the answer. Naming the member again would serve no more of it, because the caller has already named it and the flag is what dropped the rest, so this sentence names both levers. {reread} is the card's own reference and {flags} is the flag words the caller wrote. Those words and the flag spelling inside the sentence are syntax and stay as they are.",
+      "skeleton": true
+    },
     "show.collection.empty": {
       "text": "{ref} holds nothing.",
       "context": "Printed when `dinah show` is asked for a collection that has no members. No text follows and the call succeeds, because a collection holding nothing is an answer rather than a mistake. It reads as attachments.empty and contents.empty read, since the three commands are answering the same shape of question.",
@@ -4111,8 +4126,18 @@
       "skeleton": true
     },
     "param.show.fields.summary": {
-      "text": "which members of the card the answer carries, written as a comma-separated list; every member when you name none",
-      "context": "The meaning of the fields argument of `dinah show`, printed in that command's arguments table. The table appends the closed set of member names after this sentence, read off the tool, so the sentence does not spell the set itself.",
+      "text": "which members of the card the answer carries, written as a comma-separated list; every member when you name none, with the comments and the checklist served as indexes, and a name ending in .full served with that collection's bodies",
+      "context": "The meaning of the fields argument of `dinah show`, printed in that command's arguments table. The table appends the closed set of names a caller may write after this sentence, read off the tool, so the sentence does not spell the set itself.",
+      "skeleton": true
+    },
+    "param.show.since.summary": {
+      "text": "serve the bodies of the comments after this one-based ordinal, and the index alone for the rest",
+      "context": "The meaning of the since argument of `dinah show`, printed in that command's arguments table. The word is spelled as it is on `dinah changes`, and this sentence is where the two part: that one takes an opaque cursor and this one takes a comment's position.",
+      "skeleton": true
+    },
+    "param.show.unresolved.summary": {
+      "text": "serve only the checklist items whose state does not release a column hold, which are the pending items, the failed ones, and any item whose state the format does not declare",
+      "context": "The meaning of the unresolved argument of `dinah show`, printed in that command's arguments table. The state words it stands over are machine vocabulary a reader meets on the item itself.",
       "skeleton": true
     },
     "param.version.catalogs.summary": {

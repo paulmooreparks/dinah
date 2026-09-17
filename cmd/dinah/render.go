@@ -679,10 +679,11 @@ func (s *session) renderDetail(detail *verb.Detail) {
 		// itself starts at, so a wrapped line hangs under its own first line
 		// rather than under the reference.
 		//
-		// The resolution note is not drawn here. It stays in the payload for
-		// a machine reader, and a person reaches it through the item's own
-		// reference, which `dinah show <card>/questions/1` answers with; two runs of
-		// prose in the same position read as one run of prose.
+		// The resolution note is drawn under the row it belongs to, and only
+		// where the answer carries one. An index entry clears it, which is
+		// every answer that did not ask for the checklist in full, so the
+		// two runs of prose in the same position this block used to be
+		// spared are two runs a reader asked for by name.
 		checklist := table{indent: 2, columns: s.columns("checklist", "ref", "state", "owner", "comments", "description"),
 			labels: labelInTheStack, wrapTail: true}
 		for _, item := range detail.Checklist {
@@ -691,25 +692,42 @@ func (s *session) renderDetail(detail *verb.Detail) {
 				count = strconv.Itoa(item.CommentCount)
 			}
 			fields := []string{item.Ref, item.State, item.Owner, count, item.Text}
-			checklist.rows = append(checklist.rows, tableRow{fields: fields})
+			checklist.rows = append(checklist.rows, tableRow{fields: fields, note: item.Note})
 		}
 		s.table(checklist)
 	}
 	if len(detail.Withheld) > 0 {
 		gap()
 		s.line(s.r.T("show.withheld", "members", strings.Join(detail.Withheld, ", ")))
-		s.line(s.r.T("show.reread", "reread", detail.Reread))
+		// Which recovery the reader is offered depends on what held the
+		// answer back. A member the field list left out is served by naming
+		// it, and a member a filter narrowed is served by dropping the flag,
+		// because the caller of `--unresolved --fields checklist.full` has
+		// already named every member the announcement could ask them for.
+		// One sentence names both levers where a filter ran, since such a
+		// call can be short of a member for either reason at once.
+		if flags := detail.NarrowedBy(); len(flags) > 0 {
+			s.line(s.r.T("show.refilter", "reread", detail.Reread, "flags", strings.Join(flags, ", ")))
+		} else {
+			s.line(s.r.T("show.reread", "reread", detail.Reread))
+		}
 	}
 }
 
 // renderComments draws one comments block: each comment's reference, when it
-// was written and who wrote it, with the body carried as the row's note.
+// was written, who wrote it, what its first line says and how many bytes the
+// body runs to, with the body carried as the row's note where the answer
+// carries one.
+//
 // renderDetail and renderItemDetail both draw this, so a card's comments and
-// an item's comments print in one shape.
+// an item's comments print in one shape. A card's own read serves an index
+// and an item's serves every body, and the row carries whichever the answer
+// holds rather than the block being split in two.
 func (s *session) renderComments(comments []verb.CommentView) {
-	block := table{indent: 2, columns: s.columns("comments", "ref", "when", "who")}
+	block := table{indent: 2, columns: s.columns("comments", "ref", "when", "who", "subject", "size")}
 	for _, comment := range comments {
-		fields := []string{comment.Ref, comment.TS, comment.Author}
+		size := strconv.Itoa(comment.Size)
+		fields := []string{comment.Ref, comment.TS, comment.Author, comment.Subject, size}
 		block.rows = append(block.rows, tableRow{fields: fields, note: comment.Body})
 	}
 	s.table(block)

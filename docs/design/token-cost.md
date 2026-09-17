@@ -1635,3 +1635,120 @@ multiplied by the verb run's rounds must then stay below the cumulative saving
 its own bulk run reports, which is the same shape of rule this section applied
 to the working-agreement sentence and for the same reason, because every
 session pays the block delta whether or not it ever reads in bulk.
+
+## dinah-527, the comment and checklist indexes, measured 2026-09-17
+
+`dinah show <card>` stopped serving comment bodies and checklist notes to a
+caller who names no field list, and it serves an index of each instead. The
+bodies come back under `comments.full` and `checklist.full`, and two filters,
+`--since <ordinal>` on the comments and `--unresolved` on the checklist,
+answer in the opening round the two questions a station usually opens a card
+to ask. This section records what that cost and what it saved.
+
+### The paired run, and the block delta
+
+Both runs are `scripts/measure_agentic_sequence.py` with the proxy counter,
+one against a binary built from the trunk at `b5b622e6` and one against the
+same tree carrying this card, with `--commit 78ff2301` because the layer
+sources the script names are the pre-cutover board's and `b5b622e6` no longer
+carries them. The `--per-tool` block moved on exactly one row:
+
+```
+tool-definition block, attributed per published tool, proxy counter
+
+  show, trunk                                             498 tokens
+  show, this card                                         613
+  every other row of the 42                          unchanged
+  the whole block, once, trunk                          17923
+  the whole block, once, this card                      18038
+```
+
+The delta is 115 tokens, and the two figures agree: one row moved by 115 and
+the block moved by 115. Over the verb run's twelve rounds that is 1,380
+tokens, which is what every session pays whether it ever filters or not.
+
+### What the same run saved
+
+```
+the verb run, over the script's own fixture
+
+  cumulative billed input, trunk                       462080 tokens
+  cumulative billed input, this card                   461911
+  net saving                                              169
+  the block's own cost over the run                      1380
+  payload saving, being the two added together           1549
+  response envelope, measured directly, trunk            4015
+  the same, this card                                    3807
+```
+
+The net figure is small because the fixture's cards are small: the script
+seeds three comments of 1,065 bytes between them on each card, where the cards
+this change exists for carry thirty. The bar `docs/design/token-cost.md`'s
+plural-read section sets is that the block delta over the run's rounds stays
+below the saving the run reports, and 1,380 against 1,549 clears it on the
+smallest fixture in the tree. The section below is the same arithmetic on a
+card in flight.
+
+### The indexes on dinah-514, measured rather than derived
+
+Every figure here is a byte count of the terminal answer and a token count of
+the same bytes under `cl100k_base`, taken against a copy of this workbench.
+dinah-514 carries thirty comments and sixty-five checklist items today, which
+is one item more than the sixty-four the specification computed over.
+
+```
+                                                  bytes    tokens
+
+  show dinah-514, trunk                          411365     68773
+  show dinah-514, this card                       36963      5219
+  saving on one read                             374402     63554
+
+  the two indexes, measured
+    --fields comments                              5198      1401
+    --fields checklist                            28849      3163
+    the pair                                      34047      4564
+  the same pair, derived in the specification     17371      ~4300
+
+  the recovery, and the calls that replace it
+    --fields comments.full                       233513     53000
+    show dinah-514/comments/30                     1476       406
+    --fields card,comments --since 28             17905      4255
+    --unresolved --fields card,checklist            448       105
+```
+
+The derived figure for the comment index held: 195 bytes a row against a
+measured 173. The checklist index is twice what the derivation said, and the
+reason is the wrap rather than the cap. An item's first line is carried to a
+hundred and twenty runes and the terminal's checklist column is narrower than
+that, so a row draws over five or six lines and each continuation carries
+fifty-odd columns of leading pad. The derivation counted a hundred and eighty
+bytes for one line of text and the block draws four hundred and fifty-one.
+Both figures are recomputable: thirty comments at 173 bytes and sixty-five
+items at 444.
+
+### The recovery round, measured on this instrument
+
+The specification's arithmetic rested on a rescaled per-round cost of about
+20,000 tokens, because nobody had measured a recovery. This run measures one.
+A station reads the card shaped, at 733 tokens for `card,body,links,attachments`
+on dinah-514, and then reads the same card's `comments.full`, at 53,000. The
+round itself costs the conversation resent, which on the verb run above is
+461,911 tokens over thirteen requests, or about 35,500 a round. So the worst
+recovery this surface offers costs roughly 88,500 tokens, and the saving on
+one read is 63,554.
+
+That worst case is the one nobody performs, and the three rows under it are
+why. A station wanting one comment reads it by ordinal for 406 tokens. A
+station wanting the handoffs written since it last looked writes `--since 28`
+and pays 4,255 in the round that opened the card, with no second round at all.
+A station at Acceptance asking what still holds the card writes `--unresolved`
+and pays 105 where the same question cost 15,677 before. The filters are what
+keep the recovery rate near zero, which is the whole reason the four changes
+shipped as one card.
+
+The honest statement of the trade is therefore neither of the two simple ones.
+Recovering the whole comment set costs more than the old default saved, so a
+station that recovers on every read is worse off by about one round. No
+station does that, because the question a station actually has is answered by
+a filter, and the arithmetic for the station that does not recover is 63,554
+tokens saved against 115 tokens of block per round.

@@ -1975,6 +1975,16 @@
       "context": "Heading over the reference a person types to reach the comment, in the comments block of `dinah show`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "9ff1e019feac1ee2"
     },
+    "column.comments.size": {
+      "text": "Größe",
+      "context": "Heading over how many bytes the comment's body runs to, in the comments of `dinah show`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "source": "78789724e789221c"
+    },
+    "column.comments.subject": {
+      "text": "Betreff",
+      "context": "Heading over the comment's first line, in the comments of `dinah show`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "source": "bbc53e0e54d7946f"
+    },
     "column.comments.when": {
       "text": "Wann",
       "context": "Heading over when the comment was written, in the comments of `dinah show`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
@@ -3403,6 +3413,11 @@
       "context": "The sentence printed under show.withheld, telling the reader how to be served a member that was held back. {reread} is the card's own reference. The flag spelling inside it is syntax and stays as it is.",
       "source": "f341fc582260bf03"
     },
+    "show.refilter": {
+      "text": "Diese Karte führt mehr von diesen Bestandteilen, als diese Antwort ausgegeben hat. Lesen Sie {reread} erneut, nennen Sie die gewünschten Bestandteile in --fields und lassen Sie {flags} weg.",
+      "context": "The sentence printed under show.withheld in place of show.reread when a filter narrowed the answer. Naming the member again would serve no more of it, because the caller has already named it and the flag is what dropped the rest, so this sentence names both levers. {reread} is the card's own reference and {flags} is the flag words the caller wrote. Those words and the flag spelling inside the sentence are syntax and stay as they are.",
+      "source": "5a8fd07727da9955"
+    },
     "show.collection.empty": {
       "text": "{ref} enthält nichts.",
       "context": "Printed when `dinah show` is asked for a collection that has no members. No text follows and the call succeeds, because a collection holding nothing is an answer rather than a mistake. It reads as attachments.empty and contents.empty read, since the three commands are answering the same shape of question.",
@@ -4139,9 +4154,19 @@
       "source": "d9ac8e6674501327"
     },
     "param.show.fields.summary": {
-      "text": "welche Bestandteile der Karte die Antwort führt, als kommagetrennte Liste geschrieben; alle Bestandteile, wenn Sie keinen nennen",
-      "context": "The meaning of the fields argument of `dinah show`, printed in that command's arguments table. The table appends the closed set of member names after this sentence, read off the tool, so the sentence does not spell the set itself.",
-      "source": "d9fd26ca9e82957c"
+      "text": "welche Bestandteile der Karte die Antwort führt, als kommagetrennte Liste geschrieben; alle Bestandteile, wenn Sie keinen nennen, wobei die Kommentare und die Prüfliste als Verzeichnis ausgegeben werden, und ein Name, der auf .full endet, gibt die Texte dieser Sammlung aus",
+      "context": "The meaning of the fields argument of `dinah show`, printed in that command's arguments table. The table appends the closed set of names a caller may write after this sentence, read off the tool, so the sentence does not spell the set itself.",
+      "source": "504eea1c32ecf740"
+    },
+    "param.show.since.summary": {
+      "text": "die Texte der Kommentare nach dieser einsbasierten Ordnungszahl ausgeben, für die übrigen nur das Verzeichnis",
+      "context": "The meaning of the since argument of `dinah show`, printed in that command's arguments table. The word is spelled as it is on `dinah changes`, and this sentence is where the two part: that one takes an opaque cursor and this one takes a comment's position.",
+      "source": "d86456467a8e062b"
+    },
+    "param.show.unresolved.summary": {
+      "text": "nur die Prüflistenpunkte ausgeben, deren Zustand eine Spaltensperre nicht aufhebt, also die offenen, die fehlgeschlagenen und jeden Punkt, dessen Zustand das Format nicht erklärt",
+      "context": "The meaning of the unresolved argument of `dinah show`, printed in that command's arguments table. The state words it stands over are machine vocabulary a reader meets on the item itself.",
+      "source": "61e5cd88ea104a9e"
     },
     "param.version.catalogs.summary": {
       "text": "jede mitgelieferte Sprache melden und wie weit sie übersetzt ist",

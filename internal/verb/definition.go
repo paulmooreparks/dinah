@@ -190,7 +190,7 @@ var vocabularies = map[string]Vocabulary{
 	// admitting a declared key.
 	"entity-field": {Values: bench.AllFields(), Source: "fields"},
 	"column-kind":  {Values: contract.Kinds},
-	"detail-field": {Values: DetailFields},
+	"detail-field": {Values: DetailSelectors},
 	"item-kind":    {Values: bench.ItemKinds},
 	"topic":        {Source: "guides"},
 	"column":       {Source: "columns"},
@@ -527,10 +527,20 @@ var params = map[string][]Param{
 	// it on show and on no other tool, a person at a terminal gains
 	// --fields for free, and the selection lives in Library.Show so the two
 	// heads reach one act and differ only in what they ask for.
+	//
+	// since and unresolved are declared here for the same reason, and the
+	// word since is the word a reader reaches for on this verb as much as on
+	// changes. Neither declares Shared, because Shared names the argument
+	// whose written meaning a parameter takes and these two meanings differ:
+	// changes takes an opaque cursor and show takes a one-based ordinal. Each
+	// publishes its own value name and writes its own sentence, which is
+	// where the difference is stated.
 	"show": {
 		{Name: "card", Display: "ref", Required: true, Guide: "references", Field: "Card"},
 		{Name: "fields", Flag: true, Value: "list", Vocabulary: "detail-field", Field: "Fields"},
 		{Name: "archived", Flag: true, Marker: true, Shared: "archived", Field: "Archived"},
+		{Name: "since", Flag: true, Value: "ordinal", Field: "SinceComment"},
+		{Name: "unresolved", Flag: true, Marker: true, Field: "Unresolved"},
 	},
 	// Every argument of changes is a flag, including the two a read usually
 	// takes positionally, because the cursor is the argument a caller reaches

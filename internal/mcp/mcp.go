@@ -786,7 +786,7 @@ func request2Args(command string, arguments map[string]any) *verb.Request {
 			continue
 		}
 		text, _ := value.(string)
-		assignValue(req, param.Name, text)
+		assignValue(req, param.Name, param.Field, text)
 	}
 	if actor, ok := arguments["actor"].(string); ok {
 		req.Actor = actor
@@ -881,8 +881,12 @@ func checkArguments(t tool, arguments map[string]any) error {
 	return &unknownArgument{tool: t.name, names: unknown, accepted: accepted}
 }
 
-// assignValue puts one named string argument on the request.
-func assignValue(req *verb.Request, name, value string) {
+// assignValue puts one named string argument on the request. The declared
+// field rides beside the name because one word is not always one field: show
+// and changes both take an argument spelled since, and the two mean different
+// things, so the table is what says which field the value lands on rather
+// than the spelling.
+func assignValue(req *verb.Request, name, field, value string) {
 	switch name {
 	case "card":
 		req.Card = value
@@ -913,6 +917,13 @@ func assignValue(req *verb.Request, name, value string) {
 	case "column":
 		req.Column = value
 	case "since":
+		// changes takes the opaque cursor a checkpoint handed back and show
+		// takes a comment's one-based ordinal. Neither field may hold the
+		// other's value, so the split is read off the declaration.
+		if field == "SinceComment" {
+			req.SinceComment = value
+			break
+		}
 		req.Since = value
 	case "query":
 		req.Query = value
@@ -982,6 +993,8 @@ func assignMarker(req *verb.Request, name string, value bool) {
 		req.Confirm = value
 	case "ready":
 		req.ReadyOnly = value
+	case "unresolved":
+		req.Unresolved = value
 	case "finish":
 		req.Finish = value
 	case "migrate-ordinals":

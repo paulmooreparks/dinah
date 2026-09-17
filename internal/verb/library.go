@@ -303,6 +303,19 @@ type Request struct {
 	// what show has always answered, so no head diverges from another on an
 	// unasked question.
 	Fields string
+	// SinceComment is show's comment ordinal, carried byte for byte as the
+	// caller wrote it, since Library.Show parses it for the reason Fields
+	// above gives. An answer shaped by it serves the body of every comment
+	// past that ordinal and the index alone for the rest.
+	//
+	// It is not called Since. Since above is the opaque cursor a checkpoint
+	// hands back, one struct cannot declare a name twice, and binding show's
+	// ordinal to that field would make that field's own comment false.
+	SinceComment string
+	// Unresolved narrows show's checklist to the items whose state releases
+	// no column hold, which are the pending items, the failed ones, and any
+	// item whose state the format does not declare.
+	Unresolved bool
 	// HeldChain is the set of instruction-layer keys this caller's connection
 	// has already been sent and has not yet re-served, each one written
 	// <actor> + "\x00" + <text revision>. The MCP head fills it from its own

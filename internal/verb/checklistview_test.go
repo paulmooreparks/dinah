@@ -41,7 +41,6 @@ func TestShowCarriesEveryChecklistItemTheCardHolds(t *testing.T) {
 		{
 			ID: "b00000000003", Ordinal: 3, Ref: ref + "/decisions/1", Kind: "decision",
 			State: "resolved", Text: "Whose contract the numbers come from.",
-			Note: "the operator confirmed it's Acme per the 2026-08 contract",
 		},
 	}
 	if len(detail.Checklist) != len(wanted) {
@@ -56,6 +55,40 @@ func TestShowCarriesEveryChecklistItemTheCardHolds(t *testing.T) {
 	// alone, and a criterion never blocks, so one of the three is the answer.
 	if detail.Card.BlockingItems != 1 {
 		t.Errorf("the card's blocking count is %d, wanted 1", detail.Card.BlockingItems)
+	}
+
+	// The resolution note is the one member the unshaped read stopped
+	// carrying, so the same three items are read again in full and the note
+	// is what the second read is for. Asserting it here rather than in a
+	// file of its own keeps the index and the full form beside each other,
+	// where a reader comparing the two reads one fixture.
+	whole, _, _, _, err := h.library.Show(&Request{
+		Verb: "show", Actor: "alka", Card: ref, Fields: "checklist.full",
+	})
+	if err != nil {
+		t.Fatalf("show in full: %v", err)
+	}
+	if len(whole.Checklist) != len(wanted) {
+		t.Fatalf("wanted %d items in full, got %d", len(wanted), len(whole.Checklist))
+	}
+	const note = "the operator confirmed it's Acme per the 2026-08 contract"
+	if got := whole.Checklist[2].Note; got != note {
+		t.Errorf("checklist.full carries the note %q, wanted %q", got, note)
+	}
+	notes := 0
+	for _, item := range whole.Checklist {
+		if item.Note != "" {
+			notes++
+		}
+	}
+	if notes != 1 {
+		t.Errorf("one of the three items carries a note and checklist.full filled %d", notes)
+	}
+	for _, name := range whole.Withheld {
+		if name == "checklist" || name == "checklist.full" {
+			t.Errorf("checklist.full announced %s, and it carried every item and every note: %v",
+				name, whole.Withheld)
+		}
 	}
 }
 

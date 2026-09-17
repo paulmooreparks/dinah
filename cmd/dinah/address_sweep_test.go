@@ -699,7 +699,8 @@ func addressCases() []addressCase {
 		{
 			site: show, label: "show, comments block",
 			argv: []string{"show", "fx-1"}, at: 0,
-			wantHeadings: []string{"column.comments.ref", "column.comments.when", "column.comments.who"},
+			wantHeadings: []string{"column.comments.ref", "column.comments.when", "column.comments.who",
+				"column.comments.subject", "column.comments.size"},
 			// The expectation is composed here rather than read off the
 			// payload, and that is the one case in this sweep where it has to
 			// be. Both heads fill a comment's reference from one composer, so

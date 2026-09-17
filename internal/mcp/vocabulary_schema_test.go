@@ -165,7 +165,7 @@ func TestTheSchemaPublishesEachVocabularyAndDurationKeyExactlyWhereTheTableDecla
 // with the list placeholder is split on commas before any member is checked,
 // so no such parameter may publish an enum, and the members it does publish
 // have to be the set its own parser validates against, which for show's
-// fields argument is verb.DetailFields rather than a copy of it.
+// fields argument is verb.DetailSelectors rather than a copy of it.
 func TestNoListValuedParameterPublishesAnEnum(t *testing.T) {
 	checked := 0
 	for _, served := range tools {
@@ -191,8 +191,8 @@ func TestNoListValuedParameterPublishesAnEnum(t *testing.T) {
 				t.Errorf("%s.%s publishes no members, so a client is left with a bare string where a bounded set exists", served.name, param.Name)
 				continue
 			}
-			if !reflect.DeepEqual(published, verb.DetailFields) {
-				t.Errorf("%s.%s publishes the members %v, wanted the set its parser checks against, %v", served.name, param.Name, published, verb.DetailFields)
+			if !reflect.DeepEqual(published, verb.DetailSelectors) {
+				t.Errorf("%s.%s publishes the members %v, wanted the set its parser checks against, %v", served.name, param.Name, published, verb.DetailSelectors)
 			}
 		}
 	}
