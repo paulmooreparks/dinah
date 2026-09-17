@@ -321,12 +321,6 @@ def bundled(arguments, letters):
     return False
 
 
-def colon_refspec(argument):
-    if argument.startswith("-") or ":" not in argument:
-        return False
-    return "://" not in argument and "@" not in argument
-
-
 def dangerous(subcommand, arguments):
     """The deny set, decided over an argument vector the shell produced."""
     if subcommand is None:
@@ -344,36 +338,12 @@ def dangerous(subcommand, arguments):
     if subcommand == "switch" and (bundled(arguments, "f")
                                    or has(arguments, "--force", "--discard-changes")):
         return "switch -f/--force/--discard-changes"
-    if subcommand == "push":
-        if has(arguments, "--force") or bundled(arguments, "f"):
-            return "push --force"
-        if has(arguments, "--delete") or bundled(arguments, "d"):
-            return "push --delete"
-        if any(colon_refspec(argument) for argument in arguments):
-            return "push a colon refspec"
-        return None
     if subcommand == "stash" and (not arguments or arguments[0] not in ("list", "show")):
         return "stash (mutating)"
-    if subcommand == "commit":
-        return "commit"
-    if subcommand in ("merge", "rebase", "cherry-pick", "revert", "am"):
-        return subcommand
-    if subcommand == "apply" and not has(arguments, "--check", "--stat"):
-        return "apply"
     if subcommand == "rm" and not has(arguments, "--cached"):
         return "rm"
-    if subcommand == "mv":
-        return "mv"
-    if subcommand == "bisect" and (not arguments or arguments[0] not in ("log", "view")):
-        return "bisect"
-    if subcommand == "pull" and not has(arguments, "--ff-only"):
-        return "pull (may merge)"
     if subcommand == "worktree" and arguments and arguments[0] == "remove":
         return "worktree remove"
-    if subcommand == "branch" and (has(arguments, "--delete") or bundled(arguments, "dD")):
-        return "branch -d/-D"
-    if subcommand == "tag" and (has(arguments, "--delete") or bundled(arguments, "d")):
-        return "tag -d"
     return None
 
 
@@ -392,25 +362,10 @@ VERBS = [
     "git restore seed.txt",
     "git switch -f main",
     "git switch --discard-changes main",
-    "git push --force origin topic",
-    "git push origin --delete topic",
-    "git push origin :topic",
     "git stash pop",
     "git stash",
-    "git commit -m wip",
-    "git merge origin/main",
-    "git rebase origin/main",
-    "git cherry-pick abc1234",
-    "git revert abc1234",
-    "git am patch.mbox",
-    "git apply patch.diff",
     "git rm seed.txt",
-    "git mv seed.txt other.txt",
-    "git bisect start",
-    "git pull origin main",
     "git worktree remove old",
-    "git branch -D topic",
-    "git tag -d v1.0",
 ]
 
 
@@ -702,7 +657,7 @@ def two_in_one_span(linked, stub):
     """
     shapes = []
     reader = 'git -C "%s" stash list' % linked
-    writer = 'git -C "%s" commit -m wip' % linked
+    writer = 'git -C "%s" stash pop' % linked
     for command, (how, word) in itertools.product(
             VERBS, second_invocation_spellings(stub)):
         inner = word + " " + command[len("git "):]
@@ -742,16 +697,7 @@ RELAXATION = "declared relaxation: "
 # The deny-set verbs a path segment can trip on its own. The rules left
 # out want a flag as well, or a second word, and a directory name
 # supplies neither, so a path alone never reached them.
-PATH_VERBS = ["restore", "stash", "commit", "merge", "rebase", "cherry-pick",
-              "revert", "am", "apply", "rm", "mv", "bisect", "pull"]
-
-# The two verbs the deployed guard already excluded a trailing hyphen
-# after, so that `merge-base` and `rebase-todo` stayed out of its rules.
-# A segment beginning with one of them was therefore never refused, and
-# claiming it as a relaxation would claim something the trunk never did.
-# The fast suite still holds both shapes, because there the question is
-# what the guard does rather than what it stopped doing.
-HYPHEN_EXCLUDED = ("merge", "rebase")
+PATH_VERBS = ["restore", "stash", "rm"]
 
 
 def slashed(path):
@@ -793,10 +739,21 @@ def relaxations(checkout, verbnamed):
         for shape, segment in (("ending a segment", "card-%s" % name),
                                ("beginning a segment", "%s-fixture" % name),
                                ("standing as a whole segment", name)):
-            if shape == "beginning a segment" and name in HYPHEN_EXCLUDED:
-                continue
             shapes.append((RELAXATION + "%s %s of a -C path" % (name, shape),
                            "git -C %s/%s/wt rev-parse HEAD" % (scratch, segment)))
+    # The verbs dinah-533 took out of the deny set, and the heredoc body
+    # it made data. Each is a string the deployed guard refuses and this
+    # branch allows, declared so the run knows the relaxation is meant.
+    for command in ("git commit -m wip", "git merge origin/main", "git rebase origin/main",
+                    "git cherry-pick abc1234", "git revert abc1234", "git am patch.mbox",
+                    "git apply patch.diff", "git mv seed.txt other.txt", "git bisect start",
+                    "git pull origin main", "git push --force origin topic",
+                    "git push origin --delete topic", "git push origin :topic",
+                    "git branch -D topic", "git tag -d v1.0"):
+        shapes.append((RELAXATION + command + " left the deny set", command))
+    for marker in ("EOF", "'EOF'", '"EOF"'):
+        shapes.append((RELAXATION + "a heredoc body under %s is data" % marker,
+                       "cat <<%s\ngit re%s\nEOF" % (marker, "set --hard origin/main")))
     shapes.append((RELAXATION + "a status read through a merge-stage path",
                    "git -C %s/dinah-250-merge/wt status --short" % scratch))
     shapes.append((RELAXATION + "the board's own merge-stage worktree is created",

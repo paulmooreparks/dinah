@@ -21,6 +21,21 @@ run; it asks whether the command says where it runs. A spelling the guard
 has never heard of cannot help a command through, because nothing the
 command says can grant permission except the one thing the guard reads.
 
+A heredoc body is data and is blanked before the rules read it, by the
+rule the shell applies to the body: a quoted marker (`<<'EOF'`) makes
+the body data throughout, and an unquoted one leaves a command
+substitution live inside it, so the body is blanked like a single-quoted
+or a double-quoted span respectively. This is not the retired parser's
+heredoc handling coming back. Nothing in a body grants permission,
+because nothing in a body is ever read as an invocation; blanking can
+only take text away from the allowed side. A body whose terminator is
+never found blanks nothing, and a second heredoc opened on the same
+line as the first is not followed, so both err toward refusal. `<<<` is
+a here-string and opens nothing. Before this, the sentence "git notes is
+the same shape for commit metadata" written into a card body through a
+heredoc was refused as a commit, and prose was refused more often than
+commands were.
+
 The payload's `cwd` is not consulted, and that is a choice rather than an
 oversight. A conditional form, requiring `-C` only when the session
 reports itself standing in the operator's checkout, reopens a leak this
@@ -262,17 +277,24 @@ in a linked worktree, where the per-worktree git dir sits under
 depends on where a worktree is created, so the guard stays correct if the
 convention moves.
 
-The deny set is chosen rather than inherited. What is refused: reset
+The deny set is chosen rather than inherited, and it is the set of
+verbs that destroy uncommitted work in the local checkout: reset
 --hard/--merge/--keep, clean with -f/-d/-x, checkout -- / -f, restore of
-the working tree, push --force, push --force-with-lease at main or
-master, stash other than list and show, commit, merge, rebase,
-cherry-pick, revert, am, apply without --check or --stat, rm without
---cached, mv, bisect other than log and view, switch with
--f/--force/--discard-changes, pull without --ff-only, worktree remove,
-branch -d/-D, tag -d, and push with --delete or a colon refspec. The ref
-deletions are refused because refs are shared across every worktree of
-the repository, so deleting one reaches into whatever another agent is
-standing on.
+the working tree, switch with -f/--force/--discard-changes, stash other
+than list and show, rm without --cached, and worktree remove. The
+checkout is where this workbench lives as uncommitted state, and nothing
+on the remote gives that back.
+
+The set used to be wider: commit, merge, rebase, cherry-pick, revert, am,
+apply, mv, bisect, pull, every push rule, and the branch and tag
+deletions were all refused. They are not any more (dinah-533). The
+repository's trunk is protected on the remote and takes pull requests
+only, so a stray commit, a merge or a forced push at trunk is refused by
+GitHub whether or not this guard exists, and none of the rest destroys
+anything the reflog or the remote cannot restore. Those verbs were also
+the everyday English words (commit, merge, apply, pull, revert) that made
+prose trip the guard, and the false positives outnumbered the refusals
+that mattered.
 
 Outside the deny set entirely, so a bare form of each is unaffected
 wherever it runs: worktree add, list, and prune; plain checkout and
@@ -282,24 +304,23 @@ clears the administrative record for a directory that is already gone,
 skips a locked worktree, and destroys no commits, and it is the only way
 to finish the cleanup the board's safety document requires.
 
-What this costs is stated rather than discovered. A bare `git commit`
+What this costs is stated rather than discovered. A bare `git stash`
 typed inside a worktree is refused, including by the operator in his own
 session. The board's own agents are unaffected, because the
 explicit-path discipline dinah-228 installs already requires `git -C
 <worktree>` on every git command from every stage. A `-C` whose path is
-held in a shell variable is refused as well, so `git -C $WT commit` and
-`git -C "$WT" commit` do not pass; the guard reads text, and `$WT` names
-a directory only once a shell has expanded it, which is why the refusal
-calls the path relative. A pattern reading a span rather than a parse
-tree also refuses a little more than a parser would: `git log --grep
-commit` carries the word `commit` outside quotes and is refused, and
-quoting the word clears it. The one-git-word-per-span rule has its own
-cost, and it falls on a command substitution inside a deny-set
-invocation, so `git -C <worktree> commit -m "wip" $(git -C <worktree>
-rev-parse HEAD)` and `git -C <worktree> cherry-pick $(git -C <worktree>
-rev-parse HEAD)` are refused although both of their invocations name the
+held in a shell variable is refused as well, so `git -C $WT stash pop`
+and `git -C "$WT" stash pop` do not pass; the guard reads text, and
+`$WT` names a directory only once a shell has expanded it, which is why
+the refusal calls the path relative. A pattern reading a span rather
+than a parse tree also refuses a little more than a parser would: `git
+log --grep stash` carries the word `stash` outside quotes and is refused,
+and quoting the word clears it. The one-git-word-per-span rule has its
+own cost, and it falls on a command substitution inside a deny-set
+invocation, so `git -C <worktree> stash pop $(git -C <worktree>
+rev-parse HEAD)` is refused although both of its invocations name the
 same worktree. The same rule refuses an unquoted `-C` whose path carries
-a git component, as `git -C /home/x/git/repo commit`, because those
+a git component, as `git -C /home/x/git/repo stash pop`, because those
 letters between two separators are what a git word looks like; quoting
 the path clears it, and the board's own worktrees carry no such
 component. Double-quoting the substitution does not clear those and
@@ -435,13 +456,6 @@ def rule(*parts):
     return re.compile("".join(parts), re.IGNORECASE)
 
 
-# A colon refspec, as in `git push origin :topic` or
-# `git push origin HEAD:refs/heads/x`. A remote spelled as a URL carries a
-# colon too, so `://` and a `user@host` prefix are both excluded.
-COLON_REFSPEC = WORD_START + r"(?!-)[^\s:@" + re.escape(BOUNDARY_CHARACTERS) + r"]*:(?!//)"
-
-ANYWHERE_COLON_REFSPEC = r"(?!-)[^\s:@" + re.escape(BOUNDARY_CHARACTERS) + r"]*:(?!//)"
-
 # The bare `--` that ends git's own options, which is what makes
 # `git checkout -- .` a discard of the working tree rather than a branch
 # switch.
@@ -449,14 +463,8 @@ SEPARATOR = WORD_START + r"--(?![\w.=-])"
 
 ANYWHERE_SEPARATOR = r"--(?![\w.=-])"
 
-# `merge-base` and `rebase-todo` are not the verbs, and the second
-# reading has to say so itself because a plain `\b` ends a word at a
-# hyphen. WORD_END already refuses the hyphen in the first reading,
-# where this lookahead is redundant and harmless.
-NOT_HYPHENATED = r"(?!-)"
 
-
-def denied(verb, flag, short, colon, separator):
+def denied(verb, flag, short, separator):
     r"""The deny set, spelled with one set of word boundaries.
 
     Called twice, and the two calls are the whole of the difference
@@ -465,11 +473,6 @@ def denied(verb, flag, short, colon, separator):
     patterns in step is what produced the counting defect recorded
     further down this file.
 
-    The operand of the `--force-with-lease` rule takes no boundary from
-    the caller, because a plain `\b` is right there under either reading.
-    A ref is written `refs/heads/main` and `HEAD:refs/heads/main` as
-    readily as `main`, so requiring `main` to be a whole shell word would
-    clear a forced push at the trunk.
     """
     return [
         (rule(GIT, GAP, verb("reset"), GAP, flag("--hard", "--merge", "--keep")),
@@ -486,49 +489,24 @@ def denied(verb, flag, short, colon, separator):
         (rule(GIT, GAP, verb("switch"), GAP, "(?:", short("f"),
               "|", flag("--force", "--discard-changes"), ")"),
          "git switch -f/--force/--discard-changes"),
-        (rule(GIT, GAP, verb("push"), GAP, "(?:", flag("--force(?!-with-lease)"),
-              "|", short("f"), ")"),
-         "git push --force"),
-        (rule(GIT, GAP, verb("push"), GAP, flag("--force-with-lease"), GAP,
-              r"\b(?:main|master)\b"),
-         "git push --force-with-lease to main/master"),
-        (rule(GIT, GAP, verb("push"), GAP, "(?:", flag("--delete"), "|", short("d"), "|",
-              colon, ")"),
-         "git push --delete / colon refspec"),
         (rule(GIT, GAP, verb("stash"), r"(?!\s+(?:list|show)\b)"),
          "git stash (mutating)"),
-        (rule(GIT, GAP, verb("commit")), "git commit"),
-        (rule(GIT, GAP, verb("merge"), NOT_HYPHENATED), "git merge"),
-        (rule(GIT, GAP, verb("rebase"), NOT_HYPHENATED), "git rebase"),
-        (rule(GIT, GAP, verb("cherry-pick")), "git cherry-pick"),
-        (rule(GIT, GAP, verb("revert")), "git revert"),
-        (rule(GIT, GAP, verb("am")), "git am"),
-        (rule(GIT, GAP, verb("apply"), "(?!", GAP, flag("--check", "--stat"), ")"),
-         "git apply"),
         (rule(GIT, GAP, verb("rm"), "(?!", GAP, flag("--cached"), ")"), "git rm"),
-        (rule(GIT, GAP, verb("mv")), "git mv"),
-        (rule(GIT, GAP, verb("bisect"), r"(?!\s+(?:log|view)\b)"), "git bisect"),
-        (rule(GIT, GAP, verb("pull"), "(?!", GAP, flag("--ff-only"), ")"),
-         "git pull (may merge)"),
         (rule(GIT, GAP, verb("worktree"), GAP, verb("remove")), "git worktree remove"),
-        (rule(GIT, GAP, verb("branch"), GAP, "(?:", flag("--delete"), "|", short("d"), ")"),
-         "git branch -d/-D"),
-        (rule(GIT, GAP, verb("tag"), GAP, "(?:", flag("--delete"), "|", short("d"), ")"),
-         "git tag -d"),
     ]
 
 
 # The first reading, where a verb has to stand as a whole shell word.
 # This is the reading that stopped `merge` being found inside
 # `dinah-249-merge`.
-DENIED = denied(verb, flag, short, COLON_REFSPEC, SEPARATOR)
+DENIED = denied(verb, flag, short, SEPARATOR)
 
 # The second reading, for a span whose punctuation the shell may be
 # about to eat. `offender` runs these only where EXPANSION matches the
 # span, so the path-shaped false positives the first reading removes
 # stay removed everywhere else.
 DENIED_ANYWHERE = denied(anywhere_verb, anywhere_flag, anywhere_short,
-                         ANYWHERE_COLON_REFSPEC, ANYWHERE_SEPARATOR)
+                         ANYWHERE_SEPARATOR)
 
 # The punctuation that introduces or delimits an expansion, a
 # substitution, or a grouping a shell can expand. Its presence anywhere
@@ -710,9 +688,71 @@ def open_substitutions(text):
     return SUBSTITUTION.sub(replace, text)
 
 
+# A heredoc opener: `<<` or `<<-`, then the marker, which may be quoted
+# or backslash-escaped. A here-string (`<<<`) opens nothing, and the two
+# lookarounds are what say so. The marker's class refuses the characters
+# that end a word or begin a redirection, and nothing more, so a marker
+# carrying a hyphen or beginning with a digit is read as the shell reads
+# it; those two spellings are two of the retired parser's leaks, and
+# they leaked there because that design granted permission on what it
+# parsed. Nothing here grants anything.
+HEREDOC = re.compile(r"(?<!<)<<(-?)[ \t]*(?:\\(\S+)|'([^'\n]*)'|\"([^\"\n]*)\"|([^\s<>|;&()]+))")
+
+
+def blank_heredocs(text):
+    """`text` with each heredoc body blanked as the shell reads the body.
+
+    A body under a quoted or backslash-escaped marker is data throughout
+    and is blanked like a single-quoted span. A body under an unquoted
+    marker keeps its command substitutions, like a double-quoted span.
+    The body runs from the line after the opener to the line that is the
+    marker alone, with leading tabs stripped when the opener is `<<-`.
+    Newlines inside the body are kept, so every boundary the text had is
+    still a boundary. A body whose terminator is never found is left as
+    it is, which errs toward refusal like every other normalisation in
+    this file, and a second opener on the opener's own line is not
+    followed, for the same reason. Same length out as in.
+    """
+    out = text
+    position = 0
+    while True:
+        opener = HEREDOC.search(text, position)
+        if opener is None:
+            return out
+        position = opener.end()
+        strip = opener.group(1) == "-"
+        quoted = opener.group(5) is None
+        marker = opener.group(2) or opener.group(3) or opener.group(4) or opener.group(5)
+        if not marker:
+            continue
+        newline = text.find("\n", opener.end())
+        if newline < 0:
+            continue
+        start = newline + 1
+        end = None
+        cursor = start
+        while cursor <= len(text):
+            stop = text.find("\n", cursor)
+            line = text[cursor:stop if stop >= 0 else len(text)]
+            if (line.lstrip("\t") if strip else line) == marker:
+                end = cursor
+                break
+            if stop < 0:
+                break
+            cursor = stop + 1
+        if end is None:
+            continue
+        body = text[start:end]
+        kept = blank_around_substitutions(body) if not quoted else " " * len(body)
+        blanked = "".join(original if original == "\n" else replacement
+                          for original, replacement in zip(body, kept))
+        out = out[:start] + blanked + out[end:]
+        position = end
+
+
 def normalise(command):
     """The command as the patterns read it, character for character."""
-    folded = blank(command, CONTINUATION)
+    folded = blank_heredocs(blank(command, CONTINUATION))
     unquoted = unquote_spans(folded)
     redirected = blank(unquoted, REDIRECTION)
     return open_substitutions(redirected)

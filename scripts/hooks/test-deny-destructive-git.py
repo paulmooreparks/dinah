@@ -184,8 +184,7 @@ def hook_reason(command, cwd):
 # flag as well (reset, clean, checkout, switch, push, branch, tag) or a
 # second word (worktree remove), and a path segment does not supply one,
 # so there was nothing for a path alone to trip.
-PATH_VERBS = ["restore", "stash", "commit", "merge", "rebase", "cherry-pick",
-              "revert", "am", "apply", "rm", "mv", "bisect", "pull"]
+PATH_VERBS = ["restore", "stash", "rm"]
 
 
 # Every verb the guard refuses. Each one is run six ways, and the first
@@ -198,29 +197,13 @@ MUTATING = [
     ("checkout -- .", "git checkout -- ."),
     ("checkout -f", "git checkout -f main"),
     ("restore a path", "git restore seed.txt"),
-    ("push --force", "git push --force origin topic"),
     ("stash pop", "git stash pop"),
     ("stash with no subcommand", "git stash"),
-    ("commit", 'git commit -m "wip"'),
-    ("merge", "git merge origin/main"),
-    ("rebase", "git rebase origin/main"),
-    ("cherry-pick", "git cherry-pick abc1234"),
-    ("revert", "git revert abc1234"),
-    ("am", "git am patch.mbox"),
-    ("apply", "git apply patch.diff"),
     ("rm", "git rm seed.txt"),
-    ("mv", "git mv seed.txt other.txt"),
-    ("bisect start", "git bisect start"),
-    ("pull without --ff-only", "git pull origin main"),
     ("switch -f", "git switch -f main"),
     ("switch --force", "git switch --force main"),
     ("switch --discard-changes", "git switch --discard-changes main"),
     ("worktree remove", "git worktree remove old"),
-    ("branch -d", "git branch -d topic"),
-    ("branch -D", "git branch -D topic"),
-    ("tag -d", "git tag -d v1.0"),
-    ("push --delete", "git push origin --delete topic"),
-    ("push a colon refspec", "git push origin :topic"),
 ]
 
 # Ordinary work the guard has no business refusing, wherever it runs and
@@ -253,6 +236,25 @@ ORDINARY = [
     ("reset without --hard", "git re" + "set HEAD~1"),
     ("restore --staged only", "git restore --staged seed.txt"),
     ("push --force-with-lease to a topic", "git push --force-with-lease origin topic"),
+
+    # The verbs dinah-533 took out of the deny set. The remote refuses
+    # what matters among them, and none destroys uncommitted work.
+    ("commit", 'git commit -m "wip"'),
+    ("merge", "git merge origin/main"),
+    ("rebase", "git rebase origin/main"),
+    ("cherry-pick", "git cherry-pick abc1234"),
+    ("revert", "git revert abc1234"),
+    ("am", "git am patch.mbox"),
+    ("apply", "git apply patch.diff"),
+    ("mv", "git mv seed.txt other.txt"),
+    ("bisect start", "git bisect start"),
+    ("pull without --ff-only", "git pull origin main"),
+    ("push --force", "git push --force origin topic"),
+    ("push --force-with-lease to main", "git push --force-with-lease origin main"),
+    ("push --delete", "git push origin --delete topic"),
+    ("push a colon refspec", "git push origin :topic"),
+    ("branch -D", "git branch -D topic"),
+    ("tag -d", "git tag -d v1.0"),
 ]
 
 
@@ -418,8 +420,7 @@ def cases(root, main, linked, spaced, nested, componented, verbnamed):
     # must not cost a command its permission, so a qualifying invocation
     # keeps it in every one of those spellings, and so does ordinary work.
     for name, command in [entry for entry in MUTATING
-                          if entry[0] in ("reset --hard", "clean -fdx", "commit",
-                                          "branch -D", "push --delete")]:
+                          if entry[0] in ("reset --hard", "clean -fdx", "stash pop")]:
         for shape, spelled in glued_shapes(qualified(command, linked)):
             table.append(("%s, -C a worktree, %s" % (name, shape), spelled, main, ALLOW))
 
@@ -445,8 +446,8 @@ def cases(root, main, linked, spaced, nested, componented, verbnamed):
                               spelled, main, DENY))
 
     for name, assignment, form in EXPANSIONS:
-        table.append(("commit, the verb inside %s, -C a worktree" % name,
-                      '%sgit -C "%s" %s -m wip' % (assignment, linked, form % "commit"),
+        table.append(("stash pop, the verb inside %s, -C a worktree" % name,
+                      '%sgit -C "%s" %s pop' % (assignment, linked, form % "stash"),
                       main, ALLOW))
 
     for name, command in leaks(linked):
@@ -488,7 +489,7 @@ def cases(root, main, linked, spaced, nested, componented, verbnamed):
         # to answer that before it normalises anything, because the
         # normaliser is handed a string and `None` is not one.
         ("a trailing -C names no directory",
-         'git -C "%s" commit -m wip -C' % linked, main, DENY),
+         'git -C "%s" stash pop -C' % linked, main, DENY),
         ("a trailing -C on a bare invocation is still refused",
          "git re" + "set --hard -C", main, DENY),
         ("-C a directory that no longer exists",
@@ -548,6 +549,42 @@ def cases(root, main, linked, spaced, nested, componented, verbnamed):
          'git commit -m "oops && git clean -fd', main, DENY),
         ("a bare apostrophe tokenises and is judged",
          "git commit -m it's && git clean -fd", main, DENY),
+
+        # A heredoc body is data, blanked by the rule the shell applies to
+        # the body (dinah-533). The three heredoc leak cases above stay
+        # refused: nothing in a body grants permission.
+        ("a heredoc body under a quoted marker is data",
+         "dinah set x body - <<'EOF'\ngit notes is the same shape for %s metadata\nEOF"
+         % "re" + "set --hard", main, ALLOW),
+        ("a heredoc body under an unquoted marker is data",
+         "dinah set x body - <<EOF\ngit notes is the same shape for %s metadata\nEOF"
+         % "re" + "set --hard", main, ALLOW),
+        ("a heredoc body under a double-quoted marker is data",
+         'cat <<"EOF"\n%s\nEOF' % RESET, main, ALLOW),
+        ("a heredoc body under a backslash-escaped marker is data",
+         "cat <<\\EOF\n%s\nEOF" % RESET, main, ALLOW),
+        ("a tab-indented terminator closes a dash heredoc",
+         "cat <<-EOF\n\t%s\n\tEOF" % RESET, main, ALLOW),
+        ("a heredoc body with a blank line and an apostrophe is data",
+         "cat <<EOF\n\nit's %s\nEOF\ngit status" % RESET, main, ALLOW),
+        ("a bare reset after a heredoc terminator is refused",
+         "cat <<'EOF'\nprose\nEOF\n%s" % RESET, main, DENY),
+        ("a -C inside a heredoc body vouches for nothing",
+         "cat <<'EOF'\ngit -C %s\nEOF\n%s" % (linked, RESET), main, DENY),
+        ("an unterminated heredoc is unreadable and refused",
+         "cat <<'EOF'\n%s\n" % RESET, main, DENY),
+        ("a terminator that is not alone on its line does not close",
+         "cat <<'EOF'\n%s\nEOF extra\n" % RESET, main, DENY),
+        ("a substitution inside an unquoted heredoc body is a command",
+         "cat <<EOF\n$(%s)\nEOF" % RESET, main, DENY),
+        ("a substitution inside a quoted heredoc body is data",
+         "cat <<'EOF'\n$(%s)\nEOF" % RESET, main, ALLOW),
+        ("a heredoc fed to a qualifying invocation",
+         'git -C "%s" stash pop <<EOF\ngit clean -fdx\nEOF' % linked, main, ALLOW),
+        ("a heredoc fed to a bare deny-set invocation is still refused",
+         "git stash pop <<EOF\nprose\nEOF", main, DENY),
+        ("a here-string is not a heredoc opener",
+         "cat <<< EOF\n%s" % RESET, main, DENY),
 
         # The forms the retired design used to allow. Every one of them is
         # a command that does not say where it runs, so every one is now
@@ -660,16 +697,9 @@ def cases(root, main, linked, spaced, nested, componented, verbnamed):
         ("a brace-expanded clean -fdx", "git {clean,-fdx}", main, DENY),
         ("a brace-expanded checkout --", "git {checkout,--,.}", main, DENY),
         ("a brace-expanded checkout -f", "git {checkout,-f,main}", main, DENY),
-        ("a brace-expanded push --force",
-         "git {push,--force,origin,topic}", main, DENY),
-        ("a brace-expanded push --delete",
-         "git {push,origin,--delete,topic}", main, DENY),
-        ("a brace-expanded colon refspec", "git {push,origin,:topic}", main, DENY),
         ("a brace-expanded switch -f", "git {switch,-f,main}", main, DENY),
         ("a brace-expanded switch --discard-changes",
          "git {switch,--discard-changes,main}", main, DENY),
-        ("a brace-expanded branch -D", "git {branch,-D,topic}", main, DENY),
-        ("a brace-expanded tag -d", "git {tag,-d,v1.0}", main, DENY),
 
         # A `-C` written inside a quoted argument is text git never reads
         # as an option, so it grants nothing. This one is reachable rather
@@ -679,8 +709,6 @@ def cases(root, main, linked, spaced, nested, componented, verbnamed):
         # advice used to disarm the guard against itself.
         ("a quoted -C does not vouch for a bare reset",
          'git re' + 'set --hard "git -C %s x"' % linked, main, DENY),
-        ("a quoted -C does not vouch for a bare commit",
-         'git commit -m "dinah-9: run git -C %s log first"' % linked, main, DENY),
         ("a quoted -C does not vouch for a bare stash pop",
          'git stash pop "git -C %s ."' % linked, main, DENY),
         ("a quoted -C with no git word in front of it vouches for nothing",
@@ -738,7 +766,7 @@ def cases(root, main, linked, spaced, nested, componented, verbnamed):
         ("a double-quoted substitution carrying a path-spelled invocation",
          'git -C "%s" stash list "$(./git re' % linked + 'set --hard)"', main, DENY),
         ("a double-quoted substitution with two qualifying invocations",
-         'git -C "%s" commit -m "wip $(git -C %s rev-parse HEAD)"' % (linked, linked),
+         'git -C "%s" stash pop "$(git -C %s rev-parse HEAD)"' % (linked, linked),
          main, DENY),
         ("a single-quoted substitution is a string",
          "git -C \"%s\" stash list '$(./git re" % linked + "set --hard)'", main, ALLOW),
@@ -764,7 +792,7 @@ def cases(root, main, linked, spaced, nested, componented, verbnamed):
          'git -C "%s" -c core.worktree=%s re' % (linked, main) + 'set --hard',
          main, DENY),
         ("core.bare set on the command line",
-         'git -C "%s" -c core.bare=false commit -m wip' % linked, main, DENY),
+         'git -C "%s" -c core.bare=false stash pop' % linked, main, DENY),
         ("an unrelated configuration override still passes",
          'git -C "%s" -c core.pager=cat stash pop' % linked, main, ALLOW),
 
@@ -820,10 +848,10 @@ def cases(root, main, linked, spaced, nested, componented, verbnamed):
         # visible and so that narrowing it later reddens something.
         ("a verb-named path is refused again once the span holds a substitution",
          "git -C %s log --oneline -1 $(echo x)"
-         % slashed(os.path.join(root, "scratch", "dinah-250-merge", "wt")), main, DENY),
+         % slashed(os.path.join(root, "scratch", "dinah-250-stash", "wt")), main, DENY),
         ("the same read without the substitution is allowed",
          "git -C %s log --oneline -1"
-         % slashed(os.path.join(root, "scratch", "dinah-250-merge", "wt")), main, ALLOW),
+         % slashed(os.path.join(root, "scratch", "dinah-250-stash", "wt")), main, ALLOW),
         ("a log read through an am-named worktree",
          "git -C %s log --oneline -1"
          % slashed(os.path.join(root, "scratch", "card-am", "wt")), main, ALLOW),
@@ -874,10 +902,10 @@ def cases(root, main, linked, spaced, nested, componented, verbnamed):
         # expression's word rather than a shell's. A ref is written with
         # slashes and colons, so requiring `main` to stand alone there
         # would clear a forced push at the trunk.
-        ("--force-with-lease at a fully spelled trunk ref",
-         "git push --force-with-lease origin refs/heads/main", main, DENY),
-        ("--force-with-lease at a colon-spelled trunk ref",
-         "git push --force-with-lease origin HEAD:refs/heads/main", main, DENY),
+        ("--force-with-lease at a fully spelled trunk ref (the remote refuses it)",
+         "git push --force-with-lease origin refs/heads/main", main, ALLOW),
+        ("--force-with-lease at a colon-spelled trunk ref (the remote refuses it)",
+         "git push --force-with-lease origin HEAD:refs/heads/main", main, ALLOW),
     ])
 
     # The other direction, and it is the half a suite of refusals cannot
@@ -935,7 +963,7 @@ def reason_cases(main, linked):
          "git -C /cool/path clean -fdx", main,
          ["-C /cool/path is not a git worktree"], []),
         ("a trailing -C is refused for naming nothing",
-         'git -C "%s" commit -m wip -C' % linked, main,
+         'git -C "%s" stash pop -C' % linked, main,
          ["-C names no directory"], []),
         ("a refused removal is told to read the path git knows",
          qualified("git worktree remove old", main), linked,
