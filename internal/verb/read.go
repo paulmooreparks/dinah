@@ -1650,7 +1650,7 @@ func (l *Library) detailOf(card *bench.Card, chosen detailSelection, filters det
 // applying the --since filter: entries at or before the since ordinal carry an
 // empty Body, entries after it carry the full text. Without --since, every
 // entry carries an empty Body (the index is the index, not the payload).
-func (l *Library) commentListing(collection *bench.CollectionRef, sinceOrdinal int) (*CommentListing, error) {
+func (l *Library) commentListing(collection *bench.CollectionRef, sinceOrdinal int, sinceSet bool) (*CommentListing, error) {
 	views, err := l.commentViews(collection.Holder.Dir, collection.Holder.Ref)
 	if err != nil {
 		return nil, err
@@ -1658,7 +1658,7 @@ func (l *Library) commentListing(collection *bench.CollectionRef, sinceOrdinal i
 	members := make([]CommentIndexEntry, 0, len(views))
 	for _, v := range views {
 		body := ""
-		if sinceOrdinal > 0 && v.Ordinal > sinceOrdinal {
+		if sinceSet && v.Ordinal > sinceOrdinal {
 			body = v.Body
 		}
 		members = append(members, CommentIndexEntry{

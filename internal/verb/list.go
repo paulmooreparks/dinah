@@ -430,6 +430,9 @@ func (l *Library) ListRef(req *Request) (*ListResult, error) {
 				return nil, err
 			}
 			if req.Depth != "" || req.Archived {
+				if req.SinceComment != "" {
+					return nil, contract.Refuse(contract.Usage, "--since beside --depth or --archived")
+				}
 				return l.listContents(req, level)
 			}
 			return l.listComments(req, ref, collection)
@@ -438,6 +441,9 @@ func (l *Library) ListRef(req *Request) (*ListResult, error) {
 				return nil, err
 			}
 			if req.Depth != "" || req.Archived {
+				if req.Unresolved {
+					return nil, contract.Refuse(contract.Usage, "--unresolved beside --depth or --archived")
+				}
 				return l.listContents(req, level)
 			}
 			return l.listItems(req, ref, collection)
@@ -626,14 +632,16 @@ func (l *Library) listComments(req *Request, ref string, collection *bench.Colle
 		return nil, err
 	}
 	var sinceOrdinal int
+	var sinceSet bool
 	if written := strings.TrimSpace(req.SinceComment); written != "" {
 		ordinal, err := strconv.Atoi(written)
 		if err != nil || ordinal < 0 {
 			return nil, contract.Refuse(contract.Usage, "--since "+written)
 		}
 		sinceOrdinal = ordinal
+		sinceSet = true
 	}
-	listing, err := l.commentListing(collection, sinceOrdinal)
+	listing, err := l.commentListing(collection, sinceOrdinal, sinceSet)
 	if err != nil {
 		return nil, err
 	}

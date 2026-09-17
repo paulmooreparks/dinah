@@ -444,6 +444,144 @@ func listedColumnIdentifier(t *testing.T, root, slug string) string {
 	return ""
 }
 
+// TestListSinceFillsTheBodiesPastAnOrdinal is dinah-528/criteria/8: the --since
+// filter fills the body of each comment past the given ordinal while the index
+// carries every entry, and an ordinal of zero fills all.
+func TestListSinceFillsTheBodiesPastAnOrdinal(t *testing.T) {
+	root := listBench(t)
+	// The fixture has one comment on fx-1. Add two more so the ordinal gaps
+	// are visible.
+	mustRun(t, root, "comment", "fx-1", "the second thought")
+	mustRun(t, root, "comment", "fx-1", "the third thought")
+
+	since2 := runCLI(t, root, "list", "fx-1/comments", "--since", "2", "--json")
+	if since2.code != 0 {
+		t.Fatalf("--since 2 exited %d: %s%s", since2.code, since2.out, since2.errw)
+	}
+	var listing verb.CommentListing
+	if err := json.Unmarshal([]byte(since2.out), &listing); err != nil {
+		t.Fatalf("the listing will not parse: %v", err)
+	}
+	if len(listing.Members) != 3 {
+		t.Fatalf("the index dropped a comment: wanted three, got %d", len(listing.Members))
+	}
+	filled := 0
+	for _, entry := range listing.Members {
+		if entry.Body != "" {
+			filled++
+		}
+	}
+	if filled != 1 {
+		t.Errorf("--since 2 filled %d bodies, wanted the one past ordinal 2", filled)
+	}
+
+	// An ordinal of zero fills all bodies, matching what the show modifier does.
+	// The bare listing carries no bodies at all, so the comparison is on the
+	// filled count rather than on byte equality.
+	since0 := runCLI(t, root, "list", "fx-1/comments", "--since", "0", "--json")
+	if since0.code != 0 {
+		t.Fatalf("--since 0 exited %d: %s%s", since0.code, since0.out, since0.errw)
+	}
+	var zeroListing verb.CommentListing
+	if err := json.Unmarshal([]byte(since0.out), &zeroListing); err != nil {
+		t.Fatalf("the --since 0 listing will not parse: %v", err)
+	}
+	if len(zeroListing.Members) != 3 {
+		t.Fatalf("the --since 0 listing dropped a comment: wanted three, got %d", len(zeroListing.Members))
+	}
+	zeroFilled := 0
+	for _, entry := range zeroListing.Members {
+		if entry.Body != "" {
+			zeroFilled++
+		}
+	}
+	if zeroFilled != 3 {
+		t.Errorf("--since 0 filled %d bodies, wanted all three", zeroFilled)
+	}
+}
+
+// TestListUnresolvedCarriesWhatStillHoldsTheCard is dinah-528/criteria/8: the
+// --unresolved filter answers the items whose state would hold a column, which
+// is the same predicate the show side uses.
+func TestListUnresolvedCarriesWhatStillHoldsTheCard(t *testing.T) {
+	root := listBench(t)
+	// The fixture has one decision item in pending state. Add items in other
+	// states so the filter has something to filter.
+	mustRun(t, root, "resolve", "fx-1/decisions/1", "resolved on the spot")
+	mustRun(t, root, "file", "fx-1", "acceptance_criterion", "an AC")
+	mustRun(t, root, "verify", "fx-1/criteria/1", "checks out")
+	mustRun(t, root, "reopen", "fx-1/criteria/1", "needs rework")
+	mustRun(t, root, "fail", "fx-1/criteria/1", "does not pass")
+
+	filtered := runCLI(t, root, "list", "fx-1/checklist", "--unresolved", "--json")
+	if filtered.code != 0 {
+		t.Fatalf("--unresolved exited %d: %s%s", filtered.code, filtered.out, filtered.errw)
+	}
+	var listing verb.ItemListing
+	if err := json.Unmarshal([]byte(filtered.out), &listing); err != nil {
+		t.Fatalf("the listing will not parse: %v", err)
+	}
+	// The pending decision was resolved, the AC was verified then failed;
+	// the unresolved set is the failed AC and the original pending item
+	// the fixture filed. Count rather than name IDs, because the fixture
+	// is sparse and the IDs are deterministic.
+	if len(listing.Members) == 0 {
+		t.Errorf("--unresolved carried zero items, wanted the ones that still hold")
+	}
+	all := runCLI(t, root, "list", "fx-1/checklist", "--json")
+	var unfiltered verb.ItemListing
+	if err := json.Unmarshal([]byte(all.out), &unfiltered); err != nil {
+		t.Fatalf("the unfiltered listing will not parse: %v", err)
+	}
+	if len(unfiltered.Members) <= len(listing.Members) {
+		t.Errorf("the unfiltered listing carries %d and the filter carried %d, so the filter proved nothing", len(unfiltered.Members), len(listing.Members))
+	}
+}
+
+// TestListRefusesSinceAndUnresolvedOnWrongCollectionsAndBesideDepthOrArchived
+// pins the refusal paths for the two new filters: --since is refused on
+// anything but a comments collection, --unresolved on anything but a checklist
+// collection, and both are refused beside --depth or --archived.
+func TestListRefusesSinceAndUnresolvedOnWrongCollectionsAndBesideDepthOrArchived(t *testing.T) {
+	root := listBench(t)
+
+	type row struct {
+		name   string
+		argv   []string
+		detail string
+	}
+	rows := []row{
+		// --since on a non-comments collection is refused.
+		{name: "--since on checklist", argv: []string{"list", "fx-1/checklist", "--since", "1"}, detail: "--since"},
+		{name: "--since on journal", argv: []string{"list", "fx-1/journal", "--since", "1"}, detail: "--since"},
+		{name: "--since on attachments", argv: []string{"list", "fx-1/attachments", "--since", "1"}, detail: "--since"},
+		// --unresolved on a non-checklist collection is refused.
+		{name: "--unresolved on comments", argv: []string{"list", "fx-1/comments", "--unresolved"}, detail: "--unresolved"},
+		{name: "--unresolved on journal", argv: []string{"list", "fx-1/journal", "--unresolved"}, detail: "--unresolved"},
+		{name: "--unresolved on attachments", argv: []string{"list", "fx-1/attachments", "--unresolved"}, detail: "--unresolved"},
+		// --since beside --depth or --archived on comments is refused.
+		{name: "--since beside --depth on comments", argv: []string{"list", "fx-1/comments", "--since", "1", "--depth", "all"}, detail: "--since beside --depth"},
+		{name: "--since beside --archived on comments", argv: []string{"list", "fx-1/comments", "--since", "1", "--archived"}, detail: "--since beside --depth or --archived"},
+		// --unresolved beside --depth or --archived on checklist is refused.
+		{name: "--unresolved beside --depth on checklist", argv: []string{"list", "fx-1/checklist", "--unresolved", "--depth", "all"}, detail: "--unresolved beside --depth"},
+		{name: "--unresolved beside --archived on checklist", argv: []string{"list", "fx-1/checklist", "--unresolved", "--archived"}, detail: "--unresolved beside --depth or --archived"},
+	}
+	for _, row := range rows {
+		t.Run(row.name, func(t *testing.T) {
+			got := runCLI(t, root, row.argv...)
+			if got.code != contract.ExitCode(contract.OutcomeRefused) {
+				t.Fatalf("`dinah %s` exited %d, wanted a refusal: %s%s", strings.Join(row.argv, " "), got.code, got.out, got.errw)
+			}
+			if !strings.Contains(got.errw, row.detail) {
+				t.Errorf("the refusal does not name %q: %s", row.detail, got.errw)
+			}
+			if name := refusalNameOf(got.errw); name != contract.Usage {
+				t.Errorf("the refusal is %s, wanted %s", name, contract.Usage)
+			}
+		})
+	}
+}
+
 // TestTheDepthLadderHasFiveRungsAndMembersIsTheDefault is the depth half of
 // dinah-523/criteria/11: the rung a reference draws with no --depth, and the
 // refusal an unknown level raises.
