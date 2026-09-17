@@ -6,6 +6,19 @@ __pycache__/
 .claude/worktrees/
 /.dinah-gh-token
 
+# One contributor's harness configuration: the subagent profiles that work
+# this project's own board, the permission rules that guard the operator's
+# live data, and the always-on rule file that points at both. They are
+# untracked because they configure a machine rather than the project. Every
+# one of them names absolute paths under one home directory, so a second
+# contributor cloning this repository would get twelve agents addressing
+# directories that do not exist, and this repository is public. Tracking them
+# also put files no compiler reads under the prose and vocabulary guards,
+# which failed a continuous integration run on pull request 273 over the word
+# benchmarks. Untracked on the operator's ruling of 2026-09-17.
+/.devin/
+/AGENTS.md
+
 # The workbench this project's own development runs on. Its files are data
 # rather than source: every claim, move and comment rewrites them, so tracking
 # them turned ordinary board traffic into repository history and made the board
