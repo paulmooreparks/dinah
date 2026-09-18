@@ -2219,37 +2219,37 @@
       "source": "3cf89cb47fdde7e9"
     },
     "column.listing-items.column": {
-      "text": "Column",
+      "text": "Spalte",
       "context": "Heading over the column the item names for gating, in the checklist listing dinah list <card>/checklist prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "9e40e59654c8ad67"
     },
     "column.listing-items.comment-count": {
-      "text": "#",
+      "text": "Anzahl Kommentare",
       "context": "Heading over how many comments the item carries, empty where it carries none, in the checklist listing dinah list <card>/checklist prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "af639e4c86018332"
     },
     "column.listing-items.kind": {
-      "text": "Kind",
+      "text": "Art",
       "context": "Heading over the kind of checklist item (acceptance_criterion, open_question, or decision), in the checklist listing dinah list <card>/checklist prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "70af97de3ad8fb23"
     },
     "column.listing-items.owner": {
-      "text": "Owner",
+      "text": "Akteur",
       "context": "Heading over who the item names as its answerer, in the checklist listing dinah list <card>/checklist prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "b971debc37bf0b54"
     },
     "column.listing-items.ref": {
-      "text": "Ref",
+      "text": "Referenz",
       "context": "Heading over the reference a person types to reach the item, in the checklist listing dinah list <card>/checklist prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "9ff1e019feac1ee2"
     },
     "column.listing-items.state": {
-      "text": "State",
+      "text": "Zustand",
       "context": "Heading over the state the item own file records, in the checklist listing dinah list <card>/checklist prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "ae239213b7c70376"
     },
     "column.listing-items.text": {
-      "text": "Text",
+      "text": "Beschreibung",
       "context": "Heading over the item first line capped at subjectCap runes, in the checklist listing dinah list <card>/checklist prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "2492f5fb1b05b45e"
     },
@@ -2700,22 +2700,22 @@
       "source": "86679bb144a2f6d5"
     },
     "listing-comments.empty": {
-      "text": "{ref} carries no comments.",
+      "text": "{ref} enthält keine Kommentare.",
       "context": "Printed when dinah list <card>/comments is asked about a card that carries no comments. No table follows, and the call succeeds: a card with nothing to say is an answer rather than a mistake.",
       "source": "6381e6076a92837c"
     },
     "listing-comments.header": {
-      "text": "{ref} contains {count} comments.",
+      "text": "{ref} enthält {count} Kommentare.",
       "context": "The sentence above the table dinah list <card>/comments prints, naming the collection the reader asked about. {count} is how many comments the card carries.",
       "source": "bc548bba3dd7db84"
     },
     "listing-items.empty": {
-      "text": "{ref} carries no items.",
+      "text": "{ref} enthält keine Einträge.",
       "context": "Printed when dinah list <card>/checklist is asked about a card that carries no checklist items. No table follows, and the call succeeds: a card with nothing on its checklist is an answer rather than a mistake.",
       "source": "c2bf4d59b54b4a56"
     },
     "listing-items.header": {
-      "text": "{ref} contains {count} items.",
+      "text": "{ref} enthält {count} Einträge.",
       "context": "The sentence above the table dinah list <card>/checklist prints, naming the collection the reader asked about. {count} is how many checklist items the card carries.",
       "source": "69c245d851da538e"
     },
@@ -3272,12 +3272,12 @@
       "source": "953fcb38cb1abf4f"
     },
     "param.list.since.summary": {
-      "text": "show comments at and before this ordinal as index entries without a body",
+      "text": "Kommentare bis einschließlich dieser Ordnungszahl als Indexeinträge ohne Text anzeigen",
       "context": "The --since flag of the list verb, when the reference names a comment collection. The ordinal is the one-based position shown in the listing. Comments at or before it carry no body in the index; comments after it carry their full body. The flag name is the same one show uses for the same filter, which is why the summary names comments rather than items.",
       "source": "5188cb219725011f"
     },
     "param.list.unresolved.summary": {
-      "text": "show only checklist items whose state does not release a column hold",
+      "text": "nur Checklisten-Einträge anzeigen, deren Zustand keine Spaltensperre aufhebt",
       "context": "The --unresolved flag of the list verb, when the reference names a checklist collection. Only items in pending, failed, or obsolete state pass the filter; resolved and verified items are excluded.",
       "source": "ca8b48ff9342180c"
     },
