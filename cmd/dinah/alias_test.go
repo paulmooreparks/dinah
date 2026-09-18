@@ -113,6 +113,38 @@ func TestAliasExpansionUsesTheOrdinaryArgumentGrammar(t *testing.T) {
 	}
 }
 
+// TestAliasExpansionRefusalsHonorOriginalAndTemplateFormats proves that a
+// refusal raised during expansion reaches the same human and JSON surfaces
+// whether the format flag came from the invocation or from the alias template.
+func TestAliasExpansionRefusalsHonorOriginalAndTemplateFormats(t *testing.T) {
+	_, dir := settingsHome(t)
+	if got := runCLI(t, dir, "config", "set", "alias.ag", "show $1/questions"); got.code != 0 {
+		t.Fatalf("set alias: %d %s", got.code, got.errw)
+	}
+	human := runCLI(t, dir, "ag")
+	if human.code != contract.ExitCode(contract.OutcomeRefused) || human.out != "" || !strings.Contains(human.errw, contract.AliasMissing) {
+		t.Fatalf("human refusal: code %d, out %q, err %s", human.code, human.out, human.errw)
+	}
+	originalJSON := runCLI(t, dir, "--json", "ag")
+	if originalJSON.code != contract.ExitCode(contract.OutcomeRefused) || originalJSON.out == "" || originalJSON.errw != human.errw {
+		t.Fatalf("original JSON flag: code %d, out %q, err %s", originalJSON.code, originalJSON.out, originalJSON.errw)
+	}
+	var report refusalReport
+	if err := json.Unmarshal([]byte(originalJSON.out), &report); err != nil {
+		t.Fatalf("decode original JSON refusal: %v\n%s", err, originalJSON.out)
+	}
+	if report.Outcome != contract.OutcomeRefused || report.Refusal != contract.AliasMissing || report.Detail != "ag" || report.Context["argument"] != "$1" {
+		t.Errorf("original JSON refusal = %+v", report)
+	}
+	if got := runCLI(t, dir, "config", "set", "alias.ag", "--", "--json show $1/questions"); got.code != 0 {
+		t.Fatalf("replace alias: %d %s", got.code, got.errw)
+	}
+	templateJSON := runCLI(t, dir, "ag")
+	if templateJSON.code != contract.ExitCode(contract.OutcomeRefused) || templateJSON.out != originalJSON.out || templateJSON.errw != originalJSON.errw {
+		t.Fatalf("template JSON flag differs: code %d, out %q, err %s", templateJSON.code, templateJSON.out, templateJSON.errw)
+	}
+}
+
 // TestAliasValidationPairsAcceptingAndRefusingCases covers every stable defect
 // class beside a nearby accepted value, including the public boundary names.
 func TestAliasValidationPairsAcceptingAndRefusingCases(t *testing.T) {

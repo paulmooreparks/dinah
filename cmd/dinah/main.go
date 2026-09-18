@@ -129,9 +129,7 @@ func run(argv []string, in io.Reader, out, errw io.Writer) int {
 	home := bench.Home()
 	cfg := bench.LoadConfig(home)
 	expanded, expansionErr := expandAlias(argv, cfg)
-	if expansionErr == nil {
-		argv = expanded
-	}
+	argv = expanded
 	valued := map[string]bool{}
 	for _, flag := range valuedFlags {
 		valued[flag] = true
@@ -165,10 +163,7 @@ func run(argv []string, in io.Reader, out, errw io.Writer) int {
 	if w, ok := errw.(*consolewriter.Writer); ok {
 		s.rawErr = w.File()
 	}
-	if expansionErr != nil {
-		return s.reportError(expansionErr)
-	}
-	if parseErr != nil {
+	if parseErr != nil && expansionErr == nil {
 		// The parse failed, and the refusal still reaches its reader in
 		// their own language. scanLangFlag read --lang from the whole
 		// argument list above, so the flag is honoured wherever the caller
@@ -187,6 +182,9 @@ func run(argv []string, in io.Reader, out, errw io.Writer) int {
 		return s.reportError(formatRefusal)
 	}
 	s.format = format
+	if expansionErr != nil {
+		return s.reportError(expansionErr)
+	}
 	if actor, err := bench.ResolveActor(parsed.value("actor"), cfg); err == nil {
 		s.actor = actor
 	}
@@ -297,30 +295,23 @@ func expandAlias(argv []string, cfg *bench.Config) ([]string, error) {
 		return argv, nil
 	}
 	if alias.Defect != "" {
-		return nil, contract.RefuseWith(
+		return argv, contract.RefuseWith(
 			contract.InvalidAlias,
 			alias.Key,
 			map[string]string{"defect": alias.Defect},
 		)
 	}
-	if len(positions)-1 < alias.Highest {
-		missing := len(positions)
-		return nil, contract.RefuseWith(
-			contract.AliasMissing,
-			name,
-			map[string]string{"argument": "$" + strconv.Itoa(missing)},
-		)
-	}
 	expansion := make([]string, len(alias.Tokens))
 	copy(expansion, alias.Tokens)
+	provided := min(len(positions)-1, alias.Highest)
 	for i := range expansion {
-		for number := 1; number <= alias.Highest; number++ {
+		for number := 1; number <= provided; number++ {
 			value := argv[positions[number]]
 			expansion[i] = strings.ReplaceAll(expansion[i], "$"+strconv.Itoa(number), value)
 		}
 	}
 	consumed := map[int]bool{positions[0]: true}
-	for number := 1; number <= alias.Highest; number++ {
+	for number := 1; number <= provided; number++ {
 		consumed[positions[number]] = true
 	}
 	result := make([]string, 0, len(argv)+len(expansion)-len(consumed))
@@ -331,6 +322,14 @@ func expandAlias(argv []string, cfg *bench.Config) ([]string, error) {
 		if !consumed[index] {
 			result = append(result, word)
 		}
+	}
+	if provided < alias.Highest {
+		missing := provided + 1
+		return result, contract.RefuseWith(
+			contract.AliasMissing,
+			name,
+			map[string]string{"argument": "$" + strconv.Itoa(missing)},
+		)
 	}
 	return result, nil
 }
