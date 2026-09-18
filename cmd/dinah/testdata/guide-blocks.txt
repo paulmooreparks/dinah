@@ -42,10 +42,10 @@ internal/guide/guides/mcp.md:124 shows=json
 internal/guide/guides/mcp.md:161 shows=json
 internal/guide/guides/mcp.md:183 shows=json
 internal/guide/guides/mcp.md:195 shows=json fragment=members reason=the block shows the two members an unshaped answer withholds rather than a whole document, so it is parsed inside a wrapping pair of braces
-internal/guide/guides/mcp.md:235 shows=shell reason=the line drives a shell loop around dinah path, which no replay here runs
-internal/guide/guides/mcp.md:302 shows=json
-internal/guide/guides/mcp.md:306 shows=json
-internal/guide/guides/mcp.md:386 shows=json
-internal/guide/guides/mcp.md:399 shows=json
+internal/guide/guides/mcp.md:253 shows=shell reason=the line drives a shell loop around dinah path, which no replay here runs
+internal/guide/guides/mcp.md:320 shows=json
+internal/guide/guides/mcp.md:324 shows=json
+internal/guide/guides/mcp.md:404 shows=json
+internal/guide/guides/mcp.md:417 shows=json
 internal/guide/guides/principles.md:29 shows=table command=list columns
 internal/guide/guides/workbench-layout.md:6 shows=tree reason=TestTheLayoutGuideDrawsPathsTheToolWrites holds every path this block draws

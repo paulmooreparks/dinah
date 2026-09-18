@@ -1632,7 +1632,6 @@ func sweptBlocks() []sweptBlock {
 			keys: []string{"column.listing-items.ref", "column.listing-items.kind", "column.listing-items.state",
 				"column.listing-items.column", "column.listing-items.owner", "column.listing-items.text",
 				"column.listing-items.comment-count"}, varies: lastCell,
-			blanksAreLost: true,
 			opensWith: func(tag string, w *sweptWorkbenches) string {
 				return msg.For(tag).T("listing-items.header", "ref", w.checklistCard+"/checklist", "count", strconv.Itoa(len(w.record.checklist)))
 			},

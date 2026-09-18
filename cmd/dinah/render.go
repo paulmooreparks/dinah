@@ -790,7 +790,7 @@ func (s *session) renderCommentListing(listing *verb.CommentListing) {
 		return
 	}
 	s.line(s.r.T("listing-comments.header", "ref", listing.Ref, "count", strconv.Itoa(len(listing.Members))))
-	block := table{indent: 2, columns: s.columns("comments", "ref", "when", "who", "subject", "size")}
+	block := table{indent: 2, columns: s.columns("comments", "ref", "when", "who", "subject", "size"), stackOnOverflow: true}
 	for _, comment := range listing.Members {
 		block.rows = append(block.rows, tableRow{fields: []string{
 			comment.Ref, comment.TS, comment.Author, comment.Subject, strconv.Itoa(comment.Size),
@@ -809,7 +809,7 @@ func (s *session) renderItemListing(listing *verb.ItemListing) {
 		return
 	}
 	s.line(s.r.T("listing-items.header", "ref", listing.Ref, "count", strconv.Itoa(len(listing.Members))))
-	block := table{indent: 2, columns: s.columns("listing-items", "ref", "kind", "state", "column", "owner", "text", "comment-count")}
+	block := table{indent: 2, columns: s.columns("listing-items", "ref", "kind", "state", "column", "owner", "text", "comment-count"), stackOnOverflow: true}
 	for _, item := range listing.Members {
 		commentCount := ""
 		if item.CommentCount > 0 {

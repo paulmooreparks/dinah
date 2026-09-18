@@ -47,7 +47,8 @@ READ
   status [--root <path>] [--max-depth <n>]  Where this workbench stands, and
                                               what you hold
   list [ref] [--depth <level>] [--ready]    What an entity of this workbench
-    [--archived] [--root <path>]              holds
+    [--archived] [--since <ordinal>]          holds
+    [--unresolved] [--root <path>]
     [--max-depth <n>]
   next [column] [--root <path>]             The card a column offers next
     [--max-depth <n>]

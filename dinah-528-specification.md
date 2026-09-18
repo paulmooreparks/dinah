@@ -44,7 +44,7 @@ The `collectionListing` function at `read.go:1605` is dead code. It was the `sho
 
 A collection reference whose kind is `comment` or `item` routes to a dedicated listing function that builds an index. Every other collection reference, including `attachment` and `column`, routes to the containment tree walk exactly as it does today. The decision is made in `ListRef` after the resolver returns a `CollectionRef`, which is where the attachment shortcut at line 389 already branches.
 
-The dedicated listing replaces the tree walk for comments and checklist items, and the `--since` and `--unresolved` flags are available on those two references only. The tree walk never receives either flag, because a containment tree is not a collection of items with an ordinal or a state.
+The dedicated listing replaces the tree walk for comments and checklist items. The comment listing accepts `--since` and the item listing accepts `--unresolved`; both also accept `--depth` and `--archived`, which route to the existing containment tree walk. The tree walk never receives either filter, because a containment tree is not a collection of items with an ordinal or a state.
 
 ### 3.2 The comment index
 
@@ -126,7 +126,7 @@ type ItemIndexEntry struct {
 }
 ```
 
-Every field is the same as the identically named field on `ItemView` in `show`. `Text` carries the item's first line capped at 120 runes by `capRunes(firstLine(item.Text), subjectCap)`, which is the same cap the show index applies. `Note` is the empty string on every entry the listing serves as an index, and is filled from `item.Note` on entries carried by `--unresolved`, exactly the way `detailOf` fills it on the show side. A listing that carries no filter or that carries `--unresolved` without `checklist.full` omits `Note` from every entry, because the index does not carry resolution notes and `--unresolved` without `.full` is the combination dinah-527's contract already composes on the show side.
+Every field is the same as the identically named field on `ItemView` in `show`. `Text` carries the item's first line capped at 120 runes by `capRunes(firstLine(item.Text), subjectCap)`, which is the same cap the show index applies. The listing has no `Note` field: it is an index, and an item's own reference recovers its resolution note.
 
 `ItemListing` carries the same wrapper as the comment listing:
 
@@ -180,7 +180,7 @@ A `.full` name on `dinah list` would therefore answer the same question the read
 
 `ListRef` gains a branch after the collection check at line 385. Where the collection's mount kind is `comment` or `item`, the function delegates to one of two new library methods rather than falling through to `listContents`. The two flags `--since` and `--unresolved` are accepted on the comment and item collection branches and refused on every other shape, in the same place the existing flag checks already run.
 
-The branch for comments accepts `--since` and refuses `--depth`, `--ready`, `--archived`, and `--unresolved`. The branch for items accepts `--unresolved` and refuses `--depth`, `--ready`, `--archived`, and `--since`. A collection reference whose mount kind is neither refuses all four flags, which is the same refusal the tree walk already raises.
+The branch for comments accepts `--since`, `--depth`, and `--archived`, and refuses `--ready` and `--unresolved`. The branch for items accepts `--unresolved`, `--depth`, and `--archived`, and refuses `--ready` and `--since`. A depth or archive request routes either collection to the existing containment tree walk; either filter beside one is refused because the two shapes do not compose. A collection reference whose mount kind is neither accepts `--depth` and `--archived` and refuses the two filters.
 
 Two new `ListShape` constants are declared: `ShapeComments` and `ShapeItems`. Two new members are added to `ListResult`: `Comments *CommentListing` and `Items *ItemListing`. `Answer` and `MarshalJSON` each gain an arm for the two new shapes.
 

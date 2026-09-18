@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"dinah/internal/bench"
 	"dinah/internal/contract"
 	"dinah/internal/verb"
 )
@@ -41,6 +42,22 @@ func listBench(t *testing.T) string {
 	mustRun(t, root, "workstream", "new", "Spring release", "--slug", "spring")
 	mustRun(t, root, "archive", "workstream/spring")
 	return root
+}
+
+// TestListEmptyCollectionIndexesNameTheirRecoveryPath covers the empty
+// renderer branches for the two collection indexes.
+func TestListEmptyCollectionIndexesNameTheirRecoveryPath(t *testing.T) {
+	root := newBench(t)
+	mustRun(t, root, "add", "a card without collection members")
+
+	for _, ref := range []string{"fx-1/comments", "fx-1/checklist"} {
+		t.Run(ref, func(t *testing.T) {
+			got := mustRun(t, root, "list", ref)
+			if !strings.Contains(got.out, ref) || !strings.Contains(got.out, "carries no") {
+				t.Errorf("`dinah list %s` did not name its empty collection: %s", ref, got.out)
+			}
+		})
+	}
 }
 
 // TestListReadsOrRefusesEachFlagAgainstEachReferenceShape is
@@ -521,12 +538,12 @@ func TestListUnresolvedCarriesWhatStillHoldsTheCard(t *testing.T) {
 	if err := json.Unmarshal([]byte(filtered.out), &listing); err != nil {
 		t.Fatalf("the listing will not parse: %v", err)
 	}
-	// The pending decision was resolved, the AC was verified then failed;
-	// the unresolved set is the failed AC and the original pending item
-	// the fixture filed. Count rather than name IDs, because the fixture
-	// is sparse and the IDs are deterministic.
-	if len(listing.Members) == 0 {
-		t.Errorf("--unresolved carried zero items, wanted the ones that still hold")
+	if len(listing.Members) != 1 {
+		t.Fatalf("--unresolved carried %d items, wanted the failed criterion alone", len(listing.Members))
+	}
+	entry := listing.Members[0]
+	if entry.Ref != "fx-1/criteria/1" || entry.State != bench.ItemFailed {
+		t.Errorf("--unresolved carried %s in %q, wanted fx-1/criteria/1 in %q", entry.Ref, entry.State, bench.ItemFailed)
 	}
 	all := runCLI(t, root, "list", "fx-1/checklist", "--json")
 	var unfiltered verb.ItemListing
