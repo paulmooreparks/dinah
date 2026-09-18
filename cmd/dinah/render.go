@@ -780,6 +780,48 @@ func (s *session) renderAttachmentListing(listing *verb.AttachmentListing) {
 	s.renderAttachments(listing.Attachments)
 }
 
+// renderCommentListing prints a card's comments under a sentence naming the
+// collection, and says so plainly when the card carries none. The columns are
+// the same five the show index draws, plus Who in place of Author for the
+// shorter table heading.
+func (s *session) renderCommentListing(listing *verb.CommentListing) {
+	if len(listing.Members) == 0 {
+		s.line(s.r.T("listing-comments.empty", "ref", listing.Ref))
+		return
+	}
+	s.line(s.r.T("listing-comments.header", "ref", listing.Ref, "count", strconv.Itoa(len(listing.Members))))
+	block := table{indent: 2, columns: s.columns("comments", "ref", "when", "who", "subject", "size"), stackOnOverflow: true}
+	for _, comment := range listing.Members {
+		block.rows = append(block.rows, tableRow{fields: []string{
+			comment.Ref, comment.TS, comment.Author, comment.Subject, strconv.Itoa(comment.Size),
+		}})
+	}
+	s.table(block)
+}
+
+// renderItemListing prints a card's checklist items under a sentence naming the
+// collection, and says so plainly when the card carries none. The columns are
+// the item's reference, its kind, its state, the column it names for gating,
+// who answers it, its text, and how many comments it carries.
+func (s *session) renderItemListing(listing *verb.ItemListing) {
+	if len(listing.Members) == 0 {
+		s.line(s.r.T("listing-items.empty", "ref", listing.Ref))
+		return
+	}
+	s.line(s.r.T("listing-items.header", "ref", listing.Ref, "count", strconv.Itoa(len(listing.Members))))
+	block := table{indent: 2, columns: s.columns("listing-items", "ref", "kind", "state", "column", "owner", "text", "comment-count"), stackOnOverflow: true}
+	for _, item := range listing.Members {
+		commentCount := ""
+		if item.CommentCount > 0 {
+			commentCount = strconv.Itoa(item.CommentCount)
+		}
+		block.rows = append(block.rows, tableRow{fields: []string{
+			item.Ref, item.Kind, item.State, item.ColumnTitle, item.Owner, item.Text, commentCount,
+		}})
+	}
+	s.table(block)
+}
+
 // renderAttachments draws the attachments table every read that reports
 // attachments prints, so a card's own list and the list of any other entity
 // cannot come out under different headings or in a different order.

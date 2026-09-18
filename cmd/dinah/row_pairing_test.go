@@ -581,17 +581,30 @@ func sweptMovedColumns(block sweptBlock, order []int) []string {
 // unindented lines between them. A comment's body sits unindented between two
 // comment headers, so that block cannot stop at the first line that is not
 // indented and cannot keep the separators either.
-func sweptHarvestOf(t *testing.T, block sweptBlock, w *sweptWorkbenches, tag string) []string {
+// sweptOpenerOf returns the heading the renderer draws above this block,
+// parameters filled in. It prefers opensWith over opensAt.
+func sweptOpenerOf(block sweptBlock, w *sweptWorkbenches, tag string) string {
+	if block.opensWith != nil {
+		return block.opensWith(tag, w)
+	}
+	if block.opensAt != "" {
+		return msg.For(tag).T(block.opensAt)
+	}
+	return ""
+}
+
+func sweptHarvestFrom(t *testing.T, block sweptBlock, w *sweptWorkbenches, tag, opener string) []string {
 	t.Helper()
 	out := block.render(t, w, tag)
-	opener := ""
-	if block.opensAt != "" {
-		opener = msg.For(tag).T(block.opensAt)
-	}
 	if block.blanksAreLost {
 		return indentedLinesAfter(out, opener)
 	}
 	return sweptHarvest(out, opener, sweptSections(block, tag))
+}
+
+func sweptHarvestOf(t *testing.T, block sweptBlock, w *sweptWorkbenches, tag string) []string {
+	t.Helper()
+	return sweptHarvestFrom(t, block, w, tag, sweptOpenerOf(block, w, tag))
 }
 
 // sweptStandDown records the one stand-down the guard permits, which is the
@@ -1122,6 +1135,7 @@ type sweptItemRecord struct {
 	text     string
 	note     string
 	comments int
+	column   string // the column identifier, empty when the item gates none
 }
 
 // expectChecklist is a card's checklist items, in the order the fixture wrote
@@ -1159,6 +1173,40 @@ func expectChecklist(t *testing.T, r *sweptRecord, tag string) sweptExpectation 
 		rows = append(rows, sweptTexts(ref, item.state, item.owner, count, item.text))
 	}
 	return sweptExpectation{rows: rows, source: "the record's checklist items"}
+}
+
+// expectItemListing is the checklist item listing index: one row per item
+// the fixture wrote, in the same order. The listing carries the item's kind,
+// state, the column it names for gating (resolved to the column's title,
+// empty where the fixture item names none), who answers it, its text and its
+// comment count. The comment count is blank rather than "0" where the fixture
+// wrote none, because that is what the render draws for an item carrying none.
+// The reference is composed the way a person types one, out of the card's own
+// reference, the kind's word and the item's position among the items of that kind.
+func expectItemListing(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
+	t.Helper()
+	words := map[string]string{"open_question": "questions", "acceptance_criterion": "criteria", "decision": "decisions"}
+	within := map[string]int{}
+	var rows [][]sweptCell
+	for _, item := range r.checklist {
+		within[item.kind]++
+		ref := "ck-1/" + words[item.kind] + "/" + strconv.Itoa(within[item.kind])
+		count := ""
+		if item.comments > 0 {
+			count = strconv.Itoa(item.comments)
+		}
+		colTitle := ""
+		if item.column != "" {
+			for _, col := range r.columns {
+				if col.id == item.column || col.slug == item.column {
+					colTitle = col.title
+					break
+				}
+			}
+		}
+		rows = append(rows, sweptTexts(ref, item.kind, item.state, colTitle, item.owner, item.text, count))
+	}
+	return sweptExpectation{rows: rows, source: "the record's checklist items, indexed"}
 }
 
 type sweptSearchRecord struct {

@@ -467,6 +467,8 @@ var params = map[string][]Param{
 		{Name: "depth", Flag: true, Value: "level", Field: "Depth"},
 		{Name: "ready", Flag: true, Marker: true, Field: "ReadyOnly"},
 		{Name: "archived", Flag: true, Marker: true, Shared: "archived", Field: "Archived"},
+		{Name: "since", Flag: true, Value: "ordinal", Field: "SinceComment"},
+		{Name: "unresolved", Flag: true, Marker: true, Field: "Unresolved"},
 		{Name: "root", Flag: true, Value: "path", Shared: "root", Field: "Root"},
 		{Name: "max-depth", Flag: true, Value: "n", Shared: "max-depth", Field: "MaxDepth"},
 	},

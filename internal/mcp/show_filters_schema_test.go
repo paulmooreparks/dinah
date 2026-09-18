@@ -6,7 +6,7 @@ import (
 	"dinah/internal/verb"
 )
 
-// TestShowsFiltersArePublishedOnShowAndNowhereElse walks the generated schema
+// TestShowsFiltersArePublishedWhereTheirVerbReadsThem walks the generated schema
 // rather than the parameter table, because the table is what the walk is
 // checking: a filter declared on show and published on a second tool would
 // let an agent send it where nothing reads it.
@@ -16,7 +16,7 @@ import (
 // pair is asserted by name, by the value each publishes, and by the two
 // sentences differing. A single shared sentence would tell an agent that a
 // cursor and an ordinal are the same argument.
-func TestShowsFiltersArePublishedOnShowAndNowhereElse(t *testing.T) {
+func TestShowsFiltersArePublishedWhereTheirVerbReadsThem(t *testing.T) {
 	carrying := map[string][]string{"since": nil, "unresolved": nil}
 	described := map[string]map[string]string{"since": {}, "unresolved": {}}
 	walked := 0
@@ -44,18 +44,18 @@ func TestShowsFiltersArePublishedOnShowAndNowhereElse(t *testing.T) {
 	}
 	t.Logf("%d tools walked", walked)
 
-	if got := carrying["unresolved"]; len(got) != 1 || got[0] != "show" {
-		t.Errorf("unresolved is published on %v, wanted show alone", got)
+	if got := carrying["unresolved"]; len(got) != 2 || got[0] != "list" || got[1] != "show" {
+		t.Errorf("unresolved is published on %v, wanted list and show", got)
 	}
-	if got := carrying["since"]; len(got) != 2 {
-		t.Fatalf("since is published on %v, wanted show and changes", got)
+	if got := carrying["since"]; len(got) != 3 {
+		t.Fatalf("since is published on %v, wanted list, show and changes", got)
 	}
 	on := map[string]bool{}
 	for _, command := range carrying["since"] {
 		on[command] = true
 	}
-	if !on["show"] || !on["changes"] {
-		t.Errorf("since is published on %v, wanted show and changes", carrying["since"])
+	if !on["list"] || !on["show"] || !on["changes"] {
+		t.Errorf("since is published on %v, wanted list, show and changes", carrying["since"])
 	}
 	if described["since"]["show"] == described["since"]["changes"] {
 		t.Errorf("both spellings of since carry one sentence, %q, and the two arguments differ",
@@ -66,6 +66,7 @@ func TestShowsFiltersArePublishedOnShowAndNowhereElse(t *testing.T) {
 	// is where it is published, so it is read off the declaration both heads
 	// project rather than off the schema.
 	for _, row := range []struct{ command, want string }{
+		{command: "list", want: "ordinal"},
 		{command: "show", want: "ordinal"},
 		{command: "changes", want: "cursor"},
 	} {

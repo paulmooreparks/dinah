@@ -221,6 +221,24 @@ A name outside the nine is refused with `dinah.unknown-field`. The refusal
 names every unrecognised name you gave, sorted, together with the set you may
 choose from, and nothing is read before it is raised.
 
+## Dedicated collection listings
+
+`list` answers a reference that names a comment or checklist collection with a
+dedicated listing rather than a show answer. A listing carries the reference the
+reader typed, the kind the containment table spells, and one index entry per
+member in ordinal order. A card that carries none is an answer rather than a
+mistake.
+
+A comment listing index entry carries the comment's reference, ordinal, timestamp,
+author, first line capped at `subjectCap` runes, and byte size. Its body field is
+empty on entries at or before the `--since` ordinal, and filled on entries after
+it. An index served without `--since` carries the empty string on every entry.
+
+An item listing index entry carries the item's reference, ordinal, kind, state,
+the column it names for gating (and that column's title), the owner it names as
+its answerer, its first line capped at `subjectCap` runes, and the number of
+comments it carries (empty where it carries none).
+
 ## Reading the bodies of many cards at once
 
 A survey act reads the bodies of several cards in one stretch, and you perform

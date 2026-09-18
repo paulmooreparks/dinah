@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"dinah/internal/bench"
@@ -90,16 +91,19 @@ type ListAnswer struct {
 	// a decoder reading one of these back reads the members instead.
 	shape ListShape
 
-	Rosters     []Roster         `json:"rosters,omitempty"`
-	Columns     []ColumnView     `json:"columns,omitempty"`
-	Workstreams []WorkstreamView `json:"workstreams,omitempty"`
-	Kind        string           `json:"kind,omitempty"`
-	Ref         string           `json:"ref,omitempty"`
-	Attachments []AttachmentView `json:"attachments,omitempty"`
-	Query       string           `json:"query"`
-	Column      string           `json:"column,omitempty"`
-	Cards       []CardView       `json:"cards"`
-	Count       int              `json:"count"`
+	Rosters        []Roster            `json:"rosters,omitempty"`
+	Columns        []ColumnView        `json:"columns,omitempty"`
+	Workstreams    []WorkstreamView    `json:"workstreams,omitempty"`
+	Kind           string              `json:"kind,omitempty"`
+	Ref            string              `json:"ref,omitempty"`
+	Archived       bool                `json:"archived,omitempty"`
+	Attachments    []AttachmentView    `json:"attachments,omitempty"`
+	CommentMembers []CommentIndexEntry `json:"comment_members,omitempty"`
+	ItemMembers    []ItemIndexEntry    `json:"item_members,omitempty"`
+	Query          string              `json:"query"`
+	Column         string              `json:"column,omitempty"`
+	Cards          []CardView          `json:"cards"`
+	Count          int                 `json:"count"`
 }
 
 // ListShape names which arm of a list answer the reference selected. A head
@@ -129,6 +133,12 @@ const (
 	ShapeQueue ListShape = "queue"
 	// ShapeHistory is a card's journal.
 	ShapeHistory ListShape = "history"
+	// ShapeComments is a comments collection, which lists an index of the
+	// card's comments rather than their full text.
+	ShapeComments ListShape = "comments"
+	// ShapeItems is a checklist collection, which lists an index of the card's
+	// items rather than their full text.
+	ShapeItems ListShape = "items"
 	// ShapeContents is every other reference, and any reference walked under
 	// --depth or read in the archive half.
 	ShapeContents ListShape = "contents"
@@ -146,6 +156,8 @@ type ListResult struct {
 	Attachments *AttachmentListing
 	Matches     *Matches
 	Queue       *Listing
+	Comments    *CommentListing
+	Items       *ItemListing
 	History     []bench.Event
 	Contents    *Tree
 }
@@ -175,6 +187,16 @@ func (r *ListResult) Answer() *ListAnswer {
 	case ShapeQueue:
 		answer.Column = r.Queue.Column
 		answer.Cards = r.Queue.Cards
+	case ShapeComments:
+		answer.Kind = r.Comments.Kind
+		answer.Ref = r.Comments.Ref
+		answer.Archived = r.Comments.Archived
+		answer.CommentMembers = r.Comments.Members
+	case ShapeItems:
+		answer.Kind = r.Items.Kind
+		answer.Ref = r.Items.Ref
+		answer.Archived = r.Items.Archived
+		answer.ItemMembers = r.Items.Members
 	default:
 		return nil
 	}
@@ -199,6 +221,10 @@ func (a ListAnswer) MarshalJSON() ([]byte, error) {
 		return json.Marshal(Matches{Query: a.Query, Cards: a.Cards, Count: a.Count})
 	case ShapeQueue:
 		return json.Marshal(Listing{Column: a.Column, Cards: a.Cards})
+	case ShapeComments:
+		return json.Marshal(CommentListing{Kind: a.Kind, Ref: a.Ref, Members: a.CommentMembers, Archived: a.Archived})
+	case ShapeItems:
+		return json.Marshal(ItemListing{Kind: a.Kind, Ref: a.Ref, Members: a.ItemMembers, Archived: a.Archived})
 	}
 	type plain ListAnswer
 	return json.Marshal(plain(a))
@@ -221,10 +247,12 @@ const (
 // shapes whose answer is cards read it. --archived resolves a reference in the
 // archive half, so every reference reads it and a roster word does not.
 type listFlags struct {
-	depth    bool
-	ready    bool
-	archived bool
-	root     bool
+	depth      bool
+	ready      bool
+	archived   bool
+	root       bool
+	since      bool
+	unresolved bool
 }
 
 // refuseListFlag composes the refusal a flag a shape does not read raises. The
@@ -248,6 +276,12 @@ func (f listFlags) check(req *Request, subject string) error {
 	}
 	if req.Root != "" && !f.root {
 		return refuseListFlag(flagRoot, subject)
+	}
+	if req.SinceComment != "" && !f.since {
+		return refuseListFlag("--since", subject)
+	}
+	if req.Unresolved && !f.unresolved {
+		return refuseListFlag("--unresolved", subject)
 	}
 	return nil
 }
@@ -383,11 +417,40 @@ func (l *Library) ListRef(req *Request) (*ListResult, error) {
 		return nil, unknownColumnFor(l.Bench, ref, err)
 	}
 	if collection != nil {
-		if err := (listFlags{depth: true, archived: true}).check(req, subjectCollection); err != nil {
-			return nil, err
-		}
-		if req.Depth == "" && !req.Archived && collection.Mount.Kind == bench.KindAttachment {
-			return l.listAttachments(req, ref)
+		switch collection.Mount.Kind {
+		case bench.KindAttachment:
+			if err := (listFlags{depth: true, archived: true}).check(req, subjectCollection); err != nil {
+				return nil, err
+			}
+			if req.Depth == "" && !req.Archived {
+				return l.listAttachments(req, ref)
+			}
+		case bench.KindComment:
+			if err := (listFlags{depth: true, since: true, archived: true}.check(req, subjectCollection)); err != nil {
+				return nil, err
+			}
+			if req.Depth != "" || req.Archived {
+				if req.SinceComment != "" {
+					return nil, contract.Refuse(contract.Usage, "--since beside --depth or --archived")
+				}
+				return l.listContents(req, level)
+			}
+			return l.listComments(req, ref, collection)
+		case bench.KindItem:
+			if err := (listFlags{depth: true, unresolved: true, archived: true}.check(req, subjectCollection)); err != nil {
+				return nil, err
+			}
+			if req.Depth != "" || req.Archived {
+				if req.Unresolved {
+					return nil, contract.Refuse(contract.Usage, "--unresolved beside --depth or --archived")
+				}
+				return l.listContents(req, level)
+			}
+			return l.listItems(req, ref, collection)
+		default:
+			if err := (listFlags{depth: true, archived: true}).check(req, subjectCollection); err != nil {
+				return nil, err
+			}
 		}
 		return l.listContents(req, level)
 	}
@@ -557,6 +620,46 @@ func (l *Library) listAttachments(req *Request, ref string) (*ListResult, error)
 		return nil, err
 	}
 	return &ListResult{Shape: ShapeAttachments, Attachments: listing}, nil
+}
+
+// listComments serves a comments collection as an index. Since reads the
+// --since ordinal off the request: entries at or before the ordinal carry an
+// empty Body, entries after it carry the full text. Without --since, every
+// entry carries an empty Body, because the listing is the index and not the
+// payload.
+func (l *Library) listComments(req *Request, ref string, collection *bench.CollectionRef) (*ListResult, error) {
+	if err := (listFlags{since: true}).check(req, subjectCollection); err != nil {
+		return nil, err
+	}
+	var sinceOrdinal int
+	var sinceSet bool
+	if written := strings.TrimSpace(req.SinceComment); written != "" {
+		ordinal, err := strconv.Atoi(written)
+		if err != nil || ordinal < 0 {
+			return nil, contract.Refuse(contract.Usage, "--since "+written)
+		}
+		sinceOrdinal = ordinal
+		sinceSet = true
+	}
+	listing, err := l.commentListing(collection, sinceOrdinal, sinceSet)
+	if err != nil {
+		return nil, err
+	}
+	return &ListResult{Shape: ShapeComments, Comments: listing}, nil
+}
+
+// listItems serves a checklist collection as an index. Since reads the
+// --unresolved flag off the request: when set, only items whose state does not
+// lift a column hold appear in the listing.
+func (l *Library) listItems(req *Request, ref string, collection *bench.CollectionRef) (*ListResult, error) {
+	if err := (listFlags{unresolved: true}).check(req, subjectCollection); err != nil {
+		return nil, err
+	}
+	listing, err := l.itemListing(collection, req.Unresolved)
+	if err != nil {
+		return nil, err
+	}
+	return &ListResult{Shape: ShapeItems, Items: listing}, nil
 }
 
 // listJournal renders a card's journal, which is a file rather than a

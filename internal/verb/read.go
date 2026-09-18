@@ -1038,37 +1038,91 @@ type ItemDetail struct {
 	Comments []CommentView `json:"comments,omitempty"`
 }
 
-// CollectionListing is what show answers for a reference naming a whole
+// CommentListing is what list answers for a reference naming a comment
 // collection: the reference the reader typed, the kind of thing the collection
-// holds, and one member per member of the half the reference resolved in, in
-// creation order.
-type CollectionListing struct {
-	// Ref is the collection reference as the reader typed it, so a header
-	// drawn from this reads back what they wrote.
+// holds, and one index entry per comment in ordinal order.
+type CommentListing struct {
+	// Ref is the collection reference as the reader typed it.
 	Ref string `json:"ref"`
-	// Kind is what the collection holds, as the containment table spells it,
-	// so a checklist collection reports item however it was addressed.
+	// Kind is what the collection holds, as the containment table spells it.
 	Kind string `json:"kind"`
-	// Members are the collection's members in creation order, drawn from
-	// whichever half the reference resolved in. A collection holding none
-	// reports an empty list rather than nothing.
-	Members []CollectionMember `json:"members"`
+	// Members are the collection's comment index entries in ordinal order.
+	Members []CommentIndexEntry `json:"members"`
 	// Archived reports that the members listed are the archive mirror's own
-	// rather than the live half's, so a client knows which half it is
-	// looking at without parsing the command line it sent.
+	// rather than the live half's.
 	Archived bool `json:"archived,omitempty"`
 }
 
-// CollectionMember is one member of a collection: the address a reader types
-// to reach it, and the text show prints for that address on its own.
-type CollectionMember struct {
-	// Ref is the member's own printed spelling, composed by the containment
-	// walk rather than by appending a position to the collection reference,
-	// so one entity is printed one way wherever it appears.
+// CommentIndexEntry is one row of the comment listing index: the same fields
+// the show index carries for a comment, with Body empty on entries at or
+// before the --since ordinal and filled on entries after it.
+type CommentIndexEntry struct {
+	// ID is the comment's identifier.
+	ID string `json:"id"`
+	// Ordinal is the comment's one-based position among the card's comments
+	// in creation order.
+	Ordinal int `json:"ordinal"`
+	// Ref is what a person types to reach this comment.
 	Ref string `json:"ref"`
-	// Text is the member's anchor, which is the same read show performs for
-	// the member asked for alone.
+	// TS is the comment's timestamp, exactly as bench stores it.
+	TS string `json:"ts"`
+	// Author is the comment's author, exactly as bench stores it.
+	Author string `json:"author"`
+	// Subject is the first line of the body carrying anything, trimmed and
+	// capped at subjectCap runes, computed by subjectOf.
+	Subject string `json:"subject"`
+	// Size is the byte length of the comment's body.
+	Size int `json:"size"`
+	// Body is the comment's full text on entries after the --since ordinal,
+	// and the empty string on entries at or before it. An index served
+	// without --since carries the empty string on every entry.
+	Body string `json:"body"`
+}
+
+// ItemListing is what list answers for a reference naming a checklist
+// collection: the reference the reader typed, the kind of thing the collection
+// holds, and one index entry per item in creation order.
+type ItemListing struct {
+	// Ref is the collection reference as the reader typed it.
+	Ref string `json:"ref"`
+	// Kind is what the collection holds, as the containment table spells it.
+	Kind string `json:"kind"`
+	// Members are the collection's item index entries in creation order.
+	Members []ItemIndexEntry `json:"members"`
+	// Archived reports that the members listed are the archive mirror's own
+	// rather than the live half's.
+	Archived bool `json:"archived,omitempty"`
+}
+
+// ItemIndexEntry is one row of the checklist listing index: the same fields
+// the show index carries for an item, with Text capped at subjectCap runes
+// and Note removed, because the listing is the index and the recovery path
+// is the item's own reference.
+type ItemIndexEntry struct {
+	// ID is the item's identifier.
+	ID string `json:"id"`
+	// Ordinal is the item's one-based position among the card's checklist
+	// items in creation order.
+	Ordinal int `json:"ordinal"`
+	// Ref is what a person types to reach this item.
+	Ref string `json:"ref"`
+	// Kind is one of acceptance_criterion, open_question and decision.
+	Kind string `json:"kind"`
+	// State is whatever the item's own file says, unvalidated.
+	State string `json:"state"`
+	// Column is the column this item names for gating, absent when the item
+	// was filed without one.
+	Column string `json:"column,omitempty"`
+	// ColumnTitle is that column's title, resolved the way
+	// CardView.ColumnTitle resolves the card's own, absent when Column names
+	// no column this workbench still has.
+	ColumnTitle string `json:"column_title,omitempty"`
+	// Owner is who the item names as its answerer.
+	Owner string `json:"owner,omitempty"`
+	// Text is the item's first line capped at subjectCap runes.
 	Text string `json:"text"`
+	// CommentCount is how many comments the item carries.
+	CommentCount int `json:"comment_count,omitempty"`
 }
 
 // Record is what show prints for an entity whose answer is a set of fields
@@ -1316,7 +1370,7 @@ func (l *Library) itemDetailOf(entity *bench.EntityRef) (*ItemDetail, error) {
 		return nil, contract.Refuse(contract.UnknownPath, entity.Ref)
 	}
 	// The reference this prints is the kind-narrowed one the checklist table
-	// already composes for the item, on the rule collectionListing's own doc
+	// already composes for the item, on the rule itemListing's own doc
 	// comment states: one entity has one printed spelling, and
 	// pb-1/checklist/1 is not it where pb-1/questions/1 is what filed it.
 	// rootOf in tree.go composes the same form for a walk rooted at an item,
@@ -1592,35 +1646,81 @@ func (l *Library) detailOf(card *bench.Card, chosen detailSelection, filters det
 	return detail, "", nil
 }
 
-// collectionListing reads every member of a collection and prints each
-// member's anchor alone, nothing below it. A member asked for on its own
-// reference may print more, the way an item now prints its comments, so a
-// collection listing is the anchor text rather than a promise the two reads
-// agree.
-//
-// The addresses come from the containment walk's own composer rather than from
-// the collection reference plus a position, because one entity has one printed
-// spelling: an open question filed first is pb-1/questions/1 on every surface,
-// and pb-1/checklist/1 on none of them.
-func (l *Library) collectionListing(collection *bench.CollectionRef) (*CollectionListing, error) {
-	seed, err := l.childSeed(collection.Holder)
+// commentListing builds a CommentListing from the collection's comments,
+// applying the --since filter: entries at or before the since ordinal carry an
+// empty Body, entries after it carry the full text. Without --since, every
+// entry carries an empty Body (the index is the index, not the payload).
+func (l *Library) commentListing(collection *bench.CollectionRef, sinceOrdinal int, sinceSet bool) (*CommentListing, error) {
+	views, err := l.commentViews(collection.Holder.Dir, collection.Holder.Ref)
 	if err != nil {
 		return nil, err
 	}
-	nodes, err := l.memberNodes(collection.Dir, collection.Mount, collection.Members, seed)
-	if err != nil {
-		return nil, err
-	}
-	members := make([]CollectionMember, 0, len(nodes))
-	for i, node := range nodes {
-		anchor := filepath.Join(collection.Dir, collection.Members[i], collection.Mount.Anchor)
-		text, err := bench.ReadText(anchor)
-		if err != nil {
-			return nil, contract.Refuse(contract.UnknownPath, node.Ref)
+	members := make([]CommentIndexEntry, 0, len(views))
+	for _, v := range views {
+		body := ""
+		if sinceSet && v.Ordinal > sinceOrdinal {
+			body = v.Body
 		}
-		members = append(members, CollectionMember{Ref: node.Ref, Text: text})
+		members = append(members, CommentIndexEntry{
+			ID:      v.ID,
+			Ordinal: v.Ordinal,
+			Ref:     v.Ref,
+			TS:      v.TS,
+			Author:  v.Author,
+			Subject: v.Subject,
+			Size:    v.Size,
+			Body:    body,
+		})
 	}
-	return &CollectionListing{Ref: collection.Ref, Kind: collection.Mount.Kind, Members: members, Archived: collection.Archived}, nil
+	return &CommentListing{Ref: collection.Ref, Kind: collection.Mount.Kind, Members: members, Archived: collection.Archived}, nil
+}
+
+// itemListing builds an ItemListing from the collection's checklist items,
+// applying the --unresolved filter: when set, only items whose state does not
+// lift a column hold are included.
+func (l *Library) itemListing(collection *bench.CollectionRef, unresolvedOnly bool) (*ItemListing, error) {
+	items, err := bench.Items(collection.Holder.Dir)
+	if err != nil {
+		return nil, err
+	}
+	cardRef := collection.Holder.Ref
+	kindPosition := map[string]int{}
+	members := make([]ItemIndexEntry, 0, len(items))
+	for _, item := range items {
+		if unresolvedOnly && bench.ItemLiftsColumnHold(item) {
+			continue
+		}
+		kindPosition[item.Kind]++
+		position, err := memberPosition(item.Dir, bench.ItemAnchor)
+		if err != nil {
+			return nil, err
+		}
+		text := capRunes(firstLine(item.Text), subjectCap)
+		var col, colTitle string
+		if item.Column != "" {
+			col = item.Column
+			if column := l.Bench.Column(item.Column); column != nil {
+				colTitle = column.Title
+			}
+		}
+		count, err := bench.CountComments(item.Dir)
+		if err != nil {
+			return nil, err
+		}
+		members = append(members, ItemIndexEntry{
+			ID:           item.ID,
+			Ordinal:      position,
+			Ref:          itemRef(cardRef, item.Kind, kindPosition[item.Kind], position),
+			Kind:         item.Kind,
+			State:        item.State,
+			Column:       col,
+			ColumnTitle:  colTitle,
+			Owner:        item.Owner,
+			Text:         text,
+			CommentCount: count,
+		})
+	}
+	return &ItemListing{Ref: collection.Ref, Kind: collection.Mount.Kind, Members: members, Archived: collection.Archived}, nil
 }
 
 // AttachmentListing is one entity's attachments: a workbench's, a column's, a

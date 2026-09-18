@@ -71,8 +71,13 @@ type sweptBlock struct {
 	// more columns carries one, which TestEveryTableSiteIsRegistered asserts.
 	expect func(t *testing.T, r *sweptRecord, tag string) sweptExpectation
 	// opensAt is the catalog key of the line this block is drawn under. It is
-	// empty on a block that starts at the top of its own output.
+	// empty on a block that starts at the top of its own output. When the
+	// heading carries template parameters the test data supplies, opensWith
+	// takes priority over opensAt.
 	opensAt string
+	// opensWith, when non-nil, returns the exact heading the renderer draws,
+	// parameters filled in. It takes priority over opensAt.
+	opensWith func(tag string, w *sweptWorkbenches) string
 	// sections are the catalog keys of the section rows this block draws. A
 	// section row belongs to the block, so the harvest crosses it and keeps it,
 	// and both readers take it as a record boundary.
@@ -288,10 +293,11 @@ func assertEveryBlockLinesUp(t *testing.T, benches *sweptWorkbenches, full, stac
 	for _, block := range sweptBlocks() {
 		rendered := 0
 		for _, tag := range msg.Tags() {
-			lines := sweptHarvestOf(t, block, benches, tag)
+			opener := sweptOpenerOf(block, benches, tag)
+			lines := sweptHarvestFrom(t, block, benches, tag, opener)
 			if len(lines) == 0 {
 				t.Errorf("%s (%s), locale %s, pass %s: the harvest came back empty, so the block drew nothing under the line %q it opens at and nothing about it is asserted",
-					block.site, block.label, tag, sweptPass, block.opensAt)
+					block.site, block.label, tag, sweptPass, opener)
 				continue
 			}
 			rendered++
@@ -1348,14 +1354,21 @@ func indentedBlock(out, heading string) []string {
 func indentedLinesAfter(out, heading string) []string {
 	var lines []string
 	started := false
+	found := false
 	for _, line := range strings.Split(strings.TrimRight(out, "\n"), "\n") {
 		if !started {
-			started = line == heading
+			if line == heading {
+				started = true
+				found = true
+			}
 			continue
 		}
 		if strings.HasPrefix(line, "  ") && strings.TrimSpace(line) != "" {
 			lines = append(lines, line)
 		}
+	}
+	if !found {
+		return nil
 	}
 	return lines
 }
@@ -1599,6 +1612,32 @@ func sweptBlocks() []sweptBlock {
 			opensAt: "show.checklist", expect: expectChecklist,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
 				return sweptRun(t, w.checklist, tag, "show", w.checklistCard)
+			},
+		},
+		{
+			site: renderSite{File: "render.go", Function: "renderCommentListing", Label: "block", Ordinal: 1}, label: "a card's comment listing",
+			keys: []string{"column.comments.ref", "column.comments.when", "column.comments.who",
+				"column.comments.subject", "column.comments.size"}, varies: lastCell,
+			blanksAreLost: true,
+			opensWith: func(tag string, w *sweptWorkbenches) string {
+				return msg.For(tag).T("listing-comments.header", "ref", w.card+"/comments", "count", strconv.Itoa(len(w.record.comments)))
+			},
+			expect: expectComments,
+			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
+				return sweptRun(t, w.healthy, tag, "list", w.card+"/comments")
+			},
+		},
+		{
+			site: renderSite{File: "render.go", Function: "renderItemListing", Label: "block", Ordinal: 1}, label: "a card's item listing",
+			keys: []string{"column.listing-items.ref", "column.listing-items.kind", "column.listing-items.state",
+				"column.listing-items.column", "column.listing-items.owner", "column.listing-items.text",
+				"column.listing-items.comment-count"}, varies: lastCell,
+			opensWith: func(tag string, w *sweptWorkbenches) string {
+				return msg.For(tag).T("listing-items.header", "ref", w.checklistCard+"/checklist", "count", strconv.Itoa(len(w.record.checklist)))
+			},
+			expect: expectItemListing,
+			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
+				return sweptRun(t, w.checklist, tag, "list", w.checklistCard+"/checklist")
 			},
 		},
 		{
@@ -2742,15 +2781,15 @@ func sweptSearchTree(t *testing.T, base string, record *sweptRecord) string {
 // does in internal/verb rather than here.
 var sweptChecklistItems = []sweptItemRecord{
 	{id: "b00000000001", kind: "open_question", state: "pending", owner: "operator",
-		text: "Which vendor do we cite?", comments: 2},
+		text: "Which vendor do we cite?", comments: 2, column: reviewColumn},
 	{id: "b00000000002", kind: "open_question", state: "resolved", owner: "operator",
 		text: "Who signs the wording off?", note: "the operator answered Acme", comments: 1},
 	{id: "b00000000003", kind: "acceptance_criterion", state: "pending", owner: "holder",
-		text: "The endpoint answers 404.", comments: 3},
+		text: "The endpoint answers 404.", comments: 3, column: waitingColumn},
 	{id: "b00000000004", kind: "acceptance_criterion", state: "verified", owner: "holder",
 		text: "The listing keeps its count.", note: "run against this fixture", comments: 1},
 	{id: "b00000000005", kind: "decision", state: "pending", owner: "holder",
-		text: "Where the member sits.", comments: 2},
+		text: "Where the member sits.", comments: 2, column: outsideColumn},
 	{id: "b00000000006", kind: "decision", state: "resolved", owner: "holder",
 		text: "Which order the rows take.", note: "creation order, as the loader reads them", comments: 4},
 }
@@ -2766,6 +2805,9 @@ func sweptChecklistTree(t *testing.T, base string, record *sweptRecord) (string,
 		t.Fatalf("mkdir: %v", err)
 	}
 	sweptDo(t, dir, "init", "--slug", "ck", "--operator", "alka")
+	sweptAddColumn(t, dir, outsideColumn, outsideTitle, "work", "awaiting_outside: true\n")
+	sweptAddColumn(t, dir, reviewColumn, reviewTitle, "work", "operator_owned: true\n")
+	sweptAddColumn(t, dir, waitingColumn, waitingTitle, "work", "")
 	sweptDo(t, dir, "add", wideTitle)
 	ref := "ck-1"
 	got := runCLI(t, dir, "path", ref)
@@ -2782,6 +2824,9 @@ func sweptChecklistTree(t *testing.T, base string, record *sweptRecord) (string,
 			"ordinal: " + strconv.Itoa(i+1) + "\n"
 		if item.note != "" {
 			header += "note: " + item.note + "\n"
+		}
+		if item.column != "" {
+			header += bench.ItemColumnField + ": " + item.column + "\n"
 		}
 		anchor := filepath.Join(cardDir, bench.ChecklistDir, item.id, bench.ItemAnchor)
 		if err := bench.WriteText(anchor, "---\n"+header+"---\n"+item.text+"\n"); err != nil {

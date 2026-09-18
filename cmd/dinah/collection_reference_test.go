@@ -202,18 +202,18 @@ func TestListDrawsACollectionsMembersInCreationOrder(t *testing.T) {
 		t.Errorf("list prints fx-1/comments/2 before fx-1/comments/1, and creation order is the order:\n%s", human)
 	}
 
-	var walk verb.Tree
+	var comments verb.CommentListing
 	payload := mustRun(t, root, "list", "fx-1/comments", "--json").out
-	if err := json.Unmarshal([]byte(payload), &walk); err != nil {
+	if err := json.Unmarshal([]byte(payload), &comments); err != nil {
 		t.Fatalf("the collection payload will not parse: %v\n%s", err, payload)
 	}
-	if walk.Root.Ref != "fx-1/comments" {
-		t.Errorf("the payload reads back %q rather than the reference the reader typed", walk.Root.Ref)
+	if comments.Ref != "fx-1/comments" {
+		t.Errorf("the payload reads back %q rather than the reference the reader typed", comments.Ref)
 	}
-	if len(walk.Root.Children) != 2 {
-		t.Fatalf("the payload carries %d members and the card carries two:\n%s", len(walk.Root.Children), payload)
+	if len(comments.Members) != 2 {
+		t.Fatalf("the payload carries %d members and the card carries two:\n%s", len(comments.Members), payload)
 	}
-	for position, member := range walk.Root.Children {
+	for position, member := range comments.Members {
 		want := []string{"fx-1/comments/1", "fx-1/comments/2"}[position]
 		if member.Ref != want {
 			t.Errorf("member %d is addressed %q rather than %q", position+1, member.Ref, want)
@@ -227,18 +227,18 @@ func TestListDrawsACollectionsMembersInCreationOrder(t *testing.T) {
 	// appending a position to the typed reference: the question was filed
 	// first, so it is member one of the checklist and fx-1/questions/1
 	// everywhere it is printed.
-	var checklist verb.Tree
+	var items verb.ItemListing
 	payload = mustRun(t, root, "list", "fx-1/checklist", "--json").out
-	if err := json.Unmarshal([]byte(payload), &checklist); err != nil {
+	if err := json.Unmarshal([]byte(payload), &items); err != nil {
 		t.Fatalf("the checklist payload will not parse: %v\n%s", err, payload)
 	}
-	if len(checklist.Root.Children) != 2 {
-		t.Fatalf("the checklist carries %d members and the card carries two:\n%s", len(checklist.Root.Children), payload)
+	if len(items.Members) != 2 {
+		t.Fatalf("the checklist carries %d members and the card carries two:\n%s", len(items.Members), payload)
 	}
-	if checklist.Root.Children[0].Ref != "fx-1/questions/1" {
-		t.Errorf("the open question is addressed %q rather than fx-1/questions/1", checklist.Root.Children[0].Ref)
+	if items.Members[0].Ref != "fx-1/questions/1" {
+		t.Errorf("the open question is addressed %q rather than fx-1/questions/1", items.Members[0].Ref)
 	}
-	for _, member := range checklist.Root.Children {
+	for _, member := range items.Members {
 		if got := runCLI(t, root, "show", member.Ref); got.code != 0 {
 			t.Errorf("list printed the address %q and then show refused it: %d %s", member.Ref, got.code, got.errw)
 		}

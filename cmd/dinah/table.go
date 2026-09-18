@@ -96,6 +96,10 @@ type table struct {
 	// does not ask for it breaks the capped column on word boundaries, the
 	// behaviour every ceiling-bearing table drew before this existed.
 	wrapOptions bool
+	// stackOnOverflow makes a table stack when narrowToWindow shortens a
+	// non-final column below a row value. Listings opt in so a continuation
+	// never begins without its reference.
+	stackOnOverflow bool
 }
 
 // tableGutter is how many display columns separate one column from the next.
@@ -189,7 +193,11 @@ func withGuides(t table) table {
 		}
 		rows = append(rows, tableRow{section: r.section, fields: fields, note: r.note})
 	}
-	return table{indent: t.indent, columns: t.columns, rows: rows, labels: t.labels}
+	return table{
+		indent: t.indent, columns: t.columns, rows: rows, labels: t.labels,
+		wrapTail: t.wrapTail, ceilingColumn: t.ceilingColumn, hasCeiling: t.hasCeiling,
+		wrapOptions: t.wrapOptions, stackOnOverflow: t.stackOnOverflow,
+	}
 }
 
 // guidePrefix composes one row's prefix from its guides: a piece per ancestor
@@ -329,6 +337,8 @@ type laidTable struct {
 	// wrapOptions is carried from the table, so the row assembly reads the
 	// same answer the table declared.
 	wrapOptions bool
+	// stackOnOverflow is the table's opt-in carried through layout.
+	stackOnOverflow bool
 }
 
 // layOut removes the columns no row fills, chooses every column's width, and
@@ -411,14 +421,15 @@ func measure(t table, window int) laidTable {
 		// read off the declared table for the same reason: those two helpers
 		// rebuild without it, so filled.wrapTail is false on every path and
 		// would silently retire a wrapping table's opt-in.
-		labels:        t.labels,
-		window:        window,
-		columns:       filled.columns,
-		rows:          filled.rows,
-		wrapTail:      t.wrapTail,
-		ceilingColumn: t.ceilingColumn,
-		hasCeiling:    t.hasCeiling,
-		wrapOptions:   t.wrapOptions,
+		labels:          t.labels,
+		window:          window,
+		columns:         filled.columns,
+		rows:            filled.rows,
+		wrapTail:        t.wrapTail,
+		ceilingColumn:   t.ceilingColumn,
+		hasCeiling:      t.hasCeiling,
+		wrapOptions:     t.wrapOptions,
+		stackOnOverflow: t.stackOnOverflow,
 	}
 	laid.widths = chooseWidths(laid)
 	clearTheGutter(&laid)
@@ -776,7 +787,7 @@ func (laid laidTable) stacks() bool {
 			if laid.hasCeiling && c == laid.ceilingColumn {
 				continue
 			}
-			if laid.widths[c] > displayWidth(laid.columns[c].heading) {
+			if !laid.stackOnOverflow && laid.widths[c] > displayWidth(laid.columns[c].heading) {
 				continue
 			}
 			if displayWidth(field) >= laid.widths[c]+tableGutter {

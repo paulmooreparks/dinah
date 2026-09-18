@@ -63,7 +63,8 @@ WORK
 READ
   status [--root <path>] [--max-depth <n>]               Where this workbench stands, and what you hold
   list [ref] [--depth <level>] [--ready] [--archived]    What an entity of this workbench holds
-    [--root <path>] [--max-depth <n>]
+    [--since <ordinal>] [--unresolved] [--root <path>]
+    [--max-depth <n>]
   next [column] [--root <path>] [--max-depth <n>]        The card a column offers next
   query [query]                                          The cards of the workbench that match a query
   search <phrase> [--query <terms>] [--archived]         Every place a phrase occurs in this workbench
@@ -162,7 +163,8 @@ WORK
 
 READ
   status [--root <path>] [--max-depth <n>]                                                              Where this workbench stands, and what you hold
-  list [ref] [--depth <level>] [--ready] [--archived] [--root <path>] [--max-depth <n>]                 What an entity of this workbench holds
+  list [ref] [--depth <level>] [--ready] [--archived] [--since <ordinal>] [--unresolved]                What an entity of this workbench holds
+    [--root <path>] [--max-depth <n>]
   next [column] [--root <path>] [--max-depth <n>]                                                       The card a column offers next
   query [query]                                                                                         The cards of the workbench that match a query
   search <phrase> [--query <terms>] [--archived] [--root <path>] [--max-depth <n>]                      Every place a phrase occurs in this workbench
