@@ -5497,6 +5497,46 @@
       "text": "diese Werkbank trägt keinen Arbeitsstrang",
       "context": "Printed by the workstream command when the workbench carries none, in place of an empty table.",
       "source": "7d1a4aa9199e6ddf"
+    },
+    "refusal.dinah.invalid-alias": {
+      "text": "Alias {detail} ist ungültig ({defect}).",
+      "context": "The sentence printed after refusal dinah.invalid-alias. {detail} is the exact alias setting key and {defect} is its stable validation token.",
+      "source": "fd91daf20b117415"
+    },
+    "refusal.dinah.invalid-alias.next": {
+      "text": " Korrigieren Sie die Aliaseinstellung oder entfernen Sie sie mit `dinah config set {detail}`.",
+      "context": "The next step for dinah.invalid-alias. {detail} is the exact alias setting key. The command spelling is machine vocabulary and is never translated.",
+      "source": "3f6f8be0680e5b05"
+    },
+    "refusal.dinah.alias-shadows-command": {
+      "text": "Alias {detail} würde den deklarierten Befehl {command} verdecken.",
+      "context": "The sentence printed after refusal dinah.alias-shadows-command. {detail} is the alias setting key and {command} is the declared command its suffix collides with.",
+      "source": "bfed3f808639b4e9"
+    },
+    "refusal.dinah.alias-shadows-command.next": {
+      "text": " Wählen Sie einen anderen Aliasnamen.",
+      "context": "The next step for dinah.alias-shadows-command.",
+      "source": "a2f0395a8d9da3f6"
+    },
+    "refusal.dinah.missing-alias-argument": {
+      "text": "Alias {detail} benötigt das Argument {argument}.",
+      "context": "The sentence printed after refusal dinah.missing-alias-argument. {detail} is the alias name and {argument} is the missing placeholder token.",
+      "source": "e87ddb384de6c80c"
+    },
+    "refusal.dinah.missing-alias-argument.next": {
+      "text": " Geben Sie das fehlende Argument an und führen Sie den Befehl erneut aus.",
+      "context": "The next step for dinah.missing-alias-argument.",
+      "source": "83c200bea158e06e"
+    },
+    "token.invalid": {
+      "text": "ungültig",
+      "context": "How the canonical token invalid is rendered in the settings listing for a stored alias quarantined by validation. The machine surface always carries the canonical spelling.",
+      "source": "2be5705c42a81bd0"
+    },
+    "token.shadowed": {
+      "text": "verdeckt",
+      "context": "How the canonical token shadowed is rendered in the settings listing for a stored alias whose name is now a declared command. The machine surface always carries the canonical spelling.",
+      "source": "1f223a3d86f30d38"
     }
   }
 }

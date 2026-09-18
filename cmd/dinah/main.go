@@ -11,6 +11,7 @@ package main
 import (
 	"io"
 	"os"
+	"strconv"
 	"strings"
 
 	"dinah/internal/bench"
@@ -125,6 +126,12 @@ func main() {
 // run is main with its streams and arguments passed in, so a test drives the
 // whole head without building or exec-ing the binary.
 func run(argv []string, in io.Reader, out, errw io.Writer) int {
+	home := bench.Home()
+	cfg := bench.LoadConfig(home)
+	expanded, expansionErr := expandAlias(argv, cfg)
+	if expansionErr == nil {
+		argv = expanded
+	}
 	valued := map[string]bool{}
 	for _, flag := range valuedFlags {
 		valued[flag] = true
@@ -134,8 +141,6 @@ func run(argv []string, in io.Reader, out, errw io.Writer) int {
 	if wdErr != nil {
 		cwd = "."
 	}
-	home := bench.Home()
-	cfg := bench.LoadConfig(home)
 	benchFlag, benchFlagSource := bench.Resolve(
 		bench.Layer{Source: bench.SourceFlag, Value: parsed.value("workbench")},
 		bench.Layer{Source: bench.SourceEnvironment, Value: os.Getenv("DINAH_WORKBENCH")},
@@ -159,6 +164,9 @@ func run(argv []string, in io.Reader, out, errw io.Writer) int {
 	}
 	if w, ok := errw.(*consolewriter.Writer); ok {
 		s.rawErr = w.File()
+	}
+	if expansionErr != nil {
+		return s.reportError(expansionErr)
 	}
 	if parseErr != nil {
 		// The parse failed, and the refusal still reaches its reader in
@@ -244,6 +252,87 @@ func run(argv []string, in io.Reader, out, errw io.Writer) int {
 		return s.fail(contract.Usage, "--"+flag)
 	}
 	return command.run(s, parsed)
+}
+
+// commandNames returns the live command roster as a membership set.
+func commandNames() map[string]bool {
+	names := make(map[string]bool, len(commands))
+	for _, command := range commands {
+		names[command.name] = true
+	}
+	return names
+}
+
+// expandAlias replaces the first positional word when it names a valid stored
+// alias. It edits argv once, before ordinary parsing, so the existing parser
+// remains the sole authority for flags, arity and dispatch.
+func expandAlias(argv []string, cfg *bench.Config) ([]string, error) {
+	valued := map[string]bool{}
+	known := map[string]bool{}
+	for _, flag := range valuedFlags {
+		valued[flag] = true
+		known[flag] = true
+	}
+	for _, flag := range markerFlags {
+		known[flag] = true
+	}
+	var positions []int
+	walkFlags(
+		argv,
+		valued,
+		known,
+		func(_ string, index int) { positions = append(positions, index) },
+		func(string, string, bool, []string) {},
+		func(string) bool { return true },
+	)
+	if len(positions) == 0 {
+		return argv, nil
+	}
+	name := argv[positions[0]]
+	if commandNames()[name] {
+		return argv, nil
+	}
+	alias, found := cfg.AliasNamed(name)
+	if !found {
+		return argv, nil
+	}
+	if alias.Defect != "" {
+		return nil, contract.RefuseWith(
+			contract.InvalidAlias,
+			alias.Key,
+			map[string]string{"defect": alias.Defect},
+		)
+	}
+	if len(positions)-1 < alias.Highest {
+		missing := len(positions)
+		return nil, contract.RefuseWith(
+			contract.AliasMissing,
+			name,
+			map[string]string{"argument": "$" + strconv.Itoa(missing)},
+		)
+	}
+	expansion := make([]string, len(alias.Tokens))
+	copy(expansion, alias.Tokens)
+	for i := range expansion {
+		for number := 1; number <= alias.Highest; number++ {
+			value := argv[positions[number]]
+			expansion[i] = strings.ReplaceAll(expansion[i], "$"+strconv.Itoa(number), value)
+		}
+	}
+	consumed := map[int]bool{positions[0]: true}
+	for number := 1; number <= alias.Highest; number++ {
+		consumed[positions[number]] = true
+	}
+	result := make([]string, 0, len(argv)+len(expansion)-len(consumed))
+	for index, word := range argv {
+		if index == positions[0] {
+			result = append(result, expansion...)
+		}
+		if !consumed[index] {
+			result = append(result, word)
+		}
+	}
+	return result, nil
 }
 
 // undeclaredFlagOn reports the first flag this invocation carried that the

@@ -198,7 +198,7 @@ type arguments struct {
 func walkFlags(
 	argv []string,
 	valued, known map[string]bool,
-	onPositional func(word string),
+	onPositional func(word string, index int),
 	visit func(name, value string, complete bool, tokens []string),
 	onUnknown func(word string) bool,
 ) {
@@ -206,7 +206,7 @@ func walkFlags(
 	for i := 0; i < len(argv); i++ {
 		word := argv[i]
 		if markerSeen {
-			onPositional(word)
+			onPositional(word, i)
 			continue
 		}
 		if word == "--" {
@@ -223,7 +223,7 @@ func walkFlags(
 			continue
 		}
 		if word == "-" || !strings.HasPrefix(word, "--") {
-			onPositional(word)
+			onPositional(word, i)
 			continue
 		}
 		name, inline, joined := strings.Cut(strings.TrimPrefix(word, "--"), "=")
@@ -279,7 +279,7 @@ func parseArgs(argv []string, valued map[string]bool) (*arguments, error) {
 	}
 	var refusal *contract.Refusal
 	walkFlags(argv, valued, known,
-		func(word string) {
+		func(word string, _ int) {
 			parsed.positional = append(parsed.positional, word)
 		},
 		func(name, value string, complete bool, tokens []string) {
@@ -375,7 +375,7 @@ func scanLangFlag(argv []string) string {
 	}
 	value := ""
 	walkFlags(argv, valued, known,
-		func(string) {},
+		func(string, int) {},
 		func(name, v string, complete bool, tokens []string) {
 			if complete && name == "lang" {
 				value = v

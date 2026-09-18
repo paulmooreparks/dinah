@@ -2434,6 +2434,9 @@ type SettingsContext struct {
 	// CWD, Home and NativeHome are what the workbench setting's ladder needs
 	// to run the same discovery walk a real invocation would.
 	CWD, Home, NativeHome string
+	// Commands is the live command roster used to classify stale aliases
+	// that now collide with a declared command.
+	Commands map[string]bool
 }
 
 // Settings reports every setting the tool knows, resolved through the ladder
@@ -2454,8 +2457,17 @@ func Settings(cfg *bench.Config, ctx SettingsContext) []SettingView {
 	for _, key := range bench.ConfigKeys {
 		views = append(views, setting(key, cfg, ctx))
 	}
+	for _, alias := range cfg.Aliases() {
+		source := bench.SourceConfig
+		if alias.Defect != "" {
+			source = bench.SourceInvalid
+		} else if ctx.Commands[alias.Name] {
+			source = bench.SourceShadowed
+		}
+		views = append(views, SettingView{Key: alias.Key, Value: alias.Template, Source: source})
+	}
 	for _, key := range cfg.Keys() {
-		if bench.KnownConfigKey(key) {
+		if bench.KnownConfigKey(key) || strings.HasPrefix(key, bench.AliasPrefix) {
 			continue
 		}
 		views = append(views, SettingView{Key: key, Value: cfg.Get(key), Source: bench.SourceUnknown})

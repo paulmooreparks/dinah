@@ -4372,6 +4372,38 @@
     "workstreams.empty": {
       "text": "this workbench carries no workstream",
       "context": "Printed by the workstream command when the workbench carries none, in place of an empty table."
+    },
+    "refusal.dinah.invalid-alias": {
+      "text": "Alias {detail} is invalid ({defect}).",
+      "context": "The sentence printed after refusal dinah.invalid-alias. {detail} is the exact alias setting key and {defect} is its stable validation token."
+    },
+    "refusal.dinah.invalid-alias.next": {
+      "text": " Correct the alias setting or remove it with `dinah config set {detail}`.",
+      "context": "The next step for dinah.invalid-alias. {detail} is the exact alias setting key. The command spelling is machine vocabulary and is never translated."
+    },
+    "refusal.dinah.alias-shadows-command": {
+      "text": "Alias {detail} would shadow declared command {command}.",
+      "context": "The sentence printed after refusal dinah.alias-shadows-command. {detail} is the alias setting key and {command} is the declared command its suffix collides with."
+    },
+    "refusal.dinah.alias-shadows-command.next": {
+      "text": " Choose another alias name.",
+      "context": "The next step for dinah.alias-shadows-command."
+    },
+    "refusal.dinah.missing-alias-argument": {
+      "text": "Alias {detail} requires argument {argument}.",
+      "context": "The sentence printed after refusal dinah.missing-alias-argument. {detail} is the alias name and {argument} is the missing placeholder token."
+    },
+    "refusal.dinah.missing-alias-argument.next": {
+      "text": " Supply the missing argument and run the command again.",
+      "context": "The next step for dinah.missing-alias-argument."
+    },
+    "token.invalid": {
+      "text": "invalid",
+      "context": "How the canonical token invalid is rendered in the settings listing for a stored alias quarantined by validation. The machine surface always carries the canonical spelling."
+    },
+    "token.shadowed": {
+      "text": "shadowed",
+      "context": "How the canonical token shadowed is rendered in the settings listing for a stored alias whose name is now a declared command. The machine surface always carries the canonical spelling."
     }
   }
 }

@@ -3,7 +3,9 @@ package bench
 import (
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
+	"unicode"
 
 	"dinah/internal/contract"
 )
@@ -12,6 +14,32 @@ import (
 // and a key already in the file that the tool does not know survives a write,
 // which is the same reader posture the format asks of every other document.
 var ConfigKeys = []string{"lang", "actor", "editor", "workbench"}
+
+// AliasPrefix marks a user setting as a command alias.
+const AliasPrefix = "alias."
+
+// Alias validation defects are stable machine tokens carried by the
+// invalid-alias refusal and by quarantined stored rows.
+const (
+	AliasInvalidName        = "invalid-name"
+	AliasEmptyTemplate      = "empty-template"
+	AliasShellTemplate      = "shell-template"
+	AliasUnicodeWhitespace  = "non-ascii-whitespace"
+	AliasPlaceholderZero    = "placeholder-zero"
+	AliasPlaceholderGap     = "placeholder-gap"
+	AliasPlaceholderOutside = "placeholder-outside-range"
+)
+
+// Alias is one stored alias row, including the validation result that decides
+// whether command dispatch may use it.
+type Alias struct {
+	Key      string
+	Name     string
+	Template string
+	Tokens   []string
+	Highest  int
+	Defect   string
+}
 
 // Config is the user's own settings, held in config.md in the user base.
 type Config struct {
@@ -44,6 +72,37 @@ func (c *Config) Get(key string) string {
 // and is still a key somebody set.
 func (c *Config) Keys() []string {
 	return c.fm.Keys()
+}
+
+// Aliases returns every stored alias in key order. Invalid rows are retained
+// with their defect so listings and recovery can expose the bytes on disk
+// without admitting the row to command expansion.
+func (c *Config) Aliases() []Alias {
+	var aliases []Alias
+	for _, key := range c.fm.Keys() {
+		if !strings.HasPrefix(key, AliasPrefix) {
+			continue
+		}
+		name := strings.TrimPrefix(key, AliasPrefix)
+		tokens, highest, defect := ValidateAlias(name, c.fm.Value(key))
+		aliases = append(aliases, Alias{
+			Key: key, Name: name, Template: c.fm.Value(key),
+			Tokens: tokens, Highest: highest, Defect: defect,
+		})
+	}
+	sort.Slice(aliases, func(i, j int) bool { return aliases[i].Key < aliases[j].Key })
+	return aliases
+}
+
+// AliasNamed returns the stored alias whose suffix exactly matches name.
+func (c *Config) AliasNamed(name string) (Alias, bool) {
+	key := AliasPrefix + name
+	for _, alias := range c.Aliases() {
+		if alias.Key == key {
+			return alias, true
+		}
+	}
+	return Alias{}, false
 }
 
 // Set writes one setting, preserving every key the tool does not recognise.
@@ -80,6 +139,72 @@ func (c *Config) Set(key, value string) error {
 	}
 	c.fm.Set(key, value)
 	return WriteText(c.Path, c.fm.Render(c.body))
+}
+
+// SetAlias writes or removes one alias. Omitting a value removes even a
+// malformed stored row; a supplied value has to pass the public alias grammar.
+func (c *Config) SetAlias(key, value string, supplied bool) error {
+	if !strings.HasPrefix(key, AliasPrefix) {
+		return contract.Refuse(contract.UnknownKey, key)
+	}
+	if !supplied {
+		c.fm.Delete(key)
+		return WriteText(c.Path, c.fm.Render(c.body))
+	}
+	name := strings.TrimPrefix(key, AliasPrefix)
+	_, _, defect := ValidateAlias(name, value)
+	if defect != "" {
+		return contract.RefuseWith(contract.InvalidAlias, key, map[string]string{"defect": defect})
+	}
+	c.fm.Set(key, value)
+	return WriteText(c.Path, c.fm.Render(c.body))
+}
+
+// ValidateAlias validates an alias name and template and returns the template
+// tokens and highest placeholder for a row command expansion may use.
+func ValidateAlias(name, template string) ([]string, int, string) {
+	if !ValidColumnSlug(name) {
+		return nil, 0, AliasInvalidName
+	}
+	for _, r := range template {
+		if unicode.IsSpace(r) && r != ' ' && r != '\t' {
+			return nil, 0, AliasUnicodeWhitespace
+		}
+	}
+	tokens := strings.FieldsFunc(template, func(r rune) bool { return r == ' ' || r == '\t' })
+	if len(tokens) == 0 {
+		return nil, 0, AliasEmptyTemplate
+	}
+	if strings.HasPrefix(tokens[0], "!") {
+		return nil, 0, AliasShellTemplate
+	}
+	seen := map[int]bool{}
+	highest := 0
+	for _, token := range tokens {
+		for i := 0; i < len(token); i++ {
+			if token[i] != '$' || i+1 >= len(token) || token[i+1] < '0' || token[i+1] > '9' {
+				continue
+			}
+			digit := int(token[i+1] - '0')
+			if digit == 0 {
+				return nil, 0, AliasPlaceholderZero
+			}
+			if i+2 < len(token) && token[i+2] >= '0' && token[i+2] <= '9' {
+				return nil, 0, AliasPlaceholderOutside
+			}
+			seen[digit] = true
+			if digit > highest {
+				highest = digit
+			}
+			i++
+		}
+	}
+	for number := 1; number <= highest; number++ {
+		if !seen[number] {
+			return nil, 0, AliasPlaceholderGap
+		}
+	}
+	return tokens, highest, ""
 }
 
 // KnownConfigKey reports whether a key is one v0 knows.
@@ -119,6 +244,8 @@ const (
 	SourceFallback = "fallback"
 	SourceUnset    = "unset"
 	SourceUnknown  = "unknown"
+	SourceInvalid  = "invalid"
+	SourceShadowed = "shadowed"
 )
 
 // Layer is one rung of a resolution ladder: what the rung carries, and the
