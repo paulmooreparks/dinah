@@ -1392,10 +1392,7 @@ function rootCollapsibleState(row: RootRow): CollapsibleState {
 	if (unreadableWithoutIdentity(row.data)) {
 		return "none";
 	}
-	if (row.rowKind === "workbenchCandidate") {
-		return "collapsed";
-	}
-	return row.sole ? "expanded" : "collapsed";
+	return "collapsed";
 }
 
 /** The first of the three failure shapes: no identity to draw the row with. */
@@ -1453,7 +1450,7 @@ export function treeItemFor(
 							t,
 						),
 				contextValue: columnActionsFor(view, element.nextColumnRef),
-				collapsibleState: "expanded",
+				collapsibleState: "collapsed",
 				icon: broken ? WARNING_ICON : undefined,
 			};
 		}
@@ -1462,7 +1459,7 @@ export function treeItemFor(
 				label: groupLabel(element.node.value, t),
 				description: String(element.node.count),
 				contextValue: CONTEXT_STATE_GROUP,
-				collapsibleState: element.node.count === 0 ? "collapsed" : "expanded",
+				collapsibleState: "collapsed",
 			};
 		case "card": {
 			const state = cardState(element.view, element.groupValue);

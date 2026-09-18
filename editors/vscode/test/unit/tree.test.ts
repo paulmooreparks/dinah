@@ -357,8 +357,14 @@ test("a column draws exactly the state groups the tree returned, two and not thr
 		groups.map((element) => treeItemFor(element).label),
 		["Ready", "Active"],
 	);
+	assert.deepEqual(
+		groups.map((element) => treeItemFor(element).description),
+		["2", "1"],
+	);
 	for (const element of groups) {
-		assert.equal(treeItemFor(element).contextValue, CONTEXT_STATE_GROUP);
+		const item = treeItemFor(element);
+		assert.equal(item.contextValue, CONTEXT_STATE_GROUP);
+		assert.equal(item.collapsibleState, "collapsed");
 	}
 });
 
@@ -834,9 +840,12 @@ test("three folders produce one resolved row, two candidate rows and one dead en
 	assert.equal(await (await view.getChildren(roots[3])).length, 0);
 });
 
-test("a window holding exactly one row opens it, and a window holding several does not", async () => {
+test("readable roots start collapsed in single and multi-root windows", async () => {
 	const view = await loadedBench();
-	assert.equal(treeItemFor((await view.getChildren())[0]).collapsibleState, "expanded");
+	const single = treeItemFor((await view.getChildren())[0]);
+	assert.equal(single.label, "Trees");
+	assert.equal(single.description, "");
+	assert.equal(single.collapsibleState, "collapsed");
 
 	const { spawner } = stubSpawner({
 		status: THREE_STATUS,
@@ -964,7 +973,7 @@ test("a member that gave up an identity and then would not open keeps that ident
 	// reader unable to say which customer failed.
 	assert.equal(item.label, "Bell Industries");
 	assert.equal(item.description, "would not open");
-	assert.equal(item.collapsibleState, "expanded");
+	assert.equal(item.collapsibleState, "collapsed");
 	const children = await view.getChildren(row);
 	assert.equal(children.length, 1);
 	assert.ok(treeItemFor(children[0]).label.includes("would not open"));
@@ -2001,7 +2010,7 @@ test("the column row's other four fields are what they were before the contextVa
 		item.tooltip,
 		"Intake\nCards are claimed here.\nAn agent moves a card out.",
 	);
-	assert.equal(item.collapsibleState, "expanded");
+	assert.equal(item.collapsibleState, "collapsed");
 	assert.equal(item.contextValue, CONTEXT_COLUMN_OPEN);
 });
 
