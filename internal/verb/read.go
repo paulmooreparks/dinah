@@ -1685,12 +1685,28 @@ func (l *Library) itemListing(collection *bench.CollectionRef, unresolvedOnly bo
 	}
 	cardRef := collection.Holder.Ref
 	kindPosition := map[string]int{}
-	members := make([]ItemIndexEntry, 0, len(items))
+	positionByID := map[string]int{}
+	itemByID := map[string]*bench.Item{}
+	// Canonical kind positions come from the complete checklist. The
+	// collection and unresolved filters run only after every readable item has
+	// its address, so neither filter can compress an item's reference.
 	for _, item := range items {
+		kindPosition[item.Kind]++
+		positionByID[item.ID] = kindPosition[item.Kind]
+		itemByID[item.ID] = item
+	}
+	// The resolver has already narrowed Members for questions, criteria or
+	// decisions. Reading that list also preserves the resolved collection's
+	// order instead of rebuilding a wider collection from the holder.
+	members := make([]ItemIndexEntry, 0, len(collection.Members))
+	for _, id := range collection.Members {
+		item := itemByID[id]
+		if item == nil {
+			continue
+		}
 		if unresolvedOnly && bench.ItemLiftsColumnHold(item) {
 			continue
 		}
-		kindPosition[item.Kind]++
 		position, err := memberPosition(item.Dir, bench.ItemAnchor)
 		if err != nil {
 			return nil, err
@@ -1710,7 +1726,7 @@ func (l *Library) itemListing(collection *bench.CollectionRef, unresolvedOnly bo
 		members = append(members, ItemIndexEntry{
 			ID:           item.ID,
 			Ordinal:      position,
-			Ref:          itemRef(cardRef, item.Kind, kindPosition[item.Kind], position),
+			Ref:          itemRef(cardRef, item.Kind, positionByID[item.ID], position),
 			Kind:         item.Kind,
 			State:        item.State,
 			Column:       col,
