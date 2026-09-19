@@ -873,6 +873,24 @@ var Shapes = []Shape{
 		NextStep:  []string{"refusal.dinah.unknown-key.next"},
 	},
 	{
+		Name:      InvalidAlias,
+		Values:    []string{"defect"},
+		Fragments: []Fragment{{Key: "refusal.dinah.invalid-alias.next"}},
+		NextStep:  []string{"refusal.dinah.invalid-alias.next"},
+	},
+	{
+		Name:      AliasShadow,
+		Values:    []string{"command"},
+		Fragments: []Fragment{{Key: "refusal.dinah.alias-shadows-command.next"}},
+		NextStep:  []string{"refusal.dinah.alias-shadows-command.next"},
+	},
+	{
+		Name:      AliasMissing,
+		Values:    []string{"argument"},
+		Fragments: []Fragment{{Key: "refusal.dinah.missing-alias-argument.next"}},
+		NextStep:  []string{"refusal.dinah.missing-alias-argument.next"},
+	},
+	{
 		// Two of the raise sites name a path on the filesystem and the rest
 		// name something inside the workbench, so the next step splits on the
 		// value that separates the families. A third family is a reader

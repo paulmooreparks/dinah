@@ -1342,6 +1342,7 @@ func runConfig(s *session, parsed *arguments) int {
 			CWD:           s.cwd,
 			Home:          s.home,
 			NativeHome:    s.nativeHome,
+			Commands:      commandNames(),
 		})
 		if s.format != formatHuman {
 			return s.emitMachine(settings)
@@ -1356,7 +1357,7 @@ func runConfig(s *session, parsed *arguments) int {
 		if extra := at(words, 2); extra != "" {
 			return s.fail(contract.Usage, extra)
 		}
-		if !bench.KnownConfigKey(key) {
+		if !bench.KnownConfigKey(key) && !strings.HasPrefix(key, bench.AliasPrefix) {
 			return s.fail(contract.UnknownKey, key)
 		}
 		s.line(s.cfg.Get(key))
@@ -1369,6 +1370,21 @@ func runConfig(s *session, parsed *arguments) int {
 		value, refusal := s.freeText([]string{"config", "set", key}, words[min(2, len(words)):], "slot.value")
 		if refusal != nil {
 			return s.reportError(refusal)
+		}
+		if strings.HasPrefix(key, bench.AliasPrefix) {
+			name := strings.TrimPrefix(key, bench.AliasPrefix)
+			supplied := len(words) > 2
+			if supplied && commandNames()[name] {
+				return s.reportError(contract.RefuseWith(
+					contract.AliasShadow,
+					key,
+					map[string]string{"command": name},
+				))
+			}
+			if err := s.cfg.SetAlias(key, value, supplied); err != nil {
+				return s.reportError(err)
+			}
+			return 0
 		}
 		if err := s.cfg.Set(key, value); err != nil {
 			return s.reportError(err)

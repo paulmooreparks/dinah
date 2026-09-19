@@ -1251,14 +1251,14 @@ storage format 5
 Catalogs:
   Language  Translated
   --------  ----------
-  en        1093/1093
-  af        0/1093
-  cs        0/1093
-  de        1093/1093
-  es        0/1093
-  fil       0/1093
-  hi        1093/1093
-  id        0/1093
+  en        1101/1101
+  af        0/1101
+  cs        0/1101
+  de        1101/1101
+  es        0/1101
+  fil       0/1101
+  hi        1101/1101
+  id        0/1101
 [exit 0]
 ```
 

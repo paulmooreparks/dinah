@@ -365,7 +365,7 @@ func TestWalkFlagsGivesEveryOccurrenceTheWordsItConsumed(t *testing.T) {
 	argv := []string{"-h", "--json", "--version", "--lang", "de", "--lang=hi", "move", "--" + domain}
 	seen := 0
 	walkFlags(argv, valued, known,
-		func(string) {},
+		func(string, int) {},
 		func(name, value string, complete bool, tokens []string) {
 			seen++
 			if len(tokens) == 0 {

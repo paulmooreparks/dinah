@@ -177,11 +177,10 @@ type Vocabulary struct {
 	Source string
 }
 
-// vocabularies are the closed sets an argument may declare. Two of them name
-// the sets the commands themselves check against, so neither can drift from
-// what a command accepts, and two name a set only a head can resolve.
+// vocabularies are the closed and discoverable sets an argument may declare.
+// Sets checked by commands derive from the same declarations the commands
+// read, while sets outside this package name the head that resolves them.
 var vocabularies = map[string]Vocabulary{
-	"key": {Values: bench.ConfigKeys},
 	// The field argument of set reaches a field of the resolved kind's own
 	// set and a key the workbench declares alike, and no static list can
 	// carry the second half, so the set is resolved by a head. The members
@@ -596,7 +595,7 @@ var params = map[string][]Param{
 	// refuses over rather than the syntax line.
 	"config": {
 		{Name: "action", Display: "get|set"},
-		{Name: "key", Vocabulary: "key"},
+		{Name: "key"},
 		{Name: "value"},
 	},
 	// The command lists the workbench's own fields and does nothing else, so

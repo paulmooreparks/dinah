@@ -153,6 +153,9 @@ const (
 	NoWorkbench  = LayerPrefix + "no-workbench"
 	UnknownVerb  = LayerPrefix + "unknown-command"
 	Usage        = LayerPrefix + "usage"
+	InvalidAlias = LayerPrefix + "invalid-alias"
+	AliasShadow  = LayerPrefix + "alias-shadows-command"
+	AliasMissing = LayerPrefix + "missing-alias-argument"
 
 	// NoWorkbenchFound is the walk coming up empty, which NoWorkbench once
 	// shared a sentence with. The two are separated because one template
@@ -606,7 +609,7 @@ const (
 
 // Introduced lists every refusal name Dinah mints beyond the profile's own.
 var Introduced = []string{
-	Unconfirmed, UnknownGuide, UnknownKey, Occupied, Locked, Exists,
+	Unconfirmed, UnknownGuide, UnknownKey, InvalidAlias, AliasShadow, AliasMissing, Occupied, Locked, Exists,
 	UnknownPath, NoEditor, NoWorkbench, UnknownVerb, Usage, Interrupted,
 	NoWorkbenchFound, AmbiguousWorkbench, LastColumn, UnreadableBench, DamagedBench, UnreadableContainer,
 	NoConfiguredWorkbench,
