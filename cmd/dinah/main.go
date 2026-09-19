@@ -173,7 +173,13 @@ func run(argv []string, in io.Reader, out, errw io.Writer) int {
 		// format is the rendering a person reads.
 		return s.reportError(parseErr)
 	}
-	format, formatRefusal := resolveFormat(parsed.has("json"), parsed.value("format"), os.Getenv("DINAH_FORMAT"))
+	formatFlag := parsed.value("format")
+	if refusal, ok := expansionErr.(*contract.Refusal); ok && refusal.Name == contract.AliasMissing {
+		if missing := refusal.Extra["argument"]; missing != "" && strings.Contains(formatFlag, missing) {
+			formatFlag = ""
+		}
+	}
+	format, formatRefusal := resolveFormat(parsed.has("json"), formatFlag, os.Getenv("DINAH_FORMAT"))
 	if formatRefusal != nil {
 		// The report is text alone, by the rule the parse failure above
 		// follows: no format was resolved, so none is available to report

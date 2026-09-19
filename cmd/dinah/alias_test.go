@@ -143,6 +143,13 @@ func TestAliasExpansionRefusalsHonorOriginalAndTemplateFormats(t *testing.T) {
 	if templateJSON.code != contract.ExitCode(contract.OutcomeRefused) || templateJSON.out != originalJSON.out || templateJSON.errw != originalJSON.errw {
 		t.Fatalf("template JSON flag differs: code %d, out %q, err %s", templateJSON.code, templateJSON.out, templateJSON.errw)
 	}
+	if got := runCLI(t, dir, "config", "set", "alias.mf", "--", "--format $1 show $2/questions"); got.code != 0 {
+		t.Fatalf("set valued-format alias: %d %s", got.code, got.errw)
+	}
+	missingFormat := runCLI(t, dir, "mf")
+	if missingFormat.code != contract.ExitCode(contract.OutcomeRefused) || missingFormat.out != "" || !strings.Contains(missingFormat.errw, contract.AliasMissing) {
+		t.Fatalf("unresolved format placeholder: code %d, out %q, err %s", missingFormat.code, missingFormat.out, missingFormat.errw)
+	}
 }
 
 // TestAliasValidationPairsAcceptingAndRefusingCases covers every stable defect
