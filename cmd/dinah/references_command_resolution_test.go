@@ -140,6 +140,12 @@ func column(kind string) verb.ReferenceKind {
 		return verb.ReferenceKindColumn
 	case bench.KindCard:
 		return verb.ReferenceKindCard
+	case verb.KindCollection:
+		// The contents tree draws collection nodes below a card, and a
+		// collection reference is a collection's reference wherever it was
+		// met. It is answered by the verbs the guide's own collection column
+		// declares rather than by the ones an entity below a card declares.
+		return verb.ReferenceKindCollection
 	default:
 		return verb.ReferenceKindBelowCard
 	}
@@ -172,16 +178,23 @@ func referenceGuideHeading(kind verb.ReferenceKind) (string, bool) {
 	return "", false
 }
 
-// resolutionRefused reports whether a command's stderr names one of the two
-// refusals a reference resolver raises when the address itself does not
-// resolve. Both appear depending on which resolver a command walks: show's
-// own head-only branch raises UnknownCard, and ResolvePath raises
-// UnknownPath, which is what path, edit and every composed reference go
-// through. A failure carrying neither name reached resolution and failed
-// downstream of it instead, which for edit is the launch this test forces.
+// resolutionRefused reports whether a command's stderr names one of the
+// refusals a reference resolver raises when it will not hand the address on.
+// Two of them are the address not resolving at all, and they appear depending
+// on which resolver a command walks: show's own head-only branch raises
+// UnknownCard, and ResolvePath raises UnknownPath, which is what path, edit
+// and every composed reference go through. The third is IsACollection, which
+// a resolver raises for an address that does resolve and names a membership
+// rather than a thing to open; it is a refusal of the address by the command
+// just as squarely as the other two, and the guide's collection column is
+// what declares which commands raise it. A failure carrying none of the three
+// reached resolution and failed downstream of it instead, which for edit is
+// the launch this test forces.
 func resolutionRefused(errw string) bool {
 	leading := strings.SplitN(strings.TrimSpace(errw), " ", 2)[0]
-	return leading == contract.UnknownCard || leading == contract.UnknownPath
+	return leading == contract.UnknownCard ||
+		leading == contract.UnknownPath ||
+		leading == contract.IsACollection
 }
 
 // parseReferencesGuideTable reads the "Which command takes what" table out

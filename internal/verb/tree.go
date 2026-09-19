@@ -41,6 +41,19 @@ type TreeNode struct {
 	// producer they are the entities strictly below the node, so a leaf
 	// counts zero.
 	Count int `json:"count"`
+	// MemberKind is the entity kind a collection node holds. It is absent on
+	// an entity node and on a group node, neither of which holds one kind by
+	// definition.
+	MemberKind string `json:"member_kind,omitempty"`
+	// Narrow is the stored item kind a narrowed checklist collection selects.
+	// It is absent on an unnarrowed collection and on every node that is not
+	// a collection.
+	Narrow string `json:"narrow,omitempty"`
+	// MemberCount is how many members a collection node holds directly, as
+	// against Count, which accounts for everything below them too. A pointer
+	// rather than an int, so an empty collection can publish zero while every
+	// node that is not a collection leaves the member out.
+	MemberCount *int `json:"member_count,omitempty"`
 	// Hidden is what this node does not show, absent when it hides nothing.
 	Hidden *Hidden `json:"hidden,omitempty"`
 	// Children are the nodes below. They are absent on a leaf, and absent on a
@@ -982,15 +995,27 @@ func (l *Library) collectionContents(collection *bench.CollectionRef, level stri
 		Producer: ProducerContainment,
 		Subject:  SubjectEntity,
 		Depth:    level,
-		Root:     TreeNode{Kind: KindCollection, Ref: collection.Ref},
+		Root: TreeNode{
+			Kind:       KindCollection,
+			Ref:        collection.Ref,
+			MemberKind: collection.Mount.Kind,
+			Narrow:     collection.Narrow,
+		},
 	}
+	// The direct root does not wrap itself in a second branch: a caller who
+	// named questions is answered questions, not a collection holding one.
+	// Its member count is the membership the reference resolved to, published
+	// even at zero, which is how a directly named empty collection answers
+	// successfully rather than by drawing nothing.
+	size := len(collection.Members)
+	tree.Root.MemberCount = &size
 	rank := rankOfKind(collection.Holder.Kind)
 	limit := contentsLimit(level, rank)
 	seed, err := l.childSeed(collection.Holder)
 	if err != nil {
 		return nil, err
 	}
-	children, err := l.memberNodes(collection.Dir, collection.Mount, collection.Members, seed)
+	children, kinds, err := l.memberNodes(collection.Dir, collection.Mount, collection.Members, seed)
 	if err != nil {
 		return nil, err
 	}
@@ -1008,8 +1033,34 @@ func (l *Library) collectionContents(collection *bench.CollectionRef, level stri
 		}
 		tree.Root.Count += 1 + count
 	}
-	placeChildren(&tree.Root, children, rank, limit)
+	// A root the caller narrowed is already one kind, so it draws its members
+	// and nothing else: wrapping them in a branch would answer a caller who
+	// asked for questions with a collection holding questions. An unnarrowed
+	// checklist root is the one that groups, by the same rule the card above
+	// it applies, and the grouping runs on the members this walk has already
+	// read the kinds of.
+	drawn := children
+	if collection.Mount.Kind == bench.KindItem && collection.Narrow == "" {
+		kinded := make([]kindedNode, 0, len(children))
+		for i, child := range children {
+			kinded = append(kinded, kindedNode{Node: child, Kind: kinds[i]})
+		}
+		drawn = groupChecklist(bench.ChecklistKinds(), kinded, cardRefOf(collection))
+	}
+	placeChildren(&tree.Root, drawn, rank, limit)
 	return tree, nil
+}
+
+// cardRefOf is the reference a checklist collection's branches hang from,
+// which is the holder's own reference rather than the collection reference the
+// caller typed. A branch below fx-1/checklist is fx-1/questions, not
+// fx-1/checklist/questions: the branches are the card's, and the checklist
+// root is another way of looking at the same members.
+func cardRefOf(collection *bench.CollectionRef) string {
+	if collection.Holder == nil {
+		return ""
+	}
+	return collection.Holder.Ref
 }
 
 // workstreamContents is the walk rooted at a workstream, whose children are
@@ -1182,11 +1233,19 @@ func (l *Library) itemRefOf(entity *bench.EntityRef) (string, error) {
 // depth report. The filter never reaches this producer, so a containment node
 // hides nothing but what the depth cut off.
 func (l *Library) fillContained(node *TreeNode, dir, kind, ref string, rank, limit int) error {
-	children, err := l.containedChildren(dir, kind, ref, rank, limit)
+	children, entities, err := l.containedChildren(dir, kind, ref, rank, limit)
 	if err != nil {
 		return err
 	}
-	placeChildren(node, children, rank, limit)
+	// Drawn from the grouped children and accounted for from the entity ones.
+	// A collection node consumes no rank and is no entity, so a depth cut made
+	// before a card's checklist reports the items it held back rather than the
+	// branches it would have drawn over them.
+	if rank < limit {
+		node.Children = children
+		return nil
+	}
+	placeChildren(node, entities, rank, limit)
 	return nil
 }
 
@@ -1210,6 +1269,70 @@ func placeChildren(node *TreeNode, children []TreeNode, rank, limit int) {
 	node.Hidden = &Hidden{Reason: []string{ReasonDepth}, Children: len(children), Subjects: subjects}
 }
 
+// kindedNode is one checklist item node beside the kind its anchor records.
+// The kind is read once where the item is walked and carried here, because
+// TreeNode publishes an item's reference rather than its kind and the
+// grouping must not open the anchor a second time to ask.
+type kindedNode struct {
+	Node TreeNode
+	Kind string
+}
+
+// groupChecklist partitions a card's checklist item nodes into one collection
+// node per declared kind, in the order the kinds are declared.
+//
+// It holds no kind vocabulary of its own. The roster and the order are the
+// declaration's, which is what makes the derivation checkable by behaviour:
+// hand it a declaration of four kinds and it answers four branches in that
+// order, and no implementation carrying a table of three can do that. The
+// declaration is an argument rather than a package-level read for the same
+// reason, and because the partition is a pure function of these three inputs
+// and nothing else.
+//
+// A branch with no members is omitted, so an ordinary card does not grow two
+// empty rows. An item whose kind is outside the declaration, which includes an
+// item whose anchor would not open and therefore has no kind at all, stays a
+// direct child in its own physical order, after every branch. Such an item
+// keeps the fallback reference the walk already gave it, and the projection
+// neither drops it nor invents a narrowed reference for it.
+func groupChecklist(kinds []bench.ChecklistKind, items []kindedNode, holderRef string) []TreeNode {
+	declared := make(map[string]bool, len(kinds))
+	for _, kind := range kinds {
+		declared[kind.Kind] = true
+	}
+	branches := make([]TreeNode, 0, len(kinds))
+	for _, kind := range kinds {
+		members := make([]TreeNode, 0, len(items))
+		subjects := 0
+		for _, item := range items {
+			if item.Kind != kind.Kind {
+				continue
+			}
+			members = append(members, item.Node)
+			subjects += 1 + item.Node.Count
+		}
+		if len(members) == 0 {
+			continue
+		}
+		size := len(members)
+		branches = append(branches, TreeNode{
+			Kind:        KindCollection,
+			Ref:         holderRef + "/" + kind.Word,
+			MemberKind:  bench.KindItem,
+			Narrow:      kind.Kind,
+			MemberCount: &size,
+			Count:       subjects,
+			Children:    members,
+		})
+	}
+	for _, item := range items {
+		if !declared[item.Kind] {
+			branches = append(branches, item.Node)
+		}
+	}
+	return branches
+}
+
 // containedChildren builds the nodes one level below an entity, reading the
 // containment grammar rather than the kind. A kind the grammar does not name
 // is a leaf, which is what lets a declared extension kind appear here with no
@@ -1218,26 +1341,39 @@ func placeChildren(node *TreeNode, children []TreeNode, rank, limit int) {
 // The workbench's own two collections are ordered by their own rules: columns
 // come in the flow's declared order and cards in arrival order. Every other
 // collection comes in the creation order a positional reference counts in.
-func (l *Library) containedChildren(dir, kind, ref string, rank, limit int) ([]TreeNode, error) {
+func (l *Library) containedChildren(dir, kind, ref string, rank, limit int) ([]TreeNode, []TreeNode, error) {
 	var nodes []TreeNode
+	var entities []TreeNode
 	for _, mount := range bench.Contains(kind) {
 		collection := filepath.Join(dir, mount.Dir)
 		members, err := l.containmentMembersOf(collection, mount)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		children, err := l.memberNodes(collection, mount, members, ref)
+		children, kinds, err := l.memberNodes(collection, mount, members, ref)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		for i := range children {
 			if err := l.fillContained(&children[i], filepath.Join(collection, children[i].ID), mount.Kind, children[i].Ref, rank+1, limit); err != nil {
-				return nil, err
+				return nil, nil, err
 			}
+		}
+		entities = append(entities, children...)
+		if mount.Kind == bench.KindItem && kind == bench.KindCard {
+			// The kinds come from the walk that already read them. Grouping
+			// opens no anchor of its own, which is what keeps one projection
+			// to one read of each item.
+			kinded := make([]kindedNode, 0, len(children))
+			for i, child := range children {
+				kinded = append(kinded, kindedNode{Node: child, Kind: kinds[i]})
+			}
+			nodes = append(nodes, groupChecklist(bench.ChecklistKinds(), kinded, ref)...)
+			continue
 		}
 		nodes = append(nodes, children...)
 	}
-	return nodes, nil
+	return nodes, entities, nil
 }
 
 // memberNodes builds one node per member of a collection, in the order the ids
@@ -1254,8 +1390,9 @@ func (l *Library) containedChildren(dir, kind, ref string, rank, limit int) ([]T
 // only over an item whose anchor will not open: itemKindAt reads that item's
 // kind as the empty string, so it lands in a bucket of its own here and Show
 // never draws it at all.
-func (l *Library) memberNodes(collection string, mount bench.Mount, ids []string, seed string) ([]TreeNode, error) {
+func (l *Library) memberNodes(collection string, mount bench.Mount, ids []string, seed string) ([]TreeNode, []string, error) {
 	nodes := make([]TreeNode, 0, len(ids))
+	kinds := make([]string, 0, len(ids))
 	kindSeen := map[string]int{}
 	for position, id := range ids {
 		itemKind, kindPosition := "", 0
@@ -1266,18 +1403,22 @@ func (l *Library) memberNodes(collection string, mount bench.Mount, ids []string
 		}
 		node, err := l.containedNode(collection, id, position+1, itemKind, kindPosition, mount, seed)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		nodes = append(nodes, node)
+		kinds = append(kinds, itemKind)
 	}
-	return nodes, nil
+	return nodes, kinds, nil
 }
 
 // itemKindAt is the kind an item's own anchor records, and the empty string
 // where the anchor will not read. An unreadable anchor composes the
 // collection reference, which is what the walk printed for every item before
 // this card and which still resolves.
-func itemKindAt(dir string) string {
+// A variable rather than a plain function so that the read-bound test in this
+// package can count the reads the projection makes. Nothing outside this
+// package can reach it, and nothing in production assigns to it.
+var itemKindAt = func(dir string) string {
 	item, err := bench.LoadItem(dir)
 	if err != nil {
 		return ""

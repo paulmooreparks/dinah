@@ -531,7 +531,7 @@ func TestAWalkRootedAtACollectionDrawsTheHoldersRowsForIt(t *testing.T) {
 		if len(want) != pair.rows {
 			t.Fatalf("the walk rooted at fx-1 draws %d %s rows and the fixture carries %d", len(want), pair.kind, pair.rows)
 		}
-		got := collectionRowsOf(treeOf(t, root, pair.ref).Root.Children)
+		got := collectionRowsOf(flattenBranches(treeOf(t, root, pair.ref).Root.Children))
 		if strings.Join(got, "\n") != strings.Join(want, "\n") {
 			t.Errorf("the walk rooted at %s draws\n  %s\nand the walk rooted at its holder draws\n  %s",
 				pair.ref, strings.Join(got, " | "), strings.Join(want, " | "))
@@ -594,12 +594,34 @@ func collectionRowsOf(nodes []verb.TreeNode) []string {
 // collections.
 func collectionRowsOfKind(tree verb.Tree, kind string) []string {
 	var kept []verb.TreeNode
-	for _, node := range tree.Root.Children {
+	for _, node := range flattenBranches(tree.Root.Children) {
 		if node.Kind == kind {
 			kept = append(kept, node)
 		}
 	}
 	return collectionRowsOf(kept)
+}
+
+// flattenBranches replaces every collection node in a row of children with the
+// members it stands in front of.
+//
+// A judgement branch is a way of drawing a card's items rather than a thing
+// the card contains, and both walks this file compares draw it: the walk
+// rooted at the card and the walk rooted at its checklist group their members
+// by the same rule. So the comparison is made over the members themselves,
+// which is what the two walks are actually being held to agree about, and a
+// branch drawn on one side and not the other would show up as the members
+// moving rather than being hidden by a matching pair of wrappers.
+func flattenBranches(nodes []verb.TreeNode) []verb.TreeNode {
+	var flat []verb.TreeNode
+	for _, node := range nodes {
+		if node.Kind == verb.KindCollection {
+			flat = append(flat, node.Children...)
+			continue
+		}
+		flat = append(flat, node)
+	}
+	return flat
 }
 
 // TestAttachmentsAnswersACollectionFromItsHolder pins the identical-bytes

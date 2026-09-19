@@ -766,6 +766,21 @@
 			"context": "The label of the collection row a thread hangs under, beside the Checklist and Attachments rows.",
 			"source": "dc12d4d35420eeb7"
 		},
+		"tree.collection.questions": {
+			"text": "Fragen",
+			"context": "The label of the collection row a card's open questions hang under, beside Criteria and Decisions.",
+			"source": "305c088da2474ea2"
+		},
+		"tree.collection.criteria": {
+			"text": "Kriterien",
+			"context": "The label of the collection row a card's acceptance criteria hang under, beside Questions and Decisions.",
+			"source": "e7644f24344b69dc"
+		},
+		"tree.collection.decisions": {
+			"text": "Entscheidungen",
+			"context": "The label of the collection row a card's decisions hang under, beside Questions and Criteria.",
+			"source": "de514d407b0dafd0"
+		},
 		"comment.row.description": {
 			"text": "{ordinal} · {author} · {ts}",
 			"context": "The grey text beside a comment row's label. {ordinal} is the comment's one-based position in its thread, {author} wrote it and {ts} is when.",
