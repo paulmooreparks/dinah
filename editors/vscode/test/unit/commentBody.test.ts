@@ -16,6 +16,7 @@ import {
 	composeComment,
 	forgetComment,
 	noteOpenComment,
+	openExistingComment,
 	saveCommentBody,
 	splitAnchorBody,
 } from "../../src/commentBody";
@@ -301,4 +302,98 @@ test("a settled item's row draws the answer it designates", () => {
 		false,
 		`a pending item's row claims an answer:\n${pending}`,
 	);
+});
+
+// ---------------------------------------------------------------------------
+// Opening an existing comment, and the session a diverged one must not keep
+// ---------------------------------------------------------------------------
+
+/**
+ * A comment whose anchor records a digest its body no longer matches, which
+ * is what a hand edit outside an editing session leaves behind.
+ */
+const DIVERGED_PATH = "C:/bench/cards/c1/comments/a2/comment.md";
+files.set(
+	DIVERGED_PATH,
+	[
+		"---",
+		"ts: 2026-08-01T09:00:00Z",
+		"author: ana",
+		"ordinal: 2",
+		"digest: 0000000000000000000000000000000000000000000000000000000000000000",
+		"---",
+		"somebody typed this straight into the file",
+		"",
+	].join("\n"),
+);
+
+test("opening a diverged comment says so and adopts no session", async () => {
+	const log = emptyLog();
+	const opened: OpenComments = new Map();
+
+	await openExistingComment(host(log), opened, DIVERGED_PATH, {
+		ref: "wb-1/comments/2",
+		root: ROOT,
+		folder: FOLDER,
+	});
+
+	assert.equal(opened.has(DIVERGED_PATH), false, "a diverged comment was adopted");
+	assert.equal(log.errors.length, 1, "the divergence was not reported");
+	assert.deepEqual(log.opened, [DIVERGED_PATH], "the file was not opened for the author to repair");
+});
+
+test("opening a diverged comment clears a session already standing for it", async () => {
+	// The hole this case exists for. Withholding the new session is not
+	// enough on its own: a session opened earlier for the same path survives,
+	// a later save uses its digest, the compare-and-swap passes, and the save
+	// absorbs the very hand edit that was just reported. Deleting the line
+	// that clears it leaves this red and every other case in this file green.
+	const log = emptyLog();
+	const opened: OpenComments = new Map();
+	noteOpenComment(opened, DIVERGED_PATH, {
+		ref: "wb-1/comments/2",
+		root: ROOT,
+		folder: FOLDER,
+		digest: "0000000000000000000000000000000000000000000000000000000000000000",
+	});
+
+	await openExistingComment(host(log), opened, DIVERGED_PATH, {
+		ref: "wb-1/comments/2",
+		root: ROOT,
+		folder: FOLDER,
+	});
+
+	assert.equal(
+		opened.has(DIVERGED_PATH),
+		false,
+		"a session standing from an earlier open survived, so a save would absorb the hand edit",
+	);
+	assert.equal(log.errors.length, 1, "the divergence was not reported");
+});
+
+const UNDIGESTED_PATH = "C:/bench/cards/c1/comments/a3/comment.md";
+files.set(
+	UNDIGESTED_PATH,
+	["---", "ts: 2026-08-01T09:00:00Z", "author: ana", "ordinal: 3", "---", "written before this card", ""].join(
+		String.fromCharCode(10),
+	),
+);
+
+test("opening a comment that records no digest adopts a session anyway", async () => {
+	// Every comment written before this card is in this state, and absence is
+	// not divergence: there is no recorded digest to disagree with the body,
+	// so the session is adopted carrying an empty one and the comment gains a
+	// real digest the first time a verb writes it.
+	const log = emptyLog();
+	const opened: OpenComments = new Map();
+
+	await openExistingComment(host(log), opened, UNDIGESTED_PATH, {
+		ref: "wb-1/comments/3",
+		root: ROOT,
+		folder: FOLDER,
+	});
+
+	assert.equal(log.errors.length, 0, "a comment recording no digest was reported as diverged");
+	assert.equal(opened.has(UNDIGESTED_PATH), true, "a comment recording no digest was not adopted");
+	assert.equal(opened.get(UNDIGESTED_PATH)?.digest, "");
 });

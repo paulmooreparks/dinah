@@ -248,7 +248,15 @@ func (b *Bench) MigrateBranches(actor, now string, apply bool) (*BranchMigration
 			return report, err
 		}
 	}
-	b.Format = FieldsFormat
+	// Raised, never lowered, for the reason the comparison above gives. The
+	// stamp on disk is already conditional; this line was not, so a store
+	// past this format kept its number in the file and carried the lower one
+	// in memory, and the next thing to save the workbench for any reason at
+	// all would have written that lower number down. The file and the value
+	// held over it now say the same thing on every path.
+	if b.Format < FieldsFormat {
+		b.Format = FieldsFormat
+	}
 	return report, nil
 }
 

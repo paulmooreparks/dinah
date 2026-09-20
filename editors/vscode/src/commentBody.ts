@@ -288,6 +288,13 @@ export async function openExistingComment(
 	const digest = recordedDigest(text);
 	if (digest !== "" && digest !== (await digestOf(splitAnchorBody(text)))) {
 		host.showError(host.t("comment.divergedOnOpen", { ref: standing.ref }));
+		// Withholding the session is not enough on its own: a session opened
+		// earlier for this same path is still standing, and a save would use
+		// its digest, pass the compare-and-swap and absorb the hand edit that
+		// was just reported. Declining to adopt a diverged comment has to
+		// clear what is there as well as not add to it, or the refusal looks
+		// straight at the edit and then lets the next save swallow it.
+		opened.delete(path);
 	} else {
 		opened.set(path, { ...standing, digest });
 	}
