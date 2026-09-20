@@ -1109,4 +1109,3 @@ func TestAnUnmigratedStoreIsRefusedByName(t *testing.T) {
 		t.Errorf("the store at the current format is refused: %v", err)
 	}
 }
-

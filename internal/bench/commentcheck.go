@@ -1,8 +1,8 @@
 package bench
 
 import (
-	"strconv"
 	"path/filepath"
+	"strconv"
 )
 
 // The findings dinah-525 added, which are about comment bodies rather than

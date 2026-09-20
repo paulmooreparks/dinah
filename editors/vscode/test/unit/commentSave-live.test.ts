@@ -20,6 +20,7 @@ import { readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { after, test } from "node:test";
 
+import type { Spawner } from "../../src/cli";
 import { runDinah } from "../../src/cli";
 import type { CommentBodyHost, OpenComments } from "../../src/commentBody";
 import {
@@ -115,6 +116,20 @@ function fixture(t: { name: string }): {
 	return { root, bench, path: "", opened, log };
 }
 
+/**
+ * nodeSpawner with the fixture's own environment underneath it.
+ *
+ * The bare spawner inherits whatever environment the run was started in, so
+ * these cases passed on a machine that already had a Dinah identity configured
+ * and were refused on one that did not. That is green-on-your-machine, and the
+ * two calls into the extension's own code are the ones that reach the binary
+ * without going through `run` and its fixtureEnv.
+ */
+function fixtureSpawner(root: FixtureRoot): Spawner {
+	return (exe, argv, options) =>
+		nodeSpawner(exe, argv, { ...options, env: fixtureEnv(root) });
+}
+
 /** Runs one invocation against a fixture workbench and fails on a refusal. */
 function run(root: FixtureRoot, bench: string, argv: readonly string[]): void {
 	execFileSync(root.binary, ["--json", ...argv], {
@@ -163,7 +178,7 @@ test("an edit made in the editor is written through the verb and re-stamped", as
 	const { root, bench, opened, log } = fixture(t);
 	const window = host(log);
 
-	await composeComment(window, nodeSpawner, root.binary, opened, {
+	await composeComment(window, fixtureSpawner(root), root.binary, opened, {
 		root: bench,
 		folder: bench,
 		ref: "fx-1",
@@ -187,7 +202,7 @@ test("an edit made in the editor is written through the verb and re-stamped", as
 
 	const saved = await saveCommentBody(
 		window,
-		nodeSpawner,
+		fixtureSpawner(root),
 		root.binary,
 		opened,
 		path,
@@ -241,7 +256,7 @@ test("a write landing between the open and the save refuses the save", async (t)
 	const { root, bench, opened, log } = fixture(t);
 	const window = host(log);
 
-	await composeComment(window, nodeSpawner, root.binary, opened, {
+	await composeComment(window, fixtureSpawner(root), root.binary, opened, {
 		root: bench,
 		folder: bench,
 		ref: "fx-1",
@@ -266,7 +281,7 @@ test("a write landing between the open and the save refuses the save", async (t)
 
 	const saved = await saveCommentBody(
 		window,
-		nodeSpawner,
+		fixtureSpawner(root),
 		root.binary,
 		opened,
 		path,
@@ -301,7 +316,7 @@ test("a hand edit outside any editing session is still refused", async (t) => {
 	const window = host(log);
 	run(root, bench, ["comment", "fx-1", "what the verb wrote"]);
 	const located = await runDinah(
-		nodeSpawner,
+		fixtureSpawner(root),
 		root.binary,
 		["path", "fx-1/comments/1"],
 		{ cwd: bench, env: fixtureEnv(root) },
@@ -319,7 +334,7 @@ test("a hand edit outside any editing session is still refused", async (t) => {
 
 	const saved = await saveCommentBody(
 		window,
-		nodeSpawner,
+		fixtureSpawner(root),
 		root.binary,
 		opened,
 		path,
