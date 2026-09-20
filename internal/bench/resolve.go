@@ -157,6 +157,34 @@ var checklistSegments = []struct {
 	{Kind: "decision", Word: "decisions", Short: "d"},
 }
 
+// ChecklistKind is one declared checklist kind, as a caller outside this
+// package reads it: the kind token the format stores and the word a reference
+// composes for it. The short input spelling is not carried, because nothing
+// outside this package composes one and the resolver accepts it on input
+// without anybody else naming it.
+type ChecklistKind struct {
+	Kind string
+	Word string
+}
+
+// ChecklistKinds is the declaration above, in declaration order, for callers
+// that group or order by kind. The containment projection reads it rather
+// than keeping a roster of its own, so an edit to checklistSegments teaches
+// the resolver, the composer and the projection together.
+//
+// The answer is a fresh slice on every call rather than the package's own.
+// Go has no immutable slice, so the promise this makes is not that the
+// returned value cannot be written to: it is that writing to it reaches
+// nothing. A caller that sorts or truncates what it was handed changes no
+// later answer and no reference this package resolves.
+func ChecklistKinds() []ChecklistKind {
+	kinds := make([]ChecklistKind, 0, len(checklistSegments))
+	for _, segment := range checklistSegments {
+		kinds = append(kinds, ChecklistKind{Kind: segment.Kind, Word: segment.Word})
+	}
+	return kinds
+}
+
 // checklistKinds maps every segment a path reference may carry onto the
 // checklist kind it selects. Both spellings of each kind resolve, which is
 // what keeps the short forms working.

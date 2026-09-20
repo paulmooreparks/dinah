@@ -48,6 +48,29 @@ export const SUPPORTED_FORMATS: readonly number[] = [1, 2, 3, 4, 5];
  */
 export const MINIMUM_PROFILE = { name: "dinah-core", major: 0, minor: 4 };
 
+/**
+ * The skew this gate does not catch, written down because no gate can catch it.
+ *
+ * dinah-536 gave a card's checklist three published branches in the
+ * containment payload: below a card, the questions, criteria and decisions
+ * that used to arrive as one flat run of `item` nodes now arrive as three
+ * nodes of kind `collection`, each holding its own members. An extension from
+ * before that card partitions a card's children by kind and labels each group
+ * from a map keyed by member kind, so it collects all three into one group and
+ * labels it with the literal token `collection`, whose children are the three
+ * branches rather than the items. Nothing is lost and nothing is wrong on
+ * disk; one row reads oddly until the extension is updated, which is the
+ * remedy, and the extension ships from the same repository as the binary.
+ *
+ * No version bump refuses it. A higher minor is accepted here on purpose, for
+ * the reason given above, so bumping the minor would refuse nothing; and a
+ * major bump asserts that everything this gate names has changed, which is far
+ * more than that card changed. The alternatives, a negotiated payload shape or
+ * an opt-in flag, are a permanent surface carried for a transient skew, which
+ * is the compatibility shim the operator ruled against on 2026-09-15. So the
+ * break is accepted and recorded rather than prevented.
+ */
+
 /** Every outcome of asking a candidate binary what it is. */
 export type Classification =
 	| { readonly kind: "ok"; readonly version: VersionReport }

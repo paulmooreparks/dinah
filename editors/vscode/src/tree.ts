@@ -310,17 +310,34 @@ export type TreeElement =
 			readonly holderKind: TreeElement["kind"];
 			/** The entity kind this collection holds, as `contents` spells it. */
 			readonly memberKind: string;
+			/**
+			 * The stored item kind a published judgement branch narrows by,
+			 * absent on a legacy collection the extension grouped itself.
+			 * It decides the row's label and nothing else; the order the
+			 * branches draw in is the payload's.
+			 */
+			readonly narrow?: string;
+			/**
+			 * The direct member count the CLI published, absent on a legacy
+			 * collection. Preferred over the member array's length, which at a
+			 * depth cut is the number of rows that came rather than the number
+			 * the collection holds.
+			 */
+			readonly memberCount?: number;
 			/** The member nodes, in the order `contents` returned them. */
 			readonly members: readonly TreeNode[];
 			/**
-			 * The collection's own reference, present only where the members
-			 * have still to be fetched.
+			 * The collection's own reference.
 			 *
-			 * Every collection below a card arrives with its members, because
-			 * its holder's own `contents` answer carried them. The workbench
-			 * root is the exception: it composes its collection rows from
-			 * ROOT_COLLECTIONS before any call is made, so the row carries the
-			 * reference its own expansion asks `contents` about.
+			 * It serves two jobs, and which one it is doing is decided by
+			 * whether the row also carries members. A published judgement
+			 * branch carries both: the reference is what tells three branches
+			 * of one card apart in a key, and the members are already here. The
+			 * workbench root's own collections carry the reference and no
+			 * members, because they are composed from ROOT_COLLECTIONS before
+			 * any call is made, and that is the row whose expansion goes and
+			 * asks. A collection the extension grouped itself from a flat run
+			 * carries no reference at all.
 			 */
 			readonly ref?: string;
 	  }
@@ -442,7 +459,11 @@ function keyPartsOf(element: TreeElement): readonly (string | undefined)[] {
 		case "card":
 			return [rootPathOf(element.row), element.view?.ref ?? element.node.ref];
 		case "collection":
-			return [element.root, element.holder, element.memberKind];
+			// The reference first, because three judgement branches below one
+			// card all hold items and would otherwise share a key. A legacy
+			// collection the extension grouped itself has no reference of its
+			// own and keys as it always did.
+			return [element.root, element.holder, element.ref ?? element.memberKind];
 		case "attachment":
 			return [element.root, element.owner, element.view?.id ?? element.node.ref];
 		case "comment":
@@ -704,8 +725,56 @@ const COLLECTION_LABELS: Readonly<
 	attachment: (t) => t("tree.attachments.label"),
 };
 
-/** A collection row's label: its kind's translated noun, or the kind token. */
-export function collectionLabel(memberKind: string, t: Localizer = ENGLISH): string {
+/**
+ * The label a judgement branch draws, keyed by the item kind it narrows by.
+ *
+ * A lookup and nothing more. It decides what a row is called and never what
+ * order the rows come in, which is the payload's to decide: the CLI publishes
+ * the branches in the order its own declaration puts them, and this extension
+ * draws what it is given. A table here that also ordered them would be the
+ * second statement of the grammar that dinah-519 took out.
+ */
+/**
+ * The kind token a published collection node carries, which is the one token
+ * this extension reads to tell a branch from an entity. It is the CLI's own
+ * spelling and is never translated.
+ */
+const KIND_COLLECTION = "collection";
+
+const NARROW_LABELS: Readonly<Record<string, (t: Localizer) => string>> = {
+	open_question: (t) => t("tree.collection.questions"),
+	acceptance_criterion: (t) => t("tree.collection.criteria"),
+	decision: (t) => t("tree.collection.decisions"),
+};
+
+/**
+ * A collection row's label: the narrowed kind's translated noun where the row
+ * is a judgement branch, otherwise its member kind's, otherwise the token
+ * itself.
+ *
+ * An unknown narrow token falls through to the member kind rather than being
+ * printed raw, so a kind the CLI gains before this extension knows its name
+ * draws as Checklist rather than as `risk`.
+ *
+ * Attachment 1 of dinah-536 said such a token would be rendered verbatim, and
+ * this is a deliberate departure from it. A raw `risk` in the tree is a token
+ * a reader cannot act on and did not ask to see, where Checklist is at least
+ * true: the row does hold checklist items. The spec's own reasoning was that
+ * this follows the existing fallback for an unknown member kind, and that
+ * fallback is still here, one step further in, for a member kind nobody has
+ * a noun for at all.
+ */
+export function collectionLabel(
+	memberKind: string,
+	t: Localizer = ENGLISH,
+	narrow?: string,
+): string {
+	if (narrow !== undefined) {
+		const branch = NARROW_LABELS[narrow];
+		if (branch !== undefined) {
+			return branch(t);
+		}
+	}
 	const named = COLLECTION_LABELS[memberKind];
 	return named === undefined ? memberKind : named(t);
 }
@@ -1488,8 +1557,8 @@ export function treeItemFor(
 		}
 		case "collection":
 			return {
-				label: collectionLabel(element.memberKind, t),
-				description: String(element.members.length),
+				label: collectionLabel(element.memberKind, t, element.narrow),
+				description: String(element.memberCount ?? element.members.length),
 				contextValue: `${CONTEXT_COLLECTION_PREFIX}.${element.memberKind}`,
 				collapsibleState: "collapsed",
 			};
@@ -2419,6 +2488,27 @@ export interface FolderInput {
  */
 export class DinahTreeProvider {
 	private readonly folders = new Map<string, FolderState>();
+	/**
+	 * One card's checklist answer, shared by every judgement branch of that
+	 * card for the life of one checkpoint.
+	 *
+	 * A card now draws up to three branches over one checklist, and each of
+	 * them needs the same detail answer to put text on its rows. Asking once
+	 * per branch would make three calls where the CLI has one answer, and two
+	 * branches opened at the same moment would make two calls before either
+	 * finished. So what is held here is the promise rather than its result:
+	 * a second branch arriving mid-flight joins the first one's call instead
+	 * of starting another.
+	 *
+	 * Refusal and an empty answer are held exactly as success is. A branch
+	 * that refused is a branch the next expansion should not retry behind the
+	 * reader's back, and the checkpoint is what clears the slate: `refresh`
+	 * empties this map, so the next expansion after a refresh asks again.
+	 */
+	private readonly checklists = new Map<
+		string,
+		Promise<readonly ItemView[] | undefined>
+	>();
 
 	constructor(private readonly deps: TreeDeps) {}
 
@@ -2441,6 +2531,15 @@ export class DinahTreeProvider {
 
 	/** Re-reads one folder's rows, keeping its last-known subtrees on a race. */
 	async refresh(folder: string): Promise<void> {
+		// A checkpoint is where a card's checklist stops being what this
+		// provider already knows, so every memoized answer goes, successes,
+		// empties and refusals alike. Cleared before the unknown-folder
+		// return rather than after it, so that a refresh naming a folder this
+		// provider does not hold still ends the checkpoint the memo belongs
+		// to. The clear is global on purpose: the memo is keyed by workbench
+		// root and holding one folder's entries across another's checkpoint
+		// would be a cache with two lifetimes.
+		this.checklists.clear();
 		const state = this.folders.get(folder);
 		if (state === undefined) {
 			return;
@@ -2767,15 +2866,53 @@ export class DinahTreeProvider {
 		if (children === undefined) {
 			return [this.contentsNote(rowOf(element))];
 		}
-		return partitionByKind(children).map(([memberKind, members]) => ({
-			kind: "collection" as const,
-			row: rowOf(element),
-			root,
-			holder: ref,
-			holderKind: element.kind,
-			memberKind,
-			members,
-		}));
+		const row = rowOf(element);
+		const rows: TreeElement[] = [];
+		let flat: TreeNode[] = [];
+		// A published collection node becomes one row directly and flushes the
+		// run of flat nodes standing in front of it, so the sequence the CLI
+		// sent is the sequence a reader sees: comments, then the branches, then
+		// attachments. Flat nodes are still grouped by first-seen kind, which
+		// is what keeps this extension working against a binary that publishes
+		// no branches at all.
+		const flush = (): void => {
+			if (flat.length === 0) {
+				return;
+			}
+			for (const [memberKind, members] of partitionByKind(flat)) {
+				rows.push({
+					kind: "collection" as const,
+					row,
+					root,
+					holder: ref,
+					holderKind: element.kind,
+					memberKind,
+					members,
+				});
+			}
+			flat = [];
+		};
+		for (const node of children) {
+			if (node.kind !== KIND_COLLECTION) {
+				flat.push(node);
+				continue;
+			}
+			flush();
+			rows.push({
+				kind: "collection" as const,
+				row,
+				root,
+				holder: ref,
+				holderKind: element.kind,
+				memberKind: node.member_kind ?? "",
+				narrow: node.narrow,
+				memberCount: node.member_count,
+				members: node.children ?? [],
+				ref: node.ref,
+			});
+		}
+		flush();
+		return rows;
 	}
 
 	/** The one row a refused `contents` call draws, in place of the members. */
@@ -2808,7 +2945,20 @@ export class DinahTreeProvider {
 		// made, so this is where its own members are fetched. Every collection
 		// below a card arrived with its holder's own answer.
 		let members = element.members;
-		if (element.ref !== undefined) {
+		// A collection that arrived carrying its members draws them. Only one
+		// kind of row arrives without any: the workbench's own collections,
+		// which are composed from ROOT_COLLECTIONS before a call is made and
+		// carry a reference so that their expansion can go and ask. A
+		// published judgement branch carries both its reference and its
+		// members, and its reference is its identity rather than an errand:
+		// fetching against it here would ask the CLI a second structural
+		// question whose answer the first one already held.
+		// `narrow` is what tells a published branch from a workbench-root
+		// collection, rather than the member count: the CLI omits an empty
+		// branch today, but a branch that did arrive empty would otherwise
+		// fall through and ask a second structural question whose answer it
+		// is already holding.
+		if (members.length === 0 && element.narrow === undefined && element.ref !== undefined) {
 			const children = await readContents(
 				this.deps.spawner,
 				this.deps.exe,
@@ -2881,13 +3031,7 @@ export class DinahTreeProvider {
 		element: Extract<TreeElement, { kind: "collection" }>,
 		members: readonly TreeNode[],
 	): Promise<TreeElement[]> {
-		const views = await readChecklist(
-			this.deps.spawner,
-			this.deps.exe,
-			element.root,
-			element.holder,
-			this.deps.log,
-		);
+		const views = await this.checklistOf(element.root, element.holder);
 		if (views === undefined) {
 			const t = this.deps.t ?? ENGLISH;
 			this.deps.log(t("tree.checklist.unreadable"));
@@ -2905,6 +3049,34 @@ export class DinahTreeProvider {
 			// next checkpoint repaints the row.
 			isOperator: element.row.data?.isOperator === true,
 		}));
+	}
+
+	/**
+	 * One card's checklist, read at most once per checkpoint however many
+	 * branches ask for it.
+	 *
+	 * The promise goes into the map before it is awaited, which is what makes
+	 * two branches opened in the same tick share one call rather than race to
+	 * start two.
+	 */
+	private checklistOf(
+		root: string,
+		holder: string,
+	): Promise<readonly ItemView[] | undefined> {
+		const key = `${root}\u0000${holder}`;
+		const held = this.checklists.get(key);
+		if (held !== undefined) {
+			return held;
+		}
+		const reading = readChecklist(
+			this.deps.spawner,
+			this.deps.exe,
+			root,
+			holder,
+			this.deps.log,
+		);
+		this.checklists.set(key, reading);
+		return reading;
 	}
 
 	/** The attachment rows of one entity's attachments. */

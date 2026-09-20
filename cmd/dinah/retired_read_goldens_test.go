@@ -8,6 +8,8 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"dinah/internal/verb"
 )
 
 // The goldens of the seven retired read commands.
@@ -43,6 +45,11 @@ type retiredRead struct {
 	retired []string
 	// after is the argv that answers the same question now.
 	after []string
+	// superseded names the card that changed what this invocation prints,
+	// empty on a row still held to the byte-for-byte promise. See
+	// TestTheCollapsedReadsPrintWhatTheRetiredOnesPrinted for what a
+	// superseded row is held to instead.
+	superseded string
 }
 
 // retiredReads is the whole set, one row per golden. seedRetiredBench builds
@@ -65,8 +72,8 @@ func retiredReads(card, column, ref string) []retiredRead {
 		{file: "dinah-attachments.txt", retired: []string{"attachments", card}, after: []string{"list", card + "/attachments"}},
 		{file: "dinah-attachments-bare.txt", retired: []string{"attachments"}, after: []string{"list", "attachments"}},
 		{file: "dinah-log.txt", retired: []string{"log", card}, after: []string{"list", card + "/journal"}},
-		{file: "dinah-contents.txt", retired: []string{"contents", card}, after: []string{"list", card, "--depth", "entities"}},
-		{file: "dinah-contents-workbench.txt", retired: []string{"contents", "workbench"}, after: []string{"list", "workbench", "--depth", "entities"}},
+		{file: "dinah-contents.txt", retired: []string{"contents", card}, after: []string{"list", card, "--depth", "entities"}, superseded: "dinah-536"},
+		{file: "dinah-contents-workbench.txt", retired: []string{"contents", "workbench"}, after: []string{"list", "workbench", "--depth", "entities"}, superseded: "dinah-536"},
 		{file: "dinah-contents-column.txt", retired: []string{"contents", column}, after: []string{"list", column, "--depth", "entities"}},
 		{file: "dinah-contents-below-card.txt", retired: []string{"contents", ref}, after: []string{"list", ref, "--depth", "entities"}},
 		{file: "dinah-workbenches.txt", retired: []string{"workbenches", "..", "--max-depth", "4"}, after: []string{"list", "workbenches", "--root", "..", "--max-depth", "4"}},
@@ -225,6 +232,89 @@ func TestTheEnumeratedPathCarriesTheHostsOwnSeparator(t *testing.T) {
 	}
 }
 
+// assertSupersededRead holds a row whose bytes a later card changed on
+// purpose to the part of the promise that survived.
+//
+// dinah-536 gave a card's checklist three published branches, and the operator
+// ruled on dinah-536/questions/1 that the CLI is what publishes them. A card's
+// rows therefore carry a branch row above its items, its items are indented
+// below that row, and the reference column is wider for every row in the
+// table because one reference in it grew. No filtering recovers the captured
+// bytes from that, because the table is aligned as a whole.
+//
+// Regenerating the golden is what this file refuses, and rightly: the retired
+// command is gone, so a regenerated golden would be the surviving command
+// compared against itself. Rewriting it by hand is the same thing more slowly.
+// So the captured bytes stay as they are, as the record of what the retired
+// command printed, and what is asserted here is the part dinah-536 did not
+// claim to change: every reference the retired command printed is still
+// printed, in the order it printed them, and everything this invocation adds
+// is a collection row. A row that disappeared, moved, or was replaced by
+// something that is not a branch still reddens this test.
+func assertSupersededRead(t *testing.T, row retiredRead, printed, captured string) {
+	t.Helper()
+	before := referenceColumn(captured, false)
+	after := referenceColumn(printed, false)
+	if len(before) == 0 {
+		t.Fatalf("%s carries no reference rows, so %v is compared against nothing", row.file, row.after)
+	}
+	if strings.Join(before, "\n") != strings.Join(after, "\n") {
+		t.Errorf("%v prints the references\n  %s\nwhere %s printed\n  %s\n(superseded by %s, which may add collection rows and nothing else)",
+			row.after, strings.Join(after, " | "), row.file, strings.Join(before, " | "), row.superseded)
+	}
+	added := len(referenceColumn(printed, true)) - len(after)
+	if added == 0 {
+		t.Errorf("%v draws no collection row, so %s is recorded as superseded by %s and nothing superseded it",
+			row.after, row.file, row.superseded)
+	}
+}
+
+// referenceColumn is the reference of every table row of a printed read, in
+// the order the table drew them. Branch rows are kept only when asked for, so
+// one call answers what the retired command printed and the other answers what
+// this one prints on top of it.
+//
+// A row is recognised by its tree glyphs, which every row of these tables
+// carries and no header or heading does, and the reference is the first word
+// after them. The indentation a branch puts on its members is dropped with the
+// glyphs, which is what lets a moved row compare equal to where it started.
+func referenceColumn(out string, branches bool) []string {
+	var refs []string
+	for _, line := range strings.Split(out, "\n") {
+		// The glyphs end at the first "-- ", and the reference begins after
+		// it. Scanning for the last glyph character instead would land inside
+		// the reference, which carries hyphens of its own.
+		cut := strings.Index(line, "-- ")
+		if cut < 0 {
+			continue
+		}
+		// The table's header underline is a run of dashes and spaces and
+		// carries "-- " like any row, so it reaches this line. It is not a
+		// row, and it compared equal between the two sides only because the
+		// words under it happened to be the same length. A row's reference
+		// carries something that is not a dash; the underline does not.
+		if strings.Trim(line, "- ") == "" {
+			continue
+		}
+		fields := strings.Fields(line[cut+len("-- "):])
+		if len(fields) < 1 {
+			continue
+		}
+		reference, kind := fields[0], ""
+		if len(fields) > 1 {
+			kind = fields[1]
+		}
+		if kind == verb.KindCollection {
+			if branches {
+				refs = append(refs, reference)
+			}
+			continue
+		}
+		refs = append(refs, reference)
+	}
+	return refs
+}
+
 // TestTheCollapsedReadsPrintWhatTheRetiredOnesPrinted asserts that each
 // surviving invocation prints the bytes its retired spelling printed, read off
 // the goldens captured while both still answered.
@@ -256,8 +346,13 @@ func TestTheCollapsedReadsPrintWhatTheRetiredOnesPrinted(t *testing.T) {
 		// The golden goes through the separator fold as well, because it was
 		// captured on Windows and holds that host's separators below the
 		// rooted path.
-		if stabilise(got.out, root) != foldPathSeparators(string(want)) {
-			t.Errorf("%v prints\n%s\nwhere %s holds\n%s", row.after, stabilise(got.out, root), row.file, foldPathSeparators(string(want)))
+		printed, captured := stabilise(got.out, root), foldPathSeparators(string(want))
+		if row.superseded != "" {
+			assertSupersededRead(t, row, printed, captured)
+			continue
+		}
+		if printed != captured {
+			t.Errorf("%v prints\n%s\nwhere %s holds\n%s", row.after, printed, row.file, captured)
 		}
 	}
 }

@@ -86,14 +86,26 @@ function manifestKeys(): Set<string> {
 	return new Set(Object.keys(catalogue));
 }
 
-test("the English runtime catalogue carries exactly 191 entries", () => {
+// The count this card found on its base commit, and the three keys it adds.
+//
+// Written as a base and an addition rather than as the total, because the
+// total is the answer rather than the claim. dinah-536 branched from cb9128b3,
+// where the runtime catalogue carried 191 entries, and it adds the three
+// judgement-branch labels. A card that lands before this one and adds a key of
+// its own moves the base: the fix is to write the base it found here and say
+// so in its handoff, not to guess at a new total.
+const CATALOGUE_BASE = 191;
+const CATALOGUE_ADDED_BY_THIS_CARD = 3;
+
+test("the English runtime catalogue carries the base count and this card's additions", () => {
 	// The count is taken over `entries` rather than over the file's top level,
 	// which carries two members: the tag and the entries themselves.
 	//
 	// 192 before dinah-519, less its eight removals, plus its six additions,
 	// plus the one skip reason dinah-518 adds for a row that names no column.
 	// dinah-515 adds no runtime key, its four strings being manifest ones.
-	assert.equal(runtimeKeys().size, 191);
+	// dinah-536 then adds Questions, Criteria and Decisions.
+	assert.equal(runtimeKeys().size, CATALOGUE_BASE + CATALOGUE_ADDED_BY_THIS_CARD);
 });
 
 test("the base manifest catalogue carries exactly 57 keys", () => {

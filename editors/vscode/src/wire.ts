@@ -177,6 +177,21 @@ export interface TreeNode {
 	readonly title?: string;
 	readonly axis?: string;
 	readonly value?: string;
+	/** The entity kind a collection node holds, absent on every other node. */
+	readonly member_kind?: string;
+	/**
+	 * The stored item kind a narrowed checklist collection selects, absent on
+	 * an unnarrowed collection and on every node that is not one.
+	 */
+	readonly narrow?: string;
+	/**
+	 * How many members a collection node holds directly, as against `count`,
+	 * which accounts for everything below them too. Present on a collection
+	 * even at zero, absent everywhere else, which is why it is optional here
+	 * rather than defaulted: a reader must be able to tell an empty collection
+	 * from a node that publishes no such number.
+	 */
+	readonly member_count?: number;
 	readonly count: number;
 	readonly hidden?: HiddenAccount;
 	readonly children?: readonly TreeNode[];

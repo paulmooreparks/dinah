@@ -247,28 +247,61 @@ func TestAContainedNodeCountsWhatItContainsAndNeverItself(t *testing.T) {
 	writeItem(t, card.Dir, "AC-1", 1)
 	writeItem(t, card.Dir, "AC-2", 2)
 	h.attach(ref, "notes.txt", "some bytes")
+	// A comment below an item, so the three numbers a branch could publish
+	// are three different numbers: the criteria branch holds 2 members, 3
+	// entities below it, and is 1 child of the card. An implementation that
+	// confuses any two of them fails here rather than passing by coincidence.
+	h.comment(ref+"/criteria/1", "a note below the first criterion")
 
 	built := contentsOf(t, h, ref, LevelAll)
-	if built.Root.Count != 5 {
-		t.Errorf("the card counts %d entities and carries 5", built.Root.Count)
+	if built.Root.Count != 6 {
+		t.Errorf("the card counts %d entities and carries 6", built.Root.Count)
 	}
-	if len(built.Root.Children) != 5 {
-		t.Fatalf("the card draws %d children and carries 5", len(built.Root.Children))
+	// Two comments, one criteria branch and one attachment. The branch is not
+	// an entity and consumes no rank; it stands where its items stood.
+	if len(built.Root.Children) != 4 {
+		t.Fatalf("the card draws %d children and carries 4", len(built.Root.Children))
 	}
-	for _, child := range built.Root.Children {
-		if child.Count != 0 {
-			t.Errorf("%s counts %d and contains nothing", child.Ref, child.Count)
-		}
+	branch := built.Root.Children[2]
+	if branch.Kind != KindCollection || branch.Ref != ref+"/criteria" {
+		t.Fatalf("the card's third child is %s %s, want the criteria branch", branch.Kind, branch.Ref)
+	}
+	if branch.MemberCount == nil || *branch.MemberCount != 2 {
+		t.Errorf("the branch publishes the member count %v and holds 2 items", branch.MemberCount)
+	}
+	if branch.Count != 3 {
+		t.Errorf("the branch counts %d entities below it and holds 3", branch.Count)
 	}
 	walkTree(built.Root, func(node TreeNode) {
-		total := len(node.Children)
-		for _, child := range node.Children {
+		// The identity is over entities, so a branch is replaced by the
+		// children it stands in front of before anything is added up.
+		entities := entityChildren(node)
+		total := len(entities)
+		for _, child := range entities {
 			total += child.Count
+		}
+		if node.Kind == KindCollection {
+			return
 		}
 		if node.Count != total {
 			t.Errorf("%s counts %d and its children and their counts add to %d", node.Kind, node.Count, total)
 		}
 	})
+}
+
+// entityChildren is a node's children with every collection node replaced by
+// the members it stands in front of, which is the set the containment counting
+// rule is stated over.
+func entityChildren(node TreeNode) []TreeNode {
+	var entities []TreeNode
+	for _, child := range node.Children {
+		if child.Kind == KindCollection {
+			entities = append(entities, child.Children...)
+			continue
+		}
+		entities = append(entities, child)
+	}
+	return entities
 }
 
 // writeItem writes a checklist item by hand, which fixes the identifier and
@@ -998,6 +1031,31 @@ func TestEveryReferenceAContentsTreeDrawsResolves(t *testing.T) {
 			root = true
 			if want := filepath.Join(h.library.Bench.Root, bench.WorkbenchAnchor); path != want {
 				t.Errorf("%s resolves to %s rather than the workbench's own anchor %s", node.Ref, path, want)
+			}
+			return
+		}
+		// A collection node carries a collection reference, which addresses a
+		// membership rather than an entity: it has no identifier of its own
+		// and `list` rather than `show` is the verb that opens it. What it
+		// owes this sweep is that it resolves at all, which it has already
+		// done above, and that every member it stands in front of is drawn
+		// beneath it and checked in its own turn.
+		if node.Kind == KindCollection {
+			if node.ID != "" {
+				t.Errorf("the collection %s carries the identifier %s and a collection has none", node.Ref, node.ID)
+			}
+			_, collection, err := h.library.Bench.ResolveReference(node.Ref)
+			if err != nil {
+				t.Errorf("%s does not resolve as a collection: %v", node.Ref, err)
+				return
+			}
+			if collection == nil {
+				t.Errorf("%s resolves to an entity rather than to a collection", node.Ref)
+				return
+			}
+			if len(collection.Members) != len(node.Children) {
+				t.Errorf("%s resolves to %d members and draws %d children",
+					node.Ref, len(collection.Members), len(node.Children))
 			}
 			return
 		}
