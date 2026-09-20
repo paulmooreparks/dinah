@@ -52,6 +52,8 @@
 	"manifest.command.dinah.tree.verifyItem.title": "Dinah: Kriterium bestätigen",
 	"manifest.command.dinah.tree.failItem.title": "Dinah: Kriterium ablehnen",
 	"manifest.command.dinah.tree.reopenItem.title": "Dinah: Punkt wieder öffnen",
-	"manifest.command.dinah.tree.fileItem.title": "Dinah: Prüfpunkt anlegen",
+	"manifest.command.dinah.tree.raiseQuestion.title": "Dinah: Offene Frage stellen",
+	"manifest.command.dinah.tree.recordDecision.title": "Dinah: Entscheidung festhalten",
+	"manifest.command.dinah.tree.addCriterion.title": "Dinah: Abnahmekriterium hinzufügen",
 	"manifest.command.dinah.tree.openComment.title": "Dinah: Kommentar öffnen"
 }

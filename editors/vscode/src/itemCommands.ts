@@ -1,5 +1,5 @@
-// The seven checklist-item commands the tree contributes: reading one item,
-// arguing on it, settling it, reopening it, and filing a new one.
+// The checklist-item commands the tree contributes: reading one item, arguing
+// on it, settling it, reopening it, and filing a new one of each kind.
 //
 // Nothing here imports vscode, for the reason cardCommands.ts's header gives.
 // Each handler is a function over an injected host, so the unit layer asserts
@@ -40,12 +40,11 @@ import {
 	columnOrderOf,
 	holdDirection,
 	itemHoldDirection,
-	itemKindWord,
 } from "./tree";
 import type { CatalogBuild, CatalogOk } from "./verbCatalog";
 import type { ItemView, PathAnswer } from "./wire";
 
-/** The tool the filing form reads its kind choices from. */
+/** The tool whose schema publishes the kinds an item may be filed under. */
 export const FILE_ITEM_TOOL = "file_item";
 
 /** What an item command acts on: one item, and where its card stands. */
@@ -268,33 +267,63 @@ export interface FileItemContext {
 	readonly data?: WorkbenchData;
 }
 
-/** The context for File Item, or undefined for a row that is not a card. */
+/** The member kind a card's checklist collections hold, as `contents` spells it. */
+const MEMBER_KIND_ITEM = "item";
+
+/**
+ * The context for a filing command, or undefined for a row it cannot act on.
+ *
+ * Two shapes of row reach it. A card row names the card directly. A judgement
+ * branch hanging from a card names it through the collection's holder, and
+ * that arm exists because the menus offer the three commands on those rows:
+ * a Questions branch has already said which kind it holds, so the reader who
+ * aims at one is aiming at the card it hangs from.
+ */
 export function contextForFileItem(
 	element: TreeElement | undefined,
 	exe: string,
 	host: CommandHost,
 	spawner: Spawner,
 ): FileItemContext | undefined {
-	if (!isRow(element, "card")) {
-		return undefined;
+	if (isRow(element, "card")) {
+		const ref = element.view?.ref ?? element.node.ref;
+		const root = element.row.data?.path;
+		if (ref === undefined || ref === "" || root === undefined) {
+			return undefined;
+		}
+		return {
+			spawner,
+			exe,
+			host,
+			folder: element.row.folder,
+			root,
+			ref,
+			data: element.row.data,
+		};
 	}
-	const ref = element.view?.ref ?? element.node.ref;
-	const root = element.row.data?.path;
-	if (ref === undefined || ref === "" || root === undefined) {
-		return undefined;
+	if (
+		isRow(element, "collection") &&
+		element.holderKind === "card" &&
+		element.memberKind === MEMBER_KIND_ITEM
+	) {
+		const root = element.row.data?.path;
+		if (element.holder === "" || root === undefined) {
+			return undefined;
+		}
+		return {
+			spawner,
+			exe,
+			host,
+			folder: element.row.folder,
+			root,
+			ref: element.holder,
+			data: element.row.data,
+		};
 	}
-	return {
-		spawner,
-		exe,
-		host,
-		folder: element.row.folder,
-		root,
-		ref,
-		data: element.row.data,
-	};
+	return undefined;
 }
 
-/** The five answers the form collects before anything spawns. */
+/** What one filing command sends: the kind it carries, and the three answers. */
 export interface FileItemAnswer {
 	readonly kind: string;
 	readonly text: string;
@@ -302,35 +331,36 @@ export interface FileItemAnswer {
 	readonly owner: string;
 }
 
+/** The stored kind tokens the three filing commands carry, as the CLI spells them. */
+export const KIND_OPEN_QUESTION = "open_question";
+export const KIND_DECISION = "decision";
+export const KIND_ACCEPTANCE_CRITERION = "acceptance_criterion";
+
 /**
- * The kind choices, read out of the tool's own schema.
+ * The kinds the tool's own schema publishes for `file_item`.
  *
  * They are not written into this extension, which is dinah-420's operator
- * ruling applied unchanged: a fourth kind added to the tool reaches this form
- * without anybody editing it. The value sent is the token verbatim, and the
- * label is the kind word the tree row already uses, so a reader who meets one
- * name in the form meets the same name on the row.
- *
- * A token this extension has no word for renders as the token. That is what
- * keeps the ruling true rather than nominally true, and the fallback is the
- * token rather than a skip, because a kind the form silently refuses to offer
- * is a kind nobody can file.
+ * ruling applied unchanged: a fourth kind added to the tool is a kind this
+ * extension accepts without anybody editing this function.
  */
-export function kindPickItems(build: CatalogOk, t: Localizer): PickItem[] {
+function publishedKinds(build: CatalogOk): readonly string[] {
 	const verb = build.verbs.find((entry) => entry.name === FILE_ITEM_TOOL);
 	const argument = verb?.args.find((entry) => entry.name === "kind");
-	const values =
-		argument?.prompt.kind === "choice" ? argument.prompt.values : [];
-	return values.map((value) => ({
-		label: labelForKind(value, t),
-		value,
-	}));
+	return argument?.prompt.kind === "choice" ? argument.prompt.values : [];
 }
 
-/** The kind word for a token, falling back to the token itself. */
-function labelForKind(token: string, t: Localizer): string {
-	const known = ["acceptance_criterion", "open_question", "decision"];
-	return known.includes(token) ? itemKindWord(token, t) : token;
+/**
+ * Whether the tool's schema publishes one named kind.
+ *
+ * A command that carries its own kind has nothing to enumerate for a reader,
+ * and it still must not send a kind the binary will refuse, so it asks the
+ * narrower question this function answers. The refusal a false answer
+ * produces is the one the command palette already shows when the catalogue
+ * will not build, because the condition is the same condition: the extension
+ * cannot establish that the binary accepts what it is about to send.
+ */
+export function publishesKind(build: CatalogOk, kind: string): boolean {
+	return publishedKinds(build).includes(kind);
 }
 
 /**
@@ -423,96 +453,98 @@ export function ownerPickItems(t: Localizer): PickItem[] {
 }
 
 /**
- * Walks the five steps, and answers undefined where any of them was declined.
+ * Walks the three steps a filing command of a known kind asks, and answers
+ * undefined where any of them was declined.
  *
- * Nothing spawns until all five have answers, and each step is cancellable.
- * There is no confirmation step: the quick picks are the confirmation, and a
- * modal on top of four deliberate choices would be a turnstile.
+ * The kind is the command's own and is never asked. What is left is the three
+ * inputs that carry a trap: the item's text, the column it gates, and its
+ * owner. Nothing spawns until all three have answers, and each step is
+ * cancellable. There is no confirmation step: the quick picks are the
+ * confirmation, and a modal on top of three deliberate choices would be a
+ * turnstile.
  *
- * A selection of more than one card is refused here, inside the one question
- * this command asks first, because filing one item across several cards would
+ * A selection of more than one card is refused here, inside the first question
+ * the command asks, because filing one item across several cards would
  * multiply the column mistake the form exists to prevent.
  */
-export async function askFileItem(
+export function askFileItemOfKind(
+	kind: string,
+): (
 	resolved: readonly FileItemContext[],
 	host: CommandHost,
 	catalog: CatalogBuild,
-): Promise<FileItemAnswer | undefined> {
-	if (resolved.length > 1) {
-		host.showError(host.t("dialog.bulk.oneRowOnly"));
-		return undefined;
-	}
-	const first = resolved[0];
-	if (first === undefined) {
-		return undefined;
-	}
-	// Where the catalogue did not build, the form refuses with the
-	// catalogue's own reason rather than falling back to a typed list. A
-	// typed list is exactly what the ruling above forbids, and a form that
-	// quietly stops reflecting the tool is worse than one that says it cannot
-	// run.
-	if (catalog.kind !== "ok") {
-		// The command palette's own two strings for this condition, because
-		// the condition is the same one and a second pair would say the same
-		// thing in two voices.
-		host.showError(host.t("dialog.runVerb.enumerationFailed.toast"));
-		host.appendLines([
-			host.t("dialog.runVerb.enumerationFailed.channel", {
-				detail: catalog.detail,
-			}),
-		]);
-		return undefined;
-	}
-	const kinds = kindPickItems(catalog, host.t);
-	if (kinds.length === 0) {
-		host.showError(host.t("dialog.runVerb.enumerationFailed.toast"));
-		host.appendLines([
-			host.t("dialog.runVerb.enumerationFailed.channel", {
-				detail: `${FILE_ITEM_TOOL} publishes no kind choices`,
-			}),
-		]);
-		return undefined;
-	}
-	const kind = await host.pick(kinds, host.t("form.file.kind.placeholder"));
-	if (kind === undefined) {
-		return undefined;
-	}
-	const text = await host.input(host.t("form.file.text.prompt"));
-	if (text === undefined || text.trim() === "") {
-		return undefined;
-	}
-	// An empty pick cannot arise on a workbench that opened, because a
-	// workbench declaring no column does not open at all, and host.pick over
-	// an empty array answers undefined, which is read as a cancellation. So
-	// the case needs no sentence of its own.
-	const columns = columnPickItems(first.data, first.ref, host.t);
-	const column = await host.pick(
-		columns,
-		host.t("form.file.column.placeholder"),
-	);
-	if (column === undefined) {
-		return undefined;
-	}
-	const owner = await host.pick(
-		ownerPickItems(host.t),
-		host.t("form.file.owner.placeholder"),
-	);
-	if (owner === undefined) {
-		return undefined;
-	}
-	let ownerValue = owner.value;
-	if (ownerValue === "") {
-		const typed = await host.input(host.t("form.file.owner.otherPrompt"));
-		if (typed === undefined || typed.trim() === "") {
+) => Promise<FileItemAnswer | undefined> {
+	return async (resolved, host, catalog) => {
+		if (resolved.length > 1) {
+			host.showError(host.t("dialog.bulk.oneRowOnly"));
 			return undefined;
 		}
-		ownerValue = typed.trim();
-	}
-	return {
-		kind: kind.value,
-		text: text.trim(),
-		column: column.value,
-		owner: ownerValue,
+		const first = resolved[0];
+		if (first === undefined) {
+			return undefined;
+		}
+		// Where the catalogue did not build, the form refuses with the
+		// catalogue's own reason rather than sending the kind anyway. A form
+		// that quietly stops reflecting the tool is worse than one that says
+		// it cannot run.
+		if (catalog.kind !== "ok") {
+			// The command palette's own two strings for this condition,
+			// because the condition is the same one and a second pair would
+			// say the same thing in two voices.
+			host.showError(host.t("dialog.runVerb.enumerationFailed.toast"));
+			host.appendLines([
+				host.t("dialog.runVerb.enumerationFailed.channel", {
+					detail: catalog.detail,
+				}),
+			]);
+			return undefined;
+		}
+		if (!publishesKind(catalog, kind)) {
+			host.showError(host.t("dialog.runVerb.enumerationFailed.toast"));
+			host.appendLines([
+				host.t("dialog.runVerb.enumerationFailed.channel", {
+					detail: `${FILE_ITEM_TOOL} does not publish the kind ${kind}`,
+				}),
+			]);
+			return undefined;
+		}
+		const text = await host.input(host.t("form.file.text.prompt"));
+		if (text === undefined || text.trim() === "") {
+			return undefined;
+		}
+		// An empty pick cannot arise on a workbench that opened, because a
+		// workbench declaring no column does not open at all, and host.pick
+		// over an empty array answers undefined, which is read as a
+		// cancellation. So the case needs no sentence of its own.
+		const columns = columnPickItems(first.data, first.ref, host.t);
+		const column = await host.pick(
+			columns,
+			host.t("form.file.column.placeholder"),
+		);
+		if (column === undefined) {
+			return undefined;
+		}
+		const owner = await host.pick(
+			ownerPickItems(host.t),
+			host.t("form.file.owner.placeholder"),
+		);
+		if (owner === undefined) {
+			return undefined;
+		}
+		let ownerValue = owner.value;
+		if (ownerValue === "") {
+			const typed = await host.input(host.t("form.file.owner.otherPrompt"));
+			if (typed === undefined || typed.trim() === "") {
+				return undefined;
+			}
+			ownerValue = typed.trim();
+		}
+		return {
+			kind,
+			text: text.trim(),
+			column: column.value,
+			owner: ownerValue,
+		};
 	};
 }
 
@@ -669,27 +701,36 @@ export async function invokeReopenItem(
 	);
 }
 
-/** Files one new checklist item against the one card the reader aimed at. */
-export async function invokeFileItem(
-	elements: readonly TreeElement[],
-	wiring: Wiring,
-): Promise<BulkReport> {
-	return runBulk(
-		elements,
-		(element) => rowRef(element, wiring.t),
-		(element) =>
-			contextForFileItem(element, wiring.exe, wiring.cardHost, wiring.spawner),
-		{
-			host: wiring.cardHost,
-			t: wiring.t,
-			skipReason: wiring.t("skip.notACardRow"),
-		},
-		async (resolved, host) =>
-			askFileItem(resolved, host, await wiring.verbCatalog()),
-		async (context, answer, host) =>
-			rowOutcomeFor(await fileItem({ ...context, host }, answer)),
-	);
+/** Builds the invoke for one of the three filing commands. */
+function invokeFileItemOfKind(
+	kind: string,
+): (elements: readonly TreeElement[], wiring: Wiring) => Promise<BulkReport> {
+	const ask = askFileItemOfKind(kind);
+	return async (elements, wiring) =>
+		runBulk(
+			elements,
+			(element) => rowRef(element, wiring.t),
+			(element) =>
+				contextForFileItem(element, wiring.exe, wiring.cardHost, wiring.spawner),
+			{
+				host: wiring.cardHost,
+				t: wiring.t,
+				skipReason: wiring.t("skip.notACardRow"),
+			},
+			async (resolved, host) => ask(resolved, host, await wiring.verbCatalog()),
+			async (context, answer, host) =>
+				rowOutcomeFor(await fileItem({ ...context, host }, answer)),
+		);
 }
+
+/** Raises one open question against the card the reader aimed at. */
+export const invokeRaiseQuestion = invokeFileItemOfKind(KIND_OPEN_QUESTION);
+
+/** Records one decision against the card the reader aimed at. */
+export const invokeRecordDecision = invokeFileItemOfKind(KIND_DECISION);
+
+/** Adds one acceptance criterion to the card the reader aimed at. */
+export const invokeAddCriterion = invokeFileItemOfKind(KIND_ACCEPTANCE_CRITERION);
 
 /**
  * The hold sentence one item row shows.

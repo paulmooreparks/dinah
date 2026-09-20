@@ -1083,6 +1083,84 @@ test("the comment row's one command is declared, menued on an equality, and hidd
 	assert.equal(hidden[0].when, "false");
 });
 
+/**
+ * The three filing commands dinah-517 contributes, with the titles a reader
+ * sees in the palette and in the row menu.
+ */
+const FILING_COMMANDS: readonly { readonly id: string; readonly title: string }[] = [
+	{ id: "dinah.tree.raiseQuestion", title: "Dinah: Raise an Open Question" },
+	{ id: "dinah.tree.recordDecision", title: "Dinah: Record a Decision" },
+	{ id: "dinah.tree.addCriterion", title: "Dinah: Add an Acceptance Criterion" },
+];
+
+test("every contributed command declares its title as a catalogue placeholder", () => {
+	// dinah-517/criteria/1. The claim is derived rather than counted: the
+	// test reads the contributed commands off the raw manifest and requires
+	// all of them to carry the placeholder naming their own id, so a manifest
+	// that gains or loses a command neither fails here nor passes while
+	// checking a number nobody re-derived.
+	const raw = JSON.parse(
+		readFileSync(join(extensionRoot, "package.json"), "utf8"),
+	) as { contributes: { commands: { command: string; title: string }[] } };
+	const commands = raw.contributes.commands;
+	assert.ok(commands.length > 0, "the manifest contributes no commands at all");
+	for (const entry of commands) {
+		assert.equal(
+			entry.title,
+			`%manifest.command.${entry.command}.title%`,
+			`${entry.command} carries a readable title of its own`,
+		);
+	}
+	// The three this card adds are among them, and each resolves through the
+	// base catalogue to the title a reader reads.
+	for (const { id, title } of FILING_COMMANDS) {
+		const declared = commands.find((entry) => entry.command === id);
+		assert.notEqual(declared, undefined, `the manifest contributes no ${id}`);
+		assert.equal(baseCatalog[`manifest.command.${id}.title`], title);
+	}
+	assert.equal(FILING_COMMANDS.length, 3);
+});
+
+test("dinah.tree.fileItem is removed rather than retitled, everywhere it was spelled", () => {
+	// dinah-517/criteria/1. The command it replaces is gone from the code,
+	// from the manifest and from all eight manifest catalogues, so a build
+	// that contributed the three and left the fourth registered would fail
+	// here rather than shipping a command nothing offers.
+	const sought = "dinah.tree.fileItem";
+	const found: string[] = [];
+	const read = (path: string, where: string): void => {
+		if (readFileSync(path, "utf8").includes(sought)) {
+			found.push(where);
+		}
+	};
+	read(join(extensionRoot, "package.json"), "package.json");
+	let swept = 1;
+	for (const name of readdirSync(extensionRoot)) {
+		if (name.startsWith("package.nls") && name.endsWith(".json")) {
+			read(join(extensionRoot, name), name);
+			swept += 1;
+		}
+	}
+	assert.equal(swept, 9, `the sweep read ${String(swept)} manifest files rather than nine`);
+	const srcDir = join(extensionRoot, "src");
+	const walk = (dir: string, relative: string): number => {
+		let counted = 0;
+		for (const entry of readdirSync(dir, { withFileTypes: true })) {
+			const here = join(dir, entry.name);
+			if (entry.isDirectory()) {
+				counted += walk(here, `${relative}${entry.name}/`);
+				continue;
+			}
+			read(here, `src/${relative}${entry.name}`);
+			counted += 1;
+		}
+		return counted;
+	};
+	const sources = walk(srcDir, "");
+	assert.ok(sources > 30, `the sweep read ${String(sources)} files under src/`);
+	assert.deepEqual(found, [], "the retired command id is still spelled here");
+});
+
 /** The commandPalette entries, which are absent from a manifest declaring none. */
 function paletteEntries(): { command: string; when?: string }[] {
 	return menuEntries("commandPalette");

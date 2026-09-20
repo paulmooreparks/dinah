@@ -23,7 +23,9 @@ import {
 	COMMAND_EDIT_COLUMN_INSTRUCTIONS,
 	COMMAND_EDIT_WORKBENCH_DEFINITION,
 	COMMAND_FAIL_ITEM,
-	COMMAND_FILE_ITEM,
+	COMMAND_ADD_CRITERION,
+	COMMAND_RAISE_QUESTION,
+	COMMAND_RECORD_DECISION,
 	COMMAND_MOVE,
 	COMMAND_NEW_CARD,
 	COMMAND_OPEN_ATTACHMENT,
@@ -131,8 +133,10 @@ export const SELECTION_POLICIES: Readonly<Record<string, SelectionEntry>> = {
 	// pending is a true record rather than a flattened one.
 	[COMMAND_REOPEN_ITEM]: { policy: "oneInput" },
 	// Filing one item across several cards would multiply the column mistake
-	// the form exists to prevent.
-	[COMMAND_FILE_ITEM]: { policy: "rowOnly" },
+	// the form exists to prevent, and that is true of each of the three kinds.
+	[COMMAND_RAISE_QUESTION]: { policy: "rowOnly" },
+	[COMMAND_RECORD_DECISION]: { policy: "rowOnly" },
+	[COMMAND_ADD_CRITERION]: { policy: "rowOnly" },
 	// The two draft commands read the active editor rather than any row.
 };
 

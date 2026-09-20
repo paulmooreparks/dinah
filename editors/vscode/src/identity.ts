@@ -170,11 +170,11 @@ export const WALKTHROUGH_STEP_READ_GUIDE = "dinah.firstSession.readGuide";
 export const COMMAND_OPEN_FIRST_SESSION_GUIDE = "dinah.walkthrough.openFirstSessionGuide";
 
 /**
- * The seven checklist-item commands dinah-506 contributes.
+ * The checklist-item commands dinah-506 contributes.
  *
- * Six are invoked on an item row and the seventh, File Item, on a card row,
- * because filing is how an item comes to exist and a card is what it is filed
- * against.
+ * The first six are invoked on an item row. The three filing commands below
+ * them are invoked where an item does not exist yet, which is a card row or
+ * one of the judgement branches hanging from it.
  */
 export const COMMAND_OPEN_ITEM = "dinah.tree.openItem";
 export const COMMAND_COMMENT_ON_ITEM = "dinah.tree.commentOnItem";
@@ -182,7 +182,20 @@ export const COMMAND_RESOLVE_ITEM = "dinah.tree.resolveItem";
 export const COMMAND_VERIFY_ITEM = "dinah.tree.verifyItem";
 export const COMMAND_FAIL_ITEM = "dinah.tree.failItem";
 export const COMMAND_REOPEN_ITEM = "dinah.tree.reopenItem";
-export const COMMAND_FILE_ITEM = "dinah.tree.fileItem";
+
+/**
+ * The three filing commands dinah-517 contributes, one per item kind.
+ *
+ * They replace the single File Checklist Item, which named the storage
+ * category rather than the act and then asked which of three kinds the reader
+ * meant. Each command here carries its own kind, so the form asks the three
+ * questions that carry a trap and no more, and a reader who already knows
+ * what they are raising never answers a question they have answered by
+ * choosing the command.
+ */
+export const COMMAND_RAISE_QUESTION = "dinah.tree.raiseQuestion";
+export const COMMAND_RECORD_DECISION = "dinah.tree.recordDecision";
+export const COMMAND_ADD_CRITERION = "dinah.tree.addCriterion";
 
 /**
  * The comment command a column row offers, contributed by dinah-518.
@@ -251,7 +264,9 @@ export const TREE_COMMANDS: readonly string[] = [
 	COMMAND_VERIFY_ITEM,
 	COMMAND_FAIL_ITEM,
 	COMMAND_REOPEN_ITEM,
-	COMMAND_FILE_ITEM,
+	COMMAND_RAISE_QUESTION,
+	COMMAND_RECORD_DECISION,
+	COMMAND_ADD_CRITERION,
 	COMMAND_OPEN_COMMENT,
 ];
 
@@ -293,7 +308,9 @@ export const ROW_COMMANDS: readonly string[] = [
 	COMMAND_VERIFY_ITEM,
 	COMMAND_FAIL_ITEM,
 	COMMAND_REOPEN_ITEM,
-	COMMAND_FILE_ITEM,
+	COMMAND_RAISE_QUESTION,
+	COMMAND_RECORD_DECISION,
+	COMMAND_ADD_CRITERION,
 	COMMAND_OPEN_COMMENT,
 ];
 
@@ -367,6 +384,15 @@ export const CONTEXT_ITEM_CLOSED = "closed";
  * The kind is singular, as `contents` spells it, rather than the plural
  * directory name, so the attachments row under a card and the one under the
  * workbench root carry one value between them (dinah-519).
+ *
+ * A collection that narrows by an item kind carries a third segment naming
+ * that kind, so a Questions branch carries `dinah.collection.item.question`
+ * (dinah-517). The segment is the short kind token the item rows already use,
+ * which is `question`, `decision` or `criterion`, rather than the stored
+ * spelling the payload's `narrow` member carries. Two spellings are live in
+ * this codebase, and the menus keep the one a reader already meets on
+ * `dinah.item.question`. A collection that narrows by nothing carries the two
+ * segments it carries today and gains no third.
  */
 export const CONTEXT_COLLECTION_PREFIX = "dinah.collection";
 

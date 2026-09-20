@@ -1054,6 +1054,43 @@ function contextKindOf(kind: string): string {
 }
 
 /**
+ * The stored kinds a judgement branch may narrow by, which are the three the
+ * CLI publishes as branches.
+ *
+ * The membership test is what keeps contextKindOf's own fallback out of this
+ * path. That fallback answers `criterion` for anything it does not know,
+ * which is the conservative answer on an item row and the wrong one here: a
+ * branch narrowing by a kind this extension has no name for would otherwise
+ * offer Add an Acceptance Criterion, and a reader would file the wrong kind
+ * from a row that said something else. Such a branch falls back to the
+ * unnarrowed value instead, which offers all three and asks the reader.
+ */
+const NARROWABLE_KINDS: readonly string[] = [
+	"open_question",
+	"decision",
+	"acceptance_criterion",
+];
+
+/**
+ * The contextValue one collection row carries.
+ *
+ * A collection that narrows by an item kind carries a third segment naming
+ * that kind, so the menus can offer one filing command on a Questions branch
+ * rather than all three. A collection that narrows by nothing carries the two
+ * segments it has always carried, which is the value an older binary's flat
+ * checklist still produces.
+ */
+export function collectionContextValue(
+	memberKind: string,
+	narrow?: string,
+): string {
+	const base = `${CONTEXT_COLLECTION_PREFIX}.${memberKind}`;
+	return narrow !== undefined && NARROWABLE_KINDS.includes(narrow)
+		? `${base}.${contextKindOf(narrow)}`
+		: base;
+}
+
+/**
  * The contextValue one item row carries.
  *
  * The state axis collapses the three closed states to one word, because all
@@ -1104,15 +1141,37 @@ function itemIcon(view: ItemView): { readonly id: string } {
 	}
 }
 
-/** The description beside an item's label: its kind, its state, its thread. */
+/**
+ * The label one item row draws: its comment count, then its own text.
+ *
+ * The count used to ride the row's description, which is drawn dimmed after
+ * the label, and the operator reported that he could not see it on his own
+ * workbench while the number was correct at every layer that could be
+ * inspected. A label's text is the part of a row that survives whatever the
+ * view does with the rest, so the count is drawn there instead (dinah-517).
+ *
+ * The prefix sits outside the label cap. itemLabel bounds the item's own text
+ * exactly as it did before and the prefix is prepended to what it answers, so
+ * a long item loses no further text to make room for its count.
+ *
+ * An item carrying no comments draws what it drew before, to the byte. An
+ * empty bracket would be a count a reader could take for zero where there is
+ * no count at all.
+ */
+export function itemRowLabel(view: ItemView, t: Localizer): string {
+	const label = itemLabel(view.text);
+	const count = view.comment_count;
+	if (count === undefined || count <= 0) {
+		return label;
+	}
+	return `${t("item.row.commentCount", { count: String(count) })} ${label}`;
+}
+
+/** The description beside an item's label: its kind and its state. */
 export function itemDescription(view: ItemView, t: Localizer): string {
 	return t("item.row.description", {
 		kind: itemKindWord(view.kind, t),
 		state: itemStateWord(view.state, t),
-		comments:
-			view.comment_count !== undefined && view.comment_count > 0
-				? ` \u00b7 ${t("item.comments", { count: String(view.comment_count) })}`
-				: "",
 	});
 }
 
@@ -1147,6 +1206,10 @@ export function itemTooltip(
 	t: Localizer,
 ): string {
 	const lines = [view.text];
+	// The state, which rode the row's description and was clipped with it.
+	// The kind survives that loss because the row's icon carries it, and
+	// nothing carries the state, so the tooltip does (dinah-517).
+	lines.push(`${t("item.state.label")} ${itemStateWord(view.state, t)}`);
 	// The answer a settled item designates, drawn where the retired note was
 	// drawn. The reference is carried by both checklist reads and the comment
 	// itself only by the full one, so the tooltip says what it has: the words
@@ -1583,7 +1646,10 @@ export function treeItemFor(
 			return {
 				label: collectionLabel(element.memberKind, t, element.narrow),
 				description: String(element.memberCount ?? element.members.length),
-				contextValue: `${CONTEXT_COLLECTION_PREFIX}.${element.memberKind}`,
+				contextValue: collectionContextValue(
+					element.memberKind,
+					element.narrow,
+				),
 				collapsibleState: "collapsed",
 			};
 		case "comment": {
@@ -1648,7 +1714,7 @@ export function treeItemFor(
 			const direction = itemHoldDirection(element.row.data, element.card, view);
 			const contextValue = itemContextValue(view, element.isOperator);
 			return {
-				label: itemLabel(view.text),
+				label: itemRowLabel(view, t),
 				description: itemDescription(view, t),
 				tooltip: itemTooltip(
 					view,

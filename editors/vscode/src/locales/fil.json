@@ -691,6 +691,11 @@
 			"context": "The word for an acceptance criterion the work did not satisfy.",
 			"skeleton": true
 		},
+		"item.state.label": {
+			"text": "State:",
+			"context": "The label before an item's state, on the tree row's tooltip. It is drawn on every item, because the state rides the row description and is clipped with it, and nothing else on the row carries the state.",
+			"skeleton": true
+		},
 		"item.hold.entryAhead": {
 			"text": "the card stops before it enters {0} while this item is unsettled",
 			"context": "What an item's own column is doing to the card, on an item that already exists. {0} is the column's title. The column holds on the way in and the card has not reached it yet.",
@@ -736,9 +741,14 @@
 			"context": "The last line of a locked item's tooltip. It is the only place a reader is told why the row offers no closing action, so an absent menu entry is not mistaken for a defect.",
 			"skeleton": true
 		},
+		"item.row.commentCount": {
+			"text": "[{count}]",
+			"context": "How many comments an item carries, drawn at the head of the tree row's own label and followed by a space. {count} is that number in decimal, it is never zero here because the prefix is drawn only where there is at least one comment, and it is not capped at any width.",
+			"skeleton": true
+		},
 		"item.row.description": {
-			"text": "{kind} · {state}{comments}",
-			"context": "The grey text beside a checklist item's label. {kind} and {state} are the words above, and {comments} is either empty or the comment line with its own separator already in front of it.",
+			"text": "{kind} · {state}",
+			"context": "The grey text beside a checklist item's label. {kind} and {state} are the words above.",
 			"skeleton": true
 		},
 		"tree.checklistGroup.label": {
@@ -814,11 +824,6 @@
 		"prompt.item.reopen": {
 			"text": "Why is it being opened again? {count} selected.",
 			"context": "The one reason Reopen asks for before it acts on every selected row. {count} is how many rows were selected.",
-			"skeleton": true
-		},
-		"form.file.kind.placeholder": {
-			"text": "What kind of item is this?",
-			"context": "The filing form's first step, over the kinds the file_item tool's own schema publishes.",
 			"skeleton": true
 		},
 		"form.file.text.prompt": {
