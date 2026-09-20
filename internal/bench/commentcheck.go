@@ -1,6 +1,7 @@
 package bench
 
 import (
+	"strconv"
 	"path/filepath"
 )
 
@@ -102,17 +103,37 @@ func (b *Bench) checkComments(card *Card) ([]Finding, error) {
 		}
 		designated[filepath.Clean(dir)] = true
 	}
-	holders := []string{card.Dir}
-	for _, item := range items {
-		holders = append(holders, item.Dir)
+	// Each holder is carried with the reference its comments compose under,
+	// because a finding names what a reader can type. The identifier alone
+	// resolves to nothing: `dinah show f2fc8866dfda` answers unknown-card,
+	// so a finding carrying one told a reader which file was wrong in a
+	// spelling they could not use to open it, while the verb refusal over
+	// the same comment printed the reference correctly and the two surfaces
+	// disagreed about how to name one thing.
+	type holder struct {
+		dir string
+		ref string
 	}
-	for _, holder := range holders {
-		comments, err := Comments(holder)
+	cardRef := card.Ref(b.Slug)
+	holders := []holder{{dir: card.Dir, ref: cardRef}}
+	seen := map[string]int{}
+	for _, item := range items {
+		seen[item.Kind]++
+		itemRef := cardRef + "/" + ChecklistDir + "/" + strconv.Itoa(seen[item.Kind])
+		if word, ok := WordForItemKind(item.Kind); ok {
+			itemRef = cardRef + "/" + word + "/" + strconv.Itoa(seen[item.Kind])
+		}
+		holders = append(holders, holder{dir: item.Dir, ref: itemRef})
+	}
+	for _, held := range holders {
+		comments, err := Comments(held.dir)
 		if err != nil {
 			continue
 		}
 		for _, comment := range comments {
-			findings = append(findings, commentBodyFindings(comment, designated[filepath.Clean(comment.Dir)])...)
+			reference := held.ref + "/" + CommentsDir + "/" + strconv.Itoa(comment.Ordinal)
+			findings = append(findings,
+				commentBodyFindings(comment, reference, designated[filepath.Clean(comment.Dir)])...)
 		}
 	}
 	return findings, nil
@@ -124,14 +145,14 @@ func (b *Bench) checkComments(card *Card) ([]Finding, error) {
 // The two questions are independent, and a comment can answer both: a
 // diverged body that is now empty is two facts about one file, and reporting
 // one of them would leave an operator repairing half of what is wrong.
-func commentBodyFindings(comment *Comment, designated bool) []Finding {
+func commentBodyFindings(comment *Comment, reference string, designated bool) []Finding {
 	path := filepath.Join(comment.Dir, CommentAnchor)
 	var findings []Finding
 	if comment.Digest != "" && comment.Digest != CommentDigest(comment.Body) {
 		findings = append(findings, Finding{
 			Path:     path,
 			Key:      FindingCommentBodyDiverged,
-			Detail:   comment.ID,
+			Detail:   reference,
 			Severity: SeverityDefect,
 		})
 	}
@@ -142,14 +163,14 @@ func commentBodyFindings(comment *Comment, designated bool) []Finding {
 		return append(findings, Finding{
 			Path:     path,
 			Key:      FindingEmptyDesignatedComment,
-			Detail:   comment.ID,
+			Detail:   reference,
 			Severity: SeverityDefect,
 		})
 	}
 	return append(findings, Finding{
 		Path:     path,
 		Key:      FindingEmptyComment,
-		Detail:   comment.ID,
+		Detail:   reference,
 		Severity: SeverityCleanup,
 	})
 }

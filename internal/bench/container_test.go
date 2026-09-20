@@ -148,10 +148,21 @@ func TestAContainedWorkbenchIsTheOnlyOneTheRuleAdmits(t *testing.T) {
 	if _, err := Open(older); !refusedWith(err, contract.StoreAwaitingMigration) {
 		t.Fatalf("a bare workbench declaring the older format should meet the migration gate rather than the containment rule, got %v", err)
 	}
+	// A workbench declaring no format at all meets the same gate, which is a
+	// change from what this arm asserted before. It used to open, and opening
+	// is what made it dangerous: the format it is read at is a default rather
+	// than a declaration, that default sits below the current format, and the
+	// store was therefore read as though it were migrated and reported every
+	// settled item on it as carrying no answer. A store that says nothing
+	// about its format is the oldest thing an operator owns, not the newest.
+	//
+	// Nothing is stranded by this. The repair paths open through the arms of
+	// openWithVocabulary that do not require the resolution format, so the
+	// container migration still reads such a store and carries it across.
 	none := strings.Replace(olderBenchDefinition, "format: 1\n", "", 1)
 	silent := plantBench(t, filepath.Join(t.TempDir(), "workbench"), none)
-	if _, err := Open(silent); err != nil {
-		t.Fatalf("a bare workbench declaring no format at all should open, got %v", err)
+	if _, err := Open(silent); !refusedWith(err, contract.StoreAwaitingMigration) {
+		t.Fatalf("a bare workbench declaring no format should meet the migration gate, got %v", err)
 	}
 
 	bare := plantBench(t, filepath.Join(t.TempDir(), "workbench"), currentBenchDefinition)

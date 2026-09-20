@@ -5023,6 +5023,11 @@
       "context": "Names rename's free-text slot inside refusal.dinah.multiple-words, which reads it as {label}.",
       "skeleton": true
     },
+    "reason.deletedDesignation": {
+      "text": "The comment that was its answer of record was deleted: {comment}.",
+      "context": "The reason a forced deletion composes for the reopen it performs. {comment} is the reference of the comment being deleted, which is the only part of it that survives.",
+      "skeleton": true
+    },
     "slot.note": {
       "text": "the note",
       "context": "The label naming what a bare word after resolve, verify or fail was meant to be, printed when several unquoted words arrive where one argument belongs.",

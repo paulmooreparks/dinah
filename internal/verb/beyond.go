@@ -559,20 +559,26 @@ func (l *Library) admitCommentDeletion(req *Request, entity *bench.EntityRef) (*
 	if err != nil || !sameDir(designated.Dir, entity.Dir) {
 		return nil, nil
 	}
-	if !req.Force {
-		return nil, l.refuseWith(req, entity.Card, contract.NotDesignatable, entity.Ref, map[string]string{
-			"item": item.Resolution,
-		})
-	}
-	if item.Owner == bench.ItemOwnerOperator && req.Actor != l.Bench.Operator {
-		return nil, l.refuse(req, entity.Card, contract.NotOperator, req.Actor)
-	}
+	// Composed before the refusal rather than after it, because the refusal
+	// names the item too. It used to fill its item slot with the designation,
+	// so the sentence read "is the answer of record for item
+	// <a comment reference>", naming a comment where it said item, while the
+	// value it wanted was computed a dozen lines further down.
+	//
 	// The reference is composed rather than taken from the item's own
 	// identifier, because Reopen resolves what it is handed and a bare
 	// identifier resolves to nothing.
 	named, err := l.itemCanonicalRef(entity.Card, item.ID)
 	if err != nil {
 		return nil, l.FromError(req, err)
+	}
+	if !req.Force {
+		return nil, l.refuseWith(req, entity.Card, contract.NotDesignatable, entity.Ref, map[string]string{
+			"item": named,
+		})
+	}
+	if item.Owner == bench.ItemOwnerOperator && req.Actor != l.Bench.Operator {
+		return nil, l.refuse(req, entity.Card, contract.NotOperator, req.Actor)
 	}
 	return &designatedBy{item: named, designation: item.Resolution}, nil
 }

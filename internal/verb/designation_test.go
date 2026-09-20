@@ -209,7 +209,8 @@ func TestCheckReportsAHandEditedBody(t *testing.T) {
 	h := newHarness(t)
 	card := h.add("a card to comment on")
 	h.comment(card, "what the verb wrote")
-	dir := commentDirOf(t, h, card+"/"+bench.CommentsDir+"/1")
+	reference := card + "/" + bench.CommentsDir + "/1"
+	dir := commentDirOf(t, h, reference)
 	handEdit(t, dir, "what somebody typed instead")
 	h.reopen()
 
@@ -218,8 +219,12 @@ func TestCheckReportsAHandEditedBody(t *testing.T) {
 	if !found {
 		t.Fatalf("check reports no divergence over a hand-edited body: %+v", findings)
 	}
-	if detail != filepath.Base(dir) {
-		t.Errorf("the finding names %q, wanted the comment", detail)
+	// The finding names the reference rather than the identifier, because a
+	// finding names what a reader can type: the identifier alone resolves to
+	// nothing, so a finding carrying one told a reader which file was wrong
+	// in a spelling they could not use to open it.
+	if detail != reference {
+		t.Errorf("the finding names %q, wanted the reference %q", detail, reference)
 	}
 	for _, f := range findings {
 		if f.Key == bench.FindingCommentBodyDiverged && bench.SeverityOf(f) != bench.SeverityDefect {
@@ -590,11 +595,11 @@ func TestCheckReportsAnEmptyComment(t *testing.T) {
 	if !found {
 		t.Fatalf("check reports no empty comment: %+v", findings)
 	}
-	// The finding names the comment's identifier and the verb answers its
-	// reference, so the two are joined by resolving one rather than compared
-	// as strings.
-	if want := filepath.Base(commentDirOf(t, h, abandoned.Detail)); detail != want {
-		t.Errorf("the finding names %q, wanted the abandoned draft %q", detail, want)
+	// The finding and the verb now answer the same spelling, which is the
+	// reference, so the two are compared directly rather than joined by
+	// resolving one of them.
+	if detail != abandoned.Detail {
+		t.Errorf("the finding names %q and the verb answers %q", detail, abandoned.Detail)
 	}
 	for _, f := range findings {
 		if f.Key == bench.FindingEmptyComment && bench.SeverityOf(f) != bench.SeverityCleanup {
@@ -1104,3 +1109,4 @@ func TestAnUnmigratedStoreIsRefusedByName(t *testing.T) {
 		t.Errorf("the store at the current format is refused: %v", err)
 	}
 }
+

@@ -537,6 +537,16 @@ func runRestore(s *session, parsed *arguments) int {
 func runDelete(s *session, parsed *arguments) int {
 	req := s.request("delete", parsed)
 	req.Ref = at(parsed.rest(), 0)
+	// A forced deletion is a reopen, and a reopen's reason is prose. The
+	// library composes one when nothing supplies it, and what it can compose
+	// without a catalogue is the bare reference, which put a designation in
+	// the prose field and made that field hold two kinds of value. The
+	// sentence is the head's because the head is the layer holding a
+	// catalogue, which is what the library's own comment says and what
+	// nothing did.
+	if req.Force {
+		req.Reason = s.r.T("reason.deletedDesignation", "comment", req.Ref)
+	}
 	return s.withBench(func(l *verb.Library) int {
 		return s.emit(l.Delete(req))
 	})

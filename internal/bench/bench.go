@@ -1747,9 +1747,20 @@ func openWithVocabulary(root string, vocab columnVocabulary, admit func(declared
 		// only by a store declaring no format key. An operator carries such
 		// a store across with the container migration, which reads it
 		// without going through this opener, before the note migration can.
-		if requireResolution && n < ResolutionFormat {
-			return nil, contract.Refuse(contract.StoreAwaitingMigration, root)
-		}
+	}
+	// Outside the declared-format branch, because a store declaring no format
+	// key is unmigrated too and is the oldest thing here rather than the
+	// newest. Inside the branch this gate never saw one: b.Format is left at
+	// UndeclaredFormat, which is below this format, and the store opened with
+	// no complaint and reported every settled item on it as carrying no
+	// answer, which is the exact false reading the gate exists to prevent.
+	//
+	// The comment above reasoned that such a store meets the container
+	// migration first. It does not: nothing makes that ordering hold on an
+	// ordinary read, and the store an operator is most likely to own without
+	// a format key is the oldest one he has.
+	if requireResolution && b.Format < ResolutionFormat {
+		return nil, contract.Refuse(contract.StoreAwaitingMigration, root)
 	}
 	// The card-number registry is read once here, after the format gate, so
 	// every later read of a number comes from one load and one parser.
