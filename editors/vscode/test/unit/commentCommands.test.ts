@@ -18,12 +18,12 @@ import { COMMAND_OPEN_COMMENT } from "../../src/identity";
 import type { TreeElement } from "../../src/tree";
 import { treeItemFor } from "../../src/tree";
 import { ENGLISH } from "../../src/l10n";
-import type { CheckResults, DraftLog, HostLog } from "../support/rows";
+import type { CheckResults, CommentLog, HostLog } from "../support/rows";
 import {
 	ROOT,
 	catalogueWithKinds,
 	commentRow,
-	emptyDraftLog,
+	emptyCommentLog,
 	emptyLog,
 	itemRow,
 	ok,
@@ -50,7 +50,7 @@ async function invoke(
 	const entry = ROW_COMMAND_TABLE.find((row) => row.id === id);
 	assert.notEqual(entry, undefined, `no table entry carries the id ${id}`);
 	const log: HostLog = emptyLog();
-	const drafts: DraftLog = emptyDraftLog();
+	const comments: CommentLog = emptyCommentLog();
 	const calls: string[][] = [];
 	const spawner: Spawner = async (_exe, argv) => {
 		calls.push([...argv]);
@@ -59,7 +59,7 @@ async function invoke(
 	const results: CheckResults = { applied: [] };
 	await (entry as (typeof ROW_COMMAND_TABLE)[number]).invoke(
 		elements,
-		wiringFor(log, spawner, results, drafts, catalogueWithKinds()),
+		wiringFor(log, spawner, results, comments, catalogueWithKinds()),
 	);
 	return { log, calls };
 }

@@ -123,7 +123,7 @@ test("extension.ts registers in exactly three shapes and no others", () => {
 	// satisfy every classification below by vacuity.
 	assert.equal(
 		registered.length,
-		7,
+		5,
 		`extension.ts holds ${String(registered.length)} register calls`,
 	);
 
@@ -137,17 +137,15 @@ test("extension.ts registers in exactly three shapes and no others", () => {
 	});
 	assert.equal(
 		rowless.length,
-		6,
+		4,
 		`${String(rowless.length)} register calls name a command declaring noRow`,
 	);
-	// A rowless command is one of two things, and dinah-506 is where the
-	// second appeared. A global command reads nothing at all and so declares
-	// no parameter, which is what this guard asserted when every rowless
-	// command was global. An editor command reads the active editor, and the
-	// editor title bar hands its command a Uri, so it declares one parameter
-	// and reads it as a Uri rather than as a row. Both shapes are pinned,
-	// because a global command that grew a parameter would be reading
-	// something a palette invocation never supplies.
+	// A rowless command reads nothing at all and so declares no parameter,
+	// which is what this guard asserted before dinah-506 and asserts again
+	// now: that card's two editor commands read the active editor and
+	// declared one, and dinah-525 deleted them with the draft apparatus
+	// behind them. The classification is kept and stands empty, so a command
+	// added to it later fails the arm below rather than shipping unheld.
 	for (const call of rowless) {
 		const handler = call.arguments[1];
 		assert.ok(
@@ -156,32 +154,17 @@ test("extension.ts registers in exactly three shapes and no others", () => {
 		);
 		const id = idNamed((call.arguments[0] as ts.Identifier).text) ?? "";
 		const editor = (EDITOR_COMMANDS as readonly string[]).includes(id);
+		assert.equal(editor, false, `${id} is classified as an editor command and this extension contributes none`);
 		assert.equal(
 			handler.parameters.length,
-			editor ? 1 : 0,
+			0,
 			`${call.arguments[0].getText()} registers a handler declaring ${String(handler.parameters.length)} parameters`,
 		);
-		if (editor) {
-			assert.match(
-				handler.getText(),
-				/draftPathOf\(/,
-				`${call.arguments[0].getText()} reads its argument some other way than through draftPathOf`,
-			);
-		}
 	}
-	// The one helper both editor commands read their argument through, which
-	// is where the Uri test and the active-editor fallback live. A command
-	// invoked with no draft in front of the reader has been asked for nothing,
-	// so both handlers return without calling the pure module.
-	assert.equal(
-		(extension.getText().match(/argument instanceof vscode\.Uri/g) ?? []).length,
-		1,
-		"the Uri test is spelled more than once, or not at all",
-	);
 	assert.equal(
 		(EDITOR_COMMANDS as readonly string[]).length,
-		2,
-		"the editor classification is empty or has grown, so the shapes above read nothing",
+		0,
+		"the editor classification has grown, so the shape above reads nothing about its members",
 	);
 
 	// The one remaining call is the loop, and what it iterates is the claim
@@ -348,20 +331,21 @@ function messageBindings(): ts.CallExpression[] {
 
 test("extension.ts binds exactly thirteen message calls, one per declared channel per host", () => {
 	const bound = messageBindings();
-	// Thirteen is forced rather than chosen. The return-type clause below
+	// Twelve is forced rather than chosen. The return-type clause below
 	// forbids a shared bindings helper spread into the factories, so each
 	// spells its own: commandHost 4, workbenchCommandHost 3, columnCommandHost
-	// 3, and draftCommandHost 3. An implementer meeting a different number
+	// 3, and commentBodyHost 2. An implementer meeting a different number
 	// raises the criterion rather than binding fewer, because binding fewer
 	// leaves a host short of the channels its own interface declares, which is
 	// the hole the perimeter exists to close.
 	//
-	// draftCommandHost carries three rather than four because it reports and
-	// confirms but never warns: DraftHost declares showError, showInfo and
-	// confirmDestructive, and the one destructive act it offers is Discard.
+	// commentBodyHost carries two rather than three because it reports and
+	// never confirms: a comment exists from its first keystroke, so there is
+	// no draft to throw away and no destructive act to ask about. Deleting
+	// the comment is the delete command, which confirms on its own row.
 	assert.equal(
 		bound.length,
-		13,
+		12,
 		`extension.ts holds ${String(bound.length)} vscode.window message calls`,
 	);
 
@@ -385,9 +369,12 @@ test("extension.ts binds exactly thirteen message calls, one per declared channe
 		) as ts.FunctionDeclaration | undefined;
 		const returns = owner?.type?.getText() ?? "";
 		assert.ok(
-			["CommandHost", "WorkbenchCommandHost", "ColumnCommandHost", "DraftHost"].includes(
-				returns,
-			),
+			[
+				"CommandHost",
+				"WorkbenchCommandHost",
+				"ColumnCommandHost",
+				"CommentBodyHost",
+			].includes(returns),
 			`a message binding sits in a function returning ${returns}`,
 		);
 	}
@@ -450,7 +437,7 @@ function sources(): string[] {
 	return found.sort();
 }
 
-test("the command modules hold exactly thirty-six report-channel call sites", () => {
+test("the command modules hold exactly twenty-nine report-channel call sites", () => {
 	// A tripwire rather than a correctness check. A per-row report site added
 	// after this card cannot land silently, because its author has to raise
 	// this figure and, in doing so, decide whether the new site belongs inside
@@ -478,7 +465,7 @@ test("the command modules hold exactly thirty-six report-channel call sites", ()
 	}
 	assert.equal(
 		sites.length,
-		36,
+		29,
 		`the command modules hold ${String(sites.length)} report-channel call sites:\n${sites.join("\n")}`,
 	);
 	// Stated as at least six, which is what the criterion declares, so a file

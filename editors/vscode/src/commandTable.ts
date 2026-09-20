@@ -42,7 +42,7 @@ import {
 	invokeEditColumnInstructions,
 } from "./columnCommands";
 import { invokeOpenComment } from "./commentCommands";
-import type { DraftHost } from "./commentDrafts";
+import type { CommentBodyHost, OpenComments } from "./commentBody";
 import { invokeAttachFile, invokeNewCard } from "./creationCommands";
 import {
 	invokeCommentOnItem,
@@ -121,7 +121,13 @@ export interface Wiring {
 	 * What the Comment command writes a draft through, bound to the editor's
 	 * global storage and to vscode.workspace.fs.
 	 */
-	readonly draftHost: DraftHost;
+	readonly commentHost: CommentBodyHost;
+	/**
+	 * The comment files this window has opened, so a save of one reaches the
+	 * verb. It is mutable state rather than a value, because the set changes
+	 * as tabs open and close and every command shares the one window's answer.
+	 */
+	readonly openComments: OpenComments;
 	/**
 	 * The catalogue the filing form reads its kind choices from.
 	 *

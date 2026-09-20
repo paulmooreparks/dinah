@@ -32,7 +32,7 @@ import {
 import type { CliOutcome, Spawner } from "./cli";
 import { runDinah } from "./cli";
 import type { Wiring } from "./commandTable";
-import { openCommentDraft } from "./commentDrafts";
+import { composeComment } from "./commentBody";
 import type { Localizer } from "./l10n";
 import type { HoldDirection, TreeElement, WorkbenchData } from "./tree";
 import {
@@ -566,10 +566,12 @@ export async function invokeOpenItem(
 }
 
 /**
- * Writes a draft for the one selected item and opens it, and spawns nothing.
+ * Mints an empty comment below the one selected item and opens its file.
  *
- * The draft's own commands post it and throw it away, from its editor tab, so
- * this command asks nothing and reports nothing but where the draft is.
+ * Nothing is asked and nothing is confirmed. The comment exists from the
+ * moment the command runs, so the author writes into the entity itself and a
+ * save of that tab writes its body through the verb; an author who says
+ * nothing after all deletes the comment from its own row.
  */
 export async function invokeCommentOnItem(
 	elements: readonly TreeElement[],
@@ -593,11 +595,17 @@ export async function invokeCommentOnItem(
 			return resolved.length === 1 ? (true as const) : undefined;
 		},
 		async (context) => {
-			await openCommentDraft(wiring.draftHost, {
-				root: context.root,
-				folder: context.folder,
-				ref: context.ref,
-			});
+			await composeComment(
+				wiring.commentHost,
+				wiring.spawner,
+				wiring.exe,
+				wiring.openComments,
+				{
+					root: context.root,
+					folder: context.folder,
+					ref: context.ref,
+				},
+			);
 			return { kind: "done" } as const;
 		},
 	);

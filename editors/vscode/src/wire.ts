@@ -84,8 +84,8 @@ export interface CardView {
  * `dinah show <card> --fields card,checklist` is the one call that serves
  * these. `dinah show <item>` answers an ItemDetail instead, whose text member
  * is the item's anchor file with its frontmatter still on it, so the item's
- * own prose, kind, state, column, owner and note are read from here and from
- * nowhere else.
+ * own prose, kind, state, column, owner and answer are read from here and
+ * from nowhere else.
  */
 export interface ItemView {
 	readonly id: string;
@@ -97,8 +97,38 @@ export interface ItemView {
 	readonly column_title?: string;
 	readonly owner?: string;
 	readonly text: string;
-	readonly note?: string;
+	/**
+	 * The canonical reference of the comment this item's settling designated
+	 * as its answer, absent on a pending item and on one that designates
+	 * nothing. Both checklist reads carry it, because it costs the item's own
+	 * anchor and nothing further.
+	 */
+	readonly resolution?: string;
+	/**
+	 * The designated comment itself, which the full read opens and the
+	 * indexed read leaves absent. Reading `resolution` rather than this is
+	 * what lets a row say an answer exists without a file being opened for
+	 * every item on the card.
+	 */
+	readonly designated?: DesignatedComment;
 	readonly comment_count?: number;
+}
+
+/**
+ * verb.DesignatedComment, the comment an item's resolution names as the full
+ * checklist read carries it.
+ *
+ * `author` is absent on a comment the store cannot attribute, and
+ * `author_unrecoverable` says that the absence is a finding rather than an
+ * omission. A reader states what it has: it neither invents a name nor draws
+ * a blank that reads as a defect.
+ */
+export interface DesignatedComment {
+	readonly ref: string;
+	readonly author?: string;
+	readonly author_unrecoverable?: boolean;
+	readonly ts?: string;
+	readonly body?: string;
 }
 
 /**

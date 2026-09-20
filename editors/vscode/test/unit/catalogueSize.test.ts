@@ -86,16 +86,18 @@ function manifestKeys(): Set<string> {
 	return new Set(Object.keys(catalogue));
 }
 
-// The count this card found on its base commit, and the three keys it adds.
+// The count this card found on its base commit, and what it does to it.
 //
-// Written as a base and an addition rather than as the total, because the
-// total is the answer rather than the claim. dinah-536 branched from cb9128b3,
-// where the runtime catalogue carried 191 entries, and it adds the three
-// judgement-branch labels. A card that lands before this one and adds a key of
-// its own moves the base: the fix is to write the base it found here and say
-// so in its handoff, not to guess at a new total.
-const CATALOGUE_BASE = 191;
-const CATALOGUE_ADDED_BY_THIS_CARD = 3;
+// Written as a base and a movement rather than as the total, because the total
+// is the answer rather than the claim. dinah-525 branched from bddf4c16, where
+// the runtime catalogue carried 194 entries; it drops dinah-506's twelve draft
+// keys, whose apparatus it deletes, and adds three of its own for composing a
+// comment. A card that lands before this one and adds a key of its own moves
+// the base: the fix is to write the base it found here and say so in its
+// handoff, not to guess at a new total.
+const CATALOGUE_BASE = 194;
+const CATALOGUE_REMOVED_BY_THIS_CARD = 13;
+const CATALOGUE_ADDED_BY_THIS_CARD = 6;
 
 test("the English runtime catalogue carries the base count and this card's additions", () => {
 	// The count is taken over `entries` rather than over the file's top level,
@@ -104,15 +106,21 @@ test("the English runtime catalogue carries the base count and this card's addit
 	// 192 before dinah-519, less its eight removals, plus its six additions,
 	// plus the one skip reason dinah-518 adds for a row that names no column.
 	// dinah-515 adds no runtime key, its four strings being manifest ones.
-	// dinah-536 then adds Questions, Criteria and Decisions.
-	assert.equal(runtimeKeys().size, CATALOGUE_BASE + CATALOGUE_ADDED_BY_THIS_CARD);
+	// dinah-536 then adds Questions, Criteria and Decisions, and dinah-525
+	// deletes dinah-506's draft apparatus with the twelve keys it rendered
+	// and the label for the note an item's answer stopped being.
+	assert.equal(
+		runtimeKeys().size,
+		CATALOGUE_BASE - CATALOGUE_REMOVED_BY_THIS_CARD + CATALOGUE_ADDED_BY_THIS_CARD,
+	);
 });
 
-test("the base manifest catalogue carries exactly 57 keys", () => {
+test("the base manifest catalogue carries exactly 55 keys", () => {
 	// 51 before dinah-519, plus the one command its comment row contributes,
 	// the one command dinah-518 puts on a column row, and the four settings
-	// dinah-515's language server contributes.
-	assert.equal(manifestKeys().size, 57);
+	// dinah-515's language server contributes, less the two draft commands
+	// dinah-525 retires with the apparatus behind them.
+	assert.equal(manifestKeys().size, 55);
 });
 
 test("the six runtime keys dinah-519 adds are present and its eight removals are gone", () => {

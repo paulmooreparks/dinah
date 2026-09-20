@@ -36,8 +36,15 @@ import type { VersionReport } from "./api";
  * body to the front matter of the same anchor, and the extension reads
  * neither: it asks the verb surface for a card and is answered a card, with
  * one more member on it that an older reader ignores.
+ *
+ * 6 joined the set at dinah-525, which made a checklist item's answer a
+ * designated comment rather than a free-text note and gave a comment's anchor
+ * a digest. Both are anchor keys, and this extension reads no anchor: what it
+ * sees is one member renamed on the item view a read answers with, and a
+ * comment's own body, which it now writes through `dinah set` rather than
+ * leaving where the editor put it.
  */
-export const SUPPORTED_FORMATS: readonly number[] = [1, 2, 3, 4, 5];
+export const SUPPORTED_FORMATS: readonly number[] = [1, 2, 3, 4, 5, 6];
 
 /**
  * The conformance claim this extension needs. A different name or major is

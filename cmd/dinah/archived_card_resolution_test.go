@@ -196,10 +196,11 @@ var archivedResolutionFamilies = []resolutionFamily{
 	{
 		name: "D", axis: "reaching",
 		what:      "reaching the archived anchors: every mention of ArchivedCardsRoot, cardsRootIn or ArchiveDir",
-		files:     15,
-		mentions:  38,
-		functions: 29,
+		files:     16,
+		mentions:  39,
+		functions: 30,
 		sites: []resolutionSite{
+			{"cmd/dinah-migrate-notes/main.go", "classify", 1, "the note migration, which walks both halves because an archived card carries items whose notes have to be carried too; it reads each card by identifier from the root it is walking and resolves no reference"},
 			{"internal/bench/newlinemigrate.go", "lockDirForFile", 2, "the newline repair's file-to-lock mapping, which composes the archived cards root and the archived workstreams root from the constants so that a file inside an archived card takes that card's own lock; it answers a directory to lock and resolves no reference"},
 			{benchPackageOwnFile, packageLevel, 1, "the declaration of the directory name, standing in the file's const block"},
 			{benchPackageOwnFile, "ArchivedCardsRoot", 2, "the accessor this family is named for, and its own body's use of the directory constant"},
@@ -234,11 +235,12 @@ var archivedResolutionFamilies = []resolutionFamily{
 	{
 		name: "E", axis: "reading",
 		what:      "rendering a card's human reference: every call whose selector is Ref and which carries exactly one argument",
-		files:     12,
-		mentions:  25,
-		functions: 19,
+		files:     13,
+		mentions:  26,
+		functions: 20,
 		sites: []resolutionSite{
-			{"internal/verb/checklist.go", "designationRef", 1, "composing the canonical reference a settling stores as the item's answer; the card is the one the item hangs below and it was resolved live by the verb that is writing it, so no archived card reaches this call"},
+			{"internal/verb/checklist.go", "itemCanonicalRef", 1, "composing the canonical reference of one item of one card, which a settling stores as its answer and a forced deletion hands to Reopen; the card is the one the item hangs below and it was resolved live by the verb that is writing it, so no archived card reaches this call"},
+			{"cmd/dinah-migrate-notes/main.go", "classifyCard", 1, "naming an item in the note migration's own report and in the designation it writes; the run walks both halves, so an archived card does reach this call, and it composes a reference for a report rather than resolving one"},
 			{"internal/bench/branchmigrate.go", "MigrateBranches", 5, "naming a card in the branch migration's own report, once for each of the four classes it sorts a card into and once more for the account of what the write pass wrote; the run walks the live half alone, on the rule MigrateNumbers keeps for the archive, so no archived card reaches these calls"},
 			{"internal/bench/check.go", "checkTierOverrides", 1, "naming a card in a finding"},
 			{"internal/bench/check.go", "checkItemColumns", 1, "naming a card in a finding"},

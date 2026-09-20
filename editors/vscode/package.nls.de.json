@@ -53,7 +53,5 @@
 	"manifest.command.dinah.tree.failItem.title": "Dinah: Kriterium ablehnen",
 	"manifest.command.dinah.tree.reopenItem.title": "Dinah: Punkt wieder öffnen",
 	"manifest.command.dinah.tree.fileItem.title": "Dinah: Prüfpunkt anlegen",
-	"manifest.command.dinah.tree.openComment.title": "Dinah: Kommentar öffnen",
-	"manifest.command.dinah.comment.post.title": "Dinah: Kommentar senden",
-	"manifest.command.dinah.comment.discard.title": "Dinah: Entwurf verwerfen"
+	"manifest.command.dinah.tree.openComment.title": "Dinah: Kommentar öffnen"
 }

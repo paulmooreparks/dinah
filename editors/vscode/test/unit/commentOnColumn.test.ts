@@ -164,45 +164,44 @@ const silentHost: ColumnCommandHost = {
 	log: () => undefined,
 };
 
-const silentSpawner: Spawner = async (): Promise<SpawnOutcome> => ({
-	code: 0,
-	stdout: "",
-	stderr: "",
-});
-
-test("the draft Comment on Column opens posts through the comment verb", async () => {
+test("Comment on Column mints the comment and opens its file", async () => {
 	// The row carries no ColumnView, which is the case the manifest clause
 	// exists to admit, and the whole act still resolves: a build resolving
 	// through the creation commands' own column context answers undefined
-	// here and reports a skip instead of writing a draft.
-	const drafts: { root: string; folder: string; ref: string }[] = [];
-	const entries: { argv: string[]; target: string }[] = [];
-	const draftHost = {
+	// here and reports a skip instead of minting anything.
+	//
+	// Two calls are asserted rather than one, because the second is what the
+	// author sees. `dinah comment <column>` with no text mints the entity and
+	// answers with its identifier, and `dinah path` turns that into the file
+	// the window opens; a build that made the comment and opened nothing would
+	// satisfy a check on the first call alone.
+	const argvs: string[][] = [];
+	const spawner: Spawner = async (_exe, argv): Promise<SpawnOutcome> => {
+		argvs.push([...argv]);
+		const stdout = argv.includes("path")
+			? JSON.stringify({ path: "C:/bench/columns/c1/comments/a1/comment.md" })
+			: JSON.stringify({ outcome: "ok", verb: "comment", detail: "a00000000001" });
+		return { code: 0, stdout, stderr: "" };
+	};
+	const opened: string[] = [];
+	const commentHost = {
 		t: ENGLISH,
-		storageRoot: "C:/storage",
-		ensureDirectory: async () => undefined,
-		readDraft: async () => undefined,
-		writeDraft: async (path: string, _text: string) => {
-			void path;
+		openDocument: async (path: string) => {
+			opened.push(path);
 		},
-		readIndex: () => ({}),
-		writeIndex: async (index: Record<string, { argv: string[]; target: string }>) => {
-			for (const entry of Object.values(index)) {
-				entries.push({ argv: [...entry.argv], target: entry.target });
-			}
-		},
-		openDocument: async () => undefined,
 		showError: () => undefined,
-		showInfo: (message: string) => {
-			void message;
-		},
+		showInfo: () => undefined,
+		appendLines: () => undefined,
+		checkpoint: async () => undefined,
+		log: () => undefined,
 	};
 	const wiring = {
 		exe: "dinah",
-		spawner: silentSpawner,
+		spawner,
 		columnHost: silentHost,
 		t: ENGLISH,
-		draftHost,
+		commentHost,
+		openComments: new Map(),
 	};
 
 	const report = await invokeCommentOnColumn(
@@ -211,8 +210,29 @@ test("the draft Comment on Column opens posts through the comment verb", async (
 	);
 	const skipped = report.entries.filter((entry) => entry.outcome.kind === "skipped");
 	assert.equal(skipped.length, 0, "the column row was skipped rather than acted on");
-	assert.equal(entries.length, 1, "the draft index gained no entry");
-	assert.deepEqual(entries[0].argv, ["comment", COLUMN_SLUG, "-"]);
-	assert.equal(entries[0].target, COLUMN_SLUG);
-	void drafts;
+	const minted = argvs.find((argv) => argv.includes("comment"));
+	assert.notEqual(minted, undefined, "nothing ran the comment verb");
+	assert.deepEqual(
+		minted?.filter((word) => word === "comment" || word === COLUMN_SLUG),
+		["comment", COLUMN_SLUG],
+		"the comment verb was not aimed at the column with no text after it",
+	);
+	assert.equal(
+		minted?.includes("-"),
+		false,
+		"the comment verb was handed a dash, which is the form that reads a body from a pipe",
+	);
+	const located = argvs.find((argv) => argv.includes("path"));
+	assert.notEqual(located, undefined, "nothing asked where the new comment's file is");
+	assert.ok(located?.includes("a00000000001"), "the path call named some other comment");
+	assert.deepEqual(
+		opened,
+		["C:/bench/columns/c1/comments/a1/comment.md"],
+		"the file the path call named was not opened",
+	);
+	assert.equal(
+		wiring.openComments.get("C:/bench/columns/c1/comments/a1/comment.md")?.ref,
+		"a00000000001",
+		"the opened comment was not recorded, so a save of it would leave the editor's own bytes on disk",
+	);
 });

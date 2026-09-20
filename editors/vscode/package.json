@@ -206,16 +206,6 @@
       {
         "command": "dinah.tree.openComment",
         "title": "%manifest.command.dinah.tree.openComment.title%"
-      },
-      {
-        "command": "dinah.comment.post",
-        "title": "%manifest.command.dinah.comment.post.title%",
-        "icon": "$(check)"
-      },
-      {
-        "command": "dinah.comment.discard",
-        "title": "%manifest.command.dinah.comment.discard.title%",
-        "icon": "$(trash)"
       }
     ],
     "menus": {
@@ -331,14 +321,6 @@
         {
           "command": "dinah.tree.openComment",
           "when": "false"
-        },
-        {
-          "command": "dinah.comment.post",
-          "when": "resourceFilename =~ /\\.dinah-comment\\.md$/"
-        },
-        {
-          "command": "dinah.comment.discard",
-          "when": "resourceFilename =~ /\\.dinah-comment\\.md$/"
         }
       ],
       "view/title": [
@@ -490,18 +472,7 @@
           "group": "2_create@1"
         }
       ],
-      "editor/title": [
-        {
-          "command": "dinah.comment.post",
-          "when": "resourceFilename =~ /\\.dinah-comment\\.md$/",
-          "group": "navigation@1"
-        },
-        {
-          "command": "dinah.comment.discard",
-          "when": "resourceFilename =~ /\\.dinah-comment\\.md$/",
-          "group": "navigation@2"
-        }
-      ]
+      "editor/title": []
     },
     "configuration": {
       "title": "%manifest.configuration.title%",
