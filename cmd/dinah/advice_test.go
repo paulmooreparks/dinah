@@ -182,6 +182,10 @@ func TestTheNumberMigrationAdviceIsACommandThatWorks(t *testing.T) {
 	if took.code != 0 {
 		t.Fatalf("taking the refusal's own advice, dinah %v, exited %d: %s%s", argv, took.code, took.out, took.errw)
 	}
+	// And the rest of the chain. The number migration stamps the format the
+	// registry arrived at, which is still below the current one, so the
+	// workbench is refused until the note migration has run over it too.
+	migrateNotes(t, workbench)
 	// The sentence's first half claims the command builds the registry, so the
 	// card the workbench already held answers by a line in the file, and the
 	// reader is not left trusting the exit code alone.
@@ -721,8 +725,16 @@ func preNumberRegistryFixture(t *testing.T) (tree, project, workbench string) {
 	if err := os.Remove(filepath.Join(workbench, bench.CardNumbersName)); err != nil {
 		t.Fatalf("removing the registry this build wrote: %v", err)
 	}
+	// The format key is removed rather than lowered. A workbench declaring a
+	// format below the current one is refused outright since dinah-525,
+	// before any command reaches the registry check, so lowering it would
+	// test that refusal instead of this one. A workbench declaring no format
+	// key at all predates the key itself, which is the state this refusal was
+	// written for: it opens as UndeclaredFormat, which is below the format
+	// the registry arrived at, and the filing meets the number migration's
+	// own refusal.
 	rewriteFile(t, filepath.Join(workbench, bench.WorkbenchAnchor), func(text string) string {
-		return strings.Replace(text, "format: "+strconv.Itoa(bench.StorageFormat), "format: "+strconv.Itoa(bench.ContainerFormat), 1)
+		return strings.Replace(text, "format: "+strconv.Itoa(bench.StorageFormat)+"\n", "", 1)
 	})
 	ids, err := bench.ListIDs(filepath.Join(workbench, bench.CardsDir))
 	if err != nil {

@@ -19,7 +19,7 @@ func migrationFixture(t *testing.T, bodies map[string]string) string {
 	t.Helper()
 	root := containedPath(t.TempDir())
 	write(t, filepath.Join(root, WorkbenchAnchor), strings.Replace(
-		benchDefinition, "format: 1", "format: "+strconv.Itoa(FieldsFormat-1), 1))
+		benchDefinition, "format: 6", "format: "+strconv.Itoa(FieldsFormat-1), 1))
 	write(t, filepath.Join(root, ColumnsDir, "b00000000001", ColumnAnchor), columnDefinition)
 	lines := ""
 	number := 0
@@ -87,7 +87,7 @@ func TestTheMigrationLiftsTheHeadingAndReportsWhatItCannotLift(t *testing.T) {
 	})
 
 	before := everyFileUnder(t, root)
-	opened, err := Open(root)
+	opened, err := openFixtureAtAnyFormat(t, root)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -100,7 +100,7 @@ func TestTheMigrationLiftsTheHeadingAndReportsWhatItCannotLift(t *testing.T) {
 	}
 	assertUnchanged(t, before, everyFileUnder(t, root), "the preview")
 
-	opened, err = Open(root)
+	opened, err = openFixtureAtAnyFormat(t, root)
 	if err != nil {
 		t.Fatalf("reopen: %v", err)
 	}
@@ -138,7 +138,7 @@ func TestTheMigrationLiftsTheHeadingAndReportsWhatItCannotLift(t *testing.T) {
 		t.Errorf("the written account %v names neither of the cards Lifted and Emptied name", report.Written)
 	}
 
-	migrated, err := Open(root)
+	migrated, err := openFixtureAtAnyFormat(t, root)
 	if err != nil {
 		t.Fatalf("open the migrated workbench: %v", err)
 	}
@@ -185,7 +185,7 @@ func TestTheMigrationLiftsTheHeadingAndReportsWhatItCannotLift(t *testing.T) {
 
 	// A second run over the migrated workbench classifies every card as
 	// untouched, which is what makes re-running safe after a stop part way.
-	again, err := Open(root)
+	again, err := openFixtureAtAnyFormat(t, root)
 	if err != nil {
 		t.Fatalf("reopen the migrated workbench: %v", err)
 	}
@@ -213,7 +213,7 @@ func TestAMigrationMeetingAConflictWritesNothing(t *testing.T) {
 		"c00000000003": cardBody("", "Framing.\n\n## Branch\n\nwould-have-been-lifted\n"),
 	})
 	before := everyFileUnder(t, root)
-	opened, err := Open(root)
+	opened, err := openFixtureAtAnyFormat(t, root)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -250,7 +250,7 @@ func TestAMigrationMeetingAConflictWritesNothing(t *testing.T) {
 		cardBody("", "Framing.\n\n## Branch\n\ndinah-498-declared-fields\n"))
 	write(t, filepath.Join(root, CardsDir, "c00000000002", CardAnchor),
 		cardBody("", "Framing.\n\n## Branch\n\nfirst\n"))
-	repaired, err := Open(root)
+	repaired, err := openFixtureAtAnyFormat(t, root)
 	if err != nil {
 		t.Fatalf("reopen: %v", err)
 	}

@@ -656,6 +656,7 @@ var params = map[string][]Param{
 		{Name: "value", Display: "value|-", Rest: true, Field: "Value"},
 		{Name: "at", Flag: true, Value: "column", Vocabulary: "column", Field: "At"},
 		{Name: "note", Flag: true, Value: "text", Field: "Note"},
+		{Name: "expect-digest", Flag: true, Value: "digest", Field: "ExpectedDigest"},
 		{Name: "yes", Flag: true, Marker: true, Shared: "yes", Field: "Confirm"},
 	},
 	"check": {

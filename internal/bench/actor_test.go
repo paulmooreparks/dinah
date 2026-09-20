@@ -71,7 +71,7 @@ func TestAStringActorReadsBackWithEveryOtherMemberUnchanged(t *testing.T) {
 		`{"ts":"2026-08-17T09:02:00Z","event":"blocked","actor":"brin","reason":"waiting on the vendor","kind":"external"}`,
 		"",
 	}, "\n"))
-	opened, err := Open(root)
+	opened, err := openFixtureAtAnyFormat(t, root)
 	if err != nil {
 		t.Fatalf("open a workbench declaring format 4: %v", err)
 	}

@@ -916,6 +916,8 @@ func assignValue(req *verb.Request, name, field, value string) {
 		req.LinkTo = value
 	case "observed":
 		req.Observed = value
+	case "expect-digest":
+		req.ExpectedDigest = value
 	case "note":
 		req.Note = value
 	// The three terminal checklist verbs name their answer "designation"

@@ -24,7 +24,7 @@ func preRegistryFixture(t *testing.T) string {
 	if err := os.Remove(filepath.Join(root, CardNumbersName)); err != nil {
 		t.Fatalf("remove the registry: %v", err)
 	}
-	editWorkbench(t, root, "format: "+strconv.Itoa(RegistryFormat), "format: "+strconv.Itoa(ContainerFormat))
+	editWorkbench(t, root, "format: "+strconv.Itoa(StorageFormat), "format: "+strconv.Itoa(ContainerFormat))
 	edit(t, root, "state: ready", "state: ready\nnumber: 1")
 	return root
 }
@@ -84,7 +84,7 @@ func orderingFixture(t *testing.T) string {
 // openAmbiguityFixture opens a bench on one of the two fixtures above.
 func openAmbiguityFixture(t *testing.T, root string) *Bench {
 	t.Helper()
-	opened, err := Open(root)
+	opened, err := openFixtureAtAnyFormat(t, root)
 	if err != nil {
 		t.Fatalf("open %s: %v", root, err)
 	}

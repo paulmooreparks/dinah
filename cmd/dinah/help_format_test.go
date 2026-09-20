@@ -90,7 +90,7 @@ WORKBENCH
   edit <ref>                                             Open an entity of this workbench in your editor
   get <ref> <field>                                      Read one field of any entity of this workbench
   set <ref> <field> [value|-] [--at <column>]            Write one field of any entity of this workbench
-    [--note <text>] [--yes]
+    [--note <text>] [--expect-digest <digest>] [--yes]
   config [get|set] [key] [value]                         List your user settings, or read or write one
   check [--finish] [--migrate-ordinals]                  Look for structural defects in this workbench
     [--migrate-slugs] [--migrate-columns]
@@ -184,7 +184,7 @@ WORKBENCH
   path <ref> [--archived]                                                                               Print the file path of an entity of this workbench
   edit <ref>                                                                                            Open an entity of this workbench in your editor
   get <ref> <field>                                                                                     Read one field of any entity of this workbench
-  set <ref> <field> [value|-] [--at <column>] [--note <text>] [--yes]                                   Write one field of any entity of this workbench
+  set <ref> <field> [value|-] [--at <column>] [--note <text>] [--expect-digest <digest>] [--yes]        Write one field of any entity of this workbench
   config [get|set] [key] [value]                                                                        List your user settings, or read or write one
   check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-columns] [--migrate-vocabulary]    Look for structural defects in this workbench
     [--migrate-container] [--migrate-numbers] [--migrate-branches] [--migrate-newlines] [--renumber]

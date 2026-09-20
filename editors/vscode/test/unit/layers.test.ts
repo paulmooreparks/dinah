@@ -99,6 +99,8 @@ const MAY_START_A_PROCESS: Record<string, string> = {
 		"builds this commit's dinah and reads its real tool table, which is the only way to hold the command palette's classifier to what the binary actually publishes rather than to a fixture written beside it",
 	"unit/versionExecutable-live.test.ts":
 		"builds this commit's dinah and reads the location it reports about itself, which is the only harness in the tree that can hold a shipped binary to that; every other version test runs in the go test process and would report that process's own path",
+	"unit/commentSave-live.test.ts":
+		"builds this commit's dinah and saves a comment through it against a real store, which is the only way to assert what the save answered rather than which command it was going to run; a mocked spawner answers whatever the fixture says and passed against a save path that refused every write",
 };
 
 test("no unit-test file starts a process", () => {

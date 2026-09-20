@@ -5612,6 +5612,11 @@
       "text": "the designated comment {comment} was deleted",
       "context": "The reason a forced deletion composes for the reopen it performs, recorded in the journal. {comment} is the deleted comment's reference, which is the only part of it that survives.",
       "skeleton": true
+    },
+    "param.set.expect-digest.summary": {
+      "text": "the digest you last saw recorded on this comment, which refuses the write if anything has written the comment since",
+      "context": "The meaning of the expect-digest argument of `dinah set`, printed in that command's arguments table. It is for a caller that had the comment open while its author typed: an editor writes the file on save, so the body the write would otherwise be compared against is gone, and the digest on the header is what is left to compare.",
+      "skeleton": true
     }
   }
 }

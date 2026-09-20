@@ -126,6 +126,27 @@ func run(args []string, out, errw *os.File) int {
 		fmt.Fprintf(errw, "refused: %s could not be read: %v\n", root, err)
 		return exitUnusable
 	}
+	// The one migration ahead of this one that this one cannot be run
+	// without.
+	//
+	// Stamping the current format says every migration below it has run, and
+	// for most of them that claim is cosmetic: a branch heading left in a
+	// body is a finding check reports, and a journal carrying string actors
+	// is read by a tolerant unmarshaller. The card-number registry is not
+	// cosmetic. A store below the format it arrived at keeps its numbers in
+	// card frontmatter, and Add refuses to file there precisely because the
+	// registry is the thing it would allocate from; stamping such a store to
+	// this format would silence that refusal and let the next filing hand out
+	// a number a card already answers to.
+	//
+	// So the run stops and names the repair, rather than carrying a store
+	// somewhere it cannot come back from.
+	if opened.Format < bench.RegistryFormat {
+		fmt.Fprintf(errw, "refused: %s declares format %d, and the card-number registry arrived at format %d.\n",
+			root, opened.Format, bench.RegistryFormat)
+		fmt.Fprintln(errw, "Run `dinah check --migrate-numbers --yes` against it first, then run this again.")
+		return exitUnusable
+	}
 	planned, err := classify(opened)
 	if err != nil {
 		fmt.Fprintf(errw, "refused: %s could not be read: %v\n", root, err)

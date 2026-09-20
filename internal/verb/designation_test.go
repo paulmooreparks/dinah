@@ -71,12 +71,18 @@ func TestTheEmptyCommentFormMintsAnEntityWithNoBody(t *testing.T) {
 		t.Fatalf("the empty form: %s %s", empty.Outcome, empty.Refusal)
 	}
 	h.reopen()
-	// The reference the answer carries has to reach the comment it made,
-	// which is the whole of what an editor does with it next.
+	// The answer carries a reference, and the assertion is that it resolves
+	// to the comment that was just made. Asserting that it equals the
+	// comment's directory name would pass against an identifier, which is
+	// what this used to answer and which resolves to nothing: an editor
+	// handed one asks `dinah path` for the file and is refused.
 	ref := card + "/" + bench.CommentsDir + "/1"
 	dir := commentDirOf(t, h, ref)
-	if filepath.Base(dir) != empty.Detail {
-		t.Errorf("the answer named %s and the reference %s reaches %s", empty.Detail, ref, filepath.Base(dir))
+	if empty.Detail != ref {
+		t.Errorf("the answer named %q, wanted the reference %q", empty.Detail, ref)
+	}
+	if reached := commentDirOf(t, h, empty.Detail); reached != dir {
+		t.Errorf("the reference the answer carried reaches %s, wanted %s", reached, dir)
 	}
 	_, body, err := bench.ReadCommentAnchor(dir)
 	if err != nil {
@@ -584,8 +590,11 @@ func TestCheckReportsAnEmptyComment(t *testing.T) {
 	if !found {
 		t.Fatalf("check reports no empty comment: %+v", findings)
 	}
-	if detail != abandoned.Detail {
-		t.Errorf("the finding names %q, wanted the abandoned draft", detail)
+	// The finding names the comment's identifier and the verb answers its
+	// reference, so the two are joined by resolving one rather than compared
+	// as strings.
+	if want := filepath.Base(commentDirOf(t, h, abandoned.Detail)); detail != want {
+		t.Errorf("the finding names %q, wanted the abandoned draft %q", detail, want)
 	}
 	for _, f := range findings {
 		if f.Key == bench.FindingEmptyComment && bench.SeverityOf(f) != bench.SeverityCleanup {
@@ -713,6 +722,27 @@ func TestAWriteOverADivergenceIsRefused(t *testing.T) {
 		})
 		if refused.Refusal != contract.CommentBodyDiverged {
 			t.Fatalf("wanted %s, got %s %s", contract.CommentBodyDiverged, refused.Outcome, refused.Refusal)
+		}
+	})
+
+	t.Run("an edit that changed nothing does nothing", func(t *testing.T) {
+		// The spec's first bullet is unconditional: an unchanged body does
+		// nothing and journals nothing. Asking about a divergence ahead of it
+		// made dinah edit on a diverged comment answer a refusal for an edit
+		// that never happened, which told the reader nothing they could act
+		// on and nothing dinah check would not have told them.
+		h, card, ref, _ := plant(t)
+		before := len(h.events(card))
+		answer := h.library.RecordCommentEdit(&Request{
+			Verb: "edit", Actor: "alka", Ref: ref,
+			PriorDigest: bench.CommentDigest("what somebody typed instead"),
+		})
+		if answer.Outcome != contract.OutcomeOK {
+			t.Fatalf("an edit that changed nothing over a diverged comment: %s %s", answer.Outcome, answer.Refusal)
+		}
+		h.reopen()
+		if got := len(h.events(card)); got != before {
+			t.Errorf("the journal grew by %d lines over an edit that did not happen", got-before)
 		}
 	})
 
@@ -1030,28 +1060,41 @@ func TestAnUnmigratedStoreIsRefusedByName(t *testing.T) {
 		t.Fatalf("read the anchor: %v", err)
 	}
 	fm, body := bench.ParseAnchor(text)
-	fm.Set("format", strconv.Itoa(bench.ResolutionFormat-1))
-	if err := bench.WriteText(path, fm.Render(body)); err != nil {
-		t.Fatalf("write the anchor: %v", err)
+
+	// Every format below, not the one below. The gate this replaced carried a
+	// lower bound, so a store at format 3 or 4 opened with no complaint and
+	// reported every settled item on it as carrying no answer; eighteen of the
+	// nineteen live stores are below the bound it used. A case exercising one
+	// format passes against that bound, which is why this one walks them all.
+	refused := 0
+	for declared := 1; declared < bench.ResolutionFormat; declared++ {
+		fm.Set("format", strconv.Itoa(declared))
+		if err := bench.WriteText(path, fm.Render(body)); err != nil {
+			t.Fatalf("write the anchor: %v", err)
+		}
+		_, err := bench.Open(h.root)
+		refusal := &contract.Refusal{}
+		if !errors.As(err, &refusal) {
+			t.Errorf("a store declaring format %d opened, and it awaits the migration: %v", declared, err)
+			continue
+		}
+		if refusal.Name != contract.StoreAwaitingMigration {
+			t.Errorf("a store declaring format %d is refused %s, wanted %s", declared, refusal.Name, contract.StoreAwaitingMigration)
+			continue
+		}
+		// And the openers that serve the migration and the diagnostic read
+		// it, which is what keeps a store that needs migrating reachable by
+		// the thing that migrates it.
+		if _, err := bench.OpenAwaitingResolution(h.root); err != nil {
+			t.Errorf("the migration's own opener is refused a store declaring format %d: %v", declared, err)
+		}
+		refused++
+	}
+	if refused != bench.ResolutionFormat-1 {
+		t.Fatalf("%d formats below the current one were refused, wanted %d", refused, bench.ResolutionFormat-1)
 	}
 
-	_, err = bench.Open(h.root)
-	if err == nil {
-		t.Fatal("a store below the resolution format opened")
-	}
-	refusal := &contract.Refusal{}
-	if !errors.As(err, &refusal) {
-		t.Fatalf("the refusal is %v, wanted a contract refusal", err)
-	}
-	if refusal.Name != contract.StoreAwaitingMigration {
-		t.Errorf("the refusal is %s, wanted %s", refusal.Name, contract.StoreAwaitingMigration)
-	}
-	// And the migration's own opener reads it, because the gate exists to
-	// stop every reader but the one whose whole job is that state.
-	if _, err := bench.OpenAwaitingResolution(h.root); err != nil {
-		t.Errorf("the migration's own opener is refused the store it exists for: %v", err)
-	}
-	// A store at the current format opens, so the refusal above is the gate
+	// A store at the current format opens, so the refusals above are the gate
 	// rather than a fixture that never opened.
 	fm.Set("format", strconv.Itoa(bench.StorageFormat))
 	if err := bench.WriteText(path, fm.Render(body)); err != nil {

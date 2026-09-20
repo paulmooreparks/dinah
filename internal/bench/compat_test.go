@@ -285,12 +285,18 @@ func TestARevisionTheAliasResolvedIsToldToMigrateRatherThanRefusedAsUnknown(t *t
 }
 
 // openFixture opens one compat fixture through the opener its own declared
-// revision calls for. A fixture inside the pre-vocabulary window is written in
-// the retired state and substate vocabulary, which Open refuses by name and
-// OpenPreVocabulary is the one reader of; every other fixture goes through
-// Open exactly as before. The choice is made from the fixture's own anchor
-// rather than from its directory name, so a fixture added later is sorted the
-// same way with no edit here.
+// revision and format call for. A fixture inside the pre-vocabulary window is
+// written in the retired state and substate vocabulary, which Open refuses by
+// name and OpenPreVocabulary is the one reader of. A fixture below the current
+// storage format is one the note migration has not reached, which Open refuses
+// by name too and which the migration's own opener reads. Everything at the
+// current format goes through Open exactly as before. Both choices are made
+// from the fixture's own anchor rather than from its directory name, so a
+// fixture added later is sorted the same way with no edit here.
+//
+// What this test file asserts is that an old store still reads, and that claim
+// is unchanged: the reading is what the compatibility promise is about, and
+// which opener performs it is which gate the store has yet to cross.
 func openFixture(t *testing.T, fixture string) (*Bench, error) {
 	t.Helper()
 	root := stagedFixture(t, fixture)
@@ -300,6 +306,12 @@ func openFixture(t *testing.T, fixture string) (*Bench, error) {
 	}
 	if ok && WithinPreVocabulary(major, minor) {
 		return OpenPreVocabulary(root)
+	}
+	// declaredFormat is the package's own reader, which the container
+	// migration already uses for the same question, and a fixture declaring
+	// no format key answers false and goes through Open exactly as it did.
+	if declared, declares := declaredFormat(root); declares && declared < ResolutionFormat {
+		return OpenAwaitingResolution(root)
 	}
 	return Open(root)
 }
@@ -351,7 +363,7 @@ func TestEveryCompatFixtureOpensAndReads(t *testing.T) {
 func TestEveryCompatFixtureSurvivesTheInterchangePath(t *testing.T) {
 	for _, fixture := range compatFixtures(t) {
 		source, stood := interchangeSource(t, fixture)
-		b, err := Open(source)
+		b, err := openFixtureAtAnyFormat(t, source)
 		if err != nil {
 			t.Errorf("open %s: %v", fixture, err)
 			continue

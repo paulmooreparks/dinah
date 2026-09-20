@@ -186,6 +186,16 @@ test("Comment on Column mints the comment and opens its file", async () => {
 	const opened: string[] = [];
 	const commentHost = {
 		t: ENGLISH,
+		readFile: async () =>
+			[
+				"---",
+				"ts: 2026-08-01T09:00:00Z",
+				"author: ana",
+				"ordinal: 1",
+				"digest: abc123",
+				"---",
+				"",
+			].join("\n"),
 		openDocument: async (path: string) => {
 			opened.push(path);
 		},

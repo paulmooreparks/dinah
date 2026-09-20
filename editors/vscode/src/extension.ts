@@ -266,8 +266,21 @@ function commentBodyHost(
 	t: Localizer,
 	checkpoint: (folder: string) => Promise<void>,
 ): CommentBodyHost {
+	const decoder = new TextDecoder();
 	return {
 		t,
+		// A read that throws is read as no file rather than propagated,
+		// because the one question this call answers is what the anchor's
+		// header says, and "it does not say" is an answer the caller handles.
+		readFile: async (path) => {
+			try {
+				return decoder.decode(
+					await vscode.workspace.fs.readFile(vscode.Uri.file(path)),
+				);
+			} catch {
+				return undefined;
+			}
+		},
 		openDocument: async (path) => {
 			const document = await vscode.workspace.openTextDocument(
 				vscode.Uri.file(path),

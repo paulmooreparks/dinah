@@ -2,10 +2,13 @@ package bench
 
 import (
 	"encoding/json"
+	"errors"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
+
+	"dinah/internal/contract"
 )
 
 // tieredDefinition is the workbench anchor most of the cases below open: three
@@ -381,10 +384,20 @@ func TestTheTierTableSurvivesTheInterchange(t *testing.T) {
 	}
 }
 
-// TestEveryFormatThisBuildReadsStillOpens asserts that no read path this card
-// adds refuses a workbench on account of its declared storage format. One
-// workbench at each of formats 1 through 4 opens, and the count of openings is
-// asserted so a loop that ran none cannot report success.
+// TestEveryFormatThisBuildReadsStillOpens asserts what a workbench below the
+// current storage format meets, which changed at dinah-525.
+//
+// It used to assert that formats 1 through 4 opened, because no read path
+// refused a workbench on account of its format. One does now: the note
+// migration's gate refuses every store below the current format, because a
+// reader of one reports every settled item on it as carrying no answer. So the
+// claim splits in two, and both halves are asserted. Open refuses such a store
+// by name, and the opener that serves the migration and the diagnostic reads
+// it, which is what keeps a store that needs migrating reachable by the thing
+// that migrates it.
+//
+// The count of openings is asserted so a loop that ran none cannot report
+// success.
 func TestEveryFormatThisBuildReadsStillOpens(t *testing.T) {
 	opened := 0
 	for format := 1; format <= 4; format++ {
@@ -392,9 +405,13 @@ func TestEveryFormatThisBuildReadsStillOpens(t *testing.T) {
 		root := containedPath(t.TempDir())
 		write(t, filepath.Join(root, WorkbenchAnchor), anchor)
 		write(t, filepath.Join(root, ColumnsDir, "b00000000001", ColumnAnchor), columnDefinition)
-		bench, err := Open(root)
+		refused := &contract.Refusal{}
+		if _, err := Open(root); !errors.As(err, &refused) || refused.Name != contract.StoreAwaitingMigration {
+			t.Errorf("a workbench declaring format %d should meet the migration gate, got %v", format, err)
+		}
+		bench, err := OpenAwaitingResolution(root)
 		if err != nil {
-			t.Errorf("a workbench declaring format %d is refused: %v", format, err)
+			t.Errorf("a workbench declaring format %d is refused the migration's own opener: %v", format, err)
 			continue
 		}
 		if bench.Format != format {

@@ -69,7 +69,7 @@ var publishedProperties = map[string][]string{
 	"workbench":         {"actor", "harness", "model", "provider", "server", "workbench"},
 	"workstream":        {"action", "actor", "harness", "model", "provider", "server", "slug", "workbench", "workstream"},
 	"get_field":         {"actor", "field", "harness", "model", "provider", "ref", "server", "workbench"},
-	"set_field":         {"actor", "at", "field", "harness", "model", "note", "provider", "ref", "server", "value", "workbench", "yes"},
+	"set_field":         {"actor", "at", "expect-digest", "field", "harness", "model", "note", "provider", "ref", "server", "value", "workbench", "yes"},
 	"new_column":        {"actor", "before", "capacity", "column", "harness", "kind", "model", "provider", "server", "slug", "tier", "workbench"},
 	"version":           {"actor", "catalogs", "harness", "model", "provider", "server", "workbench"},
 	"export":            {"actor", "harness", "model", "provider", "server", "workbench"},

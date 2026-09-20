@@ -11,7 +11,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { Spawner, SpawnOutcome } from "../../src/cli";
-import type { OpenComments } from "../../src/commentBody";
+import type { CommentBodyHost, OpenComments } from "../../src/commentBody";
 import {
 	composeComment,
 	forgetComment,
@@ -27,6 +27,25 @@ const ROOT = "C:/bench";
 const FOLDER = "C:/work";
 const COMMENT_PATH = "C:/bench/cards/c1/comments/a1/comment.md";
 
+/**
+ * The bytes the fake window reads, keyed by path.
+ *
+ * Composing a comment reads the file it just made, to learn which digest the
+ * anchor records, so a fixture that answered nothing there would leave every
+ * session with no remembered digest and quietly test the wrong path.
+ */
+const files = new Map<string, string>([
+	[
+		COMMENT_PATH,
+		["---", "ts: 2026-08-01T09:00:00Z", "author: ana", "ordinal: 1", "digest: abc123", "---", ""].join("\n"),
+	],
+]);
+
+/** A session over the comment above, remembering the digest its anchor records. */
+function session(): { root: string; folder: string; ref: string; digest: string } {
+	return { root: ROOT, folder: FOLDER, ref: "wb-1/comments/1", digest: "abc123" };
+}
+
 /** Everything the fake host was asked to do. */
 interface Log {
 	readonly opened: string[];
@@ -40,9 +59,10 @@ function emptyLog(): Log {
 	return { opened: [], errors: [], infos: [], checkpoints: [], logged: [] };
 }
 
-function host(log: Log) {
+function host(log: Log): CommentBodyHost {
 	return {
 		t: ENGLISH,
+		readFile: async (path: string) => files.get(path),
 		openDocument: async (path: string) => {
 			log.opened.push(path);
 		},
@@ -122,11 +142,7 @@ test("saving a comment's file writes its body through the verb", async () => {
 	const log = emptyLog();
 	const { spawner, calls } = recorder();
 	const opened: OpenComments = new Map();
-	noteOpenComment(opened, COMMENT_PATH, {
-		root: ROOT,
-		folder: FOLDER,
-		ref: "wb-1/comments/1",
-	});
+	noteOpenComment(opened, COMMENT_PATH, session());
 
 	const saved = await saveCommentBody(
 		host(log),
@@ -169,11 +185,7 @@ test("closing a comment's tab forgets it, so a later save of that path writes no
 	const log = emptyLog();
 	const { spawner, calls } = recorder();
 	const opened: OpenComments = new Map();
-	noteOpenComment(opened, COMMENT_PATH, {
-		root: ROOT,
-		folder: FOLDER,
-		ref: "wb-1/comments/1",
-	});
+	noteOpenComment(opened, COMMENT_PATH, session());
 	forgetComment(opened, COMMENT_PATH);
 
 	const saved = await saveCommentBody(

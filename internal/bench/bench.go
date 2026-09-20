@@ -1609,10 +1609,17 @@ func Open(root string) (*Bench, error) {
 // every check Open runs except that one, mirroring exactly the way
 // OpenPreVocabulary skips only the vocabulary check.
 //
-// One caller reaches it, which is the note migration itself. The refusal exists
-// to stop a reader reporting every settled item on such a store as carrying no
-// answer, and the migration is the one program whose whole job is that state,
-// so it is the one program the gate must not stop.
+// Three callers reach it, and they are the surfaces a gate must never close:
+// the note migration itself, whose whole job is that state; `dinah check`,
+// which is the diagnostic an operator reads to find out what a store needs and
+// which reports the unfinished-item finding by name; and the repairs `check`
+// carries, which are how a store below this format reaches it at all. A gate
+// that refused those would refuse the way out of itself, and eighteen of the
+// nineteen live stores would have no route across.
+//
+// What it does not serve is an ordinary read. The refusal exists to stop a
+// reader reporting every settled item on such a store as carrying no answer,
+// and that is a false reading rather than a degraded one.
 func OpenAwaitingResolution(root string) (*Bench, error) {
 	return openWithVocabulary(root, currentVocabulary, admitProfileAfterVocabulary, true, false)
 }
@@ -1635,8 +1642,10 @@ func Contained(root string) bool {
 }
 
 // OpenUncontained reads a workbench-shaped directory the containment rule does
-// not govern. It runs every check Open runs except that one, mirroring exactly
-// the way OpenPreVocabulary skips only the vocabulary check.
+// not govern. It skips that rule and, since dinah-525, the note migration's
+// gate with it, for the reason OpenAwaitingResolution gives: both callers are
+// on the way to a format rather than at one, and a gate that refused them
+// would refuse the route across itself.
 //
 // Two callers reach it, and each reads a directory that is not a workbench in
 // the sense the rule fixes. The container migration reads one on its way in,
@@ -1645,7 +1654,7 @@ func Contained(root string) bool {
 // Every other caller goes through Open and is refused an uncontained workbench
 // by name.
 func OpenUncontained(root string) (*Bench, error) {
-	return openWithVocabulary(root, currentVocabulary, admitProfileAfterVocabulary, false, true)
+	return openWithVocabulary(root, currentVocabulary, admitProfileAfterVocabulary, false, false)
 }
 
 // OpenPreVocabulary reads a workbench still written in the vocabulary this
@@ -1719,11 +1728,26 @@ func openWithVocabulary(root string, vocab columnVocabulary, admit func(declared
 		if requireContainer && n >= ContainerFormat && !Contained(root) {
 			return nil, contract.Refuse(contract.NeedsContainerMigration, root)
 		}
-		// The note migration's gate is read last of the format gates, so a
-		// store awaiting an older migration meets that migration's own
-		// refusal first and an operator works the chain in the order the
-		// formats were bumped in.
-		if requireResolution && n >= ActorObjectFormat && n < ResolutionFormat {
+		// Every store below the format, not the one version below it.
+		//
+		// This gate carried a lower bound of ActorObjectFormat on the
+		// reasoning that a store awaiting an older migration would meet
+		// that migration's own refusal first. No such refusal exists:
+		// ActorObjectFormat gates nothing, and the container and vocabulary
+		// gates cover their own windows and not this one, so a store at
+		// format 3 or 4 opened with no complaint and reported every settled
+		// item on it as carrying no answer. Eighteen of the nineteen live
+		// stores predate the current format, so the bound excluded
+		// precisely the stores the gate exists for.
+		//
+		// One consequence is worth naming, because a test asserts it. The
+		// containment rule binds from ContainerFormat and leaves a store
+		// below it alone, and no store below this format opens at all any
+		// more, so that lower branch of the containment rule is now reached
+		// only by a store declaring no format key. An operator carries such
+		// a store across with the container migration, which reads it
+		// without going through this opener, before the note migration can.
+		if requireResolution && n < ResolutionFormat {
 			return nil, contract.Refuse(contract.StoreAwaitingMigration, root)
 		}
 	}

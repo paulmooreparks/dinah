@@ -309,7 +309,7 @@ func writeKindAnchors(t *testing.T, root string, columns []map[string]any, defin
 	if err := os.MkdirAll(filepath.Join(root, CardsDir), 0o755); err != nil {
 		t.Fatalf("mkdir cards: %v", err)
 	}
-	anchor := "---\nformat: 1\nprofile: " + ProfileVersion + "\ntitle: " + definition["title"].(string) +
+	anchor := "---\nformat: 6\nprofile: " + ProfileVersion + "\ntitle: " + definition["title"].(string) +
 		"\nslug: kd\noperator: alka\nstates:\n" + strings.Join(listed, "\n") + "\n---\n"
 	if err := WriteText(filepath.Join(root, WorkbenchAnchor), anchor); err != nil {
 		t.Fatalf("write workbench: %v", err)

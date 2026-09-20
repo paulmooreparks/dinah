@@ -232,7 +232,14 @@ func (b *Bench) MigrateBranches(actor, now string, apply bool) (*BranchMigration
 		b.declaredFields = declaration
 		report.Declared = true
 	}
-	if b.FM.Value("format") != strconv.Itoa(FieldsFormat) {
+	// At or above, rather than not equal to. The comparison was an equality
+	// while FieldsFormat was the newest format there was, and the two stopped
+	// being the same thing when later formats arrived: a store already past
+	// it would have been stamped back down by a repair that only ever meant
+	// to raise it, and since dinah-525 a store stamped down is a store no
+	// ordinary read will open. Reading it as a floor says what was always
+	// meant.
+	if b.Format < FieldsFormat {
 		b.FM.Set("format", strconv.Itoa(FieldsFormat))
 		report.Stamped = true
 	}

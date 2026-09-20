@@ -437,7 +437,7 @@ function sources(): string[] {
 	return found.sort();
 }
 
-test("the command modules hold exactly twenty-nine report-channel call sites", () => {
+test("the command modules hold exactly thirty-one report-channel call sites", () => {
 	// A tripwire rather than a correctness check. A per-row report site added
 	// after this card cannot land silently, because its author has to raise
 	// this figure and, in doing so, decide whether the new site belongs inside
@@ -465,7 +465,7 @@ test("the command modules hold exactly twenty-nine report-channel call sites", (
 	}
 	assert.equal(
 		sites.length,
-		29,
+		31,
 		`the command modules hold ${String(sites.length)} report-channel call sites:\n${sites.join("\n")}`,
 	);
 	// Stated as at least six, which is what the criterion declares, so a file

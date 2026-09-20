@@ -935,6 +935,11 @@
 			"text": "an author this workbench cannot name: {body}",
 			"context": "The form item.answer.by takes for a comment whose author the store could not recover, which the note migration records as an absence rather than as a name.",
 			"skeleton": true
+		},
+		"comment.divergedOnOpen": {
+			"text": "Comment {ref} has been edited outside Dinah, so saving it here will not record the change. Restore the text, or run dinah accept-divergence on it.",
+			"context": "Error when a comment is opened whose body no longer matches the digest its anchor records. The file is opened anyway, because restoring the text by hand is the first remedy and the author needs the file to do it; what is withheld is the editing session, so a save writes nothing through the verb. {ref} is the comment's own reference.",
+			"skeleton": true
 		}
 	}
 }

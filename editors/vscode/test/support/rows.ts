@@ -470,6 +470,21 @@ export function emptyCommentLog(): CommentLog {
 export function commentHost(log: CommentLog): CommentBodyHost {
 	return {
 		t: ENGLISH,
+		// An anchor carrying a digest, so a session opened over this host
+		// remembers one and the save it drives takes the compare-and-swap
+		// path rather than quietly falling to the body comparison.
+		readFile: async (path) => {
+			log.order.push(`readFile ${path}`);
+			return [
+				"---",
+				"ts: 2026-08-01T09:00:00Z",
+				"author: ana",
+				"ordinal: 1",
+				"digest: abc123",
+				"---",
+				"",
+			].join("\n");
+		},
 		openDocument: async (path) => {
 			log.order.push(`openDocument ${path}`);
 			log.opened.push(path);

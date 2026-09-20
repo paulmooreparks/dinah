@@ -219,7 +219,7 @@ func migrateTree(t *testing.T, root string) map[string]string {
 // cannot read back as a reader's default the way dinah-287's did.
 func TestTheContainerMigrationIsIdempotentAndKeepsEveryFile(t *testing.T) {
 	tree := t.TempDir()
-	legacy := populatedBench(t, filepath.Join(tree, "a", UserBaseName, "d00000000001"), benchDefinition)
+	legacy := populatedBench(t, filepath.Join(tree, "a", UserBaseName, "d00000000001"), olderBenchDefinition)
 	// The bare workbench sits in a project repository, which is the
 	// arrangement the format explicitly allows and the one the lift has to
 	// leave standing. The source file, the readme and the git directory are
@@ -227,7 +227,7 @@ func TestTheContainerMigrationIsIdempotentAndKeepsEveryFile(t *testing.T) {
 	// because a fixture whose bare workbench sits alone in a directory of its
 	// own gives a migration that moves that directory nothing to destroy.
 	bare := populatedBench(t, filepath.Join(tree, "b", "myproject"), currentBenchDefinition)
-	stray := populatedBench(t, filepath.Join(tree, "c", UserBaseName, "notes"), benchDefinition)
+	stray := populatedBench(t, filepath.Join(tree, "c", UserBaseName, "notes"), olderBenchDefinition)
 
 	before := map[string]map[string]string{
 		"legacy": contents(t, legacy),
@@ -257,13 +257,17 @@ func TestTheContainerMigrationIsIdempotentAndKeepsEveryFile(t *testing.T) {
 		want := before[name]
 		delete(want, WorkbenchAnchor)
 		sameContents(t, name, want, after)
-		opened, err := Open(to)
+		opened, err := openFixtureAtAnyFormat(t, to)
 		if err != nil {
 			t.Errorf("%s does not open after the migration: %v", name, err)
 			continue
 		}
-		if opened.Format != ContainerFormat {
-			t.Errorf("%s declares format %d after the migration, wanted %d", name, opened.Format, ContainerFormat)
+		// At or above, rather than exactly. The stamp raises a workbench to
+		// the format the containment rule arrived at and leaves one already
+		// past it alone, so a fixture planted at the current format comes
+		// through the migration still declaring it.
+		if opened.Format < ContainerFormat {
+			t.Errorf("%s declares format %d after the migration, wanted at least %d", name, opened.Format, ContainerFormat)
 		}
 	}
 
@@ -484,7 +488,7 @@ func TestADuplicateIdentifierIsReportedAndNeverRepaired(t *testing.T) {
 // standing anywhere in the tree means a writer is inside a directory the
 // migration is about to move, so the migration refuses and changes nothing.
 func TestAMigrationDeclinesAWorkbenchSomebodyIsHolding(t *testing.T) {
-	root := populatedBench(t, filepath.Join(t.TempDir(), UserBaseName, "d00000000001"), benchDefinition)
+	root := populatedBench(t, filepath.Join(t.TempDir(), UserBaseName, "d00000000001"), olderBenchDefinition)
 	before := contents(t, root)
 	write(t, filepath.Join(root, CardsDir, "c00000000001", LockName), "{\"holder\":\"alka\"}\n")
 
@@ -545,9 +549,12 @@ func TestTheStorageFormatMovedAndAnOlderWorkbenchStillOpens(t *testing.T) {
 	if StorageFormat != 6 {
 		t.Errorf("StorageFormat is %d, wanted 6", StorageFormat)
 	}
-	older := strings.Replace(benchDefinition, "profile: dinah-core/0.7", "profile: dinah-core/0.9", 1)
+	older := strings.Replace(olderBenchDefinition, "profile: dinah-core/0.7", "profile: dinah-core/0.9", 1)
 	root := plantBench(t, filepath.Join(t.TempDir(), "workbench"), older)
-	opened, err := Open(root)
+	// The uncontained opener, because the containment rule does not govern a
+	// workbench at this format and the note migration's gate does not stop
+	// the readers that serve a store on its way to a format.
+	opened, err := OpenUncontained(root)
 	if err != nil {
 		t.Fatalf("a format 1 workbench declaring dinah-core/0.9 should still open bare, got %v", err)
 	}
@@ -630,7 +637,7 @@ func TestALiftStoppedPartWayFinishesIntoTheSameDirectory(t *testing.T) {
 // because a failure reporting only where the workbench used to be sends a
 // reader looking for it there.
 func TestAMigrationThatMovedAndThenFailedAnswersWithWhereItWent(t *testing.T) {
-	unsupported := strings.Replace(benchDefinition, "format: 1", "format: 99", 1)
+	unsupported := strings.Replace(benchDefinition, "format: 6", "format: 99", 1)
 	root := populatedBench(t, filepath.Join(t.TempDir(), "myproject"), unsupported)
 
 	moved, err := MigrateContainer(root)
@@ -657,10 +664,10 @@ func TestAMigrationThatMovedAndThenFailedAnswersWithWhereItWent(t *testing.T) {
 // duplicate however alike they look.
 func TestTwoCopiesOfALegacyWorkbenchShareOneIdentifier(t *testing.T) {
 	tree := t.TempDir()
-	first := populatedBench(t, filepath.Join(tree, "one", UserBaseName, "d00000000001"), benchDefinition)
-	second := populatedBench(t, filepath.Join(tree, "two", UserBaseName, "d00000000001"), benchDefinition)
-	populatedBench(t, filepath.Join(tree, "three", UserBaseName, "notes"), benchDefinition)
-	populatedBench(t, filepath.Join(tree, "four", UserBaseName, "notes"), benchDefinition)
+	first := populatedBench(t, filepath.Join(tree, "one", UserBaseName, "d00000000001"), olderBenchDefinition)
+	second := populatedBench(t, filepath.Join(tree, "two", UserBaseName, "d00000000001"), olderBenchDefinition)
+	populatedBench(t, filepath.Join(tree, "three", UserBaseName, "notes"), olderBenchDefinition)
+	populatedBench(t, filepath.Join(tree, "four", UserBaseName, "notes"), olderBenchDefinition)
 
 	candidates, _, err := ScanContainers(tree)
 	if err != nil {
@@ -698,7 +705,7 @@ func TestTwoCopiesOfALegacyWorkbenchShareOneIdentifier(t *testing.T) {
 // TestALiftStoppedPartWayFinishesIntoTheSameDirectory already covers.
 func TestALiftStoppedBeforeTheStampIsFinishedByTheNextRun(t *testing.T) {
 	tree := t.TempDir()
-	root := populatedBench(t, filepath.Join(tree, "myproject"), benchDefinition)
+	root := populatedBench(t, filepath.Join(tree, "myproject"), olderBenchDefinition)
 	write(t, filepath.Join(root, "README.md"), "the project's own file\n")
 	before := contents(t, root)
 
@@ -732,7 +739,7 @@ func TestALiftStoppedBeforeTheStampIsFinishedByTheNextRun(t *testing.T) {
 		t.Fatalf("the stopped run left %v in the container, wanted the one directory it filled", ids)
 	}
 	landed := filepath.Join(container, ids[0])
-	stopped, err := Open(landed)
+	stopped, err := openFixtureAtAnyFormat(t, landed)
 	if err != nil {
 		t.Fatalf("the workbench the stopped run left behind will not open: %v", err)
 	}
@@ -744,7 +751,7 @@ func TestALiftStoppedBeforeTheStampIsFinishedByTheNextRun(t *testing.T) {
 	if moved[landed] != landed {
 		t.Errorf("the sweep answered %q for the interrupted workbench, wanted the directory it already sits in at %s", moved[landed], landed)
 	}
-	finished, err := Open(landed)
+	finished, err := openFixtureAtAnyFormat(t, landed)
 	if err != nil {
 		t.Fatalf("open after the sweep: %v", err)
 	}
@@ -774,7 +781,7 @@ func TestALiftStoppedBeforeTheStampIsFinishedByTheNextRun(t *testing.T) {
 // since he named the workbench himself. The lock's own path is what says which
 // card is held and what has to be released, and the check already has it.
 func TestALockRefusalNamesTheEntityThatIsHeld(t *testing.T) {
-	root := populatedBench(t, filepath.Join(t.TempDir(), UserBaseName, "d00000000001"), benchDefinition)
+	root := populatedBench(t, filepath.Join(t.TempDir(), UserBaseName, "d00000000001"), olderBenchDefinition)
 	card := filepath.Join(root, CardsDir, "c00000000001")
 	write(t, filepath.Join(card, LockName), "{\"holder\":\"alka\"}\n")
 
@@ -812,7 +819,7 @@ func TestALockRefusalNamesTheEntityThatIsHeld(t *testing.T) {
 // which is the only workbench this arm has work to do on: contained under a
 // minted name and still declaring the format the rule replaced.
 func TestTheStampDeclinesAContainedWorkbenchSomebodyIsHolding(t *testing.T) {
-	root := populatedBench(t, containedPath(t.TempDir()), benchDefinition)
+	root := populatedBench(t, containedPath(t.TempDir()), olderBenchDefinition)
 	before := contents(t, root)
 	card := filepath.Join(root, CardsDir, "c00000000001")
 	write(t, filepath.Join(card, LockName), "{\"holder\":\"alka\"}\n")
@@ -831,7 +838,7 @@ func TestTheStampDeclinesAContainedWorkbenchSomebodyIsHolding(t *testing.T) {
 	after := contents(t, root)
 	delete(after, filepath.Join(CardsDir, "c00000000001", LockName))
 	sameContents(t, "the held workbench", before, after)
-	opened, err := Open(root)
+	opened, err := openFixtureAtAnyFormat(t, root)
 	if err != nil {
 		t.Fatalf("open after the refusal: %v", err)
 	}
@@ -856,7 +863,7 @@ func TestTheStampDeclinesAContainedWorkbenchSomebodyIsHolding(t *testing.T) {
 // is going to be written to it.
 func TestAContainedWorkbenchThisBuildCannotOpenIsLeftAlone(t *testing.T) {
 	beyond := ProfileName + "/" + strconv.Itoa(ProfileMajor+99) + ".0"
-	definition := strings.Replace(benchDefinition, "format: 1", "format: "+strconv.Itoa(ContainerFormat), 1)
+	definition := strings.Replace(benchDefinition, "format: 6", "format: "+strconv.Itoa(ContainerFormat), 1)
 	definition = strings.Replace(definition, "profile: dinah-core/0.7", "profile: "+beyond, 1)
 	root := populatedBench(t, containedPath(t.TempDir()), definition)
 	_, opening := Open(root)

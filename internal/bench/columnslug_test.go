@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -591,9 +592,9 @@ func readColumnAnchorText(t *testing.T, root string) string {
 // can be driven over.
 func newTwoColumnFixture(t *testing.T, profile, first, second string) string {
 	t.Helper()
-	root := t.TempDir()
+	root := containedPath(t.TempDir())
 	fm := NewFrontmatter()
-	fm.Set("format", "1")
+	fm.Set("format", strconv.Itoa(StorageFormat))
 	fm.Set("profile", profile)
 	fm.Set("title", "Fixture")
 	fm.Set("slug", "fx")

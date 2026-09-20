@@ -139,7 +139,7 @@ func TestResolveCardReadsTheRegistry(t *testing.T) {
 // lookup correctly.
 func TestMigrateNumbersBuildsTheRegistry(t *testing.T) {
 	root := buildOldFormatFixture(t)
-	opened, err := Open(root)
+	opened, err := openFixtureAtAnyFormat(t, root)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -231,7 +231,7 @@ func TestMigrateNumbersIsDeterministicAndIdempotent(t *testing.T) {
 	first := buildOldFormatFixture(t)
 	second := buildOldFormatFixture(t)
 	for _, root := range []string{first, second} {
-		opened, err := Open(root)
+		opened, err := openFixtureAtAnyFormat(t, root)
 		if err != nil {
 			t.Fatalf("open %s: %v", root, err)
 		}
@@ -244,7 +244,7 @@ func TestMigrateNumbersIsDeterministicAndIdempotent(t *testing.T) {
 			mustRead(t, filepath.Join(first, CardNumbersName)), mustRead(t, filepath.Join(second, CardNumbersName)))
 	}
 
-	opened, err := Open(first)
+	opened, err := openFixtureAtAnyFormat(t, first)
 	if err != nil {
 		t.Fatalf("reopen the migrated workbench: %v", err)
 	}

@@ -5634,6 +5634,11 @@
       "text": "पदनामित टिप्पणी {comment} मिटा दी गई",
       "context": "The reason a forced deletion composes for the reopen it performs, recorded in the journal. {comment} is the deleted comment's reference, which is the only part of it that survives.",
       "source": "6d2b35dacadadefe"
+    },
+    "param.set.expect-digest.summary": {
+      "text": "वह डाइजेस्ट जो आपने इस टिप्पणी पर अंतिम बार दर्ज देखा था; यदि उसके बाद किसी ने टिप्पणी लिखी है तो लेखन अस्वीकार होगा",
+      "context": "The meaning of the expect-digest argument of `dinah set`, printed in that command's arguments table. It is for a caller that had the comment open while its author typed: an editor writes the file on save, so the body the write would otherwise be compared against is gone, and the digest on the header is what is left to compare.",
+      "source": "4d5ad6d096694a02"
     }
   }
 }

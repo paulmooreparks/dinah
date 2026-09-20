@@ -281,7 +281,7 @@ func TestCheckPassesOverCardsCarryingNoNumber(t *testing.T) {
 	write(t, archivedCollides, numberedCard("7"))
 	write(t, filepath.Join(root, ArchiveDir, CardsDir, "c00000000004", CardAnchor), numberlessCard)
 
-	opened, err := Open(root)
+	opened, err := openFixtureAtAnyFormat(t, root)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}

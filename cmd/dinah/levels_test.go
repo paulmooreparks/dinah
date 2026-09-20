@@ -543,31 +543,38 @@ func handWrite(t *testing.T, root, ref, line string) {
 // workbench's vocabulary, because the argument publishes the union over every
 // kind rather than anything one workbench declares, so that row and every
 // other line read the same wherever the command is run.
-const ratifiedSetHelp = `set <ref> <field> [value|-] [--at <column>] [--note <text>] [--yes]
+const ratifiedSetHelp = `set <ref> <field> [value|-] [--at <column>] [--note <text>]
+  [--expect-digest <digest>] [--yes]
 
 Write one field of any entity of this workbench
 
 What you may write:
-  As you write it  What it is
-  ---------------  -------------------------------------------------------------
-  <ref>            the entity you are writing, written as its reference (one of:
-                   this workbench, written as ` + "`" + `workbench` + "`" + ` or ` + "`" + `.` + "`" + `; a workstream,
-                   written as ` + "`" + `workstream/<slug>` + "`" + `; a column; a card; something
-                   below a card)
-  <field>          which field you are writing; which names are legal depends on
-                   the kind the reference resolves to (one of: body, capacity,
-                   column, description, filename, hold, instructions, kind,
-                   notes, operator, owner, priority, resolution, severity, slug,
-                   state, status, text, tier, title)
-  [value|-]        what to store in it; write a single dash to read it from
-                   standard input, and leave it out to clear a field that may be
-                   cleared
-  [--at <column>]  the column a tier write applies to, instead of the card's own
-                   baseline; a card's tier is the one field that takes it (one
-                   of: intake, done)
-  [--note <text>]  the note the verb behind a ` + "`" + `state` + "`" + ` write records; ` + "`" + `state` + "`" + ` is
-                   the one field that takes it
-  [--yes]          confirm the act, which Dinah does not carry out without it
+  As you write it             What it is
+  --------------------------  --------------------------------------------------
+  <ref>                       the entity you are writing, written as its
+                              reference (one of: this workbench, written as
+                              ` + "`" + `workbench` + "`" + ` or ` + "`" + `.` + "`" + `; a workstream, written as
+                              ` + "`" + `workstream/<slug>` + "`" + `; a column; a card; something
+                              below a card)
+  <field>                     which field you are writing; which names are legal
+                              depends on the kind the reference resolves to (one
+                              of: body, capacity, column, description, filename,
+                              hold, instructions, kind, notes, operator, owner,
+                              priority, resolution, severity, slug, state,
+                              status, text, tier, title)
+  [value|-]                   what to store in it; write a single dash to read
+                              it from standard input, and leave it out to clear
+                              a field that may be cleared
+  [--at <column>]             the column a tier write applies to, instead of the
+                              card's own baseline; a card's tier is the one
+                              field that takes it (one of: intake, done)
+  [--note <text>]             the note the verb behind a ` + "`" + `state` + "`" + ` write records;
+                              ` + "`" + `state` + "`" + ` is the one field that takes it
+  [--expect-digest <digest>]  the digest you last saw recorded on this comment,
+                              which refuses the write if anything has written
+                              the comment since
+  [--yes]                     confirm the act, which Dinah does not carry out
+                              without it
 
 What can go wrong, in the order each is checked:
   Order  What can go wrong                               Refusal
@@ -620,7 +627,7 @@ func TestTheSetHelpPageIsTheBlockTheOperatorApproved(t *testing.T) {
 	// nothing about the words themselves.
 	flat := flattenWords(got.out)
 	for _, phrase := range []string{
-		"set <ref> <field> [value|-] [--at <column>] [--note <text>] [--yes]",
+		"set <ref> <field> [value|-] [--at <column>] [--note <text>] [--expect-digest <digest>] [--yes]",
 		"<ref>",
 		"<field>",
 		"[value|-]",

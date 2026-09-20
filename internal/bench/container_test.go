@@ -2,6 +2,7 @@ package bench
 
 import (
 	"encoding/hex"
+	"errors"
 	"os"
 	"path/filepath"
 	"sort"
@@ -15,7 +16,17 @@ import (
 // containment rule arrived at. The cases below need both: the older one to
 // show that a workbench predating the rule still opens where it always did,
 // and this one to show that a workbench declaring the rule is held to it.
-var currentBenchDefinition = strings.Replace(benchDefinition, "format: 1", "format: 2", 1)
+var currentBenchDefinition = benchDefinition
+
+// olderBenchDefinition is the fixture at the format that predates the
+// containment rule, which the two cases below are about.
+//
+// It is derived here rather than being what benchDefinition declares, because
+// the shared fixture moved to the current format at dinah-525: the note
+// migration's gate refuses every store below it, so a fixture about anything
+// other than an old format has to declare the current one or be refused
+// before its own subject is reached.
+var olderBenchDefinition = strings.Replace(benchDefinition, "format: 6", "format: 1", 1)
 
 // plantBench writes one workbench, anchor and single column, at the directory
 // it is given, and answers that directory. The definition decides which
@@ -126,11 +137,18 @@ func TestTheTwoIdentifierPredicatesAreDisjoint(t *testing.T) {
 // that refused every bare workbench rather than only the ones declaring the
 // new format fails here rather than passing quietly.
 func TestAContainedWorkbenchIsTheOnlyOneTheRuleAdmits(t *testing.T) {
-	older := plantBench(t, filepath.Join(t.TempDir(), "workbench"), benchDefinition)
-	if _, err := Open(older); err != nil {
-		t.Fatalf("a bare workbench declaring the older format should open as it always did, got %v", err)
+	// The containment rule does not fire on a workbench declaring the older
+	// format, and that is still what these two arms assert. What changed at
+	// dinah-525 is that such a workbench is refused by a different gate
+	// first: the note migration's, which refuses every store below the
+	// current format. So the assertion is on which refusal arrives, and a
+	// build that refused every bare workbench on containment fails it
+	// exactly as it did before.
+	older := plantBench(t, filepath.Join(t.TempDir(), "workbench"), olderBenchDefinition)
+	if _, err := Open(older); !refusedWith(err, contract.StoreAwaitingMigration) {
+		t.Fatalf("a bare workbench declaring the older format should meet the migration gate rather than the containment rule, got %v", err)
 	}
-	none := strings.Replace(benchDefinition, "format: 1\n", "", 1)
+	none := strings.Replace(olderBenchDefinition, "format: 1\n", "", 1)
 	silent := plantBench(t, filepath.Join(t.TempDir(), "workbench"), none)
 	if _, err := Open(silent); err != nil {
 		t.Fatalf("a bare workbench declaring no format at all should open, got %v", err)
@@ -264,10 +282,17 @@ func TestSoleBenchStillFindsBothWidths(t *testing.T) {
 	if got := describe(wide); got.ID != filepath.Base(wide) {
 		t.Errorf("the migrated workbench reports the identifier %q, wanted its own directory name %q", got.ID, filepath.Base(wide))
 	}
-	for _, where := range []string{legacy, wide} {
-		if _, err := Open(where); err != nil {
-			t.Errorf("%s should open by its own path, got %v", where, err)
-		}
+	// Each opens by its own path, through the opener its own state calls
+	// for. The migrated one is a workbench where the rule says a workbench
+	// lives, so Open reads it. The one the migration has not reached sits
+	// under a name Dinah never minted, which is the state the container
+	// repair acts on, and OpenUncontained is the reader of a
+	// workbench-shaped directory the containment rule does not govern.
+	if _, err := Open(wide); err != nil {
+		t.Errorf("%s should open by its own path, got %v", wide, err)
+	}
+	if _, err := OpenUncontained(legacy); err != nil {
+		t.Errorf("%s should open by its own path, got %v", legacy, err)
 	}
 }
 
@@ -468,4 +493,12 @@ func TestTheContainerSweepNamesEachShape(t *testing.T) {
 			t.Errorf("%s was classified %s, wanted %s", candidate.Path, candidate.Shape, want[candidate.Path])
 		}
 	}
+}
+
+// refusedWith reports whether an error is the named refusal, which is what a
+// test asserting which gate answered has to ask rather than asking only that
+// something refused.
+func refusedWith(err error, name string) bool {
+	refusal := &contract.Refusal{}
+	return errors.As(err, &refusal) && refusal.Name == name
 }

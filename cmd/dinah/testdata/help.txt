@@ -88,7 +88,8 @@ WORKBENCH
   get <ref> <field>                         Read one field of any entity of this
                                               workbench
   set <ref> <field> [value|-]               Write one field of any entity of
-    [--at <column>] [--note <text>] [--yes]   this workbench
+    [--at <column>] [--note <text>]           this workbench
+    [--expect-digest <digest>] [--yes]
   config [get|set] [key] [value]            List your user settings, or read or
                                               write one
   check [--finish] [--migrate-ordinals]     Look for structural defects in this

@@ -258,7 +258,7 @@ var damageShapes = []struct {
 	// The fence opened and never closed, which is the likeliest way a hand
 	// edit leaves the file: the opening delimiter survives and the closing
 	// one is eaten.
-	{"unterminated fence", "---\nformat: 1\nprofile: dinah-core/0.7\ntitle: Fixture\n"},
+	{"unterminated fence", "---\nformat: 6\nprofile: dinah-core/0.7\ntitle: Fixture\n"},
 	// Both fences present and a real header extracted, carrying none of
 	// profile, format or columns. A hand edit that removed a stray format
 	// line and took its neighbours with it leaves exactly this.

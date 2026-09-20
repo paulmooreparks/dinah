@@ -244,8 +244,42 @@ func (l *Library) Comment(req *Request) *Response {
 		return l.FromError(req, err)
 	}
 	response := l.ok(req, entity.Card)
-	response.Detail = comment.ID
+	response.Detail = l.commentRefOf(entity, comment)
 	return response
+}
+
+// commentRefOf composes what a person types to reach a comment that was just
+// written, which is what the answer carries back.
+//
+// A reference rather than the identifier, because the identifier of a comment
+// does not resolve: a comment is reached through the thing it hangs below, so
+// `dinah path <12-hex>` answers unknown-card and every caller that took the
+// answer and asked a second question of it was refused. The empty creation
+// form exists so that something can open the file it just made, and it can
+// only do that if what it is handed is an address.
+//
+// The holder's own reference is the resolver's, except below a card, where
+// itemCanonicalRef composes the kind-narrowed spelling `dinah show` prints.
+// Both resolve; the second is the one a person recognises.
+//
+// A position that cannot be counted leaves the identifier standing. It is not
+// an address, but it names the entity that was made, and answering nothing at
+// all would be worse.
+func (l *Library) commentRefOf(entity *bench.EntityRef, comment *bench.Comment) string {
+	holder := entity.Ref
+	if entity.Kind == bench.KindItem && entity.Card != nil {
+		if named, err := l.itemCanonicalRef(entity.Card, entity.ID); err == nil {
+			holder = named
+		}
+	}
+	if holder == "" {
+		return comment.ID
+	}
+	ordinal, err := memberPosition(comment.Dir, bench.CommentAnchor)
+	if err != nil || ordinal == 0 {
+		return comment.ID
+	}
+	return commentRef(holder, ordinal)
 }
 
 // Attach records a file against the bench, a column, a card or a comment. The
@@ -1260,19 +1294,25 @@ func (l *Library) RecordCommentEdit(req *Request) *Response {
 	if err != nil {
 		return l.FromError(req, err)
 	}
+	// Whether this author changed anything is asked first, and a no ends the
+	// run whatever the header says. The spec's first bullet is unconditional:
+	// an unchanged body does nothing and journals nothing. Asking about a
+	// divergence ahead of it made `dinah edit` on a diverged comment answer a
+	// refusal for an edit that never happened, which told the reader nothing
+	// they could act on and nothing dinah check would not have told them.
 	stored := fm.Value(bench.CommentDigestField)
-	if stored != "" && stored == bench.CommentDigest(body) {
+	standing := bench.CommentDigest(body)
+	if standing == req.PriorDigest || (stored != "" && stored == standing) {
 		response := l.ok(req, entity.Card)
 		response.Detail = entity.ID
 		return response
 	}
+	// The body did change under this author's hand, so there is an edit to
+	// attribute. A comment that was already diverged when edit opened it is
+	// where that attribution would be wrong, because this author's change
+	// cannot be told from the one already standing in the file.
 	if stored != "" && stored != req.PriorDigest {
 		return l.refuse(req, entity.Card, contract.CommentBodyDiverged, entity.Ref)
-	}
-	if req.PriorDigest == bench.CommentDigest(body) {
-		response := l.ok(req, entity.Card)
-		response.Detail = entity.ID
-		return response
 	}
 	if err := bench.WriteCommentAnchor(entity.Dir, fm, body); err != nil {
 		return l.FromError(req, err)

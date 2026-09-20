@@ -7243,7 +7243,7 @@ func TestEveryHelpSpellingReachesTheSamePage(t *testing.T) {
 func TestTheFlagSetsTheParserAcceptsAreDerivedFromTheParameterTable(t *testing.T) {
 	wantValued := []string{
 		"actor", "at", "before", "capacity", "card", "column", "depth",
-		"description", "expires", "fields", "format", "from", "group-by", "kind",
+		"description", "expect-digest", "expires", "fields", "format", "from", "group-by", "kind",
 		"lang", "map", "max-depth", "note", "observed", "operator", "owner",
 		"poll-seconds", "priority", "query", "remint", "root", "severity",
 		"since", "slug", "text", "tier", "workbench",

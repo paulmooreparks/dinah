@@ -97,7 +97,7 @@ function manifestKeys(): Set<string> {
 // handoff, not to guess at a new total.
 const CATALOGUE_BASE = 194;
 const CATALOGUE_REMOVED_BY_THIS_CARD = 13;
-const CATALOGUE_ADDED_BY_THIS_CARD = 6;
+const CATALOGUE_ADDED_BY_THIS_CARD = 7;
 
 test("the English runtime catalogue carries the base count and this card's additions", () => {
 	// The count is taken over `entries` rather than over the file's top level,
@@ -108,7 +108,9 @@ test("the English runtime catalogue carries the base count and this card's addit
 	// dinah-515 adds no runtime key, its four strings being manifest ones.
 	// dinah-536 then adds Questions, Criteria and Decisions, and dinah-525
 	// deletes dinah-506's draft apparatus with the twelve keys it rendered
-	// and the label for the note an item's answer stopped being.
+	// and the label for the note an item's answer stopped being, and adds the
+	// one the second review cycle needed for a comment already diverged when
+	// a session opens it.
 	assert.equal(
 		runtimeKeys().size,
 		CATALOGUE_BASE - CATALOGUE_REMOVED_BY_THIS_CARD + CATALOGUE_ADDED_BY_THIS_CARD,

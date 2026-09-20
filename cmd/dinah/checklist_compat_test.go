@@ -1,15 +1,61 @@
 package main
 
 import (
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 
 	"dinah/internal/bench"
 	"dinah/internal/bench/compattest"
 )
+
+// migrateNotesBinary is the note migration, built once for this file.
+//
+// It is a program of its own rather than a flag on check, per the operator's
+// rule of 2026-09-15, so the only way to run it is to run it. One `go build`
+// is the whole cost, shared across every fixture below.
+var migrateNotesBinary = sync.OnceValues(func() (string, error) {
+	dir, err := os.MkdirTemp("", "dinah-migrate-notes-")
+	if err != nil {
+		return "", err
+	}
+	name := "dinah-migrate-notes"
+	if os.PathSeparator == '\\' {
+		name += ".exe"
+	}
+	path := filepath.Join(dir, name)
+	build := exec.Command("go", "build", "-o", path, "./cmd/dinah-migrate-notes")
+	build.Dir = filepath.Join("..", "..")
+	if out, err := build.CombinedOutput(); err != nil {
+		return "", fmt.Errorf("build the note migration: %v\n%s", err, out)
+	}
+	return path, nil
+})
+
+// migrateNotes carries one staged fixture across the note migration, which is
+// the last of the chain an older store walks before anything can read it.
+//
+// --unattributed is passed because a historical fixture's journal records no
+// settling for the notes its items carry, and the run refuses rather than
+// inventing an actor. That refusal is the migration's own case and is asserted
+// in cmd/dinah-migrate-notes; what this file needs is a store on the other
+// side of it.
+func migrateNotes(t *testing.T, root string) {
+	t.Helper()
+	binary, err := migrateNotesBinary()
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	run := exec.Command(binary, root, "--apply", "--unattributed")
+	if out, err := run.CombinedOutput(); err != nil {
+		t.Fatalf("the note migration on %s: %v\n%s", root, err, out)
+	}
+}
 
 // itemKindsFiled are the three kinds this case files on every fixture, in the
 // order the format declares them.
@@ -73,6 +119,14 @@ func TestFilingAnItemOnEveryHistoricalFixtureWritesOneShape(t *testing.T) {
 			runCLI(t, root, "--workbench", root, "check", "--migrate-container", "--yes")
 			opened := benchDir(t, root)
 			runCLI(t, opened, "--workbench", opened, "check", "--migrate-vocabulary", "--yes")
+			// Then the number registry and the notes, which is the rest of
+			// the chain. The note migration refuses a store whose numbers
+			// still live in card frontmatter, because stamping the current
+			// format over one would silence the refusal that protects those
+			// numbers, and since dinah-525 nothing reads a store below the
+			// current format at all.
+			runCLI(t, opened, "--workbench", opened, "check", "--migrate-numbers", "--yes")
+			migrateNotes(t, opened)
 			got := shapeOfFiledItems(t, opened)
 			for kind, keys := range fresh {
 				carried, filed := got[kind]

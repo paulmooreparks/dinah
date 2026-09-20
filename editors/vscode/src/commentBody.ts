@@ -15,12 +15,23 @@
 //
 // Two things this module still decides, and they are the whole of it.
 //
-// The body is written through the verb, not by the editor. The digest a
-// comment's anchor carries is recomputed by every verb that writes it, and a
-// body the editor put there leaves the digest where it was, which `dinah check`
-// then reports as a divergence. Saving through `dinah set <comment> body`
-// records the new digest, journals the write and attributes it, which is the
-// whole of what the record is for.
+// The body is written through the verb, and the save is a compare-and-swap on
+// the digest rather than on the body. An editor writes the file when its
+// author saves, so by the time a save handler runs the body has already
+// changed and a verb comparing the body against the digest refuses the
+// author's own edit; the first shape of this module did exactly that and
+// refused every save. What survives the editor's write is the front matter, so
+// what this module remembers when it opens a comment is the digest the anchor
+// records, and what it hands the verb on save is that remembered value as the
+// digest it expects to still find there. Unmoved, and the change on disk is
+// this session's own, so the verb takes the body as it stands, re-stamps and
+// journals. Moved, and somebody wrote the comment through a verb while the
+// author was typing, so the save is refused rather than overwriting work the
+// author never saw.
+//
+// This does not weaken the divergence refusal. A hand edit made outside a
+// session this module opened has no remembered digest to match, so it meets
+// the verb's own body comparison exactly as before.
 //
 // What is sent is the body alone. The tab holds the anchor file, which is the
 // front matter and the prose below it, and the front matter is the tool's to
@@ -75,6 +86,14 @@ export function splitAnchorBody(text: string): string {
 /** What the comment commands ask the window for. */
 export interface CommentBodyHost {
 	readonly t: Localizer;
+	/**
+	 * The file's text, or undefined where it cannot be read. Reading is what
+	 * tells a session which digest the anchor records when it opens a
+	 * comment, and an unreadable file answers undefined rather than throwing,
+	 * because the one question asked of it is what the header says and "it
+	 * does not say" is an answer the caller handles.
+	 */
+	readonly readFile: (path: string) => Promise<string | undefined>;
 	readonly openDocument: (path: string) => Promise<void>;
 	readonly showError: (message: string) => void;
 	readonly showInfo: (message: string) => void;
@@ -91,6 +110,44 @@ export interface OpenComment {
 	readonly folder: string;
 	/** The comment's own reference, which the write names. */
 	readonly ref: string;
+	/**
+	 * The digest the anchor recorded when this session opened the comment,
+	 * which the save hands back as the value it expects to still find there.
+	 *
+	 * It is read out of the header rather than computed from the body, and
+	 * the difference is the whole mechanism: the body is gone by the time a
+	 * save handler runs, and the header is not.
+	 */
+	readonly digest: string;
+}
+
+/**
+ * The digest an anchor's front matter records, or the empty string where it
+ * records none.
+ *
+ * Read with a line scan rather than by parsing the block, because one key is
+ * wanted out of a header whose other keys this module has no business
+ * knowing, and a comment written before the digest existed carries none at
+ * all. An empty answer is a fact rather than a failure: it says the comment
+ * has never been written by a verb that stamps one, and a save then falls to
+ * the verb's own body comparison.
+ */
+export function recordedDigest(text: string): string {
+	const newline = text.includes("\r\n") ? "\r\n" : "\n";
+	const opening = FENCE + newline;
+	if (!text.startsWith(opening)) {
+		return "";
+	}
+	const closing = newline + FENCE + newline;
+	const end = text.indexOf(closing, opening.length - newline.length);
+	const header = end < 0 ? text : text.slice(opening.length, end + newline.length);
+	for (const line of header.split(newline)) {
+		const [key, ...rest] = line.split(":");
+		if (key.trim() === "digest") {
+			return rest.join(":").trim();
+		}
+	}
+	return "";
 }
 
 /**
@@ -179,7 +236,13 @@ export async function composeComment(
 		host.showError(host.t("comment.composeNoPath", { ref }));
 		return;
 	}
-	opened.set(path, { root: target.root, folder: target.folder, ref });
+	// The comment was minted a moment ago, so the digest on its header is the
+	// one over an empty body and reading the file is the honest way to learn
+	// it rather than composing it here. host.readFile answers undefined for a
+	// file it cannot read, which leaves the session with no remembered digest
+	// and the save falling to the verb's own body comparison.
+	const digest = recordedDigest((await host.readFile(path)) ?? "");
+	opened.set(path, { root: target.root, folder: target.folder, ref, digest });
 	await host.openDocument(path);
 	host.showInfo(host.t("comment.composed", { ref, path }));
 }
@@ -199,6 +262,36 @@ export function noteOpenComment(
 	standing: OpenComment,
 ): void {
 	opened.set(path, standing);
+}
+
+/**
+ * Opens an existing comment's file and remembers the digest its anchor
+ * records, so that saving the tab reaches the verb the same way a comment
+ * composed here does.
+ *
+ * A comment already diverged when the session opens is not adopted. Its
+ * remembered digest would match the header, so the compare-and-swap would
+ * pass and the save would write over somebody's hand edit and re-stamp it,
+ * which is the silent absorption the divergence refusal exists to prevent.
+ * The file is still opened, because restoring the body by hand is the remedy
+ * the format names first and the author needs the file to do it; what is
+ * withheld is the session, so a save leaves the editor's bytes where they are
+ * and dinah check goes on reporting them.
+ */
+export async function openExistingComment(
+	host: CommentBodyHost,
+	opened: OpenComments,
+	path: string,
+	standing: Omit<OpenComment, "digest">,
+): Promise<void> {
+	const text = (await host.readFile(path)) ?? "";
+	const digest = recordedDigest(text);
+	if (digest !== "" && digest !== (await digestOf(splitAnchorBody(text)))) {
+		host.showError(host.t("comment.divergedOnOpen", { ref: standing.ref }));
+	} else {
+		opened.set(path, { ...standing, digest });
+	}
+	await host.openDocument(path);
 }
 
 /** Forgets a comment file, which is what closing its tab comes to. */
@@ -240,6 +333,37 @@ export async function saveCommentBody(
 		root: standing.root,
 		ref: standing.ref,
 	};
-	const written = await runVerb(context, ["set", standing.ref, "body", "-"], body);
-	return written.kind === "ok";
+	const argv = ["set", standing.ref, "body", "-"];
+	if (standing.digest !== "") {
+		argv.push("--expect-digest", standing.digest);
+	}
+	const written = await runVerb(context, argv, body);
+	if (written.kind !== "ok") {
+		return false;
+	}
+	// The verb re-stamped the digest, so the value this session remembers has
+	// to move with it or the next save of the same tab would hand the verb a
+	// digest that is one edit stale and be refused. The new value is computed
+	// rather than read back, because the verb hashes the body it was given
+	// and that is the body in hand.
+	opened.set(path, { ...standing, digest: await digestOf(body) });
+	return true;
+}
+
+/**
+ * The digest of one body, computed the way the tool computes it: a
+ * hex-encoded SHA-256 over the bytes, through the platform's own subtle
+ * crypto.
+ *
+ * It is computed rather than read back off the file because the answer is
+ * wanted before anybody would read the file again, and because a read would
+ * be a second source of truth for a value the verb has just derived from the
+ * bytes this function is given.
+ */
+async function digestOf(body: string): Promise<string> {
+	const bytes = new TextEncoder().encode(body);
+	const sum = await crypto.subtle.digest("SHA-256", bytes);
+	return [...new Uint8Array(sum)]
+		.map((byte) => byte.toString(16).padStart(2, "0"))
+		.join("");
 }

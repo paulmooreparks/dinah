@@ -13,7 +13,7 @@ import (
 // is where every loop_limit below is declared, so a departure to the first
 // column is regressive and a departure to the third is not.
 const loopBenchDefinition = `---
-format: 1
+format: 6
 profile: dinah-core/0.7
 title: Fixture
 slug: fx
@@ -43,7 +43,7 @@ Framing.
 // appends exactly the history it is about.
 func loopFixture(t *testing.T, middleExtra string) string {
 	t.Helper()
-	root := t.TempDir()
+	root := containedPath(t.TempDir())
 	write(t, filepath.Join(root, WorkbenchAnchor), loopBenchDefinition)
 	write(t, filepath.Join(root, ColumnsDir, "b00000000001", ColumnAnchor),
 		"---\ntitle: Editing\nslug: editing\nkind: work\n---\nEditing text.\n")

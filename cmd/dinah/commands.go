@@ -145,6 +145,7 @@ func (s *session) request(name string, parsed *arguments) *verb.Request {
 		Override:          parsed.has("override"),
 		Replace:           parsed.has("replace"),
 		Confirm:           parsed.has("yes"),
+		ExpectedDigest:    parsed.value("expect-digest"),
 		Force:             parsed.has("force"),
 		ReadyOnly:         parsed.has("ready"),
 		Finish:            parsed.has("finish"),
@@ -1562,6 +1563,7 @@ func runCheck(s *session, parsed *arguments) int {
 		return runMigrateContainer(s, parsed, walk)
 	}
 	req := s.request("check", parsed)
+	s.diagnostic = true
 	return s.withBench(func(l *verb.Library) int {
 		report, err := l.Check(req)
 		if err != nil {

@@ -1088,10 +1088,39 @@ where it is, so the words survive and only the claim that they settle anything
 goes.
 
 The `resolution` key replaced a free-text `note` key at storage format 6. A
-workbench declaring less than that has not been carried across the change, and
-a reader refuses it as `dinah.store-awaiting-migration` rather than opening it,
-because a reader that carried on would report every settled item on the store
-as carrying no answer, which is a false reading rather than a degraded one. Kinds are a closed set of three
+workbench declaring anything below that has not been carried across the change,
+and a reader refuses it as `dinah.store-awaiting-migration` rather than opening
+it, because a reader that carried on would report every settled item on the
+store as carrying no answer, which is a false reading rather than a degraded
+one. Every format below, not the one below: the formats a store passes through
+on the way here are not a queue a reader may join part-way.
+
+Three readers are not ordinary reads and do not meet that refusal, because a
+gate that refused them would refuse the way out of itself. The note migration
+reads such a store because that state is its whole subject. `dinah check` reads
+it because it is the diagnostic an operator meeting the refusal runs next, and
+because the repairs that carry a store up to this format are reached through
+it. And the reader of a workbench-shaped directory the containment rule does
+not govern reads it, because the container migration is one of those repairs.
+
+One consequence of the refusal is worth naming. The containment rule binds from
+format 2 and leaves a store below it alone, and no store below format 6 opens
+through an ordinary read any more, so that lower branch of the containment rule
+is now reached only by a store declaring no format key at all. So is the
+card-number registry's own refusal, which a store declaring no format key still
+meets. An operator carries such a store forward with the repairs, which read it
+without going through the ordinary opener.
+
+The order those repairs run in is the operator's to follow, and the note
+migration enforces the one step it cannot be run without. A store below the
+format the card-number registry arrived at keeps its numbers in card
+frontmatter, and filing a card there is refused precisely because the registry
+is what a filing would allocate from; stamping such a store to format 6 would
+silence that refusal and let the next filing hand out a number a card already
+answers to. So the migration refuses it and names `dinah check
+--migrate-numbers` instead. The migrations below that one are cosmetic by
+comparison, a branch heading a finding reports and a journal actor a tolerant
+reader parses, and the note migration does not hold a store back for them. Kinds are a closed set of three
 (acceptance_criterion, open_question, decision) and states a closed set
 (pending, resolved, verified, failed), closed because method text travels
 between boards and "file it with owner operator" must mean the same thing
@@ -1385,6 +1414,24 @@ accept-divergence <comment>`, which takes no text: it re-stamps the digest from
 the body as it stands and journals that a divergence was accepted and by whom.
 Ratifying and writing mean different things, so they are two acts and the
 journal records them as two.
+
+A caller that had the comment open while its author typed asks a different
+question, and `--expect-digest` is how it asks. An editor writes the file when
+its author saves, so by the time such a caller can act the body it would have
+been compared against is gone; what survives is the front matter. So the write
+becomes a compare-and-swap on the digest key: the caller hands back the value
+it last saw recorded, and the write goes ahead where that value is still
+there and is refused where it has moved, because a digest that moved means
+somebody wrote the comment through a verb while the author was typing and the
+author is about to overwrite work they never saw. This costs the divergence
+refusal nothing. A hand edit made outside such a session has no recorded
+digest to hand back, so it meets the body comparison exactly as before.
+
+A write storing the body a comment already carries is not a write of nothing
+on this one kind. Every other field takes the no-op there; a comment's record
+is its body and its digest together, so a write whose body matches and whose
+digest does not still has the digest to record, which is precisely the state an
+editor's save leaves behind.
 
 Deleting a comment a checklist item designates is refused, naming that item,
 because an item's answer of record cannot be destroyed while it is still the

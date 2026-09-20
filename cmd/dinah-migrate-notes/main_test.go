@@ -547,3 +547,51 @@ func TestTheRunStampsTheFormatLast(t *testing.T) {
 		t.Errorf("the migrated store declares format %d, wanted %d", opened.Format, bench.ResolutionFormat)
 	}
 }
+
+// TestTheRunRefusesAStoreWhoseNumbersAreStillInFrontmatter asserts the one
+// migration ahead of this one that this one cannot be run without.
+//
+// Stamping the current format says every migration below it has run, and for
+// most of them that claim is cosmetic: a branch heading left in a body is a
+// finding check reports, and a journal carrying string actors is read by a
+// tolerant unmarshaller. The card-number registry is not cosmetic. A store
+// below the format it arrived at keeps its numbers in card frontmatter, and
+// Add refuses to file there precisely because the registry is what it would
+// allocate from; carrying such a store to this format would silence that
+// refusal and let the next filing hand out a number a card already answers to.
+func TestTheRunRefusesAStoreWhoseNumbersAreStillInFrontmatter(t *testing.T) {
+	root, cardDir := plantStore(t,
+		plantedItem{id: "e00000000001", kind: "acceptance_criterion", state: "verified", ordinal: 1,
+			note: "the endpoint answers 404", text: "The endpoint returns 404 for an unknown id."},
+	)
+	plantJournal(t, cardDir, settledLine("item_verified", "e00000000001", "ana", "2026-08-02T10:00:00Z"))
+	// A store whose numbers still live in card frontmatter, which is every
+	// store below the format the registry arrived at.
+	anchor := filepath.Join(root, bench.WorkbenchAnchor)
+	text, err := bench.ReadText(anchor)
+	if err != nil {
+		t.Fatalf("read the workbench anchor: %v", err)
+	}
+	fm, body := bench.ParseAnchor(text)
+	fm.Set("format", itoa(bench.RegistryFormat-1))
+	if err := bench.WriteText(anchor, fm.Render(body)); err != nil {
+		t.Fatalf("write the workbench anchor: %v", err)
+	}
+
+	code, out, errw := runProgram(t, root, "--apply")
+	if code != exitUnusable {
+		t.Fatalf("the run exited %d, wanted %d\n%s\n%s", code, exitUnusable, out, errw)
+	}
+	if !strings.Contains(errw, "--migrate-numbers") {
+		t.Errorf("the refusal does not name the repair that comes first:\n%s", errw)
+	}
+	// And nothing was written, so a store refused here is exactly where it
+	// was.
+	fm, _ = itemAnchor(t, cardDir, "e00000000001")
+	if got := fm.Value(bench.ItemNoteRetiredField); got != "the endpoint answers 404" {
+		t.Errorf("the refused run rewrote the item, whose note now reads %q", got)
+	}
+	if comments := itemComments(t, cardDir, "e00000000001"); len(comments) != 0 {
+		t.Errorf("the refused run wrote %d comments", len(comments))
+	}
+}
