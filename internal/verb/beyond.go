@@ -485,7 +485,7 @@ func (l *Library) Delete(req *Request) *Response {
 	// answer standing, which is the state the refusal above protects. The
 	// other order would unsettle an item whose answer is still on disk.
 	if designator != nil {
-		if refused := l.reopenForDeletion(req, designator, entity); refused != nil {
+		if refused := l.reopenForDeletion(req, designator); refused != nil {
 			return refused
 		}
 	}
@@ -512,7 +512,7 @@ func (l *Library) Delete(req *Request) *Response {
 // operator's alone, on the terms closeItem already refuses a terminal verb
 // there. A force that did not respect that would be a way to unsettle an
 // operator's ruling without being the operator.
-func (l *Library) admitCommentDeletion(req *Request, entity *bench.EntityRef) (*bench.EntityRef, *Response) {
+func (l *Library) admitCommentDeletion(req *Request, entity *bench.EntityRef) (*designatedBy, *Response) {
 	if entity.Kind != bench.KindComment || entity.Card == nil {
 		return nil, nil
 	}
@@ -533,7 +533,29 @@ func (l *Library) admitCommentDeletion(req *Request, entity *bench.EntityRef) (*
 	if item.Owner == bench.ItemOwnerOperator && req.Actor != l.Bench.Operator {
 		return nil, l.refuse(req, entity.Card, contract.NotOperator, req.Actor)
 	}
-	return &bench.EntityRef{Kind: bench.KindItem, ID: item.ID, Dir: holder, Ref: item.Resolution, Card: entity.Card}, nil
+	// The reference is composed rather than taken from the item's own
+	// identifier, because Reopen resolves what it is handed and a bare
+	// identifier resolves to nothing.
+	named, err := l.itemCanonicalRef(entity.Card, item.ID)
+	if err != nil {
+		return nil, l.FromError(req, err)
+	}
+	return &designatedBy{item: named, designation: item.Resolution}, nil
+}
+
+// designatedBy is the item a comment being deleted is the answer of record
+// for, and the reference that item carries for it.
+//
+// The designation is kept beside the item rather than recomposed, because it
+// is the canonical spelling the settling stored and it is the only part of the
+// deleted comment that survives the act. A reference the resolver happened to
+// answer with would reach the same comment and read as a different address.
+type designatedBy struct {
+	// item is the reference Reopen is handed, which resolves.
+	item string
+	// designation is the comment's canonical reference, which the composed
+	// reason names.
+	designation string
 }
 
 // reopenForDeletion runs the reopen a forced deletion is, composing the reason
@@ -548,12 +570,12 @@ func (l *Library) admitCommentDeletion(req *Request, entity *bench.EntityRef) (*
 // is the fact worth keeping either way. That reference is the only part of the deleted comment
 // that survives, and it is prose in a prose field, so nothing has to tell two
 // kinds of value apart.
-func (l *Library) reopenForDeletion(req *Request, designator *bench.EntityRef, comment *bench.EntityRef) *Response {
+func (l *Library) reopenForDeletion(req *Request, designator *designatedBy) *Response {
 	routed := *req
-	routed.Ref = designator.ID
+	routed.Ref = designator.item
 	routed.Reason = req.Reason
 	if strings.TrimSpace(routed.Reason) == "" {
-		routed.Reason = comment.Ref
+		routed.Reason = designator.designation
 	}
 	response := l.Reopen(&routed)
 	if response.Outcome != contract.OutcomeOK {

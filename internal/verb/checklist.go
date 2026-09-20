@@ -465,31 +465,43 @@ func sameDir(a, b string) bool {
 // reference a settling stores is the one dinah show prints for that comment
 // rather than a second spelling arrived at independently.
 func (l *Library) designationRef(entity *itemTarget, commentDir string) (string, error) {
-	items, err := bench.Items(entity.card.Dir)
+	holder, err := l.itemCanonicalRef(entity.card, entity.item.ID)
 	if err != nil {
 		return "", err
-	}
-	cardRef := entity.card.Ref(l.Bench.Slug)
-	kindPosition := map[string]int{}
-	holder := ""
-	for _, item := range items {
-		kindPosition[item.Kind]++
-		if item.ID != entity.item.ID {
-			continue
-		}
-		position, err := memberPosition(item.Dir, bench.ItemAnchor)
-		if err != nil {
-			return "", err
-		}
-		holder = itemRef(cardRef, item.Kind, kindPosition[item.Kind], position)
-		break
-	}
-	if holder == "" {
-		return "", contract.Refuse(contract.UnknownPath, entity.ref)
 	}
 	ordinal, err := memberPosition(commentDir, bench.CommentAnchor)
 	if err != nil {
 		return "", err
 	}
 	return commentRef(holder, ordinal), nil
+}
+
+// itemCanonicalRef composes the reference a person types to reach one item of
+// one card: the card's own reference, the item's kind word and its position
+// among the items of that kind.
+//
+// Two callers need it and each needs it for a reference that has to resolve
+// rather than merely read well. A settling stores it as the designation, and a
+// forced deletion hands it to Reopen, which resolves what it is given; an
+// item's bare identifier does not resolve, so handing that over is how the
+// forced form came back unknown-card.
+func (l *Library) itemCanonicalRef(card *bench.Card, itemID string) (string, error) {
+	items, err := bench.Items(card.Dir)
+	if err != nil {
+		return "", err
+	}
+	cardRef := card.Ref(l.Bench.Slug)
+	kindPosition := map[string]int{}
+	for _, item := range items {
+		kindPosition[item.Kind]++
+		if item.ID != itemID {
+			continue
+		}
+		position, err := memberPosition(item.Dir, bench.ItemAnchor)
+		if err != nil {
+			return "", err
+		}
+		return itemRef(cardRef, item.Kind, kindPosition[item.Kind], position), nil
+	}
+	return "", contract.Refuse(contract.UnknownPath, itemID)
 }

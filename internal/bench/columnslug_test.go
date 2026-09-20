@@ -644,7 +644,7 @@ func TestTheSlugRefusalCarriesTheWorkbenchItWasRaisedOver(t *testing.T) {
 		return SlugMandatoryMajor, 0, nil
 	}
 
-	_, err := openWithVocabulary(root, currentVocabulary, mandating, false)
+	_, err := openWithVocabulary(root, currentVocabulary, mandating, false, true)
 	var refusal *contract.Refusal
 	if !errors.As(err, &refusal) {
 		t.Fatalf("a column carrying an unacceptable slug at the mandating major should refuse, got %v", err)
@@ -678,7 +678,7 @@ func TestTheAbsentSlugRefusalCarriesTheColumnItWasRaisedOver(t *testing.T) {
 		return SlugMandatoryMajor, 0, nil
 	}
 
-	_, err := openWithVocabulary(root, currentVocabulary, mandating, false)
+	_, err := openWithVocabulary(root, currentVocabulary, mandating, false, true)
 	var refusal *contract.Refusal
 	if !errors.As(err, &refusal) {
 		t.Fatalf("a column carrying no slug at the mandating major should refuse, got %v", err)
