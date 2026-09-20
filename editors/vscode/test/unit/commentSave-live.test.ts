@@ -245,7 +245,7 @@ test("an edit made in the editor is written through the verb and re-stamped", as
 	const again = "The author typed this, and then more.\n";
 	writeFileSync(path, anchor(path) + again, "utf8");
 	assert.equal(
-		await saveCommentBody(window, nodeSpawner, root.binary, opened, path, anchor(path)),
+		await saveCommentBody(window, fixtureSpawner(root), root.binary, opened, path, anchor(path)),
 		true,
 		`the second save of the same tab was refused: ${log.errors.join("\n")}`,
 	);
