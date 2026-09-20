@@ -1295,10 +1295,12 @@ var Shapes = []Shape{
 	},
 	{
 		// The detail is the reference as the caller typed it, which is the
-		// spelling they can compare against. The kind rides as a value
-		// where the reference resolved to something that is not a comment.
+		// spelling they can compare against, and it is the whole of what
+		// the sentence needs: every way of failing this check comes out the
+		// same for the reader, which is that the reference they typed is
+		// not a comment of the item they are settling. The next step names
+		// both routes to one that is.
 		Name:      NotADesignation,
-		Values:    []string{"kind", "item"},
 		Fragments: []Fragment{{Key: "refusal.dinah.not-a-designation.next"}},
 		NextStep:  []string{"refusal.dinah.not-a-designation.next"},
 	},

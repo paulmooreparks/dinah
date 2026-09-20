@@ -682,14 +682,10 @@ func (l *Library) admitResolutionValue(req *Request, entity *bench.EntityRef, va
 		return l.refuse(req, entity.Card, contract.NotADesignation, value)
 	}
 	if found.Kind != bench.KindComment {
-		return l.refuseWith(req, entity.Card, contract.NotADesignation, value, map[string]string{
-			"kind": found.Kind,
-		})
+		return l.refuse(req, entity.Card, contract.NotADesignation, value)
 	}
 	if !sameDir(filepath.Dir(filepath.Dir(found.Dir)), entity.Dir) {
-		return l.refuseWith(req, entity.Card, contract.NotADesignation, value, map[string]string{
-			"item": entity.Ref,
-		})
+		return l.refuse(req, entity.Card, contract.NotADesignation, value)
 	}
 	return nil
 }

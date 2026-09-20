@@ -17,7 +17,7 @@ import (
 // each one.
 const tieredDefinition = `---
 format: 6
-profile: dinah-core/0.17
+profile: dinah-core/0.18
 title: Fixture
 slug: fx
 operator: alka

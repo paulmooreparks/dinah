@@ -80,6 +80,7 @@ var tools = []tool{
 	{name: "archive", command: "archive", run: func(l *verb.Library, r *verb.Request) any { return l.Archive(r) }},
 	{name: "restore", command: "restore", run: func(l *verb.Library, r *verb.Request) any { return l.Restore(r) }},
 	{name: "delete", command: "delete", run: func(l *verb.Library, r *verb.Request) any { return l.Delete(r) }},
+	{name: "accept_divergence", command: "accept-divergence", run: func(l *verb.Library, r *verb.Request) any { return l.AcceptDivergence(r) }},
 	{name: "rename", command: "rename", run: func(l *verb.Library, r *verb.Request) any { return l.Rename(r) }},
 	{name: "status", command: "status", run: readStatus},
 	{name: "list", command: "list", run: readList},

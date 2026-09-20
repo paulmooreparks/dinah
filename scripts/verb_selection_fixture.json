@@ -1,47 +1,177 @@
 {
   "system": "You are an agent working a Dinah workbench through its MCP head. You are given one statement describing what you have decided to do next. Choose exactly one tool that performs it and call that tool. Do not explain, do not ask, and do not call more than one tool.",
   "scenarios": [
-    {"tool": "claim", "statement": "I have decided to work wb-12, which stands unclaimed in the working column, and I want it recorded as mine before I start."},
-    {"tool": "move", "statement": "I have finished the work on wb-12, and the card should now stand in the Code Review column instead of where it is."},
-    {"tool": "release", "statement": "I am stopping work on wb-12, and I want to hand it back to the queue so that it stands unclaimed again."},
-    {"tool": "block", "statement": "wb-12 cannot go on until the operator answers a question, and I want that obstruction recorded on the card with its reason."},
-    {"tool": "raise", "statement": "I took wb-12 up and the work turns out to need a more capable agent than I am, so I want the tier this column requires of it put up and the card handed back."},
-    {"tool": "unblock", "statement": "The obstruction on wb-12 has been cleared, so the card should stop being marked as obstructed."},
-    {"tool": "join_workstream", "statement": "wb-12 belongs to the portfolio workstream, and I want the card added to that workstream's membership."},
-    {"tool": "leave_workstream", "statement": "wb-12 no longer belongs to the portfolio workstream, and I want the card taken out of that workstream's membership."},
-    {"tool": "add_card", "statement": "I want a new card created in the intake column, titled 'The importer drops trailing commas'."},
-    {"tool": "comment", "statement": "I want to leave a handoff note on wb-12 saying what I shipped, without changing anything else about the card."},
-    {"tool": "attach", "statement": "I want the file at C:/reports/profile.txt fastened to wb-12 so the next reader of the card has the bytes."},
-    {"tool": "link_card", "statement": "wb-12 covers the same ground as wb-4, and I want that written down on wb-12 so anybody reading it sees the other card."},
-    {"tool": "unlink_card", "statement": "The note on wb-12 saying it duplicates wb-4 turned out to be wrong, and I want that note taken off wb-12."},
-    {"tool": "archive", "statement": "wb-12 is finished with and should be put out of the way in the archive, where it can still be found later."},
-    {"tool": "restore", "statement": "wb-12 was archived last week and now has to stand in the live set again, exactly where it was."},
-    {"tool": "delete", "statement": "wb-12 was created by mistake and should be destroyed outright rather than kept anywhere."},
-    {"tool": "rename", "statement": "The file fastened to wb-12 carries the wrong filename, and I want that attachment given a different name."},
-    {"tool": "status", "statement": "I want to know where this workbench stands and which cards I am holding myself right now."},
-    {"tool": "list", "statement": "I want to see the cards standing in the working column, listed one by one."},
-    {"tool": "next_card", "statement": "I want to know which single card I should take up next from the working column, without taking it."},
-    {"tool": "pull", "statement": "Take the next card from upstream of the working column and claim it for me in one act."},
-    {"tool": "query", "statement": "I want the cards matching the expression owner = alka and priority = now."},
-    {"tool": "search_cards", "statement": "I want every card whose text carries the phrase 'trailing commas', wherever in the card those words appear."},
-    {"tool": "tree", "statement": "I want the whole workbench drawn as a tree, grouped by column, so that I can see its shape at a glance."},
-    {"tool": "show", "statement": "I want to read wb-12 in full: its title, its body, its comments, and its links, as one view."},
-    {"tool": "changes", "statement": "I want everything on this workbench that has changed since the cursor my last call handed back to me."},
-    {"tool": "instructions", "statement": "I want the standing instructions that apply to wb-12 where it stands, so that I know what this position expects of me."},
-    {"tool": "whoami", "statement": "I want to know which name this server acts under and which workbench it falls back to."},
-    {"tool": "get_field", "statement": "I want to read one named field of wb-12, its priority, rather than the whole card."},
-    {"tool": "set_field", "statement": "I want to rewrite the body of the first comment on wb-12, replacing its text with a corrected paragraph."},
-    {"tool": "workbench", "statement": "I want the workbench's own title, slug and operator listed together, which are properties of the workbench rather than of any card."},
-    {"tool": "workstream", "statement": "I want a new workstream created, called 'Portfolio work'."},
-    {"tool": "new_column", "statement": "I want a new column added to this workbench, titled 'Awaiting review', standing before the Done column."},
-    {"tool": "version", "statement": "I want to know which release of Dinah this server is running."},
-    {"tool": "export", "statement": "I want the whole workbench written out in one machine-readable payload I can carry elsewhere."},
-    {"tool": "check", "statement": "I want this workbench inspected for defects, and to be told what is wrong with its store."},
-    {"tool": "file_item", "statement": "The spec for wb-12 settles an acceptance criterion, and I want that criterion recorded on the card as a checklist item nobody has judged yet."},
-    {"tool": "cite_item", "statement": "The first acceptance criterion on wb-12 is satisfied by a Go test I just wrote, and I want that test recorded against the criterion as evidence."},
-    {"tool": "resolve_item", "statement": "The operator has answered the first open question on wb-12, and I want the answer recorded against it so the question stops standing open."},
-    {"tool": "verify_item", "statement": "I have checked the first acceptance criterion on wb-12 and it holds, so I want it recorded as met."},
-    {"tool": "fail_item", "statement": "I have checked the first acceptance criterion on wb-12 and it does not hold, so I want it recorded as not met."},
-    {"tool": "reopen_item", "statement": "The first acceptance criterion on wb-12 was recorded as met against a fixture that predates the fix, so it should stand unjudged again."}
+    {
+      "tool": "claim",
+      "statement": "I have decided to work wb-12, which stands unclaimed in the working column, and I want it recorded as mine before I start."
+    },
+    {
+      "tool": "move",
+      "statement": "I have finished the work on wb-12, and the card should now stand in the Code Review column instead of where it is."
+    },
+    {
+      "tool": "release",
+      "statement": "I am stopping work on wb-12, and I want to hand it back to the queue so that it stands unclaimed again."
+    },
+    {
+      "tool": "block",
+      "statement": "wb-12 cannot go on until the operator answers a question, and I want that obstruction recorded on the card with its reason."
+    },
+    {
+      "tool": "raise",
+      "statement": "I took wb-12 up and the work turns out to need a more capable agent than I am, so I want the tier this column requires of it put up and the card handed back."
+    },
+    {
+      "tool": "unblock",
+      "statement": "The obstruction on wb-12 has been cleared, so the card should stop being marked as obstructed."
+    },
+    {
+      "tool": "join_workstream",
+      "statement": "wb-12 belongs to the portfolio workstream, and I want the card added to that workstream's membership."
+    },
+    {
+      "tool": "leave_workstream",
+      "statement": "wb-12 no longer belongs to the portfolio workstream, and I want the card taken out of that workstream's membership."
+    },
+    {
+      "tool": "add_card",
+      "statement": "I want a new card created in the intake column, titled 'The importer drops trailing commas'."
+    },
+    {
+      "tool": "comment",
+      "statement": "I want to leave a handoff note on wb-12 saying what I shipped, without changing anything else about the card."
+    },
+    {
+      "tool": "attach",
+      "statement": "I want the file at C:/reports/profile.txt fastened to wb-12 so the next reader of the card has the bytes."
+    },
+    {
+      "tool": "link_card",
+      "statement": "wb-12 covers the same ground as wb-4, and I want that written down on wb-12 so anybody reading it sees the other card."
+    },
+    {
+      "tool": "unlink_card",
+      "statement": "The note on wb-12 saying it duplicates wb-4 turned out to be wrong, and I want that note taken off wb-12."
+    },
+    {
+      "tool": "archive",
+      "statement": "wb-12 is finished with and should be put out of the way in the archive, where it can still be found later."
+    },
+    {
+      "tool": "restore",
+      "statement": "wb-12 was archived last week and now has to stand in the live set again, exactly where it was."
+    },
+    {
+      "tool": "delete",
+      "statement": "wb-12 was created by mistake and should be destroyed outright rather than kept anywhere."
+    },
+    {
+      "tool": "accept_divergence",
+      "statement": "Somebody edited the text of comment wb-12/comments/3 in an editor rather than through Dinah, and the words they left there are the ones that should stand."
+    },
+    {
+      "tool": "rename",
+      "statement": "The file fastened to wb-12 carries the wrong filename, and I want that attachment given a different name."
+    },
+    {
+      "tool": "status",
+      "statement": "I want to know where this workbench stands and which cards I am holding myself right now."
+    },
+    {
+      "tool": "list",
+      "statement": "I want to see the cards standing in the working column, listed one by one."
+    },
+    {
+      "tool": "next_card",
+      "statement": "I want to know which single card I should take up next from the working column, without taking it."
+    },
+    {
+      "tool": "pull",
+      "statement": "Take the next card from upstream of the working column and claim it for me in one act."
+    },
+    {
+      "tool": "query",
+      "statement": "I want the cards matching the expression owner = alka and priority = now."
+    },
+    {
+      "tool": "search_cards",
+      "statement": "I want every card whose text carries the phrase 'trailing commas', wherever in the card those words appear."
+    },
+    {
+      "tool": "tree",
+      "statement": "I want the whole workbench drawn as a tree, grouped by column, so that I can see its shape at a glance."
+    },
+    {
+      "tool": "show",
+      "statement": "I want to read wb-12 in full: its title, its body, its comments, and its links, as one view."
+    },
+    {
+      "tool": "changes",
+      "statement": "I want everything on this workbench that has changed since the cursor my last call handed back to me."
+    },
+    {
+      "tool": "instructions",
+      "statement": "I want the standing instructions that apply to wb-12 where it stands, so that I know what this position expects of me."
+    },
+    {
+      "tool": "whoami",
+      "statement": "I want to know which name this server acts under and which workbench it falls back to."
+    },
+    {
+      "tool": "get_field",
+      "statement": "I want to read one named field of wb-12, its priority, rather than the whole card."
+    },
+    {
+      "tool": "set_field",
+      "statement": "I want to rewrite the body of the first comment on wb-12, replacing its text with a corrected paragraph."
+    },
+    {
+      "tool": "workbench",
+      "statement": "I want the workbench's own title, slug and operator listed together, which are properties of the workbench rather than of any card."
+    },
+    {
+      "tool": "workstream",
+      "statement": "I want a new workstream created, called 'Portfolio work'."
+    },
+    {
+      "tool": "new_column",
+      "statement": "I want a new column added to this workbench, titled 'Awaiting review', standing before the Done column."
+    },
+    {
+      "tool": "version",
+      "statement": "I want to know which release of Dinah this server is running."
+    },
+    {
+      "tool": "export",
+      "statement": "I want the whole workbench written out in one machine-readable payload I can carry elsewhere."
+    },
+    {
+      "tool": "check",
+      "statement": "I want this workbench inspected for defects, and to be told what is wrong with its store."
+    },
+    {
+      "tool": "file_item",
+      "statement": "The spec for wb-12 settles an acceptance criterion, and I want that criterion recorded on the card as a checklist item nobody has judged yet."
+    },
+    {
+      "tool": "cite_item",
+      "statement": "The first acceptance criterion on wb-12 is satisfied by a Go test I just wrote, and I want that test recorded against the criterion as evidence."
+    },
+    {
+      "tool": "resolve_item",
+      "statement": "The operator has answered the first open question on wb-12, and I want the answer recorded against it so the question stops standing open."
+    },
+    {
+      "tool": "verify_item",
+      "statement": "I have checked the first acceptance criterion on wb-12 and it holds, so I want it recorded as met."
+    },
+    {
+      "tool": "fail_item",
+      "statement": "I have checked the first acceptance criterion on wb-12 and it does not hold, so I want it recorded as not met."
+    },
+    {
+      "tool": "reopen_item",
+      "statement": "The first acceptance criterion on wb-12 was recorded as met against a fixture that predates the fix, so it should stand unjudged again."
+    }
   ]
 }

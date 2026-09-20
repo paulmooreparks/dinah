@@ -898,6 +898,12 @@ func assignValue(req *verb.Request, name, field, value string) {
 	// field, since the reference grammar that resolves it is the same one.
 	case "item":
 		req.Ref = value
+	// accept-divergence names its target "comment" rather than "ref",
+	// because it ratifies a comment and nothing else, and the sentence
+	// beside the argument says so. It lands on the same field for the same
+	// reason "item" does.
+	case "comment":
+		req.Ref = value
 	case "scheme":
 		req.Scheme = value
 	case "target":
@@ -911,6 +917,12 @@ func assignValue(req *verb.Request, name, field, value string) {
 	case "observed":
 		req.Observed = value
 	case "note":
+		req.Note = value
+	// The three terminal checklist verbs name their answer "designation"
+	// rather than "note", because what it carries is a reference to a
+	// comment of the item rather than prose. It lands on the same field the
+	// note landed on, which is the slot those verbs read their answer from.
+	case "designation":
 		req.Note = value
 	case "owner":
 		req.Owner = value
@@ -991,6 +1003,8 @@ func assignMarker(req *verb.Request, name string, value bool) {
 		req.Replace = value
 	case "yes":
 		req.Confirm = value
+	case "force":
+		req.Force = value
 	case "ready":
 		req.ReadyOnly = value
 	case "unresolved":

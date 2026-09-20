@@ -44,8 +44,19 @@ func CommentDigest(body string) string {
 // one header key rewrites the body's bytes on the way past and can normalise a
 // trailing newline; a digest recomputed only on a body write would then
 // disagree with a body nobody edited.
+//
+// What is hashed is the body a reader will get back rather than the body
+// handed in, and the two are not always the same string. Render settles the
+// trailing newline, WriteText normalises every carriage return on the way to
+// disk, and ParseAnchor is the door every reader comes through. So the file is
+// composed here to learn what it will hold and the digest is taken over that.
+// Hashing the caller's own bytes instead records a digest no reader can
+// reproduce, and the first thing this feature would do is report a divergence
+// nobody caused: a comment whose text carried a run of carriage returns did
+// exactly that.
 func StampCommentDigest(fm *Frontmatter, body string) {
-	fm.Set(CommentDigestField, CommentDigest(body))
+	_, stored := ParseAnchor(NormalizeNewlines(fm.Render(body)))
+	fm.Set(CommentDigestField, CommentDigest(stored))
 }
 
 // CommentDiverged reports whether a comment's stored digest disagrees with the

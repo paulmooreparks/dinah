@@ -176,8 +176,14 @@ const UndeclaredFormat = ContainerFormat
 const (
 	ProfileName  = "dinah-core"
 	ProfileMajor = 0
-	ProfileMinor = 17
+	ProfileMinor = 18
 )
+
+// The claim moved to 0.18 at dinah-525, which changed what resolve, verify and
+// fail take: the argument that was a resolution note is a reference to a
+// comment of the item being settled, and reopen's reason stays prose beside
+// it. A client that composed those calls against 0.17 composes them wrongly
+// against this build, which is what a minor bump says.
 
 // The oldest profile revision this build opens. dinah-core 0.7 renamed the
 // flow vocabulary on disk, retiring the state and substate keys for column

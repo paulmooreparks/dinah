@@ -435,14 +435,10 @@ func (l *Library) designationOf(req *Request, entity *itemTarget, named string) 
 		return "", l.refuse(req, entity.card, contract.NotADesignation, named)
 	}
 	if found.Kind != bench.KindComment {
-		return "", l.refuseWith(req, entity.card, contract.NotADesignation, named, map[string]string{
-			"kind": found.Kind,
-		})
+		return "", l.refuse(req, entity.card, contract.NotADesignation, named)
 	}
 	if !sameDir(filepath.Dir(filepath.Dir(found.Dir)), entity.dir) {
-		return "", l.refuseWith(req, entity.card, contract.NotADesignation, named, map[string]string{
-			"item": entity.ref,
-		})
+		return "", l.refuse(req, entity.card, contract.NotADesignation, named)
 	}
 	ref, err := l.designationRef(entity, found.Dir)
 	if err != nil {
