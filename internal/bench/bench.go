@@ -1601,7 +1601,20 @@ var (
 // stops a reader taking an old card's state field, holding a flow-position
 // identifier under the old vocabulary, for one of ready, active or blocked.
 func Open(root string) (*Bench, error) {
-	return openWithVocabulary(root, currentVocabulary, admitProfileAfterVocabulary, true)
+	return openWithVocabulary(root, currentVocabulary, admitProfileAfterVocabulary, true, true)
+}
+
+// OpenAwaitingResolution reads a workbench the note migration has not reached,
+// which every ordinary read refuses as dinah.store-awaiting-migration. It runs
+// every check Open runs except that one, mirroring exactly the way
+// OpenPreVocabulary skips only the vocabulary check.
+//
+// One caller reaches it, which is the note migration itself. The refusal exists
+// to stop a reader reporting every settled item on such a store as carrying no
+// answer, and the migration is the one program whose whole job is that state,
+// so it is the one program the gate must not stop.
+func OpenAwaitingResolution(root string) (*Bench, error) {
+	return openWithVocabulary(root, currentVocabulary, admitProfileAfterVocabulary, true, false)
 }
 
 // Contained reports whether a workbench directory sits where the format now
@@ -1632,7 +1645,7 @@ func Contained(root string) bool {
 // Every other caller goes through Open and is refused an uncontained workbench
 // by name.
 func OpenUncontained(root string) (*Bench, error) {
-	return openWithVocabulary(root, currentVocabulary, admitProfileAfterVocabulary, false)
+	return openWithVocabulary(root, currentVocabulary, admitProfileAfterVocabulary, false, true)
 }
 
 // OpenPreVocabulary reads a workbench still written in the vocabulary this
@@ -1641,7 +1654,7 @@ func OpenUncontained(root string) (*Bench, error) {
 // is reachable from the vocabulary migration alone: every other caller goes
 // through Open and is refused a workbench of this age by name.
 func OpenPreVocabulary(root string) (*Bench, error) {
-	return openWithVocabulary(root, preVocabulary, admitPreVocabularyProfile, true)
+	return openWithVocabulary(root, preVocabulary, admitPreVocabularyProfile, true, false)
 }
 
 // openWithVocabulary is the body both openers share. It reads and parses the
@@ -1659,7 +1672,7 @@ func OpenPreVocabulary(root string) (*Bench, error) {
 // rather than from the head, so it reaches the repair advice exactly where a
 // path does and nowhere else; see the Malformed shape in internal/contract for
 // why the head's own table is the wrong place for it.
-func openWithVocabulary(root string, vocab columnVocabulary, admit func(declared string) (int, int, error), requireContainer bool) (*Bench, error) {
+func openWithVocabulary(root string, vocab columnVocabulary, admit func(declared string) (int, int, error), requireContainer, requireResolution bool) (*Bench, error) {
 	anchor := map[string]string{"path": filepath.Join(root, WorkbenchAnchor), contract.ValueWorkbench: root}
 	text, err := ReadText(filepath.Join(root, WorkbenchAnchor))
 	if err != nil {
@@ -1710,7 +1723,7 @@ func openWithVocabulary(root string, vocab columnVocabulary, admit func(declared
 		// store awaiting an older migration meets that migration's own
 		// refusal first and an operator works the chain in the order the
 		// formats were bumped in.
-		if n >= ActorObjectFormat && n < ResolutionFormat {
+		if requireResolution && n >= ActorObjectFormat && n < ResolutionFormat {
 			return nil, contract.Refuse(contract.StoreAwaitingMigration, root)
 		}
 	}

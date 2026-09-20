@@ -1965,18 +1965,7 @@ func displayOrdinal(attachment *bench.Attachment) (int, error) {
 // count is taken here so that every read composing a reference and the
 // resolver reading one back agree by construction.
 func memberPosition(dir, anchor string) (int, error) {
-	collection := filepath.Dir(dir)
-	id := filepath.Base(dir)
-	ids, err := bench.ListIDs(collection)
-	if err != nil {
-		return 0, err
-	}
-	for n, member := range bench.SortByOrdinal(collection, anchor, ids) {
-		if member == id {
-			return n + 1, nil
-		}
-	}
-	return 0, nil
+	return bench.MemberPosition(dir, anchor)
 }
 
 // attachmentRef composes the reference a person types to reach one attachment

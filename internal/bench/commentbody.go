@@ -98,3 +98,27 @@ func WriteCommentAnchor(dir string, fm *Frontmatter, body string) error {
 	StampCommentDigest(fm, body)
 	return WriteText(filepath.Join(dir, CommentAnchor), fm.Render(body))
 }
+
+// MemberPosition is the one-based position of one member within its
+// collection, counted over the collection as the resolver counts it: every
+// identifier the directory holds, in the order SortByOrdinal puts them, with
+// nothing filtered out.
+//
+// Counting the unfiltered collection is what makes the number a reader can
+// type. A reader that skipped a member whose anchor will not open would number
+// every member after it one place low, so the reference it printed would reach
+// a different entity.
+func MemberPosition(dir, anchor string) (int, error) {
+	collection := filepath.Dir(dir)
+	id := filepath.Base(dir)
+	ids, err := ListIDs(collection)
+	if err != nil {
+		return 0, err
+	}
+	for n, member := range SortByOrdinal(collection, anchor, ids) {
+		if member == id {
+			return n + 1, nil
+		}
+	}
+	return 0, nil
+}
