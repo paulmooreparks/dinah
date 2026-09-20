@@ -83,12 +83,15 @@ func TestOneProjectionReadsEachItemOnce(t *testing.T) {
 	writeItemOfKind(t, card.Dir, "decision", "the first decision", 3)
 
 	reads := map[string]int{}
-	real := itemKindAt
-	itemKindAt = func(dir string) string {
-		reads[filepath.Base(dir)]++
-		return real(dir)
+	listings := map[string]int{}
+	h.library.Observe = func(event, target string) {
+		switch event {
+		case ObserveItemAnchor:
+			reads[filepath.Base(target)]++
+		case ObserveList:
+			listings[filepath.Base(target)]++
+		}
 	}
-	defer func() { itemKindAt = real }()
 
 	built := contentsOf(t, h, ref, LevelAll)
 	if len(reads) != 3 {
@@ -98,6 +101,13 @@ func TestOneProjectionReadsEachItemOnce(t *testing.T) {
 		if count != 1 {
 			t.Errorf("the projection read item %s %d times, and one projection reads each item once", id, count)
 		}
+	}
+	// The other half of the bound: the physical checklist is listed once, not
+	// once per branch. A grouping that resolved each narrowed collection to
+	// find its members would list it three times.
+	if listings[bench.ChecklistDir] != 1 {
+		t.Errorf("the projection listed the checklist %d times, and one projection lists it once",
+			listings[bench.ChecklistDir])
 	}
 	// The branches were still drawn, so the count above is the count of a
 	// projection that did the work rather than of one that skipped it.
@@ -213,6 +223,51 @@ func TestADepthCutBeforeAChecklistReportsItsItems(t *testing.T) {
 	if built.Root.Hidden.Children != 3 {
 		t.Errorf("the card reports %d children held back, and it holds 3 items and no branches",
 			built.Root.Hidden.Children)
+	}
+}
+
+// TestADepthCutOnAChecklistRootReportsItsItems is the same rule one rung down,
+// at the walk rooted on the collection itself.
+//
+// The card-rooted case above passes against an implementation that hands its
+// grouped branches to the accounting step, because that implementation splits
+// drawing from accounting in the one function the card's walk goes through.
+// The collection's own walk is a second place the split has to be made, and it
+// was made wrongly: a cut firing there reported three branches where four
+// items were held back, and reported the branches' subject totals rather than
+// the items'. That is the wrong implementation this case is armed against.
+func TestADepthCutOnAChecklistRootReportsItsItems(t *testing.T) {
+	h := newHarness(t)
+	ref := h.add("a card whose checklist root is cut")
+	card := h.card(ref)
+	writeItemOfKind(t, card.Dir, "open_question", "the first question", 1)
+	writeItemOfKind(t, card.Dir, "open_question", "the second question", 2)
+	writeItemOfKind(t, card.Dir, "acceptance_criterion", "the first criterion", 3)
+	writeItemOfKind(t, card.Dir, "decision", "the first decision", 4)
+	// One comment below one item, so the subject total is not the item count
+	// and an implementation reporting either number in the other's place is
+	// caught.
+	h.comment(ref+"/questions/1", "a note below the first question")
+
+	built := contentsOf(t, h, ref+"/checklist", LevelCards)
+	if built.Root.Children != nil {
+		t.Fatalf("the checklist root drew %d children at a cut", len(built.Root.Children))
+	}
+	if built.Root.Hidden == nil {
+		t.Fatal("the checklist root held its members back and reported nothing")
+	}
+	if built.Root.Hidden.Children != 4 {
+		t.Errorf("the checklist root reports %d children held back, and it holds 4 items",
+			built.Root.Hidden.Children)
+	}
+	// Subjects is what the cut-off children hold, not the children themselves,
+	// so four items carrying one comment between them account for one. The
+	// number matters here because the two are different: an implementation
+	// accounting over the branches reports the branches' own subject totals
+	// and lands on five.
+	if built.Root.Hidden.Subjects != 1 {
+		t.Errorf("the checklist root reports %d subjects held back, and its 4 items hold 1 comment between them",
+			built.Root.Hidden.Subjects)
 	}
 }
 

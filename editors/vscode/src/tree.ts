@@ -754,8 +754,15 @@ const NARROW_LABELS: Readonly<Record<string, (t: Localizer) => string>> = {
  *
  * An unknown narrow token falls through to the member kind rather than being
  * printed raw, so a kind the CLI gains before this extension knows its name
- * draws as Checklist rather than as `risk`. That is the same fallback the
- * member-kind arm already made for an unknown kind, one step in.
+ * draws as Checklist rather than as `risk`.
+ *
+ * Attachment 1 of dinah-536 said such a token would be rendered verbatim, and
+ * this is a deliberate departure from it. A raw `risk` in the tree is a token
+ * a reader cannot act on and did not ask to see, where Checklist is at least
+ * true: the row does hold checklist items. The spec's own reasoning was that
+ * this follows the existing fallback for an unknown member kind, and that
+ * fallback is still here, one step further in, for a member kind nobody has
+ * a noun for at all.
  */
 export function collectionLabel(
 	memberKind: string,
@@ -2524,14 +2531,19 @@ export class DinahTreeProvider {
 
 	/** Re-reads one folder's rows, keeping its last-known subtrees on a race. */
 	async refresh(folder: string): Promise<void> {
+		// A checkpoint is where a card's checklist stops being what this
+		// provider already knows, so every memoized answer goes, successes,
+		// empties and refusals alike. Cleared before the unknown-folder
+		// return rather than after it, so that a refresh naming a folder this
+		// provider does not hold still ends the checkpoint the memo belongs
+		// to. The clear is global on purpose: the memo is keyed by workbench
+		// root and holding one folder's entries across another's checkpoint
+		// would be a cache with two lifetimes.
+		this.checklists.clear();
 		const state = this.folders.get(folder);
 		if (state === undefined) {
 			return;
 		}
-		// A checkpoint is where a card's checklist stops being what this
-		// provider already knows, so every memoized answer goes, successes,
-		// empties and refusals alike.
-		this.checklists.clear();
 		switch (state.mode) {
 			case "single": {
 				const data = await readWorkbench(
@@ -2941,7 +2953,12 @@ export class DinahTreeProvider {
 		// members, and its reference is its identity rather than an errand:
 		// fetching against it here would ask the CLI a second structural
 		// question whose answer the first one already held.
-		if (members.length === 0 && element.ref !== undefined) {
+		// `narrow` is what tells a published branch from a workbench-root
+		// collection, rather than the member count: the CLI omits an empty
+		// branch today, but a branch that did arrive empty would otherwise
+		// fall through and ask a second structural question whose answer it
+		// is already holding.
+		if (members.length === 0 && element.narrow === undefined && element.ref !== undefined) {
 			const children = await readContents(
 				this.deps.spawner,
 				this.deps.exe,

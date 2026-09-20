@@ -16,7 +16,7 @@ import type { Localizer } from "../../src/l10n";
 import type { TreeElement } from "../../src/tree";
 import { DinahTreeProvider, collectionLabel, elementKey, treeItemFor } from "../../src/tree";
 import type { CardView, ItemView, TreeNode } from "../../src/wire";
-import { EXE, columnView, ok, refused, rootRow } from "../support/rows";
+import { EXE, ROOT, columnView, ok, refused, rootRow } from "../support/rows";
 
 const CARD = "wb-1";
 
@@ -283,6 +283,53 @@ test("an empty answer and a refusal are both remembered until the next checkpoin
 		await view.getChildren(rows[2]);
 		assert.equal(reads, 1, "a non-answer was asked for twice in one checkpoint");
 		assert.equal(detailCalls(calls).length, 1);
+	}
+});
+
+test("a refresh ends the checkpoint, so the next expansion reads again", async () => {
+	// Each of the three answers a read can end in, because the memo holds all
+	// three and a refresh has to clear all three. A cache that remembered a
+	// refusal across a refresh would leave a reader looking at rows with no
+	// text on them until they reloaded the window.
+	for (const answer of [
+		{ ok: true, views: CHECKLIST },
+		{ ok: true, views: [] as readonly ItemView[] },
+		{ ok: false },
+	]) {
+		let reads = 0;
+		const { spawner, calls } = stub(PUBLISHED, () => {
+			reads += 1;
+			return answer;
+		});
+		const view = providerOver(spawner);
+		await view.load([
+			{
+				folder: ROOT,
+				name: ROOT,
+				resolution: {
+					state: "ok",
+					root: ROOT,
+					title: "Trees",
+					source: "search",
+					profile: "dinah-core/0.17",
+					insideWorkspace: true,
+				},
+			} as never,
+		]);
+		const before = detailCalls(calls).length;
+
+		const rows = await view.getChildren(cardRow());
+		await view.getChildren(rows[1]);
+		assert.equal(detailCalls(calls).length - before, 1);
+
+		await view.refresh(ROOT);
+		await view.getChildren(rows[2]);
+		assert.equal(
+			detailCalls(calls).length - before,
+			2,
+			"the expansion after a refresh reused an answer from before it",
+		);
+		assert.equal(reads, 2);
 	}
 });
 

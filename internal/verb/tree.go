@@ -1039,15 +1039,21 @@ func (l *Library) collectionContents(collection *bench.CollectionRef, level stri
 	// checklist root is the one that groups, by the same rule the card above
 	// it applies, and the grouping runs on the members this walk has already
 	// read the kinds of.
-	drawn := children
-	if collection.Mount.Kind == bench.KindItem && collection.Narrow == "" {
+	// Drawn from the grouped children and accounted for from the entity ones,
+	// which is the same split fillContained makes one function below. A branch
+	// is no entity, so a cut firing here reports the items it held back rather
+	// than the branches that would have stood in front of them. Handing the
+	// grouped slice to placeChildren reported three branches where four items
+	// were held back, and reported their subject totals as the branches' own.
+	if rank < limit && collection.Mount.Kind == bench.KindItem && collection.Narrow == "" {
 		kinded := make([]kindedNode, 0, len(children))
 		for i, child := range children {
 			kinded = append(kinded, kindedNode{Node: child, Kind: kinds[i]})
 		}
-		drawn = groupChecklist(bench.ChecklistKinds(), kinded, cardRefOf(collection))
+		tree.Root.Children = groupChecklist(bench.ChecklistKinds(), kinded, cardRefOf(collection))
+		return tree, nil
 	}
-	placeChildren(&tree.Root, drawn, rank, limit)
+	placeChildren(&tree.Root, children, rank, limit)
 	return tree, nil
 }
 
@@ -1397,6 +1403,7 @@ func (l *Library) memberNodes(collection string, mount bench.Mount, ids []string
 	for position, id := range ids {
 		itemKind, kindPosition := "", 0
 		if mount.Kind == bench.KindItem {
+			l.observe(ObserveItemAnchor, id)
 			itemKind = itemKindAt(filepath.Join(collection, id))
 			kindSeen[itemKind]++
 			kindPosition = kindSeen[itemKind]
@@ -1415,15 +1422,30 @@ func (l *Library) memberNodes(collection string, mount bench.Mount, ids []string
 // where the anchor will not read. An unreadable anchor composes the
 // collection reference, which is what the walk printed for every item before
 // this card and which still resolves.
-// A variable rather than a plain function so that the read-bound test in this
-// package can count the reads the projection makes. Nothing outside this
-// package can reach it, and nothing in production assigns to it.
-var itemKindAt = func(dir string) string {
+func itemKindAt(dir string) string {
 	item, err := bench.LoadItem(dir)
 	if err != nil {
 		return ""
 	}
 	return item.Kind
+}
+
+// The two events Library.Observe reports, which are the two ways the
+// containment projection reaches the store.
+const (
+	// ObserveList is one collection listed, named by its path.
+	ObserveList = "list"
+	// ObserveItemAnchor is one item's anchor opened for its kind, named by
+	// the item's directory.
+	ObserveItemAnchor = "item-anchor"
+)
+
+// observe reports one read to whoever is watching, and does nothing when
+// nobody is.
+func (l *Library) observe(event, target string) {
+	if l.Observe != nil {
+		l.Observe(event, target)
+	}
 }
 
 // containmentMembersOf lists one collection's live members in the order the
@@ -1450,6 +1472,7 @@ func (l *Library) containmentMembersOf(collection string, mount bench.Mount) ([]
 		}
 		return ids, nil
 	}
+	l.observe(ObserveList, collection)
 	return bench.MemberIDs(collection, mount)
 }
 

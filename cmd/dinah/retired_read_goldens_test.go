@@ -288,6 +288,14 @@ func referenceColumn(out string, branches bool) []string {
 		if cut < 0 {
 			continue
 		}
+		// The table's header underline is a run of dashes and spaces and
+		// carries "-- " like any row, so it reaches this line. It is not a
+		// row, and it compared equal between the two sides only because the
+		// words under it happened to be the same length. A row's reference
+		// carries something that is not a dash; the underline does not.
+		if strings.Trim(line, "- ") == "" {
+			continue
+		}
 		fields := strings.Fields(line[cut+len("-- "):])
 		if len(fields) < 1 {
 			continue

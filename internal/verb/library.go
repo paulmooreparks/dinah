@@ -18,6 +18,19 @@ type Library struct {
 	// Now is the clock. It is a field so that a test can advance time past
 	// a recorded expiry without waiting for it.
 	Now func() time.Time
+	// Observe, when set, is called by the containment projection each time it
+	// reaches the store: with ObserveList and a collection's path when it
+	// lists one, and with ObserveItemAnchor and an item's directory when it
+	// opens one to read its kind.
+	//
+	// It is a field for the reason Now and Interleave are fields. The
+	// projection's read bound, one listing of a card's checklist and one
+	// read of each item in it, is a property of what it does rather than of
+	// what it answers, so no inspection of the tree establishes it. A
+	// package-level hook would do the same job and would be process-global
+	// state a test writes, which would put every case in the package that
+	// touches it out of reach of t.Parallel.
+	Observe func(event, target string)
 	// Interleave, when set, is called inside a mutation's transaction, after
 	// the entity's lock has been taken and before the work the lock covers:
 	// in a contract verb, after the card has been read and before any
