@@ -211,6 +211,30 @@ func (h *harness) item(ref, id, frontmatter, text string) string {
 	return dir
 }
 
+// plantComment writes one comment below a holder directory with an
+// identifier and an ordinal the test chooses, so a fixture can name the
+// comment a designation points at rather than discovering what the writer
+// happened to mint.
+//
+// It goes through bench.WriteCommentAnchor rather than writing the file, so
+// the planted comment carries the digest a comment written by a verb carries
+// and a check over the fixture reports nothing.
+func (h *harness) plantComment(holderDir, id string, ordinal int, author, body string) string {
+	h.t.Helper()
+	dir := filepath.Join(holderDir, bench.CommentsDir, id)
+	fm := bench.NewFrontmatter()
+	fm.Set("ts", "2026-08-01T09:00:00Z")
+	if author != "" {
+		fm.Set("author", author)
+	}
+	fm.Set(bench.OrdinalField, strconv.Itoa(ordinal))
+	if err := bench.WriteCommentAnchor(dir, fm, body); err != nil {
+		h.t.Fatalf("write the comment %s: %v", id, err)
+	}
+	h.reopen()
+	return dir
+}
+
 // do runs one contract verb and returns its response, reopening the bench
 // afterwards so the next act reads what this one wrote.
 func (h *harness) do(req *Request) *Response {

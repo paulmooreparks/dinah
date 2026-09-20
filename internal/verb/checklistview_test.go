@@ -16,14 +16,16 @@ import (
 // ordinal rather than from the position within the kind would still be
 // non-empty and would still name a different item.
 func TestShowCarriesEveryChecklistItemTheCardHolds(t *testing.T) {
+	const answer = "the operator confirmed it's Acme per the 2026-08 contract"
 	h := newHarness(t)
 	ref := h.ready("carrying a checklist")
 	h.item(ref, "b00000000001", "kind: open_question\nstate: pending\nowner: operator\nordinal: 1\n",
 		"Which vendor do we cite for the SLA numbers?")
 	h.item(ref, "b00000000002", "kind: acceptance_criterion\nstate: pending\nordinal: 2\n",
 		"The endpoint returns 404 for an unknown id.")
-	h.item(ref, "b00000000003", "kind: decision\nstate: resolved\nordinal: 3\nnote: the operator confirmed it's Acme per the 2026-08 contract\n",
+	settled := h.item(ref, "b00000000003", "kind: decision\nstate: resolved\nordinal: 3\nresolution: "+ref+"/decisions/1/comments/1\n",
 		"Whose contract the numbers come from.")
+	h.plantComment(settled, "c00000000001", 1, "alka", answer)
 
 	detail, _, _, _, err := h.library.Show(&Request{Verb: "show", Actor: "alka", Card: ref})
 	if err != nil {
@@ -41,6 +43,7 @@ func TestShowCarriesEveryChecklistItemTheCardHolds(t *testing.T) {
 		{
 			ID: "b00000000003", Ordinal: 3, Ref: ref + "/decisions/1", Kind: "decision",
 			State: "resolved", Text: "Whose contract the numbers come from.",
+			Resolution: ref + "/decisions/1/comments/1", CommentCount: 1,
 		},
 	}
 	if len(detail.Checklist) != len(wanted) {
@@ -57,11 +60,14 @@ func TestShowCarriesEveryChecklistItemTheCardHolds(t *testing.T) {
 		t.Errorf("the card's blocking count is %d, wanted 1", detail.Card.BlockingItems)
 	}
 
-	// The resolution note is the one member the unshaped read stopped
-	// carrying, so the same three items are read again in full and the note
-	// is what the second read is for. Asserting it here rather than in a
-	// file of its own keeps the index and the full form beside each other,
-	// where a reader comparing the two reads one fixture.
+	// The designated comment is the one member the unshaped read stopped
+	// carrying, so the same three items are read again in full and the
+	// comment is what the second read is for. The reference is carried by
+	// both reads, because it costs the item's own anchor and nothing
+	// further; the comment itself costs a file open and is carried by the
+	// full read alone. Asserting both here rather than in a file of their
+	// own keeps the index and the full form beside each other, where a
+	// reader comparing the two reads one fixture.
 	whole, _, _, _, err := h.library.Show(&Request{
 		Verb: "show", Actor: "alka", Card: ref, Fields: "checklist.full",
 	})
@@ -71,22 +77,35 @@ func TestShowCarriesEveryChecklistItemTheCardHolds(t *testing.T) {
 	if len(whole.Checklist) != len(wanted) {
 		t.Fatalf("wanted %d items in full, got %d", len(wanted), len(whole.Checklist))
 	}
-	const note = "the operator confirmed it's Acme per the 2026-08 contract"
-	if got := whole.Checklist[2].Note; got != note {
-		t.Errorf("checklist.full carries the note %q, wanted %q", got, note)
+	designated := whole.Checklist[2].Designated
+	if designated == nil {
+		t.Fatalf("checklist.full carried no designated comment for the settled item")
 	}
-	notes := 0
+	if designated.Body != answer {
+		t.Errorf("checklist.full carries the answer %q, wanted %q", designated.Body, answer)
+	}
+	if designated.Author != "alka" {
+		t.Errorf("the designated comment's author is %q, wanted alka", designated.Author)
+	}
+	opened := 0
 	for _, item := range whole.Checklist {
-		if item.Note != "" {
-			notes++
+		if item.Designated != nil {
+			opened++
 		}
 	}
-	if notes != 1 {
-		t.Errorf("one of the three items carries a note and checklist.full filled %d", notes)
+	if opened != 1 {
+		t.Errorf("one of the three items is settled and checklist.full opened %d comments", opened)
+	}
+	// The indexed read carried the same reference and opened nothing, which
+	// is the property the two reads part company on.
+	for _, item := range detail.Checklist {
+		if item.Designated != nil {
+			t.Errorf("the indexed read opened the designated comment of %s", item.Ref)
+		}
 	}
 	for _, name := range whole.Withheld {
 		if name == "checklist" || name == "checklist.full" {
-			t.Errorf("checklist.full announced %s, and it carried every item and every note: %v",
+			t.Errorf("checklist.full announced %s, and it carried every item and every answer: %v",
 				name, whole.Withheld)
 		}
 	}

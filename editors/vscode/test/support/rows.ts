@@ -11,7 +11,7 @@ import type { CommandHost, PickItem } from "../../src/cardCommands";
 import type { CliOutcome, SpawnOptions, SpawnOutcome, Spawner } from "../../src/cli";
 import type { ColumnCommandHost } from "../../src/columnCommands";
 import type { Wiring } from "../../src/commandTable";
-import type { DraftHost, DraftIndex } from "../../src/commentDrafts";
+import type { CommentBodyHost, OpenComments } from "../../src/commentBody";
 import { ENGLISH } from "../../src/l10n";
 import type { RootRow, TreeElement, WorkbenchData } from "../../src/tree";
 import type { CatalogBuild } from "../../src/verbCatalog";
@@ -434,106 +434,60 @@ export function spawnerLog(fallback: SpawnOutcome = ok()): SpawnerLog {
 	return state;
 }
 
-/** Everything a fake DraftHost was asked to do, in call order. */
-export interface DraftLog {
+/** Everything a fake CommentBodyHost was asked to do, in call order. */
+export interface CommentLog {
 	/** Every call, named, in the order they were made. */
 	readonly order: string[];
-	readonly ensured: string[];
-	readonly written: { path: string; text: string }[];
-	readonly read: string[];
-	readonly deleted: string[];
-	readonly saved: string[];
 	readonly opened: string[];
 	readonly errors: string[];
 	readonly infos: string[];
 	readonly lines: string[];
 	readonly checkpoints: string[];
 	readonly logged: string[];
-	readonly confirmations: { message: string; label: string }[];
-	/** The bytes on the fake disk, keyed by path. */
-	readonly disk: Map<string, string>;
-	/** The index the fake Memento holds. */
-	index: DraftIndex;
-	/** What saveDocument answers. */
-	saves: boolean;
-	/** What confirmDestructive answers. */
-	confirmed: boolean;
 }
 
-/** A fresh, empty draft log. */
-export function emptyDraftLog(): DraftLog {
+/** A fresh, empty comment log. */
+export function emptyCommentLog(): CommentLog {
 	return {
 		order: [],
-		ensured: [],
-		written: [],
-		read: [],
-		deleted: [],
-		saved: [],
 		opened: [],
 		errors: [],
 		infos: [],
 		lines: [],
 		checkpoints: [],
 		logged: [],
-		confirmations: [],
-		disk: new Map(),
-		index: {},
-		saves: true,
-		confirmed: false,
 	};
 }
 
-/** The storage root every draft fixture composes paths under. */
-export const STORAGE_ROOT = "C:/storage";
-
 /**
- * A DraftHost that records every call rather than making one.
+ * A CommentBodyHost that records every call rather than making one.
  *
- * The disk is a Map rather than a set of flags, because two of this card's
- * criteria assert that three paragraphs came back byte for byte after a second
- * Comment, and a fixture recording only that a write happened cannot answer
- * that.
+ * There is no disk here and no index. The comment is an entity in the
+ * workbench from the moment it is minted, so what a fixture has to record is
+ * which file was opened and what was said about it, and the bytes are the
+ * store's rather than this host's.
  */
-export function draftHost(log: DraftLog): DraftHost {
+export function commentHost(log: CommentLog): CommentBodyHost {
 	return {
 		t: ENGLISH,
-		storageRoot: STORAGE_ROOT,
-		ensureDirectory: async (path) => {
-			log.order.push(`ensureDirectory ${path}`);
-			log.ensured.push(path);
-		},
-		writeDraft: async (path, text) => {
-			log.order.push(`writeDraft ${path}`);
-			log.written.push({ path, text });
-			log.disk.set(path, text);
-		},
-		readDraft: async (path) => {
-			log.order.push(`readDraft ${path}`);
-			log.read.push(path);
-			return log.disk.get(path);
-		},
-		deleteDraft: async (path) => {
-			log.order.push(`deleteDraft ${path}`);
-			log.deleted.push(path);
-			log.disk.delete(path);
-		},
-		saveDocument: async (path) => {
-			log.order.push(`saveDocument ${path}`);
-			log.saved.push(path);
-			return log.saves;
+		// An anchor carrying a digest, so a session opened over this host
+		// remembers one and the save it drives takes the compare-and-swap
+		// path rather than quietly falling to the body comparison.
+		readFile: async (path) => {
+			log.order.push(`readFile ${path}`);
+			return [
+				"---",
+				"ts: 2026-08-01T09:00:00Z",
+				"author: ana",
+				"ordinal: 1",
+				"digest: abc123",
+				"---",
+				"",
+			].join("\n");
 		},
 		openDocument: async (path) => {
 			log.order.push(`openDocument ${path}`);
 			log.opened.push(path);
-		},
-		readIndex: () => log.index,
-		writeIndex: async (index) => {
-			log.order.push("writeIndex");
-			log.index = index;
-		},
-		confirmDestructive: async (message, label) => {
-			log.confirmations.push({ message, label });
-			return log.confirmed;
 		},
 		showError: (message) => {
 			log.errors.push(message);
@@ -600,8 +554,9 @@ export function wiringFor(
 	log: HostLog,
 	spawner: Spawner,
 	results: CheckResults = { applied: [] },
-	drafts: DraftLog = emptyDraftLog(),
+	comments: CommentLog = emptyCommentLog(),
 	catalogue: CatalogBuild = catalogueWithKinds(),
+	openComments: OpenComments = new Map(),
 ): Wiring {
 	return {
 		exe: EXE,
@@ -614,7 +569,8 @@ export function wiringFor(
 		applyCheckResult: async (path, label, outcome) => {
 			results.applied.push({ path, label, outcome });
 		},
-		draftHost: draftHost(drafts),
+		commentHost: commentHost(comments),
+		openComments,
 		verbCatalog: async () => catalogue,
 	};
 }

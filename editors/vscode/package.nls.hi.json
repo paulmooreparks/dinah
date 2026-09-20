@@ -53,7 +53,5 @@
 	"manifest.command.dinah.tree.failItem.title": "Dinah: मानदंड विफल करें",
 	"manifest.command.dinah.tree.reopenItem.title": "Dinah: बिंदु फिर से खोलें",
 	"manifest.command.dinah.tree.fileItem.title": "Dinah: जाँच बिंदु दर्ज करें",
-	"manifest.command.dinah.tree.openComment.title": "Dinah: टिप्पणी खोलें",
-	"manifest.command.dinah.comment.post.title": "Dinah: टिप्पणी भेजें",
-	"manifest.command.dinah.comment.discard.title": "Dinah: मसौदा हटाएँ"
+	"manifest.command.dinah.tree.openComment.title": "Dinah: टिप्पणी खोलें"
 }

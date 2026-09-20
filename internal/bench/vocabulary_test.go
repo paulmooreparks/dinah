@@ -3,6 +3,7 @@ package bench
 import (
 	"errors"
 	"path/filepath"
+	"strconv"
 	"testing"
 
 	"dinah/internal/contract"
@@ -14,9 +15,9 @@ import (
 // identifier or one with no directory behind it.
 func preVocabularyFixture(t *testing.T, title string, sequence []string, present []string) string {
 	t.Helper()
-	root := t.TempDir()
+	root := containedPath(t.TempDir())
 	fm := NewFrontmatter()
-	fm.Set("format", "1")
+	fm.Set("format", strconv.Itoa(StorageFormat))
 	fm.Set("profile", "dinah-core/0.6")
 	if title != "" {
 		fm.Set("title", title)
@@ -36,9 +37,9 @@ func preVocabularyFixture(t *testing.T, title string, sequence []string, present
 // defect rather than merely asserted on its own.
 func currentFixture(t *testing.T, title string, sequence []string, present []string) string {
 	t.Helper()
-	root := t.TempDir()
+	root := containedPath(t.TempDir())
 	fm := NewFrontmatter()
-	fm.Set("format", "1")
+	fm.Set("format", strconv.Itoa(StorageFormat))
 	fm.Set("profile", ProfileVersion)
 	if title != "" {
 		fm.Set("title", title)

@@ -92,7 +92,7 @@ func TestHeldLocksReportsARootAndAMemberItCannotRead(t *testing.T) {
 	})
 
 	t.Run("a member subtree that will not walk", func(t *testing.T) {
-		root := populatedBench(t, filepath.Join(t.TempDir(), UserBaseName, fixtureWorkbenchID), benchDefinition)
+		root := populatedBench(t, filepath.Join(t.TempDir(), UserBaseName, fixtureWorkbenchID), olderBenchDefinition)
 		calls := withFailingMemberWalk(t)
 		_, err := heldLocks(root)
 		if *calls == 0 {
@@ -104,7 +104,7 @@ func TestHeldLocksReportsARootAndAMemberItCannotRead(t *testing.T) {
 	})
 
 	t.Run("a healthy workbench holding no lock", func(t *testing.T) {
-		root := populatedBench(t, filepath.Join(t.TempDir(), UserBaseName, fixtureWorkbenchID), benchDefinition)
+		root := populatedBench(t, filepath.Join(t.TempDir(), UserBaseName, fixtureWorkbenchID), olderBenchDefinition)
 		held, err := heldLocks(root)
 		if err != nil {
 			t.Fatalf("heldLocks answered an error for a healthy workbench: %v", err)
@@ -115,7 +115,7 @@ func TestHeldLocksReportsARootAndAMemberItCannotRead(t *testing.T) {
 	})
 
 	t.Run("a healthy workbench holding one lock", func(t *testing.T) {
-		root := populatedBench(t, filepath.Join(t.TempDir(), UserBaseName, fixtureWorkbenchID), benchDefinition)
+		root := populatedBench(t, filepath.Join(t.TempDir(), UserBaseName, fixtureWorkbenchID), olderBenchDefinition)
 		lock := filepath.Join(root, CardsDir, "c00000000001", LockName)
 		write(t, lock, "{\"holder\":\"alka\"}\n")
 		held, err := heldLocks(root)
@@ -143,7 +143,7 @@ func TestHeldLocksReportsARootAndAMemberItCannotRead(t *testing.T) {
 func TestTheContainerMigrationRefusesALockStateItCannotRead(t *testing.T) {
 	t.Run("remintInPlace refuses and renames nothing", func(t *testing.T) {
 		base := t.TempDir()
-		root := populatedBench(t, filepath.Join(base, UserBaseName, fixtureWorkbenchID), benchDefinition)
+		root := populatedBench(t, filepath.Join(base, UserBaseName, fixtureWorkbenchID), olderBenchDefinition)
 		before := pathListing(t, base)
 		calls := withFailingMemberWalk(t)
 		_, err := remintInPlace(root)
@@ -161,7 +161,7 @@ func TestTheContainerMigrationRefusesALockStateItCannotRead(t *testing.T) {
 
 	t.Run("liftIntoContainer refuses and moves nothing", func(t *testing.T) {
 		base := t.TempDir()
-		root := populatedBench(t, filepath.Join(base, "project"), benchDefinition)
+		root := populatedBench(t, filepath.Join(base, "project"), olderBenchDefinition)
 		before := pathListing(t, base)
 		calls := withFailingMemberWalk(t)
 		_, err := liftIntoContainer(root)
@@ -176,7 +176,7 @@ func TestTheContainerMigrationRefusesALockStateItCannotRead(t *testing.T) {
 
 	t.Run("finishContained refuses and stamps nothing", func(t *testing.T) {
 		base := t.TempDir()
-		root := populatedBench(t, filepath.Join(base, UserBaseName, fixtureWorkbenchID), benchDefinition)
+		root := populatedBench(t, filepath.Join(base, UserBaseName, fixtureWorkbenchID), olderBenchDefinition)
 		before := pathListing(t, base)
 		anchorBefore, err := ReadText(filepath.Join(root, WorkbenchAnchor))
 		if err != nil {
@@ -202,7 +202,7 @@ func TestTheContainerMigrationRefusesALockStateItCannotRead(t *testing.T) {
 
 	t.Run("the three still act on a healthy workbench", func(t *testing.T) {
 		base := t.TempDir()
-		root := populatedBench(t, filepath.Join(base, UserBaseName, fixtureWorkbenchID), benchDefinition)
+		root := populatedBench(t, filepath.Join(base, UserBaseName, fixtureWorkbenchID), olderBenchDefinition)
 		target, err := remintInPlace(root)
 		if err != nil {
 			t.Fatalf("remintInPlace on a healthy workbench: %v", err)
@@ -217,7 +217,7 @@ func TestTheContainerMigrationRefusesALockStateItCannotRead(t *testing.T) {
 			t.Errorf("the reminted workbench at %s carries no anchor", target)
 		}
 
-		bare := populatedBench(t, filepath.Join(t.TempDir(), "project"), benchDefinition)
+		bare := populatedBench(t, filepath.Join(t.TempDir(), "project"), olderBenchDefinition)
 		lifted, err := liftIntoContainer(bare)
 		if err != nil {
 			t.Fatalf("liftIntoContainer on a healthy workbench: %v", err)
@@ -229,7 +229,7 @@ func TestTheContainerMigrationRefusesALockStateItCannotRead(t *testing.T) {
 			t.Errorf("the anchor still stands at the old path %s", bare)
 		}
 
-		stamped := populatedBench(t, filepath.Join(t.TempDir(), UserBaseName, fixtureWorkbenchID), benchDefinition)
+		stamped := populatedBench(t, filepath.Join(t.TempDir(), UserBaseName, fixtureWorkbenchID), olderBenchDefinition)
 		if err := finishContained(stamped); err != nil {
 			t.Fatalf("finishContained on a healthy workbench: %v", err)
 		}

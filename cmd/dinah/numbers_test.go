@@ -238,34 +238,37 @@ func TestRenumberRepairsTheLaterClaimant(t *testing.T) {
 // the one act that refuses is the one that would allocate, because the
 // registry a filing allocates from is the half of the format that workbench
 // has not reached.
-func TestAnUnmigratedWorkbenchReadsAndRefusesToAllocate(t *testing.T) {
+func TestAnUnmigratedWorkbenchIsRefusedAndOpensOnlyToCheck(t *testing.T) {
+	// This case used to assert that an unmigrated workbench reads and refuses
+	// only the act that would allocate a number. Since dinah-525 it reads
+	// nothing: a store below the current format is refused on every ordinary
+	// command, because reading one reports every settled item on it as
+	// carrying no answer, which is a false reading rather than a partial one.
+	//
+	// What survives, and what this case now holds, is the exemption that
+	// makes the refusal recoverable. `dinah check` opens such a store on
+	// purpose, because it is the diagnostic an operator reaches for when he
+	// meets the refusal, and the repairs it carries are how the store gets
+	// out. A build that closed that door would leave an operator with a
+	// refusal and no way to act on it.
 	_, _, workbench := preNumberRegistryFixture(t)
 
-	shown := runCLI(t, workbench, "show", "fx-1")
-	if shown.code != 0 {
-		t.Fatalf("show over a workbench below the registry's format: %d %s%s", shown.code, shown.out, shown.errw)
-	}
-	if !strings.Contains(shown.out, "fx-1") {
-		t.Errorf("show resolved the card but did not print its reference:\n%s", shown.out)
-	}
-
-	listed := runCLI(t, workbench, "list", "cards")
-	if listed.code != 0 {
-		t.Fatalf("ls over the same workbench: %d %s%s", listed.code, listed.out, listed.errw)
-	}
-	if !strings.Contains(listed.out, "fx-1") {
-		t.Errorf("ls did not print the reference it printed before the registry existed:\n%s", listed.out)
+	for _, argv := range [][]string{
+		{"show", "fx-1"},
+		{"list", "cards"},
+		{"add", "another card"},
+	} {
+		got := runCLI(t, workbench, argv...)
+		if !strings.Contains(got.errw, contract.StoreAwaitingMigration) {
+			t.Errorf("dinah %v over an unmigrated workbench does not refuse %s: %d %s%s",
+				argv, contract.StoreAwaitingMigration, got.code, got.out, got.errw)
+		}
 	}
 
-	refused := runCLI(t, workbench, "add", "another card")
-	if refused.code != contract.ExitCode(contract.OutcomeRefused) {
-		t.Fatalf("filing into a workbench below the registry's format exited %d, wanted the refusal code:\n%s%s", refused.code, refused.out, refused.errw)
-	}
-	if !strings.Contains(refused.errw, contract.NeedsNumberMigration) {
-		t.Errorf("the refusal is not %s:\n%s", contract.NeedsNumberMigration, refused.errw)
-	}
-	if !strings.Contains(refused.errw, "dinah check --migrate-numbers --yes") {
-		t.Errorf("the refusal's next step does not name the command that builds the registry:\n%s", refused.errw)
+	// The one command that opens it, which is what the refusal is worth.
+	checked := runCLI(t, workbench, "check")
+	if checked.code != 0 && strings.Contains(checked.errw, contract.StoreAwaitingMigration) {
+		t.Fatalf("check refuses the store it exists to diagnose: %d %s%s", checked.code, checked.out, checked.errw)
 	}
 }
 

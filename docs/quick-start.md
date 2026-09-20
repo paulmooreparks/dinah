@@ -91,8 +91,8 @@ The leading `$` marks a command line. Do not type it.
 ```console
 $ dinah version
 dinah 0.1.0
-conforms to dinah-core/0.17
-storage format 5
+conforms to dinah-core/0.18
+storage format 6
 [exit 0]
 ```
 
@@ -102,7 +102,7 @@ release publishes a new one. The second line names the shared rule set that buil
 other tool built to those same rules can read this workbench and reach the same
 answers about it. The third line names the format Dinah writes on disk.
 
-`dinah help` lists all fifty-one commands, in the four groups Dinah sorts
+`dinah help` lists all fifty-two commands, in the four groups Dinah sorts
 them into. Running `dinah` with no arguments at all prints the same list. So
 does whichever spelling of the help flag you already have the habit of typing,
 because Dinah answers to `--help`, `-help`, `-h`, `-?`, `--?` and `/?` alike.
@@ -338,8 +338,8 @@ transcript:
 
 ```file path=<workbench>/workbench.md
 ---
-format: 5
-profile: dinah-core/0.17
+format: 6
+profile: dinah-core/0.18
 title: Release 0.2
 slug: rel
 operator: ana
@@ -794,6 +794,7 @@ $ dinah show rel-1/comments/1
 ts: 2026-08-18T21:02:23Z
 author: ana
 ordinal: 1
+digest: 99d3d17f18a3da77eb83a6a1ba097621448bb52cd2e909b9097330a06c9ea01a
 ---
 Drafted entries for the four merged branches.
 [exit 0]
@@ -802,6 +803,7 @@ $ dinah show rel-1/comments/2
 ts: 2026-08-18T21:02:23Z
 author: ana
 ordinal: 2
+digest: efc41f1785f34fea2e53dea4313306959bdcc39bc479800edde820aadb9f6416
 ---
 Second half needs the signing certificate.
 [exit 0]
@@ -1245,20 +1247,20 @@ carries, ask:
 ```console
 $ dinah version --catalogs
 dinah 0.1.0
-conforms to dinah-core/0.17
-storage format 5
+conforms to dinah-core/0.18
+storage format 6
 
 Catalogs:
   Language  Translated
   --------  ----------
-  en        1101/1101
-  af        0/1101
-  cs        0/1101
-  de        1101/1101
-  es        0/1101
-  fil       0/1101
-  hi        1101/1101
-  id        0/1101
+  en        1125/1125
+  af        0/1125
+  cs        0/1125
+  de        1125/1125
+  es        0/1125
+  fil       0/1125
+  hi        1125/1125
+  id        0/1125
 [exit 0]
 ```
 
@@ -1435,7 +1437,7 @@ $ dinah export
     }
   ],
   "instructions": "Every card on this workbench ends with a line in the changelog.\n",
-  "profile": "dinah-core/0.17",
+  "profile": "dinah-core/0.18",
   "title": "Release 0.2"
 }
 [exit 0]

@@ -54,8 +54,8 @@ func TestTheMachineHeadAnswersACollectionAsTheTerminalDoes(t *testing.T) {
 		names = append(names, command)
 	}
 	sort.Strings(names)
-	if len(names) != 16 {
-		t.Fatalf("this head serves %d of the eighteen reference-taking commands and it serves sixteen: %s", len(names), strings.Join(names, " "))
+	if len(names) != 17 {
+		t.Fatalf("this head serves %d of the nineteen reference-taking commands and it serves seventeen: %s", len(names), strings.Join(names, " "))
 	}
 	for _, held := range []string{"path", "edit"} {
 		if _, exempt := toolExemptions[held]; !exempt {
@@ -70,22 +70,23 @@ func TestTheMachineHeadAnswersACollectionAsTheTerminalDoes(t *testing.T) {
 	// parameter list names, plus whatever else it requires to get as far as
 	// resolving that reference.
 	arguments := map[string]string{
-		"show":         `{"actor":"alka","card":"fx-1/comments"}`,
-		"comment":      `{"actor":"alka","card":"fx-1/comments","text":"a remark"}`,
-		"list":         `{"actor":"alka","ref":"fx-1/comments","depth":"all"}`,
-		"instructions": `{"actor":"alka","card":"fx-1/comments"}`,
-		"archive":      `{"actor":"alka","ref":"fx-1/comments"}`,
-		"restore":      `{"actor":"alka","ref":"fx-1/comments"}`,
-		"delete":       `{"actor":"alka","ref":"fx-1/comments","yes":true}`,
-		"rename":       `{"actor":"alka","ref":"fx-1/comments","name":"renamed.txt"}`,
-		"attach":       fmt.Sprintf(`{"actor":"alka","ref":"fx-1/comments","file":%q}`, filepath.ToSlash(source)),
-		"cite":         `{"actor":"alka","item":"fx-1/comments","scheme":"attachment","target":"1"}`,
-		"resolve":      `{"actor":"alka","item":"fx-1/comments","note":"a note"}`,
-		"verify":       `{"actor":"alka","item":"fx-1/comments","note":"a note"}`,
-		"fail":         `{"actor":"alka","item":"fx-1/comments","note":"a note"}`,
-		"reopen":       `{"actor":"alka","item":"fx-1/comments","reason":"a reason"}`,
-		"get":          `{"actor":"alka","ref":"fx-1/comments","field":"body"}`,
-		"set":          `{"actor":"alka","ref":"fx-1/comments","field":"body","value":"rewritten"}`,
+		"accept-divergence": `{"actor":"alka","comment":"fx-1/comments"}`,
+		"show":              `{"actor":"alka","card":"fx-1/comments"}`,
+		"comment":           `{"actor":"alka","card":"fx-1/comments","text":"a remark"}`,
+		"list":              `{"actor":"alka","ref":"fx-1/comments","depth":"all"}`,
+		"instructions":      `{"actor":"alka","card":"fx-1/comments"}`,
+		"archive":           `{"actor":"alka","ref":"fx-1/comments"}`,
+		"restore":           `{"actor":"alka","ref":"fx-1/comments"}`,
+		"delete":            `{"actor":"alka","ref":"fx-1/comments","yes":true}`,
+		"rename":            `{"actor":"alka","ref":"fx-1/comments","name":"renamed.txt"}`,
+		"attach":            fmt.Sprintf(`{"actor":"alka","ref":"fx-1/comments","file":%q}`, filepath.ToSlash(source)),
+		"cite":              `{"actor":"alka","item":"fx-1/comments","scheme":"attachment","target":"1"}`,
+		"resolve":           `{"actor":"alka","item":"fx-1/comments","text":"an answer"}`,
+		"verify":            `{"actor":"alka","item":"fx-1/comments","text":"an answer"}`,
+		"fail":              `{"actor":"alka","item":"fx-1/comments","text":"an answer"}`,
+		"reopen":            `{"actor":"alka","item":"fx-1/comments","reason":"a reason"}`,
+		"get":               `{"actor":"alka","ref":"fx-1/comments","field":"body"}`,
+		"set":               `{"actor":"alka","ref":"fx-1/comments","field":"body","value":"rewritten"}`,
 	}
 	if len(arguments) != len(names) {
 		t.Fatalf("the sweep names %d tools and the served subset holds %d", len(arguments), len(names))
@@ -141,8 +142,8 @@ func TestTheMachineHeadAnswersACollectionAsTheTerminalDoes(t *testing.T) {
 		}
 		answered++
 	}
-	t.Logf("sixteen tools called: %d answered, %d refused with %s", answered, refused, contract.IsACollection)
-	if answered != 1 || refused != 15 {
-		t.Fatalf("the sweep answered %d and refused %d, and the split is one and fifteen", answered, refused)
+	t.Logf("seventeen tools called: %d answered, %d refused with %s", answered, refused, contract.IsACollection)
+	if answered != 1 || refused != 16 {
+		t.Fatalf("the sweep answered %d and refused %d, and the split is one and sixteen", answered, refused)
 	}
 }

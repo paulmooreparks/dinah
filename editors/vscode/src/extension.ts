@@ -43,8 +43,6 @@ import type { ColumnCommandHost } from "./columnCommands";
 import { ATTACH_DIALOG_OPTIONS, pickedFilePath } from "./creationCommands";
 import { PAIRED_RELEASE } from "./generated/pairing";
 import {
-	COMMAND_DISCARD_DRAFT,
-	COMMAND_POST_COMMENT,
 	COMMAND_REFRESH,
 	COMMAND_REFRESH_VERB_CATALOG,
 	COMMAND_RUN_VERB,
@@ -94,13 +92,8 @@ import {
 } from "./status";
 import type { TreeElement, TreeItemSpec } from "./tree";
 import { DinahTreeProvider, elementKey } from "./tree";
-import type { DraftHost, DraftIndex } from "./commentDrafts";
-import {
-	DRAFT_INDEX_KEY,
-	discardCommentDraft,
-	postCommentDraft,
-	sweepDraftIndex,
-} from "./commentDrafts";
+import type { CommentBodyHost, OpenComments } from "./commentBody";
+import { forgetComment, saveCommentBody } from "./commentBody";
 import { classifyVersion, describeVersion } from "./version";
 import type { JournalEvent, PathAnswer, ServedAnswer } from "./wire";
 import { VerbCatalog } from "./verbCatalog";
@@ -267,43 +260,19 @@ function commandHost(
 	};
 }
 
-/**
- * What the two draft commands ask the window and the disk for, bound to the
- * real editor.
- *
- * Every filesystem call goes through vscode.workspace.fs rather than through
- * node:fs, which keeps the filesystem in the one module already holding every
- * other vscode value. globalStorageUri is documented as a directory the
- * extension may store state in, with the documented caveat that it might not
- * exist, so the directory is created before anything is written into it and
- * createDirectory is documented to create missing parents and to succeed when
- * the directory is already there.
- */
-function draftCommandHost(
-	context: vscode.ExtensionContext,
+/** The window calls the comment commands make, bound to the real window. */
+function commentBodyHost(
 	channel: vscode.OutputChannel,
 	t: Localizer,
 	checkpoint: (folder: string) => Promise<void>,
-): DraftHost {
+): CommentBodyHost {
 	const decoder = new TextDecoder();
-	const encoder = new TextEncoder();
 	return {
 		t,
-		storageRoot: context.globalStorageUri.fsPath,
-		ensureDirectory: async (path) => {
-			await vscode.workspace.fs.createDirectory(vscode.Uri.file(path));
-		},
-		writeDraft: async (path, text) => {
-			await vscode.workspace.fs.writeFile(
-				vscode.Uri.file(path),
-				encoder.encode(text),
-			);
-		},
 		// A read that throws is read as no file rather than propagated,
-		// because the one question this call answers is whether prose is
-		// there, and every arm above it treats "not there" as a fact rather
-		// than as a failure.
-		readDraft: async (path) => {
+		// because the one question this call answers is what the anchor's
+		// header says, and "it does not say" is an answer the caller handles.
+		readFile: async (path) => {
 			try {
 				return decoder.decode(
 					await vscode.workspace.fs.readFile(vscode.Uri.file(path)),
@@ -312,37 +281,11 @@ function draftCommandHost(
 				return undefined;
 			}
 		},
-		deleteDraft: async (path) => {
-			await vscode.workspace.fs.delete(vscode.Uri.file(path));
-		},
-		// TextDocument.save() is documented to answer whether the save
-		// happened. A document the editor is not holding open cannot be saved
-		// by this route, and there is nothing unsaved in it either, so it
-		// answers true and the read below is what decides.
-		saveDocument: async (path) => {
-			const open = vscode.workspace.textDocuments.find(
-				(document) => document.uri.fsPath === path,
-			);
-			return open === undefined ? true : open.save();
-		},
 		openDocument: async (path) => {
 			const document = await vscode.workspace.openTextDocument(
 				vscode.Uri.file(path),
 			);
 			await vscode.window.showTextDocument(document);
-		},
-		readIndex: () =>
-			context.globalState.get<DraftIndex>(DRAFT_INDEX_KEY) ?? {},
-		writeIndex: async (index) => {
-			await context.globalState.update(DRAFT_INDEX_KEY, index);
-		},
-		confirmDestructive: async (message, confirmLabel) => {
-			const picked = await vscode.window.showWarningMessage(
-				message,
-				{ modal: true },
-				confirmLabel,
-			);
-			return picked === confirmLabel;
 		},
 		showError: (message) => {
 			void vscode.window.showErrorMessage(message);
@@ -1103,9 +1046,15 @@ export async function activate(
 	const host = commandHost(channel, (folder) => checkpointing.checkNow(folder), t);
 	const workbenchHost = workbenchCommandHost(channel, t);
 	const columnHost = columnCommandHost(channel, t);
-	const draftHost = draftCommandHost(context, channel, t, (folder) =>
+	const commentHost = commentBodyHost(channel, t, (folder) =>
 		checkpointing.checkNow(folder),
 	);
+	// The comment files this window has opened. It is here rather than inside
+	// a module because two things read it: the commands that open a comment,
+	// which add to it, and the save listener below, which is what writes a
+	// body through the verb rather than leaving the editor's own bytes on
+	// disk.
+	const openComments: OpenComments = new Map();
 	// The command palette's own catalogue, built here rather than below it
 	// because the filing form reads its kind choices from the same object and
 	// the wiring has to carry it. The build is still lazy, so a window that
@@ -1144,7 +1093,8 @@ export async function activate(
 		applyCheckResult: async (path, label, outcome) => {
 			await diagnostics.applyResult(path, label, outcome);
 		},
-		draftHost,
+		commentHost,
+		openComments,
 		verbCatalog: () => verbCatalog.get(),
 	};
 
@@ -1177,47 +1127,36 @@ export async function activate(
 		emitter.fire(undefined);
 	});
 
-	// The two draft commands. The path is read from the command's first
-	// argument when that argument is a Uri, which is what the editor title bar
-	// passes, and from the active editor otherwise, which is what the palette
-	// leaves. Where neither yields a path the run returns saying nothing: a
-	// command invoked with no draft in front of the reader has been asked for
-	// nothing and has nothing to report, and keeping the arm here is what lets
-	// the pure module take a plain path rather than an optional one.
-	const draftPathOf = (argument: unknown): string | undefined => {
-		if (argument instanceof vscode.Uri) {
-			return argument.fsPath;
-		}
-		return vscode.window.activeTextEditor?.document.uri.fsPath;
-	};
-	register(COMMAND_POST_COMMENT, async (argument) => {
-		const path = draftPathOf(argument);
-		if (path === undefined) {
-			return;
-		}
-		await postCommentDraft(
-			draftHost,
-			nodeSpawner,
-			binary.state === "ok" ? binary.path : "",
-			path,
-		);
-	});
-	register(COMMAND_DISCARD_DRAFT, async (argument) => {
-		const path = draftPathOf(argument);
-		if (path === undefined) {
-			return;
-		}
-		await discardCommentDraft(draftHost, path);
-	});
-	// The one piece of draft housekeeping there is: an index entry whose file
-	// a reader deleted by hand is dropped, which costs one read per entry. It
-	// drops entries and never files, and it is not awaited, because nothing in
-	// activation depends on it.
-	void sweepDraftIndex(draftHost).catch((err: unknown) => {
-		channel.appendLine(
-			`comment draft sweep: ${err instanceof Error ? err.message : String(err)}`,
-		);
-	});
+	// Saving a comment's own file writes its body through the verb.
+	//
+	// The editor has already put its bytes on disk by the time this runs, and
+	// that is the state the call corrects rather than prevents: the write
+	// re-renders the anchor from the body it is given and records the digest
+	// over it, so the record and the file agree again and the journal says who
+	// changed it. Without it every save of a comment would leave one `dinah
+	// check` reports as diverged.
+	//
+	// A file this window did not open a comment into is left alone, which
+	// saveCommentBody answers for by reading the map rather than the path.
+	context.subscriptions.push(
+		vscode.workspace.onDidSaveTextDocument((document) => {
+			void saveCommentBody(
+				commentHost,
+				nodeSpawner,
+				binary.state === "ok" ? binary.path : "",
+				openComments,
+				document.uri.fsPath,
+				document.getText(),
+			).catch((err: unknown) => {
+				channel.appendLine(
+					`comment save: ${err instanceof Error ? err.message : String(err)}`,
+				);
+			});
+		}),
+		vscode.workspace.onDidCloseTextDocument((document) => {
+			forgetComment(openComments, document.uri.fsPath);
+		}),
+	);
 
 	// The command palette's two commands, over the catalogue built above.
 	const verbContext = (): RunVerbContext => ({

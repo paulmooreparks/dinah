@@ -2645,10 +2645,6 @@
       "text": "which column to offer a card from, also written --column <column>; every column when you name none",
       "context": "The meaning of the column argument of `dinah next`, printed in that command's arguments table."
     },
-    "param.note.summary": {
-      "text": "what the check showed, in one shell word or in quotation marks; a single - reads it from a pipe",
-      "context": "The written meaning of the note argument, shared by resolve, verify and fail."
-    },
     "param.path.card.summary": {
       "text": "the thing whose file path you are printing, such as wb-1/comments/1",
       "context": "The meaning of the card argument of `dinah path`, printed in that command's arguments table."
@@ -4025,6 +4021,10 @@
       "text": "the name",
       "context": "Names rename's free-text slot inside refusal.dinah.multiple-words, which reads it as {label}."
     },
+    "reason.deletedDesignation": {
+      "text": "The comment that was its answer of record was deleted: {comment}.",
+      "context": "The reason a forced deletion composes for the reopen it performs. {comment} is the reference of the comment being deleted, which is the only part of it that survives."
+    },
     "slot.note": {
       "text": "the note",
       "context": "The label naming what a bare word after resolve, verify or fail was meant to be, printed when several unquoted words arrive where one argument belongs."
@@ -4404,6 +4404,102 @@
     "token.shadowed": {
       "text": "shadowed",
       "context": "How the canonical token shadowed is rendered in the settings listing for a stored alias whose name is now a declared command. The machine surface always carries the canonical spelling."
+    },
+    "refusal.dinah.comment-body-diverged": {
+      "text": "The body of comment {detail} no longer matches the digest Dinah recorded over it, so something outside Dinah edited it.",
+      "context": "The sentence printed after the refusal name dinah.comment-body-diverged, which every verb that writes a comment's anchor raises when the stored digest disagrees with the body it is about to replace. {detail} is the comment's reference. The sentence says an edit happened and says nothing about who made it or when, because the tool knows neither."
+    },
+    "refusal.dinah.comment-body-diverged.next": {
+      "text": " Restore the body by hand, which needs no command, or run `dinah accept-divergence {detail}` to make what is on disk the record.",
+      "context": "The next step of refusal.dinah.comment-body-diverged, spliced onto the sentence that just named the comment. The two routes differ in meaning rather than in convenience: restoring says the edit was a mistake, and accepting says the edited body is now what the record says."
+    },
+    "refusal.dinah.not-a-designation": {
+      "text": "{detail} is not a comment of the item you are settling.",
+      "context": "The sentence printed after the refusal name dinah.not-a-designation, which resolve, verify and fail raise when the reference they were handed is not a comment of the item being settled. {detail} is the reference as the caller typed it."
+    },
+    "refusal.dinah.not-a-designation.next": {
+      "text": " Write the answer with --text, or name a comment of that item; `dinah show <item>` lists the ones it carries.",
+      "context": "The next step of refusal.dinah.not-a-designation, spliced onto the sentence that just named the reference. <item> stands for the item's own reference and is not translated."
+    },
+    "refusal.dinah.not-designatable": {
+      "text": "Comment {detail} is the answer of record for item {item}, so deleting it would leave that item settled with nothing behind it.",
+      "context": "The sentence printed after the refusal name dinah.not-designatable, which delete raises over a comment a checklist item designates. {detail} is the comment's reference and {item} is the designation the item carries."
+    },
+    "refusal.dinah.not-designatable.next": {
+      "text": " Reopen the item first, which clears the designation, or run the delete again with --force, which reopens it as part of the same act.",
+      "context": "The next step of refusal.dinah.not-designatable, spliced onto the sentence that just named the comment and the item."
+    },
+    "refusal.dinah.store-awaiting-migration": {
+      "text": "The workbench at {detail} still records a checklist item's answer as a note, which Dinah no longer reads.",
+      "context": "The sentence printed after the refusal name dinah.store-awaiting-migration, which every read of a workbench below the resolution format raises. {detail} is the workbench's own path. The refusal exists because a reader that carried on would report every settled item as carrying no answer, which is a false reading rather than a degraded one."
+    },
+    "refusal.dinah.store-awaiting-migration.next": {
+      "text": " Take a backup, then run dinah-migrate-notes over that workbench and read its report before using it again.",
+      "context": "The next step of refusal.dinah.store-awaiting-migration. dinah-migrate-notes is the migration program's own name and is not translated. The backup is named first because the migration writes in place and cannot undo itself."
+    },
+    "check.comment-body-diverged": {
+      "text": "the body of comment {detail} no longer matches the digest Dinah recorded over it",
+      "context": "A check finding: a comment whose stored digest disagrees with its body, which means something outside Dinah edited it. It names no editor and no time, because the tool knows neither, and a comment carrying no digest is not reported at all."
+    },
+    "check.empty-comment": {
+      "text": "comment {detail} has an empty body and nothing designates it, so run `dinah delete` on it",
+      "context": "A check finding at cleanup severity: an abandoned draft, which is what creating a comment before writing one costs. Nothing is blocked by it."
+    },
+    "check.empty-designated-comment": {
+      "text": "comment {detail} has an empty body and a checklist item designates it as its answer",
+      "context": "A check finding at defect severity: an item's answer of record cannot be nothing. It is the same emptiness check.empty-comment reports, and it is a defect rather than clutter because something depends on this one."
+    },
+    "check.item-carries-retired-note": {
+      "text": "checklist item {detail} still carries the retired note key",
+      "context": "A check finding: an item the note migration reached and did not finish, which is the state an interrupted run leaves one item in. Running the migration again finishes it."
+    },
+    "check.dangling-resolution": {
+      "text": "checklist item {detail} designates a comment that no longer resolves",
+      "context": "A check finding: a resolution naming a comment that is not there. Deleting a designated comment is refused and the forced form clears the designation, so this is the residue of a hand edit rather than of anything the tool did."
+    },
+    "column.checklist.resolution": {
+      "text": "Answer",
+      "context": "The heading of the column of the checklist block of `dinah show <card>` that carries the reference of the comment a settled item designates as its answer. One word, because the block is bounded by the reader's window."
+    },
+    "show.designation": {
+      "text": "{author} at {ts}: {body}",
+      "context": "The line drawn under a settled checklist item's row by a full checklist read, carrying the designated comment's author, its timestamp and its text. {body} is already capped for display by the time it reaches here."
+    },
+    "show.designation.unattributed": {
+      "text": "an author this workbench cannot name, at {ts}: {body}",
+      "context": "The form show.designation takes for a comment whose author the store could not recover, which the note migration records as an absence rather than as a name. It says the store cannot name the author rather than leaving a blank that reads as a defect."
+    },
+    "slot.designation": {
+      "text": "designation",
+      "context": "What the comment argument of resolve, verify and fail is called in the refusal a caller meets when they typed several bare words where one reference belongs."
+    },
+    "param.designation.summary": {
+      "text": "the comment of this item that records the answer, written as its reference; write the answer instead with --text",
+      "context": "The written meaning of the comment argument, shared by resolve, verify and fail. Naming a comment is how somebody endorses words another person wrote: the comment keeps its own author and the settling records who chose it."
+    },
+    "param.designation-text.summary": {
+      "text": "the answer itself, which is written as a comment of this item and designated in one act; a single - reads it from a pipe",
+      "context": "The written meaning of the --text flag, shared by resolve, verify and fail. It is the one-command form, and it cannot be named beside a designation reference, because the two are different acts."
+    },
+    "param.delete.force.summary": {
+      "text": "delete a comment a checklist item designates, reopening that item as part of the same act",
+      "context": "The meaning of the force argument of `dinah delete`, printed in that command's arguments table. It is the operator's alone where the designating item is the operator's."
+    },
+    "param.accept-divergence.comment.summary": {
+      "text": "the comment whose body on disk you are making the record",
+      "context": "The meaning of the comment argument of `dinah accept-divergence`, printed in that command's arguments table."
+    },
+    "cmd.accept-divergence.summary": {
+      "text": "Make a comment's edited body the record",
+      "context": "The one-line summary of the accept-divergence command, printed in the command list and above its own help."
+    },
+    "reason.designated-comment-deleted": {
+      "text": "the designated comment {comment} was deleted",
+      "context": "The reason a forced deletion composes for the reopen it performs, recorded in the journal. {comment} is the deleted comment's reference, which is the only part of it that survives."
+    },
+    "param.set.expect-digest.summary": {
+      "text": "the digest you last saw recorded on this comment, which refuses the write if anything has written the comment since",
+      "context": "The meaning of the expect-digest argument of `dinah set`, printed in that command's arguments table. It is for a caller that had the comment open while its author typed: an editor writes the file on save, so the body the write would otherwise be compared against is gone, and the digest on the header is what is left to compare."
     }
   }
 }

@@ -13,7 +13,7 @@ import (
 // would type it into workbench.md.
 func benchDeclaring(t *testing.T, block string) *Bench {
 	t.Helper()
-	root := t.TempDir()
+	root := containedPath(t.TempDir())
 	anchor := strings.Replace(benchDefinition, "columns:\n  - b00000000001\n", "columns:\n  - b00000000001\n"+block, 1)
 	write(t, filepath.Join(root, WorkbenchAnchor), anchor)
 	write(t, filepath.Join(root, ColumnsDir, "b00000000001", ColumnAnchor), columnDefinition)
@@ -225,7 +225,7 @@ func TestWritingAWorkbenchFieldLeavesTheLevelsBlockByteIdentical(t *testing.T) {
 // AC-17 at the format layer: writing a level and clearing one both leave a
 // key the tool has never heard of in place.
 func TestACardKeepsEveryFrontmatterKeyItDoesNotKnowAroundALevel(t *testing.T) {
-	root := t.TempDir()
+	root := containedPath(t.TempDir())
 	const anchor = `---
 title: A card
 number: 1
@@ -278,7 +278,7 @@ Framing.
 // dinah-193 section 2 for the case Card.Save owns: a card carrying neither
 // level and written with both reads severity, then priority, under state.
 func TestBothLevelsLandUnderStateInOneOrder(t *testing.T) {
-	root := t.TempDir()
+	root := containedPath(t.TempDir())
 	write(t, filepath.Join(root, CardsDir, "c00000000001", CardAnchor), cleanCard)
 	collection := filepath.Join(root, CardsDir)
 	card, err := LoadCard(collection, "c00000000001")

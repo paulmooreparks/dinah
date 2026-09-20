@@ -424,12 +424,19 @@ func indexFixture(h *harness) (card, other string) {
 	h.attach(card+"/comments/1", "evidence.txt", "the evidence\n")
 	h.item(card, "b00000000001", "kind: open_question\nstate: pending\nordinal: 1\n",
 		"Which vendor do we cite?")
-	h.item(card, "b00000000002", "kind: acceptance_criterion\nstate: resolved\nordinal: 2\nnote: the endpoint answers\n",
+	// Three of the six items are settled, and each designates a comment of
+	// its own as its answer. The designation is planted rather than settled
+	// through a verb because the fixture names the references it asserts
+	// against, and a verb would mint identifiers the test cannot spell.
+	answered := h.item(card, "b00000000002", "kind: acceptance_criterion\nstate: resolved\nordinal: 2\nresolution: "+card+"/criteria/1/comments/1\n",
 		"The endpoint returns 404 for an unknown id.")
-	h.item(card, "b00000000003", "kind: acceptance_criterion\nstate: verified\nordinal: 3\nnote: measured on the branch\n",
+	h.plantComment(answered, "c00000000001", 1, "alka", "the endpoint answers")
+	measured := h.item(card, "b00000000003", "kind: acceptance_criterion\nstate: verified\nordinal: 3\nresolution: "+card+"/criteria/2/comments/1\n",
 		"The listing answers in one round.")
-	h.item(card, "b00000000004", "kind: acceptance_criterion\nstate: failed\nordinal: 4\nnote: the run came back red\n",
+	h.plantComment(measured, "c00000000002", 1, "alka", "measured on the branch")
+	red := h.item(card, "b00000000004", "kind: acceptance_criterion\nstate: failed\nordinal: 4\nresolution: "+card+"/criteria/3/comments/1\n",
 		"The sweep reports the size of the set it swept.")
+	h.plantComment(red, "c00000000003", 1, "alka", "the run came back red")
 	h.item(card, "b00000000005", "kind: decision\nstate:\nordinal: 5\n",
 		"Whose contract the numbers come from.")
 	h.item(card, "b00000000006", "kind: decision\nstate: marinating\nordinal: 6\n",
@@ -700,14 +707,14 @@ func TestTheFullFormsCarryEveryBody(t *testing.T) {
 	if len(checklist.Checklist) != 6 {
 		t.Fatalf("wanted six items, got %d", len(checklist.Checklist))
 	}
-	notes := 0
+	opened := 0
 	for _, item := range checklist.Checklist {
-		if item.Note != "" {
-			notes++
+		if item.Designated != nil {
+			opened++
 		}
 	}
-	if notes != 3 {
-		t.Errorf("checklist.full filled %d of the three notes the fixture holds", notes)
+	if opened != 3 {
+		t.Errorf("checklist.full opened %d of the three designated comments the fixture holds", opened)
 	}
 	for _, name := range checklist.Withheld {
 		if strings.HasPrefix(name, "checklist") {
@@ -725,8 +732,8 @@ func TestTheFullFormsCarryEveryBody(t *testing.T) {
 		}
 	}
 	for _, item := range index.Checklist {
-		if item.Note != "" {
-			t.Errorf("the index carried a resolution note: %+v", item)
+		if item.Designated != nil {
+			t.Errorf("the index opened a designated comment: %+v", item)
 		}
 	}
 }
@@ -833,19 +840,20 @@ func TestUnresolvedCarriesWhatStillHoldsTheCard(t *testing.T) {
 	}
 
 	// The filter and the modifier compose rather than collide: the answer
-	// carries the outstanding items with their text and their notes whole.
+	// carries the outstanding items with their text and their designated
+	// answers whole.
 	both := showing(h, &Request{Card: card, Fields: "checklist.full", Unresolved: true})
 	if len(both.Checklist) != 4 {
 		t.Fatalf("the composed call carries %d items, wanted four", len(both.Checklist))
 	}
-	notes := 0
+	answers := 0
 	for _, item := range both.Checklist {
-		if item.Note != "" {
-			notes++
+		if item.Designated != nil {
+			answers++
 		}
 	}
-	if notes != 1 {
-		t.Errorf("the composed call filled %d notes, and one outstanding item carries one", notes)
+	if answers != 1 {
+		t.Errorf("the composed call opened %d answers, and one outstanding item designates one", answers)
 	}
 }
 

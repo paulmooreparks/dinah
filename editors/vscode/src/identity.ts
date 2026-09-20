@@ -214,8 +214,6 @@ export const COMMAND_OPEN_COMMENT = "dinah.tree.openComment";
  * already carries the walkthrough's own command, so naming these two tree
  * commands would be the only false thing in the roster.
  */
-export const COMMAND_POST_COMMENT = "dinah.comment.post";
-export const COMMAND_DISCARD_DRAFT = "dinah.comment.discard";
 
 /**
  * Every command this extension contributes, in the order package.json
@@ -255,8 +253,6 @@ export const TREE_COMMANDS: readonly string[] = [
 	COMMAND_REOPEN_ITEM,
 	COMMAND_FILE_ITEM,
 	COMMAND_OPEN_COMMENT,
-	COMMAND_POST_COMMENT,
-	COMMAND_DISCARD_DRAFT,
 ];
 
 /**
@@ -330,8 +326,11 @@ export const GLOBAL_COMMANDS: readonly string[] = [
  * are the first of these.
  */
 export const EDITOR_COMMANDS: readonly string[] = [
-	COMMAND_POST_COMMENT,
-	COMMAND_DISCARD_DRAFT,
+	// Empty since dinah-525, which deleted dinah-506's two draft commands
+	// along with the apparatus behind them. The bucket is kept rather than
+	// retired, because the partition it belongs to is the thing that stops a
+	// command shipping unclassified, and a command acting on the active editor
+	// is a shape this extension may want again.
 ];
 
 /**

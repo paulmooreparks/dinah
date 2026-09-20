@@ -334,10 +334,22 @@ func (l *Library) routeGuardedWrite(req *Request, entity *bench.EntityRef, field
 // states is refused before any of them, because none of the four verbs would
 // know what to do with it.
 //
-// The note --note carries fills whichever slot the destination verb reads: the
-// resolution note on the three terminal verbs, and the reason on a reopen. So
-// `dinah set <item> state verified --note "ran the suite"` and `dinah verify
-// <item> "ran the suite"` are one act written two ways.
+// The value --note carries fills whichever slot the destination verb reads:
+// the designation on the three terminal verbs, and the reason on a reopen. So
+// `dinah set <item> state verified --note <comment>` and `dinah verify <item>
+// <comment>` are one act written two ways.
+//
+// The two slots take different kinds of value, and that asymmetry is the
+// shape's rather than this router's. A terminal verb's answer is a reference
+// to a comment of the item, because a comment carries its own author and the
+// designation carries whoever chose it; a reopen's reason is prose, because it
+// says why an answer stopped standing and the thing it refers to is often
+// being destroyed. One flag reaches both, and which it means is decided by the
+// state being written rather than by anything the caller has to spell.
+//
+// The one-command form has no spelling here. `dinah verify <item> --text
+// "ran the suite"` mints the comment and designates it, and a caller who
+// wants that writes the verb rather than the field.
 func (l *Library) setItemState(req *Request, entity *bench.EntityRef, value string) *Response {
 	landing := map[string]func(*Request) *Response{
 		bench.ItemResolved: l.Resolve,
@@ -396,6 +408,14 @@ func (l *Library) admitFieldValue(req *Request, entity *bench.EntityRef, field b
 	case bench.GuardColumnRef:
 		if l.Bench.ColumnByRef(value) == nil {
 			return l.refuse(req, entity.Card, contract.UnknownColumn, value)
+		}
+	case bench.GuardResolution:
+		// A designation names a comment of the very item being written, and
+		// the check is the one the terminal verbs run, so a resolution
+		// written by hand cannot reach a state a settling could not have
+		// produced.
+		if refused := l.admitResolutionValue(req, entity, value); refused != nil {
+			return refused
 		}
 	}
 	return nil
@@ -505,6 +525,11 @@ func (l *Library) writeField(req *Request, entity *bench.EntityRef, target field
 	if err != nil {
 		return l.FromError(req, err)
 	}
+	if entity.Kind == bench.KindComment {
+		if refused := l.admitCommentWrite(req, entity, fm, body); refused != nil {
+			return refused
+		}
+	}
 	var was string
 	switch {
 	case target.prose:
@@ -520,7 +545,7 @@ func (l *Library) writeField(req *Request, entity *bench.EntityRef, target field
 		was = fm.Value(target.key)
 		fm.Set(target.key, value)
 	}
-	if was == value {
+	if was == value && !restampsComment(entity, fm, value) {
 		response := l.ok(req, entity.Card)
 		response.Detail = value
 		return response
@@ -533,7 +558,17 @@ func (l *Library) writeField(req *Request, entity *bench.EntityRef, target field
 	if !declared {
 		return l.FromError(req, contract.Refuse(contract.UnknownPath, entity.Ref))
 	}
-	if err := bench.WriteText(path, fm.Render(body)); err != nil {
+	// A comment's anchor is written through bench.WriteCommentAnchor and
+	// through nothing else, which is what makes "the digest is recomputed by
+	// every verb that writes the anchor" a property of one function rather
+	// than a rule each call site has to remember. This site used to stamp
+	// the digest and then write the file itself, which held the property by
+	// remembering it here.
+	write := func() error { return bench.WriteText(path, fm.Render(body)) }
+	if entity.Kind == bench.KindComment {
+		write = func() error { return bench.WriteCommentAnchor(entity.Dir, fm, body) }
+	}
+	if err := write(); err != nil {
 		return l.FromError(req, err)
 	}
 	ev := fieldEvent(req, entity, target, was, value)
@@ -639,4 +674,90 @@ func unknownEntityField(kind, field string) error {
 		"kind":   kind,
 		"fields": strings.Join(bench.FieldsOf(kind), ", "),
 	})
+}
+
+// admitResolutionValue runs the resolution guard over a value being written
+// directly to an item's resolution key, which is the one path to that key that
+// does not come through resolve, verify or fail.
+//
+// It asks the two questions designationOf asks, in the same order and against
+// the same store: the reference names a comment, and that comment hangs below
+// this item. What it does not do is rewrite the value to the canonical
+// spelling, because a field write stores what it admitted; a caller who wants
+// the canonical reference settles the item with a verb.
+func (l *Library) admitResolutionValue(req *Request, entity *bench.EntityRef, value string) *Response {
+	found, err := l.Bench.ResolveEntity(value)
+	if err != nil {
+		return l.refuse(req, entity.Card, contract.NotADesignation, value)
+	}
+	if found.Kind != bench.KindComment {
+		return l.refuse(req, entity.Card, contract.NotADesignation, value)
+	}
+	if !sameDir(filepath.Dir(filepath.Dir(found.Dir)), entity.Dir) {
+		return l.refuse(req, entity.Card, contract.NotADesignation, value)
+	}
+	return nil
+}
+
+// admitCommentWrite decides whether a write of one comment's anchor may go
+// ahead, and it asks a different question depending on what the caller was
+// able to observe before it called.
+//
+// A caller naming no expected digest is one that has not been watching the
+// comment, so the question is the plain one: does the digest on the header
+// still describe the body standing beside it? A disagreement means something
+// other than a verb wrote that body, and writing over it would recompute the
+// digest from the tampered text and take the evidence with it, so the write is
+// refused and the operator clears it deliberately, by restoring the body or by
+// ratifying what is there with dinah accept-divergence.
+//
+// A caller naming an expected digest is one that had the comment open while
+// its author typed, and for it the body comparison is not merely unhelpful but
+// impossible: an editor writes the file on save, so by the time the caller can
+// act the body it would compare against is gone. What survives the editor's
+// write is the header, so the question becomes a compare-and-swap on the
+// digest key. Still the value the caller last saw recorded, and nobody wrote
+// this comment through a verb while the author was typing, so the change on
+// disk is that author's own; the write takes the body as it stands. Moved, and
+// somebody else's write landed in the middle of the session, so the author is
+// about to overwrite work they never saw and the write is refused.
+//
+// This does not weaken the refusal. A hand edit made outside a session the
+// caller opened is caught by the first question, because such a caller names
+// no expected digest and has none to name.
+func (l *Library) admitCommentWrite(req *Request, entity *bench.EntityRef, fm *bench.Frontmatter, body string) *Response {
+	if expected := strings.TrimSpace(req.ExpectedDigest); expected != "" {
+		if fm.Value(bench.CommentDigestField) != expected {
+			return l.refuse(req, entity.Card, contract.CommentBodyDiverged, entity.Ref)
+		}
+		return nil
+	}
+	if bench.CommentDiverged(fm, body) {
+		return l.refuse(req, entity.Card, contract.CommentBodyDiverged, entity.Ref)
+	}
+	return nil
+}
+
+// restampsComment reports whether a write storing the value a comment already
+// carries still has work to do, which is the case where the digest on the
+// header does not describe that value.
+//
+// A write storing what is already there succeeds, writes nothing and journals
+// nothing, and that rule holds for every other field. On a comment it has one
+// exception, and the extension's save is entirely made of it: the editor puts
+// the author's text on disk when they save, so by the time the verb reads the
+// anchor the body is already the value being written and the comparison above
+// finds nothing to do. The digest, meanwhile, still describes whatever the
+// body was before the author typed. Taking the no-op there leaves a comment
+// whose header disagrees with its own text, which dinah check reports as a
+// hand edit on the tool's own most ordinary path.
+//
+// So the question the no-op asks on a comment is not "is the body already
+// this" but "is the record already this", and the record is the body and the
+// digest together.
+func restampsComment(entity *bench.EntityRef, fm *bench.Frontmatter, value string) bool {
+	if entity.Kind != bench.KindComment {
+		return false
+	}
+	return fm.Value(bench.CommentDigestField) != bench.CommentDigest(value)
 }

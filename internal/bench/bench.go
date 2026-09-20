@@ -89,7 +89,7 @@ const (
 // workbench has been carried across that retirement. It moved from 4 to 5 at
 // dinah-496, which made a journal line's actor an object, so the number says
 // whether a workbench's journals have been re-encoded.
-const StorageFormat = 5
+const StorageFormat = 6
 
 // ContainerFormat is the storage format from which the containment rule binds.
 // A workbench declaring this number or a higher one is held to Contained; one
@@ -135,6 +135,21 @@ const FieldsFormat = 4
 // a workbench over it.
 const ActorObjectFormat = 5
 
+// ResolutionFormat is the storage format from which a checklist item's answer
+// is a designated comment rather than a free-text note. A workbench declaring
+// this number or a higher one has been carried across the note migration; one
+// declaring less has not, and a read of it is refused by name, because a
+// reader of such a store would find an item settled and no answer on it.
+//
+// The gate is a refusal rather than a finding, which parts it from
+// ContainerFormat and from RegistryFormat. Those two name states a reader can
+// read past: a workbench in the wrong place is still readable, and card
+// numbers in frontmatter are still numbers. This one names a key that has
+// moved, so a reader that carried on would report every settled item on the
+// store as carrying no answer, which is not a degraded reading but a false
+// one.
+const ResolutionFormat = 6
+
 // UndeclaredFormat is the format a workbench whose anchor declares no format
 // key is opened as carrying. Such a workbench predates the key itself, and
 // the key predates the registry, so the value is the newest format the
@@ -161,8 +176,14 @@ const UndeclaredFormat = ContainerFormat
 const (
 	ProfileName  = "dinah-core"
 	ProfileMajor = 0
-	ProfileMinor = 17
+	ProfileMinor = 18
 )
+
+// The claim moved to 0.18 at dinah-525, which changed what resolve, verify and
+// fail take: the argument that was a resolution note is a reference to a
+// comment of the item being settled, and reopen's reason stays prose beside
+// it. A client that composed those calls against 0.17 composes them wrongly
+// against this build, which is what a minor bump says.
 
 // The oldest profile revision this build opens. dinah-core 0.7 renamed the
 // flow vocabulary on disk, retiring the state and substate keys for column
@@ -1580,7 +1601,27 @@ var (
 // stops a reader taking an old card's state field, holding a flow-position
 // identifier under the old vocabulary, for one of ready, active or blocked.
 func Open(root string) (*Bench, error) {
-	return openWithVocabulary(root, currentVocabulary, admitProfileAfterVocabulary, true)
+	return openWithVocabulary(root, currentVocabulary, admitProfileAfterVocabulary, true, true)
+}
+
+// OpenAwaitingResolution reads a workbench the note migration has not reached,
+// which every ordinary read refuses as dinah.store-awaiting-migration. It runs
+// every check Open runs except that one, mirroring exactly the way
+// OpenPreVocabulary skips only the vocabulary check.
+//
+// Three callers reach it, and they are the surfaces a gate must never close:
+// the note migration itself, whose whole job is that state; `dinah check`,
+// which is the diagnostic an operator reads to find out what a store needs and
+// which reports the unfinished-item finding by name; and the repairs `check`
+// carries, which are how a store below this format reaches it at all. A gate
+// that refused those would refuse the way out of itself, and eighteen of the
+// nineteen live stores would have no route across.
+//
+// What it does not serve is an ordinary read. The refusal exists to stop a
+// reader reporting every settled item on such a store as carrying no answer,
+// and that is a false reading rather than a degraded one.
+func OpenAwaitingResolution(root string) (*Bench, error) {
+	return openWithVocabulary(root, currentVocabulary, admitProfileAfterVocabulary, true, false)
 }
 
 // Contained reports whether a workbench directory sits where the format now
@@ -1601,8 +1642,10 @@ func Contained(root string) bool {
 }
 
 // OpenUncontained reads a workbench-shaped directory the containment rule does
-// not govern. It runs every check Open runs except that one, mirroring exactly
-// the way OpenPreVocabulary skips only the vocabulary check.
+// not govern. It skips that rule and, since dinah-525, the note migration's
+// gate with it, for the reason OpenAwaitingResolution gives: both callers are
+// on the way to a format rather than at one, and a gate that refused them
+// would refuse the route across itself.
 //
 // Two callers reach it, and each reads a directory that is not a workbench in
 // the sense the rule fixes. The container migration reads one on its way in,
@@ -1611,7 +1654,7 @@ func Contained(root string) bool {
 // Every other caller goes through Open and is refused an uncontained workbench
 // by name.
 func OpenUncontained(root string) (*Bench, error) {
-	return openWithVocabulary(root, currentVocabulary, admitProfileAfterVocabulary, false)
+	return openWithVocabulary(root, currentVocabulary, admitProfileAfterVocabulary, false, false)
 }
 
 // OpenPreVocabulary reads a workbench still written in the vocabulary this
@@ -1620,7 +1663,7 @@ func OpenUncontained(root string) (*Bench, error) {
 // is reachable from the vocabulary migration alone: every other caller goes
 // through Open and is refused a workbench of this age by name.
 func OpenPreVocabulary(root string) (*Bench, error) {
-	return openWithVocabulary(root, preVocabulary, admitPreVocabularyProfile, true)
+	return openWithVocabulary(root, preVocabulary, admitPreVocabularyProfile, true, false)
 }
 
 // openWithVocabulary is the body both openers share. It reads and parses the
@@ -1638,7 +1681,7 @@ func OpenPreVocabulary(root string) (*Bench, error) {
 // rather than from the head, so it reaches the repair advice exactly where a
 // path does and nowhere else; see the Malformed shape in internal/contract for
 // why the head's own table is the wrong place for it.
-func openWithVocabulary(root string, vocab columnVocabulary, admit func(declared string) (int, int, error), requireContainer bool) (*Bench, error) {
+func openWithVocabulary(root string, vocab columnVocabulary, admit func(declared string) (int, int, error), requireContainer, requireResolution bool) (*Bench, error) {
 	anchor := map[string]string{"path": filepath.Join(root, WorkbenchAnchor), contract.ValueWorkbench: root}
 	text, err := ReadText(filepath.Join(root, WorkbenchAnchor))
 	if err != nil {
@@ -1685,6 +1728,39 @@ func openWithVocabulary(root string, vocab columnVocabulary, admit func(declared
 		if requireContainer && n >= ContainerFormat && !Contained(root) {
 			return nil, contract.Refuse(contract.NeedsContainerMigration, root)
 		}
+		// Every store below the format, not the one version below it.
+		//
+		// This gate carried a lower bound of ActorObjectFormat on the
+		// reasoning that a store awaiting an older migration would meet
+		// that migration's own refusal first. No such refusal exists:
+		// ActorObjectFormat gates nothing, and the container and vocabulary
+		// gates cover their own windows and not this one, so a store at
+		// format 3 or 4 opened with no complaint and reported every settled
+		// item on it as carrying no answer. Eighteen of the nineteen live
+		// stores predate the current format, so the bound excluded
+		// precisely the stores the gate exists for.
+		//
+		// One consequence is worth naming, because a test asserts it. The
+		// containment rule binds from ContainerFormat and leaves a store
+		// below it alone, and no store below this format opens at all any
+		// more, so that lower branch of the containment rule is now reached
+		// only by a store declaring no format key. An operator carries such
+		// a store across with the container migration, which reads it
+		// without going through this opener, before the note migration can.
+	}
+	// Outside the declared-format branch, because a store declaring no format
+	// key is unmigrated too and is the oldest thing here rather than the
+	// newest. Inside the branch this gate never saw one: b.Format is left at
+	// UndeclaredFormat, which is below this format, and the store opened with
+	// no complaint and reported every settled item on it as carrying no
+	// answer, which is the exact false reading the gate exists to prevent.
+	//
+	// The comment above reasoned that such a store meets the container
+	// migration first. It does not: nothing makes that ordering hold on an
+	// ordinary read, and the store an operator is most likely to own without
+	// a format key is the oldest one he has.
+	if requireResolution && b.Format < ResolutionFormat {
+		return nil, contract.Refuse(contract.StoreAwaitingMigration, root)
 	}
 	// The card-number registry is read once here, after the format gate, so
 	// every later read of a number comes from one load and one parser.

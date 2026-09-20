@@ -39,7 +39,7 @@ WORK
   unblock <card>                                         Lift a block (operator only)
   raise <card> <tier> <reason>                           Raise the tier this stop needs and hand the card
                                                            back
-  comment <ref> <text|->                                 Record a comment on a card, a column, or a card's
+  comment <ref> [text|-]                                 Record a comment on a card, a column, or a card's
                                                            checklist item
   attach <ref> <file> [--description <text>]             Attach a file, or replace its bytes
     [--replace]
@@ -47,9 +47,9 @@ WORK
     [--owner <owner>]
   cite <item> <scheme> <target>                          Cite evidence on a checklist item
     [--observed <before:after>]
-  resolve <item> <note|->                                Resolve an open question or a decision
-  verify <item> <note|->                                 Record an acceptance criterion as verified
-  fail <item> <note|->                                   Record an acceptance criterion as failed
+  resolve <item> [comment] [--text <text|->]             Resolve an open question or a decision
+  verify <item> [comment] [--text <text|->]              Record an acceptance criterion as verified
+  fail <item> [comment] [--text <text|->]                Record an acceptance criterion as failed
   reopen <item> <reason>                                 Return a closed checklist item to pending
   link <card> <kind> <to>                                Record a link from one card to another
   unlink <card> <kind> <to>                              Remove a link a card carries
@@ -57,7 +57,8 @@ WORK
   leave <card> <workstream>                              Take a card out of a workstream
   archive <ref>                                          Move an entity out of the live set
   restore <ref> [--archived]                             Put an archived entity back into the live set
-  delete <ref> --yes                                     Destroy an entity, along with its history
+  delete <ref> --yes [--force]                           Destroy an entity, along with its history
+  accept-divergence <comment>                            Make a comment's edited body the record
   rename <ref> <name>                                    Rename an attachment
 
 READ
@@ -89,7 +90,7 @@ WORKBENCH
   edit <ref>                                             Open an entity of this workbench in your editor
   get <ref> <field>                                      Read one field of any entity of this workbench
   set <ref> <field> [value|-] [--at <column>]            Write one field of any entity of this workbench
-    [--note <text>] [--yes]
+    [--note <text>] [--expect-digest <digest>] [--yes]
   config [get|set] [key] [value]                         List your user settings, or read or write one
   check [--finish] [--migrate-ordinals]                  Look for structural defects in this workbench
     [--migrate-slugs] [--migrate-columns]
@@ -144,13 +145,13 @@ WORK
   block <card> <reason> [--kind <kind>]                                                                 Raise an obstacle and free the card
   unblock <card>                                                                                        Lift a block (operator only)
   raise <card> <tier> <reason>                                                                          Raise the tier this stop needs and hand the card back
-  comment <ref> <text|->                                                                                Record a comment on a card, a column, or a card's checklist item
+  comment <ref> [text|-]                                                                                Record a comment on a card, a column, or a card's checklist item
   attach <ref> <file> [--description <text>] [--replace]                                                Attach a file, or replace its bytes
   file <card> <kind> <text|-> [--column <column>] [--owner <owner>]                                     File a checklist item on a card
   cite <item> <scheme> <target> [--observed <before:after>]                                             Cite evidence on a checklist item
-  resolve <item> <note|->                                                                               Resolve an open question or a decision
-  verify <item> <note|->                                                                                Record an acceptance criterion as verified
-  fail <item> <note|->                                                                                  Record an acceptance criterion as failed
+  resolve <item> [comment] [--text <text|->]                                                            Resolve an open question or a decision
+  verify <item> [comment] [--text <text|->]                                                             Record an acceptance criterion as verified
+  fail <item> [comment] [--text <text|->]                                                               Record an acceptance criterion as failed
   reopen <item> <reason>                                                                                Return a closed checklist item to pending
   link <card> <kind> <to>                                                                               Record a link from one card to another
   unlink <card> <kind> <to>                                                                             Remove a link a card carries
@@ -158,7 +159,8 @@ WORK
   leave <card> <workstream>                                                                             Take a card out of a workstream
   archive <ref>                                                                                         Move an entity out of the live set
   restore <ref> [--archived]                                                                            Put an archived entity back into the live set
-  delete <ref> --yes                                                                                    Destroy an entity, along with its history
+  delete <ref> --yes [--force]                                                                          Destroy an entity, along with its history
+  accept-divergence <comment>                                                                           Make a comment's edited body the record
   rename <ref> <name>                                                                                   Rename an attachment
 
 READ
@@ -182,7 +184,7 @@ WORKBENCH
   path <ref> [--archived]                                                                               Print the file path of an entity of this workbench
   edit <ref>                                                                                            Open an entity of this workbench in your editor
   get <ref> <field>                                                                                     Read one field of any entity of this workbench
-  set <ref> <field> [value|-] [--at <column>] [--note <text>] [--yes]                                   Write one field of any entity of this workbench
+  set <ref> <field> [value|-] [--at <column>] [--note <text>] [--expect-digest <digest>] [--yes]        Write one field of any entity of this workbench
   config [get|set] [key] [value]                                                                        List your user settings, or read or write one
   check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-columns] [--migrate-vocabulary]    Look for structural defects in this workbench
     [--migrate-container] [--migrate-numbers] [--migrate-branches] [--migrate-newlines] [--renumber]

@@ -161,6 +161,18 @@ func (l *Library) Add(req *Request) *Response {
 // Comment writes one comment below its holder, which is a card, a column, or
 // one of a card's checklist items: an entity of its own carrying the
 // timestamp and the author in frontmatter and the text as the body.
+//
+// A call carrying no text mints the entity with an empty body and journals
+// the same commented line. That is the form an editor calls: the comment
+// exists from the first keystroke, so nothing has to decide when an author
+// has finished composing one, and an author who says nothing after all
+// deletes the comment. A call carrying text keeps its present behaviour, so
+// the one-shot path stays one call.
+//
+// What an abandoned draft costs is an entity and a journal line where there
+// used to be nothing, and that is the price of the shape rather than an
+// oversight. dinah check names an empty comment nothing designates, at
+// cleanup severity, and names dinah delete as the remedy.
 func (l *Library) Comment(req *Request) *Response {
 	if l.Bench.Operator == "" {
 		return l.refuse(req, nil, contract.NoOperator, "")
@@ -191,9 +203,6 @@ func (l *Library) Comment(req *Request) *Response {
 	if _, mounts := bench.MountOf(entity.Kind, bench.CommentsDir); !mounts {
 		return l.refuseWith(req, entity.Card, contract.NotCommentable, entity.Ref,
 			map[string]string{"kind": entity.Kind, entity.Kind: entity.Ref})
-	}
-	if strings.TrimSpace(req.Text) == "" {
-		return l.refuse(req, entity.Card, contract.Malformed, "text")
 	}
 	now := bench.Stamp(l.Now())
 	// The comment is its own entity, so its identifier needs no lock, but the
@@ -235,8 +244,42 @@ func (l *Library) Comment(req *Request) *Response {
 		return l.FromError(req, err)
 	}
 	response := l.ok(req, entity.Card)
-	response.Detail = comment.ID
+	response.Detail = l.commentRefOf(entity, comment)
 	return response
+}
+
+// commentRefOf composes what a person types to reach a comment that was just
+// written, which is what the answer carries back.
+//
+// A reference rather than the identifier, because the identifier of a comment
+// does not resolve: a comment is reached through the thing it hangs below, so
+// `dinah path <12-hex>` answers unknown-card and every caller that took the
+// answer and asked a second question of it was refused. The empty creation
+// form exists so that something can open the file it just made, and it can
+// only do that if what it is handed is an address.
+//
+// The holder's own reference is the resolver's, except below a card, where
+// itemCanonicalRef composes the kind-narrowed spelling `dinah show` prints.
+// Both resolve; the second is the one a person recognises.
+//
+// A position that cannot be counted leaves the identifier standing. It is not
+// an address, but it names the entity that was made, and answering nothing at
+// all would be worse.
+func (l *Library) commentRefOf(entity *bench.EntityRef, comment *bench.Comment) string {
+	holder := entity.Ref
+	if entity.Kind == bench.KindItem && entity.Card != nil {
+		if named, err := l.itemCanonicalRef(entity.Card, entity.ID); err == nil {
+			holder = named
+		}
+	}
+	if holder == "" {
+		return comment.ID
+	}
+	ordinal, err := memberPosition(comment.Dir, bench.CommentAnchor)
+	if err != nil || ordinal == 0 {
+		return comment.ID
+	}
+	return commentRef(holder, ordinal)
 }
 
 // Attach records a file against the bench, a column, a card or a comment. The
@@ -439,6 +482,10 @@ func (l *Library) Delete(req *Request) *Response {
 	if entity.Kind == bench.KindWorkbench {
 		return l.refuse(req, nil, contract.UnknownPath, req.Ref)
 	}
+	designator, refused := l.admitCommentDeletion(req, entity)
+	if refused != nil {
+		return refused
+	}
 	now := bench.Stamp(l.Now())
 	journal, ev := l.removalRecord(req, entity, now)
 	act := &bench.StructuralAct{
@@ -467,9 +514,114 @@ func (l *Library) Delete(req *Request) *Response {
 	if entity.Kind == bench.KindCard {
 		l.Bench.ReloadNumbers()
 	}
+	// The reopen lands after the deletion rather than before it, so a run
+	// that fails to remove the directory leaves the item settled and its
+	// answer standing, which is the state the refusal above protects. The
+	// other order would unsettle an item whose answer is still on disk.
+	if designator != nil {
+		if refused := l.reopenForDeletion(req, designator); refused != nil {
+			return refused
+		}
+	}
 	response := l.ok(req, nil)
 	response.Detail = entity.ID
 	return response
+}
+
+// admitCommentDeletion answers the one question deleting a comment raises:
+// whether a checklist item designates it as its answer of record. It reports
+// the designating item where the deletion is to go ahead and reopen it, and a
+// refusal where it is not.
+//
+// A designation names a comment of the very item that carries it, so the only
+// item that can designate a comment is the one it hangs below, and the check
+// is that item's own anchor rather than a walk of the card. Nothing else
+// designates anything, so every other kind and every comment hanging below a
+// card or a column passes straight through.
+//
+// Without --force the answer is a refusal naming the item, because an answer
+// of record cannot be destroyed while it is still the answer. With --force the
+// deletion goes ahead and reopens the item as part of the same act, and the
+// authority is the reopen's: on an operator-owned item the forced form is the
+// operator's alone, on the terms closeItem already refuses a terminal verb
+// there. A force that did not respect that would be a way to unsettle an
+// operator's ruling without being the operator.
+func (l *Library) admitCommentDeletion(req *Request, entity *bench.EntityRef) (*designatedBy, *Response) {
+	if entity.Kind != bench.KindComment || entity.Card == nil {
+		return nil, nil
+	}
+	holder := filepath.Dir(filepath.Dir(entity.Dir))
+	item, err := bench.LoadItem(holder)
+	if err != nil || item.Resolution == "" {
+		return nil, nil
+	}
+	designated, err := l.Bench.ResolveEntity(item.Resolution)
+	if err != nil || !sameDir(designated.Dir, entity.Dir) {
+		return nil, nil
+	}
+	// Composed before the refusal rather than after it, because the refusal
+	// names the item too. It used to fill its item slot with the designation,
+	// so the sentence read "is the answer of record for item
+	// <a comment reference>", naming a comment where it said item, while the
+	// value it wanted was computed a dozen lines further down.
+	//
+	// The reference is composed rather than taken from the item's own
+	// identifier, because Reopen resolves what it is handed and a bare
+	// identifier resolves to nothing.
+	named, err := l.itemCanonicalRef(entity.Card, item.ID)
+	if err != nil {
+		return nil, l.FromError(req, err)
+	}
+	if !req.Force {
+		return nil, l.refuseWith(req, entity.Card, contract.NotDesignatable, entity.Ref, map[string]string{
+			"item": named,
+		})
+	}
+	if item.Owner == bench.ItemOwnerOperator && req.Actor != l.Bench.Operator {
+		return nil, l.refuse(req, entity.Card, contract.NotOperator, req.Actor)
+	}
+	return &designatedBy{item: named, designation: item.Resolution}, nil
+}
+
+// designatedBy is the item a comment being deleted is the answer of record
+// for, and the reference that item carries for it.
+//
+// The designation is kept beside the item rather than recomposed, because it
+// is the canonical spelling the settling stored and it is the only part of the
+// deleted comment that survives the act. A reference the resolver happened to
+// answer with would reach the same comment and read as a different address.
+type designatedBy struct {
+	// item is the reference Reopen is handed, which resolves.
+	item string
+	// designation is the comment's canonical reference, which the composed
+	// reason names.
+	designation string
+}
+
+// reopenForDeletion runs the reopen a forced deletion is, composing the reason
+// rather than demanding one.
+//
+// A reopen takes a reason, which is prose, and the journal keeps it. The
+// forced form composes one rather than demanding one. The sentence itself is
+// the head's, because prose belongs to the layer that holds a catalog and this
+// one holds none; what this layer guarantees is that a reason exists, so a
+// caller reaching the library directly still lands a reopen the journal can
+// read. What that fallback carries is the deleted comment's reference, which
+// is the fact worth keeping either way. That reference is the only part of the deleted comment
+// that survives, and it is prose in a prose field, so nothing has to tell two
+// kinds of value apart.
+func (l *Library) reopenForDeletion(req *Request, designator *designatedBy) *Response {
+	routed := *req
+	routed.Ref = designator.item
+	routed.Reason = req.Reason
+	if strings.TrimSpace(routed.Reason) == "" {
+		routed.Reason = designator.designation
+	}
+	response := l.Reopen(&routed)
+	if response.Outcome != contract.OutcomeOK {
+		return response
+	}
+	return nil
 }
 
 // tombstoneNumber rewrites the first registry line claiming the identifier to
@@ -1029,4 +1181,171 @@ func (l *Library) NewWorkstream(req *Request) *Response {
 	response.Workstream = &view
 	response.Detail = workstream.ID
 	return response
+}
+
+// AcceptDivergence ratifies a comment body somebody edited outside the tool.
+//
+// It takes no text, and that is the whole of what distinguishes it from a
+// write. The two acts mean different things: ratifying says the body somebody
+// typed is now the record, and writing says here is the record instead. An
+// operator who wants to do both does two acts, and the journal records them as
+// two.
+//
+// What it does is re-stamp the digest from the body as it stands and journal
+// that a divergence was accepted and by whom. Once ratified the comment is no
+// longer diverged, so an ordinary write works again. A comment that is not
+// diverged is accepted all the same and answers ok, on the terms a field write
+// storing the value already there answers ok: the caller asked for a state and
+// the state is what they get.
+func (l *Library) AcceptDivergence(req *Request) *Response {
+	if l.Bench.Operator == "" {
+		return l.refuse(req, nil, contract.NoOperator, "")
+	}
+	if refused := l.malformedHarness(req, nil); refused != nil {
+		return refused
+	}
+	entity, err := l.Bench.ResolveEntity(req.Ref)
+	if err != nil {
+		return l.FromError(req, err)
+	}
+	if req.Actor == "" {
+		return l.refuse(req, entity.Card, contract.NoOwner, "")
+	}
+	if entity.Kind != bench.KindComment {
+		return l.refuse(req, entity.Card, contract.UnknownPath, req.Ref)
+	}
+	now := bench.Stamp(l.Now())
+	lock, err := bench.Acquire(l.lockDirFor(entity), req.Actor, now)
+	if err != nil {
+		return l.FromError(req, err)
+	}
+	defer lock.Release()
+	fm, body, err := bench.ReadCommentAnchor(entity.Dir)
+	if err != nil {
+		return l.FromError(req, err)
+	}
+	if err := bench.WriteCommentAnchor(entity.Dir, fm, body); err != nil {
+		return l.FromError(req, err)
+	}
+	ev := bench.Event{
+		TS:      now,
+		Event:   contract.EventDivergenceAccepted,
+		Actor:   req.Acting(),
+		Comment: entity.ID,
+		Note:    entity.ID,
+	}
+	if err := bench.AppendEvent(l.journalFor(entity), ev); err != nil {
+		return l.FromError(req, err)
+	}
+	response := l.ok(req, entity.Card)
+	response.Detail = entity.ID
+	return response
+}
+
+// RecordCommentEdit is the return half of dinah edit on a comment: the head
+// opens the file in the author's editor, and this decides what, if anything,
+// that edit means.
+//
+// It claims nothing about when the editor returned, and that is the point.
+// runEdit calls Run, and a GUI editor that hands the file to an
+// already-running instance returns at once, so an implementation asserting the
+// author had finished would attribute an edit that had not happened yet. What
+// the tool has is the body before and the body after, and it says only what
+// those two support.
+//
+// Three outcomes, decided against the digest the anchor carries:
+//
+//   - The body agrees with the recorded digest. Nothing is written and nothing
+//     is journalled. This is the answer both when the author changed nothing
+//     and when the editor returned before the author started, and the tool
+//     cannot tell those apart, which is exactly why it must do the same thing
+//     in both. It is also the answer when an author restored a diverged body
+//     by hand, which is the remedy that needs no command at all.
+//   - The body disagrees with the recorded digest and already disagreed before
+//     the editor opened it. Somebody else's edit is standing in the file, and
+//     this author's own change cannot be told from it, so the write is refused
+//     rather than attributed. dinah accept-divergence settles what the record
+//     is, and then an ordinary edit works again.
+//   - The body disagrees and did not before. The author finished before the
+//     editor returned, which is now a fact rather than an assumption. The new
+//     digest is recorded and the edit is journalled as theirs.
+//
+// An author still typing when the editor returns falls into the first case,
+// and their edit is caught later by dinah check like any other hand edit.
+// Nothing is lost and nothing is asserted that was not observed.
+func (l *Library) RecordCommentEdit(req *Request) *Response {
+	if l.Bench.Operator == "" {
+		return l.refuse(req, nil, contract.NoOperator, "")
+	}
+	if refused := l.malformedHarness(req, nil); refused != nil {
+		return refused
+	}
+	entity, err := l.Bench.ResolveEntity(req.Ref)
+	if err != nil {
+		return l.FromError(req, err)
+	}
+	if req.Actor == "" {
+		return l.refuse(req, entity.Card, contract.NoOwner, "")
+	}
+	if entity.Kind != bench.KindComment {
+		return l.refuse(req, entity.Card, contract.UnknownPath, req.Ref)
+	}
+	now := bench.Stamp(l.Now())
+	lock, err := bench.Acquire(l.lockDirFor(entity), req.Actor, now)
+	if err != nil {
+		return l.FromError(req, err)
+	}
+	defer lock.Release()
+	fm, body, err := bench.ReadCommentAnchor(entity.Dir)
+	if err != nil {
+		return l.FromError(req, err)
+	}
+	// Whether this author changed anything is asked first, and a no ends the
+	// run whatever the header says. The spec's first bullet is unconditional:
+	// an unchanged body does nothing and journals nothing. Asking about a
+	// divergence ahead of it made `dinah edit` on a diverged comment answer a
+	// refusal for an edit that never happened, which told the reader nothing
+	// they could act on and nothing dinah check would not have told them.
+	stored := fm.Value(bench.CommentDigestField)
+	standing := bench.CommentDigest(body)
+	if standing == req.PriorDigest || (stored != "" && stored == standing) {
+		response := l.ok(req, entity.Card)
+		response.Detail = entity.ID
+		return response
+	}
+	// The body did change under this author's hand, so there is an edit to
+	// attribute. A comment that was already diverged when edit opened it is
+	// where that attribution would be wrong, because this author's change
+	// cannot be told from the one already standing in the file.
+	if stored != "" && stored != req.PriorDigest {
+		return l.refuse(req, entity.Card, contract.CommentBodyDiverged, entity.Ref)
+	}
+	if err := bench.WriteCommentAnchor(entity.Dir, fm, body); err != nil {
+		return l.FromError(req, err)
+	}
+	ev := bench.Event{
+		TS:    now,
+		Event: contract.EventCommentUpdated,
+		Actor: req.Acting(),
+		Field: bench.BodyField,
+		Note:  entity.ID,
+	}
+	if err := bench.AppendEvent(l.journalFor(entity), ev); err != nil {
+		return l.FromError(req, err)
+	}
+	response := l.ok(req, entity.Card)
+	response.Detail = entity.ID
+	return response
+}
+
+// CommentBodyDigest reports the digest of a comment's body as it stands, for
+// a caller that has to observe it before handing the file to something else.
+// It is dinah edit's own need and nobody else's, which is why it reads rather
+// than resolving: the caller has already resolved the entity.
+func CommentBodyDigest(dir string) (string, error) {
+	_, body, err := bench.ReadCommentAnchor(dir)
+	if err != nil {
+		return "", err
+	}
+	return bench.CommentDigest(body), nil
 }

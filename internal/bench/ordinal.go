@@ -69,6 +69,14 @@ func EntityOrdinal(collection, id, anchor string) int {
 // Answering 1 stamps the new entity with the ordinal the collection's first
 // member already holds, and a position is what a reference below a card
 // addresses, so the write is refused instead.
+// NextOrdinalIn is nextOrdinal under an exported name, for the note migration,
+// which writes a comment into an item's own collection from outside this
+// package and owes that comment the same position a verb's write would give
+// it.
+func NextOrdinalIn(collection, anchor string) (int, error) {
+	return nextOrdinal(collection, anchor)
+}
+
 func nextOrdinal(collection, anchor string) (int, error) {
 	ids, err := ListIDs(collection)
 	if err != nil {

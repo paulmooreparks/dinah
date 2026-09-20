@@ -28,7 +28,7 @@ import type { Spawner } from "./cli";
 import { runDinah } from "./cli";
 import { refusalMessage, isRow, rowRef } from "./cardCommands";
 import type { Wiring } from "./commandTable";
-import { openCommentDraft } from "./commentDrafts";
+import { composeComment } from "./commentBody";
 import { COMMAND_EDIT_COLUMN_INSTRUCTIONS } from "./identity";
 import { ENGLISH } from "./l10n";
 import type { Localizer } from "./l10n";
@@ -258,11 +258,17 @@ export async function invokeCommentOnColumn(
 			return resolved.length === 1 ? (true as const) : undefined;
 		},
 		async (context) => {
-			await openCommentDraft(wiring.draftHost, {
-				root: context.root,
-				folder: context.folder,
-				ref: context.columnRef,
-			});
+			await composeComment(
+				wiring.commentHost,
+				wiring.spawner,
+				wiring.exe,
+				wiring.openComments,
+				{
+					root: context.root,
+					folder: context.folder,
+					ref: context.columnRef,
+				},
+			);
 			return { kind: "done" } as const;
 		},
 	);

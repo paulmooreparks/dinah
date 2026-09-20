@@ -164,7 +164,11 @@ type Request struct {
 	Basis string
 	// Title is the title a new card carries.
 	Title string
-	// Text is a comment's body.
+	// Text is a comment's body. On the three terminal checklist verbs it is
+	// the --text form, which mints a comment of the item and designates it
+	// in one act; naming it beside a designation reference is refused
+	// rather than resolved by precedence, because the two are different
+	// acts and an invocation asking for both has not said which it means.
 	Text string
 	// Owner is the owner a checklist item names, blank for none said.
 	// bench.ItemOwnerOperator is the one value enforced against the actor
@@ -202,6 +206,34 @@ type Request struct {
 	Replace bool
 	// Confirm is the deliberate flag a delete requires.
 	Confirm bool
+	// PriorDigest is the digest of a comment's body as it stood before an
+	// editor was handed the file, which RecordCommentEdit reads to tell an
+	// edit this author made from one that was already there. The head
+	// computes it, because the head is what opens the editor.
+	PriorDigest string
+	// ExpectedDigest is the digest the caller last observed recorded on a
+	// comment's anchor, which turns a write of that comment into a
+	// compare-and-swap on the digest key rather than on the body.
+	//
+	// It is a second field rather than a second use of PriorDigest, and the
+	// two are not the same value. PriorDigest is what the tool computed from
+	// a body it read; this is what the tool read out of the header. They
+	// coincide on a comment nobody has hand-edited, and they part company on
+	// one somebody has, which is exactly the case each is used to judge.
+	//
+	// Which one a caller can supply is decided by what it was able to
+	// observe. `dinah edit` opens the file itself and sees the body before
+	// and after, so it compares bodies. An editor writes the file on save,
+	// so by the time an extension's save handler runs the body it would have
+	// compared against is gone; what survives is the header, and the digest
+	// in it is the only thing left to compare. A caller supplying this
+	// therefore says: I last saw this digest recorded, nothing has written
+	// the comment through a verb since, and the change on disk is mine.
+	ExpectedDigest string
+	// Force carries a delete past the refusal an item's designation raises,
+	// reopening that item as part of the same act. It inherits the reopen's
+	// authority, so on an operator-owned item it is the operator's alone.
+	Force bool
 	// Query is the query string the query command reads, carried byte for
 	// byte as the caller wrote it, since Matches echoes what it was given
 	// rather than what the parser made of it.

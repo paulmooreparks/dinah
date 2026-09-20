@@ -3,6 +3,7 @@ package bench
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -15,9 +16,9 @@ import (
 // shape a hand-stranded id leaves behind.
 func newStrandedFixture(t *testing.T) string {
 	t.Helper()
-	root := t.TempDir()
+	root := containedPath(t.TempDir())
 	fm := NewFrontmatter()
-	fm.Set("format", "1")
+	fm.Set("format", strconv.Itoa(StorageFormat))
 	fm.Set("profile", ProfileVersion)
 	fm.Set("title", "Fixture")
 	fm.Set("slug", "fx")
@@ -35,9 +36,9 @@ func newStrandedFixture(t *testing.T) string {
 // behind before this card's fix.
 func newSoleStrandedFixture(t *testing.T) string {
 	t.Helper()
-	root := t.TempDir()
+	root := containedPath(t.TempDir())
 	fm := NewFrontmatter()
-	fm.Set("format", "1")
+	fm.Set("format", strconv.Itoa(StorageFormat))
 	fm.Set("profile", ProfileVersion)
 	fm.Set("title", "Fixture")
 	fm.Set("slug", "fx")
@@ -224,10 +225,10 @@ func TestCheckReportsStrandedColumnsAndTheMigrationRepairsThem(t *testing.T) {
 // is reachable from the columns sequence, so neither is reachable at all.
 func newOrphanedDirectoryFixture(t *testing.T, carriesAnchor bool) (root, orphan string) {
 	t.Helper()
-	root = t.TempDir()
+	root = containedPath(t.TempDir())
 	orphan = "b00000000003"
 	fm := NewFrontmatter()
-	fm.Set("format", "1")
+	fm.Set("format", strconv.Itoa(StorageFormat))
 	fm.Set("profile", ProfileVersion)
 	fm.Set("title", "Fixture")
 	fm.Set("slug", "fx")
@@ -267,7 +268,7 @@ func TestCheckReportsADirectoryTheWorkbenchDoesNotName(t *testing.T) {
 	} {
 		t.Run(shape.name, func(t *testing.T) {
 			root, orphan := newOrphanedDirectoryFixture(t, shape.carriesAnchor)
-			opened, err := Open(root)
+			opened, err := openFixtureAtAnyFormat(t, root)
 			if err != nil {
 				t.Fatalf("open: %v", err)
 			}
@@ -300,11 +301,11 @@ func TestCheckReportsADirectoryTheWorkbenchDoesNotName(t *testing.T) {
 // assuming it. One workbench carries both defects at once, and each finding
 // names its own identifier and only its own.
 func TestTheTwoColumnDirectoryFindingsNeverNameEachOthersIdentifier(t *testing.T) {
-	root := t.TempDir()
+	root := containedPath(t.TempDir())
 	stranded := "b00000000002"
 	orphan := "b00000000003"
 	fm := NewFrontmatter()
-	fm.Set("format", "1")
+	fm.Set("format", strconv.Itoa(StorageFormat))
 	fm.Set("profile", ProfileVersion)
 	fm.Set("title", "Fixture")
 	fm.Set("slug", "fx")

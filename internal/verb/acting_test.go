@@ -330,7 +330,7 @@ func TestNoEventIsBuiltWithAnActorComposedAnywhereElse(t *testing.T) {
 	// between them. It is exact: a literal added or removed fails here until
 	// somebody writes the new number down, which is what stops the population
 	// shrinking quietly.
-	const constructionSites = 39
+	const constructionSites = 42
 	// actorAssignments is how many assignments to an Actor field the two
 	// packages carry, which is none: every event names its actor in the literal
 	// that builds it.
@@ -510,6 +510,7 @@ var harnessCheckedElsewhere = map[string]string{
 	"leave":                 "the same",
 	"pull":                  "the body Library.Pull runs under the lock, and Pull runs the refusal at its head",
 	"closeItem":             "one of the three terminal checklist bodies withItem runs, and withItem runs the refusal at its head",
+	"mintDesignation":       "the same, for the comment the --text form of a terminal verb mints inside closeItem",
 	"Cite":                  "the same, for the citation body",
 	"Reopen":                "the same, for the reopening body",
 	"adoptWorkstreams":      "a repair Check reaches, and Check runs the refusal for every request carrying a repair marker",

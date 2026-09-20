@@ -44,7 +44,7 @@ import {
 	treeItemFor,
 } from "../../src/tree";
 import type { CardView, ColumnView, ItemView } from "../../src/wire";
-import type { CheckResults, DraftLog, HostLog } from "../support/rows";
+import type { CheckResults, CommentLog, HostLog } from "../support/rows";
 import {
 	EXE,
 	FOLDER,
@@ -52,7 +52,7 @@ import {
 	catalogueWithKinds,
 	collectionRow,
 	columnView,
-	emptyDraftLog,
+	emptyCommentLog,
 	emptyLog,
 	itemRow,
 	itemView,
@@ -65,7 +65,7 @@ import {
 /** What one driven run recorded. */
 interface Run {
 	readonly log: HostLog;
-	readonly drafts: DraftLog;
+	readonly comments: CommentLog;
 	readonly calls: string[][];
 }
 
@@ -75,7 +75,7 @@ async function invoke(
 	elements: readonly TreeElement[],
 	options: {
 		readonly log?: HostLog;
-		readonly drafts?: DraftLog;
+		readonly comments?: CommentLog;
 		readonly answer?: (argv: readonly string[]) => SpawnOutcome;
 		readonly catalogue?: ReturnType<typeof catalogueWithKinds>;
 	} = {},
@@ -83,7 +83,7 @@ async function invoke(
 	const entry = ROW_COMMAND_TABLE.find((row) => row.id === id);
 	assert.notEqual(entry, undefined, `no table entry carries the id ${id}`);
 	const log = options.log ?? emptyLog();
-	const drafts = options.drafts ?? emptyDraftLog();
+	const comments = options.comments ?? emptyCommentLog();
 	const calls: string[][] = [];
 	const answer = options.answer ?? ((): SpawnOutcome => ok());
 	const spawner: Spawner = async (_exe, argv) => {
@@ -93,9 +93,9 @@ async function invoke(
 	const results: CheckResults = { applied: [] };
 	await (entry as (typeof ROW_COMMAND_TABLE)[number]).invoke(
 		elements,
-		wiringFor(log, spawner, results, drafts, options.catalogue ?? catalogueWithKinds()),
+		wiringFor(log, spawner, results, comments, options.catalogue ?? catalogueWithKinds()),
 	);
-	return { log, drafts, calls };
+	return { log, comments, calls };
 }
 
 /** The argv every verb reaches dinah as, once --json and the pin are in front. */
@@ -188,19 +188,19 @@ test("Comment, Resolve, Verify, Fail and Raise each refuse a multi-row selection
 	]) {
 		const log = emptyLog();
 		log.typed = "a note";
-		const drafts = emptyDraftLog();
+		const comments = emptyCommentLog();
 		const run = await invoke(
 			id,
 			[
 				itemRow({ ref: "tr-1/questions/1" }),
 				itemRow({ ref: "tr-1/questions/2", id: "b00000000002", ordinal: 2 }),
 			],
-			{ log, drafts },
+			{ log, comments },
 		);
 		assert.deepEqual(run.calls, [], `${id} spawned over a two-row selection`);
 		assert.equal(run.log.errors.length, 1, `${id} recorded ${String(run.log.errors.length)} errors`);
 		assert.equal(run.log.errors[0], ENGLISH("dialog.bulk.oneRowOnly"));
-		assert.deepEqual(run.drafts.written, [], `${id} wrote a draft over a two-row selection`);
+		assert.deepEqual(run.comments.opened, [], `${id} opened a comment over a two-row selection`);
 		driven += 1;
 	}
 	assert.equal(driven, 4, "the sweep drove a number of commands other than four");

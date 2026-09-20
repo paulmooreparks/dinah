@@ -107,22 +107,23 @@ func TestEveryReferenceTakingCommandAnswersACollectionOrRefusesIt(t *testing.T) 
 		"list": {"list", "fx-1/comments"},
 	}
 	refusing := map[string][]string{
-		"show":         {"show", "fx-1/comments"},
-		"comment":      {"comment", "fx-1/comments", "text"},
-		"edit":         {"edit", "fx-1/comments"},
-		"attach":       {"attach", "fx-1/comments", source},
-		"archive":      {"archive", "fx-1/comments"},
-		"restore":      {"restore", "fx-1/comments"},
-		"delete":       {"delete", "fx-1/comments", "--yes"},
-		"rename":       {"rename", "fx-1/comments", "renamed.txt"},
-		"instructions": {"instructions", "fx-1/comments"},
-		"cite":         {"cite", "fx-1/comments", "attachment", "1"},
-		"resolve":      {"resolve", "fx-1/comments", "a note"},
-		"verify":       {"verify", "fx-1/comments", "a note"},
-		"fail":         {"fail", "fx-1/comments", "a note"},
-		"reopen":       {"reopen", "fx-1/comments", "a reason"},
-		"get":          {"get", "fx-1/comments", "body"},
-		"set":          {"set", "fx-1/comments", "body", "rewritten"},
+		"show":              {"show", "fx-1/comments"},
+		"comment":           {"comment", "fx-1/comments", "text"},
+		"edit":              {"edit", "fx-1/comments"},
+		"attach":            {"attach", "fx-1/comments", source},
+		"archive":           {"archive", "fx-1/comments"},
+		"restore":           {"restore", "fx-1/comments"},
+		"delete":            {"delete", "fx-1/comments", "--yes"},
+		"rename":            {"rename", "fx-1/comments", "renamed.txt"},
+		"instructions":      {"instructions", "fx-1/comments"},
+		"cite":              {"cite", "fx-1/comments", "attachment", "1"},
+		"accept-divergence": {"accept-divergence", "fx-1/comments"},
+		"resolve":           {"resolve", "fx-1/comments", "--text", "a note"},
+		"verify":            {"verify", "fx-1/comments", "--text", "a note"},
+		"fail":              {"fail", "fx-1/comments", "--text", "a note"},
+		"reopen":            {"reopen", "fx-1/comments", "a reason"},
+		"get":               {"get", "fx-1/comments", "body"},
+		"set":               {"set", "fx-1/comments", "body", "rewritten"},
 	}
 
 	// The roster this sweep covers is held against the one internal/verb
@@ -167,13 +168,13 @@ func TestEveryReferenceTakingCommandAnswersACollectionOrRefusesIt(t *testing.T) 
 		}
 		refused++
 	}
-	if ran != 18 {
-		t.Fatalf("the sweep ran %d invocations and the roster is eighteen", ran)
+	if ran != 19 {
+		t.Fatalf("the sweep ran %d invocations and the roster is nineteen", ran)
 	}
-	if accepted != 2 || refused != 16 {
-		t.Fatalf("the sweep accepted %d and refused %d, and the split is two and sixteen", accepted, refused)
+	if accepted != 2 || refused != 17 {
+		t.Fatalf("the sweep accepted %d and refused %d, and the split is two and seventeen", accepted, refused)
 	}
-	t.Logf("eighteen invocations ran: %d accepted, %d refused with %s", accepted, refused, contract.IsACollection)
+	t.Logf("nineteen invocations ran: %d accepted, %d refused with %s", accepted, refused, contract.IsACollection)
 }
 
 // TestListDrawsACollectionsMembersInCreationOrder pins the members, their

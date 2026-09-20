@@ -135,7 +135,7 @@ def hand_edit(step: str, root: Path, env: dict) -> None:
     if len(fields) != 3 or fields[1] != "column":
         raise SystemExit(f"a hand-edit step reads `hand-edit <card> column <slug>`, got {step!r}")
     anchor = run_capture([str(BINARY), "path", fields[0]], root, env)
-    listed = run_capture([str(BINARY), "--json", "columns"], root, env)
+    listed = run_capture([str(BINARY), "--json", "list", "columns"], root, env)
     wanted = next((c["id"] for c in json.loads(listed) if c["slug"] == fields[2]), None)
     if wanted is None:
         raise SystemExit(f"the workbench declares no column with the slug {fields[2]!r}")

@@ -23,8 +23,20 @@ type Comment struct {
 	// Ordinal is the comment's one-based position among its holder's
 	// comments, assigned when it was written.
 	Ordinal int
-	// Author is who wrote it.
+	// Author is who wrote it. It is empty on a comment the note migration
+	// could not attribute, which records the absence in
+	// AuthorUnrecoverable rather than inventing a name.
 	Author string
+	// AuthorUnrecoverable is true where the store cannot say who wrote the
+	// comment and says so. An author is plain text with nothing reserved,
+	// so a word standing for the absence would collide with a person of
+	// that name; absence itself collides with nothing.
+	AuthorUnrecoverable bool
+	// Digest is the hex-encoded SHA-256 the last verb to write this
+	// comment's anchor recorded over its body, and is empty on a comment no
+	// verb has written since dinah-525. CommentDiverged compares it against
+	// the body beside it.
+	Digest string
 	// Body is the comment itself.
 	Body string
 }
@@ -47,9 +59,11 @@ func AddComment(holderDir, author, ts, body string) (*Comment, error) {
 	dir := filepath.Join(collection, id)
 	fm := NewFrontmatter()
 	fm.Set("ts", ts)
-	fm.Set("author", author)
+	if author != "" {
+		fm.Set("author", author)
+	}
 	fm.Set(OrdinalField, strconv.Itoa(ordinal))
-	if err := WriteText(filepath.Join(dir, CommentAnchor), fm.Render(body)); err != nil {
+	if err := WriteCommentAnchor(dir, fm, body); err != nil {
 		return nil, err
 	}
 	comment := &Comment{
@@ -89,12 +103,14 @@ func Comments(holderDir string) ([]*Comment, error) {
 		}
 		fm, body := ParseAnchor(text)
 		comment := &Comment{
-			ID:      id,
-			Dir:     dir,
-			TS:      fm.Value("ts"),
-			Ordinal: OrdinalOf(fm),
-			Author:  fm.Value("author"),
-			Body:    body,
+			ID:                  id,
+			Dir:                 dir,
+			TS:                  fm.Value("ts"),
+			Ordinal:             OrdinalOf(fm),
+			Author:              fm.Value("author"),
+			AuthorUnrecoverable: fm.Value(CommentAuthorUnrecoverableField) == "true",
+			Digest:              fm.Value(CommentDigestField),
+			Body:                body,
 		}
 		comments = append(comments, comment)
 	}
@@ -981,9 +997,12 @@ type Item struct {
 	// and SetField refuses a rewrite of this key on one. Every other value
 	// is enforced against nobody.
 	Owner string
-	// Note is the resolution note: what was decided, empty until somebody
-	// records it.
-	Note string
+	// Resolution is the canonical reference of the comment this item's
+	// settling designated as its answer, empty until somebody settles it.
+	// It names a comment of this item and never another item's answer or a
+	// card comment, which is what resolve, verify and fail refuse at the
+	// write. It replaced the free-text note key with dinah-525.
+	Resolution string
 	// Text is the item's own body, the judgement it was filed under, with
 	// the newline every text file ends in trimmed off the end of it. A card
 	// body and a comment body are both carried verbatim, and an item's is
@@ -1007,15 +1026,15 @@ func LoadItem(dir string) (*Item, error) {
 	}
 	fm, body := ParseAnchor(text)
 	return &Item{
-		ID:      filepath.Base(dir),
-		Dir:     dir,
-		Kind:    fm.Value("kind"),
-		State:   fm.Value("state"),
-		Ordinal: OrdinalOf(fm),
-		Column:  fm.Value("column"),
-		Owner:   fm.Value("owner"),
-		Note:    fm.Value("note"),
-		Text:    strings.TrimRight(body, "\n"),
+		ID:         filepath.Base(dir),
+		Dir:        dir,
+		Kind:       fm.Value("kind"),
+		State:      fm.Value("state"),
+		Ordinal:    OrdinalOf(fm),
+		Column:     fm.Value("column"),
+		Owner:      fm.Value("owner"),
+		Resolution: fm.Value(ItemResolutionField),
+		Text:       strings.TrimRight(body, "\n"),
 	}, nil
 }
 

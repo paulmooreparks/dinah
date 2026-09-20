@@ -3315,11 +3315,6 @@
       "context": "The meaning of the column argument of `dinah next`, printed in that command's arguments table.",
       "source": "5d2227204b4f58f2"
     },
-    "param.note.summary": {
-      "text": "जाँच में क्या दिखा, एक शेल शब्द में या उद्धरण चिह्नों में; अकेला - इसे पाइप से पढ़ता है",
-      "context": "The written meaning of the note argument, shared by resolve, verify and fail.",
-      "source": "9d18a0ac7460a25"
-    },
     "param.path.card.summary": {
       "text": "वह चीज़ जिसका फ़ाइल पथ आप छाप रहे हैं, जैसे wb-1/comments/1",
       "context": "The meaning of the card argument of `dinah path`, printed in that command's arguments table.",
@@ -5040,6 +5035,11 @@
       "context": "Names rename's free-text slot inside refusal.dinah.multiple-words, which reads it as {label}.",
       "source": "2222c8b5d2f36b0f"
     },
+    "reason.deletedDesignation": {
+      "text": "जो टिप्पणी इसका अभिलेख उत्तर थी, वह हटा दी गई: {comment}.",
+      "context": "The reason a forced deletion composes for the reopen it performs. {comment} is the reference of the comment being deleted, which is the only part of it that survives.",
+      "source": "445abfc76e8dd9a4"
+    },
     "slot.note": {
       "text": "टिप्पणी",
       "context": "The label naming what a bare word after resolve, verify or fail was meant to be, printed when several unquoted words arrive where one argument belongs.",
@@ -5524,6 +5524,126 @@
       "text": "छायांकित",
       "context": "How the canonical token shadowed is rendered in the settings listing for a stored alias whose name is now a declared command. The machine surface always carries the canonical spelling.",
       "source": "1f223a3d86f30d38"
+    },
+    "refusal.dinah.comment-body-diverged": {
+      "text": "टिप्पणी {detail} का पाठ अब उस डाइजेस्ट से मेल नहीं खाता जो Dinah ने उस पर दर्ज किया था, अर्थात Dinah के बाहर किसी वस्तु ने उसे संपादित किया है।",
+      "context": "The sentence printed after the refusal name dinah.comment-body-diverged, which every verb that writes a comment's anchor raises when the stored digest disagrees with the body it is about to replace. {detail} is the comment's reference. The sentence says an edit happened and says nothing about who made it or when, because the tool knows neither.",
+      "source": "b0c624b08eed0e3d"
+    },
+    "refusal.dinah.comment-body-diverged.next": {
+      "text": " पाठ को हाथ से पूर्ववत करें, जिसके लिए कोई कमांड नहीं चाहिए, अथवा `dinah accept-divergence {detail}` चलाएँ ताकि डिस्क पर जो है वही अभिलेख बन जाए।",
+      "context": "The next step of refusal.dinah.comment-body-diverged, spliced onto the sentence that just named the comment. The two routes differ in meaning rather than in convenience: restoring says the edit was a mistake, and accepting says the edited body is now what the record says.",
+      "source": "1b2c2099d1c78c45"
+    },
+    "refusal.dinah.not-a-designation": {
+      "text": "{detail} उस मद की टिप्पणी नहीं है जिसे आप निपटा रहे हैं।",
+      "context": "The sentence printed after the refusal name dinah.not-a-designation, which resolve, verify and fail raise when the reference they were handed is not a comment of the item being settled. {detail} is the reference as the caller typed it.",
+      "source": "db730bc379abb003"
+    },
+    "refusal.dinah.not-a-designation.next": {
+      "text": " उत्तर --text के साथ लिखें, अथवा उस मद की कोई टिप्पणी नामित करें; `dinah show <item>` बताता है कि वह कौन सी टिप्पणियाँ रखता है।",
+      "context": "The next step of refusal.dinah.not-a-designation, spliced onto the sentence that just named the reference. <item> stands for the item's own reference and is not translated.",
+      "source": "54c4c4bddf0235fd"
+    },
+    "refusal.dinah.not-designatable": {
+      "text": "टिप्पणी {detail} मद {item} का अभिलिखित उत्तर है, अतः उसे मिटाने से वह मद निपटा हुआ रह जाएगा और उसके पीछे कुछ नहीं होगा।",
+      "context": "The sentence printed after the refusal name dinah.not-designatable, which delete raises over a comment a checklist item designates. {detail} is the comment's reference and {item} is the designation the item carries.",
+      "source": "8b25c6edc2ed7781"
+    },
+    "refusal.dinah.not-designatable.next": {
+      "text": " पहले मद को फिर से खोलें, जिससे पदनाम हट जाता है, अथवा मिटाने की क्रिया --force के साथ फिर चलाएँ, जो उसी क्रिया के अंग के रूप में मद को फिर से खोल देती है।",
+      "context": "The next step of refusal.dinah.not-designatable, spliced onto the sentence that just named the comment and the item.",
+      "source": "b15c1e9bd4b89835"
+    },
+    "refusal.dinah.store-awaiting-migration": {
+      "text": "{detail} पर स्थित कार्यपीठ चेकलिस्ट मद का उत्तर अब भी टिप्पणी के रूप में दर्ज करती है, जिसे Dinah अब नहीं पढ़ता।",
+      "context": "The sentence printed after the refusal name dinah.store-awaiting-migration, which every read of a workbench below the resolution format raises. {detail} is the workbench's own path. The refusal exists because a reader that carried on would report every settled item as carrying no answer, which is a false reading rather than a degraded one.",
+      "source": "3a33736cd1eb7a2"
+    },
+    "refusal.dinah.store-awaiting-migration.next": {
+      "text": " पहले प्रतिलिपि सुरक्षित रखें, फिर उस कार्यपीठ पर dinah-migrate-notes चलाएँ और उसे दोबारा उपयोग में लाने से पहले उसकी रिपोर्ट पढ़ें।",
+      "context": "The next step of refusal.dinah.store-awaiting-migration. dinah-migrate-notes is the migration program's own name and is not translated. The backup is named first because the migration writes in place and cannot undo itself.",
+      "source": "f1da4955b4ea13a"
+    },
+    "check.comment-body-diverged": {
+      "text": "टिप्पणी {detail} का पाठ अब उस डाइजेस्ट से मेल नहीं खाता जो Dinah ने उस पर दर्ज किया था",
+      "context": "A check finding: a comment whose stored digest disagrees with its body, which means something outside Dinah edited it. It names no editor and no time, because the tool knows neither, and a comment carrying no digest is not reported at all.",
+      "source": "1db91e5a29db98bc"
+    },
+    "check.empty-comment": {
+      "text": "टिप्पणी {detail} का पाठ रिक्त है और कोई उसे पदनामित नहीं करता, अतः उस पर `dinah delete` चलाएँ",
+      "context": "A check finding at cleanup severity: an abandoned draft, which is what creating a comment before writing one costs. Nothing is blocked by it.",
+      "source": "e35b0df94f437621"
+    },
+    "check.empty-designated-comment": {
+      "text": "टिप्पणी {detail} का पाठ रिक्त है और कोई चेकलिस्ट मद उसे अपने उत्तर के रूप में पदनामित करता है",
+      "context": "A check finding at defect severity: an item's answer of record cannot be nothing. It is the same emptiness check.empty-comment reports, and it is a defect rather than clutter because something depends on this one.",
+      "source": "e6ed8800c045c378"
+    },
+    "check.item-carries-retired-note": {
+      "text": "चेकलिस्ट मद {detail} अब भी सेवानिवृत्त नोट कुंजी रखता है",
+      "context": "A check finding: an item the note migration reached and did not finish, which is the state an interrupted run leaves one item in. Running the migration again finishes it.",
+      "source": "8dde56bb07ecc94d"
+    },
+    "check.dangling-resolution": {
+      "text": "चेकलिस्ट मद {detail} ऐसी टिप्पणी पदनामित करता है जो अब हल नहीं होती",
+      "context": "A check finding: a resolution naming a comment that is not there. Deleting a designated comment is refused and the forced form clears the designation, so this is the residue of a hand edit rather than of anything the tool did.",
+      "source": "aed8b987711c0e74"
+    },
+    "column.checklist.resolution": {
+      "text": "उत्तर",
+      "context": "The heading of the column of the checklist block of `dinah show <card>` that carries the reference of the comment a settled item designates as its answer. One word, because the block is bounded by the reader's window.",
+      "source": "a6a92648588602bf"
+    },
+    "show.designation": {
+      "text": "{author}, {ts} पर: {body}",
+      "context": "The line drawn under a settled checklist item's row by a full checklist read, carrying the designated comment's author, its timestamp and its text. {body} is already capped for display by the time it reaches here.",
+      "source": "85545a651a45e0ee"
+    },
+    "show.designation.unattributed": {
+      "text": "ऐसा लेखक जिसका नाम यह कार्यपीठ नहीं बता सकती, {ts} पर: {body}",
+      "context": "The form show.designation takes for a comment whose author the store could not recover, which the note migration records as an absence rather than as a name. It says the store cannot name the author rather than leaving a blank that reads as a defect.",
+      "source": "147c71c972d77c92"
+    },
+    "slot.designation": {
+      "text": "पदनाम",
+      "context": "What the comment argument of resolve, verify and fail is called in the refusal a caller meets when they typed several bare words where one reference belongs.",
+      "source": "9e39808f77d5054"
+    },
+    "param.designation.summary": {
+      "text": "इस मद की वह टिप्पणी जो उत्तर दर्ज करती है, उसके संदर्भ के रूप में लिखी जाती है; उत्तर को इसके बजाय --text से लिखें",
+      "context": "The written meaning of the comment argument, shared by resolve, verify and fail. Naming a comment is how somebody endorses words another person wrote: the comment keeps its own author and the settling records who chose it.",
+      "source": "50e99ba70c3e7183"
+    },
+    "param.designation-text.summary": {
+      "text": "उत्तर स्वयं, जो इस मद की टिप्पणी के रूप में लिखा जाता है और एक ही क्रिया में पदनामित होता है; अकेला - उसे पाइप से पढ़ता है",
+      "context": "The written meaning of the --text flag, shared by resolve, verify and fail. It is the one-command form, and it cannot be named beside a designation reference, because the two are different acts.",
+      "source": "e7ac6c7fc4a4804b"
+    },
+    "param.delete.force.summary": {
+      "text": "ऐसी टिप्पणी मिटाएँ जिसे कोई चेकलिस्ट मद पदनामित करता है, और उसी क्रिया के अंग के रूप में उस मद को फिर से खोलें",
+      "context": "The meaning of the force argument of `dinah delete`, printed in that command's arguments table. It is the operator's alone where the designating item is the operator's.",
+      "source": "1983ae4a0619852d"
+    },
+    "param.accept-divergence.comment.summary": {
+      "text": "वह टिप्पणी जिसके डिस्क पर स्थित पाठ को आप अभिलेख बना रहे हैं",
+      "context": "The meaning of the comment argument of `dinah accept-divergence`, printed in that command's arguments table.",
+      "source": "8cdbe702ac49973b"
+    },
+    "cmd.accept-divergence.summary": {
+      "text": "किसी टिप्पणी के संपादित पाठ को अभिलेख बनाएँ",
+      "context": "The one-line summary of the accept-divergence command, printed in the command list and above its own help.",
+      "source": "451d184b98fb6120"
+    },
+    "reason.designated-comment-deleted": {
+      "text": "पदनामित टिप्पणी {comment} मिटा दी गई",
+      "context": "The reason a forced deletion composes for the reopen it performs, recorded in the journal. {comment} is the deleted comment's reference, which is the only part of it that survives.",
+      "source": "6d2b35dacadadefe"
+    },
+    "param.set.expect-digest.summary": {
+      "text": "वह डाइजेस्ट जो आपने इस टिप्पणी पर अंतिम बार दर्ज देखा था; यदि उसके बाद किसी ने टिप्पणी लिखी है तो लेखन अस्वीकार होगा",
+      "context": "The meaning of the expect-digest argument of `dinah set`, printed in that command's arguments table. It is for a caller that had the comment open while its author typed: an editor writes the file on save, so the body the write would otherwise be compared against is gone, and the digest on the header is what is left to compare.",
+      "source": "4d5ad6d096694a02"
     }
   }
 }

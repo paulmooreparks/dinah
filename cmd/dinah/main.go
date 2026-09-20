@@ -106,6 +106,16 @@ type session struct {
 	// library is the bench this invocation opened, nil until one is. The
 	// composer reads the columns off it for the listing unknown-column prints.
 	library *verb.Library
+	// diagnostic says this invocation is check, which opens a store the
+	// ordinary openers refuse.
+	//
+	// The one gate it skips is the note migration's, and it skips it because
+	// check is what an operator meeting that refusal runs next: the finding
+	// naming an item the migration has not finished lives here, and the
+	// repairs that carry a store up to the current format are reached
+	// through this command. A diagnostic a store can be too old for is a
+	// diagnostic that goes quiet exactly where it is wanted.
+	diagnostic bool
 }
 
 func main() {
@@ -654,7 +664,16 @@ func (s *session) open() (*verb.Library, error) {
 	if err != nil {
 		return nil, err
 	}
-	opened, err := bench.Open(root)
+	// check reads a store the ordinary openers refuse, because it is the
+	// diagnostic: an operator meeting dinah.store-awaiting-migration asks
+	// check what the store needs, and the repairs check carries are how a
+	// store below the current format reaches it. Every other command opens
+	// the strict way.
+	open := bench.Open
+	if s.diagnostic {
+		open = bench.OpenAwaitingResolution
+	}
+	opened, err := open(root)
 	if err != nil {
 		return nil, err
 	}

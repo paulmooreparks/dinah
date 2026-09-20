@@ -15,7 +15,7 @@ import (
 // divergence can be stated on: a card has to be able to stand in a column its
 // journal does not name.
 const witnessDefinition = `---
-format: 1
+format: 6
 profile: dinah-core/0.7
 title: Fixture
 slug: fx
@@ -60,7 +60,7 @@ const divergedJournal = `{"ts":"2026-08-17T09:00:00Z","event":"created","actor":
 // newWitnessFixture writes the two-column bench and its one diverged card.
 func newWitnessFixture(t *testing.T) string {
 	t.Helper()
-	root := t.TempDir()
+	root := containedPath(t.TempDir())
 	write(t, filepath.Join(root, WorkbenchAnchor), witnessDefinition)
 	write(t, filepath.Join(root, ColumnsDir, "b00000000001", ColumnAnchor), doingColumn)
 	write(t, filepath.Join(root, ColumnsDir, "b00000000002", ColumnAnchor), doneColumn)

@@ -19,7 +19,7 @@ func migrationFixture(t *testing.T, bodies map[string]string) string {
 	t.Helper()
 	root := containedPath(t.TempDir())
 	write(t, filepath.Join(root, WorkbenchAnchor), strings.Replace(
-		benchDefinition, "format: 1", "format: "+strconv.Itoa(FieldsFormat-1), 1))
+		benchDefinition, "format: 6", "format: "+strconv.Itoa(FieldsFormat-1), 1))
 	write(t, filepath.Join(root, ColumnsDir, "b00000000001", ColumnAnchor), columnDefinition)
 	lines := ""
 	number := 0
@@ -87,7 +87,7 @@ func TestTheMigrationLiftsTheHeadingAndReportsWhatItCannotLift(t *testing.T) {
 	})
 
 	before := everyFileUnder(t, root)
-	opened, err := Open(root)
+	opened, err := openFixtureAtAnyFormat(t, root)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -100,7 +100,7 @@ func TestTheMigrationLiftsTheHeadingAndReportsWhatItCannotLift(t *testing.T) {
 	}
 	assertUnchanged(t, before, everyFileUnder(t, root), "the preview")
 
-	opened, err = Open(root)
+	opened, err = openFixtureAtAnyFormat(t, root)
 	if err != nil {
 		t.Fatalf("reopen: %v", err)
 	}
@@ -138,7 +138,7 @@ func TestTheMigrationLiftsTheHeadingAndReportsWhatItCannotLift(t *testing.T) {
 		t.Errorf("the written account %v names neither of the cards Lifted and Emptied name", report.Written)
 	}
 
-	migrated, err := Open(root)
+	migrated, err := openFixtureAtAnyFormat(t, root)
 	if err != nil {
 		t.Fatalf("open the migrated workbench: %v", err)
 	}
@@ -185,7 +185,7 @@ func TestTheMigrationLiftsTheHeadingAndReportsWhatItCannotLift(t *testing.T) {
 
 	// A second run over the migrated workbench classifies every card as
 	// untouched, which is what makes re-running safe after a stop part way.
-	again, err := Open(root)
+	again, err := openFixtureAtAnyFormat(t, root)
 	if err != nil {
 		t.Fatalf("reopen the migrated workbench: %v", err)
 	}
@@ -213,7 +213,7 @@ func TestAMigrationMeetingAConflictWritesNothing(t *testing.T) {
 		"c00000000003": cardBody("", "Framing.\n\n## Branch\n\nwould-have-been-lifted\n"),
 	})
 	before := everyFileUnder(t, root)
-	opened, err := Open(root)
+	opened, err := openFixtureAtAnyFormat(t, root)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -250,7 +250,7 @@ func TestAMigrationMeetingAConflictWritesNothing(t *testing.T) {
 		cardBody("", "Framing.\n\n## Branch\n\ndinah-498-declared-fields\n"))
 	write(t, filepath.Join(root, CardsDir, "c00000000002", CardAnchor),
 		cardBody("", "Framing.\n\n## Branch\n\nfirst\n"))
-	repaired, err := Open(root)
+	repaired, err := openFixtureAtAnyFormat(t, root)
 	if err != nil {
 		t.Fatalf("reopen: %v", err)
 	}
@@ -354,5 +354,64 @@ func assertUnchanged(t *testing.T, before, after map[string]string, what string)
 		if after[path] != text {
 			t.Errorf("%s rewrote %s", what, path)
 		}
+	}
+}
+
+// TestTheBranchRepairNeverStampsAStoreDownwards holds the floor the format
+// comparison in MigrateBranches is, rather than the equality it used to be.
+//
+// The equality was written while FieldsFormat was the newest format there
+// was, so "equal to" and "at least" were the same test. Later formats arrived
+// and they stopped being the same: a store already past this one was stamped
+// back down by a repair that only ever meant to raise it. That was survivable
+// until dinah-525, which refuses to open a store below the current format, so
+// a store stamped down by a repair is a store no ordinary read will open.
+//
+// Two arms, because the bug had two halves and the fix has two lines. The
+// number in the file must not move, and neither must the number the opened
+// workbench carries in memory: the second was unconditional even after the
+// first was made conditional, so the file kept its format while the value
+// held over it said something lower, and the next save for any reason would
+// have written that lower number down.
+func TestTheBranchRepairNeverStampsAStoreDownwards(t *testing.T) {
+	root := migrationFixture(t, map[string]string{
+		"c00000000001": cardBody("", "Framing with no heading.\n"),
+	})
+	// Planted above the format this repair stamps, which is the state every
+	// store that has moved on is in.
+	above := FieldsFormat + 1
+	anchor := filepath.Join(root, WorkbenchAnchor)
+	raw, err := os.ReadFile(anchor)
+	if err != nil {
+		t.Fatalf("read the anchor: %v", err)
+	}
+	text := string(raw)
+	write(t, anchor, strings.Replace(
+		text, "format: "+strconv.Itoa(FieldsFormat-1), "format: "+strconv.Itoa(above), 1))
+
+	opened, err := openFixtureAtAnyFormat(t, root)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	if opened.Format != above {
+		t.Fatalf("the fixture opened at format %d, wanted %d, so this case proves nothing", opened.Format, above)
+	}
+	report, err := opened.MigrateBranches("alka", "2026-09-14T10:00:00Z", true)
+	if err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+	if report.Stamped {
+		t.Error("the repair stamped a store that was already past the format it stamps")
+	}
+	if opened.Format != above {
+		t.Errorf("the opened workbench carries format %d after the repair, and it was %d", opened.Format, above)
+	}
+
+	reopened, err := openFixtureAtAnyFormat(t, root)
+	if err != nil {
+		t.Fatalf("reopen: %v", err)
+	}
+	if reopened.Format != above {
+		t.Errorf("the store records format %d after the repair, and it recorded %d", reopened.Format, above)
 	}
 }

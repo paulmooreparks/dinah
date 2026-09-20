@@ -661,12 +661,25 @@ func declaredFormat(root string) (int, bool) {
 // containment check rather than around it, so a directory this function is
 // asked to stamp and cannot open as contained fails loudly instead of being
 // written to.
+//
+// The one check it opens around is the note migration's, which since dinah-525
+// refuses every store below the current format. A workbench this function is
+// asked to stamp is below it by construction, since the container format it is
+// about to write is four short of it, so opening the strict way would refuse
+// every workbench the container migration has just moved.
 func stampContainerFormat(root string) error {
-	opened, err := Open(root)
+	opened, err := OpenAwaitingResolution(root)
 	if err != nil {
 		return err
 	}
-	if opened.FM.Value("format") == strconv.Itoa(ContainerFormat) {
+	// A workbench already at or above the format the rule arrived at is left
+	// alone. The early return used to compare for equality, which was the
+	// same thing while ContainerFormat was the newest format there was; it
+	// stopped being the same thing when later formats arrived, and a store
+	// at one of those would have been stamped back down to 2 by a repair
+	// that only ever meant to raise it. Reading it as a floor says what was
+	// always meant.
+	if opened.Format >= ContainerFormat {
 		return nil
 	}
 	opened.FM.Set("format", strconv.Itoa(ContainerFormat))

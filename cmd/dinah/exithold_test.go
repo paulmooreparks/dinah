@@ -82,7 +82,7 @@ func TestAColumnHoldingOnTheWayOutRefusesTheDeparture(t *testing.T) {
 		t.Errorf("the refusal names no item; wanted %s in:\n%s", item, back.errw)
 	}
 
-	if got := runCLI(t, root, "verify", "fx-1/criteria/1", "the release notes are written, read against the fixture"); got.code != 0 {
+	if got := runCLI(t, root, "verify", "fx-1/criteria/1", "--text", "the release notes are written, read against the fixture"); got.code != 0 {
 		t.Fatalf("verify: %d %s", got.code, got.errw)
 	}
 	if got := runCLI(t, root, "move", "fx-1", "review"); got.code != 0 {
@@ -223,7 +223,7 @@ func TestTheExitHoldAnswersAheadOfTheDestinationRows(t *testing.T) {
 		t.Errorf("the refusal names no item; wanted %s in:\n%s", item, refused.errw)
 	}
 
-	if got := runCLI(t, root, "verify", "fx-1/criteria/1", "the release notes are written, read against the fixture"); got.code != 0 {
+	if got := runCLI(t, root, "verify", "fx-1/criteria/1", "--text", "the release notes are written, read against the fixture"); got.code != 0 {
 		t.Fatalf("verify: %d %s", got.code, got.errw)
 	}
 	reached := runCLI(t, root, "move", "fx-1", "waiting")
@@ -461,7 +461,7 @@ func TestAnOperatorOwnedItemIsSettledByTheOperatorAlone(t *testing.T) {
 				t.Fatalf("read the item: %v", err)
 			}
 
-			refused := runCLI(t, root, settle.verb, settle.ref, settle.note, "--actor", "sam")
+			refused := runCLI(t, root, settle.verb, settle.ref, "--text", settle.note, "--actor", "sam")
 			if refused.code != contract.ExitCode(contract.OutcomeRefused) {
 				t.Fatalf("%s by somebody who is not the operator exited %d", settle.verb, refused.code)
 			}
@@ -476,7 +476,7 @@ func TestAnOperatorOwnedItemIsSettledByTheOperatorAlone(t *testing.T) {
 				t.Errorf("the refused %s rewrote the item:\n%s\nwanted:\n%s", settle.verb, after, before)
 			}
 
-			if got := runCLI(t, root, settle.verb, settle.ref, settle.note); got.code != 0 {
+			if got := runCLI(t, root, settle.verb, settle.ref, "--text", settle.note); got.code != 0 {
 				t.Fatalf("the operator's own %s: %d %s", settle.verb, got.code, got.errw)
 			}
 			if state := soleItemState(t, root, "fx-1"); state != settle.land {
@@ -492,7 +492,7 @@ func TestAnOperatorOwnedItemIsSettledByTheOperatorAlone(t *testing.T) {
 // it would protect nothing the operator's ownership needs protected.
 func TestAnOperatorOwnedItemIsReopenedByAnybody(t *testing.T) {
 	root, _ := operatorOwnedItem(t, "open_question")
-	if got := runCLI(t, root, "resolve", "fx-1/questions/1", "the operator ruled on 2026-09-11"); got.code != 0 {
+	if got := runCLI(t, root, "resolve", "fx-1/questions/1", "--text", "the operator ruled on 2026-09-11"); got.code != 0 {
 		t.Fatalf("the operator's own resolve: %d %s", got.code, got.errw)
 	}
 	if state := soleItemState(t, root, "fx-1"); state != bench.ItemResolved {
@@ -578,7 +578,7 @@ func TestTheOperatorRefusalIsDefeatedByTheActorFlag(t *testing.T) {
 	root, _ := operatorOwnedItem(t, "open_question")
 	t.Setenv("DINAH_ACTOR", "bo")
 
-	refused := runCLI(t, root, "resolve", "fx-1/questions/1", "answered")
+	refused := runCLI(t, root, "resolve", "fx-1/questions/1", "--text", "answered")
 	if refused.code != contract.ExitCode(contract.OutcomeRefused) {
 		t.Fatalf("resolve as bo exited %d, wanted the refusal: %s", refused.code, refused.errw)
 	}
@@ -589,7 +589,7 @@ func TestTheOperatorRefusalIsDefeatedByTheActorFlag(t *testing.T) {
 		t.Fatalf("the refused resolve left the item at %q, so the refusal landed something", state)
 	}
 
-	landed := runCLI(t, root, "resolve", "fx-1/questions/1", "answered", "--actor", "alka")
+	landed := runCLI(t, root, "resolve", "fx-1/questions/1", "--text", "answered", "--actor", "alka")
 	if landed.code != 0 {
 		t.Fatalf("the same invocation naming the operator on the flag: %d %s", landed.code, landed.errw)
 	}

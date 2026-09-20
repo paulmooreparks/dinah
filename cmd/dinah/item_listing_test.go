@@ -128,9 +128,9 @@ func itemListingBench(t *testing.T) string {
 	mustRun(t, root, "file", "fx-1", "decision", "pending decision")
 	mustRun(t, root, "file", "fx-1", "open_question", "pending question")
 	mustRun(t, root, "file", "fx-1", "acceptance_criterion", "pending criterion")
-	mustRun(t, root, "resolve", "fx-1/questions/1", "answered")
-	mustRun(t, root, "verify", "fx-1/criteria/1", "proved")
-	mustRun(t, root, "resolve", "fx-1/decisions/1", "decided")
+	mustRun(t, root, "resolve", "fx-1/questions/1", "--text", "answered")
+	mustRun(t, root, "verify", "fx-1/criteria/1", "--text", "proved")
+	mustRun(t, root, "resolve", "fx-1/decisions/1", "--text", "decided")
 	return root
 }
 

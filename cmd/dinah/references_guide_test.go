@@ -278,8 +278,12 @@ func referenceProbeArgs(t *testing.T, command string) []string {
 		return []string{"a remark"}
 	case "cite":
 		return []string{"url", "https://example.invalid/evidence"}
-	case "resolve", "verify", "fail", "reopen":
-		return []string{"a note"}
+	case "resolve", "verify", "fail":
+		return []string{"--text", "an answer"}
+	case "reopen":
+		return []string{"a reason"}
+	case "accept-divergence":
+		return nil
 	}
 	t.Fatalf("%s takes a reference and this file does not know what arguments follow it, so it cannot be probed", command)
 	return nil
@@ -412,8 +416,8 @@ func TestTheReferencesGuideNamesTheCommandsThatTakeAWorkstream(t *testing.T) {
 	if len(reached) != 9 {
 		t.Fatalf("%d commands reached the workstream and nine take one", len(reached))
 	}
-	if refused != 9 {
-		t.Fatalf("%d commands were refused the workstream and nine refuse one", refused)
+	if refused != 10 {
+		t.Fatalf("%d commands were refused the workstream and ten refuse one", refused)
 	}
 }
 

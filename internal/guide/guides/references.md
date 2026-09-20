@@ -135,7 +135,7 @@ what you are about to type, and `dinah list --json` and `dinah list
 
 ## Which command takes what
 
-Eighteen commands take a reference, and between them they accept five different sets of things. This table says what each one accepts:
+Nineteen commands take a reference, and between them they accept six different sets of things. This table says what each one accepts:
 
 | Command      | A workbench | A column | A card | Below a card | A collection |
 |--------------|-------------|----------|--------|--------------|--------------|
@@ -157,10 +157,11 @@ Eighteen commands take a reference, and between them they accept five different 
 | verify       | no          | no       | no     | yes          | no           |
 | fail         | no          | no       | no     | yes          | no           |
 | reopen       | no          | no       | no     | yes          | no           |
+| accept-divergence | no     | yes      | no     | yes          | no           |
 
 Nine commands take a workstream: `path`, `edit`, `get`, `set`, `archive`, `restore`, `delete`, `list`, and `show`. The others refuse one, and the table leaves the workstream out rather than carrying a column for it, so this sentence is where that answer lives.
 
-Ten of those rows carry a detail the table is too coarse to hold.
+Eleven of those rows carry a detail the table is too coarse to hold.
 `attach` takes a comment below a card, and it takes an attachment only
 with `--replace`, which replaces that attachment's bytes rather than
 hanging a new file below it. It takes nothing else below a card, so `dinah
@@ -173,7 +174,8 @@ wb/cards/1` is refused and `dinah list wb-1` is what you write.
 `rename` takes an attachment below a card and nothing else below one, so
 `dinah rename wb-1/comments/1` is refused. The checklist verbs `cite`,
 `resolve`, `verify`, `fail`, and `reopen` take a checklist item and nothing
-else below a card.
+else below a card. `accept-divergence` takes a comment, which hangs below a
+column, below a card, or below one of a card's checklist items.
 
 Each command's own help page carries the same answer for that one command,
 so run `dinah help attach` when you want it beside the arguments rather
@@ -243,7 +245,7 @@ records:
 | column | `title`, `slug`, `kind`, `tier`, `capacity`, `hold`, `instructions` |
 | card | `title`, `body`, `severity`, `priority`, `tier` |
 | comment | `body` |
-| item | `text`, `state`, `note`, `owner`, `column` |
+| item | `text`, `state`, `resolution`, `owner`, `column` |
 | attachment | `filename`, `description` |
 | workstream | `title`, `slug`, `status`, `notes` |
 

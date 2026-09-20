@@ -232,7 +232,14 @@ func (b *Bench) MigrateBranches(actor, now string, apply bool) (*BranchMigration
 		b.declaredFields = declaration
 		report.Declared = true
 	}
-	if b.FM.Value("format") != strconv.Itoa(FieldsFormat) {
+	// At or above, rather than not equal to. The comparison was an equality
+	// while FieldsFormat was the newest format there was, and the two stopped
+	// being the same thing when later formats arrived: a store already past
+	// it would have been stamped back down by a repair that only ever meant
+	// to raise it, and since dinah-525 a store stamped down is a store no
+	// ordinary read will open. Reading it as a floor says what was always
+	// meant.
+	if b.Format < FieldsFormat {
 		b.FM.Set("format", strconv.Itoa(FieldsFormat))
 		report.Stamped = true
 	}
@@ -241,7 +248,15 @@ func (b *Bench) MigrateBranches(actor, now string, apply bool) (*BranchMigration
 			return report, err
 		}
 	}
-	b.Format = FieldsFormat
+	// Raised, never lowered, for the reason the comparison above gives. The
+	// stamp on disk is already conditional; this line was not, so a store
+	// past this format kept its number in the file and carried the lower one
+	// in memory, and the next thing to save the workbench for any reason at
+	// all would have written that lower number down. The file and the value
+	// held over it now say the same thing on every path.
+	if b.Format < FieldsFormat {
+		b.Format = FieldsFormat
+	}
 	return report, nil
 }
 

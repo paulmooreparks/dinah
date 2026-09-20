@@ -20,7 +20,6 @@ import {
 	COMMAND_COPY_CARD_REF,
 	COMMAND_COPY_WORKBENCH_PATH,
 	COMMAND_DELETE_ATTACHMENT,
-	COMMAND_DISCARD_DRAFT,
 	COMMAND_EDIT_COLUMN_INSTRUCTIONS,
 	COMMAND_EDIT_WORKBENCH_DEFINITION,
 	COMMAND_FAIL_ITEM,
@@ -34,7 +33,6 @@ import {
 	COMMAND_OPEN_HISTORY,
 	COMMAND_OPEN_INSTRUCTIONS,
 	COMMAND_OPEN_ITEM,
-	COMMAND_POST_COMMENT,
 	COMMAND_PULL,
 	COMMAND_REFRESH,
 	COMMAND_REFRESH_VERB_CATALOG,
@@ -136,8 +134,6 @@ export const SELECTION_POLICIES: Readonly<Record<string, SelectionEntry>> = {
 	// the form exists to prevent.
 	[COMMAND_FILE_ITEM]: { policy: "rowOnly" },
 	// The two draft commands read the active editor rather than any row.
-	[COMMAND_POST_COMMENT]: { policy: "noRow" },
-	[COMMAND_DISCARD_DRAFT]: { policy: "noRow" },
 };
 
 /**

@@ -264,7 +264,7 @@ func TestResolvingAnOpenQuestionClearsTheClaimRefusal(t *testing.T) {
 		t.Fatalf("a pending open question should refuse the claim, got %s %s", response.Outcome, response.Refusal)
 	}
 	note := "the operator confirmed the deadline is the 15th, per the comment thread"
-	if response := h.library.Resolve(&Request{Verb: "resolve", Actor: "alka", Ref: ref, Note: note}); response.Outcome != contract.OutcomeOK {
+	if response := h.library.Resolve(&Request{Verb: "resolve", Actor: "alka", Ref: ref, Text: note}); response.Outcome != contract.OutcomeOK {
 		t.Fatalf("resolve: %s %s", response.Outcome, response.Refusal)
 	}
 	h.reopen()
@@ -272,8 +272,8 @@ func TestResolvingAnOpenQuestionClearsTheClaimRefusal(t *testing.T) {
 	if got := fm.Value(bench.ItemStateField); got != bench.ItemResolved {
 		t.Errorf("state: wanted resolved, got %q", got)
 	}
-	if got := fm.Value(bench.ItemNoteField); got != note {
-		t.Errorf("note: wanted it persisted, got %q", got)
+	if got := designatedBody(t, h, ref, fm); got != note {
+		t.Errorf("the designated answer: wanted it persisted, got %q", got)
 	}
 	if response := h.do(&Request{Verb: Claim, Actor: "alka", Card: card, Holder: "alka"}); response.Outcome != contract.OutcomeOK {
 		t.Errorf("after the resolution the claim should be admitted, got %s %s", response.Outcome, response.Refusal)
@@ -289,20 +289,20 @@ func TestATerminalVerbRefusesTheWrongKindAndAClosedItem(t *testing.T) {
 	criterion := h.file(card, "acceptance_criterion", criterionText)
 	question := h.file(card, "open_question", "does the deadline move?")
 
-	if response := h.library.Resolve(&Request{Verb: "resolve", Actor: "alka", Ref: criterion, Note: "checked"}); response.Refusal != contract.WrongItemKind {
+	if response := h.library.Resolve(&Request{Verb: "resolve", Actor: "alka", Ref: criterion, Text: "checked"}); response.Refusal != contract.WrongItemKind {
 		t.Errorf("resolve on a criterion: wanted wrong-item-kind, got %s %s", response.Outcome, response.Refusal)
 	} else if response.Detail != "acceptance_criterion" {
 		t.Errorf("resolve on a criterion: wanted the item's own kind in the detail, got %q", response.Detail)
 	}
-	if response := h.library.Verify(&Request{Verb: "verify", Actor: "alka", Ref: question, Note: "checked"}); response.Refusal != contract.WrongItemKind {
+	if response := h.library.Verify(&Request{Verb: "verify", Actor: "alka", Ref: question, Text: "checked"}); response.Refusal != contract.WrongItemKind {
 		t.Errorf("verify on a question: wanted wrong-item-kind, got %s %s", response.Outcome, response.Refusal)
 	}
 
-	if response := h.library.Resolve(&Request{Verb: "resolve", Actor: "alka", Ref: question, Note: "the operator ruled it does not move"}); response.Outcome != contract.OutcomeOK {
+	if response := h.library.Resolve(&Request{Verb: "resolve", Actor: "alka", Ref: question, Text: "the operator ruled it does not move"}); response.Outcome != contract.OutcomeOK {
 		t.Fatalf("the first resolve: %s %s", response.Outcome, response.Refusal)
 	}
 	h.reopen()
-	if response := h.library.Resolve(&Request{Verb: "resolve", Actor: "alka", Ref: question, Note: "and again"}); response.Refusal != contract.NotPending {
+	if response := h.library.Resolve(&Request{Verb: "resolve", Actor: "alka", Ref: question, Text: "and again"}); response.Refusal != contract.NotPending {
 		t.Errorf("a second resolve: wanted not-pending, got %s %s", response.Outcome, response.Refusal)
 	}
 }
@@ -317,7 +317,7 @@ func TestTheCitationObligationFollowsTheEvidenceBlock(t *testing.T) {
 	card := h.add("first card")
 	ref := h.file(card, "acceptance_criterion", criterionText)
 
-	if response := h.library.Verify(&Request{Verb: "verify", Actor: "alka", Ref: ref, Note: "closes the gap"}); response.Refusal != contract.Uncited {
+	if response := h.library.Verify(&Request{Verb: "verify", Actor: "alka", Ref: ref, Text: "closes the gap"}); response.Refusal != contract.Uncited {
 		t.Fatalf("an uncited criterion on an evidence-declaring workbench: wanted uncited, got %s %s", response.Outcome, response.Refusal)
 	}
 	cite := h.library.Cite(&Request{
@@ -329,7 +329,7 @@ func TestTheCitationObligationFollowsTheEvidenceBlock(t *testing.T) {
 		t.Fatalf("cite: %s %s", cite.Outcome, cite.Refusal)
 	}
 	h.reopen()
-	if response := h.library.Verify(&Request{Verb: "verify", Actor: "alka", Ref: ref, Note: "closes the gap"}); response.Outcome != contract.OutcomeOK {
+	if response := h.library.Verify(&Request{Verb: "verify", Actor: "alka", Ref: ref, Text: "closes the gap"}); response.Outcome != contract.OutcomeOK {
 		t.Fatalf("a cited criterion: %s %s", response.Outcome, response.Refusal)
 	}
 	h.reopen()
@@ -340,7 +340,7 @@ func TestTheCitationObligationFollowsTheEvidenceBlock(t *testing.T) {
 	undeclaring := newHarness(t)
 	other := undeclaring.add("first card")
 	bare := undeclaring.file(other, "acceptance_criterion", criterionText)
-	if response := undeclaring.library.Verify(&Request{Verb: "verify", Actor: "alka", Ref: bare, Note: "closes the gap"}); response.Outcome != contract.OutcomeOK {
+	if response := undeclaring.library.Verify(&Request{Verb: "verify", Actor: "alka", Ref: bare, Text: "closes the gap"}); response.Outcome != contract.OutcomeOK {
 		t.Errorf("an uncited criterion on a workbench declaring no evidence: %s %s", response.Outcome, response.Refusal)
 	}
 }
@@ -370,6 +370,46 @@ func TestCiteChecksTheObservationAndNothingElse(t *testing.T) {
 	}
 }
 
+// designatedBody opens the comment an item's resolution names and reports its
+// body, which is what a test asserting the answer of record asks about now
+// that the answer is a reference rather than a string.
+func designatedBody(t *testing.T, h *harness, ref string, fm *bench.Frontmatter) string {
+	t.Helper()
+	resolution := fm.Value(bench.ItemResolutionField)
+	if resolution == "" {
+		t.Fatalf("%s carries no resolution, so there is no answer to read", ref)
+	}
+	entity, err := h.library.Bench.ResolveEntity(resolution)
+	if err != nil {
+		t.Fatalf("the resolution %q resolves to nothing: %v", resolution, err)
+	}
+	_, body, err := bench.ReadCommentAnchor(entity.Dir)
+	if err != nil {
+		t.Fatalf("read the designated comment: %v", err)
+	}
+	return body
+}
+
+// onlyCommentBody reports the body of the single comment an item carries, and
+// fails where it carries any other number. A test reaching for it is asserting
+// that a comment survived something, so two comments would make the assertion
+// ambiguous rather than merely wrong.
+func onlyCommentBody(t *testing.T, h *harness, ref string) string {
+	t.Helper()
+	entity, err := h.library.Bench.ResolveEntity(ref)
+	if err != nil {
+		t.Fatalf("resolve %s: %v", ref, err)
+	}
+	comments, err := bench.Comments(entity.Dir)
+	if err != nil {
+		t.Fatalf("read the item's comments: %v", err)
+	}
+	if len(comments) != 1 {
+		t.Fatalf("%s carries %d comments, wanted one", ref, len(comments))
+	}
+	return comments[0].Body
+}
+
 // TestATerminalVerbRefusesANoteThatEchoesTheItem asserts dinah-206 AC-7: the
 // empty note and the literal echo both refuse malformed on the note, and the
 // echo is recognised after trimming.
@@ -378,8 +418,8 @@ func TestATerminalVerbRefusesANoteThatEchoesTheItem(t *testing.T) {
 	card := h.add("first card")
 	ref := h.file(card, "open_question", criterionText)
 	for _, note := range []string{criterionText, "", " " + criterionText + " "} {
-		response := h.library.Resolve(&Request{Verb: "resolve", Actor: "alka", Ref: ref, Note: note})
-		if response.Refusal != contract.Malformed || response.Detail != bench.ItemNoteField {
+		response := h.library.Resolve(&Request{Verb: "resolve", Actor: "alka", Ref: ref, Text: note})
+		if response.Refusal != contract.Malformed || response.Detail != bench.ItemResolutionField {
 			t.Errorf("the note %q: wanted malformed on the note, got %s %s %q", note, response.Outcome, response.Refusal, response.Detail)
 		}
 	}
@@ -404,7 +444,7 @@ func TestReopenReturnsAnItemToPendingWithoutErasingIt(t *testing.T) {
 	}
 	h.reopen()
 	note := "the new fixture drives the unknown-id path and the handler answers 404"
-	if response := h.library.Verify(&Request{Verb: "verify", Actor: "alka", Ref: ref, Note: note}); response.Outcome != contract.OutcomeOK {
+	if response := h.library.Verify(&Request{Verb: "verify", Actor: "alka", Ref: ref, Text: note}); response.Outcome != contract.OutcomeOK {
 		t.Fatalf("verify: %s %s", response.Outcome, response.Refusal)
 	}
 	h.reopen()
@@ -421,8 +461,15 @@ func TestReopenReturnsAnItemToPendingWithoutErasingIt(t *testing.T) {
 	if got := fm.Value(bench.ItemStateField); got != bench.ItemPending {
 		t.Errorf("state: wanted pending, got %q", got)
 	}
-	if got := fm.Value(bench.ItemNoteField); got != note {
-		t.Errorf("the prior note should survive the reopen, got %q", got)
+	// The designation goes, because a pending item has no answer of record
+	// and a resolution standing beside pending would assert one. The words
+	// stay, in the comment the settling minted, which is what makes the
+	// reopen a supersession rather than an erasure.
+	if got := fm.Value(bench.ItemResolutionField); got != "" {
+		t.Errorf("the reopen should clear the designation, got %q", got)
+	}
+	if got := onlyCommentBody(t, h, ref); got != note {
+		t.Errorf("the comment the settling minted should survive the reopen, got %q", got)
 	}
 	if got := bench.CountCitations(fm); got != 1 {
 		t.Errorf("the prior citation should survive the reopen, got %d citations", got)
@@ -443,13 +490,13 @@ func TestFailLandsAtFailedUnderTheSameChecksAsVerify(t *testing.T) {
 	ref := h.file(card, "acceptance_criterion", criterionText)
 
 	for _, note := range []string{"", criterionText} {
-		response := h.library.Fail(&Request{Verb: "fail", Actor: "alka", Ref: ref, Note: note})
-		if response.Refusal != contract.Malformed || response.Detail != bench.ItemNoteField {
+		response := h.library.Fail(&Request{Verb: "fail", Actor: "alka", Ref: ref, Text: note})
+		if response.Refusal != contract.Malformed || response.Detail != bench.ItemResolutionField {
 			t.Errorf("the note %q: wanted malformed on the note, got %s %s %q", note, response.Outcome, response.Refusal, response.Detail)
 		}
 	}
 	note := "still returns 200 for an unknown id"
-	if response := h.library.Fail(&Request{Verb: "fail", Actor: "alka", Ref: ref, Note: note}); response.Refusal != contract.Uncited {
+	if response := h.library.Fail(&Request{Verb: "fail", Actor: "alka", Ref: ref, Text: note}); response.Refusal != contract.Uncited {
 		t.Fatalf("an uncited criterion: wanted uncited, got %s %s", response.Outcome, response.Refusal)
 	}
 	if response := h.library.Cite(&Request{
@@ -460,7 +507,7 @@ func TestFailLandsAtFailedUnderTheSameChecksAsVerify(t *testing.T) {
 		t.Fatalf("cite: %s %s", response.Outcome, response.Refusal)
 	}
 	h.reopen()
-	if response := h.library.Fail(&Request{Verb: "fail", Actor: "alka", Ref: ref, Note: note}); response.Outcome != contract.OutcomeOK {
+	if response := h.library.Fail(&Request{Verb: "fail", Actor: "alka", Ref: ref, Text: note}); response.Outcome != contract.OutcomeOK {
 		t.Fatalf("fail: %s %s", response.Outcome, response.Refusal)
 	}
 	h.reopen()
@@ -482,7 +529,7 @@ func TestAnItemWriteIsACommentShapedActRatherThanAClaimShapedOne(t *testing.T) {
 		t.Fatalf("the card should be held by somebody else, got %q", got)
 	}
 	ref := h.file(card, "decision", "the write path takes the card's own lock")
-	if response := h.library.Resolve(&Request{Verb: "resolve", Actor: "alka", Ref: ref, Note: "mirrors what Comment already does"}); response.Outcome != contract.OutcomeOK {
+	if response := h.library.Resolve(&Request{Verb: "resolve", Actor: "alka", Ref: ref, Text: "mirrors what Comment already does"}); response.Outcome != contract.OutcomeOK {
 		t.Fatalf("resolving on a card another owner holds: %s %s", response.Outcome, response.Refusal)
 	}
 }
@@ -581,11 +628,11 @@ func TestASecondCloseIsRefusedRatherThanOverwritingTheFirst(t *testing.T) {
 		if step != itemStepUnlocked {
 			return
 		}
-		intruder = other.Resolve(&Request{Verb: "resolve", Actor: "bob", Ref: ref, Note: intruderNote})
+		intruder = other.Resolve(&Request{Verb: "resolve", Actor: "bob", Ref: ref, Text: intruderNote})
 	}
 	first := h.library.Resolve(&Request{
 		Verb: "resolve", Actor: "alka", Ref: ref,
-		Note: "the first writer's answer, which must not land",
+		Text: "the first writer's answer, which must not land",
 	})
 	h.library.Interpose = nil
 	h.reopen()
@@ -600,8 +647,8 @@ func TestASecondCloseIsRefusedRatherThanOverwritingTheFirst(t *testing.T) {
 		t.Errorf("the second resolve: wanted %s, got %s %s", contract.NotPending, first.Outcome, first.Refusal)
 	}
 	fm, _ := h.itemAnchor(ref)
-	if got := fm.Value(bench.ItemNoteField); got != intruderNote {
-		t.Errorf("note: wanted the interposed writer's answer, got %q", got)
+	if got := designatedBody(t, h, ref, fm); got != intruderNote {
+		t.Errorf("the designated answer: wanted the interposed writer's, got %q", got)
 	}
 	resolutions := 0
 	for _, ev := range h.events(card) {

@@ -1,6 +1,7 @@
 package verb
 
 import (
+	"path/filepath"
 	"strings"
 
 	"dinah/internal/bench"
@@ -177,7 +178,7 @@ func (l *Library) closeItem(req *Request, event, state string) *Response {
 		if entity.item.State != bench.ItemPending {
 			return nil, l.refuse(req, entity.card, contract.NotPending, entity.item.State)
 		}
-		note, refused := l.admitNote(req, entity, req.Note)
+		resolution, refused := l.admitDesignation(req, entity)
 		if refused != nil {
 			return nil, refused
 		}
@@ -189,7 +190,7 @@ func (l *Library) closeItem(req *Request, event, state string) *Response {
 		}
 		prior := entity.item.State
 		entity.fm.Set(bench.ItemStateField, state)
-		entity.fm.Set(bench.ItemNoteField, note)
+		entity.fm.Set(bench.ItemResolutionField, resolution)
 		return &bench.Event{Actor: req.Acting(), Event: event, From: prior, To: state}, nil
 	})
 }
@@ -197,9 +198,19 @@ func (l *Library) closeItem(req *Request, event, state string) *Response {
 // Reopen returns a closed item to pending, for the case the card's own text
 // names: a reviewer finds an item was closed wrongly.
 //
-// The prior note and the prior citations stay on disk. Reopening supersedes a
-// resolution rather than erasing it, so the record of what was in force
-// survives until a fresh resolve, verify, fail or cite replaces or adds to it.
+// It takes a reason, which is free prose and stays free prose. The framing
+// this card was filed under asked for a designation here too, and dinah-525's
+// spec amends it: reopening an item so that its only comment may be deleted
+// would need a reason that is a comment of that item, and the comment the
+// operator is about to delete is the one that exists. A reason is also not an
+// answer, since it says why an answer stopped standing and the thing it refers
+// to is often being destroyed.
+//
+// The designation is cleared, because the item no longer has an answer of
+// record and a resolution standing beside a pending state would assert one.
+// The comment itself and the prior citations stay on disk, so the words
+// survive and only the claim that they settle anything goes. Clearing it is
+// also what frees a designated comment for deletion.
 func (l *Library) Reopen(req *Request) *Response {
 	return l.withItem(req, func(entity *itemTarget) (*bench.Event, *Response) {
 		if entity.item.State == bench.ItemPending {
@@ -211,6 +222,7 @@ func (l *Library) Reopen(req *Request) *Response {
 		}
 		prior := entity.item.State
 		entity.fm.Set(bench.ItemStateField, bench.ItemPending)
+		entity.fm.Delete(bench.ItemResolutionField)
 		return &bench.Event{
 			Actor:  req.Acting(),
 			Event:  contract.EventItemReopened,
@@ -244,6 +256,15 @@ type itemTarget struct {
 	item *bench.Item
 	fm   *bench.Frontmatter
 	body string
+	// now is the stamp the whole write carries, so a comment the work body
+	// mints bears the same instant as the settling that designated it
+	// rather than a second reading of the clock.
+	now string
+	// also are events the work body produced beside its own, appended to
+	// the journal ahead of it. The one writer of it is the --text form of a
+	// terminal verb, which mints a comment and so owes the journal a
+	// commented line as well as the settling.
+	also []bench.Event
 }
 
 // itemStepUnlocked names the one window an item write leaves open: after the
@@ -306,13 +327,23 @@ func (l *Library) withItem(req *Request, work func(*itemTarget) (*bench.Event, *
 	if err != nil {
 		return l.FromError(req, err)
 	}
-	target := &itemTarget{ref: req.Ref, dir: entity.Dir, card: entity.Card, item: item, fm: fm, body: body}
+	target := &itemTarget{ref: req.Ref, dir: entity.Dir, card: entity.Card, item: item, fm: fm, body: body, now: now}
 	ev, refused := work(target)
 	if refused != nil {
 		return refused
 	}
 	if err := bench.WriteItemAnchor(target.dir, target.fm, target.body); err != nil {
 		return l.FromError(req, err)
+	}
+	// A comment the work body minted is journalled before the act that
+	// designated it, because the designation names a comment and a reader
+	// walking the journal forward should meet the comment first.
+	for _, extra := range target.also {
+		extra.TS = now
+		extra.Item = item.ID
+		if err := bench.AppendEvent(entity.Card.JournalPath(), extra); err != nil {
+			return l.FromError(req, err)
+		}
 	}
 	ev.TS = now
 	ev.Item = item.ID
@@ -324,22 +355,153 @@ func (l *Library) withItem(req *Request, work func(*itemTarget) (*bench.Event, *
 	return response
 }
 
-// admitNote checks the resolution note the three terminal verbs require. A
-// note has to be there, and it has to say something the item's own text does
-// not already say.
+// admitDesignation settles what a terminal verb records as the item's answer.
 //
-// The second check catches the literal echo alone. A note restating the
-// criterion in different words passes it while saying nothing, and the help
-// text says so rather than presenting the check as stronger than it is.
-func (l *Library) admitNote(req *Request, entity *itemTarget, note string) (string, *Response) {
-	trimmed := strings.TrimSpace(note)
-	if trimmed == "" {
-		return "", l.refuse(req, entity.card, contract.Malformed, bench.ItemNoteField)
+// Two forms reach it and they are mutually exclusive. A reference names a
+// comment that already exists, which is how an operator endorses words
+// somebody else wrote: the author stays whoever wrote them and the designator
+// is whoever settled the item. The --text form mints a comment of the item
+// authored by whoever ran the command and designates it in the same act, which
+// is today's semantics made explicit rather than a concession to convenience.
+// Under the retired note key the settler's words were recorded with no field
+// saying they were the settler's; now the comment records the author and the
+// designation records the designator, and on this path they happen to be one
+// person.
+//
+// An invocation naming both has not said which act it means, so it is refused
+// rather than resolved by precedence.
+func (l *Library) admitDesignation(req *Request, entity *itemTarget) (string, *Response) {
+	named := strings.TrimSpace(req.Note)
+	text := strings.TrimSpace(req.Text)
+	switch {
+	case named != "" && text != "":
+		return "", l.refuse(req, entity.card, contract.Usage, "--text")
+	case text != "":
+		return l.mintDesignation(req, entity)
+	case named != "":
+		return l.designationOf(req, entity, named)
 	}
-	if trimmed == strings.TrimSpace(entity.body) {
-		return "", l.refuseWith(req, entity.card, contract.Malformed, bench.ItemNoteField, map[string]string{
+	return "", l.refuse(req, entity.card, contract.Malformed, bench.ItemResolutionField)
+}
+
+// mintDesignation writes the comment the --text form designates, under the
+// card lock withItem already holds, and hands back its canonical reference.
+//
+// AddComment takes no lock of its own, which is what lets it run inside a
+// write that already holds the card's, and the commented event it owes the
+// journal rides on the target so that one journal append site serves both
+// lines.
+func (l *Library) mintDesignation(req *Request, entity *itemTarget) (string, *Response) {
+	// The echo check the retired note field carried is kept and moved here
+	// rather than dropped with the field. It catches the literal echo alone:
+	// an answer restating the criterion in different words passes it while
+	// saying nothing, and the help text says so rather than presenting the
+	// check as stronger than it is. What it does catch is the reflex of
+	// pasting the item's own text back as its answer, which records a
+	// comment that adds nothing and reads as though somebody had judged.
+	if strings.TrimSpace(req.Text) == strings.TrimSpace(entity.body) {
+		return "", l.refuseWith(req, entity.card, contract.Malformed, bench.ItemResolutionField, map[string]string{
 			"echo": "1",
 		})
 	}
-	return trimmed, nil
+	comment, err := bench.AddComment(entity.dir, req.Actor, entity.now, req.Text)
+	if err != nil {
+		return "", l.FromError(req, err)
+	}
+	entity.also = append(entity.also, bench.Event{
+		Actor:   req.Acting(),
+		Event:   contract.EventCommented,
+		Comment: comment.ID,
+	})
+	ref, err := l.designationRef(entity, comment.Dir)
+	if err != nil {
+		return "", l.FromError(req, err)
+	}
+	return ref, nil
+}
+
+// designationOf admits a reference naming a comment of the item being settled
+// and refuses every other one.
+//
+// The holder check is the whole of what makes a designation openable without
+// asking whose answer it is: a reference reaching another item's comment, a
+// card comment or a column comment resolves perfectly well and would store a
+// reference to somebody else's words as this item's answer. What is stored is
+// the canonical reference rather than the caller's spelling, so two callers
+// typing one comment two ways record one value.
+func (l *Library) designationOf(req *Request, entity *itemTarget, named string) (string, *Response) {
+	found, err := l.Bench.ResolveEntity(named)
+	if err != nil {
+		return "", l.refuse(req, entity.card, contract.NotADesignation, named)
+	}
+	if found.Kind != bench.KindComment {
+		return "", l.refuse(req, entity.card, contract.NotADesignation, named)
+	}
+	if !sameDir(filepath.Dir(filepath.Dir(found.Dir)), entity.dir) {
+		return "", l.refuse(req, entity.card, contract.NotADesignation, named)
+	}
+	ref, err := l.designationRef(entity, found.Dir)
+	if err != nil {
+		return "", l.FromError(req, err)
+	}
+	return ref, nil
+}
+
+// sameDir compares two directory paths for the one question this file asks of
+// them, which is whether a comment hangs below the item being settled. The
+// comparison is Clean's rather than a byte one, because one path was composed
+// from a resolved entity's own directory and the other by climbing out of a
+// comment's, and the two spellings need not agree character for character.
+func sameDir(a, b string) bool {
+	return filepath.Clean(a) == filepath.Clean(b)
+}
+
+// designationRef composes the canonical reference of one comment of one item:
+// the card's reference, the item's kind word and its position among the items
+// of that kind, then comments and the comment's own position.
+//
+// It counts the way the read counts, through the kind positions of the whole
+// checklist and memberPosition over the unfiltered collection, so the
+// reference a settling stores is the one dinah show prints for that comment
+// rather than a second spelling arrived at independently.
+func (l *Library) designationRef(entity *itemTarget, commentDir string) (string, error) {
+	holder, err := l.itemCanonicalRef(entity.card, entity.item.ID)
+	if err != nil {
+		return "", err
+	}
+	ordinal, err := memberPosition(commentDir, bench.CommentAnchor)
+	if err != nil {
+		return "", err
+	}
+	return commentRef(holder, ordinal), nil
+}
+
+// itemCanonicalRef composes the reference a person types to reach one item of
+// one card: the card's own reference, the item's kind word and its position
+// among the items of that kind.
+//
+// Two callers need it and each needs it for a reference that has to resolve
+// rather than merely read well. A settling stores it as the designation, and a
+// forced deletion hands it to Reopen, which resolves what it is given; an
+// item's bare identifier does not resolve, so handing that over is how the
+// forced form came back unknown-card.
+func (l *Library) itemCanonicalRef(card *bench.Card, itemID string) (string, error) {
+	items, err := bench.Items(card.Dir)
+	if err != nil {
+		return "", err
+	}
+	cardRef := card.Ref(l.Bench.Slug)
+	kindPosition := map[string]int{}
+	for _, item := range items {
+		kindPosition[item.Kind]++
+		if item.ID != itemID {
+			continue
+		}
+		position, err := memberPosition(item.Dir, bench.ItemAnchor)
+		if err != nil {
+			return "", err
+		}
+		return itemRef(cardRef, item.Kind, kindPosition[item.Kind], position), nil
+	}
+	return "", contract.Refuse(contract.UnknownPath, itemID)
 }

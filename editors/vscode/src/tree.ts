@@ -61,6 +61,7 @@ import type {
 	CardView,
 	ColumnView,
 	CommentView,
+	DesignatedComment,
 	ForestAnswer,
 	ItemView,
 	ListingAnswer,
@@ -1122,6 +1123,22 @@ export function itemDescription(view: ItemView, t: Localizer): string {
  * by the same holdDirection the filing form reads, so the two surfaces cannot
  * disagree about what a column is doing.
  */
+/**
+ * The designated comment drawn on one line: who wrote it, and what it says.
+ *
+ * A comment the store cannot attribute is drawn as one the store cannot name
+ * rather than as a blank or as an invented author, which is the whole of what
+ * recording the absence buys. The two cases are two sentences from the
+ * catalogue rather than one with a hole in it.
+ */
+function answerLine(designated: DesignatedComment, t: Localizer): string {
+	const body = designated.body ?? "";
+	if (designated.author === undefined || designated.author === "") {
+		return t("item.answer.unattributed", { body });
+	}
+	return t("item.answer.by", { author: designated.author, body });
+}
+
 export function itemTooltip(
 	view: ItemView,
 	direction: HoldDirection,
@@ -1130,8 +1147,15 @@ export function itemTooltip(
 	t: Localizer,
 ): string {
 	const lines = [view.text];
-	if (view.note !== undefined && view.note !== "") {
-		lines.push(`${t("item.note")} ${view.note}`);
+	// The answer a settled item designates, drawn where the retired note was
+	// drawn. The reference is carried by both checklist reads and the comment
+	// itself only by the full one, so the tooltip says what it has: the words
+	// where a read opened them and the reference to reach them where it did
+	// not.
+	if (view.designated !== undefined) {
+		lines.push(`${t("item.answer")} ${answerLine(view.designated, t)}`);
+	} else if (view.resolution !== undefined && view.resolution !== "") {
+		lines.push(`${t("item.answer")} ${view.resolution}`);
 	}
 	lines.push(t(`item.hold.${direction}`, { 0: columnTitle }));
 	if (view.owner !== undefined && view.owner !== "") {

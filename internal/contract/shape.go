@@ -1285,6 +1285,43 @@ var Shapes = []Shape{
 		NextStep:  []string{"refusal.dinah.uncited.next"},
 	},
 	{
+		// The detail is the comment's reference. The sentence says an edit
+		// happened and never who made it, because the tool has a digest and
+		// no witness, and the next step names the two routes out, which
+		// differ in meaning rather than in convenience.
+		Name:      CommentBodyDiverged,
+		Fragments: []Fragment{{Key: "refusal.dinah.comment-body-diverged.next"}},
+		NextStep:  []string{"refusal.dinah.comment-body-diverged.next"},
+	},
+	{
+		// The detail is the reference as the caller typed it, which is the
+		// spelling they can compare against, and it is the whole of what
+		// the sentence needs: every way of failing this check comes out the
+		// same for the reader, which is that the reference they typed is
+		// not a comment of the item they are settling. The next step names
+		// both routes to one that is.
+		Name:      NotADesignation,
+		Fragments: []Fragment{{Key: "refusal.dinah.not-a-designation.next"}},
+		NextStep:  []string{"refusal.dinah.not-a-designation.next"},
+	},
+	{
+		// The detail is the comment and the designating item rides as a
+		// value, because the reader has to be told which item would be left
+		// settled with nothing behind it.
+		Name:      NotDesignatable,
+		Values:    []string{"item"},
+		Fragments: []Fragment{{Key: "refusal.dinah.not-designatable.next"}},
+		NextStep:  []string{"refusal.dinah.not-designatable.next"},
+	},
+	{
+		// The detail is the workbench's own path, because a person meeting
+		// this is running a read against a store and the path is what tells
+		// them which one.
+		Name:      StoreAwaitingMigration,
+		Fragments: []Fragment{{Key: "refusal.dinah.store-awaiting-migration.next"}},
+		NextStep:  []string{"refusal.dinah.store-awaiting-migration.next"},
+	},
+	{
 		Name:      ObservationRequired,
 		Fragments: []Fragment{{Key: "refusal.dinah.observation-required.next"}},
 		NextStep:  []string{"refusal.dinah.observation-required.next"},

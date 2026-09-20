@@ -153,11 +153,6 @@ func TestAnUndeclaredWriteIsRefusedWithTheKeysItCouldHaveUsed(t *testing.T) {
 func TestTheBranchMigrationReportsItsClassificationAndItsWrites(t *testing.T) {
 	root := newBench(t)
 	dir := soleBenchDir(t, root)
-	// The workbench a fresh init writes already declares the format the
-	// retirement arrived at, so it is wound back to the one before it: the
-	// migration exists for a workbench standing where the retirement finds
-	// one, and a fixture already stamped would exercise nothing.
-	windBackFormat(t, dir)
 	for _, title := range []string{"A card", "An empty heading", "No heading"} {
 		if got := runCLI(t, root, "add", title); got.code != 0 {
 			t.Fatalf("add %s: %d %s", title, got.code, got.errw)
@@ -165,7 +160,21 @@ func TestTheBranchMigrationReportsItsClassificationAndItsWrites(t *testing.T) {
 	}
 	setBody(t, root, "fx-1", "Framing.\n\n## Branch\n\ndinah-498-declared-fields\n\nMore framing.\n")
 	setBody(t, root, "fx-2", "Framing.\n\n## Branch\n")
-
+	// The workbench a fresh init writes already declares the format the
+	// retirement arrived at, so it is wound back to the one before it: the
+	// migration exists for a workbench standing where the retirement finds
+	// one, and a fixture already stamped would exercise nothing.
+	//
+	// The winding happens after the cards are filed rather than before,
+	// because since dinah-525 an ordinary command is refused outright on a
+	// store below the current format. Filing first and winding back leaves
+	// the fixture in the state the migration is for, which is what this case
+	// was always about; filing afterwards would be testing that refusal.
+	windBackFormat(t, dir)
+	// The store is below the current format from here on, so every read below
+	// goes through check, which opens such a store because it is the
+	// diagnostic, or through the anchor files, rather than through an
+	// ordinary command, which is refused.
 	preview := runCLI(t, root, "check", "--migrate-branches")
 	if preview.code != 0 {
 		t.Fatalf("the preview exited %d: %s", preview.code, preview.errw)
@@ -202,7 +211,7 @@ func TestTheBranchMigrationReportsItsClassificationAndItsWrites(t *testing.T) {
 			t.Errorf("the preview does not say %q:\n%s", line, preview.out)
 		}
 	}
-	if bodyOf(t, root, "fx-1") == "" || !strings.Contains(bodyOf(t, root, "fx-1"), "## Branch") {
+	if anchorBodyOf(t, dir, "fx-1") == "" || !strings.Contains(anchorBodyOf(t, dir, "fx-1"), "## Branch") {
 		t.Error("the preview rewrote a body")
 	}
 
@@ -225,19 +234,24 @@ func TestTheBranchMigrationReportsItsClassificationAndItsWrites(t *testing.T) {
 			t.Errorf("the confirmed run says %q, and it did write:\n%s", line, applied.out)
 		}
 	}
-	if strings.Contains(bodyOf(t, root, "fx-1"), "## Branch") {
+	if strings.Contains(anchorBodyOf(t, dir, "fx-1"), "## Branch") {
 		t.Error("the migrated card still carries the heading")
 	}
+	// The lifted value prints, which needs the rest of the chain: the branch
+	// migration stamps its own format, which is still below the current one,
+	// and an ordinary command is refused until the note migration has run.
+	migrateNotes(t, dir)
 	shown := runCLI(t, root, "show", "fx-1")
 	if !strings.Contains(shown.out, "git.branch: dinah-498-declared-fields") {
 		t.Errorf("the lifted value does not print:\n%s", shown.out)
 	}
 
 	// A fresh workbench with a conflict on it, so the refusing case is read
-	// against a run that would otherwise have written.
+	// against a run that would otherwise have written. The cards are filed
+	// before the format is wound back, because an ordinary command is refused
+	// on a store below the current format.
 	other := newBench(t)
 	otherDir := soleBenchDir(t, other)
-	windBackFormat(t, otherDir)
 	for _, title := range []string{"Two headings", "Would have been lifted"} {
 		if got := runCLI(t, other, "add", title); got.code != 0 {
 			t.Fatalf("add %s: %d %s", title, got.code, got.errw)
@@ -245,6 +259,7 @@ func TestTheBranchMigrationReportsItsClassificationAndItsWrites(t *testing.T) {
 	}
 	setBody(t, other, "fx-1", "Framing.\n\n## Branch\n\nfirst\n\n## Branch\n\nsecond\n")
 	setBody(t, other, "fx-2", "Framing.\n\n## Branch\n\nwould-have-been-lifted\n")
+	windBackFormat(t, otherDir)
 	conflicted := runCLI(t, other, "check", "--migrate-branches", "--yes")
 	if conflicted.code == 0 {
 		t.Fatalf("a run that met a conflict exited zero:\n%s", conflicted.out)
@@ -252,7 +267,7 @@ func TestTheBranchMigrationReportsItsClassificationAndItsWrites(t *testing.T) {
 	if !strings.Contains(conflicted.out, "fx-1") {
 		t.Errorf("the conflict report does not name the card:\n%s", conflicted.out)
 	}
-	if !strings.Contains(bodyOf(t, other, "fx-2"), "## Branch") {
+	if !strings.Contains(anchorBodyOf(t, otherDir, "fx-2"), "## Branch") {
 		t.Error("a run that met a conflict rewrote a card it could have lifted")
 	}
 }
@@ -506,4 +521,34 @@ func TestTheRenumberedCheckKeysCarryTheirNewTextInEveryCatalogue(t *testing.T) {
 	if want := len(arrived) * len(msg.Tags()); present != want {
 		t.Errorf("the sweep over the keys this card added read %d entries, wanted %d", present, want)
 	}
+}
+
+// anchorBodyOf reads one card's body off its own anchor, for a case whose
+// store stands below the current format and which no ordinary command will
+// therefore open.
+//
+// The card is found through the number registry, which is how a reference
+// resolves to an identifier, so this reads the store the way the resolver does
+// rather than guessing at a directory name.
+func anchorBodyOf(t *testing.T, dir, ref string) string {
+	t.Helper()
+	number := ref[strings.LastIndex(ref, "-")+1:]
+	lines, err := bench.ReadText(filepath.Join(dir, bench.CardNumbersName))
+	if err != nil {
+		t.Fatalf("read the number registry: %v", err)
+	}
+	for _, line := range strings.Split(lines, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) != 2 || fields[0] != number {
+			continue
+		}
+		text, err := bench.ReadText(filepath.Join(dir, bench.CardsDir, fields[1], bench.CardAnchor))
+		if err != nil {
+			t.Fatalf("read the anchor of %s: %v", ref, err)
+		}
+		_, body := bench.ParseAnchor(text)
+		return body
+	}
+	t.Fatalf("the registry carries no line for %s", ref)
+	return ""
 }

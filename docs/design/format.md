@@ -970,6 +970,7 @@ so a `claimed` line with no `expires` records an unbounded claim.
 | `workstream_updated` | `field` | `from` and `to`, by the rule `workbench_updated` follows |
 | `column_updated` | `note` (the column's own id) | `field`, written by a field write and absent on the lines `reshape` writes; `from` and `to`, by the rule `workbench_updated` follows, both absent where the field written is the column's prose body |
 | `comment_updated` | `note` (the comment's own id), `field` | none today: a comment's only field is its prose body, and a prose write carries neither `from` nor `to` |
+| `divergence_accepted` | `comment`, `note` (the comment's own id) | none: the act ratifies a body that is already on disk, so there is no value to carry |
 | `item_updated` | `note` (the item's own id), `field` | `from` and `to`, by the rule `workbench_updated` follows, both absent where the field written is the item's prose body |
 | `attachment_updated` | `note` (the attachment's own id), `field` | `from` and `to`, by the rule `workbench_updated` follows |
 | `workstream_joined` | `workstream` | |
@@ -1056,15 +1057,70 @@ stays readable by every build after it.
 
 A checklist item is a card-scoped entity recording a structured judgment:
 `checklist/<12-hex>/item.md`, with `kind`, `column`, `owner`, `state`,
-`citations`, timestamps, and a creation ordinal in frontmatter, the item's
-text as the body, and a resolution note required to leave pending. An item
-takes its evidence by citation rather than by holding a copy: it carries no
-`attachments/` collection of its own, and `dinah attach` aimed at one is
-refused. It carries its own `comments/` collection instead. The reasoning an
-item was filed with, the recommendation and the tradeoffs, belongs there as
-comments written on the item, and `resolve`, `verify` and `fail` are what
-write the note, which is reserved for what settled the item rather than for
-the argument it was raised with. Kinds are a closed set of three
+`resolution`, `citations`, timestamps, and a creation ordinal in frontmatter,
+and the item's text as the body. An item takes its evidence by citation rather
+than by holding a copy: it carries no `attachments/` collection of its own, and
+`dinah attach` aimed at one is refused. It carries its own `comments/`
+collection instead. The reasoning an item was filed with, the recommendation
+and the tradeoffs, belongs there as comments written on the item.
+
+Leaving pending requires an answer, and the answer is a designation rather than
+a string. `resolution` holds the canonical reference of one of that item's own
+comments, and `resolve`, `verify` and `fail` each refuse a reference naming
+another item's answer, a card comment, or anything that is not a comment. Two
+facts are recorded where one used to be: the comment carries its own author,
+minted when the comment was made, and the designation carries whoever settled
+the item, minted when the item was settled. Neither is inferred from the other,
+which is what lets an agent recommend and the operator designate without the
+recommendation being restated as the operator's or the ruling being mistaken
+for the agent's. The three verbs each take `--text` as well, which mints a
+comment of the item authored by whoever ran the command and designates it in
+one act; naming both `--text` and a reference on one invocation is refused
+rather than resolved by precedence, because the two are different acts.
+
+`reopen` takes a reason, which is free prose and is not a designation.
+Reopening an item so that its only comment may be deleted would otherwise need
+a reason that is a comment of that item, and the comment the operator is about
+to delete is the one that exists. A reason is also not an answer: it says why
+an answer stopped standing, and the thing it refers to is often being
+destroyed. Reopening clears the item's `resolution` and leaves the comment
+where it is, so the words survive and only the claim that they settle anything
+goes.
+
+The `resolution` key replaced a free-text `note` key at storage format 6. A
+workbench declaring anything below that has not been carried across the change,
+and a reader refuses it as `dinah.store-awaiting-migration` rather than opening
+it, because a reader that carried on would report every settled item on the
+store as carrying no answer, which is a false reading rather than a degraded
+one. Every format below, not the one below: the formats a store passes through
+on the way here are not a queue a reader may join part-way.
+
+Three readers are not ordinary reads and do not meet that refusal, because a
+gate that refused them would refuse the way out of itself. The note migration
+reads such a store because that state is its whole subject. `dinah check` reads
+it because it is the diagnostic an operator meeting the refusal runs next, and
+because the repairs that carry a store up to this format are reached through
+it. And the reader of a workbench-shaped directory the containment rule does
+not govern reads it, because the container migration is one of those repairs.
+
+One consequence of the refusal is worth naming. The containment rule binds from
+format 2 and leaves a store below it alone, and no store below format 6 opens
+through an ordinary read any more, so that lower branch of the containment rule
+is now reached only by a store declaring no format key at all. So is the
+card-number registry's own refusal, which a store declaring no format key still
+meets. An operator carries such a store forward with the repairs, which read it
+without going through the ordinary opener.
+
+The order those repairs run in is the operator's to follow, and the note
+migration enforces the one step it cannot be run without. A store below the
+format the card-number registry arrived at keeps its numbers in card
+frontmatter, and filing a card there is refused precisely because the registry
+is what a filing would allocate from; stamping such a store to format 6 would
+silence that refusal and let the next filing hand out a number a card already
+answers to. So the migration refuses it and names `dinah check
+--migrate-numbers` instead. The migrations below that one are cosmetic by
+comparison, a branch heading a finding reports and a journal actor a tolerant
+reader parses, and the note migration does not hold a store back for them. Kinds are a closed set of three
 (acceptance_criterion, open_question, decision) and states a closed set
 (pending, resolved, verified, failed), closed because method text travels
 between boards and "file it with owner operator" must mean the same thing
@@ -1105,8 +1161,8 @@ git-friendly shape makes an ordinary act rather than a workaround.
 
 ### Citations
 
-A resolution note says what was checked and what the check showed, in
-whatever words fit, and nothing outside the card can resolve it. An item
+The comment an item designates says what was checked and what the check
+showed, in whatever words fit, and nothing outside the card can resolve it. An item
 therefore carries its evidence in frontmatter as well, in a `citations`
 sequence whose entries each map a scheme to the target it names.
 
@@ -1317,10 +1373,72 @@ observation it carries, and it stops there.
 
 A comment is an entity like every other, per the no-exceptions rule in
 "Anchor files and collections": a hex directory under `comments/` whose
-anchor is `comment.md`, with timestamp, author, and creation ordinal in
+anchor is `comment.md`, with timestamp, author, digest, and creation ordinal in
 frontmatter and the comment as body, and its own `attachments/` on demand.
 Ordering comes from the ordinal field, not from the timestamp and not from
 the directory name.
+
+A comment is created before it says anything. `dinah comment <ref>` with no
+text mints the entity with an empty body, which is the form an editor calls:
+the comment exists from the first keystroke, so nothing has to decide when an
+author has finished composing one, and an author who says nothing after all
+deletes it. The one-shot form carrying text is unchanged. What the empty form
+costs is an entity and a journal line where an abandoned draft used to leave
+nothing, and `dinah check` names an empty comment nothing designates at cleanup
+severity, with `dinah delete` as the remedy.
+
+`digest` holds a hex-encoded SHA-256 over the body exactly as the anchor
+parser returns it: the bytes after the front matter, after the newline
+normalisation this format applies wherever it stores text, and over no part of
+the front matter itself. Every verb that writes a comment's anchor records it,
+not only those that write the body, because rendering the file re-serialises it
+whole and a write touching one header key rewrites the body's bytes on the way
+past. A digest recomputed on body writes alone would then disagree with a body
+nobody edited.
+
+A hand edit changes the body and leaves the digest alone, which is what makes
+the edit visible. `dinah check` reports the disagreement as
+`check.comment-body-diverged` at defect severity, naming the comment and
+saying nothing about who edited it or when, because it knows neither. A comment
+carrying no digest is not diverged and is written normally, which is how every
+comment written before storage format 6 gains one; the note migration does not
+backfill, because a digest taken then would assert that the body is what its
+author wrote, which nobody knows.
+
+Writing over a body that has already diverged is refused as
+`dinah.comment-body-diverged` rather than absorbed. Recomputing the digest from
+a tampered body would take the evidence with it, and on an edit it would
+attribute somebody else's words to whoever ran the command. The operator clears
+it by restoring the body, which needs no command at all, or with `dinah
+accept-divergence <comment>`, which takes no text: it re-stamps the digest from
+the body as it stands and journals that a divergence was accepted and by whom.
+Ratifying and writing mean different things, so they are two acts and the
+journal records them as two.
+
+A caller that had the comment open while its author typed asks a different
+question, and `--expect-digest` is how it asks. An editor writes the file when
+its author saves, so by the time such a caller can act the body it would have
+been compared against is gone; what survives is the front matter. So the write
+becomes a compare-and-swap on the digest key: the caller hands back the value
+it last saw recorded, and the write goes ahead where that value is still
+there and is refused where it has moved, because a digest that moved means
+somebody wrote the comment through a verb while the author was typing and the
+author is about to overwrite work they never saw. This costs the divergence
+refusal nothing. A hand edit made outside such a session has no recorded
+digest to hand back, so it meets the body comparison exactly as before.
+
+A write storing the body a comment already carries is not a write of nothing
+on this one kind. Every other field takes the no-op there; a comment's record
+is its body and its digest together, so a write whose body matches and whose
+digest does not still has the digest to record, which is precisely the state an
+editor's save leaves behind.
+
+Deleting a comment a checklist item designates is refused, naming that item,
+because an item's answer of record cannot be destroyed while it is still the
+answer. Two ways through: reopen the item first, which clears the designation,
+or `dinah delete <comment> --force`, which reopens the item as part of the same
+act and composes the reopen's reason from the comment that is going. The forced
+form is a reopen, so on an operator-owned item it is the operator's alone.
 
 An attachment is likewise an entity: a hex directory whose anchor,
 `attachment.md`, records the current filename, a description, provenance,

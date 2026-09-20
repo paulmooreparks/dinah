@@ -32,15 +32,16 @@ const fieldGuardDefinition = `{
 // sentence, so a reworded catalog entry cannot redden it.
 func TestEveryGuardedFieldRefusesAndAcceptsAtItsOwnGate(t *testing.T) {
 	subtests := map[string]func(*testing.T){
-		bench.GuardSlug:      guardSlug,
-		bench.GuardLevel:     guardLevel,
-		bench.GuardTier:      guardTier,
-		bench.GuardState:     guardState,
-		bench.GuardFilename:  guardFilename,
-		bench.GuardKind:      guardColumnKind,
-		bench.GuardCapacity:  guardCapacity,
-		bench.GuardHold:      guardHold,
-		bench.GuardColumnRef: guardColumnRef,
+		bench.GuardSlug:       guardSlug,
+		bench.GuardLevel:      guardLevel,
+		bench.GuardTier:       guardTier,
+		bench.GuardState:      guardState,
+		bench.GuardFilename:   guardFilename,
+		bench.GuardKind:       guardColumnKind,
+		bench.GuardCapacity:   guardCapacity,
+		bench.GuardHold:       guardHold,
+		bench.GuardColumnRef:  guardColumnRef,
+		bench.GuardResolution: guardResolution,
 	}
 	if len(subtests) != len(bench.Guards) {
 		t.Fatalf("this file runs %d subtests and the closed guard set declares %d, so a guard is unexercised", len(subtests), len(bench.Guards))
@@ -144,20 +145,20 @@ func guardState(t *testing.T) {
 
 	unknown := h.library.SetField(&Request{
 		Verb: "set", Actor: "alka", Ref: ref + "/questions/1",
-		Field: bench.ItemStateField, Value: "frobnicate", Note: "a note",
+		Field: bench.ItemStateField, Value: "frobnicate", Text: "an answer",
 	})
 	refusedWith(t, "a state outside the four", unknown, contract.UnknownValue)
 
 	wrongKind := h.library.SetField(&Request{
 		Verb: "set", Actor: "alka", Ref: ref + "/questions/1",
-		Field: bench.ItemStateField, Value: bench.ItemVerified, Note: "a note",
+		Field: bench.ItemStateField, Value: bench.ItemVerified, Text: "an answer",
 	})
 	refusedWith(t, "verified on an open question", wrongKind, contract.WrongItemKind)
 
 	accepted := h.library.SetField(&Request{
 		Verb: "set", Actor: "alka", Ref: ref + "/questions/1",
 		Field: bench.ItemStateField, Value: bench.ItemResolved,
-		Note: "the operator confirmed the deadline is the fifteenth",
+		Text: "the operator confirmed the deadline is the fifteenth",
 	})
 	acceptedOK(t, "resolved on an open question", accepted)
 	h.reopen()
@@ -403,5 +404,49 @@ func acceptedOK(t *testing.T, what string, response *Response) {
 	t.Helper()
 	if response.Outcome != contract.OutcomeOK {
 		t.Fatalf("%s: wanted %s, got %s %s", what, contract.OutcomeOK, response.Outcome, response.Refusal)
+	}
+}
+
+// guardResolution asserts both halves of a designation write: a reference that
+// is not a comment of the item is refused, and one that is lands.
+//
+// The two halves run against the same item, because what the guard is about is
+// the relationship between the reference and the item rather than the shape of
+// the reference: both values below resolve to a real comment, and only one of
+// them is a comment of the item being written.
+func guardResolution(t *testing.T) {
+	h := harnessFromDefinition(t, "gd", fieldGuardDefinition)
+	ref := h.add("a card carrying a checklist")
+	fileItem(t, h, ref, "open_question", "does the deadline move?")
+	h.reopen()
+	item := ref + "/questions/1"
+	if response := h.library.Comment(&Request{Verb: "comment", Actor: "alka", Card: item, Text: "the answer"}); response.Outcome != contract.OutcomeOK {
+		t.Fatalf("comment on the item: %s %s", response.Outcome, response.Refusal)
+	}
+	if response := h.library.Comment(&Request{Verb: "comment", Actor: "alka", Card: ref, Text: "a card comment"}); response.Outcome != contract.OutcomeOK {
+		t.Fatalf("comment on the card: %s %s", response.Outcome, response.Refusal)
+	}
+	h.reopen()
+
+	elsewhere := h.library.SetField(&Request{
+		Verb: "set", Actor: "alka", Ref: item,
+		Field: bench.ItemResolutionField, Value: ref + "/comments/1",
+	})
+	refusedWith(t, "a card comment designated as an item's answer", elsewhere, contract.NotADesignation)
+
+	accepted := h.library.SetField(&Request{
+		Verb: "set", Actor: "alka", Ref: item,
+		Field: bench.ItemResolutionField, Value: item + "/comments/1",
+	})
+	acceptedOK(t, "a comment of the item itself", accepted)
+	h.reopen()
+	value, err := h.library.GetField(&Request{
+		Verb: "get", Ref: item, Field: bench.ItemResolutionField,
+	})
+	if err != nil {
+		t.Fatalf("read the resolution back: %v", err)
+	}
+	if value != item+"/comments/1" {
+		t.Errorf("the item reads back the resolution %q, wanted the comment of its own", value)
 	}
 }

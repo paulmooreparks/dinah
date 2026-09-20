@@ -110,7 +110,7 @@ func namesVariable(names []string, want string) bool {
 
 // benchDefinition is the smallest bench check can be run against.
 const benchDefinition = `---
-format: 1
+format: 6
 profile: dinah-core/0.7
 title: Fixture
 slug: fx
@@ -130,13 +130,17 @@ kind: work
 Column text.
 `
 
-// registryBenchDefinition raises the fixture to the format the registry
-// arrived at. The stored benchDefinition stays at format 1, because the
-// container tests derive their planted anchors from it by replacing the
-// literal "format: 1", so a fixture a plain string replacement can lift is
-// one those tests can plant at any format they need.
+// registryBenchDefinition is the fixture every case that wants a readable
+// workbench plants, and it declares the format this build writes.
+//
+// It used to pin the fixture at the format the number registry arrived at,
+// which was the lowest format that made the registry bind. That stopped being
+// a legal store at dinah-525, whose gate refuses every store below the
+// current format, and the registry binds at the current format as readily. A
+// fixture whose subject is an older format derives one from benchDefinition
+// by replacing the literal, which is what the container tests do.
 var registryBenchDefinition = strings.Replace(
-	benchDefinition, "format: 1", "format: "+strconv.Itoa(RegistryFormat), 1)
+	benchDefinition, "format: 6", "format: "+strconv.Itoa(StorageFormat), 1)
 
 // cleanCard is a card carrying no defect, which every case below breaks in
 // exactly one way. Its number lives in the registry line newFixture writes
@@ -2643,4 +2647,24 @@ func TestCheckReportsEveryItemColumnThatCannotHoldACard(t *testing.T) {
 			t.Errorf("%s changed while check ran, and no sweep in this file writes", path)
 		}
 	}
+}
+
+// openFixtureAtAnyFormat opens a fixture through the opener its own declared
+// storage format calls for.
+//
+// A store below the current format is one the note migration has not reached,
+// which Open refuses by name so that no reader reports a settled item on it as
+// carrying no answer. The migration's own opener reads it, and so does `dinah
+// check`, which is the diagnostic an operator meeting that refusal runs next.
+// A case whose subject is an older format is asking the question those two
+// ask, so it reaches the store the way they do.
+//
+// A case whose subject is the refusal itself calls Open directly and asserts
+// what it answered. This helper is for the cases that want to read past it.
+func openFixtureAtAnyFormat(t *testing.T, root string) (*Bench, error) {
+	t.Helper()
+	if declared, declares := declaredFormat(root); declares && declared < ResolutionFormat {
+		return OpenAwaitingResolution(root)
+	}
+	return Open(root)
 }

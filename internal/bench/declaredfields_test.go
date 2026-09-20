@@ -18,7 +18,7 @@ import (
 func declaringFixture(t *testing.T, format int) string {
 	t.Helper()
 	root := containedPath(t.TempDir())
-	anchor := strings.Replace(benchDefinition, "format: 1", "format: "+strconv.Itoa(format), 1)
+	anchor := strings.Replace(benchDefinition, "format: 6", "format: "+strconv.Itoa(format), 1)
 	anchor = strings.Replace(anchor, "columns:\n", `fields:
   git.branch:
     type: string
@@ -88,13 +88,13 @@ func TestTheDeclaredKeyGrammarAdmitsAndRefuses(t *testing.T) {
 		block += "  " + key + ":\n    type: string\n    meaning: a fact\n"
 	}
 	write(t, filepath.Join(root, WorkbenchAnchor), strings.Replace(
-		strings.Replace(benchDefinition, "format: 1", "format: "+strconv.Itoa(RegistryFormat), 1),
+		strings.Replace(benchDefinition, "format: 6", "format: "+strconv.Itoa(RegistryFormat), 1),
 		"columns:\n", block+"columns:\n", 1))
 	write(t, filepath.Join(root, CardNumbersName), "1 c00000000001\n")
 	write(t, filepath.Join(root, ColumnsDir, "b00000000001", ColumnAnchor), columnDefinition)
 	write(t, filepath.Join(root, CardsDir, "c00000000001", CardAnchor), cleanCard)
 	write(t, filepath.Join(root, CardsDir, "c00000000001", JournalName), cleanJournal)
-	opened, err := Open(root)
+	opened, err := openFixtureAtAnyFormat(t, root)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -138,13 +138,13 @@ func TestADeclarationEntryIsRefusedWithoutATypeOrAMeaning(t *testing.T) {
     meaning: ""
 `
 	write(t, filepath.Join(root, WorkbenchAnchor), strings.Replace(
-		strings.Replace(benchDefinition, "format: 1", "format: "+strconv.Itoa(RegistryFormat), 1),
+		strings.Replace(benchDefinition, "format: 6", "format: "+strconv.Itoa(RegistryFormat), 1),
 		"columns:\n", block+"columns:\n", 1))
 	write(t, filepath.Join(root, CardNumbersName), "1 c00000000001\n")
 	write(t, filepath.Join(root, ColumnsDir, "b00000000001", ColumnAnchor), columnDefinition)
 	write(t, filepath.Join(root, CardsDir, "c00000000001", CardAnchor), cleanCard)
 	write(t, filepath.Join(root, CardsDir, "c00000000001", JournalName), cleanJournal)
-	opened, err := Open(root)
+	opened, err := openFixtureAtAnyFormat(t, root)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -184,13 +184,13 @@ func TestALineOpeningWithAHyphenIsReportedRatherThanSwallowed(t *testing.T) {
     meaning: a key the grammar refuses and the dashed pattern swallows
 `
 	write(t, filepath.Join(root, WorkbenchAnchor), strings.Replace(
-		strings.Replace(benchDefinition, "format: 1", "format: "+strconv.Itoa(RegistryFormat), 1),
+		strings.Replace(benchDefinition, "format: 6", "format: "+strconv.Itoa(RegistryFormat), 1),
 		"columns:\n", block+"columns:\n", 1))
 	write(t, filepath.Join(root, CardNumbersName), "1 c00000000001\n")
 	write(t, filepath.Join(root, ColumnsDir, "b00000000001", ColumnAnchor), columnDefinition)
 	write(t, filepath.Join(root, CardsDir, "c00000000001", CardAnchor), cleanCard)
 	write(t, filepath.Join(root, CardsDir, "c00000000001", JournalName), cleanJournal)
-	opened, err := Open(root)
+	opened, err := openFixtureAtAnyFormat(t, root)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -214,7 +214,7 @@ func TestALineOpeningWithAHyphenIsReportedRatherThanSwallowed(t *testing.T) {
 // declaring `on` reaches exactly the kinds it names, and a key declaring none
 // reaches a workbench, a column and a card alike.
 func TestADeclarationNamingNoKindsReachesAllThree(t *testing.T) {
-	opened, err := Open(declaringFixture(t, RegistryFormat))
+	opened, err := openFixtureAtAnyFormat(t, declaringFixture(t, RegistryFormat))
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -303,7 +303,7 @@ func TestAColumnRequiringAnUndeclaredFieldIsReported(t *testing.T) {
 	root := declaringFixture(t, FieldsFormat)
 	write(t, filepath.Join(root, ColumnsDir, "b00000000001", ColumnAnchor),
 		strings.Replace(columnDefinition, "kind: work\n", "kind: work\nrequire_fields: [git.nothing]\n", 1))
-	opened, err := Open(root)
+	opened, err := openFixtureAtAnyFormat(t, root)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -317,7 +317,7 @@ func TestAColumnRequiringAnUndeclaredFieldIsReported(t *testing.T) {
 
 	write(t, filepath.Join(root, ColumnsDir, "b00000000001", ColumnAnchor),
 		strings.Replace(columnDefinition, "kind: work\n", "kind: work\nrequire_fields: [git.trunk]\n", 1))
-	opened, err = Open(root)
+	opened, err = openFixtureAtAnyFormat(t, root)
 	if err != nil {
 		t.Fatalf("reopen: %v", err)
 	}
@@ -353,7 +353,7 @@ func TestASurvivingHeadingIsReportedOnlyOnAMigratedWorkbench(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			root := declaringFixture(t, c.format)
 			write(t, filepath.Join(root, CardsDir, "c00000000001", CardAnchor), c.card)
-			opened, err := Open(root)
+			opened, err := openFixtureAtAnyFormat(t, root)
 			if err != nil {
 				t.Fatalf("open: %v", err)
 			}
@@ -378,7 +378,7 @@ func TestTheInterchangeFormCarriesTheFourNewMembers(t *testing.T) {
 	write(t, filepath.Join(root, ColumnsDir, "b00000000001", ColumnAnchor),
 		strings.Replace(columnDefinition, "kind: work\n",
 			"kind: work\nrequire_fields: [git.trunk]\nfield_values:\n  git.trunk: release\n", 1))
-	opened, err := Open(root)
+	opened, err := openFixtureAtAnyFormat(t, root)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}

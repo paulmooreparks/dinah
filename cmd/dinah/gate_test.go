@@ -110,7 +110,7 @@ func TestAGatedColumnHoldsEveryKindOnItsOwn(t *testing.T) {
 // move into the station whatever the card carries.
 func TestAnItemSettledAtAGatedColumnHoldsNothing(t *testing.T) {
 	root, _ := gatedCard(t, "acceptance_criterion")
-	if got := runCLI(t, root, "verify", "fx-1/criteria/1", "the endpoint answers 404, run against the fixture"); got.code != 0 {
+	if got := runCLI(t, root, "verify", "fx-1/criteria/1", "--text", "the endpoint answers 404, run against the fixture"); got.code != 0 {
 		t.Fatalf("verify: %d %s", got.code, got.errw)
 	}
 	if got := runCLI(t, root, "move", "fx-1", "doing"); got.code != 0 {
@@ -225,7 +225,7 @@ func soleItemState(t *testing.T, root, card string) string {
 // opens the column on the one state saying the work is wrong.
 func TestAFailedCriterionGoesOnHoldingTheGate(t *testing.T) {
 	root, item := gatedCard(t, "acceptance_criterion")
-	if got := runCLI(t, root, "fail", "fx-1/criteria/1", "the endpoint still answers 200 for an unknown id"); got.code != 0 {
+	if got := runCLI(t, root, "fail", "fx-1/criteria/1", "--text", "the endpoint still answers 200 for an unknown id"); got.code != 0 {
 		t.Fatalf("fail: %d %s", got.code, got.errw)
 	}
 	if state := soleItemState(t, root, "fx-1"); state != bench.ItemFailed {
@@ -661,7 +661,7 @@ func TestAnItemColumnSetByItsShortNameHoldsTheCard(t *testing.T) {
 		t.Errorf("the refusal names no item; wanted %s in:\n%s", item, refused.errw)
 	}
 
-	if got := runCLI(t, root, "verify", "fx-1/criteria/1", "the endpoint answers 404, run against the fixture"); got.code != 0 {
+	if got := runCLI(t, root, "verify", "fx-1/criteria/1", "--text", "the endpoint answers 404, run against the fixture"); got.code != 0 {
 		t.Fatalf("verify: %d %s", got.code, got.errw)
 	}
 	if got := runCLI(t, root, "move", "fx-1", "doing"); got.code != 0 {

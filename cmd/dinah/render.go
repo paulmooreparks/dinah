@@ -679,20 +679,25 @@ func (s *session) renderDetail(detail *verb.Detail) {
 		// itself starts at, so a wrapped line hangs under its own first line
 		// rather than under the reference.
 		//
-		// The resolution note is drawn under the row it belongs to, and only
-		// where the answer carries one. An index entry clears it, which is
-		// every answer that did not ask for the checklist in full, so the
-		// two runs of prose in the same position this block used to be
-		// spared are two runs a reader asked for by name.
-		checklist := table{indent: 2, columns: s.columns("checklist", "ref", "state", "owner", "comments", "description"),
+		// The answer a settled item designates is drawn in two places, and
+		// which one a reader gets is the whole of what the two checklist
+		// reads differ by. Every answer carries the designated comment's
+		// reference in a column of its own, which costs the item's own
+		// anchor and nothing further, so a reader of the indexed checklist
+		// learns that an answer exists and what to type to reach it without
+		// a single comment being opened. An answer that asked for the
+		// checklist in full carries the comment itself, and it is drawn
+		// under the row it belongs to, which is where the retired
+		// resolution note was drawn.
+		checklist := table{indent: 2, columns: s.columns("checklist", "ref", "state", "owner", "comments", "resolution", "description"),
 			labels: labelInTheStack, wrapTail: true}
 		for _, item := range detail.Checklist {
 			count := ""
 			if item.CommentCount > 0 {
 				count = strconv.Itoa(item.CommentCount)
 			}
-			fields := []string{item.Ref, item.State, item.Owner, count, item.Text}
-			checklist.rows = append(checklist.rows, tableRow{fields: fields, note: item.Note})
+			fields := []string{item.Ref, item.State, item.Owner, count, item.Resolution, item.Text}
+			checklist.rows = append(checklist.rows, tableRow{fields: fields, note: s.designationNote(item.Designated)})
 		}
 		s.table(checklist)
 	}
@@ -1813,4 +1818,22 @@ func (s *session) drawNewlineConflicts(conflicts []bench.NewlineConflict) {
 		}
 		s.line(s.r.T(key, "path", conflict.Path, "detail", conflict.Detail))
 	}
+}
+
+// designationNote is the line a full checklist read draws under a settled
+// item: who wrote the designated comment, when, and what it says.
+//
+// A comment the store cannot attribute is drawn as one the store cannot name
+// rather than as a blank or as an invented author, which is the whole of what
+// recording the absence buys. The sentence comes from the catalog either way,
+// so a reader meets it in their own language and the two cases are two
+// sentences rather than one with a hole in it.
+func (s *session) designationNote(designated *verb.DesignatedComment) string {
+	if designated == nil {
+		return ""
+	}
+	if designated.Author == "" {
+		return s.r.T("show.designation.unattributed", "ts", designated.TS, "body", designated.Body)
+	}
+	return s.r.T("show.designation", "author", designated.Author, "ts", designated.TS, "body", designated.Body)
 }

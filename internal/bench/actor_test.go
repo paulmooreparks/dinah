@@ -60,7 +60,7 @@ func TestTheActorUnmarshallerTakesBothShapesAndConsultsNoFormat(t *testing.T) {
 // count of lines read is asserted so a reader that read nothing cannot pass.
 func TestAStringActorReadsBackWithEveryOtherMemberUnchanged(t *testing.T) {
 	root := containedPath(t.TempDir())
-	write(t, filepath.Join(root, WorkbenchAnchor), strings.Replace(tieredDefinition, "format: 5", "format: 4", 1))
+	write(t, filepath.Join(root, WorkbenchAnchor), strings.Replace(tieredDefinition, "format: 6", "format: 4", 1))
 	write(t, filepath.Join(root, ColumnsDir, "b00000000001", ColumnAnchor), columnDefinition)
 	write(t, filepath.Join(root, CardNumbersName), "1 c00000000001\n")
 	write(t, filepath.Join(root, CardsDir, "c00000000001", CardAnchor), cleanCard)
@@ -71,7 +71,7 @@ func TestAStringActorReadsBackWithEveryOtherMemberUnchanged(t *testing.T) {
 		`{"ts":"2026-08-17T09:02:00Z","event":"blocked","actor":"brin","reason":"waiting on the vendor","kind":"external"}`,
 		"",
 	}, "\n"))
-	opened, err := Open(root)
+	opened, err := openFixtureAtAnyFormat(t, root)
 	if err != nil {
 		t.Fatalf("open a workbench declaring format 4: %v", err)
 	}

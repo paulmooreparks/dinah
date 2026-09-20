@@ -40,7 +40,14 @@ runs:
       shell: bash
       working-directory: ${{ inputs.path }}
       run: go vet ./...
+    # The timeout is stated rather than left to Go's ten-minute default,
+    # because cmd/dinah runs its own suite a second time under a coverage
+    # profile and therefore costs about twice what its tests cost. That is
+    # roughly three minutes on a developer machine and close to ten on a
+    # Windows runner, so the package has been finishing just inside the
+    # default and a slow runner kills a build that is doing nothing wrong.
+    # The number is a ceiling on a hang, not a budget for the suite.
     - name: Test
       shell: bash
       working-directory: ${{ inputs.path }}
-      run: go test -count=1 ./...
+      run: go test -count=1 -timeout 30m ./...

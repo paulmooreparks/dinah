@@ -1430,14 +1430,21 @@ func itemKindAt(dir string) string {
 	return item.Kind
 }
 
-// The two events Library.Observe reports, which are the two ways the
-// containment projection reaches the store.
+// The events Library.Observe reports. The first two are the two ways the
+// containment projection reaches the store; the third belongs to the card
+// detail read, which the projection is no part of.
 const (
 	// ObserveList is one collection listed, named by its path.
 	ObserveList = "list"
 	// ObserveItemAnchor is one item's anchor opened for its kind, named by
 	// the item's directory.
 	ObserveItemAnchor = "item-anchor"
+	// ObserveDesignatedComment is one comment opened because a checklist
+	// item designates it, named by the comment's directory. It fires once
+	// per comment opened rather than once per read, which is what lets a
+	// count distinguish the indexed checklist read, which opens none, from
+	// the full one, which opens one per settled item.
+	ObserveDesignatedComment = "designated-comment"
 )
 
 // observe reports one read to whoever is watching, and does nothing when

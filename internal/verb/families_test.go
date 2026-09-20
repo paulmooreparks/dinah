@@ -169,7 +169,7 @@ func TestEveryEventFamilyARequestWritesCarriesTheDeclaredMembers(t *testing.T) {
 		{contract.EventItemResolved, func() *Response {
 			req := acting("resolve")
 			req.Ref = ref + "/decisions/1"
-			req.Note = "settled"
+			req.Text = "settled"
 			return h.library.Resolve(req)
 		}},
 		{contract.EventItemReopened, func() *Response {
@@ -191,6 +191,11 @@ func TestEveryEventFamilyARequestWritesCarriesTheDeclaredMembers(t *testing.T) {
 			req.Field = "body"
 			req.Value = "a comment, rewritten"
 			return h.library.SetField(req)
+		}},
+		{contract.EventDivergenceAccepted, func() *Response {
+			req := acting("accept-divergence")
+			req.Ref = ref + "/comments/1"
+			return h.library.AcceptDivergence(req)
 		}},
 		{contract.EventTierOverridden, func() *Response {
 			req := acting("set")
@@ -284,7 +289,7 @@ func TestEveryEventFamilyARequestWritesCarriesTheDeclaredMembers(t *testing.T) {
 		run("file a criterion", h.library.File(file))
 		closing := acting(close.name)
 		closing.Ref = ref + "/criteria/" + strconv.Itoa(at+1)
-		closing.Note = "checked"
+		closing.Text = "checked"
 		run(close.name, close.run(closing))
 	}
 

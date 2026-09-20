@@ -1172,64 +1172,13 @@ test("every tree command is classified under exactly one of the three arrays", (
 	}
 });
 
-/**
- * The clause both draft commands are offered under, spelled once here.
- *
- * It names the draft's filename suffix and nothing else. The drafts directory
- * is composed at run time from the extension's own storage path, so it is not
- * a literal anybody can write into a manifest, and a resourceDirname clause
- * would have to be a pattern loose enough to be wrong.
- */
-const DRAFT_CLAUSE = "resourceFilename =~ /\\.dinah-comment\\.md$/";
-
-test("every editor command is offered in the palette under a clause of its own", () => {
-	// The third bucket's own palette rule. Without it EDITOR_COMMANDS would be
-	// the one classification forcing no shape at all, which is exactly what
-	// the two older arrays were written to prevent.
-	//
-	// The assertion is an equality against the clause rather than a check that
-	// the when is merely neither absent nor "false", because an equality is
-	// what the other two palette tests assert and a weaker check would admit a
-	// clause that is true everywhere.
-	const entries = paletteEntries();
-	assert.ok(EDITOR_COMMANDS.length > 0, "there are no editor commands to check");
-	for (const command of EDITOR_COMMANDS) {
-		const matched = entries.filter((entry) => entry.command === command);
-		assert.equal(
-			matched.length,
-			1,
-			`${command} has ${matched.length} commandPalette entries, wanted 1`,
-		);
-		assert.equal(matched[0].when, DRAFT_CLAUSE);
-	}
-});
-
-test("the two draft commands are reachable only on a draft", () => {
-	// dinah-506/criteria/31's manifest arm. The editor title bar is the route
-	// a reader meets first, and the palette is the route a keyboard reader
-	// meets; both are offered under the one clause, and neither command is
-	// hidden behind "when": "false", which would take the palette route away.
-	const titles = menuEntries("editor/title");
-	assert.ok(titles.length > 0, "the manifest contributes no editor/title entries");
-	for (const command of EDITOR_COMMANDS) {
-		const matched = titles.filter((entry) => entry.command === command);
-		assert.equal(
-			matched.length,
-			1,
-			`${command} has ${matched.length} editor/title entries, wanted 1`,
-		);
-		assert.equal(matched[0].when, DRAFT_CLAUSE);
-	}
-	const hidden = paletteEntries().filter(
-		(entry) =>
-			EDITOR_COMMANDS.includes(entry.command) && entry.when === "false",
-	);
-	assert.deepEqual(
-		hidden.map((entry) => entry.command),
-		[],
-		"a draft command is hidden from the palette, which is its only keyboard route",
-	);
-});
+// The two tests that stood here held dinah-506's draft commands to being
+// offered in the editor title bar and in the palette under a clause naming the
+// draft's filename suffix. dinah-525 deleted that apparatus: a comment exists
+// from its first keystroke, so there is nothing to post and nothing to
+// discard, and EDITOR_COMMANDS stands empty. The partition test above still
+// holds all three buckets to covering TREE_COMMANDS exactly, and it reads an
+// empty bucket correctly, so nothing is left unheld by the removal.
 
 test("every row command is hidden from the Command Palette", () => {
 	// VS Code hands a palette invocation no argument, so a command that needs

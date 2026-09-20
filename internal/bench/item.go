@@ -36,10 +36,23 @@ const (
 	// terminal verb on an item recording this value to anybody else, and
 	// SetField beside it, which refuses a rewrite of the owner key on one.
 	ItemOwnerOperator = "operator"
-	// ItemNoteField is the resolution note a terminal verb requires, kept
-	// apart from the item's body, which is the text the item was filed with
-	// and never changes.
-	ItemNoteField = "note"
+	// ItemResolutionField is the canonical reference of the comment a
+	// terminal verb designated as this item's answer. It replaced the
+	// free-text note key with dinah-525: a note could say who settled the
+	// item only by implication, where a comment carries its own author and
+	// the designation carries whoever chose it, so the record says both
+	// rather than leaving one to be assumed.
+	//
+	// The reference names a comment of this item. Aiming it at another
+	// item's answer or at a card comment is refused at the write, which is
+	// what lets a reader open it without asking whose answer it is.
+	ItemResolutionField = "resolution"
+	// ItemNoteRetiredField is the key ItemResolutionField replaced. Nothing
+	// writes it, and it is named here rather than spelled at its two
+	// readers: dinah check, which reports a store the note migration has
+	// not reached, and the migration itself, which carries the text into a
+	// comment and removes the key.
+	ItemNoteRetiredField = "note"
 	// CitationsField is the sequence of citations an item carries.
 	CitationsField = "citations"
 )

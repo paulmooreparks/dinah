@@ -728,11 +728,6 @@
 			"context": "The label before an item's owner, on the tree row's tooltip. It is drawn only where the item records one.",
 			"source": "db88e7d2b9a06bea"
 		},
-		"item.note": {
-			"text": "टिप्पणी:",
-			"context": "The label before an item's resolution note on the tree row's tooltip.",
-			"source": "500cd82b70b565"
-		},
 		"item.comments": {
 			"text": "{count} टिप्पणियाँ",
 			"context": "How many comments an item carries, shown in the row description and in its tooltip. {count} is that number and is never zero here, because the line is drawn only where there is at least one.",
@@ -915,65 +910,41 @@
 			"context": "The output channel line for a selected row the filing form cannot act on, because the row is not a card.",
 			"source": "b00b8f23ccce4784"
 		},
-		"draft.created": {
-			"text": "{ref} पर टिप्पणी का मसौदा। इसे टिप्पणी भेजें से भेजें, या मसौदा हटाएँ से हटाएँ।",
-			"context": "Toast when the Comment command has created an empty draft and opened it. {ref} is the item's reference and {path} is the draft's absolute path, which the message carries so a reader whose row later disappears can still find their words.",
-			"source": "227a600a54b0c5d1"
+		"comment.composed": {
+			"text": "टिप्पणी {ref} खुली है। सहेजने पर Dinah उसका पाठ लिखता है; यदि अंततः आप कुछ न कहें तो टिप्पणी मिटा दें।",
+			"context": "Toast when the Comment command has minted an empty comment and opened its file. {ref} is the comment's own reference and {path} is the file's absolute path, which the message carries so a reader whose row later disappears can still find it.",
+			"source": "788850f529a42120"
 		},
-		"draft.reopened": {
-			"text": "{ref} पर टिप्पणी का मसौदा फिर से खोला गया।",
-			"context": "Toast when Comment found a draft already on disk and opened it unchanged. {ref} is the item's reference and {path} is the draft's absolute path. Nothing was written over, which is what this message is telling the reader.",
-			"source": "311f726f7a54efb6"
+		"comment.composeNoReference": {
+			"text": "Dinah ने {ref} पर एक टिप्पणी बनाई और उसका कोई नाम नहीं बताया, अतः खोलने के लिए कोई फ़ाइल नहीं है।",
+			"context": "Error when the comment verb answered ok and carried no identifier. {ref} is the holder's reference. It is a defect in the answer rather than anything the reader did, and it says so.",
+			"source": "a01a81f2ce06e3cc"
 		},
-		"draft.storageUnavailable": {
-			"text": "{path} पर मसौदा निर्देशिका नहीं बनाई जा सकी: {detail}",
-			"context": "Error when the extension's own global storage could not be reached, so no draft could be written. {path} is that directory and {detail} is what the editor said.",
-			"source": "7acc8aae856581eb"
+		"comment.composeNoPath": {
+			"text": "Dinah टिप्पणी {ref} को जानता है और उसके लिए कोई फ़ाइल नहीं बताता।",
+			"context": "Error when `dinah path` answered ok with no path for a comment that was just minted. {ref} is the comment's own reference.",
+			"source": "6c2fa367c3f93105"
 		},
-		"draft.post.saveFailed": {
-			"text": "{path} पर मसौदा सहेजा नहीं जा सका, इसलिए कुछ नहीं भेजा गया।",
-			"context": "Error when the document would not save. Nothing is spawned and nothing is deleted, because the bytes on disk would not have been the bytes that were sent.",
-			"source": "64b89f9a02347300"
+		"item.answer": {
+			"text": "उत्तर:",
+			"context": "The label before a settled checklist item's designated answer, in that item's tooltip. It replaced item.note at dinah-525, when an item's answer became a comment rather than a string.",
+			"source": "b76e91ee6bb647ff"
 		},
-		"draft.post.missingFile": {
-			"text": "{path} पर कोई मसौदा फ़ाइल नहीं है। न कुछ भेजा गया और न कुछ हटाया गया।",
-			"context": "Error when the file is gone at the moment of posting, which is what somebody who deleted it under an open tab meets. The index entry is left where it is, because a command that sent nothing removes nothing.",
-			"source": "a328f5e92f1887a7"
+		"item.answer.by": {
+			"text": "{author}: {body}",
+			"context": "A settled item's answer as the full checklist read carries it, drawn in the item's tooltip. {author} wrote the comment and {body} is its text.",
+			"verbatim": true,
+			"source": "1315c5a980aea2f2"
 		},
-		"draft.post.empty": {
-			"text": "{path} पर मसौदा खाली है, इसलिए भेजने के लिए कुछ नहीं है।",
-			"context": "Error when the saved buffer is whitespace alone. The tool would refuse a blank comment anyway, and saying so locally costs no spawn.",
-			"source": "ee031190bd4b7870"
+		"item.answer.unattributed": {
+			"text": "ऐसा लेखक जिसका नाम यह कार्यपीठ नहीं बता सकती: {body}",
+			"context": "The form item.answer.by takes for a comment whose author the store could not recover, which the note migration records as an absence rather than as a name.",
+			"source": "b0b74f8877939ff2"
 		},
-		"draft.unknown": {
-			"text": "Dinah को नहीं पता कि {path} की फ़ाइल किसका मसौदा है। आपका पाठ अब भी टैब में और डिस्क पर है।",
-			"context": "Error when Post or Discard was aimed at a path the drafts index does not carry. Nothing is deleted on this branch, which is what keeps Discard off a file the extension never created.",
-			"source": "f81e38a83528db6c"
-		},
-		"draft.post.posted": {
-			"text": "{ref} पर टिप्पणी भेज दी गई।",
-			"context": "Toast after a post the tool answered ok. {ref} is the item the comment landed on, taken from the index entry rather than from the filename.",
-			"source": "e4b3f891f2065aee"
-		},
-		"draft.post.keptAfterRefusal": {
-			"text": "मसौदा {path} पर रखा गया है।",
-			"context": "Toast beside a refusal, saying that nothing was lost. The refusal itself is shown through the ordinary refusal path, so this line says only where the words are.",
-			"source": "fccb7aa1f6c03e87"
-		},
-		"draft.post.postedButNotRemoved": {
-			"text": "{ref} पर टिप्पणी भेज दी गई, लेकिन {path} पर मसौदा हटाया नहीं जा सका: {detail}",
-			"context": "Toast for a delete that failed after a post that succeeded. The comment exists at that point, so a message saying the post failed would be false.",
-			"source": "8469a69d1c094baa"
-		},
-		"draft.discard.confirm": {
-			"text": "{path} पर मसौदा हटा दें? इसे पूर्ववत नहीं किया जा सकता।",
-			"context": "The modal confirmation Discard asks before it deletes. {path} is the draft's absolute path.",
-			"source": "d16b0dc75bae122d"
-		},
-		"draft.discard.confirmLabel": {
-			"text": "मसौदा हटाएँ",
-			"context": "The affirmative button of the discard confirmation. The modal supplies its own Cancel, so only this label comes from the catalogue.",
-			"source": "9224e28d2eb0b25e"
+		"comment.divergedOnOpen": {
+			"text": "टिप्पणी {ref} Dinah के बाहर संपादित हुई है, अतः यहाँ सहेजने से बदलाव दर्ज नहीं होगा। पाठ पूर्ववत् करें, अथवा उस पर dinah accept-divergence चलाएँ।",
+			"context": "Error when a comment is opened whose body no longer matches the digest its anchor records. The file is opened anyway, because restoring the text by hand is the first remedy and the author needs the file to do it; what is withheld is the editing session, so a save writes nothing through the verb. {ref} is the comment's own reference.",
+			"source": "bcaab2316c04f80"
 		}
 	}
 }

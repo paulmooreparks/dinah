@@ -93,6 +93,7 @@ func TestAdmitProfileReadsThePublishedLineAndRefusesTheRest(t *testing.T) {
 		"dinah-core/0.15",
 		"dinah-core/0.16",
 		"dinah-core/0.17",
+		"dinah-core/0.18",
 	}
 	refused := []string{
 		"dinah-core/0.0",
@@ -101,9 +102,10 @@ func TestAdmitProfileReadsThePublishedLineAndRefusesTheRest(t *testing.T) {
 		// ceiling it implements. The example moved from 0.10 to 0.13 when
 		// dinah-382 raised the claim to 0.12, to 0.16 when dinah-501 raised it
 		// to 0.15, to 0.17 when dinah-498 raised it to 0.16, and to 0.18 when
-		// dinah-496 raised it to 0.17, because a revision this build now
-		// implements cannot stand for one it does not.
-		"dinah-core/0.18",
+		// dinah-496 raised it to 0.17, and to 0.19 when dinah-525 raised it
+		// to 0.18, because a revision this build now implements cannot stand
+		// for one it does not.
+		"dinah-core/0.19",
 		"dinah-core/1.1",
 		"dinah-core/2.0",
 		"dinah-core/3.0",
@@ -283,12 +285,18 @@ func TestARevisionTheAliasResolvedIsToldToMigrateRatherThanRefusedAsUnknown(t *t
 }
 
 // openFixture opens one compat fixture through the opener its own declared
-// revision calls for. A fixture inside the pre-vocabulary window is written in
-// the retired state and substate vocabulary, which Open refuses by name and
-// OpenPreVocabulary is the one reader of; every other fixture goes through
-// Open exactly as before. The choice is made from the fixture's own anchor
-// rather than from its directory name, so a fixture added later is sorted the
-// same way with no edit here.
+// revision and format call for. A fixture inside the pre-vocabulary window is
+// written in the retired state and substate vocabulary, which Open refuses by
+// name and OpenPreVocabulary is the one reader of. A fixture below the current
+// storage format is one the note migration has not reached, which Open refuses
+// by name too and which the migration's own opener reads. Everything at the
+// current format goes through Open exactly as before. Both choices are made
+// from the fixture's own anchor rather than from its directory name, so a
+// fixture added later is sorted the same way with no edit here.
+//
+// What this test file asserts is that an old store still reads, and that claim
+// is unchanged: the reading is what the compatibility promise is about, and
+// which opener performs it is which gate the store has yet to cross.
 func openFixture(t *testing.T, fixture string) (*Bench, error) {
 	t.Helper()
 	root := stagedFixture(t, fixture)
@@ -298,6 +306,12 @@ func openFixture(t *testing.T, fixture string) (*Bench, error) {
 	}
 	if ok && WithinPreVocabulary(major, minor) {
 		return OpenPreVocabulary(root)
+	}
+	// declaredFormat is the package's own reader, which the container
+	// migration already uses for the same question, and a fixture declaring
+	// no format key answers false and goes through Open exactly as it did.
+	if declared, declares := declaredFormat(root); declares && declared < ResolutionFormat {
+		return OpenAwaitingResolution(root)
 	}
 	return Open(root)
 }
@@ -349,7 +363,7 @@ func TestEveryCompatFixtureOpensAndReads(t *testing.T) {
 func TestEveryCompatFixtureSurvivesTheInterchangePath(t *testing.T) {
 	for _, fixture := range compatFixtures(t) {
 		source, stood := interchangeSource(t, fixture)
-		b, err := Open(source)
+		b, err := openFixtureAtAnyFormat(t, source)
 		if err != nil {
 			t.Errorf("open %s: %v", fixture, err)
 			continue

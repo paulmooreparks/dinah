@@ -798,7 +798,7 @@ func TestTheUnsupportedVersionRefusalNamesTheWindow(t *testing.T) {
 	// build stamps, and the clause is composed from the constants rather than
 	// spelled there, so this reads the sentence's shape while naming the two
 	// numbers a later bump moves.
-	wanted := "; this build reads dinah-core 0.7 through dinah-core 0.17"
+	wanted := "; this build reads dinah-core 0.7 through dinah-core 0.18"
 	if !strings.Contains(got.errw, wanted) {
 		t.Errorf("the refusal reads %q, wanted it to carry %q", got.errw, wanted)
 	}
@@ -875,10 +875,21 @@ func migratedCopy(t *testing.T, fixture string) string {
 	if got := runCLI(t, copied, "--workbench", copied, "check", "--migrate-vocabulary", "--yes"); got.code != 0 {
 		t.Fatalf("migrate %s: %d %s", fixture, got.code, got.errw)
 	}
-	if got := runCLI(t, copied, "--workbench", copied, "list", "columns"); got.code != 0 {
+	// Then the container migration and the note migration, in that order,
+	// which is the rest of the chain a store of this age walks. The note
+	// migration stamps the current format, from which the containment rule
+	// binds, so a copy carried across the notes and left outside a container
+	// would be refused by that rule instead. check exits 2 when it reports a
+	// finding, so its code is not read here; the listing below fails loudly
+	// if a migration did not happen.
+	runCLI(t, copied, "--workbench", copied, "check", "--migrate-container", "--yes")
+	opened := benchDir(t, copied)
+	runCLI(t, opened, "--workbench", opened, "check", "--migrate-numbers", "--yes")
+	migrateNotes(t, opened)
+	if got := runCLI(t, opened, "--workbench", opened, "list", "columns"); got.code != 0 {
 		t.Fatalf("the migrated %s does not open: %d %s", fixture, got.code, got.errw)
 	}
-	return copied
+	return opened
 }
 
 // copyFixture copies a fixture tree, since a migration rewrites what it is
@@ -1064,6 +1075,8 @@ func TestLinkAndUnlinkRoundTripOnEveryFixture(t *testing.T) {
 			runCLI(t, root, "--workbench", root, "check", "--migrate-container", "--yes")
 			opened := benchDir(t, root)
 			runCLI(t, opened, "--workbench", opened, "check", "--migrate-vocabulary", "--yes")
+			runCLI(t, opened, "--workbench", opened, "check", "--migrate-numbers", "--yes")
+			migrateNotes(t, opened)
 
 			cards, listedErr20 := bench.ListIDs(filepath.Join(opened, bench.CardsDir))
 			if listedErr20 != nil {
