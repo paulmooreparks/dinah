@@ -737,7 +737,7 @@
 		},
 		"item.comments": {
 			"text": "{count} Kommentare",
-			"context": "How many comments an item carries, shown in the row description and in its tooltip. {count} is that number and is never zero here, because the line is drawn only where there is at least one.",
+			"context": "How many comments an item carries, shown in its tooltip. {count} is that number and is never zero here, because the line is drawn only where there is at least one.",
 			"source": "34eee342ca38384e"
 		},
 		"item.locked": {
