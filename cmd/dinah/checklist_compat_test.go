@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
@@ -55,6 +56,33 @@ func migrateNotes(t *testing.T, root string) {
 	if out, err := run.CombinedOutput(); err != nil {
 		t.Fatalf("the note migration on %s: %v\n%s", root, err, out)
 	}
+}
+
+// runMigrateNotes runs the note migration and hands back what it did rather
+// than failing the test, which is what a case asserting a refusal needs.
+//
+// migrateNotes beside it is the form for a case that only wants the migration
+// to have happened; this one is for a case whose subject is the migration
+// declining to run.
+func runMigrateNotes(t *testing.T, root string, args ...string) invocation {
+	t.Helper()
+	binary, err := migrateNotesBinary()
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	run := exec.Command(binary, append([]string{root}, args...)...)
+	var out, errw bytes.Buffer
+	run.Stdout = &out
+	run.Stderr = &errw
+	code := 0
+	if err := run.Run(); err != nil {
+		exit, ok := err.(*exec.ExitError)
+		if !ok {
+			t.Fatalf("the note migration on %s: %v", root, err)
+		}
+		code = exit.ExitCode()
+	}
+	return invocation{code: code, out: out.String(), errw: errw.String()}
 }
 
 // itemKindsFiled are the three kinds this case files on every fixture, in the

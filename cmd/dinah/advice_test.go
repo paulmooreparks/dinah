@@ -151,7 +151,7 @@ func TestTheVocabularyMigrationAdviceIsACommandThatWorks(t *testing.T) {
 	}
 }
 
-// TestTheNumberMigrationAdviceIsACommandThatWorks asserts that the advice on
+// TestTheNumberMigrationChainIsSelfGuiding asserts that the advice on
 // dinah.needs-number-migration builds the registry it names, from the one
 // position its sentence reaches.
 //
@@ -170,41 +170,79 @@ func TestTheVocabularyMigrationAdviceIsACommandThatWorks(t *testing.T) {
 // unconfirmed run refuses outright rather than reporting what it would carry
 // forward, so the sentence names the one form the command runs in and the
 // reader's consent is the flag it spells for him.
-func TestTheNumberMigrationAdviceIsACommandThatWorks(t *testing.T) {
+func TestTheNumberMigrationChainIsSelfGuiding(t *testing.T) {
+	// This case used to assert that `add` over a pre-registry workbench
+	// refuses dinah.needs-number-migration and that its advice builds the
+	// registry. That refusal keys on a format below the one the registry
+	// arrived at, and since dinah-525 no such workbench opens at all on an
+	// ordinary command, so `add` never reaches it. The refusal is not
+	// reachable from the ordinary path any more and the chain it anchored
+	// moved, rather than the chain disappearing.
+	//
+	// What the operator meets instead is two refusals that hand him along,
+	// and this case walks the whole of it, which is more than the old one
+	// covered: an ordinary read refuses and names the note migration, the
+	// note migration refuses and names the registry repair, the repair runs
+	// because `dinah check` is the one command that opens a refused store,
+	// and then the chain completes and the workbench reads.
+	// The refusal this chain used to start from is now unreachable, and its
+	// advice sentence is still in the catalogue. Held here so the two
+	// sentences an operator could meet name the same command: if that
+	// refusal ever becomes reachable again, its advice is already right, and
+	// if the two drift apart this fails rather than a reader finding out.
+	const key = "refusal.dinah.needs-number-migration.next"
+	if advice := msg.For(msg.Base).T(key); !strings.Contains(advice, "--migrate-numbers") {
+		t.Errorf("%s no longer names the repair the note migration names: %q", key, advice)
+	}
+
 	_, _, workbench := preNumberRegistryFixture(t)
 
-	refused := runCLI(t, workbench, "add", "another card")
-	if !strings.Contains(refused.errw, contract.NeedsNumberMigration) {
-		t.Fatalf("a workbench below the registry's format does not refuse %s: %d %s%s", contract.NeedsNumberMigration, refused.code, refused.out, refused.errw)
+	shown := runCLI(t, workbench, "show", "fx-1")
+	if !strings.Contains(shown.errw, contract.StoreAwaitingMigration) {
+		t.Fatalf("an ordinary read of a pre-registry workbench does not refuse %s: %d %s%s",
+			contract.StoreAwaitingMigration, shown.code, shown.out, shown.errw)
 	}
-	argv := adviceFrom(t, refused.errw, "refusal.dinah.needs-number-migration.next")
-	took := runCLI(t, workbench, argv...)
-	if took.code != 0 {
-		t.Fatalf("taking the refusal's own advice, dinah %v, exited %d: %s%s", argv, took.code, took.out, took.errw)
+
+	// The note migration is what that refusal names, and it refuses in turn
+	// rather than stamping a store whose numbers still live in card front
+	// matter. Its sentence names the repair outright.
+	refused := runMigrateNotes(t, workbench)
+	if refused.code == 0 {
+		t.Fatalf("the note migration ran over a pre-registry workbench: %s%s", refused.out, refused.errw)
 	}
-	// And the rest of the chain. The number migration stamps the format the
-	// registry arrived at, which is still below the current one, so the
-	// workbench is refused until the note migration has run over it too.
-	migrateNotes(t, workbench)
-	// The sentence's first half claims the command builds the registry, so the
-	// card the workbench already held answers by a line in the file, and the
-	// reader is not left trusting the exit code alone.
+	if !strings.Contains(refused.errw, "--migrate-numbers") {
+		t.Fatalf("the note migration refuses without naming the repair: %s", refused.errw)
+	}
+
+	// The repair the sentence names, run bare from inside the workbench, which
+	// is the position its sentence reaches.
+	repaired := runCLI(t, workbench, "check", "--migrate-numbers", "--yes")
+	if repaired.code != 0 {
+		t.Fatalf("the repair the note migration names exited %d: %s%s", repaired.code, repaired.out, repaired.errw)
+	}
+	registry, err := os.ReadFile(filepath.Join(workbench, bench.CardNumbersName))
+	if err != nil {
+		t.Fatalf("reading the registry the repair claims to have built: %v", err)
+	}
 	ids, err := bench.ListIDs(filepath.Join(workbench, bench.CardsDir))
 	if err != nil {
 		t.Fatalf("listing %s: %v", filepath.Join(workbench, bench.CardsDir), err)
 	}
-	registry, err := os.ReadFile(filepath.Join(workbench, bench.CardNumbersName))
-	if err != nil {
-		t.Fatalf("reading the registry the advice claims to have built: %v", err)
-	}
 	if len(ids) != 1 || !strings.Contains(string(registry), "1 "+ids[0]) {
-		t.Fatalf("the registry the advice built does not name the card the workbench held: %q against %v", string(registry), ids)
+		t.Fatalf("the registry the repair built does not name the card the workbench held: %q against %v",
+			string(registry), ids)
 	}
-	// The sentence's second half is the claim the reader took the advice for:
-	// the card that was refused files now.
+
+	// And the rest of the chain, which is the claim the reader followed it
+	// for: the note migration runs now, and the workbench reads.
+	migrateNotes(t, workbench)
+	read := runCLI(t, workbench, "show", "fx-1")
+	if read.code != 0 {
+		t.Fatalf("the workbench still refuses a read after the whole chain: %d %s%s", read.code, read.out, read.errw)
+	}
 	filed := runCLI(t, workbench, "add", "another card")
 	if filed.code != 0 {
-		t.Fatalf("the workbench still refuses a card after the advice was followed: %d %s%s", filed.code, filed.out, filed.errw)
+		t.Fatalf("the workbench still refuses a card after the whole chain: %d %s%s", filed.code, filed.out, filed.errw)
 	}
 }
 
@@ -806,7 +844,7 @@ const checkInvocation = "dinah check"
 var checkAdviceProvenByRunning = map[string]string{
 	"refusal.dinah.no-workbench-found.bare":               "TestTheBareWorkbenchAdviceIsACommandThatWorks",
 	"refusal.dinah.needs-container-migration.next":        "TestTheContainerMigrationAdviceIsACommandThatWorks",
-	"refusal.dinah.needs-number-migration.next":           "TestTheNumberMigrationAdviceIsACommandThatWorks",
+	"refusal.dinah.needs-number-migration.next":           "TestTheNumberMigrationChainIsSelfGuiding",
 	"refusal.dinah.needs-vocabulary-migration.next-named": "TestTheVocabularyMigrationAdviceIsACommandThatWorks",
 	"refusal.dinah.vocabulary-mixed.next-named":           "TestTheMixedVocabularyAdviceIsACommandThatWorks",
 	"refusal.no-operator.next-named":                      "TestTheNoOperatorAdviceIsACommandThatWorks",

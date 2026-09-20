@@ -1253,14 +1253,14 @@ storage format 6
 Catalogs:
   Language  Translated
   --------  ----------
-  en        1124/1124
-  af        0/1124
-  cs        0/1124
-  de        1124/1124
-  es        0/1124
-  fil       0/1124
-  hi        1124/1124
-  id        0/1124
+  en        1125/1125
+  af        0/1125
+  cs        0/1125
+  de        1125/1125
+  es        0/1125
+  fil       0/1125
+  hi        1125/1125
+  id        0/1125
 [exit 0]
 ```
 
