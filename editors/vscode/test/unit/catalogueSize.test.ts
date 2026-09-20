@@ -111,7 +111,7 @@ const CATALOGUE_ADDED_BY_THIS_CARD = 7;
  */
 const RUNTIME_ADDED_517: readonly string[] = [
 	"item.row.commentCount",
-	"item.state.label",
+	"item.stateLabel",
 ];
 
 /**

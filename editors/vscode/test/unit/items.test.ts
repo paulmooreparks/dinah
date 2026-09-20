@@ -783,7 +783,7 @@ test("an item row's tooltip names its state, in every state an item can be in", 
 		);
 		const lines = (item.tooltip as string).split("\n");
 		assert.ok(
-			lines.includes(`${ENGLISH("item.state.label")} ${word}`),
+			lines.includes(`${ENGLISH("item.stateLabel")} ${word}`),
 			`${state}: ${String(item.tooltip)}`,
 		);
 		checked += 1;

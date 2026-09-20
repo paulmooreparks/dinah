@@ -1209,7 +1209,7 @@ export function itemTooltip(
 	// The state, which rode the row's description and was clipped with it.
 	// The kind survives that loss because the row's icon carries it, and
 	// nothing carries the state, so the tooltip does (dinah-517).
-	lines.push(`${t("item.state.label")} ${itemStateWord(view.state, t)}`);
+	lines.push(`${t("item.stateLabel")} ${itemStateWord(view.state, t)}`);
 	// The answer a settled item designates, drawn where the retired note was
 	// drawn. The reference is carried by both checklist reads and the comment
 	// itself only by the full one, so the tooltip says what it has: the words

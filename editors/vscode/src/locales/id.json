@@ -691,7 +691,7 @@
 			"context": "The word for an acceptance criterion the work did not satisfy.",
 			"skeleton": true
 		},
-		"item.state.label": {
+		"item.stateLabel": {
 			"text": "State:",
 			"context": "The label before an item's state, on the tree row's tooltip. It is drawn on every item, because the state rides the row description and is clipped with it, and nothing else on the row carries the state.",
 			"skeleton": true
@@ -907,8 +907,8 @@
 			"skeleton": true
 		},
 		"skip.notACardRow": {
-			"text": "names no card",
-			"context": "The output channel line for a selected row the filing form cannot act on, because the row is not a card.",
+			"text": "names no card or checklist",
+			"context": "The output channel line for a selected row the filing form cannot act on, because the row names neither a card nor a checklist.",
 			"skeleton": true
 		},
 		"comment.composed": {

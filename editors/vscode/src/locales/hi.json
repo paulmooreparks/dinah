@@ -693,7 +693,7 @@
 			"context": "The word for an acceptance criterion the work did not satisfy.",
 			"source": "d7338946b42394f4"
 		},
-		"item.state.label": {
+		"item.stateLabel": {
 			"text": "स्थिति:",
 			"context": "The label before an item's state, on the tree row's tooltip. It is drawn on every item, because the state rides the row description and is clipped with it, and nothing else on the row carries the state.",
 			"source": "ad748381472a9a24"
@@ -912,9 +912,9 @@
 			"source": "75f52361210d33ac"
 		},
 		"skip.notACardRow": {
-			"text": "किसी कार्ड का नाम नहीं लेता",
-			"context": "The output channel line for a selected row the filing form cannot act on, because the row is not a card.",
-			"source": "b00b8f23ccce4784"
+			"text": "किसी कार्ड या चेकलिस्ट का नाम नहीं लेता",
+			"context": "The output channel line for a selected row the filing form cannot act on, because the row names neither a card nor a checklist.",
+			"source": "8378ab7dbf235461"
 		},
 		"comment.composed": {
 			"text": "टिप्पणी {ref} खुली है। सहेजने पर Dinah उसका पाठ लिखता है; यदि अंततः आप कुछ न कहें तो टिप्पणी मिटा दें।",
