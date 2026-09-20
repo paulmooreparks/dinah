@@ -285,6 +285,7 @@ var guides = map[string][]string{
 	"instructions": {"references"},
 	"attach":       {"references"},
 	"comment":      {"references"},
+	"accept-divergence": {"references"},
 	"cite":         {"references"},
 	"resolve":      {"references"},
 	"verify":       {"references"},
@@ -367,9 +368,13 @@ var params = map[string][]Param{
 		{Name: "card", Required: true, Shared: "card", Field: "Card"},
 		{Name: "workstream", Required: true, Shared: "workstream", Field: "Workstream"},
 	},
+	// comment's text is not required. A call carrying none mints the
+	// comment with an empty body, which is the form an editor calls: the
+	// entity exists from the first keystroke, so nothing has to decide when
+	// an author has finished composing one.
 	"comment": {
 		{Name: "card", Display: "ref", Required: true, Guide: "references", Field: "Card"},
-		{Name: "text", Display: "text|-", Required: true, Rest: true, Field: "Text"},
+		{Name: "text", Display: "text|-", Rest: true, Field: "Text"},
 	},
 	"attach": {
 		{Name: "ref", Required: true, Guide: "references", Field: "Ref"},
@@ -396,15 +401,18 @@ var params = map[string][]Param{
 	},
 	"resolve": {
 		{Name: "item", Required: true, Shared: "item", Guide: "references", Field: "Ref"},
-		{Name: "note", Display: "note|-", Required: true, Rest: true, Shared: "note", Field: "Note"},
+		{Name: "designation", Display: "comment", Shared: "designation", Field: "Note"},
+		{Name: "text", Flag: true, Value: "text|-", Shared: "designation-text", Field: "Text"},
 	},
 	"verify": {
 		{Name: "item", Required: true, Shared: "item", Guide: "references", Field: "Ref"},
-		{Name: "note", Display: "note|-", Required: true, Rest: true, Shared: "note", Field: "Note"},
+		{Name: "designation", Display: "comment", Shared: "designation", Field: "Note"},
+		{Name: "text", Flag: true, Value: "text|-", Shared: "designation-text", Field: "Text"},
 	},
 	"fail": {
 		{Name: "item", Required: true, Shared: "item", Guide: "references", Field: "Ref"},
-		{Name: "note", Display: "note|-", Required: true, Rest: true, Shared: "note", Field: "Note"},
+		{Name: "designation", Display: "comment", Shared: "designation", Field: "Note"},
+		{Name: "text", Flag: true, Value: "text|-", Shared: "designation-text", Field: "Text"},
 	},
 	"reopen": {
 		{Name: "item", Required: true, Shared: "item", Guide: "references", Field: "Ref"},
@@ -444,6 +452,10 @@ var params = map[string][]Param{
 	"delete": {
 		{Name: "ref", Required: true, Shared: "ref", Guide: "references", Field: "Ref"},
 		{Name: "yes", Flag: true, Marker: true, Required: true, Shared: "yes", Field: "Confirm"},
+		{Name: "force", Flag: true, Marker: true, Field: "Force"},
+	},
+	"accept-divergence": {
+		{Name: "comment", Required: true, Guide: "references", Field: "Ref"},
 	},
 	// rename writes its own sentence for ref rather than taking the shared
 	// one, because the shared sentence names a column, a card or anything

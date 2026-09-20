@@ -89,7 +89,7 @@ const (
 // workbench has been carried across that retirement. It moved from 4 to 5 at
 // dinah-496, which made a journal line's actor an object, so the number says
 // whether a workbench's journals have been re-encoded.
-const StorageFormat = 5
+const StorageFormat = 6
 
 // ContainerFormat is the storage format from which the containment rule binds.
 // A workbench declaring this number or a higher one is held to Contained; one
@@ -134,6 +134,21 @@ const FieldsFormat = 4
 // number records which migration a store has crossed, and no read path refuses
 // a workbench over it.
 const ActorObjectFormat = 5
+
+// ResolutionFormat is the storage format from which a checklist item's answer
+// is a designated comment rather than a free-text note. A workbench declaring
+// this number or a higher one has been carried across the note migration; one
+// declaring less has not, and a read of it is refused by name, because a
+// reader of such a store would find an item settled and no answer on it.
+//
+// The gate is a refusal rather than a finding, which parts it from
+// ContainerFormat and from RegistryFormat. Those two name states a reader can
+// read past: a workbench in the wrong place is still readable, and card
+// numbers in frontmatter are still numbers. This one names a key that has
+// moved, so a reader that carried on would report every settled item on the
+// store as carrying no answer, which is not a degraded reading but a false
+// one.
+const ResolutionFormat = 6
 
 // UndeclaredFormat is the format a workbench whose anchor declares no format
 // key is opened as carrying. Such a workbench predates the key itself, and
@@ -1684,6 +1699,13 @@ func openWithVocabulary(root string, vocab columnVocabulary, admit func(declared
 		b.Format = n
 		if requireContainer && n >= ContainerFormat && !Contained(root) {
 			return nil, contract.Refuse(contract.NeedsContainerMigration, root)
+		}
+		// The note migration's gate is read last of the format gates, so a
+		// store awaiting an older migration meets that migration's own
+		// refusal first and an operator works the chain in the order the
+		// formats were bumped in.
+		if n >= ActorObjectFormat && n < ResolutionFormat {
+			return nil, contract.Refuse(contract.StoreAwaitingMigration, root)
 		}
 	}
 	// The card-number registry is read once here, after the format gate, so

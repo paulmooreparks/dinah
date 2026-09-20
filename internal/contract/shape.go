@@ -1285,6 +1285,41 @@ var Shapes = []Shape{
 		NextStep:  []string{"refusal.dinah.uncited.next"},
 	},
 	{
+		// The detail is the comment's reference. The sentence says an edit
+		// happened and never who made it, because the tool has a digest and
+		// no witness, and the next step names the two routes out, which
+		// differ in meaning rather than in convenience.
+		Name:      CommentBodyDiverged,
+		Fragments: []Fragment{{Key: "refusal.dinah.comment-body-diverged.next"}},
+		NextStep:  []string{"refusal.dinah.comment-body-diverged.next"},
+	},
+	{
+		// The detail is the reference as the caller typed it, which is the
+		// spelling they can compare against. The kind rides as a value
+		// where the reference resolved to something that is not a comment.
+		Name:      NotADesignation,
+		Values:    []string{"kind", "item"},
+		Fragments: []Fragment{{Key: "refusal.dinah.not-a-designation.next"}},
+		NextStep:  []string{"refusal.dinah.not-a-designation.next"},
+	},
+	{
+		// The detail is the comment and the designating item rides as a
+		// value, because the reader has to be told which item would be left
+		// settled with nothing behind it.
+		Name:      NotDesignatable,
+		Values:    []string{"item"},
+		Fragments: []Fragment{{Key: "refusal.dinah.not-designatable.next"}},
+		NextStep:  []string{"refusal.dinah.not-designatable.next"},
+	},
+	{
+		// The detail is the workbench's own path, because a person meeting
+		// this is running a read against a store and the path is what tells
+		// them which one.
+		Name:      StoreAwaitingMigration,
+		Fragments: []Fragment{{Key: "refusal.dinah.store-awaiting-migration.next"}},
+		NextStep:  []string{"refusal.dinah.store-awaiting-migration.next"},
+	},
+	{
 		Name:      ObservationRequired,
 		Fragments: []Fragment{{Key: "refusal.dinah.observation-required.next"}},
 		NextStep:  []string{"refusal.dinah.observation-required.next"},

@@ -70,6 +70,7 @@ func init() {
 		{name: "archive", group: groupWork, run: runArchive, bounded: 1},
 		{name: "restore", group: groupWork, run: runRestore, bounded: 1},
 		{name: "delete", group: groupWork, run: runDelete, bounded: 1},
+		{name: "accept-divergence", group: groupWork, run: runAcceptDivergence, bounded: 1},
 		{name: "rename", group: groupWork, run: runRename, bounded: 2},
 
 		{name: "status", group: groupRead, run: runStatus},
@@ -144,6 +145,7 @@ func (s *session) request(name string, parsed *arguments) *verb.Request {
 		Override:          parsed.has("override"),
 		Replace:           parsed.has("replace"),
 		Confirm:           parsed.has("yes"),
+		Force:             parsed.has("force"),
 		ReadyOnly:         parsed.has("ready"),
 		Finish:            parsed.has("finish"),
 		MigrateOrdinals:   parsed.has("migrate-ordinals"),
@@ -451,24 +453,34 @@ func runFail(s *session, parsed *arguments) int {
 	})
 }
 
-// runTerminalItem reads the item reference and the resolution note the three
-// terminal checklist verbs share, taking the note from stdin when the caller
-// wrote a single dash in its place, and calls the one that was asked for.
+// runTerminalItem reads the item reference and the designation the three
+// terminal checklist verbs share, and calls the one that was asked for.
+//
+// Two forms reach it. A positional names a comment of the item, which is how
+// an operator endorses words somebody else wrote, and --text carries the words
+// themselves, which mints a comment of the item and designates it in one act.
+// Only the second is prose, so only the second reads from a pipe when the
+// caller writes a single dash in its place; a reference is one word and has
+// never had a reason to come down a pipe.
+//
+// Naming both is refused by the library rather than here, so a caller reaching
+// it over MCP meets the same refusal a caller at a terminal meets.
 func runTerminalItem(s *session, parsed *arguments, name string, call func(*verb.Library, *verb.Request) *verb.Response) int {
 	words := parsed.rest()
 	req := s.request(name, parsed)
 	req.Ref = at(words, 0)
-	note, refusal := s.freeText([]string{name, req.Ref}, words[min(1, len(words)):], "slot.note")
+	req.Text = parsed.value("text")
+	designation, refusal := s.freeText([]string{name, req.Ref}, words[min(1, len(words)):], "slot.designation")
 	if refusal != nil {
 		return s.reportError(refusal)
 	}
-	req.Note = note
-	if req.Note == "-" {
+	req.Note = designation
+	if req.Text == "-" {
 		piped, err := io.ReadAll(s.in)
 		if err != nil {
 			return s.reportError(err)
 		}
-		req.Note = string(piped)
+		req.Text = string(piped)
 	}
 	return s.withBench(func(l *verb.Library) int {
 		return s.emit(call(l, req))
@@ -487,6 +499,17 @@ func runReopen(s *session, parsed *arguments) int {
 	req.Reason = reason
 	return s.withBench(func(l *verb.Library) int {
 		return s.emit(l.Reopen(req))
+	})
+}
+
+// runAcceptDivergence ratifies a comment body somebody edited outside the
+// tool, which is what clears the refusal every other write of that comment
+// meets until somebody says what the record is.
+func runAcceptDivergence(s *session, parsed *arguments) int {
+	req := s.request("accept-divergence", parsed)
+	req.Ref = at(parsed.rest(), 0)
+	return s.withBench(func(l *verb.Library) int {
+		return s.emit(l.AcceptDivergence(req))
 	})
 }
 
@@ -1283,6 +1306,13 @@ func editCmd(s *session, editor, path string) *exec.Cmd {
 }
 
 // runEdit opens a path in the reader's editor.
+//
+// On a comment it does one thing more, because a comment's body is a record
+// of what somebody said rather than a description of something: it observes
+// the body before the editor is handed the file, and on the editor's return it
+// asks the library what that edit meant. It asserts nothing about when the
+// editor returned, which no editor contracts; RecordCommentEdit carries the
+// whole of that reasoning and this side only supplies the before.
 func runEdit(s *session, parsed *arguments) int {
 	ref := at(parsed.rest(), 0)
 	return s.withBench(func(l *verb.Library) int {
@@ -1296,10 +1326,24 @@ func runEdit(s *session, parsed *arguments) int {
 		if err != nil {
 			return s.reportError(err)
 		}
+		comment, err := l.Bench.ResolveEntity(ref)
+		before := ""
+		editing := err == nil && comment.Kind == bench.KindComment
+		if editing {
+			if before, err = verb.CommentBodyDigest(comment.Dir); err != nil {
+				return s.reportError(err)
+			}
+		}
 		if err := editCmd(s, editor, resolved).Run(); err != nil {
 			return s.reportError(err)
 		}
-		return 0
+		if !editing {
+			return 0
+		}
+		req := s.request("edit", parsed)
+		req.Ref = ref
+		req.PriorDigest = before
+		return s.emit(l.RecordCommentEdit(req))
 	})
 }
 

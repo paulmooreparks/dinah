@@ -111,7 +111,7 @@ func proseWriteReachesTheAnchorAlone(t *testing.T, kind string, field bench.Fiel
 func plainWriteRefusesALineBreak(t *testing.T, kind string, field bench.Field) {
 	h := harnessFromDefinition(t, "pr", fieldGuardDefinition)
 	ref, _ := proseSubject(t, h, kind)
-	value := plainValueFor(field)
+	value := plainValueFor(field, ref)
 
 	refused := h.library.SetField(&Request{
 		Verb: "set", Actor: "alka", Ref: ref, Field: field.Name,
@@ -135,7 +135,7 @@ func plainWriteRefusesALineBreak(t *testing.T, kind string, field bench.Field) {
 
 // plainValueFor is a value the field's own guard admits, so the accepting half
 // of the one-line check tests the line rule rather than the guard.
-func plainValueFor(field bench.Field) string {
+func plainValueFor(field bench.Field, ref string) string {
 	switch field.Guard {
 	case bench.GuardSlug:
 		return "pr-dev"
@@ -158,6 +158,11 @@ func plainValueFor(field bench.Field) string {
 		// identifier a resolved write stores, so this half tests the line
 		// rule rather than the guard.
 		return "d00000000002"
+	case bench.GuardResolution:
+		// A designation names a comment of the very entity being written,
+		// so the value is composed from the subject rather than written as
+		// a literal, and proseSubject plants the comment it names.
+		return ref + "/comments/1"
 	}
 	return "a written value"
 }
@@ -189,6 +194,13 @@ func proseSubject(t *testing.T, h *harness, kind string) (string, func(*harness)
 		return card + "/comments/1", cardJournal
 	case bench.KindItem:
 		fileItem(t, h, card, "open_question", "does the deadline move?")
+		h.reopen()
+		// The item carries a comment because one of its fields is a
+		// designation, whose guard admits a comment of this item alone.
+		if response := h.library.Comment(&Request{Verb: "comment", Actor: "alka", Card: card + "/questions/1", Text: "the answer"}); response.Outcome != contract.OutcomeOK {
+			t.Fatalf("comment on the item: %s %s", response.Outcome, response.Refusal)
+		}
+		h.reopen()
 		return card + "/questions/1", cardJournal
 	case bench.KindAttachment:
 		h.attach(card, "notes.txt", "some bytes")

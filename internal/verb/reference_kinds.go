@@ -131,6 +131,11 @@ var referenceKinds = map[string][]ReferenceKind{
 	"verify":  {ReferenceKindBelowCard},
 	"fail":    {ReferenceKindBelowCard},
 	"reopen":  {ReferenceKindBelowCard},
+	// accept-divergence names a comment, which hangs below a card, below one
+	// of a card's checklist items, or below a column. The first two are
+	// below-card addresses and the third is a column's own, so the two
+	// kinds together are what a comment can be reached by.
+	"accept-divergence": {ReferenceKindColumn, ReferenceKindBelowCard},
 }
 
 // ArgumentMeaning composes one argument's written meaning: the sentence written

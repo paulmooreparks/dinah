@@ -1011,9 +1011,19 @@ type ItemView struct {
 	// Text is the item's own body: the judgement it records, unchanged from
 	// when it was filed.
 	Text string `json:"text"`
-	// Note is the resolution note, absent while the item is pending and
-	// absent whenever an item on disk carries none.
-	Note string `json:"note,omitempty"`
+	// Resolution is the canonical reference of the comment this item's
+	// settling designated as its answer, absent while the item is pending
+	// and absent whenever an item on disk designates none. Both reads carry
+	// it, because it costs the item's own anchor and nothing further: a
+	// reader of the indexed checklist learns that an answer exists and what
+	// to type to reach it, without a single comment being opened.
+	Resolution string `json:"resolution,omitempty"`
+	// Designated is the comment Resolution names, opened and carried only by
+	// the full read. The indexed read leaves it nil, which is the property
+	// the read is built to rather than trimmed into: a shape that filled
+	// every view and cleared the field afterwards would have opened every
+	// designated comment on every dinah show.
+	Designated *DesignatedComment `json:"designated,omitempty"`
 	// CommentCount is how many comments the item carries. The count rather
 	// than the comments themselves, because a card's checklist is read far
 	// more often than any one item's argument is, and `dinah show <card>`
@@ -1021,6 +1031,30 @@ type ItemView struct {
 	// are reached through the item's own reference, which ItemDetail
 	// answers.
 	CommentCount int `json:"comment_count,omitempty"`
+}
+
+// DesignatedComment is the comment an item's resolution names, as the full
+// checklist read carries it: who wrote it, when, and its body capped for
+// display the way the comments index caps a subject.
+//
+// The author is empty on a comment the store cannot attribute, and
+// AuthorUnrecoverable says that the absence is a finding rather than an
+// omission. A reader states what it has: it neither invents a name nor
+// renders a blank that reads as a defect.
+type DesignatedComment struct {
+	// Ref is the comment's own canonical reference, which is the value the
+	// item's resolution carries.
+	Ref string `json:"ref"`
+	// Author is who wrote the comment, empty where the store cannot say.
+	Author string `json:"author,omitempty"`
+	// AuthorUnrecoverable is true where the absence of an author is
+	// recorded as a finding, which the note migration writes on a comment
+	// whose settling the journal could not attribute.
+	AuthorUnrecoverable bool `json:"author_unrecoverable,omitempty"`
+	// TS is when the comment was written.
+	TS string `json:"ts,omitempty"`
+	// Body is the comment's text, capped for display.
+	Body string `json:"body,omitempty"`
 }
 
 // ItemDetail is one checklist item as show answers for the item's own
@@ -1533,16 +1567,29 @@ func (l *Library) detailOf(card *bench.Card, chosen detailSelection, filters det
 			return nil, "", err
 		}
 		view := ItemView{
-			ID:      item.ID,
-			Ordinal: position,
-			Kind:    item.Kind,
-			State:   item.State,
-			Column:  item.Column,
-			Owner:   item.Owner,
-			Text:    item.Text,
-			Note:    item.Note,
+			ID:         item.ID,
+			Ordinal:    position,
+			Kind:       item.Kind,
+			State:      item.State,
+			Column:     item.Column,
+			Owner:      item.Owner,
+			Text:       item.Text,
+			Resolution: item.Resolution,
 		}
 		view.Ref = itemRef(cardRef, item.Kind, kindPosition[item.Kind], position)
+		// The designated comment is opened only where the caller asked for
+		// the checklist in full. This is the one line that decides whether
+		// dinah show opens thirty-three further files or none of them, and
+		// it sits here rather than after the loop because a build that
+		// filled the field and cleared it afterwards would have paid the
+		// opens either way.
+		if chosen.full("checklist") {
+			designated, err := l.designatedComment(item)
+			if err != nil {
+				return nil, "", err
+			}
+			view.Designated = designated
+		}
 		count, err := bench.CountComments(item.Dir)
 		if err != nil {
 			return nil, "", err
@@ -1576,7 +1623,6 @@ func (l *Library) detailOf(card *bench.Card, chosen detailSelection, filters det
 	if chosen.carries("checklist") && !chosen.full("checklist") {
 		for i := range carriedChecklist {
 			carriedChecklist[i].Text = capRunes(firstLine(carriedChecklist[i].Text), subjectCap)
-			carriedChecklist[i].Note = ""
 			indexed["checklist"]++
 		}
 	}
@@ -1836,6 +1882,41 @@ func attachmentViews(dir, ref string) ([]AttachmentView, error) {
 // its card: the card's own reference, then comments and the comment's ordinal.
 func commentRef(cardRef string, ordinal int) string {
 	return cardRef + "/" + bench.CommentsDir + "/" + strconv.Itoa(ordinal)
+}
+
+// designatedComment opens the comment an item's resolution names and reports
+// it for the full checklist read, or nil where the item designates nothing.
+//
+// One file is opened per designated comment, and the observation fires once
+// per open rather than once per read. The unit is what a criterion counting
+// through Library.Observe counts in, so an event fired per read could not tell
+// a read that opened one comment from one that opened thirty-three, which is
+// the whole of what such a count is for.
+//
+// A resolution naming a comment that will not open reports the reference and
+// nothing else rather than failing the read. A read validates nothing, on the
+// terms an item carrying a level this workbench no longer declares is still
+// shown; a designation pointing at a comment that is gone is dinah check's
+// finding to report and not a reason to refuse somebody the card.
+func (l *Library) designatedComment(item *bench.Item) (*DesignatedComment, error) {
+	if item.Resolution == "" {
+		return nil, nil
+	}
+	view := &DesignatedComment{Ref: item.Resolution}
+	found, err := l.Bench.ResolveEntity(item.Resolution)
+	if err != nil || found.Kind != bench.KindComment {
+		return view, nil
+	}
+	l.observe(ObserveDesignatedComment, found.Dir)
+	fm, body, err := bench.ReadCommentAnchor(found.Dir)
+	if err != nil {
+		return view, nil
+	}
+	view.Author = fm.Value("author")
+	view.AuthorUnrecoverable = fm.Value(bench.CommentAuthorUnrecoverableField) == "true"
+	view.TS = fm.Value("ts")
+	view.Body = capRunes(body, subjectCap)
+	return view, nil
 }
 
 // itemRef is what a person types to reach one checklist item. An item of

@@ -50,14 +50,21 @@ const (
 	// A field carrying this guard therefore holds an identifier or nothing,
 	// which is what a gate reading it compares against.
 	GuardColumnRef = "column-ref"
+	// GuardResolution admits a reference naming a comment of the very item
+	// being written, and refuses every other reference: another item's
+	// answer, a card comment, and anything that is not a comment at all. A
+	// field carrying this guard therefore holds a designation a reader can
+	// open without first asking whose answer it is.
+	GuardResolution = "resolution"
 )
 
 // Guards lists the closed set of guard names a field may declare, in the order
 // the declaration above states them. A sweep asking whether every guard is
-// routed reads this rather than writing the nine out again.
+// routed reads this rather than writing the ten out again.
 var Guards = []string{
 	GuardSlug, GuardLevel, GuardTier, GuardState,
 	GuardFilename, GuardKind, GuardCapacity, GuardHold,
+	GuardResolution,
 	GuardColumnRef,
 }
 
@@ -199,7 +206,7 @@ var fields = map[string][]Field{
 	KindItem: {
 		{Name: TextField, Prose: true},
 		{Name: ItemStateField, Guard: GuardState},
-		{Name: ItemNoteField, Clearable: true},
+		{Name: ItemResolutionField, Clearable: true, Guard: GuardResolution},
 		{Name: ItemOwnerField, Clearable: true},
 		{Name: ItemColumnField, Clearable: true, Guard: GuardColumnRef},
 	},

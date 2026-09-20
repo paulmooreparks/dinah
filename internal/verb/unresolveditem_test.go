@@ -440,7 +440,7 @@ func TestTheExitHoldSurvivesTheNarrowedClaim(t *testing.T) {
 		t.Errorf("the refused move carried the card to %q", card.Column)
 	}
 
-	settled := h.library.Resolve(&Request{Verb: "resolve", Actor: "alka", Ref: ref + "/questions/1", Note: "The operator ruled."})
+	settled := h.library.Resolve(&Request{Verb: "resolve", Actor: "alka", Ref: ref + "/questions/1", Text: "The operator ruled."})
 	if settled.Outcome != contract.OutcomeOK {
 		t.Fatalf("resolve: %s %s", settled.Outcome, settled.Refusal)
 	}

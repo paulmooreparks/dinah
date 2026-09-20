@@ -397,6 +397,14 @@ func (l *Library) admitFieldValue(req *Request, entity *bench.EntityRef, field b
 		if l.Bench.ColumnByRef(value) == nil {
 			return l.refuse(req, entity.Card, contract.UnknownColumn, value)
 		}
+	case bench.GuardResolution:
+		// A designation names a comment of the very item being written, and
+		// the check is the one the terminal verbs run, so a resolution
+		// written by hand cannot reach a state a settling could not have
+		// produced.
+		if refused := l.admitResolutionValue(req, entity, value); refused != nil {
+			return refused
+		}
 	}
 	return nil
 }
@@ -505,6 +513,15 @@ func (l *Library) writeField(req *Request, entity *bench.EntityRef, target field
 	if err != nil {
 		return l.FromError(req, err)
 	}
+	// A comment whose stored digest disagrees with the body standing beside
+	// it was edited by something other than a verb, and writing over it
+	// would recompute the digest from the tampered body and take the
+	// evidence with it. So the write is refused and the operator clears it
+	// deliberately, by restoring the body or by ratifying what is there
+	// with dinah accept-divergence.
+	if entity.Kind == bench.KindComment && bench.CommentDiverged(fm, body) {
+		return l.refuse(req, entity.Card, contract.CommentBodyDiverged, entity.Ref)
+	}
 	var was string
 	switch {
 	case target.prose:
@@ -532,6 +549,15 @@ func (l *Library) writeField(req *Request, entity *bench.EntityRef, target field
 	path, declared := bench.AnchorPathOf(entity)
 	if !declared {
 		return l.FromError(req, contract.Refuse(contract.UnknownPath, entity.Ref))
+	}
+	// The digest is recomputed by every write of a comment's anchor rather
+	// than by the body writes alone, and that distinction is what keeps it
+	// from crying wolf: Render re-serialises the whole file, so a write
+	// touching one header key rewrites the body's bytes on the way past and
+	// can normalise a trailing newline, which a body-only digest would then
+	// report as a divergence nobody caused.
+	if entity.Kind == bench.KindComment {
+		bench.StampCommentDigest(fm, body)
 	}
 	if err := bench.WriteText(path, fm.Render(body)); err != nil {
 		return l.FromError(req, err)
@@ -639,4 +665,31 @@ func unknownEntityField(kind, field string) error {
 		"kind":   kind,
 		"fields": strings.Join(bench.FieldsOf(kind), ", "),
 	})
+}
+
+// admitResolutionValue runs the resolution guard over a value being written
+// directly to an item's resolution key, which is the one path to that key that
+// does not come through resolve, verify or fail.
+//
+// It asks the two questions designationOf asks, in the same order and against
+// the same store: the reference names a comment, and that comment hangs below
+// this item. What it does not do is rewrite the value to the canonical
+// spelling, because a field write stores what it admitted; a caller who wants
+// the canonical reference settles the item with a verb.
+func (l *Library) admitResolutionValue(req *Request, entity *bench.EntityRef, value string) *Response {
+	found, err := l.Bench.ResolveEntity(value)
+	if err != nil {
+		return l.refuse(req, entity.Card, contract.NotADesignation, value)
+	}
+	if found.Kind != bench.KindComment {
+		return l.refuseWith(req, entity.Card, contract.NotADesignation, value, map[string]string{
+			"kind": found.Kind,
+		})
+	}
+	if !sameDir(filepath.Dir(filepath.Dir(found.Dir)), entity.Dir) {
+		return l.refuseWith(req, entity.Card, contract.NotADesignation, value, map[string]string{
+			"item": entity.Ref,
+		})
+	}
+	return nil
 }

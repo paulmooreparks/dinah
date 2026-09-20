@@ -327,8 +327,15 @@ func TestTheChecklistTableCountsRatherThanQuotes(t *testing.T) {
 }
 
 // TestACloseLeavesTheArgumentStanding asserts dinah-502 AC-7. Resolving,
-// verifying and failing an item write the note as they always have, and the
-// comment written on the item beforehand is unaffected.
+// verifying and failing an item record their answer as they always have, and
+// the comment written on the item beforehand is unaffected.
+//
+// What the answer is has changed under dinah-525 and what the test asks has
+// not. The --text form mints a comment of the item and designates it, so the
+// item ends carrying the argument somebody wrote earlier and the answer
+// beside it, in that order, with the resolution naming the second. The
+// earlier comment being untouched is the property this test was written for
+// and it is the property it still asserts.
 func TestACloseLeavesTheArgumentStanding(t *testing.T) {
 	// Each item stands on its own card, because the harness's file helper
 	// always answers the first position of its kind, which two items of one
@@ -337,38 +344,39 @@ func TestACloseLeavesTheArgumentStanding(t *testing.T) {
 	questionCard := h.add("a card carrying a question")
 	question := h.file(questionCard, "open_question", "does the deadline move?")
 	h.comment(question, "reasoning")
-	resolve := h.library.Resolve(&Request{Verb: "resolve", Actor: "alka", Ref: question, Note: "answer"})
+	resolve := h.library.Resolve(&Request{Verb: "resolve", Actor: "alka", Ref: question, Text: "answer"})
 	if resolve.Outcome != contract.OutcomeOK {
 		t.Fatalf("resolve: %s %s", resolve.Outcome, resolve.Refusal)
 	}
 	h.reopen()
-	assertNoteAndComment(t, h, question, "answer", "reasoning")
+	assertDesignationAndComment(t, h, question, "answer", "reasoning")
 
 	criterionCard := h.add("a card carrying a criterion to verify")
 	criterion := h.file(criterionCard, "acceptance_criterion", "the endpoint returns 404")
 	h.comment(criterion, "verification plan")
-	verify := h.library.Verify(&Request{Verb: "verify", Actor: "alka", Ref: criterion, Note: "verified"})
+	verify := h.library.Verify(&Request{Verb: "verify", Actor: "alka", Ref: criterion, Text: "verified"})
 	if verify.Outcome != contract.OutcomeOK {
 		t.Fatalf("verify: %s %s", verify.Outcome, verify.Refusal)
 	}
 	h.reopen()
-	assertNoteAndComment(t, h, criterion, "verified", "verification plan")
+	assertDesignationAndComment(t, h, criterion, "verified", "verification plan")
 
 	failingCard := h.add("a card carrying a criterion to fail")
 	failing := h.file(failingCard, "acceptance_criterion", "the endpoint returns 500")
 	h.comment(failing, "why it fails")
-	fail := h.library.Fail(&Request{Verb: "fail", Actor: "alka", Ref: failing, Note: "failed"})
+	fail := h.library.Fail(&Request{Verb: "fail", Actor: "alka", Ref: failing, Text: "failed"})
 	if fail.Outcome != contract.OutcomeOK {
 		t.Fatalf("fail: %s %s", fail.Outcome, fail.Refusal)
 	}
 	h.reopen()
-	assertNoteAndComment(t, h, failing, "failed", "why it fails")
+	assertDesignationAndComment(t, h, failing, "failed", "why it fails")
 
-	// An item resolved with no comment on it carries the same note and the
-	// same absent comments collection as before this change.
+	// An item resolved with no argument written on it beforehand ends
+	// carrying exactly one comment, which is the answer itself, and its
+	// resolution names that one.
 	quietCard := h.add("a card carrying a question with no argument")
 	quiet := h.file(quietCard, "open_question", "a question with no argument")
-	settle := h.library.Resolve(&Request{Verb: "resolve", Actor: "alka", Ref: quiet, Note: "settled"})
+	settle := h.library.Resolve(&Request{Verb: "resolve", Actor: "alka", Ref: quiet, Text: "settled"})
 	if settle.Outcome != contract.OutcomeOK {
 		t.Fatalf("resolve: %s %s", settle.Outcome, settle.Refusal)
 	}
@@ -377,19 +385,33 @@ func TestACloseLeavesTheArgumentStanding(t *testing.T) {
 	if err != nil {
 		t.Fatalf("show %s: %v", quiet, err)
 	}
-	if itemDetail == nil || len(itemDetail.Comments) != 0 {
-		t.Fatalf("an item resolved with no comment carries comments: %+v", itemDetail)
+	if itemDetail == nil || len(itemDetail.Comments) != 1 {
+		t.Fatalf("an item settled with --text should carry the one comment that settled it: %+v", itemDetail)
+	}
+	if got := itemDetail.Comments[0].Body; got != "settled" {
+		t.Errorf("the minted comment reads %q, wanted the text the settling carried", got)
 	}
 }
 
-func assertNoteAndComment(t *testing.T, h *harness, item, wantNote, wantComment string) {
+// assertDesignationAndComment reads one settled item back and asserts both
+// halves of what the --text form did: the comment somebody wrote on the item
+// beforehand is still there and still first, and the item's resolution names
+// the comment the settling minted, which carries the words the settling was
+// given.
+func assertDesignationAndComment(t *testing.T, h *harness, item, wantAnswer, wantComment string) {
 	t.Helper()
 	_, _, itemDetail, _, err := h.library.Show(&Request{Verb: "show", Actor: "alka", Card: item})
 	if err != nil {
 		t.Fatalf("show %s: %v", item, err)
 	}
-	if itemDetail == nil || len(itemDetail.Comments) != 1 || itemDetail.Comments[0].Body != wantComment {
-		t.Fatalf("show %s carried %+v, wanted the comment %q standing", item, itemDetail, wantComment)
+	if itemDetail == nil || len(itemDetail.Comments) != 2 {
+		t.Fatalf("show %s carried %+v, wanted the earlier comment and the answer", item, itemDetail)
+	}
+	if got := itemDetail.Comments[0].Body; got != wantComment {
+		t.Fatalf("the earlier comment reads %q, wanted %q standing untouched", got, wantComment)
+	}
+	if got := itemDetail.Comments[1].Body; got != wantAnswer {
+		t.Fatalf("the minted comment reads %q, wanted %q", got, wantAnswer)
 	}
 	entity, err := h.library.Bench.ResolveEntity(item)
 	if err != nil {
@@ -399,7 +421,8 @@ func assertNoteAndComment(t *testing.T, h *harness, item, wantNote, wantComment 
 	if err != nil {
 		t.Fatalf("load item %s: %v", item, err)
 	}
-	if stored.Note != wantNote {
-		t.Errorf("the item's note reads %q, wanted %q", stored.Note, wantNote)
+	if stored.Resolution != itemDetail.Comments[1].Ref {
+		t.Errorf("the item designates %q, wanted the comment the settling minted at %q",
+			stored.Resolution, itemDetail.Comments[1].Ref)
 	}
 }

@@ -3326,11 +3326,6 @@
       "context": "The meaning of the column argument of `dinah next`, printed in that command's arguments table.",
       "source": "5d2227204b4f58f2"
     },
-    "param.note.summary": {
-      "text": "was die Prüfung gezeigt hat, in einem Shell-Wort oder in Anführungszeichen; ein einzelnes - liest es aus einer Pipe",
-      "context": "The written meaning of the note argument, shared by resolve, verify and fail.",
-      "source": "9d18a0ac7460a25"
-    },
     "param.path.card.summary": {
       "text": "die Sache, deren Dateipfad Sie ausgeben, wie wb-1/comments/1",
       "context": "The meaning of the card argument of `dinah path`, printed in that command's arguments table.",
@@ -5537,6 +5532,121 @@
       "text": "verdeckt",
       "context": "How the canonical token shadowed is rendered in the settings listing for a stored alias whose name is now a declared command. The machine surface always carries the canonical spelling.",
       "source": "1f223a3d86f30d38"
+    },
+    "refusal.dinah.comment-body-diverged": {
+      "text": "Der Text des Kommentars {detail} stimmt nicht mehr mit der Pruefsumme ueberein, die Dinah darueber aufgezeichnet hat, also hat etwas ausserhalb von Dinah ihn bearbeitet",
+      "context": "The sentence printed after the refusal name dinah.comment-body-diverged, which every verb that writes a comment's anchor raises when the stored digest disagrees with the body it is about to replace. {detail} is the comment's reference. The sentence says an edit happened and says nothing about who made it or when, because the tool knows neither.",
+      "source": "22b35811c42cab81"
+    },
+    "refusal.dinah.comment-body-diverged.next": {
+      "text": "Stellen Sie den Text von Hand wieder her, wofuer kein Befehl noetig ist, oder fuehren Sie `dinah accept-divergence {detail}` aus, damit das, was auf der Platte steht, zum Aufzeichnungsstand wird",
+      "context": "The next step of refusal.dinah.comment-body-diverged, spliced onto the sentence that just named the comment. The two routes differ in meaning rather than in convenience: restoring says the edit was a mistake, and accepting says the edited body is now what the record says.",
+      "source": "a9c6e0c5bad6aa2f"
+    },
+    "refusal.dinah.not-a-designation": {
+      "text": "{detail} ist kein Kommentar des Eintrags, den Sie gerade abschliessen",
+      "context": "The sentence printed after the refusal name dinah.not-a-designation, which resolve, verify and fail raise when the reference they were handed is not a comment of the item being settled. {detail} is the reference as the caller typed it.",
+      "source": "e03e760e92d1505f"
+    },
+    "refusal.dinah.not-a-designation.next": {
+      "text": "Schreiben Sie die Antwort mit `--text`, oder benennen Sie einen Kommentar dieses Eintrags; `dinah show <item>` listet auf, welche er traegt",
+      "context": "The next step of refusal.dinah.not-a-designation, spliced onto the sentence that just named the reference. <item> stands for the item's own reference and is not translated.",
+      "source": "8882d73d770ab4e1"
+    },
+    "refusal.dinah.not-designatable": {
+      "text": "Der Kommentar {detail} ist die verzeichnete Antwort des Eintrags {item}, ihn zu loeschen liesse diesen Eintrag also abgeschlossen zurueck, ohne dass etwas dahinter stuende",
+      "context": "The sentence printed after the refusal name dinah.not-designatable, which delete raises over a comment a checklist item designates. {detail} is the comment's reference and {item} is the designation the item carries.",
+      "source": "b7babef36159fbf5"
+    },
+    "refusal.dinah.not-designatable.next": {
+      "text": "Oeffnen Sie den Eintrag zuerst wieder, was die Zuweisung aufhebt, oder fuehren Sie die Loeschung erneut mit --force aus, was ihn als Teil derselben Handlung wieder oeffnet",
+      "context": "The next step of refusal.dinah.not-designatable, spliced onto the sentence that just named the comment and the item.",
+      "source": "5557ec19d9bd0957"
+    },
+    "refusal.dinah.store-awaiting-migration": {
+      "text": "Die Werkbank unter {detail} verzeichnet die Antwort eines Checklisteneintrags noch als Notiz, die Dinah nicht mehr liest",
+      "context": "The sentence printed after the refusal name dinah.store-awaiting-migration, which every read of a workbench below the resolution format raises. {detail} is the workbench's own path. The refusal exists because a reader that carried on would report every settled item as carrying no answer, which is a false reading rather than a degraded one.",
+      "source": "71095bafef3aed58"
+    },
+    "refusal.dinah.store-awaiting-migration.next": {
+      "text": "Legen Sie eine Sicherung an, fuehren Sie dann dinah-migrate-notes ueber diese Werkbank aus und lesen Sie deren Bericht, bevor Sie sie wieder benutzen",
+      "context": "The next step of refusal.dinah.store-awaiting-migration. dinah-migrate-notes is the migration program's own name and is not translated. The backup is named first because the migration writes in place and cannot undo itself.",
+      "source": "6f37db7aa3b4a18a"
+    },
+    "check.comment-body-diverged": {
+      "text": "Der Text des Kommentars {detail} stimmt nicht mehr mit der Pruefsumme ueberein, die Dinah darueber aufgezeichnet hat",
+      "context": "A check finding: a comment whose stored digest disagrees with its body, which means something outside Dinah edited it. It names no editor and no time, because the tool knows neither, and a comment carrying no digest is not reported at all.",
+      "source": "1db91e5a29db98bc"
+    },
+    "check.empty-comment": {
+      "text": "Der Kommentar {detail} hat einen leeren Text und nichts weist ihn zu, fuehren Sie also `dinah delete` darauf aus",
+      "context": "A check finding at cleanup severity: an abandoned draft, which is what creating a comment before writing one costs. Nothing is blocked by it.",
+      "source": "e35b0df94f437621"
+    },
+    "check.empty-designated-comment": {
+      "text": "Der Kommentar {detail} hat einen leeren Text, und ein Checklisteneintrag weist ihn als seine Antwort zu",
+      "context": "A check finding at defect severity: an item's answer of record cannot be nothing. It is the same emptiness check.empty-comment reports, and it is a defect rather than clutter because something depends on this one.",
+      "source": "e6ed8800c045c378"
+    },
+    "check.item-carries-retired-note": {
+      "text": "Der Checklisteneintrag {detail} traegt noch den ausgemusterten Notizschluessel",
+      "context": "A check finding: an item the note migration reached and did not finish, which is the state an interrupted run leaves one item in. Running the migration again finishes it.",
+      "source": "8dde56bb07ecc94d"
+    },
+    "check.dangling-resolution": {
+      "text": "Der Checklisteneintrag {detail} weist einen Kommentar zu, der sich nicht mehr aufloesen laesst",
+      "context": "A check finding: a resolution naming a comment that is not there. Deleting a designated comment is refused and the forced form clears the designation, so this is the residue of a hand edit rather than of anything the tool did.",
+      "source": "aed8b987711c0e74"
+    },
+    "column.checklist.resolution": {
+      "text": "Antwort",
+      "context": "The heading of the column of the checklist block of `dinah show <card>` that carries the reference of the comment a settled item designates as its answer. One word, because the block is bounded by the reader's window.",
+      "source": "a6a92648588602bf"
+    },
+    "show.designation": {
+      "text": "{author} um {ts}: {body}",
+      "context": "The line drawn under a settled checklist item's row by a full checklist read, carrying the designated comment's author, its timestamp and its text. {body} is already capped for display by the time it reaches here.",
+      "source": "85545a651a45e0ee"
+    },
+    "show.designation.unattributed": {
+      "text": "Eine Verfasserin oder ein Verfasser, die diese Werkbank nicht benennen kann, um {ts}: {body}",
+      "context": "The form show.designation takes for a comment whose author the store could not recover, which the note migration records as an absence rather than as a name. It says the store cannot name the author rather than leaving a blank that reads as a defect.",
+      "source": "147c71c972d77c92"
+    },
+    "slot.designation": {
+      "text": "Zuweisung",
+      "context": "What the comment argument of resolve, verify and fail is called in the refusal a caller meets when they typed several bare words where one reference belongs.",
+      "source": "9e39808f77d5054"
+    },
+    "param.designation.summary": {
+      "text": "der Kommentar dieses Eintrags, der die Antwort festhaelt, geschrieben als seine Referenz; schreiben Sie die Antwort stattdessen mit --text",
+      "context": "The written meaning of the comment argument, shared by resolve, verify and fail. Naming a comment is how somebody endorses words another person wrote: the comment keeps its own author and the settling records who chose it.",
+      "source": "50e99ba70c3e7183"
+    },
+    "param.designation-text.summary": {
+      "text": "die Antwort selbst, die als Kommentar dieses Eintrags geschrieben und in einer Handlung zugewiesen wird; ein einzelnes - liest sie aus einer Pipe",
+      "context": "The written meaning of the --text flag, shared by resolve, verify and fail. It is the one-command form, and it cannot be named beside a designation reference, because the two are different acts.",
+      "source": "e7ac6c7fc4a4804b"
+    },
+    "param.delete.force.summary": {
+      "text": "einen Kommentar loeschen, den ein Checklisteneintrag zuweist, und diesen Eintrag als Teil derselben Handlung wieder oeffnen",
+      "context": "The meaning of the force argument of `dinah delete`, printed in that command's arguments table. It is the operator's alone where the designating item is the operator's.",
+      "source": "1983ae4a0619852d"
+    },
+    "param.accept-divergence.comment.summary": {
+      "text": "der Kommentar, dessen Text auf der Platte Sie zum Aufzeichnungsstand machen",
+      "context": "The meaning of the comment argument of `dinah accept-divergence`, printed in that command's arguments table.",
+      "source": "8cdbe702ac49973b"
+    },
+    "cmd.accept-divergence.summary": {
+      "text": "Den bearbeiteten Text eines Kommentars zum Aufzeichnungsstand machen",
+      "context": "The one-line summary of the accept-divergence command, printed in the command list and above its own help.",
+      "source": "451d184b98fb6120"
+    },
+    "reason.designated-comment-deleted": {
+      "text": "Der zugewiesene Kommentar {comment} wurde geloescht",
+      "context": "The reason a forced deletion composes for the reopen it performs, recorded in the journal. {comment} is the deleted comment's reference, which is the only part of it that survives.",
+      "source": "6d2b35dacadadefe"
     }
   }
 }

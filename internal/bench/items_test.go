@@ -14,7 +14,7 @@ import (
 func TestItemsReadsACardsChecklistInCreationOrder(t *testing.T) {
 	card := t.TempDir()
 	plantChecklistItem(t, card, "b00000000003", "kind: open_question\nstate: pending\nordinal: 1\n", "The first question.")
-	plantChecklistItem(t, card, "b00000000001", "kind: decision\nstate: resolved\nordinal: 2\nnote: it is Acme\n", "Whose contract.")
+	plantChecklistItem(t, card, "b00000000001", "kind: decision\nstate: resolved\nordinal: 2\nresolution: fx-1/decisions/1/comments/1\n", "Whose contract.")
 	plantChecklistItem(t, card, "b00000000002", "kind: acceptance_criterion\nstate: pending\ncolumn: doing\nowner: holder\nordinal: 3\n", "The endpoint answers 404.")
 
 	items, err := Items(card)
@@ -26,7 +26,7 @@ func TestItemsReadsACardsChecklistInCreationOrder(t *testing.T) {
 	}
 	wanted := []Item{
 		{ID: "b00000000003", Kind: "open_question", State: "pending", Ordinal: 1, Text: "The first question."},
-		{ID: "b00000000001", Kind: "decision", State: "resolved", Ordinal: 2, Note: "it is Acme", Text: "Whose contract."},
+		{ID: "b00000000001", Kind: "decision", State: "resolved", Ordinal: 2, Resolution: "fx-1/decisions/1/comments/1", Text: "Whose contract."},
 		{ID: "b00000000002", Kind: "acceptance_criterion", State: "pending", Ordinal: 3, Column: "doing", Owner: "holder", Text: "The endpoint answers 404."},
 	}
 	for i, want := range wanted {
@@ -38,9 +38,9 @@ func TestItemsReadsACardsChecklistInCreationOrder(t *testing.T) {
 			t.Errorf("item %s: kind %q state %q ordinal %d, wanted %q %q %d",
 				got.ID, got.Kind, got.State, got.Ordinal, want.Kind, want.State, want.Ordinal)
 		}
-		if got.Column != want.Column || got.Owner != want.Owner || got.Note != want.Note {
-			t.Errorf("item %s: column %q owner %q note %q, wanted %q %q %q",
-				got.ID, got.Column, got.Owner, got.Note, want.Column, want.Owner, want.Note)
+		if got.Column != want.Column || got.Owner != want.Owner || got.Resolution != want.Resolution {
+			t.Errorf("item %s: column %q owner %q resolution %q, wanted %q %q %q",
+				got.ID, got.Column, got.Owner, got.Resolution, want.Column, want.Owner, want.Resolution)
 		}
 		// The trailing newline every text file ends in is trimmed, so the
 		// comparison is against the sentence rather than against the file.

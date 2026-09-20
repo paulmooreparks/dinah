@@ -605,6 +605,31 @@ const (
 	// profile describes an unlink verb or names a refusal for one, so this is
 	// not a declared-shape name the way unknown-card and malformed are.
 	UnknownLink = LayerPrefix + "unknown-link"
+	// CommentBodyDiverged is a verb asked to write a comment whose stored
+	// digest disagrees with the body it is about to replace. The body was
+	// edited by something other than a verb, so writing over it would erase
+	// the evidence of that edit and, on an edit, would attribute somebody
+	// else's words to whoever ran the command. The detail names the
+	// comment. dinah accept-divergence clears it.
+	CommentBodyDiverged = LayerPrefix + "comment-body-diverged"
+	// NotADesignation is a terminal verb handed a reference that is not a
+	// comment of the item being settled: another item's answer, a card
+	// comment, or something that is not a comment at all. The detail is the
+	// reference as the caller typed it, which is the spelling they can
+	// compare against.
+	NotADesignation = LayerPrefix + "not-a-designation"
+	// NotDesignatable is a delete aimed at a comment an item designates as
+	// its answer. The detail names the comment and the designating item
+	// rides as a value, because an answer of record cannot be destroyed
+	// while it is still the answer. Reopening the item first frees it, and
+	// --force reopens it as part of the same act.
+	NotDesignatable = LayerPrefix + "not-designatable"
+	// StoreAwaitingMigration is a read opening a workbench whose checklist
+	// items still carry the retired note key, which the dinah-525 note
+	// migration carries into comments. It names the script, because a
+	// refusal a user meets is named like any other even where the migration
+	// behind it carries no surface of its own.
+	StoreAwaitingMigration = LayerPrefix + "store-awaiting-migration"
 )
 
 // Introduced lists every refusal name Dinah mints beyond the profile's own.
@@ -629,6 +654,7 @@ var Introduced = []string{
 	UnknownItemKind, WrongItemKind, NotPending, NotResolved, Uncited,
 	UnresolvedItemExit,
 	ObservationRequired, UnknownLink,
+	CommentBodyDiverged, NotADesignation, NotDesignatable, StoreAwaitingMigration,
 }
 
 // NameIsLegal reports whether a refusal name is one CORE-OUT-3 admits: one
@@ -733,6 +759,13 @@ const (
 	// rather than EventCardUpdated so that a query for the card's own field
 	// changing stays a question a reader can ask.
 	EventCommentUpdated = "comment_updated"
+	// EventDivergenceAccepted records that an operator ratified a comment
+	// body somebody edited outside the tool, on the journal of the entity
+	// the comment hangs below, and carries the comment's identifier in Note.
+	// It is its own event rather than a comment_updated because the two acts
+	// mean different things: ratifying says the body somebody typed is now
+	// the record, and writing says here is the record instead.
+	EventDivergenceAccepted = "divergence_accepted"
 	// EventItemUpdated records a write to a checklist item's own field, on
 	// the journal of the card the item hangs below, and carries the item's
 	// identifier in Note beside the Field. It covers the fields a terminal
@@ -843,7 +876,7 @@ var Events = []string{
 	EventUnblocked, EventExpired, EventCommented, EventAttached,
 	EventAttachmentReplaced, EventAttachmentRemoved, EventAttachmentRenamed,
 	EventArchived, EventRestored, EventDeleted, EventManualCorrection,
-	EventCommentUpdated, EventItemUpdated, EventAttachmentUpdated,
+	EventCommentUpdated, EventDivergenceAccepted, EventItemUpdated, EventAttachmentUpdated,
 	EventWorkstreamJoined, EventWorkstreamLeft, EventCardUpdated,
 	EventTierOverridden, EventTierOverrideDropped,
 	EventItemFiled, EventItemCited, EventItemResolved, EventItemVerified,

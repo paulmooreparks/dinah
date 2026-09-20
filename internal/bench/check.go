@@ -19,6 +19,12 @@ type Finding struct {
 	Key string
 	// Detail is the identifier, column, state or field the defect is about.
 	Detail string
+	// Severity is how much the finding matters, one of SeverityDefect and
+	// SeverityCleanup, and empty on a finding that declares none. Read it
+	// through SeverityOf rather than off this field: an empty value means
+	// defect, which is what every finding written before the severities
+	// existed carries and what every structural invariant means.
+	Severity string
 }
 
 // The catalog keys check reports its findings under. Each names one invariant
@@ -813,6 +819,16 @@ func (b *Bench) checkCard(card *Card) ([]Finding, error) {
 		return findings, err
 	}
 	findings = append(findings, filenameFindings...)
+	commentFindings, err := b.checkComments(card)
+	if err != nil {
+		return findings, err
+	}
+	findings = append(findings, commentFindings...)
+	noteFindings, err := b.checkRetiredNotes(card)
+	if err != nil {
+		return findings, err
+	}
+	findings = append(findings, noteFindings...)
 	events, torn, err := ReadJournal(card.JournalPath())
 	if err != nil {
 		return findings, nil
