@@ -16,6 +16,12 @@
 //
 // dinah-515 adds the fifth test, on the same reasoning, for the four settings
 // the language server contributes.
+//
+// dinah-517 adds the sixth and seventh, for the two runtime keys its item row
+// needs and the three manifest keys its filing commands need. Its counts are
+// derived from the merged tree rather than carried forward from the spec,
+// because three criteria on that card named totals that had gone stale before
+// anybody read them.
 
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -99,6 +105,36 @@ const CATALOGUE_BASE = 194;
 const CATALOGUE_REMOVED_BY_THIS_CARD = 13;
 const CATALOGUE_ADDED_BY_THIS_CARD = 7;
 
+/**
+ * The two runtime keys dinah-517 adds: the count drawn at the head of an item
+ * row's label, and the label before the state its tooltip now carries.
+ */
+const RUNTIME_ADDED_517: readonly string[] = [
+	"item.row.commentCount",
+	"item.stateLabel",
+];
+
+/**
+ * The one runtime key dinah-517 removes. The kind quick pick is gone, because
+ * each filing command carries its own kind, so the placeholder over that pick
+ * is a string nobody renders.
+ */
+const RUNTIME_REMOVED_517 = "form.file.kind.placeholder";
+
+/** What dinah-517 does to the runtime total: two keys in, one out. */
+const CATALOGUE_ADDED_BY_517 = 2;
+const CATALOGUE_REMOVED_BY_517 = 1;
+
+/** The three manifest keys dinah-517 adds, one title per filing command. */
+const MANIFEST_ADDED_517: readonly string[] = [
+	"manifest.command.dinah.tree.raiseQuestion.title",
+	"manifest.command.dinah.tree.recordDecision.title",
+	"manifest.command.dinah.tree.addCriterion.title",
+];
+
+/** The one manifest key dinah-517 removes with the command it titled. */
+const MANIFEST_REMOVED_517 = "manifest.command.dinah.tree.fileItem.title";
+
 test("the English runtime catalogue carries the base count and this card's additions", () => {
 	// The count is taken over `entries` rather than over the file's top level,
 	// which carries two members: the tag and the entries themselves.
@@ -113,16 +149,51 @@ test("the English runtime catalogue carries the base count and this card's addit
 	// a session opens it.
 	assert.equal(
 		runtimeKeys().size,
-		CATALOGUE_BASE - CATALOGUE_REMOVED_BY_THIS_CARD + CATALOGUE_ADDED_BY_THIS_CARD,
+		CATALOGUE_BASE -
+			CATALOGUE_REMOVED_BY_THIS_CARD +
+			CATALOGUE_ADDED_BY_THIS_CARD +
+			CATALOGUE_ADDED_BY_517 -
+			CATALOGUE_REMOVED_BY_517,
 	);
 });
 
-test("the base manifest catalogue carries exactly 55 keys", () => {
+test("the base manifest catalogue carries exactly 57 keys", () => {
 	// 51 before dinah-519, plus the one command its comment row contributes,
 	// the one command dinah-518 puts on a column row, and the four settings
 	// dinah-515's language server contributes, less the two draft commands
-	// dinah-525 retires with the apparatus behind them.
-	assert.equal(manifestKeys().size, 55);
+	// dinah-525 retires with the apparatus behind them, plus dinah-517's
+	// three filing commands less the one command they replace.
+	assert.equal(manifestKeys().size, 57);
+});
+
+test("the two runtime keys dinah-517 adds are present and the pick placeholder is gone", () => {
+	const keys = runtimeKeys();
+	assert.equal(RUNTIME_ADDED_517.length, 2);
+	assert.deepEqual(
+		RUNTIME_ADDED_517.filter((key) => !keys.has(key)),
+		[],
+		"each key above is what an item row draws its count and its state with",
+	);
+	assert.equal(
+		keys.has(RUNTIME_REMOVED_517),
+		false,
+		"the kind quick pick is gone, so its placeholder renders nowhere",
+	);
+});
+
+test("the three manifest keys dinah-517 adds are present and the one they replace is gone", () => {
+	const keys = manifestKeys();
+	assert.equal(MANIFEST_ADDED_517.length, 3);
+	assert.deepEqual(
+		MANIFEST_ADDED_517.filter((key) => !keys.has(key)),
+		[],
+		"each key above titles one of the three filing commands",
+	);
+	assert.equal(
+		keys.has(MANIFEST_REMOVED_517),
+		false,
+		"File Checklist Item is removed rather than retitled",
+	);
 });
 
 test("the six runtime keys dinah-519 adds are present and its eight removals are gone", () => {

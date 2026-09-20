@@ -200,8 +200,16 @@
         "title": "%manifest.command.dinah.tree.reopenItem.title%"
       },
       {
-        "command": "dinah.tree.fileItem",
-        "title": "%manifest.command.dinah.tree.fileItem.title%"
+        "command": "dinah.tree.raiseQuestion",
+        "title": "%manifest.command.dinah.tree.raiseQuestion.title%"
+      },
+      {
+        "command": "dinah.tree.recordDecision",
+        "title": "%manifest.command.dinah.tree.recordDecision.title%"
+      },
+      {
+        "command": "dinah.tree.addCriterion",
+        "title": "%manifest.command.dinah.tree.addCriterion.title%"
       },
       {
         "command": "dinah.tree.openComment",
@@ -315,7 +323,15 @@
           "when": "false"
         },
         {
-          "command": "dinah.tree.fileItem",
+          "command": "dinah.tree.raiseQuestion",
+          "when": "false"
+        },
+        {
+          "command": "dinah.tree.recordDecision",
+          "when": "false"
+        },
+        {
+          "command": "dinah.tree.addCriterion",
           "when": "false"
         },
         {
@@ -467,9 +483,19 @@
           "group": "2_open@1"
         },
         {
-          "command": "dinah.tree.fileItem",
-          "when": "view == dinah.workbenchView && viewItem =~ /^dinah\\.card\\./",
+          "command": "dinah.tree.raiseQuestion",
+          "when": "view == dinah.workbenchView && viewItem =~ /^dinah\\.card\\.|^dinah\\.collection\\.item$|^dinah\\.collection\\.item\\.question$/",
           "group": "2_create@1"
+        },
+        {
+          "command": "dinah.tree.recordDecision",
+          "when": "view == dinah.workbenchView && viewItem =~ /^dinah\\.card\\.|^dinah\\.collection\\.item$|^dinah\\.collection\\.item\\.decision$/",
+          "group": "2_create@2"
+        },
+        {
+          "command": "dinah.tree.addCriterion",
+          "when": "view == dinah.workbenchView && viewItem =~ /^dinah\\.card\\.|^dinah\\.collection\\.item$|^dinah\\.collection\\.item\\.criterion$/",
+          "group": "2_create@3"
         }
       ],
       "editor/title": []

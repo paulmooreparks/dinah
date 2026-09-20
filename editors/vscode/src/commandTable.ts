@@ -45,10 +45,12 @@ import { invokeOpenComment } from "./commentCommands";
 import type { CommentBodyHost, OpenComments } from "./commentBody";
 import { invokeAttachFile, invokeNewCard } from "./creationCommands";
 import {
+	invokeAddCriterion,
 	invokeCommentOnItem,
 	invokeFailItem,
-	invokeFileItem,
 	invokeOpenItem,
+	invokeRaiseQuestion,
+	invokeRecordDecision,
 	invokeReopenItem,
 	invokeResolveItem,
 	invokeVerifyItem,
@@ -68,7 +70,9 @@ import {
 	COMMAND_EDIT_COLUMN_INSTRUCTIONS,
 	COMMAND_EDIT_WORKBENCH_DEFINITION,
 	COMMAND_FAIL_ITEM,
-	COMMAND_FILE_ITEM,
+	COMMAND_ADD_CRITERION,
+	COMMAND_RAISE_QUESTION,
+	COMMAND_RECORD_DECISION,
 	COMMAND_MOVE,
 	COMMAND_NEW_CARD,
 	COMMAND_OPEN_ATTACHMENT,
@@ -184,6 +188,8 @@ export const ROW_COMMAND_TABLE: readonly RowCommand[] = [
 	{ id: COMMAND_VERIFY_ITEM, invoke: invokeVerifyItem },
 	{ id: COMMAND_FAIL_ITEM, invoke: invokeFailItem },
 	{ id: COMMAND_REOPEN_ITEM, invoke: invokeReopenItem },
-	{ id: COMMAND_FILE_ITEM, invoke: invokeFileItem },
+	{ id: COMMAND_RAISE_QUESTION, invoke: invokeRaiseQuestion },
+	{ id: COMMAND_RECORD_DECISION, invoke: invokeRecordDecision },
+	{ id: COMMAND_ADD_CRITERION, invoke: invokeAddCriterion },
 	{ id: COMMAND_OPEN_COMMENT, invoke: invokeOpenComment },
 ];
