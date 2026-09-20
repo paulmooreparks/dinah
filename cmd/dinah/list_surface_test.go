@@ -524,11 +524,11 @@ func TestListUnresolvedCarriesWhatStillHoldsTheCard(t *testing.T) {
 	root := listBench(t)
 	// The fixture has one decision item in pending state. Add items in other
 	// states so the filter has something to filter.
-	mustRun(t, root, "resolve", "fx-1/decisions/1", "resolved on the spot")
+	mustRun(t, root, "resolve", "fx-1/decisions/1", "--text", "resolved on the spot")
 	mustRun(t, root, "file", "fx-1", "acceptance_criterion", "an AC")
-	mustRun(t, root, "verify", "fx-1/criteria/1", "checks out")
+	mustRun(t, root, "verify", "fx-1/criteria/1", "--text", "checks out")
 	mustRun(t, root, "reopen", "fx-1/criteria/1", "needs rework")
-	mustRun(t, root, "fail", "fx-1/criteria/1", "does not pass")
+	mustRun(t, root, "fail", "fx-1/criteria/1", "--text", "does not pass")
 
 	filtered := runCLI(t, root, "list", "fx-1/checklist", "--unresolved", "--json")
 	if filtered.code != 0 {

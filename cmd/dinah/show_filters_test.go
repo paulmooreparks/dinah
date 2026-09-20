@@ -31,7 +31,7 @@ func TestTheTerminalDrawsTheIndexAndTeachesTheRightRecovery(t *testing.T) {
 	if got := runCLI(t, root, "file", card, "decision", "Whose contract the numbers come from."); got.code != 0 {
 		t.Fatalf("file the decision: %d %s", got.code, got.errw)
 	}
-	if got := runCLI(t, root, "resolve", card+"/decisions/1", "the operator settled it"); got.code != 0 {
+	if got := runCLI(t, root, "resolve", card+"/decisions/1", "--text", "the operator settled it"); got.code != 0 {
 		t.Fatalf("resolve: %d %s", got.code, got.errw)
 	}
 
@@ -133,7 +133,7 @@ func TestAStackedChecklistDrawsItsResolutionNote(t *testing.T) {
 	if got := runCLI(t, root, "file", card, "decision", "Whose contract the numbers come from."); got.code != 0 {
 		t.Fatalf("file the decision: %d %s", got.code, got.errw)
 	}
-	if got := runCLI(t, root, "resolve", card+"/decisions/1", "the operator settled it"); got.code != 0 {
+	if got := runCLI(t, root, "resolve", card+"/decisions/1", "--text", "the operator settled it"); got.code != 0 {
 		t.Fatalf("resolve: %d %s", got.code, got.errw)
 	}
 

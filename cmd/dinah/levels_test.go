@@ -557,7 +557,7 @@ What you may write:
   <field>          which field you are writing; which names are legal depends on
                    the kind the reference resolves to (one of: body, capacity,
                    column, description, filename, hold, instructions, kind,
-                   note, notes, operator, owner, priority, severity, slug,
+                   notes, operator, owner, priority, resolution, severity, slug,
                    state, status, text, tier, title)
   [value|-]        what to store in it; write a single dash to read it from
                    standard input, and leave it out to clear a field that may be

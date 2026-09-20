@@ -399,7 +399,7 @@ func newAddressWorkbench(t *testing.T) *addressWorkbench {
 	// carrying an unresolved question refuses a claim and this fixture goes on
 	// to hold one. The item stays on the card, which is what the checklist
 	// block draws.
-	mustRun(t, root, "resolve", "fx-1/oq/1", "the fixture answers it so the card can be claimed")
+	mustRun(t, root, "resolve", "fx-1/oq/1", "--text", "the fixture answers it so the card can be claimed")
 	writeAddressLinks(t, root, "fx-1")
 	writeAddressHaystack(t, root)
 

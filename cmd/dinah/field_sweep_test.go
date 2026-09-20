@@ -84,10 +84,18 @@ var fieldSamples = map[string]map[string]fieldSample{
 		"body": {first: "First thought.", second: "Second thought.\n\nWith a second paragraph."},
 	},
 	bench.KindItem: {
-		"text":  {first: "First question.", second: "Second question.\n\nWith a second paragraph."},
-		"state": {first: "resolved", second: "pending", extra: []string{"--note", "the operator settled it"}},
-		"note":  {first: "a first note", second: "a second note"},
-		"owner": {first: "operator", second: "holder"},
+		"text": {first: "First question.", second: "Second question.\n\nWith a second paragraph."},
+		// --note fills whichever slot the destination verb reads, which is
+		// the designation on a terminal state and the reason on a reopen,
+		// so one value serves both writes: a comment of this item, which
+		// the resolved write designates and the pending write records as
+		// the prose reason it was reopened.
+		"state": {first: "resolved", second: "pending", extra: []string{"--note", "fx-1/questions/1/comments/1"}},
+		// A designation names a comment of the item being written, so the
+		// two values are the two comments fieldSubject plants below it
+		// rather than two strings chosen here.
+		"resolution": {first: "fx-1/questions/1/comments/1", second: "fx-1/questions/1/comments/2"},
+		"owner":      {first: "operator", second: "holder"},
 		// The two columns are named by their identifiers rather than by
 		// their slugs, because a column reference resolves on write and the
 		// identifier is what reaches the anchor, so a slug written here
@@ -267,6 +275,15 @@ func fileSweepSubject(t *testing.T, root, kind string) string {
 	case bench.KindItem:
 		if got := runCLI(t, root, "file", "fx-1", "open_question", "First question."); got.code != 0 {
 			t.Fatalf("file: %d %s", got.code, got.errw)
+		}
+		// The item carries two comments, because one of its fields is a
+		// designation and the round trip writes two distinct values into
+		// every field it sweeps. A designation admits a comment of this
+		// item alone, so the two values have to be two comments of it.
+		for _, body := range []string{"A first answer.", "A second answer."} {
+			if got := runCLI(t, root, "comment", "fx-1/questions/1", body); got.code != 0 {
+				t.Fatalf("comment on the item: %d %s", got.code, got.errw)
+			}
 		}
 		return "fx-1/questions/1"
 	}

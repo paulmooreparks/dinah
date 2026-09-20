@@ -299,7 +299,7 @@ func TestHelpBlockIsTheRatifiedSurface(t *testing.T) {
 		t.Errorf("the emitted block differs from the spec's section 2:\n%s", diffLines(string(fixture), got.out))
 	}
 
-	// The block lists fifty-one commands, and every command the binary offers is
+	// The block lists fifty-two commands, and every command the binary offers is
 	// either one of them or `help`, which the block's own last line names.
 	listed := 0
 	for _, c := range commands {
@@ -314,8 +314,8 @@ func TestHelpBlockIsTheRatifiedSurface(t *testing.T) {
 			t.Errorf("the block does not list %s", c.name)
 		}
 	}
-	if listed != 51 {
-		t.Errorf("wanted fifty-one listed commands, got %d", listed)
+	if listed != 52 {
+		t.Errorf("wanted fifty-two listed commands, got %d", listed)
 	}
 }
 
@@ -4741,24 +4741,26 @@ func TestMarkerFreesAWordASiblingCheckWouldOtherwiseRefuse(t *testing.T) {
 
 // TestBareMarkerAloneNoLongerRefusesItself asserts the open question the
 // spec settled: a bare "--" typed alone, with nothing after it, is consumed
-// as the marker rather than refused as an unrecognized flag. comment's own
-// domain still refuses the empty text that leaves behind, exactly as it
-// refuses an empty comment with no marker involved at all; what changes is
-// which refusal fires. Today's dinah.usage naming "--" itself is gone, and
-// malformed naming "text" takes its place.
+// as the marker rather than refused as an unrecognized flag.
+//
+// What the empty text it leaves behind then means moved at dinah-525. A
+// comment with no text was refused; it is now the empty creation form, which
+// mints the entity and leaves the body to an editor. So the assertion that
+// survives is the one this test was written for, that the marker itself is not
+// refused, and the call lands rather than failing.
 func TestBareMarkerAloneNoLongerRefusesItself(t *testing.T) {
 	root := newBench(t)
 	runCLI(t, root, "add", "A card")
 	got := runCLI(t, root, "comment", "fx-1", "--")
-	if got.code != 2 {
-		t.Fatalf("a bare -- alone: wanted exit 2 (empty comment text, not the marker), got %d (%s)", got.code, got.errw)
-	}
-	leading := strings.SplitN(strings.TrimSpace(got.errw), " ", 2)[0]
-	if leading != contract.Malformed {
-		t.Errorf("wanted the empty-text refusal (%s), got %q", contract.Malformed, got.errw)
+	if got.code != 0 {
+		t.Fatalf("a bare -- alone: wanted the empty comment form to land, got %d (%s)", got.code, got.errw)
 	}
 	if strings.Contains(got.errw, "was not understood") {
 		t.Errorf("the marker itself should not be refused as an unrecognized flag: %q", got.errw)
+	}
+	detail := showDetail(t, root, "fx-1")
+	if len(detail.Comments) != 1 || detail.Comments[0].Body != "" {
+		t.Errorf("wanted one comment with an empty body, got %v", detail.Comments)
 	}
 }
 
@@ -5335,7 +5337,12 @@ func TestMalformedAnswersEachOfItsThreeReaders(t *testing.T) {
 			command string
 		}{
 			{argv: []string{"add"}, command: "add"},
-			{argv: []string{"comment", "fx-1"}, command: "comment"},
+			// comment carrying no text is the empty creation form since
+			// dinah-525, so the command standing here for a request argument
+			// nobody supplied is one whose argument is still required: file
+			// names a card, a kind and the item's own text, and this supplies
+			// the first two alone.
+			{argv: []string{"file", "fx-1", "open_question"}, command: "file"},
 		} {
 			got := runCLI(t, root, tt.argv...)
 			want := english.T("refusal.malformed.next", "usage", verb.Usage(tt.command))
@@ -7239,10 +7246,10 @@ func TestTheFlagSetsTheParserAcceptsAreDerivedFromTheParameterTable(t *testing.T
 		"description", "expires", "fields", "format", "from", "group-by", "kind",
 		"lang", "map", "max-depth", "note", "observed", "operator", "owner",
 		"poll-seconds", "priority", "query", "remint", "root", "severity",
-		"since", "slug", "tier", "workbench",
+		"since", "slug", "text", "tier", "workbench",
 	}
 	wantMarkers := []string{
-		"annotate-prose", "archived", "catalogs", "finish", "help", "json",
+		"annotate-prose", "archived", "catalogs", "finish", "force", "help", "json",
 		"migrate-branches",
 		"migrate-columns",
 		"migrate-container", "migrate-newlines", "migrate-numbers",
@@ -7329,6 +7336,7 @@ func TestTheReferencesGuideSaysWhichCommandTakesWhat(t *testing.T) {
 		"| verify       | no          | no       | no     | yes          | no           |",
 		"| fail         | no          | no       | no     | yes          | no           |",
 		"| reopen       | no          | no       | no     | yes          | no           |",
+		"| accept-divergence | no     | yes      | no     | yes          | no           |",
 	} {
 		if !strings.Contains(got.out, row) {
 			t.Errorf("the references guide does not carry the row %q", row)
@@ -7841,6 +7849,7 @@ func TestAGuideTableSurvivesTheWindowItIsReadIn(t *testing.T) {
 		"|--------------|-------------|----------|--------|--------------|--------------|",
 		"| path         | yes         | yes      | yes    | yes          | yes          |",
 		"| reopen       | no          | no       | no     | yes          | no           |",
+		"| accept-divergence | no     | yes      | no     | yes          | no           |",
 	} {
 		if !strings.Contains(got.out, row) {
 			t.Errorf("the table lost the row %q at 40 columns", row)

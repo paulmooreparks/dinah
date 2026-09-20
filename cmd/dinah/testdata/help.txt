@@ -15,7 +15,7 @@ WORK
   unblock <card>                            Lift a block (operator only)
   raise <card> <tier> <reason>              Raise the tier this stop needs and
                                               hand the card back
-  comment <ref> <text|->                    Record a comment on a card, a
+  comment <ref> [text|-]                    Record a comment on a card, a
                                               column, or a card's checklist item
   attach <ref> <file>                       Attach a file, or replace its bytes
     [--description <text>] [--replace]
@@ -23,11 +23,11 @@ WORK
     [--column <column>] [--owner <owner>]
   cite <item> <scheme> <target>             Cite evidence on a checklist item
     [--observed <before:after>]
-  resolve <item> <note|->                   Resolve an open question or a
-                                              decision
-  verify <item> <note|->                    Record an acceptance criterion as
-                                              verified
-  fail <item> <note|->                      Record an acceptance criterion as
+  resolve <item> [comment]                  Resolve an open question or a
+    [--text <text|->]                         decision
+  verify <item> [comment]                   Record an acceptance criterion as
+    [--text <text|->]                         verified
+  fail <item> [comment] [--text <text|->]   Record an acceptance criterion as
                                               failed
   reopen <item> <reason>                    Return a closed checklist item to
                                               pending
@@ -39,8 +39,10 @@ WORK
   archive <ref>                             Move an entity out of the live set
   restore <ref> [--archived]                Put an archived entity back into the
                                               live set
-  delete <ref> --yes                        Destroy an entity, along with its
+  delete <ref> --yes [--force]              Destroy an entity, along with its
                                               history
+  accept-divergence <comment>               Make a comment's edited body the
+                                              record
   rename <ref> <name>                       Rename an attachment
 
 READ

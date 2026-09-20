@@ -5521,44 +5521,44 @@
       "source": "1f223a3d86f30d38"
     },
     "refusal.dinah.comment-body-diverged": {
-      "text": "टिप्पणी {detail} का पाठ अब उस डाइजेस्ट से मेल नहीं खाता जो Dinah ने उस पर दर्ज किया था, अर्थात Dinah के बाहर किसी वस्तु ने उसे संपादित किया है",
+      "text": "टिप्पणी {detail} का पाठ अब उस डाइजेस्ट से मेल नहीं खाता जो Dinah ने उस पर दर्ज किया था, अर्थात Dinah के बाहर किसी वस्तु ने उसे संपादित किया है।",
       "context": "The sentence printed after the refusal name dinah.comment-body-diverged, which every verb that writes a comment's anchor raises when the stored digest disagrees with the body it is about to replace. {detail} is the comment's reference. The sentence says an edit happened and says nothing about who made it or when, because the tool knows neither.",
-      "source": "22b35811c42cab81"
+      "source": "b0c624b08eed0e3d"
     },
     "refusal.dinah.comment-body-diverged.next": {
-      "text": "पाठ को हाथ से पूर्ववत करें, जिसके लिए कोई कमांड नहीं चाहिए, अथवा `dinah accept-divergence {detail}` चलाएँ ताकि डिस्क पर जो है वही अभिलेख बन जाए",
+      "text": " पाठ को हाथ से पूर्ववत करें, जिसके लिए कोई कमांड नहीं चाहिए, अथवा `dinah accept-divergence {detail}` चलाएँ ताकि डिस्क पर जो है वही अभिलेख बन जाए।",
       "context": "The next step of refusal.dinah.comment-body-diverged, spliced onto the sentence that just named the comment. The two routes differ in meaning rather than in convenience: restoring says the edit was a mistake, and accepting says the edited body is now what the record says.",
-      "source": "a9c6e0c5bad6aa2f"
+      "source": "1b2c2099d1c78c45"
     },
     "refusal.dinah.not-a-designation": {
-      "text": "{detail} उस मद की टिप्पणी नहीं है जिसे आप निपटा रहे हैं",
+      "text": "{detail} उस मद की टिप्पणी नहीं है जिसे आप निपटा रहे हैं।",
       "context": "The sentence printed after the refusal name dinah.not-a-designation, which resolve, verify and fail raise when the reference they were handed is not a comment of the item being settled. {detail} is the reference as the caller typed it.",
-      "source": "e03e760e92d1505f"
+      "source": "db730bc379abb003"
     },
     "refusal.dinah.not-a-designation.next": {
-      "text": "उत्तर `--text` के साथ लिखें, अथवा उस मद की कोई टिप्पणी नामित करें; `dinah show <item>` बताता है कि वह कौन सी टिप्पणियाँ रखता है",
+      "text": " उत्तर --text के साथ लिखें, अथवा उस मद की कोई टिप्पणी नामित करें; `dinah show <item>` बताता है कि वह कौन सी टिप्पणियाँ रखता है।",
       "context": "The next step of refusal.dinah.not-a-designation, spliced onto the sentence that just named the reference. <item> stands for the item's own reference and is not translated.",
-      "source": "8882d73d770ab4e1"
+      "source": "54c4c4bddf0235fd"
     },
     "refusal.dinah.not-designatable": {
-      "text": "टिप्पणी {detail} मद {item} का अभिलिखित उत्तर है, अतः उसे मिटाने से वह मद निपटा हुआ रह जाएगा और उसके पीछे कुछ नहीं होगा",
+      "text": "टिप्पणी {detail} मद {item} का अभिलिखित उत्तर है, अतः उसे मिटाने से वह मद निपटा हुआ रह जाएगा और उसके पीछे कुछ नहीं होगा।",
       "context": "The sentence printed after the refusal name dinah.not-designatable, which delete raises over a comment a checklist item designates. {detail} is the comment's reference and {item} is the designation the item carries.",
-      "source": "b7babef36159fbf5"
+      "source": "8b25c6edc2ed7781"
     },
     "refusal.dinah.not-designatable.next": {
-      "text": "पहले मद को फिर से खोलें, जिससे पदनाम हट जाता है, अथवा मिटाने की क्रिया --force के साथ फिर चलाएँ, जो उसी क्रिया के अंग के रूप में मद को फिर से खोल देती है",
+      "text": " पहले मद को फिर से खोलें, जिससे पदनाम हट जाता है, अथवा मिटाने की क्रिया --force के साथ फिर चलाएँ, जो उसी क्रिया के अंग के रूप में मद को फिर से खोल देती है।",
       "context": "The next step of refusal.dinah.not-designatable, spliced onto the sentence that just named the comment and the item.",
-      "source": "5557ec19d9bd0957"
+      "source": "b15c1e9bd4b89835"
     },
     "refusal.dinah.store-awaiting-migration": {
-      "text": "{detail} पर स्थित कार्यपीठ चेकलिस्ट मद का उत्तर अब भी टिप्पणी के रूप में दर्ज करती है, जिसे Dinah अब नहीं पढ़ता",
+      "text": "{detail} पर स्थित कार्यपीठ चेकलिस्ट मद का उत्तर अब भी टिप्पणी के रूप में दर्ज करती है, जिसे Dinah अब नहीं पढ़ता।",
       "context": "The sentence printed after the refusal name dinah.store-awaiting-migration, which every read of a workbench below the resolution format raises. {detail} is the workbench's own path. The refusal exists because a reader that carried on would report every settled item as carrying no answer, which is a false reading rather than a degraded one.",
-      "source": "71095bafef3aed58"
+      "source": "3a33736cd1eb7a2"
     },
     "refusal.dinah.store-awaiting-migration.next": {
-      "text": "पहले प्रतिलिपि सुरक्षित रखें, फिर उस कार्यपीठ पर dinah-migrate-notes चलाएँ और उसे दोबारा उपयोग में लाने से पहले उसकी रिपोर्ट पढ़ें",
+      "text": " पहले प्रतिलिपि सुरक्षित रखें, फिर उस कार्यपीठ पर dinah-migrate-notes चलाएँ और उसे दोबारा उपयोग में लाने से पहले उसकी रिपोर्ट पढ़ें।",
       "context": "The next step of refusal.dinah.store-awaiting-migration. dinah-migrate-notes is the migration program's own name and is not translated. The backup is named first because the migration writes in place and cannot undo itself.",
-      "source": "6f37db7aa3b4a18a"
+      "source": "f1da4955b4ea13a"
     },
     "check.comment-body-diverged": {
       "text": "टिप्पणी {detail} का पाठ अब उस डाइजेस्ट से मेल नहीं खाता जो Dinah ने उस पर दर्ज किया था",

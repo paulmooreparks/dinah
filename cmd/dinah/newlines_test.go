@@ -169,7 +169,7 @@ type newlineSite struct {
 }
 
 // newlineSites is the counting rule's answer written down once: the
-// twenty-four places a byte sequence originating outside the Dinah process is
+// twenty-three places a byte sequence originating outside the Dinah process is
 // stored in a workbench, or is served as a workbench's own text.
 //
 // Every site is driven by the one case below, and the accounting is a set of
@@ -187,8 +187,14 @@ type newlineSite struct {
 // is prose there, so this list is its transcription and a twenty-fifth site
 // nobody transcribes reddens nothing. Two independent walks of the request
 // surface have now produced twenty-four, which is the only real check on it.
+//
+// Request.Note left the table at dinah-525, which stopped it holding prose.
+// The three terminal checklist verbs read their answer out of it, and what
+// they read is a reference to a comment of the item rather than a caller's
+// own sentence, so the field is one line by construction and the words that
+// used to reach it now reach Request.Text, which the table already carries.
 var newlineSites = []newlineSite{
-	// Group A, the sixteen verb.Request fields that store caller prose. One
+	// Group A, the fifteen verb.Request fields that store caller prose. One
 	// field is one site whatever filled it, because the CLI argument, the
 	// standard-input sentinel and the MCP argument are one field wearing three
 	// hats and a fix at the field covers all three.
@@ -196,7 +202,6 @@ var newlineSites = []newlineSite{
 	{Name: "Request.Text"},
 	{Name: "Request.Value"},
 	{Name: "Request.Reason"},
-	{Name: "Request.Note"},
 	{Name: "Request.Description"},
 	{Name: "Request.Kind"},
 	{Name: "Request.Owner"},
@@ -287,7 +292,6 @@ func TestTheInvariantHoldsAcrossTheWholeVerbSurface(t *testing.T) {
 	drive([]string{"Request.Value"}, "set", "fx-1", "body", dirty("body"))
 	drive([]string{"Request.Text"}, "comment", "fx-1", dirty("comment"))
 	drive([]string{"Request.Owner"}, "file", "fx-1", "open_question", "an open question", "--owner", dirty("own"))
-	drive([]string{"Request.Note"}, "resolve", "fx-1/questions/1", dirty("note"))
 	setup("file", "fx-1", "acceptance_criterion", "a criterion")
 	drive([]string{"Request.Scheme", "Request.CiteTarget"}, "cite", "fx-1/criteria/1", dirty("sch"), dirty("tgt"))
 	drive([]string{"Request.Reason", "Request.Kind"}, "block", "fx-1", dirty("reason"), "--kind", dirty("kind"))
@@ -452,7 +456,7 @@ func TestTheInvariantHoldsAcrossTheWholeVerbSurface(t *testing.T) {
 	for name := range drove {
 		t.Errorf("%s was driven and the counting rule does not name it", name)
 	}
-	if want := 24; len(newlineSites) != want {
+	if want := 23; len(newlineSites) != want {
 		t.Errorf("the table carries %d sites and the counting rule produces %d", len(newlineSites), want)
 	}
 	t.Logf("the counting rule names %d sites and this case drove all of them across %d stores", len(newlineSites), len(stores))
@@ -527,7 +531,7 @@ func TestTheFixReachesEveryFrontmatterBorneSlot(t *testing.T) {
 	step("claim", "claim", "fx-1", "--actor", dirty("act-a", "act-b"))
 	step("file", "file", "fx-1", "acceptance_criterion", "a criterion", "--owner", dirty("own-a", "own-b"))
 	step("cite", "cite", "fx-1/criteria/1", dirty("sch-a", "sch-b"), dirty("tgt-a", "tgt-b"))
-	step("verify", "verify", "fx-1/criteria/1", dirty("note-a", "note-b"))
+	step("verify", "verify", "fx-1/criteria/1", "--text", dirty("note-a", "note-b"))
 	source := filepath.Join(t.TempDir(), "note.md")
 	if err := os.WriteFile(source, []byte("payload"), 0o644); err != nil {
 		t.Fatalf("write: %v", err)
@@ -544,7 +548,7 @@ func TestTheFixReachesEveryFrontmatterBorneSlot(t *testing.T) {
 	for _, c := range []struct{ ref, field string }{
 		{"fx-1", "title"},
 		{"fx-1/criteria/1", "owner"},
-		{"fx-1/criteria/1", "note"},
+		{"fx-1/criteria/1", "resolution"},
 		{"fx-1/attachments/1", "description"},
 	} {
 		if value := read(c.ref, c.field); strings.Contains(value, "\r") {

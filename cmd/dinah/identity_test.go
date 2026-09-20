@@ -250,7 +250,7 @@ func TestNoWritingCommandTakesAMalformedHarnessName(t *testing.T) {
 		{"link", "fx-1", "relates_to", "fx-2"},
 		{"unlink", "fx-1", "relates_to", "fx-2"},
 		{"file", "fx-1", "decision", "a decision filed under a malformed harness"},
-		{"resolve", "fx-1/decisions/1", "settled"},
+		{"resolve", "fx-1/decisions/1", "--text", "settled"},
 		{"cite", "fx-1/decisions/1", "test", "somewhere"},
 		{"reopen", "fx-1/decisions/1", "not settled after all"},
 		{"set", "fx-1", "severity", "major"},

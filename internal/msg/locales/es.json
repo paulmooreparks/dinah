@@ -5499,42 +5499,42 @@
       "skeleton": true
     },
     "refusal.dinah.comment-body-diverged": {
-      "text": "the body of comment {detail} no longer matches the digest Dinah recorded over it, so something outside Dinah edited it",
+      "text": "The body of comment {detail} no longer matches the digest Dinah recorded over it, so something outside Dinah edited it.",
       "context": "The sentence printed after the refusal name dinah.comment-body-diverged, which every verb that writes a comment's anchor raises when the stored digest disagrees with the body it is about to replace. {detail} is the comment's reference. The sentence says an edit happened and says nothing about who made it or when, because the tool knows neither.",
       "skeleton": true
     },
     "refusal.dinah.comment-body-diverged.next": {
-      "text": "restore the body by hand, which needs no command, or run `dinah accept-divergence {detail}` to make what is on disk the record",
+      "text": " Restore the body by hand, which needs no command, or run `dinah accept-divergence {detail}` to make what is on disk the record.",
       "context": "The next step of refusal.dinah.comment-body-diverged, spliced onto the sentence that just named the comment. The two routes differ in meaning rather than in convenience: restoring says the edit was a mistake, and accepting says the edited body is now what the record says.",
       "skeleton": true
     },
     "refusal.dinah.not-a-designation": {
-      "text": "{detail} is not a comment of the item you are settling",
+      "text": "{detail} is not a comment of the item you are settling.",
       "context": "The sentence printed after the refusal name dinah.not-a-designation, which resolve, verify and fail raise when the reference they were handed is not a comment of the item being settled. {detail} is the reference as the caller typed it.",
       "skeleton": true
     },
     "refusal.dinah.not-a-designation.next": {
-      "text": "write the answer with `--text`, or name a comment of that item; `dinah show <item>` lists the ones it carries",
+      "text": " Write the answer with --text, or name a comment of that item; `dinah show <item>` lists the ones it carries.",
       "context": "The next step of refusal.dinah.not-a-designation, spliced onto the sentence that just named the reference. <item> stands for the item's own reference and is not translated.",
       "skeleton": true
     },
     "refusal.dinah.not-designatable": {
-      "text": "comment {detail} is the answer of record for item {item}, so deleting it would leave that item settled with nothing behind it",
+      "text": "Comment {detail} is the answer of record for item {item}, so deleting it would leave that item settled with nothing behind it.",
       "context": "The sentence printed after the refusal name dinah.not-designatable, which delete raises over a comment a checklist item designates. {detail} is the comment's reference and {item} is the designation the item carries.",
       "skeleton": true
     },
     "refusal.dinah.not-designatable.next": {
-      "text": "reopen the item first, which clears the designation, or run the delete again with --force, which reopens it as part of the same act",
+      "text": " Reopen the item first, which clears the designation, or run the delete again with --force, which reopens it as part of the same act.",
       "context": "The next step of refusal.dinah.not-designatable, spliced onto the sentence that just named the comment and the item.",
       "skeleton": true
     },
     "refusal.dinah.store-awaiting-migration": {
-      "text": "the workbench at {detail} still records a checklist item's answer as a note, which Dinah no longer reads",
+      "text": "The workbench at {detail} still records a checklist item's answer as a note, which Dinah no longer reads.",
       "context": "The sentence printed after the refusal name dinah.store-awaiting-migration, which every read of a workbench below the resolution format raises. {detail} is the workbench's own path. The refusal exists because a reader that carried on would report every settled item as carrying no answer, which is a false reading rather than a degraded one.",
       "skeleton": true
     },
     "refusal.dinah.store-awaiting-migration.next": {
-      "text": "take a backup, then run dinah-migrate-notes over that workbench and read its report before using it again",
+      "text": " Take a backup, then run dinah-migrate-notes over that workbench and read its report before using it again.",
       "context": "The next step of refusal.dinah.store-awaiting-migration. dinah-migrate-notes is the migration program's own name and is not translated. The backup is named first because the migration writes in place and cannot undo itself.",
       "skeleton": true
     },

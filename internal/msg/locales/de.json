@@ -5534,44 +5534,44 @@
       "source": "1f223a3d86f30d38"
     },
     "refusal.dinah.comment-body-diverged": {
-      "text": "Der Text des Kommentars {detail} stimmt nicht mehr mit der Pruefsumme ueberein, die Dinah darueber aufgezeichnet hat, also hat etwas ausserhalb von Dinah ihn bearbeitet",
+      "text": "Der Text des Kommentars {detail} stimmt nicht mehr mit der Prüfsumme überein, die Dinah darüber aufgezeichnet hat, also hat etwas außerhalb von Dinah ihn bearbeitet.",
       "context": "The sentence printed after the refusal name dinah.comment-body-diverged, which every verb that writes a comment's anchor raises when the stored digest disagrees with the body it is about to replace. {detail} is the comment's reference. The sentence says an edit happened and says nothing about who made it or when, because the tool knows neither.",
-      "source": "22b35811c42cab81"
+      "source": "b0c624b08eed0e3d"
     },
     "refusal.dinah.comment-body-diverged.next": {
-      "text": "Stellen Sie den Text von Hand wieder her, wofuer kein Befehl noetig ist, oder fuehren Sie `dinah accept-divergence {detail}` aus, damit das, was auf der Platte steht, zum Aufzeichnungsstand wird",
+      "text": " Stellen Sie den Text von Hand wieder her, wofür kein Befehl nötig ist, oder führen Sie `dinah accept-divergence {detail}` aus, damit das, was auf der Platte steht, zum Aufzeichnungsstand wird.",
       "context": "The next step of refusal.dinah.comment-body-diverged, spliced onto the sentence that just named the comment. The two routes differ in meaning rather than in convenience: restoring says the edit was a mistake, and accepting says the edited body is now what the record says.",
-      "source": "a9c6e0c5bad6aa2f"
+      "source": "1b2c2099d1c78c45"
     },
     "refusal.dinah.not-a-designation": {
-      "text": "{detail} ist kein Kommentar des Eintrags, den Sie gerade abschliessen",
+      "text": "{detail} ist kein Kommentar des Eintrags, den Sie gerade abschließen.",
       "context": "The sentence printed after the refusal name dinah.not-a-designation, which resolve, verify and fail raise when the reference they were handed is not a comment of the item being settled. {detail} is the reference as the caller typed it.",
-      "source": "e03e760e92d1505f"
+      "source": "db730bc379abb003"
     },
     "refusal.dinah.not-a-designation.next": {
-      "text": "Schreiben Sie die Antwort mit `--text`, oder benennen Sie einen Kommentar dieses Eintrags; `dinah show <item>` listet auf, welche er traegt",
+      "text": " Schreiben Sie die Antwort mit --text, oder benennen Sie einen Kommentar dieses Eintrags; `dinah show <item>` listet auf, welche er trägt.",
       "context": "The next step of refusal.dinah.not-a-designation, spliced onto the sentence that just named the reference. <item> stands for the item's own reference and is not translated.",
-      "source": "8882d73d770ab4e1"
+      "source": "54c4c4bddf0235fd"
     },
     "refusal.dinah.not-designatable": {
-      "text": "Der Kommentar {detail} ist die verzeichnete Antwort des Eintrags {item}, ihn zu loeschen liesse diesen Eintrag also abgeschlossen zurueck, ohne dass etwas dahinter stuende",
+      "text": "Der Kommentar {detail} ist die verzeichnete Antwort des Eintrags {item}, ihn zu löschen ließe diesen Eintrag also abgeschlossen zurück, ohne dass etwas dahinter stünde.",
       "context": "The sentence printed after the refusal name dinah.not-designatable, which delete raises over a comment a checklist item designates. {detail} is the comment's reference and {item} is the designation the item carries.",
-      "source": "b7babef36159fbf5"
+      "source": "8b25c6edc2ed7781"
     },
     "refusal.dinah.not-designatable.next": {
-      "text": "Oeffnen Sie den Eintrag zuerst wieder, was die Zuweisung aufhebt, oder fuehren Sie die Loeschung erneut mit --force aus, was ihn als Teil derselben Handlung wieder oeffnet",
+      "text": " Öffnen Sie den Eintrag zuerst wieder, was die Zuweisung aufhebt, oder führen Sie die Löschung erneut mit --force aus, was ihn als Teil derselben Handlung wieder öffnet.",
       "context": "The next step of refusal.dinah.not-designatable, spliced onto the sentence that just named the comment and the item.",
-      "source": "5557ec19d9bd0957"
+      "source": "b15c1e9bd4b89835"
     },
     "refusal.dinah.store-awaiting-migration": {
-      "text": "Die Werkbank unter {detail} verzeichnet die Antwort eines Checklisteneintrags noch als Notiz, die Dinah nicht mehr liest",
+      "text": "Die Werkbank unter {detail} verzeichnet die Antwort eines Checklisteneintrags noch als Notiz, die Dinah nicht mehr liest.",
       "context": "The sentence printed after the refusal name dinah.store-awaiting-migration, which every read of a workbench below the resolution format raises. {detail} is the workbench's own path. The refusal exists because a reader that carried on would report every settled item as carrying no answer, which is a false reading rather than a degraded one.",
-      "source": "71095bafef3aed58"
+      "source": "3a33736cd1eb7a2"
     },
     "refusal.dinah.store-awaiting-migration.next": {
-      "text": "Legen Sie eine Sicherung an, fuehren Sie dann dinah-migrate-notes ueber diese Werkbank aus und lesen Sie deren Bericht, bevor Sie sie wieder benutzen",
+      "text": " Legen Sie eine Sicherung an, führen Sie dann dinah-migrate-notes über diese Werkbank aus und lesen Sie deren Bericht, bevor Sie sie wieder benutzen.",
       "context": "The next step of refusal.dinah.store-awaiting-migration. dinah-migrate-notes is the migration program's own name and is not translated. The backup is named first because the migration writes in place and cannot undo itself.",
-      "source": "6f37db7aa3b4a18a"
+      "source": "f1da4955b4ea13a"
     },
     "check.comment-body-diverged": {
       "text": "Der Text des Kommentars {detail} stimmt nicht mehr mit der Pruefsumme ueberein, die Dinah darueber aufgezeichnet hat",

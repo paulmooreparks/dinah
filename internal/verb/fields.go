@@ -334,10 +334,22 @@ func (l *Library) routeGuardedWrite(req *Request, entity *bench.EntityRef, field
 // states is refused before any of them, because none of the four verbs would
 // know what to do with it.
 //
-// The note --note carries fills whichever slot the destination verb reads: the
-// resolution note on the three terminal verbs, and the reason on a reopen. So
-// `dinah set <item> state verified --note "ran the suite"` and `dinah verify
-// <item> "ran the suite"` are one act written two ways.
+// The value --note carries fills whichever slot the destination verb reads:
+// the designation on the three terminal verbs, and the reason on a reopen. So
+// `dinah set <item> state verified --note <comment>` and `dinah verify <item>
+// <comment>` are one act written two ways.
+//
+// The two slots take different kinds of value, and that asymmetry is the
+// shape's rather than this router's. A terminal verb's answer is a reference
+// to a comment of the item, because a comment carries its own author and the
+// designation carries whoever chose it; a reopen's reason is prose, because it
+// says why an answer stopped standing and the thing it refers to is often
+// being destroyed. One flag reaches both, and which it means is decided by the
+// state being written rather than by anything the caller has to spell.
+//
+// The one-command form has no spelling here. `dinah verify <item> --text
+// "ran the suite"` mints the comment and designates it, and a caller who
+// wants that writes the verb rather than the field.
 func (l *Library) setItemState(req *Request, entity *bench.EntityRef, value string) *Response {
 	landing := map[string]func(*Request) *Response{
 		bench.ItemResolved: l.Resolve,
