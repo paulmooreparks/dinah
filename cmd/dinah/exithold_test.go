@@ -648,7 +648,7 @@ func TestTheOperatorRefusalIsDefeatedByWritingTheFile(t *testing.T) {
 	if state := soleItemState(t, root, "fx-1"); state != bench.ItemResolved {
 		t.Fatalf("the edited item reads %q, wanted %q", state, bench.ItemResolved)
 	}
-	shown := runCLI(t, root, "show", "fx-1")
+	shown := runCLI(t, root, "show", "fx-1", "--fields", "checklist")
 	if shown.code != 0 {
 		t.Fatalf("show: %d %s", shown.code, shown.errw)
 	}

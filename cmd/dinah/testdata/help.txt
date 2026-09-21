@@ -62,7 +62,7 @@ READ
   tree [query] [--group-by <axes>]          The workbench's cards nested along a
     [--depth <level>] [--root <path>]         chain of axes
     [--max-depth <n>]
-  show <ref> [--fields <list>]              The detail of an entity of this
+  show <ref> [--fields <list>] [--all]      The detail of an entity of this
     [--archived] [--since <ordinal>]          workbench
     [--unresolved]
   changes [--since <cursor>]                What has happened on this workbench

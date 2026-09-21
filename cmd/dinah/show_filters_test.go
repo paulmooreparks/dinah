@@ -36,7 +36,7 @@ func TestTheTerminalDrawsTheIndexAndTeachesTheRightRecovery(t *testing.T) {
 	}
 
 	catalog := msg.For(msg.Base)
-	index := runCLI(t, root, "show", card)
+	index := runCLI(t, root, "show", card, "--fields", "comments,checklist")
 	if index.code != 0 {
 		t.Fatalf("show: %d %s", index.code, index.errw)
 	}

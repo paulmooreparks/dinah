@@ -710,7 +710,7 @@ func addressCases() []addressCase {
 	return []addressCase{
 		{
 			site: show, label: "show, comments block",
-			argv: []string{"show", "fx-1"}, at: 0,
+			argv: []string{"show", "fx-1", "--fields", "comments"}, at: 0,
 			wantHeadings: []string{"column.comments.ref", "column.comments.when", "column.comments.who",
 				"column.comments.subject", "column.comments.size"},
 			// The expectation is composed here rather than read off the
@@ -748,9 +748,9 @@ func addressCases() []addressCase {
 			// found under the sentence it opens at rather than by a heading.
 			site:  renderSite{File: "render.go", Function: "renderDetail", Label: "checklist", Ordinal: 1},
 			label: "show, checklist block",
-			argv:  []string{"show", "fx-1"}, opensAt: "show.checklist", at: 0,
+			argv:  []string{"show", "fx-1", "--fields", "checklist"}, opensAt: "show.checklist", at: 0,
 			want: func(t *testing.T, w *addressWorkbench) []addressExpectation {
-				return refsOf(t, w.payload(t, "show", "fx-1"), "checklist", "ref")
+				return refsOf(t, w.payload(t, "show", "fx-1", "--fields", "checklist"), "checklist", "ref")
 			},
 		},
 		{
@@ -980,7 +980,7 @@ func TestAChecklistItemIsAddressedByAWordAndTheShortFormStillResolves(t *testing
 	mustRun(t, root, "file", "fx-1", "acceptance_criterion", "the endpoint answers 404 for an unknown id")
 	mustRun(t, root, "file", "fx-1", "decision", "the write path takes the card's own lock")
 
-	shown := mustRun(t, root, "--lang", "en", "show", "fx-1").out
+	shown := mustRun(t, root, "--lang", "en", "show", "fx-1", "--fields", "checklist").out
 	for _, word := range []string{"fx-1/questions/1", "fx-1/criteria/1", "fx-1/decisions/1"} {
 		if !strings.Contains(shown, word) {
 			t.Errorf("show draws no row carrying the reference %q:\n%s", word, shown)
@@ -1020,7 +1020,7 @@ func TestAChecklistItemIsAddressedByAWordAndTheShortFormStillResolves(t *testing
 
 	// The kind tokens travel on the machine surface and this ruling did not
 	// reach them, so the payload still carries all three.
-	payload := mustRun(t, root, "show", "fx-1", "--json").out
+	payload := mustRun(t, root, "show", "fx-1", "--json", "--fields", "checklist").out
 	for _, token := range []string{`"open_question"`, `"acceptance_criterion"`, `"decision"`} {
 		if !strings.Contains(payload, token) {
 			t.Errorf("the payload carries no %s, and the kind tokens do not change with the addressing:\n%s", token, payload)

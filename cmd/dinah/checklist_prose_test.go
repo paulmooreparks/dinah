@@ -23,7 +23,7 @@ import (
 // item's own detail view, and no part of it reaches this block.
 func TestAChecklistItemsTextPrintsOnItsOwnRow(t *testing.T) {
 	dir, ref := sweptChecklistTree(t, t.TempDir(), &sweptRecord{})
-	got := runCLI(t, dir, "--lang", "en", "show", ref)
+	got := runCLI(t, dir, "--lang", "en", "show", ref, "--fields", "checklist")
 	if got.code != 0 {
 		t.Fatalf("show %s: exit %d\n%s", ref, got.code, got.errw)
 	}

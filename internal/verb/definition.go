@@ -589,6 +589,7 @@ var params = map[string][]Param{
 	"show": {
 		{Name: "card", Display: "ref", Required: true, Guide: "references", Field: "Card"},
 		{Name: "fields", Flag: true, Value: "list", Vocabulary: "detail-field", Field: "Fields"},
+		{Name: "all", Flag: true, Marker: true, Field: "All"},
 		{Name: "archived", Flag: true, Marker: true, Shared: "archived", Field: "Archived"},
 		{Name: "since", Flag: true, Value: "ordinal", Field: "SinceComment"},
 		{Name: "unresolved", Flag: true, Marker: true, Field: "Unresolved"},
