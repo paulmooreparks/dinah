@@ -3425,12 +3425,15 @@ func checkNoPlaceholderIsStrayOrOrphaned(t *testing.T, shapes map[string]*contra
 //
 // A key is a file and an expression rather than a line, so an entry excuses
 // every site in that file handing a refusal an argument written that way. That
-// is deliberate for the two entries below, whose expressions each occur once,
-// and it is the granularity to tighten first if a file ever grows a second
-// site spelled identically.
+// is deliberate for the entries below, whose expressions each occur once (or,
+// for read.go's noOwnerExtra(req), occur twice with the identical shape), and
+// it is the granularity to tighten first if a file ever grows a second site
+// spelled differently.
 var unfollowedRefusalValues = map[string]string{
 	"cmd/dinah/render.go:s.outcomeValues(response)": "outcomeValues composes a response's named values in cmd/dinah/render.go, and a map built inside a called function is not followed into that function. Nothing else in the tree composes its named values that way, and that is a fact this check keeps rather than a claim it makes, since a second such site would be reported here instead of read past.",
 	"internal/contract/contract.go:extra":           "With copies an existing refusal's Extra map forward and adds one caller-supplied value, so its contents are a container this check reads at the raise site that built it rather than at this one, and the added value is a parameter. Following it would mean following a struct field across calls, which is dataflow this check does not do. Every caller in the tree passes a path variable there, which grep -rn 'contract.With(' confirms, so no English literal reaches a reader through this site today.",
+	"internal/verb/read.go:noOwnerExtra(req)":       "noOwnerExtra (internal/verb/request.go) builds a map from one fixed key, contract.ValueHarness, to req.Harness, a value read off the request rather than a string literal written at any call site. It carries no English phrase at all, whether or not this check follows the call, which is what dinah-540's own review confirmed by reading the function rather than assuming it from the call shape. read.go hands it to RefuseWith at two sites (Whoami and Check's own owner gate), and this one entry excuses both, on this map's own documented grain: a key names a file and an expression rather than a line.",
+	"internal/verb/reshape.go:noOwnerExtra(req)":    "The same function, the same reasoning, at Reshape's own no-owner raise site.",
 }
 
 // checkNoEnglishLiteralReachesAPlaceholder is check 5. A value a reader sees

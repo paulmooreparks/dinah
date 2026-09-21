@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+
+	"dinah/internal/contract"
 )
 
 // Actor is who acted, together with whatever the caller declared about what
@@ -192,7 +194,24 @@ type Event struct {
 // AppendEvent adds one line to a journal, creating it when absent. The write
 // is an append rather than a rewrite, so a crash can tear at most the final
 // line and never the records already in the file.
+//
+// It refuses an event carrying no actor name before touching the file,
+// because it is the one function every journal write in this codebase
+// funnels through: 32 call sites, spread across this package and
+// internal/verb, with no journal path written to by any other means. Every
+// mutating verb's own precondition list already checks req.Actor == "" ahead
+// of its own write, and those checks stay, because they are what gives
+// dinah help <verb> its documented check order; this guard is the backstop
+// that makes the guarantee hold for every path, including one added later
+// that forgets its own check. It carries no *Request to enrich the refusal
+// with a declared harness the way Library.refuse does, because it has none
+// to read: every caller composes the enrichment on its own side, where a
+// request is still in scope, before the refusal this function raises ever
+// reaches a reader.
 func AppendEvent(path string, ev Event) error {
+	if strings.TrimSpace(ev.Actor.Name) == "" {
+		return contract.Refuse(contract.NoOwner, "")
+	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}

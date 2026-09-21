@@ -235,3 +235,35 @@ func TestAReadThatLapsesNothingWitnessesNothing(t *testing.T) {
 		t.Errorf("a read that lapsed nothing wrote %d witnesses", len(lines))
 	}
 }
+
+// TestAClaimWithNoActorRefusesBeforeWitnessingADivergence is dinah-540 AC-4,
+// gap 2 of that card's specification: Do() acquired the card's lock and ran
+// WitnessDivergence before any verb's own req.Actor == "" check could run,
+// so a claim that was refused no-owner still left a manual_correction line
+// behind it, attributed to nobody. Do() now checks the actor immediately
+// after the card is resolved, ahead of the lock and ahead of the witness.
+func TestAClaimWithNoActorRefusesBeforeWitnessingADivergence(t *testing.T) {
+	h := newHarness(t)
+	ref := h.ready("A hand-edited card with no actor claiming it")
+	h.handEdit(ref, doing)
+
+	refused := h.do(&Request{Verb: Claim, Card: ref})
+	if refused.Outcome != contract.OutcomeRefused || refused.Refusal != contract.NoOwner {
+		t.Fatalf("a claim with no actor: wanted refused/no-owner, got %s/%s", refused.Outcome, refused.Refusal)
+	}
+	if lines, _ := h.witnesses(ref); len(lines) != 0 {
+		t.Errorf("the refused claim's journal carries %d witnesses, wanted none: the write ran before the refusal that should have stopped it", len(lines))
+	}
+
+	// Accepting case beside it: the same diverged card, claimed with a
+	// resolvable actor, proceeds past no-owner and the journal does gain the
+	// manual_correction line WitnessDivergence is meant to write.
+	h.mustDo(&Request{Verb: Claim, Card: ref, Actor: "alka"})
+	lines, _ := h.witnesses(ref)
+	if len(lines) != 1 {
+		t.Fatalf("a claim with a resolvable actor: wanted exactly one witness, got %d", len(lines))
+	}
+	if lines[0].To != doing {
+		t.Errorf("the witness records to %q, wanted the column the anchor named", lines[0].To)
+	}
+}
