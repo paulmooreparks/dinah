@@ -492,6 +492,18 @@ of `intake`, `work`, `done`, and `dinah.buffer`. A move out of a column marked
 operator-owned is refused to anybody the workbench does not name as its
 operator.
 
+`workbench.md` frontmatter may also carry `column_body_limit`, a whole number
+of bytes above zero. It measures a column's body as the anchor parser returns
+it, which is the text after the closing frontmatter line with this format's
+newline normalisation applied, counted in UTF-8 bytes, and it never counts the
+frontmatter, because the frontmatter is never served. `dinah check` reports
+each declared column whose body is longer than the limit, at cleanup severity,
+and reports a value that is not a whole number above zero as a defect in place
+of any measurement. An absent key means no column body is measured, and there
+is no default. The operator writes the key with `dinah set workbench
+column_body_limit <bytes>`, and it travels through `export`, `extract` and
+`init --from` as the frontmatter member it is.
+
 `dinah column new "<title>"` creates a column the same way a hand-authored
 `columns/<id>/column.md` plus a line in `workbench.md`'s own `columns:`
 sequence would. It derives a slug from the title, or takes one explicitly with
@@ -873,6 +885,20 @@ role-scoped method packs plug into later: a shared layer can be served ahead
 of the whole chain without any workbench storing a copy, which that earlier
 interface had already paid to learn.
 
+After the column body the chain carries one more thing where the column has
+any: a listing of the column's own live attachments, each entry giving its
+reference, filename, description, provenance and the path to its bytes. The
+listing is a layer of Dinah's own, which section 7 of the profile permits a
+tool to compose after the column's text, and it is served under the name
+`column_attachments`. It carries no text of any other layer, so an attachment
+is the place for material a station reads only when a situation arises, and
+the bytes are read on demand rather than served to every arrival. The listing
+is read from disk on every serve under both heads, never frozen with the
+column's text, and it is withheld and reread on the terms of the other layers,
+keyed by the owner and a digest over the listing as served, so any change to a
+served field, a new path included, serves it again. A column carrying no live
+attachment serves no listing at all.
+
 Changes to the definition files themselves (columns edited, list reordered)
 get no journal; a workbench versioned by git has that history in git, and a
 workbench outside git accepts that definition history is unwitnessed. The
@@ -1030,11 +1056,11 @@ so a `claimed` line with no `expires` records an unbounded claim.
 | `unblocked` | | |
 | `expired` | `expires` | |
 | `commented` | `comment` | `item`, the identifier of the checklist item the comment hangs below, written only on a comment written on an item; `column` and `column_title`, the identifier of the column the comment was left on and that column's title as of the write, both written only on a comment written on a column |
-| `attached` | `attachment`, `filename` | |
-| `attachment_replaced` | `attachment`, `filename` | |
-| `attachment_removed` | `attachment`, `note` (the removed entity's own id) | `filename`, best effort, present only when the attachment's anchor could still be read at the moment of removal |
-| `attachment_renamed` | `attachment`, `filename`, `from` (the previous filename) | |
-| `archived` | `note` (the entity's own id) | |
+| `attached` | `attachment`, `filename` | `column` and `column_title`, the identifier and the title as of the write of the column the attachment hangs on, both written only on a line about an attachment hanging on a column |
+| `attachment_replaced` | `attachment`, `filename` | `column` and `column_title`, the identifier and the title as of the write of the column the attachment hangs on, both written only on a line about an attachment hanging on a column |
+| `attachment_removed` | `attachment`, `note` (the removed entity's own id) | `filename`, best effort, present only when the attachment's anchor could still be read at the moment of removal; `column` and `column_title`, the identifier and the title as of the write of the column the attachment hangs on, both written only on a line about an attachment hanging on a column |
+| `attachment_renamed` | `attachment`, `filename`, `from` (the previous filename) | `column` and `column_title`, the identifier and the title as of the write of the column the attachment hangs on, both written only on a line about an attachment hanging on a column |
+| `archived` | `note` (the entity's own id) | `column` and `column_title`, the identifier and the title as of the write of the column the attachment hangs on, both written only on a line about an attachment hanging on a column |
 | `deleted` | `note` (the entity's own id) | `title`, present only when the deleted entity's kind carries one Dinah can resolve at that moment, which covers a card, a workstream, and a column, and leaves out a comment |
 | `workbench_updated` | `field` | `from` and `to`, each omitted on the side of the write where the value is empty |
 | `workstream_updated` | `field` | `from` and `to`, by the rule `workbench_updated` follows |
@@ -1042,11 +1068,11 @@ so a `claimed` line with no `expires` records an unbounded claim.
 | `comment_updated` | `note` (the comment's own id), `field` | none today: a comment's only field is its prose body, and a prose write carries neither `from` nor `to` |
 | `divergence_accepted` | `comment`, `note` (the comment's own id) | none: the act ratifies a body that is already on disk, so there is no value to carry |
 | `item_updated` | `note` (the item's own id), `field` | `from` and `to`, by the rule `workbench_updated` follows, both absent where the field written is the item's prose body |
-| `attachment_updated` | `note` (the attachment's own id), `field` | `from` and `to`, by the rule `workbench_updated` follows |
+| `attachment_updated` | `note` (the attachment's own id), `field` | `from` and `to`, by the rule `workbench_updated` follows; `column` and `column_title`, the identifier and the title as of the write of the column the attachment hangs on, both written only on a line about an attachment hanging on a column |
 | `workstream_joined` | `workstream` | |
 | `workstream_left` | `workstream` | |
 | `card_updated` | `field` | `from` and `to`, by the rule `workbench_updated` follows |
-| `restored` | `note` (the entity's own id) | |
+| `restored` | `note` (the entity's own id) | `column` and `column_title`, the identifier and the title as of the write of the column the attachment hangs on, both written only on a line about an attachment hanging on a column |
 | `manual_correction` | `from`, `to`, `from_title`, `to_title` | |
 | `tier_overridden` | `column` (the resolved column's id), `to`, `expr` (what was typed) | `from`, absent where the card carried no override for that column; `against` (the column's own tier default), absent where the expression was absolute and needed no baseline; `column_title` and `reason`, both written by `raise` alone and both absent on an ordinary `set <ref> tier <value> --at` write |
 | `tier_override_dropped` | `column` (the retired column's id), `from` (the dropped absolute tier) | |
@@ -1068,7 +1094,11 @@ the workbench's; a comment on a card carries neither and lands on that card's
 own journal, which is the entity a locator would otherwise have to name. A
 reader meeting a `commented` line on the workbench journal with no `column`
 therefore knows the comment was left on the workbench itself, should a build
-ever admit one, and needs no separate field to tell the two apart.
+ever admit one, and needs no separate field to tell the two apart. The same
+locator rule holds for the attachment family: a line about an attachment
+hanging on a column carries `column` and `column_title`, and a line on the
+workbench journal carrying neither is about an attachment on the workbench
+itself.
 
 A field write to a field stored as the entity's prose body carries `field` and
 carries neither `from` nor `to`. The journal records that the act happened and
@@ -1530,6 +1560,17 @@ event), recorded in the nearest enclosing journal per the History section;
 prior payload versions are git's concern when the workbench is versioned,
 per the content plane's integrity assignment. A multi-file deliverable is
 multiple attachments.
+
+A column's live attachments are listed in the served instructions after the
+column body, as "What serve the instructions composes" describes, and they
+travel with the definition: `export` carries each one, bytes and all, in the
+column element's `attachments` member, and `extract`, `init --from` and a
+`reshape` adding the column carry them too. An attachment takes the write
+authority of what it hangs on, so a column's attachments and the workbench's
+own are written by the operator alone, which covers attaching, replacing,
+renaming, setting a description or filename, archiving, restoring and
+deleting, while a card's and a comment's stay open to any owner. Archiving,
+restoring and deleting a column are the operator's too.
 
 The current filename a reader derives from the journal alone is the
 filename in the most recent attachment event for that attachment. The

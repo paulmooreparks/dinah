@@ -115,17 +115,22 @@ export interface InstructionLabels {
 	readonly global: string;
 	readonly standing: string;
 	readonly column: string;
+	/** The heading above the listing of the column's attachments. */
+	readonly columnAttachments: string;
 }
 
 /**
- * Composes the three layers into one Markdown document.
+ * Composes the three layers into one Markdown document, followed by the
+ * listing of the column's attachments where the chain carries one.
  *
  * Each layer's own text is passed through byte for byte. The extension reads
  * the machine surface and never re-renders what the binary already rendered,
  * so the only thing composed here is the heading above each layer and the
  * blank line between two of them. A layer that is absent or empty contributes
  * no heading, because a heading over nothing tells a reader the layer is empty
- * when what is true is that the layer was never served.
+ * when what is true is that the layer was never served. The listing is one
+ * bullet per attachment, naming its reference, its filename and, where it has
+ * one, its description.
  */
 export function renderInstructionsMarkdown(
 	chain: InstructionChain,
@@ -140,6 +145,16 @@ export function renderInstructionsMarkdown(
 	}
 	if (chain.column !== undefined && chain.column !== "") {
 		sections.push(`## ${labels.column}\n\n${chain.column}`);
+	}
+	const listing = chain.column_attachments ?? [];
+	if (listing.length > 0) {
+		const lines = listing.map((entry) => {
+			const described = entry.description !== undefined && entry.description !== "";
+			return described
+				? `- \`${entry.ref}\` ${entry.filename}: ${entry.description}`
+				: `- \`${entry.ref}\` ${entry.filename}`;
+		});
+		sections.push(`## ${labels.columnAttachments}\n\n${lines.join("\n")}`);
 	}
 	return sections.join("\n\n");
 }

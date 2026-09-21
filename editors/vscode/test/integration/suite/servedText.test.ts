@@ -131,6 +131,7 @@ suite("served text opens as an editor tab", () => {
 			global: ENGLISH("servedText.heading.global"),
 			standing: ENGLISH("servedText.heading.standing"),
 			column: ENGLISH("servedText.heading.column"),
+			columnAttachments: ENGLISH("servedText.heading.columnAttachments"),
 		});
 		assert.equal(document.getText(), expected);
 
