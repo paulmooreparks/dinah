@@ -82,7 +82,8 @@ function valueImportOf(mod: string): RegExp {
  * when the thing is run, and a file read cannot make it: a wrapper that always
  * exits zero and a script that reports a failed lookup as an absent release
  * both look right in their own source. The processes are node, which is
- * already running, and pwsh, which every platform this suite runs on carries.
+ * already running, and pwsh, which every platform this suite runs on carries,
+ * so between them the files of this kind cost the layer under two seconds.
  *
  * A file of the second kind builds this commit's dinah and runs it. A fixture
  * written beside the code cannot say what the binary publishes, what it

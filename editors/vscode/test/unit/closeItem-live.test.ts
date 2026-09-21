@@ -26,7 +26,7 @@ import { after, test } from "node:test";
 
 import type { Spawner } from "../../src/cli";
 import { runDinah } from "../../src/cli";
-import { splitAnchorBody } from "../../src/commentBody";
+import { headerField, splitAnchorBody } from "../../src/commentBody";
 import type { ItemCommandContext } from "../../src/itemCommands";
 import { closeItem, reopenItem } from "../../src/itemCommands";
 import { nodeSpawner } from "../../src/spawn";
@@ -96,7 +96,7 @@ function fixtureSpawner(root: FixtureRoot): Spawner {
 
 /** Runs one invocation against a fixture workbench and fails on a refusal. */
 function run(root: FixtureRoot, bench: string, argv: readonly string[]): void {
-	execFileSync(root.binary, ["--json", ...argv], {
+	execFileSync(root.binary, ["--json", "--workbench", bench, ...argv], {
 		cwd: bench,
 		env: fixtureEnv(root),
 		stdio: "pipe",
@@ -122,32 +122,6 @@ async function anchorPath(root: FixtureRoot, bench: string, ref: string): Promis
 	const path = ((await ask(root, bench, ["path", ref])) as { path?: string }).path ?? "";
 	assert.notEqual(path, "", `dinah path ${ref} answered with no path`);
 	return path;
-}
-
-/**
- * The value one key of an anchor's front matter records, or the empty string
- * where it records none.
- *
- * Modeled on recordedDigest in src/commentBody.ts, which reads the one key the
- * extension needs and is not general. The item's anchor is read off the disk
- * rather than through a verb, because the store is what this file asserts on.
- */
-function headerValue(text: string, key: string): string {
-	const newline = text.includes("\r\n") ? "\r\n" : "\n";
-	const opening = "---" + newline;
-	if (!text.startsWith(opening)) {
-		return "";
-	}
-	const closing = newline + "---" + newline;
-	const end = text.indexOf(closing, opening.length - newline.length);
-	const header = end < 0 ? text : text.slice(opening.length, end + newline.length);
-	for (const line of header.split(newline)) {
-		const [name, ...rest] = line.split(":");
-		if (name.trim() === key) {
-			return rest.join(":").trim();
-		}
-	}
-	return "";
 }
 
 /** The references of the comments below one item, as the binary lists them. */
@@ -200,7 +174,7 @@ async function closeAndCheck(
 
 	// The state the store records for the item.
 	const record = readFileSync(await anchorPath(root, bench, item), "utf8");
-	const recorded = headerValue(record, "state");
+	const recorded = headerField(record, "state");
 	assert.equal(recorded, state, `${item} ended ${recorded}, where ${verb} sets ${state}`);
 
 	// The designation. The verb created exactly one comment, and the item's
@@ -209,7 +183,7 @@ async function closeAndCheck(
 	// to spell one comment's reference through different branches of the card.
 	const created = await commentsBelow(root, bench, item);
 	assert.equal(created.length, 1, `${verb} left ${String(created.length)} comments below ${item}`);
-	const resolution = headerValue(record, "resolution");
+	const resolution = headerField(record, "resolution");
 	assert.notEqual(resolution, "", `${item} records no resolution after ${verb}`);
 	const designated = await anchorPath(root, bench, resolution);
 	const comment = await anchorPath(root, bench, created[0]);

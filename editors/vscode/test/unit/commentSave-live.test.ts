@@ -132,7 +132,7 @@ function fixtureSpawner(root: FixtureRoot): Spawner {
 
 /** Runs one invocation against a fixture workbench and fails on a refusal. */
 function run(root: FixtureRoot, bench: string, argv: readonly string[]): void {
-	execFileSync(root.binary, ["--json", ...argv], {
+	execFileSync(root.binary, ["--json", "--workbench", bench, ...argv], {
 		cwd: bench,
 		env: fixtureEnv(root),
 		stdio: "pipe",
