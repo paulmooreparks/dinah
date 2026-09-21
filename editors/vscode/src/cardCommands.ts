@@ -558,7 +558,7 @@ export async function openCard(context: CommandContext): Promise<RowOutcome> {
 	const outcome = await runDinah(
 		context.spawner,
 		context.exe,
-		pinnedArgv(context.root, ["show", context.ref]),
+		pinnedArgv(context.root, ["show", context.ref, "--fields", "path"]),
 		{ cwd: context.root },
 	);
 	if (outcome.kind !== "ok") {

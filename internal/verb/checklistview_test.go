@@ -27,7 +27,7 @@ func TestShowCarriesEveryChecklistItemTheCardHolds(t *testing.T) {
 		"Whose contract the numbers come from.")
 	h.plantComment(settled, "c00000000001", 1, "alka", answer)
 
-	detail, _, _, _, err := h.library.Show(&Request{Verb: "show", Actor: "alka", Card: ref})
+	detail, _, _, _, err := h.library.Show(&Request{Verb: "show", Actor: "alka", Card: ref, Fields: "card,checklist"})
 	if err != nil {
 		t.Fatalf("show: %v", err)
 	}
@@ -123,7 +123,7 @@ func TestAChecklistPayloadOmitsWhatTheItemNeverCarried(t *testing.T) {
 		"The endpoint returns 404 for an unknown id.")
 	bare := h.ready("carrying nothing at all")
 
-	detail, _, _, _, err := h.library.Show(&Request{Verb: "show", Actor: "alka", Card: ref})
+	detail, _, _, _, err := h.library.Show(&Request{Verb: "show", Actor: "alka", Card: ref, Fields: "checklist"})
 	if err != nil {
 		t.Fatalf("show: %v", err)
 	}
@@ -191,7 +191,7 @@ func TestAChecklistItemsReferenceResolvesToThatItem(t *testing.T) {
 		planted[row.id] = h.item(ref, row.id, row.frontmatter, row.text)
 	}
 
-	detail, _, _, _, err := h.library.Show(&Request{Verb: "show", Actor: "alka", Card: ref})
+	detail, _, _, _, err := h.library.Show(&Request{Verb: "show", Actor: "alka", Card: ref, Fields: "checklist"})
 	if err != nil {
 		t.Fatalf("show: %v", err)
 	}

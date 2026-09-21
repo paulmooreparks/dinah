@@ -31,7 +31,7 @@ func TestTheShowToolCarriesTheChecklistTheCliCarries(t *testing.T) {
 		"kind: acceptance_criterion\nstate: pending\nordinal: 2\n",
 		"The endpoint returns 404 for an unknown id.")
 
-	answer := payload(t, ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"show","arguments":{"actor":"alka","card":"fx-1"}}}`))
+	answer := payload(t, ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"show","arguments":{"actor":"alka","card":"fx-1","fields":"checklist"}}}`))
 	detail, ok := answer["detail"].(map[string]any)
 	if !ok {
 		t.Fatalf("the show tool carried no detail: %v", answer)
@@ -41,7 +41,7 @@ func TestTheShowToolCarriesTheChecklistTheCliCarries(t *testing.T) {
 		t.Fatalf("marshal the tool's checklist: %v", err)
 	}
 
-	direct, _, _, _, err := library.Show(&verb.Request{Verb: "show", Actor: "alka", Card: "fx-1"})
+	direct, _, _, _, err := library.Show(&verb.Request{Verb: "show", Actor: "alka", Card: "fx-1", Fields: "checklist"})
 	if err != nil {
 		t.Fatalf("show: %v", err)
 	}
