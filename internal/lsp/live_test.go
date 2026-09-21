@@ -532,7 +532,7 @@ func TestNoWorkbenchServesAnywayAndPicksOneUpLater(t *testing.T) {
 
 	// A workbench created under that directory afterwards is picked up on a
 	// tick, with no restart.
-	written, err := verb.Init(empty, "wb", "alka", "", "", "")
+	written, err := verb.Init(empty, "wb", "alka", "", "", "", false)
 	if err != nil {
 		t.Fatalf("init: %v", err)
 	}
@@ -554,5 +554,46 @@ func TestNoWorkbenchServesAnywayAndPicksOneUpLater(t *testing.T) {
 	hover := decode[hoverResult](t, h.send(methodHover, where))
 	if hover.Contents.Value == "" {
 		t.Error("after a workbench appeared the server still answered no hover, so it never picked one up")
+	}
+}
+
+// TestNoWorkbenchServesAnywayFromABoundaryRefusingDirectory is dinah-541 AC-6.
+// A server rooted at a directory the ancestor walk refuses to climb past (a
+// synthetic repository root carrying a workbench above it, not below it)
+// gets the same "no workbench resolved, every capability still declared"
+// behaviour TestNoWorkbenchServesAnywayAndPicksOneUpLater already asserts for
+// a directory with nothing above it either: bench.Discover's own error,
+// whichever refusal it carries, is read by Server.searched as "found
+// nothing" and the server serves rather than exiting.
+func TestNoWorkbenchServesAnywayFromABoundaryRefusingDirectory(t *testing.T) {
+	base := t.TempDir()
+	home := filepath.Join(base, "home")
+	t.Setenv("DINAH_HOME", home)
+	written, err := verb.Init(filepath.Join(base, "above"), "ab", "alka", "", "", "", false)
+	if err != nil {
+		t.Fatalf("init the workbench above the boundary: %v", err)
+	}
+	_ = written
+
+	repoRoot := filepath.Join(base, "above", "scratch", "checkout")
+	if err := os.MkdirAll(filepath.Join(repoRoot, ".git"), 0o755); err != nil {
+		t.Fatalf("mkdir .git: %v", err)
+	}
+
+	h := start(t, Options{
+		Wd: repoRoot,
+		Discover: func(start string) (string, error) {
+			root, _, err := bench.Discover(start, "", home, "")
+			return root, err
+		},
+	})
+	h.initialize(nil)
+
+	if sent := h.await(methodShowMessage, 1); len(sent) != 1 {
+		t.Fatalf("the server sent %d show-message lines, wanted one", len(sent))
+	}
+	shown := decode[logMessageParams](t, h.sent(methodShowMessage)[0].Params)
+	if shown.Message != h.server.messages.T(keyNoWorkbench) {
+		t.Errorf("the server showed %q, wanted the no-workbench line", shown.Message)
 	}
 }

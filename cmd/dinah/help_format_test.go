@@ -81,7 +81,7 @@ READ
 
 WORKBENCH
   init [dir] [--from <source>] [--slug <slug>]           Create a workbench here, optionally from a
-    [--operator <actor>]                                   template
+    [--operator <actor>] [--here]                          template
   export                                                 Write this workbench's interchange form to stdout
   extract <dir>                                          Copy this workbench's definition out as a template
   reshape --from <source> [--map <retired=destination>]  Carry this workbench to the column layout a new
@@ -177,7 +177,7 @@ READ
   guide [topic]                                                                                         The embedded guides, or one of them
 
 WORKBENCH
-  init [dir] [--from <source>] [--slug <slug>] [--operator <actor>]                                     Create a workbench here, optionally from a template
+  init [dir] [--from <source>] [--slug <slug>] [--operator <actor>] [--here]                            Create a workbench here, optionally from a template
   export                                                                                                Write this workbench's interchange form to stdout
   extract <dir>                                                                                         Copy this workbench's definition out as a template
   reshape --from <source> [--map <retired=destination>] [--yes]                                         Carry this workbench to the column layout a new definition declares

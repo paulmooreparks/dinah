@@ -925,7 +925,7 @@ func TestAPreVerbRefusalDecodesTheSameUnderBothMachineForms(t *testing.T) {
 	// dinah.ambiguous-workbench is the one pre-verb refusal whose machine form
 	// carries more than its named values, so it is read separately. A second
 	// init beside the first is what leaves the search a choice it cannot make.
-	if got := runCLI(t, root, "--json", "init", "--slug", "second", "--operator", "alka"); got.code != 0 {
+	if got := runCLI(t, root, "--json", "init", "--slug", "second", "--operator", "alka", "--here"); got.code != 0 {
 		t.Fatalf("the second init: %d %s", got.code, got.errw)
 	}
 	ambiguousCompact, ambiguousCanonical := machineForms(t, root, "status")

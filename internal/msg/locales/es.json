@@ -679,6 +679,11 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
+    "check.init.3": {
+      "text": "the target directory is new, empty, or the caller passed --here",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
     "check.instructions.1": {
       "text": "the reference resolves to a card or a column",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
@@ -3204,6 +3209,11 @@
       "context": "The meaning of the from argument of `dinah init`, printed in that command's arguments table.",
       "skeleton": true
     },
+    "param.init.here.summary": {
+      "text": "write a workbench even where the target directory already exists and already holds something",
+      "context": "The meaning of the here argument of `dinah init`, printed in that command's arguments table.",
+      "skeleton": true
+    },
     "param.init.operator.summary": {
       "text": "who owns this workbench; your own actor when you name none",
       "context": "The meaning of the operator argument of `dinah init`, printed in that command's arguments table.",
@@ -3687,6 +3697,16 @@
     "refusal.dinah.depth-without-root.next": {
       "text": "; add --root <path> to name the directory to walk, or drop --max-depth",
       "context": "Spliced onto refusal.dinah.depth-without-root as the next step, naming the two ways past the refusal. The option name and its placeholder are machine vocabulary and are never translated.",
+      "skeleton": true
+    },
+    "refusal.dinah.directory-not-empty": {
+      "text": "{detail} already exists and is not empty",
+      "context": "The sentence printed after the refusal name dinah.directory-not-empty, raised by init when the target directory holds at least one entry and the caller did not pass --here. {detail} is the target directory.",
+      "skeleton": true
+    },
+    "refusal.dinah.directory-not-empty.next": {
+      "text": "; pass --here to write a workbench into it anyway, or point init at an empty or new directory",
+      "context": "Spliced onto refusal.dinah.directory-not-empty as the next step.",
       "skeleton": true
     },
     "refusal.dinah.empty-search": {
@@ -4531,6 +4551,21 @@
     "refusal.dinah.vocabulary-retired.next": {
       "text": "; hand-edit the file so that the key holding the card's column is named `column` and the key holding its condition is named `state`, which is the rename `dinah check --migrate-vocabulary` performs on a workbench that still declares the retired format",
       "context": "Spliced onto refusal.dinah.vocabulary-retired as the next step. The two key names and the command spelling dinah check --migrate-vocabulary are machine vocabulary and are never translated. The instruction names the two keys by what they hold rather than by the retired spellings, because a card that carries only the retired column key and no condition key at all reaches this refusal too, and telling its reader to rename a key the file does not carry would name a line they cannot find. The reader is told to make the edit by hand because the migration reads the workbench anchor to decide what needs carrying, and the anchor here already declares the current format, so the command would report that there is nothing to do.",
+      "skeleton": true
+    },
+    "refusal.dinah.workbench-boundary": {
+      "text": "no workbench was found walking up from {detail}, which stopped at the repository root {boundary} without reaching the user base",
+      "context": "The sentence printed after the refusal name dinah.workbench-boundary. {detail} is the directory the search started from. {boundary} is the repository root the climb stopped at, the nearest ancestor of {detail} (which may be {detail} itself) carrying a .git entry.",
+      "skeleton": true
+    },
+    "refusal.dinah.workbench-boundary.bare": {
+      "text": "; a workbench.md sits at {bare}, outside any .dinah container, inside the boundary; run `dinah check --root . --migrate-container` there to carry it into one",
+      "context": "Spliced onto refusal.dinah.workbench-boundary in place of its ordinary next step when the walk went past a workbench.md sitting outside any container, at or below the boundary. {bare} carries those directories, separated by commas.",
+      "skeleton": true
+    },
+    "refusal.dinah.workbench-boundary.next": {
+      "text": "; pass --workbench <dir> to name a workbench above the boundary, set DINAH_WORKBENCH the same way, or run this command from outside the repository to search as far as the drive root",
+      "context": "Spliced onto refusal.dinah.workbench-boundary as the next step, naming the three ways past a boundary the climb will not cross on its own.",
       "skeleton": true
     },
     "refusal.dinah.workbench-not-applicable": {

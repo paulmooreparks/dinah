@@ -1253,14 +1253,14 @@ storage format 6
 Catalogs:
   Language  Translated
   --------  ----------
-  en        1125/1125
-  af        0/1125
-  cs        0/1125
-  de        1125/1125
-  es        0/1125
-  fil       0/1125
-  hi        1125/1125
-  id        0/1125
+  en        1132/1132
+  af        0/1132
+  cs        0/1132
+  de        1132/1132
+  es        0/1132
+  fil       0/1132
+  hi        1132/1132
+  id        0/1132
 [exit 0]
 ```
 
@@ -1325,11 +1325,14 @@ no workbench is reachable from here
 [exit 0]
 ```
 
-Dinah only climbs. It reaches a workbench above you but never one in a directory
-beside you. From outside, name the workbench you want with `--workbench`, or set
-`DINAH_WORKBENCH`. Point either one at the workbench itself, the
-`.dinah/<identifier>` directory holding `workbench.md`, rather than at the
-project directory above it:
+Dinah only climbs, and it never reaches a directory beside you. It reaches a
+workbench above you too, except where a repository sits between you and it:
+the climb stops at the nearest git repository root, so a workbench above that
+root is out of reach from inside it. From outside, or from inside a
+repository whose root sits between you and the workbench you want, name the
+workbench you want with `--workbench`, or set `DINAH_WORKBENCH`. Point either
+one at the workbench itself, the `.dinah/<identifier>` directory holding
+`workbench.md`, rather than at the project directory above it:
 
 ```console
 $ dinah --workbench release-notes/.dinah/d0e41d414bb5 status

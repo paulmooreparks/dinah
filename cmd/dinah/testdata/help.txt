@@ -75,6 +75,7 @@ READ
 WORKBENCH
   init [dir] [--from <source>]              Create a workbench here, optionally
     [--slug <slug>] [--operator <actor>]      from a template
+    [--here]
   export                                    Write this workbench's interchange
                                               form to stdout
   extract <dir>                             Copy this workbench's definition out

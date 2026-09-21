@@ -1628,7 +1628,7 @@ func decodedCandidates(t *testing.T, decoded map[string]any) []bench.Candidate {
 // container and a bare anchor is the one shape this defect never hid in.
 func TestWorkbenchesListsTheWorkbenchInTheRootsOwnContainer(t *testing.T) {
 	root := t.TempDir()
-	written, err := verb.Init(root, "rt", "alka", "", "", "")
+	written, err := verb.Init(root, "rt", "alka", "", "", "", false)
 	if err != nil {
 		t.Fatalf("init a workbench under %s: %v", root, err)
 	}

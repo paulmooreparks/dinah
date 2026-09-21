@@ -105,6 +105,43 @@ func TestMCPServesWithNoRootAndNothingDiscoverable(t *testing.T) {
 	}
 }
 
+// TestMCPServesFromABoundaryRefusingDirectory is dinah-541 AC-5. dinah mcp
+// started with no --root from a directory the ancestor walk refuses to climb
+// past (a synthetic repository root carrying a workbench above it, not below
+// it) starts and serves tool calls with no default workbench, the same as it
+// does from a directory where dinah.no-workbench-found would have fired: the
+// refusal a new name, dinah.workbench-boundary, falls into runMCP's existing
+// generic "serve anyway, with no default library" branch exactly the way
+// dinah.no-workbench-found already does, since that branch keys on every
+// openErr that is not specifically the explicit-override dinah.no-workbench.
+func TestMCPServesFromABoundaryRefusingDirectory(t *testing.T) {
+	base := t.TempDir()
+	above := filepath.Join(base, "above")
+	if err := os.MkdirAll(above, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if got := runCLI(t, above, "init", "--slug", "ab", "--operator", "alka"); got.code != 0 {
+		t.Fatalf("init the workbench above the boundary: %d %s", got.code, got.errw)
+	}
+
+	repoRoot := filepath.Join(base, "above", "scratch", "checkout")
+	if err := os.MkdirAll(filepath.Join(repoRoot, ".git"), 0o755); err != nil {
+		t.Fatalf("mkdir .git: %v", err)
+	}
+	t.Setenv("DINAH_HOME", filepath.Join(base, "home"))
+	t.Setenv("DINAH_ACTOR", "alka")
+	t.Setenv("DINAH_WORKBENCH", "")
+	t.Setenv("DINAH_MCP_ROOT", "")
+
+	got := runCLI(t, repoRoot, "mcp")
+	if got.code != 0 {
+		t.Fatalf("mcp from a boundary-refusing directory: wanted exit 0, got %d: %s", got.code, got.errw)
+	}
+	if strings.Contains(got.errw, contract.WorkbenchBoundary) {
+		t.Errorf("the server refused to start rather than serving with no default: %q", strings.TrimSpace(got.errw))
+	}
+}
+
 // TestMCPKeepsDiscoveredDefaultButStopsNarrowingWithNoRoot is dinah-307 AC-8.
 // Starting inside a workbench still says which workbench answers a call that
 // names none. It no longer says which workbenches may be named, because a

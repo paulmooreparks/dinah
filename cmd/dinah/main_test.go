@@ -514,10 +514,12 @@ func TestInitWritesIntoTheContainerAndSaysWhere(t *testing.T) {
 
 // TestASecondInitAddsAWorkbenchBesideTheFirst asserts that a directory whose
 // container already holds a workbench takes another one, and that the search
-// then reports the choice it cannot make rather than picking.
+// then reports the choice it cannot make rather than picking. The directory
+// already holds the first workbench's own container, so this deliberate
+// reuse carries --here on the same terms any other non-empty target does.
 func TestASecondInitAddsAWorkbenchBesideTheFirst(t *testing.T) {
 	root := newBench(t)
-	got := runCLI(t, root, "init", "--slug", "second", "--operator", "alka")
+	got := runCLI(t, root, "init", "--slug", "second", "--operator", "alka", "--here")
 	if got.code != 0 {
 		t.Fatalf("the second init: %d %s", got.code, got.errw)
 	}
@@ -573,11 +575,98 @@ func TestInitRefusesADirectoryCarryingABareWorkbench(t *testing.T) {
 	}
 }
 
+// TestInitRefusesADirectoryHoldingAnUnrelatedFile is dinah-541 AC-7: init run
+// inside a pre-existing directory that holds an unrelated file and no
+// workbench.md at all refuses dinah.directory-not-empty and writes nothing,
+// and the identical invocation with --here appended succeeds, writes the
+// workbench, and leaves the pre-existing file untouched. This is the
+// incident docs/practice/working-safely-with-operator-data.md records
+// ("another that thought it was in a scratch directory ran `dinah init` and
+// wrote a workbench into an unrelated repository of his"), reproduced
+// directly: an ordinary project directory, not a bare or foreign workbench.
+func TestInitRefusesADirectoryHoldingAnUnrelatedFile(t *testing.T) {
+	base := emptyTree(t)
+	root := filepath.Join(base, "some-project")
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	unrelated := filepath.Join(root, "README.md")
+	before := []byte("an unrelated project's own file\n")
+	if err := os.WriteFile(unrelated, before, 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	refused := runCLI(t, root, "init", "--slug", "proj", "--operator", "alka")
+	if refused.code != 2 {
+		t.Fatalf("init over an unrelated file with no --here: wanted exit 2, got %d (%s)", refused.code, refused.errw)
+	}
+	leading := strings.SplitN(strings.TrimSpace(refused.errw), " ", 2)[0]
+	if leading != contract.DirectoryNotEmpty {
+		t.Errorf("leading token: wanted %s, got %q", contract.DirectoryNotEmpty, refused.errw)
+	}
+	if bench.Exists(filepath.Join(root, bench.UserBaseName)) {
+		t.Error("the refused init wrote a container despite refusing")
+	}
+	after, err := os.ReadFile(unrelated)
+	if err != nil {
+		t.Fatalf("read unrelated file after the refused init: %v", err)
+	}
+	if !bytes.Equal(before, after) {
+		t.Errorf("the unrelated file should be untouched after a refused init, wanted %q, got %q", before, after)
+	}
+
+	accepted := runCLI(t, root, "init", "--slug", "proj", "--operator", "alka", "--here")
+	if accepted.code != 0 {
+		t.Fatalf("init over an unrelated file with --here: wanted exit 0, got %d (%s)", accepted.code, accepted.errw)
+	}
+	ids, err := bench.ListWorkbenchIDs(filepath.Join(root, bench.UserBaseName))
+	if err != nil {
+		t.Fatalf("ListWorkbenchIDs: %v", err)
+	}
+	if len(ids) != 1 {
+		t.Fatalf("the container should hold one workbench, got %v", ids)
+	}
+	after, err = os.ReadFile(unrelated)
+	if err != nil {
+		t.Fatalf("read unrelated file after --here: %v", err)
+	}
+	if !bytes.Equal(before, after) {
+		t.Errorf("the unrelated file should still be untouched after --here, wanted %q, got %q", before, after)
+	}
+}
+
+// TestInitNeedsNoHereForADirectoryThatDoesNotYetExist is dinah-541 AC-8's
+// first half: a target that does not yet exist proceeds with no --here
+// needed, exactly as today, since os.MkdirAll inside bench.Instantiate
+// creates it regardless. TestInitWritesIntoTheContainerAndSaysWhere already
+// pins the other half, a target that exists and is already empty.
+func TestInitNeedsNoHereForADirectoryThatDoesNotYetExist(t *testing.T) {
+	base := emptyTree(t)
+	root := filepath.Join(base, "not-yet-created")
+
+	got := runCLI(t, base, "init", root, "--operator", "alka")
+	if got.code != 0 {
+		t.Fatalf("init at a directory that does not yet exist: wanted 0, got %d (%s)", got.code, got.errw)
+	}
+	ids, err := bench.ListWorkbenchIDs(filepath.Join(root, bench.UserBaseName))
+	if err != nil {
+		t.Fatalf("ListWorkbenchIDs: %v", err)
+	}
+	if len(ids) != 1 {
+		t.Fatalf("the container should hold one workbench, got %v", ids)
+	}
+}
+
 // TestInitProceedsPastAForeignWorkbenchFile asserts dinah-84's AC-2: a
 // directory holding a workbench.md that carries none of Dinah's frontmatter
 // keys no longer stops `init`, since init writes into a fresh container
 // beside that file and never touches it. The foreign file is left
 // byte-for-byte unchanged and the new bench lands in the container.
+//
+// The directory already holds that one foreign file, so dinah-541's
+// directory-not-empty guard applies to it exactly as it applies to any other
+// pre-existing, unrelated content, and the invocation carries --here to say
+// so; TestInitRefusesADirectoryHoldingAnUnrelatedFile pins the guard itself.
 func TestInitProceedsPastAForeignWorkbenchFile(t *testing.T) {
 	base := emptyTree(t)
 	root := filepath.Join(base, "workbench")
@@ -590,7 +679,7 @@ func TestInitProceedsPastAForeignWorkbenchFile(t *testing.T) {
 		t.Fatalf("write: %v", err)
 	}
 
-	got := runCLI(t, root, "init", "--slug", "other", "--operator", "alka")
+	got := runCLI(t, root, "init", "--slug", "other", "--operator", "alka", "--here")
 	if got.code != 0 {
 		t.Fatalf("init past a foreign anchor: wanted 0, got %d (%s)", got.code, got.errw)
 	}
@@ -7249,7 +7338,7 @@ func TestTheFlagSetsTheParserAcceptsAreDerivedFromTheParameterTable(t *testing.T
 		"since", "slug", "text", "tier", "workbench",
 	}
 	wantMarkers := []string{
-		"annotate-prose", "archived", "catalogs", "finish", "force", "help", "json",
+		"annotate-prose", "archived", "catalogs", "finish", "force", "help", "here", "json",
 		"migrate-branches",
 		"migrate-columns",
 		"migrate-container", "migrate-newlines", "migrate-numbers",
