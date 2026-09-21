@@ -124,8 +124,8 @@ export interface Wiring {
 		outcome: CliOutcome,
 	) => Promise<void>;
 	/**
-	 * What the Comment command writes a draft through, bound to the editor's
-	 * global storage and to vscode.workspace.fs.
+	 * What the comment commands mint a comment and write its body through,
+	 * bound to the real window and to vscode.workspace.fs.
 	 */
 	readonly commentHost: CommentBodyHost;
 	/**

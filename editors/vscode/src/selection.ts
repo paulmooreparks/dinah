@@ -137,7 +137,6 @@ export const SELECTION_POLICIES: Readonly<Record<string, SelectionEntry>> = {
 	[COMMAND_RAISE_QUESTION]: { policy: "rowOnly" },
 	[COMMAND_RECORD_DECISION]: { policy: "rowOnly" },
 	[COMMAND_ADD_CRITERION]: { policy: "rowOnly" },
-	// The two draft commands read the active editor rather than any row.
 };
 
 /**

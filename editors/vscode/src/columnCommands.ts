@@ -80,9 +80,11 @@ export interface ColumnCommandContext {
 	/** The row's own drawn label, reused rather than composed a second time. */
 	readonly label: string;
 	/**
-	 * The workspace folder the column's row belongs to, which a comment draft
-	 * records so the post runs where the row was drawn. It is the field
-	 * ItemCommandContext already carries for the same purpose.
+	 * The workspace folder the column's row belongs to. composeComment hands it
+	 * to the checkpoint after the comment is minted, so the refresh reaches the
+	 * folder the row was drawn from; the verb itself runs in the workbench
+	 * root. It is the field ItemCommandContext already carries for the same
+	 * purpose.
 	 */
 	readonly folder: string;
 }
@@ -227,8 +229,9 @@ export async function invokeEditColumnInstructions(
  * This is invokeCommentOnItem with a column row in place of an item row.
  * Nothing is asked and nothing is confirmed. The comment exists from the
  * moment the command runs, so the author writes into the entity itself and a
- * save of that tab writes its body through the verb; an author who says
- * nothing after all deletes the comment from its own row.
+ * save of that tab writes its body through the verb. An author who decides
+ * to say nothing after all deletes the comment with `dinah delete`, because
+ * a comment row offers Open Comment and nothing else.
  *
  * It resolves through contextForColumn rather than through the creation
  * commands' own resolver, because commenting reads no ColumnView field: the

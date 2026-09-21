@@ -623,7 +623,7 @@
 		},
 		"dialog.bulk.oneRowOnly": {
 			"text": "Dinah runs this command on one row at a time. Select a single row and try again.",
-			"context": "The refusal a command that acts on one row shows when several rows were selected. New Card is the only command that raises it today, because one title makes one card.",
+			"context": "The refusal a command shows when it acts on one row at a time and several rows were selected.",
 			"skeleton": true
 		},
 		"dialog.move.noSharedDestination": {

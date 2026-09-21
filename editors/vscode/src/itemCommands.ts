@@ -180,8 +180,8 @@ export async function openItem(context: ItemCommandContext): Promise<void> {
  * lines, and nothing here relies on its refusing one. The refusal on a
  * newline belongs to `dinah set <item> note` alone.
  *
- * These four prompts are deliberately not routed through the draft buffer, and
- * that is a separate call from the ceiling. A resolution note records what
+ * These four ask in a one-line prompt rather than opening an editor, which is
+ * deliberate, and it is a separate call from the ceiling. A resolution note records what
  * settled an item in a sentence somebody scanning the checklist can read, and
  * an argument long enough to need an editor belongs in the item's comment
  * thread, which is what the Comment command opens.
@@ -602,8 +602,9 @@ export async function invokeOpenItem(
  *
  * Nothing is asked and nothing is confirmed. The comment exists from the
  * moment the command runs, so the author writes into the entity itself and a
- * save of that tab writes its body through the verb; an author who says
- * nothing after all deletes the comment from its own row.
+ * save of that tab writes its body through the verb. An author who decides
+ * to say nothing after all deletes the comment with `dinah delete`, because
+ * a comment row offers Open Comment and nothing else.
  */
 export async function invokeCommentOnItem(
 	elements: readonly TreeElement[],
