@@ -924,6 +924,7 @@ export async function activate(
 				global: t("servedText.heading.global"),
 				standing: t("servedText.heading.standing"),
 				column: t("servedText.heading.column"),
+				columnAttachments: t("servedText.heading.columnAttachments"),
 			});
 		},
 		// The guide is fetched with no --workbench and no cwd, because

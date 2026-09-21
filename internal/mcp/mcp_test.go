@@ -46,7 +46,13 @@ func containedPath(dir string) string {
 // newLibrary builds the bench and the library both heads project.
 func newLibrary(t *testing.T) *verb.Library {
 	t.Helper()
-	base := t.TempDir()
+	return newLibraryUnder(t, t.TempDir())
+}
+
+// newLibraryUnder is newLibrary with the base directory named, for a test that
+// wants two workbenches beneath one root a single head can reach.
+func newLibraryUnder(t *testing.T, base string) *verb.Library {
+	t.Helper()
 	root := containedPath(filepath.Join(base, "workbench"))
 	// The fixture instantiates the bench directly rather than through
 	// verb.Init, which mints its own identifier; these tests want a bench at a

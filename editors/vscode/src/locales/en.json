@@ -281,6 +281,10 @@
 			"text": "Column",
 			"context": "Markdown heading above the column's own layer of a served instruction chain."
 		},
+		"servedText.heading.columnAttachments": {
+			"text": "Attachments, this column",
+			"context": "Markdown heading above the listing of the column's own attachments, served after the column's layer of a served instruction chain."
+		},
 		"servedText.malformedUri": {
 			"text": "This served-text tab's own URI could not be read.",
 			"context": "Body of a served-text tab whose URI carries no kind, no workbench or no reference."

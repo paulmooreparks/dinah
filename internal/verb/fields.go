@@ -115,7 +115,7 @@ func (l *Library) SetField(req *Request) *Response {
 	if req.Actor == "" {
 		return l.refuse(req, entity.Card, contract.NoOwner, "")
 	}
-	if bench.WriteAuthorityOf(entity.Kind) == bench.AuthorityOperator && req.Actor != l.Bench.Operator {
+	if l.writeAuthorityOf(entity) == bench.AuthorityOperator && req.Actor != l.Bench.Operator {
 		return l.refuse(req, entity.Card, contract.NotOperator, req.Actor)
 	}
 	if refused := l.admitOwnerWrite(req, entity, field, value); refused != nil {
@@ -242,7 +242,7 @@ func (l *Library) setDeclaredField(req *Request, entity *bench.EntityRef) *Respo
 	if req.Actor == "" {
 		return l.refuse(req, entity.Card, contract.NoOwner, "")
 	}
-	if bench.WriteAuthorityOf(entity.Kind) == bench.AuthorityOperator && req.Actor != l.Bench.Operator {
+	if l.writeAuthorityOf(entity) == bench.AuthorityOperator && req.Actor != l.Bench.Operator {
 		return l.refuse(req, entity.Card, contract.NotOperator, req.Actor)
 	}
 	return l.writeField(req, entity, declaredTarget(req.Field), value)
@@ -595,6 +595,7 @@ func (l *Library) writeField(req *Request, entity *bench.EntityRef, target field
 		return l.FromError(req, err)
 	}
 	ev := fieldEvent(req, entity, target, was, value)
+	locateColumnAttachment(&ev, l.attachmentColumn(entity))
 	ev.TS = now
 	if err := bench.AppendEvent(l.journalFor(entity), ev); err != nil {
 		return l.FromError(req, err)
@@ -645,6 +646,17 @@ func (l *Library) wroteField(req *Request, entity *bench.EntityRef, value string
 	view := workstreamView(workstream, counts)
 	response.Workstream = &view
 	return response
+}
+
+// writeAuthorityOf reports who may write a field of one entity. It is the
+// kind's own rule for every kind but an attachment, which takes the authority
+// of what it hangs on, so an attachment on a column or on the workbench is
+// the operator's to write and one on a card or a comment is any owner's.
+func (l *Library) writeAuthorityOf(entity *bench.EntityRef) string {
+	if entity.Kind == bench.KindAttachment && l.definitionAttachmentWrite(entity) {
+		return bench.AuthorityOperator
+	}
+	return bench.WriteAuthorityOf(entity.Kind)
 }
 
 // fieldEvent composes the journal line a field write appends: the written

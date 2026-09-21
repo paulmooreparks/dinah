@@ -328,6 +328,11 @@ export interface InstructionChain {
 	readonly global?: string;
 	readonly standing?: string;
 	readonly column?: string;
+	/**
+	 * The column's own live attachments, listed after the column's text as a
+	 * layer of the binary's own, and absent where the column carries none.
+	 */
+	readonly column_attachments?: readonly AttachmentView[];
 	readonly withheld?: readonly string[];
 	readonly reread?: string;
 }

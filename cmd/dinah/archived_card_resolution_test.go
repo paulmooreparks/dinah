@@ -196,9 +196,9 @@ var archivedResolutionFamilies = []resolutionFamily{
 	{
 		name: "D", axis: "reaching",
 		what:      "reaching the archived anchors: every mention of ArchivedCardsRoot, cardsRootIn or ArchiveDir",
-		files:     16,
-		mentions:  39,
-		functions: 30,
+		files:     17,
+		mentions:  40,
+		functions: 31,
 		sites: []resolutionSite{
 			{"cmd/dinah-migrate-notes/main.go", "classify", 1, "the note migration, which walks both halves because an archived card carries items whose notes have to be carried too; it reads each card by identifier from the root it is walking and resolves no reference"},
 			{"internal/bench/newlinemigrate.go", "lockDirForFile", 2, "the newline repair's file-to-lock mapping, which composes the archived cards root and the archived workstreams root from the constants so that a file inside an archived card takes that card's own lock; it answers a directory to lock and resolves no reference"},
@@ -229,6 +229,7 @@ var archivedResolutionFamilies = []resolutionFamily{
 			{"internal/verb/changes.go", "anchorOf", 1, "an identifier-keyed live-then-archive pair, which parses no number"},
 			{"internal/verb/read.go", "linkRef", 1, "the other identifier-keyed pair, harmless for the same reason"},
 			{"internal/verb/search.go", "Search", 1, "searching the archived half, which matches text against loaded cards and answers no reference by number"},
+			{"internal/verb/beyond.go", "attachmentHolderDir", 1, "the directory an attachment hangs from, skipping the archive segment of an archived attachment's own path; it answers a directory the caller already holds and resolves no reference"},
 			{"cmd/dinah-migrate-actors/main.go", "journalsUnder", 2, "the actor migration's journal walk, which lists both archived collections to reach the journals inside them and reads no card anchor and no number at all"},
 		},
 	},

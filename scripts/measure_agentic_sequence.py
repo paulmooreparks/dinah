@@ -813,8 +813,11 @@ class Fixture(object):
     """One throwaway workbench, built from one committed definition."""
 
     def __init__(self, dinah, run_root, layers, body, attachment_name, attachment_bytes,
-                 comments, card_count=FIXTURE_CARDS):
+                 comments, card_count=FIXTURE_CARDS, column_attachments=()):
         self.dinah = dinah
+        # Each entry is a committed path and its text at the run's commit,
+        # attached to the working column once the fixture is built.
+        self.column_attachments = list(column_attachments)
         self.comments = comments
         self.card_count = card_count
         self.root = str(pathlib.Path(run_root).resolve())
@@ -859,7 +862,10 @@ class Fixture(object):
         path = os.path.join(self.root, "definition.json")
         with open(path, "w", encoding="utf-8", newline="\n") as handle:
             handle.write(json.dumps(definition, indent=2))
-        self.cli("init", "--from", path, "--slug", "fx", "--operator", "alka")
+        # --here, because the definition file is written into the directory
+        # the workbench is made in, and init refuses a directory that is not
+        # empty unless it is told to write there anyway.
+        self.cli("init", "--from", path, "--slug", "fx", "--operator", "alka", "--here")
         stores = list(pathlib.Path(self.root, ".dinah").glob("*/workbench.md"))
         if len(stores) != 1:
             raise Failure("the fixture did not build one workbench under %s" % self.root)
@@ -900,6 +906,21 @@ class Fixture(object):
             with open(anchor, "w", encoding="utf-8", newline="\n") as handle:
                 handle.write(head.rstrip("\n") + "\n" + links + "---\n"
                              + tail.lstrip("\n") + self.body)
+
+        # The working column's attachments, where the run names any. Each is
+        # described by its committed path, so the listing the head serves
+        # names where the bytes came from.
+        staging = os.path.join(self.root, "column-attachments")
+        for path, text in self.column_attachments:
+            os.makedirs(staging, exist_ok=True)
+            source = os.path.join(staging, os.path.basename(path))
+            with open(source, "w", encoding="utf-8", newline="\n") as handle:
+                handle.write(text)
+            answer = json.loads(self.cli("--json", "attach", "working", source,
+                                         "--description", path) or "{}")
+            if answer.get("outcome") != "ok":
+                raise Failure("attaching %s to the working column answered %s"
+                              % (path, answer.get("refusal") or "nothing"))
 
     def card_anchor(self, card):
         return os.path.join(self.store, "cards", card["id"], "card.md")
@@ -1042,14 +1063,16 @@ ATTRIBUTION = {
     "pull": {
         "wrapper": None,
         "content": ["card"],
-        "chain": ["instructions.global", "instructions.standing", "instructions.column"],
+        "chain": ["instructions.global", "instructions.standing", "instructions.column",
+                  "instructions.column_attachments"],
         "prose_content": [],
         "envelope": RESPONSE_ENVELOPE,
     },
     "move": {
         "wrapper": None,
         "content": ["card"],
-        "chain": ["instructions.global", "instructions.standing", "instructions.column"],
+        "chain": ["instructions.global", "instructions.standing", "instructions.column",
+                  "instructions.column_attachments"],
         "prose_content": [],
         "envelope": RESPONSE_ENVELOPE,
     },
@@ -1071,7 +1094,7 @@ ATTRIBUTION = {
         "wrapper": "served",
         "content": [],
         "chain": ["served.instructions.global", "served.instructions.standing",
-                  "served.instructions.column"],
+                  "served.instructions.column", "served.instructions.column_attachments"],
         "prose_content": [],
         "envelope": ["affordances", "served.legal_moves", "served.loop", "served.column"],
     },
@@ -1091,7 +1114,26 @@ ATTRIBUTION = {
     },
 }
 
-LAYER_OF = {"global": "global", "standing": "standing", "column": "column"}
+LAYER_OF = {"global": "global", "standing": "standing", "column": "column",
+            "column_attachments": "column_attachments"}
+
+# The kinds the chain is tallied under, in the order a response serves them.
+# The listing of the column's attachments is counted apart from the column's
+# text, so its arrivals and repeats are read on their own lines.
+CHAIN_KINDS = ("global", "standing", "column", "column_attachments")
+
+
+def chain_text(value):
+    """Reduce a chain member's value to the text classify compares and counts.
+
+    A layer's value is a string and stays as it is. The listing of a column's
+    attachments is an array of objects, and it is reduced to one canonical
+    encoding, so two serves of the same listing compare equal whatever order
+    a decoder handed the members back in.
+    """
+    if isinstance(value, str):
+        return value
+    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
 
 def chain_layer_kind(path):
@@ -1642,14 +1684,14 @@ class Attribution(object):
         self.requested = self.zero
         self.reencoding = self.zero
         self.chain_arrival = collections.OrderedDict(
-            (kind, self.zero) for kind in ("global", "standing", "column"))
+            (kind, self.zero) for kind in CHAIN_KINDS)
         self.chain_repeat_within = collections.OrderedDict(
-            (kind, self.zero) for kind in ("global", "standing", "column"))
+            (kind, self.zero) for kind in CHAIN_KINDS)
         self.chain_repeat_across = collections.OrderedDict(
-            (kind, self.zero) for kind in ("global", "standing", "column"))
+            (kind, self.zero) for kind in CHAIN_KINDS)
         self.repeat_counts = collections.OrderedDict(
-            (kind, {"arrival": 0, "within": 0, "across": 0})
-            for kind in ("global", "standing", "column"))
+            (kind, {"arrival": 0, "within": 0, "across": 0, "withheld": 0})
+            for kind in CHAIN_KINDS)
         self.member_report = []
         self.act_checks = []
         self._seen = {}
@@ -1697,13 +1739,22 @@ class Attribution(object):
         act_sum = envelope
 
         for path in chain_paths:
-            text = member_at(payload, path)
-            if not text:
+            value = member_at(payload, path)
+            if not value:
                 continue
             kind = chain_layer_kind(path)
-            raw = self.strings.of(text)
-            escaped = self.escaped_cost(item.result, text)
-            self.reencoding = self.reencoding + (escaped - raw)
+            text = chain_text(value)
+            if isinstance(value, str):
+                raw = self.strings.of(text)
+                escaped = self.escaped_cost(item.result, text)
+                self.reencoding = self.reencoding + (escaped - raw)
+            else:
+                # A listing is not one escaped string inside the payload, so
+                # its cost is what the payload loses when the member is
+                # emptied, which is how a structured content member is costed.
+                without = self.strings.of(go_marshal_indent(with_emptied(payload, [path])))
+                raw = whole - without
+                escaped = raw
             act_sum = act_sum + escaped
             where = self.classify(kind, text, item.card)
             self.repeat_counts[kind][where] += 1
@@ -1713,6 +1764,19 @@ class Attribution(object):
                 self.chain_repeat_within[kind] = self.chain_repeat_within[kind] + raw
             else:
                 self.chain_repeat_across[kind] = self.chain_repeat_across[kind] + raw
+
+        # A repeat the head withheld is served as a name rather than as text,
+        # so it is counted here by kind and costs nothing beyond the envelope
+        # it already sits in.
+        chain_roots = set(p.rsplit(".", 1)[0] for p in rules["chain"])
+        for root in chain_roots:
+            withheld_path = root + ".withheld"
+            if not has_member(payload, withheld_path):
+                continue
+            for name in member_at(payload, withheld_path) or []:
+                kind = LAYER_OF.get(name)
+                if kind is not None:
+                    self.repeat_counts[kind]["withheld"] += 1
 
         for path in content_paths:
             value = member_at(payload, path)
@@ -1895,6 +1959,9 @@ def main():
                              "figures")
     parser.add_argument("--per-tool", action="store_true",
                         help="print the tool-definition block attributed to each published tool")
+    parser.add_argument("--column-attachment", action="append", default=[], metavar="PATH",
+                        help="a committed file, read at --commit, to attach to the working "
+                             "column after the fixture is built; repeat it to attach several")
     args = parser.parse_args()
 
     try:
@@ -1935,6 +2002,7 @@ def measure(args):
     attachment = repo.show(ATTACHMENT_SOURCE)
     attachment_name = os.path.basename(ATTACHMENT_SOURCE)
     comments = paragraphs(repo.show(COMMENT_SOURCE), SEEDED_COMMENTS)
+    column_attachments = [(path, repo.show(path)) for path in args.column_attachment]
 
     counter = build_counter(args)
     regime = counter.regime()
@@ -1959,6 +2027,9 @@ def measure(args):
                  "%d paragraphs [not a token count], %d bytes [bytes], digest %s"
                  % (len(comments), len("".join(comments).encode("utf-8")),
                     digest("".join(comments))))
+    for path, text in column_attachments:
+        report.plain("%-16s %s" % ("column attachment", path),
+                     "%d bytes [bytes], digest %s" % (len(text.encode("utf-8")), digest(text)))
     report.plain("%-16s %s" % ("card links", "each card links to the other"),
                  "%d links [not a token count] of kinds %s"
                  % (len(SEEDED_LINKS), ", ".join(SEEDED_LINKS)))
@@ -1966,7 +2037,7 @@ def measure(args):
 
     if counter.name == "live":
         return reduced_live_run(args, report, counter, layers, body, attachment,
-                                attachment_name, comments)
+                                attachment_name, comments, column_attachments)
 
     # Every run's root is pinned by every run, so no run's payload text can
     # differ from another's over a directory name. The three paths are
@@ -1985,7 +2056,7 @@ def measure(args):
         if os.path.isdir(run_root):
             shutil.rmtree(run_root)
         fixture = Fixture(args.dinah, run_root, layers, body, attachment_name, attachment,
-                          comments)
+                          comments, column_attachments=column_attachments)
         fixture.build()
         fixture.cards = fixture.cards[:args.cards]
         if len(fixture.cards) != args.cards:
@@ -2112,7 +2183,7 @@ def measure(args):
     report.say()
 
     report.say("served instruction chain, per layer, arrivals and repeats")
-    for kind in ("global", "standing", "column"):
+    for kind in CHAIN_KINDS:
         counts = attribution.repeat_counts[kind]
         report.figure("%s layer, arrival serves (%d)" % (kind, counts["arrival"]),
                       attribution.chain_arrival[kind])
@@ -2120,6 +2191,8 @@ def measure(args):
                       % (kind, counts["within"]), attribution.chain_repeat_within[kind])
         report.figure("%s layer, repeats across a card boundary (%d)"
                       % (kind, counts["across"]), attribution.chain_repeat_across[kind])
+        report.plain("%s layer, repeats the head withheld" % kind,
+                     "%d serves [not a token count]" % counts["withheld"])
     arrivals = attribution.chain_total(attribution.chain_arrival)
     repeats_within = attribution.chain_total(attribution.chain_repeat_within)
     repeats_across = attribution.chain_total(attribution.chain_repeat_across)
@@ -2317,7 +2390,7 @@ def measure(args):
 
 
 def reduced_live_run(args, report, counter, layers, body, attachment, attachment_name,
-                     comments):
+                     comments, column_attachments=()):
     """The contract for a strict live ruling: the two headline totals per run and
     their ratio inside the live regime, no attributed figures at all, and a line
     saying so ahead of the totals."""
@@ -2333,7 +2406,7 @@ def reduced_live_run(args, report, counter, layers, body, attachment, attachment
         if os.path.isdir(run_root):
             shutil.rmtree(run_root)
         fixture = Fixture(args.dinah, run_root, layers, body, attachment_name, attachment,
-                          comments)
+                          comments, column_attachments=column_attachments)
         fixture.build()
         fixture.cards = fixture.cards[:args.cards]
         if len(fixture.cards) != args.cards:
