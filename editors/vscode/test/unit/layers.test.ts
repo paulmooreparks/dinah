@@ -75,19 +75,20 @@ function valueImportOf(mod: string): RegExp {
  * The unit files allowed to start a process, and what each one buys by it.
  *
  * The rule below is otherwise absolute, so every entry here is a decision
- * somebody has to defend, and the four fall into two kinds.
+ * somebody has to defend, and the entries fall into two kinds. The map is the
+ * list of them, and each entry's reason says which kind it is.
  *
- * Two of them drive a script. That is a claim about what happens when the
- * thing is run, and a file read cannot make it: a wrapper that always exits
- * zero and a script that reports a failed lookup as an absent release both
- * look right in their own source. The processes are node, which is already
- * running, and pwsh, which every platform this suite runs on carries, so
- * between them they cost the layer under two seconds.
+ * A file of the first kind drives a script. That is a claim about what happens
+ * when the thing is run, and a file read cannot make it: a wrapper that always
+ * exits zero and a script that reports a failed lookup as an absent release
+ * both look right in their own source. The processes are node, which is
+ * already running, and pwsh, which every platform this suite runs on carries.
  *
- * The other two build this commit's dinah and run it. A fixture written beside
- * the code cannot say what the binary publishes or what it reports about
- * itself, and those are the two claims they hold. Each owns its own fixture
- * root and builds its own binary, so this layer now pays two `go build` runs
+ * A file of the second kind builds this commit's dinah and runs it. A fixture
+ * written beside the code cannot say what the binary publishes, what it
+ * reports about itself or what it answers to a command, and each of these
+ * files holds one such claim. Each owns its own fixture root and builds its
+ * own binary, so every file of this kind adds one `go build` run to this layer
  * on each CI leg.
  */
 const MAY_START_A_PROCESS: Record<string, string> = {
@@ -101,6 +102,8 @@ const MAY_START_A_PROCESS: Record<string, string> = {
 		"builds this commit's dinah and reads the location it reports about itself, which is the only harness in the tree that can hold a shipped binary to that; every other version test runs in the go test process and would report that process's own path",
 	"unit/commentSave-live.test.ts":
 		"builds this commit's dinah and saves a comment through it against a real store, which is the only way to assert what the save answered rather than which command it was going to run; a mocked spawner answers whatever the fixture says and passed against a save path that refused every write",
+	"unit/closeItem-live.test.ts":
+		"builds this commit's dinah and runs Resolve, Verify, Fail and Reopen through the extension against a real store, which is the only way to assert what each verb answered and what it recorded; a mocked spawner accepted the argv every one of the three closing verbs refused",
 };
 
 test("no unit-test file starts a process", () => {
