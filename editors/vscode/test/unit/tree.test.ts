@@ -1738,7 +1738,8 @@ async function forestAttachingBench(): Promise<DinahTreeProvider> {
 					children: [
 						{
 							kind: "attachment",
-							ref: "workbench/attachments/1",
+							id: "aa11bb22cc33",
+							ref: "carter/attachments/1",
 							title: "policy.pdf",
 							count: 0,
 						},
@@ -1806,6 +1807,101 @@ test("an attachment element names the workbench it was read from and the entity 
 	// these go red instead of the two above quietly becoming unfalsifiable.
 	assert.notEqual(attachment.root, attachment.row.folder);
 	assert.notEqual(attachment.root, group.holder);
+});
+
+test("a workbench attachment whose member reference and listing reference differ still draws its view, joined by id", async () => {
+	// dinah-554. forestAttachingBench()'s tree member prints
+	// carter/attachments/1 while the listing prints workbench/attachments/1
+	// for the same attachment, exactly the divergence the workbench's own
+	// attachments carry on trunk (childSeed composes the tree member against
+	// the slug; the attachment listing names the workbench "workbench"). The
+	// two references share nothing, so only a join on the shared id, aa11bb22cc33,
+	// finds the view; the filename, the open command and the contextValue all
+	// ride that view.
+	const view = await forestAttachingBench();
+	const [root] = await view.getChildren();
+	const children = await view.getChildren(root);
+	const group = children[children.length - 1];
+	if (group.kind !== "collection") {
+		assert.fail(`the member drew a ${group.kind} row last, wanted a collection`);
+	}
+	const [attachment] = await view.getChildren(group);
+	if (attachment.kind !== "attachment") {
+		assert.fail(`the group drew a ${attachment.kind} row, wanted an attachment`);
+	}
+	const item = treeItemFor(attachment);
+	assert.equal(item.label, "policy.md");
+	assert.equal(item.command?.command, COMMAND_OPEN_ATTACHMENT);
+	assert.equal(item.contextValue, CONTEXT_ATTACHMENT);
+});
+
+test("a card attachment whose member reference and listing reference agree still draws its view unchanged", async () => {
+	// The regression guard: the join now tries id first, but a card
+	// attachment's member and listing carry no id at all (TWO_ATTACHMENT_NODES
+	// has none), so the row keeps finding its view by reference exactly as it
+	// did before dinah-554.
+	const { view } = await attachingBench();
+	const [, review] = await view.getChildren((await view.getChildren())[0]);
+	const [ddd] = await view.getChildren(review);
+	const [group] = await view.getChildren(ddd);
+	const [shot] = await view.getChildren(group);
+	const item = treeItemFor(shot);
+	assert.equal(item.label, "screenshot.png");
+	assert.equal(item.command?.command, COMMAND_OPEN_ATTACHMENT);
+	assert.equal(item.contextValue, CONTEXT_ATTACHMENT);
+});
+
+test("an attachment member carrying no id joins by reference rather than failing to join at all", async () => {
+	// A minimal fixture distinct from attachingBench(): the listing carries an
+	// id, aiming to show that the absence of an id on the member, not the
+	// absence of one on the view, is what selects the reference fallback. If
+	// the join tried byId.get(undefined) it would still miss (Map.get on a
+	// key nobody set returns undefined), so this only proves the fallback
+	// path when the reference truly agrees and no id sits on the member to
+	// route through.
+	const listing: AttachmentListing = {
+		kind: "card",
+		ref: "zz-9",
+		attachments: [
+			{
+				id: "ffeeddccbbaa",
+				ordinal: 1,
+				ref: "zz-9/attachments/1",
+				filename: "notes.txt",
+				provenance: "copy",
+				path: "C:\\work\\bench\\cards\\zz-9\\attachments\\notes.txt",
+			},
+		],
+	};
+	const { spawner } = stubSpawner({
+		status: ATTACHING_STATUS,
+		tree: THREE_COLUMNS,
+		cards: THREE_LISTING,
+		list: {
+			producer: "containment",
+			subject: "entity",
+			depth: "all",
+			root: {
+				kind: "card",
+				ref: "zz-9",
+				count: 1,
+				children: [{ kind: "attachment", ref: "zz-9/attachments/1", title: "notes.txt", count: 0 }],
+			},
+		},
+		attachments: listing,
+	});
+	const view = provider(spawner);
+	await view.load([folder({ folder: "C:\\work\\bench" })]);
+	const [, review] = await view.getChildren((await view.getChildren())[0]);
+	const [ddd] = await view.getChildren(review);
+	const [group] = await view.getChildren(ddd);
+	const [attachment] = await view.getChildren(group);
+	if (attachment.kind !== "attachment") {
+		assert.fail(`the group drew a ${attachment.kind} row, wanted an attachment`);
+	}
+	const item = treeItemFor(attachment);
+	assert.equal(item.label, "notes.txt");
+	assert.equal(item.command?.command, COMMAND_OPEN_ATTACHMENT);
 });
 
 // ---------------------------------------------------------------------------
