@@ -303,10 +303,10 @@ func TestSettleRefusesAnUnknownState(t *testing.T) {
 	h.library.Bench.Operator = ""
 	orphanEmpty := h.library.Settle(&Request{Verb: "settle", Actor: "alka", Ref: "fx-1/decisions/1", State: ""})
 	if orphanEmpty.Refusal != contract.Malformed || orphanEmpty.Detail != "state" {
-		t.Errorf("an empty state on a bench with no operator: wanted malformed on state ahead of no-operator, got %s %s", orphanEmpty.Outcome, orphanEmpty.Refusal)
+		t.Errorf("an empty state on a workbench with no operator: wanted malformed on state ahead of no-operator, got %s %s", orphanEmpty.Outcome, orphanEmpty.Refusal)
 	}
 	orphanUnknown := h.library.Settle(&Request{Verb: "settle", Actor: "alka", Ref: "fx-1/decisions/1", State: "verifiedx"})
 	if orphanUnknown.Refusal != contract.UnknownItemState {
-		t.Errorf("an unknown state on a bench with no operator: wanted unknown-item-state ahead of no-operator, got %s %s", orphanUnknown.Outcome, orphanUnknown.Refusal)
+		t.Errorf("an unknown state on a workbench with no operator: wanted unknown-item-state ahead of no-operator, got %s %s", orphanUnknown.Outcome, orphanUnknown.Refusal)
 	}
 }
