@@ -10,7 +10,7 @@ import { join } from "node:path";
 
 import { runTests } from "@vscode/test-electron";
 
-import { assertUnderTempRoot } from "../support/env";
+import { assertUnderTempRoot, neutralised } from "../support/env";
 import {
 	BINARY_NAME,
 	addCard,
@@ -116,15 +116,17 @@ async function main(): Promise<void> {
 		};
 		// The same guard the fixture builders run under. A test host without
 		// DINAH_HOME inside the temp root would write into the operator's own
-		// user base and pass anyway.
-		assertUnderTempRoot(root.tempRoot, overrides);
+		// user base and pass anyway, and one inheriting DINAH_WORKBENCH would act
+		// on whatever workbench the shell named.
+		const held = neutralised(overrides);
+		assertUnderTempRoot(root.tempRoot, held);
 
 		process.stdout.write(`\n=== ${launch.suite}: ${launch.folder}\n`);
 		try {
 			await runTests({
 				extensionDevelopmentPath: extensionRoot,
 				extensionTestsPath: suitePath,
-				extensionTestsEnv: overrides,
+				extensionTestsEnv: held,
 				launchArgs: [
 					launch.folder,
 					"--disable-extensions",

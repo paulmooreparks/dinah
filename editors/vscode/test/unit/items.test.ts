@@ -282,14 +282,14 @@ test("Reopen asks once and acts on every selected row", async () => {
 	]);
 });
 
-test("Resolve on one row sends the verb, the reference and the note", async () => {
+test("Resolve on one row sends the verb, the reference and the text", async () => {
 	const log = emptyLog();
 	log.typed = "  the operator ruled on 2026-09-15  ";
 	const run = await invoke(COMMAND_RESOLVE_ITEM, [itemRow({ ref: "tr-1/questions/1" })], {
 		log,
 	});
 	assert.deepEqual(run.calls, [
-		pinned(ROOT, "resolve", "tr-1/questions/1", "the operator ruled on 2026-09-15"),
+		pinned(ROOT, "resolve", "tr-1/questions/1", "--text", "the operator ruled on 2026-09-15"),
 	]);
 	assert.deepEqual(run.log.checkpoints, [FOLDER]);
 });

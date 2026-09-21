@@ -48,8 +48,30 @@ export function checkedEnv(
 	tempRoot: string,
 	overrides: Record<string, string | undefined> = {},
 ): NodeJS.ProcessEnv {
-	assertUnderTempRoot(tempRoot, overrides);
-	return { ...process.env, ...overrides };
+	const held = neutralised(overrides);
+	assertUnderTempRoot(tempRoot, held);
+	return { ...process.env, ...held };
+}
+
+/**
+ * The overrides with DINAH_WORKBENCH blanked unless the caller set it.
+ *
+ * DINAH_WORKBENCH outranks the directory walk, so a child inheriting one
+ * from the shell that ran the suite acts on that workbench whatever
+ * directory it runs in. A stage that exports it to reach the development
+ * workbench and then runs these tests would otherwise have every fixture
+ * call that names no --workbench land on it. Blanking rather than
+ * unsetting, because dinah's own ladder in internal/bench/config.go skips a
+ * value that is empty once trimmed, so a blank is exactly an absence to the
+ * binary and survives a host that merges overrides onto its own
+ * environment rather than replacing it. A caller that sets the variable
+ * keeps its value, and assertUnderTempRoot then holds that value to the
+ * temp root.
+ */
+export function neutralised(
+	overrides: Record<string, string | undefined>,
+): Record<string, string | undefined> {
+	return { DINAH_WORKBENCH: "", ...overrides };
 }
 
 /**
@@ -72,6 +94,14 @@ export function assertUnderTempRoot(
 	if (!underRoot(home, tempRoot)) {
 		throw new TempRootViolation(
 			`DINAH_HOME is ${home}, which is not under this test run's temp root ${tempRoot}`,
+		);
+	}
+	// A named workbench is held to the same root as DINAH_HOME. A blank one
+	// is an absence to the binary and passes; so does an unset one.
+	const named = overrides.DINAH_WORKBENCH?.trim() ?? "";
+	if (named !== "" && !underRoot(named, tempRoot)) {
+		throw new TempRootViolation(
+			`DINAH_WORKBENCH is ${named}, which is not under this test run's temp root ${tempRoot}`,
 		);
 	}
 }

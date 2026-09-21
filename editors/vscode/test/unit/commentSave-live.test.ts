@@ -10,9 +10,9 @@
 // compose path, writes into the file the way an editor does, runs the real
 // save handler, and reads the store.
 //
-// This is the third unit file that starts a process, and test/unit/layers.ts
-// carries the exemption with the reason. The cost is one `go build`, shared
-// across the file, and a handful of short-lived spawns.
+// This unit file starts a process, and test/unit/layers.test.ts carries the
+// exemption with the reason. The cost is one `go build`, shared across the
+// file, and a handful of short-lived spawns.
 
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
@@ -132,7 +132,7 @@ function fixtureSpawner(root: FixtureRoot): Spawner {
 
 /** Runs one invocation against a fixture workbench and fails on a refusal. */
 function run(root: FixtureRoot, bench: string, argv: readonly string[]): void {
-	execFileSync(root.binary, ["--json", ...argv], {
+	execFileSync(root.binary, ["--json", "--workbench", bench, ...argv], {
 		cwd: bench,
 		env: fixtureEnv(root),
 		stdio: "pipe",

@@ -133,6 +133,19 @@ export interface OpenComment {
  * the verb's own body comparison.
  */
 export function recordedDigest(text: string): string {
+	return headerField(text, "digest");
+}
+
+/**
+ * The value one key carries in an anchor's front matter, or empty where the
+ * header carries none.
+ *
+ * The reader recordedDigest is written on. It takes the key rather than
+ * knowing it, so this module still has no business knowing the header's
+ * other keys, and a test reading an item's state off its anchor uses the
+ * same scan rather than a copy of it.
+ */
+export function headerField(text: string, key: string): string {
 	const newline = text.includes("\r\n") ? "\r\n" : "\n";
 	const opening = FENCE + newline;
 	if (!text.startsWith(opening)) {
@@ -142,8 +155,8 @@ export function recordedDigest(text: string): string {
 	const end = text.indexOf(closing, opening.length - newline.length);
 	const header = end < 0 ? text : text.slice(opening.length, end + newline.length);
 	for (const line of header.split(newline)) {
-		const [key, ...rest] = line.split(":");
-		if (key.trim() === "digest") {
+		const [name, ...rest] = line.split(":");
+		if (name.trim() === key) {
 			return rest.join(":").trim();
 		}
 	}

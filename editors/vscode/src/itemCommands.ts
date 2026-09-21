@@ -171,24 +171,29 @@ export async function openItem(context: ItemCommandContext): Promise<void> {
 }
 
 /**
- * Asks for the one-line note the three terminal verbs take.
+ * Asks for the one line of text the three terminal verbs record as an answer.
+ *
+ * closeItem sends that line to the verb through `--text`, which creates a
+ * comment below the item and designates it as the item's answer in one act.
+ * The verb's second positional argument names a comment the item already has,
+ * so the reader's line is never sent there.
  *
  * The prompt is one line because vscode.window.showInputBox is a single-line
  * control and VS Code contributes no multi-line one. That is a fact about the
- * editor and it is the whole reason: the store would accept a two-line note
- * from `dinah resolve`, which escapes the newline and reads it back as two
- * lines, and nothing here relies on its refusing one. The refusal on a
- * newline belongs to `dinah set <item> note` alone.
+ * editor and it is the whole reason: `dinah resolve` would accept two lines
+ * through `--text` and keep both in the comment it creates, and nothing here
+ * relies on its refusing them.
  *
  * These four ask in a one-line prompt rather than opening an editor, which is
- * deliberate, and it is a separate call from the ceiling. A resolution note
- * records what settled an item in a sentence somebody scanning the checklist
- * can read, and an argument long enough to need an editor belongs in the
- * item's comment thread, which is what the Comment command opens.
+ * deliberate, and it is a separate call from the ceiling. The answer records
+ * what settled an item in a sentence somebody scanning the checklist can read,
+ * and an argument long enough to need an editor belongs in the item's comment
+ * thread, which is what the Comment command opens.
  *
- * One note applied to five different questions is a false record and the tool
- * would accept it in silence, so a selection of more than one row is refused
- * here, inside the one question the command asks, rather than narrowed.
+ * One answer applied to five different questions is a false record and the
+ * tool would accept it in silence, so a selection of more than one row is
+ * refused here, inside the one question the command asks, rather than
+ * narrowed.
  */
 export function askItemNote(
 	prompt: (ref: string, t: Localizer) => string,
@@ -233,13 +238,13 @@ export async function askReopenReason(
 	return reason.trim();
 }
 
-/** Runs one closing verb on one item with the note the reader gave. */
+/** Runs one closing verb on one item with the text the reader gave. */
 export async function closeItem(
 	context: ItemCommandContext,
 	verb: string,
 	note: string,
 ): Promise<CliOutcome> {
-	return runVerb(context, [verb, context.ref, note]);
+	return runVerb(context, [verb, context.ref, "--text", note]);
 }
 
 /** Returns one closed item to pending with the reason the reader gave. */
