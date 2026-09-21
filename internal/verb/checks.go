@@ -563,6 +563,7 @@ var beyondChecks = map[string][]Check{
 	"reshape": {
 		{Refusal: contract.NoOperator, Key: "check.reshape.1"},
 		{Refusal: contract.NoOwner, Key: "check.reshape.2"},
+		{Refusal: contract.NotOperator, Key: "check.reshape.11"},
 		{Refusal: contract.UnknownPath, Key: "check.reshape.3"},
 		{Refusal: contract.Malformed, Key: "check.reshape.4"},
 		{Refusal: contract.ReshapeDestinationAmbiguous, Key: "check.reshape.5"},

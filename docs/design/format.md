@@ -1570,7 +1570,12 @@ authority of what it hangs on, so a column's attachments and the workbench's
 own are written by the operator alone, which covers attaching, replacing,
 renaming, setting a description or filename, archiving, restoring and
 deleting, while a card's and a comment's stay open to any owner. Archiving,
-restoring and deleting a column are the operator's too.
+restoring and deleting a column are the operator's too. A confirmed `reshape`
+adds, rewrites and retires columns and writes an added column's attachments,
+so it is the operator's as well, while its preview writes nothing and stays
+open to any owner. `dinah column new` stays open to any owner: it adds an
+empty column carrying no text and no attachment, so it cannot change what an
+existing column serves.
 
 The current filename a reader derives from the journal alone is the
 filename in the most recent attachment event for that attachment. The

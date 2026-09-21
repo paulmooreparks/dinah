@@ -480,3 +480,78 @@ func TestTheListingIsServedAfterTheColumnAndOnlyWhereThereIsOne(t *testing.T) {
 		}
 	}
 }
+
+// TestOnlyTheOperatorReshapesAWorkbench asserts the reshape half of
+// dinah-545/criteria/20 and dinah-545/criteria/30. A reshape that writes adds,
+// rewrites and retires columns and writes an added column's attachments, so a
+// non-operator's run with the confirmation is refused not-operator and leaves
+// the workbench unchanged byte for byte, whether the definition adds a column
+// carrying an attachment or retires one. The same owner's preview is still
+// answered, because it writes nothing, and the operator's confirmed run of
+// each definition succeeds.
+func TestOnlyTheOperatorReshapesAWorkbench(t *testing.T) {
+	definitions := map[string]string{
+		"adding a column carrying an attachment": addsWithAttachments,
+		"retiring a column":                      dropsAftercare,
+	}
+	if len(definitions) != 2 {
+		t.Fatalf("the sweep drives %d definitions and names two", len(definitions))
+	}
+	for name, definition := range definitions {
+		t.Run(name, func(t *testing.T) {
+			h := newHarness(t)
+			source := h.source(definition)
+			before := h.digest()
+			preview, err := h.library.Reshape(&Request{Verb: "reshape", Actor: "bob", From: source})
+			if err != nil || preview == nil || preview.Applied {
+				t.Fatalf("a non-operator's preview: wanted a report, got %+v %v", preview, err)
+			}
+			_, err = h.library.Reshape(&Request{Verb: "reshape", Actor: "bob", From: source, Confirm: true})
+			h.reopen()
+			if got := refusalName(t, err); got != contract.NotOperator {
+				t.Errorf("a non-operator's confirmed run: wanted %s, got %s", contract.NotOperator, got)
+			}
+			if after := h.digest(); after != before {
+				t.Error("a refused or previewed run wrote to the workbench")
+			}
+			report, err := h.reshape(source, true)
+			if err != nil || !report.Applied {
+				t.Fatalf("the operator's confirmed run: %+v %v", report, err)
+			}
+		})
+	}
+}
+
+// TestAnAttachmentTakesTheAuthorityOfWhatItHangsOn asserts the holder rule
+// definitionAttachmentWrite applies, one position per holder, straight at the
+// library, because no verb reaches the last of them today: every verb refuses
+// an attachment inside an archived column before authority is asked. The
+// attachment directories are composed the way the store lays them out, live
+// and archived, and a card's and a comment's stay any owner's.
+func TestAnAttachmentTakesTheAuthorityOfWhatItHangsOn(t *testing.T) {
+	h := newHarness(t)
+	root := h.library.Bench.Root
+	id := "e00000000001"
+	cases := []struct {
+		name      string
+		dir       string
+		operators bool
+	}{
+		{"a live column's", filepath.Join(root, bench.ColumnsDir, aftercare, bench.AttachmentsDir, id), true},
+		{"a live column's, archived", filepath.Join(root, bench.ColumnsDir, aftercare, bench.ArchiveDir, bench.AttachmentsDir, id), true},
+		{"an archived column's", filepath.Join(h.library.Bench.ArchivedColumnsRoot(), aftercare, bench.AttachmentsDir, id), true},
+		{"the workbench's", filepath.Join(root, bench.AttachmentsDir, id), true},
+		{"the workbench's, archived", filepath.Join(root, bench.ArchiveDir, bench.AttachmentsDir, id), true},
+		{"a card's", filepath.Join(root, bench.CardsDir, "c00000000001", bench.AttachmentsDir, id), false},
+		{"a comment's", filepath.Join(root, bench.CardsDir, "c00000000001", bench.CommentsDir, "c00000000002", bench.AttachmentsDir, id), false},
+	}
+	if len(cases) != 7 {
+		t.Fatalf("the sweep names seven holders and drives %d", len(cases))
+	}
+	for _, c := range cases {
+		entity := &bench.EntityRef{Kind: bench.KindAttachment, Dir: c.dir, ID: id}
+		if got := h.library.definitionAttachmentWrite(entity); got != c.operators {
+			t.Errorf("%s attachment: the operator's alone reads %v, wanted %v", c.name, got, c.operators)
+		}
+	}
+}

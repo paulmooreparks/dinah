@@ -341,7 +341,7 @@ func TestInitFromAMalformedAttachmentsMemberWritesNothing(t *testing.T) {
 	}
 }
 
-// operatorRows are the rows dinah-545 adds to five precondition lists, each
+// operatorRows are the rows dinah-545 adds to six precondition lists, each
 // with the position its help page draws it at. The positions count the
 // harness row every writing command's list opens with.
 var operatorRows = []struct {
@@ -353,16 +353,17 @@ var operatorRows = []struct {
 	{"archive", "check.archive.4", 3},
 	{"restore", "check.restore.4", 4},
 	{"delete", "check.delete.5", 4},
+	{"reshape", "check.reshape.11", 4},
 }
 
 // TestTheHelpPagesShowTheOperatorRows asserts dinah-545/criteria/21: each of
-// the five pages draws its new row, with the catalog's text, at the position
+// the six pages draws its new row, with the catalog's text, at the position
 // the contract places it, and verb.Checks lists not-operator there.
 func TestTheHelpPagesShowTheOperatorRows(t *testing.T) {
 	root := newBench(t)
 	t.Setenv("COLUMNS", "80")
-	if len(operatorRows) != 5 {
-		t.Fatalf("the criterion names five pages and this sweep drives %d", len(operatorRows))
+	if len(operatorRows) != 6 {
+		t.Fatalf("the criterion names five pages, reshape makes six, and this sweep drives %d", len(operatorRows))
 	}
 	for _, row := range operatorRows {
 		entry, ok := msg.BaseEntry(row.key)

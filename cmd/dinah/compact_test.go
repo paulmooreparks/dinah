@@ -79,6 +79,15 @@ func newCompactBench(t *testing.T) string {
 		mustRunCLI(t, root, "set", "fx-2", pair[0], pair[1])
 	}
 	mustRunCLI(t, root, "move", "fx-2", "doing")
+	// The doing column carries two attachments, one with no description, so a
+	// claim or a move there serves the listing and the colatt record is read
+	// back with an empty field as well as a full one.
+	listed := filepath.Join(t.TempDir(), "merge-notes.md")
+	if err := os.WriteFile(listed, []byte("Merge after the checks pass.\n"), 0o644); err != nil {
+		t.Fatalf("write the column's attachment: %v", err)
+	}
+	mustRunCLI(t, root, "attach", "doing", listed, "--description", "how to merge, with a | in it")
+	mustRunCLI(t, root, "attach", "doing", listed)
 	mustRunCLI(t, root, "add", "Third card")
 	mustRunCLI(t, root, "move", "fx-3", "doing")
 	mustRunCLI(t, root, "claim", "fx-3", "--expires", "2h")
@@ -293,6 +302,23 @@ func decodeCompactResponse(payload string) (*verb.Response, error) {
 				Standing: record.field(1),
 				Column:   record.field(2),
 			}
+		case "colatt":
+			if response.Instructions == nil {
+				return nil, errors.New("a colatt record stands ahead of the instr record it belongs to")
+			}
+			ordinal, err := strconv.Atoi(record.field(1))
+			if err != nil {
+				return nil, fmt.Errorf("the attachment's ordinal: %w", err)
+			}
+			response.Instructions.ColumnAttachments = append(response.Instructions.ColumnAttachments, verb.AttachmentView{
+				ID:          record.field(0),
+				Ordinal:     ordinal,
+				Ref:         record.field(2),
+				Filename:    record.field(3),
+				Description: record.field(4),
+				Provenance:  record.field(5),
+				Path:        record.field(6),
+			})
 		case "move":
 			response.LegalMoves = append(response.LegalMoves, verb.LegalMove{
 				Column:    record.field(0),
@@ -829,7 +855,7 @@ func TestEveryAcceptedActDecodesTheSameUnderBothMachineForms(t *testing.T) {
 		{"workstream", "new", "Gamma"},
 		{"set", "workstream/gamma", "status", "paused"},
 	}
-	instructions, moves, messages, workstreams, warnings := 0, 0, 0, 0, 0
+	instructions, listings, moves, messages, workstreams, warnings := 0, 0, 0, 0, 0, 0
 	for _, argv := range cases {
 		t.Run(strings.Join(argv, " "), func(t *testing.T) {
 			got := runCLI(t, root, append([]string{"--json"}, argv...)...)
@@ -852,6 +878,9 @@ func TestEveryAcceptedActDecodesTheSameUnderBothMachineForms(t *testing.T) {
 			if served := wanted.Instructions; served != nil && served.Global != "" && served.Standing != "" && served.Column != "" {
 				instructions++
 			}
+			if served := wanted.Instructions; served != nil && len(served.ColumnAttachments) == 2 {
+				listings++
+			}
 			for _, move := range wanted.LegalMoves {
 				if move.Reject {
 					moves++
@@ -868,8 +897,8 @@ func TestEveryAcceptedActDecodesTheSameUnderBothMachineForms(t *testing.T) {
 			}
 		})
 	}
-	if instructions == 0 || moves == 0 || messages == 0 || workstreams == 0 || warnings == 0 {
-		t.Fatalf("the acts did not present all five members: three-layer instructions %d, reject moves %d, message values %d, workstream %d, warning %d", instructions, moves, messages, workstreams, warnings)
+	if instructions == 0 || listings == 0 || moves == 0 || messages == 0 || workstreams == 0 || warnings == 0 {
+		t.Fatalf("the acts did not present all six members: three-layer instructions %d, two-entry listings %d, reject moves %d, message values %d, workstream %d, warning %d", instructions, listings, moves, messages, workstreams, warnings)
 	}
 }
 
@@ -991,14 +1020,15 @@ func TestAShapeWithNoCompactRenderingEmitsTheCanonicalJSON(t *testing.T) {
 // So this literal is the pin. Changing compactVersion reddens the test below
 // by name and does not compile away, which makes whoever renumbers the grammar
 // say so here deliberately.
-const wantVersionLine = "fmt|compact|3"
+const wantVersionLine = "fmt|compact|4"
 
 // TestTheCompactFormOpensOnItsVersionRecord asserts the framing decision the
 // compact form was introduced on: every compact payload opens with its version
 // record, before any other record, so a caller can check the version before it
 // assumes the field order. The number moved to 2 at dinah-285, which gave the
-// wb record an id field ahead of its title, and to 3 at dinah-542, which gave
-// the card record a route and a pull destination ahead of its holder.
+// wb record an id field ahead of its title, to 3 at dinah-542, which gave
+// the card record a route and a pull destination ahead of its holder, and to 4
+// at dinah-545, which added the colatt record a version 3 reader would refuse.
 func TestTheCompactFormOpensOnItsVersionRecord(t *testing.T) {
 	root := newCompactBench(t)
 	for _, argv := range [][]string{{"list", "intake"}, {"next"}, {"claim", "fx-2"}} {
