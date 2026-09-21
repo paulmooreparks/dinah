@@ -41,7 +41,8 @@ nothing between them. `holder:""` returns the cards nobody is holding.
 
 ## The fields you may name
 
-Twelve fields, and no others. Seven of them describe the card as it stands now:
+Thirteen fields, and no others. Eight of them describe the card as it stands
+now:
 
 - `column` is the column the card is in. Give it a column's short name or its
   identifier.
@@ -57,6 +58,9 @@ Twelve fields, and no others. Seven of them describe the card as it stands now:
 - `workstream` is a workstream the card belongs to. You name it by its slug or
   by its twelve-hex identifier, and never by its title. A workstream nobody has
   joined yet is a name Dinah accepts and no card matches.
+- `route` is the route the card walks, named in the workbench's own `routes:`
+  block. `route:""` returns the cards walking the workbench's full column
+  list, which is every card until somebody puts one on a shorter road.
 
 The other five describe something that happened to the card, which Dinah reads
 from its journal:

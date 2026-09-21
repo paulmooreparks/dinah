@@ -258,6 +258,7 @@ func runAdd(s *session, parsed *arguments) int {
 	req.Title = title
 	req.Severity = parsed.value("severity")
 	req.Priority = parsed.value("priority")
+	req.Route = parsed.value("route")
 	return s.withBench(func(l *verb.Library) int {
 		return s.emit(l.Add(req))
 	})
@@ -668,6 +669,11 @@ func (s *session) emitListResult(result *verb.ListResult) int {
 			return s.emitMachine(result.Workstreams)
 		}
 		s.renderWorkstreams(result.Workstreams)
+	case verb.ShapeRoutes:
+		if s.format != formatHuman {
+			return s.emitMachine(result.Routes)
+		}
+		s.renderRoutes(result.Routes)
 	case verb.ShapeAttachments:
 		if s.format != formatHuman {
 			return s.emitMachine(result.Attachments)

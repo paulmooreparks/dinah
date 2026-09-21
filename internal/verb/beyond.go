@@ -71,6 +71,41 @@ func (l *Library) Add(req *Request) *Response {
 	if refusal := l.admitLevels(levels); refusal != nil {
 		return l.refuseWith(req, nil, refusal.Name, refusal.Detail, refusal.Extra)
 	}
+	// A filing that names a route is refused where the route does not carry
+	// the column the card would land in, which covers both halves of the
+	// question with one refusal: a --column the route drops, and a bare filing
+	// into a workbench's first column that the route drops.
+	//
+	// Refusing at creation while permitting a route change on a live card is a
+	// deliberate asymmetry. A new card has no history and stands nowhere, so
+	// refusing costs the caller one corrected flag and prevents a card that is
+	// off its route from its first moment, where a refusal on a live card
+	// would block the legitimate act of re-routing work that has started.
+	route := strings.TrimSpace(req.Route)
+	if route != "" {
+		if !l.Bench.DeclaresRoute(route) {
+			return l.unknownRoute(req, nil, route)
+		}
+		carried := bench.RouteColumnsIn(l.Bench.Routes[route], l.Bench.Columns)
+		if bench.RouteIndexOf(carried, destination) < 0 {
+			return l.refuseWith(req, nil, contract.RouteOffColumn, destination.Ref(), map[string]string{
+				"route": route,
+			})
+		}
+		// A filing is a placement, so the operator's ruling on
+		// dinah-542/decisions/6 reaches it as it reaches a route write: no
+		// road may carry a card around a column the workbench reserves to its
+		// operator before the card has passed it. A card that does not exist
+		// yet has passed nothing, so the rule is read from the column it is
+		// about to stand in, which is where a route write immediately after
+		// the filing would read it too.
+		arriving := &bench.Card{Column: destination.ID}
+		if skipped := l.Bench.RouteSkipsOperatorColumn(arriving, route); skipped != nil {
+			return l.refuseWith(req, nil, contract.RouteSkipsOperatorColumn, route, map[string]string{
+				"column": skipped.Ref(),
+			})
+		}
+	}
 	now := bench.Stamp(l.Now())
 	// The workbench lock alone guarantees nothing about the mark a caller reads
 	// after taking it. It stops two filings from writing at once, but a caller
@@ -123,6 +158,11 @@ func (l *Library) Add(req *Request) *Response {
 		if levels[axis] != "" {
 			fm.Set(axis, levels[axis])
 		}
+	}
+	// The route lands beside the levels and on the same terms: a filing that
+	// named none writes the key not at all, so absence stays absence.
+	if route != "" {
+		fm.Set(bench.RouteField, route)
 	}
 	if err := bench.WriteText(filepath.Join(dir, bench.CardAnchor), fm.Render(req.Text)); err != nil {
 		return l.FromError(req, err)

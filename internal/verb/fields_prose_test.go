@@ -158,6 +158,10 @@ func plainValueFor(field bench.Field, ref string) string {
 		// identifier a resolved write stores, so this half tests the line
 		// rule rather than the guard.
 		return "d00000000002"
+	case bench.GuardRoute:
+		// The one route fieldGuardDefinition declares, so this half tests
+		// the line rule rather than the guard.
+		return "small"
 	case bench.GuardResolution:
 		// A designation names a comment of the very entity being written,
 		// so the value is composed from the subject rather than written as

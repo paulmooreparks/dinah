@@ -1963,8 +1963,9 @@ func TestEveryCommandTheGuidesNameIsOneTheToolHas(t *testing.T) {
 
 // TestTheQueryGuideTeachesTheFieldsTheLanguageHas asserts that the query
 // guide's field list is the language's own, in both directions: every field the
-// parser admits is taught, and the guide's list is exactly ten items long, so a
-// field added to the vocabulary and left out of the guide fails the build.
+// parser admits is taught, and the guide's list is exactly as long as the
+// vocabulary, so a field added to the vocabulary and left out of the guide
+// fails the build.
 func TestTheQueryGuideTeachesTheFieldsTheLanguageHas(t *testing.T) {
 	text, err := guide.Text("query")
 	if err != nil {

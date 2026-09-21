@@ -78,6 +78,17 @@ func (l *Library) File(req *Request) *Response {
 		if named == nil {
 			return l.refuse(req, found.Card, contract.UnknownColumn, column)
 		}
+		// An item naming a column the card's own route never reaches is a
+		// hold that never fires, which the workbench's own instructions call
+		// the commonest way a stop somebody meant to create fails to exist.
+		// An item filed with no column names no column to be off the route,
+		// and a card carrying no route walks every column the workbench
+		// declares, so neither reaches this row.
+		if !l.Bench.RouteCarries(found.Card, named) {
+			return l.refuseWith(req, found.Card, contract.ItemOffRoute, named.Ref(), map[string]string{
+				"route": found.Card.Route,
+			})
+		}
 		column = named.ID
 	}
 	now := bench.Stamp(l.Now())

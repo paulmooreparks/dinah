@@ -32,6 +32,7 @@ const (
 	FieldHolder     = "holder"
 	FieldBlockKind  = "block_kind"
 	FieldWorkstream = "workstream"
+	FieldRoute      = "route"
 	FieldActor      = "actor"
 	FieldEvent      = "event"
 	FieldEntered    = "entered"
@@ -39,14 +40,15 @@ const (
 	FieldAt         = "at"
 )
 
-// QueryFields lists the twelve legal field names in the order the spec's
+// QueryFields lists the thirteen legal field names in the order the spec's
 // field table states them, which is the order a refusal lists them back to a
 // reader. severity and priority sit between state and holder, matching the
-// order CardView already reports a card in.
+// order CardView already reports a card in, and route follows workstream,
+// which is where the card's own classifications end.
 var QueryFields = []string{
 	FieldColumn, FieldState, FieldSeverity, FieldPriority, FieldHolder,
-	FieldBlockKind, FieldWorkstream, FieldActor, FieldEvent, FieldEntered,
-	FieldLeft, FieldAt,
+	FieldBlockKind, FieldWorkstream, FieldRoute, FieldActor, FieldEvent,
+	FieldEntered, FieldLeft, FieldAt,
 }
 
 // The six operators a term may carry. The equality pair is what the nine
@@ -166,6 +168,9 @@ func (l *Library) selection(text, actor string) (matched, live []*bench.Card, er
 		return nil, nil, err
 	}
 	if err := l.checkLevels(parsed, cards); err != nil {
+		return nil, nil, err
+	}
+	if err := l.checkRoutes(parsed, cards); err != nil {
 		return nil, nil, err
 	}
 	kept, err := l.selectCards(parsed, cards)
@@ -629,6 +634,33 @@ func levelRoster(b *bench.Bench, cards []*bench.Card, axis string) []string {
 	return roster
 }
 
+// checkRoutes runs check 8, the third of the checks that read the cards rather
+// than the workbench alone. It admits a term whose value the workbench
+// currently declares, or one some live card actually carries, which is the
+// drift-tolerant roster checkWorkstreams and checkLevels already build and for
+// the same reason: dinah check names a card carrying a route nobody declares,
+// and a query that could not find that card by the value the finding just
+// reported would make the finding unactionable from the command people filter
+// with.
+func (l *Library) checkRoutes(q *query, cards []*bench.Card) error {
+	var roster []string
+	for i := range q.cardTerms {
+		t := &q.cardTerms[i]
+		if t.field != FieldRoute || t.empty {
+			continue
+		}
+		if roster == nil {
+			roster = routeRoster(l.Bench, cards)
+		}
+		for _, value := range t.values {
+			if !contains(roster, value) {
+				return unknownValue(*t, value, roster)
+			}
+		}
+	}
+	return nil
+}
+
 // unknownValue composes check 4's and check 6's shared refusal, which names
 // the offending value, the term it was written in, and what is legal in its
 // place.
@@ -743,6 +775,8 @@ func (l *Library) cardValues(field string, card *bench.Card) []string {
 			return []string{""}
 		}
 		return card.Workstreams
+	case FieldRoute:
+		return []string{card.Route}
 	}
 	return []string{""}
 }

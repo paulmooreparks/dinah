@@ -187,6 +187,8 @@ func (s *Server) completion(raw json.RawMessage) any {
 			return completionList{Items: s.columnCandidates(at.Text)}
 		case slotWorkstream:
 			return completionList{Items: s.workstreamCandidates(at.Text)}
+		case slotRoute:
+			return completionList{Items: s.routeCandidates(at.Text)}
 		case slotCard:
 			items, cut := s.cardCandidates(at.Text)
 			return completionList{IsIncomplete: cut, Items: items}
@@ -208,6 +210,29 @@ func (s *Server) columnCandidates(typed string) []completionItem {
 			SortText:   fmt.Sprintf("%0*d", width, column.Position),
 		}
 		item.FilterText = filterTextOf(item, column.Slug)
+		if matches(item, typed) {
+			items = append(items, item)
+		}
+	}
+	return items
+}
+
+// routeCandidates lists the routes the workbench declares, in declaration
+// order, which is the order the declaration reads in and the order a listing
+// prints them. The detail is the route's own column count, which is the one
+// fact that tells a reader how short the road is without opening the block.
+func (s *Server) routeCandidates(typed string) []completionItem {
+	width := len(strconv.Itoa(len(s.bench.RouteNames)))
+	items := []completionItem{}
+	for at, name := range s.bench.RouteNames {
+		carried := bench.RouteColumnsIn(s.bench.Routes[name], s.bench.Columns)
+		item := completionItem{
+			Label:      name,
+			InsertText: name,
+			Detail:     s.render(keyCompletionRoute, "columns", strconv.Itoa(len(carried))),
+			SortText:   fmt.Sprintf("%0*d", width, at),
+		}
+		item.FilterText = filterTextOf(item, name)
 		if matches(item, typed) {
 			items = append(items, item)
 		}

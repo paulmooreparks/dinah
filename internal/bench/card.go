@@ -74,6 +74,12 @@ type Card struct {
 	Severity string
 	Priority string
 	Tier     string
+	// Route is the name of the route this card walks, empty on a card walking
+	// the workbench's full ordered column list. A name the workbench does not
+	// declare is stored and read as written, and the card walks the default
+	// route until somebody repairs it, on the posture tier_at already keeps
+	// for a column reference that no longer resolves.
+	Route string
 	// ColumnTiers are the card's per-column tier overrides, in the order the
 	// anchor carries them. Each entry names a column the way reject_to names
 	// one and carries an absolute member of the workbench's declared tier
@@ -185,6 +191,7 @@ func loadCard(collection, id string, refuseRetired bool) (*Card, error) {
 		Severity:    fm.Value(SeverityField),
 		Priority:    fm.Value(PriorityField),
 		Tier:        fm.Value(TierField),
+		Route:       fm.Value(RouteField),
 		Workstreams: fm.Seq("workstreams"),
 		Body:        body,
 		Revision:    revision,
@@ -471,6 +478,10 @@ func (c *Card) Save() error {
 	// fields anchor on state, and writing tier, then priority, then severity
 	// lands severity, then priority, then tier, whichever of the three are
 	// present, and a key somebody placed by hand stays put.
+	// The route lands beside the three level fields and on their own terms:
+	// SetAfter anchors it on state, so it comes out under them in the order
+	// the calls run, and a key somebody placed by hand stays put.
+	setAfterOrDelete(c.FM, RouteField, c.Route, "state")
 	setAfterOrDelete(c.FM, TierField, c.Tier, "state")
 	setAfterOrDelete(c.FM, PriorityField, c.Priority, "state")
 	setAfterOrDelete(c.FM, SeverityField, c.Severity, "state")

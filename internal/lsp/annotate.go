@@ -27,6 +27,7 @@ const (
 	keyCompletionColumn     = "lsp.completion.column.detail"
 	keyCompletionWorkstream = "lsp.completion.workstream.detail"
 	keyCompletionCard       = "lsp.completion.card.detail"
+	keyCompletionRoute      = "lsp.completion.route.detail"
 	keyNoWorkbench          = "lsp.no-workbench"
 	keyLogWorkbench         = "lsp.log.workbench"
 	keyLogNoRefreshSupport  = "lsp.log.no-refresh-support"
@@ -188,6 +189,15 @@ func (s *Server) read(at slot) (annotation, bool) {
 			return s.unresolvedAnnotation(at), true
 		}
 		return s.workstreamAnnotation(at, workstream), true
+	case slotRoute:
+		// A route position is completed and not annotated. Every other kind
+		// here names an entity the server can open and draw a chip for, and a
+		// route name names a road the workbench declares rather than an
+		// entity, so there is nothing to open. A name the workbench does not
+		// declare is dinah check's finding under check.card-unknown-route,
+		// which is a report about the card rather than a chip on the value.
+		// The read has completed, so nothing is retained for it.
+		return annotation{}, true
 	case slotCard:
 		resolved, err := s.bench.ResolveCard(at.Text)
 		if err != nil {
