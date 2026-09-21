@@ -937,10 +937,15 @@ func (l *Library) ServedAffordances(req *Request, served *Served) []string {
 }
 
 // refuse builds a refused response. It keeps its signature and delegates to
-// refuseWith with no named values, so none of its call sites is edited and no
-// precondition sequence in this package carries a diff line.
+// refuseWith, so none of its call sites needs its own named values: a
+// no-owner refusal fills its harness-declared extra here, once, rather than
+// at each of its twenty-six call sites in this package.
 func (l *Library) refuse(req *Request, card *bench.Card, name, detail string) *Response {
-	return l.refuseWith(req, card, name, detail, nil)
+	var extra map[string]string
+	if name == contract.NoOwner {
+		extra = noOwnerExtra(req)
+	}
+	return l.refuseWith(req, card, name, detail, extra)
 }
 
 // refuseWith builds a refused response carrying the refusal's named values,

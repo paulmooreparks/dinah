@@ -83,42 +83,55 @@ var checkLists = map[string][]Check{
 	},
 	Move: {
 		{Refusal: contract.UnknownCard, Key: "check.move.1"},
-		{Refusal: contract.UnknownColumn, Key: "check.move.2"},
-		{Refusal: contract.NotOperator, Key: "check.move.3"},
-		{Refusal: contract.NotOperator, Key: "check.move.4"},
-		{Refusal: contract.Blocked, Key: "check.move.5"},
-		{Refusal: contract.Held, Key: "check.move.6"},
-		{Refusal: contract.Terminal, Key: "check.move.7"},
-		{Refusal: contract.AtCapacity, Key: "check.move.8"},
-		// The ninth row is the profile's own, CORE-GATE-2, and it carries the
+		// The request names an owner, checked immediately after the card is
+		// found to exist and ahead of every row below, the same position
+		// Do() itself now checks it at (internal/verb/mutate.go). The key
+		// keeps the number the row was minted under rather than one drawn
+		// from this list's own count, because the rows below it already
+		// carry their own keys and translated sentences, and renumbering
+		// them to close the gap would ask every locale catalog for a
+		// renumbering it does not need.
+		{Refusal: contract.NoOwner, Key: "check.move.5"},
+		{Refusal: contract.UnknownColumn, Key: "check.move.6"},
+		{Refusal: contract.NotOperator, Key: "check.move.7"},
+		{Refusal: contract.NotOperator, Key: "check.move.8"},
+		{Refusal: contract.Blocked, Key: "check.move.9"},
+		{Refusal: contract.Held, Key: "check.move.10"},
+		{Refusal: contract.Terminal, Key: "check.move.11"},
+		{Refusal: contract.AtCapacity, Key: "check.move.12"},
+		// This row is the profile's own, CORE-GATE-2, and it carries the
 		// name the profile fixes for it, unprefixed. It sits inside the
 		// profile-matched prefix of this list rather than past it, because a
 		// row past that prefix is required to carry a name in Dinah's own
 		// layer, and this one is not Dinah's to rename.
-		{Refusal: contract.UnresolvedItem, Key: "check.move.9"},
-		// The tenth row is the profile's own too, and it carries the
+		{Refusal: contract.UnresolvedItem, Key: "check.move.13"},
+		// This row is the profile's own too, and it carries the
 		// unprefixed name the profile fixes for it. It sits inside the
 		// profile-matched prefix of this list rather than past it, on the
-		// ninth row's reasoning, and canLand runs it immediately after the
+		// row above's reasoning, and canLand runs it immediately after the
 		// gate row above.
-		{Refusal: contract.MissingField, Key: "check.move.10"},
-		// The eleventh row is Dinah's own: the profile's section 6.4 list
-		// ends at the tenth, so the loop limit is appended rather than
+		{Refusal: contract.MissingField, Key: "check.move.14"},
+		// This row is Dinah's own: the profile's section 6.4 list
+		// ends at the row above, so the loop limit is appended rather than
 		// inserted among them, which would renumber rows the profile numbers.
 		// Its key names where it sits in this list, and canLand runs it
 		// there, after the two gate rows above.
-		{Refusal: contract.AtLoopLimit, Key: "check.move.11"},
-		// The twelfth row is Dinah's own too, and it is the departure's
+		{Refusal: contract.AtLoopLimit, Key: "check.move.15"},
+		// This row is Dinah's own too, and it is the departure's
 		// own hold, appended behind the loop row for the same reason and
 		// run immediately behind it in canLand. It carries a name of its
-		// own rather than the ninth row's, because the profile fixes that
+		// own rather than the gate row's, because the profile fixes that
 		// name for a card arriving at a column and says nothing about a
 		// card leaving one.
-		{Refusal: contract.UnresolvedItemExit, Key: "check.move.12"},
+		{Refusal: contract.UnresolvedItemExit, Key: "check.move.16"},
 	},
 	Release: {
 		{Refusal: contract.UnknownCard, Key: "check.release.1"},
-		{Refusal: contract.NotHolder, Key: "check.release.2"},
+		// The request names an owner, checked immediately after the card is
+		// found to exist and ahead of the row below, the position Do()
+		// itself now checks it at.
+		{Refusal: contract.NoOwner, Key: "check.release.2"},
+		{Refusal: contract.NotHolder, Key: "check.release.3"},
 	},
 	Block: {
 		{Refusal: contract.UnknownCard, Key: "check.block.1"},
@@ -128,8 +141,12 @@ var checkLists = map[string][]Check{
 	},
 	Unblock: {
 		{Refusal: contract.UnknownCard, Key: "check.unblock.1"},
-		{Refusal: contract.NotOperator, Key: "check.unblock.2"},
-		{Refusal: contract.NotBlocked, Key: "check.unblock.3"},
+		// The request names an owner, checked immediately after the card is
+		// found to exist and ahead of the two rows below, the position Do()
+		// itself now checks it at.
+		{Refusal: contract.NoOwner, Key: "check.unblock.2"},
+		{Refusal: contract.NotOperator, Key: "check.unblock.3"},
+		{Refusal: contract.NotBlocked, Key: "check.unblock.4"},
 	},
 }
 
@@ -296,6 +313,16 @@ var beyondChecks = map[string][]Check{
 	},
 	"config": {
 		{Refusal: contract.UnknownKey, Key: "check.config.1"},
+	},
+	// check carries this list only when it runs at least one repair marker: a
+	// bare check reads and repairs nothing and is never refused. The order is
+	// the order Library.Check evaluates the two: the harness gate is already
+	// there, ahead of every repair branch, and the owner gate now runs
+	// immediately after it, on the same condition (req.Repairs()), before any
+	// branch mutates the workbench.
+	"check": {
+		{Refusal: contract.MalformedHarness, Key: "check.check.1"},
+		{Refusal: contract.NoOwner, Key: "check.check.2"},
 	},
 	"init": {
 		{Refusal: contract.Exists, Key: "check.init.1"},
@@ -558,7 +585,15 @@ func Checks(name string) []Check {
 	// The harness row sits between the workbench's own pair and the command's
 	// own list, which is where the refusal runs: after the workbench has been
 	// found to have an operator and before anything about the card is read.
-	if historyWriters[name] {
+	//
+	// check is excluded here on the same reasoning that keeps raise and
+	// reshape out of runsWorkbenchChecks: Library.Check inlines its own
+	// malformed-harness gate rather than calling the shared malformedHarness
+	// helper every other historyWriters member goes through, so its own list
+	// in beyondChecks already carries the row, in the position the runtime
+	// check actually runs at. Prepending harnessCheck here as well would
+	// print the row twice.
+	if historyWriters[name] && name != "check" {
 		list = append(list, harnessCheck)
 	}
 	return append(list, own...)

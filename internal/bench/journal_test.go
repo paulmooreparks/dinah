@@ -1,6 +1,7 @@
 package bench
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -199,5 +200,42 @@ func TestEventRecordsTreatsArchivedAndRestoredAlike(t *testing.T) {
 		if gotArchive != c.want || gotRestore != c.want {
 			t.Errorf("%s: archive answered %v and restore answered %v, want both %v", c.name, gotArchive, gotRestore, c.want)
 		}
+	}
+}
+
+// TestAppendEventRefusesAnEmptyActor is dinah-540 AC-12. AppendEvent is the
+// one function every journal write in this codebase funnels through, so this
+// is the backstop test: whatever per-verb check might be missing or wrong
+// above it, this function itself never writes a line with no actor name.
+//
+// The target directory does not exist before the call, which is what lets
+// the refused case assert the strong form of "before any byte is written":
+// not merely that the journal is unchanged, but that AppendEvent's own
+// os.MkdirAll never ran either.
+func TestAppendEventRefusesAnEmptyActor(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "does-not-exist-yet")
+	path := filepath.Join(dir, JournalName)
+	if _, err := os.Stat(dir); !os.IsNotExist(err) {
+		t.Fatalf("the target directory already exists before the call: %v", err)
+	}
+
+	err := AppendEvent(path, Event{TS: "2026-01-01T00:00:00Z", Event: contract.EventCreated})
+	refusal, ok := err.(*contract.Refusal)
+	if !ok || refusal.Name != contract.NoOwner {
+		t.Fatalf("an event with an empty actor name: wanted a no-owner refusal, got %v", err)
+	}
+	if _, statErr := os.Stat(dir); !os.IsNotExist(statErr) {
+		t.Errorf("the refused call created the target directory, which is a byte written before the refusal")
+	}
+
+	if err := AppendEvent(path, Event{TS: "2026-01-01T00:00:01Z", Event: contract.EventCreated, Actor: NamedActor("alka")}); err != nil {
+		t.Fatalf("a named actor: wanted the append to succeed, got %v", err)
+	}
+	events := readJournalForTest(t, path)
+	if len(events) != 1 {
+		t.Fatalf("wanted the one successful append to land, got %d events", len(events))
+	}
+	if events[0].Actor.Name != "alka" {
+		t.Errorf("the appended event carries actor %q, wanted alka", events[0].Actor.Name)
 	}
 }
