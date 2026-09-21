@@ -308,6 +308,25 @@ test("opening a card uses the path show reported and not one built from the ref"
 	assert.ok(!r.opened[0].includes("tr-4"));
 });
 
+// dinah-543 narrowed show's own bare default to card, body, links and
+// attachments, so a bare `show` no longer answers a path. This pins the argv
+// itself, byte for byte, so a future revert of the --fields fix (dinah-543
+// section 7) is caught here rather than by a user report of a silent
+// failure to open the card's file.
+test("opening a card asks show for exactly the path", async () => {
+	const r = recorder({ show: ok({ path: "C:\\bench\\cards\\abc\\card.md" }) });
+	await openCard(r.context);
+	assert.deepEqual(r.calls[0], [
+		"--json",
+		"--workbench",
+		"C:\\work\\bench",
+		"show",
+		"tr-4",
+		"--fields",
+		"path",
+	]);
+});
+
 test("a show answer carrying no path opens nothing and says so to the channel", async () => {
 	const r = recorder({ show: ok({ body: "" }) });
 	await openCard(r.context);

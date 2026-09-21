@@ -45,7 +45,7 @@ func TestTheChecklistRowDrawsTheAnswerAnItemDesignates(t *testing.T) {
 	}
 
 	// The indexed read carries the references and opens nothing.
-	indexed := runCLI(t, root, "show", "fx-1")
+	indexed := runCLI(t, root, "show", "fx-1", "--fields", "checklist")
 	if indexed.code != 0 {
 		t.Fatalf("show: %d %s", indexed.code, indexed.errw)
 	}

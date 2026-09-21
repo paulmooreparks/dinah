@@ -3435,8 +3435,13 @@
       "skeleton": true
     },
     "param.show.fields.summary": {
-      "text": "which members of the card the answer carries, written as a comma-separated list; every member when you name none, with the comments and the checklist served as indexes, and a name ending in .full served with that collection's bodies",
+      "text": "which members of the card the answer carries, written as a comma-separated list; card, body, links and attachments when you name none, with the comments and the checklist served as indexes, and a name ending in .full served with that collection's bodies",
       "context": "The meaning of the fields argument of `dinah show`, printed in that command's arguments table. The table appends the closed set of names a caller may write after this sentence, read off the tool, so the sentence does not spell the set itself.",
+      "skeleton": true
+    },
+    "param.show.all.summary": {
+      "text": "serve every member of the card, unshaped, including the full body of every comment and every checklist item's designated comment",
+      "context": "The meaning of the all argument of `dinah show`, printed in that command's arguments table. It is the flag that restores the whole-card answer show gave before the narrow default, and it is refused together with --fields.",
       "skeleton": true
     },
     "param.show.since.summary": {

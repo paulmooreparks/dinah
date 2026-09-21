@@ -6536,7 +6536,7 @@ func TestTheCardLineCarriesTheWorkstreamsACardBelongsTo(t *testing.T) {
 	if got := runCLI(t, root, "add", "a card to belong"); got.code != 0 {
 		t.Fatalf("add: %d %s", got.code, got.errw)
 	}
-	plain := runCLI(t, root, "show", "fx-1")
+	plain := runCLI(t, root, "show", "fx-1", "--fields", "card,path")
 	if strings.Contains(plain.out, "portfolio-work") {
 		t.Errorf("a card belonging to no workstream drew a trailing field: %q", plain.out)
 	}
@@ -7357,7 +7357,7 @@ func TestTheFlagSetsTheParserAcceptsAreDerivedFromTheParameterTable(t *testing.T
 		"since", "slug", "text", "tier", "workbench",
 	}
 	wantMarkers := []string{
-		"annotate-prose", "archived", "catalogs", "finish", "force", "help", "here", "json",
+		"all", "annotate-prose", "archived", "catalogs", "finish", "force", "help", "here", "json",
 		"migrate-branches",
 		"migrate-columns",
 		"migrate-container", "migrate-newlines", "migrate-numbers",
@@ -8746,7 +8746,7 @@ func TestShowShapedByAFieldListPrintsWhatItHeldBack(t *testing.T) {
 		t.Fatalf("comment %s: %d %s", first, got.code, got.errw)
 	}
 
-	whole := runCLI(t, root, "show", first)
+	whole := runCLI(t, root, "show", first, "--fields", "card,body,links,attachments,comments")
 	if whole.code != 0 {
 		t.Fatalf("show %s: %d %s", first, whole.code, whole.errw)
 	}

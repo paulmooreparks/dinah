@@ -58,15 +58,15 @@ docs/quick-start.md:236 figure=four noun=settings counts=the settings dinah conf
 docs/quick-start.md:452 figure=five noun=commands counts=the verbs that change where a card stands derives=contractVerbs
 docs/quick-start.md:453 figure=five noun=commands counts=the verbs that change where a card stands derives=contractVerbs
 docs/quick-start.md:459 figure=three noun=commands counts=three of the reading commands holds=partitive reason=the sentence names ls, next, and show, which are three of the reading group rather than the whole of it
-docs/quick-start.md:560 figure=five noun=commands counts=the verbs that change where a card stands derives=contractVerbs
-docs/quick-start.md:575 figure=Five noun=commands counts=the verbs that change where a card stands derives=contractVerbs
-docs/quick-start.md:576 figure=five noun=verbs counts=the verbs that change where a card stands derives=contractVerbs
-docs/quick-start.md:770 figure=three noun=kinds counts=the checklist kinds a card may carry derives=checklistKinds
-docs/quick-start.md:904 figure=one noun=fields counts=nothing, since the figure stands for the workstream the sentence above names holds=prose reason=the sentence reads Reading one of its fields, so one is a pronoun and no set is being counted
-docs/quick-start.md:951 figure=two noun=commands counts=two of the commands that take any reference holds=partitive reason=the sentence names archive and delete, which take any reference at all rather than being the whole of the group that does
-docs/quick-start.md:960 figure=two noun=commands counts=the two commands the block under this sentence runs holds=prose reason=the sentence points at the two lines of the block that follows rather than at any set the tree declares
-docs/quick-start.md:1157 figure=two noun=groups counts=the two origins of a refusal name holds=prose reason=the groups are the shared rules and Dinah's own coinage, which no table in the tree declares as a set
-docs/quick-start.md:1526 figure=five noun=flags counts=the optional flags dinah column new accepts derives=columnNewFlags
+docs/quick-start.md:563 figure=five noun=commands counts=the verbs that change where a card stands derives=contractVerbs
+docs/quick-start.md:578 figure=Five noun=commands counts=the verbs that change where a card stands derives=contractVerbs
+docs/quick-start.md:579 figure=five noun=verbs counts=the verbs that change where a card stands derives=contractVerbs
+docs/quick-start.md:773 figure=three noun=kinds counts=the checklist kinds a card may carry derives=checklistKinds
+docs/quick-start.md:907 figure=one noun=fields counts=nothing, since the figure stands for the workstream the sentence above names holds=prose reason=the sentence reads Reading one of its fields, so one is a pronoun and no set is being counted
+docs/quick-start.md:954 figure=two noun=commands counts=two of the commands that take any reference holds=partitive reason=the sentence names archive and delete, which take any reference at all rather than being the whole of the group that does
+docs/quick-start.md:963 figure=two noun=commands counts=the two commands the block under this sentence runs holds=prose reason=the sentence points at the two lines of the block that follows rather than at any set the tree declares
+docs/quick-start.md:1160 figure=two noun=groups counts=the two origins of a refusal name holds=prose reason=the groups are the shared rules and Dinah's own coinage, which no table in the tree declares as a set
+docs/quick-start.md:1529 figure=five noun=flags counts=the optional flags dinah column new accepts derives=columnNewFlags
 internal/guide/guides/first-session.md:122 figure=one noun=outcomes counts=one of the four outcomes a command reports holds=partitive reason=the sentence says one of four outcomes, so the figure counts the choice rather than the set
 internal/guide/guides/mcp.md:357 figure=Eight noun=tools counts=the MCP tools whose verb reads the request's basis holds=unreachable at=internal/mcp/tools.go:345 declares=injectedProperties
 internal/guide/guides/mcp.md:389 figure=two noun=kinds counts=the directory kinds the descent skips holds=prose reason=a dotted directory and a symbolic link are two branches of one walk rather than a set the tree declares

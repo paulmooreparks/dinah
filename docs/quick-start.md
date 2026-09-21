@@ -496,6 +496,9 @@ $ dinah next doing
 [exit 0]
 $ dinah show rel-1
 rel-1  Write the release notes  [Intake / ready]
+
+Withheld: path
+This card holds those members. Name them in --fields on rel-1 to be served them.
 [exit 0]
 ```
 
@@ -1255,14 +1258,14 @@ storage format 6
 Catalogs:
   Language  Translated
   --------  ----------
-  en        1186/1186
-  af        0/1186
-  cs        0/1186
-  de        1186/1186
-  es        0/1186
-  fil       0/1186
-  hi        1186/1186
-  id        0/1186
+  en        1187/1187
+  af        0/1187
+  cs        0/1187
+  de        1187/1187
+  es        0/1187
+  fil       0/1187
+  hi        1187/1187
+  id        0/1187
 [exit 0]
 ```
 
