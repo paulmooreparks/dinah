@@ -71,3 +71,17 @@ func (r *Request) Repairs() bool {
 		r.Renumber || r.MigrateSlugs || r.MigrateColumns || r.MigrateVocabulary ||
 		r.MigrateContainer || r.MigrateWorkstreams || r.MigrateWitness || r.Remint != ""
 }
+
+// noOwnerExtra is the named value a no-owner refusal carries when the request
+// declares a harness, filled once here rather than at each of this refusal's
+// raise sites, because req.Harness already carries everything the condition
+// needs regardless of whether req.Actor itself resolved: the CLI resolves the
+// harness independently of whether the actor did, and a harness-declaring
+// process is refused precisely because the harness excluded the
+// configuration rung from the ladder that would otherwise have answered.
+func noOwnerExtra(req *Request) map[string]string {
+	if req == nil || req.Harness == "" {
+		return nil
+	}
+	return map[string]string{contract.ValueHarness: req.Harness}
+}

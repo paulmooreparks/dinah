@@ -1211,12 +1211,13 @@ func TestLanguageLadderResolvesFirstHitWins(t *testing.T) {
 // the form that refuses, and it keeps refusing.
 func TestActorLadderNamesTheRungOrReportsNone(t *testing.T) {
 	cases := []struct {
-		name   string
-		flag   string
-		env    string
-		config string
-		wanted string
-		source string
+		name    string
+		flag    string
+		env     string
+		config  string
+		harness string
+		wanted  string
+		source  string
 	}{
 		{name: "nobody carries one", wanted: "", source: SourceUnset},
 		{name: "the config alone", config: "alka", wanted: "alka", source: SourceConfig},
@@ -1229,6 +1230,21 @@ func TestActorLadderNamesTheRungOrReportsNone(t *testing.T) {
 			wanted: "cass",
 			source: SourceFlag,
 		},
+		{
+			name:    "a declared harness excludes the config rung",
+			config:  "alka",
+			harness: "claude-code",
+			wanted:  "",
+			source:  SourceUnset,
+		},
+		{
+			name:    "a declared harness does not exclude DINAH_ACTOR",
+			env:     "bob",
+			config:  "alka",
+			harness: "claude-code",
+			wanted:  "bob",
+			source:  SourceEnvironment,
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1239,14 +1255,14 @@ func TestActorLadderNamesTheRungOrReportsNone(t *testing.T) {
 					t.Fatalf("config: %v", err)
 				}
 			}
-			got, source := ResolveActorSource(c.flag, settings)
+			got, source := ResolveActorSource(c.flag, c.harness, settings)
 			if got != c.wanted {
 				t.Errorf("wanted %q, got %q", c.wanted, got)
 			}
 			if source != c.source {
 				t.Errorf("the rung that answered: wanted %s, got %s", c.source, source)
 			}
-			resolved, err := ResolveActor(c.flag, settings)
+			resolved, err := ResolveActor(c.flag, c.harness, settings)
 			if c.wanted == "" {
 				if err == nil {
 					t.Error("an owner nothing carries should still refuse through ResolveActor")

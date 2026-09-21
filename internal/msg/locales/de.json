@@ -793,57 +793,57 @@
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
       "source": "37dac5acd188c446"
     },
-    "check.move.10": {
+    "check.move.14": {
       "text": "die Karte trägt für jedes Feld, das das Ziel verlangt, einen Wert",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
       "source": "766cfa42c960fe8"
     },
-    "check.move.11": {
+    "check.move.15": {
       "text": "die Karte hat die Schleifengrenze der Ausgangsspalte nicht erreicht",
-      "context": "One row of the ordered precondition list of move. This row is Dinah's own addition; the core profile's own section 6.4 list ends at check.move.10.",
+      "context": "One row of the ordered precondition list of move. This row is Dinah's own addition; the core profile's own section 6.4 list has ten rows and does not include it.",
       "source": "193dcb5974ead6b"
     },
-    "check.move.12": {
+    "check.move.16": {
       "text": "die Karte trägt keinen ungelösten Eintrag, der die Ausgangsspalte nennt",
-      "context": "One row of the ordered precondition list of move. This row is Dinah's own addition; the core profile's own section 6.4 list ends at check.move.10. It is the departure's own hold, read at the column the card is leaving rather than the one it would land in.",
+      "context": "One row of the ordered precondition list of move. This row is Dinah's own addition; the core profile's own section 6.4 list has ten rows and does not include it. It is the departure's own hold, read at the column the card is leaving rather than the one it would land in.",
       "source": "8186a705a5b6534a"
     },
-    "check.move.2": {
+    "check.move.6": {
       "text": "die Werkbank deklariert die Zielspalte",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
       "source": "77302ed88afc1490"
     },
-    "check.move.3": {
+    "check.move.7": {
       "text": "eine Übersteuerung stammt vom Betreiber",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
       "source": "607a576951946330"
     },
-    "check.move.4": {
+    "check.move.8": {
       "text": "der Abgang ist für die anfragende Person zulässig",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
       "source": "317fa855de03a64c"
     },
-    "check.move.5": {
+    "check.move.9": {
       "text": "der Zustand der Karte ist nicht `blocked`",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
       "source": "76a4fe23995d6a02"
     },
-    "check.move.6": {
+    "check.move.10": {
       "text": "die Karte ist frei oder vom Anfragenden gehalten",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
       "source": "ec01b01e10f981a7"
     },
-    "check.move.7": {
+    "check.move.11": {
       "text": "kein Vorwärtszug aus einer `done`-Spalte heraus",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
       "source": "7e0c1d83c59a8fd3"
     },
-    "check.move.8": {
+    "check.move.12": {
       "text": "das Ziel liegt unter seiner Kapazitätsgrenze",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
       "source": "9d61260048317b7e"
     },
-    "check.move.9": {
+    "check.move.13": {
       "text": "die Karte trägt keinen ungelösten Eintrag, der das Ziel nennt",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
       "source": "d6e9e1f4780da9c4"
@@ -1228,7 +1228,7 @@
       "context": "One row of the ordered precondition list of release, quoted from section 6 of the core profile.",
       "source": "37dac5acd188c446"
     },
-    "check.release.2": {
+    "check.release.3": {
       "text": "die anfragende Person hält die Karte",
       "context": "One row of the ordered precondition list of release, quoted from section 6 of the core profile.",
       "source": "b14913e0de423e4"
@@ -1478,12 +1478,12 @@
       "context": "One row of the ordered precondition list of unblock, quoted from section 6 of the core profile.",
       "source": "37dac5acd188c446"
     },
-    "check.unblock.2": {
+    "check.unblock.3": {
       "text": "die anfragende Person ist der Betreiber",
       "context": "One row of the ordered precondition list of unblock, quoted from section 6 of the core profile.",
       "source": "c36a8473c73d26a2"
     },
-    "check.unblock.3": {
+    "check.unblock.4": {
       "text": "der Zustand der Karte ist `blocked`",
       "context": "One row of the ordered precondition list of unblock, quoted from section 6 of the core profile.",
       "source": "7bc8856e42e38f2b"
@@ -5741,241 +5741,276 @@
       "context": "The meaning of the expect-digest argument of `dinah set`, printed in that command's arguments table. It is for a caller that had the comment open while its author typed: an editor writes the file on save, so the body the write would otherwise be compared against is gone, and the digest on the header is what is left to compare.",
       "source": "4d5ad6d096694a02"
     },
+    "check.move.5": {
+    "text": "die Anfrage nennt einen Akteur",
+    "context": "One row of the ordered precondition list of move. This row is Dinah's own addition: the core profile's own section 6.3 table carries no row reading \"the request names an owner\" (only CORE-CLAIM and CORE-BLOCK's own tables do), so this key does not claim the profile's own wording the way the numbered rows above it do.",
+    "source": "bc538e33f1fcc933"
+  },
+    "check.release.2": {
+    "text": "die Anfrage nennt einen Akteur",
+    "context": "One row of the ordered precondition list of release. This row is Dinah's own addition: the core profile's own section 6.5 table carries no row reading \"the request names an owner\" (only CORE-CLAIM and CORE-BLOCK's own tables do), so this key does not claim the profile's own wording the way the numbered rows above it do.",
+    "source": "bc538e33f1fcc933"
+  },
+    "check.unblock.2": {
+    "text": "die Anfrage nennt einen Akteur",
+    "context": "One row of the ordered precondition list of unblock. This row is Dinah's own addition: the core profile's own section 6.6 table carries no row reading \"the request names an owner\" (only CORE-CLAIM and CORE-BLOCK's own tables do), so this key does not claim the profile's own wording the way the numbered rows above it do.",
+    "source": "bc538e33f1fcc933"
+  },
+    "check.check.1": {
+    "text": "das von Ihnen genannte Gespann ist ein zulässiger Name",
+    "context": "One row of the ordered precondition list of check, run when the request carries at least one repair marker. check has no numbered table in the core profile, so this row carries Dinah's own wording rather than a quotation.",
+    "source": "47fd175a39b5f9ee"
+  },
+    "check.check.2": {
+    "text": "die Anfrage nennt einen Akteur",
+    "context": "One row of the ordered precondition list of check, run when the request carries at least one repair marker, immediately after the harness row above. check has no numbered table in the core profile, so this row carries Dinah's own wording rather than a quotation.",
+    "source": "bc538e33f1fcc933"
+  },
+    "refusal.no-owner.next-harness": {
+    "text": "; ein {harness}-Harness ist deklariert, daher gilt ein in Ihren Einstellungen konfigurierter Actor, falls vorhanden, hier nicht; führen Sie `dinah --actor <Name>` aus oder setzen Sie `DINAH_ACTOR`, um zu sagen, wer handelt",
+    "context": "Spliced onto refusal.no-owner as the next step, in place of refusal.no-owner.next, when the request that raised the refusal declared a harness: the configuration rung of the actor ladder answers only a call declaring none, so a harness-declaring call is refused rather than promoted to whatever a shared config file carries.",
+    "source": "85585bd769b3150c"
+  },
+    "status.actor.unnamed": {
+    "text": "für diesen Prozess ist kein Akteur benannt; führen Sie `dinah config set actor <Name>` aus oder setzen Sie `DINAH_ACTOR`, um zu sagen, wer handelt",
+    "context": "The second line of status when no actor resolved for this process, printed in place of status.actor so the line never interpolates an empty actor name.",
+    "source": "2ef9f69d8ff23dbb"
+  },
     "card.route": {
-      "text": "  Route: {route}",
-      "context": "Printed under the card line when the card walks a route the workbench declares. A card on the workbench's full column list draws no such line.",
-      "source": "ce067c1da9193c59"
-    },
+    "text": "  Route: {route}",
+    "context": "Printed under the card line when the card walks a route the workbench declares. A card on the workbench's full column list draws no such line.",
+    "source": "ce067c1da9193c59"
+  },
     "check.add.6": {
-      "text": "die Werkbank deklariert die genannte Route",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "e4c23f3ff89bbd0c"
-    },
+    "text": "die Werkbank deklariert die genannte Route",
+    "context": "One row of the precondition list of a command outside the five the profile specifies.",
+    "source": "e4c23f3ff89bbd0c"
+  },
     "check.add.7": {
-      "text": "die Route führt die Spalte, in die Sie anlegen",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "1dfac348aca657d9"
-    },
+    "text": "die Route führt die Spalte, in die Sie anlegen",
+    "context": "One row of the precondition list of a command outside the five the profile specifies.",
+    "source": "1dfac348aca657d9"
+  },
     "check.card-off-route": {
-      "text": "{detail} steht in einer Spalte, die die eigene Route nicht führt",
-      "context": "A check finding: a card has been moved, rejected or re-routed onto a column its road does not carry. {detail} carries the card and the column, in that order. The card's forward move is the first route column after it, so this is worth a person's attention rather than broken.",
-      "source": "695b58b9243fdd53"
-    },
+    "text": "{detail} steht in einer Spalte, die die eigene Route nicht führt",
+    "context": "A check finding: a card has been moved, rejected or re-routed onto a column its road does not carry. {detail} carries the card and the column, in that order. The card's forward move is the first route column after it, so this is worth a person's attention rather than broken.",
+    "source": "695b58b9243fdd53"
+  },
     "check.card-unknown-route": {
-      "text": "{detail} nennt eine Route, die diese Werkbank nicht deklariert",
-      "context": "A check finding: a card's route names one the workbench declares. {detail} carries the card and the route name, in that order. The card walks the workbench's full column list meanwhile.",
-      "source": "d4dbf84a431f5685"
-    },
+    "text": "{detail} nennt eine Route, die diese Werkbank nicht deklariert",
+    "context": "A check finding: a card's route names one the workbench declares. {detail} carries the card and the route name, in that order. The card walks the workbench's full column list meanwhile.",
+    "source": "d4dbf84a431f5685"
+  },
     "check.file.1": {
-      "text": "diese Werkbank benennt einen Betreiber",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "b64509306a5c6b2"
-    },
+    "text": "diese Werkbank benennt einen Betreiber",
+    "context": "One row of the precondition list of a command outside the five the profile specifies.",
+    "source": "b64509306a5c6b2"
+  },
     "check.file.2": {
-      "text": "die Karte existiert",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "37dac5acd188c446"
-    },
+    "text": "die Karte existiert",
+    "context": "One row of the precondition list of a command outside the five the profile specifies.",
+    "source": "37dac5acd188c446"
+  },
     "check.file.3": {
-      "text": "die Anfrage nennt einen Akteur",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "bc538e33f1fcc933"
-    },
+    "text": "die Anfrage nennt einen Akteur",
+    "context": "One row of the precondition list of a command outside the five the profile specifies.",
+    "source": "bc538e33f1fcc933"
+  },
     "check.file.4": {
-      "text": "die Anfrage nennt eine Art",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "6d0907ed0a53cc60"
-    },
+    "text": "die Anfrage nennt eine Art",
+    "context": "One row of the precondition list of a command outside the five the profile specifies.",
+    "source": "6d0907ed0a53cc60"
+  },
     "check.file.5": {
-      "text": "die Art ist eine der drei einer Prüfliste",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "64a1de3e4ec98545"
-    },
+    "text": "die Art ist eine der drei einer Prüfliste",
+    "context": "One row of the precondition list of a command outside the five the profile specifies.",
+    "source": "64a1de3e4ec98545"
+  },
     "check.file.6": {
-      "text": "der Eintrag trägt Text",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "5d66a8e28d521fa7"
-    },
+    "text": "der Eintrag trägt Text",
+    "context": "One row of the precondition list of a command outside the five the profile specifies.",
+    "source": "5d66a8e28d521fa7"
+  },
     "check.file.7": {
-      "text": "die Werkbank deklariert die genannte Spalte",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "eca4f4480793df85"
-    },
+    "text": "die Werkbank deklariert die genannte Spalte",
+    "context": "One row of the precondition list of a command outside the five the profile specifies.",
+    "source": "eca4f4480793df85"
+  },
     "check.file.8": {
-      "text": "die Route der Karte führt die genannte Spalte",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "7ed219c25b5b72c3"
-    },
+    "text": "die Route der Karte führt die genannte Spalte",
+    "context": "One row of the precondition list of a command outside the five the profile specifies.",
+    "source": "7ed219c25b5b72c3"
+  },
     "check.item-off-route": {
-      "text": "{detail} nennt eine Spalte, die die Route der Karte nicht führt, sodass die Sperre nie greifen würde",
-      "context": "A check finding: a pending checklist item names a column the card will never stand at. {detail} carries the card, the item and the column, in that order.",
-      "source": "2df1e35a57a15b2c"
-    },
+    "text": "{detail} nennt eine Spalte, die die Route der Karte nicht führt, sodass die Sperre nie greifen würde",
+    "context": "A check finding: a pending checklist item names a column the card will never stand at. {detail} carries the card, the item and the column, in that order.",
+    "source": "2df1e35a57a15b2c"
+  },
     "check.route-duplicate-column": {
-      "text": "{detail} nennt eine Spalte zweimal",
-      "context": "A check finding: a route names each column once. {detail} carries the route name and the column, in that order.",
-      "source": "68007ffb56d3f9a4"
-    },
+    "text": "{detail} nennt eine Spalte zweimal",
+    "context": "A check finding: a route names each column once. {detail} carries the route name and the column, in that order.",
+    "source": "68007ffb56d3f9a4"
+  },
     "check.route-empty": {
-      "text": "die Route {detail} führt keine Spalte, die diese Werkbank deklariert",
-      "context": "A check finding: a route has to carry at least one column to be a road at all. {detail} carries the route name. A retirement that took a route's last column away produces it as well as a declaration that named none.",
-      "source": "a0e06e12ab3c4a78"
-    },
+    "text": "die Route {detail} führt keine Spalte, die diese Werkbank deklariert",
+    "context": "A check finding: a route has to carry at least one column to be a road at all. {detail} carries the route name. A retirement that took a route's last column away produces it as well as a declaration that named none.",
+    "source": "a0e06e12ab3c4a78"
+  },
     "check.route-missing-first-column": {
-      "text": "{detail} führt die erste Spalte der Werkbank nicht, sodass keine Karte die Werkbank darauf betreten kann",
-      "context": "A check finding: cards enter a workbench at its first column, which is where dinah add files one, so a route without it has no door. {detail} carries the route name and that first column, in that order.",
-      "source": "f36752c3722c4372"
-    },
+    "text": "{detail} führt die erste Spalte der Werkbank nicht, sodass keine Karte die Werkbank darauf betreten kann",
+    "context": "A check finding: cards enter a workbench at its first column, which is where dinah add files one, so a route without it has no door. {detail} carries the route name and that first column, in that order.",
+    "source": "f36752c3722c4372"
+  },
     "check.route-missing-terminal": {
-      "text": "{detail} endet an einer Spalte, die keine Abschlussspalte ist, sodass eine Karte darauf nicht fertig werden kann",
-      "context": "A check finding: a route ends in the terminal region. {detail} carries the route name and the column it ends at, in that order.",
-      "source": "34298d0e46c9a9f8"
-    },
+    "text": "{detail} endet an einer Spalte, die keine Abschlussspalte ist, sodass eine Karte darauf nicht fertig werden kann",
+    "context": "A check finding: a route ends in the terminal region. {detail} carries the route name and the column it ends at, in that order.",
+    "source": "34298d0e46c9a9f8"
+  },
     "check.route-name-malformed": {
-      "text": "die Route {detail} trägt einen Namen außerhalb der Grammatik für Routennamen",
-      "context": "A check finding: a route name has to read as a slug, because it is typed on a command line and read back out of a refusal. {detail} carries the name, and the repair is an edit to the workbench's own routes block.",
-      "source": "1a1022e8363305ef"
-    },
+    "text": "die Route {detail} trägt einen Namen außerhalb der Grammatik für Routennamen",
+    "context": "A check finding: a route name has to read as a slug, because it is typed on a command line and read back out of a refusal. {detail} carries the name, and the repair is an edit to the workbench's own routes block.",
+    "source": "1a1022e8363305ef"
+  },
     "check.route-out-of-order": {
-      "text": "die Route {detail} listet ihre Spalten in einer anderen Reihenfolge als der Fluss selbst",
-      "context": "A check finding: a route resolves in flow order whatever order it was written in, so this says the file does not read the way it runs. {detail} carries the route name.",
-      "source": "a98c40eafd9b77ba"
-    },
+    "text": "die Route {detail} listet ihre Spalten in einer anderen Reihenfolge als der Fluss selbst",
+    "context": "A check finding: a route resolves in flow order whatever order it was written in, so this says the file does not read the way it runs. {detail} carries the route name.",
+    "source": "a98c40eafd9b77ba"
+  },
     "check.route-reject-target-off-route": {
-      "text": "{detail} deklariert reject_to mit einer Spalte, die diese Route nicht führt",
-      "context": "A check finding: a push-back on a route should land on that route. {detail} carries the route name, the declaring column and the target, in that order. The card still lands there by an ordinary move and walks forward into its route again, so this is worth knowing rather than broken.",
-      "source": "d7d6e5f54c71cd94"
-    },
+    "text": "{detail} deklariert reject_to mit einer Spalte, die diese Route nicht führt",
+    "context": "A check finding: a push-back on a route should land on that route. {detail} carries the route name, the declaring column and the target, in that order. The card still lands there by an ordinary move and walks forward into its route again, so this is worth knowing rather than broken.",
+    "source": "d7d6e5f54c71cd94"
+  },
     "check.route-unknown-column": {
-      "text": "{detail} nennt eine Spalte, die diese Werkbank nicht deklariert",
-      "context": "A check finding: every identifier a route names is a column of the flow. {detail} carries the route name and the identifier, in that order, and the repair is an edit to the workbench's own routes block.",
-      "source": "4928d1e70dac5f48"
-    },
+    "text": "{detail} nennt eine Spalte, die diese Werkbank nicht deklariert",
+    "context": "A check finding: every identifier a route names is a column of the flow. {detail} carries the route name and the identifier, in that order, and the repair is an edit to the workbench's own routes block.",
+    "source": "4928d1e70dac5f48"
+  },
     "check.set.10": {
-      "text": "die Route führt jede dem Betreiber vorbehaltene Spalte vor der Karte",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "f61b4bc3d6eb1fea"
-    },
+    "text": "die Route führt jede dem Betreiber vorbehaltene Spalte vor der Karte",
+    "context": "One row of the precondition list of a command outside the five the profile specifies.",
+    "source": "f61b4bc3d6eb1fea"
+  },
     "check.set.9": {
-      "text": "kein offener Eintrag nennt eine Spalte, die die Route auslässt",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "3fa96ba8098e68ab"
-    },
+    "text": "kein offener Eintrag nennt eine Spalte, die die Route auslässt",
+    "context": "One row of the precondition list of a command outside the five the profile specifies.",
+    "source": "3fa96ba8098e68ab"
+  },
     "column.moves.route": {
-      "text": "Auf Route",
-      "context": "Heading over whether this row is the forward move along the card's own route, in the legal moves printed under a served instruction. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it.",
-      "source": "1ccd45bac0c2329d"
-    },
+    "text": "Auf Route",
+    "context": "Heading over whether this row is the forward move along the card's own route, in the legal moves printed under a served instruction. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it.",
+    "source": "1ccd45bac0c2329d"
+  },
     "column.routes.columns": {
-      "text": "Spalten",
-      "context": "Heading over how many live columns a route carries, in the listing dinah list routes prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it.",
-      "source": "b0f3327210fe18fc"
-    },
+    "text": "Spalten",
+    "context": "Heading over how many live columns a route carries, in the listing dinah list routes prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it.",
+    "source": "b0f3327210fe18fc"
+  },
     "column.routes.route": {
-      "text": "Route",
-      "context": "Heading over a route's own name, in the listing dinah list routes prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it.",
-      "source": "4406e2a8264d6a3e",
-      "verbatim": true
-    },
+    "text": "Route",
+    "context": "Heading over a route's own name, in the listing dinah list routes prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it.",
+    "source": "4406e2a8264d6a3e",
+    "verbatim": true
+  },
     "column.routes.skips": {
-      "text": "Ausgelassen",
-      "context": "Heading over the live columns a route omits, in the listing dinah list routes prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it.",
-      "source": "b759c3a376dc7663"
-    },
+    "text": "Ausgelassen",
+    "context": "Heading over the live columns a route omits, in the listing dinah list routes prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it.",
+    "source": "b759c3a376dc7663"
+  },
     "lsp.completion.route.detail": {
-      "text": "Route, die {columns} Spalten des Ablaufs führt",
-      "context": "The detail line beside one route candidate in a completion list. {columns} is how many live columns that route carries, which is the one fact that says how short the road is without opening the block.",
-      "source": "3f5c9f110013d631"
-    },
+    "text": "Route, die {columns} Spalten des Ablaufs führt",
+    "context": "The detail line beside one route candidate in a completion list. {columns} is how many live columns that route carries, which is the one fact that says how short the road is without opening the block.",
+    "source": "3f5c9f110013d631"
+  },
     "param.add.route.summary": {
-      "text": "auf welcher Route die Karte angelegt wird, aus den Routen, die diese Werkbank deklariert; die vollständige Spaltenliste, wenn Sie keine nennen",
-      "context": "The meaning of the route argument of `dinah add`, printed in that command's arguments table.",
-      "source": "8638be023333b034"
-    },
+    "text": "auf welcher Route die Karte angelegt wird, aus den Routen, die diese Werkbank deklariert; die vollständige Spaltenliste, wenn Sie keine nennen",
+    "context": "The meaning of the route argument of `dinah add`, printed in that command's arguments table.",
+    "source": "8638be023333b034"
+  },
     "refusal.dinah.item-off-route": {
-      "text": "die Route {route} führt {detail} nicht, sodass ein Eintrag, der diese Spalte nennt, diese Karte nirgends halten würde.",
-      "context": "The sentence printed after the refusal name dinah.item-off-route, which filing an item against a column the card's own route drops carries. {detail} is the column that was named and {route} is the route the card walks.",
-      "source": "b7249d5ceae4d5eb"
-    },
+    "text": "die Route {route} führt {detail} nicht, sodass ein Eintrag, der diese Spalte nennt, diese Karte nirgends halten würde.",
+    "context": "The sentence printed after the refusal name dinah.item-off-route, which filing an item against a column the card's own route drops carries. {detail} is the column that was named and {route} is the route the card walks.",
+    "source": "b7249d5ceae4d5eb"
+  },
     "refusal.dinah.item-off-route.next": {
-      "text": " Nennen Sie eine Spalte, die die Route führt, oder ändern Sie zuerst die Route der Karte.",
-      "context": "The next step of refusal.dinah.item-off-route, which names the two repairs open to the caller.",
-      "source": "48582193e300eed1"
-    },
+    "text": " Nennen Sie eine Spalte, die die Route führt, oder ändern Sie zuerst die Route der Karte.",
+    "context": "The next step of refusal.dinah.item-off-route, which names the two repairs open to the caller.",
+    "source": "48582193e300eed1"
+  },
     "refusal.dinah.route-off-column": {
-      "text": "die Route {route} führt {detail} nicht, sodass eine dort angelegte Karte von Anfang an neben ihrer Route stünde.",
-      "context": "The sentence printed after the refusal name dinah.route-off-column, which a filing whose destination column the named route drops carries. {detail} is the column the card would have landed in and {route} is the route that was named.",
-      "source": "d15b4060a0670e6f"
-    },
+    "text": "die Route {route} führt {detail} nicht, sodass eine dort angelegte Karte von Anfang an neben ihrer Route stünde.",
+    "context": "The sentence printed after the refusal name dinah.route-off-column, which a filing whose destination column the named route drops carries. {detail} is the column the card would have landed in and {route} is the route that was named.",
+    "source": "d15b4060a0670e6f"
+  },
     "refusal.dinah.route-off-column.next": {
-      "text": " Legen Sie die Karte in einer Spalte an, die die Route führt, oder nennen Sie eine andere Route.",
-      "context": "The next step of refusal.dinah.route-off-column, which names the two repairs open to the caller.",
-      "source": "b14fda59994d97c0"
-    },
+    "text": " Legen Sie die Karte in einer Spalte an, die die Route führt, oder nennen Sie eine andere Route.",
+    "context": "The next step of refusal.dinah.route-off-column, which names the two repairs open to the caller.",
+    "source": "b14fda59994d97c0"
+  },
     "refusal.dinah.route-skips-operator-column": {
-      "text": "die Route {detail} führt {column} nicht, eine Station, die diese Karte noch nicht passiert hat und die diese Werkbank ihrem Betreiber vorbehält.",
-      "context": "The sentence printed after the refusal name dinah.route-skips-operator-column, which a route write whose route omits an operator-owned station the card has not reached carries. {detail} is the route name that was written and {column} is the station it omits.",
-      "source": "2f702543f43a34e"
-    },
+    "text": "die Route {detail} führt {column} nicht, eine Station, die diese Karte noch nicht passiert hat und die diese Werkbank ihrem Betreiber vorbehält.",
+    "context": "The sentence printed after the refusal name dinah.route-skips-operator-column, which a route write whose route omits an operator-owned station the card has not reached carries. {detail} is the route name that was written and {column} is the station it omits.",
+    "source": "2f702543f43a34e"
+  },
     "refusal.dinah.route-skips-operator-column.next": {
-      "text": " Führen Sie die Karte zuerst an dieser Station vorbei, oder nennen Sie eine Route, die sie führt.",
-      "context": "The next step of refusal.dinah.route-skips-operator-column, which names the two repairs: carry the card past the reserved station, or write a route that keeps it.",
-      "source": "800b20de46dc8617"
-    },
+    "text": " Führen Sie die Karte zuerst an dieser Station vorbei, oder nennen Sie eine Route, die sie führt.",
+    "context": "The next step of refusal.dinah.route-skips-operator-column, which names the two repairs: carry the card past the reserved station, or write a route that keeps it.",
+    "source": "800b20de46dc8617"
+  },
     "refusal.dinah.route-strands-item": {
-      "text": "{item} nennt {column}, und die Route {detail} führt diese Spalte nicht, sodass die Sperre, für die der Eintrag angelegt wurde, nie greifen würde.",
-      "context": "The sentence printed after the refusal name dinah.route-strands-item, which a route write on a card carrying a pending item naming a column the new route drops carries. {detail} is the route name that was written, {item} is the item's own reference and {column} is the column it names. Only a pending item is reported, because a settled one holds nothing.",
-      "source": "f99d2c572fc478a0"
-    },
+    "text": "{item} nennt {column}, und die Route {detail} führt diese Spalte nicht, sodass die Sperre, für die der Eintrag angelegt wurde, nie greifen würde.",
+    "context": "The sentence printed after the refusal name dinah.route-strands-item, which a route write on a card carrying a pending item naming a column the new route drops carries. {detail} is the route name that was written, {item} is the item's own reference and {column} is the column it names. Only a pending item is reported, because a settled one holds nothing.",
+    "source": "f99d2c572fc478a0"
+  },
     "refusal.dinah.route-strands-item.next": {
-      "text": " Erledigen Sie diesen Eintrag, oder verschieben Sie ihn mit `dinah set {item} column <column>` auf eine Spalte der Route.",
-      "context": "The next step of refusal.dinah.route-strands-item. The command is machine vocabulary and is never translated; {item} is the same reference the sentence above named.",
-      "source": "d272359d82c977fc"
-    },
+    "text": " Erledigen Sie diesen Eintrag, oder verschieben Sie ihn mit `dinah set {item} column <column>` auf eine Spalte der Route.",
+    "context": "The next step of refusal.dinah.route-strands-item. The command is machine vocabulary and is never translated; {item} is the same reference the sentence above named.",
+    "source": "d272359d82c977fc"
+  },
     "refusal.dinah.unknown-route": {
-      "text": "diese Werkbank deklariert keine Route namens {detail}.",
-      "context": "The sentence printed after the refusal name dinah.unknown-route, which a write naming a route the workbench does not declare carries. {detail} is the route name the reader typed. The declared names follow in a fragment, so a workbench declaring no route at all ends the sentence here.",
-      "source": "4425424ee0e4825f"
-    },
+    "text": "diese Werkbank deklariert keine Route namens {detail}.",
+    "context": "The sentence printed after the refusal name dinah.unknown-route, which a write naming a route the workbench does not declare carries. {detail} is the route name the reader typed. The declared names follow in a fragment, so a workbench declaring no route at all ends the sentence here.",
+    "source": "4425424ee0e4825f"
+  },
     "refusal.dinah.unknown-route.declared": {
-      "text": " Die Routen, die sie deklariert, sind: {routes}.",
-      "context": "A fragment of refusal.dinah.unknown-route, printed when the workbench declares at least one route. {routes} is the declared names in declaration order, read off the workbench rather than written here, so a route name is never translated.",
-      "source": "9074205180d02d58"
-    },
+    "text": " Die Routen, die sie deklariert, sind: {routes}.",
+    "context": "A fragment of refusal.dinah.unknown-route, printed when the workbench declares at least one route. {routes} is the declared names in declaration order, read off the workbench rather than written here, so a route name is never translated.",
+    "source": "9074205180d02d58"
+  },
     "refusal.dinah.unknown-route.next": {
-      "text": " Nennen Sie stattdessen eine davon.",
-      "context": "The next step of refusal.dinah.unknown-route on a workbench that declares routes, spliced onto the sentence that just listed them.",
-      "source": "47ef8e6442436430"
-    },
+    "text": " Nennen Sie stattdessen eine davon.",
+    "context": "The next step of refusal.dinah.unknown-route on a workbench that declares routes, spliced onto the sentence that just listed them.",
+    "source": "47ef8e6442436430"
+  },
     "refusal.dinah.unknown-route.none": {
-      "text": " Deklarieren Sie zuerst eine Route im routes-Block der Werkbank, oder belassen Sie die Karte auf der vollständigen Spaltenliste.",
-      "context": "The next step of refusal.dinah.unknown-route on a workbench declaring no route at all, where there is no name to offer the reader instead. routes is a frontmatter key and is never translated.",
-      "source": "14664d0b7da55488"
-    },
+    "text": " Deklarieren Sie zuerst eine Route im routes-Block der Werkbank, oder belassen Sie die Karte auf der vollständigen Spaltenliste.",
+    "context": "The next step of refusal.dinah.unknown-route on a workbench declaring no route at all, where there is no name to offer the reader instead. routes is a frontmatter key and is never translated.",
+    "source": "14664d0b7da55488"
+  },
     "routes.empty": {
-      "text": "Diese Werkbank deklariert keine Route, also durchläuft jede Karte ihre vollständige Spaltenliste.",
-      "context": "Printed in place of the routes listing when the workbench's own definition declares none. It says what that means rather than only that the list is empty.",
-      "source": "67256972d4f2ca77"
-    },
+    "text": "Diese Werkbank deklariert keine Route, also durchläuft jede Karte ihre vollständige Spaltenliste.",
+    "context": "Printed in place of the routes listing when the workbench's own definition declares none. It says what that means rather than only that the list is empty.",
+    "source": "67256972d4f2ca77"
+  },
     "routes.skip.operator-owned": {
-      "text": "{column} (Betreiber)",
-      "context": "One skipped column in the routes listing, where the workbench reserves that column to its operator. {column} is the column's own reference and is never translated. The mark answers the one question an operator asks of a road somebody drew.",
-      "source": "b9b69e8764e34212"
-    },
+    "text": "{column} (Betreiber)",
+    "context": "One skipped column in the routes listing, where the workbench reserves that column to its operator. {column} is the column's own reference and is never translated. The mark answers the one question an operator asks of a road somebody drew.",
+    "source": "b9b69e8764e34212"
+  },
     "check.add.8": {
-      "text": "die Route führt jede dem Betreiber vorbehaltene Spalte vor der Karte",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "f61b4bc3d6eb1fea"
-    },
+    "text": "die Route führt jede dem Betreiber vorbehaltene Spalte vor der Karte",
+    "context": "One row of the precondition list of a command outside the five the profile specifies.",
+    "source": "f61b4bc3d6eb1fea"
+  },
     "check.set.11": {
-      "text": "die neue Spalte eines Eintrags ist eine, die die Route der Karte führt",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "da0b7957de43169a"
-    },
+    "text": "die neue Spalte eines Eintrags ist eine, die die Route der Karte führt",
+    "context": "One row of the precondition list of a command outside the five the profile specifies.",
+    "source": "da0b7957de43169a"
+  },
     "check.card-route-skips-operator-column": {
-      "text": "{detail} folgt einer Route, die die Karte an einer Spalte vorbeiführt, die diese Werkbank ihrem Betreiber vorbehält",
-      "context": "A check finding: a card's route omits an operator-owned column the card has not yet passed, which every verb that writes a route refuses, so it arrived by a hand edit. {detail} carries the card and the column, in that order. The finding clears once the card has passed the column.",
-      "source": "d730a37fa11686d2"
-    }
+    "text": "{detail} folgt einer Route, die die Karte an einer Spalte vorbeiführt, die diese Werkbank ihrem Betreiber vorbehält",
+    "context": "A check finding: a card's route omits an operator-owned column the card has not yet passed, which every verb that writes a route refuses, so it arrived by a hand edit. {detail} carries the card and the column, in that order. The finding clears once the card has passed the column.",
+    "source": "d730a37fa11686d2"
+  }
   }
 }

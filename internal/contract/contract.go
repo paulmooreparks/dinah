@@ -989,6 +989,13 @@ func RefuseWith(name, detail string, extra map[string]string) *Refusal {
 // interpolates it, so the Malformed shape does not declare it in Values.
 const ValueColumn = "column"
 
+// ValueHarness is the harness a request declared, filled in a no-owner
+// refusal's Extra when the request that raised it named one. It is what
+// tells the harness-variant sentence apart from the plain one, and its
+// presence is the whole of the condition: the sentence never interpolates
+// the value itself, only tests whether it is there.
+const ValueHarness = "harness"
+
 // Stale is the error a verb returns when the request's basis does not name
 // the card's current revision. It carries that revision, which CORE-BASIS-4
 // requires and which is what the caller reads against before retrying.

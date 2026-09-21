@@ -279,7 +279,7 @@ func (l *Library) Reshape(req *Request) (*ReshapeReport, error) {
 		return nil, contract.Refuse(contract.NoOperator, "")
 	}
 	if req.Actor == "" {
-		return nil, contract.Refuse(contract.NoOwner, "")
+		return nil, contract.RefuseWith(contract.NoOwner, "", noOwnerExtra(req))
 	}
 	source := strings.TrimSpace(req.From)
 	if source == "" {

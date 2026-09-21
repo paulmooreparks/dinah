@@ -377,8 +377,10 @@ func TestThePublishedCheckListsCarryTheFieldRowWhereCanLandRunsIt(t *testing.T) 
 		// Each count and each position moved by one at dinah-496, which put the
 		// harness row at the head of every writing command's list, and pull's
 		// count moved by three because the tier gate's other two answers were
-		// appended behind its own tier row.
-		{command: "move", rows: 15, position: 13},
+		// appended behind its own tier row. move's count and position moved by
+		// one more at dinah-540, which inserted a no-owner row ahead of the
+		// field row.
+		{command: "move", rows: 16, position: 14},
 		{command: "pull", rows: 22, position: 15},
 	}
 	numbered := regexp.MustCompile(`^  (\d+) `)
@@ -436,9 +438,9 @@ func TestThePublishedCheckListsCarryTheFieldRowWhereCanLandRunsIt(t *testing.T) 
 // sentence a moved key came to rest on.
 func TestTheRenumberedCheckKeysCarryTheirNewTextInEveryCatalogue(t *testing.T) {
 	moved := map[string]string{
-		"check.move.10": "the card carries a value for every field the destination requires",
-		"check.move.11": "the card has not reached the departure column's loop limit",
-		"check.move.12": "the card carries no unresolved item that names the departure column",
+		"check.move.14": "the card carries a value for every field the destination requires",
+		"check.move.15": "the card has not reached the departure column's loop limit",
+		"check.move.16": "the card carries no unresolved item that names the departure column",
 		"check.pull.12": "the card carries a value for every field the destination requires",
 		"check.pull.13": "the card carries no unresolved item that names the departure column",
 		"check.pull.14": "taking the card up at the destination is legal for whoever asks",

@@ -2575,10 +2575,11 @@ authorization; the format has no account system, and honesty is enforced
 socially and by the journal being append-only, which is the same stance
 Andoneer takes with self-reported agent identity. The tool resolves the name
 the same way it resolves language: per-invocation flag, then environment, then
-`actor:` in the user config, and it refuses to write an event with no actor
-rather than inventing one. One seat running many agents is therefore many
-actors in one workbench, and that is what makes the journal's story readable
-after the fact.
+`actor:` in the user config, the last of these three only for a call that
+declares no harness, and it refuses to write an event with no actor rather
+than inventing one. One seat running many agents is therefore many actors in
+one workbench, and that is what makes the journal's story readable after the
+fact.
 
 A journal line's `actor` carries the name under `name` and, beside it, whatever
 the caller declared about what performed the act:
@@ -2616,7 +2617,11 @@ user-config rung for any of them, which is a narrower ladder than the one
 `DINAH_ACTOR` runs: the user config is one file shared by every process on the
 machine, so a model recorded there would be stamped on acts performed by
 something else entirely, and a flag would put the declaration on the same line
-as the act, where the text that composes the command chooses it.
+as the act, where the text that composes the command chooses it. The actor
+ladder accepted this same risk once, for the sake of the operator's own
+convenience at a terminal; it now narrows that risk rather than removing it,
+by reading the same signal, a declared harness, that already tells the four
+agent facts apart from a person typing.
 
 The harness name is one segment matching `^[a-z][a-z0-9]*(-[a-z0-9]+)*$`, which
 is one segment of the declared-field key grammar, because a later card forms
