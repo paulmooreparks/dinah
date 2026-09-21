@@ -945,6 +945,31 @@
 			"text": "Comment {ref} has been edited outside Dinah, so saving it here will not record the change. Restore the text, or run dinah accept-divergence on it.",
 			"context": "Error when a comment is opened whose body no longer matches the digest its anchor records. The file is opened anyway, because restoring the text by hand is the first remedy and the author needs the file to do it; what is withheld is the editing session, so a save writes nothing through the verb. {ref} is the comment's own reference.",
 			"skeleton": true
+		},
+		"dialog.comment.delete.confirm": {
+			"text": "Delete the comment {ref}? This cannot be undone.",
+			"context": "The modal shown before one comment is deleted from the sidebar. {ref} is the comment's own reference, which is the reference its row is drawn with.",
+			"skeleton": true
+		},
+		"dialog.comment.delete.confirm.many": {
+			"text": "Delete {count} comments? This cannot be undone.",
+			"context": "The modal shown before several comments are deleted at once. {count} is how many of the selected rows resolved to a comment, which is why it can be smaller than the number of rows selected.",
+			"skeleton": true
+		},
+		"dialog.comment.delete.action": {
+			"text": "Delete",
+			"context": "The affirmative button of the modal shown before comments are deleted. The editor supplies Cancel itself.",
+			"skeleton": true
+		},
+		"dialog.comment.delete.designated.confirm": {
+			"text": "The comment {ref} is the answer of record for {item}. Deleting it reopens {item}. Delete it and reopen the item?",
+			"context": "The second modal, shown when Dinah refused to delete a comment because it is a checklist item's answer of record. {ref} is the comment's own reference and {item} is the item's reference as Dinah's refusal named it. Confirming deletes the comment and reopens the item in one act.",
+			"skeleton": true
+		},
+		"dialog.comment.delete.designated.action": {
+			"text": "Delete and Reopen",
+			"context": "The affirmative button of that second modal. The editor supplies Cancel itself.",
+			"skeleton": true
 		}
 	}
 }

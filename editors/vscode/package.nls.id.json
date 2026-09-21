@@ -56,5 +56,6 @@
 	"manifest.command.dinah.tree.raiseQuestion.title": "Dinah: Raise an Open Question",
 	"manifest.command.dinah.tree.recordDecision.title": "Dinah: Record a Decision",
 	"manifest.command.dinah.tree.addCriterion.title": "Dinah: Add an Acceptance Criterion",
-	"manifest.command.dinah.tree.openComment.title": "Dinah: Open Comment"
+	"manifest.command.dinah.tree.openComment.title": "Dinah: Open Comment",
+	"manifest.command.dinah.tree.deleteComment.title": "Dinah: Delete Comment"
 }

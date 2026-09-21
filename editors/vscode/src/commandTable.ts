@@ -42,7 +42,7 @@ import {
 	invokeCommentOnColumn,
 	invokeEditColumnInstructions,
 } from "./columnCommands";
-import { invokeOpenComment } from "./commentCommands";
+import { invokeDeleteComment, invokeOpenComment } from "./commentCommands";
 import type { CommentBodyHost, OpenComments } from "./commentBody";
 import { invokeAttachFile, invokeNewCard } from "./creationCommands";
 import {
@@ -69,6 +69,7 @@ import {
 	COMMAND_COPY_CARD_REF,
 	COMMAND_COPY_WORKBENCH_PATH,
 	COMMAND_DELETE_ATTACHMENT,
+	COMMAND_DELETE_COMMENT,
 	COMMAND_EDIT_COLUMN_INSTRUCTIONS,
 	COMMAND_EDIT_WORKBENCH_DEFINITION,
 	COMMAND_FAIL_ITEM,
@@ -195,4 +196,5 @@ export const ROW_COMMAND_TABLE: readonly RowCommand[] = [
 	{ id: COMMAND_RECORD_DECISION, invoke: invokeRecordDecision },
 	{ id: COMMAND_ADD_CRITERION, invoke: invokeAddCriterion },
 	{ id: COMMAND_OPEN_COMMENT, invoke: invokeOpenComment },
+	{ id: COMMAND_DELETE_COMMENT, invoke: invokeDeleteComment },
 ];

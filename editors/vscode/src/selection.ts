@@ -21,6 +21,7 @@ import {
 	COMMAND_COPY_CARD_REF,
 	COMMAND_COPY_WORKBENCH_PATH,
 	COMMAND_DELETE_ATTACHMENT,
+	COMMAND_DELETE_COMMENT,
 	COMMAND_EDIT_COLUMN_INSTRUCTIONS,
 	COMMAND_EDIT_WORKBENCH_DEFINITION,
 	COMMAND_FAIL_ITEM,
@@ -114,6 +115,9 @@ export const SELECTION_POLICIES: Readonly<Record<string, SelectionEntry>> = {
 	// Open Comment is the same shape as Open Item: three selected comments
 	// open three files and no answer is shared between them.
 	[COMMAND_OPEN_COMMENT]: { policy: "fanOut", effect: "perRow" },
+	// Delete Comment is oneInput for the reason Delete Attachment is: one
+	// confirmation applies to every selected comment.
+	[COMMAND_DELETE_COMMENT]: { policy: "oneInput" },
 	// The three comment commands ask nothing. Each mints one empty comment on
 	// the row it was invoked on and opens that comment's file, and the author
 	// then writes the body in that one editor tab. composeComment opens one

@@ -1,21 +1,29 @@
-// The one command a comment row contributes: opening the comment's own anchor
-// file.
+// The two commands a comment row contributes: Open Comment, which opens the
+// comment's own anchor file, and Delete Comment, which runs `dinah delete` on
+// the comment after the reader confirms it.
 //
 // Nothing here imports vscode, for the reason cardCommands.ts's header gives.
-// The handler is a function over an injected host, so the unit layer asserts on
-// the argv it composes and on the message a refusal produces without a VS Code
-// window.
+// The handlers are functions over an injected host, so the unit layer asserts
+// on the argv they compose and on the message a refusal produces without a
+// VS Code window.
 //
-// One command and no more, because Dinah offers no more. `dinah comment`
-// records a comment on a card, on a column, or on one of a card's items, and
-// it refuses a comment's own reference, so a Reply entry here would offer a
-// refusal, and there is no verb that edits or deletes a comment for an entry
-// to run.
+// A comment's body is edited by saving the file Open Comment opens, which
+// writes it through the verb. No Reply entry is offered, because `dinah
+// comment` records a comment on a card, on a column, or on one of a card's
+// items, and it refuses a comment's own reference, so a Reply entry here would
+// offer a refusal.
 
-import type { BulkReport } from "./bulk";
+import type { BulkReport, RowOutcome } from "./bulk";
 import { runBulk } from "./bulk";
 import type { CommandHost } from "./cardCommands";
-import { isRow, pinnedArgv, refusalMessage, rowRef } from "./cardCommands";
+import {
+	isRow,
+	pinnedArgv,
+	refusalMessage,
+	rowOutcomeFor,
+	rowRef,
+	runVerb,
+} from "./cardCommands";
 import type { Spawner } from "./cli";
 import { runDinah } from "./cli";
 import type { Wiring } from "./commandTable";
@@ -146,5 +154,106 @@ export async function invokeOpenComment(
 			);
 			return { kind: "done" } as const;
 		},
+	);
+}
+
+/**
+ * Asks once, before anything spawns, whether to delete what was selected.
+ *
+ * askDeleteAttachmentConfirmation with the comment strings. One comment is
+ * named by the reference the reader sees drawn in the tree, and several are
+ * counted; the count is the resolved one, because this function is handed the
+ * resolved list.
+ */
+export async function askDeleteCommentConfirmation(
+	resolved: readonly CommentCommandContext[],
+	host: CommandHost,
+): Promise<true | undefined> {
+	const confirmed = await host.confirmDestructive(
+		resolved.length === 1
+			? host.t("dialog.comment.delete.confirm", { ref: resolved[0].ref })
+			: host.t("dialog.comment.delete.confirm.many", {
+					count: String(resolved.length),
+				}),
+		host.t("dialog.comment.delete.action"),
+	);
+	return confirmed ? true : undefined;
+}
+
+/** The refusal `dinah delete` gives a comment that is an item's answer of record. */
+const NOT_DESIGNATABLE = "dinah.not-designatable";
+
+/**
+ * Deletes one comment the reader has already confirmed, and reports the
+ * outcome that is final.
+ *
+ * A comment can be the answer of record for a checklist item, and `dinah
+ * delete` refuses such a comment with dinah.not-designatable unless it is
+ * forced, when it deletes the comment and reopens the item in one act. So the
+ * first attempt runs quietly rather than through runVerb, which would show the
+ * refusal as an error on a single row and leave it on screen after the forced
+ * delete succeeded. The call is built exactly as runVerb builds it.
+ *
+ * Every path reports at most once and checkpoints exactly once. The forced
+ * delete reports and checkpoints through runVerb. A declined second
+ * confirmation shows the first refusal and checkpoints, and so does every
+ * other outcome that is not ok. The item named in the second confirmation is
+ * the refusal's own context.item, and a refusal carrying none raises no second
+ * confirmation, because the prompt must not name an item the extension did
+ * not receive.
+ */
+export async function deleteCommentAt(
+	context: CommentCommandContext,
+): Promise<RowOutcome> {
+	const first = await runDinah(
+		context.spawner,
+		context.exe,
+		pinnedArgv(context.root, ["delete", context.ref, "--yes"]),
+		{ cwd: context.root },
+	);
+	if (first.kind === "ok") {
+		await context.host.checkpoint(context.folder);
+		return { kind: "done" };
+	}
+	const item =
+		first.kind === "refused" && first.refusal === NOT_DESIGNATABLE
+			? (first.context?.item ?? "")
+			: "";
+	if (item !== "") {
+		const confirmed = await context.host.confirmDestructive(
+			context.host.t("dialog.comment.delete.designated.confirm", {
+				ref: context.ref,
+				item,
+			}),
+			context.host.t("dialog.comment.delete.designated.action"),
+		);
+		if (confirmed) {
+			return rowOutcomeFor(
+				await runVerb(context, ["delete", context.ref, "--yes", "--force"]),
+			);
+		}
+	}
+	context.host.showError(refusalMessage(first));
+	await context.host.checkpoint(context.folder);
+	return rowOutcomeFor(first);
+}
+
+/** Asks once, then deletes every selected comment. */
+export async function invokeDeleteComment(
+	elements: readonly TreeElement[],
+	wiring: Wiring,
+): Promise<BulkReport> {
+	return runBulk(
+		elements,
+		(element) => rowRef(element, wiring.t),
+		(element) =>
+			contextForComment(element, wiring.exe, wiring.cardHost, wiring.spawner),
+		{
+			host: wiring.cardHost,
+			t: wiring.t,
+			skipReason: NO_COMMENT,
+		},
+		askDeleteCommentConfirmation,
+		async (context, _answer, host) => deleteCommentAt({ ...context, host }),
 	);
 }

@@ -22,6 +22,8 @@
 // derived from the merged tree rather than carried forward from the spec,
 // because three criteria on that card named totals that had gone stale before
 // anybody read them.
+//
+// dinah-550 adds the test naming the five runtime keys Delete Comment shows.
 
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -67,7 +69,7 @@ const RUNTIME_REMOVED: readonly string[] = [
 	"item.document.textUnavailable",
 ];
 
-/** The one manifest key dinah-519 adds, for the comment row's one command. */
+/** The one manifest key dinah-519 adds, which titles Open Comment. */
 const MANIFEST_ADDED = "manifest.command.dinah.tree.openComment.title";
 
 /** The four manifest keys dinah-515 adds, one per language-server setting. */
@@ -127,6 +129,20 @@ const RUNTIME_REMOVED_517 = "form.file.kind.placeholder";
 const CATALOGUE_ADDED_BY_517 = 2;
 const CATALOGUE_REMOVED_BY_517 = 1;
 
+/**
+ * The five runtime keys dinah-550 adds for deleting a comment: the first
+ * confirmation for one comment and for several, its action label, and the
+ * second confirmation a comment that is an item's answer of record raises,
+ * with its own action label.
+ */
+const RUNTIME_ADDED_550: readonly string[] = [
+	"dialog.comment.delete.confirm",
+	"dialog.comment.delete.confirm.many",
+	"dialog.comment.delete.action",
+	"dialog.comment.delete.designated.confirm",
+	"dialog.comment.delete.designated.action",
+];
+
 /** The three manifest keys dinah-517 adds, one title per filing command. */
 const MANIFEST_ADDED_517: readonly string[] = [
 	"manifest.command.dinah.tree.raiseQuestion.title",
@@ -148,25 +164,38 @@ test("the English runtime catalogue carries the base count and this card's addit
 	// deletes dinah-506's draft apparatus with the twelve keys it rendered
 	// and the label for the note an item's answer stopped being, and adds the
 	// one the second review cycle needed for a comment already diverged when
-	// a session opens it.
+	// a session opens it. dinah-550 adds the five strings Delete Comment
+	// shows.
 	assert.equal(
 		runtimeKeys().size,
 		CATALOGUE_BASE -
 			CATALOGUE_REMOVED_BY_THIS_CARD +
 			CATALOGUE_ADDED_BY_THIS_CARD +
 			CATALOGUE_ADDED_BY_517 -
-			CATALOGUE_REMOVED_BY_517,
+			CATALOGUE_REMOVED_BY_517 +
+			RUNTIME_ADDED_550.length,
 	);
 });
 
-test("the base manifest catalogue carries exactly 58 keys", () => {
-	// 51 before dinah-519, plus the one command its comment row contributes,
+test("the base manifest catalogue carries exactly 59 keys", () => {
+	// 51 before dinah-519, plus Open Comment, which it put on the comment row,
 	// the one command dinah-518 puts on a column row, and the four settings
 	// dinah-515's language server contributes, less the two draft commands
 	// dinah-525 retires with the apparatus behind them, plus dinah-517's
 	// three filing commands less the one command they replace, plus the one
-	// command dinah-549 puts on a card row.
-	assert.equal(manifestKeys().size, 58);
+	// command dinah-549 puts on a card row, plus the one command dinah-550
+	// puts on a comment row.
+	assert.equal(manifestKeys().size, 59);
+});
+
+test("the five runtime keys dinah-550 adds are present", () => {
+	const keys = runtimeKeys();
+	assert.equal(RUNTIME_ADDED_550.length, 5);
+	assert.deepEqual(
+		RUNTIME_ADDED_550.filter((key) => !keys.has(key)),
+		[],
+		"each key above is a string Delete Comment shows",
+	);
 });
 
 test("the two runtime keys dinah-517 adds are present and the pick placeholder is gone", () => {
@@ -218,7 +247,7 @@ test("the six runtime keys dinah-519 adds are present and its eight removals are
 test("the one manifest key dinah-519 adds is present", () => {
 	assert.ok(
 		manifestKeys().has(MANIFEST_ADDED),
-		`${MANIFEST_ADDED} is what titles the comment row's one command`,
+		`${MANIFEST_ADDED} is what titles Open Comment`,
 	);
 });
 

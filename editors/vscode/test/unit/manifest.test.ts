@@ -1048,14 +1048,14 @@ test("the openAttachment entry is declared where identity.ts puts it, under the 
 	assert.equal(commands[declared].title, "Dinah: Open Attachment");
 });
 
-test("the comment row's one command is declared, menued on an equality, and hidden from the palette", () => {
+test("Open Comment is declared, menued on an equality, and hidden from the palette", () => {
 	// dinah-519/criteria/15. The roster tests above hold the three arrays to
 	// being a complete partition of TREE_COMMANDS in general; this names the
 	// command dinah-519 adds, because a partition test passes over a command
 	// nobody declared at all.
 	assert.ok(
 		(TREE_COMMANDS as readonly string[]).includes(COMMAND_OPEN_COMMENT),
-		"identity.ts does not name the comment row's command",
+		"identity.ts does not name Open Comment",
 	);
 	assert.ok(
 		(ROW_COMMANDS as readonly string[]).includes(COMMAND_OPEN_COMMENT),
