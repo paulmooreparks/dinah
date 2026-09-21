@@ -202,10 +202,20 @@ export const COMMAND_ADD_CRITERION = "dinah.tree.addCriterion";
  *
  * It sits beside the item command above rather than with it, because the
  * column is a second holder of comments rather than a second kind of item.
- * Its draft route is the item command's own, and only the row it is invoked
- * on and the reference that row resolves to differ.
+ * Like the item command, it mints an empty comment on the row it is invoked
+ * on and opens that comment's file, and only the row and the reference that
+ * row resolves to differ.
  */
 export const COMMAND_COMMENT_ON_COLUMN = "dinah.tree.commentOnColumn";
+
+/**
+ * The comment command a card row offers, contributed by dinah-549.
+ *
+ * The card is the third and last holder of comments, after the item and the
+ * column. The command mints an empty comment on the card and opens that
+ * comment's file, as the other two do on their own rows.
+ */
+export const COMMAND_COMMENT_ON_CARD = "dinah.tree.commentOnCard";
 
 /**
  * The one command a comment row offers, which opens the comment's own anchor
@@ -260,6 +270,7 @@ export const TREE_COMMANDS: readonly string[] = [
 	COMMAND_OPEN_ITEM,
 	COMMAND_COMMENT_ON_ITEM,
 	COMMAND_COMMENT_ON_COLUMN,
+	COMMAND_COMMENT_ON_CARD,
 	COMMAND_RESOLVE_ITEM,
 	COMMAND_VERIFY_ITEM,
 	COMMAND_FAIL_ITEM,
@@ -304,6 +315,7 @@ export const ROW_COMMANDS: readonly string[] = [
 	COMMAND_OPEN_ITEM,
 	COMMAND_COMMENT_ON_ITEM,
 	COMMAND_COMMENT_ON_COLUMN,
+	COMMAND_COMMENT_ON_CARD,
 	COMMAND_RESOLVE_ITEM,
 	COMMAND_VERIFY_ITEM,
 	COMMAND_FAIL_ITEM,

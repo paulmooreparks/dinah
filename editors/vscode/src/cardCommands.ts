@@ -25,6 +25,7 @@ import type { Spawner } from "./cli";
 import { runDinah } from "./cli";
 import type { CliOutcome } from "./cli";
 import type { Wiring } from "./commandTable";
+import { composeComment } from "./commentBody";
 import { ENGLISH } from "./l10n";
 import type { Localizer } from "./l10n";
 import type { ReporterHost } from "./reporter";
@@ -953,6 +954,46 @@ export async function invokeCopyCardRef(
 		// command speaks through (D-23).
 		async () => ({ kind: "done" }),
 		{ finish: copyCardRefs, successMessage: copiedRefMessage },
+	);
+}
+
+/**
+ * Mints an empty comment on the one selected card and opens its file.
+ *
+ * This is invokeCommentOnItem with a card row in place of an item row.
+ * Nothing is asked and nothing is confirmed. The comment exists from the
+ * moment the command runs, so the author writes into the entity itself and a
+ * save of that tab writes its body through the verb; an author who says
+ * nothing after all deletes the comment from its own row.
+ *
+ * It goes through cardRun rather than calling runBulk itself, so it resolves,
+ * reports and skips as every other card-row command does, and a row naming no
+ * card is skipped with NO_CARD.
+ */
+export async function invokeCommentOnCard(
+	elements: readonly TreeElement[],
+	wiring: Wiring,
+): Promise<BulkReport> {
+	return cardRun(
+		elements,
+		wiring,
+		async (resolved, host) => {
+			if (resolved.length > 1) {
+				host.showError(host.t("dialog.bulk.oneRowOnly"));
+				return undefined;
+			}
+			return resolved.length === 1 ? (true as const) : undefined;
+		},
+		async (context) => {
+			await composeComment(
+				wiring.commentHost,
+				wiring.spawner,
+				wiring.exe,
+				wiring.openComments,
+				{ root: context.root, folder: context.folder, ref: context.ref },
+			);
+			return { kind: "done" } as const;
+		},
 	);
 }
 

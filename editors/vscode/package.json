@@ -184,6 +184,10 @@
         "title": "%manifest.command.dinah.tree.commentOnColumn.title%"
       },
       {
+        "command": "dinah.tree.commentOnCard",
+        "title": "%manifest.command.dinah.tree.commentOnCard.title%"
+      },
+      {
         "command": "dinah.tree.resolveItem",
         "title": "%manifest.command.dinah.tree.resolveItem.title%"
       },
@@ -304,6 +308,10 @@
         },
         {
           "command": "dinah.tree.commentOnColumn",
+          "when": "false"
+        },
+        {
+          "command": "dinah.tree.commentOnCard",
           "when": "false"
         },
         {
@@ -496,6 +504,11 @@
           "command": "dinah.tree.addCriterion",
           "when": "view == dinah.workbenchView && viewItem =~ /^dinah\\.card\\.|^dinah\\.collection\\.item$|^dinah\\.collection\\.item\\.criterion$/",
           "group": "2_create@3"
+        },
+        {
+          "command": "dinah.tree.commentOnCard",
+          "when": "view == dinah.workbenchView && viewItem =~ /^dinah\\.card\\./",
+          "group": "2_create@4"
         }
       ],
       "editor/title": []

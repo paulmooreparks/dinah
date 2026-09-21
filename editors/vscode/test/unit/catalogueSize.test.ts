@@ -157,13 +157,14 @@ test("the English runtime catalogue carries the base count and this card's addit
 	);
 });
 
-test("the base manifest catalogue carries exactly 57 keys", () => {
+test("the base manifest catalogue carries exactly 58 keys", () => {
 	// 51 before dinah-519, plus the one command its comment row contributes,
 	// the one command dinah-518 puts on a column row, and the four settings
 	// dinah-515's language server contributes, less the two draft commands
 	// dinah-525 retires with the apparatus behind them, plus dinah-517's
-	// three filing commands less the one command they replace.
-	assert.equal(manifestKeys().size, 57);
+	// three filing commands less the one command they replace, plus the one
+	// command dinah-549 puts on a card row.
+	assert.equal(manifestKeys().size, 58);
 });
 
 test("the two runtime keys dinah-517 adds are present and the pick placeholder is gone", () => {

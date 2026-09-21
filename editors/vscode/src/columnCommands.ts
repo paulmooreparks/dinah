@@ -222,12 +222,13 @@ export async function invokeEditColumnInstructions(
 }
 
 /**
- * Writes a draft for the one selected column and opens it, and spawns nothing.
+ * Mints an empty comment on the one selected column and opens its file.
  *
- * This is invokeCommentOnItem with a column row in place of an item row. The
- * draft's own commands post it and throw it away from its editor tab, so this
- * command asks nothing and reports nothing but where the draft is, and the
- * verb is still what writes the comment.
+ * This is invokeCommentOnItem with a column row in place of an item row.
+ * Nothing is asked and nothing is confirmed. The comment exists from the
+ * moment the command runs, so the author writes into the entity itself and a
+ * save of that tab writes its body through the verb; an author who says
+ * nothing after all deletes the comment from its own row.
  *
  * It resolves through contextForColumn rather than through the creation
  * commands' own resolver, because commenting reads no ColumnView field: the
