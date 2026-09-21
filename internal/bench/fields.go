@@ -123,6 +123,10 @@ const (
 	HoldOff  = "off"
 	HoldOut  = "out"
 	HoldBoth = "both"
+	// ColumnBodyLimitField is the workbench's declared size, in bytes, above
+	// which dinah check reports a column's body. It is absent unless the
+	// operator declares it, and absent means no body is measured.
+	ColumnBodyLimitField = "column_body_limit"
 	// StatusField is a workstream's status.
 	StatusField = "status"
 	// FilenameField is an attachment's filename.
@@ -186,6 +190,7 @@ var fields = map[string][]Field{
 		{Name: TitleField},
 		{Name: SlugField, Guard: GuardSlug},
 		{Name: OperatorField},
+		{Name: ColumnBodyLimitField, Clearable: true, Guard: GuardCapacity},
 		{Name: InstructionsField, Prose: true, Clearable: true},
 	},
 	KindColumn: {

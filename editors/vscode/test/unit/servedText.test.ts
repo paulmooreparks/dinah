@@ -155,7 +155,12 @@ test("servedText.ts imports no vscode symbol", () => {
 // The Markdown rendering
 // ---------------------------------------------------------------------------
 
-const LABELS = { global: "Global", standing: "Standing", column: "Column" };
+const LABELS = {
+	global: "Global",
+	standing: "Standing",
+	column: "Column",
+	columnAttachments: "Attachments, this column",
+};
 
 test("every present layer gets one heading, in the order the chain is served in", () => {
 	// dinah-270 AC-4. The layer text is compared as an exact substring rather
@@ -193,6 +198,34 @@ test("a layer that is absent or empty contributes no heading at all", () => {
 	assert.equal(globalOnly, "## Global\n\njust this");
 
 	assert.equal(renderInstructionsMarkdown({}, LABELS), "");
+});
+
+test("a column's attachments render as one bullet each after the column's layer", () => {
+	// dinah-545/criteria/23. One entry carries a description and one does
+	// not, so both bullet shapes are reached, and the section comes after the
+	// column's own layer.
+	const chain: InstructionChain = {
+		column: "column text",
+		column_attachments: [
+			{ id: "3f0c9a1b2d4e", ordinal: 1, ref: "venue/attachments/1", filename: "deposit-policy.pdf", description: "what the venue refunds", provenance: "ana", path: "/tmp/a" },
+			{ id: "4a1d0b2c3e5f", ordinal: 2, ref: "venue/attachments/2", filename: "map.png", provenance: "ana" },
+		],
+	};
+	assert.equal(
+		renderInstructionsMarkdown(chain, LABELS),
+		"## Column\n\ncolumn text\n\n## Attachments, this column\n\n" +
+			"- `venue/attachments/1` deposit-policy.pdf: what the venue refunds\n" +
+			"- `venue/attachments/2` map.png",
+	);
+});
+
+test("a chain carrying no attachments renders exactly what it rendered before", () => {
+	// dinah-545/criteria/23. An absent listing and an empty one both leave the
+	// document as the three layers alone would draw it.
+	const chain: InstructionChain = { standing: "standing text", column: "column text" };
+	const before = "## Standing\n\nstanding text\n\n## Column\n\ncolumn text";
+	assert.equal(renderInstructionsMarkdown(chain, LABELS), before);
+	assert.equal(renderInstructionsMarkdown({ ...chain, column_attachments: [] }, LABELS), before);
 });
 
 // ---------------------------------------------------------------------------

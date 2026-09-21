@@ -100,11 +100,14 @@ Make that call before you act on a card you have not already met.
 
 ## What a withheld layer means, and how you get it back
 
-The chain has three layers: the user-global text, the workbench's standing
-text, and the column's own. Serving all three on every act would send you the
-same prose a dozen times in a session, so the head remembers what it has
-already sent you on this connection and withholds a layer whose current text
-you have already been given.
+The chain has three layers, which are the user-global text, the workbench's
+standing text and the column's own, and after them comes the listing of the
+column's attachments, served as `column_attachments` where the column carries
+any. The listing is withheld and reread on the same terms as the layers, and it
+is read from disk on every serve. Serving all of that on every act would send
+you the same prose a dozen times in a session, so the head remembers what it
+has already sent you on this connection and withholds a layer whose current
+text you have already been given.
 
 A response that withholds says so:
 
@@ -126,10 +129,10 @@ answer is yes for every name, carry on. Where it is no for any of them, call
 ```
 
 That value names a column rather than a card. A column-shaped request never
-withholds, so the answer carries all three layers in full whatever you already
-hold, and one call is the whole of the recovery. There is no window to be
-inside and no digest to compare. Calling it when you did not need to costs one
-arrival and nothing else.
+withholds, so the answer carries every layer and the listing in full whatever
+you already hold, and one call is the whole of the recovery. There is no window
+to be inside and no digest to compare. Calling it when you did not need to
+costs one arrival and nothing else.
 
 The answer to a column-shaped request is thinner than a claim's in one way you
 should expect rather than read as a fault: it carries no `legal_moves` and no
@@ -146,7 +149,10 @@ It loads the workbench's standing text and each column's text once, at startup,
 so a change to either reaches you when the process restarts and not before.
 The user-global layer is read from disk on every serve, so an edit to that one
 does reach a running session, and it arrives as a `global` layer served in full
-where you expected it withheld.
+where you expected it withheld. The listing of a column's attachments is read
+from disk on every serve too, so a file attached while the head runs reaches
+you on the next serve at that column. Each entry's `path` member is the file
+to read the bytes from, which over this surface is the one route to them.
 
 ## Ask show for the members you want
 

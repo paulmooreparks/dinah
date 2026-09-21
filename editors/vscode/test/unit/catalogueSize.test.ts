@@ -143,6 +143,12 @@ const RUNTIME_ADDED_550: readonly string[] = [
 	"dialog.comment.delete.designated.action",
 ];
 
+/**
+ * The one runtime key dinah-545 adds: the heading above the listing of a
+ * column's attachments in the served instructions tab.
+ */
+const RUNTIME_ADDED_545: readonly string[] = ["servedText.heading.columnAttachments"];
+
 /** The three manifest keys dinah-517 adds, one title per filing command. */
 const MANIFEST_ADDED_517: readonly string[] = [
 	"manifest.command.dinah.tree.raiseQuestion.title",
@@ -165,7 +171,7 @@ test("the English runtime catalogue carries the base count and this card's addit
 	// and the label for the note an item's answer stopped being, and adds the
 	// one the second review cycle needed for a comment already diverged when
 	// a session opens it. dinah-550 adds the five strings Delete Comment
-	// shows.
+	// shows, and dinah-545 the heading above a column's attachments.
 	assert.equal(
 		runtimeKeys().size,
 		CATALOGUE_BASE -
@@ -173,7 +179,8 @@ test("the English runtime catalogue carries the base count and this card's addit
 			CATALOGUE_ADDED_BY_THIS_CARD +
 			CATALOGUE_ADDED_BY_517 -
 			CATALOGUE_REMOVED_BY_517 +
-			RUNTIME_ADDED_550.length,
+			RUNTIME_ADDED_550.length +
+			RUNTIME_ADDED_545.length,
 	);
 });
 
@@ -186,6 +193,16 @@ test("the base manifest catalogue carries exactly 59 keys", () => {
 	// command dinah-549 puts on a card row, plus the one command dinah-550
 	// puts on a comment row.
 	assert.equal(manifestKeys().size, 59);
+});
+
+test("the runtime key dinah-545 adds is present", () => {
+	const keys = runtimeKeys();
+	assert.equal(RUNTIME_ADDED_545.length, 1);
+	assert.deepEqual(
+		RUNTIME_ADDED_545.filter((key) => !keys.has(key)),
+		[],
+		"the key above is the heading the served instructions tab draws over a column's attachments",
+	);
 });
 
 test("the five runtime keys dinah-550 adds are present", () => {

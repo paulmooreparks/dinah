@@ -354,6 +354,11 @@
 			"context": "Markdown heading above the column's own layer of a served instruction chain.",
 			"source": "9e40e59654c8ad67"
 		},
+		"servedText.heading.columnAttachments": {
+			"text": "Anhänge, diese Spalte",
+			"context": "Markdown heading above the listing of the column's own attachments, served after the column's layer of a served instruction chain.",
+			"source": "a4101287ae9f5b49"
+		},
 		"servedText.malformedUri": {
 			"text": "Die URI dieses Tabs mit bereitgestelltem Text konnte nicht gelesen werden.",
 			"context": "Body of a served-text tab whose URI carries no kind, no workbench or no reference.",

@@ -287,10 +287,12 @@ var beyondChecks = map[string][]Check{
 		{Refusal: contract.UnknownPath, Key: "check.attach.1"},
 		{Refusal: contract.NoOwner, Key: "check.attach.2"},
 		{Refusal: contract.NotAttachable, Key: "check.attach.3"},
+		{Refusal: contract.NotOperator, Key: "check.attach.5"},
 		{Refusal: contract.UnknownPath, Key: "check.attach.4"},
 	},
 	"archive": {
 		{Refusal: contract.UnknownPath, Key: "check.archive.1"},
+		{Refusal: contract.NotOperator, Key: "check.archive.4"},
 		{Refusal: contract.Occupied, Key: "check.archive.2"},
 		{Refusal: contract.LastColumn, Key: "check.archive.3"},
 	},
@@ -300,11 +302,13 @@ var beyondChecks = map[string][]Check{
 	"restore": {
 		{Refusal: contract.NotArchived, Key: "check.restore.1"},
 		{Refusal: contract.NoOwner, Key: "check.restore.2"},
+		{Refusal: contract.NotOperator, Key: "check.restore.4"},
 		{Refusal: contract.Exists, Key: "check.restore.3"},
 	},
 	"delete": {
 		{Refusal: contract.UnknownPath, Key: "check.delete.1"},
 		{Refusal: contract.Unconfirmed, Key: "check.delete.2"},
+		{Refusal: contract.NotOperator, Key: "check.delete.5"},
 		{Refusal: contract.Occupied, Key: "check.delete.3"},
 		{Refusal: contract.LastColumn, Key: "check.delete.4"},
 	},
@@ -365,6 +369,7 @@ var beyondChecks = map[string][]Check{
 		{Refusal: contract.UnknownPath, Key: "check.rename.1"},
 		{Refusal: contract.NotRenamable, Key: "check.rename.2"},
 		{Refusal: contract.NoOwner, Key: "check.rename.3"},
+		{Refusal: contract.NotOperator, Key: "check.rename.6"},
 		{Refusal: contract.Malformed, Key: "check.rename.4"},
 		{Refusal: contract.Malformed, Key: "check.rename.5"},
 	},
@@ -559,6 +564,7 @@ var beyondChecks = map[string][]Check{
 	"reshape": {
 		{Refusal: contract.NoOperator, Key: "check.reshape.1"},
 		{Refusal: contract.NoOwner, Key: "check.reshape.2"},
+		{Refusal: contract.NotOperator, Key: "check.reshape.11"},
 		{Refusal: contract.UnknownPath, Key: "check.reshape.3"},
 		{Refusal: contract.Malformed, Key: "check.reshape.4"},
 		{Refusal: contract.ReshapeDestinationAmbiguous, Key: "check.reshape.5"},
