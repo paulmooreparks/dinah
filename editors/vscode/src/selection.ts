@@ -15,6 +15,7 @@ import {
 	COMMAND_BLOCK,
 	COMMAND_CHECK_WORKBENCH,
 	COMMAND_CLAIM,
+	COMMAND_COMMENT_ON_CARD,
 	COMMAND_COMMENT_ON_COLUMN,
 	COMMAND_COMMENT_ON_ITEM,
 	COMMAND_COPY_CARD_REF,
@@ -113,15 +114,14 @@ export const SELECTION_POLICIES: Readonly<Record<string, SelectionEntry>> = {
 	// Open Comment is the same shape as Open Item: three selected comments
 	// open three files and no answer is shared between them.
 	[COMMAND_OPEN_COMMENT]: { policy: "fanOut", effect: "perRow" },
-	// Comment asks nothing and spawns nothing. It writes a draft and opens
-	// it, and the post happens later from an editor with the tree selection
-	// long gone, so oneInput's definition does not describe it. One draft
-	// naming three items would also put a partial failure inside the one act
-	// the draft design exists to make safe: a post that succeeded on the
-	// first and was refused on the second cannot be retried without
-	// commenting twice on the first.
+	// The three comment commands ask nothing. Each mints one empty comment on
+	// the row it was invoked on and opens that comment's file, and the author
+	// then writes the body in that one editor tab. composeComment opens one
+	// tab for one comment, so a selection of several rows has no single place
+	// to put the author's text, and each command acts on one row only.
 	[COMMAND_COMMENT_ON_ITEM]: { policy: "rowOnly" },
 	[COMMAND_COMMENT_ON_COLUMN]: { policy: "rowOnly" },
+	[COMMAND_COMMENT_ON_CARD]: { policy: "rowOnly" },
 	// The three terminal verbs are rowOnly because one note applied to five
 	// different questions is a false record, and the tool would accept it
 	// without complaint.
@@ -137,7 +137,6 @@ export const SELECTION_POLICIES: Readonly<Record<string, SelectionEntry>> = {
 	[COMMAND_RAISE_QUESTION]: { policy: "rowOnly" },
 	[COMMAND_RECORD_DECISION]: { policy: "rowOnly" },
 	[COMMAND_ADD_CRITERION]: { policy: "rowOnly" },
-	// The two draft commands read the active editor rather than any row.
 };
 
 /**

@@ -202,10 +202,20 @@ export const COMMAND_ADD_CRITERION = "dinah.tree.addCriterion";
  *
  * It sits beside the item command above rather than with it, because the
  * column is a second holder of comments rather than a second kind of item.
- * Its draft route is the item command's own, and only the row it is invoked
- * on and the reference that row resolves to differ.
+ * Like the item command, it mints an empty comment on the row it is invoked
+ * on and opens that comment's file, and only the row and the reference that
+ * row resolves to differ.
  */
 export const COMMAND_COMMENT_ON_COLUMN = "dinah.tree.commentOnColumn";
+
+/**
+ * The comment command a card row offers, contributed by dinah-549.
+ *
+ * The card is the third and last holder of comments, after the item and the
+ * column. The command mints an empty comment on the card and opens that
+ * comment's file, as the other two do on their own rows.
+ */
+export const COMMAND_COMMENT_ON_CARD = "dinah.tree.commentOnCard";
 
 /**
  * The one command a comment row offers, which opens the comment's own anchor
@@ -213,20 +223,11 @@ export const COMMAND_COMMENT_ON_COLUMN = "dinah.tree.commentOnColumn";
  *
  * Nothing else is offered. `dinah comment` records a comment on a card, on a
  * column, or on one of a card's items, and refuses a comment's own reference,
- * so a Reply entry here would offer a refusal, and Dinah has no verb that
- * edits or deletes a comment.
+ * so a Reply entry here would offer a refusal. A comment's body is edited by
+ * saving the file this command opens, which writes it through the verb, and
+ * a comment is deleted with `dinah delete`, which no row offers.
  */
 export const COMMAND_OPEN_COMMENT = "dinah.tree.openComment";
-
-/**
- * The two commands a comment draft's own editor tab offers.
- *
- * They carry the `dinah.comment.` prefix rather than `dinah.tree.` because
- * neither reads a tree row. TREE_COMMANDS is documented as every command this
- * extension contributes rather than as a list of tree commands, and it
- * already carries the walkthrough's own command, so naming these two tree
- * commands would be the only false thing in the roster.
- */
 
 /**
  * Every command this extension contributes, in the order package.json
@@ -260,6 +261,7 @@ export const TREE_COMMANDS: readonly string[] = [
 	COMMAND_OPEN_ITEM,
 	COMMAND_COMMENT_ON_ITEM,
 	COMMAND_COMMENT_ON_COLUMN,
+	COMMAND_COMMENT_ON_CARD,
 	COMMAND_RESOLVE_ITEM,
 	COMMAND_VERIFY_ITEM,
 	COMMAND_FAIL_ITEM,
@@ -304,6 +306,7 @@ export const ROW_COMMANDS: readonly string[] = [
 	COMMAND_OPEN_ITEM,
 	COMMAND_COMMENT_ON_ITEM,
 	COMMAND_COMMENT_ON_COLUMN,
+	COMMAND_COMMENT_ON_CARD,
 	COMMAND_RESOLVE_ITEM,
 	COMMAND_VERIFY_ITEM,
 	COMMAND_FAIL_ITEM,
@@ -340,7 +343,7 @@ export const GLOBAL_COMMANDS: readonly string[] = [
  * command is neither: it acts on the active editor, so a palette invocation
  * reaches it correctly while that editor is open and nowhere else, and the
  * clause in the manifest is what says where. dinah-506's two draft commands
- * are the first of these.
+ * were the first of these.
  */
 export const EDITOR_COMMANDS: readonly string[] = [
 	// Empty since dinah-525, which deleted dinah-506's two draft commands

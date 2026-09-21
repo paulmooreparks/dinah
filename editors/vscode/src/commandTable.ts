@@ -26,6 +26,7 @@ import {
 	invokeArchiveCard,
 	invokeBlock,
 	invokeClaim,
+	invokeCommentOnCard,
 	invokeCopyCardRef,
 	invokeDeleteAttachment,
 	invokeMove,
@@ -62,6 +63,7 @@ import {
 	COMMAND_BLOCK,
 	COMMAND_CHECK_WORKBENCH,
 	COMMAND_CLAIM,
+	COMMAND_COMMENT_ON_CARD,
 	COMMAND_COMMENT_ON_COLUMN,
 	COMMAND_COMMENT_ON_ITEM,
 	COMMAND_COPY_CARD_REF,
@@ -122,8 +124,8 @@ export interface Wiring {
 		outcome: CliOutcome,
 	) => Promise<void>;
 	/**
-	 * What the Comment command writes a draft through, bound to the editor's
-	 * global storage and to vscode.workspace.fs.
+	 * What the comment commands mint a comment and write its body through,
+	 * bound to the real window and to vscode.workspace.fs.
 	 */
 	readonly commentHost: CommentBodyHost;
 	/**
@@ -184,6 +186,7 @@ export const ROW_COMMAND_TABLE: readonly RowCommand[] = [
 	{ id: COMMAND_OPEN_ITEM, invoke: invokeOpenItem },
 	{ id: COMMAND_COMMENT_ON_ITEM, invoke: invokeCommentOnItem },
 	{ id: COMMAND_COMMENT_ON_COLUMN, invoke: invokeCommentOnColumn },
+	{ id: COMMAND_COMMENT_ON_CARD, invoke: invokeCommentOnCard },
 	{ id: COMMAND_RESOLVE_ITEM, invoke: invokeResolveItem },
 	{ id: COMMAND_VERIFY_ITEM, invoke: invokeVerifyItem },
 	{ id: COMMAND_FAIL_ITEM, invoke: invokeFailItem },

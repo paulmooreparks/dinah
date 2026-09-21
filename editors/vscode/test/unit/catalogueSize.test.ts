@@ -96,11 +96,13 @@ function manifestKeys(): Set<string> {
 //
 // Written as a base and a movement rather than as the total, because the total
 // is the answer rather than the claim. dinah-525 branched from bddf4c16, where
-// the runtime catalogue carried 194 entries; it drops dinah-506's twelve draft
-// keys, whose apparatus it deletes, and adds three of its own for composing a
-// comment. A card that lands before this one and adds a key of its own moves
-// the base: the fix is to write the base it found here and say so in its
-// handoff, not to guess at a new total.
+// the runtime catalogue carried 194 entries. It drops thirteen: dinah-506's
+// twelve draft keys, whose apparatus it deletes, and the label for the note an
+// item's answer stopped being. It adds seven: three for composing a comment,
+// one for a comment already diverged when a session opens it, and three for
+// rendering an item's answer. A card that lands before this one and adds a
+// key of its own moves the base: the fix is to write the base it found here
+// and say so in its handoff, not to guess at a new total.
 const CATALOGUE_BASE = 194;
 const CATALOGUE_REMOVED_BY_THIS_CARD = 13;
 const CATALOGUE_ADDED_BY_THIS_CARD = 7;
@@ -157,13 +159,14 @@ test("the English runtime catalogue carries the base count and this card's addit
 	);
 });
 
-test("the base manifest catalogue carries exactly 57 keys", () => {
+test("the base manifest catalogue carries exactly 58 keys", () => {
 	// 51 before dinah-519, plus the one command its comment row contributes,
 	// the one command dinah-518 puts on a column row, and the four settings
 	// dinah-515's language server contributes, less the two draft commands
 	// dinah-525 retires with the apparatus behind them, plus dinah-517's
-	// three filing commands less the one command they replace.
-	assert.equal(manifestKeys().size, 57);
+	// three filing commands less the one command they replace, plus the one
+	// command dinah-549 puts on a card row.
+	assert.equal(manifestKeys().size, 58);
 });
 
 test("the two runtime keys dinah-517 adds are present and the pick placeholder is gone", () => {

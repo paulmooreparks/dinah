@@ -627,7 +627,7 @@
 		},
 		"dialog.bulk.oneRowOnly": {
 			"text": "Dinah führt diesen Befehl jeweils für eine Zeile aus. Wählen Sie eine einzelne Zeile und versuchen Sie es erneut.",
-			"context": "The refusal a command that acts on one row shows when several rows were selected. New Card is the only command that raises it today, because one title makes one card.",
+			"context": "The refusal a command shows when it acts on one row at a time and several rows were selected.",
 			"source": "b3accd1c56c4c4a3"
 		},
 		"dialog.move.noSharedDestination": {

@@ -48,6 +48,7 @@
 	"manifest.command.dinah.tree.openItem.title": "Dinah: बिंदु खोलें",
 	"manifest.command.dinah.tree.commentOnItem.title": "Dinah: बिंदु पर टिप्पणी करें",
 	"manifest.command.dinah.tree.commentOnColumn.title": "Dinah: कॉलम पर टिप्पणी करें",
+	"manifest.command.dinah.tree.commentOnCard.title": "Dinah: कार्ड पर टिप्पणी करें",
 	"manifest.command.dinah.tree.resolveItem.title": "Dinah: बिंदु सुलझाएँ",
 	"manifest.command.dinah.tree.verifyItem.title": "Dinah: मानदंड सत्यापित करें",
 	"manifest.command.dinah.tree.failItem.title": "Dinah: मानदंड विफल करें",
