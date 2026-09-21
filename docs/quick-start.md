@@ -1561,6 +1561,7 @@ The guides stand in the order Dinah recommends reading them.
   query             Asking questions of a workbench
   workbench-layout  What a workbench looks like on disk
   mcp               Working over MCP
+  pipeline          When a pipeline earns its cost
 [exit 0]
 ```
 
@@ -1570,6 +1571,10 @@ because it maps the whole directory for you.
 Read `dinah guide mcp` before you point an agent at the workbench, because
 it teaches the machine surface the way an agent reads it rather than the way
 a person types commands.
+
+Read `dinah guide pipeline` before you build a workbench as a pipeline of
+one-shot stages, because it states the test a pipeline has to pass before
+you pay for one.
 
 ## Point an agent at the workbench
 
