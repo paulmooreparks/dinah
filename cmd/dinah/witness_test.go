@@ -18,7 +18,7 @@ import (
 // journal still believes.
 func handEditColumn(t *testing.T, root, card, column string) string {
 	t.Helper()
-	machine := runCLI(t, root, "--json", "show", card)
+	machine := runCLI(t, root, "--json", "show", card, "--fields", "card,path")
 	if machine.code != 0 {
 		t.Fatalf("show %s: %d %s", card, machine.code, machine.errw)
 	}

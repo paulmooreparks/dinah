@@ -744,11 +744,17 @@ func baseOfModifier(modifier string) string {
 }
 
 // detailSelection is the set of members one answer carries, or nil where the
-// caller named no field set and the answer carries every member.
+// caller named no field set on --fields. parseDetailFields is the only
+// producer of a nil selection; effectiveSelection resolves it to a concrete
+// selection (the narrow default, or every member under --all) before
+// detailOf or checkDetailFilters ever sees it, so a nil selection never
+// reaches either of them on a card read.
 type detailSelection map[string]bool
 
-// carries reports whether a member belongs in the answer. A nil selection is
-// the unshaped read, which carries everything.
+// carries reports whether a member belongs in the answer. A nil selection
+// carries everything; this stays permissive so a caller that invokes
+// checkDetailFilters directly with a literal nil is not narrowed by
+// surprise, though nothing in this tree does that today.
 func (s detailSelection) carries(name string) bool {
 	if s == nil {
 		return true
@@ -756,9 +762,9 @@ func (s detailSelection) carries(name string) bool {
 	return s[name]
 }
 
-// full reports whether the bodies of a collection member were asked for. A nil
-// selection is the unshaped read, which carries each collection as an index,
-// so it answers false for every name.
+// full reports whether the bodies of a collection member were asked for. A
+// nil selection answers false for every name, on the same permissive
+// reasoning carries documents.
 func (s detailSelection) full(name string) bool {
 	if s == nil {
 		return false
@@ -766,13 +772,14 @@ func (s detailSelection) full(name string) bool {
 	return s[modifierFor(name)]
 }
 
-// The two flag words show's filters are typed as. They are spelled here as a
-// reader types them, because a refusal's detail names what the reader wrote
-// rather than a field of a request, which is the rule list.go's own flag
-// constants already follow.
+// The flag words show's filters and its field-set flags are typed as. They
+// are spelled here as a reader types them, because a refusal's detail names
+// what the reader wrote rather than a field of a request, which is the rule
+// list.go's own flag constants already follow.
 const (
 	flagSince      = "--since"
 	flagUnresolved = "--unresolved"
+	flagAll        = "--all"
 )
 
 // detailFilters are the two narrowings a caller may put on show, already
@@ -945,6 +952,41 @@ func unknownDetailField(detail, reference string) error {
 		extra["unknown"] = detail
 	}
 	return contract.RefuseWith(contract.UnknownField, detail, extra)
+}
+
+// effectiveSelection is what a card's own detail read carries: every member
+// under --all, the caller's own map under --fields, and the narrow default
+// otherwise. It is never nil, so a filter's compatibility is always checked
+// against what the answer will actually carry rather than bypassed on an
+// unshaped call the way it was before this default existed.
+func effectiveSelection(chosen detailSelection, all bool) detailSelection {
+	if all {
+		return allSelection()
+	}
+	if chosen != nil {
+		return chosen
+	}
+	return defaultSelection()
+}
+
+// allSelection is every member DetailSelectors names, each one true,
+// including both modifiers: the literal equivalent of writing every name on
+// --fields.
+func allSelection() detailSelection {
+	chosen := detailSelection{}
+	for _, name := range DetailSelectors {
+		chosen[name] = true
+	}
+	return chosen
+}
+
+// defaultSelection is what a card read carries when the caller names
+// neither --fields nor --all: the four members --fields
+// card,body,links,attachments already names today, which is the call the
+// workbench's own standing text instructs, made the default rather than a
+// call every station still has to remember.
+func defaultSelection() detailSelection {
+	return detailSelection{"card": true, "body": true, "links": true, "attachments": true}
 }
 
 // AttachmentView is one attachment as a read reports it.
@@ -1301,7 +1343,12 @@ func (l *Library) Show(req *Request) (*Detail, *Record, *ItemDetail, string, err
 	if err != nil {
 		return nil, nil, nil, "", err
 	}
-	if err := checkDetailFilters(chosen, filters); err != nil {
+	// --all and --fields both name a field set, and one call cannot name two.
+	if req.All && strings.TrimSpace(req.Fields) != "" {
+		return nil, nil, nil, "", contract.Refuse(contract.Usage, flagAll+" conflicts with --fields")
+	}
+	effective := effectiveSelection(chosen, req.All)
+	if err := checkDetailFilters(effective, filters); err != nil {
 		return nil, nil, nil, "", err
 	}
 	head, rest, _ := strings.Cut(req.Card, "/")
@@ -1314,6 +1361,9 @@ func (l *Library) Show(req *Request) (*Detail, *Record, *ItemDetail, string, err
 		if req.Card != "" && bench.IsWorkbenchRef(req.Card) {
 			if chosen != nil {
 				return nil, nil, nil, "", unknownDetailField(strings.TrimSpace(req.Fields), req.Card)
+			}
+			if req.All {
+				return nil, nil, nil, "", refuseDetailFilter(flagAll)
 			}
 			if filters.named() {
 				return nil, nil, nil, "", refuseDetailFilter(filters.flagWord())
@@ -1330,6 +1380,9 @@ func (l *Library) Show(req *Request) (*Detail, *Record, *ItemDetail, string, err
 			}
 			if chosen != nil {
 				return nil, nil, nil, "", unknownDetailField(strings.TrimSpace(req.Fields), req.Card)
+			}
+			if req.All {
+				return nil, nil, nil, "", refuseDetailFilter(flagAll)
 			}
 			if filters.named() {
 				return nil, nil, nil, "", refuseDetailFilter(filters.flagWord())
@@ -1359,6 +1412,9 @@ func (l *Library) Show(req *Request) (*Detail, *Record, *ItemDetail, string, err
 			if chosen != nil {
 				return nil, nil, nil, "", unknownDetailField(strings.TrimSpace(req.Fields), head)
 			}
+			if req.All {
+				return nil, nil, nil, "", refuseDetailFilter(flagAll)
+			}
 			if filters.named() {
 				return nil, nil, nil, "", refuseDetailFilter(filters.flagWord())
 			}
@@ -1368,7 +1424,7 @@ func (l *Library) Show(req *Request) (*Detail, *Record, *ItemDetail, string, err
 			}
 			return nil, nil, nil, text, nil
 		}
-		detail, text, err := l.detailOf(entity.Card, chosen, filters)
+		detail, text, err := l.detailOf(entity.Card, effective, filters)
 		return detail, nil, nil, text, err
 	}
 	// A column is an entity of the workbench, and the containment walk prints
@@ -1378,6 +1434,9 @@ func (l *Library) Show(req *Request) (*Detail, *Record, *ItemDetail, string, err
 		if column := l.Bench.ColumnByRef(head); column != nil {
 			if chosen != nil {
 				return nil, nil, nil, "", unknownDetailField(strings.TrimSpace(req.Fields), head)
+			}
+			if req.All {
+				return nil, nil, nil, "", refuseDetailFilter(flagAll)
 			}
 			if filters.named() {
 				return nil, nil, nil, "", refuseDetailFilter(filters.flagWord())
@@ -1398,6 +1457,9 @@ func (l *Library) Show(req *Request) (*Detail, *Record, *ItemDetail, string, err
 		// select from and the refusal is raised ahead of the resolution.
 		if chosen != nil {
 			return nil, nil, nil, "", unknownDetailField(strings.TrimSpace(req.Fields), req.Card)
+		}
+		if req.All {
+			return nil, nil, nil, "", refuseDetailFilter(flagAll)
 		}
 		if filters.named() {
 			return nil, nil, nil, "", refuseDetailFilter(filters.flagWord())
@@ -1447,7 +1509,7 @@ func (l *Library) Show(req *Request) (*Detail, *Record, *ItemDetail, string, err
 	if err := l.lapseRead(card, req.Actor); err != nil {
 		return nil, nil, nil, "", err
 	}
-	detail, text, err := l.detailOf(card, chosen, filters)
+	detail, text, err := l.detailOf(card, effective, filters)
 	return detail, nil, nil, text, err
 }
 

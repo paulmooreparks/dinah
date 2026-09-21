@@ -358,9 +358,8 @@ type Request struct {
 	Map []string
 	// Fields is show's field list, carried byte for byte as the caller wrote
 	// it, since Library.Show parses it: the request builder never has to know
-	// what any one verb's arguments mean. Empty means every member, which is
-	// what show has always answered, so no head diverges from another on an
-	// unasked question.
+	// what any one verb's arguments mean. Empty means the narrow default, card,
+	// body, links and attachments, unless All is also set.
 	Fields string
 	// SinceComment is show's comment ordinal, carried byte for byte as the
 	// caller wrote it, since Library.Show parses it for the reason Fields
@@ -375,6 +374,10 @@ type Request struct {
 	// no column hold, which are the pending items, the failed ones, and any
 	// item whose state the format does not declare.
 	Unresolved bool
+	// All is show's flag for the whole card, unshaped: every member
+	// DetailSelectors names, each carried in full. It is refused together
+	// with Fields, since one call cannot name two field sets.
+	All bool
 	// HeldChain is the set of instruction-layer keys this caller's connection
 	// has already been sent and has not yet re-served, each one written
 	// <actor> + "\x00" + <text revision>. The MCP head fills it from its own

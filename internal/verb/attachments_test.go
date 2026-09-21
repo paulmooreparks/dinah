@@ -113,7 +113,7 @@ func TestACommentPublishesItsOwnAttachments(t *testing.T) {
 	h.comment(ref, "a thought with a file under it")
 	h.attach(ref+"/"+bench.CommentsDir+"/1", "on-the-comment.txt", "the comment's own bytes")
 
-	detail, _, _, _, err := h.library.Show(&Request{Verb: "show", Actor: "alka", Card: ref})
+	detail, _, _, _, err := h.library.Show(&Request{Verb: "show", Actor: "alka", Card: ref, Fields: "comments"})
 	if err != nil {
 		t.Fatalf("show: %v", err)
 	}

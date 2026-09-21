@@ -29,7 +29,7 @@ func TestTheChecklistTablesBlankCommentCellLinesUp(t *testing.T) {
 	mustRun(t, root, "comment", "fx-1/questions/1", "a second thought")
 
 	t.Setenv("COLUMNS", "80")
-	got := runCLI(t, root, "show", "fx-1")
+	got := runCLI(t, root, "show", "fx-1", "--fields", "checklist")
 	if got.code != 0 {
 		t.Fatalf("show fx-1: %d %s", got.code, got.errw)
 	}
@@ -80,7 +80,7 @@ func TestTheChecklistTablesBlankCommentCellLinesUp(t *testing.T) {
 		t.Errorf("the blank row's comments cell carries %q rather than blank padding: %q", strings.TrimSpace(gap), rows[1])
 	}
 
-	machine := runCLI(t, root, "--json", "show", "fx-1")
+	machine := runCLI(t, root, "--json", "show", "fx-1", "--fields", "checklist")
 	if machine.code != 0 {
 		t.Fatalf("show fx-1 --json: %d %s", machine.code, machine.errw)
 	}

@@ -104,7 +104,7 @@ func TestAnItemCommentsReferenceComposesAndResolvesBothWays(t *testing.T) {
 		t.Errorf("the comment's printed reference is %q, wanted %q", itemDetail.Comments[0].Ref, commentRef)
 	}
 
-	cardDetail, _, _, _, err := h.library.Show(&Request{Verb: "show", Actor: "alka", Card: ref})
+	cardDetail, _, _, _, err := h.library.Show(&Request{Verb: "show", Actor: "alka", Card: ref, Fields: "comments"})
 	if err != nil {
 		t.Fatalf("show %s: %v", ref, err)
 	}
@@ -294,7 +294,7 @@ func TestTheChecklistTableCountsRatherThanQuotes(t *testing.T) {
 	h.comment(first, "two")
 	h.comment(first, "three")
 
-	detail, _, _, _, err := h.library.Show(&Request{Verb: "show", Actor: "alka", Card: ref})
+	detail, _, _, _, err := h.library.Show(&Request{Verb: "show", Actor: "alka", Card: ref, Fields: "checklist"})
 	if err != nil {
 		t.Fatalf("show %s: %v", ref, err)
 	}

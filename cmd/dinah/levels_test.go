@@ -875,7 +875,7 @@ func TestShowPrintsIndependentlyConditionalSeverityAndPriorityLines(t *testing.T
 		t.Errorf("a card carrying no severity printed a severity line:\n%s", priorityOnly.out)
 	}
 
-	both := runCLI(t, root, "show", "fx-4")
+	both := runCLI(t, root, "show", "fx-4", "--fields", "card,path")
 	wantBoth := "a card carrying both levels  [Intake / ready]\n  severity: critical\n  priority: soon\n"
 	if !strings.HasSuffix(strings.TrimPrefix(both.out, "fx-4  "), wantBoth) {
 		t.Errorf("a card carrying both levels did not print severity then priority directly under the summary line:\n%s", both.out)

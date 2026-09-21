@@ -3507,9 +3507,14 @@
       "source": "d9ac8e6674501327"
     },
     "param.show.fields.summary": {
-      "text": "welche Bestandteile der Karte die Antwort führt, als kommagetrennte Liste geschrieben; alle Bestandteile, wenn Sie keinen nennen, wobei die Kommentare und die Prüfliste als Verzeichnis ausgegeben werden, und ein Name, der auf .full endet, gibt die Texte dieser Sammlung aus",
+      "text": "welche Bestandteile der Karte die Antwort führt, als kommagetrennte Liste geschrieben; Karte, Text, Verknüpfungen und Anhänge, wenn Sie keinen nennen, wobei die Kommentare und die Prüfliste als Verzeichnis ausgegeben werden, und ein Name, der auf .full endet, gibt die Texte dieser Sammlung aus",
       "context": "The meaning of the fields argument of `dinah show`, printed in that command's arguments table. The table appends the closed set of names a caller may write after this sentence, read off the tool, so the sentence does not spell the set itself.",
-      "source": "504eea1c32ecf740"
+      "source": "a0e2365d2909bebb"
+    },
+    "param.show.all.summary": {
+      "text": "alle Bestandteile der Karte ausgeben, ungekürzt, einschließlich des vollständigen Textes jedes Kommentars und des benannten Kommentars jedes Prüflistenpunkts",
+      "context": "The meaning of the all argument of `dinah show`, printed in that command's arguments table. It is the flag that restores the whole-card answer show gave before the narrow default, and it is refused together with --fields.",
+      "source": "bf0ae2a46a1df60b"
     },
     "param.show.since.summary": {
       "text": "die Texte der Kommentare nach dieser einsbasierten Ordnungszahl ausgeben, für die übrigen nur das Verzeichnis",
