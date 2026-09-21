@@ -308,7 +308,7 @@ func build(t *testing.T) *fixture {
 		t.Fatalf("mkdir: %v", err)
 	}
 	t.Setenv("DINAH_HOME", filepath.Join(base, "home"))
-	written, err := verb.Init(root, "fx", "alka", "", "", "")
+	written, err := verb.Init(root, "fx", "alka", "", "", "", false)
 	if err != nil {
 		t.Fatalf("init: %v", err)
 	}

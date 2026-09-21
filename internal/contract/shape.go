@@ -435,6 +435,14 @@ var Shapes = []Shape{
 		},
 	},
 	{
+		// init refuses to write a workbench into a directory that already
+		// existed and already held something, unless the caller passed
+		// --here, which is what this shape's next step offers.
+		Name:      DirectoryNotEmpty,
+		Fragments: []Fragment{{Key: "refusal.dinah.directory-not-empty.next"}},
+		NextStep:  []string{"refusal.dinah.directory-not-empty.next"},
+	},
+	{
 		// The reader of this refusal is the person whose own act was cut
 		// short, so he is standing wherever he typed it, which is not
 		// necessarily inside the workbench he named. The named sibling
@@ -539,6 +547,26 @@ var Shapes = []Shape{
 		NextStep: []string{
 			"refusal.dinah.no-workbench-found.bare",
 			"refusal.dinah.no-workbench-found.next",
+		},
+	},
+	{
+		// The climb stopped at a repository root instead of climbing past
+		// it, having found no workbench at or below that root, and it never
+		// tried the user base: falling back there from inside a bounded
+		// repository is the exact hazard this refusal exists to stop, so it
+		// carries its own sentence rather than NoWorkbenchFound's, which
+		// says the user base was tried. The alternation gives a reader whose
+		// climb passed a bare workbench.md on the way the repair, and
+		// everybody else the general advice past the boundary.
+		Name:   WorkbenchBoundary,
+		Values: []string{"boundary", "bare"},
+		Fragments: []Fragment{
+			{Key: "refusal.dinah.workbench-boundary.bare", When: "bare"},
+			{Key: "refusal.dinah.workbench-boundary.next"},
+		},
+		NextStep: []string{
+			"refusal.dinah.workbench-boundary.bare",
+			"refusal.dinah.workbench-boundary.next",
 		},
 	},
 	{

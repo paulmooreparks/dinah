@@ -674,6 +674,13 @@ func DiscoverSource(start, override, overrideSource, home, nativeHome, configure
 		}
 		return abs, SourceConfig, search.passed, search.damaged, nil
 	}
+	if search.boundaryAt != "" {
+		extra := map[string]string{"boundary": search.boundaryAt}
+		if len(search.bare) > 0 {
+			extra["bare"] = strings.Join(search.bare, ", ")
+		}
+		return "", "", nil, nil, contract.RefuseWith(contract.WorkbenchBoundary, start, extra)
+	}
 	extra := map[string]string{"home": search.userBase}
 	if len(search.bare) > 0 {
 		extra["bare"] = strings.Join(search.bare, ", ")
@@ -724,6 +731,14 @@ type search struct {
 	candidates []string
 	// userBase is the fallback base, empty when no home was given.
 	userBase string
+	// boundaryAt is the repository root the climb stopped at, tested by a
+	// filesystem entry named .git sitting directly inside it, when the climb
+	// stopped there rather than reaching the native-home rung or the volume
+	// root having found nothing. It is empty on every other exit, and its
+	// emptiness is what tells DiscoverSource whether the trailing user-base
+	// fallback below should run at all: running it unconditionally would
+	// defeat the entire point of the bound (dinah-541).
+	boundaryAt string
 	// passed is the workbench.md files met and not claimed along the way,
 	// accumulated across every rung of the climb and the fallback base, in
 	// the order the walk met them.
@@ -761,6 +776,22 @@ type search struct {
 // changes which base the search reads without changing which base wins. A
 // climb that never reaches the native home runs the fallback after the walk,
 // as before.
+//
+// The climb also stops at the nearest ancestor of start, including start
+// itself, that is a git repository root (dinah-541): a scratch tree that
+// sits inside a repository never reaches a workbench above that repository's
+// root, however far above it one happens to sit. That directory's own .dinah
+// is still consulted before the climb decides to stop there, the same way
+// every other rung's is, so this project's own workbench, which sits at the
+// checkout root, is still found from a subdirectory of the checkout. The
+// stop is tested only after the native-home consultation at that same rung
+// runs, so a repository root that also happens to be the native home still
+// gets the fallback the way it always has; only the trailing fallback that
+// would otherwise run once the loop ends is gated on whether the loop ended
+// at a repository boundary rather than at the volume root or an exhausted
+// native-home rung, since running it unconditionally there would read the
+// operator's own user base from inside a repository the bound exists to
+// keep it out of.
 func walk(start, home, nativeHome string) (search, error) {
 	dir, err := filepath.Abs(start)
 	if err != nil {
@@ -774,6 +805,7 @@ func walk(start, home, nativeHome string) (search, error) {
 	// directory, which is the one a reader is likeliest to have meant.
 	result := search{}
 	consulted := false
+	stoppedAtRepoRoot := false
 	for {
 		atNativeHome := samePath(dir, boundary)
 		found, ambiguous, passed, bare, damaged, err := benchIn(dir, atNativeHome)
@@ -800,18 +832,50 @@ func walk(start, home, nativeHome string) (search, error) {
 				return result, nil
 			}
 		}
+		if isRepositoryRoot(dir) {
+			result.boundaryAt = dir
+			stoppedAtRepoRoot = true
+			break
+		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
 			break
 		}
 		dir = parent
 	}
-	if !consulted {
+	if !consulted && !stoppedAtRepoRoot {
 		if _, err := result.fallbackTo(home); err != nil {
 			return search{}, err
 		}
 	}
 	return result, nil
+}
+
+// isRepositoryRoot reports whether dir is the root of a git repository,
+// tested the way gitrepository-layout(5) and git-worktree(1) document it
+// rather than by asking the git binary anything (WE NEVER RELY ON
+// UNDOCUMENTED BEHAVIOR): a filesystem entry named exactly ".git" sitting
+// directly inside dir, whether that entry is a directory (the ordinary
+// working-tree form) or a file holding a "gitdir:" pointer. The file form
+// covers a linked worktree, per git-worktree(1) DETAILS ("a .git file in
+// that directory containing gitdir: <path>"), and it covers a submodule's
+// own root the same way, since gitsubmodules(5) gives a submodule's checkout
+// the identical file form; no separate branch is needed for either, since
+// both are the one documented shape this stat already answers.
+//
+// GIT_DIR and GIT_WORK_TREE, which git(1) documents as redirecting git's own
+// repository resolution, are deliberately not consulted: the hazard this
+// bound closes is about the physical directory tree a scratch checkout sits
+// inside, and honouring either variable would make the boundary follow
+// wherever it points rather than where Dinah is actually reading files from.
+//
+// A bare repository (HEAD, objects and refs sitting directly inside dir, with
+// no .git entry at all) is not detected here, so a working directory inside
+// one is treated as outside any repository and the climb runs unbounded
+// there exactly as it did before this card: Dinah's own files are never read
+// from a bare repository's working tree, since it has none.
+func isRepositoryRoot(dir string) bool {
+	return Exists(filepath.Join(dir, ".git"))
 }
 
 // fallbackTo consults the user base under home and reports whether it

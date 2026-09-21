@@ -759,7 +759,13 @@ func TestADefinitionDocumentReachesItsAnchorsAsLF(t *testing.T) {
 		if err := os.MkdirAll(destination, 0o755); err != nil {
 			t.Fatalf("mkdir: %v", err)
 		}
-		got := runCLI(t, destination, "init", "--from", refused)
+		// One iteration's trimmed ending can carry a literal backslash (the
+		// \r\n case trims only its leading slash), which filepath.Join reads
+		// as a separator on this platform and leaves a stray subdirectory
+		// behind under a sibling iteration's own destination; --here is what
+		// this loop is not testing, so it is passed unconditionally rather
+		// than special-cased per ending.
+		got := runCLI(t, destination, "init", "--from", refused, "--here")
 		if got.code == 0 {
 			t.Errorf("a member name carrying %s was admitted", ending)
 			continue

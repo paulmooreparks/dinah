@@ -1083,7 +1083,7 @@ func runInit(s *session, parsed *arguments) int {
 	if !bench.ValidSlug(slug) {
 		return s.reportError(malformedSlug(slug))
 	}
-	written, err := verb.Init(root, slug, operator, parsed.value("from"), s.benchFlag, s.benchFlagSource)
+	written, err := verb.Init(root, slug, operator, parsed.value("from"), s.benchFlag, s.benchFlagSource, parsed.has("here"))
 	if err != nil {
 		return s.reportError(err)
 	}

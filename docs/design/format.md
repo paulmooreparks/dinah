@@ -253,6 +253,22 @@ workbenches so a listing sees everything. A workbench inside a repository is
 versioned by that repository's git, so board history rides project history
 and board changes can be reviewed like code.
 
+The walk observes a second boundary, independent of the native-home one: it
+stops at the nearest ancestor of the starting directory, including that
+directory itself, that is a git repository root, tested by a filesystem entry
+named `.git` sitting directly inside it, whether that entry is a directory or
+a file (the linked-worktree and submodule form). That directory's own
+`.dinah` is still consulted before the climb decides to stop there, so a
+repository whose own root holds the workbench, this project's own checkout
+among them, is unaffected. What changes is that the climb never reaches past
+that root to a workbench sitting above it, and the trailing fallback to the
+user base that runs once the climb is otherwise exhausted does not run when
+the climb stopped at a repository root instead: a scratch tree that sits
+inside a repository, however far below that repository's root it sits, never
+reaches a workbench outside the repository, including the operator's own
+user base. A working directory that is not inside any repository at all is
+unaffected by this bound and climbs to the user base exactly as before.
+
 A `workbench.md` sitting outside a container is not a workbench, however
 well-formed it is. Discovery does not return one, and a workbench declaring
 storage format 2 or higher is refused by name when it is opened outside a
