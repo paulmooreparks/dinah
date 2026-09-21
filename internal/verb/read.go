@@ -2236,7 +2236,7 @@ type Identity struct {
 // declaration resolves to.
 func (l *Library) Whoami(req *Request) (*Identity, error) {
 	if req.Actor == "" {
-		return nil, contract.Refuse(contract.NoOwner, "")
+		return nil, contract.RefuseWith(contract.NoOwner, "", noOwnerExtra(req))
 	}
 	tier, _ := l.Bench.TierOf(req.Provider, req.Model, req.Server)
 	identity := &Identity{
@@ -2385,6 +2385,17 @@ func (l *Library) Check(req *Request) (*CheckReport, error) {
 	// runs on the same rule every other writing act is held to.
 	if req != nil && req.Repairs() && req.Harness != "" && !bench.HarnessName(req.Harness) {
 		return report, contract.Refuse(contract.MalformedHarness, req.Harness)
+	}
+	// The owner gate runs on the same condition as the harness gate above it
+	// and ahead of every branch below, because three of them (MigrateSlugs,
+	// MigrateWorkstreams, MigrateColumns) mutate the workbench without ever
+	// reaching AppendEvent's own backstop, and a refusal raised only there
+	// would leave those branches to run to completion first. req is in
+	// scope here, unlike AppendEvent's own guard, so this site carries the
+	// same harness explanation as every raise site that goes through
+	// Library.refuse.
+	if req != nil && req.Repairs() && req.Actor == "" {
+		return report, contract.RefuseWith(contract.NoOwner, "", noOwnerExtra(req))
 	}
 	if req != nil && req.MigrateSlugs {
 		assigned, reported := l.Bench.BackfillColumnSlugs()
@@ -2692,7 +2703,14 @@ func setting(key string, cfg *bench.Config, ctx SettingsContext) SettingView {
 		value, source := bench.ResolveLangSource(ctx.LangFlag, cfg)
 		return SettingView{Key: key, Value: value, Source: source}
 	case "actor":
-		value, source := bench.ResolveActorSource(ctx.ActorFlag, cfg)
+		// The listing reports what the config file says, not what a call
+		// would be attributed to, so it reads the config rung
+		// unconditionally, harness or none, regardless of what harness the
+		// process running this listing itself declares. Gating this too
+		// would remove the value the harness-variant refusal (point 3 of
+		// dinah-540's specification) depends on being visible to an author
+		// puzzled by a refusal that contradicts what this listing shows.
+		value, source := bench.ResolveActorSource(ctx.ActorFlag, "", cfg)
 		return SettingView{Key: key, Value: value, Source: source}
 	case "editor":
 		value, source, _ := bench.ResolveEditorSource(cfg, ctx.GOOS, ctx.LookPath)

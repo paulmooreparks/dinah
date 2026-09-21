@@ -161,9 +161,10 @@ outside a workbench comes back to it.
 Dinah recorded you as the actor when it created the workbench above, because
 nothing on your machine had named an owner yet. Dinah looks for that name on
 the `--actor` flag first, then in the `DINAH_ACTOR` environment variable, then
-in your own configuration file. You change the recorded name with
-`dinah config set actor`, and you use the same command to act as somebody other
-than the operator:
+in your own configuration file, the last of these three only for a call that
+declares no harness. You change the recorded name with `dinah config set
+actor`, and you use the same command to act as somebody other than the
+operator:
 
 ```console
 $ dinah config set actor ana
@@ -1257,14 +1258,14 @@ storage format 6
 Catalogs:
   Language  Translated
   --------  ----------
-  en        1182/1182
-  af        0/1182
-  cs        0/1182
-  de        1182/1182
-  es        0/1182
-  fil       0/1182
-  hi        1182/1182
-  id        0/1182
+  en        1189/1189
+  af        0/1189
+  cs        0/1189
+  de        1189/1189
+  es        0/1189
+  fil       0/1189
+  hi        1189/1189
+  id        0/1189
 [exit 0]
 ```
 
@@ -1561,6 +1562,7 @@ The guides stand in the order Dinah recommends reading them.
   query             Asking questions of a workbench
   workbench-layout  What a workbench looks like on disk
   mcp               Working over MCP
+  pipeline          When a pipeline earns its cost
 [exit 0]
 ```
 
@@ -1570,6 +1572,10 @@ because it maps the whole directory for you.
 Read `dinah guide mcp` before you point an agent at the workbench, because
 it teaches the machine surface the way an agent reads it rather than the way
 a person types commands.
+
+Read `dinah guide pipeline` before you build a workbench as a pipeline of
+one-shot stages, because it states the test a pipeline has to pass before
+you pay for one.
 
 ## Point an agent at the workbench
 

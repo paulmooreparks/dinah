@@ -1413,12 +1413,28 @@ func TestPathAnswersTheWorkbenchWhereTheOpenDemandsMigrationFirst(t *testing.T) 
 //
 // A verb may carry rows the profile does not declare, which dinah-364's
 // loop_limit row is the first of. Those rows are held to two conditions rather
-// than admitted freely: every row that is not one the profile declares carries
-// a refusal name in Dinah's own layer, so nothing can smuggle in a
-// profile-named refusal as an extra row, and the rows the profile does declare
-// appear in the profile's own relative order with the profile's own wording. A
-// reordered list, a dropped row, a sentence that drifted from the profile's
-// wording, and a profile row replaced by a Dinah-named one all fail.
+// than admitted freely: every row that is not one the profile declares
+// carries a refusal name in Dinah's own layer, or is no-owner, so nothing can
+// smuggle in a fabricated, profile-shaped refusal as an extra row, and the
+// rows the profile does declare for this verb appear in the profile's own
+// relative order with the profile's own wording. A reordered list, a dropped
+// row, a sentence that drifted from the profile's wording, and a profile row
+// replaced by a Dinah-named one all fail.
+//
+// dinah-540 is why the second escape exists, and it names one refusal rather
+// than any name the profile declares on any contract verb's own list. The
+// wider form was tried and defeated: Agent Code Review inserted a fabricated
+// row into Claim's own list carrying not-holder, Release's own profile
+// refusal, at a position that has nothing to do with what canClaim checks,
+// and a version of this escape keyed on set membership across every verb's
+// declared refusals let it through. no-owner is not merely profile-declared
+// somewhere; it is CORE-VERB-2, the one refusal every one of the five
+// verbs may raise, quoted correctly on claim's and block's own lists and
+// already run by canRoute, release and unblock ahead of their own lists'
+// first row before this card gave the table a row to say so. Naming it
+// directly, rather than admitting anything any verb's table happens to
+// declare, is what keeps a same-shaped but verb-specific refusal like
+// not-holder from walking through the same door.
 //
 // The comparison walks the rendered list rather than reading a fixed window of
 // it, which is what lets a layer's own row stand anywhere. dinah-364's row sat
@@ -1470,8 +1486,8 @@ func TestPerCommandHelpFollowsTheProfile(t *testing.T) {
 				at++
 				continue
 			}
-			if !strings.HasPrefix(check.Refusal, contract.LayerPrefix) {
-				t.Errorf("%s row %d: a row outside the profile's list refuses %s, which is not a name in Dinah's own layer",
+			if !strings.HasPrefix(check.Refusal, contract.LayerPrefix) && check.Refusal != contract.NoOwner {
+				t.Errorf("%s row %d: a row outside the profile's list refuses %s, which is neither a name in Dinah's own layer nor no-owner, CORE-VERB-2's own name for every verb",
 					name, i+1, check.Refusal)
 			}
 		}
@@ -1495,12 +1511,15 @@ func TestPerCommandHelpFollowsTheProfile(t *testing.T) {
 		}
 	}
 	// The two workbench-level rows, then the harness row every writing command
-	// carries, then the profile's own move rows, which the tenth of grew at
-	// dinah-498, then Dinah's two appended rows: the departure column's
-	// loop_limit, and the departure column's own hold read on the way out. The
-	// count is composed from the profile document rather than written down, so
-	// a row added or removed there moves this expectation with it.
-	wantedRows := len(workbench) + len(lists[verb.Move]) + 3
+	// carries, then the no-owner row dinah-540 inserted (CORE-CLAIM-2 and
+	// CORE-BLOCK-2's own shared name, run here ahead of the profile's own move
+	// rows on the terms this file's own doc comment above states), then the
+	// profile's own move rows, which the tenth of grew at dinah-498, then
+	// Dinah's two appended rows: the departure column's loop_limit, and the
+	// departure column's own hold read on the way out. The count is composed
+	// from the profile document rather than written down, so a row added or
+	// removed there moves this expectation with it.
+	wantedRows := len(workbench) + len(lists[verb.Move]) + 4
 	if rows != wantedRows {
 		t.Errorf("wanted %d rows, got %d", wantedRows, rows)
 	}
@@ -7106,7 +7125,7 @@ func TestEveryPageSaysWhatEachArgumentIs(t *testing.T) {
 		{command: "init", carries: []string{
 			"init [dir] [--from <source>]",
 			"[dir]", "the directory you are in when you name none",
-			"a directory holding a workbench, or a single file written by `dinah export` or `dinah extract`",
+			"a directory holding a workbench, a single file written by `dinah export` or `dinah extract`, or the name of a template Dinah ships, such as `pipeline`; a bare name resolves to the shipped template first, so `./pipeline` reaches a directory of that name instead",
 		}},
 		{command: "claim", carries: []string{
 			"[--expires <duration>]", "written as a number and a unit: 30m, 2h, 7d",
@@ -7678,14 +7697,15 @@ const ratifiedMoveRefusalTable = `  Order  What can go wrong                    
   2      the workbench designates an operator         no-operator
   3      the harness you declared is a legal name     dinah.malformed-harness
   4      the card exists                              unknown-card
-  5      the destination is a column the workbench declares
+  5      the request names an owner                   no-owner
+  6      the destination is a column the workbench declares
                                                       unknown-column
-  6      an override marker, if carried, is the operator's
+  7      an override marker, if carried, is the operator's
                                                       not-operator
-  7      the departure is legal for whoever asks      not-operator
-  8      the card's state is not ` + "`" + `blocked` + "`" + `            blocked
-  9      the card is unheld or held by whoever asks   held
-  10     the move is not a forward move out of a ` + "`" + `done` + "`" + ` column
+  8      the departure is legal for whoever asks      not-operator
+  9      the card's state is not ` + "`" + `blocked` + "`" + `            blocked
+  10     the card is unheld or held by whoever asks   held
+  11     the move is not a forward move out of a ` + "`" + `done` + "`" + ` column
                                                       terminal`
 
 // TestTheArgumentsTableWrapsAndNoOtherTableMoved asserts dinah-172 AC-17: at an

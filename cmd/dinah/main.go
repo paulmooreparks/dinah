@@ -201,10 +201,10 @@ func run(argv []string, in io.Reader, out, errw io.Writer) int {
 	if expansionErr != nil {
 		return s.reportError(expansionErr)
 	}
-	if actor, err := bench.ResolveActor(parsed.value("actor"), cfg); err == nil {
+	s.agent = bench.ResolveAgent()
+	if actor, err := bench.ResolveActor(parsed.value("actor"), s.agent.Harness, cfg); err == nil {
 		s.actor = actor
 	}
-	s.agent = bench.ResolveAgent()
 	// A request for help is answered before any command runs, so
 	// `dinah move --help` prints move's page rather than refusing that move
 	// was given no card. It is read ahead of --version for the same reason

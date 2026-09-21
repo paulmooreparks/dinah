@@ -788,57 +788,57 @@
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
       "source": "37dac5acd188c446"
     },
-    "check.move.10": {
+    "check.move.14": {
       "text": "कार्ड उस हर फ़ील्ड के लिए मान रखता है जिसकी माँग गंतव्य करता है",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
       "source": "766cfa42c960fe8"
     },
-    "check.move.11": {
+    "check.move.15": {
       "text": "कार्ड प्रस्थान कॉलम की लूप सीमा पर नहीं पहुँचा है",
-      "context": "One row of the ordered precondition list of move. This row is Dinah's own addition; the core profile's own section 6.4 list ends at check.move.10.",
+      "context": "One row of the ordered precondition list of move. This row is Dinah's own addition; the core profile's own section 6.4 list has ten rows and does not include it.",
       "source": "193dcb5974ead6b"
     },
-    "check.move.12": {
+    "check.move.16": {
       "text": "कार्ड पर ऐसी कोई अनसुलझी मद नहीं है जो प्रस्थान कॉलम को नामित करती हो",
-      "context": "One row of the ordered precondition list of move. This row is Dinah's own addition; the core profile's own section 6.4 list ends at check.move.10. It is the departure's own hold, read at the column the card is leaving rather than the one it would land in.",
+      "context": "One row of the ordered precondition list of move. This row is Dinah's own addition; the core profile's own section 6.4 list has ten rows and does not include it. It is the departure's own hold, read at the column the card is leaving rather than the one it would land in.",
       "source": "8186a705a5b6534a"
     },
-    "check.move.2": {
+    "check.move.6": {
       "text": "गंतव्य वह कॉलम है जिसे वर्कबेंच घोषित करती है",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
       "source": "77302ed88afc1490"
     },
-    "check.move.3": {
+    "check.move.7": {
       "text": "यदि कोई अधिभावी चिह्न साथ है, तो वह संचालक का है",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
       "source": "607a576951946330"
     },
-    "check.move.4": {
+    "check.move.8": {
       "text": "माँगने वाले के लिए प्रस्थान वैध है",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
       "source": "317fa855de03a64c"
     },
-    "check.move.5": {
+    "check.move.9": {
       "text": "कार्ड की स्थिति `blocked` नहीं है",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
       "source": "76a4fe23995d6a02"
     },
-    "check.move.6": {
+    "check.move.10": {
       "text": "कार्ड किसी के पास नहीं है, या माँगने वाले के पास है",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
       "source": "ec01b01e10f981a7"
     },
-    "check.move.7": {
+    "check.move.11": {
       "text": "यह `done` कॉलम से बाहर आगे की चाल नहीं है",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
       "source": "7e0c1d83c59a8fd3"
     },
-    "check.move.8": {
+    "check.move.12": {
       "text": "गंतव्य अपनी क्षमता सीमा से नीचे है",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
       "source": "9d61260048317b7e"
     },
-    "check.move.9": {
+    "check.move.13": {
       "text": "कार्ड पर ऐसा कोई अनसुलझा मद नहीं है जो गंतव्य का नाम लेता हो",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
       "source": "d6e9e1f4780da9c4"
@@ -1223,7 +1223,7 @@
       "context": "One row of the ordered precondition list of release, quoted from section 6 of the core profile.",
       "source": "37dac5acd188c446"
     },
-    "check.release.2": {
+    "check.release.3": {
       "text": "कार्ड माँगने वाले के पास है",
       "context": "One row of the ordered precondition list of release, quoted from section 6 of the core profile.",
       "source": "b14913e0de423e4"
@@ -1473,12 +1473,12 @@
       "context": "One row of the ordered precondition list of unblock, quoted from section 6 of the core profile.",
       "source": "37dac5acd188c446"
     },
-    "check.unblock.2": {
+    "check.unblock.3": {
       "text": "माँगने वाला ही संचालक है",
       "context": "One row of the ordered precondition list of unblock, quoted from section 6 of the core profile.",
       "source": "c36a8473c73d26a2"
     },
-    "check.unblock.3": {
+    "check.unblock.4": {
       "text": "कार्ड की स्थिति `blocked` है",
       "context": "One row of the ordered precondition list of unblock, quoted from section 6 of the core profile.",
       "source": "7bc8856e42e38f2b"
@@ -3226,9 +3226,9 @@
       "source": "1328685eec647b56"
     },
     "param.init.from.summary": {
-      "text": "वर्कबेंच रखने वाली एक निर्देशिका, या `dinah export` या `dinah extract` से लिखी गई एक फ़ाइल",
+      "text": "वर्कबेंच रखने वाली एक निर्देशिका, `dinah export` या `dinah extract` से लिखी गई एक फ़ाइल, या Dinah के साथ आने वाले किसी टेम्पलेट का नाम, जैसे `pipeline`; कोई सादा नाम पहले शामिल टेम्पलेट से हल होता है, उसी नाम की निर्देशिका तक पहुँचने के लिए इसके बजाय `./pipeline` लिखें",
       "context": "The meaning of the from argument of `dinah init`, printed in that command's arguments table.",
-      "source": "a63072636c4c6fae"
+      "source": "ca986d0ef1d6fb72"
     },
     "param.init.here.summary": {
       "text": "लक्ष्य निर्देशिका पहले से मौजूद हो और पहले से कुछ रखती हो, तब भी वहाँ वर्कबेंच लिखें",
@@ -5693,240 +5693,275 @@
       "context": "The meaning of the expect-digest argument of `dinah set`, printed in that command's arguments table. It is for a caller that had the comment open while its author typed: an editor writes the file on save, so the body the write would otherwise be compared against is gone, and the digest on the header is what is left to compare.",
       "source": "4d5ad6d096694a02"
     },
+    "check.move.5": {
+    "text": "निवेदन किसी स्वामी को नामता है",
+    "context": "One row of the ordered precondition list of move. This row is Dinah's own addition: the core profile's own section 6.3 table carries no row reading \"the request names an owner\" (only CORE-CLAIM and CORE-BLOCK's own tables do), so this key does not claim the profile's own wording the way the numbered rows above it do.",
+    "source": "bc538e33f1fcc933"
+  },
+    "check.release.2": {
+    "text": "निवेदन किसी स्वामी को नामता है",
+    "context": "One row of the ordered precondition list of release. This row is Dinah's own addition: the core profile's own section 6.5 table carries no row reading \"the request names an owner\" (only CORE-CLAIM and CORE-BLOCK's own tables do), so this key does not claim the profile's own wording the way the numbered rows above it do.",
+    "source": "bc538e33f1fcc933"
+  },
+    "check.unblock.2": {
+    "text": "निवेदन किसी स्वामी को नामता है",
+    "context": "One row of the ordered precondition list of unblock. This row is Dinah's own addition: the core profile's own section 6.6 table carries no row reading \"the request names an owner\" (only CORE-CLAIM and CORE-BLOCK's own tables do), so this key does not claim the profile's own wording the way the numbered rows above it do.",
+    "source": "bc538e33f1fcc933"
+  },
+    "check.check.1": {
+    "text": "आपका बताया harness मान्य नाम है",
+    "context": "One row of the ordered precondition list of check, run when the request carries at least one repair marker. check has no numbered table in the core profile, so this row carries Dinah's own wording rather than a quotation.",
+    "source": "47fd175a39b5f9ee"
+  },
+    "check.check.2": {
+    "text": "निवेदन किसी स्वामी को नामता है",
+    "context": "One row of the ordered precondition list of check, run when the request carries at least one repair marker, immediately after the harness row above. check has no numbered table in the core profile, so this row carries Dinah's own wording rather than a quotation.",
+    "source": "bc538e33f1fcc933"
+  },
+    "refusal.no-owner.next-harness": {
+    "text": "; एक {harness} हार्नेस घोषित है, इसलिए आपकी सेटिंग्स में कॉन्फ़िगर किया गया actor, यदि कोई हो, यहाँ लागू नहीं होता; कौन कार्य कर रहा है यह बताने के लिए `dinah --actor <name>` चलाएँ या `DINAH_ACTOR` सेट करें",
+    "context": "Spliced onto refusal.no-owner as the next step, in place of refusal.no-owner.next, when the request that raised the refusal declared a harness: the configuration rung of the actor ladder answers only a call declaring none, so a harness-declaring call is refused rather than promoted to whatever a shared config file carries.",
+    "source": "85585bd769b3150c"
+  },
+    "status.actor.unnamed": {
+    "text": "इस प्रक्रिया के लिए कोई actor नामित नहीं है; कौन कार्य कर रहा है यह बताने के लिए `dinah config set actor <name>` चलाएँ या `DINAH_ACTOR` सेट करें",
+    "context": "The second line of status when no actor resolved for this process, printed in place of status.actor so the line never interpolates an empty actor name.",
+    "source": "2ef9f69d8ff23dbb"
+  },
     "card.route": {
-      "text": "  मार्ग: {route}",
-      "context": "Printed under the card line when the card walks a route the workbench declares. A card on the workbench's full column list draws no such line.",
-      "source": "ce067c1da9193c59"
-    },
+    "text": "  मार्ग: {route}",
+    "context": "Printed under the card line when the card walks a route the workbench declares. A card on the workbench's full column list draws no such line.",
+    "source": "ce067c1da9193c59"
+  },
     "check.add.6": {
-      "text": "वर्कबेंच उस मार्ग को घोषित करती है जिसका आपने नाम लिया",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "e4c23f3ff89bbd0c"
-    },
+    "text": "वर्कबेंच उस मार्ग को घोषित करती है जिसका आपने नाम लिया",
+    "context": "One row of the precondition list of a command outside the five the profile specifies.",
+    "source": "e4c23f3ff89bbd0c"
+  },
     "check.add.7": {
-      "text": "मार्ग उस कॉलम को रखता है जिसमें आप दर्ज कर रहे हैं",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "1dfac348aca657d9"
-    },
+    "text": "मार्ग उस कॉलम को रखता है जिसमें आप दर्ज कर रहे हैं",
+    "context": "One row of the precondition list of a command outside the five the profile specifies.",
+    "source": "1dfac348aca657d9"
+  },
     "check.card-off-route": {
-      "text": "{detail} ऐसे कॉलम में खड़ा है जिसे उसका अपना मार्ग नहीं रखता",
-      "context": "A check finding: a card has been moved, rejected or re-routed onto a column its road does not carry. {detail} carries the card and the column, in that order. The card's forward move is the first route column after it, so this is worth a person's attention rather than broken.",
-      "source": "695b58b9243fdd53"
-    },
+    "text": "{detail} ऐसे कॉलम में खड़ा है जिसे उसका अपना मार्ग नहीं रखता",
+    "context": "A check finding: a card has been moved, rejected or re-routed onto a column its road does not carry. {detail} carries the card and the column, in that order. The card's forward move is the first route column after it, so this is worth a person's attention rather than broken.",
+    "source": "695b58b9243fdd53"
+  },
     "check.card-unknown-route": {
-      "text": "{detail} ऐसे मार्ग का नाम लेता है जो यह वर्कबेंच घोषित नहीं करती",
-      "context": "A check finding: a card's route names one the workbench declares. {detail} carries the card and the route name, in that order. The card walks the workbench's full column list meanwhile.",
-      "source": "d4dbf84a431f5685"
-    },
+    "text": "{detail} ऐसे मार्ग का नाम लेता है जो यह वर्कबेंच घोषित नहीं करती",
+    "context": "A check finding: a card's route names one the workbench declares. {detail} carries the card and the route name, in that order. The card walks the workbench's full column list meanwhile.",
+    "source": "d4dbf84a431f5685"
+  },
     "check.file.1": {
-      "text": "यह वर्कबेंच एक संचालक नियुक्त करती है",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "b64509306a5c6b2"
-    },
+    "text": "यह वर्कबेंच एक संचालक नियुक्त करती है",
+    "context": "One row of the precondition list of a command outside the five the profile specifies.",
+    "source": "b64509306a5c6b2"
+  },
     "check.file.2": {
-      "text": "कार्ड मौजूद है",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "37dac5acd188c446"
-    },
+    "text": "कार्ड मौजूद है",
+    "context": "One row of the precondition list of a command outside the five the profile specifies.",
+    "source": "37dac5acd188c446"
+  },
     "check.file.3": {
-      "text": "अनुरोध किसी स्वामी का नाम लेता है",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "bc538e33f1fcc933"
-    },
+    "text": "अनुरोध किसी स्वामी का नाम लेता है",
+    "context": "One row of the precondition list of a command outside the five the profile specifies.",
+    "source": "bc538e33f1fcc933"
+  },
     "check.file.4": {
-      "text": "अनुरोध किसी प्रकार का नाम लेता है",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "6d0907ed0a53cc60"
-    },
+    "text": "अनुरोध किसी प्रकार का नाम लेता है",
+    "context": "One row of the precondition list of a command outside the five the profile specifies.",
+    "source": "6d0907ed0a53cc60"
+  },
     "check.file.5": {
-      "text": "प्रकार चेकलिस्ट के तीन में से एक है",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "64a1de3e4ec98545"
-    },
+    "text": "प्रकार चेकलिस्ट के तीन में से एक है",
+    "context": "One row of the precondition list of a command outside the five the profile specifies.",
+    "source": "64a1de3e4ec98545"
+  },
     "check.file.6": {
-      "text": "मद में पाठ है",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "5d66a8e28d521fa7"
-    },
+    "text": "मद में पाठ है",
+    "context": "One row of the precondition list of a command outside the five the profile specifies.",
+    "source": "5d66a8e28d521fa7"
+  },
     "check.file.7": {
-      "text": "वर्कबेंच उस कॉलम को घोषित करती है जिसका आपने नाम लिया",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "eca4f4480793df85"
-    },
+    "text": "वर्कबेंच उस कॉलम को घोषित करती है जिसका आपने नाम लिया",
+    "context": "One row of the precondition list of a command outside the five the profile specifies.",
+    "source": "eca4f4480793df85"
+  },
     "check.file.8": {
-      "text": "कार्ड का मार्ग उस कॉलम को रखता है जिसका आपने नाम लिया",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "7ed219c25b5b72c3"
-    },
+    "text": "कार्ड का मार्ग उस कॉलम को रखता है जिसका आपने नाम लिया",
+    "context": "One row of the precondition list of a command outside the five the profile specifies.",
+    "source": "7ed219c25b5b72c3"
+  },
     "check.item-off-route": {
-      "text": "{detail} ऐसे कॉलम का नाम लेता है जिसे कार्ड का मार्ग नहीं रखता, इसलिए उसकी रोक कभी लागू नहीं होगी",
-      "context": "A check finding: a pending checklist item names a column the card will never stand at. {detail} carries the card, the item and the column, in that order.",
-      "source": "2df1e35a57a15b2c"
-    },
+    "text": "{detail} ऐसे कॉलम का नाम लेता है जिसे कार्ड का मार्ग नहीं रखता, इसलिए उसकी रोक कभी लागू नहीं होगी",
+    "context": "A check finding: a pending checklist item names a column the card will never stand at. {detail} carries the card, the item and the column, in that order.",
+    "source": "2df1e35a57a15b2c"
+  },
     "check.route-duplicate-column": {
-      "text": "{detail} एक ही कॉलम का नाम दो बार लेता है",
-      "context": "A check finding: a route names each column once. {detail} carries the route name and the column, in that order.",
-      "source": "68007ffb56d3f9a4"
-    },
+    "text": "{detail} एक ही कॉलम का नाम दो बार लेता है",
+    "context": "A check finding: a route names each column once. {detail} carries the route name and the column, in that order.",
+    "source": "68007ffb56d3f9a4"
+  },
     "check.route-empty": {
-      "text": "मार्ग {detail} इस वर्कबेंच का कोई कॉलम नहीं रखता",
-      "context": "A check finding: a route has to carry at least one column to be a road at all. {detail} carries the route name. A retirement that took a route's last column away produces it as well as a declaration that named none.",
-      "source": "a0e06e12ab3c4a78"
-    },
+    "text": "मार्ग {detail} इस वर्कबेंच का कोई कॉलम नहीं रखता",
+    "context": "A check finding: a route has to carry at least one column to be a road at all. {detail} carries the route name. A retirement that took a route's last column away produces it as well as a declaration that named none.",
+    "source": "a0e06e12ab3c4a78"
+  },
     "check.route-missing-first-column": {
-      "text": "{detail} वर्कबेंच का पहला कॉलम नहीं रखता, इसलिए कोई कार्ड उस पर वर्कबेंच में प्रवेश नहीं कर सकता",
-      "context": "A check finding: cards enter a workbench at its first column, which is where dinah add files one, so a route without it has no door. {detail} carries the route name and that first column, in that order.",
-      "source": "f36752c3722c4372"
-    },
+    "text": "{detail} वर्कबेंच का पहला कॉलम नहीं रखता, इसलिए कोई कार्ड उस पर वर्कबेंच में प्रवेश नहीं कर सकता",
+    "context": "A check finding: cards enter a workbench at its first column, which is where dinah add files one, so a route without it has no door. {detail} carries the route name and that first column, in that order.",
+    "source": "f36752c3722c4372"
+  },
     "check.route-missing-terminal": {
-      "text": "{detail} ऐसे कॉलम पर समाप्त होता है जो समाप्ति कॉलम नहीं है, इसलिए उस पर कोई कार्ड पूरा नहीं हो सकता",
-      "context": "A check finding: a route ends in the terminal region. {detail} carries the route name and the column it ends at, in that order.",
-      "source": "34298d0e46c9a9f8"
-    },
+    "text": "{detail} ऐसे कॉलम पर समाप्त होता है जो समाप्ति कॉलम नहीं है, इसलिए उस पर कोई कार्ड पूरा नहीं हो सकता",
+    "context": "A check finding: a route ends in the terminal region. {detail} carries the route name and the column it ends at, in that order.",
+    "source": "34298d0e46c9a9f8"
+  },
     "check.route-name-malformed": {
-      "text": "मार्ग {detail} का नाम मार्ग नामों के व्याकरण से बाहर है",
-      "context": "A check finding: a route name has to read as a slug, because it is typed on a command line and read back out of a refusal. {detail} carries the name, and the repair is an edit to the workbench's own routes block.",
-      "source": "1a1022e8363305ef"
-    },
+    "text": "मार्ग {detail} का नाम मार्ग नामों के व्याकरण से बाहर है",
+    "context": "A check finding: a route name has to read as a slug, because it is typed on a command line and read back out of a refusal. {detail} carries the name, and the repair is an edit to the workbench's own routes block.",
+    "source": "1a1022e8363305ef"
+  },
     "check.route-out-of-order": {
-      "text": "मार्ग {detail} अपने कॉलम प्रवाह के अपने क्रम से भिन्न क्रम में सूचीबद्ध करता है",
-      "context": "A check finding: a route resolves in flow order whatever order it was written in, so this says the file does not read the way it runs. {detail} carries the route name.",
-      "source": "a98c40eafd9b77ba"
-    },
+    "text": "मार्ग {detail} अपने कॉलम प्रवाह के अपने क्रम से भिन्न क्रम में सूचीबद्ध करता है",
+    "context": "A check finding: a route resolves in flow order whatever order it was written in, so this says the file does not read the way it runs. {detail} carries the route name.",
+    "source": "a98c40eafd9b77ba"
+  },
     "check.route-reject-target-off-route": {
-      "text": "{detail} reject_to में ऐसा कॉलम बताता है जो यह मार्ग नहीं रखता",
-      "context": "A check finding: a push-back on a route should land on that route. {detail} carries the route name, the declaring column and the target, in that order. The card still lands there by an ordinary move and walks forward into its route again, so this is worth knowing rather than broken.",
-      "source": "d7d6e5f54c71cd94"
-    },
+    "text": "{detail} reject_to में ऐसा कॉलम बताता है जो यह मार्ग नहीं रखता",
+    "context": "A check finding: a push-back on a route should land on that route. {detail} carries the route name, the declaring column and the target, in that order. The card still lands there by an ordinary move and walks forward into its route again, so this is worth knowing rather than broken.",
+    "source": "d7d6e5f54c71cd94"
+  },
     "check.route-unknown-column": {
-      "text": "{detail} ऐसे कॉलम का नाम लेता है जो यह वर्कबेंच घोषित नहीं करती",
-      "context": "A check finding: every identifier a route names is a column of the flow. {detail} carries the route name and the identifier, in that order, and the repair is an edit to the workbench's own routes block.",
-      "source": "4928d1e70dac5f48"
-    },
+    "text": "{detail} ऐसे कॉलम का नाम लेता है जो यह वर्कबेंच घोषित नहीं करती",
+    "context": "A check finding: every identifier a route names is a column of the flow. {detail} carries the route name and the identifier, in that order, and the repair is an edit to the workbench's own routes block.",
+    "source": "4928d1e70dac5f48"
+  },
     "check.set.10": {
-      "text": "मार्ग कार्ड से आगे के हर संचालक-आरक्षित कॉलम को रखता है",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "f61b4bc3d6eb1fea"
-    },
+    "text": "मार्ग कार्ड से आगे के हर संचालक-आरक्षित कॉलम को रखता है",
+    "context": "One row of the precondition list of a command outside the five the profile specifies.",
+    "source": "f61b4bc3d6eb1fea"
+  },
     "check.set.9": {
-      "text": "कोई लंबित मद ऐसे कॉलम का नाम नहीं लेती जिसे मार्ग छोड़ देता है",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "3fa96ba8098e68ab"
-    },
+    "text": "कोई लंबित मद ऐसे कॉलम का नाम नहीं लेती जिसे मार्ग छोड़ देता है",
+    "context": "One row of the precondition list of a command outside the five the profile specifies.",
+    "source": "3fa96ba8098e68ab"
+  },
     "column.moves.route": {
-      "text": "मार्ग पर",
-      "context": "Heading over whether this row is the forward move along the card's own route, in the legal moves printed under a served instruction. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it.",
-      "source": "1ccd45bac0c2329d"
-    },
+    "text": "मार्ग पर",
+    "context": "Heading over whether this row is the forward move along the card's own route, in the legal moves printed under a served instruction. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it.",
+    "source": "1ccd45bac0c2329d"
+  },
     "column.routes.columns": {
-      "text": "कॉलम",
-      "context": "Heading over how many live columns a route carries, in the listing dinah list routes prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it.",
-      "source": "b0f3327210fe18fc"
-    },
+    "text": "कॉलम",
+    "context": "Heading over how many live columns a route carries, in the listing dinah list routes prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it.",
+    "source": "b0f3327210fe18fc"
+  },
     "column.routes.route": {
-      "text": "मार्ग",
-      "context": "Heading over a route's own name, in the listing dinah list routes prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it.",
-      "source": "4406e2a8264d6a3e"
-    },
+    "text": "मार्ग",
+    "context": "Heading over a route's own name, in the listing dinah list routes prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it.",
+    "source": "4406e2a8264d6a3e"
+  },
     "column.routes.skips": {
-      "text": "छोड़े गए",
-      "context": "Heading over the live columns a route omits, in the listing dinah list routes prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it.",
-      "source": "b759c3a376dc7663"
-    },
+    "text": "छोड़े गए",
+    "context": "Heading over the live columns a route omits, in the listing dinah list routes prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it.",
+    "source": "b759c3a376dc7663"
+  },
     "lsp.completion.route.detail": {
-      "text": "मार्ग जो प्रवाह के {columns} कॉलम रखता है",
-      "context": "The detail line beside one route candidate in a completion list. {columns} is how many live columns that route carries, which is the one fact that says how short the road is without opening the block.",
-      "source": "3f5c9f110013d631"
-    },
+    "text": "मार्ग जो प्रवाह के {columns} कॉलम रखता है",
+    "context": "The detail line beside one route candidate in a completion list. {columns} is how many live columns that route carries, which is the one fact that says how short the road is without opening the block.",
+    "source": "3f5c9f110013d631"
+  },
     "param.add.route.summary": {
-      "text": "कार्ड किस मार्ग पर दर्ज करना है, उन मार्गों में से जो यह वर्कबेंच घोषित करती है; यदि आप कोई नहीं बताते तो पूरी कॉलम सूची",
-      "context": "The meaning of the route argument of `dinah add`, printed in that command's arguments table.",
-      "source": "8638be023333b034"
-    },
+    "text": "कार्ड किस मार्ग पर दर्ज करना है, उन मार्गों में से जो यह वर्कबेंच घोषित करती है; यदि आप कोई नहीं बताते तो पूरी कॉलम सूची",
+    "context": "The meaning of the route argument of `dinah add`, printed in that command's arguments table.",
+    "source": "8638be023333b034"
+  },
     "refusal.dinah.item-off-route": {
-      "text": "मार्ग {route} {detail} को नहीं रखता, इसलिए उस कॉलम का नाम लेने वाली मद इस कार्ड को कहीं नहीं रोकेगी।",
-      "context": "The sentence printed after the refusal name dinah.item-off-route, which filing an item against a column the card's own route drops carries. {detail} is the column that was named and {route} is the route the card walks.",
-      "source": "b7249d5ceae4d5eb"
-    },
+    "text": "मार्ग {route} {detail} को नहीं रखता, इसलिए उस कॉलम का नाम लेने वाली मद इस कार्ड को कहीं नहीं रोकेगी।",
+    "context": "The sentence printed after the refusal name dinah.item-off-route, which filing an item against a column the card's own route drops carries. {detail} is the column that was named and {route} is the route the card walks.",
+    "source": "b7249d5ceae4d5eb"
+  },
     "refusal.dinah.item-off-route.next": {
-      "text": " ऐसे कॉलम का नाम दें जिसे मार्ग रखता हो, या पहले कार्ड का मार्ग बदलें।",
-      "context": "The next step of refusal.dinah.item-off-route, which names the two repairs open to the caller.",
-      "source": "48582193e300eed1"
-    },
+    "text": " ऐसे कॉलम का नाम दें जिसे मार्ग रखता हो, या पहले कार्ड का मार्ग बदलें।",
+    "context": "The next step of refusal.dinah.item-off-route, which names the two repairs open to the caller.",
+    "source": "48582193e300eed1"
+  },
     "refusal.dinah.route-off-column": {
-      "text": "मार्ग {route} {detail} को नहीं रखता, इसलिए वहाँ दर्ज किया गया कार्ड शुरू से ही अपने मार्ग से बाहर खड़ा होगा।",
-      "context": "The sentence printed after the refusal name dinah.route-off-column, which a filing whose destination column the named route drops carries. {detail} is the column the card would have landed in and {route} is the route that was named.",
-      "source": "d15b4060a0670e6f"
-    },
+    "text": "मार्ग {route} {detail} को नहीं रखता, इसलिए वहाँ दर्ज किया गया कार्ड शुरू से ही अपने मार्ग से बाहर खड़ा होगा।",
+    "context": "The sentence printed after the refusal name dinah.route-off-column, which a filing whose destination column the named route drops carries. {detail} is the column the card would have landed in and {route} is the route that was named.",
+    "source": "d15b4060a0670e6f"
+  },
     "refusal.dinah.route-off-column.next": {
-      "text": " कार्ड को मार्ग के किसी कॉलम में दर्ज करें, या कोई दूसरा मार्ग चुनें।",
-      "context": "The next step of refusal.dinah.route-off-column, which names the two repairs open to the caller.",
-      "source": "b14fda59994d97c0"
-    },
+    "text": " कार्ड को मार्ग के किसी कॉलम में दर्ज करें, या कोई दूसरा मार्ग चुनें।",
+    "context": "The next step of refusal.dinah.route-off-column, which names the two repairs open to the caller.",
+    "source": "b14fda59994d97c0"
+  },
     "refusal.dinah.route-skips-operator-column": {
-      "text": "मार्ग {detail} {column} को नहीं रखता, जिसे यह कार्ड अभी पार नहीं कर पाया है और जिसे यह वर्कबेंच अपने संचालक के लिए सुरक्षित रखती है।",
-      "context": "The sentence printed after the refusal name dinah.route-skips-operator-column, which a route write whose route omits an operator-owned station the card has not reached carries. {detail} is the route name that was written and {column} is the station it omits.",
-      "source": "2f702543f43a34e"
-    },
+    "text": "मार्ग {detail} {column} को नहीं रखता, जिसे यह कार्ड अभी पार नहीं कर पाया है और जिसे यह वर्कबेंच अपने संचालक के लिए सुरक्षित रखती है।",
+    "context": "The sentence printed after the refusal name dinah.route-skips-operator-column, which a route write whose route omits an operator-owned station the card has not reached carries. {detail} is the route name that was written and {column} is the station it omits.",
+    "source": "2f702543f43a34e"
+  },
     "refusal.dinah.route-skips-operator-column.next": {
-      "text": " पहले कार्ड को उस पड़ाव से आगे ले जाएँ, या ऐसा मार्ग चुनें जो उसे रखता हो।",
-      "context": "The next step of refusal.dinah.route-skips-operator-column, which names the two repairs: carry the card past the reserved station, or write a route that keeps it.",
-      "source": "800b20de46dc8617"
-    },
+    "text": " पहले कार्ड को उस पड़ाव से आगे ले जाएँ, या ऐसा मार्ग चुनें जो उसे रखता हो।",
+    "context": "The next step of refusal.dinah.route-skips-operator-column, which names the two repairs: carry the card past the reserved station, or write a route that keeps it.",
+    "source": "800b20de46dc8617"
+  },
     "refusal.dinah.route-strands-item": {
-      "text": "{item} {column} का नाम लेता है, और मार्ग {detail} उस कॉलम को नहीं रखता, इसलिए जिस रोक के लिए वह दर्ज हुआ था वह कभी लागू नहीं होगी।",
-      "context": "The sentence printed after the refusal name dinah.route-strands-item, which a route write on a card carrying a pending item naming a column the new route drops carries. {detail} is the route name that was written, {item} is the item's own reference and {column} is the column it names. Only a pending item is reported, because a settled one holds nothing.",
-      "source": "f99d2c572fc478a0"
-    },
+    "text": "{item} {column} का नाम लेता है, और मार्ग {detail} उस कॉलम को नहीं रखता, इसलिए जिस रोक के लिए वह दर्ज हुआ था वह कभी लागू नहीं होगी।",
+    "context": "The sentence printed after the refusal name dinah.route-strands-item, which a route write on a card carrying a pending item naming a column the new route drops carries. {detail} is the route name that was written, {item} is the item's own reference and {column} is the column it names. Only a pending item is reported, because a settled one holds nothing.",
+    "source": "f99d2c572fc478a0"
+  },
     "refusal.dinah.route-strands-item.next": {
-      "text": " उस मद को निपटाएँ, या `dinah set {item} column <column>` से उसे मार्ग के किसी कॉलम पर ले जाएँ।",
-      "context": "The next step of refusal.dinah.route-strands-item. The command is machine vocabulary and is never translated; {item} is the same reference the sentence above named.",
-      "source": "d272359d82c977fc"
-    },
+    "text": " उस मद को निपटाएँ, या `dinah set {item} column <column>` से उसे मार्ग के किसी कॉलम पर ले जाएँ।",
+    "context": "The next step of refusal.dinah.route-strands-item. The command is machine vocabulary and is never translated; {item} is the same reference the sentence above named.",
+    "source": "d272359d82c977fc"
+  },
     "refusal.dinah.unknown-route": {
-      "text": "यह वर्कबेंच {detail} नाम का कोई मार्ग घोषित नहीं करती।",
-      "context": "The sentence printed after the refusal name dinah.unknown-route, which a write naming a route the workbench does not declare carries. {detail} is the route name the reader typed. The declared names follow in a fragment, so a workbench declaring no route at all ends the sentence here.",
-      "source": "4425424ee0e4825f"
-    },
+    "text": "यह वर्कबेंच {detail} नाम का कोई मार्ग घोषित नहीं करती।",
+    "context": "The sentence printed after the refusal name dinah.unknown-route, which a write naming a route the workbench does not declare carries. {detail} is the route name the reader typed. The declared names follow in a fragment, so a workbench declaring no route at all ends the sentence here.",
+    "source": "4425424ee0e4825f"
+  },
     "refusal.dinah.unknown-route.declared": {
-      "text": " जो मार्ग यह घोषित करती है वे हैं: {routes}।",
-      "context": "A fragment of refusal.dinah.unknown-route, printed when the workbench declares at least one route. {routes} is the declared names in declaration order, read off the workbench rather than written here, so a route name is never translated.",
-      "source": "9074205180d02d58"
-    },
+    "text": " जो मार्ग यह घोषित करती है वे हैं: {routes}।",
+    "context": "A fragment of refusal.dinah.unknown-route, printed when the workbench declares at least one route. {routes} is the declared names in declaration order, read off the workbench rather than written here, so a route name is never translated.",
+    "source": "9074205180d02d58"
+  },
     "refusal.dinah.unknown-route.next": {
-      "text": " उनमें से किसी एक का नाम दें।",
-      "context": "The next step of refusal.dinah.unknown-route on a workbench that declares routes, spliced onto the sentence that just listed them.",
-      "source": "47ef8e6442436430"
-    },
+    "text": " उनमें से किसी एक का नाम दें।",
+    "context": "The next step of refusal.dinah.unknown-route on a workbench that declares routes, spliced onto the sentence that just listed them.",
+    "source": "47ef8e6442436430"
+  },
     "refusal.dinah.unknown-route.none": {
-      "text": " पहले वर्कबेंच के अपने routes ब्लॉक में कोई मार्ग घोषित करें, या कार्ड को पूरी कॉलम सूची पर ही रहने दें।",
-      "context": "The next step of refusal.dinah.unknown-route on a workbench declaring no route at all, where there is no name to offer the reader instead. routes is a frontmatter key and is never translated.",
-      "source": "14664d0b7da55488"
-    },
+    "text": " पहले वर्कबेंच के अपने routes ब्लॉक में कोई मार्ग घोषित करें, या कार्ड को पूरी कॉलम सूची पर ही रहने दें।",
+    "context": "The next step of refusal.dinah.unknown-route on a workbench declaring no route at all, where there is no name to offer the reader instead. routes is a frontmatter key and is never translated.",
+    "source": "14664d0b7da55488"
+  },
     "routes.empty": {
-      "text": "यह वर्कबेंच कोई मार्ग घोषित नहीं करती, इसलिए हर कार्ड उसकी पूरी कॉलम सूची से गुज़रता है।",
-      "context": "Printed in place of the routes listing when the workbench's own definition declares none. It says what that means rather than only that the list is empty.",
-      "source": "67256972d4f2ca77"
-    },
+    "text": "यह वर्कबेंच कोई मार्ग घोषित नहीं करती, इसलिए हर कार्ड उसकी पूरी कॉलम सूची से गुज़रता है।",
+    "context": "Printed in place of the routes listing when the workbench's own definition declares none. It says what that means rather than only that the list is empty.",
+    "source": "67256972d4f2ca77"
+  },
     "routes.skip.operator-owned": {
-      "text": "{column} (संचालक)",
-      "context": "One skipped column in the routes listing, where the workbench reserves that column to its operator. {column} is the column's own reference and is never translated. The mark answers the one question an operator asks of a road somebody drew.",
-      "source": "b9b69e8764e34212"
-    },
+    "text": "{column} (संचालक)",
+    "context": "One skipped column in the routes listing, where the workbench reserves that column to its operator. {column} is the column's own reference and is never translated. The mark answers the one question an operator asks of a road somebody drew.",
+    "source": "b9b69e8764e34212"
+  },
     "check.add.8": {
-      "text": "मार्ग कार्ड से आगे के हर संचालक-आरक्षित कॉलम को रखता है",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "f61b4bc3d6eb1fea"
-    },
+    "text": "मार्ग कार्ड से आगे के हर संचालक-आरक्षित कॉलम को रखता है",
+    "context": "One row of the precondition list of a command outside the five the profile specifies.",
+    "source": "f61b4bc3d6eb1fea"
+  },
     "check.set.11": {
-      "text": "मद का नया कॉलम वह है जिसे कार्ड का मार्ग रखता है",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "da0b7957de43169a"
-    },
+    "text": "मद का नया कॉलम वह है जिसे कार्ड का मार्ग रखता है",
+    "context": "One row of the precondition list of a command outside the five the profile specifies.",
+    "source": "da0b7957de43169a"
+  },
     "check.card-route-skips-operator-column": {
-      "text": "{detail} ऐसे मार्ग पर चलता है जो उसे उस कॉलम को छोड़कर ले जाता है जिसे यह वर्कबेंच अपने संचालक के लिए सुरक्षित रखती है",
-      "context": "A check finding: a card's route omits an operator-owned column the card has not yet passed, which every verb that writes a route refuses, so it arrived by a hand edit. {detail} carries the card and the column, in that order. The finding clears once the card has passed the column.",
-      "source": "d730a37fa11686d2"
-    }
+    "text": "{detail} ऐसे मार्ग पर चलता है जो उसे उस कॉलम को छोड़कर ले जाता है जिसे यह वर्कबेंच अपने संचालक के लिए सुरक्षित रखती है",
+    "context": "A check finding: a card's route omits an operator-owned column the card has not yet passed, which every verb that writes a route refuses, so it arrived by a hand edit. {detail} carries the card and the column, in that order. The finding clears once the card has passed the column.",
+    "source": "d730a37fa11686d2"
+  }
   }
 }
