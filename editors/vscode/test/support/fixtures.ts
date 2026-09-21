@@ -57,10 +57,18 @@ export function fixtureEnv(root: FixtureRoot): NodeJS.ProcessEnv {
 	});
 }
 
-/** Runs `dinah init` in `dir`, optionally under a chosen slug. */
+/**
+ * Runs `dinah init` in `dir`, optionally under a chosen slug.
+ *
+ * `--here` is passed unconditionally. `dir` is created if it does not exist
+ * yet, and a second call against a directory an earlier call already wrote a
+ * workbench into (the ambiguous fixture builds one that way, on purpose) is
+ * exactly the deliberate reuse the flag is for, so every call carries it
+ * rather than special-casing the one caller that needs it.
+ */
 export function initBench(root: FixtureRoot, dir: string, slug?: string): void {
 	mkdirSync(dir, { recursive: true });
-	const args = ["--json", "init"];
+	const args = ["--json", "init", "--here"];
 	if (slug !== undefined) {
 		args.push("--slug", slug);
 	}

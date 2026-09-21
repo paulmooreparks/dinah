@@ -578,6 +578,7 @@ var params = map[string][]Param{
 		{Name: "from", Flag: true, Value: "source"},
 		{Name: "slug", Flag: true, Value: "slug"},
 		{Name: "operator", Flag: true, Value: "actor"},
+		{Name: "here", Flag: true, Marker: true},
 	},
 	"export": {},
 	// reshape declares no positional at all, so a stray word anywhere in the
