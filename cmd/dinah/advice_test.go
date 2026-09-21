@@ -842,7 +842,8 @@ const checkInvocation = "dinah check"
 // reading it. A message here is a promise the tool keeps, and the test named
 // beside it is what keeps it.
 var checkAdviceProvenByRunning = map[string]string{
-	"refusal.dinah.no-workbench-found.bare":               "TestTheBareWorkbenchAdviceIsACommandThatWorks",
+	"refusal.dinah.no-workbench-found.bare":               "TestTheBareWorkbenchAdviceOutsideARepositoryStillNamesNoWorkbenchFound",
+	"refusal.dinah.workbench-boundary.bare":               "TestTheBareWorkbenchAdviceIsACommandThatWorks",
 	"refusal.dinah.needs-container-migration.next":        "TestTheContainerMigrationAdviceIsACommandThatWorks",
 	"refusal.dinah.needs-number-migration.next":           "TestTheNumberMigrationChainIsSelfGuiding",
 	"refusal.dinah.needs-vocabulary-migration.next-named": "TestTheVocabularyMigrationAdviceIsACommandThatWorks",

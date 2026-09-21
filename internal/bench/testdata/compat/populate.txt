@@ -1,4 +1,4 @@
-init --from definition.json --slug sample --operator sam
+init --from definition.json --slug sample --operator sam --here
 add "first card"
 add "second card"
 add "third card"

@@ -316,15 +316,23 @@ func TestTheOldBlanketMigrationHeadingIsGone(t *testing.T) {
 // same refusal. The test runs the advice rather than reading it, which is the
 // only way to tell a sentence naming a command from a sentence naming one that
 // does the job.
+//
+// bareWorkbench plants its fixture beside a .git directory (project.git/HEAD),
+// which since dinah-541 makes the project directory itself a repository root:
+// the climb's own boundary stops there having found no workbench, rather than
+// climbing past it and exhausting the search at the volume root, so the
+// refusal this fixture reaches is dinah.workbench-boundary and not
+// dinah.no-workbench-found. The .bare fragment and the advice it carries are
+// otherwise unchanged.
 func TestTheBareWorkbenchAdviceIsACommandThatWorks(t *testing.T) {
 	tree := resolvedDir(t, emptyTree(t))
 	project := bareWorkbench(t, filepath.Join(tree, "myproject"))
 
 	refused := runCLI(t, project, "check", "--migrate-container", "--yes")
-	if !strings.Contains(refused.errw, contract.NoWorkbenchFound) {
-		t.Fatalf("standing in a bare workbench does not refuse %s: %d %s%s", contract.NoWorkbenchFound, refused.code, refused.out, refused.errw)
+	if !strings.Contains(refused.errw, contract.WorkbenchBoundary) {
+		t.Fatalf("standing in a bare workbench inside its own repository root does not refuse %s: %d %s%s", contract.WorkbenchBoundary, refused.code, refused.out, refused.errw)
 	}
-	advice := msg.For(msg.Base).T("refusal.dinah.no-workbench-found.bare", "bare", project)
+	advice := msg.For(msg.Base).T("refusal.dinah.workbench-boundary.bare", "bare", project)
 	if !strings.Contains(refused.errw, "--migrate-container") {
 		t.Fatalf("the refusal does not recommend the container repair at all:\n%s", refused.errw)
 	}
@@ -358,6 +366,59 @@ func TestTheBareWorkbenchAdviceIsACommandThatWorks(t *testing.T) {
 	// the operator wanted when he followed the advice.
 	if got := runCLI(t, project, "status"); got.code != 0 {
 		t.Errorf("the repaired workbench does not open: %d %s", got.code, got.errw)
+	}
+}
+
+// TestTheBareWorkbenchAdviceOutsideARepositoryStillNamesNoWorkbenchFound
+// pins dinah-541's other half of the split TestTheBareWorkbenchAdviceIsACommandThatWorks
+// used to cover alone: a bare workbench.md sitting outside any repository (no
+// .git anywhere between it and the volume root) still exhausts the climb and
+// still refuses dinah.no-workbench-found with its own .bare fragment, exactly
+// as it did before this card, since the repository-root bound changes
+// nothing about a walk that never meets a .git entry. The boundary refusal
+// dinah.workbench-boundary and its own .bare fragment are what the sibling
+// test proves for the case bareWorkbench actually builds, which plants a
+// .git directory beside the anchor.
+func TestTheBareWorkbenchAdviceOutsideARepositoryStillNamesNoWorkbenchFound(t *testing.T) {
+	tree := resolvedDir(t, emptyTree(t))
+	project := filepath.Join(tree, "myproject")
+	if err := os.MkdirAll(project, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	definition, err := bench.ReadDefinition([]byte(fmtBaseDefinition("Bare, no repository")))
+	if err != nil {
+		t.Fatalf("definition: %v", err)
+	}
+	if err := bench.Instantiate(project, "br", "alka", definition); err != nil {
+		t.Fatalf("instantiate: %v", err)
+	}
+
+	refused := runCLI(t, project, "check", "--migrate-container", "--yes")
+	if !strings.Contains(refused.errw, contract.NoWorkbenchFound) {
+		t.Fatalf("standing in a bare workbench outside any repository does not refuse %s: %d %s%s", contract.NoWorkbenchFound, refused.code, refused.out, refused.errw)
+	}
+	advice := msg.For(msg.Base).T("refusal.dinah.no-workbench-found.bare", "bare", project)
+	if !strings.Contains(refused.errw, "--migrate-container") {
+		t.Fatalf("the refusal does not recommend the container repair at all:\n%s", refused.errw)
+	}
+	argv, found := adviceInvocation(advice)
+	if !found {
+		t.Fatalf("no `dinah ...` invocation was found in the advice %q, so this test would assert nothing", advice)
+	}
+	took := runCLI(t, project, argv...)
+	if took.code != 5 {
+		t.Fatalf("taking the refusal's own advice, dinah %v, exited %d rather than reaching the preview: %s%s", argv, took.code, took.out, took.errw)
+	}
+	confirmed := runCLI(t, project, append(argv, "--yes")...)
+	if confirmed.code != 0 {
+		t.Fatalf("the advice, confirmed, exited %d: %s%s", confirmed.code, confirmed.out, confirmed.errw)
+	}
+	ids, err := bench.ListWorkbenchIDs(filepath.Join(project, bench.UserBaseName))
+	if err != nil {
+		t.Fatalf("ListWorkbenchIDs: %v", err)
+	}
+	if len(ids) != 1 {
+		t.Errorf("the advice ran and the workbench is not in a container: the container holds %v", ids)
 	}
 }
 

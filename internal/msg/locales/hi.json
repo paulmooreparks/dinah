@@ -70,11 +70,6 @@
       "context": "Printed under the card line when the card carries a priority.",
       "source": "dab7135c80c075a7"
     },
-    "card.route": {
-      "text": "  मार्ग: {route}",
-      "context": "Printed under the card line when the card walks a route the workbench declares. A card on the workbench's full column list draws no such line.",
-      "source": "ce067c1da9193c59"
-    },
     "card.severity": {
       "text": "  गंभीरता: {severity}",
       "context": "Printed under the card line when the card carries a severity.",
@@ -114,16 +109,6 @@
       "text": "हर स्तर वह है जिसे वह फ़ील्ड घोषित करता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "18355315571e9c45"
-    },
-    "check.add.6": {
-      "text": "वर्कबेंच उस मार्ग को घोषित करती है जिसका आपने नाम लिया",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "e4c23f3ff89bbd0c"
-    },
-    "check.add.7": {
-      "text": "मार्ग उस कॉलम को रखता है जिसमें आप दर्ज कर रहे हैं",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "1dfac348aca657d9"
     },
     "check.archive.1": {
       "text": "संदर्भ किसी ऐसी इकाई तक पहुँचता है जिसे यह कमांड संग्रहीत कर सकता है",
@@ -355,16 +340,6 @@
       "context": "The line the number migration prints for what it wrote, for any other number. The count is zero on a run over a workbench whose registry already covered every card, which is that run's own answer.",
       "source": "55540a915ed7de23"
     },
-    "check.card-off-route": {
-      "text": "{detail} ऐसे कॉलम में खड़ा है जिसे उसका अपना मार्ग नहीं रखता",
-      "context": "A check finding: a card has been moved, rejected or re-routed onto a column its road does not carry. {detail} carries the card and the column, in that order. The card's forward move is the first route column after it, so this is worth a person's attention rather than broken.",
-      "source": "695b58b9243fdd53"
-    },
-    "check.card-unknown-route": {
-      "text": "{detail} ऐसे मार्ग का नाम लेता है जो यह वर्कबेंच घोषित नहीं करती",
-      "context": "A check finding: a card's route names one the workbench declares. {detail} carries the card and the route name, in that order. The card walks the workbench's full column list meanwhile.",
-      "source": "d4dbf84a431f5685"
-    },
     "check.card-vocabulary-mixed": {
       "text": "कार्ड {detail} पर इस प्रारूप की दोनों शब्दावलियों में से एक-एक कुंजी है, इसलिए यह नहीं पढ़ा जा सकता कि वह कहाँ खड़ा है",
       "context": "A check finding: a card whose header holds half of each vocabulary. The checker reports what the reader refuses under dinah.vocabulary-mixed, so a card whose anchor file is plainly there is not reported as having none.",
@@ -474,11 +449,6 @@
       "text": "सूची से {count} छूटे हुए कॉलम हटाए।",
       "context": "The line the stranded-column migration prints for what it removed, for any other number. Followed by one line per removed identifier.",
       "source": "26675d249f208b4f"
-    },
-    "check.comment-body-diverged": {
-      "text": "टिप्पणी {detail} का पाठ अब उस डाइजेस्ट से मेल नहीं खाता जो Dinah ने उस पर दर्ज किया था",
-      "context": "A check finding: a comment whose stored digest disagrees with its body, which means something outside Dinah edited it. It names no editor and no time, because the tool knows neither, and a comment carrying no digest is not reported at all.",
-      "source": "1db91e5a29db98bc"
     },
     "check.comment.1": {
       "text": "संदर्भ दिया गया है, और यह जिस कार्ड को नामित करता है वह मौजूद है",
@@ -613,11 +583,6 @@
       "context": "A check finding: a links entry whose to resolves to no card.",
       "source": "5f1aeb5567864080"
     },
-    "check.dangling-resolution": {
-      "text": "चेकलिस्ट मद {detail} ऐसी टिप्पणी पदनामित करता है जो अब हल नहीं होती",
-      "context": "A check finding: a resolution naming a comment that is not there. Deleting a designated comment is refused and the forced form clears the designation, so this is the residue of a hand edit rather than of anything the tool did.",
-      "source": "aed8b987711c0e74"
-    },
     "check.dangling-workstream": {
       "text": "एक कार्ड वर्कस्ट्रीम {detail} से जुड़ा है, जो संग्रह के किसी भी आधे में नहीं मिलती",
       "context": "A check finding: a card's workstreams list names an identifier no workstream answers to; `dinah check --migrate-workstreams` adopts it.",
@@ -663,16 +628,6 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "2b9ac1df1c55ee5c"
     },
-    "check.empty-comment": {
-      "text": "टिप्पणी {detail} का पाठ रिक्त है और कोई उसे पदनामित नहीं करता, अतः उस पर `dinah delete` चलाएँ",
-      "context": "A check finding at cleanup severity: an abandoned draft, which is what creating a comment before writing one costs. Nothing is blocked by it.",
-      "source": "e35b0df94f437621"
-    },
-    "check.empty-designated-comment": {
-      "text": "टिप्पणी {detail} का पाठ रिक्त है और कोई चेकलिस्ट मद उसे अपने उत्तर के रूप में पदनामित करता है",
-      "context": "A check finding at defect severity: an item's answer of record cannot be nothing. It is the same emptiness check.empty-comment reports, and it is a defect rather than clutter because something depends on this one.",
-      "source": "e6ed8800c045c378"
-    },
     "check.entity-at-both-paths": {
       "text": "{detail} वर्कबेंच के जीवित समूह में और उसके पुरालेख में, दोनों जगह मौजूद है, और check इनमें से किसी एक को नहीं चुनेगा",
       "context": "A check finding: an interrupted structural act left a directory at both paths, which the tool reports and refuses to resolve.",
@@ -687,46 +642,6 @@
       "text": "fields ब्लॉक {detail} को बिना किसी उपयोगी प्रकार या अर्थ के घोषित करता है, इसलिए उस कुंजी के नीचे कुछ भी घोषित नहीं है",
       "context": "A check finding: one entry of this workbench's fields block that the declaration reader refused, which is an entry whose key the grammar refuses, whose type is absent or outside the five, or whose meaning is absent or blank. {detail} carries the key as written. The entry declares nothing and the workbench still opens, so the repair is an edit to the block.",
       "source": "6f6962dc44a13ab4"
-    },
-    "check.file.1": {
-      "text": "यह वर्कबेंच एक संचालक नियुक्त करती है",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "b64509306a5c6b2"
-    },
-    "check.file.2": {
-      "text": "कार्ड मौजूद है",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "37dac5acd188c446"
-    },
-    "check.file.3": {
-      "text": "अनुरोध किसी स्वामी का नाम लेता है",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "bc538e33f1fcc933"
-    },
-    "check.file.4": {
-      "text": "अनुरोध किसी प्रकार का नाम लेता है",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "6d0907ed0a53cc60"
-    },
-    "check.file.5": {
-      "text": "प्रकार चेकलिस्ट के तीन में से एक है",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "64a1de3e4ec98545"
-    },
-    "check.file.6": {
-      "text": "मद में पाठ है",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "5d66a8e28d521fa7"
-    },
-    "check.file.7": {
-      "text": "वर्कबेंच उस कॉलम को घोषित करती है जिसका आपने नाम लिया",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "eca4f4480793df85"
-    },
-    "check.file.8": {
-      "text": "कार्ड का मार्ग उस कॉलम को रखता है जिसका आपने नाम लिया",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "7ed219c25b5b72c3"
     },
     "check.get.1": {
       "text": "संदर्भ एक ही इकाई पर हल होता है",
@@ -768,6 +683,11 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "f2ef2a76507fdfc9"
     },
+    "check.init.3": {
+      "text": "लक्ष्य निर्देशिका नई है, खाली है, या कॉलर ने --here दिया है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "850b7952e03629e"
+    },
     "check.instructions.1": {
       "text": "संदर्भ किसी कार्ड या कॉलम तक पहुँचता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
@@ -778,20 +698,10 @@
       "context": "A check finding: a sibling lock standing beside an entity, with the identifier, the operation and the direction the finish would take.",
       "source": "d43d063b20e0e92f"
     },
-    "check.item-carries-retired-note": {
-      "text": "चेकलिस्ट मद {detail} अब भी सेवानिवृत्त नोट कुंजी रखता है",
-      "context": "A check finding: an item the note migration reached and did not finish, which is the state an interrupted run leaves one item in. Running the migration again finishes it.",
-      "source": "8dde56bb07ecc94d"
-    },
     "check.item-column-unresolved": {
       "text": "एक चेकलिस्ट मद ऐसे कॉलम का नाम लेता है जो कभी किसी कार्ड को नहीं रोकेगा: {detail}",
       "context": "A check finding: every checklist item's column value, where set, is stored as the identifier of a column this workbench declares. {detail} carries the card's reference, the item's identifier, and the stored column value, in that order. A write filed or set before the field validated, or a hand edit, both produce it.",
       "source": "d8e12be495b7b92"
-    },
-    "check.item-off-route": {
-      "text": "{detail} ऐसे कॉलम का नाम लेता है जिसे कार्ड का मार्ग नहीं रखता, इसलिए उसकी रोक कभी लागू नहीं होगी",
-      "context": "A check finding: a pending checklist item names a column the card will never stand at. {detail} carries the card, the item and the column, in that order.",
-      "source": "2df1e35a57a15b2c"
     },
     "check.join.1": {
       "text": "कार्ड मौजूद है",
@@ -1423,55 +1333,10 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "9692bffafbfe61b5"
     },
-    "check.route-duplicate-column": {
-      "text": "{detail} एक ही कॉलम का नाम दो बार लेता है",
-      "context": "A check finding: a route names each column once. {detail} carries the route name and the column, in that order.",
-      "source": "68007ffb56d3f9a4"
-    },
-    "check.route-empty": {
-      "text": "मार्ग {detail} इस वर्कबेंच का कोई कॉलम नहीं रखता",
-      "context": "A check finding: a route has to carry at least one column to be a road at all. {detail} carries the route name. A retirement that took a route's last column away produces it as well as a declaration that named none.",
-      "source": "a0e06e12ab3c4a78"
-    },
-    "check.route-missing-first-column": {
-      "text": "{detail} वर्कबेंच का पहला कॉलम नहीं रखता, इसलिए कोई कार्ड उस पर वर्कबेंच में प्रवेश नहीं कर सकता",
-      "context": "A check finding: cards enter a workbench at its first column, which is where dinah add files one, so a route without it has no door. {detail} carries the route name and that first column, in that order.",
-      "source": "f36752c3722c4372"
-    },
-    "check.route-missing-terminal": {
-      "text": "{detail} ऐसे कॉलम पर समाप्त होता है जो समाप्ति कॉलम नहीं है, इसलिए उस पर कोई कार्ड पूरा नहीं हो सकता",
-      "context": "A check finding: a route ends in the terminal region. {detail} carries the route name and the column it ends at, in that order.",
-      "source": "34298d0e46c9a9f8"
-    },
-    "check.route-name-malformed": {
-      "text": "मार्ग {detail} का नाम मार्ग नामों के व्याकरण से बाहर है",
-      "context": "A check finding: a route name has to read as a slug, because it is typed on a command line and read back out of a refusal. {detail} carries the name, and the repair is an edit to the workbench's own routes block.",
-      "source": "1a1022e8363305ef"
-    },
-    "check.route-out-of-order": {
-      "text": "मार्ग {detail} अपने कॉलम प्रवाह के अपने क्रम से भिन्न क्रम में सूचीबद्ध करता है",
-      "context": "A check finding: a route resolves in flow order whatever order it was written in, so this says the file does not read the way it runs. {detail} carries the route name.",
-      "source": "a98c40eafd9b77ba"
-    },
-    "check.route-reject-target-off-route": {
-      "text": "{detail} reject_to में ऐसा कॉलम बताता है जो यह मार्ग नहीं रखता",
-      "context": "A check finding: a push-back on a route should land on that route. {detail} carries the route name, the declaring column and the target, in that order. The card still lands there by an ordinary move and walks forward into its route again, so this is worth knowing rather than broken.",
-      "source": "d7d6e5f54c71cd94"
-    },
-    "check.route-unknown-column": {
-      "text": "{detail} ऐसे कॉलम का नाम लेता है जो यह वर्कबेंच घोषित नहीं करती",
-      "context": "A check finding: every identifier a route names is a column of the flow. {detail} carries the route name and the identifier, in that order, and the repair is an edit to the workbench's own routes block.",
-      "source": "4928d1e70dac5f48"
-    },
     "check.set.1": {
       "text": "यह वर्कबेंच एक संचालक नियुक्त करती है",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "b64509306a5c6b2"
-    },
-    "check.set.10": {
-      "text": "मार्ग कार्ड से आगे के हर संचालक-आरक्षित कॉलम को रखता है",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "f61b4bc3d6eb1fea"
     },
     "check.set.2": {
       "text": "संदर्भ एक ही इकाई पर हल होता है",
@@ -1507,11 +1372,6 @@
       "text": "उपनाम बदलने में पुष्टि फ़्लैग है",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "785f446889dee438"
-    },
-    "check.set.9": {
-      "text": "कोई लंबित मद ऐसे कॉलम का नाम नहीं लेती जिसे मार्ग छोड़ देता है",
-      "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "3fa96ba8098e68ab"
     },
     "check.show.1": {
       "text": "नामित फ़ील्ड वे हैं जो एक कार्ड का विवरण रखता है",
@@ -1827,11 +1687,6 @@
       "text": "वर्कस्ट्रीम {detail} पर लिखा नहीं जा सका, इसलिए प्रवासन ने उसे कोई उपनाम नहीं दिया और आगे बढ़ गया",
       "context": "A check finding the slug migration raises: the workstream's anchor could not be read or written, the walk stepped over it and carried on.",
       "source": "41a023702a16aa73"
-    },
-    "cmd.accept-divergence.summary": {
-      "text": "किसी टिप्पणी के संपादित पाठ को अभिलेख बनाएँ",
-      "context": "The one-line summary of the accept-divergence command, printed in the command list and above its own help.",
-      "source": "451d184b98fb6120"
     },
     "cmd.add.summary": {
       "text": "पहले कॉलम में नया कार्ड दर्ज करें",
@@ -2203,11 +2058,6 @@
       "context": "Heading over the reference a person types to reach the item, in the checklist block of `dinah show`. The block draws no heading row, so a reader meets this heading only where a narrow window stacks each field on a line of its own. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "9ff1e019feac1ee2"
     },
-    "column.checklist.resolution": {
-      "text": "उत्तर",
-      "context": "The heading of the column of the checklist block of `dinah show <card>` that carries the reference of the comment a settled item designates as its answer. One word, because the block is bounded by the reader's window.",
-      "source": "a6a92648588602bf"
-    },
     "column.checklist.state": {
       "text": "स्थिति",
       "context": "Heading over the state the item's own file records, in the checklist block of `dinah show`. The block draws no heading row, so a reader meets this heading only where a narrow window stacks each field on a line of its own. Each catalog decides for itself how a heading reads as a heading in its own language.",
@@ -2423,11 +2273,6 @@
       "context": "Heading over whether this row is the destination the departure column's own reject_to declares, in the legal moves printed under a served instruction. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "123da0f92f97dd86"
     },
-    "column.moves.route": {
-      "text": "मार्ग पर",
-      "context": "Heading over whether this row is the forward move along the card's own route, in the legal moves printed under a served instruction. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it.",
-      "source": "1ccd45bac0c2329d"
-    },
     "column.next.card": {
       "text": "कार्ड",
       "context": "Heading over the reference a person types to name the card offered, in the offers `dinah next` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
@@ -2507,21 +2352,6 @@
       "text": "संदर्भ",
       "context": "Heading over the word a reader types back to list one of the workbench’s own collections, in the roster a bare `dinah list` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "fe88d270aa3e71da"
-    },
-    "column.routes.columns": {
-      "text": "कॉलम",
-      "context": "Heading over how many live columns a route carries, in the listing dinah list routes prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it.",
-      "source": "b0f3327210fe18fc"
-    },
-    "column.routes.route": {
-      "text": "मार्ग",
-      "context": "Heading over a route's own name, in the listing dinah list routes prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it.",
-      "source": "4406e2a8264d6a3e"
-    },
-    "column.routes.skips": {
-      "text": "छोड़े गए",
-      "context": "Heading over the live columns a route omits, in the listing dinah list routes prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it.",
-      "source": "b759c3a376dc7663"
     },
     "column.search.kind": {
       "text": "प्रकार",
@@ -2941,11 +2771,6 @@
       "context": "The detail line beside one column candidate in a completion list. {slug} is the column's own handle and {position} is its one-based place in the flow.",
       "source": "29777175cff73d51"
     },
-    "lsp.completion.route.detail": {
-      "text": "मार्ग जो प्रवाह के {columns} कॉलम रखता है",
-      "context": "The detail line beside one route candidate in a completion list. {columns} is how many live columns that route carries, which is the one fact that says how short the road is without opening the block.",
-      "source": "3f5c9f110013d631"
-    },
     "lsp.completion.workstream.detail": {
       "text": "कार्यधारा {slug}",
       "context": "The detail line beside one workstream candidate in a completion list. {slug} is the workstream's own handle.",
@@ -3105,11 +2930,6 @@
       "context": "The sentence after the unreachable outcome name.",
       "source": "aa65b469853e26e8"
     },
-    "param.accept-divergence.comment.summary": {
-      "text": "वह टिप्पणी जिसके डिस्क पर स्थित पाठ को आप अभिलेख बना रहे हैं",
-      "context": "The meaning of the comment argument of `dinah accept-divergence`, printed in that command's arguments table.",
-      "source": "8cdbe702ac49973b"
-    },
     "param.add.column.summary": {
       "text": "कार्ड किस कॉलम में दर्ज करना है; कुछ न लिखने पर पहला कॉलम",
       "context": "The meaning of the column argument of `dinah add`, printed in that command's arguments table.",
@@ -3119,11 +2939,6 @@
       "text": "कार्ड किस प्राथमिकता स्तर के साथ दर्ज करना है, उन स्तरों में से जो यह वर्कबेंच घोषित करती है",
       "context": "The meaning of the priority argument of `dinah add`, printed in that command's arguments table.",
       "source": "34b0957fa9817136"
-    },
-    "param.add.route.summary": {
-      "text": "कार्ड किस मार्ग पर दर्ज करना है, उन मार्गों में से जो यह वर्कबेंच घोषित करती है; यदि आप कोई नहीं बताते तो पूरी कॉलम सूची",
-      "context": "The meaning of the route argument of `dinah add`, printed in that command's arguments table.",
-      "source": "8638be023333b034"
     },
     "param.add.severity.summary": {
       "text": "कार्ड किस गंभीरता स्तर के साथ दर्ज करना है, उन स्तरों में से जो यह वर्कबेंच घोषित करती है",
@@ -3345,21 +3160,6 @@
       "context": "The meaning of the value argument of `dinah config`, printed in that command's arguments table.",
       "source": "e78a40bd1e5b6d62"
     },
-    "param.delete.force.summary": {
-      "text": "ऐसी टिप्पणी मिटाएँ जिसे कोई चेकलिस्ट मद पदनामित करता है, और उसी क्रिया के अंग के रूप में उस मद को फिर से खोलें",
-      "context": "The meaning of the force argument of `dinah delete`, printed in that command's arguments table. It is the operator's alone where the designating item is the operator's.",
-      "source": "1983ae4a0619852d"
-    },
-    "param.designation-text.summary": {
-      "text": "उत्तर स्वयं, जो इस मद की टिप्पणी के रूप में लिखा जाता है और एक ही क्रिया में पदनामित होता है; अकेला - उसे पाइप से पढ़ता है",
-      "context": "The written meaning of the --text flag, shared by resolve, verify and fail. It is the one-command form, and it cannot be named beside a designation reference, because the two are different acts.",
-      "source": "e7ac6c7fc4a4804b"
-    },
-    "param.designation.summary": {
-      "text": "इस मद की वह टिप्पणी जो उत्तर दर्ज करती है, उसके संदर्भ के रूप में लिखी जाती है; उत्तर को इसके बजाय --text से लिखें",
-      "context": "The written meaning of the comment argument, shared by resolve, verify and fail. Naming a comment is how somebody endorses words another person wrote: the comment keeps its own author and the settling records who chose it.",
-      "source": "50e99ba70c3e7183"
-    },
     "param.edit.card.summary": {
       "text": "वह चीज़ जिसे आप अपने संपादक में खोल रहे हैं, जैसे wb-1/comments/1",
       "context": "The meaning of the card argument of `dinah edit`, printed in that command's arguments table.",
@@ -3419,6 +3219,11 @@
       "text": "वर्कबेंच रखने वाली एक निर्देशिका, या `dinah export` या `dinah extract` से लिखी गई एक फ़ाइल",
       "context": "The meaning of the from argument of `dinah init`, printed in that command's arguments table.",
       "source": "a63072636c4c6fae"
+    },
+    "param.init.here.summary": {
+      "text": "लक्ष्य निर्देशिका पहले से मौजूद हो और पहले से कुछ रखती हो, तब भी वहाँ वर्कबेंच लिखें",
+      "context": "The meaning of the here argument of `dinah init`, printed in that command's arguments table.",
+      "source": "33058fe6572b702b"
     },
     "param.init.operator.summary": {
       "text": "इस वर्कबेंच का स्वामी कौन है; कुछ न लिखने पर आपका अपना actor",
@@ -3615,11 +3420,6 @@
       "context": "The meaning of the at argument of `dinah set`, printed in that command's arguments table. Every other field takes one value for the whole entity, so naming a column beside one is a usage error.",
       "source": "36f8dfa7f400a3b1"
     },
-    "param.set.expect-digest.summary": {
-      "text": "वह डाइजेस्ट जो आपने इस टिप्पणी पर अंतिम बार दर्ज देखा था; यदि उसके बाद किसी ने टिप्पणी लिखी है तो लेखन अस्वीकार होगा",
-      "context": "The meaning of the expect-digest argument of `dinah set`, printed in that command's arguments table. It is for a caller that had the comment open while its author typed: an editor writes the file on save, so the body the write would otherwise be compared against is gone, and the digest on the header is what is left to compare.",
-      "source": "4d5ad6d096694a02"
-    },
     "param.set.field.summary": {
       "text": "आप कौन-सा फ़ील्ड लिख रहे हैं; कौन-से नाम मान्य हैं यह उस प्रकार पर निर्भर करता है जिस पर संदर्भ हल होता है",
       "context": "The meaning of the field argument of `dinah set`, printed in that command's arguments table. The set the argument publishes is the union over every kind, and the refusal names the resolved kind's own set.",
@@ -3715,16 +3515,6 @@
       "context": "Printed when a listing has nothing in it.",
       "source": "e3bcc853e3228d2d"
     },
-    "reason.deletedDesignation": {
-      "text": "जो टिप्पणी इसका अभिलेख उत्तर थी, वह हटा दी गई: {comment}.",
-      "context": "The reason a forced deletion composes for the reopen it performs. {comment} is the reference of the comment being deleted, which is the only part of it that survives.",
-      "source": "445abfc76e8dd9a4"
-    },
-    "reason.designated-comment-deleted": {
-      "text": "पदनामित टिप्पणी {comment} मिटा दी गई",
-      "context": "The reason a forced deletion composes for the reopen it performs, recorded in the journal. {comment} is the deleted comment's reference, which is the only part of it that survives.",
-      "source": "6d2b35dacadadefe"
-    },
     "reference.kind.below-card": {
       "text": "कार्ड के नीचे कोई चीज़",
       "context": "One address kind a command's reference may name, printed in the list beside that argument on the command's help page and in the tool schema. No label may itself contain a semicolon followed by a space, because the guard over that list splits it on that pair.",
@@ -3789,16 +3579,6 @@
       "text": "; {detail} को हाथ से बदलकर columns सूची में एक कॉलम जोड़ें और उसकी columns/<id>/column.md बनाएं, फिर पुष्टि के लिए `dinah check --workbench {workbench}` चलाएँ, उसके बाद दोबारा `dinah add` आज़माएं",
       "context": "Spliced onto refusal.dinah.add-needs-a-column as the next step wherever a workbench was resolved for this invocation, which covers every reader standing in one and every reader who named one with --workbench from somewhere else. {workbench} is the workbench directory, and naming it is what lets the reader confirm the hand edit on the workbench he was filing into. {detail} is the workbench.md path to hand-edit. The sibling entry without the flag is the alternation's unconditional last member. The command spelling is machine vocabulary and is not translated.",
       "source": "8a268bcc89e6b74f"
-    },
-    "refusal.dinah.alias-shadows-command": {
-      "text": "उपनाम {detail} घोषित कमांड {command} को ढक देगा।",
-      "context": "The sentence printed after refusal dinah.alias-shadows-command. {detail} is the alias setting key and {command} is the declared command its suffix collides with.",
-      "source": "bfed3f808639b4e9"
-    },
-    "refusal.dinah.alias-shadows-command.next": {
-      "text": " कोई दूसरा उपनाम नाम चुनें।",
-      "context": "The next step for dinah.alias-shadows-command.",
-      "source": "a2f0395a8d9da3f6"
     },
     "refusal.dinah.ambiguous-card": {
       "text": "{detail} का उत्तर एक से अधिक कार्ड देते हैं",
@@ -3900,16 +3680,6 @@
       "context": "Spliced onto refusal.dinah.column-slug-taken as the next step.",
       "source": "3f827bf4cba8b78a"
     },
-    "refusal.dinah.comment-body-diverged": {
-      "text": "टिप्पणी {detail} का पाठ अब उस डाइजेस्ट से मेल नहीं खाता जो Dinah ने उस पर दर्ज किया था, अर्थात Dinah के बाहर किसी वस्तु ने उसे संपादित किया है।",
-      "context": "The sentence printed after the refusal name dinah.comment-body-diverged, which every verb that writes a comment's anchor raises when the stored digest disagrees with the body it is about to replace. {detail} is the comment's reference. The sentence says an edit happened and says nothing about who made it or when, because the tool knows neither.",
-      "source": "b0c624b08eed0e3d"
-    },
-    "refusal.dinah.comment-body-diverged.next": {
-      "text": " पाठ को हाथ से पूर्ववत करें, जिसके लिए कोई कमांड नहीं चाहिए, अथवा `dinah accept-divergence {detail}` चलाएँ ताकि डिस्क पर जो है वही अभिलेख बन जाए।",
-      "context": "The next step of refusal.dinah.comment-body-diverged, spliced onto the sentence that just named the comment. The two routes differ in meaning rather than in convenience: restoring says the edit was a mistake, and accepting says the edited body is now what the record says.",
-      "source": "1b2c2099d1c78c45"
-    },
     "refusal.dinah.conflicting-scope": {
       "text": "{detail} नीचे की ओर चलने के लिए एक डायरेक्टरी बताता है और {workbench} एक वर्कबेंच बताता है, और एक कमांड इनमें से किसी एक ही दायरे का उत्तर देता है",
       "context": "The sentence printed after the refusal name dinah.conflicting-scope. {detail} is the root the caller named with --root or as the path workbenches takes, and {workbench} is the single workbench --workbench or DINAH_WORKBENCH resolved to. refusal.dinah.conflicting-scope.next is spliced on after this one.",
@@ -3939,6 +3709,16 @@
       "text": "; चलने योग्य डायरेक्टरी बताने के लिए --root <path> जोड़ें, या --max-depth हटा दें",
       "context": "Spliced onto refusal.dinah.depth-without-root as the next step, naming the two ways past the refusal. The option name and its placeholder are machine vocabulary and are never translated.",
       "source": "75f263d80da82c60"
+    },
+    "refusal.dinah.directory-not-empty": {
+      "text": "{detail} पहले से मौजूद है और खाली नहीं है",
+      "context": "The sentence printed after the refusal name dinah.directory-not-empty, raised by init when the target directory holds at least one entry and the caller did not pass --here. {detail} is the target directory.",
+      "source": "f4967633e8a0a9cd"
+    },
+    "refusal.dinah.directory-not-empty.next": {
+      "text": "; इसमें वैसे भी एक वर्कबेंच लिखने के लिए --here दें, या init को किसी खाली या नई निर्देशिका पर इंगित करें",
+      "context": "Spliced onto refusal.dinah.directory-not-empty as the next step.",
+      "source": "9561e7d78f5e956f"
     },
     "refusal.dinah.empty-search": {
       "text": "खोज वाक्यांश खाली है",
@@ -3985,16 +3765,6 @@
       "context": "Spliced onto refusal.dinah.interrupted as the next step wherever a workbench was resolved for this invocation, which covers every reader standing in one and every reader who named one with --workbench from somewhere else. {workbench} is the workbench directory, and naming it is what lets the reader finish the act from wherever he was standing when it broke. The sibling entry without the flag is the alternation's unconditional last member. The command spelling is machine vocabulary and is not translated.",
       "source": "248f008d8842a382"
     },
-    "refusal.dinah.invalid-alias": {
-      "text": "उपनाम {detail} अमान्य है ({defect})।",
-      "context": "The sentence printed after refusal dinah.invalid-alias. {detail} is the exact alias setting key and {defect} is its stable validation token.",
-      "source": "fd91daf20b117415"
-    },
-    "refusal.dinah.invalid-alias.next": {
-      "text": " उपनाम सेटिंग ठीक करें या उसे `dinah config set {detail}` से हटाएं।",
-      "context": "The next step for dinah.invalid-alias. {detail} is the exact alias setting key. The command spelling is machine vocabulary and is never translated.",
-      "source": "3f6f8be0680e5b05"
-    },
     "refusal.dinah.is-a-collection": {
       "text": "{detail} पूरे संग्रह को नाम देता है, उसमें रखी किसी एक चीज़ को नहीं",
       "context": "The sentence printed after the refusal name dinah.is-a-collection, when a command that reads or writes one thing is handed a reference naming a whole collection, such as pb-1/comments. {detail} is the reference as the reader typed it. The reference resolves, so the sentence says what it names rather than saying that nothing answers to it.",
@@ -4014,16 +3784,6 @@
       "text": "; उनमें से किसी एक के लिए {member} लिखें, या संग्रह के लिए `dinah path {detail}`",
       "context": "Spliced onto refusal.dinah.is-a-collection when the collection holds at least one member. {member} is the reference of the first member, which is the collection's own reference followed by /1, and it is an address rather than prose. The second clause offers the one command that takes a collection reference and answers with a filesystem path.",
       "source": "a59569c49ab23289"
-    },
-    "refusal.dinah.item-off-route": {
-      "text": "मार्ग {route} {detail} को नहीं रखता, इसलिए उस कॉलम का नाम लेने वाली मद इस कार्ड को कहीं नहीं रोकेगी।",
-      "context": "The sentence printed after the refusal name dinah.item-off-route, which filing an item against a column the card's own route drops carries. {detail} is the column that was named and {route} is the route the card walks.",
-      "source": "b7249d5ceae4d5eb"
-    },
-    "refusal.dinah.item-off-route.next": {
-      "text": " ऐसे कॉलम का नाम दें जिसे मार्ग रखता हो, या पहले कार्ड का मार्ग बदलें।",
-      "context": "The next step of refusal.dinah.item-off-route, which names the two repairs open to the caller.",
-      "source": "48582193e300eed1"
     },
     "refusal.dinah.last-column": {
       "text": "{detail} ही बचा हुआ एकमात्र कॉलम है",
@@ -4084,16 +3844,6 @@
       "text": "; उस सदस्य का नाम दस्तावेज़ में बदलें और उसे फ़िर से पढ़ें",
       "context": "The next step of refusal.dinah.malformed-member-name. Every other line ending in this contract is normalised rather than refused; this one cannot be, because normalising leaves a line feed that still splits the header.",
       "source": "800ab41179da1bc"
-    },
-    "refusal.dinah.missing-alias-argument": {
-      "text": "उपनाम {detail} के लिए तर्क {argument} आवश्यक है।",
-      "context": "The sentence printed after refusal dinah.missing-alias-argument. {detail} is the alias name and {argument} is the missing placeholder token.",
-      "source": "e87ddb384de6c80c"
-    },
-    "refusal.dinah.missing-alias-argument.next": {
-      "text": " छूटा हुआ तर्क दें और कमांड फिर चलाएं।",
-      "context": "The next step for dinah.missing-alias-argument.",
-      "source": "83c200bea158e06e"
     },
     "refusal.dinah.multiple-words": {
       "text": "Dinah ने {label} के लिए {count} अलग-अलग शब्द पढ़े, और यह केवल एक स्वीकार करता है।",
@@ -4224,16 +3974,6 @@
       "context": "Spliced onto refusal.dinah.no-workbench as the next step, carrying the clause that base entry used to end with.",
       "source": "5304a56a1c20ac25"
     },
-    "refusal.dinah.not-a-designation": {
-      "text": "{detail} उस मद की टिप्पणी नहीं है जिसे आप निपटा रहे हैं।",
-      "context": "The sentence printed after the refusal name dinah.not-a-designation, which resolve, verify and fail raise when the reference they were handed is not a comment of the item being settled. {detail} is the reference as the caller typed it.",
-      "source": "db730bc379abb003"
-    },
-    "refusal.dinah.not-a-designation.next": {
-      "text": " उत्तर --text के साथ लिखें, अथवा उस मद की कोई टिप्पणी नामित करें; `dinah show <item>` बताता है कि वह कौन सी टिप्पणियाँ रखता है।",
-      "context": "The next step of refusal.dinah.not-a-designation, spliced onto the sentence that just named the reference. <item> stands for the item's own reference and is not translated.",
-      "source": "54c4c4bddf0235fd"
-    },
     "refusal.dinah.not-archived": {
       "text": "अभिलेखागार में {detail} के नाम से कुछ नहीं मिला",
       "context": "The sentence printed after the refusal name dinah.not-archived when show, path or contents was asked to read the archive and the archive holds nothing the reference names. {detail} is the reference as the reader typed it, which is an address rather than prose and is never translated. The reader can see the thing they typed, either because it is live or because it travelled inside an archived holder, so the sentence says which half it is in rather than saying it does not exist. No word of the sentence may agree with {detail}: the token substituted there is an untranslated address and no language can predict its gender, its number or the sound it starts with.",
@@ -4298,16 +4038,6 @@
       "text": "; एक टिप्पणी किसी कॉलम पर, किसी कार्ड पर, या उस कार्ड की किसी चेकलिस्ट मद पर टिकी होती है",
       "context": "The one next step of refusal.dinah.not-commentable, printed whatever kind the reference resolved to, because the honest advice is the same for every kind that fails it.",
       "source": "16f5bd7e36e71b03"
-    },
-    "refusal.dinah.not-designatable": {
-      "text": "टिप्पणी {detail} मद {item} का अभिलिखित उत्तर है, अतः उसे मिटाने से वह मद निपटा हुआ रह जाएगा और उसके पीछे कुछ नहीं होगा।",
-      "context": "The sentence printed after the refusal name dinah.not-designatable, which delete raises over a comment a checklist item designates. {detail} is the comment's reference and {item} is the designation the item carries.",
-      "source": "8b25c6edc2ed7781"
-    },
-    "refusal.dinah.not-designatable.next": {
-      "text": " पहले मद को फिर से खोलें, जिससे पदनाम हट जाता है, अथवा मिटाने की क्रिया --force के साथ फिर चलाएँ, जो उसी क्रिया के अंग के रूप में मद को फिर से खोल देती है।",
-      "context": "The next step of refusal.dinah.not-designatable, spliced onto the sentence that just named the comment and the item.",
-      "source": "b15c1e9bd4b89835"
     },
     "refusal.dinah.not-pending": {
       "text": "यह मद पहले से ही {detail} है।",
@@ -4448,46 +4178,6 @@
       "text": "; `--map {detail}=<column>` से एक गंतव्य बताएँ, या जो कॉलम काम संभालता है उस पर replaces घोषित करें",
       "context": "Spliced onto refusal.dinah.reshape-needs-a-destination as the next step, naming the two ways a destination is supplied.",
       "source": "85d4e50e26e4c4be"
-    },
-    "refusal.dinah.route-off-column": {
-      "text": "मार्ग {route} {detail} को नहीं रखता, इसलिए वहाँ दर्ज किया गया कार्ड शुरू से ही अपने मार्ग से बाहर खड़ा होगा।",
-      "context": "The sentence printed after the refusal name dinah.route-off-column, which a filing whose destination column the named route drops carries. {detail} is the column the card would have landed in and {route} is the route that was named.",
-      "source": "d15b4060a0670e6f"
-    },
-    "refusal.dinah.route-off-column.next": {
-      "text": " कार्ड को मार्ग के किसी कॉलम में दर्ज करें, या कोई दूसरा मार्ग चुनें।",
-      "context": "The next step of refusal.dinah.route-off-column, which names the two repairs open to the caller.",
-      "source": "b14fda59994d97c0"
-    },
-    "refusal.dinah.route-skips-operator-column": {
-      "text": "मार्ग {detail} {column} को नहीं रखता, जिसे यह कार्ड अभी पार नहीं कर पाया है और जिसे यह वर्कबेंच अपने संचालक के लिए सुरक्षित रखती है।",
-      "context": "The sentence printed after the refusal name dinah.route-skips-operator-column, which a route write whose route omits an operator-owned station the card has not reached carries. {detail} is the route name that was written and {column} is the station it omits.",
-      "source": "2f702543f43a34e"
-    },
-    "refusal.dinah.route-skips-operator-column.next": {
-      "text": " पहले कार्ड को उस पड़ाव से आगे ले जाएँ, या ऐसा मार्ग चुनें जो उसे रखता हो।",
-      "context": "The next step of refusal.dinah.route-skips-operator-column, which names the two repairs: carry the card past the reserved station, or write a route that keeps it.",
-      "source": "800b20de46dc8617"
-    },
-    "refusal.dinah.route-strands-item": {
-      "text": "{item} {column} का नाम लेता है, और मार्ग {detail} उस कॉलम को नहीं रखता, इसलिए जिस रोक के लिए वह दर्ज हुआ था वह कभी लागू नहीं होगी।",
-      "context": "The sentence printed after the refusal name dinah.route-strands-item, which a route write on a card carrying a pending item naming a column the new route drops carries. {detail} is the route name that was written, {item} is the item's own reference and {column} is the column it names. Only a pending item is reported, because a settled one holds nothing.",
-      "source": "f99d2c572fc478a0"
-    },
-    "refusal.dinah.route-strands-item.next": {
-      "text": " उस मद को निपटाएँ, या `dinah set {item} column <column>` से उसे मार्ग के किसी कॉलम पर ले जाएँ।",
-      "context": "The next step of refusal.dinah.route-strands-item. The command is machine vocabulary and is never translated; {item} is the same reference the sentence above named.",
-      "source": "d272359d82c977fc"
-    },
-    "refusal.dinah.store-awaiting-migration": {
-      "text": "{detail} पर स्थित कार्यपीठ चेकलिस्ट मद का उत्तर अब भी टिप्पणी के रूप में दर्ज करती है, जिसे Dinah अब नहीं पढ़ता।",
-      "context": "The sentence printed after the refusal name dinah.store-awaiting-migration, which every read of a workbench below the resolution format raises. {detail} is the workbench's own path. The refusal exists because a reader that carried on would report every settled item as carrying no answer, which is a false reading rather than a degraded one.",
-      "source": "3a33736cd1eb7a2"
-    },
-    "refusal.dinah.store-awaiting-migration.next": {
-      "text": " पहले प्रतिलिपि सुरक्षित रखें, फिर उस कार्यपीठ पर dinah-migrate-notes चलाएँ और उसे दोबारा उपयोग में लाने से पहले उसकी रिपोर्ट पढ़ें।",
-      "context": "The next step of refusal.dinah.store-awaiting-migration. dinah-migrate-notes is the migration program's own name and is not translated. The backup is named first because the migration writes in place and cannot undo itself.",
-      "source": "f1da4955b4ea13a"
     },
     "refusal.dinah.takes-no-work": {
       "text": "कॉलम {detail} में कोई स्वामी कार्य नहीं लेता, और कार्ड वहाँ तब तक प्रतीक्षा करता है जब तक कोई खींच उसे आगे के कॉलम में नहीं ले जाता",
@@ -4749,26 +4439,6 @@
       "context": "Spliced onto refusal.dinah.unknown-root as the next step, naming the two ways past the refusal.",
       "source": "f3935cffe44663d9"
     },
-    "refusal.dinah.unknown-route": {
-      "text": "यह वर्कबेंच {detail} नाम का कोई मार्ग घोषित नहीं करती।",
-      "context": "The sentence printed after the refusal name dinah.unknown-route, which a write naming a route the workbench does not declare carries. {detail} is the route name the reader typed. The declared names follow in a fragment, so a workbench declaring no route at all ends the sentence here.",
-      "source": "4425424ee0e4825f"
-    },
-    "refusal.dinah.unknown-route.declared": {
-      "text": " जो मार्ग यह घोषित करती है वे हैं: {routes}।",
-      "context": "A fragment of refusal.dinah.unknown-route, printed when the workbench declares at least one route. {routes} is the declared names in declaration order, read off the workbench rather than written here, so a route name is never translated.",
-      "source": "9074205180d02d58"
-    },
-    "refusal.dinah.unknown-route.next": {
-      "text": " उनमें से किसी एक का नाम दें।",
-      "context": "The next step of refusal.dinah.unknown-route on a workbench that declares routes, spliced onto the sentence that just listed them.",
-      "source": "47ef8e6442436430"
-    },
-    "refusal.dinah.unknown-route.none": {
-      "text": " पहले वर्कबेंच के अपने routes ब्लॉक में कोई मार्ग घोषित करें, या कार्ड को पूरी कॉलम सूची पर ही रहने दें।",
-      "context": "The next step of refusal.dinah.unknown-route on a workbench declaring no route at all, where there is no name to offer the reader instead. routes is a frontmatter key and is never translated.",
-      "source": "14664d0b7da55488"
-    },
     "refusal.dinah.unknown-value": {
       "text": "Dinah {term} में {detail} स्वीकार नहीं करता।",
       "context": "The sentence printed after the refusal name dinah.unknown-value, which a query giving a closed-vocabulary field a value that vocabulary does not hold carries. {detail} is the offending value and {term} is the whole term it was written in. Exactly one of refusal.dinah.unknown-value.legal and refusal.dinah.unknown-value.none is spliced on after it, and exactly one of the two next steps after that.",
@@ -4893,6 +4563,19 @@
       "text": "; फ़ाइल को हाथ से बदलें ताकि कार्ड का कॉलम रखने वाली कुंजी का नाम `column` हो और उसकी स्थिति रखने वाली कुंजी का नाम `state` हो, यही वह पुनर्नामकरण है जो `dinah check --migrate-vocabulary` उस वर्कबेंच पर करता है जो अब भी सेवानिवृत्त प्रारूप घोषित करती है",
       "context": "Spliced onto refusal.dinah.vocabulary-retired as the next step. The two key names and the command spelling dinah check --migrate-vocabulary are machine vocabulary and are never translated. The instruction names the two keys by what they hold rather than by the retired spellings, because a card that carries only the retired column key and no condition key at all reaches this refusal too, and telling its reader to rename a key the file does not carry would name a line they cannot find. The reader is told to make the edit by hand because the migration reads the workbench anchor to decide what needs carrying, and the anchor here already declares the current format, so the command would report that there is nothing to do.",
       "source": "15496109b275afcc"
+    },
+    "refusal.dinah.workbench-boundary": {
+      "text": "{detail} से ऊपर खोजने पर कोई वर्कबेंच नहीं मिली; खोज रिपॉज़िटरी की जड़ {boundary} पर रुक गई, बिना उपयोगकर्ता आधार तक पहुँचे",
+      "context": "The sentence printed after the refusal name dinah.workbench-boundary. {detail} is the directory the search started from. {boundary} is the repository root the climb stopped at, the nearest ancestor of {detail} (which may be {detail} itself) carrying a .git entry.",
+      "source": "e5efe1baa506b103"
+    },
+    "refusal.dinah.workbench-boundary.bare": {
+      "text": "; {bare} पर एक workbench.md किसी भी .dinah कंटेनर के बाहर, सीमा के भीतर रखी है; उसे कंटेनर में ले जाने के लिए वहाँ `dinah check --root . --migrate-container` चलाएँ",
+      "source": "731e05d08b63134"
+    },
+    "refusal.dinah.workbench-boundary.next": {
+      "text": "; सीमा से ऊपर की वर्कबेंच बताने के लिए --workbench <dir> दें, उसी तरह DINAH_WORKBENCH सेट करें, या ड्राइव की जड़ तक खोजने के लिए इस कमांड को रिपॉज़िटरी के बाहर से चलाएँ",
+      "source": "87cbc3e50ce38e9d"
     },
     "refusal.dinah.workbench-not-applicable": {
       "text": "यहाँ Dinah {source} का उपयोग नहीं करता: init {source} द्वारा नामित वर्कबेंच ({detail}) खोलने के बजाय एक नया वर्कबेंच बनाता है।",
@@ -5295,16 +4978,6 @@
       "context": "The line printed under root.workbench for a workbench the walk described off its anchor and then could not open, so its title and its slug are known and nothing further about it is. {refusal} is the bracketed refusal name workbenches.refused composes. It follows the identity line rather than replacing it, because that identity was read, and a reader who loses it cannot tell which directory of the listing failed.",
       "source": "175607784bffae68"
     },
-    "routes.empty": {
-      "text": "यह वर्कबेंच कोई मार्ग घोषित नहीं करती, इसलिए हर कार्ड उसकी पूरी कॉलम सूची से गुज़रता है।",
-      "context": "Printed in place of the routes listing when the workbench's own definition declares none. It says what that means rather than only that the list is empty.",
-      "source": "67256972d4f2ca77"
-    },
-    "routes.skip.operator-owned": {
-      "text": "{column} (संचालक)",
-      "context": "One skipped column in the routes listing, where the workbench reserves that column to its operator. {column} is the column's own reference and is never translated. The mark answers the one question an operator asks of a road somebody drew.",
-      "source": "b9b69e8764e34212"
-    },
     "schema.basis.description": {
       "text": "इस कार्ड के लिए पिछली प्रतिक्रिया ने जो संशोधन बताया था; यदि कार्ड उसके बाद आगे बढ़ चुका है तो कॉल को बासी मानकर अस्वीकार किया जाता है",
       "context": "The description of the basis property, which the eight generated machine schemas that consume basis carry and no command declares.",
@@ -5360,16 +5033,6 @@
       "context": "The label above a card's comments.",
       "source": "14ee3017f3f55997"
     },
-    "show.designation": {
-      "text": "{author}, {ts} पर: {body}",
-      "context": "The line drawn under a settled checklist item's row by a full checklist read, carrying the designated comment's author, its timestamp and its text. {body} is already capped for display by the time it reaches here.",
-      "source": "85545a651a45e0ee"
-    },
-    "show.designation.unattributed": {
-      "text": "ऐसा लेखक जिसका नाम यह कार्यपीठ नहीं बता सकती, {ts} पर: {body}",
-      "context": "The form show.designation takes for a comment whose author the store could not recover, which the note migration records as an absence rather than as a name. It says the store cannot name the author rather than leaving a blank that reads as a defect.",
-      "source": "147c71c972d77c92"
-    },
     "show.links": {
       "text": "कड़ियाँ:",
       "context": "The label above a card's links.",
@@ -5395,11 +5058,6 @@
       "context": "Names comment's free-text slot inside refusal.dinah.multiple-words, which reads it as {label}.",
       "source": "8cd9876f2cd76701"
     },
-    "slot.designation": {
-      "text": "पदनाम",
-      "context": "What the comment argument of resolve, verify and fail is called in the refusal a caller meets when they typed several bare words where one reference belongs.",
-      "source": "9e39808f77d5054"
-    },
     "slot.item": {
       "text": "मद का पाठ",
       "context": "The label naming what a bare word after dinah file was meant to be, printed when several unquoted words arrive where one argument belongs.",
@@ -5409,6 +5067,11 @@
       "text": "नाम",
       "context": "Names rename's free-text slot inside refusal.dinah.multiple-words, which reads it as {label}.",
       "source": "2222c8b5d2f36b0f"
+    },
+    "reason.deletedDesignation": {
+      "text": "जो टिप्पणी इसका अभिलेख उत्तर थी, वह हटा दी गई: {comment}.",
+      "context": "The reason a forced deletion composes for the reopen it performs. {comment} is the reference of the comment being deleted, which is the only part of it that survives.",
+      "source": "445abfc76e8dd9a4"
     },
     "slot.note": {
       "text": "टिप्पणी",
@@ -5608,11 +5271,6 @@
       "context": "How the canonical token intake is rendered where a person reads it. The machine surface always carries the canonical spelling.",
       "source": "f0feff6fae7ff2d5"
     },
-    "token.invalid": {
-      "text": "अमान्य",
-      "context": "How the canonical token invalid is rendered in the settings listing for a stored alias quarantined by validation. The machine surface always carries the canonical spelling.",
-      "source": "2be5705c42a81bd0"
-    },
     "token.locale": {
       "text": "लोकेल",
       "context": "How the canonical token locale is rendered where a person reads it, naming the rung a setting resolved from in the settings listing: the operating system's locale answered, as a hint about the machine. The machine surface always carries the canonical spelling.",
@@ -5657,11 +5315,6 @@
       "text": "खोज",
       "context": "How the canonical token search is rendered where a person reads it, naming the rung a workbench answer came from: the ancestor walk resolved it, in the settings listing and on the status line alike. The machine surface always carries the canonical spelling.",
       "source": "220bcce27242e1e9"
-    },
-    "token.shadowed": {
-      "text": "छायांकित",
-      "context": "How the canonical token shadowed is rendered in the settings listing for a stored alias whose name is now a declared command. The machine surface always carries the canonical spelling.",
-      "source": "1f223a3d86f30d38"
     },
     "token.tier_overridden": {
       "text": "स्तर बदला",
@@ -5864,6 +5517,386 @@
       "text": "इस वर्कबेंच में कोई वर्कस्ट्रीम नहीं है",
       "context": "Printed by the workstream command when the workbench carries none, in place of an empty table.",
       "source": "7d1a4aa9199e6ddf"
+    },
+    "refusal.dinah.invalid-alias": {
+      "text": "उपनाम {detail} अमान्य है ({defect})।",
+      "context": "The sentence printed after refusal dinah.invalid-alias. {detail} is the exact alias setting key and {defect} is its stable validation token.",
+      "source": "fd91daf20b117415"
+    },
+    "refusal.dinah.invalid-alias.next": {
+      "text": " उपनाम सेटिंग ठीक करें या उसे `dinah config set {detail}` से हटाएं।",
+      "context": "The next step for dinah.invalid-alias. {detail} is the exact alias setting key. The command spelling is machine vocabulary and is never translated.",
+      "source": "3f6f8be0680e5b05"
+    },
+    "refusal.dinah.alias-shadows-command": {
+      "text": "उपनाम {detail} घोषित कमांड {command} को ढक देगा।",
+      "context": "The sentence printed after refusal dinah.alias-shadows-command. {detail} is the alias setting key and {command} is the declared command its suffix collides with.",
+      "source": "bfed3f808639b4e9"
+    },
+    "refusal.dinah.alias-shadows-command.next": {
+      "text": " कोई दूसरा उपनाम नाम चुनें।",
+      "context": "The next step for dinah.alias-shadows-command.",
+      "source": "a2f0395a8d9da3f6"
+    },
+    "refusal.dinah.missing-alias-argument": {
+      "text": "उपनाम {detail} के लिए तर्क {argument} आवश्यक है।",
+      "context": "The sentence printed after refusal dinah.missing-alias-argument. {detail} is the alias name and {argument} is the missing placeholder token.",
+      "source": "e87ddb384de6c80c"
+    },
+    "refusal.dinah.missing-alias-argument.next": {
+      "text": " छूटा हुआ तर्क दें और कमांड फिर चलाएं।",
+      "context": "The next step for dinah.missing-alias-argument.",
+      "source": "83c200bea158e06e"
+    },
+    "token.invalid": {
+      "text": "अमान्य",
+      "context": "How the canonical token invalid is rendered in the settings listing for a stored alias quarantined by validation. The machine surface always carries the canonical spelling.",
+      "source": "2be5705c42a81bd0"
+    },
+    "token.shadowed": {
+      "text": "छायांकित",
+      "context": "How the canonical token shadowed is rendered in the settings listing for a stored alias whose name is now a declared command. The machine surface always carries the canonical spelling.",
+      "source": "1f223a3d86f30d38"
+    },
+    "refusal.dinah.comment-body-diverged": {
+      "text": "टिप्पणी {detail} का पाठ अब उस डाइजेस्ट से मेल नहीं खाता जो Dinah ने उस पर दर्ज किया था, अर्थात Dinah के बाहर किसी वस्तु ने उसे संपादित किया है।",
+      "context": "The sentence printed after the refusal name dinah.comment-body-diverged, which every verb that writes a comment's anchor raises when the stored digest disagrees with the body it is about to replace. {detail} is the comment's reference. The sentence says an edit happened and says nothing about who made it or when, because the tool knows neither.",
+      "source": "b0c624b08eed0e3d"
+    },
+    "refusal.dinah.comment-body-diverged.next": {
+      "text": " पाठ को हाथ से पूर्ववत करें, जिसके लिए कोई कमांड नहीं चाहिए, अथवा `dinah accept-divergence {detail}` चलाएँ ताकि डिस्क पर जो है वही अभिलेख बन जाए।",
+      "context": "The next step of refusal.dinah.comment-body-diverged, spliced onto the sentence that just named the comment. The two routes differ in meaning rather than in convenience: restoring says the edit was a mistake, and accepting says the edited body is now what the record says.",
+      "source": "1b2c2099d1c78c45"
+    },
+    "refusal.dinah.not-a-designation": {
+      "text": "{detail} उस मद की टिप्पणी नहीं है जिसे आप निपटा रहे हैं।",
+      "context": "The sentence printed after the refusal name dinah.not-a-designation, which resolve, verify and fail raise when the reference they were handed is not a comment of the item being settled. {detail} is the reference as the caller typed it.",
+      "source": "db730bc379abb003"
+    },
+    "refusal.dinah.not-a-designation.next": {
+      "text": " उत्तर --text के साथ लिखें, अथवा उस मद की कोई टिप्पणी नामित करें; `dinah show <item>` बताता है कि वह कौन सी टिप्पणियाँ रखता है।",
+      "context": "The next step of refusal.dinah.not-a-designation, spliced onto the sentence that just named the reference. <item> stands for the item's own reference and is not translated.",
+      "source": "54c4c4bddf0235fd"
+    },
+    "refusal.dinah.not-designatable": {
+      "text": "टिप्पणी {detail} मद {item} का अभिलिखित उत्तर है, अतः उसे मिटाने से वह मद निपटा हुआ रह जाएगा और उसके पीछे कुछ नहीं होगा।",
+      "context": "The sentence printed after the refusal name dinah.not-designatable, which delete raises over a comment a checklist item designates. {detail} is the comment's reference and {item} is the designation the item carries.",
+      "source": "8b25c6edc2ed7781"
+    },
+    "refusal.dinah.not-designatable.next": {
+      "text": " पहले मद को फिर से खोलें, जिससे पदनाम हट जाता है, अथवा मिटाने की क्रिया --force के साथ फिर चलाएँ, जो उसी क्रिया के अंग के रूप में मद को फिर से खोल देती है।",
+      "context": "The next step of refusal.dinah.not-designatable, spliced onto the sentence that just named the comment and the item.",
+      "source": "b15c1e9bd4b89835"
+    },
+    "refusal.dinah.store-awaiting-migration": {
+      "text": "{detail} पर स्थित कार्यपीठ चेकलिस्ट मद का उत्तर अब भी टिप्पणी के रूप में दर्ज करती है, जिसे Dinah अब नहीं पढ़ता।",
+      "context": "The sentence printed after the refusal name dinah.store-awaiting-migration, which every read of a workbench below the resolution format raises. {detail} is the workbench's own path. The refusal exists because a reader that carried on would report every settled item as carrying no answer, which is a false reading rather than a degraded one.",
+      "source": "3a33736cd1eb7a2"
+    },
+    "refusal.dinah.store-awaiting-migration.next": {
+      "text": " पहले प्रतिलिपि सुरक्षित रखें, फिर उस कार्यपीठ पर dinah-migrate-notes चलाएँ और उसे दोबारा उपयोग में लाने से पहले उसकी रिपोर्ट पढ़ें।",
+      "context": "The next step of refusal.dinah.store-awaiting-migration. dinah-migrate-notes is the migration program's own name and is not translated. The backup is named first because the migration writes in place and cannot undo itself.",
+      "source": "f1da4955b4ea13a"
+    },
+    "check.comment-body-diverged": {
+      "text": "टिप्पणी {detail} का पाठ अब उस डाइजेस्ट से मेल नहीं खाता जो Dinah ने उस पर दर्ज किया था",
+      "context": "A check finding: a comment whose stored digest disagrees with its body, which means something outside Dinah edited it. It names no editor and no time, because the tool knows neither, and a comment carrying no digest is not reported at all.",
+      "source": "1db91e5a29db98bc"
+    },
+    "check.empty-comment": {
+      "text": "टिप्पणी {detail} का पाठ रिक्त है और कोई उसे पदनामित नहीं करता, अतः उस पर `dinah delete` चलाएँ",
+      "context": "A check finding at cleanup severity: an abandoned draft, which is what creating a comment before writing one costs. Nothing is blocked by it.",
+      "source": "e35b0df94f437621"
+    },
+    "check.empty-designated-comment": {
+      "text": "टिप्पणी {detail} का पाठ रिक्त है और कोई चेकलिस्ट मद उसे अपने उत्तर के रूप में पदनामित करता है",
+      "context": "A check finding at defect severity: an item's answer of record cannot be nothing. It is the same emptiness check.empty-comment reports, and it is a defect rather than clutter because something depends on this one.",
+      "source": "e6ed8800c045c378"
+    },
+    "check.item-carries-retired-note": {
+      "text": "चेकलिस्ट मद {detail} अब भी सेवानिवृत्त नोट कुंजी रखता है",
+      "context": "A check finding: an item the note migration reached and did not finish, which is the state an interrupted run leaves one item in. Running the migration again finishes it.",
+      "source": "8dde56bb07ecc94d"
+    },
+    "check.dangling-resolution": {
+      "text": "चेकलिस्ट मद {detail} ऐसी टिप्पणी पदनामित करता है जो अब हल नहीं होती",
+      "context": "A check finding: a resolution naming a comment that is not there. Deleting a designated comment is refused and the forced form clears the designation, so this is the residue of a hand edit rather than of anything the tool did.",
+      "source": "aed8b987711c0e74"
+    },
+    "column.checklist.resolution": {
+      "text": "उत्तर",
+      "context": "The heading of the column of the checklist block of `dinah show <card>` that carries the reference of the comment a settled item designates as its answer. One word, because the block is bounded by the reader's window.",
+      "source": "a6a92648588602bf"
+    },
+    "show.designation": {
+      "text": "{author}, {ts} पर: {body}",
+      "context": "The line drawn under a settled checklist item's row by a full checklist read, carrying the designated comment's author, its timestamp and its text. {body} is already capped for display by the time it reaches here.",
+      "source": "85545a651a45e0ee"
+    },
+    "show.designation.unattributed": {
+      "text": "ऐसा लेखक जिसका नाम यह कार्यपीठ नहीं बता सकती, {ts} पर: {body}",
+      "context": "The form show.designation takes for a comment whose author the store could not recover, which the note migration records as an absence rather than as a name. It says the store cannot name the author rather than leaving a blank that reads as a defect.",
+      "source": "147c71c972d77c92"
+    },
+    "slot.designation": {
+      "text": "पदनाम",
+      "context": "What the comment argument of resolve, verify and fail is called in the refusal a caller meets when they typed several bare words where one reference belongs.",
+      "source": "9e39808f77d5054"
+    },
+    "param.designation.summary": {
+      "text": "इस मद की वह टिप्पणी जो उत्तर दर्ज करती है, उसके संदर्भ के रूप में लिखी जाती है; उत्तर को इसके बजाय --text से लिखें",
+      "context": "The written meaning of the comment argument, shared by resolve, verify and fail. Naming a comment is how somebody endorses words another person wrote: the comment keeps its own author and the settling records who chose it.",
+      "source": "50e99ba70c3e7183"
+    },
+    "param.designation-text.summary": {
+      "text": "उत्तर स्वयं, जो इस मद की टिप्पणी के रूप में लिखा जाता है और एक ही क्रिया में पदनामित होता है; अकेला - उसे पाइप से पढ़ता है",
+      "context": "The written meaning of the --text flag, shared by resolve, verify and fail. It is the one-command form, and it cannot be named beside a designation reference, because the two are different acts.",
+      "source": "e7ac6c7fc4a4804b"
+    },
+    "param.delete.force.summary": {
+      "text": "ऐसी टिप्पणी मिटाएँ जिसे कोई चेकलिस्ट मद पदनामित करता है, और उसी क्रिया के अंग के रूप में उस मद को फिर से खोलें",
+      "context": "The meaning of the force argument of `dinah delete`, printed in that command's arguments table. It is the operator's alone where the designating item is the operator's.",
+      "source": "1983ae4a0619852d"
+    },
+    "param.accept-divergence.comment.summary": {
+      "text": "वह टिप्पणी जिसके डिस्क पर स्थित पाठ को आप अभिलेख बना रहे हैं",
+      "context": "The meaning of the comment argument of `dinah accept-divergence`, printed in that command's arguments table.",
+      "source": "8cdbe702ac49973b"
+    },
+    "cmd.accept-divergence.summary": {
+      "text": "किसी टिप्पणी के संपादित पाठ को अभिलेख बनाएँ",
+      "context": "The one-line summary of the accept-divergence command, printed in the command list and above its own help.",
+      "source": "451d184b98fb6120"
+    },
+    "reason.designated-comment-deleted": {
+      "text": "पदनामित टिप्पणी {comment} मिटा दी गई",
+      "context": "The reason a forced deletion composes for the reopen it performs, recorded in the journal. {comment} is the deleted comment's reference, which is the only part of it that survives.",
+      "source": "6d2b35dacadadefe"
+    },
+    "param.set.expect-digest.summary": {
+      "text": "वह डाइजेस्ट जो आपने इस टिप्पणी पर अंतिम बार दर्ज देखा था; यदि उसके बाद किसी ने टिप्पणी लिखी है तो लेखन अस्वीकार होगा",
+      "context": "The meaning of the expect-digest argument of `dinah set`, printed in that command's arguments table. It is for a caller that had the comment open while its author typed: an editor writes the file on save, so the body the write would otherwise be compared against is gone, and the digest on the header is what is left to compare.",
+      "source": "4d5ad6d096694a02"
+    },
+    "card.route": {
+      "text": "  मार्ग: {route}",
+      "context": "Printed under the card line when the card walks a route the workbench declares. A card on the workbench's full column list draws no such line.",
+      "source": "ce067c1da9193c59"
+    },
+    "check.add.6": {
+      "text": "वर्कबेंच उस मार्ग को घोषित करती है जिसका आपने नाम लिया",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "e4c23f3ff89bbd0c"
+    },
+    "check.add.7": {
+      "text": "मार्ग उस कॉलम को रखता है जिसमें आप दर्ज कर रहे हैं",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "1dfac348aca657d9"
+    },
+    "check.card-off-route": {
+      "text": "{detail} ऐसे कॉलम में खड़ा है जिसे उसका अपना मार्ग नहीं रखता",
+      "context": "A check finding: a card has been moved, rejected or re-routed onto a column its road does not carry. {detail} carries the card and the column, in that order. The card's forward move is the first route column after it, so this is worth a person's attention rather than broken.",
+      "source": "695b58b9243fdd53"
+    },
+    "check.card-unknown-route": {
+      "text": "{detail} ऐसे मार्ग का नाम लेता है जो यह वर्कबेंच घोषित नहीं करती",
+      "context": "A check finding: a card's route names one the workbench declares. {detail} carries the card and the route name, in that order. The card walks the workbench's full column list meanwhile.",
+      "source": "d4dbf84a431f5685"
+    },
+    "check.file.1": {
+      "text": "यह वर्कबेंच एक संचालक नियुक्त करती है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "b64509306a5c6b2"
+    },
+    "check.file.2": {
+      "text": "कार्ड मौजूद है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "37dac5acd188c446"
+    },
+    "check.file.3": {
+      "text": "अनुरोध किसी स्वामी का नाम लेता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "bc538e33f1fcc933"
+    },
+    "check.file.4": {
+      "text": "अनुरोध किसी प्रकार का नाम लेता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "6d0907ed0a53cc60"
+    },
+    "check.file.5": {
+      "text": "प्रकार चेकलिस्ट के तीन में से एक है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "64a1de3e4ec98545"
+    },
+    "check.file.6": {
+      "text": "मद में पाठ है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "5d66a8e28d521fa7"
+    },
+    "check.file.7": {
+      "text": "वर्कबेंच उस कॉलम को घोषित करती है जिसका आपने नाम लिया",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "eca4f4480793df85"
+    },
+    "check.file.8": {
+      "text": "कार्ड का मार्ग उस कॉलम को रखता है जिसका आपने नाम लिया",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "7ed219c25b5b72c3"
+    },
+    "check.item-off-route": {
+      "text": "{detail} ऐसे कॉलम का नाम लेता है जिसे कार्ड का मार्ग नहीं रखता, इसलिए उसकी रोक कभी लागू नहीं होगी",
+      "context": "A check finding: a pending checklist item names a column the card will never stand at. {detail} carries the card, the item and the column, in that order.",
+      "source": "2df1e35a57a15b2c"
+    },
+    "check.route-duplicate-column": {
+      "text": "{detail} एक ही कॉलम का नाम दो बार लेता है",
+      "context": "A check finding: a route names each column once. {detail} carries the route name and the column, in that order.",
+      "source": "68007ffb56d3f9a4"
+    },
+    "check.route-empty": {
+      "text": "मार्ग {detail} इस वर्कबेंच का कोई कॉलम नहीं रखता",
+      "context": "A check finding: a route has to carry at least one column to be a road at all. {detail} carries the route name. A retirement that took a route's last column away produces it as well as a declaration that named none.",
+      "source": "a0e06e12ab3c4a78"
+    },
+    "check.route-missing-first-column": {
+      "text": "{detail} वर्कबेंच का पहला कॉलम नहीं रखता, इसलिए कोई कार्ड उस पर वर्कबेंच में प्रवेश नहीं कर सकता",
+      "context": "A check finding: cards enter a workbench at its first column, which is where dinah add files one, so a route without it has no door. {detail} carries the route name and that first column, in that order.",
+      "source": "f36752c3722c4372"
+    },
+    "check.route-missing-terminal": {
+      "text": "{detail} ऐसे कॉलम पर समाप्त होता है जो समाप्ति कॉलम नहीं है, इसलिए उस पर कोई कार्ड पूरा नहीं हो सकता",
+      "context": "A check finding: a route ends in the terminal region. {detail} carries the route name and the column it ends at, in that order.",
+      "source": "34298d0e46c9a9f8"
+    },
+    "check.route-name-malformed": {
+      "text": "मार्ग {detail} का नाम मार्ग नामों के व्याकरण से बाहर है",
+      "context": "A check finding: a route name has to read as a slug, because it is typed on a command line and read back out of a refusal. {detail} carries the name, and the repair is an edit to the workbench's own routes block.",
+      "source": "1a1022e8363305ef"
+    },
+    "check.route-out-of-order": {
+      "text": "मार्ग {detail} अपने कॉलम प्रवाह के अपने क्रम से भिन्न क्रम में सूचीबद्ध करता है",
+      "context": "A check finding: a route resolves in flow order whatever order it was written in, so this says the file does not read the way it runs. {detail} carries the route name.",
+      "source": "a98c40eafd9b77ba"
+    },
+    "check.route-reject-target-off-route": {
+      "text": "{detail} reject_to में ऐसा कॉलम बताता है जो यह मार्ग नहीं रखता",
+      "context": "A check finding: a push-back on a route should land on that route. {detail} carries the route name, the declaring column and the target, in that order. The card still lands there by an ordinary move and walks forward into its route again, so this is worth knowing rather than broken.",
+      "source": "d7d6e5f54c71cd94"
+    },
+    "check.route-unknown-column": {
+      "text": "{detail} ऐसे कॉलम का नाम लेता है जो यह वर्कबेंच घोषित नहीं करती",
+      "context": "A check finding: every identifier a route names is a column of the flow. {detail} carries the route name and the identifier, in that order, and the repair is an edit to the workbench's own routes block.",
+      "source": "4928d1e70dac5f48"
+    },
+    "check.set.10": {
+      "text": "मार्ग कार्ड से आगे के हर संचालक-आरक्षित कॉलम को रखता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "f61b4bc3d6eb1fea"
+    },
+    "check.set.9": {
+      "text": "कोई लंबित मद ऐसे कॉलम का नाम नहीं लेती जिसे मार्ग छोड़ देता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "3fa96ba8098e68ab"
+    },
+    "column.moves.route": {
+      "text": "मार्ग पर",
+      "context": "Heading over whether this row is the forward move along the card's own route, in the legal moves printed under a served instruction. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it.",
+      "source": "1ccd45bac0c2329d"
+    },
+    "column.routes.columns": {
+      "text": "कॉलम",
+      "context": "Heading over how many live columns a route carries, in the listing dinah list routes prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it.",
+      "source": "b0f3327210fe18fc"
+    },
+    "column.routes.route": {
+      "text": "मार्ग",
+      "context": "Heading over a route's own name, in the listing dinah list routes prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it.",
+      "source": "4406e2a8264d6a3e"
+    },
+    "column.routes.skips": {
+      "text": "छोड़े गए",
+      "context": "Heading over the live columns a route omits, in the listing dinah list routes prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it.",
+      "source": "b759c3a376dc7663"
+    },
+    "lsp.completion.route.detail": {
+      "text": "मार्ग जो प्रवाह के {columns} कॉलम रखता है",
+      "context": "The detail line beside one route candidate in a completion list. {columns} is how many live columns that route carries, which is the one fact that says how short the road is without opening the block.",
+      "source": "3f5c9f110013d631"
+    },
+    "param.add.route.summary": {
+      "text": "कार्ड किस मार्ग पर दर्ज करना है, उन मार्गों में से जो यह वर्कबेंच घोषित करती है; यदि आप कोई नहीं बताते तो पूरी कॉलम सूची",
+      "context": "The meaning of the route argument of `dinah add`, printed in that command's arguments table.",
+      "source": "8638be023333b034"
+    },
+    "refusal.dinah.item-off-route": {
+      "text": "मार्ग {route} {detail} को नहीं रखता, इसलिए उस कॉलम का नाम लेने वाली मद इस कार्ड को कहीं नहीं रोकेगी।",
+      "context": "The sentence printed after the refusal name dinah.item-off-route, which filing an item against a column the card's own route drops carries. {detail} is the column that was named and {route} is the route the card walks.",
+      "source": "b7249d5ceae4d5eb"
+    },
+    "refusal.dinah.item-off-route.next": {
+      "text": " ऐसे कॉलम का नाम दें जिसे मार्ग रखता हो, या पहले कार्ड का मार्ग बदलें।",
+      "context": "The next step of refusal.dinah.item-off-route, which names the two repairs open to the caller.",
+      "source": "48582193e300eed1"
+    },
+    "refusal.dinah.route-off-column": {
+      "text": "मार्ग {route} {detail} को नहीं रखता, इसलिए वहाँ दर्ज किया गया कार्ड शुरू से ही अपने मार्ग से बाहर खड़ा होगा।",
+      "context": "The sentence printed after the refusal name dinah.route-off-column, which a filing whose destination column the named route drops carries. {detail} is the column the card would have landed in and {route} is the route that was named.",
+      "source": "d15b4060a0670e6f"
+    },
+    "refusal.dinah.route-off-column.next": {
+      "text": " कार्ड को मार्ग के किसी कॉलम में दर्ज करें, या कोई दूसरा मार्ग चुनें।",
+      "context": "The next step of refusal.dinah.route-off-column, which names the two repairs open to the caller.",
+      "source": "b14fda59994d97c0"
+    },
+    "refusal.dinah.route-skips-operator-column": {
+      "text": "मार्ग {detail} {column} को नहीं रखता, जिसे यह कार्ड अभी पार नहीं कर पाया है और जिसे यह वर्कबेंच अपने संचालक के लिए सुरक्षित रखती है।",
+      "context": "The sentence printed after the refusal name dinah.route-skips-operator-column, which a route write whose route omits an operator-owned station the card has not reached carries. {detail} is the route name that was written and {column} is the station it omits.",
+      "source": "2f702543f43a34e"
+    },
+    "refusal.dinah.route-skips-operator-column.next": {
+      "text": " पहले कार्ड को उस पड़ाव से आगे ले जाएँ, या ऐसा मार्ग चुनें जो उसे रखता हो।",
+      "context": "The next step of refusal.dinah.route-skips-operator-column, which names the two repairs: carry the card past the reserved station, or write a route that keeps it.",
+      "source": "800b20de46dc8617"
+    },
+    "refusal.dinah.route-strands-item": {
+      "text": "{item} {column} का नाम लेता है, और मार्ग {detail} उस कॉलम को नहीं रखता, इसलिए जिस रोक के लिए वह दर्ज हुआ था वह कभी लागू नहीं होगी।",
+      "context": "The sentence printed after the refusal name dinah.route-strands-item, which a route write on a card carrying a pending item naming a column the new route drops carries. {detail} is the route name that was written, {item} is the item's own reference and {column} is the column it names. Only a pending item is reported, because a settled one holds nothing.",
+      "source": "f99d2c572fc478a0"
+    },
+    "refusal.dinah.route-strands-item.next": {
+      "text": " उस मद को निपटाएँ, या `dinah set {item} column <column>` से उसे मार्ग के किसी कॉलम पर ले जाएँ।",
+      "context": "The next step of refusal.dinah.route-strands-item. The command is machine vocabulary and is never translated; {item} is the same reference the sentence above named.",
+      "source": "d272359d82c977fc"
+    },
+    "refusal.dinah.unknown-route": {
+      "text": "यह वर्कबेंच {detail} नाम का कोई मार्ग घोषित नहीं करती।",
+      "context": "The sentence printed after the refusal name dinah.unknown-route, which a write naming a route the workbench does not declare carries. {detail} is the route name the reader typed. The declared names follow in a fragment, so a workbench declaring no route at all ends the sentence here.",
+      "source": "4425424ee0e4825f"
+    },
+    "refusal.dinah.unknown-route.declared": {
+      "text": " जो मार्ग यह घोषित करती है वे हैं: {routes}।",
+      "context": "A fragment of refusal.dinah.unknown-route, printed when the workbench declares at least one route. {routes} is the declared names in declaration order, read off the workbench rather than written here, so a route name is never translated.",
+      "source": "9074205180d02d58"
+    },
+    "refusal.dinah.unknown-route.next": {
+      "text": " उनमें से किसी एक का नाम दें।",
+      "context": "The next step of refusal.dinah.unknown-route on a workbench that declares routes, spliced onto the sentence that just listed them.",
+      "source": "47ef8e6442436430"
+    },
+    "refusal.dinah.unknown-route.none": {
+      "text": " पहले वर्कबेंच के अपने routes ब्लॉक में कोई मार्ग घोषित करें, या कार्ड को पूरी कॉलम सूची पर ही रहने दें।",
+      "context": "The next step of refusal.dinah.unknown-route on a workbench declaring no route at all, where there is no name to offer the reader instead. routes is a frontmatter key and is never translated.",
+      "source": "14664d0b7da55488"
+    },
+    "routes.empty": {
+      "text": "यह वर्कबेंच कोई मार्ग घोषित नहीं करती, इसलिए हर कार्ड उसकी पूरी कॉलम सूची से गुज़रता है।",
+      "context": "Printed in place of the routes listing when the workbench's own definition declares none. It says what that means rather than only that the list is empty.",
+      "source": "67256972d4f2ca77"
+    },
+    "routes.skip.operator-owned": {
+      "text": "{column} (संचालक)",
+      "context": "One skipped column in the routes listing, where the workbench reserves that column to its operator. {column} is the column's own reference and is never translated. The mark answers the one question an operator asks of a road somebody drew.",
+      "source": "b9b69e8764e34212"
     }
   }
 }

@@ -205,7 +205,7 @@ func TestTheWorkbenchLadderIsOneOrderedList(t *testing.T) {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			t.Fatalf("mkdir: %v", err)
 		}
-		written, err := verb.Init(dir, "fx"+strings.ToLower(rung[:2]), "alka", "", "", "")
+		written, err := verb.Init(dir, "fx"+strings.ToLower(rung[:2]), "alka", "", "", "", false)
 		if err != nil {
 			t.Fatalf("init %s: %v", rung, err)
 		}

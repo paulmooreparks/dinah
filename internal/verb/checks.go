@@ -296,6 +296,7 @@ var beyondChecks = map[string][]Check{
 	},
 	"init": {
 		{Refusal: contract.Exists, Key: "check.init.1"},
+		{Refusal: contract.DirectoryNotEmpty, Key: "check.init.3"},
 		{Refusal: contract.Malformed, Key: "check.init.2"},
 	},
 	"extract": {

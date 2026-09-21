@@ -975,7 +975,14 @@ func (l *Library) titleOfEntity(entity *bench.EntityRef) string {
 // Dinah's frontmatter keys is passed over by the discovery walk exactly as
 // it is everywhere else, so a container written beside it stays reachable
 // and init proceeds rather than refusing over a file it never writes to.
-func Init(root, slug, operator, source, override, overrideSource string) (string, error) {
+// here is --here as the caller passed it. Its absence is what makes Init
+// refuse a directory that already exists and already holds something: a
+// directory init did not create, the way an existing, unrelated project's
+// checkout does. A directory that does not yet exist, or exists and is
+// empty, is unaffected either way, since os.MkdirAll inside
+// bench.Instantiate creates it regardless and there is nothing in it to
+// clobber.
+func Init(root, slug, operator, source, override, overrideSource string, here bool) (string, error) {
 	if override != "" {
 		spelling := "--workbench"
 		if overrideSource == bench.SourceEnvironment {
@@ -990,6 +997,12 @@ func Init(root, slug, operator, source, override, overrideSource string) (string
 	}
 	if recognized {
 		return "", contract.Refuse(contract.Exists, root)
+	}
+	if !here {
+		entries, err := os.ReadDir(root)
+		if err == nil && len(entries) > 0 {
+			return "", contract.Refuse(contract.DirectoryNotEmpty, root)
+		}
 	}
 	definition, err := readSource(root, source)
 	if err != nil {

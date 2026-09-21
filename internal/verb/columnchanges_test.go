@@ -382,7 +382,7 @@ func columnFixture(t *testing.T) *Library {
 	if err := os.MkdirAll(root, 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
-	written, err := Init(root, "fx", "alka", "", "", "")
+	written, err := Init(root, "fx", "alka", "", "", "", false)
 	if err != nil {
 		t.Fatalf("init: %v", err)
 	}

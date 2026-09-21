@@ -148,14 +148,21 @@ const (
 	Occupied     = LayerPrefix + "occupied"
 	Locked       = LayerPrefix + "locked"
 	Exists       = LayerPrefix + "exists"
-	UnknownPath  = LayerPrefix + "unknown-path"
-	NoEditor     = LayerPrefix + "no-editor"
-	NoWorkbench  = LayerPrefix + "no-workbench"
-	UnknownVerb  = LayerPrefix + "unknown-command"
-	Usage        = LayerPrefix + "usage"
-	InvalidAlias = LayerPrefix + "invalid-alias"
-	AliasShadow  = LayerPrefix + "alias-shadows-command"
-	AliasMissing = LayerPrefix + "missing-alias-argument"
+	// DirectoryNotEmpty is init refusing to write a .dinah into a directory
+	// that already existed and already held something, unless the caller
+	// passed --here. It is a distinct name from Exists, which fires when the
+	// directory already carries a recognised Dinah workbench.md of its own;
+	// this one fires on an ordinary populated directory that carries no
+	// workbench at all, the shape an existing, unrelated project takes.
+	DirectoryNotEmpty = LayerPrefix + "directory-not-empty"
+	UnknownPath       = LayerPrefix + "unknown-path"
+	NoEditor          = LayerPrefix + "no-editor"
+	NoWorkbench       = LayerPrefix + "no-workbench"
+	UnknownVerb       = LayerPrefix + "unknown-command"
+	Usage             = LayerPrefix + "usage"
+	InvalidAlias      = LayerPrefix + "invalid-alias"
+	AliasShadow       = LayerPrefix + "alias-shadows-command"
+	AliasMissing      = LayerPrefix + "missing-alias-argument"
 
 	// NoWorkbenchFound is the walk coming up empty, which NoWorkbench once
 	// shared a sentence with. The two are separated because one template
@@ -213,6 +220,14 @@ const (
 	// names what the caller just typed, the other names what was stored
 	// earlier and may have gone stale with nobody around to notice.
 	NoConfiguredWorkbench = LayerPrefix + "no-configured-workbench"
+	// WorkbenchBoundary is the ancestor walk stopping at the nearest git
+	// repository root rather than climbing past it, having found no workbench
+	// at or below that root. It is a distinct name from NoWorkbenchFound
+	// because that refusal's sentence says the user base was tried, and this
+	// search deliberately never reaches it: falling back to the user base from
+	// inside a bounded repository is the exact hazard this refusal exists to
+	// stop, so a shared sentence would misreport what the search actually did.
+	WorkbenchBoundary = LayerPrefix + "workbench-boundary"
 	// WorkbenchNotApplicable is --workbench or DINAH_WORKBENCH given to
 	// init. Every other verb reads the flag as the path to a workbench that
 	// already exists; init has none yet at the path it is about to create,
@@ -667,9 +682,10 @@ const (
 // Introduced lists every refusal name Dinah mints beyond the profile's own.
 var Introduced = []string{
 	Unconfirmed, UnknownGuide, UnknownKey, InvalidAlias, AliasShadow, AliasMissing, Occupied, Locked, Exists,
+	DirectoryNotEmpty,
 	UnknownPath, NoEditor, NoWorkbench, UnknownVerb, Usage, Interrupted,
 	NoWorkbenchFound, AmbiguousWorkbench, LastColumn, UnreadableBench, DamagedBench, UnreadableContainer,
-	NoConfiguredWorkbench,
+	NoConfiguredWorkbench, WorkbenchBoundary,
 	WorkbenchNotApplicable, RepairWouldEmptyColumns, NeedsVocabularyMigration,
 	AddNeedsAColumn, NeedsNumberMigration, MultipleWords, EmptySearch,
 	UnknownField, UnknownValue, UnknownAxis, RepeatedAxis, ChainTooLong,
