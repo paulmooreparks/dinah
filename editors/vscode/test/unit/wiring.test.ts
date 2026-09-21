@@ -438,13 +438,17 @@ function sources(): string[] {
 	return found.sort();
 }
 
-test("the command modules hold exactly thirty-two report-channel call sites", () => {
+test("the command modules hold exactly thirty-three report-channel call sites", () => {
 	// A tripwire rather than a correctness check. A per-row report site added
 	// after this card cannot land silently, because its author has to raise
 	// this figure and, in doing so, decide whether the new site belongs inside
 	// a run. It is an exact figure rather than a floor, because a floor would
 	// pass a run that lost sites and losing a site is how a command stops
 	// reporting at all.
+	//
+	// dinah-550 raised it by one, for the showError deleteCommentAt makes when
+	// a delete is not forced. It belongs inside a run: the host it calls is
+	// the one runBulk hands the row, so a multi-row run collects it.
 	const sites: string[] = [];
 	const files = new Set<string>();
 	for (const file of sources()) {
@@ -466,7 +470,7 @@ test("the command modules hold exactly thirty-two report-channel call sites", ()
 	}
 	assert.equal(
 		sites.length,
-		32,
+		33,
 		`the command modules hold ${String(sites.length)} report-channel call sites:\n${sites.join("\n")}`,
 	);
 	// Stated as at least six, which is what the criterion declares, so a file

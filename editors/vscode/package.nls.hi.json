@@ -56,5 +56,6 @@
 	"manifest.command.dinah.tree.raiseQuestion.title": "Dinah: खुला प्रश्न उठाएँ",
 	"manifest.command.dinah.tree.recordDecision.title": "Dinah: निर्णय दर्ज करें",
 	"manifest.command.dinah.tree.addCriterion.title": "Dinah: स्वीकृति मानदंड जोड़ें",
-	"manifest.command.dinah.tree.openComment.title": "Dinah: टिप्पणी खोलें"
+	"manifest.command.dinah.tree.openComment.title": "Dinah: टिप्पणी खोलें",
+	"manifest.command.dinah.tree.deleteComment.title": "Dinah: टिप्पणी हटाएँ"
 }

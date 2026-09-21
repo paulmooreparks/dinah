@@ -35,15 +35,15 @@ test("the policy table and the command roster are the same set", () => {
 	);
 });
 
-test("the roster holds the thirty-five commands this extension contributes", () => {
+test("the roster holds the thirty-six commands this extension contributes", () => {
 	// The literal is the doubling the set comparison above cannot do on its
 	// own: a command deleted from both lists at once leaves them equal, and
 	// only a count notices. A later card adding a command edits this number,
 	// and that is the intended cost. dinah-525 took two away with dinah-506's
 	// draft apparatus, which a comment that exists from its first keystroke
 	// needs nothing of, dinah-517 put three filing commands where one stood,
-	// and dinah-549 added Comment on Card.
-	assert.equal(TREE_COMMANDS.length, 35);
+	// dinah-549 added Comment on Card, and dinah-550 added Delete Comment.
+	assert.equal(TREE_COMMANDS.length, 36);
 });
 
 test("every policy but noRow carries an entry in the table the editor iterates", () => {

@@ -218,16 +218,22 @@ export const COMMAND_COMMENT_ON_COLUMN = "dinah.tree.commentOnColumn";
 export const COMMAND_COMMENT_ON_CARD = "dinah.tree.commentOnCard";
 
 /**
- * The one command a comment row offers, which opens the comment's own anchor
- * file (dinah-519).
+ * The command a comment row runs to open the comment's own anchor file
+ * (dinah-519).
  *
- * Nothing else is offered. `dinah comment` records a comment on a card, on a
- * column, or on one of a card's items, and refuses a comment's own reference,
- * so a Reply entry here would offer a refusal. A comment's body is edited by
- * saving the file this command opens, which writes it through the verb, and
- * a comment is deleted with `dinah delete`, which no row offers.
+ * A comment's body is edited by saving the file this command opens, which
+ * writes it through the verb. No Reply entry is offered, because `dinah
+ * comment` records a comment on a card, on a column, or on one of a card's
+ * items, and refuses a comment's own reference, so a Reply entry would offer a
+ * refusal.
  */
 export const COMMAND_OPEN_COMMENT = "dinah.tree.openComment";
+
+/**
+ * The command a comment row runs to delete the comment with `dinah delete`
+ * (dinah-550).
+ */
+export const COMMAND_DELETE_COMMENT = "dinah.tree.deleteComment";
 
 /**
  * Every command this extension contributes, in the order package.json
@@ -270,6 +276,7 @@ export const TREE_COMMANDS: readonly string[] = [
 	COMMAND_RECORD_DECISION,
 	COMMAND_ADD_CRITERION,
 	COMMAND_OPEN_COMMENT,
+	COMMAND_DELETE_COMMENT,
 ];
 
 /**
@@ -315,6 +322,7 @@ export const ROW_COMMANDS: readonly string[] = [
 	COMMAND_RECORD_DECISION,
 	COMMAND_ADD_CRITERION,
 	COMMAND_OPEN_COMMENT,
+	COMMAND_DELETE_COMMENT,
 ];
 
 /**

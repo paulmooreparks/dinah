@@ -218,6 +218,10 @@
       {
         "command": "dinah.tree.openComment",
         "title": "%manifest.command.dinah.tree.openComment.title%"
+      },
+      {
+        "command": "dinah.tree.deleteComment",
+        "title": "%manifest.command.dinah.tree.deleteComment.title%"
       }
     ],
     "menus": {
@@ -344,6 +348,10 @@
         },
         {
           "command": "dinah.tree.openComment",
+          "when": "false"
+        },
+        {
+          "command": "dinah.tree.deleteComment",
           "when": "false"
         }
       ],
@@ -489,6 +497,11 @@
           "command": "dinah.tree.openComment",
           "when": "view == dinah.workbenchView && viewItem == dinah.comment",
           "group": "2_open@1"
+        },
+        {
+          "command": "dinah.tree.deleteComment",
+          "when": "view == dinah.workbenchView && viewItem == dinah.comment",
+          "group": "9_destructive@1"
         },
         {
           "command": "dinah.tree.raiseQuestion",
