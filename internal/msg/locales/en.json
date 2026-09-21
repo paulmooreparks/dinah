@@ -15,7 +15,7 @@
     },
     "answer.pull.empty.named": {
       "text": "Dinah found nothing ready in {upstream} to move into {destination}",
-      "context": "The one-line sentence the empty answer of pull prints when the named form was asked and the upstream column holds no ready card. {upstream} names the upstream column by its title, {destination} names the column the caller asked pull to land the card in."
+      "context": "The one-line sentence the empty answer of pull prints when the named form was asked and the upstream column holds no ready card this pull may take, which since routes includes an upstream whose ready cards are all bound somewhere else. {upstream} names the upstream column by its title, {destination} names the column the caller asked pull to land the card in."
     },
     "attachments.empty": {
       "text": "{ref} carries no attachments.",
@@ -4704,6 +4704,18 @@
     "routes.skip.operator-owned": {
       "text": "{column} (operator)",
       "context": "One skipped column in the routes listing, where the workbench reserves that column to its operator. {column} is the column's own reference and is never translated. The mark answers the one question an operator asks of a road somebody drew."
+    },
+    "check.add.8": {
+      "text": "the route carries every operator-owned column ahead of the card",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.set.11": {
+      "text": "an item's new column is one the card's route carries",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.card-route-skips-operator-column": {
+      "text": "{detail} walks a route that carries it around a column this workbench reserves to its operator",
+      "context": "A check finding: a card's route omits an operator-owned column the card has not yet passed, which every verb that writes a route refuses, so it arrived by a hand edit. {detail} carries the card and the column, in that order. The finding clears once the card has passed the column."
     }
   }
 }

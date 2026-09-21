@@ -409,6 +409,14 @@ const (
 	// FindingItemOffRoute is a pending checklist item naming a column the
 	// card's route does not carry, which is a hold that would never fire.
 	FindingItemOffRoute = "check.item-off-route"
+	// FindingCardRouteSkipsOperatorColumn is a card whose route omits a column
+	// the workbench reserves to its operator, standing at or after the card's
+	// own column. Every verb that writes a route refuses to produce it, so it
+	// arrives by a hand edit or by an earlier build. Unlike the standing
+	// finding section 13 of the specification rejected, it reads the card's
+	// position rather than the route alone, so it clears once the card has
+	// passed the column and never fires on a correct board.
+	FindingCardRouteSkipsOperatorColumn = "check.card-route-skips-operator-column"
 )
 
 // The directions an interrupted structural act is reported and finished in.

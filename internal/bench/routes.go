@@ -14,12 +14,14 @@ const RoutesKey = "routes"
 // reader types after `dinah set <card>`.
 const RouteField = "route"
 
-// routeName matches a route's own line inside the routes block: a key indented
-// beneath the block's key at column one, which is what keeps the nested lines
-// attached to routes rather than becoming keys of their own. It is levelAxis's
-// pattern read for a second block, and the two are spelled apart because a
-// route name and a level axis answer to different grammars.
-var routeName = regexp.MustCompile(`^\s+([A-Za-z_][A-Za-z0-9_.-]*):(.*)$`)
+// routeName matches a route's own line inside the routes block: any key
+// indented beneath the block's key at column one, up to its colon. It is
+// deliberately wider than the route-name grammar. A name outside that grammar
+// is kept and check reports it under check.route-name-malformed, which is what
+// section 1.1 of the specification promises; a narrower pattern here would
+// drop such a route without a trace, so neither a listing nor check could name
+// it.
+var routeName = regexp.MustCompile(`^\s+([^\s:#][^:#]*?):(.*)$`)
 
 // routeEntry matches one dashed entry beneath a route name.
 var routeEntry = regexp.MustCompile(`^\s*-\s*(.*)$`)
@@ -71,7 +73,9 @@ func readRoutes(fm *Frontmatter) (map[string][]string, []string) {
 		}
 		name = m[1]
 		declare(name)
-		inline := unquote(strings.TrimSpace(m[2]))
+		// A trailing comment is annotation for a person and is dropped
+		// before the flow form is read, as it is on a columns entry.
+		inline := unquote(stripComment(m[2]))
 		if !strings.HasPrefix(inline, "[") || !strings.HasSuffix(inline, "]") {
 			continue
 		}
@@ -282,22 +286,37 @@ func (b *Bench) removeFromRoutes(drop map[string]bool) bool {
 	if !changed {
 		return false
 	}
-	b.FM.SetRaw(RoutesKey, renderRoutesBlock(b.RouteNames, b.Routes))
+	b.FM.SetRaw(RoutesKey, dropFromRouteLines(b.FM.Raw(RoutesKey), drop))
 	return true
 }
 
-// renderRoutesBlock writes the routes block back in the dashed form the reader
-// above parses, one route per key and one identifier per dashed entry. A route
-// left with no column at all keeps its key and loses its entries, because the
-// declaration is somebody's choice and an empty road is a finding rather than a
-// reason to forget the name.
-func renderRoutesBlock(names []string, routes map[string][]string) []string {
-	lines := []string{RoutesKey + ":"}
-	for _, name := range names {
-		lines = append(lines, "  "+name+":")
-		for _, id := range routes[name] {
-			lines = append(lines, "    - "+id)
+// dropFromRouteLines removes identifiers from the routes block's own lines and
+// touches nothing else, so a route that lost no entry reads exactly as it was
+// written and every trailing comment a person put on an entry survives. A
+// dashed entry naming a dropped identifier loses its line; a route written in
+// flow form keeps its line, its name and its trailing comment, and loses the
+// identifier from inside the brackets.
+func dropFromRouteLines(lines []string, drop map[string]bool) []string {
+	kept := make([]string, 0, len(lines))
+	for _, line := range lines {
+		if m := routeEntry.FindStringSubmatch(line); m != nil {
+			if drop[unquote(stripComment(m[1]))] {
+				continue
+			}
+			kept = append(kept, line)
+			continue
 		}
+		open, shut := strings.Index(line, "["), strings.LastIndex(line, "]")
+		if routeName.MatchString(line) && open >= 0 && shut > open {
+			var ids []string
+			for _, raw := range strings.Split(line[open+1:shut], ",") {
+				if id := strings.TrimSpace(raw); id != "" && !drop[unquote(id)] {
+					ids = append(ids, id)
+				}
+			}
+			line = line[:open+1] + strings.Join(ids, ", ") + line[shut:]
+		}
+		kept = append(kept, line)
 	}
-	return lines
+	return kept
 }

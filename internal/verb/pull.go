@@ -294,28 +294,38 @@ func (l *Library) pullableCards(destination *bench.Column, cards []*bench.Card, 
 }
 
 // immediateLanding is the landing function the named form's first step reads at
-// the destination's immediate flow upstream.
+// the destination's immediate flow upstream, and its doc comment is where the
+// whole rule for which card a named pull may take is written down.
 //
-// It takes the card unless that card's own route carries it into some other
-// column, which is the route filter every further source applies through
-// carriesInto. It is written as an exclusion rather than as carriesInto's own
-// answer because the immediate upstream is tried on its own terms: a done
-// upstream and one waiting on somebody outside both answer nothing at all
-// there, and the card is taken so the lock refuses by name, exactly as it did
-// before routes existed.
+// The rule. A named pull into a column D may take a ready card C standing at a
+// column S when either of two things holds:
 //
-// A card walking the default route is taken whatever the answer, so on a
-// workbench where no card names a route this reproduces the old selection
-// exactly. The one shape that separates the two is a named pull into a column
-// that itself takes no work up, where the walk runs past the destination: the
-// card is taken there and canLand refuses it, which is the answer trunk gives.
+//  1. C's own road carries it from S into D: carriesInto(S, road of C) is D.
+//     This is the only way a card at a further source is taken, and it is the
+//     walk pullableCards runs.
+//  2. S is D's immediate upstream in the flow, and C's road gives the same
+//     answer at S that the whole flow gives there: carriesInto(S, road of C)
+//     equals carriesInto(S, flow). When both answer D this is case 1 again.
+//     When both answer nothing, S is a done column, a column waiting on
+//     somebody outside, or a station whose flow successor D takes no work up,
+//     and the card is taken so that the lock refuses it by name, which is what
+//     every workbench did before routes existed.
+//
+// Nothing else is taken. A road that answers at S differently from the flow
+// is a road that does not send C into D the way the flow would, whether it
+// names another station, runs through a queue the flow does not have there,
+// or does not carry S at all because C stands off its road; in every such
+// position the card is left standing. A card walking the default route has
+// the flow for its road, so both answers are always the same and the first
+// step selects exactly as it did before routes existed.
+//
+// Section 4.4 of dinah-542's specification compared twenty-one behaviours and
+// missed two positions this rule covers: a card at S whose road puts a queue
+// after S, and a card standing off its road at S. Code review found both.
 func (l *Library) immediateLanding(upstream, destination *bench.Column) landingFor {
+	flow := carriesInto(upstream, l.Bench.Columns)
 	return func(card *bench.Card) *bench.Column {
-		route := l.Bench.DeclaredRouteOf(card)
-		if route == nil {
-			return destination
-		}
-		if beyond := carriesInto(upstream, route); beyond != nil && beyond != destination {
+		if carriesInto(upstream, l.Bench.RouteOf(card)) != flow {
 			return nil
 		}
 		return destination

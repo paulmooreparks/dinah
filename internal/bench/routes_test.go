@@ -174,6 +174,41 @@ func TestEveryCardRouteFindingHasAFixtureThatProducesItAndOneThatDoesNot(t *test
 		}
 	})
 
+	t.Run(FindingCardRouteSkipsOperatorColumn, func(t *testing.T) {
+		// Review is reserved to the operator here, and short drops it. A card
+		// at Intake has not passed Review, so a hand-written route key
+		// carrying it around the column is reported; the same card standing
+		// at Done, past the column, is not.
+		reserve := func(b *Bench) *Bench {
+			anchor := b.ColumnAnchorPath("f00000000003")
+			text, err := ReadText(anchor)
+			if err != nil {
+				t.Fatalf("read review: %v", err)
+			}
+			fm, body := ParseAnchor(text)
+			fm.Set("operator_owned", "true")
+			if err := WriteText(anchor, fm.Render(body)); err != nil {
+				t.Fatalf("write review: %v", err)
+			}
+			opened, err := Open(b.Root)
+			if err != nil {
+				t.Fatalf("reopen: %v", err)
+			}
+			return opened
+		}
+		skipping := []string{"  short:", "    - f00000000001", "    - f00000000002", "    - f00000000004"}
+		b := reserve(routeFixture(t, skipping))
+		plantRoutedCard(t, b, "c00000000001", 1, "f00000000001", "short")
+		if !hasRouteFinding(t, b, FindingCardRouteSkipsOperatorColumn, "rf-1 review") {
+			t.Error("a card whose route carries it around a reserved column is not reported")
+		}
+		other := reserve(routeFixture(t, skipping))
+		plantRoutedCard(t, other, "c00000000001", 1, "f00000000004", "short")
+		if hasRouteFinding(t, other, FindingCardRouteSkipsOperatorColumn, "") {
+			t.Error("a card already past the reserved column is reported")
+		}
+	})
+
 	t.Run(FindingItemOffRoute, func(t *testing.T) {
 		b := routeFixture(t, routes)
 		plantRoutedCard(t, b, "c00000000001", 1, "f00000000001", "short")
@@ -419,4 +454,67 @@ func TestTheStorageFormatDoesNotMoveForRoutes(t *testing.T) {
 	if len(findings) != 0 {
 		t.Errorf("a clean workbench declaring routes reports %+v", findings)
 	}
+}
+
+// TestARouteDeclarationReadsTheWayItIsWritten covers three findings code review
+// raised on dinah-542's reader and writer. A trailing comment on a flow-form
+// route is annotation and not part of the list. A route name outside the
+// grammar is kept and reported rather than dropped without a trace. And a
+// retirement removes the retired column from the routes and leaves every
+// other line of the block, comments included, exactly as it was written.
+func TestARouteDeclarationReadsTheWayItIsWritten(t *testing.T) {
+	t.Run("a trailing comment on a flow-form route", func(t *testing.T) {
+		b := routeFixture(t, []string{"  commented: [f00000000001, f00000000002, f00000000004]   # annotated"})
+		if got := strings.Join(b.Routes["commented"], ","); got != "f00000000001,f00000000002,f00000000004" {
+			t.Errorf("the route reads %q, and a trailing comment is not part of it", got)
+		}
+		if hasRouteFinding(t, b, FindingRouteEmpty, "") {
+			t.Error("check calls the commented route empty")
+		}
+	})
+
+	t.Run("a name outside the grammar is reported rather than dropped", func(t *testing.T) {
+		b := routeFixture(t, []string{"  my route:", "    - f00000000001", "    - f00000000004"})
+		if !b.DeclaresRoute("my route") {
+			t.Fatalf("the reader dropped the route; it read %v", b.RouteNames)
+		}
+		if !hasRouteFinding(t, b, FindingRouteNameMalformed, "my route") {
+			t.Error("check does not report the name outside the grammar")
+		}
+	})
+
+	t.Run("a retirement leaves the rest of the block as written", func(t *testing.T) {
+		b := routeFixture(t, []string{
+			"  dashed:",
+			"    - f00000000001   # Intake",
+			"    - f00000000002   # Doing",
+			"    - f00000000004   # Done",
+			"  flow: [f00000000001, f00000000002, f00000000004]   # kept",
+			"  untouched:",
+			"    - f00000000001   # Intake",
+			"    - f00000000004   # Done",
+		})
+		if err := b.RemoveColumnID("f00000000002"); err != nil {
+			t.Fatalf("retire: %v", err)
+		}
+		text, err := ReadText(filepath.Join(b.Root, WorkbenchAnchor))
+		if err != nil {
+			t.Fatalf("read the anchor: %v", err)
+		}
+		fm, _ := ParseAnchor(text)
+		got := strings.Join(fm.Raw(RoutesKey), "\n")
+		want := strings.Join([]string{
+			"routes:",
+			"  dashed:",
+			"    - f00000000001   # Intake",
+			"    - f00000000004   # Done",
+			"  flow: [f00000000001, f00000000004]   # kept",
+			"  untouched:",
+			"    - f00000000001   # Intake",
+			"    - f00000000004   # Done",
+		}, "\n")
+		if got != want {
+			t.Errorf("the routes block after retirement reads\n%s\nwanted\n%s", got, want)
+		}
+	})
 }

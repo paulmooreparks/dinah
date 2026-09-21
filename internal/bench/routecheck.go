@@ -110,10 +110,17 @@ func (b *Bench) checkCardRoute(card *Card) []Finding {
 	// A card standing at a column the workbench does not declare at all is
 	// checkCard's own unknown-column finding, and it is not off its route as
 	// well: there is no position left to ask the question about.
-	if column == nil || RouteIndexOf(route, column) >= 0 {
+	if column == nil {
 		return nil
 	}
-	return []Finding{{Path: anchor, Key: FindingCardOffRoute, Detail: card.Ref(b.Slug) + " " + column.Ref()}}
+	var findings []Finding
+	if RouteIndexOf(route, column) < 0 {
+		findings = append(findings, Finding{Path: anchor, Key: FindingCardOffRoute, Detail: card.Ref(b.Slug) + " " + column.Ref()})
+	}
+	if skipped := b.RouteSkipsOperatorColumn(card, card.Route); skipped != nil {
+		findings = append(findings, Finding{Path: anchor, Key: FindingCardRouteSkipsOperatorColumn, Detail: card.Ref(b.Slug) + " " + skipped.Ref()})
+	}
+	return findings
 }
 
 // checkItemRoutes reports every pending checklist item of a card naming a

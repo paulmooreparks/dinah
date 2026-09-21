@@ -156,6 +156,29 @@ func (b *Bench) SetColumnSequence(ids []string) error {
 	return b.Save()
 }
 
+// SetShape writes the columns sequence and, where the incoming definition
+// carries a routes member, the routes block, in one write of the anchor. It is
+// reshape's reorder step, and the routes travel with it because section 15 of
+// dinah-542's specification puts them there: a reshape instantiates the
+// definition's intent, so no route is merged with the live one.
+//
+// The routes member is written by the one writer Instantiate uses for every
+// member it does not recognise, so a reshaped workbench carries the same bytes
+// a workbench instantiated from the same definition would. A definition
+// carrying no routes member leaves the live block exactly as it stands; one
+// carrying an empty object removes the block.
+func (b *Bench) SetShape(ids []string, routes json.RawMessage, carriesRoutes bool) error {
+	b.FM.SetSeq("columns", ids)
+	if carriesRoutes {
+		if members, read := jsonMembers(routes); read && len(members) == 0 {
+			b.FM.Delete(RoutesKey)
+		} else {
+			writeMember(b.FM, RoutesKey, routes)
+		}
+	}
+	return b.Save()
+}
+
 // ColumnSequence is the identifiers the workbench's own columns sequence
 // carries, in the order it carries them. It is read rather than derived from
 // b.Columns, because a stranded identifier is in the sequence and not in the

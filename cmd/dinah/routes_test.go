@@ -7,13 +7,17 @@ import (
 	"dinah/internal/msg"
 )
 
-// routedCLIDefinition is a four-column flow with one short route through it,
-// which is the least a command-level test of routes needs: a road that drops a
-// station, and a station for it to drop.
+// routedCLIDefinition is a four-column flow with two short routes through it.
+// short drops Doing and keeps the operator's Review, so a card may be filed on
+// it; around drops Review, which is the road the listing marks, and no card is
+// filed on it, since a filing onto a road around a reserved column is refused.
 const routedCLIDefinition = `{
   "profile": "dinah-core/0.7",
   "title": "Routed",
-  "routes": { "short": ["a20000000001", "a20000000003", "a20000000004"] },
+  "routes": {
+    "short": ["a20000000001", "a20000000002", "a20000000004"],
+    "around": ["a20000000001", "a20000000003", "a20000000004"]
+  },
   "columns": [
     { "id": "a20000000001", "title": "Intake", "kind": "intake" },
     { "id": "a20000000002", "title": "Review", "kind": "work", "operator_owned": true },

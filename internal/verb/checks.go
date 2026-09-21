@@ -255,6 +255,9 @@ var beyondChecks = map[string][]Check{
 		// and a bare filing into a first column the route drops.
 		{Refusal: contract.UnknownRoute, Key: "check.add.6"},
 		{Refusal: contract.RouteOffColumn, Key: "check.add.7"},
+		// The eighth row is the route write's operator-column row read at
+		// creation, where the card would stand once it is filed.
+		{Refusal: contract.RouteSkipsOperatorColumn, Key: "check.add.8"},
 	},
 	"comment": {
 		{Refusal: contract.UnknownCard, Key: "check.comment.1"},
@@ -444,6 +447,10 @@ var beyondChecks = map[string][]Check{
 		// guard's refusal is reached through it.
 		{Refusal: contract.RouteStrandsItem, Key: "check.set.9"},
 		{Refusal: contract.RouteSkipsOperatorColumn, Key: "check.set.10"},
+		// The eleventh row is moving a checklist item onto a column the card's
+		// own road does not carry, which reads the card rather than the value
+		// and so runs beside the two route rows rather than inside the guard.
+		{Refusal: contract.ItemOffRoute, Key: "check.set.11"},
 	},
 	// file declared no list at all before dinah-542, so its page printed no
 	// table. Rows 1 to 7 describe what File already refuses and are written

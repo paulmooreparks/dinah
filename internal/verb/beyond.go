@@ -92,6 +92,19 @@ func (l *Library) Add(req *Request) *Response {
 				"route": route,
 			})
 		}
+		// A filing is a placement, so the operator's ruling on
+		// dinah-542/decisions/6 reaches it as it reaches a route write: no
+		// road may carry a card around a column the workbench reserves to its
+		// operator before the card has passed it. A card that does not exist
+		// yet has passed nothing, so the rule is read from the column it is
+		// about to stand in, which is where a route write immediately after
+		// the filing would read it too.
+		arriving := &bench.Card{Column: destination.ID}
+		if skipped := l.Bench.RouteSkipsOperatorColumn(arriving, route); skipped != nil {
+			return l.refuseWith(req, nil, contract.RouteSkipsOperatorColumn, route, map[string]string{
+				"column": skipped.Ref(),
+			})
+		}
 	}
 	now := bench.Stamp(l.Now())
 	// The workbench lock alone guarantees nothing about the mark a caller reads

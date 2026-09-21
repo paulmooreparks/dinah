@@ -194,6 +194,68 @@ func TestTheFirstStepOfANamedPullAppliesTheRouteFilter(t *testing.T) {
 	}
 }
 
+// TestTheFirstStepOfANamedPullLeavesACardItsRoadDoesNotSendThere is the code
+// review's blocker on dinah-542, at the two positions it named. In each the
+// card stands at the destination's immediate flow upstream and its road gives
+// no answer there, where the flow's answer is the destination, and the named
+// pull must leave it standing rather than carry it into a station its road
+// drops.
+func TestTheFirstStepOfANamedPullLeavesACardItsRoadDoesNotSendThere(t *testing.T) {
+	t.Run("the road puts a queue after the upstream station", func(t *testing.T) {
+		h := harnessFromDefinition(t, "qa", queueAfterStationDefinition)
+		ref := h.add("on the road that skips spec")
+		h.onRoute(ref, "small")
+		h.at(ref, "c10000000002")
+		took, response := h.pulled("alka", "spec")
+		if took != "" {
+			t.Fatalf("the pull into spec took %s, a station the card's road drops: %s %s", took, response.Outcome, response.Refusal)
+		}
+		if card := h.card(ref); card.Column != "c10000000002" || card.State != contract.StateReady {
+			t.Errorf("the card moved: column %q state %q", card.Column, card.State)
+		}
+	})
+
+	t.Run("the card stands off its road at the upstream", func(t *testing.T) {
+		h := routedHarness(t)
+		// skipalpha does not carry alpha, which is beta's immediate upstream.
+		ref := h.add("off its road at the upstream")
+		h.onRoute(ref, "skipalpha")
+		h.at(ref, routedAlpha)
+		took, response := h.pulled("alka", "beta")
+		if took != "" {
+			t.Fatalf("the pull into beta took %s, which stands off its road: %s %s", took, response.Outcome, response.Refusal)
+		}
+		if card := h.card(ref); card.Column != routedAlpha || card.State != contract.StateReady {
+			t.Errorf("the card moved: column %q state %q", card.Column, card.State)
+		}
+	})
+
+	t.Run("a card on the full list at the same upstream is still taken", func(t *testing.T) {
+		h := harnessFromDefinition(t, "qa", queueAfterStationDefinition)
+		ref := h.add("on the whole flow")
+		h.at(ref, "c10000000002")
+		if took, response := h.pulled("alka", "spec"); took != ref {
+			t.Fatalf("the pull into spec took %q, wanted %s: %s %s", took, ref, response.Outcome, response.Refusal)
+		}
+	})
+}
+
+// queueAfterStationDefinition is the reviewer's reproduction: a road that
+// drops Spec, so the station before Spec is followed on that road by a buffer.
+const queueAfterStationDefinition = `{
+  "profile": "dinah-core/0.7",
+  "title": "Queue after station",
+  "routes": { "small": ["c10000000001", "c10000000002", "c10000000004", "c10000000005", "c10000000006"] },
+  "columns": [
+    { "id": "c10000000001", "title": "Intake", "kind": "intake" },
+    { "id": "c10000000002", "title": "Triage", "kind": "work" },
+    { "id": "c10000000003", "title": "Spec", "kind": "work" },
+    { "id": "c10000000004", "title": "Buildq", "kind": "dinah.buffer" },
+    { "id": "c10000000005", "title": "Impl", "kind": "work" },
+    { "id": "c10000000006", "title": "Done", "kind": "done" }
+  ]
+}`
+
 // TestArrivalOrderHoldsAmongTheCardsBoundForOneStation is
 // dinah-542/criteria/17. Three ready cards stand in one buffer: one bound for
 // one station arriving first, then two bound for another. Each pull takes the
@@ -1248,5 +1310,96 @@ func TestTheRouteFilterRunsBeforeTheAboveTierObservation(t *testing.T) {
 	h.reopen()
 	if response.Message != "answer.pull.empty.bare" {
 		t.Fatalf("the bare pull answered %q, wanted the empty message: the excluded column's gated card must not be reported as work above the caller", response.Message)
+	}
+}
+
+// TestAReshapeWritesTheDefinitionsRoutes is section 15 of dinah-542's
+// specification, which code review found unimplemented. A reshape writes the
+// incoming definition's routes in place of the live block rather than merging
+// them, keeps a card's route key as it was, and leaves a route naming a column
+// the run did not create for check to report. A definition carrying no routes
+// member leaves the live block alone (dinah-542/decisions/28).
+func TestAReshapeWritesTheDefinitionsRoutes(t *testing.T) {
+	// The definition keeps every column, changes skipbeta, drops skipalpha
+	// and direct, and adds a route naming a column nobody creates.
+	reshaped := strings.Replace(routedDefinition, `"routes": {
+    "skipbeta": ["b00000000001", "b00000000002", "b00000000003", "b00000000005", "b00000000006"],
+    "skipalpha": ["b00000000001", "b00000000002", "b00000000004", "b00000000005", "b00000000006"],
+    "direct": ["b00000000001", "b00000000003", "b00000000004", "b00000000005", "b00000000006"],
+    "longskip": ["b00000000001", "b00000000002", "b00000000005", "b00000000006"]
+  }`, `"routes": {
+    "skipbeta": ["b00000000001", "b00000000003", "b00000000005", "b00000000006"],
+    "fresh": ["b00000000001", "b0000000dead", "b00000000006"]
+  }`, 1)
+	if reshaped == routedDefinition {
+		t.Fatal("the fixture's routes block was not found, so the definition was not changed")
+	}
+
+	h := routedHarness(t)
+	ref := h.add("walking a road the reshape drops")
+	h.onRoute(ref, "skipalpha")
+	if _, err := h.reshape(h.source(reshaped), true); err != nil {
+		t.Fatalf("reshape: %v", err)
+	}
+	b := h.library.Bench
+	if got := strings.Join(b.RouteNames, ","); got != "skipbeta,fresh" {
+		t.Errorf("the reshaped workbench declares %q, wanted the definition's skipbeta,fresh", got)
+	}
+	if got := strings.Join(b.Routes["skipbeta"], ","); got != "b00000000001,b00000000003,b00000000005,b00000000006" {
+		t.Errorf("skipbeta reads %q after the reshape, wanted the definition's road", got)
+	}
+	if card := h.card(ref); card.Route != "skipalpha" {
+		t.Errorf("the card's route reads %q, and a reshape leaves it as it was", card.Route)
+	}
+	if !hasFinding(t, h, bench.FindingRouteUnknownColumn) {
+		t.Error("check does not report the route naming a column the reshape did not create")
+	}
+	if !hasFinding(t, h, bench.FindingCardUnknownRoute) {
+		t.Error("check does not report the card whose route the reshape dropped")
+	}
+
+	// A definition carrying no routes member leaves the live block alone.
+	bare := strings.Replace(reshaped, `"routes": {
+    "skipbeta": ["b00000000001", "b00000000003", "b00000000005", "b00000000006"],
+    "fresh": ["b00000000001", "b0000000dead", "b00000000006"]
+  },`, "", 1)
+	if bare == reshaped {
+		t.Fatal("the routes member was not found, so the second definition still carries one")
+	}
+	if _, err := h.reshape(h.source(bare), true); err != nil {
+		t.Fatalf("reshape without routes: %v", err)
+	}
+	if got := strings.Join(h.library.Bench.RouteNames, ","); got != "skipbeta,fresh" {
+		t.Errorf("a definition carrying no routes member changed the live routes to %q", got)
+	}
+}
+
+// TestAddRefusesARouteThatSkipsAnOperatorColumn is the code review's second
+// finding on dinah-542. A filing is a placement, so a route that would carry a
+// new card around a column the workbench reserves to its operator is refused
+// at creation under the name the route write already refuses it by, with both
+// accepting cases beside it.
+func TestAddRefusesARouteThatSkipsAnOperatorColumn(t *testing.T) {
+	added := func(h *harness, route string) *Response {
+		response := h.library.Add(&Request{Verb: "add", Actor: "brin", Title: "a filing", Route: route})
+		h.reopen()
+		return response
+	}
+	h := routedHarness(t)
+	h.declare(routedBeta, "operator_owned", "true")
+
+	refused := added(h, "skipbeta")
+	if refused.Outcome != contract.OutcomeRefused || refused.Refusal != contract.RouteSkipsOperatorColumn {
+		t.Fatalf("wanted %s, got %s %s", contract.RouteSkipsOperatorColumn, refused.Outcome, refused.Refusal)
+	}
+	if refused.Context["column"] != "beta" {
+		t.Errorf("the refusal names %q, wanted beta", refused.Context["column"])
+	}
+	if response := added(h, "skipalpha"); response.Outcome != contract.OutcomeOK {
+		t.Errorf("a road carrying every reserved column was refused: %s %s", response.Outcome, response.Refusal)
+	}
+	plain := routedHarness(t)
+	if response := added(plain, "skipbeta"); response.Outcome != contract.OutcomeOK {
+		t.Errorf("a workbench reserving nothing refused the filing: %s %s", response.Outcome, response.Refusal)
 	}
 }

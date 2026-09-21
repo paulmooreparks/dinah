@@ -824,12 +824,24 @@ exactly as it is for a card walking every column.
 as a `card_updated` event carrying both names. It refuses a route that drops a
 column a pending item on the card names, and a route that would carry the card
 around an operator-owned column it has not yet passed. Filing an item against a
-column the card's route does not carry is refused, and so is `dinah add --route`
-into a column the route does not carry. `dinah check` reports a route whose name
-is not a slug, one carrying no column, one naming a column the workbench does
-not declare or naming one twice, one written out of order, one that omits the
-workbench's first column or does not end in a done column, and a column on a
-route whose `reject_to` leaves it.
+column the card's route does not carry is refused. `dinah add --route` is
+refused into a column the route does not carry, and on a route that would carry
+the new card around an operator-owned column standing at or after the column it
+is filed into, because a filing is a placement. `dinah check` reports a route
+whose name is not a slug, one carrying no column, one naming a column the
+workbench does not declare or naming one twice, one written out of order, one
+that omits the workbench's first column or does not end in a done column, and a
+column on a route whose `reject_to` leaves it. It reports a card naming a route
+the workbench does not declare, a card standing off its route, a pending item
+naming a column the card's route drops, and a card whose route carries it around
+an operator-owned column it has not passed, which only a hand edit produces.
+
+`dinah reshape` writes the incoming definition's `routes` member in place of the
+live block, in the same write as the new column order, and merges nothing. A
+definition carrying no `routes` member leaves the live block as it stands, and
+one carrying an empty object removes it. A card keeps its `route:` key through a
+reshape; a card whose route the definition dropped walks the whole list and is
+reported, and a route naming a column the reshape did not create is reported.
 
 Neither key moves the storage format. `routes` travels through interchange as a
 member the profile does not list, by the generic pass every such member takes,

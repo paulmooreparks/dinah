@@ -597,6 +597,8 @@ What can go wrong, in the order each is checked:
                                                dinah.route-strands-item
   11     the route carries every operator-owned column ahead of the card
                                                dinah.route-skips-operator-column
+  12     an item's new column is one the card's route carries
+                                               dinah.item-off-route
 
 For more, run ` + "`" + `dinah guide references` + "`" + `.
 

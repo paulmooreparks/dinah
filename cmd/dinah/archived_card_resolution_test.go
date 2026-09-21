@@ -236,7 +236,7 @@ var archivedResolutionFamilies = []resolutionFamily{
 		name: "E", axis: "reading",
 		what:      "rendering a card's human reference: every call whose selector is Ref and which carries exactly one argument",
 		files:     15,
-		mentions:  30,
+		mentions:  31,
 		functions: 23,
 		sites: []resolutionSite{
 			{"internal/verb/checklist.go", "itemCanonicalRef", 1, "composing the canonical reference of one item of one card, which a settling stores as its answer and a forced deletion hands to Reopen; the card is the one the item hangs below and it was resolved live by the verb that is writing it, so no archived card reaches this call"},
@@ -244,7 +244,7 @@ var archivedResolutionFamilies = []resolutionFamily{
 			{"internal/bench/branchmigrate.go", "MigrateBranches", 5, "naming a card in the branch migration's own report, once for each of the four classes it sorts a card into and once more for the account of what the write pass wrote; the run walks the live half alone, on the rule MigrateNumbers keeps for the archive, so no archived card reaches these calls"},
 			{"internal/bench/check.go", "checkTierOverrides", 1, "naming a card in a finding"},
 			{"internal/bench/check.go", "checkItemColumns", 1, "naming a card in a finding"},
-			{"internal/bench/routecheck.go", "checkCardRoute", 2, "naming a card in a finding, once for a route the workbench does not declare and once for a card standing off its road; check walks the live half alone, so no archived card reaches these calls"},
+			{"internal/bench/routecheck.go", "checkCardRoute", 3, "naming a card in a finding, once for a route the workbench does not declare, once for a card standing off its road, and once for a road that carries it around a column reserved to the operator; check walks the live half alone, so no archived card reaches these calls"},
 			{"internal/bench/routecheck.go", "checkItemRoutes", 1, "naming a card in a finding about one of its pending items; check walks the live half alone, so no archived card reaches this call"},
 			{"internal/bench/commentcheck.go", "checkComments", 1, "composing the reference a comment finding names, so a reader can type what the finding reports"},
 			{"internal/bench/resolve.go", "resolveReferenceBody", 2, "composing the reference a resolution answers with"},

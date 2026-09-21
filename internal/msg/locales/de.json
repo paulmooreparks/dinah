@@ -18,7 +18,7 @@
     },
     "answer.pull.empty.named": {
       "text": "Dinah hat in {upstream} nichts Bereites gefunden, das nach {destination} verschoben werden könnte",
-      "context": "The one-line sentence the empty answer of pull prints when the named form was asked and the upstream column holds no ready card. {upstream} names the upstream column by its title, {destination} names the column the caller asked pull to land the card in.",
+      "context": "The one-line sentence the empty answer of pull prints when the named form was asked and the upstream column holds no ready card this pull may take, which since routes includes an upstream whose ready cards are all bound somewhere else. {upstream} names the upstream column by its title, {destination} names the column the caller asked pull to land the card in.",
       "source": "3a88bcf8a5a3f1f5"
     },
     "attachments.empty": {
@@ -5911,6 +5911,21 @@
       "text": "{column} (Betreiber)",
       "context": "One skipped column in the routes listing, where the workbench reserves that column to its operator. {column} is the column's own reference and is never translated. The mark answers the one question an operator asks of a road somebody drew.",
       "source": "b9b69e8764e34212"
+    },
+    "check.add.8": {
+      "text": "die Route führt jede dem Betreiber vorbehaltene Spalte vor der Karte",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "f61b4bc3d6eb1fea"
+    },
+    "check.set.11": {
+      "text": "die neue Spalte eines Eintrags ist eine, die die Route der Karte führt",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "da0b7957de43169a"
+    },
+    "check.card-route-skips-operator-column": {
+      "text": "{detail} folgt einer Route, die die Karte an einer Spalte vorbeiführt, die diese Werkbank ihrem Betreiber vorbehält",
+      "context": "A check finding: a card's route omits an operator-owned column the card has not yet passed, which every verb that writes a route refuses, so it arrived by a hand edit. {detail} carries the card and the column, in that order. The finding clears once the card has passed the column.",
+      "source": "d730a37fa11686d2"
     }
   }
 }

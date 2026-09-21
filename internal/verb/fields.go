@@ -140,6 +140,14 @@ func (l *Library) SetField(req *Request) *Response {
 			return refused
 		}
 	}
+	// Moving an item onto a column the card's road does not carry reads the
+	// card too, so it runs here with the two rows above rather than inside
+	// the guard, and it has a help row of its own for the same reason.
+	if field.Guard == bench.GuardColumnRef && value != "" {
+		if refused := l.admitItemColumnRoute(req, entity, value); refused != nil {
+			return refused
+		}
+	}
 	// The value a reader types is any spelling of a column, and the value
 	// stored is that column's identifier, because a gate reads the field by
 	// identifier equality. admitFieldValue has already refused a spelling
@@ -418,16 +426,11 @@ func (l *Library) admitFieldValue(req *Request, entity *bench.EntityRef, field b
 		if l.Bench.ColumnByRef(value) == nil {
 			return l.refuse(req, entity.Card, contract.UnknownColumn, value)
 		}
-		if refused := l.admitItemColumnRoute(req, entity, value); refused != nil {
-			return refused
-		}
 	case bench.GuardRoute:
 		// The guard admits a name the workbench declares and refuses every
 		// other, resolving nothing, because a route name is stored as typed.
 		if !l.Bench.DeclaresRoute(value) {
-			return l.refuseWith(req, entity.Card, contract.UnknownRoute, value, map[string]string{
-				"routes": strings.Join(l.Bench.RouteNames, ", "),
-			})
+			return l.unknownRoute(req, entity.Card, value)
 		}
 	case bench.GuardResolution:
 		// A designation names a comment of the very item being written, and
