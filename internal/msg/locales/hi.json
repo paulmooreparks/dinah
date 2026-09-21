@@ -125,6 +125,11 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "5166e1a76d1e4f39"
     },
+    "check.archive.4": {
+      "text": "संचालक कार्य करता है, किसी कॉलम पर या किसी कॉलम या वर्कबेंच के संलग्नक पर",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "f4b93e456ac346da"
+    },
     "check.at-loop-limit": {
       "text": "कॉलम {detail} ऐसा loop_limit घोषित करता है जिस पर यह कार्ड पहले ही पहुँच चुका है, इसलिए इसकी अगली पीछे की चाल अस्वीकार की जाएगी",
       "context": "A check finding: the card standing at this column has left it backwards as often as the column's loop_limit allows. {detail} carries the declaring column.",
@@ -149,6 +154,11 @@
       "text": "फ़ाइल मिलती है",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "f03798a2790e533f"
+    },
+    "check.attach.5": {
+      "text": "संचालक कार्य करता है, जहाँ फ़ाइल किसी कॉलम या वर्कबेंच पर जाती है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "1a5c319d9b4f8616"
     },
     "check.attachment-filename-drift": {
       "text": "संलग्नक {detail} की न्यासफ़ाइल का नाम उसके अंकर से अलग है",
@@ -440,6 +450,16 @@
       "context": "Printed when check finds nothing.",
       "source": "f2564022fedfa73b"
     },
+    "check.column-body-limit-malformed": {
+      "text": "workbench.md में column_body_limit का मान {detail} घोषित है, जो शून्य से अधिक बाइट की पूर्ण संख्या नहीं है, इसलिए किसी कॉलम का मुख्य पाठ इससे नहीं मापा जाता",
+      "context": "A check finding at defect severity: the workbench's column_body_limit is not a positive whole number, so no body is measured. {detail} carries the value as stored.",
+      "source": "70e517add9a5ea9d"
+    },
+    "check.column-body-over-limit": {
+      "text": "कॉलम {detail}: मुख्य पाठ का आकार बाइट में उस column_body_limit से अधिक है जो यह वर्कबेंच घोषित करती है, इसलिए जो सामग्री कोई स्टेशन केवल किसी विशेष स्थिति में पढ़ता है उसे कॉलम के संलग्नक में ले जाएँ",
+      "context": "A check finding at cleanup severity. {detail} carries the column's reference, then the body's size and the declared limit in bytes written as size/limit, such as `review 5120/4096`. The repair is the author's: shorten the body, or raise or remove the workbench's column_body_limit.",
+      "source": "fe4ce8f5a8083e0d"
+    },
     "check.columns-removed.one": {
       "text": "सूची से {count} छूटा हुआ कॉलम हटाया।",
       "context": "The line the stranded-column migration prints for what it removed, for exactly one column. Followed by one line per removed identifier.",
@@ -607,6 +627,11 @@
       "text": "वर्कबेंच में कम से कम एक कॉलम बना रहता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "5166e1a76d1e4f39"
+    },
+    "check.delete.5": {
+      "text": "संचालक कार्य करता है, किसी कॉलम पर या किसी कॉलम या वर्कबेंच के संलग्नक पर",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "f4b93e456ac346da"
     },
     "check.duplicate-workbench-id": {
       "text": "एक ही वर्कबेंच पहचानकर्ता पर एक से अधिक निर्देशिकाएँ दावा करती हैं ({detail}); dinah check --remint <path> उनमें से एक को नया पहचानकर्ता देता है",
@@ -1258,6 +1283,11 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "d9d874f8f4ad70c0"
     },
+    "check.rename.6": {
+      "text": "संचालक कार्य करता है, किसी कॉलम या वर्कबेंच के संलग्नक पर",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "3487b8da65035e37"
+    },
     "check.required-field-undeclared": {
       "text": "एक कॉलम ऐसा फ़ील्ड माँगता है जिसे यह वर्कबेंच घोषित नहीं करती: {detail}",
       "context": "A check finding: a column whose require_fields declaration names a key this workbench does not declare. {detail} carries the column's reference and then the key, in that order. The entry holds nothing, because a key nothing can ever be written under would make the column unreachable.",
@@ -1332,6 +1362,11 @@
       "text": "जहाँ इकाई वापस जाती है वहाँ कुछ भी जीवित नहीं खड़ा है",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "9692bffafbfe61b5"
+    },
+    "check.restore.4": {
+      "text": "संचालक कार्य करता है, किसी कॉलम पर या किसी कॉलम या वर्कबेंच के संलग्नक पर",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "f4b93e456ac346da"
     },
     "check.set.1": {
       "text": "यह वर्कबेंच एक संचालक नियुक्त करती है",
@@ -1882,6 +1917,11 @@
       "text": "बंद चेकलिस्ट मद को फिर से लंबित करें",
       "context": "The one-line summary of the reopen command, printed in the command list and above its own help.",
       "source": "3f2dc35271623e03"
+    },
+    "cmd.reshape.note": {
+      "text": "नई परिभाषा जिस कॉलम को रखती है, वह अपने संलग्नक रखता है, और उन्हें `attach` से बदला जाता है।",
+      "context": "The note printed under the reshape command's own help, after its summary. It says that a column the new definition keeps keeps the attachments it already carries, whatever the definition carries for it. `attach` is a command name and is not translated.",
+      "source": "202aad2755a6102b"
     },
     "cmd.reshape.summary": {
       "text": "इस वर्कबेंच को उस कॉलम विन्यास पर ले जाएँ जो एक नई परिभाषा घोषित करती है",
@@ -2673,6 +2713,16 @@
       "text": "निर्देश, यह कॉलम:",
       "context": "The label above the column's own instructions.",
       "source": "1225923c7f625234"
+    },
+    "instructions.column-attachments": {
+      "text": "संलग्नक, यह कॉलम:",
+      "context": "The label above the listing of the column's own attachments, served after the column's instructions.",
+      "source": "66aaef8db8c86469"
+    },
+    "instructions.column-attachments.read": {
+      "text": "किसी एक को `dinah path` से पढ़ें, उसके संदर्भ के बाद `/payload` जोड़कर।",
+      "context": "Printed under the listing of the column's attachments. `dinah path` and `/payload` are typed literally and are not translated; the reference is one from the Ref column of the listing above.",
+      "source": "8cac0049219fae2b"
     },
     "instructions.global": {
       "text": "निर्देश, वैश्विक:",

@@ -558,10 +558,11 @@ What you may write:
                               below a card)
   <field>                     which field you are writing; which names are legal
                               depends on the kind the reference resolves to (one
-                              of: body, capacity, column, description, filename,
-                              hold, instructions, kind, notes, operator, owner,
-                              priority, resolution, route, severity, slug,
-                              state, status, text, tier, title)
+                              of: body, capacity, column, column_body_limit,
+                              description, filename, hold, instructions, kind,
+                              notes, operator, owner, priority, resolution,
+                              route, severity, slug, state, status, text, tier,
+                              title)
   [value|-]                   what to store in it; write a single dash to read
                               it from standard input, and leave it out to clear
                               a field that may be cleared

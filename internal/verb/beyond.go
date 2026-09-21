@@ -347,6 +347,9 @@ func (l *Library) Attach(req *Request) *Response {
 		return l.refuseWith(req, entity.Card, contract.NotAttachable, entity.Ref,
 			map[string]string{"kind": entity.Kind, entity.Kind: entity.Ref})
 	}
+	if l.definitionAttachmentWrite(entity) && req.Actor != l.Bench.Operator {
+		return l.refuse(req, entity.Card, contract.NotOperator, req.Actor)
+	}
 	if !bench.Exists(req.File) {
 		return l.refuseWith(req, entity.Card, contract.UnknownPath, req.File, map[string]string{"file": req.File})
 	}
@@ -364,6 +367,11 @@ func (l *Library) Attach(req *Request) *Response {
 		l.Interleave()
 	}
 	ev := bench.Event{TS: now, Actor: req.Acting()}
+	if replacing {
+		locateColumnAttachment(&ev, l.attachmentColumn(entity))
+	} else if entity.Kind == bench.KindColumn {
+		locateColumnAttachment(&ev, l.Bench.Column(entity.ID))
+	}
 	if replacing {
 		attachment, err := bench.ReplaceAttachment(entity.Dir, req.File)
 		if err != nil {
@@ -410,9 +418,13 @@ func (l *Library) Archive(req *Request) *Response {
 	if entity.Kind == bench.KindWorkbench {
 		return l.refuse(req, nil, contract.UnknownPath, req.Ref)
 	}
+	if l.operatorOnlyTarget(entity) && req.Actor != l.Bench.Operator {
+		return l.refuse(req, entity.Card, contract.NotOperator, req.Actor)
+	}
 	now := bench.Stamp(l.Now())
 	journal := l.journalFor(entity)
 	ev := bench.Event{TS: now, Event: contract.EventArchived, Actor: req.Acting(), Note: entity.ID}
+	locateColumnAttachment(&ev, l.attachmentColumn(entity))
 	act := &bench.StructuralAct{
 		Dir:       entity.Dir,
 		LockDir:   l.lockDirFor(entity),
@@ -459,9 +471,13 @@ func (l *Library) Restore(req *Request) *Response {
 	if req.Actor == "" {
 		return l.refuse(req, entity.Card, contract.NoOwner, "")
 	}
+	if l.operatorOnlyTarget(entity) && req.Actor != l.Bench.Operator {
+		return l.refuse(req, entity.Card, contract.NotOperator, req.Actor)
+	}
 	now := bench.Stamp(l.Now())
 	journal := l.journalFor(entity)
 	ev := bench.Event{TS: now, Event: contract.EventRestored, Actor: req.Acting(), Note: entity.ID}
+	locateColumnAttachment(&ev, l.attachmentColumn(entity))
 	act := &bench.StructuralAct{
 		Dir:       entity.Dir,
 		LockDir:   l.lockDirFor(entity),
@@ -521,6 +537,9 @@ func (l *Library) Delete(req *Request) *Response {
 	}
 	if entity.Kind == bench.KindWorkbench {
 		return l.refuse(req, nil, contract.UnknownPath, req.Ref)
+	}
+	if l.operatorOnlyTarget(entity) && req.Actor != l.Bench.Operator {
+		return l.refuse(req, entity.Card, contract.NotOperator, req.Actor)
 	}
 	designator, refused := l.admitCommentDeletion(req, entity)
 	if refused != nil {
@@ -723,6 +742,9 @@ func (l *Library) Rename(req *Request) *Response {
 	if req.Actor == "" {
 		return l.refuse(req, entity.Card, contract.NoOwner, "")
 	}
+	if l.definitionAttachmentWrite(entity) && req.Actor != l.Bench.Operator {
+		return l.refuse(req, entity.Card, contract.NotOperator, req.Actor)
+	}
 	if !bench.ValidAttachmentName(req.Value) {
 		return l.refuse(req, entity.Card, contract.Malformed, "name")
 	}
@@ -752,6 +774,7 @@ func (l *Library) Rename(req *Request) *Response {
 		Filename:   after.Filename,
 		From:       before.Filename,
 	}
+	locateColumnAttachment(&ev, l.attachmentColumn(entity))
 	if err := bench.AppendEvent(l.journalFor(entity), ev); err != nil {
 		return l.FromError(req, err)
 	}
@@ -851,6 +874,81 @@ func (l *Library) journalFor(entity *bench.EntityRef) string {
 	return l.Bench.JournalPath()
 }
 
+// attachmentHolderDir is the directory an attachment hangs from: two levels up
+// from its own directory, past the archive segment an archived attachment sits
+// under.
+func attachmentHolderDir(dir string) string {
+	holder := filepath.Dir(filepath.Dir(dir))
+	if filepath.Base(holder) == bench.ArchiveDir {
+		holder = filepath.Dir(holder)
+	}
+	return holder
+}
+
+// attachmentColumn reports the column an attachment hangs on, and nil for an
+// attachment hanging anywhere else. It reads the attachment's directory: the
+// holder is two levels up, and it is a column when that directory's parent is
+// the workbench's columns root.
+func (l *Library) attachmentColumn(entity *bench.EntityRef) *bench.Column {
+	if entity.Kind != bench.KindAttachment {
+		return nil
+	}
+	holder := attachmentHolderDir(entity.Dir)
+	if !sameDir(filepath.Dir(holder), filepath.Join(l.Bench.Root, bench.ColumnsDir)) {
+		return nil
+	}
+	return l.Bench.Column(filepath.Base(holder))
+}
+
+// locateColumnAttachment writes the column locator onto a journal line about
+// an attachment hanging on a column: the column's identifier and its title as
+// of the write, the pair a comment left on a column already carries. A line
+// about any other attachment is left as it is, because it either sits in the
+// journal of the card it belongs to or hangs on the workbench itself, which
+// is the journal's own entity.
+func locateColumnAttachment(ev *bench.Event, column *bench.Column) {
+	if column == nil {
+		return
+	}
+	ev.Column = column.ID
+	ev.ColumnTitle = column.Title
+}
+
+// definitionAttachmentWrite reports whether a write to an entity's
+// attachments, or to the attachment the entity is, is the operator's alone.
+// An attachment takes the write authority of what it hangs on, so the answer
+// is yes where that is a column or the workbench itself, whose own fields are
+// the operator's, and no where it is a card or a comment. An entity that is
+// not an attachment is asked about as the target of a new one.
+func (l *Library) definitionAttachmentWrite(entity *bench.EntityRef) bool {
+	if entity.Kind != bench.KindAttachment {
+		return entity.Kind == bench.KindColumn || entity.Kind == bench.KindWorkbench
+	}
+	holder := attachmentHolderDir(entity.Dir)
+	if sameDir(holder, l.Bench.Root) {
+		return true
+	}
+	// A column that is itself archived still holds its attachments, under
+	// the archive mirror's columns root, and they are no less the operator's
+	// there.
+	parent := filepath.Dir(holder)
+	live := filepath.Join(l.Bench.Root, bench.ColumnsDir)
+	return sameDir(parent, live) || sameDir(parent, l.Bench.ArchivedColumnsRoot())
+}
+
+// operatorOnlyTarget reports whether archiving, restoring or deleting an
+// entity is the operator's alone: a column, or an attachment hanging on a
+// column or on the workbench.
+func (l *Library) operatorOnlyTarget(entity *bench.EntityRef) bool {
+	switch entity.Kind {
+	case bench.KindColumn:
+		return true
+	case bench.KindAttachment:
+		return l.definitionAttachmentWrite(entity)
+	}
+	return false
+}
+
 // lockDirFor names the directory whose lock covers a write about an entity,
 // which is the same nearest enclosing journal-bearing entity journalFor
 // names, so the write and the event land on one side of one acquisition.
@@ -936,6 +1034,7 @@ func (l *Library) removalRecord(req *Request, entity *bench.EntityRef, now strin
 		if attachment, err := bench.LoadAttachment(entity.Dir); err == nil {
 			ev.Filename = attachment.Filename
 		}
+		locateColumnAttachment(&ev, l.attachmentColumn(entity))
 		return l.journalFor(entity), ev
 	}
 	ev.Title = l.titleOfEntity(entity)

@@ -2105,7 +2105,10 @@ func (l *Library) instructionColumn(req *Request) *bench.Column {
 // has lost the chain gets it back in one call.
 func (l *Library) Instructions(req *Request) (*Served, error) {
 	if column := l.instructionColumn(req); column != nil {
-		chain, keys := l.composeChain(req, column, false)
+		chain, keys, err := l.composeChain(req, column, false)
+		if err != nil {
+			return nil, err
+		}
 		served := &Served{
 			Column:       column.ID,
 			Instructions: *chain,
@@ -2128,7 +2131,10 @@ func (l *Library) Instructions(req *Request) (*Served, error) {
 	if err != nil {
 		return nil, err
 	}
-	chain, keys := l.serve(req, found.Card)
+	chain, keys, err := l.serve(req, found.Card)
+	if err != nil {
+		return nil, err
+	}
 	served := &Served{
 		Column:       found.Card.Column,
 		Instructions: *chain,

@@ -125,6 +125,11 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "5166e1a76d1e4f39"
     },
+    "check.archive.4": {
+      "text": "der Betreiber handelt, bei einer Spalte oder dem Anhang einer Spalte oder der Werkbank",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "f4b93e456ac346da"
+    },
     "check.at-loop-limit": {
       "text": "Spalte {detail} deklariert ein loop_limit, das diese Karte bereits erreicht hat, daher wird ihr nächster rückwärtiger Zug verweigert",
       "context": "A check finding: the card standing at this column has left it backwards as often as the column's loop_limit allows. {detail} carries the declaring column.",
@@ -149,6 +154,11 @@
       "text": "die Datei löst sich auf",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "f03798a2790e533f"
+    },
+    "check.attach.5": {
+      "text": "der Betreiber handelt, wo die Datei an eine Spalte oder die Werkbank kommt",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "1a5c319d9b4f8616"
     },
     "check.attachment-filename-drift": {
       "text": "Anhang {detail}: der Name der Nutzlastdatei weicht vom Anker ab",
@@ -440,6 +450,16 @@
       "context": "Printed when check finds nothing.",
       "source": "f2564022fedfa73b"
     },
+    "check.column-body-limit-malformed": {
+      "text": "workbench.md deklariert column_body_limit als {detail}, was keine ganze Zahl von Bytes über null ist, daher wird kein Spaltentext daran gemessen",
+      "context": "A check finding at defect severity: the workbench's column_body_limit is not a positive whole number, so no body is measured. {detail} carries the value as stored.",
+      "source": "70e517add9a5ea9d"
+    },
+    "check.column-body-over-limit": {
+      "text": "Spalte {detail}: die Größe des Textkörpers in Bytes liegt über dem column_body_limit, das diese Werkbank deklariert, daher verschieben Sie, was eine Station nur in einer bestimmten Lage liest, in einen Anhang der Spalte",
+      "context": "A check finding at cleanup severity. {detail} carries the column's reference, then the body's size and the declared limit in bytes written as size/limit, such as `review 5120/4096`. The repair is the author's: shorten the body, or raise or remove the workbench's column_body_limit.",
+      "source": "fe4ce8f5a8083e0d"
+    },
     "check.columns-removed.one": {
       "text": "{count} verwaiste Spalte aus der Liste entfernt.",
       "context": "The line the stranded-column migration prints for what it removed, for exactly one column. Followed by one line per removed identifier.",
@@ -607,6 +627,11 @@
       "text": "der Werkbank bleibt mindestens eine Spalte",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "5166e1a76d1e4f39"
+    },
+    "check.delete.5": {
+      "text": "der Betreiber handelt, bei einer Spalte oder dem Anhang einer Spalte oder der Werkbank",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "f4b93e456ac346da"
     },
     "check.duplicate-workbench-id": {
       "text": "ein Werkbank-Bezeichner wird von mehr als einem Verzeichnis beansprucht ({detail}); dinah check --remint <path> gibt einem davon einen frischen Bezeichner",
@@ -1258,6 +1283,11 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "d9d874f8f4ad70c0"
     },
+    "check.rename.6": {
+      "text": "der Betreiber handelt, bei einem Anhang einer Spalte oder der Werkbank",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "3487b8da65035e37"
+    },
     "check.required-field-undeclared": {
       "text": "eine Spalte verlangt ein Feld, das diese Werkbank nicht erklärt: {detail}",
       "context": "A check finding: a column whose require_fields declaration names a key this workbench does not declare. {detail} carries the column's reference and then the key, in that order. The entry holds nothing, because a key nothing can ever be written under would make the column unreachable.",
@@ -1332,6 +1362,11 @@
       "text": "nichts Lebendes steht dort, wohin die Einheit zurückkehrt",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "9692bffafbfe61b5"
+    },
+    "check.restore.4": {
+      "text": "der Betreiber handelt, bei einer Spalte oder dem Anhang einer Spalte oder der Werkbank",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "f4b93e456ac346da"
     },
     "check.set.1": {
       "text": "diese Werkbank benennt einen Betreiber",
@@ -1882,6 +1917,11 @@
       "text": "Einen abgeschlossenen Checklistenpunkt wieder auf offen setzen",
       "context": "The one-line summary of the reopen command, printed in the command list and above its own help.",
       "source": "3f2dc35271623e03"
+    },
+    "cmd.reshape.note": {
+      "text": "Eine Spalte, die die neue Definition behält, behält ihre eigenen Anhänge, und mit `attach` ändern Sie sie.",
+      "context": "The note printed under the reshape command's own help, after its summary. It says that a column the new definition keeps keeps the attachments it already carries, whatever the definition carries for it. `attach` is a command name and is not translated.",
+      "source": "202aad2755a6102b"
     },
     "cmd.reshape.summary": {
       "text": "Diese Werkbank auf das Spaltenlayout bringen, das eine neue Definition erklärt",
@@ -2683,6 +2723,16 @@
       "text": "Anweisungen, diese Spalte:",
       "context": "The label above the column's own instructions.",
       "source": "1225923c7f625234"
+    },
+    "instructions.column-attachments": {
+      "text": "Anhänge, diese Spalte:",
+      "context": "The label above the listing of the column's own attachments, served after the column's instructions.",
+      "source": "66aaef8db8c86469"
+    },
+    "instructions.column-attachments.read": {
+      "text": "Lesen Sie einen mit `dinah path`, indem Sie seine Referenz gefolgt von `/payload` angeben.",
+      "context": "Printed under the listing of the column's attachments. `dinah path` and `/payload` are typed literally and are not translated; the reference is one from the Ref column of the listing above.",
+      "source": "8cac0049219fae2b"
     },
     "instructions.global": {
       "text": "Anweisungen, global:",

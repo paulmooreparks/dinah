@@ -238,7 +238,8 @@ func TestTheNotAttachableRefusalPrintsTheAdviceForItsKind(t *testing.T) {
 
 // TestTheAttachHelpPageNamesTheKindPrecondition asserts that attach's
 // precondition list reads as the code evaluates it: the reference, the owner,
-// the kind, then the file.
+// the kind, the operator where the file goes on a column or the workbench,
+// then the file.
 //
 // The order is written out as a literal as well as compared against
 // verb.Checks, because a guard that recomputed its expectation from the table
@@ -250,8 +251,16 @@ func TestTheAttachHelpPageNamesTheKindPrecondition(t *testing.T) {
 	root := newBench(t)
 	t.Setenv("COLUMNS", "80")
 	// The harness row heads every writing command's list at dinah-496, ahead of
-	// the four rows attach declares for itself.
-	wanted := []string{contract.MalformedHarness, contract.UnknownPath, contract.NoOwner, contract.NotAttachable, contract.UnknownPath}
+	// the rows attach declares for itself, and dinah-545 put the operator row
+	// between the kind and the file.
+	wanted := []string{
+		contract.MalformedHarness,
+		contract.UnknownPath,
+		contract.NoOwner,
+		contract.NotAttachable,
+		contract.NotOperator,
+		contract.UnknownPath,
+	}
 
 	declared := verb.Checks("attach")
 	if len(declared) != len(wanted) {

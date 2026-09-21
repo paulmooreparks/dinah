@@ -1,6 +1,7 @@
 package verb
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -949,10 +950,16 @@ func (l *Library) writeAddedColumns(req *Request, plan *reshapePlan, now string)
 		present[id] = true
 	}
 	written := 0
+	var attached []bench.Event
 	for _, element := range added {
 		if err := bench.WriteColumnFromElement(fresh.Root, element.id, element.slug, element.element); err != nil {
 			return written, err
 		}
+		lines, err := writeAddedAttachments(req, fresh.ColumnDir(element.id), element, now)
+		if err != nil {
+			return written, err
+		}
+		attached = append(attached, lines...)
 		written++
 		if present[element.id] {
 			continue
@@ -971,7 +978,83 @@ func (l *Library) writeAddedColumns(req *Request, plan *reshapePlan, now string)
 			return written, err
 		}
 	}
+	for _, line := range attached {
+		if err := bench.AppendEvent(fresh.JournalPath(), line); err != nil {
+			return written, err
+		}
+	}
 	return written, nil
+}
+
+// writeAddedAttachments writes the attachments an added column's element
+// carries into the column's directory, in array order, and answers the
+// attached line each one is journaled under, carrying the column locator.
+//
+// A retry completes a partial write rather than duplicating it: an element is
+// skipped where the column already holds a live attachment with the same
+// filename and byte-identical payload, and each live attachment answers for
+// one element at most. The skipped attachment is still journaled, because the
+// lines land only after the column joins the sequence, so a run that was
+// interrupted before then journaled none of them. A kept column is never
+// passed here, so its attachments stay as they stand whatever the new
+// definition's element carries.
+func writeAddedAttachments(req *Request, columnDir string, element *reshapeElement, now string) ([]bench.Event, error) {
+	carried, err := bench.ColumnAttachmentsOf(element.element)
+	if err != nil {
+		return nil, err
+	}
+	if len(carried) == 0 {
+		return nil, nil
+	}
+	present, err := bench.Attachments(columnDir)
+	if err != nil {
+		return nil, err
+	}
+	matched := map[string]bool{}
+	var lines []bench.Event
+	for _, attachment := range carried {
+		written := matchingAttachment(present, matched, attachment)
+		if written == nil {
+			provenance := attachment.Provenance
+			if provenance == "" {
+				provenance = req.Actor
+			}
+			written, err = bench.AddAttachmentBytes(columnDir, attachment.Filename, attachment.Payload, attachment.Description, provenance)
+			if err != nil {
+				return nil, err
+			}
+		}
+		matched[written.ID] = true
+		line := bench.Event{
+			TS:          now,
+			Event:       contract.EventAttached,
+			Actor:       req.Acting(),
+			Attachment:  written.ID,
+			Filename:    written.Filename,
+			Column:      element.id,
+			ColumnTitle: element.title(),
+		}
+		lines = append(lines, line)
+	}
+	return lines, nil
+}
+
+// matchingAttachment answers the live attachment a retry already wrote for one
+// element, which is one carrying the same filename and byte-identical payload
+// that no earlier element has already answered for, and nil where there is
+// none.
+func matchingAttachment(present []*bench.Attachment, matched map[string]bool, carried bench.DefinitionAttachment) *bench.Attachment {
+	for _, attachment := range present {
+		if matched[attachment.ID] || attachment.Filename != carried.Filename || attachment.Path == "" {
+			continue
+		}
+		payload, err := os.ReadFile(attachment.Path)
+		if err != nil || !bytes.Equal(payload, carried.Payload) {
+			continue
+		}
+		return attachment
+	}
+	return nil
 }
 
 // carryReshapedCards is write-phase step two: every card standing in a

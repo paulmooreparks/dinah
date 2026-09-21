@@ -198,7 +198,8 @@ func (s *session) token(name string) string {
 }
 
 // renderInstructions prints the three layers as labelled blocks, in the order
-// the chain serves them, with the legal moves after and the loop standing
+// the chain serves them, then the listing of the column's attachments where
+// the chain carries one, with the legal moves after and the loop standing
 // last. The loop line is printed only where the column declares a loop_limit,
 // so a reader at an ordinary station sees nothing new, and it is printed
 // whether or not there are moves to print above it, because a card at its
@@ -219,6 +220,12 @@ func (s *session) renderInstructions(instructions *verb.Instructions, moves []ve
 		s.line("")
 		s.line(s.r.T(layer.label))
 		s.write(layer.text)
+	}
+	if len(instructions.ColumnAttachments) > 0 {
+		s.line("")
+		s.line(s.r.T("instructions.column-attachments"))
+		s.renderAttachments(instructions.ColumnAttachments)
+		s.line(s.r.T("instructions.column-attachments.read"))
 	}
 	if len(moves) > 0 {
 		s.line("")

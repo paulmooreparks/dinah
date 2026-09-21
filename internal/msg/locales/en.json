@@ -97,6 +97,10 @@
       "text": "the workbench keeps at least one column",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
+    "check.archive.4": {
+      "text": "the operator acts, on a column or a column's or workbench's attachment",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
     "check.at-loop-limit": {
       "text": "column {detail} declares a loop_limit this card has already reached, so its next regressive move is refused",
       "context": "A check finding: the card standing at this column has left it backwards as often as the column's loop_limit allows. {detail} carries the declaring column."
@@ -115,6 +119,10 @@
     },
     "check.attach.4": {
       "text": "the file resolves",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.attach.5": {
+      "text": "the operator acts, where the file goes on a column or the workbench",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.attachment-filename-drift": {
@@ -349,6 +357,14 @@
       "text": "No structural defects found.",
       "context": "Printed when check finds nothing."
     },
+    "check.column-body-limit-malformed": {
+      "text": "workbench.md declares column_body_limit as {detail}, which is not a whole number of bytes above zero, so no column body is measured against it",
+      "context": "A check finding at defect severity: the workbench's column_body_limit is not a positive whole number, so no body is measured. {detail} carries the value as stored."
+    },
+    "check.column-body-over-limit": {
+      "text": "column {detail}: the body's size in bytes is larger than the column_body_limit this workbench declares, so move what a station reads only when a situation arises into an attachment on the column",
+      "context": "A check finding at cleanup severity. {detail} carries the column's reference, then the body's size and the declared limit in bytes written as size/limit, such as `review 5120/4096`. The repair is the author's: shorten the body, or raise or remove the workbench's column_body_limit."
+    },
     "check.columns-removed.one": {
       "text": "Removed {count} stranded column from the list.",
       "context": "The line the stranded-column migration prints for what it removed, for exactly one column. Followed by one line per removed identifier."
@@ -483,6 +499,10 @@
     },
     "check.delete.4": {
       "text": "the workbench keeps at least one column",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.delete.5": {
+      "text": "the operator acts, on a column or a column's or workbench's attachment",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.duplicate-workbench-id": {
@@ -1005,6 +1025,10 @@
       "text": "the name carries no slash, back slash, or dot-dot",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
+    "check.rename.6": {
+      "text": "the operator acts, on an attachment of a column or the workbench",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
     "check.required-field-undeclared": {
       "text": "a column requires a field this workbench does not declare: {detail}",
       "context": "A check finding: a column whose require_fields declaration names a key this workbench does not declare. {detail} carries the column's reference and then the key, in that order. The entry holds nothing, because a key nothing can ever be written under would make the column unreachable."
@@ -1063,6 +1087,10 @@
     },
     "check.restore.3": {
       "text": "nothing live stands where the entity goes back",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.restore.4": {
+      "text": "the operator acts, on a column or a column's or workbench's attachment",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.set.1": {
@@ -1504,6 +1532,10 @@
     "cmd.reopen.summary": {
       "text": "Return a closed checklist item to pending",
       "context": "The one-line summary of the reopen command, printed in the command list and above its own help."
+    },
+    "cmd.reshape.note": {
+      "text": "A column the new definition keeps keeps its own attachments, and `attach` is how you change them.",
+      "context": "The note printed under the reshape command's own help, after its summary. It says that a column the new definition keeps keeps the attachments it already carries, whatever the definition carries for it. `attach` is a command name and is not translated."
     },
     "cmd.reshape.summary": {
       "text": "Carry this workbench to the column layout a new definition declares",
@@ -2136,6 +2168,14 @@
     "instructions.column": {
       "text": "Instructions, this column:",
       "context": "The label above the column's own instructions."
+    },
+    "instructions.column-attachments": {
+      "text": "Attachments, this column:",
+      "context": "The label above the listing of the column's own attachments, served after the column's instructions."
+    },
+    "instructions.column-attachments.read": {
+      "text": "Read one with `dinah path`, naming its reference followed by `/payload`.",
+      "context": "Printed under the listing of the column's attachments. `dinah path` and `/payload` are typed literally and are not translated; the reference is one from the Ref column of the listing above."
     },
     "instructions.global": {
       "text": "Instructions, global:",

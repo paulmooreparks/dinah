@@ -545,7 +545,10 @@ func (l *Library) pull(req *Request, card *bench.Card) *Response {
 	if err != nil {
 		return l.FromError(req, err)
 	}
-	response.Instructions, response.ChainServed = l.serve(req, card)
+	response.Instructions, response.ChainServed, err = l.serve(req, card)
+	if err != nil {
+		return l.FromError(req, err)
+	}
 	response.LegalMoves = l.legalMoves(card)
 	return response
 }

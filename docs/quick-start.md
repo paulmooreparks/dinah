@@ -403,6 +403,57 @@ Leave a comment saying what you did before you carry it on.
 If you give `dinah instructions` a card reference instead, Dinah serves you the
 instructions for wherever that card is standing.
 
+Everybody who arrives at a column reads its text in full, so material a station
+needs only now and then is better kept in a file attached to the column. Create
+`merge-procedure.md` in the current directory. The block below is that file
+rather than a transcript:
+
+```file path=merge-procedure.md
+Merge only after the checks pass on every platform.
+```
+
+Attach it to `doing`, with a description that says when to read it:
+
+```console
+$ dinah attach doing merge-procedure.md --description "read this before you merge"
+[exit 0]
+```
+
+Dinah now lists the column's attachments after the column's own instructions,
+and every claim and every move into `doing` serves the same listing. The
+listing carries each attachment's reference and description but none of its
+bytes:
+
+```console
+$ dinah instructions doing
+
+Instructions, this workbench:
+Every card on this workbench ends with a line in the changelog.
+
+Instructions, this column:
+Work the card until it is finished or until something stops you.
+Leave a comment saying what you did before you carry it on.
+
+Attachments, this column:
+  Ref                  File                Description
+  -------------------  ------------------  --------------------------
+  doing/attachments/1  merge-procedure.md  read this before you merge
+Read one with `dinah path`, naming its reference followed by `/payload`.
+[exit 0]
+```
+
+When you need the bytes, ask for the file by its reference:
+
+```console
+$ dinah path doing/attachments/1/payload
+/home/ana/release-notes/.dinah/d0e41d414bb5/columns/780659205f6b/attachments/5d2a9e41c7b3/payload/merge-procedure.md
+[exit 0]
+```
+
+What a column serves belongs to the workbench's definition, so only the
+operator attaches a file to a column or renames, replaces, archives or deletes
+one of its attachments.
+
 ## File some cards
 
 ```console
@@ -436,6 +487,12 @@ Every card on this workbench ends with a line in the changelog.
 Instructions, this column:
 Work the card until it is finished or until something stops you.
 Leave a comment saying what you did before you carry it on.
+
+Attachments, this column:
+  Ref                  File                Description
+  -------------------  ------------------  --------------------------
+  doing/attachments/1  merge-procedure.md  read this before you merge
+Read one with `dinah path`, naming its reference followed by `/payload`.
 
 Moves this card may make:
   Column  Name    Direction  On route  Reject
@@ -529,6 +586,12 @@ Instructions, this column:
 Work the card until it is finished or until something stops you.
 Leave a comment saying what you did before you carry it on.
 
+Attachments, this column:
+  Ref                  File                Description
+  -------------------  ------------------  --------------------------
+  doing/attachments/1  merge-procedure.md  read this before you merge
+Read one with `dinah path`, naming its reference followed by `/payload`.
+
 Moves this card may make:
   Column  Name    Direction  On route  Reject
   ------  ------  ---------  --------  ------
@@ -590,6 +653,12 @@ Every card on this workbench ends with a line in the changelog.
 Instructions, this column:
 Work the card until it is finished or until something stops you.
 Leave a comment saying what you did before you carry it on.
+
+Attachments, this column:
+  Ref                  File                Description
+  -------------------  ------------------  --------------------------
+  doing/attachments/1  merge-procedure.md  read this before you merge
+Read one with `dinah path`, naming its reference followed by `/payload`.
 
 Moves this card may make:
   Column  Name    Direction  On route  Reject
@@ -1254,14 +1323,14 @@ storage format 6
 Catalogs:
   Language  Translated
   --------  ----------
-  en        1179/1179
-  af        0/1179
-  cs        0/1179
-  de        1179/1179
-  es        0/1179
-  fil       0/1179
-  hi        1179/1179
-  id        0/1179
+  en        1189/1189
+  af        0/1189
+  cs        0/1189
+  de        1189/1189
+  es        0/1189
+  fil       0/1189
+  hi        1189/1189
+  id        0/1189
 [exit 0]
 ```
 
@@ -1426,6 +1495,14 @@ $ dinah export
       "title": "Intake"
     },
     {
+      "attachments": [
+        {
+          "filename": "merge-procedure.md",
+          "description": "read this before you merge",
+          "provenance": "ana",
+          "payload": "TWVyZ2Ugb25seSBhZnRlciB0aGUgY2hlY2tzIHBhc3Mgb24gZXZlcnkgcGxhdGZvcm0uCg=="
+        }
+      ],
       "capacity": 1,
       "id": "780659205f6b",
       "instructions": "Work the card until it is finished or until something stops you.\nLeave a comment saying what you did before you carry it on.\n",
@@ -1483,12 +1560,20 @@ Every card on this workbench ends with a line in the changelog.
 Instructions, this column:
 Work the card until it is finished or until something stops you.
 Leave a comment saying what you did before you carry it on.
+
+Attachments, this column:
+  Ref                  File                Description
+  -------------------  ------------------  --------------------------
+  doing/attachments/1  merge-procedure.md  read this before you merge
+Read one with `dinah path`, naming its reference followed by `/payload`.
 [exit 0]
 ```
 
-The template carries the column identifiers, the slugs, and both layers of
-instructions. A workbench you start from it names its columns exactly as the old
-one does and serves the same standing text. That last `cd` puts you back in the
+The template carries the column identifiers, the slugs, both layers of
+instructions, and each column's attachments with their bytes, so the new
+workbench's `doing` lists `merge-procedure.md` just as the old one does. A
+workbench you start from it names its columns exactly as the old one does and
+serves the same standing text. That last `cd` puts you back in the
 workbench this guide started in, and the commands below expect you to run them
 there.
 
