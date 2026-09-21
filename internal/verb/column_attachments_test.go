@@ -459,9 +459,16 @@ func TestTheListingIsServedAfterTheColumnAndOnlyWhereThereIsOne(t *testing.T) {
 	for _, key := range into.ChainServed {
 		held[key] = true
 	}
+	// The held set grows the way a connection's does, so the second empty
+	// column is served to a connection already holding every key the first
+	// one recorded, which is the position where an empty listing recorded as
+	// a layer of its own would come back named withheld.
 	for _, column := range []string{doing, intake} {
 		moved := h.library.Do(&Request{Verb: Move, Actor: "alka", Card: ref, Column: column, HeldChain: held})
 		h.reopen()
+		for _, key := range moved.ChainServed {
+			held[key] = true
+		}
 		if moved.Outcome != contract.OutcomeOK {
 			t.Fatalf("move to %s: %s %s", column, moved.Outcome, moved.Refusal)
 		}

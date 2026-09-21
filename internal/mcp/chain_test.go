@@ -42,11 +42,18 @@ type chainSession struct {
 // the clock a test injects is the clock the head expires on.
 func newChainSession(t *testing.T, library *verb.Library, memory *chainMemory) *chainSession {
 	t.Helper()
+	return newChainSessionUnder(t, library.Bench.Root, library, memory)
+}
+
+// newChainSessionUnder is newChainSession with the head's root named, so that a
+// session can reach a second workbench beneath the same root by naming it.
+func newChainSessionUnder(t *testing.T, root string, library *verb.Library, memory *chainMemory) *chainSession {
+	t.Helper()
 	inR, inW := io.Pipe()
 	outR, outW := io.Pipe()
 	done := make(chan error, 1)
 	go func() {
-		err := serveWith(library.Bench.Root, library, map[string]*verb.Library{}, inR, outW, memory)
+		err := serveWith(root, library, map[string]*verb.Library{}, inR, outW, memory)
 		outW.Close()
 		done <- err
 	}()
