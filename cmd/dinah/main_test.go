@@ -1325,24 +1325,27 @@ func TestPathAnswersTheWorkbenchWhereTheOpenDemandsMigrationFirst(t *testing.T) 
 // A verb may carry rows the profile does not declare, which dinah-364's
 // loop_limit row is the first of. Those rows are held to two conditions rather
 // than admitted freely: every row that is not one the profile declares
-// carries a refusal name in Dinah's own layer, or a refusal name the profile
-// declares for some other verb's own list, so nothing can smuggle in a
-// fabricated, profile-shaped refusal as an extra row, and the rows the
-// profile does declare for this verb appear in the profile's own relative
-// order with the profile's own wording. A reordered list, a dropped row, a
-// sentence that drifted from the profile's wording, and a profile row
+// carries a refusal name in Dinah's own layer, or is no-owner, so nothing can
+// smuggle in a fabricated, profile-shaped refusal as an extra row, and the
+// rows the profile does declare for this verb appear in the profile's own
+// relative order with the profile's own wording. A reordered list, a dropped
+// row, a sentence that drifted from the profile's wording, and a profile row
 // replaced by a Dinah-named one all fail.
 //
-// dinah-540 is why the second escape exists. no-owner is CORE-CLAIM-2 and
-// CORE-BLOCK-2's own name, quoted correctly on those two verbs' own lists;
-// canRoute, release and unblock already ran the identical check ahead of
-// their own lists' first row, and the same shared machine token is what a
-// caller of any of the five sees, so giving move, release and unblock a
-// second, Dinah-prefixed name for the same refusal would be inventing a
-// distinction the wire format does not carry. The rule this check exists to
-// hold, that no row invents a profile-shaped refusal the profile never
-// declared anywhere, still holds: a name has to appear on some contract
-// verb's own list to qualify, and no-owner does.
+// dinah-540 is why the second escape exists, and it names one refusal rather
+// than any name the profile declares on any contract verb's own list. The
+// wider form was tried and defeated: Agent Code Review inserted a fabricated
+// row into Claim's own list carrying not-holder, Release's own profile
+// refusal, at a position that has nothing to do with what canClaim checks,
+// and a version of this escape keyed on set membership across every verb's
+// declared refusals let it through. no-owner is not merely profile-declared
+// somewhere; it is CORE-VERB-2, the one refusal every one of the five
+// verbs may raise, quoted correctly on claim's and block's own lists and
+// already run by canRoute, release and unblock ahead of their own lists'
+// first row before this card gave the table a row to say so. Naming it
+// directly, rather than admitting anything any verb's table happens to
+// declare, is what keeps a same-shaped but verb-specific refusal like
+// not-holder from walking through the same door.
 //
 // The comparison walks the rendered list rather than reading a fixed window of
 // it, which is what lets a layer's own row stand anywhere. dinah-364's row sat
@@ -1369,16 +1372,6 @@ func TestPerCommandHelpFollowsTheProfile(t *testing.T) {
 	if len(workbench) != 2 {
 		t.Fatalf("wanted the two workbench-level checks, got %d", len(workbench))
 	}
-	// declaredElsewhere is every refusal name the profile declares on any
-	// contract verb's own list, which is what tells a shared row (no-owner,
-	// declared on claim's and block's own lists) apart from a fabricated one
-	// that merely looks profile-shaped.
-	declaredElsewhere := map[string]bool{}
-	for _, name := range verb.ContractVerbs {
-		for _, row := range lists[name] {
-			declaredElsewhere[row.Refusal] = true
-		}
-	}
 	catalog := msg.For(msg.Base)
 	for _, name := range verb.ContractVerbs {
 		wanted := append(append([]profile.Precondition{}, workbench...), lists[name]...)
@@ -1404,8 +1397,8 @@ func TestPerCommandHelpFollowsTheProfile(t *testing.T) {
 				at++
 				continue
 			}
-			if !strings.HasPrefix(check.Refusal, contract.LayerPrefix) && !declaredElsewhere[check.Refusal] {
-				t.Errorf("%s row %d: a row outside the profile's list refuses %s, which is neither a name in Dinah's own layer nor one the profile declares on some other verb's own list",
+			if !strings.HasPrefix(check.Refusal, contract.LayerPrefix) && check.Refusal != contract.NoOwner {
+				t.Errorf("%s row %d: a row outside the profile's list refuses %s, which is neither a name in Dinah's own layer nor no-owner, CORE-VERB-2's own name for every verb",
 					name, i+1, check.Refusal)
 			}
 		}
