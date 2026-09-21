@@ -998,6 +998,16 @@ func assignValue(req *verb.Request, name, field, value string) {
 		if parsed, err := verb.ParseDuration(value); err == nil {
 			req.Expires = parsed
 		}
+	case "timeout":
+		// changes holds this argument back from its schema (tools.go's
+		// argumentExemptions, dinah-546), so checkArguments refuses a call
+		// naming it before dispatch ever reaches here; the case exists for
+		// the same reason check's own held-back markers below carry one:
+		// the request-building plumbing every declared parameter gets is
+		// declared once, independent of which tool publishes the name.
+		if parsed, err := verb.ParseDuration(value); err == nil {
+			req.Timeout = parsed
+		}
 	}
 }
 
@@ -1046,6 +1056,12 @@ func assignMarker(req *verb.Request, name string, value bool) {
 		req.NoClaim = value
 	case "archived":
 		req.Archived = value
+	case "wait":
+		// changes holds this argument back from its schema (tools.go's
+		// argumentExemptions, dinah-546), so checkArguments refuses a call
+		// naming it before dispatch ever reaches here; see the case for
+		// "timeout" in assignValue above.
+		req.Wait = value
 	}
 }
 

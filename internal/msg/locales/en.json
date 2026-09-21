@@ -2441,6 +2441,14 @@
       "text": "the cursor a previous run printed; a run naming none mints one and reports nothing",
       "context": "The meaning of the since argument of `dinah changes`, printed in that command's arguments table."
     },
+    "param.changes.timeout.summary": {
+      "text": "how long a waiting call blocks, written as a number and a unit: 30m, 2h, 7d; it blocks until the cursor advances when you write none",
+      "context": "The meaning of the --timeout flag of `dinah changes`, printed in that command's arguments table."
+    },
+    "param.changes.wait.summary": {
+      "text": "hold the call open until the cursor advances or --timeout lapses, instead of answering immediately",
+      "context": "The meaning of the --wait flag of `dinah changes`, printed in that command's arguments table."
+    },
     "param.check.finish.summary": {
       "text": "complete or roll back a structural act that was interrupted",
       "context": "The meaning of the finish argument of `dinah check`, printed in that command's arguments table."

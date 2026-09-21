@@ -432,6 +432,11 @@ fresh token to carry forward. A `changed` of true is a reason to re-read
 before you act, even where the arrays are empty, which is what a narrowed call
 answers when the board moved somewhere you did not ask about.
 
+The terminal's `--wait` and `--timeout` flags, which hold a `changes` call
+open until the cursor advances, are a CLI-only convenience: this surface does
+not publish either argument, and a driving loop built here keeps re-polling
+between calls exactly as shown above.
+
 Read `kind` on a `gone` entry before you conclude anything from it. An entry
 whose kind is `card` is a card that was archived, and the workbench can prove
 it. An entry whose kind is empty is an identifier that was destroyed, of a
