@@ -119,8 +119,8 @@ export interface CommandHost extends ReporterHost {
  * clipboard, a quick pick or a file dialog it does not own. The comment host
  * is the case that made this explicit: it carries neither, it mints a
  * comment and writes its body through runVerb, and asserting it into
- * CommandHost bought a compiling call
- * at the price of the check that would catch the next member runVerb reads.
+ * CommandHost bought a compiling call at the price of the check that would
+ * catch the next member runVerb reads.
  */
 export interface VerbHost {
 	readonly showError: (message: string) => void;

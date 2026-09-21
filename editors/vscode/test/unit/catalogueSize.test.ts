@@ -96,11 +96,13 @@ function manifestKeys(): Set<string> {
 //
 // Written as a base and a movement rather than as the total, because the total
 // is the answer rather than the claim. dinah-525 branched from bddf4c16, where
-// the runtime catalogue carried 194 entries; it drops dinah-506's twelve draft
-// keys, whose apparatus it deletes, and adds three of its own for composing a
-// comment. A card that lands before this one and adds a key of its own moves
-// the base: the fix is to write the base it found here and say so in its
-// handoff, not to guess at a new total.
+// the runtime catalogue carried 194 entries. It drops thirteen: dinah-506's
+// twelve draft keys, whose apparatus it deletes, and the label for the note an
+// item's answer stopped being. It adds seven: three for composing a comment,
+// one for a comment already diverged when a session opens it, and three for
+// rendering an item's answer. A card that lands before this one and adds a
+// key of its own moves the base: the fix is to write the base it found here
+// and say so in its handoff, not to guess at a new total.
 const CATALOGUE_BASE = 194;
 const CATALOGUE_REMOVED_BY_THIS_CARD = 13;
 const CATALOGUE_ADDED_BY_THIS_CARD = 7;

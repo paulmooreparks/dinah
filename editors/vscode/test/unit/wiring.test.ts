@@ -329,7 +329,7 @@ function messageBindings(): ts.CallExpression[] {
 	});
 }
 
-test("extension.ts binds exactly thirteen message calls, one per declared channel per host", () => {
+test("extension.ts binds exactly twelve message calls, one per declared channel per host", () => {
 	const bound = messageBindings();
 	// Twelve is forced rather than chosen. The return-type clause below
 	// forbids a shared bindings helper spread into the factories, so each
@@ -340,9 +340,10 @@ test("extension.ts binds exactly thirteen message calls, one per declared channe
 	// the hole the perimeter exists to close.
 	//
 	// commentBodyHost carries two rather than three because it reports and
-	// never confirms: a comment exists from its first keystroke, so there is
-	// no draft to throw away and no destructive act to ask about. Deleting
-	// the comment is the delete command, which confirms on its own row.
+	// never confirms: a comment exists from its first keystroke, so composing
+	// and saving one involve no destructive act to ask about. Deleting a
+	// comment is not something this host does, so it carries nothing to
+	// confirm one with.
 	assert.equal(
 		bound.length,
 		12,
@@ -470,9 +471,10 @@ test("the command modules hold exactly thirty-two report-channel call sites", ()
 	);
 	// Stated as at least six, which is what the criterion declares, so a file
 	// legitimately losing its last call does not redden the sweep while a walk
-	// that read almost nothing still does. Nine is the figure today, after
-	// dinah-506 added commentDrafts.ts and itemCommands.ts, and dinah-519
-	// added openAnchorFile's own showError in itemCommands.ts.
+	// that read almost nothing still does. The number of files today is not
+	// written here, because it moves whenever a module gains or loses its last
+	// call and a figure copied into this comment is what went stale before;
+	// the assertion's own message prints the files it counted.
 	assert.ok(
 		files.size >= 6,
 		`the sites are spread over ${String(files.size)} files: ${[...files].join(", ")}`,

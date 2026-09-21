@@ -181,10 +181,10 @@ export async function openItem(context: ItemCommandContext): Promise<void> {
  * newline belongs to `dinah set <item> note` alone.
  *
  * These four ask in a one-line prompt rather than opening an editor, which is
- * deliberate, and it is a separate call from the ceiling. A resolution note records what
- * settled an item in a sentence somebody scanning the checklist can read, and
- * an argument long enough to need an editor belongs in the item's comment
- * thread, which is what the Comment command opens.
+ * deliberate, and it is a separate call from the ceiling. A resolution note
+ * records what settled an item in a sentence somebody scanning the checklist
+ * can read, and an argument long enough to need an editor belongs in the
+ * item's comment thread, which is what the Comment command opens.
  *
  * One note applied to five different questions is a false record and the tool
  * would accept it in silence, so a selection of more than one row is refused
