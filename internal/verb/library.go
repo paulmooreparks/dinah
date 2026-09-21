@@ -266,6 +266,19 @@ type Request struct {
 	// Since is the opaque cursor a checkpoint hands back, empty on a first
 	// call, which mints one rather than replaying the board's history.
 	Since string
+	// Wait holds a changes call open until the cursor advances or Timeout
+	// lapses, instead of answering immediately the way an ordinary checkpoint
+	// does. Refused when Since is empty (nothing to wait against), when Root
+	// is set, and together with a card or column filter it does not change:
+	// Changed still reports true on any whole-bench digest move, exactly as
+	// an immediate filtered call does today.
+	Wait bool
+	// Timeout bounds how long a waiting changes call blocks, parsed by
+	// ParseDuration exactly as Expires is. Zero means unbounded, the same
+	// meaning ParseDuration gives an empty Expires: the call blocks until the
+	// cursor advances, the workbench becomes unreachable, or the process is
+	// interrupted. Ignored, and refused if given, when Wait is false.
+	Timeout time.Duration
 	// Root is the root a root-scoped read walks from, as the caller wrote it,
 	// empty for the ordinary single-workbench read. A read carrying one
 	// answers for every workbench beneath it rather than for the one the

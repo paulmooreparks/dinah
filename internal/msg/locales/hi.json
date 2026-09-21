@@ -3005,6 +3005,16 @@
       "context": "The meaning of the since argument of `dinah changes`, printed in that command's arguments table.",
       "source": "1e8e725fb68b664"
     },
+    "param.changes.timeout.summary": {
+      "text": "प्रतीक्षा करने वाला कॉल कितनी देर तक रुकता है, संख्या और इकाई के रूप में लिखा गया: 30m, 2h, 7d; कुछ न लिखने पर यह कर्सर के आगे बढ़ने तक रुकता है",
+      "context": "The meaning of the --timeout flag of `dinah changes`, printed in that command's arguments table.",
+      "source": "c1242fa4ec858bad"
+    },
+    "param.changes.wait.summary": {
+      "text": "कर्सर के आगे बढ़ने या --timeout समाप्त होने तक कॉल को खुला रखता है, तुरंत उत्तर देने के बजाय",
+      "context": "The meaning of the --wait flag of `dinah changes`, printed in that command's arguments table.",
+      "source": "aac677c0b464b74"
+    },
     "param.check.finish.summary": {
       "text": "अधूरे रह गए संरचनात्मक काम को पूरा करें या वापस लौटाएँ",
       "context": "The meaning of the finish argument of `dinah check`, printed in that command's arguments table.",
