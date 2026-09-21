@@ -9,6 +9,7 @@ import (
 
 	"dinah/internal/bench"
 	"dinah/internal/contract"
+	"dinah/internal/template"
 )
 
 // Add files a new card. It enters the first column of the ordered list with
@@ -1039,6 +1040,9 @@ func Init(root, slug, operator, source, override, overrideSource string, here bo
 func readSource(root, source string) (*bench.Definition, error) {
 	if source == "" {
 		return defaultDefinition(filepath.Base(root)), nil
+	}
+	if template.Known(source) {
+		return template.Definition(source)
 	}
 	if bench.Exists(filepath.Join(source, bench.WorkbenchAnchor)) {
 		// A template is read through the uncontained opener, because a
