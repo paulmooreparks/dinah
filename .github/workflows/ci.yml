@@ -11,9 +11,9 @@ jobs:
   # .github/actions/, because promote.yml runs the same checks against a tree
   # it assembles by cherry-pick and a promoted tree has to be verified in its
   # own right. release.yml calls this whole file as a reusable workflow and
-  # depends on its outcome through needs:, so nothing here reads these three
-  # job names by string; renaming test, gofmt, or extension does not affect
-  # the release gate. See dinah-363.
+  # depends on its outcome through needs:, so nothing here reads a job name
+  # by string; renaming test, gofmt, independent-reader, or extension does not
+  # affect the release gate. See dinah-363.
   test:
     strategy:
       fail-fast: false
@@ -31,6 +31,65 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: ./.github/actions/gofmt-check
+
+  # The independent reader of the interchange form (dinah-548). The reader
+  # under conformance/interchange-reader/ was written from the profile alone by
+  # an author that never saw this repository's code, and this job fails when it
+  # and Dinah disagree about an export, a fixture it wrote, or a broken variant
+  # of a real export, until a person has ruled which side is wrong in
+  # conformance/interchange-reader-rulings.json.
+  independent-reader:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+      - name: Build dinah
+        run: |
+          mkdir -p "$RUNNER_TEMP/independent-reader"
+          go build -o "$RUNNER_TEMP/independent-reader/dinah" ./cmd/dinah
+      - name: Export every compatibility fixture
+        env:
+          DINAH_INTERCHANGE_EXPORT_DIR: ${{ runner.temp }}/independent-reader/exports
+        run: go test -count=1 -run '^TestEveryCompatFixtureSurvivesTheInterchangePath$' ./internal/bench
+      - name: Write the conformance report as JSON
+        env:
+          DINAH_CONFORMANCE_REPORT_JSON: ${{ runner.temp }}/independent-reader/conformance.json
+        run: go test -count=1 -run '^TestConformanceReport$' ./internal/profile
+      - name: The reader's own tests
+        env:
+          INTERCHANGE_READER_PROFILE: ${{ github.workspace }}/docs/spec/core-profile.md
+        run: python -m unittest discover -s conformance/interchange-reader/tests -t conformance/interchange-reader -v
+      - name: The comparison scripts' own tests
+        run: python -m unittest discover -s scripts -p "test_interchange_reader_*.py" -v
+      - name: Compare the reader with Dinah
+        run: >-
+          python scripts/interchange_reader_compare.py
+          --dinah "$RUNNER_TEMP/independent-reader/dinah"
+          --exports "$RUNNER_TEMP/independent-reader/exports"
+          --conformance "$RUNNER_TEMP/independent-reader/conformance.json"
+          --rulings conformance/interchange-reader-rulings.json
+          --out "$RUNNER_TEMP/independent-reader/report"
+      - name: Publish the report to the job summary
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/independent-reader/report/report.md" ]; then
+            cat "$RUNNER_TEMP/independent-reader/report/report.md" >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: independent-reader-report
+          path: |
+            ${{ runner.temp }}/independent-reader/report/report.json
+            ${{ runner.temp }}/independent-reader/report/report.md
+            ${{ runner.temp }}/independent-reader/exports/
+          if-no-files-found: warn
 
   # The VS Code extension builds beside the Go jobs rather than inside them.
   # Windows is not optional: path handling, the .exe suffix and PATH

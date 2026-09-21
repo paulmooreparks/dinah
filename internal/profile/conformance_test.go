@@ -1,6 +1,7 @@
 package profile
 
 import (
+	"encoding/json"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -67,10 +68,12 @@ func TestConformanceReport(t *testing.T) {
 	driven := drivenStatements(t)
 
 	var reached, unreached []string
+	var rows []conformanceRow
 	for _, statement := range extracted.Statements {
 		if statement.Class != "CORE" {
 			continue
 		}
+		rows = append(rows, newConformanceRow(statement.ID, driven[statement.ID]))
 		if tests := driven[statement.ID]; len(tests) > 0 {
 			sort.Strings(tests)
 			reached = append(reached, statement.ID+"  "+strings.Join(tests, ", "))
@@ -94,6 +97,104 @@ func TestConformanceReport(t *testing.T) {
 
 	for _, fault := range outOfReachDefects(outOfReach, extracted.Statements, driven) {
 		t.Errorf("%s", fault)
+	}
+
+	if path := os.Getenv(conformanceReportJSON); path != "" {
+		writeConformanceJSON(t, path, document, rows)
+	}
+}
+
+// TestTheConformanceJSONNamesTheProfileAndEveryRow writes the JSON report for
+// a two-line profile and two rows, one driven by tests and one out of reach,
+// and reads back the version identity, the row order, the sorted tests, and
+// the null that stands for a statement the table does not list.
+func TestTheConformanceJSONNamesTheProfileAndEveryRow(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "nested", "conformance.json")
+	profile := "# A profile\n\nVersion identity: `dinah-core 9.9`, maturity channel `draft`.\n"
+	reason := "a reason"
+	rows := []conformanceRow{
+		{ID: "X-1", Tests: []string{"TestA", "TestB"}},
+		{ID: "X-2", Tests: []string{}, OutOfReach: &reason},
+	}
+	writeConformanceJSON(t, path, profile, rows)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read the report back: %v", err)
+	}
+	want := "{\n  \"profile\": \"dinah-core 9.9\",\n  \"statements\": [\n" +
+		"    {\n      \"id\": \"X-1\",\n      \"tests\": [\n        \"TestA\",\n        \"TestB\"\n      ],\n      \"out_of_reach\": null\n    },\n" +
+		"    {\n      \"id\": \"X-2\",\n      \"tests\": [],\n      \"out_of_reach\": \"a reason\"\n    }\n  ]\n}\n"
+	if string(data) != want {
+		t.Errorf("the report reads\n%s\nwant\n%s", data, want)
+	}
+
+	row := newConformanceRow("CORE-OUT-4", []string{"TestZ", "TestA"})
+	if strings.Join(row.Tests, ",") != "TestA,TestZ" {
+		t.Errorf("a row's tests read %v, want them sorted", row.Tests)
+	}
+	if row.OutOfReach == nil || *row.OutOfReach != outOfReach["CORE-OUT-4"] {
+		t.Errorf("a row for a statement the table lists carries %v, want its reason", row.OutOfReach)
+	}
+}
+
+// conformanceReportJSON names the variable the CI job independent-reader sets
+// to have this report written as JSON, which
+// scripts/interchange_reader_compare.py sets beside the independent reader's
+// verdicts. The variable is not in isolatedEnv, because only that job sets it
+// and it asks for it by name.
+const conformanceReportJSON = "DINAH_CONFORMANCE_REPORT_JSON"
+
+// versionIdentity captures the version identity the profile states in its
+// opening lines, such as "dinah-core 0.17".
+var versionIdentity = regexp.MustCompile("(?m)^Version identity: `([^`]+)`")
+
+// conformanceRow is one CORE statement as the JSON report carries it: the
+// tests that name it, sorted, and its out-of-reach reason, or null when the
+// table does not list it. A statement can carry both, which is the stale
+// exclusion outOfReachDefects already reports.
+type conformanceRow struct {
+	ID         string   `json:"id"`
+	Tests      []string `json:"tests"`
+	OutOfReach *string  `json:"out_of_reach"`
+}
+
+// newConformanceRow builds the row for one statement from the tests that
+// drive it and the out-of-reach table.
+func newConformanceRow(id string, tests []string) conformanceRow {
+	row := conformanceRow{ID: id, Tests: append([]string{}, tests...)}
+	sort.Strings(row.Tests)
+	if reason, ok := outOfReach[id]; ok {
+		row.OutOfReach = &reason
+	}
+	return row
+}
+
+// writeConformanceJSON writes the report to path as one JSON document naming
+// the profile's version identity and every CORE statement in extraction
+// order. A profile with no version identity line, or a write that fails,
+// fails the test.
+func writeConformanceJSON(t *testing.T, path, profile string, rows []conformanceRow) {
+	t.Helper()
+	m := versionIdentity.FindStringSubmatch(profile)
+	if m == nil {
+		t.Errorf("the profile states no version identity, so %s cannot name it", path)
+		return
+	}
+	report := struct {
+		Profile    string           `json:"profile"`
+		Statements []conformanceRow `json:"statements"`
+	}{Profile: m[1], Statements: rows}
+	data, err := json.MarshalIndent(report, "", "  ")
+	if err != nil {
+		t.Errorf("encode the conformance report: %v", err)
+		return
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Errorf("create the directory of %s: %v", path, err)
+		return
+	}
+	if err := os.WriteFile(path, append(data, '\n'), 0o644); err != nil {
+		t.Errorf("write the conformance report to %s: %v", path, err)
 	}
 }
 

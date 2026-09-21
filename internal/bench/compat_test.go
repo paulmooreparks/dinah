@@ -391,9 +391,64 @@ func TestEveryCompatFixtureSurvivesTheInterchangePath(t *testing.T) {
 			t.Errorf("export %s: %v", fixture, err)
 			continue
 		}
+		writeExportForIndependentReader(t, fixture, exported)
 		if _, err := ReadDefinition(exported); err != nil {
 			t.Errorf("read the exported definition of %s back: %v", fixture, err)
 		}
+	}
+}
+
+// independentReaderExportDir names the variable the CI job independent-reader
+// sets to collect the export of every compatibility fixture. The independent
+// reader under conformance/interchange-reader/ judges each export, and
+// scripts/interchange_reader_compare.py compares its verdicts with Dinah's.
+// The variable is not in isolatedEnv, because only that job sets it and it
+// asks for it by name.
+const independentReaderExportDir = "DINAH_INTERCHANGE_EXPORT_DIR"
+
+// writeExportForIndependentReader writes one fixture's export to
+// <dir>/<fixture>.json when the variable above names a directory, and does
+// nothing when it is unset or empty. A write that fails fails the test,
+// because a missing export would leave the comparison short and it would
+// then fail for a reason nobody could see from its own output.
+func writeExportForIndependentReader(t *testing.T, fixture string, exported []byte) {
+	t.Helper()
+	dir := os.Getenv(independentReaderExportDir)
+	if dir == "" {
+		return
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Errorf("create %s for the independent reader: %v", dir, err)
+		return
+	}
+	path := filepath.Join(dir, fixture+".json")
+	if err := os.WriteFile(path, exported, 0o644); err != nil {
+		t.Errorf("write the export of %s to %s: %v", fixture, path, err)
+	}
+}
+
+// TestTheExportHookWritesOnlyWhenAsked pins both sides of
+// writeExportForIndependentReader: with the variable unset it creates
+// nothing, and with it set it writes the export's bytes unchanged under the
+// fixture's own name.
+func TestTheExportHookWritesOnlyWhenAsked(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "exports")
+	exported := []byte("{\"title\": \"a\"}\n")
+
+	t.Setenv(independentReaderExportDir, "")
+	writeExportForIndependentReader(t, "some-fixture", exported)
+	if _, err := os.Stat(dir); !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("with the variable unset the hook touched %s: %v", dir, err)
+	}
+
+	t.Setenv(independentReaderExportDir, dir)
+	writeExportForIndependentReader(t, "some-fixture", exported)
+	got, err := os.ReadFile(filepath.Join(dir, "some-fixture.json"))
+	if err != nil {
+		t.Fatalf("with the variable set the hook wrote nothing readable: %v", err)
+	}
+	if string(got) != string(exported) {
+		t.Errorf("the hook wrote %q, want the export's bytes %q", got, exported)
 	}
 }
 
