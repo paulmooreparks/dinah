@@ -2606,7 +2606,7 @@
       "context": "The meaning of the dir argument of `dinah init`, printed in that command's arguments table."
     },
     "param.init.from.summary": {
-      "text": "a directory holding a workbench, or a single file written by `dinah export` or `dinah extract`",
+      "text": "a directory holding a workbench, a single file written by `dinah export` or `dinah extract`, or the name of a template Dinah ships, such as `pipeline`; a bare name resolves to the shipped template first, so `./pipeline` reaches a directory of that name instead",
       "context": "The meaning of the from argument of `dinah init`, printed in that command's arguments table."
     },
     "param.init.here.summary": {

@@ -3277,9 +3277,9 @@
       "source": "1328685eec647b56"
     },
     "param.init.from.summary": {
-      "text": "ein Verzeichnis mit einer Werkbank oder eine einzelne Datei, geschrieben von `dinah export` oder `dinah extract`",
+      "text": "ein Verzeichnis mit einer Werkbank, eine einzelne Datei, geschrieben von `dinah export` oder `dinah extract`, oder der Name einer von Dinah mitgelieferten Vorlage wie `pipeline`; ein bloßer Name löst zuerst die von Dinah mitgelieferte Vorlage auf, `./pipeline` erreicht stattdessen ein Verzeichnis dieses Namens",
       "context": "The meaning of the from argument of `dinah init`, printed in that command's arguments table.",
-      "source": "a63072636c4c6fae"
+      "source": "ca986d0ef1d6fb72"
     },
     "param.init.here.summary": {
       "text": "eine Werkbank auch dort schreiben, wo das Zielverzeichnis bereits existiert und bereits etwas enthält",

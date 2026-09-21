@@ -1,0 +1,45 @@
+{
+  "profile": "dinah-core/0.18",
+  "title": "Pipeline",
+  "instructions": "This workbench runs one pipeline, and a card walks it once. It enters at\nIntake, moves through the work columns once each, and ends at Done or at\nReturned; nothing here is a place where work waits between stations.\n\nOnly Intake admits a new fact. A card arriving here carries everything the\npipeline will use: the material to work from, and where it came from. No\ncolumn after Intake adds a claim, a source, or an instruction from outside\nthe card; every later stage works from what the card already carries and\nadds its own attachment to it.\n\nEach work column reads the card in a context nobody has primed. Whoever\nclaims a card here reads the workbench's own rules, that column's own\ninstructions, and the card's attachments in the order they were added, and\nnothing else about the card. None of an earlier stage's reasoning travels\nforward, because a stage that inherited the thinking behind an attachment\ncould not judge that attachment on its own terms.\n\nThe artefact chain is the record. Each column reads the attachment the\ncolumn before it produced and adds its own, so a card finished at Done\ncarries the whole run in order.\n\nThe operator has no station inside this pipeline. Nobody here claims a\ncard, moves one, or settles an item in the operator's name, and no column\nbelongs to the operator. A decision the operator needs to make is made\nbefore a card reaches Intake, or after it leaves at Done or at Returned.\n\nReturned means a column needed a fact, a decision, or the operator that\nthis pipeline cannot supply on its own. The stage that sends a card to\nReturned files the reason and a pointer back to this card, with everything\nit carries, on the workbench that owns the work the pipeline was run for,\nand this card is not reopened afterward. When what was missing is settled\nthere, a fresh card starts the pipeline again.",
+  "columns": [
+    {
+      "id": "intake",
+      "title": "Intake",
+      "slug": "intake",
+      "kind": "intake",
+      "instructions": "A card arrives here holding what the rest of the pipeline needs to act on,\nand where each part of it came from. Nothing is researched or decided at\nthis column. A card whose material is missing, or whose source is not\nnamed, does not belong at Intake; move it to Returned instead, naming what\nis missing, rather than letting Draft discover the gap.\n\nNobody claims a card here. Pull a ready card into Draft with\n`dinah pull draft`."
+    },
+    {
+      "id": "draft",
+      "title": "Draft",
+      "slug": "draft",
+      "kind": "work",
+      "instructions": "You hold this card in a context nobody has primed with the reasoning\nbehind it. Read the workbench's own instructions, this column's\ninstructions, and the card's attachments in the order they were added,\nand use nothing else.\n\nProduce the first version of what this pipeline is building, working only\nfrom the card and its attachments, and attach it. Where the card is\nmissing a fact, a source, or a decision it should have carried from\nIntake, do not supply one yourself; move the card to Returned instead, and\nsay what is missing.\n\nRelease the card and move it to Review once your attachment stands.",
+      "reject_to": "Returned"
+    },
+    {
+      "id": "review",
+      "title": "Review",
+      "slug": "review",
+      "kind": "work",
+      "instructions": "You hold this card in a context nobody has primed either, and in\nparticular nobody has told you why Draft wrote what it wrote. Read the\nworkbench's own instructions, this column's instructions, and the card's\nattachments in the order they were added, including Draft's; read nothing\nabout the conversation that produced it.\n\nJudge Draft's attachment against the card and its earlier attachments\nalone, and attach your findings. Move the card to Done where the draft\nholds up. Where it needs revision the card's own attachments already\nsupport, move it back to Draft instead; that return is bounded to three\npasses, and a fourth is refused unless the operator carries it through\nwith an override. A draft that needs a fact, a decision, or the operator\nthe card does not carry goes to Returned rather than a guess.",
+      "reject_to": "Returned",
+      "loop_limit": 3
+    },
+    {
+      "id": "done",
+      "title": "Done",
+      "slug": "done",
+      "kind": "done",
+      "instructions": "The work this pipeline was built to produce is finished, and its\nattachments carry the whole run in order. Nothing moves from here."
+    },
+    {
+      "id": "returned",
+      "title": "Returned",
+      "slug": "returned",
+      "kind": "done",
+      "instructions": "A column needed a fact, a decision, or the operator this pipeline cannot\nsupply. File the reason and a pointer back to this card, with everything\nit carries, on the workbench that owns the work, then close the card\nhere. Nobody reopens it; when what was missing is settled, a fresh card\nstarts the pipeline again."
+    }
+  ]
+}
