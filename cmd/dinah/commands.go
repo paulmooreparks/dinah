@@ -1008,11 +1008,37 @@ func runShow(s *session, parsed *arguments) int {
 // changes nothing. A call naming no cursor mints one and reports nothing,
 // which is the answer to "what happens from now" rather than to "what ever
 // happened", and the second question is what log answers.
+//
+// --wait and --timeout add four ways to misuse the two flags (dinah-546),
+// none of which needs a checkLists row: they follow --expires's own
+// precedent of refusing straight out of ParseDuration, before Library.Claim
+// is ever called. All four are checked here, in this order, before
+// s.rootWalkFor or s.withBench runs, so a grammar mistake never pays for a
+// bench walk.
 func runChanges(s *session, parsed *arguments) int {
 	req := s.request("changes", parsed)
 	req.Since = parsed.value("since")
 	req.Card = parsed.value("card")
-	walk, refusal := s.rootWalkFor(parsed, parsed.value("root"))
+	req.Wait = parsed.has("wait")
+	rootNamed := parsed.value("root")
+	timeoutGiven := parsed.value("timeout")
+	if req.Wait && rootNamed != "" {
+		return s.reportError(contract.Refuse(contract.Malformed, "--wait --root"))
+	}
+	if timeoutGiven != "" && !req.Wait {
+		return s.reportError(contract.Refuse(contract.Malformed, "--timeout"))
+	}
+	if req.Wait && timeoutGiven != "" {
+		timeout, err := verb.ParseDuration(timeoutGiven)
+		if err != nil {
+			return s.reportError(err)
+		}
+		req.Timeout = timeout
+	}
+	if req.Wait && strings.TrimSpace(req.Since) == "" {
+		return s.reportError(contract.Refuse(contract.Malformed, "--wait"))
+	}
+	walk, refusal := s.rootWalkFor(parsed, rootNamed)
 	if refusal != nil {
 		return s.reportError(refusal)
 	}

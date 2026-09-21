@@ -39,6 +39,13 @@ func TestTheChangesToolIsTheProjectionOfTheOneLibraryCall(t *testing.T) {
 		t.Fatalf("the changes schema declares no properties: %v", entry.InputSchema)
 	}
 	for _, param := range verb.Params("changes") {
+		// wait and timeout are held back from this tool's schema (dinah-546,
+		// TestTheChangesToolSchemaHoldsBackWaitAndTimeout below covers that
+		// directly), so their absence here is the wanted shape rather than a
+		// generator gap.
+		if exemptArgument("changes", param.Name) {
+			continue
+		}
 		property, named := properties[param.Name].(map[string]any)
 		if !named {
 			t.Errorf("the schema does not generate the %s argument the command declares", param.Name)
@@ -215,6 +222,95 @@ func TestTheChangesToolRefusesABadCursorAsARefusalRatherThanAnError(t *testing.T
 	if carried["detail"] != "not-a-cursor" {
 		t.Errorf("wanted the token as the detail, got %v", carried["detail"])
 	}
+}
+
+// TestTheChangesToolSchemaHoldsBackWaitAndTimeout covers
+// dinah-546/criteria/5: the tool's published inputSchema names neither
+// wait nor timeout among its properties, even though the command's own
+// parameter table declares both (definition.go's "changes" entry). Bounded
+// by the test binary's own default per-test timeout; nothing here waits on
+// anything.
+func TestTheChangesToolSchemaHoldsBackWaitAndTimeout(t *testing.T) {
+	library := newLibrary(t)
+	listed := payloadOfToolsList(t, library)
+	entry, ok := listed["changes"]
+	if !ok {
+		t.Fatalf("tools/list carries no changes tool: %v", keysOf(listed))
+	}
+	properties, ok := entry.InputSchema["properties"].(map[string]any)
+	if !ok {
+		t.Fatalf("the changes schema declares no properties: %v", entry.InputSchema)
+	}
+	for _, held := range []string{"wait", "timeout"} {
+		if _, named := properties[held]; named {
+			t.Errorf("the changes schema publishes %q, which dinah-546 section 8 holds back", held)
+		}
+	}
+	// The control: since is an ordinary published argument, so its absence
+	// here would mean the schema generator produced nothing at all rather
+	// than correctly narrowing.
+	if _, named := properties["since"]; !named {
+		t.Fatal("the changes schema publishes no since argument either, so the assertions above prove nothing")
+	}
+}
+
+// TestTheChangesToolRefusesWaitOrTimeoutArguments covers
+// dinah-546/criteria/6: a tools/call naming wait or timeout is refused by
+// the same unknownArgument path an invented name goes through, rather than
+// silently accepted or silently dropped. Bounded by the test binary's own
+// default per-test timeout; nothing here waits on anything.
+func TestTheChangesToolRefusesWaitOrTimeoutArguments(t *testing.T) {
+	library := newLibrary(t)
+	minted := changesPayload(t, library, `{}`)
+	token, ok := minted["cursor"].(string)
+	if !ok || token == "" {
+		t.Fatalf("the tool minted no cursor: %v", minted)
+	}
+	encoded, err := json.Marshal(token)
+	if err != nil {
+		t.Fatalf("marshal the cursor: %v", err)
+	}
+	for _, arguments := range []string{
+		`{"since":` + string(encoded) + `,"wait":true}`,
+		`{"since":` + string(encoded) + `,"timeout":"5s"}`,
+	} {
+		answer := ask(t, library, callLine(t, 1, "changes", decodeArguments(t, arguments)))
+		if answer.Error == nil {
+			t.Fatalf("%s: an invented argument was accepted: %+v", arguments, answer)
+		}
+		if answer.Error.Code != codeInvalidParams {
+			t.Errorf("%s: the refusal came back on code %d, want %d", arguments, answer.Error.Code, codeInvalidParams)
+		}
+		message := answer.Error.Message
+		for _, want := range []string{`"changes"`, "since", "card", "column", "root", "max-depth"} {
+			if !strings.Contains(message, want) {
+				t.Errorf("%s: the message %q does not carry %s, which an agent correcting its own call needs", arguments, message, want)
+			}
+		}
+		if strings.Contains(message, `"wait"`) == false && strings.Contains(message, `"timeout"`) == false {
+			t.Errorf("%s: the message %q names neither wait nor timeout as refused", arguments, message)
+		}
+	}
+	// The control: the same cursor with neither held-back name reaches an
+	// ordinary answer, which is what proves the two calls above were refused
+	// for naming wait or timeout and not for some other reason.
+	control := changesPayload(t, library, `{"since":`+string(encoded)+`}`)
+	if control["outcome"] != nil {
+		t.Errorf("the control call without wait or timeout was refused too, so the refusal above proves nothing: %v", control)
+	}
+}
+
+// decodeArguments reads a JSON object literal into the map tools/call
+// expects, so a test can compose its arguments the same way changesPayload's
+// callers do and still reach callLine, which wants the value already
+// decoded.
+func decodeArguments(t *testing.T, object string) map[string]any {
+	t.Helper()
+	var arguments map[string]any
+	if err := json.Unmarshal([]byte(object), &arguments); err != nil {
+		t.Fatalf("decode %s: %v", object, err)
+	}
+	return arguments
 }
 
 // changesPayload calls the changes tool with one arguments object and returns

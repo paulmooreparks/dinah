@@ -3026,6 +3026,16 @@
       "context": "The meaning of the since argument of `dinah changes`, printed in that command's arguments table.",
       "source": "1e8e725fb68b664"
     },
+    "param.changes.timeout.summary": {
+      "text": "wie lange ein wartender Aufruf blockiert, geschrieben als Zahl und Einheit: 30m, 2h, 7d; ohne Angabe blockiert er, bis der Cursor voranschreitet",
+      "context": "The meaning of the --timeout flag of `dinah changes`, printed in that command's arguments table.",
+      "source": "c1242fa4ec858bad"
+    },
+    "param.changes.wait.summary": {
+      "text": "hält den Aufruf offen, bis der Cursor voranschreitet oder --timeout abläuft, statt sofort zu antworten",
+      "context": "The meaning of the --wait flag of `dinah changes`, printed in that command's arguments table.",
+      "source": "aac677c0b464b74"
+    },
     "param.check.finish.summary": {
       "text": "eine unterbrochene strukturelle Aktion abschließen oder zurücknehmen",
       "context": "The meaning of the finish argument of `dinah check`, printed in that command's arguments table.",

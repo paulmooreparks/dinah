@@ -223,6 +223,20 @@ var argumentExemptions = map[string]map[string]string{
 	"new_column": {
 		"action": "names the first word of `dinah column new`, and this tool is that one action, so the head fills the field in and a published argument would be a value it overwrites",
 	},
+	// changes is the fourth case, and it arrives from serveWith's own shape
+	// (mcp.go:105-129): one JSON-RPC line read, dispatch blocked on, answer
+	// encoded, and only then the next line read, with no context.Context
+	// anywhere in this package and no goroutine per call. A blocking wait on
+	// this transport would either need request concurrency and cancellation
+	// handling built from nothing, or would wedge an agent's only channel to
+	// the workbench for up to the caller's own --timeout, a regression this
+	// command's "it reports and never dispatches" framing does not license.
+	// An MCP caller keeps building its own driving loop, which
+	// internal/guide/guides/mcp.md documents. dinah-546.
+	"changes": {
+		"wait":    "holds the call open until the cursor advances, and this head answers one call before reading the next line on stdin, so a caller blocked here cannot be reached by the cancellation notification the MCP specification defines until the wait itself ends",
+		"timeout": "bounds a wait this head does not offer, so a caller has no wait to bound",
+	},
 }
 
 // exemptArgument reports whether a tool holds a parameter back rather than

@@ -7361,7 +7361,7 @@ func TestTheFlagSetsTheParserAcceptsAreDerivedFromTheParameterTable(t *testing.T
 		"description", "expect-digest", "expires", "fields", "format", "from", "group-by", "kind",
 		"lang", "map", "max-depth", "note", "observed", "operator", "owner",
 		"poll-seconds", "priority", "query", "reason", "remint", "root", "route", "severity",
-		"since", "slug", "text", "tier", "tools", "workbench",
+		"since", "slug", "text", "tier", "timeout", "tools", "workbench",
 	}
 	wantMarkers := []string{
 		"all", "annotate-prose", "archived", "catalogs", "finish", "force", "help", "here", "json",
@@ -7372,7 +7372,7 @@ func TestTheFlagSetsTheParserAcceptsAreDerivedFromTheParameterTable(t *testing.T
 		"migrate-slugs", "migrate-vocabulary", "migrate-workstreams",
 		"no-claim", "override", "quiet", "ready", "renumber", "replace",
 		"stdio",
-		"unresolved", "version", "witness", "yes",
+		"unresolved", "version", "wait", "witness", "yes",
 	}
 	if got := strings.Join(valuedFlags, " "); got != strings.Join(wantValued, " ") {
 		t.Errorf("the derived valued flags are %q and the parser accepted %q", got, strings.Join(wantValued, " "))

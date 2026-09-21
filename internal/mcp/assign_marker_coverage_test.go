@@ -26,7 +26,10 @@ import (
 // asserted so a sweep that walked zero tools, or a change to the tool table
 // that silently dropped a marker from what is published, fails here rather
 // than passing vacuously: twenty markers were already wired before this
-// card, and all is the twenty-first.
+// card, and all is the twenty-first. Twenty-two as of dinah-546: wait is
+// wired into assignMarker for the same defense-in-depth reason the
+// pre-existing migrate-* markers already are, even though it is held back
+// from the changes tool's own published schema.
 func TestAssignMarkerCoversEveryPublishedMarker(t *testing.T) {
 	type marker struct {
 		name  string
@@ -57,8 +60,8 @@ func TestAssignMarkerCoversEveryPublishedMarker(t *testing.T) {
 	}
 	sort.Strings(names)
 	t.Logf("%d tools walked, %d distinct markers swept: %v", walked, len(names), names)
-	if len(names) != 21 {
-		t.Fatalf("swept %d markers, wanted 21 (twenty already wired plus all, dinah-543)", len(names))
+	if len(names) != 22 {
+		t.Fatalf("swept %d markers, wanted 22 (twenty already wired plus all, dinah-543, plus wait, dinah-546)", len(names))
 	}
 
 	// Each marker is exercised for real, through assignMarker itself, rather

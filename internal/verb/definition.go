@@ -601,6 +601,8 @@ var params = map[string][]Param{
 	// means here what it means everywhere.
 	"changes": {
 		{Name: "since", Flag: true, Value: "cursor", Field: "Since"},
+		{Name: "wait", Flag: true, Marker: true, Field: "Wait"},
+		{Name: "timeout", Flag: true, Value: "duration", Field: "Timeout"},
 		{Name: "card", Flag: true, Value: "ref", Shared: "card", Field: "Card"},
 		{Name: "column", Flag: true, Value: "column", Vocabulary: "column", Field: "Column"},
 		{Name: "root", Flag: true, Value: "path", Shared: "root", Field: "Root"},

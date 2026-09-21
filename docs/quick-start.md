@@ -1195,7 +1195,7 @@ $ dinah list intake --json
       "state": "ready",
       "pull_destination": "doing",
       "workstreams": [
-        "<id>"
+        "e9e57645599c"
       ],
       "revision": "sha256:433dfb7fa7a8a24d20c91ca5f9a3d9c50796139787358b7bbeaae9a35717db6c"
     }
@@ -1258,14 +1258,14 @@ storage format 6
 Catalogs:
   Language  Translated
   --------  ----------
-  en        1196/1196
-  af        0/1196
-  cs        0/1196
-  de        1196/1196
-  es        0/1196
-  fil       0/1196
-  hi        1196/1196
-  id        0/1196
+  en        1198/1198
+  af        0/1198
+  cs        0/1198
+  de        1198/1198
+  es        0/1198
+  fil       0/1198
+  hi        1198/1198
+  id        0/1198
 [exit 0]
 ```
 
@@ -1593,11 +1593,12 @@ when the agent you are pointing at it works one card through one column and
 nothing more, or `--tools operator` when it also needs the workbench and
 column verbs; the default, `all`, serves everything and is what this guide's
 examples assume. Dinah hands the client the rules for working this workbench,
-and a tool for every command that has a use over a protocol. The ones it leaves out are the ones that only make sense where a
-shell and a filesystem are, and `guide`, which the client reads as a resource
-rather than calling it as a tool. `tools/list` names the set your client
-actually got. Your AI colleague claims, moves, releases, and blocks under the
-same rules and leaves the same journal entries you do.
+and a tool for every command that has a use over a protocol. The ones it leaves
+out are the ones that only make sense where a shell and a filesystem are, and
+`guide`, which the client reads as a resource rather than calling it as a tool.
+`tools/list` names the set your client actually got. Your AI colleague claims,
+moves, releases, and blocks under the same rules and leaves the same journal
+entries you do.
 
 Give your AI colleague an actor name of its own through `DINAH_ACTOR`, so the
 record shows who did what.

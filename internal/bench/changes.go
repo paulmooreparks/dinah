@@ -74,6 +74,20 @@ type Watched struct {
 // every caller of Changes. A separate term costs one more sha256 and keeps
 // the two questions apart.
 func (b *Bench) WatchedEntities() (live, archive, columns []Watched, err error) {
+	// A collection directory that does not exist is an ordinary, legitimate
+	// shape (a fresh bench carries no workstreams yet, for one), and
+	// readCollection reads that as empty rather than as an error, which is
+	// what every other caller of ListIDs wants. The workbench's own root
+	// directory disappearing out from under an open handle is a different
+	// fact: every collection below it reads as equally, uniformly absent,
+	// and "the whole board just became empty" is indistinguishable, from
+	// that shape alone, from "the workbench went away". dinah-546 AC-4 is
+	// this exact case reached through a waiting changes call, so it is
+	// checked once, here, ahead of the collection reads the comment above
+	// already says should report rather than silently contribute nothing.
+	if _, statErr := os.Stat(b.Root); statErr != nil {
+		return nil, nil, nil, statErr
+	}
 	live = append(live, watch(WorkbenchKey, b.JournalPath(), filepath.Join(b.Root, WorkbenchAnchor)))
 	workstreamIDs, err := ListIDs(b.WorkstreamsRoot())
 	if err != nil {

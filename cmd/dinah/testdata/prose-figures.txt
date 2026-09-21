@@ -68,7 +68,7 @@ docs/quick-start.md:963 figure=two noun=commands counts=the two commands the blo
 docs/quick-start.md:1160 figure=two noun=groups counts=the two origins of a refusal name holds=prose reason=the groups are the shared rules and Dinah's own coinage, which no table in the tree declares as a set
 docs/quick-start.md:1529 figure=five noun=flags counts=the optional flags dinah column new accepts derives=columnNewFlags
 internal/guide/guides/first-session.md:122 figure=one noun=outcomes counts=one of the four outcomes a command reports holds=partitive reason=the sentence says one of four outcomes, so the figure counts the choice rather than the set
-internal/guide/guides/mcp.md:357 figure=Eight noun=tools counts=the MCP tools whose verb reads the request's basis holds=unreachable at=internal/mcp/tools.go:433 declares=injectedProperties
+internal/guide/guides/mcp.md:357 figure=Eight noun=tools counts=the MCP tools whose verb reads the request's basis holds=unreachable at=internal/mcp/tools.go:447 declares=injectedProperties
 internal/guide/guides/mcp.md:389 figure=two noun=kinds counts=the directory kinds the descent skips holds=prose reason=a dotted directory and a symbolic link are two branches of one walk rather than a set the tree declares
 internal/guide/guides/query.md:44 figure=Thirteen noun=fields counts=the field names the query language admits derives=queryFields
 internal/guide/guides/query.md:84 figure=five noun=fields counts=the query fields read from a card's journal holds=unreachable at=internal/verb/query.go:72 declares=actPlane
