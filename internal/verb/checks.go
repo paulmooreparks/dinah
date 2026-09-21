@@ -266,6 +266,15 @@ var beyondChecks = map[string][]Check{
 		{Refusal: contract.AtCapacity, Key: "check.add.3"},
 		{Refusal: contract.NoLevels, Key: "check.add.4"},
 		{Refusal: contract.UnknownLevel, Key: "check.add.5"},
+		// The two route rows go after the level rows because the route is
+		// read after the levels in Add, and the second of them covers both
+		// halves of the question with one refusal: a --column the route drops
+		// and a bare filing into a first column the route drops.
+		{Refusal: contract.UnknownRoute, Key: "check.add.6"},
+		{Refusal: contract.RouteOffColumn, Key: "check.add.7"},
+		// The eighth row is the route write's operator-column row read at
+		// creation, where the card would stand once it is filed.
+		{Refusal: contract.RouteSkipsOperatorColumn, Key: "check.add.8"},
 	},
 	"comment": {
 		{Refusal: contract.UnknownCard, Key: "check.comment.1"},
@@ -457,6 +466,37 @@ var beyondChecks = map[string][]Check{
 		{Refusal: contract.NoOwner, Key: "check.set.6"},
 		{Refusal: contract.NotOperator, Key: "check.set.7"},
 		{Refusal: contract.Unconfirmed, Key: "check.set.8"},
+		// The two route rows are appended rather than inserted among the
+		// rows above, because both read the card rather than the value being
+		// written and neither is a guard, so both run after the field
+		// router's own list. dinah.unknown-route adds no row of its own: row
+		// 5 already stands for the guard the named field declares, and every
+		// guard's refusal is reached through it.
+		{Refusal: contract.RouteStrandsItem, Key: "check.set.9"},
+		{Refusal: contract.RouteSkipsOperatorColumn, Key: "check.set.10"},
+		// The eleventh row is moving a checklist item onto a column the card's
+		// own road does not carry, which reads the card rather than the value
+		// and so runs beside the two route rows rather than inside the guard.
+		{Refusal: contract.ItemOffRoute, Key: "check.set.11"},
+	},
+	// file declared no list at all before dinah-542, so its page printed no
+	// table. Rows 1 to 7 describe what File already refuses and are written
+	// down rather than introduced; they are read off internal/verb/checklist.go
+	// rather than the code being changed to match a table. Row 8 is the route
+	// row this card adds.
+	//
+	// The harness row Checks splices in is printed ahead of these, so what a
+	// reader meets as row 1 is the harness and row 2 is the operator, which is
+	// the arrangement raise and reshape already keep.
+	"file": {
+		{Refusal: contract.NoOperator, Key: "check.file.1"},
+		{Refusal: contract.UnknownCard, Key: "check.file.2"},
+		{Refusal: contract.NoOwner, Key: "check.file.3"},
+		{Refusal: contract.Malformed, Key: "check.file.4"},
+		{Refusal: contract.UnknownItemKind, Key: "check.file.5"},
+		{Refusal: contract.Malformed, Key: "check.file.6"},
+		{Refusal: contract.UnknownColumn, Key: "check.file.7"},
+		{Refusal: contract.ItemOffRoute, Key: "check.file.8"},
 	},
 	// mcp carries the two checks the startup path raises: the directory
 	// --root names has to exist, and any workbench the registration names

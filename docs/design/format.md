@@ -469,8 +469,11 @@ file. Trailing comments on the list entries are annotation for humans, and a
 lint warns when a comment drifts from the column's actual title.
 
 Retiring a column, whether by archiving it or by deleting it, removes its
-identifier from this ordered list in the same act, under the workbench lock
-the retiring act already holds. A workbench declaring an id whose directory does
+identifier from this ordered list and from every declared route in the same
+act, under the workbench lock the retiring act already holds. Restoring the
+column returns it to the list and to no route, because a route is a choice
+somebody made and a restoration says nothing about which routes wanted the
+column back. A workbench declaring an id whose directory does
 not exist at all still opens: the id is excluded from the flow and `dinah
 check` reports it, and `dinah check --migrate-columns` removes it from the
 list. `dinah check --migrate-columns` refuses instead of writing when removing
@@ -790,11 +793,62 @@ backward edges become modelled in the core. Deriving "regressive" at read time
 from the ordered column list does not model them, so the row stays out and no
 profile revision moves for this.
 
-Flow is linear for now. Real branching, such as lanes or a shortcut jump, is
-deliberately deferred until building the CLI forces the question; the format
-can absorb it later as an additive change (per-column transitions or a lane
-construct in the definition), which the versioning posture below classifies
-as non-breaking.
+A workbench may declare routes through its flow. A top-level `routes:` mapping
+in `workbench.md` frontmatter names each route and lists the column identifiers
+it carries, as a block of dashed entries or as a flow sequence on the route's
+own line, beside the `groups:` map it resembles. A card names the route it walks
+in a top-level `route:` key on its own anchor. A card naming no route, or naming
+one the workbench does not declare, walks the whole ordered list, and a
+workbench declaring no routes behaves as though the key did not exist.
+
+A route declares membership, and the ordered list still declares order. However
+a route's columns are written, they are read in the order the columns list puts
+them, so the ordered list stays the single authority for order and no route can
+double back. The card's `column` is still the whole of where it stands. What a
+route changes is which column a pull carries the card into, which card `dinah
+next` offers at a buffer and at which landing, and which one row of the card's
+legal moves is marked as the forward move along its own road. Every declared
+column is still a legal move, each still carries its direction against the
+ordered list, and the column that list puts next is still offered as the
+forward move, which is what CORE-STATE-7 asks for.
+
+A card can stand at a column its route does not carry, by an ordinary move, by
+a rejection to a `reject_to` target the route omits, or by its route changing
+under it. Nothing refuses that. The forward move its route offers from there is
+the first column of the route standing after it in the ordered list, and `dinah
+check` reports the card while it stands there. The loop limit does not read the
+route at all: a regressive departure is counted against the ordered list,
+exactly as it is for a card walking every column.
+
+`dinah set <card> route <name>` writes the route with no claim and journals it
+as a `card_updated` event carrying both names. It refuses a route that drops a
+column a pending item on the card names, and a route that would carry the card
+around an operator-owned column it has not yet passed. Filing an item against a
+column the card's route does not carry is refused. `dinah add --route` is
+refused into a column the route does not carry, and on a route that would carry
+the new card around an operator-owned column standing at or after the column it
+is filed into, because a filing is a placement. `dinah check` reports a route
+whose name is not a slug, one carrying no column, one naming a column the
+workbench does not declare or naming one twice, one written out of order, one
+that omits the workbench's first column or does not end in a done column, and a
+column on a route whose `reject_to` leaves it. It reports a card naming a route
+the workbench does not declare, a card standing off its route, a pending item
+naming a column the card's route drops, and a card whose route carries it around
+an operator-owned column it has not passed, which only a hand edit produces.
+
+`dinah reshape` writes the incoming definition's `routes` member in place of the
+live block, in the same write as the new column order, and merges nothing. A
+definition carrying no `routes` member leaves the live block as it stands, and
+one carrying an empty object removes it. A card keeps its `route:` key through a
+reshape; a card whose route the definition dropped walks the whole list and is
+reported, and a route naming a column the reshape did not create is reported.
+
+Neither key moves the storage format. `routes` travels through interchange as a
+member the profile does not list, by the generic pass every such member takes,
+and a card's `route:` key rides in its frontmatter the way every key a verb did
+not change does. A build predating routes opens a workbench declaring them and
+walks every card down the whole list, which is safe and which offers a routed
+card the forward move into a station its route skips as an ordinary move.
 
 Groups, the folders a wide board subdivides its columns into, are a display
 overlay, not entities and not core: no verb consults a group, and an
@@ -2981,9 +3035,9 @@ point being exercised.
 
 ## Open questions
 
-- Branching and lanes, when the linear flow stops being enough; the Alka
-  workbench already contains one prose shortcut that will eventually force
-  this.
+- Lanes as a parallel display, and branching a route cannot express. Routes
+  answer the shortcut a workbench runs through its own flow, and a flow whose
+  roads genuinely diverge and rejoin at different places is still unanswered.
 - Human handles: whether cards get a slug or number alias for CLI ergonomics,
   or titles resolved by search are enough.
 - Terminology: whether "workbench" and "card" survive into the contract.

@@ -21,6 +21,12 @@ const (
 	// slotCard is a front-matter position the format declares to name a
 	// card.
 	slotCard
+	// slotRoute is a front-matter position the format declares to name a
+	// route the workbench declares, which is a card's own route key. It is
+	// its own kind rather than a column position because the value names a
+	// road rather than a station, and it is completed from the workbench's
+	// routes block rather than from its columns list.
+	slotRoute
 	// slotProse is a candidate a prose scan found, which declares nothing
 	// and is admitted or refused by resolution alone.
 	slotProse
@@ -47,6 +53,8 @@ type slot struct {
 const (
 	keyColumns     = "columns"
 	keyGroups      = "groups"
+	keyRoutes      = "routes"
+	keyRoute       = "route"
 	keyColumn      = "column"
 	keyWorkstreams = "workstreams"
 	keyLinks       = "links"
@@ -165,6 +173,11 @@ func scalarSlots(key string, line int, text string, from int) []slot {
 		return flowSlots(slotColumn, line, text, from)
 	case keyWorkstreams:
 		return flowSlots(slotWorkstream, line, text, from)
+	case keyRoute:
+		// card.md spells the road a card walks route, and the value is a
+		// route name rather than a column reference, so it is a scalar of
+		// its own kind.
+		return []slot{valueSlot(slotRoute, line, text, from)}
 	}
 	return nil
 }
@@ -172,19 +185,19 @@ func scalarSlots(key string, line int, text string, from int) []slot {
 // nestedSlots reads a line beneath a top-level key: an entry of a block
 // sequence, or a key of a mapping inside one.
 //
-// Four keys carry a nested reference. columns and workstreams carry one
+// Five keys carry a nested reference. columns and workstreams carry one
 // identifier per dashed entry. links and tier_at carry a mapping per entry,
-// whose to and column members are the references. groups is a map of named
-// lists, so every dashed entry beneath it names a column, whatever the list
-// is called, and a list written in flow form on its own name's line carries
-// its elements there.
+// whose to and column members are the references. groups and routes are each a
+// map of named lists, so every dashed entry beneath either names a column,
+// whatever the list is called, and a list written in flow form on its own
+// name's line carries its elements there.
 func nestedSlots(key string, line int, text string) []slot {
 	switch key {
 	case keyColumns:
 		return entrySlots(slotColumn, line, text)
 	case keyWorkstreams:
 		return entrySlots(slotWorkstream, line, text)
-	case keyGroups:
+	case keyGroups, keyRoutes:
 		if found := entrySlots(slotColumn, line, text); found != nil {
 			return found
 		}

@@ -1018,7 +1018,10 @@ func sweptCardsIn(r *sweptRecord, column int) []sweptCardRecord {
 // The reject cell reads no on every row, because the sweep's healthy fixture
 // declares reject_to on no column; the positive case belongs to dinah-207's own
 // tests rather than to a fixture whose point is column widths under wide,
-// matra-bearing and emoji-joined titles.
+// matra-bearing and emoji-joined titles. The on-route cell reads yes on the
+// flow's own next column alone, because the fixture declares no route and a
+// card walking the whole flow is marked there, which is dinah-542's rule; the
+// routed cases belong to that card's own tests for the same reason.
 func expectMoves(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
 	t.Helper()
 	card := r.cards[0]
@@ -1031,7 +1034,8 @@ func expectMoves(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
 		if at > card.column {
 			direction = verb.Forward
 		}
-		rows = append(rows, sweptTexts(column.ref(), column.title, sweptToken(tag, direction), sweptYesNo(tag, false)))
+		onRoute := at == card.column+1
+		rows = append(rows, sweptTexts(column.ref(), column.title, sweptToken(tag, direction), sweptYesNo(tag, onRoute), sweptYesNo(tag, false)))
 	}
 	return sweptExpectation{rows: rows, source: "the record's columns, other than the one the served card stands in"}
 }
@@ -1601,6 +1605,47 @@ func expectWorkstreams(t *testing.T, r *sweptRecord, tag string) sweptExpectatio
 		rows = append(rows, row)
 	}
 	return sweptExpectation{rows: rows, source: "the record's workstreams"}
+}
+
+// sweptRoutes are the two routes sweptLeveledDefinitionFormat declares, in
+// declaration order, each with the columns it carries named by the reference
+// the record reads them back by. The definition names them by identifier, and
+// the record carries the three columns init writes by slug alone, so the two
+// are joined here rather than in the definition.
+var sweptRoutes = []struct {
+	name    string
+	carries []string
+}{
+	{name: "short", carries: []string{"intake", "done"}},
+	{name: "a-much-longer-road", carries: []string{"intake", "doing", "done"}},
+}
+
+// expectRoutes is the routes listing: one row per declared route, in
+// declaration order, carrying the route's name, how many of the record's
+// columns it carries, and the record's columns it omits in flow order, each
+// operator-owned one wrapped in the locale's own mark.
+func expectRoutes(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
+	t.Helper()
+	var rows [][]sweptCell
+	for _, route := range sweptRoutes {
+		carried := map[string]bool{}
+		for _, ref := range route.carries {
+			carried[ref] = true
+		}
+		var skips []string
+		for _, column := range r.columns {
+			ref := column.ref()
+			if carried[ref] {
+				continue
+			}
+			if column.operatorOwned {
+				ref = msg.For(tag).T("routes.skip.operator-owned", "column", ref)
+			}
+			skips = append(skips, ref)
+		}
+		rows = append(rows, sweptTexts(route.name, strconv.Itoa(len(route.carries)), strings.Join(skips, ", ")))
+	}
+	return sweptExpectation{rows: rows, source: "the routes the healthy definition declares, against the record's columns"}
 }
 
 // expectWorkstreamFields is one workstream's own fields, which walks the rows

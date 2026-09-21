@@ -221,23 +221,25 @@ func decodeCompactLine(line string) ([]string, error) {
 // decodeCompactCard rebuilds a card from its record.
 func decodeCompactCard(record compactRecord) verb.CardView {
 	card := verb.CardView{
-		ID:          record.field(0),
-		Ref:         record.field(1),
-		Title:       record.field(2),
-		Column:      record.field(3),
-		ColumnTitle: record.field(4),
-		State:       record.field(5),
-		Severity:    record.field(6),
-		Priority:    record.field(7),
-		Holder:      record.field(8),
-		ClaimSince:  record.field(9),
-		Expires:     record.field(10),
-		BlockReason: record.field(11),
-		BlockKind:   record.field(12),
-		Revision:    record.field(13),
+		ID:              record.field(0),
+		Ref:             record.field(1),
+		Title:           record.field(2),
+		Column:          record.field(3),
+		ColumnTitle:     record.field(4),
+		State:           record.field(5),
+		Severity:        record.field(6),
+		Priority:        record.field(7),
+		Route:           record.field(8),
+		PullDestination: record.field(9),
+		Holder:          record.field(10),
+		ClaimSince:      record.field(11),
+		Expires:         record.field(12),
+		BlockReason:     record.field(13),
+		BlockKind:       record.field(14),
+		Revision:        record.field(15),
 	}
-	if len(record.fields) > 14 {
-		card.Workstreams = append([]string{}, record.fields[14:]...)
+	if len(record.fields) > 16 {
+		card.Workstreams = append([]string{}, record.fields[16:]...)
 	}
 	return card
 }
@@ -298,6 +300,7 @@ func decodeCompactResponse(payload string) (*verb.Response, error) {
 				Title:     record.field(2),
 				Direction: record.field(3),
 				Reject:    decodeCompactFlag(record.field(4)),
+				OnRoute:   decodeCompactFlag(record.field(5)),
 			})
 		case "ctx":
 			if response.Context == nil {
@@ -404,6 +407,7 @@ func decodeCompactOffers(payload string) ([]verb.Offer, error) {
 				NoTaker:         decodeCompactFlag(record.field(3)),
 				TakenByPull:     decodeCompactFlag(record.field(4)),
 				AboveTier:       decodeCompactFlag(record.field(5)),
+				Landing:         record.field(6),
 			})
 		case "card":
 			if len(offers) == 0 {
@@ -987,13 +991,14 @@ func TestAShapeWithNoCompactRenderingEmitsTheCanonicalJSON(t *testing.T) {
 // So this literal is the pin. Changing compactVersion reddens the test below
 // by name and does not compile away, which makes whoever renumbers the grammar
 // say so here deliberately.
-const wantVersionLine = "fmt|compact|2"
+const wantVersionLine = "fmt|compact|3"
 
 // TestTheCompactFormOpensOnItsVersionRecord asserts the framing decision the
 // compact form was introduced on: every compact payload opens with its version
 // record, before any other record, so a caller can check the version before it
 // assumes the field order. The number moved to 2 at dinah-285, which gave the
-// wb record an id field ahead of its title.
+// wb record an id field ahead of its title, and to 3 at dinah-542, which gave
+// the card record a route and a pull destination ahead of its holder.
 func TestTheCompactFormOpensOnItsVersionRecord(t *testing.T) {
 	root := newCompactBench(t)
 	for _, argv := range [][]string{{"list", "intake"}, {"next"}, {"claim", "fx-2"}} {

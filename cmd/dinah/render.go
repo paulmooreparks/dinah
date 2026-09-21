@@ -124,6 +124,12 @@ func (s *session) renderCard(card *verb.CardView) {
 	if card.Priority != "" {
 		s.line(s.r.T("card.priority", "priority", card.Priority))
 	}
+	// The route stands with the levels and before the declared fields, drawn
+	// only where the card carries one, because a card on the workbench's full
+	// column list has no road worth naming.
+	if card.Route != "" {
+		s.line(s.r.T("card.route", "route", card.Route))
+	}
 	// The declared fields stand after the two levels and before the holder,
 	// in the order the workbench declares them. A declared field the card does
 	// not carry draws no line, and a key the card stores that the workbench
@@ -217,9 +223,13 @@ func (s *session) renderInstructions(instructions *verb.Instructions, moves []ve
 	if len(moves) > 0 {
 		s.line("")
 		s.line(s.r.T("instructions.moves"))
-		t := table{indent: 2, columns: s.columns("moves", "column", "name", "direction", "reject")}
+		// On route stands between Direction and Reject, because it narrows
+		// what Direction says and a reader meets the two together: the row
+		// marked here is the forward move along this card's own road, where
+		// Direction answers for the flow whatever road the card walks.
+		t := table{indent: 2, columns: s.columns("moves", "column", "name", "direction", "route", "reject")}
 		for _, move := range moves {
-			fields := []string{move.Ref, move.Title, s.token(move.Direction), s.yesNo(move.Reject)}
+			fields := []string{move.Ref, move.Title, s.token(move.Direction), s.yesNo(move.OnRoute), s.yesNo(move.Reject)}
 			t.rows = append(t.rows, tableRow{fields: fields})
 		}
 		s.table(t)
@@ -1457,6 +1467,40 @@ func (s *session) renderWorkstreams(listing *verb.WorkstreamListing) {
 			strconv.Itoa(workstream.Cards),
 		}
 		t.rows = append(t.rows, tableRow{fields: fields})
+	}
+	s.table(t)
+}
+
+// renderRoutes prints the routes a workbench declares: each route's name, how
+// many live columns it carries, and the live columns it omits.
+//
+// The skipped columns carry a mark on the ones the workbench reserves to its
+// operator, because that is the one question an operator asks of a road
+// somebody drew and a reader who had to cross-reference the column listing to
+// answer it would be deriving what the row states.
+func (s *session) renderRoutes(listing *verb.RouteListing) {
+	if len(listing.Routes) == 0 {
+		s.line(s.r.T("routes.empty"))
+		return
+	}
+	t := table{indent: 2, columns: s.columns("routes", "route", "columns", "skips")}
+	for _, route := range listing.Routes {
+		owned := map[string]bool{}
+		for _, ref := range route.OperatorOwnedSkips {
+			owned[ref] = true
+		}
+		skips := make([]string, 0, len(route.Skips))
+		for _, ref := range route.Skips {
+			if owned[ref] {
+				ref = s.r.T("routes.skip.operator-owned", "column", ref)
+			}
+			skips = append(skips, ref)
+		}
+		t.rows = append(t.rows, tableRow{fields: []string{
+			route.Name,
+			strconv.Itoa(route.Columns),
+			strings.Join(skips, ", "),
+		}})
 	}
 	s.table(t)
 }

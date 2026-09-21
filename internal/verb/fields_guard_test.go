@@ -9,12 +9,18 @@ import (
 )
 
 // fieldGuardDefinition declares both level axes a guarded write resolves
-// against, and a column carrying a tier default so a relative expression has
-// something to count from.
+// against, a column carrying a tier default so a relative expression has
+// something to count from, and one route so the route guard has a name to
+// admit and a name to refuse.
+//
+// The route carries the intake column and the terminal and drops the station
+// between them, which is what makes it a road short enough for a test about it
+// to be about anything.
 const fieldGuardDefinition = `{
   "profile": "dinah-core/0.7",
   "title": "Guarding",
   "levels": { "severity": ["trivial", "minor", "major"], "priority": ["later", "soon", "now"], "tier": ["workhorse", "frontier", "apex"] },
+  "routes": { "small": ["d00000000001", "d00000000003"] },
   "columns": [
     { "id": "d00000000001", "title": "Intake", "kind": "intake" },
     { "id": "d00000000002", "title": "Doing", "kind": "work", "tier": "workhorse" },
@@ -42,6 +48,7 @@ func TestEveryGuardedFieldRefusesAndAcceptsAtItsOwnGate(t *testing.T) {
 		bench.GuardHold:       guardHold,
 		bench.GuardColumnRef:  guardColumnRef,
 		bench.GuardResolution: guardResolution,
+		bench.GuardRoute:      guardRoute,
 	}
 	if len(subtests) != len(bench.Guards) {
 		t.Fatalf("this file runs %d subtests and the closed guard set declares %d, so a guard is unexercised", len(subtests), len(bench.Guards))
@@ -448,5 +455,54 @@ func guardResolution(t *testing.T) {
 	}
 	if value != item+"/comments/1" {
 		t.Errorf("the item reads back the resolution %q, wanted the comment of its own", value)
+	}
+}
+
+// guardRoute asserts both halves of a route write: a name the workbench does
+// not declare is refused under Dinah's own name and the declared names are
+// listed back, and the name it does declare is written and reads back as
+// typed.
+//
+// The clear is asserted beside them, because the route field is clearable and a
+// cleared route is what puts a card back on the workbench's full column list.
+func guardRoute(t *testing.T) {
+	h := harnessFromDefinition(t, "gd", fieldGuardDefinition)
+	ref := h.add("a card that could take a shorter road")
+
+	unknown := h.library.SetField(&Request{
+		Verb: "set", Actor: "alka", Ref: ref,
+		Field: bench.RouteField, Value: "nonesuch",
+	})
+	refusedWith(t, "a route the workbench does not declare", unknown, contract.UnknownRoute)
+	if unknown.Context["routes"] != "small" {
+		t.Errorf("the refusal lists the declared routes as %q, wanted small", unknown.Context["routes"])
+	}
+
+	accepted := h.library.SetField(&Request{
+		Verb: "set", Actor: "alka", Ref: ref,
+		Field: bench.RouteField, Value: "small",
+	})
+	acceptedOK(t, "a route the workbench declares", accepted)
+	h.reopen()
+	value, err := h.library.GetField(&Request{Verb: "get", Ref: ref, Field: bench.RouteField})
+	if err != nil {
+		t.Fatalf("read the route back: %v", err)
+	}
+	if value != "small" {
+		t.Errorf("the card reads back the route %q, wanted small", value)
+	}
+
+	cleared := h.library.SetField(&Request{
+		Verb: "set", Actor: "alka", Ref: ref,
+		Field: bench.RouteField, Value: "",
+	})
+	acceptedOK(t, "a route cleared", cleared)
+	h.reopen()
+	value, err = h.library.GetField(&Request{Verb: "get", Ref: ref, Field: bench.RouteField})
+	if err != nil {
+		t.Fatalf("read the cleared route back: %v", err)
+	}
+	if value != "" {
+		t.Errorf("the cleared route reads back %q", value)
 	}
 }

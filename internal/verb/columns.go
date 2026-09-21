@@ -116,7 +116,7 @@ func (l *Library) NewColumn(req *Request) *Response {
 	if err != nil {
 		return l.FromError(req, err)
 	}
-	if disrupted := placementDisrupts(fresh.Columns, insertAt, effective, cards); disrupted != nil {
+	if disrupted := placementDisrupts(fresh, insertAt, effective, cards); disrupted != nil {
 		return l.refuse(req, nil, contract.ColumnRoutingDisrupted, disrupted.Ref())
 	}
 	column, err := fresh.NewColumn(title, kind, slug, tier, capacity, before)

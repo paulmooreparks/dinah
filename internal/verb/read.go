@@ -51,6 +51,11 @@ type ColumnView struct {
 	// reader could walk the flow itself from the fields above, and a reader
 	// that does holds a copy of this rule that goes stale the next time the
 	// walk changes.
+	//
+	// It answers for the default route, because a column-scoped read has no
+	// card in hand and a route is a card's. Two cards standing in one column
+	// on two routes have two destinations, and each card's own answer is on
+	// the card, under CardView.PullDestination.
 	PullDestination string `json:"pull_destination,omitempty"`
 	// Capacity is the declared limit, zero for unlimited.
 	Capacity int `json:"capacity,omitempty"`
@@ -306,6 +311,15 @@ type Offer struct {
 	// any other offer there is nothing being withheld to explain.
 	RequiredTier string      `json:"required_tier,omitempty"`
 	SatisfiedBy  []ModelView `json:"satisfied_by,omitempty"`
+	// Landing is the column the offered card would be taken to: this column
+	// where a claim would take it up, and the column a pull would carry it
+	// into where it is offered by pull. It is the column whose tier floor the
+	// offer was measured at, and on a workbench declaring no route it is
+	// always this column or the one carriesInto already named for it.
+	//
+	// It is present exactly where Card is, because there is no landing to
+	// report for an offer of nothing.
+	Landing string `json:"landing,omitempty"`
 }
 
 // ModelView is one entry of a workbench's tier table as an offer carries it.
@@ -351,42 +365,53 @@ func (l *Library) Next(req *Request) ([]Offer, error) {
 		offer := Offer{Column: column.ID, Title: column.Title}
 		// A column offers its head card when some act could take that card up,
 		// and offers nothing when none could. A claim could take it where the
-		// column takes work up. A pull could take it where carriesInto names a
-		// column to carry it to, which is the function the pull itself reads,
-		// so the offer and the act cannot disagree.
+		// column takes work up, and every card standing there has the same
+		// landing, which is this column. A pull could take it where carriesInto
+		// names a column to carry it to, read against that card's own route,
+		// which is the function the pull itself reads, so the offer and the act
+		// cannot disagree.
 		//
-		// The lookup reads the whole flow rather than the columns this request
-		// reports, since a named column's downstream is a fact about the
-		// workbench rather than about the request.
-		beyond := carriesInto(column, l.Bench.Columns)
-		byPull := !column.TakesWorkUp() && beyond != nil
-		if !column.TakesWorkUp() && !byPull {
+		// The tier the card has to meet is the tier of the column the act would
+		// land it in. Reading it anywhere else would offer work a claim here
+		// then refuses, or withhold work on the strength of a requirement
+		// nothing is about to check.
+		//
+		// The route lookups read the whole flow rather than the columns this
+		// request reports, since a card's road is a fact about the workbench
+		// rather than about the request.
+		byPull := !column.TakesWorkUp()
+		landing := func(*bench.Card) *bench.Column { return column }
+		if byPull {
+			landing = func(card *bench.Card) *bench.Column {
+				return carriesInto(column, l.Bench.RouteOf(card))
+			}
+		}
+		ready := readyIn(cards, column.ID)
+		head, at, hadReady, withheld := headOfReadyFor(l.Bench, column.ID, landing, cards, selectionAdmission(l.Bench, req))
+		switch {
+		case head != nil:
+			view, err := l.view(head)
+			if err != nil {
+				return nil, err
+			}
+			offer.Card = view
+			offer.TakenByPull = byPull
+			offer.Landing = columnRef(at)
+		case hadReady:
+			offer.AboveTier = true
+			offer.RequiredTier = withheld
+			offer.SatisfiedBy = modelViews(l.Bench.SatisfyingModels(withheld))
+		case byPull && (len(ready) > 0 || carriesInto(column, l.Bench.Columns) == nil):
+			// Nothing standing here can be taken from here, which is what
+			// NoTaker says. A column holding ready cards answers it out of
+			// those cards, so a queue whose ready cards all walk roads that
+			// give them no landing reports it and stops reporting it the
+			// moment a card with a landing arrives. A column holding no ready
+			// card has no card whose route to read, so the answer is read
+			// against the default route, which preserves the answer an empty
+			// queue gave before routes existed.
 			offer.NoTaker = true
 			offer.AwaitingOutside = column.AwaitingOutside
-		} else {
-			// The tier the card has to meet is the tier of the column the act
-			// would land it in, which is this column for a claim and the
-			// column beyond for a pull. Reading it anywhere else would offer
-			// work a claim here then refuses, or withhold work on the strength
-			// of a requirement nothing is about to check.
-			landing := column
-			if byPull {
-				landing = beyond
-			}
-			head, hadReady, withheld := headOfReadyForTier(l.Bench, column.ID, landing, cards, selectionAdmission(l.Bench, req))
-			switch {
-			case head != nil:
-				view, err := l.view(head)
-				if err != nil {
-					return nil, err
-				}
-				offer.Card = view
-				offer.TakenByPull = byPull
-			case hadReady:
-				offer.AboveTier = true
-				offer.RequiredTier = withheld
-				offer.SatisfiedBy = modelViews(l.Bench.SatisfyingModels(withheld))
-			}
 		}
 		offers = append(offers, offer)
 	}
@@ -453,7 +478,34 @@ func selectionAdmission(b *bench.Bench, req *Request) admission {
 	return admission{declared: resolved, filters: filters}
 }
 
-// headOfReadyForTier returns the card pull (or next) would take from the
+// landingFor answers where an act would put this card, and nil where the act
+// could not take this card at all. The pull's landing function answers the
+// named destination for a card whose own route carries it there and nil for
+// every other card; next's answers the column itself where the column takes
+// work up, and carriesInto read against the card's route where it does not.
+//
+// It is a function of the card because the landing is card-keyed the moment
+// routes exist: two cards standing in one queue on two routes have two
+// landings and therefore two tier floors.
+type landingFor func(*bench.Card) *bench.Column
+
+// readyIn is the ready cards of one column, in the arrival order CORE-QUEUE-3
+// fixes. It is one function rather than a filter written out at each caller,
+// because the answer to "does this column hold ready work at all" and the
+// answer to "which ready card would this act take" have to be read off the same
+// set.
+func readyIn(cards []*bench.Card, columnID string) []*bench.Card {
+	var ready []*bench.Card
+	for _, card := range cards {
+		if card.Column == columnID && card.State == contract.StateReady {
+			ready = append(ready, card)
+		}
+	}
+	sortByArrival(ready)
+	return ready
+}
+
+// headOfReadyFor returns the card pull (or next) would take from the
 // given column, or nil when nothing there is available to the caller. The
 // order is the queue order CORE-QUEUE-3 fixes, namely arrival into the
 // current column first with the lower card identifier breaking a tie, and
@@ -462,11 +514,23 @@ func selectionAdmission(b *bench.Bench, req *Request) admission {
 // the declared tier is admitted for, so a caller's own eligible run reaches
 // it in the order it arrived.
 //
-// landing is the column this scan is being run to decide whether a claim or
-// a pull could take the card into, and the admission is read there. It
-// differs from columnID when the scan crosses a buffer a pull would carry
-// the card through, which is the same distinction TakenByPull already
-// reports.
+// landing answers, for each card, the column this scan is being run to decide
+// whether a claim or a pull could take that card into, and the admission is
+// read there. It differs from columnID when the scan crosses a buffer a pull
+// would carry the card through, which is the same distinction TakenByPull
+// already reports, and it differs from card to card once two cards standing in
+// one column walk two routes.
+//
+// A card whose landing is nil is passed over without being counted as ready
+// work withheld for tier, because no tier floor withheld it. It is work this
+// act could not take wherever the caller stood. It keeps the whole behaviour of
+// the landing-column form it replaces for a caller whose landing is the same
+// for every card: the cards are sorted by arrival, the first admitted one is
+// returned, and the first withheld one's requirement is reported.
+//
+// The second answer is the landing the returned card would be taken to, so a
+// caller that has to name where the card is going reads it back rather than
+// computing it twice.
 //
 // Reading the cards out of the bench's own latch-free snapshot means the
 // returned card may have lapsed in between; every call site re-reads under
@@ -491,27 +555,23 @@ func selectionAdmission(b *bench.Bench, req *Request) admission {
 // on a claim. This filters what a caller is shown; it establishes nothing
 // about the caller. Where the act being selected for is one no requirement can
 // refuse, by carries no filter and every ready card is eligible.
-func headOfReadyForTier(b *bench.Bench, columnID string, landing *bench.Column, cards []*bench.Card, by admission) (*bench.Card, bool, string) {
-	var ready []*bench.Card
-	for _, card := range cards {
-		if card.Column == columnID && card.State == contract.StateReady {
-			ready = append(ready, card)
-		}
-	}
-	if len(ready) == 0 {
-		return nil, false, ""
-	}
-	sortByArrival(ready)
+func headOfReadyFor(b *bench.Bench, columnID string, landing landingFor, cards []*bench.Card, by admission) (*bench.Card, *bench.Column, bool, string) {
+	sawReady := false
 	withheld := ""
-	for _, card := range ready {
-		if by.admits(b, card, landing) {
-			return card, true, ""
+	for _, card := range readyIn(cards, columnID) {
+		at := landing(card)
+		if at == nil {
+			continue
+		}
+		sawReady = true
+		if by.admits(b, card, at) {
+			return card, at, true, ""
 		}
 		if withheld == "" {
-			withheld = card.RequiredTier(b, landing)
+			withheld = card.RequiredTier(b, at)
 		}
 	}
-	return nil, true, withheld
+	return nil, nil, sawReady, withheld
 }
 
 // Detail is a card and everything below it a reader asked to see.

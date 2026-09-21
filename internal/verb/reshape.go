@@ -1325,10 +1325,37 @@ func (l *Library) writeColumnOrder(req *Request, plan *reshapePlan, now string) 
 			order = append(order, id)
 		}
 	}
-	if equalSequences(sequence, order) {
+	// The definition's routes travel in this same write, in the run's
+	// reorder step, which is where section 15 of dinah-542's specification
+	// puts them. A route naming a column the run did not create is written as
+	// the definition wrote it, and check reports it under
+	// check.route-unknown-column, which is the reading check gives every
+	// other stale reference.
+	routes, carriesRoutes := plan.definition.Object[bench.RoutesKey]
+	if equalSequences(sequence, order) && (!carriesRoutes || routesUnchanged(fresh, routes)) {
 		return nil
 	}
-	return fresh.SetColumnSequence(order)
+	return fresh.SetShape(order, routes, carriesRoutes)
+}
+
+// routesUnchanged reports whether the live routes already say what the
+// definition's routes member says, so a retry of a finished run writes
+// nothing, which is the idempotency the rest of this step keeps.
+func routesUnchanged(fresh *bench.Bench, raw json.RawMessage) bool {
+	var wanted map[string][]string
+	if err := json.Unmarshal(raw, &wanted); err != nil {
+		return false
+	}
+	if len(wanted) != len(fresh.RouteNames) {
+		return false
+	}
+	for name, ids := range wanted {
+		have, declared := fresh.Routes[name]
+		if !declared || !equalSequences(have, ids) {
+			return false
+		}
+	}
+	return true
 }
 
 // equalSequences reports whether two identifier sequences carry the same

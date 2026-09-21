@@ -11,7 +11,7 @@ import (
 // field of the version record that opens every compact payload. A caller
 // reads it before assuming the field order this file fixes, and an
 // incompatible change to any record increments it.
-const compactVersion = "2"
+const compactVersion = "3"
 
 // The compact projection is a second machine form of the answers a driver
 // loop reads most: line-oriented UTF-8 rather than JSON, carrying the same
@@ -30,17 +30,19 @@ const compactVersion = "2"
 //	rsp      outcome, verb, refusal, detail, basis, warning, warning_detail,
 //	         message, workbenches_refusal, workbenches_refusal_detail
 //	card     id, ref, title, column, column_title, state, severity, priority,
-//	         holder, claim_since, expires, block_reason, block_kind, revision,
-//	         then one trailing field per workstream identifier
+//	         route, pull_destination, holder, claim_since, expires,
+//	         block_reason, block_kind, revision, then one trailing field per
+//	         workstream identifier
 //	wstream  id, ref, slug, title, status, cards
 //	instr    global, standing, column
-//	move     column, ref, title, direction, reject
+//	move     column, ref, title, direction, reject, on_route
 //	ctx      key, value
 //	msgval   key, value
 //	wb       id, title, slug, path
 //	aff      one trailing field per affordance token
 //	lst      column
-//	off      column, title, awaiting_outside, no_taker, taken_by_pull, above_tier
+//	off      column, title, awaiting_outside, no_taker, taken_by_pull, above_tier,
+//	         landing
 //
 // A field appended to the end of a record's list is a compatible change and
 // does not increment the version, because a record is read by index and a
@@ -129,6 +131,8 @@ func (p *compactPayload) card(card *verb.CardView) {
 		card.State,
 		card.Severity,
 		card.Priority,
+		card.Route,
+		card.PullDestination,
 		card.Holder,
 		card.ClaimSince,
 		card.Expires,
@@ -198,7 +202,7 @@ func compactResponse(response *verb.Response) string {
 		payload.record("instr", instructions.Global, instructions.Standing, instructions.Column)
 	}
 	for _, move := range response.LegalMoves {
-		payload.record("move", move.Column, move.Ref, move.Title, move.Direction, compactFlag(move.Reject))
+		payload.record("move", move.Column, move.Ref, move.Title, move.Direction, compactFlag(move.Reject), compactFlag(move.OnRoute))
 	}
 	payload.pairs("ctx", response.Context)
 	payload.pairs("msgval", response.MessageValues)
@@ -253,6 +257,7 @@ func compactOffers(offers []verb.Offer) string {
 			compactFlag(offer.NoTaker),
 			compactFlag(offer.TakenByPull),
 			compactFlag(offer.AboveTier),
+			offer.Landing,
 		)
 		payload.card(offer.Card)
 	}

@@ -536,8 +536,8 @@ func TestTheDispositionTablePairsWithTheQueryFields(t *testing.T) {
 	if closed != 2 {
 		t.Errorf("the table reads %s on %d rows, and %s and %s are the only two axes that enumerate", EnumerationClosed, closed, FieldColumn, FieldState)
 	}
-	if len(GroupAxes()) != 9 {
-		t.Errorf("the table admits %d axes, and nine of the ten fields group", len(GroupAxes()))
+	if len(GroupAxes()) != 10 {
+		t.Errorf("the table admits %d axes, and ten of the thirteen fields group", len(GroupAxes()))
 	}
 }
 

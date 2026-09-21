@@ -645,6 +645,38 @@ const (
 	// refusal a user meets is named like any other even where the migration
 	// behind it carries no surface of its own.
 	StoreAwaitingMigration = LayerPrefix + "store-awaiting-migration"
+	// UnknownRoute is a write naming a route the workbench does not declare.
+	// The sentence lists the routes it does declare, read off the workbench
+	// rather than written into a catalog, so a route declared later reaches
+	// the message with nobody editing a sentence.
+	UnknownRoute = LayerPrefix + "unknown-route"
+	// RouteStrandsItem is a route write on a card carrying a pending item
+	// naming a column the named route does not carry. Such an item is a hold
+	// that would never fire, which is the commonest way a stop somebody meant
+	// to create silently fails to exist. Pending is the state that matters,
+	// because a settled item holds nothing on entry and has nothing to
+	// strand.
+	RouteStrandsItem = LayerPrefix + "route-strands-item"
+	// RouteSkipsOperatorColumn is a route write whose named route omits an
+	// operator-owned column standing at or after the card's current column.
+	// Declaring a route is the operator's write and placing a card on one is
+	// any owner's, so without this refusal an agent could carry a card around
+	// a station the workbench reserves by a road the operator drew for other
+	// work, and the reservation would never engage because the card never
+	// enters the column.
+	RouteSkipsOperatorColumn = LayerPrefix + "route-skips-operator-column"
+	// ItemOffRoute is an item filed against, or moved onto, a column the
+	// card's own route does not carry. It is separate from the profile's
+	// unresolved-item, which covers an item naming no declared column at all:
+	// that is a misfiling with a different repair, and one name with two
+	// repairs tells a caller nothing.
+	ItemOffRoute = LayerPrefix + "item-off-route"
+	// RouteOffColumn is a filing whose destination column the route it names
+	// does not carry, which would stand the new card off its route from its
+	// first moment. It refuses at creation while a route change on a live
+	// card is not refused, because a new card has no history and stands
+	// nowhere, so refusing costs one corrected flag.
+	RouteOffColumn = LayerPrefix + "route-off-column"
 )
 
 // Introduced lists every refusal name Dinah mints beyond the profile's own.
@@ -671,6 +703,7 @@ var Introduced = []string{
 	UnresolvedItemExit,
 	ObservationRequired, UnknownLink,
 	CommentBodyDiverged, NotADesignation, NotDesignatable, StoreAwaitingMigration,
+	UnknownRoute, RouteStrandsItem, RouteSkipsOperatorColumn, ItemOffRoute, RouteOffColumn,
 }
 
 // NameIsLegal reports whether a refusal name is one CORE-OUT-3 admits: one

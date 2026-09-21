@@ -639,6 +639,25 @@ function indexByRef<T extends { readonly ref: string }>(
 }
 
 /**
+ * A detail answer's views indexed by the attachment's identifier.
+ *
+ * An identifier is the attachment's identity, where a reference is one of
+ * the addresses that reach it, and the workbench's own attachments print
+ * under two different references from the containment walk and from the
+ * attachment listing (dinah-554). Joining by identifier finds the same
+ * attachment under either spelling; joining by reference does not.
+ */
+function indexById<T extends { readonly id: string }>(
+	views: readonly T[] | undefined,
+): Map<string, T> {
+	const byId = new Map<string, T>();
+	for (const view of views ?? []) {
+		byId.set(view.id, view);
+	}
+	return byId;
+}
+
+/**
  * A comment's opening words as one bounded line.
  *
  * A comment has no title, so this is the whole of what a row can be named by,
@@ -3185,6 +3204,7 @@ export class DinahTreeProvider {
 			const t = this.deps.t ?? ENGLISH;
 			this.deps.log(t("tree.attachments.unreadable"));
 		}
+		const byId = indexById(listing?.attachments);
 		const byRef = indexByRef(listing?.attachments);
 		const owner = listing?.ref ?? element.holder;
 		// Every member draws, whether or not the listing answered for it. The
@@ -3195,13 +3215,24 @@ export class DinahTreeProvider {
 		// arms already degrade. A row the reader can see is what a refusal
 		// owes them: dropping the row leaves the collection's own count
 		// promising members that open onto nothing (dinah-519 section 4.3).
+		//
+		// The join is by identifier rather than by reference, because the
+		// workbench's own attachments print under two different references
+		// from the containment walk and from the attachment listing
+		// (dinah-554); an identifier is the attachment's identity and does
+		// not vary with which verb printed it. A member carrying no id falls
+		// back to the reference join, so nothing that joined before this
+		// change stops joining.
 		return members.map((node) => ({
 			kind: "attachment" as const,
 			row: element.row,
 			root: element.root,
 			owner,
 			node,
-			view: byRef.get(node.ref ?? ""),
+			view:
+				node.id === undefined
+					? byRef.get(node.ref ?? "")
+					: byId.get(node.id),
 		}));
 	}
 

@@ -967,6 +967,8 @@ func assignValue(req *verb.Request, name, field, value string) {
 		req.Severity = value
 	case "priority":
 		req.Priority = value
+	case "route":
+		req.Route = value
 	case "tier":
 		req.Tier = value
 	case "at":

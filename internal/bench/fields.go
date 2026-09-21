@@ -50,6 +50,9 @@ const (
 	// A field carrying this guard therefore holds an identifier or nothing,
 	// which is what a gate reading it compares against.
 	GuardColumnRef = "column-ref"
+	// GuardRoute admits a route name the workbench declares and refuses every
+	// other, resolving nothing, because a route name is stored as typed.
+	GuardRoute = "route"
 	// GuardResolution admits a reference naming a comment of the very item
 	// being written, and refuses every other reference: another item's
 	// answer, a card comment, and anything that is not a comment at all. A
@@ -58,14 +61,15 @@ const (
 	GuardResolution = "resolution"
 )
 
-// Guards lists the closed set of guard names a field may declare, in the order
-// the declaration above states them. A sweep asking whether every guard is
-// routed reads this rather than writing the ten out again.
+// Guards lists the closed set of guard names a field may declare. A sweep
+// asking whether every guard is routed reads this rather than writing the
+// eleven out again.
 var Guards = []string{
 	GuardSlug, GuardLevel, GuardTier, GuardState,
 	GuardFilename, GuardKind, GuardCapacity, GuardHold,
 	GuardResolution,
 	GuardColumnRef,
+	GuardRoute,
 }
 
 // The two write authorities a kind declares. The set is closed at two, and it
@@ -199,6 +203,7 @@ var fields = map[string][]Field{
 		{Name: SeverityField, Clearable: true, Guard: GuardLevel},
 		{Name: PriorityField, Clearable: true, Guard: GuardLevel},
 		{Name: TierField, Clearable: true, Guard: GuardTier},
+		{Name: RouteField, Clearable: true, Guard: GuardRoute},
 	},
 	KindComment: {
 		{Name: BodyField, Prose: true},

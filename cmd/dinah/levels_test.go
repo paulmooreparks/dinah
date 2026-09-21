@@ -560,8 +560,8 @@ What you may write:
                               depends on the kind the reference resolves to (one
                               of: body, capacity, column, description, filename,
                               hold, instructions, kind, notes, operator, owner,
-                              priority, resolution, severity, slug, state,
-                              status, text, tier, title)
+                              priority, resolution, route, severity, slug,
+                              state, status, text, tier, title)
   [value|-]                   what to store in it; write a single dash to read
                               it from standard input, and leave it out to clear
                               a field that may be cleared
@@ -577,17 +577,28 @@ What you may write:
                               without it
 
 What can go wrong, in the order each is checked:
-  Order  What can go wrong                               Refusal
-  -----  ----------------------------------------------  -----------------------
-  1      the harness you declared is a legal name        dinah.malformed-harness
-  2      this workbench designates an operator           no-operator
-  3      the reference resolves to one entity            dinah.unknown-path
-  4      the field is one that kind records              dinah.unknown-field
-  5      the value is present, and one line unless prose malformed
-  6      the field's own guard admits the value          dinah.unknown-level
-  7      the request names an owner                      no-owner
-  8      that owner is the operator, where a write asks  not-operator
-  9      a slug change carries the confirmation flag     dinah.unconfirmed
+  Order  What can go wrong                     Refusal
+  -----  ------------------------------------  ---------------------------------
+  1      the harness you declared is a legal name
+                                               dinah.malformed-harness
+  2      this workbench designates an operator no-operator
+  3      the reference resolves to one entity  dinah.unknown-path
+  4      the field is one that kind records    dinah.unknown-field
+  5      the value is present, and one line unless prose
+                                               malformed
+  6      the field's own guard admits the value
+                                               dinah.unknown-level
+  7      the request names an owner            no-owner
+  8      that owner is the operator, where a write asks
+                                               not-operator
+  9      a slug change carries the confirmation flag
+                                               dinah.unconfirmed
+  10     no pending item names a column the route drops
+                                               dinah.route-strands-item
+  11     the route carries every operator-owned column ahead of the card
+                                               dinah.route-skips-operator-column
+  12     an item's new column is one the card's route carries
+                                               dinah.item-off-route
 
 For more, run ` + "`" + `dinah guide references` + "`" + `.
 
@@ -713,7 +724,9 @@ func parseRefusalTable(t *testing.T, page string) []refusalRow {
 		t.Fatalf("the refusal table's rule draws %d columns, wanted 3:\n%s", len(spans), page)
 	}
 	var rows []refusalRow
-	for _, line := range lines[rule+1:] {
+	body := lines[rule+1:]
+	for at := 0; at < len(body); at++ {
+		line := body[at]
 		if strings.TrimSpace(line) == "" {
 			break
 		}
@@ -721,20 +734,32 @@ func parseRefusalTable(t *testing.T, page string) []refusalRow {
 		for _, span := range spans {
 			fields = append(fields, strings.TrimSpace(runeSlice(line, span[0], span[1])))
 		}
-		// A check cell exactly wider than its own column eats the gutter
-		// beside it, and the slice above then cuts the sentence a character
-		// short and reads the cut-off tail as part of the next column. The two
-		// are read apart by the last run of spaces on the line instead, which
-		// is where the renderer put the boundary whatever the rule says.
-		// dinah-496 met this on the set page, whose check column narrowed by
-		// four when a twenty-three character refusal name joined the list and
-		// whose widest sentence is one wider than what was left.
-		if !strings.HasSuffix(runeSlice(line, spans[1][0], spans[1][1]), " ") {
+		// A check sentence too wide to share its line with the refusal name
+		// wraps, and the renderer then draws the name alone on the line
+		// beneath, under its own column, with the order and check cells
+		// blank. The row is the two lines together: the check is everything
+		// after the order column on the first, and the refusal is the second.
+		// dinah-542 is the card whose thirty-two character refusal name first
+		// made the set page draw such rows.
+		if at+1 < len(body) && wrappedRefusal(body[at+1], spans) != "" {
+			fields[1] = strings.TrimSpace(runeSlice(line, spans[1][0], len([]rune(line))))
+			fields[2] = wrappedRefusal(body[at+1], spans)
+			at++
+		} else if !strings.HasSuffix(runeSlice(line, spans[1][0], spans[1][1]), " ") {
+			// A check cell exactly wider than its own column eats the gutter
+			// beside it, and the slice above then cuts the sentence a
+			// character short and reads the cut-off tail as part of the next
+			// column. The two are read apart by the last run of spaces on the
+			// line instead, which is where the renderer put the boundary
+			// whatever the rule says. dinah-496 met this on the set page,
+			// whose check column narrowed by four when a twenty-three
+			// character refusal name joined the list and whose widest
+			// sentence is one wider than what was left.
 			whole := strings.TrimRight(line, " ")
-			at := strings.LastIndex(whole, " ")
-			if at >= 0 {
-				fields[1] = strings.TrimSpace(runeSlice(whole, spans[1][0], len([]rune(whole[:at]))))
-				fields[2] = strings.TrimSpace(whole[at+1:])
+			cut := strings.LastIndex(whole, " ")
+			if cut >= 0 {
+				fields[1] = strings.TrimSpace(runeSlice(whole, spans[1][0], len([]rune(whole[:cut]))))
+				fields[2] = strings.TrimSpace(whole[cut+1:])
 			}
 		}
 		order, err := strconv.Atoi(fields[0])
@@ -744,6 +769,25 @@ func parseRefusalTable(t *testing.T, page string) []refusalRow {
 		rows = append(rows, refusalRow{order: order, check: fields[1], refusal: fields[2]})
 	}
 	return rows
+}
+
+// wrappedRefusal answers the refusal name a continuation line carries, and the
+// empty string for any other line. A continuation line is blank in the order
+// and check columns and carries one word in the refusal column, which is how
+// the renderer finishes a row whose check sentence was too wide to share its
+// line with the name.
+func wrappedRefusal(line string, spans [][2]int) string {
+	if strings.TrimSpace(runeSlice(line, spans[0][0], spans[0][1])) != "" {
+		return ""
+	}
+	if strings.TrimSpace(runeSlice(line, spans[1][0], spans[1][1])) != "" {
+		return ""
+	}
+	name := strings.TrimSpace(runeSlice(line, spans[2][0], len([]rune(line))))
+	if name == "" || strings.Contains(name, " ") {
+		return ""
+	}
+	return name
 }
 
 // columnSpans reads a table's rule line into one half-open span per column.

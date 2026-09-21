@@ -198,7 +198,7 @@ type AxisDisposition struct {
 // or renamed there fails the build here rather than becoming silently
 // ungroupable.
 //
-// Nine of the twelve group. at, severity and priority are refused: an instant
+// Ten of the thirteen group. at, severity and priority are refused: an instant
 // is a different value on every act and no bucket granularity has been
 // chosen, and severity/priority stay out of tree grouping as their own scope
 // decision (dinah-195), independent of the query's own vocabulary.
@@ -210,6 +210,12 @@ var AxisDispositions = []AxisDisposition{
 	{Field: FieldHolder, Enumeration: EnumerationOpen, Disposition: DispositionAxis},
 	{Field: FieldBlockKind, Enumeration: EnumerationOpen, Disposition: DispositionAxis},
 	{Field: FieldWorkstream, Enumeration: EnumerationOpen, Disposition: DispositionAxis},
+	// Open rather than closed on the ground workstream beside it is open: the
+	// set is workbench-declared, and a card may still carry a value nobody
+	// declares. A card carrying no route falls in the group an open axis
+	// already draws for a card carrying no value, which is what block_kind
+	// draws today, so nothing is invented for it.
+	{Field: FieldRoute, Enumeration: EnumerationOpen, Disposition: DispositionAxis},
 	{Field: FieldActor, Enumeration: EnumerationOpen, Disposition: DispositionAxis},
 	{Field: FieldEvent, Enumeration: EnumerationOpen, Disposition: DispositionAxis},
 	{Field: FieldEntered, Enumeration: EnumerationOpen, Disposition: DispositionAxis},

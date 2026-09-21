@@ -195,8 +195,8 @@ func TestHindiCommandHelpStartsEveryRefusalNameAtOneColumn(t *testing.T) {
 	order := displayWidth(hindi.T("column.help.order"))
 	check := displayWidth(hindi.T("column.help.check"))
 	checks := verb.Checks("add")
-	if len(checks) != 6 {
-		t.Fatalf("add declares %d checks, and this test is written for the six it carries", len(checks))
+	if len(checks) != 9 {
+		t.Fatalf("add declares %d checks, and this test is written for the nine it carries", len(checks))
 	}
 	for i, one := range checks {
 		if drawn := displayWidth(strconv.Itoa(i + 1)); drawn > order {
@@ -207,10 +207,29 @@ func TestHindiCommandHelpStartsEveryRefusalNameAtOneColumn(t *testing.T) {
 		}
 	}
 	want := 2 + order + 2 + check + 2
+	// The refusal column is capped once its widest name is long enough that
+	// the widest check sentence would push the table past the window. That
+	// happened with dinah-542, whose thirty-two character
+	// dinah.route-skips-operator-column is add's ninth row: the check column
+	// narrows, the long Hindi sentences wrap, and each wrapped row draws its
+	// name alone on the line below. The column every name must start at is
+	// then the one the refusal heading starts at, which the renderer lays out
+	// with the same measure as the rows, and the property this test exists
+	// for, that every name starts at one display column, is asserted against
+	// it.
+	heading := hindi.T("column.help.refusal")
+	for _, line := range strings.Split(got.out, "\n") {
+		if strings.HasSuffix(strings.TrimRight(line, " "), heading) {
+			if at := startColumnOf(line, heading); at >= 0 && at < want {
+				want = at
+			}
+		}
+	}
 	names := []string{
 		contract.MalformedHarness,
 		contract.Malformed, contract.UnknownColumn, contract.AtCapacity,
 		contract.NoLevels, contract.UnknownLevel,
+		contract.UnknownRoute, contract.RouteOffColumn, contract.RouteSkipsOperatorColumn,
 	}
 	// A row's name is read as its last field rather than searched for inside
 	// the line. dinah.malformed-harness carries malformed as a substring, so a
