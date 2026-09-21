@@ -7113,7 +7113,7 @@ func TestEveryPageSaysWhatEachArgumentIs(t *testing.T) {
 		{command: "init", carries: []string{
 			"init [dir] [--from <source>]",
 			"[dir]", "the directory you are in when you name none",
-			"a directory holding a workbench, or a single file written by `dinah export` or `dinah extract`",
+			"a directory holding a workbench, a single file written by `dinah export` or `dinah extract`, or the name of a template Dinah ships, such as `pipeline`; a bare name resolves to the shipped template first, so `./pipeline` reaches a directory of that name instead",
 		}},
 		{command: "claim", carries: []string{
 			"[--expires <duration>]", "written as a number and a unit: 30m, 2h, 7d",

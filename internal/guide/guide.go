@@ -35,6 +35,7 @@ var reading = []string{
 	"query",
 	"workbench-layout",
 	"mcp",
+	"pipeline",
 }
 
 // Topics lists the embedded guides by topic, in the order Dinah recommends

@@ -3226,9 +3226,9 @@
       "source": "1328685eec647b56"
     },
     "param.init.from.summary": {
-      "text": "वर्कबेंच रखने वाली एक निर्देशिका, या `dinah export` या `dinah extract` से लिखी गई एक फ़ाइल",
+      "text": "वर्कबेंच रखने वाली एक निर्देशिका, `dinah export` या `dinah extract` से लिखी गई एक फ़ाइल, या Dinah के साथ आने वाले किसी टेम्पलेट का नाम, जैसे `pipeline`; कोई सादा नाम पहले शामिल टेम्पलेट से हल होता है, उसी नाम की निर्देशिका तक पहुँचने के लिए इसके बजाय `./pipeline` लिखें",
       "context": "The meaning of the from argument of `dinah init`, printed in that command's arguments table.",
-      "source": "a63072636c4c6fae"
+      "source": "ca986d0ef1d6fb72"
     },
     "param.init.here.summary": {
       "text": "लक्ष्य निर्देशिका पहले से मौजूद हो और पहले से कुछ रखती हो, तब भी वहाँ वर्कबेंच लिखें",
