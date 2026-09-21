@@ -65,9 +65,10 @@ READ
   show <ref> [--fields <list>]              The detail of an entity of this
     [--archived] [--since <ordinal>]          workbench
     [--unresolved]
-  changes [--since <cursor>]                What has happened on this workbench
-    [--card <ref>] [--column <column>]        since a cursor
-    [--root <path>] [--max-depth <n>]
+  changes [--since <cursor>] [--wait]       What has happened on this workbench
+    [--timeout <duration>] [--card <ref>]     since a cursor
+    [--column <column>] [--root <path>]
+    [--max-depth <n>]
   instructions <card|column>                The instructions served at a
                                               position
   guide [topic]                             The embedded guides, or one of them

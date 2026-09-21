@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"dinah/internal/bench"
 	"dinah/internal/contract"
@@ -214,6 +215,239 @@ func mintedCursor(t *testing.T, root string) string {
 		t.Fatal("the machine form carried no cursor")
 	}
 	return minted.Cursor
+}
+
+// TestAWaitingCallExitsZeroAtItsTimeout covers dinah-546/criteria/2: against
+// a bench nothing touches during the call, --wait --timeout 200ms returns at
+// or shortly after 200ms with Changed false and the cursor handed back
+// byte-identical, exit 0. The 200ms timeout, well under waitPollInterval
+// (500ms, internal/verb/changes.go), also exercises the deadline cap
+// (changes.go's waitForChange): without it the wait would not answer until
+// the first 500ms sleep completed, well past 200ms.
+//
+// Hard test deadline: the call is synchronous and its own worst case is
+// bounded below by checking elapsed against a generous overshoot budget,
+// rather than by a select/time.After, since nothing here can hang the test
+// runner longer than the process itself would hang.
+func TestAWaitingCallExitsZeroAtItsTimeout(t *testing.T) {
+	root := newBench(t)
+	if got := runCLI(t, root, "add", "A card"); got.code != 0 {
+		t.Fatalf("add: %d %s", got.code, got.errw)
+	}
+	cursor := mintedCursor(t, root)
+
+	started := time.Now()
+	got := runCLI(t, root, "--json", "changes", "--since", cursor, "--wait", "--timeout", "200ms")
+	elapsed := time.Since(started)
+	if got.code != 0 {
+		t.Fatalf("changes --wait --timeout 200ms: %d %s", got.code, got.errw)
+	}
+	if elapsed < 200*time.Millisecond {
+		t.Errorf("returned after %s, before its own 200ms timeout", elapsed)
+	}
+	const overshootBudget = 400 * time.Millisecond
+	if elapsed > 200*time.Millisecond+overshootBudget {
+		t.Errorf("returned after %s, more than %s past its own 200ms timeout: the deadline cap did not hold", elapsed, overshootBudget)
+	}
+	var set struct {
+		Cursor  string `json:"cursor"`
+		Changed bool   `json:"changed"`
+	}
+	if err := json.Unmarshal([]byte(got.out), &set); err != nil {
+		t.Fatalf("decode the answer: %v\n%s", err, got.out)
+	}
+	if set.Changed {
+		t.Error("the wait reported a change nothing made")
+	}
+	if set.Cursor != cursor {
+		t.Errorf("the cursor came back rewritten:\nwanted %q\ngot    %q", cursor, set.Cursor)
+	}
+}
+
+// TestAWaitingCallExitsUnreachableWhenTheWorkbenchDisappears covers
+// dinah-546/criteria/4's exit-code half: the workbench directory disappears
+// while a --wait call is blocked on it, and the answer that reaches a
+// terminal is exit 4 (contract.OutcomeUnreachable) with that outcome leading
+// stderr, which is main.go's reportError (517-522) mapping a plain,
+// non-refusal error the way it already maps one for every other command.
+// The library-level half, that Library.Changes itself propagates such an
+// error promptly rather than hanging or retrying, is
+// TestAWaitingCallReturnsUnreachableWhenTheWorkbenchDisappears in
+// internal/verb/changes_wait_test.go.
+//
+// The wait still reaches the head through runCLI, per
+// TestOnlyRunCLIDrivesTheHead, which every test in this package answers to.
+// What keeps this test safe to run concurrently with the rename below is
+// where its process cwd sits: runCLI chdirs into the directory it is given
+// for the call's duration, so the call below is pointed at an unrelated,
+// untouched directory and reaches the bench through --workbench instead. The
+// directory that disappears mid-call is therefore never the process's own
+// working directory, which is the one Windows will not let a rename or a
+// delete touch.
+//
+// Hard test deadline: 6s, via the select's time.After.
+func TestAWaitingCallExitsUnreachableWhenTheWorkbenchDisappears(t *testing.T) {
+	root := newBench(t)
+	if got := runCLI(t, root, "add", "A card"); got.code != 0 {
+		t.Fatalf("add: %d %s", got.code, got.errw)
+	}
+	cursor := mintedCursor(t, root)
+	dir := soleBenchDir(t, root)
+	elsewhere := t.TempDir()
+
+	done := make(chan invocation, 1)
+	go func() {
+		done <- runCLI(t, elsewhere, "--workbench", dir, "changes", "--since", cursor, "--wait", "--timeout", "5s")
+	}()
+
+	// Give the head's own goroutine time to open the workbench, run its
+	// first checkpoint and enter its sleep before the directory goes away.
+	time.Sleep(150 * time.Millisecond)
+	renamedTo := dir + "-renamed-out-from-under-the-wait"
+	if err := os.Rename(dir, renamedTo); err != nil {
+		t.Fatalf("rename the workbench directory out from under the wait: %v", err)
+	}
+	t.Cleanup(func() { os.RemoveAll(renamedTo) })
+
+	select {
+	case got := <-done:
+		if got.code != contract.ExitCode(contract.OutcomeUnreachable) {
+			t.Fatalf("wanted exit %d, got %d\n%s", contract.ExitCode(contract.OutcomeUnreachable), got.code, got.errw)
+		}
+		if !strings.HasPrefix(got.errw, contract.OutcomeUnreachable+" ") {
+			t.Errorf("wanted %s to lead stderr, got %q", contract.OutcomeUnreachable, got.errw)
+		}
+	case <-time.After(6 * time.Second):
+		t.Fatal("the wait never returned after its own workbench disappeared; hard test deadline hit")
+	}
+}
+
+// absentWorkbench names a directory that does not exist, for the grammar
+// refusal tests below: a refusal that fires ahead of any bench walk answers
+// Malformed against this path exactly as it would against a real one, and a
+// grammar check that ran after opening the workbench would instead fail on a
+// workbench resolution error, which is how these tests tell the two apart
+// without reading any internal counter.
+func absentWorkbench(t *testing.T) string {
+	t.Helper()
+	return filepath.Join(t.TempDir(), "does-not-exist")
+}
+
+// TestWaitWithSinceEmptyIsRefusedBeforeAnyWalk covers dinah-546/criteria/8:
+// --wait given with --since empty is refused, Malformed, exit 2, and reaches
+// no Library, proven by naming a workbench that does not exist and still
+// getting Malformed rather than a workbench-resolution failure.
+func TestWaitWithSinceEmptyIsRefusedBeforeAnyWalk(t *testing.T) {
+	got := runCLI(t, t.TempDir(), "--workbench", absentWorkbench(t), "changes", "--wait")
+	if got.code != contract.ExitCode(contract.OutcomeRefused) {
+		t.Fatalf("wanted the refused exit code, got %d\n%s%s", got.code, got.out, got.errw)
+	}
+	if !strings.HasPrefix(got.errw, contract.Malformed+" ") {
+		t.Errorf("wanted %s to lead stderr, got %q", contract.Malformed, got.errw)
+	}
+	if !strings.Contains(got.errw, "--wait") {
+		t.Errorf("the refusal does not name --wait: %q", got.errw)
+	}
+
+	// Control: the same call with a cursor named reaches a real workbench and
+	// answers ok, which is what shows the refusal above came from the empty
+	// --since rather than from something else about the invocation.
+	root := newBench(t)
+	cursor := mintedCursor(t, root)
+	control := runCLI(t, root, "changes", "--since", cursor, "--wait", "--timeout", "1ms")
+	if control.code != 0 {
+		t.Fatalf("the control call with --since named was refused too, so the assertion above proves nothing: %d %s", control.code, control.errw)
+	}
+}
+
+// TestTimeoutWithoutWaitIsRefusedIndependentOfItsValue covers
+// dinah-546/criteria/9: --timeout given without --wait is refused,
+// Malformed, exit 2, whatever value it carries, including one ParseDuration
+// itself would reject; the case matters because it proves the refusal fires
+// on the missing --wait rather than on an attempt to parse the value.
+func TestTimeoutWithoutWaitIsRefusedIndependentOfItsValue(t *testing.T) {
+	structurallyValidCursor := mintedCursor(t, newBench(t))
+	for _, value := range []string{"1s", "notaduration"} {
+		got := runCLI(t, t.TempDir(), "--workbench", absentWorkbench(t), "changes", "--since", structurallyValidCursor, "--timeout", value)
+		if got.code != contract.ExitCode(contract.OutcomeRefused) {
+			t.Fatalf("--timeout %s: wanted the refused exit code, got %d\n%s%s", value, got.code, got.out, got.errw)
+		}
+		if !strings.HasPrefix(got.errw, contract.Malformed+" ") {
+			t.Errorf("--timeout %s: wanted %s to lead stderr, got %q", value, contract.Malformed, got.errw)
+		}
+		if !strings.Contains(got.errw, "--timeout") {
+			t.Errorf("--timeout %s: the refusal does not name --timeout: %q", value, got.errw)
+		}
+	}
+
+	// Control: the same flag with --wait added reaches a real workbench and
+	// answers ok.
+	root := newBench(t)
+	cursor := mintedCursor(t, root)
+	control := runCLI(t, root, "changes", "--since", cursor, "--wait", "--timeout", "1ms")
+	if control.code != 0 {
+		t.Fatalf("the control call with --wait added was refused too, so the assertion above proves nothing: %d %s", control.code, control.errw)
+	}
+}
+
+// TestTimeoutValueFailingParseDurationIsRefused covers dinah-546/criteria/10:
+// --timeout notaduration, given together with --wait, is refused Malformed
+// exit 2, reusing ParseDuration's own error the same way --expires
+// notaduration does on claim.
+func TestTimeoutValueFailingParseDurationIsRefused(t *testing.T) {
+	structurallyValidCursor := mintedCursor(t, newBench(t))
+	got := runCLI(t, t.TempDir(), "--workbench", absentWorkbench(t), "changes", "--since", structurallyValidCursor, "--wait", "--timeout", "notaduration")
+	if got.code != contract.ExitCode(contract.OutcomeRefused) {
+		t.Fatalf("wanted the refused exit code, got %d\n%s%s", got.code, got.out, got.errw)
+	}
+	if !strings.HasPrefix(got.errw, contract.Malformed+" ") {
+		t.Errorf("wanted %s to lead stderr, got %q", contract.Malformed, got.errw)
+	}
+	if !strings.Contains(got.errw, "notaduration") {
+		t.Errorf("the refusal does not carry the bad value, unlike --expires notaduration on claim: %q", got.errw)
+	}
+
+	// Control: a value ParseDuration accepts reaches a real workbench and
+	// answers ok.
+	root := newBench(t)
+	cursor := mintedCursor(t, root)
+	control := runCLI(t, root, "changes", "--since", cursor, "--wait", "--timeout", "1ms")
+	if control.code != 0 {
+		t.Fatalf("the control call with a parseable value was refused too, so the assertion above proves nothing: %d %s", control.code, control.errw)
+	}
+}
+
+// TestWaitWithRootIsRefusedAndReachesNoLibrary covers dinah-546/criteria/11:
+// --wait given with --root is refused, Malformed, exit 2, and reaches no
+// Library, proven the same way TestWaitWithSinceEmptyIsRefusedBeforeAnyWalk
+// proves it: a root that does not exist still answers Malformed rather than
+// an unknown-root failure, because the refusal fires before rootWalkFor runs.
+func TestWaitWithRootIsRefusedAndReachesNoLibrary(t *testing.T) {
+	structurallyValidCursor := mintedCursor(t, newBench(t))
+	got := runCLI(t, t.TempDir(), "changes", "--since", structurallyValidCursor, "--wait", "--root", absentWorkbench(t))
+	if got.code != contract.ExitCode(contract.OutcomeRefused) {
+		t.Fatalf("wanted the refused exit code, got %d\n%s%s", got.code, got.out, got.errw)
+	}
+	if !strings.HasPrefix(got.errw, contract.Malformed+" ") {
+		t.Errorf("wanted %s to lead stderr, got %q", contract.Malformed, got.errw)
+	}
+	if !strings.Contains(got.errw, "--root") || !strings.Contains(got.errw, "--wait") {
+		t.Errorf("the refusal does not name both --wait and --root: %q", got.errw)
+	}
+
+	// Control: --root without --wait against the same absent path is refused
+	// too, but as dinah.unknown-root rather than as malformed: --root names a
+	// path the filesystem does not carry a directory at, independent of
+	// --wait. That distinct name is what shows the case above is refused for
+	// naming --wait together with --root, and not merely for naming a root
+	// that does not resolve.
+	control := runCLI(t, t.TempDir(), "changes", "--root", absentWorkbench(t))
+	if strings.HasPrefix(control.errw, contract.Malformed+" ") {
+		t.Fatalf("--root alone against an absent path also answered malformed, so the assertion above proves nothing: %d %s", control.code, control.errw)
+	}
+	if !strings.Contains(control.errw, "unknown-root") {
+		t.Errorf("wanted the control refused as unknown-root, got: %d %s", control.code, control.errw)
+	}
 }
 
 // writeAnchorlessCard builds a card directory carrying a history and no

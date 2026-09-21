@@ -74,7 +74,8 @@ READ
     [--root <path>] [--max-depth <n>]
   show <ref> [--fields <list>] [--archived]              The detail of an entity of this workbench
     [--since <ordinal>] [--unresolved]
-  changes [--since <cursor>] [--card <ref>]              What has happened on this workbench since a cursor
+  changes [--since <cursor>] [--wait]                    What has happened on this workbench since a cursor
+    [--timeout <duration>] [--card <ref>]
     [--column <column>] [--root <path>] [--max-depth <n>]
   instructions <card|column>                             The instructions served at a position
   guide [topic]                                          The embedded guides, or one of them
@@ -172,7 +173,8 @@ READ
   search <phrase> [--query <terms>] [--archived] [--root <path>] [--max-depth <n>]                      Every place a phrase occurs in this workbench
   tree [query] [--group-by <axes>] [--depth <level>] [--root <path>] [--max-depth <n>]                  The workbench's cards nested along a chain of axes
   show <ref> [--fields <list>] [--archived] [--since <ordinal>] [--unresolved]                          The detail of an entity of this workbench
-  changes [--since <cursor>] [--card <ref>] [--column <column>] [--root <path>] [--max-depth <n>]       What has happened on this workbench since a cursor
+  changes [--since <cursor>] [--wait] [--timeout <duration>] [--card <ref>] [--column <column>]         What has happened on this workbench since a cursor
+    [--root <path>] [--max-depth <n>]
   instructions <card|column>                                                                            The instructions served at a position
   guide [topic]                                                                                         The embedded guides, or one of them
 
