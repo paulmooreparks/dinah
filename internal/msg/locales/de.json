@@ -2952,6 +2952,11 @@
       "context": "The detail line beside one column candidate in a completion list. {slug} is the column's own handle and {position} is its one-based place in the flow.",
       "source": "29777175cff73d51"
     },
+    "lsp.completion.route.detail": {
+      "text": "Route, die {columns} Spalten des Ablaufs führt",
+      "context": "The detail line beside one route candidate in a completion list. {columns} is how many live columns that route carries, which is the one fact that says how short the road is without opening the block.",
+      "source": "3f5c9f110013d631"
+    },
     "lsp.completion.workstream.detail": {
       "text": "Arbeitsstrang {slug}",
       "context": "The detail line beside one workstream candidate in a completion list. {slug} is the workstream's own handle.",
@@ -3126,6 +3131,11 @@
       "text": "mit welcher Prioritätsstufe die Karte angelegt wird, aus den Stufen, die diese Werkbank deklariert",
       "context": "The meaning of the priority argument of `dinah add`, printed in that command's arguments table.",
       "source": "34b0957fa9817136"
+    },
+    "param.add.route.summary": {
+      "text": "auf welcher Route die Karte angelegt wird, aus den Routen, die diese Werkbank deklariert; die vollständige Spaltenliste, wenn Sie keine nennen",
+      "context": "The meaning of the route argument of `dinah add`, printed in that command's arguments table.",
+      "source": "8638be023333b034"
     },
     "param.add.severity.summary": {
       "text": "mit welcher Schweregrad-Stufe die Karte angelegt wird, aus den Stufen, die diese Werkbank deklariert",

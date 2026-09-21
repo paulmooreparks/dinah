@@ -1344,10 +1344,23 @@ var Shapes = []Shape{
 		// reason UnknownLevel gives for its own: the roster is read off the
 		// workbench the write landed on, and a Listing name resolves from the
 		// session alone.
-		Name:      UnknownRoute,
-		Values:    []string{"routes"},
-		Fragments: []Fragment{{Key: "refusal.dinah.unknown-route.next"}},
-		NextStep:  []string{"refusal.dinah.unknown-route.next"},
+		//
+		// Both entries that print it are switched on by it, because a
+		// workbench declaring no route at all reaches this refusal and has no
+		// set to list. That case gets a next step of its own, since there is
+		// no name to offer the reader instead and the repair is to declare a
+		// route rather than to correct one.
+		Name:   UnknownRoute,
+		Values: []string{"routes"},
+		Fragments: []Fragment{
+			{Key: "refusal.dinah.unknown-route.declared", When: "routes"},
+			{Key: "refusal.dinah.unknown-route.next", When: "routes"},
+			{Key: "refusal.dinah.unknown-route.none"},
+		},
+		NextStep: []string{
+			"refusal.dinah.unknown-route.next",
+			"refusal.dinah.unknown-route.none",
+		},
 	},
 	{
 		// The detail names the route, and the item and the column it names

@@ -2941,6 +2941,11 @@
       "context": "The detail line beside one column candidate in a completion list. {slug} is the column's own handle and {position} is its one-based place in the flow.",
       "source": "29777175cff73d51"
     },
+    "lsp.completion.route.detail": {
+      "text": "मार्ग जो प्रवाह के {columns} कॉलम रखता है",
+      "context": "The detail line beside one route candidate in a completion list. {columns} is how many live columns that route carries, which is the one fact that says how short the road is without opening the block.",
+      "source": "3f5c9f110013d631"
+    },
     "lsp.completion.workstream.detail": {
       "text": "कार्यधारा {slug}",
       "context": "The detail line beside one workstream candidate in a completion list. {slug} is the workstream's own handle.",
@@ -3114,6 +3119,11 @@
       "text": "कार्ड किस प्राथमिकता स्तर के साथ दर्ज करना है, उन स्तरों में से जो यह वर्कबेंच घोषित करती है",
       "context": "The meaning of the priority argument of `dinah add`, printed in that command's arguments table.",
       "source": "34b0957fa9817136"
+    },
+    "param.add.route.summary": {
+      "text": "कार्ड किस मार्ग पर दर्ज करना है, उन मार्गों में से जो यह वर्कबेंच घोषित करती है; यदि आप कोई नहीं बताते तो पूरी कॉलम सूची",
+      "context": "The meaning of the route argument of `dinah add`, printed in that command's arguments table.",
+      "source": "8638be023333b034"
     },
     "param.add.severity.summary": {
       "text": "कार्ड किस गंभीरता स्तर के साथ दर्ज करना है, उन स्तरों में से जो यह वर्कबेंच घोषित करती है",

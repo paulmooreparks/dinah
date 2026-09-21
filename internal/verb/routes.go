@@ -29,8 +29,14 @@ func (l *Library) admitRouteWrite(req *Request, entity *bench.EntityRef, route s
 		return l.FromError(req, err)
 	}
 	if item != nil {
+		// The item is named by the reference a person types to reach it,
+		// which is what the next step's command needs to resolve.
+		ref, err := l.itemCanonicalRef(card, item.ID)
+		if err != nil {
+			return l.FromError(req, err)
+		}
 		return l.refuseWith(req, card, contract.RouteStrandsItem, route, map[string]string{
-			"item":   l.itemRef(card, item),
+			"item":   ref,
 			"column": column.Ref(),
 		})
 	}
@@ -60,12 +66,6 @@ func (l *Library) admitItemColumnRoute(req *Request, entity *bench.EntityRef, va
 	return l.refuseWith(req, entity.Card, contract.ItemOffRoute, named.Ref(), map[string]string{
 		"route": entity.Card.Route,
 	})
-}
-
-// itemRef composes the reference a refusal names one of a card's items by, so
-// the sentence prints what a reader types to reach it.
-func (l *Library) itemRef(card *bench.Card, item *bench.Item) string {
-	return card.Ref(l.Bench.Slug) + "/" + bench.ChecklistDir + "/" + item.ID
 }
 
 // RouteView is one declared route as a listing reports it: the name, how many

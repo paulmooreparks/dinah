@@ -2934,6 +2934,11 @@
       "context": "The detail line beside one column candidate in a completion list. {slug} is the column's own handle and {position} is its one-based place in the flow.",
       "skeleton": true
     },
+    "lsp.completion.route.detail": {
+      "text": "route carrying {columns} columns of the flow",
+      "context": "The detail line beside one route candidate in a completion list. {columns} is how many live columns that route carries, which is the one fact that says how short the road is without opening the block.",
+      "skeleton": true
+    },
     "lsp.completion.workstream.detail": {
       "text": "workstream {slug}",
       "context": "The detail line beside one workstream candidate in a completion list. {slug} is the workstream's own handle.",
@@ -3102,6 +3107,11 @@
     "param.add.priority.summary": {
       "text": "which priority level to file the card with, from the levels this workbench declares",
       "context": "The meaning of the priority argument of `dinah add`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.add.route.summary": {
+      "text": "which route to file the card on, from the routes this workbench declares; the full column list when you name none",
+      "context": "The meaning of the route argument of `dinah add`, printed in that command's arguments table.",
       "skeleton": true
     },
     "param.add.severity.summary": {

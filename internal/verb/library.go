@@ -779,13 +779,10 @@ func (l *Library) legalMoves(card *bench.Card) []LegalMove {
 		return nil
 	}
 	target := l.Bench.RejectTarget(current)
-	// A card at a terminal column has no forward move at all, so it has no
-	// route-forward move either, and asking for one would offer a row the
-	// loop below is about to drop.
-	var onRoute *bench.Column
-	if !current.Terminal() {
-		onRoute = bench.RouteForwardOf(l.Bench.RouteOf(card), current)
-	}
+	// A card at a terminal column is offered no forward row at all, which the
+	// loop below already drops, so a route-forward column there has no row to
+	// mark and needs no guard of its own.
+	onRoute := bench.RouteForwardOf(l.Bench.RouteOf(card), current)
 	var moves []LegalMove
 	for _, column := range l.Bench.Columns {
 		if column.ID == current.ID {

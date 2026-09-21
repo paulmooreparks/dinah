@@ -137,13 +137,18 @@ func (b *Bench) DeclaredRouteOf(card *Card) []*Column {
 // Taking the order from the list rather than from the Position field is what
 // lets the comparison run over a synthesized flow without every caller having
 // to keep a cloned Position honest.
+//
+// The answer is never nil, so a declared route that resolves to no live column
+// reads as the empty road it is rather than as a card naming no route at all.
+// Such a card has no forward move and no pull destination, which is what
+// check.route-empty exists to tell somebody about.
 func RouteColumnsIn(ids []string, columns []*Column) []*Column {
 	at := make(map[string]int, len(columns))
 	for i, column := range columns {
 		at[column.ID] = i
 	}
 	seen := make(map[string]bool, len(ids))
-	var carried []*Column
+	carried := []*Column{}
 	for _, id := range ids {
 		index, live := at[id]
 		if !live || seen[id] {
