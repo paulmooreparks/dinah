@@ -1,4 +1,4 @@
-// The two commands a comment row contributes: Open Comment, which opens the
+// A comment row contributes two commands: Open Comment, which opens the
 // comment's own anchor file, and Delete Comment, which runs `dinah delete` on
 // the comment after the reader confirms it.
 //

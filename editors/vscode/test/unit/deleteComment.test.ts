@@ -14,7 +14,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 
 import type { CommandHost } from "../../src/cardCommands";
-import type { SpawnOutcome, Spawner } from "../../src/cli";
+import type { SpawnOptions, SpawnOutcome, Spawner } from "../../src/cli";
 import { ROW_COMMAND_TABLE } from "../../src/commandTable";
 import {
 	COMMAND_DELETE_COMMENT,
@@ -37,8 +37,28 @@ import {
 } from "../support/rows";
 
 const NOT_DESIGNATABLE = "dinah.not-designatable";
-const ITEM = "tr-1/questions/1";
+
+/** The comment row's own reference, in the form the tree draws it. */
 const ANSWER = "tr-1/questions/1/comments/1";
+
+/**
+ * The same comment as the refusal's detail names it.
+ *
+ * The real binary answered a row reached as wb-1/questions/1/comments/1 with
+ * the detail wb-1/checklist/1/comments/1, the canonical checklist form, so the
+ * fixture says what the tool says rather than echoing the row.
+ */
+const ANSWER_DETAIL = "tr-1/checklist/1/comments/1";
+
+/**
+ * The item the refusal names in context.item.
+ *
+ * Deliberately not derivable from ANSWER: its kind and ordinal both differ
+ * from the row's, so code that composed the item by cutting /comments/<n> off
+ * the row's reference would name tr-1/questions/1 and fail every assertion on
+ * the second prompt. Only reading context.item names this one.
+ */
+const ITEM = "tr-1/criteria/4";
 
 /** The argv every verb reaches dinah as, once --json and the pin are in front. */
 function pinned(...args: string[]): string[] {
@@ -51,13 +71,13 @@ function pinned(...args: string[]): string[] {
  * context member is left out when item is undefined, which is the case the
  * second confirmation must not be raised for.
  */
-function notDesignatable(ref: string, item: string | undefined): SpawnOutcome {
+function notDesignatable(item: string | undefined): SpawnOutcome {
 	return {
 		code: 2,
 		stdout: JSON.stringify({
 			outcome: "refused",
 			refusal: NOT_DESIGNATABLE,
-			detail: ref,
+			detail: ANSWER_DETAIL,
 			...(item === undefined ? {} : { context: { item } }),
 		}),
 		stderr: "",
@@ -65,14 +85,14 @@ function notDesignatable(ref: string, item: string | undefined): SpawnOutcome {
 }
 
 /** The message that refusal shows, as refusalMessage composes it. */
-function notDesignatableMessage(ref: string): string {
-	return `${NOT_DESIGNATABLE}: ${ref}`;
-}
+const NOT_DESIGNATABLE_MESSAGE = `${NOT_DESIGNATABLE}: ${ANSWER_DETAIL}`;
 
 interface Run {
 	/** Every host call and every spawn, in the order they happened. */
 	readonly timeline: string[];
 	readonly calls: string[][];
+	/** The options each spawn was handed, in the same order as calls. */
+	readonly options: SpawnOptions[];
 	readonly errors: string[];
 	readonly confirmations: { message: string; label: string }[];
 	readonly checkpoints: string[];
@@ -96,14 +116,16 @@ async function invoke(
 	assert.notEqual(entry, undefined, "no table entry carries Delete Comment");
 	const timeline: string[] = [];
 	const calls: string[][] = [];
+	const options: SpawnOptions[] = [];
 	const errors: string[] = [];
 	const confirmations: { message: string; label: string }[] = [];
 	const checkpoints: string[] = [];
 	const warnings: string[] = [];
 	const lines: string[] = [];
 	const scripted = [...answers];
-	const spawner: Spawner = async (_exe, argv) => {
+	const spawner: Spawner = async (_exe, argv, spawnOptions) => {
 		calls.push([...argv]);
+		options.push(spawnOptions);
 		timeline.push(`spawn ${argv.slice(3).join(" ")}`);
 		return answer(argv);
 	};
@@ -136,7 +158,20 @@ async function invoke(
 		...wiringFor(log, spawner),
 		cardHost: host,
 	});
-	return { timeline, calls, errors, confirmations, checkpoints, lines, warnings };
+	return { timeline, calls, options, errors, confirmations, checkpoints, lines, warnings };
+}
+
+/**
+ * Asserts the quiet first call is pinned as runVerb pins a call: the argv
+ * names the workbench and the process runs in the workbench's own root.
+ *
+ * This is the one call deleteCommentAt builds by hand rather than through
+ * runVerb, so nothing else holds its working directory. The row's folder
+ * (FOLDER) differs from its root (ROOT), so a call run in the folder fails.
+ */
+function assertFirstCallPinned(run: Run, ref: string): void {
+	assert.deepEqual(run.calls[0], pinned("delete", ref, "--yes"));
+	assert.equal(run.options[0]?.cwd, ROOT);
 }
 
 /** The second confirmation's message for the comment and item given. */
@@ -201,6 +236,7 @@ test("one confirmed comment is deleted with delete <ref> --yes and shows no erro
 	const ref = "tr-1/comments/3";
 	const run = await invoke([commentRow({ ref })], [true]);
 	assert.deepEqual(run.calls, [pinned("delete", ref, "--yes")]);
+	assertFirstCallPinned(run, ref);
 	assert.deepEqual(run.confirmations, [
 		{
 			message: ENGLISH("dialog.comment.delete.confirm", { ref }),
@@ -254,8 +290,9 @@ test("a row naming no comment is skipped with the NO_COMMENT reason", async () =
 
 test("an item's answer raises the second confirmation, with no error shown before it", async () => {
 	const run = await invoke([commentRow({ ref: ANSWER })], [true, false], (argv) =>
-		argv.includes("--force") ? ok() : notDesignatable(ANSWER, ITEM),
+		argv.includes("--force") ? ok() : notDesignatable(ITEM),
 	);
+	assertFirstCallPinned(run, ANSWER);
 	assert.equal(run.confirmations.length, 2);
 	assert.deepEqual(run.confirmations[1], {
 		message: designatedPrompt(ANSWER, ITEM),
@@ -272,7 +309,7 @@ test("an item's answer raises the second confirmation, with no error shown befor
 
 test("confirming the second confirmation forces the delete, and shows nothing when it succeeds", async () => {
 	const run = await invoke([commentRow({ ref: ANSWER })], [true, true], (argv) =>
-		argv.includes("--force") ? ok() : notDesignatable(ANSWER, ITEM),
+		argv.includes("--force") ? ok() : notDesignatable(ITEM),
 	);
 	assert.deepEqual(run.calls, [
 		pinned("delete", ANSWER, "--yes"),
@@ -287,7 +324,7 @@ test("a refused forced delete shows that refusal once and nothing about the firs
 	const run = await invoke([commentRow({ ref: ANSWER })], [true, true], (argv) =>
 		argv.includes("--force")
 			? { code: 2, stdout: JSON.stringify({ refusal: "not-operator", detail: ITEM }), stderr: "" }
-			: notDesignatable(ANSWER, ITEM),
+			: notDesignatable(ITEM),
 	);
 	assert.deepEqual(run.errors, [`not-operator: ${ITEM}`]);
 	assert.deepEqual(run.checkpoints, [FOLDER]);
@@ -295,27 +332,27 @@ test("a refused forced delete shows that refusal once and nothing about the firs
 
 test("declining the second confirmation spawns no forced delete, shows the refusal once and records the row as failed", async () => {
 	const run = await invoke([commentRow({ ref: ANSWER })], [true, false], () =>
-		notDesignatable(ANSWER, ITEM),
+		notDesignatable(ITEM),
 	);
 	assert.deepEqual(run.calls, [pinned("delete", ANSWER, "--yes")]);
-	assert.deepEqual(run.errors, [notDesignatableMessage(ANSWER)]);
+	assert.deepEqual(run.errors, [NOT_DESIGNATABLE_MESSAGE]);
 	assert.deepEqual(run.checkpoints, [FOLDER]);
 	// A single-row run shows no summary of its own, so the row's failure is
 	// read off the channel line runBulk writes for every row that did not
 	// finish.
 	assert.ok(
-		run.lines.some((line) => line.endsWith(`: ${notDesignatableMessage(ANSWER)}`)),
+		run.lines.some((line) => line.endsWith(`: ${NOT_DESIGNATABLE_MESSAGE}`)),
 		`the row was not recorded as failed: ${run.lines.join(" | ")}`,
 	);
 });
 
 test("a refusal carrying no item raises no second confirmation and shows the refusal once", async () => {
 	const run = await invoke([commentRow({ ref: ANSWER })], [true, true], () =>
-		notDesignatable(ANSWER, undefined),
+		notDesignatable(undefined),
 	);
 	assert.equal(run.confirmations.length, 1);
 	assert.deepEqual(run.calls, [pinned("delete", ANSWER, "--yes")]);
-	assert.deepEqual(run.errors, [notDesignatableMessage(ANSWER)]);
+	assert.deepEqual(run.errors, [NOT_DESIGNATABLE_MESSAGE]);
 	assert.deepEqual(run.checkpoints, [FOLDER]);
 });
 
@@ -326,7 +363,7 @@ test("in a run over several comments the second confirmation is raised for the o
 		[true, true],
 		(argv) =>
 			argv.includes(ANSWER) && !argv.includes("--force")
-				? notDesignatable(ANSWER, ITEM)
+				? notDesignatable(ITEM)
 				: ok(),
 	);
 	assert.deepEqual(
