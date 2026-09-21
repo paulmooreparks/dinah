@@ -217,6 +217,9 @@ func TestNoOwnerGuardsEveryMutatingVerb(t *testing.T) {
 		"reopen": func() (string, string) {
 			return fromResponse(h.library.Reopen(&Request{Verb: "reopen", Ref: decisionRef, Reason: "x"}))
 		},
+		"settle": func() (string, string) {
+			return fromResponse(h.library.Settle(&Request{Verb: "settle", Ref: decisionRef, State: bench.ItemResolved, Text: "x"}))
+		},
 		"cite": func() (string, string) {
 			return fromResponse(h.library.Cite(&Request{Verb: "cite", Ref: decisionRef, Scheme: "test", CiteTarget: "somewhere"}))
 		},
@@ -236,8 +239,8 @@ func TestNoOwnerGuardsEveryMutatingVerb(t *testing.T) {
 		},
 	}
 
-	if len(historyWriters) != 29 {
-		t.Fatalf("historyWriters carries %d names, wanted 29; this test's own driver table needs updating alongside it", len(historyWriters))
+	if len(historyWriters) != 30 {
+		t.Fatalf("historyWriters carries %d names, wanted 30; this test's own driver table needs updating alongside it", len(historyWriters))
 	}
 	driven := 0
 	for name := range historyWriters {

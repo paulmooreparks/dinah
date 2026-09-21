@@ -27,13 +27,16 @@ import (
 var commands []*command
 
 // commandExemptions names every library command this head deliberately does
-// not dispatch, with the reason it is absent. It is empty because the terminal
-// serves the whole verb table today, and it exists anyway so that a future
-// omission has somewhere to be argued for: the roster check requires every
+// not dispatch, with the reason it is absent. The roster check requires every
 // command to be either dispatched here or named here with a reason, and an
-// empty map is the strongest reading of that rule rather than the absence of
-// one.
-var commandExemptions = map[string]string{}
+// empty map used to be the strongest reading of that rule; settle is the
+// first command that earns an entry.
+var commandExemptions = map[string]string{
+	"settle": "an MCP-surface aggregation of resolve, verify, fail and " +
+		"reopen for a caller paying per-round-trip tool-definition cost; " +
+		"a person at a terminal types the specific verb they mean, and the " +
+		"CLI keeps all four",
+}
 
 func init() {
 	commands = []*command{
@@ -1762,6 +1765,11 @@ func runVersion(s *session, parsed *arguments) int {
 // already climb, so the precedence is the board's own rather than one mcp
 // invented.
 func runMCP(s *session, parsed *arguments) int {
+	profile, ok := resolveToolProfile(parsed.value("tools"))
+	if !ok {
+		s.errLine(contract.UnknownToolProfile + " " + parsed.value("tools"))
+		return contract.ExitCode(contract.OutcomeRefused)
+	}
 	root, _ := bench.Resolve(
 		bench.Layer{Source: bench.SourceFlag, Value: parsed.value("root")},
 		bench.Layer{Source: bench.SourceEnvironment, Value: os.Getenv("DINAH_MCP_ROOT")},
@@ -1796,7 +1804,7 @@ func runMCP(s *session, parsed *arguments) int {
 		return contract.ExitCode(contract.OutcomeRefused)
 	case openErr != nil:
 		libraries := map[string]*verb.Library{}
-		if err := mcp.Serve(s.mcpRoot, nil, libraries, s.in, s.out); err != nil {
+		if err := mcp.Serve(s.mcpRoot, nil, libraries, s.in, s.out, profile); err != nil {
 			return s.reportError(err)
 		}
 		return 0
@@ -1813,10 +1821,26 @@ func runMCP(s *session, parsed *arguments) int {
 		}
 	}
 	libraries := map[string]*verb.Library{}
-	if err := mcp.Serve(s.mcpRoot, library, libraries, s.in, s.out); err != nil {
+	if err := mcp.Serve(s.mcpRoot, library, libraries, s.in, s.out, profile); err != nil {
 		return s.reportError(err)
 	}
 	return 0
+}
+
+// resolveToolProfile resolves --tools to one of the three tool-surface
+// profiles this head serves, defaulting an empty value to mcp.ProfileAll so
+// a caller naming no flag sees exactly what it sees today. It reports false
+// for a non-empty value outside the closed set, which runMCP refuses ahead
+// of opening any workbench.
+func resolveToolProfile(named string) (string, bool) {
+	switch named {
+	case "":
+		return mcp.ProfileAll, true
+	case mcp.ProfileStation, mcp.ProfileOperator, mcp.ProfileAll:
+		return named, true
+	default:
+		return named, false
+	}
 }
 
 // runLSP serves one workbench to an editor over the Language Server Protocol

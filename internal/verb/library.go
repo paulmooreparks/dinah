@@ -151,6 +151,10 @@ type Request struct {
 	// the kind a column creation names.
 	Reason string
 	Kind   string
+	// State is the item state `settle` asks its target to land at, one of
+	// bench.ItemResolved, bench.ItemVerified, bench.ItemFailed or
+	// bench.ItemPending (the last meaning reopen). No other command reads it.
+	State string
 	// Capacity is the wip_limit a column creation names, as the caller wrote
 	// it, empty for unlimited. It is a string for the reason MaxDepth is:
 	// the verb that reads it parses it, so the request builder never has to

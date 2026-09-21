@@ -51,6 +51,11 @@ func TestTheStartupRefusalsMCPRaisesLeadWithTheirName(t *testing.T) {
 			argv: []string{"--workbench", workbench, "mcp", "--root", empty},
 			want: contract.OutsideRoot,
 		},
+		{
+			name: "a --tools value outside station, operator and all",
+			argv: []string{"mcp", "--tools", "bogus"},
+			want: contract.UnknownToolProfile,
+		},
 	}
 	for _, held := range cases {
 		t.Run(held.name, func(t *testing.T) {
@@ -217,4 +222,60 @@ func mcpToolPayload(t *testing.T, got invocation) map[string]any {
 		t.Fatalf("decode the payload %q: %v", envelope.Result.Content[0].Text, err)
 	}
 	return payload
+}
+
+// mcpServedToolCount starts `dinah mcp` with the given extra flags, sends one
+// tools/list request on its stdin, and returns how many tools the answer
+// named.
+func mcpServedToolCount(t *testing.T, dir string, extra ...string) int {
+	t.Helper()
+	argv := append([]string{"mcp"}, extra...)
+	got := runCLIWithInput(t, dir, strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/list"}`+"\n"), argv...)
+	if got.code != 0 {
+		t.Fatalf("mcp %v exited %d: %s", extra, got.code, got.errw)
+	}
+	var envelope struct {
+		Result struct {
+			Tools []struct {
+				Name string `json:"name"`
+			} `json:"tools"`
+		} `json:"result"`
+		Error *struct {
+			Message string `json:"message"`
+		} `json:"error"`
+	}
+	line := strings.TrimSpace(got.out)
+	if line == "" {
+		t.Fatalf("mcp %v answered nothing: stderr %q", extra, strings.TrimSpace(got.errw))
+	}
+	if err := json.Unmarshal([]byte(line), &envelope); err != nil {
+		t.Fatalf("decode %q: %v", line, err)
+	}
+	if envelope.Error != nil {
+		t.Fatalf("tools/list failed at the transport: %s", envelope.Error.Message)
+	}
+	return len(envelope.Result.Tools)
+}
+
+// TestMCPToolsFlagStartsAndServesTheNamedProfile is dinah-544's CLI-level
+// AC-4 companion: `dinah mcp --tools station` (and operator, and no flag at
+// all) starts and serves the expected count, reusing the accepting shape of
+// TestTheStartupRefusalsMCPRaisesLeadWithTheirName's table above for the
+// refusing case (--tools bogus).
+func TestMCPToolsFlagStartsAndServesTheNamedProfile(t *testing.T) {
+	container := newBench(t)
+	workbench := soleBenchDir(t, container)
+
+	if got := mcpServedToolCount(t, workbench, "--tools", "station"); got != 27 {
+		t.Errorf("mcp --tools station served %d tools, wanted 27", got)
+	}
+	if got := mcpServedToolCount(t, workbench, "--tools", "operator"); got != 40 {
+		t.Errorf("mcp --tools operator served %d tools, wanted 40", got)
+	}
+	if got := mcpServedToolCount(t, workbench); got != 44 {
+		t.Errorf("mcp with no --tools flag served %d tools, wanted 44", got)
+	}
+	if got := mcpServedToolCount(t, workbench, "--tools", "all"); got != 44 {
+		t.Errorf("mcp --tools all served %d tools, wanted 44", got)
+	}
 }

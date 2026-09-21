@@ -57,6 +57,18 @@ type tool struct {
 // repository, where a user setting is a machine artifact, and the operator
 // check guards the write here exactly as it does at a terminal, because the
 // library holds it.
+// The three tool-surface profiles a connection may be served under.
+// ProfileStation is what one agent working one card through one column
+// needs, ProfileOperator adds the workbench and column verbs beside it, and
+// ProfileAll, the default, serves the whole surface unfiltered. The set is
+// closed: a caller asking for a fourth name is refused before the server
+// opens any workbench.
+const (
+	ProfileStation  = "station"
+	ProfileOperator = "operator"
+	ProfileAll      = "all"
+)
+
 var tools = []tool{
 	{name: "claim", command: verb.Claim, run: doVerb},
 	{name: "move", command: verb.Move, run: doVerb},
@@ -75,6 +87,7 @@ var tools = []tool{
 	{name: "verify_item", command: "verify", run: func(l *verb.Library, r *verb.Request) any { return l.Verify(r) }},
 	{name: "fail_item", command: "fail", run: func(l *verb.Library, r *verb.Request) any { return l.Fail(r) }},
 	{name: "reopen_item", command: "reopen", run: func(l *verb.Library, r *verb.Request) any { return l.Reopen(r) }},
+	{name: "settle", command: "settle", run: func(l *verb.Library, r *verb.Request) any { return l.Settle(r) }},
 	{name: "link_card", command: "link", run: func(l *verb.Library, r *verb.Request) any { return l.Link(r) }},
 	{name: "unlink_card", command: "unlink", run: func(l *verb.Library, r *verb.Request) any { return l.Unlink(r) }},
 	{name: "archive", command: "archive", run: func(l *verb.Library, r *verb.Request) any { return l.Archive(r) }},
@@ -281,12 +294,87 @@ func indexTools() map[string]tool {
 	return index
 }
 
-// toolList renders the surface for tools/list, with each input schema
-// generated from the library's own parameter list.
-func toolList() []map[string]any {
-	catalog := msg.For(msg.Base)
-	list := make([]map[string]any, 0, len(tools))
+// stationMembers are the twenty-seven tools ProfileStation serves: what one
+// agent needs to work one card through one column, and nothing that reaches
+// past the card it is standing on.
+var stationMembers = []string{
+	"claim", "move", "release", "block", "comment", "attach",
+	"add_card", "file_item", "cite_item", "settle",
+	"link_card", "unlink_card", "join_workstream", "leave_workstream",
+	"get_field", "set_field", "raise",
+	"show", "list", "query", "search_cards", "tree", "changes",
+	"next_card", "pull", "instructions", "whoami",
+}
+
+// operatorOnlyMembers are the thirteen tools ProfileOperator adds beside
+// every station tool: the workbench and column verbs, plus the acts whose
+// blast radius is the whole board rather than one card.
+var operatorOnlyMembers = []string{
+	"unblock", "workbench", "workstream", "new_column",
+	"status", "version", "export", "check",
+	"archive", "restore", "delete", "rename", "accept_divergence",
+}
+
+// profileMembership names every tool one of the two narrowed profiles
+// serves. ProfileAll names no entry here and is handled as its own case in
+// toolsFor: every registered tool, unfiltered, which is what this head
+// serves today and what a caller naming no --tools flag, or naming all
+// explicitly, goes on seeing.
+var profileMembership = map[string][]string{
+	ProfileStation:  stationMembers,
+	ProfileOperator: append(append([]string{}, stationMembers...), operatorOnlyMembers...),
+}
+
+// init validates profileMembership the same way namedTools already validates
+// injectedProperties' consumer sets: a name naming no tool this head serves
+// panics at package init rather than silently narrowing a profile.
+func init() {
+	for profile, names := range profileMembership {
+		for _, name := range names {
+			if _, served := toolsByName[name]; !served {
+				panic("mcp: profile " + profile + " names " + name + ", which this head serves no tool for")
+			}
+		}
+	}
+}
+
+// toolsFor returns the tools one profile serves, in registry order.
+// ProfileAll (or any name profileMembership carries no entry for) returns
+// every tool.
+func toolsFor(profile string) []tool {
+	names, narrowed := profileMembership[profile]
+	if !narrowed {
+		return tools
+	}
+	set := map[string]bool{}
+	for _, name := range names {
+		set[name] = true
+	}
+	filtered := make([]tool, 0, len(names))
 	for _, t := range tools {
+		if set[t.name] {
+			filtered = append(filtered, t)
+		}
+	}
+	return filtered
+}
+
+// toolsByNameFor is toolsFor indexed for dispatch.
+func toolsByNameFor(profile string) map[string]tool {
+	index := map[string]tool{}
+	for _, t := range toolsFor(profile) {
+		index[t.name] = t
+	}
+	return index
+}
+
+// toolList renders one profile's surface for tools/list, with each input
+// schema generated from the library's own parameter list.
+func toolList(profile string) []map[string]any {
+	catalog := msg.For(msg.Base)
+	served := toolsFor(profile)
+	list := make([]map[string]any, 0, len(served))
+	for _, t := range served {
 		descriptionKey := "cmd." + t.command + ".summary"
 		if t.summaryKey != "" {
 			descriptionKey = t.summaryKey

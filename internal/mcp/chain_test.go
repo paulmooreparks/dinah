@@ -53,7 +53,7 @@ func newChainSessionUnder(t *testing.T, root string, library *verb.Library, memo
 	outR, outW := io.Pipe()
 	done := make(chan error, 1)
 	go func() {
-		err := serveWith(root, library, map[string]*verb.Library{}, inR, outW, memory)
+		err := serveWith(root, library, map[string]*verb.Library{}, inR, outW, ProfileAll, memory)
 		outW.Close()
 		done <- err
 	}()

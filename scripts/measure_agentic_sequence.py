@@ -862,9 +862,10 @@ class Fixture(object):
         path = os.path.join(self.root, "definition.json")
         with open(path, "w", encoding="utf-8", newline="\n") as handle:
             handle.write(json.dumps(definition, indent=2))
-        # --here, because the definition file is written into the directory
-        # the workbench is made in, and init refuses a directory that is not
-        # empty unless it is told to write there anyway.
+        # --here: dinah-541 refuses a target directory that already holds
+        # something, and this one already holds the definition.json this
+        # method just wrote into it, which is the fixture's own throwaway
+        # directory rather than anything the flag would let init clobber.
         self.cli("init", "--from", path, "--slug", "fx", "--operator", "alka", "--here")
         stores = list(pathlib.Path(self.root, ".dinah").glob("*/workbench.md"))
         if len(stores) != 1:
@@ -957,11 +958,19 @@ Version = "2024-11-05"
 class Session(object):
     """One `dinah mcp` process spoken to over line-delimited JSON-RPC."""
 
-    def __init__(self, dinah, fixture, allowed=None):
+    def __init__(self, dinah, fixture, allowed=None, tools="all"):
         self.allowed = allowed
+        # Named profile rather than self.tools, which would shadow the tools()
+        # method below: every existing call site reads the tool-definition
+        # block off session.tools(), and an attribute of the same name on the
+        # instance would hide it.
+        self.profile = tools
         self.next_id = 0
+        argv = [dinah, "mcp"]
+        if tools != "all":
+            argv += ["--tools", tools]
         self.process = subprocess.Popen(
-            [dinah, "mcp"], cwd=fixture.root, env=fixture.env,
+            argv, cwd=fixture.root, env=fixture.env,
             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             text=True, encoding="utf-8", bufsize=1,
         )
@@ -1226,14 +1235,15 @@ def publishes_show_fields(tools):
     return False
 
 
-def run_verb(dinah, fixture, roots, show_fields=""):
+def run_verb(dinah, fixture, roots, show_fields="", tools="all"):
     """Perform all six acts over the MCP head.
 
     show_fields is the field list each show-card act names, empty for the
     canonical verb run, which asks for nothing and is served everything. The
     show-attachment act never carries one, because an attachment payload has
-    no members to select."""
-    session = Session(dinah, fixture)
+    no members to select. tools is the MCP tool-surface profile the server is
+    started under."""
+    session = Session(dinah, fixture, tools=tools)
     rounds = []
     try:
         tools = session.tools()
@@ -1265,10 +1275,11 @@ def run_verb(dinah, fixture, roots, show_fields=""):
     return rounds, tools
 
 
-def run_file(dinah, fixture, roots):
+def run_file(dinah, fixture, roots, tools="all"):
     """Perform the coordination acts over the MCP head and read the content
-    plane off the filesystem."""
-    session = Session(dinah, fixture, allowed=COORDINATION_TOOLS)
+    plane off the filesystem. tools is the MCP tool-surface profile the
+    server is started under."""
+    session = Session(dinah, fixture, allowed=COORDINATION_TOOLS, tools=tools)
     rounds = []
     try:
         tools = session.tools()
@@ -1553,7 +1564,7 @@ def bulk_read(args, report, counter, strings, repo, layers, attachment_name, att
             anchors.append(located)
         anchor_text = [pathlib.Path(path).read_text(encoding="utf-8") for path in anchors]
 
-        session = Session(args.dinah, fixture)
+        session = Session(args.dinah, fixture, tools=args.tools)
         try:
             tools = session.tools()
             if not publishes_show_fields(tools):
@@ -1933,6 +1944,9 @@ def main():
                         help="a directory the harness builds two throwaway workbenches in")
     parser.add_argument("--counter", default="api", choices=("api", "live", "proxy"),
                         help="which implementation of the counter interface to count with")
+    parser.add_argument("--tools", default="all", choices=("station", "operator", "all"),
+                        help="the MCP tool-surface profile the measured `dinah mcp` server "
+                             "is started under")
     parser.add_argument("--model", default="claude-opus-5",
                         help="the model the api and live counters count for")
     parser.add_argument("--encoding", default="cl100k_base",
@@ -2067,8 +2081,8 @@ def measure(args):
 
     runs = {"verb": build("verb"), "file": build("file")}
 
-    verb_rounds, tools = run_verb(args.dinah, runs["verb"], roots)
-    file_rounds, file_tools = run_file(args.dinah, runs["file"], roots)
+    verb_rounds, tools = run_verb(args.dinah, runs["verb"], roots, tools=args.tools)
+    file_rounds, file_tools = run_file(args.dinah, runs["file"], roots, tools=args.tools)
 
     # The shaped run performs the identical sequence with each show-card act
     # naming its fields, so it is one sequence with the other two in the sense
@@ -2078,7 +2092,7 @@ def measure(args):
     if publishes_show_fields(tools):
         runs["shaped"] = build("shaped")
         shaped_rounds, _ = run_verb(args.dinah, runs["shaped"], roots,
-                                    show_fields=args.shaped_fields)
+                                    show_fields=args.shaped_fields, tools=args.tools)
     else:
         shaped_skipped = ("the binary under test publishes no fields argument on show, "
                           "so there is no shaped run to perform")
@@ -2270,7 +2284,7 @@ def measure(args):
     # specification rather than a promise of the protocol. So it stands beside
     # the reconciliation rather than inside it, and the reconciliation sum, its
     # residual, and its bound do not move.
-    instructions_session = Session(args.dinah, runs["verb"])
+    instructions_session = Session(args.dinah, runs["verb"], tools=args.tools)
     try:
         served_instructions = pin(instructions_session.instructions(), roots)
     finally:

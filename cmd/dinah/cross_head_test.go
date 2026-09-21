@@ -243,7 +243,7 @@ func toolPayload(t *testing.T, root, tool, command string, sample crossHeadCase)
 		t.Fatalf("marshal the call: %v", err)
 	}
 	out := &strings.Builder{}
-	if err := mcp.Serve(dir, library, map[string]*verb.Library{}, strings.NewReader(string(line)+"\n"), out); err != nil {
+	if err := mcp.Serve(dir, library, map[string]*verb.Library{}, strings.NewReader(string(line)+"\n"), out, mcp.ProfileAll); err != nil {
 		t.Fatalf("serve: %v", err)
 	}
 	var answer struct {

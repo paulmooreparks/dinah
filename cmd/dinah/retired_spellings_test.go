@@ -303,7 +303,7 @@ func decodeServed(t *testing.T, dir, line string, into any) {
 	}
 	library := verb.New(opened, os.Getenv("DINAH_HOME"))
 	out := &strings.Builder{}
-	if err := mcp.Serve(dir, library, map[string]*verb.Library{}, strings.NewReader(line+"\n"), out); err != nil {
+	if err := mcp.Serve(dir, library, map[string]*verb.Library{}, strings.NewReader(line+"\n"), out, mcp.ProfileAll); err != nil {
 		t.Fatalf("serve: %v", err)
 	}
 	if err := json.Unmarshal([]byte(strings.TrimSpace(out.String())), into); err != nil {

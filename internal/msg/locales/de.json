@@ -798,6 +798,11 @@
       "context": "The second row of the precondition list of mcp, raised when --workbench names a workbench outside --root or when an MCP call names a workbench outside the root. Keep a translation at or under 52 display columns. A longer sentence takes the table row to itself and pushes the refusal name down to the line beneath.",
       "source": "af2ab98a7a859f37"
     },
+    "check.mcp.3": {
+      "text": "--tools nennt station, operator oder all",
+      "context": "The third row of the precondition list of mcp, raised before the server starts when --tools names a value outside the three tool-surface profiles. Keep a translation at or under 52 display columns. A longer sentence takes the table row to itself and pushes the refusal name down to the line beneath.",
+      "source": "e5491829da6731bf"
+    },
     "check.missing-anchor": {
       "text": "Verzeichnis {detail} trägt keine Ankerdatei und zählt daher nicht zur Werkbank",
       "context": "A check finding: a hex directory without its anchor.",
@@ -1957,6 +1962,11 @@
       "text": "Ein Feld einer beliebigen Einheit dieser Werkbank schreiben",
       "context": "The one-line summary of the set command, shown beside its syntax in the help block.",
       "source": "bd0744c2d302f134"
+    },
+    "cmd.settle.summary": {
+      "text": "Einen Checklistenpunkt am genannten Zustand schließen oder wieder öffnen",
+      "context": "The one-line summary of the settle command, served as a tool over MCP and not dispatched at the terminal, where a person types the specific verb they mean instead; cmd/dinah's commandExemptions names the reason.",
+      "source": "486b43aa4041ad42"
     },
     "cmd.show.summary": {
       "text": "Das Detail einer Einheit dieser Werkbank",
@@ -3386,6 +3396,11 @@
       "context": "The meaning of the --root argument of `dinah mcp`, printed in that command's arguments table.",
       "source": "b4a7679728c79e03"
     },
+    "param.mcp.tools.summary": {
+      "text": "welche Werkzeuge dieser Server einem Aufrufer anbietet: station für einen Agenten, der eine Karte in einer Spalte bearbeitet, operator für die Werkbank- und Spaltenbefehle daneben, oder all; all, wenn Sie keines nennen",
+      "context": "The meaning of the --tools argument of `dinah mcp`, printed in that command's arguments table.",
+      "source": "bc91462a648d5099"
+    },
     "param.move.column.summary": {
       "text": "in welche Spalte die Karte getragen wird, auch geschrieben --column <Spalte>",
       "context": "The meaning of the column argument of `dinah move`, printed in that command's arguments table.",
@@ -3515,6 +3530,16 @@
       "text": "was darin gespeichert wird; schreiben Sie einen einzelnen Bindestrich, um den Wert von der Standardeingabe zu lesen, und lassen Sie ihn weg, um ein Feld zu leeren, das geleert werden darf",
       "context": "The meaning of the value argument of `dinah set`, printed in that command's arguments table. The dash is the spelling `dinah comment` already uses, and it is what sends the several lines a prose field holds.",
       "source": "7e894093746f48a2"
+    },
+    "param.settle.reason.summary": {
+      "text": "warum ein geschlossener Punkt wieder geöffnet wird, erforderlich, wenn der Zustand pending ist, und sonst nirgends gelesen",
+      "context": "The written meaning of settle's reason argument, read only when state is pending, which is when settle becomes reopen.",
+      "source": "a9122b90415a805b"
+    },
+    "param.settle.state.summary": {
+      "text": "der Zustand, auf dem der Punkt landet: resolved oder eine Entscheidung, auf die eine offene Frage gesetzt wird, verified oder failed für ein Abnahmekriterium, oder pending, um ihn wieder zu öffnen",
+      "context": "The written meaning of settle's state argument, the one word this command adds beyond what resolve, verify, fail and reopen already take.",
+      "source": "c658b2499674ca8a"
     },
     "param.show.card.summary": {
       "text": "die Sache, deren Detail Sie lesen, wie wb-1 oder wb-1/comments/1",
@@ -4460,6 +4485,16 @@
       "context": "The next step of refusal.dinah.unknown-item-kind, spliced onto the sentence that just listed the kinds. The three kind names are machine vocabulary that is never translated.",
       "source": "2d0c13c914a3a2a5"
     },
+    "refusal.dinah.unknown-item-state": {
+      "text": "{detail} ist kein Zustand, in dem settle einen Punkt ablegen kann. Die Zustandsnamen sind resolved, verified, failed und pending.",
+      "context": "The sentence printed after the refusal name dinah.unknown-item-state, raised when settle is asked to land an item at a state outside the four the format declares, checked ahead of resolving the item. {detail} is the state the caller typed. The four state names, resolved, verified, failed and pending, are machine vocabulary that is never translated.",
+      "source": "32f8b4d1309b9416"
+    },
+    "refusal.dinah.unknown-item-state.next": {
+      "text": " Setzen Sie es auf resolved, verified, failed oder pending.",
+      "context": "The next step of refusal.dinah.unknown-item-state, spliced onto the sentence that just listed the states. The four state names are machine vocabulary that is never translated.",
+      "source": "cdb0b160a6b01feb"
+    },
     "refusal.dinah.unknown-key": {
       "text": "Dinah kennt keine Einstellung und kein Feld namens {detail}; es kennt diese",
       "context": "The sentence printed after the refusal name dinah.unknown-key. {detail} carries the identifier, owner or column the refusal is about.",
@@ -4519,6 +4554,16 @@
       "text": "; richten Sie --root auf ein vorhandenes Verzeichnis, oder lassen Sie die Option weg, um von hier aus eines zu entdecken",
       "context": "Spliced onto refusal.dinah.unknown-root as the next step, naming the two ways past the refusal.",
       "source": "f3935cffe44663d9"
+    },
+    "refusal.dinah.unknown-tool-profile": {
+      "text": "{detail} ist kein Werkzeugprofil, das dieser Server anbietet. Die Profile sind station, operator und all.",
+      "context": "The sentence printed after the refusal name dinah.unknown-tool-profile, raised when --tools names a value outside the three profiles this head serves, checked before the server opens any workbench. {detail} is the value the caller typed. The three profile names, station, operator and all, are machine vocabulary that is never translated.",
+      "source": "b4b6e4828fafe274"
+    },
+    "refusal.dinah.unknown-tool-profile.next": {
+      "text": " Starten Sie es mit station, operator oder all.",
+      "context": "The next step of refusal.dinah.unknown-tool-profile, spliced onto the sentence that just listed the profiles. The three profile names are machine vocabulary that is never translated.",
+      "source": "4de30c1af891bb79"
     },
     "refusal.dinah.unknown-value": {
       "text": "Dinah nimmt {detail} in {term} nicht an.",
