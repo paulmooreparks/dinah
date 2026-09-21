@@ -1023,6 +1023,8 @@ func assignMarker(req *verb.Request, name string, value bool) {
 		req.ReadyOnly = value
 	case "unresolved":
 		req.Unresolved = value
+	case "all":
+		req.All = value
 	case "finish":
 		req.Finish = value
 	case "migrate-ordinals":
