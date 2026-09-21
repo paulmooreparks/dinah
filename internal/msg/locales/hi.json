@@ -3446,9 +3446,14 @@
       "source": "d9ac8e6674501327"
     },
     "param.show.fields.summary": {
-      "text": "उत्तर कार्ड के कौन से सदस्य ले जाए, अल्पविराम से अलग की गई सूची के रूप में लिखा; कोई न बताने पर हर सदस्य, जिसमें टिप्पणियाँ और जाँच-सूची सूची के रूप में आती हैं, और .full पर समाप्त होने वाला नाम उस संग्रह के पाठ लाता है",
+      "text": "उत्तर कार्ड के कौन से सदस्य ले जाए, अल्पविराम से अलग की गई सूची के रूप में लिखा; कोई न बताने पर कार्ड, पाठ, संबंध और संलग्नक, जिसमें टिप्पणियाँ और जाँच-सूची सूची के रूप में आती हैं, और .full पर समाप्त होने वाला नाम उस संग्रह के पाठ लाता है",
       "context": "The meaning of the fields argument of `dinah show`, printed in that command's arguments table. The table appends the closed set of names a caller may write after this sentence, read off the tool, so the sentence does not spell the set itself.",
-      "source": "504eea1c32ecf740"
+      "source": "a0e2365d2909bebb"
+    },
+    "param.show.all.summary": {
+      "text": "कार्ड का हर सदस्य बिना किसी संक्षिप्तीकरण के दें, जिसमें हर टिप्पणी का पूरा पाठ और हर जाँच-सूची मद की नामित टिप्पणी शामिल है",
+      "context": "The meaning of the all argument of `dinah show`, printed in that command's arguments table. It is the flag that restores the whole-card answer show gave before the narrow default, and it is refused together with --fields.",
+      "source": "bf0ae2a46a1df60b"
     },
     "param.show.since.summary": {
       "text": "इस एक-आधारित क्रमांक के बाद वाली टिप्पणियों का पूरा पाठ दें, शेष के लिए केवल सूची",

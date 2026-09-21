@@ -118,31 +118,29 @@ func TestShowCarriesTheFieldsTheCallerNamed(t *testing.T) {
 	}
 
 	// The control. Without it, an answer that carried nothing at all would
-	// satisfy every assertion above about what the shaped answer omits.
-	whole, _, _, _, err := h.library.Show(&Request{Verb: "show", Actor: "alka", Card: full})
+	// satisfy every assertion above about what the shaped answer omits. --all
+	// is the call that carries everything now that the bare call carries the
+	// narrow default.
+	whole, _, _, _, err := h.library.Show(&Request{Verb: "show", Actor: "alka", Card: full, All: true})
 	if err != nil {
 		t.Fatalf("show %s: %v", full, err)
 	}
 	if len(whole.Links) == 0 || len(whole.Attachments) == 0 || len(whole.Comments) == 0 {
 		t.Fatalf("the unshaped answer carries no listing, so the shaped one proves nothing: %+v", whole)
 	}
-	// An unshaped answer carries every member and carries the collections as
-	// indexes, so what it announces is the modifier of each collection the
-	// card holds. This card holds one comment and no checklist item, so it
-	// announces one name and reaches for a reread.
-	if want := []string{"comments.full"}; !reflect.DeepEqual(whole.Withheld, want) {
-		t.Errorf("an unshaped answer announces the bodies it did not serve, wanted %v, got %v",
-			want, whole.Withheld)
+	// --all carries every member in full, so nothing is withheld and there is
+	// no reread to ask for.
+	if len(whole.Withheld) != 0 {
+		t.Errorf("an --all answer withheld something, wanted none: %v", whole.Withheld)
 	}
-	if whole.Reread != full {
-		t.Errorf("wanted the reread %q, got %q", full, whole.Reread)
+	if whole.Reread != "" {
+		t.Errorf("wanted no reread, got %q", whole.Reread)
 	}
-	if body := whole.Comments[0].Body; body != "" {
-		t.Errorf("an unshaped answer carried a comment body: %q", body)
+	if body := whole.Comments[0].Body; body == "" {
+		t.Errorf("an --all answer carried no comment body")
 	}
-	// The unshaped payload carries every member the type declares, which is
-	// what makes the shaped payload's omissions the caller's doing rather
-	// than this type's.
+	// The --all payload carries every member the type declares and neither
+	// withheld nor reread, since it left nothing out to announce.
 	encoded, err := json.Marshal(whole)
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
@@ -153,12 +151,12 @@ func TestShowCarriesTheFieldsTheCallerNamed(t *testing.T) {
 	}
 	for _, member := range []string{"card", "body", "links", "attachments", "comments", "path"} {
 		if _, ok := payload[member]; !ok {
-			t.Errorf("the unshaped payload does not carry %s: %s", member, encoded)
+			t.Errorf("the --all payload does not carry %s: %s", member, encoded)
 		}
 	}
 	for _, member := range []string{"withheld", "reread"} {
-		if _, ok := payload[member]; !ok {
-			t.Errorf("the unshaped payload does not announce %s, and it served no comment body: %s",
+		if _, ok := payload[member]; ok {
+			t.Errorf("the --all payload announces %s, which it withheld nothing to justify: %s",
 				member, encoded)
 		}
 	}
@@ -231,14 +229,14 @@ func TestShowRefusesAFieldItDoesNotCarry(t *testing.T) {
 
 	// The control for the last row: an argument that is blank rather than
 	// written with a separator in it is an argument the caller did not give,
-	// so it reads as the unshaped call it has always been and is not refused
+	// so it reads as the narrow default it now is and is not refused
 	// alongside the bare comma above.
 	if detail, _, _, _, err := h.library.Show(&Request{
 		Verb: "show", Actor: "alka", Card: ref, Fields: "   ",
 	}); err != nil {
 		t.Fatalf("a blank field list was refused: %v", err)
-	} else if want := []string{"comments.full"}; !reflect.DeepEqual(detail.Withheld, want) {
-		t.Errorf("a blank field list shaped the answer: wanted the unshaped read's %v, got %v",
+	} else if want := []string{"comments", "path"}; !reflect.DeepEqual(detail.Withheld, want) {
+		t.Errorf("a blank field list did not shape the answer to the narrow default: wanted %v, got %v",
 			want, detail.Withheld)
 	}
 
@@ -459,15 +457,18 @@ func showing(h *harness, req *Request) *Detail {
 }
 
 // TestTheAnnouncementCoversEveryCallShape asserts the whole of withheld over
-// seven calls against one fixture, rather than asserting that one name is
+// eight calls against one fixture, rather than asserting that one name is
 // present in each. A check for presence passes on an announcement that names
 // everything, which is exactly the build this rule replaced.
 //
-// Two rows carry the weight. The unshaped call is what fails a build that
-// left the `chosen != nil` guard standing, since such a build announces
-// nothing at all. The call naming all seven members with both modifiers is
-// what fails a build that announces every member on a nil selection, since
-// such a build announces the lot.
+// dinah-543 narrowed the bare call's own default, so a bare call is no
+// longer the shape that reproduces the old "every member, as an index"
+// read: that shape is now spelled out, `everyMemberAsAnIndex` below, and a
+// bare call with `--since`/`--unresolved` alone is refused rather than
+// silently widened (dinah-543 decision 3). The rows that exercised the old
+// unshaped-plus-filter shape now name `everyMemberAsAnIndex` explicitly, so
+// they go on exercising the filter's own narrowing of `checklist.full`
+// rather than the retired default.
 //
 // The specification's own worked table understates three of these rows, and
 // the decision filed at Implement records the repair. Two of its rows list
@@ -480,6 +481,11 @@ func TestTheAnnouncementCoversEveryCallShape(t *testing.T) {
 	card, _ := indexFixture(h)
 	bare := h.ready("A card holding nothing below it")
 
+	// everyMemberAsAnIndex names every member with neither modifier, which is
+	// the literal equivalent of the bare call's old default: every member
+	// carried, comments and checklist carried as an index.
+	const everyMemberAsAnIndex = "card,body,links,attachments,comments,checklist,path"
+
 	for _, row := range []struct {
 		name     string
 		card     string
@@ -491,7 +497,7 @@ func TestTheAnnouncementCoversEveryCallShape(t *testing.T) {
 		{
 			name:     "no field list at all",
 			card:     card,
-			withheld: []string{"comments.full", "checklist.full"},
+			withheld: []string{"comments", "checklist", "path"},
 		},
 		{
 			name:     "a field list naming two members",
@@ -513,12 +519,14 @@ func TestTheAnnouncementCoversEveryCallShape(t *testing.T) {
 		{
 			name:     "an ordinal short of the comments the card holds",
 			card:     card,
+			fields:   everyMemberAsAnIndex,
 			since:    "2",
 			withheld: []string{"comments.full", "checklist.full"},
 		},
 		{
 			name:     "an ordinal of zero",
 			card:     card,
+			fields:   everyMemberAsAnIndex,
 			since:    "0",
 			withheld: []string{"checklist.full"},
 		},
@@ -530,8 +538,9 @@ func TestTheAnnouncementCoversEveryCallShape(t *testing.T) {
 			withheld: []string{"links", "attachments", "comments", "checklist", "path"},
 		},
 		{
-			name: "a card holding no comment and no checklist item",
-			card: bare,
+			name:     "a card holding no comment and no checklist item",
+			card:     bare,
+			withheld: []string{"path"},
 		},
 	} {
 		t.Run(row.name, func(t *testing.T) {
@@ -564,7 +573,7 @@ func TestTheAnnouncementCoversEveryCallShape(t *testing.T) {
 func TestACommentIndexEntryCarriesTheWholeCommentButItsBody(t *testing.T) {
 	h := newHarness(t)
 	card, _ := indexFixture(h)
-	detail := showing(h, &Request{Card: card})
+	detail := showing(h, &Request{Card: card, Fields: "comments"})
 
 	encoded, err := json.Marshal(detail)
 	if err != nil {
@@ -749,7 +758,7 @@ func TestSinceFillsTheBodiesPastAnOrdinal(t *testing.T) {
 	h := newHarness(t)
 	card, _ := indexFixture(h)
 
-	detail := showing(h, &Request{Card: card, SinceComment: "2"})
+	detail := showing(h, &Request{Card: card, Fields: "comments", SinceComment: "2"})
 	if len(detail.Comments) != 3 {
 		t.Fatalf("the index dropped a comment: wanted three, got %d", len(detail.Comments))
 	}
@@ -1054,7 +1063,7 @@ func TestAnItemsOwnReadKeepsEveryBody(t *testing.T) {
 	// The control: the same card's own read carries that comment as an
 	// index, so the two assertions above are about the reference rather
 	// than about the fixture.
-	detail := showing(h, &Request{Card: card})
+	detail := showing(h, &Request{Card: card, Fields: "comments"})
 	if len(detail.Comments) != 1 {
 		t.Fatalf("the card holds one comment of its own, got %d", len(detail.Comments))
 	}
@@ -1078,7 +1087,7 @@ func TestTheIndexedReadRewritesNothingOnDisk(t *testing.T) {
 		t.Fatal("the fixture wrote no file, so the comparison below reads nothing")
 	}
 
-	detail := showing(h, &Request{Card: card})
+	detail := showing(h, &Request{Card: card, Fields: "comments,checklist"})
 	if len(detail.Comments) != 3 || len(detail.Checklist) != 6 {
 		t.Fatalf("the read answered %d comments and %d items, so it proves nothing about the files",
 			len(detail.Comments), len(detail.Checklist))
