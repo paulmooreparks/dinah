@@ -1254,14 +1254,14 @@ storage format 6
 Catalogs:
   Language  Translated
   --------  ----------
-  en        1179/1179
-  af        0/1179
-  cs        0/1179
-  de        1179/1179
-  es        0/1179
-  fil       0/1179
-  hi        1179/1179
-  id        0/1179
+  en        1188/1188
+  af        0/1188
+  cs        0/1188
+  de        1188/1188
+  es        0/1188
+  fil       0/1188
+  hi        1188/1188
+  id        0/1188
 [exit 0]
 ```
 
@@ -1579,9 +1579,12 @@ workbench, or pointing `DINAH_WORKBENCH` at the `.dinah/<identifier>` directory,
 still gives a call that names none a default to fall back on, but no longer
 keeps the server from reaching any other workbench you name. Give the server a
 root, with `--root` or `DINAH_MCP_ROOT`, when you want it bounded to one tree; a
-workbench outside that root is then refused. Dinah hands the client the rules
-for working this workbench, and a tool for every command that has a use over a
-protocol. The ones it leaves out are the ones that only make sense where a
+workbench outside that root is then refused. Give the server `--tools station`
+when the agent you are pointing at it works one card through one column and
+nothing more, or `--tools operator` when it also needs the workbench and
+column verbs; the default, `all`, serves everything and is what this guide's
+examples assume. Dinah hands the client the rules for working this workbench,
+and a tool for every command that has a use over a protocol. The ones it leaves out are the ones that only make sense where a
 shell and a filesystem are, and `guide`, which the client reads as a resource
 rather than calling it as a tool. `tools/list` names the set your client
 actually got. Your AI colleague claims, moves, releases, and blocks under the

@@ -408,6 +408,10 @@ const (
 	// it at startup when --workbench named the contradiction, and the call
 	// dispatch raises it when the per-call workbench argument does.
 	OutsideRoot = LayerPrefix + "outside-root"
+	// UnknownToolProfile is a --tools flag naming a value outside the three
+	// this head serves: station, operator or all. It is checked before the
+	// server opens any workbench, beside UnknownRoot and OutsideRoot.
+	UnknownToolProfile = LayerPrefix + "unknown-tool-profile"
 	// AmbiguousName is a name selector matching more than one entity of a
 	// collection that declares a name field, raised before the resolver
 	// guesses which one the caller meant. The detail names the selector and
@@ -592,6 +596,12 @@ const (
 	// by the format rather than by the workbench, so the sentence names the
 	// three legal spellings instead of reading a declaration.
 	UnknownItemKind = LayerPrefix + "unknown-item-kind"
+	// UnknownItemState is settle asked to land an item at a state outside
+	// the four the format declares: resolved, verified, failed or pending.
+	// It has UnknownItemKind's shape, checked ahead of resolving the item,
+	// since there is nothing else to check until the state names one of the
+	// four verbs settle becomes.
+	UnknownItemState = LayerPrefix + "unknown-item-state"
 	// WrongItemKind is a terminal verb handed an item of a kind it cannot
 	// land: resolve handed an acceptance criterion, or verify or fail handed
 	// an open question or a decision. The detail names the item's own kind,
@@ -691,7 +701,7 @@ var Introduced = []string{
 	UnknownField, UnknownValue, UnknownAxis, RepeatedAxis, ChainTooLong,
 	UnknownDepth, UnknownWorkstream, Referenced, WorkstreamSlugTaken,
 	ColumnSlugTaken, ColumnRoutingDisrupted,
-	UnknownRoot, OutsideRoot, ConflictingScope, DepthWithoutRoot, MalformedDepth,
+	UnknownRoot, OutsideRoot, UnknownToolProfile, ConflictingScope, DepthWithoutRoot, MalformedDepth,
 	AmbiguousName, NotRenamable, NotAttachable, NotCommentable, IsACollection, NotArchived,
 	AmbiguousCard, AmbiguousColumn, NoUpstream, AwaitingOutside, TakesNoWork,
 	NoLevels, UnknownLevel, UnknownFormat,
@@ -699,7 +709,7 @@ var Introduced = []string{
 	UnlistedModel, UndeclaredModel, MalformedHarness, MalformedMemberName,
 	ReshapeNeedsDestination, ReshapeHeldCardInQueue, ReshapeMapSourceEmpty,
 	ReshapeDestinationRetiring, ReshapeDestinationAmbiguous,
-	UnknownItemKind, WrongItemKind, NotPending, NotResolved, Uncited,
+	UnknownItemKind, UnknownItemState, WrongItemKind, NotPending, NotResolved, Uncited,
 	UnresolvedItemExit,
 	ObservationRequired, UnknownLink,
 	CommentBodyDiverged, NotADesignation, NotDesignatable, StoreAwaitingMigration,

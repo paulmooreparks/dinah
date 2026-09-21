@@ -172,6 +172,10 @@
     {
       "tool": "reopen_item",
       "statement": "The first acceptance criterion on wb-12 was recorded as met against a fixture that predates the fix, so it should stand unjudged again."
+    },
+    {
+      "tool": "settle",
+      "statement": "I want to land the first acceptance criterion on wb-12 at verified, and I would rather send the state I want than remember which of four separate tools does it."
     }
   ]
 }

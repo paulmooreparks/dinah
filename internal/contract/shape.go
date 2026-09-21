@@ -1050,6 +1050,14 @@ var Shapes = []Shape{
 		NextStep:  []string{"refusal.dinah.unknown-root.next"},
 	},
 	{
+		// The three legal profiles are written into the base sentence rather
+		// than carried as a value, since the set is fixed by this head
+		// rather than read off the workbench.
+		Name:      UnknownToolProfile,
+		Fragments: []Fragment{{Key: "refusal.dinah.unknown-tool-profile.next"}},
+		NextStep:  []string{"refusal.dinah.unknown-tool-profile.next"},
+	},
+	{
 		// The workbench the second scope named rides as a value beside the
 		// root in the detail, because the reader has to see both to know
 		// which of the two to drop, and a sentence naming only the one they
@@ -1284,6 +1292,15 @@ var Shapes = []Shape{
 		Values:    []string{"kinds"},
 		Fragments: []Fragment{{Key: "refusal.dinah.unknown-item-kind.next"}},
 		NextStep:  []string{"refusal.dinah.unknown-item-kind.next"},
+	},
+	{
+		// The four legal states are written into the base sentence rather
+		// than carried as a value, since the set is fixed by the format
+		// rather than read off the workbench, and settle's own dispatch
+		// raises this refusal ahead of resolving any item.
+		Name:      UnknownItemState,
+		Fragments: []Fragment{{Key: "refusal.dinah.unknown-item-state.next"}},
+		NextStep:  []string{"refusal.dinah.unknown-item-state.next"},
 	},
 	{
 		// The detail is the item's own kind rather than the verb the caller

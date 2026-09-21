@@ -114,7 +114,7 @@ WORKBENCH
                                               to
 
 SERVE
-  mcp [--root <dir>]                        Serve workbenches over MCP on stdio
+  mcp [--root <dir>] [--tools <profile>]    Serve workbenches over MCP on stdio
   lsp [--root <dir>] [--annotate-prose]     Serve one workbench to an editor
     [--poll-seconds <n>] [--stdio]            over LSP on stdio
 

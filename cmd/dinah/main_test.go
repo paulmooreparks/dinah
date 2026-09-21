@@ -7017,6 +7017,13 @@ func TestTheArgumentsTableSpellsEveryArgumentTheSyntaxLineWay(t *testing.T) {
 	t.Setenv("COLUMNS", "80")
 	swept := 0
 	for _, name := range verb.Commands() {
+		// A command this terminal never dispatches has no help page to read.
+		// settle is the one such command (dinah-544): it is served over MCP
+		// and exempted here deliberately, with the reason commandExemptions
+		// carries.
+		if _, exempted := commandExemptions[name]; exempted {
+			continue
+		}
 		tokens := verb.Tokens(name)
 		if len(tokens) == 0 {
 			continue
@@ -7334,8 +7341,8 @@ func TestTheFlagSetsTheParserAcceptsAreDerivedFromTheParameterTable(t *testing.T
 		"actor", "at", "before", "capacity", "card", "column", "depth",
 		"description", "expect-digest", "expires", "fields", "format", "from", "group-by", "kind",
 		"lang", "map", "max-depth", "note", "observed", "operator", "owner",
-		"poll-seconds", "priority", "query", "remint", "root", "route", "severity",
-		"since", "slug", "text", "tier", "workbench",
+		"poll-seconds", "priority", "query", "reason", "remint", "root", "route", "severity",
+		"since", "slug", "text", "tier", "tools", "workbench",
 	}
 	wantMarkers := []string{
 		"annotate-prose", "archived", "catalogs", "finish", "force", "help", "here", "json",
@@ -7698,6 +7705,11 @@ func TestTheArgumentsTableWrapsAndNoOtherTableMoved(t *testing.T) {
 	t.Setenv("COLUMNS", "80")
 	pages := 0
 	for _, name := range verb.Commands() {
+		// settle carries no help page here (dinah-544); see the note beside
+		// the identical skip in TestTheArgumentsTableSpellsEveryArgumentTheSyntaxLineWay.
+		if _, exempted := commandExemptions[name]; exempted {
+			continue
+		}
 		got := runCLI(t, root, "help", name)
 		if got.code != 0 {
 			t.Fatalf("help %s: %d %s", name, got.code, got.errw)

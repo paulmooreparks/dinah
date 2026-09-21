@@ -48,6 +48,7 @@ var publishedProperties = map[string][]string{
 	"verify_item":       {"actor", "designation", "harness", "item", "model", "provider", "server", "text", "workbench"},
 	"fail_item":         {"actor", "designation", "harness", "item", "model", "provider", "server", "text", "workbench"},
 	"reopen_item":       {"actor", "harness", "item", "model", "provider", "reason", "server", "workbench"},
+	"settle":            {"actor", "designation", "harness", "item", "model", "provider", "reason", "server", "state", "text", "workbench"},
 	"link_card":         {"actor", "card", "harness", "kind", "model", "provider", "server", "to", "workbench"},
 	"unlink_card":       {"actor", "card", "harness", "kind", "model", "provider", "server", "to", "workbench"},
 	"archive":           {"actor", "harness", "model", "provider", "ref", "server", "workbench"},
@@ -81,7 +82,7 @@ var publishedProperties = map[string][]string{
 // and name for name.
 func TestThePublishedPropertyInventoryMatchesTheSurface(t *testing.T) {
 	served := map[string][]string{}
-	for _, entry := range toolList() {
+	for _, entry := range toolList(ProfileAll) {
 		name, _ := entry["name"].(string)
 		schema, ok := entry["inputSchema"].(map[string]any)
 		if !ok {
@@ -248,7 +249,7 @@ func TestTheVerbSelectionFixtureNamesEveryPublishedTool(t *testing.T) {
 // says the survival is deliberate rather than an oversight.
 func TestOnlyTheTwoWritingCommandsPublishATierProperty(t *testing.T) {
 	served := map[string]bool{}
-	for _, entry := range toolList() {
+	for _, entry := range toolList(ProfileAll) {
 		name, _ := entry["name"].(string)
 		schema, ok := entry["inputSchema"].(map[string]any)
 		if !ok {

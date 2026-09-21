@@ -773,6 +773,11 @@
       "context": "The second row of the precondition list of mcp, raised when --workbench names a workbench outside --root or when an MCP call names a workbench outside the root. Keep a translation at or under 52 display columns. A longer sentence takes the table row to itself and pushes the refusal name down to the line beneath.",
       "source": "af2ab98a7a859f37"
     },
+    "check.mcp.3": {
+      "text": "--tools station, operator या all में से एक नामता है",
+      "context": "The third row of the precondition list of mcp, raised before the server starts when --tools names a value outside the three tool-surface profiles. Keep a translation at or under 52 display columns. A longer sentence takes the table row to itself and pushes the refusal name down to the line beneath.",
+      "source": "e5491829da6731bf"
+    },
     "check.missing-anchor": {
       "text": "निर्देशिका {detail} में आधार फ़ाइल नहीं, इसलिए वह वर्कबेंच का हिस्सा नहीं मानी जाती",
       "context": "A check finding: a hex directory without its anchor.",
@@ -1912,6 +1917,11 @@
       "text": "इस वर्कबेंच की किसी भी इकाई का एक फ़ील्ड लिखें",
       "context": "The one-line summary of the set command, shown beside its syntax in the help block.",
       "source": "bd0744c2d302f134"
+    },
+    "cmd.settle.summary": {
+      "text": "किसी चेकलिस्ट मद को नामित स्थिति पर बंद करें या फिर से खोलें",
+      "context": "The one-line summary of the settle command, served as a tool over MCP and not dispatched at the terminal, where a person types the specific verb they mean instead; cmd/dinah's commandExemptions names the reason.",
+      "source": "486b43aa4041ad42"
     },
     "cmd.show.summary": {
       "text": "इस वर्कबेंच की किसी इकाई का विवरण",
@@ -3310,6 +3320,11 @@
       "context": "The meaning of the --root argument of `dinah mcp`, printed in that command's arguments table.",
       "source": "b4a7679728c79e03"
     },
+    "param.mcp.tools.summary": {
+      "text": "यह सर्वर किसी कॉलर को कौन-से उपकरण देता है: station, जो एक एजेंट को एक कॉलम में एक कार्ड पर काम करने देता है; operator, जो इसके साथ वर्कबेंच और कॉलम क्रियाएं भी देता है; या all; कुछ न नामने पर all",
+      "context": "The meaning of the --tools argument of `dinah mcp`, printed in that command's arguments table.",
+      "source": "bc91462a648d5099"
+    },
     "param.move.column.summary": {
       "text": "कार्ड को किस कॉलम में ले जाना है, इसे --column <column> भी लिखा जाता है",
       "context": "The meaning of the column argument of `dinah move`, printed in that command's arguments table.",
@@ -3439,6 +3454,16 @@
       "text": "उसमें क्या रखना है; मानक इनपुट से पढ़ने के लिए एक अकेला डैश लिखें, और जिस फ़ील्ड को खाली किया जा सकता है उसे खाली करने के लिए इसे छोड़ दें",
       "context": "The meaning of the value argument of `dinah set`, printed in that command's arguments table. The dash is the spelling `dinah comment` already uses, and it is what sends the several lines a prose field holds.",
       "source": "7e894093746f48a2"
+    },
+    "param.settle.reason.summary": {
+      "text": "किसी बंद मद को फिर से क्यों खोला जा रहा है, आवश्यक जब स्थिति pending हो, और अन्यत्र कहीं नहीं पढ़ा जाता",
+      "context": "The written meaning of settle's reason argument, read only when state is pending, which is when settle becomes reopen.",
+      "source": "a9122b90415a805b"
+    },
+    "param.settle.state.summary": {
+      "text": "वह स्थिति, जिस पर मद टिकता है: resolved या वह जिस पर कोई खुला प्रश्न या निर्णय तय होता है, verified या failed किसी स्वीकृति-मापदंड के लिए, या pending इसे फिर से खोलने के लिए",
+      "context": "The written meaning of settle's state argument, the one word this command adds beyond what resolve, verify, fail and reopen already take.",
+      "source": "c658b2499674ca8a"
     },
     "param.show.card.summary": {
       "text": "वह चीज़ जिसका विवरण आप पढ़ रहे हैं, जैसे wb-1 या wb-1/comments/1",
@@ -4379,6 +4404,16 @@
       "context": "The next step of refusal.dinah.unknown-item-kind, spliced onto the sentence that just listed the kinds. The three kind names are machine vocabulary that is never translated.",
       "source": "2d0c13c914a3a2a5"
     },
+    "refusal.dinah.unknown-item-state": {
+      "text": "{detail} ऐसी कोई स्थिति नहीं है जिस पर settle किसी मद को टिका सके। स्थितियाँ हैं resolved, verified, failed और pending।",
+      "context": "The sentence printed after the refusal name dinah.unknown-item-state, raised when settle is asked to land an item at a state outside the four the format declares, checked ahead of resolving the item. {detail} is the state the caller typed. The four state names, resolved, verified, failed and pending, are machine vocabulary that is never translated.",
+      "source": "32f8b4d1309b9416"
+    },
+    "refusal.dinah.unknown-item-state.next": {
+      "text": " इसे resolved, verified, failed या pending पर सेट करें।",
+      "context": "The next step of refusal.dinah.unknown-item-state, spliced onto the sentence that just listed the states. The four state names are machine vocabulary that is never translated.",
+      "source": "cdb0b160a6b01feb"
+    },
     "refusal.dinah.unknown-key": {
       "text": "Dinah {detail} नाम की कोई सेटिंग या क्षेत्र नहीं जानता; यह ये जानता है",
       "context": "The sentence printed after the refusal name dinah.unknown-key. {detail} carries the identifier, owner or column the refusal is about.",
@@ -4438,6 +4473,16 @@
       "text": "; --root को किसी मौजूदा डायरेक्टरी पर सेट करें, या यहाँ से एक खोजने के लिए विकल्प हटा दें",
       "context": "Spliced onto refusal.dinah.unknown-root as the next step, naming the two ways past the refusal.",
       "source": "f3935cffe44663d9"
+    },
+    "refusal.dinah.unknown-tool-profile": {
+      "text": "{detail} कोई उपकरण प्रोफ़ाइल नहीं है जो यह सर्वर देता है। प्रोफ़ाइलें हैं station, operator और all।",
+      "context": "The sentence printed after the refusal name dinah.unknown-tool-profile, raised when --tools names a value outside the three profiles this head serves, checked before the server opens any workbench. {detail} is the value the caller typed. The three profile names, station, operator and all, are machine vocabulary that is never translated.",
+      "source": "b4b6e4828fafe274"
+    },
+    "refusal.dinah.unknown-tool-profile.next": {
+      "text": " इसे station, operator या all के रूप में परोसें।",
+      "context": "The next step of refusal.dinah.unknown-tool-profile, spliced onto the sentence that just listed the profiles. The three profile names are machine vocabulary that is never translated.",
+      "source": "4de30c1af891bb79"
     },
     "refusal.dinah.unknown-value": {
       "text": "Dinah {term} में {detail} स्वीकार नहीं करता।",

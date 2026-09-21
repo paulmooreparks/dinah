@@ -108,7 +108,7 @@ WORKBENCH
   version [--catalogs]                                   What Dinah is and what it conforms to
 
 SERVE
-  mcp [--root <dir>]                                     Serve workbenches over MCP on stdio
+  mcp [--root <dir>] [--tools <profile>]                 Serve workbenches over MCP on stdio
   lsp [--root <dir>] [--annotate-prose]                  Serve one workbench to an editor over LSP on stdio
     [--poll-seconds <n>] [--stdio]
 
@@ -197,7 +197,7 @@ WORKBENCH
   version [--catalogs]                                                                                  What Dinah is and what it conforms to
 
 SERVE
-  mcp [--root <dir>]                                                                                    Serve workbenches over MCP on stdio
+  mcp [--root <dir>] [--tools <profile>]                                                                Serve workbenches over MCP on stdio
   lsp [--root <dir>] [--annotate-prose] [--poll-seconds <n>] [--stdio]                                  Serve one workbench to an editor over LSP on stdio
 
 Global flags:

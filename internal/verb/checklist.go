@@ -244,6 +244,38 @@ func (l *Library) Reopen(req *Request) *Response {
 	})
 }
 
+// Settle lands an item at the state the caller names, becoming whichever of
+// Resolve, Verify, Fail or Reopen that state selects and running exactly
+// that verb's own checks in exactly that verb's own order from that point
+// on. The state choice is the only thing this function decides for itself;
+// every other precondition, including the operator-owned-item guard, the
+// pending/closed precondition, the citation obligation and the designation
+// rule, is the chosen verb's own and is untouched.
+//
+// A field the chosen verb does not read is silently unused rather than
+// refused: a caller settling an item to resolved may still send reason,
+// and Resolve simply never looks at it, exactly as a person typing `dinah
+// resolve` alongside a stray --reason flag it does not declare would be
+// refused by argument-checking rather than by this function, and a caller
+// of settle is refused the same way, by declaredArgNames, before this
+// function ever runs.
+func (l *Library) Settle(req *Request) *Response {
+	switch req.State {
+	case bench.ItemResolved:
+		return l.Resolve(req)
+	case bench.ItemVerified:
+		return l.Verify(req)
+	case bench.ItemFailed:
+		return l.Fail(req)
+	case bench.ItemPending:
+		return l.Reopen(req)
+	case "":
+		return l.refuse(req, nil, contract.Malformed, "state")
+	default:
+		return l.refuse(req, nil, contract.UnknownItemState, req.State)
+	}
+}
+
 // criterionKind is the one item kind the citation obligation is stated for.
 const criterionKind = "acceptance_criterion"
 

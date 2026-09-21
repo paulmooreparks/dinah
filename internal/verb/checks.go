@@ -231,7 +231,7 @@ var historyWriters = map[string]bool{
 	"restore": true, "delete": true, "rename": true, "workstream": true,
 	"set": true, "column": true, "file": true, "resolve": true, "verify": true,
 	"fail": true, "reopen": true, "cite": true, "link": true, "unlink": true,
-	"reshape": true, "check": true,
+	"reshape": true, "check": true, "settle": true,
 }
 
 // beyondChecks are the refusals the commands outside the five contract verbs
@@ -481,6 +481,7 @@ var beyondChecks = map[string][]Check{
 	"mcp": {
 		{Refusal: contract.UnknownRoot, Key: "check.mcp.1"},
 		{Refusal: contract.OutsideRoot, Key: "check.mcp.2"},
+		{Refusal: contract.UnknownToolProfile, Key: "check.mcp.3"},
 	},
 	// lsp carries the two checks its startup path raises, in the order it
 	// evaluates them: the directory --root names has to exist, and

@@ -30,10 +30,11 @@ import (
 // reads it that way.
 
 // commandsTakingAReference lists, in sorted order, every command the library
-// points at the references guide. It reads verb.Guides rather than either
-// declaration behind it, because Guides merges the command's own topics with
-// every topic its parameters declare, so a command declared in one roster and
-// not the other is counted once and no caller has to know there are two.
+// points at the references guide AND dispatches at this terminal. It reads
+// verb.Guides rather than either declaration behind it, because Guides merges
+// the command's own topics with every topic its parameters declare, so a
+// command declared in one roster and not the other is counted once and no
+// caller has to know there are two.
 //
 // verb.ReferenceTakingCommands answers the neighbouring question and this file
 // deliberately does not call it. That roster returns a command only when the
@@ -44,9 +45,24 @@ import (
 // let the guide's table lose a row with every check green. The union cannot go
 // stale against that roster either, because internal/verb/collection_roster_test.go
 // holds both declarations to one another.
+//
+// settle is the case that makes the CLI-dispatch filter necessary. dinah-544
+// declared its item argument against the same references guide every other
+// checklist verb uses, so an MCP caller reads the identical reference-kind
+// text resolve, verify, fail and reopen already carry. It is deliberately
+// exempted from this terminal's own dispatch table (commandExemptions), and
+// this guide is the terminal's own document: it opens by naming `dinah`
+// commands, and its "Which command takes what" section promises that "each
+// command's own help page carries the same answer", a promise settle cannot
+// keep because it has no help page here. A command this terminal never
+// dispatches is filtered out rather than counted, so the guide's table, its
+// probes and its prose figures stay about what a person can actually type.
 func commandsTakingAReference() []string {
 	var names []string
 	for _, name := range verb.Commands() {
+		if _, exempted := commandExemptions[name]; exempted {
+			continue
+		}
 		for _, topic := range verb.Guides(name) {
 			if topic == "references" {
 				names = append(names, name)
@@ -750,7 +766,11 @@ func TestEverySpellingOfThisWorkbenchTheGuideShowsNamesOneThing(t *testing.T) {
 // arriving fails here rather than becoming a cell nobody compares.
 // TestTheReferencesGuideNamesTheCommandsThatTakeAWorkstream holds the workstream.
 func TestTheReferencesGuideTableDrawsTheDeclaredReferenceKinds(t *testing.T) {
-	roster := verb.ReferenceTakingCommands()
+	// commandsTakingAReference rather than verb.ReferenceTakingCommands: this
+	// guide's table is a CLI document, and settle (dinah-544) is on the wider
+	// library roster with no help page here to draw a row for; see the note
+	// beside commandsTakingAReference.
+	roster := commandsTakingAReference()
 	if len(roster) == 0 {
 		t.Fatal("no command points at the references guide, so this check read nothing")
 	}

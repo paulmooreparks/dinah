@@ -129,7 +129,7 @@ func setFieldVocabulary(t *testing.T, root string) (members []string, source str
 	library := verb.New(opened, os.Getenv("DINAH_HOME"))
 	out := &strings.Builder{}
 	line := `{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}`
-	if err := mcp.Serve(dir, library, map[string]*verb.Library{}, strings.NewReader(line+"\n"), out); err != nil {
+	if err := mcp.Serve(dir, library, map[string]*verb.Library{}, strings.NewReader(line+"\n"), out, mcp.ProfileAll); err != nil {
 		t.Fatalf("serve: %v", err)
 	}
 	var answer struct {

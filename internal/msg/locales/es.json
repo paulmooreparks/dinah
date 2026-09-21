@@ -769,6 +769,11 @@
       "context": "The second row of the precondition list of mcp, raised when --workbench names a workbench outside --root or when an MCP call names a workbench outside the root. Keep a translation at or under 52 display columns. A longer sentence takes the table row to itself and pushes the refusal name down to the line beneath.",
       "skeleton": true
     },
+    "check.mcp.3": {
+      "text": "--tools names one of station, operator or all",
+      "context": "The third row of the precondition list of mcp, raised before the server starts when --tools names a value outside the three tool-surface profiles. Keep a translation at or under 52 display columns. A longer sentence takes the table row to itself and pushes the refusal name down to the line beneath.",
+      "skeleton": true
+    },
     "check.missing-anchor": {
       "text": "directory {detail} carries no anchor file, so it does not count as part of the workbench",
       "context": "A check finding: a hex directory without its anchor.",
@@ -1907,6 +1912,11 @@
     "cmd.set.summary": {
       "text": "Write one field of any entity of this workbench",
       "context": "The one-line summary of the set command, shown beside its syntax in the help block.",
+      "skeleton": true
+    },
+    "cmd.settle.summary": {
+      "text": "Close or reopen a checklist item at the state you name",
+      "context": "The one-line summary of the settle command, served as a tool over MCP and not dispatched at the terminal, where a person types the specific verb they mean instead; cmd/dinah's commandExemptions names the reason.",
       "skeleton": true
     },
     "cmd.show.summary": {
@@ -3299,6 +3309,11 @@
       "context": "The meaning of the --root argument of `dinah mcp`, printed in that command's arguments table.",
       "skeleton": true
     },
+    "param.mcp.tools.summary": {
+      "text": "which tools this server offers a caller: station for one agent working one card, operator for the workbench and column verbs beside it, or all; all when you name none",
+      "context": "The meaning of the --tools argument of `dinah mcp`, printed in that command's arguments table.",
+      "skeleton": true
+    },
     "param.move.column.summary": {
       "text": "which column to carry the card to, also written --column <column>",
       "context": "The meaning of the column argument of `dinah move`, printed in that command's arguments table.",
@@ -3427,6 +3442,16 @@
     "param.set.value.summary": {
       "text": "what to store in it; write a single dash to read it from standard input, and leave it out to clear a field that may be cleared",
       "context": "The meaning of the value argument of `dinah set`, printed in that command's arguments table. The dash is the spelling `dinah comment` already uses, and it is what sends the several lines a prose field holds.",
+      "skeleton": true
+    },
+    "param.settle.reason.summary": {
+      "text": "why a closed item is being reopened, required when state is pending and read nowhere else",
+      "context": "The written meaning of settle's reason argument, read only when state is pending, which is when settle becomes reopen.",
+      "skeleton": true
+    },
+    "param.settle.state.summary": {
+      "text": "which state the item lands at: resolved or a decision an open question is settled at, verified or failed for an acceptance criterion, or pending to reopen it",
+      "context": "The written meaning of settle's state argument, the one word this command adds beyond what resolve, verify, fail and reopen already take.",
       "skeleton": true
     },
     "param.show.card.summary": {
@@ -4368,6 +4393,16 @@
       "context": "The next step of refusal.dinah.unknown-item-kind, spliced onto the sentence that just listed the kinds. The three kind names are machine vocabulary that is never translated.",
       "skeleton": true
     },
+    "refusal.dinah.unknown-item-state": {
+      "text": "{detail} is not a state settle can land an item at. The states are resolved, verified, failed and pending.",
+      "context": "The sentence printed after the refusal name dinah.unknown-item-state, raised when settle is asked to land an item at a state outside the four the format declares, checked ahead of resolving the item. {detail} is the state the caller typed. The four state names, resolved, verified, failed and pending, are machine vocabulary that is never translated.",
+      "skeleton": true
+    },
+    "refusal.dinah.unknown-item-state.next": {
+      "text": " Settle it at resolved, verified, failed or pending.",
+      "context": "The next step of refusal.dinah.unknown-item-state, spliced onto the sentence that just listed the states. The four state names are machine vocabulary that is never translated.",
+      "skeleton": true
+    },
     "refusal.dinah.unknown-key": {
       "text": "Dinah knows no setting or field called {detail}; it knows these",
       "context": "The sentence printed after the refusal name dinah.unknown-key. {detail} carries the identifier, owner or column the refusal is about.",
@@ -4426,6 +4461,16 @@
     "refusal.dinah.unknown-root.next": {
       "text": "; point --root at a directory that does exist, or remove the option to discover one from here",
       "context": "Spliced onto refusal.dinah.unknown-root as the next step, naming the two ways past the refusal.",
+      "skeleton": true
+    },
+    "refusal.dinah.unknown-tool-profile": {
+      "text": "{detail} is not a tool profile this server offers. The profiles are station, operator and all.",
+      "context": "The sentence printed after the refusal name dinah.unknown-tool-profile, raised when --tools names a value outside the three profiles this head serves, checked before the server opens any workbench. {detail} is the value the caller typed. The three profile names, station, operator and all, are machine vocabulary that is never translated.",
+      "skeleton": true
+    },
+    "refusal.dinah.unknown-tool-profile.next": {
+      "text": " Serve it as station, operator or all.",
+      "context": "The next step of refusal.dinah.unknown-tool-profile, spliced onto the sentence that just listed the profiles. The three profile names are machine vocabulary that is never translated.",
       "skeleton": true
     },
     "refusal.dinah.unknown-value": {
