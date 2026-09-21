@@ -1601,7 +1601,7 @@ func sweptBlocks() []sweptBlock {
 			blanksAreLost: true,
 			opensAt:       "show.comments", expect: expectComments,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
-				return sweptRun(t, w.healthy, tag, "show", w.card)
+				return sweptRun(t, w.healthy, tag, "show", w.card, "--fields", "comments")
 			},
 		},
 		{
@@ -1611,7 +1611,7 @@ func sweptBlocks() []sweptBlock {
 			noHeadingRow: true, wrapsTail: true,
 			opensAt: "show.checklist", expect: expectChecklist,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
-				return sweptRun(t, w.checklist, tag, "show", w.checklistCard)
+				return sweptRun(t, w.checklist, tag, "show", w.checklistCard, "--fields", "checklist")
 			},
 		},
 		{
