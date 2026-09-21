@@ -195,8 +195,8 @@ func TestHindiCommandHelpStartsEveryRefusalNameAtOneColumn(t *testing.T) {
 	order := displayWidth(hindi.T("column.help.order"))
 	check := displayWidth(hindi.T("column.help.check"))
 	checks := verb.Checks("add")
-	if len(checks) != 6 {
-		t.Fatalf("add declares %d checks, and this test is written for the six it carries", len(checks))
+	if len(checks) != 8 {
+		t.Fatalf("add declares %d checks, and this test is written for the eight it carries", len(checks))
 	}
 	for i, one := range checks {
 		if drawn := displayWidth(strconv.Itoa(i + 1)); drawn > order {
@@ -211,6 +211,7 @@ func TestHindiCommandHelpStartsEveryRefusalNameAtOneColumn(t *testing.T) {
 		contract.MalformedHarness,
 		contract.Malformed, contract.UnknownColumn, contract.AtCapacity,
 		contract.NoLevels, contract.UnknownLevel,
+		contract.UnknownRoute, contract.RouteOffColumn,
 	}
 	// A row's name is read as its last field rather than searched for inside
 	// the line. dinah.malformed-harness carries malformed as a substring, so a

@@ -243,7 +243,7 @@ records:
 |------|--------|
 | workbench | `title`, `slug`, `operator`, `instructions` |
 | column | `title`, `slug`, `kind`, `tier`, `capacity`, `hold`, `instructions` |
-| card | `title`, `body`, `severity`, `priority`, `tier` |
+| card | `title`, `body`, `severity`, `priority`, `tier`, `route` |
 | comment | `body` |
 | item | `text`, `state`, `resolution`, `owner`, `column` |
 | attachment | `filename`, `description` |

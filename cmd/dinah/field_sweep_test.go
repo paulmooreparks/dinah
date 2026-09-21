@@ -12,13 +12,16 @@ import (
 	"dinah/internal/verb"
 )
 
-// fieldSweepDefinition declares both level axes and a column carrying a tier
-// default, so every guarded field in the sample table below has a legal value
-// to be written with.
+// fieldSweepDefinition declares both level axes, a column carrying a tier
+// default, and two routes, so every guarded field in the sample table below
+// has a legal value to be written with. Both routes carry every column, so a
+// card standing anywhere takes either one and the pair tests the field rather
+// than the route rules.
 const fieldSweepDefinition = `{
   "profile": "dinah-core/0.7",
   "title": "Sweeping",
   "levels": { "severity": ["trivial", "minor", "major"], "priority": ["later", "soon", "now"], "tier": ["workhorse", "frontier", "apex"] },
+  "routes": { "one": ["e00000000001", "e00000000002", "e00000000003"], "two": ["e00000000001", "e00000000002", "e00000000003"] },
   "columns": [
     { "id": "e00000000001", "title": "Intake", "kind": "intake" },
     { "id": "e00000000002", "title": "Doing", "kind": "work", "tier": "workhorse" },
@@ -79,6 +82,7 @@ var fieldSamples = map[string]map[string]fieldSample{
 		"severity": {first: "minor", second: "major"},
 		"priority": {first: "later", second: "now"},
 		"tier":     {first: "workhorse", second: "frontier"},
+		"route":    {first: "one", second: "two"},
 	},
 	bench.KindComment: {
 		"body": {first: "First thought.", second: "Second thought.\n\nWith a second paragraph."},

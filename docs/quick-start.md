@@ -438,10 +438,10 @@ Work the card until it is finished or until something stops you.
 Leave a comment saying what you did before you carry it on.
 
 Moves this card may make:
-  Column  Name    Direction  Reject
-  ------  ------  ---------  ------
-  intake  Intake  backward   no
-  done    Done    forward    no
+  Column  Name    Direction  On route  Reject
+  ------  ------  ---------  --------  ------
+  intake  Intake  backward   no        no
+  done    Done    forward    yes       no
 [exit 0]
 ```
 
@@ -530,10 +530,10 @@ Work the card until it is finished or until something stops you.
 Leave a comment saying what you did before you carry it on.
 
 Moves this card may make:
-  Column  Name    Direction  Reject
-  ------  ------  ---------  ------
-  intake  Intake  backward   no
-  done    Done    forward    no
+  Column  Name    Direction  On route  Reject
+  ------  ------  ---------  --------  ------
+  intake  Intake  backward   no        no
+  done    Done    forward    yes       no
 [exit 0]
 ```
 
@@ -592,10 +592,10 @@ Work the card until it is finished or until something stops you.
 Leave a comment saying what you did before you carry it on.
 
 Moves this card may make:
-  Column  Name    Direction  Reject
-  ------  ------  ---------  ------
-  intake  Intake  backward   no
-  done    Done    forward    no
+  Column  Name    Direction  On route  Reject
+  ------  ------  ---------  --------  ------
+  intake  Intake  backward   no        no
+  done    Done    forward    yes       no
 [exit 0]
 ```
 
@@ -711,10 +711,10 @@ Instructions, this workbench:
 Every card on this workbench ends with a line in the changelog.
 
 Moves this card may make:
-  Column  Name    Direction  Reject
-  ------  ------  ---------  ------
-  intake  Intake  backward   no
-  doing   Doing   backward   no
+  Column  Name    Direction  On route  Reject
+  ------  ------  ---------  --------  ------
+  intake  Intake  backward   no        no
+  doing   Doing   backward   no        no
 [exit 0]
 ```
 
@@ -1189,6 +1189,7 @@ $ dinah list intake --json
       "column": "003b09ee6e31",
       "column_title": "Intake",
       "state": "ready",
+      "pull_destination": "doing",
       "workstreams": [
         "<id>"
       ],
@@ -1253,14 +1254,14 @@ storage format 6
 Catalogs:
   Language  Translated
   --------  ----------
-  en        1125/1125
-  af        0/1125
-  cs        0/1125
-  de        1125/1125
-  es        0/1125
-  fil       0/1125
-  hi        1125/1125
-  id        0/1125
+  en        1169/1169
+  af        0/1169
+  cs        0/1169
+  de        1169/1169
+  es        0/1169
+  fil       0/1169
+  hi        1169/1169
+  id        0/1169
 [exit 0]
 ```
 

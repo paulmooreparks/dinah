@@ -5,7 +5,7 @@ Usage: dinah <command> [arguments]
 WORK
   add <title> [--column <column>]           File a new card in the first column
     [--severity <level>]
-    [--priority <level>]
+    [--priority <level>] [--route <name>]
   claim <card> [--expires <duration>]       Take up a ready card
   move <card> <column> [--override]         Carry a card to another column
   pull [column] [--no-claim]                Claim the head of a column's queue

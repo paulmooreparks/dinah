@@ -348,7 +348,7 @@ type Exemption struct {
 	Reason string
 }
 
-// exemptions are the thirty-three functions the sweep finds that answer a
+// exemptions are the thirty-six functions the sweep finds that answer a
 // caller's string with an entity without deciding which entity a spelling
 // names.
 //
@@ -395,6 +395,9 @@ var exemptions = []Exemption{
 	{Function: "BlockingItems", Ground: GroundLists, Reason: "answers every checklist item that is unresolved and names no column the workbench declares"},
 	{Function: "GatingItems", Ground: GroundLists, Reason: "answers every checklist item that gates a column"},
 	{Function: "itemsWhere", Ground: GroundLists, Reason: "answers every checklist item matching a condition"},
+	{Function: "RouteSkips", Ground: GroundLists, Reason: "answers every live column a declared route omits, and its string is the route name saying which declaration to read"},
+	{Function: "RouteSkipsOperatorColumn", Ground: GroundLists, Reason: "walks the live columns a declared route omits and answers the first the workbench reserves ahead of the card, and its string is the route name saying which declaration to read"},
+	{Function: "StrandedItemOf", Ground: GroundLists, Reason: "walks a card's pending checklist items and answers the first naming a column a declared route omits, and its string is the route name saying which declaration to read"},
 
 	{Function: "ResolveCard", Ground: GroundDelegates, Reason: "one line, handing the reference to resolveCardIn"},
 	{Function: "ResolveArchivedCard", Ground: GroundDelegates, Reason: "one line, handing the reference to resolveCardIn against the archived half"},

@@ -1397,7 +1397,7 @@ func sweptBlocks() []sweptBlock {
 	return []sweptBlock{
 		{
 			site: renderSite{File: "render.go", Function: "renderInstructions", Label: "t", Ordinal: 1}, label: "the legal moves under a served instruction",
-			keys: []string{"column.moves.column", "column.moves.name", "column.moves.direction", "column.moves.reject"}, varies: lastCell,
+			keys: []string{"column.moves.column", "column.moves.name", "column.moves.direction", "column.moves.route", "column.moves.reject"}, varies: lastCell,
 			opensAt: "instructions.moves", expect: expectMoves,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
 				return sweptRun(t, w.healthy, tag, "instructions", w.card)
@@ -1765,6 +1765,14 @@ func sweptBlocks() []sweptBlock {
 					t.Fatalf("check --migrate-slugs drew no workstream slug report in %s, so the entry has nothing to harvest", tag)
 				}
 				return out[at:]
+			},
+		},
+		{
+			site: renderSite{File: "render.go", Function: "renderRoutes", Label: "t", Ordinal: 1}, label: "dinah list routes",
+			keys:   []string{"column.routes.route", "column.routes.columns", "column.routes.skips"},
+			varies: 0, expect: expectRoutes,
+			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
+				return sweptRun(t, w.healthy, tag, "list", "routes")
 			},
 		},
 		{
@@ -2319,10 +2327,18 @@ func sweptInit(t *testing.T, dir string) {
 // its two new columns' cross-locale alignment; every other call site drawn
 // from the healthy tree is unaffected, since only the ls table draws these
 // two columns at all.
+//
+// It declares two routes as well, for dinah-542's routes listing, and no card
+// the sweep files walks either of them, so every other surface drawn from the
+// healthy tree reads as it did before routes existed. The two names differ in
+// width, which is the column the listing's entry declares varies, and both
+// routes skip the operator-owned station the sweep adds later, so the mark the
+// listing draws on such a column is measured in every locale.
 const sweptLeveledDefinitionFormat = `{
   "profile": "dinah-core/0.7",
   "title": %q,
   "levels": { "severity": ["trivial", "minor", "major", "critical"], "priority": ["later", "soon", "next", "now"] },
+  "routes": { "short": ["b00000000001", "b00000000003"], "a-much-longer-road": ["b00000000001", "b00000000002", "b00000000003"] },
   "columns": [
     { "id": "b00000000001", "title": "Intake", "kind": "intake" },
     { "id": "b00000000002", "title": "Doing", "kind": "work" },

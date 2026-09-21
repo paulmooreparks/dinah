@@ -29,7 +29,7 @@ Usage: dinah <command> [arguments]
 
 WORK
   add <title> [--column <column>] [--severity <level>]   File a new card in the first column
-    [--priority <level>]
+    [--priority <level>] [--route <name>]
   claim <card> [--expires <duration>]                    Take up a ready card
   move <card> <column> [--override]                      Carry a card to another column
   pull [column] [--no-claim] [--expires <duration>]      Claim the head of a column's queue and move it
@@ -137,7 +137,7 @@ const desiredHelpAt200 = `Dinah keeps work moving.
 Usage: dinah <command> [arguments]
 
 WORK
-  add <title> [--column <column>] [--severity <level>] [--priority <level>]                             File a new card in the first column
+  add <title> [--column <column>] [--severity <level>] [--priority <level>] [--route <name>]            File a new card in the first column
   claim <card> [--expires <duration>]                                                                   Take up a ready card
   move <card> <column> [--override]                                                                     Carry a card to another column
   pull [column] [--no-claim] [--expires <duration>] [--override]                                        Claim the head of a column's queue and move it there in one act

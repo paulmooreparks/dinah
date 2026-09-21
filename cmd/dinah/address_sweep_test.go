@@ -103,6 +103,10 @@ var addressExemptions = []addressExemption{
 		ground: groundActNotEntity, reason: "the rows are one card's recorded acts, and the caller named that card to reach the log",
 	},
 	{
+		site:   renderSite{File: "render.go", Function: "renderRoutes", Label: "t", Ordinal: 1},
+		ground: groundNoEntity, reason: "the rows are the routes the workbench's own definition declares, which the reference grammar addresses nowhere; the columns a row names as skipped are printed by the one function every other surface prints a column's reference with",
+	},
+	{
 		site:   renderSite{File: "render.go", Function: "renderSettings", Label: "t", Ordinal: 1},
 		ground: groundNoEntity, reason: "the rows are configuration keys",
 	},

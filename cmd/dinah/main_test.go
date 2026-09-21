@@ -7245,7 +7245,7 @@ func TestTheFlagSetsTheParserAcceptsAreDerivedFromTheParameterTable(t *testing.T
 		"actor", "at", "before", "capacity", "card", "column", "depth",
 		"description", "expect-digest", "expires", "fields", "format", "from", "group-by", "kind",
 		"lang", "map", "max-depth", "note", "observed", "operator", "owner",
-		"poll-seconds", "priority", "query", "remint", "root", "severity",
+		"poll-seconds", "priority", "query", "remint", "root", "route", "severity",
 		"since", "slug", "text", "tier", "workbench",
 	}
 	wantMarkers := []string{
