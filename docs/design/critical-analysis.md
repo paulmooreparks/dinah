@@ -44,7 +44,7 @@ Every card on the live workbench walks all fourteen columns, and the workbench b
 
 ### 4.2 Rules live in prose, and prose does not enforce itself
 
-The workbench body runs to about 9KB and a column body to about 13KB, and the section of the workbench body headed "Disciplines this project has paid for" is a list of failures rewritten as instructions. The evidence that prose leaks is in the repository. Five stale worktrees sit under `.claude/worktrees/`, the one location every instruction forbids, and the station bindings record that an agent's identity was once lost and its findings attributed to the operator. Some of these rules belong in the tool. A mutating call whose actor is unspecified is recorded against the operator, which makes that particular failure silent; a refusal would have cost one condition and saved a false record.
+The workbench body runs to about 9KB and a column body to about 13KB, and the section of the workbench body headed "Disciplines this project has paid for" is a list of failures rewritten as instructions. The evidence that prose leaks is in the repository. Five stale worktrees sit under `.claude/worktrees/`, the one location every instruction forbids, and the station bindings record that an agent's identity was once lost and its findings attributed to the operator. Some of these rules belong in the tool. A call that names no actor anywhere is already refused `no-owner`, and the misattribution happens one rung lower. The operator's user configuration names him as the actor, that file is shared by every process on the machine, and a harness whose shell drops `DINAH_ACTOR` between calls therefore resolves to the operator and is answered with his authority. `format.md` gives this exact reason for keeping the provider and the model off the configuration rung, and the actor ladder is the one place the reason was not applied.
 
 ### 4.3 Discovery climbs to the drive root
 
@@ -89,7 +89,7 @@ The proposals are ordered by the ratio of what they remove to what they cost. Ea
 | --- | --- | --- | --- | --- |
 | 1 | Routes through one flow | 1 | medium | the fourteen-station tax on small cards |
 | 2 | Bound workbench discovery | 1 | small | the whole class of scratch-tree-reaches-live-data incidents |
-| 3 | Refuse an unattributed mutating call | 1 | small | silent misattribution to the operator |
+| 3 | Keep the configured actor from answering for a harness | 1 | small | silent promotion of an agent to the operator |
 | 4 | Narrow the default `show` | 2 | small | the 570KB read a forgotten flag produces |
 | 5 | Column reference material served by listing | 2 | medium | column bodies growing past what every context should read |
 | 6 | Tool-surface profiles on the MCP head | 2 | small | roughly half the per-round tool-definition cost for a station agent |
@@ -115,11 +115,13 @@ The rule is documented behaviour of git (a repository root is the directory hold
 
 **Implementation.** The discovery function in `internal/bench` gains the stop condition and a test for each of the three cases: inside a repository with a workbench above it, inside a repository with a workbench inside it, and outside any repository. The `init` guard is one condition in `cmd/dinah`. The safety document and the workbench body then lose the paragraphs that exist only because the walk was unbounded.
 
-### 7.3 Refuse an unattributed mutating call (priority 1, small)
+### 7.3 Keep the configured actor from answering for a harness (priority 1, small)
 
-**Design.** A mutating verb whose actor is named by neither `--actor` nor `DINAH_ACTOR` nor a `actor` key in the user configuration is refused `no-owner`, which is a refusal name the profile already declares. The operator sets the key once with `dinah config set actor paul`, and every call he types is attributed to him as today. An agent whose harness drops the variable is refused rather than recorded as him. Read verbs are unaffected.
+**Design.** The configuration rung of the actor ladder answers only a call that declares no harness. A process that sets `DINAH_HARNESS`, or names a harness over MCP, and names no actor is refused `no-owner`. The operator at his keyboard declares no harness, so his calls are attributed as they are today, and an agent that loses its actor is refused instead of promoted. The limit is stated rather than hidden: a process that loses every declaration at once still resolves to the configured actor, so the change narrows the hole without closing it. Removing the rung altogether was considered and moves the hazard to the operator's shell environment, which agents have inherited before.
 
-**Implementation.** The actor resolution in `cmd/dinah` loses its fallback to the workbench operator and gains the configuration key. The MCP head resolves its actor the same way at startup. One test per surface pins the refusal.
+An earlier draft of this section proposed adding the `no-owner` refusal itself. Tracing the code for dinah-540 showed that the refusal has existed since dinah-137, and the same trace found three smaller defects that dinah-540 now carries: three help pages omit `no-owner` from their check-order tables, one path can append a journal event with an empty actor before the owner check fires, and nothing sweeps the verb registry for a verb lacking the check. Whether the ladder changes is the operator's ruling and is filed on that card.
+
+**Implementation.** The actor resolution in `cmd/dinah` and the MCP head's resolution skip the configuration rung when a harness is declared. One test per surface pins the refusal beside the accepting case of a call with no harness.
 
 ### 7.4 Narrow the default `show` (priority 2, small)
 
