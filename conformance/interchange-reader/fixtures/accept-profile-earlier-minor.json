@@ -1,0 +1,7 @@
+{
+  "profile": "dinah-core/0.3",
+  "title": "Wedding",
+  "columns": [
+    { "id": "s1", "title": "Ideas", "kind": "intake" }
+  ]
+}

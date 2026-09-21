@@ -1,0 +1,12 @@
+{
+  "profile": "dinah-core/0.17",
+  "title": "Wedding",
+  "columns": [
+    { "id": "s1", "title": "Ideas", "kind": "intake", "slug": "ideas" },
+    { "id": "s2", "title": "Deciding", "kind": "work", "slug": "deciding",
+      "instructions": "Pick one and say why.", "capacity": 3 },
+    { "id": "s3", "title": "Booking", "kind": "work", "slug": "booking",
+      "operator_owned": true, "gate_items": ["deposit-receipt"] },
+    { "id": "s4", "title": "Booked", "kind": "done", "slug": "booked" }
+  ]
+}
