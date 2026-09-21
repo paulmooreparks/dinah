@@ -859,7 +859,11 @@ class Fixture(object):
         path = os.path.join(self.root, "definition.json")
         with open(path, "w", encoding="utf-8", newline="\n") as handle:
             handle.write(json.dumps(definition, indent=2))
-        self.cli("init", "--from", path, "--slug", "fx", "--operator", "alka")
+        # --here: dinah-541 refuses a target directory that already holds
+        # something, and this one already holds the definition.json this
+        # method just wrote into it, which is the fixture's own throwaway
+        # directory rather than anything the flag would let init clobber.
+        self.cli("init", "--from", path, "--slug", "fx", "--operator", "alka", "--here")
         stores = list(pathlib.Path(self.root, ".dinah").glob("*/workbench.md"))
         if len(stores) != 1:
             raise Failure("the fixture did not build one workbench under %s" % self.root)
