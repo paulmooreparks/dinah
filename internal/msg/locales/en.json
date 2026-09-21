@@ -53,6 +53,10 @@
       "text": "  priority: {priority}",
       "context": "Printed under the card line when the card carries a priority."
     },
+    "card.route": {
+      "text": "  route: {route}",
+      "context": "Printed under the card line when the card walks a route the workbench declares. A card on the workbench's full column list draws no such line."
+    },
     "card.severity": {
       "text": "  severity: {severity}",
       "context": "Printed under the card line when the card carries a severity."
@@ -83,6 +87,14 @@
     },
     "check.add.5": {
       "text": "each named level is one that field declares",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.add.6": {
+      "text": "the workbench declares the route you named",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.add.7": {
+      "text": "the route carries the column you are filing into",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.archive.1": {
@@ -269,6 +281,14 @@
       "text": "Wrote {count} lines of the card-number registry.",
       "context": "The line the number migration prints for what it wrote, for any other number. The count is zero on a run over a workbench whose registry already covered every card, which is that run's own answer."
     },
+    "check.card-off-route": {
+      "text": "{detail} stands at a column its own route does not carry",
+      "context": "A check finding: a card has been moved, rejected or re-routed onto a column its road does not carry. {detail} carries the card and the column, in that order. The card's forward move is the first route column after it, so this is worth a person's attention rather than broken."
+    },
+    "check.card-unknown-route": {
+      "text": "{detail} names a route this workbench does not declare",
+      "context": "A check finding: a card's route names one the workbench declares. {detail} carries the card and the route name, in that order. The card walks the workbench's full column list meanwhile."
+    },
     "check.card-vocabulary-mixed": {
       "text": "card {detail} carries a key from each of the two vocabularies this format has had, so its standing cannot be read",
       "context": "A check finding: a card whose header holds half of each vocabulary. The checker reports what the reader refuses under dinah.vocabulary-mixed, so a card whose anchor file is plainly there is not reported as having none."
@@ -356,6 +376,10 @@
     "check.columns-removed.other": {
       "text": "Removed {count} stranded columns from the list.",
       "context": "The line the stranded-column migration prints for what it removed, for any other number. Followed by one line per removed identifier."
+    },
+    "check.comment-body-diverged": {
+      "text": "the body of comment {detail} no longer matches the digest Dinah recorded over it",
+      "context": "A check finding: a comment whose stored digest disagrees with its body, which means something outside Dinah edited it. It names no editor and no time, because the tool knows neither, and a comment carrying no digest is not reported at all."
     },
     "check.comment.1": {
       "text": "the reference is given, and any card it names exists",
@@ -465,6 +489,10 @@
       "text": "a link names card {detail}, which resolves in neither half of the collection",
       "context": "A check finding: a links entry whose to resolves to no card."
     },
+    "check.dangling-resolution": {
+      "text": "checklist item {detail} designates a comment that no longer resolves",
+      "context": "A check finding: a resolution naming a comment that is not there. Deleting a designated comment is refused and the forced form clears the designation, so this is the residue of a hand edit rather than of anything the tool did."
+    },
     "check.dangling-workstream": {
       "text": "a card belongs to workstream {detail}, which resolves in neither half of the collection",
       "context": "A check finding: a card's workstreams list names an identifier no workstream answers to; `dinah check --migrate-workstreams` adopts it."
@@ -501,6 +529,14 @@
       "text": "the reference names one thing rather than a whole collection",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
+    "check.empty-comment": {
+      "text": "comment {detail} has an empty body and nothing designates it, so run `dinah delete` on it",
+      "context": "A check finding at cleanup severity: an abandoned draft, which is what creating a comment before writing one costs. Nothing is blocked by it."
+    },
+    "check.empty-designated-comment": {
+      "text": "comment {detail} has an empty body and a checklist item designates it as its answer",
+      "context": "A check finding at defect severity: an item's answer of record cannot be nothing. It is the same emptiness check.empty-comment reports, and it is a defect rather than clutter because something depends on this one."
+    },
     "check.entity-at-both-paths": {
       "text": "{detail} is present in the workbench's live set and in its archive, and check will not choose between them",
       "context": "A check finding: an interrupted structural act left a directory at both paths, which the tool reports and refuses to resolve."
@@ -512,6 +548,38 @@
     "check.field-declaration-malformed": {
       "text": "the fields block declares {detail} with no usable type or meaning, so nothing is declared under that key",
       "context": "A check finding: one entry of this workbench's fields block that the declaration reader refused, which is an entry whose key the grammar refuses, whose type is absent or outside the five, or whose meaning is absent or blank. {detail} carries the key as written. The entry declares nothing and the workbench still opens, so the repair is an edit to the block."
+    },
+    "check.file.1": {
+      "text": "this workbench designates an operator",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.file.2": {
+      "text": "the card exists",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.file.3": {
+      "text": "the request names an owner",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.file.4": {
+      "text": "the request names a kind",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.file.5": {
+      "text": "the kind is one of the three a checklist records",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.file.6": {
+      "text": "the item carries text",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.file.7": {
+      "text": "the workbench declares the column you named",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.file.8": {
+      "text": "the card's route carries the column you named",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.get.1": {
       "text": "the reference resolves to one entity",
@@ -553,9 +621,17 @@
       "text": "a structural action was interrupted here: {detail}",
       "context": "A check finding: a sibling lock standing beside an entity, with the identifier, the operation and the direction the finish would take."
     },
+    "check.item-carries-retired-note": {
+      "text": "checklist item {detail} still carries the retired note key",
+      "context": "A check finding: an item the note migration reached and did not finish, which is the state an interrupted run leaves one item in. Running the migration again finishes it."
+    },
     "check.item-column-unresolved": {
       "text": "a checklist item names a column that will never hold a card: {detail}",
       "context": "A check finding: every checklist item's column value, where set, is stored as the identifier of a column this workbench declares. {detail} carries the card's reference, the item's identifier, and the stored column value, in that order. A write filed or set before the field validated, or a hand edit, both produce it."
+    },
+    "check.item-off-route": {
+      "text": "{detail} names a column the card's route does not carry, so its hold would never fire",
+      "context": "A check finding: a pending checklist item names a column the card will never stand at. {detail} carries the card, the item and the column, in that order."
     },
     "check.join.1": {
       "text": "the card exists",
@@ -1061,8 +1137,44 @@
       "text": "nothing live stands where the entity goes back",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
+    "check.route-duplicate-column": {
+      "text": "{detail} names one column twice",
+      "context": "A check finding: a route names each column once. {detail} carries the route name and the column, in that order."
+    },
+    "check.route-empty": {
+      "text": "the route {detail} carries no column this workbench declares",
+      "context": "A check finding: a route has to carry at least one column to be a road at all. {detail} carries the route name. A retirement that took a route's last column away produces it as well as a declaration that named none."
+    },
+    "check.route-missing-first-column": {
+      "text": "{detail} does not carry the workbench's first column, so no card can enter the workbench on it",
+      "context": "A check finding: cards enter a workbench at its first column, which is where dinah add files one, so a route without it has no door. {detail} carries the route name and that first column, in that order."
+    },
+    "check.route-missing-terminal": {
+      "text": "{detail} ends at a column that is not a done column, so a card on it cannot finish",
+      "context": "A check finding: a route ends in the terminal region. {detail} carries the route name and the column it ends at, in that order."
+    },
+    "check.route-name-malformed": {
+      "text": "the route {detail} carries a name outside the grammar a route name takes",
+      "context": "A check finding: a route name has to read as a slug, because it is typed on a command line and read back out of a refusal. {detail} carries the name, and the repair is an edit to the workbench's own routes block."
+    },
+    "check.route-out-of-order": {
+      "text": "the route {detail} lists its columns in an order other than the flow's own",
+      "context": "A check finding: a route resolves in flow order whatever order it was written in, so this says the file does not read the way it runs. {detail} carries the route name."
+    },
+    "check.route-reject-target-off-route": {
+      "text": "{detail} declares reject_to naming a column that route does not carry",
+      "context": "A check finding: a push-back on a route should land on that route. {detail} carries the route name, the declaring column and the target, in that order. The card still lands there by an ordinary move and walks forward into its route again, so this is worth knowing rather than broken."
+    },
+    "check.route-unknown-column": {
+      "text": "{detail} names a column this workbench does not declare",
+      "context": "A check finding: every identifier a route names is a column of the flow. {detail} carries the route name and the identifier, in that order, and the repair is an edit to the workbench's own routes block."
+    },
     "check.set.1": {
       "text": "this workbench designates an operator",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.set.10": {
+      "text": "the route carries every operator-owned column ahead of the card",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.set.2": {
@@ -1091,6 +1203,10 @@
     },
     "check.set.8": {
       "text": "a slug change carries the confirmation flag",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.set.9": {
+      "text": "no pending item names a column the route drops",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.show.1": {
@@ -1344,6 +1460,10 @@
     "check.workstream-slug-unwritable": {
       "text": "workstream {detail} could not be written to, so the migration gave it no slug and carried on",
       "context": "A check finding the slug migration raises: the workstream's anchor could not be read or written, the walk stepped over it and carried on."
+    },
+    "cmd.accept-divergence.summary": {
+      "text": "Make a comment's edited body the record",
+      "context": "The one-line summary of the accept-divergence command, printed in the command list and above its own help."
     },
     "cmd.add.summary": {
       "text": "File a new card in the first column",
@@ -1641,6 +1761,10 @@
       "text": "Ref",
       "context": "Heading over the reference a person types to reach the item, in the checklist block of `dinah show`. The block draws no heading row, so a reader meets this heading only where a narrow window stacks each field on a line of its own. Each catalog decides for itself how a heading reads as a heading in its own language."
     },
+    "column.checklist.resolution": {
+      "text": "Answer",
+      "context": "The heading of the column of the checklist block of `dinah show <card>` that carries the reference of the comment a settled item designates as its answer. One word, because the block is bounded by the reader's window."
+    },
     "column.checklist.state": {
       "text": "State",
       "context": "Heading over the state the item's own file records, in the checklist block of `dinah show`. The block draws no heading row, so a reader meets this heading only where a narrow window stacks each field on a line of its own. Each catalog decides for itself how a heading reads as a heading in its own language."
@@ -1813,6 +1937,10 @@
       "text": "Reject",
       "context": "Heading over whether this row is the destination the departure column's own reject_to declares, in the legal moves printed under a served instruction. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
     },
+    "column.moves.route": {
+      "text": "On route",
+      "context": "Heading over whether this row is the forward move along the card's own route, in the legal moves printed under a served instruction. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it."
+    },
     "column.next.card": {
       "text": "Card",
       "context": "Heading over the reference a person types to name the card offered, in the offers `dinah next` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
@@ -1876,6 +2004,18 @@
     "column.roster.reference": {
       "text": "Reference",
       "context": "Heading over the word a reader types back to list one of the workbench’s own collections, in the roster a bare `dinah list` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.routes.columns": {
+      "text": "Columns",
+      "context": "Heading over how many live columns a route carries, in the listing dinah list routes prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it."
+    },
+    "column.routes.route": {
+      "text": "Route",
+      "context": "Heading over a route's own name, in the listing dinah list routes prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it."
+    },
+    "column.routes.skips": {
+      "text": "Skips",
+      "context": "Heading over the live columns a route omits, in the listing dinah list routes prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it."
     },
     "column.search.kind": {
       "text": "Kind",
@@ -2333,6 +2473,10 @@
       "text": "the question could not be asked: {detail}",
       "context": "The sentence after the unreachable outcome name."
     },
+    "param.accept-divergence.comment.summary": {
+      "text": "the comment whose body on disk you are making the record",
+      "context": "The meaning of the comment argument of `dinah accept-divergence`, printed in that command's arguments table."
+    },
     "param.add.column.summary": {
       "text": "which column to file the card in; the first column when you name none",
       "context": "The meaning of the column argument of `dinah add`, printed in that command's arguments table."
@@ -2516,6 +2660,18 @@
     "param.config.value.summary": {
       "text": "what to store under it, on a set",
       "context": "The meaning of the value argument of `dinah config`, printed in that command's arguments table."
+    },
+    "param.delete.force.summary": {
+      "text": "delete a comment a checklist item designates, reopening that item as part of the same act",
+      "context": "The meaning of the force argument of `dinah delete`, printed in that command's arguments table. It is the operator's alone where the designating item is the operator's."
+    },
+    "param.designation-text.summary": {
+      "text": "the answer itself, which is written as a comment of this item and designated in one act; a single - reads it from a pipe",
+      "context": "The written meaning of the --text flag, shared by resolve, verify and fail. It is the one-command form, and it cannot be named beside a designation reference, because the two are different acts."
+    },
+    "param.designation.summary": {
+      "text": "the comment of this item that records the answer, written as its reference; write the answer instead with --text",
+      "context": "The written meaning of the comment argument, shared by resolve, verify and fail. Naming a comment is how somebody endorses words another person wrote: the comment keeps its own author and the settling records who chose it."
     },
     "param.edit.card.summary": {
       "text": "the thing you are opening in your editor, such as wb-1/comments/1",
@@ -2721,6 +2877,10 @@
       "text": "the column a tier write applies to, instead of the card's own baseline; a card's tier is the one field that takes it",
       "context": "The meaning of the at argument of `dinah set`, printed in that command's arguments table. Every other field takes one value for the whole entity, so naming a column beside one is a usage error."
     },
+    "param.set.expect-digest.summary": {
+      "text": "the digest you last saw recorded on this comment, which refuses the write if anything has written the comment since",
+      "context": "The meaning of the expect-digest argument of `dinah set`, printed in that command's arguments table. It is for a caller that had the comment open while its author typed: an editor writes the file on save, so the body the write would otherwise be compared against is gone, and the digest on the header is what is left to compare."
+    },
     "param.set.field.summary": {
       "text": "which field you are writing; which names are legal depends on the kind the reference resolves to",
       "context": "The meaning of the field argument of `dinah set`, printed in that command's arguments table. The set the argument publishes is the union over every kind, and the refusal names the resolved kind's own set."
@@ -2797,6 +2957,14 @@
       "text": "No cards here.",
       "context": "Printed when a listing has nothing in it."
     },
+    "reason.deletedDesignation": {
+      "text": "The comment that was its answer of record was deleted: {comment}.",
+      "context": "The reason a forced deletion composes for the reopen it performs. {comment} is the reference of the comment being deleted, which is the only part of it that survives."
+    },
+    "reason.designated-comment-deleted": {
+      "text": "the designated comment {comment} was deleted",
+      "context": "The reason a forced deletion composes for the reopen it performs, recorded in the journal. {comment} is the deleted comment's reference, which is the only part of it that survives."
+    },
     "reference.kind.below-card": {
       "text": "something below a card",
       "context": "One address kind a command's reference may name, printed in the list beside that argument on the command's help page and in the tool schema. No label may itself contain a semicolon followed by a space, because the guard over that list splits it on that pair."
@@ -2848,6 +3016,14 @@
     "refusal.dinah.add-needs-a-column.next-named": {
       "text": "; hand-edit {detail} to add a column to the columns list and create its columns/<id>/column.md, then run `dinah check --workbench {workbench}` to confirm before trying `dinah add` again",
       "context": "Spliced onto refusal.dinah.add-needs-a-column as the next step wherever a workbench was resolved for this invocation, which covers every reader standing in one and every reader who named one with --workbench from somewhere else. {workbench} is the workbench directory, and naming it is what lets the reader confirm the hand edit on the workbench he was filing into. {detail} is the workbench.md path to hand-edit. The sibling entry without the flag is the alternation's unconditional last member. The command spelling is machine vocabulary and is not translated."
+    },
+    "refusal.dinah.alias-shadows-command": {
+      "text": "Alias {detail} would shadow declared command {command}.",
+      "context": "The sentence printed after refusal dinah.alias-shadows-command. {detail} is the alias setting key and {command} is the declared command its suffix collides with."
+    },
+    "refusal.dinah.alias-shadows-command.next": {
+      "text": " Choose another alias name.",
+      "context": "The next step for dinah.alias-shadows-command."
     },
     "refusal.dinah.ambiguous-card": {
       "text": "more than one card answers to {detail}",
@@ -2929,6 +3105,14 @@
       "text": "; choose a slug no column carries, or leave the argument out and take the one derived from the title",
       "context": "Spliced onto refusal.dinah.column-slug-taken as the next step."
     },
+    "refusal.dinah.comment-body-diverged": {
+      "text": "The body of comment {detail} no longer matches the digest Dinah recorded over it, so something outside Dinah edited it.",
+      "context": "The sentence printed after the refusal name dinah.comment-body-diverged, which every verb that writes a comment's anchor raises when the stored digest disagrees with the body it is about to replace. {detail} is the comment's reference. The sentence says an edit happened and says nothing about who made it or when, because the tool knows neither."
+    },
+    "refusal.dinah.comment-body-diverged.next": {
+      "text": " Restore the body by hand, which needs no command, or run `dinah accept-divergence {detail}` to make what is on disk the record.",
+      "context": "The next step of refusal.dinah.comment-body-diverged, spliced onto the sentence that just named the comment. The two routes differ in meaning rather than in convenience: restoring says the edit was a mistake, and accepting says the edited body is now what the record says."
+    },
     "refusal.dinah.conflicting-scope": {
       "text": "{detail} names a root to walk downward from and {workbench} names one workbench, and one command answers about one scope or the other",
       "context": "The sentence printed after the refusal name dinah.conflicting-scope. {detail} is the root the caller named with --root or as the path workbenches takes, and {workbench} is the single workbench --workbench or DINAH_WORKBENCH resolved to. refusal.dinah.conflicting-scope.next is spliced on after this one."
@@ -2989,6 +3173,14 @@
       "text": ", and `dinah check --workbench {workbench} --finish` completes it",
       "context": "Spliced onto refusal.dinah.interrupted as the next step wherever a workbench was resolved for this invocation, which covers every reader standing in one and every reader who named one with --workbench from somewhere else. {workbench} is the workbench directory, and naming it is what lets the reader finish the act from wherever he was standing when it broke. The sibling entry without the flag is the alternation's unconditional last member. The command spelling is machine vocabulary and is not translated."
     },
+    "refusal.dinah.invalid-alias": {
+      "text": "Alias {detail} is invalid ({defect}).",
+      "context": "The sentence printed after refusal dinah.invalid-alias. {detail} is the exact alias setting key and {defect} is its stable validation token."
+    },
+    "refusal.dinah.invalid-alias.next": {
+      "text": " Correct the alias setting or remove it with `dinah config set {detail}`.",
+      "context": "The next step for dinah.invalid-alias. {detail} is the exact alias setting key. The command spelling is machine vocabulary and is never translated."
+    },
     "refusal.dinah.is-a-collection": {
       "text": "{detail} names a whole collection rather than one thing in it",
       "context": "The sentence printed after the refusal name dinah.is-a-collection, when a command that reads or writes one thing is handed a reference naming a whole collection, such as pb-1/comments. {detail} is the reference as the reader typed it. The reference resolves, so the sentence says what it names rather than saying that nothing answers to it."
@@ -3004,6 +3196,14 @@
     "refusal.dinah.is-a-collection.next-member": {
       "text": "; write {member} for one of them, or `dinah path {detail}` for the collection itself",
       "context": "Spliced onto refusal.dinah.is-a-collection when the collection holds at least one member. {member} is the reference of the first member, which is the collection's own reference followed by /1, and it is an address rather than prose. The second clause offers the one command that takes a collection reference and answers with a filesystem path."
+    },
+    "refusal.dinah.item-off-route": {
+      "text": "the route {route} does not carry {detail}, so an item naming that column would hold this card nowhere.",
+      "context": "The sentence printed after the refusal name dinah.item-off-route, which filing an item against a column the card's own route drops carries. {detail} is the column that was named and {route} is the route the card walks."
+    },
+    "refusal.dinah.item-off-route.next": {
+      "text": " Name a column the route carries, or change the card's route first.",
+      "context": "The next step of refusal.dinah.item-off-route, which names the two repairs open to the caller."
     },
     "refusal.dinah.last-column": {
       "text": "{detail} is the only column left",
@@ -3052,6 +3252,14 @@
     "refusal.dinah.malformed-member-name.next": {
       "text": "; rename that member in the document and read it again",
       "context": "The next step of refusal.dinah.malformed-member-name. Every other line ending in this contract is normalised rather than refused; this one cannot be, because normalising leaves a line feed that still splits the header."
+    },
+    "refusal.dinah.missing-alias-argument": {
+      "text": "Alias {detail} requires argument {argument}.",
+      "context": "The sentence printed after refusal dinah.missing-alias-argument. {detail} is the alias name and {argument} is the missing placeholder token."
+    },
+    "refusal.dinah.missing-alias-argument.next": {
+      "text": " Supply the missing argument and run the command again.",
+      "context": "The next step for dinah.missing-alias-argument."
     },
     "refusal.dinah.multiple-words": {
       "text": "Dinah read {count} separate words for {label}, and it only accepts one.",
@@ -3157,6 +3365,14 @@
       "text": "; point --workbench at a directory that does, or drop --workbench to search upward from here",
       "context": "Spliced onto refusal.dinah.no-workbench as the next step, carrying the clause that base entry used to end with."
     },
+    "refusal.dinah.not-a-designation": {
+      "text": "{detail} is not a comment of the item you are settling.",
+      "context": "The sentence printed after the refusal name dinah.not-a-designation, which resolve, verify and fail raise when the reference they were handed is not a comment of the item being settled. {detail} is the reference as the caller typed it."
+    },
+    "refusal.dinah.not-a-designation.next": {
+      "text": " Write the answer with --text, or name a comment of that item; `dinah show <item>` lists the ones it carries.",
+      "context": "The next step of refusal.dinah.not-a-designation, spliced onto the sentence that just named the reference. <item> stands for the item's own reference and is not translated."
+    },
     "refusal.dinah.not-archived": {
       "text": "nothing in the archive answers to {detail}",
       "context": "The sentence printed after the refusal name dinah.not-archived when show, path or contents was asked to read the archive and the archive holds nothing the reference names. {detail} is the reference as the reader typed it, which is an address rather than prose and is never translated. The reader can see the thing they typed, either because it is live or because it travelled inside an archived holder, so the sentence says which half it is in rather than saying it does not exist. No word of the sentence may agree with {detail}: the token substituted there is an untranslated address and no language can predict its gender, its number or the sound it starts with."
@@ -3208,6 +3424,14 @@
     "refusal.dinah.not-commentable.next": {
       "text": "; a comment hangs on a column, on a card, or on one of that card's checklist items",
       "context": "The one next step of refusal.dinah.not-commentable, printed whatever kind the reference resolved to, because the honest advice is the same for every kind that fails it."
+    },
+    "refusal.dinah.not-designatable": {
+      "text": "Comment {detail} is the answer of record for item {item}, so deleting it would leave that item settled with nothing behind it.",
+      "context": "The sentence printed after the refusal name dinah.not-designatable, which delete raises over a comment a checklist item designates. {detail} is the comment's reference and {item} is the designation the item carries."
+    },
+    "refusal.dinah.not-designatable.next": {
+      "text": " Reopen the item first, which clears the designation, or run the delete again with --force, which reopens it as part of the same act.",
+      "context": "The next step of refusal.dinah.not-designatable, spliced onto the sentence that just named the comment and the item."
     },
     "refusal.dinah.not-pending": {
       "text": "That item is already {detail}.",
@@ -3320,6 +3544,38 @@
     "refusal.dinah.reshape-needs-a-destination.next": {
       "text": "; name one with `--map {detail}=<column>`, or declare replaces on the column that takes the work over",
       "context": "Spliced onto refusal.dinah.reshape-needs-a-destination as the next step, naming the two ways a destination is supplied."
+    },
+    "refusal.dinah.route-off-column": {
+      "text": "the route {route} does not carry {detail}, so a card filed there would stand off its route from the start.",
+      "context": "The sentence printed after the refusal name dinah.route-off-column, which a filing whose destination column the named route drops carries. {detail} is the column the card would have landed in and {route} is the route that was named."
+    },
+    "refusal.dinah.route-off-column.next": {
+      "text": " File the card into a column the route carries, or name another route.",
+      "context": "The next step of refusal.dinah.route-off-column, which names the two repairs open to the caller."
+    },
+    "refusal.dinah.route-skips-operator-column": {
+      "text": "the route {detail} does not carry {column}, which this card has not yet passed and which this workbench reserves to its operator.",
+      "context": "The sentence printed after the refusal name dinah.route-skips-operator-column, which a route write whose route omits an operator-owned station the card has not reached carries. {detail} is the route name that was written and {column} is the station it omits."
+    },
+    "refusal.dinah.route-skips-operator-column.next": {
+      "text": " Move the card past that station first, or name a route that carries it.",
+      "context": "The next step of refusal.dinah.route-skips-operator-column, which names the two repairs: carry the card past the reserved station, or write a route that keeps it."
+    },
+    "refusal.dinah.route-strands-item": {
+      "text": "{item} names {column}, and the route {detail} does not carry that column, so the hold it was filed for would never fire.",
+      "context": "The sentence printed after the refusal name dinah.route-strands-item, which a route write on a card carrying a pending item naming a column the new route drops carries. {detail} is the route name that was written, {item} is the item's own reference and {column} is the column it names. Only a pending item is reported, because a settled one holds nothing."
+    },
+    "refusal.dinah.route-strands-item.next": {
+      "text": " Settle that item, or move it onto a column the route carries with `dinah set {item} column <column>`.",
+      "context": "The next step of refusal.dinah.route-strands-item. The command is machine vocabulary and is never translated; {item} is the same reference the sentence above named."
+    },
+    "refusal.dinah.store-awaiting-migration": {
+      "text": "The workbench at {detail} still records a checklist item's answer as a note, which Dinah no longer reads.",
+      "context": "The sentence printed after the refusal name dinah.store-awaiting-migration, which every read of a workbench below the resolution format raises. {detail} is the workbench's own path. The refusal exists because a reader that carried on would report every settled item as carrying no answer, which is a false reading rather than a degraded one."
+    },
+    "refusal.dinah.store-awaiting-migration.next": {
+      "text": " Take a backup, then run dinah-migrate-notes over that workbench and read its report before using it again.",
+      "context": "The next step of refusal.dinah.store-awaiting-migration. dinah-migrate-notes is the migration program's own name and is not translated. The backup is named first because the migration writes in place and cannot undo itself."
     },
     "refusal.dinah.takes-no-work": {
       "text": "no owner takes work up at column {detail}, and a card waits there until a pull carries it into the column beyond",
@@ -3528,6 +3784,22 @@
     "refusal.dinah.unknown-root.next": {
       "text": "; point --root at a directory that does exist, or remove the option to discover one from here",
       "context": "Spliced onto refusal.dinah.unknown-root as the next step, naming the two ways past the refusal."
+    },
+    "refusal.dinah.unknown-route": {
+      "text": "this workbench declares no route called {detail}.",
+      "context": "The sentence printed after the refusal name dinah.unknown-route, which a write naming a route the workbench does not declare carries. {detail} is the route name the reader typed. The declared names follow in a fragment, so a workbench declaring no route at all ends the sentence here."
+    },
+    "refusal.dinah.unknown-route.declared": {
+      "text": " The routes it declares are: {routes}.",
+      "context": "A fragment of refusal.dinah.unknown-route, printed when the workbench declares at least one route. {routes} is the declared names in declaration order, read off the workbench rather than written here, so a route name is never translated."
+    },
+    "refusal.dinah.unknown-route.next": {
+      "text": " Name one of those instead.",
+      "context": "The next step of refusal.dinah.unknown-route on a workbench that declares routes, spliced onto the sentence that just listed them."
+    },
+    "refusal.dinah.unknown-route.none": {
+      "text": " Declare a route in the workbench's own routes block first, or leave the card on the workbench's full column list.",
+      "context": "The next step of refusal.dinah.unknown-route on a workbench declaring no route at all, where there is no name to offer the reader instead. routes is a frontmatter key and is never translated."
     },
     "refusal.dinah.unknown-value": {
       "text": "Dinah does not accept {detail} in {term}.",
@@ -3949,6 +4221,14 @@
       "text": "this workbench would not open: {refusal}",
       "context": "The line printed under root.workbench for a workbench the walk described off its anchor and then could not open, so its title and its slug are known and nothing further about it is. {refusal} is the bracketed refusal name workbenches.refused composes. It follows the identity line rather than replacing it, because that identity was read, and a reader who loses it cannot tell which directory of the listing failed."
     },
+    "routes.empty": {
+      "text": "This workbench declares no route, so every card walks its full column list.",
+      "context": "Printed in place of the routes listing when the workbench's own definition declares none. It says what that means rather than only that the list is empty."
+    },
+    "routes.skip.operator-owned": {
+      "text": "{column} (operator)",
+      "context": "One skipped column in the routes listing, where the workbench reserves that column to its operator. {column} is the column's own reference and is never translated. The mark answers the one question an operator asks of a road somebody drew."
+    },
     "schema.basis.description": {
       "text": "the revision the last response reported for this card; the call is refused as stale when the card has moved on since",
       "context": "The description of the basis property, which the eight generated machine schemas that consume basis carry and no command declares."
@@ -3993,6 +4273,14 @@
       "text": "Comments:",
       "context": "The label above a card's comments."
     },
+    "show.designation": {
+      "text": "{author} at {ts}: {body}",
+      "context": "The line drawn under a settled checklist item's row by a full checklist read, carrying the designated comment's author, its timestamp and its text. {body} is already capped for display by the time it reaches here."
+    },
+    "show.designation.unattributed": {
+      "text": "an author this workbench cannot name, at {ts}: {body}",
+      "context": "The form show.designation takes for a comment whose author the store could not recover, which the note migration records as an absence rather than as a name. It says the store cannot name the author rather than leaving a blank that reads as a defect."
+    },
     "show.links": {
       "text": "Links:",
       "context": "The label above a card's links."
@@ -4013,6 +4301,10 @@
       "text": "the comment",
       "context": "Names comment's free-text slot inside refusal.dinah.multiple-words, which reads it as {label}."
     },
+    "slot.designation": {
+      "text": "designation",
+      "context": "What the comment argument of resolve, verify and fail is called in the refusal a caller meets when they typed several bare words where one reference belongs."
+    },
     "slot.item": {
       "text": "the item's text",
       "context": "The label naming what a bare word after dinah file was meant to be, printed when several unquoted words arrive where one argument belongs."
@@ -4020,10 +4312,6 @@
     "slot.name": {
       "text": "the name",
       "context": "Names rename's free-text slot inside refusal.dinah.multiple-words, which reads it as {label}."
-    },
-    "reason.deletedDesignation": {
-      "text": "The comment that was its answer of record was deleted: {comment}.",
-      "context": "The reason a forced deletion composes for the reopen it performs. {comment} is the reference of the comment being deleted, which is the only part of it that survives."
     },
     "slot.note": {
       "text": "the note",
@@ -4181,6 +4469,10 @@
       "text": "intake",
       "context": "How the canonical token intake is rendered where a person reads it. The machine surface always carries the canonical spelling."
     },
+    "token.invalid": {
+      "text": "invalid",
+      "context": "How the canonical token invalid is rendered in the settings listing for a stored alias quarantined by validation. The machine surface always carries the canonical spelling."
+    },
     "token.locale": {
       "text": "locale",
       "context": "How the canonical token locale is rendered where a person reads it, naming the rung a setting resolved from in the settings listing: the operating system's locale answered, as a hint about the machine. The machine surface always carries the canonical spelling."
@@ -4216,6 +4508,10 @@
     "token.search": {
       "text": "search",
       "context": "How the canonical token search is rendered where a person reads it, naming the rung a workbench answer came from: the ancestor walk resolved it, in the settings listing and on the status line alike. The machine surface always carries the canonical spelling."
+    },
+    "token.shadowed": {
+      "text": "shadowed",
+      "context": "How the canonical token shadowed is rendered in the settings listing for a stored alias whose name is now a declared command. The machine surface always carries the canonical spelling."
     },
     "token.tier_overridden": {
       "text": "tier overridden",
@@ -4372,134 +4668,6 @@
     "workstreams.empty": {
       "text": "this workbench carries no workstream",
       "context": "Printed by the workstream command when the workbench carries none, in place of an empty table."
-    },
-    "refusal.dinah.invalid-alias": {
-      "text": "Alias {detail} is invalid ({defect}).",
-      "context": "The sentence printed after refusal dinah.invalid-alias. {detail} is the exact alias setting key and {defect} is its stable validation token."
-    },
-    "refusal.dinah.invalid-alias.next": {
-      "text": " Correct the alias setting or remove it with `dinah config set {detail}`.",
-      "context": "The next step for dinah.invalid-alias. {detail} is the exact alias setting key. The command spelling is machine vocabulary and is never translated."
-    },
-    "refusal.dinah.alias-shadows-command": {
-      "text": "Alias {detail} would shadow declared command {command}.",
-      "context": "The sentence printed after refusal dinah.alias-shadows-command. {detail} is the alias setting key and {command} is the declared command its suffix collides with."
-    },
-    "refusal.dinah.alias-shadows-command.next": {
-      "text": " Choose another alias name.",
-      "context": "The next step for dinah.alias-shadows-command."
-    },
-    "refusal.dinah.missing-alias-argument": {
-      "text": "Alias {detail} requires argument {argument}.",
-      "context": "The sentence printed after refusal dinah.missing-alias-argument. {detail} is the alias name and {argument} is the missing placeholder token."
-    },
-    "refusal.dinah.missing-alias-argument.next": {
-      "text": " Supply the missing argument and run the command again.",
-      "context": "The next step for dinah.missing-alias-argument."
-    },
-    "token.invalid": {
-      "text": "invalid",
-      "context": "How the canonical token invalid is rendered in the settings listing for a stored alias quarantined by validation. The machine surface always carries the canonical spelling."
-    },
-    "token.shadowed": {
-      "text": "shadowed",
-      "context": "How the canonical token shadowed is rendered in the settings listing for a stored alias whose name is now a declared command. The machine surface always carries the canonical spelling."
-    },
-    "refusal.dinah.comment-body-diverged": {
-      "text": "The body of comment {detail} no longer matches the digest Dinah recorded over it, so something outside Dinah edited it.",
-      "context": "The sentence printed after the refusal name dinah.comment-body-diverged, which every verb that writes a comment's anchor raises when the stored digest disagrees with the body it is about to replace. {detail} is the comment's reference. The sentence says an edit happened and says nothing about who made it or when, because the tool knows neither."
-    },
-    "refusal.dinah.comment-body-diverged.next": {
-      "text": " Restore the body by hand, which needs no command, or run `dinah accept-divergence {detail}` to make what is on disk the record.",
-      "context": "The next step of refusal.dinah.comment-body-diverged, spliced onto the sentence that just named the comment. The two routes differ in meaning rather than in convenience: restoring says the edit was a mistake, and accepting says the edited body is now what the record says."
-    },
-    "refusal.dinah.not-a-designation": {
-      "text": "{detail} is not a comment of the item you are settling.",
-      "context": "The sentence printed after the refusal name dinah.not-a-designation, which resolve, verify and fail raise when the reference they were handed is not a comment of the item being settled. {detail} is the reference as the caller typed it."
-    },
-    "refusal.dinah.not-a-designation.next": {
-      "text": " Write the answer with --text, or name a comment of that item; `dinah show <item>` lists the ones it carries.",
-      "context": "The next step of refusal.dinah.not-a-designation, spliced onto the sentence that just named the reference. <item> stands for the item's own reference and is not translated."
-    },
-    "refusal.dinah.not-designatable": {
-      "text": "Comment {detail} is the answer of record for item {item}, so deleting it would leave that item settled with nothing behind it.",
-      "context": "The sentence printed after the refusal name dinah.not-designatable, which delete raises over a comment a checklist item designates. {detail} is the comment's reference and {item} is the designation the item carries."
-    },
-    "refusal.dinah.not-designatable.next": {
-      "text": " Reopen the item first, which clears the designation, or run the delete again with --force, which reopens it as part of the same act.",
-      "context": "The next step of refusal.dinah.not-designatable, spliced onto the sentence that just named the comment and the item."
-    },
-    "refusal.dinah.store-awaiting-migration": {
-      "text": "The workbench at {detail} still records a checklist item's answer as a note, which Dinah no longer reads.",
-      "context": "The sentence printed after the refusal name dinah.store-awaiting-migration, which every read of a workbench below the resolution format raises. {detail} is the workbench's own path. The refusal exists because a reader that carried on would report every settled item as carrying no answer, which is a false reading rather than a degraded one."
-    },
-    "refusal.dinah.store-awaiting-migration.next": {
-      "text": " Take a backup, then run dinah-migrate-notes over that workbench and read its report before using it again.",
-      "context": "The next step of refusal.dinah.store-awaiting-migration. dinah-migrate-notes is the migration program's own name and is not translated. The backup is named first because the migration writes in place and cannot undo itself."
-    },
-    "check.comment-body-diverged": {
-      "text": "the body of comment {detail} no longer matches the digest Dinah recorded over it",
-      "context": "A check finding: a comment whose stored digest disagrees with its body, which means something outside Dinah edited it. It names no editor and no time, because the tool knows neither, and a comment carrying no digest is not reported at all."
-    },
-    "check.empty-comment": {
-      "text": "comment {detail} has an empty body and nothing designates it, so run `dinah delete` on it",
-      "context": "A check finding at cleanup severity: an abandoned draft, which is what creating a comment before writing one costs. Nothing is blocked by it."
-    },
-    "check.empty-designated-comment": {
-      "text": "comment {detail} has an empty body and a checklist item designates it as its answer",
-      "context": "A check finding at defect severity: an item's answer of record cannot be nothing. It is the same emptiness check.empty-comment reports, and it is a defect rather than clutter because something depends on this one."
-    },
-    "check.item-carries-retired-note": {
-      "text": "checklist item {detail} still carries the retired note key",
-      "context": "A check finding: an item the note migration reached and did not finish, which is the state an interrupted run leaves one item in. Running the migration again finishes it."
-    },
-    "check.dangling-resolution": {
-      "text": "checklist item {detail} designates a comment that no longer resolves",
-      "context": "A check finding: a resolution naming a comment that is not there. Deleting a designated comment is refused and the forced form clears the designation, so this is the residue of a hand edit rather than of anything the tool did."
-    },
-    "column.checklist.resolution": {
-      "text": "Answer",
-      "context": "The heading of the column of the checklist block of `dinah show <card>` that carries the reference of the comment a settled item designates as its answer. One word, because the block is bounded by the reader's window."
-    },
-    "show.designation": {
-      "text": "{author} at {ts}: {body}",
-      "context": "The line drawn under a settled checklist item's row by a full checklist read, carrying the designated comment's author, its timestamp and its text. {body} is already capped for display by the time it reaches here."
-    },
-    "show.designation.unattributed": {
-      "text": "an author this workbench cannot name, at {ts}: {body}",
-      "context": "The form show.designation takes for a comment whose author the store could not recover, which the note migration records as an absence rather than as a name. It says the store cannot name the author rather than leaving a blank that reads as a defect."
-    },
-    "slot.designation": {
-      "text": "designation",
-      "context": "What the comment argument of resolve, verify and fail is called in the refusal a caller meets when they typed several bare words where one reference belongs."
-    },
-    "param.designation.summary": {
-      "text": "the comment of this item that records the answer, written as its reference; write the answer instead with --text",
-      "context": "The written meaning of the comment argument, shared by resolve, verify and fail. Naming a comment is how somebody endorses words another person wrote: the comment keeps its own author and the settling records who chose it."
-    },
-    "param.designation-text.summary": {
-      "text": "the answer itself, which is written as a comment of this item and designated in one act; a single - reads it from a pipe",
-      "context": "The written meaning of the --text flag, shared by resolve, verify and fail. It is the one-command form, and it cannot be named beside a designation reference, because the two are different acts."
-    },
-    "param.delete.force.summary": {
-      "text": "delete a comment a checklist item designates, reopening that item as part of the same act",
-      "context": "The meaning of the force argument of `dinah delete`, printed in that command's arguments table. It is the operator's alone where the designating item is the operator's."
-    },
-    "param.accept-divergence.comment.summary": {
-      "text": "the comment whose body on disk you are making the record",
-      "context": "The meaning of the comment argument of `dinah accept-divergence`, printed in that command's arguments table."
-    },
-    "cmd.accept-divergence.summary": {
-      "text": "Make a comment's edited body the record",
-      "context": "The one-line summary of the accept-divergence command, printed in the command list and above its own help."
-    },
-    "reason.designated-comment-deleted": {
-      "text": "the designated comment {comment} was deleted",
-      "context": "The reason a forced deletion composes for the reopen it performs, recorded in the journal. {comment} is the deleted comment's reference, which is the only part of it that survives."
-    },
-    "param.set.expect-digest.summary": {
-      "text": "the digest you last saw recorded on this comment, which refuses the write if anything has written the comment since",
-      "context": "The meaning of the expect-digest argument of `dinah set`, printed in that command's arguments table. It is for a caller that had the comment open while its author typed: an editor writes the file on save, so the body the write would otherwise be compared against is gone, and the digest on the header is what is left to compare."
     }
   }
 }

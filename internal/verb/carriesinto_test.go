@@ -185,12 +185,26 @@ func TestTheColumnViewPublishesCarriesIntosOwnAnswer(t *testing.T) {
 	})
 }
 
-// TestPullSourcesFiltersTheWalkRatherThanRepeatingIt is dinah-273 AC-38. Every
-// column carriesInto answers with the destination is a source, in nearest-first
-// order, and the operator-owned queue standing immediately upstream is among
-// them, which is the asymmetry a hand-written backward walk would lose.
-func TestPullSourcesFiltersTheWalkRatherThanRepeatingIt(t *testing.T) {
+// TestPullableCardsFiltersTheWalkRatherThanRepeatingIt is dinah-273 AC-38,
+// carried onto the selection that replaced pullSources with dinah-542. Every
+// column carriesInto answers with the destination contributes its ready card,
+// in nearest-first order, and the operator-owned queue standing immediately
+// upstream is among them, which is the asymmetry a hand-written backward walk
+// would lose and which the named form depends on for its not-operator refusal.
+//
+// Each column is given one ready card, so a source that contributes is a source
+// whose card comes back and the two lists compare directly.
+func TestPullableCardsFiltersTheWalkRatherThanRepeatingIt(t *testing.T) {
 	flow := flowOf(contract.KindIntake, contract.KindBuffer+"+operator", contract.KindBuffer, contract.KindWork)
+	cards := make([]*bench.Card, 0, len(flow))
+	for at, column := range flow {
+		cards = append(cards, &bench.Card{
+			ID:     string(rune('1' + at)),
+			Column: column.ID,
+			State:  contract.StateReady,
+		})
+	}
+	library := &Library{Bench: &bench.Bench{Root: t.TempDir(), Columns: flow}}
 	for _, destination := range flow {
 		var wanted []*bench.Column
 		for at := len(flow) - 1; at >= 0; at-- {
@@ -198,13 +212,17 @@ func TestPullSourcesFiltersTheWalkRatherThanRepeatingIt(t *testing.T) {
 				wanted = append(wanted, flow[at])
 			}
 		}
-		got := pullSources(destination, flow)
+		taken, _ := library.pullableCards(destination, cards, admission{}, nil)
+		var got []*bench.Column
+		for _, card := range taken {
+			got = append(got, library.Bench.Column(card.Column))
+		}
 		if len(got) != len(wanted) {
-			t.Fatalf("the sources of %s are %v and the filter answered %v", destination.ID, refsOf(wanted), refsOf(got))
+			t.Fatalf("the sources of %s are %v and the selection answered %v", destination.ID, refsOf(wanted), refsOf(got))
 		}
 		for at := range got {
 			if got[at] != wanted[at] {
-				t.Fatalf("the sources of %s are %v in nearest-first order and the filter answered %v",
+				t.Fatalf("the sources of %s are %v in nearest-first order and the selection answered %v",
 					destination.ID, refsOf(wanted), refsOf(got))
 			}
 		}
@@ -213,9 +231,10 @@ func TestPullSourcesFiltersTheWalkRatherThanRepeatingIt(t *testing.T) {
 	// The assertion above holds by construction unless the operator-owned
 	// buffer really is a source of the station, so that one case is named.
 	station := flow[3]
+	taken, _ := library.pullableCards(station, cards, admission{}, nil)
 	found := false
-	for _, source := range pullSources(station, flow) {
-		if source == flow[1] {
+	for _, card := range taken {
+		if card.Column == flow[1].ID {
 			found = true
 		}
 	}

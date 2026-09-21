@@ -131,6 +131,15 @@ func (l *Library) SetField(req *Request) *Response {
 		}
 		return l.refuseWith(req, entity.Card, contract.Unconfirmed, value, extra)
 	}
+	// The two route rows are last, because both read the card rather than the
+	// value being written and neither is a guard. A clear is never refused on
+	// either ground: the default route carries every column, so clearing can
+	// strand no item and skip no station.
+	if field.Guard == bench.GuardRoute && value != "" {
+		if refused := l.admitRouteWrite(req, entity, value); refused != nil {
+			return refused
+		}
+	}
 	// The value a reader types is any spelling of a column, and the value
 	// stored is that column's identifier, because a gate reads the field by
 	// identifier equality. admitFieldValue has already refused a spelling
@@ -408,6 +417,17 @@ func (l *Library) admitFieldValue(req *Request, entity *bench.EntityRef, field b
 	case bench.GuardColumnRef:
 		if l.Bench.ColumnByRef(value) == nil {
 			return l.refuse(req, entity.Card, contract.UnknownColumn, value)
+		}
+		if refused := l.admitItemColumnRoute(req, entity, value); refused != nil {
+			return refused
+		}
+	case bench.GuardRoute:
+		// The guard admits a name the workbench declares and refuses every
+		// other, resolving nothing, because a route name is stored as typed.
+		if !l.Bench.DeclaresRoute(value) {
+			return l.refuseWith(req, entity.Card, contract.UnknownRoute, value, map[string]string{
+				"routes": strings.Join(l.Bench.RouteNames, ", "),
+			})
 		}
 	case bench.GuardResolution:
 		// A designation names a comment of the very item being written, and

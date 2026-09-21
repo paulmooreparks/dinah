@@ -358,6 +358,59 @@ const (
 	FindingTiersEntryMalformed = "check.tiers-entry-malformed"
 )
 
+// The eleven findings a declared route and a card naming one can produce. Each
+// is reported rather than refused on read, on the posture the whole of this
+// file keeps: a write catches a typo before it lands, and a read tolerates a
+// declaration somebody typed. A workbench whose routes are nonsense opens, is
+// read as it stands, and is reported.
+const (
+	// FindingRouteNameMalformed is a route name outside ColumnSlugPattern.
+	// The name is typed on a command line and read back out of a refusal,
+	// and renderBlock refuses to write a frontmatter key outside its own
+	// character class, so a name outside the grammar is a name the file would
+	// stop round-tripping.
+	FindingRouteNameMalformed = "check.route-name-malformed"
+	// FindingRouteEmpty is a route declaring no column at all.
+	FindingRouteEmpty = "check.route-empty"
+	// FindingRouteUnknownColumn is a route naming an identifier the workbench
+	// does not declare.
+	FindingRouteUnknownColumn = "check.route-unknown-column"
+	// FindingRouteDuplicateColumn is a route naming one column twice.
+	FindingRouteDuplicateColumn = "check.route-duplicate-column"
+	// FindingRouteOutOfOrder is a route whose declaration lists its columns in
+	// an order other than flow order. The route still resolves, because
+	// RouteOf sorts, and the finding says the file does not read the way it
+	// runs.
+	FindingRouteOutOfOrder = "check.route-out-of-order"
+	// FindingRouteMissingFirstColumn is a route that does not carry the
+	// workbench's first column, whatever that column's kind. Cards enter the
+	// workbench there, because that is where dinah add files one, so a route
+	// without it has no door. The finding is named for the position rather
+	// than for the kind intake, because the format permits a workbench whose
+	// first column carries another kind and the rule is about the door.
+	FindingRouteMissingFirstColumn = "check.route-missing-first-column"
+	// FindingRouteMissingTerminal is a route whose last column is not of kind
+	// done. A card has to be able to finish.
+	FindingRouteMissingTerminal = "check.route-missing-terminal"
+	// FindingRouteRejectTargetOffRoute is a column the route carries whose
+	// reject_to names a column the route does not carry. It is a finding
+	// rather than a refusal because the state it names is survivable: the
+	// rejection lands the card there by an ordinary move and the card walks
+	// forward into its route again. What the finding buys is that somebody
+	// sees a road whose push-backs leave it.
+	FindingRouteRejectTargetOffRoute = "check.route-reject-target-off-route"
+	// FindingCardUnknownRoute is a card naming a route the workbench does not
+	// declare. The card walks the default route meanwhile.
+	FindingCardUnknownRoute = "check.card-unknown-route"
+	// FindingCardOffRoute is a card standing at a column its own route does
+	// not carry, which is worth a person's attention on a board where nobody
+	// meant to produce it.
+	FindingCardOffRoute = "check.card-off-route"
+	// FindingItemOffRoute is a pending checklist item naming a column the
+	// card's route does not carry, which is a hold that would never fire.
+	FindingItemOffRoute = "check.item-off-route"
+)
+
 // The directions an interrupted structural act is reported and finished in.
 // The journal decides between the first two, the same way history determines
 // the present everywhere else in this format; the last two are the columns the
@@ -436,6 +489,7 @@ func (b *Bench) Check() ([]Finding, error) {
 	findings = append(findings, b.checkRequiredFields()...)
 	findings = append(findings, b.checkColumnKinds()...)
 	findings = append(findings, b.checkRejectTargets()...)
+	findings = append(findings, b.checkRoutes()...)
 	findings = append(findings, b.checkColumnLevels()...)
 	workstreamFindings, err := b.checkWorkstreams()
 	if err != nil {
@@ -788,11 +842,17 @@ func (b *Bench) checkCard(card *Card) ([]Finding, error) {
 		findings = append(findings, Finding{Path: anchor, Key: FindingBranchHeadingInBody, Detail: card.ID})
 	}
 	findings = append(findings, b.checkTierOverrides(card)...)
+	findings = append(findings, b.checkCardRoute(card)...)
 	itemColumnFindings, err := b.checkItemColumns(card)
 	if err != nil {
 		return findings, err
 	}
 	findings = append(findings, itemColumnFindings...)
+	itemRouteFindings, err := b.checkItemRoutes(card)
+	if err != nil {
+		return findings, err
+	}
+	findings = append(findings, itemRouteFindings...)
 	// A card carrying no registry line is checkCardNumbers' finding rather
 	// than this walk's, because the line lives in the registry file rather
 	// than in the anchor this walk reads, and a workbench the migration has

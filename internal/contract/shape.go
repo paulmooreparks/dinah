@@ -1339,6 +1339,51 @@ var Shapes = []Shape{
 		Fragments: []Fragment{{Key: "refusal.dinah.unknown-link.next"}},
 		NextStep:  []string{"refusal.dinah.unknown-link.next"},
 	},
+	{
+		// The declared set rides as a value rather than as a Listing, for the
+		// reason UnknownLevel gives for its own: the roster is read off the
+		// workbench the write landed on, and a Listing name resolves from the
+		// session alone.
+		Name:      UnknownRoute,
+		Values:    []string{"routes"},
+		Fragments: []Fragment{{Key: "refusal.dinah.unknown-route.next"}},
+		NextStep:  []string{"refusal.dinah.unknown-route.next"},
+	},
+	{
+		// The detail names the route, and the item and the column it names
+		// ride as values, because the sentence has to say which item holds
+		// the card and where, and the next step names both repairs.
+		Name:      RouteStrandsItem,
+		Values:    []string{"item", "column"},
+		Fragments: []Fragment{{Key: "refusal.dinah.route-strands-item.next"}},
+		NextStep:  []string{"refusal.dinah.route-strands-item.next"},
+	},
+	{
+		// The detail names the route and the column rides as a value, since
+		// the sentence names the station the road would carry the card past
+		// and the reader repairs one or the other.
+		Name:      RouteSkipsOperatorColumn,
+		Values:    []string{"column"},
+		Fragments: []Fragment{{Key: "refusal.dinah.route-skips-operator-column.next"}},
+		NextStep:  []string{"refusal.dinah.route-skips-operator-column.next"},
+	},
+	{
+		// The detail names the column the item was filed against, and the
+		// route rides as a value, because the sentence is about a road that
+		// does not reach that station and the reader needs both halves.
+		Name:      ItemOffRoute,
+		Values:    []string{"route"},
+		Fragments: []Fragment{{Key: "refusal.dinah.item-off-route.next"}},
+		NextStep:  []string{"refusal.dinah.item-off-route.next"},
+	},
+	{
+		// The detail names the column the filing would land in and the route
+		// rides as a value, on ItemOffRoute's reasoning.
+		Name:      RouteOffColumn,
+		Values:    []string{"route"},
+		Fragments: []Fragment{{Key: "refusal.dinah.route-off-column.next"}},
+		NextStep:  []string{"refusal.dinah.route-off-column.next"},
+	},
 }
 
 // ShapeOf returns the shape governing a refusal name, or nil for a name no

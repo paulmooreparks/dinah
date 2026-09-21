@@ -334,6 +334,10 @@ var params = map[string][]Param{
 		{Name: "column", Flag: true, Value: "column", Vocabulary: "column", Field: "Column"},
 		{Name: "severity", Flag: true, Value: "level", Field: "Severity"},
 		{Name: "priority", Flag: true, Value: "level", Field: "Priority"},
+		// The route flag declares no vocabulary for the reason the two level
+		// flags declare none: the set is per workbench, so the refusal is
+		// what tells a reader which names the workbench carries.
+		{Name: "route", Flag: true, Value: "name", Field: "Route"},
 	},
 	Claim: {
 		{Name: "card", Required: true, Field: "Card"},

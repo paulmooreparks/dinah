@@ -501,6 +501,14 @@ type Bench struct {
 	Standing string
 	// Columns are the flow in the order workbench.md declares.
 	Columns []*Column
+	// Routes are the routes the workbench declares, keyed by name, each
+	// holding the column identifiers the declaration lists, in the order it
+	// lists them. A workbench declaring none carries an empty map rather than
+	// nil, so a reader asking whether a name is declared asks one question.
+	Routes map[string][]string
+	// RouteNames are the declared route names in declaration order, which is
+	// the order a listing prints them and a refusal names them back.
+	RouteNames []string
 	// Format is the declared storage format version.
 	Format int
 	// Profile is the declared conformance target.
@@ -1700,6 +1708,7 @@ func openWithVocabulary(root string, vocab columnVocabulary, admit func(declared
 		FM:                fm,
 		levels:            readLevels(fm),
 	}
+	b.Routes, b.RouteNames = readRoutes(fm)
 	b.declaredFields, b.malformedFields = readDeclaredFields(fm)
 	b.tiers, b.malformedTiers = readTiers(fm)
 	if b.Title == "" {

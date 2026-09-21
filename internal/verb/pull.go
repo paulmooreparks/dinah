@@ -73,15 +73,28 @@ func (l *Library) Pull(req *Request) *Response {
 	// The immediate upstream is tried first and on its own terms, so every
 	// refusal it owes the caller under the lock is still raised: a done
 	// upstream still answers terminal and one waiting on somebody outside
-	// still answers its own name. Only when it holds no ready card does the
-	// pull look further back, through the columns that carry into this
-	// destination, nearest first.
+	// still answers its own name. What it now applies is the route filter, so
+	// a card whose own road carries it somewhere else is left standing rather
+	// than taken into a station its route does not reach. Only when it holds
+	// no such card does the pull look further back, through the columns that
+	// carry into this destination, nearest first.
 	by := selectionAdmission(l.Bench, req)
-	head, sawReady, _ := headOfReadyForTier(l.Bench, upstream.ID, destination, cards, by)
+	head, _, sawReady, _ := headOfReadyFor(l.Bench, upstream.ID, l.immediateLanding(upstream, destination), cards, by)
 	if head == nil {
-		var furtherReady bool
-		head, furtherReady = headOfFurtherSource(l.Bench, destination, upstream, cards, by)
+		// The further walk does not reconsider the immediate upstream, which
+		// is what the source predicate excludes it for. The predicate carries
+		// no reading of the caller's identity: the named form does not skip a
+		// source the workbench reserves to its operator, so the card standing
+		// there is selected and the lock answers not-operator, rather than the
+		// caller being left with the empty answer for a card the board is
+		// showing them.
+		further, furtherReady := l.pullableCards(destination, cards, by, func(source *bench.Column) bool {
+			return source.ID != upstream.ID
+		})
 		sawReady = sawReady || furtherReady
+		if len(further) > 0 {
+			head = further[0]
+		}
 	}
 	if head == nil {
 		// Finding nothing to take has two causes and they are different
@@ -181,7 +194,15 @@ func (l *Library) pullCandidates(req *Request, cards []*bench.Card) ([]string, b
 	var qualifying []string
 	aboveTier := false
 	for _, column := range l.Bench.Columns {
-		ready, gated := l.someSourceIsReady(column, cards, operator, by)
+		// The bare form skips a source column the workbench reserves to its
+		// operator for a caller who is not the operator, so it never nominates
+		// a destination that caller could not have pulled into. The named form
+		// holds the opposite policy, which is why the policy travels as the
+		// caller's own predicate rather than living inside the helper.
+		taken, gated := l.pullableCards(column, cards, by, func(source *bench.Column) bool {
+			return operator || !source.OperatorOwned
+		})
+		ready := len(taken) > 0
 		// The tier observation is kept only for a column clearing every other
 		// row of the list, so the aggregate never reports tier-gated work
 		// standing somewhere this caller could not have pulled into for a
@@ -210,31 +231,95 @@ func (l *Library) pullCandidates(req *Request, cards []*bench.Card) ([]string, b
 	return qualifying, aboveTier
 }
 
-// someSourceIsReady reports whether any column a pull into this destination
-// could take a card from holds a ready card the asking owner may take and the
-// declared tier is admitted for at this destination. It reports separately
-// whether any of those columns holds ready work the declared tier is admitted
-// for nowhere, which is what lets the bare form say that there is work about
-// and it stands above the caller rather than saying that there is nothing.
+// pullableCards returns the ready cards a pull into this destination may take,
+// nearest source first and in arrival order within a source, and reports
+// whether any source held ready work this caller's declared tier is admitted
+// for nowhere.
 //
-// The walk does not stop at the first qualifying source, because a source
-// holding only gated work still has to be seen when a nearer one has already
-// answered yes.
-func (l *Library) someSourceIsReady(destination *bench.Column, cards []*bench.Card, operator bool, by admission) (bool, bool) {
-	ready, gated := false, false
-	for _, source := range pullSources(destination, l.Bench.Columns) {
-		if source.OperatorOwned && !operator {
+// A card qualifies when carriesInto, read against that card's own route,
+// answers this destination. The set is keyed on the card rather than on the
+// column because two cards standing in one column walk two routes and carry
+// into two destinations, which is the one thing about a pull that routes
+// change. That is also why the flow-derived source set it replaces could not
+// survive: a route can make a column carry into a destination it does not carry
+// into on the full list, so a filter over the old set would silently drop
+// cards.
+//
+// Nearest is measured by the source column's Position in the flow, descending.
+// A route is a subsequence of the flow, so flow order and route order agree for
+// any one card, and measuring against the flow gives one total order across
+// cards whose routes differ.
+//
+// fromSource narrows which columns are walked at all, and nil walks every
+// column. It exists because the two forms of the verb hold opposite policies
+// about a source column the workbench reserves to its operator, and the policy
+// belongs to the caller that wants it rather than to this function. Pull, the
+// named form, passes a predicate that excludes the immediate upstream it has
+// already tried and reads the caller's identity not at all; pullCandidates, the
+// bare form, passes one refusing an operator-owned column to a caller who is
+// not the operator, because a destination that caller could not have pulled
+// into is one it must not nominate.
+//
+// The predicate runs before the above-tier observation is taken, so a
+// tier-gated card in a column the predicate excluded does not report work
+// standing above the caller, which is the order the walk it replaces ran its
+// two tests in.
+func (l *Library) pullableCards(destination *bench.Column, cards []*bench.Card, by admission, fromSource func(*bench.Column) bool) ([]*bench.Card, bool) {
+	landing := func(card *bench.Card) *bench.Column {
+		if carriesInto(l.Bench.Column(card.Column), l.Bench.RouteOf(card)) == destination {
+			return destination
+		}
+		return nil
+	}
+	var taken []*bench.Card
+	aboveTier := false
+	// Iterating the flow backward is what puts the nearest source first.
+	for i := len(l.Bench.Columns) - 1; i >= 0; i-- {
+		source := l.Bench.Columns[i]
+		if fromSource != nil && !fromSource(source) {
 			continue
 		}
-		head, sawReady, _ := headOfReadyForTier(l.Bench, source.ID, destination, cards, by)
-		switch {
-		case head != nil:
-			ready = true
-		case sawReady:
-			gated = true
+		head, _, sawReady, _ := headOfReadyFor(l.Bench, source.ID, landing, cards, by)
+		if head != nil {
+			taken = append(taken, head)
+			continue
+		}
+		// The walk carries on past a source holding only tier-gated work, so a
+		// nearer gated column cannot hide an eligible card further back.
+		if sawReady {
+			aboveTier = true
 		}
 	}
-	return ready, gated
+	return taken, aboveTier
+}
+
+// immediateLanding is the landing function the named form's first step reads at
+// the destination's immediate flow upstream.
+//
+// It takes the card unless that card's own route carries it into some other
+// column, which is the route filter every further source applies through
+// carriesInto. It is written as an exclusion rather than as carriesInto's own
+// answer because the immediate upstream is tried on its own terms: a done
+// upstream and one waiting on somebody outside both answer nothing at all
+// there, and the card is taken so the lock refuses by name, exactly as it did
+// before routes existed.
+//
+// A card walking the default route is taken whatever the answer, so on a
+// workbench where no card names a route this reproduces the old selection
+// exactly. The one shape that separates the two is a named pull into a column
+// that itself takes no work up, where the walk runs past the destination: the
+// card is taken there and canLand refuses it, which is the answer trunk gives.
+func (l *Library) immediateLanding(upstream, destination *bench.Column) landingFor {
+	return func(card *bench.Card) *bench.Column {
+		route := l.Bench.DeclaredRouteOf(card)
+		if route == nil {
+			return destination
+		}
+		if beyond := carriesInto(upstream, route); beyond != nil && beyond != destination {
+			return nil
+		}
+		return destination
+	}
 }
 
 // okEmpty answers a pull that found nothing to take, at exit 0 with no card
@@ -497,59 +582,42 @@ func pullDepartureName(column *bench.Column) string {
 	return contract.AwaitingOutside
 }
 
-// headOfFurtherSource returns the card a pull takes when the destination's
-// immediate upstream holds none: the head of the nearest column that carries
-// into this destination and holds a ready card the declared tier is admitted
-// for at that destination. It reads the caller's identity not at all, exactly
-// as the immediate-upstream step does, so a source the caller may not move a
-// card out of answers not-operator under the lock rather than leaving the
-// caller with the empty answer for a card the board shows them.
+// upstreamOf returns the column standing immediately before the given column
+// along a road, or nil where that column stands first on it and nothing
+// precedes it, and nil where the road does not carry the column at all.
 //
-// sawReady says whether any of those sources held a ready card at all, which
-// is what separates a run of empty columns from a run holding only work above
-// the caller. The walk carries on past a gated source rather than stopping
-// there, so a nearer column holding only gated work cannot hide an eligible
-// card standing further back.
-func headOfFurtherSource(b *bench.Bench, destination, upstream *bench.Column, cards []*bench.Card, by admission) (*bench.Card, bool) {
-	sawReady := false
-	for _, source := range pullSources(destination, b.Columns) {
-		if source == upstream {
-			continue
-		}
-		head, ready, _ := headOfReadyForTier(b, source.ID, destination, cards, by)
-		if ready {
-			sawReady = true
-		}
-		if head != nil {
-			return head, sawReady
-		}
-	}
-	return nil, sawReady
-}
-
-// upstreamOf returns the column standing immediately before the given column in
-// the declared flow, or nil when that column stands first and nothing precedes
-// it. Position is a dense index over the live columns, so the predecessor is
-// the row before it.
-func upstreamOf(column *bench.Column, columns []*bench.Column) *bench.Column {
-	if column == nil || column.Position == 0 {
+// The road is a card's own route, and the workbench's whole ordered column list
+// is the road a card walking the default route travels, so a caller asking
+// about the flow passes it. The index comes from RouteIndexOf rather than from
+// Column.Position: Position is a dense index over the flow, a route is a
+// subsequence of it, and indexing a route slice by Position reads the wrong
+// column wherever the route has dropped one.
+func upstreamOf(column *bench.Column, route []*bench.Column) *bench.Column {
+	at := bench.RouteIndexOf(route, column)
+	if at <= 0 {
 		return nil
 	}
-	return columns[column.Position-1]
+	return route[at-1]
 }
 
-// downstreamOf returns the column after the given one in the flow, or nil
-// when the given column stands last. Position is a dense index over the live
-// columns, so the successor is the row after it.
-func downstreamOf(column *bench.Column, columns []*bench.Column) *bench.Column {
-	if column == nil || column.Position+1 >= len(columns) {
+// downstreamOf returns the column after the given one along a road, or nil
+// where the given column stands last on it or the road does not carry it. It
+// indexes the road exactly as upstreamOf does and for the same reason.
+func downstreamOf(column *bench.Column, route []*bench.Column) *bench.Column {
+	at := bench.RouteIndexOf(route, column)
+	if at < 0 || at+1 >= len(route) {
 		return nil
 	}
-	return columns[column.Position+1]
+	return route[at+1]
 }
 
 // carriesInto returns the column a pull would carry a card standing at the
-// given column into, or nil when no pull could carry it anywhere.
+// given column into, along the road that card walks, or nil when no pull could
+// carry it anywhere.
+//
+// The road is the card's own route, and the whole ordered column list is the
+// road of a card walking the default route. A column the road does not carry at
+// all answers nil, because the road has no column beyond it to name.
 //
 // A card standing at a station is taken from where it stands, so the column
 // beyond it is where a pull puts it or there is no pull to make. A card
@@ -562,18 +630,18 @@ func downstreamOf(column *bench.Column, columns []*bench.Column) *bench.Column {
 // carries a card through either. An operator-owned queue in the middle of a
 // run ends it too, whoever is asking, because carrying a card past that
 // column without its owner acting is what the column exists to prevent.
-func carriesInto(column *bench.Column, columns []*bench.Column) *bench.Column {
+func carriesInto(column *bench.Column, route []*bench.Column) *bench.Column {
 	if column == nil || !column.PullCanTakeFrom() {
 		return nil
 	}
-	beyond := downstreamOf(column, columns)
+	beyond := downstreamOf(column, route)
 	if column.TakesWorkUp() {
 		if beyond != nil && beyond.TakesWorkUp() {
 			return beyond
 		}
 		return nil
 	}
-	for ; beyond != nil; beyond = downstreamOf(beyond, columns) {
+	for ; beyond != nil; beyond = downstreamOf(beyond, route) {
 		if beyond.TakesWorkUp() {
 			return beyond
 		}
@@ -584,29 +652,15 @@ func carriesInto(column *bench.Column, columns []*bench.Column) *bench.Column {
 	return nil
 }
 
-// pullSources returns the columns a pull into the given destination may take a
-// card from, nearest first. It states no rule of its own. It asks carriesInto
-// about each column in the flow and keeps the ones that answer this
-// destination, so carriesInto stays the only place the rule is written.
+// placementDisrupts returns the column, first in flow order, of the first live
+// card whose own pull destination a column-new placement would change, or nil
+// when the placement changes no live card's destination.
 //
-// Iterating the flow backward is what puts the nearest source first. The run
-// it returns happens to be contiguous, nothing here relies on that, and a
-// caller must not walk back from the destination on the strength of it,
-// because the walk and this filter disagree about an operator-owned column.
-func pullSources(destination *bench.Column, columns []*bench.Column) []*bench.Column {
-	var sources []*bench.Column
-	for i := len(columns) - 1; i >= 0; i-- {
-		if carriesInto(columns[i], columns) == destination {
-			sources = append(sources, columns[i])
-		}
-	}
-	return sources
-}
-
-// placementDisrupts returns the first existing column, in flow order, whose
-// carriesInto answer a column-new placement would change while that column
-// still carries a live card, or nil when no changed answer lands on an
-// occupied column.
+// It iterates the live cards rather than the occupied columns, because two
+// cards standing in one column walk two routes and carry into two
+// destinations, so the question is a card's and not a column's. A placement
+// changing the answer for a card on one route and not for a card on another is
+// a disruption, because one live card is enough.
 //
 // columns is the flow as it stands, read under the workbench lock by the
 // caller. insertAt is where the new column would land, which is len(columns)
@@ -632,7 +686,8 @@ func pullSources(destination *bench.Column, columns []*bench.Column) []*bench.Co
 // it.
 const placementID = "the placement"
 
-func placementDisrupts(columns []*bench.Column, insertAt int, kind string, cards []*bench.Card) *bench.Column {
+func placementDisrupts(b *bench.Bench, insertAt int, kind string, cards []*bench.Card) *bench.Column {
+	columns := b.Columns
 	placeholder := &bench.Column{ID: placementID, Kind: kind, Position: insertAt}
 	after := make([]*bench.Column, 0, len(columns)+1)
 	after = append(after, columns[:insertAt]...)
@@ -646,27 +701,47 @@ func placementDisrupts(columns []*bench.Column, insertAt int, kind string, cards
 	for _, column := range after {
 		moved[column.ID] = column
 	}
-	occupied := make(map[string]bool, len(cards))
+	standing := make(map[string][]*bench.Card, len(columns))
 	for _, card := range cards {
-		occupied[card.Column] = true
+		standing[card.Column] = append(standing[card.Column], card)
 	}
 	for _, existing := range columns {
-		if !occupied[existing.ID] {
-			continue
-		}
-		want, got := carriesInto(existing, columns), carriesInto(moved[existing.ID], after)
-		wantID, gotID := "", ""
-		if want != nil {
-			wantID = want.ID
-		}
-		if got != nil {
-			gotID = got.ID
-		}
-		if wantID != gotID {
-			return existing
+		for _, card := range standing[existing.ID] {
+			// Each card's road is resolved twice, once against the flow as it
+			// stands and once against the flow the placement would produce, so
+			// a route naming a column the placement pushes later is read in
+			// the order each comparison is about.
+			was := routeThrough(b, card, columns)
+			becomes := routeThrough(b, card, after)
+			want, got := carriesInto(existing, was), carriesInto(moved[existing.ID], becomes)
+			wantID, gotID := "", ""
+			if want != nil {
+				wantID = want.ID
+			}
+			if got != nil {
+				gotID = got.ID
+			}
+			if wantID != gotID {
+				return existing
+			}
 		}
 	}
 	return nil
+}
+
+// routeThrough resolves one card's road against an explicit ordered column
+// list, which is what lets the placement comparison ask the route question of a
+// flow that does not exist yet. A card walking the default route walks the list
+// it is given, whatever that list is.
+func routeThrough(b *bench.Bench, card *bench.Card, columns []*bench.Column) []*bench.Column {
+	if card == nil || card.Route == "" {
+		return columns
+	}
+	ids, declared := b.Routes[card.Route]
+	if !declared {
+		return columns
+	}
+	return bench.RouteColumnsIn(ids, columns)
 }
 
 // upstreamTitle names the upstream column for the sentence the named form's

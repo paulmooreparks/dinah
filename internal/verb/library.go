@@ -119,6 +119,12 @@ type Request struct {
 	// field.
 	Severity string
 	Priority string
+	// Route is the route a filing puts the new card on, empty when the
+	// invocation named none, in which case the card walks the workbench's
+	// full ordered column list. It is separate from Value for the reason the
+	// two levels above are: add names it through a flag of its own, where set
+	// names it by field.
+	Route string
 	// Tier is what a column creation gives the new column as its default, and
 	// what a raise asks the card to require at the column it is standing in,
 	// which are two different acts sharing one argument name the way Kind
@@ -399,6 +405,18 @@ type CardView struct {
 	// hint or rank ever reaches this surface.
 	Severity string `json:"severity,omitempty"`
 	Priority string `json:"priority,omitempty"`
+	// Route is the name of the route the card walks, absent on a card walking
+	// the workbench's full ordered list. It is displayed verbatim, on the
+	// terms the two levels above are: a name the workbench does not declare
+	// is shown exactly as stored, and dinah check is what reports it.
+	Route string `json:"route,omitempty"`
+	// PullDestination is the column a pull would carry this card into from
+	// where it now stands, absent where no pull could carry it anywhere. It
+	// is carriesInto's answer read against this card's own route, which is
+	// the per-card half of the question ColumnView.PullDestination answers
+	// for the default route, and it exists so that a reader never derives the
+	// walk.
+	PullDestination string `json:"pull_destination,omitempty"`
 	// Holder is the owner holding the card.
 	Holder string `json:"holder,omitempty"`
 	// ClaimSince is when the claim began.
@@ -523,6 +541,20 @@ type LegalMove struct {
 	// declaration names. At most one row of a card's legal moves ever
 	// carries this, since RejectTarget answers at most one column.
 	Reject bool `json:"reject,omitempty"`
+	// OnRoute marks the one row, if any, that is the forward move along the
+	// card's own route: the next column of the card's route after where it
+	// stands, or, for a card standing off its route, the first route column
+	// after that column in the flow's own order, which is where the card
+	// rejoins its road. At most one row of a card's legal moves ever carries
+	// it, and none does where the card's route has no column after where it
+	// stands.
+	//
+	// A card carrying no route walks the whole flow, so the row this marks is
+	// the flow's own next column and the marker says the same thing Direction
+	// already says. That uniformity is deliberate: an agent reads "the row
+	// marked on route" as "forward for me" without first asking whether its
+	// card carries a route at all.
+	OnRoute bool `json:"on_route,omitempty"`
 }
 
 // The two directions a legal move can carry.
@@ -618,6 +650,7 @@ func (l *Library) view(card *bench.Card) (*CardView, error) {
 		State:       card.State,
 		Severity:    card.Severity,
 		Priority:    card.Priority,
+		Route:       card.Route,
 		Holder:      card.Holder,
 		ClaimSince:  card.ClaimSince,
 		Expires:     card.Expires,
@@ -633,6 +666,9 @@ func (l *Library) view(card *bench.Card) (*CardView, error) {
 	}
 	if column := l.Bench.Column(card.Column); column != nil {
 		v.ColumnTitle = column.Title
+		if destination := carriesInto(column, l.Bench.RouteOf(card)); destination != nil {
+			v.PullDestination = columnRef(destination)
+		}
 	}
 	v.Fields = l.declaredFieldValues(card.FM, bench.KindCard)
 	return v, nil
@@ -728,12 +764,28 @@ func (l *Library) composeChain(req *Request, column *bench.Column, withhold bool
 
 // legalMoves reports the departures the workbench allows a card now. A card in
 // a column whose kind is done has no forward move, which is CORE-STATE-9.
+//
+// Nothing about the list is taken away by a route. Every declared column but
+// the one the card stands in is still a row, and each still carries a direction
+// computed against the workbench's ordered list, so the column that list puts
+// next is still there and still marked forward, which is what satisfies
+// CORE-STATE-7. What the route adds is the OnRoute marker on the one row that
+// is the card's own forward move, so a row that is forward but not on route is
+// the honest description of a column the flow puts ahead of the card that the
+// card's own road does not carry.
 func (l *Library) legalMoves(card *bench.Card) []LegalMove {
 	current := l.Bench.Column(card.Column)
 	if current == nil {
 		return nil
 	}
 	target := l.Bench.RejectTarget(current)
+	// A card at a terminal column has no forward move at all, so it has no
+	// route-forward move either, and asking for one would offer a row the
+	// loop below is about to drop.
+	var onRoute *bench.Column
+	if !current.Terminal() {
+		onRoute = bench.RouteForwardOf(l.Bench.RouteOf(card), current)
+	}
 	var moves []LegalMove
 	for _, column := range l.Bench.Columns {
 		if column.ID == current.ID {
@@ -752,6 +804,7 @@ func (l *Library) legalMoves(card *bench.Card) []LegalMove {
 			Title:     column.Title,
 			Direction: direction,
 			Reject:    target != nil && column.ID == target.ID,
+			OnRoute:   onRoute != nil && column.ID == onRoute.ID,
 		})
 	}
 	return moves
@@ -803,7 +856,7 @@ func (l *Library) affordances(card *bench.Card) []string {
 	}
 	switch card.State {
 	case contract.StateReady:
-		return append(l.takeUpActs(l.Bench.Column(card.Column)), Move, Block, "comment", "show", "list")
+		return append(l.takeUpActs(l.Bench.Column(card.Column), l.Bench.RouteOf(card)), Move, Block, "comment", "show", "list")
 	case contract.StateActive:
 		return []string{Move, Release, Block, "comment", "show", "list"}
 	case contract.StateBlocked:
@@ -818,19 +871,22 @@ func (l *Library) affordances(card *bench.Card) []string {
 // active card, and carriesInto answers where a pull would put a card standing
 // at this one, which is nil when no pull can reach it.
 //
-// It takes the column rather than a card because the question is the column's
-// alone, and because the instructions chain is served for a bare column as
-// often as for a card. A caller holding either one reaches the same rule.
+// It takes the column and the road the asker walks rather than a card, because
+// the claim half of the question is the column's alone and the instructions
+// chain is served for a bare column as often as for a card. A caller holding a
+// card passes that card's own route; a caller holding a bare column passes the
+// workbench's whole ordered list, which is the road of a card walking the
+// default route.
 //
 // A column taking no work up loses the claim and gains a pull, because an agent
 // reading a list with the claim simply missing would meet the refusal with
 // nothing telling it what to reach for instead. That is the same reason the
 // next_card tool's list carries pull beside claim.
-func (l *Library) takeUpActs(column *bench.Column) []string {
+func (l *Library) takeUpActs(column *bench.Column, route []*bench.Column) []string {
 	if column == nil || column.HoldsState(contract.StateActive) {
 		return []string{Claim}
 	}
-	if carriesInto(column, l.Bench.Columns) != nil {
+	if carriesInto(column, route) != nil {
 		return []string{Pull}
 	}
 	return nil
@@ -872,7 +928,10 @@ func (l *Library) ServedAffordances(req *Request, served *Served) []string {
 		return nil
 	}
 	if l.instructionColumn(req) != nil {
-		return append(l.takeUpActs(l.Bench.Column(served.Column)), "list", "next", "show")
+		// A bare column names no card, so the road read here is the
+		// workbench's own ordered list, which is what a card walking the
+		// default route walks.
+		return append(l.takeUpActs(l.Bench.Column(served.Column), l.Bench.Columns), "list", "next", "show")
 	}
 	return l.CardAffordances(req)
 }

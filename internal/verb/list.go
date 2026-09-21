@@ -21,14 +21,17 @@ const (
 	RosterWorkstreams = "workstreams"
 	RosterAttachments = "attachments"
 	RosterWorkbenches = "workbenches"
+	RosterRoutes      = "routes"
 )
 
-// RosterWords are the five words list accepts beside the reference grammar, in
+// RosterWords are the six words list accepts beside the reference grammar, in
 // the order the guide and the bare listing draw them. The first four name a
 // collection this workbench holds and each of those is a row of the bare
 // listing; workbenches names what lies beneath a directory, so it has no row
-// and it needs --root to mean anything.
-var RosterWords = []string{RosterColumns, RosterCards, RosterWorkstreams, RosterAttachments, RosterWorkbenches}
+// and it needs --root to mean anything; routes names what the workbench's own
+// definition declares rather than a collection it holds, so it has no row
+// either.
+var RosterWords = []string{RosterColumns, RosterCards, RosterWorkstreams, RosterAttachments, RosterWorkbenches, RosterRoutes}
 
 // RosterWordOf reports the roster word a list argument spells, and whether it
 // spells one at all.
@@ -94,6 +97,7 @@ type ListAnswer struct {
 	Rosters        []Roster            `json:"rosters,omitempty"`
 	Columns        []ColumnView        `json:"columns,omitempty"`
 	Workstreams    []WorkstreamView    `json:"workstreams,omitempty"`
+	Routes         []RouteView         `json:"routes,omitempty"`
 	Kind           string              `json:"kind,omitempty"`
 	Ref            string              `json:"ref,omitempty"`
 	Archived       bool                `json:"archived,omitempty"`
@@ -119,6 +123,9 @@ const (
 	ShapeColumns ListShape = "columns"
 	// ShapeWorkstreams is the roster word workstreams.
 	ShapeWorkstreams ListShape = "workstreams"
+	// ShapeRoutes is the roster word routes, whose answer is read off the
+	// workbench's own definition rather than out of a collection.
+	ShapeRoutes ListShape = "routes"
 	// ShapeWorkbenches is the roster word workbenches, whose answer is an
 	// enumeration of directories rather than a read of this workbench, so
 	// the library fills nothing and the head runs the walk.
@@ -153,6 +160,7 @@ type ListResult struct {
 	Rosters     *RosterListing
 	Columns     []ColumnView
 	Workstreams *WorkstreamListing
+	Routes      *RouteListing
 	Attachments *AttachmentListing
 	Matches     *Matches
 	Queue       *Listing
@@ -176,6 +184,8 @@ func (r *ListResult) Answer() *ListAnswer {
 		answer.Columns = r.Columns
 	case ShapeWorkstreams:
 		answer.Workstreams = r.Workstreams.Workstreams
+	case ShapeRoutes:
+		answer.Routes = r.Routes.Routes
 	case ShapeAttachments:
 		answer.Kind = r.Attachments.Kind
 		answer.Ref = r.Attachments.Ref
@@ -215,6 +225,8 @@ func (a ListAnswer) MarshalJSON() ([]byte, error) {
 		return json.Marshal(a.Columns)
 	case ShapeWorkstreams:
 		return json.Marshal(WorkstreamListing{Workstreams: a.Workstreams})
+	case ShapeRoutes:
+		return json.Marshal(RouteListing{Routes: a.Routes})
 	case ShapeAttachments:
 		return json.Marshal(AttachmentListing{Kind: a.Kind, Ref: a.Ref, Attachments: a.Attachments})
 	case ShapeMatches:
@@ -553,6 +565,8 @@ func (l *Library) rosterWord(req *Request, word string) (*ListResult, error) {
 			return nil, err
 		}
 		return &ListResult{Shape: ShapeWorkstreams, Workstreams: listing}, nil
+	case RosterRoutes:
+		return &ListResult{Shape: ShapeRoutes, Routes: l.Routes()}, nil
 	case RosterAttachments:
 		return l.listAttachments(req, "")
 	case RosterWorkbenches:
