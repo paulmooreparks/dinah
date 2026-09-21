@@ -783,57 +783,57 @@
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
       "source": "37dac5acd188c446"
     },
-    "check.move.10": {
+    "check.move.14": {
       "text": "कार्ड उस हर फ़ील्ड के लिए मान रखता है जिसकी माँग गंतव्य करता है",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
       "source": "766cfa42c960fe8"
     },
-    "check.move.11": {
+    "check.move.15": {
       "text": "कार्ड प्रस्थान कॉलम की लूप सीमा पर नहीं पहुँचा है",
-      "context": "One row of the ordered precondition list of move. This row is Dinah's own addition; the core profile's own section 6.4 list ends at check.move.10.",
+      "context": "One row of the ordered precondition list of move. This row is Dinah's own addition; the core profile's own section 6.4 list has ten rows and does not include it.",
       "source": "193dcb5974ead6b"
     },
-    "check.move.12": {
+    "check.move.16": {
       "text": "कार्ड पर ऐसी कोई अनसुलझी मद नहीं है जो प्रस्थान कॉलम को नामित करती हो",
-      "context": "One row of the ordered precondition list of move. This row is Dinah's own addition; the core profile's own section 6.4 list ends at check.move.10. It is the departure's own hold, read at the column the card is leaving rather than the one it would land in.",
+      "context": "One row of the ordered precondition list of move. This row is Dinah's own addition; the core profile's own section 6.4 list has ten rows and does not include it. It is the departure's own hold, read at the column the card is leaving rather than the one it would land in.",
       "source": "8186a705a5b6534a"
     },
-    "check.move.2": {
+    "check.move.6": {
       "text": "गंतव्य वह कॉलम है जिसे वर्कबेंच घोषित करती है",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
       "source": "77302ed88afc1490"
     },
-    "check.move.3": {
+    "check.move.7": {
       "text": "यदि कोई अधिभावी चिह्न साथ है, तो वह संचालक का है",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
       "source": "607a576951946330"
     },
-    "check.move.4": {
+    "check.move.8": {
       "text": "माँगने वाले के लिए प्रस्थान वैध है",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
       "source": "317fa855de03a64c"
     },
-    "check.move.5": {
+    "check.move.9": {
       "text": "कार्ड की स्थिति `blocked` नहीं है",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
       "source": "76a4fe23995d6a02"
     },
-    "check.move.6": {
+    "check.move.10": {
       "text": "कार्ड किसी के पास नहीं है, या माँगने वाले के पास है",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
       "source": "ec01b01e10f981a7"
     },
-    "check.move.7": {
+    "check.move.11": {
       "text": "यह `done` कॉलम से बाहर आगे की चाल नहीं है",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
       "source": "7e0c1d83c59a8fd3"
     },
-    "check.move.8": {
+    "check.move.12": {
       "text": "गंतव्य अपनी क्षमता सीमा से नीचे है",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
       "source": "9d61260048317b7e"
     },
-    "check.move.9": {
+    "check.move.13": {
       "text": "कार्ड पर ऐसा कोई अनसुलझा मद नहीं है जो गंतव्य का नाम लेता हो",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
       "source": "d6e9e1f4780da9c4"
@@ -1218,7 +1218,7 @@
       "context": "One row of the ordered precondition list of release, quoted from section 6 of the core profile.",
       "source": "37dac5acd188c446"
     },
-    "check.release.2": {
+    "check.release.3": {
       "text": "कार्ड माँगने वाले के पास है",
       "context": "One row of the ordered precondition list of release, quoted from section 6 of the core profile.",
       "source": "b14913e0de423e4"
@@ -1468,12 +1468,12 @@
       "context": "One row of the ordered precondition list of unblock, quoted from section 6 of the core profile.",
       "source": "37dac5acd188c446"
     },
-    "check.unblock.2": {
+    "check.unblock.3": {
       "text": "माँगने वाला ही संचालक है",
       "context": "One row of the ordered precondition list of unblock, quoted from section 6 of the core profile.",
       "source": "c36a8473c73d26a2"
     },
-    "check.unblock.3": {
+    "check.unblock.4": {
       "text": "कार्ड की स्थिति `blocked` है",
       "context": "One row of the ordered precondition list of unblock, quoted from section 6 of the core profile.",
       "source": "7bc8856e42e38f2b"
@@ -5644,6 +5644,41 @@
       "text": "वह डाइजेस्ट जो आपने इस टिप्पणी पर अंतिम बार दर्ज देखा था; यदि उसके बाद किसी ने टिप्पणी लिखी है तो लेखन अस्वीकार होगा",
       "context": "The meaning of the expect-digest argument of `dinah set`, printed in that command's arguments table. It is for a caller that had the comment open while its author typed: an editor writes the file on save, so the body the write would otherwise be compared against is gone, and the digest on the header is what is left to compare.",
       "source": "4d5ad6d096694a02"
+    },
+    "check.move.5": {
+      "text": "निवेदन किसी स्वामी को नामता है",
+      "context": "One row of the ordered precondition list of move. This row is Dinah's own addition: the core profile's own section 6.3 table carries no row reading \"the request names an owner\" (only CORE-CLAIM and CORE-BLOCK's own tables do), so this key does not claim the profile's own wording the way the numbered rows above it do.",
+      "source": "bc538e33f1fcc933"
+    },
+    "check.release.2": {
+      "text": "निवेदन किसी स्वामी को नामता है",
+      "context": "One row of the ordered precondition list of release. This row is Dinah's own addition: the core profile's own section 6.5 table carries no row reading \"the request names an owner\" (only CORE-CLAIM and CORE-BLOCK's own tables do), so this key does not claim the profile's own wording the way the numbered rows above it do.",
+      "source": "bc538e33f1fcc933"
+    },
+    "check.unblock.2": {
+      "text": "निवेदन किसी स्वामी को नामता है",
+      "context": "One row of the ordered precondition list of unblock. This row is Dinah's own addition: the core profile's own section 6.6 table carries no row reading \"the request names an owner\" (only CORE-CLAIM and CORE-BLOCK's own tables do), so this key does not claim the profile's own wording the way the numbered rows above it do.",
+      "source": "bc538e33f1fcc933"
+    },
+    "check.check.1": {
+      "text": "आपका बताया harness मान्य नाम है",
+      "context": "One row of the ordered precondition list of check, run when the request carries at least one repair marker. check has no numbered table in the core profile, so this row carries Dinah's own wording rather than a quotation.",
+      "source": "47fd175a39b5f9ee"
+    },
+    "check.check.2": {
+      "text": "निवेदन किसी स्वामी को नामता है",
+      "context": "One row of the ordered precondition list of check, run when the request carries at least one repair marker, immediately after the harness row above. check has no numbered table in the core profile, so this row carries Dinah's own wording rather than a quotation.",
+      "source": "bc538e33f1fcc933"
+    },
+    "refusal.no-owner.next-harness": {
+      "text": "; एक {harness} हार्नेस घोषित है, इसलिए आपकी सेटिंग्स में कॉन्फ़िगर किया गया actor, यदि कोई हो, यहाँ लागू नहीं होता; कौन कार्य कर रहा है यह बताने के लिए `dinah --actor <name>` चलाएँ या `DINAH_ACTOR` सेट करें",
+      "context": "Spliced onto refusal.no-owner as the next step, in place of refusal.no-owner.next, when the request that raised the refusal declared a harness: the configuration rung of the actor ladder answers only a call declaring none, so a harness-declaring call is refused rather than promoted to whatever a shared config file carries.",
+      "source": "85585bd769b3150c"
+    },
+    "status.actor.unnamed": {
+      "text": "इस प्रक्रिया के लिए कोई actor नामित नहीं है; कौन कार्य कर रहा है यह बताने के लिए `dinah config set actor <name>` चलाएँ या `DINAH_ACTOR` सेट करें",
+      "context": "The second line of status when no actor resolved for this process, printed in place of status.actor so the line never interpolates an empty actor name.",
+      "source": "2ef9f69d8ff23dbb"
     }
   }
 }

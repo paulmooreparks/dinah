@@ -161,9 +161,10 @@ outside a workbench comes back to it.
 Dinah recorded you as the actor when it created the workbench above, because
 nothing on your machine had named an owner yet. Dinah looks for that name on
 the `--actor` flag first, then in the `DINAH_ACTOR` environment variable, then
-in your own configuration file. You change the recorded name with
-`dinah config set actor`, and you use the same command to act as somebody other
-than the operator:
+in your own configuration file, the last of these three only for a call that
+declares no harness. You change the recorded name with `dinah config set
+actor`, and you use the same command to act as somebody other than the
+operator:
 
 ```console
 $ dinah config set actor ana
@@ -1253,14 +1254,14 @@ storage format 6
 Catalogs:
   Language  Translated
   --------  ----------
-  en        1125/1125
-  af        0/1125
-  cs        0/1125
-  de        1125/1125
-  es        0/1125
-  fil       0/1125
-  hi        1125/1125
-  id        0/1125
+  en        1132/1132
+  af        0/1132
+  cs        0/1132
+  de        1132/1132
+  es        0/1132
+  fil       0/1132
+  hi        1132/1132
+  id        0/1132
 [exit 0]
 ```
 

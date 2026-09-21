@@ -237,7 +237,17 @@ func (s *session) renderInstructions(instructions *verb.Instructions, moves []ve
 // renderStatus prints where the bench stands.
 func (s *session) renderStatus(status *verb.Status) {
 	s.line(s.workbenchLine(status))
-	s.line(s.r.T("status.actor", "actor", status.Actor, "operator", s.yesNo(status.IsOperator)))
+	if status.Actor == "" {
+		// A process with no actor resolved is not meaningfully "not the
+		// operator" any more than it is the operator; it has named nobody.
+		// Interpolating the empty string into status.actor would print
+		// "acting as , operator: no", which is uninformative and reads as a
+		// claim this line is not making, so an unresolved actor gets its
+		// own line instead.
+		s.line(s.r.T("status.actor.unnamed"))
+	} else {
+		s.line(s.r.T("status.actor", "actor", status.Actor, "operator", s.yesNo(status.IsOperator)))
+	}
 	s.line("")
 	s.renderColumns(status.Columns)
 	if len(status.Holding) > 0 {

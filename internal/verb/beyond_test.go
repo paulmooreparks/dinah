@@ -629,7 +629,7 @@ func TestActorLadderAndConfig(t *testing.T) {
 	}
 
 	// The flag wins over every layer below it.
-	resolved, err := bench.ResolveActor("from-flag", after)
+	resolved, err := bench.ResolveActor("from-flag", "", after)
 	if err != nil {
 		t.Fatalf("resolve: %v", err)
 	}
@@ -639,7 +639,7 @@ func TestActorLadderAndConfig(t *testing.T) {
 	// With no layer carrying one, the ladder refuses rather than inventing.
 	empty := bench.LoadConfig(filepath.Join(t.TempDir(), "nothing"))
 	t.Setenv("DINAH_ACTOR", "")
-	if _, err := bench.ResolveActor("", empty); err == nil {
+	if _, err := bench.ResolveActor("", "", empty); err == nil {
 		t.Error("an unresolvable actor should be refused")
 	}
 }

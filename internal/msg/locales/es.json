@@ -779,57 +779,57 @@
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
       "skeleton": true
     },
-    "check.move.10": {
+    "check.move.14": {
       "text": "the card carries a value for every field the destination requires",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
       "skeleton": true
     },
-    "check.move.11": {
+    "check.move.15": {
       "text": "the card has not reached the departure column's loop limit",
-      "context": "One row of the ordered precondition list of move. This row is Dinah's own addition; the core profile's own section 6.4 list ends at check.move.10.",
+      "context": "One row of the ordered precondition list of move. This row is Dinah's own addition; the core profile's own section 6.4 list has ten rows and does not include it.",
       "skeleton": true
     },
-    "check.move.12": {
+    "check.move.16": {
       "text": "the card carries no unresolved item that names the departure column",
-      "context": "One row of the ordered precondition list of move. This row is Dinah's own addition; the core profile's own section 6.4 list ends at check.move.10. It is the departure's own hold, read at the column the card is leaving rather than the one it would land in.",
+      "context": "One row of the ordered precondition list of move. This row is Dinah's own addition; the core profile's own section 6.4 list has ten rows and does not include it. It is the departure's own hold, read at the column the card is leaving rather than the one it would land in.",
       "skeleton": true
     },
-    "check.move.2": {
+    "check.move.6": {
       "text": "the destination is a column the workbench declares",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
       "skeleton": true
     },
-    "check.move.3": {
+    "check.move.7": {
       "text": "an override marker, if carried, is the operator's",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
       "skeleton": true
     },
-    "check.move.4": {
+    "check.move.8": {
       "text": "the departure is legal for whoever asks",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
       "skeleton": true
     },
-    "check.move.5": {
+    "check.move.9": {
       "text": "the card's state is not `blocked`",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
       "skeleton": true
     },
-    "check.move.6": {
+    "check.move.10": {
       "text": "the card is unheld or held by whoever asks",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
       "skeleton": true
     },
-    "check.move.7": {
+    "check.move.11": {
       "text": "the move is not a forward move out of a `done` column",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
       "skeleton": true
     },
-    "check.move.8": {
+    "check.move.12": {
       "text": "the destination is below its capacity limit",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
       "skeleton": true
     },
-    "check.move.9": {
+    "check.move.13": {
       "text": "the card carries no unresolved item that names the destination",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
       "skeleton": true
@@ -1214,7 +1214,7 @@
       "context": "One row of the ordered precondition list of release, quoted from section 6 of the core profile.",
       "skeleton": true
     },
-    "check.release.2": {
+    "check.release.3": {
       "text": "whoever asks holds the card",
       "context": "One row of the ordered precondition list of release, quoted from section 6 of the core profile.",
       "skeleton": true
@@ -1464,12 +1464,12 @@
       "context": "One row of the ordered precondition list of unblock, quoted from section 6 of the core profile.",
       "skeleton": true
     },
-    "check.unblock.2": {
+    "check.unblock.3": {
       "text": "whoever asks is the operator",
       "context": "One row of the ordered precondition list of unblock, quoted from section 6 of the core profile.",
       "skeleton": true
     },
-    "check.unblock.3": {
+    "check.unblock.4": {
       "text": "the card's state is `blocked`",
       "context": "One row of the ordered precondition list of unblock, quoted from section 6 of the core profile.",
       "skeleton": true
@@ -5621,6 +5621,41 @@
     "param.set.expect-digest.summary": {
       "text": "the digest you last saw recorded on this comment, which refuses the write if anything has written the comment since",
       "context": "The meaning of the expect-digest argument of `dinah set`, printed in that command's arguments table. It is for a caller that had the comment open while its author typed: an editor writes the file on save, so the body the write would otherwise be compared against is gone, and the digest on the header is what is left to compare.",
+      "skeleton": true
+    },
+    "check.move.5": {
+      "text": "the request names an owner",
+      "context": "One row of the ordered precondition list of move. This row is Dinah's own addition: the core profile's own section 6.3 table carries no row reading \"the request names an owner\" (only CORE-CLAIM and CORE-BLOCK's own tables do), so this key does not claim the profile's own wording the way the numbered rows above it do.",
+      "skeleton": true
+    },
+    "check.release.2": {
+      "text": "the request names an owner",
+      "context": "One row of the ordered precondition list of release. This row is Dinah's own addition: the core profile's own section 6.5 table carries no row reading \"the request names an owner\" (only CORE-CLAIM and CORE-BLOCK's own tables do), so this key does not claim the profile's own wording the way the numbered rows above it do.",
+      "skeleton": true
+    },
+    "check.unblock.2": {
+      "text": "the request names an owner",
+      "context": "One row of the ordered precondition list of unblock. This row is Dinah's own addition: the core profile's own section 6.6 table carries no row reading \"the request names an owner\" (only CORE-CLAIM and CORE-BLOCK's own tables do), so this key does not claim the profile's own wording the way the numbered rows above it do.",
+      "skeleton": true
+    },
+    "check.check.1": {
+      "text": "the harness you declared is a legal name",
+      "context": "One row of the ordered precondition list of check, run when the request carries at least one repair marker. check has no numbered table in the core profile, so this row carries Dinah's own wording rather than a quotation.",
+      "skeleton": true
+    },
+    "check.check.2": {
+      "text": "the request names an owner",
+      "context": "One row of the ordered precondition list of check, run when the request carries at least one repair marker, immediately after the harness row above. check has no numbered table in the core profile, so this row carries Dinah's own wording rather than a quotation.",
+      "skeleton": true
+    },
+    "refusal.no-owner.next-harness": {
+      "text": "; the {harness} harness is declared, so an actor configured in your settings, if any, does not apply here; run `dinah --actor <name>` or set `DINAH_ACTOR` to say who is acting",
+      "context": "Spliced onto refusal.no-owner as the next step, in place of refusal.no-owner.next, when the request that raised the refusal declared a harness: the configuration rung of the actor ladder answers only a call declaring none, so a harness-declaring call is refused rather than promoted to whatever a shared config file carries.",
+      "skeleton": true
+    },
+    "status.actor.unnamed": {
+      "text": "no actor named for this process; run `dinah config set actor <name>` or set `DINAH_ACTOR` to say who is acting",
+      "context": "The second line of status when no actor resolved for this process, printed in place of status.actor so the line never interpolates an empty actor name.",
       "skeleton": true
     }
   }

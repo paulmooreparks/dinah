@@ -35,6 +35,18 @@ func (l *Library) Do(req *Request) *Response {
 	if err != nil {
 		return l.FromError(req, err)
 	}
+	// The request names an owner, checked here rather than only inside each
+	// verb's own function below, because canClaim, canRoute, release, block,
+	// unblock, join and leave all run after the lock is acquired and after
+	// WitnessDivergence has already had the chance to write a journal line
+	// under an unnamed actor. This is the order every one of those functions'
+	// own check already keeps: card exists, then owner named. The per-verb
+	// checks stay; pull calls canRoute/canLand directly, on its own
+	// transaction, without going through Do at all, so those checks remain
+	// load-bearing for that caller.
+	if req.Actor == "" {
+		return l.refuse(req, nil, contract.NoOwner, "")
+	}
 	lock, err := bench.Acquire(found.Card.Dir, req.Actor, bench.Stamp(l.Now()))
 	if err != nil {
 		return l.FromError(req, err)

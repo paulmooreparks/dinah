@@ -213,9 +213,21 @@ var Shapes = []Shape{
 		},
 	},
 	{
-		Name:      NoOwner,
-		Fragments: []Fragment{{Key: "refusal.no-owner.next"}},
-		NextStep:  []string{"refusal.no-owner.next"},
+		// The harness-variant fragment renders when the request that raised
+		// this refusal declared a harness, which is why the configuration
+		// rung's own value never resolved: a harness-declaring call is
+		// refused rather than promoted to whatever the shared config file
+		// carries. It does not replace the base sentence, only the
+		// next-step clause, and it never names the configured value,
+		// because nothing that fills it ever read that value in the first
+		// place.
+		Name:   NoOwner,
+		Values: []string{ValueHarness},
+		Fragments: []Fragment{
+			{Key: "refusal.no-owner.next-harness", When: ValueHarness},
+			{Key: "refusal.no-owner.next"},
+		},
+		NextStep: []string{"refusal.no-owner.next-harness", "refusal.no-owner.next"},
 	},
 	{
 		// One refusal name answers two acts. block asks for the question the

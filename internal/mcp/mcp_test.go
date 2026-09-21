@@ -2151,3 +2151,44 @@ func TestTheColumnToolRefusesTheActionItsSchemaWithholds(t *testing.T) {
 		t.Fatalf("the same call without the action did not create a column, so the refusal above proves nothing: %v", made)
 	}
 }
+
+// TestAnMCPCallWithNoActorAndNoHarnessRefusesNoOwnerEvenWithAConfiguredActor
+// is dinah-540 AC-15, a regression guard. This head sets req.Actor only from
+// the call's own "actor" argument, with no fallback to the environment and
+// no fallback to the user config, whether or not the call declares a
+// harness: dinah-540 gives the CLI's config rung a harness-declared
+// exception and gives MCP no config rung at all, so this case's outcome is
+// unchanged by that card. A configured actor sitting in the server
+// process's own environment is what this test proves does not leak in.
+func TestAnMCPCallWithNoActorAndNoHarnessRefusesNoOwnerEvenWithAConfiguredActor(t *testing.T) {
+	t.Setenv("DINAH_HARNESS", "")
+	t.Setenv("DINAH_ACTOR", "")
+	home := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(home, ".dinah"), 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(home, ".dinah", "config.md"), []byte("---\nactor: paul\n---\n"), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	t.Setenv("DINAH_HOME", home)
+
+	library := newLibrary(t)
+	added := payload(t, ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"add_card","arguments":{"actor":"alka","title":"an MCP coverage card"}}}`))
+	if added["outcome"] != contract.OutcomeOK {
+		t.Fatalf("fixture: add_card: %v", added)
+	}
+	ref, _ := added["ref"].(string)
+	if ref == "" {
+		if card, ok := added["card"].(map[string]any); ok {
+			ref, _ = card["ref"].(string)
+		}
+	}
+	if ref == "" {
+		t.Fatalf("the created card carries no ref this test can read: %v", added)
+	}
+
+	refused := payload(t, ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"claim","arguments":{"card":"`+ref+`"}}}`))
+	if refused["outcome"] != contract.OutcomeRefused || refused["refusal"] != contract.NoOwner {
+		t.Errorf("a claim naming no actor and no harness, with a configured actor present: wanted refused/no-owner, got %v", refused)
+	}
+}

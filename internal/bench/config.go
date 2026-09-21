@@ -287,11 +287,16 @@ func Ladder(values ...string) string {
 }
 
 // ResolveActor resolves the owner an act is attributed to, by the ladder the
-// format's actors section fixes: the flag, then the environment, then the
-// user config. An actor resolvable at no layer is refused rather than
-// invented, because the format refuses to write an event with no actor.
-func ResolveActor(flag string, cfg *Config) (string, error) {
-	actor, _ := ResolveActorSource(flag, cfg)
+// format's actors section fixes: the flag, then the environment, then, for a
+// call declaring no harness, the user config. An actor resolvable at no layer
+// is refused rather than invented, because the format refuses to write an
+// event with no actor. The harness-enriched refusal text a caller actually
+// sees is composed downstream, once req.Actor and req.Harness both land on
+// the same request a verb's own precondition check reads; this function's
+// returned error is never inspected by its one caller and carries the plain
+// form only.
+func ResolveActor(flag, harness string, cfg *Config) (string, error) {
+	actor, _ := ResolveActorSource(flag, harness, cfg)
 	if actor == "" {
 		return "", contract.Refuse(contract.NoOwner, "")
 	}
@@ -302,12 +307,22 @@ func ResolveActor(flag string, cfg *Config) (string, error) {
 // owner no rung carries comes back empty with the source unset, because a
 // listing reports an absence rather than refusing over it; ResolveActor is the
 // form that refuses.
-func ResolveActorSource(flag string, cfg *Config) (string, string) {
-	actor, source := Resolve(
-		Layer{Source: SourceFlag, Value: flag},
-		Layer{Source: SourceEnvironment, Value: os.Getenv("DINAH_ACTOR")},
-		Layer{Source: SourceConfig, Value: cfg.Get("actor")},
-	)
+//
+// The config rung answers only for a call declaring no harness. A process
+// with a harness declared and no actor named by flag or environment is
+// refused rather than promoted to whatever a shared config file happens to
+// carry, on the operator's ruling that a config file shared by every process
+// on the machine should not stamp acts performed by something else entirely,
+// the same reasoning that already keeps provider and model off this rung.
+func ResolveActorSource(flag, harness string, cfg *Config) (string, string) {
+	layers := []Layer{
+		{Source: SourceFlag, Value: flag},
+		{Source: SourceEnvironment, Value: os.Getenv("DINAH_ACTOR")},
+	}
+	if strings.TrimSpace(harness) == "" {
+		layers = append(layers, Layer{Source: SourceConfig, Value: cfg.Get("actor")})
+	}
+	actor, source := Resolve(layers...)
 	if actor == "" {
 		return "", SourceUnset
 	}

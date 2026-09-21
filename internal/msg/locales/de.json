@@ -783,57 +783,57 @@
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
       "source": "37dac5acd188c446"
     },
-    "check.move.10": {
+    "check.move.14": {
       "text": "die Karte trägt für jedes Feld, das das Ziel verlangt, einen Wert",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
       "source": "766cfa42c960fe8"
     },
-    "check.move.11": {
+    "check.move.15": {
       "text": "die Karte hat die Schleifengrenze der Ausgangsspalte nicht erreicht",
-      "context": "One row of the ordered precondition list of move. This row is Dinah's own addition; the core profile's own section 6.4 list ends at check.move.10.",
+      "context": "One row of the ordered precondition list of move. This row is Dinah's own addition; the core profile's own section 6.4 list has ten rows and does not include it.",
       "source": "193dcb5974ead6b"
     },
-    "check.move.12": {
+    "check.move.16": {
       "text": "die Karte trägt keinen ungelösten Eintrag, der die Ausgangsspalte nennt",
-      "context": "One row of the ordered precondition list of move. This row is Dinah's own addition; the core profile's own section 6.4 list ends at check.move.10. It is the departure's own hold, read at the column the card is leaving rather than the one it would land in.",
+      "context": "One row of the ordered precondition list of move. This row is Dinah's own addition; the core profile's own section 6.4 list has ten rows and does not include it. It is the departure's own hold, read at the column the card is leaving rather than the one it would land in.",
       "source": "8186a705a5b6534a"
     },
-    "check.move.2": {
+    "check.move.6": {
       "text": "die Werkbank deklariert die Zielspalte",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
       "source": "77302ed88afc1490"
     },
-    "check.move.3": {
+    "check.move.7": {
       "text": "eine Übersteuerung stammt vom Betreiber",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
       "source": "607a576951946330"
     },
-    "check.move.4": {
+    "check.move.8": {
       "text": "der Abgang ist für die anfragende Person zulässig",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
       "source": "317fa855de03a64c"
     },
-    "check.move.5": {
+    "check.move.9": {
       "text": "der Zustand der Karte ist nicht `blocked`",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
       "source": "76a4fe23995d6a02"
     },
-    "check.move.6": {
+    "check.move.10": {
       "text": "die Karte ist frei oder vom Anfragenden gehalten",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
       "source": "ec01b01e10f981a7"
     },
-    "check.move.7": {
+    "check.move.11": {
       "text": "kein Vorwärtszug aus einer `done`-Spalte heraus",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
       "source": "7e0c1d83c59a8fd3"
     },
-    "check.move.8": {
+    "check.move.12": {
       "text": "das Ziel liegt unter seiner Kapazitätsgrenze",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
       "source": "9d61260048317b7e"
     },
-    "check.move.9": {
+    "check.move.13": {
       "text": "die Karte trägt keinen ungelösten Eintrag, der das Ziel nennt",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
       "source": "d6e9e1f4780da9c4"
@@ -1218,7 +1218,7 @@
       "context": "One row of the ordered precondition list of release, quoted from section 6 of the core profile.",
       "source": "37dac5acd188c446"
     },
-    "check.release.2": {
+    "check.release.3": {
       "text": "die anfragende Person hält die Karte",
       "context": "One row of the ordered precondition list of release, quoted from section 6 of the core profile.",
       "source": "b14913e0de423e4"
@@ -1468,12 +1468,12 @@
       "context": "One row of the ordered precondition list of unblock, quoted from section 6 of the core profile.",
       "source": "37dac5acd188c446"
     },
-    "check.unblock.2": {
+    "check.unblock.3": {
       "text": "die anfragende Person ist der Betreiber",
       "context": "One row of the ordered precondition list of unblock, quoted from section 6 of the core profile.",
       "source": "c36a8473c73d26a2"
     },
-    "check.unblock.3": {
+    "check.unblock.4": {
       "text": "der Zustand der Karte ist `blocked`",
       "context": "One row of the ordered precondition list of unblock, quoted from section 6 of the core profile.",
       "source": "7bc8856e42e38f2b"
@@ -5657,6 +5657,41 @@
       "text": "die Prüfsumme, die Sie zuletzt zu diesem Kommentar aufgezeichnet gesehen haben; der Schreibvorgang wird abgelehnt, falls seither etwas den Kommentar geschrieben hat",
       "context": "The meaning of the expect-digest argument of `dinah set`, printed in that command's arguments table. It is for a caller that had the comment open while its author typed: an editor writes the file on save, so the body the write would otherwise be compared against is gone, and the digest on the header is what is left to compare.",
       "source": "4d5ad6d096694a02"
+    },
+    "check.move.5": {
+      "text": "die Anfrage nennt einen Akteur",
+      "context": "One row of the ordered precondition list of move. This row is Dinah's own addition: the core profile's own section 6.3 table carries no row reading \"the request names an owner\" (only CORE-CLAIM and CORE-BLOCK's own tables do), so this key does not claim the profile's own wording the way the numbered rows above it do.",
+      "source": "bc538e33f1fcc933"
+    },
+    "check.release.2": {
+      "text": "die Anfrage nennt einen Akteur",
+      "context": "One row of the ordered precondition list of release. This row is Dinah's own addition: the core profile's own section 6.5 table carries no row reading \"the request names an owner\" (only CORE-CLAIM and CORE-BLOCK's own tables do), so this key does not claim the profile's own wording the way the numbered rows above it do.",
+      "source": "bc538e33f1fcc933"
+    },
+    "check.unblock.2": {
+      "text": "die Anfrage nennt einen Akteur",
+      "context": "One row of the ordered precondition list of unblock. This row is Dinah's own addition: the core profile's own section 6.6 table carries no row reading \"the request names an owner\" (only CORE-CLAIM and CORE-BLOCK's own tables do), so this key does not claim the profile's own wording the way the numbered rows above it do.",
+      "source": "bc538e33f1fcc933"
+    },
+    "check.check.1": {
+      "text": "das von Ihnen genannte Gespann ist ein zulässiger Name",
+      "context": "One row of the ordered precondition list of check, run when the request carries at least one repair marker. check has no numbered table in the core profile, so this row carries Dinah's own wording rather than a quotation.",
+      "source": "47fd175a39b5f9ee"
+    },
+    "check.check.2": {
+      "text": "die Anfrage nennt einen Akteur",
+      "context": "One row of the ordered precondition list of check, run when the request carries at least one repair marker, immediately after the harness row above. check has no numbered table in the core profile, so this row carries Dinah's own wording rather than a quotation.",
+      "source": "bc538e33f1fcc933"
+    },
+    "refusal.no-owner.next-harness": {
+      "text": "; ein {harness}-Harness ist deklariert, daher gilt ein in Ihren Einstellungen konfigurierter Actor, falls vorhanden, hier nicht; führen Sie `dinah --actor <Name>` aus oder setzen Sie `DINAH_ACTOR`, um zu sagen, wer handelt",
+      "context": "Spliced onto refusal.no-owner as the next step, in place of refusal.no-owner.next, when the request that raised the refusal declared a harness: the configuration rung of the actor ladder answers only a call declaring none, so a harness-declaring call is refused rather than promoted to whatever a shared config file carries.",
+      "source": "85585bd769b3150c"
+    },
+    "status.actor.unnamed": {
+      "text": "für diesen Prozess ist kein Akteur benannt; führen Sie `dinah config set actor <Name>` aus oder setzen Sie `DINAH_ACTOR`, um zu sagen, wer handelt",
+      "context": "The second line of status when no actor resolved for this process, printed in place of status.actor so the line never interpolates an empty actor name.",
+      "source": "2ef9f69d8ff23dbb"
     }
   }
 }
