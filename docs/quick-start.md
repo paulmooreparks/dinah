@@ -1327,14 +1327,14 @@ storage format 6
 Catalogs:
   Language  Translated
   --------  ----------
-  en        1209/1209
-  af        0/1209
-  cs        0/1209
-  de        1209/1209
-  es        0/1209
-  fil       0/1209
-  hi        1209/1209
-  id        0/1209
+  en        1211/1211
+  af        0/1211
+  cs        0/1211
+  de        1211/1211
+  es        0/1211
+  fil       0/1211
+  hi        1211/1211
+  id        0/1211
 [exit 0]
 ```
 
@@ -1643,6 +1643,7 @@ The guides stand in the order Dinah recommends reading them.
   getting-started   Getting started
   verbs             The five verbs
   principles        Why a workbench has the rules it has
+  on-behalf         Acting on somebody else's decision
   references        References
   query             Asking questions of a workbench
   workbench-layout  What a workbench looks like on disk

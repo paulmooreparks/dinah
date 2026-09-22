@@ -335,7 +335,11 @@ follows everywhere on this surface.
 go to recover. A card you name must exist, Dinah refuses a claim on a card
 another owner already holds, and it refuses a move out of an operator-owned
 column to every actor but the operator. The refusal tells you which rule
-stopped you and on what.
+stopped you and on what. A `not-operator` refusal on this surface carries the
+rule's name and the actor you named, and no sentence of advice. When the
+operator has stated a ruling on the refused act, in the operator's own words,
+read the guide `on-behalf` before you record it under the operator's name;
+otherwise the act is the operator's to perform.
 
 A transport error is a different thing. An unknown `method` or a malformed
 request answers with an `error` block and a JSON-RPC code. A refusal lives
@@ -352,7 +356,8 @@ arguments when it consumes it and refuses the name when it does not.
 
 `actor` is the name you act as. It overrides whatever owner the process
 defaults to, and it is how a caller makes a call in a name that is not the
-server's default. Every tool takes it.
+server's default. Every tool takes it. Naming anybody but yourself puts your
+act on the record as theirs, so read the guide `on-behalf` before you do.
 
 `basis` is the revision the call is to be evaluated against. When a response
 carries a basis and you want to follow it with a write, pass that basis back

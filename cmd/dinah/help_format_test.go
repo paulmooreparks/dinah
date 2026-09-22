@@ -125,7 +125,7 @@ Global flags:
   --help, -h, -?     Print this help, or one command's page when a command is named
   --version, -V      Print the version and stop
 
-Environment: DINAH_WORKBENCH, DINAH_HOME, DINAH_FORMAT=json|compact, DINAH_LANG, DINAH_ACTOR, DINAH_EDITOR, DINAH_MCP_ROOT, VISUAL, EDITOR
+Environment: DINAH_WORKBENCH, DINAH_HOME, DINAH_FORMAT=json|compact, DINAH_LANG, DINAH_ACTOR, DINAH_HARNESS, DINAH_PROVIDER, DINAH_MODEL, DINAH_SERVER, DINAH_EDITOR, DINAH_MCP_ROOT, VISUAL, EDITOR
 
 Exit codes: 0 ok, 2 refused, 3 stale, 4 unreachable.
 
@@ -214,7 +214,7 @@ Global flags:
   --help, -h, -?     Print this help, or one command's page when a command is named
   --version, -V      Print the version and stop
 
-Environment: DINAH_WORKBENCH, DINAH_HOME, DINAH_FORMAT=json|compact, DINAH_LANG, DINAH_ACTOR, DINAH_EDITOR, DINAH_MCP_ROOT, VISUAL, EDITOR
+Environment: DINAH_WORKBENCH, DINAH_HOME, DINAH_FORMAT=json|compact, DINAH_LANG, DINAH_ACTOR, DINAH_HARNESS, DINAH_PROVIDER, DINAH_MODEL, DINAH_SERVER, DINAH_EDITOR, DINAH_MCP_ROOT, VISUAL, EDITOR
 
 Exit codes: 0 ok, 2 refused, 3 stale, 4 unreachable.
 
@@ -515,10 +515,10 @@ func notedCommands(s *session) []string {
 // which is the documented behaviour of every wrap in this binary.
 func TestNoNoteLineReachesPastTheWindow(t *testing.T) {
 	// A sweep over no notes at all would pass whatever wrapNote did, so the
-	// count is pinned before the sweep runs. Five commands carry a note today:
-	// check, resolve, verify, fail and reshape.
-	if named := notedCommands(helpSession(80, "en")); len(named) != 5 {
-		t.Fatalf("wanted five commands carrying a note, got %d: %v", len(named), named)
+	// count is pinned before the sweep runs. Six commands carry a note today:
+	// check, resolve, verify, fail, reshape and unblock.
+	if named := notedCommands(helpSession(80, "en")); len(named) != 6 {
+		t.Fatalf("wanted six commands carrying a note, got %d: %v", len(named), named)
 	}
 	for _, tag := range msg.Tags() {
 		for _, window := range helpSweepWindows() {
@@ -536,6 +536,45 @@ func TestNoNoteLineReachesPastTheWindow(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+// TestTheOperatorsActsPointAtOnBehalfInTheirHelp is dinah-563's help half.
+// unblock gains a note of its own, printed under its summary; resolve, verify
+// and fail keep their notes and each ends on the sentence pointing at the
+// guide; and reopen and the --actor row, which the specification leaves
+// alone, say nothing about it. The texts are written out as section 3.7 of the
+// specification gives them, so a catalog edit nobody approved fails here.
+func TestTheOperatorsActsPointAtOnBehalfInTheirHelp(t *testing.T) {
+	const (
+		unblockNote  = "Only the workbench's operator lifts a block. When the operator has stated a ruling that lifts this one, `dinah guide on-behalf` says how to record it as the operator's."
+		resolveTail  = " An item filed `--owner operator` is settled by the operator alone, and `dinah guide on-behalf` says how to record a decision the operator has stated."
+		criteriaTail = " A criterion filed `--owner operator` is settled by the operator alone, and `dinah guide on-behalf` says how to record a result the operator has stated."
+	)
+	dir := t.TempDir()
+	page := runCLI(t, dir, "help", "unblock")
+	if page.code != 0 {
+		t.Fatalf("help unblock: %d %s", page.code, page.errw)
+	}
+	if want := "Lift a block (operator only)\n\n" + unblockNote + "\n\nWhat you may write:"; !strings.Contains(page.out, want) {
+		t.Errorf("help unblock does not print its note under its summary; wanted %q in:\n%s", want, page.out)
+	}
+	for name, tail := range map[string]string{"resolve": resolveTail, "verify": criteriaTail, "fail": criteriaTail} {
+		note := msg.For(msg.Base).T("cmd." + name + ".note")
+		if !strings.HasSuffix(note, tail) || note == strings.TrimSpace(tail) {
+			t.Errorf("the note of %s does not end on the sentence pointing at the guide: %q", name, note)
+		}
+		if page := runCLI(t, dir, "help", name); !strings.Contains(page.out, note) {
+			t.Errorf("help %s does not print its note:\n%s", name, page.out)
+		}
+	}
+	for _, argv := range [][]string{{"help", "reopen"}, {"help"}} {
+		if page := runCLI(t, dir, argv...); page.code != 0 || strings.Contains(page.out, "on-behalf") {
+			t.Errorf("%v names on-behalf, and the specification leaves it unchanged:\n%s", argv, page.out)
+		}
+	}
+	if page := runCLI(t, dir, "help"); !strings.Contains(page.out, "\n  --actor <name>     Act as this owner\n") {
+		t.Errorf("the --actor row of dinah help has changed:\n%s", page.out)
 	}
 }
 

@@ -26,7 +26,8 @@ slow.
 
 `unblock` lifts a block, and Dinah refuses the verb to an actor the workbench
 does not record as its operator. An obstacle raised is an obstacle handed to
-whoever answers for the workbench.
+whoever answers for the workbench. If the operator has stated a ruling that
+lifts a block, `dinah guide on-behalf` says how you record it.
 
 `pull` is not a sixth verb. It is a claim and a move run as one act, over a
 card you did not have to name: `dinah pull <column>` takes whatever stands at

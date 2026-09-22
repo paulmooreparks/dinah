@@ -265,6 +265,13 @@ func workingAgreement(root string, defaultLib *verb.Library) string {
 	}
 	b.WriteString("Read the embedded guides through resources/list and resources/read.\n")
 	b.WriteString("Read the guide mcp through resources/read for the loop this surface expects.\n")
+	b.WriteString("\n")
+	b.WriteString("Dinah refuses some acts to every actor but the operator, and over this surface ")
+	b.WriteString("the refusal carries no advice. When the operator has stated a ruling on such an ")
+	b.WriteString("act, in the operator's own words and naming the act, read the guide on-behalf ")
+	b.WriteString("through resources/read before you record it, because it says what counts as a ")
+	b.WriteString("statement and what you must declare and write. Never name the operator to record ")
+	b.WriteString("anything the operator has not stated.\n")
 	return b.String()
 }
 

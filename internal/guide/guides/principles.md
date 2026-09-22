@@ -87,4 +87,6 @@ No mechanism enforces the four rules below. Dinah will not stop you, and a secon
 
 Each of the four leaves its trace in the journal, so somebody reading afterwards can see where you departed from one even though nothing stopped you at the time.
 
+The fourth rule does not stop you making a move the operator has ruled on in the operator's own words. Recorded under the operator's name with your harness, provider, and model declared, the move is the operator's act and the record shows that you performed it. `dinah guide on-behalf` says what counts as such a ruling and what else you owe the record when you act on it.
+
 The contract: ACTOR-1, ACTOR-2, ACTOR-3, and ACTOR-4.

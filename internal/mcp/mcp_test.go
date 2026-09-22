@@ -255,6 +255,66 @@ func TestInitializeCarriesTheWorkingAgreement(t *testing.T) {
 	}
 }
 
+// onBehalfParagraph is the paragraph dinah-563 appends to the working
+// agreement, as section 3.1 of that card's specification writes it. It is
+// written out here rather than read from workingAgreement, so an edit to the
+// served text that nobody approved fails this test.
+const onBehalfParagraph = "\nDinah refuses some acts to every actor but the operator, and over this surface the refusal carries no advice. When the operator has stated a ruling on such an act, in the operator's own words and naming the act, read the guide on-behalf through resources/read before you record it, because it says what counts as a statement and what you must declare and write. Never name the operator to record anything the operator has not stated.\n"
+
+// TestTheWorkingAgreementEndsOnTheOnBehalfPointer holds the paragraph to the
+// end of the instructions, directly after the line pointing at the guide mcp,
+// for a server carrying a default workbench and for one carrying none, since
+// the function writes the two differently above the paragraph and the
+// specification wants it written unconditionally.
+func TestTheWorkingAgreementEndsOnTheOnBehalfPointer(t *testing.T) {
+	const mcpLine = "Read the guide mcp through resources/read for the loop this surface expects.\n"
+	for _, served := range []struct {
+		name         string
+		instructions string
+	}{
+		{"with a default workbench", instructionsOf(t, ask(t, newLibrary(t), `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}`))},
+		{"with no default workbench", instructionsOf(t, askUnderRoot(t, t.TempDir(), nil, `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}`))},
+	} {
+		if !strings.HasSuffix(served.instructions, mcpLine+onBehalfParagraph) {
+			t.Errorf("%s: the instructions do not end with the on-behalf paragraph after the mcp line:\n%q", served.name, served.instructions)
+		}
+	}
+}
+
+// TestANotOperatorRefusalOverMCPCarriesTheDeclaredHarness is dinah-563's
+// machine-form half on this head. A not-operator refusal from a call that
+// declared a harness carries context.harness, and one from a call that
+// declared none carries no context member at all, so an agent on this surface
+// can tell which refusal it met without prose. Both run against one item, so
+// a head that always or never filled the value fails one of the two.
+func TestANotOperatorRefusalOverMCPCarriesTheDeclaredHarness(t *testing.T) {
+	t.Setenv("DINAH_HARNESS", "")
+	t.Setenv("DINAH_PROVIDER", "")
+	t.Setenv("DINAH_MODEL", "")
+	library := newLibrary(t)
+	filed := payload(t, ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"file_item","arguments":{"actor":"alka","card":"fx-1","kind":"open_question","text":"Garden or hall?","owner":"operator"}}}`))
+	if filed["outcome"] != contract.OutcomeOK {
+		t.Fatalf("fixture: file_item: %v", filed)
+	}
+
+	declared := payload(t, ask(t, library, `{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"resolve_item","arguments":{"actor":"planner","harness":"claude-code","item":"fx-1/questions/1","text":"Garden"}}}`))
+	if declared["outcome"] != contract.OutcomeRefused || declared["refusal"] != contract.NotOperator {
+		t.Fatalf("a resolve by somebody who is not the operator, declaring a harness: wanted refused/not-operator, got %v", declared)
+	}
+	context, _ := declared["context"].(map[string]any)
+	if context["harness"] != "claude-code" || len(context) != 1 {
+		t.Errorf("the refusal from a harness-declaring call carries the context %v, wanted harness claude-code alone", declared["context"])
+	}
+
+	undeclared := payload(t, ask(t, library, `{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"resolve_item","arguments":{"actor":"planner","item":"fx-1/questions/1","text":"Garden"}}}`))
+	if undeclared["outcome"] != contract.OutcomeRefused || undeclared["refusal"] != contract.NotOperator {
+		t.Fatalf("a resolve by somebody who is not the operator, declaring no harness: wanted refused/not-operator, got %v", undeclared)
+	}
+	if raw, present := undeclared["context"]; present {
+		t.Errorf("the refusal from a call declaring no harness carries the context %v, wanted no context member", raw)
+	}
+}
+
 // TestEveryToolResponseCarriesAffordances asserts that an agent never has to
 // learn which responses answer the question of what it may do next, and that
 // every name it is offered is a tool this head actually serves.
@@ -505,6 +565,13 @@ func TestGuidesAreResourcesAndMatchTheCLI(t *testing.T) {
 		t.Fatalf("resources/list: %v", err)
 	}
 	topics := guide.Topics()
+	offersOnBehalf := false
+	for _, resource := range listed.Resources {
+		offersOnBehalf = offersOnBehalf || resource.URI == "dinah://guide/on-behalf"
+	}
+	if !offersOnBehalf {
+		t.Errorf("resources/list does not offer dinah://guide/on-behalf, which the working agreement tells an agent to read")
+	}
 	if len(listed.Resources) != len(topics) {
 		t.Fatalf("wanted one resource per guide, got %d for %d guides", len(listed.Resources), len(topics))
 	}

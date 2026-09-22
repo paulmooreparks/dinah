@@ -31,6 +31,7 @@ var reading = []string{
 	"getting-started",
 	"verbs",
 	"principles",
+	"on-behalf",
 	"references",
 	"query",
 	"workbench-layout",

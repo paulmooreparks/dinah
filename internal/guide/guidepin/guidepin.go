@@ -87,6 +87,15 @@ const (
 	TheFilesystemNeedsNoVerb = "`dinah path <reference>` prints the anchor of whatever it names, an item's state is a line of frontmatter in that anchor, and an editor changes it."
 )
 
+// The claim the on-behalf guide's "What Dinah does not check" section makes
+// about what a reader at a terminal sees. dinah-563 wrote it.
+const (
+	// TheNameAloneShowsAtATerminal says which read surfaces show the performer
+	// of an act recorded under somebody else's name. dinah-564 changes the
+	// answer, and this pin is what makes that card update the guide.
+	TheNameAloneShowsAtATerminal = "The plain journal listing, `dinah changes`, and a comment's author line show the name alone, so at a terminal your note is what tells a person that you acted."
+)
+
 // pinned is the roster, guide by guide, each guide's claims in the order it
 // carries them.
 var pinned = []Statement{
@@ -98,6 +107,7 @@ var pinned = []Statement{
 	{Topic: "first-session", Text: TheOperatorComparisonRefusesByName, Provenance: "TestAnOperatorOwnedItemIsSettledByTheOperatorAlone"},
 	{Topic: "first-session", Text: TheActorFlagOutranksTheOtherRungs, Provenance: "TestTheOperatorRefusalIsDefeatedByTheActorFlag"},
 	{Topic: "first-session", Text: TheFilesystemNeedsNoVerb, Provenance: "TestTheOperatorRefusalIsDefeatedByWritingTheFile"},
+	{Topic: "on-behalf", Text: TheNameAloneShowsAtATerminal, Provenance: "TestAnActRecordedForTheOperatorShowsItsPerformerOnlyInTheMachineForm"},
 }
 
 // Pinned returns every pinned statement, in the order its guide carries them.
