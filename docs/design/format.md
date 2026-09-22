@@ -717,15 +717,37 @@ whose declaration covers departure is refused under the distinct name
 way. The two names are distinct because the profile fixes `unresolved-item` for
 a card arriving at a column and says nothing about a card leaving one.
 
-Neither refusal reads the direction of the move. An entry hold refuses a
-regressive move into the column exactly as it refuses a forward one, and a
-departure hold refuses a push-back out of the column exactly as it refuses an
-advance, because an unresolved item is as good a reason to keep a card where it
-stands in one direction as in the other. The operator carries either through
-with the same `--override` marker that already carries a card into a full
-column, witnessed on the `moved` event the same way. Every other verb is
-untouched: an item is filed, cited, resolved or reopened wherever the card
-stands, so nothing about the flag changes when an item may be settled.
+The entry hold reads no direction. It refuses a regressive move into the
+column exactly as it refuses a forward one, because an unresolved item is as
+good a reason to keep a card out of the column in one direction as in the
+other: the destination has not yet been reached, and its own precondition has
+not yet been met, whichever way the card is travelling.
+
+The departure hold reads the direction, and dinah-571 is why: an unresolved
+item does not protect the same thing on the way out that it protects on the
+way in. It binds a forward departure and a departure into a column of kind
+`done`, exactly as before, and a regressive departure now passes, with the
+item riding along unresolved. Sending a card back upstream escapes nothing an
+exit hold exists to stop, because the item still names the column the card
+left, and that column holds it again on any later attempt to leave forward or
+reach a done column; what the hold protects is a card advancing past its
+station with the station's question unanswered, and a regressive move cannot
+do that. Regressive is read the way `RegressiveDepartures` already reads one
+replayed departure for `loop_limit`: a column standing earlier than the
+departure in the workbench's own column order, and not of kind `done`,
+regardless of the position a card's own route would put it at. A card walking
+a route is judged on the same, route-independent order.
+
+The operator carries either hold through with the same `--override` marker
+that already carries a card into a full column, witnessed on the `moved`
+event the same way, and only a forward or done-bound departure ever reaches
+that check, since a regressive one already passed. Where the caller the exit
+hold refuses is the operator, the refusal's own next step names `--override`,
+because he is the one caller who may actually pass it; anybody else reads the
+next step this refusal has always carried, which says to settle the item.
+Every other verb is untouched: an item is filed, cited, resolved or reopened
+wherever the card stands, so nothing about the flag changes when an item may
+be settled.
 
 The two directions carry a naming rule between them, and a workbench adopting
 the flag writes it into its own method text. An item somebody settles at one

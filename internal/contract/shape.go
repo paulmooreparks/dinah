@@ -367,9 +367,25 @@ var Shapes = []Shape{
 		// to which entity the detail names, because the two refusals send
 		// a reader to the same item and differ only in which side of the
 		// column stood in the way.
-		Name:      UnresolvedItemExit,
-		Fragments: []Fragment{{Key: "refusal.dinah.unresolved-item-exit.next"}},
-		NextStep:  []string{"refusal.dinah.unresolved-item-exit.next"},
+		//
+		// This is the one exit hold left standing on a forward departure or
+		// one into a done column, since a regressive departure passes
+		// beneath canLand and never reaches this refusal at all. The caller
+		// it stops is therefore always somebody trying to advance, and where
+		// that caller is the operator, --override is a way past this
+		// station's own item that no other reader has, so the operator
+		// fragment names it. operator carries no placeholder of its own; it
+		// only switches the fragment, on the same pattern
+		// dinah.multiple-words's quoteInText already uses.
+		Name: UnresolvedItemExit,
+		Fragments: []Fragment{
+			{Key: "refusal.dinah.unresolved-item-exit.next-operator", When: "operator"},
+			{Key: "refusal.dinah.unresolved-item-exit.next"},
+		},
+		NextStep: []string{
+			"refusal.dinah.unresolved-item-exit.next-operator",
+			"refusal.dinah.unresolved-item-exit.next",
+		},
 	},
 	{
 		// The window clause says what this build reads, so the next step

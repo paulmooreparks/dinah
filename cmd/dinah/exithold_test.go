@@ -49,16 +49,18 @@ func heldOnTheWayOut(t *testing.T, kind string) (string, string) {
 	return root, soleItemID(t, root, "fx-1")
 }
 
-// TestAColumnHoldingOnTheWayOutRefusesTheDeparture is dinah-484 AC-4 and AC-5.
-// The forward departure and the regressive one are both refused while the item
-// stands unsettled, because nothing in the check reads the direction of the
-// move: a push-back carrying an unanswered question is exactly what the hold
-// exists to stop.
+// TestAColumnHoldingOnTheWayOutRefusesOnlyTheForwardDeparture is dinah-571's
+// own case, replacing dinah-484's AC-4 and AC-5 now that the direction is
+// read. The forward departure is refused exactly as it always was, and the
+// regressive one now passes with the item riding along unresolved: sending
+// the card back upstream escapes nothing, because the item still names the
+// station and the station holds it again the next time the card tries to
+// leave forward.
 //
 // The item is then settled and the same forward move goes through, which is
 // what stops this passing on a build that refuses every move out of the
 // station whatever the card carries.
-func TestAColumnHoldingOnTheWayOutRefusesTheDeparture(t *testing.T) {
+func TestAColumnHoldingOnTheWayOutRefusesOnlyTheForwardDeparture(t *testing.T) {
 	root, item := heldOnTheWayOut(t, "acceptance_criterion")
 
 	forward := runCLI(t, root, "move", "fx-1", "review")
@@ -73,14 +75,25 @@ func TestAColumnHoldingOnTheWayOutRefusesTheDeparture(t *testing.T) {
 	}
 
 	back := runCLI(t, root, "move", "fx-1", "intake")
-	if back.code != contract.ExitCode(contract.OutcomeRefused) {
-		t.Fatalf("the regressive departure exited %d, wanted %d", back.code, contract.ExitCode(contract.OutcomeRefused))
+	if back.code != 0 {
+		t.Fatalf("the regressive departure was held: %d %s, so the exit hold still reads no direction", back.code, back.errw)
 	}
-	if name := refusalNameOf(back.errw); name != contract.UnresolvedItemExit {
-		t.Errorf("the regressive departure answered %s, wanted %s, so the hold reads the direction of the move", name, contract.UnresolvedItemExit)
+	if state := soleItemState(t, root, "fx-1"); state != bench.ItemPending {
+		t.Errorf("the item rode the regressive move as %q, wanted it to stand pending, unchanged", state)
 	}
-	if !strings.Contains(back.errw, item) {
-		t.Errorf("the refusal names no item; wanted %s in:\n%s", item, back.errw)
+
+	// The card is carried back to the station and the same forward move is
+	// tried again: the item still names it, so the station holds it again,
+	// which is what proves the regressive move settled nothing.
+	if got := runCLI(t, root, "move", "fx-1", "doing"); got.code != 0 {
+		t.Fatalf("move back to doing: %d %s", got.code, got.errw)
+	}
+	stillForward := runCLI(t, root, "move", "fx-1", "review")
+	if stillForward.code != contract.ExitCode(contract.OutcomeRefused) {
+		t.Fatalf("the forward departure after the round trip exited %d, wanted %d", stillForward.code, contract.ExitCode(contract.OutcomeRefused))
+	}
+	if name := refusalNameOf(stillForward.errw); name != contract.UnresolvedItemExit {
+		t.Errorf("the refusal name is %s, wanted %s", name, contract.UnresolvedItemExit)
 	}
 
 	if got := runCLI(t, root, "verify", "fx-1/criteria/1", "--text", "the release notes are written, read against the fixture"); got.code != 0 {
@@ -168,6 +181,205 @@ func TestANonOperatorIsRefusedTheOverrideAtTheExitHold(t *testing.T) {
 	}
 	if name := refusalNameOf(got.errw); name != contract.NotOperator {
 		t.Errorf("the refusal name is %s, wanted %s", name, contract.NotOperator)
+	}
+}
+
+// TestTheOperatorRefusalAtTheExitHoldNamesOverride is dinah-571's own case.
+// The operator is refused by the exit hold exactly as anybody else is, and
+// the refusal he reads names --override as the way past his own station's
+// item, because he is the one caller who may actually pass it. A non-operator
+// reading the same refusal is told to settle the item and reads no mention of
+// a flag refused to him.
+func TestTheOperatorRefusalAtTheExitHoldNamesOverride(t *testing.T) {
+	root, item := heldOnTheWayOut(t, "acceptance_criterion")
+
+	operator := runCLI(t, root, "move", "fx-1", "review")
+	if operator.code != contract.ExitCode(contract.OutcomeRefused) {
+		t.Fatalf("the operator's forward departure exited %d, wanted %d", operator.code, contract.ExitCode(contract.OutcomeRefused))
+	}
+	if name := refusalNameOf(operator.errw); name != contract.UnresolvedItemExit {
+		t.Fatalf("the refusal name is %s, wanted %s", name, contract.UnresolvedItemExit)
+	}
+	if !strings.Contains(operator.errw, "--override") {
+		t.Errorf("the operator's own refusal does not name --override:\n%s", operator.errw)
+	}
+
+	root2, item2 := heldOnTheWayOut(t, "acceptance_criterion")
+	t.Setenv("DINAH_ACTOR", "sam")
+	other := runCLI(t, root2, "move", "fx-1", "review")
+	if other.code != contract.ExitCode(contract.OutcomeRefused) {
+		t.Fatalf("the non-operator's forward departure exited %d, wanted %d", other.code, contract.ExitCode(contract.OutcomeRefused))
+	}
+	if name := refusalNameOf(other.errw); name != contract.UnresolvedItemExit {
+		t.Fatalf("the refusal name is %s, wanted %s", name, contract.UnresolvedItemExit)
+	}
+	if strings.Contains(other.errw, "--override") {
+		t.Errorf("a non-operator's refusal names --override, which he cannot pass:\n%s", other.errw)
+	}
+	if !strings.Contains(operator.errw, item) || !strings.Contains(other.errw, item2) {
+		t.Fatalf("one of the two refusals does not name its own item")
+	}
+}
+
+// exitHoldWithEarlyDoneDefinition puts a done-kind column earlier in the
+// flow's own order than the station that holds on the way out, so a move
+// into it is regressive by position and still has to be held: it is a move
+// into a done column, which the exit hold binds on the same terms as a
+// forward departure.
+const exitHoldWithEarlyDoneDefinition = `{
+  "profile": "dinah-core/0.12",
+  "title": "Early done",
+  "columns": [
+    { "id": "f10000000001", "title": "Intake", "kind": "intake" },
+    { "id": "f10000000002", "title": "Archived", "kind": "done" },
+    { "id": "f10000000003", "title": "Doing", "kind": "work", "gate_items": "out" },
+    { "id": "f10000000004", "title": "Review", "kind": "work" }
+  ]
+}`
+
+// TestAColumnHoldingOnTheWayOutHoldsADepartureIntoADoneColumn is dinah-571's
+// own case: Archived stands earlier than Doing in the flow's own order, so a
+// move from Doing to Archived is regressive by position alone, and the exit
+// hold still binds it, because RegressiveDepartures's own reading (and this
+// card's regressive) excludes a column of kind done regardless of where it
+// stands.
+func TestAColumnHoldingOnTheWayOutHoldsADepartureIntoADoneColumn(t *testing.T) {
+	root := newBenchFromDefinition(t, exitHoldWithEarlyDoneDefinition)
+	if got := runCLI(t, root, "add", "Write the release notes"); got.code != 0 {
+		t.Fatalf("add: %d %s", got.code, got.errw)
+	}
+	if got := runCLI(t, root, "move", "fx-1", "doing"); got.code != 0 {
+		t.Fatalf("move to doing: %d %s", got.code, got.errw)
+	}
+	if got := runCLI(t, root, "file", "--column", "doing", "fx-1", "acceptance_criterion", "Somebody has to settle this."); got.code != 0 {
+		t.Fatalf("file: %d %s", got.code, got.errw)
+	}
+	item := soleItemID(t, root, "fx-1")
+
+	refused := runCLI(t, root, "move", "fx-1", "archived")
+	if refused.code != contract.ExitCode(contract.OutcomeRefused) {
+		t.Fatalf("the move into the earlier done column exited %d, wanted %d", refused.code, contract.ExitCode(contract.OutcomeRefused))
+	}
+	if name := refusalNameOf(refused.errw); name != contract.UnresolvedItemExit {
+		t.Errorf("the refusal name is %s, wanted %s, so a done column standing earlier was read as an ordinary regressive move", name, contract.UnresolvedItemExit)
+	}
+	if !strings.Contains(refused.errw, item) {
+		t.Errorf("the refusal names no item; wanted %s in:\n%s", item, refused.errw)
+	}
+}
+
+// entryOnlyDefinition declares the legacy true spelling, which is entry-only,
+// on the working station, so a card meets the hold entering it from either
+// side.
+const entryOnlyDefinition = `{
+  "profile": "dinah-core/0.12",
+  "title": "Entry only",
+  "columns": [
+    { "id": "f20000000001", "title": "Intake", "kind": "intake" },
+    { "id": "f20000000002", "title": "Doing", "kind": "work", "gate_items": true },
+    { "id": "f20000000003", "title": "Review", "kind": "work" },
+    { "id": "f20000000004", "title": "Done", "kind": "done" }
+  ]
+}`
+
+// TestAnEntryHoldStillRefusesEntryFromEitherDirection is dinah-571's own
+// case: the entry hold is untouched by this card, so it refuses a forward
+// entry and, once the card is past it, a regressive entry back into the same
+// station exactly as it always did.
+func TestAnEntryHoldStillRefusesEntryFromEitherDirection(t *testing.T) {
+	root := newBenchFromDefinition(t, entryOnlyDefinition)
+	if got := runCLI(t, root, "add", "Write the release notes"); got.code != 0 {
+		t.Fatalf("add: %d %s", got.code, got.errw)
+	}
+	if got := runCLI(t, root, "file", "--column", "doing", "fx-1", "acceptance_criterion", "Somebody has to settle this."); got.code != 0 {
+		t.Fatalf("file: %d %s", got.code, got.errw)
+	}
+	item := soleItemID(t, root, "fx-1")
+
+	forwardEntry := runCLI(t, root, "move", "fx-1", "doing")
+	if forwardEntry.code != contract.ExitCode(contract.OutcomeRefused) {
+		t.Fatalf("the forward entry exited %d, wanted %d", forwardEntry.code, contract.ExitCode(contract.OutcomeRefused))
+	}
+	if name := refusalNameOf(forwardEntry.errw); name != contract.UnresolvedItem {
+		t.Errorf("the refusal name is %s, wanted %s", name, contract.UnresolvedItem)
+	}
+	if !strings.Contains(forwardEntry.errw, item) {
+		t.Errorf("the refusal names no item; wanted %s in:\n%s", item, forwardEntry.errw)
+	}
+
+	if got := runCLI(t, root, "move", "fx-1", "doing", "--override"); got.code != 0 {
+		t.Fatalf("the operator's override at entry: %d %s", got.code, got.errw)
+	}
+	if got := runCLI(t, root, "move", "fx-1", "review"); got.code != 0 {
+		t.Fatalf("the forward departure out of doing, which declares no exit hold: %d %s", got.code, got.errw)
+	}
+
+	backEntry := runCLI(t, root, "move", "fx-1", "doing")
+	if backEntry.code != contract.ExitCode(contract.OutcomeRefused) {
+		t.Fatalf("the regressive entry exited %d, wanted %d", backEntry.code, contract.ExitCode(contract.OutcomeRefused))
+	}
+	if name := refusalNameOf(backEntry.errw); name != contract.UnresolvedItem {
+		t.Errorf("the refusal name is %s, wanted %s, so the entry hold stopped reading both directions", name, contract.UnresolvedItem)
+	}
+}
+
+// routedExitHoldDefinition declares one route naming every column of the flow
+// above, so a card filed on it still walks the same order, and the fixture
+// isolates one question: does a route on the card change whether a
+// regressive departure from an out-holding column passes.
+const routedExitHoldDefinition = `{
+  "profile": "dinah-core/0.12",
+  "title": "Routed exit hold",
+  "routes": {
+    "main": ["f30000000001", "f30000000002", "f30000000003", "f30000000004"]
+  },
+  "columns": [
+    { "id": "f30000000001", "title": "Intake", "kind": "intake" },
+    { "id": "f30000000002", "title": "Doing", "kind": "work", "gate_items": "out" },
+    { "id": "f30000000003", "title": "Review", "kind": "work" },
+    { "id": "f30000000004", "title": "Done", "kind": "done" }
+  ]
+}`
+
+// TestARoutedCardsRegressiveDepartureAlsoPasses is dinah-571's own case,
+// answering the specification's own question about a routed card: regressive
+// is read off the flow's own column order, the way dinah-542's loop-limit
+// reading already is, and a route carries no order of its own for this
+// question, so a card walking one is held and released on exactly the same
+// terms as a card walking none.
+func TestARoutedCardsRegressiveDepartureAlsoPasses(t *testing.T) {
+	root := newBenchFromDefinition(t, routedExitHoldDefinition)
+	if got := runCLI(t, root, "add", "Write the release notes"); got.code != 0 {
+		t.Fatalf("add: %d %s", got.code, got.errw)
+	}
+	if got := runCLI(t, root, "set", "fx-1", "route", "main"); got.code != 0 {
+		t.Fatalf("set the route: %d %s", got.code, got.errw)
+	}
+	if got := runCLI(t, root, "move", "fx-1", "doing"); got.code != 0 {
+		t.Fatalf("move to doing: %d %s", got.code, got.errw)
+	}
+	if got := runCLI(t, root, "file", "--column", "doing", "fx-1", "acceptance_criterion", "Somebody has to settle this."); got.code != 0 {
+		t.Fatalf("file: %d %s", got.code, got.errw)
+	}
+
+	back := runCLI(t, root, "move", "fx-1", "intake")
+	if back.code != 0 {
+		t.Fatalf("the routed card's regressive departure was held: %d %s", back.code, back.errw)
+	}
+	if state := soleItemState(t, root, "fx-1"); state != bench.ItemPending {
+		t.Errorf("the item rode the regressive move as %q, wanted it to stand pending, unchanged", state)
+	}
+
+	forward := runCLI(t, root, "move", "fx-1", "doing")
+	if forward.code != 0 {
+		t.Fatalf("move back to doing: %d %s", forward.code, forward.errw)
+	}
+	stillForward := runCLI(t, root, "move", "fx-1", "review")
+	if stillForward.code != contract.ExitCode(contract.OutcomeRefused) {
+		t.Fatalf("the routed card's forward departure exited %d, wanted %d", stillForward.code, contract.ExitCode(contract.OutcomeRefused))
+	}
+	if name := refusalNameOf(stillForward.errw); name != contract.UnresolvedItemExit {
+		t.Errorf("the refusal name is %s, wanted %s", name, contract.UnresolvedItemExit)
 	}
 }
 

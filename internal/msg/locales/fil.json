@@ -4623,6 +4623,11 @@
       "context": "Spliced onto refusal.dinah.unresolved-item-exit as the next step.",
       "skeleton": true
     },
+    "refusal.dinah.unresolved-item-exit.next-operator": {
+      "text": "; answer it, then resolve, verify or fail that item, or carry this one move through yourself with --override",
+      "context": "Spliced onto refusal.dinah.unresolved-item-exit as the next step where the caller who was refused is the operator.",
+      "skeleton": true
+    },
     "refusal.dinah.usage": {
       "text": "{detail} was not understood",
       "context": "The sentence printed after the refusal name dinah.usage. {detail} carries the identifier, owner or column the refusal is about.",

@@ -4645,6 +4645,11 @@
       "context": "Spliced onto refusal.dinah.unresolved-item-exit as the next step.",
       "source": "e0599db3bacaa190"
     },
+    "refusal.dinah.unresolved-item-exit.next-operator": {
+      "text": "; beantworten Sie ihn und lösen Sie diesen Eintrag dann auf, verifizieren Sie ihn oder lassen Sie ihn scheitern, oder führen Sie diese eine Verschiebung selbst mit --override durch",
+      "context": "Spliced onto refusal.dinah.unresolved-item-exit as the next step where the caller who was refused is the operator.",
+      "source": "fc2ace0509f4cd71"
+    },
     "refusal.dinah.usage": {
       "text": "{detail} wurde nicht verstanden",
       "context": "The sentence printed after the refusal name dinah.usage. {detail} carries the identifier, owner or column the refusal is about.",

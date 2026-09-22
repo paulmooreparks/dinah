@@ -3699,7 +3699,11 @@
     },
     "refusal.dinah.unresolved-item-exit.next": {
       "text": "; answer it, then resolve, verify or fail that item",
-      "context": "Spliced onto refusal.dinah.unresolved-item-exit as the next step."
+      "context": "Spliced onto refusal.dinah.unresolved-item-exit as the next step. It renders for anybody but the operator, who cannot pass this row with --override and is told the only way past it: settling the item."
+    },
+    "refusal.dinah.unresolved-item-exit.next-operator": {
+      "text": "; answer it, then resolve, verify or fail that item, or carry this one move through yourself with --override",
+      "context": "Spliced onto refusal.dinah.unresolved-item-exit as the next step where the caller who was refused is the operator. operator is a bare switch this entry's raise site sets and never a printed value, on the pattern refusal.dinah.multiple-words.quote-yourself's own quoteInText already uses, so only the operator, who alone may pass --override, is told the flag exists."
     },
     "refusal.dinah.usage": {
       "text": "{detail} was not understood",

@@ -381,12 +381,13 @@ func (l *Library) canRoute(req *Request, card *bench.Card) (*bench.Column, *benc
 // column, the destination stands below its capacity, the destination holds no
 // unresolved item of this card's that names it, the card carries a value for
 // every field the destination requires, the departure has not reached its own
-// declared loop_limit for this card, the departure holds no unresolved
-// item of this card's that names it for departure, the destination does not
-// wait on somebody outside the workbench, the destination does not reserve
-// to the operator the claim an arriving act would take there, and the
-// destination is not being retired. It reports whether a limit or a hold was
-// reached and overridden, which is the flag the moved event carries.
+// declared loop_limit for this card, a forward departure or one into a done
+// column holds no unresolved item of this card's that names it for departure,
+// the destination does not wait on somebody outside the workbench, the
+// destination does not reserve to the operator the claim an arriving act
+// would take there, and the destination is not being retired. It reports
+// whether a limit or a hold was reached and overridden, which is the flag the
+// moved event carries.
 //
 // The loop row is Dinah's own, appended after the profile's own nine rather
 // than inserted among them. dinah help move heads its table Order and
@@ -394,6 +395,13 @@ func (l *Library) canRoute(req *Request, card *bench.Card) (*bench.Column, *benc
 // capacity row and any row below it answers at-capacity, and a regressive
 // move into a held column that has also reached its departure's loop limit
 // answers unresolved-item, which is the ninth row and the earlier of the two.
+//
+// regressive decides both the loop-limit row and the exit-hold row below it,
+// and it decides them the same way RegressiveDepartures (dinah-542's own
+// helper, in internal/bench/check.go) decides one replayed departure: a
+// column standing earlier in the flow's own order, and not of kind done.
+// Route position plays no part, on dinah-542/criteria/6's own rule for the
+// loop limit, and a card walking a route is judged the same way here.
 //
 // takesUp says whether the act this list is running for takes the card up
 // where it lands, which a pull does and a move does not. The waiting row and
@@ -407,10 +415,12 @@ func (l *Library) canLand(req *Request, card *bench.Card, destination, departure
 	if card.Holder != "" && card.Holder != req.Actor {
 		return false, l.refuse(req, card, contract.Held, card.Holder), nil
 	}
+	operator := req.Actor == l.Bench.Operator
 	forward := departure != nil && destination.Position > departure.Position
 	if forward && departure.Terminal() {
 		return false, l.refuse(req, card, contract.Terminal, columnRef(departure)), nil
 	}
+	regressive := departure != nil && !destination.Terminal() && destination.Position < departure.Position
 	reached, err := l.atCapacity(destination)
 	if err != nil {
 		return false, nil, err
@@ -465,7 +475,7 @@ func (l *Library) canLand(req *Request, card *bench.Card, destination, departure
 	// life of the card. Nothing here resets a count and nothing stores a
 	// standing exemption.
 	loopReached := false
-	if departure != nil && departure.LoopLimit > 0 && !destination.Terminal() && destination.Position < departure.Position {
+	if departure != nil && departure.LoopLimit > 0 && regressive {
 		events, _, err := bench.ReadJournal(card.JournalPath())
 		if err != nil {
 			return false, nil, err
@@ -478,12 +488,14 @@ func (l *Library) canLand(req *Request, card *bench.Card, destination, departure
 	// CORE-GATE-6, Dinah's own: the departure's own exit hold, symmetric with
 	// the entry row above and running immediately after the loop-limit row it
 	// follows, before the three rows beneath it that ask about the
-	// destination rather than about this card's own departure. Nothing here
-	// reads forward, on the same terms the entry row above reads neither: an
-	// unresolved item is exactly as good a reason to keep a card at the
-	// column that raised it on a push-back as it is on an advance.
+	// destination rather than about this card's own departure. It binds a
+	// forward departure and one into a done column, on regressive's own
+	// reading, and a regressive departure passes with the item riding along:
+	// the card's items still name the station, and the station holds it
+	// again on any later forward attempt, so nothing the exit hold protects
+	// is escaped by sending the card back upstream.
 	exitGateHeld := false
-	if departure != nil && departure.HoldsOnExit() {
+	if departure != nil && departure.HoldsOnExit() && !regressive {
 		holding, err := bench.GatingItems(card.Dir, departure.ID)
 		if err != nil {
 			return false, nil, err
@@ -491,7 +503,11 @@ func (l *Library) canLand(req *Request, card *bench.Card, destination, departure
 		if len(holding) > 0 {
 			exitGateHeld = true
 			if !req.Override {
-				return false, l.refuse(req, card, contract.UnresolvedItemExit, holding[0].ID), nil
+				var extra map[string]string
+				if operator {
+					extra = map[string]string{"operator": "1"}
+				}
+				return false, l.refuseWith(req, card, contract.UnresolvedItemExit, holding[0].ID, extra), nil
 			}
 		}
 	}
