@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"os"
+	"path/filepath"
 	"strconv"
 
 	"dinah/internal/bench"
@@ -170,7 +171,7 @@ func (s *session) emitSetupReport(report *setup.Report) int {
 	}
 	s.line("")
 	if report.Recipe.Source == setup.SourceProject {
-		s.line(s.r.T("setup.prompt.heading.project", "detail", report.Recipe.Path))
+		s.line(s.r.T("setup.prompt.heading.project", "detail", filepath.FromSlash(report.Recipe.Path)))
 	} else {
 		s.line(s.r.T("setup.prompt.heading"))
 	}

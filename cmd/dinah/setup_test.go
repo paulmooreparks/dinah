@@ -433,7 +433,11 @@ func TestAProjectRecipeNeedsTrustEvenForADryRunOrARemoval(t *testing.T) {
 	}
 	got := runCLI(t, f.project, "setup", "local", "--trust-project-recipe")
 	accepted(t, "a trusted apply", got)
-	heading := msg.For("en").T("setup.prompt.heading.project", "detail", filepath.ToSlash(dir))
+	// The head names the recipe by the directory discovery resolved from
+	// the working directory, so the expected side reproduces that sequence
+	// rather than joining onto the fixture's own spelling of it.
+	resolved := filepath.Join(resolvedDir(t, f.project), ".dinah", "recipes", filepath.Base(dir))
+	heading := msg.For("en").T("setup.prompt.heading.project", "detail", resolved)
 	if !strings.Contains(got.out, heading) {
 		t.Errorf("the prompt is not printed under the project heading %q:\n%s", heading, got.out)
 	}
