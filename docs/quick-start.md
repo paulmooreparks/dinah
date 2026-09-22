@@ -571,7 +571,7 @@ so Dinah refuses to pull another card into it:
 
 ```console
 $ dinah pull doing
-at-capacity column doing has reached its limit; move a card out of doing first, or raise that column's wip_limit
+at-capacity column doing has reached its limit; carry this through with --override yourself, move a card out of doing first, or raise that column's wip_limit
 [exit 2]
 ```
 
@@ -1327,14 +1327,14 @@ storage format 6
 Catalogs:
   Language  Translated
   --------  ----------
-  en        1211/1211
-  af        0/1211
-  cs        0/1211
-  de        1211/1211
-  es        0/1211
-  fil       0/1211
-  hi        1211/1211
-  id        0/1211
+  en        1216/1216
+  af        0/1216
+  cs        0/1216
+  de        1216/1216
+  es        0/1216
+  fil       0/1216
+  hi        1216/1216
+  id        0/1216
 [exit 0]
 ```
 
