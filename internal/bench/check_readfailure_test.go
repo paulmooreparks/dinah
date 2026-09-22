@@ -259,15 +259,16 @@ func TestCheckReportsADuplicateCardNumber(t *testing.T) {
 // TestCheckPassesOverCardsCarryingNoNumber pins the below-format half of the
 // detector's contract.
 //
-// A workbench the number migration has not reached holds no registry, so the
-// by-number index is synthesized from the anchors and feeds resolution alone:
-// none of the line findings fire over it, and every card draws one missing
-// finding because no line claims it. Two anchors carrying one number collide
-// in resolution rather than in check, and a guard that grouped cards by the
-// numbers in their anchors would flood exactly the population this detector
-// shipped for, a workbench waiting for its migration, with duplicate reports,
-// so the genuine collision rides in the fixture and the duplicate report must
-// stay empty anyway.
+// A workbench the number migration has not reached carries its numbers in
+// frontmatter rather than in a registry, so check never runs checkCardNumbers
+// over it at all: a card there has not lost its number, and none of the six
+// registry findings, missing included, is check's to report. The by-number
+// index is still synthesized from the anchors, and it feeds resolution alone.
+// Two anchors carrying one number collide there rather than in check, and a
+// guard that grouped cards by the numbers in their anchors would flood
+// exactly the population this detector shipped for, a workbench waiting for
+// its migration, with duplicate reports, so the genuine collision rides in
+// the fixture and the duplicate report must stay empty anyway.
 func TestCheckPassesOverCardsCarryingNoNumber(t *testing.T) {
 	numberlessCard := "---\ntitle: A card\ncolumn: b00000000001\nstate: ready\n---\nFraming.\n"
 
@@ -292,31 +293,12 @@ func TestCheckPassesOverCardsCarryingNoNumber(t *testing.T) {
 	if reported := findingsOfKey(findings, FindingCardNumberDuplicate); len(reported) != 0 {
 		t.Errorf("a workbench below the registry's format reported %+v, and the synthesized index feeds resolution rather than check", reported)
 	}
-	missing := findingsOfKey(findings, FindingCardNumberMissing)
-	if len(missing) != 4 {
-		t.Fatalf("four cards stand on a workbench no line claims, and check reported %d missing findings: %+v", len(missing), missing)
-	}
-	anchors := map[string]bool{
-		filepath.Join(root, CardsDir, "c00000000001", CardAnchor): false,
-		filepath.Join(root, CardsDir, "c00000000002", CardAnchor): false,
-		archivedCollides: false,
-		filepath.Join(root, ArchiveDir, CardsDir, "c00000000004", CardAnchor): false,
-	}
-	for _, finding := range missing {
-		if _, named := anchors[finding.Path]; !named {
-			t.Errorf("a missing finding names %s, which is no card anchor in this fixture", finding.Path)
-			continue
-		}
-		anchors[finding.Path] = true
-	}
-	for anchor, seen := range anchors {
-		if !seen {
-			t.Errorf("no missing finding names %s", anchor)
-		}
+	if reported := findingsOfKey(findings, FindingCardNumberMissing); len(reported) != 0 {
+		t.Errorf("a workbench below the registry's format reported %+v, and a card there has not lost its number", reported)
 	}
 	// The synthesized index still answers resolution, and the collision it
-	// holds is the one check declined to report: two cards carry number 7, so
-	// a reference by number must refuse between them rather than resolve.
+	// holds is one check never sees: two cards carry number 7, so a
+	// reference by number must refuse between them rather than resolve.
 	_, refusal := opened.ResolveLinkTarget("fx-7")
 	if refusal == nil || refusal.Name != contract.AmbiguousCard {
 		t.Fatalf("fx-7 refused %v, and two cards carry the number below the registry's format", refusal)

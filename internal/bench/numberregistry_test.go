@@ -456,3 +456,26 @@ func TestCheckReportsTheRegistryDefects(t *testing.T) {
 		}
 	})
 }
+
+// TestCheckReportsNoneOfTheRegistrySixBelowTheFormat is dinah-489: it arms
+// the defect the card reported and pins its repair. A workbench below
+// RegistryFormat keeps its numbers in frontmatter, which is exactly where a
+// workbench at that format is meant to keep them, so the card the fixture
+// carries is correct rather than numberless. Before the fix, check ran
+// checkCardNumbers over this workbench anyway and reported the card missing;
+// after it, check never calls checkCardNumbers below RegistryFormat at all,
+// so the card draws none of the six registry findings.
+func TestCheckReportsNoneOfTheRegistrySixBelowTheFormat(t *testing.T) {
+	root := preRegistryFixture(t)
+	opened, err := openFixtureAtAnyFormat(t, root)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	findings, err := opened.Check()
+	if err != nil {
+		t.Fatalf("check: %v", err)
+	}
+	if len(findings) != 0 {
+		t.Fatalf("a format-2 workbench with a correct frontmatter number reported %+v, and none of it is a registry defect", findings)
+	}
+}

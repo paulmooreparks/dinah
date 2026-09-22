@@ -63,10 +63,10 @@ const (
 	FindingCardNumberRepeated = "check.card-number-repeated"
 	// FindingCardNumberMissing names a card no registry line claims, in
 	// either half of the collection. Path is the card's anchor and Detail is
-	// the card's identifier. A workbench the migration has not reached holds
-	// an empty registry, so the finding floods one per card, and the flood
-	// is the intended signal. The migration is the repair, and a workbench
-	// waiting for it is exactly what one finding per card says.
+	// the card's identifier. It is reported only on a workbench that carries
+	// a registry, because a workbench the migration has not reached keeps
+	// its numbers in frontmatter instead, and a card found there has not
+	// lost its number at all.
 	FindingCardNumberMissing = "check.card-number-missing"
 	// FindingCardNumberStranded names a well-formed registry line whose
 	// identifier names no card directory in either half of the collection.
@@ -527,11 +527,17 @@ func (b *Bench) Check() ([]Finding, error) {
 		return findings, err
 	}
 	findings = append(findings, benchOrdinalFindings...)
-	numberFindings, err := b.checkCardNumbers()
-	if err != nil {
-		return findings, err
+	// checkCardNumbers reads a registry that a workbench below RegistryFormat
+	// does not carry, so calling it there would load every card only to
+	// answer a question the format has not asked yet. The registry read
+	// stays confined to a workbench the migration has reached.
+	if b.Format >= RegistryFormat {
+		numberFindings, err := b.checkCardNumbers()
+		if err != nil {
+			return findings, err
+		}
+		findings = append(findings, numberFindings...)
 	}
-	findings = append(findings, numberFindings...)
 	findings = append(findings, b.checkColumnSlugs()...)
 	findings = append(findings, b.checkWorkbenchSlug()...)
 	for _, id := range b.StrandedColumns {
@@ -913,8 +919,9 @@ func (b *Bench) checkCard(card *Card) ([]Finding, error) {
 	findings = append(findings, itemRouteFindings...)
 	// A card carrying no registry line is checkCardNumbers' finding rather
 	// than this walk's, because the line lives in the registry file rather
-	// than in the anchor this walk reads, and a workbench the migration has
-	// not reached owes one finding per card there.
+	// than in the anchor this walk reads. checkCardNumbers itself only runs
+	// on a workbench that carries a registry, so a workbench the migration
+	// has not reached owes no finding here at all.
 	for _, link := range card.Links {
 		if b.HasIdentifier(link.To) {
 			continue
@@ -1118,15 +1125,12 @@ func checkAttachmentFilename(cardDir string) ([]Finding, error) {
 // is what a reader searches the file for, and a finding about a card names
 // the card's anchor and carries the identifier, which is what a reader opens.
 //
-// A workbench below the format the registry arrived at holds an empty
-// registry, so the four line findings stay quiet over it and the missing
-// finding floods one per card. The flood is the intended signal rather than a
-// defect of the detector, because the migration is the repair and a
-// workbench waiting for it is exactly what one finding per card says. The
-// by-number index the pre-registry reader synthesizes from frontmatter feeds
-// resolution alone, and none of these findings read it, so a synthesized
-// workbench reports its cards as carrying no lines rather than as holding
-// duplicates.
+// The caller runs this walk only for a workbench at RegistryFormat or above.
+// A workbench below that format carries no registry, so none of the six
+// states this walk reports describes it, and a card there simply has not
+// been migrated yet rather than having lost its number. The by-number index
+// the pre-registry reader synthesizes from frontmatter feeds resolution
+// alone, and this walk never reads it.
 //
 // The stranded probe reads every well-formed line's identifier against the two
 // collections, and a directory that stands but will not load is reported
@@ -1233,7 +1237,11 @@ func (b *Bench) checkCardNumbers() ([]Finding, error) {
 			if !claimed {
 				findings = append(findings, Finding{Path: anchor, Key: FindingCardNumberMissing, Detail: id})
 			}
-			if b.Format >= RegistryFormat && card.FM.Has("number") {
+			// The caller's own gate means this walk runs only at
+			// RegistryFormat or above, so a card still carrying its number
+			// in frontmatter here is always the drift this finding names
+			// rather than the ordinary pre-migration state.
+			if card.FM.Has("number") {
 				findings = append(findings, Finding{Path: anchor, Key: FindingCardNumberInFrontmatter, Detail: id})
 			}
 		}
