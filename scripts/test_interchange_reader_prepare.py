@@ -129,6 +129,23 @@ class PrepareTest(unittest.TestCase):
         self.assertFalse(into.exists())
         self.assertFalse((self.evidence / "manifest.json").exists())
 
+    def test_a_link_in_place_of_a_given_entry_is_refused(self):
+        into = self.scratch / "starved"
+        elsewhere = self.scratch / "elsewhere"
+        elsewhere.mkdir()
+
+        def plant(target):
+            (target / "out").rmdir()
+            try:
+                (target / "out").symlink_to(elsewhere, target_is_directory=True)
+            except OSError as err:
+                self.skipTest("this machine cannot create a symbolic link: %s" % err)
+
+        with self.assertRaisesRegex(prepare.Refused, "a link or a junction"):
+            self.run_prepare(into, after_populate=plant)
+        self.assertFalse(into.exists())
+        self.assertTrue(elsewhere.exists())
+
     def test_a_file_under_out_after_population_is_refused(self):
         into = self.scratch / "starved"
 
