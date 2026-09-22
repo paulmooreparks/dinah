@@ -526,7 +526,7 @@ func (p *planner) remove() (*Report, error) {
 		return nil, contract.Refuse(contract.SetupUnreadableTarget, p.unreadable)
 	}
 	if len(p.conflicts) > 0 {
-		return nil, contract.Refuse(contract.SetupConflict, strings.Join(p.conflicts, "\n"))
+		return nil, refuseListing(contract.SetupConflict, "locations", strings.Join(p.conflicts, "\n"))
 	}
 	for _, f := range touched {
 		p.tidy(f, entries)

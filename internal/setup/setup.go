@@ -175,7 +175,7 @@ func Run(opts Options) (*Report, error) {
 		return nil, contract.Refuse(contract.Usage, flag)
 	}
 	if !opts.Remove && !opts.DryRun && !opts.AllowRun && r.hasRun(scope) {
-		return nil, contract.Refuse(contract.SetupRunNotAllowed, runListing(r, scope))
+		return nil, refuseListing(contract.SetupRunNotAllowed, "steps", runListing(r, scope, opts, tools))
 	}
 	if scope == ScopeProject && opts.Workbench == "" {
 		if opts.WorkbenchErr != nil {
@@ -334,16 +334,39 @@ func misplacedFlag(opts Options, scope string) string {
 }
 
 // runListing is the detail of the run-not-allowed refusal, one run step per
-// line.
-func runListing(r *Recipe, scope string) string {
+// line, each rendered with the facts known by row 10. The scope's base and the
+// workbench are not resolved until rows 11 and 13, so a placeholder naming
+// one of them stands in the listing as the recipe wrote it.
+func runListing(r *Recipe, scope string, opts Options, tools string) string {
+	known := Facts{
+		Harness:        r.Harness,
+		Agent:          firstOf(opts.Agent, r.Agent),
+		Tools:          tools,
+		Provider:       firstOf(opts.Provider, r.Provider),
+		Model:          opts.Model,
+		Server:         opts.Server,
+		Scope:          scope,
+		Base:           "{{base}}",
+		Workbench:      "{{workbench}}",
+		WorkbenchTitle: "{{workbench_title}}",
+		Recipe:         r.Name,
+	}
 	var lines []string
 	for _, step := range r.Steps {
 		if step.Scope != scope || step.Kind != KindRun {
 			continue
 		}
-		lines = append(lines, step.ID+": "+CommandLine(step.Program, step.Args))
+		program, args := renderCommand(step, known)
+		lines = append(lines, step.ID+": "+CommandLine(program, args))
 	}
 	return strings.Join(lines, "\n")
+}
+
+// refuseListing raises a refusal whose subject is a list, one member per line.
+// The list rides as the detail, which the machine form carries, and as the
+// named value the refusal's shape prints as rows beneath its sentence.
+func refuseListing(name, value, lines string) *contract.Refusal {
+	return contract.RefuseWith(name, lines, map[string]string{value: lines})
 }
 
 // resolveBase finds the directory a scope writes into, which is row 13 of the
@@ -379,19 +402,22 @@ func resolveBase(opts Options, scope string) (string, error) {
 }
 
 // homeOrAbove reports whether a directory is the home directory or one of its
-// ancestors, compared after both are resolved through symbolic links and
-// segment by segment.
+// ancestors, compared segment by segment after both are resolved to the path
+// the filesystem finally reaches, so a junction or a symbolic link to the home
+// counts as the home. A directory that cannot be resolved counts as the home,
+// because a check that cannot answer must not let the write through. A home
+// that cannot be resolved is compared as it is spelled.
 func homeOrAbove(dir, home string) bool {
 	if home == "" {
 		return false
 	}
-	resolvedDir, err := filepath.EvalSymlinks(dir)
+	resolvedDir, err := finalPath(dir)
 	if err != nil {
-		resolvedDir = dir
+		return true
 	}
-	resolvedHome, err := filepath.EvalSymlinks(home)
+	resolvedHome, err := finalPath(home)
 	if err != nil {
-		resolvedHome = home
+		resolvedHome = filepath.Clean(home)
 	}
 	return within(resolvedDir, resolvedHome)
 }
@@ -572,10 +598,14 @@ func (p *planner) fileByKey(key string) *fileState {
 	return p.file(filepath.ToSlash(rel))
 }
 
-// contained reports whether a path stays under the base once the longest
-// prefix of it that exists is resolved through symbolic links.
+// contained reports whether a path stays under the base. The longest prefix
+// of the path that exists is resolved by finalPath, which resolves every
+// component of it, links and junctions alike, to the place the filesystem
+// finally reaches; the components below it do not exist yet and are created
+// as plain directories. A prefix or a base that cannot be resolved, such as a
+// link whose target is missing, is refused rather than guessed at.
 func (p *planner) contained(abs string) bool {
-	resolvedBase, err := filepath.EvalSymlinks(p.base)
+	resolvedBase, err := finalPath(p.base)
 	if err != nil {
 		return false
 	}
@@ -592,7 +622,7 @@ func (p *planner) contained(abs string) bool {
 		rest = append([]string{filepath.Base(existing)}, rest...)
 		existing = parent
 	}
-	resolved, err := filepath.EvalSymlinks(existing)
+	resolved, err := finalPath(existing)
 	if err != nil {
 		return false
 	}
@@ -616,7 +646,15 @@ func (p *planner) markUnreadable(f *fileState, defect string) {
 }
 
 // conflict records a location somebody else wrote.
+//
+// A whole file has the empty key, and its line is the file alone, since a
+// line ending in a space reads the same as one that does not and leaves the
+// trailing space for a reader's terminal to carry.
 func (p *planner) conflict(f *fileState, key string) {
+	if key == "" {
+		p.conflicts = append(p.conflicts, f.rel)
+		return
+	}
 	p.conflicts = append(p.conflicts, f.rel+" "+key)
 }
 
@@ -701,7 +739,7 @@ func (p *planner) apply() (*Report, error) {
 		return nil, contract.Refuse(contract.SetupUnreadableTarget, p.unreadable)
 	}
 	if len(p.conflicts) > 0 {
-		return nil, contract.Refuse(contract.SetupConflict, strings.Join(p.conflicts, "\n"))
+		return nil, refuseListing(contract.SetupConflict, "locations", strings.Join(p.conflicts, "\n"))
 	}
 	p.steps = append(p.steps, stale)
 	p.recordCreation()
@@ -717,15 +755,7 @@ func (p *planner) apply() (*Report, error) {
 
 // planRun records a run step's rendered command.
 func (p *planner) planRun(planned *plannedStep) {
-	program, _ := renderText(planned.step.Program, p.facts, false)
-	planned.program = program
-	for _, arg := range planned.step.Args {
-		if name, whole := wholePlaceholder(arg); whole && p.facts.value(name) == "" {
-			continue
-		}
-		rendered, _ := renderText(arg, p.facts, false)
-		planned.args = append(planned.args, rendered)
-	}
+	planned.program, planned.args = renderCommand(planned.step, p.facts)
 	change := ChangeRan
 	if p.opts.DryRun {
 		change = ChangeWouldRun

@@ -108,9 +108,10 @@ A template, `prompt.md`, `remove.md`, a step's path and every string in a
 `workbench`, `workbench_title` and `recipe`. When a string is nothing but one
 of those and its value is empty, Dinah leaves out the member or the array
 element that holds it, so `DINAH_MODEL` above is written only when you name a
-model. In `prompt.md`, `remove.md` and a template, `{{workbench|toml}}` writes
-the value as a quoted TOML string with every backslash and double quote
-escaped.
+model. In `prompt.md`, `remove.md` and a template, any of those names can
+carry the suffix `|toml`, as in `{{workbench|toml}}`, and Dinah then writes the
+value as a quoted TOML string, escaping every backslash, every double quote and
+every control character but the tab.
 
 Dinah keeps a record of what it wrote in the file `setup-ledger.json` in your
 user base. That record is how Dinah keeps four promises for every data step.

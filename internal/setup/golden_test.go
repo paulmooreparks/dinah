@@ -239,6 +239,28 @@ func TestTheCodexSectionCanBeMovedAndEditedAround(t *testing.T) {
 	if readFile(t, filepath.Join(g.project, "AGENTS.md")) != outside {
 		t.Error("the rerun changed the edits outside the block")
 	}
+
+	// A removal after the move takes back the block alone. The empty line
+	// setup added before the block stays where the block first stood,
+	// because section 5.8 takes that line only while it still stands
+	// directly before the block.
+	h := newFixture(t)
+	hAgents := filepath.Join(h.project, "AGENTS.md")
+	writeFiles(t, h.project, map[string]string{"AGENTS.md": codexFixtureAGENTS})
+	mustRun(t, h.options("codex"))
+	applied := readFile(t, hAgents)
+	from := strings.Index(applied, "<!-- dinah-setup:begin")
+	to := strings.Index(applied, endMarker) + len(endMarker)
+	writeFiles(t, h.project, map[string]string{"AGENTS.md": applied[from:to] + applied[:from] + applied[to:]})
+	removal := h.options("codex")
+	removal.Remove = true
+	removed := mustRun(t, removal)
+	if len(removed.Changes) != 1 || removed.Changes[0].Change != ChangeRemove {
+		t.Errorf("the removal after the move reported %v", changesOf(removed))
+	}
+	if got, want := readFile(t, hAgents), codexFixtureAGENTS+"\r\n\r\n"; got != want {
+		t.Errorf("the removal after the move left %q, want the fixture with the added line break and the empty line %q", got, want)
+	}
 }
 
 // TestTOMLValuesAreEscapedByTheOneHelper renders the Codex prompt with a

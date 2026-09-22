@@ -1079,12 +1079,19 @@ var Shapes = []Shape{
 		// The clause split out of the base entry sat ahead of the dash hint
 		// inside the sentence, so its fragment is declared ahead of it here
 		// and a reader sees the three pieces in the order they were written.
-		Name: Usage,
+		//
+		// dinah setup raises it mostly over an argument that was understood
+		// and does not fit beside the others, such as --list beside a harness,
+		// so setup carries a sentence and a next step of its own rather than
+		// saying the argument was not understood.
+		Name:     Usage,
+		Variants: []string{"setup"},
 		Fragments: []Fragment{
+			{Key: "refusal.dinah.usage.setup.next", WhenCommand: "setup"},
 			{Key: "refusal.dinah.usage.next"},
 			{Key: "refusal.dinah.usage.dash-hint", When: "dashHint"},
 		},
-		NextStep: []string{"refusal.dinah.usage.next"},
+		NextStep: []string{"refusal.dinah.usage.setup.next", "refusal.dinah.usage.next"},
 	},
 	{
 		// A workstream a live card still belongs to is not deleted, and the
@@ -1535,9 +1542,11 @@ var Shapes = []Shape{
 		NextStep:  []string{"refusal.dinah.route-off-column.next"},
 	},
 	// The twelve refusals dinah setup raises each carry their subject in the
-	// detail and one unconditional next step. Two of them carry a list of
-	// lines in the detail, the conflicting locations and the programs a
-	// recipe runs, which the base sentence opens a line for.
+	// detail and one unconditional next step. Two of them print a list, the
+	// conflicting locations and the programs a recipe runs, which ride as a
+	// Carried set so the rows stand beneath the sentence and the next step
+	// stands on a line of its own beneath them. The detail carries the same
+	// list joined by line breaks, for the machine form.
 	{
 		Name:      UnknownRecipe,
 		Fragments: []Fragment{{Key: "refusal.dinah.unknown-recipe.next"}},
@@ -1570,6 +1579,7 @@ var Shapes = []Shape{
 	},
 	{
 		Name:      SetupConflict,
+		Carried:   "locations",
 		Fragments: []Fragment{{Key: "refusal.dinah.setup-conflict.next"}},
 		NextStep:  []string{"refusal.dinah.setup-conflict.next"},
 	},
@@ -1590,6 +1600,7 @@ var Shapes = []Shape{
 	},
 	{
 		Name:      SetupRunNotAllowed,
+		Carried:   "steps",
 		Fragments: []Fragment{{Key: "refusal.dinah.setup-run-not-allowed.next"}},
 		NextStep:  []string{"refusal.dinah.setup-run-not-allowed.next"},
 	},

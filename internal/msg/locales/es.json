@@ -6304,13 +6304,13 @@
       "skeleton": true
     },
     "refusal.dinah.setup-conflict": {
-      "text": "Setup would change something it did not write, so it changed nothing:\n{detail}",
-      "context": "The sentence printed after the refusal name dinah.setup-conflict. {detail} lists every conflicting location, one per line, as a file followed by its key: a JSON pointer, a section name, or nothing for a whole file. Keep the line break before {detail}.",
+      "text": "Setup would change something it did not write, so it changed nothing:",
+      "context": "The opening sentence printed after the refusal name dinah.setup-conflict. The conflicting locations print beneath it, one per row, each a file followed by its key: a JSON pointer, a section name, or nothing for a whole file. refusal.dinah.setup-conflict.next follows as the closing line.",
       "skeleton": true
     },
     "refusal.dinah.setup-conflict.next": {
-      "text": " Remove or rename each of these yourself, then run setup again.",
-      "context": "The next step of refusal.dinah.setup-conflict, printed after the list of conflicting locations.",
+      "text": "Remove or rename each of these yourself, then run setup again.",
+      "context": "The line printed after dinah.setup-conflict's rows of conflicting locations, naming the way forward. It stands on a line of its own.",
       "skeleton": true
     },
     "refusal.dinah.untrusted-recipe": {
@@ -6344,13 +6344,13 @@
       "skeleton": true
     },
     "refusal.dinah.setup-run-not-allowed": {
-      "text": "The recipe runs programs setup cannot check:\n{detail}",
-      "context": "The sentence printed after the refusal name dinah.setup-run-not-allowed. {detail} lists each run step, one per line, as its id, a colon and the command line it would run. Keep the line break before {detail}.",
+      "text": "The recipe runs programs setup cannot check:",
+      "context": "The opening sentence printed after the refusal name dinah.setup-run-not-allowed. The run steps print beneath it, one per row, each its id, a colon and the command line it would run. refusal.dinah.setup-run-not-allowed.next follows as the closing line.",
       "skeleton": true
     },
     "refusal.dinah.setup-run-not-allowed.next": {
-      "text": " Read what each one does, and pass --allow-run if you want them run.",
-      "context": "The next step of refusal.dinah.setup-run-not-allowed. --allow-run is a flag and is not translated.",
+      "text": "Read what each one does, and pass --allow-run if you want them run.",
+      "context": "The line printed after dinah.setup-run-not-allowed's rows of run steps, naming the way forward. It stands on a line of its own. --allow-run is a flag and is not translated.",
       "skeleton": true
     },
     "refusal.dinah.setup-step-failed": {
@@ -6499,13 +6499,23 @@
       "skeleton": true
     },
     "refusal.dinah.malformed-harness.setup": {
-      "text": "{detail} is not a recipe name, which is a harness name: one lowercase segment of letters, digits and single interior hyphens",
+      "text": "{detail} is not a legal recipe name, because a recipe is named like a harness, with one lowercase segment of letters, digits and single interior hyphens",
       "context": "The sentence printed after the refusal name dinah.malformed-harness when dinah setup raised it, because the name given to setup is a recipe's name and a recipe is named in the harness grammar. {detail} is the name as typed.",
       "skeleton": true
     },
     "refusal.dinah.malformed-harness.setup.next": {
       "text": "; run dinah setup --list to see the recipes setup can find",
       "context": "The next step of refusal.dinah.malformed-harness when dinah setup raised it. The command spelling is machine vocabulary and is not translated.",
+      "skeleton": true
+    },
+    "refusal.dinah.usage.setup": {
+      "text": "{detail} cannot be used as given",
+      "context": "The sentence printed after the refusal name dinah.usage when dinah setup raised it, in place of refusal.dinah.usage, because setup's usage refusals are mostly an argument that was understood and does not fit beside the others, such as --list beside a harness or --allow-run beside --remove. {detail} is the argument as typed, or the word setup when nothing was given.",
+      "skeleton": true
+    },
+    "refusal.dinah.usage.setup.next": {
+      "text": "; setup takes one of a harness, --list or --recipe, and only the flags that go with it, which dinah help setup lists",
+      "context": "The next step of refusal.dinah.usage when dinah setup raised it. The flags and the command spelling are machine vocabulary and are not translated.",
       "skeleton": true
     }
   }

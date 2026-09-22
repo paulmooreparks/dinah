@@ -404,7 +404,25 @@ func TestSetupListShowsTheTwoShippedRecipes(t *testing.T) {
 		t.Errorf("the listing does not name the shipped recipe:\n%s", human.out)
 	}
 	refusedWith(t, "a listing with a flag of its own", runCLI(t, f.project, "setup", "--list", "--dry-run"), contract.Usage)
-	refusedWith(t, "a listing beside a harness", runCLI(t, f.project, "setup", "codex", "--list"), contract.Usage)
+	beside := runCLI(t, f.project, "setup", "codex", "--list")
+	refusedWith(t, "a listing beside a harness", beside, contract.Usage)
+	if !strings.Contains(beside.errw, msg.For("en").T("refusal.dinah.usage.setup", "detail", "--list")) {
+		t.Errorf("setup's usage refusal says the flag was not understood rather than that it does not fit:\n%s", beside.errw)
+	}
+}
+
+// TestSetupListsAConflictApartFromItsNextStep holds the conflict refusal to
+// printing its next step on a line of its own, so the step does not read as
+// part of the last conflicting location.
+func TestSetupListsAConflictApartFromItsNextStep(t *testing.T) {
+	f := newSetupFixture(t)
+	f.write(t, f.project, map[string]string{".mcp.json": `{"mcpServers": {"dinah": {"command": "elsewhere"}}}`})
+	got := runCLI(t, f.project, "setup", "claude-code", "--dry-run")
+	refusedWith(t, "a conflict", got, contract.SetupConflict)
+	next := msg.For("en").T("refusal.dinah.setup-conflict.next")
+	if !strings.Contains(got.errw, "\n  .mcp.json /mcpServers/dinah\n"+next+"\n") {
+		t.Errorf("the conflict's location and its next step share a line:\n%q", got.errw)
+	}
 }
 
 // TestSetupListMarksABrokenOverride lists a user recipe that does not read

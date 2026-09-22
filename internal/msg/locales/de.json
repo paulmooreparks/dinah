@@ -6338,14 +6338,14 @@
       "source": "1a7203b65a293cfa"
     },
     "refusal.dinah.setup-conflict": {
-      "text": "Setup würde etwas ändern, das es nicht geschrieben hat, und hat deshalb nichts geändert:\n{detail}",
-      "context": "The sentence printed after the refusal name dinah.setup-conflict. {detail} lists every conflicting location, one per line, as a file followed by its key: a JSON pointer, a section name, or nothing for a whole file. Keep the line break before {detail}.",
-      "source": "129dfd532286ea2e"
+      "text": "Setup würde etwas ändern, das es nicht geschrieben hat, und hat deshalb nichts geändert:",
+      "context": "The opening sentence printed after the refusal name dinah.setup-conflict. The conflicting locations print beneath it, one per row, each a file followed by its key: a JSON pointer, a section name, or nothing for a whole file. refusal.dinah.setup-conflict.next follows as the closing line.",
+      "source": "fddc31b3025fd309"
     },
     "refusal.dinah.setup-conflict.next": {
-      "text": " Entfernen oder benennen Sie jedes davon selbst um, und führen Sie setup dann erneut aus.",
-      "context": "The next step of refusal.dinah.setup-conflict, printed after the list of conflicting locations.",
-      "source": "ad0cfe43d0bd1143"
+      "text": "Entfernen oder benennen Sie jedes davon selbst um, und führen Sie setup dann erneut aus.",
+      "context": "The line printed after dinah.setup-conflict's rows of conflicting locations, naming the way forward. It stands on a line of its own.",
+      "source": "41f84a82ef2bdee1"
     },
     "refusal.dinah.untrusted-recipe": {
       "text": "Das Rezept unter {detail} kam mit diesem Projekt, und setup verwendet das Rezept eines Projekts nur, wenn Sie sagen, dass Sie ihm vertrauen.",
@@ -6378,14 +6378,14 @@
       "source": "96344f6d58d51b2"
     },
     "refusal.dinah.setup-run-not-allowed": {
-      "text": "Das Rezept führt Programme aus, die setup nicht prüfen kann:\n{detail}",
-      "context": "The sentence printed after the refusal name dinah.setup-run-not-allowed. {detail} lists each run step, one per line, as its id, a colon and the command line it would run. Keep the line break before {detail}.",
-      "source": "81bb42163cf1a05c"
+      "text": "Das Rezept führt Programme aus, die setup nicht prüfen kann:",
+      "context": "The opening sentence printed after the refusal name dinah.setup-run-not-allowed. The run steps print beneath it, one per row, each its id, a colon and the command line it would run. refusal.dinah.setup-run-not-allowed.next follows as the closing line.",
+      "source": "a6aa1b9e4381681b"
     },
     "refusal.dinah.setup-run-not-allowed.next": {
-      "text": " Lesen Sie, was jedes davon tut, und geben Sie --allow-run an, wenn sie ausgeführt werden sollen.",
-      "context": "The next step of refusal.dinah.setup-run-not-allowed. --allow-run is a flag and is not translated.",
-      "source": "c25990236add0b51"
+      "text": "Lesen Sie, was jedes davon tut, und geben Sie --allow-run an, wenn sie ausgeführt werden sollen.",
+      "context": "The line printed after dinah.setup-run-not-allowed's rows of run steps, naming the way forward. It stands on a line of its own. --allow-run is a flag and is not translated.",
+      "source": "d821f6ead185e16f"
     },
     "refusal.dinah.setup-step-failed": {
       "text": "Ein Programm, das das Rezept ausführt, ist fehlgeschlagen, daher hat setup nach den obigen Schritten angehalten: {detail}.",
@@ -6533,14 +6533,24 @@
       "source": "2e532e19ed477a56"
     },
     "refusal.dinah.malformed-harness.setup": {
-      "text": "{detail} ist kein Rezeptname, also kein Harness-Name: ein kleingeschriebenes Segment aus Buchstaben, Ziffern und einzelnen inneren Bindestrichen",
+      "text": "{detail} ist kein gültiger Rezeptname, weil ein Rezept wie ein Harness benannt wird, mit einem kleingeschriebenen Segment aus Buchstaben, Ziffern und einzelnen inneren Bindestrichen",
       "context": "The sentence printed after the refusal name dinah.malformed-harness when dinah setup raised it, because the name given to setup is a recipe's name and a recipe is named in the harness grammar. {detail} is the name as typed.",
-      "source": "e5223c09a3d3f8e4"
+      "source": "ac252b4dd8fe7f62"
     },
     "refusal.dinah.malformed-harness.setup.next": {
       "text": "; führen Sie dinah setup --list aus, um die Rezepte zu sehen, die setup finden kann",
       "context": "The next step of refusal.dinah.malformed-harness when dinah setup raised it. The command spelling is machine vocabulary and is not translated.",
       "source": "9c749650c4f39726"
+    },
+    "refusal.dinah.usage.setup": {
+      "text": "{detail} kann so nicht verwendet werden",
+      "context": "The sentence printed after the refusal name dinah.usage when dinah setup raised it, in place of refusal.dinah.usage, because setup's usage refusals are mostly an argument that was understood and does not fit beside the others, such as --list beside a harness or --allow-run beside --remove. {detail} is the argument as typed, or the word setup when nothing was given.",
+      "source": "9a0b323ef87b71d4"
+    },
+    "refusal.dinah.usage.setup.next": {
+      "text": "; setup nimmt genau eines von einem Harness, --list oder --recipe und nur die Optionen, die dazu passen, die dinah help setup aufführt",
+      "context": "The next step of refusal.dinah.usage when dinah setup raised it. The flags and the command spelling are machine vocabulary and are not translated.",
+      "source": "e541e466d453dee9"
     }
   }
 }

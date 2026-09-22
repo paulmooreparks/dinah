@@ -269,23 +269,20 @@ func TestARunStepStaysOutOfProjectRecipes(t *testing.T) {
 	}
 }
 
-// TestAPathLeavingTheBaseIsRefused points a step's path through a symbolic
-// link, or a junction on Windows, at a directory outside the base, and holds
-// setup to refusing it before any write, beside a link that stays inside.
-func TestAPathLeavingTheBaseIsRefused(t *testing.T) {
+// TestASymbolicLinkLeavingTheBaseIsRefused points a step's path through a
+// symbolic link at a directory outside the base, and holds setup to refusing
+// it before any write, beside a link that stays inside and is followed. It
+// skips, and says so, where the platform refuses to create a symbolic link.
+func TestASymbolicLinkLeavingTheBaseIsRefused(t *testing.T) {
 	f := newFixture(t)
 	outside := filepath.Join(f.root, "outside")
-	inside := filepath.Join(f.project, "inside")
-	for _, dir := range []string{outside, inside} {
-		if err := os.MkdirAll(dir, 0o755); err != nil {
-			t.Fatal(err)
-		}
+	if err := os.MkdirAll(outside, 0o755); err != nil {
+		t.Fatal(err)
 	}
-	if !link(t, outside, filepath.Join(f.project, "conf")) {
-		t.Skip("this platform refused to create a symbolic link or a junction, so the escape cannot be built here")
+	if err := os.Symlink(outside, filepath.Join(f.project, "conf")); err != nil {
+		t.Skipf("this platform refused to create a symbolic link, so the escape cannot be built here: %v", err)
 	}
-	opts := f.trialOptions(trialDir(t, f, nil))
-	_, err := Run(opts)
+	_, err := Run(f.trialOptions(trialDir(t, f, nil)))
 	if refusalName(err) != contract.SetupUnreadableTarget || !strings.Contains(err.Error(), "outside") {
 		t.Fatalf("wanted %s, got %v", contract.SetupUnreadableTarget, err)
 	}
@@ -301,8 +298,8 @@ func TestAPathLeavingTheBaseIsRefused(t *testing.T) {
 	if err := os.MkdirAll(inner, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if !link(t, inner, filepath.Join(g.project, "conf")) {
-		t.Skip("this platform refused to create the second link")
+	if err := os.Symlink(inner, filepath.Join(g.project, "conf")); err != nil {
+		t.Fatalf("the second symbolic link failed where the first succeeded: %v", err)
 	}
 	mustRun(t, g.trialOptions(trialDir(t, g, nil)))
 	if _, err := os.Stat(filepath.Join(inner, "rules.md")); err != nil {
@@ -310,19 +307,90 @@ func TestAPathLeavingTheBaseIsRefused(t *testing.T) {
 	}
 }
 
-// link makes a directory link, a symbolic link where the platform allows one
-// and a junction on Windows where it does not, and reports whether either
-// was made.
-func link(t *testing.T, target, name string) bool {
+// junction makes a Windows junction with the documented mklink /J command of
+// cmd.exe, and fails the test when it cannot, since a junction is what the
+// test exists to reach and no other kind of link stands in for it.
+func junction(t *testing.T, name, target string) {
 	t.Helper()
-	if err := os.Symlink(target, name); err == nil {
-		return true
+	out, err := exec.Command("cmd", "/c", "mklink", "/J", name, target).CombinedOutput()
+	if err != nil {
+		t.Fatalf("mklink /J %s %s: %v\n%s", name, target, err, out)
 	}
+	info, err := os.Lstat(name)
+	if err != nil || info.Mode()&fs.ModeSymlink != 0 {
+		t.Fatalf("mklink /J made something other than a junction at %s: %v %v", name, info, err)
+	}
+}
+
+// TestAJunctionLeavingTheBaseIsRefused builds, on Windows, a junction from the
+// project's .claude directory to the home's own .claude directory, and holds
+// setup to refusing the claude-code recipe before it writes anything there.
+// Beside it, a junction that stays inside the project is followed. Junctions
+// exist only on Windows, so the test skips elsewhere and nowhere else.
+func TestAJunctionLeavingTheBaseIsRefused(t *testing.T) {
 	if runtime.GOOS != "windows" {
-		return false
+		t.Skip("junctions exist only on Windows")
 	}
-	cmd := exec.Command("cmd", "/c", "mklink", "/J", name, target)
-	return cmd.Run() == nil
+	f := newFixture(t)
+	homeClaude := filepath.Join(f.home, ".claude")
+	if err := os.MkdirAll(homeClaude, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	junction(t, filepath.Join(f.project, ".claude"), homeClaude)
+	_, err := Run(f.options("claude-code"))
+	if refusalName(err) != contract.SetupUnreadableTarget || !strings.Contains(err.Error(), "outside") {
+		t.Fatalf("wanted %s, got %v", contract.SetupUnreadableTarget, err)
+	}
+	if files := tree(t, homeClaude); len(files) != 0 {
+		t.Errorf("the refused run wrote %v into the home through the junction", files)
+	}
+	if _, err := os.Stat(filepath.Join(f.project, ".mcp.json")); !errors.Is(err, fs.ErrNotExist) {
+		t.Error("the refused run wrote .mcp.json")
+	}
+
+	g := newFixture(t)
+	inner := filepath.Join(g.project, "inner")
+	if err := os.MkdirAll(inner, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	junction(t, filepath.Join(g.project, "conf"), inner)
+	mustRun(t, g.trialOptions(trialDir(t, g, nil)))
+	if _, err := os.Stat(filepath.Join(inner, "rules.md")); err != nil {
+		t.Errorf("a junction that stays inside the base was not followed: %v", err)
+	}
+	removal := g.trialOptions(trialDir(t, g, nil))
+	removal.Remove = true
+	mustRun(t, removal)
+	if _, err := os.Stat(filepath.Join(inner, "rules.md")); !errors.Is(err, fs.ErrNotExist) {
+		t.Error("setup could not take back what it wrote through a junction inside the base")
+	}
+}
+
+// TestAJunctionToTheHomeIsNotAProjectBase names, on Windows, a junction to
+// the home directory as --target, and holds setup to refusing it as a
+// project base and writing nothing into the home. Junctions exist only on
+// Windows, so the test skips elsewhere and nowhere else.
+func TestAJunctionToTheHomeIsNotAProjectBase(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("junctions exist only on Windows")
+	}
+	f := newFixture(t)
+	target := filepath.Join(f.root, "looks-like-a-project")
+	junction(t, target, f.home)
+	opts := f.options("claude-code")
+	opts.Target = target
+	if _, err := Run(opts); refusalName(err) != contract.SetupNoTarget {
+		t.Fatalf("a junction to the home as --target: wanted %s, got %v", contract.SetupNoTarget, err)
+	}
+	for name := range tree(t, f.home) {
+		t.Errorf("the refused run wrote %s into the home", name)
+	}
+	parent := filepath.Join(f.root, "above-the-home")
+	junction(t, parent, f.root)
+	opts.Target = parent
+	if _, err := Run(opts); refusalName(err) != contract.SetupNoTarget {
+		t.Errorf("a junction to the home's parent as --target: wanted %s, got %v", contract.SetupNoTarget, err)
+	}
 }
 
 // TestARecipeIsValidatedBeforeAnythingIsRead refuses a recipe declaring what
@@ -355,5 +423,22 @@ func TestARecipeIsValidatedBeforeAnythingIsRead(t *testing.T) {
 		if !strings.HasPrefix(refusal.Detail, strings.Join(strings.Fields(want)[:2], " ")) {
 			t.Errorf("%s: the detail reads %q", want, refusal.Detail)
 		}
+	}
+}
+
+// TestTheRunRefusalListsTheCommandWithTheFactsKnown holds the detail of the
+// run-not-allowed refusal to the command line rendered with the facts known
+// at that row: the agent is written in, a model nobody named is left out, and
+// the base, not resolved until a later row, stands as the recipe wrote it.
+func TestTheRunRefusalListsTheCommandWithTheFactsKnown(t *testing.T) {
+	f := newFixture(t)
+	step := `{"id": "register", "kind": "run", "scope": "project", "program": "some-program", "args": ["{{agent}}", "{{model}}", "{{base}}"]}`
+	_, err := Run(f.trialOptions(runRecipe(t, f, step)))
+	var refusal *contract.Refusal
+	if !errors.As(err, &refusal) || refusal.Name != contract.SetupRunNotAllowed {
+		t.Fatalf("wanted %s, got %v", contract.SetupRunNotAllowed, err)
+	}
+	if refusal.Detail != "register: some-program helper {{base}}" {
+		t.Errorf("the refusal lists %q", refusal.Detail)
 	}
 }

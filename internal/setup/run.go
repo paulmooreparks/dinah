@@ -61,3 +61,19 @@ func (p *planner) runProgram(planned *plannedStep) *contract.Refusal {
 	}
 	return contract.Refuse(contract.SetupStepFailed, id+": "+planned.program+" exited "+strconv.Itoa(code))
 }
+
+// renderCommand renders a run step's program and arguments with a set of
+// facts, leaving out an argument that is exactly one placeholder whose fact
+// is empty.
+func renderCommand(step Step, facts Facts) (string, []string) {
+	program, _ := renderText(step.Program, facts, false)
+	var args []string
+	for _, arg := range step.Args {
+		if name, whole := wholePlaceholder(arg); whole && facts.value(name) == "" {
+			continue
+		}
+		rendered, _ := renderText(arg, facts, false)
+		args = append(args, rendered)
+	}
+	return program, args
+}
