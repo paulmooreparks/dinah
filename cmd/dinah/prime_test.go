@@ -16,7 +16,7 @@ func writePrimeCLIGlobal(t *testing.T, text string) {
 	t.Helper()
 	home := os.Getenv("DINAH_HOME")
 	if home == "" {
-		t.Fatal("DINAH_HOME is not set; call this after newBench")
+		t.Fatal("DINAH_HOME is not set; call this after the fixture is built")
 	}
 	dir := bench.UserBase(home)
 	if err := os.MkdirAll(dir, 0o755); err != nil {

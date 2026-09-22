@@ -255,12 +255,11 @@ func (s *session) renderInstructions(instructions *verb.Instructions, moves []ve
 // caller is, what it holds, what is ready for it, what is pending for it,
 // and the standing instructions, on the terms the caller asked for them.
 //
-// The three sections below draw one field per line rather than a
-// table.table: each row is composed as running prose with single spaces
-// throughout, never the double-space gutter a table column takes, because
+// The three sections below draw one row per line rather than a table.table:
 // each carries a shape of its own (the ready count and the checklist kind,
 // both new to this surface) that a genuine table would need new headings
-// for.
+// for, and each row is still laid out through row/formatRow, the one place
+// this head pads a field, rather than by hand.
 func (s *session) renderPrime(primer *verb.Primer, brief bool) {
 	s.line(s.workbenchLine(&verb.Status{Bench: primer.Bench, Root: primer.Root, WorkbenchSource: primer.WorkbenchSource}))
 	s.line(s.r.T("prime.actor", "actor", primer.Identity.Actor, "operator", s.yesNo(primer.Identity.IsOperator)))
@@ -274,6 +273,13 @@ func (s *session) renderPrime(primer *verb.Primer, brief bool) {
 	s.renderPrimeInstructions(primer, brief)
 }
 
+// primeRow prints one row at table.go's own indentedLine, since these three
+// sections vary in shape row to row rather than sharing declared columns
+// and building a row.row directly belongs to table.go alone.
+func (s *session) primeRow(text string) {
+	s.line(s.indentedLine(text))
+}
+
 func (s *session) renderPrimeHolding(holding []verb.CardView) {
 	if len(holding) == 0 {
 		s.line(s.r.T("prime.holding.none"))
@@ -281,7 +287,7 @@ func (s *session) renderPrimeHolding(holding []verb.CardView) {
 	}
 	s.line(s.r.T("prime.holding"))
 	for _, card := range holding {
-		s.line("  " + card.Ref + ": " + card.Title)
+		s.primeRow(card.Ref + ": " + card.Title)
 	}
 }
 
@@ -294,10 +300,10 @@ func (s *session) renderPrimeReady(ready []verb.Offer) {
 	for _, offer := range ready {
 		count := strconv.Itoa(offer.ReadyCount)
 		if offer.Card != nil {
-			s.line("  " + offer.Title + ": " + count + " ready, " + offer.Card.Ref + ": " + offer.Card.Title)
+			s.primeRow(offer.Title + ": " + count + " ready, " + offer.Card.Ref + ": " + offer.Card.Title)
 			continue
 		}
-		s.line("  " + offer.Title + ": " + s.r.T("next.above-tier"))
+		s.primeRow(offer.Title + ": " + s.r.T("next.above-tier"))
 	}
 }
 
@@ -316,17 +322,17 @@ func (s *session) renderPrimePending(primer *verb.Primer) {
 		s.line(s.r.T("prime.pending"))
 	}
 	for _, item := range primer.Pending {
-		s.line("  " + item.Ref + " (" + s.token(item.Kind) + "): " + item.Text)
+		s.primeRow(item.Ref + " (" + s.token(item.Kind) + "): " + item.Text)
 	}
 	if len(primer.PendingByColumn) > 0 {
 		parts := make([]string, 0, len(primer.PendingByColumn))
 		for _, column := range primer.PendingByColumn {
 			parts = append(parts, column.ColumnTitle+" "+strconv.Itoa(column.Count))
 		}
-		s.line("  " + s.r.T("prime.pending.by-column", "columns", strings.Join(parts, ", ")))
+		s.primeRow(s.r.T("prime.pending.by-column", "columns", strings.Join(parts, ", ")))
 	}
 	if primer.PendingWithheld > 0 {
-		s.line("  " + s.r.T("prime.pending.full-pending-hint", "total", strconv.Itoa(total)))
+		s.primeRow(s.r.T("prime.pending.full-pending-hint", "total", strconv.Itoa(total)))
 	}
 }
 

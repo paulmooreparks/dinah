@@ -6159,7 +6159,7 @@
       "source": "6587c84504d29b30"
     },
     "prime.pending.by-column": {
-      "text": "स्तंभ अनुसार: {columns}",
+      "text": "कॉलम अनुसार: {columns}",
       "context": "Printed after the pending table, for the operator alone, naming every column the own-queue rule matched at least one item in and how many. {columns} is that listing, already composed by the renderer.",
       "source": "a0005476bd686ebb"
     },
@@ -6174,7 +6174,7 @@
       "source": "d03115337c335637"
     },
     "prime.instructions.brief.hint": {
-      "text": "उन्हें पढ़ने के लिए `dinah instructions <column>` चलाएं, उदाहरण के लिए `dinah instructions {example}`।",
+      "text": "उन्हें पढ़ने के लिए किसी कॉलम पर `dinah instructions <column>` चलाएं, उदाहरण के लिए `dinah instructions {example}`।",
       "context": "Printed after prime.instructions.brief, naming the command that recovers the omitted text in full. {example} is a column reference: the column of the actor's earliest-held card, or the workbench's first column when it holds none.",
       "source": "e694333bd77b35bc"
     },
