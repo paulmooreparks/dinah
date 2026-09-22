@@ -403,6 +403,17 @@ func (l *Library) canRoute(req *Request, card *bench.Card) (*bench.Column, *benc
 // Route position plays no part, on dinah-542/criteria/6's own rule for the
 // loop limit, and a card walking a route is judged the same way here.
 //
+// Five of these rows are overridable: at-capacity, the entry hold, the
+// missing-field row, the loop limit and the exit hold, in that order, every
+// one of them gated on !req.Override and every one of them therefore a row
+// only the operator can actually pass, since canRoute already refuses
+// req.Override to anybody else before canLand is reached at all. Where the
+// caller a row of this kind refuses is the operator, its refusal carries
+// extra["operator"]="1", which is what selects the operator's own next-step
+// fragment naming --override in each of the five shapes; a caller who is not
+// the operator reads the refusal exactly as before, and cannot pass any of
+// these rows regardless of what the message says.
+//
 // takesUp says whether the act this list is running for takes the card up
 // where it lands, which a pull does and a move does not. The waiting row and
 // the operator-owned row read it, and it is a parameter rather than a reading
@@ -426,7 +437,11 @@ func (l *Library) canLand(req *Request, card *bench.Card, destination, departure
 		return false, nil, err
 	}
 	if reached && !req.Override {
-		return false, l.refuse(req, card, contract.AtCapacity, columnRef(destination)), nil
+		var extra map[string]string
+		if operator {
+			extra = map[string]string{"operator": "1"}
+		}
+		return false, l.refuseWith(req, card, contract.AtCapacity, columnRef(destination), extra), nil
 	}
 	// CORE-GATE-3, the destination's own hold. The column declares only that
 	// it holds, and which items hold there follows from which of the card's
@@ -447,7 +462,11 @@ func (l *Library) canLand(req *Request, card *bench.Card, destination, departure
 		if len(holding) > 0 {
 			gateHeld = true
 			if !req.Override {
-				return false, l.refuse(req, card, contract.UnresolvedItem, holding[0].ID), nil
+				var extra map[string]string
+				if operator {
+					extra = map[string]string{"operator": "1"}
+				}
+				return false, l.refuseWith(req, card, contract.UnresolvedItem, holding[0].ID, extra), nil
 			}
 		}
 	}
@@ -464,9 +483,11 @@ func (l *Library) canLand(req *Request, card *bench.Card, destination, departure
 	if missing := l.missingRequiredField(card, destination); missing != "" {
 		requiredMissing = true
 		if !req.Override {
-			return false, l.refuseWith(req, card, contract.MissingField, missing, map[string]string{
-				contract.ValueColumn: columnRef(destination),
-			}), nil
+			extra := map[string]string{contract.ValueColumn: columnRef(destination)}
+			if operator {
+				extra["operator"] = "1"
+			}
+			return false, l.refuseWith(req, card, contract.MissingField, missing, extra), nil
 		}
 	}
 	// The cap is absolute, on the operator's own ruling: an override carries
@@ -482,7 +503,11 @@ func (l *Library) canLand(req *Request, card *bench.Card, destination, departure
 		}
 		loopReached = l.Bench.RegressiveDepartures(events, departure.ID) >= departure.LoopLimit
 		if loopReached && !req.Override {
-			return false, l.refuse(req, card, contract.AtLoopLimit, columnRef(departure)), nil
+			var extra map[string]string
+			if operator {
+				extra = map[string]string{"operator": "1"}
+			}
+			return false, l.refuseWith(req, card, contract.AtLoopLimit, columnRef(departure), extra), nil
 		}
 	}
 	// CORE-GATE-6, Dinah's own: the departure's own exit hold, symmetric with

@@ -126,9 +126,21 @@ const (
 // of the catalog rather than of a rendering.
 var Shapes = []Shape{
 	{
-		Name:      AtCapacity,
-		Fragments: []Fragment{{Key: "refusal.at-capacity.next"}},
-		NextStep:  []string{"refusal.at-capacity.next"},
+		// Overridable, on the same terms the exit hold's own shape below
+		// documents: canRoute refuses req.Override to anybody but the
+		// operator before canLand is reached, so a caller who meets this
+		// refusal and is not the operator can never pass it regardless of
+		// what the next step says, and only the operator's own reading
+		// names the flag.
+		Name: AtCapacity,
+		Fragments: []Fragment{
+			{Key: "refusal.at-capacity.next-operator", When: "operator"},
+			{Key: "refusal.at-capacity.next"},
+		},
+		NextStep: []string{
+			"refusal.at-capacity.next-operator",
+			"refusal.at-capacity.next",
+		},
 	},
 	{
 		Name:      Blocked,
@@ -327,9 +339,19 @@ var Shapes = []Shape{
 		// The detail names the item rather than the card, because a card
 		// carrying several unresolved items sends its reader to a file to
 		// edit and one card reference would not say which.
-		Name:      UnresolvedItem,
-		Fragments: []Fragment{{Key: "refusal.unresolved-item.next"}},
-		NextStep:  []string{"refusal.unresolved-item.next"},
+		//
+		// Overridable, on the exit hold's own terms below: only the
+		// operator's own reading of this refusal can ever pass it, so only
+		// his fragment names --override.
+		Name: UnresolvedItem,
+		Fragments: []Fragment{
+			{Key: "refusal.unresolved-item.next-operator", When: "operator"},
+			{Key: "refusal.unresolved-item.next"},
+		},
+		NextStep: []string{
+			"refusal.unresolved-item.next-operator",
+			"refusal.unresolved-item.next",
+		},
 	},
 	{
 		// The detail names the key the caller typed, and the rows name the
@@ -357,10 +379,21 @@ var Shapes = []Shape{
 		// asked before they can decide whether to set the value or to move
 		// somewhere else. The next step is the write that would let the move
 		// through.
-		Name:      MissingField,
-		Values:    []string{ValueColumn},
-		Fragments: []Fragment{{Key: "refusal.missing-field.next"}},
-		NextStep:  []string{"refusal.missing-field.next"},
+		//
+		// Overridable, on the exit hold's own terms below: the write is one
+		// way past this row and --override is the operator's own second way,
+		// so his fragment names both while anybody else reads the write
+		// alone.
+		Name:   MissingField,
+		Values: []string{ValueColumn},
+		Fragments: []Fragment{
+			{Key: "refusal.missing-field.next-operator", When: "operator"},
+			{Key: "refusal.missing-field.next"},
+		},
+		NextStep: []string{
+			"refusal.missing-field.next-operator",
+			"refusal.missing-field.next",
+		},
 	},
 	{
 		// The departure's own hold, mirroring the entry shape above down
@@ -421,9 +454,21 @@ var Shapes = []Shape{
 		// column and one next step naming the way past it. The detail is the
 		// departure rather than the destination, since the limit is declared
 		// and counted at the column the card is leaving.
-		Name:      AtLoopLimit,
-		Fragments: []Fragment{{Key: "refusal.dinah.at-loop-limit.next"}},
-		NextStep:  []string{"refusal.dinah.at-loop-limit.next"},
+		//
+		// The un-conditioned .next fragment already told every reader to ask
+		// the operator to carry the move through with --override, which was
+		// only ever true for a reader who is not the operator: the operator
+		// reading his own refusal needs no asking. The operator fragment
+		// says so directly instead.
+		Name: AtLoopLimit,
+		Fragments: []Fragment{
+			{Key: "refusal.dinah.at-loop-limit.next-operator", When: "operator"},
+			{Key: "refusal.dinah.at-loop-limit.next"},
+		},
+		NextStep: []string{
+			"refusal.dinah.at-loop-limit.next-operator",
+			"refusal.dinah.at-loop-limit.next",
+		},
 	},
 	{
 		Name:      AmbiguousWorkbench,

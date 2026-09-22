@@ -3666,6 +3666,11 @@
       "context": "Spliced onto refusal.at-capacity as the next step. {detail} is the column that has reached its limit.",
       "source": "2267f61902fe1be2"
     },
+    "refusal.at-capacity.next-operator": {
+      "text": "; führen Sie dies selbst mit --override durch, nehmen Sie zuerst eine Karte aus {detail} heraus, oder erhöhen Sie das wip_limit dieser Spalte",
+      "context": "Spliced onto refusal.at-capacity as the next step where the caller who was refused is the operator.",
+      "source": "1ae0addc72614ce3"
+    },
     "refusal.blocked": {
       "text": "diese Karte ist blockiert: {detail}",
       "context": "The sentence printed after the refusal name blocked. {detail} carries the identifier, owner or column the refusal is about.",
@@ -3740,6 +3745,11 @@
       "text": "; bitten Sie den Operator, diesen einen Zug mit --override durchzusetzen, oder erhöhen Sie das loop_limit dieser Spalte",
       "context": "Spliced onto refusal.dinah.at-loop-limit as the next step. An override carries the single move it is passed on and does not reset the count, so a later regressive move out of the same column is refused again.",
       "source": "ecc0f18489a0d05c"
+    },
+    "refusal.dinah.at-loop-limit.next-operator": {
+      "text": "; führen Sie diesen einen Zug selbst mit --override durch, oder erhöhen Sie das loop_limit dieser Spalte",
+      "context": "Spliced onto refusal.dinah.at-loop-limit as the next step where the caller who was refused is the operator.",
+      "source": "a51ff52778eb0f8"
     },
     "refusal.dinah.awaiting-outside": {
       "text": "Spalte {detail} wartet auf jemanden außerhalb der Werkbank, und dort wird keine Karte gehalten oder aufgenommen",
@@ -4827,6 +4837,11 @@
       "context": "Spliced onto refusal.missing-field as the next step. It names the command that writes the value and says what the write buys, and it names neither of the two acts the row refuses, because the row fires on a move and on a pull alike and a reader refused at a pull never moved. The command name is syntax and stays as it is.",
       "source": "b4a3067f6fba90d6"
     },
+    "refusal.missing-field.next-operator": {
+      "text": "; schreiben Sie dafür mit `dinah set` einen Wert, dann nimmt diese Spalte die Karte auf, oder führen Sie diesen einen Zug selbst mit --override durch",
+      "context": "Spliced onto refusal.missing-field as the next step where the caller who was refused is the operator.",
+      "source": "7dcd95b9fc2d50a3"
+    },
     "refusal.no-operator": {
       "text": "diese Werkbank benennt keinen Betreiber, daher sind ihre vorbehaltenen Aktionen tot",
       "context": "The sentence printed after the refusal name no-operator. {detail} carries the identifier, owner or column the refusal is about.",
@@ -4991,6 +5006,11 @@
       "text": "; beantworten Sie ihn und lösen Sie diesen Eintrag dann auf, verifizieren Sie ihn oder lassen Sie ihn scheitern",
       "context": "Spliced onto refusal.unresolved-item as the next step. It names the three verbs that settle an item, because each of them is a command.",
       "source": "e0599db3bacaa190"
+    },
+    "refusal.unresolved-item.next-operator": {
+      "text": "; beantworten Sie ihn und lösen Sie diesen Eintrag dann auf, verifizieren Sie ihn oder lassen Sie ihn scheitern, oder führen Sie diese eine Verschiebung selbst mit --override durch",
+      "context": "Spliced onto refusal.unresolved-item as the next step where the caller who was refused is the operator.",
+      "source": "fc2ace0509f4cd71"
     },
     "refusal.unsupported-version": {
       "text": "Dinah implementiert {detail} nicht",

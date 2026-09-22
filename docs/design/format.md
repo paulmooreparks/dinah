@@ -721,7 +721,13 @@ The entry hold reads no direction. It refuses a regressive move into the
 column exactly as it refuses a forward one, because an unresolved item is as
 good a reason to keep a card out of the column in one direction as in the
 other: the destination has not yet been reached, and its own precondition has
-not yet been met, whichever way the card is travelling.
+not yet been met, whichever way the card is travelling. This is the position
+the departure hold's own asymmetry does not touch: a card sent back upstream
+passes the exit hold of the column it is leaving, but it can still be refused
+by the entry hold of the column it is arriving at, if one of the card's own
+items names that destination and stands unresolved. The two holds are read
+independently, one at each end of the move, and a card that clears the first
+is not thereby entitled to the second.
 
 The departure hold reads the direction, and dinah-571 is why: an unresolved
 item does not protect the same thing on the way out that it protects on the

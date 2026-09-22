@@ -286,6 +286,14 @@ const entryOnlyDefinition = `{
 // case: the entry hold is untouched by this card, so it refuses a forward
 // entry and, once the card is past it, a regressive entry back into the same
 // station exactly as it always did.
+//
+// This is also the position the departure hold's new asymmetry does not
+// touch, which the review of this card's first cycle asked to see pinned
+// explicitly: a card moving backward into a column that holds on entry for
+// one of the card's own pending items is still refused there, because the
+// exit hold it just cleared on the way out of Review and the entry hold
+// standing at Doing are two different checks, read at two different ends of
+// the move. The backEntry case below is that position.
 func TestAnEntryHoldStillRefusesEntryFromEitherDirection(t *testing.T) {
 	root := newBenchFromDefinition(t, entryOnlyDefinition)
 	if got := runCLI(t, root, "add", "Write the release notes"); got.code != 0 {

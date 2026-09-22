@@ -2915,7 +2915,11 @@
     },
     "refusal.at-capacity.next": {
       "text": "; move a card out of {detail} first, or raise that column's wip_limit",
-      "context": "Spliced onto refusal.at-capacity as the next step. {detail} is the column that has reached its limit."
+      "context": "Spliced onto refusal.at-capacity as the next step. {detail} is the column that has reached its limit. It renders for anybody but the operator, who alone may pass this row with --override."
+    },
+    "refusal.at-capacity.next-operator": {
+      "text": "; carry this through with --override yourself, move a card out of {detail} first, or raise that column's wip_limit",
+      "context": "Spliced onto refusal.at-capacity as the next step where the caller who was refused is the operator. {detail} is the column that has reached its limit. operator is a bare switch this entry's raise site sets and never a printed value, on the pattern refusal.dinah.multiple-words.quote-yourself's own quoteInText already uses, so only the operator, who alone may pass --override, is told the flag exists."
     },
     "refusal.blocked": {
       "text": "this card is blocked: {detail}",
@@ -2975,7 +2979,11 @@
     },
     "refusal.dinah.at-loop-limit.next": {
       "text": "; ask the operator to carry this one move through with --override, or raise that column's loop_limit",
-      "context": "Spliced onto refusal.dinah.at-loop-limit as the next step. An override carries the single move it is passed on and does not reset the count, so a later regressive move out of the same column is refused again."
+      "context": "Spliced onto refusal.dinah.at-loop-limit as the next step. An override carries the single move it is passed on and does not reset the count, so a later regressive move out of the same column is refused again. It renders for anybody but the operator, since he needs no asking."
+    },
+    "refusal.dinah.at-loop-limit.next-operator": {
+      "text": "; carry this one move through yourself with --override, or raise that column's loop_limit",
+      "context": "Spliced onto refusal.dinah.at-loop-limit as the next step where the caller who was refused is the operator. operator is a bare switch this entry's raise site sets and never a printed value, on the pattern refusal.dinah.multiple-words.quote-yourself's own quoteInText already uses. An override carries the single move it is passed on and does not reset the count, so a later regressive move out of the same column is refused again."
     },
     "refusal.dinah.awaiting-outside": {
       "text": "column {detail} waits on somebody outside the workbench, and no card is held or taken up there",
@@ -3843,7 +3851,11 @@
     },
     "refusal.missing-field.next": {
       "text": "; write a value for it with `dinah set`, and this column will take the card",
-      "context": "Spliced onto refusal.missing-field as the next step. It names the command that writes the value and says what the write buys, and it names neither of the two acts the row refuses, because the row fires on a move and on a pull alike and a reader refused at a pull never moved. The command name is syntax and stays as it is."
+      "context": "Spliced onto refusal.missing-field as the next step. It names the command that writes the value and says what the write buys, and it names neither of the two acts the row refuses, because the row fires on a move and on a pull alike and a reader refused at a pull never moved. The command name is syntax and stays as it is. It renders for anybody but the operator, who also has --override as a second way past this row."
+    },
+    "refusal.missing-field.next-operator": {
+      "text": "; write a value for it with `dinah set`, and this column will take the card, or carry this one move through yourself with --override",
+      "context": "Spliced onto refusal.missing-field as the next step where the caller who was refused is the operator. operator is a bare switch this entry's raise site sets and never a printed value, on the pattern refusal.dinah.multiple-words.quote-yourself's own quoteInText already uses, so only the operator, who alone may pass --override, is told the flag exists alongside the ordinary write."
     },
     "refusal.no-operator": {
       "text": "this workbench designates no operator, so its reserved actions are dead",
@@ -3975,7 +3987,11 @@
     },
     "refusal.unresolved-item.next": {
       "text": "; answer it, then resolve, verify or fail that item",
-      "context": "Spliced onto refusal.unresolved-item as the next step. It names the three verbs that settle an item, because each of them is a command."
+      "context": "Spliced onto refusal.unresolved-item as the next step. It names the three verbs that settle an item, because each of them is a command. It renders for anybody but the operator, who cannot pass this row with --override and is told the only way past it: settling the item."
+    },
+    "refusal.unresolved-item.next-operator": {
+      "text": "; answer it, then resolve, verify or fail that item, or carry this one move through yourself with --override",
+      "context": "Spliced onto refusal.unresolved-item as the next step where the caller who was refused is the operator. operator is a bare switch this entry's raise site sets and never a printed value, on the pattern refusal.dinah.multiple-words.quote-yourself's own quoteInText already uses, so only the operator, who alone may pass --override, is told the flag exists."
     },
     "refusal.unsupported-version": {
       "text": "Dinah does not implement {detail}",
