@@ -4,6 +4,8 @@ This document assesses Dinah as a tool for managing tasks and for working with a
 
 The document is an assessment and is dated by nature. Where it states a rule, the rule is meant to outlive the snapshot; where it states a figure, the figure is not.
 
+Sections 1 to 7 are the assessment as written on 2026-09-20. Section 8 re-evaluates it on 2026-09-22, after the nine proposals and five related cards landed, and section 9 compares Dinah with the agent trackers that also keep their records in the repository and names what Dinah could take from them.
+
 ## 1. Summary
 
 Dinah works, and its own journal is the evidence. In the six days after development moved onto the in-repo workbench, fifteen cards travelled from Spec to Acceptance in between 1.3 and 35 hours each, with a median near nine, and the two agent review stations sent cards back 82 times across 24 cards. Each push-back is a defect caught before the operator saw it, and that is the tool paying for itself.
@@ -162,6 +164,66 @@ An earlier draft of this section proposed adding the `no-owner` refusal itself. 
 ### 7.10 Proposals considered and not made
 
 An arrival hook on a column, running a command when a card lands, would make Dinah a harness and is not proposed. A dependency link that holds one card behind another is ruled out of the core with a reopen condition and is not needed on the live workbench today. A structured handoff carried on the move was considered and rejected because the comment-before-move discipline already produces a record the next station reads by one reference, and a second slot for the same text would be the copying between layers the design forbids.
+
+## 8. Re-evaluation, 2026-09-22
+
+All nine proposals of section 7 landed between 2026-09-21 and 2026-09-22, along with five cards that came out of the work: dinah-554, dinah-563, dinah-570, dinah-489 and dinah-571. This section reads each weakness of section 4 against what shipped, names what the work revealed that the first pass missed, and restates the verdict.
+
+### 8.1 The weaknesses of section 4, one by one
+
+**One route, fourteen stations (4.1): fixed.** dinah-542 added routes, and the development workbench declares a short route, `small`, that skips Spec, both design reviews and Operator Code Review. Three cards have walked it. dinah-570 took 0.5 hours from Triage to Acceptance with no send-back, dinah-489 took 0.6 hours with none, and dinah-571 took 1.4 hours with one. Cards on the full route in the same wave took between 2.3 and 14.4 hours and were sent back between zero and four times. A small card now costs roughly what its size suggests.
+
+**Rules in prose (4.2): partly fixed.** Several rules that agents used to carry in their instructions are now refusals. A process that declares a harness can no longer act under the operator's configured name (dinah-540). No event reaches the journal without an actor, because one guard sits at the append every write passes through. Only the operator changes a column's attachments or runs a writing reshape (dinah-545). A scratch tree can no longer reach his live workbenches (dinah-541). The rules that remain prose are the ones about how agents are dispatched, and this wave showed how they leak: an implementer wrote into the operator's checkout, a merge agent recorded a model it was not running because its brief was garbled, and review agents kept re-running the test suite. Each of those happened in the harness, where Dinah deliberately has no reach, and each was visible afterwards on the journal or in the repository.
+
+**Discovery climbs to the drive root (4.3): fixed.** dinah-541 stops the upward walk at the nearest repository root, and its reviewer attacked the bound through an empty `.git` file, a `.git` directory that is not a repository, a Windows junction and a linked worktree without getting past it.
+
+**Token cost is structural (4.4): mostly fixed.** A bare `show` returns the narrow shape (dinah-543), measured at 1.4 to 3.2 kilobytes on four worked cards whose whole records run to 96 to 306 kilobytes. MCP tool profiles (dinah-544) cut the tool-definition block by about 35 per cent, a saving that reaches only a harness that loads every tool at the start of a session, since Claude Code defers MCP tool definitions until an agent asks for one. Column attachments (dinah-545) let reference material move out of the column bodies that every arriving agent reads, and the live workbench has not yet used them.
+
+**The contract is unproven (4.5): partly closed.** dinah-548 added a reader of the interchange form written by an author confined to a directory holding only the published profile and a brief. On its first run it disagreed with Dinah 35 times across nine causes. Some were defects in the tool, such as a read and write-back silently dropping three members; some were gaps in the profile, such as whether column identifiers survive a round trip. That is the strongest evidence so far that one implementation drifts from its own contract without anything noticing. The comparison runs in CI, fails on any disagreement the operator has not ruled on, and gates releases.
+
+**Nothing watches (4.6): improved within the scope line.** `changes --wait` (dinah-546) lets a driving loop block until the workbench changes instead of polling on a timer. Dispatch stays with the harness, which remains the right boundary.
+
+### 8.2 What the work revealed
+
+**The inflow is driven by the surface growing.** From 2026-09-20 to 2026-09-22, 35 cards were filed and 19 reached Acceptance. Most new cards were features or defects in features only weeks old. The review stations are good at finding interactions between a new feature and the existing surface, and every finding becomes work: reshape writing past the operator-only rule, a named pull landing a card in a station its route skips, three further paths that wrote journal events without an actor. dinah-565 drafts a 1.0 boundary that would bend this trend, and the operator has parked it for now.
+
+**Shared generated files tax every card.** The quick start's transcripts, the fixtures keyed on source line numbers and the eight message catalogs conflicted on nearly every merge in the wave, and each conflict sent a card through review and Test one or two more times. dinah-556, dinah-568 and dinah-569 each retire one of those classes.
+
+**The operator is the throughput limit.** Frontier cards each gathered between three and ten questions for the operator. Operator-stamped items could not be closed by an agent even after he had ruled in conversation, and an exit hold refused his own move of a card back to an earlier column. dinah-563 and dinah-570 now tell an agent how to record a ruling the operator actually stated, and dinah-571 lets a card move backward past its own pending items. The judgement those questions asked for remains his, and on the evidence of this wave it should.
+
+**Review is effective, and attack beats reading.** At least five defects in the wave were found by a reviewer running an attack against a guard rather than reading it: reshape bypassing authority, an empty-actor journal path through `check`, a guard test widened until it accepted fabricated rows, a named pull into a skipped station, and a withholding key that would have served a stale attachment path.
+
+### 8.3 The verdict, restated
+
+Dinah is now a good tool for the use it was built around: one operator driving many agents through a staged flow, with a record anyone can audit later. Four of the six weaknesses are fixed or mostly fixed. The risk has moved away from the tool's design and into two places the tool cannot settle by itself, which are the rate at which its surface grows and the rate at which the operator can rule. For a team of several people working one workbench at once, the live arbiter is still Dinah.Team.
+
+## 9. Agent trackers kept in the repository
+
+### 9.1 How Dinah compares with its neighbours
+
+General issue trackers such as Jira, Linear and GitHub Projects are far richer for people, with interfaces, permissions, integrations and reporting, and agents reach them through an API or MCP. None of them serves each state's instructions to the worker arriving there, treats a claim as an expiring lease, or holds a transition until a named checklist item settles, and their workflows live in an administrator's console instead of beside the code.
+
+Orchestration frameworks such as LangGraph, CrewAI, AutoGen and Claude Code's own subagents run agents. Dinah deliberately does not, so these complement it: the framework does the work, and Dinah holds the durable record across sessions, harnesses and models.
+
+The closest relatives are the trackers that keep their records in the repository and address agents first. Two are representative. beads, by Steve Yegge, keeps issues in a version-controlled SQL store that syncs through git remotes, gives them hash-based identifiers with hierarchical children, and answers `bd ready` with the tasks that have no open blocker in a dependency graph. An agent claims one with `bd update <id> --claim`. `bd init` writes an AGENTS.md section, `bd setup <tool>` installs instructions and hooks for a named harness, `bd prime` injects the project's workflow and remembered facts at the start of a session, `bd remember` stores a fact for later sessions, and closed work is compacted into summaries so it stops costing context. Backlog.md keeps each task as a Markdown file with acceptance criteria and a definition-of-done checklist, carries docs and decisions as first-class files, offers a terminal board and a browser board with drag and drop, and starts with a zero-configuration `backlog init` wizard. Its agents are pointed at `backlog instructions overview` in the same way Dinah's are pointed at `dinah guide`.
+
+Against both, Dinah is strongest on process. It has stations whose instructions reach the agent at the moment it arrives, holds driven by the card's own questions, criteria and decisions, operator-reserved acts, machine-readable refusals, a record of what performed each act, and a specified contract that an independent reader now checks. Both neighbours are stronger at first contact: installing into a harness, showing a person a board, and answering in one command what can be worked on now.
+
+### 9.2 What Dinah could take
+
+Each item below adds to what Dinah already does well without adding a new concept to the core, and each is small.
+
+**A setup command for a named harness.** `dinah setup claude-code`, and its equivalents for the other harnesses Dinah already recognises by name, would write the pieces an operator assembles by hand today: the MCP server entry with a chosen tool profile, a short section in the harness's instruction file pointing at `dinah guide` and the working agreement, and the environment the harness must set, namely `DINAH_ACTOR`, `DINAH_HARNESS`, `DINAH_PROVIDER` and `DINAH_MODEL`. The operator who assembled those by hand on this project met every failure dinah-540 and dinah-563 later fixed. This is the largest single gain in attractiveness for a solo developer arriving with Claude Code or Codex already installed, and it sits entirely outside the contract.
+
+**Items a column files on arrival.** Backlog.md's project-wide definition of done becomes stronger in Dinah's model. A column could declare items it files on every card that arrives, such as a criterion that the tests were armed, and the holds Dinah already has would then enforce them without the column body having to ask. Today a column body asks an agent to remember that obligation. This turns another prose rule into a refusal, which is the direction section 8.1 found most valuable.
+
+**A board a person can look at.** `dinah status` already prints column counts. A terminal board printing columns side by side with the cards in each, and a read-only HTML page written by `dinah export`, would give a person the view both neighbours lead with, without making Dinah a server. It serves the users who want to see the workbench without opening an editor.
+
+**Ready work that respects `blocks` links.** beads' `bd ready` is the one thing its neighbours do that Dinah deliberately does not, because behaviour attached to a link is ruled out of the core. A layer can still carry it: a workbench declaring the layer would have `next` and `pull` pass over a card that another unfinished card blocks. This workbench already records `blocks` links that do nothing, so the layer would give them meaning where a workbench asks for it and nowhere else.
+
+**One read to start a session.** `bd prime` answers the question an agent asks at the start of a session, and in Dinah that answer takes three reads: `whoami`, `status` and `instructions`. A single `dinah prime` combining who the caller is, what it holds, what is ready for it and the standing instructions not yet served on the connection would save those round trips, and it pairs naturally with `dinah setup`, whose instruction section would tell the agent to run it first.
+
+Two further features were considered and not proposed. Compacting closed cards into summaries solves a cost Dinah already solved differently, since the narrow `show` never serves a closed card's history unless asked. Hash-based identifiers solve a merge collision that Dinah's twelve-character hex identifiers already avoid; the card-number registry is the part that could collide across branches, and dinah-532 covers keeping the workbench off code branches, which removes the collision instead of hashing around it.
 
 ## Appendix: the snapshot of 2026-09-20
 
