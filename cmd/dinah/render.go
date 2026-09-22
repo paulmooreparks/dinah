@@ -377,16 +377,49 @@ func (s *session) renderPrimeInstructions(primer *verb.Primer, brief bool) {
 }
 
 // primeInstructionsExample names a column reference for the recovery
-// command's own example: the column of the caller's earliest-held card
-// where it holds one, and the workbench's first declared column otherwise.
+// command's own example: the column of the caller's earliest-arrival held
+// card where it holds one, and the workbench's first declared column
+// otherwise.
+//
+// primer.Holding carries no arrival information of its own (it is built in
+// Bench.Cards()' own directory-listing order, sorted by the card's random
+// ID rather than by when it arrived, matching Status.Holding), so this
+// re-reads the bench's cards and picks the earliest-arrival one by
+// bench.ByArrival, the same rule Library.Prime's own Reread member uses.
 func (s *session) primeInstructionsExample(primer *verb.Primer) string {
 	if len(primer.Holding) > 0 && s.library != nil {
-		if column := s.library.Bench.Column(primer.Holding[0].Column); column != nil {
-			return column.Ref()
+		if ref := s.earliestHeldColumnRef(primer.Identity.Actor); ref != "" {
+			return ref
 		}
 	}
 	if s.library != nil && len(s.library.Bench.Columns) > 0 {
 		return s.library.Bench.Columns[0].Ref()
+	}
+	return ""
+}
+
+// earliestHeldColumnRef finds the column of the earliest-arrival card actor
+// holds, by bench.ByArrival, empty where the bench cannot be read or actor
+// holds nothing.
+func (s *session) earliestHeldColumnRef(actor string) string {
+	cards, err := s.library.Bench.Cards()
+	if err != nil {
+		return ""
+	}
+	var earliest *bench.Card
+	for _, card := range cards {
+		if card.Holder != actor {
+			continue
+		}
+		if earliest == nil || bench.ByArrival(card, earliest) {
+			earliest = card
+		}
+	}
+	if earliest == nil {
+		return ""
+	}
+	if column := s.library.Bench.Column(earliest.Column); column != nil {
+		return column.Ref()
 	}
 	return ""
 }

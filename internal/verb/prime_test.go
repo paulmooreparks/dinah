@@ -4,12 +4,48 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"dinah/internal/bench"
 	"dinah/internal/contract"
 )
+
+// renameCardID renames a card's directory to a chosen 12-hex ID and rewrites
+// the number registry's own line for it so the card's human reference keeps
+// resolving. It is what lets a test force an ID that sorts lexically
+// opposite the card's own arrival order: Bench.Cards() walks CardsRoot in
+// os.ReadDir's own order, which Go sorts by filename (the ID), and nothing
+// in the harness's ordinary card-creation path lets a caller choose that
+// filename directly.
+func (h *harness) renameCardID(oldID, newID string) {
+	h.t.Helper()
+	root := h.library.Bench.CardsRoot()
+	if err := os.Rename(filepath.Join(root, oldID), filepath.Join(root, newID)); err != nil {
+		h.t.Fatalf("rename card %s to %s: %v", oldID, newID, err)
+	}
+	path := filepath.Join(h.library.Bench.Root, bench.CardNumbersName)
+	registry := bench.LoadNumberRegistry(path)
+	lines := make([]string, len(registry.Lines))
+	rewritten := false
+	for at, line := range registry.Lines {
+		if line.ID != oldID {
+			lines[at] = line.Raw
+			continue
+		}
+		lines[at] = strconv.Itoa(line.Number) + " " + newID
+		rewritten = true
+	}
+	if !rewritten {
+		h.t.Fatalf("renameCardID %s: the registry names no line for it", oldID)
+	}
+	if err := bench.WriteNumberLines(path, lines); err != nil {
+		h.t.Fatalf("renameCardID %s: %v", oldID, err)
+	}
+	h.reopen()
+}
 
 // growPrimeColumnInstructions rewrites a column's own instructions text to
 // at least n bytes of filler. It is what dinah-573/criteria/22's cap-engaged
@@ -581,5 +617,61 @@ func TestPrimeMCPProfileMembership(t *testing.T) {
 	}
 	if strings.Contains(string(encoded), `"columns"`) {
 		t.Errorf("Prime's answer carries a columns member, which is Status.Columns' own workbench-wide occupancy table: %s", encoded)
+	}
+}
+
+// TestPrimeRereadNamesTheEarliestArrivalHeldCardNotTheFirstByID is
+// dinah-573/criteria/12's own claim, read literally: Reread names the
+// column of the earliest-arrival card in Holding, not of whichever held
+// card Bench.Cards() happens to list first. Bench.Cards() walks
+// CardsRoot in os.ReadDir's own order, sorted by the card's random ID,
+// which bench.ByArrival's own doc comment says is deliberately
+// meaningless as an ordering; Holding is built in that same order,
+// unchanged, because AC2 pins it byte-identical to Status.Holding. This
+// fixture forces the two orders to disagree: the earlier-arrival card
+// (doing) gets the lexically later ID and the later-arrival card
+// (aftercare) gets the lexically earlier one, so holding[0] names
+// aftercare while the true earliest arrival is doing. Reviewer finding on
+// this card's first Agent Code Review pass: the prior code read
+// holding[0].Column directly, which this fixture catches and the
+// single-held-card fixture in TestPrimeWithholdsOnASecondCallAndRecovers
+// ByColumn (internal/mcp/prime_test.go) cannot.
+func TestPrimeRereadNamesTheEarliestArrivalHeldCardNotTheFirstByID(t *testing.T) {
+	h := newHarness(t)
+	earlierArrival := h.readyAt("arrives first, claimed into doing", doing)
+	h.advance(time.Hour)
+	laterArrival := h.readyAt("arrives second, claimed into aftercare", aftercare)
+	h.mustDo(&Request{Verb: Claim, Actor: "brin", Card: earlierArrival})
+	h.mustDo(&Request{Verb: Claim, Actor: "brin", Card: laterArrival})
+
+	// Force the ID order to disagree with the arrival order: the
+	// later-arrival card gets the lexically smaller ID, so a
+	// holding[0]-based read names its column (aftercare) instead of the
+	// earlier-arrival card's own (doing).
+	h.renameCardID(h.card(earlierArrival).ID, "ffffffffffff")
+	h.renameCardID(h.card(laterArrival).ID, "000000000001")
+
+	// A connection that has already been served the standing layer in
+	// full withholds it on this call, which is what gives Reread
+	// something to name.
+	req := &Request{Verb: "prime", Actor: "brin"}
+	req.HeldChain = map[string]bool{
+		chainKey("brin", h.library.Bench.Standing): true,
+	}
+	primer, err := h.library.Prime(req)
+	if err != nil {
+		t.Fatalf("prime: %v", err)
+	}
+	if len(primer.Instructions.Withheld) == 0 {
+		t.Fatalf("nothing was withheld, so Reread proves nothing here: %+v", primer.Instructions)
+	}
+	if primer.Instructions.Reread != "doing" {
+		t.Errorf("Reread is %q, wanted %q: the earliest-arrival held card stands at doing, not at aftercare, which only the later-arrival card's (wrongly) lexically-first ID would produce",
+			primer.Instructions.Reread, "doing")
+	}
+	// Holding's own order is unaffected: it still lists cards in
+	// Bench.Cards()' own (ID-sorted) order, matching AC2.
+	if len(primer.Holding) != 2 || primer.Holding[0].Ref != laterArrival {
+		t.Errorf("Holding is %+v, wanted the later-arrival card first (its ID now sorts first), unchanged by the Reread fix", primer.Holding)
 	}
 }

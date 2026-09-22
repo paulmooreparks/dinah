@@ -2405,6 +2405,7 @@ func (l *Library) Prime(req *Request) (*Primer, error) {
 		}
 	}
 	holding := []CardView{}
+	var heldCards []*bench.Card
 	for _, card := range cards {
 		if !isHolder(card, req.Actor) {
 			continue
@@ -2414,6 +2415,7 @@ func (l *Library) Prime(req *Request) (*Primer, error) {
 			return nil, err
 		}
 		holding = append(holding, *view)
+		heldCards = append(heldCards, card)
 	}
 	admit := selectionAdmission(l.Bench, req)
 	ready := []Offer{}
@@ -2431,7 +2433,7 @@ func (l *Library) Prime(req *Request) (*Primer, error) {
 	if err != nil {
 		return nil, err
 	}
-	instructions, served := l.primeInstructions(req, holding)
+	instructions, served := l.primeInstructions(req, holding, heldCards)
 	primer := &Primer{
 		Bench:           l.Bench.Title,
 		Root:            l.Bench.Root,
@@ -2552,7 +2554,15 @@ func (l *Library) primePending(cards []*bench.Card, req *Request, isOperator boo
 // saves. Where at least one layer was withheld and the caller holds
 // something, Reread names the column of the earliest-arrival card in
 // holding.
-func (l *Library) primeInstructions(req *Request, holding []CardView) (Instructions, []string) {
+//
+// heldCards is the same cards holding was built from, in the same order
+// (Bench.Cards()' own directory-listing order, sorted by the card's random
+// ID rather than by when it arrived, which is exactly what Status.Holding's
+// own build already is and what AC2's byte-identical requirement pins
+// Prime.Holding to). Reread cannot read holding[0].Column and call that
+// "earliest-arrival": the earliest-arrival card among heldCards is found
+// explicitly here, by bench.ByArrival, without touching holding's own order.
+func (l *Library) primeInstructions(req *Request, holding []CardView, heldCards []*bench.Card) (Instructions, []string) {
 	if req.Brief {
 		instructions := Instructions{}
 		note := func(name, text string) {
@@ -2568,8 +2578,14 @@ func (l *Library) primeInstructions(req *Request, holding []CardView) (Instructi
 	s := newLayerServer(req, len(holding) > 0)
 	s.layer(LayerGlobal, bench.GlobalInstructions(l.Home), &s.instructions.Global)
 	s.layer(LayerStanding, l.Bench.Standing, &s.instructions.Standing)
-	if len(s.instructions.Withheld) > 0 && len(holding) > 0 {
-		if column := l.Bench.Column(holding[0].Column); column != nil {
+	if len(s.instructions.Withheld) > 0 && len(heldCards) > 0 {
+		earliest := heldCards[0]
+		for _, card := range heldCards[1:] {
+			if bench.ByArrival(card, earliest) {
+				earliest = card
+			}
+		}
+		if column := l.Bench.Column(earliest.Column); column != nil {
 			s.instructions.Reread = columnRef(column)
 		}
 	}
