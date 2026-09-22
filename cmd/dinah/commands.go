@@ -88,6 +88,7 @@ func init() {
 		// ignored. Every argument it reads is a flag, the cursor included.
 		{name: "changes", group: groupRead, run: runChanges},
 		{name: "instructions", group: groupRead, run: runInstructions, bounded: 1},
+		{name: "prime", group: groupRead, run: runPrime},
 		{name: "guide", group: groupRead, run: runGuide, bounded: 1},
 
 		{name: "init", group: groupBench, run: runInit, bounded: 1},
@@ -1077,6 +1078,28 @@ func runInstructions(s *session, parsed *arguments) int {
 			return s.emitMachine(served)
 		}
 		s.renderInstructions(&served.Instructions, served.LegalMoves, served.Loop)
+		return 0
+	})
+}
+
+// runPrime answers, in one call, what a session starting on this workbench
+// needs: who the caller is, what it holds, what is ready for it, what is
+// pending for it, and the standing instructions, on the terms the
+// dinah-573 specification's "CLI rendering" section fixes for the terminal.
+func runPrime(s *session, parsed *arguments) int {
+	req := s.request("prime", parsed)
+	req.FullPending = parsed.has("full-pending")
+	req.Brief = parsed.has("brief")
+	return s.withBench(func(l *verb.Library) int {
+		req.WorkbenchSource = s.workbenchSource
+		primer, err := l.Prime(req)
+		if err != nil {
+			return s.reportError(err)
+		}
+		if s.format != formatHuman {
+			return s.emitMachine(primer)
+		}
+		s.renderPrime(primer, req.Brief)
 		return 0
 	})
 }

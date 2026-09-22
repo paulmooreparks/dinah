@@ -6078,6 +6078,91 @@
       "context": "A check finding: a card's route omits an operator-owned column the card has not yet passed, which every verb that writes a route refuses, so it arrived by a hand edit. {detail} carries the card and the column, in that order. The finding clears once the card has passed the column.",
       "skeleton": true
     },
+    "check.prime.1": {
+      "text": "an owner is resolvable",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "cmd.prime.summary": {
+      "text": "What a session needs to start, in one read",
+      "context": "The one-line summary of the prime command, shown beside its syntax in the help block.",
+      "skeleton": true
+    },
+    "param.prime.brief.summary": {
+      "text": "Omit the standing instructions from this answer, naming them withheld instead of printing them",
+      "context": "The sentence written for prime's brief marker.",
+      "skeleton": true
+    },
+    "param.prime.full-pending.summary": {
+      "text": "Remove the cap on the operator's own pending queue, so every match is carried rather than the first 20",
+      "context": "The sentence written for prime's full-pending marker.",
+      "skeleton": true
+    },
+    "prime.actor": {
+      "text": "Acting as {actor}, operator: {operator}",
+      "context": "The second line of prime: who you are and whether you are the operator.",
+      "skeleton": true
+    },
+    "prime.holding": {
+      "text": "Holding",
+      "context": "The label above the cards prime reports this actor holds.",
+      "skeleton": true
+    },
+    "prime.holding.none": {
+      "text": "Holding: nothing.",
+      "context": "Printed by prime in place of the holding table when this actor holds no card.",
+      "skeleton": true
+    },
+    "prime.ready": {
+      "text": "Ready for you",
+      "context": "The label above the columns prime reports as offering this actor something.",
+      "skeleton": true
+    },
+    "prime.ready.none": {
+      "text": "Ready for you: nothing.",
+      "context": "Printed by prime in place of the ready table when no column offers this actor anything.",
+      "skeleton": true
+    },
+    "prime.pending": {
+      "text": "Pending for you",
+      "context": "The label above the checklist items prime reports as stamped for this actor.",
+      "skeleton": true
+    },
+    "prime.pending.none": {
+      "text": "Pending for you: nothing.",
+      "context": "Printed by prime in place of the pending table when no checklist item is stamped for this actor.",
+      "skeleton": true
+    },
+    "prime.pending.truncated": {
+      "text": "Pending for you (showing {shown} of {total}, {withheld} withheld)",
+      "context": "The label above the pending table when the operator's own-queue rule matched more items than the cap carries into Pending. {shown} is how many rows the table carries, {total} is every match the rule found, and {withheld} is the difference.",
+      "skeleton": true
+    },
+    "prime.pending.by-column": {
+      "text": "By column: {columns}",
+      "context": "Printed after the pending table, for the operator alone, naming every column the own-queue rule matched at least one item in and how many. {columns} is that listing, already composed by the renderer.",
+      "skeleton": true
+    },
+    "prime.pending.full-pending-hint": {
+      "text": "Run `dinah prime --full-pending` to see all {total}.",
+      "context": "Printed after the pending table when the cap withheld at least one match, naming the flag that recovers the rest. {total} is every match the operator's own-queue rule found.",
+      "skeleton": true
+    },
+    "prime.instructions.brief": {
+      "text": "Standing instructions: omitted (--brief).",
+      "context": "Printed by prime in place of the standing instructions block when the caller asked for the narrow, pointer-only form.",
+      "skeleton": true
+    },
+    "prime.instructions.brief.hint": {
+      "text": "Run `dinah instructions <column>` to read them, for example `dinah instructions {example}`.",
+      "context": "Printed after prime.instructions.brief, naming the command that recovers the omitted text in full. {example} is a column reference: the column of the actor's earliest-held card, or the workbench's first column when it holds none.",
+      "skeleton": true
+    },
+    "prime.instructions.hint": {
+      "text": "Run `dinah prime --brief` to omit this text on a later call.",
+      "context": "Printed after the standing instructions block on an ordinary (non-brief) prime call, naming the flag that omits it on a later call.",
+      "skeleton": true
+    },
     "cmd.setup.summary": {
       "text": "Connect a harness to a workbench from a recipe",
       "context": "The one-line summary of the setup command, shown beside its syntax in the help block. A harness is the program an AI colleague runs in, such as Claude Code or Codex, and a recipe is the directory that describes how to configure one.",

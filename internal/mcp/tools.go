@@ -106,6 +106,7 @@ var tools = []tool{
 	{name: "changes", command: "changes", run: readChanges},
 	{name: "instructions", command: "instructions", run: readInstructions},
 	{name: "whoami", command: "whoami", run: readWhoami},
+	{name: "prime", command: "prime", run: readPrime},
 	{name: "workbench", command: "workbench", run: doWorkbench},
 	{name: "workstream", command: "workstream", run: doWorkstream},
 	{name: "get_field", command: "get", run: readField},
@@ -295,7 +296,7 @@ func indexTools() map[string]tool {
 	return index
 }
 
-// stationMembers are the twenty-seven tools ProfileStation serves: what one
+// stationMembers are the twenty-eight tools ProfileStation serves: what one
 // agent needs to work one card through one column, and nothing that reaches
 // past the card it is standing on.
 var stationMembers = []string{
@@ -304,7 +305,7 @@ var stationMembers = []string{
 	"link_card", "unlink_card", "join_workstream", "leave_workstream",
 	"get_field", "set_field", "raise",
 	"show", "list", "query", "search_cards", "tree", "changes",
-	"next_card", "pull", "instructions", "whoami",
+	"next_card", "pull", "instructions", "whoami", "prime",
 }
 
 // operatorOnlyMembers are the thirteen tools ProfileOperator adds beside
@@ -855,6 +856,17 @@ func readWhoami(l *verb.Library, r *verb.Request) any {
 		return l.FromError(r, err)
 	}
 	return wrap(map[string]any{"identity": identity}, readAffordances)
+}
+
+// readPrime answers the prime tool, wrapping the answer under "primer"
+// rather than composing a second envelope: an agent reading this tool
+// already has the one call it asked for.
+func readPrime(l *verb.Library, r *verb.Request) any {
+	primer, err := l.Prime(r)
+	if err != nil {
+		return l.FromError(r, err)
+	}
+	return wrap(map[string]any{"primer": primer}, readAffordances)
 }
 
 // readField answers the get_field tool, which reads one field of whatever

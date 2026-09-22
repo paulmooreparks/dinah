@@ -1449,8 +1449,8 @@ func TestNextSeparatesWorkAboveTheTierFromNothingReady(t *testing.T) {
 			continue
 		}
 		found = true
-		if len(fields) != 8 {
-			t.Fatalf("the off record carries %d fields, wanted the kind and seven values: %q", len(fields), line)
+		if len(fields) != 9 {
+			t.Fatalf("the off record carries %d fields, wanted the kind and eight values: %q", len(fields), line)
 		}
 		if fields[6] != "1" {
 			t.Errorf("the off record's above_tier value is %q, wanted 1: %q", fields[6], line)

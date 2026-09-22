@@ -6098,6 +6098,91 @@
       "context": "A check finding: a card's route omits an operator-owned column the card has not yet passed, which every verb that writes a route refuses, so it arrived by a hand edit. {detail} carries the card and the column, in that order. The finding clears once the card has passed the column.",
       "source": "d730a37fa11686d2"
     },
+    "check.prime.1": {
+      "text": "कोई स्वामी मिलता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "fdca0aeeb585eb88"
+    },
+    "cmd.prime.summary": {
+      "text": "एक सत्र शुरू करने के लिए जो चाहिए, एक ही पठन में",
+      "context": "The one-line summary of the prime command, shown beside its syntax in the help block.",
+      "source": "69e945b277cbbecb"
+    },
+    "param.prime.brief.summary": {
+      "text": "इस उत्तर से लागू निर्देश हटाएं, उन्हें छापने के बजाय रोके गए के रूप में नाम दें",
+      "context": "The sentence written for prime's brief marker.",
+      "source": "d83da97a3c5213c9"
+    },
+    "param.prime.full-pending.summary": {
+      "text": "संचालक की अपनी कतार की सीमा हटाएं, ताकि पहले 20 के बजाय हर मिलान शामिल हो",
+      "context": "The sentence written for prime's full-pending marker.",
+      "source": "212aa110fd4d2826"
+    },
+    "prime.actor": {
+      "text": "{actor} के रूप में, संचालक: {operator}",
+      "context": "The second line of prime: who you are and whether you are the operator.",
+      "source": "ca836e469c3c755c"
+    },
+    "prime.holding": {
+      "text": "आपके पास:",
+      "context": "The label above the cards prime reports this actor holds.",
+      "source": "7b634b9177ab9b70"
+    },
+    "prime.holding.none": {
+      "text": "आपके पास: कुछ नहीं।",
+      "context": "Printed by prime in place of the holding table when this actor holds no card.",
+      "source": "79a0a4d6883efb7"
+    },
+    "prime.ready": {
+      "text": "आपके लिए तैयार",
+      "context": "The label above the columns prime reports as offering this actor something.",
+      "source": "81a11eb341cc9208"
+    },
+    "prime.ready.none": {
+      "text": "आपके लिए तैयार: कुछ नहीं।",
+      "context": "Printed by prime in place of the ready table when no column offers this actor anything.",
+      "source": "e4c68ba602313b1f"
+    },
+    "prime.pending": {
+      "text": "आपके लिए लंबित",
+      "context": "The label above the checklist items prime reports as stamped for this actor.",
+      "source": "d59f4c7fcc3eb340"
+    },
+    "prime.pending.none": {
+      "text": "आपके लिए लंबित: कुछ नहीं।",
+      "context": "Printed by prime in place of the pending table when no checklist item is stamped for this actor.",
+      "source": "aa14d0d156d7ed87"
+    },
+    "prime.pending.truncated": {
+      "text": "आपके लिए लंबित ({total} में से {shown} दिखाए गए, {withheld} रोके गए)",
+      "context": "The label above the pending table when the operator's own-queue rule matched more items than the cap carries into Pending. {shown} is how many rows the table carries, {total} is every match the rule found, and {withheld} is the difference.",
+      "source": "6587c84504d29b30"
+    },
+    "prime.pending.by-column": {
+      "text": "कॉलम अनुसार: {columns}",
+      "context": "Printed after the pending table, for the operator alone, naming every column the own-queue rule matched at least one item in and how many. {columns} is that listing, already composed by the renderer.",
+      "source": "a0005476bd686ebb"
+    },
+    "prime.pending.full-pending-hint": {
+      "text": "सभी {total} देखने के लिए `dinah prime --full-pending` चलाएं।",
+      "context": "Printed after the pending table when the cap withheld at least one match, naming the flag that recovers the rest. {total} is every match the operator's own-queue rule found.",
+      "source": "2f7e0f47e177219"
+    },
+    "prime.instructions.brief": {
+      "text": "लागू निर्देश: छोड़े गए (--brief)।",
+      "context": "Printed by prime in place of the standing instructions block when the caller asked for the narrow, pointer-only form.",
+      "source": "d03115337c335637"
+    },
+    "prime.instructions.brief.hint": {
+      "text": "उन्हें पढ़ने के लिए किसी कॉलम पर `dinah instructions <column>` चलाएं, उदाहरण के लिए `dinah instructions {example}`।",
+      "context": "Printed after prime.instructions.brief, naming the command that recovers the omitted text in full. {example} is a column reference: the column of the actor's earliest-held card, or the workbench's first column when it holds none.",
+      "source": "e694333bd77b35bc"
+    },
+    "prime.instructions.hint": {
+      "text": "बाद की कॉल में इस पाठ को छोड़ने के लिए `dinah prime --brief` चलाएं।",
+      "context": "Printed after the standing instructions block on an ordinary (non-brief) prime call, naming the flag that omits it on a later call.",
+      "source": "fbb0d3f287597a58"
+    },
     "cmd.setup.summary": {
       "text": "किसी रेसिपी से एक हार्नेस को वर्कबेंच से जोड़ें",
       "context": "The one-line summary of the setup command, shown beside its syntax in the help block. A harness is the program an AI colleague runs in, such as Claude Code or Codex, and a recipe is the directory that describes how to configure one.",

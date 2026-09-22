@@ -262,6 +262,15 @@ func recordTableSite() {
 	}
 }
 
+// indentedLine lays a single row out at an indent of two display columns,
+// with no cell of its own: the whole text is the row's tail. It is what a
+// caller outside this file reaches for instead of building a row.row or
+// calling rowLine/formatRow directly, which only this file may do (pattern
+// 9, guards_test.go).
+func (s *session) indentedLine(text string) string {
+	return s.rowLine(row{indent: 2, tail: text})
+}
+
 // table lays a table out and writes it to stdout.
 func (s *session) table(t table) {
 	recordTableSite()
