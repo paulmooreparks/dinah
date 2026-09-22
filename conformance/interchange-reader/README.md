@@ -3,8 +3,9 @@
 This directory holds a reader of the interchange form that section 5.7 of the
 published profile, `docs/spec/core-profile.md`, defines. It is written in
 Python 3.12 against the standard library alone, and it was written from the
-profile and from `BRIEF.md` in this directory, by an author who read nothing
-else. That author ran as a separate `claude` process whose file tools were
+profile and from `BRIEF.md` in this directory. Of the project's files, those
+two are the only ones its author read; beyond them it read back only a scratch
+file of its own, as the known limit below records. That author ran as a separate `claude` process whose file tools were
 confined to a directory holding those two files, so it never saw Dinah's code,
 its tests, its fixtures or its design documents. Dinah's code and its
 conformance suite are written from one reading of the profile, and this reader

@@ -21,8 +21,10 @@ names, quoted in any file the reader's author wrote. Such a name could only
 have come from outside the profile.
 
 Exit status is 0 when every disagreement is ruled and no ruling is stale, 1 on
-an unruled disagreement, a stale ruling, a reader that contradicts its own
-expectations, or a CORE-JSON statement the reader leaves unclassified, 2 on a
+an unruled disagreement, a stale ruling, a key the rulings file rules twice, a
+tool-defect, profile-defect or reader-defect ruling naming no card, a reader
+that contradicts its own expectations, or a CORE-JSON statement the reader
+leaves unclassified, 2 on a
 usage error, and 3 when a set this script depends on is empty or short or a
 command could not run.
 
@@ -56,6 +58,10 @@ DISPOSITIONS = {
     "both-conform",
     "not-a-leak",
 }
+
+# The dispositions whose ruling names the card that acts on it. A ruling of
+# one of these with no card is refused, because nothing would then remove it.
+NEEDS_A_CARD = {"tool-defect", "profile-defect", "reader-defect"}
 
 BACKTICKED = re.compile(r"`([^`\n]+)`")
 
@@ -501,9 +507,21 @@ class Comparison:
 
     def apply_rulings(self):
         rulings = json.loads(self.rulings_path.read_text(encoding="utf-8")).get("rulings", [])
+        # A repeated key and a card-less defect ruling are refused outright
+        # rather than read past: the first would hide a second ruling from the
+        # stale check, and the second would leave a ruling nothing removes.
         by_key = {}
+        self.bad_rulings = []
         for ruling in rulings:
-            by_key.setdefault(ruling.get("key"), ruling)
+            key = ruling.get("key")
+            if key in by_key:
+                self.bad_rulings.append("%s: the rulings file rules this key more than once" % key)
+                continue
+            by_key[key] = ruling
+            if ruling.get("disposition") in NEEDS_A_CARD and not ruling.get("card"):
+                self.bad_rulings.append(
+                    "%s: a %s ruling must name the card that acts on it" % (key, ruling.get("disposition"))
+                )
         present = {d["key"] for d in self.disagreements}
         self.unruled = []
         for d in self.disagreements:
@@ -523,6 +541,7 @@ class Comparison:
         self.counts["ruled"] = len(self.disagreements) - len(self.unruled)
         self.counts["stale_rulings"] = len(self.stale)
         self.counts["self_inconsistent"] = len(self.self_inconsistent)
+        self.counts["bad_rulings"] = len(self.bad_rulings)
 
     # The report.
 
@@ -567,6 +586,7 @@ class Comparison:
             "self_inconsistent": self.self_inconsistent,
             "unruled": [{"key": k, "why": why} for k, why in self.unruled],
             "stale_rulings": self.stale,
+            "bad_rulings": self.bad_rulings,
             "unclassified": self.unclassified,
             "stale_scope": self.stale_scope,
             "mutants": self.mutant_rows,
@@ -626,6 +646,8 @@ class Comparison:
             lines.append("- `%s` is %s. Reader: %s Dinah: %s" % (d["key"], state, d["reader"], d["dinah"]))
         for s in report["self_inconsistent"]:
             lines.append("- `%s`: the reader contradicts its own expectation, which no ruling covers." % s["key"])
+        for line in report["bad_rulings"]:
+            lines.append("- %s." % line)
         for k in report["stale_rulings"]:
             lines.append("- `%s` is ruled and matches no disagreement of this run." % k)
         lines += ["", "## Leak scan", ""]
@@ -647,6 +669,7 @@ class Comparison:
         failures = []
         failures += ["%s: %s" % (k, why) for k, why in self.unruled]
         failures += ["%s: a stale ruling" % k for k in self.stale]
+        failures += self.bad_rulings
         failures += ["%s: the reader contradicts its own expectation" % s["key"] for s in self.self_inconsistent]
         if self.scope_failure:
             failures.append(self.scope_failure)

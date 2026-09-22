@@ -283,6 +283,38 @@ class CompareTest(unittest.TestCase):
         status, _ = self.run_compare()
         self.assertEqual(status, 1)
 
+    def test_a_key_ruled_twice_fails(self):
+        self.reader_config["pair"] = [{"id": "S-2", "result": "fail", "detail": "lost."}]
+        self.rulings.append(self.ruling("pair:accept-one.json:S-2"))
+        self.rulings.append(self.ruling("pair:accept-one.json:S-2", disposition="tool-defect"))
+        status, report = self.run_compare()
+        self.assertEqual(status, 1)
+        self.assertEqual(
+            report["bad_rulings"],
+            ["pair:accept-one.json:S-2: the rulings file rules this key more than once"],
+        )
+
+    def test_a_defect_ruling_naming_a_card_passes(self):
+        self.reader_config["pair"] = [{"id": "S-2", "result": "fail", "detail": "lost."}]
+        ruling = self.ruling("pair:accept-one.json:S-2", disposition="tool-defect")
+        ruling["card"] = "dinah-1"
+        self.rulings.append(ruling)
+        status, report = self.run_compare()
+        self.assertEqual(status, 0)
+        self.assertEqual(report["bad_rulings"], [])
+
+    def test_a_defect_ruling_naming_no_card_fails(self):
+        self.reader_config["pair"] = [{"id": "S-2", "result": "fail", "detail": "lost."}]
+        for disposition in ("tool-defect", "profile-defect", "reader-defect"):
+            with self.subTest(disposition=disposition):
+                self.rulings = [self.ruling("pair:accept-one.json:S-2", disposition=disposition)]
+                status, report = self.run_compare()
+                self.assertEqual(status, 1)
+                self.assertEqual(
+                    report["bad_rulings"],
+                    ["pair:accept-one.json:S-2: a %s ruling must name the card that acts on it" % disposition],
+                )
+
     def test_a_stale_ruling_fails(self):
         self.rulings.append(self.ruling("export:old:S-9"))
         status, report = self.run_compare()
