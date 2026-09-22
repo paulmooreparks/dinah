@@ -742,6 +742,13 @@ var params = map[string][]Param{
 		{Name: "max-depth", Flag: true, Value: "n", Shared: "max-depth", Field: "MaxDepth"},
 	},
 	"whoami": {},
+	// prime declares no --root/--max-depth fan-out, on whoami's own terms: a
+	// session belongs to one open workbench. It declares no basis, since it
+	// writes nothing and there is no card revision to guard.
+	"prime": {
+		{Name: "full-pending", Flag: true, Marker: true, Field: "FullPending"},
+		{Name: "brief", Flag: true, Marker: true, Field: "Brief"},
+	},
 	"version": {
 		{Name: "catalogs", Flag: true, Marker: true},
 	},

@@ -426,6 +426,10 @@ func decodeCompactOffers(payload string) ([]verb.Offer, error) {
 	for _, record := range records {
 		switch record.kind {
 		case "off":
+			readyCount, err := strconv.Atoi(record.field(7))
+			if err != nil {
+				return nil, fmt.Errorf("an off record's ready_count field %q does not parse: %w", record.field(7), err)
+			}
 			offers = append(offers, verb.Offer{
 				Column:          record.field(0),
 				Title:           record.field(1),
@@ -434,6 +438,7 @@ func decodeCompactOffers(payload string) ([]verb.Offer, error) {
 				TakenByPull:     decodeCompactFlag(record.field(4)),
 				AboveTier:       decodeCompactFlag(record.field(5)),
 				Landing:         record.field(6),
+				ReadyCount:      readyCount,
 			})
 		case "card":
 			if len(offers) == 0 {
@@ -1020,15 +1025,17 @@ func TestAShapeWithNoCompactRenderingEmitsTheCanonicalJSON(t *testing.T) {
 // So this literal is the pin. Changing compactVersion reddens the test below
 // by name and does not compile away, which makes whoever renumbers the grammar
 // say so here deliberately.
-const wantVersionLine = "fmt|compact|4"
+const wantVersionLine = "fmt|compact|5"
 
 // TestTheCompactFormOpensOnItsVersionRecord asserts the framing decision the
 // compact form was introduced on: every compact payload opens with its version
 // record, before any other record, so a caller can check the version before it
 // assumes the field order. The number moved to 2 at dinah-285, which gave the
 // wb record an id field ahead of its title, to 3 at dinah-542, which gave
-// the card record a route and a pull destination ahead of its holder, and to 4
-// at dinah-545, which added the colatt record a version 3 reader would refuse.
+// the card record a route and a pull destination ahead of its holder, to 4
+// at dinah-545, which added the colatt record a version 3 reader would refuse,
+// and to 5 at dinah-573, which gave the off record a ready_count field ahead
+// of the card record it carries below it.
 func TestTheCompactFormOpensOnItsVersionRecord(t *testing.T) {
 	root := newCompactBench(t)
 	for _, argv := range [][]string{{"list", "intake"}, {"next"}, {"claim", "fx-2"}} {

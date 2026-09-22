@@ -67,6 +67,7 @@ var publishedProperties = map[string][]string{
 	"list":              {"actor", "archived", "depth", "harness", "max-depth", "model", "provider", "ready", "ref", "root", "server", "since", "unresolved", "workbench"},
 	"instructions":      {"actor", "card", "harness", "model", "provider", "server", "workbench"},
 	"whoami":            {"actor", "harness", "model", "provider", "server", "workbench"},
+	"prime":             {"actor", "brief", "full-pending", "harness", "model", "provider", "server", "workbench"},
 	"workbench":         {"actor", "harness", "model", "provider", "server", "workbench"},
 	"workstream":        {"action", "actor", "harness", "model", "provider", "server", "slug", "workbench", "workstream"},
 	"get_field":         {"actor", "field", "harness", "model", "provider", "ref", "server", "workbench"},

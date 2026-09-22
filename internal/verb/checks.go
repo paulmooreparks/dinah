@@ -418,6 +418,9 @@ var beyondChecks = map[string][]Check{
 	"whoami": {
 		{Refusal: contract.NoOwner, Key: "check.whoami.1"},
 	},
+	"prime": {
+		{Refusal: contract.NoOwner, Key: "check.prime.1"},
+	},
 	Join: {
 		{Refusal: contract.UnknownCard, Key: "check.join.1"},
 		{Refusal: contract.NoOwner, Key: "check.join.2"},

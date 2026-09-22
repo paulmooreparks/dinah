@@ -78,6 +78,7 @@ READ
     [--timeout <duration>] [--card <ref>]
     [--column <column>] [--root <path>] [--max-depth <n>]
   instructions <card|column>                             The instructions served at a position
+  prime [--full-pending] [--brief]                       What a session needs to start, in one read
   guide [topic]                                          The embedded guides, or one of them
 
 WORKBENCH
@@ -176,6 +177,7 @@ READ
   changes [--since <cursor>] [--wait] [--timeout <duration>] [--card <ref>] [--column <column>]         What has happened on this workbench since a cursor
     [--root <path>] [--max-depth <n>]
   instructions <card|column>                                                                            The instructions served at a position
+  prime [--full-pending] [--brief]                                                                      What a session needs to start, in one read
   guide [topic]                                                                                         The embedded guides, or one of them
 
 WORKBENCH

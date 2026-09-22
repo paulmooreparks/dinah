@@ -11,7 +11,7 @@ import (
 // field of the version record that opens every compact payload. A caller
 // reads it before assuming the field order this file fixes, and an
 // incompatible change to any record increments it.
-const compactVersion = "4"
+const compactVersion = "5"
 
 // The compact projection is a second machine form of the answers a driver
 // loop reads most: line-oriented UTF-8 rather than JSON, carrying the same
@@ -274,6 +274,7 @@ func compactOffers(offers []verb.Offer) string {
 			compactFlag(offer.TakenByPull),
 			compactFlag(offer.AboveTier),
 			offer.Landing,
+			strconv.Itoa(offer.ReadyCount),
 		)
 		payload.card(offer.Card)
 	}

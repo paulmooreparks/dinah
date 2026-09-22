@@ -251,6 +251,140 @@ func (s *session) renderInstructions(instructions *verb.Instructions, moves []ve
 		"column", loop.Column))
 }
 
+// renderPrime prints dinah prime's answer: the workbench line, who the
+// caller is, what it holds, what is ready for it, what is pending for it,
+// and the standing instructions, on the terms the caller asked for them.
+//
+// The three sections below draw one field per line rather than a
+// table.table: each row is composed as running prose with single spaces
+// throughout, never the double-space gutter a table column takes, because
+// each carries a shape of its own (the ready count and the checklist kind,
+// both new to this surface) that a genuine table would need new headings
+// for.
+func (s *session) renderPrime(primer *verb.Primer, brief bool) {
+	s.line(s.workbenchLine(&verb.Status{Bench: primer.Bench, Root: primer.Root, WorkbenchSource: primer.WorkbenchSource}))
+	s.line(s.r.T("prime.actor", "actor", primer.Identity.Actor, "operator", s.yesNo(primer.Identity.IsOperator)))
+	s.line("")
+	s.renderPrimeHolding(primer.Holding)
+	s.line("")
+	s.renderPrimeReady(primer.Ready)
+	s.line("")
+	s.renderPrimePending(primer)
+	s.line("")
+	s.renderPrimeInstructions(primer, brief)
+}
+
+func (s *session) renderPrimeHolding(holding []verb.CardView) {
+	if len(holding) == 0 {
+		s.line(s.r.T("prime.holding.none"))
+		return
+	}
+	s.line(s.r.T("prime.holding"))
+	for _, card := range holding {
+		s.line("  " + card.Ref + ": " + card.Title)
+	}
+}
+
+func (s *session) renderPrimeReady(ready []verb.Offer) {
+	if len(ready) == 0 {
+		s.line(s.r.T("prime.ready.none"))
+		return
+	}
+	s.line(s.r.T("prime.ready"))
+	for _, offer := range ready {
+		count := strconv.Itoa(offer.ReadyCount)
+		if offer.Card != nil {
+			s.line("  " + offer.Title + ": " + count + " ready, " + offer.Card.Ref + ": " + offer.Card.Title)
+			continue
+		}
+		s.line("  " + offer.Title + ": " + s.r.T("next.above-tier"))
+	}
+}
+
+func (s *session) renderPrimePending(primer *verb.Primer) {
+	if len(primer.Pending) == 0 {
+		s.line(s.r.T("prime.pending.none"))
+		return
+	}
+	total := len(primer.Pending) + primer.PendingWithheld
+	if primer.PendingWithheld > 0 {
+		s.line(s.r.T("prime.pending.truncated",
+			"shown", strconv.Itoa(len(primer.Pending)),
+			"total", strconv.Itoa(total),
+			"withheld", strconv.Itoa(primer.PendingWithheld)))
+	} else {
+		s.line(s.r.T("prime.pending"))
+	}
+	for _, item := range primer.Pending {
+		s.line("  " + item.Ref + " (" + s.token(item.Kind) + "): " + item.Text)
+	}
+	if len(primer.PendingByColumn) > 0 {
+		parts := make([]string, 0, len(primer.PendingByColumn))
+		for _, column := range primer.PendingByColumn {
+			parts = append(parts, column.ColumnTitle+" "+strconv.Itoa(column.Count))
+		}
+		s.line("  " + s.r.T("prime.pending.by-column", "columns", strings.Join(parts, ", ")))
+	}
+	if primer.PendingWithheld > 0 {
+		s.line("  " + s.r.T("prime.pending.full-pending-hint", "total", strconv.Itoa(total)))
+	}
+}
+
+// renderPrimeInstructions prints the standing instructions block: the
+// Global and Standing layers in full on an ordinary call, or, where the
+// caller asked for the narrow form, one line saying so and the command
+// that recovers them.
+//
+// brief is the caller's own --brief flag rather than anything read off
+// Withheld, because Withheld is empty both when the caller asked for the
+// full form and got it and when the caller asked for the narrow form on a
+// workbench carrying no text to withhold in the first place (layer's own
+// empty-text skip), and only the caller's own flag tells those two apart.
+func (s *session) renderPrimeInstructions(primer *verb.Primer, brief bool) {
+	instructions := primer.Instructions
+	if brief {
+		s.line(s.r.T("prime.instructions.brief"))
+		s.line(s.r.T("prime.instructions.brief.hint", "example", s.primeInstructionsExample(primer)))
+		return
+	}
+	layers := []struct {
+		label string
+		text  string
+	}{
+		{label: "instructions.global", text: instructions.Global},
+		{label: "instructions.standing", text: instructions.Standing},
+	}
+	drawn := false
+	for _, layer := range layers {
+		if layer.text == "" {
+			continue
+		}
+		if drawn {
+			s.line("")
+		}
+		s.line(s.r.T(layer.label))
+		s.write(layer.text)
+		drawn = true
+	}
+	s.line("")
+	s.line(s.r.T("prime.instructions.hint"))
+}
+
+// primeInstructionsExample names a column reference for the recovery
+// command's own example: the column of the caller's earliest-held card
+// where it holds one, and the workbench's first declared column otherwise.
+func (s *session) primeInstructionsExample(primer *verb.Primer) string {
+	if len(primer.Holding) > 0 && s.library != nil {
+		if column := s.library.Bench.Column(primer.Holding[0].Column); column != nil {
+			return column.Ref()
+		}
+	}
+	if s.library != nil && len(s.library.Bench.Columns) > 0 {
+		return s.library.Bench.Columns[0].Ref()
+	}
+	return ""
+}
+
 // renderStatus prints where the bench stands.
 func (s *session) renderStatus(status *verb.Status) {
 	s.line(s.workbenchLine(status))

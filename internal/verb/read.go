@@ -159,7 +159,7 @@ func (l *Library) Status(req *Request) (*Status, error) {
 		if err != nil {
 			return nil, err
 		}
-		if card.Holder != "" && card.Holder == req.Actor {
+		if isHolder(card, req.Actor) {
 			status.Holding = append(status.Holding, *view)
 		}
 		if card.State == contract.StateBlocked {
@@ -320,6 +320,14 @@ type Offer struct {
 	// It is present exactly where Card is, because there is no landing to
 	// report for an offer of nothing.
 	Landing string `json:"landing,omitempty"`
+	// ReadyCount is how many ready cards stand in this column, whichever of
+	// them, if any, Card names. It is readyIn's own length, already computed
+	// before this field existed and simply published now. Absent where Card
+	// and AboveTier are both absent, since there is nothing to count for a
+	// column carrying no ready card this caller could be shown at all: a
+	// column reporting NoTaker may still hold ready cards nobody here could
+	// take, and this field says nothing about those.
+	ReadyCount int `json:"ready_count,omitempty"`
 }
 
 // ModelView is one entry of a workbench's tier table as an offer carries it.
@@ -360,62 +368,87 @@ func (l *Library) Next(req *Request) ([]Offer, error) {
 			return nil, err
 		}
 	}
+	admit := selectionAdmission(l.Bench, req)
 	offers := make([]Offer, 0, len(columns))
 	for _, column := range columns {
-		offer := Offer{Column: column.ID, Title: column.Title}
-		// A column offers its head card when some act could take that card up,
-		// and offers nothing when none could. A claim could take it where the
-		// column takes work up, and every card standing there has the same
-		// landing, which is this column. A pull could take it where carriesInto
-		// names a column to carry it to, read against that card's own route,
-		// which is the function the pull itself reads, so the offer and the act
-		// cannot disagree.
-		//
-		// The tier the card has to meet is the tier of the column the act would
-		// land it in. Reading it anywhere else would offer work a claim here
-		// then refuses, or withhold work on the strength of a requirement
-		// nothing is about to check.
-		//
-		// The route lookups read the whole flow rather than the columns this
-		// request reports, since a card's road is a fact about the workbench
-		// rather than about the request.
-		byPull := !column.TakesWorkUp()
-		landing := func(*bench.Card) *bench.Column { return column }
-		if byPull {
-			landing = func(card *bench.Card) *bench.Column {
-				return carriesInto(column, l.Bench.RouteOf(card))
-			}
-		}
-		ready := readyIn(cards, column.ID)
-		head, at, hadReady, withheld := headOfReadyFor(l.Bench, column.ID, landing, cards, selectionAdmission(l.Bench, req))
-		switch {
-		case head != nil:
-			view, err := l.view(head)
-			if err != nil {
-				return nil, err
-			}
-			offer.Card = view
-			offer.TakenByPull = byPull
-			offer.Landing = columnRef(at)
-		case hadReady:
-			offer.AboveTier = true
-			offer.RequiredTier = withheld
-			offer.SatisfiedBy = modelViews(l.Bench.SatisfyingModels(withheld))
-		case byPull && (len(ready) > 0 || carriesInto(column, l.Bench.Columns) == nil):
-			// Nothing standing here can be taken from here, which is what
-			// NoTaker says. A column holding ready cards answers it out of
-			// those cards, so a queue whose ready cards all walk roads that
-			// give them no landing reports it and stops reporting it the
-			// moment a card with a landing arrives. A column holding no ready
-			// card has no card whose route to read, so the answer is read
-			// against the default route, which preserves the answer an empty
-			// queue gave before routes existed.
-			offer.NoTaker = true
-			offer.AwaitingOutside = column.AwaitingOutside
+		offer, err := l.offerFor(column, cards, admit)
+		if err != nil {
+			return nil, err
 		}
 		offers = append(offers, offer)
 	}
 	return offers, nil
+}
+
+// offerFor builds one column's offer to a caller carrying the given
+// admission, on the terms Next has always built every column's offer: a
+// claim takes the head of what the column itself offers, and a pull takes
+// the head of what the column beyond it, on the card's own route, offers.
+// This is the one place that scan is written, so Next and Prime.Ready read
+// one answer and cannot disagree about what a column offers.
+//
+// A column offers its head card when some act could take that card up, and
+// offers nothing when none could. A claim could take it where the column
+// takes work up, and every card standing there has the same landing, which
+// is this column. A pull could take it where carriesInto names a column to
+// carry it to, read against that card's own route, which is the function
+// the pull itself reads, so the offer and the act cannot disagree.
+//
+// The tier the card has to meet is the tier of the column the act would
+// land it in. Reading it anywhere else would offer work a claim here then
+// refuses, or withhold work on the strength of a requirement nothing is
+// about to check.
+//
+// The route lookups read the whole flow rather than the columns a caller's
+// own request reports, since a card's road is a fact about the workbench
+// rather than about the request.
+func (l *Library) offerFor(column *bench.Column, cards []*bench.Card, admit admission) (Offer, error) {
+	offer := Offer{Column: column.ID, Title: column.Title}
+	byPull := !column.TakesWorkUp()
+	landing := func(*bench.Card) *bench.Column { return column }
+	if byPull {
+		landing = func(card *bench.Card) *bench.Column {
+			return carriesInto(column, l.Bench.RouteOf(card))
+		}
+	}
+	ready := readyIn(cards, column.ID)
+	head, at, hadReady, withheld := headOfReadyFor(l.Bench, column.ID, landing, cards, admit)
+	switch {
+	case head != nil:
+		view, err := l.view(head)
+		if err != nil {
+			return Offer{}, err
+		}
+		offer.Card = view
+		offer.TakenByPull = byPull
+		offer.Landing = columnRef(at)
+	case hadReady:
+		offer.AboveTier = true
+		offer.RequiredTier = withheld
+		offer.SatisfiedBy = modelViews(l.Bench.SatisfyingModels(withheld))
+	case byPull && (len(ready) > 0 || carriesInto(column, l.Bench.Columns) == nil):
+		// Nothing standing here can be taken from here, which is what
+		// NoTaker says. A column holding ready cards answers it out of
+		// those cards, so a queue whose ready cards all walk roads that
+		// give them no landing reports it and stops reporting it the
+		// moment a card with a landing arrives. A column holding no ready
+		// card has no card whose route to read, so the answer is read
+		// against the default route, which preserves the answer an empty
+		// queue gave before routes existed.
+		offer.NoTaker = true
+		offer.AwaitingOutside = column.AwaitingOutside
+	}
+	if offer.Card != nil || offer.AboveTier {
+		offer.ReadyCount = len(ready)
+	}
+	return offer, nil
+}
+
+// isHolder reports whether a card is held by actor, the test Status.Holding
+// and Prime.Holding both filter on, so the two can never disagree about
+// which cards a caller holds.
+func isHolder(card *bench.Card, actor string) bool {
+	return card.Holder != "" && card.Holder == actor
 }
 
 // admission is what selection measures a ready card against: what the caller
@@ -2257,6 +2290,290 @@ func (l *Library) Whoami(req *Request) (*Identity, error) {
 		Tier:             tier,
 	}
 	return identity, nil
+}
+
+// Primer is what dinah prime answers: everything an agent needs to orient
+// itself at the start of a session, composed from the same library calls
+// whoami, status and next already answer with, plus the standing layers of
+// the instruction chain. See dinah-573's specification for the shape of
+// every member below.
+type Primer struct {
+	// Bench, Root and WorkbenchSource are Status's own three members
+	// unchanged, so a caller knows which workbench answered before it reads
+	// anything else.
+	Bench           string `json:"workbench"`
+	Root            string `json:"root"`
+	WorkbenchSource string `json:"workbench_source,omitempty"`
+	// Identity is Whoami's own answer, unchanged.
+	Identity Identity `json:"identity"`
+	// Holding are the cards this actor holds right now, on the terms
+	// Status.Holding already carries them: every CardView field, in arrival
+	// order, an empty array rather than null or an absent member when the
+	// actor holds nothing.
+	Holding []CardView `json:"holding"`
+	// Ready are the columns holding something this caller could take up
+	// right now, one entry per column, in the workbench's own declared
+	// column order. A column offering nothing to this caller is left out of
+	// this list entirely: Ready is empty, not a list of empty offers, when
+	// nothing anywhere is available.
+	Ready []Offer `json:"ready"`
+	// Pending are the checklist items stamped for this caller, across every
+	// card the rules below reach, in the order their owning card arrived
+	// and then in that card's own item order.
+	Pending []PendingItem `json:"pending"`
+	// PendingWithheld is how many further items the operator's own-queue
+	// rule (rule 2) matched beyond the cap, absent (zero) when everything
+	// the rule matched fit inside Pending. It is never set by rule 1, which
+	// is not capped.
+	PendingWithheld int `json:"pending_withheld,omitempty"`
+	// PendingByColumn is one row per column the operator's own-queue rule
+	// matched at least one item in, each carrying the full count that
+	// column contributed whether or not every one of them made it into
+	// Pending. It is present only for the operator, and only when rule 2
+	// matched at least one item; absent for every other caller.
+	PendingByColumn []PendingColumnCount `json:"pending_by_column,omitempty"`
+	// Instructions carries the Global and Standing layers only, never
+	// Column or ColumnAttachments. It is the verb.Instructions type
+	// unchanged; a Prime answer simply never populates its Column or
+	// ColumnAttachments members.
+	Instructions Instructions `json:"instructions"`
+	// ChainServed carries the instruction-chain keys this call served in
+	// full, off the wire for the reason Response.ChainServed and
+	// Served.ChainServed both are.
+	ChainServed []string `json:"-"`
+}
+
+// PendingItem is one checklist item Primer.Pending carries, naming the card
+// it belongs to alongside the item itself.
+type PendingItem struct {
+	// Card is what a person types to reach the card, CardView.Ref's own
+	// spelling.
+	Card string `json:"card"`
+	// CardTitle is that card's title, so a reader needs no second call to
+	// know what the item is about.
+	CardTitle string `json:"card_title"`
+	// Ordinal, Ref, Kind, Column, ColumnTitle, Owner and Text are
+	// ItemIndexEntry's own members, read the same way itemListing already
+	// reads them, minus CommentCount and State: State is always "pending"
+	// here since that is what admits an item to this list, and
+	// CommentCount would cost a directory read per item this list has no
+	// use for.
+	Ordinal     int    `json:"ordinal"`
+	Ref         string `json:"ref"`
+	Kind        string `json:"kind"`
+	Column      string `json:"column,omitempty"`
+	ColumnTitle string `json:"column_title,omitempty"`
+	Owner       string `json:"owner,omitempty"`
+	Text        string `json:"text"`
+}
+
+// PendingColumnCount is one row of Primer.PendingByColumn: a column the
+// operator's own-queue rule found at least one matching item in, and how
+// many it found there in total, whether or not the item made it past the
+// cap into Pending.
+type PendingColumnCount struct {
+	Column      string `json:"column,omitempty"`
+	ColumnTitle string `json:"column_title,omitempty"`
+	Count       int    `json:"count"`
+}
+
+// pendingRuleTwoCap is how many of the operator's own-queue matches (rule 2
+// of Primer.Pending) a call carrying no full-pending marker places into
+// Pending before the rest are counted into PendingWithheld instead. See
+// dinah-573's specification, "The pending member".
+const pendingRuleTwoCap = 20
+
+// Prime answers, in one call, what an agent starting a session needs: who it
+// is acting as, the cards it holds and where each stands, what is ready for
+// it to take up, any pending checklist item stamped for it, and the
+// standing instructions it has not yet been served on this connection. It
+// opens no bench of its own, reads l.Bench.Cards() once, and composes its
+// answer from the same building blocks Whoami, Status and Next already
+// compute rather than a second implementation of any of them.
+func (l *Library) Prime(req *Request) (*Primer, error) {
+	identity, err := l.Whoami(req)
+	if err != nil {
+		return nil, err
+	}
+	cards, err := l.Bench.Cards()
+	if err != nil {
+		return nil, err
+	}
+	for _, card := range cards {
+		if err := l.lapseRead(card, req.Actor); err != nil {
+			return nil, err
+		}
+	}
+	holding := []CardView{}
+	for _, card := range cards {
+		if !isHolder(card, req.Actor) {
+			continue
+		}
+		view, err := l.view(card)
+		if err != nil {
+			return nil, err
+		}
+		holding = append(holding, *view)
+	}
+	admit := selectionAdmission(l.Bench, req)
+	ready := []Offer{}
+	for _, column := range l.Bench.Columns {
+		offer, err := l.offerFor(column, cards, admit)
+		if err != nil {
+			return nil, err
+		}
+		if offer.Card == nil && !offer.AboveTier {
+			continue
+		}
+		ready = append(ready, offer)
+	}
+	pending, pendingWithheld, pendingByColumn, err := l.primePending(cards, req, identity.IsOperator)
+	if err != nil {
+		return nil, err
+	}
+	instructions, served := l.primeInstructions(req, holding)
+	primer := &Primer{
+		Bench:           l.Bench.Title,
+		Root:            l.Bench.Root,
+		WorkbenchSource: req.WorkbenchSource,
+		Identity:        *identity,
+		Holding:         holding,
+		Ready:           ready,
+		Pending:         pending,
+		PendingWithheld: pendingWithheld,
+		PendingByColumn: pendingByColumn,
+		Instructions:    instructions,
+		ChainServed:     served,
+	}
+	return primer, nil
+}
+
+// primePending builds Primer.Pending, PendingWithheld and PendingByColumn in
+// one walk of the workbench's cards in arrival order, so the two rules that
+// populate Pending cannot disagree about which item came first.
+//
+// Rule 1: every pending checklist item, whatever its kind, whose Owner is
+// literally "holder", on a card this caller holds. It carries no cap: the
+// only items it can ever reach are ones on cards Holding already bounds.
+//
+// Rule 2: only for the operator, every pending open_question or decision
+// item, on every live card in the workbench regardless of who holds it,
+// whose Owner is "operator" or empty. It is capped at pendingRuleTwoCap
+// matches unless req.FullPending is set, with the count beyond the cap
+// reported in PendingWithheld and every column any match named, kept or
+// withheld, reported in PendingByColumn.
+//
+// An item can satisfy both rules only where its Owner reads both "holder"
+// and "operator" or empty at once, which the format's own single-valued
+// Owner field makes impossible; the walk still includes an item exactly
+// once regardless, since inclusion is decided by one boolean per item
+// rather than by merging two separately built lists.
+func (l *Library) primePending(cards []*bench.Card, req *Request, isOperator bool) ([]PendingItem, int, []PendingColumnCount, error) {
+	arrival := append([]*bench.Card(nil), cards...)
+	sortByArrival(arrival)
+
+	pending := []PendingItem{}
+	var pendingWithheld int
+	columnCounts := map[string]int{}
+	rule2Seen := 0
+
+	for _, card := range arrival {
+		items, err := bench.Items(card.Dir)
+		if err != nil {
+			return nil, 0, nil, err
+		}
+		cardRef := card.Ref(l.Bench.Slug)
+		kindPosition := map[string]int{}
+		for position, item := range items {
+			kindPosition[item.Kind]++
+			ordinal := position + 1
+			rule1 := isHolder(card, req.Actor) && item.State == bench.ItemPending && item.Owner == "holder"
+			rule2 := isOperator && item.State == bench.ItemPending &&
+				(item.Kind == "open_question" || item.Kind == "decision") &&
+				(item.Owner == bench.ItemOwnerOperator || item.Owner == "")
+			included := rule1
+			if rule2 {
+				rule2Seen++
+				if item.Column != "" {
+					columnCounts[item.Column]++
+				}
+				if req.FullPending || rule2Seen <= pendingRuleTwoCap {
+					included = true
+				} else if !rule1 {
+					pendingWithheld++
+				}
+			}
+			if !included {
+				continue
+			}
+			var colTitle string
+			if item.Column != "" {
+				if column := l.Bench.Column(item.Column); column != nil {
+					colTitle = column.Title
+				}
+			}
+			pending = append(pending, PendingItem{
+				Card:        cardRef,
+				CardTitle:   card.Title,
+				Ordinal:     ordinal,
+				Ref:         itemRef(cardRef, item.Kind, kindPosition[item.Kind], ordinal),
+				Kind:        item.Kind,
+				Column:      item.Column,
+				ColumnTitle: colTitle,
+				Owner:       item.Owner,
+				Text:        item.Text,
+			})
+		}
+	}
+
+	var byColumn []PendingColumnCount
+	for _, column := range l.Bench.Columns {
+		count := columnCounts[column.ID]
+		if count == 0 {
+			continue
+		}
+		byColumn = append(byColumn, PendingColumnCount{Column: column.ID, ColumnTitle: column.Title, Count: count})
+	}
+	return pending, pendingWithheld, byColumn, nil
+}
+
+// primeInstructions builds Primer.Instructions: Global and Standing only,
+// through the layerServer composeChain shares, on the withholding terms
+// dinah-573's specification states under "The instructions member".
+//
+// A brief call forces the narrow, pointer-only form unconditionally,
+// naming any non-empty layer in Withheld without consulting or updating
+// req.HeldChain, so nothing it does is ever recorded as served.
+//
+// An ordinary call withholds through req.HeldChain exactly as an
+// instructions call does, except that a caller holding no card is never
+// withheld from at all: there is no column to name for Reread, and a
+// Withheld answer with nothing to recover from would cost more than it
+// saves. Where at least one layer was withheld and the caller holds
+// something, Reread names the column of the earliest-arrival card in
+// holding.
+func (l *Library) primeInstructions(req *Request, holding []CardView) (Instructions, []string) {
+	if req.Brief {
+		instructions := Instructions{}
+		note := func(name, text string) {
+			if text == "" {
+				return
+			}
+			instructions.Withheld = append(instructions.Withheld, name)
+		}
+		note(LayerGlobal, bench.GlobalInstructions(l.Home))
+		note(LayerStanding, l.Bench.Standing)
+		return instructions, nil
+	}
+	s := newLayerServer(req, len(holding) > 0)
+	s.layer(LayerGlobal, bench.GlobalInstructions(l.Home), &s.instructions.Global)
+	s.layer(LayerStanding, l.Bench.Standing, &s.instructions.Standing)
+	if len(s.instructions.Withheld) > 0 && len(holding) > 0 {
+		if column := l.Bench.Column(holding[0].Column); column != nil {
+			s.instructions.Reread = columnRef(column)
+		}
+	}
+	return *s.instructions, s.served
 }
 
 // CheckReport is what check answers with: the structural defects the bench
