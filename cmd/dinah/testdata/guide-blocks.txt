@@ -47,6 +47,6 @@ internal/guide/guides/mcp.md:326 shows=json
 internal/guide/guides/mcp.md:330 shows=json
 internal/guide/guides/mcp.md:415 shows=json
 internal/guide/guides/mcp.md:428 shows=json
-internal/guide/guides/on-behalf.md:63 shows=shell reason=the command sets the three declaration variables in the environment ahead of dinah and continues onto a second line, which is shell syntax no replay here runs
+internal/guide/guides/on-behalf.md:62 shows=shell reason=the command sets the three declaration variables in the environment ahead of dinah and continues onto a second line, which is shell syntax no replay here runs
 internal/guide/guides/principles.md:29 shows=table command=list columns
 internal/guide/guides/workbench-layout.md:6 shows=tree reason=TestTheLayoutGuideDrawsPathsTheToolWrites holds every path this block draws
