@@ -27,13 +27,12 @@ A question nobody has answered stays open until the operator answers it, and
 recording your guess under the operator's name closes it with a ruling nobody
 gave.
 
-A ruling that reaches you through somebody else is not a statement to you. When
-an agent that dispatched you passes on what the operator said, the agent that
-heard the operator records the ruling. The exception is a relay that carries
-the operator's words verbatim and says where the operator gave them, and then
-your record quotes those words and names the agent that relayed them. If the
-only words you can point to are somebody's account of what the operator said,
-ask the operator.
+A ruling that reaches you through somebody else is not a statement to you, and
+no relay makes it one. When an agent that dispatched you passes on what the
+operator said, even quoting the operator's words verbatim and naming where
+they were given, the agent that heard the operator is the one who records the
+ruling. If the only words you can point to are somebody's account of what the
+operator said, ask the operator.
 
 The operator may also give a standing permission, one that covers a kind of act
 rather than one item, such as carrying cards through a station without
