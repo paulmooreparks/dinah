@@ -46,7 +46,13 @@ func containedPath(dir string) string {
 // newLibrary builds the bench and the library both heads project.
 func newLibrary(t *testing.T) *verb.Library {
 	t.Helper()
-	base := t.TempDir()
+	return newLibraryUnder(t, t.TempDir())
+}
+
+// newLibraryUnder is newLibrary with the base directory named, for a test that
+// wants two workbenches beneath one root a single head can reach.
+func newLibraryUnder(t *testing.T, base string) *verb.Library {
+	t.Helper()
 	root := containedPath(filepath.Join(base, "workbench"))
 	// The fixture instantiates the bench directly rather than through
 	// verb.Init, which mints its own identifier; these tests want a bench at a
@@ -87,10 +93,10 @@ func newLibrary(t *testing.T) *verb.Library {
 	return library
 }
 
-// ask drives one JSON-RPC request through the head and returns the response.
-// The root defaults to the test's bench root, which holds exactly the one
-// workbench newLibrary opens; the libraries map is held by the test helper so
-// each ask call reuses what an earlier ask opened.
+// ask drives one JSON-RPC request through the head, served under ProfileAll,
+// and returns the response. The root defaults to the test's bench root, which
+// holds exactly the one workbench newLibrary opens; the libraries map is held
+// by the test helper so each ask call reuses what an earlier ask opened.
 func ask(t *testing.T, library *verb.Library, line string) *response {
 	t.Helper()
 	return askUnderRoot(t, library.Bench.Root, library, line)
@@ -102,8 +108,17 @@ func ask(t *testing.T, library *verb.Library, line string) *response {
 // every other test reads one.
 func askUnderRoot(t *testing.T, root string, library *verb.Library, line string) *response {
 	t.Helper()
+	return askUnderProfile(t, root, ProfileAll, library, line)
+}
+
+// askUnderProfile is ask for a test that names the tool-surface profile the
+// connection is served under, which is how the profile-filtering tests below
+// drive a call through a narrowed surface without duplicating the transport
+// plumbing every other test in this file already shares.
+func askUnderProfile(t *testing.T, root, profile string, library *verb.Library, line string) *response {
+	t.Helper()
 	out := &strings.Builder{}
-	if err := Serve(root, library, map[string]*verb.Library{}, strings.NewReader(line+"\n"), out); err != nil {
+	if err := Serve(root, library, map[string]*verb.Library{}, strings.NewReader(line+"\n"), out, profile); err != nil {
 		t.Fatalf("serve: %v", err)
 	}
 	answer := &response{}
@@ -168,8 +183,8 @@ func TestToolSurfaceIsTheProjection(t *testing.T) {
 	if err := json.Unmarshal(encoded, &listed); err != nil {
 		t.Fatalf("tools/list: %v", err)
 	}
-	if len(listed.Tools) != 43 {
-		t.Errorf("wanted forty-three tools, got %d", len(listed.Tools))
+	if len(listed.Tools) != 44 {
+		t.Errorf("wanted forty-four tools, got %d", len(listed.Tools))
 	}
 	names := map[string]bool{}
 	for _, tool := range listed.Tools {
@@ -531,7 +546,7 @@ func TestGuidesAreResourcesAndMatchTheCLI(t *testing.T) {
 func TestNotificationsGetNoAnswer(t *testing.T) {
 	library := newLibrary(t)
 	out := &strings.Builder{}
-	if err := Serve(library.Bench.Root, library, map[string]*verb.Library{}, strings.NewReader(`{"jsonrpc":"2.0","method":"notifications/initialized"}`+"\n"), out); err != nil {
+	if err := Serve(library.Bench.Root, library, map[string]*verb.Library{}, strings.NewReader(`{"jsonrpc":"2.0","method":"notifications/initialized"}`+"\n"), out, ProfileAll); err != nil {
 		t.Fatalf("serve: %v", err)
 	}
 	if out.String() != "" {
@@ -562,7 +577,7 @@ func TestUnknownMethodIsATransportError(t *testing.T) {
 func rawStream(t *testing.T, library *verb.Library, lines ...string) []map[string]json.RawMessage {
 	t.Helper()
 	out := &strings.Builder{}
-	if err := Serve(library.Bench.Root, library, map[string]*verb.Library{}, strings.NewReader(strings.Join(lines, "\n")+"\n"), out); err != nil {
+	if err := Serve(library.Bench.Root, library, map[string]*verb.Library{}, strings.NewReader(strings.Join(lines, "\n")+"\n"), out, ProfileAll); err != nil {
 		t.Fatalf("serve: %v", err)
 	}
 	var answers []map[string]json.RawMessage
@@ -684,7 +699,7 @@ func TestServeEndsCleanlyAfterAMalformedLine(t *testing.T) {
 		`{"jsonrpc":"2.0","id":2,"method":"ping","params":{}}`,
 	}, "\n") + "\n"
 	out := &strings.Builder{}
-	if err := Serve(library.Bench.Root, library, map[string]*verb.Library{}, strings.NewReader(stream), out); err != nil {
+	if err := Serve(library.Bench.Root, library, map[string]*verb.Library{}, strings.NewReader(stream), out, ProfileAll); err != nil {
 		t.Fatalf("a stream carrying malformed lines ended with an error: %v", err)
 	}
 }
@@ -1380,7 +1395,7 @@ func TestARootRemovedSinceTheServerStartedRefusesOutsideRoot(t *testing.T) {
 func askUnboundedStream(t *testing.T, root string, library *verb.Library, lines ...string) []*response {
 	t.Helper()
 	out := &strings.Builder{}
-	if err := Serve(root, library, map[string]*verb.Library{}, strings.NewReader(strings.Join(lines, "\n")+"\n"), out); err != nil {
+	if err := Serve(root, library, map[string]*verb.Library{}, strings.NewReader(strings.Join(lines, "\n")+"\n"), out, ProfileAll); err != nil {
 		t.Fatalf("serve: %v", err)
 	}
 	var answers []*response

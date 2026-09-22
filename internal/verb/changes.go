@@ -6,6 +6,7 @@ import (
 	"errors"
 	"sort"
 	"strings"
+	"time"
 
 	"dinah/internal/bench"
 	"dinah/internal/contract"
@@ -322,7 +323,86 @@ func (c cursor) coverThrough(delivered []position) cursor {
 // anchor is saved and no basis is consumed, which is why it does not lapse an
 // expired claim the way the other reads of the bench do: reporting a card as
 // stored is the honest answer from a call that is not allowed to change it.
+//
+// A call carrying req.Wait holds the call open rather than answering the
+// first checkpoint immediately; waitForChange is the whole of what that adds,
+// and it is reached only after the flag-grammar refusals in
+// cmd/dinah/commands.go, so a call that reaches here with Wait set is already
+// known to carry a non-empty Since and no Root.
 func (l *Library) Changes(req *Request) (*ChangeSet, error) {
+	if req.Wait {
+		return l.waitForChange(req)
+	}
+	return l.checkpoint(req)
+}
+
+// waitPollInterval is the fixed sleep between iterations of a waiting changes
+// call. D-2 (dinah-546): measured cost is about 40ms per full checkpoint walk
+// against this project's own 337-entity workbench, so this interval leaves
+// comfortable headroom while still giving sub-second wake latency; a flag
+// would add a surface for a value nothing here shows a present need to tune.
+const waitPollInterval = 500 * time.Millisecond
+
+// waitForChange runs the ordinary checkpoint on a fixed interval until either
+// it reports a change (or an error) or req.Timeout's deadline passes, which
+// never happens when req.Timeout is zero. It follows internal/lsp/poll.go's
+// own adaptive-sleep rule rather than importing it, since that package
+// already imports this one: the sleep between iterations is the larger of
+// waitPollInterval and the duration the checkpoint just took, so a slow
+// workbench degrades the wait's own latency instead of running two walks at
+// once or spinning a core.
+//
+// The first iteration runs before any sleep, so a caller already behind gets
+// exactly the answer an unconditional changes --since <cursor> would give,
+// with no waiting at all. The deadline, when one is set, additionally caps
+// the last sleep so a call does not overshoot it by up to one whole interval.
+//
+// No new synchronization primitive is introduced beyond time.Sleep and a
+// deadline comparison: the CLI process runs one command per invocation on one
+// goroutine, so nothing here races anything else in the same process. A
+// concurrent second process, or another shell running as the same or a
+// different actor, changing the workbench while this one waits is exactly
+// what wakes it, because the digest terms carry no notion of who wrote the
+// bytes, only that they moved.
+func (l *Library) waitForChange(req *Request) (*ChangeSet, error) {
+	var deadline time.Time
+	if req.Timeout > 0 {
+		deadline = time.Now().Add(req.Timeout)
+	}
+	for {
+		started := time.Now()
+		set, err := l.checkpoint(req)
+		walked := time.Since(started)
+		if err != nil {
+			return nil, err
+		}
+		if set.Changed {
+			return set, nil
+		}
+		if !deadline.IsZero() && !time.Now().Before(deadline) {
+			return set, nil
+		}
+		sleep := waitPollInterval
+		if walked > sleep {
+			sleep = walked
+		}
+		if !deadline.IsZero() {
+			if remaining := time.Until(deadline); remaining < sleep {
+				sleep = remaining
+			}
+		}
+		if sleep > 0 {
+			time.Sleep(sleep)
+		}
+	}
+}
+
+// checkpoint is the ordinary, immediate answer Changes has always given: one
+// walk of the bench compared against the caller's cursor. waitForChange calls
+// it once per iteration; every caller that does not set req.Wait reaches it
+// directly through Changes and sees no behavior below this point that did not
+// exist before this card.
+func (l *Library) checkpoint(req *Request) (*ChangeSet, error) {
 	live, archive, columns, err := l.Bench.WatchedEntities()
 	if err != nil {
 		return nil, err

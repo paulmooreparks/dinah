@@ -395,12 +395,13 @@ func TestDeleteRemovesTheColumnFromTheDefinition(t *testing.T) {
 // keeps opening and working normally afterwards.
 func TestRetiringTheLastColumnIsRefused(t *testing.T) {
 	// Both lists gained the harness row at dinah-496, spliced ahead of every
-	// writing command's own rows, so the position each name is asserted at is
-	// one further along than the rows this card numbered.
-	if got := Checks("archive"); len(got) != 4 || got[3].Refusal != contract.LastColumn {
+	// writing command's own rows, and the operator row at dinah-545, spliced
+	// ahead of the occupancy row, so the position each name is asserted at is
+	// two further along than the rows this card numbered.
+	if got := Checks("archive"); len(got) != 5 || got[4].Refusal != contract.LastColumn {
 		t.Fatalf("archive's preconditions: wanted dinah.last-column last, got %+v", got)
 	}
-	if got := Checks("delete"); len(got) != 5 || got[4].Refusal != contract.LastColumn {
+	if got := Checks("delete"); len(got) != 6 || got[5].Refusal != contract.LastColumn {
 		t.Fatalf("delete's preconditions: wanted dinah.last-column last, got %+v", got)
 	}
 

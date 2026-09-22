@@ -74,7 +74,8 @@ READ
     [--root <path>] [--max-depth <n>]
   show <ref> [--fields <list>] [--all] [--archived]      The detail of an entity of this workbench
     [--since <ordinal>] [--unresolved]
-  changes [--since <cursor>] [--card <ref>]              What has happened on this workbench since a cursor
+  changes [--since <cursor>] [--wait]                    What has happened on this workbench since a cursor
+    [--timeout <duration>] [--card <ref>]
     [--column <column>] [--root <path>] [--max-depth <n>]
   instructions <card|column>                             The instructions served at a position
   guide [topic]                                          The embedded guides, or one of them
@@ -108,7 +109,7 @@ WORKBENCH
   version [--catalogs]                                   What Dinah is and what it conforms to
 
 SERVE
-  mcp [--root <dir>]                                     Serve workbenches over MCP on stdio
+  mcp [--root <dir>] [--tools <profile>]                 Serve workbenches over MCP on stdio
   lsp [--root <dir>] [--annotate-prose]                  Serve one workbench to an editor over LSP on stdio
     [--poll-seconds <n>] [--stdio]
 
@@ -172,7 +173,8 @@ READ
   search <phrase> [--query <terms>] [--archived] [--root <path>] [--max-depth <n>]                      Every place a phrase occurs in this workbench
   tree [query] [--group-by <axes>] [--depth <level>] [--root <path>] [--max-depth <n>]                  The workbench's cards nested along a chain of axes
   show <ref> [--fields <list>] [--all] [--archived] [--since <ordinal>] [--unresolved]                  The detail of an entity of this workbench
-  changes [--since <cursor>] [--card <ref>] [--column <column>] [--root <path>] [--max-depth <n>]       What has happened on this workbench since a cursor
+  changes [--since <cursor>] [--wait] [--timeout <duration>] [--card <ref>] [--column <column>]         What has happened on this workbench since a cursor
+    [--root <path>] [--max-depth <n>]
   instructions <card|column>                                                                            The instructions served at a position
   guide [topic]                                                                                         The embedded guides, or one of them
 
@@ -197,7 +199,7 @@ WORKBENCH
   version [--catalogs]                                                                                  What Dinah is and what it conforms to
 
 SERVE
-  mcp [--root <dir>]                                                                                    Serve workbenches over MCP on stdio
+  mcp [--root <dir>] [--tools <profile>]                                                                Serve workbenches over MCP on stdio
   lsp [--root <dir>] [--annotate-prose] [--poll-seconds <n>] [--stdio]                                  Serve one workbench to an editor over LSP on stdio
 
 Global flags:
@@ -513,10 +515,10 @@ func notedCommands(s *session) []string {
 // which is the documented behaviour of every wrap in this binary.
 func TestNoNoteLineReachesPastTheWindow(t *testing.T) {
 	// A sweep over no notes at all would pass whatever wrapNote did, so the
-	// count is pinned before the sweep runs. Four commands carry a note today:
-	// check, resolve, verify and fail.
-	if named := notedCommands(helpSession(80, "en")); len(named) != 4 {
-		t.Fatalf("wanted four commands carrying a note, got %d: %v", len(named), named)
+	// count is pinned before the sweep runs. Five commands carry a note today:
+	// check, resolve, verify, fail and reshape.
+	if named := notedCommands(helpSession(80, "en")); len(named) != 5 {
+		t.Fatalf("wanted five commands carrying a note, got %d: %v", len(named), named)
 	}
 	for _, tag := range msg.Tags() {
 		for _, window := range helpSweepWindows() {

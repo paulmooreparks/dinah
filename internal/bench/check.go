@@ -108,6 +108,18 @@ const (
 	// may hold somebody's column is a destructive act, and reading it is
 	// what an operator needs before deciding anything.
 	FindingOrphanedColumnDirectory = "check.orphaned-column-directory"
+	// FindingColumnBodyOverLimit names a declared column whose body is
+	// longer, in bytes, than the column_body_limit the workbench declares.
+	// Path is the column's anchor and Detail is the column's reference, then
+	// the body's size and the limit written as size/limit. It is reported at
+	// cleanup severity, because a long body works and only costs every
+	// arrival at the column the reading of it.
+	FindingColumnBodyOverLimit = "check.column-body-over-limit"
+	// FindingColumnBodyLimitMalformed names a column_body_limit that is not a
+	// whole number of bytes above zero. Path is the workbench's anchor and
+	// Detail is the value as stored, and no body is measured in a run that
+	// reports it.
+	FindingColumnBodyLimitMalformed = "check.column-body-limit-malformed"
 	// FindingBareWorkbench names a directory carrying a workbench.md this tool
 	// recognises as its own and sitting outside any .dinah container, which
 	// the containment rule means is no longer a workbench. It is reported
@@ -499,6 +511,7 @@ func (b *Bench) Check() ([]Finding, error) {
 	findings = append(findings, b.checkRejectTargets()...)
 	findings = append(findings, b.checkRoutes()...)
 	findings = append(findings, b.checkColumnLevels()...)
+	findings = append(findings, b.checkColumnBodySizes()...)
 	workstreamFindings, err := b.checkWorkstreams()
 	if err != nil {
 		return findings, err
@@ -700,6 +713,43 @@ func (b *Bench) checkColumnLevels() []Finding {
 			Path:   b.ColumnAnchorPath(column.ID),
 			Key:    FindingUnknownLevel,
 			Detail: TierField + "@" + column.Ref() + " " + column.Tier,
+		})
+	}
+	return findings
+}
+
+// checkColumnBodySizes measures each declared column's body against the
+// column_body_limit the workbench declares, in bytes of the body as the anchor
+// parser returns it, which is the text every arrival at the column is served.
+// The frontmatter is not counted, because it is never served. An absent
+// declaration measures nothing, and a declaration that is not a whole number
+// above zero is reported in place of any measurement.
+func (b *Bench) checkColumnBodySizes() []Finding {
+	if b.FM == nil || !b.FM.Has(ColumnBodyLimitField) {
+		return nil
+	}
+	stored := b.FM.Value(ColumnBodyLimitField)
+	limit, err := strconv.Atoi(stored)
+	if err != nil || limit < 1 {
+		malformed := Finding{
+			Path:   filepath.Join(b.Root, WorkbenchAnchor),
+			Key:    FindingColumnBodyLimitMalformed,
+			Detail: stored,
+		}
+		return []Finding{malformed}
+	}
+	var findings []Finding
+	for _, column := range b.Columns {
+		size := len(column.Instructions)
+		if size <= limit {
+			continue
+		}
+		detail := column.Ref() + " " + strconv.Itoa(size) + "/" + strconv.Itoa(limit)
+		findings = append(findings, Finding{
+			Path:     b.ColumnAnchorPath(column.ID),
+			Key:      FindingColumnBodyOverLimit,
+			Detail:   detail,
+			Severity: SeverityCleanup,
 		})
 	}
 	return findings

@@ -383,6 +383,7 @@ var exemptions = []Exemption{
 	{Function: "AddComment", Ground: GroundCreates, Reason: "mints a comment from the body it is about to store"},
 	{Function: "AddItem", Ground: GroundCreates, Reason: "mints a checklist item from the text it is about to store"},
 	{Function: "AddAttachment", Ground: GroundCreates, Reason: "mints an attachment from the file it is about to copy in"},
+	{Function: "AddAttachmentBytes", Ground: GroundCreates, Reason: "mints an attachment from bytes the caller already holds"},
 	{Function: "ReplaceAttachment", Ground: GroundCreates, Reason: "writes new bytes under an attachment the caller already resolved"},
 	{Function: "RenameAttachment", Ground: GroundCreates, Reason: "stores a new filename on an attachment the caller already resolved"},
 	{Function: "AdoptWorkstream", Ground: GroundCreates, Reason: "creates a workstream at an identifier a card already names, building it in memory and saving it"},

@@ -90,19 +90,25 @@ const (
 // libraries is the map every per-call dispatch reads against. Serve owns the
 // map and the entries it opens, the way it owns the single library today.
 //
+// profile is which tool-surface profile this connection is served under, one
+// of ProfileStation, ProfileOperator or ProfileAll, resolved once by the
+// caller at server startup. It is a server-shape fact rather than a per-call
+// fact, unlike harness, which a call declares, so it is threaded through the
+// call chain below it rather than read off any one request.
+//
 // Serve also owns the connection's memory of the instruction chain it has
 // already sent. A connection is a process here, because this head reads one
 // stream pair in a strictly sequential scanner loop and cmd/dinah wires that
 // pair to stdin and stdout, so the memory's lifetime is the process's. The day
 // this head grows a transport where a connection is not a process, the memory
 // has to be keyed on something that transport supplies.
-func Serve(root string, defaultLib *verb.Library, libraries map[string]*verb.Library, in io.Reader, out io.Writer) error {
-	return serveWith(root, defaultLib, libraries, in, out, newChainMemory())
+func Serve(root string, defaultLib *verb.Library, libraries map[string]*verb.Library, in io.Reader, out io.Writer, profile string) error {
+	return serveWith(root, defaultLib, libraries, in, out, profile, newChainMemory())
 }
 
 // serveWith is Serve over a memory the caller built, which is how a test drives
 // the expiry bounds against an injected clock rather than by sleeping.
-func serveWith(root string, defaultLib *verb.Library, libraries map[string]*verb.Library, in io.Reader, out io.Writer, memory *chainMemory) error {
+func serveWith(root string, defaultLib *verb.Library, libraries map[string]*verb.Library, in io.Reader, out io.Writer, profile string, memory *chainMemory) error {
 	reader := bufio.NewScanner(in)
 	reader.Buffer(make([]byte, 0, 64*1024), 8*1024*1024)
 	encoder := json.NewEncoder(out)
@@ -118,7 +124,7 @@ func serveWith(root string, defaultLib *verb.Library, libraries map[string]*verb
 			}
 			continue
 		}
-		answer := dispatch(root, defaultLib, libraries, &req, memory)
+		answer := dispatch(root, defaultLib, libraries, &req, profile, memory)
 		if answer == nil {
 			continue
 		}
@@ -152,7 +158,7 @@ func malformedLineResponse(err error) *response {
 
 // dispatch answers one request, or returns nil for a notification, which
 // carries no identifier and wants no answer.
-func dispatch(root string, defaultLib *verb.Library, libraries map[string]*verb.Library, req *request, memory *chainMemory) *response {
+func dispatch(root string, defaultLib *verb.Library, libraries map[string]*verb.Library, req *request, profile string, memory *chainMemory) *response {
 	if len(req.ID) == 0 {
 		return nil
 	}
@@ -161,9 +167,9 @@ func dispatch(root string, defaultLib *verb.Library, libraries map[string]*verb.
 	case "initialize":
 		answer.Result = initializeResult(root, defaultLib)
 	case "tools/list":
-		answer.Result = map[string]any{"tools": toolList()}
+		answer.Result = map[string]any{"tools": toolList(profile)}
 	case "tools/call":
-		result, err := call(root, defaultLib, libraries, req.Params, memory)
+		result, err := call(root, defaultLib, libraries, req.Params, profile, memory)
 		if err != nil {
 			answer.Error = &rpcError{Code: codeInvalidParams, Message: err.Error()}
 			return answer
@@ -223,7 +229,9 @@ func workingAgreement(root string, defaultLib *verb.Library) string {
 	b.WriteString("4. Do not move a card out of an operator-owned column unless you are the operator.\n\n")
 	b.WriteString("Every response carries an affordances member naming what you may do next. ")
 	b.WriteString("A successful claim or move carries the moves the flow allows and the ")
-	b.WriteString("instructions of the position, which travel in three separate layers and are ")
+	b.WriteString("instructions of the position, which travel in three separate layers, followed ")
+	b.WriteString("where the column carries attachments by a listing of them under ")
+	b.WriteString("instructions.column_attachments, and are ")
 	b.WriteString("never written into one another. Tokens are canonical on this surface and ")
 	b.WriteString("are never translated.\n\n")
 	b.WriteString("A layer whose current text this connection has already sent you is withheld ")
@@ -231,7 +239,7 @@ func workingAgreement(root string, defaultLib *verb.Library) string {
 	b.WriteString("alongside instructions.reread. Ask yourself, for each name listed there, ")
 	b.WriteString("whether you can still see that text. Where you cannot, call instructions with ")
 	b.WriteString("the value of reread as its card argument: that request names a column rather ")
-	b.WriteString("than a card, it never withholds, and it answers with all three layers in full. ")
+	b.WriteString("than a card, it never withholds, and it answers with every layer and the listing in full. ")
 	b.WriteString("Its answer carries no legal moves and no loop, because a column named on its ")
 	b.WriteString("own carries no card to compute either for, and you still hold those from the ")
 	b.WriteString("response that withheld the chain. Nothing is lost if you never ask: a withheld ")
@@ -239,7 +247,8 @@ func workingAgreement(root string, defaultLib *verb.Library) string {
 	b.WriteString("tool calls on this connection, whichever comes first. This head loads the ")
 	b.WriteString("workbench's standing text and each column's text once, so an edit to either ")
 	b.WriteString("reaches you when the process restarts and not before; the user-global layer ")
-	b.WriteString("is read from disk on every serve.\n\n")
+	b.WriteString("is read from disk on every serve, and so is a column's attachment listing, ")
+	b.WriteString("whose entries each carry the path to read the bytes from.\n\n")
 	switch {
 	case defaultLib != nil && root != "":
 		b.WriteString(catalog.T("mcp.reach", "root", root, "title", defaultLib.Bench.Title))
@@ -315,7 +324,7 @@ func readResource(params json.RawMessage) (map[string]any, error) {
 // Both dispatch paths check the call's argument names against what the tool
 // declares before they act on any of them, so an argument this surface never
 // published is refused rather than read past.
-func call(root string, defaultLib *verb.Library, libraries map[string]*verb.Library, params json.RawMessage, memory *chainMemory) (map[string]any, error) {
+func call(root string, defaultLib *verb.Library, libraries map[string]*verb.Library, params json.RawMessage, profile string, memory *chainMemory) (map[string]any, error) {
 	var args struct {
 		Name      string         `json:"name"`
 		Arguments map[string]any `json:"arguments"`
@@ -323,13 +332,18 @@ func call(root string, defaultLib *verb.Library, libraries map[string]*verb.Libr
 	if err := json.Unmarshal(params, &args); err != nil {
 		return nil, err
 	}
+	served := toolsByNameFor(profile)
 	// The roster word workbenches asks about directories rather than about a
 	// workbench, so it is answered off the server's own root before any
 	// library is resolved. It is the one reference the list tool answers
 	// without opening a workbench at all.
 	if args.Name == "list" {
 		if ref, _ := args.Arguments["ref"].(string); strings.TrimSpace(ref) == verb.RosterWorkbenches {
-			if err := checkArguments(toolsByName["list"], args.Arguments); err != nil {
+			listTool, ok := served["list"]
+			if !ok {
+				return nil, contract.Refuse(contract.UnknownVerb, args.Name)
+			}
+			if err := checkArguments(listTool, args.Arguments); err != nil {
 				return nil, err
 			}
 			if err := verb.CheckWorkbenchesFlags(request2Args("list", args.Arguments)); err != nil {
@@ -338,7 +352,13 @@ func call(root string, defaultLib *verb.Library, libraries map[string]*verb.Libr
 			return answerWorkbenches(root, defaultLib, args.Arguments)
 		}
 	}
-	tool, ok := toolsByName[args.Name]
+	// A call naming a tool that exists but is outside the connection's served
+	// profile is refused exactly the same way a call naming a tool that never
+	// existed is: dinah.unknown-command, ahead of any argument check. A
+	// profile is what makes a tool exist or not exist for this connection, so
+	// there is no functional difference on the wire between the two cases,
+	// and the surface does not create one a client could probe against.
+	tool, ok := served[args.Name]
 	if !ok {
 		return nil, contract.Refuse(contract.UnknownVerb, args.Name)
 	}
@@ -983,6 +1003,8 @@ func assignValue(req *verb.Request, name, field, value string) {
 		req.Reason = value
 	case "kind":
 		req.Kind = value
+	case "state":
+		req.State = value
 	case "capacity":
 		req.Capacity = value
 	case "before":
@@ -994,6 +1016,16 @@ func assignValue(req *verb.Request, name, field, value string) {
 	case "expires":
 		if parsed, err := verb.ParseDuration(value); err == nil {
 			req.Expires = parsed
+		}
+	case "timeout":
+		// changes holds this argument back from its schema (tools.go's
+		// argumentExemptions, dinah-546), so checkArguments refuses a call
+		// naming it before dispatch ever reaches here; the case exists for
+		// the same reason check's own held-back markers below carry one:
+		// the request-building plumbing every declared parameter gets is
+		// declared once, independent of which tool publishes the name.
+		if parsed, err := verb.ParseDuration(value); err == nil {
+			req.Timeout = parsed
 		}
 	}
 }
@@ -1043,6 +1075,12 @@ func assignMarker(req *verb.Request, name string, value bool) {
 		req.NoClaim = value
 	case "archived":
 		req.Archived = value
+	case "wait":
+		// changes holds this argument back from its schema (tools.go's
+		// argumentExemptions, dinah-546), so checkArguments refuses a call
+		// naming it before dispatch ever reaches here; see the case for
+		// "timeout" in assignValue above.
+		req.Wait = value
 	}
 }
 

@@ -1,6 +1,7 @@
 package verb
 
 import (
+	"encoding/json"
 	"sort"
 	"time"
 
@@ -150,6 +151,10 @@ type Request struct {
 	// the kind a column creation names.
 	Reason string
 	Kind   string
+	// State is the item state `settle` asks its target to land at, one of
+	// bench.ItemResolved, bench.ItemVerified, bench.ItemFailed or
+	// bench.ItemPending (the last meaning reopen). No other command reads it.
+	State string
 	// Capacity is the wip_limit a column creation names, as the caller wrote
 	// it, empty for unlimited. It is a string for the reason MaxDepth is:
 	// the verb that reads it parses it, so the request builder never has to
@@ -266,6 +271,19 @@ type Request struct {
 	// Since is the opaque cursor a checkpoint hands back, empty on a first
 	// call, which mints one rather than replaying the board's history.
 	Since string
+	// Wait holds a changes call open until the cursor advances or Timeout
+	// lapses, instead of answering immediately the way an ordinary checkpoint
+	// does. Refused when Since is empty (nothing to wait against), when Root
+	// is set, and together with a card or column filter it does not change:
+	// Changed still reports true on any whole-bench digest move, exactly as
+	// an immediate filtered call does today.
+	Wait bool
+	// Timeout bounds how long a waiting changes call blocks, parsed by
+	// ParseDuration exactly as Expires is. Zero means unbounded, the same
+	// meaning ParseDuration gives an empty Expires: the call blocks until the
+	// cursor advances, the workbench becomes unreachable, or the process is
+	// interrupted. Ignored, and refused if given, when Wait is false.
+	Timeout time.Duration
 	// Root is the root a root-scoped read walks from, as the caller wrote it,
 	// empty for the ordinary single-workbench read. A read carrying one
 	// answers for every workbench beneath it rather than for the one the
@@ -482,10 +500,15 @@ const (
 	LayerGlobal   = "global"
 	LayerStanding = "standing"
 	LayerColumn   = "column"
+	// LayerColumnAttachments names the listing of the column's own
+	// attachments, a layer of Dinah's own that section 7 of the profile
+	// permits a tool to compose after the column's text.
+	LayerColumnAttachments = "column_attachments"
 )
 
-// Instructions are the three layers of the served chain, carried separately
-// so that no layer is ever written into another.
+// Instructions are the three layers of the served chain, and the listing of
+// the column's attachments after them, carried separately so that no layer is
+// ever written into another.
 type Instructions struct {
 	// Global is the user-global layer, absent on a machine carrying none.
 	Global string `json:"global,omitempty"`
@@ -493,6 +516,12 @@ type Instructions struct {
 	Standing string `json:"standing,omitempty"`
 	// Column is the station's own instructions.
 	Column string `json:"column,omitempty"`
+	// ColumnAttachments lists the column's own live attachments, in creation
+	// order, each as a read reports it. It is a layer of Dinah's own under
+	// section 7 of the profile: it carries no text of any other layer, and it is
+	// withheld and reread on the terms the three named layers are. It is absent
+	// where the column carries no live attachment.
+	ColumnAttachments []AttachmentView `json:"column_attachments,omitempty"`
 	// Withheld names the layers this response did not carry because this
 	// connection has already sent this owner their current text. A name here
 	// is a positive statement rather than a silence: it says the layer's
@@ -712,8 +741,10 @@ func (l *Library) declaredFieldValues(fm *bench.Frontmatter, kind string) map[st
 // invocation, so every layer it serves is the text on disk. The MCP head opens
 // the library once before it begins serving, so under that head the standing
 // text and the column text are frozen for the life of the process and only the
-// user-global layer is read from disk on each serve.
-func (l *Library) serve(req *Request, card *bench.Card) (*Instructions, []string) {
+// user-global layer is read from disk on each serve. The listing of the
+// column's attachments is read from the column's directory on every serve
+// under both heads, because it never comes from the opened column.
+func (l *Library) serve(req *Request, card *bench.Card) (*Instructions, []string, error) {
 	return l.composeChain(req, l.Bench.Column(card.Column), true)
 }
 
@@ -736,33 +767,57 @@ func chainKey(actor, text string) string {
 // A column this workbench no longer declares withholds nothing, because the
 // marker owes the agent a reference that fetches the layers back and there is
 // no column to name in one.
-func (l *Library) composeChain(req *Request, column *bench.Column, withhold bool) (*Instructions, []string) {
+//
+// After the column's text comes the listing of the column's own attachments,
+// keyed by a digest over the encoding of the very slice the response carries,
+// so every field the listing serves enters its key. A column carrying no live
+// attachment adds nothing at all: no member, no key and no withheld name.
+func (l *Library) composeChain(req *Request, column *bench.Column, withhold bool) (*Instructions, []string, error) {
 	if column == nil {
 		withhold = false
 	}
 	instructions := &Instructions{}
 	var served []string
+	held := func(name, key string) bool {
+		if withhold && req.HeldChain[key] {
+			instructions.Withheld = append(instructions.Withheld, name)
+			return true
+		}
+		served = append(served, key)
+		return false
+	}
 	layer := func(name, text string, into *string) {
 		if text == "" {
 			return
 		}
-		key := chainKey(req.Actor, text)
-		if withhold && req.HeldChain[key] {
-			instructions.Withheld = append(instructions.Withheld, name)
+		if held(name, chainKey(req.Actor, text)) {
 			return
 		}
 		*into = text
-		served = append(served, key)
 	}
 	layer(LayerGlobal, bench.GlobalInstructions(l.Home), &instructions.Global)
 	layer(LayerStanding, l.Bench.Standing, &instructions.Standing)
 	if column != nil {
 		layer(LayerColumn, column.Instructions, &instructions.Column)
+		listing, err := attachmentViews(l.Bench.ColumnDir(column.ID), columnRef(column))
+		if err != nil {
+			return nil, nil, err
+		}
+		if len(listing) > 0 {
+			listingBytes, err := json.Marshal(listing)
+			if err != nil {
+				return nil, nil, err
+			}
+			key := chainKey(req.Actor, string(listingBytes))
+			if !held(LayerColumnAttachments, key) {
+				instructions.ColumnAttachments = listing
+			}
+		}
 	}
 	if len(instructions.Withheld) > 0 {
 		instructions.Reread = columnRef(column)
 	}
-	return instructions, served
+	return instructions, served, nil
 }
 
 // legalMoves reports the departures the workbench allows a card now. A card in

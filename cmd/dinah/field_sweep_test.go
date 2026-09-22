@@ -62,10 +62,11 @@ type fieldSample struct {
 // it from the other side.
 var fieldSamples = map[string]map[string]fieldSample{
 	bench.KindWorkbench: {
-		"title":        {first: "A workbench", second: "A renamed workbench"},
-		"slug":         {first: "wba", second: "wbb", extra: []string{"--yes"}},
-		"operator":     {first: "bo", second: "cy", secondActor: "bo"},
-		"instructions": {first: "First standing text.", second: "Second standing text.\n\nWith a second paragraph."},
+		"title":             {first: "A workbench", second: "A renamed workbench"},
+		"slug":              {first: "wba", second: "wbb", extra: []string{"--yes"}},
+		"operator":          {first: "bo", second: "cy", secondActor: "bo"},
+		"column_body_limit": {first: "4096", second: "8192"},
+		"instructions":      {first: "First standing text.", second: "Second standing text.\n\nWith a second paragraph."},
 	},
 	bench.KindColumn: {
 		"title":        {first: "Doing", second: "Doing, renamed"},
@@ -328,7 +329,7 @@ func sweepCall(t *testing.T, dir, tool string, arguments map[string]any) map[str
 		t.Fatalf("marshal the call: %v", err)
 	}
 	out := &strings.Builder{}
-	if err := mcp.Serve(dir, library, map[string]*verb.Library{}, strings.NewReader(string(line)+"\n"), out); err != nil {
+	if err := mcp.Serve(dir, library, map[string]*verb.Library{}, strings.NewReader(string(line)+"\n"), out, mcp.ProfileAll); err != nil {
 		t.Fatalf("serve: %v", err)
 	}
 	var answer struct {

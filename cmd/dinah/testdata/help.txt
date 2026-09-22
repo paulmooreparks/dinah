@@ -65,9 +65,10 @@ READ
   show <ref> [--fields <list>] [--all]      The detail of an entity of this
     [--archived] [--since <ordinal>]          workbench
     [--unresolved]
-  changes [--since <cursor>]                What has happened on this workbench
-    [--card <ref>] [--column <column>]        since a cursor
-    [--root <path>] [--max-depth <n>]
+  changes [--since <cursor>] [--wait]       What has happened on this workbench
+    [--timeout <duration>] [--card <ref>]     since a cursor
+    [--column <column>] [--root <path>]
+    [--max-depth <n>]
   instructions <card|column>                The instructions served at a
                                               position
   guide [topic]                             The embedded guides, or one of them
@@ -114,7 +115,7 @@ WORKBENCH
                                               to
 
 SERVE
-  mcp [--root <dir>]                        Serve workbenches over MCP on stdio
+  mcp [--root <dir>] [--tools <profile>]    Serve workbenches over MCP on stdio
   lsp [--root <dir>] [--annotate-prose]     Serve one workbench to an editor
     [--poll-seconds <n>] [--stdio]            over LSP on stdio
 

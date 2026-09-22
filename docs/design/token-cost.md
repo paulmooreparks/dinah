@@ -1752,3 +1752,82 @@ station that recovers on every read is worse off by about one round. No
 station does that, because the question a station actually has is answered by
 a filter, and the arithmetic for the station that does not recover is 63,554
 tokens saved against 115 tokens of block per round.
+
+## 2026-09-21: the tool-definition block, cut by MCP tool-surface profiles (dinah-544)
+
+`dinah mcp` gained a `--tools` flag serving one of three named subsets of the
+surface: `station`, the twenty-seven tools one agent needs to work one card
+through one column; `operator`, station's twenty-seven plus the thirteen
+workbench and column verbs; and `all`, the default, which is every tool this
+head serves today, unfiltered, plus the one new tool this card adds. That new
+tool is `settle`, an MCP-surface aggregation of `resolve_item`, `verify_item`,
+`fail_item` and `reopen_item` that takes the state the caller names as an
+argument, replacing all four in the two narrowed profiles.
+
+The harness needed one repair first. Its fixture calls `dinah init --from
+<definition>` with the definition file already written into the target
+directory, which dinah-541 (workbench discovery stops at the nearest
+repository root, landed on trunk immediately ahead of this card) turned into
+a refusal: `Init` now refuses a target directory that is not empty unless
+`--here` is passed, and the harness passed neither an empty directory nor
+that flag. `Session.__init__` (`scripts/measure_agentic_sequence.py`) now
+passes `--here` on that call, which is safe here because the directory the
+harness refuses to find empty is the one it just wrote the definition into
+itself.
+
+No API key file was available, so this run used `--counter proxy`
+(`cl100k_base` via `tiktoken`), which needs no credential. The API-counted
+figure `--counter api` produces is left for the operator to run.
+
+```
+go build -o ./dinah ./cmd/dinah
+python scripts/measure_agentic_sequence.py \
+    --dinah ./dinah \
+    --root <a scratch directory the harness may create and remove> \
+    --counter proxy \
+    --commit b54159a250805ff66ae2d0e1d8d750964a2e522c \
+    --tools all \
+    --per-tool
+```
+
+run twice, once with `--tools all` (the default `dinah mcp` already served)
+and once with `--tools station`, against one binary built from this card's
+own commit `1a30c839054ffed538c6ab64b80a4c92764c1f44`. `--commit` still names
+the pre-cutover board's commit rather than this one, for the reason the
+dinah-527 section above gives: the layer sources the script reads no longer
+exist in the tree this card's commit checks out.
+
+```
+headline totals, one line per run
+
+  all       verb run, context footprint          48821 tokens [counter=proxy encoding=cl100k_base]
+  all       verb run, cumulative billed input    477195 tokens [counter=proxy encoding=cl100k_base] (13 requests, no caching)
+  station   verb run, context footprint          42160 tokens [counter=proxy encoding=cl100k_base]
+  station   verb run, cumulative billed input    390602 tokens [counter=proxy encoding=cl100k_base] (13 requests, no caching)
+
+  cumulative saving, station against all          86593 tokens  (18.146 %)
+  footprint saving, station against all            6661 tokens  (13.644 %)
+```
+
+```
+the tool-definition block, once per run
+
+  all       tools the MCP head serves               44 tools [not a token count]
+  all       tool-definition block, once          19204 tokens [counter=proxy encoding=cl100k_base]
+  station   tools the MCP head serves               27 tools [not a token count]
+  station   tool-definition block, once          12543 tokens [counter=proxy encoding=cl100k_base]
+
+  block saving, station against all                6661 tokens  (34.685 %)
+```
+
+The block delta and the footprint saving agree exactly, 6,661 tokens either
+way, which is what a client whose cache does not carry the tool-definition
+block across turns pays back on every one of the thirteen requests this
+fixture's verb run makes; the cumulative saving, 86,593 tokens over the same
+thirteen requests, is smaller than thirteen times the block delta because the
+run's own transcript grows across requests under no-caching arithmetic and
+the tool block is a shrinking share of an otherwise-unchanged conversation.
+Station serves 61.4% of all's tools and pays 65.3% of its tokens, because
+several of the largest schemas (`set_field`, `list`, `show`, `file_item`,
+`tree`, `changes`, `add_card`) are all station tools by necessity, being the
+ordinary column work every agent does.

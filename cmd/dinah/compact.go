@@ -11,7 +11,7 @@ import (
 // field of the version record that opens every compact payload. A caller
 // reads it before assuming the field order this file fixes, and an
 // incompatible change to any record increments it.
-const compactVersion = "3"
+const compactVersion = "4"
 
 // The compact projection is a second machine form of the answers a driver
 // loop reads most: line-oriented UTF-8 rather than JSON, carrying the same
@@ -21,7 +21,7 @@ const compactVersion = "3"
 // A payload is a sequence of records, one per line, ending on a single
 // trailing newline. A record is fields joined by "|", and its first field is
 // its kind, which says how many fields follow and what each of them means. A
-// payload opens with the version record fmt|compact|2 and nothing else may
+// payload opens with the version record fmt|compact|4 and nothing else may
 // precede it.
 //
 // The record kinds, with their fields in order after the kind:
@@ -35,6 +35,7 @@ const compactVersion = "3"
 //	         workstream identifier
 //	wstream  id, ref, slug, title, status, cards
 //	instr    global, standing, column
+//	colatt   id, ordinal, ref, filename, description, provenance, path
 //	move     column, ref, title, direction, reject, on_route
 //	ctx      key, value
 //	msgval   key, value
@@ -48,12 +49,16 @@ const compactVersion = "3"
 // does not increment the version, because a record is read by index and a
 // reader that stops after the last field it knows about sees the record it
 // already knew. Inserting, renaming, reordering or removing a field is not
-// compatible and does increment it.
+// compatible and does increment it. So does a record kind added to a block,
+// because a reader of this grammar refuses a kind it does not know rather
+// than guessing how many fields follow it. The colatt record is such a kind,
+// added at version 4: one record per attachment of the column the instr
+// record serves, in creation order, standing between instr and move.
 //
 // A verb's response and a pre-verb refusal both order their records fmt, rsp,
-// card, wstream, instr, move, ctx, msgval, wb, aff, and the aff record closes
-// every one of them even when it carries no token, so a reader always has a
-// line marking where the block ends. An ls answer orders them fmt, lst, card.
+// card, wstream, instr, colatt, move, ctx, msgval, wb, aff, and the aff record
+// closes every one of them even when it carries no token, so a reader always
+// has a line marking where the block ends. An ls answer orders them fmt, lst, card.
 // A next answer orders them fmt, then off followed by that offer's card where
 // it carries one.
 //
@@ -200,6 +205,17 @@ func compactResponse(response *verb.Response) string {
 	}
 	if instructions := response.Instructions; instructions != nil {
 		payload.record("instr", instructions.Global, instructions.Standing, instructions.Column)
+		for _, attachment := range instructions.ColumnAttachments {
+			payload.record("colatt",
+				attachment.ID,
+				strconv.Itoa(attachment.Ordinal),
+				attachment.Ref,
+				attachment.Filename,
+				attachment.Description,
+				attachment.Provenance,
+				attachment.Path,
+			)
+		}
 	}
 	for _, move := range response.LegalMoves {
 		payload.record("move", move.Column, move.Ref, move.Title, move.Direction, compactFlag(move.Reject), compactFlag(move.OnRoute))

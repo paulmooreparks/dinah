@@ -177,6 +177,17 @@ type Vocabulary struct {
 	Source string
 }
 
+// The three MCP tool-surface profile names, mirrored here as plain string
+// constants rather than imported, because internal/mcp imports this package
+// and not the other way around. internal/mcp declares the same three values
+// as ProfileStation, ProfileOperator and ProfileAll; a test pins the two
+// declarations to the same spellings.
+const (
+	mcpProfileStation  = "station"
+	mcpProfileOperator = "operator"
+	mcpProfileAll      = "all"
+)
+
 // vocabularies are the closed and discoverable sets an argument may declare.
 // Sets checked by commands derive from the same declarations the commands
 // read, while sets outside this package name the head that resolves them.
@@ -193,6 +204,16 @@ var vocabularies = map[string]Vocabulary{
 	"item-kind":    {Values: bench.ItemKinds},
 	"topic":        {Source: "guides"},
 	"column":       {Source: "columns"},
+	// tool-profile is the closed set of MCP tool-surface profiles a --tools
+	// flag may name. ProfileAll is the default; naming no flag at all resolves
+	// to it before this vocabulary is ever consulted.
+	"tool-profile": {Values: []string{mcpProfileStation, mcpProfileOperator, mcpProfileAll}},
+	// item-state is the four states settle may land an item at, in the order
+	// settle's own dispatch checks them. No new vocabulary is minted for the
+	// values themselves: they are the same four names bench.ItemStates
+	// declares, so a caller who has ever read an item's own state field
+	// already knows the whole legal set.
+	"item-state": {Values: []string{bench.ItemResolved, bench.ItemVerified, bench.ItemFailed, bench.ItemPending}},
 }
 
 // VocabularyFor returns the set one argument accepts, and whether it declares
@@ -291,6 +312,7 @@ var guides = map[string][]string{
 	"verify":            {"references"},
 	"fail":              {"references"},
 	"reopen":            {"references"},
+	"settle":            {"references"},
 	"archive":           {"references"},
 	"restore":           {"references"},
 	"delete":            {"references"},
@@ -421,6 +443,18 @@ var params = map[string][]Param{
 	"reopen": {
 		{Name: "item", Required: true, Shared: "item", Guide: "references", Field: "Ref"},
 		{Name: "reason", Required: true, Rest: true, Field: "Reason"},
+	},
+	// settle is an MCP-surface aggregation of resolve, verify, fail and
+	// reopen, reached over the wire rather than from a terminal: it is
+	// declared here so it is a genuine library command with its own schema,
+	// and cmd/dinah's own roster test exempts it from dispatch rather than
+	// wiring it to a word at the command line.
+	"settle": {
+		{Name: "item", Required: true, Shared: "item", Guide: "references", Field: "Ref"},
+		{Name: "state", Required: true, Vocabulary: "item-state", Field: "State"},
+		{Name: "designation", Display: "comment", Shared: "designation", Field: "Note"},
+		{Name: "text", Flag: true, Value: "text|-", Shared: "designation-text", Field: "Text"},
+		{Name: "reason", Flag: true, Value: "reason", Field: "Reason"},
 	},
 	// link and unlink are the write side of a card's links, and they take the
 	// same three positionals in the same order so that a caller removes a
@@ -567,6 +601,8 @@ var params = map[string][]Param{
 	// means here what it means everywhere.
 	"changes": {
 		{Name: "since", Flag: true, Value: "cursor", Field: "Since"},
+		{Name: "wait", Flag: true, Marker: true, Field: "Wait"},
+		{Name: "timeout", Flag: true, Value: "duration", Field: "Timeout"},
 		{Name: "card", Flag: true, Value: "ref", Shared: "card", Field: "Card"},
 		{Name: "column", Flag: true, Value: "column", Vocabulary: "column", Field: "Column"},
 		{Name: "root", Flag: true, Value: "path", Shared: "root", Field: "Root"},
@@ -709,7 +745,10 @@ var params = map[string][]Param{
 	"version": {
 		{Name: "catalogs", Flag: true, Marker: true},
 	},
-	"mcp": {{Name: "root", Flag: true, Value: "dir"}},
+	"mcp": {
+		{Name: "root", Flag: true, Value: "dir"},
+		{Name: "tools", Flag: true, Value: "profile", Vocabulary: "tool-profile"},
+	},
 	// lsp declares its own root rather than sharing mcp's, because the two
 	// mean different things: mcp's root bounds every workbench that head may
 	// serve, and this one is a directory to search for the single workbench

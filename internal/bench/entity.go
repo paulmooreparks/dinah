@@ -271,6 +271,20 @@ type Attachment struct {
 // The caller holds the lock covering that collection, which is what makes the
 // ordinal scan race-free.
 func AddAttachment(ownerDir, source, description, provenance string) (*Attachment, error) {
+	payload, err := os.ReadFile(source)
+	if err != nil {
+		return nil, err
+	}
+	return AddAttachmentBytes(ownerDir, filepath.Base(source), payload, description, provenance)
+}
+
+// AddAttachmentBytes writes a new attachment entity into ownerDir's
+// attachments collection from bytes already in hand, stamping the next
+// ordinal. AddAttachment reads its source file and calls this, and a
+// definition carrying a column's attachments writes them through it, so the
+// two paths cannot lay an attachment out differently. The payload is written
+// byte for byte, never through WriteText, which would normalise its newlines.
+func AddAttachmentBytes(ownerDir, filename string, payload []byte, description, provenance string) (*Attachment, error) {
 	collection := filepath.Join(ownerDir, AttachmentsDir)
 	id, err := ClaimID(collection, nil)
 	if err != nil {
@@ -281,7 +295,6 @@ func AddAttachment(ownerDir, source, description, provenance string) (*Attachmen
 		return nil, err
 	}
 	dir := filepath.Join(collection, id)
-	filename := filepath.Base(source)
 	fm := NewFrontmatter()
 	fm.Set("filename", filename)
 	if description != "" {
@@ -292,7 +305,11 @@ func AddAttachment(ownerDir, source, description, provenance string) (*Attachmen
 	if err := WriteText(filepath.Join(dir, AttachmentAnchor), fm.Render("")); err != nil {
 		return nil, err
 	}
-	if err := copyFile(source, filepath.Join(dir, PayloadDir, filename)); err != nil {
+	target := filepath.Join(dir, PayloadDir, filename)
+	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+		return nil, err
+	}
+	if err := os.WriteFile(target, payload, 0o644); err != nil {
 		return nil, err
 	}
 	attachment := &Attachment{

@@ -47,7 +47,7 @@ func serveForest(t *testing.T, root, tool string, arguments map[string]any) map[
 		t.Fatalf("marshal the call: %v", err)
 	}
 	out := &strings.Builder{}
-	if err := mcp.Serve(root, library, map[string]*verb.Library{}, strings.NewReader(string(line)+"\n"), out); err != nil {
+	if err := mcp.Serve(root, library, map[string]*verb.Library{}, strings.NewReader(string(line)+"\n"), out, mcp.ProfileAll); err != nil {
 		t.Fatalf("serve: %v", err)
 	}
 	var answer struct {

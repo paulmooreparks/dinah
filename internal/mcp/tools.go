@@ -57,6 +57,18 @@ type tool struct {
 // repository, where a user setting is a machine artifact, and the operator
 // check guards the write here exactly as it does at a terminal, because the
 // library holds it.
+// The three tool-surface profiles a connection may be served under.
+// ProfileStation is what one agent working one card through one column
+// needs, ProfileOperator adds the workbench and column verbs beside it, and
+// ProfileAll, the default, serves the whole surface unfiltered. The set is
+// closed: a caller asking for a fourth name is refused before the server
+// opens any workbench.
+const (
+	ProfileStation  = "station"
+	ProfileOperator = "operator"
+	ProfileAll      = "all"
+)
+
 var tools = []tool{
 	{name: "claim", command: verb.Claim, run: doVerb},
 	{name: "move", command: verb.Move, run: doVerb},
@@ -75,6 +87,7 @@ var tools = []tool{
 	{name: "verify_item", command: "verify", run: func(l *verb.Library, r *verb.Request) any { return l.Verify(r) }},
 	{name: "fail_item", command: "fail", run: func(l *verb.Library, r *verb.Request) any { return l.Fail(r) }},
 	{name: "reopen_item", command: "reopen", run: func(l *verb.Library, r *verb.Request) any { return l.Reopen(r) }},
+	{name: "settle", command: "settle", run: func(l *verb.Library, r *verb.Request) any { return l.Settle(r) }},
 	{name: "link_card", command: "link", run: func(l *verb.Library, r *verb.Request) any { return l.Link(r) }},
 	{name: "unlink_card", command: "unlink", run: func(l *verb.Library, r *verb.Request) any { return l.Unlink(r) }},
 	{name: "archive", command: "archive", run: func(l *verb.Library, r *verb.Request) any { return l.Archive(r) }},
@@ -210,6 +223,20 @@ var argumentExemptions = map[string]map[string]string{
 	"new_column": {
 		"action": "names the first word of `dinah column new`, and this tool is that one action, so the head fills the field in and a published argument would be a value it overwrites",
 	},
+	// changes is the fourth case, and it arrives from serveWith's own shape
+	// (mcp.go:105-129): one JSON-RPC line read, dispatch blocked on, answer
+	// encoded, and only then the next line read, with no context.Context
+	// anywhere in this package and no goroutine per call. A blocking wait on
+	// this transport would either need request concurrency and cancellation
+	// handling built from nothing, or would wedge an agent's only channel to
+	// the workbench for up to the caller's own --timeout, a regression this
+	// command's "it reports and never dispatches" framing does not license.
+	// An MCP caller keeps building its own driving loop, which
+	// internal/guide/guides/mcp.md documents. dinah-546.
+	"changes": {
+		"wait":    "holds the call open until the cursor advances, and this head answers one call before reading the next line on stdin, so a caller blocked here cannot be reached by the cancellation notification the MCP specification defines until the wait itself ends",
+		"timeout": "bounds a wait this head does not offer, so a caller has no wait to bound",
+	},
 }
 
 // exemptArgument reports whether a tool holds a parameter back rather than
@@ -267,12 +294,87 @@ func indexTools() map[string]tool {
 	return index
 }
 
-// toolList renders the surface for tools/list, with each input schema
-// generated from the library's own parameter list.
-func toolList() []map[string]any {
-	catalog := msg.For(msg.Base)
-	list := make([]map[string]any, 0, len(tools))
+// stationMembers are the twenty-seven tools ProfileStation serves: what one
+// agent needs to work one card through one column, and nothing that reaches
+// past the card it is standing on.
+var stationMembers = []string{
+	"claim", "move", "release", "block", "comment", "attach",
+	"add_card", "file_item", "cite_item", "settle",
+	"link_card", "unlink_card", "join_workstream", "leave_workstream",
+	"get_field", "set_field", "raise",
+	"show", "list", "query", "search_cards", "tree", "changes",
+	"next_card", "pull", "instructions", "whoami",
+}
+
+// operatorOnlyMembers are the thirteen tools ProfileOperator adds beside
+// every station tool: the workbench and column verbs, plus the acts whose
+// blast radius is the whole board rather than one card.
+var operatorOnlyMembers = []string{
+	"unblock", "workbench", "workstream", "new_column",
+	"status", "version", "export", "check",
+	"archive", "restore", "delete", "rename", "accept_divergence",
+}
+
+// profileMembership names every tool one of the two narrowed profiles
+// serves. ProfileAll names no entry here and is handled as its own case in
+// toolsFor: every registered tool, unfiltered, which is what this head
+// serves today and what a caller naming no --tools flag, or naming all
+// explicitly, goes on seeing.
+var profileMembership = map[string][]string{
+	ProfileStation:  stationMembers,
+	ProfileOperator: append(append([]string{}, stationMembers...), operatorOnlyMembers...),
+}
+
+// init validates profileMembership the same way namedTools already validates
+// injectedProperties' consumer sets: a name naming no tool this head serves
+// panics at package init rather than silently narrowing a profile.
+func init() {
+	for profile, names := range profileMembership {
+		for _, name := range names {
+			if _, served := toolsByName[name]; !served {
+				panic("mcp: profile " + profile + " names " + name + ", which this head serves no tool for")
+			}
+		}
+	}
+}
+
+// toolsFor returns the tools one profile serves, in registry order.
+// ProfileAll (or any name profileMembership carries no entry for) returns
+// every tool.
+func toolsFor(profile string) []tool {
+	names, narrowed := profileMembership[profile]
+	if !narrowed {
+		return tools
+	}
+	set := map[string]bool{}
+	for _, name := range names {
+		set[name] = true
+	}
+	filtered := make([]tool, 0, len(names))
 	for _, t := range tools {
+		if set[t.name] {
+			filtered = append(filtered, t)
+		}
+	}
+	return filtered
+}
+
+// toolsByNameFor is toolsFor indexed for dispatch.
+func toolsByNameFor(profile string) map[string]tool {
+	index := map[string]tool{}
+	for _, t := range toolsFor(profile) {
+		index[t.name] = t
+	}
+	return index
+}
+
+// toolList renders one profile's surface for tools/list, with each input
+// schema generated from the library's own parameter list.
+func toolList(profile string) []map[string]any {
+	catalog := msg.For(msg.Base)
+	served := toolsFor(profile)
+	list := make([]map[string]any, 0, len(served))
+	for _, t := range served {
 		descriptionKey := "cmd." + t.command + ".summary"
 		if t.summaryKey != "" {
 			descriptionKey = t.summaryKey

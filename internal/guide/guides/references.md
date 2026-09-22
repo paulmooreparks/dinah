@@ -241,7 +241,7 @@ records:
 
 | Kind | Fields |
 |------|--------|
-| workbench | `title`, `slug`, `operator`, `instructions` |
+| workbench | `title`, `slug`, `operator`, `column_body_limit`, `instructions` |
 | column | `title`, `slug`, `kind`, `tier`, `capacity`, `hold`, `instructions` |
 | card | `title`, `body`, `severity`, `priority`, `tier`, `route` |
 | comment | `body` |
@@ -257,6 +257,9 @@ you can also find the answer by asking wrongly once.
 The bare `dinah workbench` listing prints `title`, `slug` and `operator` and
 leaves `instructions` out, because a listing that printed a whole instruction
 body would stop being a listing. Read it with `dinah get workbench instructions`.
+The listing also leaves `column_body_limit` out, because it is a setting that
+`dinah check` reads rather than a name for the workbench. Read it with
+`dinah get workbench column_body_limit`.
 
 Some of these fields are the entity's prose body rather than a line of its
 header: `instructions` on a workbench and on a column, `body` on a card and on

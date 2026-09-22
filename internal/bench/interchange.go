@@ -2,6 +2,7 @@ package bench
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"os"
@@ -32,11 +33,43 @@ var knownBenchKeys = map[string]bool{
 }
 
 // knownColumnKeys are the column frontmatter keys the interchange form carries
-// under a name of its own.
+// under a name of its own. AttachmentsMember is among them so that the member
+// carrying a column's attachments is never written into its frontmatter.
 var knownColumnKeys = map[string]bool{
 	"title": true, "kind": true, "operator_owned": true, "wip_limit": true,
 	"slug": true, "awaiting_outside": true, "gate_items": true,
-	FieldValuesKey: true, RequireFieldsKey: true,
+	FieldValuesKey: true, RequireFieldsKey: true, AttachmentsMember: true,
+}
+
+// AttachmentsMember is the column element member carrying the column's live
+// attachments with their bytes. The profile does not list it, so a second tool
+// preserves it under CORE-JSON-7 on the path reject_to and routes take.
+const AttachmentsMember = "attachments"
+
+// DefinitionAttachment is one element of a column's attachments member, with
+// its payload decoded. The wire form carries the payload in the standard
+// base64 encoding of RFC 4648 section 4, with padding, which is what
+// encoding/base64.StdEncoding documents.
+type DefinitionAttachment struct {
+	// Filename is the payload's name, which ValidAttachmentName accepts.
+	Filename string
+	// Description is the optional prose describing the attachment.
+	Description string
+	// Provenance says where the bytes came from, empty where the element
+	// carries none.
+	Provenance string
+	// Payload is the attachment's bytes.
+	Payload []byte
+}
+
+// wireAttachment is the encoded form of one DefinitionAttachment. The field
+// order is the order encoding/json writes a struct's fields in, which is the
+// order the member documents.
+type wireAttachment struct {
+	Filename    string `json:"filename"`
+	Description string `json:"description,omitempty"`
+	Provenance  string `json:"provenance,omitempty"`
+	Payload     string `json:"payload"`
 }
 
 // Export writes the interchange form of a bench definition.
@@ -79,7 +112,11 @@ func (b *Bench) Export() ([]byte, error) {
 	}
 	columns := make([]map[string]json.RawMessage, 0, len(b.Columns))
 	for _, column := range b.Columns {
-		columns = append(columns, exportColumn(column))
+		element, err := b.exportColumn(column)
+		if err != nil {
+			return nil, err
+		}
+		columns = append(columns, element)
 	}
 	encoded, err := json.Marshal(columns)
 	if err != nil {
@@ -89,8 +126,11 @@ func (b *Bench) Export() ([]byte, error) {
 	return json.MarshalIndent(object, "", "  ")
 }
 
-// exportColumn renders one column as an element of the columns array.
-func exportColumn(column *Column) map[string]json.RawMessage {
+// exportColumn renders one column as an element of the columns array. A
+// payload that will not read fails the export rather than being dropped,
+// because a template quietly missing a file is the loss the attachments member
+// exists to prevent.
+func (b *Bench) exportColumn(column *Column) (map[string]json.RawMessage, error) {
 	element := map[string]json.RawMessage{}
 	for _, key := range column.FM.Keys() {
 		if knownColumnKeys[key] {
@@ -139,7 +179,142 @@ func exportColumn(column *Column) map[string]json.RawMessage {
 	if len(column.RequireFields) > 0 {
 		element[RequireFieldsKey] = mustMarshal(column.RequireFields)
 	}
-	return element
+	attachments, err := exportAttachments(b.ColumnDir(column.ID))
+	if err != nil {
+		return nil, err
+	}
+	if attachments != nil {
+		element[AttachmentsMember] = attachments
+	}
+	return element, nil
+}
+
+// exportAttachments encodes the live attachments of one column directory as
+// the attachments member, in creation order, and answers nil where the column
+// carries none, so a column carrying no attachment exports exactly as it did
+// before the member existed.
+func exportAttachments(columnDir string) (json.RawMessage, error) {
+	attachments, err := Attachments(columnDir)
+	if err != nil {
+		return nil, err
+	}
+	if len(attachments) == 0 {
+		return nil, nil
+	}
+	wire := make([]wireAttachment, 0, len(attachments))
+	for _, attachment := range attachments {
+		if attachment.Path == "" {
+			return nil, contract.Refuse(contract.UnknownPath, filepath.Join(attachment.Dir, PayloadDir))
+		}
+		payload, err := os.ReadFile(attachment.Path)
+		if err != nil {
+			return nil, err
+		}
+		element := wireAttachment{
+			Filename:    attachment.Filename,
+			Description: attachment.Description,
+			Provenance:  attachment.Provenance,
+			Payload:     base64.StdEncoding.EncodeToString(payload),
+		}
+		wire = append(wire, element)
+	}
+	return json.Marshal(wire)
+}
+
+// ColumnAttachmentsOf reads a column element's attachments member, answering
+// nil where the element carries none. The member is malformed when it is not
+// an array, when an element is not an object, when filename is absent or
+// ValidAttachmentName refuses it, when payload is absent or does not decode,
+// or when description or provenance is present and not a string, and the
+// refusal is malformed with the detail attachments in every case.
+func ColumnAttachmentsOf(element map[string]json.RawMessage) ([]DefinitionAttachment, error) {
+	raw, ok := element[AttachmentsMember]
+	if !ok {
+		return nil, nil
+	}
+	malformed := contract.Refuse(contract.Malformed, AttachmentsMember)
+	if !jsonKind(raw, '[') {
+		return nil, malformed
+	}
+	var members []json.RawMessage
+	if err := json.Unmarshal(raw, &members); err != nil {
+		return nil, malformed
+	}
+	var attachments []DefinitionAttachment
+	for _, member := range members {
+		attachment, ok := definitionAttachment(member)
+		if !ok {
+			return nil, malformed
+		}
+		attachments = append(attachments, attachment)
+	}
+	return attachments, nil
+}
+
+// definitionAttachment decodes one element of an attachments member, and
+// reports false where the element breaks any rule ColumnAttachmentsOf states.
+func definitionAttachment(raw json.RawMessage) (DefinitionAttachment, bool) {
+	var attachment DefinitionAttachment
+	if !jsonKind(raw, '{') {
+		return attachment, false
+	}
+	var object map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &object); err != nil {
+		return attachment, false
+	}
+	filename, ok := stringMember(object, "filename", true)
+	if !ok || !ValidAttachmentName(filename) {
+		return attachment, false
+	}
+	encoded, ok := stringMember(object, "payload", true)
+	if !ok {
+		return attachment, false
+	}
+	payload, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		return attachment, false
+	}
+	description, ok := stringMember(object, "description", false)
+	if !ok {
+		return attachment, false
+	}
+	provenance, ok := stringMember(object, "provenance", false)
+	if !ok {
+		return attachment, false
+	}
+	attachment = DefinitionAttachment{
+		Filename:    filename,
+		Description: description,
+		Provenance:  provenance,
+		Payload:     payload,
+	}
+	return attachment, true
+}
+
+// stringMember reads one member of an object as a JSON string. It reports
+// false where the member is present and is not a string, and where it is
+// absent and required; an absent optional member reads as the empty string.
+func stringMember(object map[string]json.RawMessage, name string, required bool) (string, bool) {
+	raw, present := object[name]
+	if !present {
+		return "", !required
+	}
+	if !jsonKind(raw, '"') {
+		return "", false
+	}
+	var value string
+	if err := json.Unmarshal(raw, &value); err != nil {
+		return "", false
+	}
+	return value, true
+}
+
+// jsonKind reports whether a JSON value's first byte past any leading
+// whitespace is the one given, which is how a string, an object and an array
+// are told apart from null and from each other before decoding.
+func jsonKind(raw json.RawMessage, first byte) bool {
+	trimmed := bytes.TrimLeft(raw, jsonSpace)
+	return len(trimmed) > 0 && trimmed[0] == first
 }
 
 // mustMarshal encodes a value that cannot fail to encode: a string, a bool, an
@@ -215,6 +390,9 @@ func ReadDefinition(data []byte) (*Definition, error) {
 				return nil, contract.Refuse(contract.Malformed, member)
 			}
 		}
+		if _, err := ColumnAttachmentsOf(element); err != nil {
+			return nil, err
+		}
 	}
 	return definition, nil
 }
@@ -274,6 +452,9 @@ func Instantiate(root, slug, operator string, definition *Definition) error {
 			id = generated
 		}
 		if err := writeColumnFromMember(root, id, slugs[position], element); err != nil {
+			return err
+		}
+		if err := writeColumnAttachments(filepath.Join(root, ColumnsDir, id), operator, element); err != nil {
 			return err
 		}
 		ids = append(ids, id)
@@ -429,6 +610,29 @@ func writeColumnFromMember(root, id, slug string, element map[string]json.RawMes
 	return WriteText(filepath.Join(root, ColumnsDir, id, ColumnAnchor), fm.Render(memberString(element, "instructions")))
 }
 
+// writeColumnAttachments writes the attachments a column element carries into
+// the column's directory, in array order. An element carrying no provenance is
+// written with the operator the new workbench is given, which is who put the
+// bytes there. No journal line is written, because instantiation writes none
+// for the columns either.
+func writeColumnAttachments(columnDir, operator string, element map[string]json.RawMessage) error {
+	attachments, err := ColumnAttachmentsOf(element)
+	if err != nil {
+		return err
+	}
+	for _, attachment := range attachments {
+		provenance := attachment.Provenance
+		if provenance == "" {
+			provenance = operator
+		}
+		_, err := AddAttachmentBytes(columnDir, attachment.Filename, attachment.Payload, attachment.Description, provenance)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // sortedMembers names an interchange object's members in sorted order. Both
 // import loops ranged over a Go map before, so two clones of one definition
 // differed in frontmatter key order for no reason a reader could predict and
@@ -484,6 +688,49 @@ func (b *Bench) Extract(target string) error {
 			return err
 		}
 		if err := WriteText(filepath.Join(target, ColumnsDir, column.ID, ColumnAnchor), text); err != nil {
+			return err
+		}
+		if err := extractAttachments(b.ColumnDir(column.ID), filepath.Join(target, ColumnsDir, column.ID)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// extractAttachments copies every live attachment directory of one column into
+// the same place under the target: the anchor as text, and the one payload file
+// byte for byte, never through ReadText, which normalises newlines. Nothing
+// under the column's archive or its comments is copied, because those are
+// history and conversation rather than definition.
+func extractAttachments(sourceColumn, targetColumn string) error {
+	collection := filepath.Join(sourceColumn, AttachmentsDir)
+	ids, err := ListIDs(collection)
+	if err != nil {
+		return err
+	}
+	for _, id := range ids {
+		source := filepath.Join(collection, id)
+		target := filepath.Join(targetColumn, AttachmentsDir, id)
+		anchor, err := ReadText(filepath.Join(source, AttachmentAnchor))
+		if err != nil {
+			return err
+		}
+		if err := WriteText(filepath.Join(target, AttachmentAnchor), anchor); err != nil {
+			return err
+		}
+		payload, err := payloadOf(source)
+		if err != nil {
+			return err
+		}
+		data, err := os.ReadFile(payload)
+		if err != nil {
+			return err
+		}
+		copied := filepath.Join(target, PayloadDir, filepath.Base(payload))
+		if err := os.MkdirAll(filepath.Dir(copied), 0o755); err != nil {
+			return err
+		}
+		if err := os.WriteFile(copied, data, 0o644); err != nil {
 			return err
 		}
 	}

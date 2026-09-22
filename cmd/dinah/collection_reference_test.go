@@ -126,9 +126,13 @@ func TestEveryReferenceTakingCommandAnswersACollectionOrRefusesIt(t *testing.T) 
 		"set":               {"set", "fx-1/comments", "body", "rewritten"},
 	}
 
-	// The roster this sweep covers is held against the one internal/verb
-	// derives from its own parameter tables, so a nineteenth command taking a
-	// reference reddens here rather than being missed.
+	// The roster this sweep covers is held against commandsTakingAReference,
+	// the reference-taking commands this terminal actually dispatches, rather
+	// than against verb.ReferenceTakingCommands directly. settle is on that
+	// wider library roster (dinah-544) and carries no CLI invocation for this
+	// sweep to run, since it is served over MCP alone and exempted from this
+	// terminal's own dispatch table; see the note beside
+	// commandsTakingAReference in references_guide_test.go.
 	covered := make([]string, 0, len(accepting)+len(refusing))
 	for name := range accepting {
 		covered = append(covered, name)
@@ -137,7 +141,7 @@ func TestEveryReferenceTakingCommandAnswersACollectionOrRefusesIt(t *testing.T) 
 		covered = append(covered, name)
 	}
 	sort.Strings(covered)
-	if got, want := strings.Join(covered, " "), strings.Join(verb.ReferenceTakingCommands(), " "); got != want {
+	if got, want := strings.Join(covered, " "), strings.Join(commandsTakingAReference(), " "); got != want {
 		t.Fatalf("the sweep covers\n  %s\nand the roster is\n  %s", got, want)
 	}
 

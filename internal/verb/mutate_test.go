@@ -962,7 +962,10 @@ func TestAMoveIntoARetiringColumnCannotLand(t *testing.T) {
 		other := h.second()
 		var blocked *Response
 		h.library.Interleave = func() {
-			blocked = other.Archive(&Request{Verb: "archive", Actor: "bob", Ref: aftercare})
+			// The operator archives, because archiving a column is the
+			// operator's alone since dinah-545 and the lock is the refusal
+			// this case is about.
+			blocked = other.Archive(&Request{Verb: "archive", Actor: "alka", Ref: aftercare})
 		}
 		moved := h.library.Do(&Request{Verb: Move, Card: ref, Actor: "alka", Column: aftercare})
 		h.library.Interleave = nil

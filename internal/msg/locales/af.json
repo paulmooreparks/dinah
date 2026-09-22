@@ -121,6 +121,11 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
+    "check.archive.4": {
+      "text": "the operator acts, on a column or a column's or workbench's attachment",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
     "check.at-loop-limit": {
       "text": "column {detail} declares a loop_limit this card has already reached, so its next regressive move is refused",
       "context": "A check finding: the card standing at this column has left it backwards as often as the column's loop_limit allows. {detail} carries the declaring column.",
@@ -143,6 +148,11 @@
     },
     "check.attach.4": {
       "text": "the file resolves",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.attach.5": {
+      "text": "the operator acts, where the file goes on a column or the workbench",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
@@ -436,6 +446,16 @@
       "context": "Printed when check finds nothing.",
       "skeleton": true
     },
+    "check.column-body-limit-malformed": {
+      "text": "workbench.md declares column_body_limit as {detail}, which is not a whole number of bytes above zero, so no column body is measured against it",
+      "context": "A check finding at defect severity: the workbench's column_body_limit is not a positive whole number, so no body is measured. {detail} carries the value as stored.",
+      "skeleton": true
+    },
+    "check.column-body-over-limit": {
+      "text": "column {detail}: the body's size in bytes is larger than the column_body_limit this workbench declares, so move what a station reads only when a situation arises into an attachment on the column",
+      "context": "A check finding at cleanup severity. {detail} carries the column's reference, then the body's size and the declared limit in bytes written as size/limit, such as `review 5120/4096`. The repair is the author's: shorten the body, or raise or remove the workbench's column_body_limit.",
+      "skeleton": true
+    },
     "check.columns-removed.one": {
       "text": "Removed {count} stranded column from the list.",
       "context": "The line the stranded-column migration prints for what it removed, for exactly one column. Followed by one line per removed identifier.",
@@ -604,6 +624,11 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
+    "check.delete.5": {
+      "text": "the operator acts, on a column or a column's or workbench's attachment",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
     "check.duplicate-workbench-id": {
       "text": "one workbench identifier is claimed by more than one directory ({detail}); dinah check --remint <path> gives one of them a fresh identifier",
       "context": "A check finding: two or more directories share one workbench identifier. {detail} carries the identifier and every path claiming it. The sweep never repairs this, because a git clone and an accidental copy look identical on disk.",
@@ -767,6 +792,11 @@
     "check.mcp.2": {
       "text": "the workbench you name lies under the root",
       "context": "The second row of the precondition list of mcp, raised when --workbench names a workbench outside --root or when an MCP call names a workbench outside the root. Keep a translation at or under 52 display columns. A longer sentence takes the table row to itself and pushes the refusal name down to the line beneath.",
+      "skeleton": true
+    },
+    "check.mcp.3": {
+      "text": "--tools names one of station, operator or all",
+      "context": "The third row of the precondition list of mcp, raised before the server starts when --tools names a value outside the three tool-surface profiles. Keep a translation at or under 52 display columns. A longer sentence takes the table row to itself and pushes the refusal name down to the line beneath.",
       "skeleton": true
     },
     "check.missing-anchor": {
@@ -1254,6 +1284,11 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
+    "check.rename.6": {
+      "text": "the operator acts, on an attachment of a column or the workbench",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
     "check.required-field-undeclared": {
       "text": "a column requires a field this workbench does not declare: {detail}",
       "context": "A check finding: a column whose require_fields declaration names a key this workbench does not declare. {detail} carries the column's reference and then the key, in that order. The entry holds nothing, because a key nothing can ever be written under would make the column unreachable.",
@@ -1271,6 +1306,11 @@
     },
     "check.reshape.10": {
       "text": "no held card lands where no work is taken up",
+      "context": "One row of the ordered precondition list of reshape. Keep a translation at or under 52 display columns.",
+      "skeleton": true
+    },
+    "check.reshape.11": {
+      "text": "the operator acts, where the run writes",
       "context": "One row of the ordered precondition list of reshape. Keep a translation at or under 52 display columns.",
       "skeleton": true
     },
@@ -1326,6 +1366,11 @@
     },
     "check.restore.3": {
       "text": "nothing live stands where the entity goes back",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.restore.4": {
+      "text": "the operator acts, on a column or a column's or workbench's attachment",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
@@ -1879,6 +1924,11 @@
       "context": "The one-line summary of the reopen command, printed in the command list and above its own help.",
       "skeleton": true
     },
+    "cmd.reshape.note": {
+      "text": "A column the new definition keeps keeps its own attachments, and `attach` is how you change them.",
+      "context": "The note printed under the reshape command's own help, after its summary. It says that a column the new definition keeps keeps the attachments it already carries, whatever the definition carries for it. `attach` is a command name and is not translated.",
+      "skeleton": true
+    },
     "cmd.reshape.summary": {
       "text": "Carry this workbench to the column layout a new definition declares",
       "context": "The one-line summary of the reshape command, shown beside its syntax in the help block.",
@@ -1907,6 +1957,11 @@
     "cmd.set.summary": {
       "text": "Write one field of any entity of this workbench",
       "context": "The one-line summary of the set command, shown beside its syntax in the help block.",
+      "skeleton": true
+    },
+    "cmd.settle.summary": {
+      "text": "Close or reopen a checklist item at the state you name",
+      "context": "The one-line summary of the settle command, served as a tool over MCP and not dispatched at the terminal, where a person types the specific verb they mean instead; cmd/dinah's commandExemptions names the reason.",
       "skeleton": true
     },
     "cmd.show.summary": {
@@ -2669,6 +2724,16 @@
       "context": "The label above the column's own instructions.",
       "skeleton": true
     },
+    "instructions.column-attachments": {
+      "text": "Attachments, this column:",
+      "context": "The label above the listing of the column's own attachments, served after the column's instructions.",
+      "skeleton": true
+    },
+    "instructions.column-attachments.read": {
+      "text": "Read one with `dinah path`, naming its reference followed by `/payload`.",
+      "context": "Printed under the listing of the column's attachments. `dinah path` and `/payload` are typed literally and are not translated; the reference is one from the Ref column of the listing above.",
+      "skeleton": true
+    },
     "instructions.global": {
       "text": "Instructions, global:",
       "context": "The label above the user-global instruction layer.",
@@ -2994,6 +3059,16 @@
       "context": "The meaning of the since argument of `dinah changes`, printed in that command's arguments table.",
       "skeleton": true
     },
+    "param.changes.timeout.summary": {
+      "text": "how long a waiting call blocks, written as a number and a unit: 30m, 2h, 7d; it blocks until the cursor advances when you write none",
+      "context": "The meaning of the --timeout flag of `dinah changes`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.changes.wait.summary": {
+      "text": "hold the call open until the cursor advances or --timeout lapses, instead of answering immediately",
+      "context": "The meaning of the --wait flag of `dinah changes`, printed in that command's arguments table.",
+      "skeleton": true
+    },
     "param.check.finish.summary": {
       "text": "complete or roll back a structural act that was interrupted",
       "context": "The meaning of the finish argument of `dinah check`, printed in that command's arguments table.",
@@ -3299,6 +3374,11 @@
       "context": "The meaning of the --root argument of `dinah mcp`, printed in that command's arguments table.",
       "skeleton": true
     },
+    "param.mcp.tools.summary": {
+      "text": "which tools this server offers a caller: station for one agent working one card, operator for the workbench and column verbs beside it, or all; all when you name none",
+      "context": "The meaning of the --tools argument of `dinah mcp`, printed in that command's arguments table.",
+      "skeleton": true
+    },
     "param.move.column.summary": {
       "text": "which column to carry the card to, also written --column <column>",
       "context": "The meaning of the column argument of `dinah move`, printed in that command's arguments table.",
@@ -3427,6 +3507,16 @@
     "param.set.value.summary": {
       "text": "what to store in it; write a single dash to read it from standard input, and leave it out to clear a field that may be cleared",
       "context": "The meaning of the value argument of `dinah set`, printed in that command's arguments table. The dash is the spelling `dinah comment` already uses, and it is what sends the several lines a prose field holds.",
+      "skeleton": true
+    },
+    "param.settle.reason.summary": {
+      "text": "why a closed item is being reopened, required when state is pending and read nowhere else",
+      "context": "The written meaning of settle's reason argument, read only when state is pending, which is when settle becomes reopen.",
+      "skeleton": true
+    },
+    "param.settle.state.summary": {
+      "text": "which state the item lands at: resolved or a decision an open question is settled at, verified or failed for an acceptance criterion, or pending to reopen it",
+      "context": "The written meaning of settle's state argument, the one word this command adds beyond what resolve, verify, fail and reopen already take.",
       "skeleton": true
     },
     "param.show.card.summary": {
@@ -4373,6 +4463,16 @@
       "context": "The next step of refusal.dinah.unknown-item-kind, spliced onto the sentence that just listed the kinds. The three kind names are machine vocabulary that is never translated.",
       "skeleton": true
     },
+    "refusal.dinah.unknown-item-state": {
+      "text": "{detail} is not a state settle can land an item at. The states are resolved, verified, failed and pending.",
+      "context": "The sentence printed after the refusal name dinah.unknown-item-state, raised when settle is asked to land an item at a state outside the four the format declares, checked ahead of resolving the item. {detail} is the state the caller typed. The four state names, resolved, verified, failed and pending, are machine vocabulary that is never translated.",
+      "skeleton": true
+    },
+    "refusal.dinah.unknown-item-state.next": {
+      "text": " Settle it at resolved, verified, failed or pending.",
+      "context": "The next step of refusal.dinah.unknown-item-state, spliced onto the sentence that just listed the states. The four state names are machine vocabulary that is never translated.",
+      "skeleton": true
+    },
     "refusal.dinah.unknown-key": {
       "text": "Dinah knows no setting or field called {detail}; it knows these",
       "context": "The sentence printed after the refusal name dinah.unknown-key. {detail} carries the identifier, owner or column the refusal is about.",
@@ -4431,6 +4531,16 @@
     "refusal.dinah.unknown-root.next": {
       "text": "; point --root at a directory that does exist, or remove the option to discover one from here",
       "context": "Spliced onto refusal.dinah.unknown-root as the next step, naming the two ways past the refusal.",
+      "skeleton": true
+    },
+    "refusal.dinah.unknown-tool-profile": {
+      "text": "{detail} is not a tool profile this server offers. The profiles are station, operator and all.",
+      "context": "The sentence printed after the refusal name dinah.unknown-tool-profile, raised when --tools names a value outside the three profiles this head serves, checked before the server opens any workbench. {detail} is the value the caller typed. The three profile names, station, operator and all, are machine vocabulary that is never translated.",
+      "skeleton": true
+    },
+    "refusal.dinah.unknown-tool-profile.next": {
+      "text": " Serve it as station, operator or all.",
+      "context": "The next step of refusal.dinah.unknown-tool-profile, spliced onto the sentence that just listed the profiles. The three profile names are machine vocabulary that is never translated.",
       "skeleton": true
     },
     "refusal.dinah.unknown-value": {
@@ -5664,274 +5774,274 @@
       "skeleton": true
     },
     "check.move.5": {
-    "text": "the request names an owner",
-    "context": "One row of the ordered precondition list of move. This row is Dinah's own addition: the core profile's own section 6.3 table carries no row reading \"the request names an owner\" (only CORE-CLAIM and CORE-BLOCK's own tables do), so this key does not claim the profile's own wording the way the numbered rows above it do.",
-    "skeleton": true
-  },
+      "text": "the request names an owner",
+      "context": "One row of the ordered precondition list of move. This row is Dinah's own addition: the core profile's own section 6.3 table carries no row reading \"the request names an owner\" (only CORE-CLAIM and CORE-BLOCK's own tables do), so this key does not claim the profile's own wording the way the numbered rows above it do.",
+      "skeleton": true
+    },
     "check.release.2": {
-    "text": "the request names an owner",
-    "context": "One row of the ordered precondition list of release. This row is Dinah's own addition: the core profile's own section 6.5 table carries no row reading \"the request names an owner\" (only CORE-CLAIM and CORE-BLOCK's own tables do), so this key does not claim the profile's own wording the way the numbered rows above it do.",
-    "skeleton": true
-  },
+      "text": "the request names an owner",
+      "context": "One row of the ordered precondition list of release. This row is Dinah's own addition: the core profile's own section 6.5 table carries no row reading \"the request names an owner\" (only CORE-CLAIM and CORE-BLOCK's own tables do), so this key does not claim the profile's own wording the way the numbered rows above it do.",
+      "skeleton": true
+    },
     "check.unblock.2": {
-    "text": "the request names an owner",
-    "context": "One row of the ordered precondition list of unblock. This row is Dinah's own addition: the core profile's own section 6.6 table carries no row reading \"the request names an owner\" (only CORE-CLAIM and CORE-BLOCK's own tables do), so this key does not claim the profile's own wording the way the numbered rows above it do.",
-    "skeleton": true
-  },
+      "text": "the request names an owner",
+      "context": "One row of the ordered precondition list of unblock. This row is Dinah's own addition: the core profile's own section 6.6 table carries no row reading \"the request names an owner\" (only CORE-CLAIM and CORE-BLOCK's own tables do), so this key does not claim the profile's own wording the way the numbered rows above it do.",
+      "skeleton": true
+    },
     "check.check.1": {
-    "text": "the harness you declared is a legal name",
-    "context": "One row of the ordered precondition list of check, run when the request carries at least one repair marker. check has no numbered table in the core profile, so this row carries Dinah's own wording rather than a quotation.",
-    "skeleton": true
-  },
+      "text": "the harness you declared is a legal name",
+      "context": "One row of the ordered precondition list of check, run when the request carries at least one repair marker. check has no numbered table in the core profile, so this row carries Dinah's own wording rather than a quotation.",
+      "skeleton": true
+    },
     "check.check.2": {
-    "text": "the request names an owner",
-    "context": "One row of the ordered precondition list of check, run when the request carries at least one repair marker, immediately after the harness row above. check has no numbered table in the core profile, so this row carries Dinah's own wording rather than a quotation.",
-    "skeleton": true
-  },
+      "text": "the request names an owner",
+      "context": "One row of the ordered precondition list of check, run when the request carries at least one repair marker, immediately after the harness row above. check has no numbered table in the core profile, so this row carries Dinah's own wording rather than a quotation.",
+      "skeleton": true
+    },
     "refusal.no-owner.next-harness": {
-    "text": "; the {harness} harness is declared, so an actor configured in your settings, if any, does not apply here; run `dinah --actor <name>` or set `DINAH_ACTOR` to say who is acting",
-    "context": "Spliced onto refusal.no-owner as the next step, in place of refusal.no-owner.next, when the request that raised the refusal declared a harness: the configuration rung of the actor ladder answers only a call declaring none, so a harness-declaring call is refused rather than promoted to whatever a shared config file carries.",
-    "skeleton": true
-  },
+      "text": "; the {harness} harness is declared, so an actor configured in your settings, if any, does not apply here; run `dinah --actor <name>` or set `DINAH_ACTOR` to say who is acting",
+      "context": "Spliced onto refusal.no-owner as the next step, in place of refusal.no-owner.next, when the request that raised the refusal declared a harness: the configuration rung of the actor ladder answers only a call declaring none, so a harness-declaring call is refused rather than promoted to whatever a shared config file carries.",
+      "skeleton": true
+    },
     "status.actor.unnamed": {
-    "text": "no actor named for this process; run `dinah config set actor <name>` or set `DINAH_ACTOR` to say who is acting",
-    "context": "The second line of status when no actor resolved for this process, printed in place of status.actor so the line never interpolates an empty actor name.",
-    "skeleton": true
-  },
+      "text": "no actor named for this process; run `dinah config set actor <name>` or set `DINAH_ACTOR` to say who is acting",
+      "context": "The second line of status when no actor resolved for this process, printed in place of status.actor so the line never interpolates an empty actor name.",
+      "skeleton": true
+    },
     "card.route": {
-    "text": "  route: {route}",
-    "context": "Printed under the card line when the card walks a route the workbench declares. A card on the workbench's full column list draws no such line.",
-    "skeleton": true
-  },
+      "text": "  route: {route}",
+      "context": "Printed under the card line when the card walks a route the workbench declares. A card on the workbench's full column list draws no such line.",
+      "skeleton": true
+    },
     "check.add.6": {
-    "text": "the workbench declares the route you named",
-    "context": "One row of the precondition list of a command outside the five the profile specifies.",
-    "skeleton": true
-  },
+      "text": "the workbench declares the route you named",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
     "check.add.7": {
-    "text": "the route carries the column you are filing into",
-    "context": "One row of the precondition list of a command outside the five the profile specifies.",
-    "skeleton": true
-  },
+      "text": "the route carries the column you are filing into",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
     "check.card-off-route": {
-    "text": "{detail} stands at a column its own route does not carry",
-    "context": "A check finding: a card has been moved, rejected or re-routed onto a column its road does not carry. {detail} carries the card and the column, in that order. The card's forward move is the first route column after it, so this is worth a person's attention rather than broken.",
-    "skeleton": true
-  },
+      "text": "{detail} stands at a column its own route does not carry",
+      "context": "A check finding: a card has been moved, rejected or re-routed onto a column its road does not carry. {detail} carries the card and the column, in that order. The card's forward move is the first route column after it, so this is worth a person's attention rather than broken.",
+      "skeleton": true
+    },
     "check.card-unknown-route": {
-    "text": "{detail} names a route this workbench does not declare",
-    "context": "A check finding: a card's route names one the workbench declares. {detail} carries the card and the route name, in that order. The card walks the workbench's full column list meanwhile.",
-    "skeleton": true
-  },
+      "text": "{detail} names a route this workbench does not declare",
+      "context": "A check finding: a card's route names one the workbench declares. {detail} carries the card and the route name, in that order. The card walks the workbench's full column list meanwhile.",
+      "skeleton": true
+    },
     "check.file.1": {
-    "text": "this workbench designates an operator",
-    "context": "One row of the precondition list of a command outside the five the profile specifies.",
-    "skeleton": true
-  },
+      "text": "this workbench designates an operator",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
     "check.file.2": {
-    "text": "the card exists",
-    "context": "One row of the precondition list of a command outside the five the profile specifies.",
-    "skeleton": true
-  },
+      "text": "the card exists",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
     "check.file.3": {
-    "text": "the request names an owner",
-    "context": "One row of the precondition list of a command outside the five the profile specifies.",
-    "skeleton": true
-  },
+      "text": "the request names an owner",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
     "check.file.4": {
-    "text": "the request names a kind",
-    "context": "One row of the precondition list of a command outside the five the profile specifies.",
-    "skeleton": true
-  },
+      "text": "the request names a kind",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
     "check.file.5": {
-    "text": "the kind is one of the three a checklist records",
-    "context": "One row of the precondition list of a command outside the five the profile specifies.",
-    "skeleton": true
-  },
+      "text": "the kind is one of the three a checklist records",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
     "check.file.6": {
-    "text": "the item carries text",
-    "context": "One row of the precondition list of a command outside the five the profile specifies.",
-    "skeleton": true
-  },
+      "text": "the item carries text",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
     "check.file.7": {
-    "text": "the workbench declares the column you named",
-    "context": "One row of the precondition list of a command outside the five the profile specifies.",
-    "skeleton": true
-  },
+      "text": "the workbench declares the column you named",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
     "check.file.8": {
-    "text": "the card's route carries the column you named",
-    "context": "One row of the precondition list of a command outside the five the profile specifies.",
-    "skeleton": true
-  },
+      "text": "the card's route carries the column you named",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
     "check.item-off-route": {
-    "text": "{detail} names a column the card's route does not carry, so its hold would never fire",
-    "context": "A check finding: a pending checklist item names a column the card will never stand at. {detail} carries the card, the item and the column, in that order.",
-    "skeleton": true
-  },
+      "text": "{detail} names a column the card's route does not carry, so its hold would never fire",
+      "context": "A check finding: a pending checklist item names a column the card will never stand at. {detail} carries the card, the item and the column, in that order.",
+      "skeleton": true
+    },
     "check.route-duplicate-column": {
-    "text": "{detail} names one column twice",
-    "context": "A check finding: a route names each column once. {detail} carries the route name and the column, in that order.",
-    "skeleton": true
-  },
+      "text": "{detail} names one column twice",
+      "context": "A check finding: a route names each column once. {detail} carries the route name and the column, in that order.",
+      "skeleton": true
+    },
     "check.route-empty": {
-    "text": "the route {detail} carries no column this workbench declares",
-    "context": "A check finding: a route has to carry at least one column to be a road at all. {detail} carries the route name. A retirement that took a route's last column away produces it as well as a declaration that named none.",
-    "skeleton": true
-  },
+      "text": "the route {detail} carries no column this workbench declares",
+      "context": "A check finding: a route has to carry at least one column to be a road at all. {detail} carries the route name. A retirement that took a route's last column away produces it as well as a declaration that named none.",
+      "skeleton": true
+    },
     "check.route-missing-first-column": {
-    "text": "{detail} does not carry the workbench's first column, so no card can enter the workbench on it",
-    "context": "A check finding: cards enter a workbench at its first column, which is where dinah add files one, so a route without it has no door. {detail} carries the route name and that first column, in that order.",
-    "skeleton": true
-  },
+      "text": "{detail} does not carry the workbench's first column, so no card can enter the workbench on it",
+      "context": "A check finding: cards enter a workbench at its first column, which is where dinah add files one, so a route without it has no door. {detail} carries the route name and that first column, in that order.",
+      "skeleton": true
+    },
     "check.route-missing-terminal": {
-    "text": "{detail} ends at a column that is not a done column, so a card on it cannot finish",
-    "context": "A check finding: a route ends in the terminal region. {detail} carries the route name and the column it ends at, in that order.",
-    "skeleton": true
-  },
+      "text": "{detail} ends at a column that is not a done column, so a card on it cannot finish",
+      "context": "A check finding: a route ends in the terminal region. {detail} carries the route name and the column it ends at, in that order.",
+      "skeleton": true
+    },
     "check.route-name-malformed": {
-    "text": "the route {detail} carries a name outside the grammar a route name takes",
-    "context": "A check finding: a route name has to read as a slug, because it is typed on a command line and read back out of a refusal. {detail} carries the name, and the repair is an edit to the workbench's own routes block.",
-    "skeleton": true
-  },
+      "text": "the route {detail} carries a name outside the grammar a route name takes",
+      "context": "A check finding: a route name has to read as a slug, because it is typed on a command line and read back out of a refusal. {detail} carries the name, and the repair is an edit to the workbench's own routes block.",
+      "skeleton": true
+    },
     "check.route-out-of-order": {
-    "text": "the route {detail} lists its columns in an order other than the flow's own",
-    "context": "A check finding: a route resolves in flow order whatever order it was written in, so this says the file does not read the way it runs. {detail} carries the route name.",
-    "skeleton": true
-  },
+      "text": "the route {detail} lists its columns in an order other than the flow's own",
+      "context": "A check finding: a route resolves in flow order whatever order it was written in, so this says the file does not read the way it runs. {detail} carries the route name.",
+      "skeleton": true
+    },
     "check.route-reject-target-off-route": {
-    "text": "{detail} declares reject_to naming a column that route does not carry",
-    "context": "A check finding: a push-back on a route should land on that route. {detail} carries the route name, the declaring column and the target, in that order. The card still lands there by an ordinary move and walks forward into its route again, so this is worth knowing rather than broken.",
-    "skeleton": true
-  },
+      "text": "{detail} declares reject_to naming a column that route does not carry",
+      "context": "A check finding: a push-back on a route should land on that route. {detail} carries the route name, the declaring column and the target, in that order. The card still lands there by an ordinary move and walks forward into its route again, so this is worth knowing rather than broken.",
+      "skeleton": true
+    },
     "check.route-unknown-column": {
-    "text": "{detail} names a column this workbench does not declare",
-    "context": "A check finding: every identifier a route names is a column of the flow. {detail} carries the route name and the identifier, in that order, and the repair is an edit to the workbench's own routes block.",
-    "skeleton": true
-  },
+      "text": "{detail} names a column this workbench does not declare",
+      "context": "A check finding: every identifier a route names is a column of the flow. {detail} carries the route name and the identifier, in that order, and the repair is an edit to the workbench's own routes block.",
+      "skeleton": true
+    },
     "check.set.10": {
-    "text": "the route carries every operator-owned column ahead of the card",
-    "context": "One row of the precondition list of a command outside the five the profile specifies.",
-    "skeleton": true
-  },
+      "text": "the route carries every operator-owned column ahead of the card",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
     "check.set.9": {
-    "text": "no pending item names a column the route drops",
-    "context": "One row of the precondition list of a command outside the five the profile specifies.",
-    "skeleton": true
-  },
+      "text": "no pending item names a column the route drops",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
     "column.moves.route": {
-    "text": "On route",
-    "context": "Heading over whether this row is the forward move along the card's own route, in the legal moves printed under a served instruction. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it.",
-    "skeleton": true
-  },
+      "text": "On route",
+      "context": "Heading over whether this row is the forward move along the card's own route, in the legal moves printed under a served instruction. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it.",
+      "skeleton": true
+    },
     "column.routes.columns": {
-    "text": "Columns",
-    "context": "Heading over how many live columns a route carries, in the listing dinah list routes prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it.",
-    "skeleton": true
-  },
+      "text": "Columns",
+      "context": "Heading over how many live columns a route carries, in the listing dinah list routes prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it.",
+      "skeleton": true
+    },
     "column.routes.route": {
-    "text": "Route",
-    "context": "Heading over a route's own name, in the listing dinah list routes prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it.",
-    "skeleton": true
-  },
+      "text": "Route",
+      "context": "Heading over a route's own name, in the listing dinah list routes prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it.",
+      "skeleton": true
+    },
     "column.routes.skips": {
-    "text": "Skips",
-    "context": "Heading over the live columns a route omits, in the listing dinah list routes prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it.",
-    "skeleton": true
-  },
+      "text": "Skips",
+      "context": "Heading over the live columns a route omits, in the listing dinah list routes prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it.",
+      "skeleton": true
+    },
     "lsp.completion.route.detail": {
-    "text": "route carrying {columns} columns of the flow",
-    "context": "The detail line beside one route candidate in a completion list. {columns} is how many live columns that route carries, which is the one fact that says how short the road is without opening the block.",
-    "skeleton": true
-  },
+      "text": "route carrying {columns} columns of the flow",
+      "context": "The detail line beside one route candidate in a completion list. {columns} is how many live columns that route carries, which is the one fact that says how short the road is without opening the block.",
+      "skeleton": true
+    },
     "param.add.route.summary": {
-    "text": "which route to file the card on, from the routes this workbench declares; the full column list when you name none",
-    "context": "The meaning of the route argument of `dinah add`, printed in that command's arguments table.",
-    "skeleton": true
-  },
+      "text": "which route to file the card on, from the routes this workbench declares; the full column list when you name none",
+      "context": "The meaning of the route argument of `dinah add`, printed in that command's arguments table.",
+      "skeleton": true
+    },
     "refusal.dinah.item-off-route": {
-    "text": "the route {route} does not carry {detail}, so an item naming that column would hold this card nowhere.",
-    "context": "The sentence printed after the refusal name dinah.item-off-route, which filing an item against a column the card's own route drops carries. {detail} is the column that was named and {route} is the route the card walks.",
-    "skeleton": true
-  },
+      "text": "the route {route} does not carry {detail}, so an item naming that column would hold this card nowhere.",
+      "context": "The sentence printed after the refusal name dinah.item-off-route, which filing an item against a column the card's own route drops carries. {detail} is the column that was named and {route} is the route the card walks.",
+      "skeleton": true
+    },
     "refusal.dinah.item-off-route.next": {
-    "text": " Name a column the route carries, or change the card's route first.",
-    "context": "The next step of refusal.dinah.item-off-route, which names the two repairs open to the caller.",
-    "skeleton": true
-  },
+      "text": " Name a column the route carries, or change the card's route first.",
+      "context": "The next step of refusal.dinah.item-off-route, which names the two repairs open to the caller.",
+      "skeleton": true
+    },
     "refusal.dinah.route-off-column": {
-    "text": "the route {route} does not carry {detail}, so a card filed there would stand off its route from the start.",
-    "context": "The sentence printed after the refusal name dinah.route-off-column, which a filing whose destination column the named route drops carries. {detail} is the column the card would have landed in and {route} is the route that was named.",
-    "skeleton": true
-  },
+      "text": "the route {route} does not carry {detail}, so a card filed there would stand off its route from the start.",
+      "context": "The sentence printed after the refusal name dinah.route-off-column, which a filing whose destination column the named route drops carries. {detail} is the column the card would have landed in and {route} is the route that was named.",
+      "skeleton": true
+    },
     "refusal.dinah.route-off-column.next": {
-    "text": " File the card into a column the route carries, or name another route.",
-    "context": "The next step of refusal.dinah.route-off-column, which names the two repairs open to the caller.",
-    "skeleton": true
-  },
+      "text": " File the card into a column the route carries, or name another route.",
+      "context": "The next step of refusal.dinah.route-off-column, which names the two repairs open to the caller.",
+      "skeleton": true
+    },
     "refusal.dinah.route-skips-operator-column": {
-    "text": "the route {detail} does not carry {column}, which this card has not yet passed and which this workbench reserves to its operator.",
-    "context": "The sentence printed after the refusal name dinah.route-skips-operator-column, which a route write whose route omits an operator-owned station the card has not reached carries. {detail} is the route name that was written and {column} is the station it omits.",
-    "skeleton": true
-  },
+      "text": "the route {detail} does not carry {column}, which this card has not yet passed and which this workbench reserves to its operator.",
+      "context": "The sentence printed after the refusal name dinah.route-skips-operator-column, which a route write whose route omits an operator-owned station the card has not reached carries. {detail} is the route name that was written and {column} is the station it omits.",
+      "skeleton": true
+    },
     "refusal.dinah.route-skips-operator-column.next": {
-    "text": " Move the card past that station first, or name a route that carries it.",
-    "context": "The next step of refusal.dinah.route-skips-operator-column, which names the two repairs: carry the card past the reserved station, or write a route that keeps it.",
-    "skeleton": true
-  },
+      "text": " Move the card past that station first, or name a route that carries it.",
+      "context": "The next step of refusal.dinah.route-skips-operator-column, which names the two repairs: carry the card past the reserved station, or write a route that keeps it.",
+      "skeleton": true
+    },
     "refusal.dinah.route-strands-item": {
-    "text": "{item} names {column}, and the route {detail} does not carry that column, so the hold it was filed for would never fire.",
-    "context": "The sentence printed after the refusal name dinah.route-strands-item, which a route write on a card carrying a pending item naming a column the new route drops carries. {detail} is the route name that was written, {item} is the item's own reference and {column} is the column it names. Only a pending item is reported, because a settled one holds nothing.",
-    "skeleton": true
-  },
+      "text": "{item} names {column}, and the route {detail} does not carry that column, so the hold it was filed for would never fire.",
+      "context": "The sentence printed after the refusal name dinah.route-strands-item, which a route write on a card carrying a pending item naming a column the new route drops carries. {detail} is the route name that was written, {item} is the item's own reference and {column} is the column it names. Only a pending item is reported, because a settled one holds nothing.",
+      "skeleton": true
+    },
     "refusal.dinah.route-strands-item.next": {
-    "text": " Settle that item, or move it onto a column the route carries with `dinah set {item} column <column>`.",
-    "context": "The next step of refusal.dinah.route-strands-item. The command is machine vocabulary and is never translated; {item} is the same reference the sentence above named.",
-    "skeleton": true
-  },
+      "text": " Settle that item, or move it onto a column the route carries with `dinah set {item} column <column>`.",
+      "context": "The next step of refusal.dinah.route-strands-item. The command is machine vocabulary and is never translated; {item} is the same reference the sentence above named.",
+      "skeleton": true
+    },
     "refusal.dinah.unknown-route": {
-    "text": "this workbench declares no route called {detail}.",
-    "context": "The sentence printed after the refusal name dinah.unknown-route, which a write naming a route the workbench does not declare carries. {detail} is the route name the reader typed. The declared names follow in a fragment, so a workbench declaring no route at all ends the sentence here.",
-    "skeleton": true
-  },
+      "text": "this workbench declares no route called {detail}.",
+      "context": "The sentence printed after the refusal name dinah.unknown-route, which a write naming a route the workbench does not declare carries. {detail} is the route name the reader typed. The declared names follow in a fragment, so a workbench declaring no route at all ends the sentence here.",
+      "skeleton": true
+    },
     "refusal.dinah.unknown-route.declared": {
-    "text": " The routes it declares are: {routes}.",
-    "context": "A fragment of refusal.dinah.unknown-route, printed when the workbench declares at least one route. {routes} is the declared names in declaration order, read off the workbench rather than written here, so a route name is never translated.",
-    "skeleton": true
-  },
+      "text": " The routes it declares are: {routes}.",
+      "context": "A fragment of refusal.dinah.unknown-route, printed when the workbench declares at least one route. {routes} is the declared names in declaration order, read off the workbench rather than written here, so a route name is never translated.",
+      "skeleton": true
+    },
     "refusal.dinah.unknown-route.next": {
-    "text": " Name one of those instead.",
-    "context": "The next step of refusal.dinah.unknown-route on a workbench that declares routes, spliced onto the sentence that just listed them.",
-    "skeleton": true
-  },
+      "text": " Name one of those instead.",
+      "context": "The next step of refusal.dinah.unknown-route on a workbench that declares routes, spliced onto the sentence that just listed them.",
+      "skeleton": true
+    },
     "refusal.dinah.unknown-route.none": {
-    "text": " Declare a route in the workbench's own routes block first, or leave the card on the workbench's full column list.",
-    "context": "The next step of refusal.dinah.unknown-route on a workbench declaring no route at all, where there is no name to offer the reader instead. routes is a frontmatter key and is never translated.",
-    "skeleton": true
-  },
+      "text": " Declare a route in the workbench's own routes block first, or leave the card on the workbench's full column list.",
+      "context": "The next step of refusal.dinah.unknown-route on a workbench declaring no route at all, where there is no name to offer the reader instead. routes is a frontmatter key and is never translated.",
+      "skeleton": true
+    },
     "routes.empty": {
-    "text": "This workbench declares no route, so every card walks its full column list.",
-    "context": "Printed in place of the routes listing when the workbench's own definition declares none. It says what that means rather than only that the list is empty.",
-    "skeleton": true
-  },
+      "text": "This workbench declares no route, so every card walks its full column list.",
+      "context": "Printed in place of the routes listing when the workbench's own definition declares none. It says what that means rather than only that the list is empty.",
+      "skeleton": true
+    },
     "routes.skip.operator-owned": {
-    "text": "{column} (operator)",
-    "context": "One skipped column in the routes listing, where the workbench reserves that column to its operator. {column} is the column's own reference and is never translated. The mark answers the one question an operator asks of a road somebody drew.",
-    "skeleton": true
-  },
+      "text": "{column} (operator)",
+      "context": "One skipped column in the routes listing, where the workbench reserves that column to its operator. {column} is the column's own reference and is never translated. The mark answers the one question an operator asks of a road somebody drew.",
+      "skeleton": true
+    },
     "check.add.8": {
-    "text": "the route carries every operator-owned column ahead of the card",
-    "context": "One row of the precondition list of a command outside the five the profile specifies.",
-    "skeleton": true
-  },
+      "text": "the route carries every operator-owned column ahead of the card",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
     "check.set.11": {
-    "text": "an item's new column is one the card's route carries",
-    "context": "One row of the precondition list of a command outside the five the profile specifies.",
-    "skeleton": true
-  },
+      "text": "an item's new column is one the card's route carries",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
     "check.card-route-skips-operator-column": {
-    "text": "{detail} walks a route that carries it around a column this workbench reserves to its operator",
-    "context": "A check finding: a card's route omits an operator-owned column the card has not yet passed, which every verb that writes a route refuses, so it arrived by a hand edit. {detail} carries the card and the column, in that order. The finding clears once the card has passed the column.",
-    "skeleton": true
-  }
+      "text": "{detail} walks a route that carries it around a column this workbench reserves to its operator",
+      "context": "A check finding: a card's route omits an operator-owned column the card has not yet passed, which every verb that writes a route refuses, so it arrived by a hand edit. {detail} carries the card and the column, in that order. The finding clears once the card has passed the column.",
+      "skeleton": true
+    }
   }
 }

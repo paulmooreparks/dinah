@@ -352,6 +352,11 @@
 			"context": "Markdown heading above the column's own layer of a served instruction chain.",
 			"source": "9e40e59654c8ad67"
 		},
+		"servedText.heading.columnAttachments": {
+			"text": "संलग्नक, यह कॉलम",
+			"context": "Markdown heading above the listing of the column's own attachments, served after the column's layer of a served instruction chain.",
+			"source": "a4101287ae9f5b49"
+		},
 		"servedText.malformedUri": {
 			"text": "प्रस्तुत-टेक्स्ट टैब का अपना URI नहीं पढ़ा जा सका।",
 			"context": "Body of a served-text tab whose URI carries no kind, no workbench or no reference.",
