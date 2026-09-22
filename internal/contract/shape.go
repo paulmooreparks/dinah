@@ -1523,6 +1523,70 @@ var Shapes = []Shape{
 		Fragments: []Fragment{{Key: "refusal.dinah.route-off-column.next"}},
 		NextStep:  []string{"refusal.dinah.route-off-column.next"},
 	},
+	// The twelve refusals dinah setup raises each carry their subject in the
+	// detail and one unconditional next step. Two of them carry a list of
+	// lines in the detail, the conflicting locations and the programs a
+	// recipe runs, which the base sentence opens a line for.
+	{
+		Name:      UnknownRecipe,
+		Fragments: []Fragment{{Key: "refusal.dinah.unknown-recipe.next"}},
+		NextStep:  []string{"refusal.dinah.unknown-recipe.next"},
+	},
+	{
+		Name:      MalformedRecipe,
+		Fragments: []Fragment{{Key: "refusal.dinah.malformed-recipe.next"}},
+		NextStep:  []string{"refusal.dinah.malformed-recipe.next"},
+	},
+	{
+		Name:      UnknownScope,
+		Fragments: []Fragment{{Key: "refusal.dinah.unknown-scope.next"}},
+		NextStep:  []string{"refusal.dinah.unknown-scope.next"},
+	},
+	{
+		Name:      SetupNoTarget,
+		Fragments: []Fragment{{Key: "refusal.dinah.setup-no-target.next"}},
+		NextStep:  []string{"refusal.dinah.setup-no-target.next"},
+	},
+	{
+		Name:      SetupAgentIsOperator,
+		Fragments: []Fragment{{Key: "refusal.dinah.setup-agent-is-operator.next"}},
+		NextStep:  []string{"refusal.dinah.setup-agent-is-operator.next"},
+	},
+	{
+		Name:      SetupUnreadableTarget,
+		Fragments: []Fragment{{Key: "refusal.dinah.setup-unreadable-target.next"}},
+		NextStep:  []string{"refusal.dinah.setup-unreadable-target.next"},
+	},
+	{
+		Name:      SetupConflict,
+		Fragments: []Fragment{{Key: "refusal.dinah.setup-conflict.next"}},
+		NextStep:  []string{"refusal.dinah.setup-conflict.next"},
+	},
+	{
+		Name:      UntrustedRecipe,
+		Fragments: []Fragment{{Key: "refusal.dinah.untrusted-recipe.next"}},
+		NextStep:  []string{"refusal.dinah.untrusted-recipe.next"},
+	},
+	{
+		Name:      SetupRelocatedHome,
+		Fragments: []Fragment{{Key: "refusal.dinah.setup-relocated-home.next"}},
+		NextStep:  []string{"refusal.dinah.setup-relocated-home.next"},
+	},
+	{
+		Name:      SetupOtherWorkbench,
+		Fragments: []Fragment{{Key: "refusal.dinah.setup-other-workbench.next"}},
+		NextStep:  []string{"refusal.dinah.setup-other-workbench.next"},
+	},
+	{
+		Name:      SetupRunNotAllowed,
+		Fragments: []Fragment{{Key: "refusal.dinah.setup-run-not-allowed.next"}},
+		NextStep:  []string{"refusal.dinah.setup-run-not-allowed.next"},
+	},
+	{
+		Name:      SetupStepFailed,
+		Fragments: []Fragment{{Key: "refusal.dinah.setup-step-failed.next"}},
+		NextStep:  []string{"refusal.dinah.setup-step-failed.next"},
+	},
 }
 
 // ShapeOf returns the shape governing a refusal name, or nil for a name no

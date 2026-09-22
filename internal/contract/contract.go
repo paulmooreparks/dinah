@@ -687,6 +687,54 @@ const (
 	// card is not refused, because a new card has no history and stands
 	// nowhere, so refusing costs one corrected flag.
 	RouteOffColumn = LayerPrefix + "route-off-column"
+	// UnknownRecipe is a dinah setup naming a recipe that no place setup
+	// searches holds: the project's container, the user base, or the recipes
+	// the binary ships. The detail is the name as typed.
+	UnknownRecipe = LayerPrefix + "unknown-recipe"
+	// MalformedRecipe is a recipe setup found and cannot use. The detail is
+	// <file>: <defect>, naming the first defect in the order the recipe's
+	// files are read. A place holding a broken recipe of the name is still
+	// the place that answered, so setup does not fall through to the next.
+	MalformedRecipe = LayerPrefix + "malformed-recipe"
+	// UnknownScope is a dinah setup naming a scope the recipe does not
+	// declare. The detail is the scope as typed.
+	UnknownScope = LayerPrefix + "unknown-scope"
+	// SetupNoTarget is a project-scope setup with no directory it may write
+	// into: the workbench does not stand in a .dinah container inside a
+	// project, or the base would be the home directory or one of its
+	// ancestors, where a project step would write user configuration.
+	SetupNoTarget = LayerPrefix + "setup-no-target"
+	// SetupAgentIsOperator is a dinah setup whose agent name equals the
+	// workbench's operator or the user's configured actor. An agent acting
+	// under the operator's name holds the operator's authority.
+	SetupAgentIsOperator = LayerPrefix + "setup-agent-is-operator"
+	// SetupUnreadableTarget is a file setup would change that it cannot read:
+	// a JSON file that is not one object, markers out of balance, a ledger
+	// that does not parse, or a path leaving the scope's base. The detail is
+	// <file>: <defect>.
+	SetupUnreadableTarget = LayerPrefix + "setup-unreadable-target"
+	// SetupConflict is a location setup would change that it did not write,
+	// or that somebody has edited since. The detail lists every such
+	// location, one per line, so one edit clears them all.
+	SetupConflict = LayerPrefix + "setup-conflict"
+	// UntrustedRecipe is a recipe found in a project's container used without
+	// --trust-project-recipe. A project's recipe arrived with a clone, and
+	// its printed text can ask whoever runs setup for anything.
+	UntrustedRecipe = LayerPrefix + "untrusted-recipe"
+	// SetupRelocatedHome is a user-scope setup run while DINAH_HOME names a
+	// directory other than the machine's own home, which would write the
+	// real home's files and record their ownership somewhere else.
+	SetupRelocatedHome = LayerPrefix + "setup-relocated-home"
+	// SetupOtherWorkbench is a project-scope setup of a recipe the project
+	// is already set up with for a different workbench. The detail is that
+	// workbench's directory.
+	SetupOtherWorkbench = LayerPrefix + "setup-other-workbench"
+	// SetupRunNotAllowed is a setup whose recipe runs programs, without
+	// --allow-run. The detail lists each run step as <id>: <command line>.
+	SetupRunNotAllowed = LayerPrefix + "setup-run-not-allowed"
+	// SetupStepFailed is a program a recipe runs that could not be found or
+	// exited non-zero. The data steps before it stay applied and recorded.
+	SetupStepFailed = LayerPrefix + "setup-step-failed"
 )
 
 // Introduced lists every refusal name Dinah mints beyond the profile's own.
@@ -714,6 +762,9 @@ var Introduced = []string{
 	ObservationRequired, UnknownLink,
 	CommentBodyDiverged, NotADesignation, NotDesignatable, StoreAwaitingMigration,
 	UnknownRoute, RouteStrandsItem, RouteSkipsOperatorColumn, ItemOffRoute, RouteOffColumn,
+	UnknownRecipe, MalformedRecipe, UnknownScope, SetupNoTarget, SetupAgentIsOperator,
+	SetupUnreadableTarget, SetupConflict, UntrustedRecipe, SetupRelocatedHome,
+	SetupOtherWorkbench, SetupRunNotAllowed, SetupStepFailed,
 }
 
 // NameIsLegal reports whether a refusal name is one CORE-OUT-3 admits: one

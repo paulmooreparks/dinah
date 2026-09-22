@@ -214,6 +214,9 @@ var vocabularies = map[string]Vocabulary{
 	// declares, so a caller who has ever read an item's own state field
 	// already knows the whole legal set.
 	"item-state": {Values: []string{bench.ItemResolved, bench.ItemVerified, bench.ItemFailed, bench.ItemPending}},
+	// setup-scope is where dinah setup writes: into one project directory, or
+	// into the person's own home.
+	"setup-scope": {Values: []string{"project", "user"}},
 }
 
 // VocabularyFor returns the set one argument accepts, and whether it declares
@@ -322,6 +325,7 @@ var guides = map[string][]string{
 	"set":               {"references"},
 	"query":             {"query"},
 	"search":            {"query"},
+	"setup":             {"setup-recipes"},
 }
 
 // Guides lists the guide topics a command's help points at: the command's own,
@@ -776,6 +780,25 @@ var params = map[string][]Param{
 		// them here to improve their message would print them in this
 		// command's arguments table as though a caller could write them.
 		{Name: "stdio", Flag: true, Marker: true, Inert: true},
+	},
+	// setup reads every argument itself and builds no Request, so no
+	// parameter here names a Field. The positional is a recipe's name, which
+	// is a harness name in the same grammar.
+	"setup": {
+		{Name: "harness"},
+		{Name: "list", Flag: true, Marker: true},
+		{Name: "recipe", Flag: true, Value: "dir"},
+		{Name: "agent", Flag: true, Value: "name"},
+		{Name: "tools", Flag: true, Value: "profile", Vocabulary: "tool-profile"},
+		{Name: "scope", Flag: true, Value: "scope", Vocabulary: "setup-scope"},
+		{Name: "target", Flag: true, Value: "dir"},
+		{Name: "provider", Flag: true, Value: "name"},
+		{Name: "model", Flag: true, Value: "name"},
+		{Name: "server", Flag: true, Value: "address"},
+		{Name: "trust-project-recipe", Flag: true, Marker: true},
+		{Name: "allow-run", Flag: true, Marker: true},
+		{Name: "dry-run", Flag: true, Marker: true},
+		{Name: "remove", Flag: true, Marker: true},
 	},
 	"help": {{Name: "command", Required: true}},
 }
@@ -1265,6 +1288,7 @@ var derivationExemptions = map[string]string{
 	"path":    "resolves a filesystem path for a shell; the terminal never builds a Request for it",
 	"version": "runVersion reads catalogs straight off the parsed arguments; no Request carries it",
 	"export":  "Library.Export takes no arguments at all; there is no request to read a value from",
+	"setup":   "writes harness configuration; the terminal never builds a Request for it",
 }
 
 // DerivationExemptions returns a copy of derivationExemptions, for a caller

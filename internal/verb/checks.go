@@ -524,6 +524,33 @@ var beyondChecks = map[string][]Check{
 		{Refusal: contract.UnknownRoot, Key: "check.lsp.1"},
 		{Refusal: contract.Malformed, Key: "check.lsp.2"},
 	},
+	// setup's rows are in the order internal/setup evaluates them, and
+	// nothing is written until every row has passed for every step. Rows 1
+	// and 9 are both usage: the first is the shape of the invocation and the
+	// second is two flags that do not belong together, which can only be
+	// judged once the recipe and its scope are known. The discovery refusals
+	// other than no-workbench-found surface at row 11 as they do for every
+	// command.
+	"setup": {
+		{Refusal: contract.Usage, Key: "check.setup.1"},
+		{Refusal: contract.MalformedHarness, Key: "check.setup.2"},
+		{Refusal: contract.UnknownPath, Key: "check.setup.3"},
+		{Refusal: contract.UnknownRecipe, Key: "check.setup.4"},
+		{Refusal: contract.MalformedRecipe, Key: "check.setup.5"},
+		{Refusal: contract.UntrustedRecipe, Key: "check.setup.6"},
+		{Refusal: contract.UnknownScope, Key: "check.setup.7"},
+		{Refusal: contract.UnknownToolProfile, Key: "check.setup.8"},
+		{Refusal: contract.Usage, Key: "check.setup.9"},
+		{Refusal: contract.SetupRunNotAllowed, Key: "check.setup.10"},
+		{Refusal: contract.NoWorkbenchFound, Key: "check.setup.11"},
+		{Refusal: contract.SetupRelocatedHome, Key: "check.setup.12"},
+		{Refusal: contract.SetupNoTarget, Key: "check.setup.13"},
+		{Refusal: contract.Malformed, Key: "check.setup.14"},
+		{Refusal: contract.SetupAgentIsOperator, Key: "check.setup.15"},
+		{Refusal: contract.SetupOtherWorkbench, Key: "check.setup.16"},
+		{Refusal: contract.SetupUnreadableTarget, Key: "check.setup.17"},
+		{Refusal: contract.SetupConflict, Key: "check.setup.18"},
+	},
 	// raise checks the operator itself, as Library.Raise's own first line,
 	// the same way reshape does, so the operator row sits in this table
 	// rather than being prefixed by Checks: raise is a beyond-contract

@@ -299,7 +299,7 @@ func TestHelpBlockIsTheRatifiedSurface(t *testing.T) {
 		t.Errorf("the emitted block differs from the spec's section 2:\n%s", diffLines(string(fixture), got.out))
 	}
 
-	// The block lists fifty-two commands, and every command the binary offers is
+	// The block lists fifty-three commands, and every command the binary offers is
 	// either one of them or `help`, which the block's own last line names.
 	listed := 0
 	for _, c := range commands {
@@ -314,8 +314,8 @@ func TestHelpBlockIsTheRatifiedSurface(t *testing.T) {
 			t.Errorf("the block does not list %s", c.name)
 		}
 	}
-	if listed != 52 {
-		t.Errorf("wanted fifty-two listed commands, got %d", listed)
+	if listed != 53 {
+		t.Errorf("wanted fifty-three listed commands, got %d", listed)
 	}
 }
 
@@ -7357,21 +7357,23 @@ func TestEveryHelpSpellingReachesTheSamePage(t *testing.T) {
 // still behave.
 func TestTheFlagSetsTheParserAcceptsAreDerivedFromTheParameterTable(t *testing.T) {
 	wantValued := []string{
-		"actor", "at", "before", "capacity", "card", "column", "depth",
+		"actor", "agent", "at", "before", "capacity", "card", "column", "depth",
 		"description", "expect-digest", "expires", "fields", "format", "from", "group-by", "kind",
-		"lang", "map", "max-depth", "note", "observed", "operator", "owner",
-		"poll-seconds", "priority", "query", "reason", "remint", "root", "route", "severity",
-		"since", "slug", "text", "tier", "timeout", "tools", "workbench",
+		"lang", "map", "max-depth", "model", "note", "observed", "operator", "owner",
+		"poll-seconds", "priority", "provider", "query", "reason", "recipe", "remint", "root", "route",
+		"scope", "server", "severity", "since", "slug", "target", "text", "tier", "timeout", "tools",
+		"workbench",
 	}
 	wantMarkers := []string{
-		"all", "annotate-prose", "archived", "catalogs", "finish", "force", "help", "here", "json",
+		"all", "allow-run", "annotate-prose", "archived", "catalogs", "dry-run", "finish", "force", "help",
+		"here", "json", "list",
 		"migrate-branches",
 		"migrate-columns",
 		"migrate-container", "migrate-newlines", "migrate-numbers",
 		"migrate-ordinals",
 		"migrate-slugs", "migrate-vocabulary", "migrate-workstreams",
-		"no-claim", "override", "quiet", "ready", "renumber", "replace",
-		"stdio",
+		"no-claim", "override", "quiet", "ready", "remove", "renumber", "replace",
+		"stdio", "trust-project-recipe",
 		"unresolved", "version", "wait", "witness", "yes",
 	}
 	if got := strings.Join(valuedFlags, " "); got != strings.Join(wantValued, " ") {

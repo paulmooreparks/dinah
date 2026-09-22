@@ -1,0 +1,1 @@
+Setup has taken back what it wrote for Claude Code under <BASE>. At user scope, remove the MCP server you registered by hand with `claude mcp remove dinah --scope user`. Restart any Claude Code session that was already open.
