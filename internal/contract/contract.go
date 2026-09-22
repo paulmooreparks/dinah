@@ -990,10 +990,9 @@ func RefuseWith(name, detail string, extra map[string]string) *Refusal {
 const ValueColumn = "column"
 
 // ValueHarness is the harness a request declared, filled in a no-owner or a
-// not-operator refusal's Extra when the request that raised it named one. It is what
-// tells the harness-variant sentence apart from the plain one, and its
-// presence is the whole of the condition: the sentence never interpolates
-// the value itself, only tests whether it is there.
+// not-operator refusal's Extra when the request that raised it named one. It
+// is what tells the harness-variant sentence apart from the plain one, and its
+// presence is the whole of the condition.
 const ValueHarness = "harness"
 
 // Stale is the error a verb returns when the request's basis does not name
