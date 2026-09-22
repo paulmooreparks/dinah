@@ -1,0 +1,7 @@
+{
+  "profile": 0.17,
+  "title": "Wedding",
+  "columns": [
+    { "id": "s1", "title": "Ideas", "kind": "intake" }
+  ]
+}

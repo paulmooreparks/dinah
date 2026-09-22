@@ -2950,22 +2950,29 @@ written out of the other's misreading. With one implementation the code and
 the conformance suite are written from the same reading of this document, so
 they can share a blind spot, and the case where the document meant one thing
 while both the code and the suite quietly assumed another has nothing
-catching it. Nothing in the project closes that gap today, so the project
-carries it as an accepted limit. The interchange form of section 5.7 of the
-profile would let somebody build a reader of a workbench independently of
-Dinah, and nobody has built one. A hand-written fixture literal in the test
-suite is typed independently of any generator, but the hand that types it is
-the hand that writes the code it tests, so it can carry the same misreading
-rather than catch it. The compatibility fixtures are captured by replaying
-input through the built binary, so they record the implementation's own
-reading of this document rather than a second one. The conformance report
-checks that every normative statement is either named by some test or listed
-as out of reach with a written reason, which finds a statement nobody
-covered but cannot find a test that misread the statement it names. Closing
-the gap would take a reader of the interchange form built independently of
-Dinah's code and of the people who write its tests, or a standing practice
-by which somebody with no hand in either the code or the tests periodically
-reads this document against what shipped.
+catching it. For the interchange form of section 5.7 of the profile, part of
+that gap is now closed. A reader of the interchange form lives under
+`conformance/interchange-reader/`, written in Python from the profile alone
+by an author whose tools were confined to a directory holding the profile
+and a brief, and CI runs it against the export of every compatibility
+fixture, against the fixtures that author wrote from its own reading, and
+against broken variants of a real export. Wherever the reader and Dinah
+disagree, the build fails until a person has ruled which side is wrong, and
+the ruling is kept in `conformance/interchange-reader-rulings.json`. For the
+rest of the profile the gap stays open and stays an accepted limit. A
+hand-written fixture literal in the test suite is typed independently of any
+generator, but the hand that types it is the hand that writes the code it
+tests, so it can carry the same misreading rather than catch it. The
+compatibility fixtures are captured by replaying input through the built
+binary, so they record the implementation's own reading of this document
+rather than a second one. The conformance report checks that every normative
+statement is either named by some test or listed as out of reach with a
+written reason, which finds a statement nobody covered but cannot find a
+test that misread the statement it names. Closing the rest of the gap would
+take a reader built the same way for the verbs, the history and the served
+instructions, or a standing practice by which somebody with no hand in
+either the code or the tests periodically reads this document against what
+shipped.
 
 ## Verb outcomes and staleness
 

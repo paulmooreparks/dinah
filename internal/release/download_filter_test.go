@@ -18,6 +18,17 @@ const downloadStep = "Download every binary"
 // correct guard refuses.
 const extensionArchive = "dinah-universal.vsix"
 
+// independentReaderArtifact is the artifact ci.yml's independent-reader job
+// uploads: the comparison's report.json and report.md, and the exports it
+// read. It carries no matrix reference because the job runs on one runner, and
+// the download pattern refuses it, so it never reaches dist/ on a release.
+const independentReaderArtifact = "independent-reader-report"
+
+// uploadAction is the text every upload step's uses: line carries, whether
+// the step opens on it or on a name: line above it. Counting it over the whole
+// file is how workflowUploads proves it found every upload step.
+const uploadAction = "actions/upload-artifact@"
+
 // runArtifact is one artifact a release run uploads, together with the files
 // it contributes to dist/ when it is downloaded with merge-multiple set.
 type runArtifact struct {
@@ -73,7 +84,7 @@ func TestTheReleaseDownloadTakesThePlatformBinariesAndNothingElse(t *testing.T) 
 			t.Fatalf("the run produced nothing outside the platform binaries, so this test is checking a filter against an artifact set that cannot exercise it")
 		}
 		for _, artifact := range refused {
-			if !strings.HasPrefix(artifact.name, "vsix-") {
+			if !strings.HasPrefix(artifact.name, "vsix-") && artifact.name != independentReaderArtifact {
 				t.Errorf("the run uploads %q, which this test did not expect to be refused; the artifact set has changed and the case needs weighing", artifact.name)
 			}
 		}
@@ -185,13 +196,25 @@ func workflowUploads(t *testing.T, workflow string) []runArtifact {
 	}
 	lines := strings.Split(strings.ReplaceAll(string(content), "\r\n", "\n"), "\n")
 
+	// A step either opens on its uses: line, written "- uses:", or names
+	// itself first and carries uses: below, so both spellings are read. The
+	// count below holds this loop to every reference in the file, because a
+	// step spelled some third way would otherwise upload unseen.
 	var artifacts []runArtifact
+	steps := 0
 	for at, line := range lines {
-		if !strings.HasPrefix(strings.TrimSpace(line), "uses: actions/upload-artifact") {
+		trimmed := strings.TrimPrefix(strings.TrimSpace(line), "- ")
+		if !strings.HasPrefix(trimmed, "uses: "+uploadAction) {
 			continue
 		}
+		steps++
 		name := inputBelow(t, lines, at, "name", workflow)
 		switch {
+		case name == independentReaderArtifact:
+			// The exports directory lands beside the two reports and is left
+			// out, because the pattern refuses the artifact whole and two
+			// files are enough to make an unfiltered download a stray one.
+			artifacts = append(artifacts, runArtifact{name: name, files: []string{"report.json", "report.md"}})
 		case strings.Contains(name, "${{ matrix.goos }}"):
 			// The build job's matrix comes from internal/release.Targets by
 			// way of the resolve step, so the same declaration that decides
@@ -217,6 +240,9 @@ func workflowUploads(t *testing.T, workflow string) []runArtifact {
 		default:
 			t.Fatalf("%s uploads an artifact named %q, which carries no matrix reference, so this test cannot tell what lands in dist/ under it", workflow, name)
 		}
+	}
+	if referenced := strings.Count(string(content), uploadAction); referenced != steps {
+		t.Fatalf("%s names %s %d times and this test read %d upload steps, so a step is spelled in a way this test does not recognise", workflow, uploadAction, referenced, steps)
 	}
 	return artifacts
 }

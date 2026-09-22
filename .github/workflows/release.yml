@@ -129,7 +129,7 @@ jobs:
   # guess this card was filed over: there is no aggregate ceiling to raise as
   # the suite grows, because nothing here is timing anything. See dinah-363.
   #
-  # This does mean ci.yml's three jobs run twice on a push to main that also
+  # This does mean ci.yml's jobs run twice on a push to main that also
   # matches this file's own path filter below: once under ci.yml's own
   # unfiltered push trigger, and once nested here. The alternative, removing
   # ci.yml's own push trigger to avoid the duplication, was rejected because

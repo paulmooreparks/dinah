@@ -104,11 +104,13 @@ jobs:
   # CI runs as a job of this workflow rather than being polled by SHA and by
   # check-run name. release.yml moved to this shape in dinah-363, and ci.yml
   # gained workflow_call in the same commit; ci.yml's own header now says that
-  # nothing reads its three job names by string, so a workflow that matched
+  # nothing reads a job name of its by string, so a workflow that matched
   # those names would be the one file holding a contract the rest of the
-  # repository has dropped. Depending on the nested run instead removes the
-  # name matching, the paged check-run read and the timeout ceiling in one
-  # go, because nothing is polling and nothing is timing.
+  # repository has dropped. Every job in ci.yml, independent-reader included,
+  # runs and gates inside this workflow's run. Depending on the nested run
+  # instead removes the name matching, the paged check-run read and the
+  # timeout ceiling in one go, because nothing is polling and nothing is
+  # timing.
   #
   # The cost, stated rather than minimised: this runs ci.yml's Go test matrix
   # on a commit whose only artifact is an archive carrying no Go code, and it
