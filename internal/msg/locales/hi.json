@@ -1814,9 +1814,9 @@
       "source": "9f9d6dfa28378c0f"
     },
     "cmd.fail.note": {
-      "text": "टिप्पणी को यह बताना चाहिए कि जाँच में क्या दिखा। Dinah खाली टिप्पणी अस्वीकार करता है, और ऐसी टिप्पणी भी अस्वीकार करता है जो मानदंड के अपने पाठ को शब्दशः दोहराती है। यह जाँच केवल शाब्दिक प्रतिध्वनि पकड़ती है: जो टिप्पणी मानदंड को दूसरे शब्दों में दोहराती है वह इसे पार कर जाती है और फिर भी कुछ नहीं कहती।",
-      "context": "The note printed under the fail command's own help, after its summary. It states what the note check does and what it does not prove, so a reader does not take it for a stronger guarantee than it is.",
-      "source": "ba4b032c239208fc"
+      "text": "टिप्पणी को यह बताना चाहिए कि जाँच में क्या दिखा। Dinah खाली टिप्पणी अस्वीकार करता है, और ऐसी टिप्पणी भी अस्वीकार करता है जो मानदंड के अपने पाठ को शब्दशः दोहराती है। यह जाँच केवल शाब्दिक प्रतिध्वनि पकड़ती है: जो टिप्पणी मानदंड को दूसरे शब्दों में दोहराती है वह इसे पार कर जाती है और फिर भी कुछ नहीं कहती। `--owner operator` के साथ दर्ज किया गया मानदंड केवल संचालक तय करता है, और संचालक द्वारा कहा गया परिणाम कैसे दर्ज करें, यह `dinah guide on-behalf` बताता है।",
+      "context": "The note printed under the fail command's own help, after its summary. It states what the note check does and what it does not prove, so a reader does not take it for a stronger guarantee than it is. Its last sentence points an agent holding the operator's stated ruling at the guide on-behalf, which is not translated.",
+      "source": "577b2aabc24fa2ae"
     },
     "cmd.fail.summary": {
       "text": "स्वीकृति मानदंड को विफल के रूप में दर्ज करें",
@@ -1939,9 +1939,9 @@
       "source": "64de682cbf18a8ac"
     },
     "cmd.resolve.note": {
-      "text": "टिप्पणी को यह बताना चाहिए कि मद किस आधार पर तय हुआ। Dinah खाली टिप्पणी अस्वीकार करता है, और ऐसी टिप्पणी भी अस्वीकार करता है जो मद के अपने पाठ को शब्दशः दोहराती है। यह जाँच केवल शाब्दिक प्रतिध्वनि पकड़ती है: जो टिप्पणी मद को दूसरे शब्दों में दोहराती है वह इसे पार कर जाती है और फिर भी कुछ नहीं कहती।",
-      "context": "The note printed under the resolve command's own help, after its summary. It states what the note check does and what it does not prove, so a reader does not take it for a stronger guarantee than it is.",
-      "source": "9ad3a5cb58aef3b4"
+      "text": "टिप्पणी को यह बताना चाहिए कि मद किस आधार पर तय हुआ। Dinah खाली टिप्पणी अस्वीकार करता है, और ऐसी टिप्पणी भी अस्वीकार करता है जो मद के अपने पाठ को शब्दशः दोहराती है। यह जाँच केवल शाब्दिक प्रतिध्वनि पकड़ती है: जो टिप्पणी मद को दूसरे शब्दों में दोहराती है वह इसे पार कर जाती है और फिर भी कुछ नहीं कहती। `--owner operator` के साथ दर्ज किया गया मद केवल संचालक तय करता है, और संचालक द्वारा कहा गया निर्णय कैसे दर्ज करें, यह `dinah guide on-behalf` बताता है।",
+      "context": "The note printed under the resolve command's own help, after its summary. It states what the note check does and what it does not prove, so a reader does not take it for a stronger guarantee than it is. Its last sentence points an agent holding the operator's stated ruling at the guide on-behalf, which is not translated.",
+      "source": "e5e558eb96cceddd"
     },
     "cmd.resolve.summary": {
       "text": "खुला प्रश्न या निर्णय हल करें",
@@ -1983,6 +1983,11 @@
       "context": "The one-line summary of the tree command, shown beside its syntax in the help block.",
       "source": "978852122039d8b6"
     },
+    "cmd.unblock.note": {
+      "text": "केवल वर्कबेंच का संचालक बाधा हटाता है। यदि संचालक ने यह बाधा हटाने का निर्णय कहा है, तो उसे संचालक के निर्णय के रूप में कैसे दर्ज करें, यह `dinah guide on-behalf` बताता है।",
+      "context": "The note printed under the unblock command's own help, after its summary. It says the act is the operator's and points an agent holding the operator's stated ruling at the guide on-behalf, which is not translated.",
+      "source": "1d54ccd1eb173bce"
+    },
     "cmd.unblock.summary": {
       "text": "बाधा हटाएँ (केवल संचालक)",
       "context": "The one-line summary of the unblock command, shown beside its syntax in the help block.",
@@ -1994,9 +1999,9 @@
       "source": "8feef1401d040042"
     },
     "cmd.verify.note": {
-      "text": "टिप्पणी को यह बताना चाहिए कि जाँच में क्या दिखा। Dinah खाली टिप्पणी अस्वीकार करता है, और ऐसी टिप्पणी भी अस्वीकार करता है जो मानदंड के अपने पाठ को शब्दशः दोहराती है। यह जाँच केवल शाब्दिक प्रतिध्वनि पकड़ती है: जो टिप्पणी मानदंड को दूसरे शब्दों में दोहराती है वह इसे पार कर जाती है और फिर भी कुछ नहीं कहती।",
-      "context": "The note printed under the verify command's own help, after its summary. It states what the note check does and what it does not prove, so a reader does not take it for a stronger guarantee than it is.",
-      "source": "ba4b032c239208fc"
+      "text": "टिप्पणी को यह बताना चाहिए कि जाँच में क्या दिखा। Dinah खाली टिप्पणी अस्वीकार करता है, और ऐसी टिप्पणी भी अस्वीकार करता है जो मानदंड के अपने पाठ को शब्दशः दोहराती है। यह जाँच केवल शाब्दिक प्रतिध्वनि पकड़ती है: जो टिप्पणी मानदंड को दूसरे शब्दों में दोहराती है वह इसे पार कर जाती है और फिर भी कुछ नहीं कहती। `--owner operator` के साथ दर्ज किया गया मानदंड केवल संचालक तय करता है, और संचालक द्वारा कहा गया परिणाम कैसे दर्ज करें, यह `dinah guide on-behalf` बताता है।",
+      "context": "The note printed under the verify command's own help, after its summary. It states what the note check does and what it does not prove, so a reader does not take it for a stronger guarantee than it is. Its last sentence points an agent holding the operator's stated ruling at the guide on-behalf, which is not translated.",
+      "source": "577b2aabc24fa2ae"
     },
     "cmd.verify.summary": {
       "text": "स्वीकृति मानदंड को सत्यापित के रूप में दर्ज करें",
@@ -2635,9 +2640,9 @@
       "source": "bda56dd7c6ff3d50"
     },
     "help.environment": {
-      "text": "परिवेश: DINAH_WORKBENCH, DINAH_HOME, DINAH_FORMAT=json|compact, DINAH_LANG, DINAH_ACTOR, DINAH_EDITOR, DINAH_MCP_ROOT, VISUAL, EDITOR",
+      "text": "परिवेश: DINAH_WORKBENCH, DINAH_HOME, DINAH_FORMAT=json|compact, DINAH_LANG, DINAH_ACTOR, DINAH_HARNESS, DINAH_PROVIDER, DINAH_MODEL, DINAH_SERVER, DINAH_EDITOR, DINAH_MCP_ROOT, VISUAL, EDITOR",
       "context": "The environment variables the tool reads. The variable names are machine vocabulary and are never translated.",
-      "source": "1da148f5755e9a98"
+      "source": "dd1435b28ab9c7fd"
     },
     "help.exitcodes": {
       "text": "निकास कोड: 0 ok, 2 refused, 3 stale, 4 unreachable।",
@@ -4886,6 +4891,11 @@
       "text": "; संचालक से इसे चलाने को कहें, या Dinah आपको कौन मानता है यह देखने के लिए `dinah whoami` चलाएँ",
       "context": "Spliced onto refusal.not-operator as the next step.",
       "source": "af1ec2ef55dfc403"
+    },
+    "refusal.not-operator.next-harness": {
+      "text": "; आपने {harness} हार्नेस घोषित किया है, और यह क्रिया संचालक की है; यदि संचालक ने इस पर अपना निर्णय कहा है, तो उसे दर्ज करने से पहले `dinah guide on-behalf` पढ़ें",
+      "context": "Spliced onto refusal.not-operator as the next step, in place of refusal.not-operator.next, when the request that raised the refusal declared a harness. {harness} is that harness's name. The guide name on-behalf and the command are not translated.",
+      "source": "8d0d7f735d3de3e"
     },
     "refusal.not-requester": {
       "text": "दावा अपने माँगने वाले को ही धारक बताता है, यह {detail} को बताता है",

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -672,5 +673,206 @@ func TestTheOperatorRefusalIsDefeatedByWritingTheFile(t *testing.T) {
 		if event.Event == contract.EventItemResolved {
 			t.Errorf("the journal records %s, so the hand edit was journaled after all", event.Event)
 		}
+	}
+}
+
+// notOperatorLine is the not-operator refusal a caller declaring no harness
+// has always read, and notOperatorHarnessLine is the one dinah-563 gives a
+// caller that declared the claude-code harness. Both are written out rather
+// than composed from the catalog, so a catalog edit nobody approved fails
+// here instead of moving the expectation with it.
+const (
+	notOperatorLine        = "not-operator this action is the operator's, and you are planner; ask the operator to run it, or run `dinah whoami` to see who Dinah takes you to be"
+	notOperatorHarnessLine = "not-operator this action is the operator's, and you are planner; you declared the claude-code harness, and this act is the operator's to perform; if the operator has stated a ruling on it, read `dinah guide on-behalf` before you record it"
+)
+
+// onBehalfDefinition reserves its Review station to the operator, so one
+// workbench reaches the claim and the move that reservation refuses.
+const onBehalfDefinition = `{
+  "profile": "dinah-core/0.12",
+  "title": "On behalf",
+  "columns": [
+    { "id": "f00000000001", "title": "Intake", "kind": "intake" },
+    { "id": "f00000000002", "title": "Doing", "kind": "work" },
+    { "id": "f00000000003", "title": "Review", "kind": "work", "operator_owned": true },
+    { "id": "f00000000004", "title": "Done", "kind": "done" }
+  ]
+}`
+
+// TestANotOperatorRefusalPointsAHarnessAtTheGuide is dinah-563's refusal
+// half. A caller that declared a harness is told the act is the operator's
+// and pointed at the guide on recording a ruling the operator stated, and a
+// caller that declared none reads the line it always read, byte for byte, so
+// the quick start's transcript of a person meeting the refusal stands
+// unchanged. Both readers are asserted on one item, because a build printing
+// either line to everybody would pass a test that looked at one of them.
+//
+// The harness line is then asserted at four more raise sites, which between
+// them reach both routes the value takes: unblock, the move and the claim
+// through (*Library).refuse, and reshape through its own direct RefuseWith.
+func TestANotOperatorRefusalPointsAHarnessAtTheGuide(t *testing.T) {
+	t.Run("resolve", func(t *testing.T) {
+		root, _ := operatorOwnedItem(t, "open_question")
+		argv := []string{"resolve", "fx-1/questions/1", "--text", "Garden", "--actor", "planner"}
+
+		t.Setenv("DINAH_HARNESS", "claude-code")
+		if got := runCLI(t, root, argv...); got.errw != notOperatorHarnessLine+"\n" {
+			t.Errorf("a resolve declaring a harness printed:\n%q\nwanted:\n%q", got.errw, notOperatorHarnessLine+"\n")
+		}
+		// refusalContextOf is collection_reference_test.go's reader of the
+		// machine form, which answers a nil map when no context member came.
+		if name, context := refusalContextOf(t, root, argv...); name != contract.NotOperator || context["harness"] != "claude-code" || len(context) != 1 {
+			t.Errorf("the machine form of a harness-declaring refusal is %s with the context %v, wanted %s with harness claude-code alone", name, context, contract.NotOperator)
+		}
+
+		t.Setenv("DINAH_HARNESS", "")
+		if got := runCLI(t, root, argv...); got.errw != notOperatorLine+"\n" {
+			t.Errorf("a resolve declaring no harness printed:\n%q\nwanted today's line:\n%q", got.errw, notOperatorLine+"\n")
+		}
+		if name, context := refusalContextOf(t, root, argv...); name != contract.NotOperator || context != nil {
+			t.Errorf("the machine form of a refusal declaring no harness is %s with the context %v, wanted %s with none", name, context, contract.NotOperator)
+		}
+		if state := soleItemState(t, root, "fx-1"); state != bench.ItemPending {
+			t.Errorf("the refused resolves left the item at %q", state)
+		}
+	})
+
+	root := newBenchFromDefinition(t, onBehalfDefinition)
+	if got := runCLI(t, root, "add", "Choose the venue"); got.code != 0 {
+		t.Fatalf("add: %d %s", got.code, got.errw)
+	}
+	if got := runCLI(t, root, "move", "fx-1", "review"); got.code != 0 {
+		t.Fatalf("move to review: %d %s", got.code, got.errw)
+	}
+	source := reshapeSourceFrom(t, root, func(columns []map[string]any) []map[string]any { return columns })
+	t.Setenv("DINAH_HARNESS", "claude-code")
+	for _, act := range [][]string{
+		{"unblock", "fx-1"},
+		{"move", "fx-1", "done"},
+		{"claim", "fx-1"},
+		{"reshape", "--from", source, "--yes"},
+	} {
+		t.Run(act[0], func(t *testing.T) {
+			got := runCLI(t, root, append(act, "--actor", "planner")...)
+			if got.errw != notOperatorHarnessLine+"\n" {
+				t.Errorf("%v declaring a harness printed:\n%q\nwanted:\n%q", act, got.errw, notOperatorHarnessLine+"\n")
+			}
+		})
+	}
+}
+
+// TestAnActRecordedForTheOperatorShowsItsPerformerOnlyInTheMachineForm proves
+// the sentence guidepin.TheNameAloneShowsAtATerminal pins in the on-behalf
+// guide. An agent records a ruling under the operator's name with its
+// harness, provider and model declared. The machine form of the journal
+// carries all four facts, and the plain journal listing, `dinah changes` and
+// the resolution comment's author line carry the name alone. dinah-564 is the
+// card that makes the plain surfaces show the performer, and when it lands
+// this test and the pinned sentence change together.
+//
+// Every variable the identity ladder reads is set explicitly before each
+// invocation, so the inherited environment cannot answer for any of them.
+func TestAnActRecordedForTheOperatorShowsItsPerformerOnlyInTheMachineForm(t *testing.T) {
+	root, _ := operatorOwnedItem(t, "open_question")
+	declared := []string{"claude-code", "anthropic", "claude-opus-5"}
+	asPerson := func() {
+		t.Setenv("DINAH_ACTOR", "alka")
+		t.Setenv("DINAH_HARNESS", "")
+		t.Setenv("DINAH_PROVIDER", "")
+		t.Setenv("DINAH_MODEL", "")
+	}
+
+	asPerson()
+	minted := runCLI(t, root, "changes")
+	cursor := ""
+	for _, line := range strings.Split(minted.out, "\n") {
+		if rest, found := strings.CutPrefix(line, "cursor: "); found {
+			cursor = rest
+		}
+	}
+	if minted.code != 0 || cursor == "" {
+		t.Fatalf("changes minted no cursor: %d %q %s", minted.code, minted.out, minted.errw)
+	}
+
+	t.Setenv("DINAH_ACTOR", "planner")
+	t.Setenv("DINAH_HARNESS", declared[0])
+	t.Setenv("DINAH_PROVIDER", declared[1])
+	t.Setenv("DINAH_MODEL", declared[2])
+	note := "Alka, in this conversation: Take the garden. Recorded for her by planner."
+	if got := runCLI(t, root, "--actor", "alka", "resolve", "fx-1/questions/1", "--text", note); got.code != 0 {
+		t.Fatalf("the resolve recorded for the operator: %d %s", got.code, got.errw)
+	}
+
+	asPerson()
+	machine := runCLI(t, root, "--json", "list", "fx-1/journal")
+	var events []map[string]any
+	if err := json.Unmarshal([]byte(machine.out), &events); err != nil {
+		t.Fatalf("read the journal's machine form: %v\n%s", err, machine.out)
+	}
+	resolved := 0
+	for _, event := range events {
+		if event["event"] != contract.EventItemResolved {
+			continue
+		}
+		resolved++
+		actor, _ := event["actor"].(map[string]any)
+		want := map[string]any{"name": "alka", "harness": declared[0], "gen_ai.provider.name": declared[1], "gen_ai.request.model": declared[2]}
+		for key, value := range want {
+			if actor[key] != value {
+				t.Errorf("the machine form's item_resolved actor carries %s=%v, wanted %v: %v", key, actor[key], value, actor)
+			}
+		}
+	}
+	if resolved != 1 {
+		t.Fatalf("the machine form carries %d item_resolved entries, wanted one", resolved)
+	}
+
+	// nameAloneOn finds the one row of a plain listing that names the event,
+	// and holds it to the operator's name in its Actor cell and to none of the
+	// three declared values anywhere on the row.
+	nameAloneOn := func(surface, listing string, actorCell int) {
+		t.Helper()
+		var rows []string
+		for _, line := range strings.Split(listing, "\n") {
+			if strings.Contains(line, contract.EventItemResolved) {
+				rows = append(rows, line)
+			}
+		}
+		if len(rows) != 1 {
+			t.Fatalf("%s carries %d rows naming %s, wanted one:\n%s", surface, len(rows), contract.EventItemResolved, listing)
+		}
+		cells := strings.Fields(rows[0])
+		if len(cells) <= actorCell || cells[actorCell] != "alka" {
+			t.Errorf("%s's row does not carry alka in its Actor cell: %q", surface, rows[0])
+		}
+		for _, value := range declared {
+			if strings.Contains(rows[0], value) {
+				t.Errorf("%s's row carries the declared %s, so the guide's sentence is no longer true: %q", surface, value, rows[0])
+			}
+		}
+	}
+	listed := runCLI(t, root, "list", "fx-1/journal")
+	if listed.code != 0 {
+		t.Fatalf("list the journal: %d %s", listed.code, listed.errw)
+	}
+	nameAloneOn("the plain journal listing", listed.out, 2)
+	changed := runCLI(t, root, "changes", "--since", cursor)
+	if changed.code != 0 {
+		t.Fatalf("changes: %d %s", changed.code, changed.errw)
+	}
+	nameAloneOn("dinah changes", changed.out, 3)
+
+	shown := runCLI(t, root, "show", "fx-1/questions/1")
+	if shown.code != 0 {
+		t.Fatalf("show the item: %d %s", shown.code, shown.errw)
+	}
+	var who [][]string
+	for _, line := range strings.Split(shown.out, "\n") {
+		if cells := strings.Fields(line); len(cells) > 0 && cells[0] == "Who" {
+			who = append(who, cells)
+		}
+	}
+	if len(who) != 1 || len(who[0]) != 2 || who[0][1] != "alka" {
+		t.Errorf("the resolution comment's author line is %v, wanted Who and the name alone", who)
 	}
 }

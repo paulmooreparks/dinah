@@ -59,6 +59,13 @@ that needs the stronger reading. `ACTOR-4` in the core profile is a rule
 addressed to whoever works a card rather than a refusal Dinah enforces against
 a caller who has decided otherwise.
 
+There is one honest reason to present the operator's name, which is to record a
+ruling the operator has stated about that act in the operator's own words.
+`dinah guide on-behalf` says what counts as such a statement and how to record
+it so the record still shows that you acted. Presenting the name for any other
+reason writes into the record, as the operator's, a decision the operator never
+stated.
+
 ## Read what this workbench asks of you
 
 Every workbench states its own rules, and reading them is part of the work

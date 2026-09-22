@@ -1814,9 +1814,9 @@
       "source": "9f9d6dfa28378c0f"
     },
     "cmd.fail.note": {
-      "text": "Eine Notiz muss sagen, was die Prüfung gezeigt hat. Dinah weist eine leere Notiz zurück, und Dinah weist eine Notiz zurück, die den eigenen Text des Kriteriums Wort für Wort wiederholt. Diese Prüfung fängt allein das wörtliche Echo: Eine Notiz, die das Kriterium mit anderen Worten wiederholt, besteht sie und sagt trotzdem nichts.",
-      "context": "The note printed under the fail command's own help, after its summary. It states what the note check does and what it does not prove, so a reader does not take it for a stronger guarantee than it is.",
-      "source": "ba4b032c239208fc"
+      "text": "Eine Notiz muss sagen, was die Prüfung gezeigt hat. Dinah weist eine leere Notiz zurück, und Dinah weist eine Notiz zurück, die den eigenen Text des Kriteriums Wort für Wort wiederholt. Diese Prüfung fängt allein das wörtliche Echo: Eine Notiz, die das Kriterium mit anderen Worten wiederholt, besteht sie und sagt trotzdem nichts. Ein mit `--owner operator` abgelegtes Kriterium klärt allein der Betreiber, und `dinah guide on-behalf` sagt, wie Sie ein Ergebnis festhalten, das der Betreiber ausgesprochen hat.",
+      "context": "The note printed under the fail command's own help, after its summary. It states what the note check does and what it does not prove, so a reader does not take it for a stronger guarantee than it is. Its last sentence points an agent holding the operator's stated ruling at the guide on-behalf, which is not translated.",
+      "source": "577b2aabc24fa2ae"
     },
     "cmd.fail.summary": {
       "text": "Ein Abnahmekriterium als fehlgeschlagen festhalten",
@@ -1939,9 +1939,9 @@
       "source": "64de682cbf18a8ac"
     },
     "cmd.resolve.note": {
-      "text": "Eine Notiz muss sagen, was den Punkt geklärt hat. Dinah weist eine leere Notiz zurück, und Dinah weist eine Notiz zurück, die den eigenen Text des Punktes Wort für Wort wiederholt. Diese Prüfung fängt allein das wörtliche Echo: Eine Notiz, die den Punkt mit anderen Worten wiederholt, besteht sie und sagt trotzdem nichts.",
-      "context": "The note printed under the resolve command's own help, after its summary. It states what the note check does and what it does not prove, so a reader does not take it for a stronger guarantee than it is.",
-      "source": "9ad3a5cb58aef3b4"
+      "text": "Eine Notiz muss sagen, was den Punkt geklärt hat. Dinah weist eine leere Notiz zurück, und Dinah weist eine Notiz zurück, die den eigenen Text des Punktes Wort für Wort wiederholt. Diese Prüfung fängt allein das wörtliche Echo: Eine Notiz, die den Punkt mit anderen Worten wiederholt, besteht sie und sagt trotzdem nichts. Einen mit `--owner operator` abgelegten Punkt klärt allein der Betreiber, und `dinah guide on-behalf` sagt, wie Sie eine Entscheidung festhalten, die der Betreiber ausgesprochen hat.",
+      "context": "The note printed under the resolve command's own help, after its summary. It states what the note check does and what it does not prove, so a reader does not take it for a stronger guarantee than it is. Its last sentence points an agent holding the operator's stated ruling at the guide on-behalf, which is not translated.",
+      "source": "e5e558eb96cceddd"
     },
     "cmd.resolve.summary": {
       "text": "Eine offene Frage oder eine Entscheidung klären",
@@ -1983,6 +1983,11 @@
       "context": "The one-line summary of the tree command, shown beside its syntax in the help block.",
       "source": "978852122039d8b6"
     },
+    "cmd.unblock.note": {
+      "text": "Nur der Betreiber der Werkbank hebt eine Blockade auf. Wenn der Betreiber eine Entscheidung ausgesprochen hat, die diese Blockade aufhebt, sagt `dinah guide on-behalf`, wie Sie sie als Entscheidung des Betreibers festhalten.",
+      "context": "The note printed under the unblock command's own help, after its summary. It says the act is the operator's and points an agent holding the operator's stated ruling at the guide on-behalf, which is not translated.",
+      "source": "1d54ccd1eb173bce"
+    },
     "cmd.unblock.summary": {
       "text": "Eine Blockade aufheben (nur Betreiber)",
       "context": "The one-line summary of the unblock command, shown beside its syntax in the help block.",
@@ -1994,9 +1999,9 @@
       "source": "8feef1401d040042"
     },
     "cmd.verify.note": {
-      "text": "Eine Notiz muss sagen, was die Prüfung gezeigt hat. Dinah weist eine leere Notiz zurück, und Dinah weist eine Notiz zurück, die den eigenen Text des Kriteriums Wort für Wort wiederholt. Diese Prüfung fängt allein das wörtliche Echo: Eine Notiz, die das Kriterium mit anderen Worten wiederholt, besteht sie und sagt trotzdem nichts.",
-      "context": "The note printed under the verify command's own help, after its summary. It states what the note check does and what it does not prove, so a reader does not take it for a stronger guarantee than it is.",
-      "source": "ba4b032c239208fc"
+      "text": "Eine Notiz muss sagen, was die Prüfung gezeigt hat. Dinah weist eine leere Notiz zurück, und Dinah weist eine Notiz zurück, die den eigenen Text des Kriteriums Wort für Wort wiederholt. Diese Prüfung fängt allein das wörtliche Echo: Eine Notiz, die das Kriterium mit anderen Worten wiederholt, besteht sie und sagt trotzdem nichts. Ein mit `--owner operator` abgelegtes Kriterium klärt allein der Betreiber, und `dinah guide on-behalf` sagt, wie Sie ein Ergebnis festhalten, das der Betreiber ausgesprochen hat.",
+      "context": "The note printed under the verify command's own help, after its summary. It states what the note check does and what it does not prove, so a reader does not take it for a stronger guarantee than it is. Its last sentence points an agent holding the operator's stated ruling at the guide on-behalf, which is not translated.",
+      "source": "577b2aabc24fa2ae"
     },
     "cmd.verify.summary": {
       "text": "Ein Abnahmekriterium als geprüft festhalten",
@@ -2645,9 +2650,9 @@
       "source": "bda56dd7c6ff3d50"
     },
     "help.environment": {
-      "text": "Umgebung: DINAH_WORKBENCH, DINAH_HOME, DINAH_FORMAT=json|compact, DINAH_LANG, DINAH_ACTOR, DINAH_EDITOR, DINAH_MCP_ROOT, VISUAL, EDITOR",
+      "text": "Umgebung: DINAH_WORKBENCH, DINAH_HOME, DINAH_FORMAT=json|compact, DINAH_LANG, DINAH_ACTOR, DINAH_HARNESS, DINAH_PROVIDER, DINAH_MODEL, DINAH_SERVER, DINAH_EDITOR, DINAH_MCP_ROOT, VISUAL, EDITOR",
       "context": "The environment variables the tool reads. The variable names are machine vocabulary and are never translated.",
-      "source": "1da148f5755e9a98"
+      "source": "dd1435b28ab9c7fd"
     },
     "help.exitcodes": {
       "text": "Exit-Codes: 0 ok, 2 abgelehnt, 3 veraltet, 4 nicht erreichbar.",
@@ -4901,6 +4906,11 @@
       "text": "; bitten Sie den Betreiber, sie auszuführen, oder führen Sie `dinah whoami` aus, um zu sehen, für wen Dinah Sie hält",
       "context": "Spliced onto refusal.not-operator as the next step.",
       "source": "af1ec2ef55dfc403"
+    },
+    "refusal.not-operator.next-harness": {
+      "text": "; Sie haben den {harness}-Harness deklariert, und diese Aktion ist dem Betreiber vorbehalten; wenn der Betreiber dazu eine Entscheidung ausgesprochen hat, lesen Sie `dinah guide on-behalf`, bevor Sie sie festhalten",
+      "context": "Spliced onto refusal.not-operator as the next step, in place of refusal.not-operator.next, when the request that raised the refusal declared a harness. {harness} is that harness's name. The guide name on-behalf and the command are not translated.",
+      "source": "8d0d7f735d3de3e"
     },
     "refusal.not-requester": {
       "text": "ein Anspruch nennt seinen eigenen Anfragenden als Inhaber, und dieser nennt {detail}",

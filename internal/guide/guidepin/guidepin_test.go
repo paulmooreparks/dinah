@@ -56,12 +56,12 @@ func TestCarriesRefusesAnUnknownTopic(t *testing.T) {
 }
 
 // TestPinnedNamesItsGuidesAndCopiesTheRoster holds the roster's own shape:
-// eight statements, every one of them naming a guide and a proving test, and
+// nine statements, every one of them naming a guide and a proving test, and
 // a returned slice a caller cannot write back through.
 func TestPinnedNamesItsGuidesAndCopiesTheRoster(t *testing.T) {
 	roster := Pinned()
-	if len(roster) != 8 {
-		t.Fatalf("the roster holds %d statements and the two pinned sections make eight claims between them", len(roster))
+	if len(roster) != 9 {
+		t.Fatalf("the roster holds %d statements and the three pinned sections make nine claims between them", len(roster))
 	}
 	for _, statement := range roster {
 		if statement.Topic == "" || statement.Text == "" || statement.Provenance == "" {

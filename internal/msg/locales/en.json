@@ -1450,8 +1450,8 @@
       "context": "The one-line summary of the extract command, shown beside its syntax in the help block."
     },
     "cmd.fail.note": {
-      "text": "A note has to say what the check showed. Dinah refuses an empty note, and it refuses a note that repeats the criterion's own text word for word. That check catches the literal echo alone: a note restating the criterion in different words passes it and still says nothing.",
-      "context": "The note printed under the fail command's own help, after its summary. It states what the note check does and what it does not prove, so a reader does not take it for a stronger guarantee than it is."
+      "text": "A note has to say what the check showed. Dinah refuses an empty note, and it refuses a note that repeats the criterion's own text word for word. That check catches the literal echo alone: a note restating the criterion in different words passes it and still says nothing. A criterion filed `--owner operator` is settled by the operator alone, and `dinah guide on-behalf` says how to record a result the operator has stated.",
+      "context": "The note printed under the fail command's own help, after its summary. It states what the note check does and what it does not prove, so a reader does not take it for a stronger guarantee than it is. Its last sentence points an agent holding the operator's stated ruling at the guide on-behalf, which is not translated."
     },
     "cmd.fail.summary": {
       "text": "Record an acceptance criterion as failed",
@@ -1550,8 +1550,8 @@
       "context": "The one-line summary of the reshape command, shown beside its syntax in the help block."
     },
     "cmd.resolve.note": {
-      "text": "A note has to say what settled the item. Dinah refuses an empty note, and it refuses a note that repeats the item's own text word for word. That check catches the literal echo alone: a note restating the item in different words passes it and still says nothing.",
-      "context": "The note printed under the resolve command's own help, after its summary. It states what the note check does and what it does not prove, so a reader does not take it for a stronger guarantee than it is."
+      "text": "A note has to say what settled the item. Dinah refuses an empty note, and it refuses a note that repeats the item's own text word for word. That check catches the literal echo alone: a note restating the item in different words passes it and still says nothing. An item filed `--owner operator` is settled by the operator alone, and `dinah guide on-behalf` says how to record a decision the operator has stated.",
+      "context": "The note printed under the resolve command's own help, after its summary. It states what the note check does and what it does not prove, so a reader does not take it for a stronger guarantee than it is. Its last sentence points an agent holding the operator's stated ruling at the guide on-behalf, which is not translated."
     },
     "cmd.resolve.summary": {
       "text": "Resolve an open question or a decision",
@@ -1585,6 +1585,10 @@
       "text": "The workbench's cards nested along a chain of axes",
       "context": "The one-line summary of the tree command, shown beside its syntax in the help block."
     },
+    "cmd.unblock.note": {
+      "text": "Only the workbench's operator lifts a block. When the operator has stated a ruling that lifts this one, `dinah guide on-behalf` says how to record it as the operator's.",
+      "context": "The note printed under the unblock command's own help, after its summary. It says the act is the operator's and points an agent holding the operator's stated ruling at the guide on-behalf, which is not translated."
+    },
     "cmd.unblock.summary": {
       "text": "Lift a block (operator only)",
       "context": "The one-line summary of the unblock command, shown beside its syntax in the help block."
@@ -1594,8 +1598,8 @@
       "context": "The one-line summary of the unlink command, shown beside its syntax in the help block."
     },
     "cmd.verify.note": {
-      "text": "A note has to say what the check showed. Dinah refuses an empty note, and it refuses a note that repeats the criterion's own text word for word. That check catches the literal echo alone: a note restating the criterion in different words passes it and still says nothing.",
-      "context": "The note printed under the verify command's own help, after its summary. It states what the note check does and what it does not prove, so a reader does not take it for a stronger guarantee than it is."
+      "text": "A note has to say what the check showed. Dinah refuses an empty note, and it refuses a note that repeats the criterion's own text word for word. That check catches the literal echo alone: a note restating the criterion in different words passes it and still says nothing. A criterion filed `--owner operator` is settled by the operator alone, and `dinah guide on-behalf` says how to record a result the operator has stated.",
+      "context": "The note printed under the verify command's own help, after its summary. It states what the note check does and what it does not prove, so a reader does not take it for a stronger guarantee than it is. Its last sentence points an agent holding the operator's stated ruling at the guide on-behalf, which is not translated."
     },
     "cmd.verify.summary": {
       "text": "Record an acceptance criterion as verified",
@@ -2106,7 +2110,7 @@
       "context": "Heading over the arguments table of one command's help page, which says how each argument is spelled and what it is."
     },
     "help.environment": {
-      "text": "Environment: DINAH_WORKBENCH, DINAH_HOME, DINAH_FORMAT=json|compact, DINAH_LANG, DINAH_ACTOR, DINAH_EDITOR, DINAH_MCP_ROOT, VISUAL, EDITOR",
+      "text": "Environment: DINAH_WORKBENCH, DINAH_HOME, DINAH_FORMAT=json|compact, DINAH_LANG, DINAH_ACTOR, DINAH_HARNESS, DINAH_PROVIDER, DINAH_MODEL, DINAH_SERVER, DINAH_EDITOR, DINAH_MCP_ROOT, VISUAL, EDITOR",
       "context": "The environment variables the tool reads. The variable names are machine vocabulary and are never translated."
     },
     "help.exitcodes": {
@@ -3904,6 +3908,10 @@
     "refusal.not-operator.next": {
       "text": "; ask the operator to run it, or run `dinah whoami` to see who Dinah takes you to be",
       "context": "Spliced onto refusal.not-operator as the next step."
+    },
+    "refusal.not-operator.next-harness": {
+      "text": "; you declared the {harness} harness, and this act is the operator's to perform; if the operator has stated a ruling on it, read `dinah guide on-behalf` before you record it",
+      "context": "Spliced onto refusal.not-operator as the next step, in place of refusal.not-operator.next, when the request that raised the refusal declared a harness. {harness} is that harness's name. The guide name on-behalf and the command are not translated."
     },
     "refusal.not-requester": {
       "text": "a claim names its own asker as holder, and this one names {detail}",

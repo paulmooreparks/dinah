@@ -2242,7 +2242,7 @@ type Identity struct {
 // declaration resolves to.
 func (l *Library) Whoami(req *Request) (*Identity, error) {
 	if req.Actor == "" {
-		return nil, contract.RefuseWith(contract.NoOwner, "", noOwnerExtra(req))
+		return nil, contract.RefuseWith(contract.NoOwner, "", harnessExtra(req))
 	}
 	tier, _ := l.Bench.TierOf(req.Provider, req.Model, req.Server)
 	identity := &Identity{
@@ -2401,7 +2401,7 @@ func (l *Library) Check(req *Request) (*CheckReport, error) {
 	// same harness explanation as every raise site that goes through
 	// Library.refuse.
 	if req != nil && req.Repairs() && req.Actor == "" {
-		return report, contract.RefuseWith(contract.NoOwner, "", noOwnerExtra(req))
+		return report, contract.RefuseWith(contract.NoOwner, "", harnessExtra(req))
 	}
 	if req != nil && req.MigrateSlugs {
 		assigned, reported := l.Bench.BackfillColumnSlugs()

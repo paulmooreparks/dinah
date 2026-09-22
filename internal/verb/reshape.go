@@ -280,14 +280,14 @@ func (l *Library) Reshape(req *Request) (*ReshapeReport, error) {
 		return nil, contract.Refuse(contract.NoOperator, "")
 	}
 	if req.Actor == "" {
-		return nil, contract.RefuseWith(contract.NoOwner, "", noOwnerExtra(req))
+		return nil, contract.RefuseWith(contract.NoOwner, "", harnessExtra(req))
 	}
 	// A run that writes rewrites the workbench's definition: it adds, rewrites
 	// and retires columns and writes an added column's attachments, each of
 	// which the verb naming that act reserves to the operator. A preview
 	// writes nothing, so it stays open to any owner.
 	if req.Confirm && req.Actor != l.Bench.Operator {
-		return nil, contract.Refuse(contract.NotOperator, req.Actor)
+		return nil, contract.RefuseWith(contract.NotOperator, req.Actor, harnessExtra(req))
 	}
 	source := strings.TrimSpace(req.From)
 	if source == "" {

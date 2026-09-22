@@ -273,9 +273,17 @@ var Shapes = []Shape{
 		},
 	},
 	{
-		Name:      NotOperator,
-		Fragments: []Fragment{{Key: "refusal.not-operator.next"}},
-		NextStep:  []string{"refusal.not-operator.next"},
+		// A caller that declared a harness is an agent, and the next step it is
+		// given points at the guide on recording the operator's stated ruling
+		// rather than naming the flag, so the conditions arrive with the route.
+		// A caller declaring none is given the step it always had.
+		Name:   NotOperator,
+		Values: []string{ValueHarness},
+		Fragments: []Fragment{
+			{Key: "refusal.not-operator.next-harness", When: ValueHarness},
+			{Key: "refusal.not-operator.next"},
+		},
+		NextStep: []string{"refusal.not-operator.next-harness", "refusal.not-operator.next"},
 	},
 	{
 		Name:      NotRequester,
