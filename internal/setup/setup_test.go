@@ -81,7 +81,7 @@ func (f *fixture) options(harness string) Options {
 		Home:           f.home,
 		UserBase:       f.userBase,
 		Workbench:      f.workbench,
-		WorkbenchTitle: "Trial bench",
+		WorkbenchTitle: "Proving ground",
 		Operator:       "ana",
 	}
 }

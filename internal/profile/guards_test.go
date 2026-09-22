@@ -2011,7 +2011,9 @@ const theOneTable = "cmd/dinah/table.go"
 // gives the child process an editor runs in its stdio, runMCP serves the
 // MCP server on stdio, and runLSP serves the language server on stdio for the
 // same reason: a protocol server is handed the process's own streams and
-// writes frames rather than rows. editCmd holds the naming runEdit used to do itself, so
+// writes frames rather than rows. runSetup hands stderr to the programs a
+// setup recipe's run steps start, which write their own output there rather
+// than rows the head lays out. editCmd holds the naming runEdit used to do itself, so
 // runEdit is off this list: it builds no command of its own since dinah-199
 // and names no stream.
 //
@@ -2033,6 +2035,7 @@ var streamWriters = []string{
 	"editCmd",
 	"runMCP",
 	"runLSP",
+	"runSetup",
 }
 
 // processStreamHolders are the two functions that may name the process's own

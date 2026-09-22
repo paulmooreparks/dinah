@@ -128,7 +128,7 @@ func (s *session) emitSetupList(rows []setup.Listing) int {
 	if s.format != formatHuman {
 		return s.emitMachine(setupListing{Recipes: rows})
 	}
-	listing := table{indent: 2, columns: s.columns("setup-list", "recipe", "title", "source", "used", "path")}
+	listing := table{indent: 2, columns: s.columns("setup-list", "recipe", "title", "source", "used", "path"), stackOnOverflow: true}
 	for _, row := range rows {
 		title := row.Title
 		if row.Malformed != "" {
@@ -196,7 +196,7 @@ func (s *session) renderSetupReport(report *setup.Report) {
 		s.line(s.r.T("setup.remove.nothing"))
 		return
 	}
-	changes := table{indent: 2, columns: s.columns("setup", "step", "file", "key", "change")}
+	changes := table{indent: 2, columns: s.columns("setup", "step", "file", "key", "change"), stackOnOverflow: true}
 	for _, c := range report.Changes {
 		fields := []string{dashIfEmpty(c.Step), dashIfEmpty(c.File), dashIfEmpty(c.Key), s.r.T("setup.change." + c.Change)}
 		changes.rows = append(changes.rows, tableRow{fields: fields})

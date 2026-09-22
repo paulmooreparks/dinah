@@ -1,6 +1,6 @@
 ## Dinah
 
-Work in this project is coordinated on the Dinah workbench "Trial bench", at `<WORKBENCH>`. The workbench is the authority for where a piece of work stands and who holds it, so read it rather than relying on what a previous session remembered.
+Work in this project is coordinated on the Dinah workbench "Proving ground", at `<WORKBENCH>`. The workbench is the authority for where a piece of work stands and who holds it, so read it rather than relying on what a previous session remembered.
 
 Run `dinah prime` at the start of every session. It tells you who you are acting as, what you hold, and what is ready for you.
 

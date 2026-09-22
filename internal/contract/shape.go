@@ -899,9 +899,20 @@ var Shapes = []Shape{
 		// The declared name travels in the detail alone, because the sentence
 		// names it once and the next step names the variable to set rather
 		// than the value again.
-		Name:      MalformedHarness,
-		Fragments: []Fragment{{Key: "refusal.dinah.malformed-harness.next"}},
-		NextStep:  []string{"refusal.dinah.malformed-harness.next"},
+		//
+		// dinah setup raises it over the recipe name it was handed, which is
+		// a harness name in the same grammar and not a variable anybody set,
+		// so setup carries a sentence and a next step of its own.
+		Name:     MalformedHarness,
+		Variants: []string{"setup"},
+		Fragments: []Fragment{
+			{Key: "refusal.dinah.malformed-harness.setup.next", WhenCommand: "setup"},
+			{Key: "refusal.dinah.malformed-harness.next"},
+		},
+		NextStep: []string{
+			"refusal.dinah.malformed-harness.setup.next",
+			"refusal.dinah.malformed-harness.next",
+		},
 	},
 	{
 		// The member's name travels in the detail alone, written as a JSON

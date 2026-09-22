@@ -6517,6 +6517,16 @@
       "text": "पथ",
       "context": "Heading over the recipe's directory in the listing dinah setup --list prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "2e532e19ed477a56"
+    },
+    "refusal.dinah.malformed-harness.setup": {
+      "text": "{detail} कोई रेसिपी नाम नहीं है, जो एक हार्नेस नाम होता है: अक्षरों, अंकों और बीच में अकेले हाइफ़न का एक लोअरकेस खंड",
+      "context": "The sentence printed after the refusal name dinah.malformed-harness when dinah setup raised it, because the name given to setup is a recipe's name and a recipe is named in the harness grammar. {detail} is the name as typed.",
+      "source": "e5223c09a3d3f8e4"
+    },
+    "refusal.dinah.malformed-harness.setup.next": {
+      "text": "; setup को मिलने वाली रेसिपी देखने के लिए dinah setup --list चलाएँ",
+      "context": "The next step of refusal.dinah.malformed-harness when dinah setup raised it. The command spelling is machine vocabulary and is not translated.",
+      "source": "9c749650c4f39726"
     }
   }
 }
