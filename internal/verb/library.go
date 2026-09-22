@@ -395,6 +395,19 @@ type Request struct {
 	// DetailSelectors names, each carried in full. It is refused together
 	// with Fields, since one call cannot name two field sets.
 	All bool
+	// FullPending removes the cap prime's own queue rule (rule 2 of
+	// Primer.Pending) carries, placing every item that rule matches into
+	// Pending whatever the count. It is a silent no-op for a caller that
+	// rule never fires for, since there is nothing else for it to uncap.
+	FullPending bool
+	// Brief asks prime for the narrow, pointer-only form of its Instructions
+	// member: neither Global nor Standing carried, both named in Withheld.
+	// On the CLI it is the only way to omit them, since a terminal call
+	// carries no session memory of its own; on MCP it forces the narrow
+	// form even on a first call a bare request would otherwise serve in
+	// full, and it never marks a layer served in req.HeldChain, since a
+	// caller who forced brevity on one call was not shown the text on it.
+	Brief bool
 	// HeldChain is the set of instruction-layer keys this caller's connection
 	// has already been sent and has not yet re-served, each one written
 	// <actor> + "\x00" + <text revision>. The MCP head fills it from its own
@@ -776,29 +789,11 @@ func (l *Library) composeChain(req *Request, column *bench.Column, withhold bool
 	if column == nil {
 		withhold = false
 	}
-	instructions := &Instructions{}
-	var served []string
-	held := func(name, key string) bool {
-		if withhold && req.HeldChain[key] {
-			instructions.Withheld = append(instructions.Withheld, name)
-			return true
-		}
-		served = append(served, key)
-		return false
-	}
-	layer := func(name, text string, into *string) {
-		if text == "" {
-			return
-		}
-		if held(name, chainKey(req.Actor, text)) {
-			return
-		}
-		*into = text
-	}
-	layer(LayerGlobal, bench.GlobalInstructions(l.Home), &instructions.Global)
-	layer(LayerStanding, l.Bench.Standing, &instructions.Standing)
+	s := newLayerServer(req, withhold)
+	s.layer(LayerGlobal, bench.GlobalInstructions(l.Home), &s.instructions.Global)
+	s.layer(LayerStanding, l.Bench.Standing, &s.instructions.Standing)
 	if column != nil {
-		layer(LayerColumn, column.Instructions, &instructions.Column)
+		s.layer(LayerColumn, column.Instructions, &s.instructions.Column)
 		listing, err := attachmentViews(l.Bench.ColumnDir(column.ID), columnRef(column))
 		if err != nil {
 			return nil, nil, err
@@ -809,15 +804,58 @@ func (l *Library) composeChain(req *Request, column *bench.Column, withhold bool
 				return nil, nil, err
 			}
 			key := chainKey(req.Actor, string(listingBytes))
-			if !held(LayerColumnAttachments, key) {
-				instructions.ColumnAttachments = listing
+			if !s.held(LayerColumnAttachments, key) {
+				s.instructions.ColumnAttachments = listing
 			}
 		}
 	}
-	if len(instructions.Withheld) > 0 {
-		instructions.Reread = columnRef(column)
+	if len(s.instructions.Withheld) > 0 {
+		s.instructions.Reread = columnRef(column)
 	}
-	return instructions, served, nil
+	return s.instructions, s.served, nil
+}
+
+// layerServer carries the withholding bookkeeping composeChain and Prime both
+// need: which named layer a request's connection already holds, and which
+// keys a call serves in full and should be recorded as served. It is the
+// held/layer pair composeChain used to build inline, extracted so the one
+// piece of bookkeeping is written once rather than kept in step by hand in
+// two places.
+type layerServer struct {
+	req          *Request
+	withhold     bool
+	instructions *Instructions
+	served       []string
+}
+
+// newLayerServer starts a server over a fresh, empty Instructions.
+func newLayerServer(req *Request, withhold bool) *layerServer {
+	return &layerServer{req: req, withhold: withhold, instructions: &Instructions{}}
+}
+
+// held answers whether this call may withhold the layer named key, naming it
+// in Withheld and returning true where it may, and recording key as served
+// and returning false where it may not.
+func (s *layerServer) held(name, key string) bool {
+	if s.withhold && s.req.HeldChain[key] {
+		s.instructions.Withheld = append(s.instructions.Withheld, name)
+		return true
+	}
+	s.served = append(s.served, key)
+	return false
+}
+
+// layer serves one named layer's text into a member of s.instructions, empty
+// text serving nothing at all, and withheld text serving nothing but naming
+// the layer.
+func (s *layerServer) layer(name, text string, into *string) {
+	if text == "" {
+		return
+	}
+	if s.held(name, chainKey(s.req.Actor, text)) {
+		return
+	}
+	*into = text
 }
 
 // legalMoves reports the departures the workbench allows a card now. A card in

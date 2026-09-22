@@ -237,10 +237,11 @@ var archivedResolutionFamilies = []resolutionFamily{
 		name: "E", axis: "reading",
 		what:      "rendering a card's human reference: every call whose selector is Ref and which carries exactly one argument",
 		files:     15,
-		mentions:  31,
-		functions: 23,
+		mentions:  32,
+		functions: 24,
 		sites: []resolutionSite{
 			{"internal/verb/checklist.go", "itemCanonicalRef", 1, "composing the canonical reference of one item of one card, which a settling stores as its answer and a forced deletion hands to Reopen; the card is the one the item hangs below and it was resolved live by the verb that is writing it, so no archived card reaches this call"},
+			{"internal/verb/read.go", "primePending", 1, "naming the card one Primer.Pending item belongs to; the card came off Library.Cards, the live collection alone, so no archived card reaches this call"},
 			{"cmd/dinah-migrate-notes/main.go", "classifyCard", 1, "naming an item in the note migration's own report and in the designation it writes; the run walks both halves, so an archived card does reach this call, and it composes a reference for a report rather than resolving one"},
 			{"internal/bench/branchmigrate.go", "MigrateBranches", 5, "naming a card in the branch migration's own report, once for each of the four classes it sorts a card into and once more for the account of what the write pass wrote; the run walks the live half alone, on the rule MigrateNumbers keeps for the archive, so no archived card reaches these calls"},
 			{"internal/bench/check.go", "checkTierOverrides", 1, "naming a card in a finding"},

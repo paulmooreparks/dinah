@@ -135,6 +135,9 @@ func chainServed(payload any) []string {
 		if served, ok := answer["served"].(*verb.Served); ok {
 			return served.ChainServed
 		}
+		if primer, ok := answer["primer"].(*verb.Primer); ok {
+			return primer.ChainServed
+		}
 	}
 	return nil
 }

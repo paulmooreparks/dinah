@@ -118,6 +118,10 @@
       "statement": "I want to know which name this server acts under and which workbench it falls back to."
     },
     {
+      "tool": "prime",
+      "statement": "I am starting a session on this workbench and I want, in one call, who I am, what I hold, what is ready for me, what is pending for me, and the standing instructions."
+    },
+    {
       "tool": "get_field",
       "statement": "I want to read one named field of wb-12, its priority, rather than the whole card."
     },

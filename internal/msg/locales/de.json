@@ -6111,6 +6111,91 @@
       "text": "{detail} folgt einer Route, die die Karte an einer Spalte vorbeiführt, die diese Werkbank ihrem Betreiber vorbehält",
       "context": "A check finding: a card's route omits an operator-owned column the card has not yet passed, which every verb that writes a route refuses, so it arrived by a hand edit. {detail} carries the card and the column, in that order. The finding clears once the card has passed the column.",
       "source": "d730a37fa11686d2"
+    },
+    "check.prime.1": {
+      "text": "ein Akteur ist auflösbar",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "fdca0aeeb585eb88"
+    },
+    "cmd.prime.summary": {
+      "text": "Was eine Sitzung zum Start braucht, in einem Lesevorgang",
+      "context": "The one-line summary of the prime command, shown beside its syntax in the help block.",
+      "source": "69e945b277cbbecb"
+    },
+    "param.prime.brief.summary": {
+      "text": "Die geltenden Anweisungen aus dieser Antwort weglassen und stattdessen als zurückgehalten benennen, statt sie auszudrucken",
+      "context": "The sentence written for prime's brief marker.",
+      "source": "d83da97a3c5213c9"
+    },
+    "param.prime.full-pending.summary": {
+      "text": "Die Begrenzung der eigenen Warteschlange des Betreibers aufheben, sodass jeder Treffer statt nur der ersten 20 uebernommen wird",
+      "context": "The sentence written for prime's full-pending marker.",
+      "source": "212aa110fd4d2826"
+    },
+    "prime.actor": {
+      "text": "handelnd als {actor}, Betreiber: {operator}",
+      "context": "The second line of prime: who you are and whether you are the operator.",
+      "source": "ca836e469c3c755c"
+    },
+    "prime.holding": {
+      "text": "Sie halten:",
+      "context": "The label above the cards prime reports this actor holds.",
+      "source": "7b634b9177ab9b70"
+    },
+    "prime.holding.none": {
+      "text": "Sie halten: nichts.",
+      "context": "Printed by prime in place of the holding table when this actor holds no card.",
+      "source": "79a0a4d6883efb7"
+    },
+    "prime.ready": {
+      "text": "Bereit fuer Sie",
+      "context": "The label above the columns prime reports as offering this actor something.",
+      "source": "81a11eb341cc9208"
+    },
+    "prime.ready.none": {
+      "text": "Bereit fuer Sie: nichts.",
+      "context": "Printed by prime in place of the ready table when no column offers this actor anything.",
+      "source": "e4c68ba602313b1f"
+    },
+    "prime.pending": {
+      "text": "Ausstehend fuer Sie",
+      "context": "The label above the checklist items prime reports as stamped for this actor.",
+      "source": "d59f4c7fcc3eb340"
+    },
+    "prime.pending.none": {
+      "text": "Ausstehend fuer Sie: nichts.",
+      "context": "Printed by prime in place of the pending table when no checklist item is stamped for this actor.",
+      "source": "aa14d0d156d7ed87"
+    },
+    "prime.pending.truncated": {
+      "text": "Ausstehend fuer Sie (zeigt {shown} von {total}, {withheld} zurueckgehalten)",
+      "context": "The label above the pending table when the operator's own-queue rule matched more items than the cap carries into Pending. {shown} is how many rows the table carries, {total} is every match the rule found, and {withheld} is the difference.",
+      "source": "6587c84504d29b30"
+    },
+    "prime.pending.by-column": {
+      "text": "Nach Spalte: {columns}",
+      "context": "Printed after the pending table, for the operator alone, naming every column the own-queue rule matched at least one item in and how many. {columns} is that listing, already composed by the renderer.",
+      "source": "a0005476bd686ebb"
+    },
+    "prime.pending.full-pending-hint": {
+      "text": "Fuehren Sie `dinah prime --full-pending` aus, um alle {total} zu sehen.",
+      "context": "Printed after the pending table when the cap withheld at least one match, naming the flag that recovers the rest. {total} is every match the operator's own-queue rule found.",
+      "source": "2f7e0f47e177219"
+    },
+    "prime.instructions.brief": {
+      "text": "Geltende Anweisungen: weggelassen (--brief).",
+      "context": "Printed by prime in place of the standing instructions block when the caller asked for the narrow, pointer-only form.",
+      "source": "d03115337c335637"
+    },
+    "prime.instructions.brief.hint": {
+      "text": "Fuehren Sie `dinah instructions <Spalte>` aus, um sie zu lesen, zum Beispiel `dinah instructions {example}`.",
+      "context": "Printed after prime.instructions.brief, naming the command that recovers the omitted text in full. {example} is a column reference: the column of the actor's earliest-held card, or the workbench's first column when it holds none.",
+      "source": "e694333bd77b35bc"
+    },
+    "prime.instructions.hint": {
+      "text": "Fuehren Sie `dinah prime --brief` aus, um diesen Text bei einem spaeteren Aufruf wegzulassen.",
+      "context": "Printed after the standing instructions block on an ordinary (non-brief) prime call, naming the flag that omits it on a later call.",
+      "source": "fbb0d3f287597a58"
     }
   }
 }
