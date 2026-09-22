@@ -1744,7 +1744,7 @@ func sweptBlocks() []sweptBlock {
 		},
 		{
 			site: renderSite{File: "setup.go", Function: "emitSetupList", Label: "listing", Ordinal: 1}, label: "the recipes dinah setup can find",
-			keys: []string{"column.setup-list.recipe", "column.setup-list.title", "column.setup-list.source", "column.setup-list.used", "column.setup-list.path"},
+			keys:   []string{"column.setup-list.recipe", "column.setup-list.title", "column.setup-list.source", "column.setup-list.used", "column.setup-list.path"},
 			varies: 1, expect: expectSetupList,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
 				return sweptRun(t, w.healthy, tag, "setup", "--list")
@@ -1752,7 +1752,7 @@ func sweptBlocks() []sweptBlock {
 		},
 		{
 			site: renderSite{File: "setup.go", Function: "renderSetupReport", Label: "changes", Ordinal: 1}, label: "the changes a dry run of dinah setup reports",
-			keys: []string{"column.setup.step", "column.setup.file", "column.setup.key", "column.setup.change"},
+			keys:   []string{"column.setup.step", "column.setup.file", "column.setup.key", "column.setup.change"},
 			varies: 1, expect: expectSetupChanges, opensWith: setupHeadingOf,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
 				return sweptRun(t, w.healthy, tag, "setup", "claude-code", "--dry-run")

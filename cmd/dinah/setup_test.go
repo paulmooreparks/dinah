@@ -152,7 +152,9 @@ func setupCheckRows() []setupCheckRow {
 			func(t *testing.T, f *setupFixture) invocation {
 				return runCLI(t, f.project, "setup", "no-such-harness", "--dry-run")
 			},
-			func(t *testing.T, f *setupFixture) invocation { return runCLI(t, f.project, "setup", "codex", "--dry-run") }},
+			func(t *testing.T, f *setupFixture) invocation {
+				return runCLI(t, f.project, "setup", "codex", "--dry-run")
+			}},
 		{contract.MalformedRecipe,
 			func(t *testing.T, f *setupFixture) invocation {
 				dir := setupRecipe(t, filepath.Join(f.home, ".dinah", "recipes"), "broken")
