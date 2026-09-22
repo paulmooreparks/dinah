@@ -23,6 +23,17 @@ card touching this directory checks for that evidence attachment.
 profile and the brief it read, the harness and model that ran it, and the
 number of rounds the run took.
 
+The confinement has one known gap, which the operator accepted as a limit on
+dinah-548 at dinah-548/questions/14. Under `--restricted`, Claude Code
+2.1.276 let the author write and then read a file in its own session
+scratchpad, a directory the harness creates under the user's temporary
+directory, although the flag's help says only that it confines the file tools
+to the working directories. In the dinah-548 run that scratchpad held nothing
+but a three-line file the author had written itself, and a probe under the
+same flags was refused another session's scratchpad and the directory above
+it. The audit below reports any such call as outside the root, and it remains
+the check for any use of the scratchpad in a later run.
+
 Two scripts support a starved run. `scripts/interchange_reader_prepare.py`
 builds the starved directory from git at one commit and writes a manifest of
 what it holds. `scripts/interchange_reader_audit.py` reads the transcripts the

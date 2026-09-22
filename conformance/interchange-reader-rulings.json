@@ -3,118 +3,118 @@
     {
       "key": "export:dinah-core-0.4:CORE-BENCH-5",
       "disposition": "profile-defect",
-      "card": null,
+      "card": "dinah-525",
       "item": "dinah-548/questions/5",
-      "ruled_by": "",
-      "date": "",
+      "ruled_by": "paul",
+      "date": "2026-09-22",
       "note": "Dinah claims and exports dinah-core 0.18, which the published profile does not carry; CORE-BENCH-5 then refuses the exports. The profile publishes 0.18 with the changelog entry for the resolve, verify and fail change."
     },
     {
       "key": "export:dinah-core-1.0:CORE-BENCH-5",
       "disposition": "profile-defect",
-      "card": null,
+      "card": "dinah-525",
       "item": "dinah-548/questions/5",
-      "ruled_by": "",
-      "date": "",
+      "ruled_by": "paul",
+      "date": "2026-09-22",
       "note": "Dinah claims and exports dinah-core 0.18, which the published profile does not carry; CORE-BENCH-5 then refuses the exports. The profile publishes 0.18 with the changelog entry for the resolve, verify and fail change."
     },
     {
       "key": "export:dinah-core-1.0-pre-slug:CORE-BENCH-5",
       "disposition": "profile-defect",
-      "card": null,
+      "card": "dinah-525",
       "item": "dinah-548/questions/5",
-      "ruled_by": "",
-      "date": "",
+      "ruled_by": "paul",
+      "date": "2026-09-22",
       "note": "Dinah claims and exports dinah-core 0.18, which the published profile does not carry; CORE-BENCH-5 then refuses the exports. The profile publishes 0.18 with the changelog entry for the resolve, verify and fail change."
     },
     {
       "key": "export:dinah-core-0.5:CORE-BENCH-5",
       "disposition": "profile-defect",
-      "card": null,
+      "card": "dinah-525",
       "item": "dinah-548/questions/5",
-      "ruled_by": "",
-      "date": "",
+      "ruled_by": "paul",
+      "date": "2026-09-22",
       "note": "Dinah claims and exports dinah-core 0.18, which the published profile does not carry; CORE-BENCH-5 then refuses the exports. The profile publishes 0.18 with the changelog entry for the resolve, verify and fail change."
     },
     {
       "key": "export:dinah-core-0.6:CORE-BENCH-5",
       "disposition": "profile-defect",
-      "card": null,
+      "card": "dinah-525",
       "item": "dinah-548/questions/5",
-      "ruled_by": "",
-      "date": "",
+      "ruled_by": "paul",
+      "date": "2026-09-22",
       "note": "Dinah claims and exports dinah-core 0.18, which the published profile does not carry; CORE-BENCH-5 then refuses the exports. The profile publishes 0.18 with the changelog entry for the resolve, verify and fail change."
     },
     {
       "key": "export:dinah-core-0.18:CORE-BENCH-5",
       "disposition": "profile-defect",
-      "card": null,
+      "card": "dinah-525",
       "item": "dinah-548/questions/5",
-      "ruled_by": "",
-      "date": "",
+      "ruled_by": "paul",
+      "date": "2026-09-22",
       "note": "Dinah claims and exports dinah-core 0.18, which the published profile does not carry; CORE-BENCH-5 then refuses the exports. The profile publishes 0.18 with the changelog entry for the resolve, verify and fail change."
     },
     {
       "key": "pair:accept-section-5-7-example.json:CORE-JSON-1",
       "disposition": "profile-defect",
-      "card": null,
+      "card": "dinah-561",
       "item": "dinah-548/questions/6",
-      "ruled_by": "",
-      "date": "",
+      "ruled_by": "paul",
+      "date": "2026-09-22",
       "note": "CORE-JSON-1 says only that a tool reads and writes the interchange form, and does not say whether column identifiers survive a read and write-back; the profile states it."
     },
     {
       "key": "pair:accept-wedding-walkthrough.json:CORE-JSON-1",
       "disposition": "profile-defect",
-      "card": null,
+      "card": "dinah-561",
       "item": "dinah-548/questions/6",
-      "ruled_by": "",
-      "date": "",
+      "ruled_by": "paul",
+      "date": "2026-09-22",
       "note": "CORE-JSON-1 says only that a tool reads and writes the interchange form, and does not say whether column identifiers survive a read and write-back; the profile states it."
     },
     {
       "key": "fixture:accept-profile-space-separator.json:verdict",
       "disposition": "profile-defect",
-      "card": null,
+      "card": "dinah-560",
       "item": "dinah-548/questions/12",
-      "ruled_by": "",
-      "date": "",
+      "ruled_by": "paul",
+      "date": "2026-09-22",
       "note": "The profile's version identity line writes dinah-core 0.17 and its section 5.7 example writes dinah-core/0.17; CORE-BENCH-3 fixes neither spelling of the profile member."
     },
     {
       "key": "fixture:accept-profile-earlier-minor.json:verdict",
       "disposition": "profile-defect",
-      "card": null,
+      "card": "dinah-560",
       "item": "dinah-548/questions/13",
-      "ruled_by": "",
-      "date": "",
+      "ruled_by": "paul",
+      "date": "2026-09-22",
       "note": "CORE-BENCH-5 refuses only a later version, while section 6.1's table words the check as a version the tool implements; the two admit different answers for an earlier version."
     },
     {
       "key": "fixture:refuse-profile-later-minor.json:verdict",
       "disposition": "profile-defect",
-      "card": null,
+      "card": "dinah-525",
       "item": "dinah-548/questions/5",
-      "ruled_by": "",
-      "date": "",
+      "ruled_by": "paul",
+      "date": "2026-09-22",
       "note": "Dinah claims and exports dinah-core 0.18, which the published profile does not carry; CORE-BENCH-5 then refuses the exports. The profile publishes 0.18 with the changelog entry for the resolve, verify and fail change."
     },
     {
       "key": "pair:refuse-profile-later-minor.json:CORE-JSON-1",
       "disposition": "profile-defect",
-      "card": null,
+      "card": "dinah-561",
       "item": "dinah-548/questions/6",
-      "ruled_by": "",
-      "date": "",
+      "ruled_by": "paul",
+      "date": "2026-09-22",
       "note": "CORE-JSON-1 says only that a tool reads and writes the interchange form, and does not say whether column identifiers survive a read and write-back; the profile states it."
     },
     {
       "key": "fixture:refuse-profile-later-major.json:verdict",
       "disposition": "tool-defect",
-      "card": null,
+      "card": "dinah-559",
       "item": "dinah-548/questions/11",
-      "ruled_by": "",
-      "date": "",
+      "ruled_by": "paul",
+      "date": "2026-09-22",
       "note": "CORE-BENCH-5 names unsupported-version for a later profile version, and section 6.1 runs that check before every other."
     },
     {
@@ -122,8 +122,8 @@
       "disposition": "tool-defect",
       "card": "dinah-557",
       "item": "dinah-548/questions/8",
-      "ruled_by": "",
-      "date": "",
+      "ruled_by": "paul",
+      "date": "2026-09-22",
       "note": "init --from admits columns that CORE-STATE-1 and the capacity statements require a tool to refuse."
     },
     {
@@ -131,17 +131,17 @@
       "disposition": "tool-defect",
       "card": "dinah-557",
       "item": "dinah-548/questions/8",
-      "ruled_by": "",
-      "date": "",
+      "ruled_by": "paul",
+      "date": "2026-09-22",
       "note": "init --from admits columns that CORE-STATE-1 and the capacity statements require a tool to refuse."
     },
     {
       "key": "pair:accept-column-ids-differ-in-case.json:CORE-JSON-1",
       "disposition": "profile-defect",
-      "card": null,
+      "card": "dinah-561",
       "item": "dinah-548/questions/6",
-      "ruled_by": "",
-      "date": "",
+      "ruled_by": "paul",
+      "date": "2026-09-22",
       "note": "CORE-JSON-1 says only that a tool reads and writes the interchange form, and does not say whether column identifiers survive a read and write-back; the profile states it."
     },
     {
@@ -149,8 +149,8 @@
       "disposition": "tool-defect",
       "card": "dinah-557",
       "item": "dinah-548/questions/8",
-      "ruled_by": "",
-      "date": "",
+      "ruled_by": "paul",
+      "date": "2026-09-22",
       "note": "init --from admits columns that CORE-STATE-1 and the capacity statements require a tool to refuse."
     },
     {
@@ -158,8 +158,8 @@
       "disposition": "tool-defect",
       "card": "dinah-557",
       "item": "dinah-548/questions/8",
-      "ruled_by": "",
-      "date": "",
+      "ruled_by": "paul",
+      "date": "2026-09-22",
       "note": "init --from admits columns that CORE-STATE-1 and the capacity statements require a tool to refuse."
     },
     {
@@ -167,8 +167,8 @@
       "disposition": "tool-defect",
       "card": "dinah-557",
       "item": "dinah-548/questions/9",
-      "ruled_by": "",
-      "date": "",
+      "ruled_by": "paul",
+      "date": "2026-09-22",
       "note": "init --from admits a column kind CORE-STATE-11 requires a tool to refuse."
     },
     {
@@ -176,17 +176,17 @@
       "disposition": "tool-defect",
       "card": "dinah-557",
       "item": "dinah-548/questions/9",
-      "ruled_by": "",
-      "date": "",
+      "ruled_by": "paul",
+      "date": "2026-09-22",
       "note": "init --from admits a column kind CORE-STATE-11 requires a tool to refuse."
     },
     {
       "key": "pair:accept-column-kind-layer-prefix.json:CORE-JSON-1",
       "disposition": "profile-defect",
-      "card": null,
+      "card": "dinah-561",
       "item": "dinah-548/questions/6",
-      "ruled_by": "",
-      "date": "",
+      "ruled_by": "paul",
+      "date": "2026-09-22",
       "note": "CORE-JSON-1 says only that a tool reads and writes the interchange form, and does not say whether column identifiers survive a read and write-back; the profile states it."
     },
     {
@@ -194,8 +194,8 @@
       "disposition": "tool-defect",
       "card": "dinah-557",
       "item": "dinah-548/questions/8",
-      "ruled_by": "",
-      "date": "",
+      "ruled_by": "paul",
+      "date": "2026-09-22",
       "note": "init --from admits columns that CORE-STATE-1 and the capacity statements require a tool to refuse."
     },
     {
@@ -203,8 +203,8 @@
       "disposition": "tool-defect",
       "card": "dinah-557",
       "item": "dinah-548/questions/8",
-      "ruled_by": "",
-      "date": "",
+      "ruled_by": "paul",
+      "date": "2026-09-22",
       "note": "init --from admits columns that CORE-STATE-1 and the capacity statements require a tool to refuse."
     },
     {
@@ -212,8 +212,8 @@
       "disposition": "tool-defect",
       "card": "dinah-557",
       "item": "dinah-548/questions/8",
-      "ruled_by": "",
-      "date": "",
+      "ruled_by": "paul",
+      "date": "2026-09-22",
       "note": "init --from admits columns that CORE-STATE-1 and the capacity statements require a tool to refuse."
     },
     {
@@ -221,71 +221,71 @@
       "disposition": "tool-defect",
       "card": "dinah-557",
       "item": "dinah-548/questions/8",
-      "ruled_by": "",
-      "date": "",
+      "ruled_by": "paul",
+      "date": "2026-09-22",
       "note": "init --from admits columns that CORE-STATE-1 and the capacity statements require a tool to refuse."
     },
     {
       "key": "pair:accept-column-capacity-whole-decimal.json:CORE-JSON-1",
       "disposition": "tool-defect",
-      "card": null,
+      "card": "dinah-558",
       "item": "dinah-548/questions/7",
-      "ruled_by": "",
-      "date": "",
+      "ruled_by": "paul",
+      "date": "2026-09-22",
       "note": "A read and write-back drops capacity, gate_items or tiers, which CORE-JSON-10 and CORE-JSON-13 name, without refusing the object."
     },
     {
       "key": "pair:accept-column-optional-members.json:CORE-JSON-1",
       "disposition": "tool-defect",
-      "card": null,
+      "card": "dinah-558",
       "item": "dinah-548/questions/7",
-      "ruled_by": "",
-      "date": "",
+      "ruled_by": "paul",
+      "date": "2026-09-22",
       "note": "A read and write-back drops capacity, gate_items or tiers, which CORE-JSON-10 and CORE-JSON-13 name, without refusing the object."
     },
     {
       "key": "pair:accept-declared-fields.json:CORE-JSON-1",
       "disposition": "profile-defect",
-      "card": null,
+      "card": "dinah-561",
       "item": "dinah-548/questions/6",
-      "ruled_by": "",
-      "date": "",
+      "ruled_by": "paul",
+      "date": "2026-09-22",
       "note": "CORE-JSON-1 says only that a tool reads and writes the interchange form, and does not say whether column identifiers survive a read and write-back; the profile states it."
     },
     {
       "key": "pair:accept-capability-tiers.json:CORE-JSON-1",
       "disposition": "tool-defect",
-      "card": null,
+      "card": "dinah-558",
       "item": "dinah-548/questions/7",
-      "ruled_by": "",
-      "date": "",
+      "ruled_by": "paul",
+      "date": "2026-09-22",
       "note": "A read and write-back drops capacity, gate_items or tiers, which CORE-JSON-10 and CORE-JSON-13 name, without refusing the object."
     },
     {
       "key": "pair:accept-unrecognized-and-layer-members.json:CORE-JSON-1",
       "disposition": "profile-defect",
-      "card": null,
+      "card": "dinah-561",
       "item": "dinah-548/questions/6",
-      "ruled_by": "",
-      "date": "",
+      "ruled_by": "paul",
+      "date": "2026-09-22",
       "note": "CORE-JSON-1 says only that a tool reads and writes the interchange form, and does not say whether column identifiers survive a read and write-back; the profile states it."
     },
     {
       "key": "pair:accept-unrecognized-and-layer-members.json:CORE-JSON-7",
       "disposition": "reader-defect",
-      "card": null,
+      "card": "dinah-562",
       "item": "dinah-548/questions/6",
-      "ruled_by": "",
-      "date": "",
+      "ruled_by": "paul",
+      "date": "2026-09-22",
       "note": "CORE-JSON-7: Dinah carried the unrecognized member colour on column 1; the reader matched columns by an identifier that the write-back changed."
     },
     {
       "key": "fixture:refuse-later-version-and-missing-title.json:verdict",
       "disposition": "tool-defect",
-      "card": null,
+      "card": "dinah-559",
       "item": "dinah-548/questions/11",
-      "ruled_by": "",
-      "date": "",
+      "ruled_by": "paul",
+      "date": "2026-09-22",
       "note": "CORE-BENCH-5 names unsupported-version for a later profile version, and section 6.1 runs that check before every other."
     },
     {
@@ -293,8 +293,8 @@
       "disposition": "tool-defect",
       "card": "dinah-557",
       "item": "dinah-548/questions/10",
-      "ruled_by": "",
-      "date": "",
+      "ruled_by": "paul",
+      "date": "2026-09-22",
       "note": "init --from admits bytes that are not UTF-8, which CORE-JSON-2 requires a tool to refuse."
     },
     {
@@ -302,8 +302,8 @@
       "disposition": "tool-defect",
       "card": "dinah-557",
       "item": "dinah-548/questions/8",
-      "ruled_by": "",
-      "date": "",
+      "ruled_by": "paul",
+      "date": "2026-09-22",
       "note": "init --from admits columns that CORE-STATE-1 and the capacity statements require a tool to refuse."
     },
     {
@@ -311,8 +311,8 @@
       "disposition": "tool-defect",
       "card": "dinah-557",
       "item": "dinah-548/questions/9",
-      "ruled_by": "",
-      "date": "",
+      "ruled_by": "paul",
+      "date": "2026-09-22",
       "note": "init --from admits a column kind CORE-STATE-11 requires a tool to refuse."
     }
   ]
