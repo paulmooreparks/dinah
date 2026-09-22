@@ -323,11 +323,11 @@ func TestEnglishCommandListStartsEverySummaryAtOneColumn(t *testing.T) {
 			t.Errorf("the block does not carry a first line for %s's syntax", c.name)
 		}
 	}
-	if summaries != 53 {
-		t.Errorf("read %d command entries out of the block, want 53", summaries)
+	if summaries != 54 {
+		t.Errorf("read %d command entries out of the block, want 54", summaries)
 	}
-	if wrapped != 19 {
-		t.Errorf("%d entries wrapped across more than one line, want the nineteen whose syntax is wider than half the window", wrapped)
+	if wrapped != 20 {
+		t.Errorf("%d entries wrapped across more than one line, want the twenty whose syntax is wider than half the window", wrapped)
 	}
 	if summariesWrapped == 0 {
 		t.Error("no summary wrapped across more than one line, so the tail-wrapping half of this shape is not exercised here")

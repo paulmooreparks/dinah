@@ -120,6 +120,13 @@ SERVE
   mcp [--root <dir>] [--tools <profile>]    Serve workbenches over MCP on stdio
   lsp [--root <dir>] [--annotate-prose]     Serve one workbench to an editor
     [--poll-seconds <n>] [--stdio]            over LSP on stdio
+  setup [harness] [--list]                  Connect a harness to a workbench
+    [--recipe <dir>] [--agent <name>]         from a recipe
+    [--tools <profile>] [--scope <scope>]
+    [--target <dir>] [--provider <name>]
+    [--model <name>] [--server <address>]
+    [--trust-project-recipe] [--allow-run]
+    [--dry-run] [--remove]
 
 Global flags:
   Option             What it does

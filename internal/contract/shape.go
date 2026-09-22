@@ -899,9 +899,20 @@ var Shapes = []Shape{
 		// The declared name travels in the detail alone, because the sentence
 		// names it once and the next step names the variable to set rather
 		// than the value again.
-		Name:      MalformedHarness,
-		Fragments: []Fragment{{Key: "refusal.dinah.malformed-harness.next"}},
-		NextStep:  []string{"refusal.dinah.malformed-harness.next"},
+		//
+		// dinah setup raises it over the recipe name it was handed, which is
+		// a harness name in the same grammar and not a variable anybody set,
+		// so setup carries a sentence and a next step of its own.
+		Name:     MalformedHarness,
+		Variants: []string{"setup"},
+		Fragments: []Fragment{
+			{Key: "refusal.dinah.malformed-harness.setup.next", WhenCommand: "setup"},
+			{Key: "refusal.dinah.malformed-harness.next"},
+		},
+		NextStep: []string{
+			"refusal.dinah.malformed-harness.setup.next",
+			"refusal.dinah.malformed-harness.next",
+		},
 	},
 	{
 		// The member's name travels in the detail alone, written as a JSON
@@ -1068,12 +1079,19 @@ var Shapes = []Shape{
 		// The clause split out of the base entry sat ahead of the dash hint
 		// inside the sentence, so its fragment is declared ahead of it here
 		// and a reader sees the three pieces in the order they were written.
-		Name: Usage,
+		//
+		// dinah setup raises it mostly over an argument that was understood
+		// and does not fit beside the others, such as --list beside a harness,
+		// so setup carries a sentence and a next step of its own rather than
+		// saying the argument was not understood.
+		Name:     Usage,
+		Variants: []string{"setup"},
 		Fragments: []Fragment{
+			{Key: "refusal.dinah.usage.setup.next", WhenCommand: "setup"},
 			{Key: "refusal.dinah.usage.next"},
 			{Key: "refusal.dinah.usage.dash-hint", When: "dashHint"},
 		},
-		NextStep: []string{"refusal.dinah.usage.next"},
+		NextStep: []string{"refusal.dinah.usage.setup.next", "refusal.dinah.usage.next"},
 	},
 	{
 		// A workstream a live card still belongs to is not deleted, and the
@@ -1522,6 +1540,74 @@ var Shapes = []Shape{
 		Values:    []string{"route"},
 		Fragments: []Fragment{{Key: "refusal.dinah.route-off-column.next"}},
 		NextStep:  []string{"refusal.dinah.route-off-column.next"},
+	},
+	// The twelve refusals dinah setup raises each carry their subject in the
+	// detail and one unconditional next step. Two of them print a list, the
+	// conflicting locations and the programs a recipe runs, which ride as a
+	// Carried set so the rows stand beneath the sentence and the next step
+	// stands on a line of its own beneath them. The detail carries the same
+	// list joined by line breaks, for the machine form.
+	{
+		Name:      UnknownRecipe,
+		Fragments: []Fragment{{Key: "refusal.dinah.unknown-recipe.next"}},
+		NextStep:  []string{"refusal.dinah.unknown-recipe.next"},
+	},
+	{
+		Name:      MalformedRecipe,
+		Fragments: []Fragment{{Key: "refusal.dinah.malformed-recipe.next"}},
+		NextStep:  []string{"refusal.dinah.malformed-recipe.next"},
+	},
+	{
+		Name:      UnknownScope,
+		Fragments: []Fragment{{Key: "refusal.dinah.unknown-scope.next"}},
+		NextStep:  []string{"refusal.dinah.unknown-scope.next"},
+	},
+	{
+		Name:      SetupNoTarget,
+		Fragments: []Fragment{{Key: "refusal.dinah.setup-no-target.next"}},
+		NextStep:  []string{"refusal.dinah.setup-no-target.next"},
+	},
+	{
+		Name:      SetupAgentIsOperator,
+		Fragments: []Fragment{{Key: "refusal.dinah.setup-agent-is-operator.next"}},
+		NextStep:  []string{"refusal.dinah.setup-agent-is-operator.next"},
+	},
+	{
+		Name:      SetupUnreadableTarget,
+		Fragments: []Fragment{{Key: "refusal.dinah.setup-unreadable-target.next"}},
+		NextStep:  []string{"refusal.dinah.setup-unreadable-target.next"},
+	},
+	{
+		Name:      SetupConflict,
+		Carried:   "locations",
+		Fragments: []Fragment{{Key: "refusal.dinah.setup-conflict.next"}},
+		NextStep:  []string{"refusal.dinah.setup-conflict.next"},
+	},
+	{
+		Name:      UntrustedRecipe,
+		Fragments: []Fragment{{Key: "refusal.dinah.untrusted-recipe.next"}},
+		NextStep:  []string{"refusal.dinah.untrusted-recipe.next"},
+	},
+	{
+		Name:      SetupRelocatedHome,
+		Fragments: []Fragment{{Key: "refusal.dinah.setup-relocated-home.next"}},
+		NextStep:  []string{"refusal.dinah.setup-relocated-home.next"},
+	},
+	{
+		Name:      SetupOtherWorkbench,
+		Fragments: []Fragment{{Key: "refusal.dinah.setup-other-workbench.next"}},
+		NextStep:  []string{"refusal.dinah.setup-other-workbench.next"},
+	},
+	{
+		Name:      SetupRunNotAllowed,
+		Carried:   "steps",
+		Fragments: []Fragment{{Key: "refusal.dinah.setup-run-not-allowed.next"}},
+		NextStep:  []string{"refusal.dinah.setup-run-not-allowed.next"},
+	},
+	{
+		Name:      SetupStepFailed,
+		Fragments: []Fragment{{Key: "refusal.dinah.setup-step-failed.next"}},
+		NextStep:  []string{"refusal.dinah.setup-step-failed.next"},
 	},
 }
 

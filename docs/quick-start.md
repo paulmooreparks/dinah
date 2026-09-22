@@ -102,7 +102,7 @@ release publishes a new one. The second line names the shared rule set that buil
 other tool built to those same rules can read this workbench and reach the same
 answers about it. The third line names the format Dinah writes on disk.
 
-`dinah help` lists all fifty-three commands, in the four groups Dinah sorts
+`dinah help` lists all fifty-four commands, in the four groups Dinah sorts
 them into. Running `dinah` with no arguments at all prints the same list. So
 does whichever spelling of the help flag you already have the habit of typing,
 because Dinah answers to `--help`, `-help`, `-h`, `-?`, `--?` and `/?` alike.
@@ -1327,14 +1327,14 @@ storage format 6
 Catalogs:
   Language  Translated
   --------  ----------
-  en        1233/1233
-  af        0/1233
-  cs        0/1233
-  de        1233/1233
-  es        0/1233
-  fil       0/1233
-  hi        1233/1233
-  id        0/1233
+  en        1321/1321
+  af        0/1321
+  cs        0/1321
+  de        1321/1321
+  es        0/1321
+  fil       0/1321
+  hi        1321/1321
+  id        0/1321
 [exit 0]
 ```
 
@@ -1648,6 +1648,7 @@ The guides stand in the order Dinah recommends reading them.
   query             Asking questions of a workbench
   workbench-layout  What a workbench looks like on disk
   mcp               Working over MCP
+  setup-recipes     Writing a setup recipe
   pipeline          When a pipeline earns its cost
 [exit 0]
 ```
@@ -1664,6 +1665,16 @@ one-shot stages, because it states the test a pipeline has to pass before
 you pay for one.
 
 ## Point an agent at the workbench
+
+You can have Dinah write an agent's configuration for you. Run
+`dinah setup claude-code` from inside the project that holds your workbench,
+and Dinah writes the MCP server entry, the environment Claude Code gives its
+agents, and a short instruction file, then prints what is left for you to do.
+`dinah setup codex` writes Dinah's section into the project's `AGENTS.md` and
+prints the lines you add to Codex's own configuration. `dinah setup --list`
+shows every recipe Dinah can find, and `dinah guide setup-recipes` explains
+how to write one for another harness. The paragraphs below describe the same
+configuration for when you write it by hand.
 
 `dinah mcp` serves the workbench over MCP on its standard input and output, so
 an AI colleague can work the same board you do. Configure it in your MCP client

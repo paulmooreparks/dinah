@@ -1,0 +1,15 @@
+{
+  "format": 1,
+  "name": "claude-code",
+  "title": "Claude Code",
+  "harness": "claude-code",
+  "provider": "anthropic",
+  "agent": "claude",
+  "tools": "all",
+  "scopes": ["project", "user"],
+  "documentation": [
+    "https://code.claude.com/docs/en/mcp",
+    "https://code.claude.com/docs/en/settings",
+    "https://code.claude.com/docs/en/memory"
+  ]
+}

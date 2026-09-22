@@ -47,6 +47,14 @@ type addressExemption struct {
 // reasoning.
 var addressExemptions = []addressExemption{
 	{
+		site:   renderSite{File: "setup.go", Function: "emitSetupList", Label: "listing", Ordinal: 1},
+		ground: groundNoEntity, reason: "the rows are setup recipes, which are directories of harness configuration rather than entities of a workbench",
+	},
+	{
+		site:   renderSite{File: "setup.go", Function: "renderSetupReport", Label: "changes", Ordinal: 1},
+		ground: groundNoEntity, reason: "the rows are locations in a harness's configuration files, which live in a project directory or a home directory rather than in a workbench",
+	},
+	{
 		site:   renderSite{File: "commands.go", Function: "runGuide", Label: "topics", Ordinal: 1},
 		ground: groundNoEntity, reason: "the rows are guide topics, which are documents rather than entities of a workbench",
 	},

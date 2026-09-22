@@ -4932,6 +4932,358 @@
     "prime.instructions.hint": {
       "text": "Run `dinah prime --brief` to omit this text on a later call.",
       "context": "Printed after the standing instructions block on an ordinary (non-brief) prime call, naming the flag that omits it on a later call."
+    },
+    "cmd.setup.summary": {
+      "text": "Connect a harness to a workbench from a recipe",
+      "context": "The one-line summary of the setup command, shown beside its syntax in the help block. A harness is the program an AI colleague runs in, such as Claude Code or Codex, and a recipe is the directory that describes how to configure one."
+    },
+    "param.setup.harness.summary": {
+      "text": "the recipe to apply, by name",
+      "context": "The meaning of the harness argument of `dinah setup`, printed in that command's arguments table. The argument names a recipe, which is usually named for the harness it configures."
+    },
+    "param.setup.list.summary": {
+      "text": "list every recipe setup can find, and which one each name resolves to",
+      "context": "The meaning of the --list argument of `dinah setup`, printed in that command's arguments table. setup is the command name and is not translated."
+    },
+    "param.setup.recipe.summary": {
+      "text": "apply the recipe in this directory instead of one found by name",
+      "context": "The meaning of the --recipe argument of `dinah setup`, printed in that command's arguments table."
+    },
+    "param.setup.agent.summary": {
+      "text": "the name the harness's agents act under; the recipe's own default when you name none",
+      "context": "The meaning of the --agent argument of `dinah setup`, printed in that command's arguments table. The name is written as DINAH_ACTOR in the harness's configuration."
+    },
+    "param.setup.tools.summary": {
+      "text": "the tool profile the harness's MCP server entry serves; the recipe's own default when you name none",
+      "context": "The meaning of the --tools argument of `dinah setup`, printed in that command's arguments table. The help page appends the three profile names, which are machine vocabulary."
+    },
+    "param.setup.scope.summary": {
+      "text": "project writes into one project directory, user into your home; project when you name none",
+      "context": "The meaning of the --scope argument of `dinah setup`, printed in that command's arguments table. project and user are the two values the flag takes and are machine vocabulary that is never translated."
+    },
+    "param.setup.target.summary": {
+      "text": "the project directory to write into; the one holding the workbench when you name none",
+      "context": "The meaning of the --target argument of `dinah setup`, printed in that command's arguments table."
+    },
+    "param.setup.provider.summary": {
+      "text": "the provider written for the harness; the recipe's own default when you name none",
+      "context": "The meaning of the --provider argument of `dinah setup`, printed in that command's arguments table. The value is written as DINAH_PROVIDER."
+    },
+    "param.setup.model.summary": {
+      "text": "the model written for the harness; nothing is written when you name none",
+      "context": "The meaning of the --model argument of `dinah setup`, printed in that command's arguments table. The value is written as DINAH_MODEL."
+    },
+    "param.setup.server.summary": {
+      "text": "the address the model is reached at; nothing is written when you name none",
+      "context": "The meaning of the --server argument of `dinah setup`, printed in that command's arguments table. The value is written as DINAH_SERVER."
+    },
+    "param.setup.trust-project-recipe.summary": {
+      "text": "use a recipe that arrived with this project",
+      "context": "The meaning of the --trust-project-recipe argument of `dinah setup`, printed in that command's arguments table. A project's recipe arrived with a clone of the repository, so setup uses one only when the person says so."
+    },
+    "param.setup.allow-run.summary": {
+      "text": "let the recipe run the programs it names, which setup cannot check",
+      "context": "The meaning of the --allow-run argument of `dinah setup`, printed in that command's arguments table. setup is the command name and is not translated."
+    },
+    "param.setup.dry-run.summary": {
+      "text": "report every change and write nothing",
+      "context": "The meaning of the --dry-run argument of `dinah setup`, printed in that command's arguments table."
+    },
+    "param.setup.remove.summary": {
+      "text": "take back what setup wrote for this recipe here",
+      "context": "The meaning of the --remove argument of `dinah setup`, printed in that command's arguments table. setup is the command name and is not translated."
+    },
+    "check.setup.1": {
+      "text": "a harness, --list or --recipe, and only one",
+      "context": "The first row of the precondition list of setup: the invocation names a harness, --list or --recipe, and exactly one of the three. Keep a translation at or under 52 display columns. A longer sentence takes the table row to itself and pushes the refusal name down to the line beneath."
+    },
+    "check.setup.2": {
+      "text": "the harness you name is a legal harness name",
+      "context": "The second row of the precondition list of setup: the positional argument is a name in the harness grammar. Keep a translation at or under 52 display columns. A longer sentence takes the table row to itself and pushes the refusal name down to the line beneath."
+    },
+    "check.setup.3": {
+      "text": "--recipe names a directory that exists",
+      "context": "The third row of the precondition list of setup. Keep a translation at or under 52 display columns. A longer sentence takes the table row to itself and pushes the refusal name down to the line beneath."
+    },
+    "check.setup.4": {
+      "text": "a recipe of that name is found",
+      "context": "The fourth row of the precondition list of setup: some place setup searches holds a recipe of the name. Keep a translation at or under 52 display columns. A longer sentence takes the table row to itself and pushes the refusal name down to the line beneath."
+    },
+    "check.setup.5": {
+      "text": "the recipe reads and is well formed",
+      "context": "The fifth row of the precondition list of setup. Keep a translation at or under 52 display columns. A longer sentence takes the table row to itself and pushes the refusal name down to the line beneath."
+    },
+    "check.setup.6": {
+      "text": "a project recipe is used only when you trust it",
+      "context": "The sixth row of the precondition list of setup: a recipe found in a project's own container needs --trust-project-recipe. Keep a translation at or under 52 display columns. A longer sentence takes the table row to itself and pushes the refusal name down to the line beneath."
+    },
+    "check.setup.7": {
+      "text": "--scope names a scope the recipe declares",
+      "context": "The seventh row of the precondition list of setup. Keep a translation at or under 52 display columns. A longer sentence takes the table row to itself and pushes the refusal name down to the line beneath."
+    },
+    "check.setup.8": {
+      "text": "--tools names one of station, operator or all",
+      "context": "The eighth row of the precondition list of setup. The three profile names are machine vocabulary that is never translated. Keep a translation at or under 52 display columns. A longer sentence takes the table row to itself and pushes the refusal name down to the line beneath."
+    },
+    "check.setup.9": {
+      "text": "the flags you gave belong with each other",
+      "context": "The ninth row of the precondition list of setup: no flag is given beside another it does not belong with, such as --allow-run beside --remove. Keep a translation at or under 52 display columns. A longer sentence takes the table row to itself and pushes the refusal name down to the line beneath."
+    },
+    "check.setup.10": {
+      "text": "a recipe that runs a program has --allow-run",
+      "context": "The tenth row of the precondition list of setup. Keep a translation at or under 52 display columns. A longer sentence takes the table row to itself and pushes the refusal name down to the line beneath."
+    },
+    "check.setup.11": {
+      "text": "a workbench resolves, at project scope",
+      "context": "The eleventh row of the precondition list of setup: at project scope, discovery finds a workbench. Keep a translation at or under 52 display columns. A longer sentence takes the table row to itself and pushes the refusal name down to the line beneath."
+    },
+    "check.setup.12": {
+      "text": "user scope runs with DINAH_HOME at your home",
+      "context": "The twelfth row of the precondition list of setup: a user-scope run needs DINAH_HOME unset or naming the machine's own home directory. DINAH_HOME is a variable name and is never translated. Keep a translation at or under 52 display columns. A longer sentence takes the table row to itself and pushes the refusal name down to the line beneath."
+    },
+    "check.setup.13": {
+      "text": "the scope has a directory to write into",
+      "context": "The thirteenth row of the precondition list of setup. Keep a translation at or under 52 display columns. A longer sentence takes the table row to itself and pushes the refusal name down to the line beneath."
+    },
+    "check.setup.14": {
+      "text": "each value setup writes is one word",
+      "context": "The fourteenth row of the precondition list of setup: the agent, provider, model and server values hold no whitespace and no quoting character. Keep a translation at or under 52 display columns. A longer sentence takes the table row to itself and pushes the refusal name down to the line beneath."
+    },
+    "check.setup.15": {
+      "text": "the agent is not the operator",
+      "context": "The fifteenth row of the precondition list of setup: the agent name differs from the workbench's operator and from the configured actor. Keep a translation at or under 52 display columns. A longer sentence takes the table row to itself and pushes the refusal name down to the line beneath."
+    },
+    "check.setup.16": {
+      "text": "this project is not set up for another workbench",
+      "context": "The sixteenth row of the precondition list of setup. Keep a translation at or under 52 display columns. A longer sentence takes the table row to itself and pushes the refusal name down to the line beneath."
+    },
+    "check.setup.17": {
+      "text": "every file setup would touch reads cleanly",
+      "context": "The seventeenth row of the precondition list of setup. Keep a translation at or under 52 display columns. A longer sentence takes the table row to itself and pushes the refusal name down to the line beneath."
+    },
+    "check.setup.18": {
+      "text": "nothing setup would change is somebody else's",
+      "context": "The eighteenth row of the precondition list of setup: every location setup would change is one it wrote itself and nobody has edited since. Keep a translation at or under 52 display columns. A longer sentence takes the table row to itself and pushes the refusal name down to the line beneath."
+    },
+    "refusal.dinah.unknown-recipe": {
+      "text": "No recipe named {detail} is shipped with Dinah or found in your user base or this project.",
+      "context": "The sentence printed after the refusal name dinah.unknown-recipe, raised when dinah setup names a recipe no place it searches holds. {detail} is the name as typed."
+    },
+    "refusal.dinah.unknown-recipe.next": {
+      "text": " Run dinah setup --list to see the recipes setup can find.",
+      "context": "The next step of refusal.dinah.unknown-recipe. The command spelling is machine vocabulary and is not translated."
+    },
+    "refusal.dinah.malformed-recipe": {
+      "text": "The recipe cannot be used: {detail}.",
+      "context": "The sentence printed after the refusal name dinah.malformed-recipe. {detail} is <file>: <defect>, naming the first defect found in the recipe's files, and it is written in English by the recipe reader."
+    },
+    "refusal.dinah.malformed-recipe.next": {
+      "text": " Correct the recipe, or remove it so the next place is searched.",
+      "context": "The next step of refusal.dinah.malformed-recipe. Setup does not fall through to the next place while a broken recipe of the name stands, so removing the broken one is the other repair."
+    },
+    "refusal.dinah.unknown-scope": {
+      "text": "The recipe does not support the scope {detail}.",
+      "context": "The sentence printed after the refusal name dinah.unknown-scope. {detail} is the scope named with --scope."
+    },
+    "refusal.dinah.unknown-scope.next": {
+      "text": " Run it with a scope the recipe's recipe.json lists under scopes.",
+      "context": "The next step of refusal.dinah.unknown-scope. recipe.json and scopes are a file name and a member name and are not translated."
+    },
+    "refusal.dinah.setup-no-target": {
+      "text": "The workbench at {detail} does not sit in a project directory setup can write into.",
+      "context": "The sentence printed after the refusal name dinah.setup-no-target. {detail} is the workbench's directory, or the directory --target named. Setup refuses a workbench that does not stand in a .dinah directory inside a project, and any base that is the home directory or above it."
+    },
+    "refusal.dinah.setup-no-target.next": {
+      "text": " Name the project directory with --target.",
+      "context": "The next step of refusal.dinah.setup-no-target. --target is a flag and is not translated."
+    },
+    "refusal.dinah.setup-agent-is-operator": {
+      "text": "{detail} would give the harness the operator's own name, and with it the operator's authority.",
+      "context": "The sentence printed after the refusal name dinah.setup-agent-is-operator. {detail} is the agent name followed, in parentheses, by setup.operator.workbench or setup.operator.config, saying which name it matched."
+    },
+    "refusal.dinah.setup-agent-is-operator.next": {
+      "text": " Name the agent something else with --agent.",
+      "context": "The next step of refusal.dinah.setup-agent-is-operator. --agent is a flag and is not translated."
+    },
+    "refusal.dinah.setup-unreadable-target": {
+      "text": "Setup cannot read a file it would change: {detail}.",
+      "context": "The sentence printed after the refusal name dinah.setup-unreadable-target. {detail} is <file>: <defect>, written in English by setup: a JSON file that is not one object, markers out of balance, a ledger that does not parse, or a path leaving the directory setup writes into."
+    },
+    "refusal.dinah.setup-unreadable-target.next": {
+      "text": " Repair the file by hand, then run setup again.",
+      "context": "The next step of refusal.dinah.setup-unreadable-target."
+    },
+    "refusal.dinah.setup-conflict": {
+      "text": "Setup would change something it did not write, so it changed nothing:",
+      "context": "The opening sentence printed after the refusal name dinah.setup-conflict. The conflicting locations print beneath it, one per row, each a file followed by its key: a JSON pointer, a section name, or nothing for a whole file. refusal.dinah.setup-conflict.next follows as the closing line."
+    },
+    "refusal.dinah.setup-conflict.next": {
+      "text": "Remove or rename each of these yourself, then run setup again.",
+      "context": "The line printed after dinah.setup-conflict's rows of conflicting locations, naming the way forward. It stands on a line of its own."
+    },
+    "refusal.dinah.untrusted-recipe": {
+      "text": "The recipe at {detail} arrived with this project, and setup does not use a project's recipe unless you say you trust it.",
+      "context": "The sentence printed after the refusal name dinah.untrusted-recipe. {detail} is the recipe's directory inside the project's .dinah container."
+    },
+    "refusal.dinah.untrusted-recipe.next": {
+      "text": " Read the recipe, and pass --trust-project-recipe if you do.",
+      "context": "The next step of refusal.dinah.untrusted-recipe. --trust-project-recipe is a flag and is not translated."
+    },
+    "refusal.dinah.setup-relocated-home": {
+      "text": "DINAH_HOME points at {detail}, so setup would write your real home's files and record them somewhere else.",
+      "context": "The sentence printed after the refusal name dinah.setup-relocated-home. {detail} is the value of DINAH_HOME, which is a variable name and is never translated."
+    },
+    "refusal.dinah.setup-relocated-home.next": {
+      "text": " Run user-scope setup with DINAH_HOME unset.",
+      "context": "The next step of refusal.dinah.setup-relocated-home. DINAH_HOME is a variable name and is never translated."
+    },
+    "refusal.dinah.setup-other-workbench": {
+      "text": "This project is already set up for the workbench at {detail}.",
+      "context": "The sentence printed after the refusal name dinah.setup-other-workbench. {detail} is the directory of the workbench the project was set up for."
+    },
+    "refusal.dinah.setup-other-workbench.next": {
+      "text": " Run setup with --remove from that workbench first, or name this workbench on each MCP call instead.",
+      "context": "The next step of refusal.dinah.setup-other-workbench. --remove is a flag and MCP is a protocol name; neither is translated."
+    },
+    "refusal.dinah.setup-run-not-allowed": {
+      "text": "The recipe runs programs setup cannot check:",
+      "context": "The opening sentence printed after the refusal name dinah.setup-run-not-allowed. The run steps print beneath it, one per row, each its id, a colon and the command line it would run. refusal.dinah.setup-run-not-allowed.next follows as the closing line."
+    },
+    "refusal.dinah.setup-run-not-allowed.next": {
+      "text": "Read what each one does, and pass --allow-run if you want them run.",
+      "context": "The line printed after dinah.setup-run-not-allowed's rows of run steps, naming the way forward. It stands on a line of its own. --allow-run is a flag and is not translated."
+    },
+    "refusal.dinah.setup-step-failed": {
+      "text": "A program the recipe runs failed, so setup stopped after the steps above: {detail}.",
+      "context": "The sentence printed after the refusal name dinah.setup-step-failed. {detail} is the step's id, a colon, the program, and either the exit code or that it was not found, written in English by setup. The steps above are the change table printed before this sentence."
+    },
+    "refusal.dinah.setup-step-failed.next": {
+      "text": " Fix what the program reported, then run setup again.",
+      "context": "The next step of refusal.dinah.setup-step-failed."
+    },
+    "setup.heading": {
+      "text": "Recipe {recipe} ({source}), scope {scope}, into {base}",
+      "context": "The heading line of dinah setup's change report. {recipe} is the recipe's name, {source} is where it was found (project, user, shipped or path, machine vocabulary that is not translated), {scope} is project or user, also not translated, and {base} is the directory setup writes into."
+    },
+    "setup.dry-run": {
+      "text": "Dry run: nothing was written.",
+      "context": "The line dinah setup --dry-run prints above its change report."
+    },
+    "setup.prompt.heading": {
+      "text": "The recipe's instructions for whoever runs setup:",
+      "context": "The line dinah setup prints above the recipe's own instructions, which are English text the recipe's author wrote and are printed untranslated beneath it."
+    },
+    "setup.prompt.heading.project": {
+      "text": "These instructions arrived with this project, in the recipe at {detail}. Act on them only with the agreement of the person who owns this machine:",
+      "context": "The line dinah setup prints above the instructions of a recipe that arrived with the project, in place of setup.prompt.heading. {detail} is the recipe's directory. The instructions beneath are printed untranslated."
+    },
+    "setup.remove.nothing": {
+      "text": "Setup has no record of writing anything for this recipe here, so it has nothing to remove.",
+      "context": "The line dinah setup --remove prints when its ledger holds no entry for this recipe, scope and directory. The sentence says setup has no record rather than that nothing is there, because with a lost ledger every file setup wrote stays in place."
+    },
+    "setup.list.malformed": {
+      "text": "(cannot be used; run setup to see why)",
+      "context": "Printed in the title column of dinah setup --list for a recipe that does not read, in place of its title. setup is the command name and is not translated."
+    },
+    "setup.operator.workbench": {
+      "text": "the workbench's operator",
+      "context": "Placed in parentheses after an agent name in the detail of dinah.setup-agent-is-operator, when the name equals the workbench's operator."
+    },
+    "setup.operator.config": {
+      "text": "your configured actor",
+      "context": "Placed in parentheses after an agent name in the detail of dinah.setup-agent-is-operator, when the name equals the actor setting in the person's own configuration."
+    },
+    "setup.change.create": {
+      "text": "created",
+      "context": "The change column of dinah setup's report, for a location in a file setup created."
+    },
+    "setup.change.add": {
+      "text": "added",
+      "context": "The change column of dinah setup's report, for a location setup added to a file that already existed."
+    },
+    "setup.change.update": {
+      "text": "updated",
+      "context": "The change column of dinah setup's report, for a location setup owns and replaced."
+    },
+    "setup.change.unchanged": {
+      "text": "unchanged",
+      "context": "The change column of dinah setup's report, for a location that already held what setup would write."
+    },
+    "setup.change.remove": {
+      "text": "removed",
+      "context": "The change column of dinah setup's report, for a location setup took back."
+    },
+    "setup.change.gone": {
+      "text": "already gone",
+      "context": "The change column of dinah setup's report, for a location the ledger named that no longer exists."
+    },
+    "setup.change.ran": {
+      "text": "ran; setup cannot see what it changed",
+      "context": "The change column of dinah setup's report, for a program a recipe ran that exited successfully."
+    },
+    "setup.change.would-run": {
+      "text": "would run; setup cannot report what it would change",
+      "context": "The change column of dinah setup --dry-run's report, for a program an apply would run."
+    },
+    "setup.run.unverified": {
+      "text": "Setup ran {count} program(s) whose effects it cannot see. The dry run, the conflict check and --remove do not cover them.",
+      "context": "Printed after dinah setup's change report when the recipe ran programs. {count} is how many ran."
+    },
+    "setup.run.unverified.dry-run": {
+      "text": "Setup would run {count} program(s) whose effects it cannot see or report. The conflict check and --remove will not cover them.",
+      "context": "Printed after dinah setup --dry-run's change report when the recipe would run programs. {count} is how many would run."
+    },
+    "column.setup.step": {
+      "text": "Step",
+      "context": "Heading over the step id in the change report dinah setup prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.setup.file": {
+      "text": "File",
+      "context": "Heading over the file, relative to the directory setup writes into, in the change report dinah setup prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.setup.key": {
+      "text": "Key",
+      "context": "Heading over the location inside the file, a JSON pointer or a section's name, in the change report dinah setup prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.setup.change": {
+      "text": "Change",
+      "context": "Heading over what setup did to the location, in the change report dinah setup prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.setup-list.recipe": {
+      "text": "Recipe",
+      "context": "Heading over the recipe's name in the listing dinah setup --list prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.setup-list.title": {
+      "text": "Title",
+      "context": "Heading over the recipe's title in the listing dinah setup --list prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.setup-list.source": {
+      "text": "Source",
+      "context": "Heading over where the recipe was found (project, user or shipped) in the listing dinah setup --list prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.setup-list.used": {
+      "text": "Used",
+      "context": "Heading over whether the recipe's name resolves to this row, in the listing dinah setup --list prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.setup-list.path": {
+      "text": "Path",
+      "context": "Heading over the recipe's directory in the listing dinah setup --list prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "refusal.dinah.malformed-harness.setup": {
+      "text": "{detail} is not a legal recipe name, because a recipe is named like a harness, with one lowercase segment of letters, digits and single interior hyphens",
+      "context": "The sentence printed after the refusal name dinah.malformed-harness when dinah setup raised it, because the name given to setup is a recipe's name and a recipe is named in the harness grammar. {detail} is the name as typed."
+    },
+    "refusal.dinah.malformed-harness.setup.next": {
+      "text": "; run dinah setup --list to see the recipes setup can find",
+      "context": "The next step of refusal.dinah.malformed-harness when dinah setup raised it. The command spelling is machine vocabulary and is not translated."
+    },
+    "refusal.dinah.usage.setup": {
+      "text": "{detail} cannot be used as given",
+      "context": "The sentence printed after the refusal name dinah.usage when dinah setup raised it, in place of refusal.dinah.usage, because setup's usage refusals are mostly an argument that was understood and does not fit beside the others, such as --list beside a harness or --allow-run beside --remove. {detail} is the argument as typed, or the word setup when nothing was given."
+    },
+    "refusal.dinah.usage.setup.next": {
+      "text": "; setup takes one of a harness, --list or --recipe, and only the flags that go with it, which dinah help setup lists",
+      "context": "The next step of refusal.dinah.usage when dinah setup raised it. The flags and the command spelling are machine vocabulary and are not translated."
     }
   }
 }

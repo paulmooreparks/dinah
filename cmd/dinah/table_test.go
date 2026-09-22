@@ -227,6 +227,41 @@ func TestTheGutterSurvivesAFieldOneColumnWiderThanItsOwn(t *testing.T) {
 	}
 }
 
+// TestAStackingTableStacksWhenTheBackstopLeavesAFieldOver asserts what
+// stackOnOverflow promises for the narrowest overflow there is. At a window
+// of eighty the backstop narrows the file column one column below the path
+// under it, which leaves one space before the next field rather than
+// reaching it, and a table that stacks on overflow stacks there. One column
+// wider, the same table fits and draws as a table.
+func TestAStackingTableStacksWhenTheBackstopLeavesAFieldOver(t *testing.T) {
+	build := func() table {
+		return table{
+			indent:          2,
+			columns:         headed("Step", "File", "Key", "Change"),
+			stackOnOverflow: true,
+			rows: rowsOf(
+				[]string{"mcp-server", ".mcp.json", "/mcpServers/dinah", "created"},
+				[]string{"environment-project", ".claude/settings.local.json", "/env/DINAH_ACTOR", "created"},
+				[]string{"environment-project", ".claude/settings.local.json", "/env/DINAH_PROVIDER", "created"},
+				[]string{"instructions-project", ".claude/rules/dinah.md", "-", "created"},
+			),
+		}
+	}
+	narrow := tableSession(80).tableLines(build())
+	for _, line := range narrow {
+		if strings.Contains(line, ".claude/settings.local.json /env") {
+			t.Errorf("a field one column over its narrowed column ran into the next one:\n%s", strings.Join(narrow, "\n"))
+		}
+	}
+	if len(narrow) == 0 || !strings.HasPrefix(narrow[0], "  Step    mcp-server") {
+		t.Errorf("the table did not stack at eighty columns:\n%s", strings.Join(narrow, "\n"))
+	}
+	wide := tableSession(81).tableLines(build())
+	if len(wide) < 2 || !strings.HasPrefix(wide[1], "  ----") {
+		t.Errorf("the table stacked at eighty-one columns, where it fits:\n%s", strings.Join(wide, "\n"))
+	}
+}
+
 // backstopFixture is one table the narrow-window post-condition is asserted
 // over, with a name a failure can report.
 type backstopFixture struct {

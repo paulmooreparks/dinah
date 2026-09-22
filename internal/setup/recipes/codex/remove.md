@@ -1,0 +1,1 @@
+Setup has taken back Dinah's section of AGENTS.md under {{base}}. Remove by hand what you added to `.codex/config.toml`: the `[mcp_servers.dinah]` and `[mcp_servers.dinah.env]` tables, and the `DINAH_ACTOR`, `DINAH_HARNESS`, `DINAH_PROVIDER` and any `DINAH_MODEL` keys under `[shell_environment_policy.set]`. Start Codex again afterwards.

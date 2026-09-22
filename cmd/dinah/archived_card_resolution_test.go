@@ -176,9 +176,9 @@ var archivedResolutionFamilies = []resolutionFamily{
 	{
 		name: "C", axis: "reading",
 		what:      "reading a card's number field: every mention of Number in a selector expression",
-		files:     7,
-		mentions:  32,
-		functions: 11,
+		files:     8,
+		mentions:  33,
+		functions: 12,
 		sites: []resolutionSite{
 			{"internal/bench/blockjson.go", "jsonNumber", 1, "a false positive recognised by name: the selector is the type json.Number, and telling it apart would mean running go/types over the tree to remove one row"},
 			{"internal/bench/card.go", "Ref", 2, "composes the human reference, which is why family E exists"},
@@ -190,6 +190,7 @@ var archivedResolutionFamilies = []resolutionFamily{
 			{"internal/bench/numbers.go", "LoadNumberRegistry", 6, "the registry loader, which reads each line's number into the two indexes and the high-water mark; the registry is this file's whole subject"},
 			{"internal/bench/numbers.go", "readNumbers", 3, "the below-format synthesis, which reads a stamped card's number into the by-number index so resolution keeps answering over a workbench the migration has not reached"},
 			{"internal/verb/beyond.go", "tombstoneNumber", 1, "a deletion rewriting the first line claiming the card into the tombstone, which keeps the number allocated; it writes a line and answers no card"},
+			{"internal/setup/render.go", "readValue", 1, "a false positive recognised by name: the selector is the type json.Number, read while dinah setup parses a recipe step's JSON value, which holds no card"},
 			{"internal/lsp/handlers.go", "cardCandidates", 3, "the language server's card completion, which sorts the candidates newest first and composes a zero-padded sort key from the number; the list it sorts is the live half alone, so no archived card reaches these reads and no reference is resolved by number"},
 		},
 	},

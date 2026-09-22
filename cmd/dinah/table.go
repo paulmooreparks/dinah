@@ -796,6 +796,14 @@ func (laid laidTable) stacks() bool {
 			if laid.hasCeiling && c == laid.ceilingColumn {
 				continue
 			}
+			// A table that stacks on overflow stacks the moment a field is
+			// wider than its column. A field one or two columns wider leaves
+			// less than a full gutter before the next field rather than
+			// reaching it, and a row drawn that way reads as two fields run
+			// together.
+			if laid.stackOnOverflow && displayWidth(field) > laid.widths[c] {
+				return true
+			}
 			if !laid.stackOnOverflow && laid.widths[c] > displayWidth(laid.columns[c].heading) {
 				continue
 			}

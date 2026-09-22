@@ -1,0 +1,12 @@
+{
+  "steps": [
+    {
+      "id": "instructions-project",
+      "kind": "marked-section",
+      "scope": "project",
+      "path": "AGENTS.md",
+      "template": "instructions-project.md",
+      "comment": "html"
+    }
+  ]
+}

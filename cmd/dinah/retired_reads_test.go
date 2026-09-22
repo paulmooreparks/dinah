@@ -326,8 +326,8 @@ func TestTheHelpBlockCarriesTheCollapsedReadSurface(t *testing.T) {
 	if want := "workstream <new> <title> [--slug <slug>]"; !strings.HasPrefix(workbench.usage["workstream"], want) {
 		t.Errorf("the workstream row reads %q, and its usage is %q", workbench.usage["workstream"], want)
 	}
-	if rows != 53 {
-		t.Errorf("the four sections carry %d usage rows, wanted fifty-three", rows)
+	if rows != 54 {
+		t.Errorf("the four sections carry %d usage rows, wanted fifty-four", rows)
 	}
 }
 

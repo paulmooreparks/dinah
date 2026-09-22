@@ -1,0 +1,67 @@
+{
+  "steps": [
+    {
+      "id": "mcp-server",
+      "kind": "json-merge",
+      "scope": "project",
+      "path": ".mcp.json",
+      "pointer": "/mcpServers",
+      "value": {
+        "dinah": {
+          "command": "dinah",
+          "args": ["mcp", "--tools", "{{tools}}", "--workbench", "{{workbench}}"],
+          "env": {
+            "DINAH_ACTOR": "{{agent}}",
+            "DINAH_HARNESS": "{{harness}}",
+            "DINAH_PROVIDER": "{{provider}}",
+            "DINAH_MODEL": "{{model}}",
+            "DINAH_SERVER": "{{server}}"
+          }
+        }
+      }
+    },
+    {
+      "id": "environment-project",
+      "kind": "json-merge",
+      "scope": "project",
+      "path": ".claude/settings.local.json",
+      "pointer": "/env",
+      "value": {
+        "DINAH_ACTOR": "{{agent}}",
+        "DINAH_HARNESS": "{{harness}}",
+        "DINAH_PROVIDER": "{{provider}}",
+        "DINAH_MODEL": "{{model}}",
+        "DINAH_SERVER": "{{server}}"
+      }
+    },
+    {
+      "id": "instructions-project",
+      "kind": "write-file",
+      "scope": "project",
+      "path": ".claude/rules/dinah.md",
+      "template": "instructions-project.md"
+    },
+    {
+      "id": "environment-user",
+      "kind": "json-merge",
+      "scope": "user",
+      "path": ".claude/settings.json",
+      "pointer": "/env",
+      "value": {
+        "DINAH_ACTOR": "{{agent}}",
+        "DINAH_HARNESS": "{{harness}}",
+        "DINAH_PROVIDER": "{{provider}}",
+        "DINAH_MODEL": "{{model}}",
+        "DINAH_SERVER": "{{server}}"
+      }
+    },
+    {
+      "id": "instructions-user",
+      "kind": "marked-section",
+      "scope": "user",
+      "path": ".claude/CLAUDE.md",
+      "template": "instructions-user.md",
+      "comment": "html"
+    }
+  ]
+}

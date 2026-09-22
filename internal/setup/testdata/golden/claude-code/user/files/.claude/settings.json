@@ -1,0 +1,8 @@
+{
+  "env": {
+    "DINAH_ACTOR": "helper",
+    "DINAH_HARNESS": "claude-code",
+    "DINAH_PROVIDER": "anthropic",
+    "DINAH_MODEL": "claude-opus-5"
+  }
+}
