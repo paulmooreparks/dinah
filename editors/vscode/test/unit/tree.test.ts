@@ -39,10 +39,12 @@ import {
 	cardDescription,
 	cardLabel,
 	cardIcon,
+	collectionIcon,
 	columnActionsFor,
 	columnDescription,
 	columnRef,
 	columnTooltip,
+	groupIcon,
 	readWorkbench,
 	relativeTo,
 	treeItemFor,
@@ -750,7 +752,7 @@ test("an active card's contextValue and icon do not depend on the column it stan
 	const there = column({ id: "approval", takes_work_up: false, awaiting_outside: true });
 	assert.equal(actionsFor({ state: "active", column: here }), CONTEXT_CARD_ACTIVE);
 	assert.equal(actionsFor({ state: "active", column: there }), CONTEXT_CARD_ACTIVE);
-	assert.deepEqual(cardIcon("active"), { id: "circle-filled", color: "charts.blue" });
+	assert.deepEqual(cardIcon("active"), { id: "record-small", color: "charts.blue" });
 });
 
 test("a blocked card's contextValue and icon do not depend on the column it stands at", () => {
@@ -763,6 +765,54 @@ test("a blocked card's contextValue and icon do not depend on the column it stan
 
 test("a ready card's icon carries no colour", () => {
 	assert.deepEqual(cardIcon("ready"), { id: "circle-outline" });
+});
+
+// ---------------------------------------------------------------------------
+// dinah-589: the rows that drew no icon at all
+// ---------------------------------------------------------------------------
+
+test("each state group carries its own icon and an unknown group carries none", () => {
+	assert.deepEqual(groupIcon("ready"), { id: "watch" });
+	assert.deepEqual(groupIcon("active"), { id: "play-circle" });
+	assert.deepEqual(groupIcon("blocked"), { id: "debug-pause" });
+	// A value this extension has no name for draws nothing, which is what
+	// groupLabel does with the same value when it prints the raw token.
+	assert.equal(groupIcon("parked"), undefined);
+	assert.equal(groupIcon(undefined), undefined);
+	assert.equal(groupIcon(""), undefined);
+});
+
+test("a collection carries its member kind's icon and a branch carries its own", () => {
+	assert.deepEqual(collectionIcon("comment"), { id: "comment-discussion" });
+	assert.deepEqual(collectionIcon("item"), { id: "checklist" });
+	assert.deepEqual(collectionIcon("attachment"), { id: "files" });
+	assert.deepEqual(
+		collectionIcon("item", "open_question"),
+		{ id: "comment-unresolved" },
+	);
+	assert.deepEqual(
+		collectionIcon("item", "acceptance_criterion"),
+		{ id: "verified" },
+	);
+	assert.deepEqual(collectionIcon("item", "decision"), { id: "lightbulb" });
+});
+
+test("an unknown narrow falls through to the member kind, and an unknown kind to nothing", () => {
+	// The same fall-through collectionLabel runs: a branch token this
+	// extension does not know is still a checklist branch, so the row keeps
+	// the member kind's icon rather than losing one.
+	assert.deepEqual(collectionIcon("item", "conjecture"), { id: "checklist" });
+	// A member kind with no icon draws none. A guess would assert something
+	// false about the members, and the label prints the raw token in the
+	// same case, which already says the kind is unknown.
+	assert.equal(collectionIcon("sketch"), undefined);
+	assert.equal(collectionIcon("sketch", "conjecture"), undefined);
+});
+
+test("the workbench row carries the workbench icon", async () => {
+	const view = await loadedBench();
+	const [root] = await view.getChildren();
+	assert.deepEqual(treeItemFor(root).icon, { id: "tools" });
 });
 
 test("an active card's tooltip names its holder and a blocked card's names its obstacle", async () => {
@@ -1624,6 +1674,31 @@ test("a workbench whose status reports no attachments draws no Attachments row",
 	assert.equal(zeroChildren.some((element) => element.kind === "collection"), false);
 });
 
+test("the workbench's attachments row is told apart from the columns beside it", async () => {
+	// The defect dinah-589 was filed for. The attachments collection stands
+	// at the same depth as the columns and after the last of them, so with
+	// neither row carrying a glyph there was nothing on screen saying which
+	// kind of row a reader was looking at.
+	const { view } = await attachingBench();
+	const [root] = await view.getChildren();
+	const children = await view.getChildren(root);
+	const columns = children.filter((element) => element.kind === "column");
+	const collections = children.filter(
+		(element) => element.kind === "collection",
+	);
+	// Pinned before the loop, because a loop over an empty list passes for
+	// the wrong reason and a fixture change could empty it.
+	assert.equal(columns.length, 3);
+	assert.equal(collections.length, 1);
+	const attachments = treeItemFor(collections[0]);
+	assert.deepEqual(attachments.icon, { id: "files" });
+	for (const element of columns) {
+		const item = treeItemFor(element);
+		assert.deepEqual(item.icon, { id: "split-horizontal" });
+		assert.notDeepEqual(item.icon, attachments.icon);
+	}
+});
+
 test("a checkpoint whose reads fail keeps the attachment count the last good one carried", async () => {
 	// Single-workbench mode. The first checkpoint answers with a count of
 	// five, the second fails, and the count survives the failure on the same
@@ -2266,8 +2341,11 @@ test("the marker lands on the column the refusal named and on neither of its nei
 		items.map((item) => item.description),
 		["2", "damaged", "0"],
 	);
-	assert.equal(items[0].icon, undefined);
-	assert.equal(items[2].icon, undefined);
+	// The healthy columns carry the ordinary column icon, so the marker is
+	// what singles the damaged one out rather than its neighbours happening
+	// to draw nothing at all.
+	assert.deepEqual(items[0].icon, { id: "split-horizontal" });
+	assert.deepEqual(items[2].icon, { id: "split-horizontal" });
 	assert.deepEqual(items[1].icon, { id: "warning" });
 	// Named, not merely flagged: the hover carries the column's own cached
 	// title, which is what tells a reader which file to open.
@@ -2301,7 +2379,7 @@ test("a column the last good read never cached leaves the marker off and says so
 	);
 	for (const item of items) {
 		assert.notEqual(item.description, "damaged");
-		assert.equal(item.icon, undefined);
+		assert.deepEqual(item.icon, { id: "split-horizontal" });
 	}
 	const rootItem = treeItemFor(root);
 	assert.equal(rootItem.description, "did not answer");
