@@ -11,17 +11,19 @@ import (
 // The three ways one item's stored answer leaves this conversion, which the
 // report groups by and which a reader compares two runs on.
 const (
-	// DesignationFromJournal is an item whose settling minted its own
-	// comment, so the journal carries that comment's identifier on a
-	// commented line immediately before the settling line. The identifier
-	// was read rather than inferred.
-	DesignationFromJournal = "journal"
 	// DesignationUndisturbed is an item no removal has touched since it was
 	// settled, so no position can have shifted and resolving the stored
-	// reference by position reaches the comment that was meant. The
-	// confidence is of a different kind from the route above, which is why
-	// the report keeps the two apart.
+	// reference by position reaches the comment that was meant. It is tried
+	// first, because what it rests on is the value on disk having been
+	// correct when it was written and nothing since being able to move it.
 	DesignationUndisturbed = "undisturbed"
+	// DesignationFromJournal is an item whose positions may have moved and
+	// whose settling minted its own comment, so the journal carries that
+	// comment's identifier on a commented line immediately before the
+	// settling line. The confidence is of a different kind from the route
+	// above, which is why the report keeps the two apart and why this one is
+	// reached only where the other's evidence is gone.
+	DesignationFromJournal = "journal"
 	// DesignationUnrecoverable is an item the history cannot speak for. The
 	// conversion does not guess: the resolution key is removed, the item's
 	// state is left exactly as it stands, and a person answers it again.
@@ -164,11 +166,15 @@ func (b *Bench) ClaimedCards() ([]ClaimedCard, error) {
 // archived comments would convert such an item silently and write the wrong
 // author down as the operator's answer.
 //
-// Two routes recover an answer and everything else is left unanswered.
-// decideDesignation carries each one's own reasoning, and both are written to
-// decline rather than to guess: the point of reading the journal is that the
-// conversion writes down what somebody recorded, so a case the record cannot
-// speak for goes to a person rather than to an inference.
+// Two routes recover an answer and everything else is left unanswered, and
+// they are tried in the order of what each rests on. The undisturbed route
+// rests on evidence, which is that nothing since the settling could have moved
+// the stored position, and it runs first. The minted-comment route rests on an
+// inference about two journal lines, and it runs only where that evidence is
+// gone. decideDesignation carries each one's own reasoning, and both are
+// written to decline rather than to guess: the point of reading the journal is
+// that the conversion writes down what somebody recorded, so a case the record
+// cannot speak for goes to a person rather than to an inference.
 //
 // apply is false on a rehearsal, which decides every item by these same rules,
 // answers the identical report, and writes no anchor, no journal line and no
@@ -347,20 +353,55 @@ func (b *Bench) decideDesignation(card *Card, cardRef string, item *Item, events
 	if at < 0 {
 		return entry
 	}
-	// Route 1, the minted-comment route. The --text form mints a comment and
-	// designates it in one act, and it journals the commented line
-	// immediately before the settling line carrying that comment's own
-	// identifier. That identifier was recorded rather than inferred, so it
-	// answers whatever has happened to the collection since.
+	// The undisturbed route runs first, and the order is the whole of what
+	// keeps this function from writing a guess down as a recorded ruling.
 	//
-	// What selects that one act is the stamp as well as the adjacency, and
-	// the stamp is what makes the route safe rather than merely likely. One
-	// write stamps both lines from one reading of the clock, so the two
-	// carry the same instant exactly when they are halves of one act.
-	// Without that test the route also matches an ordinary comment written
-	// just before a settling that named some other comment of the same item,
-	// and it would then write the wrong comment's identifier down as the
-	// answer, which is the harm this whole conversion exists to avoid.
+	// Where nothing has been archived, restored or deleted that could be a
+	// comment of this item since the settling, no position can have shifted,
+	// so the stored reference still reaches the comment that was meant. That
+	// is evidence: the value on disk was correct when it was written and
+	// nothing since could have moved it. The route below rests on an
+	// inference instead, and an inference that runs first wins on exactly the
+	// cases where the evidence was available and correct.
+	//
+	// Agent Code Review reproduced the cost of the other order in three
+	// commands. A comment, a second comment and a settling naming the first
+	// all landed inside one second, nothing was ever removed, and the stored
+	// position still reached the answer somebody meant; the route below
+	// matched on the second comment and the run reported writing it as a
+	// recovery. The item then cited words nobody had settled it with, the
+	// real answer was cited by nothing, and dinah check found no defect,
+	// which is worse than leaving the item unanswered because an unanswered
+	// item is visible under check.designation-missing and this one is not.
+	if !b.disturbedSince(card, item, events, at) {
+		if reached, found := b.commentAtPosition(item, item.Resolution); found {
+			entry.Route = DesignationUndisturbed
+			entry.Identifier = reached.ID
+			entry.Author = reached.Author
+			entry.Reaches = ""
+			return entry
+		}
+	}
+	// The minted-comment route, reached only where a removal since the
+	// settling means the stored position may have moved. The --text form
+	// mints a comment and designates it in one act, and it journals the
+	// commented line immediately before the settling line carrying that
+	// comment's own identifier, so where positions have shifted the journal
+	// is the only thing left that can name the comment that was meant.
+	//
+	// What selects that one act is adjacency, the same item, the same actor
+	// and the same stamp, because one write stamps both lines from one
+	// reading of the clock. That is a strong hint and it is not a proof: the
+	// stamp carries seconds, so two invocations inside one second are
+	// indistinguishable in the record, and an item whose positions have moved
+	// and whose settling followed an unrelated comment of its own inside one
+	// second is still read as the minted form.
+	//
+	// That residue is stated here rather than closed on a promise. Removing
+	// it would need the journal replayed to reconstruct the collection as it
+	// stood at the settling, which is a larger change than this card's
+	// contract carries, and the ordering above is what keeps the residue down
+	// to the population where the evidence is already gone.
 	if at > 0 {
 		prior := events[at-1]
 		if prior.Event == contract.EventCommented && prior.Item == item.ID &&
@@ -378,21 +419,6 @@ func (b *Bench) decideDesignation(card *Card, cardRef string, item *Item, events
 			return entry
 		}
 	}
-	// Route 2, the undisturbed route. Where nothing has been archived,
-	// restored or deleted that could be a comment of this item since the
-	// settling, no position can have shifted, so the stored reference still
-	// reaches the comment that was meant.
-	if b.disturbedSince(card, item, events, at) {
-		return entry
-	}
-	reached, found := b.commentAtPosition(item, item.Resolution)
-	if !found {
-		return entry
-	}
-	entry.Route = DesignationUndisturbed
-	entry.Identifier = reached.ID
-	entry.Author = reached.Author
-	entry.Reaches = ""
 	return entry
 }
 

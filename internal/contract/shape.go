@@ -1505,10 +1505,24 @@ var Shapes = []Shape{
 		// The detail is the comment and the designating item rides as a
 		// value, because the reader has to be told which item would be left
 		// settled with nothing behind it.
-		Name:      NotDesignatable,
-		Values:    []string{"item"},
-		Fragments: []Fragment{{Key: "refusal.dinah.not-designatable.next"}},
-		NextStep:  []string{"refusal.dinah.not-designatable.next"},
+		// Two acts raise it and they share nothing but the record they are
+		// refused over, so set carries a base entry and a next step of its
+		// own. A caller who ran a write and was told that deleting the
+		// comment would leave the item settled with nothing behind it reads
+		// a sentence about an act they did not perform, and the shared next
+		// step offers a --force that set does not accept, which section 5.14
+		// of this card's contract ruled out by name.
+		Name:     NotDesignatable,
+		Values:   []string{"item"},
+		Variants: []string{"set"},
+		Fragments: []Fragment{
+			{Key: "refusal.dinah.not-designatable.set.next", WhenCommand: "set"},
+			{Key: "refusal.dinah.not-designatable.next"},
+		},
+		NextStep: []string{
+			"refusal.dinah.not-designatable.set.next",
+			"refusal.dinah.not-designatable.next",
+		},
 	},
 	{
 		// The detail is the workbench's own path, because a person meeting

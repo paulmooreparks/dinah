@@ -1310,8 +1310,23 @@ func (s *session) renderDesignationMigration(run *bench.DesignationMigration) {
 		if entry.Route != bench.DesignationUnrecoverable {
 			continue
 		}
-		s.line(s.r.T("check.designations-unanswered-entry", "item", entry.Item,
-			"settling", entry.Settling, "state", entry.State, "stored", entry.Stored, "author", entry.Author))
+		// Two shapes of absence reach this line and each is named rather
+		// than left blank. An item whose journal records no settling takes
+		// the unsettled form, because the ordinary one names the settling
+		// verb and an empty slot leaves a comma hanging in the one group the
+		// operator is told to act on. A stored reference that reaches no
+		// comment of the item takes the second clause below, for the same
+		// reason read one slot along.
+		reaches := s.r.T("check.designations-reaches-nothing")
+		if entry.Author != "" {
+			reaches = s.r.T("check.designations-reaches", "author", entry.Author)
+		}
+		key := "check.designations-unanswered-entry"
+		if entry.Settling == "" {
+			key = "check.designations-unanswered-entry-unsettled"
+		}
+		s.line(s.r.T(key, "item", entry.Item,
+			"settling", entry.Settling, "state", entry.State, "stored", entry.Stored, "reaches", reaches))
 	}
 	if unanswered > 0 {
 		s.line(s.r.T("check.designations-keeps-state"))

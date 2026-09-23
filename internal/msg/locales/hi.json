@@ -688,6 +688,16 @@
       "context": "The sentence the designation conversion prints once under the unanswered items, so that nobody reads the group as work the run undid.",
       "source": "1ee9c9e0d534202e"
     },
+    "check.designations-reaches": {
+      "text": "{author} की एक टिप्पणी",
+      "context": "The clause an unanswered line of the designation conversion's report names whose comment the stored reference reaches today. {author} is that comment's author, which is a name rather than prose and is never translated, so no word of the clause may agree with it.",
+      "source": "47917242908a6d13"
+    },
+    "check.designations-reaches-nothing": {
+      "text": "उस आइटम की कोई टिप्पणी नहीं",
+      "context": "The clause an unanswered line of the designation conversion's report carries in place of the one above where the stored reference reaches no comment of that item at all, which is the case a removal since the settling leaves behind. It names the absence rather than leaving the sentence to trail off.",
+      "source": "a0ad870731cbab0"
+    },
     "check.designations-rehearsed": {
       "text": "कुछ भी नहीं लिखा गया। रूपांतरित करने और कार्यक्षेत्र पर मुहर लगाने के लिए इसे --rehearse के बिना फिर चलाएँ।",
       "context": "The closing line of a rehearsal of the designation conversion, which decides everything and writes nothing. --rehearse is a flag name and is not translated.",
@@ -699,9 +709,14 @@
       "source": "33ba74db221e8703"
     },
     "check.designations-unanswered-entry": {
-      "text": "{item}, {settling} द्वारा निपटाया गया, {state} बनाए रखता है; उसमें {stored} संग्रहीत था, जो आज {author} की एक टिप्पणी तक पहुँचता है।",
-      "context": "One item a designation conversion left unanswered, drawn under the count. {item} is the item's reference, {settling} is the journal event that last settled it, {state} is the state it keeps, {stored} is the reference it carried before the run and {author} is who wrote the comment that reference reaches today; all five are machine vocabulary that is never translated. The author is named so the operator can see what a guessing conversion would have written down.",
-      "source": "ea205442c7e65914"
+      "text": "{item}, {settling} द्वारा निपटाया गया, {state} बनाए रखता है; उसमें {stored} संग्रहीत था, जो आज {reaches} तक पहुँचता है।",
+      "context": "One item a designation conversion left unanswered, drawn under the count. {item} is the item's reference, {settling} is the journal event that last settled it, {state} is the state it keeps, {stored} is the reference it carried before the run and {reaches} is the clause naming whose comment that reference reaches today; all are machine vocabulary or composed from it and are never translated. The author is named so the operator can see what a guessing conversion would have written down. An item whose journal records no settling at all takes the unsettled form beside this one rather than leaving that slot blank.",
+      "source": "3269a16bad1dd12d"
+    },
+    "check.designations-unanswered-entry-unsettled": {
+      "text": "{item} {state} बनाए रखता है और उसका इतिहास कोई निपटान दर्ज नहीं करता; उसमें {stored} संग्रहीत था, जो आज {reaches} तक पहुँचता है।",
+      "context": "One item a designation conversion left unanswered whose card journal records no settling for it at all, drawn under the count beside the ordinary form. {item} is the item's reference, {state} is the state it keeps and {reaches} is the clause naming whose comment the stored reference reaches today; all are machine vocabulary or composed from it and are never translated. It exists because the ordinary form names the settling verb and an item with none would leave that slot blank, which reads as a fault in the line the operator is told to act on.",
+      "source": "1a63fa1c11a98917"
     },
     "check.designations-unanswered-total.one": {
       "text": "{count} आइटम इस प्रतीक्षा में है कि कोई उसका फिर से उत्तर दे।",
@@ -4333,6 +4348,16 @@
       "text": "; एक टिप्पणी किसी कॉलम पर, किसी कार्ड पर, या उस कार्ड की किसी चेकलिस्ट मद पर टिकी होती है",
       "context": "The one next step of refusal.dinah.not-commentable, printed whatever kind the reference resolved to, because the honest advice is the same for every kind that fails it.",
       "source": "16f5bd7e36e71b03"
+    },
+    "refusal.dinah.not-designatable.set": {
+      "text": "टिप्पणी {detail} आइटम {item} का अभिलिखित उत्तर है, इसलिए उसे फिर से लिखने पर वह आइटम ऐसे शब्द उद्धृत करने लगेगा जिनसे उसे किसी ने नहीं निपटाया।",
+      "context": "The sentence printed after the refusal name dinah.not-designatable when set was asked to rewrite the body of a comment a checklist item designates. {detail} is the comment's reference and {item} is the item that cites it; both are addresses rather than prose and no word of the sentence may agree with either. The shared entry beside this one is delete's, and it says the comment would be destroyed, which is not what this caller did.",
+      "source": "2960d7af9e9956ef"
+    },
+    "refusal.dinah.not-designatable.set.next": {
+      "text": " उस आइटम पर `dinah reopen` चलाएँ, जो नामांकन हटा देता है और टिप्पणी को सुधार के लिए मुक्त कर देता है। इस लेखन का कोई बलपूर्वक रूप नहीं है, क्योंकि अभिलिखित उत्तर को पार करने का दूसरा रास्ता ही वह चीज़ है जिसे यह अस्वीकृति रोकने के लिए है।",
+      "context": "The next step of refusal.dinah.not-designatable.set, spliced onto the sentence that just named the comment and the item. dinah reopen is a command name and is not translated. It offers no forced form and says so, because set accepts none and a second way past this record is what the refusal exists to prevent; the shared next step beside this one offers delete's --force, which set answers dinah.usage for.",
+      "source": "959fe998f01856c6"
     },
     "refusal.dinah.not-pending": {
       "text": "यह मद पहले से ही {detail} है।",

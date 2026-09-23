@@ -684,6 +684,16 @@
       "context": "The sentence the designation conversion prints once under the unanswered items, so that nobody reads the group as work the run undid.",
       "skeleton": true
     },
+    "check.designations-reaches": {
+      "text": "a comment by {author}",
+      "context": "The clause an unanswered line of the designation conversion's report names whose comment the stored reference reaches today. {author} is that comment's author, which is a name rather than prose and is never translated, so no word of the clause may agree with it.",
+      "skeleton": true
+    },
+    "check.designations-reaches-nothing": {
+      "text": "no comment of that item",
+      "context": "The clause an unanswered line of the designation conversion's report carries in place of the one above where the stored reference reaches no comment of that item at all, which is the case a removal since the settling leaves behind. It names the absence rather than leaving the sentence to trail off.",
+      "skeleton": true
+    },
     "check.designations-rehearsed": {
       "text": "Nothing was written. Run it again without --rehearse to convert and stamp the workbench.",
       "context": "The closing line of a rehearsal of the designation conversion, which decides everything and writes nothing. --rehearse is a flag name and is not translated.",
@@ -695,8 +705,13 @@
       "skeleton": true
     },
     "check.designations-unanswered-entry": {
-      "text": "{item}, settled by {settling}, keeps {state}; it stored {stored}, which reaches a comment by {author} today.",
-      "context": "One item a designation conversion left unanswered, drawn under the count. {item} is the item's reference, {settling} is the journal event that last settled it, {state} is the state it keeps, {stored} is the reference it carried before the run and {author} is who wrote the comment that reference reaches today; all five are machine vocabulary that is never translated. The author is named so the operator can see what a guessing conversion would have written down.",
+      "text": "{item}, settled by {settling}, keeps {state}; it stored {stored}, which reaches {reaches} today.",
+      "context": "One item a designation conversion left unanswered, drawn under the count. {item} is the item's reference, {settling} is the journal event that last settled it, {state} is the state it keeps, {stored} is the reference it carried before the run and {reaches} is the clause naming whose comment that reference reaches today; all are machine vocabulary or composed from it and are never translated. The author is named so the operator can see what a guessing conversion would have written down. An item whose journal records no settling at all takes the unsettled form beside this one rather than leaving that slot blank.",
+      "skeleton": true
+    },
+    "check.designations-unanswered-entry-unsettled": {
+      "text": "{item} keeps {state} and its history records no settling; it stored {stored}, which reaches {reaches} today.",
+      "context": "One item a designation conversion left unanswered whose card journal records no settling for it at all, drawn under the count beside the ordinary form. {item} is the item's reference, {state} is the state it keeps and {reaches} is the clause naming whose comment the stored reference reaches today; all are machine vocabulary or composed from it and are never translated. It exists because the ordinary form names the settling verb and an item with none would leave that slot blank, which reads as a fault in the line the operator is told to act on.",
       "skeleton": true
     },
     "check.designations-unanswered-total.one": {
@@ -4321,6 +4336,16 @@
     "refusal.dinah.not-commentable.next": {
       "text": "; a comment hangs on a column, on a card, or on one of that card's checklist items",
       "context": "The one next step of refusal.dinah.not-commentable, printed whatever kind the reference resolved to, because the honest advice is the same for every kind that fails it.",
+      "skeleton": true
+    },
+    "refusal.dinah.not-designatable.set": {
+      "text": "Comment {detail} is the answer of record for item {item}, so rewriting it would leave that item citing words nobody settled it with.",
+      "context": "The sentence printed after the refusal name dinah.not-designatable when set was asked to rewrite the body of a comment a checklist item designates. {detail} is the comment's reference and {item} is the item that cites it; both are addresses rather than prose and no word of the sentence may agree with either. The shared entry beside this one is delete's, and it says the comment would be destroyed, which is not what this caller did.",
+      "skeleton": true
+    },
+    "refusal.dinah.not-designatable.set.next": {
+      "text": " Run `dinah reopen` on that item, which clears the designation and frees the comment to be corrected. There is no forced form of this write, because a second way past an answer of record is what this refusal exists to prevent.",
+      "context": "The next step of refusal.dinah.not-designatable.set, spliced onto the sentence that just named the comment and the item. dinah reopen is a command name and is not translated. It offers no forced form and says so, because set accepts none and a second way past this record is what the refusal exists to prevent; the shared next step beside this one offers delete's --force, which set answers dinah.usage for.",
       "skeleton": true
     },
     "refusal.dinah.not-pending": {

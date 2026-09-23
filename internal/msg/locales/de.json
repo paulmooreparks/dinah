@@ -688,6 +688,16 @@
       "context": "The sentence the designation conversion prints once under the unanswered items, so that nobody reads the group as work the run undid.",
       "source": "1ee9c9e0d534202e"
     },
+    "check.designations-reaches": {
+      "text": "einen Kommentar von {author}",
+      "context": "The clause an unanswered line of the designation conversion's report names whose comment the stored reference reaches today. {author} is that comment's author, which is a name rather than prose and is never translated, so no word of the clause may agree with it.",
+      "source": "47917242908a6d13"
+    },
+    "check.designations-reaches-nothing": {
+      "text": "keinen Kommentar dieses Eintrags",
+      "context": "The clause an unanswered line of the designation conversion's report carries in place of the one above where the stored reference reaches no comment of that item at all, which is the case a removal since the settling leaves behind. It names the absence rather than leaving the sentence to trail off.",
+      "source": "a0ad870731cbab0"
+    },
     "check.designations-rehearsed": {
       "text": "Es wurde nichts geschrieben. Führe es ohne --rehearse erneut aus, um umzuwandeln und die Werkbank zu stempeln.",
       "context": "The closing line of a rehearsal of the designation conversion, which decides everything and writes nothing. --rehearse is a flag name and is not translated.",
@@ -699,9 +709,14 @@
       "source": "33ba74db221e8703"
     },
     "check.designations-unanswered-entry": {
-      "text": "{item}, erledigt durch {settling}, behält {state}; gespeichert war {stored}, was heute einen Kommentar von {author} erreicht.",
-      "context": "One item a designation conversion left unanswered, drawn under the count. {item} is the item's reference, {settling} is the journal event that last settled it, {state} is the state it keeps, {stored} is the reference it carried before the run and {author} is who wrote the comment that reference reaches today; all five are machine vocabulary that is never translated. The author is named so the operator can see what a guessing conversion would have written down.",
-      "source": "ea205442c7e65914"
+      "text": "{item}, erledigt durch {settling}, behält {state}; gespeichert war {stored}, was heute {reaches} erreicht.",
+      "context": "One item a designation conversion left unanswered, drawn under the count. {item} is the item's reference, {settling} is the journal event that last settled it, {state} is the state it keeps, {stored} is the reference it carried before the run and {reaches} is the clause naming whose comment that reference reaches today; all are machine vocabulary or composed from it and are never translated. The author is named so the operator can see what a guessing conversion would have written down. An item whose journal records no settling at all takes the unsettled form beside this one rather than leaving that slot blank.",
+      "source": "3269a16bad1dd12d"
+    },
+    "check.designations-unanswered-entry-unsettled": {
+      "text": "{item} behält {state}, und seine Historie verzeichnet keine Erledigung; gespeichert war {stored}, was heute {reaches} erreicht.",
+      "context": "One item a designation conversion left unanswered whose card journal records no settling for it at all, drawn under the count beside the ordinary form. {item} is the item's reference, {state} is the state it keeps and {reaches} is the clause naming whose comment the stored reference reaches today; all are machine vocabulary or composed from it and are never translated. It exists because the ordinary form names the settling verb and an item with none would leave that slot blank, which reads as a fault in the line the operator is told to act on.",
+      "source": "1a63fa1c11a98917"
     },
     "check.designations-unanswered-total.one": {
       "text": "{count} Eintrag wartet darauf, dass ihn jemand erneut beantwortet.",
@@ -4344,6 +4359,16 @@
       "text": "; ein Kommentar hängt an einer Spalte, an einer Karte oder an einem Checklistenpunkt dieser Karte",
       "context": "The one next step of refusal.dinah.not-commentable, printed whatever kind the reference resolved to, because the honest advice is the same for every kind that fails it.",
       "source": "16f5bd7e36e71b03"
+    },
+    "refusal.dinah.not-designatable.set": {
+      "text": "Kommentar {detail} ist die verbindliche Antwort für Eintrag {item}; ihn umzuschreiben würde diesen Eintrag Worte zitieren lassen, mit denen ihn niemand erledigt hat.",
+      "context": "The sentence printed after the refusal name dinah.not-designatable when set was asked to rewrite the body of a comment a checklist item designates. {detail} is the comment's reference and {item} is the item that cites it; both are addresses rather than prose and no word of the sentence may agree with either. The shared entry beside this one is delete's, and it says the comment would be destroyed, which is not what this caller did.",
+      "source": "2960d7af9e9956ef"
+    },
+    "refusal.dinah.not-designatable.set.next": {
+      "text": " Führe `dinah reopen` für diesen Eintrag aus; das löscht die Benennung und gibt den Kommentar zur Korrektur frei. Für dieses Schreiben gibt es keine erzwungene Form, denn ein zweiter Weg an einer verbindlichen Antwort vorbei ist genau das, was diese Verweigerung verhindern soll.",
+      "context": "The next step of refusal.dinah.not-designatable.set, spliced onto the sentence that just named the comment and the item. dinah reopen is a command name and is not translated. It offers no forced form and says so, because set accepts none and a second way past this record is what the refusal exists to prevent; the shared next step beside this one offers delete's --force, which set answers dinah.usage for.",
+      "source": "959fe998f01856c6"
     },
     "refusal.dinah.not-pending": {
       "text": "Dieser Punkt ist bereits {detail}.",

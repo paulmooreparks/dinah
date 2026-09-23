@@ -1286,14 +1286,20 @@ journal, because an ordinary claim carries no expiry and nobody may release
 somebody else's, so one card left claimed by a dead session would otherwise
 block the conversion permanently.
 
-The conversion reads each card's journal rather than the item's live comments,
-because a comment deleted outright leaves no archive behind while the stored
-position now reaches somebody else's words. Where the history cannot say which
-comment an answer meant, the item is left unanswered rather than having a guess
-written down as a recorded ruling: the `resolution` key is removed and the
-item's state is untouched, so every hold it imposed it goes on imposing, and
-`dinah check` reports the set under `check.designation-missing` for as long as
-it exists.
+The conversion recovers an answer two ways and tries them in the order of what
+each rests on. Where nothing has been archived, restored or deleted since the
+item was settled, no position can have moved, so the stored reference still
+reaches the comment that was meant and it is read straight. Only where
+something has been removed does the conversion fall back to the card's journal,
+which is the one thing left that can name the comment once positions have
+shifted. The evidenced reading goes first because an inference placed ahead of
+it wins on exactly the cases where the evidence was available and correct.
+
+Where neither can say which comment an answer meant, the item is left
+unanswered rather than having a guess written down as a recorded ruling: the
+`resolution` key is removed and the item's state is untouched, so every hold it
+imposed it goes on imposing, and `dinah check` reports the set under
+`check.designation-missing` for as long as it exists.
 
 A
 workbench declaring anything below the current number has not been carried

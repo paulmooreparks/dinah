@@ -372,6 +372,171 @@ func TestTheConversionDecidesFromTheJournalAndLeavesTheRestUnanswered(t *testing
 	}
 }
 
+// TestTheEvidencedRouteWinsOverTheInferredOneInsideOneSecond is Agent Code
+// Review's own reproduction, and it is the case the route order exists for.
+//
+// Three commands, all inside one second: a comment carrying the answer, a
+// second comment carrying an aside, and a settling naming the first. Nothing
+// is ever archived, restored or deleted, so the stored position is still
+// correct and the conversion has evidence rather than a hint. The journal
+// cannot tell the two invocations apart, because its stamp carries seconds and
+// all three lines carry the same one, so a conversion that consulted the
+// journal first matches the aside and writes it down as the answer of record,
+// silently, on a store where the value on disk was right all along.
+//
+// The case asserts which comment the item ends up citing rather than which
+// route the report named, because what the operator loses is the answer and
+// not the label. It asserts the rehearsal as well, since rehearsing first is
+// the one protection he was offered and it prints whatever the converting run
+// would print.
+func TestTheEvidencedRouteWinsOverTheInferredOneInsideOneSecond(t *testing.T) {
+	root := oneSecondFixture(t)
+
+	rehearsed := runCLI(t, root, "check", "--migrate-designations", "--rehearse", "--actor", "alka")
+	if strings.TrimSpace(rehearsed.errw) != "" {
+		t.Fatalf("the rehearsal was refused: %s", rehearsed.errw)
+	}
+	converted := runCLI(t, root, "check", "--migrate-designations", "--actor", "alka")
+	assertConverted(t, converted)
+
+	if body := designatedBodyOf(t, root, "fx-1/questions/1"); body != "THE REAL ANSWER: go left" {
+		t.Errorf("the item now cites %q, and the answer somebody settled it with is the one it stored", body)
+	}
+	for _, report := range []struct {
+		what string
+		out  string
+	}{{"the rehearsal", rehearsed.out}, {"the conversion", converted.out}} {
+		if !strings.Contains(report.out, "Converted 1 item as undisturbed.") {
+			t.Errorf("%s did not read the stored position as evidence:\n%s", report.what, report.out)
+		}
+		if !strings.Contains(report.out, "Converted 0 items from the history.") {
+			t.Errorf("%s consulted the history over a store nothing had disturbed:\n%s", report.what, report.out)
+		}
+	}
+}
+
+// oneSecondFixture builds the three acts the case above is about and hands
+// back a workbench awaiting the conversion, retrying until the three land
+// inside one second.
+//
+// The retry is what keeps the case from asserting nothing on a slow machine. A
+// run whose acts straddled a second boundary would exercise a different
+// population and pass without touching this one, and skipping there would be
+// the same silence wearing a label, so the fixture is rebuilt instead and the
+// case fails outright if it never lands.
+func oneSecondFixture(t *testing.T) string {
+	t.Helper()
+	for attempt := 0; attempt < 8; attempt++ {
+		root := newBenchFromDefinition(t, designationDefinition)
+		mustRun(t, root, "add", "a card whose answer and aside share one second")
+		mustRun(t, root, "file", "fx-1", "open_question", "which way do we go?")
+		mustRun(t, root, "comment", "fx-1/questions/1", "THE REAL ANSWER: go left")
+		mustRun(t, root, "comment", "fx-1/questions/1", "an aside written just now")
+		mustRun(t, root, "resolve", "fx-1/questions/1", "fx-1/questions/1/comments/1")
+		if !sharesOneSecond(t, root, "fx-1") {
+			continue
+		}
+		// The stored position still reaches the real answer, which is what
+		// makes this the undisturbed population rather than a recovery.
+		windBack(t, root, "fx-1/questions/1")
+		if stored := itemResolutionOf(t, root, "fx-1/questions/1"); stored != "fx-1/questions/1/comments/1" {
+			t.Fatalf("the item stores %q, so this case is not the one it is about", stored)
+		}
+		awaitingConversion(t, root)
+		return root
+	}
+	t.Fatal("eight attempts and the comment, the aside and the settling never landed inside one second, so this case asserted nothing")
+	return ""
+}
+
+// sharesOneSecond reports whether every comment and settling line one card's
+// journal carries names the same instant.
+func sharesOneSecond(t *testing.T, root, card string) bool {
+	t.Helper()
+	stamps := map[string]bool{}
+	for _, event := range cardJournal(t, root, cardID(t, root, card)) {
+		switch event.Event {
+		case contract.EventCommented, contract.EventItemResolved:
+			stamps[event.TS] = true
+		}
+	}
+	if len(stamps) == 0 {
+		t.Fatalf("%s carries no comment or settling line, so the fixture is broken rather than slow", card)
+	}
+	return len(stamps) == 1
+}
+
+// TestTheUnansweredLineNamesEveryAbsenceItCanCarry is Agent Code Review's
+// third finding, which is the one group of the report the operator is told to
+// act on rendering a sentence with a hole in it.
+//
+// Two slots of that line can be empty and both are reachable by design. An
+// item whose card journal records no settling at all is unrecoverable by
+// section 5.13.2's own reading, and it left the line reading "settled by ,
+// keeps failed". A stored reference reaching no comment of the item is the
+// ordinary shape of a removal since the settling, and it left the line
+// trailing off into "reaches  today".
+//
+// The case drives both on one card and reads the rendered sentences, because
+// the defect was invisible to every assertion that read a count or a key.
+func TestTheUnansweredLineNamesEveryAbsenceItCanCarry(t *testing.T) {
+	root := newBenchFromDefinition(t, designationDefinition)
+	mustRun(t, root, "add", "a card whose history says nothing")
+	mustRun(t, root, "file", "fx-1", "acceptance_criterion", "something nobody can speak for")
+	mustRun(t, root, "comment", "fx-1/criteria/1", "the answer of record")
+	mustRun(t, root, "fail", "fx-1/criteria/1", "fx-1/criteria/1/comments/1")
+	windBack(t, root, "fx-1/criteria/1")
+
+	// The journal is emptied, which is the state a card whose history is gone
+	// arrives in and which puts the item squarely in the unrecoverable
+	// population with no settling to name.
+	if err := os.WriteFile(cardJournalPath(t, root, "fx-1"), nil, 0o644); err != nil {
+		t.Fatalf("empty the card's journal: %v", err)
+	}
+	// And a second card whose stored reference reaches nothing, because the
+	// comment it named was deleted outright.
+	mustRun(t, root, "add", "a card whose answer was deleted")
+	mustRun(t, root, "file", "fx-2", "acceptance_criterion", "something whose answer went")
+	mustRun(t, root, "comment", "fx-2/criteria/1", "the answer that will go")
+	mustRun(t, root, "fail", "fx-2/criteria/1", "fx-2/criteria/1/comments/1")
+	windBack(t, root, "fx-2/criteria/1")
+	mustRun(t, root, "delete", "fx-2/criteria/1/comments/1", "--yes", "--force")
+	awaitingConversion(t, root)
+
+	converted := runCLI(t, root, "check", "--migrate-designations", "--actor", "alka")
+	assertConverted(t, converted)
+	if !strings.Contains(converted.out, "Left 2 items unanswered.") {
+		t.Fatalf("the run did not leave both items unanswered, so this case is not the one it is about:\n%s", converted.out)
+	}
+	if strings.Contains(converted.out, "settled by ,") {
+		t.Errorf("the unanswered line leaves the settling slot blank:\n%s", converted.out)
+	}
+	if strings.Contains(converted.out, "reaches  today") {
+		t.Errorf("the unanswered line leaves the comment it reaches unnamed:\n%s", converted.out)
+	}
+	if !strings.Contains(converted.out, "its history records no settling") {
+		t.Errorf("the unanswered line does not say that the history records no settling:\n%s", converted.out)
+	}
+	if !strings.Contains(converted.out, "no comment of that item") {
+		t.Errorf("the unanswered line does not say that the stored reference reaches no comment:\n%s", converted.out)
+	}
+}
+
+// cardJournalPath is one card's own journal file, which a case emptying a
+// history needs by path rather than by reference.
+func cardJournalPath(t *testing.T, root, ref string) string {
+	t.Helper()
+	opened, err := bench.OpenAwaitingResolution(soleBenchDir(t, root))
+	if err != nil {
+		t.Fatalf("open the workbench: %v", err)
+	}
+	entity, err := opened.ResolveEntity(ref)
+	if err != nil {
+		t.Fatalf("resolve %s: %v", ref, err)
+	}
+	return entity.Card.JournalPath()
+}
+
 // TestASecondConversionWritesNothing is dinah-472/criteria/74. A converted
 // store carries no positional answer, so the run finds nothing, reports
 // nothing converted and leaves every anchor and every journal where it was.
@@ -590,16 +755,26 @@ func designatedBodyOf(t *testing.T, root, ref string) string {
 }
 
 // lastParagraphOf is the body a comment read prints, which is everything after
-// the header block.
+// the anchor's own closing fence.
+//
+// It splits on the fence rather than on what a header line looks like. An
+// earlier form skipped every line carrying a colon and a space, which reads a
+// body as a header wherever somebody wrote one: the reproduction this file
+// carries answers "THE REAL ANSWER: go left", and the helper reported that the
+// item cited nothing at all.
 func lastParagraphOf(printed string) string {
-	lines := strings.Split(strings.TrimSpace(printed), "\n")
-	for at := len(lines) - 1; at >= 0; at-- {
-		line := strings.TrimSpace(lines[at])
-		if line != "" && !strings.HasPrefix(line, "---") && !strings.Contains(line, ": ") {
-			return line
+	lines := strings.Split(strings.ReplaceAll(printed, "\r\n", "\n"), "\n")
+	fences := 0
+	for at, line := range lines {
+		if strings.TrimSpace(line) != "---" {
+			continue
+		}
+		fences++
+		if fences == 2 {
+			return strings.TrimSpace(strings.Join(lines[at+1:], "\n"))
 		}
 	}
-	return ""
+	return strings.TrimSpace(printed)
 }
 
 // treeDigest is a stable summary of every file under a directory, which is how

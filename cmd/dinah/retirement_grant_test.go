@@ -230,12 +230,42 @@ func TestADesignatedCommentsBodyCannotBeRewrittenWhileItIsTheAnswer(t *testing.T
 
 	// By somebody else, and by the author who wrote it, because a record
 	// anybody can rewrite is no record and its own author is anybody.
+	//
+	// The printed sentence is read as well as the name and the two slots.
+	// This case pinned the name alone at first, and the refusal shipped
+	// carrying delete's copy: it told a caller who had run a write that
+	// deleting the comment would leave the item settled with nothing behind
+	// it, and offered a --force that set answers dinah.usage for. A refusal
+	// audited over the list the design enumerated rather than over the
+	// message the caller reads is the corpus entry that finding sits under.
 	for _, actor := range []string{"sam", "alka"} {
 		refused := mustRefuse(t, root, "set", "fx-1/questions/1/comments/1", "body", "something else entirely", "--actor", actor)
 		assertRefusal(t, refused, contract.NotDesignatable, "a rewrite of the designated comment by "+actor)
 		if !strings.Contains(refused.errw, "fx-1/questions/1") {
 			t.Errorf("the refusal does not name the designating item: %s", refused.errw)
 		}
+		if !strings.Contains(refused.errw, "rewriting it") {
+			t.Errorf("the refusal does not describe the act the caller performed: %s", refused.errw)
+		}
+		if strings.Contains(refused.errw, "deleting it") {
+			t.Errorf("the refusal tells a caller who ran a write that they were deleting something: %s", refused.errw)
+		}
+		// The next step is run verbatim, because a next step that names a
+		// flag the command refuses is worse than none: it sends the reader
+		// to a second refusal and reads as an escape hatch that exists.
+		if strings.Contains(refused.errw, "--force") {
+			t.Errorf("the refusal offers --force, which set does not accept: %s", refused.errw)
+		}
+		forced := mustRefuse(t, root, "set", "fx-1/questions/1/comments/1", "body", "something else entirely", "--force", "--actor", actor)
+		assertRefusal(t, forced, contract.Usage, "the write carrying --force")
+	}
+
+	// And delete's own sentence is untouched, which is what makes the
+	// variant above a variant rather than a rewrite of the shared entry.
+	deleted := mustRefuse(t, root, "delete", "fx-1/questions/1/comments/1", "--yes")
+	assertRefusal(t, deleted, contract.NotDesignatable, "an unforced deletion of the designated comment")
+	if !strings.Contains(deleted.errw, "deleting it") || !strings.Contains(deleted.errw, "--force") {
+		t.Errorf("the deletion no longer carries its own sentence and its own next step: %s", deleted.errw)
 	}
 	shown := mustRun(t, root, "show", "fx-1/questions/1/comments/1")
 	if !strings.Contains(shown.out, "the answer, as the operator wrote it") {
