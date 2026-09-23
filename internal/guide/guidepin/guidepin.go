@@ -1,7 +1,7 @@
-// Package guidepin exists solely to be shared between test files in
-// cmd/dinah and internal/bench, the way internal/bench/compattest exists
-// solely to be shared between the compatibility test files in those same two
-// packages. No production file imports it.
+// Package guidepin exists solely to be shared between the test files of
+// several packages, the way internal/bench/compattest exists solely to be
+// shared between the compatibility test files of cmd/dinah and
+// internal/bench. No production file imports it.
 //
 // It holds the sentences a guide states about behaviour that some test
 // already proves, so the sentence and the proof are tied together. dinah-461
@@ -9,11 +9,14 @@
 // restore, thirty lines above a table listing restore, and nothing in the
 // tree read that sentence, so it went stale under a green suite.
 //
-// The pins live here rather than in either test package because two of the
-// proving tests are in internal/bench and the rest are in cmd/dinah, and a
-// test in one package cannot read a helper declared in another package's test
-// files. It takes no *testing.T, so it never imports testing, and it imports
-// internal/guide and nothing else from this tree.
+// The pins live here rather than in any one test package because the proving
+// tests are spread across more than one of them, and a test in one package
+// cannot read a helper declared in another package's test files. Which
+// packages hold them is a fact of the roster below rather than of this
+// comment, and it moves whenever a pin is added, so the enumeration that
+// stood here has been dropped rather than corrected. It takes no *testing.T,
+// so it never imports testing, and it imports internal/guide and nothing else
+// from this tree.
 package guidepin
 
 import (
@@ -40,8 +43,8 @@ type Statement struct {
 
 // The five claims the references guide's "Reading the archive" section makes,
 // each named for what it claims. The text lives here and nowhere else, so a
-// reworded guide is corrected in one place. The three first-session claims
-// below them follow the same rule.
+// reworded guide is corrected in one place. Every block of claims below them
+// follows the same rule.
 const (
 	// ArchivedReadsTheDeepestCollectionStep says which half of the workbench
 	// each step of a reference is resolved in under the flag.
@@ -103,7 +106,11 @@ const (
 // of sentence that goes stale once somebody does fix it.
 const (
 	// DinahRemovesAFileItCreatedAndEmptied says what happens to a file Dinah
-	// created once the last thing it owned in that file is taken back.
+	// created once the last thing it owned in that file is taken back. It
+	// states two rules where a Statement carries one provenance name, so the
+	// credit below covers the whitespace half alone. The JSON half, where the
+	// root is left holding no member, is driven by
+	// TestAWithdrawnMemberRemovesTheJSONFileSetupCreated.
 	DinahRemovesAFileItCreatedAndEmptied = "When Dinah created that file itself and what remains is only whitespace, or, for a JSON file, no member at all, Dinah removes the file."
 
 	// DinahLeavesTheDirectoryItCreated says what Dinah does not do, which is
