@@ -620,6 +620,13 @@ func (l *Library) mintDesignation(req *Request, entity *itemTarget) (string, *Re
 // the canonical reference rather than the caller's spelling, so two callers
 // typing one comment two ways record one value.
 func (l *Library) designationOf(req *Request, entity *itemTarget, named string) (string, *Response) {
+	// A bare identifier is a member selector inside this item's own comments
+	// rather than a whole reference, so it is composed under the item before
+	// the resolver sees it. Both forms reach the same comment and both store
+	// the same identifier.
+	if bench.IsID(named) {
+		named = entity.ref + "/" + bench.CommentsDir + "/" + named
+	}
 	found, err := l.Bench.ResolveEntity(named)
 	if err != nil {
 		return "", l.refuse(req, entity.card, contract.NotADesignation, named)

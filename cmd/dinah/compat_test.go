@@ -886,6 +886,7 @@ func migratedCopy(t *testing.T, fixture string) string {
 	opened := benchDir(t, copied)
 	runCLI(t, opened, "--workbench", opened, "check", "--migrate-numbers", "--yes")
 	migrateNotes(t, opened)
+	migrateDesignations(t, opened)
 	if got := runCLI(t, opened, "--workbench", opened, "list", "columns"); got.code != 0 {
 		t.Fatalf("the migrated %s does not open: %d %s", fixture, got.code, got.errw)
 	}
@@ -1077,6 +1078,7 @@ func TestLinkAndUnlinkRoundTripOnEveryFixture(t *testing.T) {
 			runCLI(t, opened, "--workbench", opened, "check", "--migrate-vocabulary", "--yes")
 			runCLI(t, opened, "--workbench", opened, "check", "--migrate-numbers", "--yes")
 			migrateNotes(t, opened)
+			migrateDesignations(t, opened)
 
 			cards, listedErr20 := bench.ListIDs(filepath.Join(opened, bench.CardsDir))
 			if listedErr20 != nil {

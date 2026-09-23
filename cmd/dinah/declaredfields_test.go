@@ -252,6 +252,7 @@ func TestTheBranchMigrationReportsItsClassificationAndItsWrites(t *testing.T) {
 	// migration stamps its own format, which is still below the current one,
 	// and an ordinary command is refused until the note migration has run.
 	migrateNotes(t, dir)
+	migrateDesignations(t, dir)
 	shown := runCLI(t, root, "show", "fx-1")
 	if !strings.Contains(shown.out, "git.branch: dinah-498-declared-fields") {
 		t.Errorf("the lifted value does not print:\n%s", shown.out)

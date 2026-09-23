@@ -236,6 +236,7 @@ func TestTheNumberMigrationChainIsSelfGuiding(t *testing.T) {
 	// And the rest of the chain, which is the claim the reader followed it
 	// for: the note migration runs now, and the workbench reads.
 	migrateNotes(t, workbench)
+	migrateDesignations(t, workbench)
 	read := runCLI(t, workbench, "show", "fx-1")
 	if read.code != 0 {
 		t.Fatalf("the workbench still refuses a read after the whole chain: %d %s%s", read.code, read.out, read.errw)

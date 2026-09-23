@@ -162,6 +162,21 @@ func (l *Library) SetField(req *Request) *Response {
 	if field.Guard == bench.GuardColumnRef && value != "" {
 		value = l.Bench.ColumnByRef(value).ID
 	}
+	// The same rule applied to an item's answer of record. What a person
+	// types is any spelling of a comment of that item, a position or the
+	// comment's own identifier, and the value stored is the identifier,
+	// because a position is not an identity: archiving an earlier comment
+	// renumbers the survivors and the stored reference comes to name a
+	// different comment. admitResolutionValue has already refused a spelling
+	// that reaches anything but a comment of this item, so the resolution
+	// here cannot come back empty, and a clear carries no value to resolve.
+	if field.Guard == bench.GuardResolution && value != "" {
+		found, err := l.Bench.ResolveEntity(designationSpelling(entity, value))
+		if err != nil {
+			return l.FromError(req, err)
+		}
+		value = found.ID
+	}
 	if field.Guard == bench.GuardHold {
 		return l.writeHold(req, entity, field, value)
 	}
@@ -802,7 +817,7 @@ func unknownEntityField(kind, field string) error {
 // spelling, because a field write stores what it admitted; a caller who wants
 // the canonical reference settles the item with a verb.
 func (l *Library) admitResolutionValue(req *Request, entity *bench.EntityRef, value string) *Response {
-	found, err := l.Bench.ResolveEntity(value)
+	found, err := l.Bench.ResolveEntity(designationSpelling(entity, value))
 	if err != nil {
 		return l.refuse(req, entity.Card, contract.NotADesignation, value)
 	}
@@ -813,6 +828,22 @@ func (l *Library) admitResolutionValue(req *Request, entity *bench.EntityRef, va
 		return l.refuse(req, entity.Card, contract.NotADesignation, value)
 	}
 	return nil
+}
+
+// designationSpelling is the reference the resolver is handed for a value
+// naming a comment of one item, whichever of the two forms a caller typed.
+//
+// A position is already a whole reference and passes through. A bare
+// identifier is not: it resolves to nothing on its own, and the item being
+// written is the collection it is a member of, so it is composed under that
+// item before the resolver sees it. That is what lets a caller name the
+// comment the way the stored value spells it, which is the form dinah get
+// answers with and the form a machine reader holds.
+func designationSpelling(entity *bench.EntityRef, value string) string {
+	if !bench.IsID(value) {
+		return value
+	}
+	return entity.Ref + "/" + bench.CommentsDir + "/" + value
 }
 
 // admitCommentWrite decides whether a write of one comment's anchor may go
