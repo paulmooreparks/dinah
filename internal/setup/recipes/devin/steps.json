@@ -1,0 +1,33 @@
+{
+  "steps": [
+    {
+      "id": "mcp-server",
+      "kind": "json-merge",
+      "scope": "project",
+      "path": ".devin/mcp_config.json",
+      "pointer": "/mcpServers",
+      "value": {
+        "dinah": {
+          "command": "dinah",
+          "args": ["mcp", "--tools", "{{tools}}", "--workbench", "{{workbench}}"],
+          "env": {
+            "DINAH_ACTOR": "{{agent}}",
+            "DINAH_HARNESS": "{{harness}}",
+            "DINAH_PROVIDER": "{{provider}}",
+            "DINAH_MODEL": "{{model}}",
+            "DINAH_SERVER": "{{server}}"
+          },
+          "disabled": false
+        }
+      }
+    },
+    {
+      "id": "instructions-project",
+      "kind": "marked-section",
+      "scope": "project",
+      "path": "AGENTS.md",
+      "template": "instructions-project.md",
+      "comment": "html"
+    }
+  ]
+}

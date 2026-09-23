@@ -2,10 +2,12 @@
 
 `dinah setup` connects a harness, the program an AI colleague runs in, to a
 workbench. It does that by applying a recipe, and a recipe is a directory you
-can write yourself. Dinah ships two: `claude-code`, which configures
-everything Claude Code needs, and `codex`, which writes Dinah's instructions
-for Codex and tells you how to finish the rest by hand. You add a harness by
-writing a recipe for it, and nothing in Dinah has to change.
+can write yourself. Dinah ships three: `claude-code`, which configures
+everything Claude Code needs, `codex`, which writes Dinah's instructions for
+Codex and tells you how to finish the rest by hand, and `devin`, which writes
+the Devin CLI's own MCP file and Dinah's instructions and prints the checks
+that build needs. You add a harness by writing a recipe for it, and nothing in
+Dinah has to change.
 
 Run `dinah setup --list` to see every recipe Dinah can find from where you
 stand, where each one came from, and which one a name resolves to.
@@ -29,11 +31,25 @@ Every text file is UTF-8 with no byte-order mark. `recipe.json`,
 optional.
 
 `recipe.json` says what the recipe is called, which harness it configures, the
-defaults of the agent name, the provider and the tool profile, the scopes it
-supports, and the published documentation each location it writes rests on.
-Dinah never fetches those pages. They are there so that somebody reviewing the
-recipe can check it against the harness's own documentation. This is the one
-Dinah ships for Claude Code:
+defaults of the agent name and the tool profile, the provider default where
+the harness has one, the scopes it supports, and the published documentation
+each location it writes rests on. Dinah never fetches those pages. They are
+there so that somebody reviewing the recipe can check it against the harness's
+own documentation.
+
+`provider` is the one default you may leave out. A harness that runs one
+vendor's models names that vendor, and a harness that brokers models from
+several vendors leaves it out. Leaving it out puts the provider in the same
+position the model is already in, and the two places it can appear behave
+differently. In a `json-merge` value, a member or an array element whose whole
+string is `{{provider}}` is left out of the file, so nothing empty is written.
+In `prompt.md`, `remove.md` or a template, the placeholder renders to nothing
+where it stands and the text around it remains, so a line reading
+`DINAH_PROVIDER={{provider}}` becomes a line reading `DINAH_PROVIDER=`. Write
+those files so they read correctly with no provider, and tell the reader to
+pass `--provider` when your harness needs one.
+
+This is the one Dinah ships for Claude Code:
 
 ```json
 {
