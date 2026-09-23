@@ -217,8 +217,8 @@ func WordForItemKind(kind string) (string, bool) {
 }
 
 // ResolvePath resolves a reference to an absolute path: the workbench itself,
-// a column, a workstream, a card, or anything below any of the first three
-// composed by path. It is what the plumbing guarantee of `path` rests on,
+// a column, a workstream, a card, or anything below any of those four composed
+// by path. It is what the plumbing guarantee of `path` rests on,
 // what `show` walks for the composed form, and what ResolveEditTarget
 // reaches, both for the empty reference it sends here ahead of anything
 // else and for every reference the entity resolver does not answer.
@@ -260,23 +260,54 @@ func (b *Bench) ResolvePathIn(half ResolutionHalf, ref string) (string, error) {
 	return filepath.Abs(path)
 }
 
+// WorkstreamHandle splits a reference naming the workstream kind into the
+// handle a workstream answers to and whatever the containment grammar carries
+// below it, and reports whether the reference named that kind at all. It is
+// the one statement of where that cut falls, so the entity resolver, the path
+// resolver and the show command all make it the same way.
+//
+// The handle comes back carrying the prefix, because WorkstreamByRef strips
+// the prefix itself so that the workstream-taking commands accept either
+// spelling: handing it a bare handle would strip a second time and a
+// workstream slugged `workstream` would resolve to the wrong thing.
+//
+// A trailing slash with nothing after it is part of the handle rather than an
+// empty segment below the workstream, so `workstream/autumn/` goes on
+// refusing unknown-workstream the way it did before anything hung below a
+// workstream at all.
+func WorkstreamHandle(ref string) (string, string, bool) {
+	rest, named := strings.CutPrefix(strings.TrimSpace(ref), WorkstreamRefPrefix)
+	if !named {
+		return "", "", false
+	}
+	handle, below, split := strings.Cut(rest, "/")
+	if !split || below == "" {
+		return WorkstreamRefPrefix + rest, "", true
+	}
+	return WorkstreamRefPrefix + handle, below, true
+}
+
 // resolvePathBody is the walk ResolvePathIn wraps, without the refusal and
 // without the absolute-path step, so the two calls to notArchivedFor sit in
 // one place rather than at each of this function's own returns.
 func (b *Bench) resolvePathBody(half ResolutionHalf, ref string) (string, error) {
-	if rest, named := strings.CutPrefix(strings.TrimSpace(ref), WorkstreamRefPrefix); named {
-		// The whole reference goes to the resolver rather than the
-		// remainder, because that resolver strips the prefix itself so that
-		// the workstream-taking commands accept either spelling. Passing the
-		// remainder would strip a second time and admit a doubled prefix.
-		workstream, err := b.workstreamByRefIn(half, strings.TrimSpace(ref))
+	if handle, below, named := WorkstreamHandle(ref); named {
+		// The half is headHalf's answer rather than the caller's, for the
+		// reason resolveWorkstreamRef records.
+		workstream, err := b.workstreamByRefIn(headHalf(half, below), handle)
 		if err != nil {
 			return "", err
 		}
 		if workstream == nil {
-			return "", contract.Refuse(contract.UnknownWorkstream, rest)
+			return "", contract.Refuse(contract.UnknownWorkstream, strings.TrimPrefix(handle, WorkstreamRefPrefix))
 		}
-		return workstream.Dir, nil
+		// The bare form answers the workstream's directory rather than its
+		// anchor, which is what ResolveEditTarget rests on; a reference
+		// carrying segments walks the grammar below it.
+		if below == "" {
+			return workstream.Dir, nil
+		}
+		return descend(workstream.Dir, KindWorkstream, strings.Split(below, "/"), nil, nil, half)
 	}
 	path, _, err := b.resolveBelowLanding(half, ref, nil)
 	if err != nil {
@@ -448,8 +479,8 @@ func (b *Bench) resolveReferenceBody(half ResolutionHalf, ref string) (*EntityRe
 	// so it is tried before the columns and the cards rather than falling
 	// through to them: a bare workstream reference would otherwise be
 	// shadowed by a column or a card sharing its name.
-	if entity, named, err := b.resolveWorkstreamRef(half, ref); named {
-		return entity, nil, err
+	if entity, collection, named, err := b.resolveWorkstreamRef(half, ref); named {
+		return entity, collection, err
 	}
 	head, rest, _ := strings.Cut(ref, "/")
 	// A bare head is always the reference's deepest collection step, so it
@@ -1245,15 +1276,26 @@ func (b *Bench) probe(ref string) (string, string, bool, error) {
 	if ref == "" {
 		return "", "", false, nil
 	}
-	if strings.HasPrefix(ref, WorkstreamRefPrefix) {
-		// WorkstreamByRef spans both halves, and a bare workstream head is
-		// its own deepest step, so an archived one resolved rather than
-		// failing and only the live case can reach here.
-		workstream, err := b.WorkstreamByRef(ref)
+	if handle, below, named := WorkstreamHandle(ref); named {
+		// The whole reference is not handed to the resolver, because a
+		// workstream head is no longer always its own deepest step: what
+		// hangs below one is walked like anything else. The handle carries
+		// its workstream/ prefix back, because WorkstreamByRef strips one
+		// itself and a workstream slugged `workstream` would otherwise
+		// resolve to the wrong thing.
+		//
+		// WorkstreamByRef spans both halves, so an archived workstream
+		// resolved rather than failing and only the live case reaches here;
+		// that is why the holder this arm composes is empty.
+		workstream, err := b.WorkstreamByRef(handle)
 		if err != nil {
 			return "", "", false, err
 		}
-		return "", "", workstream != nil, nil
+		if workstream == nil || below == "" {
+			return "", "", workstream != nil, nil
+		}
+		segments := strings.Split(below, "/")
+		return b.probeBelow(workstream.Dir, KindWorkstream, handle, "", segments, segments, nil)
 	}
 	head, rest, _ := strings.Cut(ref, "/")
 	if IsWorkbenchRef(head) || (rest != "" && b.Slug != "" && head == b.Slug) {

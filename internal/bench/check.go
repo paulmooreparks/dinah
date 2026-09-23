@@ -564,10 +564,13 @@ func (b *Bench) Check() ([]Finding, error) {
 // attachments mount stops being reported here with no second edit, and a kind
 // added without one is covered from the day it exists.
 //
-// The workstreams are walked beside the table rather than through it, because a
-// workstream is a membership rather than a container and the table deliberately
-// leaves it out. The reference grammar reaches one all the same, so attach can
-// be aimed at one and the collection has to be swept.
+// The workstreams are walked beside the table rather than through it, because
+// no mount reaches a workstream: the workbench mounts no workstreams
+// collection, so the table-driven half above never arrives at one. The
+// workstream mounts an attachments collection of its own, so nothing is
+// reported for that collection; what this arm still finds is a stray one level
+// deeper, below a workstream's own attachment, where the grammar mounts
+// nothing.
 func (b *Bench) checkAttachmentsWithoutAMount() ([]Finding, error) {
 	var findings []Finding
 	for _, mount := range Contains(KindWorkbench) {

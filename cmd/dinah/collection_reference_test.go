@@ -447,12 +447,14 @@ func TestAWalkFromAWorkstreamDrawsTheCardsThatJoinedIt(t *testing.T) {
 // dinah-523/decisions/12, which the specification left open: --archived
 // beside a workstream reference is refused rather than answered.
 //
-// A workstream holds a membership rather than a containment, and since the
-// walk from one draws that membership, neither of a workstream's two readings
-// has an archive half to read. The flag is therefore refused by name, as it
+// Both of a bare workstream reference's readings are rooted on the
+// membership, and a membership is held in the live half alone, so neither has
+// an archive half to read. The flag is therefore refused by name, as it
 // already is beside the roster word workstreams, which is what stops the
 // combination answering a live membership under a flag that asked for the
-// archive.
+// archive. The archive half of what a workstream does contain is reached by
+// naming that collection, `list workstream/<slug>/attachments --archived`,
+// which is not refused and is not what this test is about.
 //
 // The workstream is archived first, because the resolver's own not-archived
 // refusal fires ahead of the flag check for a workstream that is still live,

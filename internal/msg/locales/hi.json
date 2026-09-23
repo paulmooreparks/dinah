@@ -4310,9 +4310,9 @@
       "source": "91e01a64431f7727"
     },
     "refusal.dinah.not-attachable.next": {
-      "text": "; संलग्नक वर्कबेंच, किसी कॉलम, किसी कार्ड, या किसी टिप्पणी से जुड़ते हैं",
-      "context": "The last member of refusal.dinah.not-attachable's alternation, printed for any kind the two branches above do not name. It carries no condition, because the last member of an alternation is what a reader gets when none of the branches matches.",
-      "source": "c45dbccd232c8bf9"
+      "text": "; attach जिन संदर्भों को स्वीकार करता है उन्हें देखने के लिए `dinah help attach` चलाएँ",
+      "context": "The last member of refusal.dinah.not-attachable's alternation. It carries no condition, because the last member of an alternation is what a reader gets when none of the branches matches, and checkEveryShapeSaysWhatToDoNext refuses a shape whose last member carries one. No kind reaches it today: the only kinds attach can resolve and then refuse are the checklist item and the attachment, and each carries a conditional member of its own above this one. Its advice names no kinds, because the enumeration that stood here restated the containment table in a catalogue no reader of that table would open, and it went stale.",
+      "source": "340d8ea70b633923"
     },
     "refusal.dinah.not-attachable.next-attachment": {
       "text": "; संलग्नक बाइट्स रखता है, अन्य संलग्नक नहीं, इसलिए फ़ाइल को उसी से संलग्न करें जिससे {attachment} जुड़ा है",

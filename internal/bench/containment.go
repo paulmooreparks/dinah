@@ -16,13 +16,14 @@ const (
 	KindComment = "comment"
 	// KindItem is one checklist item below a card.
 	KindItem = "item"
-	// KindAttachment is one attachment, which any of the four kinds above
-	// may carry.
+	// KindAttachment is one attachment, which five kinds may carry: the
+	// four above it here, and the workstream declared below.
 	KindAttachment = "attachment"
-	// KindWorkstream is one workstream. It is named by the reference grammar
-	// and it is deliberately absent from the containment table below, because a
-	// workstream is a membership rather than a container: cards join and leave
-	// one, and a card is not contained by one.
+	// KindWorkstream is one workstream. It is a key of the containment table
+	// below, mounting the attachments collection docs/design/format.md gives
+	// it, and it is deliberately absent from the workbench's own mount list,
+	// because a workstream is a membership rather than a container of cards:
+	// cards join and leave one, and a card is not contained by one.
 	KindWorkstream = "workstream"
 )
 
@@ -93,6 +94,17 @@ var containment = map[string][]Mount{
 	},
 	KindItem: {
 		{Dir: CommentsDir, Kind: KindComment, Anchor: CommentAnchor, Stamped: true},
+	},
+	// A workstream mounts attachments and nothing else. It is absent from the
+	// workbench's own mount list above, which is what the comment on
+	// KindWorkstream means and what EntityKinds and AnchorOf work around: no
+	// walk rooted at the workbench reaches a workstream, because a card is not
+	// contained by one. What a workstream does contain is the attachments
+	// collection docs/design/format.md has always given it, and stating that
+	// here is what puts the collection in front of every reader of the
+	// grammar at once.
+	KindWorkstream: {
+		{Dir: AttachmentsDir, Kind: KindAttachment, Anchor: AttachmentAnchor, NameField: "filename", Stamped: true},
 	},
 	KindAttachment: {},
 }

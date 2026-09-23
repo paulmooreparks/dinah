@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"dinah/internal/bench"
 	"dinah/internal/contract"
 	"dinah/internal/msg"
 	"dinah/internal/verb"
@@ -173,17 +174,24 @@ func TestAListingCarriesTheAttachmentCountRatherThanTheList(t *testing.T) {
 }
 
 // TestTheNotAttachableRefusalPrintsTheAdviceForItsKind asserts that the
-// alternation resolves at the terminal: an item, an attachment and a
-// workstream each draw dinah.not-attachable with the base sentence and with
-// the one next step written for that kind, and with neither of the other two.
+// alternation resolves at the terminal: an item and an attachment each draw
+// dinah.not-attachable with the base sentence and with the one next step
+// written for that kind, and without the other one.
 //
 // The expectations are rendered through the catalog rather than spelled in
 // English here, so a later wording edit moves the test with the copy while the
 // test still pins which key each case reaches.
 //
-// Arming: swapping the When on the item fragment to attachment leaves both of
-// the first two cases printing an advice, and only the "and neither other"
-// assertions go red.
+// The alternation's unconditional last member has no case here, because no
+// kind can reach it: attach can resolve and then refuse only a kind the
+// containment table gives no attachments mount, and each of those two carries
+// a conditional fragment of its own. That is a claim about the shape rather
+// than about one rendering, so the subtest below asserts it from the table
+// instead of printing it.
+//
+// Arming: swapping the When on the item fragment to attachment leaves both
+// cases printing an advice, and only the "and not the other" assertions go
+// red.
 func TestTheNotAttachableRefusalPrintsTheAdviceForItsKind(t *testing.T) {
 	root := newBench(t)
 	ref := addCard(t, root, "a card with things below it")
@@ -204,7 +212,6 @@ func TestTheNotAttachableRefusalPrintsTheAdviceForItsKind(t *testing.T) {
 	}{
 		{name: "a checklist item", argument: ref + "/oq/1", resolved: ref + "/checklist/1", kind: "item"},
 		{name: "an attachment", argument: ref + "/attachments/1", resolved: ref + "/attachments/1", kind: "attachment"},
-		{name: "a workstream", argument: "workstream/probe-stream", resolved: "probe-stream", kind: "workstream"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			got := runCLI(t, root, "attach", c.argument, source)
@@ -221,7 +228,6 @@ func TestTheNotAttachableRefusalPrintsTheAdviceForItsKind(t *testing.T) {
 			advice := map[string]string{
 				"item":       base.T("refusal.dinah.not-attachable.next-item", "item", c.resolved),
 				"attachment": base.T("refusal.dinah.not-attachable.next-attachment", "attachment", c.resolved),
-				"workstream": base.T("refusal.dinah.not-attachable.next"),
 			}
 			for kind, splice := range advice {
 				carried := strings.Contains(got.errw, splice)
@@ -234,6 +240,52 @@ func TestTheNotAttachableRefusalPrintsTheAdviceForItsKind(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("no kind reaches the unconditional member", func(t *testing.T) {
+		var shape contract.Shape
+		for _, declared := range contract.Shapes {
+			if declared.Name == contract.NotAttachable {
+				shape = declared
+			}
+		}
+		if shape.Name == "" {
+			t.Fatal("no shape is declared for " + contract.NotAttachable + ", so this check read nothing")
+		}
+		// The refusable set is derived from the containment table rather
+		// than written out, so this goes red the day a kind loses its
+		// attachments mount without a fragment of its own being written,
+		// which is the one way the unconditional member becomes reachable
+		// again. It goes red equally if the workstream's mount is reverted.
+		refusable := map[string]bool{}
+		for _, kind := range bench.EntityKinds() {
+			if _, mounts := bench.MountOf(kind, bench.AttachmentsDir); !mounts {
+				refusable[kind] = true
+			}
+		}
+		if len(refusable) == 0 {
+			t.Fatal("every kind mounts attachments, so the refusal is unreachable and this check read nothing")
+		}
+		conditional := map[string]bool{}
+		for _, fragment := range shape.Fragments {
+			if fragment.When != "" {
+				conditional[fragment.When] = true
+			}
+		}
+		for kind := range refusable {
+			if !conditional[kind] {
+				t.Errorf("%s mounts no attachments and the shape carries no fragment conditioned on it, so it would print the unconditional member", kind)
+			}
+		}
+		for kind := range conditional {
+			if !refusable[kind] {
+				t.Errorf("the shape carries a fragment conditioned on %s, and that kind mounts attachments, so nothing can print it", kind)
+			}
+		}
+		if last := shape.Fragments[len(shape.Fragments)-1]; last.When != "" || last.Unless != "" || last.WhenCommand != "" {
+			t.Errorf("the alternation's last member carries a condition (%+v), so a reader matching no branch gets no next step", last)
+		}
+		t.Logf("%d refusable kinds, %d conditional fragments", len(refusable), len(conditional))
+	})
 }
 
 // TestTheAttachHelpPageNamesTheKindPrecondition asserts that attach's

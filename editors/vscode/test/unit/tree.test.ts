@@ -45,6 +45,7 @@ import {
 	columnRef,
 	columnTooltip,
 	groupIcon,
+	readAttachments,
 	readWorkbench,
 	relativeTo,
 	treeItemFor,
@@ -3699,4 +3700,40 @@ test("an untitled workbench reaches the provider unsubstituted and is labelled b
 		),
 		["Dinah: wt"],
 	);
+});
+
+test("the attachments read carries a workstream holder unchanged", async () => {
+	// dinah-583 gives a workstream an attachments collection, and the
+	// extension draws no workstream row yet, so nothing here reaches
+	// readAttachments through the tree. This is the assertion that the
+	// generic path is already correct for the day a workstream row exists:
+	// the holder's own reference is what the collection is addressed below,
+	// whatever kind the holder is.
+	//
+	// It is the call and not the output that has to be right. Asking a card
+	// instead would succeed and answer the wrong entity's attachments, which
+	// is the failure readAttachments' own doc comment names.
+	const calls: string[][] = [];
+	const spawner: Spawner = async (_exe, argv) => {
+		calls.push([...argv]);
+		return ok({ kind: "workstream", ref: "workstream/portfolio", attachments: [] });
+	};
+
+	const listing = await readAttachments(
+		spawner,
+		"C:\\tools\\dinah.exe",
+		"C:\\work\\bench",
+		"workstream/portfolio",
+		() => {},
+	);
+
+	assert.equal(calls.length, 1, "the read cost more than one call");
+	assert.deepEqual(calls[0], [
+		"--json",
+		"--workbench",
+		"C:\\work\\bench",
+		"list",
+		"workstream/portfolio/attachments",
+	]);
+	assert.equal(listing?.ref, "workstream/portfolio");
 });

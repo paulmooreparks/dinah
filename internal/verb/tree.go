@@ -1096,13 +1096,14 @@ func cardRefOf(collection *bench.CollectionRef) string {
 // and dinah-523/decisions/14 records why the pair is narrowed rather than
 // refused.
 //
-// Nothing the workstream itself holds is drawn, at any rung, and there is
-// nothing for it to hold: KindWorkstream is absent from the containment table
-// on purpose and stays absent, so this walk reads the membership alone and
-// never claims that a workstream contains anything. The format grammar does
-// admit an attachments directory below a workstream, but no command creates
-// one and the resolver reaches no reference below a workstream, so that arm
-// of the grammar is unreachable today and this walk draws nothing for it.
+// A workstream holds a membership of cards and a collection of attachments,
+// and this walk draws both. The attachments come first, because they belong to
+// the workstream itself where the cards are a membership drawn beside it, and
+// they are read through containedChildren so their references, their titles
+// and their order are composed by the code that composes a card's. The
+// membership is what the workstream does not contain: cards join and leave one
+// and no card is contained by one, which is why KindWorkstream mounts the
+// attachments collection alone.
 func (l *Library) workstreamContents(req *Request, entity *bench.EntityRef, level string) (*Tree, error) {
 	root, err := l.rootOf(entity)
 	if err != nil {
@@ -1121,7 +1122,20 @@ func (l *Library) workstreamContents(req *Request, entity *bench.EntityRef, leve
 	sortByArrival(members)
 	const rank = 0
 	limit := contentsLimit(level, rank)
-	children := make([]TreeNode, 0, len(members))
+	// The workstream's own attachments, drawn ahead of the membership. The
+	// count is the walk's own measure rather than the children this depth
+	// level happened to draw, which is the rule containedCount carries.
+	_, attachments, err := l.containedChildren(entity.Dir, bench.KindWorkstream, entity.Ref, rank, limit)
+	if err != nil {
+		return nil, err
+	}
+	carried, err := containedCount(entity.Dir, bench.KindWorkstream)
+	if err != nil {
+		return nil, err
+	}
+	tree.Root.Count += carried
+	children := make([]TreeNode, 0, len(attachments)+len(members))
+	children = append(children, attachments...)
 	for _, card := range members {
 		// The count is walked rather than added up from the children the
 		// projection drew, so it is the same number whatever the depth left
@@ -1172,12 +1186,11 @@ func (l *Library) rootOf(entity *bench.EntityRef) (TreeNode, error) {
 			Title: entity.Card.Title,
 		}, nil
 	case bench.KindWorkstream:
-		// A workstream is absent from the containment table on purpose,
-		// because it holds a membership rather than a containment, so the
-		// default arm below would ask anchorOfKind for an anchor the table
-		// does not carry and title the node with the empty string. The title
-		// comes off the workstream's own record instead, the way the column
-		// arm above reads the column's.
+		// No mount names the workstream as its kind, because nothing
+		// contains one, so the default arm below would ask anchorOfKind for
+		// an anchor no mount carries and title the node with the empty
+		// string. The title comes off the workstream's own record instead,
+		// the way the column arm above reads the column's.
 		node := TreeNode{Kind: entity.Kind, ID: entity.ID, Ref: entity.Ref}
 		if workstream := l.Bench.Workstream(entity.ID); workstream != nil {
 			node.Title = workstream.Title

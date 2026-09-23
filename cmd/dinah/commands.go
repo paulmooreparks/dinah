@@ -378,7 +378,8 @@ func runComment(s *session, parsed *arguments) int {
 	})
 }
 
-// runAttach records a file against the bench, a column, a card or a comment.
+// runAttach records a file against the bench, a workstream, a column, a card
+// or a comment.
 func runAttach(s *session, parsed *arguments) int {
 	words := parsed.rest()
 	req := s.request("attach", parsed)

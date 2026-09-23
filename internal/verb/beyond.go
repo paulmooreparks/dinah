@@ -323,9 +323,9 @@ func (l *Library) commentRefOf(entity *bench.EntityRef, comment *bench.Comment) 
 	return commentRef(holder, ordinal)
 }
 
-// Attach records a file against the bench, a column, a card or a comment. The
-// entity carries the original filename, the description and the provenance,
-// and the bytes alone sit in payload/ under their original name.
+// Attach records a file against the bench, a workstream, a column, a card or
+// a comment. The entity carries the original filename, the description and the
+// provenance, and the bytes alone sit in payload/ under their original name.
 func (l *Library) Attach(req *Request) *Response {
 	if l.Bench.Operator == "" {
 		return l.refuse(req, nil, contract.NoOperator, "")
@@ -876,14 +876,23 @@ func (l *Library) admitLevels(named map[string]string) *contract.Refusal {
 
 // journalFor names the journal an event about an entity is recorded in, which
 // is the nearest enclosing journal-bearing entity: a card's own journal for
-// anything below a card, a workstream's own for the workstream, and the
-// bench's for everything else.
+// anything below a card, a workstream's own for the workstream and for an
+// attachment hanging on one, and the bench's for everything else.
 func (l *Library) journalFor(entity *bench.EntityRef) string {
 	if entity.Card != nil {
 		return entity.Card.JournalPath()
 	}
 	if entity.Kind == bench.KindWorkstream {
 		return filepath.Join(entity.Dir, bench.JournalName)
+	}
+	// An attachment hanging on a workstream records in that workstream's
+	// journal rather than in the workbench's, so one attachment's life is
+	// read in one place. Without this arm attach lands on the workstream's
+	// journal, because the entity it is given is the workstream, and rename,
+	// archive, restore, delete and --replace land on the workbench's, because
+	// the entity those are given is the attachment.
+	if holder := l.attachmentWorkstream(entity); holder != nil {
+		return filepath.Join(holder.Dir, bench.JournalName)
 	}
 	return l.Bench.JournalPath()
 }
@@ -914,12 +923,31 @@ func (l *Library) attachmentColumn(entity *bench.EntityRef) *bench.Column {
 	return l.Bench.Column(filepath.Base(holder))
 }
 
+// attachmentWorkstream reports the workstream an attachment hangs on, and nil
+// for an attachment hanging anywhere else. It reads the attachment's directory
+// the way attachmentColumn reads it: the holder is two levels up, and it is a
+// workstream when that directory's parent is the workbench's workstreams root,
+// live or archived. Both roots are asked, because an archived workstream still
+// holds its attachments and an event about one still belongs to it.
+func (l *Library) attachmentWorkstream(entity *bench.EntityRef) *bench.Workstream {
+	if entity.Kind != bench.KindAttachment {
+		return nil
+	}
+	holder := attachmentHolderDir(entity.Dir)
+	parent := filepath.Dir(holder)
+	if !sameDir(parent, l.Bench.WorkstreamsRoot()) && !sameDir(parent, l.Bench.ArchivedWorkstreamsRoot()) {
+		return nil
+	}
+	return l.Bench.Workstream(filepath.Base(holder))
+}
+
 // locateColumnAttachment writes the column locator onto a journal line about
 // an attachment hanging on a column: the column's identifier and its title as
 // of the write, the pair a comment left on a column already carries. A line
-// about any other attachment is left as it is, because it either sits in the
-// journal of the card it belongs to or hangs on the workbench itself, which
-// is the journal's own entity.
+// about any other attachment is left as it is, because it sits in the journal
+// of the card or the workstream it belongs to, or hangs on the workbench
+// itself; in each of those the holder is the journal's own entity, so the
+// journal the line sits in is what names it.
 func locateColumnAttachment(ev *bench.Event, column *bench.Column) {
 	if column == nil {
 		return
@@ -932,7 +960,7 @@ func locateColumnAttachment(ev *bench.Event, column *bench.Column) {
 // attachments, or to the attachment the entity is, is the operator's alone.
 // An attachment takes the write authority of what it hangs on, so the answer
 // is yes where that is a column or the workbench itself, whose own fields are
-// the operator's, and no where it is a card or a comment. An entity that is
+// the operator's, and no where it is a card, a comment or a workstream. An entity that is
 // not an attachment is asked about as the target of a new one.
 func (l *Library) definitionAttachmentWrite(entity *bench.EntityRef) bool {
 	if entity.Kind != bench.KindAttachment {
@@ -1036,6 +1064,9 @@ func (l *Library) lockDirFor(entity *bench.EntityRef) string {
 	}
 	if entity.Kind == bench.KindWorkstream {
 		return entity.Dir
+	}
+	if holder := l.attachmentWorkstream(entity); holder != nil {
+		return holder.Dir
 	}
 	return l.Bench.Root
 }
