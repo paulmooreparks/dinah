@@ -364,7 +364,7 @@ func editReferenceShapes(t *testing.T, fixture editFixture) []editShape {
 // mountsReachableFromTheWorkbench is the containment table read for the
 // expectation rather than for the generation, so the sweep's coverage of that
 // table is asserted rather than assumed. A kind is walked once, since the
-// attachment collection hangs from four kinds and the walk would otherwise
+// attachment collection hangs from five kinds and the walk would otherwise
 // not terminate on a table that ever mounted a cycle.
 func mountsReachableFromTheWorkbench() []bench.Mount {
 	var mounts []bench.Mount

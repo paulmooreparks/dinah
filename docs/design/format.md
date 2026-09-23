@@ -964,7 +964,8 @@ Which kinds bear journals is a per-kind registry fact, decided by one test:
 a journal belongs to an entity whose own history someone will read. Today
 three kinds pass it: each card (required, born with its created event), the
 workbench (on demand, for workbench-scoped acts), and each workstream (on
-demand, for its arc: created, status changes, archived), with a
+demand, for its arc of created, status changes and archived, and for the
+lifecycle of the attachments it carries), with a
 workstream's journal traveling in its directory like a card's. Every other
 event is recorded in the nearest enclosing journal-bearing entity: a card's
 moves, claims, comments, attachments, and workstream-membership changes in
@@ -1111,8 +1112,9 @@ field write below a card, and each names the written entity rather than the
 card, because a query for the card's own field changing has to stay a question
 a reader can ask. Each lands on the journal of the nearest enclosing entity
 that carries one, so a comment's and an item's line lands on the card's, and an
-attachment's lands on the card's below a card and on the workbench's below a
-column or below the workbench itself. An `attachment_renamed` line records a
+attachment's lands on the card's below a card, on the workstream's below a
+workstream, and on the workbench's below a column or below the workbench
+itself. An `attachment_renamed` line records a
 filename change instead, because the payload moves with the name.
 
 A `commented` line carries one locator naming the holder the comment hangs on,
@@ -1579,9 +1581,11 @@ payload's namespace contains no reserved names, so filename collisions
 with anchors are unrepresentable. The payload is content, never inspected
 by the format; the
 entity around it is what makes the attachment referenceable, replaceable
-accountably, and archivable. Four kinds carry an `attachments/` collection:
+accountably, and archivable. Five kinds carry an `attachments/` collection:
 the workbench itself (reference documents that belong to the
-board rather than to any card), a column, a card, a comment. Replacing a
+board rather than to any card), a workstream (what belongs to the effort
+rather than to any one card of it, such as a booking confirmation or a
+visa), a column, a card, a comment. Replacing a
 payload is a journaled act (attached, attachment_replaced,
 attachment_renamed, and attachment_removed are registry members of the
 closed event set, carrying the attachment id and its filename as of the
@@ -1598,7 +1602,8 @@ column element's `attachments` member, and `extract`, `init --from` and a
 authority of what it hangs on, so a column's attachments and the workbench's
 own are written by the operator alone, which covers attaching, replacing,
 renaming, setting a description or filename, archiving, restoring and
-deleting, while a card's and a comment's stay open to any owner. Archiving,
+deleting, while a card's, a comment's and a workstream's stay open to any
+owner. Archiving,
 restoring and deleting a column are the operator's too. A confirmed `reshape`
 adds, rewrites and retires columns and writes an added column's attachments,
 so it is the operator's as well, while its preview writes nothing and stays
@@ -2037,9 +2042,11 @@ tool refuses, orders, counts, or routes anything on one.
 
 A workstream is journal-bearing. Its own journal records `created` at birth,
 `workstream_updated` on a write to one of its fields, carrying `field`, `from`,
-and `to` as `workbench_updated` does, and `archived` when it is archived. A
-card's journal records the membership events, `workstream_joined` and
-`workstream_left`, each carrying the workstream's identifier in `workstream`.
+and `to` as `workbench_updated` does, `archived` when it is archived, and the
+lifecycle of the attachments it carries, which is the rule a card's journal
+already keeps for a card's attachments. A card's journal records the
+membership events, `workstream_joined` and `workstream_left`, each carrying
+the workstream's identifier in `workstream`.
 A deletion is recorded on the workbench's journal, because the act destroys
 the journal inside the directory it removes.
 
@@ -2773,7 +2780,8 @@ visible line in a text file that a human can fix with an editor, then run
 check.
 
 Lock scope is the nearest enclosing journal-bearing entity, a card for
-anything inside a card and the workbench for everything else. Commenting on
+anything inside a card, a workstream for anything inside a workstream, and the
+workbench for everything else. Commenting on
 a card, attaching a file to it and moving it all take that card's lock, so
 the write inside the card's subtree and the event appended to its journal
 land on the same side of one acquisition. A write inside a column's directory

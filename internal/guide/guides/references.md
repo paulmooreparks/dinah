@@ -69,6 +69,12 @@ on its own, so `dinah join wb-1 addressing` names the same workstream. You
 write the prefixed form wherever a reference is read as an address, because
 Dinah reads a bare handle there as a card and refuses it.
 
+A workstream carries attachments of its own, and you write one the way you
+write anything below a head:
+
+    dinah list workstream/addressing/attachments      every attachment the workstream carries
+    dinah path workstream/addressing/attachments/1    one of them
+
 ## Something below a card
 
 You write something below a card as the card's reference, a slash, and the

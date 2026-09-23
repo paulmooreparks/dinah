@@ -417,18 +417,27 @@ func carriesOneAttachment(listing string) bool {
 	return strings.Count(listing, "workstream/portfolio/attachments/1") == 1
 }
 
-// TestAnyOwnerMayAttachToAWorkstreamAndOnlyTheOperatorWritesItsFields pins the
+// TestAnyOwnerMayAttachToAWorkstreamAndTheColumnRuleDoesNotReachIt pins the
 // accepting case beside the refusing one, because a criterion asserting that
 // something is refused passes against code that refuses everything.
 //
-// An attachment is a creation rather than a field write, and the operator-only
-// rule covers the workbench's and a column's attachments alone, so a
-// non-operator owner attaches, renames and deletes freely while the same actor
-// is still refused a field write on the workstream itself.
+// The operator-only rule that guards a definition's attachments covers the
+// workbench's own and a column's, and it does not reach a workstream. So a
+// non-operator owner attaches to a workstream, renames that attachment and
+// deletes it, while the same actor attaching to a column is still refused
+// not-operator, which is what shows the rule alive rather than absent.
 //
-// Arming: adding the workstream to operatorOnlyTarget reddens the three
-// accepting rows and leaves the refusing one green.
-func TestAnyOwnerMayAttachToAWorkstreamAndOnlyTheOperatorWritesItsFields(t *testing.T) {
+// The refusing row is a column attach rather than a field write on the
+// workstream. Since dinah-582 a workstream's field write is any owner's, so a
+// title written through `set workstream/<slug>` is accepted for this actor and
+// would assert nothing. The refusal's code is read rather than the exit status
+// alone, so a refusal for some other reason cannot stand in for the authority
+// one.
+//
+// Arming: adding bench.KindWorkstream to definitionAttachmentWrite reddens the
+// three accepting rows and leaves the refusing one green, the delete row
+// included, because operatorOnlyTarget reads that same predicate.
+func TestAnyOwnerMayAttachToAWorkstreamAndTheColumnRuleDoesNotReachIt(t *testing.T) {
 	root, _, _, source := workstreamAttachmentFixture(t, "portfolio")
 
 	attached := runCLI(t, root, "attach", "workstream/portfolio", source, "--actor", "bo")
@@ -441,12 +450,11 @@ func TestAnyOwnerMayAttachToAWorkstreamAndOnlyTheOperatorWritesItsFields(t *test
 	if removed := runCLI(t, root, "delete", "workstream/portfolio/attachments/1", "--yes", "--actor", "bo"); removed.code != 0 {
 		t.Errorf("a non-operator owner may not delete a workstream's attachment: %d %s", removed.code, removed.errw)
 	}
-	field := runCLI(t, root, "set", "workstream/portfolio", "title", "A new title", "--actor", "bo")
-	if field.code == 0 {
-		t.Errorf("a non-operator owner wrote a workstream's title, and a field write is the operator's:\n%s", field.out)
-	}
-	if !strings.HasPrefix(field.errw, contract.NotOperator) {
-		t.Errorf("the field write refuses %q, wanted %s", field.errw, contract.NotOperator)
+	column := runCLI(t, root, "attach", "doing", source, "--actor", "bo")
+	if column.code == 0 {
+		t.Errorf("a non-operator owner attached to a column, and a column's attachments are the operator's:\n%s", column.out)
+	} else if name := refusalNameOf(column.errw); name != contract.NotOperator {
+		t.Errorf("the column attach refuses %s, wanted %s:\n%s", name, contract.NotOperator, column.errw)
 	}
 }
 

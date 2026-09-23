@@ -323,9 +323,9 @@ func (l *Library) commentRefOf(entity *bench.EntityRef, comment *bench.Comment) 
 	return commentRef(holder, ordinal)
 }
 
-// Attach records a file against the bench, a column, a card or a comment. The
-// entity carries the original filename, the description and the provenance,
-// and the bytes alone sit in payload/ under their original name.
+// Attach records a file against the bench, a workstream, a column, a card or
+// a comment. The entity carries the original filename, the description and the
+// provenance, and the bytes alone sit in payload/ under their original name.
 func (l *Library) Attach(req *Request) *Response {
 	if l.Bench.Operator == "" {
 		return l.refuse(req, nil, contract.NoOperator, "")
@@ -931,9 +931,10 @@ func (l *Library) attachmentWorkstream(entity *bench.EntityRef) *bench.Workstrea
 // locateColumnAttachment writes the column locator onto a journal line about
 // an attachment hanging on a column: the column's identifier and its title as
 // of the write, the pair a comment left on a column already carries. A line
-// about any other attachment is left as it is, because it either sits in the
-// journal of the card it belongs to or hangs on the workbench itself, which
-// is the journal's own entity.
+// about any other attachment is left as it is, because it sits in the journal
+// of the card or the workstream it belongs to, or hangs on the workbench
+// itself; in each of those the holder is the journal's own entity, so the
+// journal the line sits in is what names it.
 func locateColumnAttachment(ev *bench.Event, column *bench.Column) {
 	if column == nil {
 		return
@@ -946,7 +947,7 @@ func locateColumnAttachment(ev *bench.Event, column *bench.Column) {
 // attachments, or to the attachment the entity is, is the operator's alone.
 // An attachment takes the write authority of what it hangs on, so the answer
 // is yes where that is a column or the workbench itself, whose own fields are
-// the operator's, and no where it is a card or a comment. An entity that is
+// the operator's, and no where it is a card, a comment or a workstream. An entity that is
 // not an attachment is asked about as the target of a new one.
 func (l *Library) definitionAttachmentWrite(entity *bench.EntityRef) bool {
 	if entity.Kind != bench.KindAttachment {

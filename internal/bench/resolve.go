@@ -217,8 +217,8 @@ func WordForItemKind(kind string) (string, bool) {
 }
 
 // ResolvePath resolves a reference to an absolute path: the workbench itself,
-// a column, a workstream, a card, or anything below any of the first three
-// composed by path. It is what the plumbing guarantee of `path` rests on,
+// a column, a workstream, a card, or anything below any of those four composed
+// by path. It is what the plumbing guarantee of `path` rests on,
 // what `show` walks for the composed form, and what ResolveEditTarget
 // reaches, both for the empty reference it sends here ahead of anything
 // else and for every reference the entity resolver does not answer.
@@ -1276,15 +1276,26 @@ func (b *Bench) probe(ref string) (string, string, bool, error) {
 	if ref == "" {
 		return "", "", false, nil
 	}
-	if strings.HasPrefix(ref, WorkstreamRefPrefix) {
-		// WorkstreamByRef spans both halves, and a bare workstream head is
-		// its own deepest step, so an archived one resolved rather than
-		// failing and only the live case can reach here.
-		workstream, err := b.WorkstreamByRef(ref)
+	if handle, below, named := WorkstreamHandle(ref); named {
+		// The whole reference is not handed to the resolver, because a
+		// workstream head is no longer always its own deepest step: what
+		// hangs below one is walked like anything else. The handle carries
+		// its workstream/ prefix back, because WorkstreamByRef strips one
+		// itself and a workstream slugged `workstream` would otherwise
+		// resolve to the wrong thing.
+		//
+		// WorkstreamByRef spans both halves, so an archived workstream
+		// resolved rather than failing and only the live case reaches here;
+		// that is why the holder this arm composes is empty.
+		workstream, err := b.WorkstreamByRef(handle)
 		if err != nil {
 			return "", "", false, err
 		}
-		return "", "", workstream != nil, nil
+		if workstream == nil || below == "" {
+			return "", "", workstream != nil, nil
+		}
+		segments := strings.Split(below, "/")
+		return b.probeBelow(workstream.Dir, KindWorkstream, handle, "", segments, segments, nil)
 	}
 	head, rest, _ := strings.Cut(ref, "/")
 	if IsWorkbenchRef(head) || (rest != "" && b.Slug != "" && head == b.Slug) {

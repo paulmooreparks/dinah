@@ -267,7 +267,8 @@ type Attachment struct {
 }
 
 // AddAttachment copies a file into a new attachment entity of the collection
-// belonging to any entity directory: the bench, a column, a card or a comment.
+// belonging to any entity directory: the bench, a workstream, a column, a card
+// or a comment.
 // The caller holds the lock covering that collection, which is what makes the
 // ordinal scan race-free.
 func AddAttachment(ownerDir, source, description, provenance string) (*Attachment, error) {
@@ -877,10 +878,11 @@ func reportInterruption(err error, act *StructuralAct, benchLock *Lock) error {
 // EntityRef is a reference resolved to an entity directory and the kind of
 // thing that directory holds.
 type EntityRef struct {
-	// Kind is one of the containment grammar's kinds, as Contains names
-	// them: workbench, column, card, comment, item and attachment, plus
-	// workstream, which resolves through its own dedicated prefix rather
-	// than through the containment grammar.
+	// Kind is one of the containment grammar's kinds: workbench, column,
+	// card, comment, item, attachment and workstream. A workstream resolves
+	// through its own dedicated prefix rather than by being walked into from
+	// above, because nothing contains one, and what hangs below that prefix
+	// is walked through the containment grammar like anything else.
 	Kind string
 	// Dir is the entity's directory.
 	Dir string
@@ -959,7 +961,7 @@ func (b *Bench) ResolveEntityIn(half ResolutionHalf, ref string) (*EntityRef, er
 // refBelowHead composes the reference of an entity sitting below a head: the
 // head's own reference, then one collection name and one position for each
 // level down to the entity. The head is whichever of the workbench, a column,
-// or a card the reference was resolved through.
+// a card, or a workstream the reference was resolved through.
 //
 // A position is the entity's place in its collection's creation order, which
 // is what a containment walk draws and what a person types, rather than the

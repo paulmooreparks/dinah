@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"dinah/internal/bench"
+	"dinah/internal/contract"
 )
 
 // TestAnAttachmentPublishesThePathOfItsPayload asserts that every read
@@ -232,10 +233,14 @@ func TestTheWorkbenchAndItsColumnsCountTheirOwnAttachments(t *testing.T) {
 }
 
 // TestAttachmentsReadsEveryKindTheGrammarMounts asserts that the new read
-// answers for all four kinds that can carry an attachment, names each kind
+// answers for all five kinds that can carry an attachment, names each kind
 // and its reference the way the resolver does, and answers an entity of a
 // kind mounting nothing with an empty list rather than a refusal (dinah-334
 // AC-6, AC-7, AC-8, AC-9).
+//
+// The workstream is the fifth, added by dinah-583. It is the kind this test
+// previously named as mounting nothing, so it moved from the empty-answer
+// half to the carrying half rather than being appended to the list.
 func TestAttachmentsReadsEveryKindTheGrammarMounts(t *testing.T) {
 	h := newHarness(t)
 	ref := h.readyAt("a card standing in intake", "a00000000001")
@@ -244,6 +249,12 @@ func TestAttachmentsReadsEveryKindTheGrammarMounts(t *testing.T) {
 	h.attach("intake", "on-the-column.txt", "two")
 	h.attach(ref, "on-the-card.txt", "three")
 	h.attach(ref+"/"+bench.CommentsDir+"/1", "on-the-comment.txt", "four")
+	stream := h.library.NewWorkstream(&Request{Verb: "workstream", Action: "new", Actor: "alka", Workstream: "Portfolio work", Slug: "portfolio"})
+	if stream.Outcome != contract.OutcomeOK {
+		t.Fatalf("the workstream was not made: %s %s", stream.Outcome, stream.Refusal)
+	}
+	h.reopen()
+	h.attach("workstream/portfolio", "on-the-workstream.txt", "five")
 	writeItem(t, h.card(ref).Dir, "a criterion", 1)
 	h.reopen()
 
@@ -272,6 +283,7 @@ func TestAttachmentsReadsEveryKindTheGrammarMounts(t *testing.T) {
 		{name: "a column", ref: "intake", kind: bench.KindColumn, wantRef: "intake", filename: "on-the-column.txt"},
 		{name: "a card", ref: ref, kind: bench.KindCard, wantRef: ref, filename: "on-the-card.txt"},
 		{name: "a comment", ref: ref + "/comments/1", kind: bench.KindComment, wantRef: ref + "/comments/1", filename: "on-the-comment.txt"},
+		{name: "a workstream", ref: "workstream/portfolio", kind: bench.KindWorkstream, wantRef: "workstream/portfolio", filename: "on-the-workstream.txt"},
 		{name: "a checklist item, which mounts nothing", ref: ref + "/checklist/1", kind: bench.KindItem, wantRef: ref + "/checklist/1"},
 		{name: "an attachment, which mounts nothing", ref: ref + "/attachments/1", kind: bench.KindAttachment, wantRef: ref + "/attachments/1"},
 	}

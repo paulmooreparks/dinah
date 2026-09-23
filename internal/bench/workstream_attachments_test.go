@@ -2,6 +2,7 @@ package bench
 
 import (
 	"errors"
+	"fmt"
 	"path/filepath"
 	"testing"
 
@@ -269,5 +270,74 @@ func TestAWorkstreamAttachmentResolvesAndComposesOneSpelling(t *testing.T) {
 	}
 	if _, err := opened.ResolveEditTarget("workstream/portfolio/attachments"); err == nil {
 		t.Error("edit opened a whole collection, and a collection directory is not a file an editor can open")
+	}
+}
+
+// TestTheRefusalProbeDescendsBelowAWorkstreamHead asserts the behaviour gap
+// section 3.5 of dinah-583's contract names, which the mount opens and which
+// is not a stale sentence but a walk the code did not take.
+//
+// The probe is what decides which sentence a reader gets when an archived-half
+// resolution fails. Before this fix its workstream arm handed the whole
+// reference to WorkstreamByRef, which strips one workstream/ prefix and then
+// compares `portfolio/attachments/9` against every identifier and every slug,
+// matching nothing and answering nil. So the probe reported that it had
+// reached nothing, notArchivedFor took its not-found arm, and the archived
+// walk's own path error travelled out unchanged: the reader was told the
+// address names nothing, about an address that resolves perfectly well in the
+// live half.
+//
+// After the fix the reader gets not-archived carrying the holder or the
+// collection to restore, which is what the same shape below a column or a card
+// already answers.
+//
+// Arming: reverting the workstream arm of probe to the whole-reference form
+// reddens both assertions below, on the refusal's name and on its values,
+// while every other case of this file stays green.
+func TestTheRefusalProbeDescendsBelowAWorkstreamHead(t *testing.T) {
+	root := newFixture(t)
+	writeWorkstream(t, root, "f00000000001",
+		"title: Portfolio work\nslug: portfolio\nstatus: active\nordinal: 1\n")
+	collection := filepath.Join(root, WorkstreamsDir, "f00000000001", AttachmentsDir)
+	// Nine live attachments and no archived half at all. The ninth has to
+	// exist live for the probe to have something to report: the reference
+	// under test names a position the archive does not hold and the live half
+	// does, which is what makes the answer a restore-from sentence rather
+	// than a names-nothing one.
+	for n := 1; n <= 9; n++ {
+		plantAttachment(t, collection, fmt.Sprintf("b00000000%03d", n))
+	}
+	opened, err := Open(root)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+
+	if _, err := opened.ResolveEntity("workstream/portfolio/attachments/9"); err != nil {
+		t.Fatalf("the ninth live attachment does not resolve, so the position under test was never reached: %v", err)
+	}
+	if Exists(filepath.Join(root, WorkstreamsDir, "f00000000001", ArchiveDir)) {
+		t.Fatal("the fixture planted an archive half, and the position under test needs none")
+	}
+
+	_, _, err = opened.ResolveReferenceIn(ArchivedHalf, "workstream/portfolio/attachments/9")
+	if err == nil {
+		t.Fatal("an archived ninth attachment resolved, and none was planted")
+	}
+	var refusal *contract.Refusal
+	if !errors.As(err, &refusal) {
+		t.Fatalf("the archived read answered %v, wanted a refusal", err)
+	}
+	if refusal.Name != contract.NotArchived {
+		t.Fatalf("the archived read refuses %s, wanted %s", refusal.Name, contract.NotArchived)
+	}
+	// The value is what the name alone does not carry: it tells the reader
+	// which live holder or collection to restore from. A refusal carrying
+	// neither is the emptiest form of the sentence, and it is what the
+	// unfixed probe would have produced had it produced this refusal at all.
+	if refusal.Extra["holder"] == "" && refusal.Extra["collection"] == "" {
+		t.Errorf("the refusal carries neither a holder nor a collection: %+v", refusal.Extra)
+	}
+	if collection := refusal.Extra["collection"]; collection != "" && collection != "workstream/portfolio/attachments" {
+		t.Errorf("the refusal names the collection %q, wanted the spelling the resolver composes", collection)
 	}
 }

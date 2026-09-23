@@ -1100,7 +1100,7 @@ type CommentView struct {
 	Body string `json:"body"`
 	// Attachments are the comment's own attachments, on the terms a card's
 	// are: the full list, each carrying its path. A comment is one of the
-	// four kinds the containment grammar gives an attachments collection,
+	// five kinds the containment grammar gives an attachments collection,
 	// and a card's comments are bounded by that card, so the list costs
 	// what the one card costs rather than what a listing costs.
 	Attachments []AttachmentView `json:"attachments,omitempty"`
@@ -1952,9 +1952,9 @@ func (l *Library) itemListing(collection *bench.CollectionRef, unresolvedOnly bo
 	return &ItemListing{Ref: collection.Ref, Kind: collection.Mount.Kind, Members: members, Archived: collection.Archived}, nil
 }
 
-// AttachmentListing is one entity's attachments: a workbench's, a column's, a
-// card's or a comment's, which are the four kinds the containment grammar
-// gives an attachments collection.
+// AttachmentListing is one entity's attachments: a workbench's, a
+// workstream's, a column's, a card's or a comment's, which are the five kinds
+// the containment grammar gives an attachments collection.
 type AttachmentListing struct {
 	// Kind is the entity's kind, as the containment grammar spells it, and
 	// verb.KindCollection where the reference named a whole collection that
@@ -1976,11 +1976,11 @@ type AttachmentListing struct {
 // entity resolver reaches.
 //
 // An entity of a kind the grammar gives no attachments collection, which is a
-// checklist item, an attachment itself or a workstream, is not refused. It
-// reports an empty list, which is the answer an entity of a mounted kind gives
-// when it happens to carry nothing, and a caller walking a tree therefore asks
-// the same question everywhere instead of deciding first whether the question
-// is legal.
+// checklist item or an attachment itself, is not refused. It reports an empty
+// list, which is the answer an entity of a mounted kind gives when it happens
+// to carry nothing, and a caller walking a tree therefore asks the same
+// question everywhere instead of deciding first whether the question is
+// legal.
 func (l *Library) Attachments(req *Request) (*AttachmentListing, error) {
 	entity, collection, err := l.Bench.ResolveReference(req.Ref)
 	if err != nil {

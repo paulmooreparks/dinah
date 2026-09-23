@@ -16,8 +16,8 @@ const (
 	KindComment = "comment"
 	// KindItem is one checklist item below a card.
 	KindItem = "item"
-	// KindAttachment is one attachment, which any of the four kinds above
-	// may carry.
+	// KindAttachment is one attachment, which five kinds may carry: the
+	// four above it here, and the workstream declared below.
 	KindAttachment = "attachment"
 	// KindWorkstream is one workstream. It is a key of the containment table
 	// below, mounting the attachments collection docs/design/format.md gives

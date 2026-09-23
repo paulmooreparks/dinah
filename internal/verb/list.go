@@ -133,8 +133,10 @@ const (
 	// ShapeAttachments is the roster word attachments and any reference
 	// ending in an attachments collection.
 	ShapeAttachments ListShape = "attachments"
-	// ShapeMatches is the roster word cards and any workstream reference,
-	// both of which answer through Library.Query.
+	// ShapeMatches is the roster word cards and a bare workstream
+	// reference, both of which answer through Library.Query. A reference
+	// below a workstream names its attachments collection and answers as
+	// ShapeAttachments.
 	ShapeMatches ListShape = "matches"
 	// ShapeQueue is a column, whose cards come in queue order.
 	ShapeQueue ListShape = "queue"
@@ -364,9 +366,12 @@ func RootScopedReference(ref string) (bool, string) {
 //
 // A bare invocation and the workbench spellings count the archive half's
 // rosters, and a roster word refuses the flag outright, so neither reads as a
-// walk. A workstream refuses the flag by name on dinah-523/decisions/12, and
-// that refusal is the one a reader wants to be told about, so it is left to
-// fire inside each workbench rather than overwritten here. Everything else
+// walk. A bare workstream reference refuses the flag by name on
+// dinah-523/decisions/12, and that refusal is the one a reader wants to be
+// told about, so it is left to fire inside each workbench rather than
+// overwritten here. A reference naming the attachments collection below a
+// workstream does read the archive half, and it reads it as a listing rather
+// than as a walk, so this function's answer is the same for both. Everything else
 // --root admits is a column reference, whose archive-half reading is the walk.
 func archivedReadingWalks(ref string) bool {
 	trimmed := strings.TrimSpace(ref)
@@ -614,9 +619,10 @@ func narrowToReady(selector string, readyOnly bool) string {
 }
 
 // workstreamSelector is the query that answers a workstream's cards. The
-// membership index is what holds them, because a workstream contains nothing:
-// cards join and leave one, and the containment table says so by leaving the
-// kind out.
+// membership index is what holds them, because membership is card-owned: cards
+// join and leave one, and no card is contained by a workstream. What the
+// containment table does give a workstream is its attachments collection, and
+// that is drawn by the containment walk rather than read from here.
 func workstreamSelector(b *bench.Bench, entity *bench.EntityRef) string {
 	handle := entity.ID
 	if workstream := b.Workstream(entity.ID); workstream != nil && workstream.Slug != "" {
@@ -727,8 +733,9 @@ func (l *Library) listContents(req *Request, level string) (*ListResult, error) 
 // order the bare listing draws them.
 //
 // Three of the four come off the containment table, which is what the
-// workbench mounts, and workstreams is the fourth because a workstream is a
-// membership rather than a containment and the table leaves it out on purpose.
+// workbench mounts, and workstreams is the fourth because the workbench mounts
+// no workstreams collection: nothing contains a workstream, whatever the
+// workstream itself contains.
 // The attachments count is the workbench's own, and not the attachments of
 // everything beneath it.
 func (l *Library) Rosters(archived bool) (*RosterListing, error) {
@@ -749,7 +756,7 @@ func (l *Library) Rosters(archived bool) (*RosterListing, error) {
 		})
 		// The workstreams row follows the cards row, which is where the
 		// guide's table draws it. It is not read off the containment table
-		// because the table leaves the kind out on purpose.
+		// because the workbench mounts no workstreams collection.
 		if mount.Kind == bench.KindCard {
 			streams, err := bench.CountIn(l.Bench.CollectionRootIn(half, bench.WorkstreamsDir))
 			if err != nil {
