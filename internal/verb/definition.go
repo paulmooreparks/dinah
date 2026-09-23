@@ -208,12 +208,17 @@ var vocabularies = map[string]Vocabulary{
 	// flag may name. ProfileAll is the default; naming no flag at all resolves
 	// to it before this vocabulary is ever consulted.
 	"tool-profile": {Values: []string{mcpProfileStation, mcpProfileOperator, mcpProfileAll}},
-	// item-state is the four states settle may land an item at, in the order
+	// item-state is the six states settle may land an item at, in the order
 	// settle's own dispatch checks them. No new vocabulary is minted for the
-	// values themselves: they are the same four names bench.ItemStates
+	// values themselves: they are the same six names bench.ItemStates
 	// declares, so a caller who has ever read an item's own state field
 	// already knows the whole legal set.
-	"item-state": {Values: []string{bench.ItemResolved, bench.ItemVerified, bench.ItemFailed, bench.ItemPending}},
+	"item-state": {Values: []string{bench.ItemResolved, bench.ItemVerified, bench.ItemFailed, bench.ItemWaived, bench.ItemWithdrawn, bench.ItemPending}},
+	// grant-permission is the closed set of standing authorizations a grant
+	// or a revoke may name. It holds one value, and it exists as a
+	// vocabulary rather than as a bare verb so that a second permission can
+	// join later without renaming anything a person types.
+	"grant-permission": {Values: []string{CriterionRetirement}},
 	// setup-scope is where dinah setup writes: into one project directory, or
 	// into the person's own home.
 	"setup-scope": {Values: []string{"project", "user"}},
@@ -314,6 +319,8 @@ var guides = map[string][]string{
 	"resolve":           {"references"},
 	"verify":            {"references"},
 	"fail":              {"references"},
+	"waive":             {"references"},
+	"withdraw":          {"references"},
 	"reopen":            {"references"},
 	"settle":            {"references"},
 	"archive":           {"references"},
@@ -443,6 +450,24 @@ var params = map[string][]Param{
 		{Name: "item", Required: true, Shared: "item", Guide: "references", Field: "Ref"},
 		{Name: "designation", Display: "comment", Shared: "designation", Field: "Note"},
 		{Name: "text", Flag: true, Value: "text|-", Shared: "designation-text", Field: "Text"},
+	},
+	"waive": {
+		{Name: "item", Required: true, Shared: "item", Guide: "references", Field: "Ref"},
+		{Name: "designation", Display: "comment", Shared: "designation", Field: "Note"},
+		{Name: "text", Flag: true, Value: "text|-", Shared: "designation-text", Field: "Text"},
+	},
+	"withdraw": {
+		{Name: "item", Required: true, Shared: "item", Guide: "references", Field: "Ref"},
+		{Name: "designation", Display: "comment", Shared: "designation", Field: "Note"},
+		{Name: "text", Flag: true, Value: "text|-", Shared: "designation-text", Field: "Text"},
+	},
+	"grant": {
+		{Name: "card", Required: true, Shared: "card", Field: "Card"},
+		{Name: "permission", Required: true, Vocabulary: "grant-permission", Field: "Permission"},
+	},
+	"revoke": {
+		{Name: "card", Required: true, Shared: "card", Field: "Card"},
+		{Name: "permission", Required: true, Vocabulary: "grant-permission", Field: "Permission"},
 	},
 	"reopen": {
 		{Name: "item", Required: true, Shared: "item", Guide: "references", Field: "Ref"},
@@ -713,6 +738,9 @@ var params = map[string][]Param{
 		{Name: "migrate-vocabulary", Flag: true, Marker: true, Field: "MigrateVocabulary"},
 		{Name: "migrate-container", Flag: true, Marker: true, Field: "MigrateContainer"},
 		{Name: "migrate-numbers", Flag: true, Marker: true, Field: "MigrateNumbers"},
+		{Name: "migrate-designations", Flag: true, Marker: true, Field: "MigrateDesignations"},
+		{Name: "rehearse", Flag: true, Marker: true, Field: "Rehearse"},
+		{Name: "force-claims", Flag: true, Marker: true, Field: "ForceClaims"},
 		{Name: "migrate-branches", Flag: true, Marker: true, Field: "MigrateBranches"},
 		{Name: "migrate-newlines", Flag: true, Marker: true, Field: "MigrateNewlines"},
 		{Name: "renumber", Flag: true, Marker: true, Field: "Renumber"},

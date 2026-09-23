@@ -130,6 +130,13 @@ func (s *session) renderCard(card *verb.CardView) {
 	if card.Route != "" {
 		s.line(s.r.T("card.route", "route", card.Route))
 	}
+	// A standing criterion-retirement grant stands with the route, drawn only
+	// where the card carries one, because somebody deciding whether to tidy a
+	// card has to learn that the permission exists before they try rather
+	// than by meeting a refusal.
+	if card.RetirementGrant != "" {
+		s.line(s.r.T("card.retirement-grant", "column", card.RetirementGrant, "title", card.RetirementGrantTitle))
+	}
 	// The declared fields stand after the two levels and before the holder,
 	// in the order the workbench declares them. A declared field the card does
 	// not carry draws no line, and a key the card stores that the workbench
@@ -1228,6 +1235,9 @@ func (s *session) renderCheck(report *verb.CheckReport) int {
 	if report.MigratedNewlines != nil {
 		s.renderNewlineMigration(report.MigratedNewlines)
 	}
+	if report.MigratedDesignations != nil {
+		s.renderDesignationMigration(report.MigratedDesignations)
+	}
 	if report.MigratedNumbers {
 		s.line(s.r.TN("check.card-numbers-written", *report.RegistryLines))
 	}
@@ -1246,6 +1256,124 @@ func (s *session) renderCheck(report *verb.CheckReport) int {
 		code = contract.ExitCodeForRead(report.Outcome)
 	}
 	return code
+}
+
+// renderDesignationMigration prints the designation conversion's own account,
+// which is the same report on a rehearsal and on a converting run.
+//
+// The claims the operator passed come first, ahead of every group, so he reads
+// what he overrode at the moment he overrides it rather than afterwards.
+//
+// The three conversion groups are drawn in the order the contract states them
+// and each carries its own count, because a group with no entries is a fact
+// worth printing: a run reporting nothing at all under a heading nobody drew
+// reads exactly like a run that never looked.
+//
+// The unanswered group is drawn last and its count is repeated on the run's
+// own last line, because it is the number the operator acts on and the groups
+// above it may have scrolled past by then.
+//
+// Each entry is one sentence rather than one row of a table, on the reasoning
+// renderNewlineMigration states for its own account: a migration's report is
+// read once by a person deciding what to do next, and a table here would owe
+// the row-layout sweep a fixture and a language pass for a block nobody scans.
+func (s *session) renderDesignationMigration(run *bench.DesignationMigration) {
+	if run.Forced || len(run.PassedClaims) > 0 {
+		s.line(s.r.TN("check.designations-claims-passed", len(run.PassedClaims)))
+		for _, claim := range run.PassedClaims {
+			s.line(s.r.T("check.designations-claim", "card", claim.Ref, "owner", claim.Holder))
+		}
+	}
+	s.renderDesignationGroup(run, bench.DesignationFromJournal, "check.designations-journal")
+	// The journal group is exactly the population whose answer was inferred,
+	// so the group itself is the caution and it carries one. Route 1 is
+	// reached only where something removed since the settling may have moved
+	// the positions, and it matches only where a comment of the same item
+	// landed in the settling's own second, so every entry above is an item
+	// whose position moved and whose settling shares a second with another
+	// comment. That is the residue the conversion cannot close, and the
+	// operator reads it here rather than discovering it afterwards.
+	//
+	// The caution stands over the group rather than beside the archived
+	// listing below, and the difference is the whole of this finding. The
+	// archived listing can only see a comment that survives in the archive,
+	// and the removal this residue most often turns on is a deletion, which
+	// leaves nothing anywhere to find. That blind spot is the one dinah-472
+	// already paid for once: an earlier draft detected drift by looking for
+	// archived comments and was defeated by deleting instead. A caution
+	// inheriting that blind spot would miss the one removal the card knows it
+	// cannot see.
+	if run.Count(bench.DesignationFromJournal) > 0 {
+		s.line(s.r.T("check.designations-journal-inferred"))
+	}
+	s.renderDesignationGroup(run, bench.DesignationUndisturbed, "check.designations-undisturbed")
+	drifted := 0
+	for _, entry := range run.Entries {
+		if entry.Archived && entry.Identifier != "" {
+			drifted++
+		}
+	}
+	s.line(s.r.TN("check.designations-archived", drifted))
+	for _, entry := range run.Entries {
+		if entry.Archived && entry.Identifier != "" {
+			s.line(s.r.T("check.designations-entry", "item", entry.Item,
+				"settling", entry.Settling, "comment", entry.Identifier, "author", entry.Author))
+		}
+	}
+	unanswered := 0
+	for _, entry := range run.Entries {
+		if entry.Route == bench.DesignationUnrecoverable {
+			unanswered++
+		}
+	}
+	s.line(s.r.TN("check.designations-unanswered", unanswered))
+	for _, entry := range run.Entries {
+		if entry.Route != bench.DesignationUnrecoverable {
+			continue
+		}
+		// Two shapes of absence reach this line and each is named rather
+		// than left blank. An item whose journal records no settling takes
+		// the unsettled form, because the ordinary one names the settling
+		// verb and an empty slot leaves a comma hanging in the one group the
+		// operator is told to act on. A stored reference that reaches no
+		// comment of the item takes the second clause below, for the same
+		// reason read one slot along.
+		reaches := s.r.T("check.designations-reaches-nothing")
+		if entry.Author != "" {
+			reaches = s.r.T("check.designations-reaches", "author", entry.Author)
+		}
+		key := "check.designations-unanswered-entry"
+		if entry.Settling == "" {
+			key = "check.designations-unanswered-entry-unsettled"
+		}
+		s.line(s.r.T(key, "item", entry.Item,
+			"settling", entry.Settling, "state", entry.State, "stored", entry.Stored, "reaches", reaches))
+	}
+	if unanswered > 0 {
+		s.line(s.r.T("check.designations-keeps-state"))
+	}
+	if !run.Applied {
+		s.line(s.r.T("check.designations-rehearsed"))
+	} else if run.Stamped {
+		s.line(s.r.T("check.designations-stamped", "detail", strconv.Itoa(bench.DesignationFormat)))
+	}
+	if unanswered > 0 {
+		s.line(s.r.TN("check.designations-unanswered-total", unanswered))
+	}
+}
+
+// renderDesignationGroup prints one conversion group's count and then one
+// sentence per entry, each naming the item, the verb that settled it, the
+// comment identifier the run wrote and that comment's author.
+func (s *session) renderDesignationGroup(run *bench.DesignationMigration, route, key string) {
+	s.line(s.r.TN(key, run.Count(route)))
+	for _, entry := range run.Entries {
+		if entry.Route != route {
+			continue
+		}
+		s.line(s.r.T("check.designations-entry", "item", entry.Item,
+			"settling", entry.Settling, "comment", entry.Identifier, "author", entry.Author))
+	}
 }
 
 // branchConflictKeys names the catalog entry each conflict condition prints,

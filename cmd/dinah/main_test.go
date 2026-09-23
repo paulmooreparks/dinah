@@ -314,8 +314,8 @@ func TestHelpBlockIsTheRatifiedSurface(t *testing.T) {
 			t.Errorf("the block does not list %s", c.name)
 		}
 	}
-	if listed != 54 {
-		t.Errorf("wanted fifty-four listed commands, got %d", listed)
+	if listed != 58 {
+		t.Errorf("wanted fifty-eight listed commands, got %d", listed)
 	}
 }
 
@@ -1981,7 +1981,7 @@ func TestCheckDeclaresItsRepairFlagsOnEverySurface(t *testing.T) {
 	if err != nil {
 		t.Fatalf("fixture: %v", err)
 	}
-	const line = "check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-columns] [--migrate-vocabulary] [--migrate-container] [--migrate-numbers] [--migrate-branches] [--migrate-newlines] [--renumber] [--remint <dir>] [--migrate-workstreams] [--witness] [--yes] [--root <path>] [--max-depth <n>]"
+	const line = "check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-columns] [--migrate-vocabulary] [--migrate-container] [--migrate-numbers] [--migrate-designations] [--rehearse] [--force-claims] [--migrate-branches] [--migrate-newlines] [--renumber] [--remint <dir>] [--migrate-workstreams] [--witness] [--yes] [--root <path>] [--max-depth <n>]"
 	if !blockLists(string(fixture), line) {
 		t.Error("the ratified block's check line does not name every repair flag")
 	}
@@ -7366,13 +7366,14 @@ func TestTheFlagSetsTheParserAcceptsAreDerivedFromTheParameterTable(t *testing.T
 	}
 	wantMarkers := []string{
 		"all", "allow-run", "annotate-prose", "archived", "brief", "catalogs", "dry-run", "finish", "force",
+		"force-claims",
 		"full-pending", "help", "here", "json", "list",
 		"migrate-branches",
 		"migrate-columns",
-		"migrate-container", "migrate-newlines", "migrate-numbers",
+		"migrate-container", "migrate-designations", "migrate-newlines", "migrate-numbers",
 		"migrate-ordinals",
 		"migrate-slugs", "migrate-vocabulary", "migrate-workstreams",
-		"no-claim", "override", "quiet", "ready", "remove", "renumber", "replace",
+		"no-claim", "override", "quiet", "ready", "rehearse", "remove", "renumber", "replace",
 		"stdio", "trust-project-recipe",
 		"unresolved", "version", "wait", "witness", "yes",
 	}
@@ -7502,7 +7503,7 @@ func assertTheGuideCountsItsOwnTable(t *testing.T, guide string) {
 	words := []string{
 		"zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
 		"eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen",
-		"nineteen", "twenty",
+		"nineteen", "twenty", "twenty-one", "twenty-two", "twenty-three",
 	}
 	if commands >= len(words) || len(sets) >= len(words) {
 		t.Fatalf("the table draws %d commands over %d sets, past what this assertion spells", commands, len(sets))

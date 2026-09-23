@@ -524,8 +524,16 @@ func TestThePreviewWritesNothing(t *testing.T) {
 }
 
 // TestTheRunStampsTheFormatLast asserts that the store a finished run leaves
-// declares the format the change arrived at, which is what makes an ordinary
-// read of it stop refusing.
+// declares the format this change arrived at, which is the number that says
+// this migration has run.
+//
+// It no longer asserts that an ordinary read stops refusing, and the reason is
+// worth reading rather than inferring. This migration writes each answer as a
+// reference to the designated comment's position, and dinah-472 moved the
+// format again to key that answer on the comment's own identifier instead, so
+// a store this run finishes is still one format short of what an ordinary read
+// wants. The two migrations run in order, and the refusal an operator meets
+// after this one names the conversion that finishes the job.
 func TestTheRunStampsTheFormatLast(t *testing.T) {
 	root, cardDir := plantStore(t,
 		plantedItem{id: "e00000000001", kind: "acceptance_criterion", state: "verified", ordinal: 1,
@@ -539,9 +547,12 @@ func TestTheRunStampsTheFormatLast(t *testing.T) {
 	if code, out, errw := runProgram(t, root, "--apply"); code != exitDone {
 		t.Fatalf("the run exited %d\n%s\n%s", code, out, errw)
 	}
-	opened, err := bench.Open(root)
+	if _, err := bench.Open(root); err == nil {
+		t.Error("an ordinary read of the migrated store was admitted, and the store is still a format short of what one wants")
+	}
+	opened, err := bench.OpenAwaitingResolution(root)
 	if err != nil {
-		t.Fatalf("the migrated store still refuses an ordinary read: %v", err)
+		t.Fatalf("the migrated store refuses even the diagnostic opener: %v", err)
 	}
 	if opened.Format != bench.ResolutionFormat {
 		t.Errorf("the migrated store declares format %d, wanted %d", opened.Format, bench.ResolutionFormat)

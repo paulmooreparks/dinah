@@ -294,7 +294,7 @@ func referenceProbeArgs(t *testing.T, command string) []string {
 		return []string{"a remark"}
 	case "cite":
 		return []string{"url", "https://example.invalid/evidence"}
-	case "resolve", "verify", "fail":
+	case "resolve", "verify", "fail", "waive", "withdraw":
 		return []string{"--text", "an answer"}
 	case "reopen":
 		return []string{"a reason"}
@@ -432,8 +432,8 @@ func TestTheReferencesGuideNamesTheCommandsThatTakeAWorkstream(t *testing.T) {
 	if len(reached) != 10 {
 		t.Fatalf("%d commands reached the workstream and ten take one", len(reached))
 	}
-	if refused != 9 {
-		t.Fatalf("%d commands were refused the workstream and nine refuse one", refused)
+	if refused != 11 {
+		t.Fatalf("%d commands were refused the workstream and eleven refuse one", refused)
 	}
 }
 

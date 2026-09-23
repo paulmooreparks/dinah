@@ -130,6 +130,17 @@ type Event struct {
 	// ordinary move, which is what the line already is: state and holder are
 	// unchanged, and from, to and both titles carry what they always carry.
 	Reshape bool `json:"reshape,omitempty"`
+	// Grant marks an item_withdrawn event the criterion-retirement grant
+	// admitted, which is exactly when the actor was not the workbench
+	// operator. It sits beside Override, Reject and Reshape on the same
+	// terms, and a reader that does not know the marker reads an ordinary
+	// withdrawal, which is what the line already is.
+	Grant bool `json:"grant,omitempty"`
+	// Cards are the identifiers of the cards a designations_migrated event
+	// passed the claim of. The line is written only by the designation
+	// conversion, whose report names the same cards, so a reader afterwards
+	// can name each claim the operator judged dead.
+	Cards []string `json:"cards,omitempty"`
 	// Reason is a block's prose reason, or the reason a raise gave for
 	// requiring more of a card than it required a moment ago. Only block and
 	// raise populate it: an ordinary per-column tier write carries none, and

@@ -1187,7 +1187,7 @@ func (b *Bench) ItemBlocksClaim(item *Item) bool {
 // settled lets through the very thing a hold exists to catch.
 func ItemIsResolved(item *Item) bool {
 	switch item.State {
-	case ItemResolved, ItemVerified, ItemFailed:
+	case ItemResolved, ItemVerified, ItemFailed, ItemWaived, ItemWithdrawn:
 		return true
 	default:
 		return false
@@ -1215,11 +1215,19 @@ func ItemIsResolved(item *Item) bool {
 // acceptance criteria outright, so the ruling above does not reach it, and
 // narrowing the state set underneath it would move behaviour nobody ruled on.
 //
+// ItemWaived and ItemWithdrawn both release, and they release for different
+// reasons. A waiver is the operator's decision that this card may proceed
+// past a finding that stands, which is the second of the two jobs the failed
+// state used to do at once; a withdrawal says the question stopped applying,
+// so there is nothing left for a hold to be waiting on. Neither is reachable
+// by anybody but the operator on an item a gate is protecting, which is what
+// internal/verb/checklist.go enforces and what makes releasing here safe.
+//
 // A state that is absent, empty or outside the closed set releases nothing,
 // for ItemIsResolved's own reason.
 func ItemLiftsColumnHold(item *Item) bool {
 	switch item.State {
-	case ItemResolved, ItemVerified:
+	case ItemResolved, ItemVerified, ItemWaived, ItemWithdrawn:
 		return true
 	default:
 		return false

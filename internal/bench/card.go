@@ -80,6 +80,18 @@ type Card struct {
 	// route until somebody repairs it, on the posture tier_at already keeps
 	// for a column reference that no longer resolves.
 	Route string
+	// RetirementGrant is the identifier of the column this card stood in
+	// when the workbench operator gave it a criterion-retirement grant, and
+	// empty on a card carrying no grant. Under a standing grant an actor who
+	// is not the operator may withdraw an acceptance criterion of this card,
+	// and nothing else: the grant reaches neither the owner guard, nor waive,
+	// nor the item's own column key, nor archiving or deleting an item.
+	//
+	// It carries a column rather than a clock because the narrowing and the
+	// tidying are one episode at one station, so binding the grant to that
+	// station bounds it with a fact the journal already records. The card's
+	// next move spends it, whatever the direction.
+	RetirementGrant string
 	// ColumnTiers are the card's per-column tier overrides, in the order the
 	// anchor carries them. Each entry names a column the way reject_to names
 	// one and carries an absolute member of the workbench's declared tier
@@ -192,10 +204,12 @@ func loadCard(collection, id string, refuseRetired bool) (*Card, error) {
 		Priority:    fm.Value(PriorityField),
 		Tier:        fm.Value(TierField),
 		Route:       fm.Value(RouteField),
-		Workstreams: fm.Seq("workstreams"),
-		Body:        body,
-		Revision:    revision,
-		FM:          fm,
+
+		RetirementGrant: fm.Value(RetirementGrantKey),
+		Workstreams:     fm.Seq("workstreams"),
+		Body:            body,
+		Revision:        revision,
+		FM:              fm,
 	}
 	card.Links = readLinks(fm)
 	card.ColumnTiers = readColumnTiers(fm)
@@ -481,6 +495,7 @@ func (c *Card) Save() error {
 	// The route lands beside the three level fields and on their own terms:
 	// SetAfter anchors it on state, so it comes out under them in the order
 	// the calls run, and a key somebody placed by hand stays put.
+	setOrDelete(c.FM, RetirementGrantKey, c.RetirementGrant)
 	setAfterOrDelete(c.FM, RouteField, c.Route, "state")
 	setAfterOrDelete(c.FM, TierField, c.Tier, "state")
 	setAfterOrDelete(c.FM, PriorityField, c.Priority, "state")
@@ -536,6 +551,15 @@ const (
 	PriorityField = "priority"
 	TierField     = "tier"
 )
+
+// RetirementGrantKey is the frontmatter key carrying a card's
+// criterion-retirement grant, whose value is the identifier of the column the
+// card stood in when the grant was given.
+//
+// It is a key of its own rather than a declared field, because a field is
+// something a person writes with dinah set and this one is written by two
+// verbs of its own that are refused to anybody but the workbench operator.
+const RetirementGrantKey = "retirement_grant"
 
 // TierAtKey is the frontmatter key carrying a card's per-column tier
 // overrides. It is a key of its own rather than a level, because what it holds

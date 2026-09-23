@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 
 	"dinah/internal/bench"
@@ -421,8 +422,42 @@ func assertDesignationAndComment(t *testing.T, h *harness, item, wantAnswer, wan
 	if err != nil {
 		t.Fatalf("load item %s: %v", item, err)
 	}
-	if stored.Resolution != itemDetail.Comments[1].Ref {
-		t.Errorf("the item designates %q, wanted the comment the settling minted at %q",
-			stored.Resolution, itemDetail.Comments[1].Ref)
+	// The stored value is the comment's own identifier since dinah-472, and
+	// the reference is composed from it at the moment of the read. Both are
+	// asserted: the identifier is what durability rests on, and the composed
+	// reference is what a person types, so a build storing one and printing
+	// the other wrongly fails on whichever half it got wrong.
+	if stored.Resolution != itemDetail.Comments[1].ID {
+		t.Errorf("the item designates %q, wanted the identifier of the comment the settling minted, which is %q",
+			stored.Resolution, itemDetail.Comments[1].ID)
 	}
+	if strings.Contains(stored.Resolution, "/") {
+		t.Errorf("the item designates %q, which carries a slash, so it is a reference rather than an identifier", stored.Resolution)
+	}
+	checklist, _, _, _, err := h.library.Show(&Request{Verb: "show", Actor: "alka", Card: cardOf(item), Fields: "checklist.full"})
+	if err != nil {
+		t.Fatalf("show the card: %v", err)
+	}
+	found := false
+	for _, view := range checklist.Checklist {
+		if view.ResolutionID != stored.Resolution {
+			continue
+		}
+		found = true
+		if view.Resolution != itemDetail.Comments[1].Ref {
+			t.Errorf("the read composes the reference %q, wanted %q", view.Resolution, itemDetail.Comments[1].Ref)
+		}
+	}
+	if !found {
+		t.Errorf("no checklist row of %s carries the identifier %q the item stores", cardOf(item), stored.Resolution)
+	}
+}
+
+// cardOf is the card half of an item's reference, which is everything before
+// the first slash.
+func cardOf(item string) string {
+	if at := strings.Index(item, "/"); at >= 0 {
+		return item[:at]
+	}
+	return item
 }

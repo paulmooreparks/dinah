@@ -50,6 +50,33 @@ type fieldSample struct {
 	// first write hands the workbench over, so the second is made by whoever
 	// it was handed to.
 	secondActor string
+	// storesTheIdentifier marks a field whose stored value is not the value
+	// written: the caller names an entity any way the resolver admits and the
+	// field records that entity's own identifier.
+	//
+	// One field is like that, which is an item's answer of record. A position
+	// is not an identity, so archiving an earlier comment would move a stored
+	// position onto a different comment, and the write resolves what it was
+	// handed and keeps the identifier. The round trip therefore asks whether
+	// the value read back is the identifier of the comment the value written
+	// reached, rather than whether it is that value.
+	storesTheIdentifier bool
+}
+
+// identifierOf is the directory name of whatever an entity reference reaches,
+// which is that entity's own identifier.
+//
+// It goes through dinah path rather than through the resolver, because what
+// this sweep is about is what the two heads do, and a helper resolving the
+// reference itself would be asserting the write against a second
+// implementation of the read.
+func identifierOf(t *testing.T, root, ref string) string {
+	t.Helper()
+	printed := runCLI(t, root, "path", ref)
+	if printed.code != 0 {
+		t.Fatalf("path %s: %d %s", ref, printed.code, printed.errw)
+	}
+	return filepath.Base(filepath.Dir(strings.TrimSpace(printed.out)))
 }
 
 // fieldSamples is the hand table this sweep drives, keyed by kind and field.
@@ -99,7 +126,7 @@ var fieldSamples = map[string]map[string]fieldSample{
 		// A designation names a comment of the item being written, so the
 		// two values are the two comments fieldSubject plants below it
 		// rather than two strings chosen here.
-		"resolution": {first: "fx-1/questions/1/comments/1", second: "fx-1/questions/1/comments/2"},
+		"resolution": {first: "fx-1/questions/1/comments/1", second: "fx-1/questions/1/comments/2", storesTheIdentifier: true},
 		"owner":      {first: "operator", second: "holder"},
 		// The two columns are named by their identifiers rather than by
 		// their slugs, because a column reference resolves on write and the
@@ -188,8 +215,12 @@ func roundTripAtTerminal(t *testing.T, kind, field string, sample fieldSample) {
 		if read.code != 0 {
 			t.Fatalf("read %d of %s/%s: %d %s", at+1, kind, field, read.code, read.errw)
 		}
-		if got := strings.TrimSuffix(read.out, "\n"); got != value {
-			t.Errorf("%s/%s read back %q after write %d, wanted %q", kind, field, got, at+1, value)
+		wanted := value
+		if sample.storesTheIdentifier {
+			wanted = identifierOf(t, root, value)
+		}
+		if got := strings.TrimSuffix(read.out, "\n"); got != wanted {
+			t.Errorf("%s/%s read back %q after write %d, wanted %q", kind, field, got, at+1, wanted)
 		}
 	}
 }
@@ -227,8 +258,12 @@ func roundTripOverTheProtocol(t *testing.T, kind, field string, sample fieldSamp
 		if !carried {
 			t.Fatalf("read %d of %s/%s over the protocol carried no value: %v", at+1, kind, field, read)
 		}
-		if got != value {
-			t.Errorf("%s/%s read back %q over the protocol after write %d, wanted %q", kind, field, got, at+1, value)
+		wanted := value
+		if sample.storesTheIdentifier {
+			wanted = identifierOf(t, root, value)
+		}
+		if got != wanted {
+			t.Errorf("%s/%s read back %q over the protocol after write %d, wanted %q", kind, field, got, at+1, wanted)
 		}
 	}
 }

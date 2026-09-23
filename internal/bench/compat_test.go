@@ -310,7 +310,7 @@ func openFixture(t *testing.T, fixture string) (*Bench, error) {
 	// declaredFormat is the package's own reader, which the container
 	// migration already uses for the same question, and a fixture declaring
 	// no format key answers false and goes through Open exactly as it did.
-	if declared, declares := declaredFormat(root); declares && declared < ResolutionFormat {
+	if declared, declares := declaredFormat(root); declares && declared < DesignationFormat {
 		return OpenAwaitingResolution(root)
 	}
 	return Open(root)

@@ -419,7 +419,7 @@ func (l *Library) Archive(req *Request) *Response {
 	if entity.Kind == bench.KindWorkbench {
 		return l.refuse(req, nil, contract.UnknownPath, req.Ref)
 	}
-	if l.operatorOnlyTarget(entity) && req.Actor != l.Bench.Operator {
+	if l.operatorOnlyRemoval(entity) && req.Actor != l.Bench.Operator {
 		return l.refuse(req, entity.Card, contract.NotOperator, req.Actor)
 	}
 	now := bench.Stamp(l.Now())
@@ -539,7 +539,7 @@ func (l *Library) Delete(req *Request) *Response {
 	if entity.Kind == bench.KindWorkbench {
 		return l.refuse(req, nil, contract.UnknownPath, req.Ref)
 	}
-	if l.operatorOnlyTarget(entity) && req.Actor != l.Bench.Operator {
+	if l.operatorOnlyRemoval(entity) && req.Actor != l.Bench.Operator {
 		return l.refuse(req, entity.Card, contract.NotOperator, req.Actor)
 	}
 	designator, refused := l.admitCommentDeletion(req, entity)
@@ -615,8 +615,12 @@ func (l *Library) admitCommentDeletion(req *Request, entity *bench.EntityRef) (*
 	if err != nil || item.Resolution == "" {
 		return nil, nil
 	}
-	designated, err := l.Bench.ResolveEntity(item.Resolution)
-	if err != nil || !sameDir(designated.Dir, entity.Dir) {
+	// The stored value is the comment's own identifier, so the comparison is
+	// against this entity's own directory name with no resolution step and
+	// nothing to go stale. It used to resolve the stored reference and
+	// compare directories, which is what a positional designation obliged it
+	// to do.
+	if item.Resolution != entity.ID {
 		return nil, nil
 	}
 	// Composed before the refusal rather than after it, because the refusal
@@ -640,7 +644,14 @@ func (l *Library) admitCommentDeletion(req *Request, entity *bench.EntityRef) (*
 	if item.Owner == bench.ItemOwnerOperator && req.Actor != l.Bench.Operator {
 		return nil, l.refuse(req, entity.Card, contract.NotOperator, req.Actor)
 	}
-	return &designatedBy{item: named, designation: item.Resolution}, nil
+	// The reference is composed under the item's own canonical spelling
+	// rather than taken from the resolver's, so the reason a reader meets in
+	// the journal is the address that item's comments answer to.
+	ordinal, err := memberPosition(entity.Dir, bench.CommentAnchor)
+	if err != nil {
+		return nil, l.FromError(req, err)
+	}
+	return &designatedBy{item: named, designation: commentRef(named, ordinal)}, nil
 }
 
 // designatedBy is the item a comment being deleted is the answer of record
@@ -654,7 +665,9 @@ type designatedBy struct {
 	// item is the reference Reopen is handed, which resolves.
 	item string
 	// designation is the comment's canonical reference, which the composed
-	// reason names.
+	// reason names. It is composed for the refusal rather than read off the
+	// item, because the item stores the comment's identifier and a reason
+	// naming a bare identifier tells a later reader nothing they can type.
 	designation string
 }
 
@@ -965,9 +978,12 @@ func (l *Library) definitionAttachmentWrite(entity *bench.EntityRef) bool {
 	return sameDir(parent, live) || sameDir(parent, l.Bench.ArchivedColumnsRoot())
 }
 
-// operatorOnlyTarget reports whether archiving, restoring or deleting an
-// entity is the operator's alone: a column, or an attachment hanging on a
-// column or on the workbench.
+// operatorOnlyTarget reports whether restoring an entity is the operator's
+// alone: a column, or an attachment hanging on a column or on the workbench.
+//
+// Restore alone consults it now. Archiving and deleting go through
+// operatorOnlyRemoval below, which is this plus the three clauses that
+// protect a checklist item.
 func (l *Library) operatorOnlyTarget(entity *bench.EntityRef) bool {
 	switch entity.Kind {
 	case bench.KindColumn:
@@ -976,6 +992,67 @@ func (l *Library) operatorOnlyTarget(entity *bench.EntityRef) bool {
 		return l.definitionAttachmentWrite(entity)
 	}
 	return false
+}
+
+// operatorOnlyRemoval reports whether archiving or deleting an entity is the
+// operator's alone. It is operatorOnlyTarget plus the protected checklist
+// item, which is an item any of three things is true of.
+//
+// Everything this card built protected an item from being rewritten and
+// nothing protected it from being removed. Agent Design Review walked a card
+// into a done column past an acceptance criterion standing at failed by
+// archiving the item, and emptied the operator's own queue twice over, once by
+// archiving a question stamped for him and once by deleting one. Archiving
+// changes no state at all, which is why the sweeps that asked what can change
+// an item's state all missed it: it takes the item away, and an item outside
+// the live set has no state for any rule to read.
+//
+// The three clauses. An acceptance criterion is protected whatever its state
+// and whatever its owner, which is Withdraw's kind guard applied to these two
+// acts. An item whose owner key reads operator is protected whatever its kind,
+// which makes that stamp survive removal as well as rewriting. An item
+// standing at waived is protected whatever its kind, because a waiver is a
+// permission the operator granted and removing the item destroys the record of
+// it. A failed item needs no clause of its own, since fail closes acceptance
+// criteria alone and the first clause already covers them.
+//
+// A withdrawn item is left removable by anybody, and that asymmetry is
+// deliberate. A waiver is what let a card past a finding, so destroying it
+// destroys the justification for work that has already travelled; a withdrawal
+// records that a question stopped applying, which is ordinary bookkeeping
+// anybody was entitled to perform in the first place, and reserving its
+// removal would reserve the tidying of exactly the items dinah-472 was filed
+// to make tidyable. Where a withdrawn item is also an acceptance criterion, which
+// is the case where the record is load-bearing, the first clause covers it.
+//
+// Restore is not reserved, because restoring an item puts it back into the
+// live set and can only re-impose a hold. That is the reasoning Reopen was
+// built on, and it is sound here for the reason it stopped being sound there:
+// nothing composes with a restore to reach a removal.
+//
+// A standing criterion-retirement grant admits neither act. Tidying under a
+// grant means retiring an item with a recorded reason, so that the item, its
+// text and the reason a person gave all stay on the card and stay readable;
+// removing an item answers a different question and the operator answers that
+// one himself.
+func (l *Library) operatorOnlyRemoval(entity *bench.EntityRef) bool {
+	if l.operatorOnlyTarget(entity) {
+		return true
+	}
+	if entity.Kind != bench.KindItem {
+		return false
+	}
+	item, err := bench.LoadItem(entity.Dir)
+	if err != nil {
+		// An item whose anchor will not open cannot be shown to be
+		// unprotected, and the safe direction here is the reserved one: a
+		// damaged file is dinah check's finding rather than a licence to
+		// remove the item nobody can read.
+		return true
+	}
+	return item.Kind == criterionKind ||
+		item.Owner == bench.ItemOwnerOperator ||
+		item.State == bench.ItemWaived
 }
 
 // lockDirFor names the directory whose lock covers a write about an entity,
@@ -1070,6 +1147,16 @@ func (l *Library) removalRecord(req *Request, entity *bench.EntityRef, now strin
 		return l.journalFor(entity), ev
 	}
 	ev.Title = l.titleOfEntity(entity)
+	// A deletion is the one removal that destroys what it removed, so the
+	// line has to say what went away rather than only that something with an
+	// identifier did. An item's text is what it required and its kind is
+	// which rules it was judged under, and a reader of the journal meeting
+	// this line has no other source for either.
+	if entity.Kind == bench.KindItem {
+		if item, err := bench.LoadItem(entity.Dir); err == nil {
+			ev.Kind = item.Kind
+		}
+	}
 	// Deleting a card or a workstream destroys the journal inside it, so the
 	// record goes to the bench's, carrying the identifier and the title as
 	// of the event.
@@ -1084,6 +1171,16 @@ func (l *Library) removalRecord(req *Request, entity *bench.EntityRef, now strin
 func (l *Library) titleOfEntity(entity *bench.EntityRef) string {
 	if entity.Kind == bench.KindCard && entity.Card != nil {
 		return entity.Card.Title
+	}
+	// An item is what a person called it too: the judgement it records is its
+	// text, and a journal line saying that something with an identifier went
+	// away says nothing about what that thing required.
+	if entity.Kind == bench.KindItem {
+		item, err := bench.LoadItem(entity.Dir)
+		if err != nil {
+			return ""
+		}
+		return item.Text
 	}
 	if entity.Kind == bench.KindWorkstream {
 		if workstream := l.Bench.Workstream(entity.ID); workstream != nil {

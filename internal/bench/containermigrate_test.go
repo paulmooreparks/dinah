@@ -533,21 +533,23 @@ func TestAFreshWorkbenchCarriesTheUnionMergeAttributes(t *testing.T) {
 
 // TestTheStorageFormatMovedAndAnOlderWorkbenchStillOpens asserts dinah-285
 // AC-14 in this package, carried forward through each later move: the constant
-// reads 5 after a journal line's actor became an object on dinah-496, which
-// followed the retirement of the body heading on dinah-498, the registry's
-// arrival on dinah-488 and the container's own move to 2 on dinah-285, and a
-// workbench declaring the older format beside a profile revision inside the
-// window still opens in the bare layout it was written in.
+// reads 7 after an item's answer became an identifier rather than a position
+// on dinah-472, which followed the answer becoming a designated comment at all
+// on dinah-525, a journal line's actor becoming an object on dinah-496, the
+// retirement of the body heading on dinah-498, the registry's arrival on
+// dinah-488 and the container's own move to 2 on dinah-285, and a workbench
+// declaring the older format beside a profile revision inside the window still
+// opens in the bare layout it was written in.
 //
 // The name lost its second clause at dinah-498. The storage format and the
 // profile revision moved together on that card and again on dinah-496, because
 // the mechanism each number gates is one the profile now states rather than one
 // Dinah keeps to itself. The independence the old name asserted is still real
-// and is still worth reading: two of the six format moves so far disturbed no
-// statement of the profile at all.
+// and is still worth reading: three of the seven format moves so far disturbed
+// no statement of the profile at all, dinah-472's among them.
 func TestTheStorageFormatMovedAndAnOlderWorkbenchStillOpens(t *testing.T) {
-	if StorageFormat != 6 {
-		t.Errorf("StorageFormat is %d, wanted 6", StorageFormat)
+	if StorageFormat != 7 {
+		t.Errorf("StorageFormat is %d, wanted 7", StorageFormat)
 	}
 	older := strings.Replace(olderBenchDefinition, "profile: dinah-core/0.7", "profile: dinah-core/0.9", 1)
 	root := plantBench(t, filepath.Join(t.TempDir(), "workbench"), older)
@@ -637,7 +639,7 @@ func TestALiftStoppedPartWayFinishesIntoTheSameDirectory(t *testing.T) {
 // because a failure reporting only where the workbench used to be sends a
 // reader looking for it there.
 func TestAMigrationThatMovedAndThenFailedAnswersWithWhereItWent(t *testing.T) {
-	unsupported := strings.Replace(benchDefinition, "format: 6", "format: 99", 1)
+	unsupported := strings.Replace(benchDefinition, "format: 7", "format: 99", 1)
 	root := populatedBench(t, filepath.Join(t.TempDir(), "myproject"), unsupported)
 
 	moved, err := MigrateContainer(root)
@@ -863,7 +865,7 @@ func TestTheStampDeclinesAContainedWorkbenchSomebodyIsHolding(t *testing.T) {
 // is going to be written to it.
 func TestAContainedWorkbenchThisBuildCannotOpenIsLeftAlone(t *testing.T) {
 	beyond := ProfileName + "/" + strconv.Itoa(ProfileMajor+99) + ".0"
-	definition := strings.Replace(benchDefinition, "format: 6", "format: "+strconv.Itoa(ContainerFormat), 1)
+	definition := strings.Replace(benchDefinition, "format: 7", "format: "+strconv.Itoa(ContainerFormat), 1)
 	definition = strings.Replace(definition, "profile: dinah-core/0.7", "profile: "+beyond, 1)
 	root := populatedBench(t, containedPath(t.TempDir()), definition)
 	_, opening := Open(root)

@@ -121,6 +121,12 @@ func (l *Library) SetField(req *Request) *Response {
 	if refused := l.admitOwnerWrite(req, entity, field, value); refused != nil {
 		return refused
 	}
+	if refused := l.admitItemColumnWrite(req, entity, field); refused != nil {
+		return refused
+	}
+	if refused := l.admitDesignationClear(req, entity, field, value); refused != nil {
+		return refused
+	}
 	if field.Guard == bench.GuardSlug && !req.Confirm {
 		// A workbench slug change renames every card of the workbench with
 		// it, which a column's and a workstream's do not, so the sentence
@@ -155,6 +161,21 @@ func (l *Library) SetField(req *Request) *Response {
 	// and a clear carries no value to resolve.
 	if field.Guard == bench.GuardColumnRef && value != "" {
 		value = l.Bench.ColumnByRef(value).ID
+	}
+	// The same rule applied to an item's answer of record. What a person
+	// types is any spelling of a comment of that item, a position or the
+	// comment's own identifier, and the value stored is the identifier,
+	// because a position is not an identity: archiving an earlier comment
+	// renumbers the survivors and the stored reference comes to name a
+	// different comment. admitResolutionValue has already refused a spelling
+	// that reaches anything but a comment of this item, so the resolution
+	// here cannot come back empty, and a clear carries no value to resolve.
+	if field.Guard == bench.GuardResolution && value != "" {
+		found, err := l.Bench.ResolveEntity(designationSpelling(entity, value))
+		if err != nil {
+			return l.FromError(req, err)
+		}
+		value = found.ID
 	}
 	if field.Guard == bench.GuardHold {
 		return l.writeHold(req, entity, field, value)
@@ -318,6 +339,79 @@ func (l *Library) admitOwnerWrite(req *Request, entity *bench.EntityRef, field b
 	return nil
 }
 
+// admitItemColumnWrite refuses a non-operator's write to, or clear of, a
+// checklist item's column key on an item the gate is protecting.
+//
+// The item's column key names the station that settles it, and until this card
+// anybody could write it and anybody could clear it with no validation on the
+// clear at all. That is the door beside the gate. Agent Design Review walked a
+// card into a done column past an acceptance criterion standing at failed, in
+// three commands, by clearing the key the refusal read: the move was refused,
+// the clear was accepted, and the same move then succeeded with the criterion
+// still failed and no override marker anywhere.
+//
+// The rule is the kind guard of Withdraw applied to the field instead of to
+// the verb. An acceptance criterion's station is the operator's, whatever the
+// item's state and whatever its owner key says, and an operator-owned item's
+// station is his whatever its kind. Every other item stays repairable by
+// anybody, which is what the workbench instruction about repairing a misfiled
+// item depends on.
+//
+// It stands here beside admitOwnerWrite rather than among the value guards for
+// exactly admitOwnerWrite's reason: a clear runs no value guard, and
+// admitFieldValue is reached only when the value is non-empty, so a rule
+// written as a value guard would refuse the write and admit the erasure.
+//
+// Re-pointing a criterion at a different station is never the repair. Filing
+// is open to everybody, so the wrong item is withdrawn and a replacement is
+// filed, which leaves a complete record where a silent re-pointing leaves
+// none.
+func (l *Library) admitItemColumnWrite(req *Request, entity *bench.EntityRef, field bench.Field) *Response {
+	if entity.Kind != bench.KindItem || field.Name != bench.ItemColumnField {
+		return nil
+	}
+	if req.Actor == l.Bench.Operator {
+		return nil
+	}
+	fm, _, err := l.entityAnchor(entity)
+	if err != nil {
+		return l.FromError(req, err)
+	}
+	if fm.Value(bench.ItemKindField) != criterionKind &&
+		fm.Value(bench.ItemOwnerField) != bench.ItemOwnerOperator {
+		return nil
+	}
+	return l.refuse(req, entity.Card, contract.NotOperator, req.Actor)
+}
+
+// admitDesignationClear refuses a clear of an item's answer of record on an
+// item that is not pending.
+//
+// An erasable reason is not a requirement. Both the waiver and the withdrawal
+// are made to record why, and the key they record it in was settable and
+// clearable by anybody, so a waiver's recorded reason could be cleared off a
+// waived item and leave the item asserting that somebody decided something
+// while carrying no record of who or why.
+//
+// Rewriting the key to another comment of the same item stays open under the
+// guard it already has, because that is a correction rather than an erasure.
+// Reopen clears the key inside the verb rather than through this path, so the
+// one legitimate erasure is untouched, and it is the one the refusal's next
+// step names.
+func (l *Library) admitDesignationClear(req *Request, entity *bench.EntityRef, field bench.Field, value string) *Response {
+	if entity.Kind != bench.KindItem || field.Name != bench.ItemResolutionField || value != "" {
+		return nil
+	}
+	item, err := bench.LoadItem(entity.Dir)
+	if err != nil {
+		return l.FromError(req, err)
+	}
+	if item.State == bench.ItemPending {
+		return nil
+	}
+	return l.refuse(req, entity.Card, contract.DesignationRequired, item.State)
+}
+
 // routeGuardedWrite hands a write to the verb that already performs it, and
 // reports whether it did. Three guards route: a card's tier when the request
 // names a column, an item's state, and an attachment's filename. Everything
@@ -347,8 +441,8 @@ func (l *Library) routeGuardedWrite(req *Request, entity *bench.EntityRef, field
 
 // setItemState routes an item's state write to the checklist verb that lands
 // that state, so the kind check, the pending check, the citation obligation
-// and the journal event all come from the verb. A value outside the four
-// states is refused before any of them, because none of the four verbs would
+// and the journal event all come from the verb. A value outside the six
+// states is refused before any of them, because none of the six verbs would
 // know what to do with it.
 //
 // The value --note carries fills whichever slot the destination verb reads:
@@ -369,10 +463,12 @@ func (l *Library) routeGuardedWrite(req *Request, entity *bench.EntityRef, field
 // wants that writes the verb rather than the field.
 func (l *Library) setItemState(req *Request, entity *bench.EntityRef, value string) *Response {
 	landing := map[string]func(*Request) *Response{
-		bench.ItemResolved: l.Resolve,
-		bench.ItemVerified: l.Verify,
-		bench.ItemFailed:   l.Fail,
-		bench.ItemPending:  l.Reopen,
+		bench.ItemResolved:  l.Resolve,
+		bench.ItemVerified:  l.Verify,
+		bench.ItemFailed:    l.Fail,
+		bench.ItemWaived:    l.Waive,
+		bench.ItemWithdrawn: l.Withdraw,
+		bench.ItemPending:   l.Reopen,
 	}
 	land, legal := landing[value]
 	if !legal {
@@ -721,7 +817,7 @@ func unknownEntityField(kind, field string) error {
 // spelling, because a field write stores what it admitted; a caller who wants
 // the canonical reference settles the item with a verb.
 func (l *Library) admitResolutionValue(req *Request, entity *bench.EntityRef, value string) *Response {
-	found, err := l.Bench.ResolveEntity(value)
+	found, err := l.Bench.ResolveEntity(designationSpelling(entity, value))
 	if err != nil {
 		return l.refuse(req, entity.Card, contract.NotADesignation, value)
 	}
@@ -732,6 +828,22 @@ func (l *Library) admitResolutionValue(req *Request, entity *bench.EntityRef, va
 		return l.refuse(req, entity.Card, contract.NotADesignation, value)
 	}
 	return nil
+}
+
+// designationSpelling is the reference the resolver is handed for a value
+// naming a comment of one item, whichever of the two forms a caller typed.
+//
+// A position is already a whole reference and passes through. A bare
+// identifier is not: it resolves to nothing on its own, and the item being
+// written is the collection it is a member of, so it is composed under that
+// item before the resolver sees it. That is what lets a caller name the
+// comment the way the stored value spells it, which is the form dinah get
+// answers with and the form a machine reader holds.
+func designationSpelling(entity *bench.EntityRef, value string) string {
+	if !bench.IsID(value) {
+		return value
+	}
+	return entity.Ref + "/" + bench.CommentsDir + "/" + value
 }
 
 // admitCommentWrite decides whether a write of one comment's anchor may go
@@ -761,6 +873,9 @@ func (l *Library) admitResolutionValue(req *Request, entity *bench.EntityRef, va
 // caller opened is caught by the first question, because such a caller names
 // no expected digest and has none to name.
 func (l *Library) admitCommentWrite(req *Request, entity *bench.EntityRef, fm *bench.Frontmatter, body string) *Response {
+	if refused := l.admitDesignatedCommentWrite(req, entity); refused != nil {
+		return refused
+	}
 	if expected := strings.TrimSpace(req.ExpectedDigest); expected != "" {
 		if fm.Value(bench.CommentDigestField) != expected {
 			return l.refuse(req, entity.Card, contract.CommentBodyDiverged, entity.Ref)
@@ -771,6 +886,43 @@ func (l *Library) admitCommentWrite(req *Request, entity *bench.EntityRef, fm *b
 		return l.refuse(req, entity.Card, contract.CommentBodyDiverged, entity.Ref)
 	}
 	return nil
+}
+
+// admitDesignatedCommentWrite refuses a write to the body of a comment an item
+// designates as its answer of record.
+//
+// Keying the answer on the comment's identifier fixes which comment the answer
+// names and does nothing about what that comment says. A comment's fields
+// belong to any owner and the divergence check asks only whether the body has
+// been edited outside the tool, so anybody could rewrite the operator's
+// designated answer in place, under his name, with his digest restamped. The
+// designation went on naming the right comment and the comment said something
+// else.
+//
+// There is no forced form. `dinah set` carries no force flag, and inventing
+// one here would add a second way past a record this card exists to make
+// durable. Correcting an answer means reopening the item, which clears the
+// designation, and then settling it again.
+//
+// The refusal is the one a deletion of the same comment already raises, with
+// the item in the same slot, because the two acts meet one rule: an answer of
+// record cannot be changed or destroyed while it is still the answer.
+func (l *Library) admitDesignatedCommentWrite(req *Request, entity *bench.EntityRef) *Response {
+	if entity.Kind != bench.KindComment || entity.Card == nil {
+		return nil
+	}
+	holder := filepath.Dir(filepath.Dir(entity.Dir))
+	item, err := bench.LoadItem(holder)
+	if err != nil || item.Resolution != entity.ID {
+		return nil
+	}
+	named, err := l.itemCanonicalRef(entity.Card, item.ID)
+	if err != nil {
+		return l.FromError(req, err)
+	}
+	return l.refuseWith(req, entity.Card, contract.NotDesignatable, entity.Ref, map[string]string{
+		"item": named,
+	})
 }
 
 // restampsComment reports whether a write storing the value a comment already

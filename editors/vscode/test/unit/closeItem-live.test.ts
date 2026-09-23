@@ -181,11 +181,22 @@ async function closeAndCheck(
 	// resolution names that comment. The two references are compared by the
 	// anchor each resolves to, because the listing and the resolution are free
 	// to spell one comment's reference through different branches of the card.
+	//
+	// The stored value is the designated comment's own identifier since
+	// dinah-472, which is a member selector inside the item's own comments
+	// rather than a whole reference, so it is composed under the item before
+	// the binary is asked to locate it. A bare identifier resolves to nothing
+	// on its own, which is the refusal this assertion met when the format
+	// moved.
 	const created = await commentsBelow(root, bench, item);
 	assert.equal(created.length, 1, `${verb} left ${String(created.length)} comments below ${item}`);
 	const resolution = headerField(record, "resolution");
 	assert.notEqual(resolution, "", `${item} records no resolution after ${verb}`);
-	const designated = await anchorPath(root, bench, resolution);
+	assert.ok(
+		!resolution.includes("/"),
+		`${item} records the resolution ${resolution}, which carries a slash, so it is a reference rather than an identifier`,
+	);
+	const designated = await anchorPath(root, bench, `${item}/comments/${resolution}`);
 	const comment = await anchorPath(root, bench, created[0]);
 	assert.equal(
 		designated,

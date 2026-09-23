@@ -123,10 +123,16 @@ func (b *Bench) checkCardRoute(card *Card) []Finding {
 	return findings
 }
 
-// checkItemRoutes reports every pending checklist item of a card naming a
-// column the card's route does not carry, which is a hold that would never
-// fire. Pending is the state that matters: a resolved, verified or failed item
-// holds nothing on entry and has nothing to strand.
+// checkItemRoutes reports every checklist item of a card whose state does not
+// release a column hold and which names a column the card's route does not
+// carry, which is a hold that would never fire.
+//
+// The question is whether the item's state releases the hold rather than
+// whether it is pending, and the two are not the same. A failed item is not
+// pending and holds its column all the same, so the older test admitted a
+// route write that stranded a criterion somebody had found fault with and let
+// the hold it was imposing stop firing. A waived or a withdrawn item releases
+// the hold, strands nothing and is passed over here.
 //
 // An item naming no column names nothing to be off the route, and a card on the
 // default route walks every column, so neither reaches the report.
@@ -135,14 +141,14 @@ func (b *Bench) checkItemRoutes(card *Card) ([]Finding, error) {
 	if route == nil {
 		return nil, nil
 	}
-	pending, err := itemsWhere(card.Dir, func(item *Item) bool {
-		return item.Column != "" && item.State == ItemPending
+	holding, err := itemsWhere(card.Dir, func(item *Item) bool {
+		return item.Column != "" && !ItemLiftsColumnHold(item)
 	})
 	if err != nil {
 		return nil, err
 	}
 	var findings []Finding
-	for _, item := range pending {
+	for _, item := range holding {
 		named := b.ColumnByRef(item.Column)
 		// A column value that resolves to nothing is checkItemColumns'
 		// finding, whose repair is a different one.
@@ -158,10 +164,14 @@ func (b *Bench) checkItemRoutes(card *Card) ([]Finding, error) {
 	return findings, nil
 }
 
-// StrandedItemOf returns the first pending item of a card naming a column the
-// named route does not carry, in identifier order, which is the convention the
-// profile's own unresolved-item refusal already follows, together with the
-// column that item names. It answers nil for a card stranding none.
+// StrandedItemOf returns the first item of a card whose state does not release
+// a column hold and which names a column the named route does not carry, in
+// identifier order, which is the convention the profile's own unresolved-item
+// refusal already follows, together with the column that item names. It
+// answers nil for a card stranding none.
+//
+// It asks the same question checkItemRoutes asks, through the same predicate,
+// for the reason stated there.
 //
 // It is the write-side reading of check.item-off-route and sits beside it so
 // that the refusal and the finding cannot come to mean two different things. An
@@ -173,13 +183,13 @@ func (b *Bench) StrandedItemOf(card *Card, route string) (*Item, *Column, error)
 		return nil, nil, nil
 	}
 	carried := RouteColumnsIn(ids, b.Columns)
-	pending, err := itemsWhere(card.Dir, func(item *Item) bool {
-		return item.Column != "" && item.State == ItemPending
+	holding, err := itemsWhere(card.Dir, func(item *Item) bool {
+		return item.Column != "" && !ItemLiftsColumnHold(item)
 	})
 	if err != nil {
 		return nil, nil, err
 	}
-	for _, item := range pending {
+	for _, item := range holding {
 		named := b.ColumnByRef(item.Column)
 		if named == nil || RouteIndexOf(carried, named) >= 0 {
 			continue

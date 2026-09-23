@@ -13,7 +13,7 @@ import (
 // is where every loop_limit below is declared, so a departure to the first
 // column is regressive and a departure to the third is not.
 const loopBenchDefinition = `---
-format: 6
+format: 7
 profile: dinah-core/0.7
 title: Fixture
 slug: fx

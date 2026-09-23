@@ -92,7 +92,7 @@ The leading `$` marks a command line. Do not type it.
 $ dinah version
 dinah 0.1.0
 conforms to dinah-core/0.18
-storage format 6
+storage format 7
 [exit 0]
 ```
 
@@ -102,7 +102,7 @@ release publishes a new one. The second line names the shared rule set that buil
 other tool built to those same rules can read this workbench and reach the same
 answers about it. The third line names the format Dinah writes on disk.
 
-`dinah help` lists all fifty-four commands, in the four groups Dinah sorts
+`dinah help` lists all fifty-eight commands, in the four groups Dinah sorts
 them into. Running `dinah` with no arguments at all prints the same list. So
 does whichever spelling of the help flag you already have the habit of typing,
 because Dinah answers to `--help`, `-help`, `-h`, `-?`, `--?` and `/?` alike.
@@ -339,7 +339,7 @@ transcript:
 
 ```file path=<workbench>/workbench.md
 ---
-format: 6
+format: 7
 profile: dinah-core/0.18
 title: Release 0.2
 slug: rel
@@ -1322,19 +1322,19 @@ carries, ask:
 $ dinah version --catalogs
 dinah 0.1.0
 conforms to dinah-core/0.18
-storage format 6
+storage format 7
 
 Catalogs:
   Language  Translated
   --------  ----------
-  en        1321/1321
-  af        0/1321
-  cs        0/1321
-  de        1321/1321
-  es        0/1321
-  fil       0/1321
-  hi        1321/1321
-  id        0/1321
+  en        1368/1368
+  af        0/1368
+  cs        0/1368
+  de        1368/1368
+  es        0/1368
+  fil       0/1368
+  hi        1368/1368
+  id        0/1368
 [exit 0]
 ```
 

@@ -379,11 +379,22 @@ func designatedBody(t *testing.T, h *harness, ref string, fm *bench.Frontmatter)
 	if resolution == "" {
 		t.Fatalf("%s carries no resolution, so there is no answer to read", ref)
 	}
-	entity, err := h.library.Bench.ResolveEntity(resolution)
+	// The stored value is the comment's own identifier since dinah-472, which
+	// is a member selector inside the item's own comments rather than a whole
+	// reference, so it is looked up in that collection rather than resolved.
+	entity, err := h.library.Bench.ResolveEntity(ref)
 	if err != nil {
-		t.Fatalf("the resolution %q resolves to nothing: %v", resolution, err)
+		t.Fatalf("resolve %s: %v", ref, err)
 	}
-	_, body, err := bench.ReadCommentAnchor(entity.Dir)
+	item, err := bench.LoadItem(entity.Dir)
+	if err != nil {
+		t.Fatalf("load %s: %v", ref, err)
+	}
+	dir, found := h.library.Bench.DesignatedCommentDir(item)
+	if !found {
+		t.Fatalf("the resolution %q names no comment of %s", resolution, ref)
+	}
+	_, body, err := bench.ReadCommentAnchor(dir)
 	if err != nil {
 		t.Fatalf("read the designated comment: %v", err)
 	}

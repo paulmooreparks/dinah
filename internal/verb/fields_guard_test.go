@@ -453,8 +453,17 @@ func guardResolution(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read the resolution back: %v", err)
 	}
-	if value != item+"/comments/1" {
-		t.Errorf("the item reads back the resolution %q, wanted the comment of its own", value)
+	// The stored value is the designated comment's own identifier since
+	// dinah-472, and get is the raw field reader, so what comes back is what
+	// is on disk rather than a reference composed for a reader. Both halves
+	// are asserted: it is an identifier, and it is the identifier of the
+	// comment the write named.
+	entity, err := h.library.Bench.ResolveEntity(item + "/comments/1")
+	if err != nil {
+		t.Fatalf("resolve the comment the write named: %v", err)
+	}
+	if value != entity.ID {
+		t.Errorf("the item reads back the resolution %q, wanted the identifier %q of the comment of its own", value, entity.ID)
 	}
 }
 

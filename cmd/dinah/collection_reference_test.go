@@ -121,6 +121,8 @@ func TestEveryReferenceTakingCommandAnswersACollectionOrRefusesIt(t *testing.T) 
 		"resolve":           {"resolve", "fx-1/comments", "--text", "a note"},
 		"verify":            {"verify", "fx-1/comments", "--text", "a note"},
 		"fail":              {"fail", "fx-1/comments", "--text", "a note"},
+		"waive":             {"waive", "fx-1/comments", "--text", "a note"},
+		"withdraw":          {"withdraw", "fx-1/comments", "--text", "a note"},
 		"reopen":            {"reopen", "fx-1/comments", "a reason"},
 		"get":               {"get", "fx-1/comments", "body"},
 		"set":               {"set", "fx-1/comments", "body", "rewritten"},
@@ -172,11 +174,11 @@ func TestEveryReferenceTakingCommandAnswersACollectionOrRefusesIt(t *testing.T) 
 		}
 		refused++
 	}
-	if ran != 19 {
-		t.Fatalf("the sweep ran %d invocations and the roster is nineteen", ran)
+	if ran != 21 {
+		t.Fatalf("the sweep ran %d invocations and the roster is twenty-one", ran)
 	}
-	if accepted != 2 || refused != 17 {
-		t.Fatalf("the sweep accepted %d and refused %d, and the split is two and seventeen", accepted, refused)
+	if accepted != 2 || refused != 19 {
+		t.Fatalf("the sweep accepted %d and refused %d, and the split is two and nineteen", accepted, refused)
 	}
 	t.Logf("nineteen invocations ran: %d accepted, %d refused with %s", accepted, refused, contract.IsACollection)
 }

@@ -23,7 +23,10 @@ func TestShowCarriesEveryChecklistItemTheCardHolds(t *testing.T) {
 		"Which vendor do we cite for the SLA numbers?")
 	h.item(ref, "b00000000002", "kind: acceptance_criterion\nstate: pending\nordinal: 2\n",
 		"The endpoint returns 404 for an unknown id.")
-	settled := h.item(ref, "b00000000003", "kind: decision\nstate: resolved\nordinal: 3\nresolution: "+ref+"/decisions/1/comments/1\n",
+	// The stored answer is the designated comment's own identifier since
+	// dinah-472, and the reference the view carries below is composed from it
+	// at the moment of the read rather than read off the anchor.
+	settled := h.item(ref, "b00000000003", "kind: decision\nstate: resolved\nordinal: 3\nresolution: c00000000001\n",
 		"Whose contract the numbers come from.")
 	h.plantComment(settled, "c00000000001", 1, "alka", answer)
 
@@ -43,7 +46,7 @@ func TestShowCarriesEveryChecklistItemTheCardHolds(t *testing.T) {
 		{
 			ID: "b00000000003", Ordinal: 3, Ref: ref + "/decisions/1", Kind: "decision",
 			State: "resolved", Text: "Whose contract the numbers come from.",
-			Resolution: ref + "/decisions/1/comments/1", CommentCount: 1,
+			Resolution: ref + "/decisions/1/comments/1", ResolutionID: "c00000000001", CommentCount: 1,
 		},
 	}
 	if len(detail.Checklist) != len(wanted) {

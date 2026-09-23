@@ -81,6 +81,13 @@ set doing title "Doing, renamed"
 comment sample-1 "a comment archived and then restored"
 archive sample-1/comments/2
 restore sample-1/comments/2
+file sample-1 acceptance_criterion "the report names every claim a forced run passed"
+waive sample-1/ac/2 --text "the operator decided this card may go on without the check"
+file sample-1 open_question "which vendor supplies the second payload?"
+withdraw sample-1/oq/2 --text "the card was narrowed and the second payload went with it"
+grant sample-1 criterion-retirement
+revoke sample-1 criterion-retirement
 hand-edit sample-2 column intake
 check --witness
+check --migrate-designations --force-claims
 reshape --from reshape.json --yes

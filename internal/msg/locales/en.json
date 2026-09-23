@@ -53,6 +53,10 @@
       "text": "  priority: {priority}",
       "context": "Printed under the card line when the card carries a priority."
     },
+    "card.retirement-grant": {
+      "text": "  retirement grant: {column} ({title})",
+      "context": "Printed under the card line when the card carries a standing criterion-retirement authorization. {column} is the reference of the column the grant is bound to and {title} is that column's title; the reference is machine vocabulary and is never translated. A card carrying no grant draws no such line."
+    },
     "card.severity": {
       "text": "  severity: {severity}",
       "context": "Printed under the card line when the card carries a severity."
@@ -504,6 +508,98 @@
     "check.delete.5": {
       "text": "the operator acts, on a column or a column's or workbench's attachment",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.designation-missing": {
+      "text": "item settled at {detail} carries no answer of record",
+      "context": "A check finding: an item settled without an answer of record, which the designation conversion leaves behind wherever the history could not say which comment the answer meant. {detail} is the state the item keeps, machine vocabulary that is never translated."
+    },
+    "check.designations-archived.one": {
+      "text": "{count} converted item carries an archived comment.",
+      "context": "The line the designation conversion prints for the converted items whose comments hold at least one archived member, for exactly one item. That is the population whose positions may already have drifted before anybody ran the conversion."
+    },
+    "check.designations-archived.other": {
+      "text": "{count} converted items carry an archived comment.",
+      "context": "The line the designation conversion prints for the converted items whose comments hold at least one archived member, for any other number."
+    },
+    "check.designations-claim": {
+      "text": "{card}, held by {owner}.",
+      "context": "One card a forced designation conversion passed the claim of, drawn under the count. {card} is the card's reference and {owner} is who held it, and both are machine vocabulary that is never translated."
+    },
+    "check.designations-claims-passed.one": {
+      "text": "Passed {count} card somebody still holds.",
+      "context": "The line a forced designation conversion prints for the claims it passed, for exactly one card. The same cards are named in the workbench's own history, so the judgement stays readable afterwards."
+    },
+    "check.designations-claims-passed.other": {
+      "text": "Passed {count} cards somebody still holds.",
+      "context": "The line a forced designation conversion prints for the claims it passed, for any other number, zero included, so that the flag is never a silent no-op."
+    },
+    "check.designations-entry": {
+      "text": "{item}, settled by {settling}, now names {comment}, written by {author}.",
+      "context": "One item a designation conversion converted, drawn under its group's count. {item} is the item's reference, {settling} is the journal event that last settled it, {comment} is the identifier the run wrote and {author} is who wrote that comment; all four are machine vocabulary that is never translated."
+    },
+    "check.designations-journal-inferred": {
+      "text": "The items above were recovered from the history rather than from what was stored, because a removal since they were settled may have moved the positions. The history records whole seconds, so where a settling followed another comment of the same item inside one second, the comment named above may not be the one it meant. Read those before you rely on them.",
+      "context": "The caution the designation conversion prints under its journal group, drawn only where that group holds an entry. It is the disclosure of the one case the conversion cannot decide: an item reaches that group only where a removal since the settling may have moved the stored positions and where a comment of the same item was written in the settling's own second, and the stamp carries seconds, so the comment it matched need not be the one the settling meant. It stands over the group rather than over the archived listing beside it, because a deleted comment leaves nothing in the archive to find and a deletion is the removal this case most often turns on."
+    },
+    "check.designations-journal.one": {
+      "text": "Converted {count} item from the history.",
+      "context": "The line the designation conversion prints for the items it recovered from the card's own history, for exactly one item. The history named the comment outright, so nothing was inferred."
+    },
+    "check.designations-journal.other": {
+      "text": "Converted {count} items from the history.",
+      "context": "The line the designation conversion prints for the items it recovered from the card's own history, for any other number."
+    },
+    "check.designations-keeps-state": {
+      "text": "Each item above keeps the state it stands at and has lost its answer of record.",
+      "context": "The sentence the designation conversion prints once under the unanswered items, so that nobody reads the group as work the run undid."
+    },
+    "check.designations-reaches": {
+      "text": "a comment by {author}",
+      "context": "The clause an unanswered line of the designation conversion's report names whose comment the stored reference reaches today. {author} is that comment's author, which is a name rather than prose and is never translated, so no word of the clause may agree with it."
+    },
+    "check.designations-reaches-nothing": {
+      "text": "no comment of that item",
+      "context": "The clause an unanswered line of the designation conversion's report carries in place of the one above where the stored reference reaches no comment of that item at all, which is the case a removal since the settling leaves behind. It names the absence rather than leaving the sentence to trail off."
+    },
+    "check.designations-rehearsed": {
+      "text": "Nothing was written. Run it again without --rehearse to convert and stamp the workbench.",
+      "context": "The closing line of a rehearsal of the designation conversion, which decides everything and writes nothing. --rehearse is a flag name and is not translated."
+    },
+    "check.designations-stamped": {
+      "text": "Stamped format {detail} on the workbench anchor.",
+      "context": "The closing line of a converting run of the designation conversion. {detail} is the format number it wrote, machine vocabulary that is never translated."
+    },
+    "check.designations-unanswered-entry": {
+      "text": "{item}, settled by {settling}, keeps {state}; it stored {stored}, which reaches {reaches} today.",
+      "context": "One item a designation conversion left unanswered, drawn under the count. {item} is the item's reference, {settling} is the journal event that last settled it, {state} is the state it keeps, {stored} is the reference it carried before the run and {reaches} is the clause naming whose comment that reference reaches today; all are machine vocabulary or composed from it and are never translated. The author is named so the operator can see what a guessing conversion would have written down. An item whose journal records no settling at all takes the unsettled form beside this one rather than leaving that slot blank."
+    },
+    "check.designations-unanswered-entry-unsettled": {
+      "text": "{item} keeps {state} and its history records no settling; it stored {stored}, which reaches {reaches} today.",
+      "context": "One item a designation conversion left unanswered whose card journal records no settling for it at all, drawn under the count beside the ordinary form. {item} is the item's reference, {state} is the state it keeps and {reaches} is the clause naming whose comment the stored reference reaches today; all are machine vocabulary or composed from it and are never translated. It exists because the ordinary form names the settling verb and an item with none would leave that slot blank, which reads as a fault in the line the operator is told to act on."
+    },
+    "check.designations-unanswered-total.one": {
+      "text": "{count} item is waiting for somebody to answer it again.",
+      "context": "The last line of a designation conversion that left anything unanswered, for exactly one item, because that is the number the operator acts on."
+    },
+    "check.designations-unanswered-total.other": {
+      "text": "{count} items are waiting for somebody to answer them again.",
+      "context": "The last line of a designation conversion that left anything unanswered, for any other number."
+    },
+    "check.designations-unanswered.one": {
+      "text": "Left {count} item unanswered.",
+      "context": "The line the designation conversion prints for the items whose answer the history could not recover, for exactly one item. The conversion does not guess, so such an item is left unanswered."
+    },
+    "check.designations-unanswered.other": {
+      "text": "Left {count} items unanswered.",
+      "context": "The line the designation conversion prints for the items whose answer the history could not recover, for any other number."
+    },
+    "check.designations-undisturbed.one": {
+      "text": "Converted {count} item as undisturbed.",
+      "context": "The line the designation conversion prints for the items nothing had disturbed since they were settled, for exactly one item. It is kept apart from the history group because the confidence is of a different kind."
+    },
+    "check.designations-undisturbed.other": {
+      "text": "Converted {count} items as undisturbed.",
+      "context": "The line the designation conversion prints for the items nothing had disturbed since they were settled, for any other number."
     },
     "check.duplicate-workbench-id": {
       "text": "one workbench identifier is claimed by more than one directory ({detail}); dinah check --remint <path> gives one of them a fresh identifier",
@@ -1465,6 +1561,10 @@
       "text": "Read one field of any entity of this workbench",
       "context": "The one-line summary of the get command, shown beside its syntax in the help block."
     },
+    "cmd.grant.summary": {
+      "text": "Give a card a standing authorization",
+      "context": "The one-line summary of the grant command, printed in the command list and above its own help."
+    },
     "cmd.guide.summary": {
       "text": "The embedded guides, or one of them",
       "context": "The one-line summary of the guide command, shown beside its syntax in the help block."
@@ -1561,6 +1661,10 @@
       "text": "Put an archived entity back into the live set",
       "context": "The one-line summary of the restore command, shown beside its syntax in the help block. It is the inverse of cmd.archive.summary and is worded to read as its pair."
     },
+    "cmd.revoke.summary": {
+      "text": "Take back a card's standing authorization",
+      "context": "The one-line summary of the revoke command, printed in the command list and above its own help."
+    },
     "cmd.search.summary": {
       "text": "Every place a phrase occurs in this workbench",
       "context": "The one-line summary of the search command, shown beside its syntax in the help block."
@@ -1609,9 +1713,17 @@
       "text": "What Dinah is and what it conforms to",
       "context": "The one-line summary of the version command, shown beside its syntax in the help block."
     },
+    "cmd.waive.summary": {
+      "text": "Record a checklist item as waived, letting the card proceed",
+      "context": "The one-line summary of the waive command, printed in the command list and above its own help. waived is the state token the verb lands and is never translated."
+    },
     "cmd.whoami.summary": {
       "text": "The actor your actions carry, and whether it is the operator",
       "context": "The one-line summary of the whoami command, shown beside its syntax in the help block."
+    },
+    "cmd.withdraw.summary": {
+      "text": "Record a checklist item as withdrawn, because the question stopped applying",
+      "context": "The one-line summary of the withdraw command, printed in the command list and above its own help. withdrawn is the state token the verb lands and is never translated."
     },
     "cmd.workbench.summary": {
       "text": "Read this workbench's own fields",
@@ -2465,6 +2577,10 @@
       "text": "complete or roll back a structural act that was interrupted",
       "context": "The meaning of the finish argument of `dinah check`, printed in that command's arguments table."
     },
+    "param.check.force-claims.summary": {
+      "text": "carries the conversion past a card somebody still holds, naming every such card in the workbench's own history",
+      "context": "The written meaning of the --force-claims flag of check, which is the workbench operator's own way past a claim nobody can release."
+    },
     "param.check.migrate-branches.summary": {
       "text": "lift the retired heading out of every card body into a declared field and stamp this store's format",
       "context": "The meaning of the migrate-branches argument of `dinah check`, printed in that command's arguments table."
@@ -2476,6 +2592,10 @@
     "param.check.migrate-container.summary": {
       "text": "carry this workbench into a .dinah container under an identifier Dinah minted, or every workbench beneath --root",
       "context": "The one-line summary of the check command flag --migrate-container, printed by `dinah help check`."
+    },
+    "param.check.migrate-designations.summary": {
+      "text": "converts every checklist item's answer from a position to the designated comment's own identifier, and stamps the workbench with the format that declares it",
+      "context": "The written meaning of the --migrate-designations flag of check. It is the workbench operator's own act and is refused while any card is held."
     },
     "param.check.migrate-newlines.summary": {
       "text": "repair every text file storing a carriage return that stands for a line ending, rewriting each destination with its own bytes first to prove it can be written; an interrupted run may leave a .dinah-* file beside an anchor, which is safe to delete because nothing reads it",
@@ -2500,6 +2620,10 @@
     "param.check.migrate-workstreams.summary": {
       "text": "adopt every workstream a card names that this workbench does not carry",
       "context": "The meaning of the migrate-workstreams argument of `dinah check`, printed in that command's arguments table."
+    },
+    "param.check.rehearse.summary": {
+      "text": "decides the conversion by the same rules, prints the same report, and writes nothing at all",
+      "context": "The written meaning of the --rehearse flag of check, which turns the designation conversion into a rehearsal."
     },
     "param.check.remint.summary": {
       "text": "give the workbench at this path a fresh identifier",
@@ -2616,6 +2740,10 @@
     "param.get.ref.summary": {
       "text": "the entity you are reading, written as its reference",
       "context": "The meaning of the ref argument of `dinah get`, printed in that command's arguments table."
+    },
+    "param.grant.permission.summary": {
+      "text": "which standing authorization to give, written as criterion-retirement",
+      "context": "The written meaning of the permission argument of grant. criterion-retirement is machine vocabulary and is never translated."
     },
     "param.guide.topic.summary": {
       "text": "which guide to read; the topics when you name none",
@@ -2776,6 +2904,10 @@
     "param.reshape.map.summary": {
       "text": "send the cards of one retiring column to another column, written retired=destination, repeated once per retiring column; the retired side may also be a column identifier a card still carries that this workbench no longer names, which `dinah check` reports as check.unknown-column",
       "context": "The meaning of the map argument of `dinah reshape`, printed in that command's arguments table. It names `dinah check` because that is the command an operator runs to find a stranded column identifier before writing this flag."
+    },
+    "param.revoke.permission.summary": {
+      "text": "which standing authorization to take back, written as criterion-retirement",
+      "context": "The written meaning of the permission argument of revoke. criterion-retirement is machine vocabulary and is never translated."
     },
     "param.root.summary": {
       "text": "answer for every workbench beneath this directory instead of for the one you are standing in",
@@ -2941,6 +3073,14 @@
       "text": "; hand-edit {detail} to add a column to the columns list and create its columns/<id>/column.md, then run `dinah check --workbench {workbench}` to confirm before trying `dinah add` again",
       "context": "Spliced onto refusal.dinah.add-needs-a-column as the next step wherever a workbench was resolved for this invocation, which covers every reader standing in one and every reader who named one with --workbench from somewhere else. {workbench} is the workbench directory, and naming it is what lets the reader confirm the hand edit on the workbench he was filing into. {detail} is the workbench.md path to hand-edit. The sibling entry without the flag is the alternation's unconditional last member. The command spelling is machine vocabulary and is not translated."
     },
+    "refusal.dinah.already-withdrawn": {
+      "text": "That item is already {detail}.",
+      "context": "The sentence printed after the refusal name dinah.already-withdrawn, which withdraw carries on an item that has already been withdrawn. {detail} is the state on disk, machine vocabulary that is never translated. refusal.dinah.already-withdrawn.next is spliced on after this one."
+    },
+    "refusal.dinah.already-withdrawn.next": {
+      "text": " Reopen it first if it should be asked again.",
+      "context": "The next step of refusal.dinah.already-withdrawn, spliced onto the sentence that just named the item's state."
+    },
     "refusal.dinah.ambiguous-card": {
       "text": "more than one card answers to {detail}",
       "context": "The opening sentence printed after the refusal name dinah.ambiguous-card, naming the reference the reader typed. The candidate rows print beneath it, one 12-hex card identifier per row, and refusal.dinah.ambiguous-card.next follows as the closing line naming the way forward."
@@ -3049,6 +3189,14 @@
       "text": "; add --root <path> to name the directory to walk, or drop --max-depth",
       "context": "Spliced onto refusal.dinah.depth-without-root as the next step, naming the two ways past the refusal. The option name and its placeholder are machine vocabulary and are never translated."
     },
+    "refusal.dinah.designation-required": {
+      "text": "That item is {detail} and its answer of record cannot be erased.",
+      "context": "The sentence printed after the refusal name dinah.designation-required, which a clear of an item's answer carries on an item that is not pending. {detail} is the state on disk, machine vocabulary that is never translated. refusal.dinah.designation-required.next is spliced on after this one."
+    },
+    "refusal.dinah.designation-required.next": {
+      "text": " Run `dinah reopen`, which clears the answer along with the settling it recorded.",
+      "context": "The next step of refusal.dinah.designation-required, spliced onto the sentence that just named the item's state. dinah reopen is a command name and is not translated."
+    },
     "refusal.dinah.directory-not-empty": {
       "text": "{detail} already exists and is not empty",
       "context": "The sentence printed after the refusal name dinah.directory-not-empty, raised by init when the target directory holds at least one entry and the caller did not pass --here. {detail} is the target directory."
@@ -3080,6 +3228,14 @@
     "refusal.dinah.exists.restore.next": {
       "text": "; move or delete what stands there, then restore again",
       "context": "Spliced onto refusal.dinah.exists.restore. It names the two acts that clear the slot, and it advises neither of the two the init sentence advises, because choosing a different directory is not something a restore can do."
+    },
+    "refusal.dinah.grant-excludes-finding": {
+      "text": "That criterion is {detail}, and a standing authorization does not reach a finding somebody recorded.",
+      "context": "The sentence printed after the refusal name dinah.grant-excludes-finding, which withdraw carries when a standing authorization is the only thing admitting it and the criterion already records a finding. {detail} is the state on disk, machine vocabulary that is never translated. refusal.dinah.grant-excludes-finding.next is spliced on after this one."
+    },
+    "refusal.dinah.grant-excludes-finding.next": {
+      "text": " Retiring a finding is the workbench operator's own act.",
+      "context": "The next step of refusal.dinah.grant-excludes-finding, spliced onto the sentence that just named the criterion's state."
     },
     "refusal.dinah.interrupted": {
       "text": "the action on {detail} was interrupted after it was recorded",
@@ -3213,6 +3369,14 @@
       "text": "; set DINAH_EDITOR, or install one of {detail}",
       "context": "Spliced onto refusal.dinah.no-editor as the next step, carrying the clause that base entry used to end with. {detail} is the built-in list of editors to install one of."
     },
+    "refusal.dinah.no-grant": {
+      "text": "The card {detail} carries no standing authorization.",
+      "context": "The sentence printed after the refusal name dinah.no-grant, which revoke carries over a card that has no standing authorization. {detail} is the card's reference. refusal.dinah.no-grant.next is spliced on after this one."
+    },
+    "refusal.dinah.no-grant.next": {
+      "text": " Nothing was taken away; `dinah grant` is what puts one there.",
+      "context": "The next step of refusal.dinah.no-grant, spliced onto the sentence that just named the card. dinah grant is a command name and is not translated."
+    },
     "refusal.dinah.no-levels": {
       "text": "this workbench declares no {axis} levels, so there is none to set",
       "context": "The sentence printed after the refusal name dinah.no-levels, which a write naming an axis this workbench declares no set for carries. {axis} is that field, and it is machine vocabulary that is never translated; {detail} carries the same word. The reader is not told their level name is unknown, because every name would be. The sentence is about one axis and must not be worded as a report about the workbench as a whole. refusal.dinah.no-levels.next is spliced on after this one."
@@ -3313,6 +3477,14 @@
       "text": "; a comment hangs on a column, on a card, or on one of that card's checklist items",
       "context": "The one next step of refusal.dinah.not-commentable, printed whatever kind the reference resolved to, because the honest advice is the same for every kind that fails it."
     },
+    "refusal.dinah.not-designatable.set": {
+      "text": "Comment {detail} is the answer of record for item {item}, so rewriting it would leave that item citing words nobody settled it with.",
+      "context": "The sentence printed after the refusal name dinah.not-designatable when set was asked to rewrite the body of a comment a checklist item designates. {detail} is the comment's reference and {item} is the item that cites it; both are addresses rather than prose and no word of the sentence may agree with either. The shared entry beside this one is delete's, and it says the comment would be destroyed, which is not what this caller did."
+    },
+    "refusal.dinah.not-designatable.set.next": {
+      "text": " Run `dinah reopen` on that item, which clears the designation and frees the comment to be corrected. There is no forced form of this write, because a second way past an answer of record is what this refusal exists to prevent.",
+      "context": "The next step of refusal.dinah.not-designatable.set, spliced onto the sentence that just named the comment and the item. dinah reopen is a command name and is not translated. It offers no forced form and says so, because set accepts none and a second way past this record is what the refusal exists to prevent; the shared next step beside this one offers delete's --force, which set answers dinah.usage for."
+    },
     "refusal.dinah.not-pending": {
       "text": "That item is already {detail}.",
       "context": "The sentence printed after the refusal name dinah.not-pending, which resolve, verify and fail carry on an item that has already left pending. {detail} is the state on disk, machine vocabulary that is never translated. refusal.dinah.not-pending.next is spliced on after this one."
@@ -3336,6 +3508,14 @@
     "refusal.dinah.not-resolved.next": {
       "text": " Reopen an item that has been resolved, verified or failed.",
       "context": "The next step of refusal.dinah.not-resolved, spliced onto the sentence that just named the item's state. The three state names are machine vocabulary that is never translated."
+    },
+    "refusal.dinah.not-waivable": {
+      "text": "That item is {detail}, so it is holding nothing.",
+      "context": "The sentence printed after the refusal name dinah.not-waivable, which waive carries on an item that is holding nothing. {detail} is the state on disk, machine vocabulary that is never translated. refusal.dinah.not-waivable.next is spliced on after this one."
+    },
+    "refusal.dinah.not-waivable.next": {
+      "text": " A waiver lets a card past a finding that is holding it, so it is legal only on a pending or a failed item.",
+      "context": "The next step of refusal.dinah.not-waivable, spliced onto the sentence that just named the item's state. pending and failed are machine vocabulary and are never translated."
     },
     "refusal.dinah.observation-required": {
       "text": "The {detail} scheme requires an observation.",
@@ -3764,6 +3944,14 @@
     "refusal.dinah.workbench-boundary.next": {
       "text": "; pass --workbench <dir> to name a workbench above the boundary, set DINAH_WORKBENCH the same way, or run this command from outside the repository to search as far as the drive root",
       "context": "Spliced onto refusal.dinah.workbench-boundary as the next step, naming the three ways past a boundary the climb will not cross on its own."
+    },
+    "refusal.dinah.workbench-in-use": {
+      "text": "The card {detail} is held by {owner}.",
+      "context": "The sentence printed after the refusal name dinah.workbench-in-use, which the designation conversion carries while a live card is held. {detail} is the card's reference and {owner} is who holds it. refusal.dinah.workbench-in-use.next is spliced on after this one."
+    },
+    "refusal.dinah.workbench-in-use.next": {
+      "text": " The conversion locks out every older build, so it runs when nobody is mid-card; ask that owner to release it, or run it again with --force-claims.",
+      "context": "The next step of refusal.dinah.workbench-in-use, spliced onto the sentence that just named the card and its holder. --force-claims is a flag name and is not translated."
     },
     "refusal.dinah.workbench-not-applicable": {
       "text": "Dinah does not use {source} here: init makes a new workbench rather than opening the one {source} names ({detail}).",
@@ -4578,12 +4766,12 @@
       "context": "The next step of refusal.dinah.not-designatable, spliced onto the sentence that just named the comment and the item."
     },
     "refusal.dinah.store-awaiting-migration": {
-      "text": "The workbench at {detail} still records a checklist item's answer as a note, which Dinah no longer reads.",
-      "context": "The sentence printed after the refusal name dinah.store-awaiting-migration, which every read of a workbench below the resolution format raises. {detail} is the workbench's own path. The refusal exists because a reader that carried on would report every settled item as carrying no answer, which is a false reading rather than a degraded one."
+      "text": "The workbench at {detail} records a checklist item's answer in a form this build no longer reads.",
+      "context": "The sentence printed after the refusal name dinah.store-awaiting-migration, which every read of a workbench below the current format raises. {detail} is the workbench's own path. The refusal exists because a reader that carried on would report the store's answers wrongly rather than incompletely, which is a false reading rather than a degraded one."
     },
     "refusal.dinah.store-awaiting-migration.next": {
-      "text": " Take a backup, then run dinah-migrate-notes over that workbench and read its report before using it again.",
-      "context": "The next step of refusal.dinah.store-awaiting-migration. dinah-migrate-notes is the migration program's own name and is not translated. The backup is named first because the migration writes in place and cannot undo itself."
+      "text": " Take a backup, then run `dinah check --migrate-designations` against that workbench; one still recording an answer as a note needs dinah-migrate-notes before that.",
+      "context": "The next step of refusal.dinah.store-awaiting-migration. dinah-migrate-notes is the migration program's own name and dinah check --migrate-designations is a command line; neither is translated, and the command line is the one invocation the sentence carries, so a reader following it types that and nothing else. The backup is named first because both migrations write in place and neither can undo itself."
     },
     "check.comment-body-diverged": {
       "text": "the body of comment {detail} no longer matches the digest Dinah recorded over it",

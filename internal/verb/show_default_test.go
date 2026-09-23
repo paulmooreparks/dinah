@@ -89,7 +89,10 @@ func TestAllServesEveryMember(t *testing.T) {
 	h := newHarness(t)
 	ref := h.ready("a card carrying one of each thing")
 	h.comment(ref, "a remark worth keeping")
-	settled := h.item(ref, "b00000000001", "kind: decision\nstate: resolved\nordinal: 1\nresolution: "+ref+"/decisions/1/comments/1\n",
+	// The stored answer is the designated comment's own identifier since
+	// dinah-472, so the fixture plants the identifier the comment below
+	// carries rather than a reference to its position.
+	settled := h.item(ref, "b00000000001", "kind: decision\nstate: resolved\nordinal: 1\nresolution: c00000000001\n",
 		"Whose contract the numbers come from.")
 	h.plantComment(settled, "c00000000001", 1, "alka", "the operator ruled it")
 

@@ -368,8 +368,12 @@ func TestATerminalVerbTakesACommentOfTheItemAlone(t *testing.T) {
 	}
 	h.reopen()
 	fm, _ := h.itemAnchor(first)
-	if got := fm.Value(bench.ItemResolutionField); got != first+"/"+bench.CommentsDir+"/1" {
-		t.Errorf("the item designates %q", got)
+	// The stored value is the designated comment's own identifier since
+	// dinah-472, so the assertion reads the comment the reference named and
+	// compares directory names rather than spellings of an address.
+	wanted := filepath.Base(commentDirOf(t, h, first+"/"+bench.CommentsDir+"/1"))
+	if got := fm.Value(bench.ItemResolutionField); got != wanted {
+		t.Errorf("the item designates %q, wanted the identifier %q", got, wanted)
 	}
 	if got := fm.Value(bench.ItemNoteRetiredField); got != "" {
 		t.Errorf("the item carries the retired note key %q", got)
@@ -965,8 +969,8 @@ func TestTheOneCommandFormMintsAndDesignates(t *testing.T) {
 			t.Errorf("the minted comment reads %q", comments[0].Body)
 		}
 		fm, _ := h.itemAnchor(item)
-		if got := fm.Value(bench.ItemResolutionField); got != item+"/"+bench.CommentsDir+"/1" {
-			t.Errorf("the item designates %q, wanted the comment the settling minted", got)
+		if got := fm.Value(bench.ItemResolutionField); got != comments[0].ID {
+			t.Errorf("the item designates %q, wanted the identifier of the comment the settling minted, which is %q", got, comments[0].ID)
 		}
 		// One act, two journal lines: the comment that was made and the
 		// settling that chose it.

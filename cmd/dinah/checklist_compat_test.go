@@ -58,6 +58,33 @@ func migrateNotes(t *testing.T, root string) {
 	}
 }
 
+// migrateDesignations runs the last step of the migration chain, which carries
+// an item's answer from the designated comment's position to that comment's
+// own identifier and stamps the store at the format that declares it.
+//
+// It runs as the workbench's own operator, because the converting form is
+// refused to anybody else, and it reads the operator off the anchor rather
+// than being told one, so a fixture naming a different operator needs no case
+// of its own here.
+func migrateDesignations(t *testing.T, root string) {
+	t.Helper()
+	opened, err := bench.OpenAwaitingResolution(root)
+	if err != nil {
+		t.Fatalf("open %s to read its operator: %v", root, err)
+	}
+	// The force is carried because every captured fixture holds a card
+	// claimed by the sample's own agent, and the conversion refuses a
+	// workbench where any live card is held. That refusal is about a session
+	// working right now; nothing is working a fixture.
+	got := runCLI(t, root, "--workbench", root, "check", "--migrate-designations", "--force-claims", "--actor", opened.Operator)
+	// The exit code is check's own, which is non-zero wherever the store
+	// still carries a finding, so what is read here is whether the store the
+	// run leaves behind opens. A conversion that refused leaves it refusing.
+	if _, err := bench.Open(root); err != nil {
+		t.Fatalf("the designation conversion on %s left the store refusing a read: %v\nexit %d\n%s\n%s", root, err, got.code, got.out, got.errw)
+	}
+}
+
 // runMigrateNotes runs the note migration and hands back what it did rather
 // than failing the test, which is what a case asserting a refusal needs.
 //
@@ -155,6 +182,12 @@ func TestFilingAnItemOnEveryHistoricalFixtureWritesOneShape(t *testing.T) {
 			// current format at all.
 			runCLI(t, opened, "--workbench", opened, "check", "--migrate-numbers", "--yes")
 			migrateNotes(t, opened)
+			// And the designations, which is the step that carries an item's
+			// answer from a position to the designated comment's own
+			// identifier. The note migration writes the older form, so the
+			// chain has run one step short of what an ordinary read wants
+			// until this one has run too.
+			migrateDesignations(t, opened)
 			got := shapeOfFiledItems(t, opened)
 			for kind, keys := range fresh {
 				carried, filed := got[kind]

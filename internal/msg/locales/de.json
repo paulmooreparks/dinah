@@ -70,6 +70,11 @@
       "context": "Printed under the card line when the card carries a priority.",
       "source": "dab7135c80c075a7"
     },
+    "card.retirement-grant": {
+      "text": "  Rückzugsberechtigung: {column} ({title})",
+      "context": "Printed under the card line when the card carries a standing criterion-retirement authorization. {column} is the reference of the column the grant is bound to and {title} is that column's title; the reference is machine vocabulary and is never translated. A card carrying no grant draws no such line.",
+      "source": "bc435f63731bdc3f"
+    },
     "card.severity": {
       "text": "  Schweregrad: {severity}",
       "context": "Printed under the card line when the card carries a severity.",
@@ -632,6 +637,121 @@
       "text": "der Betreiber handelt, bei einer Spalte oder dem Anhang einer Spalte oder der Werkbank",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "f4b93e456ac346da"
+    },
+    "check.designation-missing": {
+      "text": "Eintrag mit {detail} erledigt trägt keine verbindliche Antwort",
+      "context": "A check finding: an item settled without an answer of record, which the designation conversion leaves behind wherever the history could not say which comment the answer meant. {detail} is the state the item keeps, machine vocabulary that is never translated.",
+      "source": "518ab92453a0c7c5"
+    },
+    "check.designations-archived.one": {
+      "text": "{count} umgewandelter Eintrag trägt einen archivierten Kommentar.",
+      "context": "The line the designation conversion prints for the converted items whose comments hold at least one archived member, for exactly one item. That is the population whose positions may already have drifted before anybody ran the conversion.",
+      "source": "e676b23511ec5cb2"
+    },
+    "check.designations-archived.other": {
+      "text": "{count} umgewandelte Einträge tragen einen archivierten Kommentar.",
+      "context": "The line the designation conversion prints for the converted items whose comments hold at least one archived member, for any other number.",
+      "source": "6e145945bbfcae9f"
+    },
+    "check.designations-claim": {
+      "text": "{card}, gehalten von {owner}.",
+      "context": "One card a forced designation conversion passed the claim of, drawn under the count. {card} is the card's reference and {owner} is who held it, and both are machine vocabulary that is never translated.",
+      "source": "dff59183c91ada78"
+    },
+    "check.designations-claims-passed.one": {
+      "text": "An {count} noch gehaltenen Karte vorbeigeführt.",
+      "context": "The line a forced designation conversion prints for the claims it passed, for exactly one card. The same cards are named in the workbench's own history, so the judgement stays readable afterwards.",
+      "source": "ded15339ddea1b3a"
+    },
+    "check.designations-claims-passed.other": {
+      "text": "An {count} noch gehaltenen Karten vorbeigeführt.",
+      "context": "The line a forced designation conversion prints for the claims it passed, for any other number, zero included, so that the flag is never a silent no-op.",
+      "source": "3e9a37bd4785e557"
+    },
+    "check.designations-entry": {
+      "text": "{item}, erledigt durch {settling}, nennt jetzt {comment}, verfasst von {author}.",
+      "context": "One item a designation conversion converted, drawn under its group's count. {item} is the item's reference, {settling} is the journal event that last settled it, {comment} is the identifier the run wrote and {author} is who wrote that comment; all four are machine vocabulary that is never translated.",
+      "source": "60034285affb9366"
+    },
+    "check.designations-journal-inferred": {
+      "text": "Die Einträge oben wurden aus der Historie wiederhergestellt und nicht aus dem Gespeicherten, weil eine Entfernung seit ihrer Erledigung die Positionen verschoben haben kann. Die Historie hält ganze Sekunden fest, und wo eine Erledigung innerhalb einer Sekunde auf einen weiteren Kommentar desselben Eintrags folgte, muss der oben genannte Kommentar nicht der gemeinte sein. Lies diese, bevor du dich auf sie verlässt.",
+      "context": "The caution the designation conversion prints under its journal group, drawn only where that group holds an entry. It is the disclosure of the one case the conversion cannot decide: an item reaches that group only where a removal since the settling may have moved the stored positions and where a comment of the same item was written in the settling's own second, and the stamp carries seconds, so the comment it matched need not be the one the settling meant. It stands over the group rather than over the archived listing beside it, because a deleted comment leaves nothing in the archive to find and a deletion is the removal this case most often turns on.",
+      "source": "ebce760224acd0b"
+    },
+    "check.designations-journal.one": {
+      "text": "{count} Eintrag aus der Historie umgewandelt.",
+      "context": "The line the designation conversion prints for the items it recovered from the card's own history, for exactly one item. The history named the comment outright, so nothing was inferred.",
+      "source": "e3cc4ebbe9a9859e"
+    },
+    "check.designations-journal.other": {
+      "text": "{count} Einträge aus der Historie umgewandelt.",
+      "context": "The line the designation conversion prints for the items it recovered from the card's own history, for any other number.",
+      "source": "edc3e9ce2b0b451"
+    },
+    "check.designations-keeps-state": {
+      "text": "Jeder Eintrag oben behält seinen Zustand und hat seine verbindliche Antwort verloren.",
+      "context": "The sentence the designation conversion prints once under the unanswered items, so that nobody reads the group as work the run undid.",
+      "source": "1ee9c9e0d534202e"
+    },
+    "check.designations-reaches": {
+      "text": "einen Kommentar von {author}",
+      "context": "The clause an unanswered line of the designation conversion's report names whose comment the stored reference reaches today. {author} is that comment's author, which is a name rather than prose and is never translated, so no word of the clause may agree with it.",
+      "source": "47917242908a6d13"
+    },
+    "check.designations-reaches-nothing": {
+      "text": "keinen Kommentar dieses Eintrags",
+      "context": "The clause an unanswered line of the designation conversion's report carries in place of the one above where the stored reference reaches no comment of that item at all, which is the case a removal since the settling leaves behind. It names the absence rather than leaving the sentence to trail off.",
+      "source": "a0ad870731cbab0"
+    },
+    "check.designations-rehearsed": {
+      "text": "Es wurde nichts geschrieben. Führe es ohne --rehearse erneut aus, um umzuwandeln und die Werkbank zu stempeln.",
+      "context": "The closing line of a rehearsal of the designation conversion, which decides everything and writes nothing. --rehearse is a flag name and is not translated.",
+      "source": "2bf00b69c2b9f6bf"
+    },
+    "check.designations-stamped": {
+      "text": "Format {detail} auf dem Werkbank-Anker eingetragen.",
+      "context": "The closing line of a converting run of the designation conversion. {detail} is the format number it wrote, machine vocabulary that is never translated.",
+      "source": "33ba74db221e8703"
+    },
+    "check.designations-unanswered-entry": {
+      "text": "{item}, erledigt durch {settling}, behält {state}; gespeichert war {stored}, was heute {reaches} erreicht.",
+      "context": "One item a designation conversion left unanswered, drawn under the count. {item} is the item's reference, {settling} is the journal event that last settled it, {state} is the state it keeps, {stored} is the reference it carried before the run and {reaches} is the clause naming whose comment that reference reaches today; all are machine vocabulary or composed from it and are never translated. The author is named so the operator can see what a guessing conversion would have written down. An item whose journal records no settling at all takes the unsettled form beside this one rather than leaving that slot blank.",
+      "source": "3269a16bad1dd12d"
+    },
+    "check.designations-unanswered-entry-unsettled": {
+      "text": "{item} behält {state}, und seine Historie verzeichnet keine Erledigung; gespeichert war {stored}, was heute {reaches} erreicht.",
+      "context": "One item a designation conversion left unanswered whose card journal records no settling for it at all, drawn under the count beside the ordinary form. {item} is the item's reference, {state} is the state it keeps and {reaches} is the clause naming whose comment the stored reference reaches today; all are machine vocabulary or composed from it and are never translated. It exists because the ordinary form names the settling verb and an item with none would leave that slot blank, which reads as a fault in the line the operator is told to act on.",
+      "source": "1a63fa1c11a98917"
+    },
+    "check.designations-unanswered-total.one": {
+      "text": "{count} Eintrag wartet darauf, dass ihn jemand erneut beantwortet.",
+      "context": "The last line of a designation conversion that left anything unanswered, for exactly one item, because that is the number the operator acts on.",
+      "source": "b73d8a78f0368e1b"
+    },
+    "check.designations-unanswered-total.other": {
+      "text": "{count} Einträge warten darauf, dass sie jemand erneut beantwortet.",
+      "context": "The last line of a designation conversion that left anything unanswered, for any other number.",
+      "source": "40f1a1b26e283193"
+    },
+    "check.designations-unanswered.one": {
+      "text": "{count} Eintrag unbeantwortet gelassen.",
+      "context": "The line the designation conversion prints for the items whose answer the history could not recover, for exactly one item. The conversion does not guess, so such an item is left unanswered.",
+      "source": "58ff712b0f54fc8c"
+    },
+    "check.designations-unanswered.other": {
+      "text": "{count} Einträge unbeantwortet gelassen.",
+      "context": "The line the designation conversion prints for the items whose answer the history could not recover, for any other number.",
+      "source": "30d8d89d23c71ba9"
+    },
+    "check.designations-undisturbed.one": {
+      "text": "{count} Eintrag als unberührt umgewandelt.",
+      "context": "The line the designation conversion prints for the items nothing had disturbed since they were settled, for exactly one item. It is kept apart from the history group because the confidence is of a different kind.",
+      "source": "96e19f828dfc1d32"
+    },
+    "check.designations-undisturbed.other": {
+      "text": "{count} Einträge als unberührt umgewandelt.",
+      "context": "The line the designation conversion prints for the items nothing had disturbed since they were settled, for any other number.",
+      "source": "c6e160d0e32292b9"
     },
     "check.duplicate-workbench-id": {
       "text": "ein Werkbank-Bezeichner wird von mehr als einem Verzeichnis beansprucht ({detail}); dinah check --remint <path> gibt einem davon einen frischen Bezeichner",
@@ -1833,6 +1953,11 @@
       "context": "The one-line summary of the get command, shown beside its syntax in the help block.",
       "source": "d507966613c6a485"
     },
+    "cmd.grant.summary": {
+      "text": "Einer Karte eine dauerhafte Berechtigung erteilen",
+      "context": "The one-line summary of the grant command, printed in the command list and above its own help.",
+      "source": "62e687513998e9dd"
+    },
     "cmd.guide.summary": {
       "text": "Die eingebetteten Leitfäden oder einen davon",
       "context": "The one-line summary of the guide command, shown beside its syntax in the help block.",
@@ -1953,6 +2078,11 @@
       "context": "The one-line summary of the restore command, shown beside its syntax in the help block. It is the inverse of cmd.archive.summary and is worded to read as its pair.",
       "source": "e33de6bd1bb93b96"
     },
+    "cmd.revoke.summary": {
+      "text": "Die dauerhafte Berechtigung einer Karte zurücknehmen",
+      "context": "The one-line summary of the revoke command, printed in the command list and above its own help.",
+      "source": "54cf5d50bea45e63"
+    },
     "cmd.search.summary": {
       "text": "Jede Stelle in dieser Werkbank, an der ein Suchbegriff vorkommt",
       "context": "The one-line summary of the search command, shown beside its syntax in the help block.",
@@ -2013,10 +2143,20 @@
       "context": "The one-line summary of the version command, shown beside its syntax in the help block.",
       "source": "925b827e967beb7d"
     },
+    "cmd.waive.summary": {
+      "text": "Einen Checklisteneintrag als waived erfassen, damit die Karte weiterlaufen darf",
+      "context": "The one-line summary of the waive command, printed in the command list and above its own help. waived is the state token the verb lands and is never translated.",
+      "source": "1e7a33fd9c7b8f12"
+    },
     "cmd.whoami.summary": {
       "text": "Der Akteur, den Ihre Aktionen tragen, und ob er der Betreiber ist",
       "context": "The one-line summary of the whoami command, shown beside its syntax in the help block.",
       "source": "7abeaebb7ab6b730"
+    },
+    "cmd.withdraw.summary": {
+      "text": "Einen Checklisteneintrag als withdrawn erfassen, weil die Frage nicht mehr gilt",
+      "context": "The one-line summary of the withdraw command, printed in the command list and above its own help. withdrawn is the state token the verb lands and is never translated.",
+      "source": "ac6e41ce01eb5bb2"
     },
     "cmd.workbench.summary": {
       "text": "Die eigenen Felder dieser Werkbank lesen",
@@ -3101,6 +3241,11 @@
       "context": "The meaning of the finish argument of `dinah check`, printed in that command's arguments table.",
       "source": "cbc4ff1646862f6d"
     },
+    "param.check.force-claims.summary": {
+      "text": "führt die Umwandlung an einer noch gehaltenen Karte vorbei und nennt jede solche Karte in der Historie der Werkbank",
+      "context": "The written meaning of the --force-claims flag of check, which is the workbench operator's own way past a claim nobody can release.",
+      "source": "774fb527debb03a9"
+    },
     "param.check.migrate-branches.summary": {
       "text": "die zurückgezogene Überschrift aus jedem Kartenrumpf in ein erklärtes Feld heben und das Format dieses Speichers stempeln",
       "context": "The meaning of the migrate-branches argument of `dinah check`, printed in that command's arguments table.",
@@ -3115,6 +3260,11 @@
       "text": "diese Werkbank in einen .dinah-Container unter einem von Dinah geprägten Bezeichner tragen, oder jede Werkbank unterhalb von --root",
       "context": "The one-line summary of the check command flag --migrate-container, printed by `dinah help check`.",
       "source": "26ead382b2d32a9a"
+    },
+    "param.check.migrate-designations.summary": {
+      "text": "wandelt die Antwort jedes Checklisteneintrags von einer Position in die eigene Kennung des benannten Kommentars um und trägt das zugehörige Format auf der Werkbank ein",
+      "context": "The written meaning of the --migrate-designations flag of check. It is the workbench operator's own act and is refused while any card is held.",
+      "source": "cc50b40bcf40f7a7"
     },
     "param.check.migrate-newlines.summary": {
       "text": "jede Textdatei reparieren, die einen Wagenrücklauf als Zeilenende speichert, wobei jedes Ziel zuerst mit seinen eigenen Bytes neu geschrieben wird, um die Beschreibbarkeit zu belegen; ein abgebrochener Lauf kann eine .dinah-*-Datei neben einem Anker hinterlassen, die gefahrlos gelöscht werden kann, weil sie niemand liest",
@@ -3145,6 +3295,11 @@
       "text": "jeden von einer Karte genannten Arbeitsstrang übernehmen, den diese Werkbank nicht führt",
       "context": "The meaning of the migrate-workstreams argument of `dinah check`, printed in that command's arguments table.",
       "source": "a1f0e6c7ae6251db"
+    },
+    "param.check.rehearse.summary": {
+      "text": "entscheidet die Umwandlung nach denselben Regeln, gibt denselben Bericht aus und schreibt gar nichts",
+      "context": "The written meaning of the --rehearse flag of check, which turns the designation conversion into a rehearsal.",
+      "source": "b0aaef5fcbda4109"
     },
     "param.check.remint.summary": {
       "text": "der Werkbank an diesem Pfad einen frischen Bezeichner geben",
@@ -3290,6 +3445,11 @@
       "text": "die Einheit, die Sie lesen, geschrieben als ihre Referenz",
       "context": "The meaning of the ref argument of `dinah get`, printed in that command's arguments table.",
       "source": "e7ef088ff9da9e00"
+    },
+    "param.grant.permission.summary": {
+      "text": "welche dauerhafte Berechtigung erteilt wird, geschrieben als criterion-retirement",
+      "context": "The written meaning of the permission argument of grant. criterion-retirement is machine vocabulary and is never translated.",
+      "source": "ca5b255ea3ed5c95"
     },
     "param.guide.topic.summary": {
       "text": "welchen Leitfaden Sie lesen; die Themen, wenn Sie keinen nennen",
@@ -3490,6 +3650,11 @@
       "text": "die Karten einer ausscheidenden Spalte in eine andere Spalte schicken, geschrieben als retired=destination und je ausscheidender Spalte einmal wiederholt; die linke Seite darf auch eine Spaltenkennung sein, die eine Karte noch trägt und diese Werkbank nicht mehr nennt, was `dinah check` als check.unknown-column meldet",
       "context": "The meaning of the map argument of `dinah reshape`, printed in that command's arguments table. It names `dinah check` because that is the command an operator runs to find a stranded column identifier before writing this flag.",
       "source": "be7a7c10a7313389"
+    },
+    "param.revoke.permission.summary": {
+      "text": "welche dauerhafte Berechtigung zurückgenommen wird, geschrieben als criterion-retirement",
+      "context": "The written meaning of the permission argument of revoke. criterion-retirement is machine vocabulary and is never translated.",
+      "source": "45163af002b8167c"
     },
     "param.root.summary": {
       "text": "für jede Werkbank unterhalb dieses Verzeichnisses antworten statt für die, in der Sie gerade stehen",
@@ -3696,6 +3861,16 @@
       "context": "Spliced onto refusal.dinah.add-needs-a-column as the next step wherever a workbench was resolved for this invocation, which covers every reader standing in one and every reader who named one with --workbench from somewhere else. {workbench} is the workbench directory, and naming it is what lets the reader confirm the hand edit on the workbench he was filing into. {detail} is the workbench.md path to hand-edit. The sibling entry without the flag is the alternation's unconditional last member. The command spelling is machine vocabulary and is not translated.",
       "source": "8a268bcc89e6b74f"
     },
+    "refusal.dinah.already-withdrawn": {
+      "text": "Dieser Eintrag ist bereits {detail}.",
+      "context": "The sentence printed after the refusal name dinah.already-withdrawn, which withdraw carries on an item that has already been withdrawn. {detail} is the state on disk, machine vocabulary that is never translated. refusal.dinah.already-withdrawn.next is spliced on after this one.",
+      "source": "d9260a4476751292"
+    },
+    "refusal.dinah.already-withdrawn.next": {
+      "text": " Öffne ihn zuerst wieder, falls er erneut gestellt werden soll.",
+      "context": "The next step of refusal.dinah.already-withdrawn, spliced onto the sentence that just named the item's state.",
+      "source": "e0395fffa290819d"
+    },
     "refusal.dinah.ambiguous-card": {
       "text": "mehr als eine Karte antwortet auf {detail}",
       "context": "The opening sentence printed after the refusal name dinah.ambiguous-card, naming the reference the reader typed. The candidate rows print beneath it, one 12-hex card identifier per row, and refusal.dinah.ambiguous-card.next follows as the closing line naming the way forward.",
@@ -3831,6 +4006,16 @@
       "context": "Spliced onto refusal.dinah.depth-without-root as the next step, naming the two ways past the refusal. The option name and its placeholder are machine vocabulary and are never translated.",
       "source": "75f263d80da82c60"
     },
+    "refusal.dinah.designation-required": {
+      "text": "Dieser Eintrag ist {detail}, und seine verbindliche Antwort kann nicht gelöscht werden.",
+      "context": "The sentence printed after the refusal name dinah.designation-required, which a clear of an item's answer carries on an item that is not pending. {detail} is the state on disk, machine vocabulary that is never translated. refusal.dinah.designation-required.next is spliced on after this one.",
+      "source": "f2a994c5e0647945"
+    },
+    "refusal.dinah.designation-required.next": {
+      "text": " Führe `dinah reopen` aus; das löscht die Antwort zusammen mit der erfassten Erledigung.",
+      "context": "The next step of refusal.dinah.designation-required, spliced onto the sentence that just named the item's state. dinah reopen is a command name and is not translated.",
+      "source": "55dc25809601093e"
+    },
     "refusal.dinah.directory-not-empty": {
       "text": "{detail} existiert bereits und ist nicht leer",
       "context": "The sentence printed after the refusal name dinah.directory-not-empty, raised by init when the target directory holds at least one entry and the caller did not pass --here. {detail} is the target directory.",
@@ -3870,6 +4055,16 @@
       "text": "; schieben oder löschen Sie, was dort steht, und holen Sie es dann erneut zurück",
       "context": "Spliced onto refusal.dinah.exists.restore. It names the two acts that clear the slot, and it advises neither of the two the init sentence advises, because choosing a different directory is not something a restore can do.",
       "source": "f37f3eed6582377"
+    },
+    "refusal.dinah.grant-excludes-finding": {
+      "text": "Dieses Kriterium ist {detail}, und eine dauerhafte Berechtigung reicht nicht an einen erfassten Befund heran.",
+      "context": "The sentence printed after the refusal name dinah.grant-excludes-finding, which withdraw carries when a standing authorization is the only thing admitting it and the criterion already records a finding. {detail} is the state on disk, machine vocabulary that is never translated. refusal.dinah.grant-excludes-finding.next is spliced on after this one.",
+      "source": "d3ac8f62c513f826"
+    },
+    "refusal.dinah.grant-excludes-finding.next": {
+      "text": " Das Zurückziehen eines Befunds ist die eigene Handlung des Werkbankbetreibers.",
+      "context": "The next step of refusal.dinah.grant-excludes-finding, spliced onto the sentence that just named the criterion's state.",
+      "source": "fadf3e640872491d"
     },
     "refusal.dinah.interrupted": {
       "text": "die Aktion auf {detail} wurde unterbrochen, nachdem sie festgehalten worden war",
@@ -4036,6 +4231,16 @@
       "context": "Spliced onto refusal.dinah.no-editor as the next step, carrying the clause that base entry used to end with. {detail} is the built-in list of editors to install one of.",
       "source": "7e19d158a642175a"
     },
+    "refusal.dinah.no-grant": {
+      "text": "Die Karte {detail} trägt keine dauerhafte Berechtigung.",
+      "context": "The sentence printed after the refusal name dinah.no-grant, which revoke carries over a card that has no standing authorization. {detail} is the card's reference. refusal.dinah.no-grant.next is spliced on after this one.",
+      "source": "86d46960eb64d804"
+    },
+    "refusal.dinah.no-grant.next": {
+      "text": " Es wurde nichts entzogen; `dinah grant` richtet eine solche ein.",
+      "context": "The next step of refusal.dinah.no-grant, spliced onto the sentence that just named the card. dinah grant is a command name and is not translated.",
+      "source": "47597df0da56854d"
+    },
     "refusal.dinah.no-levels": {
       "text": "diese Werkbank deklariert keine {axis}-Stufen, also gibt es keine zu setzen",
       "context": "The sentence printed after the refusal name dinah.no-levels, which a write naming an axis this workbench declares no set for carries. {axis} is that field, and it is machine vocabulary that is never translated; {detail} carries the same word. The reader is not told their level name is unknown, because every name would be. The sentence is about one axis and must not be worded as a report about the workbench as a whole. refusal.dinah.no-levels.next is spliced on after this one.",
@@ -4160,6 +4365,16 @@
       "context": "The one next step of refusal.dinah.not-commentable, printed whatever kind the reference resolved to, because the honest advice is the same for every kind that fails it.",
       "source": "16f5bd7e36e71b03"
     },
+    "refusal.dinah.not-designatable.set": {
+      "text": "Kommentar {detail} ist die verbindliche Antwort für Eintrag {item}; ihn umzuschreiben würde diesen Eintrag Worte zitieren lassen, mit denen ihn niemand erledigt hat.",
+      "context": "The sentence printed after the refusal name dinah.not-designatable when set was asked to rewrite the body of a comment a checklist item designates. {detail} is the comment's reference and {item} is the item that cites it; both are addresses rather than prose and no word of the sentence may agree with either. The shared entry beside this one is delete's, and it says the comment would be destroyed, which is not what this caller did.",
+      "source": "2960d7af9e9956ef"
+    },
+    "refusal.dinah.not-designatable.set.next": {
+      "text": " Führe `dinah reopen` für diesen Eintrag aus; das löscht die Benennung und gibt den Kommentar zur Korrektur frei. Für dieses Schreiben gibt es keine erzwungene Form, denn ein zweiter Weg an einer verbindlichen Antwort vorbei ist genau das, was diese Verweigerung verhindern soll.",
+      "context": "The next step of refusal.dinah.not-designatable.set, spliced onto the sentence that just named the comment and the item. dinah reopen is a command name and is not translated. It offers no forced form and says so, because set accepts none and a second way past this record is what the refusal exists to prevent; the shared next step beside this one offers delete's --force, which set answers dinah.usage for.",
+      "source": "959fe998f01856c6"
+    },
     "refusal.dinah.not-pending": {
       "text": "Dieser Punkt ist bereits {detail}.",
       "context": "The sentence printed after the refusal name dinah.not-pending, which resolve, verify and fail carry on an item that has already left pending. {detail} is the state on disk, machine vocabulary that is never translated. refusal.dinah.not-pending.next is spliced on after this one.",
@@ -4189,6 +4404,16 @@
       "text": " Setze einen Punkt zurück, der resolved, verified oder failed ist.",
       "context": "The next step of refusal.dinah.not-resolved, spliced onto the sentence that just named the item's state. The three state names are machine vocabulary that is never translated.",
       "source": "5ac264a582046f29"
+    },
+    "refusal.dinah.not-waivable": {
+      "text": "Dieser Eintrag ist {detail}, er hält also nichts auf.",
+      "context": "The sentence printed after the refusal name dinah.not-waivable, which waive carries on an item that is holding nothing. {detail} is the state on disk, machine vocabulary that is never translated. refusal.dinah.not-waivable.next is spliced on after this one.",
+      "source": "efd69f913a889997"
+    },
+    "refusal.dinah.not-waivable.next": {
+      "text": " Eine Freistellung lässt eine Karte an einem aufhaltenden Befund vorbei und ist daher nur bei einem pending oder failed Eintrag zulässig.",
+      "context": "The next step of refusal.dinah.not-waivable, spliced onto the sentence that just named the item's state. pending and failed are machine vocabulary and are never translated.",
+      "source": "e34d0ccff47563b3"
     },
     "refusal.dinah.observation-required": {
       "text": "Das Schema {detail} verlangt eine Beobachtung.",
@@ -4724,6 +4949,16 @@
     "refusal.dinah.workbench-boundary.next": {
       "text": "; übergeben Sie --workbench <Verzeichnis>, um eine Werkbank oberhalb der Grenze zu nennen, setzen Sie DINAH_WORKBENCH ebenso, oder führen Sie diesen Befehl außerhalb des Repositorys aus, um bis zur Laufwerkswurzel zu suchen",
       "source": "87cbc3e50ce38e9d"
+    },
+    "refusal.dinah.workbench-in-use": {
+      "text": "Die Karte {detail} wird von {owner} gehalten.",
+      "context": "The sentence printed after the refusal name dinah.workbench-in-use, which the designation conversion carries while a live card is held. {detail} is the card's reference and {owner} is who holds it. refusal.dinah.workbench-in-use.next is spliced on after this one.",
+      "source": "35c81d1de4a8b36e"
+    },
+    "refusal.dinah.workbench-in-use.next": {
+      "text": " Die Umwandlung sperrt jeden älteren Build aus und läuft daher, wenn niemand mitten in einer Karte steckt; bitte diesen Akteur um Freigabe oder führe sie erneut mit --force-claims aus.",
+      "context": "The next step of refusal.dinah.workbench-in-use, spliced onto the sentence that just named the card and its holder. --force-claims is a flag name and is not translated.",
+      "source": "6a5ae7823383f449"
     },
     "refusal.dinah.workbench-not-applicable": {
       "text": "Dinah verwendet {source} hier nicht: init legt eine neue Werkbank an, statt die zu öffnen, die {source} nennt ({detail}).",
@@ -5752,14 +5987,14 @@
       "source": "b15c1e9bd4b89835"
     },
     "refusal.dinah.store-awaiting-migration": {
-      "text": "Die Werkbank unter {detail} verzeichnet die Antwort eines Checklisteneintrags noch als Notiz, die Dinah nicht mehr liest.",
-      "context": "The sentence printed after the refusal name dinah.store-awaiting-migration, which every read of a workbench below the resolution format raises. {detail} is the workbench's own path. The refusal exists because a reader that carried on would report every settled item as carrying no answer, which is a false reading rather than a degraded one.",
-      "source": "3a33736cd1eb7a2"
+      "text": "Die Werkbank unter {detail} erfasst die Antwort eines Checklisteneintrags in einer Form, die dieser Build nicht mehr liest.",
+      "context": "The sentence printed after the refusal name dinah.store-awaiting-migration, which every read of a workbench below the current format raises. {detail} is the workbench's own path. The refusal exists because a reader that carried on would report the store's answers wrongly rather than incompletely, which is a false reading rather than a degraded one.",
+      "source": "b67f3c4f6fa7a7c6"
     },
     "refusal.dinah.store-awaiting-migration.next": {
-      "text": " Legen Sie eine Sicherung an, führen Sie dann dinah-migrate-notes über diese Werkbank aus und lesen Sie deren Bericht, bevor Sie sie wieder benutzen.",
-      "context": "The next step of refusal.dinah.store-awaiting-migration. dinah-migrate-notes is the migration program's own name and is not translated. The backup is named first because the migration writes in place and cannot undo itself.",
-      "source": "f1da4955b4ea13a"
+      "text": " Lege eine Sicherung an und führe dann `dinah check --migrate-designations` gegen diese Werkbank aus; eine, die eine Antwort noch als Notiz erfasst, braucht davor dinah-migrate-notes.",
+      "context": "The next step of refusal.dinah.store-awaiting-migration. dinah-migrate-notes is the migration program's own name and dinah check --migrate-designations is a command line; neither is translated, and the command line is the one invocation the sentence carries, so a reader following it types that and nothing else. The backup is named first because both migrations write in place and neither can undo itself.",
+      "source": "cb34d7dd84da0e31"
     },
     "check.comment-body-diverged": {
       "text": "Der Text des Kommentars {detail} stimmt nicht mehr mit der Pruefsumme ueberein, die Dinah darueber aufgezeichnet hat",

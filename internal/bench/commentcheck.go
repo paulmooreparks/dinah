@@ -43,6 +43,17 @@ const (
 	// clears the designation, so this is the residue of a hand edit or of a
 	// removal outside the tool.
 	FindingDanglingResolution = "check.dangling-resolution"
+	// FindingDesignationMissing names a checklist item standing in a settled
+	// state and carrying no answer of record. The designation conversion
+	// leaves such an item behind wherever the card's history could not say
+	// which comment the answer meant, and the operator ruled that it is left
+	// unanswered rather than having somebody's best guess written down.
+	//
+	// It is reported for as long as the set exists, because a run's report
+	// scrolls away and the set is what a person has to go back and answer.
+	// Re-answering is the ordinary route with its ordinary authority: reopen
+	// the item and settle it again with a designated comment.
+	FindingDesignationMissing = "check.designation-missing"
 )
 
 // The two severities a finding carries. The set is closed, and an empty
@@ -184,24 +195,43 @@ func commentBodyFindings(comment *Comment, reference string, designated bool) []
 // it, so the ordinal at the end of the reference is a position in this one
 // collection and the rest of the reference is the item the check already has.
 func (b *Bench) commentDirOf(item *Item, resolution string) (string, bool) {
-	ordinal, ok := trailingOrdinal(resolution)
-	if !ok {
-		return "", false
-	}
-	comments, err := Comments(item.Dir)
-	if err != nil {
-		return "", false
-	}
-	for _, comment := range comments {
-		if comment.Ordinal == ordinal {
-			return comment.Dir, true
+	// The stored value is the designated comment's own identifier since
+	// DesignationFormat, so the lookup is a comparison of directory names
+	// with nothing to resolve and nothing to go stale. Both halves are
+	// searched, because archiving a designated comment stays permitted and
+	// the item goes on citing it wherever it now lives.
+	for _, holder := range []string{item.Dir, filepath.Join(item.Dir, ArchiveDir)} {
+		comments, err := Comments(holder)
+		if err != nil {
+			continue
+		}
+		for _, comment := range comments {
+			if comment.ID == resolution {
+				return comment.Dir, true
+			}
 		}
 	}
 	return "", false
 }
 
+// DesignatedCommentDir finds the directory of the comment an item designates
+// as its answer of record, in either half of that item's comments.
+//
+// It is commentDirOf under an exported name, because the readers outside this
+// package ask the same question and a second implementation of it is how a
+// stored key comes to mean two things. The check finding, the view that serves
+// the comment and the view that composes its reference all come through here.
+func (b *Bench) DesignatedCommentDir(item *Item) (string, bool) {
+	if item == nil || item.Resolution == "" {
+		return "", false
+	}
+	return b.commentDirOf(item, item.Resolution)
+}
+
 // trailingOrdinal reads the number at the end of a reference, which on a
-// designation is the comment's position among the item's own comments.
+// designation written before DesignationFormat is the comment's position
+// among the item's own comments. The designation conversion is the one reader
+// left, and it reads a store the conversion has not reached yet.
 func trailingOrdinal(ref string) (int, bool) {
 	last := ref
 	if i := lastSlash(ref); i >= 0 {
@@ -231,6 +261,47 @@ func lastSlash(ref string) int {
 		}
 	}
 	return -1
+}
+
+// checkMissingDesignations reports every checklist item of a card standing in
+// a settled state and carrying no answer of record.
+//
+// The population it exists for is the one the designation conversion leaves
+// behind. Where a card's history could not say which comment an answer meant,
+// the operator ruled that the item is left unanswered rather than having
+// somebody's best guess written down as a recorded ruling, and what such an
+// item loses is its answer of record. It must not lose that quietly once the
+// conversion's report has scrolled away, so the set stays visible on demand
+// for as long as it exists.
+//
+// Both halves of the checklist are walked, because an archived item settled
+// without an answer says the same thing a live one says and the conversion
+// reaches both.
+//
+// It is a cleanup rather than a defect. Nothing depends on the key: every hold
+// reads an item's state, its kind or its column, and none reads the answer, so
+// an item carrying none holds exactly what it held before and releases exactly
+// what it released before.
+func (b *Bench) checkMissingDesignations(card *Card) ([]Finding, error) {
+	var findings []Finding
+	for _, holder := range []string{card.Dir, filepath.Join(card.Dir, ArchiveDir)} {
+		items, err := Items(holder)
+		if err != nil {
+			continue
+		}
+		for _, item := range items {
+			if !ItemOwesDesignation(item) {
+				continue
+			}
+			findings = append(findings, Finding{
+				Path:     filepath.Join(item.Dir, ItemAnchor),
+				Key:      FindingDesignationMissing,
+				Detail:   item.State,
+				Severity: SeverityCleanup,
+			})
+		}
+	}
+	return findings, nil
 }
 
 // checkRetiredNotes reports every checklist item still carrying the note key

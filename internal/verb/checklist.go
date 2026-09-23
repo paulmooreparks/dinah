@@ -168,6 +168,123 @@ func (l *Library) Fail(req *Request) *Response {
 	return l.closeItem(req, contract.EventItemFailed, bench.ItemFailed)
 }
 
+// Waive lands an item at waived, which records that the finding the item
+// carries stands and that the workbench operator has decided the card may
+// proceed regardless.
+//
+// It is refused to everybody but the operator, whatever the item's owner key
+// says, and the guard never reads the owner. A waiver is permission to
+// proceed past a real finding, and the move-level override that carries a
+// card past such a finding today is already the operator's alone. An agent
+// that could waive its own failed criterion would make the gate worth
+// nothing.
+//
+// Two checks closeItem runs are deliberately absent. The kind check does not
+// apply, because the gate reads no kind, so an item of any kind can hold a
+// card and an item of any kind can need waiving. The citation obligation does
+// not apply either: a waiver is precisely the case where no check was run or
+// the check did not hold, so demanding evidence would make the state
+// unreachable exactly where it is most needed.
+func (l *Library) Waive(req *Request) *Response {
+	return l.withItem(req, func(entity *itemTarget) (*bench.Event, *Response) {
+		if req.Actor != l.Bench.Operator {
+			return nil, l.refuse(req, entity.card, contract.NotOperator, req.Actor)
+		}
+		// A waiver lifts a hold, so it is legal only from a state that is
+		// holding. Waiving from pending is legal rather than requiring a
+		// fail first: the operator may decide a check need not be run on
+		// this card at all, and forcing him to record a failure nobody
+		// observed would put a false finding on the record to reach a true
+		// permission.
+		switch entity.item.State {
+		case bench.ItemPending, bench.ItemFailed:
+		default:
+			return nil, l.refuse(req, entity.card, contract.NotWaivable, entity.item.State)
+		}
+		resolution, refused := l.admitDesignation(req, entity)
+		if refused != nil {
+			return nil, refused
+		}
+		prior := entity.item.State
+		entity.fm.Set(bench.ItemStateField, bench.ItemWaived)
+		entity.fm.Set(bench.ItemResolutionField, resolution)
+		return &bench.Event{
+			Actor: req.Acting(),
+			Event: contract.EventItemWaived,
+			From:  prior,
+			To:    bench.ItemWaived,
+		}, nil
+	})
+}
+
+// Withdraw lands an item at withdrawn, which records that the question the
+// item carries stopped being a question, usually because the card changed
+// underneath it.
+//
+// Two guards run rather than one. The kind guard refuses a withdrawal of an
+// acceptance criterion to everybody but the operator, whatever the item's
+// state and whatever its owner key says, unless the card carries a standing
+// criterion-retirement grant. Without it the card's own argument collapses:
+// every acceptance criterion on a working workbench is stamped for its
+// holder, so an agent holding a card whose criterion stood failed could
+// withdraw it and walk the card through the gate with nobody having decided
+// anything.
+//
+// The guard is on the kind rather than on the failed state alone, because a
+// state guard leaks through reopen. Nothing about reopen changes an item's
+// kind, so a kind guard cannot be composed around.
+//
+// The owner guard is the one the three terminal verbs already run, and the
+// grant does not reach it: a criterion the operator owns stays his alone.
+//
+// Withdrawing an item that already carries a resolution overwrites that key
+// with the withdrawal's own designation. The comment the item previously
+// designated stays where it is and the journal carries the earlier settling,
+// so nothing is destroyed; the key means the comment recording why the item
+// is in the state it is in, and after a withdrawal the state is withdrawn.
+func (l *Library) Withdraw(req *Request) *Response {
+	return l.withItem(req, func(entity *itemTarget) (*bench.Event, *Response) {
+		if entity.item.State == bench.ItemWithdrawn {
+			return nil, l.refuse(req, entity.card, contract.AlreadyWithdrawn, entity.item.State)
+		}
+		granted := false
+		if req.Actor != l.Bench.Operator {
+			if entity.fm.Value(bench.ItemOwnerField) == bench.ItemOwnerOperator {
+				return nil, l.refuse(req, entity.card, contract.NotOperator, req.Actor)
+			}
+			if entity.item.Kind == criterionKind {
+				if entity.card.RetirementGrant == "" {
+					return nil, l.refuse(req, entity.card, contract.NotOperator, req.Actor)
+				}
+				// The grant admits the retirement of a criterion nobody
+				// has found anything wrong with. A finding that exists is
+				// the operator's to retire, and the exclusion is keyed on
+				// the two states a non-operator can neither reach nor
+				// leave, which is what makes a state key durable here.
+				switch entity.item.State {
+				case bench.ItemFailed, bench.ItemWaived:
+					return nil, l.refuse(req, entity.card, contract.GrantExcludesFinding, entity.item.State)
+				}
+				granted = true
+			}
+		}
+		resolution, refused := l.admitDesignation(req, entity)
+		if refused != nil {
+			return nil, refused
+		}
+		prior := entity.item.State
+		entity.fm.Set(bench.ItemStateField, bench.ItemWithdrawn)
+		entity.fm.Set(bench.ItemResolutionField, resolution)
+		return &bench.Event{
+			Actor: req.Acting(),
+			Event: contract.EventItemWithdrawn,
+			From:  prior,
+			To:    bench.ItemWithdrawn,
+			Grant: granted,
+		}, nil
+	})
+}
+
 // closeItem is the body the three terminal verbs share. The landing state is
 // fixed by the item's own kind rather than chosen by the caller, which is why
 // there are three verbs rather than one taking a state.
@@ -227,6 +344,31 @@ func (l *Library) Reopen(req *Request) *Response {
 		if entity.item.State == bench.ItemPending {
 			return nil, l.refuse(req, entity.card, contract.NotResolved, entity.item.State)
 		}
+		// Reopen is refused to anybody but the operator in three cases, and
+		// stays open to everybody in every other one. The reasoning this
+		// verb was built on, that reopening can only re-impose a hold and
+		// never lift one, was true when it was written and is false now, so
+		// the guard follows the reasoning rather than the sentence.
+		//
+		// The two state cases are what make the criterion-retirement grant's
+		// own exclusion durable. With reopen open to everybody, a
+		// non-operator returned a criterion from failed to pending and the
+		// grant then admitted the withdrawal, so a finding was released in
+		// two commands.
+		//
+		// The owner case is the rule the three terminal verbs already keep,
+		// applied to the one verb that was left out of it: reopening an
+		// operator-owned question un-answers his ruling and clears the
+		// designation recording it, which is not a hold being re-imposed.
+		if req.Actor != l.Bench.Operator {
+			switch entity.item.State {
+			case bench.ItemFailed, bench.ItemWaived:
+				return nil, l.refuse(req, entity.card, contract.NotOperator, req.Actor)
+			}
+			if entity.fm.Value(bench.ItemOwnerField) == bench.ItemOwnerOperator {
+				return nil, l.refuse(req, entity.card, contract.NotOperator, req.Actor)
+			}
+		}
 		reason := strings.TrimSpace(req.Reason)
 		if reason == "" {
 			return nil, l.refuse(req, entity.card, contract.Malformed, "reason")
@@ -245,7 +387,8 @@ func (l *Library) Reopen(req *Request) *Response {
 }
 
 // Settle lands an item at the state the caller names, becoming whichever of
-// Resolve, Verify, Fail or Reopen that state selects and running exactly
+// Resolve, Verify, Fail, Waive, Withdraw or Reopen that state selects and
+// running exactly
 // that verb's own checks in exactly that verb's own order from that point
 // on. The state choice is the only thing this function decides for itself;
 // every other precondition, including the operator-owned-item guard, the
@@ -267,6 +410,10 @@ func (l *Library) Settle(req *Request) *Response {
 		return l.Verify(req)
 	case bench.ItemFailed:
 		return l.Fail(req)
+	case bench.ItemWaived:
+		return l.Waive(req)
+	case bench.ItemWithdrawn:
+		return l.Withdraw(req)
 	case bench.ItemPending:
 		return l.Reopen(req)
 	case "":
@@ -473,6 +620,13 @@ func (l *Library) mintDesignation(req *Request, entity *itemTarget) (string, *Re
 // the canonical reference rather than the caller's spelling, so two callers
 // typing one comment two ways record one value.
 func (l *Library) designationOf(req *Request, entity *itemTarget, named string) (string, *Response) {
+	// A bare identifier is a member selector inside this item's own comments
+	// rather than a whole reference, so it is composed under the item before
+	// the resolver sees it. Both forms reach the same comment and both store
+	// the same identifier.
+	if bench.IsID(named) {
+		named = entity.ref + "/" + bench.CommentsDir + "/" + named
+	}
 	found, err := l.Bench.ResolveEntity(named)
 	if err != nil {
 		return "", l.refuse(req, entity.card, contract.NotADesignation, named)
@@ -499,24 +653,23 @@ func sameDir(a, b string) bool {
 	return filepath.Clean(a) == filepath.Clean(b)
 }
 
-// designationRef composes the canonical reference of one comment of one item:
-// the card's reference, the item's kind word and its position among the items
-// of that kind, then comments and the comment's own position.
+// designationRef answers the value a settling stores as the item's answer of
+// record, which is the designated comment's own 12-hex identifier.
 //
-// It counts the way the read counts, through the kind positions of the whole
-// checklist and memberPosition over the unfiltered collection, so the
-// reference a settling stores is the one dinah show prints for that comment
-// rather than a second spelling arrived at independently.
+// It used to compose a positional reference, and a position is not an
+// identity. Archiving any earlier comment of the item renumbers the survivors,
+// so the stored reference came to name a different comment and the item went
+// on citing an answer nobody had written for it; deleting one reached the same
+// place and left no archive behind to notice. The identifier is minted when
+// the comment is written and is never rewritten by anything.
+//
+// The identifier is read out of the comment's own directory name, which is
+// what it is, rather than resolved: the key sits on the item, a designation
+// names a comment of that same item, and designationOf refuses anything else,
+// so the item's own comments are the scope the identifier is read in and no
+// path is needed to disambiguate it.
 func (l *Library) designationRef(entity *itemTarget, commentDir string) (string, error) {
-	holder, err := l.itemCanonicalRef(entity.card, entity.item.ID)
-	if err != nil {
-		return "", err
-	}
-	ordinal, err := memberPosition(commentDir, bench.CommentAnchor)
-	if err != nil {
-		return "", err
-	}
-	return commentRef(holder, ordinal), nil
+	return filepath.Base(commentDir), nil
 }
 
 // itemCanonicalRef composes the reference a person types to reach one item of

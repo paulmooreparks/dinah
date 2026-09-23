@@ -110,7 +110,7 @@ func namesVariable(names []string, want string) bool {
 
 // benchDefinition is the smallest bench check can be run against.
 const benchDefinition = `---
-format: 6
+format: 7
 profile: dinah-core/0.7
 title: Fixture
 slug: fx
@@ -140,7 +140,7 @@ Column text.
 // fixture whose subject is an older format derives one from benchDefinition
 // by replacing the literal, which is what the container tests do.
 var registryBenchDefinition = strings.Replace(
-	benchDefinition, "format: 6", "format: "+strconv.Itoa(StorageFormat), 1)
+	benchDefinition, "format: 7", "format: "+strconv.Itoa(StorageFormat), 1)
 
 // cleanCard is a card carrying no defect, which every case below breaks in
 // exactly one way. Its number lives in the registry line newFixture writes
@@ -2717,7 +2717,7 @@ func TestCheckReportsEveryItemColumnThatCannotHoldACard(t *testing.T) {
 // what it answered. This helper is for the cases that want to read past it.
 func openFixtureAtAnyFormat(t *testing.T, root string) (*Bench, error) {
 	t.Helper()
-	if declared, declares := declaredFormat(root); declares && declared < ResolutionFormat {
+	if declared, declares := declaredFormat(root); declares && declared < DesignationFormat {
 		return OpenAwaitingResolution(root)
 	}
 	return Open(root)

@@ -54,8 +54,8 @@ func TestTheMachineHeadAnswersACollectionAsTheTerminalDoes(t *testing.T) {
 		names = append(names, command)
 	}
 	sort.Strings(names)
-	if len(names) != 18 {
-		t.Fatalf("this head serves %d of the twenty reference-taking commands and it serves eighteen: %s", len(names), strings.Join(names, " "))
+	if len(names) != 20 {
+		t.Fatalf("this head serves %d of the twenty-two reference-taking commands and it serves twenty: %s", len(names), strings.Join(names, " "))
 	}
 	for _, held := range []string{"path", "edit"} {
 		if _, exempt := toolExemptions[held]; !exempt {
@@ -84,6 +84,8 @@ func TestTheMachineHeadAnswersACollectionAsTheTerminalDoes(t *testing.T) {
 		"resolve":           `{"actor":"alka","item":"fx-1/comments","text":"an answer"}`,
 		"verify":            `{"actor":"alka","item":"fx-1/comments","text":"an answer"}`,
 		"fail":              `{"actor":"alka","item":"fx-1/comments","text":"an answer"}`,
+		"waive":             `{"actor":"alka","item":"fx-1/comments","text":"an answer"}`,
+		"withdraw":          `{"actor":"alka","item":"fx-1/comments","text":"an answer"}`,
 		"reopen":            `{"actor":"alka","item":"fx-1/comments","reason":"a reason"}`,
 		"settle":            `{"actor":"alka","item":"fx-1/comments","state":"resolved","text":"an answer"}`,
 		"get":               `{"actor":"alka","ref":"fx-1/comments","field":"body"}`,
@@ -143,8 +145,8 @@ func TestTheMachineHeadAnswersACollectionAsTheTerminalDoes(t *testing.T) {
 		}
 		answered++
 	}
-	t.Logf("eighteen tools called: %d answered, %d refused with %s", answered, refused, contract.IsACollection)
-	if answered != 1 || refused != 17 {
-		t.Fatalf("the sweep answered %d and refused %d, and the split is one and seventeen", answered, refused)
+	t.Logf("twenty tools called: %d answered, %d refused with %s", answered, refused, contract.IsACollection)
+	if answered != 1 || refused != 19 {
+		t.Fatalf("the sweep answered %d and refused %d, and the split is one and nineteen", answered, refused)
 	}
 }

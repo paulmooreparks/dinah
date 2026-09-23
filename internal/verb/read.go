@@ -1146,13 +1146,21 @@ type ItemView struct {
 	// Text is the item's own body: the judgement it records, unchanged from
 	// when it was filed.
 	Text string `json:"text"`
-	// Resolution is the canonical reference of the comment this item's
-	// settling designated as its answer, absent while the item is pending
-	// and absent whenever an item on disk designates none. Both reads carry
-	// it, because it costs the item's own anchor and nothing further: a
-	// reader of the indexed checklist learns that an answer exists and what
-	// to type to reach it, without a single comment being opened.
+	// Resolution is the reference a person types to reach the comment this
+	// item's settling designated as its answer, absent while the item is
+	// pending and absent whenever an item on disk designates none.
+	//
+	// It is composed at the moment of the read from the identifier the item
+	// stores, rather than read off the anchor, so what a reader sees is
+	// typeable and is always correct when they see it. The stored value is
+	// the comment's own identifier, which does not shift when an earlier
+	// comment is archived; the position does, which is why the composition
+	// happens here and not once at write time.
 	Resolution string `json:"resolution,omitempty"`
+	// ResolutionID is the identifier itself, so a machine reader holds the
+	// durable handle rather than recomposing a position it would then have
+	// to trust. It is present exactly when Resolution is.
+	ResolutionID string `json:"resolution_id,omitempty"`
 	// Designated is the comment Resolution names, opened and carried only by
 	// the full read. The indexed read leaves it nil, which is the property
 	// the read is built to rather than trimmed into: a shape that filled
@@ -1734,16 +1742,17 @@ func (l *Library) detailOf(card *bench.Card, chosen detailSelection, filters det
 			return nil, "", err
 		}
 		view := ItemView{
-			ID:         item.ID,
-			Ordinal:    position,
-			Kind:       item.Kind,
-			State:      item.State,
-			Column:     item.Column,
-			Owner:      item.Owner,
-			Text:       item.Text,
-			Resolution: item.Resolution,
+			ID:      item.ID,
+			Ordinal: position,
+			Kind:    item.Kind,
+			State:   item.State,
+			Column:  item.Column,
+			Owner:   item.Owner,
+			Text:    item.Text,
 		}
 		view.Ref = itemRef(cardRef, item.Kind, kindPosition[item.Kind], position)
+		view.ResolutionID = item.Resolution
+		view.Resolution = l.designationReference(view.Ref, item)
 		// The designated comment is opened only where the caller asked for
 		// the checklist in full. This is the one line that decides whether
 		// dinah show opens thirty-three further files or none of them, and
@@ -1751,7 +1760,7 @@ func (l *Library) detailOf(card *bench.Card, chosen detailSelection, filters det
 		// filled the field and cleared it afterwards would have paid the
 		// opens either way.
 		if chosen.full("checklist") {
-			designated, err := l.designatedComment(item)
+			designated, err := l.designatedComment(item, view.Resolution)
 			if err != nil {
 				return nil, "", err
 			}
@@ -2051,6 +2060,33 @@ func commentRef(cardRef string, ordinal int) string {
 	return cardRef + "/" + bench.CommentsDir + "/" + strconv.Itoa(ordinal)
 }
 
+// designationReference composes the reference a reader types to reach the
+// comment an item designates, from the identifier the item stores.
+//
+// It answers the empty string for an item designating nothing and for one
+// whose stored identifier reaches no comment of that item, which is a
+// designation dinah check reports under check.dangling-resolution rather than
+// a reason to refuse somebody the card.
+//
+// An archived comment is reached and named by its position among the archived
+// members, on the terms the resolver already addresses the archived half: the
+// item goes on citing the comment wherever it now lives, which is what
+// archiving a designated comment has always been allowed to do.
+func (l *Library) designationReference(itemRef string, item *bench.Item) string {
+	if item.Resolution == "" {
+		return ""
+	}
+	dir, found := l.Bench.DesignatedCommentDir(item)
+	if !found {
+		return ""
+	}
+	ordinal, err := memberPosition(dir, bench.CommentAnchor)
+	if err != nil {
+		return ""
+	}
+	return commentRef(itemRef, ordinal)
+}
+
 // designatedComment opens the comment an item's resolution names and reports
 // it for the full checklist read, or nil where the item designates nothing.
 //
@@ -2065,17 +2101,22 @@ func commentRef(cardRef string, ordinal int) string {
 // terms an item carrying a level this workbench no longer declares is still
 // shown; a designation pointing at a comment that is gone is dinah check's
 // finding to report and not a reason to refuse somebody the card.
-func (l *Library) designatedComment(item *bench.Item) (*DesignatedComment, error) {
+func (l *Library) designatedComment(item *bench.Item, ref string) (*DesignatedComment, error) {
 	if item.Resolution == "" {
 		return nil, nil
 	}
-	view := &DesignatedComment{Ref: item.Resolution}
-	found, err := l.Bench.ResolveEntity(item.Resolution)
-	if err != nil || found.Kind != bench.KindComment {
+	// The reference the view carries is the one composed for this read, so a
+	// reader who copies it reaches the comment. The composition happened
+	// beside the item's own reference a few lines above and is passed in
+	// rather than done twice, because two spellings of one address is what
+	// this whole change exists to end.
+	view := &DesignatedComment{Ref: ref}
+	dir, found := l.Bench.DesignatedCommentDir(item)
+	if !found {
 		return view, nil
 	}
-	l.observe(ObserveDesignatedComment, found.Dir)
-	fm, body, err := bench.ReadCommentAnchor(found.Dir)
+	l.observe(ObserveDesignatedComment, dir)
+	fm, body, err := bench.ReadCommentAnchor(dir)
 	if err != nil {
 		return view, nil
 	}
@@ -2697,6 +2738,13 @@ type CheckReport struct {
 	// the terms MigratedBranches is one: absent where the flag was not asked
 	// for, and present with its own preview marker where it was.
 	MigratedNewlines *bench.NewlineMigration `json:"migrated_newlines,omitempty"`
+	// MigratedDesignations is the designation conversion's own account of the
+	// run, and is absent from a request that did not ask for it. It carries
+	// its own entries rather than raising them as findings, on the terms
+	// MigratedBranches states: a caller that discarded the report on an error
+	// path would show an operator one word and none of the items whose answer
+	// the run could not recover.
+	MigratedDesignations *bench.DesignationMigration `json:"migrated_designations,omitempty"`
 }
 
 // Check checks the bench for structural defects, and repairs nothing unless a
@@ -2839,6 +2887,18 @@ func (l *Library) Check(req *Request) (*CheckReport, error) {
 			return report, err
 		}
 	}
+	// The designation conversion runs after the repairs that rebuild a
+	// store's own bookkeeping and before the renumber, which is the order the
+	// parameter table declares the flags in. Its two refusals are raised
+	// before it reads anything, because both are about whether this is a
+	// moment to convert at all rather than about what it would find.
+	if req != nil && req.MigrateDesignations {
+		migrated, err := l.migrateDesignations(req)
+		report.MigratedDesignations = migrated
+		if err != nil {
+			return report, err
+		}
+	}
 	if req != nil && req.Renumber {
 		if !req.Confirm {
 			return report, contract.Refuse(contract.Unconfirmed, "--renumber")
@@ -2886,6 +2946,70 @@ func (l *Library) Check(req *Request) (*CheckReport, error) {
 	return report, nil
 }
 
+// migrateDesignations runs the conversion, or its rehearsal, after the two
+// refusals that decide whether this is a moment to convert at all.
+//
+// The order of the refusals is the order of the questions. Who is running it
+// is settled first, because the rehearsal is the form an agent may run and
+// everything below it is about the converting form alone. Then whether
+// anything else is mid-card, which is the concrete form of the operator's own
+// rule that he runs this when no other session is working: it is a question
+// the tool answers by reading each live card's own holder rather than an
+// instruction a person has to remember.
+//
+// A rehearsal skips both. It writes nothing, so neither refusal has anything
+// to protect, and the rehearsal being runnable during active work is the whole
+// of what makes it useful.
+func (l *Library) migrateDesignations(req *Request) (*bench.DesignationMigration, error) {
+	if !req.Rehearse && req.Actor != l.Bench.Operator {
+		return nil, contract.Refuse(contract.NotOperator, req.Actor)
+	}
+	if req.ForceClaims && req.Actor != l.Bench.Operator {
+		return nil, contract.Refuse(contract.NotOperator, req.Actor)
+	}
+	var passed []bench.ClaimedCard
+	if !req.Rehearse {
+		claimed, err := l.Bench.ClaimedCards()
+		if err != nil {
+			return nil, err
+		}
+		if len(claimed) > 0 && !req.ForceClaims {
+			return nil, bench.DesignationRefusalWorkbenchInUse(claimed[0])
+		}
+		passed = claimed
+	}
+	now := bench.Stamp(l.Now())
+	migrated, err := l.Bench.MigrateDesignations(req.Acting(), now, !req.Rehearse)
+	if migrated != nil {
+		migrated.PassedClaims = passed
+		migrated.Forced = req.ForceClaims && !req.Rehearse
+	}
+	if err != nil {
+		return migrated, err
+	}
+	// The forced run's own account goes to the workbench's journal, carrying
+	// every claim the operator judged dead, so the judgement is nameable
+	// afterwards. A run carrying the flag on a workbench where nothing was
+	// claimed writes it too, carrying no card, so the flag is never a silent
+	// no-op.
+	if req.ForceClaims && !req.Rehearse {
+		names := make([]string, 0, len(passed))
+		for _, card := range passed {
+			names = append(names, card.Ref)
+		}
+		ev := bench.Event{
+			TS:    now,
+			Event: contract.EventDesignationsMigrated,
+			Actor: req.Acting(),
+			Cards: names,
+		}
+		if err := bench.AppendEvent(l.Bench.JournalPath(), ev); err != nil {
+			return migrated, err
+		}
+	}
+	return migrated, nil
+}
+
 // stampOutcome records the report's own outcome from the findings it has
 // gathered. Call it at each point the report leaves Check with no error, and
 // call it after every branch that can still append to Findings has run, since
@@ -2912,7 +3036,10 @@ func (r *CheckReport) migrationsClean() bool {
 	if r.MigratedBranches != nil && !r.MigratedBranches.Clean() {
 		return false
 	}
-	return r.MigratedNewlines == nil || r.MigratedNewlines.Clean()
+	if r.MigratedNewlines != nil && !r.MigratedNewlines.Clean() {
+		return false
+	}
+	return r.MigratedDesignations == nil || r.MigratedDesignations.Clean()
 }
 
 // adoptWorkstreams creates a workstream at every identifier the live cards

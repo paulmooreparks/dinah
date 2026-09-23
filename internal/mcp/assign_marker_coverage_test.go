@@ -60,8 +60,8 @@ func TestAssignMarkerCoversEveryPublishedMarker(t *testing.T) {
 	}
 	sort.Strings(names)
 	t.Logf("%d tools walked, %d distinct markers swept: %v", walked, len(names), names)
-	if len(names) != 24 {
-		t.Fatalf("swept %d markers, wanted 24 (twenty-two already wired plus full-pending and brief, dinah-573)", len(names))
+	if len(names) != 27 {
+		t.Fatalf("swept %d markers, wanted 27 (twenty-four already wired plus migrate-designations, rehearse and force-claims, dinah-472)", len(names))
 	}
 
 	// Each marker is exercised for real, through assignMarker itself, rather
