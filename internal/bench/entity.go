@@ -492,35 +492,77 @@ func RestoreTarget(dir string) string {
 // name.
 const WorkstreamRefPrefix = "workstream/"
 
-// resolveWorkstreamRef resolves a reference that names the workstream kind.
-// The second return value reports whether the reference named that kind at all,
-// which is what tells ResolveEntity to stop rather than fall through to the
-// columns and the cards: a caller who wrote workstream/ meant a workstream, so
-// a name no workstream answers to is refused here rather than reported as an
-// unknown card.
-func (b *Bench) resolveWorkstreamRef(half ResolutionHalf, ref string) (*EntityRef, bool, error) {
-	rest, named := strings.CutPrefix(ref, WorkstreamRefPrefix)
+// resolveWorkstreamRef resolves a reference that names the workstream kind,
+// either the workstream itself or something the workstream contains. The third
+// return value reports whether the reference named that kind at all, which is
+// what tells ResolveEntity to stop rather than fall through to the columns and
+// the cards: a caller who wrote workstream/ meant a workstream, so a name no
+// workstream answers to is refused here rather than reported as an unknown
+// card.
+//
+// The collection is returned alongside the entity because a reference stopping
+// on workstream/<slug>/attachments names a whole collection rather than an
+// entity, and this function is the only place that landing can be built for a
+// workstream head.
+func (b *Bench) resolveWorkstreamRef(half ResolutionHalf, ref string) (*EntityRef, *CollectionRef, bool, error) {
+	handle, below, named := WorkstreamHandle(ref)
 	if !named {
-		return nil, false, nil
+		return nil, nil, false, nil
 	}
-	// The whole reference goes to the resolver, on the reasoning
-	// ResolvePath's workstream arm gives: WorkstreamByRef strips the prefix
-	// itself, so handing it the remainder would strip twice.
-	workstream, err := b.workstreamByRefIn(half, ref)
+	// The half is headHalf's answer rather than the caller's, which is the
+	// rule every other head in this resolver already follows: the head is the
+	// reference's deepest collection step only when nothing below it names a
+	// collection, so workstream/<slug> under --archived reads the archived
+	// workstreams root while workstream/<slug>/attachments resolves the
+	// workstream live and reads the mirror at the collection step.
+	workstream, err := b.workstreamByRefIn(headHalf(half, below), handle)
 	if err != nil {
-		return nil, true, err
+		return nil, nil, true, err
 	}
 	if workstream == nil {
-		return nil, true, contract.Refuse(contract.UnknownWorkstream, rest)
+		// The handle alone is named, whatever follows it, because a caller
+		// who wrote workstream/ meant a workstream and the tail is not what
+		// went wrong.
+		return nil, nil, true, contract.Refuse(contract.UnknownWorkstream, strings.TrimPrefix(handle, WorkstreamRefPrefix))
 	}
-	entity := &EntityRef{
-		Kind:     KindWorkstream,
-		Dir:      workstream.Dir,
-		ID:       workstream.ID,
-		Ref:      workstream.Ref(),
+	if below == "" {
+		entity := &EntityRef{
+			Kind:     KindWorkstream,
+			Dir:      workstream.Dir,
+			ID:       workstream.ID,
+			Ref:      workstream.Ref(),
+			Archived: half == ArchivedHalf,
+		}
+		return entity, nil, true, nil
+	}
+	landed := &landing{}
+	path, err := descend(workstream.Dir, KindWorkstream, strings.Split(below, "/"), nil, landed, half)
+	if err != nil {
+		return nil, nil, true, err
+	}
+	if landed.collection {
+		collection, err := b.collectionAt(half, ref, landed)
+		if err != nil {
+			return nil, nil, true, err
+		}
+		return nil, collection, true, nil
+	}
+	kind, known := KindOfAnchor(filepath.Base(path))
+	if !known {
+		return nil, nil, true, contract.Refuse(contract.UnknownPath, below)
+	}
+	dir := filepath.Dir(path)
+	composed, err := b.refBelowHead(half, KindWorkstream, workstream.Ref(), workstream.Dir, dir)
+	if err != nil {
+		return nil, nil, true, err
+	}
+	return &EntityRef{
+		Kind:     kind,
+		Dir:      dir,
+		ID:       filepath.Base(dir),
+		Ref:      composed,
 		Archived: half == ArchivedHalf,
-	}
-	return entity, true, nil
+	}, nil, true, nil
 }
 
 // MoveEntity carries an entity's whole directory to another path, history and

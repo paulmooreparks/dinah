@@ -373,7 +373,7 @@ func TestTheReferencesGuideNamesTheCommandsThatTakeAWorkstream(t *testing.T) {
 	if len(roster) == 0 {
 		t.Fatal("no command points at the references guide, so this check read nothing")
 	}
-	named := backtickedCommandsIn(foldedGuideParagraphStartingWith(t, "Nine commands take a workstream:"), roster)
+	named := backtickedCommandsIn(foldedGuideParagraphStartingWith(t, "Ten commands take a workstream:"), roster)
 	reached := map[string]bool{}
 	probed, refused := 0, 0
 	for at, name := range roster {
@@ -429,11 +429,11 @@ func TestTheReferencesGuideNamesTheCommandsThatTakeAWorkstream(t *testing.T) {
 	if probed != len(roster) {
 		t.Fatalf("the probe ran %d commands and the roster names %d", probed, len(roster))
 	}
-	if len(reached) != 9 {
-		t.Fatalf("%d commands reached the workstream and nine take one", len(reached))
+	if len(reached) != 10 {
+		t.Fatalf("%d commands reached the workstream and ten take one", len(reached))
 	}
-	if refused != 10 {
-		t.Fatalf("%d commands were refused the workstream and ten refuse one", refused)
+	if refused != 9 {
+		t.Fatalf("%d commands were refused the workstream and nine refuse one", refused)
 	}
 }
 

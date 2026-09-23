@@ -863,14 +863,23 @@ func (l *Library) admitLevels(named map[string]string) *contract.Refusal {
 
 // journalFor names the journal an event about an entity is recorded in, which
 // is the nearest enclosing journal-bearing entity: a card's own journal for
-// anything below a card, a workstream's own for the workstream, and the
-// bench's for everything else.
+// anything below a card, a workstream's own for the workstream and for an
+// attachment hanging on one, and the bench's for everything else.
 func (l *Library) journalFor(entity *bench.EntityRef) string {
 	if entity.Card != nil {
 		return entity.Card.JournalPath()
 	}
 	if entity.Kind == bench.KindWorkstream {
 		return filepath.Join(entity.Dir, bench.JournalName)
+	}
+	// An attachment hanging on a workstream records in that workstream's
+	// journal rather than in the workbench's, so one attachment's life is
+	// read in one place. Without this arm attach lands on the workstream's
+	// journal, because the entity it is given is the workstream, and rename,
+	// archive, restore, delete and --replace land on the workbench's, because
+	// the entity those are given is the attachment.
+	if holder := l.attachmentWorkstream(entity); holder != nil {
+		return filepath.Join(holder.Dir, bench.JournalName)
 	}
 	return l.Bench.JournalPath()
 }
@@ -899,6 +908,24 @@ func (l *Library) attachmentColumn(entity *bench.EntityRef) *bench.Column {
 		return nil
 	}
 	return l.Bench.Column(filepath.Base(holder))
+}
+
+// attachmentWorkstream reports the workstream an attachment hangs on, and nil
+// for an attachment hanging anywhere else. It reads the attachment's directory
+// the way attachmentColumn reads it: the holder is two levels up, and it is a
+// workstream when that directory's parent is the workbench's workstreams root,
+// live or archived. Both roots are asked, because an archived workstream still
+// holds its attachments and an event about one still belongs to it.
+func (l *Library) attachmentWorkstream(entity *bench.EntityRef) *bench.Workstream {
+	if entity.Kind != bench.KindAttachment {
+		return nil
+	}
+	holder := attachmentHolderDir(entity.Dir)
+	parent := filepath.Dir(holder)
+	if !sameDir(parent, l.Bench.WorkstreamsRoot()) && !sameDir(parent, l.Bench.ArchivedWorkstreamsRoot()) {
+		return nil
+	}
+	return l.Bench.Workstream(filepath.Base(holder))
 }
 
 // locateColumnAttachment writes the column locator onto a journal line about
@@ -959,6 +986,9 @@ func (l *Library) lockDirFor(entity *bench.EntityRef) string {
 	}
 	if entity.Kind == bench.KindWorkstream {
 		return entity.Dir
+	}
+	if holder := l.attachmentWorkstream(entity); holder != nil {
+		return holder.Dir
 	}
 	return l.Bench.Root
 }

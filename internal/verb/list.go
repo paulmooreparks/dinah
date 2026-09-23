@@ -482,16 +482,18 @@ func (l *Library) ListRef(req *Request) (*ListResult, error) {
 		}
 		return &ListResult{Shape: ShapeQueue, Queue: listing}, nil
 	case bench.KindWorkstream:
-		// --archived is the one flag of the four a workstream reference
-		// does not read, on the ruling recorded as dinah-523/decisions/12.
-		// A workstream holds a membership rather than a containment, and
-		// the walk from one draws that membership, so neither of a
-		// workstream's two readings has an archive half to read: the
-		// membership index is a live-half structure and the walk over it
-		// is the same structure seen from above. The flag is refused by
-		// name here, as it already is beside the roster word workstreams,
-		// rather than answering a live membership under a flag that asked
-		// for the archive.
+		// --archived is the one flag of the four a bare workstream
+		// reference does not read, on the ruling recorded as
+		// dinah-523/decisions/12. Both of a bare reference's readings are
+		// rooted on the membership, which is a live-half structure: the
+		// membership index and the walk over it are the same structure seen
+		// from two sides. The flag is refused by name here, as it already is
+		// beside the roster word workstreams, rather than answering a live
+		// membership under a flag that asked for the archive. The archive
+		// half of what a workstream does contain is reached by naming that
+		// collection, `list workstream/<slug>/attachments --archived`, which
+		// is not refused and which reads the workstream's own archive
+		// mirror.
 		if err := (listFlags{depth: true, ready: true, root: true}).check(req, subjectWorkstream); err != nil {
 			return nil, err
 		}

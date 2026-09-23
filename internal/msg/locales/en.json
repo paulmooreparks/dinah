@@ -3294,8 +3294,8 @@
       "context": "The sentence printed after the refusal name dinah.not-attachable, when attach is aimed at a reference that resolves to a kind that holds no attachments. {detail} is the reference the caller named, in the canonical spelling the resolver reports, and {kind} names what it resolved to, which is machine vocabulary and is never translated."
     },
     "refusal.dinah.not-attachable.next": {
-      "text": "; attachments hang from the workbench, a column, a card, or a comment",
-      "context": "The last member of refusal.dinah.not-attachable's alternation, printed for any kind the two branches above do not name. It carries no condition, because the last member of an alternation is what a reader gets when none of the branches matches."
+      "text": "; run `dinah help attach` for the references attach accepts",
+      "context": "The last member of refusal.dinah.not-attachable's alternation. It carries no condition, because the last member of an alternation is what a reader gets when none of the branches matches, and checkEveryShapeSaysWhatToDoNext refuses a shape whose last member carries one. No kind reaches it today: the only kinds attach can resolve and then refuse are the checklist item and the attachment, and each carries a conditional member of its own above this one. Its advice names no kinds, because the enumeration that stood here restated the containment table in a catalogue no reader of that table would open, and it went stale."
     },
     "refusal.dinah.not-attachable.next-attachment": {
       "text": "; an attachment carries bytes rather than other attachments, so attach the file to whatever {attachment} hangs from",

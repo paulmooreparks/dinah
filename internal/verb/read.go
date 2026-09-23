@@ -1403,7 +1403,13 @@ func (l *Library) Show(req *Request) (*Detail, *Record, *ItemDetail, string, err
 			}
 			return nil, l.workbenchRecord(), nil, "", nil
 		}
-		if strings.HasPrefix(req.Card, bench.WorkstreamRefPrefix) {
+		// The bare form alone. A reference carrying segments below the
+		// workstream names something the workstream contains rather than
+		// the workstream itself, and it falls through to the resolver the
+		// way a reference below a card does; intercepting it here would
+		// hand the whole reference to WorkstreamByRef and refuse
+		// unknown-workstream over a handle that resolves perfectly well.
+		if _, below, named := bench.WorkstreamHandle(req.Card); named && below == "" {
 			workstream, err := l.Bench.WorkstreamByRef(req.Card)
 			if err != nil {
 				return nil, nil, nil, "", err

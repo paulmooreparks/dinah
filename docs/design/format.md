@@ -55,7 +55,8 @@ Containment is a closed grammar, stated here once and in full. The
 workbench contains columns, cards, workstreams, and attachments. A column
 contains comments and attachments. A card contains comments, checklist
 items, and attachments (and bears a journal, as do the workbench and each
-workstream). A comment contains attachments, and a checklist item contains
+workstream). A workstream contains attachments, and bears a journal. A
+comment contains attachments, and a checklist item contains
 comments. An attachment contains exactly its payload. A folder contains
 attachments and folders, and may itself exist only inside an `attachments/`
 collection. The folder kind is deferred and unbuilt, as the Folders section
@@ -2007,12 +2008,17 @@ workstream only archived cards list is deleted and each of those cards keeps a
 membership that resolves to nothing. Archiving a workstream moves its
 directory to `archive/workstreams/<id>/` like any other entity, and it is
 allowed while cards still belong to it, because archiving a finished effort is
-the ordinary case and an archived workstream still resolves.
+the ordinary case and an archived workstream still resolves. A workstream's own
+attachments travel with its directory when it is archived or restored, and are
+destroyed with it when it is deleted, which is the rule a card's attachments
+follow. Attachments raise no refusal of their own against a deletion: they are
+not references from elsewhere, so nothing dangles when they go.
 
 The slug follows the column slug's grammar rather than the workbench slug's. A
 workbench slug excludes a final segment of digits alone, because a card
-reference splits at its last dash; nothing rides after a workstream reference,
-so a workstream may be slugged `phase-2`. A reference resolves against the
+reference splits at its last dash; what rides after a workstream reference is
+separated by a slash and a slug never contains one, so the split is unambiguous
+however the slug ends and a workstream may be slugged `phase-2`. A reference resolves against the
 identifier first and the slug second, and never against the title.
 
 A slug is not enforced unique on a write. Creating a workstream resolves a

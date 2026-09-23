@@ -3322,7 +3322,7 @@ func TestColumnNewRefusesAPlacementAnOccupiedColumnWouldFeel(t *testing.T) {
 // TestAttachRefusesAKindTheContainmentTableGivesNoMount asserts both halves of
 // the containment rule attach now reads. A reference resolving to a kind the
 // table gives no attachments collection is refused dinah.not-attachable and
-// nothing is written below it, and the four kinds that do mount one go on
+// nothing is written below it, and the five kinds that do mount one go on
 // taking a file, as does the replace of an attachment's own bytes.
 //
 // Both halves live in one test because a guard proving only the refusal passes
@@ -3333,11 +3333,13 @@ func TestColumnNewRefusesAPlacementAnOccupiedColumnWouldFeel(t *testing.T) {
 // disk, so a refusal cannot be an artefact of a hand-written shape the
 // resolver would have rejected anyway.
 //
-// Arming: deleting the MountOf guard from Library.Attach reddens all three
-// refused rows on the outcome and on the directory assertion; replacing the
-// guard's condition with an unconditional refusal reddens all five permitted
-// rows while the refused ones stay green; and dropping `&& !replacing` reddens
-// the replace row alone.
+// Arming: deleting the MountOf guard from Library.Attach reddens both refused
+// rows on the outcome and on the directory assertion; replacing the guard's
+// condition with an unconditional refusal reddens all six permitted rows while
+// the refused ones stay green; and dropping `&& !replacing` reddens the
+// replace row alone. The doc comment above counts kinds and this note counts
+// rows, which is why the two numbers differ: the sixth permitted row is the
+// replace, which is a row of its own and not a kind of its own.
 func TestAttachRefusesAKindTheContainmentTableGivesNoMount(t *testing.T) {
 	h := newHarness(t)
 	ref := h.add("annotated")
@@ -3354,6 +3356,11 @@ func TestAttachRefusesAKindTheContainmentTableGivesNoMount(t *testing.T) {
 		t.Fatalf("new workstream: %s %s", stream.Outcome, stream.Refusal)
 	}
 	h.reopen()
+	streamEntity, streamErr := h.library.Bench.ResolveEntity("workstream/probe-stream")
+	if streamErr != nil {
+		t.Fatalf("resolve the workstream: %v", streamErr)
+	}
+	streamDir := streamEntity.Dir
 
 	source := filepath.Join(t.TempDir(), "evidence.txt")
 	if err := os.WriteFile(source, []byte("the evidence"), 0o644); err != nil {
@@ -3367,7 +3374,6 @@ func TestAttachRefusesAKindTheContainmentTableGivesNoMount(t *testing.T) {
 	}{
 		{name: "a checklist item", ref: ref + "/checklist/1", kind: bench.KindItem},
 		{name: "an attachment", ref: ref + "/attachments/1", kind: bench.KindAttachment},
-		{name: "a workstream", ref: "workstream/probe-stream", kind: bench.KindWorkstream},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			entity, err := h.library.Bench.ResolveEntity(c.ref)
@@ -3412,6 +3418,7 @@ func TestAttachRefusesAKindTheContainmentTableGivesNoMount(t *testing.T) {
 		{name: "a column", ref: intake, dir: filepath.Join(h.root, bench.ColumnsDir, intake)},
 		{name: "a card", ref: ref, dir: card.Dir},
 		{name: "a comment", ref: ref + "/comments/1", dir: filepath.Join(card.Dir, bench.CommentsDir, listed2[0])},
+		{name: "a workstream", ref: "workstream/probe-stream", dir: streamDir},
 	} {
 		t.Run(c.name+" still takes a file", func(t *testing.T) {
 			response := h.library.Attach(&Request{Verb: "attach", Actor: "alka", Ref: c.ref, File: source})

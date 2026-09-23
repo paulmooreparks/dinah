@@ -2323,12 +2323,21 @@ func TestRenamingOntoAKeyTheHeaderAlreadyCarriesRefuses(t *testing.T) {
 // strayFixture is the shape both mountless-attachment tests read: a card
 // carrying a checklist item, an attachment of its own and a comment, plus a
 // workstream, with an attachments directory planted below the item, below the
-// card's attachment and below the workstream, and a legitimate one below the
-// card and below the comment.
+// card's attachment and below the workstream's own attachment, and a
+// legitimate one below the card, below the comment and below the workstream.
 //
-// It returns the root and the three planted directories in the order item,
-// attachment, workstream, so a test can compare paths rather than counting.
-func strayFixture(t *testing.T) (string, []string) {
+// The workstream's own collection is planted with a real attachment inside it
+// rather than left out, so the fixture proves the collection is accepted now
+// that the containment table mounts it, instead of merely no longer being
+// looked at. The stray one level deeper, below that attachment, is what still
+// has to be found: an attachment mounts nothing, and it is reachable only if
+// checkAttachmentsWithoutAMount goes on walking the workstreams by hand and
+// goes on descending past a mount check that passed.
+//
+// It returns the root, the three planted strays in the order item,
+// attachment, workstream attachment, and the workstream's own legitimate
+// collection, so a test can compare paths rather than counting.
+func strayFixture(t *testing.T) (string, []string, string) {
 	t.Helper()
 	root := newFixture(t)
 	card := filepath.Join(root, CardsDir, "c00000000001")
@@ -2340,13 +2349,15 @@ func strayFixture(t *testing.T) (string, []string) {
 	item := filepath.Join(card, ChecklistDir, "d00000000001", AttachmentsDir)
 	below := filepath.Join(card, AttachmentsDir, "e00000000001", AttachmentsDir)
 	stream := filepath.Join(root, WorkstreamsDir, "a00000000001", AttachmentsDir)
-	for _, dir := range []string{item, below, stream} {
+	plantAttachment(t, stream, "b0000000000b")
+	deeper := filepath.Join(stream, "b0000000000b", AttachmentsDir)
+	for _, dir := range []string{item, below, deeper} {
 		plantAttachment(t, dir, "b00000000009")
 	}
-	// The two legitimate collections. The card's own already holds
+	// The remaining legitimate collections. The card's own already holds
 	// e00000000001, so only the comment's has to be planted.
 	plantAttachment(t, filepath.Join(card, CommentsDir, "f00000000001", AttachmentsDir), "b0000000000a")
-	return root, []string{item, below, stream}
+	return root, []string{item, below, deeper}, stream
 }
 
 // TestCheckReportsAnAttachmentsDirectoryBelowAnItemsComment asserts dinah-502
@@ -2432,14 +2443,18 @@ func plantAttachment(t *testing.T, collection, id string) {
 //
 // The comparison is against the exact set of planted directories rather than
 // against a count, because a count is equally true of a walk that read nothing
-// and found its number somewhere else.
+// and found its number somewhere else. Each half is counted on its own: the
+// three strays that have to be reported, and the three legitimate collections
+// that have to be left alone, one of them the workstream's own.
 //
-// Arming: naming the mountless kinds in the walk instead of asking MountOf
-// reddens the workstream row; deleting the directory instead of reporting it
-// reddens the still-exists assertion; and testing for the directory before
-// asking MountOf reddens the two legitimate collections.
+// Arming: removing KindWorkstream's mount from the containment table reddens
+// the legitimate half over the workstream's own collection; deleting the
+// by-hand workstreams walk from checkAttachmentsWithoutAMount reddens the
+// stray one level below the workstream's attachment; deleting the directory
+// instead of reporting it reddens the still-exists assertion; and testing for
+// the directory before asking MountOf reddens the legitimate half.
 func TestCheckReportsAnAttachmentsDirectoryUnderAKindThatMountsNone(t *testing.T) {
-	root, planted := strayFixture(t)
+	root, planted, legitimate := strayFixture(t)
 	opened, err := Open(root)
 	if err != nil {
 		t.Fatalf("open: %v", err)
@@ -2461,10 +2476,33 @@ func TestCheckReportsAnAttachmentsDirectoryUnderAKindThatMountsNone(t *testing.T
 	wanted := map[string]string{
 		planted[0]: KindItem,
 		planted[1]: KindAttachment,
-		planted[2]: KindWorkstream,
+		planted[2]: KindAttachment,
+	}
+	if len(wanted) != 3 {
+		t.Fatalf("the fixture plants %d strays and this check is written against three", len(wanted))
 	}
 	if len(paths) != len(wanted) {
 		t.Errorf("wanted %d findings, got %d: %v", len(wanted), len(paths), paths)
+	}
+	// The other half of the sweep, counted on its own so a half that read
+	// nothing cannot hide behind a half that read plenty. The workstream's
+	// own attachments collection is legitimate now that the containment
+	// table mounts it, and it holds a real attachment.
+	legitimateCollections := []string{
+		legitimate,
+		filepath.Join(root, CardsDir, "c00000000001", AttachmentsDir),
+		filepath.Join(root, CardsDir, "c00000000001", CommentsDir, "f00000000001", AttachmentsDir),
+	}
+	if len(legitimateCollections) != 3 {
+		t.Fatalf("this check is written against three legitimate collections and names %d", len(legitimateCollections))
+	}
+	for _, dir := range legitimateCollections {
+		if !Exists(dir) {
+			t.Errorf("the fixture planted no collection at %s, so its half of this sweep read nothing", dir)
+		}
+		if detail, reported := paths[dir]; reported {
+			t.Errorf("%s was reported as %q, and the containment table mounts it", dir, detail)
+		}
 	}
 	for path, kind := range wanted {
 		got, reported := paths[path]
@@ -2504,7 +2542,7 @@ func TestCheckReportsAnAttachmentsDirectoryUnderAKindThatMountsNone(t *testing.T
 // while TestCheckReportsAnAttachmentsDirectoryUnderAKindThatMountsNone stays
 // green.
 func TestAKindGivenAnAttachmentsMountStopsBeingReported(t *testing.T) {
-	root, planted := strayFixture(t)
+	root, planted, _ := strayFixture(t)
 	restore := containment[KindItem]
 	t.Cleanup(func() { containment[KindItem] = restore })
 	containment[KindItem] = []Mount{
