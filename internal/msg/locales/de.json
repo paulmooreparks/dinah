@@ -673,6 +673,11 @@
       "context": "One item a designation conversion converted, drawn under its group's count. {item} is the item's reference, {settling} is the journal event that last settled it, {comment} is the identifier the run wrote and {author} is who wrote that comment; all four are machine vocabulary that is never translated.",
       "source": "60034285affb9366"
     },
+    "check.designations-journal-inferred": {
+      "text": "Die Einträge oben wurden aus der Historie wiederhergestellt und nicht aus dem Gespeicherten, weil eine Entfernung seit ihrer Erledigung die Positionen verschoben haben kann. Die Historie hält ganze Sekunden fest, und wo eine Erledigung innerhalb einer Sekunde auf einen weiteren Kommentar desselben Eintrags folgte, muss der oben genannte Kommentar nicht der gemeinte sein. Lies diese, bevor du dich auf sie verlässt.",
+      "context": "The caution the designation conversion prints under its journal group, drawn only where that group holds an entry. It is the disclosure of the one case the conversion cannot decide: an item reaches that group only where a removal since the settling may have moved the stored positions and where a comment of the same item was written in the settling's own second, and the stamp carries seconds, so the comment it matched need not be the one the settling meant. It stands over the group rather than over the archived listing beside it, because a deleted comment leaves nothing in the archive to find and a deletion is the removal this case most often turns on.",
+      "source": "ebce760224acd0b"
+    },
     "check.designations-journal.one": {
       "text": "{count} Eintrag aus der Historie umgewandelt.",
       "context": "The line the designation conversion prints for the items it recovered from the card's own history, for exactly one item. The history named the comment outright, so nothing was inferred.",

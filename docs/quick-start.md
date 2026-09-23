@@ -1327,14 +1327,14 @@ storage format 7
 Catalogs:
   Language  Translated
   --------  ----------
-  en        1367/1367
-  af        0/1367
-  cs        0/1367
-  de        1367/1367
-  es        0/1367
-  fil       0/1367
-  hi        1367/1367
-  id        0/1367
+  en        1368/1368
+  af        0/1368
+  cs        0/1368
+  de        1368/1368
+  es        0/1368
+  fil       0/1368
+  hi        1368/1368
+  id        0/1368
 [exit 0]
 ```
 

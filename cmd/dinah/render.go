@@ -1285,6 +1285,27 @@ func (s *session) renderDesignationMigration(run *bench.DesignationMigration) {
 		}
 	}
 	s.renderDesignationGroup(run, bench.DesignationFromJournal, "check.designations-journal")
+	// The journal group is exactly the population whose answer was inferred,
+	// so the group itself is the caution and it carries one. Route 1 is
+	// reached only where something removed since the settling may have moved
+	// the positions, and it matches only where a comment of the same item
+	// landed in the settling's own second, so every entry above is an item
+	// whose position moved and whose settling shares a second with another
+	// comment. That is the residue the conversion cannot close, and the
+	// operator reads it here rather than discovering it afterwards.
+	//
+	// The caution stands over the group rather than beside the archived
+	// listing below, and the difference is the whole of this finding. The
+	// archived listing can only see a comment that survives in the archive,
+	// and the removal this residue most often turns on is a deletion, which
+	// leaves nothing anywhere to find. That blind spot is the one dinah-472
+	// already paid for once: an earlier draft detected drift by looking for
+	// archived comments and was defeated by deleting instead. A caution
+	// inheriting that blind spot would miss the one removal the card knows it
+	// cannot see.
+	if run.Count(bench.DesignationFromJournal) > 0 {
+		s.line(s.r.T("check.designations-journal-inferred"))
+	}
 	s.renderDesignationGroup(run, bench.DesignationUndisturbed, "check.designations-undisturbed")
 	drifted := 0
 	for _, entry := range run.Entries {

@@ -373,6 +373,13 @@ func (b *Bench) decideDesignation(card *Card, cardRef string, item *Item, events
 	// real answer was cited by nothing, and dinah check found no defect,
 	// which is worse than leaving the item unanswered because an unanswered
 	// item is visible under check.designation-missing and this one is not.
+	// An undisturbed item whose stored position reaches nothing falls through
+	// to the route below rather than stopping here, and the reorder widened
+	// it that far deliberately. A position resolving to nothing is already
+	// broken, so there is no evidence left to prefer, and a journalled
+	// identifier was recorded rather than inferred. Where the journal carries
+	// nothing either the item is left unanswered, which is the path the
+	// report's unanswered group names.
 	if !b.disturbedSince(card, item, events, at) {
 		if reached, found := b.commentAtPosition(item, item.Resolution); found {
 			entry.Route = DesignationUndisturbed

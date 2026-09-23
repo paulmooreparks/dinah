@@ -537,6 +537,97 @@ func cardJournalPath(t *testing.T, root, ref string) string {
 	return entity.Card.JournalPath()
 }
 
+// TestTheResidualCaseIsNamedWhicheverWayTheRemovalHappened is Agent Code
+// Review's second-cycle finding, and it is about disclosure rather than about
+// the answer the conversion writes.
+//
+// The residue this card cannot close is an item whose positions have moved and
+// whose settling followed an unrelated comment of its own inside one second.
+// The conversion falls to the journal route there, the stamp carries seconds
+// and cannot separate the two invocations, and the item can be given the wrong
+// comment. Both halves of that are driven here and the case asserts what the
+// report says rather than pretending the answer is right.
+//
+// The two halves differ only in how the earlier comment was removed, and that
+// difference is the finding. An archived comment leaves something in the
+// archive for a narrow signal to find; a deleted one leaves nothing anywhere,
+// which is the blind spot this card already paid for once, when an earlier
+// draft detected drift by looking for archived comments and the design review
+// defeated it by deleting instead. A caution that inherited that blind spot
+// would miss the one removal the card knows it cannot see, so the caution
+// stands over the journal group, which is exactly the inferred population.
+func TestTheResidualCaseIsNamedWhicheverWayTheRemovalHappened(t *testing.T) {
+	for _, removal := range []string{"archive", "delete"} {
+		t.Run(removal, func(t *testing.T) {
+			root := residualFixture(t, removal)
+			converted := runCLI(t, root, "check", "--migrate-designations", "--actor", "alka")
+			assertConverted(t, converted)
+
+			// The misfire itself, asserted rather than assumed, because a
+			// build that had closed it would make the caution below a
+			// caution about nothing and this case would go on passing.
+			if !strings.Contains(converted.out, "Converted 1 item from the history.") {
+				t.Fatalf("the run did not fall to the journal route, so this case is not the one it is about:\n%s", converted.out)
+			}
+
+			// The caution, which is what the finding asked for and which has
+			// to be there whichever way the removal happened.
+			if !strings.Contains(converted.out, "recovered from the history rather than from what was stored") {
+				t.Errorf("the report does not say that the items above were inferred:\n%s", converted.out)
+			}
+			if !strings.Contains(converted.out, "may not be the one it meant") {
+				t.Errorf("the report does not say that the comment it named may be the wrong one:\n%s", converted.out)
+			}
+
+			// And the archived listing is shown to be the narrower signal
+			// the caution replaces: it names the item on one half and not on
+			// the other, which is why it cannot carry this on its own.
+			named := strings.Contains(converted.out, "1 converted item carries an archived comment.")
+			if removal == "archive" && !named {
+				t.Errorf("the archived listing does not name the item on the half it can see:\n%s", converted.out)
+			}
+			if removal == "delete" && named {
+				t.Errorf("the archived listing claims to see a deleted comment, so this case is not showing what it is about:\n%s", converted.out)
+			}
+		})
+	}
+}
+
+// residualFixture builds an item whose positions have moved and whose settling
+// shares a second with an unrelated comment of its own, removing the earlier
+// comment the way the caller names.
+//
+// The four acts have to land inside one second for the journal route's guard
+// to match at all, so the fixture is rebuilt until they do and fails outright
+// rather than skipping, on the terms oneSecondFixture keeps.
+func residualFixture(t *testing.T, removal string) string {
+	t.Helper()
+	for attempt := 0; attempt < 8; attempt++ {
+		root := newBenchFromDefinition(t, designationDefinition)
+		mustRun(t, root, "add", "a card whose positions moved inside one second")
+		mustRun(t, root, "file", "fx-1", "open_question", "which way do we go?")
+		mustRun(t, root, "comment", "fx-1/questions/1", "a stray note written first")
+		mustRun(t, root, "comment", "fx-1/questions/1", "THE REAL ANSWER: go left")
+		mustRun(t, root, "comment", "fx-1/questions/1", "an aside written just now")
+		mustRun(t, root, "resolve", "fx-1/questions/1", "fx-1/questions/1/comments/2")
+		if !sharesOneSecond(t, root, "fx-1") {
+			continue
+		}
+		windBack(t, root, "fx-1/questions/1")
+		// The removal is what moves the positions, and it is the whole of
+		// the difference between the two halves.
+		argv := []string{removal, "fx-1/questions/1/comments/1"}
+		if removal == "delete" {
+			argv = append(argv, "--yes")
+		}
+		mustRun(t, root, argv...)
+		awaitingConversion(t, root)
+		return root
+	}
+	t.Fatal("eight attempts and the three comments and the settling never landed inside one second, so this case asserted nothing")
+	return ""
+}
+
 // TestASecondConversionWritesNothing is dinah-472/criteria/74. A converted
 // store carries no positional answer, so the run finds nothing, reports
 // nothing converted and leaves every anchor and every journal where it was.

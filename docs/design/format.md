@@ -1295,11 +1295,28 @@ which is the one thing left that can name the comment once positions have
 shifted. The evidenced reading goes first because an inference placed ahead of
 it wins on exactly the cases where the evidence was available and correct.
 
-Where neither can say which comment an answer meant, the item is left
+The journal route is an inference and not a reading, and one case it cannot
+decide is stated here rather than left to be met. Its guard is that a
+`commented` line stands immediately before the settling line naming the same
+item, the same actor and the same instant, which is what one write produces
+when it mints a comment and designates it in one act. The stamp carries
+seconds. Two separate invocations inside one second carry one instant too, so
+an item whose positions have moved and whose settling followed an unrelated
+comment of its own inside one second is read as the minted form and can
+therefore be given the wrong comment. Closing that would need the journal
+replayed to reconstruct the collection as it stood at the settling, which is a
+third route and a wider change than this one. Until it exists, every item the
+journal route recovered is named in the conversion's report under a caution
+saying so, whichever way the removal that moved the positions happened, because
+a deleted comment leaves nothing in the archive for a narrower signal to find.
+
+Where neither route can say which comment an answer meant, the item is left
 unanswered rather than having a guess written down as a recorded ruling: the
 `resolution` key is removed and the item's state is untouched, so every hold it
 imposed it goes on imposing, and `dinah check` reports the set under
-`check.designation-missing` for as long as it exists.
+`check.designation-missing` for as long as it exists. That is what the
+unanswered path does, and the paragraph above is where the journal route parts
+company with it.
 
 A
 workbench declaring anything below the current number has not been carried
