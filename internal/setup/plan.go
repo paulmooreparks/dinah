@@ -514,12 +514,8 @@ func (p *planner) remove() (*Report, error) {
 		return report, nil
 	}
 	planned := &plannedStep{}
-	var touched []*fileState
 	for _, e := range entries {
-		f := p.fileByKey(e.File)
-		if !containsFile(touched, f) {
-			touched = append(touched, f)
-		}
+		p.fileByKey(e.File)
 		p.planTakeBack(planned, e)
 	}
 	if p.unreadable != "" {
@@ -528,10 +524,7 @@ func (p *planner) remove() (*Report, error) {
 	if len(p.conflicts) > 0 {
 		return nil, refuseListing(contract.SetupConflict, "locations", strings.Join(p.conflicts, "\n"))
 	}
-	for _, f := range touched {
-		p.tidy(f, entries)
-		planned.writes = append(planned.writes, snapshot{file: f, data: f.data, exists: f.exists})
-	}
+	p.planTidy(planned, entries)
 	report := p.report(p.recipe.Remove)
 	report.Changes = append(report.Changes, planned.changes...)
 	if p.opts.DryRun {
@@ -546,22 +539,66 @@ func (p *planner) remove() (*Report, error) {
 	return report, nil
 }
 
-// containsFile reports whether a list holds a file.
-func containsFile(list []*fileState, f *fileState) bool {
-	for _, member := range list {
-		if member == f {
+// planTidy plans what the take-backs leave behind in each file the run
+// reached: the parent objects setup created that are now empty, and the file
+// itself where the rule on an emptied file holds. It is the one caller of
+// tidy, and it runs at plan time on the apply path and on the removal path
+// alike, so a dry run reports exactly what the apply after it carries out.
+func (p *planner) planTidy(planned *plannedStep, entries []ledgerEntry) {
+	for _, f := range p.ordered {
+		leftover, removed := p.tidy(planned, f, entries)
+		if removed {
+			planned.changes = append(planned.changes, Change{
+				Kind:   KindEmptiedFile,
+				File:   f.rel,
+				Change: ChangeRemove,
+				Before: leftover,
+			})
+		}
+		planned.writes = append(planned.writes, snapshot{file: f, data: f.data, exists: f.exists})
+	}
+}
+
+// removedFrom reports whether the plan takes something out of a file, which
+// is the condition that setup removes only a file this run emptied itself. A
+// file whose every take-back found its location already gone is left as
+// whoever emptied it left it.
+func (p *planner) removedFrom(planned *plannedStep, f *fileState) bool {
+	for _, c := range planned.changes {
+		if c.File != f.rel || c.Change != ChangeRemove {
+			continue
+		}
+		if c.Kind == KindJSONMerge || c.Kind == KindMarkedSection || c.Kind == KindWriteFile {
 			return true
 		}
 	}
 	return false
 }
 
-// tidy removes what a removal leaves behind in a file: each parent object
+// producesIn reports whether any step of the current run produces a location
+// in a file, which stops the emptied-file rule from removing it. On the
+// removal path the map is empty, because a removal produces nothing, so every
+// file passes this guard there.
+func (p *planner) producesIn(f *fileState) bool {
+	file := slashPath(f.abs)
+	for location := range p.produced {
+		if location[0] == file {
+			return true
+		}
+	}
+	return false
+}
+
+// tidy removes what a take-back leaves behind in one file: each parent object
 // setup created that is now empty, innermost first, and then the file itself
-// when setup created it and nothing is left in it.
-func (p *planner) tidy(f *fileState, entries []ledgerEntry) {
+// when all four conditions on an emptied file hold. Those are that the plan
+// still leaves a file there, that setup created it, that this run took
+// something out of it, and that no current step produces a location in it. It
+// reports what the file held when it was removed, and whether it was removed
+// at all.
+func (p *planner) tidy(planned *plannedStep, f *fileState, entries []ledgerEntry) (string, bool) {
 	if !f.exists {
-		return
+		return "", false
 	}
 	file := slashPath(f.abs)
 	created := false
@@ -585,19 +622,20 @@ func (p *planner) tidy(f *fileState, entries []ledgerEntry) {
 	for _, parent := range parents {
 		f.data = removeIfEmpty(f.data, parent)
 	}
-	if !created {
-		return
+	if !created || !p.removedFrom(planned, f) || p.producesIn(f) {
+		return "", false
 	}
 	if isJSON {
 		root, err := parseJSONFile(f.data)
-		if err == nil && len(root.members) == 0 {
-			f.data, f.exists = nil, false
+		if err != nil || len(root.members) > 0 {
+			return "", false
 		}
-		return
+	} else if strings.TrimSpace(string(f.data)) != "" {
+		return "", false
 	}
-	if strings.TrimSpace(string(f.data)) == "" {
-		f.data, f.exists = nil, false
-	}
+	leftover := string(f.data)
+	f.data, f.exists = nil, false
+	return leftover, true
 }
 
 // removeIfEmpty removes the object a pointer names when it holds no member.

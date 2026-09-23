@@ -61,19 +61,20 @@ func testFunctionsUnder(root string) (map[string]string, int, error) {
 // failure, because the pin then reads as evidence while proving nothing. The
 // provenance half is what catches the second.
 //
-// The roster's size is asserted rather than merely being non-empty. Nine is
+// The roster's size is asserted rather than merely being non-empty. Eleven is
 // five claims from the references guide's "Reading the archive" section,
-// three from the first-session guide's section on the operator comparison, and
-// one from the on-behalf guide's section on what Dinah does not check, and a
-// pin dropped in an edit would otherwise leave a smaller sweep reporting
+// three from the first-session guide's section on the operator comparison, one
+// from the on-behalf guide's section on what Dinah does not check, and two
+// from the setup-recipes guide's paragraph on a file a take-back empties, and
+// a pin dropped in an edit would otherwise leave a smaller sweep reporting
 // success.
 func TestEveryPinnedStatementStandsInItsGuideAndNamesALiveTest(t *testing.T) {
 	roster := guidepin.Pinned()
 	if len(roster) == 0 {
 		t.Fatal("the pin roster is empty, so this sweep read nothing")
 	}
-	if len(roster) != 9 {
-		t.Fatalf("the pin roster holds %d statements and the three pinned sections make nine claims between them", len(roster))
+	if len(roster) != 11 {
+		t.Fatalf("the pin roster holds %d statements and the four pinned sections make eleven claims between them", len(roster))
 	}
 
 	// The root is held in a variable rather than being spelled twice, so that

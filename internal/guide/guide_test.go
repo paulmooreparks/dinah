@@ -144,3 +144,37 @@ func TestMCPGuideNamesTheExclusionsTheWalkApplies(t *testing.T) {
 		t.Errorf("the mcp guide claims a reach the walk does not have: %q", gone)
 	}
 }
+
+// TestSetupRecipesGuideStatesWhatHappensToAnEmptiedFile holds the guide to
+// dinah-577's rule and to its stated limitation. A recipe author reading it
+// learns that Dinah removes a file it created once a take-back empties it,
+// that a file Dinah did not create or that the author emptied is left alone,
+// that a recipe declares nothing about any of it, and that a directory Dinah
+// made to hold such a file stays behind empty. The closing line of the last
+// section promised that a removal leaves the directory as it was found, which
+// the new paragraph contradicts, so that promise must be gone. The assertions
+// name marker phrases rather than whole sentences, so a later rewording of the
+// surrounding prose does not fail this test over wording no claim rests on.
+func TestSetupRecipesGuideStatesWhatHappensToAnEmptiedFile(t *testing.T) {
+	text, err := Text("setup-recipes")
+	if err != nil {
+		t.Fatalf("read the setup-recipes guide: %v", err)
+	}
+	folded := strings.Join(strings.Fields(text), " ")
+
+	for _, want := range []string{
+		"When Dinah created that file itself and what remains is only whitespace, or, for a JSON file, no member at all, Dinah removes the file",
+		"A file Dinah did not create stays where it is, even when it ends up empty, and so does a file you emptied yourself",
+		"Your recipe declares nothing about this",
+		"Dinah does not remove a directory it created to hold such a file, so a directory can be left behind empty",
+		"A directory Dinah created to hold one of those files stays behind empty",
+	} {
+		if !strings.Contains(folded, want) {
+			t.Errorf("the setup-recipes guide does not state %q", want)
+		}
+	}
+	gone := "`--remove` leaves the directory as you found it"
+	if strings.Contains(folded, gone) {
+		t.Errorf("the setup-recipes guide still promises what dinah-577 made false: %q", gone)
+	}
+}

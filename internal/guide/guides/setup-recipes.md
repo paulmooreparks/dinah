@@ -137,6 +137,14 @@ wrote it, and it names every such place before it touches a file. A second run
 with the same arguments changes nothing. `--remove` takes back what Dinah
 wrote and nothing else.
 
+Taking something back can leave a file with nothing in it. When Dinah created
+that file itself and what remains is only whitespace, or, for a JSON file, no
+member at all, Dinah removes the file. A file Dinah did not create stays where
+it is, even when it ends up empty, and so does a file you emptied yourself.
+Your recipe declares nothing about this. It is how Dinah behaves for every
+recipe. Dinah does not remove a directory it created to hold such a file, so a
+directory can be left behind empty.
+
 ## Programs a recipe runs
 
 A harness configured in a format no data step can edit needs a program to do
@@ -220,4 +228,6 @@ dinah setup --recipe ./my-harness --target ./scratch-project --remove
 ```
 
 Run the apply twice and check that the second run reports every location
-unchanged, then check that `--remove` leaves the directory as you found it.
+unchanged, then check that `--remove` leaves every file as you found it. A
+directory Dinah created to hold one of those files stays behind empty, which
+is a gap in Dinah rather than anything your recipe can change.

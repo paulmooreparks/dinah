@@ -52,6 +52,6 @@ internal/guide/guides/principles.md:29 shows=table command=list columns
 internal/guide/guides/setup-recipes.md:20 shows=tree reason=the block draws the entries of a recipe directory, which the package internal/setup reads and its tests hold
 internal/guide/guides/setup-recipes.md:54 shows=json
 internal/guide/guides/setup-recipes.md:100 shows=json
-internal/guide/guides/setup-recipes.md:145 shows=json
-internal/guide/guides/setup-recipes.md:216 shows=commands
+internal/guide/guides/setup-recipes.md:153 shows=json
+internal/guide/guides/setup-recipes.md:224 shows=commands
 internal/guide/guides/workbench-layout.md:6 shows=tree reason=TestTheLayoutGuideDrawsPathsTheToolWrites holds every path this block draws

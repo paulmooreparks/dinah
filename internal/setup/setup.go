@@ -38,6 +38,11 @@ const (
 	ChangeWouldRun  = "would-run"
 )
 
+// KindEmptiedFile is a file setup created and has now emptied, which is a
+// report row of its own rather than a step. It is canonical and appears
+// untranslated in the machine form, like every other kind.
+const KindEmptiedFile = "emptied-file"
+
 // Options are everything one run of setup needs, gathered by the command.
 type Options struct {
 	// Harness is the recipe named by position, empty when --recipe names one
@@ -535,6 +540,9 @@ type planner struct {
 	baseKey string
 	ledger  *ledger
 	files   map[string]*fileState
+	// ordered are the same files in the order the run first reached them,
+	// which is the order the tidy phase reads them in.
+	ordered []*fileState
 	// produced are the locations the current steps produce, by file and key.
 	produced map[[2]string]bool
 	// unreadable is the first file that cannot be read, which row 17 names.
@@ -567,6 +575,7 @@ func (p *planner) file(rel string) *fileState {
 	}
 	f := &fileState{abs: abs, rel: rel}
 	p.files[abs] = f
+	p.ordered = append(p.ordered, f)
 	if !p.contained(abs) {
 		f.unreadable = "resolves to a place outside " + p.base
 		p.noteUnreadable(f)
@@ -741,6 +750,7 @@ func (p *planner) apply() (*Report, error) {
 	if len(p.conflicts) > 0 {
 		return nil, refuseListing(contract.SetupConflict, "locations", strings.Join(p.conflicts, "\n"))
 	}
+	p.planTidy(stale, p.ledger.ofRun(p.recipe.Name, p.scope, p.baseKey))
 	p.steps = append(p.steps, stale)
 	p.recordCreation()
 	report := p.report(p.recipe.Prompt)

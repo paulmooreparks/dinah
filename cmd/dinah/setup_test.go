@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -634,4 +636,65 @@ func setupHeadingOf(tag string, w *sweptWorkbenches) string {
 		os.Chdir(previous)
 	}
 	return msg.For(tag).T("setup.heading", "recipe", "claude-code", "source", setup.SourceShipped, "scope", setup.ScopeProject, "base", base)
+}
+
+// TestSetupReportsAFileItEmptiedAndRemoved applies the claude-code recipe and
+// then takes it back, and holds the row dinah-577 adds to its shape at the
+// terminal and in the machine form. The recipe creates .mcp.json and owns the
+// one member in it, so the removal empties a file setup created and removes
+// it. The row carries no step and no key, its change is the remove token every
+// other take-back already uses, and the dry run prints its leftover content as
+// the before and the absent marker as the after.
+func TestSetupReportsAFileItEmptiedAndRemoved(t *testing.T) {
+	f := newSetupFixture(t)
+	accepted(t, "apply", runCLI(t, f.project, "setup", "claude-code", "--model", "m1"))
+	if _, err := os.Stat(filepath.Join(f.project, ".mcp.json")); err != nil {
+		t.Fatalf("the apply wrote no .mcp.json, so this test proves nothing: %v", err)
+	}
+
+	planned := runCLI(t, f.project, "setup", "claude-code", "--remove", "--dry-run")
+	accepted(t, "a dry run of the removal", planned)
+	for _, want := range []string{
+		"--- .mcp.json (before)\n{",
+		"+++ .mcp.json (after)\n(absent)\n",
+	} {
+		if !strings.Contains(planned.out, want) {
+			t.Errorf("the dry run of the removal does not print %q:\n%s", want, planned.out)
+		}
+	}
+
+	t.Setenv("DINAH_FORMAT", "")
+	machine := runCLI(t, f.project, "--json", "setup", "claude-code", "--remove")
+	accepted(t, "the removal in the machine form", machine)
+	var report struct {
+		Changes []setup.Change `json:"changes"`
+	}
+	if err := json.Unmarshal([]byte(machine.out), &report); err != nil {
+		t.Fatalf("the machine form does not parse: %v\n%s", err, machine.out)
+	}
+	var emptied []setup.Change
+	for _, c := range report.Changes {
+		if c.Kind == setup.KindEmptiedFile {
+			emptied = append(emptied, c)
+		}
+	}
+	if len(emptied) != 2 {
+		t.Fatalf("the machine form carries %d emptied-file rows and the removal empties two files: %+v", len(emptied), report.Changes)
+	}
+	if emptied[0].File != ".mcp.json" || emptied[1].File != ".claude/settings.local.json" {
+		t.Errorf("the emptied-file rows name %q and %q, in the order the run first reached those files", emptied[0].File, emptied[1].File)
+	}
+	for _, row := range emptied {
+		if row.Change != setup.ChangeRemove || row.Step != "" || row.Key != "" || row.After != "" {
+			t.Errorf("the emptied-file row reads %+v", row)
+		}
+		if row.Before == "" {
+			t.Errorf("the emptied-file row for %s carries no before, and the take-backs left a root object in it", row.File)
+		}
+	}
+	for _, name := range []string{".mcp.json", ".claude/settings.local.json"} {
+		if _, err := os.Stat(filepath.Join(f.project, filepath.FromSlash(name))); !errors.Is(err, fs.ErrNotExist) {
+			t.Errorf("the removal left %s behind: %v", name, err)
+		}
+	}
 }
