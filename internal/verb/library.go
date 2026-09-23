@@ -743,6 +743,31 @@ func (l *Library) declaredFieldValues(fm *bench.Frontmatter, kind string) map[st
 	return values
 }
 
+// declaredRecordFields are the rows a record carries for the fields the
+// workbench declares on a kind, in declaration order. It keeps
+// declaredFieldValues's two rules: the values come from the header already
+// loaded for the read, and a key the anchor stores nothing under is omitted
+// rather than drawn empty.
+//
+// Omitting is what parts a declared row from a built-in one. The built-in set
+// is fixed and a missing row would change the record's shape, while the
+// declared set is the workbench's and an absent value is already how
+// `dinah show <card>` draws one.
+func (l *Library) declaredRecordFields(fm *bench.Frontmatter, kind string) []RecordField {
+	if fm == nil {
+		return nil
+	}
+	var rows []RecordField
+	for _, field := range l.Bench.DeclaredFieldsOn(kind) {
+		stored := bench.FieldValue(fm, field.Key)
+		if stored == "" {
+			continue
+		}
+		rows = append(rows, RecordField{Name: field.Key, Value: stored})
+	}
+	return rows
+}
+
 // serve composes the instruction chain for a card's current position, and
 // reports the chain keys the act actually served. A layer whose current text
 // this request's connection has already sent this owner is withheld and named

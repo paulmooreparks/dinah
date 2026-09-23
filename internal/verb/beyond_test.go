@@ -2843,17 +2843,24 @@ func TestASecondCreationOnATakenSlugIsRefusedAndWritesNothing(t *testing.T) {
 	}
 }
 
-// TestCreatingAWorkstreamDoesNotLetTheCreatorWriteItsFields asserts the
-// boundary this card leaves exactly where it found it. Field writes on a
-// workstream are the operator's, and having created one moments earlier buys
-// the creator nothing, on any of the three fields the entity carries.
+// TestTheCreatorOfAWorkstreamWritesItsFields asserts the boundary dinah-582
+// moved. A workstream's fields are any owner's to write, so the actor who
+// created one moments earlier finishes provisioning it on every field the
+// entity carries.
 //
-// The creator is the interesting actor rather than an arbitrary stranger. The
-// gap this card was filed over is that a non-operator can create a workstream
-// and then cannot finish setting it up, and the fix widens creation's inputs
-// rather than widening who may write, so a change that closed the gap the other
-// way turns this test red.
-func TestCreatingAWorkstreamDoesNotLetTheCreatorWriteItsFields(t *testing.T) {
+// The creator is the interesting actor rather than an arbitrary stranger.
+// dinah-540 filed the gap that a non-operator could create a workstream and
+// then could not finish setting it up, and closed it by widening creation's
+// inputs while leaving the write reserved. The operator ruled on 2026-09-23
+// (dinah-582/decisions/1) that the reservation itself was too restrictive, so
+// this test now asserts the opposite of what it asserted then, under a name
+// saying which one is true.
+//
+// The anchor comparison is kept and inverted: an accepted write has to leave
+// the anchor different from what it was, and the value has to read back. A
+// test that only read the response would pass against a verb that answered
+// well and wrote nothing.
+func TestTheCreatorOfAWorkstreamWritesItsFields(t *testing.T) {
 	h := newHarness(t)
 	if h.library.Bench.Operator != "alka" {
 		t.Fatalf("the harness operator is %q, and bob below is a non-operator only while it is alka", h.library.Bench.Operator)
@@ -2864,33 +2871,59 @@ func TestCreatingAWorkstreamDoesNotLetTheCreatorWriteItsFields(t *testing.T) {
 	}
 	h.reopen()
 	stored := h.library.Bench.Workstream(created.Workstream.ID)
-	before, err := bench.ReadText(stored.AnchorPath())
-	if err != nil {
-		t.Fatalf("read the anchor: %v", err)
-	}
-	for _, c := range []struct{ field, value string }{
-		{"title", "Autumn 2025 release"},
-		{bench.SlugField, "autumn-2025"},
-		{"status", "finished"},
+	anchor := stored.AnchorPath()
+
+	// The slug moves on the second row, so every later row addresses the
+	// workstream by the slug the row before it wrote.
+	for _, c := range []struct{ ref, field, value string }{
+		{"workstream/autumn", "title", "Autumn 2025 release"},
+		{"workstream/autumn", bench.SlugField, "autumn-2025"},
+		{"workstream/autumn-2025", "status", "finished"},
+		{"workstream/autumn-2025", "notes", "What the release is for."},
 	} {
 		t.Run(c.field, func(t *testing.T) {
-			response := h.library.SetField(&Request{Verb: "set", Actor: "bob", Ref: "workstream/autumn", Field: c.field, Value: c.value, Confirm: true})
+			before, err := bench.ReadText(anchor)
+			if err != nil {
+				t.Fatalf("read the anchor: %v", err)
+			}
+			response := h.library.SetField(&Request{Verb: "set", Actor: "bob", Ref: c.ref, Field: c.field, Value: c.value, Confirm: true})
 			h.reopen()
-			if response.Outcome != contract.OutcomeRefused || response.Refusal != contract.NotOperator {
-				t.Fatalf("bob writing %s on the workstream he created: %s %s, wanted a refusal of %s", c.field, response.Outcome, response.Refusal, contract.NotOperator)
+			if response.Outcome != contract.OutcomeOK {
+				t.Fatalf("bob writing %s on the workstream he created: %s %s, wanted it accepted", c.field, response.Outcome, response.Refusal)
 			}
-			if response.Detail != "bob" {
-				t.Errorf("the refusal names %q, wanted the actor it turned away", response.Detail)
-			}
-			after, err := bench.ReadText(stored.AnchorPath())
+			after, err := bench.ReadText(anchor)
 			if err != nil {
 				t.Fatalf("read the anchor again: %v", err)
 			}
-			if after != before {
-				t.Errorf("the refused write on %s rewrote the anchor:\n%q\n%q", c.field, before, after)
+			if after == before {
+				t.Errorf("the accepted write of %s left the anchor unchanged:\n%q", c.field, after)
+			}
+			read := h.library.Bench.Workstream(created.Workstream.ID)
+			if read == nil {
+				t.Fatalf("the workstream is gone after writing %s", c.field)
+			}
+			got := read.Field(c.field)
+			if c.field == "notes" {
+				// Notes are the anchor's body rather than one of its
+				// header fields, so Field answers nothing for them and
+				// the body is where the write has to be read back.
+				got = strings.TrimSpace(read.Notes)
+			}
+			if got != c.value {
+				t.Errorf("%s reads back as %q, wanted %q", c.field, got, c.value)
 			}
 		})
 	}
+
+	// The row immediately before the authority row still refuses. A request
+	// naming no owner is turned away on a workstream whatever the field, so
+	// the relaxation widened who may write rather than removing the question.
+	t.Run("no owner", func(t *testing.T) {
+		response := h.library.SetField(&Request{Verb: "set", Ref: "workstream/autumn-2025", Field: "status", Value: "active"})
+		if response.Outcome != contract.OutcomeRefused || response.Refusal != contract.NoOwner {
+			t.Errorf("a request naming no owner: %s %s, wanted a refusal of %s", response.Outcome, response.Refusal, contract.NoOwner)
+		}
+	})
 }
 
 // newColumn is the request every column-authoring test below builds on, with

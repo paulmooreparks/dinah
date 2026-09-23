@@ -14,7 +14,7 @@ import (
 var retiredAuthorityLedger = filepath.Join("testdata", "retired-authority-sentences.txt")
 
 // retiredAuthorityDocuments is the corpus the ledger is searched over: the
-// eight embedded guides, the quick start, the format design document, the
+// nine embedded guides, the quick start, the format design document, the
 // published profile, the README, and the eight message catalogues.
 //
 // The catalogues are in the corpus because leaving them out is what let this
@@ -35,6 +35,7 @@ var retiredAuthorityDocuments = []string{
 	filepath.Join("internal", "guide", "guides", "first-session.md"),
 	filepath.Join("internal", "guide", "guides", "getting-started.md"),
 	filepath.Join("internal", "guide", "guides", "mcp.md"),
+	filepath.Join("internal", "guide", "guides", "on-behalf.md"),
 	filepath.Join("internal", "guide", "guides", "principles.md"),
 	filepath.Join("internal", "guide", "guides", "query.md"),
 	filepath.Join("internal", "guide", "guides", "references.md"),
@@ -60,8 +61,8 @@ var retiredAuthorityDocuments = []string{
 // deleted and a corpus somebody trimmed, and each failure would read exactly
 // like a clean sweep.
 const (
-	retiredAuthorityEntries = 22
-	retiredAuthorityFiles   = 20
+	retiredAuthorityEntries = 25
+	retiredAuthorityFiles   = 21
 )
 
 // readRetiredAuthorityLedger reads the ledger's entries, dropping comments and

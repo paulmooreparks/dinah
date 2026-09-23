@@ -44,6 +44,17 @@ const cliDeclaration = `fields:
     meaning: the day the deposit fell due
 `
 
+// cliWorkstreamDeclaration is cliDeclaration with a key declared on a
+// workstream alone, which is the one kind dinah-582 added to the set an `on`
+// member may name. It is a block of its own rather than a row added to the
+// one above, so the cases already reading that block keep the field set they
+// were written against.
+const cliWorkstreamDeclaration = cliDeclaration + `  trip.destination:
+    type: string
+    meaning: the city the trip is to
+    on: [workstream]
+`
+
 // TestShowPrintsTheDeclaredFieldsInDeclarationOrder asserts what a reader
 // sees. A card prints one line per declared field it carries, in the order the
 // workbench declares them, after the two levels and before the holder; a
@@ -553,4 +564,79 @@ func anchorBodyOf(t *testing.T, dir, ref string) string {
 	}
 	t.Fatalf("the registry carries no line for %s", ref)
 	return ""
+}
+
+// TestAWorkstreamKeyIsWrittenReadAndShownThroughTheHead is dinah-582 end to
+// end, through the surface a person actually types. A workbench declares a key
+// on a workstream alone, an actor who is not the operator writes it, a read
+// answers it back, and show draws a row for it under the built-in ones.
+//
+// The head is where the resolver and the renderer meet, and neither is
+// exercised by a library test: the library is handed a reference already
+// parsed and answers a Record nobody has drawn. The non-operator actor is the
+// point of the write, because the operator's ruling was about an agent
+// provisioning a workstream on his behalf.
+func TestAWorkstreamKeyIsWrittenReadAndShownThroughTheHead(t *testing.T) {
+	root := newBench(t)
+	declareFieldsOn(t, root, cliWorkstreamDeclaration)
+	if got := runCLI(t, root, "--actor", "bob", "workstream", "new", "Berlin trip", "--slug", "berlin"); got.code != 0 {
+		t.Fatalf("workstream new: %d %s", got.code, got.errw)
+	}
+	if got := runCLI(t, root, "--actor", "bob", "set", "workstream/berlin", "trip.destination", "Berlin"); got.code != 0 {
+		t.Fatalf("a non-operator writing a declared key on a workstream: %d %s", got.code, got.errw)
+	}
+	read := runCLI(t, root, "get", "workstream/berlin", "trip.destination")
+	if read.code != 0 {
+		t.Fatalf("get: %d %s", read.code, read.errw)
+	}
+	if strings.TrimSpace(read.out) != "Berlin" {
+		t.Errorf("get answers %q, wanted Berlin", read.out)
+	}
+	shown := runCLI(t, root, "show", "workstream/berlin")
+	if shown.code != 0 {
+		t.Fatalf("show: %d %s", shown.code, shown.errw)
+	}
+	rowAt := func(out, name string) int {
+		for i, line := range strings.Split(out, "\n") {
+			if strings.HasPrefix(strings.TrimSpace(line), name+" ") {
+				return i
+			}
+		}
+		return -1
+	}
+	declared := rowAt(shown.out, "trip.destination")
+	if declared < 0 || !strings.Contains(shown.out, "Berlin") {
+		t.Fatalf("show draws no row for the declared key:\n%s", shown.out)
+	}
+	if status := rowAt(shown.out, "status"); status < 0 || declared < status {
+		t.Errorf("the declared row prints at %d and the built-in status row at %d, wanted the declared one after:\n%s", declared, status, shown.out)
+	}
+
+	// A second workstream carries no value, so no row prints for it, which
+	// is what parts a declared row from a built-in one at the renderer.
+	if got := runCLI(t, root, "--actor", "bob", "workstream", "new", "Oslo trip", "--slug", "oslo"); got.code != 0 {
+		t.Fatalf("workstream new: %d %s", got.code, got.errw)
+	}
+	bare := runCLI(t, root, "show", "workstream/oslo")
+	if bare.code != 0 {
+		t.Fatalf("show: %d %s", bare.code, bare.errw)
+	}
+	if strings.Contains(bare.out, "trip.destination") {
+		t.Errorf("a workstream carrying no value still draws a field row:\n%s", bare.out)
+	}
+
+	// The key reaches a workstream and nothing else, and the refusal on a
+	// card names the kind it does reach.
+	if got := runCLI(t, root, "add", "A card"); got.code != 0 {
+		t.Fatalf("add: %d %s", got.code, got.errw)
+	}
+	refused := runCLI(t, root, "set", "fx-1", "trip.destination", "Berlin")
+	if refused.code == 0 {
+		t.Fatalf("a workstream key written on a card succeeded:\n%s", refused.out)
+	}
+	for _, want := range []string{"undeclared-field", "trip.destination", "workstream"} {
+		if !strings.Contains(refused.errw, want) {
+			t.Errorf("the refusal does not carry %q:\n%s", want, refused.errw)
+		}
+	}
 }

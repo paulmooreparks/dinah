@@ -21,21 +21,22 @@ func namesOf(list []tool) []string {
 }
 
 // TestProfileMembershipByNameAndCount pins dinah-544's three profiles: the
-// twenty-eight station tools (dinah-573 adds prime), the forty-one operator
-// tools (station's twenty-eight plus thirteen), and that ProfileAll and the
+// twenty-nine station tools (dinah-573 adds prime, dinah-582 adds
+// workstream), the forty-one operator tools (station's twenty-nine plus
+// twelve), and that ProfileAll and the
 // empty string (what every existing call site now passes) both answer the
 // whole registry, unfiltered, at forty-five (today's forty-four plus prime).
 func TestProfileMembershipByNameAndCount(t *testing.T) {
 	station := namesOf(toolsFor(ProfileStation))
-	if len(station) != 28 {
-		t.Errorf("ProfileStation carries %d tools, wanted 28: %v", len(station), station)
+	if len(station) != 29 {
+		t.Errorf("ProfileStation carries %d tools, wanted 29: %v", len(station), station)
 	}
 	wantStation := []string{
 		"add_card", "attach", "block", "cite_item", "claim", "comment",
 		"changes", "file_item", "get_field", "instructions", "join_workstream",
 		"leave_workstream", "link_card", "list", "move", "next_card",
 		"prime", "pull", "query", "raise", "release", "search_cards", "set_field",
-		"settle", "show", "tree", "unlink_card", "whoami",
+		"settle", "show", "tree", "unlink_card", "whoami", "workstream",
 	}
 	sort.Strings(wantStation)
 	if got := strings.Join(station, " "); got != strings.Join(wantStation, " ") {
@@ -95,18 +96,32 @@ func TestProfileMembershipByNameAndCount(t *testing.T) {
 			t.Errorf("%s is in operator and not in all", name)
 		}
 	}
+
+	// dinah-582 moved the workstream tool across, so that an agent which may
+	// write a workstream's fields may also bring one into existence. The two
+	// halves are asserted together: a name the station profile carries has to
+	// be absent from the operator-only list, or the counts above would still
+	// balance while the tool arrived from the wrong half.
+	if !stationSet["workstream"] {
+		t.Error("ProfileStation does not carry workstream, which dinah-582 moved into it")
+	}
+	for _, name := range operatorOnlyMembers {
+		if name == "workstream" {
+			t.Error("operatorOnlyMembers still carries workstream, which dinah-582 moved out of it")
+		}
+	}
 }
 
 // TestToolsListRespectsTheServedProfile asserts that a connection served
-// under ProfileStation sees exactly the twenty-eight station tools over
+// under ProfileStation sees exactly the twenty-nine station tools over
 // tools/list, and one served under ProfileOperator sees exactly the
 // forty-one.
 func TestToolsListRespectsTheServedProfile(t *testing.T) {
 	library := newLibrary(t)
 
 	station := servedNames(t, askUnderProfile(t, library.Bench.Root, ProfileStation, library, `{"jsonrpc":"2.0","id":1,"method":"tools/list"}`))
-	if len(station) != 28 {
-		t.Errorf("tools/list under station carried %d tools, wanted 28: %v", len(station), station)
+	if len(station) != 29 {
+		t.Errorf("tools/list under station carried %d tools, wanted 29: %v", len(station), station)
 	}
 	wantStation := namesOf(toolsFor(ProfileStation))
 	if got := strings.Join(station, " "); got != strings.Join(wantStation, " ") {

@@ -791,7 +791,10 @@ slot and the rules a value is written under; the workbench owns the names that
 go in it, and no part of this profile enumerates them. A declaration carries
 three things: the key a reader types, the type its value takes, and one line
 of prose saying what the field means. It may also name the entity kinds the
-field applies to, and a declaration naming none applies to all three.
+field applies to, and a declaration naming none applies to all three. A tool
+that models an entity this profile does not describe may let a declaration
+name that entity too, which changes nothing about the default: a declaration
+naming no kind reaches the three above and no other.
 
 A key is two or more segments joined by full stops, as in
 `venue.deposit-paid`. The full stop is what keeps a workbench's own name out

@@ -1278,12 +1278,12 @@ func (l *Library) Workstreams() (*WorkstreamListing, error) {
 // collection as a whole.
 //
 // The slug is optional and is what lets a caller finish provisioning the
-// entity it is creating. Field writes on a workstream are the operator's
-// alone, so a caller that is not the operator cannot correct a derived slug
-// afterwards, and before this row existed it was left holding a
-// half-provisioned entity it was not permitted to finish. Naming the slug at
-// creation closes that without moving a workstream field write's
-// authorization, which stays exactly where the operator ratified it.
+// entity it is creating in one act rather than two. The row was added when a
+// workstream field write was the operator's alone, so a caller that was not
+// the operator could not correct a derived slug afterwards and was left
+// holding a half-provisioned entity it was not permitted to finish. That
+// restriction went on dinah-582, and the argument from it is history; the
+// slug stays because provisioning in one act is still better than two.
 //
 // The grammar check sits between the title and the owner, which is where
 // SetField puts "the value is present and well formed" relative to the entity

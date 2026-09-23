@@ -296,23 +296,23 @@ func indexTools() map[string]tool {
 	return index
 }
 
-// stationMembers are the twenty-eight tools ProfileStation serves: what one
+// stationMembers are the twenty-nine tools ProfileStation serves: what one
 // agent needs to work one card through one column, and nothing that reaches
 // past the card it is standing on.
 var stationMembers = []string{
 	"claim", "move", "release", "block", "comment", "attach",
 	"add_card", "file_item", "cite_item", "settle",
-	"link_card", "unlink_card", "join_workstream", "leave_workstream",
+	"link_card", "unlink_card", "join_workstream", "leave_workstream", "workstream",
 	"get_field", "set_field", "raise",
 	"show", "list", "query", "search_cards", "tree", "changes",
 	"next_card", "pull", "instructions", "whoami", "prime",
 }
 
-// operatorOnlyMembers are the thirteen tools ProfileOperator adds beside
+// operatorOnlyMembers are the twelve tools ProfileOperator adds beside
 // every station tool: the workbench and column verbs, plus the acts whose
 // blast radius is the whole board rather than one card.
 var operatorOnlyMembers = []string{
-	"unblock", "workbench", "workstream", "new_column",
+	"unblock", "workbench", "new_column",
 	"status", "version", "export", "check",
 	"archive", "restore", "delete", "rename", "accept_divergence",
 }

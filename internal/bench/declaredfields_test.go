@@ -31,6 +31,14 @@ func declaringFixture(t *testing.T, format int) string {
     type: string
     meaning: the branch cards merge into
     on: [workbench, column]
+  trip.destination:
+    type: string
+    meaning: the city the trip is to
+    on: [workstream]
+  ghost.key:
+    type: string
+    meaning: a key whose on names a kind no declaration reaches
+    on: [comment]
 field_values:
   git.trunk: main
 columns:
@@ -245,7 +253,7 @@ func TestADeclarationNamingNoKindsReachesAllThree(t *testing.T) {
 	for _, field := range opened.DeclaredFields() {
 		order = append(order, field.Key)
 	}
-	want := []string{"git.branch", "venue.deposit-paid", "git.trunk"}
+	want := []string{"git.branch", "venue.deposit-paid", "git.trunk", "trip.destination", "ghost.key"}
 	if !reflect.DeepEqual(order, want) {
 		t.Errorf("the declaration order is %v, wanted %v", order, want)
 	}
@@ -492,6 +500,117 @@ Framing.
 	SetFieldValue(fm, "imported.key", "")
 	if fm.Has(FieldValuesKey) {
 		t.Errorf("a block left with no key is still carried:\n%s", fm.Render(body))
+	}
+}
+
+// TestADeclarationReachesAWorkstreamOnlyWhereItNamesOne drives dinah-582's
+// split of the one kind list into two. DeclarableKinds says which kinds an
+// `on` member may name and DefaultKinds says which kinds an entry naming no
+// `on` reaches, and the workstream is in the first and not the second.
+//
+// The three declarations exercise the three outcomes the split produces: an
+// `on` naming the workstream reaches it and nothing else, an entry naming no
+// `on` reaches the three of DefaultKinds and not the workstream, and an `on`
+// naming a kind no declaration reaches declares nothing at all. Both lists
+// are held to a length as well as to their members, because a list somebody
+// emptied answers every membership question with false and reads exactly like
+// a list nothing failed against.
+func TestADeclarationReachesAWorkstreamOnlyWhereItNamesOne(t *testing.T) {
+	if len(DeclarableKinds) != 4 {
+		t.Errorf("DeclarableKinds carries %d kinds, wanted 4: %v", len(DeclarableKinds), DeclarableKinds)
+	}
+	if got := strings.Join(DeclarableKinds, " "); got != strings.Join([]string{KindCard, KindColumn, KindWorkbench, KindWorkstream}, " ") {
+		t.Errorf("DeclarableKinds is %v", DeclarableKinds)
+	}
+	if len(DefaultKinds) != 3 {
+		t.Errorf("DefaultKinds carries %d kinds, wanted 3: %v", len(DefaultKinds), DefaultKinds)
+	}
+	if got := strings.Join(DefaultKinds, " "); got != strings.Join([]string{KindCard, KindColumn, KindWorkbench}, " ") {
+		t.Errorf("DefaultKinds is %v", DefaultKinds)
+	}
+
+	opened, err := openFixtureAtAnyFormat(t, declaringFixture(t, RegistryFormat))
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	destination := opened.DeclaredFieldOf("trip.destination")
+	deposit := opened.DeclaredFieldOf("venue.deposit-paid")
+	ghost := opened.DeclaredFieldOf("ghost.key")
+	if destination == nil || deposit == nil || ghost == nil {
+		t.Fatalf("the workbench declares %+v", opened.DeclaredFields())
+	}
+
+	// An `on` naming the workstream reaches it and reaches nothing else.
+	for kind, want := range map[string]bool{
+		KindWorkstream: true, KindCard: false, KindColumn: false, KindWorkbench: false,
+	} {
+		if destination.Declares(kind) != want {
+			t.Errorf("trip.destination on %s reports %v, wanted %v", kind, destination.Declares(kind), want)
+		}
+	}
+	if got := destination.Kinds(); !reflect.DeepEqual(got, []string{KindWorkstream}) {
+		t.Errorf("trip.destination reaches %v, wanted just the workstream", got)
+	}
+
+	// An entry naming no `on` reaches the three of DefaultKinds and stops
+	// short of the workstream, which is CORE-FIELD-4's fixed default.
+	for _, kind := range DefaultKinds {
+		if !deposit.Declares(kind) {
+			t.Errorf("venue.deposit-paid declares no `on` and does not reach %s", kind)
+		}
+	}
+	if deposit.Declares(KindWorkstream) {
+		t.Error("venue.deposit-paid declares no `on` and reaches a workstream")
+	}
+	if got := deposit.Kinds(); !reflect.DeepEqual(got, []string{KindCard, KindColumn, KindWorkbench}) {
+		t.Errorf("venue.deposit-paid reaches %v, wanted the three of DefaultKinds", got)
+	}
+
+	// An `on` naming a kind outside DeclarableKinds reaches nothing, which
+	// is what proves the widened list admitted one kind rather than opening
+	// the gate.
+	for _, kind := range EntityKinds() {
+		if ghost.Declares(kind) {
+			t.Errorf("ghost.key names `on: [comment]` and reaches %s", kind)
+		}
+	}
+}
+
+// TestAWorkstreamAnchorCarriesItsDeclaredValues reads CORE-FIELD-7 at the kind
+// dinah-582 adds. A workstream anchor's field_values block round-trips through
+// a render and a reparse, and a key the workbench does not declare keeps its
+// bytes across a write of the key beside it.
+func TestAWorkstreamAnchorCarriesItsDeclaredValues(t *testing.T) {
+	fm, body := ParseAnchor(`---
+title: Berlin trip
+slug: berlin
+status: active
+field_values:
+  imported.key: kept
+---
+What the trip is for.
+`)
+	SetFieldValue(fm, "trip.destination", "Berlin")
+	rendered := fm.Render(body)
+
+	reparsed, reparsedBody := ParseAnchor(rendered)
+	if got := FieldValue(reparsed, "trip.destination"); got != "Berlin" {
+		t.Errorf("the written value reads back as %q after a render and a reparse", got)
+	}
+	if got := FieldValue(reparsed, "imported.key"); got != "kept" {
+		t.Errorf("the undeclared key reads back as %q, wanted kept", got)
+	}
+	if got := FieldValues(reparsed); !reflect.DeepEqual(got, []StoredField{{Key: "imported.key", Value: "kept"}, {Key: "trip.destination", Value: "Berlin"}}) {
+		t.Errorf("the block carries %v, wanted the undeclared key and the written one", got)
+	}
+	if strings.Contains(rendered, "\ntrip.destination:") {
+		t.Errorf("a value reached the top level of the workstream anchor:\n%s", rendered)
+	}
+	if got := reparsed.Value(TitleField); got != "Berlin trip" {
+		t.Errorf("the workstream's own title reads back as %q", got)
+	}
+	if strings.TrimSpace(reparsedBody) != "What the trip is for." {
+		t.Errorf("the workstream's notes read back as %q", reparsedBody)
 	}
 }
 

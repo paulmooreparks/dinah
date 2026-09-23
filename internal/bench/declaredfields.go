@@ -24,14 +24,14 @@ type DeclaredField struct {
 	Type string
 	// Meaning is the one line of prose the declaration carries for a reader.
 	Meaning string
-	// On are the entity kinds this field applies to, drawn from KindCard,
-	// KindColumn and KindWorkbench. It is empty on an entry that declared no
-	// `on` member at all, which applies to all three, and Declares below is
-	// what tells that case from an entry whose `on` named nothing this build
-	// recognises.
+	// On are the entity kinds this field applies to, drawn from
+	// DeclarableKinds. It is empty on an entry that declared no `on` member
+	// at all, which applies to the kinds of DefaultKinds, and Declares below
+	// is what tells that case from an entry whose `on` named nothing this
+	// build recognises.
 	On []string
 	// EveryKind is true where the entry declared no `on` member, which is
-	// what makes the field reach all three kinds.
+	// what makes the field reach the kinds of DefaultKinds.
 	EveryKind bool
 }
 
@@ -48,8 +48,9 @@ const (
 	// carries a full stop and so does every declared field key, and a second
 	// tool meeting `git.trunk: main` at the top level could not tell a value
 	// to preserve from a layer declaration to evaluate. Nesting removes the
-	// question rather than answering it, and the rule is uniform across the
-	// three kinds so that one reader and one writer serve all of them.
+	// question rather than answering it, and the rule is uniform across every
+	// kind that carries a value, so that one reader and one writer serve all
+	// of them.
 	FieldValuesKey = "field_values"
 	// RequireFieldsKey carries a column's own requirement, a sequence of
 	// declared field keys a card must hold a value for before it enters.
@@ -147,14 +148,22 @@ func DeclaredFieldKey(name string) bool {
 	return declaredFieldKey.MatchString(name)
 }
 
-// DeclarableKinds are the three entity kinds a declaration may reach, in the
-// order a reader meets them. No declaration reaches a comment, a checklist
-// item, an attachment or a workstream, whatever its `on` member says, so a
-// write of a declared key to one of those four is refused by the same rule
-// that refuses an undeclared key anywhere.
-var DeclarableKinds = []string{KindCard, KindColumn, KindWorkbench}
+// DeclarableKinds are the entity kinds an `on` member may name, in the order
+// a reader meets them. No declaration reaches a comment, a checklist item or
+// an attachment, whatever its `on` member says, so a write of a declared key
+// to one of those three is refused by the same rule that refuses an
+// undeclared key anywhere.
+var DeclarableKinds = []string{KindCard, KindColumn, KindWorkbench, KindWorkstream}
 
-// declarableKind reports whether a kind is one of the three above.
+// DefaultKinds are the entity kinds a declaration naming no `on` member
+// reaches. It is a subset of DeclarableKinds and deliberately excludes the
+// workstream: CORE-FIELD-4 of the published profile fixes the default at a
+// workbench, a column and a card, and a declaration reaching a workstream
+// says so.
+var DefaultKinds = []string{KindCard, KindColumn, KindWorkbench}
+
+// declarableKind reports whether a kind is one an `on` member may name, which
+// is membership of DeclarableKinds.
 func declarableKind(kind string) bool {
 	for _, known := range DeclarableKinds {
 		if known == kind {
@@ -165,15 +174,20 @@ func declarableKind(kind string) bool {
 }
 
 // Declares reports whether this field reaches one entity kind. An entry that
-// declared no `on` member reaches all three; one that declared an `on` reaches
-// exactly the kinds it named, so a member this build does not recognise
-// narrows the field rather than widening it.
+// declared no `on` member reaches the kinds of DefaultKinds; one that declared
+// an `on` reaches exactly the kinds it named, so a member this build does not
+// recognise narrows the field rather than widening it.
 func (f DeclaredField) Declares(kind string) bool {
 	if !declarableKind(kind) {
 		return false
 	}
 	if f.EveryKind {
-		return true
+		for _, known := range DefaultKinds {
+			if known == kind {
+				return true
+			}
+		}
+		return false
 	}
 	for _, named := range f.On {
 		if named == kind {
@@ -184,11 +198,11 @@ func (f DeclaredField) Declares(kind string) bool {
 }
 
 // Kinds reports the entity kinds this field reaches, which is what a refusal
-// naming the wrong kind prints. An entry declaring no `on` reports the three
-// in the order a reader meets them.
+// naming the wrong kind prints. An entry declaring no `on` reports the kinds
+// of DefaultKinds, in the order a reader meets them.
 func (f DeclaredField) Kinds() []string {
 	if f.EveryKind {
-		return append([]string(nil), DeclarableKinds...)
+		return append([]string(nil), DefaultKinds...)
 	}
 	return append([]string(nil), f.On...)
 }
