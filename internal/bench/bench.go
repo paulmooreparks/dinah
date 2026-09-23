@@ -88,8 +88,13 @@ const (
 // card body carried into a declared field, so the number says whether a
 // workbench has been carried across that retirement. It moved from 4 to 5 at
 // dinah-496, which made a journal line's actor an object, so the number says
-// whether a workbench's journals have been re-encoded.
-const StorageFormat = 6
+// whether a workbench's journals have been re-encoded. It moved from 5 to 6 at
+// dinah-525, which made a checklist item's answer a designated comment rather
+// than a free-text note, so the number says whether that note migration has
+// run. It moved from 6 to 7 at dinah-472, which keys an item's answer on the
+// designated comment's own identifier rather than on its position, so the
+// number says whether `dinah check --migrate-designations` has run.
+const StorageFormat = 7
 
 // ContainerFormat is the storage format from which the containment rule binds.
 // A workbench declaring this number or a higher one is held to Contained; one
@@ -149,6 +154,24 @@ const ActorObjectFormat = 5
 // store as carrying no answer, which is not a degraded reading but a false
 // one.
 const ResolutionFormat = 6
+
+// DesignationFormat is the storage format from which a checklist item's answer
+// is identified by the designated comment's own identifier rather than by that
+// comment's position among the item's comments.
+//
+// The key had to move because a position is not an identity. Archiving any
+// earlier comment of an item renumbers the survivors, so the stored reference
+// comes to name a different comment, and the item goes on citing an answer
+// nobody wrote for it. Deleting one reaches the same place and leaves no
+// archive behind to notice.
+//
+// The gate is a refusal rather than a finding, on ResolutionFormat's own
+// reasoning and with a sharper case. An older build meeting a migrated store
+// resolves the stored value as a reference, a bare identifier does not resolve
+// that way, and the guard protecting the designated comment from deletion
+// answers nil and admits the deletion. An old reader that silently stops
+// enforcing a protection is exactly what the format version exists to prevent.
+const DesignationFormat = 7
 
 // UndeclaredFormat is the format a workbench whose anchor declares no format
 // key is opened as carrying. Such a workbench predates the key itself, and
@@ -1832,7 +1855,7 @@ func openWithVocabulary(root string, vocab columnVocabulary, admit func(declared
 	// migration first. It does not: nothing makes that ordering hold on an
 	// ordinary read, and the store an operator is most likely to own without
 	// a format key is the oldest one he has.
-	if requireResolution && b.Format < ResolutionFormat {
+	if requireResolution && b.Format < DesignationFormat {
 		return nil, contract.Refuse(contract.StoreAwaitingMigration, root)
 	}
 	// The card-number registry is read once here, after the format gate, so

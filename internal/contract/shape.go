@@ -1422,6 +1422,54 @@ var Shapes = []Shape{
 		NextStep:  []string{"refusal.dinah.not-resolved.next"},
 	},
 	{
+		// The detail is the item's state on disk. The next step says what a
+		// waiver is for, because a caller who reached this name asked to
+		// lift a hold on an item that is not holding anything.
+		Name:      NotWaivable,
+		Fragments: []Fragment{{Key: "refusal.dinah.not-waivable.next"}},
+		NextStep:  []string{"refusal.dinah.not-waivable.next"},
+	},
+	{
+		// The detail is the item's state, which is always withdrawn here,
+		// and the next step names reopen, which is the one way back.
+		Name:      AlreadyWithdrawn,
+		Fragments: []Fragment{{Key: "refusal.dinah.already-withdrawn.next"}},
+		NextStep:  []string{"refusal.dinah.already-withdrawn.next"},
+	},
+	{
+		// The detail is the item's state, which is failed or waived. The
+		// next step says that a finding is the operator's to retire, so the
+		// reader learns what the grant does not cover rather than being told
+		// to try again.
+		Name:      GrantExcludesFinding,
+		Fragments: []Fragment{{Key: "refusal.dinah.grant-excludes-finding.next"}},
+		NextStep:  []string{"refusal.dinah.grant-excludes-finding.next"},
+	},
+	{
+		// The detail is the card, and the next step names grant, because the
+		// caller meant to end a permission and there was none to end.
+		Name:      NoGrant,
+		Fragments: []Fragment{{Key: "refusal.dinah.no-grant.next"}},
+		NextStep:  []string{"refusal.dinah.no-grant.next"},
+	},
+	{
+		// The detail is the item's state, and the next step names reopen,
+		// which is the one erasure of an answer of record the tool performs
+		// and which clears the state along with the key.
+		Name:      DesignationRequired,
+		Fragments: []Fragment{{Key: "refusal.dinah.designation-required.next"}},
+		NextStep:  []string{"refusal.dinah.designation-required.next"},
+	},
+	{
+		// The detail is the first claimed card the conversion found and the
+		// owner holding it rides as a value, so the operator can go and ask
+		// that owner rather than hunting for which card stopped the run.
+		Name:      WorkbenchInUse,
+		Values:    []string{"owner"},
+		Fragments: []Fragment{{Key: "refusal.dinah.workbench-in-use.next"}},
+		NextStep:  []string{"refusal.dinah.workbench-in-use.next"},
+	},
+	{
 		// The detail is the item's reference, so the reader can hand the same
 		// spelling to cite, which is what the next step tells them to do.
 		Name:      Uncited,

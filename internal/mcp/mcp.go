@@ -984,6 +984,8 @@ func assignValue(req *verb.Request, name, field, value string) {
 		req.Fields = value
 	case "workstream":
 		req.Workstream = value
+	case "permission":
+		req.Permission = value
 	case "slug":
 		req.Slug = value
 	case "value":
@@ -1072,6 +1074,12 @@ func assignMarker(req *verb.Request, name string, value bool) {
 		req.MigrateNewlines = value
 	case "migrate-numbers":
 		req.MigrateNumbers = value
+	case "migrate-designations":
+		req.MigrateDesignations = value
+	case "rehearse":
+		req.Rehearse = value
+	case "force-claims":
+		req.ForceClaims = value
 	case "migrate-workstreams":
 		req.MigrateWorkstreams = value
 	case "witness":

@@ -62,7 +62,14 @@ func init() {
 		{name: "resolve", group: groupWork, run: runResolve, bounded: 1, openTail: true},
 		{name: "verify", group: groupWork, run: runVerify, bounded: 1, openTail: true},
 		{name: "fail", group: groupWork, run: runFail, bounded: 1, openTail: true},
+		{name: "waive", group: groupWork, run: runWaive, bounded: 1, openTail: true},
+		{name: "withdraw", group: groupWork, run: runWithdraw, bounded: 1, openTail: true},
 		{name: "reopen", group: groupWork, run: runReopen, bounded: 1, openTail: true},
+		// grant and revoke each bind the card and the permission name and
+		// take no tail, which is join's shape: both arguments are one word
+		// and neither is prose.
+		{name: "grant", group: groupWork, run: runGrant, bounded: 2},
+		{name: "revoke", group: groupWork, run: runRevoke, bounded: 2},
 		// link and unlink each bind three positionals and take no tail, which
 		// is cite's shape: every argument is one word, and none of the three
 		// is prose.
@@ -165,8 +172,12 @@ func (s *session) request(name string, parsed *arguments) *verb.Request {
 		MigrateBranches:   parsed.has("migrate-branches"),
 		MigrateNewlines:   parsed.has("migrate-newlines"),
 		MigrateNumbers:    parsed.has("migrate-numbers"),
-		Renumber:          parsed.has("renumber"),
-		Remint:            parsed.value("remint"),
+
+		MigrateDesignations: parsed.has("migrate-designations"),
+		Rehearse:            parsed.has("rehearse"),
+		ForceClaims:         parsed.has("force-claims"),
+		Renumber:            parsed.has("renumber"),
+		Remint:              parsed.value("remint"),
 
 		MigrateWorkstreams: parsed.has("migrate-workstreams"),
 		MigrateWitness:     parsed.has("witness"),
@@ -494,6 +505,42 @@ func runTerminalItem(s *session, parsed *arguments, name string, call func(*verb
 	}
 	return s.withBench(func(l *verb.Library) int {
 		return s.emit(call(l, req))
+	})
+}
+
+// runWaive records that a finding stands and that the workbench operator has
+// decided the card may proceed regardless. Its arguments are the three the
+// terminal verbs take, so it goes through their shared wiring.
+func runWaive(s *session, parsed *arguments) int {
+	return runTerminalItem(s, parsed, "waive", (*verb.Library).Waive)
+}
+
+// runWithdraw records that the question an item carries stopped applying.
+func runWithdraw(s *session, parsed *arguments) int {
+	return runTerminalItem(s, parsed, "withdraw", (*verb.Library).Withdraw)
+}
+
+// runGrant gives a card a standing authorization. The card is the subject
+// because the card's frontmatter is the file that changes, which is runJoin's
+// reason for the same shape.
+func runGrant(s *session, parsed *arguments) int {
+	words := parsed.rest()
+	req := s.request(verb.GrantPermission, parsed)
+	req.Card = at(words, 0)
+	req.Permission = at(words, 1)
+	return s.withBench(func(l *verb.Library) int {
+		return s.emit(l.Do(req))
+	})
+}
+
+// runRevoke takes back a card's standing authorization.
+func runRevoke(s *session, parsed *arguments) int {
+	words := parsed.rest()
+	req := s.request(verb.RevokePermission, parsed)
+	req.Card = at(words, 0)
+	req.Permission = at(words, 1)
+	return s.withBench(func(l *verb.Library) int {
+		return s.emit(l.Do(req))
 	})
 }
 
@@ -1529,6 +1576,9 @@ var checkStarvedMarkers = []string{
 	"migrate-workstreams",
 	"witness",
 	"migrate-numbers",
+	"migrate-designations",
+	"rehearse",
+	"force-claims",
 	"migrate-branches",
 	"migrate-newlines",
 	"renumber",

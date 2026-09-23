@@ -110,6 +110,10 @@ func (l *Library) evaluate(req *Request, card *bench.Card) *Response {
 		return l.join(req, card)
 	case Leave:
 		return l.leave(req, card)
+	case GrantPermission:
+		return l.grant(req, card)
+	case RevokePermission:
+		return l.revoke(req, card)
 	}
 	return l.refuse(req, card, contract.UnknownVerb, req.Verb)
 }
@@ -615,6 +619,16 @@ func (l *Library) move(req *Request, card *bench.Card) *Response {
 			ev.Reject = true
 		}
 	}
+	// A criterion-retirement grant is spent by the card's next move, whatever
+	// the direction, and is cleared by the same act that records the move.
+	// The narrowing and the tidying are one episode at one station, so the
+	// departure that ends the episode ends the permission.
+	//
+	// No journal line of its own is written for it. The moved event above
+	// records the departure that spent the grant, and a second line saying
+	// the same thing in other words is a fact a reader has to reconcile
+	// rather than one they gain.
+	card.RetirementGrant = ""
 	card.Column = destination.ID
 	response, err := l.commit(req, card, ev)
 	if err != nil {

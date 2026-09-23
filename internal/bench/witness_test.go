@@ -15,7 +15,7 @@ import (
 // divergence can be stated on: a card has to be able to stand in a column its
 // journal does not name.
 const witnessDefinition = `---
-format: 6
+format: 7
 profile: dinah-core/0.7
 title: Fixture
 slug: fx

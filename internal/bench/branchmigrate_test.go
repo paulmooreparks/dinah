@@ -19,7 +19,7 @@ func migrationFixture(t *testing.T, bodies map[string]string) string {
 	t.Helper()
 	root := containedPath(t.TempDir())
 	write(t, filepath.Join(root, WorkbenchAnchor), strings.Replace(
-		benchDefinition, "format: 6", "format: "+strconv.Itoa(FieldsFormat-1), 1))
+		benchDefinition, "format: 7", "format: "+strconv.Itoa(FieldsFormat-1), 1))
 	write(t, filepath.Join(root, ColumnsDir, "b00000000001", ColumnAnchor), columnDefinition)
 	lines := ""
 	number := 0

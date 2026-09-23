@@ -633,6 +633,86 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "f4b93e456ac346da"
     },
+    "check.designation-missing": {
+      "text": "{detail} पर निपटाया गया आइटम कोई अभिलिखित उत्तर नहीं रखता",
+      "context": "A check finding: an item settled without an answer of record, which the designation conversion leaves behind wherever the history could not say which comment the answer meant. {detail} is the state the item keeps, machine vocabulary that is never translated.",
+      "source": "518ab92453a0c7c5"
+    },
+    "check.designations-archived.one": {
+      "text": "{count} रूपांतरित आइटम एक संग्रहीत टिप्पणी रखता है।",
+      "context": "The line the designation conversion prints for the converted items whose comments hold at least one archived member, for exactly one item. That is the population whose positions may already have drifted before anybody ran the conversion.",
+      "source": "e676b23511ec5cb2"
+    },
+    "check.designations-archived.other": {
+      "text": "{count} रूपांतरित आइटम एक संग्रहीत टिप्पणी रखते हैं।",
+      "context": "The line the designation conversion prints for the converted items whose comments hold at least one archived member, for any other number.",
+      "source": "6e145945bbfcae9f"
+    },
+    "check.designations-claims-passed.one": {
+      "text": "{count} ऐसे कार्ड को पार किया गया जिसे कोई अब भी धारण किए है।",
+      "context": "The line a forced designation conversion prints for the claims it passed, for exactly one card. The same cards are named in the workbench's own history, so the judgement stays readable afterwards.",
+      "source": "ded15339ddea1b3a"
+    },
+    "check.designations-claims-passed.other": {
+      "text": "{count} ऐसे कार्डों को पार किया गया जिन्हें कोई अब भी धारण किए है।",
+      "context": "The line a forced designation conversion prints for the claims it passed, for any other number, zero included, so that the flag is never a silent no-op.",
+      "source": "3e9a37bd4785e557"
+    },
+    "check.designations-journal.one": {
+      "text": "इतिहास से {count} आइटम रूपांतरित किया गया।",
+      "context": "The line the designation conversion prints for the items it recovered from the card's own history, for exactly one item. The history named the comment outright, so nothing was inferred.",
+      "source": "e3cc4ebbe9a9859e"
+    },
+    "check.designations-journal.other": {
+      "text": "इतिहास से {count} आइटम रूपांतरित किए गए।",
+      "context": "The line the designation conversion prints for the items it recovered from the card's own history, for any other number.",
+      "source": "edc3e9ce2b0b451"
+    },
+    "check.designations-keeps-state": {
+      "text": "ऊपर का हर आइटम अपनी स्थिति बनाए रखता है और अपना अभिलिखित उत्तर खो चुका है।",
+      "context": "The sentence the designation conversion prints once under the unanswered items, so that nobody reads the group as work the run undid.",
+      "source": "1ee9c9e0d534202e"
+    },
+    "check.designations-rehearsed": {
+      "text": "कुछ भी नहीं लिखा गया। रूपांतरित करने और कार्यक्षेत्र पर मुहर लगाने के लिए इसे --rehearse के बिना फिर चलाएँ।",
+      "context": "The closing line of a rehearsal of the designation conversion, which decides everything and writes nothing. --rehearse is a flag name and is not translated.",
+      "source": "2bf00b69c2b9f6bf"
+    },
+    "check.designations-stamped": {
+      "text": "कार्यक्षेत्र एंकर पर प्रारूप {detail} अंकित किया गया।",
+      "context": "The closing line of a converting run of the designation conversion. {detail} is the format number it wrote, machine vocabulary that is never translated.",
+      "source": "33ba74db221e8703"
+    },
+    "check.designations-unanswered-total.one": {
+      "text": "{count} आइटम इस प्रतीक्षा में है कि कोई उसका फिर से उत्तर दे।",
+      "context": "The last line of a designation conversion that left anything unanswered, for exactly one item, because that is the number the operator acts on.",
+      "source": "b73d8a78f0368e1b"
+    },
+    "check.designations-unanswered-total.other": {
+      "text": "{count} आइटम इस प्रतीक्षा में हैं कि कोई उनका फिर से उत्तर दे।",
+      "context": "The last line of a designation conversion that left anything unanswered, for any other number.",
+      "source": "40f1a1b26e283193"
+    },
+    "check.designations-unanswered.one": {
+      "text": "{count} आइटम को अनुत्तरित छोड़ा गया।",
+      "context": "The line the designation conversion prints for the items whose answer the history could not recover, for exactly one item. The conversion does not guess, so such an item is left unanswered.",
+      "source": "58ff712b0f54fc8c"
+    },
+    "check.designations-unanswered.other": {
+      "text": "{count} आइटम को अनुत्तरित छोड़ा गया।",
+      "context": "The line the designation conversion prints for the items whose answer the history could not recover, for any other number.",
+      "source": "30d8d89d23c71ba9"
+    },
+    "check.designations-undisturbed.one": {
+      "text": "{count} आइटम को अछूता मानकर रूपांतरित किया गया।",
+      "context": "The line the designation conversion prints for the items nothing had disturbed since they were settled, for exactly one item. It is kept apart from the history group because the confidence is of a different kind.",
+      "source": "96e19f828dfc1d32"
+    },
+    "check.designations-undisturbed.other": {
+      "text": "{count} आइटम को अछूता मानकर रूपांतरित किए गए।",
+      "context": "The line the designation conversion prints for the items nothing had disturbed since they were settled, for any other number.",
+      "source": "c6e160d0e32292b9"
+    },
     "check.duplicate-workbench-id": {
       "text": "एक ही वर्कबेंच पहचानकर्ता पर एक से अधिक निर्देशिकाएँ दावा करती हैं ({detail}); dinah check --remint <path> उनमें से एक को नया पहचानकर्ता देता है",
       "context": "A check finding: two or more directories share one workbench identifier. {detail} carries the identifier and every path claiming it. The sweep never repairs this, because a git clone and an accidental copy look identical on disk.",
@@ -1833,6 +1913,11 @@
       "context": "The one-line summary of the get command, shown beside its syntax in the help block.",
       "source": "d507966613c6a485"
     },
+    "cmd.grant.summary": {
+      "text": "किसी कार्ड को एक स्थायी अनुमति दें",
+      "context": "The one-line summary of the grant command, printed in the command list and above its own help.",
+      "source": "62e687513998e9dd"
+    },
     "cmd.guide.summary": {
       "text": "अंतर्निहित मार्गदर्शिकाएँ, या उनमें से एक",
       "context": "The one-line summary of the guide command, shown beside its syntax in the help block.",
@@ -1953,6 +2038,11 @@
       "context": "The one-line summary of the restore command, shown beside its syntax in the help block. It is the inverse of cmd.archive.summary and is worded to read as its pair.",
       "source": "e33de6bd1bb93b96"
     },
+    "cmd.revoke.summary": {
+      "text": "किसी कार्ड की स्थायी अनुमति वापस लें",
+      "context": "The one-line summary of the revoke command, printed in the command list and above its own help.",
+      "source": "54cf5d50bea45e63"
+    },
     "cmd.search.summary": {
       "text": "इस वर्कबेंच में हर वह जगह जहाँ कोई वाक्यांश आता है",
       "context": "The one-line summary of the search command, shown beside its syntax in the help block.",
@@ -2013,10 +2103,20 @@
       "context": "The one-line summary of the version command, shown beside its syntax in the help block.",
       "source": "925b827e967beb7d"
     },
+    "cmd.waive.summary": {
+      "text": "किसी चेकलिस्ट आइटम को waived दर्ज करें, ताकि कार्ड आगे बढ़ सके",
+      "context": "The one-line summary of the waive command, printed in the command list and above its own help. waived is the state token the verb lands and is never translated.",
+      "source": "1e7a33fd9c7b8f12"
+    },
     "cmd.whoami.summary": {
       "text": "आपकी क्रियाओं पर दर्ज कर्ता, और क्या वह संचालक है",
       "context": "The one-line summary of the whoami command, shown beside its syntax in the help block.",
       "source": "7abeaebb7ab6b730"
+    },
+    "cmd.withdraw.summary": {
+      "text": "किसी चेकलिस्ट आइटम को withdrawn दर्ज करें, क्योंकि प्रश्न अब लागू नहीं होता",
+      "context": "The one-line summary of the withdraw command, printed in the command list and above its own help. withdrawn is the state token the verb lands and is never translated.",
+      "source": "ac6e41ce01eb5bb2"
     },
     "cmd.workbench.summary": {
       "text": "इस वर्कबेंच के अपने फ़ील्ड पढ़ें",
@@ -2202,6 +2302,51 @@
       "text": "मान",
       "context": "Heading over the value in force, in the settings `dinah config` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "41f7dca46d3f1b4a"
+    },
+    "column.designations-unanswered.item": {
+      "text": "आइटम",
+      "context": "Heading over the reference a person types to reach the item, in the unanswered block of the designation conversion's report, which `dinah check --migrate-designations` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "source": "52cfa1d198476806"
+    },
+    "column.designations-unanswered.reaches": {
+      "text": "नाम लेता",
+      "context": "Heading over who wrote the comment that stored reference reaches today, so the operator can see what a guessing conversion would have written down, in the unanswered block of the designation conversion's report, which `dinah check --migrate-designations` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "source": "2dcd9f66f670125"
+    },
+    "column.designations-unanswered.settling": {
+      "text": "निपटान",
+      "context": "Heading over the journal event that last settled the item, in the unanswered block of the designation conversion's report, which `dinah check --migrate-designations` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "source": "6471558aa06ebcbd"
+    },
+    "column.designations-unanswered.state": {
+      "text": "बनाए रखता है",
+      "context": "Heading over the state the item keeps, which the conversion never changes, in the unanswered block of the designation conversion's report, which `dinah check --migrate-designations` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "source": "396c3bfe4c01e2a1"
+    },
+    "column.designations-unanswered.stored": {
+      "text": "संग्रहीत",
+      "context": "Heading over the positional reference the item carried before the run, in the unanswered block of the designation conversion's report, which `dinah check --migrate-designations` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "source": "ba1f9fd4888c677e"
+    },
+    "column.designations.author": {
+      "text": "लेखक",
+      "context": "Heading over who wrote that comment, in the converted block of the designation conversion's report, which `dinah check --migrate-designations` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "source": "1d32b35baa3b676"
+    },
+    "column.designations.identifier": {
+      "text": "टिप्पणी",
+      "context": "Heading over the identifier of the comment the run wrote as the item's answer, in the converted block of the designation conversion's report, which `dinah check --migrate-designations` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "source": "af84ec86139d349e"
+    },
+    "column.designations.item": {
+      "text": "आइटम",
+      "context": "Heading over the reference a person types to reach the item, in the converted block of the designation conversion's report, which `dinah check --migrate-designations` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "source": "52cfa1d198476806"
+    },
+    "column.designations.settling": {
+      "text": "निपटान",
+      "context": "Heading over the journal event that last settled the item, in the converted block of the designation conversion's report, which `dinah check --migrate-designations` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "source": "6471558aa06ebcbd"
     },
     "column.flags.option": {
       "text": "विकल्प",
@@ -3090,6 +3235,11 @@
       "context": "The meaning of the finish argument of `dinah check`, printed in that command's arguments table.",
       "source": "cbc4ff1646862f6d"
     },
+    "param.check.force-claims.summary": {
+      "text": "रूपांतरण को ऐसे कार्ड से आगे ले जाता है जिसे कोई अब भी धारण किए है, और हर ऐसे कार्ड का नाम कार्यक्षेत्र के इतिहास में दर्ज करता है",
+      "context": "The written meaning of the --force-claims flag of check, which is the workbench operator's own way past a claim nobody can release.",
+      "source": "774fb527debb03a9"
+    },
     "param.check.migrate-branches.summary": {
       "text": "हर कार्ड के मुख्य भाग से वापस ली गई शीर्षक को एक घोषित फ़ील्ड में उठाएं और इस भंडार का फ़ॉर्मैट अंकित करें",
       "context": "The meaning of the migrate-branches argument of `dinah check`, printed in that command's arguments table.",
@@ -3104,6 +3254,11 @@
       "text": "इस वर्कबेंच को .dinah कंटेनर में, Dinah द्वारा गढ़े गए पहचानकर्ता के नाम पर ले जाएँ, या --root के नीचे की हर वर्कबेंच को",
       "context": "The one-line summary of the check command flag --migrate-container, printed by `dinah help check`.",
       "source": "26ead382b2d32a9a"
+    },
+    "param.check.migrate-designations.summary": {
+      "text": "प्रत्येक चेकलिस्ट आइटम के उत्तर को स्थान से निर्दिष्ट टिप्पणी की अपनी पहचान में बदलता है, और उसे घोषित करने वाला प्रारूप कार्यक्षेत्र पर अंकित करता है",
+      "context": "The written meaning of the --migrate-designations flag of check. It is the workbench operator's own act and is refused while any card is held.",
+      "source": "cc50b40bcf40f7a7"
     },
     "param.check.migrate-newlines.summary": {
       "text": "प्रत्येक ऐसी पाठ फ़़ाइल की मरम्मत करें जो पंक्ति-अंत के रूप में कैरिज रिटर्न संग्रहीत करती है; पहले प्रत्येक गंतव्य को उसी के बाइट्स से पुनः लिखा जाता है; एक बाधित रन किसी ऐंकर के पास .dinah-* फ़़ाइल छोड़ सकता है, जिसे मिटाना सुरक्षित है क्योंकि उसे कोई नहीं पढ़ता",
@@ -3134,6 +3289,11 @@
       "text": "हर उस वर्कस्ट्रीम को अपनाएँ जिसे कोई कार्ड नाम देता है और यह वर्कबेंच नहीं रखता",
       "context": "The meaning of the migrate-workstreams argument of `dinah check`, printed in that command's arguments table.",
       "source": "a1f0e6c7ae6251db"
+    },
+    "param.check.rehearse.summary": {
+      "text": "उन्हीं नियमों से रूपांतरण तय करता है, वही रिपोर्ट छापता है, और कुछ भी नहीं लिखता",
+      "context": "The written meaning of the --rehearse flag of check, which turns the designation conversion into a rehearsal.",
+      "source": "b0aaef5fcbda4109"
     },
     "param.check.remint.summary": {
       "text": "इस पथ की वर्कबेंच को नया पहचानकर्ता दें",
@@ -3279,6 +3439,11 @@
       "text": "जिस इकाई को आप पढ़ रहे हैं, उसके संदर्भ के रूप में लिखी गई",
       "context": "The meaning of the ref argument of `dinah get`, printed in that command's arguments table.",
       "source": "e7ef088ff9da9e00"
+    },
+    "param.grant.permission.summary": {
+      "text": "कौन सी स्थायी अनुमति दी जाए, criterion-retirement के रूप में लिखी गई",
+      "context": "The written meaning of the permission argument of grant. criterion-retirement is machine vocabulary and is never translated.",
+      "source": "ca5b255ea3ed5c95"
     },
     "param.guide.topic.summary": {
       "text": "कौन-सी मार्गदर्शिका पढ़नी है; कुछ न लिखने पर सभी विषय",
@@ -3479,6 +3644,11 @@
       "text": "एक हटाए जा रहे कॉलम के कार्ड दूसरे कॉलम में भेजें, retired=destination के रूप में लिखा और हर हटाए जा रहे कॉलम के लिए एक बार दोहराया; बाईं ओर वह कॉलम पहचानकर्ता भी हो सकता है जिसे कोई कार्ड अब भी रखता है और यह वर्कबेंच अब नहीं बताता, जिसे `dinah check` check.unknown-column के रूप में बताता है",
       "context": "The meaning of the map argument of `dinah reshape`, printed in that command's arguments table. It names `dinah check` because that is the command an operator runs to find a stranded column identifier before writing this flag.",
       "source": "be7a7c10a7313389"
+    },
+    "param.revoke.permission.summary": {
+      "text": "कौन सी स्थायी अनुमति वापस ली जाए, criterion-retirement के रूप में लिखी गई",
+      "context": "The written meaning of the permission argument of revoke. criterion-retirement is machine vocabulary and is never translated.",
+      "source": "45163af002b8167c"
     },
     "param.root.summary": {
       "text": "जिस वर्कबेंच में आप खड़े हैं उसके बजाय इस डायरेक्टरी के नीचे की हर वर्कबेंच के लिए उत्तर दें",
@@ -3685,6 +3855,16 @@
       "context": "Spliced onto refusal.dinah.add-needs-a-column as the next step wherever a workbench was resolved for this invocation, which covers every reader standing in one and every reader who named one with --workbench from somewhere else. {workbench} is the workbench directory, and naming it is what lets the reader confirm the hand edit on the workbench he was filing into. {detail} is the workbench.md path to hand-edit. The sibling entry without the flag is the alternation's unconditional last member. The command spelling is machine vocabulary and is not translated.",
       "source": "8a268bcc89e6b74f"
     },
+    "refusal.dinah.already-withdrawn": {
+      "text": "वह आइटम पहले से ही {detail} है।",
+      "context": "The sentence printed after the refusal name dinah.already-withdrawn, which withdraw carries on an item that has already been withdrawn. {detail} is the state on disk, machine vocabulary that is never translated. refusal.dinah.already-withdrawn.next is spliced on after this one.",
+      "source": "d9260a4476751292"
+    },
+    "refusal.dinah.already-withdrawn.next": {
+      "text": " यदि इसे फिर से पूछा जाना है तो पहले इसे दोबारा खोलें।",
+      "context": "The next step of refusal.dinah.already-withdrawn, spliced onto the sentence that just named the item's state.",
+      "source": "e0395fffa290819d"
+    },
     "refusal.dinah.ambiguous-card": {
       "text": "{detail} का उत्तर एक से अधिक कार्ड देते हैं",
       "context": "The opening sentence printed after the refusal name dinah.ambiguous-card, naming the reference the reader typed. The candidate rows print beneath it, one 12-hex card identifier per row, and refusal.dinah.ambiguous-card.next follows as the closing line naming the way forward.",
@@ -3820,6 +4000,16 @@
       "context": "Spliced onto refusal.dinah.depth-without-root as the next step, naming the two ways past the refusal. The option name and its placeholder are machine vocabulary and are never translated.",
       "source": "75f263d80da82c60"
     },
+    "refusal.dinah.designation-required": {
+      "text": "वह आइटम {detail} है और उसका अभिलिखित उत्तर मिटाया नहीं जा सकता।",
+      "context": "The sentence printed after the refusal name dinah.designation-required, which a clear of an item's answer carries on an item that is not pending. {detail} is the state on disk, machine vocabulary that is never translated. refusal.dinah.designation-required.next is spliced on after this one.",
+      "source": "f2a994c5e0647945"
+    },
+    "refusal.dinah.designation-required.next": {
+      "text": " `dinah reopen` चलाएँ, जो दर्ज निपटान के साथ उत्तर को भी हटा देता है।",
+      "context": "The next step of refusal.dinah.designation-required, spliced onto the sentence that just named the item's state. dinah reopen is a command name and is not translated.",
+      "source": "55dc25809601093e"
+    },
     "refusal.dinah.directory-not-empty": {
       "text": "{detail} पहले से मौजूद है और खाली नहीं है",
       "context": "The sentence printed after the refusal name dinah.directory-not-empty, raised by init when the target directory holds at least one entry and the caller did not pass --here. {detail} is the target directory.",
@@ -3859,6 +4049,16 @@
       "text": "; वहाँ जो खड़ा है उसे हटाएँ या मिटाएँ, फिर दुबारा वापस लाएँ",
       "context": "Spliced onto refusal.dinah.exists.restore. It names the two acts that clear the slot, and it advises neither of the two the init sentence advises, because choosing a different directory is not something a restore can do.",
       "source": "f37f3eed6582377"
+    },
+    "refusal.dinah.grant-excludes-finding": {
+      "text": "वह मानदंड {detail} है, और स्थायी अनुमति किसी दर्ज निष्कर्ष तक नहीं पहुँचती।",
+      "context": "The sentence printed after the refusal name dinah.grant-excludes-finding, which withdraw carries when a standing authorization is the only thing admitting it and the criterion already records a finding. {detail} is the state on disk, machine vocabulary that is never translated. refusal.dinah.grant-excludes-finding.next is spliced on after this one.",
+      "source": "d3ac8f62c513f826"
+    },
+    "refusal.dinah.grant-excludes-finding.next": {
+      "text": " किसी निष्कर्ष को वापस लेना कार्यक्षेत्र संचालक का अपना कार्य है।",
+      "context": "The next step of refusal.dinah.grant-excludes-finding, spliced onto the sentence that just named the criterion's state.",
+      "source": "fadf3e640872491d"
     },
     "refusal.dinah.interrupted": {
       "text": "{detail} पर की गई क्रिया अभिलेखन के बाद बाधित हुई",
@@ -4025,6 +4225,16 @@
       "context": "Spliced onto refusal.dinah.no-editor as the next step, carrying the clause that base entry used to end with. {detail} is the built-in list of editors to install one of.",
       "source": "7e19d158a642175a"
     },
+    "refusal.dinah.no-grant": {
+      "text": "कार्ड {detail} पर कोई स्थायी अनुमति नहीं है।",
+      "context": "The sentence printed after the refusal name dinah.no-grant, which revoke carries over a card that has no standing authorization. {detail} is the card's reference. refusal.dinah.no-grant.next is spliced on after this one.",
+      "source": "86d46960eb64d804"
+    },
+    "refusal.dinah.no-grant.next": {
+      "text": " कुछ भी वापस नहीं लिया गया; `dinah grant` ही इसे स्थापित करता है।",
+      "context": "The next step of refusal.dinah.no-grant, spliced onto the sentence that just named the card. dinah grant is a command name and is not translated.",
+      "source": "47597df0da56854d"
+    },
     "refusal.dinah.no-levels": {
       "text": "यह वर्कबेंच कोई {axis} स्तर घोषित नहीं करती, इसलिए सेट करने को कोई स्तर नहीं है",
       "context": "The sentence printed after the refusal name dinah.no-levels, which a write naming an axis this workbench declares no set for carries. {axis} is that field, and it is machine vocabulary that is never translated; {detail} carries the same word. The reader is not told their level name is unknown, because every name would be. The sentence is about one axis and must not be worded as a report about the workbench as a whole. refusal.dinah.no-levels.next is spliced on after this one.",
@@ -4178,6 +4388,16 @@
       "text": " ऐसा मद फिर से खोलें जो resolved, verified या failed है।",
       "context": "The next step of refusal.dinah.not-resolved, spliced onto the sentence that just named the item's state. The three state names are machine vocabulary that is never translated.",
       "source": "5ac264a582046f29"
+    },
+    "refusal.dinah.not-waivable": {
+      "text": "वह आइटम {detail} है, इसलिए वह कुछ भी नहीं रोक रहा है।",
+      "context": "The sentence printed after the refusal name dinah.not-waivable, which waive carries on an item that is holding nothing. {detail} is the state on disk, machine vocabulary that is never translated. refusal.dinah.not-waivable.next is spliced on after this one.",
+      "source": "efd69f913a889997"
+    },
+    "refusal.dinah.not-waivable.next": {
+      "text": " छूट किसी कार्ड को उसे रोकने वाले निष्कर्ष से आगे जाने देती है, इसलिए यह केवल pending या failed आइटम पर ही वैध है।",
+      "context": "The next step of refusal.dinah.not-waivable, spliced onto the sentence that just named the item's state. pending and failed are machine vocabulary and are never translated.",
+      "source": "e34d0ccff47563b3"
     },
     "refusal.dinah.observation-required": {
       "text": "{detail} योजना के लिए एक अवलोकन आवश्यक है।",
@@ -4711,6 +4931,16 @@
     "refusal.dinah.workbench-boundary.next": {
       "text": "; सीमा से ऊपर की वर्कबेंच बताने के लिए --workbench <dir> दें, उसी तरह DINAH_WORKBENCH सेट करें, या ड्राइव की जड़ तक खोजने के लिए इस कमांड को रिपॉज़िटरी के बाहर से चलाएँ",
       "source": "87cbc3e50ce38e9d"
+    },
+    "refusal.dinah.workbench-in-use": {
+      "text": "कार्ड {detail} को {owner} ने धारण किया हुआ है।",
+      "context": "The sentence printed after the refusal name dinah.workbench-in-use, which the designation conversion carries while a live card is held. {detail} is the card's reference and {owner} is who holds it. refusal.dinah.workbench-in-use.next is spliced on after this one.",
+      "source": "35c81d1de4a8b36e"
+    },
+    "refusal.dinah.workbench-in-use.next": {
+      "text": " रूपांतरण हर पुराने बिल्ड को बाहर कर देता है, इसलिए यह तब चलता है जब कोई कार्ड के बीच में न हो; उस स्वामी से इसे छोड़ने को कहें, या इसे --force-claims के साथ फिर चलाएँ।",
+      "context": "The next step of refusal.dinah.workbench-in-use, spliced onto the sentence that just named the card and its holder. --force-claims is a flag name and is not translated.",
+      "source": "6a5ae7823383f449"
     },
     "refusal.dinah.workbench-not-applicable": {
       "text": "यहाँ Dinah {source} का उपयोग नहीं करता: init {source} द्वारा नामित वर्कबेंच ({detail}) खोलने के बजाय एक नया वर्कबेंच बनाता है।",
@@ -5739,14 +5969,14 @@
       "source": "b15c1e9bd4b89835"
     },
     "refusal.dinah.store-awaiting-migration": {
-      "text": "{detail} पर स्थित कार्यपीठ चेकलिस्ट मद का उत्तर अब भी टिप्पणी के रूप में दर्ज करती है, जिसे Dinah अब नहीं पढ़ता।",
-      "context": "The sentence printed after the refusal name dinah.store-awaiting-migration, which every read of a workbench below the resolution format raises. {detail} is the workbench's own path. The refusal exists because a reader that carried on would report every settled item as carrying no answer, which is a false reading rather than a degraded one.",
-      "source": "3a33736cd1eb7a2"
+      "text": "{detail} पर का कार्यक्षेत्र चेकलिस्ट आइटम का उत्तर ऐसे रूप में रखता है जिसे यह बिल्ड अब नहीं पढ़ता।",
+      "context": "The sentence printed after the refusal name dinah.store-awaiting-migration, which every read of a workbench below the current format raises. {detail} is the workbench's own path. The refusal exists because a reader that carried on would report the store's answers wrongly rather than incompletely, which is a false reading rather than a degraded one.",
+      "source": "b67f3c4f6fa7a7c6"
     },
     "refusal.dinah.store-awaiting-migration.next": {
-      "text": " पहले प्रतिलिपि सुरक्षित रखें, फिर उस कार्यपीठ पर dinah-migrate-notes चलाएँ और उसे दोबारा उपयोग में लाने से पहले उसकी रिपोर्ट पढ़ें।",
-      "context": "The next step of refusal.dinah.store-awaiting-migration. dinah-migrate-notes is the migration program's own name and is not translated. The backup is named first because the migration writes in place and cannot undo itself.",
-      "source": "f1da4955b4ea13a"
+      "text": " बैकअप लें, फिर उस कार्यक्षेत्र पर `dinah check` चलाएँ और पढ़ें कि वह कौन सी माइग्रेशन बताता है: जो कार्यक्षेत्र उत्तर को नोट के रूप में रखता है उसे dinah-migrate-notes चाहिए, और जो उसे स्थान के रूप में रखता है उसे `dinah check --migrate-designations` चाहिए।",
+      "context": "The next step of refusal.dinah.store-awaiting-migration. dinah-migrate-notes is the migration program's own name and dinah check --migrate-designations is a command line; neither is translated. The backup is named first because both migrations write in place and neither can undo itself.",
+      "source": "95ce9d283e990c69"
     },
     "check.comment-body-diverged": {
       "text": "टिप्पणी {detail} का पाठ अब उस डाइजेस्ट से मेल नहीं खाता जो Dinah ने उस पर दर्ज किया था",

@@ -301,6 +301,36 @@ type Request struct {
 	// MigrateOrdinals asks check to stamp a creation ordinal on every entity
 	// of the workbench that predates the field, before it reports.
 	MigrateOrdinals bool
+	// MigrateDesignations asks check to convert every stored answer from a
+	// positional comment reference to the designated comment's own
+	// identifier, and to stamp the store at the format that declares it. It
+	// is the workbench operator's alone and it is refused while any live card
+	// is claimed, because the instant the store declares the new number every
+	// session still running an older binary is refused the whole workbench
+	// part way through whatever card it holds.
+	MigrateDesignations bool
+	// Rehearse turns the conversion into a rehearsal: it decides every item
+	// by the same rules, answers the identical report, and writes no anchor,
+	// no journal line and no format stamp. A rehearsal is refused to nobody
+	// and is admitted on a workbench carrying a claimed card, because writing
+	// nothing is what makes both safe.
+	Rehearse bool
+	// ForceClaims carries the operator past the claimed-card refusal, naming
+	// in the run's own journal line every claim it passed. An ordinary claim
+	// carries no expiry and never lapses, and nobody may release somebody
+	// else's, so one card left claimed by a dead session would otherwise
+	// block the conversion permanently with no route through the tool.
+	//
+	// It is refused to everybody but the operator, on the terms the
+	// conversion itself is, and it does not weaken the refusal for anybody
+	// else. What it records is a judgement the operator made about which
+	// claims are dead, and it cannot check that judgement.
+	ForceClaims bool
+	// Permission is the name of the standing authorization a grant or a
+	// revoke acts on, whose declared vocabulary holds criterion-retirement
+	// alone. It is an argument rather than a second pair of verbs so that a
+	// permission added later changes no word a person already types.
+	Permission string
 	// MigrateNumbers asks check to build the card-number registry from the
 	// numbers the cards still carry in their anchors, strip the number key
 	// from every anchor, and stamp the workbench with the format that
@@ -444,6 +474,17 @@ type CardView struct {
 	// terms the two levels above are: a name the workbench does not declare
 	// is shown exactly as stored, and dinah check is what reports it.
 	Route string `json:"route,omitempty"`
+	// RetirementGrant is the reference of the column this card stood in when
+	// the workbench operator gave it a criterion-retirement grant, and
+	// RetirementGrantTitle is that column's title, resolved the way
+	// ColumnTitle resolves the card's own. Both are absent where no grant
+	// stands, which is the ordinary case.
+	//
+	// It is reported so that somebody deciding whether to tidy a card learns
+	// that a grant is standing and where it was given before they try, rather
+	// than by meeting a refusal.
+	RetirementGrant      string `json:"retirement_grant,omitempty"`
+	RetirementGrantTitle string `json:"retirement_grant_title,omitempty"`
 	// PullDestination is the column a pull would carry this card into from
 	// where it now stands, absent where no pull could carry it anywhere. It
 	// is carriesInto's answer read against this card's own route, which is
@@ -688,21 +729,23 @@ func (l *Library) view(card *bench.Card) (*CardView, error) {
 		return nil, err
 	}
 	v := &CardView{
-		ID:          card.ID,
-		Ref:         card.Ref(l.Bench.Slug),
-		Title:       card.Title,
-		Column:      card.Column,
-		State:       card.State,
-		Severity:    card.Severity,
-		Priority:    card.Priority,
-		Route:       card.Route,
-		Holder:      card.Holder,
-		ClaimSince:  card.ClaimSince,
-		Expires:     card.Expires,
-		BlockReason: card.BlockReason,
-		BlockKind:   card.BlockKind,
-		Workstreams: card.Workstreams,
-		Revision:    card.Revision,
+		ID:       card.ID,
+		Ref:      card.Ref(l.Bench.Slug),
+		Title:    card.Title,
+		Column:   card.Column,
+		State:    card.State,
+		Severity: card.Severity,
+		Priority: card.Priority,
+		Route:    card.Route,
+		Holder:   card.Holder,
+
+		RetirementGrant: grantRef(l.Bench, card.RetirementGrant),
+		ClaimSince:      card.ClaimSince,
+		Expires:         card.Expires,
+		BlockReason:     card.BlockReason,
+		BlockKind:       card.BlockKind,
+		Workstreams:     card.Workstreams,
+		Revision:        card.Revision,
 
 		AttachmentCount: counts[bench.AttachmentsDir],
 		ChecklistCount:  counts[bench.ChecklistDir],
@@ -715,8 +758,27 @@ func (l *Library) view(card *bench.Card) (*CardView, error) {
 			v.PullDestination = columnRef(destination)
 		}
 	}
+	if bound := l.Bench.Column(card.RetirementGrant); bound != nil {
+		v.RetirementGrantTitle = bound.Title
+	}
 	v.Fields = l.declaredFieldValues(card.FM, bench.KindCard)
 	return v, nil
+}
+
+// grantRef names the column a standing grant is bound to, in the spelling a
+// person types, and answers the empty string for a card carrying no grant.
+//
+// A grant naming a column the workbench no longer declares is reported as
+// stored, on the terms CardView.Route already reports a route the workbench
+// does not declare: a read validates nothing, and dinah check is what says so.
+func grantRef(b *bench.Bench, bound string) string {
+	if bound == "" {
+		return ""
+	}
+	if column := b.Column(bound); column != nil {
+		return columnRef(column)
+	}
+	return bound
 }
 
 // declaredFieldValues are the values one anchor carries for the fields the

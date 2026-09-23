@@ -293,6 +293,52 @@ func TestEveryEventFamilyARequestWritesCarriesTheDeclaredMembers(t *testing.T) {
 		run(close.name, close.run(closing))
 	}
 
+	// The two states dinah-472 added, each landed by a verb of its own. Both
+	// are the workbench operator's, and the caller above is the operator, so
+	// each is filed and settled in the same shape the terminal verbs are.
+	for at, close := range []struct {
+		name string
+		run  func(*Request) *Response
+	}{
+		{contract.EventItemWaived, h.library.Waive},
+		{contract.EventItemWithdrawn, h.library.Withdraw},
+	} {
+		file := acting("file")
+		file.Card = ref
+		file.Kind = "acceptance_criterion"
+		file.Text = "something the card stopped asking for"
+		run("file a criterion", h.library.File(file))
+		closing := acting(close.name)
+		closing.Ref = ref + "/criteria/" + strconv.Itoa(at+3)
+		closing.Text = "the operator decided"
+		run(close.name, close.run(closing))
+	}
+
+	// The criterion-retirement grant, given and taken back. The revoke runs
+	// against the grant the give left standing, because a revoke over a card
+	// carrying none is refused and would write no line at all.
+	grant := acting(GrantPermission)
+	grant.Card = ref
+	grant.Permission = CriterionRetirement
+	run(contract.EventRetirementGranted, h.library.Do(grant))
+	ungrant := acting(RevokePermission)
+	ungrant.Card = ref
+	ungrant.Permission = CriterionRetirement
+	run(contract.EventRetirementRevoked, h.library.Do(ungrant))
+
+	// The designation conversion's own account of the claims it passed, which
+	// the forced form writes on the workbench's own journal. The store is
+	// already at the current format, so the run converts nothing and the line
+	// it writes is the one this family is about: a forced run says so whether
+	// or not it passed a claim.
+	converted := acting("check")
+	converted.MigrateDesignations = true
+	converted.ForceClaims = true
+	if _, err := h.library.Check(converted); err != nil {
+		t.Fatalf("%s: %v", contract.EventDesignationsMigrated, err)
+	}
+	h.reopen()
+
 	// The override drop, which only a reshape writes: the station the card
 	// carries an override for is left out of the new definition, so the
 	// override goes with the column.

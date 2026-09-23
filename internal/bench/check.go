@@ -954,6 +954,11 @@ func (b *Bench) checkCard(card *Card) ([]Finding, error) {
 		return findings, err
 	}
 	findings = append(findings, noteFindings...)
+	designationFindings, err := b.checkMissingDesignations(card)
+	if err != nil {
+		return findings, err
+	}
+	findings = append(findings, designationFindings...)
 	events, torn, err := ReadJournal(card.JournalPath())
 	if err != nil {
 		return findings, nil

@@ -18,7 +18,7 @@ import (
 func declaringFixture(t *testing.T, format int) string {
 	t.Helper()
 	root := containedPath(t.TempDir())
-	anchor := strings.Replace(benchDefinition, "format: 6", "format: "+strconv.Itoa(format), 1)
+	anchor := strings.Replace(benchDefinition, "format: 7", "format: "+strconv.Itoa(format), 1)
 	anchor = strings.Replace(anchor, "columns:\n", `fields:
   git.branch:
     type: string
@@ -96,7 +96,7 @@ func TestTheDeclaredKeyGrammarAdmitsAndRefuses(t *testing.T) {
 		block += "  " + key + ":\n    type: string\n    meaning: a fact\n"
 	}
 	write(t, filepath.Join(root, WorkbenchAnchor), strings.Replace(
-		strings.Replace(benchDefinition, "format: 6", "format: "+strconv.Itoa(RegistryFormat), 1),
+		strings.Replace(benchDefinition, "format: 7", "format: "+strconv.Itoa(RegistryFormat), 1),
 		"columns:\n", block+"columns:\n", 1))
 	write(t, filepath.Join(root, CardNumbersName), "1 c00000000001\n")
 	write(t, filepath.Join(root, ColumnsDir, "b00000000001", ColumnAnchor), columnDefinition)
@@ -146,7 +146,7 @@ func TestADeclarationEntryIsRefusedWithoutATypeOrAMeaning(t *testing.T) {
     meaning: ""
 `
 	write(t, filepath.Join(root, WorkbenchAnchor), strings.Replace(
-		strings.Replace(benchDefinition, "format: 6", "format: "+strconv.Itoa(RegistryFormat), 1),
+		strings.Replace(benchDefinition, "format: 7", "format: "+strconv.Itoa(RegistryFormat), 1),
 		"columns:\n", block+"columns:\n", 1))
 	write(t, filepath.Join(root, CardNumbersName), "1 c00000000001\n")
 	write(t, filepath.Join(root, ColumnsDir, "b00000000001", ColumnAnchor), columnDefinition)
@@ -192,7 +192,7 @@ func TestALineOpeningWithAHyphenIsReportedRatherThanSwallowed(t *testing.T) {
     meaning: a key the grammar refuses and the dashed pattern swallows
 `
 	write(t, filepath.Join(root, WorkbenchAnchor), strings.Replace(
-		strings.Replace(benchDefinition, "format: 6", "format: "+strconv.Itoa(RegistryFormat), 1),
+		strings.Replace(benchDefinition, "format: 7", "format: "+strconv.Itoa(RegistryFormat), 1),
 		"columns:\n", block+"columns:\n", 1))
 	write(t, filepath.Join(root, CardNumbersName), "1 c00000000001\n")
 	write(t, filepath.Join(root, ColumnsDir, "b00000000001", ColumnAnchor), columnDefinition)

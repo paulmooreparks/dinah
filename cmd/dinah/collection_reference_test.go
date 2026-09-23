@@ -121,6 +121,8 @@ func TestEveryReferenceTakingCommandAnswersACollectionOrRefusesIt(t *testing.T) 
 		"resolve":           {"resolve", "fx-1/comments", "--text", "a note"},
 		"verify":            {"verify", "fx-1/comments", "--text", "a note"},
 		"fail":              {"fail", "fx-1/comments", "--text", "a note"},
+		"waive":             {"waive", "fx-1/comments", "--text", "a note"},
+		"withdraw":          {"withdraw", "fx-1/comments", "--text", "a note"},
 		"reopen":            {"reopen", "fx-1/comments", "a reason"},
 		"get":               {"get", "fx-1/comments", "body"},
 		"set":               {"set", "fx-1/comments", "body", "rewritten"},

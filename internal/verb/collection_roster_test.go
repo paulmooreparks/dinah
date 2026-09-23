@@ -6,28 +6,30 @@ import (
 	"testing"
 )
 
-// TestTheReferenceTakingRosterIsTwenty derives the roster at the commit under
-// test rather than reading it off a card, because three separate statements
-// of this number, in a card's own framing and in its parent's prose,
-// disagreed with the tables.
+// TestTheReferenceTakingRosterIsTwentyTwo derives the roster at the commit
+// under test rather than reading it off a card, because three separate
+// statements of this number, in a card's own framing and in its parent's
+// prose, disagreed with the tables.
 //
 // The roster grew from nineteen to twenty on dinah-544, which declared settle
 // as a genuine reference-taking command: its item argument names a checklist
-// item exactly as resolve's, verify's, fail's and reopen's do.
+// item exactly as resolve's, verify's, fail's and reopen's do. It grew to
+// twenty-two on dinah-472, which added waive and withdraw, whose item
+// argument names one the same way.
 //
-// It cannot pass vacuously. An empty parse yields nothing rather than twenty,
-// and the two declarations that carry the fact are compared against each
-// other as well as against the named set, so a command declaring the guide on
-// one of them and not the other is left out and the count fails.
-func TestTheReferenceTakingRosterIsTwenty(t *testing.T) {
+// It cannot pass vacuously. An empty parse yields nothing rather than a
+// count, and the two declarations that carry the fact are compared against
+// each other as well as against the named set, so a command declaring the
+// guide on one of them and not the other is left out and the count fails.
+func TestTheReferenceTakingRosterIsTwentyTwo(t *testing.T) {
 	roster := ReferenceTakingCommands()
-	if len(roster) != 20 {
-		t.Fatalf("the roster holds %d commands and it is twenty: %s", len(roster), strings.Join(roster, " "))
+	if len(roster) != 22 {
+		t.Fatalf("the roster holds %d commands and it is twenty-two: %s", len(roster), strings.Join(roster, " "))
 	}
 	want := []string{
 		"accept-divergence", "archive", "attach", "cite", "comment", "delete", "edit",
 		"fail", "get", "instructions", "list", "path", "rename", "reopen", "resolve",
-		"restore", "set", "settle", "show", "verify",
+		"restore", "set", "settle", "show", "verify", "waive", "withdraw",
 	}
 	if strings.Join(roster, " ") != strings.Join(want, " ") {
 		t.Errorf("the roster is\n  %s\nand the set the card names is\n  %s", strings.Join(roster, " "), strings.Join(want, " "))
@@ -52,8 +54,8 @@ func TestTheReferenceTakingRosterIsTwenty(t *testing.T) {
 			}
 		}
 	}
-	if byGuide != 20 || byParam != 20 {
-		t.Errorf("the guide table names %d commands and the parameter table names %d, and both are twenty", byGuide, byParam)
+	if byGuide != 22 || byParam != 22 {
+		t.Errorf("the guide table names %d commands and the parameter table names %d, and both are twenty-two", byGuide, byParam)
 	}
 	t.Logf("the roster derived at this commit holds %d commands", len(roster))
 }

@@ -597,7 +597,8 @@ const (
 	// three legal spellings instead of reading a declaration.
 	UnknownItemKind = LayerPrefix + "unknown-item-kind"
 	// UnknownItemState is settle asked to land an item at a state outside
-	// the four the format declares: resolved, verified, failed or pending.
+	// the six the format declares: resolved, verified, failed, waived,
+	// withdrawn or pending.
 	// It has UnknownItemKind's shape, checked ahead of resolving the item,
 	// since there is nothing else to check until the state names one of the
 	// four verbs settle becomes.
@@ -614,6 +615,44 @@ const (
 	// NotResolved is a reopen asked for an item already pending, the mirror
 	// of NotPending.
 	NotResolved = LayerPrefix + "not-resolved"
+	// NotWaivable is a waive aimed at an item standing at resolved, verified,
+	// waived or withdrawn. A waiver lifts a hold, so it is legal only from a
+	// state that is holding, which is pending or failed. The detail is the
+	// item's current state.
+	//
+	// NotPending is not reused for it. That name says the item is not
+	// pending, and a waiver of a failed item is exactly the call this card
+	// makes legal, so the older name would refuse it.
+	NotWaivable = LayerPrefix + "not-waivable"
+	// AlreadyWithdrawn is a withdraw aimed at an item already withdrawn.
+	// Withdrawal is legal from every other state, so this is the one source
+	// state the verb refuses. The detail is the item's current state and the
+	// next step names reopen.
+	AlreadyWithdrawn = LayerPrefix + "already-withdrawn"
+	// GrantExcludesFinding is a withdrawal of an acceptance criterion
+	// standing at failed or at waived, attempted by somebody who is not the
+	// operator on a card carrying a criterion-retirement grant. A grant
+	// admits the retirement of a criterion nobody has found anything wrong
+	// with; a finding that exists is the operator's to retire. The detail is
+	// the item's current state.
+	GrantExcludesFinding = LayerPrefix + "grant-excludes-finding"
+	// NoGrant is a revoke naming a card that carries no criterion-retirement
+	// grant. The detail is the card. It refuses rather than succeeding
+	// quietly so that the operator is told nothing was standing, rather than
+	// being answered as though something had been taken away.
+	NoGrant = LayerPrefix + "no-grant"
+	// DesignationRequired is a clear of the resolution key on an item that is
+	// not pending. A settled item asserts that somebody decided something,
+	// and an erasable record of who and why is not a record. The detail is
+	// the item's state and the next step names reopen, which is the one
+	// legitimate erasure and which clears the state along with the key.
+	DesignationRequired = LayerPrefix + "designation-required"
+	// WorkbenchInUse is the designation conversion run on a workbench where
+	// some live card is claimed. The detail names the first such card and the
+	// owner holding it rides as a value. The conversion is a cutover that
+	// locks every older binary out of the store, so it runs at a moment when
+	// nobody else is mid-card.
+	WorkbenchInUse = LayerPrefix + "workbench-in-use"
 	// Uncited is an acceptance criterion asked to leave pending with no
 	// citation, on a workbench that declares an evidence block. It is the
 	// write-time enforcement of the citation obligation the format states.
@@ -758,6 +797,8 @@ var Introduced = []string{
 	ReshapeNeedsDestination, ReshapeHeldCardInQueue, ReshapeMapSourceEmpty,
 	ReshapeDestinationRetiring, ReshapeDestinationAmbiguous,
 	UnknownItemKind, UnknownItemState, WrongItemKind, NotPending, NotResolved, Uncited,
+	NotWaivable, AlreadyWithdrawn, GrantExcludesFinding, NoGrant, DesignationRequired,
+	WorkbenchInUse,
 	UnresolvedItemExit,
 	ObservationRequired, UnknownLink,
 	CommentBodyDiverged, NotADesignation, NotDesignatable, StoreAwaitingMigration,
@@ -938,6 +979,45 @@ const (
 	EventItemVerified = "item_verified"
 	EventItemFailed   = "item_failed"
 	EventItemReopened = "item_reopened"
+	// EventItemWaived and EventItemWithdrawn are the two settling events the
+	// waive and withdraw verbs write. Each carries the state the item left in
+	// From and the state it reached in To, on the three terminal events' own
+	// terms.
+	//
+	// Neither verb reuses EventItemResolved. A journal saying an item was
+	// resolved when somebody waived it says the question was answered and the
+	// work held, and a reader of the card's history has no other source for
+	// what happened.
+	//
+	// EventItemWithdrawn carries the boolean marker Grant where the act was
+	// admitted because a criterion-retirement grant stood, which is exactly
+	// when the actor was not the operator. A reader that does not know the
+	// marker reads an ordinary withdrawal, which is what the line already is.
+	EventItemWaived    = "item_waived"
+	EventItemWithdrawn = "item_withdrawn"
+	// EventRetirementGranted and EventRetirementRevoked record a
+	// criterion-retirement grant given to one card and taken back from it.
+	// The grant carries in To the identifier of the column the card stood in
+	// when it was given, which is the station the grant is bound to and which
+	// the card's next move spends.
+	//
+	// A grant spent by a move writes no line of its own. The moved event
+	// already records the departure that spent it, and a second line saying
+	// the same thing in other words is a fact a reader has to reconcile
+	// rather than one they gain.
+	EventRetirementGranted = "retirement_granted"
+	EventRetirementRevoked = "retirement_revoked"
+	// EventDesignationsMigrated records a run of the designation conversion
+	// that passed a claimed card, on the workbench's own journal. It carries
+	// the identifier of every card whose claim the run passed, so the
+	// judgement the operator made about which claims were dead is nameable
+	// afterwards. A run that passed no claim writes it too, carrying none, so
+	// the flag is never a silent no-op.
+	//
+	// It lands on the workbench's journal rather than on any card's, so it is
+	// held out of Events for the reason that list already gives for the three
+	// *_updated names it holds out.
+	EventDesignationsMigrated = "designations_migrated"
 	// EventLinked and EventUnlinked record a link written onto a card and
 	// removed from it, on that card's own journal, because a link is
 	// card-owned and the card carrying it is the only file that changes.
@@ -974,10 +1054,11 @@ const (
 // containment does not hold the other way. EventRestored is listed and no
 // command writes it, so a query naming it is accepted and selects nothing.
 //
-// EventWorkbenchUpdated, EventWorkstreamUpdated and EventColumnUpdated are the
-// three declared names this list holds out, and each is held out for the same
-// reason: it lands on the workbench's journal or on a workstream's, never on a
-// card's, so no card a query reads can ever carry it. EventCardUpdated is the
+// EventWorkbenchUpdated, EventWorkstreamUpdated, EventColumnUpdated and
+// EventDesignationsMigrated are the four declared names this list holds out,
+// and each is held out for the same reason: it lands on the workbench's
+// journal or on a workstream's, never on a card's, so no card a query reads
+// can ever carry it. EventCardUpdated is the
 // fourth of the *_updated family and is listed, because it lands on a card's
 // own journal and an event a card carries that nobody can ask for is exactly
 // what the containment above forbids.
@@ -990,7 +1071,8 @@ var Events = []string{
 	EventWorkstreamJoined, EventWorkstreamLeft, EventCardUpdated,
 	EventTierOverridden, EventTierOverrideDropped,
 	EventItemFiled, EventItemCited, EventItemResolved, EventItemVerified,
-	EventItemFailed, EventItemReopened,
+	EventItemFailed, EventItemReopened, EventItemWaived, EventItemWithdrawn,
+	EventRetirementGranted, EventRetirementRevoked,
 	EventLinked, EventUnlinked,
 	EventRenumbered,
 }
@@ -1100,11 +1182,13 @@ func With(err error, name, value string) error {
 // EventNames are every event name this build declares, which is the closed set
 // a journal line's event member is drawn from.
 //
-// It is Events plus the three an entity other than a card records: a column's
-// own rewrite, a workstream's own rewrite, and the workbench's own. Events
-// stayed the card-journal set it has always been, and a caller asking what
-// names exist at all reads this.
+// It is Events plus the four an entity other than a card records: a column's
+// own rewrite, a workstream's own rewrite, the workbench's own, and the
+// designation conversion's account of the claims it passed. Events stayed the
+// card-journal set it has always been, and a caller asking what names exist at
+// all reads this.
 func EventNames() []string {
 	return append(append([]string(nil), Events...),
-		EventColumnUpdated, EventWorkstreamUpdated, EventWorkbenchUpdated)
+		EventColumnUpdated, EventWorkstreamUpdated, EventWorkbenchUpdated,
+		EventDesignationsMigrated)
 }

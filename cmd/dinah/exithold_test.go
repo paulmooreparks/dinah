@@ -707,11 +707,21 @@ func TestAnOperatorOwnedItemIsSettledByTheOperatorAlone(t *testing.T) {
 	}
 }
 
-// TestAnOperatorOwnedItemIsReopenedByAnybody is dinah-484 AC-8, and it is the
-// deliberate hole in the rule above. Reopening returns a closed item to
-// pending, which can only re-impose a hold and never lift one, so restricting
-// it would protect nothing the operator's ownership needs protected.
-func TestAnOperatorOwnedItemIsReopenedByAnybody(t *testing.T) {
+// TestAnOperatorOwnedItemIsReopenedByTheOperatorAlone was dinah-484 AC-8 read
+// the other way round, and dinah-472 reversed it.
+//
+// That card left reopen open to everybody on the reasoning that returning a
+// closed item to pending can only re-impose a hold and never lift one. The
+// reasoning was true when it was written. It stopped being true when reopen
+// became composable with a withdrawal under a standing grant, and it was never
+// true of an operator-owned item at all: reopening the operator's answered
+// question un-answers his ruling and clears the designation recording it,
+// which is not a hold being re-imposed.
+//
+// So the case now asserts the refusal, and it asserts the accepting half
+// beside it, because a refusal every actor meets would pass this test while
+// making the verb unusable.
+func TestAnOperatorOwnedItemIsReopenedByTheOperatorAlone(t *testing.T) {
 	root, _ := operatorOwnedItem(t, "open_question")
 	if got := runCLI(t, root, "resolve", "fx-1/questions/1", "--text", "the operator ruled on 2026-09-11"); got.code != 0 {
 		t.Fatalf("the operator's own resolve: %d %s", got.code, got.errw)
@@ -720,12 +730,23 @@ func TestAnOperatorOwnedItemIsReopenedByAnybody(t *testing.T) {
 		t.Fatalf("the item stands at %q, so this case is not exercising a closed item", state)
 	}
 
-	reopened := runCLI(t, root, "reopen", "fx-1/questions/1", "the ruling was recorded against the wrong card", "--actor", "sam")
+	refused := runCLI(t, root, "reopen", "fx-1/questions/1", "the ruling was recorded against the wrong card", "--actor", "sam")
+	if refused.code != contract.ExitCode(contract.OutcomeRefused) {
+		t.Fatalf("a reopen by somebody who is not the operator exited %d: %s", refused.code, refused.errw)
+	}
+	if name := refusalNameOf(refused.errw); name != contract.NotOperator {
+		t.Errorf("the reopen answered %s, wanted %s", name, contract.NotOperator)
+	}
+	if state := soleItemState(t, root, "fx-1"); state != bench.ItemResolved {
+		t.Errorf("the item stands at %q after the refusal, wanted %q", state, bench.ItemResolved)
+	}
+
+	reopened := runCLI(t, root, "reopen", "fx-1/questions/1", "the ruling was recorded against the wrong card")
 	if reopened.code != 0 {
-		t.Fatalf("a reopen by somebody who is not the operator: %d %s", reopened.code, reopened.errw)
+		t.Fatalf("the operator's own reopen: %d %s", reopened.code, reopened.errw)
 	}
 	if state := soleItemState(t, root, "fx-1"); state != bench.ItemPending {
-		t.Errorf("the item stands at %q after the reopen, wanted %q", state, bench.ItemPending)
+		t.Errorf("the item stands at %q after the operator's reopen, wanted %q", state, bench.ItemPending)
 	}
 }
 
@@ -825,9 +846,17 @@ func TestTheOperatorRefusalIsDefeatedByTheActorFlag(t *testing.T) {
 // whoever holds the filesystem settles an operator-owned item with an editor.
 //
 // The test asserts what the tool says afterwards as well as what the file
-// says, because the point is not that a hand edit is possible but that nothing
-// downstream reports it: the item reads as settled, dinah check finds no
-// structural defect, and the journal carries no event saying it was settled.
+// says, because the point is not that a hand edit is possible but how little
+// of it anything downstream can see: the item reads as settled and the journal
+// carries no event saying anybody settled it.
+//
+// One half of that narrowed on dinah-472, and the narrowing is asserted here
+// rather than left as a silent improvement. A settled item carrying no answer
+// of record is now reported by name, so dinah check does see this particular
+// edit, having seen nothing before. It sees it by its residue rather than by
+// the act: an editor that wrote a resolution key beside the state would leave
+// the same nothing behind as before, so this is a narrower hole and not a
+// closed one.
 func TestTheOperatorRefusalIsDefeatedByWritingTheFile(t *testing.T) {
 	root, item := operatorOwnedItem(t, "open_question")
 	path := itemAnchorPath(t, root, "fx-1", item)
@@ -877,8 +906,8 @@ func TestTheOperatorRefusalIsDefeatedByWritingTheFile(t *testing.T) {
 		t.Errorf("show does not report the item resolved:\n%s", shown.out)
 	}
 	checked := runCLI(t, root, "check")
-	if checked.code != 0 {
-		t.Errorf("check exited %d after the hand edit, wanted 0: %s %s", checked.code, checked.out, checked.errw)
+	if !strings.Contains(checked.out, bench.FindingDesignationMissing) {
+		t.Errorf("check does not name %s after the hand edit:\n%s", bench.FindingDesignationMissing, checked.out)
 	}
 
 	journal := filepath.Join(soleBenchDir(t, root), bench.CardsDir, cardID(t, root, "fx-1"), bench.JournalName)

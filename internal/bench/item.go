@@ -57,14 +57,26 @@ const (
 	CitationsField = "citations"
 )
 
-// The four states a checklist item takes. The set is closed because method
+// The six states a checklist item takes. The set is closed because method
 // text travels between workbenches and a state has to mean one thing
 // everywhere.
+//
+// ItemWaived records that the finding the item carries stands and that the
+// workbench operator has decided the card may proceed regardless. Nothing
+// about the finding is unsaid by the waiver: a waived acceptance criterion
+// was not met, or was never checked, and the item goes on saying so.
+//
+// ItemWithdrawn records that the question the item carries stopped being a
+// question, usually because the card changed underneath it. The item is not
+// answered, not checked and not abandoned by whoever should have answered it,
+// and a state saying either of those would be a different claim.
 const (
-	ItemPending  = "pending"
-	ItemResolved = "resolved"
-	ItemVerified = "verified"
-	ItemFailed   = "failed"
+	ItemPending   = "pending"
+	ItemResolved  = "resolved"
+	ItemVerified  = "verified"
+	ItemFailed    = "failed"
+	ItemWaived    = "waived"
+	ItemWithdrawn = "withdrawn"
 )
 
 // ItemKinds are the three kinds an item takes, in the order the format
@@ -72,10 +84,10 @@ const (
 // than writing the three out again.
 var ItemKinds = []string{"acceptance_criterion", "open_question", "decision"}
 
-// ItemStates are the four states an item takes, in the order the constants
+// ItemStates are the six states an item takes, in the order the constants
 // above declare them. A surface offering a caller the choice reads this for
-// ItemKinds' own reason rather than writing the four out again.
-var ItemStates = []string{ItemPending, ItemResolved, ItemVerified, ItemFailed}
+// ItemKinds' own reason rather than writing the six out again.
+var ItemStates = []string{ItemPending, ItemResolved, ItemVerified, ItemFailed, ItemWaived, ItemWithdrawn}
 
 // KnownItemKind reports whether a name is one of the three the format
 // declares.

@@ -86,7 +86,11 @@ var tools = []tool{
 	{name: "resolve_item", command: "resolve", run: func(l *verb.Library, r *verb.Request) any { return l.Resolve(r) }},
 	{name: "verify_item", command: "verify", run: func(l *verb.Library, r *verb.Request) any { return l.Verify(r) }},
 	{name: "fail_item", command: "fail", run: func(l *verb.Library, r *verb.Request) any { return l.Fail(r) }},
+	{name: "waive_item", command: "waive", run: func(l *verb.Library, r *verb.Request) any { return l.Waive(r) }},
+	{name: "withdraw_item", command: "withdraw", run: func(l *verb.Library, r *verb.Request) any { return l.Withdraw(r) }},
 	{name: "reopen_item", command: "reopen", run: func(l *verb.Library, r *verb.Request) any { return l.Reopen(r) }},
+	{name: "grant", command: verb.GrantPermission, run: doVerb},
+	{name: "revoke", command: verb.RevokePermission, run: doVerb},
 	{name: "settle", command: "settle", run: func(l *verb.Library, r *verb.Request) any { return l.Settle(r) }},
 	{name: "link_card", command: "link", run: func(l *verb.Library, r *verb.Request) any { return l.Link(r) }},
 	{name: "unlink_card", command: "unlink", run: func(l *verb.Library, r *verb.Request) any { return l.Unlink(r) }},
@@ -205,22 +209,25 @@ var toolExemptions = map[string]exemption{
 // refuses the name outright.
 var argumentExemptions = map[string]map[string]string{
 	"check": {
-		"root":                "aims the terminal's two repair sweeps at a tree, and this head runs neither sweep",
-		"max-depth":           "bounds the walk root names, and this head takes no root for check",
-		"finish":              "completes a half-written store repair, which is operator work taken at a terminal against a copy",
-		"remint":              "rewrites the identifier of one of two directories claiming it, which is an irreversible repair an operator decides",
-		"yes":                 "confirms the four repairs that read it, and this head offers none of them",
-		"witness":             "rebuilds the witness records of an ageing store, which is a one-time repair rather than a reading of it",
-		"migrate-ordinals":    "rewrites every card's ordinal in place, which is a one-time repair of an ageing store",
-		"migrate-slugs":       "rewrites every column's slug in place, which is a one-time repair of an ageing store",
-		"migrate-columns":     "rewrites the column layout of an ageing store, which is a one-time repair of it",
-		"migrate-vocabulary":  "rewrites the vocabulary of every workbench under a root, and its rewrite has no undo",
-		"migrate-container":   "rewrites the container layout of every workbench under a root, and its rewrite has no undo",
-		"migrate-branches":    "lifts a retired heading out of every card body into a declared field and stamps the store's format, which is a one-time repair of an ageing store",
-		"migrate-newlines":    "repairs every workbench text file storing a carriage return that stands for a line ending, and its preview rewrites each destination with that destination's own bytes",
-		"migrate-numbers":     "builds the card-number registry and strips the number key from every anchor, which is a one-time repair of an ageing store",
-		"renumber":            "renumbers the later claimant of a number two cards hold, and a reference somebody wrote down for that card stops resolving",
-		"migrate-workstreams": "rewrites the workstream records of an ageing store, which is a one-time repair of it",
+		"root":                 "aims the terminal's two repair sweeps at a tree, and this head runs neither sweep",
+		"max-depth":            "bounds the walk root names, and this head takes no root for check",
+		"finish":               "completes a half-written store repair, which is operator work taken at a terminal against a copy",
+		"remint":               "rewrites the identifier of one of two directories claiming it, which is an irreversible repair an operator decides",
+		"yes":                  "confirms the four repairs that read it, and this head offers none of them",
+		"witness":              "rebuilds the witness records of an ageing store, which is a one-time repair rather than a reading of it",
+		"migrate-ordinals":     "rewrites every card's ordinal in place, which is a one-time repair of an ageing store",
+		"migrate-slugs":        "rewrites every column's slug in place, which is a one-time repair of an ageing store",
+		"migrate-columns":      "rewrites the column layout of an ageing store, which is a one-time repair of it",
+		"migrate-vocabulary":   "rewrites the vocabulary of every workbench under a root, and its rewrite has no undo",
+		"migrate-container":    "rewrites the container layout of every workbench under a root, and its rewrite has no undo",
+		"migrate-branches":     "lifts a retired heading out of every card body into a declared field and stamps the store's format, which is a one-time repair of an ageing store",
+		"migrate-newlines":     "repairs every workbench text file storing a carriage return that stands for a line ending, and its preview rewrites each destination with that destination's own bytes",
+		"migrate-numbers":      "builds the card-number registry and strips the number key from every anchor, which is a one-time repair of an ageing store",
+		"renumber":             "renumbers the later claimant of a number two cards hold, and a reference somebody wrote down for that card stops resolving",
+		"migrate-workstreams":  "rewrites the workstream records of an ageing store, which is a one-time repair of it",
+		"migrate-designations": "converts every checklist item's answer of record and stamps the store's format, which is a cutover the workbench operator runs at a moment he picks and which locks every older build out of the store",
+		"rehearse":             "turns that conversion into a rehearsal, which is the form an agent may run and which this head offers no conversion to rehearse",
+		"force-claims":         "carries that conversion past a card somebody still holds, which is a judgement about whose session has died and is the operator's to make at a terminal",
 	},
 	"new_column": {
 		"action": "names the first word of `dinah column new`, and this tool is that one action, so the head fills the field in and a published argument would be a value it overwrites",
@@ -308,13 +315,20 @@ var stationMembers = []string{
 	"next_card", "pull", "instructions", "whoami", "prime",
 }
 
-// operatorOnlyMembers are the twelve tools ProfileOperator adds beside
+// operatorOnlyMembers are the fourteen tools ProfileOperator adds beside
 // every station tool: the workbench and column verbs, plus the acts whose
 // blast radius is the whole board rather than one card.
+//
+// grant and revoke join it on the second of those two grounds rather than the
+// first. A grant reaches one card, so its blast radius is not the board; both
+// verbs are refused to anybody but the workbench operator, and a station
+// profile serving a tool every station agent is refused is a tool that exists
+// only to produce a refusal.
 var operatorOnlyMembers = []string{
 	"unblock", "workbench", "new_column",
 	"status", "version", "export", "check",
 	"archive", "restore", "delete", "rename", "accept_divergence",
+	"grant", "revoke",
 }
 
 // profileMembership names every tool one of the two narrowed profiles

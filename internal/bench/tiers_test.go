@@ -19,7 +19,7 @@ import (
 // capabilities a workbench declares and the owner descriptions that satisfy
 // each one.
 const tieredDefinition = `---
-format: 6
+format: 7
 profile: dinah-core/0.18
 title: Fixture
 slug: fx
@@ -401,7 +401,7 @@ func TestTheTierTableSurvivesTheInterchange(t *testing.T) {
 func TestEveryFormatThisBuildReadsStillOpens(t *testing.T) {
 	opened := 0
 	for format := 1; format <= 4; format++ {
-		anchor := strings.Replace(tieredDefinition, "format: 6", "format: "+strconv.Itoa(format), 1)
+		anchor := strings.Replace(tieredDefinition, "format: 7", "format: "+strconv.Itoa(format), 1)
 		root := containedPath(t.TempDir())
 		write(t, filepath.Join(root, WorkbenchAnchor), anchor)
 		write(t, filepath.Join(root, ColumnsDir, "b00000000001", ColumnAnchor), columnDefinition)

@@ -26,7 +26,7 @@ var currentBenchDefinition = benchDefinition
 // migration's gate refuses every store below it, so a fixture about anything
 // other than an old format has to declare the current one or be refused
 // before its own subject is reached.
-var olderBenchDefinition = strings.Replace(benchDefinition, "format: 6", "format: 1", 1)
+var olderBenchDefinition = strings.Replace(benchDefinition, "format: 7", "format: 1", 1)
 
 // plantBench writes one workbench, anchor and single column, at the directory
 // it is given, and answers that directory. The definition decides which

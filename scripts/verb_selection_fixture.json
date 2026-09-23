@@ -178,6 +178,22 @@
       "statement": "The first acceptance criterion on wb-12 was recorded as met against a fixture that predates the fix, so it should stand unjudged again."
     },
     {
+      "tool": "waive_item",
+      "statement": "The third acceptance criterion on wb-12 was not met and I have decided the card may go on regardless, and I want that permission recorded against the criterion itself."
+    },
+    {
+      "tool": "withdraw_item",
+      "statement": "The second open question on wb-12 asks about a feature the card no longer covers, so the question has stopped applying and I want the item to say so."
+    },
+    {
+      "tool": "grant",
+      "statement": "I have narrowed wb-12 and several of its acceptance criteria no longer apply, so I want whoever is working the card to be able to retire them without coming back to me for each one."
+    },
+    {
+      "tool": "revoke",
+      "statement": "The standing permission I gave on wb-12 should no longer apply, and I want to take it back."
+    },
+    {
       "tool": "settle",
       "statement": "I want to land the first acceptance criterion on wb-12 at verified, and I would rather send the state I want than remember which of four separate tools does it."
     }
