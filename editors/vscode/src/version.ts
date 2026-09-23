@@ -43,8 +43,15 @@ import type { VersionReport } from "./api";
  * sees is one member renamed on the item view a read answers with, and a
  * comment's own body, which it now writes through `dinah set` rather than
  * leaving where the editor put it.
+ *
+ * 7 joined the set at dinah-472, which keys a checklist item's answer on the
+ * designated comment's own identifier rather than on that comment's position.
+ * That is an anchor key too, and this extension reads no anchor: the item view
+ * a read answers with goes on carrying the position, composed by the binary at
+ * the moment of the read, and gains `resolution_id` beside it, which an older
+ * reader ignores.
  */
-export const SUPPORTED_FORMATS: readonly number[] = [1, 2, 3, 4, 5, 6];
+export const SUPPORTED_FORMATS: readonly number[] = [1, 2, 3, 4, 5, 6, 7];
 
 /**
  * The conformance claim this extension needs. A different name or major is
