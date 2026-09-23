@@ -768,6 +768,48 @@ const NARROW_LABELS: Readonly<Record<string, (t: Localizer) => string>> = {
 };
 
 /**
+ * The icon a collection row carries, keyed by member kind.
+ *
+ * Keyed the same way COLLECTION_LABELS is keyed, so a kind this extension
+ * gains is given its noun and its glyph in one place rather than two.
+ */
+const COLLECTION_ICONS: Readonly<Record<string, IconSpec>> = {
+	comment: { id: "comment-discussion" },
+	item: { id: "checklist" },
+	attachment: { id: "files" },
+};
+
+/** The icon a judgement branch carries, keyed by the kind it narrows by. */
+const NARROW_ICONS: Readonly<Record<string, IconSpec>> = {
+	open_question: { id: "comment-unresolved" },
+	acceptance_criterion: { id: "verified" },
+	decision: { id: "lightbulb" },
+};
+
+/**
+ * A collection row's icon, resolved in the order collectionLabel resolves
+ * its noun: the narrowed kind first, then the member kind.
+ *
+ * A collection this extension has no glyph for draws none, because an icon
+ * says what the members are and a guess about an unknown kind would say
+ * something false. The label falls through to printing the token in the
+ * same case, and a row carrying its raw token is already telling the
+ * reader that this extension does not know the kind.
+ */
+export function collectionIcon(
+	memberKind: string,
+	narrow?: string,
+): IconSpec | undefined {
+	if (narrow !== undefined) {
+		const branch = NARROW_ICONS[narrow];
+		if (branch !== undefined) {
+			return branch;
+		}
+	}
+	return COLLECTION_ICONS[memberKind];
+}
+
+/**
  * A collection row's label: the narrowed kind's translated noun where the row
  * is a judgement branch, otherwise its member kind's, otherwise the token
  * itself.
@@ -1284,7 +1326,7 @@ export function cardState(
 export function cardIcon(state: string): IconSpec {
 	switch (state) {
 		case STATE_ACTIVE:
-			return { id: "circle-filled", color: "charts.blue" };
+			return { id: "record-small", color: "charts.blue" };
 		case STATE_BLOCKED:
 			return { id: "circle-slash", color: "charts.red" };
 		default:
@@ -1389,6 +1431,27 @@ export function groupLabel(
 			return value === undefined || value === ""
 				? t("tree.group.none")
 				: value;
+	}
+}
+
+/**
+ * The icon a state group carries, keyed by the same axis value its label
+ * is keyed by.
+ *
+ * A group whose value this extension does not recognise draws nothing,
+ * which is what groupLabel does with the same value when it prints the
+ * token rather than a name for it.
+ */
+export function groupIcon(value: string | undefined): IconSpec | undefined {
+	switch (value) {
+		case STATE_READY:
+			return { id: "watch" };
+		case STATE_ACTIVE:
+			return { id: "play-circle" };
+		case STATE_BLOCKED:
+			return { id: "debug-pause" };
+		default:
+			return undefined;
 	}
 }
 
@@ -1549,7 +1612,20 @@ export function relativeTo(
 // ---------------------------------------------------------------------------
 
 /** The icon a resolved workbench row carries. */
-const WORKBENCH_ICON: IconSpec = { id: "book" };
+const WORKBENCH_ICON: IconSpec = { id: "tools" };
+
+/** The icon a column row carries when the last good read cached it. */
+const COLUMN_ICON: IconSpec = { id: "split-horizontal" };
+
+/**
+ * The icon the row a member of an unknown kind receives.
+ *
+ * A collection whose kind this extension has no name for draws no icon at
+ * all, because a wrong glyph asserts something about the members and an
+ * absent one asserts nothing. This row is the opposite case. The kind is
+ * unknown, and the row still has to be told apart from the rows around it.
+ */
+const ENTITY_ICON: IconSpec = { id: "symbol-misc" };
 
 /** The icon a row that could not answer carries. */
 const WARNING_ICON: IconSpec = { id: "warning" };
@@ -1626,7 +1702,7 @@ export function treeItemFor(
 						),
 				contextValue: columnActionsFor(view, element.nextColumnRef),
 				collapsibleState: "collapsed",
-				icon: broken ? WARNING_ICON : undefined,
+				icon: broken ? WARNING_ICON : COLUMN_ICON,
 			};
 		}
 		case "group":
@@ -1635,6 +1711,7 @@ export function treeItemFor(
 				description: String(element.node.count),
 				contextValue: CONTEXT_STATE_GROUP,
 				collapsibleState: "collapsed",
+				icon: groupIcon(element.node.value),
 			};
 		case "card": {
 			const state = cardState(element.view, element.groupValue);
@@ -1670,6 +1747,7 @@ export function treeItemFor(
 					element.narrow,
 				),
 				collapsibleState: "collapsed",
+				icon: collectionIcon(element.memberKind, element.narrow),
 			};
 		case "comment": {
 			const ref = element.node.ref ?? "";
@@ -1712,6 +1790,7 @@ export function treeItemFor(
 				// toTreeItem already relies on that distinction and a `when`
 				// clause comparing against "" would match an empty one.
 				collapsibleState: count > 0 ? "collapsed" : "none",
+				icon: ENTITY_ICON,
 			};
 		}
 		case "item": {
