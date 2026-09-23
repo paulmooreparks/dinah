@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "dinah": {
+      "command": "dinah",
+      "args": [
+        "mcp",
+        "--tools",
+        "all",
+        "--workbench",
+        "<WORKBENCH>"
+      ],
+      "env": {
+        "DINAH_ACTOR": "helper",
+        "DINAH_HARNESS": "devin",
+        "DINAH_MODEL": "claude-opus-5"
+      },
+      "disabled": false
+    }
+  }
+}

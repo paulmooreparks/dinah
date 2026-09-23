@@ -617,7 +617,7 @@ func TestAnApplyWithoutAModelConverges(t *testing.T) {
 func TestAUserRecipeOverridesTheShippedOne(t *testing.T) {
 	f := newFixture(t)
 	fresh := List("", f.userBase)
-	if len(fresh) != 2 || fresh[0].Name != "claude-code" || fresh[1].Name != "codex" {
+	if len(fresh) != 3 || fresh[0].Name != "claude-code" || fresh[1].Name != "codex" || fresh[2].Name != "devin" {
 		t.Fatalf("with no user or project recipe the listing is %+v", fresh)
 	}
 	for _, row := range fresh {
@@ -823,6 +823,35 @@ func TestASecondWorkbenchInOneProjectIsRefused(t *testing.T) {
 	}
 }
 
+// TestDevinHasNoUserScope refuses devin at user scope, because the Devin
+// CLI's per-user directory is a different relative path on Windows from the
+// one it is elsewhere and a step's path is one string. A project apply writes
+// the two files the recipe declares and nothing else under the base.
+func TestDevinHasNoUserScope(t *testing.T) {
+	f := newFixture(t)
+	opts := f.options("devin")
+	opts.Scope = ScopeUser
+	before := tree(t, f.project)
+	_, err := Run(opts)
+	if refusalName(err) != contract.UnknownScope {
+		t.Fatalf("wanted %s, got %v", contract.UnknownScope, err)
+	}
+	if !strings.Contains(err.Error(), ScopeUser) {
+		t.Errorf("the refusal does not name the scope it refused: %v", err)
+	}
+	sameTree(t, "the refused user-scope run", before, tree(t, f.project))
+	if _, err := os.Stat(f.ledgerPath()); err == nil {
+		t.Error("the refused user-scope run wrote a ledger")
+	}
+	applied := f.options("devin")
+	applied.Model = "m1"
+	mustRun(t, applied)
+	files := tree(t, f.project)
+	if len(files) != 2 || files["AGENTS.md"] == "" || files[".devin/mcp_config.json"] == "" {
+		t.Errorf("the devin apply wrote %v", sortedKeys(files))
+	}
+}
+
 // TestCodexHasNoUserScope refuses codex at user scope, and holds a project
 // apply to writing AGENTS.md and nothing under .codex.
 func TestCodexHasNoUserScope(t *testing.T) {
@@ -839,5 +868,160 @@ func TestCodexHasNoUserScope(t *testing.T) {
 	}
 	if _, err := os.Stat(f.ledgerPath()); err != nil {
 		t.Errorf("the codex apply wrote no ledger: %v", err)
+	}
+}
+
+// providerlessTrial writes the trial recipe with its provider member removed,
+// which is how a recipe declares no provider default.
+func providerlessTrial(t *testing.T, f *fixture) string {
+	t.Helper()
+	without := strings.Replace(trialRecipe["recipe.json"], "  \"provider\": \"acme\",\n", "", 1)
+	if without == trialRecipe["recipe.json"] {
+		t.Fatal("the trial recipe no longer carries a provider member, so this helper removes nothing")
+	}
+	return trialDir(t, f, map[string]string{"recipe.json": without})
+}
+
+// TestAManifestReadsProviderFiveWays holds recipe.json's provider member to
+// the four readings that are the contract: absent means the recipe declares
+// none, and an empty value, a whitespace-only value, a value that is not one
+// word and a null are each the defect they have always been. The
+// whitespace-only case is the one that separates absence from blankness, and
+// a reading that treats a blank value as absent passes every other case here.
+func TestAManifestReadsProviderFiveWays(t *testing.T) {
+	f := newFixture(t)
+	read, err := readRecipe(os.DirFS(providerlessTrial(t, f)), "trial", SourcePath, "")
+	if err != nil {
+		t.Fatalf("a recipe.json with no provider member does not read: %v", err)
+	}
+	if read.Provider != "" {
+		t.Errorf("a recipe.json with no provider member reads the provider %q", read.Provider)
+	}
+	for _, written := range []string{`""`, `" "`, `"two words"`, `null`} {
+		manifest := strings.Replace(trialRecipe["recipe.json"], `"provider": "acme"`, `"provider": `+written, 1)
+		if manifest == trialRecipe["recipe.json"] {
+			t.Fatalf("the provider member was not replaced by %s, so this case reads the accepting recipe", written)
+		}
+		dir := trialDir(t, f, map[string]string{"recipe.json": manifest})
+		_, err := readRecipe(os.DirFS(dir), "trial", SourcePath, "")
+		if err == nil {
+			t.Errorf(`"provider": %s was read rather than refused`, written)
+			continue
+		}
+		if want := manifestFile + ": carries no one-word provider"; err.Error() != want {
+			t.Errorf(`"provider": %s was refused as %q, want %q`, written, err.Error(), want)
+		}
+	}
+}
+
+// TestARecipeWithNoProviderWritesNoProviderMember applies a recipe declaring
+// no provider and holds the written JSON to carrying no DINAH_PROVIDER member
+// at all rather than an empty one, then applies it again with --provider and
+// holds the member to being written.
+func TestARecipeWithNoProviderWritesNoProviderMember(t *testing.T) {
+	f := newFixture(t)
+	dir := providerlessTrial(t, f)
+	opts := f.trialOptions(dir)
+	opts.Model = "m1"
+	mustRun(t, opts)
+	settings := filepath.Join(f.project, "conf", "settings.json")
+	if got := readFile(t, settings); strings.Contains(got, "PROVIDER") {
+		t.Errorf("the apply wrote a provider member with no provider to write:\n%s", got)
+	}
+
+	g := newFixture(t)
+	named := g.trialOptions(trialDir(t, g, map[string]string{
+		"recipe.json": strings.Replace(trialRecipe["recipe.json"], "  \"provider\": \"acme\",\n", "", 1),
+		"steps.json": `{
+  "steps": [
+    {"id": "settings", "kind": "json-merge", "scope": "project", "path": "conf/settings.json",
+     "pointer": "/env", "value": {"PROVIDER": "{{provider}}", "AGENT": "{{agent}}"}}
+  ]
+}
+`,
+	}))
+	named.Provider = "acme"
+	mustRun(t, named)
+	got := readFile(t, filepath.Join(g.project, "conf", "settings.json"))
+	if !strings.Contains(got, `"PROVIDER": "acme"`) {
+		t.Errorf("--provider acme wrote no provider member:\n%s", got)
+	}
+}
+
+// TestTheProviderFlagIsStillHeldToOneWord holds the value setup would write
+// as the provider to being one word, which is the check this card made
+// conditional. The single space is the case a condition asking whether the
+// value looks empty would let through, and the other values each trim to
+// something, so all four are needed rather than one standing for the family.
+// The accepting cases are pinned beside them, because a refusal every value
+// satisfies is not a refusal.
+func TestTheProviderFlagIsStillHeldToOneWord(t *testing.T) {
+	f := newFixture(t)
+	dir := providerlessTrial(t, f)
+	refused := 0
+	for _, value := range []string{" ", "two words", `a"b`, "a b"} {
+		opts := f.trialOptions(dir)
+		opts.Model = "m1"
+		opts.Provider = value
+		_, err := Run(opts)
+		if refusalName(err) != contract.Malformed {
+			t.Errorf("--provider %q was answered with %v, want %s", value, err, contract.Malformed)
+			continue
+		}
+		if !strings.Contains(err.Error(), "--provider") {
+			t.Errorf("--provider %q was refused without naming the flag: %v", value, err)
+		}
+		refused++
+	}
+	if refused != 4 {
+		t.Errorf("%d of four provider values were refused", refused)
+	}
+
+	accepting := f.trialOptions(dir)
+	accepting.Model = "m1"
+	accepting.Provider = "acme"
+	mustRun(t, accepting)
+
+	g := newFixture(t)
+	bare := g.trialOptions(providerlessTrial(t, g))
+	bare.Model = "m1"
+	mustRun(t, bare)
+
+	// A recipe carrying its own provider default is under the same check,
+	// which is why the condition reads the resolved fact and not the flag.
+	h := newFixture(t)
+	shipped := h.options("claude-code")
+	shipped.Provider = "two words"
+	if _, err := Run(shipped); refusalName(err) != contract.Malformed {
+		t.Errorf("a two-word --provider against claude-code was answered with %v, want %s", err, contract.Malformed)
+	}
+}
+
+// TestTheShippedRecipesDeclareTheProvidersTheyDeclare holds each shipped
+// recipe to the provider default it is meant to carry, so that restoring a
+// placeholder to devin, or dropping one from claude-code or codex, fails here
+// rather than passing quietly.
+func TestTheShippedRecipesDeclareTheProvidersTheyDeclare(t *testing.T) {
+	want := map[string]string{"claude-code": "anthropic", "codex": "openai", "devin": ""}
+	place := places("", "", false)[0]
+	checked := 0
+	for _, name := range shipped {
+		r, err := place.open(name)
+		if err != nil {
+			t.Errorf("the shipped recipe %s does not read: %v", name, err)
+			continue
+		}
+		declared, known := want[name]
+		if !known {
+			t.Errorf("the shipped recipe %s is not in this test's table, so nothing holds its provider", name)
+			continue
+		}
+		if r.Provider != declared {
+			t.Errorf("the shipped recipe %s declares the provider %q, want %q", name, r.Provider, declared)
+		}
+		checked++
+	}
+	if checked != len(want) {
+		t.Errorf("checked %d shipped recipes of %d", checked, len(want))
 	}
 }

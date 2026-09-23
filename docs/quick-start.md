@@ -1671,7 +1671,10 @@ You can have Dinah write an agent's configuration for you. Run
 and Dinah writes the MCP server entry, the environment Claude Code gives its
 agents, and a short instruction file, then prints what is left for you to do.
 `dinah setup codex` writes Dinah's section into the project's `AGENTS.md` and
-prints the lines you add to Codex's own configuration. `dinah setup --list`
+prints the lines you add to Codex's own configuration. `dinah setup devin`
+writes the `dinah` server into the project's `.devin/mcp_config.json` and
+Dinah's section into its `AGENTS.md`, then prints the checks the Devin CLI and
+cloud Devin each need. `dinah setup --list`
 shows every recipe Dinah can find, and `dinah guide setup-recipes` explains
 how to write one for another harness. The paragraphs below describe the same
 configuration for when you write it by hand.

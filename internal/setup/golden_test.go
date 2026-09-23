@@ -1,6 +1,7 @@
 package setup
 
 import (
+	"encoding/json"
 	"errors"
 	"io/fs"
 	"os"
@@ -131,8 +132,8 @@ func TestEveryShippedRecipeMatchesItsGoldens(t *testing.T) {
 			t.Errorf("the shipped recipe %s declares no scope", name)
 		}
 	}
-	if len(shipped) != 2 || covered != 3 {
-		t.Errorf("the goldens covered %d recipe scopes over %d shipped recipes, and the shipped list names claude-code at two scopes and codex at one", covered, len(shipped))
+	if len(shipped) != 3 || covered != 4 {
+		t.Errorf("the goldens covered %d recipe scopes over %d shipped recipes, and the shipped list names claude-code at two scopes, codex at one and devin at one", covered, len(shipped))
 	}
 	if *updateGoldens {
 		t.Fatal("the goldens were rewritten; read the diff and commit it")
@@ -347,5 +348,193 @@ func TestATOMLSuffixIsRefusedOutsideTheText(t *testing.T) {
 	report := mustRun(t, f.trialOptions(trialDir(t, f, map[string]string{"prompt.md": "Workbench {{workbench|toml}}.\n"})))
 	if !strings.Contains(report.Prompt, tomlBasicString(f.workbench)) {
 		t.Errorf("the accepted suffix did not render: %q", report.Prompt)
+	}
+}
+
+// devinFixtureAGENTS is a hand-written AGENTS.md with headings, CRLF line
+// endings, and a last line with no line break.
+const devinFixtureAGENTS = "# House rules\r\n\r\nWrite the test first.\r\n\r\n## Review\r\n\r\nRead the diff before you push."
+
+// devinFixtureMCP is a hand-written .devin/mcp_config.json holding a server
+// the recipe does not own under /mcpServers, and a key outside /mcpServers
+// that it does not own either.
+const devinFixtureMCP = "{\r\n\t\"mcpServers\": {\r\n\t\t\"other\": {\"command\": \"x\", \"args\": [\"a\", \"b\"]}\r\n\t},\r\n\t\"unowned\": {\"keep\": true}\r\n}\r\n"
+
+// TestTheDevinApplyWritesBothLocationsOverExistingContent applies devin into a
+// project that already carries both of the files the recipe writes, which the
+// goldens into an empty base cannot see. It holds the other server and the
+// unowned key to their own bytes and their own order, the section to being
+// appended after the hand-written text, a second apply to changing nothing,
+// and a removal to giving both files back.
+//
+// The removal leaves AGENTS.md carrying one line break the fixture lacked,
+// because setup ends a file that has no final line break before it appends a
+// marked section, and section removal takes back only the block.
+// TestTheCodexSectionSitsBesideAHandWrittenAGENTSFile pins the same byte, and
+// TestADevinRemovalGivesBackAFileThatEndedInALineBreak holds a file that ends
+// in a line break to exact restoration.
+func TestTheDevinApplyWritesBothLocationsOverExistingContent(t *testing.T) {
+	f := newFixture(t)
+	agents := filepath.Join(f.project, "AGENTS.md")
+	config := filepath.Join(f.project, ".devin", "mcp_config.json")
+	writeFiles(t, f.project, map[string]string{
+		"AGENTS.md":              devinFixtureAGENTS,
+		".devin/mcp_config.json": devinFixtureMCP,
+	})
+	opts := f.options("devin")
+	opts.Agent = "helper"
+	opts.Model = "claude-opus-5"
+	report := mustRun(t, opts)
+	if len(report.Changes) != 2 {
+		t.Fatalf("the apply reported %v, and the recipe declares two steps", changesOf(report))
+	}
+
+	merged := readFile(t, config)
+	prefix := 0
+	for prefix < len(devinFixtureMCP) && prefix < len(merged) && devinFixtureMCP[prefix] == merged[prefix] {
+		prefix++
+	}
+	suffix := 0
+	for suffix < len(devinFixtureMCP)-prefix && suffix < len(merged)-prefix && devinFixtureMCP[len(devinFixtureMCP)-1-suffix] == merged[len(merged)-1-suffix] {
+		suffix++
+	}
+	if prefix+suffix != len(devinFixtureMCP) {
+		t.Errorf("the merge changed original bytes rather than only inserting: %d bytes kept before the change and %d after, of %d", prefix, suffix, len(devinFixtureMCP))
+	}
+	var parsed struct {
+		MCPServers map[string]json.RawMessage `json:"mcpServers"`
+		Unowned    json.RawMessage            `json:"unowned"`
+	}
+	if err := json.Unmarshal([]byte(merged), &parsed); err != nil {
+		t.Fatalf("the merged file does not parse: %v", err)
+	}
+	if string(compactSpan(parsed.MCPServers["other"])) != `{"command":"x","args":["a","b"]}` {
+		t.Errorf("the other server changed: %s", parsed.MCPServers["other"])
+	}
+	if string(compactSpan(parsed.Unowned)) != `{"keep":true}` {
+		t.Errorf("the unowned key changed: %s", parsed.Unowned)
+	}
+	root, err := parseJSONFile([]byte(merged))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var order []string
+	for _, m := range root.members {
+		order = append(order, m.name)
+	}
+	if strings.Join(order, ",") != "mcpServers,unowned" {
+		t.Errorf("the top-level members are %v, and the unowned key moved", order)
+	}
+	if !strings.Contains(merged, `"dinah"`) {
+		t.Errorf("the merge wrote no dinah entry:\n%s", merged)
+	}
+
+	written := readFile(t, agents)
+	if !strings.HasPrefix(written, devinFixtureAGENTS+"\r\n\r\n<!-- dinah-setup:begin devin/instructions-project -->\r\n") {
+		t.Errorf("the section is not appended after the hand-written text and one empty line:\n%q", written)
+	}
+	if strings.Contains(strings.ReplaceAll(written, "\r\n", ""), "\n") {
+		t.Errorf("the apply left a bare LF in a CRLF file:\n%q", written)
+	}
+
+	project := tree(t, f.project)
+	ledger := readFile(t, f.ledgerPath())
+	second := mustRun(t, opts)
+	allChanges(t, second, ChangeUnchanged)
+	if len(second.Changes) != len(report.Changes) {
+		t.Errorf("the second apply reported %d rows and the first %d", len(second.Changes), len(report.Changes))
+	}
+	sameTree(t, "second apply", project, tree(t, f.project))
+	if got := readFile(t, f.ledgerPath()); got != ledger {
+		t.Errorf("the second apply changed the ledger:\nbefore %s\nafter  %s", ledger, got)
+	}
+
+	removal := opts
+	removal.Agent, removal.Model = "", ""
+	removal.Remove = true
+	mustRun(t, removal)
+	if got := readFile(t, config); got != devinFixtureMCP {
+		t.Errorf("the removal left .devin/mcp_config.json as %q, want the fixture %q", got, devinFixtureMCP)
+	}
+	if got, want := readFile(t, agents), devinFixtureAGENTS+"\r\n"; got != want {
+		t.Errorf("the removal left AGENTS.md as %q, want the fixture with the one line break it lacked %q", got, want)
+	}
+}
+
+// TestADevinRemovalGivesBackAFileThatEndedInALineBreak is the exact half of
+// the removal criterion. Where the hand-written AGENTS.md already ends in a
+// line break, setup adds no byte of its own, and the removal gives every file
+// under the base back as it stood.
+func TestADevinRemovalGivesBackAFileThatEndedInALineBreak(t *testing.T) {
+	f := newFixture(t)
+	writeFiles(t, f.project, map[string]string{
+		"AGENTS.md":              devinFixtureAGENTS + "\r\n",
+		".devin/mcp_config.json": devinFixtureMCP,
+		"notes.txt":              "left alone\n",
+	})
+	before := tree(t, f.project)
+	opts := f.options("devin")
+	opts.Agent = "helper"
+	opts.Model = "claude-opus-5"
+	mustRun(t, opts)
+	removal := opts
+	removal.Agent, removal.Model = "", ""
+	removal.Remove = true
+	mustRun(t, removal)
+	sameTree(t, "removal from a base with content", before, tree(t, f.project))
+}
+
+// devinGolden reads one of the rendered devin goldens.
+func devinGolden(t *testing.T, name string) string {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join(goldenRoot, "devin", "project", name))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(data)
+}
+
+// TestTheDevinPromptAndRemovalSayWhatTheReaderMustDo holds the rendered devin
+// prompt and removal text to the instructions nothing else in the tree would
+// notice losing: the check against the build's own rules paths, the failure
+// path for a build that does not name AGENTS.md, the two flags the reader
+// supplies because this recipe names no provider, and the sentence about a
+// copy setup cannot take back. The goldens render with no provider, since the
+// golden fixture sets a model and never a provider.
+func TestTheDevinPromptAndRemovalSayWhatTheReaderMustDo(t *testing.T) {
+	prompt := devinGolden(t, "prompt.md")
+	for _, want := range []string{
+		"devin rules paths",
+		"AGENTS.md",
+		"copy the whole marked block, markers included, into a file the build does name",
+		"--provider",
+		"--model",
+	} {
+		if !strings.Contains(prompt, want) {
+			t.Errorf("the devin prompt golden does not carry %q", want)
+		}
+	}
+	read := 0
+	for _, line := range strings.Split(prompt, "\n") {
+		for _, name := range []string{"DINAH_ACTOR", "DINAH_HARNESS", "DINAH_PROVIDER", "DINAH_MODEL", "DINAH_SERVER"} {
+			at := strings.Index(line, name+"=")
+			if at < 0 {
+				continue
+			}
+			read++
+			rest := line[at+len(name)+1:]
+			if rest == "" || rest[0] == ' ' || rest[0] == '\t' || rest[0] == '\r' {
+				t.Errorf("the devin prompt assigns %s nothing: %q", name, line)
+			}
+		}
+	}
+	if read == 0 {
+		t.Error("the devin prompt carries no environment assignment at all, so the empty-assignment check read nothing")
+	}
+	removal := devinGolden(t, "remove.md")
+	for _, want := range []string{"Three things remain", "delete that copy yourself"} {
+		if !strings.Contains(removal, want) {
+			t.Errorf("the devin removal golden does not carry %q", want)
+		}
 	}
 }

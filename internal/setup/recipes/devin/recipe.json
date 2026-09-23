@@ -1,0 +1,15 @@
+{
+  "format": 1,
+  "name": "devin",
+  "title": "Devin CLI",
+  "harness": "devin",
+  "agent": "devin",
+  "tools": "all",
+  "scopes": ["project"],
+  "documentation": [
+    "https://docs.devin.ai/cli/extensibility/mcp/configuration",
+    "https://docs.devin.ai/cli/extensibility/rules",
+    "https://docs.devin.ai/onboard-devin/agents-md",
+    "https://docs.devin.ai/work-with-devin/mcp"
+  ]
+}
