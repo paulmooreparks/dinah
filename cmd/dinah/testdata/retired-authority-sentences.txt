@@ -25,7 +25,7 @@
 # with the refusal that makes it true, and only the first half travelled.
 #
 # What it does not cover, and this is the limit worth meeting here rather than
-# discovering later. The ledger holds these twenty-two sentences and nothing
+# discovering later. The ledger holds these twenty-five sentences and nothing
 # else. Add `Only the operator can rename a column.` to
 # internal/guide/guides/verbs.md and the suite stays green, because no check
 # in the tree recognises the claim, only these strings. Recognising the claim
@@ -62,3 +62,23 @@ A column may declare both, and then the workbench waits there and only the opera
 who the item is meant for, recorded on the item and never enforced
 It says the value is recorded rather than checked, so a reader does not take it for an authorisation.
 who the item is meant for; an item whose owner reads operator is the workbench operator's to settle
+
+# The three entries below were retired on dinah-582, and for a different
+# reason than every entry above them. Those were retired because they
+# overstated what the tool guarantees: the refusal they described was real and
+# the sentence claimed more than a name comparison can deliver. These three
+# were true when they were written and the operator's ruling of 2026-09-23
+# made them false. A workstream's fields, built-in and declared alike, are any
+# owner's to write, so a sentence saying such a write is refused to everybody
+# but the operator now describes a refusal the tool does not perform. A reader
+# who applies dinah-495's rationale to these three has the wrong reason for
+# the right entry.
+#
+# The quick-start entry is the second sentence that file has had retired on
+# this subject. The first, "A workstream that already exists can still be
+# renamed, and that write belongs to the operator rather than to whoever
+# created it.", stands above and is not superseded: it was retired for
+# dinah-495's reason and its replacement is retired here for this one.
+Dinah refuses a write of the hold to any actor but the operator, and it refuses every other write to a column, to the workbench's own fields and to a workstream's on the same rule; reading any of them is open to anybody.
+A workstream that already exists can still be renamed, and Dinah refuses that write to every actor but the operator, whoever created the workstream.
+They are changing a field of the workbench itself or of a workstream, anything done to an attachment of the workbench, archiving, restoring, or deleting a column, and running `reshape`.

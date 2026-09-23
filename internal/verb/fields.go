@@ -207,10 +207,10 @@ func declaredTarget(key string) fieldWrite {
 // the operator's, because WriteAuthorityOf is read below exactly as it is read
 // for a field of the kind's own set.
 //
-// A write to a comment, a checklist item, an attachment or a workstream is
-// refused whatever the key, and no branch here says so: a declaration reaches
-// only a card, a column and the workbench, so DeclaredFieldOf answers a field
-// no declaration can reach and the first row below refuses it.
+// A write to a comment, a checklist item or an attachment is refused whatever
+// the key, and no branch here says so: a declaration reaches none of those
+// three, so DeclaredFieldOf answers a field no declaration can reach and the
+// first row below refuses it.
 //
 // It needs no line normalising the request's value, and the asymmetry with
 // SetField above is a decision rather than an oversight. AdmitsFieldValue
