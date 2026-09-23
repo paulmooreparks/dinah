@@ -70,6 +70,26 @@ func TestEveryKindDeclaresItsFieldsAndItsAuthority(t *testing.T) {
 		}
 	}
 
+	// Which kinds hold which of the two authorities, asserted from both
+	// sides. The sweep above passes against a map answering the same value
+	// for every kind, so the positive assertion names the operator's two and
+	// requires every other kind to be any owner's. dinah-582 moved the
+	// workstream across, on the operator's ruling that an agent provisioning
+	// a trip for him has to be able to set its dates.
+	operatorOnly := map[string]bool{KindWorkbench: true, KindColumn: true}
+	for _, kind := range kinds {
+		want := AuthorityOwner
+		if operatorOnly[kind] {
+			want = AuthorityOperator
+		}
+		if got := WriteAuthorityOf(kind); got != want {
+			t.Errorf("WriteAuthorityOf(%q) reports %q, wanted %q", kind, got, want)
+		}
+	}
+	if got := WriteAuthorityOf(KindWorkstream); got != AuthorityOwner {
+		t.Errorf("WriteAuthorityOf(%q) reports %q, and dinah-582 made it %q", KindWorkstream, got, AuthorityOwner)
+	}
+
 	// A kind the grammar does not carry reports no fields, is not in the
 	// list, and answers no authority, which is what lets a sweep tell a kind
 	// with no rule from a kind whose rule is the looser of the two.

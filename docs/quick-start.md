@@ -1005,8 +1005,8 @@ workstream/autumn  Autumn release  [finished]
 [exit 0]
 ```
 
-A workstream that already exists can still be renamed, and Dinah refuses that
-write to every actor but the operator, whoever created the workstream. Changing
+A workstream that already exists can still be renamed, and any owner may do
+it, whoever created the workstream. Changing
 the slug needs `--yes`, because every reference to the workstream you have
 written down elsewhere names the old one:
 

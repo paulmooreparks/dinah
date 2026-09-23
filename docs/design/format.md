@@ -2163,6 +2163,10 @@ fields:
     type: string
     meaning: the branch cards merge into
     on: [workbench, column]
+  trip.destination:
+    type: string
+    meaning: the city the trip is to
+    on: [workstream]
 ```
 
 One entry carries three members, one to a line. `type` is required and holds
@@ -2171,8 +2175,11 @@ and holds one line of prose, which runs unparsed to the end of its line so a
 meaning carrying a comma or a colon needs no quoting rule. `on` is optional,
 holds the entity kinds the field applies to as a flow sequence or a block of
 dashed entries, and an entry declaring none applies to a card, a column and
-the workbench alike. No declaration reaches a comment, a checklist item, an
-attachment or a workstream.
+the workbench alike. An entry may also name `workstream`, and a declaration
+that reaches a workstream has to name it: the default set is the three kinds
+CORE-FIELD-4 of the published profile fixes, and a key a workbench declared
+for its cards has said nothing about a trip or a release. No declaration
+reaches a comment, a checklist item or an attachment.
 
 A key is two or more segments joined by full stops, and a segment begins with
 a lowercase letter, ends with a lowercase letter or a digit, and carries
@@ -2208,8 +2215,8 @@ definition under a name containing a full stop, and a declared field key contain
 construction, so a value written there would be indistinguishable from a
 layer declaration a second tool is required to preserve and may be required
 to refuse. Nesting removes the question rather than answering it, and the
-rule is uniform across the three kinds so that one reader and one writer
-serve all of them. A key inside the block that the workbench does not declare
+rule is uniform across every kind that carries a value, so that one reader
+and one writer serve all of them. A key inside the block that the workbench does not declare
 is preserved unchanged and is readable, which is the posture an unrecognised
 top-level key already gets.
 

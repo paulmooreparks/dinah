@@ -279,9 +279,9 @@ item the card carries names the column and has not been settled. `dinah set
 <column> hold both` holds a card either way, and `dinah set <column> hold off`
 lets cards through in both directions again. `dinah get <column> hold` answers
 whichever of them was written last. Dinah refuses a write of the hold to any
-actor but the operator, and it refuses every other write to a column, to the
-workbench's own fields and to a workstream's on the same rule; reading any of
-them is open to anybody.
+actor but the operator, and it refuses every other write to a column and to
+the workbench's own fields on the same rule; reading any of them is open to
+anybody. A workstream's fields are any owner's to write.
 
 ## A reference or a query
 

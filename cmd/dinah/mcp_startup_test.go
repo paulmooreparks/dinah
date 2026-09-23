@@ -266,8 +266,8 @@ func TestMCPToolsFlagStartsAndServesTheNamedProfile(t *testing.T) {
 	container := newBench(t)
 	workbench := soleBenchDir(t, container)
 
-	if got := mcpServedToolCount(t, workbench, "--tools", "station"); got != 28 {
-		t.Errorf("mcp --tools station served %d tools, wanted 28", got)
+	if got := mcpServedToolCount(t, workbench, "--tools", "station"); got != 29 {
+		t.Errorf("mcp --tools station served %d tools, wanted 29", got)
 	}
 	if got := mcpServedToolCount(t, workbench, "--tools", "operator"); got != 41 {
 		t.Errorf("mcp --tools operator served %d tools, wanted 41", got)

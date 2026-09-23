@@ -1309,9 +1309,13 @@ type Record struct {
 	Ref string `json:"ref"`
 	// Fields are the entity's own fields, in the order the kind declares
 	// them, each carrying the name a reader types back and what is stored
-	// under it. A field the entity carries nothing under is drawn with an
-	// empty value rather than left out, because a record with a row missing
-	// reads as a record of a different shape.
+	// under it, followed by the fields the workbench declares on the kind,
+	// in declaration order. A built-in field the entity carries nothing
+	// under is drawn with an empty value rather than left out, because a
+	// record with a row missing reads as a record of a different shape. A
+	// declared key the entity carries nothing under is left out instead,
+	// because the declared set is the workbench's rather than this build's
+	// and an absent value is already how `dinah show <card>` draws one.
 	Fields []RecordField `json:"fields"`
 }
 
@@ -1329,6 +1333,7 @@ func (l *Library) workbenchRecord() *Record {
 	for _, name := range bench.WorkbenchListingFields {
 		record.Fields = append(record.Fields, RecordField{Name: name, Value: l.Bench.WorkbenchField(name)})
 	}
+	record.Fields = append(record.Fields, l.declaredRecordFields(l.Bench.FM, bench.KindWorkbench)...)
 	return record
 }
 
@@ -1340,6 +1345,7 @@ func (l *Library) workstreamRecord(workstream *bench.Workstream) *Record {
 	for _, name := range bench.FieldsOf(bench.KindWorkstream) {
 		record.Fields = append(record.Fields, RecordField{Name: name, Value: workstream.Field(name)})
 	}
+	record.Fields = append(record.Fields, l.declaredRecordFields(workstream.FM, bench.KindWorkstream)...)
 	return record
 }
 

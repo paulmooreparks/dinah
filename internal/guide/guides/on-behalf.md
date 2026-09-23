@@ -102,10 +102,10 @@ the operator's ruling is about a card, carry it out with `claim` and `move` on
 that card instead, and record it there.
 
 Some reserved acts leave nowhere a person can read the sentence afterwards.
-They are changing a field of the workbench itself or of a workstream, anything
-done to an attachment of the workbench, archiving, restoring, or deleting a
-column, and running `reshape`. Do not perform those under the operator's name.
-Ask the operator to run them.
+They are changing a field of the workbench itself, anything done to an
+attachment of the workbench, archiving, restoring, or deleting a column, and
+running `reshape`. Do not perform those under the operator's name. Ask the
+operator to run them.
 
 ## What Dinah does not check
 

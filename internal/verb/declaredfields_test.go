@@ -11,8 +11,9 @@ import (
 )
 
 // fixtureDeclaration is the fields block every case in this file starts from:
-// one key on a card alone, one on the workbench and a column, and one on all
-// three because it names no kinds at all.
+// two keys on a card alone, one on the workbench and a column, one on a
+// workstream alone, and one on the three default kinds because it names no
+// kinds at all.
 const fixtureDeclaration = `fields:
   git.branch:
     type: string
@@ -29,6 +30,10 @@ const fixtureDeclaration = `fields:
   venue.deposit-paid:
     type: date
     meaning: the day the deposit fell due
+  trip.destination:
+    type: string
+    meaning: the city the trip is to
+    on: [workstream]
 `
 
 // declareFields writes a fields block into the workbench anchor, which is the
@@ -49,7 +54,7 @@ func (h *harness) declareFields(block string) {
 	h.reopen()
 }
 
-// declaringHarness is a fixture whose workbench declares the four fields
+// declaringHarness is a fixture whose workbench declares the five fields
 // above, which is where every case below starts.
 func declaringHarness(t *testing.T) *harness {
 	t.Helper()
@@ -348,30 +353,174 @@ func TestAMoveFailingBothTheHoldAndTheRequirementAnswersTheHold(t *testing.T) {
 	}
 }
 
-// TestTheFourUnreachableKindsRefuseEveryKey drives CORE-FIELD-6. A declaration
-// reaches only a card, a column and the workbench, so a write of a declared
-// key to a comment, a checklist item, an attachment or a workstream is refused
-// whatever the declaration says. The successful write beside them is what
-// keeps this from passing against a build that refuses every kind.
-func TestTheFourUnreachableKindsRefuseEveryKey(t *testing.T) {
+// TestTheThreeUnreachableKindsRefuseEveryKey drives CORE-FIELD-6. A
+// declaration reaches a card, a column, the workbench and, since dinah-582, a
+// workstream, so a write of a declared key to a comment, a checklist item or
+// an attachment is refused whatever the declaration says. The successful write
+// beside them is what keeps this from passing against a build that refuses
+// every kind.
+//
+// The workstream left this list on dinah-582 and is exercised by
+// TestADeclaredKeyOnAWorkstreamIsAnyOwnersToWrite below, which asserts the
+// write that used to be refused here.
+func TestTheThreeUnreachableKindsRefuseEveryKey(t *testing.T) {
 	h := declaringHarness(t)
 	ref := h.ready("A card")
 	h.comment(ref, "A comment.")
 	h.attach(ref, "note.txt", "some bytes")
 	item := h.file(ref, "decision", "A decision.")
-	workstream := h.newWorkstream("A workstream")
-	unreachable := []string{ref + "/comments/1", item, ref + "/attachments/1", workstream.Ref}
+	unreachable := []string{ref + "/comments/1", item, ref + "/attachments/1"}
 	for _, target := range unreachable {
-		response := h.set(target, "venue.deposit-paid", "2026-09-14")
-		if response.Refusal != contract.UndeclaredField {
-			t.Errorf("a write to %s answered %s %s, wanted undeclared-field", target, response.Outcome, response.Refusal)
+		for _, key := range []string{"venue.deposit-paid", "git.branch", "trip.destination"} {
+			response := h.set(target, key, "2026-09-14")
+			if response.Refusal != contract.UndeclaredField {
+				t.Errorf("a write of %s to %s answered %s %s, wanted undeclared-field", key, target, response.Outcome, response.Refusal)
+			}
 		}
 	}
-	if len(unreachable) != 4 {
-		t.Errorf("the case list covers %d kinds, wanted four", len(unreachable))
+	if len(unreachable) != 3 {
+		t.Errorf("the case list covers %d kinds, wanted three", len(unreachable))
 	}
 	if response := h.set(ref, "venue.deposit-paid", "2026-09-14"); response.Outcome != contract.OutcomeOK {
 		t.Fatalf("the reachable write answered %s %s", response.Outcome, response.Refusal)
+	}
+}
+
+// TestADeclaredKeyOnAWorkstreamIsAnyOwnersToWrite is dinah-582's own case at
+// the library. A key declared on a workstream alone is written there by an
+// actor who is not the operator, the value lands in the anchor's field_values
+// block, and the workstream's own journal records it.
+//
+// Four writes run in order and each asserts a different rule. The first
+// journals one workstream_updated line carrying the key, an empty from and the
+// written value. The second repeats the value, leaves the anchor
+// byte-identical and journals nothing. The third carries a different value and
+// journals a line whose from is what stood there. The fourth clears the key
+// and journals a line whose to is empty. None of them carries a note, because
+// a workstream's event lands on its own journal rather than on somebody
+// else's.
+func TestADeclaredKeyOnAWorkstreamIsAnyOwnersToWrite(t *testing.T) {
+	h := declaringHarness(t)
+	if h.library.Bench.Operator != "alka" {
+		t.Fatalf("the harness operator is %q, and bob below is a non-operator only while it is alka", h.library.Bench.Operator)
+	}
+	workstream := h.newWorkstream("Berlin trip")
+	id := workstream.ID
+	anchor := func() string {
+		h.t.Helper()
+		stored := h.library.Bench.Workstream(id)
+		if stored == nil {
+			h.t.Fatalf("the workbench carries no workstream %s", id)
+		}
+		text, err := bench.ReadText(stored.AnchorPath())
+		if err != nil {
+			h.t.Fatalf("read the workstream anchor: %v", err)
+		}
+		return text
+	}
+	write := func(value string) *Response {
+		h.t.Helper()
+		response := h.library.SetField(&Request{Verb: "set", Actor: "bob", Ref: workstream.Ref, Field: "trip.destination", Value: value})
+		h.reopen()
+		return response
+	}
+	before := len(h.workstreamEvents(id))
+
+	if response := write("Berlin"); response.Outcome != contract.OutcomeOK {
+		t.Fatalf("bob writing a declared key on a workstream answered %s %s, wanted ok", response.Outcome, response.Refusal)
+	}
+	if got := anchor(); !strings.Contains(got, "field_values:") || !strings.Contains(got, "  trip.destination: Berlin\n") {
+		t.Errorf("the value did not land in the anchor's field_values block:\n%s", got)
+	}
+	got, readErr := h.library.GetField(&Request{Verb: "get", Actor: "bob", Ref: workstream.Ref, Field: "trip.destination"})
+	if readErr != nil {
+		t.Fatalf("reading the key back: %v", readErr)
+	}
+	if got != "Berlin" {
+		t.Errorf("a read answers %q, wanted Berlin", got)
+	}
+	events := h.workstreamEvents(id)
+	if len(events) != before+1 {
+		t.Fatalf("the workstream's journal carries %d events, wanted %d", len(events), before+1)
+	}
+	last := events[len(events)-1]
+	if last.Event != contract.EventWorkstreamUpdated {
+		t.Errorf("the event is %q, wanted %s", last.Event, contract.EventWorkstreamUpdated)
+	}
+	if last.Field != "trip.destination" || last.From != "" || last.To != "Berlin" {
+		t.Errorf("the event carries field %q from %q to %q", last.Field, last.From, last.To)
+	}
+	if last.Note != "" {
+		t.Errorf("the event carries the note %q, and a workstream's event lands on its own journal", last.Note)
+	}
+
+	// The same value again is accepted, silent on disk and silent in the
+	// journal, which is writeField's standing rule.
+	settled := anchor()
+	if response := write("Berlin"); response.Outcome != contract.OutcomeOK {
+		t.Fatalf("the repeated write answered %s %s", response.Outcome, response.Refusal)
+	}
+	if got := anchor(); got != settled {
+		t.Errorf("the repeated write rewrote the anchor:\n%s", got)
+	}
+	if got := len(h.workstreamEvents(id)); got != before+1 {
+		t.Errorf("the repeated write grew the journal to %d events", got)
+	}
+
+	// A different value journals the previous one as its from.
+	if response := write("Hamburg"); response.Outcome != contract.OutcomeOK {
+		t.Fatalf("the second value answered %s %s", response.Outcome, response.Refusal)
+	}
+	events = h.workstreamEvents(id)
+	if len(events) != before+2 {
+		t.Fatalf("the journal carries %d events, wanted %d", len(events), before+2)
+	}
+	if last = events[len(events)-1]; last.From != "Berlin" || last.To != "Hamburg" {
+		t.Errorf("the second event carries from %q to %q", last.From, last.To)
+	}
+
+	// A clear takes the key out and journals an empty to.
+	if response := write(""); response.Outcome != contract.OutcomeOK {
+		t.Fatalf("the clear answered %s %s", response.Outcome, response.Refusal)
+	}
+	if got := anchor(); strings.Contains(got, "trip.destination") {
+		t.Errorf("the cleared key is still in the anchor:\n%s", got)
+	}
+	events = h.workstreamEvents(id)
+	if len(events) != before+3 {
+		t.Fatalf("the journal carries %d events, wanted %d", len(events), before+3)
+	}
+	if last = events[len(events)-1]; last.From != "Hamburg" || last.To != "" {
+		t.Errorf("the clear's event carries from %q to %q", last.From, last.To)
+	}
+}
+
+// TestADeclarationNamingOneKindRefusesTheOther pins dinah-582's two new
+// refusing directions beside the two accepting ones. A key declared on a
+// workstream alone is refused on a card and the refusal names the workstream;
+// a key declared on a card alone is refused on a workstream and names the
+// card. Each refusal stands beside the write the same key accepts, so a build
+// refusing everything fails here.
+func TestADeclarationNamingOneKindRefusesTheOther(t *testing.T) {
+	h := declaringHarness(t)
+	ref := h.ready("A card")
+	workstream := h.newWorkstream("Berlin trip")
+
+	if response := h.set(ref, "trip.destination", "Berlin"); response.Refusal != contract.UndeclaredField {
+		t.Errorf("a workstream key written on a card answered %s %s, wanted undeclared-field", response.Outcome, response.Refusal)
+	} else if got := response.Context["kinds"]; got != bench.KindWorkstream {
+		t.Errorf("the refusal names the kinds %q, wanted %q", got, bench.KindWorkstream)
+	}
+	if response := h.set(workstream.Ref, "git.branch", "dinah-582"); response.Refusal != contract.UndeclaredField {
+		t.Errorf("a card key written on a workstream answered %s %s, wanted undeclared-field", response.Outcome, response.Refusal)
+	} else if got := response.Context["kinds"]; got != bench.KindCard {
+		t.Errorf("the refusal names the kinds %q, wanted %q", got, bench.KindCard)
+	}
+	if response := h.set(workstream.Ref, "trip.destination", "Berlin"); response.Outcome != contract.OutcomeOK {
+		t.Errorf("the accepting case on a workstream answered %s %s", response.Outcome, response.Refusal)
+	}
+	if response := h.set(ref, "git.branch", "dinah-582"); response.Outcome != contract.OutcomeOK {
+		t.Errorf("the accepting case on a card answered %s %s", response.Outcome, response.Refusal)
 	}
 }
 
@@ -515,4 +664,77 @@ func TestAWorkbenchValueNeverLandsInTheLayerNamespace(t *testing.T) {
 	if !strings.Contains(anchor, "\nacme.layer: 1.0\n") {
 		t.Errorf("the hand-written layer declaration did not survive:\n%s", anchor)
 	}
+}
+
+// TestARecordCarriesItsDeclaredValuesAfterItsBuiltInRows is dinah-582's read
+// side, at both kinds that answer a record. A workstream's record carries its
+// four built-in rows and then one row per declared key it holds a value for,
+// in declaration order, and the workbench's record does the same after the
+// rows the bare listing prints.
+//
+// The row count is asserted rather than the presence of one row. A record that
+// drew every declared key, value or no value, satisfies a membership check and
+// fails here, which is the point: a declared key holding nothing is left out
+// while a built-in field holding nothing is drawn empty.
+func TestARecordCarriesItsDeclaredValuesAfterItsBuiltInRows(t *testing.T) {
+	h := declaringHarness(t)
+	workstream := h.newWorkstream("Berlin trip")
+
+	builtIn := bench.FieldsOf(bench.KindWorkstream)
+	bare := h.record(workstream.Ref)
+	if len(bare.Fields) != len(builtIn) {
+		t.Fatalf("a workstream holding no declared value draws %d rows, wanted the %d built-in ones: %v", len(bare.Fields), len(builtIn), bare.Fields)
+	}
+
+	if response := h.set(workstream.Ref, "trip.destination", "Berlin"); response.Outcome != contract.OutcomeOK {
+		t.Fatalf("writing the declared key answered %s %s", response.Outcome, response.Refusal)
+	}
+	got := h.record(workstream.Ref)
+	if len(got.Fields) != len(builtIn)+1 {
+		t.Fatalf("the workstream's record draws %d rows, wanted %d: %v", len(got.Fields), len(builtIn)+1, got.Fields)
+	}
+	for i, name := range builtIn {
+		if got.Fields[i].Name != name {
+			t.Errorf("row %d is %q, wanted the built-in field %q", i, got.Fields[i].Name, name)
+		}
+	}
+	last := got.Fields[len(got.Fields)-1]
+	if last.Name != "trip.destination" || last.Value != "Berlin" {
+		t.Errorf("the declared row is %q = %q", last.Name, last.Value)
+	}
+
+	// The workbench answers the same shape. git.trunk and venue.deposit-paid
+	// both reach it, so writing one and leaving the other empty is what pins
+	// the omission rule rather than merely the append.
+	listing := bench.WorkbenchListingFields
+	if response := h.set("workbench", "git.trunk", "main"); response.Outcome != contract.OutcomeOK {
+		t.Fatalf("writing a declared key on the workbench answered %s %s", response.Outcome, response.Refusal)
+	}
+	bench2 := h.record("workbench")
+	if len(bench2.Fields) != len(listing)+1 {
+		t.Fatalf("the workbench's record draws %d rows, wanted %d: %v", len(bench2.Fields), len(listing)+1, bench2.Fields)
+	}
+	last = bench2.Fields[len(bench2.Fields)-1]
+	if last.Name != "git.trunk" || last.Value != "main" {
+		t.Errorf("the workbench's declared row is %q = %q", last.Name, last.Value)
+	}
+	for _, row := range bench2.Fields {
+		if row.Name == "venue.deposit-paid" {
+			t.Errorf("a declared key holding no value was drawn: %q = %q", row.Name, row.Value)
+		}
+	}
+}
+
+// record answers the Record a show of one reference composes, failing the test
+// if the read itself could not finish or answered something else.
+func (h *harness) record(ref string) *Record {
+	h.t.Helper()
+	_, record, _, _, err := h.library.Show(&Request{Verb: "show", Actor: "alka", Card: ref})
+	if err != nil {
+		h.t.Fatalf("show %s: %v", ref, err)
+	}
+	if record == nil {
+		h.t.Fatalf("show %s answered no record", ref)
+	}
+	return record
 }

@@ -77,12 +77,12 @@ var Guards = []string{
 // that slipped in with no rule about who may write it fails a test instead of
 // defaulting to whatever the router happens to do.
 const (
-	// AuthorityOwner is the rule the four card-level kinds keep: the request
-	// names an owner and any owner will do, because a classification is not
-	// a claim.
+	// AuthorityOwner is the rule every kind but the workbench and its
+	// columns keeps: the request names an owner and any owner will do,
+	// because a classification is not a claim.
 	AuthorityOwner = "owner"
-	// AuthorityOperator is the rule the three workbench-level kinds keep:
-	// the actor is the workbench's own operator or the write refuses.
+	// AuthorityOperator is the rule the workbench and its columns keep: the
+	// actor is the workbench's own operator or the write refuses.
 	AuthorityOperator = "operator"
 )
 
@@ -232,15 +232,21 @@ var fields = map[string][]Field{
 	},
 }
 
-// writeAuthority declares who may write a field of each kind. The three
-// workbench-level kinds are the operator's, because a column is a station of
-// the flow and renaming one or changing its kind puts the flow in the hands of
-// whoever happens to hold a card. The four card-level kinds are any owner's,
-// which is the rule a card's own severity write already keeps.
+// writeAuthority declares who may write a field of each kind. The workbench
+// and its columns are the operator's, because a column is a station of the
+// flow and renaming one or changing its kind puts the flow in the hands of
+// whoever happens to hold a card. Every other kind is any owner's, which is
+// the rule a card's own severity write already keeps.
+//
+// A workstream was the operator's until dinah-582, on the reasoning that a
+// workbench-level thing is his. The operator ruled otherwise on 2026-09-23:
+// an agent creating a tentative trip on his behalf has to be able to set its
+// dates, and creating one was already any owner's, so the write that finishes
+// provisioning it could not be the one act he had to perform himself.
 var writeAuthority = map[string]string{
 	KindWorkbench:  AuthorityOperator,
 	KindColumn:     AuthorityOperator,
-	KindWorkstream: AuthorityOperator,
+	KindWorkstream: AuthorityOwner,
 	KindCard:       AuthorityOwner,
 	KindComment:    AuthorityOwner,
 	KindItem:       AuthorityOwner,
