@@ -3493,3 +3493,75 @@ func TestAttachRefusesAKindTheContainmentTableGivesNoMount(t *testing.T) {
 		}
 	})
 }
+
+// TestTheLockOfAnEntityIsTheDirectoryOfItsJournal pins lockDirFor as a plain
+// question, the way TestTheLockOfAFileIsTheNearestJournalBearingEntity in
+// package bench pins the sibling mapping lockDirForFile. Nothing here observes
+// a lock being held, because the thing under test is the mapping and not the
+// acquisition.
+//
+// Two claims are asserted over every row. The first is the directory itself.
+// The second is that lockDirFor and journalFor name one entity, which is what
+// lets a write and its event land on one side of one acquisition; lockDirFor's
+// own doc comment says so, and asserting it here keeps the two arms from
+// drifting apart.
+//
+// The workstream rows are why this test exists. lockDirForFile's doc comment in
+// package bench claims to be "the file-path spelling of what lockDirFor answers
+// for an entity", and for an attachment hanging on a workstream that sentence
+// was false before this card: the file spelling already walked WorkstreamsDir
+// and answered the workstream's directory, while the entity spelling answered
+// the bench root. The card's two-line arm is what makes the sentence true, so
+// the card rows and the bench rows stand beside the workstream ones as the
+// cases that were already right.
+//
+// Arming: deleting the KindWorkstream arm from lockDirFor reddens the
+// workstream row on both claims, and deleting the attachmentWorkstream arm
+// reddens the workstream-attachment row on both. No other row moves under
+// either, which is what shows the rows pinning their own arms.
+func TestTheLockOfAnEntityIsTheDirectoryOfItsJournal(t *testing.T) {
+	h := newHarness(t)
+	ref := h.add("locked")
+	h.comment(ref, "a thought")
+	h.attach(ref, "on-the-card.txt", "the bytes")
+	h.attach("", "on-the-workbench.txt", "other bytes")
+	stream := h.library.NewWorkstream(&Request{Verb: "workstream", Action: "new", Actor: "alka", Workstream: "A locked stream", Slug: "locked-stream"})
+	if stream.Outcome != contract.OutcomeOK {
+		t.Fatalf("new workstream: %s %s", stream.Outcome, stream.Refusal)
+	}
+	h.reopen()
+	h.attach("workstream/locked-stream", "on-the-workstream.txt", "stream bytes")
+
+	streamEntity, err := h.library.Bench.ResolveEntity("workstream/locked-stream")
+	if err != nil {
+		t.Fatalf("resolve the workstream: %v", err)
+	}
+	card := h.card(ref)
+	for _, c := range []struct {
+		name string
+		ref  string
+		want string
+	}{
+		{name: "a workstream", ref: "workstream/locked-stream", want: streamEntity.Dir},
+		{name: "an attachment on a workstream", ref: "workstream/locked-stream/attachments/1", want: streamEntity.Dir},
+		{name: "a card", ref: ref, want: card.Dir},
+		{name: "an attachment on a card", ref: ref + "/attachments/1", want: card.Dir},
+		{name: "a comment on a card", ref: ref + "/comments/1", want: card.Dir},
+		{name: "a column", ref: intake, want: h.root},
+		{name: "the workbench", ref: "", want: h.root},
+		{name: "an attachment on the workbench", ref: "workbench/attachments/1", want: h.root},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			entity, err := h.library.Bench.ResolveEntity(c.ref)
+			if err != nil {
+				t.Fatalf("resolve %q: %v", c.ref, err)
+			}
+			if got := h.library.lockDirFor(entity); got != c.want {
+				t.Errorf("the lock of %s is %s, wanted %s", c.name, got, c.want)
+			}
+			if got, journal := h.library.lockDirFor(entity), h.library.journalFor(entity); got != filepath.Dir(journal) {
+				t.Errorf("the lock of %s is %s and its journal sits in %s, and the two must name one entity", c.name, got, filepath.Dir(journal))
+			}
+		})
+	}
+}

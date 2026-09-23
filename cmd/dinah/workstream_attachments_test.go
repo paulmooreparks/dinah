@@ -434,9 +434,23 @@ func carriesOneAttachment(listing string) bool {
 // alone, so a refusal for some other reason cannot stand in for the authority
 // one.
 //
-// Arming: adding bench.KindWorkstream to definitionAttachmentWrite reddens the
-// three accepting rows and leaves the refusing one green, the delete row
-// included, because operatorOnlyTarget reads that same predicate.
+// Arming: the rule has two arms and each one is pinned by a different row, so
+// breaking either reddens its own rows and no others. I broke both and wrote
+// down what the run printed.
+//
+// Adding bench.KindWorkstream to definitionAttachmentWrite's kind arm reddens
+// the attach row alone, refusing not-operator. That row is a t.Fatalf, so the
+// run stops there and the rename and delete rows are never reached; demoting
+// it only makes those two fail dinah.unknown-path for the attachment that was
+// never created, which is not the authority they are there to pin.
+//
+// Making definitionAttachmentWrite answer true for an attachment whose holder
+// is a workstream reddens the rename and delete rows, both refusing
+// not-operator, and leaves the attach row green, because attach is given the
+// workstream and those two are given the attachment.
+//
+// The refusing column row stays green under both breaks, which is what shows
+// it pinning the rule rather than the arms.
 func TestAnyOwnerMayAttachToAWorkstreamAndTheColumnRuleDoesNotReachIt(t *testing.T) {
 	root, _, _, source := workstreamAttachmentFixture(t, "portfolio")
 

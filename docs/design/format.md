@@ -55,10 +55,10 @@ Containment is a closed grammar, stated here once and in full. The
 workbench contains columns, cards, workstreams, and attachments. A column
 contains comments and attachments. A card contains comments, checklist
 items, and attachments (and bears a journal, as do the workbench and each
-workstream). A workstream contains attachments, and bears a journal. A
-comment contains attachments, and a checklist item contains
-comments. An attachment contains exactly its payload. A folder contains
-attachments and folders, and may itself exist only inside an `attachments/`
+workstream). A workstream contains attachments. A comment contains
+attachments, and a checklist item contains comments. An attachment
+contains exactly its payload. A folder contains attachments and
+folders, and may itself exist only inside an `attachments/`
 collection. The folder kind is deferred and unbuilt, as the Folders section
 below already records, so the grammar as written is cyclic through it while
 the grammar any build implements is acyclic. Two asymmetries carry the

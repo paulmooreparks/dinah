@@ -241,6 +241,15 @@ func TestTheWorkbenchAndItsColumnsCountTheirOwnAttachments(t *testing.T) {
 // The workstream is the fifth, added by dinah-583. It is the kind this test
 // previously named as mounting nothing, so it moved from the empty-answer
 // half to the carrying half rather than being appended to the list.
+//
+// Neither half of the sweep is hand-counted. Both are reconciled against
+// bench.EntityKinds and the containment table below the case table, so the
+// name's promise of every kind is checked rather than asserted.
+//
+// Arming: deleting the workstream row from the case table reddens the
+// reconciliation on the mounting side, and deleting the workstream's
+// attachments mount from the containment table reddens it on the carrying
+// side while the workstream row's own assertions go red beside it.
 func TestAttachmentsReadsEveryKindTheGrammarMounts(t *testing.T) {
 	h := newHarness(t)
 	ref := h.readyAt("a card standing in intake", "a00000000001")
@@ -258,18 +267,6 @@ func TestAttachmentsReadsEveryKindTheGrammarMounts(t *testing.T) {
 	writeItem(t, h.card(ref).Dir, "a criterion", 1)
 	h.reopen()
 
-	// AC-9 rests on these two kinds mounting no attachments, so the premise
-	// is asserted rather than assumed: a grammar that gave either one an
-	// attachments collection would make the empty answer below wrong. An
-	// item mounts comments after dinah-502, which this loop does not ask
-	// about, so it asks the attachments mount by name rather than reading
-	// Contains for any collection at all.
-	for _, kind := range []string{bench.KindItem, bench.KindAttachment} {
-		if _, mounts := bench.MountOf(kind, bench.AttachmentsDir); mounts {
-			t.Fatalf("%s mounts an attachments collection, and this test's premise is that it mounts none", kind)
-		}
-	}
-
 	cases := []struct {
 		name     string
 		ref      string
@@ -286,6 +283,50 @@ func TestAttachmentsReadsEveryKindTheGrammarMounts(t *testing.T) {
 		{name: "a workstream", ref: "workstream/portfolio", kind: bench.KindWorkstream, wantRef: "workstream/portfolio", filename: "on-the-workstream.txt"},
 		{name: "a checklist item, which mounts nothing", ref: ref + "/checklist/1", kind: bench.KindItem, wantRef: ref + "/checklist/1"},
 		{name: "an attachment, which mounts nothing", ref: ref + "/attachments/1", kind: bench.KindAttachment, wantRef: ref + "/attachments/1"},
+	}
+
+	// The test's name promises every kind the grammar mounts, so both halves
+	// of the sweep are derived from the containment table rather than one
+	// half being derived and the other written out. A sixth kind gaining an
+	// attachments collection reddens this rather than leaving the sweep
+	// silently covering five of six, and a kind losing one reddens it too.
+	//
+	// The mount is asked for by name rather than through Contains, because an
+	// item mounts comments after dinah-502 and that is not the collection
+	// under test here.
+	mounting, empty := map[string]bool{}, map[string]bool{}
+	for _, kind := range bench.EntityKinds() {
+		if _, mounts := bench.MountOf(kind, bench.AttachmentsDir); mounts {
+			mounting[kind] = true
+		} else {
+			empty[kind] = true
+		}
+	}
+	carrying, mountless := map[string]bool{}, map[string]bool{}
+	for _, c := range cases {
+		if c.filename == "" {
+			mountless[c.kind] = true
+			continue
+		}
+		carrying[c.kind] = true
+	}
+	for kind := range mounting {
+		if !carrying[kind] {
+			t.Errorf("%s mounts an attachments collection and no row of this sweep reads one from it", kind)
+		}
+	}
+	for kind := range carrying {
+		if !mounting[kind] {
+			t.Errorf("a row reads an attachment from %s, and the grammar gives that kind no attachments mount", kind)
+		}
+	}
+	// AC-9 rests on the mountless rows answering empty rather than refusing,
+	// so the premise behind them is asserted too: a grammar that gave either
+	// kind an attachments collection would make the empty answer wrong.
+	for kind := range mountless {
+		if !empty[kind] {
+			t.Errorf("%s is driven as mounting nothing and the grammar gives it an attachments mount", kind)
+		}
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
