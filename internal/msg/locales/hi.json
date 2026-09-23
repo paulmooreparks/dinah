@@ -70,6 +70,11 @@
       "context": "Printed under the card line when the card carries a priority.",
       "source": "dab7135c80c075a7"
     },
+    "card.retirement-grant": {
+      "text": "  वापसी अनुमति: {column} ({title})",
+      "context": "Printed under the card line when the card carries a standing criterion-retirement authorization. {column} is the reference of the column the grant is bound to and {title} is that column's title; the reference is machine vocabulary and is never translated. A card carrying no grant draws no such line.",
+      "source": "bc435f63731bdc3f"
+    },
     "card.severity": {
       "text": "  गंभीरता: {severity}",
       "context": "Printed under the card line when the card carries a severity.",

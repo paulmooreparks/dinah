@@ -686,11 +686,25 @@ with staying out.
 
 A column may declare `gate_items`, which says the column holds a card while an
 item the card carries names that column and its state has not settled it, and
-says which way it holds. Two of an item's four states settle it here,
-`resolved` and `verified`. A `failed` item holds the card, because that state
+says which way it holds. Four of an item's six states settle it here,
+`resolved`, `verified`, `waived` and `withdrawn`. A `failed` item holds the
+card, because that state
 records that somebody checked the work and it did not hold, and releasing the
-gate on it would open the column on the one state saying the work is wrong;
-the operator's `--override` marker below is what carries such a card through.
+gate on it would open the column on the one state saying the work is wrong; a
+waiver is what carries such a card through, and the operator's `--override`
+marker below is the other way.
+
+The two differ and both exist. The override is a property of one move: it is
+not stored on anything afterwards, it lifts every row that stood in the way of
+that move at once, and the `moved` line records that an override happened
+without recording which rows it passed. A waiver is a property of one item: it
+is stored on that item, it lifts that item's hold at whichever column the item
+names, in both directions, for the rest of the card's life, it lifts nothing
+else, and it carries a designated comment naming why. Both are the operator's
+alone and neither subsumes the other, because a waiver cannot get a card into a
+full column and an override cannot be read back at a later station. The
+guidance that goes with them is that the override is for an obstacle belonging
+to the move and a waiver is for a finding belonging to the card.
 This is narrower than the question the claim refusal asks, which reads
 `failed` as settled and is unchanged. Absent means false, and the value is
 exactly one of four spellings, read as strictly as `awaiting_outside` above
@@ -1198,9 +1212,24 @@ collection instead. The reasoning an item was filed with, the recommendation
 and the tradeoffs, belongs there as comments written on the item.
 
 Leaving pending requires an answer, and the answer is a designation rather than
-a string. `resolution` holds the canonical reference of one of that item's own
-comments, and `resolve`, `verify` and `fail` each refuse a reference naming
-another item's answer, a card comment, or anything that is not a comment. Two
+a string. `resolution` holds the 12-hex identifier of one of that item's own
+comments, and `resolve`, `verify`, `fail`, `waive` and `withdraw` each refuse a
+reference naming
+another item's answer, a card comment, or anything that is not a comment. A
+caller types either spelling, the comment's position among the item's comments
+or the identifier itself, and the identifier is what is stored. The reading
+surfaces print the position, composed at the moment of the read, so what a
+person sees is typeable and is correct when they see it, and `ItemView` carries
+the identifier beside it so that a machine reader holds the durable handle.
+`dinah get <item> resolution` answers with the stored value, which is the
+identifier, because `get` is the raw field reader.
+
+The key holds an identity rather than a position because a position is not one.
+Archiving any earlier comment of an item renumbers the survivors, so a stored
+position comes to name a different comment and the item goes on citing an
+answer nobody wrote for it; deleting one reaches the same place and leaves no
+archive behind to notice. The identifier is minted when the comment is written
+and is never rewritten by anything. Two
 facts are recorded where one used to be: the comment carries its own author,
 minted when the comment was made, and the designation carries whoever settled
 the item, minted when the item was settled. Neither is inferred from the other,
@@ -1209,7 +1238,24 @@ recommendation being restated as the operator's or the ruling being mistaken
 for the agent's. The three verbs each take `--text` as well, which mints a
 comment of the item authored by whoever ran the command and designates it in
 one act; naming both `--text` and a reference on one invocation is refused
-rather than resolved by precedence, because the two are different acts.
+rather than resolved by precedence, because the two are different acts. `waive`
+and `withdraw` take the same three arguments and demand an answer of record on
+the same terms: a waiver with no recorded reason is a silent way past a check,
+and a withdrawal with none says only that somebody made a question go away.
+
+The `resolution` key may not be cleared on an item that is not pending, which
+is refused `dinah.designation-required`, because an erasable record of who
+decided and why is not a record. Rewriting it to another comment of the same
+item stays open, since that is a correction rather than an erasure, and `dinah
+reopen` clears it as part of returning the item to pending, which is the one
+erasure the tool performs. The body of a comment an item designates may not be
+rewritten while it is still the answer, which is refused
+`dinah.not-designatable` naming the comment and the item, on the same reasoning
+and with the same route out: a designation that names the right comment while
+the comment says something else is no record either. Deleting a designated
+comment is refused under that same name without `--force`, and archiving one is
+permitted, because archiving moves a comment rather than destroying it and the
+item goes on citing it wherever it now lives.
 
 `reopen` takes a reason, which is free prose and is not a designation.
 Reopening an item so that its only comment may be deleted would otherwise need
@@ -1218,10 +1264,37 @@ to delete is the one that exists. A reason is also not an answer: it says why
 an answer stopped standing, and the thing it refers to is often being
 destroyed. Reopening clears the item's `resolution` and leaves the comment
 where it is, so the words survive and only the claim that they settle anything
-goes.
+goes. Reopening a waived or a withdrawn item returns it to pending like any
+other closed item, and it is the only edge back from either.
 
-The `resolution` key replaced a free-text `note` key at storage format 6. A
-workbench declaring anything below that has not been carried across the change,
+The `resolution` key replaced a free-text `note` key at storage format 6, and
+its value became the designated comment's identifier rather than that comment's
+position at storage format 7. `dinah check --migrate-designations` carries a
+store across the second of those, and it is the workbench operator's own act:
+it is refused `not-operator` to anybody else, and refused
+`dinah.workbench-in-use` while any live card is claimed, because the instant
+the store declares the new number every session running an older binary is
+refused the whole workbench part way through whatever card it holds. A
+`--rehearse` form decides every item by the same rules, prints the same report
+and writes nothing, and is refused to nobody. A `--force-claims` form carries
+the operator past the claimed-card refusal and names every claim it passed in
+the report and in a `designations_migrated` line on the workbench's own
+journal, because an ordinary claim carries no expiry and nobody may release
+somebody else's, so one card left claimed by a dead session would otherwise
+block the conversion permanently.
+
+The conversion reads each card's journal rather than the item's live comments,
+because a comment deleted outright leaves no archive behind while the stored
+position now reaches somebody else's words. Where the history cannot say which
+comment an answer meant, the item is left unanswered rather than having a guess
+written down as a recorded ruling: the `resolution` key is removed and the
+item's state is untouched, so every hold it imposed it goes on imposing, and
+`dinah check` reports the set under `check.designation-missing` for as long as
+it exists.
+
+A
+workbench declaring anything below the current number has not been carried
+across the change,
 and a reader refuses it as `dinah.store-awaiting-migration` rather than opening
 it, because a reader that carried on would report every settled item on the
 store as carrying no answer, which is a false reading rather than a degraded
@@ -1255,18 +1328,115 @@ answers to. So the migration refuses it and names `dinah check
 comparison, a branch heading a finding reports and a journal actor a tolerant
 reader parses, and the note migration does not hold a store back for them. Kinds are a closed set of three
 (acceptance_criterion, open_question, decision) and states a closed set
-(pending, resolved, verified, failed), closed because method text travels
-between boards and "file it with owner operator" must mean the same thing
-everywhere. An item whose `owner` reads exactly `operator` is the workbench
-operator's to settle: `dinah resolve`, `dinah verify` and `dinah fail` are
+(pending, resolved, verified, failed, waived, withdrawn), closed because method
+text travels between boards and "file it with owner operator" must mean the
+same thing everywhere. A `waived` item records that the finding it carries
+stands and that the workbench operator has decided the card may proceed
+regardless; nothing about the finding is unsaid by the waiver, and what the
+waiver adds is a permission attached to that one item. A `withdrawn` item
+records that the question it carries stopped being a question, usually because
+the card changed underneath it; the item is not answered, not checked and not
+abandoned by whoever should have answered it, and the thing it asked about is
+gone.
+
+An item whose `owner` reads exactly `operator` is the workbench
+operator's to settle: `dinah resolve`, `dinah verify`, `dinah fail`, `dinah
+withdraw` and `dinah reopen` are
 refused `not-operator` to anybody else on such an item, and so is a write to
 that item's own `owner` key, since a key anybody could rewrite would be a
-record the refusal reads after whoever wanted past it had edited it. Filing a
+record the refusal reads after whoever wanted past it had edited it. `dinah
+waive` carries a stronger rule of its own: it is refused to anybody but the
+operator on every item, whatever the `owner` key says, because a waiver is
+permission to proceed past a real finding and the move-level override that
+carries a card past one is already his alone. `dinah withdraw` carries a second
+rule beside the owner one: it is refused to anybody but the operator on an item
+whose kind is `acceptance_criterion`, whatever that item's state, unless the
+card carries the standing authorization the subsection below publishes.
+Filing a
 fresh item with `--owner operator` stays open to everybody, because routing a
-question to the operator is the ordinary act the field exists for, and `dinah
-reopen` stays open too, because returning an item to pending can only re-impose
-a hold and never lift one. Every other `owner` value is recorded and enforced
-against nobody. Items are per-item entities rather than a list in the card
+question to the operator is the ordinary act the field exists for. `dinah
+reopen` is refused to anybody but the operator on an item standing at `failed`
+or at `waived` as well as on an operator-owned item, and stays open to
+everybody in every other case, because returning an item to pending re-imposes
+a hold there and lifts none: the three cases it is refused in are the ones
+where it does not, since a reopen of a finding composes with a withdrawal to
+release that finding and a reopen of an answered question un-answers a ruling.
+Every other `owner` value is recorded and enforced
+against nobody. An item's `column` key names the station that settles it, and who may write
+it or clear it follows the same rule its kind and its owner already carry. A
+write to or a clear of that key is refused to anybody but the workbench
+operator on an item whose kind is `acceptance_criterion`, and on an item whose
+`owner` reads exactly `operator` whatever its kind. Every other item's station
+stays repairable by anybody, which is what the instruction to repair a misfiled
+item depends on. The rule covers the clear as well as the write, because a
+refusal that admits the erasure of the key it reads is no refusal: clearing the
+station of a criterion that has failed walks the card past the gate the
+criterion was holding. Re-pointing a criterion at a different station is never
+the repair; filing is open to everybody, so the wrong item is withdrawn and a
+replacement is filed, which leaves a complete record where a silent
+re-pointing leaves none.
+
+A route write is refused where it would strand an item whose state does not
+release a column hold, under `dinah.route-strands-item`, and `dinah check`
+reports such an item under `check.item-off-route`. Both read whether the state
+releases the hold rather than whether the item is pending, because a failed
+item is not pending and holds its column all the same.
+
+Archiving or deleting a *protected* item is refused to anybody but the
+workbench operator, with `not-operator`. An item is protected when its kind is
+`acceptance_criterion`, whatever its state and whatever its owner; when its
+`owner` reads exactly `operator`, whatever its kind; or when its state is
+`waived`, whatever its kind, because a waiver is a permission the operator
+granted and removing the item destroys the record of it. Every other item stays
+archivable and deletable by anybody, which keeps the ordinary tidying of a
+question or a decision where it was. `restore` is not reserved, because
+restoring an item puts it back into the live set and can only re-impose a hold.
+A `withdrawn` item is left removable by anybody, and the asymmetry with
+`waived` is deliberate: a waiver is what let a card past a finding, so
+destroying it destroys the justification for work that has already travelled,
+where a withdrawal records that a question stopped applying, which anybody was
+entitled to do in the first place. The `deleted` line an item's removal writes
+carries the item's own text in `title` and its kind in `kind`, because a
+deletion destroys what it removed and a line saying that something with an
+identifier went away says nothing about what that thing required.
+
+### The criterion-retirement grant
+
+A card may carry a standing authorization, stored in the card anchor's
+frontmatter under `retirement_grant`, whose value is the identifier of the
+column the card stood in when the grant was given. Under it, an actor who is
+not the workbench operator may run `dinah withdraw` on an item of that card
+whose kind is `acceptance_criterion`, and nothing else.
+
+It exists so that narrowing a card costs the operator one act rather than one
+act per criterion. A card is given one with `dinah grant <card>
+criterion-retirement` and has it taken back with `dinah revoke <card>
+criterion-retirement`, both refused `not-operator` to anybody else. Granting a
+card that already carries one succeeds and rebinds it to that card's current
+column, because re-granting after a move is the intended flow. Revoking a card
+carrying none is refused `dinah.no-grant` naming the card, so the operator is
+told nothing was standing rather than being answered as though something had
+been taken away.
+
+A grant does not reach two states. A criterion standing at `failed` or at
+`waived` is refused `dinah.grant-excludes-finding`, because a finding that
+exists is the operator's to retire. Those two states are the ones a
+non-operator can neither reach nor leave, which is what makes keying the
+exclusion on the state durable rather than composable: `reopen` is refused
+there, `waive` is the operator's in every case, and a state write routes to
+those same verbs. A grant reaches neither the owner guard, nor `waive`, nor the
+item's `column` key, nor archiving, nor deleting.
+
+A grant is spent by the card's next move, in either direction, and is cleared
+by the same act that records the move. It carries no clock, because the
+narrowing and the tidying are one episode at one station and the departure that
+ends the episode ends the permission. Three journal lines record it, so a later
+reader can tell work done under a grant from work the operator did himself:
+`retirement_granted`, carrying the bound column in `to`; `retirement_revoked`;
+and `item_withdrawn` carrying the boolean marker `grant` where a grant is what
+admitted the act, which is exactly when the actor was not the operator.
+
+Items are per-item entities rather than a list in the card
 anchor for the same reason comments are: different actors add items
 concurrently, and per-item directories are the conflict-free shape. Item
 lifecycle events land in the card's journal per the nearest-enclosing
@@ -2567,18 +2737,21 @@ default.
 The format carries two version numbers with two audiences, and they are
 never conflated:
 
-- **Storage format version.** `format: 2` in `workbench.md` frontmatter,
+- **Storage format version.** `format: 7` in `workbench.md` frontmatter,
   an integer governing the whole workbench directory. An implementation
   that opens a workbench with a higher number than it knows refuses loudly
   and names the version it wanted. This is Dinah's private business; the git
   precedent (`core.repositoryformatversion`, carried always, bumped
-  approximately once) is the model, and the number has moved twice, from 1
-  to 2 when the rule that a workbench lives inside a `.dinah` container
+  approximately once) is the model, and the number has moved six times: from
+  1 to 2 when the rule that a workbench lives inside a `.dinah` container
   landed, from 2 to 3 when the card number left the card anchor for the
-  registry, and from 3 to 4 when the heading a card body carried its branch
-  name under was retired into a declared field. The fourth move is the first
-  that is not private business: the mechanism behind it is one the profile
-  states, and the profile moved with it.
+  registry, from 3 to 4 when the heading a card body carried its branch name
+  under was retired into a declared field, from 4 to 5 when a journal line's
+  actor became an object, from 5 to 6 when a checklist item's answer became a
+  designated comment rather than a free-text note, and from 6 to 7 when that
+  answer came to be identified by the comment's own identifier rather than by
+  its position. Three of the six are not private business: the mechanism
+  behind each is one the profile states, and the profile moved with it.
 - **Profile version.** The contract's public promise, with the channel and
   increment rules recorded with the contract-profile work. `format:` is an
   integer read by exactly one implementation, this one, and it carries no

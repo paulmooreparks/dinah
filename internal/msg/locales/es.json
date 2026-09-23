@@ -66,6 +66,11 @@
       "context": "Printed under the card line when the card carries a priority.",
       "skeleton": true
     },
+    "card.retirement-grant": {
+      "text": "  retirement grant: {column} ({title})",
+      "context": "Printed under the card line when the card carries a standing criterion-retirement authorization. {column} is the reference of the column the grant is bound to and {title} is that column's title; the reference is machine vocabulary and is never translated. A card carrying no grant draws no such line.",
+      "skeleton": true
+    },
     "card.severity": {
       "text": "  severity: {severity}",
       "context": "Printed under the card line when the card carries a severity.",

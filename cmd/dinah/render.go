@@ -130,6 +130,13 @@ func (s *session) renderCard(card *verb.CardView) {
 	if card.Route != "" {
 		s.line(s.r.T("card.route", "route", card.Route))
 	}
+	// A standing criterion-retirement grant stands with the route, drawn only
+	// where the card carries one, because somebody deciding whether to tidy a
+	// card has to learn that the permission exists before they try rather
+	// than by meeting a refusal.
+	if card.RetirementGrant != "" {
+		s.line(s.r.T("card.retirement-grant", "column", card.RetirementGrant, "title", card.RetirementGrantTitle))
+	}
 	// The declared fields stand after the two levels and before the holder,
 	// in the order the workbench declares them. A declared field the card does
 	// not carry draws no line, and a key the card stores that the workbench
