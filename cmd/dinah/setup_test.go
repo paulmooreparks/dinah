@@ -349,6 +349,27 @@ func TestSetupChecksTheOperatorAndTheConfiguredActor(t *testing.T) {
 	accepted(t, "another name", runCLI(t, f.project, "setup", "claude-code", "--agent", "carol", "--dry-run"))
 }
 
+// TestSetupChecksTheProviderItWouldWrite holds the provider setup would write
+// to being one word, from the command line, against the one shipped recipe
+// that declares no provider of its own. Two accepting invocations stand
+// beside the refusals, since a check that refuses everything is no check.
+//
+// A value that is one space is refused here too, and this test cannot read
+// that refusal. The detail setup builds is the flag, a space, and the value,
+// so a value of one space makes a run of two spaces on the refusal's first
+// line, and runCLI's own shape check reads such a run as an empty fill and
+// fails the test. The refusal is correct and its message is not, and the
+// message belongs to every flag that row checks rather than to this card.
+// TestTheProviderFlagIsStillHeldToOneWord in internal/setup drives the single
+// space against the same code and is where that case is held.
+func TestSetupChecksTheProviderItWouldWrite(t *testing.T) {
+	f := newSetupFixture(t)
+	refusedWith(t, "a provider of two words", runCLI(t, f.project, "setup", "devin", "--provider", "two words", "--dry-run"), contract.Malformed)
+	refusedWith(t, "a provider carrying a no-break space", runCLI(t, f.project, "setup", "devin", "--provider", "a b", "--dry-run"), contract.Malformed)
+	accepted(t, "a provider of one word", runCLI(t, f.project, "setup", "devin", "--provider", "acme", "--dry-run"))
+	accepted(t, "no provider at all", runCLI(t, f.project, "setup", "devin", "--dry-run"))
+}
+
 // TestSetupHoldsItsCheckOrderWhereTwoRowsFail runs setup where two rows fail
 // at once and holds the earlier row to answering: the operator's name beside
 // a conflicting entry is refused for the name, and an unreadable file beside
@@ -380,9 +401,9 @@ func TestSetupHelpPrintsItsRowsInOrder(t *testing.T) {
 	}
 }
 
-// TestSetupListShowsTheTwoShippedRecipes holds a listing with no user or
-// project recipe to exactly the two shipped recipes, each used.
-func TestSetupListShowsTheTwoShippedRecipes(t *testing.T) {
+// TestSetupListShowsTheShippedRecipes holds a listing with no user or
+// project recipe to exactly the shipped recipes, each used.
+func TestSetupListShowsTheShippedRecipes(t *testing.T) {
 	f := newSetupFixture(t)
 	got := runCLI(t, f.project, "--json", "setup", "--list")
 	accepted(t, "setup --list", got)
@@ -392,7 +413,7 @@ func TestSetupListShowsTheTwoShippedRecipes(t *testing.T) {
 	if err := json.Unmarshal([]byte(got.out), &listing); err != nil {
 		t.Fatalf("the listing is not JSON: %v\n%s", err, got.out)
 	}
-	want := []string{"claude-code", "codex"}
+	want := []string{"claude-code", "codex", "devin"}
 	if len(listing.Recipes) != len(want) {
 		t.Fatalf("the listing carries %d rows: %+v", len(listing.Recipes), listing.Recipes)
 	}

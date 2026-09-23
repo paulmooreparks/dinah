@@ -449,7 +449,7 @@ func checkValues(opts Options, facts Facts) error {
 		given       bool
 	}{
 		{"--agent", facts.Agent, true},
-		{"--provider", facts.Provider, true},
+		{"--provider", facts.Provider, facts.Provider != ""},
 		{"--model", facts.Model, opts.Model != ""},
 		{"--server", facts.Server, opts.Server != ""},
 	}

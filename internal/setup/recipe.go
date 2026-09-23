@@ -23,7 +23,7 @@ var shippedRecipes embed.FS
 // recipe embedded and not named here is served by nothing, and one named here
 // and not embedded is offered by nothing; the test in this package holds the
 // two sets equal in both directions.
-var shipped = []string{"claude-code", "codex"}
+var shipped = []string{"claude-code", "codex", "devin"}
 
 // Shipped lists the recipes embedded in the binary.
 func Shipped() []string {
@@ -265,10 +265,17 @@ func readJSON(fsys fs.FS, file string, into any) error {
 	return nil
 }
 
-// readManifest reads recipe.json.
+// readManifest reads recipe.json. It decodes the file twice, once into the
+// manifest's own shape and once into its members, because provider is
+// optional and a nil pointer alone cannot tell an omitted member from one
+// written as null. readStep reads a step the same way, for the same reason.
 func (r *Recipe) readManifest(fsys fs.FS) error {
 	var m manifest
 	if err := readJSON(fsys, manifestFile, &m); err != nil {
+		return err
+	}
+	var members map[string]json.RawMessage
+	if err := readJSON(fsys, manifestFile, &members); err != nil {
 		return err
 	}
 	if m.Format == nil {
@@ -294,19 +301,21 @@ func (r *Recipe) readManifest(fsys fs.FS) error {
 		}
 		r.Harness = *m.Harness
 	}
-	for _, word := range []struct {
-		key   string
-		value *string
-		into  *string
-	}{
-		{"provider", m.Provider, &r.Provider},
-		{"agent", m.Agent, &r.Agent},
-	} {
-		if word.value == nil || !oneWord(*word.value) {
-			return defect(manifestFile, "carries no one-word %s", word.key)
+	// provider is the one default a recipe may leave out, for a harness that
+	// brokers models from several vendors and so has no true default of its
+	// own. Absence is the member being gone from the file and nothing else,
+	// so a member written as null, as an empty string or as anything else
+	// that is not one word is the defect it has always been.
+	if _, declared := members["provider"]; declared {
+		if m.Provider == nil || !oneWord(*m.Provider) {
+			return defect(manifestFile, "carries no one-word provider")
 		}
-		*word.into = *word.value
+		r.Provider = *m.Provider
 	}
+	if m.Agent == nil || !oneWord(*m.Agent) {
+		return defect(manifestFile, "carries no one-word agent")
+	}
+	r.Agent = *m.Agent
 	if m.Tools == nil || !contains(toolProfiles, *m.Tools) {
 		return defect(manifestFile, "declares tools %s, and the profiles are station, operator and all", deref(m.Tools))
 	}
