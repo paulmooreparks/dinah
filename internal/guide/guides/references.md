@@ -69,6 +69,12 @@ on its own, so `dinah join wb-1 addressing` names the same workstream. You
 write the prefixed form wherever a reference is read as an address, because
 Dinah reads a bare handle there as a card and refuses it.
 
+A workstream carries attachments of its own, and you write one the way you
+write anything below a head:
+
+    dinah list workstream/addressing/attachments      every attachment the workstream carries
+    dinah path workstream/addressing/attachments/1    one of them
+
 ## Something below a card
 
 You write something below a card as the card's reference, a slash, and the
@@ -159,7 +165,7 @@ Nineteen commands take a reference, and between them they accept six different s
 | reopen       | no          | no       | no     | yes          | no           |
 | accept-divergence | no     | yes      | no     | yes          | no           |
 
-Nine commands take a workstream: `path`, `edit`, `get`, `set`, `archive`, `restore`, `delete`, `list`, and `show`. The others refuse one, and the table leaves the workstream out rather than carrying a column for it, so this sentence is where that answer lives.
+Ten commands take a workstream: `path`, `edit`, `get`, `set`, `attach`, `archive`, `restore`, `delete`, `list`, and `show`. The others refuse one, and the table leaves the workstream out rather than carrying a column for it, so this sentence is where that answer lives.
 
 Eleven of those rows carry a detail the table is too coarse to hold.
 `attach` takes a comment below a card, and it takes an attachment only
@@ -195,12 +201,15 @@ not take the word over. `dinah list cards` answers the roster word, and a
 column slugged `cards` stays reachable from `list` by its identifier and by
 its name, and from every other command by its slug as well.
 
-A depth walk from a workstream draws the cards that joined it, and the deeper
-rungs draw what each of those cards holds. The workstream itself contains
-nothing, and there is no reference below one to write: what a workstream
-carries is a membership, and nothing hangs off it. `--archived` is refused
-beside a workstream reference for the same reason, since a membership is held
-in the live half alone.
+A depth walk from a workstream draws the workstream's own attachments and then
+the cards that joined it, and the deeper rungs draw what each of those cards
+holds. An attachment below a workstream is written
+`workstream/<slug>/attachments/<n>`, and it travels with the workstream's
+directory when the workstream is archived. `--archived` is refused beside a
+bare workstream reference, because the walk from one is rooted on the
+membership and a membership is held in the live half alone; the archived half
+of the attachments is read by naming that collection, `dinah list
+workstream/<slug>/attachments --archived`.
 
 ## Reading the archive
 

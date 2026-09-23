@@ -4136,9 +4136,9 @@
       "source": "91e01a64431f7727"
     },
     "refusal.dinah.not-attachable.next": {
-      "text": "; Anhänge hängen an der Werkbank, an einer Spalte, an einer Karte oder an einem Kommentar",
-      "context": "The last member of refusal.dinah.not-attachable's alternation, printed for any kind the two branches above do not name. It carries no condition, because the last member of an alternation is what a reader gets when none of the branches matches.",
-      "source": "c45dbccd232c8bf9"
+      "text": "; führen Sie `dinah help attach` aus für die Referenzen, die attach annimmt",
+      "context": "The last member of refusal.dinah.not-attachable's alternation. It carries no condition, because the last member of an alternation is what a reader gets when none of the branches matches, and checkEveryShapeSaysWhatToDoNext refuses a shape whose last member carries one. No kind reaches it today: the only kinds attach can resolve and then refuse are the checklist item and the attachment, and each carries a conditional member of its own above this one. Its advice names no kinds, because the enumeration that stood here restated the containment table in a catalogue no reader of that table would open, and it went stale.",
+      "source": "340d8ea70b633923"
     },
     "refusal.dinah.not-attachable.next-attachment": {
       "text": "; ein Anhang trägt Bytes und keine weiteren Anhänge, hängen Sie die Datei also an das, woran {attachment} hängt",

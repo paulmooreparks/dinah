@@ -1205,9 +1205,14 @@ var Shapes = []Shape{
 		// only ones that can be aimed at a kind the containment grammar
 		// gives nothing to hang from. The next step splits on the kind,
 		// because the honest advice differs: an item takes its evidence by
-		// citation, an attachment wraps bytes and holds nothing, and the
-		// unconditional member covers every other kind the table leaves
-		// out, which is the workstream today.
+		// citation, and an attachment wraps bytes and holds nothing. Those
+		// two are the whole of what attach can resolve and then refuse, so
+		// no kind reaches the unconditional member below them. It stays
+		// because checkEveryShapeSaysWhatToDoNext refuses a shape whose last
+		// member carries a condition, and a reader whose values matched
+		// none of the branches would otherwise be given no next step at all;
+		// its English names no kinds, so it cannot go stale the way an
+		// enumeration of the containment table did.
 		Name:   NotAttachable,
 		Values: []string{"kind", "item", "attachment"},
 		Fragments: []Fragment{

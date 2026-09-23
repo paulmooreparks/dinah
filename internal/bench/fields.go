@@ -286,12 +286,13 @@ func FieldOf(kind, name string) (Field, bool) {
 }
 
 // EntityKinds lists every kind the containment table names, plus the
-// workstream, sorted. It is what a sweep over the kinds iterates.
+// workbench and the workstream, sorted. It is what a sweep over the kinds
+// iterates.
 //
-// The workstream is added rather than read off the table for the reason
-// containment.go gives: a workstream is a membership rather than a container,
-// so it is deliberately absent from the grammar's own table while still being
-// an entity a reference names and a field write reaches.
+// The workstream is seeded rather than left to the loop because the loop
+// reaches a kind only as a key of the table or as some mount's Kind, and no
+// mount names the workstream: nothing contains one. It is a key of the table,
+// so the loop finds it too, and the seen map absorbs the repetition.
 func EntityKinds() []string {
 	seen := map[string]bool{KindWorkbench: true, KindWorkstream: true}
 	for kind, mounts := range containment {
@@ -342,11 +343,11 @@ func WriteAuthorityOf(kind string) string {
 // AnchorOf reports the anchor filename a kind's entity carries, and the empty
 // string for a kind the grammar does not name.
 //
-// The six mounted kinds are read off the containment table rather than listed
+// The five mounted kinds are read off the containment table rather than listed
 // again here, so the anchor of a kind stays written down once. The workbench
-// and the workstream are named directly, because neither is mounted: the
-// workbench is the root nothing contains, and a workstream is a membership
-// rather than a container.
+// and the workstream are named directly, because no mount names either as its
+// kind and the loop below therefore cannot reach them: the workbench is the
+// root nothing contains, and nothing contains a workstream either.
 func AnchorOf(kind string) string {
 	switch kind {
 	case KindWorkbench:

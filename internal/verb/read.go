@@ -1100,7 +1100,7 @@ type CommentView struct {
 	Body string `json:"body"`
 	// Attachments are the comment's own attachments, on the terms a card's
 	// are: the full list, each carrying its path. A comment is one of the
-	// four kinds the containment grammar gives an attachments collection,
+	// five kinds the containment grammar gives an attachments collection,
 	// and a card's comments are bounded by that card, so the list costs
 	// what the one card costs rather than what a listing costs.
 	Attachments []AttachmentView `json:"attachments,omitempty"`
@@ -1409,7 +1409,13 @@ func (l *Library) Show(req *Request) (*Detail, *Record, *ItemDetail, string, err
 			}
 			return nil, l.workbenchRecord(), nil, "", nil
 		}
-		if strings.HasPrefix(req.Card, bench.WorkstreamRefPrefix) {
+		// The bare form alone. A reference carrying segments below the
+		// workstream names something the workstream contains rather than
+		// the workstream itself, and it falls through to the resolver the
+		// way a reference below a card does; intercepting it here would
+		// hand the whole reference to WorkstreamByRef and refuse
+		// unknown-workstream over a handle that resolves perfectly well.
+		if _, below, named := bench.WorkstreamHandle(req.Card); named && below == "" {
 			workstream, err := l.Bench.WorkstreamByRef(req.Card)
 			if err != nil {
 				return nil, nil, nil, "", err
@@ -1946,9 +1952,9 @@ func (l *Library) itemListing(collection *bench.CollectionRef, unresolvedOnly bo
 	return &ItemListing{Ref: collection.Ref, Kind: collection.Mount.Kind, Members: members, Archived: collection.Archived}, nil
 }
 
-// AttachmentListing is one entity's attachments: a workbench's, a column's, a
-// card's or a comment's, which are the four kinds the containment grammar
-// gives an attachments collection.
+// AttachmentListing is one entity's attachments: a workbench's, a
+// workstream's, a column's, a card's or a comment's, which are the five kinds
+// the containment grammar gives an attachments collection.
 type AttachmentListing struct {
 	// Kind is the entity's kind, as the containment grammar spells it, and
 	// verb.KindCollection where the reference named a whole collection that
@@ -1970,11 +1976,11 @@ type AttachmentListing struct {
 // entity resolver reaches.
 //
 // An entity of a kind the grammar gives no attachments collection, which is a
-// checklist item, an attachment itself or a workstream, is not refused. It
-// reports an empty list, which is the answer an entity of a mounted kind gives
-// when it happens to carry nothing, and a caller walking a tree therefore asks
-// the same question everywhere instead of deciding first whether the question
-// is legal.
+// checklist item or an attachment itself, is not refused. It reports an empty
+// list, which is the answer an entity of a mounted kind gives when it happens
+// to carry nothing, and a caller walking a tree therefore asks the same
+// question everywhere instead of deciding first whether the question is
+// legal.
 func (l *Library) Attachments(req *Request) (*AttachmentListing, error) {
 	entity, collection, err := l.Bench.ResolveReference(req.Ref)
 	if err != nil {

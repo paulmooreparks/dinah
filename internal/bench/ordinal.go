@@ -362,7 +362,11 @@ func (b *Bench) beforeOrdinalStamp(id string) error {
 // itself and off a column are left alone, because every member of one is
 // stamped at creation by the verb that writes it, so this repair has nothing
 // to find there. A positional reference does select a member of one, which is
-// why check sweeps them for the ordinal invariants.
+// why check sweeps them for the ordinal invariants. A workstream's attachments
+// are the exception on both counts: they are positionally addressable and
+// stamped at creation like the rest, and no sweep here reaches them, because
+// the walk roots at the workbench and the workbench mounts no workstreams
+// collection.
 //
 // A locked card, and an entity this run cannot write to, are each reported and
 // stepped over rather than ending the walk. A repair that abandons the
@@ -443,9 +447,11 @@ type ordinalCollection struct {
 // reference selects a member of, together with every collection below each of
 // their members, to whatever depth the grammar goes.
 //
-// The list is derived from Contains rather than written out here, so a kind
-// gaining a collection reaches the ordinal migration without this function
-// being edited.
+// The list is derived from Contains rather than written out here, so a
+// collection gained by a kind the walk already reaches costs no edit. A kind
+// nothing mounts is outside the walk whatever the table says, which is where
+// a workstream's attachments sit: the walk roots at the workbench and the
+// workbench mounts no workstreams collection.
 //
 // Whether a collection is listed and whether the walk descends into its
 // members are separate questions, and the workbench is where they first give

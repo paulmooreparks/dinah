@@ -107,9 +107,18 @@ func (b *Bench) readInterruption(collection, id, path string, record LockRecord)
 }
 
 // entityLockDir names the directory whose lock the interrupted act took at
-// its third step, which is the same nearest enclosing journal-bearing entity
-// the act itself computed: the card's own directory for a card and for
-// anything below one, and nothing at all for an act whose scope is the bench.
+// its third step: the card's own directory for a card and for anything below
+// one, and nothing at all for an act whose scope is the bench.
+//
+// That is the same nearest enclosing journal-bearing entity the act itself
+// computed, for everything the interruption sweep reaches. An attachment
+// hanging on a workstream is the one case where the two part company, because
+// the act takes the workstream's own lock and this function would answer
+// nothing; the sweep does not reach that collection either, for the reason
+// siblingCollections gives, so the disagreement is unreachable rather than
+// harmless. Whoever teaches the sweep the workstreams root teaches this
+// function and decidingJournal the workstream at the same time, or an
+// interrupted act is finished from the wrong journal's account of it.
 func (b *Bench) entityLockDir(collection, source string) string {
 	owner := filepath.Dir(collection)
 	if owner == b.Root {
@@ -128,9 +137,11 @@ func (b *Bench) entityLockDir(collection, source string) string {
 // can leave a sibling in: every collection the workbench mounts, and every
 // collection each live entity below it mounts in turn.
 //
-// The walk reads Contains rather than naming the collections here, so a kind
-// gaining a collection is reachable by the interruption sweep without this
-// function being edited.
+// The walk reads Contains rather than naming the collections here, so a
+// collection gained by a kind the walk already reaches costs no edit. A kind
+// nothing mounts is outside the walk whatever the table says about it, which
+// is the workstream's position: the workbench mounts no workstreams
+// collection, so a sibling left below a workstream is not found.
 func (b *Bench) siblingCollections() ([]string, error) {
 	var collections []string
 	for _, mount := range Contains(KindWorkbench) {

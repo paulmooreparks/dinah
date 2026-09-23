@@ -105,8 +105,8 @@ var referenceKinds = map[string][]ReferenceKind{
 		ReferenceKindColumn, ReferenceKindCard,
 	},
 	"attach": {
-		ReferenceKindWorkbench, ReferenceKindColumn, ReferenceKindCard,
-		ReferenceKindBelowCard,
+		ReferenceKindWorkbench, ReferenceKindWorkstream, ReferenceKindColumn,
+		ReferenceKindCard, ReferenceKindBelowCard,
 	},
 	"archive": {
 		ReferenceKindWorkstream, ReferenceKindColumn, ReferenceKindCard,
