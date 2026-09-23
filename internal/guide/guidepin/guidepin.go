@@ -96,6 +96,21 @@ const (
 	TheNameAloneShowsAtATerminal = "The plain journal listing, `dinah changes`, and a comment's author line show the name alone, so at a terminal your note is what tells a person that you acted."
 )
 
+// The two claims the setup-recipes guide makes about a file a take-back
+// empties. dinah-577 wrote them, and they are pinned because the first
+// describes behaviour a test drives and the second records a limitation that
+// the same card's operator ruling put out of scope, which is exactly the kind
+// of sentence that goes stale once somebody does fix it.
+const (
+	// DinahRemovesAFileItCreatedAndEmptied says what happens to a file Dinah
+	// created once the last thing it owned in that file is taken back.
+	DinahRemovesAFileItCreatedAndEmptied = "When Dinah created that file itself and what remains is only whitespace, or, for a JSON file, no member at all, Dinah removes the file."
+
+	// DinahLeavesTheDirectoryItCreated says what Dinah does not do, which is
+	// the limitation a reader meeting an empty `.claude/` needs.
+	DinahLeavesTheDirectoryItCreated = "Dinah does not remove a directory it created to hold such a file, so a directory can be left behind empty."
+)
+
 // pinned is the roster, guide by guide, each guide's claims in the order it
 // carries them.
 var pinned = []Statement{
@@ -108,6 +123,8 @@ var pinned = []Statement{
 	{Topic: "first-session", Text: TheActorFlagOutranksTheOtherRungs, Provenance: "TestTheOperatorRefusalIsDefeatedByTheActorFlag"},
 	{Topic: "first-session", Text: TheFilesystemNeedsNoVerb, Provenance: "TestTheOperatorRefusalIsDefeatedByWritingTheFile"},
 	{Topic: "on-behalf", Text: TheNameAloneShowsAtATerminal, Provenance: "TestAnActRecordedForTheOperatorShowsItsPerformerOnlyInTheMachineForm"},
+	{Topic: "setup-recipes", Text: DinahRemovesAFileItCreatedAndEmptied, Provenance: "TestAWithdrawnSectionRemovesTheFileSetupCreated"},
+	{Topic: "setup-recipes", Text: DinahLeavesTheDirectoryItCreated, Provenance: "TestARemovalTakesTheJSONFileAndLeavesItsDirectory"},
 }
 
 // Pinned returns every pinned statement, in the order its guide carries them.

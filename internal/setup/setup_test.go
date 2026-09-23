@@ -549,6 +549,7 @@ func TestRemoveLeavesTheBaseAsItWas(t *testing.T) {
 	f := newFixture(t)
 	opts := f.options("claude-code")
 	opts.Model = "m1"
+	base := directoriesUnder(t, f.project)
 	mustRun(t, opts)
 	removal := f.options("claude-code")
 	removal.Remove = true
@@ -558,6 +559,13 @@ func TestRemoveLeavesTheBaseAsItWas(t *testing.T) {
 	}
 	if files := tree(t, f.project); len(files) != 0 {
 		t.Errorf("the removal left files behind: %v", files)
+	}
+	left := directoriesAdded(base, directoriesUnder(t, f.project))
+	if len(left) != 2 || left[0] != ".claude" || left[1] != ".claude/rules" {
+		t.Errorf("the removal left the directories %v behind, and dinah-577 records .claude and .claude/rules as the two it does not remove", left)
+	}
+	if entries, err := os.ReadDir(filepath.Join(f.project, ".claude", "rules")); err != nil || len(entries) != 0 {
+		t.Errorf(".claude/rules holds %d entries after the removal (%v), and it should be there and empty", len(entries), err)
 	}
 	if report.Prompt == "" || !strings.Contains(report.Prompt, "claude mcp remove dinah --scope user") {
 		t.Errorf("the removal does not carry remove.md: %q", report.Prompt)
@@ -839,5 +847,510 @@ func TestCodexHasNoUserScope(t *testing.T) {
 	}
 	if _, err := os.Stat(f.ledgerPath()); err != nil {
 		t.Errorf("the codex apply wrote no ledger: %v", err)
+	}
+}
+
+// directoriesUnder lists every directory below a root, by its path relative
+// to it with forward slashes, in walk order. The tree helper skips directory
+// entries outright, which is why an empty directory reads to it exactly like
+// no directory at all, so the tests that pin dinah-577's stated limitation
+// read them here instead.
+func directoriesUnder(t *testing.T, root string) []string {
+	t.Helper()
+	var dirs []string
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || !d.IsDir() || path == root {
+			return err
+		}
+		rel, _ := filepath.Rel(root, path)
+		dirs = append(dirs, filepath.ToSlash(rel))
+		return nil
+	})
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		t.Fatal(err)
+	}
+	return dirs
+}
+
+// directoriesAdded lists the directories of a later reading that an earlier
+// one did not carry, so that a test reads what an apply made rather than what
+// the fixture was built with.
+func directoriesAdded(before, after []string) []string {
+	var added []string
+	for _, dir := range after {
+		if !contains(before, dir) {
+			added = append(added, dir)
+		}
+	}
+	return added
+}
+
+// The steps a version of the withdrawal recipe carries. A test applies one
+// set of them, writes a newer version of the same recipe that has dropped a
+// step, and applies again, so that the next run takes the dropped step's
+// location back exactly as a harness upgrade does.
+const (
+	sectionStep = `{"id": "notes", "kind": "marked-section", "scope": "project", "path": "NOTES.md", "template": "notes.md", "comment": "hash"}`
+	memberStep  = `{"id": "settings", "kind": "json-merge", "scope": "project", "path": "conf/settings.json", "pointer": "/env", "value": {"AGENT": "{{agent}}"}}`
+	rulesStep   = `{"id": "rules", "kind": "write-file", "scope": "project", "path": "conf/rules.md", "template": "rules.md"}`
+)
+
+// withdrawalRecipe writes the trial recipe carrying exactly the steps named,
+// over the same directory it wrote last time, so that a second call is a newer
+// version of one recipe rather than a second recipe.
+func withdrawalRecipe(t *testing.T, f *fixture, steps ...string) string {
+	t.Helper()
+	return trialDir(t, f, map[string]string{"steps.json": `{"steps": [` + strings.Join(steps, ", ") + `]}` + "\n"})
+}
+
+// emptiedRows lists a report's emptied-file rows.
+func emptiedRows(report *Report) []Change {
+	var found []Change
+	for _, c := range report.Changes {
+		if c.Kind == KindEmptiedFile {
+			found = append(found, c)
+		}
+	}
+	return found
+}
+
+// soleEmptiedFile returns a report's one emptied-file row, failing where the
+// report carries any other number of them.
+func soleEmptiedFile(t *testing.T, report *Report) Change {
+	t.Helper()
+	rows := emptiedRows(report)
+	if len(rows) != 1 {
+		t.Fatalf("wanted one emptied-file row and the report carries %d, in %v", len(rows), changesOf(report))
+	}
+	return rows[0]
+}
+
+// noEmptiedFile fails where a report carries an emptied-file row at all.
+func noEmptiedFile(t *testing.T, label string, report *Report) {
+	t.Helper()
+	if rows := emptiedRows(report); len(rows) != 0 {
+		t.Errorf("%s: the report carries %d emptied-file rows, and it should carry none: %v", label, len(rows), changesOf(report))
+	}
+}
+
+// TestAWithdrawnSectionRemovesTheFileSetupCreated applies a recipe carrying a
+// marked-section step, swaps in a version that has dropped it, and holds the
+// second apply to taking the section back and deleting the file setup created
+// to hold it. This is the defect dinah-577 was filed for.
+func TestAWithdrawnSectionRemovesTheFileSetupCreated(t *testing.T) {
+	f := newFixture(t)
+	dir := withdrawalRecipe(t, f, sectionStep, rulesStep)
+	mustRun(t, f.trialOptions(dir))
+	notes := filepath.Join(f.project, "NOTES.md")
+	if _, err := os.Stat(notes); err != nil {
+		t.Fatalf("the first version wrote no NOTES.md, so this test proves nothing: %v", err)
+	}
+	withdrawalRecipe(t, f, rulesStep)
+	report := mustRun(t, f.trialOptions(dir))
+	if _, err := os.Stat(notes); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("withdrawing the section left NOTES.md behind: %v", err)
+	}
+	row := soleEmptiedFile(t, report)
+	if row.File != "NOTES.md" || row.Change != ChangeRemove || row.Step != "" || row.Key != "" || row.After != "" {
+		t.Errorf("the emptied-file row reads %+v", row)
+	}
+	if strings.TrimSpace(row.Before) != "" {
+		t.Errorf("the emptied-file row's before is not what the take-back left: %q", row.Before)
+	}
+	if readFile(t, filepath.Join(f.project, "conf", "rules.md")) == "" {
+		t.Error("the step the newer version kept no longer writes its file")
+	}
+}
+
+// TestAnEmptiedFileWeighsItsLeftoverByte runs the two sides of the text
+// emptiness test over one starting state. A file setup created, with a line of
+// spaces somebody added after the section, is removed when the section goes,
+// because what remains is whitespace. One non-whitespace character in the same
+// place keeps the file, and keeps it byte for byte.
+func TestAnEmptiedFileWeighsItsLeftoverByte(t *testing.T) {
+	for _, c := range []struct {
+		name    string
+		added   string
+		removed bool
+	}{
+		{name: "a line of spaces", added: "   \n", removed: true},
+		{name: "one character", added: "x\n", removed: false},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			f := newFixture(t)
+			dir := withdrawalRecipe(t, f, sectionStep, rulesStep)
+			mustRun(t, f.trialOptions(dir))
+			notes := filepath.Join(f.project, "NOTES.md")
+			if err := os.WriteFile(notes, []byte(readFile(t, notes)+c.added), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			withdrawalRecipe(t, f, rulesStep)
+			report := mustRun(t, f.trialOptions(dir))
+			if !c.removed {
+				noEmptiedFile(t, "one foreign character", report)
+				if got := readFile(t, notes); got != c.added {
+					t.Errorf("the file survived holding %q rather than the one character somebody wrote, %q", got, c.added)
+				}
+				return
+			}
+			if _, err := os.Stat(notes); !errors.Is(err, fs.ErrNotExist) {
+				t.Fatalf("the file was left behind holding whitespace: %v", err)
+			}
+			row := soleEmptiedFile(t, report)
+			if row.Before != c.added {
+				t.Errorf("the emptied-file row's before reads %q and the take-back left %q", row.Before, c.added)
+			}
+			if row.Before == "" || strings.TrimSpace(row.Before) != "" {
+				t.Errorf("this case is meant to exercise the whitespace branch and its leftover is %q", row.Before)
+			}
+		})
+	}
+}
+
+// TestAnEmptiedFileSetupDidNotCreateStaysAsItWas appends a section to a file
+// somebody else wrote, withdraws the section, and holds the file to the bytes
+// it carried before the section was ever added, line endings included. Setup
+// removes a file of its own and never one it merely wrote into.
+func TestAnEmptiedFileSetupDidNotCreateStaysAsItWas(t *testing.T) {
+	f := newFixture(t)
+	original := "\r\n"
+	writeFiles(t, f.project, map[string]string{"NOTES.md": original})
+	dir := withdrawalRecipe(t, f, sectionStep, rulesStep)
+	mustRun(t, f.trialOptions(dir))
+	notes := filepath.Join(f.project, "NOTES.md")
+	if !strings.Contains(readFile(t, notes), "dinah-setup:begin") {
+		t.Fatal("the apply wrote no section into the file, so this test proves nothing")
+	}
+	withdrawalRecipe(t, f, rulesStep)
+	report := mustRun(t, f.trialOptions(dir))
+	noEmptiedFile(t, "a file setup did not create", report)
+	if got := readFile(t, notes); got != original {
+		t.Errorf("the withdrawal left %q and the file held %q before the section was added", got, original)
+	}
+}
+
+// TestAFileEmptiedByHandIsLeftAlone empties a file setup created before the
+// run that withdraws its section, so that every take-back for it reports the
+// gone token. Setup does not delete a file it removed nothing from, because
+// the state it would be improving on is one a person chose.
+func TestAFileEmptiedByHandIsLeftAlone(t *testing.T) {
+	f := newFixture(t)
+	dir := withdrawalRecipe(t, f, sectionStep, rulesStep)
+	mustRun(t, f.trialOptions(dir))
+	notes := filepath.Join(f.project, "NOTES.md")
+	if err := os.WriteFile(notes, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	withdrawalRecipe(t, f, rulesStep)
+	report := mustRun(t, f.trialOptions(dir))
+	gone := 0
+	for _, c := range report.Changes {
+		if c.File != "NOTES.md" {
+			continue
+		}
+		if c.Change != ChangeGone {
+			t.Errorf("a take-back for the hand-emptied file reads %+v", c)
+		}
+		gone++
+	}
+	if gone != 1 {
+		t.Fatalf("wanted one take-back for the hand-emptied file, got %d: %v", gone, changesOf(report))
+	}
+	noEmptiedFile(t, "a file emptied by hand", report)
+	if _, err := os.Stat(notes); err != nil {
+		t.Errorf("setup deleted a file it took nothing out of: %v", err)
+	}
+}
+
+// TestAWithdrawnMemberRemovesTheJSONFileSetupCreated withdraws the json-merge
+// step whose member was the only one setup owned, and holds the apply to
+// pruning the parent object it created, finding the root with no member left,
+// and deleting the file rather than leaving an empty root object behind.
+func TestAWithdrawnMemberRemovesTheJSONFileSetupCreated(t *testing.T) {
+	f := newFixture(t)
+	dir := withdrawalRecipe(t, f, memberStep, rulesStep)
+	mustRun(t, f.trialOptions(dir))
+	settings := filepath.Join(f.project, "conf", "settings.json")
+	if !strings.Contains(readFile(t, settings), "AGENT") {
+		t.Fatal("the first version wrote no member, so this test proves nothing")
+	}
+	withdrawalRecipe(t, f, rulesStep)
+	report := mustRun(t, f.trialOptions(dir))
+	if _, err := os.Stat(settings); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("withdrawing the last owned member left conf/settings.json behind: %v", err)
+	}
+	row := soleEmptiedFile(t, report)
+	if row.File != "conf/settings.json" || row.Change != ChangeRemove || row.Step != "" || row.Key != "" {
+		t.Errorf("the emptied-file row reads %+v", row)
+	}
+}
+
+// TestARemovalTakesTheJSONFileAndLeavesItsDirectory removes a recipe whose one
+// file is a JSON file setup created, and pins the directory setup made to hold
+// it. That directory staying behind empty is dinah-577's stated limitation
+// rather than a defect, so this test names it instead of demanding it go.
+func TestARemovalTakesTheJSONFileAndLeavesItsDirectory(t *testing.T) {
+	f := newFixture(t)
+	dir := withdrawalRecipe(t, f, memberStep)
+	base := directoriesUnder(t, f.project)
+	mustRun(t, f.trialOptions(dir))
+	removal := f.trialOptions(dir)
+	removal.Remove = true
+	report := mustRun(t, removal)
+	if _, err := os.Stat(filepath.Join(f.project, "conf", "settings.json")); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("the removal left conf/settings.json behind: %v", err)
+	}
+	if row := soleEmptiedFile(t, report); row.File != "conf/settings.json" {
+		t.Errorf("the emptied-file row names %q", row.File)
+	}
+	left := directoriesAdded(base, directoriesUnder(t, f.project))
+	if len(left) != 1 || left[0] != "conf" {
+		t.Fatalf("the removal left the directories %v behind, and dinah-577 records conf as the one it does not remove", left)
+	}
+	entries, err := os.ReadDir(filepath.Join(f.project, "conf"))
+	if err != nil || len(entries) != 0 {
+		t.Errorf("conf holds %d entries after the removal (%v), and it should be there and empty", len(entries), err)
+	}
+}
+
+// TestADryRunAgreesWithTheApplyThatFollowsIt holds a dry run of a withdrawal
+// to printing exactly the rows the apply after it prints, in the same order
+// and with the same tokens, the emptied-file rows included, and to leaving the
+// base and the ledger byte for byte as it found them.
+func TestADryRunAgreesWithTheApplyThatFollowsIt(t *testing.T) {
+	f := newFixture(t)
+	dir := withdrawalRecipe(t, f, memberStep, sectionStep, rulesStep)
+	mustRun(t, f.trialOptions(dir))
+	withdrawalRecipe(t, f, rulesStep)
+	project := tree(t, f.project)
+	ledger := readFile(t, f.ledgerPath())
+	dryRun := f.trialOptions(dir)
+	dryRun.DryRun = true
+	planned := mustRun(t, dryRun)
+	if len(emptiedRows(planned)) != 2 {
+		t.Fatalf("the dry run planned %d emptied-file rows and two files are emptied: %v", len(emptiedRows(planned)), changesOf(planned))
+	}
+	sameTree(t, "the dry run of a withdrawal", project, tree(t, f.project))
+	if got := readFile(t, f.ledgerPath()); got != ledger {
+		t.Error("the dry run changed the ledger")
+	}
+	applied := mustRun(t, f.trialOptions(dir))
+	if len(applied.Changes) != len(planned.Changes) {
+		t.Fatalf("the dry run planned %v and the apply reported %v", changesOf(planned), changesOf(applied))
+	}
+	for i := range applied.Changes {
+		if applied.Changes[i] != planned.Changes[i] {
+			t.Errorf("row %d: the dry run planned %+v and the apply reported %+v", i, planned.Changes[i], applied.Changes[i])
+		}
+	}
+}
+
+// TestASecondApplyAfterAnEmptiedFilePlansNothing holds the run after the rule
+// has fired to reporting every location unchanged, planning no emptied-file
+// row, and writing to neither the base nor the ledger.
+func TestASecondApplyAfterAnEmptiedFilePlansNothing(t *testing.T) {
+	f := newFixture(t)
+	dir := withdrawalRecipe(t, f, sectionStep, rulesStep)
+	mustRun(t, f.trialOptions(dir))
+	withdrawalRecipe(t, f, rulesStep)
+	first := mustRun(t, f.trialOptions(dir))
+	if len(emptiedRows(first)) != 1 {
+		t.Fatalf("the withdrawal did not fire the rule, so this test proves nothing: %v", changesOf(first))
+	}
+	project := tree(t, f.project)
+	ledger := readFile(t, f.ledgerPath())
+	second := mustRun(t, f.trialOptions(dir))
+	allChanges(t, second, ChangeUnchanged)
+	noEmptiedFile(t, "the run after the rule fired", second)
+	sameTree(t, "the run after the rule fired", project, tree(t, f.project))
+	if got := readFile(t, f.ledgerPath()); got != ledger {
+		t.Errorf("the run after the rule fired changed the ledger:\nbefore %s\nafter  %s", ledger, got)
+	}
+}
+
+// TestAWriteFileRenderingWhitespaceIsCreatedAndKept holds a write-file step
+// whose template renders to whitespace to creating its file and to keeping it
+// on every later run. The rule refuses it on the condition that the run must
+// have taken something out of the file, which a creation never does, so the
+// run that matters here is the second one, which reaches the file with its
+// ledger entry already on record.
+func TestAWriteFileRenderingWhitespaceIsCreatedAndKept(t *testing.T) {
+	f := newFixture(t)
+	blank := "   \n"
+	dir := trialDir(t, f, map[string]string{
+		"steps.json":     `{"steps": [` + rulesStep + `]}` + "\n",
+		"files/rules.md": blank,
+	})
+	first := mustRun(t, f.trialOptions(dir))
+	rules := filepath.Join(f.project, "conf", "rules.md")
+	if got := readFile(t, rules); got != blank {
+		t.Fatalf("the step wrote %q rather than the whitespace its template renders to", got)
+	}
+	allChanges(t, first, ChangeCreate)
+	noEmptiedFile(t, "the run that created the file", first)
+	second := mustRun(t, f.trialOptions(dir))
+	allChanges(t, second, ChangeUnchanged)
+	noEmptiedFile(t, "the run that found the file on record", second)
+	if got := readFile(t, rules); got != blank {
+		t.Errorf("the second run left %q in a file it took nothing out of", got)
+	}
+}
+
+// TestAWithdrawnWriteFileReportsOneRow withdraws a write-file step, whose
+// take-back leaves the file absent and reports the remove token. The plan
+// already leaves no file there, so it is not a candidate for the rule and the
+// report carries one row for it rather than two.
+func TestAWithdrawnWriteFileReportsOneRow(t *testing.T) {
+	f := newFixture(t)
+	dir := withdrawalRecipe(t, f, rulesStep, sectionStep)
+	mustRun(t, f.trialOptions(dir))
+	rules := filepath.Join(f.project, "conf", "rules.md")
+	if _, err := os.Stat(rules); err != nil {
+		t.Fatalf("the first version wrote no conf/rules.md: %v", err)
+	}
+	withdrawalRecipe(t, f, sectionStep)
+	report := mustRun(t, f.trialOptions(dir))
+	if _, err := os.Stat(rules); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("the withdrawn write-file step left its file behind: %v", err)
+	}
+	rows := 0
+	for _, c := range report.Changes {
+		if c.File != "conf/rules.md" {
+			continue
+		}
+		rows++
+		if c.Kind != KindWriteFile || c.Change != ChangeRemove {
+			t.Errorf("the row for the withdrawn file reads %+v", c)
+		}
+	}
+	if rows != 1 {
+		t.Errorf("the withdrawn write-file step reported %d rows for its file: %v", rows, changesOf(report))
+	}
+	noEmptiedFile(t, "a withdrawn write-file step", report)
+}
+
+// writeLedgerFile writes a ledger holding exactly the entries given, so that a
+// test can put setup in front of a state no recipe of its own can reach.
+func writeLedgerFile(t *testing.T, f *fixture, entries []ledgerEntry) {
+	t.Helper()
+	data, err := json.MarshalIndent(ledgerDocument{Format: ledgerFormat, Entries: entries}, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeFiles(t, f.userBase, map[string]string{LedgerName: string(data) + "\n"})
+}
+
+// TestAFileCarryingBothKindsOfEntryTakesTheJSONTest builds the one state where
+// the two emptiness tests disagree: a file setup created, carrying a section
+// entry and a json-member entry, whose last owned member goes with no foreign
+// member left, so that the root holds nothing but the braces mergeMember
+// writes. The JSON test calls that empty and removes the file, and a build
+// whose text test won would leave it on disk, because strings.TrimSpace reads
+// two braces as content. No recipe can reach this state, since one ordering of
+// the two steps refuses on the first apply and the other on the second, so the
+// fixture writes the file and its two entries directly, with the section entry
+// ahead of the json-member entry.
+func TestAFileCarryingBothKindsOfEntryTakesTheJSONTest(t *testing.T) {
+	f := newFixture(t)
+	dir := withdrawalRecipe(t, f, rulesStep)
+	body := "note\n"
+	content := "{\n  \"own\": \"value\"\n}\n# dinah-setup:begin trial/notes\n" + body + "# dinah-setup:end trial/notes\n"
+	writeFiles(t, f.project, map[string]string{"MIX.json": content})
+	mix := filepath.Join(f.project, "MIX.json")
+	shared := ledgerEntry{
+		Recipe:      "trial",
+		Scope:       ScopeProject,
+		Base:        slashPath(f.project),
+		File:        slashPath(mix),
+		Workbench:   slashPath(f.workbench),
+		CreatedFile: true,
+	}
+	section, member := shared, shared
+	section.Kind, section.Key, section.Digest = entrySection, "trial/notes", digestOf([]byte(body))
+	member.Kind, member.Key, member.Digest = entryJSONMember, "/own", digestOf([]byte(`"value"`))
+	writeLedgerFile(t, f, []ledgerEntry{section, member})
+	removal := f.trialOptions(dir)
+	removal.Remove = true
+	report := mustRun(t, removal)
+	row := soleEmptiedFile(t, report)
+	if row.File != "MIX.json" {
+		t.Fatalf("the emptied-file row names %q", row.File)
+	}
+	if strings.TrimSpace(row.Before) == "" {
+		t.Fatalf("the leftover was whitespace, so this case does not separate the two emptiness tests: %q", row.Before)
+	}
+	if _, err := os.Stat(mix); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("the file carrying both kinds of entry took the text test and survived holding %q", row.Before)
+	}
+}
+
+// TestTheLedgerKeepsFormatOneAndItsMembers holds dinah-577 to changing nothing
+// about the ledger: the format revision stays at 1, an entry serialises
+// exactly the members it carried before, and a ledger the earlier build wrote
+// reads cleanly through a decoder that refuses an unknown field.
+func TestTheLedgerKeepsFormatOneAndItsMembers(t *testing.T) {
+	if ledgerFormat != 1 {
+		t.Fatalf("the ledger declares format %d, and dinah-577 leaves it at 1", ledgerFormat)
+	}
+	data, err := json.Marshal(ledgerEntry{CreatedParents: []string{"/env"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var members map[string]json.RawMessage
+	if err := json.Unmarshal(data, &members); err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"recipe", "scope", "base", "file", "kind", "key", "digest", "workbench", "created_file", "created_parents"}
+	if len(members) != len(want) {
+		t.Errorf("a ledger entry serialises %d members and the build before dinah-577 wrote %d: %v", len(members), len(want), members)
+	}
+	for _, name := range want {
+		if _, present := members[name]; !present {
+			t.Errorf("a ledger entry no longer carries the member %s", name)
+		}
+	}
+	for name := range members {
+		if !contains(want, name) {
+			t.Errorf("a ledger entry carries the member %s, and dinah-577 adds none", name)
+		}
+	}
+
+	f := newFixture(t)
+	writeFiles(t, f.userBase, map[string]string{LedgerName: `{
+  "format": 1,
+  "entries": [
+    {
+      "recipe": "trial",
+      "scope": "project",
+      "base": "/tmp/proj",
+      "file": "/tmp/proj/NOTES.md",
+      "kind": "section",
+      "key": "trial/notes",
+      "digest": "sha256:abc",
+      "workbench": "/tmp/proj/.dinah/0123",
+      "created_file": true
+    }
+  ]
+}
+`})
+	read, err := readLedger(f.userBase)
+	if err != nil {
+		t.Fatalf("a ledger the build before dinah-577 wrote does not read: %v", err)
+	}
+	if len(read.Entries) != 1 || read.Entries[0].Key != "trial/notes" || !read.Entries[0].CreatedFile {
+		t.Errorf("the ledger read as %+v", read.Entries)
+	}
+
+	g := newFixture(t)
+	dir := withdrawalRecipe(t, g, sectionStep, rulesStep)
+	mustRun(t, g.trialOptions(dir))
+	withdrawalRecipe(t, g, rulesStep)
+	mustRun(t, g.trialOptions(dir))
+	var written ledgerDocument
+	if err := json.Unmarshal([]byte(readFile(t, g.ledgerPath())), &written); err != nil {
+		t.Fatal(err)
+	}
+	if written.Format != 1 {
+		t.Errorf("a run that emptied a file rewrote the ledger at format %d", written.Format)
 	}
 }

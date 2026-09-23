@@ -187,8 +187,11 @@ func TestAFailingProgramStopsTheRun(t *testing.T) {
 	removal := g.trialOptions(stopped.RecipeDir)
 	removal.Remove = true
 	removed := mustRun(t, removal)
-	if len(removed.Changes) != 1 || removed.Changes[0].Key != "/env/AGENT" || removed.Changes[0].Change != ChangeRemove {
+	if len(removed.Changes) != 2 || removed.Changes[0].Key != "/env/AGENT" || removed.Changes[0].Change != ChangeRemove {
 		t.Errorf("the removal took back %v", changesOf(removed))
+	}
+	if removed.Changes[1].Kind != KindEmptiedFile || removed.Changes[1].Change != ChangeRemove {
+		t.Errorf("taking the one member back did not report the emptied file: %v", changesOf(removed))
 	}
 	if !strings.Contains(removed.Prompt, "Undo the rest in") {
 		t.Errorf("the removal did not carry remove.md: %q", removed.Prompt)
@@ -238,7 +241,7 @@ func TestARunStepLeavesNoLedgerEntry(t *testing.T) {
 	removal := f.trialOptions(opts.RecipeDir)
 	removal.Remove = true
 	removed := mustRun(t, removal)
-	if len(removed.Changes) != 2 {
+	if len(removed.Changes) != 3 {
 		t.Errorf("the removal reported %v", changesOf(removed))
 	}
 	if _, ran := helperReceived(t, out); ran {
