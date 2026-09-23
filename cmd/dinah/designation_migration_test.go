@@ -435,14 +435,10 @@ func TestTheConversionIsTheOperatorsAndWaitsForAnIdleWorkbench(t *testing.T) {
 	root := designationHeldFixture(t)
 
 	refused := runCLI(t, root, "check", "--migrate-designations", "--actor", "sam")
-	if name := refusalNameOf(refused.errw); name != contract.NotOperator {
-		t.Errorf("the conversion run by somebody else answered %s, wanted %s: %s", name, contract.NotOperator, refused.errw)
-	}
+	assertRefusal(t, refused, contract.NotOperator, "the conversion run by somebody who is not the operator")
 
 	held := runCLI(t, root, "check", "--migrate-designations", "--actor", "alka")
-	if name := refusalNameOf(held.errw); name != contract.WorkbenchInUse {
-		t.Errorf("the conversion over a held card answered %s, wanted %s: %s", name, contract.WorkbenchInUse, held.errw)
-	}
+	assertRefusal(t, held, contract.WorkbenchInUse, "the conversion over a held card")
 	if !strings.Contains(held.errw, "fx-1") || !strings.Contains(held.errw, "sam") {
 		t.Errorf("the refusal names neither the card nor its holder: %s", held.errw)
 	}
@@ -450,9 +446,7 @@ func TestTheConversionIsTheOperatorsAndWaitsForAnIdleWorkbench(t *testing.T) {
 	// The force is the operator's alone, and it names in the report and in
 	// the workbench's own history every claim it passed.
 	forcedByAnother := runCLI(t, root, "check", "--migrate-designations", "--force-claims", "--actor", "sam")
-	if name := refusalNameOf(forcedByAnother.errw); name != contract.NotOperator {
-		t.Errorf("the force run by somebody else answered %s, wanted %s: %s", name, contract.NotOperator, forcedByAnother.errw)
-	}
+	assertRefusal(t, forcedByAnother, contract.NotOperator, "the force run by somebody who is not the operator")
 
 	forced := runCLI(t, root, "check", "--migrate-designations", "--force-claims", "--actor", "alka")
 	assertConverted(t, forced)

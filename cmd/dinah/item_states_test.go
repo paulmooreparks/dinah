@@ -47,8 +47,18 @@ func mustRefuse(t *testing.T, root string, argv ...string) invocation {
 }
 
 // assertRefusal fails a case whose refusal carried the wrong name.
+//
+// An invocation carrying nothing on its error stream is reported rather than
+// read for a name, because the name reader takes the first word and a first
+// word of nothing is a panic. A run that exited non-zero and said nothing is
+// exactly what a broken guard produces, so this is the arming path rather than
+// an unlikely one.
 func assertRefusal(t *testing.T, got invocation, wanted, what string) {
 	t.Helper()
+	if strings.TrimSpace(got.errw) == "" {
+		t.Errorf("%s exited %d and carried no refusal at all, wanted %s:\n%s", what, got.code, wanted, got.out)
+		return
+	}
 	if name := refusalNameOf(got.errw); name != wanted {
 		t.Errorf("%s answered %s, wanted %s: %s", what, name, wanted, got.errw)
 	}
