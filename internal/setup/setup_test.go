@@ -958,23 +958,29 @@ func TestARecipeWithNoProviderWritesNoProviderMember(t *testing.T) {
 func TestTheProviderFlagIsStillHeldToOneWord(t *testing.T) {
 	f := newFixture(t)
 	dir := providerlessTrial(t, f)
+	values := []string{" ", "two words", `a"b`, "a b"}
 	refused := 0
-	for _, value := range []string{" ", "two words", `a"b`, "a b"} {
-		opts := f.trialOptions(dir)
-		opts.Model = "m1"
-		opts.Provider = value
-		_, err := Run(opts)
-		if refusalName(err) != contract.Malformed {
-			t.Errorf("--provider %q was answered with %v, want %s", value, err, contract.Malformed)
-			continue
+	for _, recipe := range []string{"trial", "devin"} {
+		for _, value := range values {
+			opts := f.trialOptions(dir)
+			if recipe == "devin" {
+				opts = f.options("devin")
+			}
+			opts.Model = "m1"
+			opts.Provider = value
+			_, err := Run(opts)
+			if refusalName(err) != contract.Malformed {
+				t.Errorf("%s with --provider %q was answered with %v, want %s", recipe, value, err, contract.Malformed)
+				continue
+			}
+			if !strings.Contains(err.Error(), "--provider") {
+				t.Errorf("%s with --provider %q was refused without naming the flag: %v", recipe, value, err)
+			}
+			refused++
 		}
-		if !strings.Contains(err.Error(), "--provider") {
-			t.Errorf("--provider %q was refused without naming the flag: %v", value, err)
-		}
-		refused++
 	}
-	if refused != 4 {
-		t.Errorf("%d of four provider values were refused", refused)
+	if refused != 2*len(values) {
+		t.Errorf("%d of %d provider values were refused over the two provider-less recipes", refused, 2*len(values))
 	}
 
 	accepting := f.trialOptions(dir)
