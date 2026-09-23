@@ -875,11 +875,20 @@ func TestCodexHasNoUserScope(t *testing.T) {
 // which is how a recipe declares no provider default.
 func providerlessTrial(t *testing.T, f *fixture) string {
 	t.Helper()
+	return trialDir(t, f, map[string]string{"recipe.json": withoutProvider(t)})
+}
+
+// withoutProvider is the trial recipe's manifest with its provider member
+// removed, which is how a recipe declares no provider default. It fatals
+// where it removed nothing, so a renamed member cannot leave a caller reading
+// a manifest that still carries one.
+func withoutProvider(t *testing.T) string {
+	t.Helper()
 	without := strings.Replace(trialRecipe["recipe.json"], "  \"provider\": \"acme\",\n", "", 1)
 	if without == trialRecipe["recipe.json"] {
 		t.Fatal("the trial recipe no longer carries a provider member, so this helper removes nothing")
 	}
-	return trialDir(t, f, map[string]string{"recipe.json": without})
+	return without
 }
 
 // TestAManifestReadsProviderFiveWays holds recipe.json's provider member to
@@ -914,37 +923,55 @@ func TestAManifestReadsProviderFiveWays(t *testing.T) {
 	}
 }
 
-// TestARecipeWithNoProviderWritesNoProviderMember applies a recipe declaring
-// no provider and holds the written JSON to carrying no DINAH_PROVIDER member
-// at all rather than an empty one, then applies it again with --provider and
-// holds the member to being written.
-func TestARecipeWithNoProviderWritesNoProviderMember(t *testing.T) {
-	f := newFixture(t)
-	dir := providerlessTrial(t, f)
-	opts := f.trialOptions(dir)
-	opts.Model = "m1"
-	mustRun(t, opts)
-	settings := filepath.Join(f.project, "conf", "settings.json")
-	if got := readFile(t, settings); strings.Contains(got, "PROVIDER") {
-		t.Errorf("the apply wrote a provider member with no provider to write:\n%s", got)
-	}
-
-	g := newFixture(t)
-	named := g.trialOptions(trialDir(t, g, map[string]string{
-		"recipe.json": strings.Replace(trialRecipe["recipe.json"], "  \"provider\": \"acme\",\n", "", 1),
-		"steps.json": `{
+// providerStep is a steps.json whose one json-merge step writes a PROVIDER
+// member holding nothing but the provider placeholder. The member has to be
+// in the fixture for an absence assertion about it to mean anything. A
+// fixture naming the placeholder nowhere carries no provider member under any
+// implementation, so such an assertion holds with the omission rule on and
+// with it off, and guards nothing.
+const providerStep = `{
   "steps": [
     {"id": "settings", "kind": "json-merge", "scope": "project", "path": "conf/settings.json",
      "pointer": "/env", "value": {"PROVIDER": "{{provider}}", "AGENT": "{{agent}}"}}
   ]
 }
-`,
+`
+
+// TestARecipeWithNoProviderWritesNoProviderMember holds the omission rule to
+// dropping a member whose whole value is the provider placeholder when no
+// provider was resolved. Both halves run the same recipe over the same step,
+// which is what makes the first half mean anything: the second half takes
+// that fixture with a provider resolved and finds the member present, so the
+// absence the first half asserts is the rule's doing rather than the
+// fixture's.
+func TestARecipeWithNoProviderWritesNoProviderMember(t *testing.T) {
+	f := newFixture(t)
+	dir := trialDir(t, f, map[string]string{
+		"recipe.json": withoutProvider(t),
+		"steps.json":  providerStep,
+	})
+	opts := f.trialOptions(dir)
+	opts.Model = "m1"
+	mustRun(t, opts)
+	absent := readFile(t, filepath.Join(f.project, "conf", "settings.json"))
+	if strings.Contains(absent, "PROVIDER") {
+		t.Errorf("with no provider resolved the apply wrote a provider member:\n%s", absent)
+	}
+	if !strings.Contains(absent, `"AGENT"`) {
+		t.Fatalf("the step wrote no AGENT member either, so this is not the file the step writes:\n%s", absent)
+	}
+
+	g := newFixture(t)
+	named := g.trialOptions(trialDir(t, g, map[string]string{
+		"recipe.json": withoutProvider(t),
+		"steps.json":  providerStep,
 	}))
+	named.Model = "m1"
 	named.Provider = "acme"
 	mustRun(t, named)
-	got := readFile(t, filepath.Join(g.project, "conf", "settings.json"))
-	if !strings.Contains(got, `"PROVIDER": "acme"`) {
-		t.Errorf("--provider acme wrote no provider member:\n%s", got)
+	present := readFile(t, filepath.Join(g.project, "conf", "settings.json"))
+	if !strings.Contains(present, `"PROVIDER": "acme"`) {
+		t.Errorf("--provider acme against the same fixture wrote no provider member:\n%s", present)
 	}
 }
 

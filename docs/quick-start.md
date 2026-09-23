@@ -1674,10 +1674,10 @@ agents, and a short instruction file, then prints what is left for you to do.
 prints the lines you add to Codex's own configuration. `dinah setup devin`
 writes the `dinah` server into the project's `.devin/mcp_config.json` and
 Dinah's section into its `AGENTS.md`, then prints the checks the Devin CLI and
-cloud Devin each need. `dinah setup --list`
-shows every recipe Dinah can find, and `dinah guide setup-recipes` explains
-how to write one for another harness. The paragraphs below describe the same
-configuration for when you write it by hand.
+cloud Devin each need. `dinah setup --list` shows every recipe Dinah can find,
+and `dinah guide setup-recipes` explains how to write one for another harness.
+The paragraphs below describe the same configuration for when you write it by
+hand.
 
 `dinah mcp` serves the workbench over MCP on its standard input and output, so
 an AI colleague can work the same board you do. Configure it in your MCP client
