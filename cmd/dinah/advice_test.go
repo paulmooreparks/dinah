@@ -234,9 +234,33 @@ func TestTheNumberMigrationChainIsSelfGuiding(t *testing.T) {
 	}
 
 	// And the rest of the chain, which is the claim the reader followed it
-	// for: the note migration runs now, and the workbench reads.
+	// for: the note migration runs now, and then the conversion the refusal
+	// after it names, and the workbench reads.
 	migrateNotes(t, workbench)
-	migrateDesignations(t, workbench)
+
+	// refusal.dinah.store-awaiting-migration.next is the sentence this half
+	// follows, and it is followed the way the reader would: the read is run
+	// first, the refusal it answers with is read, and the invocation that
+	// refusal carries is what runs next. A test that ran the conversion
+	// without reading the refusal would prove the command works and say
+	// nothing about whether the sentence sends anybody to it.
+	awaiting := runCLI(t, workbench, "show", "fx-1")
+	if awaiting.code == 0 {
+		t.Fatal("the workbench read before the designation conversion ran, so the refusal this half follows is not in force")
+	}
+	argv := adviceFrom(t, awaiting.errw, "refusal.dinah.store-awaiting-migration.next", "detail", workbench)
+	// The conversion is the workbench operator's, and the sentence carries
+	// no actor because a refusal does not tell a reader who to be. The
+	// operator is read off the workbench the refusal named, which is what
+	// the person meeting it already knows.
+	opened, err := bench.OpenAwaitingResolution(workbench)
+	if err != nil {
+		t.Fatalf("open the workbench the refusal named: %v", err)
+	}
+	converted := runCLI(t, workbench, append(argv, "--actor", opened.Operator)...)
+	if converted.code != 0 {
+		t.Fatalf("taking the refusal's own advice, dinah %v, exited %d: %s%s", argv, converted.code, converted.out, converted.errw)
+	}
 	read := runCLI(t, workbench, "show", "fx-1")
 	if read.code != 0 {
 		t.Fatalf("the workbench still refuses a read after the whole chain: %d %s%s", read.code, read.out, read.errw)
@@ -855,6 +879,7 @@ var checkAdviceProvenByRunning = map[string]string{
 	"refusal.dinah.damaged-workbench.next":                "TestTheDamagedWorkbenchAdviceIsACommandThatWorks",
 	"refusal.dinah.interrupted.next-named":                "TestTheInterruptedActAdviceIsACommandThatWorks",
 	"refusal.dinah.locked.next-named":                     "TestTheLockedEntityAdviceIsACommandThatWorks",
+	"refusal.dinah.store-awaiting-migration.next":         "TestTheNumberMigrationChainIsSelfGuiding",
 }
 
 // checkAdviceNeedingNoScope names every remaining catalog message that names a

@@ -135,7 +135,7 @@ what you are about to type, and `dinah list --json` and `dinah list
 
 ## Which command takes what
 
-Nineteen commands take a reference, and between them they accept six different sets of things. This table says what each one accepts:
+Twenty-one commands take a reference, and between them they accept six different sets of things. This table says what each one accepts:
 
 | Command      | A workbench | A column | A card | Below a card | A collection |
 |--------------|-------------|----------|--------|--------------|--------------|
@@ -156,6 +156,8 @@ Nineteen commands take a reference, and between them they accept six different s
 | resolve      | no          | no       | no     | yes          | no           |
 | verify       | no          | no       | no     | yes          | no           |
 | fail         | no          | no       | no     | yes          | no           |
+| waive        | no          | no       | no     | yes          | no           |
+| withdraw     | no          | no       | no     | yes          | no           |
 | reopen       | no          | no       | no     | yes          | no           |
 | accept-divergence | no     | yes      | no     | yes          | no           |
 

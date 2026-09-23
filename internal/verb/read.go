@@ -1736,13 +1736,13 @@ func (l *Library) detailOf(card *bench.Card, chosen detailSelection, filters det
 			return nil, "", err
 		}
 		view := ItemView{
-			ID:         item.ID,
-			Ordinal:    position,
-			Kind:       item.Kind,
-			State:      item.State,
-			Column:     item.Column,
-			Owner:      item.Owner,
-			Text:       item.Text,
+			ID:      item.ID,
+			Ordinal: position,
+			Kind:    item.Kind,
+			State:   item.State,
+			Column:  item.Column,
+			Owner:   item.Owner,
+			Text:    item.Text,
 		}
 		view.Ref = itemRef(cardRef, item.Kind, kindPosition[item.Kind], position)
 		view.ResolutionID = item.Resolution
@@ -2961,7 +2961,7 @@ func (l *Library) migrateDesignations(req *Request) (*bench.DesignationMigration
 	if req.ForceClaims && req.Actor != l.Bench.Operator {
 		return nil, contract.Refuse(contract.NotOperator, req.Actor)
 	}
-	var passed []string
+	var passed []bench.ClaimedCard
 	if !req.Rehearse {
 		claimed, err := l.Bench.ClaimedCards()
 		if err != nil {
@@ -2970,9 +2970,7 @@ func (l *Library) migrateDesignations(req *Request) (*bench.DesignationMigration
 		if len(claimed) > 0 && !req.ForceClaims {
 			return nil, bench.DesignationRefusalWorkbenchInUse(claimed[0])
 		}
-		for _, card := range claimed {
-			passed = append(passed, card.Ref)
-		}
+		passed = claimed
 	}
 	now := bench.Stamp(l.Now())
 	migrated, err := l.Bench.MigrateDesignations(req.Acting(), now, !req.Rehearse)
@@ -2989,11 +2987,15 @@ func (l *Library) migrateDesignations(req *Request) (*bench.DesignationMigration
 	// claimed writes it too, carrying no card, so the flag is never a silent
 	// no-op.
 	if req.ForceClaims && !req.Rehearse {
+		names := make([]string, 0, len(passed))
+		for _, card := range passed {
+			names = append(names, card.Ref)
+		}
 		ev := bench.Event{
 			TS:    now,
 			Event: contract.EventDesignationsMigrated,
 			Actor: req.Acting(),
-			Cards: passed,
+			Cards: names,
 		}
 		if err := bench.AppendEvent(l.Bench.JournalPath(), ev); err != nil {
 			return migrated, err

@@ -9,6 +9,7 @@ import (
 
 	"dinah/internal/bench"
 	"dinah/internal/contract"
+	"dinah/internal/msg"
 )
 
 // exitHoldDefinition is a four-column flow whose working station holds a card
@@ -906,8 +907,13 @@ func TestTheOperatorRefusalIsDefeatedByWritingTheFile(t *testing.T) {
 		t.Errorf("show does not report the item resolved:\n%s", shown.out)
 	}
 	checked := runCLI(t, root, "check")
-	if !strings.Contains(checked.out, bench.FindingDesignationMissing) {
-		t.Errorf("check does not name %s after the hand edit:\n%s", bench.FindingDesignationMissing, checked.out)
+	// The finding is read as the sentence a person sees rather than as its
+	// key, because the key is how the code names it and the report is what
+	// the reader meets.
+	sentence := msg.For(msg.Base).T(bench.FindingDesignationMissing, "detail", bench.ItemResolved)
+	if !strings.Contains(checked.out, sentence) {
+		t.Errorf("check does not report %s after the hand edit:\nwanted the clause %q\ngot\n%s",
+			bench.FindingDesignationMissing, sentence, checked.out)
 	}
 
 	journal := filepath.Join(soleBenchDir(t, root), bench.CardsDir, cardID(t, root, "fx-1"), bench.JournalName)

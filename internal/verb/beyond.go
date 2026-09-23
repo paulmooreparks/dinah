@@ -993,8 +993,8 @@ func (l *Library) operatorOnlyTarget(entity *bench.EntityRef) bool {
 // destroys the justification for work that has already travelled; a withdrawal
 // records that a question stopped applying, which is ordinary bookkeeping
 // anybody was entitled to perform in the first place, and reserving its
-// removal would reserve the tidying of exactly the items this card set out to
-// make tidyable. Where a withdrawn item is also an acceptance criterion, which
+// removal would reserve the tidying of exactly the items dinah-472 was filed
+// to make tidyable. Where a withdrawn item is also an acceptance criterion, which
 // is the case where the record is load-bearing, the first clause covers it.
 //
 // Restore is not reserved, because restoring an item puts it back into the

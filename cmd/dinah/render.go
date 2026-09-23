@@ -1260,42 +1260,53 @@ func (s *session) renderCheck(report *verb.CheckReport) int {
 // The three conversion groups are drawn in the order the contract states them
 // and each carries its own count, because a group with no entries is a fact
 // worth printing: a run reporting nothing at all under a heading nobody drew
-// reads exactly like a run that never looked. The entries themselves are drawn
-// only where there are some, on the terms every other listing in this file is
-// drawn.
+// reads exactly like a run that never looked.
 //
 // The unanswered group is drawn last and its count is repeated on the run's
 // own last line, because it is the number the operator acts on and the groups
 // above it may have scrolled past by then.
+//
+// Each entry is one sentence rather than one row of a table, on the reasoning
+// renderNewlineMigration states for its own account: a migration's report is
+// read once by a person deciding what to do next, and a table here would owe
+// the row-layout sweep a fixture and a language pass for a block nobody scans.
 func (s *session) renderDesignationMigration(run *bench.DesignationMigration) {
 	if run.Forced || len(run.PassedClaims) > 0 {
 		s.line(s.r.TN("check.designations-claims-passed", len(run.PassedClaims)))
-		passed := table{indent: 2, columns: listColumn()}
-		for _, ref := range run.PassedClaims {
-			passed.rows = append(passed.rows, tableRow{fields: []string{ref}})
+		for _, claim := range run.PassedClaims {
+			s.line(s.r.T("check.designations-claim", "card", claim.Ref, "owner", claim.Holder))
 		}
-		s.table(passed)
 	}
 	s.renderDesignationGroup(run, bench.DesignationFromJournal, "check.designations-journal")
 	s.renderDesignationGroup(run, bench.DesignationUndisturbed, "check.designations-undisturbed")
-	drifted := table{indent: 2, columns: s.columns("designations", "item", "settling", "identifier", "author")}
+	drifted := 0
 	for _, entry := range run.Entries {
 		if entry.Archived && entry.Identifier != "" {
-			drifted.rows = append(drifted.rows, tableRow{fields: []string{entry.Item, entry.Settling, entry.Identifier, entry.Author}})
+			drifted++
 		}
 	}
-	s.line(s.r.TN("check.designations-archived", len(drifted.rows)))
-	s.table(drifted)
-	unanswered := table{indent: 2, columns: s.columns("designations-unanswered", "item", "settling", "state", "stored", "reaches")}
+	s.line(s.r.TN("check.designations-archived", drifted))
+	for _, entry := range run.Entries {
+		if entry.Archived && entry.Identifier != "" {
+			s.line(s.r.T("check.designations-entry", "item", entry.Item,
+				"settling", entry.Settling, "comment", entry.Identifier, "author", entry.Author))
+		}
+	}
+	unanswered := 0
+	for _, entry := range run.Entries {
+		if entry.Route == bench.DesignationUnrecoverable {
+			unanswered++
+		}
+	}
+	s.line(s.r.TN("check.designations-unanswered", unanswered))
 	for _, entry := range run.Entries {
 		if entry.Route != bench.DesignationUnrecoverable {
 			continue
 		}
-		unanswered.rows = append(unanswered.rows, tableRow{fields: []string{entry.Item, entry.Settling, entry.State, entry.Stored, entry.Author}})
+		s.line(s.r.T("check.designations-unanswered-entry", "item", entry.Item,
+			"settling", entry.Settling, "state", entry.State, "stored", entry.Stored, "author", entry.Author))
 	}
-	s.line(s.r.TN("check.designations-unanswered", len(unanswered.rows)))
-	s.table(unanswered)
-	if len(unanswered.rows) > 0 {
+	if unanswered > 0 {
 		s.line(s.r.T("check.designations-keeps-state"))
 	}
 	if !run.Applied {
@@ -1303,24 +1314,23 @@ func (s *session) renderDesignationMigration(run *bench.DesignationMigration) {
 	} else if run.Stamped {
 		s.line(s.r.T("check.designations-stamped", "detail", strconv.Itoa(bench.DesignationFormat)))
 	}
-	if len(unanswered.rows) > 0 {
-		s.line(s.r.TN("check.designations-unanswered-total", len(unanswered.rows)))
+	if unanswered > 0 {
+		s.line(s.r.TN("check.designations-unanswered-total", unanswered))
 	}
 }
 
-// renderDesignationGroup prints one conversion group's count and then its
-// entries, each naming the item, the verb that settled it, the comment
-// identifier the run wrote and that comment's author.
+// renderDesignationGroup prints one conversion group's count and then one
+// sentence per entry, each naming the item, the verb that settled it, the
+// comment identifier the run wrote and that comment's author.
 func (s *session) renderDesignationGroup(run *bench.DesignationMigration, route, key string) {
-	converted := table{indent: 2, columns: s.columns("designations", "item", "settling", "identifier", "author")}
+	s.line(s.r.TN(key, run.Count(route)))
 	for _, entry := range run.Entries {
 		if entry.Route != route {
 			continue
 		}
-		converted.rows = append(converted.rows, tableRow{fields: []string{entry.Item, entry.Settling, entry.Identifier, entry.Author}})
+		s.line(s.r.T("check.designations-entry", "item", entry.Item,
+			"settling", entry.Settling, "comment", entry.Identifier, "author", entry.Author))
 	}
-	s.line(s.r.TN(key, len(converted.rows)))
-	s.table(converted)
 }
 
 // branchConflictKeys names the catalog entry each conflict condition prints,

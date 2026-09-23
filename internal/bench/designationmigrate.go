@@ -70,9 +70,12 @@ type DesignationMigration struct {
 	// Entries are every item the run decided, in card order and then in
 	// checklist order, whichever route each took.
 	Entries []DesignationEntry `json:"entries"`
-	// PassedClaims are the references of the cards whose claim the run
-	// passed under the operator's force, empty on every other run.
-	PassedClaims []string `json:"passed_claims,omitempty"`
+	// PassedClaims are the cards whose claim the run passed under the
+	// operator's force, each with the owner who held it, and empty on every
+	// other run. The holder travels with the reference because the operator
+	// judging a claim dead is judging a session dead, and the report is where
+	// he sees whose.
+	PassedClaims []ClaimedCard `json:"passed_claims,omitempty"`
 	// Forced reports that the run carried the operator's force past the
 	// claimed-card refusal. It is carried beside PassedClaims rather than
 	// inferred from it, because a forced run on a workbench where nothing
@@ -117,8 +120,8 @@ func (m *DesignationMigration) Clean() bool {
 // ClaimedCard is the first live card a conversion found claimed, which is what
 // the workbench-in-use refusal names.
 type ClaimedCard struct {
-	Ref    string
-	Holder string
+	Ref    string `json:"ref"`
+	Holder string `json:"holder"`
 }
 
 // ClaimedCards reports every live card standing claimed, in card order. The
@@ -160,6 +163,12 @@ func (b *Bench) ClaimedCards() ([]ClaimedCard, error) {
 // position now reaches somebody else's words; a detector that looked for
 // archived comments would convert such an item silently and write the wrong
 // author down as the operator's answer.
+//
+// Two routes recover an answer and everything else is left unanswered.
+// decideDesignation carries each one's own reasoning, and both are written to
+// decline rather than to guess: the point of reading the journal is that the
+// conversion writes down what somebody recorded, so a case the record cannot
+// speak for goes to a person rather than to an inference.
 //
 // apply is false on a rehearsal, which decides every item by these same rules,
 // answers the identical report, and writes no anchor, no journal line and no
@@ -343,10 +352,19 @@ func (b *Bench) decideDesignation(card *Card, cardRef string, item *Item, events
 	// immediately before the settling line carrying that comment's own
 	// identifier. That identifier was recorded rather than inferred, so it
 	// answers whatever has happened to the collection since.
+	//
+	// What selects that one act is the stamp as well as the adjacency, and
+	// the stamp is what makes the route safe rather than merely likely. One
+	// write stamps both lines from one reading of the clock, so the two
+	// carry the same instant exactly when they are halves of one act.
+	// Without that test the route also matches an ordinary comment written
+	// just before a settling that named some other comment of the same item,
+	// and it would then write the wrong comment's identifier down as the
+	// answer, which is the harm this whole conversion exists to avoid.
 	if at > 0 {
 		prior := events[at-1]
 		if prior.Event == contract.EventCommented && prior.Item == item.ID &&
-			prior.Comment != "" && sameActor(prior.Actor, events[at].Actor) {
+			prior.Comment != "" && prior.TS == events[at].TS && sameActor(prior.Actor, events[at].Actor) {
 			if comment, found := comments[prior.Comment]; found {
 				entry.Route = DesignationFromJournal
 				entry.Identifier = prior.Comment

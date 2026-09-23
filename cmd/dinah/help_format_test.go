@@ -50,7 +50,13 @@ WORK
   resolve <item> [comment] [--text <text|->]             Resolve an open question or a decision
   verify <item> [comment] [--text <text|->]              Record an acceptance criterion as verified
   fail <item> [comment] [--text <text|->]                Record an acceptance criterion as failed
+  waive <item> [comment] [--text <text|->]               Record a checklist item as waived, letting the
+                                                           card proceed
+  withdraw <item> [comment] [--text <text|->]            Record a checklist item as withdrawn, because the
+                                                           question stopped applying
   reopen <item> <reason>                                 Return a closed checklist item to pending
+  grant <card> <permission>                              Give a card a standing authorization
+  revoke <card> <permission>                             Take back a card's standing authorization
   link <card> <kind> <to>                                Record a link from one card to another
   unlink <card> <kind> <to>                              Remove a link a card carries
   join <card> <workstream>                               Add a card to a workstream
@@ -97,7 +103,8 @@ WORKBENCH
   check [--finish] [--migrate-ordinals]                  Look for structural defects in this workbench
     [--migrate-slugs] [--migrate-columns]
     [--migrate-vocabulary] [--migrate-container]
-    [--migrate-numbers] [--migrate-branches]
+    [--migrate-numbers] [--migrate-designations]
+    [--rehearse] [--force-claims] [--migrate-branches]
     [--migrate-newlines] [--renumber] [--remint <dir>]
     [--migrate-workstreams] [--witness] [--yes]
     [--root <path>] [--max-depth <n>]
@@ -160,7 +167,11 @@ WORK
   resolve <item> [comment] [--text <text|->]                                                            Resolve an open question or a decision
   verify <item> [comment] [--text <text|->]                                                             Record an acceptance criterion as verified
   fail <item> [comment] [--text <text|->]                                                               Record an acceptance criterion as failed
+  waive <item> [comment] [--text <text|->]                                                              Record a checklist item as waived, letting the card proceed
+  withdraw <item> [comment] [--text <text|->]                                                           Record a checklist item as withdrawn, because the question stopped applying
   reopen <item> <reason>                                                                                Return a closed checklist item to pending
+  grant <card> <permission>                                                                             Give a card a standing authorization
+  revoke <card> <permission>                                                                            Take back a card's standing authorization
   link <card> <kind> <to>                                                                               Record a link from one card to another
   unlink <card> <kind> <to>                                                                             Remove a link a card carries
   join <card> <workstream>                                                                              Add a card to a workstream
@@ -197,8 +208,9 @@ WORKBENCH
   set <ref> <field> [value|-] [--at <column>] [--note <text>] [--expect-digest <digest>] [--yes]        Write one field of any entity of this workbench
   config [get|set] [key] [value]                                                                        List your user settings, or read or write one
   check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-columns] [--migrate-vocabulary]    Look for structural defects in this workbench
-    [--migrate-container] [--migrate-numbers] [--migrate-branches] [--migrate-newlines] [--renumber]
-    [--remint <dir>] [--migrate-workstreams] [--witness] [--yes] [--root <path>] [--max-depth <n>]
+    [--migrate-container] [--migrate-numbers] [--migrate-designations] [--rehearse] [--force-claims]
+    [--migrate-branches] [--migrate-newlines] [--renumber] [--remint <dir>] [--migrate-workstreams]
+    [--witness] [--yes] [--root <path>] [--max-depth <n>]
   whoami                                                                                                The actor your actions carry, and whether it is the operator
   workbench                                                                                             Read this workbench's own fields
   workstream <new> <title> [--slug <slug>]                                                              Create a workstream on this workbench

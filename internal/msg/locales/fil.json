@@ -644,6 +644,11 @@
       "context": "The line the designation conversion prints for the converted items whose comments hold at least one archived member, for any other number.",
       "skeleton": true
     },
+    "check.designations-claim": {
+      "text": "{card}, held by {owner}.",
+      "context": "One card a forced designation conversion passed the claim of, drawn under the count. {card} is the card's reference and {owner} is who held it, and both are machine vocabulary that is never translated.",
+      "skeleton": true
+    },
     "check.designations-claims-passed.one": {
       "text": "Passed {count} card somebody still holds.",
       "context": "The line a forced designation conversion prints for the claims it passed, for exactly one card. The same cards are named in the workbench's own history, so the judgement stays readable afterwards.",
@@ -652,6 +657,11 @@
     "check.designations-claims-passed.other": {
       "text": "Passed {count} cards somebody still holds.",
       "context": "The line a forced designation conversion prints for the claims it passed, for any other number, zero included, so that the flag is never a silent no-op.",
+      "skeleton": true
+    },
+    "check.designations-entry": {
+      "text": "{item}, settled by {settling}, now names {comment}, written by {author}.",
+      "context": "One item a designation conversion converted, drawn under its group's count. {item} is the item's reference, {settling} is the journal event that last settled it, {comment} is the identifier the run wrote and {author} is who wrote that comment; all four are machine vocabulary that is never translated.",
       "skeleton": true
     },
     "check.designations-journal.one": {
@@ -677,6 +687,11 @@
     "check.designations-stamped": {
       "text": "Stamped format {detail} on the workbench anchor.",
       "context": "The closing line of a converting run of the designation conversion. {detail} is the format number it wrote, machine vocabulary that is never translated.",
+      "skeleton": true
+    },
+    "check.designations-unanswered-entry": {
+      "text": "{item}, settled by {settling}, keeps {state}; it stored {stored}, which reaches a comment by {author} today.",
+      "context": "One item a designation conversion left unanswered, drawn under the count. {item} is the item's reference, {settling} is the journal event that last settled it, {state} is the state it keeps, {stored} is the reference it carried before the run and {author} is who wrote the comment that reference reaches today; all five are machine vocabulary that is never translated. The author is named so the operator can see what a guessing conversion would have written down.",
       "skeleton": true
     },
     "check.designations-unanswered-total.one": {
@@ -2297,51 +2312,6 @@
     "column.config.value": {
       "text": "Value",
       "context": "Heading over the value in force, in the settings `dinah config` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "skeleton": true
-    },
-    "column.designations-unanswered.item": {
-      "text": "Item",
-      "context": "Heading over the reference a person types to reach the item, in the unanswered block of the designation conversion's report, which `dinah check --migrate-designations` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "skeleton": true
-    },
-    "column.designations-unanswered.reaches": {
-      "text": "Would name",
-      "context": "Heading over who wrote the comment that stored reference reaches today, so the operator can see what a guessing conversion would have written down, in the unanswered block of the designation conversion's report, which `dinah check --migrate-designations` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "skeleton": true
-    },
-    "column.designations-unanswered.settling": {
-      "text": "Settling",
-      "context": "Heading over the journal event that last settled the item, in the unanswered block of the designation conversion's report, which `dinah check --migrate-designations` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "skeleton": true
-    },
-    "column.designations-unanswered.state": {
-      "text": "Keeps",
-      "context": "Heading over the state the item keeps, which the conversion never changes, in the unanswered block of the designation conversion's report, which `dinah check --migrate-designations` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "skeleton": true
-    },
-    "column.designations-unanswered.stored": {
-      "text": "Stored",
-      "context": "Heading over the positional reference the item carried before the run, in the unanswered block of the designation conversion's report, which `dinah check --migrate-designations` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "skeleton": true
-    },
-    "column.designations.author": {
-      "text": "Author",
-      "context": "Heading over who wrote that comment, in the converted block of the designation conversion's report, which `dinah check --migrate-designations` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "skeleton": true
-    },
-    "column.designations.identifier": {
-      "text": "Comment",
-      "context": "Heading over the identifier of the comment the run wrote as the item's answer, in the converted block of the designation conversion's report, which `dinah check --migrate-designations` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "skeleton": true
-    },
-    "column.designations.item": {
-      "text": "Item",
-      "context": "Heading over the reference a person types to reach the item, in the converted block of the designation conversion's report, which `dinah check --migrate-designations` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "skeleton": true
-    },
-    "column.designations.settling": {
-      "text": "Settling",
-      "context": "Heading over the journal event that last settled the item, in the converted block of the designation conversion's report, which `dinah check --migrate-designations` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "skeleton": true
     },
     "column.flags.option": {
@@ -5954,8 +5924,8 @@
       "skeleton": true
     },
     "refusal.dinah.store-awaiting-migration.next": {
-      "text": " Take a backup, then run `dinah check` against that workbench and read which migration it names: a workbench recording an answer as a note needs dinah-migrate-notes, and one recording it as a position needs `dinah check --migrate-designations`.",
-      "context": "The next step of refusal.dinah.store-awaiting-migration. dinah-migrate-notes is the migration program's own name and dinah check --migrate-designations is a command line; neither is translated. The backup is named first because both migrations write in place and neither can undo itself.",
+      "text": " Take a backup, then run `dinah check --migrate-designations` against that workbench; one still recording an answer as a note needs dinah-migrate-notes before that.",
+      "context": "The next step of refusal.dinah.store-awaiting-migration. dinah-migrate-notes is the migration program's own name and dinah check --migrate-designations is a command line; neither is translated, and the command line is the one invocation the sentence carries, so a reader following it types that and nothing else. The backup is named first because both migrations write in place and neither can undo itself.",
       "skeleton": true
     },
     "check.comment-body-diverged": {

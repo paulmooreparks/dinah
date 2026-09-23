@@ -1104,6 +1104,11 @@ so a `claimed` line with no `expires` records an unbounded claim.
 | `manual_correction` | `from`, `to`, `from_title`, `to_title` | |
 | `tier_overridden` | `column` (the resolved column's id), `to`, `expr` (what was typed) | `from`, absent where the card carried no override for that column; `against` (the column's own tier default), absent where the expression was absolute and needed no baseline; `column_title` and `reason`, both written by `raise` alone and both absent on an ordinary `set <ref> tier <value> --at` write |
 | `tier_override_dropped` | `column` (the retired column's id), `from` (the dropped absolute tier) | |
+| `item_waived` | `item` (the item's own id), `from` (the state it left), `to` | |
+| `item_withdrawn` | `item` (the item's own id), `from` (the state it left), `to` | `grant`, true only where a standing criterion-retirement authorization is what admitted the act, which is exactly when the actor was not the workbench operator, and a reader that does not know the marker reads an ordinary withdrawal, which is what the line already is |
+| `retirement_granted` | `to` (the identifier of the column the card stood in when the grant was given) | |
+| `retirement_revoked` | | |
+| `designations_migrated` | | `cards`, the references of the cards whose claim the run passed, written by a forced run alone and absent from every other; a forced run that passed none writes the line carrying no card, so the flag is never a silent no-op |
 
 `comment_updated`, `item_updated` and `attachment_updated` are written by a
 field write below a card, and each names the written entity rather than the
