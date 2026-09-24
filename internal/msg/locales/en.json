@@ -4017,6 +4017,10 @@
       "text": ", in {file}",
       "context": "Spliced onto refusal.malformed when the refusal carries a file: the definition file the reader named, whose contents will not parse."
     },
+    "refusal.malformed.legal-values": {
+      "text": "; the legal values are {legalValues}",
+      "context": "Spliced onto refusal.malformed when a declared field's `values` list refuses the value written. {legalValues} is the comma-joined list of the field's legal values in declaration order, which is machine vocabulary and is never translated."
+    },
     "refusal.malformed.next": {
       "text": "; write the command as `dinah {usage}` and try again",
       "context": "Spliced onto refusal.malformed as the next step when the refusal names no file. {usage} is the syntax line of the command the reader typed."
