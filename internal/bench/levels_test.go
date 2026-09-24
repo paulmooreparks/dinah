@@ -460,3 +460,61 @@ func TestTheInterchangeFormCarriesTheLevelsBlock(t *testing.T) {
 		t.Errorf("export carries a priority axis the workbench does not declare: %s", raw)
 	}
 }
+
+// TestAMappingFormAxisAndAConditionedEntrySurviveTheInterchange is the
+// sibling case dinah-590 adds: an axis in the mapping form and a field entry
+// carrying a condition travel through export, init --from and a second export
+// with their declaration unchanged, and the reopened workbench holds the same
+// condition the original did.
+func TestAMappingFormAxisAndAConditionedEntrySurviveTheInterchange(t *testing.T) {
+	opened := benchDeclaring(t, constructionLevels+constructionFields)
+	first, err := opened.Export()
+	if err != nil {
+		t.Fatalf("export: %v", err)
+	}
+	object := exportedObject(t, first)
+	axes := map[string]json.RawMessage{}
+	if err := json.Unmarshal(object[LevelsKey], &axes); err != nil {
+		t.Fatalf("the levels member is not an object: %v", err)
+	}
+	var severity struct {
+		Values      []string  `json:"values"`
+		AppliesWhen Condition `json:"applies_when"`
+	}
+	if err := json.Unmarshal(axes["severity"], &severity); err != nil {
+		t.Fatalf("the mapping-form axis does not travel as an object of values and applies_when: %v\n%s", err, axes["severity"])
+	}
+	if strings.Join(severity.Values, ",") != "cosmetic,functional,safety" || severity.AppliesWhen.Field != "task.type" || strings.Join(severity.AppliesWhen.Is, ",") != "snag" {
+		t.Errorf("the exported severity axis is %s", axes["severity"])
+	}
+	definition, err := ReadDefinition(first)
+	if err != nil {
+		t.Fatalf("read the definition back: %v", err)
+	}
+	root := containedPath(t.TempDir())
+	if err := Instantiate(root, "fx", "alka", definition); err != nil {
+		t.Fatalf("instantiate: %v", err)
+	}
+	reopened, err := Open(root)
+	if err != nil {
+		t.Fatalf("open the clone: %v", err)
+	}
+	second, err := reopened.Export()
+	if err != nil {
+		t.Fatalf("export the clone: %v", err)
+	}
+	// Instantiate stamps the clone with the profile this build speaks, so the
+	// fixture's own older claim is the one member allowed to differ.
+	if want := strings.Replace(string(first), "dinah-core/0.7", ProfileVersion, 1); string(second) != want {
+		t.Errorf("the second export differs from the first:\n%s\n%s", first, second)
+	}
+	for _, slot := range []string{"severity", "task.trade"} {
+		want, got := opened.ConditionOn(slot), reopened.ConditionOn(slot)
+		if want == nil || got == nil || want.Field != got.Field || strings.Join(want.Is, ",") != strings.Join(got.Is, ",") {
+			t.Errorf("the clone holds %+v on %s, wanted %+v", got, slot, want)
+		}
+	}
+	if findings, err := reopened.Check(); err != nil || len(findings) != 0 {
+		t.Errorf("the clone checks with %+v, %v", findings, err)
+	}
+}

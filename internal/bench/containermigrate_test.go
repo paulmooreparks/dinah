@@ -546,10 +546,12 @@ func TestAFreshWorkbenchCarriesTheUnionMergeAttributes(t *testing.T) {
 // the mechanism each number gates is one the profile now states rather than one
 // Dinah keeps to itself. The independence the old name asserted is still real
 // and is still worth reading: three of the seven format moves so far disturbed
-// no statement of the profile at all, dinah-472's among them.
+// no statement of the profile at all, dinah-472's among them, and dinah-590's
+// move to 8 is a fourth: a condition on a declaration and a level axis in
+// mapping form are both members the profile does not name.
 func TestTheStorageFormatMovedAndAnOlderWorkbenchStillOpens(t *testing.T) {
-	if StorageFormat != 7 {
-		t.Errorf("StorageFormat is %d, wanted 7", StorageFormat)
+	if StorageFormat != 8 {
+		t.Errorf("StorageFormat is %d, wanted 8", StorageFormat)
 	}
 	older := strings.Replace(olderBenchDefinition, "profile: dinah-core/0.7", "profile: dinah-core/0.9", 1)
 	root := plantBench(t, filepath.Join(t.TempDir(), "workbench"), older)

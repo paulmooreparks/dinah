@@ -309,6 +309,11 @@ type Request struct {
 	// session still running an older binary is refused the whole workbench
 	// part way through whatever card it holds.
 	MigrateDesignations bool
+	// MigrateAppliesWhen asks check to stamp the store at the format that
+	// declares applies_when conditions and the mapping-form level axis. It
+	// writes the one format line and nothing else, and without Confirm it
+	// writes nothing at all, which is why it carries no rehearsal of its own.
+	MigrateAppliesWhen bool
 	// Rehearse turns the conversion into a rehearsal: it decides every item
 	// by the same rules, answers the identical report, and writes no anchor,
 	// no journal line and no format stamp. A rehearsal is refused to nobody
@@ -544,6 +549,28 @@ type CardView struct {
 	// scanning a column for a value is the case this exists for and a second
 	// call per card would defeat it.
 	Fields map[string]string `json:"fields,omitempty"`
+	// Inapplicable lists the slots that do not apply to this card, severity,
+	// then priority, then declared field keys in declaration order, each
+	// with the gate that excluded it. It is absent where every slot applies.
+	//
+	// Severity, Priority and Fields above keep reporting whatever is stored,
+	// so a value kept on a slot that no longer applies appears both as a
+	// value and here, and an inapplicable slot with no value appears only
+	// here. Every response carrying a card view carries it.
+	Inapplicable []InapplicableView `json:"inapplicable,omitempty"`
+}
+
+// InapplicableView is one slot a card view reports as not applying to the
+// card, with the gate that excluded it.
+type InapplicableView struct {
+	// Field is the slot: a level axis name or a declared field key.
+	Field string `json:"field"`
+	// Gate is the declared field key the slot's condition names.
+	Gate string `json:"gate"`
+	// GateValue is what the card stores under the gate, absent where it
+	// stores nothing, which is the case the condition reads as excluding
+	// the card because nobody has said what kind of card it is yet.
+	GateValue string `json:"gate_value,omitempty"`
 }
 
 // The three names a withheld layer is reported under, general to specific,
@@ -762,6 +789,10 @@ func (l *Library) view(card *bench.Card) (*CardView, error) {
 		v.RetirementGrantTitle = bound.Title
 	}
 	v.Fields = l.declaredFieldValues(card.FM, bench.KindCard)
+	for _, slot := range l.Bench.InapplicableSlots(card) {
+		answer := l.Bench.Applicability(card, slot)
+		v.Inapplicable = append(v.Inapplicable, InapplicableView{Field: slot, Gate: answer.Gate, GateValue: answer.GateValue})
+	}
 	return v, nil
 }
 

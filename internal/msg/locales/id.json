@@ -46,6 +46,26 @@
       "context": "Printed under the card line when somebody holds the card.",
       "skeleton": true
     },
+    "card.inapplicable": {
+      "text": "  {field}: does not apply, because {gate} is {value}",
+      "context": "Printed by show under the card line for one level axis or declared key that does not apply to the card and that the card stores nothing for, naming the gating field and what the card stores under it. {field}, {gate} and {value} are read off the workbench and the card, so all three are machine vocabulary and none is translated.",
+      "skeleton": true
+    },
+    "card.inapplicable.stored": {
+      "text": "  {field}: {stored}, kept although it does not apply, because {gate} is {value}",
+      "context": "Printed on every surface that draws card lines, in place of the ordinary line for one level axis or declared key, when the card stores a value there that its applies_when condition no longer admits. {field} is the axis or key, {stored} is the kept value, {gate} is the gating field and {value} is what the card stores under it; all four are read off the workbench and the card and none is translated.",
+      "skeleton": true
+    },
+    "card.inapplicable.stored-unset": {
+      "text": "  {field}: {stored}, kept although it does not apply, because {gate} carries no value",
+      "context": "The sibling of card.inapplicable.stored printed when the card stores no value under the gating field at all. {field}, {stored} and {gate} are read off the workbench and the card and never translated.",
+      "skeleton": true
+    },
+    "card.inapplicable.unset": {
+      "text": "  {field}: does not apply, because {gate} carries no value",
+      "context": "The sibling of card.inapplicable printed when the card stores no value under the gating field at all. {field} and {gate} are read off the workbench and never translated.",
+      "skeleton": true
+    },
     "card.line": {
       "text": "{ref}  {title}  [{column} / {state}]",
       "context": "The one line printed about a card after an act.",
@@ -109,6 +129,21 @@
     "check.add.5": {
       "text": "each named level is one that field declares",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.applies-when-below-format": {
+      "text": "this workbench uses applies_when but declares format {detail}; run `dinah check --migrate-applies-when --yes` so that an older Dinah refuses it instead of misreading it",
+      "context": "A check finding: a workbench whose definition carries an applies_when member or a level axis in mapping form while declaring a storage format below the one that introduced them. {detail} carries the declared format number. An older Dinah reads such a levels block wrongly rather than incompletely, which is what the format number exists to prevent, and the command line inside the sentence is the repair and stays as it is.",
+      "skeleton": true
+    },
+    "check.applies-when-malformed": {
+      "text": "the applies_when condition on {detail} cannot be used, so the declaration it sits on applies to every card",
+      "context": "A check finding: an applies_when member the reader refused. {detail} carries the level axis or the declared key it sits on and then, in parentheses, the reason token: unreadable, tier, reaches-beyond-cards, gate-undeclared, gate-off-cards or gate-conditioned. The condition is ignored, so the axis or the key applies to every card, and the repair is an edit to the workbench anchor. The sentence says declaration rather than field because the slot may be a level axis.",
+      "skeleton": true
+    },
+    "check.applies-when-value-unmatchable": {
+      "text": "the applies_when condition on {detail} names a value its gating field can never hold",
+      "context": "A check finding: one value in a usable applies_when condition's is list that the gating field's declared type refuses, so no card can ever store it and none is ever admitted by it. {detail} carries the level axis or the declared key and then the value in parentheses. The rest of the condition stands, and the repair is an edit to the workbench anchor.",
       "skeleton": true
     },
     "check.archive.1": {
@@ -784,6 +819,21 @@
       "context": "A check finding: one entry of this workbench's fields block that the declaration reader refused, which is an entry whose key the grammar refuses, whose type is absent or outside the five, or whose meaning is absent or blank. {detail} carries the key as written. The entry declares nothing and the workbench still opens, so the repair is an edit to the block.",
       "skeleton": true
     },
+    "check.format-current": {
+      "text": "The store already declares format {format}, so there is nothing to stamp.",
+      "context": "The line the applies_when migration prints when the workbench already declares the format it stamps or a later one, whether or not the run carried the confirmation flag. {format} carries the declared number.",
+      "skeleton": true
+    },
+    "check.format-stamped": {
+      "text": "Stamped the store format {format}.",
+      "context": "The line the applies_when migration prints when it wrote the format number onto the workbench anchor. {format} carries the number.",
+      "skeleton": true
+    },
+    "check.format-would-stamp": {
+      "text": "The store declares format {from} and would be stamped {format}; nothing was written, because this run carried no confirmation.",
+      "context": "The line the applies_when migration prints when it ran without the confirmation flag on a workbench below the format it stamps. {from} carries the declared number and {format} the one it would write.",
+      "skeleton": true
+    },
     "check.get.1": {
       "text": "the reference resolves to one entity",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
@@ -812,6 +862,11 @@
     "check.ignored-anchor": {
       "text": "a workbench.md here carries none of profile, format, or columns, so it was not recognised as a Dinah workbench and the search passed over it",
       "context": "A check finding: a workbench.md the discovery walk found on its way to this workbench and did not claim, reported so the file is not silently ignored.",
+      "skeleton": true
+    },
+    "check.inapplicable-value": {
+      "text": "this card keeps a value its applies_when condition does not admit: {detail}",
+      "context": "A check finding: a card storing a value under a level axis or a declared key whose applies_when condition does not admit the card, which a later write to the gating field left behind. {detail} carries the axis or key and then the stored value, in that order. The finding's own path names the card anchor, and the repair is one write either way: clear the value, or write the gating field back to a value that admits it.",
       "skeleton": true
     },
     "check.init.1": {
@@ -1119,6 +1174,11 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
+    "check.notices": {
+      "text": "Worth knowing, and not counted as findings:",
+      "context": "The heading the human form of check prints above its notices, after the findings table or the clean line. A notice is printed and carried in the report and never changes the outcome or the exit status, so the heading has to say that the rows beneath it are not findings.",
+      "skeleton": true
+    },
     "check.ordinal-duplicate": {
       "text": "{detail} carries a creation ordinal that another member of its collection already carries, so one position names two of them",
       "context": "A check finding: two entities of one collection share an ordinal, which leaves a positional reference with two answers.",
@@ -1407,6 +1467,11 @@
     "check.rename.6": {
       "text": "the operator acts, on an attachment of a column or the workbench",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.required-field-conditioned": {
+      "text": "column {detail} requires a field that does not apply to every card, so a card its applies_when condition excludes can enter only by the operator's override",
+      "context": "A check notice, printed under the check.notices heading and never counted as a finding: a column whose require_fields names a declared key carrying a usable applies_when condition. {detail} carries the column's reference and then the key in parentheses. A card the condition excludes can never store a value for the key, so it enters the column only by the operator's override, which the operator ruled a legitimate configuration; nothing here needs repair.",
       "skeleton": true
     },
     "check.required-field-undeclared": {
@@ -3224,6 +3289,11 @@
       "context": "The written meaning of the --force-claims flag of check, which is the workbench operator's own way past a claim nobody can release.",
       "skeleton": true
     },
+    "param.check.migrate-applies-when.summary": {
+      "text": "stamps the workbench with the format that declares applies_when conditions and the mapping form of a level axis, so that an older Dinah refuses the store instead of misreading it; without --yes it writes nothing",
+      "context": "The written meaning of the --migrate-applies-when flag of check. It writes the one format line on the workbench anchor and reads no card, and without the confirmation flag it writes nothing at all.",
+      "skeleton": true
+    },
     "param.check.migrate-branches.summary": {
       "text": "lift the retired heading out of every card body into a declared field and stamp this store's format",
       "context": "The meaning of the migrate-branches argument of `dinah check`, printed in that command's arguments table.",
@@ -3764,6 +3834,11 @@
       "context": "Printed when a query selected no card at all. The query itself was legal, so this is an answer rather than a refusal.",
       "skeleton": true
     },
+    "queue.cell.inapplicable": {
+      "text": "n/a",
+      "context": "The mark the list table prints in a severity or priority cell when that axis does not apply to the card and the card stores nothing there. It stands in a narrow column, so the shortest spelling the language has for not applicable is wanted.",
+      "skeleton": true
+    },
     "queue.empty": {
       "text": "No cards here.",
       "context": "Printed when a listing has nothing in it.",
@@ -4042,6 +4117,21 @@
     "refusal.dinah.grant-excludes-finding.next": {
       "text": " Retiring a finding is the workbench operator's own act.",
       "context": "The next step of refusal.dinah.grant-excludes-finding, spliced onto the sentence that just named the criterion's state.",
+      "skeleton": true
+    },
+    "refusal.dinah.inapplicable-field": {
+      "text": "{detail} does not apply to this card, because {gate} is {value}. It applies where {gate} is one of: {admits}.",
+      "context": "The sentence printed after the refusal name dinah.inapplicable-field, which a non-empty write to a level axis or a declared field meets when the card's stored value for the gating field is not one the applies_when condition admits. {detail} is the axis or the key written to, {gate} is the gating field's key, {value} is what the card stores under it, and {admits} is the list of admitting values joined by commas; all four are read off the workbench rather than written here, so none is translated. refusal.dinah.inapplicable-field.next is spliced on after this one.",
+      "skeleton": true
+    },
+    "refusal.dinah.inapplicable-field.next": {
+      "text": " Write {gate} first if this card is one it should apply to.",
+      "context": "The next step of refusal.dinah.inapplicable-field and of its unset sibling, spliced on after the sentence. {gate} is the gating field's key, read off the workbench and never translated.",
+      "skeleton": true
+    },
+    "refusal.dinah.inapplicable-field.unset": {
+      "text": "{detail} does not apply to this card, because {gate} carries no value. It applies where {gate} is one of: {admits}.",
+      "context": "The sibling of refusal.dinah.inapplicable-field rendered when the card stores no value under the gating field at all, which the condition reads as excluding the card: nobody has yet said this card is one the question is asked of. {detail}, {gate} and {admits} are as on the base entry, and there is no {value}. refusal.dinah.inapplicable-field.next is spliced on after this one.",
       "skeleton": true
     },
     "refusal.dinah.interrupted": {
@@ -5811,6 +5901,11 @@
     "version.tool": {
       "text": "dinah {release}",
       "context": "The tool's own release number.",
+      "skeleton": true
+    },
+    "warn.inapplicable-value": {
+      "text": "the value stored under {detail} no longer applies to this card, and it is kept; clear it with dinah set if it should go",
+      "context": "A warning on a successful write to a gating field that leaves a value on the card under a level axis or a declared key whose applies_when condition no longer admits the card. {detail} is that axis or key, read off the workbench and never translated. The value is kept rather than cleared, and the command line inside the sentence is syntax and stays as it is.",
       "skeleton": true
     },
     "warn.stale-prefix": {

@@ -118,11 +118,15 @@ func (s *session) renderCard(card *verb.CardView) {
 		values = append(values, "workstreams", s.workstreamsCell(card.Workstreams))
 	}
 	s.line(s.r.T(key, values...))
+	// A value kept on a slot that no longer applies to the card is drawn in
+	// place of the slot's ordinary line, on every surface that draws card
+	// lines, because the ordinary line would present the value as though the
+	// question had been asked of this card.
 	if card.Severity != "" {
-		s.line(s.r.T("card.severity", "severity", card.Severity))
+		s.slotLine(card, bench.SeverityField, card.Severity, s.r.T("card.severity", "severity", card.Severity))
 	}
 	if card.Priority != "" {
-		s.line(s.r.T("card.priority", "priority", card.Priority))
+		s.slotLine(card, bench.PriorityField, card.Priority, s.r.T("card.priority", "priority", card.Priority))
 	}
 	// The route stands with the levels and before the declared fields, drawn
 	// only where the card carries one, because a card on the workbench's full
@@ -144,7 +148,7 @@ func (s *session) renderCard(card *verb.CardView) {
 	// an undeclared key look like a supported one.
 	for _, key := range s.declaredFieldOrder() {
 		if value, carried := card.Fields[key]; carried {
-			s.line(s.r.T("card.field", "field", key, "value", value))
+			s.slotLine(card, key, value, s.r.T("card.field", "field", key, "value", value))
 		}
 	}
 	if card.Holder != "" {
@@ -152,6 +156,64 @@ func (s *session) renderCard(card *verb.CardView) {
 	}
 	if card.BlockReason != "" {
 		s.line(s.r.T("card.blocked", "reason", card.BlockReason))
+	}
+}
+
+// slotLine draws one stored value's line: the ordinary line where the slot
+// applies to the card, and the kept-although-inapplicable sentence where the
+// view lists the slot as not applying, naming the gate and what it stores.
+func (s *session) slotLine(card *verb.CardView, slot, stored, ordinary string) {
+	excluded := inapplicableSlot(card, slot)
+	if excluded == nil {
+		s.line(ordinary)
+		return
+	}
+	if excluded.GateValue == "" {
+		s.line(s.r.T("card.inapplicable.stored-unset", "field", slot, "stored", stored, "gate", excluded.Gate))
+		return
+	}
+	s.line(s.r.T("card.inapplicable.stored", "field", slot, "stored", stored, "gate", excluded.Gate, "value", excluded.GateValue))
+}
+
+// inapplicableSlot reports the view's entry for one slot it lists as not
+// applying to the card, and nil where the slot applies.
+func inapplicableSlot(card *verb.CardView, slot string) *verb.InapplicableView {
+	for i := range card.Inapplicable {
+		if card.Inapplicable[i].Field == slot {
+			return &card.Inapplicable[i]
+		}
+	}
+	return nil
+}
+
+// storesSlot reports whether a view carries a value for one slot, which is a
+// level off the view's own two members and a declared key off its fields.
+func storesSlot(card *verb.CardView, slot string) bool {
+	switch slot {
+	case bench.SeverityField:
+		return card.Severity != ""
+	case bench.PriorityField:
+		return card.Priority != ""
+	}
+	_, carried := card.Fields[slot]
+	return carried
+}
+
+// renderInapplicable draws one line for each slot the view lists as not
+// applying to the card and that the card stores nothing for. It is drawn by
+// show alone: the card line after an act says what the card carries, and a
+// line per slot that does not apply would repeat on every act for every card
+// the condition excludes.
+func (s *session) renderInapplicable(card *verb.CardView) {
+	for _, excluded := range card.Inapplicable {
+		if storesSlot(card, excluded.Field) {
+			continue
+		}
+		if excluded.GateValue == "" {
+			s.line(s.r.T("card.inapplicable.unset", "field", excluded.Field, "gate", excluded.Gate))
+			continue
+		}
+		s.line(s.r.T("card.inapplicable", "field", excluded.Field, "gate", excluded.Gate, "value", excluded.GateValue))
 	}
 }
 
@@ -555,9 +617,22 @@ func (s *session) renderListing(listing *verb.Listing) {
 	}
 	t := table{indent: 2, columns: s.columns("queue", "card", "standing", "severity", "priority", "title")}
 	for _, card := range listing.Cards {
-		t.rows = append(t.rows, tableRow{fields: []string{card.Ref, s.token(card.State), card.Severity, card.Priority, card.Title}})
+		severity := s.levelCell(&card, bench.SeverityField, card.Severity)
+		priority := s.levelCell(&card, bench.PriorityField, card.Priority)
+		t.rows = append(t.rows, tableRow{fields: []string{card.Ref, s.token(card.State), severity, priority, card.Title}})
 	}
 	s.table(t)
+}
+
+// levelCell is what a listing's level column shows for one card: the stored
+// value as stored, which is how a level the workbench stopped declaring
+// already prints, and the not-applicable mark where the axis does not apply to
+// the card and it stores nothing there.
+func (s *session) levelCell(card *verb.CardView, axis, stored string) string {
+	if stored == "" && inapplicableSlot(card, axis) != nil {
+		return s.r.T("queue.cell.inapplicable")
+	}
+	return stored
 }
 
 // renderMatches prints the cards a query selected. A query spans the whole
@@ -844,6 +919,7 @@ func (s *session) renderDetail(detail *verb.Detail) {
 	}
 	if detail.Carries("card") {
 		s.renderCard(&detail.Card)
+		s.renderInapplicable(&detail.Card)
 		drawn = true
 	}
 	if detail.Body != "" {
@@ -1238,6 +1314,9 @@ func (s *session) renderCheck(report *verb.CheckReport) int {
 	if report.MigratedDesignations != nil {
 		s.renderDesignationMigration(report.MigratedDesignations)
 	}
+	if report.MigratedAppliesWhen != nil {
+		s.renderAppliesWhenMigration(report.MigratedAppliesWhen)
+	}
 	if report.MigratedNumbers {
 		s.line(s.r.TN("check.card-numbers-written", *report.RegistryLines))
 	}
@@ -1247,6 +1326,7 @@ func (s *session) renderCheck(report *verb.CheckReport) int {
 		s.line(s.r.TN("check.cards-renumbered", len(report.RenumberedCards)))
 	}
 	code := s.renderFindings(report.Findings)
+	s.renderNotices(report.Notices)
 	// A repair can need a person while the checker finds nothing, which is
 	// the branch migration meeting a conflict: it wrote nothing, it named the
 	// cards to repair, and the defect it met is in no finding. The report's
@@ -1256,6 +1336,38 @@ func (s *session) renderCheck(report *verb.CheckReport) int {
 		code = contract.ExitCodeForRead(report.Outcome)
 	}
 	return code
+}
+
+// renderNotices prints what check reports without counting it: a heading
+// and then one row per notice, drawn as a finding row is drawn. It prints
+// nothing where there are none, and it returns nothing because a notice never
+// reaches the exit code.
+func (s *session) renderNotices(notices []bench.Finding) {
+	if len(notices) == 0 {
+		return
+	}
+	s.line(s.r.T("check.notices"))
+	t := table{indent: 2, columns: listColumn()}
+	for _, notice := range notices {
+		reported := s.r.T(notice.Key, "detail", notice.Detail) + " (" + notice.Path + ")"
+		t.rows = append(t.rows, tableRow{fields: []string{reported}})
+	}
+	s.table(t)
+}
+
+// renderAppliesWhenMigration prints the one line the format stamp answers
+// with: that it wrote the number, that it would write it, or that the store
+// already declares it.
+func (s *session) renderAppliesWhenMigration(report *bench.AppliesWhenMigration) {
+	target := strconv.Itoa(bench.AppliesWhenFormat)
+	switch {
+	case report.Stamped:
+		s.line(s.r.T("check.format-stamped", "format", target))
+	case report.From >= bench.AppliesWhenFormat:
+		s.line(s.r.T("check.format-current", "format", strconv.Itoa(report.From)))
+	default:
+		s.line(s.r.T("check.format-would-stamp", "from", strconv.Itoa(report.From), "format", target))
+	}
 }
 
 // renderDesignationMigration prints the designation conversion's own account,
@@ -1612,7 +1724,7 @@ func (s *session) composeRefusal(r *contract.Refusal) []string {
 		key = shape.VariantKeyOf(values[contract.ValueCommand])
 	}
 	if shape.Subject != "" && values[shape.Subject] == "" {
-		key += ".unnamed"
+		key = shape.AbsentKeyOf(key)
 	}
 	lines := []string{r.Name + " " + s.r.T(key, pairs...)}
 
