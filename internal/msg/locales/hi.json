@@ -5198,6 +5198,11 @@
       "context": "Spliced onto refusal.malformed when the refusal carries a file: the definition file the reader named, whose contents will not parse.",
       "source": "746638cc448d3d7c"
     },
+    "refusal.malformed.legal-values": {
+      "text": "; मान्य मान हैं {legalValues}",
+      "context": "Spliced onto refusal.malformed when a declared field's `values` list refuses the value written. {legalValues} is the comma-joined list of the field's legal values in declaration order, which is machine vocabulary and is never translated.",
+      "source": "606788d57b52193"
+    },
     "refusal.malformed.next": {
       "text": "; कमांड को `dinah {usage}` की तरह लिखकर दोबारा आज़माएँ",
       "context": "Spliced onto refusal.malformed as the next step when the refusal names no file. {usage} is the syntax line of the command the reader typed.",

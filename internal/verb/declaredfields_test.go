@@ -738,3 +738,54 @@ func (h *harness) record(ref string) *Record {
 	}
 	return record
 }
+
+// enumeratedFieldDeclaration is fixtureDeclaration plus one string field
+// carrying a `values` list, which is what TestAValuesListRefusesAnOutsideValue
+// and TestClearingAnEnumeratedFieldIsUnaffectedByValues drive against.
+const enumeratedFieldDeclaration = fixtureDeclaration + `  card.kind:
+    type: string
+    meaning: what kind of work this card is
+    values: [bug, feature, chore]
+`
+
+// TestAValuesListRefusesAnOutsideValue drives CORE-FIELD-13 on the CLI write
+// path. A value named in the field's `values` list succeeds, and one outside
+// it is refused malformed with the legal list under legalValues in the
+// refusal's context, the same shape a type mismatch's refusal already keeps.
+func TestAValuesListRefusesAnOutsideValue(t *testing.T) {
+	h := declaringHarness(t)
+	h.declareFields(enumeratedFieldDeclaration)
+	ref := h.ready("A card")
+	if response := h.set(ref, "card.kind", "bug"); response.Outcome != contract.OutcomeOK {
+		t.Fatalf("a listed value answered %s %s", response.Outcome, response.Refusal)
+	}
+	refused := h.set(ref, "card.kind", "Bug")
+	if refused.Refusal != contract.Malformed || refused.Detail != "card.kind" {
+		t.Errorf("an unlisted value answered %s %s %q", refused.Outcome, refused.Refusal, refused.Detail)
+	}
+	if got := refused.Context["legalValues"]; got != "bug, feature, chore" {
+		t.Errorf("the refusal's legalValues context is %q, wanted %q", got, "bug, feature, chore")
+	}
+	if got, err := h.library.GetField(&Request{Verb: "get", Ref: ref, Field: "card.kind"}); err != nil || got != "bug" {
+		t.Errorf("the refused write replaced the stored value: %q %v", got, err)
+	}
+}
+
+// TestClearingAnEnumeratedFieldIsUnaffectedByValues drives the "every declared
+// field is clearable" rule against a field carrying a `values` list: setting
+// a listed value and then clearing it both succeed, exactly as they do on a
+// field declaring no `values` member.
+func TestClearingAnEnumeratedFieldIsUnaffectedByValues(t *testing.T) {
+	h := declaringHarness(t)
+	h.declareFields(enumeratedFieldDeclaration)
+	ref := h.ready("A card")
+	if response := h.set(ref, "card.kind", "chore"); response.Outcome != contract.OutcomeOK {
+		t.Fatalf("setting a listed value answered %s %s", response.Outcome, response.Refusal)
+	}
+	if response := h.set(ref, "card.kind", ""); response.Outcome != contract.OutcomeOK {
+		t.Fatalf("clearing the field answered %s %s", response.Outcome, response.Refusal)
+	}
+	if got, err := h.library.GetField(&Request{Verb: "get", Ref: ref, Field: "card.kind"}); err != nil || got != "" {
+		t.Errorf("the cleared field still reads %q, err %v", got, err)
+	}
+}

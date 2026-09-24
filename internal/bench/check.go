@@ -417,6 +417,14 @@ const (
 	// carried across the retirement, so the heading is still its convention
 	// and nothing is reported.
 	FindingBranchHeadingInBody = "check.branch-heading-in-body"
+	// FindingFieldValueUnknown names a card whose stored value under a declared
+	// field carrying a `values` list is not one of that list. It is the
+	// FindingUnknownLevel of an enumerated declared field: the value was legal
+	// when it was written, or was written by hand, or the workbench narrowed the
+	// list after the card already carried the value the wider list once admitted.
+	// Reported, never refused, on the read-path posture every level and field
+	// value already keeps.
+	FindingFieldValueUnknown = "check.field-value-unknown"
 	// FindingWitnessLocked names a card the witness repair could not reach,
 	// because a lock stood on it while the walk passed. The walk stepped over
 	// it and carried on, so the card stays diverged until the repair is run
@@ -995,6 +1003,19 @@ func (b *Bench) checkCard(card *Card) ([]Finding, error) {
 			continue
 		}
 		findings = append(findings, Finding{Path: anchor, Key: FindingUnknownLevel, Detail: axis + " " + stored})
+	}
+	// Each field carrying a `values` list is asked about its own stored
+	// value and never about whether the workbench declares the field at
+	// all, mirroring the LevelAxes loop just above.
+	for _, field := range b.DeclaredFieldsOn(KindCard) {
+		if len(field.Values) == 0 {
+			continue
+		}
+		stored := FieldValue(card.FM, field.Key)
+		if stored == "" || AdmitsListedValue(field.Values, stored) {
+			continue
+		}
+		findings = append(findings, Finding{Path: anchor, Key: FindingFieldValueUnknown, Detail: field.Key + " " + stored})
 	}
 	// A value kept on a slot the card's own gate no longer admits is reported
 	// beside the unknown level, and a value both orphaned and undeclared is

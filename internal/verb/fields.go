@@ -260,6 +260,11 @@ func (l *Library) setDeclaredField(req *Request, entity *bench.EntityRef) *Respo
 	if value != "" && !bench.AdmitsFieldValue(declared.Type, value) {
 		return l.refuse(req, entity.Card, contract.Malformed, req.Field)
 	}
+	if value != "" && !bench.AdmitsListedValue(declared.Values, value) {
+		return l.refuseWith(req, entity.Card, contract.Malformed, req.Field, map[string]string{
+			"legalValues": strings.Join(declared.Values, ", "),
+		})
+	}
 	// The applicability guard runs after the value checks and before the
 	// owner and operator checks, so a malformed value is still refused for
 	// being malformed, and it runs only on a card because no condition

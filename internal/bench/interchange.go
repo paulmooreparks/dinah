@@ -102,16 +102,18 @@ func (b *Bench) Export() ([]byte, error) {
 	if tiers, declared := b.ExportTiers(); declared {
 		object[TiersKey] = tiers
 	}
-	// Both blocks still travel through the schema-free block reader, which
-	// reads a bare bracketed scalar as a flow sequence and a bare numeric
-	// one as a number, so a hand-written `meaning: [Draft] the title` or
-	// `title: 12` inside a declaration exports as the array or the number
-	// rather than as the text readDeclaredFields accepted; quoting the value
-	// in the anchor round-trips it. standing_items took the schema-aware
-	// route on dinah-593, and the fields export takes it on dinah-594, which
-	// is already working in declaredfields.go and carries the note.
+	// The declaration block travels through its own structural pass,
+	// fieldsBlockValue, rather than the schema-free block reader, which reads
+	// a bare bracketed scalar as a flow sequence and a bare numeric one as a
+	// number, so a hand-written `meaning: [Draft] the title` or `title: 12`
+	// inside a declaration would export as the array or the number rather
+	// than as the text readDeclaredFields accepted. standing_items took this
+	// same schema-aware route on dinah-593; fields takes it on dinah-594.
+	// field_values is a flat key-to-scalar block with no nested list or
+	// condition for the schema-free reader to misread, so it keeps travelling
+	// through blockValue.
 	if b.FM.Has(FieldsKey) {
-		object[FieldsKey] = blockValue(b.FM, FieldsKey)
+		object[FieldsKey] = fieldsBlockValue(b.FM)
 	}
 	if b.FM.Has(FieldValuesKey) {
 		object[FieldValuesKey] = blockValue(b.FM, FieldValuesKey)

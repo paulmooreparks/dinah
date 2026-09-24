@@ -846,6 +846,10 @@ override.
 
 [CORE-FIELD-5] A declared field's value MUST be one scalar.
 
+[CORE-FIELD-12] A declared field of type `string` MAY name a `values` member: a non-empty list of the strings a value written under that key may take, compared exactly.
+
+[CORE-FIELD-13] A tool MUST refuse a write of a value not named in a declared field's `values` list the way it refuses a value failing the field's declared type, reporting the refusal name `malformed`.
+
 [CORE-FIELD-6] A tool MUST refuse a write of a value under a key the workbench does not declare for the kind of entity the request names, reporting the refusal name `undeclared-field`.
 
 [CORE-FIELD-7] A tool MUST preserve a value it finds stored under a key the workbench does not declare.
@@ -1531,7 +1535,7 @@ quietly.
 | Measurement and reporting over a workbench's history | out | History is already in the core, and a measurement is a reading of it. Fixing the measurements would freeze somebody's dashboard into the contract. | Two tools must produce identical numbers from identical history. | |
 | Free prose attached to a card by its readers [comments] | out | The core loses nothing, because no verb consults prose, and a workbench can hold conversation in any field it likes. | A recorded act needs to reference a piece of that prose. | |
 | Structured items on a card recording judgements | in | Two rulings need one name a caller can act on: a move into a column marked as requiring an item resolved is refused while that item is unresolved, and a claim is refused by an unresolved item naming no column the workbench declares. Both are the same concept, an item that is not yet resolved, so the core takes the item's existence, whether it is resolved, and the column it names, and fixes the one refusal name either case reports, without fixing what a workbench tracks about the item beyond that. The claim refusal was first stated over every unresolved item a card carried, which refused the claim at every column ahead of the one meant to settle the item; narrowing it to the items that name no column is what leaves every other item to the column it names. | | CORE-ITEM-1, CORE-ITEM-2, CORE-ITEM-3, CORE-ITEM-4, CORE-CLAIM-10 |
-| Fields a workbench declares for itself | in | Every workbench tracks facts this profile has no place for, and a fact with nowhere to live ends up in prose, where a second tool cannot find it and where no requirement can rest. The core takes the slot and the rules a value is written under, and leaves the names to the workbench, so nothing here enumerates anybody's domain. The scalar rule is what keeps the slot from becoming a second body: a fact wanting a list or a nested object is a document, and a workbench already has places for one. Where a value is carried is fixed too, because the top level of a workbench definition is the namespace section 9 gives a layer, and a key with a full stop in it would be indistinguishable there from a layer declaration. A column requiring one is the same concept read at the moment a card arrives, so it rides on this row rather than on one of its own. | | CORE-FIELD-1, CORE-FIELD-2, CORE-FIELD-3, CORE-FIELD-4, CORE-FIELD-5, CORE-FIELD-6, CORE-FIELD-7, CORE-FIELD-8, CORE-FIELD-9, CORE-FIELD-10, CORE-FIELD-11, CORE-JSON-11, CORE-JSON-12 |
+| Fields a workbench declares for itself | in | Every workbench tracks facts this profile has no place for, and a fact with nowhere to live ends up in prose, where a second tool cannot find it and where no requirement can rest. The core takes the slot and the rules a value is written under, and leaves the names to the workbench, so nothing here enumerates anybody's domain. The scalar rule is what keeps the slot from becoming a second body: a fact wanting a list or a nested object is a document, and a workbench already has places for one. Where a value is carried is fixed too, because the top level of a workbench definition is the namespace section 9 gives a layer, and a key with a full stop in it would be indistinguishable there from a layer declaration. A column requiring one is the same concept read at the moment a card arrives, so it rides on this row rather than on one of its own. | | CORE-FIELD-1, CORE-FIELD-2, CORE-FIELD-3, CORE-FIELD-4, CORE-FIELD-5, CORE-FIELD-6, CORE-FIELD-7, CORE-FIELD-8, CORE-FIELD-9, CORE-FIELD-10, CORE-FIELD-11, CORE-FIELD-12, CORE-FIELD-13, CORE-JSON-11, CORE-JSON-12 |
 | The link a card carries to another card | in | Owners record that one card repeats, follows from or bears on another whether or not the contract has a place for it, and a reference kept in prose is text to the second tool rather than a reference. The kind stays open on the same ground as a block's kind, since nothing in the core consults it, and the card a link names stays inside the workbench because the profile is scoped to one throughout. The behaviour such a reference might carry is a separate concept and is ruled out in the row below. | | CORE-LINK-1, CORE-LINK-2, CORE-LINK-3, CORE-LINK-4, CORE-LINK-5, CORE-LINK-6 |
 | Behaviour attached to a reference between cards [dependency ordering, ready-work listing] | out | The core would gain enforcement whose meaning each workbench sets differently, and what a workbench should do about a reference is exactly the judgement that differs between them. A tool that wants one card to hold another back declares a layer and refuses under that layer's own name, which CORE-LINK-5 leaves it free to do. | A relationship must refuse an act, such as one card holding another back. | |
 | Documents belonging to a workbench rather than a card | out | Standing prose already has a home in the workbench's instructions, so a second one would be a slot with no rule attached. One implementation now serves a column's own documents differently from the standing instructions: it lists their references and descriptions after the column's text, as a layer of its own under the permission section 7 gives a tool, reads their bytes on demand, and carries them with a definition in an interchange member a second tool preserves under CORE-JSON-7. The reopen condition this row used to carry has therefore fired, and the row records the firing rather than acting on it, because the promotion path outranks a reopen condition and nothing joins the core vocabulary that did not work somewhere first. The condition now standing beside this row is the one its neighbours already use. | An implementation's own form of this has run on real workbenches long enough to be worth copying, and a second implementation needs to read it rather than merely preserve it. | |
@@ -1740,6 +1744,8 @@ themselves carry meaning.
 | CORE-FIELD-3 | must | tool | A declaration naming a type outside `string`, `number`, `boolean`, `url` and `date` declares nothing. |
 | CORE-FIELD-4 | may | tool | A declaration naming entity kinds reaches those kinds, and one naming none reaches a workbench, a column and a card alike. |
 | CORE-FIELD-5 | must | tool | A value that is not one scalar is refused. |
+| CORE-FIELD-12 | may | tool | A declared field of type `string` naming a non-empty `values` list of the strings a value may take, compared exactly, is accepted. |
+| CORE-FIELD-13 | must | tool | A write of a value not named in a declared field's `values` list is refused with `malformed`, the same name a value failing the declared type is refused with. |
 | CORE-FIELD-6 | must | tool | A write under a key the workbench does not declare for the kind named is refused with `undeclared-field`. |
 | CORE-FIELD-7 | must | tool | A value stored under an undeclared key is still stored after a read and a write of its neighbours. |
 | CORE-FIELD-8 | must not | tool | No read of a value is refused on the ground that its key is undeclared. |
@@ -1828,7 +1834,7 @@ themselves carry meaning.
 | CORE-LAYER-2 | must | tool | A workbench carrying a declared layer the tool does not understand still carries that layer's content after a read and a write. |
 | CORE-LAYER-3 | must | tool | A definition declaring a layer under a name this profile defines is refused with `layer-collision`. |
 
-The index carries 167 rows, which is the number of identifiers an extraction
+The index carries 169 rows, which is the number of identifiers an extraction
 over this revision returns.
 
 ## 12. Changelog
@@ -2505,20 +2511,30 @@ member it may read and a member it must preserve. The document sits on the
 
 ### 0.18, channel `dev`, 2026-09-24
 
-Identifiers affected: CORE-JSON-14, introduced, which blesses the member a
-column object carries for its standing items. CORE-GATE-5, introduced, which
-is what a tool that acts on the member does when a card enters the column.
+Identifiers affected: CORE-FIELD-12 and CORE-FIELD-13, introduced, which let
+a declared field of type `string` name a closed list of the values a write may
+store, and which refuse a write outside that list the way a type mismatch is
+already refused. CORE-JSON-14, introduced, which blesses the member a column
+object carries for its standing items. CORE-GATE-5, introduced, which is what
+a tool that acts on the member does when a card enters the column.
 CORE-UNBLOCK-5, introduced, which permits an unblock to carry a reason in
 prose. No identifier of the prior revision is retired, reworded or weakened,
 and CORE-UNBLOCK-1 through CORE-UNBLOCK-4 keep their text exactly, with the
-new statement sitting beside them. Three statements arrive in one revision
-because the two cards that wrote them were in flight together and the
-operator ruled that the bump is made once and shared.
+new statement sitting beside them. Five statements arrive in one revision
+because the cards that wrote them were in flight together and the operator
+ruled that the bump is made once and shared.
 
 The difference is a minor increment under DOC-VER-8, which classifies a
 revision whose difference falls under none of the other rules, and DOC-VER-11
 is satisfied because every identifier of 0.17 appears in this extraction. No
 precondition list changes, so DOC-ORDER-2 is not engaged.
+
+A declaration naming no `values` member behaves exactly as it did under 0.17,
+and a value already stored under a field whose `values` list is later
+narrowed keeps reading back unchanged, on the same preservation posture
+CORE-FIELD-7 already states for an undeclared key. What a caller gains there
+is a declaration it may write and a refusal, carrying the legal list, that a
+value outside it now meets.
 
 A column that holds a card on a structured item holds only on an item the
 card already carries, and nothing in the prior revision files that item. A

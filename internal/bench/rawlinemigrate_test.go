@@ -253,6 +253,18 @@ func TestQuotedRawJSONNamesOnlyAQuotedObjectOrArray(t *testing.T) {
 		{[]string{`k: "[1, 2]"`}, `[1,2]`, true},
 		{[]string{`k: '{"a":[1]}'`}, `{"a":[1]}`, true},
 		{[]string{`k: "{\n  \"a\": 1\n}"`}, `{"a":1}`, true},
+		// A JSON string member carrying a newline (the JSON escape `\n`,
+		// two characters, not the frontmatter's own escaped-newline
+		// spelling) is itself wrapped in the frontmatter's quoting and
+		// escaping when it is written, which doubles the backslash ahead
+		// of the JSON escape's own `n`. Reading it back is the case that
+		// broke unquote's three sequential ReplaceAll calls, filed at
+		// dinah-594/comments/10: the first call matched the `\n` sitting
+		// inside the doubled `\\n` before the second call reached the
+		// doubled backslash, turning a literal backslash-n back into an
+		// actual newline instead of leaving it as the two characters the
+		// writer was handed.
+		{[]string{`k: "{\"a\":\"x\\ny\"}"`}, `{"a":"x\ny"}`, true},
 		{[]string{`k: "12"`}, "", false},
 		{[]string{`k: "true"`}, "", false},
 		{[]string{`k: "null"`}, "", false},

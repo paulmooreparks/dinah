@@ -267,6 +267,20 @@ func stripComment(s string) string {
 }
 
 // unquote removes one layer of matching quotes.
+//
+// The double-quoted branch undoes escape's three escapes in one left-to-right
+// pass rather than as three sequential ReplaceAll calls, because that order
+// misreads a backslash that was itself escaped and is followed by the letter
+// n: `\\n`, escape's rendering of a literal backslash followed by a literal
+// n, reads back under three ReplaceAll calls as a newline (the first call
+// matches the `\n` sitting inside `\\n` before the second call gets to turn
+// `\\` into `\`), which is not the text escape was given and is not what the
+// stored bytes spell. A single pass reads each backslash together with the
+// one character after it, so an escape produced by escape is undone
+// regardless of what precedes or follows it. An escape this reader does not
+// recognise is kept literally, on the tolerant-reader posture this file
+// keeps everywhere else: a line it cannot make sense of is carried rather
+// than dropped.
 func unquote(s string) string {
 	if len(s) < 2 {
 		return s
@@ -282,9 +296,28 @@ func unquote(s string) string {
 		return s
 	}
 	inner := s[1 : len(s)-1]
-	inner = strings.ReplaceAll(inner, `\n`, "\n")
-	inner = strings.ReplaceAll(inner, `\"`, `"`)
-	return strings.ReplaceAll(inner, `\\`, `\`)
+	var b strings.Builder
+	b.Grow(len(inner))
+	for i := 0; i < len(inner); i++ {
+		c := inner[i]
+		if c != '\\' || i+1 >= len(inner) {
+			b.WriteByte(c)
+			continue
+		}
+		i++
+		switch inner[i] {
+		case 'n':
+			b.WriteByte('\n')
+		case '"':
+			b.WriteByte('"')
+		case '\\':
+			b.WriteByte('\\')
+		default:
+			b.WriteByte('\\')
+			b.WriteByte(inner[i])
+		}
+	}
+	return b.String()
 }
 
 // quote wraps a value in double quotes when leaving it bare would change how

@@ -1332,14 +1332,14 @@ storage format 9
 Catalogs:
   Language  Translated
   --------  ----------
-  en        1413/1413
-  af        0/1413
-  cs        0/1413
-  de        1413/1413
-  es        0/1413
-  fil       0/1413
-  hi        1413/1413
-  id        0/1413
+  en        1414/1414
+  af        0/1414
+  cs        0/1414
+  de        1414/1414
+  es        0/1414
+  fil       0/1414
+  hi        1414/1414
+  id        0/1414
 [exit 0]
 ```
 
