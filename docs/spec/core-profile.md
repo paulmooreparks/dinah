@@ -694,6 +694,8 @@ with the meanings RFC 8259 gives them.
 
 [CORE-JSON-12] A column object MAY carry the members `field_values` and `require_fields`.
 
+[CORE-JSON-14] A column object MAY carry the member `standing_items`, a JSON object each of whose members names one structured item by a key of the workbench's choosing and carries the member `text`.
+
 [CORE-JSON-7] A tool MUST preserve the members it does not recognize in an interchange object it has read and written back.
 
 [CORE-JSON-8] A tool MAY hold a workbench definition in any form, provided it can produce the interchange form of that definition on request.
@@ -1166,6 +1168,8 @@ other owner is refused whatever they carry.
 
 [CORE-GATE-4] A tool MAY admit a move into a column so marked when the request carries an override marker and the owner asking is the operator of the workbench, provided it records that move as one act marked an override.
 
+[CORE-GATE-5] A tool that acts on `standing_items` MUST, when a card enters a column carrying it, file on that card one structured item naming that column for each member of `standing_items` the card carries no item filed from, recording on each item which member filed it.
+
 ### 6.5 Release
 
 Releasing gives a card back. An owner that has stopped working a card
@@ -1513,7 +1517,7 @@ quietly.
 | The interchange form of a workbench definition | in | A workbench definition nobody can carry between tools makes the whole exercise theoretical. One serialization is the smallest thing that solves it, and storage stays unconstrained. | | CORE-JSON-1, CORE-JSON-2, CORE-JSON-3, CORE-JSON-4, CORE-JSON-5, CORE-JSON-10, CORE-JSON-7, CORE-JSON-8 |
 | Text encoding and the untranslated token | in | Two tools that disagree about encoding or that translate a token cannot read each other at all. | | CORE-TEXT-1, CORE-TEXT-2, CORE-TEXT-3, CORE-TEXT-4 |
 | Parallel routes through the flow [lanes] | out | The core gains a simple model by having one route, and a tool that needs several can declare them in a layer. A real board already routes work three ways, so this is the likeliest first promotion. | A second tool needs routes and the layer form proves too weak to carry them. | |
-| Conditions that must be satisfied before a card may enter a column [gates] | in | The condition this row excluded is now a shape every workbench wanting citation discipline needs rather than one each invents differently: a card does not enter a column while a structured item that column names is not resolved. The core takes the column-level declaration and the refusal it produces; which item satisfies which column, and what the item itself records, stay for the workbench to define. | | CORE-GATE-1, CORE-GATE-3, CORE-GATE-4 |
+| Conditions that must be satisfied before a card may enter a column [gates] | in | The condition this row excluded is now a shape every workbench wanting citation discipline needs rather than one each invents differently: a card does not enter a column while a structured item that column names is not resolved. The core takes the column-level declaration and the refusal it produces; which item satisfies which column, and what the item itself records, stay for the workbench to define. A column that names the item it holds on can also declare it, so that the item exists on every card the hold is read for rather than only on the cards somebody remembered to file it on. | | CORE-GATE-1, CORE-GATE-3, CORE-GATE-4, CORE-JSON-14, CORE-GATE-5 |
 | A limit on how many times a card may travel one backward edge [loop limits] | out | The core does not model backward edges as a distinct thing, so there is nothing yet for such a limit to count. | Backward edges are modelled, at which point counting travel over one becomes describable. | |
 | Display grouping of columns [column groups] | out | The core loses nothing, because no verb consults a grouping and a tool that ignores it loses only visual comfort. | A grouping starts carrying meaning a verb has to consult. | |
 | A group of columns behaving as one stage of the flow | out | The core would gain a second notion of position competing with the column, and two positions is one too many. | A workbench needs to move a card between groups without naming a column. | |
@@ -1718,6 +1722,7 @@ themselves carry meaning.
 | CORE-JSON-10 | may | tool | A column object carrying `slug` or `gate_items` alongside `instructions`, `operator_owned`, or `capacity` is accepted. |
 | CORE-JSON-11 | may | tool | An interchange object carrying `fields` or `field_values` is accepted. |
 | CORE-JSON-12 | may | tool | A column object carrying `field_values` or `require_fields` is accepted. |
+| CORE-JSON-14 | may | tool | A column object carrying `standing_items` is accepted. |
 | CORE-JSON-7 | must | tool | An interchange object read and written back carries the unrecognized member it arrived with. |
 | CORE-JSON-8 | may | tool | A tool holding definitions in some other form still produces the interchange form on request. |
 | CORE-LINK-1 | may | tool | A card offered with a link is accepted. |
@@ -1783,6 +1788,7 @@ themselves carry meaning.
 | CORE-GATE-1 | may | tool | A definition marking a column as requiring a named structured item resolved is accepted. |
 | CORE-GATE-3 | must | tool | A move into a column so marked, where the card carries that item unresolved, is refused with `unresolved-item` unless CORE-GATE-4 admits it. |
 | CORE-GATE-4 | may | tool | A move into a column so marked, carrying the operator's override marker, is admitted and recorded as an override. |
+| CORE-GATE-5 | must | tool | A card entering a column carrying `standing_items` leaves the act carrying one item naming that column per member, filed no second time on re-entry. |
 | CORE-RELEASE-1 | must | tool | A release asked for by an owner that is not the holder is refused with `not-holder`. |
 | CORE-RELEASE-2 | must | tool | After a release, the card reads `ready` and carries no holder. |
 | CORE-BLOCK-1 | must | tool | Every blocked card the tool reports carries a reason. |
@@ -1822,7 +1828,7 @@ themselves carry meaning.
 | CORE-LAYER-2 | must | tool | A workbench carrying a declared layer the tool does not understand still carries that layer's content after a read and a write. |
 | CORE-LAYER-3 | must | tool | A definition declaring a layer under a name this profile defines is refused with `layer-collision`. |
 
-The index carries 165 rows, which is the number of identifiers an extraction
+The index carries 167 rows, which is the number of identifiers an extraction
 over this revision returns.
 
 ## 12. Changelog
@@ -2499,15 +2505,42 @@ member it may read and a member it must preserve. The document sits on the
 
 ### 0.18, channel `dev`, 2026-09-24
 
-Identifiers affected: CORE-UNBLOCK-5, introduced, which permits an unblock to
-carry a reason in prose. No identifier of the prior revision is retired,
-reworded or weakened, and CORE-UNBLOCK-1 through CORE-UNBLOCK-4 keep their
-text exactly: the new statement sits beside them.
+Identifiers affected: CORE-JSON-14, introduced, which blesses the member a
+column object carries for its standing items. CORE-GATE-5, introduced, which
+is what a tool that acts on the member does when a card enters the column.
+CORE-UNBLOCK-5, introduced, which permits an unblock to carry a reason in
+prose. No identifier of the prior revision is retired, reworded or weakened,
+and CORE-UNBLOCK-1 through CORE-UNBLOCK-4 keep their text exactly, with the
+new statement sitting beside them. Three statements arrive in one revision
+because the two cards that wrote them were in flight together and the
+operator ruled that the bump is made once and shared.
 
 The difference is a minor increment under DOC-VER-8, which classifies a
 revision whose difference falls under none of the other rules, and DOC-VER-11
 is satisfied because every identifier of 0.17 appears in this extraction. No
 precondition list changes, so DOC-ORDER-2 is not engaged.
+
+A column that holds a card on a structured item holds only on an item the
+card already carries, and nothing in the prior revision files that item. A
+process saying that every card entering a column must have some condition
+settled therefore depended on somebody filing the item on every card by hand,
+and a card whose item nobody filed passed the hold untouched, with the hold
+reporting nothing because as far as it could see there was nothing
+unsettled. The hold was sound; what was missing was any guarantee that the
+thing it held on existed.
+
+A declaration the tool acts on is the smallest thing that closes that in
+every tool rather than in one. The column object may now carry the items
+every arriving card is to receive, keyed by names the workbench chooses, and
+a tool that honours the member files one item per key on arrival and files
+none a second time for a key the card already carries an item from, so a
+card that leaves and returns keeps the record it has. The profile fixes the
+member's shape and the filing and stops there: what kind of item a member
+names, who settles it and what evidence settles it stay with the workbench,
+and a member's other members travel under CORE-JSON-7.
+
+A tool that does not act on the member preserves it under CORE-JSON-7, and
+CORE-GATE-5 binds only a tool that does.
 
 A block must say why the card stopped, and until this revision nothing said
 why it started again. A lift is often the operator answering the question the

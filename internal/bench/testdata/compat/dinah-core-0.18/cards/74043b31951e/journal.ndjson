@@ -1,4 +1,0 @@
-{"ts":"2026-09-24T06:33:13Z","event":"created","actor":{"name":"sam"},"title":"seventh card","to":"004acda2c28a","to_title":"Intake"}
-{"ts":"2026-09-24T06:33:15Z","event":"moved","actor":{"name":"sam"},"from":"004acda2c28a","to":"7b5cfe51cb3b","from_title":"Intake","to_title":"Doing","override":true}
-{"ts":"2026-09-24T06:33:15Z","event":"claimed","actor":{"name":"sam"},"expires":"2026-09-24T06:33:15Z"}
-{"ts":"2026-09-24T06:33:15Z","event":"expired","actor":{"name":"sam"},"expires":"2026-09-24T06:33:15Z"}

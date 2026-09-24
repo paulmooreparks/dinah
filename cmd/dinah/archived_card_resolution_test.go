@@ -243,9 +243,9 @@ var archivedResolutionFamilies = []resolutionFamily{
 	{
 		name: "E", axis: "reading",
 		what:      "rendering a card's human reference: every call whose selector is Ref and which carries exactly one argument",
-		files:     17,
-		mentions:  36,
-		functions: 28,
+		files:     18,
+		mentions:  40,
+		functions: 30,
 		sites: []resolutionSite{
 			{"internal/bench/designationmigrate.go", "ClaimedCards", 1, "naming a live card the designation conversion found claimed, which is what the in-use refusal reports; the walk reads the live cards collection alone, so no archived card reaches this call"},
 			{"internal/bench/designationmigrate.go", "plannedDesignations", 1, "naming the card one converted item hangs below, in the conversion's own report; the conversion walks both halves, so an archived card does reach this call, and it composes a reference for a report rather than resolving one"},
@@ -257,6 +257,8 @@ var archivedResolutionFamilies = []resolutionFamily{
 			{"internal/bench/branchmigrate.go", "MigrateBranches", 5, "naming a card in the branch migration's own report, once for each of the four classes it sorts a card into and once more for the account of what the write pass wrote; the run walks the live half alone, on the rule MigrateNumbers keeps for the archive, so no archived card reaches these calls"},
 			{"internal/bench/check.go", "checkTierOverrides", 1, "naming a card in a finding"},
 			{"internal/bench/check.go", "checkItemColumns", 1, "naming a card in a finding"},
+			{"internal/bench/check.go", "checkStandingItems", 2, "naming a card in a finding, once for a standing item the card is missing and once for an item demanding a scheme the workbench does not declare; check walks the live half alone, so no archived card reaches these calls"},
+			{"internal/verb/standing.go", "fileStanding", 2, "naming a card in the standing-item repair's own report, once for the preview and once for the confirmed run; the repair walks the live half alone, so no archived card reaches these calls"},
 			{"internal/bench/routecheck.go", "checkCardRoute", 3, "naming a card in a finding, once for a route the workbench does not declare, once for a card standing off its road, and once for a road that carries it around a column reserved to the operator; check walks the live half alone, so no archived card reaches these calls"},
 			{"internal/bench/routecheck.go", "checkItemRoutes", 1, "naming a card in a finding about one of its pending items; check walks the live half alone, so no archived card reaches this call"},
 			{"internal/bench/commentcheck.go", "checkComments", 1, "composing the reference a comment finding names, so a reader can type what the finding reports"},

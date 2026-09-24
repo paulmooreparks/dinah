@@ -1505,6 +1505,15 @@ var Shapes = []Shape{
 		NextStep:  []string{"refusal.dinah.uncited.next"},
 	},
 	{
+		// The detail is the scheme the item demands and the item's reference
+		// rides as a value, so the next step can hand the reader the cite
+		// command with both slots filled.
+		Name:      EvidenceSchemeRequired,
+		Values:    []string{"item"},
+		Fragments: []Fragment{{Key: "refusal.dinah.evidence-scheme-required.next"}},
+		NextStep:  []string{"refusal.dinah.evidence-scheme-required.next"},
+	},
+	{
 		// The detail is the comment's reference. The sentence says an edit
 		// happened and never who made it, because the tool has a digest and
 		// no witness, and the next step names the two routes out, which

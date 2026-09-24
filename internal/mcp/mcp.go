@@ -1072,12 +1072,16 @@ func assignMarker(req *verb.Request, name string, value bool) {
 		req.MigrateBranches = value
 	case "migrate-newlines":
 		req.MigrateNewlines = value
+	case "file-standing":
+		req.FileStanding = value
 	case "migrate-numbers":
 		req.MigrateNumbers = value
 	case "migrate-designations":
 		req.MigrateDesignations = value
 	case "migrate-applies-when":
 		req.MigrateAppliesWhen = value
+	case "migrate-raw-lines":
+		req.MigrateRawLines = value
 	case "rehearse":
 		req.Rehearse = value
 	case "force-claims":

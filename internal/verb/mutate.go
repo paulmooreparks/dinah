@@ -634,6 +634,13 @@ func (l *Library) move(req *Request, card *bench.Card) *Response {
 	if err != nil {
 		return l.FromError(req, err)
 	}
+	// The destination's standing items are minted after the moved line,
+	// under the lock this act already holds, and after every refusal above
+	// has passed, so a move an override carried in still mints and a
+	// refused move mints nothing.
+	if err := l.mintStandingItems(req, card, destination, ev.TS); err != nil {
+		return l.FromError(req, err)
+	}
 	response.Instructions, response.ChainServed, err = l.serve(req, card)
 	if err != nil {
 		return l.FromError(req, err)

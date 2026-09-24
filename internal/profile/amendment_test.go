@@ -27,7 +27,7 @@ const (
 	// bump cannot slip through as a one-character diff.
 	declaredVersion = "This document is version 0.18 of the profile whose identity string is\n`dinah-core`."
 	// publishedStatements is how many statements the document publishes.
-	publishedStatements = 165
+	publishedStatements = 167
 	// publishedChangelogEntries is how many entries section 12 carries. The
 	// changelog is append-only under DOC-CHG-1, so this number never falls.
 	publishedChangelogEntries = 18

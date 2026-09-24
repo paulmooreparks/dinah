@@ -1,0 +1,2 @@
+{"ts":"2026-09-24T08:09:44Z","event":"created","actor":{"name":"sam"},"title":"Portfolio work"}
+{"ts":"2026-09-24T08:09:44Z","event":"workstream_updated","actor":{"name":"sam"},"from":"active","to":"paused","field":"status"}

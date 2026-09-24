@@ -256,7 +256,7 @@ records:
 | column | `title`, `slug`, `kind`, `tier`, `capacity`, `hold`, `instructions` |
 | card | `title`, `body`, `severity`, `priority`, `tier`, `route` |
 | comment | `body` |
-| item | `text`, `state`, `resolution`, `owner`, `column` |
+| item | `text`, `state`, `resolution`, `owner`, `column`, `evidence` |
 | attachment | `filename`, `description` |
 | workstream | `title`, `slug`, `status`, `notes` |
 

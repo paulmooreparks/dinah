@@ -64,6 +64,12 @@ type ColumnView struct {
 	// which is the order the refusal names them in. It is absent on a column
 	// declaring none.
 	RequireFields []string `json:"require_fields,omitempty"`
+	// StandingItems are the checklist items every card arriving at this
+	// column receives an instance of, in the column's own declaration order,
+	// and absent on a column declaring none. A client needs them to say
+	// what a card will carry on arrival, and the alternative is a client
+	// reading the column's anchor for a block only this tool parses.
+	StandingItems []StandingItemView `json:"standing_items,omitempty"`
 	// Hold is the column's item hold in the words a person types, which is
 	// on, out or both, and absent on a column holding neither way. It is
 	// bench.Column.Hold unchanged. Open already parses gate_items into that
@@ -214,6 +220,7 @@ func (l *Library) columnViews(counts map[string]int) ([]ColumnView, error) {
 			AttachmentCount: attachments,
 			CommentCount:    comments,
 			RequireFields:   column.RequireFields,
+			StandingItems:   standingItemViews(column),
 			Hold:            column.Hold,
 			Fields:          l.declaredFieldValues(column.FM, bench.KindColumn),
 		}
@@ -223,6 +230,45 @@ func (l *Library) columnViews(counts map[string]int) ([]ColumnView, error) {
 		views = append(views, view)
 	}
 	return views, nil
+}
+
+// StandingItemView is one entry of a column's standing_items declaration as
+// a reader sees it: the key that identifies the entry, the kind and the text
+// the minted instance copies, and the owner and the evidence scheme where the
+// entry declares them.
+type StandingItemView struct {
+	// Key is the entry's own key, which the minted instance records as its
+	// standing key.
+	Key string `json:"key"`
+	// Kind is one of the three item kinds.
+	Kind string `json:"kind"`
+	// Text is the item's one line of prose.
+	Text string `json:"text"`
+	// Owner is who the instance names as its answerer, absent where the
+	// entry declares none.
+	Owner string `json:"owner,omitempty"`
+	// Evidence is the scheme the instance has to be settled against, absent
+	// where the entry declares none.
+	Evidence string `json:"evidence,omitempty"`
+}
+
+// standingItemViews renders a column's declaration for the column view, in
+// declaration order, and answers nil for a column declaring none.
+func standingItemViews(column *bench.Column) []StandingItemView {
+	if len(column.StandingItems) == 0 {
+		return nil
+	}
+	views := make([]StandingItemView, 0, len(column.StandingItems))
+	for _, entry := range column.StandingItems {
+		views = append(views, StandingItemView{
+			Key:      entry.Key,
+			Kind:     entry.Kind,
+			Text:     entry.Text,
+			Owner:    entry.Owner,
+			Evidence: entry.Evidence,
+		})
+	}
+	return views
 }
 
 // Listing is the cards of a column in queue order.
@@ -1143,6 +1189,13 @@ type ItemView struct {
 	// and by SetField, which refuses a rewrite of this key on one. Every
 	// other value is enforced against nobody.
 	Owner string `json:"owner,omitempty"`
+	// Standing is the key of the standing entry a column declaration minted
+	// this item from, absent on a hand-filed item. It is the item's identity
+	// for re-entry and this view is the one surface it is read on.
+	Standing string `json:"standing,omitempty"`
+	// Evidence is the scheme this item has to be settled against, absent
+	// where nothing demands one.
+	Evidence string `json:"evidence,omitempty"`
 	// Text is the item's own body: the judgement it records, unchanged from
 	// when it was filed.
 	Text string `json:"text"`
@@ -1742,13 +1795,15 @@ func (l *Library) detailOf(card *bench.Card, chosen detailSelection, filters det
 			return nil, "", err
 		}
 		view := ItemView{
-			ID:      item.ID,
-			Ordinal: position,
-			Kind:    item.Kind,
-			State:   item.State,
-			Column:  item.Column,
-			Owner:   item.Owner,
-			Text:    item.Text,
+			ID:       item.ID,
+			Ordinal:  position,
+			Kind:     item.Kind,
+			State:    item.State,
+			Column:   item.Column,
+			Owner:    item.Owner,
+			Standing: item.Standing,
+			Evidence: item.Evidence,
+			Text:     item.Text,
 		}
 		view.Ref = itemRef(cardRef, item.Kind, kindPosition[item.Kind], position)
 		view.ResolutionID = item.Resolution
@@ -2726,6 +2781,10 @@ type CheckReport struct {
 	// applies_when migration made or previewed, absent from a request that
 	// did not ask for it.
 	MigratedAppliesWhen *bench.AppliesWhenMigration `json:"migrated_applies_when,omitempty"`
+	// MigratedRawLines is the account of the raw-line rewrite and the format
+	// stamp the migration made or previewed, absent from a request that did
+	// not ask for it.
+	MigratedRawLines *bench.RawLineMigration `json:"migrated_raw_lines,omitempty"`
 	// RenumberedCards are the identifiers of the cards that left a repair
 	// holding a number they did not arrive holding, whether the number
 	// migration renumbered a loser of a collision or the renumber repair
@@ -2754,6 +2813,10 @@ type CheckReport struct {
 	// path would show an operator one word and none of the items whose answer
 	// the run could not recover.
 	MigratedDesignations *bench.DesignationMigration `json:"migrated_designations,omitempty"`
+	// FiledStanding is the standing-item repair's own account of the run,
+	// absent from a request that did not ask for it, and present with its
+	// own preview marker where it did.
+	FiledStanding *StandingRepair `json:"filed_standing,omitempty"`
 }
 
 // Check checks the bench for structural defects, and repairs nothing unless a
@@ -2914,6 +2977,27 @@ func (l *Library) Check(req *Request) (*CheckReport, error) {
 	if req != nil && req.MigrateAppliesWhen {
 		migrated, err := l.Bench.MigrateAppliesWhen(req.Confirm)
 		report.MigratedAppliesWhen = migrated
+		if err != nil {
+			return report, err
+		}
+	}
+	// The raw-line rewrite runs beside the applies_when stamp, on the same
+	// shape: without the confirmation it names what it would rewrite and
+	// writes nothing, and it reads no card.
+	if req != nil && req.MigrateRawLines {
+		migrated, err := l.Bench.MigrateRawLines(req.Confirm)
+		report.MigratedRawLines = migrated
+		if err != nil {
+			return report, err
+		}
+	}
+	// The standing-item repair runs after the designation conversion and
+	// before the renumber, which is the order the parameter table declares
+	// the flags in. It reports rather than refusing when it carries no
+	// confirmation, on the branch migration's two-phase shape.
+	if req != nil && req.FileStanding {
+		filed, err := l.fileStanding(req)
+		report.FiledStanding = filed
 		if err != nil {
 			return report, err
 		}

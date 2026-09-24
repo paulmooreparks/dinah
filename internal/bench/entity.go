@@ -1064,6 +1064,14 @@ type Item struct {
 	// card comment, which is what resolve, verify and fail refuse at the
 	// write. It replaced the free-text note key with dinah-525.
 	Resolution string
+	// Standing is the key of the standing entry that minted this item, and
+	// empty on every hand-filed item. The pair (Column, Standing) is the
+	// item's identity for re-entry, which MissingStandingItems reads.
+	Standing string
+	// Evidence is the scheme this item has to be settled against, empty
+	// where nothing demands one. closeItem in internal/verb refuses
+	// resolve, verify and fail while no citation names it.
+	Evidence string
 	// Text is the item's own body, the judgement it was filed under, with
 	// the newline every text file ends in trimmed off the end of it. A card
 	// body and a comment body are both carried verbatim, and an item's is
@@ -1095,6 +1103,8 @@ func LoadItem(dir string) (*Item, error) {
 		Column:     fm.Value("column"),
 		Owner:      fm.Value("owner"),
 		Resolution: fm.Value(ItemResolutionField),
+		Standing:   fm.Value(ItemStandingField),
+		Evidence:   fm.Value(ItemEvidenceField),
 		Text:       strings.TrimRight(body, "\n"),
 	}, nil
 }

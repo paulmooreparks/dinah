@@ -314,6 +314,12 @@ type Request struct {
 	// writes the one format line and nothing else, and without Confirm it
 	// writes nothing at all, which is why it carries no rehearsal of its own.
 	MigrateAppliesWhen bool
+	// MigrateRawLines asks check to rewrite every quoted raw line an earlier
+	// import wrote on the workbench and column anchors to the bare JSON
+	// spelling, and to stamp the store at the format that declares a quoted
+	// scalar text. Without Confirm it names the lines and writes nothing,
+	// which is why it carries no rehearsal of its own.
+	MigrateRawLines bool
 	// Rehearse turns the conversion into a rehearsal: it decides every item
 	// by the same rules, answers the identical report, and writes no anchor,
 	// no journal line and no format stamp. A rehearsal is refused to nobody
@@ -357,6 +363,12 @@ type Request struct {
 	// preview rewrites each destination with that destination's own bytes to
 	// establish that the write will be permitted.
 	MigrateNewlines bool
+	// FileStanding asks check to mint, on every live card standing in a
+	// column declaring standing_items, the instances the card carries none
+	// of, through the path an arrival uses. Without Confirm it reports what
+	// it would file and writes nothing, on MigrateBranches's two-phase
+	// shape, and it is refused not-operator to anybody but the operator.
+	FileStanding bool
 	// Renumber asks check to repair the registry's duplicated numbers before
 	// it reports, leaving the number with the line that claimed it first. It
 	// refuses without Confirm, on the terms MigrateNumbers does.

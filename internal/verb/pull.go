@@ -545,6 +545,11 @@ func (l *Library) pull(req *Request, card *bench.Card) *Response {
 	if err != nil {
 		return l.FromError(req, err)
 	}
+	// A pull is an arrival too, so the destination's standing items are
+	// minted on the terms move mints them, after the moved line.
+	if err := l.mintStandingItems(req, card, destination, stamp); err != nil {
+		return l.FromError(req, err)
+	}
 	response.Instructions, response.ChainServed, err = l.serve(req, card)
 	if err != nil {
 		return l.FromError(req, err)

@@ -194,6 +194,14 @@ type Event struct {
 	// so the item's own text and note are read from its anchor rather than
 	// copied into history.
 	Item string `json:"item,omitempty"`
+	// Standing is the key of the standing entry a declaration filed an item
+	// from, carried by an item_filed line an arrival at a declaring column
+	// wrote, beside Column and ColumnTitle naming the declaring column. The
+	// actor stays the arriving act's, because a column is not an actor and
+	// the format refuses a line with none; the three members say what
+	// decided the filing. A hand filing carries none of the three, and a
+	// reader that does not know them reads an ordinary filing.
+	Standing string `json:"standing,omitempty"`
 	// Scheme and Target are the citation an item_cited event recorded, as the
 	// caller typed them. Nothing here resolves either: a citation is taken at
 	// its word at write time, and dinah check is what tells a reader it was

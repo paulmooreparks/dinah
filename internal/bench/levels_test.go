@@ -373,8 +373,11 @@ func TestALevelsMemberTheRendererCannotReadTravelsAsOneRawLine(t *testing.T) {
 	if lines != 1 {
 		t.Errorf("the unreadable member drew %d levels lines, wanted the one raw line:\n%s", lines, anchor)
 	}
+	// The line is compared as the JSON it carries rather than byte for byte,
+	// because the fallback compacts the value onto its one line and the
+	// space between two tokens is not data.
 	fm, _ := ParseAnchor(anchor)
-	if got := fm.Value(LevelsKey); got != member {
+	if got := fm.Value(LevelsKey); !sameJSON(json.RawMessage(got), json.RawMessage(member)) {
 		t.Errorf("the raw line reads back as %q and the member was %q, so something was lost", got, member)
 	}
 	opened, err := Open(root)

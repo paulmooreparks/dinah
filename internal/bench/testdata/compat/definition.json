@@ -65,7 +65,14 @@
       "slug": "doing",
       "kind": "work",
       "capacity": 2,
-      "tier": "workhorse"
+      "tier": "workhorse",
+      "standing_items": {
+        "handoff-posted": {
+          "kind": "decision",
+          "text": "The handoff note names what the next station reads first.",
+          "evidence": "record"
+        }
+      }
     },
     {
       "id": "3f9c17ade5b2",

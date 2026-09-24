@@ -330,7 +330,7 @@ func TestNoEventIsBuiltWithAnActorComposedAnywhereElse(t *testing.T) {
 	// between them. It is exact: a literal added or removed fails here until
 	// somebody writes the new number down, which is what stops the population
 	// shrinking quietly.
-	const constructionSites = 49
+	const constructionSites = 52
 	// actorAssignments is how many assignments to an Actor field the two
 	// packages carry, which is none: every event names its actor in the literal
 	// that builds it.
@@ -524,6 +524,8 @@ var harnessCheckedElsewhere = map[string]string{
 	"archiveRetiredColumns": "the same",
 	"rewriteKeptColumns":    "the same",
 	"writeAddedAttachments": "the attached lines writeAddedColumns journals for an added column's attachments, reached only from that step of Reshape",
+	"fileStandingItems":     "the item_filed lines an arrival mints for a column's standing items, reached from add, move and pull, which each run the refusal at their head, from the carry step of Reshape, and from the file-standing repair Check reaches",
+	"withdrawInstancesOf":   "a step of Reshape, which runs the refusal at its head",
 }
 
 // TestEveryFunctionThatWritesAnEventRunsTheHarnessRefusal asserts that the

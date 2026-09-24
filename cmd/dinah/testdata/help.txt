@@ -112,9 +112,11 @@ WORKBENCH
     [--migrate-designations] [--rehearse]
     [--force-claims] [--migrate-branches]
     [--migrate-newlines]
-    [--migrate-applies-when] [--renumber]
-    [--remint <dir>] [--migrate-workstreams]
-    [--witness] [--yes] [--root <path>]
+    [--migrate-applies-when]
+    [--migrate-raw-lines] [--file-standing]
+    [--renumber] [--remint <dir>]
+    [--migrate-workstreams] [--witness]
+    [--yes] [--root <path>]
     [--max-depth <n>]
   whoami                                    The actor your actions carry, and
                                               whether it is the operator

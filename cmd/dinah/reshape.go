@@ -130,14 +130,20 @@ func (s *session) reshapeColumnLine(column verb.ReshapeColumn) string {
 func (s *session) reshapeRetirementLines(retirement verb.ReshapeRetirement) {
 	if retirement.Destination == "" {
 		s.line(s.r.T("reshape.empty", "id", retirement.ID))
-		return
+	} else {
+		s.line(s.r.T("reshape.carry",
+			"id", retirement.ID,
+			"destination", retirement.DestinationTitle,
+			"count", strconv.Itoa(retirement.Cards),
+		))
+		if len(retirement.Blocked) > 0 {
+			s.line(s.r.T("reshape.blocked", "cards", strings.Join(retirement.Blocked, ", ")))
+		}
 	}
-	s.line(s.r.T("reshape.carry",
-		"id", retirement.ID,
-		"destination", retirement.DestinationTitle,
-		"count", strconv.Itoa(retirement.Cards),
-	))
-	if len(retirement.Blocked) > 0 {
-		s.line(s.r.T("reshape.blocked", "cards", strings.Join(retirement.Blocked, ", ")))
+	// The withdrawal count stands under an empty retirement too, because a
+	// column no card stands in can still have minted instances on cards that
+	// have since moved on, and the reshape withdraws those all the same.
+	if retirement.StandingWithdrawn > 0 {
+		s.line(s.r.T("reshape.withdrawn", "count", strconv.Itoa(retirement.StandingWithdrawn)))
 	}
 }

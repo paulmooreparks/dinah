@@ -10,6 +10,7 @@ import (
 
 	"dinah/internal/bench"
 	"dinah/internal/contract"
+	"dinah/internal/msg"
 )
 
 // The dispositions a column takes in a reshape's report. Every column of the
@@ -61,6 +62,13 @@ type ReshapeRetirement struct {
 	// Blocked are the identifiers of the cards standing here that carry a
 	// block, which the run carries with the block intact.
 	Blocked []string `json:"carried_while_blocked,omitempty"`
+	// StandingWithdrawn is how many pending standing-item instances naming
+	// this column stand on live cards anywhere in the workbench, which a
+	// preview reports as what an apply would withdraw and an apply reports
+	// as what it did. A retired column imposes nothing, so its instances
+	// are withdrawn rather than left refusing claims through a column the
+	// workbench no longer declares.
+	StandingWithdrawn int `json:"standing_items_withdrawn,omitempty"`
 }
 
 // The write-phase steps a report names when a run stopped part way through
@@ -69,16 +77,17 @@ type ReshapeRetirement struct {
 // phase performs. The reorder is not among them: it is the last step, so a run
 // that reached the end of it applied.
 const (
-	ReshapeWroteAdded    = "added"
-	ReshapeWroteCarried  = "carried"
-	ReshapeWroteArchived = "archived"
-	ReshapeWroteUpdated  = "updated"
+	ReshapeWroteAdded     = "added"
+	ReshapeWroteCarried   = "carried"
+	ReshapeWroteWithdrawn = "withdrawn"
+	ReshapeWroteArchived  = "archived"
+	ReshapeWroteUpdated   = "updated"
 )
 
 // ReshapeWrite is one write-phase step that had already written when the run
 // stopped, and how much of the workbench it wrote.
 type ReshapeWrite struct {
-	// Step is one of added, carried, archived and updated.
+	// Step is one of added, carried, withdrawn, archived and updated.
 	Step string `json:"step"`
 	// Count is how many columns or cards that step wrote before the run
 	// stopped, which for a step that refused part way through is what it
@@ -230,6 +239,10 @@ type reshapeRetirement struct {
 	// destination is the element the cards go to, nil while unresolved.
 	destination *reshapeElement
 	cards       []*bench.Card
+	// withdrawing is how many pending standing-item instances naming this
+	// column validation counted on live cards anywhere, which the preview
+	// reports and the write phase withdraws.
+	withdrawing int
 }
 
 // reshapePlan is everything validation computed, which the write phase then
@@ -441,7 +454,29 @@ func (l *Library) planReshape(req *Request, definition *bench.Definition, digest
 		return nil, err
 	}
 	plan.stranded = strandedCards(plan, fresh, cards, retiring)
+	for _, entry := range plan.retirements {
+		count, err := countStandingInstances(cards, entry.id)
+		if err != nil {
+			return nil, err
+		}
+		entry.withdrawing = count
+	}
 	return plan, nil
+}
+
+// countStandingInstances counts the pending standing-item instances naming one
+// retiring column across every live card, which is what the write phase's
+// withdrawal step will withdraw and what the preview reports for it.
+func countStandingInstances(cards []*bench.Card, retiring string) (int, error) {
+	count := 0
+	for _, card := range cards {
+		instances, err := bench.PendingStandingInstances(card.Dir, retiring)
+		if err != nil {
+			return 0, err
+		}
+		count += len(instances)
+	}
+	return count, nil
 }
 
 // cardsIn is the live cards standing in one column, in the order the card
@@ -750,11 +785,12 @@ func composeReshapeReport(source string, plan *reshapePlan) *ReshapeReport {
 		}
 		report.Columns = append(report.Columns, row)
 		retirement := ReshapeRetirement{
-			ID:      entry.id,
-			Title:   row.Title,
-			Adopted: entry.column == nil,
-			Cards:   len(entry.cards),
-			Blocked: blockedCardIDs(entry.cards),
+			ID:                entry.id,
+			Title:             row.Title,
+			Adopted:           entry.column == nil,
+			Cards:             len(entry.cards),
+			Blocked:           blockedCardIDs(entry.cards),
+			StandingWithdrawn: entry.withdrawing,
 		}
 		if entry.destination != nil {
 			retirement.Destination = entry.destination.id
@@ -794,11 +830,16 @@ func blockedCardIDs(cards []*bench.Card) []string {
 // in. What guards that is the order stated at Library.Do and repeated at
 // carryOneCard, read by whoever next changes this loop.
 const (
-	reshapeStepCarry   = "carry"
-	reshapeStepCard    = "card"
-	reshapeStepArchive = "archive"
-	reshapeStepRewrite = "rewrite"
-	reshapeStepOrder   = "order"
+	reshapeStepCarry    = "carry"
+	reshapeStepCard     = "card"
+	reshapeStepWithdraw = "withdraw"
+	// reshapeStepWithdrawn is interposed once per withdrawn instance, after
+	// its anchor has been written and before its journal lines, which is
+	// the window a re-run has to pass over rather than write into twice.
+	reshapeStepWithdrawn = "withdrawn"
+	reshapeStepArchive   = "archive"
+	reshapeStepRewrite   = "rewrite"
+	reshapeStepOrder     = "order"
 )
 
 // interpose gives a test the window between two write-phase steps. It does
@@ -875,6 +916,15 @@ func (l *Library) applyReshape(req *Request, plan *reshapePlan, now string, repo
 		report.Retirements[index].Cards = carried[report.Retirements[index].ID]
 	}
 	report.note(ReshapeWroteCarried, totalCarried(carried))
+	if err != nil {
+		return err
+	}
+	l.interpose(reshapeStepWithdraw)
+	withdrawn, err := l.withdrawStandingItems(req, plan, now)
+	for index := range report.Retirements {
+		report.Retirements[index].StandingWithdrawn = withdrawn[report.Retirements[index].ID]
+	}
+	report.note(ReshapeWroteWithdrawn, totalCarried(withdrawn))
 	if err != nil {
 		return err
 	}
@@ -1187,7 +1237,152 @@ func (l *Library) carryOneCard(req *Request, entry *reshapeRetirement, destinati
 			return false, err
 		}
 	}
+	// A carry is an arrival at the destination, so its standing items are
+	// minted here on the terms move mints them, against the bench this step
+	// opened under the lock it writes beneath.
+	if _, err := fileStandingItems(req, fresh, card, destination, now); err != nil {
+		return false, err
+	}
 	return true, nil
+}
+
+// withdrawStandingItems is the write-phase step between the carry and the
+// archive: for every retirement of the plan, adopted entries included, and for
+// every live card in any column, it withdraws each pending item a standing
+// declaration minted for the retiring column. The obligation was the column's,
+// and a column the workbench has retired imposes nothing, on the precedent
+// dropTierOverrideFor sets for a per-column value whose column is going.
+// Without it a reshape retiring a column that declared one standing open
+// question would refuse the next claim on every card that ever passed through
+// it, since ItemBlocksClaim refuses over an unresolved question naming a
+// column the workbench no longer declares.
+//
+// All three kinds are withdrawn, because the argument is the same for each
+// and a reshape is applied by the operator alone, who is the one owner
+// Withdraw admits on a criterion or an operator-owned item without a grant. An
+// instance in any other state is a record of a judgement taken and is left as
+// it stands, and a hand-filed item naming the column carries no standing key
+// and is left to check.item-column-unresolved, which is its posture today.
+//
+// Each card is read fresh under its own lock, so a re-run after an interrupted
+// apply keys its skip on the anchor's state alone: an instance whose anchor
+// already reads withdrawn is passed over and receives no second comment and
+// no second anchor write. What such an instance may still be owed is its two
+// journal lines, where the first run stopped between its anchor and them, and
+// withdrawInstancesOf writes those alone, so the record of the withdrawal is
+// complete after the re-run rather than an anchor no line accounts for. It
+// answers how many instances it withdrew per retirement, counted as it goes,
+// so a run this step refuses part way through reports the ones that did go
+// rather than none.
+func (l *Library) withdrawStandingItems(req *Request, plan *reshapePlan, now string) (map[string]int, error) {
+	withdrawn := map[string]int{}
+	if len(plan.retirements) == 0 {
+		return withdrawn, nil
+	}
+	ids, err := bench.ListIDs(l.Bench.CardsRoot())
+	if err != nil {
+		return withdrawn, err
+	}
+	for _, id := range ids {
+		dir := filepath.Join(l.Bench.CardsRoot(), id)
+		for _, entry := range plan.retirements {
+			instances, err := bench.StandingInstancesOwedAWithdrawal(dir, entry.id)
+			if err != nil {
+				return withdrawn, err
+			}
+			if len(instances) == 0 {
+				continue
+			}
+			cardLock, err := bench.Acquire(dir, req.Actor, now)
+			if err != nil {
+				return withdrawn, err
+			}
+			count, err := l.withdrawInstancesOf(req, dir, entry, now)
+			cardLock.Release()
+			withdrawn[entry.id] += count
+			if err != nil {
+				return withdrawn, err
+			}
+		}
+	}
+	return withdrawn, nil
+}
+
+// withdrawInstancesOf withdraws, on one card whose lock the caller holds, every
+// pending standing instance naming one retiring column, and answers how many
+// it withdrew. The instances are read again under the lock, so what is written
+// is decided from the anchor as it stands rather than from the count
+// validation took.
+//
+// The order for one instance is the order withItem already writes a
+// withdrawal in: the comment first, then the anchor carrying the state and the
+// designation, then the commented line and the item_withdrawn line. A run
+// stopped between the comment and the anchor leaves a pending instance
+// carrying one undesignated comment, which the re-run withdraws with a second,
+// which is the shape an interrupted `dinah withdraw --text` leaves today. A
+// run stopped between the anchor and its lines leaves a withdrawn instance
+// with no lines: the re-run writes no second comment and no second anchor for
+// it, and writes the two lines it is owed, keyed on the anchor's own record of
+// which comment settled it, so the journal ends up carrying exactly one
+// withdrawal for the instance.
+func (l *Library) withdrawInstancesOf(req *Request, cardDir string, entry *reshapeRetirement, now string) (int, error) {
+	instances, err := bench.StandingInstancesOwedAWithdrawal(cardDir, entry.id)
+	if err != nil {
+		return 0, err
+	}
+	journal := filepath.Join(cardDir, bench.JournalName)
+	title := reshapeDepartureTitle(entry)
+	if title == "" {
+		title = entry.id
+	}
+	text := msg.For(msg.Base).T("reshape.standing-withdrawn", "column", title)
+	count := 0
+	for _, instance := range instances {
+		var designated string
+		if instance.State == bench.ItemWithdrawn {
+			designated = instance.Resolution
+		} else {
+			comment, err := bench.AddComment(instance.Dir, req.Actor, now, text)
+			if err != nil {
+				return count, err
+			}
+			fm, body, err := bench.ReadItemAnchor(instance.Dir)
+			if err != nil {
+				return count, err
+			}
+			fm.Set(bench.ItemStateField, bench.ItemWithdrawn)
+			fm.Set(bench.ItemResolutionField, comment.ID)
+			if err := bench.WriteItemAnchor(instance.Dir, fm, body); err != nil {
+				return count, err
+			}
+			designated = comment.ID
+		}
+		l.interpose(reshapeStepWithdrawn)
+		commented := bench.Event{
+			TS:      now,
+			Event:   contract.EventCommented,
+			Actor:   req.Acting(),
+			Item:    instance.ID,
+			Comment: designated,
+		}
+		if err := bench.AppendEvent(journal, commented); err != nil {
+			return count, err
+		}
+		withdrawnLine := bench.Event{
+			TS:      now,
+			Event:   contract.EventItemWithdrawn,
+			Actor:   req.Acting(),
+			Item:    instance.ID,
+			From:    bench.ItemPending,
+			To:      bench.ItemWithdrawn,
+			Reshape: true,
+		}
+		if err := bench.AppendEvent(journal, withdrawnLine); err != nil {
+			return count, err
+		}
+		count++
+	}
+	return count, nil
 }
 
 // dropTierOverrideFor removes the card's tier override for the column being
