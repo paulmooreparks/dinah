@@ -440,27 +440,11 @@ func (c *completionCall) keep(mode string, candidates []completion.Candidate, da
 	return mode, kept, nil
 }
 
-// hasFoldPrefix reports whether s starts with prefix, folding ASCII letters
-// and nothing else.
+// hasFoldPrefix reports whether s starts with prefix under verb.ASCIIFold,
+// which folds ASCII letters and nothing else. The fold keeps every byte's
+// length, so the prefix it matches is as long in s as it is in prefix.
 func hasFoldPrefix(s, prefix string) bool {
-	if len(prefix) > len(s) {
-		return false
-	}
-	for i := 0; i < len(prefix); i++ {
-		if asciiLower(s[i]) != asciiLower(prefix[i]) {
-			return false
-		}
-	}
-	return true
-}
-
-// asciiLower folds one ASCII capital to its lower case and leaves every other
-// byte as it is.
-func asciiLower(b byte) byte {
-	if b >= 'A' && b <= 'Z' {
-		return b + ('a' - 'A')
-	}
-	return b
+	return strings.HasPrefix(verb.ASCIIFold(s), verb.ASCIIFold(prefix))
 }
 
 // flagList offers the command's own flags and then the global flags, each
