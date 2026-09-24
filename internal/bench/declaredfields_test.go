@@ -1,6 +1,7 @@
 package bench
 
 import (
+	"bytes"
 	"encoding/json"
 	"path/filepath"
 	"reflect"
@@ -894,5 +895,119 @@ func TestNoFieldValueFindingOnAnEmptyOrUndeclaredValue(t *testing.T) {
 	findings := declaredFindings(t, opened, FindingFieldValueUnknown)
 	if len(findings) != 0 {
 		t.Errorf("check reports %v, wanted no field-value-unknown findings", findings)
+	}
+}
+
+// TestAHandWrittenBracketedMeaningOrValueSurvivesExport drives the export
+// fix filed on dinah-594's own second Implement round: a hand-written
+// bracketed string in a declared field's meaning or in one entry of its
+// values list used to misread on export, because the fields block travelled
+// through the schema-free block reader, which takes a bare `[x]` as a flow
+// sequence. The fix routes the export through the declared-field reader's own
+// structural pass, mirroring the fix standing_items took on dinah-593 for the
+// identical defect class.
+func TestAHandWrittenBracketedMeaningOrValueSurvivesExport(t *testing.T) {
+	root := containedPath(t.TempDir())
+	block := `fields:
+  card.kind:
+    type: string
+    meaning: [urgent]
+    values:
+      - bug
+      - "[urgent]"
+      - chore
+`
+	write(t, filepath.Join(root, WorkbenchAnchor), strings.Replace(
+		strings.Replace(benchDefinition, "format: 7", "format: "+strconv.Itoa(RegistryFormat), 1),
+		"columns:\n", block+"columns:\n", 1))
+	write(t, filepath.Join(root, CardNumbersName), "1 c00000000001\n")
+	write(t, filepath.Join(root, ColumnsDir, "b00000000001", ColumnAnchor), columnDefinition)
+	write(t, filepath.Join(root, CardsDir, "c00000000001", CardAnchor), cleanCard)
+	write(t, filepath.Join(root, CardsDir, "c00000000001", JournalName), cleanJournal)
+	source, err := openFixtureAtAnyFormat(t, root)
+	if err != nil {
+		t.Fatalf("open the source: %v", err)
+	}
+	kind := source.DeclaredFieldOf("card.kind")
+	if kind == nil {
+		t.Fatalf("card.kind did not parse as a declared field")
+	}
+	if kind.Meaning != "[urgent]" {
+		t.Errorf("the source's own meaning is %q, wanted the bracketed text intact", kind.Meaning)
+	}
+	wantValues := []string{"bug", "[urgent]", "chore"}
+	if !reflect.DeepEqual(kind.Values, wantValues) {
+		t.Errorf("the source's own values are %v, wanted %v", kind.Values, wantValues)
+	}
+
+	exported, err := source.Export()
+	if err != nil {
+		t.Fatalf("export: %v", err)
+	}
+	object := map[string]json.RawMessage{}
+	if err := json.Unmarshal(exported, &object); err != nil {
+		t.Fatalf("read the export: %v", err)
+	}
+	var fields map[string]map[string]json.RawMessage
+	if err := json.Unmarshal(object[FieldsKey], &fields); err != nil {
+		t.Fatalf("read the fields member: %v", err)
+	}
+	entry, ok := fields["card.kind"]
+	if !ok {
+		t.Fatalf("the export carries no card.kind entry: %s", object[FieldsKey])
+	}
+	var meaning string
+	if err := json.Unmarshal(entry[fieldMeaningMember], &meaning); err != nil {
+		t.Fatalf("the exported meaning is not a JSON string: %s", entry[fieldMeaningMember])
+	}
+	if meaning != "[urgent]" {
+		t.Errorf("the exported meaning is %q, wanted the bracketed text intact and not a flow sequence", meaning)
+	}
+	var values []string
+	if err := json.Unmarshal(entry[fieldValuesMember], &values); err != nil {
+		t.Fatalf("the exported values are not a JSON array of strings: %s", entry[fieldValuesMember])
+	}
+	if !reflect.DeepEqual(values, wantValues) {
+		t.Errorf("the exported values are %v, wanted %v, with the bracketed entry intact", values, wantValues)
+	}
+
+	definition, err := ReadDefinition(exported)
+	if err != nil {
+		t.Fatalf("read the definition: %v", err)
+	}
+	clone := containedPath(t.TempDir())
+	if err := Instantiate(clone, "fx", "alka", definition); err != nil {
+		t.Fatalf("instantiate the clone: %v", err)
+	}
+	cloned, err := Open(clone)
+	if err != nil {
+		t.Fatalf("open the clone: %v", err)
+	}
+	clonedKind := cloned.DeclaredFieldOf("card.kind")
+	if clonedKind == nil {
+		t.Fatalf("the clone declares no card.kind field")
+	}
+	if clonedKind.Meaning != kind.Meaning {
+		t.Errorf("the clone's meaning is %q, wanted %q", clonedKind.Meaning, kind.Meaning)
+	}
+	if !reflect.DeepEqual(clonedKind.Values, kind.Values) {
+		t.Errorf("the clone's values are %v, wanted %v", clonedKind.Values, kind.Values)
+	}
+
+	secondExport, err := cloned.Export()
+	if err != nil {
+		t.Fatalf("export the clone: %v", err)
+	}
+	if !bytes.Equal(exported, secondExport) {
+		// The two anchors carry a different workbench slug and title
+		// (Instantiate mints those), so the byte comparison is scoped to the
+		// fields member alone, which is what this test is about.
+		var secondObject map[string]json.RawMessage
+		if err := json.Unmarshal(secondExport, &secondObject); err != nil {
+			t.Fatalf("read the clone's export: %v", err)
+		}
+		if !bytes.Equal(object[FieldsKey], secondObject[FieldsKey]) {
+			t.Errorf("the clone's fields member differs from the source's:\n%s\n---\n%s", object[FieldsKey], secondObject[FieldsKey])
+		}
 	}
 }

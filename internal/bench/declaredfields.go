@@ -1,6 +1,7 @@
 package bench
 
 import (
+	"encoding/json"
 	"net/url"
 	"regexp"
 	"strconv"
@@ -309,29 +310,37 @@ type fieldsBlock struct {
 	metAny     bool
 }
 
-// readDeclaredFields reads the workbench's fields block, answering the fields
-// it declares in declaration order and the keys of the entries it refused.
-//
-// The reader posture is readLevels's: a line it cannot read is skipped rather
-// than raised over, so a hand-damaged block leaves the workbench openable and
-// `dinah check` is what puts the damage in front of a reader. Three entry
-// defects are refused and reported, and each leaves the entry undeclared: a
-// key the grammar refuses, a type absent or outside the five, and a meaning
-// absent or blank. A duplicate key keeps its first occurrence, which is the
-// rule addLevel already keeps for a repeated level name. A condition that
-// cannot be used leaves the entry declared and is reported on its own, so a
-// damaged condition never undeclares a field.
+// fieldsRawEntry is one entry of a fields block exactly as the file spells
+// it, before validation decides whether it is declared: the key, and each
+// member's value read to the end of its line or its dashed list, with the
+// met flags that tell an absent member from one that named nothing. It is
+// the structural pass readDeclaredFields and fieldsBlockValue share, so a
+// hand-written meaning or values entry opening with a bracket travels as the
+// text or the list entry it spells rather than as the flow sequence the
+// schema-free block reader would take it for.
+type fieldsRawEntry struct {
+	key       string
+	typ       string
+	meaning   string
+	on        []string
+	metOn     bool
+	values    []string
+	metValues bool
+	condition *rawCondition
+}
+
+// readFieldsRawBlock walks the workbench's fields block once, answering every
+// entry it met in declaration order, unfiltered by validity, and the lines it
+// could not place anywhere: a dashed line met outside an `on` or `values`
+// list, or at the depth an entry key stands at.
 //
 // The block's own levels are told apart by indentation rather than by a second
 // pattern, because an entry key and a member name are the same shape of line
 // and only their depth separates them. A condition's own members stand one
 // level deeper than the entry's, beneath applies_when.
-func readDeclaredFields(fm *Frontmatter) fieldsBlock {
-	var entries []DeclaredField
-	var metOn []bool
-	var metValues []bool
-	var conditions []*rawCondition
-	block := fieldsBlock{conditions: map[string]*rawCondition{}}
+func readFieldsRawBlock(fm *Frontmatter) ([]fieldsRawEntry, []string) {
+	var entries []fieldsRawEntry
+	var malformed []string
 	seen := map[string]bool{}
 	entryIndent := -1
 	memberIndent := -1
@@ -346,15 +355,15 @@ func readDeclaredFields(fm *Frontmatter) fieldsBlock {
 			case current >= 0 && (member == fieldOnMember || member == fieldValuesMember) && len(m[1]) > entryIndent:
 				if named := unquote(stripComment(m[2])); named != "" {
 					if member == fieldOnMember {
-						entries[current].On = append(entries[current].On, named)
+						entries[current].on = append(entries[current].on, named)
 					} else {
-						entries[current].Values = append(entries[current].Values, named)
+						entries[current].values = append(entries[current].values, named)
 					}
 				}
-			case current >= 0 && member == appliesWhenMember && len(m[1]) > entryIndent && conditions[current] != nil:
+			case current >= 0 && member == appliesWhenMember && len(m[1]) > entryIndent && entries[current].condition != nil:
 				// The dashed spelling of an is member is not read, so the
 				// condition is unreadable rather than the entry malformed.
-				conditions[current].unreadable = true
+				entries[current].condition.unreadable = true
 			default:
 				// A dashed line is an entry of an `on` or `values` list and
 				// nothing else. Met anywhere else, or met at the depth an
@@ -363,7 +372,7 @@ func readDeclaredFields(fm *Frontmatter) fieldsBlock {
 				// leading hyphen reads as a dashed entry, and without this it
 				// would be swallowed into whichever list was open and named
 				// nowhere.
-				block.malformed = append(block.malformed, strings.TrimSpace(line))
+				malformed = append(malformed, strings.TrimSpace(line))
 			}
 			continue
 		}
@@ -381,10 +390,7 @@ func readDeclaredFields(fm *Frontmatter) fieldsBlock {
 				continue
 			}
 			seen[name] = true
-			entries = append(entries, DeclaredField{Key: name})
-			metOn = append(metOn, false)
-			metValues = append(metValues, false)
-			conditions = append(conditions, nil)
+			entries = append(entries, fieldsRawEntry{key: name})
 			current = len(entries) - 1
 			continue
 		}
@@ -396,50 +402,122 @@ func readDeclaredFields(fm *Frontmatter) fieldsBlock {
 		}
 		value := unquote(strings.TrimSpace(rest))
 		if indent > memberIndent {
-			if member == appliesWhenMember && conditions[current] != nil {
-				conditions[current].read(name, value)
+			if member == appliesWhenMember && entries[current].condition != nil {
+				entries[current].condition.read(name, value)
 			}
 			continue
 		}
 		member = name
 		switch member {
 		case fieldTypeMember:
-			entries[current].Type = value
+			entries[current].typ = value
 		case fieldMeaningMember:
-			entries[current].Meaning = value
+			entries[current].meaning = value
 		case fieldOnMember:
-			metOn[current] = true
-			entries[current].On = append(entries[current].On, flowMembers(value)...)
+			entries[current].metOn = true
+			entries[current].on = append(entries[current].on, flowMembers(value)...)
 		case fieldValuesMember:
-			metValues[current] = true
-			entries[current].Values = append(entries[current].Values, flowMembers(value)...)
+			entries[current].metValues = true
+			entries[current].values = append(entries[current].values, flowMembers(value)...)
 		case appliesWhenMember:
 			// Anything after the colon is a value that is not one block
 			// mapping, which is the unreadable shape.
-			conditions[current] = &rawCondition{unreadable: value != ""}
+			entries[current].condition = &rawCondition{unreadable: value != ""}
+		}
+	}
+	return entries, malformed
+}
+
+// readDeclaredFields reads the workbench's fields block, answering the fields
+// it declares in declaration order and the keys of the entries it refused.
+//
+// The reader posture is readLevels's: a line it cannot read is skipped rather
+// than raised over, so a hand-damaged block leaves the workbench openable and
+// `dinah check` is what puts the damage in front of a reader. Three entry
+// defects are refused and reported, and each leaves the entry undeclared: a
+// key the grammar refuses, a type absent or outside the five, and a meaning
+// absent or blank. A duplicate key keeps its first occurrence, which is the
+// rule addLevel already keeps for a repeated level name. A condition that
+// cannot be used leaves the entry declared and is reported on its own, so a
+// damaged condition never undeclares a field.
+func readDeclaredFields(fm *Frontmatter) fieldsBlock {
+	raw, malformed := readFieldsRawBlock(fm)
+	block := fieldsBlock{conditions: map[string]*rawCondition{}, malformed: malformed}
+	entries := make([]DeclaredField, 0, len(raw))
+	for _, entry := range raw {
+		if entry.condition != nil {
 			block.metAny = true
 		}
+		entries = append(entries, DeclaredField{
+			Key:       entry.key,
+			Type:      entry.typ,
+			Meaning:   entry.meaning,
+			On:        append([]string(nil), entry.on...),
+			EveryKind: !entry.metOn,
+			Values:    append([]string(nil), entry.values...),
+		})
 	}
 	block.declared = make([]DeclaredField, 0, len(entries))
 	for at, entry := range entries {
-		entry.EveryKind = !metOn[at]
-		if metValues[at] {
+		if raw[at].metValues {
 			entry.Values = dedupeKeepFirst(entry.Values)
 		}
 		if !DeclaredFieldKey(entry.Key) || !KnownFieldType(entry.Type) || strings.TrimSpace(entry.Meaning) == "" {
 			block.malformed = append(block.malformed, entry.Key)
 			continue
 		}
-		if metValues[at] && (entry.Type != FieldTypeString || len(entry.Values) == 0) {
+		if raw[at].metValues && (entry.Type != FieldTypeString || len(entry.Values) == 0) {
 			block.malformed = append(block.malformed, entry.Key)
 			continue
 		}
 		block.declared = append(block.declared, entry)
-		if conditions[at] != nil {
-			block.conditions[entry.Key] = conditions[at]
+		if raw[at].condition != nil {
+			block.conditions[entry.Key] = raw[at].condition
 		}
 	}
 	return block
+}
+
+// fieldsBlockValue is the workbench's fields declaration as the interchange
+// form carries it: an object whose members are the entries in declaration
+// order, each an object of the members it carried, type and meaning as JSON
+// strings and on and values as JSON arrays of strings, in the order written.
+// It is written from the same raw pass readDeclaredFields takes, so a text
+// the reader accepted is the text the export carries, whatever a schema-free
+// reading of its bare spelling would have made of it: a meaning or a values
+// entry opening with a bracket exports as the string or the list entry it is,
+// rather than as the flow sequence the schema-free block reader would take it
+// for. A malformed entry travels as written, on the terms the raw pass reads
+// it, so nothing a hand-written declaration carries is lost between the
+// source and the clone; a dashed line with no home has no JSON spelling and
+// is dropped, as the raw pass drops it.
+func fieldsBlockValue(fm *Frontmatter) json.RawMessage {
+	raw, _ := readFieldsRawBlock(fm)
+	if len(raw) == 0 {
+		return json.RawMessage("{}")
+	}
+	entries := make([]jsonMember, 0, len(raw))
+	for _, entry := range raw {
+		members := []jsonMember{
+			{name: fieldTypeMember, value: mustMarshal(entry.typ)},
+			{name: fieldMeaningMember, value: mustMarshal(entry.meaning)},
+		}
+		if entry.metOn {
+			members = append(members, jsonMember{name: fieldOnMember, value: mustMarshal(entry.on)})
+		}
+		if entry.metValues {
+			members = append(members, jsonMember{name: fieldValuesMember, value: mustMarshal(entry.values)})
+		}
+		if entry.condition != nil {
+			condition := []jsonMember{{name: conditionFieldMember, value: mustMarshal(entry.condition.field)}}
+			if entry.condition.metIs {
+				condition = append(condition, jsonMember{name: conditionIsMember, value: mustMarshal(entry.condition.is)})
+			}
+			members = append(members, jsonMember{name: appliesWhenMember, value: jsonObject(condition)})
+		}
+		entries = append(entries, jsonMember{name: entry.key, value: jsonObject(members)})
+	}
+	return jsonObject(entries)
 }
 
 // dedupeKeepFirst removes a repeated string from a list, keeping each value's
