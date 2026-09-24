@@ -113,20 +113,38 @@ type standingMember struct {
 }
 
 // standingBlock reads a column's standing_items block into its entries in
-// declaration order, and answers beside them every dashed line met anywhere
-// in the block, trimmed, as the lines the grammar has no reading for.
+// declaration order, and answers beside them every line the grammar has no
+// reading for, trimmed: each dashed line met anywhere in the block, and a
+// bare JSON line on the key's own line that is shaped as an object and cannot
+// be read as one.
 //
 // A duplicate key keeps its first occurrence and a duplicate member within an
 // entry keeps its last, which is what the switch in readStandingItems always
 // did. An unknown member name is kept rather than skipped, so the export
 // carries it and a later build declaring it reads it.
+//
+// The block has two spellings and this reads both. The rendered one is the
+// nested mapping the format documents, read line by line below. The other is
+// the one bare JSON line the import writes when the block renderer refuses
+// the member, which is what a memberless entry forces, because an empty
+// object has no block spelling; that line is read by standingRawLine, on the
+// same one-line rule blockValue reads every key by, into the entries a
+// rendered block carrying the same value would give. A rendered block and
+// its raw-line fallback therefore declare the same entries and refuse the
+// same ones, which is what keeps a memberless entry reported rather than
+// vanishing with its well-formed siblings, as it did on dinah-593 when this
+// reader knew the rendered spelling alone.
 func standingBlock(fm *Frontmatter) ([]standingEntry, []string) {
+	lines := fm.Raw(StandingItemsKey)
+	if len(lines) == 1 {
+		return standingRawLine(lines[0], blockValue(fm, StandingItemsKey))
+	}
 	var entries []standingEntry
 	var dashed []string
 	seen := map[string]bool{}
 	entryIndent := -1
 	current := -1
-	for _, line := range fm.Raw(StandingItemsKey) {
+	for _, line := range lines {
 		if strings.TrimSpace(line) == "" {
 			continue
 		}
@@ -165,6 +183,55 @@ func standingBlock(fm *Frontmatter) ([]standingEntry, []string) {
 	return entries, dashed
 }
 
+// standingRawLine reads the value of a standing_items key spelled on one line
+// as the entries a rendered block carrying that value would declare. The
+// value arrives read by blockValue's one-line rule, so a quoted line is a
+// string, which declares nothing here as it declares nothing to the export of
+// any other key, and the migration under check.raw-line-quoted is what
+// rewrites it; and a bare `{}` is the empty object, which is the block with
+// no entry.
+//
+// An object's members are the entries in the order the line carries them. A
+// member whose value is an object gives an entry with that object's members,
+// each read as its text, which for a string is the string itself and for any
+// other value is its JSON spelling, since a rendered block reads every member
+// as the text on its line. A member whose value is not an object gives an
+// entry with no members, as a rendered entry line with nothing beneath it
+// does, and readStandingItems refuses it on the same terms. A line shaped as
+// an object that jsonMembers cannot read, which is one carrying a name twice,
+// is answered as the one malformed line rather than as nothing, so a hand
+// that wrote it hears from check.
+func standingRawLine(line string, raw json.RawMessage) ([]standingEntry, []string) {
+	if jsonShape(raw) != '{' {
+		return nil, nil
+	}
+	members, read := jsonMembers(raw)
+	if !read {
+		return nil, []string{strings.TrimSpace(line)}
+	}
+	entries := make([]standingEntry, 0, len(members))
+	for _, member := range members {
+		entry := standingEntry{key: member.name}
+		if inner, isObject := jsonMembers(member.value); isObject {
+			for _, m := range inner {
+				entry.members = append(entry.members, standingMember{name: m.name, value: jsonText(m.value)})
+			}
+		}
+		entries = append(entries, entry)
+	}
+	return entries, nil
+}
+
+// jsonText is a JSON value as the text a standing member line would carry: a
+// string's own text, and any other value's spelling.
+func jsonText(raw json.RawMessage) string {
+	var text string
+	if err := json.Unmarshal(raw, &text); err == nil {
+		return text
+	}
+	return strings.TrimSpace(string(raw))
+}
+
 // standingItemsValue is the column's standing_items block as the JSON value
 // the interchange form carries: an object whose members are the entries in
 // declaration order, each an object of its members in the order written, and
@@ -178,7 +245,11 @@ func standingBlock(fm *Frontmatter) ([]standingEntry, []string) {
 // holding only dashed lines, is the empty object, which is the member's
 // shape with nothing in it, and it round-trips: the import writes it as the
 // bare line `standing_items: {}`, which the block reader reads as a block of
-// no entries.
+// no entries. A memberless entry travels as the empty object too, which is a
+// value the block renderer cannot spell, so the import writes the whole
+// member as its bare JSON line; standingRawLine reads that
+// line into the same entries, so the clone declares what the source declared,
+// refuses what it refused, and exports these bytes again.
 func standingItemsValue(fm *Frontmatter) json.RawMessage {
 	block, _ := standingBlock(fm)
 	if len(block) == 0 {

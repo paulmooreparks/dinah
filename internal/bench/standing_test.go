@@ -595,6 +595,98 @@ func TestStandingItemsTravelThroughTheInterchange(t *testing.T) {
 	if !bytes.Equal(hostileObject["columns"], secondHostileObject["columns"]) {
 		t.Errorf("the hostile clone's columns differ from the first export:\n%s\n---\n%s", hostileObject["columns"], secondHostileObject["columns"])
 	}
+
+	// A memberless entry beside well-formed ones, which is the shape Test
+	// drove on dinah-593. It exports as the empty object, a value the block
+	// renderer cannot spell, so the import writes the whole member as one
+	// bare JSON line. The clone's reader has to read
+	// that line as it reads the rendered block: the well-formed siblings
+	// still declare and still mint, the memberless entry is refused and
+	// reported by check rather than vanishing, and the clone's export is
+	// the first one. Before standingRawLine the line read as a block of no
+	// entries, so the clone declared nothing, reported nothing and exported
+	// `{}`.
+	memberless := strings.Replace(declaringColumn, "  date-confirmed:\n", "  broken:\n  date-confirmed:\n", 1)
+	memberlessRoot := newFixture(t)
+	write(t, filepath.Join(memberlessRoot, ColumnsDir, "b00000000001", ColumnAnchor), memberless)
+	memberlessSource, err := Open(memberlessRoot)
+	if err != nil {
+		t.Fatalf("open the memberless-entry workbench: %v", err)
+	}
+	if !reflect.DeepEqual(memberlessSource.Columns[0].StandingItems, wellFormedEntries) || !reflect.DeepEqual(memberlessSource.Columns[0].MalformedStandingItems, []string{"broken"}) {
+		t.Fatalf("the memberless-entry source declares %+v and refuses %v", memberlessSource.Columns[0].StandingItems, memberlessSource.Columns[0].MalformedStandingItems)
+	}
+	memberlessExport, err := memberlessSource.Export()
+	if err != nil {
+		t.Fatalf("export the memberless-entry workbench: %v", err)
+	}
+	memberlessObject := map[string]json.RawMessage{}
+	if err := json.Unmarshal(memberlessExport, &memberlessObject); err != nil {
+		t.Fatalf("read the memberless-entry export: %v", err)
+	}
+	var memberlessColumns []map[string]json.RawMessage
+	if err := json.Unmarshal(memberlessObject["columns"], &memberlessColumns); err != nil {
+		t.Fatalf("read the memberless-entry columns: %v", err)
+	}
+	var compactMember bytes.Buffer
+	if err := json.Compact(&compactMember, memberlessColumns[0][StandingItemsKey]); err != nil {
+		t.Fatalf("compact the memberless-entry member: %v", err)
+	}
+	if got := compactMember.String(); !strings.Contains(got, `"owner":"operator"},"broken":{},"date-confirmed":{`) {
+		t.Errorf("the memberless-entry export does not carry the entry as the empty object in its declared place: %s", got)
+	}
+	memberlessDefinition, err := ReadDefinition(memberlessExport)
+	if err != nil {
+		t.Fatalf("read the memberless-entry definition: %v", err)
+	}
+	memberlessClone := containedPath(t.TempDir())
+	if err := Instantiate(memberlessClone, "fx", "alka", memberlessDefinition); err != nil {
+		t.Fatalf("instantiate the memberless-entry clone: %v", err)
+	}
+	if anchor := mustRead(t, filepath.Join(memberlessClone, ColumnsDir, "b00000000001", ColumnAnchor)); !strings.Contains(anchor, "\n"+StandingItemsKey+`: {"deposit-paid":{`) {
+		t.Errorf("the memberless-entry clone's column does not carry the member as one bare JSON line:\n%s", anchor)
+	}
+	// A card the clone carries no instance on, so what the arrival would
+	// mint is what MissingStandingItems answers.
+	write(t, filepath.Join(memberlessClone, CardNumbersName), "1 c00000000001\n")
+	write(t, filepath.Join(memberlessClone, CardsDir, "c00000000001", CardAnchor), cleanCard)
+	write(t, filepath.Join(memberlessClone, CardsDir, "c00000000001", JournalName), cleanJournal)
+	clonedMemberless, err := Open(memberlessClone)
+	if err != nil {
+		t.Fatalf("open the memberless-entry clone: %v", err)
+	}
+	if !reflect.DeepEqual(clonedMemberless.Columns[0].StandingItems, wellFormedEntries) {
+		t.Errorf("the memberless-entry clone declares %+v, wanted %+v", clonedMemberless.Columns[0].StandingItems, wellFormedEntries)
+	}
+	if !reflect.DeepEqual(clonedMemberless.Columns[0].MalformedStandingItems, []string{"broken"}) {
+		t.Errorf("the memberless-entry clone refuses %v, wanted the memberless entry alone", clonedMemberless.Columns[0].MalformedStandingItems)
+	}
+	found := declaredFindings(t, clonedMemberless, FindingStandingItemMalformed)
+	if len(found) != 1 || !strings.HasSuffix(found[0].Detail, " broken") {
+		t.Errorf("check on the memberless-entry clone reports %+v, wanted one finding naming broken", found)
+	}
+	memberlessCard, err := clonedMemberless.LoadCardIn(clonedMemberless.CardsRoot(), "c00000000001")
+	if err != nil {
+		t.Fatalf("load the memberless-entry clone's card: %v", err)
+	}
+	wouldMint, err := clonedMemberless.MissingStandingItems(memberlessCard, clonedMemberless.Column("b00000000001"))
+	if err != nil {
+		t.Fatalf("missing on the memberless-entry clone: %v", err)
+	}
+	if !reflect.DeepEqual(wouldMint, wellFormedEntries) {
+		t.Errorf("an arrival on the memberless-entry clone would mint %+v, wanted the three well-formed entries", wouldMint)
+	}
+	secondMemberless, err := clonedMemberless.Export()
+	if err != nil {
+		t.Fatalf("export the memberless-entry clone: %v", err)
+	}
+	secondMemberlessObject := map[string]json.RawMessage{}
+	if err := json.Unmarshal(secondMemberless, &secondMemberlessObject); err != nil {
+		t.Fatalf("read the memberless-entry clone's export: %v", err)
+	}
+	if !bytes.Equal(memberlessObject["columns"], secondMemberlessObject["columns"]) {
+		t.Errorf("the memberless-entry clone's columns differ from the first export:\n%s\n---\n%s", memberlessObject["columns"], secondMemberlessObject["columns"])
+	}
 }
 
 // TestAddStandingItemWritesWhatTheEntryDeclaresAndNoMore holds the anchor a

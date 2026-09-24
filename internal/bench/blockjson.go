@@ -551,12 +551,13 @@ func jsonNumber(literal string) bool {
 // A duplicated name reports false rather than keeping one occurrence. An
 // ordered member list has no way to carry the same name twice, so a caller
 // handed one would write a block short of a member and call it complete, and
-// every caller of this function is a writer: renderShape's object arm,
-// dashedText, orderedLevels and renderLevelsMember. Each of them falls back to
-// preserving the value it was given, which is what CORE-JSON-7 asks for and
-// what keeps a second export identical to the first. Reading a FILE is the
-// other posture and stays as it was: objectFromChildren keeps a duplicated
-// name's first occurrence, as a duplicated level name does.
+// the writers calling this function, renderShape's object arm, dashedText,
+// orderedLevels and renderLevelsMember, each fall back to preserving the value
+// they were given, which is what CORE-JSON-7 asks for and what keeps a second
+// export identical to the first. The one reader, standingRawLine, answers the
+// refusal as a malformed line for check to name. Reading a FILE's rendered
+// block is the other posture and stays as it was: objectFromChildren keeps a
+// duplicated name's first occurrence, as a duplicated level name does.
 func jsonMembers(raw json.RawMessage) ([]jsonMember, bool) {
 	decoder := json.NewDecoder(bytes.NewReader(raw))
 	token, err := decoder.Token()

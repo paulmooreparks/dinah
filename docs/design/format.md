@@ -801,7 +801,13 @@ the flow sequence or the number a schema-free reading of its bare line would
 make of it, and the import quotes such a text on the way back in, where a
 quoted scalar reads as text whatever its bare spelling would have read as. A
 second export of an imported workbench carries the member byte for byte,
-which the block renderer's own invariant promises for this shape.
+which the block renderer's own invariant promises for this shape. A malformed
+entry travels as written, so an entry declaring no member at all travels as
+the empty object, which is a value the block renderer cannot spell; the import
+then writes the whole member as one bare JSON line,
+and the declaration reader reads that line as it reads the rendered block, so
+the well-formed entries beside it still mint on the clone and the memberless
+one is still reported under `check.standing-item-malformed`.
 
 A column may declare `wip_limit: <n>`; absent means unlimited. The limit
 counts every card in the column regardless of state, because a blocked
