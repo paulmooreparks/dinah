@@ -139,6 +139,9 @@ const (
 	CompleteQuery = "query"
 	// CompleteDisplay offers the words the parameter's Display spells.
 	CompleteDisplay = "display"
+	// CompleteView offers the names of the views a caller can draw, one per
+	// name, as dinah view with no name lists them.
+	CompleteView = "view"
 )
 
 // Completers is the closed set of ways an argument completes, in the order
@@ -167,6 +170,7 @@ var Completers = []string{
 	CompleteSetValue,
 	CompleteQuery,
 	CompleteDisplay,
+	CompleteView,
 }
 
 // Spelling is the word a reader meets for the parameter, which is its own
@@ -429,6 +433,7 @@ var guides = map[string][]string{
 	"set":               {"references"},
 	"query":             {"query"},
 	"search":            {"query"},
+	"view":              {"views"},
 	"setup":             {"setup-recipes"},
 }
 
@@ -705,6 +710,12 @@ var params = map[string][]Param{
 		{Name: "root", Flag: true, Value: "path", Shared: "root", Field: "Root", Complete: CompleteDirs},
 		{Name: "max-depth", Flag: true, Value: "n", Shared: "max-depth", Field: "MaxDepth", Complete: CompleteNone},
 	},
+	// view takes one optional positional, the name of the view to draw, and
+	// no flag of its own; leaving the name out lists every view the caller
+	// can see. The name declares no Vocabulary, because the views a caller
+	// can see depend on the user base and the workbench rather than on
+	// anything this table can enumerate.
+	"view": {{Name: "view", Field: "View", Complete: CompleteView}},
 	// fields is declared here, as a parameter of show, rather than as an
 	// injected property of the MCP head. The schema generator then publishes
 	// it on show and on no other tool, a person at a terminal gains
@@ -960,6 +971,7 @@ var params = map[string][]Param{
 var crossHeadIdentical = map[string]string{
 	"query":   "both heads hand the one library call the one query string",
 	"tree":    "both heads hand the one library call the one chain, the one level and the one query string",
+	"view":    "both heads hand the one library call the one view name and the one actor",
 	"changes": "both heads hand the one library call the one cursor, the one card and the one state",
 }
 

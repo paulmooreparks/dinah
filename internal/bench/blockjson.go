@@ -310,8 +310,14 @@ func blockPad(indent int) string {
 // The object arm shipped without such a check and dropped a duplicated member
 // name silently, which is the hole this closes for the class rather than for
 // that one input.
-func renderBlock(key string, indent int, raw json.RawMessage) ([]string, bool) {
-	lines, rendered := renderShape(key, indent, raw)
+//
+// multiMemberEntries switches on the one form only some members may take: an
+// array entry that is an object of two or more members, rendered as a dashed
+// entry. It is passed down unchanged to every nested call, and every caller
+// passes false except writeViewsMember, whose consuming reader is blockValue
+// and so the reader this guard checks against.
+func renderBlock(key string, indent int, raw json.RawMessage, multiMemberEntries bool) ([]string, bool) {
+	lines, rendered := renderShape(key, indent, raw, multiMemberEntries)
 	if !rendered {
 		return nil, false
 	}
@@ -344,7 +350,7 @@ func renderedValue(lines []string) (json.RawMessage, bool) {
 // renderShape renders a JSON value as the lines of its own shape, without
 // checking what those lines read back as. Only renderBlock calls it, and only
 // through the read-back guard above.
-func renderShape(key string, indent int, raw json.RawMessage) ([]string, bool) {
+func renderShape(key string, indent int, raw json.RawMessage, multiMemberEntries bool) ([]string, bool) {
 	if !blockName.MatchString(key) {
 		return nil, false
 	}
@@ -361,7 +367,7 @@ func renderShape(key string, indent int, raw json.RawMessage) ([]string, bool) {
 		for _, member := range members {
 			// A member this cannot render makes the whole block
 			// unrenderable, so a block is never written half complete.
-			rendered, ok := renderBlock(member.name, indent+2, member.value)
+			rendered, ok := renderBlock(member.name, indent+2, member.value, multiMemberEntries)
 			if !ok {
 				return nil, false
 			}
@@ -369,7 +375,7 @@ func renderShape(key string, indent int, raw json.RawMessage) ([]string, bool) {
 		}
 		return lines, true
 	case '[':
-		return renderArray(key, indent, raw)
+		return renderArray(key, indent, raw, multiMemberEntries)
 	default:
 		text, ok := renderScalar(raw)
 		if !ok {
@@ -387,7 +393,13 @@ func renderShape(key string, indent int, raw json.RawMessage) ([]string, bool) {
 // of the strings "1" and "2" would print as a line scalarValue reads back as
 // numbers, so it goes to the dashed form, where an entry is always text. An
 // array of JSON numbers prints flow and reads back as itself.
-func renderArray(key string, indent int, raw json.RawMessage) ([]string, bool) {
+//
+// With multiMemberEntries, an entry that is an object of two or more members
+// renders as a dashed entry instead of refusing the array: its first member is
+// written after the dash at the entry's own indent, and each later member at
+// the column where the first member's name begins. Each member is rendered by
+// the same renderer, so one whose value is a mapping or a sequence nests.
+func renderArray(key string, indent int, raw json.RawMessage, multiMemberEntries bool) ([]string, bool) {
 	entries, read := jsonEntries(raw)
 	if !read {
 		return nil, false
@@ -405,11 +417,41 @@ func renderArray(key string, indent int, raw json.RawMessage) ([]string, bool) {
 	lines := []string{pad + key + ":"}
 	child := blockPad(indent + 2)
 	for _, entry := range entries {
+		if multiMemberEntries {
+			if members, read := jsonMembers(entry); read && len(members) >= 2 {
+				rendered, ok := memberEntry(members, indent+2, multiMemberEntries)
+				if !ok {
+					return nil, false
+				}
+				lines = append(lines, rendered...)
+				continue
+			}
+		}
 		text, ok := dashedText(entry)
 		if !ok || !sameJSON(dashedValue(text), entry) {
 			return nil, false
 		}
 		lines = append(lines, child+"- "+text)
+	}
+	return lines, true
+}
+
+// memberEntry renders an object of several members as one dashed entry at the
+// given indent: the first member after the dash, and every later member at the
+// column where the first member's name begins, which is indent plus two.
+// entryChildren measures the first line's text where it stands, so the entry
+// reads back as one object of every member.
+func memberEntry(members []jsonMember, indent int, multiMemberEntries bool) ([]string, bool) {
+	var lines []string
+	for i, member := range members {
+		rendered, ok := renderBlock(member.name, indent+2, member.value, multiMemberEntries)
+		if !ok {
+			return nil, false
+		}
+		if i == 0 {
+			rendered[0] = blockPad(indent) + "- " + strings.TrimLeft(rendered[0], " ")
+		}
+		lines = append(lines, rendered...)
 	}
 	return lines, true
 }

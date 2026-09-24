@@ -102,6 +102,10 @@
       "statement": "I want the whole workbench drawn as a tree, grouped by column, so that I can see its shape at a glance."
     },
     {
+      "tool": "view",
+      "statement": "Every morning I ask the same three questions of this workbench; show me the named set of them the workbench already declares, answered as one page."
+    },
+    {
       "tool": "show",
       "statement": "I want to read wb-12 in full: its title, its body, its comments, and its links, as one view."
     },

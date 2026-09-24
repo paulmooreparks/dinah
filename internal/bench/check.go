@@ -320,6 +320,25 @@ const (
 	// entry declares nothing and the workbench still opens, which is the
 	// posture readLevels keeps for a level block it cannot parse.
 	FindingFieldDeclarationMalformed = "check.field-declaration-malformed"
+	// FindingViewMalformed names one view of the workbench's dinah.views
+	// block that cannot be drawn. Detail is the view's name and its defect
+	// token, or `dinah.views not-a-mapping` where the block itself is not a
+	// mapping and no view was read from it. It carries no severity, which
+	// reads as a defect, on the terms FindingFieldDeclarationMalformed does.
+	FindingViewMalformed = "check.view-malformed"
+	// FindingViewMemberUnknown names one member of a workbench view this
+	// build does not read, which is ignored. Detail is the view's name and
+	// the member's path, `<view> <member>` or `<view> sections/<n>/<member>`.
+	// It is cleanup rather than defect, because a later build may read the
+	// member, and it exists so that a misspelt member is visible.
+	FindingViewMemberUnknown = "check.view-member-unknown"
+	// FindingViewQueryRefused names one section of a well-formed workbench
+	// view whose query this workbench refuses on checks 1 to 5, which read no
+	// card. Detail is the view's name, the section's one-based position and
+	// the refusal's name. Library.Check raises it, because the query
+	// language lives there, and it is cleanup: the view still draws, with the
+	// section marked refused where the refusal is one of vocabulary.
+	FindingViewQueryRefused = "check.view-query-refused"
 	// FindingRequiredFieldUndeclared names a column whose require_fields
 	// declaration carries a key the workbench does not declare. It holds
 	// nothing, because a key nothing can ever be written under would make the
@@ -589,6 +608,7 @@ func (b *Bench) Check() ([]Finding, error) {
 		findings = append(findings, cardFindings...)
 	}
 	findings = append(findings, b.checkFieldDeclarations()...)
+	findings = append(findings, b.checkViews()...)
 	findings = append(findings, b.checkConditions()...)
 	findings = append(findings, b.checkRawLines()...)
 	newlineFindings, err := b.checkStoredNewlines()
@@ -1537,6 +1557,33 @@ func (b *Bench) checkFieldDeclarations() []Finding {
 	anchor := filepath.Join(b.Root, WorkbenchAnchor)
 	for _, key := range b.malformedFields {
 		findings = append(findings, Finding{Path: anchor, Key: FindingFieldDeclarationMalformed, Detail: key})
+	}
+	return findings
+}
+
+// checkViews reports the workbench's own views that cannot be drawn and the
+// members of them this build does not read. A user's views are not part of
+// a workbench, so they are not checked here; a user meets a broken view of
+// their own when drawing it, and the listing marks it.
+func (b *Bench) checkViews() []Finding {
+	anchor := filepath.Join(b.Root, WorkbenchAnchor)
+	views, blockDefect := b.Views()
+	if blockDefect {
+		return []Finding{{Path: anchor, Key: FindingViewMalformed, Detail: ViewsKey + " " + ViewNotAMapping}}
+	}
+	var findings []Finding
+	for _, view := range views {
+		if view.Defect != "" {
+			findings = append(findings, Finding{Path: anchor, Key: FindingViewMalformed, Detail: view.Name + " " + view.Defect})
+		}
+		for _, member := range view.Unknown {
+			findings = append(findings, Finding{
+				Path:     anchor,
+				Key:      FindingViewMemberUnknown,
+				Detail:   view.Name + " " + member,
+				Severity: SeverityCleanup,
+			})
+		}
 	}
 	return findings
 }

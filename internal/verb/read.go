@@ -3022,6 +3022,7 @@ func (l *Library) Check(req *Request) (*CheckReport, error) {
 			return nil, err
 		}
 		report.Findings = append(report.Findings, findings...)
+		report.Findings = append(report.Findings, l.viewQueryFindings()...)
 		report.stampOutcome()
 		return report, nil
 	}
@@ -3047,6 +3048,7 @@ func (l *Library) Check(req *Request) (*CheckReport, error) {
 		}
 		report.Findings = append(report.Findings, finding)
 	}
+	report.Findings = append(report.Findings, l.viewQueryFindings()...)
 	report.stampOutcome()
 	return report, nil
 }
@@ -3270,6 +3272,13 @@ func Settings(cfg *bench.Config, ctx SettingsContext) []SettingView {
 	}
 	for _, key := range cfg.Keys() {
 		if bench.KnownConfigKey(key) || strings.HasPrefix(key, bench.AliasPrefix) {
+			continue
+		}
+		// The views block is a key the tool reads, though no config verb
+		// writes it, so it is reported as read from the file rather than as
+		// unknown. Its value is the names of the views it declares.
+		if key == bench.ViewsKey {
+			views = append(views, SettingView{Key: key, Value: strings.Join(cfg.ViewNames(), ", "), Source: bench.SourceConfig})
 			continue
 		}
 		views = append(views, SettingView{Key: key, Value: cfg.Get(key), Source: bench.SourceUnknown})

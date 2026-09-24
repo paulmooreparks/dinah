@@ -10,9 +10,11 @@ package verb
 // destination alike, so it answers nothing. canMove runs every row the move
 // itself runs, once for each destination. Between the two, Do lapses an
 // expired claim, which this clears on the card in memory rather than on disk,
-// and witnesses a divergence, which refuses nothing. Leaving aside a read or
-// write that fails and a stale basis, which a completion never carries, a
-// move is refused today on no row this filter does not run.
+// and witnesses a divergence, which refuses nothing. Three refusals of a real
+// move are left unchecked here: a read or write that fails, a lock on the
+// card that another process holds when the move tries to take it, and a
+// stale basis, which a completion never carries. Apart from those, a move is
+// refused today on no row this filter does not run.
 //
 // Nothing enforces that for a row added later. A refusal written into Do,
 // evaluate or move, or into anything they call other than admit and canMove,

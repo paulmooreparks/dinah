@@ -66,6 +66,7 @@ var publishedProperties = map[string][]string{
 	"query":             {"actor", "harness", "model", "provider", "query", "server", "workbench"},
 	"search_cards":      {"actor", "archived", "harness", "max-depth", "model", "phrase", "provider", "query", "root", "server", "workbench"},
 	"tree":              {"actor", "depth", "group-by", "harness", "max-depth", "model", "provider", "query", "root", "server", "workbench"},
+	"view":              {"actor", "harness", "model", "provider", "server", "view", "workbench"},
 	"show":              {"actor", "all", "archived", "card", "fields", "harness", "model", "provider", "server", "since", "unresolved", "workbench"},
 	"changes":           {"actor", "card", "column", "harness", "max-depth", "model", "provider", "root", "server", "since", "workbench"},
 	"list":              {"actor", "archived", "depth", "harness", "max-depth", "model", "provider", "ready", "ref", "root", "server", "since", "unresolved", "workbench"},

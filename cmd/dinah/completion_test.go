@@ -334,8 +334,8 @@ func TestEveryCompleterHasAResolver(t *testing.T) {
 			t.Errorf("a resolver answers %q, which verb.Completers does not declare", name)
 		}
 	}
-	if len(completers) != len(verb.Completers) || len(completers) != 22 {
-		t.Errorf("checked %d resolvers against %d completers, wanted 22 of each", len(completers), len(verb.Completers))
+	if len(completers) != len(verb.Completers) || len(completers) != 23 {
+		t.Errorf("checked %d resolvers against %d completers, wanted 23 of each", len(completers), len(verb.Completers))
 	}
 	for _, flag := range globalFlags {
 		if flag.marker {
@@ -724,6 +724,41 @@ func regexpReplace(text, pattern, with string) string {
 	return regexp.MustCompile(pattern).ReplaceAllString(text, with)
 }
 
+// TestViewNamesComplete is dinah-601/criteria/23: dinah view <Tab> offers
+// every name dinah view lists, once, with the title of the declaration a draw
+// of that name uses. The user's daily shadows the workbench's, the
+// workbench's mine shadows the built-in one, and alpha stands in the user's
+// layer alone, so each layer and both shadowings are reached.
+func TestViewNamesComplete(t *testing.T) {
+	root := newBench(t)
+	declareViewsIn(t, root, bench.ViewsKey+":\n  daily:\n    title: Workbench daily\n    sections:\n      - query: \"state:ready\"\n"+
+		"  mine:\n    title: Workbench mine\n    sections:\n      - query: \"state:ready\"\n")
+	writeUserConfig(t, "---\n"+bench.ViewsKey+":\n  daily:\n    title: User daily\n    sections:\n      - query: \"state:ready\"\n"+
+		"  alpha:\n    title: Alpha\n    sections:\n      - query: \"state:ready\"\n---\n")
+	listed := runCLI(t, root, "view", "--json")
+	var listing verb.ViewListing
+	if err := json.Unmarshal([]byte(listed.out), &listing); err != nil {
+		t.Fatalf("view --json: %v\n%s", err, listed.out)
+	}
+	var want, titles []string
+	for _, row := range listing.Views {
+		if row.Used {
+			want = append(want, row.Name)
+			titles = append(titles, row.Title)
+		}
+	}
+	if len(listing.Views) != 5 || strings.Join(want, " ") != "alpha daily mine" {
+		t.Fatalf("dinah view listed %d rows, using %q; the fixture should give five rows using alpha, daily and mine", len(listing.Views), want)
+	}
+	got := zsh(t, root, "view", "")
+	if strings.Join(got.inserts, " ") != strings.Join(want, " ") || strings.Join(got.descriptions, "|") != "Alpha|User daily|Workbench mine" {
+		t.Errorf("view offered %q described %q; wanted %q described %q", got.inserts, got.descriptions, want, titles)
+	}
+	if prefix := zsh(t, root, "view", "da"); strings.Join(prefix.inserts, " ") != "daily" {
+		t.Errorf("view da offered %q, wanted daily", prefix.inserts)
+	}
+}
+
 // TestQueryTermsComplete is dinah-601/criteria/17: field names end in a colon
 // with no space, and after each field's operator the values come from the
 // workbench definition alone.
@@ -817,7 +852,7 @@ func completerLines() [][]string {
 		{"setup", ""}, {"config", "get", ""}, {"config", ""}, {"get", "fx-1", ""},
 		{"set", "fx-1", "severity", ""}, {"set", "fx-1", ""}, {"query", ""}, {"query", "column:"},
 		{"attach", "fx-1", ""}, {"init", ""}, {"comment", "fx-1", ""}, {"guide", ""},
-		{"completion", ""}, {"show", "x", "--fields", ""}, {"--lang", ""}, {"--format", ""},
+		{"completion", ""}, {"show", "x", "--fields", ""}, {"--lang", ""}, {"--format", ""}, {"view", ""},
 		{"--workbench", ""}, {"--actor", ""},
 	}
 }

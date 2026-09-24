@@ -1780,6 +1780,21 @@ var refusalBlocks = map[string]func(*session) []string{
 // the fragments form a line of their own beneath the rows, because a sentence
 // cannot continue across a table.
 func (s *session) composeRefusal(r *contract.Refusal) []string {
+	return s.composeRefusalLines(r, true)
+}
+
+// composeRefusalWithout composes a refusal as composeRefusal does, with every
+// fragment but the next step. A view's refused section is drawn with it,
+// because the section is an answer rather than a failure, and the step a
+// refusal advises is about the command that raised it, which the reader of a
+// view did not type.
+func (s *session) composeRefusalWithout(r *contract.Refusal) []string {
+	return s.composeRefusalLines(r, false)
+}
+
+// composeRefusalLines is the composer both of the above share, with the next
+// step included or left out.
+func (s *session) composeRefusalLines(r *contract.Refusal, withNext bool) []string {
 	shape := contract.ShapeOf(r.Name)
 	if shape == nil {
 		return []string{r.Name + " " + s.r.T("refusal.unknown", "name", r.Name, "detail", r.Detail)}
@@ -1832,7 +1847,7 @@ func (s *session) composeRefusal(r *contract.Refusal) []string {
 	var spliced []string
 	for _, fragment := range shape.Fragments {
 		if shape.NamedInNextStep(fragment.Key) {
-			if fragment.Key == next {
+			if withNext && fragment.Key == next {
 				spliced = append(spliced, s.r.T(fragment.Key, pairs...))
 			}
 			continue

@@ -642,6 +642,9 @@ var completers = map[string]completer{
 	verb.CompleteQuery: func(c *completionCall, _ verb.Param, value string) (string, []completion.Candidate, error) {
 		return c.queryTerm(value)
 	},
+	verb.CompleteView: func(c *completionCall, _ verb.Param, _ string) (string, []completion.Candidate, error) {
+		return completion.ModeWords, c.views(), nil
+	},
 	verb.CompleteDisplay: func(_ *completionCall, param verb.Param, _ string) (string, []completion.Candidate, error) {
 		var words []string
 		for _, word := range strings.Split(param.Display, "|") {
@@ -816,6 +819,30 @@ func (c *completionCall) title(b *bench.Bench, id string) (string, error) {
 		return "", nil
 	}
 	return fm.Value("title"), nil
+}
+
+// views offers the name of every view dinah view with no name lists, once per
+// name, with the title of the declaration a draw of that name uses. The
+// listing marks that declaration used, because the user's views shadow the
+// workbench's and the workbench's shadow the built-in ones, so the title
+// offered is the title of the view the person gets.
+func (c *completionCall) views() []completion.Candidate {
+	library := c.bench()
+	if library == nil {
+		return nil
+	}
+	listing, err := library.ListViews(&verb.Request{Verb: "view", Lang: c.r.Tag})
+	if err != nil {
+		return nil
+	}
+	var views []completion.Candidate
+	for _, row := range listing.Views {
+		if !row.Used {
+			continue
+		}
+		views = append(views, completion.Candidate{Word: row.Name, Description: row.Title})
+	}
+	return views
 }
 
 // columns offers the columns in flow order, each with its title.

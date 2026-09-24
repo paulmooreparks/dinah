@@ -1092,6 +1092,81 @@ fleet-update desire behind the temptation has uncoupled answers: shared
 served text is the role-pack layer, and structural propagation is a template
 diff applied per workbench as a deliberate, reviewed change.
 
+### Views, the `dinah.views` layer
+
+A view is a named set of queries that `dinah view <name>` asks again and draws
+as one section per query. Views are a layer of Dinah's own, declared under the
+top-level frontmatter key `dinah.views`, whose full stop and `dinah.` prefix
+keep it clear of every key the profile declares. The key has one block shape
+in two files: the workbench's own `workbench.md`, and the user's `config.md`
+in the user base. The block is read through the one reader every structured
+frontmatter value is read by, and no verb writes it.
+
+The block is a mapping from view name to view, and each view is a mapping of
+these members:
+
+| Member | Required | Default when absent | Values this build admits |
+|---|---|---|---|
+| the view's key | yes | none | one segment of the harness-name grammar, at most 64 bytes |
+| `title` | no | the view's name | any non-blank text |
+| `layout` | no | `list` | `list` |
+| `order` | no | `arrival` | `arrival`, `column` |
+| `collapsed` | no | the columns whose kind is `intake` or `done` | a sequence of column references |
+| `sections` | yes | none | at least one section |
+| section `title` | no | the section's `query`, as declared | any non-blank text |
+| section `query` | yes | none | any non-blank text, parsed only when the view is drawn or checked |
+
+A blank title reads as absent. A scalar member written as a number or a
+boolean is read as its literal text. `collapsed` is validated for its shape
+and has no effect on the `list` layout. A later build adds values to the
+`layout` and `order` sets rather than members to the declaration, so the shape
+of a view does not change when a layout or an order arrives.
+
+A view is malformed when it fails one of these rules, and it carries the first
+of them that applies, tried in this order: `invalid-name`, the key is outside
+the name grammar; `not-a-mapping`, the view is not a mapping; `malformed-member`,
+a scalar member is not a scalar, `collapsed` is not a sequence of scalars,
+`sections` is not a sequence, a section is not a mapping, or a section's
+`title` or `query` is not a scalar; `no-sections`, `sections` is absent or
+empty; `section-without-query`, a section has no query or a blank one;
+`unknown-layout` and `unknown-order`, a value outside what this build admits.
+A malformed view is still read and listed and still takes its place in name
+resolution, and it cannot be drawn.
+
+A member this build does not recognise, at the view level or inside a
+section, is ignored, and a read never rewrites the file, so the member is
+preserved. `dinah check` reports each one on a workbench view.
+
+A name resolves to the first declaration of it among the user's views, then
+the workbench's, then the views Dinah ships. A malformed view is not skipped,
+so a malformed user view shadows a well-formed workbench view of the same name
+and a draw of that name is refused. A workbench or a user replaces a shipped
+view by declaring one of the same name.
+
+A layer that cannot be read refuses `dinah view` under
+`dinah.views-unreadable` rather than reading as empty, because a view in it
+might have shadowed the one that would otherwise be drawn. That covers a
+user's `config.md` that exists and cannot be read, a directory standing at its
+path included, and a `dinah.views` value that is not a mapping in either file.
+A `config.md` that does not exist is an empty layer.
+
+`dinah export` carries the block as the nested value it is. The import writes
+it back as a block, rendering a section of two or more members as a dashed
+entry whose later members line up under its first, so a view comes back from
+`init --from` as something a person can still edit by hand, and a second
+export of the rebuilt workbench is byte-identical to the first. That form is
+given to the `dinah.views` member alone, because the import's read-back guard
+checks lines against the generic reader, which is the reader views are read
+by and not the reader every other member is read by.
+
+Three findings report on a workbench's views, and none on a user's, because a
+user's views are not part of a workbench. `check.view-malformed` names a view
+that cannot be drawn, or a `dinah.views` value that is not a mapping.
+`check.view-member-unknown` names a member this build does not read, at
+cleanup severity. `check.view-query-refused` names a section of a well-formed
+view whose query this workbench refuses on the checks that read no card, at
+cleanup severity.
+
 ## History
 
 Which kinds bear journals is a per-kind registry fact, decided by one test:

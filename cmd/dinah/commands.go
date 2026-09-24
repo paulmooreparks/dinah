@@ -89,6 +89,7 @@ func init() {
 		{name: "query", group: groupRead, run: runQuery, openTail: true},
 		{name: "search", group: groupRead, run: runSearch, openTail: true},
 		{name: "tree", group: groupRead, run: runTree, openTail: true},
+		{name: "view", group: groupRead, run: runView, bounded: 1},
 		{name: "show", group: groupRead, run: runShow, bounded: 1},
 		// changes declares no bounded positional at all, so a stray word
 		// anywhere in the invocation is refused rather than silently

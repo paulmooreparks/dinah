@@ -34,6 +34,7 @@ var reading = []string{
 	"on-behalf",
 	"references",
 	"query",
+	"views",
 	"workbench-layout",
 	"mcp",
 	"setup-recipes",

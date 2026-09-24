@@ -70,6 +70,8 @@ READ
   tree [query] [--group-by <axes>]          The workbench's cards nested along a
     [--depth <level>] [--root <path>]         chain of axes
     [--max-depth <n>]
+  view [view]                               List the views you can see, or draw
+                                              one by name
   show <ref> [--fields <list>] [--all]      The detail of an entity of this
     [--archived] [--since <ordinal>]          workbench
     [--unresolved]

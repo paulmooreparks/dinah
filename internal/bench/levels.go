@@ -356,7 +356,7 @@ func renderLevelsMember(raw json.RawMessage) ([]string, bool) {
 	}
 	lines := []string{LevelsKey + ":"}
 	for _, axis := range orderLevelAxes(axes) {
-		rendered, ok := renderBlock(axis, 2, orderAxisMembers(declared[axis]))
+		rendered, ok := renderBlock(axis, 2, orderAxisMembers(declared[axis]), false)
 		if !ok {
 			return nil, false
 		}

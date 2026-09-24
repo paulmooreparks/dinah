@@ -307,7 +307,7 @@ func TestTheHelpBlockCarriesTheCollapsedReadSurface(t *testing.T) {
 			t.Errorf("the block still lists %s, under %s", retired, where)
 		}
 	}
-	wantedRead := []string{"status", "list", "next", "query", "search", "tree", "show", "changes", "instructions", "prime", "guide"}
+	wantedRead := []string{"status", "list", "next", "query", "search", "tree", "view", "show", "changes", "instructions", "prime", "guide"}
 	if strings.Join(read.commands, " ") != strings.Join(wantedRead, " ") {
 		t.Errorf("the READ section lists [%s], and it lists [%s]", strings.Join(read.commands, " "), strings.Join(wantedRead, " "))
 	}
@@ -326,8 +326,8 @@ func TestTheHelpBlockCarriesTheCollapsedReadSurface(t *testing.T) {
 	if want := "workstream <new> <title> [--slug <slug>]"; !strings.HasPrefix(workbench.usage["workstream"], want) {
 		t.Errorf("the workstream row reads %q, and its usage is %q", workbench.usage["workstream"], want)
 	}
-	if rows != 59 {
-		t.Errorf("the four sections carry %d usage rows, wanted fifty-nine", rows)
+	if rows != 60 {
+		t.Errorf("the four sections carry %d usage rows, wanted sixty", rows)
 	}
 }
 

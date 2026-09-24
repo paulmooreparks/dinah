@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -726,5 +727,156 @@ func TestTheDeclaredFieldCheckRunsAfterTheExistingEight(t *testing.T) {
 	refused := h.refuse("state:reday nobody.home:x")
 	if refused.Name != contract.UnknownValue || refused.Detail != "reday" {
 		t.Errorf("the two-mistake query is refused %s over %q, wanted %s over reday", refused.Name, refused.Detail, contract.UnknownValue)
+	}
+}
+
+// plantItem writes one live checklist item onto a card with the kind, state
+// and owner a case names, and an ordinal placing it after any item the case
+// planted before it. An empty owner writes no owner key at all, which is the
+// item item_owner:"" asks for.
+func (h *harness) plantItem(ref, id, kind, state, owner string, ordinal int) {
+	h.t.Helper()
+	frontmatter := "kind: " + kind + "\nstate: " + state + "\n"
+	if owner != "" {
+		frontmatter += "owner: " + owner + "\n"
+	}
+	frontmatter += "ordinal: " + strconv.Itoa(ordinal) + "\n"
+	h.item(ref, id, frontmatter, "an item the case planted")
+}
+
+// TestAnItemTermIsHeldToOneAndTheSameItem is dinah-600/criteria/11, the hard
+// position. A carries a pending item the holder owns and a resolved item the
+// operator owns, so each item term alone selects it and no single item
+// satisfies both; B carries one pending item the operator owns.
+func TestAnItemTermIsHeldToOneAndTheSameItem(t *testing.T) {
+	h := newHarness(t)
+	a := h.add("two items, each half of the question")
+	b := h.add("one item answering the whole question")
+	h.plantItem(a, "b00000000001", "open_question", "pending", "holder", 1)
+	h.plantItem(a, "b00000000002", "open_question", "resolved", "operator", 2)
+	h.plantItem(b, "b00000000003", "open_question", "pending", "operator", 1)
+	wantRefs(t, "item_owner:operator item_state:pending", h.ask("item_owner:operator item_state:pending"), b)
+	wantRefs(t, "item_owner:operator", h.ask("item_owner:operator"), a, b)
+	wantRefs(t, "item_state:pending", h.ask("item_state:pending"), a, b)
+}
+
+// TestNotEqualOnAnItemFieldNegatesInsideOneItem is dinah-600/criteria/12: !=
+// asks for one item that is not the value, a card with no live item is
+// selected by no item term under either operator, and an archived item
+// witnesses nothing.
+func TestNotEqualOnAnItemFieldNegatesInsideOneItem(t *testing.T) {
+	h := newHarness(t)
+	allPending := h.add("every item pending")
+	mixed := h.add("one pending and one resolved")
+	bare := h.add("no items at all")
+	archived := h.add("its only item archived")
+	h.plantItem(allPending, "b00000000001", "open_question", "pending", "holder", 1)
+	h.plantItem(allPending, "b00000000002", "decision", "pending", "holder", 2)
+	h.plantItem(mixed, "b00000000003", "open_question", "pending", "holder", 1)
+	h.plantItem(mixed, "b00000000004", "decision", "resolved", "holder", 2)
+	h.plantItem(archived, "b00000000005", "open_question", "pending", "holder", 1)
+	h.archive(archived + "/checklist/1")
+	wantRefs(t, "item_state!=pending", h.ask("item_state!=pending"), mixed)
+	wantRefs(t, "item_state:pending", h.ask("item_state:pending"), allPending, mixed)
+	wantRefs(t, "item_owner!=operator", h.ask("item_owner!=operator"), allPending, mixed)
+	for _, text := range []string{"item_state:pending", "item_state!=pending", "item_owner!=operator"} {
+		for _, ref := range refs(h.ask(text)) {
+			if ref == bare || ref == archived {
+				t.Errorf("%q selected %s, which carries no live item", text, ref)
+			}
+		}
+	}
+}
+
+// TestTheItemFieldsTakeTheirVocabularies is dinah-600/criteria/13. item_state
+// is closed to the six stored states, in the order bench.ItemStates declares
+// them; neither field takes an ordered operator; item_owner is open, so a
+// value no item stores matches nothing rather than refusing; the empty value
+// finds an item storing no owner; and the unknown-field refusal lists the two
+// fields straight after at.
+func TestTheItemFieldsTakeTheirVocabularies(t *testing.T) {
+	h := newHarness(t)
+	unowned := h.add("an item storing no owner")
+	owned := h.add("an item storing one")
+	h.plantItem(unowned, "b00000000001", "open_question", "pending", "", 1)
+	h.plantItem(owned, "b00000000002", "open_question", "pending", "operator", 1)
+
+	refusal := h.refuse("item_state:done")
+	if refusal.Name != contract.UnknownValue || refusal.Extra["legal"] != strings.Join(bench.ItemStates, ", ") {
+		t.Errorf("item_state:done was refused %s with legal %q, want %s listing %v", refusal.Name, refusal.Extra["legal"], contract.UnknownValue, bench.ItemStates)
+	}
+	if len(bench.ItemStates) != 6 {
+		t.Errorf("the closed set of item states carries %d states, and the criterion names six", len(bench.ItemStates))
+	}
+	for _, text := range []string{"item_state>=pending", "item_owner<x"} {
+		if refusal := h.refuse(text); refusal.Name != contract.UnknownField {
+			t.Errorf("%q was refused %s, want %s", text, refusal.Name, contract.UnknownField)
+		}
+	}
+	wantRefs(t, "item_owner:somebody-nobody-is", h.ask("item_owner:somebody-nobody-is"))
+	wantRefs(t, `item_owner:""`, h.ask(`item_owner:""`), unowned)
+	wantRefs(t, "item_owner:operator", h.ask("item_owner:operator"), owned)
+
+	fields := strings.Split(h.refuse("bogus:x").Extra["fields"], ", ")
+	at := -1
+	for i, field := range fields {
+		if field == FieldAt {
+			at = i
+		}
+	}
+	if at < 0 || at+2 >= len(fields) || fields[at+1] != FieldItemOwner || fields[at+2] != FieldItemState {
+		t.Errorf("the unknown-field refusal lists %v, and the two item fields do not follow at", fields)
+	}
+}
+
+// TestTreeAndSearchReadTheItemFields is dinah-600/criteria/14's library half:
+// tree and search --query narrow by the item fields to the set query selects,
+// and a tree may not group on either, because a card carries many items.
+func TestTreeAndSearchReadTheItemFields(t *testing.T) {
+	h := newHarness(t)
+	asked := h.add("a searchable card with an operator question")
+	other := h.add("a searchable card with nothing pending")
+	h.plantItem(asked, "b00000000001", "open_question", "pending", "operator", 1)
+	h.plantItem(other, "b00000000002", "open_question", "resolved", "operator", 1)
+	const text = "item_owner:operator item_state:pending"
+	wantRefs(t, text, h.ask(text), asked)
+
+	tree, err := h.library.Tree(&Request{Verb: "tree", Actor: "alka", Query: text}, []string{FieldColumn}, LevelCards)
+	if err != nil {
+		t.Fatalf("tree: %v", err)
+	}
+	if tree.Root.Count != 1 {
+		t.Errorf("the tree narrowed by %q counts %d cards, want 1", text, tree.Root.Count)
+	}
+	results, err := h.library.Search(&Request{Verb: "search", Actor: "alka", SearchText: "searchable", Query: text})
+	if err != nil {
+		t.Fatalf("search: %v", err)
+	}
+	if results.Count != 1 || results.Hits[0].Ref != asked {
+		t.Errorf("search narrowed by %q found %+v, want %s alone", text, results.Hits, asked)
+	}
+	for _, axis := range []string{FieldItemOwner, FieldItemState} {
+		_, err := h.library.Tree(&Request{Verb: "tree", Actor: "alka"}, []string{axis}, LevelCards)
+		refusal, ok := err.(*contract.Refusal)
+		if !ok || refusal.Name != contract.UnknownAxis {
+			t.Errorf("tree --group-by %s answered %v, want %s", axis, err, contract.UnknownAxis)
+		}
+	}
+}
+
+// TestAQueryComparesMeAsTheLiteralText is the query half of
+// dinah-600/criteria/10: outside a view @me is text like any other, so the
+// query is not refused for a missing actor and does not find the cards the
+// caller holds.
+func TestAQueryComparesMeAsTheLiteralText(t *testing.T) {
+	h := newHarness(t)
+	held := h.ready("a card the caller holds")
+	h.mustDo(&Request{Verb: Claim, Actor: "alka", Card: held})
+	matches, err := h.library.Query(&Request{Verb: "query", Query: "holder:@me"})
+	if err != nil {
+		t.Fatalf("holder:@me with no actor was refused: %v", err)
+	}
+	if matches.Count != 0 {
+		t.Errorf("holder:@me selected %v, and no owner is named @me", refs(matches))
 	}
 }

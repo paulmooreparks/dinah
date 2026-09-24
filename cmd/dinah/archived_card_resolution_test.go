@@ -244,9 +244,9 @@ var archivedResolutionFamilies = []resolutionFamily{
 	{
 		name: "E", axis: "reading",
 		what:      "rendering a card's human reference: every call whose selector is Ref and which carries exactly one argument",
-		files:     18,
-		mentions:  40,
-		functions: 30,
+		files:     19,
+		mentions:  41,
+		functions: 31,
 		sites: []resolutionSite{
 			{"internal/bench/designationmigrate.go", "ClaimedCards", 1, "naming a live card the designation conversion found claimed, which is what the in-use refusal reports; the walk reads the live cards collection alone, so no archived card reaches this call"},
 			{"internal/bench/designationmigrate.go", "plannedDesignations", 1, "naming the card one converted item hangs below, in the conversion's own report; the conversion walks both halves, so an archived card does reach this call, and it composes a reference for a report rather than resolving one"},
@@ -254,6 +254,7 @@ var archivedResolutionFamilies = []resolutionFamily{
 			{"internal/verb/grant.go", "revoke", 1, "naming the card a revoke found carrying no standing authorization, which is what the no-grant refusal reports; the card was resolved live by Library.Do, so no archived card reaches this call"},
 			{"internal/verb/checklist.go", "itemCanonicalRef", 1, "composing the canonical reference of one item of one card, which a settling stores as its answer and a forced deletion hands to Reopen; the card is the one the item hangs below and it was resolved live by the verb that is writing it, so no archived card reaches this call"},
 			{"internal/verb/read.go", "primePending", 1, "naming the card one Primer.Pending item belongs to; the card came off Library.Cards, the live collection alone, so no archived card reaches this call"},
+			{"internal/verb/views.go", "drawSection", 1, "naming the card whose checklist items witnessed a view section's selection; the card came off selectionQuery, which reads the live collection of cards alone, so no archived card reaches this call"},
 			{"cmd/dinah-migrate-notes/main.go", "classifyCard", 1, "naming an item in the note migration's own report and in the designation it writes; the run walks both halves, so an archived card does reach this call, and it composes a reference for a report rather than resolving one"},
 			{"internal/bench/branchmigrate.go", "MigrateBranches", 5, "naming a card in the branch migration's own report, once for each of the four classes it sorts a card into and once more for the account of what the write pass wrote; the run walks the live half alone, on the rule MigrateNumbers keeps for the archive, so no archived card reaches these calls"},
 			{"internal/bench/check.go", "checkTierOverrides", 1, "naming a card in a finding"},

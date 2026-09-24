@@ -41,7 +41,7 @@ nothing between them. `holder:""` returns the cards nobody is holding.
 
 ## The fields you may name
 
-Thirteen fields are built in, and your workbench may add its own, which the
+Fifteen fields are built in, and your workbench may add its own, which the
 section below explains. Eight of the built-in fields describe the card now:
 
 - `column` is the column the card is in. Give it a column's short name or its
@@ -84,10 +84,29 @@ card that has since moved on. It does not return a card that entered Doing in
 June and was commented on in August, because the five journal fields all have
 to be satisfied by one and the same recorded act.
 
+The last two describe the card's checklist items:
+
+- `item_owner` is the owner an item stores, and the empty value for an item
+  that stores none.
+- `item_state` is the state an item stores: `pending`, `resolved`, `verified`,
+  `failed`, `waived`, or `withdrawn`.
+
+Both item fields have to be satisfied by one and the same live item, so
+`item_owner:operator item_state:pending` returns a card carrying a pending
+item the operator owns, and not a card whose pending item is somebody else's
+while the operator's item is resolved. A card carrying no live item is
+returned by no query naming an item field.
+
 Use `!=` to ask for the opposite of any field that takes `:`. On a card field
 it means what you expect, so `column!=done` returns every card that is not in
 Done. On a journal field the negation applies inside the one act, so
 `actor:alka event!=commented` asks for an act by Alka that was not a comment.
+On an item field it applies inside the one item, so `item_state!=pending`
+returns a card carrying at least one item that is not pending.
+
+A view's queries may write `@me` for whoever is asking, and the guide on views
+explains it. `dinah query` does not expand it, so here `holder:@me` compares
+against the literal text `@me`.
 
 ## What a mistake looks like
 

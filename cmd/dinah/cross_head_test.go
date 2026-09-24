@@ -72,6 +72,11 @@ func TestBothHeadsAnswerTheDeclaredReadsAlike(t *testing.T) {
 		t.Fatalf("add: %d %s", got.code, got.errw)
 	}
 	carryToDoing(t, root, "fx-1")
+	// The card is claimed so that the drawn view the view leg compares, the
+	// built-in mine, carries a card rather than two empty sections.
+	if got := runCLI(t, root, "claim", "fx-1"); got.code != 0 {
+		t.Fatalf("claim: %d %s", got.code, got.errw)
+	}
 
 	compared := 0
 	for _, name := range names {
@@ -166,6 +171,12 @@ func crossHeadCases(command, cursor string) []crossHeadCase {
 	if command == "changes" {
 		return []crossHeadCase{{values: map[string]string{"since": cursor}}}
 	}
+	// view answers two shapes, the listing when no name is given and a drawn
+	// view when one is, so it is compared on both. mine is the view every
+	// workbench carries, and it draws the cards the fixture's owner holds.
+	if command == "view" {
+		return []crossHeadCase{{}, {values: map[string]string{"view": "mine"}}}
+	}
 	for _, param := range verb.Params(command) {
 		if param.Rest {
 			cases := make([]crossHeadCase, 0, len(crossHeadQueries))
@@ -202,6 +213,10 @@ func terminalPayload(t *testing.T, root, command string, sample crossHeadCase) a
 		argv = append(argv, sample.text)
 	}
 	for _, name := range sortedKeys(sample.values) {
+		if positional(command, name) {
+			argv = append(argv, sample.values[name])
+			continue
+		}
 		argv = append(argv, "--"+name, sample.values[name])
 	}
 	argv = append(argv, "--json")
@@ -210,6 +225,18 @@ func terminalPayload(t *testing.T, root, command string, sample crossHeadCase) a
 		t.Fatalf("%s %s at the terminal: %d %s", command, sample.describe(), got.code, got.errw)
 	}
 	return stripAffordances(decode(t, got.out))
+}
+
+// positional reports whether a command takes a named parameter by position at
+// the terminal rather than as a flag, which is how the terminal leg spells a
+// value the protocol leg passes by name.
+func positional(command, name string) bool {
+	for _, param := range verb.Params(command) {
+		if param.Name == name {
+			return !param.Flag
+		}
+	}
+	return false
 }
 
 // toolPayload drives the same read through the mcp head over a pipe and

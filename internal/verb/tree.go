@@ -198,10 +198,12 @@ type AxisDisposition struct {
 // or renamed there fails the build here rather than becoming silently
 // ungroupable.
 //
-// Ten of the thirteen group. at, severity and priority are refused: an instant
-// is a different value on every act and no bucket granularity has been
-// chosen, and severity/priority stay out of tree grouping as their own scope
-// decision (dinah-195), independent of the query's own vocabulary.
+// Ten of the fifteen group. at, severity, priority, item_owner and item_state
+// are refused: an instant is a different value on every act and no bucket
+// granularity has been chosen, severity/priority stay out of tree grouping as
+// their own scope decision (dinah-195), independent of the query's own
+// vocabulary, and a card carries many checklist items and so has no single
+// item owner or item state to group under.
 var AxisDispositions = []AxisDisposition{
 	{Field: FieldColumn, Enumeration: EnumerationClosed, Disposition: DispositionAxis},
 	{Field: FieldState, Enumeration: EnumerationClosed, Disposition: DispositionAxis},
@@ -221,6 +223,8 @@ var AxisDispositions = []AxisDisposition{
 	{Field: FieldEntered, Enumeration: EnumerationOpen, Disposition: DispositionAxis},
 	{Field: FieldLeft, Enumeration: EnumerationOpen, Disposition: DispositionAxis},
 	{Field: FieldAt, Enumeration: EnumerationOpen, Disposition: DispositionRefused},
+	{Field: FieldItemOwner, Enumeration: EnumerationOpen, Disposition: DispositionRefused},
+	{Field: FieldItemState, Enumeration: EnumerationOpen, Disposition: DispositionRefused},
 }
 
 // GroupAxes lists the fields a tree nests along, in the disposition table's

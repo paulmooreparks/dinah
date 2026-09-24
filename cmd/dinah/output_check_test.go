@@ -849,7 +849,7 @@ func TestEveryTableSiteIsRegistered(t *testing.T) {
 // it from the other: an entry written for one would sit just as plausibly on
 // the other, and a reorder would move both entries with nothing failing. The
 // fix, whenever this fires, is to rename one of the two locals, which is what
-// composeRefusal's carriedTable is.
+// composeRefusalLines's carriedTable is.
 //
 // Two calls sharing a label and declaring different columns are left alone.
 // The difference in columns is itself a fact the source carries, so their
@@ -880,7 +880,7 @@ func assertNoAmbiguousSiblingSites(t *testing.T, sites map[renderSite]renderSite
 				if !slices.Equal(sites[members[i]].Keys, sites[members[j]].Keys) {
 					continue
 				}
-				t.Errorf("%s and %s are two calls in %s:%s binding the name %q and declaring the same columns %v, so neither site is distinguishable from the other and an entry naming one would sit as plausibly on the other; rename one of the two locals, the way composeRefusal's carriedTable is named",
+				t.Errorf("%s and %s are two calls in %s:%s binding the name %q and declaring the same columns %v, so neither site is distinguishable from the other and an entry naming one would sit as plausibly on the other; rename one of the two locals, the way composeRefusalLines's carriedTable is named",
 					members[i], members[j], members[i].File, members[i].Function, members[i].Label, sites[members[i]].Keys)
 			}
 		}
