@@ -153,8 +153,8 @@ declares none of.
 
 Any other mistake stops the whole view, because it is wrong on every
 workbench. That covers a misspelt query, a field Dinah does not have, a state
-that does not exist, and `@me` with nobody to stand for. Dinah names the view
-and the section before it names the mistake.
+that does not exist, and `@me` with nobody to stand for. Dinah names the
+mistake first, and then the view and the section it came from.
 
 `dinah check` reports a workbench view whose query the workbench refuses, so
 its owner meets a stale column name without drawing the view.
