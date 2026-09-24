@@ -2679,7 +2679,7 @@ a store the old import wrote.
 `dinah check` reports each such line under `check.raw-line-quoted` on a
 workbench declaring a format below 9, naming the anchor and the key, and
 `dinah check --migrate-raw-lines --yes` rewrites each one to the bare compact
-spelling and stamps the anchor `format: 9`. The rewrite is exact: the bare
+spelling and stamps the anchor `format: 9`. The rewrite is exact. The bare
 spelling reads as the same JSON under either rule, so what the old build
 exported for the member is what this build exports after the rewrite. A line
 qualifies when it is its key's only line, its scalar is wrapped in one pair of
@@ -2691,7 +2691,7 @@ column anchor. A key the anchor reader answers as text, such as a title, is left
 as written. Without `--yes` the run names the lines and writes nothing. The
 lines are rewritten before the format is stamped, so a run that stops part way
 leaves the store below 9 with the rest still reported. The stamp is a floor,
-never a downgrade: a store already at 9 or above is neither read nor written,
+never a downgrade. A store already at 9 or above is neither read nor written,
 and a quoted line on such a store is text by declaration. The stamp converts no
 designation, so a store below format 7 runs `--migrate-designations` first.
 

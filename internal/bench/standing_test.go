@@ -40,6 +40,17 @@ var wellFormedEntries = []StandingItem{
 	{Key: "date-confirmed", Kind: "open_question", Text: "Has the vendor confirmed the wedding date in writing?"},
 }
 
+// emptyDeclaringColumn declares the standing_items key with nothing beneath
+// it, which is a block the export must carry as the empty object.
+const emptyDeclaringColumn = `---
+title: Only
+slug: only
+kind: work
+standing_items:
+---
+Column text.
+`
+
 // plantStandingInstance writes one checklist item carrying the column and the
 // standing key a minting would write, in the state given, so a test can put a
 // card in every re-entry position without going through an arrival.
@@ -430,6 +441,73 @@ func TestStandingItemsTravelThroughTheInterchange(t *testing.T) {
 	}
 	if bytes.Contains(bareExport, []byte(StandingItemsKey)) {
 		t.Errorf("a column declaring nothing exports a %s member", StandingItemsKey)
+	}
+
+	// A declared block with no entry beneath it is the member's shape with
+	// nothing in it. The export carries it as the empty object rather than
+	// as an empty string, the import writes it back as the bare line
+	// `standing_items: {}`, and the clone declares the key with no entry
+	// and no malformed one, so check has nothing to report against it and
+	// the clone's export is the first one.
+	emptyRoot := newFixture(t)
+	write(t, filepath.Join(emptyRoot, ColumnsDir, "b00000000001", ColumnAnchor), emptyDeclaringColumn)
+	emptySource, err := Open(emptyRoot)
+	if err != nil {
+		t.Fatalf("open the empty-block workbench: %v", err)
+	}
+	emptyExport, err := emptySource.Export()
+	if err != nil {
+		t.Fatalf("export the empty-block workbench: %v", err)
+	}
+	emptyObject := map[string]json.RawMessage{}
+	if err := json.Unmarshal(emptyExport, &emptyObject); err != nil {
+		t.Fatalf("read the empty-block export: %v", err)
+	}
+	var emptyColumns []map[string]json.RawMessage
+	if err := json.Unmarshal(emptyObject["columns"], &emptyColumns); err != nil {
+		t.Fatalf("read the empty-block columns: %v", err)
+	}
+	emptyRaw, emptyCarried := emptyColumns[0][StandingItemsKey]
+	if !emptyCarried {
+		t.Fatalf("a column declaring an empty block exports no %s member: %s", StandingItemsKey, emptyColumns[0])
+	}
+	if got := string(emptyRaw); got != "{}" {
+		t.Errorf("a column declaring an empty block exports %s as %s, wanted {}", StandingItemsKey, got)
+	}
+	emptyDefinition, err := ReadDefinition(emptyExport)
+	if err != nil {
+		t.Fatalf("read the empty-block definition: %v", err)
+	}
+	emptyClone := containedPath(t.TempDir())
+	if err := Instantiate(emptyClone, "fx", "alka", emptyDefinition); err != nil {
+		t.Fatalf("instantiate the empty-block clone: %v", err)
+	}
+	if anchor := mustRead(t, filepath.Join(emptyClone, ColumnsDir, "b00000000001", ColumnAnchor)); !strings.Contains(anchor, "\n"+StandingItemsKey+": {}\n") {
+		t.Errorf("the empty-block clone's column does not carry the bare line %s: {}:\n%s", StandingItemsKey, anchor)
+	}
+	clonedEmpty, err := Open(emptyClone)
+	if err != nil {
+		t.Fatalf("open the empty-block clone: %v", err)
+	}
+	if !clonedEmpty.Columns[0].FM.Has(StandingItemsKey) {
+		t.Errorf("the empty-block clone's column declares no %s key at all", StandingItemsKey)
+	}
+	if len(clonedEmpty.Columns[0].StandingItems) != 0 || len(clonedEmpty.Columns[0].MalformedStandingItems) != 0 {
+		t.Errorf("the empty-block clone declares %+v and refuses %v, wanted neither", clonedEmpty.Columns[0].StandingItems, clonedEmpty.Columns[0].MalformedStandingItems)
+	}
+	if found := declaredFindings(t, clonedEmpty, FindingStandingItemMalformed); len(found) != 0 {
+		t.Errorf("check reports a malformed entry on an empty block: %+v", found)
+	}
+	secondEmpty, err := clonedEmpty.Export()
+	if err != nil {
+		t.Fatalf("export the empty-block clone: %v", err)
+	}
+	secondEmptyObject := map[string]json.RawMessage{}
+	if err := json.Unmarshal(secondEmpty, &secondEmptyObject); err != nil {
+		t.Fatalf("read the empty-block clone's export: %v", err)
+	}
+	if !bytes.Equal(emptyObject["columns"], secondEmptyObject["columns"]) {
+		t.Errorf("the empty-block clone's columns differ from the first export:\n%s\n---\n%s", emptyObject["columns"], secondEmptyObject["columns"])
 	}
 
 	// The shapes a schema-free reading of the line would misread. A text
