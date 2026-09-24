@@ -2505,6 +2505,47 @@ a hint, a real rubric with examples, is ordinary prose in the workbench
 body, which the serve-time composition already delivers as standing
 context.
 
+An axis may also be written in a mapping form, whose `values` member takes
+either list spelling above and which is the form that can carry a condition
+saying which cards the axis applies to at all. A construction foreman's
+workbench, where only a snag found on inspection carries a severity, reads:
+
+```yaml
+levels:
+  priority: [later, soon, next, now]      # flow form, unchanged
+  severity:                               # mapping form
+    values:
+      - cosmetic
+      - functional: Something on site does not work as it should; put it right before handover.
+      - safety
+    applies_when:
+      field: task.type
+      is: [snag]
+```
+
+The reader tells the forms apart by the first non-blank line beneath an axis
+line with nothing after its colon: a dashed line opens the list form and a
+deeper key line opens the mapping form. The list forms stay legal, an axis
+without a condition may take any of the three, and Dinah never rewrites an
+axis from one form into another. What `applies_when` means, and what a value
+stored on an axis that does not apply becomes, is the subject of "Where a
+declaration applies" below. A condition on `tier` is reported as unusable
+there, because tier drives the claim gate.
+
+In the interchange a mapping-form axis travels as an object carrying `values`,
+an array in the shape a list-form axis already travels as, and `applies_when`,
+an object carrying `field` and `is`:
+
+```json
+"levels": {
+  "severity": {
+    "values": ["cosmetic", "functional", "safety"],
+    "applies_when": {"field": "task.type", "is": ["snag"]}
+  },
+  "priority": ["later", "soon", "next", "now"]
+}
+```
+
 (Andoneer currently requires both on every card; making them optional there
 is tracked on its own board.) Domain fields generally, such as `project` and
 `repository` on a ticket card, live on the card without the core knowing
@@ -2642,6 +2683,158 @@ this workbench has been carried across the retirement, which is what lets
 `dinah check` report a surviving heading under
 `check.branch-heading-in-body` on a workbench that has been and stay silent
 on one that has not.
+
+## Where a declaration applies
+
+A level axis and a declared field both reach every card unless the workbench
+says otherwise, and `applies_when` is how it says otherwise. The member sits
+beneath a declared field entry, beside `type`, `meaning` and `on`, or beneath
+a level axis written in the mapping form, and it names one declared field and
+the values of that field which admit the declaration:
+
+```yaml
+applies_when:
+  field: <declared field key>
+  is: [<value>, <value>, ...]
+```
+
+The mechanism knows nothing about what a workbench is for. A wedding
+workbench asks whether a vendor wants a deposit only of the catering and the
+venue bookings:
+
+```yaml
+fields:
+  event.category:
+    type: string
+    meaning: what part of the wedding this booking is for
+    on: [card]
+  vendor.deposit-required:
+    type: boolean
+    meaning: whether the vendor asks for a deposit before confirming
+    on: [card]
+    applies_when:
+      field: event.category
+      is: [catering, venue]
+```
+
+A construction foreman's workbench gates a declared field and a level axis on
+the same field, in the same syntax, so that only a subcontracted task carries
+a trade and only a snag carries a severity:
+
+```yaml
+levels:
+  severity:
+    values: [cosmetic, functional, safety]
+    applies_when:
+      field: task.type
+      is: [snag]
+fields:
+  task.type:
+    type: string
+    meaning: whether the task is our own crew's work, subcontracted, or a snag found on inspection
+    on: [card]
+  task.trade:
+    type: string
+    meaning: the trade the subcontractor brings
+    on: [card]
+    applies_when:
+      field: task.type
+      is: [subcontracted]
+```
+
+A software workbench, last, asks for a severity only of a defect:
+
+```yaml
+levels:
+  severity:
+    values: [trivial, minor, major, critical]
+    applies_when:
+      field: work.kind
+      is: [defect]
+fields:
+  work.kind:
+    type: string
+    meaning: what sort of work the card is
+    on: [card]
+```
+
+The field the condition names is the gate. `field` holds one declared field
+key, and `is` holds a flow sequence of one or more values, which read as
+alternatives. Comparison is byte equality between the gate's stored value
+and each listed value, case-sensitive and for every declared type, so a
+boolean gate is written `is: [true]` and a number gate compares text. The
+dashed spelling of `is` is not read, because an older reader reports a dashed
+line under a member it does not know as a malformed entry, and a condition
+must not raise a false finding on a build that does not understand it. Member
+order within the condition is free, and a member other than `field` and `is`
+is ignored. A declaration carries one condition and names one gate.
+
+A conditioned field entry says `on: [card]` and nothing wider. Level axes
+exist only on cards, so a condition governs card values only, and the
+restriction on entries is what lets a later revision extend conditions to
+columns, the workbench and workstreams without changing the meaning of any
+declaration already on disk.
+
+For a card and a slot, where a slot is a level axis or a declared field, the
+answer runs in three steps. A slot with no usable condition applies. Otherwise
+Dinah reads the gate's stored value on the card, and a card storing none makes
+the slot inapplicable: nobody has yet said this card is the kind the question
+is asked of. Otherwise the slot applies exactly where the stored value equals
+one of the listed values. Applicability is computed on every read from the
+declaration and the card as they stand, and nothing about it is stored.
+
+A write of a non-empty value to a slot inapplicable to the card is refused
+`dinah.inapplicable-field`, naming the slot, the gate, what the gate stores and
+what would admit the slot. The guard runs after the checks a write to that
+slot already runs, so an undeclared level is still refused as an unknown
+level and a value of the wrong type is still refused as malformed, and it
+runs before the owner and operator checks. A clearing write is never refused
+on this ground, so a value can always be removed. `dinah add --severity` and
+`--priority` meet the same guard: a card being filed stores no value for any
+gate, so a gated level named at filing is refused with the gate unset, and the
+route is to file, write the gate, then write the level.
+
+A write to a gate is never refused for what it does to the slots it governs.
+Where it leaves a value on the card under a slot that applied before the write
+and does not after it, the value is kept and the response carries the warning
+`warn.inapplicable-value`, naming the first such slot in the order severity,
+priority, then declared keys in declaration order. Clearing it inside the
+gate's write would destroy a judgement somebody recorded as a side effect of a
+write to a different field, and the gate may be written back. Keeping a value
+the declaration does not admit, showing it, and reporting it through `dinah
+check` is what the format already does with a level the workbench stopped
+declaring.
+
+Every read keeps four states apart: set, unset, inapplicable with nothing
+stored, and a kept value on an inapplicable slot. The JSON card view carries
+an `inapplicable` member after `fields`, listing each slot that does not apply
+with the gate that excluded it and, where the gate stores one, the gate's
+value; the member is absent where every slot applies, and `severity`,
+`priority` and `fields` keep reporting whatever is stored. `dinah show` prints
+one line for each inapplicable slot with nothing stored, and every surface
+that draws card lines prints a kept value in place of the slot's ordinary
+line, saying it is kept although it does not apply. `dinah list` prints `n/a`
+in a level cell whose axis does not apply to the card and stores nothing, and
+a kept value prints as stored. `dinah get` returns what is stored and never
+refuses on applicability, the compact projection is unchanged, and a query
+term compares the stored value whatever applicability says, so
+`severity:major` finds a kept `major` and `severity:""` returns both the unset
+and the inapplicable-with-nothing-stored cards.
+
+`dinah check` reports five things about conditions, and the table says which
+count as findings. A finding sets the exit status to 5 under the rule every
+finding already follows, whatever its severity; the one report with no repair
+is a notice, printed under the heading `check.notices` and carried in the
+report's `notices` member, and it never changes the outcome or the exit
+status.
+
+| Report | Kind | Severity | What it says |
+|---|---|---|---|
+| `check.applies-when-malformed` | finding | defect | A condition the reader could not use, with the slot and one of six reasons: `unreadable` for a missing or unreadable member, `tier` for a condition on the tier axis, `reaches-beyond-cards` for a conditioned entry that does not say `on: [card]`, `gate-undeclared`, `gate-off-cards`, and `gate-conditioned` for a gate that itself carries a condition, a slot naming itself included. The condition is ignored and the slot applies to every card. |
+| `check.applies-when-value-unmatchable` | finding | defect | An `is` value the gate's declared type can never hold, so no card is ever admitted by it. The rest of the condition stands. |
+| `check.applies-when-below-format` | finding | defect | A workbench declaring a format below 8 whose definition carries a condition or a mapping-form axis, which an older build misreads. `dinah check --migrate-applies-when --yes` stamps the format, from any lower number; it converts no designation, so a workbench below 7 runs `--migrate-designations` first. |
+| `check.inapplicable-value` | finding | cleanup | A card keeping a value on a slot its condition does not admit, one finding per value, beside `check.unknown-level` on the card's anchor. A value both kept and undeclared is reported under both. |
+| `check.required-field-conditioned` | notice | cleanup | A column whose `require_fields` names a key carrying a usable condition. The requirement is enforced as CORE-FIELD-11 states, so a card the condition excludes enters only by the operator's override, and the operator ruled that configuration legitimate. |
 
 ## Tier: what class of worker a card needs at each stop
 
@@ -2947,21 +3140,24 @@ run stopped between its anchor and them.
 The format carries two version numbers with two audiences, and they are
 never conflated:
 
-- **Storage format version.** `format: 7` in `workbench.md` frontmatter,
+- **Storage format version.** `format: 8` in `workbench.md` frontmatter,
   an integer governing the whole workbench directory. An implementation
   that opens a workbench with a higher number than it knows refuses loudly
   and names the version it wanted. This is Dinah's private business; the git
   precedent (`core.repositoryformatversion`, carried always, bumped
-  approximately once) is the model, and the number has moved six times: from
+  approximately once) is the model, and the number has moved seven times: from
   1 to 2 when the rule that a workbench lives inside a `.dinah` container
   landed, from 2 to 3 when the card number left the card anchor for the
   registry, from 3 to 4 when the heading a card body carried its branch name
   under was retired into a declared field, from 4 to 5 when a journal line's
   actor became an object, from 5 to 6 when a checklist item's answer became a
-  designated comment rather than a free-text note, and from 6 to 7 when that
+  designated comment rather than a free-text note, from 6 to 7 when that
   answer came to be identified by the comment's own identifier rather than by
-  its position. Three of the six are not private business: the mechanism
-  behind each is one the profile states, and the profile moved with it.
+  its position, and from 7 to 8 when a declaration could stop applying to a
+  card. Three of the seven are not private business: the mechanism behind
+  each is one the profile states, and the profile moved with it. The seventh
+  is private business of the plainest kind, since a build below 8 reads a
+  level axis in the mapping form as no axis at all.
 - **Profile version.** The contract's public promise, with the channel and
   increment rules recorded with the contract-profile work. `format:` is an
   integer read by exactly one implementation, this one, and it carries no

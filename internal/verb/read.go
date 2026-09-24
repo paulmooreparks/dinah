@@ -2718,6 +2718,11 @@ type CheckReport struct {
 	// Findings are the defects the checker names, together with whatever a
 	// repair in the same request could not do.
 	Findings []bench.Finding `json:"findings"`
+	// Notices are what the checker reports beside its findings without
+	// counting them: each is printed and carried here, and none changes the
+	// outcome or the exit code. Bench.Notices is where they come from, and
+	// the member is absent where there are none.
+	Notices []bench.Finding `json:"notices,omitempty"`
 	// StampedOrdinals counts the creation ordinals the migration wrote, and
 	// is absent from a request that did not ask for the migration.
 	StampedOrdinals *int `json:"stamped_ordinals,omitempty"`
@@ -2772,6 +2777,10 @@ type CheckReport struct {
 	// MigratedNumbers says the number migration ran, so a caller can tell a
 	// zero line count from a migration nobody asked for.
 	MigratedNumbers bool `json:"migrated_numbers,omitempty"`
+	// MigratedAppliesWhen is the account of the format stamp the
+	// applies_when migration made or previewed, absent from a request that
+	// did not ask for it.
+	MigratedAppliesWhen *bench.AppliesWhenMigration `json:"migrated_applies_when,omitempty"`
 	// RenumberedCards are the identifiers of the cards that left a repair
 	// holding a number they did not arrive holding, whether the number
 	// migration renumbered a loser of a collision or the renumber repair
@@ -2958,6 +2967,16 @@ func (l *Library) Check(req *Request) (*CheckReport, error) {
 			return report, err
 		}
 	}
+	// The applies_when stamp runs beside the designation conversion. It has
+	// no rehearsal flag, because without the confirmation it already writes
+	// nothing, and it reads no card.
+	if req != nil && req.MigrateAppliesWhen {
+		migrated, err := l.Bench.MigrateAppliesWhen(req.Confirm)
+		report.MigratedAppliesWhen = migrated
+		if err != nil {
+			return report, err
+		}
+	}
 	// The standing-item repair runs after the designation conversion and
 	// before the renumber, which is the order the parameter table declares
 	// the flags in. It reports rather than refusing when it carries no
@@ -2981,6 +3000,9 @@ func (l *Library) Check(req *Request) (*CheckReport, error) {
 			return report, err
 		}
 	}
+	// The notices ride every report the checker answers, and stampOutcome
+	// never reads them, so a report carrying only notices has outcome ok.
+	report.Notices = l.Bench.Notices()
 	if req == nil || !req.Finish {
 		findings, err := l.Bench.Check()
 		if err != nil {

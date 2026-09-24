@@ -743,6 +743,7 @@ var params = map[string][]Param{
 		{Name: "force-claims", Flag: true, Marker: true, Field: "ForceClaims"},
 		{Name: "migrate-branches", Flag: true, Marker: true, Field: "MigrateBranches"},
 		{Name: "migrate-newlines", Flag: true, Marker: true, Field: "MigrateNewlines"},
+		{Name: "migrate-applies-when", Flag: true, Marker: true, Field: "MigrateAppliesWhen"},
 		{Name: "file-standing", Flag: true, Marker: true, Field: "FileStanding"},
 		{Name: "renumber", Flag: true, Marker: true, Field: "Renumber"},
 		// remint takes a path rather than standing alone, because it repairs

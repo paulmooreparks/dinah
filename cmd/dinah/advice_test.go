@@ -880,6 +880,7 @@ var checkAdviceProvenByRunning = map[string]string{
 	"refusal.dinah.interrupted.next-named":                "TestTheInterruptedActAdviceIsACommandThatWorks",
 	"refusal.dinah.locked.next-named":                     "TestTheLockedEntityAdviceIsACommandThatWorks",
 	"refusal.dinah.store-awaiting-migration.next":         "TestTheNumberMigrationChainIsSelfGuiding",
+	"check.applies-when-below-format":                     "TestTheAppliesWhenMigrationAdviceIsACommandThatWorks",
 }
 
 // checkAdviceNeedingNoScope names every remaining catalog message that names a

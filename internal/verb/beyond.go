@@ -72,6 +72,18 @@ func (l *Library) Add(req *Request) *Response {
 	if refusal := l.admitLevels(levels); refusal != nil {
 		return l.refuseWith(req, nil, refusal.Name, refusal.Detail, refusal.Extra)
 	}
+	// A card being filed stores no declared field value, so a level whose
+	// axis carries a condition is refused with the gate unset, before any
+	// identifier is claimed. Filing, then writing the gate, then writing the
+	// level is the route.
+	for _, axis := range bench.LevelAxes {
+		if levels[axis] == "" {
+			continue
+		}
+		if refusal := l.inapplicable(nil, axis); refusal != nil {
+			return l.refuseWith(req, nil, refusal.Name, refusal.Detail, refusal.Extra)
+		}
+	}
 	// A filing that names a route is refused where the route does not carry
 	// the column the card would land in, which covers both halves of the
 	// question with one refusal: a --column the route drops, and a bare filing

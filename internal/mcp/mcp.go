@@ -1078,6 +1078,8 @@ func assignMarker(req *verb.Request, name string, value bool) {
 		req.MigrateNumbers = value
 	case "migrate-designations":
 		req.MigrateDesignations = value
+	case "migrate-applies-when":
+		req.MigrateAppliesWhen = value
 	case "rehearse":
 		req.Rehearse = value
 	case "force-claims":

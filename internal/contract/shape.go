@@ -12,6 +12,14 @@ type Shape struct {
 	// sibling entry for the case where the value is empty, and its
 	// fragments may condition on it.
 	Subject string
+	// Absent is the suffix of the sibling entry rendered where the Subject
+	// is empty, without its leading full stop. It is unnamed on every shape
+	// that leaves it blank, which is what an absent subject has always meant:
+	// a card nobody holds, an owner nobody named. A shape whose empty
+	// subject means something else names a suffix that says so, on the terms
+	// a gate storing no value is unset rather than unnamed. AbsentKeyOf is
+	// how the composer and the guards read it.
+	Absent string
 	// Values are the named values this refusal's own entries fill beyond the
 	// detail and the subject, including the three the head supplies. Every
 	// one of them is non-empty wherever it renders, every one appears in at
@@ -837,6 +845,21 @@ var Shapes = []Shape{
 		Values:    []string{"axis", "levels"},
 		Fragments: []Fragment{{Key: "refusal.dinah.unknown-level.next"}},
 		NextStep:  []string{"refusal.dinah.unknown-level.next"},
+	},
+	{
+		// The detail names the slot, the gate and the admitting values ride
+		// as values because the sentence says why the slot does not apply
+		// and what would make it, and the gate's stored value is the subject:
+		// the sentence about a card whose gate carries no value is a different
+		// sentence rather than the same one with a hole in it, so it is the
+		// unset sibling rather than the base entry. One next step serves
+		// both, since writing the gate is the repair either way.
+		Name:      InapplicableField,
+		Subject:   "value",
+		Absent:    "unset",
+		Values:    []string{"gate", "admits"},
+		Fragments: []Fragment{{Key: "refusal.dinah.inapplicable-field.next"}},
+		NextStep:  []string{"refusal.dinah.inapplicable-field.next"},
 	},
 	{
 		// The column rides as a value even though the detail carries the same
@@ -1696,6 +1719,19 @@ func ShapeOf(name string) *Shape {
 		}
 	}
 	return nil
+}
+
+// AbsentKeyOf is the catalog key of the sibling entry rendered where a shape's
+// Subject is empty: the shape's own key with the Absent suffix, which is
+// unnamed on a shape declaring none. It is read here by the composer and by
+// every guard that pairs a subject with its sibling, so the suffix is spelled
+// in one place.
+func (s *Shape) AbsentKeyOf(base string) string {
+	suffix := s.Absent
+	if suffix == "" {
+		suffix = "unnamed"
+	}
+	return base + "." + suffix
 }
 
 // Fragment returns the fragment a shape declares under a key, or nil when it

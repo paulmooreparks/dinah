@@ -432,6 +432,14 @@ const (
 	// over the column's own stored default as well, since a default naming
 	// no declared member is the same defect arriving from the other side.
 	UnknownLevel = LayerPrefix + "unknown-level"
+	// InapplicableField is a write of a non-empty value to a level axis or a
+	// declared field whose applies_when condition does not admit the card.
+	// It is separate from UndeclaredField because the slot is declared, and
+	// from Malformed because the value may be a perfectly good one: what is
+	// wrong is that the question is not asked of this card. The refusal
+	// runs after the value checks, so a malformed value is still refused for
+	// being malformed, and a clearing write never meets it.
+	InapplicableField = LayerPrefix + "inapplicable-field"
 	// NoTierDefault is a relative tier write, +N or -N, against a column
 	// carrying no tier default of its own. It is separate from NoLevels
 	// because the workbench's set is declared and the column is what says
@@ -798,7 +806,7 @@ var Introduced = []string{
 	UnknownRoot, OutsideRoot, UnknownToolProfile, ConflictingScope, DepthWithoutRoot, MalformedDepth,
 	AmbiguousName, NotRenamable, NotAttachable, NotCommentable, IsACollection, NotArchived,
 	AmbiguousCard, AmbiguousColumn, NoUpstream, AwaitingOutside, TakesNoWork,
-	NoLevels, UnknownLevel, UnknownFormat,
+	NoLevels, UnknownLevel, UnknownFormat, InapplicableField,
 	NoTierDefault, TierOutOfRange, BelowTier, TierNotHigher,
 	UnlistedModel, UndeclaredModel, MalformedHarness, MalformedMemberName,
 	ReshapeNeedsDestination, ReshapeHeldCardInQueue, ReshapeMapSourceEmpty,

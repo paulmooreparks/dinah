@@ -107,6 +107,10 @@ var addressExemptions = []addressExemption{
 		ground: groundActNotEntity, reason: "a finding names the file a defect was found in, and several finding kinds name a file that by construction has no reference at all, a missing anchor among them",
 	},
 	{
+		site:   renderSite{File: "render.go", Function: "renderNotices", Label: "t", Ordinal: 1},
+		ground: groundActNotEntity, reason: "a notice is drawn as a finding row is drawn and names the file it is about, which for the one notice there is today is a column anchor",
+	},
+	{
 		site:   renderSite{File: "render.go", Function: "renderHistory", Label: "t", Ordinal: 1},
 		ground: groundActNotEntity, reason: "the rows are one card's recorded acts, and the caller named that card to reach the log",
 	},

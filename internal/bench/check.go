@@ -326,6 +326,40 @@ const (
 	// column unreachable, so the posture matches FindingItemColumnUnresolved,
 	// which reports rather than refusing the workbench.
 	FindingRequiredFieldUndeclared = "check.required-field-undeclared"
+	// FindingAppliesWhenMalformed names an applies_when member the reader
+	// could not use. Path is the workbench anchor and Detail is the slot
+	// carrying it and the reason token in parentheses, so the sentence reads
+	// the reason after the slot. The condition is ignored, so the declaration
+	// applies to every card, and the repair is an edit to the block.
+	FindingAppliesWhenMalformed = "check.applies-when-malformed"
+	// FindingAppliesWhenValueUnmatchable names one value of a usable
+	// condition that the gate's declared type can never hold, so no card is
+	// ever admitted by it. Path is the workbench anchor and Detail is the
+	// slot and the value in parentheses. The rest of the condition stands.
+	FindingAppliesWhenValueUnmatchable = "check.applies-when-value-unmatchable"
+	// FindingInapplicableValue names a card keeping a value on a slot its
+	// applies_when condition does not admit, one finding per such value.
+	// Path is the card's anchor and Detail is the slot and the stored value
+	// in that order, on the terms FindingUnknownLevel reports a level the
+	// workbench stopped declaring. It carries SeverityCleanup: nothing
+	// depends on the kept value and nothing is blocked by it, and clearing
+	// it or writing the gate back is one write either way.
+	FindingInapplicableValue = "check.inapplicable-value"
+	// FindingAppliesWhenBelowFormat names a workbench declaring a format
+	// below AppliesWhenFormat whose definition carries an applies_when
+	// member or a level axis in mapping form, which an older build
+	// misreads. Path is the workbench anchor and Detail is the declared
+	// format number, and the repair is
+	// `dinah check --migrate-applies-when --yes`.
+	FindingAppliesWhenBelowFormat = "check.applies-when-below-format"
+	// NoticeRequiredFieldConditioned names a column whose require_fields
+	// names a key carrying a usable condition, so a card the condition
+	// excludes can enter only by the operator's override. Path is the
+	// column's anchor and Detail is the column's reference and the key in
+	// parentheses. It is a notice rather than a finding, answered by
+	// Bench.Notices and never by Bench.Check, because the configuration is
+	// legitimate and has no repair.
+	NoticeRequiredFieldConditioned = "check.required-field-conditioned"
 	// FindingStandingItemMissing names a live card standing in a column
 	// whose standing_items declaration carries an entry the card holds no
 	// live instance of, which is every card that entered the column before
@@ -536,6 +570,7 @@ func (b *Bench) Check() ([]Finding, error) {
 		findings = append(findings, cardFindings...)
 	}
 	findings = append(findings, b.checkFieldDeclarations()...)
+	findings = append(findings, b.checkConditions()...)
 	newlineFindings, err := b.checkStoredNewlines()
 	if err != nil {
 		return findings, err
@@ -948,6 +983,17 @@ func (b *Bench) checkCard(card *Card) ([]Finding, error) {
 			continue
 		}
 		findings = append(findings, Finding{Path: anchor, Key: FindingUnknownLevel, Detail: axis + " " + stored})
+	}
+	// A value kept on a slot the card's own gate no longer admits is reported
+	// beside the unknown level, and a value both orphaned and undeclared is
+	// reported under both, because they are two facts with two repairs.
+	for _, orphaned := range b.OrphanedValues(card) {
+		findings = append(findings, Finding{
+			Path:     anchor,
+			Key:      FindingInapplicableValue,
+			Detail:   orphaned.Slot + " " + orphaned.Value,
+			Severity: SeverityCleanup,
+		})
 	}
 	// The heading is reported only on a workbench the retirement has reached,
 	// which is what the format number is for here and the whole of what it

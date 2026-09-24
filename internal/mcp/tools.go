@@ -1,6 +1,7 @@
 package mcp
 
 import (
+	"encoding/json"
 	"sort"
 
 	"dinah/internal/contract"
@@ -227,6 +228,7 @@ var argumentExemptions = map[string]map[string]string{
 		"renumber":             "renumbers the later claimant of a number two cards hold, and a reference somebody wrote down for that card stops resolving",
 		"migrate-workstreams":  "rewrites the workstream records of an ageing store, which is a one-time repair of it",
 		"migrate-designations": "converts every checklist item's answer of record and stamps the store's format, which is a cutover the workbench operator runs at a moment he picks and which locks every older build out of the store",
+		"migrate-applies-when": "stamps the store's format at the one that declares applies_when conditions, which locks every older build out of the store and is the operator's to run at a terminal",
 		"rehearse":             "turns that conversion into a rehearsal, which is the form an agent may run and which this head offers no conversion to rehearse",
 		"force-claims":         "carries that conversion past a card somebody still holds, which is a judgement about whose session has died and is the operator's to make at a terminal",
 	},
@@ -938,15 +940,30 @@ func readExport(l *verb.Library, r *verb.Request) any {
 	return wrap(map[string]any{"interchange": string(data)}, readAffordances)
 }
 
-// readCheck answers the check tool.
+// readCheck answers the check tool with the report the library composed,
+// carrying every member the terminal's machine form carries.
+//
+// The answer is the report's own JSON encoding decoded back into a map, so
+// that the affordances can be added beside it. Naming the members here one
+// by one is what dropped notices on the floor (dinah-590/criteria/14): the
+// report gained a member and this projection went on copying the two it
+// knew, so a live check over this head answered without the one report the
+// notice tier was minted to show. Going through the encoding means a member
+// added to CheckReport reaches this head the day it is added, and the
+// omitempty each optional member declares is honoured here exactly as the
+// terminal honours it.
 func readCheck(l *verb.Library, r *verb.Request) any {
 	report, err := l.Check(r)
 	if err != nil {
 		return l.FromError(r, err)
 	}
-	answer := map[string]any{"outcome": report.Outcome, "findings": report.Findings}
-	if report.StampedOrdinals != nil {
-		answer["stamped_ordinals"] = *report.StampedOrdinals
+	encoded, err := json.Marshal(report)
+	if err != nil {
+		return l.FromError(r, err)
+	}
+	answer := map[string]any{}
+	if err := json.Unmarshal(encoded, &answer); err != nil {
+		return l.FromError(r, err)
 	}
 	return wrap(answer, readAffordances)
 }

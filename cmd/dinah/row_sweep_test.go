@@ -1694,6 +1694,13 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
+			site: renderSite{File: "render.go", Function: "renderNotices", Label: "t", Ordinal: 1}, label: "one notice", varies: noCell,
+			constantReason: "this block declares one column and no heading, so it has no column to misplace",
+			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
+				return sweptRun(t, sweptConditionedTree(t, w, "notices-"+tag+"-"+sweptPass), tag, "check")
+			},
+		},
+		{
 			site: renderSite{File: "render.go", Function: "renderVersion", Label: "t", Ordinal: 1}, label: "catalog coverage",
 			keys: []string{"column.catalogs.language", "column.catalogs.translated"}, varies: lastCell,
 			opensAt: "version.catalogs", expect: expectCatalogs,
@@ -2313,6 +2320,37 @@ func sweptStrippedTree(t *testing.T, w *sweptWorkbenches, name string) string {
 	sweptDo(t, dir, "workstream", "new", sweptStrippedWorkstreamTitle)
 	sweptStripSlugs(t, dir)
 	sweptStripWorkstreamSlugs(t, dir)
+	return dir
+}
+
+// sweptConditionedTree builds a workbench that checks clean and carries the
+// one notice check prints: a column requiring a declared field whose
+// applies_when condition excludes some cards. Each call builds its own, for
+// the reason sweptStrippedTree gives, although nothing the block runs writes
+// to it.
+func sweptConditionedTree(t *testing.T, w *sweptWorkbenches, name string) string {
+	t.Helper()
+	dir := filepath.Join(w.base, name)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	sweptInit(t, dir)
+	sweptAddColumn(t, dir, reviewColumn, reviewTitle, "work", "slug: review\nrequire_fields: [task.trade]\n")
+	sweptRewrite(t, filepath.Join(sweptRoot(t, dir), bench.WorkbenchAnchor), func(source string) string {
+		const block = "fields:\n" +
+			"  task.type:\n" +
+			"    type: string\n" +
+			"    meaning: whether the task is our own crew's work or subcontracted\n" +
+			"    on: [card]\n" +
+			"  task.trade:\n" +
+			"    type: string\n" +
+			"    meaning: the trade the subcontractor brings\n" +
+			"    on: [card]\n" +
+			"    applies_when:\n" +
+			"      field: task.type\n" +
+			"      is: [subcontracted]\n"
+		return strings.Replace(source, "\ncolumns:\n", "\n"+block+"columns:\n", 1)
+	})
 	return dir
 }
 
