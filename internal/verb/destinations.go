@@ -12,9 +12,18 @@ package verb
 // expired claim, which this clears on the card in memory rather than on disk,
 // and witnesses a divergence, which refuses nothing. Leaving aside a read or
 // write that fails and a stale basis, which a completion never carries, a
-// move is refused on no row this filter does not run.
-// TestNoMoveRefusalIsRaisedOutsideTheSharedChecks keeps it that way, by
-// failing when Do or move raises a refusal anywhere but through those two.
+// move is refused today on no row this filter does not run.
+//
+// Nothing enforces that for a row added later. A refusal written into Do,
+// evaluate or move, or into anything they call other than admit and canMove,
+// reaches the real move and not this filter, and no test fails because of
+// where it was written. Two things protect the filter. The rows live in the
+// two functions it shares with the move, so the ordinary place to add a row
+// is already shared. And TestAMoveOffersOnlyTheDestinationThatPasses and
+// TestTheMoveFilterRefusesExactlyWhereTheMoveRefuses, in cmd/dinah, compare
+// the offered set with a real move on a fresh copy of the workbench, row by
+// row, but only in the states their fixtures build. A new row that refuses
+// in some other state is caught only if somebody adds a fixture for it.
 //
 // A capacity question is asked of every row at once. When any destination
 // declares a capacity, the live cards' headers are read once and counted per

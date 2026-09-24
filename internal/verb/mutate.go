@@ -74,7 +74,10 @@ func (l *Library) Do(req *Request) *Response {
 // card resolves, and the request names an owner. It answers the card the
 // reference found, or the refusal of the first row that fails. Do and
 // MoveDestinations both call it, so a row added here reaches a real act and
-// the completion of a move alike.
+// the completion of a move alike. A row that refuses a move belongs here or in
+// canMove. Written anywhere else in Do, evaluate or move, it reaches the move
+// alone, and no test fails because of where it was written; MoveDestinations'
+// comment says what does protect the filter.
 //
 // The owner row sits here rather than only inside each verb's own function,
 // because canClaim, canRoute, release, block, unblock, join and leave all run
