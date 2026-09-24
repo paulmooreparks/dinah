@@ -1,6 +1,6 @@
 # Views, the agenda, completion and a live board
 
-This document is a design proposal, written on 2026-09-24 for the operator to review. Nothing in it is built. It combines five ideas that came out of comparing Dinah with command-line and terminal tools: saved views from gh-dash, a ranked agenda from Taskwarrior, shell completion, a board that redraws from k9s, and a key footer from lazygit. The terminal mockups use cards from the development workbench as it stood that day, trimmed to fit.
+This document is a design, proposed on 2026-09-24 and ruled on by the operator on 2026-09-25; section 9 records his rulings. When it was written nothing in it was built. It combines five ideas that came out of comparing Dinah with command-line and terminal tools: saved views from gh-dash, a ranked agenda from Taskwarrior, shell completion, a board that redraws from k9s, and a key footer from lazygit. The terminal mockups use cards from the development workbench as it stood that day, trimmed to fit.
 
 ## 1. The problem it answers
 
@@ -10,7 +10,7 @@ A person working a Dinah workbench asks the same four questions many times a day
 
 ## 2. The design in one paragraph
 
-The design adds one idea, the view, and two verbs, `view` and `completion`. A view is a named list of sections, and each section is a query the workbench already knows how to answer. A view also names its layout and its order. The board and the agenda become two views Dinah ships, not two new commands, because a board is a view laid out in columns and an agenda is a view sorted by urgency. `--watch` redraws any view when the workbench changes. Shell completion reads the same workbench to complete card numbers, columns, field values and view names. A terminal UI is left as a later, separate decision, and section 8 describes what it would reuse.
+The design adds one idea, the view, and two verbs, `view` and `completion`. A view is a named list of sections, and each section is a query the workbench already knows how to answer. A view also names its layout and its order. The board and the agenda become two views Dinah ships, not two new commands, because a board is a view laid out in columns and an agenda is a view sorted by urgency. `--watch` redraws any view when the workbench changes. Shell completion reads the same workbench to complete card numbers, columns, field values and view names. A terminal UI follows as its own phase, and section 8 describes what it would reuse.
 
 Section 10 of the critical analysis found that surface growth drives the inflow of new cards. This design is shaped to add as little surface as it can. It adds two verbs and not five, and it adds one block to the workbench definition and no new query syntax beyond one placeholder.
 
@@ -33,7 +33,7 @@ Views can be declared in two places, and a view in the second replaces a view of
 
 Dinah also ships three built-in views, `board`, `agenda` and `mine`, and a workbench or a user may replace any of them by name. Section 7 lists them.
 
-A workbench's views are presentation and not part of the contract a second implementation must honour. They belong in a first-party layer, `dinah.views`, which another implementation may ignore. Section 9 asks the operator to confirm that placement.
+A workbench's views are presentation and not part of the contract a second implementation must honour. They belong in a first-party layer, `dinah.views`, which another implementation may ignore. Section 9 records the operator's ruling confirming that placement.
 
 ### 3.3 The declaration
 
@@ -275,9 +275,9 @@ A completion runs on every Tab, so it has to be quick. It reads card titles from
 | `agenda` | list | urgency | cards the caller can act on |
 | `mine` | list | column | `holder:@me`, split into active and blocked |
 
-## 8. Later: a terminal UI
+## 8. A terminal UI
 
-A terminal UI is not part of this proposal, but the design above is most of one. A terminal UI would add input to what `view --watch` already draws. The ideas it would take are these.
+A terminal UI is the phase after the board, and the design above is most of one. A terminal UI would add input to what `view --watch` already draws. The ideas it would take are these.
 
 - **From k9s.** `:` jumps to a view, a column or a card, `/` filters the current pane with a query, and the heading always shows which workbench and which actor are in use.
 - **From lazygit.** A footer lists the keys valid for the selected card, built from that card's affordances. The footer can only offer what the workbench would allow, so an illegal action is absent from the screen rather than refused after the fact. That is the same principle as a representation that omits illegal actions, and Dinah already computes the list.
@@ -295,16 +295,18 @@ A terminal UI is not part of this proposal, but the design above is most of one.
 
 The footer in that mockup shows the review walk suggested earlier: a person working through Acceptance one card at a time, accepting or sending each back. It is the most repetitive thing the operator does at a terminal.
 
-The surfaces document and the workbench's own standing text disagree on where a terminal UI would live. The surfaces document says every head lives in the one binary, as `dinah mcp` and the planned `dinah ui` do. The workbench says the command-line tool stays tiny with no board of its own. Section 9 asks the operator to settle that before anyone designs the terminal UI further.
+The surfaces document and the workbench's own standing text disagree on where a terminal UI would live. The surfaces document says every head lives in the one binary, as `dinah mcp` and the planned `dinah ui` do. The workbench says the command-line tool stays tiny with no board of its own. The operator's second ruling in section 9 settles it in favour of the one binary.
 
-## 9. Decisions for the operator
+## 9. Decisions
 
-Each decision below comes with a recommendation.
+The operator ruled on all four decisions on 2026-09-25.
 
-1. **Where views are declared.** The choice is between a first-party `dinah.views` layer in the workbench definition plus the user's settings, and the core contract. The recommendation is the layer, because views are presentation and another implementation of the contract should not be obliged to render them.
-2. **Whether a board breaks the "no board interface" rule.** The recommendation is that it does not, because `view --layout columns` is a read like `tree`, with no input and nothing a person operates. The rule should then be restated to say what it forbids, which is an interactive board inside the command-line tool.
-3. **Whether the agenda's weights are declared per workbench.** The recommendation is yes, with the defaults of section 4.2. A ranking only helps if the people using it believe it, and a workbench whose weights are written in its definition can be argued with.
-4. **Whether a terminal UI is ever built, and where it lives.** The recommendation is to decide later, once somebody other than the operator drives a workbench from a terminal, and to resolve the disagreement in section 8 first.
+1. **Views are declared in a first-party layer.** They live in a `dinah.views` layer in the workbench definition and in the user's own settings, not in the core contract, because views are presentation and another implementation of the contract should not be obliged to render them.
+2. **A board does not break the "no board interface" rule.** The operator said the rule had been read too strictly, and that he is now more willing to have a board in the tool. `view` with the `columns` layout goes ahead.
+3. **The agenda's weights are declared per workbench,** with the defaults of section 4.2.
+4. **A terminal UI comes sooner rather than later.** The operator values a live view that updates highly, so the terminal UI is planned as the phase after the board and `--watch`, not left until somebody else drives a workbench. Section 8's question about where it lives is settled by the second ruling: the rule no longer keeps an interactive board out of the tool, so the terminal UI can be one more head in the one binary, as the surfaces document already describes for `dinah mcp` and `dinah ui`. Its own design settles the details.
+
+Shell completion is built at the same time as views, as section 10 allows.
 
 ## 10. Phasing
 
@@ -314,7 +316,7 @@ Each decision below comes with a recommendation.
 | 2 | the agenda: urgency terms, `--explain`, the `urgency` block | one block | phase 1; `blocks others` waits for dinah-596 |
 | 3 | shell completion | one verb | nothing, and it can run beside phase 1 |
 | 4 | the `columns` layout and `--watch` | none | phase 1 |
-| 5 | a terminal UI | a head | decision 4 |
+| 5 | a terminal UI | a head | phase 4 |
 
 Phases 1 and 3 are independent and can run at the same time. The phases together add two verbs. Every new verb and message still costs eight catalogs, a help entry and quick start transcripts, which are the shared generated files the critical analysis found taxing every merge. The design keeps the number of verbs down partly for that reason.
 
@@ -322,5 +324,5 @@ Phases 1 and 3 are independent and can run at the same time. The phases together
 
 - **No `or` or grouping in the query language.** Sections give a view unions without widening a language that `query` users and agents both rely on.
 - **No ranking inside `query`.** Only the agenda ranks, and it shows its arithmetic.
-- **No interactive input in the command-line tool.** Everything in phases 1 to 4 prints and exits, or prints and waits for the workbench to change.
+- **No interactive input before the terminal UI.** Everything in phases 1 to 4 prints and exits, or prints and waits for the workbench to change, and input arrives only with phase 5.
 - **No persistence of a person's position in a view.** The editor extension already remembers what was selected, and a terminal view that remembered would be a second place for that state to live.
