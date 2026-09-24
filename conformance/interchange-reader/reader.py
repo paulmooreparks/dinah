@@ -39,14 +39,15 @@ IDENTITY_PARTS_RE = re.compile(r"(\S+) ([0-9]+)\.([0-9]+)")
 OPENING_LINES = 10
 
 # Section 5.7 member names. CORE-JSON-3 and CORE-JSON-5 require the first
-# three of each level; CORE-JSON-10 to CORE-JSON-13 permit the rest.
+# three of each level; CORE-JSON-10 to CORE-JSON-14 permit the rest.
 REQUIRED_TOP = ("profile", "title", "columns")
 OPTIONAL_TOP = ("fields", "field_values", "tiers")
 REQUIRED_COLUMN = ("id", "title", "kind")
 JSON10_COLUMN = ("instructions", "operator_owned", "capacity", "slug", "gate_items")
 JSON12_COLUMN = ("field_values", "require_fields")
+JSON14_COLUMN = ("standing_items",)
 TOP_MEMBERS = REQUIRED_TOP + OPTIONAL_TOP
-COLUMN_MEMBERS = REQUIRED_COLUMN + JSON10_COLUMN + JSON12_COLUMN
+COLUMN_MEMBERS = REQUIRED_COLUMN + JSON10_COLUMN + JSON12_COLUMN + JSON14_COLUMN
 
 # Section 5.2.
 DECLARED_KINDS = ("intake", "work", "done")
@@ -78,9 +79,9 @@ class ProfileError(Exception):
 class Profile:
     def __init__(self, sha256, identity, family, version, statements):
         self.sha256 = sha256
-        self.identity = identity          # "dinah-core 0.17"
+        self.identity = identity          # "dinah-core 0.18"
         self.family = family              # "dinah-core"
-        self.version = version            # (0, 17)
+        self.version = version            # (0, 18)
         self.statements = statements      # [(identifier, text)] in published order
 
     @property
@@ -502,6 +503,31 @@ def _state_10(s):
             if json_equal(value, other):
                 return FAIL, f"Columns {i + 1} and {j + 1} carry the same slug {show(value)}."
     return PASS, f"The {plural(len(carried), 'slug')} the columns carry are all different."
+
+
+@export("CORE-JSON-14")
+def _json_14(s):
+    """R-25: the statement names the member and then says what the member is."""
+    carried = s.columns_carrying("standing_items")
+    if not carried:
+        return NA, "No column carries a standing_items member, so no column uses this permission."
+    problems = []
+    for i, value in carried:
+        if not isinstance(value, dict):
+            problems.append(f"the standing_items of column {i + 1} is {json_kind(value)}")
+            continue
+        for key, item in value.items():
+            where = f"the member {show(key)} of the standing_items of column {i + 1}"
+            if not isinstance(item, dict):
+                problems.append(f"{where} is {json_kind(item)}")
+            elif "text" not in item:
+                problems.append(f"{where} carries no text member")
+    if problems:
+        return FAIL, ("Each member of standing_items names one structured item carrying text, but "
+                      + names(problems[:3]) + ".")
+    members = sum(len(value) for _, value in carried)
+    return PASS, (f"Every member of the standing_items carried by {positions([i for i, _ in carried])} "
+                  f"is a JSON object carrying text, {plural(members, 'member')} in all.")
 
 
 def _top_permission(ident, members):

@@ -262,6 +262,19 @@ class CompareTest(unittest.TestCase):
         self.assertEqual(self.keys(report), ["leak:extra.py:2:secret"])
         self.assertEqual(status, 1)
 
+    def test_a_leak_name_quoted_in_either_brief_is_not_a_hit(self):
+        (self.reader_dir / "BRIEF.md").write_text("'secret' is fine here\n", encoding="utf-8")
+        (self.reader_dir / "UPDATE-BRIEF.md").write_text('"secret" is fine here too\n', encoding="utf-8")
+        status, report = self.run_compare()
+        self.assertEqual(self.keys(report), [])
+        self.assertEqual(status, 0)
+
+    def test_the_project_owned_files_are_exactly_four(self):
+        self.assertEqual(
+            compare.NOT_THE_AUTHORS,
+            {"BRIEF.md", "UPDATE-BRIEF.md", "README.md", "provenance.json"},
+        )
+
     def test_a_ruled_key_passes(self):
         self.reader_config["pair"] = [{"id": "S-2", "result": "fail", "detail": "lost."}]
         self.rulings.append(self.ruling("pair:accept-one.json:S-2"))

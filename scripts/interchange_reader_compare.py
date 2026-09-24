@@ -47,9 +47,12 @@ READER_DIR = Path("conformance") / "interchange-reader"
 PROFILE = Path("docs") / "spec" / "core-profile.md"
 MANIFEST = Path("internal") / "bench" / "testdata" / "compat" / "manifest.json"
 
-# The files of the reader's directory that its author did not write, and which
-# the leak scan therefore leaves alone.
-NOT_THE_AUTHORS = {"BRIEF.md", "README.md", "provenance.json"}
+# The files under conformance/interchange-reader/ that the project owns and the
+# starved author did not write. The leak scan leaves them alone, and the
+# prepare script imports this set as the names an update run's seed excludes,
+# so a project-owned file added to the directory is kept out of the author's
+# view by the same edit that keeps the scan off it.
+NOT_THE_AUTHORS = {"BRIEF.md", "UPDATE-BRIEF.md", "README.md", "provenance.json"}
 
 DISPOSITIONS = {
     "tool-defect",

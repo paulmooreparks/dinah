@@ -20,8 +20,23 @@ pattern of Glob, and the glob of Grep. The content of a Write, the strings of
 an Edit and the regular expression of Grep are file text and search text, and
 none of them is read as a path.
 
+The script also reads the tool roster a transcript records. Each object whose
+type member is "system", whose subtype is "init" and whose tools member is a
+list of strings is taken as the roster of the session that wrote it, and every
+name in it outside the permitted five is a finding. The rule is per run and
+not per transcript: the audit is run over every transcript of a run together,
+nothing documents whether a session resumed with --resume writes an init
+object to its stream, so a run in which at least one transcript carried a
+roster is not refused on that ground, whatever the other transcripts carried.
+The roster is evidence beside the guarantee, and the guarantee for each round
+is the --tools argument in the round-<n>-command.json the launcher wrote
+before running it.
+
 Exit status is 0 with no findings, 1 with findings, 2 on a usage error, and 3
-when the transcripts carried no tool call at all.
+when the transcripts carried no tool call at all or no transcript carried a
+roster. Where a run has findings and also proves nothing, the findings win
+and the status is 1, because the report carries them either way and a reader
+of the status should not mistake an unproven run for a clean one.
 """
 
 import argparse
@@ -73,6 +88,23 @@ def tool_uses(value):
             yield from tool_uses(element)
 
 
+def rosters_in(value):
+    """Yield every init object's tools list found under value."""
+    if isinstance(value, dict):
+        if (
+            value.get("type") == "system"
+            and value.get("subtype") == "init"
+            and isinstance(value.get("tools"), list)
+            and all(isinstance(name, str) for name in value["tools"])
+        ):
+            yield value["tools"]
+        for member in value.values():
+            yield from rosters_in(member)
+    elif isinstance(value, list):
+        for element in value:
+            yield from rosters_in(element)
+
+
 def path_arguments(name, arguments):
     """Yield the (member, value) pairs of a tool call that are paths."""
     if not isinstance(arguments, dict):
@@ -112,6 +144,7 @@ def audit(root, transcripts):
         "tool_calls": 0,
         "by_tool": {},
         "unparsed_lines": 0,
+        "rosters": {},
         "findings": [],
     }
     for transcript in transcripts:
@@ -124,6 +157,22 @@ def audit(root, transcripts):
             except json.JSONDecodeError:
                 report["unparsed_lines"] += 1
                 continue
+            for roster in rosters_in(value):
+                key = str(transcript)
+                if key in report["rosters"]:
+                    key = "%s:%d" % (transcript, number)
+                report["rosters"][key] = sorted(roster)
+                for name in roster:
+                    if name not in PERMITTED_TOOLS:
+                        report["findings"].append(
+                            {
+                                "transcript": str(transcript),
+                                "line": number,
+                                "tool": name,
+                                "value": name,
+                                "why": "roster-not-confined",
+                            }
+                        )
             for call in tool_uses(value):
                 name = call.get("name")
                 name = name if isinstance(name, str) else repr(name)
@@ -157,13 +206,26 @@ def main(argv=None):
         json.dumps(report, indent=2) + "\n", encoding="utf-8", newline="\n"
     )
     print(
-        "%d tool calls, %d findings, %d unparsed lines"
-        % (report["tool_calls"], len(report["findings"]), report["unparsed_lines"])
+        "%d tool calls, %d rosters, %d findings, %d unparsed lines"
+        % (
+            report["tool_calls"],
+            len(report["rosters"]),
+            len(report["findings"]),
+            report["unparsed_lines"],
+        )
     )
+    if report["findings"]:
+        return 1
     if report["tool_calls"] == 0:
         print("no tool call was read, so this audit proves nothing", file=sys.stderr)
         return 3
-    return 1 if report["findings"] else 0
+    if not report["rosters"]:
+        print(
+            "no roster was read from any transcript, so this audit proves nothing about the roster",
+            file=sys.stderr,
+        )
+        return 3
+    return 0
 
 
 if __name__ == "__main__":
