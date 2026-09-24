@@ -248,8 +248,8 @@
       "disposition": "tool-defect",
       "card": "dinah-558",
       "item": "dinah-598/questions/2",
-      "ruled_by": "",
-      "date": "",
+      "ruled_by": "paul",
+      "date": "2026-09-25",
       "note": "A read and write-back changes the column identifiers and drops gate_items, which CORE-JSON-10 names, without refusing the object; the cause dinah-548/questions/7 ruled, on a fixture the first update run added."
     },
     {
@@ -257,18 +257,18 @@
       "disposition": "profile-defect",
       "card": "dinah-561",
       "item": "dinah-598/questions/2",
-      "ruled_by": "",
-      "date": "",
+      "ruled_by": "paul",
+      "date": "2026-09-25",
       "note": "CORE-JSON-1 says only that a tool reads and writes the interchange form, and does not say whether column identifiers survive a read and write-back; the cause dinah-548/questions/6 ruled, on a fixture the first update run added."
     },
     {
       "key": "fixture:refuse-column-standing-item-no-text.json:verdict",
       "disposition": "tool-defect",
-      "card": null,
+      "card": "dinah-604",
       "item": "dinah-598/questions/3",
-      "ruled_by": "",
-      "date": "",
-      "note": "CORE-JSON-14 defines a member of standing_items as carrying the member text. The reader refuses a member that carries none as malformed; Dinah's init --from admits the object and records the entry as malformed for check to report. Drafted as a tool-defect pending the operator's ruling; the card is named when he rules."
+      "ruled_by": "paul",
+      "date": "2026-09-25",
+      "note": "CORE-JSON-14 defines a member of standing_items as carrying the member text, so init --from should refuse an export whose member lacks it, consistent with dinah-557; Dinah admits the object and records the entry as malformed for check to report, which the reader refuses outright."
     }
   ]
 }
