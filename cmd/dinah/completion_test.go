@@ -462,7 +462,9 @@ func TestATitleWithATabAndQuotesIsOneDescribedLine(t *testing.T) {
 // TestTheCallbackAnswersWithNoWorkbench is dinah-601/criteria/8: from a
 // directory no workbench is found from, and from one whose workbench anchor
 // is malformed, the callback answers the header, offers every command for the
-// first word and nothing for a card, and writes nothing to stderr.
+// first word and nothing for a card, and writes nothing to stderr. A field
+// name still completes there, from the fields every kind carries, since the
+// keys a workbench declares are the only half that needs one.
 func TestTheCallbackAnswersWithNoWorkbench(t *testing.T) {
 	empty := t.TempDir()
 	t.Setenv("DINAH_HOME", filepath.Join(empty, "home"))
@@ -481,6 +483,10 @@ func TestTheCallbackAnswersWithNoWorkbench(t *testing.T) {
 		cards := zsh(t, dir, "show", "")
 		if cards.code != 0 || cards.mode != completion.ModeWords || len(cards.inserts) != 0 || cards.errw != "" {
 			t.Errorf("%s, show: exit %d, mode %s, offers %q, stderr %q", name, cards.code, cards.mode, cards.inserts, cards.errw)
+		}
+		fields := zsh(t, dir, "get", "x", "")
+		if strings.Join(fields.inserts, " ") != strings.Join(bench.AllFields(), " ") || fields.errw != "" {
+			t.Errorf("%s, get x: offered %q, wanted every kind's fields %q", name, fields.inserts, bench.AllFields())
 		}
 	}
 }
@@ -1221,7 +1227,7 @@ func TestTheCallbackStaysInsideItsBudget(t *testing.T) {
 			d, _ := completeOnce(t, root, c.args...)
 			return d
 		})
-		t.Logf("%s: p95 %v; bound %v; Bench.Cards p95 %v; LiveCardHeaders p95 %v", c.name, took, c.bound, cardsTime, headersTime)
+		t.Logf("%s: p95 %v; bound %v; reading every card p95 %v; reading every header p95 %v", c.name, took, c.bound, cardsTime, headersTime)
 		if took > 100*time.Millisecond {
 			t.Errorf("%s took %v at the 95th percentile, over the 100 ms budget", c.name, took)
 		}

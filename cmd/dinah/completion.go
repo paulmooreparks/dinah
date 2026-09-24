@@ -11,7 +11,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unicode/utf8"
 
 	"dinah/internal/bench"
 	"dinah/internal/completion"
@@ -44,7 +43,7 @@ func runCompletion(s *session, parsed *arguments) int {
 	if s.format != formatHuman {
 		return s.emitMachine(completionScript{Shell: shell, Protocol: completion.Protocol, Script: script})
 	}
-	io.WriteString(s.out, script)
+	s.write(script)
 	return 0
 }
 
@@ -126,8 +125,8 @@ type completionCall struct {
 	prior []string
 	// current is the word being completed, up to the cursor.
 	current string
-	// replaceFrom is the rune index in current at which the shell's own
-	// replacement begins, so the insert is a candidate less that many runes.
+	// replaceFrom is the byte offset in current at which the shell's own
+	// replacement begins, so the insert is a candidate less that many bytes.
 	replaceFrom int
 	// silent marks a well-formed call that completes nothing, such as a
 	// PowerShell word that does not end with the text the shell replaces.
@@ -217,7 +216,7 @@ func readPowerShellWords(call *completionCall) (*completionCall, bool) {
 		call.silent = true
 		return call, true
 	}
-	call.replaceFrom = utf8.RuneCountInString(call.current) - utf8.RuneCountInString(replacing)
+	call.replaceFrom = len(call.current) - len(replacing)
 	return call, true
 }
 

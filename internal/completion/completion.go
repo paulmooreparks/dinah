@@ -97,9 +97,15 @@ const ellipsis = "…"
 
 // Write puts one answer on the wire: the header naming the mode, then one line
 // per candidate carrying the text the shell inserts, a TAB, and the sanitized
-// description. The insert is the candidate with its first replaceFrom runes
-// removed, which are the runes the shell leaves on the line. describe false
+// description. The insert is the candidate with its first replaceFrom bytes
+// removed, which are the ones the shell leaves on the line. describe false
 // writes every description empty, which is what the bash callback does.
+//
+// The offset is counted in bytes rather than in runes. A caller keeps only a
+// candidate that starts with the current word under ASCII case folding, which
+// compares bytes, so the candidate and the current word share a prefix of the
+// same byte length and a byte offset cuts both at the same character. It is
+// never written to the wire, so no script sees the unit.
 //
 // Write filters nothing. A caller has already kept what matches and passes
 // SafeWord, and a candidate whose word is shorter than replaceFrom is a defect
@@ -112,7 +118,7 @@ func Write(w io.Writer, mode string, candidates []Candidate, replaceFrom int, de
 	b.WriteString(mode)
 	b.WriteString("\n")
 	for _, candidate := range candidates {
-		b.WriteString(trimRunes(candidate.Word, replaceFrom))
+		b.WriteString(trimFront(candidate.Word, replaceFrom))
 		b.WriteString("\t")
 		if describe {
 			b.WriteString(Sanitize(candidate.Description))
@@ -123,17 +129,16 @@ func Write(w io.Writer, mode string, candidates []Candidate, replaceFrom int, de
 	return err
 }
 
-// trimRunes drops the first n runes of a word, answering the empty string
+// trimFront drops the first n bytes of a word, answering the empty string
 // where the word has fewer.
-func trimRunes(word string, n int) string {
-	runes := []rune(word)
-	if n >= len(runes) {
+func trimFront(word string, n int) string {
+	if n >= len(word) {
 		return ""
 	}
 	if n <= 0 {
 		return word
 	}
-	return string(runes[n:])
+	return word[n:]
 }
 
 // Sanitize is what a description becomes before a shell sees it. Every
@@ -197,7 +202,7 @@ const commandSeparators = ";&|(\n"
 
 // SplitBash reads a bash command line the way readline hands it to a
 // completion function, and answers the words after the program, the word being
-// completed, and replaceFrom, the rune index in that word at which readline's
+// completed, and replaceFrom, the byte offset in that word at which readline's
 // own replacement begins. programFound is false when the line holds no program
 // word before the word being completed, so there is nothing to complete an
 // argument of.
@@ -227,7 +232,7 @@ func SplitBash(line, wordbreaks string) (words []string, current string, replace
 type bashWord struct {
 	// text is the word with one level of quoting removed.
 	text string
-	// breakAfter is one past the rune index of the last unquoted, unescaped
+	// breakAfter is the byte offset just past the last unquoted, unescaped
 	// word-break character in text, and 0 when there is none.
 	breakAfter int
 }
@@ -271,6 +276,8 @@ func afterLastSeparator(line string) string {
 func splitWords(line, wordbreaks string) (prior []string, current bashWord) {
 	var text []rune
 	breakAfter := 0
+	// breakAfter is kept in bytes, so it is the length of the text so far
+	// as it would be written out, measured when a break character lands.
 	started := false
 	quote := rune(0)
 	runes := []rune(line)
@@ -320,7 +327,7 @@ func splitWords(line, wordbreaks string) (prior []string, current bashWord) {
 			started = true
 			text = append(text, r)
 			if strings.ContainsRune(wordbreaks, r) {
-				breakAfter = len(text)
+				breakAfter = len(string(text))
 			}
 		}
 	}
