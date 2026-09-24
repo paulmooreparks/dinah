@@ -551,6 +551,13 @@ type CardView struct {
 	// now, ones CORE-CLAIM-10 would refuse a claim over. A reader sees the
 	// refusal coming rather than meeting it and being told afterwards.
 	BlockingItems int `json:"blocking_items,omitempty"`
+	// OperatorPending is how many of the card's checklist items are in the
+	// operator's queue right now, by bench.ItemAwaitsOperator: pending open
+	// questions and decisions that name the operator or name no owner. It is
+	// the same rule prime applies to build that queue, so a reader deciding
+	// which cards hold something for the operator asks this one number rather
+	// than reading each card's checklist.
+	OperatorPending int `json:"operator_pending,omitempty"`
 	// ChildCount is how many entities sit directly below the card, summed
 	// across every collection the containment grammar gives a card. A
 	// reader deciding whether the card has anything to expand asks this one
@@ -770,7 +777,7 @@ func (l *Library) view(card *bench.Card) (*CardView, error) {
 	if err != nil {
 		return nil, err
 	}
-	blocking, err := l.Bench.CountBlockingItems(card.Dir)
+	tally, err := l.Bench.TallyItems(card.Dir)
 	if err != nil {
 		return nil, err
 	}
@@ -795,7 +802,8 @@ func (l *Library) view(card *bench.Card) (*CardView, error) {
 
 		AttachmentCount: counts[bench.AttachmentsDir],
 		ChecklistCount:  counts[bench.ChecklistDir],
-		BlockingItems:   blocking,
+		BlockingItems:   tally.Blocking,
+		OperatorPending: tally.AwaitingOperator,
 		ChildCount:      bench.ChildTotal(counts),
 	}
 	if column := l.Bench.Column(card.Column); column != nil {

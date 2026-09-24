@@ -129,8 +129,14 @@ function settingOf<T>(key: string, fallback: T, scope?: vscode.Uri): T {
  * This function is the whole of the boundary tree.ts keeps: everything above
  * it is data a unit test can assert on, and everything it touches is a vscode
  * value that only exists inside an extension host.
+ *
+ * `extensionUri` is the extension context's own, threaded in so an icon
+ * carrying `attention` can be resolved to the composed files dinah-599's
+ * build step writes under `media/attention/`, which `TreeItem.iconPath`
+ * takes as a documented light/dark `Uri` pair. An icon without `attention`
+ * draws exactly as it always has, as a theme icon.
  */
-function toTreeItem(spec: TreeItemSpec): vscode.TreeItem {
+function toTreeItem(spec: TreeItemSpec, extensionUri: vscode.Uri): vscode.TreeItem {
 	const collapsible =
 		spec.collapsibleState === "expanded"
 			? vscode.TreeItemCollapsibleState.Expanded
@@ -151,9 +157,24 @@ function toTreeItem(spec: TreeItemSpec): vscode.TreeItem {
 	}
 	if (spec.icon !== undefined) {
 		item.iconPath =
-			spec.icon.color === undefined
-				? new vscode.ThemeIcon(spec.icon.id)
-				: new vscode.ThemeIcon(spec.icon.id, new vscode.ThemeColor(spec.icon.color));
+			spec.icon.attention === true
+				? {
+						light: vscode.Uri.joinPath(
+							extensionUri,
+							"media",
+							"attention",
+							`${spec.icon.id}-light.svg`,
+						),
+						dark: vscode.Uri.joinPath(
+							extensionUri,
+							"media",
+							"attention",
+							`${spec.icon.id}-dark.svg`,
+						),
+					}
+				: spec.icon.color === undefined
+					? new vscode.ThemeIcon(spec.icon.id)
+					: new vscode.ThemeIcon(spec.icon.id, new vscode.ThemeColor(spec.icon.color));
 	}
 	if (spec.command !== undefined) {
 		item.command = {
@@ -717,7 +738,7 @@ export async function activate(
 	treeView = vscode.window.createTreeView<TreeElement>(VIEW_ID, {
 		treeDataProvider: {
 			onDidChangeTreeData: emitter.event,
-			getTreeItem: (element) => toTreeItem(provider.getTreeItem(element)),
+			getTreeItem: (element) => toTreeItem(provider.getTreeItem(element), context.extensionUri),
 			getChildren: (element) => provider.getChildren(element),
 		},
 		dragAndDropController,

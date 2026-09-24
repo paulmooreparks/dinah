@@ -9,6 +9,8 @@
 // expand costs, and a spy on the spawner is the only place that is visible.
 
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { test } from "node:test";
 
 import type { BinaryState, WorkbenchResolution } from "../../src/api";
@@ -32,24 +34,28 @@ import {
 	CONTEXT_WORKBENCH_FOREST,
 	CONTEXT_WORKBENCH_ROOT,
 } from "../../src/identity";
-import type { FolderInput, TreeElement, TreeItemSpec, WorkbenchData } from "../../src/tree";
+import type { FolderInput, RootRow, TreeElement, TreeItemSpec, WorkbenchData } from "../../src/tree";
 import {
 	DinahTreeProvider,
 	actionsFor,
 	cardDescription,
 	cardLabel,
 	cardIcon,
+	cardNeedsOperator,
 	collectionIcon,
 	columnActionsFor,
 	columnDescription,
 	columnRef,
 	columnTooltip,
 	groupIcon,
+	itemLabel,
+	itemNeedsOperator,
 	readAttachments,
 	readWorkbench,
 	relativeTo,
 	treeItemFor,
 	vacancyAnsweredBy,
+	withAttention,
 } from "../../src/tree";
 import { planMcpServers } from "../../src/mcpServers";
 import {
@@ -68,7 +74,9 @@ import type {
 	AttachmentListing,
 	CardView,
 	ColumnView,
+	ItemView,
 	StatusAnswer,
+	TreeNode,
 } from "../../src/wire";
 
 // ---------------------------------------------------------------------------
@@ -3736,4 +3744,761 @@ test("the attachments read carries a workstream holder unchanged", async () => {
 		"workstream/portfolio/attachments",
 	]);
 	assert.equal(listing?.ref, "workstream/portfolio");
+});
+
+// ---------------------------------------------------------------------------
+// dinah-599: the attention indicator
+// ---------------------------------------------------------------------------
+
+/**
+ * A RootRow carrying the WorkbenchData an attention fixture needs. Every
+ * field the interface requires is given a default so a caller overrides only
+ * what its case is about.
+ */
+function attentionRow(overrides: Partial<WorkbenchData> = {}): RootRow {
+	return {
+		rowKind: "workbenchRoot",
+		folder: "C:\\work",
+		folderName: "work",
+		description: "",
+		sole: true,
+		data: {
+			path: "C:\\work\\bench",
+			title: "Trees",
+			columns: new Map(),
+			cards: new Map(),
+			holding: [],
+			...overrides,
+		},
+	};
+}
+
+/** The four new English strings dinah-599 adds, read once for the two tests that check them. */
+const ATTENTION_STRINGS = [
+	"Waiting on you:",
+	"and others",
+	"Blocked, and only you can lift a block",
+	"Waiting on you to answer",
+];
+
+/**
+ * The fixture criteria/4, /5 and /14 share: one card holding two items for
+ * the operator (an open question and a decision, so both branches have
+ * something to name), a sibling card with nothing waiting, both under one
+ * state group under one column under the workbench.
+ *
+ * `isOperator` is threaded through as given, including `undefined`, which is
+ * criteria/14's own case: a window whose `status` call has not yet answered.
+ */
+function attentionFixture(isOperator: boolean | undefined): {
+	rootElement: TreeElement;
+	columnElement: TreeElement;
+	groupElement: TreeElement;
+	waitingElement: TreeElement;
+	siblingElement: TreeElement;
+} {
+	const waitingCard: CardView = {
+		id: "aaa",
+		ref: "tr-1",
+		title: "Needs the operator",
+		state: "ready",
+		operator_pending: 2,
+	};
+	const siblingCard: CardView = {
+		id: "bbb",
+		ref: "tr-2",
+		title: "Nothing waiting",
+		state: "ready",
+	};
+	const columnViewFixture = column({ id: "intake", title: "Intake" });
+
+	const cardLeafA = { kind: "card", id: "aaa", ref: "tr-1", title: "Needs the operator", count: 2 };
+	const cardLeafB = { kind: "card", id: "bbb", ref: "tr-2", title: "Nothing waiting", count: 0 };
+	const groupNode = {
+		kind: "group",
+		axis: "state",
+		value: "ready",
+		count: 2,
+		children: [cardLeafA, cardLeafB],
+	};
+	const columnNode = {
+		kind: "group",
+		axis: "column",
+		value: "intake",
+		count: 2,
+		children: [groupNode],
+	};
+	const rootNode = { kind: "workbench", title: "Trees", count: 2, children: [columnNode] };
+
+	const waitingChecklist: readonly ItemView[] = [
+		{
+			id: "b00000000001",
+			ordinal: 1,
+			ref: "tr-1/questions/1",
+			kind: "open_question",
+			state: "pending",
+			text: "Which vendor do we cite for the SLA numbers?",
+		},
+		{
+			id: "b00000000002",
+			ordinal: 2,
+			ref: "tr-1/decisions/1",
+			kind: "decision",
+			state: "pending",
+			text: "Whose contract the numbers come from.",
+		},
+	];
+
+	const row = attentionRow({
+		cards: new Map([
+			["aaa", waitingCard],
+			["bbb", siblingCard],
+		]),
+		columns: new Map([["intake", columnViewFixture]]),
+		root: rootNode,
+		...(isOperator === undefined ? {} : { isOperator }),
+	});
+
+	return {
+		rootElement: { kind: "root", row },
+		columnElement: { kind: "column", row, node: columnNode, view: columnViewFixture },
+		groupElement: { kind: "group", row, node: groupNode, column: columnViewFixture },
+		waitingElement: {
+			kind: "card",
+			row,
+			node: cardLeafA,
+			view: waitingCard,
+			column: columnViewFixture,
+			groupValue: "ready",
+			checklist: waitingChecklist,
+		},
+		siblingElement: {
+			kind: "card",
+			row,
+			node: cardLeafB,
+			view: siblingCard,
+			column: columnViewFixture,
+			groupValue: "ready",
+		},
+	};
+}
+
+// dinah-599 criteria/4: an operator window over a card holding an item for
+// him marks that card, the state group above it, its column and the
+// workbench row, and leaves a sibling with nothing waiting exactly as it
+// draws today.
+test("an operator window marks the card, its group, its column and the workbench, leaving a clean sibling untouched", () => {
+	const { rootElement, columnElement, groupElement, waitingElement, siblingElement } =
+		attentionFixture(true);
+
+	assert.deepEqual(treeItemFor(waitingElement).icon, withAttention(cardIcon("ready"), true));
+	assert.deepEqual(treeItemFor(siblingElement).icon, cardIcon("ready"));
+	assert.equal(treeItemFor(groupElement).icon?.attention, true);
+	assert.equal(treeItemFor(columnElement).icon?.attention, true);
+	assert.equal(treeItemFor(rootElement).icon?.attention, true);
+});
+
+// dinah-599 criteria/5 and /14: a window that is not provably the operator's
+// draws no attention anywhere over the very same fixture, whether `isOperator`
+// reads false or is absent altogether because no `status` call has answered
+// yet. `=== true` is the only legal read, so the two cases are one test.
+for (const isOperator of [false, undefined] as const) {
+	test(`a window whose isOperator is ${String(isOperator)} carries no attention anywhere over the same fixture`, () => {
+		const { rootElement, columnElement, groupElement, waitingElement, siblingElement } =
+			attentionFixture(isOperator);
+		for (const element of [rootElement, columnElement, groupElement, waitingElement, siblingElement]) {
+			const spec = treeItemFor(element);
+			assert.equal(spec.icon?.attention, undefined, `${element.kind} carries attention`);
+			assert.ok(
+				!(spec.tooltip ?? "").includes("Waiting on you:"),
+				`${element.kind}'s tooltip carries the attention heading`,
+			);
+		}
+	});
+}
+
+// dinah-599 criteria/6: a blocked card carries attention from its state
+// alone, with no item involved, and a ready card carries none on account of
+// standing in Acceptance: nothing here names that column, because the rule
+// reads the card and not where it stands (decisions/4).
+test("a blocked card carries attention from its state alone, and a clean card in Acceptance carries none", () => {
+	const blockedCard: CardView = {
+		id: "ccc",
+		ref: "tr-3",
+		title: "Blocked",
+		state: "blocked",
+		block_kind: "operator-ruling",
+		block_reason: "needs a ruling only he can give",
+	};
+	const acceptanceCard: CardView = {
+		id: "ddd",
+		ref: "tr-4",
+		title: "Standing in Acceptance",
+		state: "ready",
+	};
+	const row = attentionRow({
+		isOperator: true,
+		cards: new Map([
+			["ccc", blockedCard],
+			["ddd", acceptanceCard],
+		]),
+	});
+	const blockedElement: TreeElement = {
+		kind: "card",
+		row,
+		node: { kind: "card", id: "ccc", ref: "tr-3", count: 0 },
+		view: blockedCard,
+	};
+	const acceptanceElement: TreeElement = {
+		kind: "card",
+		row,
+		node: { kind: "card", id: "ddd", ref: "tr-4", count: 0 },
+		view: acceptanceCard,
+	};
+
+	const blockedSpec = treeItemFor(blockedElement);
+	assert.equal(blockedSpec.icon?.attention, true);
+	assert.ok(blockedSpec.tooltip?.startsWith("Blocked, and only you can lift a block"));
+
+	assert.equal(treeItemFor(acceptanceElement).icon?.attention, undefined);
+});
+
+// dinah-599 criteria/7: the Questions branch and its own waiting item carry
+// attention; the Criteria branch, a pending criterion owned by the operator,
+// the Comments collection and the Attachments collection never do.
+test("the Questions branch and its item carry attention; Criteria, Comments and Attachments never do", () => {
+	const row = attentionRow({ isOperator: true });
+	const root = "C:\\work\\bench";
+	const questionItem: ItemView = {
+		id: "b1",
+		ordinal: 1,
+		ref: "tr-1/questions/1",
+		kind: "open_question",
+		state: "pending",
+		text: "Which vendor?",
+	};
+	const criterionItem: ItemView = {
+		id: "b2",
+		ordinal: 1,
+		ref: "tr-1/criteria/1",
+		kind: "acceptance_criterion",
+		state: "pending",
+		owner: "operator",
+		text: "The endpoint returns 404 for an unknown id.",
+	};
+	const checklist = [questionItem, criterionItem];
+
+	const questionsBranch: TreeElement = {
+		kind: "collection",
+		row,
+		root,
+		holder: "tr-1",
+		holderKind: "card",
+		memberKind: "item",
+		narrow: "open_question",
+		members: [],
+		checklist,
+	};
+	const criteriaBranch: TreeElement = {
+		kind: "collection",
+		row,
+		root,
+		holder: "tr-1",
+		holderKind: "card",
+		memberKind: "item",
+		narrow: "acceptance_criterion",
+		members: [],
+		checklist,
+	};
+	const commentsCollection: TreeElement = {
+		kind: "collection",
+		row,
+		root,
+		holder: "tr-1",
+		holderKind: "card",
+		memberKind: "comment",
+		members: [],
+	};
+	const attachmentsCollection: TreeElement = {
+		kind: "collection",
+		row,
+		root,
+		holder: "tr-1",
+		holderKind: "card",
+		memberKind: "attachment",
+		members: [],
+	};
+	const questionItemElement: TreeElement = {
+		kind: "item",
+		row,
+		root,
+		card: "tr-1",
+		node: { kind: "item", ref: questionItem.ref, count: 0 },
+		view: questionItem,
+		isOperator: true,
+	};
+	const criterionItemElement: TreeElement = {
+		kind: "item",
+		row,
+		root,
+		card: "tr-1",
+		node: { kind: "item", ref: criterionItem.ref, count: 0 },
+		view: criterionItem,
+		isOperator: true,
+	};
+
+	assert.equal(treeItemFor(questionsBranch).icon?.attention, true);
+	assert.equal(treeItemFor(criteriaBranch).icon?.attention, undefined);
+	assert.equal(treeItemFor(commentsCollection).icon?.attention, undefined);
+	assert.equal(treeItemFor(attachmentsCollection).icon?.attention, undefined);
+	assert.equal(treeItemFor(questionItemElement).icon?.attention, true);
+	// The criterion is never in his queue (section 3.1), whatever its owner.
+	assert.equal(treeItemFor(criterionItemElement).icon?.attention, undefined);
+});
+
+// dinah-599 criteria/8: a column with four waiting cards names three and
+// says "and others" rather than a fourth name or a count, and none of the
+// four new strings carries a digit or a placeholder.
+test("a column with four waiting cards names three and says 'and others', with no digit or placeholder", () => {
+	const cardsMap = new Map<string, CardView>();
+	const leaves: TreeNode[] = [];
+	for (let n = 1; n <= 4; n++) {
+		const id = `card${String(n)}`;
+		const ref = `tr-${String(n)}`;
+		cardsMap.set(id, { id, ref, title: `Card ${String(n)}`, state: "ready", operator_pending: 1 });
+		leaves.push({ kind: "card", id, ref, count: 0 });
+	}
+	const columnViewFixture = column({ id: "intake", title: "Intake" });
+	const columnNode = { kind: "group", axis: "column", value: "intake", count: 4, children: leaves };
+	const row = attentionRow({
+		isOperator: true,
+		cards: cardsMap,
+		columns: new Map([["intake", columnViewFixture]]),
+	});
+	const columnElement: TreeElement = { kind: "column", row, node: columnNode, view: columnViewFixture };
+
+	// The attention block leads, ahead of the column's own ordinary tooltip,
+	// which is why only the first five lines are pinned here.
+	const tooltip = treeItemFor(columnElement).tooltip ?? "";
+	const lines = tooltip.split("\n");
+	assert.equal(lines[0], "Waiting on you:");
+	assert.deepEqual(lines.slice(1, 4), ["tr-1", "tr-2", "tr-3"]);
+	assert.equal(lines[4], "and others");
+
+	for (const text of ATTENTION_STRINGS) {
+		assert.ok(!/\d/.test(text), `${text} carries a digit`);
+		assert.ok(!text.includes("{"), `${text} carries a placeholder`);
+	}
+});
+
+// dinah-599 criteria/9: a card whose checklist read was refused still knows
+// from its own view that something waits, so it still carries attention and
+// names the Checklist label rather than a branch it cannot prove holds it;
+// its branches, drawn with no checklist of their own either, carry nothing.
+test("a refused checklist read still marks the card and names Checklist, with no branch marked", () => {
+	const waitingCard: CardView = {
+		id: "aaa",
+		ref: "tr-1",
+		title: "Needs the operator",
+		state: "ready",
+		operator_pending: 2,
+	};
+	const row = attentionRow({ isOperator: true, cards: new Map([["aaa", waitingCard]]) });
+	const cardElement: TreeElement = {
+		kind: "card",
+		row,
+		node: { kind: "card", id: "aaa", ref: "tr-1", count: 2 },
+		view: waitingCard,
+		// checklist deliberately absent: the read was refused.
+	};
+	const spec = treeItemFor(cardElement);
+	assert.equal(spec.icon?.attention, true);
+	assert.ok(spec.tooltip?.includes("Checklist"));
+
+	const questionsBranch: TreeElement = {
+		kind: "collection",
+		row,
+		root: "C:\\work\\bench",
+		holder: "tr-1",
+		holderKind: "card",
+		memberKind: "item",
+		narrow: "open_question",
+		members: [],
+		// checklist absent here too: nothing proves which branch holds it.
+	};
+	assert.equal(treeItemFor(questionsBranch).icon?.attention, undefined);
+});
+
+// dinah-599 criteria/10: an item row's label is itemLabel(view.text) to the
+// byte, whatever its comment count, and the count is still one hover away.
+test("an item row's label is itemLabel(view.text) even with three comments, and the count survives in its tooltip", () => {
+	const view: ItemView = {
+		id: "b1",
+		ordinal: 1,
+		ref: "tr-1/questions/1",
+		kind: "open_question",
+		state: "pending",
+		text: "Which vendor do we cite for the SLA numbers, given the history behind the decision?",
+		comment_count: 3,
+	};
+	const row = attentionRow({ isOperator: false });
+	const element: TreeElement = {
+		kind: "item",
+		row,
+		root: "C:\\work\\bench",
+		card: "tr-1",
+		node: { kind: "item", ref: view.ref, count: 3 },
+		view,
+		isOperator: false,
+	};
+	const spec = treeItemFor(element);
+	assert.equal(spec.label, itemLabel(view.text));
+	assert.ok(spec.tooltip?.includes("3 comments"));
+});
+
+// dinah-599 criteria/15: a column that draws its cards with no state group
+// between, the ungrouped shape a queue column and Acceptance both use, still
+// aggregates and names its cards exactly as it does under a group.
+test("a column with no state group beneath it still carries attention and names its waiting cards", () => {
+	const waitingCard: CardView = {
+		id: "aaa",
+		ref: "tr-1",
+		title: "Needs the operator",
+		state: "ready",
+		operator_pending: 1,
+	};
+	const columnViewFixture = column({ id: "acceptance", title: "Acceptance" });
+	const cardLeaf = { kind: "card", id: "aaa", ref: "tr-1", title: "Needs the operator", count: 0 };
+	// No state-group node between the column and the card leaf: childElements'
+	// own comment on trunk confirms this is a real shape, drawn by a column
+	// whose cards are leaves directly beneath it.
+	const columnNode = { kind: "group", axis: "column", value: "acceptance", count: 1, children: [cardLeaf] };
+	const row = attentionRow({
+		isOperator: true,
+		cards: new Map([["aaa", waitingCard]]),
+		columns: new Map([["acceptance", columnViewFixture]]),
+	});
+	const columnElement: TreeElement = { kind: "column", row, node: columnNode, view: columnViewFixture };
+	const cardElement: TreeElement = {
+		kind: "card",
+		row,
+		node: cardLeaf,
+		view: waitingCard,
+		column: columnViewFixture,
+		// No groupValue: the card stands directly under the column, exactly as
+		// it does when a queue column or Acceptance draws no group level.
+	};
+
+	const columnSpec = treeItemFor(columnElement);
+	assert.equal(columnSpec.icon?.attention, true);
+	// The attention block leads, ahead of the column's own ordinary tooltip.
+	assert.ok(columnSpec.tooltip?.startsWith("Waiting on you:\ntr-1\n"));
+
+	assert.deepEqual(treeItemFor(cardElement).icon, withAttention(cardIcon("ready"), true));
+});
+
+// dinah-599 criteria/11's cross-check: every icon id the tree can emit with
+// attention set is in scripts/attention-glyphs.json, so a row this design
+// gives a new attention-capable glyph cannot ship without the build
+// composing it. The ids are gathered by exercising the real emission path
+// (treeItemFor and the exported icon functions) rather than restating them.
+test("every icon id the tree can emit with attention set is in scripts/attention-glyphs.json", () => {
+	const glyphIds: readonly string[] = JSON.parse(
+		readFileSync(join(__dirname, "..", "..", "..", "scripts", "attention-glyphs.json"), "utf8"),
+	);
+
+	const emittable = new Set<string>();
+	// The workbench and the column each carry one fixed icon.
+	emittable.add("tools");
+	emittable.add("split-horizontal");
+	// A state group's icon, one per state the axis declares.
+	for (const value of ["ready", "active", "blocked"]) {
+		const icon = groupIcon(value);
+		if (icon !== undefined) {
+			emittable.add(icon.id);
+		}
+	}
+	// A card's icon, one per state cardState can answer.
+	for (const state of ["ready", "active", "blocked"]) {
+		emittable.add(cardIcon(state).id);
+	}
+	// A judgement branch's icon, and the legacy Checklist row's.
+	for (const narrow of ["open_question", "decision", undefined]) {
+		const icon = collectionIcon("item", narrow);
+		if (icon !== undefined) {
+			emittable.add(icon.id);
+		}
+	}
+	// An item's own icon, for the two kinds that can ever wait on him.
+	for (const view of [
+		{ kind: "open_question", state: "pending" } as ItemView,
+		{ kind: "decision", state: "pending" } as ItemView,
+	]) {
+		const spec = treeItemFor({
+			kind: "item",
+			row: attentionRow({ isOperator: true }),
+			root: "C:\\work\\bench",
+			card: "tr-1",
+			node: { kind: "item", ref: "tr-1/x/1", count: 0 },
+			view: { ...view, id: "b1", ordinal: 1, ref: "tr-1/x/1", text: "x", owner: "operator" },
+			isOperator: true,
+		});
+		if (spec.icon !== undefined) {
+			emittable.add(spec.icon.id);
+		}
+	}
+
+	const missing = [...emittable].filter((id) => !glyphIds.includes(id));
+	assert.deepEqual(missing, [], "an id the tree can draw with attention set is missing from the build's own list");
+});
+
+// ---------------------------------------------------------------------------
+// dinah-599 criteria/9 and /15, driven through the provider itself
+// ---------------------------------------------------------------------------
+
+/** The Questions branch a waiting card publishes, holding its one question. */
+const WAITING_QUESTIONS: TreeNode = {
+	kind: "collection",
+	ref: "tr-1/questions",
+	member_kind: "item",
+	narrow: "open_question",
+	member_count: 1,
+	count: 1,
+	children: [{ kind: "item", ref: "tr-1/questions/1", title: "Which vendor?", count: 0 }],
+};
+
+/**
+ * A provider over one column holding one card with operator_pending of 1, in
+ * a window that is the operator's. `grouped` puts a ready group between the
+ * column and the card, and leaving it false draws the card straight under the
+ * column, which is criteria/15's shape. `checklist` is what the card's own
+ * checklist read answers: a refusal, or the items given.
+ *
+ * Every argv the provider sends is recorded, so a test can prove the checklist
+ * read was actually asked rather than never reached.
+ */
+async function waitingCardProvider(
+	grouped: boolean,
+	checklist: "refused" | readonly ItemView[],
+): Promise<{ view: DinahTreeProvider; calls: string[][] }> {
+	const leafNode = leaf("aaa", "Needs the operator");
+	const tree = treeAnswer([
+		columnGroup("intake", grouped ? [stateGroup("ready", [leafNode])] : [leafNode], 1),
+	]);
+	const status = {
+		workbench: "Trees",
+		root: "C:\\work\\bench",
+		is_operator: true,
+		columns: [column({ id: "intake", title: "Intake", takes_work_up: true, count: 1 })],
+	};
+	const listing = {
+		cards: [card({ id: "aaa", ref: "tr-1", title: "Needs the operator", operator_pending: 1 })],
+	};
+	const cardContents = {
+		producer: "containment",
+		subject: "entity",
+		depth: "all",
+		root: { kind: "card", ref: "tr-1", count: 1, children: [WAITING_QUESTIONS] },
+	};
+	const calls: string[][] = [];
+	const spawner: Spawner = async (_exe, argv) => {
+		calls.push([...argv]);
+		if (argv.includes("status")) {
+			return ok(status);
+		}
+		if (argv.includes("tree")) {
+			return ok(tree);
+		}
+		if (argv.includes("list") && argv.includes("cards")) {
+			return ok(listing);
+		}
+		if (argv.includes("show")) {
+			return checklist === "refused"
+				? { code: 2, stdout: JSON.stringify({ refusal: "dinah.unknown-path" }), stderr: "" }
+				: ok({ checklist });
+		}
+		if (argv.includes("list") && argv.includes("tr-1")) {
+			return ok(cardContents);
+		}
+		return ok(EMPTY_CONTENTS);
+	};
+	const view = provider(spawner);
+	await view.load([folder({ folder: "C:\\work\\bench" })]);
+	return { view, calls };
+}
+
+/**
+ * Walks the provider from the root down to the one card, through the group
+ * when there is one, and returns every element it passed on the way, exactly
+ * as getChildren handed them out.
+ */
+async function walkToWaitingCard(view: DinahTreeProvider): Promise<{
+	root: TreeElement;
+	column: TreeElement;
+	group: TreeElement | undefined;
+	card: Extract<TreeElement, { kind: "card" }>;
+	branches: Extract<TreeElement, { kind: "collection" }>[];
+}> {
+	const [root] = await view.getChildren();
+	const column = (await view.getChildren(root)).find((el) => el.kind === "column");
+	assert.ok(column !== undefined, "the walk found no column row");
+	const underColumn = await view.getChildren(column);
+	const group = underColumn.find((el) => el.kind === "group");
+	const cards = group === undefined ? underColumn : await view.getChildren(group);
+	const card = cards.find(
+		(el): el is Extract<TreeElement, { kind: "card" }> => el.kind === "card",
+	);
+	assert.ok(card !== undefined, "the walk found no card row");
+	const branches = (await view.getChildren(card)).filter(
+		(el): el is Extract<TreeElement, { kind: "collection" }> => el.kind === "collection",
+	);
+	assert.equal(branches.length, 1, "the card drew a number of collection rows other than one");
+	return { root, column, group, card, branches };
+}
+
+/** Whether any recorded argv is the card's own checklist read. */
+function askedForChecklist(calls: readonly string[][]): boolean {
+	return calls.some((argv) => argv.includes("show") && argv.includes("card,checklist"));
+}
+
+const WAITING_QUESTION_ITEM: ItemView = {
+	id: "b00000000001",
+	ordinal: 1,
+	ref: "tr-1/questions/1",
+	kind: "open_question",
+	state: "pending",
+	text: "Which vendor?",
+};
+
+// dinah-599 criteria/9 at its own position: the spawner refuses the checklist
+// read, and what the provider built from that refusal is what is asserted. A
+// build turning a refused read into an empty array leaves `checklist` set to
+// [] on the card, whose hover then names no branch and not the Checklist
+// label, so both of those assertions go red on it.
+test("a refused checklist read, through the provider, leaves the card marked and naming Checklist, and no branch marked", async () => {
+	const { view, calls } = await waitingCardProvider(true, "refused");
+	const { root, column, group, card, branches } = await walkToWaitingCard(view);
+
+	assert.ok(askedForChecklist(calls), "the provider never asked for the card's checklist");
+	assert.equal(card.checklist, undefined, "a refused read left a checklist on the card");
+
+	const cardSpec = treeItemFor(card);
+	assert.equal(cardSpec.icon?.attention, true);
+	assert.ok(
+		cardSpec.tooltip?.startsWith("Waiting on you:\nChecklist\n"),
+		`the card's hover does not name the Checklist label first: ${String(cardSpec.tooltip)}`,
+	);
+
+	for (const branch of branches) {
+		assert.equal(branch.checklist, undefined, "a refused read left a checklist on a branch");
+		const spec = treeItemFor(branch);
+		assert.equal(spec.icon?.attention, undefined, "a branch carries attention it cannot prove");
+		assert.ok(!(spec.tooltip ?? "").includes("Waiting on you:"));
+	}
+
+	// The rows above the card read the card's own view, not its checklist, so
+	// the refusal costs them nothing.
+	assert.ok(group !== undefined, "the grouped fixture drew no group");
+	assert.equal(treeItemFor(group).icon?.attention, true);
+	assert.equal(treeItemFor(column).icon?.attention, true);
+	assert.equal(treeItemFor(root).icon?.attention, true);
+});
+
+// The same wiring in the other direction: the read answers, the card carries
+// what it answered, its hover names the Questions branch rather than the
+// Checklist fallback, and the branch carries attention and names the item.
+test("an answered checklist read, through the provider, names the Questions branch and marks it", async () => {
+	const { view, calls } = await waitingCardProvider(true, [WAITING_QUESTION_ITEM]);
+	const { card, branches } = await walkToWaitingCard(view);
+
+	assert.ok(askedForChecklist(calls), "the provider never asked for the card's checklist");
+	assert.deepEqual(card.checklist, [WAITING_QUESTION_ITEM]);
+
+	const cardSpec = treeItemFor(card);
+	assert.equal(cardSpec.icon?.attention, true);
+	assert.ok(
+		cardSpec.tooltip?.startsWith("Waiting on you:\nQuestions\n"),
+		`the card's hover does not name the Questions branch first: ${String(cardSpec.tooltip)}`,
+	);
+
+	const [questions] = branches;
+	assert.equal(questions.narrow, "open_question");
+	assert.deepEqual(questions.checklist, [WAITING_QUESTION_ITEM]);
+	const branchSpec = treeItemFor(questions);
+	assert.equal(branchSpec.icon?.attention, true);
+	assert.equal(branchSpec.tooltip, "Waiting on you:\nWhich vendor?");
+
+	// One read serves the card and its branch, because checklistOf caches per
+	// checkpoint.
+	assert.equal(
+		calls.filter((argv) => argv.includes("show")).length,
+		1,
+		"the checklist was read more than once for one card in one checkpoint",
+	);
+});
+
+// dinah-599 criteria/15 through the provider: a column drawing its card with
+// no group between marks itself, and the card it hands out carries the
+// prefetched checklist and names its branch exactly as under a group.
+test("a column with no state group, through the provider, marks itself and its card names the Questions branch", async () => {
+	const { view } = await waitingCardProvider(false, [WAITING_QUESTION_ITEM]);
+	const { column, group, card } = await walkToWaitingCard(view);
+
+	assert.equal(group, undefined, "the fixture drew a group level it should not have");
+	const columnSpec = treeItemFor(column);
+	assert.equal(columnSpec.icon?.attention, true);
+	assert.ok(columnSpec.tooltip?.startsWith("Waiting on you:\ntr-1\n"));
+	assert.deepEqual(card.checklist, [WAITING_QUESTION_ITEM]);
+	const cardSpec = treeItemFor(card);
+	assert.deepEqual(cardSpec.icon, withAttention(cardIcon("ready"), true));
+	assert.ok(cardSpec.tooltip?.startsWith("Waiting on you:\nQuestions\n"));
+});
+
+// ---------------------------------------------------------------------------
+// dinah-599: the two predicates, clause by clause
+// ---------------------------------------------------------------------------
+
+// itemNeedsOperator mirrors bench.ItemAwaitsOperator. Each case differs from
+// the qualifying item in exactly one field, so a build dropping or inverting
+// any clause fails the case that clause alone decides.
+test("itemNeedsOperator flips on each of its clauses and on an absent view", () => {
+	const qualifying: ItemView = {
+		id: "b1",
+		ordinal: 1,
+		ref: "tr-1/questions/1",
+		kind: "open_question",
+		state: "pending",
+		owner: "operator",
+		text: "Which vendor?",
+	};
+	const ownerless: ItemView = {
+		id: qualifying.id,
+		ordinal: qualifying.ordinal,
+		ref: qualifying.ref,
+		kind: qualifying.kind,
+		state: qualifying.state,
+		text: qualifying.text,
+	};
+	assert.equal(itemNeedsOperator(qualifying), true, "the qualifying item");
+	assert.equal(itemNeedsOperator({ ...qualifying, kind: "decision" }), true, "a decision");
+	assert.equal(itemNeedsOperator({ ...qualifying, state: "resolved" }), false, "state not pending");
+	assert.equal(
+		itemNeedsOperator({ ...qualifying, kind: "acceptance_criterion" }),
+		false,
+		"kind acceptance_criterion",
+	);
+	assert.equal(itemNeedsOperator({ ...qualifying, owner: "holder" }), false, "owner holder");
+	assert.equal(itemNeedsOperator(ownerless), true, "an absent owner counts as the operator");
+	assert.equal(itemNeedsOperator({ ...qualifying, owner: "" }), true, "an empty owner counts as the operator");
+	assert.equal(itemNeedsOperator(undefined), false, "an absent view");
+});
+
+test("cardNeedsOperator flips on the blocked state and on operator_pending, and not on an absent view", () => {
+	const ready: CardView = { id: "aaa", ref: "tr-1", state: "ready" };
+	assert.equal(cardNeedsOperator(ready), false, "operator_pending absent");
+	assert.equal(cardNeedsOperator({ ...ready, operator_pending: 0 }), false, "operator_pending zero");
+	assert.equal(cardNeedsOperator({ ...ready, operator_pending: 1 }), true, "operator_pending one");
+	assert.equal(cardNeedsOperator({ ...ready, state: "blocked" }), true, "blocked with no items");
+	assert.equal(cardNeedsOperator({ ...ready, state: "active" }), false, "active with no items");
+	assert.equal(cardNeedsOperator(undefined), false, "an absent view");
 });
