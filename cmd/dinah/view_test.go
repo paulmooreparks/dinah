@@ -178,26 +178,63 @@ func TestADefaultedViewDrawsUnderItsNameAndItsQueries(t *testing.T) {
 }
 
 // TestAMalformedViewIsListedRefusedAndChecked is dinah-600/criteria/3 at the
-// terminal: the listing's human and JSON forms name the defect, a draw is
-// refused naming it and its layer, and check reports it, while the sibling in
-// the same block draws.
+// terminal, once per defect token: the listing's human and JSON forms name
+// the defect, a draw is refused naming it and the workbench layer, and check
+// reports it, while the well-formed sibling in the same block draws. The
+// view named for invalid-name is drawn by the name it carries, which the
+// grammar refuses and the command still resolves.
 func TestAMalformedViewIsListedRefusedAndChecked(t *testing.T) {
 	root := newBench(t)
-	declareViewsIn(t, root, bench.ViewsKey+":\n  broken:\n    sections: []\n  sibling:\n    sections:\n      - query: \"state:ready\"\n")
-	if listing := mustView(t, root); !strings.Contains(listing, "(malformed: no-sections)") {
-		t.Errorf("the listing does not mark the view:\n%s", listing)
+	declareViewsIn(t, root, bench.ViewsKey+":\n"+
+		"  Bad_Name:\n    sections:\n      - query: \"state:ready\"\n"+
+		"  flat: just some text\n"+
+		"  nested-title:\n    title:\n      deep: value\n    sections:\n      - query: \"state:ready\"\n"+
+		"  empty-sections:\n    sections: []\n"+
+		"  no-query:\n    sections:\n      - title: only a title\n"+
+		"  columns-layout:\n    layout: columns\n    sections:\n      - query: \"state:ready\"\n"+
+		"  urgency-order:\n    order: urgency\n    sections:\n      - query: \"state:ready\"\n"+
+		"  sibling:\n    sections:\n      - query: \"state:ready\"\n")
+	defects := map[string]string{
+		"Bad_Name": bench.ViewInvalidName, "flat": bench.ViewNotAMapping, "nested-title": bench.ViewMalformedMember,
+		"empty-sections": bench.ViewNoSections, "no-query": bench.ViewSectionWithoutQuery,
+		"columns-layout": bench.ViewUnknownLayout, "urgency-order": bench.ViewUnknownOrder,
 	}
-	if listing := mustView(t, root, "--json"); !strings.Contains(listing, `"malformed": "no-sections"`) {
-		t.Errorf("the JSON listing does not carry the defect:\n%s", listing)
+	if len(defects) != len(bench.ViewDefects) {
+		t.Fatalf("the fixture builds %d defects and the build declares %d", len(defects), len(bench.ViewDefects))
 	}
-	got := runCLI(t, root, "view", "broken", "--json")
-	if got.code == 0 || !strings.Contains(got.out, `"refusal": "dinah.malformed-view"`) ||
-		!strings.Contains(got.out, `"defect": "no-sections"`) || !strings.Contains(got.out, `"source": "workbench"`) {
-		t.Errorf("drawing the malformed view answered %d:\n%s", got.code, got.out)
+	listing := mustView(t, root)
+	machine := mustView(t, root, "--json")
+	checked := runCLI(t, root, "check", "--json").out
+	for name, token := range defects {
+		if !strings.Contains(listing, "(malformed: "+token+")") {
+			t.Errorf("the listing does not mark %s with %s:\n%s", name, token, listing)
+		}
+		if !strings.Contains(machine, `"malformed": "`+token+`"`) {
+			t.Errorf("the JSON listing does not carry %s:\n%s", token, machine)
+		}
+		got := runCLI(t, root, "view", name, "--json")
+		if got.code == 0 || !strings.Contains(got.out, `"refusal": "dinah.malformed-view"`) ||
+			!strings.Contains(got.out, `"defect": "`+token+`"`) || !strings.Contains(got.out, `"source": "workbench"`) {
+			t.Errorf("drawing %s answered %d:\n%s", name, got.code, got.out)
+		}
+		if !strings.Contains(checked, `"Detail": "`+name+" "+token+`"`) {
+			t.Errorf("check does not report %s %s:\n%s", name, token, checked)
+		}
 	}
 	mustView(t, root, "sibling")
-	if checked := runCLI(t, root, "check", "--json"); !strings.Contains(checked.out, `"Detail": "broken no-sections"`) {
-		t.Errorf("check does not report the view:\n%s", checked.out)
+}
+
+// TestACardInTwoSectionsIsDrawnInBoth is the human half of
+// dinah-600/criteria/19.
+func TestACardInTwoSectionsIsDrawnInBoth(t *testing.T) {
+	root := newBench(t)
+	mustRunHere(t, root, "add", "Asked twice")
+	declareViewsIn(t, root, bench.ViewsKey+":\n  twice:\n    sections:\n      - title: First\n        query: \"state:ready\"\n      - title: Second\n        query: \"column:intake\"\n")
+	drawn := mustView(t, root, "twice")
+	for _, heading := range []string{"First (1)", "Second (1)"} {
+		if !strings.Contains(sectionOf(drawn, heading), "Asked twice") {
+			t.Errorf("the section %s does not draw the card:\n%s", heading, drawn)
+		}
 	}
 }
 
