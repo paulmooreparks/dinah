@@ -46,7 +46,7 @@ func init() {
 		{name: "pull", group: groupWork, run: runPull, bounded: 1},
 		{name: "release", group: groupWork, run: runRelease, bounded: 1},
 		{name: "block", group: groupWork, run: runBlock, bounded: 1, openTail: true},
-		{name: "unblock", group: groupWork, run: runUnblock, bounded: 1},
+		{name: "unblock", group: groupWork, run: runUnblock, bounded: 1, openTail: true},
 		// raise binds two positionals and lets the reason run to the end of
 		// the line, which is block's shape for the same reason: a
 		// justification worth recording is worth typing without a flag.
@@ -261,10 +261,18 @@ func runRaise(s *session, parsed *arguments) int {
 	})
 }
 
-// runUnblock lifts a block, which is the operator's act alone.
+// runUnblock lifts a block, which is the operator's act alone. The reason is
+// positional and optional, read the way block's is, so a ruling that lifts a
+// block is typed on the command that lifts it.
 func runUnblock(s *session, parsed *arguments) int {
+	words := parsed.rest()
 	req := s.request(verb.Unblock, parsed)
-	req.Card = at(parsed.rest(), 0)
+	req.Card = at(words, 0)
+	reason, refusal := s.freeText([]string{"unblock", req.Card}, words[min(1, len(words)):], "slot.reason")
+	if refusal != nil {
+		return s.reportError(refusal)
+	}
+	req.Reason = reason
 	return s.withBench(func(l *verb.Library) int {
 		return s.emit(l.Do(req))
 	})

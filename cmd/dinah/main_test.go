@@ -4459,7 +4459,8 @@ func TestPlainWordBeyondAOneBoundedCommandRefuses(t *testing.T) {
 	}{
 		{"claim", []string{"claim", "fx-1"}},
 		{"release", []string{"release", "fx-1"}},
-		{"unblock", []string{"unblock", "fx-1"}},
+		// unblock left this table at dinah-597, when its tail opened to take
+		// an optional reason the way block's does.
 		{"archive", []string{"archive", "fx-1"}},
 		{"delete", []string{"delete", "fx-1"}},
 		{"list", []string{"list", "fx-1/journal"}},
@@ -4636,6 +4637,101 @@ func TestOpenTailKeepsAcceptingExactlyOneWord(t *testing.T) {
 	wantMultipleWords = "dinah.multiple-words Dinah read 2 separate words for the value, and it only accepts one. Put quotation marks around the whole thing: dinah config set actor \"Paul Parks\"\n"
 	if got.code != 2 || got.errw != wantMultipleWords {
 		t.Errorf("config set with two loose words:\n got  %d %q\n want 2 %q", got.code, got.errw, wantMultipleWords)
+	}
+}
+
+// TestAnUnblockMaySayWhyFromTheCommandLine holds the transcripts of
+// dinah-597 section 4.4: a reasoned unblock lifts the block and leaves the
+// reason as a comment by the operator and on the unblocked journal line
+// beside the comment's identifier, with the commented and unblocked lines
+// stamped alike; several loose words are refused dinah.multiple-words with
+// the quoted form offered; and a bare unblock writes the line it always
+// wrote, carrying neither member.
+func TestAnUnblockMaySayWhyFromTheCommandLine(t *testing.T) {
+	root := newBench(t)
+	runCLI(t, root, "add", "Draft the changelog")
+	runCLI(t, root, "add", "Book the venue")
+	runCLI(t, root, "add", "Print the menus")
+	for _, ref := range []string{"fx-1", "fx-2", "fx-3"} {
+		if got := runCLI(t, root, "block", ref, "waiting on the printer", "--actor", "bo"); got.code != 0 {
+			t.Fatalf("block %s: %d %s", ref, got.code, got.errw)
+		}
+	}
+
+	// A bare changes mints a cursor and reports nothing, so the cursor is
+	// taken before the lift and the report read against it afterwards.
+	minted := runCLI(t, root, "changes")
+	cursor := strings.TrimSpace(strings.TrimPrefix(minted.out, "cursor: "))
+	if minted.code != 0 || cursor == "" {
+		t.Fatalf("changes minted no cursor: %d %q %q", minted.code, minted.out, minted.errw)
+	}
+
+	const reason = "The printer confirmed Tuesday delivery; go ahead with the earlier date."
+	got := runCLI(t, root, "unblock", "fx-1", reason)
+	if got.code != 0 || got.out != "fx-1  Draft the changelog  [Intake / ready]\n" {
+		t.Fatalf("reasoned unblock: wanted exit 0 and the card line, got %d %q %q", got.code, got.out, got.errw)
+	}
+	comments := runCLI(t, root, "show", "fx-1", "--fields", "comments")
+	if !strings.Contains(comments.out, "Ref      fx-1/comments/1") || !strings.Contains(comments.out, "Who      alka") || !strings.Contains(comments.out, "Subject  "+reason) {
+		t.Errorf("the comments index after a reasoned unblock:\n%s", comments.out)
+	}
+	listed := runCLI(t, root, "list", "fx-1/journal")
+	if !strings.Contains(listed.out, "unblocked  alka   "+reason) {
+		t.Errorf("list journal reads no reason on the unblocked row:\n%s", listed.out)
+	}
+	changes := runCLI(t, root, "changes", "--since", cursor)
+	if !strings.Contains(changes.out, reason) {
+		t.Errorf("changes reads no reason on the unblocked row:\n%s", changes.out)
+	}
+
+	var events []map[string]any
+	asJSON := runCLI(t, root, "--json", "list", "fx-1/journal")
+	if err := json.Unmarshal([]byte(asJSON.out), &events); err != nil {
+		t.Fatalf("decode the journal: %v\n%s", err, asJSON.out)
+	}
+	if len(events) != 4 {
+		t.Fatalf("wanted created, blocked, commented, unblocked; got %d lines", len(events))
+	}
+	commented, unblocked := events[2], events[3]
+	if commented["event"] != "commented" || unblocked["event"] != "unblocked" {
+		t.Fatalf("wanted commented then unblocked, got %v then %v", commented["event"], unblocked["event"])
+	}
+	if unblocked["reason"] != reason {
+		t.Errorf("unblocked reason: got %v", unblocked["reason"])
+	}
+	id, _ := commented["comment"].(string)
+	if id == "" || unblocked["comment"] != id {
+		t.Errorf("the unblocked line names %v and the commented line names %v", unblocked["comment"], commented["comment"])
+	}
+	if commented["ts"] != unblocked["ts"] {
+		t.Errorf("one act, two stamps: %v and %v", commented["ts"], unblocked["ts"])
+	}
+
+	got = runCLI(t, root, "unblock", "fx-2", "the", "printer", "is", "back")
+	wantMultipleWords := "dinah.multiple-words Dinah read 4 separate words for the reason, and it only accepts one. Put quotation marks around the whole thing: dinah unblock fx-2 \"the printer is back\"\n"
+	if got.code != 2 || got.errw != wantMultipleWords {
+		t.Errorf("unblock with four loose words:\n got  %d %q\n want 2 %q", got.code, got.errw, wantMultipleWords)
+	}
+
+	if got = runCLI(t, root, "unblock", "fx-3"); got.code != 0 {
+		t.Fatalf("bare unblock: %d %s", got.code, got.errw)
+	}
+	events = nil
+	asJSON = runCLI(t, root, "--json", "list", "fx-3/journal")
+	if err := json.Unmarshal([]byte(asJSON.out), &events); err != nil {
+		t.Fatalf("decode the journal: %v", err)
+	}
+	last := events[len(events)-1]
+	if len(events) != 3 || last["event"] != "unblocked" {
+		t.Fatalf("bare unblock: wanted created, blocked, unblocked; got %v", events)
+	}
+	for _, member := range []string{"reason", "comment"} {
+		if _, present := last[member]; present {
+			t.Errorf("a bare unblock wrote %s on its line: %v", member, last)
+		}
+	}
+	if index := runCLI(t, root, "show", "fx-3", "--fields", "comments"); strings.Contains(index.out, "fx-3/comments/1") {
+		t.Errorf("a bare unblock wrote a comment:\n%s", index.out)
 	}
 }
 

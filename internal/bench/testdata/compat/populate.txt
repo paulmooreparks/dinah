@@ -25,6 +25,8 @@ claim sample-3 --expires 8h
 block sample-4 "a vendor has not answered" --kind external
 unblock sample-4
 block sample-5 "a second obstacle" --kind external
+unblock sample-5 "the second obstacle cleared"
+block sample-5 "a third obstacle" --kind external
 move sample-1 review
 set sample-1 tier apex
 set sample-1 tier frontier --at doing

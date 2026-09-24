@@ -141,11 +141,13 @@ type Event struct {
 	// conversion, whose report names the same cards, so a reader afterwards
 	// can name each claim the operator judged dead.
 	Cards []string `json:"cards,omitempty"`
-	// Reason is a block's prose reason, or the reason a raise gave for
-	// requiring more of a card than it required a moment ago. Only block and
-	// raise populate it: an ordinary per-column tier write carries none, and
-	// a reader meeting a tier_overridden line with no reason is meeting one
-	// of those rather than a raise that omitted it.
+	// Reason is a block's prose reason, the reason an unblock gave for
+	// lifting one, or the reason a raise gave for requiring more of a card
+	// than it required a moment ago. Block, unblock and raise populate it:
+	// block always, unblock only when the lift said why, and an ordinary
+	// per-column tier write carries none, so a reader meeting a
+	// tier_overridden line with no reason is meeting one of those rather
+	// than a raise that omitted it.
 	Reason string `json:"reason,omitempty"`
 	// Kind is a block's optional class of obstacle.
 	Kind string `json:"kind,omitempty"`

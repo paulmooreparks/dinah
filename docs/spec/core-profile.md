@@ -1246,6 +1246,13 @@ hide it. The condition is evaluated after the one naming the operator, so
 an owner that is not the operator is refused `not-operator` whatever the
 card's state.
 
+An unblock may say why. A lift is often the operator answering the question
+the block raised, and an answer given anywhere but on the card is lost to
+whoever reads the card later. The reason is optional, because a block whose
+obstacle has simply gone away answers nothing the block's own reason did not
+already say, and a tool that demanded prose there would collect "done" and
+nothing more. A tool records the reason where it records the act.
+
 ```
 1  the card exists                     unknown-card
 2  whoever asks is the operator        not-operator
@@ -1261,6 +1268,8 @@ Effect: the state becomes `ready`.
 [CORE-UNBLOCK-3] A tool MUST NOT set a card's state away from `blocked` as a consequence of any verb other than unblock.
 
 [CORE-UNBLOCK-4] A tool MUST refuse an unblock of a card whose state is not `blocked`, reporting the refusal name `not-blocked`.
+
+[CORE-UNBLOCK-5] An unblock MAY carry a reason in prose.
 
 ### 6.8 History
 
@@ -1481,7 +1490,7 @@ quietly.
 | The creation ordinal | in | Two cards of one workbench carrying the same creation ordinal would leave a tool unable to say which card a reference reached, so the uniqueness is stated where the allocation can answer for it rather than left to each tool's own bookkeeping. | | CORE-CARD-10 |
 | The state, and the claim's dependence on it | in | Waiting and being worked are different situations, and a claim that ignored the difference would let two owners take up one card. | | CORE-CARD-5, CORE-CARD-6, CORE-CARD-7, CORE-CLAIM-1, CORE-CLAIM-6, CORE-MOVE-2 |
 | The pull invariant | in | Work here is taken and never handed out, which is what makes a flow pull rather than push. The invariant is stated as a rule about agency rather than about capacity, because a rule about capacity binds only the workbenches that declare a limit, and a tool declaring none would otherwise conform while pushing work at people. CORE-CLAIM-7 carries it: the owner that asks is the owner the claim names, so nobody assigns a card to anybody else. The limit below is the capacity layer built on top of that, not the invariant itself. | | CORE-CLAIM-7 |
-| The unblock verb, reserved to the operator | in | A block with no defined lift is a one-way door, and reserving the lift is what keeps a block from becoming a private pause the blocker alone can end. The verb's answer when there is nothing to lift belongs to the same row, because a caller that cannot tell a lift from a request that changed nothing cannot drive the verb without watching it. | | CORE-UNBLOCK-1, CORE-UNBLOCK-2, CORE-UNBLOCK-3, CORE-UNBLOCK-4 |
+| The unblock verb, reserved to the operator | in | A block with no defined lift is a one-way door, and reserving the lift is what keeps a block from becoming a private pause the blocker alone can end. The verb's answer when there is nothing to lift belongs to the same row, because a caller that cannot tell a lift from a request that changed nothing cannot drive the verb without watching it. A lift that can say why it happened keeps the operator's answer beside the question the block raised. | | CORE-UNBLOCK-1, CORE-UNBLOCK-2, CORE-UNBLOCK-3, CORE-UNBLOCK-4, CORE-UNBLOCK-5 |
 | The reason on a block, as free prose | in | The obstacles that stop real work are various, and a closed list would send whoever hits an unlisted one to the nearest wrong answer. | | CORE-BLOCK-1, CORE-BLOCK-2, CORE-BLOCK-5 |
 | The kind on a block, as an open value | in | Counting obstacles by class is worth having, and leaving the values open costs nothing because no rule hangs on them. | | CORE-BLOCK-4 |
 | The owner and operator identity model | in | Every act names who took it, and several rules turn on whether that owner is the operator, so the concept cannot be deferred, and a workbench that designates none has reserved acts nobody can take. Whether a name is proved is left to deployment, which is what lets one tool serve one person and another serve many. | | CORE-OWNER-1, CORE-OWNER-2, CORE-OWNER-3 |
@@ -1792,6 +1801,7 @@ themselves carry meaning.
 | CORE-UNBLOCK-2 | must | tool | An unblock asked for by an owner that is not the operator is refused with `not-operator`. |
 | CORE-UNBLOCK-3 | must not | tool | No verb other than unblock leaves a card that was `blocked` in another state. |
 | CORE-UNBLOCK-4 | must | tool | An unblock of a card whose state is not `blocked` is refused with `not-blocked`. |
+| CORE-UNBLOCK-5 | may | tool | An unblock carrying a reason is accepted. |
 | CORE-HIST-1 | must | tool | After each of the five verbs, the card's history carries an entry with a time, an owner and the verb's name. |
 | CORE-HIST-2 | must | tool | After a claim lapses, the history carries an entry with the time, attributed to the owner whose claim lapsed. |
 | CORE-HIST-3 | must not | tool | History read after later acts still carries every earlier act unchanged. |
@@ -1818,7 +1828,7 @@ themselves carry meaning.
 | CORE-LAYER-2 | must | tool | A workbench carrying a declared layer the tool does not understand still carries that layer's content after a read and a write. |
 | CORE-LAYER-3 | must | tool | A definition declaring a layer under a name this profile defines is refused with `layer-collision`. |
 
-The index carries 166 rows, which is the number of identifiers an extraction
+The index carries 167 rows, which is the number of identifiers an extraction
 over this revision returns.
 
 ## 12. Changelog
@@ -2498,7 +2508,12 @@ member it may read and a member it must preserve. The document sits on the
 Identifiers affected: CORE-JSON-14, introduced, which blesses the member a
 column object carries for its standing items. CORE-GATE-5, introduced, which
 is what a tool that acts on the member does when a card enters the column.
-No identifier of the prior revision is retired, reworded or weakened.
+CORE-UNBLOCK-5, introduced, which permits an unblock to carry a reason in
+prose. No identifier of the prior revision is retired, reworded or weakened,
+and CORE-UNBLOCK-1 through CORE-UNBLOCK-4 keep their text exactly, with the
+new statement sitting beside them. Three statements arrive in one revision
+because the two cards that wrote them were in flight together and the
+operator ruled that the bump is made once and shared.
 
 The difference is a minor increment under DOC-VER-8, which classifies a
 revision whose difference falls under none of the other rules, and DOC-VER-11
@@ -2524,7 +2539,22 @@ member's shape and the filing and stops there: what kind of item a member
 names, who settles it and what evidence settles it stay with the workbench,
 and a member's other members travel under CORE-JSON-7.
 
-Consequence for a caller. Nothing admitted before is refused now. A tool that
-does not act on the member preserves it under CORE-JSON-7, and CORE-GATE-5
-binds only a tool that does. The document sits on the `dev` channel, so
-nothing here binds a caller who has not already opted into `dinah-core 0.18`.
+A tool that does not act on the member preserves it under CORE-JSON-7, and
+CORE-GATE-5 binds only a tool that does.
+
+A block must say why the card stopped, and until this revision nothing said
+why it started again. A lift is often the operator answering the question the
+block raised, and an answer that lives only in a conversation is lost to
+whoever reads the card afterwards. The reason is optional rather than required,
+because a lift whose obstacle simply went away answers nothing the block's own
+reason did not already say, and a required reason there would collect "done"
+and nothing more. The statement permits rather than requires, on the shape of
+CORE-BLOCK-4: a tool records the reason when it is given and records nothing
+when it is not.
+
+Consequence for a caller. Nothing admitted before is refused now. A bare
+unblock is accepted exactly as it was, and a caller that offers no reason is
+refused on no ground. What a caller gains is a slot it may fill, and what a
+reader gains is a record of why a block was lifted, kept where the block
+itself is recorded. The document sits on the `dev` channel, so nothing here
+binds a caller who has not already opted into `dinah-core 0.18`.

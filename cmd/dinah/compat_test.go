@@ -101,7 +101,7 @@ var wantedEvents = map[string][]string{
 	contract.EventMoved:              {"ts", "event", "actor", "from", "from_title", "to", "to_title", "override"},
 	contract.EventReleased:           {"ts", "event", "actor"},
 	contract.EventBlocked:            {"ts", "event", "actor", "reason", "kind"},
-	contract.EventUnblocked:          {"ts", "event", "actor"},
+	contract.EventUnblocked:          {"ts", "event", "actor", "reason", "comment"},
 	contract.EventExpired:            {"ts", "event", "actor", "expires"},
 	contract.EventCommented:          {"ts", "event", "actor", "comment"},
 	contract.EventAttached:           {"ts", "event", "actor", "attachment", "filename"},

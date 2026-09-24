@@ -330,7 +330,7 @@ func TestNoEventIsBuiltWithAnActorComposedAnywhereElse(t *testing.T) {
 	// between them. It is exact: a literal added or removed fails here until
 	// somebody writes the new number down, which is what stops the population
 	// shrinking quietly.
-	const constructionSites = 51
+	const constructionSites = 52
 	// actorAssignments is how many assignments to an Actor field the two
 	// packages carry, which is none: every event names its actor in the literal
 	// that builds it.

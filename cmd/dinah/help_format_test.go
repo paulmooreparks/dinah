@@ -36,7 +36,7 @@ WORK
     [--override]                                           there in one act
   release <card>                                         Give the card back to its queue
   block <card> <reason> [--kind <kind>]                  Raise an obstacle and free the card
-  unblock <card>                                         Lift a block (operator only)
+  unblock <card> [reason]                                Lift a block (operator only)
   raise <card> <tier> <reason>                           Raise the tier this stop needs and hand the card
                                                            back
   comment <ref> [text|-]                                 Record a comment on a card, a column, or a card's
@@ -159,7 +159,7 @@ WORK
   pull [column] [--no-claim] [--expires <duration>] [--override]                                        Claim the head of a column's queue and move it there in one act
   release <card>                                                                                        Give the card back to its queue
   block <card> <reason> [--kind <kind>]                                                                 Raise an obstacle and free the card
-  unblock <card>                                                                                        Lift a block (operator only)
+  unblock <card> [reason]                                                                               Lift a block (operator only)
   raise <card> <tier> <reason>                                                                          Raise the tier this stop needs and hand the card back
   comment <ref> [text|-]                                                                                Record a comment on a card, a column, or a card's checklist item
   attach <ref> <file> [--description <text>] [--replace]                                                Attach a file, or replace its bytes
@@ -572,7 +572,7 @@ func TestNoNoteLineReachesPastTheWindow(t *testing.T) {
 // specification gives them, so a catalog edit nobody approved fails here.
 func TestTheOperatorsActsPointAtOnBehalfInTheirHelp(t *testing.T) {
 	const (
-		unblockNote  = "Only the workbench's operator lifts a block. When the operator has stated a ruling that lifts this one, `dinah guide on-behalf` says how to record it as the operator's."
+		unblockNote  = "Only the workbench's operator lifts a block. A reason given here is written on the act and as a comment on the card, so a later reader finds it beside the block it answers. When the operator has stated a ruling that lifts this one, `dinah guide on-behalf` says how to record it as the operator's."
 		resolveTail  = " An item filed `--owner operator` is settled by the operator alone, and `dinah guide on-behalf` says how to record a decision the operator has stated."
 		criteriaTail = " A criterion filed `--owner operator` is settled by the operator alone, and `dinah guide on-behalf` says how to record a result the operator has stated."
 	)

@@ -1151,7 +1151,10 @@ func (s *session) eventDetail(ev bench.Event) string {
 			tail += " " + s.r.T("log.reject")
 		}
 		return tail
-	case contract.EventBlocked:
+	case contract.EventBlocked, contract.EventUnblocked:
+		// An unblocked line carries a reason only when the lift said why,
+		// and reads empty otherwise, which is what every such row read
+		// before a lift could say anything.
 		return ev.Reason
 	case contract.EventCreated:
 		return ev.Title

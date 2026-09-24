@@ -12,11 +12,11 @@ import type { Classification } from "../../src/version";
 
 const OK: Classification = classifyVersion({
 	kind: "ok",
-	json: { tool: "v0.1.0-dev.42", profile: "dinah-core/0.4", format: 1 },
+	json: { tool: "v0.1.0-dev.42", profile: "dinah-core/0.18", format: 1 },
 });
 const FORMAT_99: Classification = classifyVersion({
 	kind: "ok",
-	json: { tool: "v0.1.0-dev.9", profile: "dinah-core/0.4", format: 99 },
+	json: { tool: "v0.1.0-dev.9", profile: "dinah-core/0.18", format: 99 },
 });
 const ENOENT: Classification = classifyVersion({
 	kind: "spawn-failed",

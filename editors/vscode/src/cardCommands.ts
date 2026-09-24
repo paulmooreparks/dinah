@@ -287,11 +287,37 @@ export async function releaseCard(
 	return runVerb(context, ["release", context.ref]);
 }
 
-/** Unblocks the card. */
-export async function unblockCard(
+/**
+ * Asks once why the block is being lifted. An empty answer is an answer: the
+ * verb takes no reason as readily as one, so blank lifts the block without
+ * saying why. Escape cancels the gesture, as it does on every asked gesture,
+ * and nothing runs.
+ */
+export async function askUnblockReason(
+	resolved: readonly CommandContext[],
+	host: CommandHost,
+): Promise<string | undefined> {
+	const reason = await host.input(
+		resolved.length === 1
+			? host.t("dialog.unblock.reasonPrompt")
+			: host.t("dialog.unblock.reasonPrompt.many", {
+					count: String(resolved.length),
+				}),
+	);
+	if (reason === undefined) {
+		return undefined;
+	}
+	return reason.trim();
+}
+
+/** Unblocks one card, with the reason when there is one. */
+export async function unblockCardWith(
 	context: CommandContext,
+	reason: string,
 ): Promise<CliOutcome> {
-	return runVerb(context, ["unblock", context.ref]);
+	return reason === ""
+		? runVerb(context, ["unblock", context.ref])
+		: runVerb(context, ["unblock", context.ref, reason]);
 }
 
 /**
@@ -862,13 +888,13 @@ export async function invokeRelease(
 	);
 }
 
-/** Unblocks each selected card. */
+/** Unblocks each selected card, with the one reason asked for the selection. */
 export async function invokeUnblock(
 	elements: readonly TreeElement[],
 	wiring: Wiring,
 ): Promise<BulkReport> {
-	return cardRun(elements, wiring, noQuestion, async (context, _answer, host) =>
-		rowOutcomeFor(await unblockCard({ ...context, host })),
+	return cardRun(elements, wiring, askUnblockReason, async (context, reason, host) =>
+		rowOutcomeFor(await unblockCardWith({ ...context, host }, reason)),
 	);
 }
 

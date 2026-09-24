@@ -551,6 +551,13 @@ const HISTORY_CASES: readonly {
 		want: "paul unblocked the card.",
 	},
 	{
+		// dinah-597: a lift that said why reads its own row, and the comment
+		// member the line also carries is not rendered.
+		name: "unblocked with a reason",
+		fixture: event({ event: "unblocked", reason: "the printer confirmed", comment: "c-9" }),
+		want: "paul unblocked the card: the printer confirmed",
+	},
+	{
 		name: "expired",
 		fixture: event({ event: "expired", expires: "2026-09-08T09:00:00Z" }),
 		want: "paul's claim on the card expired.",
@@ -679,7 +686,9 @@ test("every contract event has a case above, and the unknown fallback has one to
 	for (const name of CONTRACT_EVENTS) {
 		assert.ok(covered.includes(name), `no fixture renders the ${name} row`);
 	}
-	assert.equal(HISTORY_CASES.length, CONTRACT_EVENTS.length + 1);
+	// Plus the unknown fallback and, since dinah-597, the reasoned unblock,
+	// which is a second rendering of one contract event.
+	assert.equal(HISTORY_CASES.length, CONTRACT_EVENTS.length + 2);
 });
 
 test("an absent from or to on a field change names none rather than nothing", () => {

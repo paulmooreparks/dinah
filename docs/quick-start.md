@@ -757,10 +757,14 @@ you hand the obstacle to whoever answers for the workbench:
 $ dinah unblock rel-2 --actor bo
 not-operator this action is the operator's, and you are bo; ask the operator to run it, or run `dinah whoami` to see who Dinah takes you to be
 [exit 2]
-$ dinah unblock rel-2
+$ dinah unblock rel-2 "The printer confirmed Tuesday delivery."
 rel-2  Draft the changelog  [Intake / ready]
 [exit 0]
 ```
+
+The reason is optional. When you give one, Dinah records it on the act and as
+a comment on the card, so whoever reads the card later finds the answer beside
+the block it lifted.
 
 Release a card as soon as you stop working it, and the queue will stay honest
 about what is available. You can also give a claim its own expiry. If your claim
@@ -1266,7 +1270,8 @@ $ dinah list intake --json
       "workstreams": [
         "e9e57645599c"
       ],
-      "revision": "sha256:433dfb7fa7a8a24d20c91ca5f9a3d9c50796139787358b7bbeaae9a35717db6c"
+      "revision": "sha256:433dfb7fa7a8a24d20c91ca5f9a3d9c50796139787358b7bbeaae9a35717db6c",
+      "child_count": 1
     }
   ]
 }
@@ -1327,14 +1332,14 @@ storage format 9
 Catalogs:
   Language  Translated
   --------  ----------
-  en        1412/1412
-  af        0/1412
-  cs        0/1412
-  de        1412/1412
-  es        0/1412
-  fil       0/1412
-  hi        1412/1412
-  id        0/1412
+  en        1413/1413
+  af        0/1413
+  cs        0/1413
+  de        1413/1413
+  es        0/1413
+  fil       0/1413
+  hi        1413/1413
+  id        0/1413
 [exit 0]
 ```
 

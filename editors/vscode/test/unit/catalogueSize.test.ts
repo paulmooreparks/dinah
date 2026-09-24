@@ -149,6 +149,16 @@ const RUNTIME_ADDED_550: readonly string[] = [
  */
 const RUNTIME_ADDED_545: readonly string[] = ["servedText.heading.columnAttachments"];
 
+/**
+ * The three runtime keys dinah-597 adds: the prompt Unblock raises over one
+ * card and over several, and the history row for a lift that said why.
+ */
+const RUNTIME_ADDED_597: readonly string[] = [
+	"dialog.unblock.reasonPrompt",
+	"dialog.unblock.reasonPrompt.many",
+	"history.event.unblocked.reason",
+];
+
 /** The three manifest keys dinah-517 adds, one title per filing command. */
 const MANIFEST_ADDED_517: readonly string[] = [
 	"manifest.command.dinah.tree.raiseQuestion.title",
@@ -171,7 +181,8 @@ test("the English runtime catalogue carries the base count and this card's addit
 	// and the label for the note an item's answer stopped being, and adds the
 	// one the second review cycle needed for a comment already diverged when
 	// a session opens it. dinah-550 adds the five strings Delete Comment
-	// shows, and dinah-545 the heading above a column's attachments.
+	// shows, dinah-545 the heading above a column's attachments, and
+	// dinah-597 the two Unblock prompts and the reasoned unblock row.
 	assert.equal(
 		runtimeKeys().size,
 		CATALOGUE_BASE -
@@ -180,7 +191,18 @@ test("the English runtime catalogue carries the base count and this card's addit
 			CATALOGUE_ADDED_BY_517 -
 			CATALOGUE_REMOVED_BY_517 +
 			RUNTIME_ADDED_550.length +
-			RUNTIME_ADDED_545.length,
+			RUNTIME_ADDED_545.length +
+			RUNTIME_ADDED_597.length,
+	);
+});
+
+test("the three runtime keys dinah-597 adds are present", () => {
+	const keys = runtimeKeys();
+	assert.equal(RUNTIME_ADDED_597.length, 3);
+	assert.deepEqual(
+		RUNTIME_ADDED_597.filter((key) => !keys.has(key)),
+		[],
+		"each key above is a string Unblock asks with or a history row it writes",
 	);
 });
 

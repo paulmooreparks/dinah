@@ -1,5 +1,0 @@
-{"ts":"2026-09-24T03:23:26Z","event":"created","actor":{"name":"sam"},"title":"seventh card","to":"004acda2c28a","to_title":"Intake"}
-{"ts":"2026-09-24T03:23:28Z","event":"moved","actor":{"name":"sam"},"from":"004acda2c28a","to":"7b5cfe51cb3b","from_title":"Intake","to_title":"Doing","override":true}
-{"ts":"2026-09-24T03:23:28Z","event":"item_filed","actor":{"name":"sam"},"kind":"decision","column":"7b5cfe51cb3b","column_title":"Doing","item":"cc102dbf6827","standing":"handoff-posted"}
-{"ts":"2026-09-24T03:23:29Z","event":"claimed","actor":{"name":"sam"},"expires":"2026-09-24T03:23:29Z"}
-{"ts":"2026-09-24T03:23:29Z","event":"expired","actor":{"name":"sam"},"expires":"2026-09-24T03:23:29Z"}

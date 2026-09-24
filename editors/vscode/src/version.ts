@@ -72,7 +72,20 @@ export const SUPPORTED_FORMATS: readonly number[] = [1, 2, 3, 4, 5, 6, 7, 8, 9];
  * client that only reads the fields it knows is unharmed by fields it does
  * not.
  */
-export const MINIMUM_PROFILE = { name: "dinah-core", major: 0, minor: 4 };
+export const MINIMUM_PROFILE = { name: "dinah-core", major: 0, minor: 18 };
+
+/*
+ * The minor moved from 4 to 18 at dinah-597. Unblock now asks why the block
+ * is lifted and writes the answer as the verb's reason, which is a slot a
+ * binary claiming an earlier revision refuses with `dinah.usage` before the
+ * verb runs. An updated extension against such a binary would ask the
+ * operator for a paragraph and then refuse it row by row, so the gate refuses
+ * that binary whole at activation instead, as `binary-too-old` with both
+ * numbers in the detail. The remedy is the update the message names, and the
+ * extension ships from the same repository as the binary. A conditional send
+ * keyed on the reported minor was declined for the reason the paragraph below
+ * declines a negotiated payload: it is a shim carried for a transient skew.
+ */
 
 /**
  * The skew this gate does not catch, written down because no gate can catch it.
