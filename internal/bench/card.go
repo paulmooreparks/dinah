@@ -1,6 +1,10 @@
 package bench
 
 import (
+	"bufio"
+	"fmt"
+	"io"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -252,13 +256,23 @@ func (b *Bench) loadRetiredCardIn(root, id string) (*Card, error) {
 // workbench below it reads the number key the card's own frontmatter still
 // carries, which is the whole of the legacy read path.
 func (b *Bench) stamp(c *Card) {
+	c.Number = b.numberOf(c.ID, c.FM)
+}
+
+// numberOf is the number the workbench holds for a card, read from the
+// registry at RegistryFormat and above and from the card's own header below
+// it, and zero where neither holds one. stamp and LiveCardHeaders both ask it,
+// so a card and its header cannot be numbered two ways.
+func (b *Bench) numberOf(id string, fm *Frontmatter) int {
 	if b.Format >= RegistryFormat {
-		c.Number = b.Numbers.ByID[c.ID]
-		return
+		return b.Numbers.ByID[id]
 	}
-	if claimed := c.FM.Value("number"); claimed != "" {
-		c.Number, _ = strconv.Atoi(claimed)
+	claimed := fm.Value("number")
+	if claimed == "" {
+		return 0
 	}
+	number, _ := strconv.Atoi(claimed)
+	return number
 }
 
 // readLinks reads the links sequence. Each entry is a mapping, so the block
@@ -652,4 +666,94 @@ func ByArrival(a, b *Card) bool {
 		return first.Before(second)
 	}
 	return a.Number < b.Number
+}
+
+// cardHeaderLimit is the most of an anchor ReadCardHeader reads looking for
+// the fence that closes the frontmatter.
+const cardHeaderLimit = 64 * 1024
+
+// ReadCardHeader reads a card anchor's frontmatter and stops at the line that
+// closes it, so the body is never read however long it is. It reads at most
+// 64 KiB, strips a carriage return from each line it reads, and computes no
+// revision. An anchor that opens no frontmatter, or does not close it inside
+// that limit, is an error.
+func ReadCardHeader(anchor string) (*Frontmatter, error) {
+	file, err := os.Open(anchor)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	reader := bufio.NewReader(io.LimitReader(file, cardHeaderLimit))
+	var text strings.Builder
+	for lineNumber := 0; ; lineNumber++ {
+		line, readErr := reader.ReadString('\n')
+		text.WriteString(line)
+		fence := strings.TrimSpace(line) == "---"
+		if lineNumber == 0 && !fence {
+			return nil, fmt.Errorf("%s opens no frontmatter", anchor)
+		}
+		if lineNumber > 0 && fence {
+			fm, _ := ParseAnchor(text.String())
+			return fm, nil
+		}
+		if readErr != nil {
+			return nil, fmt.Errorf("%s closes no frontmatter within %d bytes", anchor, cardHeaderLimit)
+		}
+	}
+}
+
+// CardHeader is what a card's frontmatter says about it, read without its
+// body. It carries no revision and cannot be saved.
+type CardHeader struct {
+	// ID is the card's identifier, which is its directory's name.
+	ID string
+	// Number is the number the workbench's registry holds for the card, and
+	// zero where the registry holds none.
+	Number int
+	// Title is what a person calls the card.
+	Title string
+	// Column is the identifier of the column the card stands in.
+	Column string
+	// State is ready, active or blocked, and ready where the header names
+	// none, which is how LoadCard reads the same header.
+	State string
+	// Holder is the owner holding the card, empty when nobody does.
+	Holder string
+}
+
+// LiveCardHeaders reads the header of every live card, skipping any whose
+// header will not read. It reads no body and computes no revision, which is
+// what makes asking how many cards stand in each column cheap enough to do on
+// a keystroke. BeforeHeaderRead, when set, is asked before each anchor opens.
+func (b *Bench) LiveCardHeaders() ([]CardHeader, error) {
+	ids, err := ListIDs(b.CardsRoot())
+	if err != nil {
+		return nil, err
+	}
+	headers := make([]CardHeader, 0, len(ids))
+	for _, id := range ids {
+		if b.BeforeHeaderRead != nil {
+			if err := b.BeforeHeaderRead(); err != nil {
+				return nil, err
+			}
+		}
+		anchor := filepath.Join(b.CardsRoot(), id, CardAnchor)
+		fm, err := ReadCardHeader(anchor)
+		if err != nil {
+			continue
+		}
+		header := CardHeader{
+			ID:     id,
+			Title:  fm.Value("title"),
+			Column: fm.Value("column"),
+			State:  fm.Value("state"),
+			Holder: fm.Value("claim_holder"),
+		}
+		if header.State == "" {
+			header.State = contract.StateReady
+		}
+		header.Number = b.numberOf(id, fm)
+		headers = append(headers, header)
+	}
+	return headers, nil
 }

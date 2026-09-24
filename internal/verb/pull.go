@@ -210,7 +210,7 @@ func (l *Library) pullCandidates(req *Request, cards []*bench.Card) ([]string, b
 		// limit, one reserved to the operator, or one being retired is a
 		// column the caller was never going to reach, and saying "above your
 		// tier" about it would name the wrong obstacle.
-		reached, err := l.atCapacity(column)
+		reached, err := l.atCapacity(req, column)
 		if err == nil && reached && !req.Override {
 			continue
 		}

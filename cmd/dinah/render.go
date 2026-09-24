@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"dinah/internal/bench"
+	"dinah/internal/completion"
 	"dinah/internal/contract"
 	"dinah/internal/guide"
 	"dinah/internal/verb"
@@ -1722,6 +1723,7 @@ var refusalListings = map[string]func(*session) []string{
 		return rows
 	},
 	"guides":   func(s *session) []string { return guide.Topics() },
+	"shells":   func(s *session) []string { return completion.Shells },
 	"settings": func(s *session) []string { return bench.ConfigKeys },
 	// The fields a `dinah set` may name are the union of every kind's own
 	// fields and every key the open workbench declares, because the argument

@@ -162,17 +162,18 @@ var toolGrounds = []string{
 // served or named here with a ground from the closed set and a reason, so a
 // gap nobody has argued for cannot reach a green build.
 var toolExemptions = map[string]exemption{
-	"path":    {GroundShellOrFilesystem, "resolves a filesystem path for a shell to consume, so it means nothing over a protocol"},
-	"edit":    {GroundShellOrFilesystem, "opens a file in the reader's own editor, which needs a terminal this head does not have"},
-	"init":    {GroundShellOrFilesystem, "creates a workbench in a directory, which is a filesystem act rather than a workbench act"},
-	"extract": {GroundShellOrFilesystem, "copies a workbench definition out to a directory, which is the same filesystem act"},
-	"reshape": {GroundShellOrFilesystem, "reads its new column layout from a definition file or another workbench's directory, which is the same filesystem act init and extract are held out for"},
-	"config":  {GroundMachineNotWorkbench, "writes the user's own machine settings, which travel with the person rather than the workbench"},
-	"setup":   {GroundMachineNotWorkbench, "writes a harness's configuration files on the caller's machine, which belong to the machine and the person rather than to any workbench"},
-	"mcp":     {GroundTheHeadItself, "starts this head, so a tool for it would be the server offering to start itself"},
-	"lsp":     {GroundTheHeadItself, "starts a second head, which serves one workbench to an editor over its own protocol on its own stream; a tool for it would be one server offering to start another"},
-	"guide":   {GroundProtocolServesIt, "served as a resource rather than a tool, because a guide is read rather than run"},
-	"help":    {GroundProtocolServesIt, "the surface's own tools/list carries every tool's schema and description, which is what help prints at a terminal"},
+	"path":       {GroundShellOrFilesystem, "resolves a filesystem path for a shell to consume, so it means nothing over a protocol"},
+	"edit":       {GroundShellOrFilesystem, "opens a file in the reader's own editor, which needs a terminal this head does not have"},
+	"init":       {GroundShellOrFilesystem, "creates a workbench in a directory, which is a filesystem act rather than a workbench act"},
+	"extract":    {GroundShellOrFilesystem, "copies a workbench definition out to a directory, which is the same filesystem act"},
+	"reshape":    {GroundShellOrFilesystem, "reads its new column layout from a definition file or another workbench's directory, which is the same filesystem act init and extract are held out for"},
+	"config":     {GroundMachineNotWorkbench, "writes the user's own machine settings, which travel with the person rather than the workbench"},
+	"completion": {GroundShellOrFilesystem, "prints a script for the caller's own interactive shell to load, which means nothing over a protocol"},
+	"setup":      {GroundMachineNotWorkbench, "writes a harness's configuration files on the caller's machine, which belong to the machine and the person rather than to any workbench"},
+	"mcp":        {GroundTheHeadItself, "starts this head, so a tool for it would be the server offering to start itself"},
+	"lsp":        {GroundTheHeadItself, "starts a second head, which serves one workbench to an editor over its own protocol on its own stream; a tool for it would be one server offering to start another"},
+	"guide":      {GroundProtocolServesIt, "served as a resource rather than a tool, because a guide is read rather than run"},
+	"help":       {GroundProtocolServesIt, "the surface's own tools/list carries every tool's schema and description, which is what help prints at a terminal"},
 }
 
 // argumentExemptions names, per tool, the parameters this head deliberately

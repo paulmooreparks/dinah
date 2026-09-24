@@ -858,6 +858,11 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "433bd72453fbb864"
     },
+    "check.completion.1": {
+      "text": "शेल ऐसा है जिसके लिए Dinah स्क्रिप्ट छापता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "3ce149c909222945"
+    },
     "check.harness": {
       "text": "आपका बताया harness मान्य नाम है",
       "context": "One row of the ordered precondition list of every command that writes a journal line, spliced ahead of the command's own list because it reads the request rather than the card. One row under one key serves all of them, since it is the same check on the same value. A read is never refused over it, so no read's list carries it. The sentence is short because the table it prints in is bounded by the reader's window and this row stands on pages whose other rows are long.",
@@ -4875,6 +4880,16 @@
       "context": "Printed under the topics refusal.dinah.unknown-guide lists, on its own line and with no leading punctuation.",
       "source": "d8783c0f02e5862e"
     },
+    "refusal.dinah.unknown-shell": {
+      "text": "Dinah इन शेलों के लिए पूर्णता स्क्रिप्ट छापता है",
+      "context": "The sentence printed after the refusal name dinah.unknown-shell, which `dinah completion` raises when it is given no shell or one it has no script for. The shell names are listed under it, one per line. The sentence does not repeat the word typed, because a call naming no shell has none.",
+      "source": "e9a6ee08cf2135ec"
+    },
+    "refusal.dinah.unknown-shell.next": {
+      "text": "इनमें से किसी एक के साथ `dinah completion <shell>` चलाएँ",
+      "context": "Printed under the shells refusal.dinah.unknown-shell lists, on its own line and with no leading punctuation.",
+      "source": "ad47ae395246513"
+    },
     "refusal.dinah.unknown-item-kind": {
       "text": "{detail} चेकलिस्ट मद का प्रकार नहीं है। प्रकार हैं {kinds}।",
       "context": "The sentence printed after the refusal name dinah.unknown-item-kind, which a filing naming a kind outside the three the format declares carries. {detail} is the kind the reader typed. {kinds} is the closed set of three, which is machine vocabulary that is never translated.",
@@ -6643,6 +6658,21 @@
       "text": "बाद की कॉल में इस पाठ को छोड़ने के लिए `dinah prime --brief` चलाएं।",
       "context": "Printed after the standing instructions block on an ordinary (non-brief) prime call, naming the flag that omits it on a later call.",
       "source": "fbb0d3f287597a58"
+    },
+    "cmd.completion.summary": {
+      "text": "वह स्क्रिप्ट छापें जिससे आपका शेल dinah कमांड पूरी कर सके",
+      "context": "The one-line summary of the completion command, shown beside its syntax in the help block. The script is text the person's interactive shell (bash, zsh, fish or PowerShell) loads so that pressing Tab completes dinah command lines.",
+      "source": "79241c2fbf3f3dc1"
+    },
+    "cmd.completion.note": {
+      "text": "स्क्रिप्ट को अपने शेल की स्टार्टअप फ़ाइल से लोड करें, और हर नया शेल उस वर्कबेंच से, जिसमें आप खड़े हैं, कमांड, फ़्लैग, कार्ड संदर्भ, कॉलम और क्वेरी मान पूरे करेगा। bash में eval \"$(dinah completion bash)\" को ~/.bashrc में जोड़ें। zsh में eval \"$(dinah completion zsh)\" को compinit के बाद ~/.zshrc में जोड़ें। fish में dinah completion fish | source को ~/.config/fish/config.fish में जोड़ें। PowerShell में dinah completion powershell | Out-String | Invoke-Expression को उस फ़ाइल में जोड़ें जिसका नाम $PROFILE.CurrentUserAllHosts बताता है।",
+      "context": "The paragraph printed on the help page of `dinah completion`. The four profile lines, from eval to the file names, are commands and paths a person copies into a startup file, so they stay byte-identical in every language: eval \"$(dinah completion bash)\", ~/.bashrc, eval \"$(dinah completion zsh)\", ~/.zshrc, compinit, dinah completion fish | source, ~/.config/fish/config.fish, dinah completion powershell | Out-String | Invoke-Expression and $PROFILE.CurrentUserAllHosts are never translated.",
+      "source": "47950058215889ef"
+    },
+    "param.completion.shell.summary": {
+      "text": "वह शेल जिसके लिए स्क्रिप्ट छापनी है",
+      "context": "The meaning of the shell argument of `dinah completion`, printed in that command's arguments table, followed by the four shell names it accepts.",
+      "source": "b8bbaee762335301"
     },
     "cmd.setup.summary": {
       "text": "किसी रेसिपी से एक हार्नेस को वर्कबेंच से जोड़ें",

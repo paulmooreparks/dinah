@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"dinah/internal/bench"
+	"dinah/internal/completion"
 	"dinah/internal/contract"
 )
 
@@ -80,6 +81,99 @@ type Param struct {
 	// table rather than a legal state, and the argument-coverage tests on
 	// both heads fail on it by name.
 	Field string
+	// Complete names how the argument completes at a shell, one of
+	// Completers. Empty means the argument completes from its Vocabulary,
+	// which every parameter declaring one does unless it names a completer
+	// here instead. A non-marker parameter with neither fails its test.
+	Complete string
+}
+
+// The ways an argument completes, one per parameter, named by Param.Complete.
+const (
+	// CompleteNone offers nothing, for free text, a number or a duration.
+	CompleteNone = "none"
+	// CompleteFiles hands the word to the shell's file name completion.
+	CompleteFiles = "files"
+	// CompleteDirs hands the word to the shell's directory name completion.
+	CompleteDirs = "dirs"
+	// CompleteCommand offers the command names and the caller's aliases.
+	CompleteCommand = "command"
+	// CompleteCard offers the live cards' references.
+	CompleteCard = "card"
+	// CompleteItem offers a live card's reference followed by a slash, for
+	// the person to type the rest of an item's address.
+	CompleteItem = "item"
+	// CompleteCardOrColumn offers the cards and then the columns.
+	CompleteCardOrColumn = "card-or-column"
+	// CompleteReference offers the cards, the columns and the workstreams.
+	CompleteReference = "reference"
+	// CompleteListing offers the words list accepts beside a reference, and
+	// then every reference.
+	CompleteListing = "listing"
+	// CompleteColumn offers the columns in flow order.
+	CompleteColumn = "column"
+	// CompleteMoveDestination offers the columns a move of the card named
+	// before it would be accepted into.
+	CompleteMoveDestination = "move-destination"
+	// CompleteWorkstream offers the live workstreams' references.
+	CompleteWorkstream = "workstream"
+	// CompleteSeverity offers the declared severity levels.
+	CompleteSeverity = "severity"
+	// CompletePriority offers the declared priority levels.
+	CompletePriority = "priority"
+	// CompleteTier offers the declared tiers.
+	CompleteTier = "tier"
+	// CompleteRoute offers the declared routes.
+	CompleteRoute = "route"
+	// CompleteRecipe offers the setup recipes a name resolves to.
+	CompleteRecipe = "recipe"
+	// CompleteSetting offers the configuration keys.
+	CompleteSetting = "setting"
+	// CompleteEntityField offers every field of every kind and every key the
+	// workbench declares.
+	CompleteEntityField = "entity-field"
+	// CompleteSetValue offers the values the field named before it takes.
+	CompleteSetValue = "set-value"
+	// CompleteQuery offers query field names and, after an operator, the
+	// field's values.
+	CompleteQuery = "query"
+	// CompleteDisplay offers the words the parameter's Display spells.
+	CompleteDisplay = "display"
+)
+
+// Completers is the closed set of ways an argument completes, in the order
+// the constants above declare them. A head resolves every member, and a
+// parameter naming anything else fails its test.
+var Completers = []string{
+	CompleteNone,
+	CompleteFiles,
+	CompleteDirs,
+	CompleteCommand,
+	CompleteCard,
+	CompleteItem,
+	CompleteCardOrColumn,
+	CompleteReference,
+	CompleteListing,
+	CompleteColumn,
+	CompleteMoveDestination,
+	CompleteWorkstream,
+	CompleteSeverity,
+	CompletePriority,
+	CompleteTier,
+	CompleteRoute,
+	CompleteRecipe,
+	CompleteSetting,
+	CompleteEntityField,
+	CompleteSetValue,
+	CompleteQuery,
+	CompleteDisplay,
+}
+
+// Spelling is the word a reader meets for the parameter, which is its own
+// name unless it accepts two shapes and Display names the pair. A flag is
+// typed as two dashes followed by it.
+func (p Param) Spelling() string {
+	return p.spelling()
 }
 
 // Type is the JSON schema type of a parameter on a machine surface.
@@ -222,6 +316,9 @@ var vocabularies = map[string]Vocabulary{
 	// setup-scope is where dinah setup writes: into one project directory, or
 	// into the person's own home.
 	"setup-scope": {Values: []string{"project", "user"}},
+	// shell is the closed set of shells dinah completion prints a script
+	// for, declared once in internal/completion beside the scripts.
+	"shell": {Values: completion.Shells},
 }
 
 // VocabularyFor returns the set one argument accepts, and whether it declares
@@ -363,66 +460,66 @@ var params = map[string][]Param{
 	// this source are sets the source itself holds, and a level set is per
 	// workbench, so the refusal is what tells a reader the set.
 	"add": {
-		{Name: "title", Required: true, Rest: true, Field: "Title"},
+		{Name: "title", Required: true, Rest: true, Field: "Title", Complete: CompleteNone},
 		{Name: "column", Flag: true, Value: "column", Vocabulary: "column", Field: "Column"},
-		{Name: "severity", Flag: true, Value: "level", Field: "Severity"},
-		{Name: "priority", Flag: true, Value: "level", Field: "Priority"},
+		{Name: "severity", Flag: true, Value: "level", Field: "Severity", Complete: CompleteSeverity},
+		{Name: "priority", Flag: true, Value: "level", Field: "Priority", Complete: CompletePriority},
 		// The route flag declares no vocabulary for the reason the two level
 		// flags declare none: the set is per workbench, so the refusal is
 		// what tells a reader which names the workbench carries.
-		{Name: "route", Flag: true, Value: "name", Field: "Route"},
+		{Name: "route", Flag: true, Value: "name", Field: "Route", Complete: CompleteRoute},
 	},
 	Claim: {
-		{Name: "card", Required: true, Field: "Card"},
-		{Name: "expires", Flag: true, Value: "duration", Field: "Expires"},
+		{Name: "card", Required: true, Field: "Card", Complete: CompleteCard},
+		{Name: "expires", Flag: true, Value: "duration", Field: "Expires", Complete: CompleteNone},
 	},
 	Move: {
-		{Name: "card", Required: true, Shared: "card", Field: "Card"},
-		{Name: "column", Required: true, Vocabulary: "column", AlsoFlag: true, Field: "Column"},
+		{Name: "card", Required: true, Shared: "card", Field: "Card", Complete: CompleteCard},
+		{Name: "column", Required: true, Vocabulary: "column", AlsoFlag: true, Field: "Column", Complete: CompleteMoveDestination},
 		{Name: "override", Flag: true, Marker: true, Field: "Override"},
 	},
-	Release: {{Name: "card", Required: true, Shared: "card", Field: "Card"}},
+	Release: {{Name: "card", Required: true, Shared: "card", Field: "Card", Complete: CompleteCard}},
 	Block: {
-		{Name: "card", Required: true, Field: "Card"},
-		{Name: "reason", Required: true, Rest: true, Field: "Reason"},
-		{Name: "kind", Flag: true, Value: "kind", Field: "Kind"},
+		{Name: "card", Required: true, Field: "Card", Complete: CompleteCard},
+		{Name: "reason", Required: true, Rest: true, Field: "Reason", Complete: CompleteNone},
+		{Name: "kind", Flag: true, Value: "kind", Field: "Kind", Complete: CompleteNone},
 	},
 	// unblock's reason is optional and takes the rest of the line the way
 	// block's does, because a ruling worth recording is worth typing without
 	// a flag, and a lift whose obstacle simply went away has nothing to say.
 	Unblock: {
-		{Name: "card", Required: true, Shared: "card", Field: "Card"},
-		{Name: "reason", Rest: true, Field: "Reason"},
+		{Name: "card", Required: true, Shared: "card", Field: "Card", Complete: CompleteCard},
+		{Name: "reason", Rest: true, Field: "Reason", Complete: CompleteNone},
 	},
 	// raise takes the tier before the reason, and the reason takes the rest
 	// of the line the way block's does, because a justification worth
 	// recording is worth typing without a flag. There is no column argument:
 	// a raise is always about the column the caller is standing in.
 	Raise: {
-		{Name: "card", Required: true, Shared: "card", Field: "Card"},
-		{Name: "tier", Required: true, Field: "Tier"},
-		{Name: "reason", Required: true, Rest: true, Field: "Reason"},
+		{Name: "card", Required: true, Shared: "card", Field: "Card", Complete: CompleteCard},
+		{Name: "tier", Required: true, Field: "Tier", Complete: CompleteTier},
+		{Name: "reason", Required: true, Rest: true, Field: "Reason", Complete: CompleteNone},
 	},
 	Join: {
-		{Name: "card", Required: true, Shared: "card", Field: "Card"},
-		{Name: "workstream", Required: true, Shared: "workstream", Field: "Workstream"},
+		{Name: "card", Required: true, Shared: "card", Field: "Card", Complete: CompleteCard},
+		{Name: "workstream", Required: true, Shared: "workstream", Field: "Workstream", Complete: CompleteWorkstream},
 	},
 	Leave: {
-		{Name: "card", Required: true, Shared: "card", Field: "Card"},
-		{Name: "workstream", Required: true, Shared: "workstream", Field: "Workstream"},
+		{Name: "card", Required: true, Shared: "card", Field: "Card", Complete: CompleteCard},
+		{Name: "workstream", Required: true, Shared: "workstream", Field: "Workstream", Complete: CompleteWorkstream},
 	},
 	// comment's text is not required. A call carrying none mints the
 	// comment with an empty body, which is the form an editor calls: the
 	// entity exists from the first keystroke, so nothing has to decide when
 	// an author has finished composing one.
 	"comment": {
-		{Name: "card", Display: "ref", Required: true, Guide: "references", Field: "Card"},
-		{Name: "text", Display: "text|-", Rest: true, Field: "Text"},
+		{Name: "card", Display: "ref", Required: true, Guide: "references", Field: "Card", Complete: CompleteReference},
+		{Name: "text", Display: "text|-", Rest: true, Field: "Text", Complete: CompleteNone},
 	},
 	"attach": {
-		{Name: "ref", Required: true, Guide: "references", Field: "Ref"},
-		{Name: "file", Required: true, Field: "File"},
-		{Name: "description", Flag: true, Value: "text", Field: "Description"},
+		{Name: "ref", Required: true, Guide: "references", Field: "Ref", Complete: CompleteReference},
+		{Name: "file", Required: true, Field: "File", Complete: CompleteFiles},
+		{Name: "description", Flag: true, Value: "text", Field: "Description", Complete: CompleteNone},
 		{Name: "replace", Flag: true, Marker: true, Field: "Replace"},
 	},
 	// The six checklist verbs. file names a card, because an item is created
@@ -430,54 +527,54 @@ var params = map[string][]Param{
 	// the same reference grammar every entity-shaped command already uses,
 	// the checklist segments' short forms included.
 	"file": {
-		{Name: "card", Required: true, Shared: "card", Field: "Card"},
+		{Name: "card", Required: true, Shared: "card", Field: "Card", Complete: CompleteCard},
 		{Name: "kind", Required: true, Vocabulary: "item-kind", Field: "Kind"},
-		{Name: "text", Display: "text|-", Required: true, Rest: true, Field: "Text"},
+		{Name: "text", Display: "text|-", Required: true, Rest: true, Field: "Text", Complete: CompleteNone},
 		{Name: "column", Flag: true, Value: "column", Vocabulary: "column", Field: "Column"},
-		{Name: "owner", Flag: true, Value: "owner", Field: "Owner"},
+		{Name: "owner", Flag: true, Value: "owner", Field: "Owner", Complete: CompleteNone},
 	},
 	"cite": {
-		{Name: "item", Required: true, Guide: "references", Field: "Ref"},
-		{Name: "scheme", Required: true, Field: "Scheme"},
-		{Name: "target", Required: true, Field: "CiteTarget"},
-		{Name: "observed", Flag: true, Value: "before:after", Field: "Observed"},
+		{Name: "item", Required: true, Guide: "references", Field: "Ref", Complete: CompleteItem},
+		{Name: "scheme", Required: true, Field: "Scheme", Complete: CompleteNone},
+		{Name: "target", Required: true, Field: "CiteTarget", Complete: CompleteNone},
+		{Name: "observed", Flag: true, Value: "before:after", Field: "Observed", Complete: CompleteNone},
 	},
 	"resolve": {
-		{Name: "item", Required: true, Shared: "item", Guide: "references", Field: "Ref"},
-		{Name: "designation", Display: "comment", Shared: "designation", Field: "Note"},
-		{Name: "text", Flag: true, Value: "text|-", Shared: "designation-text", Field: "Text"},
+		{Name: "item", Required: true, Shared: "item", Guide: "references", Field: "Ref", Complete: CompleteItem},
+		{Name: "designation", Display: "comment", Shared: "designation", Field: "Note", Complete: CompleteNone},
+		{Name: "text", Flag: true, Value: "text|-", Shared: "designation-text", Field: "Text", Complete: CompleteNone},
 	},
 	"verify": {
-		{Name: "item", Required: true, Shared: "item", Guide: "references", Field: "Ref"},
-		{Name: "designation", Display: "comment", Shared: "designation", Field: "Note"},
-		{Name: "text", Flag: true, Value: "text|-", Shared: "designation-text", Field: "Text"},
+		{Name: "item", Required: true, Shared: "item", Guide: "references", Field: "Ref", Complete: CompleteItem},
+		{Name: "designation", Display: "comment", Shared: "designation", Field: "Note", Complete: CompleteNone},
+		{Name: "text", Flag: true, Value: "text|-", Shared: "designation-text", Field: "Text", Complete: CompleteNone},
 	},
 	"fail": {
-		{Name: "item", Required: true, Shared: "item", Guide: "references", Field: "Ref"},
-		{Name: "designation", Display: "comment", Shared: "designation", Field: "Note"},
-		{Name: "text", Flag: true, Value: "text|-", Shared: "designation-text", Field: "Text"},
+		{Name: "item", Required: true, Shared: "item", Guide: "references", Field: "Ref", Complete: CompleteItem},
+		{Name: "designation", Display: "comment", Shared: "designation", Field: "Note", Complete: CompleteNone},
+		{Name: "text", Flag: true, Value: "text|-", Shared: "designation-text", Field: "Text", Complete: CompleteNone},
 	},
 	"waive": {
-		{Name: "item", Required: true, Shared: "item", Guide: "references", Field: "Ref"},
-		{Name: "designation", Display: "comment", Shared: "designation", Field: "Note"},
-		{Name: "text", Flag: true, Value: "text|-", Shared: "designation-text", Field: "Text"},
+		{Name: "item", Required: true, Shared: "item", Guide: "references", Field: "Ref", Complete: CompleteItem},
+		{Name: "designation", Display: "comment", Shared: "designation", Field: "Note", Complete: CompleteNone},
+		{Name: "text", Flag: true, Value: "text|-", Shared: "designation-text", Field: "Text", Complete: CompleteNone},
 	},
 	"withdraw": {
-		{Name: "item", Required: true, Shared: "item", Guide: "references", Field: "Ref"},
-		{Name: "designation", Display: "comment", Shared: "designation", Field: "Note"},
-		{Name: "text", Flag: true, Value: "text|-", Shared: "designation-text", Field: "Text"},
+		{Name: "item", Required: true, Shared: "item", Guide: "references", Field: "Ref", Complete: CompleteItem},
+		{Name: "designation", Display: "comment", Shared: "designation", Field: "Note", Complete: CompleteNone},
+		{Name: "text", Flag: true, Value: "text|-", Shared: "designation-text", Field: "Text", Complete: CompleteNone},
 	},
 	"grant": {
-		{Name: "card", Required: true, Shared: "card", Field: "Card"},
+		{Name: "card", Required: true, Shared: "card", Field: "Card", Complete: CompleteCard},
 		{Name: "permission", Required: true, Vocabulary: "grant-permission", Field: "Permission"},
 	},
 	"revoke": {
-		{Name: "card", Required: true, Shared: "card", Field: "Card"},
+		{Name: "card", Required: true, Shared: "card", Field: "Card", Complete: CompleteCard},
 		{Name: "permission", Required: true, Vocabulary: "grant-permission", Field: "Permission"},
 	},
 	"reopen": {
-		{Name: "item", Required: true, Shared: "item", Guide: "references", Field: "Ref"},
-		{Name: "reason", Required: true, Rest: true, Field: "Reason"},
+		{Name: "item", Required: true, Shared: "item", Guide: "references", Field: "Ref", Complete: CompleteItem},
+		{Name: "reason", Required: true, Rest: true, Field: "Reason", Complete: CompleteNone},
 	},
 	// settle is an MCP-surface aggregation of resolve, verify, fail and
 	// reopen, reached over the wire rather than from a terminal: it is
@@ -485,11 +582,11 @@ var params = map[string][]Param{
 	// and cmd/dinah's own roster test exempts it from dispatch rather than
 	// wiring it to a word at the command line.
 	"settle": {
-		{Name: "item", Required: true, Shared: "item", Guide: "references", Field: "Ref"},
+		{Name: "item", Required: true, Shared: "item", Guide: "references", Field: "Ref", Complete: CompleteItem},
 		{Name: "state", Required: true, Vocabulary: "item-state", Field: "State"},
-		{Name: "designation", Display: "comment", Shared: "designation", Field: "Note"},
-		{Name: "text", Flag: true, Value: "text|-", Shared: "designation-text", Field: "Text"},
-		{Name: "reason", Flag: true, Value: "reason", Field: "Reason"},
+		{Name: "designation", Display: "comment", Shared: "designation", Field: "Note", Complete: CompleteNone},
+		{Name: "text", Flag: true, Value: "text|-", Shared: "designation-text", Field: "Text", Complete: CompleteNone},
+		{Name: "reason", Flag: true, Value: "reason", Field: "Reason", Complete: CompleteNone},
 	},
 	// link and unlink are the write side of a card's links, and they take the
 	// same three positionals in the same order so that a caller removes a
@@ -503,43 +600,43 @@ var params = map[string][]Param{
 	// document's decision and the operator's ruling that Dinah stay usable
 	// for a workbench with no code, no merge and no tests.
 	"link": {
-		{Name: "card", Required: true, Shared: "card", Field: "Card"},
-		{Name: "kind", Required: true, Shared: "link-kind", Field: "Kind"},
-		{Name: "to", Required: true, Shared: "link-to", Field: "LinkTo"},
+		{Name: "card", Required: true, Shared: "card", Field: "Card", Complete: CompleteCard},
+		{Name: "kind", Required: true, Shared: "link-kind", Field: "Kind", Complete: CompleteNone},
+		{Name: "to", Required: true, Shared: "link-to", Field: "LinkTo", Complete: CompleteCard},
 	},
 	"unlink": {
-		{Name: "card", Required: true, Shared: "card", Field: "Card"},
-		{Name: "kind", Required: true, Shared: "link-kind", Field: "Kind"},
-		{Name: "to", Required: true, Shared: "link-to", Field: "LinkTo"},
+		{Name: "card", Required: true, Shared: "card", Field: "Card", Complete: CompleteCard},
+		{Name: "kind", Required: true, Shared: "link-kind", Field: "Kind", Complete: CompleteNone},
+		{Name: "to", Required: true, Shared: "link-to", Field: "LinkTo", Complete: CompleteCard},
 	},
-	"archive": {{Name: "ref", Required: true, Shared: "ref", Guide: "references", Field: "Ref"}},
+	"archive": {{Name: "ref", Required: true, Shared: "ref", Guide: "references", Field: "Ref", Complete: CompleteReference}},
 	// The archived flag is redundant on restore, which always resolves in
 	// the mirror because restoring a live entity is not an act, and it is
 	// declared anyway: a reader who found an entity with
 	// `dinah show --archived <ref>` restores it by changing one word of the
 	// line they already have.
 	"restore": {
-		{Name: "ref", Required: true, Shared: "ref", Guide: "references", Field: "Ref"},
+		{Name: "ref", Required: true, Shared: "ref", Guide: "references", Field: "Ref", Complete: CompleteReference},
 		{Name: "archived", Flag: true, Marker: true, Shared: "archived", Field: "Archived"},
 	},
 	"delete": {
-		{Name: "ref", Required: true, Shared: "ref", Guide: "references", Field: "Ref"},
+		{Name: "ref", Required: true, Shared: "ref", Guide: "references", Field: "Ref", Complete: CompleteReference},
 		{Name: "yes", Flag: true, Marker: true, Required: true, Shared: "yes", Field: "Confirm"},
 		{Name: "force", Flag: true, Marker: true, Field: "Force"},
 	},
 	"accept-divergence": {
-		{Name: "comment", Required: true, Guide: "references", Field: "Ref"},
+		{Name: "comment", Required: true, Guide: "references", Field: "Ref", Complete: CompleteItem},
 	},
 	// rename writes its own sentence for ref rather than taking the shared
 	// one, because the shared sentence names a column, a card or anything
 	// below one, and rename renames an attachment alone.
 	"rename": {
-		{Name: "ref", Required: true, Guide: "references", Field: "Ref"},
-		{Name: "name", Required: true, Rest: true, Field: "Value"},
+		{Name: "ref", Required: true, Guide: "references", Field: "Ref", Complete: CompleteReference},
+		{Name: "name", Required: true, Rest: true, Field: "Value", Complete: CompleteNone},
 	},
 	"status": {
-		{Name: "root", Flag: true, Value: "path", Shared: "root", Field: "Root"},
-		{Name: "max-depth", Flag: true, Value: "n", Shared: "max-depth", Field: "MaxDepth"},
+		{Name: "root", Flag: true, Value: "path", Shared: "root", Field: "Root", Complete: CompleteDirs},
+		{Name: "max-depth", Flag: true, Value: "n", Shared: "max-depth", Field: "MaxDepth", Complete: CompleteNone},
 	},
 	// list writes its own sentence for ref rather than taking the shared one,
 	// on contents' own reasoning: the shared sentence ends "not this
@@ -547,14 +644,14 @@ var params = map[string][]Param{
 	// parameter is not required, because a bare invocation draws the
 	// workbench's rosters.
 	"list": {
-		{Name: "ref", Guide: "references", Field: "Ref"},
-		{Name: "depth", Flag: true, Value: "level", Field: "Depth"},
+		{Name: "ref", Guide: "references", Field: "Ref", Complete: CompleteListing},
+		{Name: "depth", Flag: true, Value: "level", Field: "Depth", Complete: CompleteNone},
 		{Name: "ready", Flag: true, Marker: true, Field: "ReadyOnly"},
 		{Name: "archived", Flag: true, Marker: true, Shared: "archived", Field: "Archived"},
-		{Name: "since", Flag: true, Value: "ordinal", Field: "SinceComment"},
+		{Name: "since", Flag: true, Value: "ordinal", Field: "SinceComment", Complete: CompleteNone},
 		{Name: "unresolved", Flag: true, Marker: true, Field: "Unresolved"},
-		{Name: "root", Flag: true, Value: "path", Shared: "root", Field: "Root"},
-		{Name: "max-depth", Flag: true, Value: "n", Shared: "max-depth", Field: "MaxDepth"},
+		{Name: "root", Flag: true, Value: "path", Shared: "root", Field: "Root", Complete: CompleteDirs},
+		{Name: "max-depth", Flag: true, Value: "n", Shared: "max-depth", Field: "MaxDepth", Complete: CompleteNone},
 	},
 	// next takes no declaration of what the caller is. It answers with a card
 	// the caller's resolved tier is admitted for rather than with the head of
@@ -562,8 +659,8 @@ var params = map[string][]Param{
 	// environment or the call declared against the workbench's own table.
 	"next": {
 		{Name: "column", Vocabulary: "column", AlsoFlag: true, Field: "Column"},
-		{Name: "root", Flag: true, Value: "path", Shared: "root", Field: "Root"},
-		{Name: "max-depth", Flag: true, Value: "n", Shared: "max-depth", Field: "MaxDepth"},
+		{Name: "root", Flag: true, Value: "path", Shared: "root", Field: "Root", Complete: CompleteDirs},
+		{Name: "max-depth", Flag: true, Value: "n", Shared: "max-depth", Field: "MaxDepth", Complete: CompleteNone},
 	},
 	// Pull combines a claim and a move into one atomic act. The column is
 	// the destination; the named form names it, the bare form chooses the
@@ -578,10 +675,10 @@ var params = map[string][]Param{
 	Pull: {
 		{Name: "column", Vocabulary: "column", AlsoFlag: true, Field: "Column"},
 		{Name: "no-claim", Flag: true, Marker: true, Field: "NoClaim"},
-		{Name: "expires", Flag: true, Value: "duration", Field: "Expires"},
+		{Name: "expires", Flag: true, Value: "duration", Field: "Expires", Complete: CompleteNone},
 		{Name: "override", Flag: true, Marker: true, Field: "Override"},
 	},
-	"query": {{Name: "query", Rest: true, Field: "Query"}},
+	"query": {{Name: "query", Rest: true, Field: "Query", Complete: CompleteQuery}},
 	// The bare positional is named phrase rather than text because the mcp
 	// head's assignValue is one flat switch on parameter name, shared across
 	// every command and carrying no way to tell which one originated a call,
@@ -592,21 +689,21 @@ var params = map[string][]Param{
 	// the syntax line and the mcp schema's own key, both generated from this
 	// one table.
 	"search": {
-		{Name: "phrase", Required: true, Rest: true, Field: "SearchText"},
-		{Name: "query", Flag: true, Value: "terms", Field: "Query"},
+		{Name: "phrase", Required: true, Rest: true, Field: "SearchText", Complete: CompleteNone},
+		{Name: "query", Flag: true, Value: "terms", Field: "Query", Complete: CompleteNone},
 		// search declares no Shared name for this flag, so it keeps its own
 		// sentence: there the flag widens the scan to both halves, where on
 		// the four reference-resolving commands it names one half.
 		{Name: "archived", Flag: true, Marker: true, Field: "Archived"},
-		{Name: "root", Flag: true, Value: "path", Shared: "root", Field: "Root"},
-		{Name: "max-depth", Flag: true, Value: "n", Shared: "max-depth", Field: "MaxDepth"},
+		{Name: "root", Flag: true, Value: "path", Shared: "root", Field: "Root", Complete: CompleteDirs},
+		{Name: "max-depth", Flag: true, Value: "n", Shared: "max-depth", Field: "MaxDepth", Complete: CompleteNone},
 	},
 	"tree": {
-		{Name: "query", Rest: true, Field: "Query"},
-		{Name: "group-by", Flag: true, Value: "axes", Field: "GroupBy"},
-		{Name: "depth", Flag: true, Value: "level", Field: "Depth"},
-		{Name: "root", Flag: true, Value: "path", Shared: "root", Field: "Root"},
-		{Name: "max-depth", Flag: true, Value: "n", Shared: "max-depth", Field: "MaxDepth"},
+		{Name: "query", Rest: true, Field: "Query", Complete: CompleteQuery},
+		{Name: "group-by", Flag: true, Value: "axes", Field: "GroupBy", Complete: CompleteNone},
+		{Name: "depth", Flag: true, Value: "level", Field: "Depth", Complete: CompleteNone},
+		{Name: "root", Flag: true, Value: "path", Shared: "root", Field: "Root", Complete: CompleteDirs},
+		{Name: "max-depth", Flag: true, Value: "n", Shared: "max-depth", Field: "MaxDepth", Complete: CompleteNone},
 	},
 	// fields is declared here, as a parameter of show, rather than as an
 	// injected property of the MCP head. The schema generator then publishes
@@ -622,11 +719,11 @@ var params = map[string][]Param{
 	// publishes its own value name and writes its own sentence, which is
 	// where the difference is stated.
 	"show": {
-		{Name: "card", Display: "ref", Required: true, Guide: "references", Field: "Card"},
+		{Name: "card", Display: "ref", Required: true, Guide: "references", Field: "Card", Complete: CompleteReference},
 		{Name: "fields", Flag: true, Value: "list", Vocabulary: "detail-field", Field: "Fields"},
 		{Name: "all", Flag: true, Marker: true, Field: "All"},
 		{Name: "archived", Flag: true, Marker: true, Shared: "archived", Field: "Archived"},
-		{Name: "since", Flag: true, Value: "ordinal", Field: "SinceComment"},
+		{Name: "since", Flag: true, Value: "ordinal", Field: "SinceComment", Complete: CompleteNone},
 		{Name: "unresolved", Flag: true, Marker: true, Field: "Unresolved"},
 	},
 	// Every argument of changes is a flag, including the two a read usually
@@ -635,25 +732,25 @@ var params = map[string][]Param{
 	// accident. The card slot takes the shared sentence, since the argument
 	// means here what it means everywhere.
 	"changes": {
-		{Name: "since", Flag: true, Value: "cursor", Field: "Since"},
+		{Name: "since", Flag: true, Value: "cursor", Field: "Since", Complete: CompleteNone},
 		{Name: "wait", Flag: true, Marker: true, Field: "Wait"},
-		{Name: "timeout", Flag: true, Value: "duration", Field: "Timeout"},
-		{Name: "card", Flag: true, Value: "ref", Shared: "card", Field: "Card"},
+		{Name: "timeout", Flag: true, Value: "duration", Field: "Timeout", Complete: CompleteNone},
+		{Name: "card", Flag: true, Value: "ref", Shared: "card", Field: "Card", Complete: CompleteCard},
 		{Name: "column", Flag: true, Value: "column", Vocabulary: "column", Field: "Column"},
-		{Name: "root", Flag: true, Value: "path", Shared: "root", Field: "Root"},
-		{Name: "max-depth", Flag: true, Value: "n", Shared: "max-depth", Field: "MaxDepth"},
+		{Name: "root", Flag: true, Value: "path", Shared: "root", Field: "Root", Complete: CompleteDirs},
+		{Name: "max-depth", Flag: true, Value: "n", Shared: "max-depth", Field: "MaxDepth", Complete: CompleteNone},
 	},
 	// instructions keeps its own display, since the two kinds it takes are
 	// the whole of what it takes and the spelling says so.
-	"instructions": {{Name: "card", Display: "card|column", Required: true, Guide: "references", Field: "Card"}},
+	"instructions": {{Name: "card", Display: "card|column", Required: true, Guide: "references", Field: "Card", Complete: CompleteCardOrColumn}},
 	"guide":        {{Name: "topic", Vocabulary: "topic"}},
 	// init has always read a positional directory and never declared one, so
 	// the syntax line omitted an argument the command honours.
 	"init": {
-		{Name: "dir"},
-		{Name: "from", Flag: true, Value: "source"},
-		{Name: "slug", Flag: true, Value: "slug"},
-		{Name: "operator", Flag: true, Value: "actor"},
+		{Name: "dir", Complete: CompleteDirs},
+		{Name: "from", Flag: true, Value: "source", Complete: CompleteFiles},
+		{Name: "slug", Flag: true, Value: "slug", Complete: CompleteNone},
+		{Name: "operator", Flag: true, Value: "actor", Complete: CompleteNone},
 		{Name: "here", Flag: true, Marker: true},
 	},
 	"export": {},
@@ -664,28 +761,28 @@ var params = map[string][]Param{
 	// definition drops, and each retirement needs its own destination, so a
 	// last-value-wins flag would silently discard every entry but the last.
 	"reshape": {
-		{Name: "from", Flag: true, Required: true, Value: "source", Field: "From"},
-		{Name: "map", Flag: true, Value: "retired=destination", Field: "Map"},
+		{Name: "from", Flag: true, Required: true, Value: "source", Field: "From", Complete: CompleteFiles},
+		{Name: "map", Flag: true, Value: "retired=destination", Field: "Map", Complete: CompleteNone},
 		{Name: "yes", Flag: true, Marker: true, Shared: "yes", Field: "Confirm"},
 	},
-	"extract": {{Name: "dir", Required: true}},
+	"extract": {{Name: "dir", Required: true, Complete: CompleteDirs}},
 	// path names no Request field on either of its parameters, because the
 	// terminal never builds a Request for it: runPath reads the flag off its
 	// own parsed arguments. derivationExemptions records that, and a Field
 	// here would make the exemption stale on one parameter and live on the
 	// other.
 	"path": {
-		{Name: "card", Display: "ref", Required: true, Guide: "references"},
+		{Name: "card", Display: "ref", Required: true, Guide: "references", Complete: CompleteReference},
 		{Name: "archived", Flag: true, Marker: true, Shared: "archived"},
 	},
-	"edit": {{Name: "card", Display: "ref", Required: true, Guide: "references"}},
+	"edit": {{Name: "card", Display: "ref", Required: true, Guide: "references", Complete: CompleteReference}},
 	// The bare invocation lists every setting, so neither the action nor the
 	// key is required; `get` and `set` still need a key, which the command
 	// refuses over rather than the syntax line.
 	"config": {
-		{Name: "action", Display: "get|set"},
-		{Name: "key"},
-		{Name: "value"},
+		{Name: "action", Display: "get|set", Complete: CompleteDisplay},
+		{Name: "key", Complete: CompleteSetting},
+		{Name: "value", Complete: CompleteNone},
 	},
 	// The command lists the workbench's own fields and does nothing else, so
 	// it declares no argument at all. Reading one field and writing one are
@@ -701,21 +798,21 @@ var params = map[string][]Param{
 	// so the action is required, and get and set are left for the cards that
 	// need them.
 	"column": {
-		{Name: "action", Display: "new", Required: true, Field: "Action"},
-		{Name: "column", Display: "title", Required: true, Field: "Column"},
+		{Name: "action", Display: "new", Required: true, Field: "Action", Complete: CompleteDisplay},
+		{Name: "column", Display: "title", Required: true, Field: "Column", Complete: CompleteNone},
 		{Name: "kind", Flag: true, Value: "kind", Vocabulary: "column-kind", Field: "Kind"},
-		{Name: "tier", Flag: true, Value: "level", Field: "Tier"},
-		{Name: "capacity", Flag: true, Value: "n", Field: "Capacity"},
-		{Name: "slug", Flag: true, Value: "slug", Field: "Slug"},
-		{Name: "before", Flag: true, Value: "column", Field: "Before"},
+		{Name: "tier", Flag: true, Value: "level", Field: "Tier", Complete: CompleteTier},
+		{Name: "capacity", Flag: true, Value: "n", Field: "Capacity", Complete: CompleteNone},
+		{Name: "slug", Flag: true, Value: "slug", Field: "Slug", Complete: CompleteNone},
+		{Name: "before", Flag: true, Value: "column", Field: "Before", Complete: CompleteColumn},
 	},
 	// workstream creates a workstream and does nothing else. Its bare listing
 	// retired into `dinah list workstreams`, because listing is addressing and
 	// creating is not: no reference expresses a thing that does not exist yet.
 	"workstream": {
-		{Name: "action", Display: "new", Required: true, Field: "Action"},
-		{Name: "workstream", Display: "title", Required: true, Field: "Workstream"},
-		{Name: "slug", Flag: true, Value: "slug", Field: "Slug"},
+		{Name: "action", Display: "new", Required: true, Field: "Action", Complete: CompleteDisplay},
+		{Name: "workstream", Display: "title", Required: true, Field: "Workstream", Complete: CompleteNone},
+		{Name: "slug", Flag: true, Value: "slug", Field: "Slug", Complete: CompleteNone},
 	},
 	// get and set reach every field of every kind through one reference, so
 	// both take the reference and the field as positionals and neither
@@ -724,16 +821,16 @@ var params = map[string][]Param{
 	// before a reference is known; which of them the resolved kind carries is
 	// what the refusal completes.
 	"get": {
-		{Name: "ref", Required: true, Guide: referencesGuide, Field: "Ref"},
-		{Name: "field", Required: true, Field: "Field"},
+		{Name: "ref", Required: true, Guide: referencesGuide, Field: "Ref", Complete: CompleteReference},
+		{Name: "field", Required: true, Field: "Field", Complete: CompleteEntityField},
 	},
 	"set": {
-		{Name: "ref", Required: true, Guide: referencesGuide, Field: "Ref"},
+		{Name: "ref", Required: true, Guide: referencesGuide, Field: "Ref", Complete: CompleteReference},
 		{Name: "field", Required: true, Vocabulary: "entity-field", Field: "Field"},
-		{Name: "value", Display: "value|-", Rest: true, Field: "Value"},
+		{Name: "value", Display: "value|-", Rest: true, Field: "Value", Complete: CompleteSetValue},
 		{Name: "at", Flag: true, Value: "column", Vocabulary: "column", Field: "At"},
-		{Name: "note", Flag: true, Value: "text", Field: "Note"},
-		{Name: "expect-digest", Flag: true, Value: "digest", Field: "ExpectedDigest"},
+		{Name: "note", Flag: true, Value: "text", Field: "Note", Complete: CompleteNone},
+		{Name: "expect-digest", Flag: true, Value: "digest", Field: "ExpectedDigest", Complete: CompleteNone},
 		{Name: "yes", Flag: true, Marker: true, Shared: "yes", Field: "Confirm"},
 	},
 	"check": {
@@ -757,7 +854,7 @@ var params = map[string][]Param{
 		// the one condition the tree sweep refuses to decide: two directories
 		// claiming one identifier. Naming the directory is the whole of the
 		// operator's decision, so the flag carries it.
-		{Name: "remint", Flag: true, Value: "dir", Field: "Remint"},
+		{Name: "remint", Flag: true, Value: "dir", Field: "Remint", Complete: CompleteDirs},
 		{Name: "migrate-workstreams", Flag: true, Marker: true, Field: "MigrateWorkstreams"},
 		{Name: "witness", Flag: true, Marker: true, Field: "MigrateWitness"},
 		// Read by four repairs. Migrate-vocabulary and migrate-container walk
@@ -779,8 +876,8 @@ var params = map[string][]Param{
 		// scope for the two tree sweeps and runCheck refuses them beside
 		// anything else, because no other form of check has a downward walk
 		// for either flag to bound or to aim.
-		{Name: "root", Flag: true, Value: "path", Shared: "root", Field: "Root"},
-		{Name: "max-depth", Flag: true, Value: "n", Shared: "max-depth", Field: "MaxDepth"},
+		{Name: "root", Flag: true, Value: "path", Shared: "root", Field: "Root", Complete: CompleteDirs},
+		{Name: "max-depth", Flag: true, Value: "n", Shared: "max-depth", Field: "MaxDepth", Complete: CompleteNone},
 	},
 	"whoami": {},
 	// prime declares no --root/--max-depth fan-out, on whoami's own terms: a
@@ -794,7 +891,7 @@ var params = map[string][]Param{
 		{Name: "catalogs", Flag: true, Marker: true},
 	},
 	"mcp": {
-		{Name: "root", Flag: true, Value: "dir"},
+		{Name: "root", Flag: true, Value: "dir", Complete: CompleteDirs},
 		{Name: "tools", Flag: true, Value: "profile", Vocabulary: "tool-profile"},
 	},
 	// lsp declares its own root rather than sharing mcp's, because the two
@@ -802,9 +899,9 @@ var params = map[string][]Param{
 	// serve, and this one is a directory to search for the single workbench
 	// this head binds to at startup.
 	"lsp": {
-		{Name: "root", Flag: true, Value: "dir"},
+		{Name: "root", Flag: true, Value: "dir", Complete: CompleteDirs},
 		{Name: "annotate-prose", Flag: true, Marker: true},
-		{Name: "poll-seconds", Flag: true, Value: "n"},
+		{Name: "poll-seconds", Flag: true, Value: "n", Complete: CompleteNone},
 		// An LSP client names on the command line the transport it opened,
 		// and vscode-languageclient appends --stdio for every stdio server
 		// it spawns. Dinah serves stdio and serves nothing else, so the
@@ -829,22 +926,27 @@ var params = map[string][]Param{
 	// parameter here names a Field. The positional is a recipe's name, which
 	// is a harness name in the same grammar.
 	"setup": {
-		{Name: "harness"},
+		{Name: "harness", Complete: CompleteRecipe},
 		{Name: "list", Flag: true, Marker: true},
-		{Name: "recipe", Flag: true, Value: "dir"},
-		{Name: "agent", Flag: true, Value: "name"},
+		{Name: "recipe", Flag: true, Value: "dir", Complete: CompleteDirs},
+		{Name: "agent", Flag: true, Value: "name", Complete: CompleteNone},
 		{Name: "tools", Flag: true, Value: "profile", Vocabulary: "tool-profile"},
 		{Name: "scope", Flag: true, Value: "scope", Vocabulary: "setup-scope"},
-		{Name: "target", Flag: true, Value: "dir"},
-		{Name: "provider", Flag: true, Value: "name"},
-		{Name: "model", Flag: true, Value: "name"},
-		{Name: "server", Flag: true, Value: "address"},
+		{Name: "target", Flag: true, Value: "dir", Complete: CompleteDirs},
+		{Name: "provider", Flag: true, Value: "name", Complete: CompleteNone},
+		{Name: "model", Flag: true, Value: "name", Complete: CompleteNone},
+		{Name: "server", Flag: true, Value: "address", Complete: CompleteNone},
 		{Name: "trust-project-recipe", Flag: true, Marker: true},
 		{Name: "allow-run", Flag: true, Marker: true},
 		{Name: "dry-run", Flag: true, Marker: true},
 		{Name: "remove", Flag: true, Marker: true},
 	},
-	"help": {{Name: "command", Required: true}},
+	"help": {{Name: "command", Required: true, Complete: CompleteCommand}},
+	// completion reads its one argument itself and builds no Request, on the
+	// terms setup, guide and path already declare none.
+	"completion": {
+		{Name: "shell", Required: true, Vocabulary: "shell"},
+	},
 }
 
 // crossHeadIdentical names every command whose reader is required to answer
@@ -1321,18 +1423,19 @@ func renderParamValue(field reflect.Value) (values []string, ok bool) {
 // head's own toolExemptions and argumentExemptions do: by somebody writing the
 // reason down, checked by TestEveryCommandDerivesOrIsExempted.
 var derivationExemptions = map[string]string{
-	"config":  "the terminal dispatches config on its own parsed arguments and never builds a Request for it",
-	"edit":    "opens a path in the reader's own editor; the terminal never builds a Request for it",
-	"extract": "Library.Extract takes a target string, not a *Request; there is no request to read a value from",
-	"guide":   "prints an embedded guide; the terminal never builds a Request for it",
-	"help":    "prints a command's own help; the terminal never builds a Request for it",
-	"init":    "creates a workbench in a directory; the terminal never builds a Request for it",
-	"lsp":     "starts this head; the terminal never builds a Request for it",
-	"mcp":     "starts this head; the terminal never builds a Request for it",
-	"path":    "resolves a filesystem path for a shell; the terminal never builds a Request for it",
-	"version": "runVersion reads catalogs straight off the parsed arguments; no Request carries it",
-	"export":  "Library.Export takes no arguments at all; there is no request to read a value from",
-	"setup":   "writes harness configuration; the terminal never builds a Request for it",
+	"config":     "the terminal dispatches config on its own parsed arguments and never builds a Request for it",
+	"edit":       "opens a path in the reader's own editor; the terminal never builds a Request for it",
+	"extract":    "Library.Extract takes a target string, not a *Request; there is no request to read a value from",
+	"guide":      "prints an embedded guide; the terminal never builds a Request for it",
+	"help":       "prints a command's own help; the terminal never builds a Request for it",
+	"init":       "creates a workbench in a directory; the terminal never builds a Request for it",
+	"lsp":        "starts this head; the terminal never builds a Request for it",
+	"mcp":        "starts this head; the terminal never builds a Request for it",
+	"path":       "resolves a filesystem path for a shell; the terminal never builds a Request for it",
+	"version":    "runVersion reads catalogs straight off the parsed arguments; no Request carries it",
+	"export":     "Library.Export takes no arguments at all; there is no request to read a value from",
+	"setup":      "writes harness configuration; the terminal never builds a Request for it",
+	"completion": "prints a shell script embedded in the binary; the terminal never builds a Request for it",
 }
 
 // DerivationExemptions returns a copy of derivationExemptions, for a caller

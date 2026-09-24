@@ -139,6 +139,9 @@ func init() {
 		// else as a flag, so a stray second word is refused rather than
 		// ignored.
 		{name: "setup", group: groupServe, run: runSetup, bounded: 1},
+		// completion sits beside setup because both wire Dinah into a
+		// program somebody else ships, here the person's own shell.
+		{name: "completion", group: groupServe, run: runCompletion, bounded: 1},
 
 		{name: "help", run: runHelp, bounded: 1},
 	}

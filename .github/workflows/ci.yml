@@ -14,16 +14,61 @@ jobs:
   # depends on its outcome through needs:, so nothing here reads a job name
   # by string; renaming test, gofmt, independent-reader, or extension does not
   # affect the release gate. See dinah-363.
+  #
+  # The completion script tests (dinah-601) skip a shell they cannot find
+  # unless COMPLETION_REQUIRE_SHELLS names it, so each leg names the shells it
+  # has to test. Windows names Git Bash by path, because the bash on a Windows
+  # runner's PATH can be the WSL launcher, and the test refuses a bash that
+  # reports no MSYSTEM. macOS names /bin/bash, which is bash 3.2, so the
+  # script's path for a bash without compopt runs there for real. The verbose
+  # step after the checks prints each script test's own log, which is where a
+  # reader confirms which shells ran and which bash version the ASCII rule met.
   test:
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: windows-latest
+            require_shells: bash,powershell,pwsh
+            bash: C:\Program Files\Git\bin\bash.exe
+          - os: macos-latest
+            require_shells: bash,zsh
+            bash: /bin/bash
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
+    env:
+      COMPLETION_REQUIRE_SHELLS: ${{ matrix.require_shells }}
+      COMPLETION_BASH: ${{ matrix.bash }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: ./.github/actions/go-checks
+      - name: Completion script tests, with each test's log
+        shell: bash
+        run: go test -count=1 -v -run '^TestCompletionScript' ./cmd/dinah
+
+  # zsh and fish are not on an Ubuntu runner until they are installed, and this
+  # is the one leg that tests both (dinah-601). The test fails rather than
+  # skips when a shell COMPLETION_REQUIRE_SHELLS names is missing.
+  completion-shells:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: go.mod
+      - name: Install zsh and fish
+        run: sudo apt-get update && sudo apt-get install -y zsh fish
+      - name: Shell versions
+        run: |
+          bash --version | head -n 1
+          zsh --version
+          fish --version
+      - name: Completion script tests
+        env:
+          COMPLETION_REQUIRE_SHELLS: bash,zsh,fish
+        run: go test -count=1 -v -run '^TestCompletionScript' ./cmd/dinah
 
   gofmt:
     runs-on: ubuntu-latest

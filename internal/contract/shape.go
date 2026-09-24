@@ -1008,6 +1008,15 @@ var Shapes = []Shape{
 		NextStep:  []string{"refusal.dinah.unknown-guide.next"},
 	},
 	{
+		// The sentence does not echo the word typed, because a completion
+		// asked for no shell has no word to echo. The word travels in the
+		// detail, where the machine form carries it.
+		Name:      UnknownShell,
+		Listing:   "shells",
+		Fragments: []Fragment{{Key: "refusal.dinah.unknown-shell.next"}},
+		NextStep:  []string{"refusal.dinah.unknown-shell.next"},
+	},
+	{
 		// The next step names no subcommand, because this refusal answers
 		// config get and config set alike and the command word is config
 		// either way.

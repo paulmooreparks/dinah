@@ -1267,6 +1267,11 @@ func assertOnlyFieldChanged(t *testing.T, tool string, param verb.Param, built, 
 	builtValue := reflect.ValueOf(built).Elem()
 	emptyValue := reflect.ValueOf(empty).Elem()
 	for i := 0; i < builtValue.NumField(); i++ {
+		// An unexported field is one no head can fill, so no parameter can
+		// land in it or collide with it, and reflection cannot read it.
+		if !builtValue.Type().Field(i).IsExported() {
+			continue
+		}
 		name := builtValue.Type().Field(i).Name
 		got := builtValue.Field(i).Interface()
 		if name == param.Field {

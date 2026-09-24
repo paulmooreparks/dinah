@@ -136,14 +136,22 @@ func (l *Library) lapse(card *bench.Card) error {
 		Actor:   bench.NamedActor(holder),
 		Expires: card.Expires,
 	}
-	card.State = contract.StateReady
-	card.Holder = ""
-	card.ClaimSince = ""
-	card.Expires = ""
+	clearLapsedClaim(card)
 	if err := card.Save(); err != nil {
 		return err
 	}
 	return bench.AppendEvent(card.JournalPath(), ev)
+}
+
+// clearLapsedClaim is what a lapse does to the card in memory: the card is
+// ready again, and the holder and both claim fields are gone. lapse saves it
+// and journals the expiry; MoveDestinations asks what a move would find and
+// saves nothing, so both call this and neither restates the four fields.
+func clearLapsedClaim(card *bench.Card) {
+	card.State = contract.StateReady
+	card.Holder = ""
+	card.ClaimSince = ""
+	card.Expires = ""
 }
 
 // canClaim runs the precondition sequence CORE-CLAIM declares, and Dinah's own
@@ -436,7 +444,7 @@ func (l *Library) canLand(req *Request, card *bench.Card, destination, departure
 		return false, l.refuse(req, card, contract.Terminal, columnRef(departure)), nil
 	}
 	regressive := departure != nil && !destination.Terminal() && destination.Position < departure.Position
-	reached, err := l.atCapacity(destination)
+	reached, err := l.atCapacity(req, destination)
 	if err != nil {
 		return false, nil, err
 	}
@@ -666,9 +674,18 @@ func titleOf(column *bench.Column) string {
 // atCapacity reports whether a column has reached its declared limit. The
 // count is every live card in the column whatever its state, because a
 // blocked card still occupies the place.
-func (l *Library) atCapacity(column *bench.Column) (bool, error) {
+//
+// A request carrying an occupancy answers from it, which is how
+// MoveDestinations asks the question of every destination while reading the
+// cards once. Every other request carries none, and the count is taken here.
+// The comparison against the declared capacity is written once, below, for
+// both routes.
+func (l *Library) atCapacity(req *Request, column *bench.Column) (bool, error) {
 	if column.Capacity <= 0 {
 		return false, nil
+	}
+	if req != nil && req.occupancy != nil {
+		return req.occupancy[column.ID] >= column.Capacity, nil
 	}
 	cards, err := l.Bench.Cards()
 	if err != nil {

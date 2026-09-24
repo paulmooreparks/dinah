@@ -138,6 +138,14 @@ func main() {
 func run(argv []string, in io.Reader, out, errw io.Writer) int {
 	home := bench.Home()
 	cfg := bench.LoadConfig(home)
+	// The completion callback is answered here, ahead of alias expansion and
+	// parsing, because what a script hands it is an unfinished command line
+	// the parser would refuse, and an alias cannot shadow a word no command
+	// or alias can be spelled as. It is no command in the table, so no help
+	// page, catalog, tool or count ever names it.
+	if len(argv) > 0 && argv[0] == completeCallback {
+		return runComplete(argv[1:], out, home, cfg)
+	}
 	expanded, expansionErr := expandAlias(argv, cfg)
 	argv = expanded
 	valued := map[string]bool{}

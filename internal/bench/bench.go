@@ -672,6 +672,12 @@ type Bench struct {
 	// outranked still reaches the reader: the search resolved without it, so
 	// nothing else on the default path would ever name it.
 	Damaged []string
+	// BeforeHeaderRead, when set, is asked before LiveCardHeaders opens each
+	// card anchor, and an error it answers stops the read and is returned.
+	// The completion callback sets it to its own deadline, so a read of six
+	// hundred headers can stop halfway rather than only before it starts.
+	// Nothing else sets it.
+	BeforeHeaderRead func() error
 }
 
 // Discover finds the bench to serve. An override, from the --workbench flag

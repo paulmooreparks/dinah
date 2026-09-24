@@ -100,6 +100,12 @@ const editorRecordVar = testenv.EditorRecordVar
 // environment input read by the product and neutralized in only the new tests",
 // and which this project paid for once already on COLUMNS at dinah-229.
 //
+// readPowerShellWords (completion.go) reads DINAH_COMPLETE_WORDS, and is the
+// reason this list is thirteen rather than twelve. The PowerShell script sets it for
+// one child process and clears it again, so nobody exports it on purpose, but
+// a value left in a developer's shell would change what every PowerShell
+// callback in the suite reads, and the tests that want it set it themselves.
+//
 // The list deliberately stops short of DINAH_ACTOR and DINAH_LANG. Fixtures
 // set both on purpose, and clearing them at the binary boundary would change
 // what currently-passing tests start from.
@@ -111,6 +117,7 @@ var isolatedEnv = []string{
 	"COLUMNS", "DINAH_EDITOR", "VISUAL", "EDITOR",
 	"LC_ALL", "LC_MESSAGES", "LANG",
 	"DINAH_HARNESS", "DINAH_PROVIDER", "DINAH_MODEL", "DINAH_SERVER",
+	"DINAH_COMPLETE_WORDS",
 }
 
 // TestIsolatedEnvNamesEveryVariableTheBinaryClears guards the isolation this
@@ -134,6 +141,7 @@ func TestIsolatedEnvNamesEveryVariableTheBinaryClears(t *testing.T) {
 		"COLUMNS", "DINAH_EDITOR", "VISUAL", "EDITOR",
 		"LC_ALL", "LC_MESSAGES", "LANG",
 		"DINAH_HARNESS", "DINAH_PROVIDER", "DINAH_MODEL", "DINAH_SERVER",
+		"DINAH_COMPLETE_WORDS",
 	}
 	for _, name := range want {
 		if !namesVariable(isolatedEnv, name) {
@@ -314,8 +322,8 @@ func TestHelpBlockIsTheRatifiedSurface(t *testing.T) {
 			t.Errorf("the block does not list %s", c.name)
 		}
 	}
-	if listed != 58 {
-		t.Errorf("wanted fifty-eight listed commands, got %d", listed)
+	if listed != 59 {
+		t.Errorf("wanted fifty-nine listed commands, got %d", listed)
 	}
 }
 

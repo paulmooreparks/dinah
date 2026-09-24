@@ -54,7 +54,7 @@ func (l *Library) Add(req *Request) *Response {
 		if named == nil {
 			return l.refuse(req, nil, contract.UnknownColumn, req.Column)
 		}
-		reached, err := l.atCapacity(named)
+		reached, err := l.atCapacity(req, named)
 		if err != nil {
 			return l.FromError(req, err)
 		}

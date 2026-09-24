@@ -144,6 +144,10 @@ const (
 	Unconfirmed  = LayerPrefix + "unconfirmed"
 	Interrupted  = LayerPrefix + "interrupted"
 	UnknownGuide = LayerPrefix + "unknown-guide"
+	// UnknownShell is dinah completion asked for a shell it prints no script
+	// for, or asked for none. The detail carries the word typed, empty when
+	// none was.
+	UnknownShell = LayerPrefix + "unknown-shell"
 	UnknownKey   = LayerPrefix + "unknown-key"
 	Occupied     = LayerPrefix + "occupied"
 	Locked       = LayerPrefix + "locked"
@@ -793,7 +797,7 @@ const (
 
 // Introduced lists every refusal name Dinah mints beyond the profile's own.
 var Introduced = []string{
-	Unconfirmed, UnknownGuide, UnknownKey, InvalidAlias, AliasShadow, AliasMissing, Occupied, Locked, Exists,
+	Unconfirmed, UnknownGuide, UnknownShell, UnknownKey, InvalidAlias, AliasShadow, AliasMissing, Occupied, Locked, Exists,
 	DirectoryNotEmpty,
 	UnknownPath, NoEditor, NoWorkbench, UnknownVerb, Usage, Interrupted,
 	NoWorkbenchFound, AmbiguousWorkbench, LastColumn, UnreadableBench, DamagedBench, UnreadableContainer,

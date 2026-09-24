@@ -230,7 +230,7 @@ func TestAFilteredWaitingCallStillWakesOnAnUnrelatedChange(t *testing.T) {
 // while a call is waiting, and the call returns an error rather than hanging,
 // panicking or retrying forever, within about one poll interval of the
 // disappearance. The error itself, and its mapping to OutcomeUnreachable and
-// exit 4, is cmd/dinah's reportError (main.go:517-522), unchanged by this
+// exit 4, is cmd/dinah's reportError (main.go:525-530), unchanged by this
 // card and exercised directly by
 // TestChangesWaitMapsADisappearedWorkbenchToExitFour in
 // cmd/dinah/changes_test.go; what belongs here is that Library.Changes itself

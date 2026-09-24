@@ -463,6 +463,12 @@ type Request struct {
 	// declared in no Params entry and in no injectedProperties row, so it
 	// reaches no published schema and no caller can supply one.
 	HeldChain map[string]bool
+	// occupancy is how many live cards stand in each column, keyed by column
+	// identifier, counted once by MoveDestinations so that asking a capacity
+	// question of every destination reads the workbench's cards once rather
+	// than once per destination. It is nil on every request a head builds,
+	// and atCapacity counts the cards itself whenever it is.
+	occupancy map[string]int
 }
 
 // CardView is the card as a response carries it.
