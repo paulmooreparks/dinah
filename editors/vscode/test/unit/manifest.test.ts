@@ -2355,7 +2355,11 @@ test("the media file carries the image reference and nothing else", () => {
 	const target = /!\[[^\]]*\]\(([^)]+)\)/.exec(body.trim());
 	assert.ok(target !== null, "the media file carries no image reference");
 	// The reference is relative, so the file it names has to sit beside it.
-	const beside = readdirSync(join(extensionRoot, "media"));
+	// `attention/` is left out of the comparison: it is generated output,
+	// gitignored on the terms `src/generated/` already is, and `npm run
+	// generate` writes it into `media/` on every compile, test and package
+	// run this suite triggers (dinah-599 section 6.5).
+	const beside = readdirSync(join(extensionRoot, "media")).filter((name) => name !== "attention");
 	assert.ok(
 		beside.includes(target[1]),
 		`the media file points at ${target[1]}, which is not in media/`,

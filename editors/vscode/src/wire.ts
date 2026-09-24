@@ -67,6 +67,13 @@ export interface CardView {
 	readonly checklist_count?: number;
 	readonly blocking_items?: number;
 	/**
+	 * How many of the card's checklist items are in the operator's queue right
+	 * now, by bench.ItemAwaitsOperator: pending open questions and decisions
+	 * that name the operator or name no owner. It is the same rule `prime`
+	 * applies to build that queue.
+	 */
+	readonly operator_pending?: number;
+	/**
 	 * How many entities sit directly below the card, summed across every
 	 * collection the containment grammar gives a card.
 	 *

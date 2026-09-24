@@ -125,6 +125,59 @@ func TestWordForItemKindAgreesWithWhatAReferenceResolvesBy(t *testing.T) {
 	}
 }
 
+// TestItemAwaitsOperatorMatchesPrimesRuleTwo drives dinah-599's extraction of
+// primePending's rule 2 into one predicate. Each case pins one clause of the
+// three the doc comment states, so a build that drops a clause reddens the
+// case that clause alone decides.
+func TestItemAwaitsOperatorMatchesPrimesRuleTwo(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		item *Item
+		want bool
+	}{
+		{"pending open_question owned by operator", &Item{Kind: "open_question", State: ItemPending, Owner: ItemOwnerOperator}, true},
+		{"pending decision with no owner", &Item{Kind: "decision", State: ItemPending, Owner: ""}, true},
+		{"pending open_question owned by holder", &Item{Kind: "open_question", State: ItemPending, Owner: "holder"}, false},
+		{"resolved decision owned by operator", &Item{Kind: "decision", State: ItemResolved, Owner: ItemOwnerOperator}, false},
+		{"pending acceptance_criterion owned by operator", &Item{Kind: "acceptance_criterion", State: ItemPending, Owner: ItemOwnerOperator}, false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ItemAwaitsOperator(tt.item); got != tt.want {
+				t.Errorf("ItemAwaitsOperator(%+v) = %v, wanted %v", tt.item, got, tt.want)
+			}
+		})
+	}
+}
+
+// TestTallyItemsCountsBothInOneWalk drives dinah-599 criteria/3. The three
+// planted items are chosen so that blocking and awaiting the operator
+// diverge: the first is both, the second blocks without awaiting because its
+// owner is not the operator, and the third awaits without blocking because it
+// names a column the gated workbench declares, which is what
+// ItemBlocksClaim's own column clause exempts. A fourth item's anchor will
+// not open, holding TallyItems to the same tolerance itemsWhere already has.
+func TestTallyItemsCountsBothInOneWalk(t *testing.T) {
+	b := openGated(t)
+	card := t.TempDir()
+	plantChecklistItem(t, card, "b00000000001", "kind: open_question\nstate: pending\nordinal: 1\n", "Blocks and awaits.")
+	plantChecklistItem(t, card, "b00000000002", "kind: decision\nstate: pending\nowner: holder\nordinal: 2\n", "Blocks, not the operator's.")
+	plantChecklistItem(t, card, "b00000000003", "kind: open_question\nstate: pending\ncolumn: e00000000001\nordinal: 3\n", "Awaits, does not block.")
+	if err := os.MkdirAll(filepath.Join(card, ChecklistDir, "b00000000004"), 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+
+	tally, err := b.TallyItems(card)
+	if err != nil {
+		t.Fatalf("TallyItems: %v", err)
+	}
+	if tally.Blocking != 2 {
+		t.Errorf("Blocking is %d, wanted 2 (the first two items)", tally.Blocking)
+	}
+	if tally.AwaitingOperator != 2 {
+		t.Errorf("AwaitingOperator is %d, wanted 2 (the first and third items)", tally.AwaitingOperator)
+	}
+}
+
 // plantChecklistItem writes one checklist item by hand, which is how a card in
 // this package's tests comes to carry one. `dinah file` lives a layer up in
 // internal/verb, which imports this package and cannot be called from it, and

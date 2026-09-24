@@ -1310,3 +1310,64 @@ func (b *Bench) CountBlockingItems(cardDir string) (int, error) {
 	}
 	return len(items), nil
 }
+
+// ItemAwaitsOperator reports whether an item is in the operator's queue: a
+// pending open question or decision that names the operator as its owner or
+// names no owner at all.
+//
+// This is the rule primePending's rule 2 in internal/verb/read.go applies to
+// build the operator's queue, extracted here so that the queue and a card
+// view's own count of what is waiting on him cannot disagree about which
+// items are his. An acceptance criterion never qualifies, because Test
+// verifies a criterion rather than the operator, and a state that is absent,
+// empty or outside the closed set reads as not pending, on the same reading
+// ItemIsResolved gives a damaged file.
+func ItemAwaitsOperator(item *Item) bool {
+	if item.State != ItemPending {
+		return false
+	}
+	if item.Kind != "open_question" && item.Kind != "decision" {
+		return false
+	}
+	return item.Owner == ItemOwnerOperator || item.Owner == ""
+}
+
+// ItemTally is what one walk of a card's checklist items counts.
+type ItemTally struct {
+	// Blocking is how many items would refuse a claim right now, by
+	// ItemBlocksClaim.
+	Blocking int
+	// AwaitingOperator is how many items ItemAwaitsOperator admits.
+	AwaitingOperator int
+}
+
+// TallyItems reads a card's checklist items once and counts both the items
+// that would refuse a claim and the items waiting on the operator, so a
+// caller wanting both numbers pays for one walk of the collection rather
+// than two.
+//
+// It walks the checklist collection exactly as itemsWhere does, in
+// identifier order, and it skips an item whose anchor will not open on the
+// same terms and for the same reason: an unreadable file is a defect dinah
+// check reports rather than one a read discovers.
+func (b *Bench) TallyItems(cardDir string) (ItemTally, error) {
+	collection := filepath.Join(cardDir, ChecklistDir)
+	ids, err := ListIDs(collection)
+	if err != nil {
+		return ItemTally{}, err
+	}
+	var tally ItemTally
+	for _, id := range ids {
+		item, err := LoadItem(filepath.Join(collection, id))
+		if err != nil {
+			continue
+		}
+		if b.ItemBlocksClaim(item) {
+			tally.Blocking++
+		}
+		if ItemAwaitsOperator(item) {
+			tally.AwaitingOperator++
+		}
+	}
+	return tally, nil
+}

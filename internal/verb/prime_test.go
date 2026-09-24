@@ -362,6 +362,55 @@ func TestPrimePendingOperatorRule(t *testing.T) {
 			t.Errorf("the operator's Pending carries an acceptance_criterion under rule 2: %+v", item)
 		}
 	}
+
+	// dinah-599 criteria/2: the number rule 2 lists for the operator, cap
+	// lifted, agrees with the card's own operator_pending, because both read
+	// bench.ItemAwaitsOperator over the same items.
+	full, err := h.library.Prime(&Request{Verb: "prime", Actor: "alka", FullPending: true})
+	if err != nil {
+		t.Fatalf("prime with the cap lifted: %v", err)
+	}
+	view, err := h.library.view(h.card(card))
+	if err != nil {
+		t.Fatalf("view the card: %v", err)
+	}
+	counted := 0
+	for _, item := range full.Pending {
+		if item.Card == view.Ref {
+			counted++
+		}
+	}
+	if counted != view.OperatorPending {
+		t.Errorf("prime lists %d items for this card, wanted operator_pending's own %d", counted, view.OperatorPending)
+	}
+}
+
+// TestPrimePendingRuleTwoCallsTheSharedPredicate drives dinah-599 criteria/2's
+// second half: primePending's rule 2 calls bench.ItemAwaitsOperator rather
+// than repeating its condition inline, on the terms
+// TestLibraryViewReachesNoPerCollectionCount already checks a call by name in
+// this package. A rule reading item.State, item.Kind and item.Owner directly
+// instead would pass every behavioural case above and still drift from the
+// card view's own count the day one of the two copies is edited alone.
+//
+// Arming: restoring the three-clause inline condition primePending carried
+// before dinah-599 reddens this test by name, because the walk from
+// primePending then reaches no call to ItemAwaitsOperator at all.
+func TestPrimePendingRuleTwoCallsTheSharedPredicate(t *testing.T) {
+	graph := packageCallGraph(t)
+	reachable := reachableFrom(graph, "primePending")
+	if !reachable["primePending"] {
+		t.Fatal("the walk does not reach primePending itself, so this guard is looking at the wrong graph")
+	}
+	calls := map[string]int{}
+	for name := range reachable {
+		for _, called := range graph[name] {
+			calls[called]++
+		}
+	}
+	if calls["ItemAwaitsOperator"] == 0 {
+		t.Error("ItemAwaitsOperator is called nowhere primePending reaches, and rule 2 is supposed to call it rather than repeat its condition")
+	}
 }
 
 // TestPrimePendingCapAndFullPending is dinah-573/criteria/19,20,21: for the
