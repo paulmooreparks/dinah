@@ -315,6 +315,9 @@ var beyondChecks = map[string][]Check{
 	"guide": {
 		{Refusal: contract.UnknownGuide, Key: "check.guide.1"},
 	},
+	"completion": {
+		{Refusal: contract.UnknownShell, Key: "check.completion.1"},
+	},
 	"config": {
 		{Refusal: contract.UnknownKey, Key: "check.config.1"},
 	},

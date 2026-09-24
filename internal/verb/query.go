@@ -628,6 +628,72 @@ func columnValued(field string) bool {
 	return field == FieldColumn || field == FieldEntered || field == FieldLeft
 }
 
+// SplitQueryTerm reads one term of the query language as far as its operator,
+// answering the field before it and the operator, and false for a term that
+// carries no operator yet. It is the reading findOperator gives a term, offered
+// to a head completing one.
+func SplitQueryTerm(term string) (field, operator string, ok bool) {
+	at, op := findOperator(term)
+	if at < 0 {
+		return "", "", false
+	}
+	return term[:at], op, true
+}
+
+// QueryFieldValues are the values a completion offers after a query field's
+// operator, read from the workbench definition and its workstreams and never
+// from a card. The first rule that answers decides: the field's closed set,
+// the columns in flow order for a column-valued field, the declared levels
+// for severity and priority, each live workstream's slug or identifier for
+// workstream, the declared routes for route, and a declared key's enumerated
+// values. Every other field, which today is holder, actor and block_kind,
+// answers nothing, and so does a value a card still carries after its
+// declaration went, since that is a finding for dinah check rather than a
+// value to suggest.
+func (l *Library) QueryFieldValues(field string) ([]string, error) {
+	if closed := closedValues(field); closed != nil {
+		return append([]string(nil), closed...), nil
+	}
+	if columnValued(field) {
+		refs := make([]string, 0, len(l.Bench.Columns))
+		for _, column := range l.Bench.Columns {
+			refs = append(refs, column.Ref())
+		}
+		return refs, nil
+	}
+	switch field {
+	case FieldSeverity, FieldPriority:
+		return bench.LevelNames(l.Bench.Levels(field)), nil
+	case FieldWorkstream:
+		return l.workstreamHandles()
+	case FieldRoute:
+		return append([]string(nil), l.Bench.RouteNames...), nil
+	}
+	if declared := l.Bench.DeclaredFieldOf(field); declared != nil {
+		return append([]string(nil), declared.Values...), nil
+	}
+	return nil, nil
+}
+
+// workstreamHandles are the live workstreams as a query term names them, the
+// slug where one is carried and the identifier otherwise, sorted.
+func (l *Library) workstreamHandles() ([]string, error) {
+	workstreams, err := l.Bench.Workstreams()
+	if err != nil {
+		return nil, err
+	}
+	handles := make([]string, 0, len(workstreams))
+	for _, workstream := range workstreams {
+		handle := workstream.Slug
+		if handle == "" {
+			handle = workstream.ID
+		}
+		handles = append(handles, handle)
+	}
+	sort.Strings(handles)
+	return handles, nil
+}
+
 // checkWorkstreams runs check 6, the first of two checks that read the cards
 // as well as the workbench, and it normalises the values it admits on its way
 // through.

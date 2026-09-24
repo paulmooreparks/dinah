@@ -206,7 +206,7 @@ func (l *Library) searchCard(results *SearchResults, card *bench.Card, phrase st
 	if column := l.Bench.Column(card.Column); column != nil {
 		hit.ColumnTitle = column.Title
 	}
-	if asciiFold(phrase) == asciiFold(ref) {
+	if ASCIIFold(phrase) == ASCIIFold(ref) {
 		results.add(hit, tierReference, MatchedInReference, ref, 0, len(ref))
 	}
 	if at, length, ok := substringIn(phrase, card.Title); ok {
@@ -349,7 +349,7 @@ func substringIn(phrase, field string) (at, length int, ok bool) {
 	if phrase == "" || field == "" {
 		return 0, 0, false
 	}
-	at = strings.Index(asciiFold(field), asciiFold(phrase))
+	at = strings.Index(ASCIIFold(field), ASCIIFold(phrase))
 	if at < 0 {
 		return 0, 0, false
 	}
@@ -378,8 +378,8 @@ func substringIn(phrase, field string) (at, length int, ok bool) {
 // always wins. A distance of 0 cannot arrive here, because two equal strings
 // are a substring match and layer 1 already answered them.
 func withinTypoBudget(phrase, title string) (float64, bool) {
-	wanted := []rune(asciiFold(phrase))
-	haystack := []rune(asciiFold(title))
+	wanted := []rune(ASCIIFold(phrase))
+	haystack := []rune(ASCIIFold(title))
 	length := len(wanted)
 	if length <= fuzzyFloor || len(haystack) == 0 {
 		return 0, false
@@ -486,9 +486,11 @@ func alignmentDistance(from, to []rune) int {
 	return previous[len(to)]
 }
 
-// asciiFold lowercases the ASCII letters of a string and leaves every other
-// byte alone, which is the comparison every match here is made under.
-func asciiFold(text string) string {
+// ASCIIFold lowercases the ASCII letters of a string and leaves every other
+// byte alone, which is the comparison every match here is made under. Shell
+// completion matches what a person typed under the same comparison, so a
+// candidate a search would find by its prefix is the one a Tab offers.
+func ASCIIFold(text string) string {
 	return strings.Map(func(r rune) rune {
 		if r >= 'A' && r <= 'Z' {
 			return r + ('a' - 'A')

@@ -869,6 +869,11 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
+    "check.completion.1": {
+      "text": "the shell is one Dinah prints a script for",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
     "check.harness": {
       "text": "the harness you declared is a legal name",
       "context": "One row of the ordered precondition list of every command that writes a journal line, spliced ahead of the command's own list because it reads the request rather than the card. One row under one key serves all of them, since it is the same check on the same value. A read is never refused over it, so no read's list carries it. The sentence is short because the table it prints in is bounded by the reader's window and this row stands on pages whose other rows are long.",
@@ -4918,6 +4923,16 @@
       "context": "Printed under the topics refusal.dinah.unknown-guide lists, on its own line and with no leading punctuation.",
       "skeleton": true
     },
+    "refusal.dinah.unknown-shell": {
+      "text": "Dinah prints a completion script for these shells",
+      "context": "The sentence printed after the refusal name dinah.unknown-shell, which `dinah completion` raises when it is given no shell or one it has no script for. The shell names are listed under it, one per line. The sentence does not repeat the word typed, because a call naming no shell has none.",
+      "skeleton": true
+    },
+    "refusal.dinah.unknown-shell.next": {
+      "text": "run `dinah completion <shell>` with one of them",
+      "context": "Printed under the shells refusal.dinah.unknown-shell lists, on its own line and with no leading punctuation.",
+      "skeleton": true
+    },
     "refusal.dinah.unknown-item-kind": {
       "text": "{detail} is not a kind of checklist item. The kinds are {kinds}.",
       "context": "The sentence printed after the refusal name dinah.unknown-item-kind, which a filing naming a kind outside the three the format declares carries. {detail} is the kind the reader typed. {kinds} is the closed set of three, which is machine vocabulary that is never translated.",
@@ -6676,6 +6691,21 @@
     "prime.instructions.hint": {
       "text": "Run `dinah prime --brief` to omit this text on a later call.",
       "context": "Printed after the standing instructions block on an ordinary (non-brief) prime call, naming the flag that omits it on a later call.",
+      "skeleton": true
+    },
+    "cmd.completion.summary": {
+      "text": "Print the script that lets your shell complete dinah commands",
+      "context": "The one-line summary of the completion command, shown beside its syntax in the help block. The script is text the person's interactive shell (bash, zsh, fish or PowerShell) loads so that pressing Tab completes dinah command lines.",
+      "skeleton": true
+    },
+    "cmd.completion.note": {
+      "text": "Load the script from your shell's startup file, and every new shell completes commands, flags, card references, columns and query values from the workbench you are standing in. In bash, add eval \"$(dinah completion bash)\" to ~/.bashrc. In zsh, add eval \"$(dinah completion zsh)\" to ~/.zshrc after compinit. In fish, add dinah completion fish | source to ~/.config/fish/config.fish. In PowerShell, add dinah completion powershell | Out-String | Invoke-Expression to the file $PROFILE.CurrentUserAllHosts names.",
+      "context": "The paragraph printed on the help page of `dinah completion`. The four profile lines, from eval to the file names, are commands and paths a person copies into a startup file, so they stay byte-identical in every language: eval \"$(dinah completion bash)\", ~/.bashrc, eval \"$(dinah completion zsh)\", ~/.zshrc, compinit, dinah completion fish | source, ~/.config/fish/config.fish, dinah completion powershell | Out-String | Invoke-Expression and $PROFILE.CurrentUserAllHosts are never translated.",
+      "skeleton": true
+    },
+    "param.completion.shell.summary": {
+      "text": "the shell to print the script for",
+      "context": "The meaning of the shell argument of `dinah completion`, printed in that command's arguments table, followed by the four shell names it accepts.",
       "skeleton": true
     },
     "cmd.setup.summary": {

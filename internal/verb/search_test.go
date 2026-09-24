@@ -901,7 +901,7 @@ func TestTheNoiseAgainstAGeneratedCorpus(t *testing.T) {
 	budget := typoBudget(len([]rune(swapped)))
 	nearest, candidates := len(swapped)+1, 0
 	for _, title := range titles {
-		distance := alignmentDistance([]rune(asciiFold(swapped)), []rune(asciiFold(title)))
+		distance := alignmentDistance([]rune(ASCIIFold(swapped)), []rune(ASCIIFold(title)))
 		if distance < nearest {
 			nearest = distance
 		}
@@ -946,7 +946,7 @@ func TestTheNoiseAgainstAGeneratedCorpus(t *testing.T) {
 	// vocabulary's size and found short.
 	standalone := make(map[string]bool, len(titles))
 	for _, title := range titles {
-		standalone[asciiFold(title)] = true
+		standalone[ASCIIFold(title)] = true
 	}
 
 	intended, noisy, worst, worstPhrase := 0, 0, 0, ""
@@ -979,7 +979,7 @@ func TestTheNoiseAgainstAGeneratedCorpus(t *testing.T) {
 			if _, ok := withinTypoBudget(phrase, title); !ok {
 				continue
 			}
-			if asciiFold(title) == word {
+			if ASCIIFold(title) == word {
 				intended++
 				continue
 			}
@@ -1363,12 +1363,12 @@ func TestTheNoiseAgainstATemplatedCorpus(t *testing.T) {
 	// reduction measures against. Neither number comes from Search.
 	folded := make([][]rune, len(titles))
 	for at, title := range titles {
-		folded[at] = []rune(asciiFold(title))
+		folded[at] = []rune(ASCIIFold(title))
 	}
 	inRange := make([]map[string]bool, len(phrases))
 	oldNoise, largest, largestAt := 0, 0, 0
 	for at, phrase := range phrases {
-		wanted := []rune(asciiFold(phrase))
+		wanted := []rune(ASCIIFold(phrase))
 		length := len(wanted)
 		if length <= fuzzyFloor {
 			t.Fatalf("phrase %d is %d runes, at or below layer 2's floor of %d, so it measures nothing", at, length, fuzzyFloor)

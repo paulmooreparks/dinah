@@ -66,15 +66,20 @@ var globalFlags = []struct {
 	// marker says the flag carries no value, which is what the argument
 	// parser reads when it derives the flags it accepts.
 	marker bool
+	// complete names how a valued flag's value completes at a shell, with
+	// the meaning Param.Complete has: a member of verb.Completers, or one of
+	// the two completers only a global flag names, which sessionCompleters
+	// resolves. A marker carries no value and names none.
+	complete string
 }{
-	{name: "workbench", usage: "--workbench <dir>", value: "dir"},
+	{name: "workbench", usage: "--workbench <dir>", value: "dir", complete: verb.CompleteDirs},
 	{name: "json", usage: "--json", marker: true},
 	// --format sits directly under --json because the two answer one
 	// question, and a reader who found either row has found both.
-	{name: "format", usage: "--format <name>", value: "name"},
+	{name: "format", usage: "--format <name>", value: "name", complete: completeFormats},
 	{name: "quiet", usage: "--quiet", marker: true},
-	{name: "lang", usage: "--lang <tag>", value: "tag"},
-	{name: "actor", usage: "--actor <name>", value: "name"},
+	{name: "lang", usage: "--lang <tag>", value: "tag", complete: completeLanguages},
+	{name: "actor", usage: "--actor <name>", value: "name", complete: verb.CompleteNone},
 	// The usage of these two names the whole family the parser answers to
 	// rather than the canonical spelling alone, because the spelling a
 	// reader already typed is the one they will look for in this column.

@@ -25,27 +25,9 @@ import (
 // processes reaching the same card therefore cannot both see it ready, since
 // the second is refused the lock outright.
 func (l *Library) Do(req *Request) *Response {
-	if l.Bench.Operator == "" {
-		return l.refuse(req, nil, contract.NoOperator, "")
-	}
-	if refused := l.malformedHarness(req, nil); refused != nil {
+	found, refused := l.admit(req)
+	if refused != nil {
 		return refused
-	}
-	found, err := l.Bench.ResolveCard(req.Card)
-	if err != nil {
-		return l.FromError(req, err)
-	}
-	// The request names an owner, checked here rather than only inside each
-	// verb's own function below, because canClaim, canRoute, release, block,
-	// unblock, join and leave all run after the lock is acquired and after
-	// WitnessDivergence has already had the chance to write a journal line
-	// under an unnamed actor. This is the order every one of those functions'
-	// own check already keeps: card exists, then owner named. The per-verb
-	// checks stay; pull calls canRoute/canLand directly, on its own
-	// transaction, without going through Do at all, so those checks remain
-	// load-bearing for that caller.
-	if req.Actor == "" {
-		return l.refuse(req, nil, contract.NoOwner, "")
 	}
 	lock, err := bench.Acquire(found.Card.Dir, req.Actor, bench.Stamp(l.Now()))
 	if err != nil {
@@ -85,6 +67,41 @@ func (l *Library) Do(req *Request) *Response {
 		response.WarningDetail = found.StalePrefix
 	}
 	return response
+}
+
+// admit runs the rows Do runs before it takes the card's lock, in Do's order:
+// the workbench has an operator, the declared harness is well formed, the
+// card resolves, and the request names an owner. It answers the card the
+// reference found, or the refusal of the first row that fails. Do and
+// MoveDestinations both call it, so a row added here reaches a real act and
+// the completion of a move alike. A row that refuses a move belongs here or in
+// canMove. Written anywhere else in Do, evaluate or move, it reaches the move
+// alone, and no test fails because of where it was written; MoveDestinations'
+// comment says what does protect the filter.
+//
+// The owner row sits here rather than only inside each verb's own function,
+// because canClaim, canRoute, release, block, unblock, join and leave all run
+// after the lock is acquired and after WitnessDivergence has already had the
+// chance to write a journal line under an unnamed actor. This is the order
+// every one of those functions' own check already keeps: card exists, then
+// owner named. The per-verb checks stay; pull calls canRoute/canLand
+// directly, on its own transaction, without going through Do at all, so those
+// checks remain load-bearing for that caller.
+func (l *Library) admit(req *Request) (*bench.Resolved, *Response) {
+	if l.Bench.Operator == "" {
+		return nil, l.refuse(req, nil, contract.NoOperator, "")
+	}
+	if refused := l.malformedHarness(req, nil); refused != nil {
+		return nil, refused
+	}
+	found, err := l.Bench.ResolveCard(req.Card)
+	if err != nil {
+		return nil, l.FromError(req, err)
+	}
+	if req.Actor == "" {
+		return nil, l.refuse(req, nil, contract.NoOwner, "")
+	}
+	return found, nil
 }
 
 // evaluate applies one verb's own precondition list and, where every check is
@@ -136,14 +153,22 @@ func (l *Library) lapse(card *bench.Card) error {
 		Actor:   bench.NamedActor(holder),
 		Expires: card.Expires,
 	}
-	card.State = contract.StateReady
-	card.Holder = ""
-	card.ClaimSince = ""
-	card.Expires = ""
+	clearLapsedClaim(card)
 	if err := card.Save(); err != nil {
 		return err
 	}
 	return bench.AppendEvent(card.JournalPath(), ev)
+}
+
+// clearLapsedClaim is what a lapse does to the card in memory: the card is
+// ready again, and the holder and both claim fields are gone. lapse saves it
+// and journals the expiry; MoveDestinations asks what a move would find and
+// saves nothing, so both call this and neither restates the four fields.
+func clearLapsedClaim(card *bench.Card) {
+	card.State = contract.StateReady
+	card.Holder = ""
+	card.ClaimSince = ""
+	card.Expires = ""
 }
 
 // canClaim runs the precondition sequence CORE-CLAIM declares, and Dinah's own
@@ -436,7 +461,7 @@ func (l *Library) canLand(req *Request, card *bench.Card, destination, departure
 		return false, l.refuse(req, card, contract.Terminal, columnRef(departure)), nil
 	}
 	regressive := departure != nil && !destination.Terminal() && destination.Position < departure.Position
-	reached, err := l.atCapacity(destination)
+	reached, err := l.atCapacity(req, destination)
 	if err != nil {
 		return false, nil, err
 	}
@@ -666,18 +691,28 @@ func titleOf(column *bench.Column) string {
 // atCapacity reports whether a column has reached its declared limit. The
 // count is every live card in the column whatever its state, because a
 // blocked card still occupies the place.
-func (l *Library) atCapacity(column *bench.Column) (bool, error) {
+//
+// A request carrying an occupancy answers from it, which is how
+// MoveDestinations asks the question of every destination while reading the
+// cards once. Every other request carries none, and the count is taken here.
+// Either way the count is compared against the declared capacity once, on
+// the last line.
+func (l *Library) atCapacity(req *Request, column *bench.Column) (bool, error) {
 	if column.Capacity <= 0 {
 		return false, nil
 	}
-	cards, err := l.Bench.Cards()
-	if err != nil {
-		return false, err
-	}
 	count := 0
-	for _, card := range cards {
-		if card.Column == column.ID {
-			count++
+	if req != nil && req.occupancy != nil {
+		count = req.occupancy[column.ID]
+	} else {
+		cards, err := l.Bench.Cards()
+		if err != nil {
+			return false, err
+		}
+		for _, card := range cards {
+			if card.Column == column.ID {
+				count++
+			}
 		}
 	}
 	return count >= column.Capacity, nil

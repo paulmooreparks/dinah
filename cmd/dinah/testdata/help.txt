@@ -142,6 +142,8 @@ SERVE
     [--model <name>] [--server <address>]
     [--trust-project-recipe] [--allow-run]
     [--dry-run] [--remove]
+  completion <shell>                        Print the script that lets your
+                                              shell complete dinah commands
 
 Global flags:
   Option             What it does

@@ -102,7 +102,7 @@ release publishes a new one. The second line names the shared rule set that buil
 other tool built to those same rules can read this workbench and reach the same
 answers about it. The third line names the format Dinah writes on disk.
 
-`dinah help` lists all fifty-nine commands, in the four groups Dinah sorts
+`dinah help` lists all sixty commands, in the four groups Dinah sorts
 them into. Running `dinah` with no arguments at all prints the same list. So
 does whichever spelling of the help flag you already have the habit of typing,
 because Dinah answers to `--help`, `-help`, `-h`, `-?`, `--?` and `/?` alike.
@@ -113,6 +113,62 @@ you may put the flag on either side of the command name.
 
 The version flags work the same way. `dinah --version`, `-version`, `-V` and
 `-v` each print what `dinah version` printed above.
+
+## Let your shell complete commands
+
+Dinah can finish what you are typing when you press Tab. It completes command
+names and flags, card references, columns, and the fields and values of a query,
+and it reads the cards and columns from the workbench you are standing in. When
+you type `dinah move` and a card, it offers only the columns that card can move
+to.
+
+`dinah completion` prints a script for bash, zsh, fish, or PowerShell, and you
+load that script from your shell's startup file. Add the line for your shell to
+the file the table names. Each line runs `dinah` every time a shell starts, so a
+newer build of Dinah brings its own script with it the next time you open a
+shell.
+
+| Shell | File | Line to add |
+|---|---|---|
+| bash on Linux | `~/.bashrc` | `eval "$(dinah completion bash)"` |
+| bash on macOS, and Git Bash on Windows | `~/.bashrc`, with `~/.bash_profile` reading it | `eval "$(dinah completion bash)"` |
+| zsh | `~/.zshrc`, after `autoload -Uz compinit && compinit` | `eval "$(dinah completion zsh)"` |
+| fish | `~/.config/fish/config.fish` | `dinah completion fish \| source` |
+| PowerShell 5.1 and 7 | the file `$PROFILE.CurrentUserAllHosts` names | `dinah completion powershell \| Out-String \| Invoke-Expression` |
+
+The macOS Terminal and Git Bash both start bash as a login shell, and a login
+shell reads `~/.bash_profile` rather than `~/.bashrc`. If you use either of
+them, make sure `~/.bash_profile` contains the line below, which is a line to
+add to that file rather than a transcript. In Git Bash, `~` is your
+`%USERPROFILE%` folder, and completion works whether or not you type the
+`.exe` on the end of `dinah`.
+
+```
+[ -f ~/.bashrc ] && . ~/.bashrc
+```
+
+In bash, Dinah completes a word only at the end of the line, and only while
+every character on the line is ASCII, so a line holding an accented title you
+typed completes nothing for as long as that title stays on the line.
+
+PowerShell keeps separate profiles for Windows PowerShell 5.1 and PowerShell 7,
+and `$PROFILE` finds the right one for the edition you are running, even when
+your Documents folder is redirected to OneDrive. Use
+`$PROFILE.CurrentUserAllHosts` rather than plain `$PROFILE`, so the line also
+loads in other hosts such as the terminal inside VS Code. If you use both
+editions, add the line in each of them. These commands create the file when it
+is missing and then add the line, and they are commands to type rather than a
+transcript:
+
+```
+if (-not (Test-Path $PROFILE.CurrentUserAllHosts)) { New-Item -ItemType File -Path $PROFILE.CurrentUserAllHosts -Force | Out-Null }
+Add-Content -Path $PROFILE.CurrentUserAllHosts -Value 'dinah completion powershell | Out-String | Invoke-Expression'
+```
+
+Windows PowerShell 5.1 on a Windows desktop runs no profile at all under its
+default execution policy, which is `Restricted`. Run
+`Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` once to let your profile
+run.
 
 ## Open a workbench
 
@@ -1332,14 +1388,14 @@ storage format 9
 Catalogs:
   Language  Translated
   --------  ----------
-  en        1447/1447
-  af        0/1447
-  cs        0/1447
-  de        1447/1447
-  es        0/1447
-  fil       0/1447
-  hi        1447/1447
-  id        0/1447
+  en        1453/1453
+  af        0/1453
+  cs        0/1453
+  de        1453/1453
+  es        0/1453
+  fil       0/1453
+  hi        1453/1453
+  id        0/1453
 [exit 0]
 ```
 
