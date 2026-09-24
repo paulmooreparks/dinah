@@ -1,10 +1,27 @@
 {
-  "card": "dinah-548",
-  "commit": "71ed75432423a01025b4f6a24d1fd5b5ea4c6014",
-  "profile_sha256": "692dbf8531f98c4acbd2a33d8b115634d03c8f8b0392466d6c5a5658b68c7b32",
-  "brief_sha256": "bfcf930809ebfb48ded8ecd1f435ed7bfe30295daa36cc9e489a277535031ff9",
+  "card": "dinah-598",
+  "mode": "update",
+  "commit": "16b9689a6b5a0cae1b98059b135e322757abfa17",
+  "base_commit": "71ed75432423a01025b4f6a24d1fd5b5ea4c6014",
+  "profile_sha256": "4bc75ed591d58287e54c7a26aaa55d177da7a1ed87582076aaa59833bc5d4d44",
+  "brief": "UPDATE-BRIEF.md",
+  "brief_sha256": "7d13ab096f37a128aa22fbd1a5e1deb1edfa61561565209b6d0df1ba0b6f5f00",
   "harness": "claude-code 2.1.276",
   "model": "claude-opus-5",
   "rounds": 1,
-  "date": "2026-09-21"
+  "date": "2026-09-24",
+  "history": [
+    {
+      "card": "dinah-548",
+      "mode": "construction",
+      "commit": "71ed75432423a01025b4f6a24d1fd5b5ea4c6014",
+      "profile_sha256": "692dbf8531f98c4acbd2a33d8b115634d03c8f8b0392466d6c5a5658b68c7b32",
+      "brief": "BRIEF.md",
+      "brief_sha256": "bfcf930809ebfb48ded8ecd1f435ed7bfe30295daa36cc9e489a277535031ff9",
+      "harness": "claude-code 2.1.276",
+      "model": "claude-opus-5",
+      "rounds": 1,
+      "date": "2026-09-21"
+    }
+  ]
 }
