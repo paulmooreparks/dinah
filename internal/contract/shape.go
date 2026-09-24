@@ -189,9 +189,10 @@ var Shapes = []Shape{
 		// title dinah add refuses, and hand that reader a repair written
 		// about a file he has not touched.
 		Name:   Malformed,
-		Values: []string{"path", "file", "cardRef", "claimants", "retired", ValueUsage, ValueWorkbench},
+		Values: []string{"path", "file", "cardRef", "claimants", "retired", "legalValues", ValueUsage, ValueWorkbench},
 		Fragments: []Fragment{
 			{Key: "refusal.malformed.one-line", When: "oneLine"},
+			{Key: "refusal.malformed.legal-values", When: "legalValues"},
 			{Key: "refusal.malformed.at", When: "path"},
 			{Key: "refusal.malformed.in-file", When: "file"},
 			{Key: "refusal.malformed.reads-as-a-card-reference", When: "cardRef"},

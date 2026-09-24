@@ -20,27 +20,29 @@ const (
 	SearchKindWorkstream = "workstream"
 )
 
-// The five fields a hit reports the phrase as having matched in.
+// The six fields a hit reports the phrase as having matched in.
 const (
 	MatchedInReference  = "reference"
 	MatchedInTitle      = "title"
+	MatchedInField      = "field"
 	MatchedInFraming    = "framing"
 	MatchedInComment    = "comment"
 	MatchedInAttachment = "attachment"
 )
 
-// The five tiers the ranking orders hits by, tier 0 ranking highest. The
+// The six tiers the ranking orders hits by, tier 0 ranking highest. The
 // score a caller receives is (searchTiers - tier) + quality, and quality is
 // bounded to (0, 1], so every tier-n hit outranks every tier-(n+1) hit
 // whatever their qualities are and quality only breaks ties inside one tier.
 const (
 	tierReference  = 0
 	tierTitle      = 1
-	tierFraming    = 2
-	tierComment    = 3
-	tierAttachment = 4
+	tierField      = 2
+	tierFraming    = 3
+	tierComment    = 4
+	tierAttachment = 5
 	// searchTiers is the constant the score subtracts a tier from, which is
-	// the last tier's own index. A tier-4 hit therefore scores in (0, 1] and
+	// the last tier's own index. A tier-5 hit therefore scores in (0, 1] and
 	// nothing a search answers ever scores at or below zero.
 	searchTiers = tierAttachment
 )
@@ -186,8 +188,8 @@ func (l *Library) Search(req *Request) (*SearchResults, error) {
 }
 
 // searchCard adds every hit one card carries, in tier order: its reference,
-// its title, its framing prose, each of its comments, and each of its
-// qualifying attachments.
+// its title, each stored declared-field value, its framing prose, each of its
+// comments, and each of its qualifying attachments.
 func (l *Library) searchCard(results *SearchResults, card *bench.Card, phrase string, narrowed map[string]bool, archived bool) {
 	if narrowed != nil && !narrowed[card.ID] {
 		return
@@ -211,6 +213,11 @@ func (l *Library) searchCard(results *SearchResults, card *bench.Card, phrase st
 		results.add(hit, tierTitle, MatchedInTitle, card.Title, at, length)
 	} else if quality, ok := withinTypoBudget(phrase, card.Title); ok {
 		results.addScored(hit, tierTitle, MatchedInTitle, snippetOf(card.Title, 0, len(card.Title)), quality)
+	}
+	for _, stored := range bench.FieldValues(card.FM) {
+		if at, length, ok := substringIn(phrase, stored.Value); ok {
+			results.addField(hit, stored.Key, stored.Value, at, length)
+		}
 	}
 	if at, length, ok := substringIn(phrase, card.Body); ok {
 		results.add(hit, tierFraming, MatchedInFraming, card.Body, at, length)
@@ -286,6 +293,17 @@ func (l *Library) searchBench(results *SearchResults, phrase string) error {
 // the phrase covers.
 func (r *SearchResults) add(hit SearchHit, tier int, matchedIn, field string, at, length int) {
 	r.addScored(hit, tier, matchedIn, snippetOf(field, at, length), coverage(length, len(field)))
+}
+
+// addField files one field-value hit. The snippet carries the key ahead of
+// the matched excerpt of the value, "key: value", because a bare value with
+// no key is not enough context to say why the hit surfaced: unlike a title or
+// a framing paragraph, a field value read alone rarely tells a reader what it
+// is a value of. Quality is measured against the stored value's own length,
+// not against the composed "key: value" text, so a short value fully matched
+// still scores a full 1.0 the way any other exact-coverage hit does.
+func (r *SearchResults) addField(hit SearchHit, key, value string, at, length int) {
+	r.addScored(hit, tierField, MatchedInField, key+": "+snippetOf(value, at, length), coverage(length, len(value)))
 }
 
 // addScored files one hit whose quality the caller has already worked out,

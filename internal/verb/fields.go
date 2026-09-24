@@ -260,6 +260,11 @@ func (l *Library) setDeclaredField(req *Request, entity *bench.EntityRef) *Respo
 	if value != "" && !bench.AdmitsFieldValue(declared.Type, value) {
 		return l.refuse(req, entity.Card, contract.Malformed, req.Field)
 	}
+	if value != "" && !bench.AdmitsListedValue(declared.Values, value) {
+		return l.refuseWith(req, entity.Card, contract.Malformed, req.Field, map[string]string{
+			"legalValues": strings.Join(declared.Values, ", "),
+		})
+	}
 	if req.Actor == "" {
 		return l.refuse(req, entity.Card, contract.NoOwner, "")
 	}

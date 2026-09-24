@@ -1485,3 +1485,164 @@ func TestTheNoiseAgainstATemplatedCorpus(t *testing.T) {
 			shippedNoise, oldNoise, oldNoise/3)
 	}
 }
+
+// fieldSearchDeclaration declares one string field with no `values` list, on
+// no particular kind (so it reaches the card default), which is enough for
+// the field-value search tests below: clause B does not depend on clause A's
+// enumeration, per the specification's own framing.
+const fieldSearchDeclaration = `fields:
+  gk-software.ticket:
+    type: string
+    meaning: the ticket this card tracks
+`
+
+// TestASearchFindsACardByADeclaredFieldsValue drives AC-11 and AC-12 of
+// dinah-594: a phrase stored under a declared field's value is a hit nothing
+// found before this card, its matched_in names "field", its snippet carries
+// the key ahead of the matched excerpt, and it ranks above a hit that only
+// matched in framing, comment or attachment, and at or below a title hit.
+func TestASearchFindsACardByADeclaredFieldsValue(t *testing.T) {
+	h := newHarness(t)
+	h.declareFields(fieldSearchDeclaration)
+	ticketed := h.ready("A card carrying a ticket")
+	if response := h.set(ticketed, "gk-software.ticket", "GKZ-1234"); response.Outcome != contract.OutcomeOK {
+		t.Fatalf("writing the declared field answered %s %s", response.Outcome, response.Refusal)
+	}
+	framed := h.ready("A card with no ticket")
+	plantFramingOn(h, framed, "This framing paragraph mentions GKZ-1234 in passing.")
+	h.reopen()
+
+	results := found(h, &Request{SearchText: "GKZ-1234"})
+	var fieldHit, framingHit *SearchHit
+	for i := range results.Hits {
+		hit := &results.Hits[i]
+		switch hit.Ref {
+		case ticketed:
+			fieldHit = hit
+		case framed:
+			framingHit = hit
+		}
+	}
+	if fieldHit == nil {
+		t.Fatalf("no hit named the card carrying the field value: %+v", results.Hits)
+	}
+	if fieldHit.MatchedIn != MatchedInField {
+		t.Errorf("the field hit's matched_in is %q, wanted %q", fieldHit.MatchedIn, MatchedInField)
+	}
+	if fieldHit.Snippet != "gk-software.ticket: GKZ-1234" {
+		t.Errorf("the field hit's snippet is %q, wanted the key ahead of the value", fieldHit.Snippet)
+	}
+	if framingHit == nil {
+		t.Fatalf("no hit named the card carrying the framing mention: %+v", results.Hits)
+	}
+	if fieldHit.Score <= framingHit.Score {
+		t.Errorf("the field hit scores %v, wanted it to outrank the framing hit at %v", fieldHit.Score, framingHit.Score)
+	}
+}
+
+// TestAFieldValueHitRanksAtOrBelowATitleHit extends the ranking assertion
+// above with the title tier, which the specification places the field tier
+// immediately below.
+func TestAFieldValueHitRanksAtOrBelowATitleHit(t *testing.T) {
+	h := newHarness(t)
+	h.declareFields(fieldSearchDeclaration)
+	ticketed := h.ready("A card carrying a ticket")
+	if response := h.set(ticketed, "gk-software.ticket", "GKZ-1234"); response.Outcome != contract.OutcomeOK {
+		t.Fatalf("writing the declared field answered %s %s", response.Outcome, response.Refusal)
+	}
+	titled := h.ready("A card about GKZ-1234 itself")
+	h.reopen()
+
+	results := found(h, &Request{SearchText: "GKZ-1234"})
+	var fieldHit, titleHit *SearchHit
+	for i := range results.Hits {
+		hit := &results.Hits[i]
+		switch hit.Ref {
+		case ticketed:
+			fieldHit = hit
+		case titled:
+			titleHit = hit
+		}
+	}
+	if fieldHit == nil || titleHit == nil {
+		t.Fatalf("expected hits on both cards: %+v", results.Hits)
+	}
+	if fieldHit.Score > titleHit.Score {
+		t.Errorf("the field hit scores %v, wanted it at or below the title hit at %v", fieldHit.Score, titleHit.Score)
+	}
+}
+
+// TestAFieldValueHitIsExcludedByAQueryFilter drives AC-13: a --query filter
+// that excludes a card excludes its field-value hit exactly as it already
+// excludes a framing or comment hit.
+func TestAFieldValueHitIsExcludedByAQueryFilter(t *testing.T) {
+	h := newHarness(t)
+	h.declareFields(fieldSearchDeclaration)
+	here := h.add("A card carrying a ticket, at intake")
+	if response := h.set(here, "gk-software.ticket", "GKZ-1234"); response.Outcome != contract.OutcomeOK {
+		t.Fatalf("writing the declared field answered %s %s", response.Outcome, response.Refusal)
+	}
+	there := h.add("Another card carrying the same ticket")
+	if response := h.set(there, "gk-software.ticket", "GKZ-1234"); response.Outcome != contract.OutcomeOK {
+		t.Fatalf("writing the declared field answered %s %s", response.Outcome, response.Refusal)
+	}
+	h.at(there, doing)
+	h.reopen()
+
+	results := found(h, &Request{SearchText: "GKZ-1234", Query: "column:" + intake})
+	if len(results.Hits) != 1 || results.Hits[0].Ref != here {
+		t.Errorf("the filtered search answered %+v, wanted the one card at intake", results.Hits)
+	}
+}
+
+// TestAFieldValueIsNeverMatchedByTheTypoTolerantLayer drives AC-14: layer 2 is
+// restricted to a card's title, so a phrase within one edit of a stored field
+// value but not a substring of it produces no field-tier hit.
+func TestAFieldValueIsNeverMatchedByTheTypoTolerantLayer(t *testing.T) {
+	h := newHarness(t)
+	h.declareFields(fieldSearchDeclaration)
+	ref := h.ready("A card with a ticket, unrelated title")
+	if response := h.set(ref, "gk-software.ticket", "GKZ-1234"); response.Outcome != contract.OutcomeOK {
+		t.Fatalf("writing the declared field answered %s %s", response.Outcome, response.Refusal)
+	}
+	h.reopen()
+	// GKZ-1235 is one edit away from the stored GKZ-1234 and not a substring
+	// of it, which is exactly the shape layer 2 would catch on a title.
+	results := found(h, &Request{SearchText: "GKZ-1235"})
+	for _, hit := range results.Hits {
+		if hit.Ref == ref && hit.MatchedIn == MatchedInField {
+			t.Errorf("a near-miss phrase produced a field-tier hit: %+v", hit)
+		}
+	}
+}
+
+// TestAPreservedFieldKeyIsStillSearched drives AC-16: a value stored under a
+// key the workbench does not currently declare (an orphaned key) is still a
+// search hit under matched_in field, consistent with the preservation posture
+// the rest of the declared-field mechanism already keeps.
+func TestAPreservedFieldKeyIsStillSearched(t *testing.T) {
+	h := newHarness(t)
+	ref := h.ready("A card with an orphaned field")
+	path := filepath.Join(h.library.Bench.CardsRoot(), h.cardID(ref), bench.CardAnchor)
+	source, err := bench.ReadText(path)
+	if err != nil {
+		t.Fatalf("read the card anchor: %v", err)
+	}
+	fm, body := bench.ParseAnchor(source)
+	bench.SetFieldValue(fm, "orphan.key", "GKZ-9999")
+	if err := bench.WriteText(path, fm.Render(body)); err != nil {
+		t.Fatalf("write the card anchor: %v", err)
+	}
+	h.reopen()
+
+	results := found(h, &Request{SearchText: "GKZ-9999"})
+	hitFound := false
+	for _, hit := range results.Hits {
+		if hit.Ref == ref && hit.MatchedIn == MatchedInField {
+			hitFound = true
+		}
+	}
+	if !hitFound {
+		t.Errorf("no field hit named the card carrying the orphaned key: %+v", results.Hits)
+	}
+}

@@ -2372,19 +2372,44 @@ fields:
     type: string
     meaning: the city the trip is to
     on: [workstream]
+  card.kind:
+    type: string
+    meaning: what kind of work this card is
+    values: [bug, feature, chore]
 ```
 
-One entry carries three members, one to a line. `type` is required and holds
-one of `string`, `number`, `boolean`, `url` and `date`. `meaning` is required
-and holds one line of prose, which runs unparsed to the end of its line so a
-meaning carrying a comma or a colon needs no quoting rule. `on` is optional,
-holds the entity kinds the field applies to as a flow sequence or a block of
-dashed entries, and an entry declaring none applies to a card, a column and
-the workbench alike. An entry may also name `workstream`, and a declaration
-that reaches a workstream has to name it: the default set is the three kinds
-CORE-FIELD-4 of the published profile fixes, and a key a workbench declared
-for its cards has said nothing about a trip or a release. No declaration
-reaches a comment, a checklist item or an attachment.
+One entry carries up to four members, one to a line. `type` is required and
+holds one of `string`, `number`, `boolean`, `url` and `date`. `meaning` is
+required and holds one line of prose, which runs unparsed to the end of its
+line so a meaning carrying a comma or a colon needs no quoting rule. `on` is
+optional, holds the entity kinds the field applies to as a flow sequence or a
+block of dashed entries, and an entry declaring none applies to a card, a
+column and the workbench alike. An entry may also name `workstream`, and a
+declaration that reaches a workstream has to name it: the default set is the
+three kinds CORE-FIELD-4 of the published profile fixes, and a key a
+workbench declared for its cards has said nothing about a trip or a release.
+No declaration reaches a comment, a checklist item or an attachment.
+
+`values` is optional and legal only where `type` is `string`. It holds, as a
+flow sequence or a block of dashed entries exactly as `on` does, a non-empty
+list of the strings a value written under that key may take, and a write of
+any other string is refused the way a value failing the declared type
+already is. Comparison is byte-exact: `Bug` is not `bug`. A duplicate string
+within one `values` list keeps its first occurrence, mirroring the
+duplicate-key rule below. `values` is not `levels:` given a second spelling:
+a level is a workbench-wide, ordered axis that can gate another axis's
+applicability, and a declared field's `values` list is none of that, only a
+closed set of strings one specific field may hold. A declaration naming
+`values` on a field of any type but `string`, or naming an empty list, is
+malformed on the same terms as a bad type or key, and does not appear among
+the workbench's declared fields.
+
+A `values` list narrowed after a card already carries a value the wider list
+once admitted does not change what that card reads back: `dinah get` and
+`dinah show` answer the stored value unchanged, on the same preservation
+posture an unknown `severity` or `priority` value already keeps, and `dinah
+check` reports the mismatch under `check.field-value-unknown` rather than
+refusing anything.
 
 A key is two or more segments joined by full stops, and a segment begins with
 a lowercase letter, ends with a lowercase letter or a digit, and carries
@@ -2431,8 +2456,10 @@ because a card imported from somewhere else carries keys this workbench never
 declared and refusing to read one would make the preservation rule
 unobservable. A write under a key the workbench does not declare for the kind
 the reference resolved to is refused `undeclared-field`, naming the key and
-listing the keys that kind does carry. A value failing its declared type is
-refused `malformed`. Every declared field is clearable, because what makes a
+listing the keys that kind does carry. A value failing its declared type, or
+outside a `values` list the field declares, is refused `malformed`, and in the
+latter case the refusal carries the legal list under `legalValues`. Every
+declared field is clearable, because what makes a
 field required at a point in the flow is a column's own declaration and not
 the field's.
 

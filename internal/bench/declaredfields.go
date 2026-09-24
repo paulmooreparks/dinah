@@ -33,6 +33,12 @@ type DeclaredField struct {
 	// EveryKind is true where the entry declared no `on` member, which is
 	// what makes the field reach the kinds of DefaultKinds.
 	EveryKind bool
+	// Values are the strings a value written under this key may take, in
+	// declaration order, exact byte match. It is empty on an entry that
+	// declared no `values` member, which is what makes a write against that
+	// field admit every string as it does today. Only a `string`-typed field
+	// may carry one.
+	Values []string
 }
 
 // The frontmatter keys the declaration and the values are carried under. A
@@ -79,11 +85,12 @@ var FieldTypes = []string{
 // is the whole of the check.
 const FieldDateLayout = "2006-01-02"
 
-// The three members one declaration entry carries.
+// The four members one declaration entry carries.
 const (
 	fieldTypeMember    = "type"
 	fieldMeaningMember = "meaning"
 	fieldOnMember      = "on"
+	fieldValuesMember  = "values"
 )
 
 // DeclaredFieldKeyExpression is the grammar a declared field key matches,
@@ -251,6 +258,22 @@ func AdmitsFieldValue(declaredType, value string) bool {
 	return false
 }
 
+// AdmitsListedValue reports whether a value is one of a declared field's
+// enumerated legal values, exact byte match with no case folding. An empty
+// values list admits every value, which is what a declaration naming no
+// `values` member already means.
+func AdmitsListedValue(values []string, value string) bool {
+	if len(values) == 0 {
+		return true
+	}
+	for _, legal := range values {
+		if legal == value {
+			return true
+		}
+	}
+	return false
+}
+
 // fieldBlockMember matches one `name:` line inside a nested block, keeping the
 // indentation that says which level of the block the line belongs to. The
 // member name stops at the first colon, so a meaning carrying a colon of its
@@ -286,6 +309,7 @@ var fieldBlockEntry = regexp.MustCompile(`^( *)-\s*(.*)$`)
 func readDeclaredFields(fm *Frontmatter) ([]DeclaredField, []string) {
 	var entries []DeclaredField
 	var metOn []bool
+	var metValues []bool
 	var malformed []string
 	seen := map[string]bool{}
 	entryIndent := -1
@@ -296,17 +320,22 @@ func readDeclaredFields(fm *Frontmatter) ([]DeclaredField, []string) {
 			continue
 		}
 		if m := fieldBlockEntry.FindStringSubmatch(line); m != nil {
-			if current >= 0 && member == fieldOnMember && len(m[1]) > entryIndent {
+			if current >= 0 && (member == fieldOnMember || member == fieldValuesMember) && len(m[1]) > entryIndent {
 				if named := unquote(stripComment(m[2])); named != "" {
-					entries[current].On = append(entries[current].On, named)
+					if member == fieldOnMember {
+						entries[current].On = append(entries[current].On, named)
+					} else {
+						entries[current].Values = append(entries[current].Values, named)
+					}
 				}
 			} else {
-				// A dashed line is an entry of an `on` list and nothing else.
-				// Met anywhere else, or met at the depth an entry key stands
-				// at, it is reported rather than skipped: the pattern above is
-				// tried first, so a key spelled with a leading hyphen reads as
-				// a dashed entry, and without this it would be swallowed into
-				// whichever `on` list was open and named nowhere.
+				// A dashed line is an entry of an `on` or `values` list and
+				// nothing else. Met anywhere else, or met at the depth an
+				// entry key stands at, it is reported rather than skipped:
+				// the pattern above is tried first, so a key spelled with a
+				// leading hyphen reads as a dashed entry, and without this it
+				// would be swallowed into whichever list was open and named
+				// nowhere.
 				malformed = append(malformed, strings.TrimSpace(line))
 			}
 			continue
@@ -327,6 +356,7 @@ func readDeclaredFields(fm *Frontmatter) ([]DeclaredField, []string) {
 			seen[name] = true
 			entries = append(entries, DeclaredField{Key: name})
 			metOn = append(metOn, false)
+			metValues = append(metValues, false)
 			current = len(entries) - 1
 			continue
 		}
@@ -343,18 +373,44 @@ func readDeclaredFields(fm *Frontmatter) ([]DeclaredField, []string) {
 		case fieldOnMember:
 			metOn[current] = true
 			entries[current].On = append(entries[current].On, flowMembers(value)...)
+		case fieldValuesMember:
+			metValues[current] = true
+			entries[current].Values = append(entries[current].Values, flowMembers(value)...)
 		}
 	}
 	declared := make([]DeclaredField, 0, len(entries))
 	for at, entry := range entries {
 		entry.EveryKind = !metOn[at]
+		if metValues[at] {
+			entry.Values = dedupeKeepFirst(entry.Values)
+		}
 		if !DeclaredFieldKey(entry.Key) || !KnownFieldType(entry.Type) || strings.TrimSpace(entry.Meaning) == "" {
+			malformed = append(malformed, entry.Key)
+			continue
+		}
+		if metValues[at] && (entry.Type != FieldTypeString || len(entry.Values) == 0) {
 			malformed = append(malformed, entry.Key)
 			continue
 		}
 		declared = append(declared, entry)
 	}
 	return declared, malformed
+}
+
+// dedupeKeepFirst removes a repeated string from a list, keeping each value's
+// first occurrence, mirroring the duplicate-key rule readDeclaredFields
+// already keeps for a repeated entry key.
+func dedupeKeepFirst(values []string) []string {
+	seen := map[string]bool{}
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		if seen[value] {
+			continue
+		}
+		seen[value] = true
+		out = append(out, value)
+	}
+	return out
 }
 
 // flowMembers reads a flow sequence written on a member's own line, which is

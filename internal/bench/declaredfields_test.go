@@ -632,3 +632,267 @@ func declaredFindings(t *testing.T, b *Bench, key string) []Finding {
 	}
 	return matched
 }
+
+// TestAValuesListParsesInBothSpellings drives CORE-FIELD-12. A declaration
+// naming `values` as a flow sequence and one naming it as a dashed block both
+// parse to the same three-member list, in declaration order.
+func TestAValuesListParsesInBothSpellings(t *testing.T) {
+	root := containedPath(t.TempDir())
+	block := `fields:
+  card.kind:
+    type: string
+    meaning: what kind of work this card is
+    values: [bug, feature, chore]
+  event.category:
+    type: string
+    meaning: what a wedding line item is for
+    values:
+      - catering
+      - venue
+      - florist
+`
+	write(t, filepath.Join(root, WorkbenchAnchor), strings.Replace(
+		strings.Replace(benchDefinition, "format: 7", "format: "+strconv.Itoa(RegistryFormat), 1),
+		"columns:\n", block+"columns:\n", 1))
+	write(t, filepath.Join(root, CardNumbersName), "1 c00000000001\n")
+	write(t, filepath.Join(root, ColumnsDir, "b00000000001", ColumnAnchor), columnDefinition)
+	write(t, filepath.Join(root, CardsDir, "c00000000001", CardAnchor), cleanCard)
+	write(t, filepath.Join(root, CardsDir, "c00000000001", JournalName), cleanJournal)
+	opened, err := openFixtureAtAnyFormat(t, root)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	kind := opened.DeclaredFieldOf("card.kind")
+	if kind == nil {
+		t.Fatalf("card.kind did not parse as a declared field")
+	}
+	if want := []string{"bug", "feature", "chore"}; !reflect.DeepEqual(kind.Values, want) {
+		t.Errorf("card.kind.Values is %v, wanted %v (flow sequence)", kind.Values, want)
+	}
+	category := opened.DeclaredFieldOf("event.category")
+	if category == nil {
+		t.Fatalf("event.category did not parse as a declared field")
+	}
+	if want := []string{"catering", "venue", "florist"}; !reflect.DeepEqual(category.Values, want) {
+		t.Errorf("event.category.Values is %v, wanted %v (dashed block)", category.Values, want)
+	}
+}
+
+// TestAValuesListOnAWrongTypeIsMalformed drives the constraint that `values`
+// is legal only on `type: string`. A `values` member on a number, boolean,
+// url or date field makes the whole entry malformed, exactly as an
+// unrecognised type already does.
+func TestAValuesListOnAWrongTypeIsMalformed(t *testing.T) {
+	root := containedPath(t.TempDir())
+	block := `fields:
+  good.key:
+    type: string
+    meaning: a well-formed field
+    values: [a, b]
+  bad.number:
+    type: number
+    meaning: a number field wanting an enumeration
+    values: [1, 2]
+  bad.boolean:
+    type: boolean
+    meaning: a boolean field wanting an enumeration
+    values: [yes, no]
+  bad.url:
+    type: url
+    meaning: a url field wanting an enumeration
+    values: [a, b]
+  bad.date:
+    type: date
+    meaning: a date field wanting an enumeration
+    values: [a, b]
+`
+	write(t, filepath.Join(root, WorkbenchAnchor), strings.Replace(
+		strings.Replace(benchDefinition, "format: 7", "format: "+strconv.Itoa(RegistryFormat), 1),
+		"columns:\n", block+"columns:\n", 1))
+	write(t, filepath.Join(root, CardNumbersName), "1 c00000000001\n")
+	write(t, filepath.Join(root, ColumnsDir, "b00000000001", ColumnAnchor), columnDefinition)
+	write(t, filepath.Join(root, CardsDir, "c00000000001", CardAnchor), cleanCard)
+	write(t, filepath.Join(root, CardsDir, "c00000000001", JournalName), cleanJournal)
+	opened, err := openFixtureAtAnyFormat(t, root)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	declared := opened.DeclaredFields()
+	if len(declared) != 1 || declared[0].Key != "good.key" {
+		t.Fatalf("the workbench declares %+v, wanted good.key alone", declared)
+	}
+	malformed := opened.MalformedFieldDeclarations()
+	wantMalformed := map[string]bool{"bad.number": true, "bad.boolean": true, "bad.url": true, "bad.date": true}
+	if len(malformed) != len(wantMalformed) {
+		t.Errorf("MalformedFieldDeclarations answers %v, wanted the four bad.* keys", malformed)
+	}
+	for _, key := range malformed {
+		if !wantMalformed[key] {
+			t.Errorf("%s is reported malformed and was not expected to be", key)
+		}
+	}
+}
+
+// TestAnEmptyValuesListIsMalformed drives the "at least one value" constraint.
+// `values: []` and a dashed block resolving to no entries both make the entry
+// malformed on the same terms as a bad type.
+func TestAnEmptyValuesListIsMalformed(t *testing.T) {
+	root := containedPath(t.TempDir())
+	block := `fields:
+  good.key:
+    type: string
+    meaning: a well-formed field
+    values: [a]
+  empty.flow:
+    type: string
+    meaning: an empty flow sequence
+    values: []
+`
+	write(t, filepath.Join(root, WorkbenchAnchor), strings.Replace(
+		strings.Replace(benchDefinition, "format: 7", "format: "+strconv.Itoa(RegistryFormat), 1),
+		"columns:\n", block+"columns:\n", 1))
+	write(t, filepath.Join(root, CardNumbersName), "1 c00000000001\n")
+	write(t, filepath.Join(root, ColumnsDir, "b00000000001", ColumnAnchor), columnDefinition)
+	write(t, filepath.Join(root, CardsDir, "c00000000001", CardAnchor), cleanCard)
+	write(t, filepath.Join(root, CardsDir, "c00000000001", JournalName), cleanJournal)
+	opened, err := openFixtureAtAnyFormat(t, root)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	declared := opened.DeclaredFields()
+	if len(declared) != 1 || declared[0].Key != "good.key" {
+		t.Fatalf("the workbench declares %+v, wanted good.key alone", declared)
+	}
+	malformed := opened.MalformedFieldDeclarations()
+	if len(malformed) != 1 || malformed[0] != "empty.flow" {
+		t.Errorf("MalformedFieldDeclarations answers %v, wanted [empty.flow]", malformed)
+	}
+}
+
+// TestADuplicateValueKeepsItsFirstOccurrence drives the duplicate-value rule,
+// mirroring the duplicate-key rule readDeclaredFields already keeps for a
+// repeated entry key. A repeated string in one `values` list is folded to one
+// occurrence, and AdmitsListedValue for that field still admits the value.
+func TestADuplicateValueKeepsItsFirstOccurrence(t *testing.T) {
+	root := containedPath(t.TempDir())
+	block := `fields:
+  card.kind:
+    type: string
+    meaning: what kind of work this card is
+    values: [bug, feature, bug, chore]
+`
+	write(t, filepath.Join(root, WorkbenchAnchor), strings.Replace(
+		strings.Replace(benchDefinition, "format: 7", "format: "+strconv.Itoa(RegistryFormat), 1),
+		"columns:\n", block+"columns:\n", 1))
+	write(t, filepath.Join(root, CardNumbersName), "1 c00000000001\n")
+	write(t, filepath.Join(root, ColumnsDir, "b00000000001", ColumnAnchor), columnDefinition)
+	write(t, filepath.Join(root, CardsDir, "c00000000001", CardAnchor), cleanCard)
+	write(t, filepath.Join(root, CardsDir, "c00000000001", JournalName), cleanJournal)
+	opened, err := openFixtureAtAnyFormat(t, root)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	kind := opened.DeclaredFieldOf("card.kind")
+	if kind == nil {
+		t.Fatalf("card.kind did not parse as a declared field")
+	}
+	if want := []string{"bug", "feature", "chore"}; !reflect.DeepEqual(kind.Values, want) {
+		t.Errorf("card.kind.Values is %v, wanted %v (deduplicated, first occurrence kept)", kind.Values, want)
+	}
+	if !AdmitsListedValue(kind.Values, "bug") {
+		t.Errorf("AdmitsListedValue refuses bug, which the deduplicated list still names once")
+	}
+}
+
+// TestAdmitsListedValueIsExactAndCaseSensitive drives the comparison rule: an
+// empty list admits everything, a listed value is admitted exactly, and a
+// value differing only in case is refused. This is the motivating defect
+// itself (`Bug` vs `bug`), not a side detail.
+func TestAdmitsListedValueIsExactAndCaseSensitive(t *testing.T) {
+	if !AdmitsListedValue(nil, "anything") {
+		t.Errorf("an empty values list refuses a value, and it should admit every value")
+	}
+	values := []string{"bug", "feature", "chore"}
+	if !AdmitsListedValue(values, "bug") {
+		t.Errorf("bug is refused by its own declared list")
+	}
+	if AdmitsListedValue(values, "Bug") {
+		t.Errorf("Bug is admitted by a list naming only bug, and case folding is not the rule")
+	}
+	if AdmitsListedValue(values, "nonexistent") {
+		t.Errorf("a value outside the list is admitted")
+	}
+}
+
+// TestANarrowedValuesListIsReportedNotRefused drives the check.field-value-unknown
+// finding: a card carrying a value under a declared field whose `values` list
+// has since narrowed to no longer name it is unaffected on read, and `dinah
+// check` reports the mismatch rather than refusing anything.
+func TestANarrowedValuesListIsReportedNotRefused(t *testing.T) {
+	root := containedPath(t.TempDir())
+	block := `fields:
+  card.kind:
+    type: string
+    meaning: what kind of work this card is
+    values: [feature, chore]
+`
+	write(t, filepath.Join(root, WorkbenchAnchor), strings.Replace(
+		strings.Replace(benchDefinition, "format: 7", "format: "+strconv.Itoa(RegistryFormat), 1),
+		"columns:\n", block+"columns:\n", 1))
+	write(t, filepath.Join(root, CardNumbersName), "1 c00000000001\n")
+	write(t, filepath.Join(root, ColumnsDir, "b00000000001", ColumnAnchor), columnDefinition)
+	cardWithValue := strings.Replace(cleanCard, "state: ready\n", "state: ready\nfield_values:\n  card.kind: bug\n", 1)
+	write(t, filepath.Join(root, CardsDir, "c00000000001", CardAnchor), cardWithValue)
+	write(t, filepath.Join(root, CardsDir, "c00000000001", JournalName), cleanJournal)
+	opened, err := openFixtureAtAnyFormat(t, root)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	cards, err := opened.Cards()
+	if err != nil || len(cards) != 1 {
+		t.Fatalf("Cards() answered %d cards and error %v, wanted one card and no error", len(cards), err)
+	}
+	card := cards[0]
+	if got := FieldValue(card.FM, "card.kind"); got != "bug" {
+		t.Errorf("FieldValue answers %q, wanted bug unchanged despite the narrowed list", got)
+	}
+	findings := declaredFindings(t, opened, FindingFieldValueUnknown)
+	if len(findings) != 1 {
+		t.Fatalf("check reports %d field-value-unknown findings, wanted one: %v", len(findings), findings)
+	}
+	if findings[0].Detail != "card.kind bug" {
+		t.Errorf("the finding's detail is %q, wanted %q", findings[0].Detail, "card.kind bug")
+	}
+}
+
+// TestNoFieldValueFindingOnAnEmptyOrUndeclaredValue is the negative case
+// beside the one above: a card whose stored value is empty, and a card whose
+// declared field carries no `values` list at all, produce no finding.
+func TestNoFieldValueFindingOnAnEmptyOrUndeclaredValue(t *testing.T) {
+	root := containedPath(t.TempDir())
+	block := `fields:
+  card.kind:
+    type: string
+    meaning: what kind of work this card is
+    values: [feature, chore]
+  card.owner:
+    type: string
+    meaning: who owns this card, with no enumeration
+`
+	write(t, filepath.Join(root, WorkbenchAnchor), strings.Replace(
+		strings.Replace(benchDefinition, "format: 7", "format: "+strconv.Itoa(RegistryFormat), 1),
+		"columns:\n", block+"columns:\n", 1))
+	write(t, filepath.Join(root, CardNumbersName), "1 c00000000001\n")
+	write(t, filepath.Join(root, ColumnsDir, "b00000000001", ColumnAnchor), columnDefinition)
+	cardWithValue := strings.Replace(cleanCard, "state: ready\n", "state: ready\nfield_values:\n  card.owner: nobody-in-particular\n", 1)
+	write(t, filepath.Join(root, CardsDir, "c00000000001", CardAnchor), cardWithValue)
+	write(t, filepath.Join(root, CardsDir, "c00000000001", JournalName), cleanJournal)
+	opened, err := openFixtureAtAnyFormat(t, root)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	findings := declaredFindings(t, opened, FindingFieldValueUnknown)
+	if len(findings) != 0 {
+		t.Errorf("check reports %v, wanted no field-value-unknown findings", findings)
+	}
+}
