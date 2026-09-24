@@ -4,7 +4,7 @@ This document assesses Dinah as a tool for managing tasks and for working with a
 
 The document is an assessment and is dated by nature. Where it states a rule, the rule is meant to outlive the snapshot; where it states a figure, the figure is not.
 
-Sections 1 to 7 are the assessment as written on 2026-09-20. Section 8 re-evaluates it on 2026-09-22, after the nine proposals and five related cards landed, and section 9 compares Dinah with the agent trackers that also keep their records in the repository and names what Dinah could take from them.
+Sections 1 to 7 are the assessment as written on 2026-09-20. Section 8 re-evaluates it on 2026-09-22, after the nine proposals and five related cards landed, section 9 compares Dinah with the agent trackers that also keep their records in the repository and names what Dinah could take from them, and section 10 re-evaluates both on 2026-09-24, after two of those candidates shipped and the checklist item lifecycle was reworked.
 
 ## 1. Summary
 
@@ -224,6 +224,46 @@ Each item below adds to what Dinah already does well without adding a new concep
 **One read to start a session.** `bd prime` answers the question an agent asks at the start of a session, and in Dinah that answer takes three reads: `whoami`, `status` and `instructions`. A single `dinah prime` combining who the caller is, what it holds, what is ready for it and the standing instructions not yet served on the connection would save those round trips, and it pairs naturally with `dinah setup`, whose instruction section would tell the agent to run it first.
 
 Two further features were considered and not proposed. Compacting closed cards into summaries solves a cost Dinah already solved differently, since the narrow `show` never serves a closed card's history unless asked. Hash-based identifiers solve a merge collision that Dinah's twelve-character hex identifiers already avoid; the card-number registry is the part that could collide across branches, and dinah-532 covers keeping the workbench off code branches, which removes the collision instead of hashing around it.
+
+## 10. Re-evaluation, 2026-09-24
+
+Eight cards merged between the re-evaluation of section 8 and this one: dinah-572 and dinah-573, which are the first two candidates of section 9.2, dinah-577 and dinah-578, which followed from them, dinah-472, which reworked the checklist item lifecycle, and dinah-582, dinah-583 and dinah-589. Over the same two days the workbench minted card numbers 572 to 590.
+
+### 10.1 The candidates of section 9.2
+
+`dinah setup` shipped as dinah-572. A recipe is a directory of data steps, a printed checklist and the text the steps write, so a new harness arrives as a recipe rather than as a change to Dinah. Dinah ships recipes for Claude Code and Codex, and dinah-578 added a third for the Devin CLI, which also made a recipe's provider optional because Devin brokers models from several vendors. dinah-577 made setup delete a file it created once a recipe stops writing to it. It still leaves the file's directory behind, and the operator ruled that acceptable rather than change the ledger format for it.
+
+`dinah prime` shipped as dinah-573. It answers in one read who the caller is, what it holds, what is ready for it and which items are pending, and the recipes' instruction text tells an agent to run it first. The saving is smaller than section 9.2 implied. For an agent holding two cards, the three reads prime replaces came to 44,395 bytes and prime's default answer to 27,044, most of the difference being standing text the connection has already seen; `--brief`, which leaves the standing text out, came to 5,052.
+
+Three candidates remain. The operator is holding the board a person can look at, because most of it can be taken from Andoneer. The other two have not been filed. Items a column files on arrival would let a column declare obligations such as "the tests were armed" as checklist items that the existing holds then enforce, instead of asking for them in its body. Ready work that respects `blocks` links would be a layer under which `next` and `pull` pass over a card that an unfinished card blocks, which would give meaning to the `blocks` links this workbench records and that today do nothing.
+
+### 10.2 The gate was weaker than section 8 said
+
+Section 8.1 counted several prose rules as refusals and treated the holds as sound. dinah-472 set out to add two item states, waived and withdrawn, and its design reviewers tested every rule they wrote by running commands against the real binary. That testing found that the holds had been open all along in five ways. An agent could reopen a failed acceptance criterion and then settle it, clear the station field an item names so that no hold read it, archive or delete an item outright, including one of the operator's own pending questions, or rewrite the operator's recorded answer in place while his name stayed on it. Archiving an unrelated comment could also make an item cite somebody else's words as its answer, because answers were stored by position. Each of these is now refused, answers are stored by the comment's permanent identifier, and the specification carries the two questions that found them: what can stop this item holding the card, and what can change what an item says without editing it.
+
+The earlier verdict was therefore premature about the holds in particular. The claim that a card cannot pass a station while its own items say it should not is true as of 08fa893a and was not true before.
+
+### 10.3 Upgrading became the roughest edge
+
+The storage format moved from 5 to 7 within a few days, and each move asks the operator to run a migration and breaks the editor extension until somebody rebuilds it, because the extension names the formats it accepts. The first upgrade to format 7 on this workbench showed every part of that cost.
+
+- The migration's rehearsal printed 2,324 defects. All but 25 came from the structural check reading the store as it stood before the migration, which a rehearsal never writes.
+- The installed extension had been built against v0.1.173-dev and accepted formats 1 to 6. It reported first that Dinah was not installed and then that the formats disagreed, and it worked again once it was rebuilt from trunk.
+- The migration could not recover the answer of 24 items on dinah-502 and dinah-517, because their stored positions had shifted and nothing in the journal said which comment had been meant. As the operator ruled, those items keep their state and carry no answer.
+
+The operator prefers to change a format and migrate over carrying a compatibility shim, and that remains right before 1.0. It makes the upgrade path part of the product, though, and three things would take most of the cost out of it. The extension would be released with the binary it is paired with. The rehearsal would report what it will repair apart from what is wrong. One document would give the upgrade procedure in order.
+
+### 10.4 What section 8.2 found, two days on
+
+Growth of the surface still drives the inflow. This wave added `setup`, `prime`, `waive`, `withdraw`, `grant` and `revoke`, and review of each new verb found interactions with the verbs already there. That is the same pattern section 8.2 described.
+
+Shared generated files still tax merges. When dinah-577 and dinah-578 merged against each other, a fixture that records line numbers in a guide both cards edited needed five new anchors, and two of the five appeared on neither branch. Resolving the conflict by taking either side would have shipped a fixture that looked right and was not.
+
+The operator is still the throughput limit, and dinah-472 put a number on it: five rulings on one card. It also shipped part of the remedy. A per-card grant now lets an agent retire the criteria of a card the operator has narrowed, while never reaching one that failed or one he waived, so narrowing a card no longer brings him each stale criterion one at a time.
+
+### 10.5 The verdict, restated
+
+The property Dinah is built around, that the workbench and not the agent decides when a card may move on, now holds against the attacks tried on it rather than being described as holding. The risk sits further outside the design than it did two days ago: in how fast the surface grows, in how many rulings the operator can give, and in what each change of format costs the people who have to upgrade.
 
 ## Appendix: the snapshot of 2026-09-20
 
