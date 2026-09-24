@@ -2179,9 +2179,9 @@
       "source": "978852122039d8b6"
     },
     "cmd.unblock.note": {
-      "text": "Nur der Betreiber der Werkbank hebt eine Blockade auf. Wenn der Betreiber eine Entscheidung ausgesprochen hat, die diese Blockade aufhebt, sagt `dinah guide on-behalf`, wie Sie sie als Entscheidung des Betreibers festhalten.",
-      "context": "The note printed under the unblock command's own help, after its summary. It says the act is the operator's and points an agent holding the operator's stated ruling at the guide on-behalf, which is not translated.",
-      "source": "1d54ccd1eb173bce"
+      "text": "Nur der Betreiber der Werkbank hebt eine Blockade auf. Ein hier angegebener Grund wird auf der Handlung und als Kommentar auf der Karte festgehalten, sodass ein späterer Leser ihn neben der Blockade findet, die er beantwortet. Wenn der Betreiber eine Entscheidung ausgesprochen hat, die diese Blockade aufhebt, sagt `dinah guide on-behalf`, wie Sie sie als Entscheidung des Betreibers festhalten.",
+      "context": "The note printed under the unblock command's own help, after its summary. It says the act is the operator's, that a reason given is recorded on the act and as a card comment, and points an agent holding the operator's stated ruling at the guide on-behalf, which is not translated.",
+      "source": "77b6a49bd6897c51"
     },
     "cmd.unblock.summary": {
       "text": "Eine Blockade aufheben (nur Betreiber)",
@@ -3820,6 +3820,11 @@
       "text": "welche Karten verschachtelt werden, geschrieben als Abfrage in einem Shell-Wort oder in Anführungszeichen; jede lebende Karte, wenn Sie keine schreiben",
       "context": "The meaning of the query argument of `dinah tree`, printed in that command's arguments table. tree reads the same query language `dinah query` reads.",
       "source": "a5a5e862482edacf"
+    },
+    "param.unblock.reason.summary": {
+      "text": "warum die Blockade aufgehoben wird, in einem Shell-Wort oder in Anführungszeichen; lassen Sie es weg, um die Blockade aufzuheben, ohne zu sagen, warum",
+      "context": "The meaning of the optional reason argument of `dinah unblock`, printed in that command's arguments table.",
+      "source": "f8c6c340dba151c4"
     },
     "param.version.catalogs.summary": {
       "text": "jede mitgelieferte Sprache melden und wie weit sie übersetzt ist",

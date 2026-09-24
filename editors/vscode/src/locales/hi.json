@@ -422,6 +422,11 @@
 			"context": "History row for an unblock. {actor} is who lifted the block.",
 			"source": "a9e0bec16c9fd088"
 		},
+		"history.event.unblocked.reason": {
+			"text": "{actor} ने कार्ड को अनवरुद्ध किया: {reason}",
+			"context": "History row for an unblock that carried a reason. {reason} is the prose the operator gave for lifting the block.",
+			"source": "5caa1523c9aee0dc"
+		},
 		"history.event.expired": {
 			"text": "कार्ड पर {actor} का क्लेम समाप्त हो गया।",
 			"context": "History row for a claim that lapsed. {actor} is the holder whose claim ran out.",
@@ -647,6 +652,16 @@
 			"text": "ये {count} कार्ड क्यों बाधित हैं?",
 			"context": "Prompt of the input box Block raises over several selected cards, whose one answer is recorded against each of them. {count} is how many rows resolved to a card. It is never one here, because one card reaches dialog.block.reasonPrompt instead, so the plural is plain rather than the (s) form.",
 			"source": "e4e22ad7b28349cd"
+		},
+		"dialog.unblock.reasonPrompt": {
+			"text": "बाधा क्यों हटाई जा रही है? बिना कारण बताए हटाने के लिए इसे खाली छोड़ दें।",
+			"context": "Prompt of the input box Unblock raises before it runs dinah unblock. Empty is a legal answer and lifts the block with no reason; Escape cancels.",
+			"source": "4dadaccb3480fa2c"
+		},
+		"dialog.unblock.reasonPrompt.many": {
+			"text": "इन {count} कार्डों की बाधाएँ क्यों हटाई जा रही हैं? बिना कारण बताए हटाने के लिए इसे खाली छोड़ दें।",
+			"context": "Prompt of the input box Unblock raises over several selected cards, whose one answer is recorded against each of them. {count} is how many rows resolved to a card and is never one, because one card reaches dialog.unblock.reasonPrompt instead.",
+			"source": "15473c04ad54604a"
 		},
 		"dialog.card.copiedRef.many": {
 			"text": "{count} कार्ड संदर्भ कॉपी किए गए।",

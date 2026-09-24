@@ -34,7 +34,8 @@ import {
 	orderLegalMoves,
 	refusalMessage,
 	releaseCard,
-	unblockCard,
+	askUnblockReason,
+	unblockCardWith,
 } from "../../src/cardCommands";
 import type { RootRow, TreeElement } from "../../src/tree";
 import type { LegalMove } from "../../src/wire";
@@ -70,6 +71,8 @@ interface Recorder {
 	offered: PickItem[];
 	/** What the input box returns, if it is opened. */
 	typed?: string;
+	/** The prompt each input box was raised with, in order. */
+	readonly prompts: string[];
 	/** The two arguments every confirmDestructive call was made with, in order. */
 	readonly confirmations: { message: string; label: string }[];
 	/** What the confirmation answers, which every test that reaches one sets. */
@@ -97,6 +100,7 @@ function recorder(answers: Record<string, SpawnOutcome> = {}): Recorder {
 	const served: { kind: string; root: string; ref: string; title: string }[] = [];
 	const logged: string[] = [];
 	const offered: PickItem[] = [];
+	const prompts: string[] = [];
 	const confirmations: { message: string; label: string }[] = [];
 	const state = {
 		calls,
@@ -112,6 +116,7 @@ function recorder(answers: Record<string, SpawnOutcome> = {}): Recorder {
 		served,
 		logged,
 		offered,
+		prompts,
 		confirmations,
 		// A confirmation nobody set answers no, so a test that forgets to say
 		// deletes nothing rather than deleting on a default.
@@ -150,7 +155,10 @@ function recorder(answers: Record<string, SpawnOutcome> = {}): Recorder {
 			offered.push(...items);
 			return state.picked;
 		},
-		input: async () => state.typed,
+		input: async (prompt) => {
+			prompts.push(prompt);
+			return state.typed;
+		},
 		openDocument: async (path) => {
 			opened.push(path);
 		},
@@ -254,8 +262,8 @@ test("a claim refused for awaiting-outside names the refusal and its detail", as
 
 test("a refusal is never swallowed, whichever verb raised it", async () => {
 	for (const [verb, run] of [
-		["release", releaseCard],
-		["unblock", unblockCard],
+		["release", (context: CommandContext) => releaseCard(context)],
+		["unblock", (context: CommandContext) => unblockCardWith(context, "")],
 	] as const) {
 		const r = recorder({ [verb]: refused("dinah.not-held") });
 		await run(r.context);
@@ -473,6 +481,56 @@ test("an empty reason blocks nothing", async () => {
 		assert.deepEqual(r.calls, []);
 		assert.deepEqual(r.checkpoints, []);
 	}
+});
+
+// ---------------------------------------------------------------------------
+// Unblock, whose reason the verb accepts and does not require (dinah-597)
+// ---------------------------------------------------------------------------
+
+test("escaping the unblock prompt cancels the gesture and runs nothing", async () => {
+	const r = recorder();
+	r.typed = undefined;
+	assert.equal(await askUnblockReason([r.context], r.host), undefined);
+	assert.deepEqual(r.calls, []);
+	assert.deepEqual(r.checkpoints, []);
+	assert.deepEqual(r.prompts, ["Why is the block lifted? Leave this empty to lift it without saying why."]);
+});
+
+test("a blank unblock answer lifts the block without a reason", async () => {
+	// Blank is an answer here, where on Block it is a cancel: dinah unblock
+	// takes no reason as readily as one.
+	for (const typed of ["", "   "]) {
+		const r = recorder();
+		r.typed = typed;
+		const reason = await askUnblockReason([r.context], r.host);
+		assert.equal(reason, "");
+		await unblockCardWith(r.context, reason ?? "cancelled");
+		assert.deepEqual(r.calls[0].slice(3), ["unblock", "tr-4"]);
+	}
+});
+
+test("unblocking sends the trimmed reason that was typed", async () => {
+	const r = recorder();
+	r.typed = "  the printer confirmed  ";
+	const reason = await askUnblockReason([r.context], r.host);
+	assert.equal(reason, "the printer confirmed");
+	await unblockCardWith(r.context, reason ?? "cancelled");
+	assert.deepEqual(r.calls[0].slice(3), ["unblock", "tr-4", "the printer confirmed"]);
+});
+
+test("over several cards Unblock asks once and each card gets the one answer", async () => {
+	const r = recorder();
+	r.typed = "the vendor answered";
+	const second: CommandContext = { ...r.context, ref: "tr-5" };
+	const reason = await askUnblockReason([r.context, second], r.host);
+	assert.equal(reason, "the vendor answered");
+	assert.deepEqual(r.prompts, [
+		"Why are the blocks on these 2 cards lifted? Leave this empty to lift them without saying why.",
+	]);
+	await unblockCardWith(r.context, reason ?? "cancelled");
+	await unblockCardWith(second, reason ?? "cancelled");
+	assert.deepEqual(r.calls[0].slice(3), ["unblock", "tr-4", "the vendor answered"]);
+	assert.deepEqual(r.calls[1].slice(3), ["unblock", "tr-5", "the vendor answered"]);
 });
 
 // ---------------------------------------------------------------------------

@@ -2179,9 +2179,9 @@
       "source": "978852122039d8b6"
     },
     "cmd.unblock.note": {
-      "text": "केवल वर्कबेंच का संचालक बाधा हटाता है। यदि संचालक ने यह बाधा हटाने का निर्णय कहा है, तो उसे संचालक के निर्णय के रूप में कैसे दर्ज करें, यह `dinah guide on-behalf` बताता है।",
-      "context": "The note printed under the unblock command's own help, after its summary. It says the act is the operator's and points an agent holding the operator's stated ruling at the guide on-behalf, which is not translated.",
-      "source": "1d54ccd1eb173bce"
+      "text": "केवल वर्कबेंच का संचालक बाधा हटाता है। यहाँ दिया गया कारण कार्य पर और कार्ड पर एक टिप्पणी के रूप में दर्ज होता है, ताकि बाद का पाठक उसे उस बाधा के पास पाए जिसका वह उत्तर है। यदि संचालक ने यह बाधा हटाने का निर्णय कहा है, तो उसे संचालक के निर्णय के रूप में कैसे दर्ज करें, यह `dinah guide on-behalf` बताता है।",
+      "context": "The note printed under the unblock command's own help, after its summary. It says the act is the operator's, that a reason given is recorded on the act and as a card comment, and points an agent holding the operator's stated ruling at the guide on-behalf, which is not translated.",
+      "source": "77b6a49bd6897c51"
     },
     "cmd.unblock.summary": {
       "text": "बाधा हटाएँ (केवल संचालक)",
@@ -3809,6 +3809,11 @@
       "text": "कौन-से कार्ड नियोजित करने हैं, प्रश्न के रूप में एक ही शब्द में या उद्धरण चिह्नों के भीतर लिखा गया; कुछ न लिखने पर हर जीवित कार्ड",
       "context": "The meaning of the query argument of `dinah tree`, printed in that command's arguments table. tree reads the same query language `dinah query` reads.",
       "source": "a5a5e862482edacf"
+    },
+    "param.unblock.reason.summary": {
+      "text": "बाधा क्यों हटाई जा रही है, एक शेल-शब्द में या उद्धरण चिह्नों में; बिना कारण बताए बाधा हटाने के लिए इसे छोड़ दें",
+      "context": "The meaning of the optional reason argument of `dinah unblock`, printed in that command's arguments table.",
+      "source": "f8c6c340dba151c4"
     },
     "param.version.catalogs.summary": {
       "text": "हर उपलब्ध भाषा और उसका कितना अनुवाद हुआ है, यह बताएँ",

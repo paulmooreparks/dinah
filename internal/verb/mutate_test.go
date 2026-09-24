@@ -437,6 +437,77 @@ func TestOnlyUnblockLeavesBlocked(t *testing.T) {
 	}
 }
 
+// TestAnUnblockMaySayWhy asserts CORE-UNBLOCK-5 and the record dinah-597
+// fixes for it: a lift that says why writes the trimmed reason as a comment
+// on the card under the lifting actor's name, then a commented line naming
+// that comment, then an unblocked line carrying the reason and the same
+// identifier, all with one timestamp; a lift that says nothing, or only
+// whitespace, writes the bare unblocked line it always wrote; and a reasoned
+// unblock of a card that is not blocked is refused before any write.
+func TestAnUnblockMaySayWhy(t *testing.T) {
+	h := newHarness(t)
+	ref := h.add("reasoned")
+	h.mustDo(&Request{Verb: Block, Card: ref, Actor: "alka", Reason: "waiting on the printer"})
+	h.mustDo(&Request{Verb: Unblock, Card: ref, Actor: "alka", Reason: "  The printer confirmed Tuesday delivery.  "})
+	card := h.card(ref)
+	if card.State != contract.StateReady {
+		t.Fatalf("after a reasoned unblock: wanted ready, got %s", card.State)
+	}
+	comments, err := bench.Comments(card.Dir)
+	if err != nil {
+		t.Fatalf("comments: %v", err)
+	}
+	if len(comments) != 1 {
+		t.Fatalf("wanted one comment on the card, got %d", len(comments))
+	}
+	comment := comments[0]
+	if comment.Author != "alka" || comment.Body != "The printer confirmed Tuesday delivery." {
+		t.Errorf("comment: wanted alka saying the trimmed reason, got %q saying %q", comment.Author, comment.Body)
+	}
+	events := h.events(ref)
+	// created, blocked, commented, unblocked: the last two are the lift's,
+	// in the order the four writes run, since the journal is appended in
+	// argument order after the anchors.
+	if len(events) != 4 {
+		t.Fatalf("wanted four journal lines, got %d: %+v", len(events), events)
+	}
+	commented, unblocked := events[2], events[3]
+	if commented.Event != contract.EventCommented || commented.Comment != comment.ID || commented.Item != "" || commented.Column != "" {
+		t.Errorf("third line: wanted a card commented line naming %s, got %+v", comment.ID, commented)
+	}
+	if unblocked.Event != contract.EventUnblocked || unblocked.Reason != "The printer confirmed Tuesday delivery." || unblocked.Comment != comment.ID {
+		t.Errorf("fourth line: wanted unblocked carrying the trimmed reason and %s, got %+v", comment.ID, unblocked)
+	}
+	if commented.TS != unblocked.TS || comment.TS != unblocked.TS {
+		t.Errorf("one act, three stamps: comment %s, commented %s, unblocked %s", comment.TS, commented.TS, unblocked.TS)
+	}
+
+	// A reasoned unblock of a ready card is refused not-blocked and writes
+	// nothing: no second comment, no fifth line.
+	if response := h.do(&Request{Verb: Unblock, Card: ref, Actor: "alka", Reason: "again"}); response.Refusal != contract.NotBlocked {
+		t.Errorf("reasoned unblock of a ready card: wanted not-blocked, got %s %s", response.Outcome, response.Refusal)
+	}
+	if after, _ := bench.Comments(card.Dir); len(after) != 1 {
+		t.Errorf("a refused unblock wrote a comment: %d comments", len(after))
+	}
+	if len(h.events(ref)) != 4 {
+		t.Errorf("a refused unblock wrote a journal line")
+	}
+
+	// Whitespace alone is the bare lift: no comment, one unblocked line
+	// carrying neither reason nor comment.
+	h.mustDo(&Request{Verb: Block, Card: ref, Actor: "alka", Reason: "waiting again"})
+	h.mustDo(&Request{Verb: Unblock, Card: ref, Actor: "alka", Reason: "   "})
+	if after, _ := bench.Comments(card.Dir); len(after) != 1 {
+		t.Errorf("a whitespace reason wrote a comment: %d comments", len(after))
+	}
+	events = h.events(ref)
+	last := events[len(events)-1]
+	if len(events) != 6 || last.Event != contract.EventUnblocked || last.Reason != "" || last.Comment != "" {
+		t.Errorf("bare lift: wanted a sixth line, unblocked with no reason and no comment, got %d lines ending %+v", len(events), last)
+	}
+}
+
 // TestInstructionsAreServedAsThreeLayers asserts CORE-INSTR-6, CORE-INSTR-7,
 // CORE-INSTR-8, CORE-INSTR-9 and CORE-INSTR-11
 // and the format's user-global layer, with CORE-INSTR-1 and CORE-INSTR-2

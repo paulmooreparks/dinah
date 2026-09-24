@@ -1,0 +1,8 @@
+{"ts":"2026-09-24T06:33:12Z","event":"created","actor":{"name":"sam"},"title":"third card","to":"004acda2c28a","to_title":"Intake"}
+{"ts":"2026-09-24T06:33:14Z","event":"moved","actor":{"name":"sam"},"from":"004acda2c28a","to":"7b5cfe51cb3b","from_title":"Intake","to_title":"Doing"}
+{"ts":"2026-09-24T06:33:14Z","event":"claimed","actor":{"name":"sam"},"expires":"2026-09-24T14:33:14Z"}
+{"ts":"2026-09-24T06:33:16Z","event":"workstream_joined","actor":{"name":"sam"},"workstream":"fd403c78f031"}
+{"ts":"2026-09-24T06:33:16Z","event":"workstream_left","actor":{"name":"sam"},"workstream":"fd403c78f031"}
+{"ts":"2026-09-24T06:33:17Z","event":"commented","actor":{"name":"sam"},"comment":"4ed3e4a21b18"}
+{"ts":"2026-09-24T06:33:18Z","event":"comment_updated","actor":{"name":"sam"},"field":"body","note":"4ed3e4a21b18"}
+{"ts":"2026-09-24T06:33:18Z","event":"divergence_accepted","actor":{"name":"sam"},"comment":"4ed3e4a21b18","note":"4ed3e4a21b18"}

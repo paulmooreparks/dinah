@@ -92,7 +92,7 @@ export const SELECTION_POLICIES: Readonly<Record<string, SelectionEntry>> = {
 	[COMMAND_MOVE]: { policy: "oneInput" },
 	[COMMAND_RELEASE]: { policy: "fanOut", effect: "perRow" },
 	[COMMAND_BLOCK]: { policy: "oneInput" },
-	[COMMAND_UNBLOCK]: { policy: "fanOut", effect: "perRow" },
+	[COMMAND_UNBLOCK]: { policy: "oneInput" },
 	[COMMAND_COPY_CARD_REF]: { policy: "fanOut", effect: "oneCall" },
 	[COMMAND_CHECK_WORKBENCH]: { policy: "fanOut", effect: "perRow" },
 	[COMMAND_COPY_WORKBENCH_PATH]: { policy: "fanOut", effect: "oneCall" },

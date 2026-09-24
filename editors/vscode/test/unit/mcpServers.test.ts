@@ -50,7 +50,7 @@ function resolved(executable?: string): BinaryState {
 		source: "path",
 		version: {
 			tool: "0.1.0",
-			profile: "dinah-core/0.4",
+			profile: "dinah-core/0.18",
 			format: 2,
 			executable,
 		},

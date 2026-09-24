@@ -378,7 +378,9 @@ implication both ways. A block is `block_reason` (required, posed so the
 operator can answer it without opening the card) and optionally `block_kind`
 and `block_since`, present exactly when `state: blocked`. A clearing is
 refused to every actor the workbench does not record as its operator, and is
-journaled.
+journaled. A clearing may carry a reason, which is written on the `unblocked`
+line and, as the same text, in a comment on the card whose identifier the line
+also carries.
 
 ### What the card file carries
 
@@ -1097,7 +1099,7 @@ so a `claimed` line with no `expires` records an unbounded claim.
 | `moved` | `from`, `from_title`, `to`, `to_title` | `override`, true only where a declared limit or hold stood in the way and the operator carried the move past it, which is a CORE-MOVE-9 capacity override, the departure column's own `loop_limit`, the destination column's own `gate_items` hold under CORE-GATE-4, or the departure column's own `gate_items` hold read on the way out; `reject`, true only when the destination is the departure column's own `reject_to` target; `reshape`, true only on a line a `reshape` wrote, marking a card carried out of a column the workbench no longer declares rather than a move somebody decided on, and a reader that does not know the marker reads an ordinary move, which is what the line already is |
 | `released` | | |
 | `blocked` | `reason` | `kind`, whatever the caller passed, since nothing validates it |
-| `unblocked` | | |
+| `unblocked` | | `reason`, the prose the operator gave for lifting the block; `comment`, the identifier of the comment on the card that carries the same text, minted by the same act |
 | `expired` | `expires` | |
 | `commented` | `comment` | `item`, the identifier of the checklist item the comment hangs below, written only on a comment written on an item; `column` and `column_title`, the identifier of the column the comment was left on and that column's title as of the write, both written only on a comment written on a column |
 | `attached` | `attachment`, `filename` | `column` and `column_title`, the identifier and the title as of the write of the column the attachment hangs on, both written only on a line about an attachment hanging on a column |

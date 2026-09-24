@@ -74,7 +74,7 @@ const rows: {
 	},
 	{
 		row: "format outside the supported set",
-		outcome: reported("v0.1.0-dev.42", "dinah-core/0.4", 99),
+		outcome: reported("v0.1.0-dev.42", "dinah-core/0.18", 99),
 		expected: "format-skew",
 		detailHas: ["99", "1, 2, 3"],
 	},
@@ -90,18 +90,21 @@ const rows: {
 	},
 	{
 		row: "profile minor below the minimum",
-		outcome: reported("v0.1.0-dev.42", "dinah-core/0.3", 1),
+		// dinah-597 moved the minimum to 0.18, the revision that gave unblock
+		// its reason, so the binary refused here is one claiming 0.17, which
+		// is what a build from before that card claims.
+		outcome: reported("v0.1.0-dev.42", "dinah-core/0.17", 1),
 		expected: "binary-too-old",
-		detailHas: ["0.3", "0.4"],
+		detailHas: ["0.17", "0.18"],
 	},
 	{
 		row: "profile minor above the minimum",
-		outcome: reported("v0.1.0-dev.42", "dinah-core/0.9", 1),
+		outcome: reported("v0.1.0-dev.42", "dinah-core/0.19", 1),
 		expected: "ok",
 	},
 	{
 		row: 'a source build reporting tool "0.1.0"',
-		outcome: reported("0.1.0", "dinah-core/0.4", 1),
+		outcome: reported("0.1.0", "dinah-core/0.18", 1),
 		expected: "ok",
 	},
 ];
@@ -123,7 +126,7 @@ for (const { row, outcome, expected, detailHas } of rows) {
 test("classifyVersion: an answer missing a field is unusable rather than ok", () => {
 	const classification = classifyVersion({
 		kind: "ok",
-		json: { tool: "0.1.0", profile: "dinah-core/0.4" },
+		json: { tool: "0.1.0", profile: "dinah-core/0.18" },
 	});
 	assert.equal(classification.kind, "unusable");
 });
@@ -176,6 +179,12 @@ test("a client tells the read exit convention apart from the version alone", () 
 	// two binaries whose release numbers are identical are still told apart.
 	// Every build from source reports the same release string forever, which
 	// is why a gate reading it answers the same for both of these.
+	//
+	// Both revisions sit below the gate since dinah-597 moved it to 0.18, so
+	// each classifies binary-too-old rather than ok. The classification still
+	// carries the report it read, and the gate here reads the claim off that
+	// report, which is the point: the answer comes from the version report
+	// whatever the activation gate made of it.
 	const older = reported("0.1.0", PROFILE_BEFORE_THE_READ_EXIT_CONVENTION, 1);
 	const newer = reported("0.1.0", PROFILE_PUBLISHING_THE_READ_EXIT_RULE, 1);
 	for (const [outcome, expected] of [
@@ -183,7 +192,7 @@ test("a client tells the read exit convention apart from the version alone", () 
 		[newer, true],
 	] as const) {
 		const classification = classifyVersion(outcome);
-		assert.equal(classification.kind, "ok");
+		assert.equal(classification.kind, "binary-too-old");
 		assert.equal(
 			speaksTheReadExitConvention(
 				(classification as { version: { profile: string } }).version.profile,
@@ -202,7 +211,7 @@ test("the decode carries the binary's own location through, and only as a string
 	// This proves the decode carries what it is given and proves nothing about
 	// what the CLI sends. versionExecutable-live.test.ts is the join.
 	const carried = classifyVersion(
-		reported("0.1.0", "dinah-core/0.4", 1, "C:/tools/dinah.exe"),
+		reported("0.1.0", "dinah-core/0.18", 1, "C:/tools/dinah.exe"),
 	);
 	assert.equal(carried.kind, "ok");
 	assert.equal(
@@ -213,7 +222,7 @@ test("the decode carries the binary's own location through, and only as a string
 	// A value of another type is read as absent rather than refusing the whole
 	// report, because the three fields the gate reads are what decide whether
 	// the binary is usable at all.
-	const mistyped = classifyVersion(reported("0.1.0", "dinah-core/0.4", 1, 17));
+	const mistyped = classifyVersion(reported("0.1.0", "dinah-core/0.18", 1, 17));
 	assert.equal(mistyped.kind, "ok");
 	assert.equal(
 		(mistyped as { version: { executable?: string } }).version.executable,
@@ -222,7 +231,7 @@ test("the decode carries the binary's own location through, and only as a string
 
 	// A binary older than the field sends none, and so does one whose own
 	// os.Executable failed.
-	const absent = classifyVersion(reported("0.1.0", "dinah-core/0.4", 1));
+	const absent = classifyVersion(reported("0.1.0", "dinah-core/0.18", 1));
 	assert.equal(absent.kind, "ok");
 	assert.equal(
 		(absent as { version: { executable?: string } }).version.executable,

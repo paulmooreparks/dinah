@@ -387,7 +387,13 @@ var params = map[string][]Param{
 		{Name: "reason", Required: true, Rest: true, Field: "Reason"},
 		{Name: "kind", Flag: true, Value: "kind", Field: "Kind"},
 	},
-	Unblock: {{Name: "card", Required: true, Shared: "card", Field: "Card"}},
+	// unblock's reason is optional and takes the rest of the line the way
+	// block's does, because a ruling worth recording is worth typing without
+	// a flag, and a lift whose obstacle simply went away has nothing to say.
+	Unblock: {
+		{Name: "card", Required: true, Shared: "card", Field: "Card"},
+		{Name: "reason", Rest: true, Field: "Reason"},
+	},
 	// raise takes the tier before the reason, and the reason takes the rest
 	// of the line the way block's does, because a justification worth
 	// recording is worth typing without a flag. There is no column argument:

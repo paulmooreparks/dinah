@@ -1742,8 +1742,8 @@
       "context": "The one-line summary of the tree command, shown beside its syntax in the help block."
     },
     "cmd.unblock.note": {
-      "text": "Only the workbench's operator lifts a block. When the operator has stated a ruling that lifts this one, `dinah guide on-behalf` says how to record it as the operator's.",
-      "context": "The note printed under the unblock command's own help, after its summary. It says the act is the operator's and points an agent holding the operator's stated ruling at the guide on-behalf, which is not translated."
+      "text": "Only the workbench's operator lifts a block. A reason given here is written on the act and as a comment on the card, so a later reader finds it beside the block it answers. When the operator has stated a ruling that lifts this one, `dinah guide on-behalf` says how to record it as the operator's.",
+      "context": "The note printed under the unblock command's own help, after its summary. It says the act is the operator's, that a reason given is recorded on the act and as a card comment, and points an agent holding the operator's stated ruling at the guide on-behalf, which is not translated."
     },
     "cmd.unblock.summary": {
       "text": "Lift a block (operator only)",
@@ -3040,6 +3040,10 @@
     "param.tree.query.summary": {
       "text": "which cards to nest, written as a query in one shell word or in quotation marks; every live card when you write none",
       "context": "The meaning of the query argument of `dinah tree`, printed in that command's arguments table. tree reads the same query language `dinah query` reads."
+    },
+    "param.unblock.reason.summary": {
+      "text": "why the block is lifted, in one shell word or in quotation marks; leave it out to lift the block without saying why",
+      "context": "The meaning of the optional reason argument of `dinah unblock`, printed in that command's arguments table."
     },
     "param.version.catalogs.summary": {
       "text": "report every shipped language and how much of each is translated",
