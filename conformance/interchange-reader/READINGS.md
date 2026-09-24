@@ -1,6 +1,6 @@
 # Readings of the core profile
 
-This file records every place where `core-profile.md` (`dinah-core 0.17`) admitted more than one reading, or said nothing about something the reader had to decide, together with the reading `reader.py` implements. The reader's code cites these entries as R-1 to R-24.
+This file records every place where `core-profile.md` (`dinah-core 0.18`) admitted more than one reading, or said nothing about something the reader had to decide, together with the reading `reader.py` implements. The reader's code cites these entries as R-1 to R-25.
 
 The brief allows the five letters of the word that follows "work" in "workbench" to appear together only inside that word. Identifiers of that family are therefore written here with the numeric character reference `&#66;` in place of their first letter after the hyphen, so that CORE-&#66;ENCH-1 is the identifier the profile publishes on the line that begins `[CORE-` and ends `-1] A workbench definition MUST carry a title.` A Markdown renderer shows each one exactly as the profile spells it.
 
@@ -8,13 +8,15 @@ The brief allows the five letters of the word that follows "work" in "workbench"
 
 Statements: CORE-VER-2.
 
-Profile text: Opening lines: "Version identity: `dinah-core 0.17`, maturity channel `dev`." Section 2.1: "A conformance claim names `dinah-core 0.17` and says nothing about the channel, because the channel belongs to the document's history and the number belongs to the contract."
+Profile text: Opening lines: "Version identity: `dinah-core 0.18`, maturity channel `dev`." Section 2.1: "A conformance claim names `dinah-core 0.18` and says nothing about the channel, because the channel belongs to the document's history and the number belongs to the contract."
 
 Readings considered: The version identity could be the whole of the opening line, including the maturity channel. It could be the text of the code span that follows "Version identity:", which names the profile and its version without the channel.
 
-Chosen: The reader reports the text of the first code span that follows "Version identity:" in the first ten lines of the profile it is given, read at run time, which for this revision is dinah-core 0.17. It takes the identity string and the major and minor numbers it compares against from that same text.
+Chosen: The reader reports the text of the first code span that follows "Version identity:" in the first ten lines of the profile it is given, read at run time, which for this revision is dinah-core 0.18. It takes the identity string and the major and minor numbers it compares against from that same text.
 
 Why: The opening line names the version identity and the maturity channel as two separate things, and section 2.1 says the channel belongs to the document's history rather than to the version.
+
+Revised: The lines quoted here and the identity named in the chosen reading now read dinah-core 0.18, because the revision changed the version identity in the opening lines and in section 2.1, and the reading itself, which is to take the code span rather than the whole line, is unchanged.
 
 ## R-2: How the extraction reads lines
 
@@ -68,13 +70,15 @@ Why: An identifier is a name, which the example of section 5.7 writes as a strin
 
 Statements: CORE-&#66;ENCH-3, CORE-&#66;ENCH-5.
 
-Profile text: Section 5.7, the example: `"profile": "dinah-core/0.17",` Section 2: "The string rides inside a conformance claim and inside the `profile` member of section 5.7." Section 2.1: "A conformance claim names `dinah-core 0.17` and says nothing about the channel, because the channel belongs to the document's history and the number belongs to the contract."
+Profile text: Section 5.7, the example: `"profile": "dinah-core/0.18",` Section 2: "The string rides inside a conformance claim and inside the `profile` member of section 5.7." Section 2.1: "A conformance claim names `dinah-core 0.18` and says nothing about the channel, because the channel belongs to the document's history and the number belongs to the contract."
 
 Readings considered: The member could be required to follow the example exactly, as the identity string, a solidus, the major number, a full stop and the minor number. It could also admit the spelling a conformance claim uses, with a space in place of the solidus. It could admit any text from which two numbers can be recovered.
 
 Chosen: The reader accepts the identity string from R-1, then a solidus or a single space, then the major number, a full stop and the minor number, each written in ASCII digits and compared as an integer. Any other value fails CORE-&#66;ENCH-3, including a number, another identity string, a third number and an appended channel.
 
 Why: No statement fixes the grammar of the member. The example and section 2.1 show the only two spellings the profile itself uses for a version of this profile, and the reader refuses only what a conforming tool is required to refuse, so it does not refuse a spelling the profile uses. Section 2 says the identity string rides inside the member, so a value naming another identity string declares no version of this profile.
+
+Revised: The two spellings quoted here now name 0.18, because the revision changed the version of the example in section 5.7 and of the claim in section 2.1, and the grammar the reader accepts, which is the identity string then a solidus or a space then two numbers, is unchanged.
 
 ## R-7: The version a tool's claim names, and definitions that target an earlier version
 
@@ -126,27 +130,31 @@ Why: The statement defines what a capacity limit is, and a value outside the def
 
 ## R-11: Members whose shape the profile does not fix
 
-Statements: CORE-STATE-4, CORE-INSTR-1, CORE-JSON-10, CORE-JSON-11, CORE-JSON-12, CORE-JSON-13, CORE-FIELD-1, CORE-FIELD-2, CORE-FIELD-3, CORE-FIELD-4, CORE-FIELD-5, CORE-FIELD-7, CORE-FIELD-9, CORE-FIELD-10, CORE-CAP-1, CORE-CAP-2, CORE-GATE-1.
+Statements: CORE-STATE-4, CORE-INSTR-1, CORE-JSON-10, CORE-JSON-11, CORE-JSON-12, CORE-JSON-13, CORE-FIELD-1, CORE-FIELD-2, CORE-FIELD-3, CORE-FIELD-4, CORE-FIELD-5, CORE-FIELD-7, CORE-FIELD-9, CORE-FIELD-10, CORE-FIELD-12, CORE-CAP-1, CORE-CAP-2, CORE-GATE-1.
 
 Profile text: Section 5.7: "[CORE-JSON-11] The interchange object MAY carry the members `fields` and `field_values`." Section 5.10: "A declaration carries three things: the key a reader types, the type its value takes, and one line of prose saying what the field means."
 
 Readings considered: The reader could assume shapes, such as an array of declaration objects under fields and an object from key to value under field_values, and then judge keys, types and values against CORE-FIELD-2, CORE-FIELD-3 and CORE-FIELD-5. It could instead judge only whether these members are carried.
 
-Chosen: The reader judges only whether operator_owned, instructions, gate_items, fields, field_values, require_fields and tiers are carried, and it compares slugs only for equality. The field and capability statements that could be judged only through a shape, CORE-FIELD-2, CORE-FIELD-3, CORE-FIELD-4, CORE-FIELD-5, CORE-FIELD-7, CORE-FIELD-9 and CORE-CAP-2, are classified none. The fixtures that carry these members use shapes of their own, and their sources say so.
+Chosen: The reader judges only whether operator_owned, instructions, gate_items, fields, field_values, require_fields and tiers are carried, and it compares slugs only for equality. The field and capability statements that could be judged only through a shape, CORE-FIELD-2, CORE-FIELD-3, CORE-FIELD-4, CORE-FIELD-5, CORE-FIELD-7, CORE-FIELD-9, CORE-FIELD-12 and CORE-CAP-2, are classified none. The fixtures that carry these members use shapes of their own, and their sources say so.
 
-Why: Section 5.7 names these members and gives no shape for any of them, and section 5.10 names the parts of a declaration without naming members for them. Judging a shape the profile never states would fill a silence the brief forbids filling. CORE-STATE-5 is the one permission whose statement fixes a value, and R-10 covers it.
+Why: Section 5.7 names these members and gives no shape for any of them, and section 5.10 names the parts of a declaration without naming members for them. Judging a shape the profile never states would fill a silence the brief forbids filling. A permission whose own statement fixes what the member it names holds is a different case, and R-10 and R-25 cover the two such permissions, CORE-STATE-5 and CORE-JSON-14.
+
+Revised: CORE-FIELD-12 arrived in 0.18 and names a values member inside a declaration whose shape the profile still does not fix, so it joins the statements this reading classifies none, and the closing sentence no longer calls CORE-STATE-5 the only permission whose statement fixes what it names, because CORE-JSON-14 arrived in the same revision and fixes the shape of standing_items.
 
 ## R-12: How permissions are reported
 
-Statements: CORE-STATE-4, CORE-STATE-5, CORE-JSON-10, CORE-JSON-11, CORE-JSON-12, CORE-JSON-13, CORE-FIELD-1, CORE-FIELD-10, CORE-CAP-1, CORE-GATE-1, CORE-INSTR-1.
+Statements: CORE-STATE-4, CORE-STATE-5, CORE-JSON-10, CORE-JSON-11, CORE-JSON-12, CORE-JSON-13, CORE-JSON-14, CORE-FIELD-1, CORE-FIELD-10, CORE-CAP-1, CORE-GATE-1, CORE-INSTR-1.
 
 Profile text: Section 3.1: "The keyword vocabulary is the one RFC 2119 defines as amended by RFC 8174, and only the uppercase forms carry meaning:" Section 11, the row for CORE-STATE-4: "A definition marking a column operator-owned is accepted."
 
 Readings considered: A permission could be reported as pass for every object, since nothing breaks it. It could be reported as pass where the object uses it and not applicable where it does not.
 
-Chosen: A permission is reported as pass where the object uses it and as not applicable where it does not. Only CORE-STATE-5 can fail, under R-10. Across every statement, the verdict is refuse exactly when some statement fails.
+Chosen: A permission is reported as pass where the object uses it and as not applicable where it does not. CORE-STATE-5 and CORE-JSON-14 are the two permissions that can fail, under R-10 and R-25, because each of them says what the member it permits holds. Across every statement, the verdict is refuse exactly when some statement fails.
 
 Why: Under RFC 2119 a MAY is an option an object is free to take or leave, so an object that leaves it gives the reader nothing to judge, and the index states the outcome of each permission as the object that uses it being accepted.
+
+Revised: CORE-JSON-14 joined the permissions in 0.18 and is listed here, and the chosen reading now names it beside CORE-STATE-5 as a permission an object can fail, because a permission whose statement defines the member it names is one an object can use wrongly.
 
 ## R-13: Designating an operator
 
@@ -291,3 +299,15 @@ Readings considered: A path that cannot be opened could yield a result with a re
 Chosen: The reader writes a diagnostic to standard error, writes nothing to standard output, and exits with code 2.
 
 Why: The profile is silent about files, and a path with no bytes behind it offers no interchange object to judge, so any verdict would be a judgement about the command line rather than about an object. Bytes that can be read but are not UTF-8 or JSON are still judged, under R-17.
+
+## R-25: The shape of standing_items
+
+Statements: CORE-JSON-14, CORE-GATE-5, CORE-JSON-7.
+
+Profile text: Section 5.7: "[CORE-JSON-14] A column object MAY carry the member `standing_items`, a JSON object each of whose members names one structured item by a key of the workbench's choosing and carries the member `text`." Section 12, the 0.18 entry: "The column object may now carry the items every arriving card is to receive, keyed by names the workbench chooses, and a tool that honours the member files one item per key on arrival". Section 12, the 0.18 entry: "The profile fixes the member's shape and the filing and stops there: what kind of item a member names, who settles it and what evidence settles it stay with the workbench, and a member's other members travel under CORE-JSON-7."
+
+Readings considered: The statement could be a bare permission like CORE-JSON-10 and CORE-JSON-12, so that the reader judges only whether a column carries the member and never what the member holds, under R-11. It could instead carry a definition of the member, the way CORE-STATE-5 carries one of a capacity limit, so that a standing_items which is not a JSON object, or a member of one which is not a JSON object carrying text, fails the statement. The words about carrying the member text could also be read of the standing_items object itself rather than of each of its members, which would ask for one member named text beside the item keys.
+
+Chosen: The statement defines the member. The reader reports CORE-JSON-14 not applicable where no column carries standing_items, pass where every standing_items a column carries is a JSON object each of whose members is a JSON object carrying a text member, and fail otherwise, and a failure refuses the object as malformed under R-17. The reader judges nothing else about a member: it does not read the value of text, and a member's further members are content this statement leaves to the workbench, which travels back under CORE-JSON-7. A standing_items carrying no member at all passes, because the statement asks for a JSON object and does not require it to name an item. Because the profile now defines the name standing_items on a column object, the pair command judges it under CORE-JSON-1 and CORE-TEXT-3 rather than as an unrecognized member under CORE-JSON-7, which is what R-21 says of every name the profile defines.
+
+Why: The statement names the member and then says what the member is, which is the pattern of CORE-STATE-5 rather than of CORE-JSON-10, and a value outside that definition is not the thing CORE-GATE-5 files an item from, so the object wants something this profile requires of it and CORE-OUT-5 names malformed. The 0.18 entry puts the items under keys the workbench chooses and says a member's other members travel under CORE-JSON-7, which a member can only do if a member is itself an object, so the reading that asks for one member named text beside the keys is not the profile's. The profile fixes the member's shape and stops there, in its own words, so the reader stops there too and reads nothing into text or into any member beside it.

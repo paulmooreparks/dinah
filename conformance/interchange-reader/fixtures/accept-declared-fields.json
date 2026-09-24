@@ -1,5 +1,5 @@
 {
-  "profile": "dinah-core/0.17",
+  "profile": "dinah-core/0.18",
   "title": "Wedding",
   "fields": [
     { "key": "venue.deposit-paid", "type": "boolean",

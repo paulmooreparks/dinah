@@ -37,24 +37,6 @@
       "note": "CORE-BENCH-5 refuses only a later version, while section 6.1's table words the check as a version the tool implements; the two admit different answers for an earlier version."
     },
     {
-      "key": "fixture:refuse-profile-later-minor.json:verdict",
-      "disposition": "profile-defect",
-      "card": "dinah-525",
-      "item": "dinah-548/questions/5",
-      "ruled_by": "paul",
-      "date": "2026-09-22",
-      "note": "Dinah claims and exports dinah-core 0.18, which the published profile does not carry; CORE-BENCH-5 then refuses the exports. The profile publishes 0.18 with the changelog entry for the resolve, verify and fail change."
-    },
-    {
-      "key": "pair:refuse-profile-later-minor.json:CORE-JSON-1",
-      "disposition": "profile-defect",
-      "card": "dinah-561",
-      "item": "dinah-548/questions/6",
-      "ruled_by": "paul",
-      "date": "2026-09-22",
-      "note": "CORE-JSON-1 says only that a tool reads and writes the interchange form, and does not say whether column identifiers survive a read and write-back; the profile states it."
-    },
-    {
       "key": "fixture:refuse-profile-later-major.json:verdict",
       "disposition": "tool-defect",
       "card": "dinah-559",
@@ -260,6 +242,33 @@
       "ruled_by": "paul",
       "date": "2026-09-22",
       "note": "init --from admits a column kind CORE-STATE-11 requires a tool to refuse."
+    },
+    {
+      "key": "pair:accept-column-standing-items.json:CORE-JSON-1",
+      "disposition": "tool-defect",
+      "card": "dinah-558",
+      "item": "dinah-598/questions/2",
+      "ruled_by": "",
+      "date": "",
+      "note": "A read and write-back changes the column identifiers and drops gate_items, which CORE-JSON-10 names, without refusing the object; the cause dinah-548/questions/7 ruled, on a fixture the first update run added."
+    },
+    {
+      "key": "pair:refuse-column-standing-item-no-text.json:CORE-JSON-1",
+      "disposition": "profile-defect",
+      "card": "dinah-561",
+      "item": "dinah-598/questions/2",
+      "ruled_by": "",
+      "date": "",
+      "note": "CORE-JSON-1 says only that a tool reads and writes the interchange form, and does not say whether column identifiers survive a read and write-back; the cause dinah-548/questions/6 ruled, on a fixture the first update run added."
+    },
+    {
+      "key": "fixture:refuse-column-standing-item-no-text.json:verdict",
+      "disposition": "tool-defect",
+      "card": null,
+      "item": "dinah-598/questions/3",
+      "ruled_by": "",
+      "date": "",
+      "note": "CORE-JSON-14 defines a member of standing_items as carrying the member text. The reader refuses a member that carries none as malformed; Dinah's init --from admits the object and records the entry as malformed for check to report. Drafted as a tool-defect pending the operator's ruling; the card is named when he rules."
     }
   ]
 }
