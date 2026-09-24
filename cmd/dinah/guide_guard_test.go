@@ -192,6 +192,11 @@ func TestTheGuidesQuoteOnlyDeclaredRefusals(t *testing.T) {
 	for _, name := range contract.MintedKinds {
 		legal[name] = true
 	}
+	// So does a frontmatter key Dinah's own layer declares, which a guide
+	// quotes when it teaches a reader to write one.
+	for _, name := range contract.MintedKeys {
+		legal[name] = true
+	}
 	checked := 0
 	recognised := 0
 	for _, document := range guardedDocuments(t) {

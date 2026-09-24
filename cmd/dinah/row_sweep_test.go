@@ -1461,6 +1461,25 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
+			site: renderSite{File: "view.go", Function: "emitViewList", Label: "views", Ordinal: 1}, label: "dinah view, the listing",
+			keys:   []string{"column.view-list.view", "column.view-list.title", "column.view-list.layout", "column.view-list.from", "column.view-list.used"},
+			expect: expectViewList,
+			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
+				return sweptRun(t, w.healthy, tag, "view")
+			},
+		},
+		{
+			site: renderSite{File: "view.go", Function: "renderView", Label: "cards", Ordinal: 1}, label: "dinah view mine, the cards the actor holds",
+			keys: []string{"column.view.card", "column.view.column", "column.view.priority", "column.view.severity", "column.view.title"},
+			opensWith: func(tag string, w *sweptWorkbenches) string {
+				return msg.For(tag).T("view.section.heading", "title", msg.For(tag).T("view.mine.claimed"), "count", strconv.Itoa(len(expectMineClaimed(nil, w.record, tag).rows)))
+			},
+			expect: expectMineClaimed,
+			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
+				return sweptRun(t, w.healthy, tag, "view", "mine")
+			},
+		},
+		{
 			site: renderSite{File: "render.go", Function: "renderSearch", Label: "t", Ordinal: 1}, label: "dinah search",
 			keys: []string{"column.search.kind", "column.search.reference", "column.search.title",
 				"column.search.matched", "column.search.snippet"},
@@ -1680,7 +1699,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: renderSite{File: "render.go", Function: "composeRefusal", Label: "t", Ordinal: 1}, label: "the columns a refusal lists", varies: noCell,
+			site: renderSite{File: "render.go", Function: "composeRefusalLines", Label: "t", Ordinal: 1}, label: "the columns a refusal lists", varies: noCell,
 			constantReason: "this block declares one column and no heading, so it has no column to misplace",
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
 				return sweptRefused(t, w.healthy, tag, "list", "nowhere")
@@ -1807,7 +1826,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: renderSite{File: "render.go", Function: "composeRefusal", Label: "carriedTable", Ordinal: 1}, label: "a refusal that carries a list", varies: noCell,
+			site: renderSite{File: "render.go", Function: "composeRefusalLines", Label: "carriedTable", Ordinal: 1}, label: "a refusal that carries a list", varies: noCell,
 			constantReason: "this block declares one column and no heading, so it has no column to misplace",
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
 				return sweptRefused(t, w.healthy, tag, "pull")
@@ -1987,6 +2006,7 @@ func buildSweptWorkbenches(t *testing.T) *sweptWorkbenches {
 	benches.record.columns = sweptColumnInserted(benches.record, sweptColumnRecord{id: reviewColumn, title: reviewTitle, kind: "work", operatorOwned: true})
 	sweptAddColumn(t, benches.healthy, waitingColumn, waitingTitle, "work", "")
 	benches.record.columns = sweptColumnInserted(benches.record, sweptColumnRecord{id: waitingColumn, title: waitingTitle, kind: "work"})
+	sweptDeclareView(t, benches.healthy)
 	for i := 0; i < 12; i++ {
 		// The third card is filed at the intake column and every other at the
 		// station beyond it, so two columns qualify as a bare pull's
@@ -2487,6 +2507,31 @@ func sweptAddColumn(t *testing.T, dir, id, title, kind, extra string) {
 		}
 		cut := after + end + 1
 		return source[:cut] + "  - " + id + "\n" + source[cut:]
+	})
+}
+
+// sweptView is the one view the healthy tree's workbench declares, which is
+// what gives the listing dinah view draws a second row beside the view Dinah
+// ships, standing in another layer and so drawing a From cell of another
+// width.
+const (
+	sweptViewName  = "backlog"
+	sweptViewTitle = "Backlog review"
+)
+
+// sweptDeclareView writes the healthy tree's one view into its workbench
+// definition, at the end of the frontmatter.
+func sweptDeclareView(t *testing.T, dir string) {
+	t.Helper()
+	sweptRewrite(t, filepath.Join(sweptRoot(t, dir), bench.WorkbenchAnchor), func(source string) string {
+		block := bench.ViewsKey + ":\n  " + sweptViewName + ":\n    title: " + sweptViewTitle +
+			"\n    sections:\n      - query: \"column:intake\"\n"
+		at := strings.Index(source[len("---\n"):], "\n---\n")
+		if at < 0 {
+			return source
+		}
+		cut := len("---\n") + at + 1
+		return source[:cut] + block + source[cut:]
 	})
 }
 

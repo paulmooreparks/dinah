@@ -100,6 +100,14 @@ type table struct {
 	// non-final column below a row value. Listings opt in so a continuation
 	// never begins without its reference.
 	stackOnOverflow bool
+	// cutTail asks for the last column to be cut to the room the window
+	// leaves it, ending in an ellipsis, rather than written whole. It is an
+	// opt-in one table takes for itself, on the terms wrapTail and
+	// hasCeiling are, and it cuts only where the window's width is known:
+	// a piped run with no stated width keeps every value whole, so a script
+	// reading the human form never loses text. Where the room left is under
+	// minTailColumns nothing is cut.
+	cutTail bool
 }
 
 // tableGutter is how many display columns separate one column from the next.
@@ -196,7 +204,7 @@ func withGuides(t table) table {
 	return table{
 		indent: t.indent, columns: t.columns, rows: rows, labels: t.labels,
 		wrapTail: t.wrapTail, ceilingColumn: t.ceilingColumn, hasCeiling: t.hasCeiling,
-		wrapOptions: t.wrapOptions, stackOnOverflow: t.stackOnOverflow,
+		wrapOptions: t.wrapOptions, stackOnOverflow: t.stackOnOverflow, cutTail: t.cutTail,
 	}
 }
 
@@ -348,6 +356,9 @@ type laidTable struct {
 	wrapOptions bool
 	// stackOnOverflow is the table's opt-in carried through layout.
 	stackOnOverflow bool
+	// cutTail is carried from the table, so the measure and the cut both
+	// read one answer.
+	cutTail bool
 }
 
 // layOut removes the columns no row fills, chooses every column's width, and
@@ -372,7 +383,62 @@ func (s *session) layOut(t table) laidTable {
 		applyCeiling(&laid)
 	}
 	narrowToWindow(&laid)
+	if laid.cutTail && s.width > 0 {
+		cutTheTail(&laid)
+	}
 	return laid
+}
+
+// tailEllipsis is what a cut value ends in: one display column standing for
+// the text the cut removed.
+const tailEllipsis = "\u2026"
+
+// cutTheTail cuts every last field wider than the room the window leaves the
+// last column, so that no row reaches past the window. A cut value keeps as
+// much of its text as fits in the room less one column and ends in
+// tailEllipsis. The cut falls between runes and is measured in display
+// columns, so a title of wide characters is cut where it draws rather than
+// where it counts. Where the room is under minTailColumns nothing is cut, and
+// the table draws by the rules it already follows.
+func cutTheTail(laid *laidTable) {
+	last := len(laid.widths) - 1
+	lead := laid.indent
+	for c := 0; c < last; c++ {
+		lead += laid.widths[c] + tableGutter
+	}
+	room := laid.window - lead
+	if room < minTailColumns {
+		return
+	}
+	rows := make([]tableRow, 0, len(laid.rows))
+	for _, r := range laid.rows {
+		if len(r.fields) == last+1 && displayWidth(r.fields[last]) > room {
+			fields := append([]string{}, r.fields...)
+			fields[last] = cutToColumns(fields[last], room-displayWidth(tailEllipsis)) + tailEllipsis
+			r.fields = fields
+		}
+		rows = append(rows, r)
+	}
+	laid.rows = rows
+	if laid.widths[last] > room {
+		laid.widths[last] = room
+	}
+}
+
+// cutToColumns is the longest leading run of whole runes drawing no wider
+// than the given number of display columns.
+func cutToColumns(text string, columns int) string {
+	var kept strings.Builder
+	drawn := 0
+	for _, r := range text {
+		width := displayWidth(string(r))
+		if drawn+width > columns {
+			break
+		}
+		drawn += width
+		kept.WriteRune(r)
+	}
+	return kept.String()
 }
 
 // halfWindow is the width a ceiling-bearing column draws at: half the
@@ -439,6 +505,7 @@ func measure(t table, window int) laidTable {
 		hasCeiling:      t.hasCeiling,
 		wrapOptions:     t.wrapOptions,
 		stackOnOverflow: t.stackOnOverflow,
+		cutTail:         t.cutTail,
 	}
 	laid.widths = chooseWidths(laid)
 	clearTheGutter(&laid)
@@ -560,7 +627,9 @@ func chooseWidths(laid laidTable) []int {
 		widths[c] = displayWidth(column.heading)
 	}
 	for _, r := range laid.rows {
-		dropped := fieldsOverWindow(r.fields, laid.indent, laid.window, laid.wrapTail)
+		// A tail the table cuts imposes no width on the row, for the reason
+		// a wrapped one imposes none, so it is counted the same way.
+		dropped := fieldsOverWindow(r.fields, laid.indent, laid.window, laid.wrapTail || laid.cutTail)
 		for c, field := range r.fields {
 			if c == len(r.fields)-1 && c != last {
 				continue
@@ -712,6 +781,11 @@ func tailRoom(laid laidTable) int {
 	measured := laid.widths[len(laid.widths)-1]
 	if measured < minTailColumns {
 		return measured
+	}
+	// A tail the table cuts gives up whatever does not fit, so it asks for no
+	// more than the flat reservation whatever its values are made of.
+	if laid.cutTail {
+		return minTailColumns
 	}
 	// A tail the renderer can break between words gives up nothing to the flat
 	// reservation: whatever does not fit wraps onto the next line and the

@@ -419,6 +419,28 @@ func (s *session) renderSyntaxLine(text string, indent int) string {
 	return breakOnOptionsHanging(text, indent, s.width, indent)
 }
 
+// wrappedLine lays one line of prose out at the given indent, broken between
+// words at the window where its width is known, so a sentence standing under
+// a heading stays inside the window a table beside it respects. It is
+// indentedLine for a caller that needs another indent and a break.
+func (s *session) wrappedLine(indent int, text string) string {
+	return s.rowLine(row{indent: indent, tail: text, wrapTail: true})
+}
+
+// rightAligned lays two texts out on one line with the second ending in the
+// window's last column, where the width is known and the line can hold both
+// with a gutter between them. Otherwise the second follows the first after
+// one gutter, which is also the whole of the piped case.
+func (s *session) rightAligned(left, right string) string {
+	width := displayWidth(left) + tableGutter
+	if s.width > 0 {
+		if room := s.width - displayWidth(right); room >= width {
+			width = room
+		}
+	}
+	return formatRow(row{cells: []cell{{text: left, width: width}}, tail: right}, s.width)
+}
+
 // row renders a row and writes it to stdout.
 func (s *session) row(r row) {
 	s.line(s.rowLine(r))

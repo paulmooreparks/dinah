@@ -39,6 +39,11 @@ const (
 	FieldEntered    = "entered"
 	FieldLeft       = "left"
 	FieldAt         = "at"
+	// FieldItemOwner and FieldItemState describe one of the card's live
+	// checklist items rather than the card itself, and every item-plane term
+	// of a query is held to one and the same item.
+	FieldItemOwner = "item_owner"
+	FieldItemState = "item_state"
 )
 
 // QueryFields lists the built-in field names in the order the spec's field
@@ -46,12 +51,13 @@ const (
 // ahead of the card keys the workbench declares. severity and priority sit
 // between state and holder, matching the order CardView already reports a
 // card in, and route follows workstream, which is where the card's own
-// classifications end. A declared key joins the language per workbench and
-// never joins this list.
+// classifications end. The two item fields follow at, because they describe
+// the card's checklist rather than the card or its journal. A declared key
+// joins the language per workbench and never joins this list.
 var QueryFields = []string{
 	FieldColumn, FieldState, FieldSeverity, FieldPriority, FieldHolder,
 	FieldBlockKind, FieldWorkstream, FieldRoute, FieldActor, FieldEvent,
-	FieldEntered, FieldLeft, FieldAt,
+	FieldEntered, FieldLeft, FieldAt, FieldItemOwner, FieldItemState,
 }
 
 // The six operators a term may carry. The equality pair is what the nine
@@ -82,6 +88,65 @@ var actPlane = map[string]bool{
 	FieldAt:      true,
 }
 
+// itemPlane names the two fields compared against one live checklist item of
+// the card rather than against the card or one of its acts.
+var itemPlane = map[string]bool{
+	FieldItemOwner: true,
+	FieldItemState: true,
+}
+
+// meWord is the placeholder a view's query may write for the caller. It is
+// expanded only in a view, and only as a whole bare part under : or !=.
+const meWord = "@me"
+
+// meExpansion is what @me stands for in the query being parsed. The zero
+// value expands nothing, which is what query, tree, and search pass.
+type meExpansion struct {
+	enabled bool
+	actor   string
+	harness string // for the harness variant of the no-owner refusal
+}
+
+// queryStage names the check of the query's normative order that raised a
+// refusal. The values are ordered as the checks run.
+type queryStage int
+
+const (
+	stageParse       queryStage = iota + 1 // check 1
+	stageField                             // check 2
+	stageOperator                          // check 3
+	stageMe                                // the @me step
+	stageClosedValue                       // check 4
+	stageColumn                            // check 5
+	stageWorkstream                        // check 6
+	stageLevel                             // check 7
+	stageRoute                             // check 8
+	stageDeclared                          // check 9
+)
+
+// queryFault is where a refused query failed: the check, and the term it was
+// reading, with the field that term named. term and field are empty for a
+// refusal that belongs to no one term.
+type queryFault struct {
+	stage queryStage
+	field string // the term's field token as typed
+	term  string // the term's raw text
+}
+
+// vocabulary reports whether the fault is a vocabulary refusal, which is one
+// raised by checks 5 to 9 and so says this workbench's own vocabulary lacks a
+// name the query uses. A nil fault, which is what an error reading the store
+// carries, is never one, so a read failure is never drawn as a refused
+// section.
+func (f *queryFault) vocabulary() bool {
+	return f != nil && f.stage >= stageColumn
+}
+
+// faultAt records that a check raised its refusal while reading one term.
+func faultAt(stage queryStage, t *term) *queryFault {
+	return &queryFault{stage: stage, field: t.field, term: t.raw}
+}
+
 // term is one parsed term of a query.
 type term struct {
 	// field is the field token as the reader typed it, before any check has
@@ -101,6 +166,9 @@ type term struct {
 	instant time.Time
 	// raw is the term as it was typed, which is what a refusal names back.
 	raw string
+	// expandable marks, part by part, the values a view may replace with the
+	// caller: a part written bare, under : or !=, that is exactly @me.
+	expandable []bool
 }
 
 // query is a parsed query: its terms split by plane, since a query carrying no
@@ -110,6 +178,8 @@ type query struct {
 	cardTerms []term
 	// actTerms are the terms compared against one recorded act.
 	actTerms []term
+	// itemTerms are the terms compared against one live checklist item.
+	itemTerms []term
 }
 
 // Query reports the live cards matching a query string, in arrival order.
@@ -153,69 +223,116 @@ func (l *Library) Query(req *Request) (*Matches, error) {
 // it goes, and a lapse that notices a hand-edited position records who was
 // reading when it noticed.
 func (l *Library) selection(text, actor string) (matched, live []*bench.Card, err error) {
-	parsed, err := l.parseQuery(text)
+	matched, live, _, err = l.selectionFor(text, actor, meExpansion{})
+	return matched, live, err
+}
+
+// selectionFor is selection with the placeholder a view expands, and it
+// reports, beside any refusal, the check that raised it. The query, tree and
+// search paths reach it through selection, which passes the zero expansion
+// and discards the fault, so nothing they print depends on either.
+func (l *Library) selectionFor(text, actor string, me meExpansion) (matched, live []*bench.Card, fault *queryFault, err error) {
+	_, matched, live, fault, err = l.selectionQuery(text, actor, me)
+	return matched, live, fault, err
+}
+
+// selectionQuery is selectionFor answering the parsed query as well, which a
+// view reads again to name the items that witnessed each card it drew. An
+// error reading the store is returned with no fault.
+func (l *Library) selectionQuery(text, actor string, me meExpansion) (parsed *query, matched, live []*bench.Card, fault *queryFault, err error) {
+	parsed, fault, err = l.parseQuery(text)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, fault, err
 	}
-	if err := l.checkVocabularies(parsed); err != nil {
-		return nil, nil, err
+	if fault, err := expandMe(parsed, me); err != nil {
+		return nil, nil, nil, fault, err
+	}
+	if fault, err := l.checkVocabularies(parsed); err != nil {
+		return nil, nil, nil, fault, err
 	}
 	cards, err := l.Bench.Cards()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 	for _, card := range cards {
 		if err := l.lapseRead(card, actor); err != nil {
-			return nil, nil, err
+			return nil, nil, nil, nil, err
 		}
 	}
-	if err := l.checkWorkstreams(parsed, cards); err != nil {
-		return nil, nil, err
+	if fault, err := l.checkWorkstreams(parsed, cards); err != nil {
+		return nil, nil, nil, fault, err
 	}
-	if err := l.checkLevels(parsed, cards); err != nil {
-		return nil, nil, err
+	if fault, err := l.checkLevels(parsed, cards); err != nil {
+		return nil, nil, nil, fault, err
 	}
-	if err := l.checkRoutes(parsed, cards); err != nil {
-		return nil, nil, err
+	if fault, err := l.checkRoutes(parsed, cards); err != nil {
+		return nil, nil, nil, fault, err
 	}
-	if err := l.checkDeclaredFields(parsed, cards); err != nil {
-		return nil, nil, err
+	if fault, err := l.checkDeclaredFields(parsed, cards); err != nil {
+		return nil, nil, nil, fault, err
 	}
 	kept, err := l.selectCards(parsed, cards)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, nil, err
 	}
-	return kept, cards, nil
+	return parsed, kept, cards, nil, nil
 }
 
 // parseQuery runs checks 1 to 3: every term parses, every field is one this
 // tool knows or one shaped like a declared key, and every operator is one the
 // named field accepts. It is a method only because the refusal it raises
 // lists the workbench's own card keys beside the built-in names.
-func (l *Library) parseQuery(text string) (*query, error) {
+func (l *Library) parseQuery(text string) (*query, *queryFault, error) {
 	tokens, err := splitTerms(strings.Trim(text, queryTrims))
 	if err != nil {
-		return nil, err
+		return nil, &queryFault{stage: stageParse}, err
 	}
 	parsed := &query{}
 	for _, token := range tokens {
 		t, err := parseTerm(token)
 		if err != nil {
-			return nil, err
+			return nil, &queryFault{stage: stageParse, term: token}, err
 		}
 		parsed.append(t)
 	}
 	for _, t := range parsed.all() {
 		if err := l.checkField(*t); err != nil {
-			return nil, err
+			return nil, faultAt(stageField, t), err
 		}
 	}
 	for _, t := range parsed.all() {
 		if err := l.checkOperator(*t); err != nil {
-			return nil, err
+			return nil, faultAt(stageOperator, t), err
 		}
 	}
-	return parsed, nil
+	return parsed, nil, nil
+}
+
+// expandMe is the step between check 3 and check 4 that replaces every
+// expandable @me with the caller. It does anything only where the expansion
+// is enabled, which is a view being drawn, and it refuses no-owner only when
+// the query carries an expandable part and no actor resolved, so a view that
+// never asks about the caller draws for anybody.
+func expandMe(q *query, me meExpansion) (*queryFault, error) {
+	if !me.enabled {
+		return nil, nil
+	}
+	for _, t := range q.all() {
+		for i := range t.values {
+			if i >= len(t.expandable) || !t.expandable[i] {
+				continue
+			}
+			if me.actor == "" {
+				var extra map[string]string
+				if me.harness != "" {
+					extra = map[string]string{contract.ValueHarness: me.harness}
+				}
+				return &queryFault{stage: stageMe}, contract.RefuseWith(contract.NoOwner, "", extra)
+			}
+			t.values[i] = me.actor
+		}
+	}
+	return nil, nil
 }
 
 // append files a parsed term under the plane its field sits on.
@@ -224,19 +341,28 @@ func (q *query) append(t term) {
 		q.actTerms = append(q.actTerms, t)
 		return
 	}
+	if itemPlane[t.field] {
+		q.itemTerms = append(q.itemTerms, t)
+		return
+	}
 	q.cardTerms = append(q.cardTerms, t)
 }
 
-// all returns a pointer to every term of the query, card plane first, which is
-// the order the checks read them in. The pointers are what lets check 5
-// rewrite a column-valued term's parts to the identifiers they resolved to.
+// all returns a pointer to every term of the query, card plane first, then the
+// act plane, then the item plane, which is the order the checks read them in
+// and so decides which of two mistakes a query is refused for. The pointers
+// are what lets check 5 rewrite a column-valued term's parts to the
+// identifiers they resolved to.
 func (q *query) all() []*term {
-	terms := make([]*term, 0, len(q.cardTerms)+len(q.actTerms))
+	terms := make([]*term, 0, len(q.cardTerms)+len(q.actTerms)+len(q.itemTerms))
 	for i := range q.cardTerms {
 		terms = append(terms, &q.cardTerms[i])
 	}
 	for i := range q.actTerms {
 		terms = append(terms, &q.actTerms[i])
+	}
+	for i := range q.itemTerms {
+		terms = append(terms, &q.itemTerms[i])
 	}
 	return terms
 }
@@ -314,10 +440,12 @@ func parseTerm(token string) (term, error) {
 		return t, nil
 	}
 	t.values = strings.Split(value, ",")
-	for _, part := range t.values {
+	t.expandable = make([]bool, len(t.values))
+	for i, part := range t.values {
 		if part == "" {
 			return term{}, contract.Refuse(contract.Malformed, token)
 		}
+		t.expandable[i] = part == meWord
 	}
 	return t, nil
 }
@@ -450,7 +578,7 @@ func (l *Library) unknownField(token string) error {
 // checkVocabularies runs checks 4 and 5, which read the workbench's own
 // definition and no card. A term whose value is empty asks for absence rather
 // than naming a value, so it passes over every vocabulary check.
-func (l *Library) checkVocabularies(q *query) error {
+func (l *Library) checkVocabularies(q *query) (*queryFault, error) {
 	for _, t := range q.all() {
 		legal := closedValues(t.field)
 		if legal == nil || t.empty {
@@ -458,7 +586,7 @@ func (l *Library) checkVocabularies(q *query) error {
 		}
 		for _, value := range t.values {
 			if !contains(legal, value) {
-				return unknownValue(*t, value, legal)
+				return faultAt(stageClosedValue, t), unknownValue(*t, value, legal)
 			}
 		}
 	}
@@ -469,12 +597,12 @@ func (l *Library) checkVocabularies(q *query) error {
 		for i, value := range t.values {
 			column := l.Bench.ColumnByRef(value)
 			if column == nil {
-				return contract.Refuse(contract.UnknownColumn, value)
+				return faultAt(stageColumn, t), contract.Refuse(contract.UnknownColumn, value)
 			}
 			t.values[i] = column.ID
 		}
 	}
-	return nil
+	return nil, nil
 }
 
 // closedValues returns the vocabulary a field's value is checked against when
@@ -488,6 +616,8 @@ func closedValues(field string) []string {
 		return []string{contract.StateReady, contract.StateActive, contract.StateBlocked}
 	case FieldEvent:
 		return contract.Events
+	case FieldItemState:
+		return bench.ItemStates
 	}
 	return nil
 }
@@ -517,7 +647,7 @@ func columnValued(field string) bool {
 // than once for every card the comparison walks, and it is what keeps
 // `workstream!=X` the exact complement of `workstream:X` when X has two
 // spellings.
-func (l *Library) checkWorkstreams(q *query, cards []*bench.Card) error {
+func (l *Library) checkWorkstreams(q *query, cards []*bench.Card) (*queryFault, error) {
 	var roster []string
 	loaded := false
 	for i := range q.cardTerms {
@@ -528,18 +658,18 @@ func (l *Library) checkWorkstreams(q *query, cards []*bench.Card) error {
 		if !loaded {
 			known, err := l.workstreamRoster(cards)
 			if err != nil {
-				return err
+				return nil, err
 			}
 			roster, loaded = known, true
 		}
 		for j, value := range t.values {
 			if !contains(roster, value) {
-				return unknownValue(*t, value, roster)
+				return faultAt(stageWorkstream, t), unknownValue(*t, value, roster)
 			}
 			t.values[j] = l.workstreamIdentifier(value)
 		}
 	}
-	return nil
+	return nil, nil
 }
 
 // workstreamRoster is every name a workstream term may carry, sorted and
@@ -604,7 +734,7 @@ func (l *Library) workstreamIdentifier(value string) string {
 // anymore, and a query that could not find that card by the value check just
 // reported would make the finding unactionable from the command people
 // actually filter with.
-func (l *Library) checkLevels(q *query, cards []*bench.Card) error {
+func (l *Library) checkLevels(q *query, cards []*bench.Card) (*queryFault, error) {
 	rosters := map[string][]string{}
 	for i := range q.cardTerms {
 		t := &q.cardTerms[i]
@@ -619,11 +749,11 @@ func (l *Library) checkLevels(q *query, cards []*bench.Card) error {
 		}
 		for _, value := range t.values {
 			if !contains(roster, value) {
-				return unknownValue(*t, value, roster)
+				return faultAt(stageLevel, t), unknownValue(*t, value, roster)
 			}
 		}
 	}
-	return nil
+	return nil, nil
 }
 
 // levelRoster is every value a term on one level axis may carry: the
@@ -665,7 +795,7 @@ func levelRoster(b *bench.Bench, cards []*bench.Card, axis string) []string {
 // and a query that could not find that card by the value the finding just
 // reported would make the finding unactionable from the command people filter
 // with.
-func (l *Library) checkRoutes(q *query, cards []*bench.Card) error {
+func (l *Library) checkRoutes(q *query, cards []*bench.Card) (*queryFault, error) {
 	var roster []string
 	for i := range q.cardTerms {
 		t := &q.cardTerms[i]
@@ -677,11 +807,11 @@ func (l *Library) checkRoutes(q *query, cards []*bench.Card) error {
 		}
 		for _, value := range t.values {
 			if !contains(roster, value) {
-				return unknownValue(*t, value, roster)
+				return faultAt(stageRoute, t), unknownValue(*t, value, roster)
 			}
 		}
 	}
-	return nil
+	return nil, nil
 }
 
 // checkDeclaredFields runs check 9, the last of the checks and the fourth to
@@ -698,8 +828,9 @@ func (l *Library) checkRoutes(q *query, cards []*bench.Card) error {
 // are, so a term compares whatever the card stores and ignores applicability:
 // severity:major finds a value kept on a card its condition no longer admits,
 // which is what makes the finding reporting it actionable from here.
-func (l *Library) checkDeclaredFields(q *query, cards []*bench.Card) error {
-	for _, t := range q.cardTerms {
+func (l *Library) checkDeclaredFields(q *query, cards []*bench.Card) (*queryFault, error) {
+	for i := range q.cardTerms {
+		t := &q.cardTerms[i]
 		if !declaredTerm(t.field) {
 			continue
 		}
@@ -709,9 +840,9 @@ func (l *Library) checkDeclaredFields(q *query, cards []*bench.Card) error {
 		if l.anyCardStores(cards, t.field) {
 			continue
 		}
-		return l.unknownField(t.field)
+		return faultAt(stageDeclared, t), l.unknownField(t.field)
 	}
-	return nil
+	return nil, nil
 }
 
 // anyCardStores reports whether some live card stores a value under a key,
@@ -754,6 +885,13 @@ func (l *Library) selectCards(q *query, cards []*bench.Card) ([]*bench.Card, err
 			continue
 		}
 		witnessed, err := l.actWitnessed(q, card)
+		if err != nil {
+			return nil, err
+		}
+		if !witnessed {
+			continue
+		}
+		witnessed, err = l.itemWitnessed(q, card)
 		if err != nil {
 			return nil, err
 		}
@@ -812,6 +950,75 @@ func (l *Library) actMatches(q *query, event bench.Event) bool {
 		}
 	}
 	return true
+}
+
+// itemWitnessed reports whether one live checklist item satisfies every
+// item-plane term at once, which is the act plane's single-witness rule
+// applied to the checklist. A query carrying no item-plane term reads no
+// checklist, and a card carrying no live item has nothing to witness a term
+// under either operator.
+func (l *Library) itemWitnessed(q *query, card *bench.Card) (bool, error) {
+	if len(q.itemTerms) == 0 {
+		return true, nil
+	}
+	items, err := bench.Items(card.Dir)
+	if err != nil {
+		return false, err
+	}
+	for _, item := range items {
+		if itemMatches(q, item) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// itemWitnesses returns the reference of every live item satisfying every
+// item-plane term, in stored order, which is what a view reports beside each
+// card it drew. A query carrying no item-plane term has no witness to name.
+func (l *Library) itemWitnesses(q *query, card *bench.Card, cardRef string) ([]string, error) {
+	if len(q.itemTerms) == 0 {
+		return nil, nil
+	}
+	items, err := bench.Items(card.Dir)
+	if err != nil {
+		return nil, err
+	}
+	var refs []string
+	kindPosition := map[string]int{}
+	for position, item := range items {
+		kindPosition[item.Kind]++
+		if !itemMatches(q, item) {
+			continue
+		}
+		refs = append(refs, itemRef(cardRef, item.Kind, kindPosition[item.Kind], position+1))
+	}
+	return refs, nil
+}
+
+// itemMatches reports whether one item satisfies every item-plane term. A !=
+// negates inside this one item, as it does inside one act.
+func itemMatches(q *query, item *bench.Item) bool {
+	for _, t := range q.itemTerms {
+		if !t.holdsFor(itemValues(t.field, item)) {
+			return false
+		}
+	}
+	return true
+}
+
+// itemValues is what one item carries under an item-plane field: the owner it
+// stores, which is the empty string where it stores none, and the state it
+// stores. Neither is read into a default, so item_owner:operator never matches
+// an item that stores no owner.
+func itemValues(field string, item *bench.Item) []string {
+	switch field {
+	case FieldItemOwner:
+		return []string{item.Owner}
+	case FieldItemState:
+		return []string{item.State}
+	}
+	return []string{""}
 }
 
 // cardValues is what a card carries under a card-plane field, as the set the

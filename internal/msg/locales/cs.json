@@ -824,6 +824,21 @@
       "context": "A check finding: one entry of this workbench's fields block that the declaration reader refused, which is an entry whose key the grammar refuses, whose type is absent or outside the five, or whose meaning is absent or blank. {detail} carries the key as written. The entry declares nothing and the workbench still opens, so the repair is an edit to the block.",
       "skeleton": true
     },
+    "check.view-malformed": {
+      "text": "a view in dinah.views cannot be read, so it cannot be drawn: {detail}",
+      "context": "A check finding: one view of this workbench's dinah.views block that cannot be drawn. {detail} carries the view's name and a machine token naming its defect, or `dinah.views not-a-mapping` where the block itself is not a mapping. dinah.views is the key the views are declared under and is never translated.",
+      "skeleton": true
+    },
+    "check.view-member-unknown": {
+      "text": "a view in dinah.views carries a member this build does not read, and it is ignored: {detail}",
+      "context": "A check finding at cleanup severity: a member of one of this workbench's views that this build does not read, such as a misspelt title. {detail} carries the view's name and the member's path, `sections/<n>/<member>` for a member of a section. The member is kept in the file and ignored, because a later build may read it.",
+      "skeleton": true
+    },
+    "check.view-query-refused": {
+      "text": "a view in dinah.views asks a question this workbench refuses: {detail}",
+      "context": "A check finding at cleanup severity: a section of one of this workbench's views whose query this workbench refuses, such as one naming a column the workbench no longer has. {detail} carries the view's name, the section's one-based position and the refusal's machine name.",
+      "skeleton": true
+    },
     "check.format-current": {
       "text": "The store already declares format {format}, so there is nothing to stamp.",
       "context": "The line a format stamp prints when the workbench already declares the format it stamps or a later one, whether or not the run carried the confirmation flag. {format} carries the declared number.",
@@ -2227,6 +2242,11 @@
     "cmd.tree.summary": {
       "text": "The workbench's cards nested along a chain of axes",
       "context": "The one-line summary of the tree command, shown beside its syntax in the help block.",
+      "skeleton": true
+    },
+    "cmd.view.summary": {
+      "text": "List the views you can see, or draw one by name",
+      "context": "The one-line summary of the view command, shown beside its syntax in the help block. A view is a named set of questions a person asks the workbench again and again.",
       "skeleton": true
     },
     "cmd.unblock.note": {
@@ -3864,6 +3884,11 @@
       "context": "The meaning of the query argument of `dinah tree`, printed in that command's arguments table. tree reads the same query language `dinah query` reads.",
       "skeleton": true
     },
+    "param.view.view.summary": {
+      "text": "the view to draw; leave it out to list every view",
+      "context": "The meaning of the view argument of `dinah view`, printed in that command's arguments table. The argument is a view's name.",
+      "skeleton": true
+    },
     "param.unblock.reason.summary": {
       "text": "why the block is lifted, in one shell word or in quotation marks; leave it out to lift the block without saying why",
       "context": "The meaning of the optional reason argument of `dinah unblock`, printed in that command's arguments table.",
@@ -4766,6 +4791,36 @@
     "refusal.dinah.unknown-axis.next": {
       "text": " Name one of those instead, or run `dinah help tree` to see what the command checks.",
       "context": "The next step of refusal.dinah.unknown-axis. The command line inside it is syntax and stays as it is.",
+      "skeleton": true
+    },
+    "refusal.dinah.unknown-view": {
+      "text": "no view is named {detail}",
+      "context": "The sentence printed after the refusal name dinah.unknown-view, which `dinah view` carries when no view the reader can see has the name they typed. {detail} is that name. refusal.dinah.unknown-view.next is spliced on after it.",
+      "skeleton": true
+    },
+    "refusal.dinah.unknown-view.next": {
+      "text": "; the views you can see are {views}",
+      "context": "The next step of refusal.dinah.unknown-view. {views} is every view name the reader can see, each once, in byte order, joined by a comma and a space. The names are machine vocabulary and are never translated.",
+      "skeleton": true
+    },
+    "refusal.dinah.malformed-view": {
+      "text": "view {detail}, declared in the {source} layer, cannot be drawn: {defect}",
+      "context": "The sentence printed after the refusal name dinah.malformed-view, which `dinah view` carries when the name resolved to a declaration it cannot draw. {detail} is the view's name, {source} is the layer that declares it (user, workbench or built-in) and {defect} names what is wrong with it. {source} and {defect} are machine tokens and are never translated. refusal.dinah.malformed-view.next is spliced on after it.",
+      "skeleton": true
+    },
+    "refusal.dinah.malformed-view.next": {
+      "text": "; `dinah view` lists every view and marks the malformed ones",
+      "context": "The next step of refusal.dinah.malformed-view. The command inside it is syntax and stays as it is.",
+      "skeleton": true
+    },
+    "refusal.dinah.views-unreadable": {
+      "text": "the {source} views in {detail} cannot be read ({reason}), so no view is drawn rather than one the file might replace",
+      "context": "The sentence printed after the refusal name dinah.views-unreadable, which `dinah view` carries when a file declaring views cannot be read, or declares them in something other than a mapping. {source} is the layer (user or workbench), {detail} is the file's path and {reason} is a machine token saying which of the two it was. {source} and {reason} are never translated. The sentence says why nothing is drawn: a view in the file might have replaced the one that would otherwise be drawn. refusal.dinah.views-unreadable.next is spliced on after it.",
+      "skeleton": true
+    },
+    "refusal.dinah.views-unreadable.next": {
+      "text": "; repair or remove the file, or its dinah.views block",
+      "context": "The next step of refusal.dinah.views-unreadable. dinah.views is the key the views are declared under and is never translated.",
       "skeleton": true
     },
     "refusal.dinah.unknown-command": {
@@ -6938,6 +6993,56 @@
       "context": "Printed in the title column of dinah setup --list for a recipe that does not read, in place of its title. setup is the command name and is not translated.",
       "skeleton": true
     },
+    "view.list.malformed": {
+      "text": "(malformed: {defect})",
+      "context": "Printed in the title column of the listing a bare `dinah view` prints, in place of the title of a view that cannot be drawn. {defect} is a machine token naming what is wrong with the declaration, and is never translated.",
+      "skeleton": true
+    },
+    "view.acting": {
+      "text": "acting as {actor}",
+      "context": "Printed on the heading line of a drawn view, after the view's title, naming the actor the view's questions were asked as. {actor} is the owner's name as recorded.",
+      "skeleton": true
+    },
+    "view.acting.operator": {
+      "text": "acting as {actor}, operator",
+      "context": "The same as view.acting, printed when the actor is the workbench's operator. {actor} is the owner's name as recorded, and the last word says that owner is the operator.",
+      "skeleton": true
+    },
+    "view.section.heading": {
+      "text": "{title} ({count})",
+      "context": "The heading line of one section of a drawn view. {title} is the section's title, or its query where it declares none, and {count} is how many cards the section drew.",
+      "skeleton": true
+    },
+    "view.section.empty": {
+      "text": "Nothing matches.",
+      "context": "Printed under the heading of a section of a drawn view that selected no card. The section's question was legal, so this is an answer rather than a refusal.",
+      "skeleton": true
+    },
+    "view.section.refused": {
+      "text": "not asked on this workbench: {refusal}",
+      "context": "Printed under the heading of a section of a drawn view whose query names something this workbench does not have, such as a column, so the question was not asked here and the rest of the view still draws. {refusal} is the refusal, already composed in the reader's language and led by its machine name.",
+      "skeleton": true
+    },
+    "view.section-refused": {
+      "text": "the refusal above came from view {view}, section {section} ({title})",
+      "context": "Written to standard error after a refusal that stopped a whole view, saying where it came from. It follows the refusal rather than preceding it, because a refusal's machine name leads standard error. {view} is the view's name, {section} is the section's one-based position and {title} is the section's title or, where it declares none, its query.",
+      "skeleton": true
+    },
+    "view.mine.title": {
+      "text": "My cards",
+      "context": "The title of the built-in view named mine, which shows the cards the caller holds and the cards the caller blocked.",
+      "skeleton": true
+    },
+    "view.mine.claimed": {
+      "text": "Claimed by me",
+      "context": "The title of the first section of the built-in view mine: the cards the caller holds.",
+      "skeleton": true
+    },
+    "view.mine.blocked": {
+      "text": "Blocked by me",
+      "context": "The title of the second section of the built-in view mine: the cards now blocked on which the caller recorded a block, whether or not the caller ever held them.",
+      "skeleton": true
+    },
     "setup.operator.workbench": {
       "text": "the workbench's operator",
       "context": "Placed in parentheses after an agent name in the detail of dinah.setup-agent-is-operator, when the name equals the workbench's operator.",
@@ -7036,6 +7141,66 @@
     "column.setup-list.used": {
       "text": "Used",
       "context": "Heading over whether the recipe's name resolves to this row, in the listing dinah setup --list prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.view-list.view": {
+      "text": "View",
+      "context": "Heading over the view's name in the listing a bare `dinah view` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.view-list.title": {
+      "text": "Title",
+      "context": "Heading over the view's title in the listing a bare `dinah view` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.view-list.layout": {
+      "text": "Layout",
+      "context": "Heading over the layout a view is drawn in, in the listing a bare `dinah view` prints. The cells beneath it are machine words and are never translated. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.view-list.from": {
+      "text": "From",
+      "context": "Heading over the layer a view is declared in (user, workbench or built-in), in the listing a bare `dinah view` prints. The cells beneath it are machine words and are never translated. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.view-list.used": {
+      "text": "Used",
+      "context": "Heading over whether a draw of the view's name uses this row, in the listing a bare `dinah view` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.view.card": {
+      "text": "Card",
+      "context": "Heading over the card's reference in a section of a view `dinah view` draws. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.view.column": {
+      "text": "Column",
+      "context": "Heading over the title of the column a card stands in, in a section of a view `dinah view` draws. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.view.item": {
+      "text": "Item",
+      "context": "Heading over the checklist item that witnessed a card's selection, in a section of a view `dinah view` draws whose query names an item field. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.view.holder": {
+      "text": "Holder",
+      "context": "Heading over the owner holding a card, in a section of a view `dinah view` draws. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.view.priority": {
+      "text": "Pri",
+      "context": "Heading over a card's priority, in a section of a view `dinah view` draws. It is abbreviated because the column is narrow and the title beside it wants the room. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.view.severity": {
+      "text": "Sev",
+      "context": "Heading over a card's severity, in a section of a view `dinah view` draws. It is abbreviated because the column is narrow and the title beside it wants the room. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.view.title": {
+      "text": "Title",
+      "context": "Heading over a card's title, in a section of a view `dinah view` draws. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "skeleton": true
     },
     "column.setup-list.path": {

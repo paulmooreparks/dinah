@@ -325,6 +325,20 @@ const (
 	// name of its own because the sentence that lists the legal axes would
 	// name the repeated axis as not an axis and then list it as one.
 	RepeatedAxis = LayerPrefix + "repeated-axis"
+	// UnknownView is dinah view naming a view no layer the caller can see
+	// declares. It carries every visible name, so the reader picks one.
+	UnknownView = LayerPrefix + "unknown-view"
+	// MalformedView is dinah view naming a view that resolved to a
+	// declaration it cannot draw. A malformed view keeps its place in name
+	// resolution, so this is what a malformed user view shadowing a
+	// well-formed workbench view answers, rather than the workbench's view.
+	MalformedView = LayerPrefix + "malformed-view"
+	// ViewsUnreadable is dinah view meeting a views layer it cannot read: a
+	// user config.md that exists and cannot be read, or a dinah.views value
+	// that is not a mapping in either file. It refuses rather than reading
+	// the layer as empty, because a user view that should have shadowed a
+	// workbench view would otherwise vanish and the workbench's be drawn.
+	ViewsUnreadable = LayerPrefix + "views-unreadable"
 	// ChainTooLong is a group-by chain naming more axes than a tree nests
 	// along. It carries a name of its own because it has no offending word
 	// to name: every axis in the chain may be legal, and the length is the
@@ -822,6 +836,7 @@ var Introduced = []string{
 	UnknownRecipe, MalformedRecipe, UnknownScope, SetupNoTarget, SetupAgentIsOperator,
 	SetupUnreadableTarget, SetupConflict, UntrustedRecipe, SetupRelocatedHome,
 	SetupOtherWorkbench, SetupRunNotAllowed, SetupStepFailed,
+	UnknownView, MalformedView, ViewsUnreadable,
 }
 
 // NameIsLegal reports whether a refusal name is one CORE-OUT-3 admits: one
@@ -863,6 +878,18 @@ const KindBuffer = LayerPrefix + "buffer"
 // refusal names, because the layer prefix carries both and a reader meeting a
 // dotted token in a document needs one place to ask what it is.
 var MintedKinds = []string{KindBuffer}
+
+// ViewsKey is the frontmatter key Dinah's views layer is declared under, in a
+// workbench's workbench.md and in the user's config.md alike. It carries the
+// layer prefix because a layer's own keys must, which keeps it clear of every
+// key the profile declares.
+const ViewsKey = LayerPrefix + "views"
+
+// MintedKeys lists every frontmatter key Dinah introduces under the layer
+// prefix. It sits beside Introduced and MintedKinds for the reason MintedKinds
+// gives: the prefix carries all three, and a reader meeting a dotted token in
+// a document needs one place to ask what it is.
+var MintedKeys = []string{ViewsKey}
 
 // Kinds lists every column kind this build admits by name: the three the
 // profile declares and the one Dinah mints. A surface offering a caller the

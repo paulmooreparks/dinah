@@ -970,6 +970,8 @@ func assignValue(req *verb.Request, name, field, value string) {
 		req.Query = value
 	case "group-by":
 		req.GroupBy = value
+	case "view":
+		req.View = value
 	case "depth":
 		req.Depth = value
 	case "root":
