@@ -224,7 +224,10 @@ const (
 // fail take: the argument that was a resolution note is a reference to a
 // comment of the item being settled, and reopen's reason stays prose beside
 // it. A client that composed those calls against 0.17 composes them wrongly
-// against this build, which is what a minor bump says.
+// against this build, which is what a minor bump says. The document caught
+// up with the claim at dinah-597, whose 0.18 entry also publishes
+// CORE-UNBLOCK-5: an unblock may carry a reason, and this build records one
+// on the unblocked line and as a comment on the card.
 
 // The oldest profile revision this build opens. dinah-core 0.7 renamed the
 // flow vocabulary on disk, retiring the state and substate keys for column

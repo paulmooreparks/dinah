@@ -12,7 +12,7 @@ WORK
     [--expires <duration>] [--override]       and move it there in one act
   release <card>                            Give the card back to its queue
   block <card> <reason> [--kind <kind>]     Raise an obstacle and free the card
-  unblock <card>                            Lift a block (operator only)
+  unblock <card> [reason]                   Lift a block (operator only)
   raise <card> <tier> <reason>              Raise the tier this stop needs and
                                               hand the card back
   comment <ref> [text|-]                    Record a comment on a card, a

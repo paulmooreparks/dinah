@@ -922,7 +922,9 @@ test("every fanOut command is driven over two rows and produces the effect it de
 	);
 	// Asserted against a literal so that re-declaring a command out of the
 	// family reddens this run rather than shrinking the sweep in silence.
-	assert.equal(subjects.length, 15);
+	// Fourteen since dinah-597, which moved Unblock to oneInput so it can ask
+	// why the block is lifted.
+	assert.equal(subjects.length, 14);
 	let exercised = 0;
 	for (const [id, entry] of subjects) {
 		const table = ROW_COMMAND_TABLE.find((row) => row.id === id);

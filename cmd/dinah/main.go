@@ -254,7 +254,9 @@ func run(argv []string, in io.Reader, out, errw io.Writer) int {
 	// its value, and it declares --at, --note and --yes, so a flag typed
 	// before the value would otherwise be spliced back into the value as
 	// prose and refused as a second word.
-	if command.name != "add" && command.name != "block" && command.name != "comment" && command.name != "workbench" && command.name != "workstream" && command.name != "set" {
+	// unblock joins block because its tail is read by s.freeText on the same
+	// terms: the reason is prose, and a flag-shaped word inside it is text.
+	if command.name != "add" && command.name != "block" && command.name != "unblock" && command.name != "comment" && command.name != "workbench" && command.name != "workstream" && command.name != "set" {
 		if refusal := resolveOpenTailFlags(parsed, command); refusal != nil {
 			return s.reportError(refusal)
 		}
