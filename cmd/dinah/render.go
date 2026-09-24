@@ -1330,6 +1330,9 @@ func (s *session) renderCheck(report *verb.CheckReport) int {
 	if report.MigratedAppliesWhen != nil {
 		s.renderAppliesWhenMigration(report.MigratedAppliesWhen)
 	}
+	if report.MigratedRawLines != nil {
+		s.renderRawLineMigration(report.MigratedRawLines)
+	}
 	if report.FiledStanding != nil {
 		s.renderStandingRepair(report.FiledStanding)
 	}
@@ -1384,6 +1387,34 @@ func (s *session) renderAppliesWhenMigration(report *bench.AppliesWhenMigration)
 	default:
 		s.line(s.r.T("check.format-would-stamp", "from", strconv.Itoa(report.From), "format", target))
 	}
+}
+
+// renderRawLineMigration prints the raw-line migration's account: a count of
+// the lines it rewrote or would rewrite, one line per key naming the anchor
+// it stands on, and then the one line the format stamp answers with, on the
+// shape renderAppliesWhenMigration draws. The count is spelled apart for the
+// preview, because a preview writes nothing and the same sentence under both
+// would tell an operator a write had happened. A store already at the format
+// prints the stamp's own line alone, since nothing was read.
+func (s *session) renderRawLineMigration(report *bench.RawLineMigration) {
+	target := strconv.Itoa(bench.RawLineFormat)
+	if report.From >= bench.RawLineFormat {
+		s.line(s.r.T("check.format-current", "format", strconv.Itoa(report.From)))
+		return
+	}
+	count := "check.raw-lines-rewritten"
+	if report.Preview {
+		count = "check.raw-lines-would-rewrite"
+	}
+	s.line(s.r.TN(count, len(report.Rewritten)))
+	for _, line := range report.Rewritten {
+		s.line(s.r.T("check.raw-line-rewriting", "key", line.Key, "path", line.Path))
+	}
+	if report.Stamped {
+		s.line(s.r.T("check.format-stamped", "format", target))
+		return
+	}
+	s.line(s.r.T("check.format-would-stamp", "from", strconv.Itoa(report.From), "format", target))
 }
 
 // renderDesignationMigration prints the designation conversion's own account,

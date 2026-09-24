@@ -176,6 +176,7 @@ func (s *session) request(name string, parsed *arguments) *verb.Request {
 
 		MigrateDesignations: parsed.has("migrate-designations"),
 		MigrateAppliesWhen:  parsed.has("migrate-applies-when"),
+		MigrateRawLines:     parsed.has("migrate-raw-lines"),
 		Rehearse:            parsed.has("rehearse"),
 		ForceClaims:         parsed.has("force-claims"),
 		Renumber:            parsed.has("renumber"),
@@ -1585,6 +1586,7 @@ var checkStarvedMarkers = []string{
 	"migrate-branches",
 	"migrate-newlines",
 	"migrate-applies-when",
+	"migrate-raw-lines",
 	"file-standing",
 	"renumber",
 }

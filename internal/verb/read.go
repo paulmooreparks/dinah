@@ -2781,6 +2781,10 @@ type CheckReport struct {
 	// applies_when migration made or previewed, absent from a request that
 	// did not ask for it.
 	MigratedAppliesWhen *bench.AppliesWhenMigration `json:"migrated_applies_when,omitempty"`
+	// MigratedRawLines is the account of the raw-line rewrite and the format
+	// stamp the migration made or previewed, absent from a request that did
+	// not ask for it.
+	MigratedRawLines *bench.RawLineMigration `json:"migrated_raw_lines,omitempty"`
 	// RenumberedCards are the identifiers of the cards that left a repair
 	// holding a number they did not arrive holding, whether the number
 	// migration renumbered a loser of a collision or the renumber repair
@@ -2973,6 +2977,16 @@ func (l *Library) Check(req *Request) (*CheckReport, error) {
 	if req != nil && req.MigrateAppliesWhen {
 		migrated, err := l.Bench.MigrateAppliesWhen(req.Confirm)
 		report.MigratedAppliesWhen = migrated
+		if err != nil {
+			return report, err
+		}
+	}
+	// The raw-line rewrite runs beside the applies_when stamp, on the same
+	// shape: without the confirmation it names what it would rewrite and
+	// writes nothing, and it reads no card.
+	if req != nil && req.MigrateRawLines {
+		migrated, err := l.Bench.MigrateRawLines(req.Confirm)
+		report.MigratedRawLines = migrated
 		if err != nil {
 			return report, err
 		}

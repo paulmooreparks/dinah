@@ -1981,7 +1981,7 @@ func TestCheckDeclaresItsRepairFlagsOnEverySurface(t *testing.T) {
 	if err != nil {
 		t.Fatalf("fixture: %v", err)
 	}
-	const line = "check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-columns] [--migrate-vocabulary] [--migrate-container] [--migrate-numbers] [--migrate-designations] [--rehearse] [--force-claims] [--migrate-branches] [--migrate-newlines] [--migrate-applies-when] [--file-standing] [--renumber] [--remint <dir>] [--migrate-workstreams] [--witness] [--yes] [--root <path>] [--max-depth <n>]"
+	const line = "check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-columns] [--migrate-vocabulary] [--migrate-container] [--migrate-numbers] [--migrate-designations] [--rehearse] [--force-claims] [--migrate-branches] [--migrate-newlines] [--migrate-applies-when] [--migrate-raw-lines] [--file-standing] [--renumber] [--remint <dir>] [--migrate-workstreams] [--witness] [--yes] [--root <path>] [--max-depth <n>]"
 	if !blockLists(string(fixture), line) {
 		t.Error("the ratified block's check line does not name every repair flag")
 	}
@@ -7371,7 +7371,7 @@ func TestTheFlagSetsTheParserAcceptsAreDerivedFromTheParameterTable(t *testing.T
 		"migrate-applies-when", "migrate-branches",
 		"migrate-columns",
 		"migrate-container", "migrate-designations", "migrate-newlines", "migrate-numbers",
-		"migrate-ordinals",
+		"migrate-ordinals", "migrate-raw-lines",
 		"migrate-slugs", "migrate-vocabulary", "migrate-workstreams",
 		"no-claim", "override", "quiet", "ready", "rehearse", "remove", "renumber", "replace",
 		"stdio", "trust-project-recipe",

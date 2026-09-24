@@ -6524,6 +6524,36 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "fdca0aeeb585eb88"
     },
+    "check.raw-line-quoted": {
+      "text": "पंक्ति {detail} में किसी सदस्य का JSON उद्धरण चिह्नों के भीतर है, जिसे पहले के किसी आयात ने लिखा और जिसे यह Dinah पाठ के रूप में पढ़ता है; `dinah check --migrate-raw-lines --yes` चलाएँ ताकि वह फिर से उस JSON के रूप में पढ़ी जाए",
+      "context": "A check finding: one line of a workbench or column anchor that an import below storage format 9 wrote for a member the renderer could not spell, which is the member's JSON object or array inside one pair of quotes. {detail} carries the key the line stands under, and the path beside the sentence names the anchor. The reader of the day parsed the text inside the quotes; this build reads a quoted scalar as text, so the member drifts in type on every later hop until the line is rewritten bare. The command line inside the sentence is the repair and stays as it is.",
+      "source": "f39699ccf0bae5e0"
+    },
+    "check.raw-line-rewriting": {
+      "text": "{path} पर {key}",
+      "context": "One line of the raw-line migration's report, printed under the count for each line the run rewrote or would rewrite. {key} is the frontmatter key the line stands under and {path} the anchor carrying it, both read off the store, so neither is translated.",
+      "source": "4ae9c8f040b13a12"
+    },
+    "check.raw-lines-rewritten.one": {
+      "text": "उद्धरण चिह्नों वाली {count} पंक्ति उसकी नंगी JSON वर्तनी में फिर से लिखी गई।",
+      "context": "The line the raw-line migration prints after a confirmed run, for exactly one line it rewrote.",
+      "source": "893d1bd065e21001"
+    },
+    "check.raw-lines-rewritten.other": {
+      "text": "उद्धरण चिह्नों वाली {count} पंक्तियाँ उनकी नंगी JSON वर्तनी में फिर से लिखी गईं।",
+      "context": "The line the raw-line migration prints after a confirmed run, for any count of rewritten lines other than one, including none.",
+      "source": "f0c20777cea9a040"
+    },
+    "check.raw-lines-would-rewrite.one": {
+      "text": "उद्धरण चिह्नों वाली {count} पंक्ति उसकी नंगी JSON वर्तनी में फिर से लिखी जाती; कुछ नहीं लिखा गया, क्योंकि इस चलन में कोई पुष्टि नहीं थी।",
+      "context": "The line the raw-line migration prints when it ran without the confirmation flag, for exactly one line it would rewrite.",
+      "source": "20e0db04f6fff443"
+    },
+    "check.raw-lines-would-rewrite.other": {
+      "text": "उद्धरण चिह्नों वाली {count} पंक्तियाँ उनकी नंगी JSON वर्तनी में फिर से लिखी जातीं; कुछ नहीं लिखा गया, क्योंकि इस चलन में कोई पुष्टि नहीं थी।",
+      "context": "The line the raw-line migration prints when it ran without the confirmation flag, for any count of lines it would rewrite other than one, including none.",
+      "source": "860b73e53983152a"
+    },
     "cmd.prime.summary": {
       "text": "एक सत्र शुरू करने के लिए जो चाहिए, एक ही पठन में",
       "context": "The one-line summary of the prime command, shown beside its syntax in the help block.",
@@ -7023,6 +7053,11 @@
       "text": "पथ",
       "context": "Heading over the recipe's directory in the listing dinah setup --list prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "2e532e19ed477a56"
+    },
+    "param.check.migrate-raw-lines.summary": {
+      "text": "पहले के किसी आयात द्वारा वर्कबेंच ऐंकर और कॉलम ऐंकरों पर उद्धरण चिह्नों में लिखी हर कच्ची पंक्ति को उस नंगी JSON वर्तनी में फिर से लिखता है जिसे हर Dinah उस JSON के रूप में पढ़ता है, और वर्कबेंच पर वह फ़ॉर्मैट अंकित करता है जो उद्धरण चिह्नों में लिखे स्केलर को पाठ घोषित करता है, किसी भी कम संख्या से; यह किसी नामांकन को नहीं बदलता, इसलिए फ़ॉर्मैट 7 से नीचे की वर्कबेंच पहले --migrate-designations चलाती है; --yes के बिना कुछ नहीं लिखा जाता",
+      "context": "The written meaning of the --migrate-raw-lines flag of check. It rewrites lines on the workbench anchor and the column anchors, reads no card, and without the confirmation flag it writes nothing at all.",
+      "source": "3202e8be6042329d"
     },
     "refusal.dinah.malformed-harness.setup": {
       "text": "{detail} कोई वैध रेसिपी नाम नहीं है, क्योंकि रेसिपी का नाम हार्नेस की तरह रखा जाता है, अक्षरों, अंकों और बीच में अकेले हाइफ़न वाले एक लोअरकेस खंड से",

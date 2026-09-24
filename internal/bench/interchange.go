@@ -102,6 +102,14 @@ func (b *Bench) Export() ([]byte, error) {
 	if tiers, declared := b.ExportTiers(); declared {
 		object[TiersKey] = tiers
 	}
+	// Both blocks still travel through the schema-free block reader, which
+	// reads a bare bracketed scalar as a flow sequence and a bare numeric
+	// one as a number, so a hand-written `meaning: [Draft] the title` or
+	// `title: 12` inside a declaration exports as the array or the number
+	// rather than as the text readDeclaredFields accepted; quoting the value
+	// in the anchor round-trips it. standing_items took the schema-aware
+	// route on dinah-593, and the fields export takes it on dinah-594, which
+	// is already working in declaredfields.go and carries the note.
 	if b.FM.Has(FieldsKey) {
 		object[FieldsKey] = blockValue(b.FM, FieldsKey)
 	}
@@ -174,6 +182,8 @@ func (b *Bench) exportColumn(column *Column) (map[string]json.RawMessage, error)
 	if column.Capacity > 0 {
 		element["capacity"] = mustMarshal(column.Capacity)
 	}
+	// The schema-free reading here has the bracketed-string limit the
+	// workbench's own fields arm names above, and dinah-594 carries it.
 	if column.FM.Has(FieldValuesKey) {
 		element[FieldValuesKey] = blockValue(column.FM, FieldValuesKey)
 	}

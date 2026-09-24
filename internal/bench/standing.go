@@ -174,11 +174,15 @@ func standingBlock(fm *Frontmatter) ([]standingEntry, []string) {
 // have made of it. A malformed entry travels as written, on the terms the
 // block reader carries it, so nothing the author declared is lost between
 // the source and the clone, and a dashed line has no JSON spelling and is
-// dropped as the block reader drops it.
+// dropped as the block reader drops it. A declared block with no entry, or
+// holding only dashed lines, is the empty object, which is the member's
+// shape with nothing in it, and it round-trips: the import writes it as the
+// bare line `standing_items: {}`, which the block reader reads as a block of
+// no entries.
 func standingItemsValue(fm *Frontmatter) json.RawMessage {
 	block, _ := standingBlock(fm)
 	if len(block) == 0 {
-		return mustMarshal("")
+		return json.RawMessage("{}")
 	}
 	entries := make([]jsonMember, 0, len(block))
 	for _, entry := range block {

@@ -96,8 +96,11 @@ const (
 // number says whether `dinah check --migrate-designations` has run. It moved
 // from 7 to 8 at dinah-590, which let a declaration stop applying to a card
 // and gave a level axis a mapping form, so the number says whether an older
-// build would misread the levels block.
-const StorageFormat = 8
+// build would misread the levels block. It moved from 8 to 9 at dinah-593,
+// which made a quoted frontmatter scalar read as text, so the number says
+// whether the raw JSON lines an earlier import wrote quoted have been
+// rewritten bare.
+const StorageFormat = 9
 
 // ContainerFormat is the storage format from which the containment rule binds.
 // A workbench declaring this number or a higher one is held to Contained; one
@@ -190,6 +193,24 @@ const DesignationFormat = 7
 // either under check.applies-when-below-format, and
 // `dinah check --migrate-applies-when --yes` stamps it.
 const AppliesWhenFormat = 8
+
+// RawLineFormat is the storage format from which a quoted scalar on a
+// workbench or column anchor is text, whatever its inner spelling. Below it,
+// the interchange reader parsed the text inside the quotes, so an import
+// that met a member the renderer could not spell wrote the member's JSON as
+// one quoted line and read it back as that JSON. From this format the
+// reader answers a quoted line as the string it spells, on the rule
+// scalarValue states, and the fallback writes its JSON bare, which every
+// build reads as the JSON. A store below this number may still carry the
+// quoted spelling, which this build would read as a string and keep a
+// string on every later hop; dinah check reports each such line under
+// check.raw-line-quoted, and `dinah check --migrate-raw-lines --yes`
+// rewrites each to the bare spelling and stamps the number.
+//
+// The number gates the finding and the migration and nothing else: the
+// reader rule holds at every format this build opens, since a line the
+// migration has rewritten reads the same under either rule.
+const RawLineFormat = 9
 
 // UndeclaredFormat is the format a workbench whose anchor declares no format
 // key is opened as carrying. Such a workbench predates the key itself, and

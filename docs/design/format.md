@@ -2656,6 +2656,52 @@ entry naming a key the workbench does not declare holds nothing and is
 reported under `check.required-field-undeclared`, because a key nothing can
 ever be written under would make the column unreachable.
 
+### Rewriting the quoted raw line
+
+An import writes a member of the interchange document that the block renderer
+cannot spell, such as a `levels` member whose axis is not an array of strings,
+as one raw JSON line under the member's key, and the export reads that line
+back as the JSON it carries, which is what keeps such a member whole across
+`init --from` and `export`. Below storage format 9 the import wrote that line
+through the scalar writer, which wrapped a value opening with a brace or a
+bracket in quotes, so the anchor carried `levels: "{\"severity\": ...}"`, and
+the reader of the day undid the quotes before it parsed, so the line still read
+as the object. Storage format 9 changed the reader: a quoted scalar is text,
+whatever its inner spelling, because quoting is the one way an author has of
+saying that `"12"` or `"[a, b]"` is a text and not a number or a sequence, and
+reading the quotes away turned a standing item's text into an array on its way
+through the interchange. Under the new rule the import writes the raw line bare
+and compact, `levels: {"severity":...}`, which every build reads as the JSON;
+but a line the old import wrote quoted now reads as a string, and the member
+stays a string on every later hop, which breaks CORE-JSON-7's preservation for
+a store the old import wrote.
+
+`dinah check` reports each such line under `check.raw-line-quoted` on a
+workbench declaring a format below 9, naming the anchor and the key, and
+`dinah check --migrate-raw-lines --yes` rewrites each one to the bare compact
+spelling and stamps the anchor `format: 9`. The rewrite is exact: the bare
+spelling reads as the same JSON under either rule, so what the old build
+exported for the member is what this build exports after the rewrite. A line
+qualifies when it is its key's only line, its scalar is wrapped in one pair of
+quotes, and the text inside the quotes is a JSON object or array; and only the
+keys the import writes through the fallback are read, which are `levels`,
+`tiers`, `fields`, `field_values` and every unrecognised key on the workbench
+anchor, and `field_values`, `standing_items` and every unrecognised key on a
+column anchor. A key the anchor reader answers as text, such as a title, is left
+as written. Without `--yes` the run names the lines and writes nothing. The
+lines are rewritten before the format is stamped, so a run that stops part way
+leaves the store below 9 with the rest still reported. The stamp is a floor,
+never a downgrade: a store already at 9 or above is neither read nor written,
+and a quoted line on such a store is text by declaration. The stamp converts no
+designation, so a store below format 7 runs `--migrate-designations` first.
+
+One retyping the migration leaves alone is meant. A hand-written quoted number,
+boolean or null, `count: "12"` say, exported as the number under the old reader
+and exports as the string under this one. The fallback never wrote such a line,
+since a JSON number or boolean is a scalar the renderer spells bare, so every
+such line was written by a person, and a person who quotes a scalar means text.
+That reading is the correction, and no migration rewrites it.
+
 ### Retiring the branch heading
 
 This project's own workbench carried a card's branch name in the card body,
@@ -3146,12 +3192,12 @@ run stopped between its anchor and them.
 The format carries two version numbers with two audiences, and they are
 never conflated:
 
-- **Storage format version.** `format: 8` in `workbench.md` frontmatter,
+- **Storage format version.** `format: 9` in `workbench.md` frontmatter,
   an integer governing the whole workbench directory. An implementation
   that opens a workbench with a higher number than it knows refuses loudly
   and names the version it wanted. This is Dinah's private business; the git
   precedent (`core.repositoryformatversion`, carried always, bumped
-  approximately once) is the model, and the number has moved seven times: from
+  approximately once) is the model, and the number has moved eight times: from
   1 to 2 when the rule that a workbench lives inside a `.dinah` container
   landed, from 2 to 3 when the card number left the card anchor for the
   registry, from 3 to 4 when the heading a card body carried its branch name
@@ -3159,11 +3205,14 @@ never conflated:
   actor became an object, from 5 to 6 when a checklist item's answer became a
   designated comment rather than a free-text note, from 6 to 7 when that
   answer came to be identified by the comment's own identifier rather than by
-  its position, and from 7 to 8 when a declaration could stop applying to a
-  card. Three of the seven are not private business: the mechanism behind
+  its position, from 7 to 8 when a declaration could stop applying to a
+  card, and from 8 to 9 when a quoted scalar on an anchor came to read as
+  text. Three of the eight are not private business: the mechanism behind
   each is one the profile states, and the profile moved with it. The seventh
   is private business of the plainest kind, since a build below 8 reads a
-  level axis in the mapping form as no axis at all.
+  level axis in the mapping form as no axis at all, and so is the eighth,
+  since a build below 9 parses the text inside a line's quotes and reads a
+  quoted JSON object as the object.
 - **Profile version.** The contract's public promise, with the channel and
   increment rules recorded with the contract-profile work. `format:` is an
   integer read by exactly one implementation, this one, and it carries no

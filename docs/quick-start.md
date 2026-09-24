@@ -92,7 +92,7 @@ The leading `$` marks a command line. Do not type it.
 $ dinah version
 dinah 0.1.0
 conforms to dinah-core/0.18
-storage format 8
+storage format 9
 [exit 0]
 ```
 
@@ -339,7 +339,7 @@ transcript:
 
 ```file path=<workbench>/workbench.md
 ---
-format: 8
+format: 9
 profile: dinah-core/0.18
 title: Release 0.2
 slug: rel
@@ -1322,19 +1322,19 @@ carries, ask:
 $ dinah version --catalogs
 dinah 0.1.0
 conforms to dinah-core/0.18
-storage format 8
+storage format 9
 
 Catalogs:
   Language  Translated
   --------  ----------
-  en        1405/1405
-  af        0/1405
-  cs        0/1405
-  de        1405/1405
-  es        0/1405
-  fil       0/1405
-  hi        1405/1405
-  id        0/1405
+  en        1412/1412
+  af        0/1412
+  cs        0/1412
+  de        1412/1412
+  es        0/1412
+  fil       0/1412
+  hi        1412/1412
+  id        0/1412
 [exit 0]
 ```
 

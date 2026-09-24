@@ -352,6 +352,17 @@ const (
 	// format number, and the repair is
 	// `dinah check --migrate-applies-when --yes`.
 	FindingAppliesWhenBelowFormat = "check.applies-when-below-format"
+	// FindingRawLineQuoted names one line of a workbench or column anchor
+	// that an import below RawLineFormat wrote for a member the renderer
+	// could not spell: the member's JSON object or array inside one pair of
+	// quotes. The reader of that day parsed the text inside the quotes and
+	// answered the JSON; this build answers the string, on the rule
+	// scalarValue states, so the member's type drifts on every later hop.
+	// Path is the anchor carrying the line and Detail is the key, and the
+	// repair is `dinah check --migrate-raw-lines --yes`. A store at or past
+	// RawLineFormat is never reported, because there a quoted line is text
+	// by declaration.
+	FindingRawLineQuoted = "check.raw-line-quoted"
 	// NoticeRequiredFieldConditioned names a column whose require_fields
 	// names a key carrying a usable condition, so a card the condition
 	// excludes can enter only by the operator's override. Path is the
@@ -571,6 +582,7 @@ func (b *Bench) Check() ([]Finding, error) {
 	}
 	findings = append(findings, b.checkFieldDeclarations()...)
 	findings = append(findings, b.checkConditions()...)
+	findings = append(findings, b.checkRawLines()...)
 	newlineFindings, err := b.checkStoredNewlines()
 	if err != nil {
 		return findings, err

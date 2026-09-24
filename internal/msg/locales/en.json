@@ -5205,6 +5205,30 @@
       "text": "an owner is resolvable",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
+    "check.raw-line-quoted": {
+      "text": "the line {detail} carries a member's JSON inside quotes, written by an earlier import and read by this Dinah as text; run `dinah check --migrate-raw-lines --yes` so that it reads as the JSON again",
+      "context": "A check finding: one line of a workbench or column anchor that an import below storage format 9 wrote for a member the renderer could not spell, which is the member's JSON object or array inside one pair of quotes. {detail} carries the key the line stands under, and the path beside the sentence names the anchor. The reader of the day parsed the text inside the quotes; this build reads a quoted scalar as text, so the member drifts in type on every later hop until the line is rewritten bare. The command line inside the sentence is the repair and stays as it is."
+    },
+    "check.raw-line-rewriting": {
+      "text": "{key} on {path}",
+      "context": "One line of the raw-line migration's report, printed under the count for each line the run rewrote or would rewrite. {key} is the frontmatter key the line stands under and {path} the anchor carrying it, both read off the store, so neither is translated."
+    },
+    "check.raw-lines-rewritten.one": {
+      "text": "Rewrote {count} quoted line to its bare JSON spelling.",
+      "context": "The line the raw-line migration prints after a confirmed run, for exactly one line it rewrote."
+    },
+    "check.raw-lines-rewritten.other": {
+      "text": "Rewrote {count} quoted lines to their bare JSON spelling.",
+      "context": "The line the raw-line migration prints after a confirmed run, for any count of rewritten lines other than one, including none."
+    },
+    "check.raw-lines-would-rewrite.one": {
+      "text": "Would rewrite {count} quoted line to its bare JSON spelling; nothing was written, because this run carried no confirmation.",
+      "context": "The line the raw-line migration prints when it ran without the confirmation flag, for exactly one line it would rewrite."
+    },
+    "check.raw-lines-would-rewrite.other": {
+      "text": "Would rewrite {count} quoted lines to their bare JSON spelling; nothing was written, because this run carried no confirmation.",
+      "context": "The line the raw-line migration prints when it ran without the confirmation flag, for any count of lines it would rewrite other than one, including none."
+    },
     "cmd.prime.summary": {
       "text": "What a session needs to start, in one read",
       "context": "The one-line summary of the prime command, shown beside its syntax in the help block."
@@ -5604,6 +5628,10 @@
     "column.setup-list.path": {
       "text": "Path",
       "context": "Heading over the recipe's directory in the listing dinah setup --list prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "param.check.migrate-raw-lines.summary": {
+      "text": "rewrites every quoted raw line an earlier import wrote on the workbench and column anchors to the bare JSON spelling every Dinah reads as the JSON, and stamps the workbench with the format that declares a quoted scalar text, from any lower number; it converts no designation, so a workbench below format 7 runs --migrate-designations first; without --yes it writes nothing",
+      "context": "The written meaning of the --migrate-raw-lines flag of check. It rewrites lines on the workbench anchor and the column anchors, reads no card, and without the confirmation flag it writes nothing at all."
     },
     "refusal.dinah.malformed-harness.setup": {
       "text": "{detail} is not a legal recipe name, because a recipe is named like a harness, with one lowercase segment of letters, digits and single interior hyphens",
