@@ -644,6 +644,7 @@ func TestCompletionScriptFish(t *testing.T) {
 // TabExpansion2, and prints each match with the state the script had to
 // restore.
 const powershellHarness = `$ErrorActionPreference = 'Stop'
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 Write-Output ("powershell {0}" -f $PSVersionTable.PSVersion)
 LOAD
 function T([string]$name, [string]$line) {
@@ -672,7 +673,9 @@ func runPowerShell(t *testing.T, edition, load string, run scriptRun, calls [][2
 		fmt.Fprintf(&script, "T '%s' '%s'\n", call[0], strings.ReplaceAll(call[1], "'", "''"))
 	}
 	path := filepath.Join(t.TempDir(), "harness.ps1")
-	if err := os.WriteFile(path, []byte(script.String()), 0o644); err != nil {
+	// The byte-order mark is what makes Windows PowerShell 5.1 read the
+	// harness as UTF-8, which the accented lines need.
+	if err := os.WriteFile(path, []byte("\ufeff"+script.String()), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	args := []string{"-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", path}
@@ -699,7 +702,15 @@ func TestCompletionScriptPowerShell(t *testing.T) {
 				{"files", "dinah attach fx-1 al"},
 				{"dirs", "dinah init be"},
 				{"quote", `dinah --actor 'a"b' show fx-3`},
+				{"accent", "dinah query card.kind:café,th"},
 			})
+			accent := cases["accent"]
+			if got := lines(accent, "line "); strings.Join(got, "|") != "dinah query card.kind:café,thé|dinah query card.kind:café,théâtre" {
+				t.Errorf("accent: the completed lines read %q", got)
+			}
+			if index := lines(accent, "index "); len(index) != 1 || index[0] != "27 2" {
+				t.Errorf("accent: the replacement starts at %q, wanted 27 2, the start of th", index)
+			}
 			expect := map[string][2]string{
 				"comma":  {"match test\ttest\tParameterValue", "line dinah query column:spec,test"},
 				"fields": {"match body\tbody\tParameterValue", "line dinah show x --fields card,body"},

@@ -151,8 +151,10 @@ type completionCall struct {
 
 // completeWords is the object the PowerShell script hands over.
 type completeWords struct {
-	// Words are the prior words followed by the current one.
-	Words *[]string `json:"words"`
+	// Words are the prior words followed by the current one. Each element
+	// is a pointer so that a null element reads as nil and is refused, where
+	// a plain string would read it as an empty word.
+	Words *[]*string `json:"words"`
 	// Replacing is PowerShell's own word to complete, which is the part of
 	// the current word a completion result replaces.
 	Replacing *string `json:"replacing"`
@@ -208,7 +210,13 @@ func readPowerShellWords(call *completionCall) (*completionCall, bool) {
 	if decoder.More() || handed.Words == nil || handed.Replacing == nil || len(*handed.Words) == 0 {
 		return nil, false
 	}
-	words := *handed.Words
+	words := make([]string, 0, len(*handed.Words))
+	for _, word := range *handed.Words {
+		if word == nil {
+			return nil, false
+		}
+		words = append(words, *word)
+	}
 	call.prior = words[:len(words)-1]
 	call.current = words[len(words)-1]
 	replacing := *handed.Replacing

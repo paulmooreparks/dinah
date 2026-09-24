@@ -54,7 +54,7 @@ func completionBench(t *testing.T) string {
 	editWorkbenchAnchor(t, anchor, "  severity: [trivial, minor, major]\n",
 		"  severity:\n    - trivial\n    - minor: Something small is off.\n    - very high\n    - \"quoted\"level\n    - major\n")
 	editWorkbenchAnchor(t, anchor, "routes:\n",
-		"fields:\n  card.kind:\n    type: string\n    meaning: what kind of work this card is\n    values: [bug, \"big feature\", chore]\nroutes:\n")
+		"fields:\n  card.kind:\n    type: string\n    meaning: what kind of work this card is\n    values: [bug, \"big feature\", chore, café, thé, théâtre]\nroutes:\n")
 	for _, title := range []string{"First card", "Second card", quotedTitle, strings.Repeat("A long title ", 8)} {
 		if got := runCLI(t, root, "add", title); got.code != 0 {
 			t.Fatalf("add %q: %d %s", title, got.code, got.errw)
@@ -272,7 +272,7 @@ func TestTheCallbackIsHidden(t *testing.T) {
 			t.Errorf("__complete %q: exit %d, stdout %q, stderr %q", args, got.code, got.out, got.errw)
 		}
 	}
-	for _, value := range []string{"", `[]`, `{"words":[],"replacing":""}`, `{"words":["a",1],"replacing":""}`, `{"words":["a"]}`, `{"words":["a"],"replacing":"","extra":1}`, `{"words":"a","replacing":""}`, `not json`} {
+	for _, value := range []string{"", `[]`, `{"words":[],"replacing":""}`, `{"words":["a",1],"replacing":""}`, `{"words":["a"]}`, `{"words":["a"],"replacing":"","extra":1}`, `{"words":["show",null],"replacing":""}`, `{"words":"a","replacing":""}`, `not json`} {
 		t.Setenv(completeWordsVariable, value)
 		if value == "" {
 			os.Unsetenv(completeWordsVariable)
@@ -753,12 +753,12 @@ func TestQueryTermsComplete(t *testing.T) {
 		"priority:":   "priority:later priority:now",
 		"workstream:": "workstream:release",
 		"route:":      "route:short",
-		"card.kind:":  "card.kind:bug card.kind:chore",
+		"card.kind:":  "card.kind:bug card.kind:chore card.kind:café card.kind:thé card.kind:théâtre",
 		"holder:":     "",
 		"actor:":      "",
 		"block_kind:": "",
-		// The != operator is offered nothing, because ! is outside the
-		// safe set: bash reads it as history expansion on an unquoted word.
+		// The != operator is offered nothing, because section 4.3's list of
+		// safe characters leaves ! out, so no candidate carrying it is written.
 		"state!=": "",
 	}
 	for term, want := range values {
@@ -784,8 +784,8 @@ func TestOnlySafeWordsAreOffered(t *testing.T) {
 		t.Errorf("severity offered %q, wanted the three levels needing no quoting", levels.inserts)
 	}
 	kinds := zsh(t, root, "query", "card.kind:")
-	if strings.Join(kinds.inserts, " ") != "card.kind:bug card.kind:chore" {
-		t.Errorf("card.kind offered %q, wanted the two values needing no quoting", kinds.inserts)
+	if strings.Join(kinds.inserts, " ") != "card.kind:bug card.kind:chore card.kind:café card.kind:thé card.kind:théâtre" {
+		t.Errorf("card.kind offered %q, wanted the five values needing no quoting", kinds.inserts)
 	}
 	swept := 0
 	for _, words := range completerLines() {
@@ -864,6 +864,18 @@ func TestAPowerShellWordThatDoesNotEndWithTheReplacementCompletesNothing(t *test
 	t.Setenv(completeWordsVariable, `{"words":["query","\"column:spec,te"],"replacing":"\"column:spec,te"}`)
 	if got := callBack(t, root, "powershell"); len(got.inserts) != 0 {
 		t.Errorf("a quoted current word completed %q", got.inserts)
+	}
+	// Two-byte letters ahead of the point PowerShell replaces from are where
+	// a count in characters and a count in bytes disagree.
+	accented := map[string]string{
+		`{"words":["query","card.kind:café,th"],"replacing":"th"}`:      "thé théâtre",
+		`{"words":["query","card.kind:théâtre,caf"],"replacing":"caf"}`: "café",
+	}
+	for words, want := range accented {
+		t.Setenv(completeWordsVariable, words)
+		if got := callBack(t, root, "powershell"); strings.Join(got.inserts, " ") != want {
+			t.Errorf("%s inserted %q, wanted %q", words, got.inserts, want)
+		}
 	}
 }
 

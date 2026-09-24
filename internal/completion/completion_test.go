@@ -37,6 +37,7 @@ func TestSplitBashReadsTheLineTheWayReadlineDoes(t *testing.T) {
 		{`dinah query a\:b`, []string{"query"}, "a:b", 0},
 		{`dinah query "column:sp`, []string{"query"}, "column:sp", 0},
 		{`dinah query x"y\"z"w`, []string{"query"}, `xy"zw`, 0},
+		{"dinah query caf\u00e9=th", []string{"query"}, "caf\u00e9=th", 6},
 	}
 	for _, c := range cases {
 		words, current, replaceFrom, found := SplitBash(c.line, bashBreaks)
@@ -108,6 +109,14 @@ func TestWriteTrimsWhatTheShellKeeps(t *testing.T) {
 	want := "dinah-complete 1 words\ntest\tTest column\ndone\t\n"
 	if out.String() != want {
 		t.Errorf("got %q, wanted %q", out.String(), want)
+	}
+	out.Reset()
+	accented := []Candidate{{Word: "card.kind:café,thé"}, {Word: "card.kind:café,théâtre"}}
+	if err := Write(&out, ModeWords, accented, len("card.kind:café,"), false); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "dinah-complete 1 words\nthé\t\nthéâtre\t\n" {
+		t.Errorf("an offset past two-byte letters inserted %q", out.String())
 	}
 	out.Reset()
 	if err := Write(&out, ModeNospace, candidates[:1], 0, false); err != nil {

@@ -25,27 +25,9 @@ import (
 // processes reaching the same card therefore cannot both see it ready, since
 // the second is refused the lock outright.
 func (l *Library) Do(req *Request) *Response {
-	if l.Bench.Operator == "" {
-		return l.refuse(req, nil, contract.NoOperator, "")
-	}
-	if refused := l.malformedHarness(req, nil); refused != nil {
+	found, refused := l.admit(req)
+	if refused != nil {
 		return refused
-	}
-	found, err := l.Bench.ResolveCard(req.Card)
-	if err != nil {
-		return l.FromError(req, err)
-	}
-	// The request names an owner, checked here rather than only inside each
-	// verb's own function below, because canClaim, canRoute, release, block,
-	// unblock, join and leave all run after the lock is acquired and after
-	// WitnessDivergence has already had the chance to write a journal line
-	// under an unnamed actor. This is the order every one of those functions'
-	// own check already keeps: card exists, then owner named. The per-verb
-	// checks stay; pull calls canRoute/canLand directly, on its own
-	// transaction, without going through Do at all, so those checks remain
-	// load-bearing for that caller.
-	if req.Actor == "" {
-		return l.refuse(req, nil, contract.NoOwner, "")
 	}
 	lock, err := bench.Acquire(found.Card.Dir, req.Actor, bench.Stamp(l.Now()))
 	if err != nil {
@@ -85,6 +67,38 @@ func (l *Library) Do(req *Request) *Response {
 		response.WarningDetail = found.StalePrefix
 	}
 	return response
+}
+
+// admit runs the rows Do runs before it takes the card's lock, in Do's order:
+// the workbench has an operator, the declared harness is well formed, the
+// card resolves, and the request names an owner. It answers the card the
+// reference found, or the refusal of the first row that fails. Do and
+// MoveDestinations both call it, so a row added here reaches a real act and
+// the completion of a move alike.
+//
+// The owner row sits here rather than only inside each verb's own function,
+// because canClaim, canRoute, release, block, unblock, join and leave all run
+// after the lock is acquired and after WitnessDivergence has already had the
+// chance to write a journal line under an unnamed actor. This is the order
+// every one of those functions' own check already keeps: card exists, then
+// owner named. The per-verb checks stay; pull calls canRoute/canLand
+// directly, on its own transaction, without going through Do at all, so those
+// checks remain load-bearing for that caller.
+func (l *Library) admit(req *Request) (*bench.Resolved, *Response) {
+	if l.Bench.Operator == "" {
+		return nil, l.refuse(req, nil, contract.NoOperator, "")
+	}
+	if refused := l.malformedHarness(req, nil); refused != nil {
+		return nil, refused
+	}
+	found, err := l.Bench.ResolveCard(req.Card)
+	if err != nil {
+		return nil, l.FromError(req, err)
+	}
+	if req.Actor == "" {
+		return nil, l.refuse(req, nil, contract.NoOwner, "")
+	}
+	return found, nil
 }
 
 // evaluate applies one verb's own precondition list and, where every check is
@@ -678,23 +692,24 @@ func titleOf(column *bench.Column) string {
 // A request carrying an occupancy answers from it, which is how
 // MoveDestinations asks the question of every destination while reading the
 // cards once. Every other request carries none, and the count is taken here.
-// The comparison against the declared capacity is written once, below, for
-// both routes.
+// Either way the count is compared against the declared capacity once, on
+// the last line.
 func (l *Library) atCapacity(req *Request, column *bench.Column) (bool, error) {
 	if column.Capacity <= 0 {
 		return false, nil
 	}
-	if req != nil && req.occupancy != nil {
-		return req.occupancy[column.ID] >= column.Capacity, nil
-	}
-	cards, err := l.Bench.Cards()
-	if err != nil {
-		return false, err
-	}
 	count := 0
-	for _, card := range cards {
-		if card.Column == column.ID {
-			count++
+	if req != nil && req.occupancy != nil {
+		count = req.occupancy[column.ID]
+	} else {
+		cards, err := l.Bench.Cards()
+		if err != nil {
+			return false, err
+		}
+		for _, card := range cards {
+			if card.Column == column.ID {
+				count++
+			}
 		}
 	}
 	return count >= column.Capacity, nil

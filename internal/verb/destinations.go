@@ -5,31 +5,28 @@ package verb
 // It takes no lock, writes nothing, lapses no claim on disk and witnesses no
 // divergence. Wherever Do would refuse every move, it answers nothing.
 //
-// It runs Do's own rows in Do's own order up to the card's lock: the
-// workbench has an operator, the declared harness is well formed, the card
-// resolves, and the request names an owner. Those are the rows Do runs before
-// canMove that depend on neither the card's state nor the destination, and
-// each of them refuses every move alike, so any of them firing answers
-// nothing. A claim that has lapsed is cleared on the card in memory, as lapse
-// would clear it on disk, and then each row is put to canMove itself, so the
-// offered set cannot drift from the checks a real move makes.
+// It calls the two functions a real move is refused by. admit runs the rows
+// Do runs before the card's lock, and any of them refusing refuses every
+// destination alike, so it answers nothing. canMove runs every row the move
+// itself runs, once for each destination. Between the two, Do lapses an
+// expired claim, which this clears on the card in memory rather than on disk,
+// and witnesses a divergence, which refuses nothing. Leaving aside a read or
+// write that fails and a stale basis, which a completion never carries, a
+// move is refused on no row this filter does not run.
+// TestNoMoveRefusalIsRaisedOutsideTheSharedChecks keeps it that way, by
+// failing when Do or move raises a refusal anywhere but through those two.
 //
 // A capacity question is asked of every row at once. When any destination
 // declares a capacity, the live cards' headers are read once and counted per
 // column, and every row's canMove reads that count rather than reading every
-// card again for each destination.
+// card again for each destination. The count parts company with the real
+// move's in one case, and the specification prescribes it. A card whose
+// header will not read is skipped here, while Bench.Cards fails the whole
+// move on it, so on a damaged workbench a destination with a capacity can be
+// offered that the move then refuses with an error.
 func (l *Library) MoveDestinations(req *Request) ([]LegalMove, error) {
-	if l.Bench.Operator == "" {
-		return nil, nil
-	}
-	if refused := l.malformedHarness(req, nil); refused != nil {
-		return nil, nil
-	}
-	found, err := l.Bench.ResolveCard(req.Card)
-	if err != nil {
-		return nil, err
-	}
-	if req.Actor == "" {
+	found, refused := l.admit(req)
+	if refused != nil {
 		return nil, nil
 	}
 	card := found.Card
