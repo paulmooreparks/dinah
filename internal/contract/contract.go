@@ -432,6 +432,14 @@ const (
 	// over the column's own stored default as well, since a default naming
 	// no declared member is the same defect arriving from the other side.
 	UnknownLevel = LayerPrefix + "unknown-level"
+	// InapplicableField is a write of a non-empty value to a level axis or a
+	// declared field whose applies_when condition does not admit the card.
+	// It is separate from UndeclaredField because the slot is declared, and
+	// from Malformed because the value may be a perfectly good one: what is
+	// wrong is that the question is not asked of this card. The refusal
+	// runs after the value checks, so a malformed value is still refused for
+	// being malformed, and a clearing write never meets it.
+	InapplicableField = LayerPrefix + "inapplicable-field"
 	// NoTierDefault is a relative tier write, +N or -N, against a column
 	// carrying no tier default of its own. It is separate from NoLevels
 	// because the workbench's set is declared and the column is what says
@@ -657,6 +665,13 @@ const (
 	// citation, on a workbench that declares an evidence block. It is the
 	// write-time enforcement of the citation obligation the format states.
 	Uncited = LayerPrefix + "uncited"
+	// EvidenceSchemeRequired is an item carrying an evidence key asked to
+	// leave pending by resolve, verify or fail while no citation of the item
+	// names that scheme. It runs after Uncited, which asks whether any
+	// citation exists, and asks whether one of them is the right one. The
+	// detail is the scheme and the item's reference rides as a value, so
+	// the sentence can say which item to settle with which citation.
+	EvidenceSchemeRequired = LayerPrefix + "evidence-scheme-required"
 	// ObservationRequired is a citation naming a scheme whose declaration
 	// carries observed: required, written with no observation. Such a
 	// citation is one no terminal verb could ever legally close against, and
@@ -791,12 +806,13 @@ var Introduced = []string{
 	UnknownRoot, OutsideRoot, UnknownToolProfile, ConflictingScope, DepthWithoutRoot, MalformedDepth,
 	AmbiguousName, NotRenamable, NotAttachable, NotCommentable, IsACollection, NotArchived,
 	AmbiguousCard, AmbiguousColumn, NoUpstream, AwaitingOutside, TakesNoWork,
-	NoLevels, UnknownLevel, UnknownFormat,
+	NoLevels, UnknownLevel, UnknownFormat, InapplicableField,
 	NoTierDefault, TierOutOfRange, BelowTier, TierNotHigher,
 	UnlistedModel, UndeclaredModel, MalformedHarness, MalformedMemberName,
 	ReshapeNeedsDestination, ReshapeHeldCardInQueue, ReshapeMapSourceEmpty,
 	ReshapeDestinationRetiring, ReshapeDestinationAmbiguous,
 	UnknownItemKind, UnknownItemState, WrongItemKind, NotPending, NotResolved, Uncited,
+	EvidenceSchemeRequired,
 	NotWaivable, AlreadyWithdrawn, GrantExcludesFinding, NoGrant, DesignationRequired,
 	WorkbenchInUse,
 	UnresolvedItemExit,

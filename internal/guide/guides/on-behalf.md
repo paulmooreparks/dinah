@@ -88,8 +88,11 @@ Where the sentence goes depends on what the act touches, and it goes there
 before the act.
 
 - `resolve`, `verify`, and `fail` take it as their note.
-- An act on a card, which is `unblock`, `claim`, or `move`, takes it as a
-  comment on the card, posted with `dinah comment <card>` under your own name.
+- `unblock` takes it as its reason, and Dinah writes it as a comment on the
+  card under the operator's name beside the act, so the sentence goes on the
+  command rather than in a separate comment.
+- `claim` and `move` take it as a comment on the card, posted with
+  `dinah comment <card>` under your own name.
 - An act on a checklist item that takes no note, such as changing its owner or
   deleting the comment that answers it, takes it as a comment on the item.
 - An act on a column that leaves the column standing, such as changing one of

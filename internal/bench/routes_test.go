@@ -438,14 +438,14 @@ func TestRoutesTravelThroughInterchangeUntouched(t *testing.T) {
 // further, and a workbench declaring routes opens on a build stamped with the
 // current number with no migration, repair or finding about its format.
 //
-// The number it names is the one dinah-472 moved it to for a reason of its
-// own, which is an item's answer ceasing to be a position. That is what the
-// pin below reads: this case asserts that routes moved it no further, so the
-// pin travels with every later move rather than asserting a number routes
-// never had anything to do with.
+// The number it names is the one dinah-593 moved it to for a reason of its
+// own, which is a quoted scalar on an anchor coming to read as text. That is
+// what the pin below reads: this case asserts that routes moved it no
+// further, so the pin travels with every later move rather than asserting a
+// number routes never had anything to do with.
 func TestTheStorageFormatDoesNotMoveForRoutes(t *testing.T) {
-	if StorageFormat != DesignationFormat {
-		t.Fatalf("the storage format is %d, and routes are additive and optional, so it does not move past the %d dinah-472 left it at", StorageFormat, DesignationFormat)
+	if StorageFormat != RawLineFormat {
+		t.Fatalf("the storage format is %d, and routes are additive and optional, so it does not move past the %d dinah-593 left it at", StorageFormat, RawLineFormat)
 	}
 	// The route drops Review, whose reject_to names Doing, and carries Doing,
 	// which declares none, so no finding of any kind is owed.

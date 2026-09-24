@@ -421,6 +421,11 @@
 			"context": "History row for an unblock. {actor} is who lifted the block.",
 			"skeleton": true
 		},
+		"history.event.unblocked.reason": {
+			"text": "{actor} unblocked the card: {reason}",
+			"context": "History row for an unblock that carried a reason. {reason} is the prose the operator gave for lifting the block.",
+			"skeleton": true
+		},
 		"history.event.expired": {
 			"text": "{actor}'s claim on the card expired.",
 			"context": "History row for a claim that lapsed. {actor} is the holder whose claim ran out.",
@@ -644,6 +649,16 @@
 		"dialog.block.reasonPrompt.many": {
 			"text": "Why are these {count} cards blocked?",
 			"context": "Prompt of the input box Block raises over several selected cards, whose one answer is recorded against each of them. {count} is how many rows resolved to a card. It is never one here, because one card reaches dialog.block.reasonPrompt instead, so the plural is plain rather than the (s) form.",
+			"skeleton": true
+		},
+		"dialog.unblock.reasonPrompt": {
+			"text": "Why is the block lifted? Leave this empty to lift it without saying why.",
+			"context": "Prompt of the input box Unblock raises before it runs dinah unblock. Empty is a legal answer and lifts the block with no reason; Escape cancels.",
+			"skeleton": true
+		},
+		"dialog.unblock.reasonPrompt.many": {
+			"text": "Why are the blocks on these {count} cards lifted? Leave this empty to lift them without saying why.",
+			"context": "Prompt of the input box Unblock raises over several selected cards, whose one answer is recorded against each of them. {count} is how many rows resolved to a card and is never one, because one card reaches dialog.unblock.reasonPrompt instead.",
 			"skeleton": true
 		},
 		"dialog.card.copiedRef.many": {

@@ -141,11 +141,13 @@ type Event struct {
 	// conversion, whose report names the same cards, so a reader afterwards
 	// can name each claim the operator judged dead.
 	Cards []string `json:"cards,omitempty"`
-	// Reason is a block's prose reason, or the reason a raise gave for
-	// requiring more of a card than it required a moment ago. Only block and
-	// raise populate it: an ordinary per-column tier write carries none, and
-	// a reader meeting a tier_overridden line with no reason is meeting one
-	// of those rather than a raise that omitted it.
+	// Reason is a block's prose reason, the reason an unblock gave for
+	// lifting one, or the reason a raise gave for requiring more of a card
+	// than it required a moment ago. Block, unblock and raise populate it:
+	// block always, unblock only when the lift said why, and an ordinary
+	// per-column tier write carries none, so a reader meeting a
+	// tier_overridden line with no reason is meeting one of those rather
+	// than a raise that omitted it.
 	Reason string `json:"reason,omitempty"`
 	// Kind is a block's optional class of obstacle.
 	Kind string `json:"kind,omitempty"`
@@ -192,6 +194,14 @@ type Event struct {
 	// so the item's own text and note are read from its anchor rather than
 	// copied into history.
 	Item string `json:"item,omitempty"`
+	// Standing is the key of the standing entry a declaration filed an item
+	// from, carried by an item_filed line an arrival at a declaring column
+	// wrote, beside Column and ColumnTitle naming the declaring column. The
+	// actor stays the arriving act's, because a column is not an actor and
+	// the format refuses a line with none; the three members say what
+	// decided the filing. A hand filing carries none of the three, and a
+	// reader that does not know them reads an ordinary filing.
+	Standing string `json:"standing,omitempty"`
 	// Scheme and Target are the citation an item_cited event recorded, as the
 	// caller typed them. Nothing here resolves either: a citation is taken at
 	// its word at write time, and dinah check is what tells a reader it was

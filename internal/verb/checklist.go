@@ -316,11 +316,36 @@ func (l *Library) closeItem(req *Request, event, state string) *Response {
 		if entity.item.Kind == criterionKind && l.Bench.EvidenceDeclared() && bench.CountCitations(entity.fm) == 0 {
 			return nil, l.refuse(req, entity.card, contract.Uncited, entity.ref)
 		}
+		// An item demanding a scheme is settled only against a citation
+		// naming it. The row reads the citation's scheme alone and nothing
+		// about its target, on the posture Cite takes toward a scheme it
+		// has never heard of, and it runs after the citation obligation
+		// above, which asks whether there is any citation at all before
+		// this one asks whether one of them is the right one. waive and
+		// withdraw do not land here and are untouched: neither claims the
+		// evidence exists.
+		if scheme := entity.fm.Value(bench.ItemEvidenceField); scheme != "" && !citesScheme(entity.fm, scheme) {
+			return nil, l.refuseWith(req, entity.card, contract.EvidenceSchemeRequired, scheme, map[string]string{
+				"item": entity.ref,
+			})
+		}
 		prior := entity.item.State
 		entity.fm.Set(bench.ItemStateField, state)
 		entity.fm.Set(bench.ItemResolutionField, resolution)
 		return &bench.Event{Actor: req.Acting(), Event: event, From: prior, To: state}, nil
 	})
+}
+
+// citesScheme reports whether at least one citation of an item names the
+// scheme the item demands, which is the whole of what the evidence demand
+// reads.
+func citesScheme(fm *bench.Frontmatter, scheme string) bool {
+	for _, cited := range bench.CitationSchemes(fm) {
+		if cited == scheme {
+			return true
+		}
+	}
+	return false
 }
 
 // Reopen returns a closed item to pending, for the case the card's own text

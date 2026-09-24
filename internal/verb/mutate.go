@@ -634,6 +634,13 @@ func (l *Library) move(req *Request, card *bench.Card) *Response {
 	if err != nil {
 		return l.FromError(req, err)
 	}
+	// The destination's standing items are minted after the moved line,
+	// under the lock this act already holds, and after every refusal above
+	// has passed, so a move an override carried in still mints and a
+	// refused move mints nothing.
+	if err := l.mintStandingItems(req, card, destination, ev.TS); err != nil {
+		return l.FromError(req, err)
+	}
 	response.Instructions, response.ChainServed, err = l.serve(req, card)
 	if err != nil {
 		return l.FromError(req, err)
@@ -747,16 +754,45 @@ func (l *Library) unblock(req *Request, card *bench.Card) *Response {
 	if card.State != contract.StateBlocked {
 		return l.refuse(req, card, contract.NotBlocked, card.State)
 	}
+	now := bench.Stamp(l.Now())
 	card.State = contract.StateReady
 	card.BlockReason = ""
 	card.BlockKind = ""
 	card.BlockSince = ""
 	ev := bench.Event{
-		TS:    bench.Stamp(l.Now()),
+		TS:    now,
 		Event: contract.EventUnblocked,
 		Actor: req.Acting(),
 	}
-	response, err := l.commit(req, card, ev)
+	// A reason is optional (CORE-UNBLOCK-5), and one that is given is written
+	// twice under the lock Do already holds: as a comment on the card, whose
+	// author is the actor of the lift, and as the reason of the unblocked
+	// line, which also names the comment. The trimmed text is what both
+	// stores carry, and whitespace alone is the bare lift. The four writes
+	// run in a fixed order, comment anchor, card anchor, commented line,
+	// unblocked line, and nothing makes them one transaction, so the order is
+	// what fixes which partial states an interruption can leave.
+	reason := strings.TrimSpace(req.Reason)
+	if reason == "" {
+		response, err := l.commit(req, card, ev)
+		if err != nil {
+			return l.FromError(req, err)
+		}
+		return response
+	}
+	comment, err := bench.AddComment(card.Dir, req.Actor, now, reason)
+	if err != nil {
+		return l.FromError(req, err)
+	}
+	commented := bench.Event{
+		TS:      now,
+		Event:   contract.EventCommented,
+		Actor:   req.Acting(),
+		Comment: comment.ID,
+	}
+	ev.Reason = reason
+	ev.Comment = comment.ID
+	response, err := l.commit(req, card, commented, ev)
 	if err != nil {
 		return l.FromError(req, err)
 	}

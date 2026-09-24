@@ -39,6 +39,11 @@ type DeclaredField struct {
 	// field admit every string as it does today. Only a `string`-typed field
 	// may carry one.
 	Values []string
+	// AppliesWhen is the usable condition the entry carries, and nil where it
+	// carries none or where the one it carries could not be used. A field
+	// carrying one applies to a card only where the card's stored value for
+	// the gate is one the condition admits.
+	AppliesWhen *Condition
 }
 
 // The frontmatter keys the declaration and the values are carried under. A
@@ -85,7 +90,8 @@ var FieldTypes = []string{
 // is the whole of the check.
 const FieldDateLayout = "2006-01-02"
 
-// The four members one declaration entry carries.
+// The four members one declaration entry carries, beside the applies_when
+// member applieswhen.go names.
 const (
 	fieldTypeMember    = "type"
 	fieldMeaningMember = "meaning"
@@ -292,6 +298,17 @@ var fieldBlockMember = regexp.MustCompile(`^( +)([^\s:][^:]*):(.*)$`)
 // rather than letting it pass into whatever `on` list happens to be open.
 var fieldBlockEntry = regexp.MustCompile(`^( *)-\s*(.*)$`)
 
+// fieldsBlock is what readDeclaredFields answers: the fields it declares in
+// declaration order, the keys of the entries it refused, the raw condition
+// each declared entry carried, and whether any entry carried one at all,
+// refused or not.
+type fieldsBlock struct {
+	declared   []DeclaredField
+	malformed  []string
+	conditions map[string]*rawCondition
+	metAny     bool
+}
+
 // readDeclaredFields reads the workbench's fields block, answering the fields
 // it declares in declaration order and the keys of the entries it refused.
 //
@@ -301,18 +318,23 @@ var fieldBlockEntry = regexp.MustCompile(`^( *)-\s*(.*)$`)
 // defects are refused and reported, and each leaves the entry undeclared: a
 // key the grammar refuses, a type absent or outside the five, and a meaning
 // absent or blank. A duplicate key keeps its first occurrence, which is the
-// rule addLevel already keeps for a repeated level name.
+// rule addLevel already keeps for a repeated level name. A condition that
+// cannot be used leaves the entry declared and is reported on its own, so a
+// damaged condition never undeclares a field.
 //
 // The block's own levels are told apart by indentation rather than by a second
 // pattern, because an entry key and a member name are the same shape of line
-// and only their depth separates them.
-func readDeclaredFields(fm *Frontmatter) ([]DeclaredField, []string) {
+// and only their depth separates them. A condition's own members stand one
+// level deeper than the entry's, beneath applies_when.
+func readDeclaredFields(fm *Frontmatter) fieldsBlock {
 	var entries []DeclaredField
 	var metOn []bool
 	var metValues []bool
-	var malformed []string
+	var conditions []*rawCondition
+	block := fieldsBlock{conditions: map[string]*rawCondition{}}
 	seen := map[string]bool{}
 	entryIndent := -1
+	memberIndent := -1
 	current := -1
 	member := ""
 	for _, line := range fm.Raw(FieldsKey) {
@@ -320,7 +342,8 @@ func readDeclaredFields(fm *Frontmatter) ([]DeclaredField, []string) {
 			continue
 		}
 		if m := fieldBlockEntry.FindStringSubmatch(line); m != nil {
-			if current >= 0 && (member == fieldOnMember || member == fieldValuesMember) && len(m[1]) > entryIndent {
+			switch {
+			case current >= 0 && (member == fieldOnMember || member == fieldValuesMember) && len(m[1]) > entryIndent:
 				if named := unquote(stripComment(m[2])); named != "" {
 					if member == fieldOnMember {
 						entries[current].On = append(entries[current].On, named)
@@ -328,7 +351,11 @@ func readDeclaredFields(fm *Frontmatter) ([]DeclaredField, []string) {
 						entries[current].Values = append(entries[current].Values, named)
 					}
 				}
-			} else {
+			case current >= 0 && member == appliesWhenMember && len(m[1]) > entryIndent && conditions[current] != nil:
+				// The dashed spelling of an is member is not read, so the
+				// condition is unreadable rather than the entry malformed.
+				conditions[current].unreadable = true
+			default:
 				// A dashed line is an entry of an `on` or `values` list and
 				// nothing else. Met anywhere else, or met at the depth an
 				// entry key stands at, it is reported rather than skipped:
@@ -336,7 +363,7 @@ func readDeclaredFields(fm *Frontmatter) ([]DeclaredField, []string) {
 				// leading hyphen reads as a dashed entry, and without this it
 				// would be swallowed into whichever list was open and named
 				// nowhere.
-				malformed = append(malformed, strings.TrimSpace(line))
+				block.malformed = append(block.malformed, strings.TrimSpace(line))
 			}
 			continue
 		}
@@ -349,7 +376,7 @@ func readDeclaredFields(fm *Frontmatter) ([]DeclaredField, []string) {
 			entryIndent = indent
 		}
 		if indent <= entryIndent {
-			member, current = "", -1
+			member, current, memberIndent = "", -1, -1
 			if name == "" || seen[name] {
 				continue
 			}
@@ -357,14 +384,24 @@ func readDeclaredFields(fm *Frontmatter) ([]DeclaredField, []string) {
 			entries = append(entries, DeclaredField{Key: name})
 			metOn = append(metOn, false)
 			metValues = append(metValues, false)
+			conditions = append(conditions, nil)
 			current = len(entries) - 1
 			continue
 		}
 		if current < 0 {
 			continue
 		}
-		member = name
+		if memberIndent < 0 {
+			memberIndent = indent
+		}
 		value := unquote(strings.TrimSpace(rest))
+		if indent > memberIndent {
+			if member == appliesWhenMember && conditions[current] != nil {
+				conditions[current].read(name, value)
+			}
+			continue
+		}
+		member = name
 		switch member {
 		case fieldTypeMember:
 			entries[current].Type = value
@@ -376,25 +413,33 @@ func readDeclaredFields(fm *Frontmatter) ([]DeclaredField, []string) {
 		case fieldValuesMember:
 			metValues[current] = true
 			entries[current].Values = append(entries[current].Values, flowMembers(value)...)
+		case appliesWhenMember:
+			// Anything after the colon is a value that is not one block
+			// mapping, which is the unreadable shape.
+			conditions[current] = &rawCondition{unreadable: value != ""}
+			block.metAny = true
 		}
 	}
-	declared := make([]DeclaredField, 0, len(entries))
+	block.declared = make([]DeclaredField, 0, len(entries))
 	for at, entry := range entries {
 		entry.EveryKind = !metOn[at]
 		if metValues[at] {
 			entry.Values = dedupeKeepFirst(entry.Values)
 		}
 		if !DeclaredFieldKey(entry.Key) || !KnownFieldType(entry.Type) || strings.TrimSpace(entry.Meaning) == "" {
-			malformed = append(malformed, entry.Key)
+			block.malformed = append(block.malformed, entry.Key)
 			continue
 		}
 		if metValues[at] && (entry.Type != FieldTypeString || len(entry.Values) == 0) {
-			malformed = append(malformed, entry.Key)
+			block.malformed = append(block.malformed, entry.Key)
 			continue
 		}
-		declared = append(declared, entry)
+		block.declared = append(block.declared, entry)
+		if conditions[at] != nil {
+			block.conditions[entry.Key] = conditions[at]
+		}
 	}
-	return declared, malformed
+	return block
 }
 
 // dedupeKeepFirst removes a repeated string from a list, keeping each value's
@@ -566,10 +611,15 @@ func RenderFieldsBlock(fields []DeclaredField) []string {
 		lines = append(lines, "  "+field.Key+":")
 		lines = append(lines, "    "+fieldTypeMember+": "+quote(field.Type))
 		lines = append(lines, "    "+fieldMeaningMember+": "+quote(field.Meaning))
-		if field.EveryKind {
+		if !field.EveryKind {
+			lines = append(lines, "    "+fieldOnMember+": ["+strings.Join(field.On, ", ")+"]")
+		}
+		if field.AppliesWhen == nil {
 			continue
 		}
-		lines = append(lines, "    "+fieldOnMember+": ["+strings.Join(field.On, ", ")+"]")
+		lines = append(lines, "    "+appliesWhenMember+":")
+		lines = append(lines, "      "+conditionFieldMember+": "+field.AppliesWhen.Field)
+		lines = append(lines, "      "+conditionIsMember+": ["+strings.Join(field.AppliesWhen.Is, ", ")+"]")
 	}
 	return lines
 }

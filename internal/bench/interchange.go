@@ -38,7 +38,8 @@ var knownBenchKeys = map[string]bool{
 var knownColumnKeys = map[string]bool{
 	"title": true, "kind": true, "operator_owned": true, "wip_limit": true,
 	"slug": true, "awaiting_outside": true, "gate_items": true,
-	FieldValuesKey: true, RequireFieldsKey: true, AttachmentsMember: true,
+	FieldValuesKey: true, RequireFieldsKey: true, StandingItemsKey: true,
+	AttachmentsMember: true,
 }
 
 // AttachmentsMember is the column element member carrying the column's live
@@ -101,6 +102,14 @@ func (b *Bench) Export() ([]byte, error) {
 	if tiers, declared := b.ExportTiers(); declared {
 		object[TiersKey] = tiers
 	}
+	// Both blocks still travel through the schema-free block reader, which
+	// reads a bare bracketed scalar as a flow sequence and a bare numeric
+	// one as a number, so a hand-written `meaning: [Draft] the title` or
+	// `title: 12` inside a declaration exports as the array or the number
+	// rather than as the text readDeclaredFields accepted; quoting the value
+	// in the anchor round-trips it. standing_items took the schema-aware
+	// route on dinah-593, and the fields export takes it on dinah-594, which
+	// is already working in declaredfields.go and carries the note.
 	if b.FM.Has(FieldsKey) {
 		object[FieldsKey] = blockValue(b.FM, FieldsKey)
 	}
@@ -173,11 +182,22 @@ func (b *Bench) exportColumn(column *Column) (map[string]json.RawMessage, error)
 	if column.Capacity > 0 {
 		element["capacity"] = mustMarshal(column.Capacity)
 	}
+	// The schema-free reading here has the bracketed-string limit the
+	// workbench's own fields arm names above, and dinah-594 carries it.
 	if column.FM.Has(FieldValuesKey) {
 		element[FieldValuesKey] = blockValue(column.FM, FieldValuesKey)
 	}
 	if len(column.RequireFields) > 0 {
 		element[RequireFieldsKey] = mustMarshal(column.RequireFields)
+	}
+	// CORE-JSON-14 blesses this member. It travels as the nested value the
+	// anchor already carries, read by the pass the declaration reader takes
+	// rather than by the schema-free block reader, so every member is the
+	// text the reader accepted, the declaration order the file carries
+	// survives the trip, and a second export of the import is byte-identical
+	// to the first.
+	if column.FM.Has(StandingItemsKey) {
+		element[StandingItemsKey] = standingItemsValue(column.FM)
 	}
 	attachments, err := exportAttachments(b.ColumnDir(column.ID))
 	if err != nil {
@@ -464,14 +484,14 @@ func Instantiate(root, slug, operator string, definition *Definition) error {
 		if lines, readable := renderLevelsMember(raw); readable {
 			fm.SetRaw(LevelsKey, lines)
 		} else {
-			fm.Set(LevelsKey, string(raw))
+			setRawJSON(fm, LevelsKey, raw)
 		}
 	}
 	if raw, ok := definition.Object[TiersKey]; ok {
 		if lines, readable := renderTiersMember(raw); readable {
 			fm.SetRaw(TiersKey, lines)
 		} else {
-			fm.Set(TiersKey, string(raw))
+			setRawJSON(fm, TiersKey, raw)
 		}
 	}
 	for _, member := range []string{FieldsKey, FieldValuesKey} {
@@ -601,6 +621,9 @@ func writeColumnFromMember(root, id, slug string, element map[string]json.RawMes
 			fm.SetSeq(RequireFieldsKey, required)
 		}
 	}
+	if raw, ok := element[StandingItemsKey]; ok {
+		writeMember(fm, StandingItemsKey, raw)
+	}
 	for _, member := range sortedMembers(element) {
 		if knownColumnKeys[member] || member == "id" || member == "capacity" || member == "instructions" {
 			continue
@@ -655,7 +678,23 @@ func writeMember(fm *Frontmatter, member string, raw json.RawMessage) {
 		fm.SetRaw(member, lines)
 		return
 	}
-	fm.Set(member, string(raw))
+	setRawJSON(fm, member, raw)
+}
+
+// setRawJSON writes one JSON value as the bare text of a key's own line, which
+// is the fallback every member the renderer refuses travels as. The line is
+// written bare rather than through Set, because Set quotes a value opening
+// with a brace or a bracket and a quoted scalar reads back as text, on the
+// rule scalarValue states; and it is compacted first, because the value keeps
+// the bytes the definition carried and a definition written by hand may
+// spread one value over several lines, which a frontmatter line cannot hold.
+func setRawJSON(fm *Frontmatter, key string, raw json.RawMessage) {
+	var compact bytes.Buffer
+	if err := json.Compact(&compact, raw); err != nil {
+		compact.Reset()
+		compact.WriteString(strings.TrimSpace(string(raw)))
+	}
+	fm.SetRaw(key, []string{key + ": " + compact.String()})
 }
 
 // Extract copies a bench's definition into a new directory and leaves the

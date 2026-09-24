@@ -92,7 +92,7 @@ The leading `$` marks a command line. Do not type it.
 $ dinah version
 dinah 0.1.0
 conforms to dinah-core/0.18
-storage format 7
+storage format 9
 [exit 0]
 ```
 
@@ -339,7 +339,7 @@ transcript:
 
 ```file path=<workbench>/workbench.md
 ---
-format: 7
+format: 9
 profile: dinah-core/0.18
 title: Release 0.2
 slug: rel
@@ -757,10 +757,14 @@ you hand the obstacle to whoever answers for the workbench:
 $ dinah unblock rel-2 --actor bo
 not-operator this action is the operator's, and you are bo; ask the operator to run it, or run `dinah whoami` to see who Dinah takes you to be
 [exit 2]
-$ dinah unblock rel-2
+$ dinah unblock rel-2 "The printer confirmed Tuesday delivery."
 rel-2  Draft the changelog  [Intake / ready]
 [exit 0]
 ```
+
+The reason is optional. When you give one, Dinah records it on the act and as
+a comment on the card, so whoever reads the card later finds the answer beside
+the block it lifted.
 
 Release a card as soon as you stop working it, and the queue will stay honest
 about what is available. You can also give a claim its own expiry. If your claim
@@ -1266,7 +1270,8 @@ $ dinah list intake --json
       "workstreams": [
         "e9e57645599c"
       ],
-      "revision": "sha256:433dfb7fa7a8a24d20c91ca5f9a3d9c50796139787358b7bbeaae9a35717db6c"
+      "revision": "sha256:433dfb7fa7a8a24d20c91ca5f9a3d9c50796139787358b7bbeaae9a35717db6c",
+      "child_count": 1
     }
   ]
 }
@@ -1322,19 +1327,19 @@ carries, ask:
 $ dinah version --catalogs
 dinah 0.1.0
 conforms to dinah-core/0.18
-storage format 7
+storage format 9
 
 Catalogs:
   Language  Translated
   --------  ----------
-  en        1369/1369
-  af        0/1369
-  cs        0/1369
-  de        1369/1369
-  es        0/1369
-  fil       0/1369
-  hi        1369/1369
-  id        0/1369
+  en        1414/1414
+  af        0/1414
+  cs        0/1414
+  de        1414/1414
+  es        0/1414
+  fil       0/1414
+  hi        1414/1414
+  id        0/1414
 [exit 0]
 ```
 

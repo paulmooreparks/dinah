@@ -113,6 +113,20 @@ func TestEveryEventFamilyARequestWritesCarriesTheDeclaredMembers(t *testing.T) {
 			req.Card = ref
 			return h.library.Do(req)
 		}},
+		// The reasoned sibling: a lift that says why writes an unblocked
+		// line carrying the reason, on the same footing as the bare one.
+		{contract.EventBlocked, func() *Response {
+			req := acting(Block)
+			req.Card = ref
+			req.Reason = "waiting on the vendor again"
+			return h.library.Do(req)
+		}},
+		{contract.EventUnblocked, func() *Response {
+			req := acting(Unblock)
+			req.Card = ref
+			req.Reason = "the vendor answered"
+			return h.library.Do(req)
+		}},
 		{contract.EventCommented, func() *Response {
 			req := acting("comment")
 			req.Card = ref

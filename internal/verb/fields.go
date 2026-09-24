@@ -265,13 +265,77 @@ func (l *Library) setDeclaredField(req *Request, entity *bench.EntityRef) *Respo
 			"legalValues": strings.Join(declared.Values, ", "),
 		})
 	}
+	// The applicability guard runs after the value checks and before the
+	// owner and operator checks, so a malformed value is still refused for
+	// being malformed, and it runs only on a card because no condition
+	// reaches any other kind. A clearing write never meets it, so an
+	// orphaned value can always be removed.
+	if value != "" && entity.Kind == bench.KindCard {
+		if refusal := l.inapplicable(entity.Card, req.Field); refusal != nil {
+			return l.refuseWith(req, entity.Card, refusal.Name, refusal.Detail, refusal.Extra)
+		}
+	}
 	if req.Actor == "" {
 		return l.refuse(req, entity.Card, contract.NoOwner, "")
 	}
 	if l.writeAuthorityOf(entity) == bench.AuthorityOperator && req.Actor != l.Bench.Operator {
 		return l.refuse(req, entity.Card, contract.NotOperator, req.Actor)
 	}
-	return l.writeField(req, entity, declaredTarget(req.Field), value)
+	// A write to a gate is never refused for what it does to the slots it
+	// governs, and it says so when it leaves a value behind: the first slot
+	// that was applicable before the write and is not after it is named in
+	// the warning, and the value is kept. The comparison is against the
+	// card as it stood, so a value already orphaned before the write draws
+	// no second warning.
+	var orphanedBefore map[string]bool
+	if entity.Kind == bench.KindCard {
+		orphanedBefore = map[string]bool{}
+		for _, orphaned := range l.Bench.OrphanedValues(entity.Card) {
+			orphanedBefore[orphaned.Slot] = true
+		}
+	}
+	response := l.writeField(req, entity, declaredTarget(req.Field), value)
+	if response.Outcome != contract.OutcomeOK || entity.Kind != bench.KindCard {
+		return response
+	}
+	written, err := l.Bench.LoadCardIn(filepath.Dir(entity.Dir), entity.ID)
+	if err != nil {
+		return response
+	}
+	for _, orphaned := range l.Bench.OrphanedValues(written) {
+		if orphanedBefore[orphaned.Slot] {
+			continue
+		}
+		response.Warning = "warn.inapplicable-value"
+		response.WarningDetail = orphaned.Slot
+		break
+	}
+	return response
+}
+
+// inapplicable raises the refusal a non-empty write to a slot the card's own
+// condition does not admit meets, and answers nil where the slot applies. The
+// slot is a level axis or a declared field key, and a nil card is one being
+// filed, which stores nothing.
+//
+// The context carries the gate, the values that admit the slot, and the
+// gate's stored value where it stores one. The value is the sentence's
+// subject, so a gate storing nothing selects the unset sibling of the
+// sentence rather than leaving a hole in it.
+func (l *Library) inapplicable(card *bench.Card, slot string) *contract.Refusal {
+	answer := l.Bench.Applicability(card, slot)
+	if answer.Applies {
+		return nil
+	}
+	condition := l.Bench.ConditionOn(slot)
+	context := map[string]string{
+		"gate":   answer.Gate,
+		"admits": strings.Join(condition.Is, ", "),
+	}
+	if answer.GateValue != "" {
+		context["value"] = answer.GateValue
+	}
+	return contract.RefuseWith(contract.InapplicableField, slot, context)
 }
 
 // undeclaredField raises the refusal a write naming a key the workbench does
@@ -372,7 +436,7 @@ func (l *Library) admitOwnerWrite(req *Request, entity *bench.EntityRef, field b
 // filed, which leaves a complete record where a silent re-pointing leaves
 // none.
 func (l *Library) admitItemColumnWrite(req *Request, entity *bench.EntityRef, field bench.Field) *Response {
-	if entity.Kind != bench.KindItem || field.Name != bench.ItemColumnField {
+	if entity.Kind != bench.KindItem || (field.Name != bench.ItemColumnField && field.Name != bench.ItemEvidenceField) {
 		return nil
 	}
 	if req.Actor == l.Bench.Operator {
@@ -508,6 +572,12 @@ func (l *Library) admitFieldValue(req *Request, entity *bench.EntityRef, field b
 	case bench.GuardLevel, bench.GuardTier:
 		axis := field.Name
 		if refusal := l.admitLevels(map[string]string{axis: value}); refusal != nil {
+			return l.refuseWith(req, entity.Card, refusal.Name, refusal.Detail, refusal.Extra)
+		}
+		// The applicability guard follows the level checks, so a level the
+		// workbench does not declare is refused for that before anything
+		// asks whether the axis applies to this card.
+		if refusal := l.inapplicable(entity.Card, axis); refusal != nil {
 			return l.refuseWith(req, entity.Card, refusal.Name, refusal.Detail, refusal.Extra)
 		}
 	case bench.GuardKind:

@@ -21,7 +21,7 @@ const GOOD_BINARY: BinaryState = {
 	state: "ok",
 	path: "/usr/local/bin/dinah",
 	source: "path",
-	version: { tool: "v0.1.0-dev.42", profile: "dinah-core/0.4", format: 1 },
+	version: { tool: "v0.1.0-dev.42", profile: "dinah-core/0.18", format: 1 },
 };
 
 const INSIDE: WorkbenchResolution = {
@@ -29,7 +29,7 @@ const INSIDE: WorkbenchResolution = {
 	root: "/w/.dinah/abc",
 	title: "Dinah",
 	source: "search",
-	profile: "dinah-core/0.4",
+	profile: "dinah-core/0.18",
 	insideWorkspace: true,
 };
 
@@ -41,7 +41,7 @@ test("a resolved workbench inside the workspace shows its title and leads with t
 	assert.equal(view.text, "$(checklist) Dinah");
 	assert.equal(view.tooltip.split("\n")[0], "/w/.dinah/abc");
 	assert.ok(view.tooltip.includes("resolved by search"));
-	assert.ok(view.tooltip.includes("dinah v0.1.0-dev.42, dinah-core/0.4, format 1"));
+	assert.ok(view.tooltip.includes("dinah v0.1.0-dev.42, dinah-core/0.18, format 1"));
 	assert.ok(view.tooltip.includes("binary: /usr/local/bin/dinah (path)"));
 });
 
@@ -173,7 +173,7 @@ test("a skewed binary shows an error carrying the gate's own diagnostic", () => 
 			state: "format-skew",
 			path: "dinah",
 			detail: "this binary writes storage format 99, and this extension supports 1",
-			version: { tool: "x", profile: "dinah-core/0.4", format: 99 },
+			version: { tool: "x", profile: "dinah-core/0.18", format: 99 },
 		},
 		INSIDE,
 		"source",
@@ -255,7 +255,7 @@ const IDLE_TEXT = "$(checklist) Dinah";
 const IDLE_TOOLTIP = [
 	"/w/.dinah/abc",
 	"resolved by search",
-	"dinah v0.1.0-dev.42, dinah-core/0.4, format 1",
+	"dinah v0.1.0-dev.42, dinah-core/0.18, format 1",
 	"binary: /usr/local/bin/dinah (path)",
 	"extension paired with dinah source",
 ].join("\n");

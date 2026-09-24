@@ -58,7 +58,7 @@ The contract: CORE-INSTR-6, CORE-INSTR-7, CORE-INSTR-10, and CORE-INSTR-11.
 
 Work that has stopped should look like work that has stopped.
 
-`dinah block <card> <reason>` marks the card blocked, records your reason, and takes the holder off it. Dinah accepts any prose you like as the reason, because the things that stop real work do not fit on a list, and whoever hits the one you left off will reach for the nearest wrong answer instead. `dinah unblock <card>` clears it again, and Dinah refuses that command to an actor who is not the operator. Dinah also refuses a block on a card another owner is holding, so nobody raises an obstacle in your name and strips your claim while doing it.
+`dinah block <card> <reason>` marks the card blocked, records your reason, and takes the holder off it. Dinah accepts any prose you like as the reason, because the things that stop real work do not fit on a list, and whoever hits the one you left off will reach for the nearest wrong answer instead. `dinah unblock <card>` clears it again, and can say why, and Dinah refuses that command to an actor who is not the operator. Dinah also refuses a block on a card another owner is holding, so nobody raises an obstacle in your name and strips your claim while doing it.
 
 An obstacle you never raised is an obstacle nobody is working on. The card sits in its column looking like a card somebody has been slow about, and the person who could have cleared it in ten minutes never learns that it is there.
 

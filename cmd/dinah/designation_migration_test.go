@@ -654,6 +654,48 @@ func TestASecondConversionWritesNothing(t *testing.T) {
 	}
 }
 
+// TestTheConversionNeverStampsAStoreDown runs the converting form on a
+// workbench already past DesignationFormat and reads the anchor afterwards.
+// The stamp was unconditional while 7 was the newest number there was, and
+// the day a later format arrived it began writing 7 over a store declaring
+// 8, after which check reports the applies_when migration on a store that
+// has already had it. The items are still converted, because the number is
+// what says they have been.
+//
+// Armed by making the stamp unconditional again in MigrateDesignations: the
+// anchor then declares 7 and the report claims a stamp.
+func TestTheConversionNeverStampsAStoreDown(t *testing.T) {
+	root := designationCards(t)
+	dir := soleBenchDir(t, root)
+	stampFormat(t, dir, bench.StorageFormat)
+	if bench.StorageFormat <= bench.DesignationFormat {
+		t.Fatalf("StorageFormat is %d, so no store can stand past DesignationFormat %d and this test reads nothing", bench.StorageFormat, bench.DesignationFormat)
+	}
+
+	converted := runCLI(t, root, "check", "--migrate-designations", "--actor", "alka")
+	if strings.TrimSpace(converted.errw) != "" {
+		t.Fatalf("the conversion was refused: %s", converted.errw)
+	}
+	for _, wanted := range []string{
+		"Converted 2 items from the history.",
+		"Converted 1 item as undisturbed.",
+	} {
+		if !strings.Contains(converted.out, wanted) {
+			t.Errorf("the conversion on a current store does not report %q:\n%s", wanted, converted.out)
+		}
+	}
+	if strings.Contains(converted.out, "Stamped format") {
+		t.Errorf("the conversion claims to have stamped a store already past its format:\n%s", converted.out)
+	}
+	text, err := bench.ReadText(filepath.Join(dir, bench.WorkbenchAnchor))
+	if err != nil {
+		t.Fatalf("read the anchor: %v", err)
+	}
+	if want := "\nformat: " + strconv.Itoa(bench.StorageFormat) + "\n"; !strings.Contains(text, want) {
+		t.Errorf("the anchor no longer declares format %d after the conversion:\n%s", bench.StorageFormat, text)
+	}
+}
+
 // TestTheRehearsalDecidesEverythingAndWritesNothing is
 // dinah-472/criteria/73. The rehearsal is the form an agent may run: it is
 // refused to nobody, it is admitted on a workbench carrying a claimed card,

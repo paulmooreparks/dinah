@@ -134,6 +134,9 @@ var fieldSamples = map[string]map[string]fieldSample{
 		// would not be the value read back. Which spellings the write
 		// admits is dinah-474's own case in gate_test.go.
 		"column": {first: "e00000000001", second: "e00000000003"},
+		// An evidence scheme is taken as Cite takes one, with no refusal for
+		// a scheme the workbench does not declare, so any two words serve.
+		"evidence": {first: "receipt", second: "record"},
 	},
 	bench.KindAttachment: {
 		"filename":    {first: "first.txt", second: "second.txt"},

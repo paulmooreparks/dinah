@@ -378,7 +378,9 @@ implication both ways. A block is `block_reason` (required, posed so the
 operator can answer it without opening the card) and optionally `block_kind`
 and `block_since`, present exactly when `state: blocked`. A clearing is
 refused to every actor the workbench does not record as its operator, and is
-journaled.
+journaled. A clearing may carry a reason, which is written on the `unblocked`
+line and, as the same text, in a comment on the card whose identifier the line
+also carries.
 
 ### What the card file carries
 
@@ -787,6 +789,28 @@ two Dinah adds. A member carrying any other shape is dropped on the way in
 rather than refusing the import, which is the leniency `awaiting_outside` and
 `operator_owned` already follow.
 
+`standing_items` travels through interchange as a member of its own on the
+same route, and CORE-JSON-14 blesses it: the member is a JSON object whose
+members are the entry keys in declaration order, each an object carrying
+`kind` and `text` and, where the entry declares them, `owner` and `evidence`.
+The profile fixes the member's shape and the filing on arrival, which
+CORE-GATE-5 states, and stops there; `kind`, `owner` and `evidence` inside an
+entry are members a second tool preserves under CORE-JSON-7 and Dinah
+interprets. Every member of an entry is the text on its line, and the export
+carries it as a JSON string: a text opening with a bracket, or one spelling a
+number, travels as the text the declaration reader accepted rather than as
+the flow sequence or the number a schema-free reading of its bare line would
+make of it, and the import quotes such a text on the way back in, where a
+quoted scalar reads as text whatever its bare spelling would have read as. A
+second export of an imported workbench carries the member byte for byte,
+which the block renderer's own invariant promises for this shape. A malformed
+entry travels as written, so an entry declaring no member at all travels as
+the empty object, which is a value the block renderer cannot spell; the import
+then writes the whole member as one bare JSON line,
+and the declaration reader reads that line as it reads the rendered block, so
+the well-formed entries beside it still mint on the clone and the memberless
+one is still reported under `check.standing-item-malformed`.
+
 A column may declare `wip_limit: <n>`; absent means unlimited. The limit
 counts every card in the column regardless of state, because a blocked
 card still occupies the station and exempting it would make blocking a way
@@ -912,6 +936,102 @@ in `workbench.md` frontmatter names lists of column ids, kept separate from
 the columns list so the single authority for order stays intact; the check
 verifies only that the referenced ids resolve. Whether groups enter the
 contract at all is a boundary-table row.
+
+### Standing items
+
+A column may declare, in its own front matter, the checklist items every card
+arriving at it receives, so that the column's own `gate_items` hold has an
+item to hold on without anybody remembering to file it. The block is
+hand-written into `columns/<id>/column.md`, the route `require_fields`,
+`reject_to` and `loop_limit` take; `dinah column new` does not take it and
+`dinah set <column>` does not reach it. The wedding workbench's Vendors column
+declares three:
+
+```yaml
+---
+title: Vendors
+kind: work
+gate_items: out
+standing_items:
+  deposit-paid:
+    kind: acceptance_criterion
+    text: The vendor's deposit has been paid and the receipt is on the card.
+    evidence: receipt
+  contract-countersigned:
+    kind: acceptance_criterion
+    text: Both parties have signed the vendor contract.
+    owner: operator
+  date-confirmed:
+    kind: open_question
+    text: Has the vendor confirmed the wedding date in writing?
+---
+```
+
+Each member's name is the entry's key, which matches the one-segment grammar
+a harness name matches. An entry carries `kind`, one of the three item kinds,
+and `text`, one line of prose read to the end of its line unparsed, and may
+carry `owner`, where `operator` is the one value the tool enforces, and
+`evidence`, the name of one scheme the workbench's `evidence:` block spells.
+Declaration order is the order the items are filed in. The reader posture is
+the one the `fields` block keeps: an entry it cannot read is skipped rather
+than raised over, so a hand-damaged block leaves the column openable, its
+well-formed siblings still mint, and `dinah check` reports each refused entry
+under `check.standing-item-malformed`. A duplicate key keeps its first
+occurrence.
+
+A card receives its instances on arrival at the declaring column, and at no
+other moment. Four acts place a card in a column and all four mint: `dinah
+add` into the column, `dinah move`, `dinah pull`, and a `reshape` carrying a
+card out of a retired column. Minting happens after every refusal the act
+runs has passed, inside the lock the act already holds, as part of the same
+act, so a move an override carried in still mints and a refused move mints
+nothing. `restore`, `unblock`, `manual_correction` and a tier write are not
+arrivals and mint nothing. Minting never refuses the arrival: the
+destination's own entry hold is read before the instances exist, so a card's
+first arrival at a column holding on entry is never refused by the items that
+arrival is about to mint.
+
+The identity of a minted item is the pair of the declaring column's
+identifier and the entry key, stored on the item as `column` and `standing`.
+Before minting, the arrival reads the card's live checklist and skips every
+entry the card already carries an instance of, whatever that instance's
+state, so a card that leaves and comes back gains no second copy and a
+settled instance stays the record it is; `dinah reopen` is the way to
+re-impose a hold. The archive is not read: an archived instance was taken out
+of the live set by somebody entitled to do so, and a card arriving again meets
+the declaration afresh. Nothing on any card changes because of an edit to the
+column's text: editing an entry's `text`, `kind`, `owner` or `evidence` leaves
+every existing instance as it was minted and re-mints nothing, since the key
+is unchanged, and removing an entry leaves existing instances on their cards,
+where they go on holding whatever they held. A changed obligation is a new
+key.
+
+Which side the minted items hold follows the column's own declared direction,
+and nothing about the hold changes. Under `out` the item holds the card's
+forward departure and nothing else, which is the shape a column verifying
+something against an outside system wants: the card arrives, the items appear,
+and the card leaves when every instance is resolved, verified, waived or
+withdrawn; a failed instance still holds. Under `both` the item holds forward
+departure and every arrival after the first, so a card sent back out of the
+column with its obligations unmet is refused re-entry, in either direction,
+until an instance is settled or the operator carries it in with `--override`;
+that is what an entry hold is for and nothing is reported for it. Under `true`
+the item holds no departure and only a card that has already been through,
+which is unlikely to be what the author meant, so `dinah check` reports the
+column under `check.standing-items-entry-hold` and does not refuse it. Under
+`false` or absent the declaration fills in a to-do list, which is a legitimate
+use and is not reported.
+
+A `reshape` that retires a declaring column withdraws, on every live card in
+any column, each pending instance the column's declaration minted, on the
+precedent the tier override already sets for a per-column value whose column
+is going: the obligation was the column's, and a retired column imposes
+nothing. The withdrawal is the one `dinah withdraw` writes, with a comment
+naming the retired column designated as the item's resolution and an
+`item_withdrawn` line carrying the `reshape` marker. An instance in any other
+state is a record of a judgement taken and is left as it stands, and a
+hand-filed item naming the retiring column carries no `standing` key and is
+left to `check.item-column-unresolved`.
 
 ### What "serve the instructions" composes
 
@@ -1097,7 +1217,7 @@ so a `claimed` line with no `expires` records an unbounded claim.
 | `moved` | `from`, `from_title`, `to`, `to_title` | `override`, true only where a declared limit or hold stood in the way and the operator carried the move past it, which is a CORE-MOVE-9 capacity override, the departure column's own `loop_limit`, the destination column's own `gate_items` hold under CORE-GATE-4, or the departure column's own `gate_items` hold read on the way out; `reject`, true only when the destination is the departure column's own `reject_to` target; `reshape`, true only on a line a `reshape` wrote, marking a card carried out of a column the workbench no longer declares rather than a move somebody decided on, and a reader that does not know the marker reads an ordinary move, which is what the line already is |
 | `released` | | |
 | `blocked` | `reason` | `kind`, whatever the caller passed, since nothing validates it |
-| `unblocked` | | |
+| `unblocked` | | `reason`, the prose the operator gave for lifting the block; `comment`, the identifier of the comment on the card that carries the same text, minted by the same act |
 | `expired` | `expires` | |
 | `commented` | `comment` | `item`, the identifier of the checklist item the comment hangs below, written only on a comment written on an item; `column` and `column_title`, the identifier of the column the comment was left on and that column's title as of the write, both written only on a comment written on a column |
 | `attached` | `attachment`, `filename` | `column` and `column_title`, the identifier and the title as of the write of the column the attachment hangs on, both written only on a line about an attachment hanging on a column |
@@ -1120,8 +1240,9 @@ so a `claimed` line with no `expires` records an unbounded claim.
 | `manual_correction` | `from`, `to`, `from_title`, `to_title` | |
 | `tier_overridden` | `column` (the resolved column's id), `to`, `expr` (what was typed) | `from`, absent where the card carried no override for that column; `against` (the column's own tier default), absent where the expression was absolute and needed no baseline; `column_title` and `reason`, both written by `raise` alone and both absent on an ordinary `set <ref> tier <value> --at` write |
 | `tier_override_dropped` | `column` (the retired column's id), `from` (the dropped absolute tier) | |
+| `item_filed` | `item` (the item's own id), `kind` | `column`, `column_title` and `standing`, the declaring column's identifier and title as of the write and the entry key, all three written only on a line a column's `standing_items` declaration filed on arrival, where the actor stays the arriving act's own; a hand filing through `dinah file` carries none of the three, and a reader that does not know them reads an ordinary filing, which is what the line already is |
 | `item_waived` | `item` (the item's own id), `from` (the state it left), `to` | |
-| `item_withdrawn` | `item` (the item's own id), `from` (the state it left), `to` | `grant`, true only where a standing criterion-retirement authorization is what admitted the act, which is exactly when the actor was not the workbench operator, and a reader that does not know the marker reads an ordinary withdrawal, which is what the line already is |
+| `item_withdrawn` | `item` (the item's own id), `from` (the state it left), `to` | `grant`, true only where a standing criterion-retirement authorization is what admitted the act, which is exactly when the actor was not the workbench operator, and a reader that does not know the marker reads an ordinary withdrawal, which is what the line already is; `reshape`, true only on a line a `reshape` wrote, withdrawing an instance a retired column's `standing_items` declaration had minted, on the terms the marker carries on a `moved` line |
 | `retirement_granted` | `to` (the identifier of the column the card stood in when the grant was given) | |
 | `retirement_revoked` | | |
 | `designations_migrated` | | `cards`, the references of the cards whose claim the run passed, written by a forced run alone and absent from every other; a forced run that passed none writes the line carrying no card, so the flag is never a silent no-op |
@@ -1207,8 +1328,28 @@ stays readable by every build after it.
 
 A checklist item is a card-scoped entity recording a structured judgment:
 `checklist/<12-hex>/item.md`, with `kind`, `column`, `owner`, `state`,
-`resolution`, `citations`, timestamps, and a creation ordinal in frontmatter,
-and the item's text as the body. An item takes its evidence by citation rather
+`resolution`, `citations`, `standing`, `evidence`, timestamps, and a creation
+ordinal in frontmatter, and the item's text as the body. `standing` names the
+entry of a column's `standing_items` declaration that minted the item, and
+together with `column` it is the item's identity for re-entry: an arrival at
+the declaring column mints nothing for an entry whose key a live item of the
+card already carries. Minting alone writes it, a hand-filed item never carries
+it, it is not a field of the item, so `dinah get` and `dinah set` refuse it as
+an unknown field, and `dinah show <item>` is its reading surface. An edit to
+the declaration after cards carry the item rewrites nothing on any card.
+`evidence` names one scheme the item has to be settled against, and is a field
+of the item in its own right, so a hand-filed item can carry the same demand
+through `dinah set <item> evidence <scheme>`; a write to it or a clear of it
+follows the authority the `column` key carries, refused `not-operator` to
+anybody but the operator on an acceptance criterion and on an operator-owned
+item, and a value is accepted as `dinah cite` accepts a scheme, with no
+refusal for one the `evidence:` block does not declare, which `dinah check`
+reports instead. `resolve`, `verify` and `fail` are refused
+`dinah.evidence-scheme-required`, naming the scheme, while no citation of the
+item names it; the row runs after the `dinah.uncited` obligation, which asks
+whether any citation exists before this one asks whether one of them is the
+right one, and `waive` and `withdraw` are untouched, since neither claims the
+evidence exists. An item takes its evidence by citation rather
 than by holding a copy: it carries no `attachments/` collection of its own, and
 `dinah attach` aimed at one is refused. It carries its own `comments/`
 collection instead. The reasoning an item was filed with, the recommendation
@@ -1594,6 +1735,15 @@ citations:
 Naming a test in the format would travel to neither that board nor a
 wedding workbench whose criterion closes against a signed contract.
 
+An item may demand a scheme of its own, under its `evidence` key, and the
+two rules answer different questions. `observed: required` on a scheme says
+what a citation of that scheme has to carry; `evidence` on an item says
+which scheme the item has to be settled against, and a citation of any
+other scheme leaves that demand standing. A per-scheme rule cannot name an
+item, so the demand lives on the item, and a column's `standing_items`
+declaration is how one workbench says "settle this only against a
+`receipt`" on every card that reaches the column.
+
 ### The observation a citation carries
 
 A citation that resolves proves the named thing exists. It proves nothing
@@ -1678,6 +1828,29 @@ its word.
 onto one, so all three findings have entries to run against. All three are
 named here so that anything writing a citation, the verb or a hand edit,
 reports under these names rather than minting others.
+
+A column's `standing_items` declaration produces four more, and one repair.
+`check.standing-item-missing` names a live card standing in a declaring
+column with no live instance of one of its entries, once per card, column
+and key, at cleanup severity: the store is not broken, the gate simply has
+nothing to hold on for that card, which is every card that entered the
+column before the declaration was written. A card standing anywhere else is
+never reported. `check.standing-item-malformed` names an entry the reader
+refused, with the column's reference and the key or the offending line, at
+the default severity. `check.standing-items-entry-hold` names a column
+carrying at least one well-formed entry whose `gate_items` reads `true`, at
+cleanup severity, since its items hold only a card returning to the column.
+`check.evidence-scheme-undeclared` names, only where the workbench declares
+an `evidence:` block, a column entry or a live item whose `evidence` names a
+scheme the block lacks, at cleanup severity, the two shapes told apart by
+their detail. `dinah check --file-standing` is the repair for the first:
+without `--yes` it reports each instance it would file and writes nothing,
+and with `--yes` it mints every missing instance for every live card standing
+in a declaring column through the same path an arrival uses, with the
+operator as actor, so the anchors and the `item_filed` lines are what an
+arrival would have written. It is refused `not-operator` to anybody else, and
+a blocked or claimed card is filed for as any other, because the declaration
+is a fact about the column rather than about who holds the card.
 
 ### Refusing a move on a citation
 
@@ -2346,6 +2519,47 @@ a hint, a real rubric with examples, is ordinary prose in the workbench
 body, which the serve-time composition already delivers as standing
 context.
 
+An axis may also be written in a mapping form, whose `values` member takes
+either list spelling above and which is the form that can carry a condition
+saying which cards the axis applies to at all. A construction foreman's
+workbench, where only a snag found on inspection carries a severity, reads:
+
+```yaml
+levels:
+  priority: [later, soon, next, now]      # flow form, unchanged
+  severity:                               # mapping form
+    values:
+      - cosmetic
+      - functional: Something on site does not work as it should; put it right before handover.
+      - safety
+    applies_when:
+      field: task.type
+      is: [snag]
+```
+
+The reader tells the forms apart by the first non-blank line beneath an axis
+line with nothing after its colon: a dashed line opens the list form and a
+deeper key line opens the mapping form. The list forms stay legal, an axis
+without a condition may take any of the three, and Dinah never rewrites an
+axis from one form into another. What `applies_when` means, and what a value
+stored on an axis that does not apply becomes, is the subject of "Where a
+declaration applies" below. A condition on `tier` is reported as unusable
+there, because tier drives the claim gate.
+
+In the interchange a mapping-form axis travels as an object carrying `values`,
+an array in the shape a list-form axis already travels as, and `applies_when`,
+an object carrying `field` and `is`:
+
+```json
+"levels": {
+  "severity": {
+    "values": ["cosmetic", "functional", "safety"],
+    "applies_when": {"field": "task.type", "is": ["snag"]}
+  },
+  "priority": ["later", "soon", "next", "now"]
+}
+```
+
 (Andoneer currently requires both on every card; making them optional there
 is tracked on its own board.) Domain fields generally, such as `project` and
 `repository` on a ticket card, live on the card without the core knowing
@@ -2477,6 +2691,52 @@ entry naming a key the workbench does not declare holds nothing and is
 reported under `check.required-field-undeclared`, because a key nothing can
 ever be written under would make the column unreachable.
 
+### Rewriting the quoted raw line
+
+An import writes a member of the interchange document that the block renderer
+cannot spell, such as a `levels` member whose axis is not an array of strings,
+as one raw JSON line under the member's key, and the export reads that line
+back as the JSON it carries, which is what keeps such a member whole across
+`init --from` and `export`. Below storage format 9 the import wrote that line
+through the scalar writer, which wrapped a value opening with a brace or a
+bracket in quotes, so the anchor carried `levels: "{\"severity\": ...}"`, and
+the reader of the day undid the quotes before it parsed, so the line still read
+as the object. Storage format 9 changed the reader: a quoted scalar is text,
+whatever its inner spelling, because quoting is the one way an author has of
+saying that `"12"` or `"[a, b]"` is a text and not a number or a sequence, and
+reading the quotes away turned a standing item's text into an array on its way
+through the interchange. Under the new rule the import writes the raw line bare
+and compact, `levels: {"severity":...}`, which every build reads as the JSON;
+but a line the old import wrote quoted now reads as a string, and the member
+stays a string on every later hop, which breaks CORE-JSON-7's preservation for
+a store the old import wrote.
+
+`dinah check` reports each such line under `check.raw-line-quoted` on a
+workbench declaring a format below 9, naming the anchor and the key, and
+`dinah check --migrate-raw-lines --yes` rewrites each one to the bare compact
+spelling and stamps the anchor `format: 9`. The rewrite is exact. The bare
+spelling reads as the same JSON under either rule, so what the old build
+exported for the member is what this build exports after the rewrite. A line
+qualifies when it is its key's only line, its scalar is wrapped in one pair of
+quotes, and the text inside the quotes is a JSON object or array; and only the
+keys the import writes through the fallback are read, which are `levels`,
+`tiers`, `fields`, `field_values` and every unrecognised key on the workbench
+anchor, and `field_values`, `standing_items` and every unrecognised key on a
+column anchor. A key the anchor reader answers as text, such as a title, is left
+as written. Without `--yes` the run names the lines and writes nothing. The
+lines are rewritten before the format is stamped, so a run that stops part way
+leaves the store below 9 with the rest still reported. The stamp is a floor,
+never a downgrade. A store already at 9 or above is neither read nor written,
+and a quoted line on such a store is text by declaration. The stamp converts no
+designation, so a store below format 7 runs `--migrate-designations` first.
+
+One retyping the migration leaves alone is meant. A hand-written quoted number,
+boolean or null, `count: "12"` say, exported as the number under the old reader
+and exports as the string under this one. The fallback never wrote such a line,
+since a JSON number or boolean is a scalar the renderer spells bare, so every
+such line was written by a person, and a person who quotes a scalar means text.
+That reading is the correction, and no migration rewrites it.
+
 ### Retiring the branch heading
 
 This project's own workbench carried a card's branch name in the card body,
@@ -2510,6 +2770,158 @@ this workbench has been carried across the retirement, which is what lets
 `dinah check` report a surviving heading under
 `check.branch-heading-in-body` on a workbench that has been and stay silent
 on one that has not.
+
+## Where a declaration applies
+
+A level axis and a declared field both reach every card unless the workbench
+says otherwise, and `applies_when` is how it says otherwise. The member sits
+beneath a declared field entry, beside `type`, `meaning` and `on`, or beneath
+a level axis written in the mapping form, and it names one declared field and
+the values of that field which admit the declaration:
+
+```yaml
+applies_when:
+  field: <declared field key>
+  is: [<value>, <value>, ...]
+```
+
+The mechanism knows nothing about what a workbench is for. A wedding
+workbench asks whether a vendor wants a deposit only of the catering and the
+venue bookings:
+
+```yaml
+fields:
+  event.category:
+    type: string
+    meaning: what part of the wedding this booking is for
+    on: [card]
+  vendor.deposit-required:
+    type: boolean
+    meaning: whether the vendor asks for a deposit before confirming
+    on: [card]
+    applies_when:
+      field: event.category
+      is: [catering, venue]
+```
+
+A construction foreman's workbench gates a declared field and a level axis on
+the same field, in the same syntax, so that only a subcontracted task carries
+a trade and only a snag carries a severity:
+
+```yaml
+levels:
+  severity:
+    values: [cosmetic, functional, safety]
+    applies_when:
+      field: task.type
+      is: [snag]
+fields:
+  task.type:
+    type: string
+    meaning: whether the task is our own crew's work, subcontracted, or a snag found on inspection
+    on: [card]
+  task.trade:
+    type: string
+    meaning: the trade the subcontractor brings
+    on: [card]
+    applies_when:
+      field: task.type
+      is: [subcontracted]
+```
+
+A software workbench, last, asks for a severity only of a defect:
+
+```yaml
+levels:
+  severity:
+    values: [trivial, minor, major, critical]
+    applies_when:
+      field: work.kind
+      is: [defect]
+fields:
+  work.kind:
+    type: string
+    meaning: what sort of work the card is
+    on: [card]
+```
+
+The field the condition names is the gate. `field` holds one declared field
+key, and `is` holds a flow sequence of one or more values, which read as
+alternatives. Comparison is byte equality between the gate's stored value
+and each listed value, case-sensitive and for every declared type, so a
+boolean gate is written `is: [true]` and a number gate compares text. The
+dashed spelling of `is` is not read, because an older reader reports a dashed
+line under a member it does not know as a malformed entry, and a condition
+must not raise a false finding on a build that does not understand it. Member
+order within the condition is free, and a member other than `field` and `is`
+is ignored. A declaration carries one condition and names one gate.
+
+A conditioned field entry says `on: [card]` and nothing wider. Level axes
+exist only on cards, so a condition governs card values only, and the
+restriction on entries is what lets a later revision extend conditions to
+columns, the workbench and workstreams without changing the meaning of any
+declaration already on disk.
+
+For a card and a slot, where a slot is a level axis or a declared field, the
+answer runs in three steps. A slot with no usable condition applies. Otherwise
+Dinah reads the gate's stored value on the card, and a card storing none makes
+the slot inapplicable: nobody has yet said this card is the kind the question
+is asked of. Otherwise the slot applies exactly where the stored value equals
+one of the listed values. Applicability is computed on every read from the
+declaration and the card as they stand, and nothing about it is stored.
+
+A write of a non-empty value to a slot inapplicable to the card is refused
+`dinah.inapplicable-field`, naming the slot, the gate, what the gate stores and
+what would admit the slot. The guard runs after the checks a write to that
+slot already runs, so an undeclared level is still refused as an unknown
+level and a value of the wrong type is still refused as malformed, and it
+runs before the owner and operator checks. A clearing write is never refused
+on this ground, so a value can always be removed. `dinah add --severity` and
+`--priority` meet the same guard: a card being filed stores no value for any
+gate, so a gated level named at filing is refused with the gate unset, and the
+route is to file, write the gate, then write the level.
+
+A write to a gate is never refused for what it does to the slots it governs.
+Where it leaves a value on the card under a slot that applied before the write
+and does not after it, the value is kept and the response carries the warning
+`warn.inapplicable-value`, naming the first such slot in the order severity,
+priority, then declared keys in declaration order. Clearing it inside the
+gate's write would destroy a judgement somebody recorded as a side effect of a
+write to a different field, and the gate may be written back. Keeping a value
+the declaration does not admit, showing it, and reporting it through `dinah
+check` is what the format already does with a level the workbench stopped
+declaring.
+
+Every read keeps four states apart: set, unset, inapplicable with nothing
+stored, and a kept value on an inapplicable slot. The JSON card view carries
+an `inapplicable` member after `fields`, listing each slot that does not apply
+with the gate that excluded it and, where the gate stores one, the gate's
+value; the member is absent where every slot applies, and `severity`,
+`priority` and `fields` keep reporting whatever is stored. `dinah show` prints
+one line for each inapplicable slot with nothing stored, and every surface
+that draws card lines prints a kept value in place of the slot's ordinary
+line, saying it is kept although it does not apply. `dinah list` prints `n/a`
+in a level cell whose axis does not apply to the card and stores nothing, and
+a kept value prints as stored. `dinah get` returns what is stored and never
+refuses on applicability, the compact projection is unchanged, and a query
+term compares the stored value whatever applicability says, so
+`severity:major` finds a kept `major` and `severity:""` returns both the unset
+and the inapplicable-with-nothing-stored cards.
+
+`dinah check` reports five things about conditions, and the table says which
+count as findings. A finding sets the exit status to 5 under the rule every
+finding already follows, whatever its severity; the one report with no repair
+is a notice, printed under the heading `check.notices` and carried in the
+report's `notices` member, and it never changes the outcome or the exit
+status.
+
+| Report | Kind | Severity | What it says |
+|---|---|---|---|
+| `check.applies-when-malformed` | finding | defect | A condition the reader could not use, with the slot and one of six reasons: `unreadable` for a missing or unreadable member, `tier` for a condition on the tier axis, `reaches-beyond-cards` for a conditioned entry that does not say `on: [card]`, `gate-undeclared`, `gate-off-cards`, and `gate-conditioned` for a gate that itself carries a condition, a slot naming itself included. The condition is ignored and the slot applies to every card. |
+| `check.applies-when-value-unmatchable` | finding | defect | An `is` value the gate's declared type can never hold, so no card is ever admitted by it. The rest of the condition stands. |
+| `check.applies-when-below-format` | finding | defect | A workbench declaring a format below 8 whose definition carries a condition or a mapping-form axis, which an older build misreads. `dinah check --migrate-applies-when --yes` stamps the format, from any lower number; it converts no designation, so a workbench below 7 runs `--migrate-designations` first. |
+| `check.inapplicable-value` | finding | cleanup | A card keeping a value on a slot its condition does not admit, one finding per value, beside `check.unknown-level` on the card's anchor. A value both kept and undeclared is reported under both. |
+| `check.required-field-conditioned` | notice | cleanup | A column whose `require_fields` names a key carrying a usable condition. The requirement is enforced as CORE-FIELD-11 states, so a card the condition excludes enters only by the operator's override, and the operator ruled that configuration legitimate. |
 
 ## Tier: what class of worker a card needs at each stop
 
@@ -2795,26 +3207,47 @@ tier the declared set does not carry is reported under `check.unknown-level`,
 whether it sits on a card, on one of a card's overrides, or on a column's own
 default.
 
+Retiring a column whose `standing_items` declaration minted instances
+withdraws every pending instance on every live card in any column, in a step
+of its own between the carry and the archive, each under the card's own lock,
+and the preview reports the count it would withdraw under the retirement. A
+withdrawn item is passed over by `check.item-column-unresolved`, whatever its
+column names and whether or not it carries a `standing` key, because a
+withdrawn item holds nothing, refuses no claim and lifts every hold, so the
+one repair the finding offers would change nothing the workbench reads; a
+reopened item is reported again on the next check, and an item in any other
+settled state stays reported, since it records a judgement against a column
+it still names. A re-run after an interrupted apply passes over an instance
+whose anchor already reads withdrawn and writes it no second comment, and
+writes the two journal lines such an instance is still owed where the first
+run stopped between its anchor and them.
+
 ## Versioning
 
 The format carries two version numbers with two audiences, and they are
 never conflated:
 
-- **Storage format version.** `format: 7` in `workbench.md` frontmatter,
+- **Storage format version.** `format: 9` in `workbench.md` frontmatter,
   an integer governing the whole workbench directory. An implementation
   that opens a workbench with a higher number than it knows refuses loudly
   and names the version it wanted. This is Dinah's private business; the git
   precedent (`core.repositoryformatversion`, carried always, bumped
-  approximately once) is the model, and the number has moved six times: from
+  approximately once) is the model, and the number has moved eight times: from
   1 to 2 when the rule that a workbench lives inside a `.dinah` container
   landed, from 2 to 3 when the card number left the card anchor for the
   registry, from 3 to 4 when the heading a card body carried its branch name
   under was retired into a declared field, from 4 to 5 when a journal line's
   actor became an object, from 5 to 6 when a checklist item's answer became a
-  designated comment rather than a free-text note, and from 6 to 7 when that
+  designated comment rather than a free-text note, from 6 to 7 when that
   answer came to be identified by the comment's own identifier rather than by
-  its position. Three of the six are not private business: the mechanism
-  behind each is one the profile states, and the profile moved with it.
+  its position, from 7 to 8 when a declaration could stop applying to a
+  card, and from 8 to 9 when a quoted scalar on an anchor came to read as
+  text. Three of the eight are not private business: the mechanism behind
+  each is one the profile states, and the profile moved with it. The seventh
+  is private business of the plainest kind, since a build below 8 reads a
+  level axis in the mapping form as no axis at all, and so is the eighth,
+  since a build below 9 parses the text inside a line's quotes and reads a
+  quoted JSON object as the object.
 - **Profile version.** The contract's public promise, with the channel and
   increment rules recorded with the contract-profile work. `format:` is an
   integer read by exactly one implementation, this one, and it carries no

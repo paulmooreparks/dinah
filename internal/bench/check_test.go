@@ -2647,7 +2647,9 @@ func everyFile(t *testing.T, root string) map[string]string {
 // The assertion is over the set rather than over its members one at a time.
 // The two spellings that cannot gate are the ones this finding exists for, and
 // a sweep reporting the resolved identifier or the absent key as well would be
-// reporting every ordinary item on a real workbench.
+// reporting every ordinary item on a real workbench. A withdrawn item naming
+// the unresolvable value is planted beside them since dinah-593, and the count
+// of two stands: a withdrawn item holds nothing, so the sweep passes it over.
 func TestCheckReportsEveryItemColumnThatCannotHoldACard(t *testing.T) {
 	root := newFixture(t)
 	plantCard(t, root, "c00000000002", 2)
@@ -2659,6 +2661,7 @@ func TestCheckReportsEveryItemColumnThatCannotHoldACard(t *testing.T) {
 	bySlug := plantItemColumn(t, root, "c00000000002", "d00000000002", "only")
 	plantItemColumn(t, root, "c00000000003", "d00000000003", "b00000000001")
 	plantItemColumn(t, root, "c00000000004", "d00000000004", "")
+	plantItemState(t, root, "c00000000004", "d00000000005", "no-such-column", ItemWithdrawn)
 	// c00000000005 carries no checklist at all.
 
 	opened, err := Open(root)

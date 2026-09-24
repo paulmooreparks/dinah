@@ -233,7 +233,7 @@ export const HISTORY_ROWS: Readonly<
 	}),
 	released: (event) => ({ actor: event.actor.name }),
 	blocked: (event) => ({ actor: event.actor.name, reason: field(event.reason) }),
-	unblocked: (event) => ({ actor: event.actor.name }),
+	unblocked: (event) => ({ actor: event.actor.name, reason: field(event.reason) }),
 	expired: (event) => ({ actor: event.actor.name }),
 	commented: (event) => ({ actor: event.actor.name }),
 	attached: (event) => ({ actor: event.actor.name, filename: field(event.filename) }),
@@ -360,6 +360,14 @@ export function renderHistoryMarkdown(
 					actor: event.actor.name,
 					event: event.event,
 				});
+			}
+			// An unblock that said why reads its own sentence. The row function
+			// fills placeholders and cannot choose one, so the choice is made
+			// here, where the key is composed; the comment member such a line
+			// also carries is not rendered, since the comment itself is visible
+			// among the card's own comments.
+			if (event.event === "unblocked" && typeof event.reason === "string" && event.reason !== "") {
+				return t("history.event.unblocked.reason", row(event, t));
 			}
 			return t(`history.event.${event.event}`, row(event, t));
 		})

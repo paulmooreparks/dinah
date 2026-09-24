@@ -68,6 +68,7 @@ func (l *Library) malformedHarness(req *Request, card *bench.Card) *Response {
 // own fields.
 func (r *Request) Repairs() bool {
 	return r.Finish || r.MigrateOrdinals || r.MigrateNumbers || r.MigrateBranches ||
+		r.FileStanding ||
 		r.Renumber || r.MigrateSlugs || r.MigrateColumns || r.MigrateVocabulary ||
 		r.MigrateContainer || r.MigrateWorkstreams || r.MigrateWitness || r.Remint != "" ||
 		r.Converts()

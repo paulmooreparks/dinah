@@ -41,8 +41,8 @@ nothing between them. `holder:""` returns the cards nobody is holding.
 
 ## The fields you may name
 
-Thirteen fields, and no others. Eight of them describe the card as it stands
-now:
+Thirteen fields are built in, and your workbench may add its own, which the
+section below explains. Eight of the built-in fields describe the card now:
 
 - `column` is the column the card is in. Give it a column's short name or its
   identifier.
@@ -95,7 +95,7 @@ Dinah checks every term of the query before it filters a single card, and it
 tells you which word was wrong rather than returning nothing. `state:reday`
 is an error message naming `reday` and listing the three values that field
 takes. `Priority>=next` is an error message saying there is no such field and
-listing the twelve there are, because field names are case-sensitive and
+listing the ones there are, because field names are case-sensitive and
 `Priority` with a capital letter is not one of them. `severity:urgent` against
 a workbench whose declared severity set does not include `urgent` is a
 different error message. The field is real, and Dinah lists the severity
@@ -123,6 +123,40 @@ If you want a card ranked ahead of another, sort that out with columns, with
 the queue order, or with a workstream, the way you always could. Severity and
 priority are now things a query can name; Dinah still gives no ranked answer
 to "what is ready and important."
+
+## Fields your workbench declares
+
+If your workbench declares fields of its own in the `fields:` block of
+`workbench.md`, you may name any of them in a query, provided the field
+reaches cards. A wedding planner who declares `event.category` and
+`vendor.deposit-required` asks for the catering and venue bookings nobody has
+answered yet like this:
+
+    dinah query "event.category:catering,venue vendor.deposit-required:\"\""
+
+A construction foreman who declares `task.type` and `task.trade` finds the
+subcontracted electrical work the same way:
+
+    dinah query "task.type:subcontracted task.trade:electrical"
+
+A declared field takes `:` and `!=`, the comma reads as `or`, and the empty
+value asks for absence, exactly as the built-in fields work. Dinah does not
+check the value against anything, so a value no card carries is a query that
+matches nothing rather than an error, and `event.date>=2026-10-01` is still an
+error, because no field but `at` takes an ordered comparison, whatever type the
+field was declared with.
+
+A field the workbench does not declare is an error message that lists the
+built-in fields and then the ones your workbench declares, unless some card
+still carries a value under it, in which case the query finds that card. That
+is the same tolerance Dinah gives a severity nobody declares any more, so a
+value `dinah check` has just reported stays findable from here.
+
+A term compares what the card stores and never asks whether the field applies
+to the card. If a field's declaration says it applies only where another
+field carries one of some values, a value kept on a card the declaration no
+longer admits is still found by its value, which is how you find the cards
+`dinah check` reports.
 
 ## When the query cannot say it
 

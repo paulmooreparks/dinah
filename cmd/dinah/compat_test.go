@@ -75,14 +75,18 @@ var wantedTemplates = []string{
 // entries under the anchor's columns sequence and under a card's links and
 // workstreams, and the head writes none of them as mappings today.
 var wantedKeys = map[string][]string{
-	"workbench.md":                                      {"format", "profile", "title", "slug", "operator", "columns", "levels", "tiers"},
-	"columns/<id>/column.md":                            {"title", "slug", "kind", "operator_owned", "wip_limit", "tier"},
-	"archive/columns/<id>/column.md":                    {"title", "slug", "kind", "operator_owned", "wip_limit"},
-	"cards/<id>/card.md":                                {"title", "column", "state", "severity", "priority", "tier", "tier_at", "links", "claim_holder", "claim_since", "claim_expires", "block_reason", "block_kind", "block_since", "workstreams"},
-	"archive/cards/<id>/card.md":                        {"title", "column", "state"},
-	"cards/<id>/comments/<id>/comment.md":               {"ts", "author", "ordinal"},
-	"cards/<id>/archive/comments/<id>/comment.md":       {"ts", "author", "ordinal"},
-	"cards/<id>/attachments/<id>/attachment.md":         {"filename", "description", "provenance", "ordinal"},
+	"workbench.md":                                {"format", "profile", "title", "slug", "operator", "columns", "levels", "tiers"},
+	"columns/<id>/column.md":                      {"title", "slug", "kind", "operator_owned", "wip_limit", "tier"},
+	"archive/columns/<id>/column.md":              {"title", "slug", "kind", "operator_owned", "wip_limit"},
+	"cards/<id>/card.md":                          {"title", "column", "state", "severity", "priority", "tier", "tier_at", "links", "claim_holder", "claim_since", "claim_expires", "block_reason", "block_kind", "block_since", "workstreams"},
+	"archive/cards/<id>/card.md":                  {"title", "column", "state"},
+	"cards/<id>/comments/<id>/comment.md":         {"ts", "author", "ordinal"},
+	"cards/<id>/archive/comments/<id>/comment.md": {"ts", "author", "ordinal"},
+	"cards/<id>/attachments/<id>/attachment.md":   {"filename", "description", "provenance", "ordinal"},
+	// standing and evidence are written by a minting alone, which the
+	// sequence reaches by moving cards into the Doing column the sample
+	// definition declares one standing item on.
+	"cards/<id>/checklist/<id>/item.md":                 {"kind", "state", "column", "standing", "evidence", "ts", "ordinal"},
 	"cards/<id>/archive/attachments/<id>/attachment.md": {"filename", "description", "provenance", "ordinal"},
 	"workstreams/<id>/workstream.md":                    {"title", "slug", "status", "ordinal"},
 	"archive/workstreams/<id>/workstream.md":            {"title", "slug", "status", "ordinal"},
@@ -97,7 +101,7 @@ var wantedEvents = map[string][]string{
 	contract.EventMoved:              {"ts", "event", "actor", "from", "from_title", "to", "to_title", "override"},
 	contract.EventReleased:           {"ts", "event", "actor"},
 	contract.EventBlocked:            {"ts", "event", "actor", "reason", "kind"},
-	contract.EventUnblocked:          {"ts", "event", "actor"},
+	contract.EventUnblocked:          {"ts", "event", "actor", "reason", "comment"},
 	contract.EventExpired:            {"ts", "event", "actor", "expires"},
 	contract.EventCommented:          {"ts", "event", "actor", "comment"},
 	contract.EventAttached:           {"ts", "event", "actor", "attachment", "filename"},
@@ -120,9 +124,12 @@ var wantedEvents = map[string][]string{
 	contract.EventCommentUpdated:    {"ts", "event", "actor", "note", "field"},
 	contract.EventItemUpdated:       {"ts", "event", "actor", "note", "field", "from", "to"},
 	contract.EventAttachmentUpdated: {"ts", "event", "actor", "note", "field", "from", "to"},
-	contract.EventWorkstreamJoined:  {"ts", "event", "actor", "workstream"},
-	contract.EventWorkstreamLeft:    {"ts", "event", "actor", "workstream"},
-	contract.EventManualCorrection:  {"ts", "event", "actor", "from", "from_title", "to", "to_title"},
+	// column, column_title and standing are written by a minting alone, on
+	// the terms the item.md row above states; a hand filing carries none.
+	contract.EventItemFiled:        {"ts", "event", "actor", "item", "kind", "column", "column_title", "standing"},
+	contract.EventWorkstreamJoined: {"ts", "event", "actor", "workstream"},
+	contract.EventWorkstreamLeft:   {"ts", "event", "actor", "workstream"},
+	contract.EventManualCorrection: {"ts", "event", "actor", "from", "from_title", "to", "to_title"},
 	// against is absent on an absolute override write, which needed no
 	// baseline, and the sequence writes one of each, so the union carries it.
 	// column_title and reason are raise's own two members, absent on every

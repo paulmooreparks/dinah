@@ -50,8 +50,20 @@ import type { VersionReport } from "./api";
  * a read answers with goes on carrying the position, composed by the binary at
  * the moment of the read, and gains `resolution_id` beside it, which an older
  * reader ignores.
+ *
+ * 8 joined the set at dinah-590, which let a declaration carry a condition
+ * saying which cards it applies to and gave a level axis a mapping form. Both
+ * are members of the workbench anchor, which this extension never reads: the
+ * card view a read answers with gains `inapplicable` beside `fields`, which
+ * an older reader ignores, and a write the condition refuses is refused by
+ * name through the same verb surface as every other refusal.
+ *
+ * 9 joined the set at dinah-593, which made a quoted scalar on a workbench or
+ * column anchor read as text and rewrote the raw JSON lines an earlier import
+ * had quoted. Both are facts about the anchor files, which this extension
+ * never reads, and the verb surface it drives is unchanged.
  */
-export const SUPPORTED_FORMATS: readonly number[] = [1, 2, 3, 4, 5, 6, 7];
+export const SUPPORTED_FORMATS: readonly number[] = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 
 /**
  * The conformance claim this extension needs. A different name or major is
@@ -60,7 +72,20 @@ export const SUPPORTED_FORMATS: readonly number[] = [1, 2, 3, 4, 5, 6, 7];
  * client that only reads the fields it knows is unharmed by fields it does
  * not.
  */
-export const MINIMUM_PROFILE = { name: "dinah-core", major: 0, minor: 4 };
+export const MINIMUM_PROFILE = { name: "dinah-core", major: 0, minor: 18 };
+
+/*
+ * The minor moved from 4 to 18 at dinah-597. Unblock now asks why the block
+ * is lifted and writes the answer as the verb's reason, which is a slot a
+ * binary claiming an earlier revision refuses with `dinah.usage` before the
+ * verb runs. An updated extension against such a binary would ask the
+ * operator for a paragraph and then refuse it row by row, so the gate refuses
+ * that binary whole at activation instead, as `binary-too-old` with both
+ * numbers in the detail. The remedy is the update the message names, and the
+ * extension ships from the same repository as the binary. A conditional send
+ * keyed on the reported minor was declined for the reason the paragraph below
+ * declines a negotiated payload: it is a shim carried for a transient skew.
+ */
 
 /**
  * The skew this gate does not catch, written down because no gate can catch it.

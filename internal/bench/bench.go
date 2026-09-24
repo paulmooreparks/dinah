@@ -93,8 +93,14 @@ const (
 // than a free-text note, so the number says whether that note migration has
 // run. It moved from 6 to 7 at dinah-472, which keys an item's answer on the
 // designated comment's own identifier rather than on its position, so the
-// number says whether `dinah check --migrate-designations` has run.
-const StorageFormat = 7
+// number says whether `dinah check --migrate-designations` has run. It moved
+// from 7 to 8 at dinah-590, which let a declaration stop applying to a card
+// and gave a level axis a mapping form, so the number says whether an older
+// build would misread the levels block. It moved from 8 to 9 at dinah-593,
+// which made a quoted frontmatter scalar read as text, so the number says
+// whether the raw JSON lines an earlier import wrote quoted have been
+// rewritten bare.
+const StorageFormat = 9
 
 // ContainerFormat is the storage format from which the containment rule binds.
 // A workbench declaring this number or a higher one is held to Contained; one
@@ -173,6 +179,39 @@ const ResolutionFormat = 6
 // enforcing a protection is exactly what the format version exists to prevent.
 const DesignationFormat = 7
 
+// AppliesWhenFormat is the storage format from which a level axis may be
+// written in the mapping form and a declaration may carry an applies_when
+// condition.
+//
+// The number protects a workbench from older builds and does not gate this
+// one: a condition and the mapping form are honoured at any format this build
+// opens. A condition on a field entry is merely incomplete to a build below
+// this number, which ignores the member and enforces nothing, and a level axis
+// in mapping form is wrong to one, whose reader resets on the values line and
+// reports the axis undeclared. One number covers both so the rule a reader
+// learns is one sentence. dinah check reports a workbench below it carrying
+// either under check.applies-when-below-format, and
+// `dinah check --migrate-applies-when --yes` stamps it.
+const AppliesWhenFormat = 8
+
+// RawLineFormat is the storage format from which a quoted scalar on a
+// workbench or column anchor is text, whatever its inner spelling. Below it,
+// the interchange reader parsed the text inside the quotes, so an import
+// that met a member the renderer could not spell wrote the member's JSON as
+// one quoted line and read it back as that JSON. From this format the
+// reader answers a quoted line as the string it spells, on the rule
+// scalarValue states, and the fallback writes its JSON bare, which every
+// build reads as the JSON. A store below this number may still carry the
+// quoted spelling, which this build would read as a string and keep a
+// string on every later hop; dinah check reports each such line under
+// check.raw-line-quoted, and `dinah check --migrate-raw-lines --yes`
+// rewrites each to the bare spelling and stamps the number.
+//
+// The number gates the finding and the migration and nothing else: the
+// reader rule holds at every format this build opens, since a line the
+// migration has rewritten reads the same under either rule.
+const RawLineFormat = 9
+
 // UndeclaredFormat is the format a workbench whose anchor declares no format
 // key is opened as carrying. Such a workbench predates the key itself, and
 // the key predates the registry, so the value is the newest format the
@@ -206,7 +245,10 @@ const (
 // fail take: the argument that was a resolution note is a reference to a
 // comment of the item being settled, and reopen's reason stays prose beside
 // it. A client that composed those calls against 0.17 composes them wrongly
-// against this build, which is what a minor bump says.
+// against this build, which is what a minor bump says. The document caught
+// up with the claim at dinah-597, whose 0.18 entry also publishes
+// CORE-UNBLOCK-5: an unblock may carry a reason, and this build records one
+// on the unblocked line and as a comment on the card.
 
 // The oldest profile revision this build opens. dinah-core 0.7 renamed the
 // flow vocabulary on disk, retiring the state and substate keys for column
@@ -328,6 +370,16 @@ type Column struct {
 	// nothing can ever be written under would make the column unreachable.
 	// `dinah check` reports it under FindingRequiredFieldUndeclared instead.
 	RequireFields []string
+	// StandingItems are the checklist items every card arriving at this
+	// column receives an instance of, as the column's own standing_items
+	// declaration carries them in declaration order, and nil where the
+	// column declares none. The instances name this column, so the column's
+	// own Hold has something to hold on without anybody filing it by hand.
+	StandingItems []StandingItem
+	// MalformedStandingItems are the keys, or the offending lines, of the
+	// standing_items entries the reader refused, which `dinah check` reports
+	// under FindingStandingItemMalformed and nothing else reads.
+	MalformedStandingItems []string
 	// Instructions is the column's own body, the last layer of the chain.
 	Instructions string
 	// Position is the column's zero-based index in the flow.
@@ -593,6 +645,18 @@ type Bench struct {
 	// malformedFields are the keys of the declaration entries the reader
 	// refused, which `dinah check` reports and nothing else reads.
 	malformedFields []string
+	// levelConditions are the usable applies_when conditions the level axes
+	// carry, keyed by axis, resolved at Open once both blocks are read.
+	// ConditionOn and Applicability are how a reader asks.
+	levelConditions map[string]*Condition
+	// malformedConditions and unmatchableValues are what the condition
+	// resolver refused and what it admitted with a value no card can store,
+	// which `dinah check` reports and nothing else reads.
+	malformedConditions []MalformedCondition
+	unmatchableValues   []UnmatchableValue
+	// usesAppliesWhen is true where the definition carries any applies_when
+	// member or any mapping-form axis, which the format check reads.
+	usesAppliesWhen bool
 	// Passed is the workbench.md files the discovery walk found and did not
 	// claim on its way to resolving this bench, each one a directory holding
 	// somebody else's document rather than a Dinah workbench. It is set by
@@ -1793,10 +1857,14 @@ func openWithVocabulary(root string, vocab columnVocabulary, admit func(declared
 		Profile:           fm.Value("profile"),
 		retiredVocabulary: vocab.SequenceKey == preVocabulary.SequenceKey,
 		FM:                fm,
-		levels:            readLevels(fm),
 	}
+	levels := readLevels(fm)
+	b.levels = levels.axes
 	b.Routes, b.RouteNames = readRoutes(fm)
-	b.declaredFields, b.malformedFields = readDeclaredFields(fm)
+	fields := readDeclaredFields(fm)
+	b.declaredFields, b.malformedFields = fields.declared, fields.malformed
+	b.usesAppliesWhen = levels.mappingForm || len(levels.conditions) > 0 || fields.metAny
+	b.resolveConditions(levels.conditions, fields.conditions)
 	b.tiers, b.malformedTiers = readTiers(fm)
 	if b.Title == "" {
 		return nil, contract.RefuseWith(contract.Malformed, "title", anchor)
@@ -2123,6 +2191,7 @@ func readColumnIn(root string, vocab columnVocabulary, id string, position int) 
 		column.LoopLimit = n
 	}
 	column.RequireFields = fm.Seq(RequireFieldsKey)
+	column.StandingItems, column.MalformedStandingItems = readStandingItems(fm)
 	// The value is exactly true or false, which is wip_limit's discipline
 	// above and deliberately not operator_owned's == "true" leniency, under
 	// which a value of yes reads as false and tells nobody.
