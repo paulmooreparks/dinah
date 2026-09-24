@@ -51,6 +51,10 @@ var addressExemptions = []addressExemption{
 		ground: groundNoEntity, reason: "the rows are setup recipes, which are directories of harness configuration rather than entities of a workbench",
 	},
 	{
+		site:   renderSite{File: "view.go", Function: "emitViewList", Label: "views", Ordinal: 1},
+		ground: groundNoEntity, reason: "the rows are views, which are declarations in a settings file or a workbench definition rather than entities of a workbench",
+	},
+	{
 		site:   renderSite{File: "setup.go", Function: "renderSetupReport", Label: "changes", Ordinal: 1},
 		ground: groundNoEntity, reason: "the rows are locations in a harness's configuration files, which live in a project directory or a home directory rather than in a workbench",
 	},
@@ -796,6 +800,23 @@ func addressCases() []addressCase {
 			},
 		},
 		{
+			// The built-in view draws one table per section, and the first
+			// is the cards the fixture's owner holds, which is the block this
+			// case reads.
+			site:  renderSite{File: "view.go", Function: "renderView", Label: "cards", Ordinal: 1},
+			label: "view",
+			argv:  []string{"view", "mine"}, at: 0,
+			want: func(t *testing.T, w *addressWorkbench) []addressExpectation {
+				view, _ := w.payload(t, "view", "mine")["view"].(map[string]any)
+				sections, _ := view["sections"].([]any)
+				if len(sections) == 0 {
+					t.Fatalf("the drawn view carries no section: %v", view)
+				}
+				first, _ := sections[0].(map[string]any)
+				return refsOf(t, first, "cards", "ref")
+			},
+		},
+		{
 			site:  renderSite{File: "render.go", Function: "renderMatches", Label: "t", Ordinal: 1},
 			label: "query",
 			argv:  []string{"query", "column:doing"}, at: 0,
@@ -850,7 +871,7 @@ func addressCases() []addressCase {
 		{
 			// A refusal naming no column of this workbench lists the columns
 			// it does declare, one reference to a row, through listColumn.
-			site:  renderSite{File: "render.go", Function: "composeRefusal", Label: "t", Ordinal: 1},
+			site:  renderSite{File: "render.go", Function: "composeRefusalLines", Label: "t", Ordinal: 1},
 			label: "the columns a refusal lists",
 			argv:  []string{"list", "nosuch"}, stderr: true, headingless: true, at: 0,
 			want: func(t *testing.T, w *addressWorkbench) []addressExpectation {
@@ -861,7 +882,7 @@ func addressCases() []addressCase {
 			// A bare pull finding more than one column it could land in
 			// carries those columns on the refusal, and they are drawn by a
 			// table of their own.
-			site:  renderSite{File: "render.go", Function: "composeRefusal", Label: "carriedTable", Ordinal: 1},
+			site:  renderSite{File: "render.go", Function: "composeRefusalLines", Label: "carriedTable", Ordinal: 1},
 			label: "the columns an ambiguous pull carries",
 			argv:  []string{"pull"}, stderr: true, headingless: true, at: 0,
 			want: func(t *testing.T, w *addressWorkbench) []addressExpectation {

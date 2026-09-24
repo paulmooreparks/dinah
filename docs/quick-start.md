@@ -102,7 +102,7 @@ release publishes a new one. The second line names the shared rule set that buil
 other tool built to those same rules can read this workbench and reach the same
 answers about it. The third line names the format Dinah writes on disk.
 
-`dinah help` lists all fifty-eight commands, in the four groups Dinah sorts
+`dinah help` lists all fifty-nine commands, in the four groups Dinah sorts
 them into. Running `dinah` with no arguments at all prints the same list. So
 does whichever spelling of the help flag you already have the habit of typing,
 because Dinah answers to `--help`, `-help`, `-h`, `-?`, `--?` and `/?` alike.
@@ -1332,14 +1332,14 @@ storage format 9
 Catalogs:
   Language  Translated
   --------  ----------
-  en        1414/1414
-  af        0/1414
-  cs        0/1414
-  de        1414/1414
-  es        0/1414
-  fil       0/1414
-  hi        1414/1414
-  id        0/1414
+  en        1447/1447
+  af        0/1447
+  cs        0/1447
+  de        1447/1447
+  es        0/1447
+  fil       0/1447
+  hi        1447/1447
+  id        0/1447
 [exit 0]
 ```
 
@@ -1651,6 +1651,7 @@ The guides stand in the order Dinah recommends reading them.
   on-behalf         Acting on somebody else's decision
   references        References
   query             Asking questions of a workbench
+  views             Asking the same questions every day
   workbench-layout  What a workbench looks like on disk
   mcp               Working over MCP
   setup-recipes     Writing a setup recipe

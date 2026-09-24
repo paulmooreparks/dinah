@@ -967,6 +967,27 @@ var Shapes = []Shape{
 		NextStep:  []string{"refusal.dinah.no-levels.next"},
 	},
 	{
+		// The visible names ride as a value rather than as a Listing,
+		// because which views a caller can see depends on the user base and
+		// the workbench the raise site read, which the head does not hold.
+		Name:      UnknownView,
+		Values:    []string{"views"},
+		Fragments: []Fragment{{Key: "refusal.dinah.unknown-view.next"}},
+		NextStep:  []string{"refusal.dinah.unknown-view.next"},
+	},
+	{
+		Name:      MalformedView,
+		Values:    []string{"defect", "source"},
+		Fragments: []Fragment{{Key: "refusal.dinah.malformed-view.next"}},
+		NextStep:  []string{"refusal.dinah.malformed-view.next"},
+	},
+	{
+		Name:      ViewsUnreadable,
+		Values:    []string{"source", "reason"},
+		Fragments: []Fragment{{Key: "refusal.dinah.views-unreadable.next"}},
+		NextStep:  []string{"refusal.dinah.views-unreadable.next"},
+	},
+	{
 		// The axis list rides as a value read off the disposition table
 		// itself rather than written into the catalog, so an axis added to
 		// the vocabulary reaches this sentence without a translator being

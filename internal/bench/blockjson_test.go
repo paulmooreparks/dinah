@@ -195,7 +195,7 @@ func TestTheRendererRefusesWhatTheReaderWouldMisread(t *testing.T) {
 		`null`,
 	} {
 		raw := json.RawMessage(value)
-		lines, renderable := renderBlock("key", 0, raw)
+		lines, renderable := renderBlock("key", 0, raw, false)
 		if !renderable {
 			// A refusal owes the same fidelity by the other route, so
 			// the walk follows the fallback rather than skipping the
@@ -231,7 +231,7 @@ func TestADuplicatedMemberNameIsPreservedRatherThanHalfWritten(t *testing.T) {
 		`{"levels":{"severity":["minor"],"severity":["major"]}}`,
 	} {
 		raw := json.RawMessage(value)
-		if lines, renderable := renderBlock("dup", 0, raw); renderable {
+		if lines, renderable := renderBlock("dup", 0, raw, false); renderable {
 			t.Errorf("%s rendered as a block:\n%s", value, strings.Join(lines, "\n"))
 		}
 		fm := NewFrontmatter()

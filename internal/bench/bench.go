@@ -636,6 +636,11 @@ type Bench struct {
 	// every reader wants one field or the fields of one kind, and
 	// DeclaredFields, DeclaredFieldOf and DeclaredFieldsOn are how they ask.
 	declaredFields []DeclaredField
+	// views are the views the workbench's dinah.views block declares, in
+	// declaration order, read at Open, and viewsBlockDefect says the key was
+	// present with a value that is not a mapping. Views is how a reader asks.
+	views            []View
+	viewsBlockDefect bool
 	// tiers are the tier table's entries in declaration order, read out of
 	// the tiers block at Open, and empty on a workbench declaring no table.
 	tiers []TierEntry
@@ -1863,6 +1868,7 @@ func openWithVocabulary(root string, vocab columnVocabulary, admit func(declared
 	b.Routes, b.RouteNames = readRoutes(fm)
 	fields := readDeclaredFields(fm)
 	b.declaredFields, b.malformedFields = fields.declared, fields.malformed
+	b.views, b.viewsBlockDefect = ReadViews(fm, ViewSourceWorkbench)
 	b.usesAppliesWhen = levels.mappingForm || len(levels.conditions) > 0 || fields.metAny
 	b.resolveConditions(levels.conditions, fields.conditions)
 	b.tiers, b.malformedTiers = readTiers(fm)

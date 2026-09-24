@@ -505,6 +505,10 @@ func Instantiate(root, slug, operator string, definition *Definition) error {
 		if knownBenchKeys[member] {
 			continue
 		}
+		if member == ViewsKey {
+			writeViewsMember(fm, definition.Object[member])
+			continue
+		}
 		writeMember(fm, member, definition.Object[member])
 	}
 	standing := ""
@@ -676,7 +680,7 @@ func sortedMembers(object map[string]json.RawMessage) []string {
 // renderer refuses the value. The fallback loses nothing, because a line that
 // parses as JSON reads back as the JSON it carried.
 func writeMember(fm *Frontmatter, member string, raw json.RawMessage) {
-	if lines, renderable := renderBlock(member, 0, raw); renderable {
+	if lines, renderable := renderBlock(member, 0, raw, false); renderable {
 		fm.SetRaw(member, lines)
 		return
 	}

@@ -107,6 +107,10 @@ var tools = []tool{
 	{name: "query", command: "query", run: readQuery, wrapper: "matches"},
 	{name: "search_cards", command: "search", run: readSearch, wrapper: "results"},
 	{name: "tree", command: "tree", run: readTree, wrapper: "tree"},
+	// view answers two shapes, the listing and a drawn view, and no one
+	// wrapper can name both, so each shape carries its own member inside the
+	// payload on both heads and the tool declares none.
+	{name: "view", command: "view", run: readView},
 	{name: "show", command: "show", run: readShow},
 	{name: "changes", command: "changes", run: readChanges},
 	{name: "instructions", command: "instructions", run: readInstructions},
@@ -307,15 +311,15 @@ func indexTools() map[string]tool {
 	return index
 }
 
-// stationMembers are the twenty-nine tools ProfileStation serves: what one
-// agent needs to work one card through one column, and nothing that reaches
-// past the card it is standing on.
+// stationMembers are the thirty tools ProfileStation serves: what one agent
+// needs to work one card through one column, and nothing that reaches past
+// the card it is standing on.
 var stationMembers = []string{
 	"claim", "move", "release", "block", "comment", "attach",
 	"add_card", "file_item", "cite_item", "settle",
 	"link_card", "unlink_card", "join_workstream", "leave_workstream", "workstream",
 	"get_field", "set_field", "raise",
-	"show", "list", "query", "search_cards", "tree", "changes",
+	"show", "list", "query", "search_cards", "tree", "view", "changes",
 	"next_card", "pull", "instructions", "whoami", "prime",
 }
 
@@ -797,6 +801,25 @@ func readTree(l *verb.Library, r *verb.Request) any {
 		return l.FromError(r, err)
 	}
 	return wrap(map[string]any{"tree": tree}, readAffordances)
+}
+
+// readView answers the view tool. With no view named it carries the listing
+// under views, and with one named it carries the drawn view under view,
+// which is the object the cli head prints under --json in each case, since
+// both heads hand the one library call the one view name and the one actor.
+func readView(l *verb.Library, r *verb.Request) any {
+	if r.View == "" {
+		listing, err := l.ListViews(r)
+		if err != nil {
+			return l.FromError(r, err)
+		}
+		return wrap(map[string]any{"views": listing.Views}, readAffordances)
+	}
+	answer, err := l.DrawView(r)
+	if err != nil {
+		return l.FromError(r, err)
+	}
+	return wrap(map[string]any{"view": answer.View}, readAffordances)
 }
 
 // cardAffordances asks the library what a caller may do with the card a

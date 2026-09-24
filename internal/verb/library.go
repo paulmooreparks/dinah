@@ -245,6 +245,13 @@ type Request struct {
 	// reopening that item as part of the same act. It inherits the reopen's
 	// authority, so on an operator-owned item it is the operator's alone.
 	Force bool
+	// View is the name of the view dinah view draws, empty for the listing
+	// of every view the caller can see.
+	View string
+	// Lang is the language a read answers its own prose in, which is the
+	// title of a built-in view. The cli head sets the session's language;
+	// the mcp head leaves it empty, which reads as the base catalog.
+	Lang string
 	// Query is the query string the query command reads, carried byte for
 	// byte as the caller wrote it, since Matches echoes what it was given
 	// rather than what the parser made of it.

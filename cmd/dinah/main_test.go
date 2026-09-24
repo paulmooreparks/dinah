@@ -314,8 +314,8 @@ func TestHelpBlockIsTheRatifiedSurface(t *testing.T) {
 			t.Errorf("the block does not list %s", c.name)
 		}
 	}
-	if listed != 58 {
-		t.Errorf("wanted fifty-eight listed commands, got %d", listed)
+	if listed != 59 {
+		t.Errorf("wanted fifty-nine listed commands, got %d", listed)
 	}
 }
 
