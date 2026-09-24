@@ -34,7 +34,7 @@ FIXTURE_NAME_RE = re.compile(r"^(accept|refuse)-[a-z0-9-]+\.json$")
 # The example of section 5.7, with one unrecognized member at each level and
 # one layer, used as the sent object of the pair tests.
 SENT = {
-    "profile": "dinah-core/0.17",
+    "profile": "dinah-core/0.18",
     "title": "Wedding",
     "columns": [
         {"id": "s1", "title": "Ideas", "kind": "intake", "colour": "green"},
@@ -300,6 +300,30 @@ class ByteLevelTest(ReaderTest):
         result = self.check_one(self.write("capacity-true.json", text))
         self.assertEqual(failing(result), {"CORE-STATE-5"})
 
+    def test_standing_items_that_is_not_an_object(self):
+        # R-25: CORE-JSON-14 says what the member it permits holds.
+        text = json.dumps({
+            "profile": "dinah-core/0.18",
+            "title": "Wedding",
+            "columns": [{"id": "s1", "title": "Ideas", "kind": "intake",
+                         "standing_items": ["deposit-receipt"]}],
+        }).encode("utf-8")
+        result = self.check_one(self.write("standing-items-array.json", text))
+        self.assertEqual(failing(result), {"CORE-JSON-14"})
+        self.assertEqual(result["refusal"], "malformed")
+
+    def test_standing_items_carrying_no_member_is_accepted(self):
+        # R-25: the statement asks for a JSON object and no member of one.
+        text = json.dumps({
+            "profile": "dinah-core/0.18",
+            "title": "Wedding",
+            "columns": [{"id": "s1", "title": "Ideas", "kind": "intake",
+                         "standing_items": {}}],
+        }).encode("utf-8")
+        result = self.check_one(self.write("standing-items-empty.json", text))
+        self.assertEqual(result["verdict"], "accept")
+        self.assertEqual(results_by_id(result)["CORE-JSON-14"], "pass")
+
     def test_unreadable_files_still_yield_results_beside_readable_ones(self):
         bad = self.write("bad.json", b"\xff\xfe\xfd")
         document = self.output("check", bad, FIXTURES / "accept-section-5-7-example.json")
@@ -363,6 +387,15 @@ class PairTest(ReaderTest):
         returned = copy.deepcopy(SENT)
         del returned["columns"][1]["capacity"]
         self.assertEqual(failing(self.run_pair(returned)), {"CORE-JSON-1"})
+
+    def test_dropped_standing_items_fails_json_1(self):
+        # R-25: 0.18 makes standing_items a member the profile defines, so its
+        # loss is a change to the definition rather than a lost unrecognized member.
+        sent = copy.deepcopy(SENT)
+        sent["columns"][1]["standing_items"] = {"deposit-receipt": {"text": "Has it arrived?"}}
+        returned = copy.deepcopy(sent)
+        del returned["columns"][1]["standing_items"]
+        self.assertEqual(failing(self.run_pair(returned, sent=sent)), {"CORE-JSON-1"})
 
     def test_translated_column_member_name_fails_text_3(self):
         returned = copy.deepcopy(SENT)

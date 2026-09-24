@@ -1,5 +1,5 @@
 {
-  "profile": "dinah-core/0.18",
+  "profile": "dinah-core/0.19",
   "columns": [
     { "id": "s1", "title": "Ideas", "kind": "intake" }
   ]
