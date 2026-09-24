@@ -38,6 +38,20 @@ func TestTheRawLineMigrationAdviceIsACommandThatWorks(t *testing.T) {
 	stampFormat(t, dir, bench.RawLineFormat-1)
 	english := msg.For(msg.Base)
 	anchor := filepath.Join(dir, bench.WorkbenchAnchor)
+	// The report names the anchor by the path the binary resolved, which on
+	// macOS is the temporary directory with its symbolic link followed, so
+	// the line is matched on its key and on the anchor's own tail rather
+	// than on the whole path.
+	rewriting := english.T("check.raw-line-rewriting", "key", "acme.levels", "path", "")
+	anchorTail := filepath.Join(filepath.Base(dir), bench.WorkbenchAnchor)
+	namesTheLine := func(out string) bool {
+		for _, line := range strings.Split(out, "\n") {
+			if strings.HasPrefix(line, rewriting) && strings.HasSuffix(line, anchorTail) {
+				return true
+			}
+		}
+		return false
+	}
 
 	reported := runCLI(t, root, "check")
 	if reported.code != 5 {
@@ -57,13 +71,15 @@ func TestTheRawLineMigrationAdviceIsACommandThatWorks(t *testing.T) {
 	preview := runCLI(t, root, "check", "--migrate-raw-lines")
 	for _, want := range []string{
 		english.TN("check.raw-lines-would-rewrite", 1),
-		english.T("check.raw-line-rewriting", "key", "acme.levels", "path", anchor),
 		english.T("check.format-would-stamp", "from", "8", "format", "9"),
 		advice,
 	} {
 		if !strings.Contains(preview.out, want) {
 			t.Errorf("the preview does not print %q:\n%s", want, preview.out)
 		}
+	}
+	if !namesTheLine(preview.out) {
+		t.Errorf("the preview does not name acme.levels on %s:\n%s", anchorTail, preview.out)
 	}
 	if preview.code != 5 {
 		t.Errorf("the preview exits %d, wanted 5 while the finding stands", preview.code)
@@ -86,12 +102,14 @@ func TestTheRawLineMigrationAdviceIsACommandThatWorks(t *testing.T) {
 	}
 	for _, want := range []string{
 		english.TN("check.raw-lines-rewritten", 1),
-		english.T("check.raw-line-rewriting", "key", "acme.levels", "path", anchor),
 		english.T("check.format-stamped", "format", "9"),
 	} {
 		if !strings.Contains(followed.out, want) {
 			t.Errorf("the migration does not print %q:\n%s", want, followed.out)
 		}
+	}
+	if !namesTheLine(followed.out) {
+		t.Errorf("the migration does not name acme.levels on %s:\n%s", anchorTail, followed.out)
 	}
 	text, err := bench.ReadText(anchor)
 	if err != nil {

@@ -57,8 +57,13 @@ import type { VersionReport } from "./api";
  * card view a read answers with gains `inapplicable` beside `fields`, which
  * an older reader ignores, and a write the condition refuses is refused by
  * name through the same verb surface as every other refusal.
+ *
+ * 9 joined the set at dinah-593, which made a quoted scalar on a workbench or
+ * column anchor read as text and rewrote the raw JSON lines an earlier import
+ * had quoted. Both are facts about the anchor files, which this extension
+ * never reads, and the verb surface it drives is unchanged.
  */
-export const SUPPORTED_FORMATS: readonly number[] = [1, 2, 3, 4, 5, 6, 7, 8];
+export const SUPPORTED_FORMATS: readonly number[] = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 
 /**
  * The conformance claim this extension needs. A different name or major is
