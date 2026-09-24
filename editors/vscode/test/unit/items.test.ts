@@ -723,28 +723,30 @@ test("an item row draws a bounded one-line label and says its kind and state", (
 	);
 });
 
-test("an item row draws its comment count at the head of its label, at any width", () => {
-	// dinah-517/criteria/4. Two counts, one of them two digits, so a build
-	// that fixes the width or caps at nine fails rather than passing on the
-	// easy case.
+test("an item row's label carries no comment count, at any width, since dinah-599 removed it", () => {
+	// dinah-517/criteria/4 put the count here; dinah-599 took it back out on
+	// the operator's ruling that the tree carries no numbers anywhere
+	// (dinah-599 section 5.6). Two counts, one of them two digits, so a build
+	// that still prefixes a bracketed count fails on both rather than passing
+	// on the easy case.
 	const text = "Which vendor do we cite for the SLA numbers?";
 	for (const count of [3, 12]) {
 		const item = treeItemFor(
 			itemRow({ comment_count: count, text }, false, ROOT, flowData()),
 			ENGLISH,
 		);
-		assert.equal(item.label, `[${String(count)}] ${text}`);
+		assert.equal(item.label, text);
+		assert.ok(!(item.label as string).includes("["), String(item.label));
 	}
 
-	// The prefix sits outside the label cap. The item's own text is capped to
-	// exactly what itemLabel answers for it, and the prefix is prepended to
-	// that, so a long item loses no further text to make room for its count.
+	// The label is itemLabel(view.text) to the byte, whatever the comment
+	// count: it is bounded exactly as it always was, with nothing prepended.
 	const long = "x".repeat(200);
 	const capped = treeItemFor(
 		itemRow({ comment_count: 12, text: long }, false, ROOT, flowData()),
 		ENGLISH,
 	);
-	assert.equal(capped.label, `[12] ${itemLabel(long)}`);
+	assert.equal(capped.label, itemLabel(long));
 	assert.equal(itemLabel(long).length, 120);
 });
 

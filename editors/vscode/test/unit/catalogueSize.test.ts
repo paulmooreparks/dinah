@@ -24,6 +24,11 @@
 // anybody read them.
 //
 // dinah-550 adds the test naming the five runtime keys Delete Comment shows.
+//
+// dinah-599 adds the test naming the four tree.attention keys the operator
+// attention indicator's hovers draw from, and it removes item.row.commentCount,
+// the count dinah-517 put at the head of an item row's label, on the
+// operator's ruling that the tree carries no numbers.
 
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -159,6 +164,25 @@ const RUNTIME_ADDED_597: readonly string[] = [
 	"history.event.unblocked.reason",
 ];
 
+/**
+ * The four runtime keys dinah-599 adds: the heading and the "and others" line
+ * of the attention hover every row but two draws, and the two sentences the
+ * two rows with a hover of their own draw as their first line.
+ */
+const RUNTIME_ADDED_599: readonly string[] = [
+	"tree.attention.heading",
+	"tree.attention.others",
+	"tree.attention.blocked",
+	"tree.attention.answer",
+];
+
+/**
+ * The one runtime key dinah-599 removes: the comment count dinah-517 put at
+ * the head of an item row's label, gone on the operator's ruling that the
+ * tree carries no numbers anywhere.
+ */
+const RUNTIME_REMOVED_599 = "item.row.commentCount";
+
 /** The three manifest keys dinah-517 adds, one title per filing command. */
 const MANIFEST_ADDED_517: readonly string[] = [
 	"manifest.command.dinah.tree.raiseQuestion.title",
@@ -182,7 +206,9 @@ test("the English runtime catalogue carries the base count and this card's addit
 	// one the second review cycle needed for a comment already diverged when
 	// a session opens it. dinah-550 adds the five strings Delete Comment
 	// shows, dinah-545 the heading above a column's attachments, and
-	// dinah-597 the two Unblock prompts and the reasoned unblock row.
+	// dinah-597 the two Unblock prompts and the reasoned unblock row, and
+	// dinah-599 the four tree.attention strings less the one comment-count
+	// key it removes.
 	assert.equal(
 		runtimeKeys().size,
 		CATALOGUE_BASE -
@@ -192,7 +218,9 @@ test("the English runtime catalogue carries the base count and this card's addit
 			CATALOGUE_REMOVED_BY_517 +
 			RUNTIME_ADDED_550.length +
 			RUNTIME_ADDED_545.length +
-			RUNTIME_ADDED_597.length,
+			RUNTIME_ADDED_597.length +
+			RUNTIME_ADDED_599.length -
+			1,
 	);
 });
 
@@ -237,13 +265,17 @@ test("the five runtime keys dinah-550 adds are present", () => {
 	);
 });
 
-test("the two runtime keys dinah-517 adds are present and the pick placeholder is gone", () => {
+test("dinah-517's item.stateLabel is present and item.row.commentCount, which dinah-599 removed, is gone", () => {
 	const keys = runtimeKeys();
 	assert.equal(RUNTIME_ADDED_517.length, 2);
-	assert.deepEqual(
-		RUNTIME_ADDED_517.filter((key) => !keys.has(key)),
-		[],
-		"each key above is what an item row draws its count and its state with",
+	assert.ok(
+		keys.has("item.stateLabel"),
+		"item.stateLabel is dinah-517's own record of an item's state, which dinah-599 leaves standing",
+	);
+	assert.equal(
+		keys.has("item.row.commentCount"),
+		false,
+		"item.row.commentCount was dinah-517's own count at the head of an item row's label, and dinah-599 removed it: the tree carries no numbers",
 	);
 	assert.equal(
 		keys.has(RUNTIME_REMOVED_517),
@@ -297,5 +329,20 @@ test("the four manifest keys dinah-515 adds are present", () => {
 		MANIFEST_ADDED_515.filter((key) => !keys.has(key)),
 		[],
 		"each key above describes one of the language server's settings",
+	);
+});
+
+test("the four runtime keys dinah-599 adds are present", () => {
+	const keys = runtimeKeys();
+	assert.equal(RUNTIME_ADDED_599.length, 4);
+	assert.deepEqual(
+		RUNTIME_ADDED_599.filter((key) => !keys.has(key)),
+		[],
+		"each key above is a line of the attention hover a tree row draws when something beneath it waits on the operator",
+	);
+	assert.equal(
+		keys.has(RUNTIME_REMOVED_599),
+		false,
+		"item.row.commentCount is gone: the tree carries no numbers",
 	);
 });

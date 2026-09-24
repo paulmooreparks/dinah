@@ -6,9 +6,11 @@
 
 import { build, context } from "esbuild";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { generateAttentionIcons } from "./scripts/attention-icons.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, "..", "..");
@@ -43,6 +45,19 @@ function generate() {
 		"",
 	].join("\n");
 	writeFileSync(join(dir, "pairing.ts"), body, "utf8");
+
+	// The composed operator-attention icons (dinah-599 section 6.5), written
+	// after the module above on every compile, test and package run. Nothing
+	// here is committed: media/attention/ is a generated directory, on the
+	// terms src/generated/ above already is.
+	const glyphIds = JSON.parse(
+		readFileSync(join(here, "scripts", "attention-glyphs.json"), "utf8"),
+	);
+	generateAttentionIcons({
+		glyphIds,
+		codiconsRoot: join(here, "node_modules", "@vscode", "codicons"),
+		outDir: join(here, "media", "attention"),
+	});
 }
 
 /** Reports the git commit this build came from, or "unknown" outside a checkout. */

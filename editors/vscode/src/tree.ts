@@ -96,6 +96,22 @@ export type CollapsibleState = "none" | "collapsed" | "expanded";
 export interface IconSpec {
 	readonly id: string;
 	readonly color?: string;
+	/**
+	 * True when something beneath this row waits on the operator, which draws
+	 * the glyph composed with the attention dot instead of as a theme icon.
+	 */
+	readonly attention?: true;
+}
+
+/**
+ * The same icon with the attention dot, or the icon unchanged.
+ *
+ * `on` false returns `icon` itself, the same object, so a row with nothing
+ * waiting keeps a byte-identical spec rather than a new object carrying the
+ * same fields.
+ */
+export function withAttention(icon: IconSpec, on: boolean): IconSpec {
+	return on ? { ...icon, attention: true } : icon;
 }
 
 /** A command a row runs when it is clicked. */
@@ -291,6 +307,14 @@ export type TreeElement =
 			readonly column?: ColumnView;
 			/** The state group this card stands under, absent where none was drawn. */
 			readonly groupValue?: string;
+			/**
+			 * This card's own checklist items, fetched once per checkpoint when
+			 * the card's view carries operator_pending greater than zero and this
+			 * window is the operator's, absent otherwise and absent when the read
+			 * failed. It is what a card's hover names its waiting branches from
+			 * without a further call once the branch is expanded.
+			 */
+			readonly checklist?: readonly ItemView[];
 	  }
 	| {
 			/**
@@ -341,6 +365,14 @@ export type TreeElement =
 			 * carries no reference at all.
 			 */
 			readonly ref?: string;
+			/**
+			 * The holding card's own checklist items, carried on the collection
+			 * row so a judgement branch or the legacy Checklist row can name its
+			 * waiting items without a further call. Set on the same terms the
+			 * card element's own `checklist` is (dinah-599 section 5.4), absent
+			 * on every collection whose memberKind is not `item`.
+			 */
+			readonly checklist?: readonly ItemView[];
 	  }
 	| {
 			readonly kind: "comment";
@@ -1202,30 +1234,166 @@ function itemIcon(view: ItemView): { readonly id: string } {
 	}
 }
 
+// ---------------------------------------------------------------------------
+// The attention indicator: who is waiting on the operator, and what a row
+// says about it
+// ---------------------------------------------------------------------------
+
 /**
- * The label one item row draws: its comment count, then its own text.
+ * True when an item is in the operator's queue, by the CLI's own rule.
  *
- * The count used to ride the row's description, which is drawn dimmed after
- * the label, and the operator reported that he could not see it on his own
- * workbench while the number was correct at every layer that could be
- * inspected. A label's text is the part of a row that survives whatever the
- * view does with the rest, so the count is drawn there instead (dinah-517).
- *
- * The prefix sits outside the label cap. itemLabel bounds the item's own text
- * exactly as it did before and the prefix is prepended to what it answers, so
- * a long item loses no further text to make room for its count.
- *
- * An item carrying no comments draws what it drew before, to the byte. An
- * empty bracket would be a count a reader could take for zero where there is
- * no count at all.
+ * This mirrors bench.ItemAwaitsOperator in internal/bench/entity.go: a
+ * pending open question or decision naming the operator or naming no owner
+ * at all. An absent owner reads as empty, exactly as the Go side reads an
+ * absent frontmatter key. An acceptance criterion never qualifies, because
+ * Test verifies a criterion rather than the operator.
  */
-export function itemRowLabel(view: ItemView, t: Localizer): string {
-	const label = itemLabel(view.text);
-	const count = view.comment_count;
-	if (count === undefined || count <= 0) {
-		return label;
+export function itemNeedsOperator(view: ItemView | undefined): boolean {
+	if (view === undefined) {
+		return false;
 	}
-	return `${t("item.row.commentCount", { count: String(count) })} ${label}`;
+	if (view.state !== "pending") {
+		return false;
+	}
+	if (view.kind !== "open_question" && view.kind !== "decision") {
+		return false;
+	}
+	const owner = view.owner ?? "";
+	return owner === ITEM_OWNER_OPERATOR || owner === "";
+}
+
+/**
+ * True when a card waits on the operator: blocked, or holding his items.
+ *
+ * A card standing in Acceptance carries no special case here (dinah-599
+ * decisions/4): it carries the dot exactly when this test says so, whatever
+ * column it stands in.
+ */
+export function cardNeedsOperator(view: CardView | undefined): boolean {
+	if (view === undefined) {
+		return false;
+	}
+	return view.state === STATE_BLOCKED || (view.operator_pending ?? 0) > 0;
+}
+
+/**
+ * The heading, up to three names one per line, and "and others" past three.
+ *
+ * Given an empty list it returns the empty string, and a caller never passes
+ * one, since a row with no names carries no dot.
+ */
+export function attentionLines(names: readonly string[], t: Localizer): string {
+	if (names.length === 0) {
+		return "";
+	}
+	const lines = [t("tree.attention.heading"), ...names.slice(0, 3)];
+	if (names.length > 3) {
+		lines.push(t("tree.attention.others"));
+	}
+	return lines.join("\n");
+}
+
+/**
+ * A row's ordinary tooltip with its attention lines put first, ahead of
+ * everything the tooltip already said.
+ *
+ * A row whose ordinary tooltip is empty, which is the state group and the
+ * collection rows, gets the attention lines as its whole tooltip rather than
+ * a line with nothing following it.
+ */
+function withAttentionTooltip(attention: string, tooltip: string): string {
+	if (attention === "") {
+		return tooltip;
+	}
+	return tooltip === "" ? attention : `${attention}\n${tooltip}`;
+}
+
+/**
+ * The card and state-group rows' own names: the references of the cards
+ * beneath a node that need the operator, in the order the tree draws them.
+ *
+ * `cards` is the workbench's own card-view map, absent for a row whose
+ * checkpoint carried none, in which case every card beneath reads as absent
+ * and contributes nothing.
+ */
+function cardRefsNeedingOperator(
+	node: TreeNode,
+	cards: ReadonlyMap<string, CardView> | undefined,
+): string[] {
+	const names: string[] = [];
+	const walk = (n: TreeNode): void => {
+		if (n.kind === NODE_CARD) {
+			const view = cards?.get(n.id ?? "");
+			if (view !== undefined && cardNeedsOperator(view)) {
+				const ref = view.ref ?? n.ref ?? "";
+				if (ref !== "") {
+					names.push(ref);
+				}
+			}
+			return;
+		}
+		for (const child of n.children ?? []) {
+			walk(child);
+		}
+	};
+	for (const child of node.children ?? []) {
+		walk(child);
+	}
+	return names;
+}
+
+/**
+ * The card row's own branch names: which of a card's judgement branches hold
+ * an item waiting on the operator, Questions before Decisions.
+ *
+ * `checklist` absent means the card's view says something waits but which
+ * branch holds it was never read, so the row names the Checklist label
+ * instead of a branch.
+ */
+function branchNamesNeedingOperator(
+	checklist: readonly ItemView[] | undefined,
+	t: Localizer,
+): string[] {
+	if (checklist === undefined) {
+		return [collectionLabel("item", t)];
+	}
+	const kinds = new Set(
+		checklist.filter((item) => itemNeedsOperator(item)).map((item) => item.kind),
+	);
+	return ["open_question", "decision"]
+		.filter((kind) => kinds.has(kind))
+		.map((kind) => collectionLabel("item", t, kind));
+}
+
+/**
+ * A card row's attention lines: the blocked sentence, the heading and branch
+ * names, or both when a card is blocked and also holds an item for the
+ * operator.
+ */
+function cardAttentionLines(
+	view: CardView | undefined,
+	checklist: readonly ItemView[] | undefined,
+	t: Localizer,
+): string {
+	if (!cardNeedsOperator(view)) {
+		return "";
+	}
+	const lines: string[] = [];
+	if (view?.state === STATE_BLOCKED) {
+		lines.push(t("tree.attention.blocked"));
+	}
+	if ((view?.operator_pending ?? 0) > 0) {
+		const block = attentionLines(branchNamesNeedingOperator(checklist, t), t);
+		if (block !== "") {
+			lines.push(block);
+		}
+	}
+	return lines.join("\n");
+}
+
+/** An item row's attention line: the one sentence it draws when it waits. */
+function itemAttentionLines(view: ItemView | undefined, t: Localizer): string {
+	return itemNeedsOperator(view) ? t("tree.attention.answer") : "";
 }
 
 /** The description beside an item's label: its kind and its state. */
@@ -1686,51 +1854,70 @@ export function treeItemFor(
 			const view = element.view;
 			const named = element.row.data?.unansweredColumn;
 			const broken = named !== undefined && view?.id === named;
+			const isOperator = element.row.data?.isOperator === true;
+			const names =
+				isOperator && !broken
+					? cardRefsNeedingOperator(element.node, element.row.data?.cards)
+					: [];
+			const attention = attentionLines(names, t);
 			return {
 				label: view?.title ?? element.node.value ?? "",
 				description: broken
 					? t("tree.column.damaged")
 					: columnDescription(view, element.node, t),
-				tooltip: broken
-					? columnBrokenTooltip(view, element.row.data, t)
-					: columnTooltip(
-							view,
-							element.node,
-							element.nextColumn,
-							element.nextColumnRef,
-							t,
-						),
+				tooltip: withAttentionTooltip(
+					attention,
+					broken
+						? columnBrokenTooltip(view, element.row.data, t)
+						: columnTooltip(
+								view,
+								element.node,
+								element.nextColumn,
+								element.nextColumnRef,
+								t,
+							),
+				),
 				contextValue: columnActionsFor(view, element.nextColumnRef),
 				collapsibleState: "collapsed",
-				icon: broken ? WARNING_ICON : COLUMN_ICON,
+				icon: broken ? WARNING_ICON : withAttention(COLUMN_ICON, names.length > 0),
 			};
 		}
-		case "group":
+		case "group": {
+			const isOperator = element.row.data?.isOperator === true;
+			const names = isOperator
+				? cardRefsNeedingOperator(element.node, element.row.data?.cards)
+				: [];
+			const attention = attentionLines(names, t);
+			const icon = groupIcon(element.node.value);
 			return {
 				label: groupLabel(element.node.value, t),
 				description: String(element.node.count),
+				tooltip: withAttentionTooltip(attention, ""),
 				contextValue: CONTEXT_STATE_GROUP,
 				collapsibleState: "collapsed",
-				icon: groupIcon(element.node.value),
+				icon: icon === undefined ? undefined : withAttention(icon, names.length > 0),
 			};
+		}
 		case "card": {
 			const state = cardState(element.view, element.groupValue);
 			const ref = element.view?.ref ?? element.node.ref ?? "";
+			const isOperator = element.row.data?.isOperator === true;
+			const needsOperator = isOperator && cardNeedsOperator(element.view);
+			const attention = isOperator
+				? cardAttentionLines(element.view, element.checklist, t)
+				: "";
 			return {
 				label: cardLabel(ref, element.node.title ?? element.view?.title),
 				description: cardDescription(element.view),
-				tooltip: cardTooltip(
-					element.node,
-					element.view,
-					element.column,
-					state,
-					t,
+				tooltip: withAttentionTooltip(
+					attention,
+					cardTooltip(element.node, element.view, element.column, state, t),
 				),
 				contextValue: actionsFor({ state, column: element.column }),
 				// An arrow only when the checkpoint's own total says something
 				// is there to expand.
 				collapsibleState: cardExpands(element.view) ? "collapsed" : "none",
-				icon: cardIcon(state),
+				icon: withAttention(cardIcon(state), needsOperator),
 				command: {
 					command: COMMAND_OPEN_CARD,
 					title: "Open Card",
@@ -1738,17 +1925,32 @@ export function treeItemFor(
 				},
 			};
 		}
-		case "collection":
+		case "collection": {
+			const isOperator = element.row.data?.isOperator === true;
+			const names =
+				isOperator && element.memberKind === "item"
+					? (element.checklist ?? [])
+							.filter(
+								(item) =>
+									itemNeedsOperator(item) &&
+									(element.narrow === undefined || item.kind === element.narrow),
+							)
+							.map((item) => itemLabel(item.text))
+					: [];
+			const attention = attentionLines(names, t);
+			const icon = collectionIcon(element.memberKind, element.narrow);
 			return {
 				label: collectionLabel(element.memberKind, t, element.narrow),
 				description: String(element.memberCount ?? element.members.length),
+				tooltip: withAttentionTooltip(attention, ""),
 				contextValue: collectionContextValue(
 					element.memberKind,
 					element.narrow,
 				),
 				collapsibleState: "collapsed",
-				icon: collectionIcon(element.memberKind, element.narrow),
+				icon: icon === undefined ? undefined : withAttention(icon, names.length > 0),
 			};
+		}
 		case "comment": {
 			const ref = element.node.ref ?? "";
 			const view = element.view;
@@ -1811,17 +2013,21 @@ export function treeItemFor(
 			}
 			const direction = itemHoldDirection(element.row.data, element.card, view);
 			const contextValue = itemContextValue(view, element.isOperator);
+			const attention = element.isOperator ? itemAttentionLines(view, t) : "";
 			return {
-				label: itemRowLabel(view, t),
+				label: itemLabel(view.text),
 				description: itemDescription(view, t),
-				tooltip: itemTooltip(
-					view,
-					direction,
-					view.column_title ?? view.column ?? "",
-					contextValue.endsWith(`.${CONTEXT_ITEM_LOCKED_SUFFIX}`),
-					t,
+				tooltip: withAttentionTooltip(
+					attention,
+					itemTooltip(
+						view,
+						direction,
+						view.column_title ?? view.column ?? "",
+						contextValue.endsWith(`.${CONTEXT_ITEM_LOCKED_SUFFIX}`),
+						t,
+					),
 				),
-				icon: itemIcon(view),
+				icon: withAttention(itemIcon(view), element.isOperator && itemNeedsOperator(view)),
 				contextValue,
 				// An item's own comments are rows now, and the arrow comes
 				// from the grammar's count rather than from comment_count,
@@ -1945,14 +2151,44 @@ function rootItem(row: RootRow, t: Localizer): TreeItemSpec {
 		data.unansweredDetail !== ""
 			? `${data.unanswered}: ${data.unansweredDetail}`
 			: "";
+	const isOperator = data?.isOperator === true;
+	const attentionNames = isOperator ? workbenchAttentionNames(data) : [];
+	const attention = attentionLines(attentionNames, t);
 	return {
 		label,
 		description,
-		tooltip: detail === "" ? path : `${path}\n${detail}`,
+		tooltip: withAttentionTooltip(
+			attention,
+			detail === "" ? path : `${path}\n${detail}`,
+		),
 		contextValue,
 		collapsibleState,
-		icon: WORKBENCH_ICON,
+		icon: withAttention(WORKBENCH_ICON, attentionNames.length > 0),
 	};
+}
+
+/**
+ * The workbench row's own names: the titles of the columns holding a card
+ * that needs the operator, in the workbench's own declared column order.
+ *
+ * The order comes from `data.root`'s own children, filtered to the column
+ * axis exactly as columnsOf filters them, which is the flow's declared order
+ * columnsOf already reads.
+ */
+function workbenchAttentionNames(data: WorkbenchData | undefined): string[] {
+	const columnNodes = (data?.root?.children ?? []).filter(
+		(node) => node.axis === AXIS_COLUMN,
+	);
+	const names: string[] = [];
+	for (const node of columnNodes) {
+		const refs = cardRefsNeedingOperator(node, data?.cards);
+		if (refs.length === 0) {
+			continue;
+		}
+		const view = data?.columns.get(node.value ?? "");
+		names.push(view?.title ?? node.value ?? "");
+	}
+	return names;
 }
 
 // ---------------------------------------------------------------------------
@@ -2970,11 +3206,9 @@ export class DinahTreeProvider {
 			case "note":
 				return [];
 			case "group":
-				return childElements(
+				return this.withChecklistsPrefetched(
+					childElements(element.row, element.node, element, this.deps.log),
 					element.row,
-					element.node,
-					element,
-					this.deps.log,
 				);
 			case "column": {
 				// A column's cards come from the grouped projection, because a
@@ -2984,11 +3218,9 @@ export class DinahTreeProvider {
 				// the grammar like every other entity's, so its comments draw
 				// the day the grammar gives it a comments mount, with no edit
 				// here.
-				const cards = childElements(
+				const cards = await this.withChecklistsPrefetched(
+					childElements(element.row, element.node, element, this.deps.log),
 					element.row,
-					element.node,
-					element,
-					this.deps.log,
 				);
 				const root = element.row.data?.path;
 				const ref =
@@ -3035,6 +3267,13 @@ export class DinahTreeProvider {
 	 * No count on the checkpoint decides which rows exist and no per-kind list
 	 * is consulted, so a kind the grammar gains reaches the tree here with no
 	 * edit: it draws under its own kind token, through the entity row.
+	 *
+	 * When the holder is a card in an operator window whose view carries
+	 * operator_pending greater than zero, it also awaits the card's own
+	 * checklist once, through checklistOf's own per-checkpoint cache, and sets
+	 * it on every collection row whose memberKind is item: a judgement branch
+	 * or the legacy Checklist row, so that row's own hover can name its
+	 * waiting items without a further call (dinah-599 section 5.4).
 	 */
 	private async collectionsOf(
 		element: TreeElement,
@@ -3055,6 +3294,7 @@ export class DinahTreeProvider {
 			return [this.contentsNote(rowOf(element))];
 		}
 		const row = rowOf(element);
+		const checklist = await this.checklistForItemCollections(element, root, ref);
 		const rows: TreeElement[] = [];
 		let flat: TreeNode[] = [];
 		// A published collection node becomes one row directly and flushes the
@@ -3076,6 +3316,7 @@ export class DinahTreeProvider {
 					holderKind: element.kind,
 					memberKind,
 					members,
+					...(memberKind === "item" && checklist !== undefined ? { checklist } : {}),
 				});
 			}
 			flat = [];
@@ -3097,10 +3338,71 @@ export class DinahTreeProvider {
 				memberCount: node.member_count,
 				members: node.children ?? [],
 				ref: node.ref,
+				...(node.member_kind === "item" && checklist !== undefined ? { checklist } : {}),
 			});
 		}
 		flush();
 		return rows;
+	}
+
+	/**
+	 * The checklist collectionsOf attaches to a holder's own item collections,
+	 * absent unless the holder is a card in an operator window whose view says
+	 * something waits.
+	 */
+	private async checklistForItemCollections(
+		element: TreeElement,
+		root: string,
+		ref: string,
+	): Promise<readonly ItemView[] | undefined> {
+		if (element.kind !== "card") {
+			return undefined;
+		}
+		if (element.row.data?.isOperator !== true) {
+			return undefined;
+		}
+		if ((element.view?.operator_pending ?? 0) <= 0) {
+			return undefined;
+		}
+		return this.checklistOf(root, ref);
+	}
+
+	/**
+	 * Attaches each card element's own checklist, fetched once per checkpoint,
+	 * to every card whose view carries operator_pending greater than zero, in
+	 * an operator window. A card row's hover names the branches holding what
+	 * waits on him, and a branch row is drawn before its items are, so both
+	 * need the card's item views at the moment childElements draws the card
+	 * (dinah-599 section 5.4). Every other window, and every card with
+	 * nothing waiting, is returned unchanged.
+	 */
+	private async withChecklistsPrefetched(
+		elements: readonly TreeElement[],
+		row: RootRow,
+	): Promise<TreeElement[]> {
+		const data = row.data;
+		if (data?.isOperator !== true) {
+			return [...elements];
+		}
+		const root = data.path;
+		const pending = elements.filter(
+			(el): el is Extract<TreeElement, { kind: "card" }> =>
+				el.kind === "card" && (el.view?.operator_pending ?? 0) > 0,
+		);
+		if (pending.length === 0) {
+			return [...elements];
+		}
+		const fetched = await Promise.all(
+			pending.map(
+				async (el) =>
+					[el, await this.checklistOf(root, el.view?.ref ?? el.node.ref ?? "")] as const,
+			),
+		);
+		const checklists = new Map<TreeElement, readonly ItemView[] | undefined>(fetched);
+		return elements.map((el) => {
+			const checklist = checklists.get(el);
+			return el.kind === "card" && checklist !== undefined ? { ...el, checklist } : el;
+		});
 	}
 
 	/** The one row a refused `contents` call draws, in place of the members. */
