@@ -794,8 +794,14 @@ members are the entry keys in declaration order, each an object carrying
 The profile fixes the member's shape and the filing on arrival, which
 CORE-GATE-5 states, and stops there; `kind`, `owner` and `evidence` inside an
 entry are members a second tool preserves under CORE-JSON-7 and Dinah
-interprets. A second export of an imported workbench carries the member byte
-for byte, which the block renderer's own invariant promises for this shape.
+interprets. Every member of an entry is the text on its line, and the export
+carries it as a JSON string: a text opening with a bracket, or one spelling a
+number, travels as the text the declaration reader accepted rather than as
+the flow sequence or the number a schema-free reading of its bare line would
+make of it, and the import quotes such a text on the way back in, where a
+quoted scalar reads as text whatever its bare spelling would have read as. A
+second export of an imported workbench carries the member byte for byte,
+which the block renderer's own invariant promises for this shape.
 
 A column may declare `wip_limit: <n>`; absent means unlimited. The limit
 counts every card in the column regardless of state, because a blocked

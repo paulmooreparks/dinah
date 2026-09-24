@@ -1334,7 +1334,7 @@
       "context": "One line of the standing-item repair's own report, naming a card, the column whose declaration minted the instance and the entry key. {card} and {column} carry references and {key} the entry's key, all read off the store, so all three are machine vocabulary and none is translated."
     },
     "check.standing-item-malformed": {
-      "text": "the standing_items block of column {detail} has no usable kind or text for that entry, so nothing is minted for it",
+      "text": "column {detail} carries a standing entry or a line the reader cannot read, so nothing is minted for it",
       "context": "A check finding: one entry of a column's standing_items block that the reader refused, which is an entry whose key is outside the one-segment grammar, whose kind is absent or outside the three item kinds, whose text is absent or blank, or a dashed line where a member line was expected. {detail} carries the column's reference and then the key as written, or the offending line. The entry mints nothing and the column still opens, so the repair is an edit to the block."
     },
     "check.standing-item-missing": {

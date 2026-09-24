@@ -72,23 +72,34 @@ func blockValue(fm *Frontmatter, key string) json.RawMessage {
 		return mustMarshal("")
 	}
 	if len(lines) == 1 {
-		return scalarValue(fm.Value(key))
+		_, text, _ := strings.Cut(lines[0], ":")
+		return scalarValue(strings.TrimSpace(text))
 	}
 	return childValue(readChildren(lines[1:]))
 }
 
-// scalarValue reads the text written after a key's colon, already trimmed and
-// unquoted the way Frontmatter.Value hands it over, as a JSON value.
+// scalarValue reads the text written after a key's colon, trimmed and still
+// carrying whatever quotes the file spelled it with, as a JSON value.
 //
-// Three rules, in this order. Text that parses as JSON travels as that JSON,
-// which is the answer a preserved member has always got and what keeps the one
-// raw line an unrenderable member falls back to stable whatever value that
-// member carries. Text
-// opening with a bracket and closing with one is a flow sequence and travels
-// as an array of strings, split on commas by Seq's own inline rule. Anything
-// else travels as a JSON string, which is what a hand-written frontmatter
-// value is.
+// A quoted scalar is a string, whatever its inner text would have read as
+// bare. The format's own quoting is the one spelling a writer has for "this
+// is text", and reading it away before the rules below run turned a text of
+// `"12"` into the number 12 and a text of `"[a, b]"` into an array of two,
+// which is how a standing item's text disappeared on its way through the
+// interchange on dinah-593. Frontmatter.Value unquotes before it answers,
+// so the callers here read the raw line rather than asking it.
+//
+// A bare scalar follows three rules, in this order. Text that parses as JSON
+// travels as that JSON, which is the answer a preserved member has always got
+// and what keeps the one raw line an unrenderable member falls back to stable
+// whatever value that member carries. Text opening with a bracket and closing
+// with one is a flow sequence and travels as an array of strings, split on
+// commas by Seq's own inline rule. Anything else travels as a JSON string,
+// which is what a hand-written frontmatter value is.
 func scalarValue(text string) json.RawMessage {
+	if quoted(text) {
+		return mustMarshal(unquote(text))
+	}
 	if json.Valid([]byte(text)) {
 		return json.RawMessage(text)
 	}
@@ -266,8 +277,7 @@ func objectFromChildren(children []blockLine, shallowest int) (json.RawMessage, 
 			members = append(members, jsonMember{name: m[1], value: childValue(deeper)})
 			continue
 		}
-		scalar := unquote(strings.TrimSpace(m[2]))
-		members = append(members, jsonMember{name: m[1], value: scalarValue(scalar)})
+		members = append(members, jsonMember{name: m[1], value: scalarValue(strings.TrimSpace(m[2]))})
 	}
 	if !opened {
 		return nil, false
@@ -326,7 +336,7 @@ func renderedValue(lines []string) (json.RawMessage, bool) {
 		return nil, false
 	}
 	if len(lines) == 1 {
-		return scalarValue(unquote(strings.TrimSpace(m[2]))), true
+		return scalarValue(strings.TrimSpace(m[2])), true
 	}
 	return childValue(readChildren(lines[1:])), true
 }
@@ -447,7 +457,7 @@ func dashedText(entry json.RawMessage) (string, bool) {
 		if err := json.Unmarshal(entry, &value); err != nil {
 			return "", false
 		}
-		return quote(value), true
+		return blockQuote(value), true
 	}
 	members, read := jsonMembers(entry)
 	if !read || len(members) != 1 {
@@ -481,8 +491,8 @@ func renderScalar(raw json.RawMessage) (string, bool) {
 		if err := json.Unmarshal(raw, &value); err != nil {
 			return "", false
 		}
-		text := quote(value)
-		if !sameJSON(scalarValue(unquote(strings.TrimSpace(text))), raw) {
+		text := blockQuote(value)
+		if !sameJSON(scalarValue(text), raw) {
 			return "", false
 		}
 		return text, true
@@ -491,6 +501,32 @@ func renderScalar(raw json.RawMessage) (string, bool) {
 		return literal, true
 	}
 	return "", false
+}
+
+// quoted reports whether a scalar's text is wrapped in one layer of matching
+// quotes, which is the text unquote would strip. It is the reader's half of
+// blockQuote: a scalar the writer quoted reads back as text, and a bare one
+// is read by the rules scalarValue states.
+func quoted(text string) bool {
+	if len(text) < 2 || text[0] != text[len(text)-1] {
+		return false
+	}
+	return text[0] == '"' || text[0] == '\''
+}
+
+// blockQuote renders a string as the scalar text of a block line, quoting it
+// wherever its bare spelling would read back as something other than that
+// string. quote already covers the openings the format spends on other
+// constructs, a bracket and a brace among them, and this adds the bare
+// spellings that parse as JSON, so a text of `12`, `true` or `null` travels
+// as the text it is rather than as the number, the boolean or the null a bare
+// line would read as.
+func blockQuote(value string) string {
+	text := quote(value)
+	if text == value && json.Valid([]byte(value)) {
+		return `"` + escape(value) + `"`
+	}
+	return text
 }
 
 // jsonShape reports the first character of a JSON value, which is what tells

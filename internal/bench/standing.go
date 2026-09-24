@@ -1,6 +1,7 @@
 package bench
 
 import (
+	"encoding/json"
 	"path/filepath"
 	"strings"
 
@@ -64,8 +65,64 @@ type StandingItem struct {
 // pattern, because an entry key and a member name are the same shape of line
 // and only their depth separates them.
 func readStandingItems(fm *Frontmatter) ([]StandingItem, []string) {
+	block, malformed := standingBlock(fm)
 	var entries []StandingItem
-	var malformed []string
+	for _, entry := range block {
+		item := StandingItem{Key: entry.key}
+		for _, member := range entry.members {
+			switch member.name {
+			case standingKindMember:
+				item.Kind = member.value
+			case standingTextMember:
+				item.Text = member.value
+			case standingOwnerMember:
+				item.Owner = member.value
+			case standingEvidenceMember:
+				item.Evidence = member.value
+			}
+		}
+		entries = append(entries, item)
+	}
+	declared := make([]StandingItem, 0, len(entries))
+	for _, entry := range entries {
+		if !HarnessName(entry.Key) || !KnownItemKind(entry.Kind) || strings.TrimSpace(entry.Text) == "" {
+			malformed = append(malformed, entry.Key)
+			continue
+		}
+		declared = append(declared, entry)
+	}
+	return declared, malformed
+}
+
+// standingEntry is one entry of a standing_items block as the file spells it:
+// the key, and its member lines in the order written, each member's value read
+// to the end of its line as text. It is the structural pass readStandingItems
+// and standingItemsValue share, so the declaration reader and the export read
+// one grammar: every member of an entry is a scalar, and a bare value opening
+// with a bracket is the text it spells rather than the flow sequence the
+// schema-free block reader would take it for.
+type standingEntry struct {
+	key     string
+	members []standingMember
+}
+
+// standingMember is one member line of a standing entry, name to text.
+type standingMember struct {
+	name  string
+	value string
+}
+
+// standingBlock reads a column's standing_items block into its entries in
+// declaration order, and answers beside them every dashed line met anywhere
+// in the block, trimmed, as the lines the grammar has no reading for.
+//
+// A duplicate key keeps its first occurrence and a duplicate member within an
+// entry keeps its last, which is what the switch in readStandingItems always
+// did. An unknown member name is kept rather than skipped, so the export
+// carries it and a later build declaring it reads it.
+func standingBlock(fm *Frontmatter) ([]standingEntry, []string) {
+	var entries []standingEntry
+	var dashed []string
 	seen := map[string]bool{}
 	entryIndent := -1
 	current := -1
@@ -79,7 +136,7 @@ func readStandingItems(fm *Frontmatter) ([]StandingItem, []string) {
 			// reading for. It is reported rather than skipped, because the
 			// entry pattern is tried first and a key spelled with a leading
 			// hyphen would otherwise vanish into whatever entry was open.
-			malformed = append(malformed, strings.TrimSpace(line))
+			dashed = append(dashed, strings.TrimSpace(line))
 			continue
 		}
 		m := fieldBlockMember.FindStringSubmatch(line)
@@ -96,34 +153,50 @@ func readStandingItems(fm *Frontmatter) ([]StandingItem, []string) {
 				continue
 			}
 			seen[name] = true
-			entries = append(entries, StandingItem{Key: name})
+			entries = append(entries, standingEntry{key: name})
 			current = len(entries) - 1
 			continue
 		}
 		if current < 0 {
 			continue
 		}
-		value := unquote(strings.TrimSpace(rest))
-		switch name {
-		case standingKindMember:
-			entries[current].Kind = value
-		case standingTextMember:
-			entries[current].Text = value
-		case standingOwnerMember:
-			entries[current].Owner = value
-		case standingEvidenceMember:
-			entries[current].Evidence = value
-		}
+		entries[current].members = append(entries[current].members, standingMember{name: name, value: unquote(strings.TrimSpace(rest))})
 	}
-	declared := make([]StandingItem, 0, len(entries))
-	for _, entry := range entries {
-		if !HarnessName(entry.Key) || !KnownItemKind(entry.Kind) || strings.TrimSpace(entry.Text) == "" {
-			malformed = append(malformed, entry.Key)
-			continue
-		}
-		declared = append(declared, entry)
+	return entries, dashed
+}
+
+// standingItemsValue is the column's standing_items block as the JSON value
+// the interchange form carries: an object whose members are the entries in
+// declaration order, each an object of its members in the order written, and
+// every member's value a JSON string. It is written from the same pass the
+// declaration reader takes, so a text the reader accepted is the text the
+// export carries, whatever a schema-free reading of its bare spelling would
+// have made of it. A malformed entry travels as written, on the terms the
+// block reader carries it, so nothing the author declared is lost between
+// the source and the clone, and a dashed line has no JSON spelling and is
+// dropped as the block reader drops it.
+func standingItemsValue(fm *Frontmatter) json.RawMessage {
+	block, _ := standingBlock(fm)
+	if len(block) == 0 {
+		return mustMarshal("")
 	}
-	return declared, malformed
+	entries := make([]jsonMember, 0, len(block))
+	for _, entry := range block {
+		members := make([]jsonMember, 0, len(entry.members))
+		seen := map[string]bool{}
+		for i := len(entry.members) - 1; i >= 0; i-- {
+			// The last spelling of a duplicated member is the one the
+			// declaration reader keeps, so it is the one that travels.
+			member := entry.members[i]
+			if seen[member.name] {
+				continue
+			}
+			seen[member.name] = true
+			members = append([]jsonMember{{name: member.name, value: mustMarshal(member.value)}}, members...)
+		}
+		entries = append(entries, jsonMember{name: entry.key, value: jsonObject(members)})
+	}
+	return jsonObject(entries)
 }
 
 // MissingStandingItems answers the entries of a column's declaration the card

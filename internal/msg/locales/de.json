@@ -1669,9 +1669,9 @@
       "source": "d502fd2f9299d4a8"
     },
     "check.standing-item-malformed": {
-      "text": "der standing_items-Block der Spalte {detail} hat für diesen Eintrag keine brauchbare Art und keinen brauchbaren Text, daher wird dafür nichts geprägt",
+      "text": "die Spalte {detail} trägt einen Standing-Eintrag oder eine Zeile, die der Leser nicht lesen kann, daher wird dafür nichts geprägt",
       "context": "A check finding: one entry of a column's standing_items block that the reader refused, which is an entry whose key is outside the one-segment grammar, whose kind is absent or outside the three item kinds, whose text is absent or blank, or a dashed line where a member line was expected. {detail} carries the column's reference and then the key as written, or the offending line. The entry mints nothing and the column still opens, so the repair is an edit to the block.",
-      "source": "76a9004cba19f521"
+      "source": "6ea39b15216cb9c1"
     },
     "check.standing-item-missing": {
       "text": "eine Karte in einer deklarierenden Spalte trägt keine Instanz eines stehenden Punkts, sodass die Sperre der Spalte nichts hat, woran sie halten kann: {detail}",

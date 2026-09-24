@@ -181,12 +181,13 @@ func (b *Bench) exportColumn(column *Column) (map[string]json.RawMessage, error)
 		element[RequireFieldsKey] = mustMarshal(column.RequireFields)
 	}
 	// CORE-JSON-14 blesses this member. It travels as the nested value the
-	// anchor already carries, read by the one reader every structured
-	// frontmatter value is read by, so the declaration order the file
-	// carries survives the trip and a second export of the import is
-	// byte-identical to the first.
+	// anchor already carries, read by the pass the declaration reader takes
+	// rather than by the schema-free block reader, so every member is the
+	// text the reader accepted, the declaration order the file carries
+	// survives the trip, and a second export of the import is byte-identical
+	// to the first.
 	if column.FM.Has(StandingItemsKey) {
-		element[StandingItemsKey] = blockValue(column.FM, StandingItemsKey)
+		element[StandingItemsKey] = standingItemsValue(column.FM)
 	}
 	attachments, err := exportAttachments(b.ColumnDir(column.ID))
 	if err != nil {
@@ -473,14 +474,14 @@ func Instantiate(root, slug, operator string, definition *Definition) error {
 		if lines, readable := renderLevelsMember(raw); readable {
 			fm.SetRaw(LevelsKey, lines)
 		} else {
-			fm.Set(LevelsKey, string(raw))
+			setRawJSON(fm, LevelsKey, raw)
 		}
 	}
 	if raw, ok := definition.Object[TiersKey]; ok {
 		if lines, readable := renderTiersMember(raw); readable {
 			fm.SetRaw(TiersKey, lines)
 		} else {
-			fm.Set(TiersKey, string(raw))
+			setRawJSON(fm, TiersKey, raw)
 		}
 	}
 	for _, member := range []string{FieldsKey, FieldValuesKey} {
@@ -667,7 +668,23 @@ func writeMember(fm *Frontmatter, member string, raw json.RawMessage) {
 		fm.SetRaw(member, lines)
 		return
 	}
-	fm.Set(member, string(raw))
+	setRawJSON(fm, member, raw)
+}
+
+// setRawJSON writes one JSON value as the bare text of a key's own line, which
+// is the fallback every member the renderer refuses travels as. The line is
+// written bare rather than through Set, because Set quotes a value opening
+// with a brace or a bracket and a quoted scalar reads back as text, on the
+// rule scalarValue states; and it is compacted first, because the value keeps
+// the bytes the definition carried and a definition written by hand may
+// spread one value over several lines, which a frontmatter line cannot hold.
+func setRawJSON(fm *Frontmatter, key string, raw json.RawMessage) {
+	var compact bytes.Buffer
+	if err := json.Compact(&compact, raw); err != nil {
+		compact.Reset()
+		compact.WriteString(strings.TrimSpace(string(raw)))
+	}
+	fm.SetRaw(key, []string{key + ": " + compact.String()})
 }
 
 // Extract copies a bench's definition into a new directory and leaves the

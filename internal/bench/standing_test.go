@@ -431,6 +431,92 @@ func TestStandingItemsTravelThroughTheInterchange(t *testing.T) {
 	if bytes.Contains(bareExport, []byte(StandingItemsKey)) {
 		t.Errorf("a column declaring nothing exports a %s member", StandingItemsKey)
 	}
+
+	// The shapes a schema-free reading of the line would misread. A text
+	// opening and closing with a bracket read as a flow sequence on the
+	// round the reviewer drove on dinah-593, so the export wrote an array,
+	// the import wrote a dashed list and the clone lost the entry; a text of
+	// bare digits read as a number; and a quoted text was read away to its
+	// bare spelling before either rule ran. Each is held to the whole trip:
+	// the export carries the text as a JSON string, the clone declares the
+	// entry with its text intact, and the clone's export is the first one.
+	hostile := strings.Replace(declaringColumn, "  date-confirmed:\n", `  draft-date:
+    kind: open_question
+    text: [Draft] confirm the date [urgent]
+  count-only:
+    kind: decision
+    text: 12
+  quoted-flow:
+    kind: decision
+    text: "[a, b]"
+  date-confirmed:
+`, 1)
+	hostileRoot := newFixture(t)
+	write(t, filepath.Join(hostileRoot, ColumnsDir, "b00000000001", ColumnAnchor), hostile)
+	source, err := Open(hostileRoot)
+	if err != nil {
+		t.Fatalf("open the hostile workbench: %v", err)
+	}
+	wantHostile := []StandingItem{
+		wellFormedEntries[0], wellFormedEntries[1],
+		{Key: "draft-date", Kind: "open_question", Text: "[Draft] confirm the date [urgent]"},
+		{Key: "count-only", Kind: "decision", Text: "12"},
+		{Key: "quoted-flow", Kind: "decision", Text: "[a, b]"},
+		wellFormedEntries[2],
+	}
+	if !reflect.DeepEqual(source.Columns[0].StandingItems, wantHostile) {
+		t.Fatalf("the source declares %+v, wanted %+v", source.Columns[0].StandingItems, wantHostile)
+	}
+	hostileExport, err := source.Export()
+	if err != nil {
+		t.Fatalf("export the hostile workbench: %v", err)
+	}
+	hostileObject := map[string]json.RawMessage{}
+	if err := json.Unmarshal(hostileExport, &hostileObject); err != nil {
+		t.Fatalf("read the hostile export: %v", err)
+	}
+	var hostileColumns []map[string]json.RawMessage
+	if err := json.Unmarshal(hostileObject["columns"], &hostileColumns); err != nil {
+		t.Fatalf("read the hostile columns: %v", err)
+	}
+	var hostileEntries map[string]map[string]string
+	if err := json.Unmarshal(hostileColumns[0][StandingItemsKey], &hostileEntries); err != nil {
+		t.Fatalf("a member of the hostile export is not a string: %s", hostileColumns[0][StandingItemsKey])
+	}
+	for _, entry := range wantHostile[2:5] {
+		if got := hostileEntries[entry.Key]["text"]; got != entry.Text {
+			t.Errorf("the export carries %s's text as %q, wanted %q", entry.Key, got, entry.Text)
+		}
+	}
+	hostileDefinition, err := ReadDefinition(hostileExport)
+	if err != nil {
+		t.Fatalf("read the hostile definition: %v", err)
+	}
+	hostileClone := containedPath(t.TempDir())
+	if err := Instantiate(hostileClone, "fx", "alka", hostileDefinition); err != nil {
+		t.Fatalf("instantiate the hostile clone: %v", err)
+	}
+	clonedHostile, err := Open(hostileClone)
+	if err != nil {
+		t.Fatalf("open the hostile clone: %v", err)
+	}
+	if !reflect.DeepEqual(clonedHostile.Columns[0].StandingItems, wantHostile) {
+		t.Errorf("the hostile clone declares %+v, wanted %+v", clonedHostile.Columns[0].StandingItems, wantHostile)
+	}
+	if len(clonedHostile.Columns[0].MalformedStandingItems) != 0 {
+		t.Errorf("the hostile clone refuses %v", clonedHostile.Columns[0].MalformedStandingItems)
+	}
+	secondHostile, err := clonedHostile.Export()
+	if err != nil {
+		t.Fatalf("export the hostile clone: %v", err)
+	}
+	secondHostileObject := map[string]json.RawMessage{}
+	if err := json.Unmarshal(secondHostile, &secondHostileObject); err != nil {
+		t.Fatalf("read the hostile clone's export: %v", err)
+	}
+	if !bytes.Equal(hostileObject["columns"], secondHostileObject["columns"]) {
+		t.Errorf("the hostile clone's columns differ from the first export:\n%s\n---\n%s", hostileObject["columns"], secondHostileObject["columns"])
+	}
 }
 
 // TestAddStandingItemWritesWhatTheEntryDeclaresAndNoMore holds the anchor a
