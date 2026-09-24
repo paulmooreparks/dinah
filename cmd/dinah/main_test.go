@@ -1981,7 +1981,7 @@ func TestCheckDeclaresItsRepairFlagsOnEverySurface(t *testing.T) {
 	if err != nil {
 		t.Fatalf("fixture: %v", err)
 	}
-	const line = "check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-columns] [--migrate-vocabulary] [--migrate-container] [--migrate-numbers] [--migrate-designations] [--rehearse] [--force-claims] [--migrate-branches] [--migrate-newlines] [--renumber] [--remint <dir>] [--migrate-workstreams] [--witness] [--yes] [--root <path>] [--max-depth <n>]"
+	const line = "check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-columns] [--migrate-vocabulary] [--migrate-container] [--migrate-numbers] [--migrate-designations] [--rehearse] [--force-claims] [--migrate-branches] [--migrate-newlines] [--migrate-applies-when] [--renumber] [--remint <dir>] [--migrate-workstreams] [--witness] [--yes] [--root <path>] [--max-depth <n>]"
 	if !blockLists(string(fixture), line) {
 		t.Error("the ratified block's check line does not name every repair flag")
 	}
@@ -7368,7 +7368,7 @@ func TestTheFlagSetsTheParserAcceptsAreDerivedFromTheParameterTable(t *testing.T
 		"all", "allow-run", "annotate-prose", "archived", "brief", "catalogs", "dry-run", "finish", "force",
 		"force-claims",
 		"full-pending", "help", "here", "json", "list",
-		"migrate-branches",
+		"migrate-applies-when", "migrate-branches",
 		"migrate-columns",
 		"migrate-container", "migrate-designations", "migrate-newlines", "migrate-numbers",
 		"migrate-ordinals",

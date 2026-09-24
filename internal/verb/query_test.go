@@ -643,3 +643,88 @@ func TestAQueryCarryingTwoMistakesIsRefusedForTheEarlier(t *testing.T) {
 		}
 	}
 }
+
+// TestADeclaredFieldIsQueryableByName is dinah-590/criteria/1 and the first
+// case of its specification's section 11.4: a key the workbench declares for
+// cards filters under the equality operator, its negation, the comma-or and
+// the empty value, with no vocabulary check on the value.
+func TestADeclaredFieldIsQueryableByName(t *testing.T) {
+	h := declaringHarness(t)
+	main := h.add("Rewire the kitchen")
+	side := h.add("Replumb the bathroom")
+	plain := h.add("Frame the extension")
+	for _, write := range [][3]string{{main, "git.branch", "kitchen"}, {side, "git.branch", "bathroom"}} {
+		if response := h.set(write[0], write[1], write[2]); response.Outcome != contract.OutcomeOK {
+			t.Fatalf("set %v: %s %s", write, response.Outcome, response.Refusal)
+		}
+	}
+	wantRefs(t, "git.branch:kitchen", h.ask("git.branch:kitchen"), main)
+	wantRefs(t, "git.branch:kitchen,bathroom", h.ask("git.branch:kitchen,bathroom"), main, side)
+	wantRefs(t, "git.branch!=kitchen", h.ask("git.branch!=kitchen"), side, plain)
+	wantRefs(t, `git.branch:""`, h.ask(`git.branch:""`), plain)
+	// The value is open, so a value no card stores is a query matching
+	// nothing rather than a refusal.
+	if got := h.ask("git.branch:nowhere"); got.Count != 0 {
+		t.Errorf("a value no card stores matched %v", refs(got))
+	}
+}
+
+// TestAnUndeclaredDottedKeyIsRefusedUnlessACardStoresIt is the second, third
+// and fourth cases of specification section 11.4: a dotted key nothing
+// declares and no card stores is refused as an unknown field, with the
+// built-in names followed by the declared card keys; one some card stores is
+// admitted and finds that card; and one declared on a column alone is
+// refused.
+func TestAnUndeclaredDottedKeyIsRefusedUnlessACardStoresIt(t *testing.T) {
+	h := declaringHarness(t)
+	ref := h.add("A card")
+	refused := h.refuse("nobody.home:x")
+	if refused.Name != contract.UnknownField || refused.Detail != "nobody.home" {
+		t.Fatalf("an undeclared dotted key is refused %s over %q", refused.Name, refused.Detail)
+	}
+	want := strings.Join(QueryFields, ", ") + ", git.branch, git.pr, venue.deposit-paid"
+	if got := refused.Extra["fields"]; got != want {
+		t.Errorf("the refusal lists %q, wanted the built-in names then the declared card keys: %q", got, want)
+	}
+	// A key declared on a column alone is refused on the same terms.
+	if refused := h.refuse("git.trunk:main"); refused.Name != contract.UnknownField {
+		t.Errorf("a key declared off cards is refused %s", refused.Name)
+	}
+	// A stored but undeclared key stays findable, on the terms a stored
+	// level nobody declares stays findable.
+	path := filepath.Join(h.card(ref).Dir, bench.CardAnchor)
+	text, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	fm, body := bench.ParseAnchor(string(text))
+	bench.SetFieldValue(fm, "nobody.home", "x")
+	if err := os.WriteFile(path, []byte(fm.Render(body)), 0o644); err != nil {
+		t.Fatalf("write %s: %v", path, err)
+	}
+	h.reopen()
+	wantRefs(t, "nobody.home:x", h.ask("nobody.home:x"), ref)
+}
+
+// TestADottedKeyTakesNoOrderedOperator is the fifth case of specification
+// section 11.4: an ordered operator on a declared key is refused at check 3,
+// naming the field with the operator after it, whatever the key's type.
+func TestADottedKeyTakesNoOrderedOperator(t *testing.T) {
+	h := declaringHarness(t)
+	refused := h.refuse("venue.deposit-paid>=2026-10-01")
+	if refused.Name != contract.UnknownField || refused.Detail != "venue.deposit-paid>=" {
+		t.Errorf("an ordered operator on a date-typed key is refused %s over %q", refused.Name, refused.Detail)
+	}
+}
+
+// TestTheDeclaredFieldCheckRunsAfterTheExistingEight is the last case of
+// specification section 11.4: a query carrying an unknown state value and an
+// undeclared dotted key is refused for the state value, which pins check 9's
+// position after the existing checks.
+func TestTheDeclaredFieldCheckRunsAfterTheExistingEight(t *testing.T) {
+	h := declaringHarness(t)
+	refused := h.refuse("state:reday nobody.home:x")
+	if refused.Name != contract.UnknownValue || refused.Detail != "reday" {
+		t.Errorf("the two-mistake query is refused %s over %q, wanted %s over reday", refused.Name, refused.Detail, contract.UnknownValue)
+	}
+}

@@ -3142,7 +3142,7 @@ func checkOneRefusalIsOneDeclaration(t *testing.T, root string, shapes map[strin
 	for name, shape := range shapes {
 		declared[refusalKeyOf(name)] = true
 		if shape.Subject != "" {
-			declared[refusalKeyOf(name)+".unnamed"] = true
+			declared[shape.AbsentKeyOf(refusalKeyOf(name))] = true
 		}
 		for _, command := range shape.Variants {
 			declared[shape.VariantKeyOf(command)] = true
@@ -3384,7 +3384,7 @@ func checkNoPlaceholderIsStrayOrOrphaned(t *testing.T, shapes map[string]*contra
 		}
 		entries := []shapeEntry{{key: refusalKeyOf(name)}}
 		if shape.Subject != "" {
-			entries = append(entries, shapeEntry{key: refusalKeyOf(name) + ".unnamed"})
+			entries = append(entries, shapeEntry{key: shape.AbsentKeyOf(refusalKeyOf(name))})
 		}
 		for _, command := range shape.Variants {
 			entries = append(entries, shapeEntry{key: shape.VariantKeyOf(command)})
@@ -4202,8 +4202,8 @@ func checkNoEmptySubjectReachesASentence(t *testing.T, shapes map[string]*contra
 		if shape.Subject == "" {
 			continue
 		}
-		if _, ok := base[refusalKeyOf(name)+".unnamed"]; !ok {
-			t.Errorf("%s declares the subject %s and the base catalog carries no %s, so a card nobody holds would render a sentence with a hole in it", name, shape.Subject, refusalKeyOf(name)+".unnamed")
+		if _, ok := base[shape.AbsentKeyOf(refusalKeyOf(name))]; !ok {
+			t.Errorf("%s declares the subject %s and the base catalog carries no %s, so a card nobody holds would render a sentence with a hole in it", name, shape.Subject, shape.AbsentKeyOf(refusalKeyOf(name)))
 		}
 	}
 }
@@ -4211,7 +4211,7 @@ func checkNoEmptySubjectReachesASentence(t *testing.T, shapes map[string]*contra
 // baseKeysOf is every entry a shape's sentence can start from: its own base
 // entry, its unnamed sibling, and one entry per per-command variant.
 func baseKeysOf(shape *contract.Shape) []string {
-	keys := []string{refusalKeyOf(shape.Name), refusalKeyOf(shape.Name) + ".unnamed"}
+	keys := []string{refusalKeyOf(shape.Name), shape.AbsentKeyOf(refusalKeyOf(shape.Name))}
 	for _, command := range shape.Variants {
 		keys = append(keys, shape.VariantKeyOf(command))
 	}

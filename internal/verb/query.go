@@ -21,9 +21,10 @@ type Matches struct {
 	Count int `json:"count"`
 }
 
-// The twelve field names the query language admits. The vocabulary is closed,
-// so a name absent from this list is refused whatever a card carries in its
-// frontmatter.
+// The built-in field names the query language admits. Beside them a term may
+// name any field the workbench in front of the reader declares for its cards,
+// so the vocabulary is the built-in list plus that workbench's own card keys,
+// and a name in neither is refused whatever a card carries in its frontmatter.
 const (
 	FieldColumn     = "column"
 	FieldState      = "state"
@@ -40,11 +41,13 @@ const (
 	FieldAt         = "at"
 )
 
-// QueryFields lists the thirteen legal field names in the order the spec's
-// field table states them, which is the order a refusal lists them back to a
-// reader. severity and priority sit between state and holder, matching the
-// order CardView already reports a card in, and route follows workstream,
-// which is where the card's own classifications end.
+// QueryFields lists the built-in field names in the order the spec's field
+// table states them, which is the order a refusal lists them back to a reader,
+// ahead of the card keys the workbench declares. severity and priority sit
+// between state and holder, matching the order CardView already reports a
+// card in, and route follows workstream, which is where the card's own
+// classifications end. A declared key joins the language per workbench and
+// never joins this list.
 var QueryFields = []string{
 	FieldColumn, FieldState, FieldSeverity, FieldPriority, FieldHolder,
 	FieldBlockKind, FieldWorkstream, FieldRoute, FieldActor, FieldEvent,
@@ -114,9 +117,11 @@ type query struct {
 // The refusals run in the order the spec's section 10 fixes, and the order is
 // normative: a query carrying two mistakes is refused for the earlier one, so
 // that a second implementation's output is comparable. The first four checks
-// read no card, and the last two read every live card because a card's own
-// list is half of what a workstream term may name, and a query naming a
-// severity or priority also needs every card's actual value to tolerate drift.
+// read no card, and the rest read every live card because a card's own list
+// is half of what a workstream term may name, a query naming a severity or
+// priority needs every card's actual value to tolerate drift, and a declared
+// key some card still stores after its declaration went has to stay
+// findable.
 func (l *Library) Query(req *Request) (*Matches, error) {
 	matched, _, err := l.selection(req.Query, req.Actor)
 	if err != nil {
@@ -148,7 +153,7 @@ func (l *Library) Query(req *Request) (*Matches, error) {
 // it goes, and a lapse that notices a hand-edited position records who was
 // reading when it noticed.
 func (l *Library) selection(text, actor string) (matched, live []*bench.Card, err error) {
-	parsed, err := parseQuery(text)
+	parsed, err := l.parseQuery(text)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -173,6 +178,9 @@ func (l *Library) selection(text, actor string) (matched, live []*bench.Card, er
 	if err := l.checkRoutes(parsed, cards); err != nil {
 		return nil, nil, err
 	}
+	if err := l.checkDeclaredFields(parsed, cards); err != nil {
+		return nil, nil, err
+	}
 	kept, err := l.selectCards(parsed, cards)
 	if err != nil {
 		return nil, nil, err
@@ -181,8 +189,10 @@ func (l *Library) selection(text, actor string) (matched, live []*bench.Card, er
 }
 
 // parseQuery runs checks 1 to 3: every term parses, every field is one this
-// tool knows, and every operator is one the named field accepts.
-func parseQuery(text string) (*query, error) {
+// tool knows or one shaped like a declared key, and every operator is one the
+// named field accepts. It is a method only because the refusal it raises
+// lists the workbench's own card keys beside the built-in names.
+func (l *Library) parseQuery(text string) (*query, error) {
 	tokens, err := splitTerms(strings.Trim(text, queryTrims))
 	if err != nil {
 		return nil, err
@@ -196,12 +206,12 @@ func parseQuery(text string) (*query, error) {
 		parsed.append(t)
 	}
 	for _, t := range parsed.all() {
-		if err := checkField(*t); err != nil {
+		if err := l.checkField(*t); err != nil {
 			return nil, err
 		}
 	}
 	for _, t := range parsed.all() {
-		if err := checkOperator(*t); err != nil {
+		if err := l.checkOperator(*t); err != nil {
 			return nil, err
 		}
 	}
@@ -384,42 +394,55 @@ func parseInstant(value string) (time.Time, error) {
 	return time.Parse(queryDate, value)
 }
 
-// checkField runs check 2: the field named is one this tool has.
-func checkField(t term) error {
-	for _, known := range QueryFields {
-		if t.field == known {
-			return nil
-		}
+// checkField runs check 2: the field named is one this tool has, or one shaped
+// like a declared field key. The static check cannot know the workbench, so
+// it admits the shape here and check 9 answers for the name once the cards are
+// read.
+func (l *Library) checkField(t term) error {
+	if contains(QueryFields, t.field) || declaredTerm(t.field) {
+		return nil
 	}
-	return unknownField(t.field)
+	return l.unknownField(t.field)
+}
+
+// declaredTerm reports whether a term's field is a declared key rather than a
+// built-in name, which is any token bench.DeclaredFieldKey accepts. No
+// built-in name carries a full stop, so the two sets never meet.
+func declaredTerm(field string) bool {
+	return !contains(QueryFields, field) && bench.DeclaredFieldKey(field)
 }
 
 // checkOperator runs check 3: the operator is one the named field accepts. at
 // takes the four ordered operators and no other field takes any of them, since
 // nothing but an instant ranks in this language. severity and priority also
 // rank internally (bench.Level.Rank), but the query does not expose that
-// ranking, so they take the equality pair like every other card field.
-func checkOperator(t term) error {
+// ranking, so they take the equality pair like every other card field, and so
+// does a declared key whatever its type.
+func (l *Library) checkOperator(t term) error {
 	ordered := t.op != opIs && t.op != opIsNot
 	if ordered == (t.field == FieldAt) {
 		return nil
 	}
-	return unknownField(t.field + t.op)
+	return l.unknownField(t.field + t.op)
 }
 
-// unknownField raises the refusal both check 2 and check 3 answer with, since
-// one name covers a field this tool does not have and a field given an
-// operator it does not take.
+// unknownField raises the refusal checks 2, 3 and 9 answer with, since one
+// name covers a field this tool does not have, a field given an operator it
+// does not take, and a declared key neither this workbench declares nor any of
+// its cards stores.
 //
-// The field list is read off QueryFields rather than written into the catalog,
-// so a field added to the language reaches the refusal without a translator
-// being asked for anything. instantField names the one field the query itself
-// compares in ranked order, which is what the ordered-operator clause is
-// about; the four operators themselves are written in the catalog beside the
-// sentence that frames them.
-func unknownField(token string) error {
+// The field list is read off QueryFields and then off the workbench's own
+// declaration rather than written into the catalog, so a field added to the
+// language and a key a workbench declares both reach the refusal without a
+// translator being asked for anything. instantField names the one field the
+// query itself compares in ranked order, which is what the ordered-operator
+// clause is about; the four operators themselves are written in the catalog
+// beside the sentence that frames them.
+func (l *Library) unknownField(token string) error {
+	fields := append([]string(nil), QueryFields...)
+	fields = append(fields, l.Bench.DeclaredFieldKeysOn(bench.KindCard)...)
 	return contract.RefuseWith(contract.UnknownField, token, map[string]string{
-		"fields":       strings.Join(QueryFields, ", "),
+		"fields":       strings.Join(fields, ", "),
 		"instantField": FieldAt,
 	})
 }
@@ -661,6 +684,47 @@ func (l *Library) checkRoutes(q *query, cards []*bench.Card) error {
 	return nil
 }
 
+// checkDeclaredFields runs check 9, the last of the checks and the fourth to
+// read the cards. A term naming a declared key is admitted where the
+// workbench declares the key for cards, or where some live card stores a
+// value under it, which is the drift tolerance checkLevels and checkRoutes
+// already give and for the same reason: a stored value nobody declares any
+// more has to stay findable from the command people filter with. Anything
+// else is refused as an unknown field. It runs after the existing eight so
+// that the refusal every query carrying two mistakes already meets is
+// unchanged.
+//
+// The value is never checked. A declared key's values are open, as holder's
+// are, so a term compares whatever the card stores and ignores applicability:
+// severity:major finds a value kept on a card its condition no longer admits,
+// which is what makes the finding reporting it actionable from here.
+func (l *Library) checkDeclaredFields(q *query, cards []*bench.Card) error {
+	for _, t := range q.cardTerms {
+		if !declaredTerm(t.field) {
+			continue
+		}
+		if field := l.Bench.DeclaredFieldOf(t.field); field != nil && field.Declares(bench.KindCard) {
+			continue
+		}
+		if l.anyCardStores(cards, t.field) {
+			continue
+		}
+		return l.unknownField(t.field)
+	}
+	return nil
+}
+
+// anyCardStores reports whether some live card stores a value under a key,
+// declared or not.
+func (l *Library) anyCardStores(cards []*bench.Card, key string) bool {
+	for _, card := range cards {
+		if bench.FieldValue(card.FM, key) != "" {
+			return true
+		}
+	}
+	return false
+}
+
 // unknownValue composes check 4's and check 6's shared refusal, which names
 // the offending value, the term it was written in, and what is legal in its
 // place.
@@ -755,8 +819,13 @@ func (l *Library) actMatches(q *query, event bench.Event) bool {
 // which is the empty string on a card that has none, and workstream carries
 // its whole list. An empty list reads as the one empty value, so
 // `workstream:""` asks for the same absence `holder:""` asks for and
-// `workstream!=X` stays the exact complement of `workstream:X`.
+// `workstream!=X` stays the exact complement of `workstream:X`. A declared
+// key carries what the card's own value block stores under it, which is the
+// empty string where it stores nothing.
 func (l *Library) cardValues(field string, card *bench.Card) []string {
+	if declaredTerm(field) {
+		return []string{bench.FieldValue(card.FM, field)}
+	}
 	switch field {
 	case FieldColumn:
 		return []string{card.Column}

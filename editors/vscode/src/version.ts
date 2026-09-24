@@ -50,8 +50,15 @@ import type { VersionReport } from "./api";
  * a read answers with goes on carrying the position, composed by the binary at
  * the moment of the read, and gains `resolution_id` beside it, which an older
  * reader ignores.
+ *
+ * 8 joined the set at dinah-590, which let a declaration carry a condition
+ * saying which cards it applies to and gave a level axis a mapping form. Both
+ * are members of the workbench anchor, which this extension never reads: the
+ * card view a read answers with gains `inapplicable` beside `fields`, which
+ * an older reader ignores, and a write the condition refuses is refused by
+ * name through the same verb surface as every other refusal.
  */
-export const SUPPORTED_FORMATS: readonly number[] = [1, 2, 3, 4, 5, 6, 7];
+export const SUPPORTED_FORMATS: readonly number[] = [1, 2, 3, 4, 5, 6, 7, 8];
 
 /**
  * The conformance claim this extension needs. A different name or major is

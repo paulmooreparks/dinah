@@ -87,14 +87,57 @@ func LevelNames(levels []Level) []string {
 	return names
 }
 
+// levelsBlock is what readLevels answers: the declared sets by axis, the raw
+// condition each axis carried, and whether any axis was written in the
+// mapping form. Open resolves the conditions once the fields block is read
+// too, since a condition's gate is a declared field.
+type levelsBlock struct {
+	axes        map[string][]Level
+	conditions  map[string]*rawCondition
+	mappingForm bool
+}
+
+// The three forms an axis's declaration can be in while its lines are being
+// read. The form is settled by the first line beneath an axis line whose
+// colon has nothing after it: a dashed line opens the list form and a deeper
+// key line opens the mapping form.
+const (
+	axisFormUnknown = iota
+	axisFormList
+	axisFormMapping
+)
+
+// openAxis is the axis the reader is inside, with what it has settled about
+// the lines beneath it so far.
+type openAxis struct {
+	// name is the axis, and ignored is true where it is one the model does
+	// not read, so every nested line goes with it.
+	name    string
+	ignored bool
+	// indent is the axis line's own indent, and memberIndent the indent of
+	// the mapping form's members once the first has been met.
+	indent       int
+	memberIndent int
+	form         int
+	// member is the mapping-form member the reader is inside, and condition
+	// the raw applies_when record while that member is open.
+	member    string
+	condition *rawCondition
+}
+
 // readLevels reads the levels block out of the raw frontmatter lines the way
 // readLinks reads a card's links sequence, rather than by introducing a YAML
 // parser for one key.
 //
-// Both declared syntaxes are accepted and they mix freely across axes within
+// Three declared syntaxes are accepted and they mix freely across axes within
 // one block: a flow sequence on the axis's own line, whose entries are bare
-// names, and a block of dashed entries beneath the axis, where an entry is
-// either a bare name or a name mapping to a one-line hint.
+// names; a block of dashed entries beneath the axis, where an entry is either
+// a bare name or a name mapping to a one-line hint; and the mapping form,
+// where the axis carries a values member taking either list spelling and an
+// optional applies_when member. The reader tells the last two apart by the
+// first non-blank line beneath an axis line with nothing after its colon: a
+// dashed line opens the list form and a deeper key line opens the mapping
+// form.
 //
 // Four rules bind. Declaration order within one axis is the rank, and nothing
 // sorts the members. Ranks are counted within an axis and never across the
@@ -102,47 +145,104 @@ func LevelNames(levels []Level) []string {
 // axes carry. A duplicate name within one axis keeps the first occurrence
 // for both rank and lookup. A block carrying no parseable child leaves every
 // axis undeclared and raises nothing, because the format's reader posture is
-// to ignore what it cannot read rather than to fail.
-func readLevels(fm *Frontmatter) map[string][]Level {
-	axes := map[string][]Level{}
-	axis := ""
+// to ignore what it cannot read rather than to fail, and a mapping-form axis
+// whose values member is absent declares no set on the same terms.
+func readLevels(fm *Frontmatter) levelsBlock {
+	block := levelsBlock{axes: map[string][]Level{}, conditions: map[string]*rawCondition{}}
+	var open *openAxis
 	for _, line := range fm.Raw(LevelsKey) {
 		if strings.TrimSpace(line) == "" {
 			continue
 		}
 		if m := levelEntry.FindStringSubmatch(line); m != nil {
-			if axis == "" {
-				continue
-			}
-			name, hint := splitLevelEntry(m[1])
-			addLevel(axes, axis, name, hint)
+			block.readDashed(open, m[1])
 			continue
 		}
 		m := levelAxis.FindStringSubmatch(line)
 		if m == nil {
-			axis = ""
+			open = nil
+			continue
+		}
+		indent := len(line) - len(strings.TrimLeft(line, " 	"))
+		name, rest := m[1], unquote(strings.TrimSpace(m[2]))
+		if open != nil && indent > open.indent {
+			block.readNested(open, indent, name, rest)
 			continue
 		}
 		// An axis outside LevelAxes takes no part in the model, and its own
-		// dashed entries go with it, which is what clearing the current axis
-		// rather than remembering it does.
-		if !KnownLevelAxis(m[1]) {
-			axis = ""
+		// nested lines go with it, which is what keeping it open as ignored
+		// rather than forgetting it does.
+		open = &openAxis{name: name, indent: indent, ignored: !KnownLevelAxis(name)}
+		if open.ignored || rest == "" {
 			continue
 		}
-		axis = m[1]
-		inline := unquote(strings.TrimSpace(m[2]))
-		if !strings.HasPrefix(inline, "[") || !strings.HasSuffix(inline, "]") {
-			continue
-		}
-		for _, raw := range strings.Split(strings.Trim(inline, "[]"), ",") {
-			addLevel(axes, axis, unquote(strings.TrimSpace(raw)), "")
+		// A value on the axis line itself settles the list form, so a line
+		// nested beneath it later is read as nothing.
+		open.form = axisFormList
+		for _, raw := range flowMembers(rest) {
+			addLevel(block.axes, open.name, raw, "")
 		}
 	}
-	if len(axes) == 0 {
-		return nil
+	if len(block.axes) == 0 {
+		block.axes = nil
 	}
-	return axes
+	return block
+}
+
+// readDashed takes one dashed line, which is a level entry in the list form
+// and beneath a values member, and the dashed spelling of an is member, which
+// this reader does not accept.
+func (block *levelsBlock) readDashed(open *openAxis, entry string) {
+	if open == nil || open.ignored {
+		return
+	}
+	if open.form == axisFormUnknown {
+		open.form = axisFormList
+	}
+	switch {
+	case open.form == axisFormList, open.member == levelValuesMember:
+		name, hint := splitLevelEntry(entry)
+		addLevel(block.axes, open.name, name, hint)
+	case open.member == appliesWhenMember && open.condition != nil:
+		open.condition.unreadable = true
+	}
+}
+
+// readNested takes one key line beneath an open axis, which opens or continues
+// the mapping form. A key line beneath an axis already in the list form is
+// nothing the list form can carry and is skipped.
+func (block *levelsBlock) readNested(open *openAxis, indent int, name, value string) {
+	if open.ignored {
+		return
+	}
+	if open.form == axisFormUnknown {
+		open.form = axisFormMapping
+		open.memberIndent = indent
+		block.mappingForm = true
+	}
+	if open.form != axisFormMapping {
+		return
+	}
+	if indent > open.memberIndent {
+		if open.member == appliesWhenMember && open.condition != nil {
+			open.condition.read(name, value)
+		}
+		return
+	}
+	open.member = name
+	open.condition = nil
+	switch name {
+	case levelValuesMember:
+		for _, raw := range flowMembers(value) {
+			addLevel(block.axes, open.name, raw, "")
+		}
+	case appliesWhenMember:
+		// Anything after the colon is a value that is not one block mapping,
+		// which is the unreadable shape; the record is still kept so that a
+		// gate naming this axis and the format check both see it.
+		open.condition = &rawCondition{unreadable: value != ""}
+		block.conditions[open.name] = open.condition
+	}
 }
 
 // splitLevelEntry reads one dashed entry into its name and its hint. The text
@@ -256,11 +356,39 @@ func renderLevelsMember(raw json.RawMessage) ([]string, bool) {
 	}
 	lines := []string{LevelsKey + ":"}
 	for _, axis := range orderLevelAxes(axes) {
-		rendered, ok := renderBlock(axis, 2, declared[axis])
+		rendered, ok := renderBlock(axis, 2, orderAxisMembers(declared[axis]))
 		if !ok {
 			return nil, false
 		}
 		lines = append(lines, rendered...)
 	}
 	return lines, true
+}
+
+// orderAxisMembers puts a mapping-form axis's members in the one order the
+// renderer writes them: values, then applies_when, then any further member
+// in the order the object carried it. An axis in list form is an array and
+// travels on unchanged, and so does anything jsonMembers cannot read.
+func orderAxisMembers(raw json.RawMessage) json.RawMessage {
+	if jsonShape(raw) != '{' {
+		return raw
+	}
+	members, read := jsonMembers(raw)
+	if !read {
+		return raw
+	}
+	var ordered []jsonMember
+	for _, first := range []string{levelValuesMember, appliesWhenMember} {
+		for _, member := range members {
+			if member.name == first {
+				ordered = append(ordered, member)
+			}
+		}
+	}
+	for _, member := range members {
+		if member.name != levelValuesMember && member.name != appliesWhenMember {
+			ordered = append(ordered, member)
+		}
+	}
+	return jsonObject(ordered)
 }
