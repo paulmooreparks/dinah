@@ -1,7 +1,9 @@
 {
   "card": "dinah-548",
+  "mode": "construction",
   "commit": "71ed75432423a01025b4f6a24d1fd5b5ea4c6014",
   "profile_sha256": "692dbf8531f98c4acbd2a33d8b115634d03c8f8b0392466d6c5a5658b68c7b32",
+  "brief": "BRIEF.md",
   "brief_sha256": "bfcf930809ebfb48ded8ecd1f435ed7bfe30295daa36cc9e489a277535031ff9",
   "harness": "claude-code 2.1.276",
   "model": "claude-opus-5",
