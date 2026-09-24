@@ -825,17 +825,17 @@
     },
     "check.format-current": {
       "text": "Der Speicher erklärt bereits Format {format}, es gibt also nichts zu stempeln.",
-      "context": "The line the applies_when migration prints when the workbench already declares the format it stamps or a later one, whether or not the run carried the confirmation flag. {format} carries the declared number.",
+      "context": "The line a format stamp prints when the workbench already declares the format it stamps or a later one, whether or not the run carried the confirmation flag. {format} carries the declared number.",
       "source": "dbf514f1141b2c09"
     },
     "check.format-stamped": {
       "text": "Das Speicherformat {format} gestempelt.",
-      "context": "The line the applies_when migration prints when it wrote the format number onto the workbench anchor. {format} carries the number.",
+      "context": "The line a format stamp prints when it wrote the format number onto the workbench anchor. {format} carries the number.",
       "source": "acb79e1dac505c53"
     },
     "check.format-would-stamp": {
       "text": "Der Speicher erklärt Format {from} und würde mit {format} gestempelt; nichts wurde geschrieben, weil dieser Lauf keine Bestätigung trug.",
-      "context": "The line the applies_when migration prints when it ran without the confirmation flag on a workbench below the format it stamps. {from} carries the declared number and {format} the one it would write.",
+      "context": "The line a format stamp prints when it ran without the confirmation flag on a workbench below the format it stamps. {from} carries the declared number and {format} the one it would write.",
       "source": "bbbebf422461b74"
     },
     "check.get.1": {
@@ -3312,9 +3312,9 @@
       "source": "774fb527debb03a9"
     },
     "param.check.migrate-applies-when.summary": {
-      "text": "trägt auf der Werkbank das Format ein, das applies_when-Bedingungen und die Abbildungsform einer Stufenachse erklärt, damit ein älteres Dinah den Speicher abweist, statt ihn falsch zu lesen; ohne --yes wird nichts geschrieben",
+      "text": "trägt auf der Werkbank das Format ein, das applies_when-Bedingungen und die Abbildungsform einer Stufenachse erklärt, von jeder niedrigeren Nummer aus, damit ein älteres Dinah den Speicher abweist, statt ihn falsch zu lesen; es wandelt keine Benennung um, daher führt eine Werkbank unter Format 7 zuerst --migrate-designations aus; ohne --yes wird nichts geschrieben",
       "context": "The written meaning of the --migrate-applies-when flag of check. It writes the one format line on the workbench anchor and reads no card, and without the confirmation flag it writes nothing at all.",
-      "source": "7b54062f6abc66ef"
+      "source": "2d64269473a44c84"
     },
     "param.check.migrate-branches.summary": {
       "text": "die zurückgezogene Überschrift aus jedem Kartenrumpf in ein erklärtes Feld heben und das Format dieses Speichers stempeln",

@@ -2370,8 +2370,8 @@ deeper key line opens the mapping form. The list forms stay legal, an axis
 without a condition may take any of the three, and Dinah never rewrites an
 axis from one form into another. What `applies_when` means, and what a value
 stored on an axis that does not apply becomes, is the subject of "Where a
-declaration applies" below. A condition on `tier` is refused there, because
-tier drives the claim gate.
+declaration applies" below. A condition on `tier` is reported as unusable
+there, because tier drives the claim gate.
 
 In the interchange a mapping-form axis travels as an object carrying `values`,
 an array in the shape a list-form axis already travels as, and `applies_when`,
@@ -2673,7 +2673,7 @@ status.
 |---|---|---|---|
 | `check.applies-when-malformed` | finding | defect | A condition the reader could not use, with the slot and one of six reasons: `unreadable` for a missing or unreadable member, `tier` for a condition on the tier axis, `reaches-beyond-cards` for a conditioned entry that does not say `on: [card]`, `gate-undeclared`, `gate-off-cards`, and `gate-conditioned` for a gate that itself carries a condition, a slot naming itself included. The condition is ignored and the slot applies to every card. |
 | `check.applies-when-value-unmatchable` | finding | defect | An `is` value the gate's declared type can never hold, so no card is ever admitted by it. The rest of the condition stands. |
-| `check.applies-when-below-format` | finding | defect | A workbench declaring a format below 8 whose definition carries a condition or a mapping-form axis, which an older build misreads. `dinah check --migrate-applies-when --yes` stamps the format. |
+| `check.applies-when-below-format` | finding | defect | A workbench declaring a format below 8 whose definition carries a condition or a mapping-form axis, which an older build misreads. `dinah check --migrate-applies-when --yes` stamps the format, from any lower number; it converts no designation, so a workbench below 7 runs `--migrate-designations` first. |
 | `check.inapplicable-value` | finding | cleanup | A card keeping a value on a slot its condition does not admit, one finding per value, beside `check.unknown-level` on the card's anchor. A value both kept and undeclared is reported under both. |
 | `check.required-field-conditioned` | notice | cleanup | A column whose `require_fields` names a key carrying a usable condition. The requirement is enforced as CORE-FIELD-11 states, so a card the condition excludes enters only by the operator's override, and the operator ruled that configuration legitimate. |
 

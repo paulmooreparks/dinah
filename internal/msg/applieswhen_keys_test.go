@@ -38,9 +38,10 @@ var domainWords = []string{
 // migrationSummaryKey is the one key carrying an applies-when shape that is
 // not on the list: the written meaning of the --migrate-applies-when flag,
 // which the parameter table mints under the flag's own name and which the
-// definition guard requires to exist. The sweep below leaves the param
-// namespace out for that reason and no other, and this key is still held to
-// the word sweep, so the exclusion buys nothing but the flag's own name.
+// definition guard requires to exist. The sweep below leaves this one key
+// out for that reason and no other, and still holds it to the word sweep, so
+// the exclusion buys nothing but the flag's own name. Nothing else under
+// param. is left out: a second summary in one of the shapes fails here.
 const migrationSummaryKey = "param.check.migrate-applies-when.summary"
 
 // TestTheApplicabilityCatalogSpeaksNoDomain is dinah-590/criteria/12. The
@@ -67,9 +68,6 @@ func TestTheApplicabilityCatalogSpeaksNoDomain(t *testing.T) {
 	for _, key := range Keys() {
 		if key == migrationSummaryKey {
 			sawSummary = true
-			continue
-		}
-		if strings.HasPrefix(key, "param.") {
 			continue
 		}
 		if strings.Contains(key, "inapplicable") || strings.Contains(key, "applies-when") || key == "check.required-field-conditioned" || key == "check.notices" {

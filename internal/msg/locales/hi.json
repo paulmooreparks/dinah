@@ -825,17 +825,17 @@
     },
     "check.format-current": {
       "text": "भंडार पहले से फ़ॉर्मैट {format} घोषित करता है, इसलिए अंकित करने को कुछ नहीं है।",
-      "context": "The line the applies_when migration prints when the workbench already declares the format it stamps or a later one, whether or not the run carried the confirmation flag. {format} carries the declared number.",
+      "context": "The line a format stamp prints when the workbench already declares the format it stamps or a later one, whether or not the run carried the confirmation flag. {format} carries the declared number.",
       "source": "dbf514f1141b2c09"
     },
     "check.format-stamped": {
       "text": "भंडार फ़ॉर्मैट {format} अंकित किया गया।",
-      "context": "The line the applies_when migration prints when it wrote the format number onto the workbench anchor. {format} carries the number.",
+      "context": "The line a format stamp prints when it wrote the format number onto the workbench anchor. {format} carries the number.",
       "source": "acb79e1dac505c53"
     },
     "check.format-would-stamp": {
       "text": "भंडार फ़ॉर्मैट {from} घोषित करता है और उस पर {format} अंकित होता; कुछ नहीं लिखा गया, क्योंकि इस चलन में कोई पुष्टि नहीं थी।",
-      "context": "The line the applies_when migration prints when it ran without the confirmation flag on a workbench below the format it stamps. {from} carries the declared number and {format} the one it would write.",
+      "context": "The line a format stamp prints when it ran without the confirmation flag on a workbench below the format it stamps. {from} carries the declared number and {format} the one it would write.",
       "source": "bbbebf422461b74"
     },
     "check.get.1": {
@@ -3301,9 +3301,9 @@
       "source": "774fb527debb03a9"
     },
     "param.check.migrate-applies-when.summary": {
-      "text": "वर्कबेंच पर वह फ़ॉर्मैट अंकित करता है जो applies_when शर्तों और स्तर-अक्ष के मानचित्र रूप को घोषित करता है, ताकि पुराना Dinah भंडार को गलत पढ़ने के बजाय अस्वीकार करे; --yes के बिना कुछ नहीं लिखा जाता",
+      "text": "वर्कबेंच पर वह फ़ॉर्मैट अंकित करता है जो applies_when शर्तों और स्तर-अक्ष के मानचित्र रूप को घोषित करता है, किसी भी कम संख्या से, ताकि पुराना Dinah भंडार को गलत पढ़ने के बजाय अस्वीकार करे; यह किसी नामांकन को नहीं बदलता, इसलिए फ़ॉर्मैट 7 से नीचे की वर्कबेंच पहले --migrate-designations चलाती है; --yes के बिना कुछ नहीं लिखा जाता",
       "context": "The written meaning of the --migrate-applies-when flag of check. It writes the one format line on the workbench anchor and reads no card, and without the confirmation flag it writes nothing at all.",
-      "source": "7b54062f6abc66ef"
+      "source": "2d64269473a44c84"
     },
     "param.check.migrate-branches.summary": {
       "text": "हर कार्ड के मुख्य भाग से वापस ली गई शीर्षक को एक घोषित फ़ील्ड में उठाएं और इस भंडार का फ़ॉर्मैट अंकित करें",

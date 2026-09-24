@@ -423,6 +423,12 @@ type AppliesWhenMigration struct {
 // classifies and writes nothing, which is why it needs no rehearsal flag. The
 // stamp is one write to the workbench anchor, through the writer the other
 // migrations stamp their format with, and no card is read or written.
+//
+// Any lower number is stamped, a number below DesignationFormat included. A
+// workbench that has never had its designations converted therefore comes
+// out declaring a format that says they have been, and no card is read to
+// find out. Run `dinah check --migrate-designations` first on such a store;
+// this stamp does not do that conversion and does not refuse for want of it.
 func (b *Bench) MigrateAppliesWhen(apply bool) (*AppliesWhenMigration, error) {
 	report := &AppliesWhenMigration{From: b.Format, Preview: !apply}
 	if !apply || b.Format >= AppliesWhenFormat {

@@ -150,7 +150,8 @@ func (b *Bench) ClaimedCards() ([]ClaimedCard, error) {
 
 // MigrateDesignations converts every stored answer from a positional comment
 // reference to the designated comment's own identifier, and stamps the
-// workbench at DesignationFormat once it has.
+// workbench at DesignationFormat once it has, where the workbench declares a
+// lower number; a workbench already past it keeps the number it declares.
 //
 // It walks both halves. A live-only walk would leave a positional designation
 // sitting in a store that declares the new format, where the deletion guard
@@ -204,10 +205,19 @@ func (b *Bench) MigrateDesignations(actor Actor, now string, apply bool) (*Desig
 	if !apply {
 		return run, nil
 	}
-	if err := b.stampFormat(DesignationFormat); err != nil {
-		return run, err
+	// A floor rather than an unconditional write, for the reason the branch
+	// migration's stamp gives: this call was a no-op on a current store
+	// while DesignationFormat was the newest number there was, and once a
+	// later format arrived it would have stamped a store already past this
+	// one back down, after which check reports a migration the store has
+	// already had. The items above are converted whatever the number says,
+	// because the number is what says they have been.
+	if b.Format < DesignationFormat {
+		if err := b.stampFormat(DesignationFormat); err != nil {
+			return run, err
+		}
+		run.Stamped = true
 	}
-	run.Stamped = true
 	return run, nil
 }
 

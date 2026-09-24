@@ -821,17 +821,17 @@
     },
     "check.format-current": {
       "text": "The store already declares format {format}, so there is nothing to stamp.",
-      "context": "The line the applies_when migration prints when the workbench already declares the format it stamps or a later one, whether or not the run carried the confirmation flag. {format} carries the declared number.",
+      "context": "The line a format stamp prints when the workbench already declares the format it stamps or a later one, whether or not the run carried the confirmation flag. {format} carries the declared number.",
       "skeleton": true
     },
     "check.format-stamped": {
       "text": "Stamped the store format {format}.",
-      "context": "The line the applies_when migration prints when it wrote the format number onto the workbench anchor. {format} carries the number.",
+      "context": "The line a format stamp prints when it wrote the format number onto the workbench anchor. {format} carries the number.",
       "skeleton": true
     },
     "check.format-would-stamp": {
       "text": "The store declares format {from} and would be stamped {format}; nothing was written, because this run carried no confirmation.",
-      "context": "The line the applies_when migration prints when it ran without the confirmation flag on a workbench below the format it stamps. {from} carries the declared number and {format} the one it would write.",
+      "context": "The line a format stamp prints when it ran without the confirmation flag on a workbench below the format it stamps. {from} carries the declared number and {format} the one it would write.",
       "skeleton": true
     },
     "check.get.1": {
@@ -3290,7 +3290,7 @@
       "skeleton": true
     },
     "param.check.migrate-applies-when.summary": {
-      "text": "stamps the workbench with the format that declares applies_when conditions and the mapping form of a level axis, so that an older Dinah refuses the store instead of misreading it; without --yes it writes nothing",
+      "text": "stamps the workbench with the format that declares applies_when conditions and the mapping form of a level axis, from any lower number, so that an older Dinah refuses the store instead of misreading it; it converts no designation, so a workbench below format 7 runs --migrate-designations first; without --yes it writes nothing",
       "context": "The written meaning of the --migrate-applies-when flag of check. It writes the one format line on the workbench anchor and reads no card, and without the confirmation flag it writes nothing at all.",
       "skeleton": true
     },
