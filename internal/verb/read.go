@@ -2566,12 +2566,13 @@ func (l *Library) Prime(req *Request) (*Primer, error) {
 // literally "holder", on a card this caller holds. It carries no cap: the
 // only items it can ever reach are ones on cards Holding already bounds.
 //
-// Rule 2: only for the operator, every pending open_question or decision
-// item, on every live card in the workbench regardless of who holds it,
-// whose Owner is "operator" or empty. It is capped at pendingRuleTwoCap
-// matches unless req.FullPending is set, with the count beyond the cap
-// reported in PendingWithheld and every column any match named, kept or
-// withheld, reported in PendingByColumn.
+// Rule 2: only for the operator, every item bench.ItemAwaitsOperator admits,
+// on every live card in the workbench regardless of who holds it. That
+// predicate is shared with the card view's own OperatorPending count, so the
+// two readers cannot disagree about which items are his. It is capped at
+// pendingRuleTwoCap matches unless req.FullPending is set, with the count
+// beyond the cap reported in PendingWithheld and every column any match
+// named, kept or withheld, reported in PendingByColumn.
 //
 // An item can satisfy both rules only where its Owner reads both "holder"
 // and "operator" or empty at once, which the format's own single-valued
@@ -2598,9 +2599,7 @@ func (l *Library) primePending(cards []*bench.Card, req *Request, isOperator boo
 			kindPosition[item.Kind]++
 			ordinal := position + 1
 			rule1 := isHolder(card, req.Actor) && item.State == bench.ItemPending && item.Owner == "holder"
-			rule2 := isOperator && item.State == bench.ItemPending &&
-				(item.Kind == "open_question" || item.Kind == "decision") &&
-				(item.Owner == bench.ItemOwnerOperator || item.Owner == "")
+			rule2 := isOperator && bench.ItemAwaitsOperator(item)
 			included := rule1
 			if rule2 {
 				rule2Seen++

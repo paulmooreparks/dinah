@@ -765,12 +765,6 @@
 			"context": "The last line of a locked item's tooltip. It is the only place a reader is told why the row offers no closing action, so an absent menu entry is not mistaken for a defect.",
 			"source": "3e749734b57b912f"
 		},
-		"item.row.commentCount": {
-			"text": "[{count}]",
-			"context": "How many comments an item carries, drawn at the head of the tree row's own label and followed by a space. {count} is that number in decimal, it is never zero here because the prefix is drawn only where there is at least one comment, and it is not capped at any width.",
-			"verbatim": true,
-			"source": "766244ec93e94a20"
-		},
 		"item.row.description": {
 			"text": "{kind} · {state}",
 			"context": "The grey text beside a checklist item's label. {kind} and {state} are the words above.",
@@ -998,6 +992,26 @@
 			"text": "Löschen und wieder öffnen",
 			"context": "The affirmative button of that second modal. The editor supplies Cancel itself.",
 			"source": "7a9745e7d41aeeb8"
+		},
+		"tree.attention.heading": {
+			"text": "Wartet auf Sie:",
+			"context": "The first line of the hover on a tree row with something beneath it that waits on the operator. The lines after it name what is waiting.",
+			"source": "760d61309259ce8"
+		},
+		"tree.attention.others": {
+			"text": "und weitere",
+			"context": "The last line of that hover when more things wait than it names. It never carries a number.",
+			"source": "1d485b3fe0c105f9"
+		},
+		"tree.attention.blocked": {
+			"text": "Blockiert, und nur Sie können eine Blockade aufheben",
+			"context": "The first line of a blocked card's hover, drawn in the operator's window.",
+			"source": "ed7433810ec62292"
+		},
+		"tree.attention.answer": {
+			"text": "Wartet auf Ihre Antwort",
+			"context": "The first line of the hover on a question or decision that waits on the operator.",
+			"source": "8427e54249a8fdf3"
 		}
 	}
 }
