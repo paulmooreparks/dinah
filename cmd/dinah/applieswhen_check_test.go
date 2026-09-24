@@ -237,4 +237,13 @@ func TestShowNamesEveryInapplicableSlotAndAKeptValue(t *testing.T) {
 	if !strings.Contains(cleared.errw, english.T("warn.inapplicable-value", "detail", "task.trade")) {
 		t.Errorf("the clearing write does not warn:\n%s", cleared.errw)
 	}
+	// show draws the kept value's line and no second line for the same
+	// slot, since the slot stores something.
+	kept := runCLI(t, root, "show", lighting, "--fields", "card")
+	if want := english.T("card.inapplicable.stored-unset", "field", "task.trade", "stored", "electrical", "gate", "task.type"); !strings.Contains(kept.out, want) {
+		t.Errorf("show does not print %q:\n%s", want, kept.out)
+	}
+	if unwanted := english.T("card.inapplicable.unset", "field", "task.trade", "gate", "task.type"); strings.Contains(kept.out, unwanted) {
+		t.Errorf("show prints %q for a slot that stores a value:\n%s", unwanted, kept.out)
+	}
 }
