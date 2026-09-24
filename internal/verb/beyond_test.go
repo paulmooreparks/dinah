@@ -443,7 +443,7 @@ func TestRetiringTheLastColumnIsRefused(t *testing.T) {
 // and so does an unrecognised field on a card.
 func TestInterchangeRoundTrip(t *testing.T) {
 	h := newHarness(t)
-	h.library.Bench.FM.Set("acme.department", `"catering"`)
+	h.library.Bench.FM.Set("acme.department", "catering")
 	h.library.Bench.Standing = "Review every card before claiming it."
 	if err := h.library.Bench.Save(); err != nil {
 		t.Fatalf("save: %v", err)
