@@ -1,60 +1,6 @@
 {
   "rulings": [
     {
-      "key": "export:dinah-core-0.4:CORE-BENCH-5",
-      "disposition": "profile-defect",
-      "card": "dinah-525",
-      "item": "dinah-548/questions/5",
-      "ruled_by": "paul",
-      "date": "2026-09-22",
-      "note": "Dinah claims and exports dinah-core 0.18, which the published profile does not carry; CORE-BENCH-5 then refuses the exports. The profile publishes 0.18 with the changelog entry for the resolve, verify and fail change."
-    },
-    {
-      "key": "export:dinah-core-1.0:CORE-BENCH-5",
-      "disposition": "profile-defect",
-      "card": "dinah-525",
-      "item": "dinah-548/questions/5",
-      "ruled_by": "paul",
-      "date": "2026-09-22",
-      "note": "Dinah claims and exports dinah-core 0.18, which the published profile does not carry; CORE-BENCH-5 then refuses the exports. The profile publishes 0.18 with the changelog entry for the resolve, verify and fail change."
-    },
-    {
-      "key": "export:dinah-core-1.0-pre-slug:CORE-BENCH-5",
-      "disposition": "profile-defect",
-      "card": "dinah-525",
-      "item": "dinah-548/questions/5",
-      "ruled_by": "paul",
-      "date": "2026-09-22",
-      "note": "Dinah claims and exports dinah-core 0.18, which the published profile does not carry; CORE-BENCH-5 then refuses the exports. The profile publishes 0.18 with the changelog entry for the resolve, verify and fail change."
-    },
-    {
-      "key": "export:dinah-core-0.5:CORE-BENCH-5",
-      "disposition": "profile-defect",
-      "card": "dinah-525",
-      "item": "dinah-548/questions/5",
-      "ruled_by": "paul",
-      "date": "2026-09-22",
-      "note": "Dinah claims and exports dinah-core 0.18, which the published profile does not carry; CORE-BENCH-5 then refuses the exports. The profile publishes 0.18 with the changelog entry for the resolve, verify and fail change."
-    },
-    {
-      "key": "export:dinah-core-0.6:CORE-BENCH-5",
-      "disposition": "profile-defect",
-      "card": "dinah-525",
-      "item": "dinah-548/questions/5",
-      "ruled_by": "paul",
-      "date": "2026-09-22",
-      "note": "Dinah claims and exports dinah-core 0.18, which the published profile does not carry; CORE-BENCH-5 then refuses the exports. The profile publishes 0.18 with the changelog entry for the resolve, verify and fail change."
-    },
-    {
-      "key": "export:dinah-core-0.18:CORE-BENCH-5",
-      "disposition": "profile-defect",
-      "card": "dinah-525",
-      "item": "dinah-548/questions/5",
-      "ruled_by": "paul",
-      "date": "2026-09-22",
-      "note": "Dinah claims and exports dinah-core 0.18, which the published profile does not carry; CORE-BENCH-5 then refuses the exports. The profile publishes 0.18 with the changelog entry for the resolve, verify and fail change."
-    },
-    {
       "key": "pair:accept-section-5-7-example.json:CORE-JSON-1",
       "disposition": "profile-defect",
       "card": "dinah-561",

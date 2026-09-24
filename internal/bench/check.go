@@ -326,6 +326,46 @@ const (
 	// column unreachable, so the posture matches FindingItemColumnUnresolved,
 	// which reports rather than refusing the workbench.
 	FindingRequiredFieldUndeclared = "check.required-field-undeclared"
+	// FindingStandingItemMissing names a live card standing in a column
+	// whose standing_items declaration carries an entry the card holds no
+	// live instance of, which is every card that entered the column before
+	// the declaration was written. Detail carries the card's reference, the
+	// column's reference and the entry key, in that order. It is reported at
+	// cleanup severity: the store is not broken, the gate simply has nothing
+	// to hold on for that card. `dinah check --file-standing` is the repair.
+	// A card standing anywhere else is never reported, because an item that
+	// would name a column the card has passed holds nothing and one for a
+	// column not yet reached is minted on arrival.
+	FindingStandingItemMissing = "check.standing-item-missing"
+	// FindingStandingItemMalformed names one entry of a column's
+	// standing_items block the reader refused: a key outside the one-segment
+	// grammar, a kind absent or outside the three, a text absent or blank,
+	// or a dashed line where a member line was expected. Detail carries the
+	// column's reference and then the key or the offending line. The entry
+	// mints nothing and the column still opens, which is the posture
+	// FindingFieldDeclarationMalformed keeps for the workbench's own block.
+	FindingStandingItemMalformed = "check.standing-item-malformed"
+	// FindingStandingItemsEntryHold names a column carrying at least one
+	// well-formed standing entry whose gate_items reads true, holding on
+	// entry alone. Its standing items are minted after the entry hold has
+	// been read, so they hold no card's first arrival and no departure, and
+	// hold only a card returning to the column, which is unlikely to be what
+	// the author meant. Detail is the column's reference, at cleanup
+	// severity, and the column is not refused. A column at out, both, off
+	// or absent is not reported: under both the re-entry hold sits beside
+	// the exit hold the declaration was written for, and under off a
+	// declaration that only fills in a to-do list is a legitimate use.
+	FindingStandingItemsEntryHold = "check.standing-items-entry-hold"
+	// FindingEvidenceSchemeUndeclared names an evidence demand the
+	// workbench's evidence block cannot meet, reported only where the
+	// workbench declares such a block at all. Two shapes share the key and
+	// the detail tells them apart: a column entry whose evidence names a
+	// scheme the block lacks carries the column's reference, the key and
+	// the scheme, and a live item whose evidence key names one carries the
+	// card's reference, the item's identifier and the scheme. Cleanup
+	// severity, on the terms Cite already accepts any scheme where no block
+	// is declared.
+	FindingEvidenceSchemeUndeclared = "check.evidence-scheme-undeclared"
 	// FindingBranchHeadingInBody names a card whose body still carries the
 	// heading the declared field git.branch replaced, on a workbench that
 	// declares FieldsFormat or higher. A workbench declaring less has not been
@@ -507,6 +547,7 @@ func (b *Bench) Check() ([]Finding, error) {
 	}
 	findings = append(findings, tierFindings...)
 	findings = append(findings, b.checkRequiredFields()...)
+	findings = append(findings, b.checkStandingDeclarations()...)
 	findings = append(findings, b.checkColumnKinds()...)
 	findings = append(findings, b.checkRejectTargets()...)
 	findings = append(findings, b.checkRoutes()...)
@@ -798,7 +839,14 @@ func (b *Bench) checkTierOverrides(card *Card) []Finding {
 // cannot hold the card anywhere: a value resolving to no column, and a value
 // resolving to a column by its slug or its title rather than by the identifier
 // GatingItems compares against. An item filed without a column names nothing
-// and is passed over.
+// and is passed over, and so is a withdrawn item, whatever its column names:
+// a withdrawn item holds nothing, refuses no claim and lifts every hold, so
+// the one repair the finding offers would change nothing the workbench reads.
+// The pass is keyed on the state and not on who filed the item, because what
+// ended the item's claim on a column is the withdrawal; a reopened item is
+// reported again on the next check, since reopening re-imposes the
+// obligation. The four other settled states stay reported, each recording a
+// judgement against a column the item still names.
 //
 // It reads rather than repairs, as checkTierOverrides does and as everything
 // else in this file does. The repair is a write through the field, which
@@ -806,7 +854,7 @@ func (b *Bench) checkTierOverrides(card *Card) []Finding {
 func (b *Bench) checkItemColumns(card *Card) ([]Finding, error) {
 	var findings []Finding
 	named, err := itemsWhere(card.Dir, func(item *Item) bool {
-		return item.Column != ""
+		return item.Column != "" && item.State != ItemWithdrawn
 	})
 	if err != nil {
 		return nil, err
@@ -915,6 +963,11 @@ func (b *Bench) checkCard(card *Card) ([]Finding, error) {
 		return findings, err
 	}
 	findings = append(findings, itemColumnFindings...)
+	standingFindings, err := b.checkStandingItems(card)
+	if err != nil {
+		return findings, err
+	}
+	findings = append(findings, standingFindings...)
 	itemRouteFindings, err := b.checkItemRoutes(card)
 	if err != nil {
 		return findings, err
@@ -1302,6 +1355,98 @@ func unreadableCardFinding(err error) string {
 		return FindingCardVocabularyRetired
 	}
 	return FindingMissingAnchor
+}
+
+// checkStandingItems reports, for one card, every standing entry of the
+// column the card stands in that the card carries no live instance of, and
+// every live item of the card whose evidence key names a scheme the workbench
+// declares an evidence block without. The first is what the column's gate has
+// nothing to hold on for; the second is a demand no citation can ever meet.
+//
+// A card standing in a column that declares nothing draws no missing finding,
+// and the item sweep runs only where the workbench declares an evidence block
+// at all, because where none is declared Cite accepts any scheme and an item
+// naming one is in the same position as a citation naming one.
+func (b *Bench) checkStandingItems(card *Card) ([]Finding, error) {
+	var findings []Finding
+	if column := b.Column(card.Column); column != nil {
+		missing, err := b.MissingStandingItems(card, column)
+		if err != nil {
+			return nil, err
+		}
+		for _, entry := range missing {
+			findings = append(findings, Finding{
+				Path:     filepath.Join(card.Dir, CardAnchor),
+				Key:      FindingStandingItemMissing,
+				Detail:   card.Ref(b.Slug) + " " + column.Ref() + " " + entry.Key,
+				Severity: SeverityCleanup,
+			})
+		}
+	}
+	if !b.EvidenceDeclared() {
+		return findings, nil
+	}
+	declared := b.EvidenceSchemes()
+	demanding, err := itemsWhere(card.Dir, func(item *Item) bool {
+		return item.Evidence != "" && !declared[item.Evidence]
+	})
+	if err != nil {
+		return nil, err
+	}
+	for _, item := range demanding {
+		findings = append(findings, Finding{
+			Path:     filepath.Join(item.Dir, ItemAnchor),
+			Key:      FindingEvidenceSchemeUndeclared,
+			Detail:   card.Ref(b.Slug) + " " + item.ID + " " + item.Evidence,
+			Severity: SeverityCleanup,
+		})
+	}
+	return findings, nil
+}
+
+// checkStandingDeclarations reports the three things a column's standing_items
+// declaration can be wrong about on its own, before any card is read: an entry
+// the reader refused, a well-formed declaration on a column holding on entry
+// alone, and an entry demanding a scheme the workbench's evidence block does
+// not declare. The evidence sweep runs only where a block is declared, on
+// checkStandingItems's own reasoning.
+func (b *Bench) checkStandingDeclarations() []Finding {
+	var findings []Finding
+	evidenceDeclared := b.EvidenceDeclared()
+	declared := b.EvidenceSchemes()
+	for _, column := range b.Columns {
+		anchor := filepath.Join(b.Root, ColumnsDir, column.ID, ColumnAnchor)
+		for _, key := range column.MalformedStandingItems {
+			findings = append(findings, Finding{
+				Path:   anchor,
+				Key:    FindingStandingItemMalformed,
+				Detail: column.Ref() + " " + key,
+			})
+		}
+		if len(column.StandingItems) > 0 && column.Hold == HoldOn {
+			findings = append(findings, Finding{
+				Path:     anchor,
+				Key:      FindingStandingItemsEntryHold,
+				Detail:   column.Ref(),
+				Severity: SeverityCleanup,
+			})
+		}
+		if !evidenceDeclared {
+			continue
+		}
+		for _, entry := range column.StandingItems {
+			if entry.Evidence == "" || declared[entry.Evidence] {
+				continue
+			}
+			findings = append(findings, Finding{
+				Path:     anchor,
+				Key:      FindingEvidenceSchemeUndeclared,
+				Detail:   column.Ref() + " " + entry.Key + " " + entry.Evidence,
+				Severity: SeverityCleanup,
+			})
+		}
+	}
+	return findings
 }
 
 // checkFieldDeclarations reports every entry of the workbench's fields block

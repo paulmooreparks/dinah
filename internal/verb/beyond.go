@@ -196,6 +196,12 @@ func (l *Library) Add(req *Request) *Response {
 	if err != nil {
 		return l.FromError(req, err)
 	}
+	// A filing is an arrival at the destination, so the column's standing
+	// items are minted here, after the created line and the registry line.
+	// No lock is needed: the card is new and nobody else can name it yet.
+	if err := l.mintStandingItems(req, card, destination, now); err != nil {
+		return l.FromError(req, err)
+	}
 	return l.ok(req, card)
 }
 

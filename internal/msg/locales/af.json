@@ -774,6 +774,11 @@
       "context": "A check finding: an interrupted structural act left a directory at both paths, which the tool reports and refuses to resolve.",
       "skeleton": true
     },
+    "check.evidence-scheme-undeclared": {
+      "text": "an evidence demand names a scheme this workbench's evidence block does not declare, so no citation can ever meet it: {detail}",
+      "context": "A check finding at cleanup severity, reported only where the workbench declares an evidence block. Two shapes share the key and {detail} tells them apart: a column's standing entry carries the column's reference, the entry key and the scheme, and a live item carrying an evidence key carries the card's reference, the item's identifier and the scheme. The repair is the author's: declare the scheme in the evidence block, or name one it declares.",
+      "skeleton": true
+    },
     "check.extract.1": {
       "text": "the target directory holds no workbench already",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
@@ -841,7 +846,7 @@
     },
     "check.item-column-unresolved": {
       "text": "a checklist item names a column that will never hold a card: {detail}",
-      "context": "A check finding: every checklist item's column value, where set, is stored as the identifier of a column this workbench declares. {detail} carries the card's reference, the item's identifier, and the stored column value, in that order. A write filed or set before the field validated, or a hand edit, both produce it.",
+      "context": "A check finding: every checklist item's column value, where set, is stored as the identifier of a column this workbench declares. {detail} carries the card's reference, the item's identifier, and the stored column value, in that order. A write filed or set before the field validated, or a hand edit, both produce it. A withdrawn item is passed over, whatever its column names, because it holds nothing and no repair to its column would change anything the workbench reads.",
       "skeleton": true
     },
     "check.join.1": {
@@ -1577,6 +1582,56 @@
     "check.slug-unwritable": {
       "text": "column {detail} could not be written to, so the migration gave it no slug and carried on",
       "context": "A check finding the slug migration raises: the column's anchor could not be read or written, the walk stepped over it and carried on.",
+      "skeleton": true
+    },
+    "check.standing-filed.one": {
+      "text": "{count} standing item filed.",
+      "context": "The line the standing-item repair prints after a confirmed run, for exactly one instance it minted.",
+      "skeleton": true
+    },
+    "check.standing-filed.other": {
+      "text": "{count} standing items filed.",
+      "context": "The line the standing-item repair prints after a confirmed run, for any count of minted instances other than one, including none.",
+      "skeleton": true
+    },
+    "check.standing-filing": {
+      "text": "{card} now carries {key} for {column}.",
+      "context": "One line of the standing-item repair's own report, naming a card, the column whose declaration minted the instance and the entry key. {card} and {column} carry references and {key} the entry's key, all read off the store, so all three are machine vocabulary and none is translated.",
+      "skeleton": true
+    },
+    "check.standing-item-malformed": {
+      "text": "the standing_items block of column {detail} has no usable kind or text for that entry, so nothing is minted for it",
+      "context": "A check finding: one entry of a column's standing_items block that the reader refused, which is an entry whose key is outside the one-segment grammar, whose kind is absent or outside the three item kinds, whose text is absent or blank, or a dashed line where a member line was expected. {detail} carries the column's reference and then the key as written, or the offending line. The entry mints nothing and the column still opens, so the repair is an edit to the block.",
+      "skeleton": true
+    },
+    "check.standing-item-missing": {
+      "text": "a card standing in a declaring column carries no instance of a standing item, so the column's hold has nothing to hold on: {detail}",
+      "context": "A check finding at cleanup severity. {detail} carries the card's reference, the column's reference and the entry key, in that order. Every card that entered the column before the declaration was written produces one line per missing entry, and `dinah check --file-standing --yes` is the operator's repair, which mints the instances through the path an arrival uses.",
+      "skeleton": true
+    },
+    "check.standing-items-entry-hold": {
+      "text": "column {detail} declares standing items and holds on entry alone; they are minted after the entry hold is read, so they hold no card's first arrival and no departure and hold only a card returning to the column, and dinah set {detail} hold out is the usual fix",
+      "context": "A check finding at cleanup severity. {detail} is the column's reference. A column whose gate_items reads true declares standing items that are enforced only on a card that has already been through, which is unlikely to be what its author meant; a column at out, both or off is not reported.",
+      "skeleton": true
+    },
+    "check.standing-preview": {
+      "text": "Nothing was written, because this run carried no confirmation.",
+      "context": "The first line the standing-item repair prints when it ran without the confirmation flag, so that a reader cannot take the lines below it for work that happened.",
+      "skeleton": true
+    },
+    "check.standing-would-file.one": {
+      "text": "{count} standing item would be filed.",
+      "context": "The line the standing-item repair's preview prints, for exactly one instance a confirmed run would mint.",
+      "skeleton": true
+    },
+    "check.standing-would-file.other": {
+      "text": "{count} standing items would be filed.",
+      "context": "The line the standing-item repair's preview prints, for any count of instances a confirmed run would mint other than one, including none.",
+      "skeleton": true
+    },
+    "check.standing-would-filing": {
+      "text": "{card} would come to carry {key} for {column}.",
+      "context": "One line of the standing-item repair's preview, naming a card, the column whose declaration would mint the instance and the entry key. It is spelled apart from check.standing-filing because a preview writes nothing, and the same sentence under both would tell an operator a write had happened. {card} and {column} carry references and {key} the entry's key, all read off the store, so none is translated.",
       "skeleton": true
     },
     "check.stored-carriage-return": {
@@ -2924,6 +2979,11 @@
       "context": "The detail of a recorded attachment_renamed, carrying the old filename as {from} and the new filename as {to}.",
       "skeleton": true
     },
+    "log.item-filed.standing": {
+      "text": "{column}: {key}",
+      "context": "The detail of an item_filed line a column's standing declaration wrote: the declaring column and the entry key. {column} is the title the event captured at write time, falling back to the stored identifier on a line that captured none, and {key} is the entry's key, which is machine vocabulary and is never translated. A hand filing's line carries no standing key and draws no detail.",
+      "skeleton": true
+    },
     "log.manual-correction": {
       "text": "{from} to {to}, recorded from a hand edit",
       "context": "The detail of a witnessed correction, carrying the column the journal believed and the column the anchor records. It reads differently from a move because nobody chose this transition; the tool found it.",
@@ -3212,6 +3272,11 @@
     "param.changes.wait.summary": {
       "text": "hold the call open until the cursor advances or --timeout lapses, instead of answering immediately",
       "context": "The meaning of the --wait flag of `dinah changes`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.check.file-standing.summary": {
+      "text": "mint, on every card standing in a column declaring standing items, the instances it is missing; without --yes it reports what it would file and writes nothing",
+      "context": "The meaning of the file-standing argument of `dinah check`, printed in that command's arguments table.",
       "skeleton": true
     },
     "param.check.finish.summary": {
@@ -4012,6 +4077,16 @@
     "refusal.dinah.empty-search.next": {
       "text": "; write the phrase to look for, in quotation marks if it has a space in it",
       "context": "Spliced onto refusal.dinah.empty-search as the next step.",
+      "skeleton": true
+    },
+    "refusal.dinah.evidence-scheme-required": {
+      "text": "{item} has to be settled with a citation naming the scheme {detail}, and none of its citations does.",
+      "context": "The sentence printed after the refusal name dinah.evidence-scheme-required, which resolve, verify and fail carry on an item whose evidence key names a scheme no citation of the item names. {detail} is the scheme and {item} is the item's reference, both machine vocabulary that is never translated. refusal.dinah.evidence-scheme-required.next is spliced on after this one.",
+      "skeleton": true
+    },
+    "refusal.dinah.evidence-scheme-required.next": {
+      "text": " Add one with dinah cite {item} {detail} <target>, then try again.",
+      "context": "The next step of refusal.dinah.evidence-scheme-required, spliced onto the sentence that just named the item and the scheme, handing the reader the cite command with both slots filled.",
       "skeleton": true
     },
     "refusal.dinah.exists": {
@@ -5298,6 +5373,11 @@
       "context": "The closing line of the report for a reshape that stopped part way through, which is what tells the operator the state is finishable and how. Every write-phase step is idempotent, so the second run does what the first did not.",
       "skeleton": true
     },
+    "reshape.standing-withdrawn": {
+      "text": "Withdrawn by a reshape: the column {column}, whose declaration filed this item, was retired, and a retired column imposes nothing.",
+      "context": "The comment a reshape writes on each pending standing item of a column it retires, designated as the item's resolution. {column} is the retired column's title, or its identifier for an adopted retirement entry, which carries no title. It is stored on the item rather than printed, so every catalog answers it in the base language.",
+      "skeleton": true
+    },
     "reshape.stranded": {
       "text": "Cards standing in a column this run does not know about: {count}. Run `dinah check` to find their identifiers.",
       "context": "The reshape report's line for cards standing in a column that is in neither the workbench's own sequence nor the new definition. The count is reported rather than the identifiers, because reshape diffs two column lists and `dinah check` is the command that walks every card.",
@@ -5306,6 +5386,11 @@
     "reshape.updated": {
       "text": "The new definition changed column {id}.",
       "context": "One row of a reshape report: a kept column whose anchor the rewrite actually changed, which is what the run recorded a column_updated event for.",
+      "skeleton": true
+    },
+    "reshape.withdrawn": {
+      "text": "Standing items withdrawn: {count}.",
+      "context": "One row of a reshape report under a retirement, counting the pending standing items naming the retiring column on live cards anywhere. A preview reads it as what would be withdrawn and an applied run as what was.",
       "skeleton": true
     },
     "reshape.wrote.added": {
@@ -5326,6 +5411,11 @@
     "reshape.wrote.updated": {
       "text": "Kept columns rewritten from the new definition: {count}.",
       "context": "One row of the report for a reshape that stopped part way through, counting the kept columns whose anchor the rewrite had already changed.",
+      "skeleton": true
+    },
+    "reshape.wrote.withdrawn": {
+      "text": "Standing items withdrawn for a retiring column: {count}.",
+      "context": "One row of the report for a reshape that stopped part way through, counting the standing items the withdrawal step had already withdrawn.",
       "skeleton": true
     },
     "root.empty": {

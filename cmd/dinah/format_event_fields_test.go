@@ -61,7 +61,6 @@ var universalEventFields = map[string]bool{"ts": true, "event": true, "actor": t
 // name here that the table has since gained fails too, so writing the row is
 // what deletes the entry rather than somebody remembering to.
 var eventsTheTableDoesNotDescribe = []string{
-	"item_filed",
 	"item_cited",
 	"item_resolved",
 	"item_verified",

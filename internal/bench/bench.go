@@ -328,6 +328,16 @@ type Column struct {
 	// nothing can ever be written under would make the column unreachable.
 	// `dinah check` reports it under FindingRequiredFieldUndeclared instead.
 	RequireFields []string
+	// StandingItems are the checklist items every card arriving at this
+	// column receives an instance of, as the column's own standing_items
+	// declaration carries them in declaration order, and nil where the
+	// column declares none. The instances name this column, so the column's
+	// own Hold has something to hold on without anybody filing it by hand.
+	StandingItems []StandingItem
+	// MalformedStandingItems are the keys, or the offending lines, of the
+	// standing_items entries the reader refused, which `dinah check` reports
+	// under FindingStandingItemMalformed and nothing else reads.
+	MalformedStandingItems []string
 	// Instructions is the column's own body, the last layer of the chain.
 	Instructions string
 	// Position is the column's zero-based index in the flow.
@@ -2123,6 +2133,7 @@ func readColumnIn(root string, vocab columnVocabulary, id string, position int) 
 		column.LoopLimit = n
 	}
 	column.RequireFields = fm.Seq(RequireFieldsKey)
+	column.StandingItems, column.MalformedStandingItems = readStandingItems(fm)
 	// The value is exactly true or false, which is wip_limit's discipline
 	// above and deliberately not operator_owned's == "true" leniency, under
 	// which a value of yes reads as false and tells nobody.

@@ -352,6 +352,12 @@ type Request struct {
 	// preview rewrites each destination with that destination's own bytes to
 	// establish that the write will be permitted.
 	MigrateNewlines bool
+	// FileStanding asks check to mint, on every live card standing in a
+	// column declaring standing_items, the instances the card carries none
+	// of, through the path an arrival uses. Without Confirm it reports what
+	// it would file and writes nothing, on MigrateBranches's two-phase
+	// shape, and it is refused not-operator to anybody but the operator.
+	FileStanding bool
 	// Renumber asks check to repair the registry's duplicated numbers before
 	// it reports, leaving the number with the line that claimed it first. It
 	// refuses without Confirm, on the terms MigrateNumbers does.

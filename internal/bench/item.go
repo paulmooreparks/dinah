@@ -1,6 +1,7 @@
 package bench
 
 import (
+	"encoding/json"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -55,6 +56,21 @@ const (
 	ItemNoteRetiredField = "note"
 	// CitationsField is the sequence of citations an item carries.
 	CitationsField = "citations"
+	// ItemStandingField is the key of the standing entry that minted the
+	// item, which is the item's identity for re-entry: an arrival at the
+	// declaring column mints nothing for an entry whose key a live item of
+	// the card already carries under this key. Minting alone writes it. It
+	// is not a field of the item, so `dinah set <item> standing` and `dinah
+	// get <item> standing` are both refused as an unknown field, and `dinah
+	// show <item>` is its reading surface.
+	ItemStandingField = "standing"
+	// ItemEvidenceField is the evidence scheme the item has to be settled
+	// against. closeItem in internal/verb refuses resolve, verify and fail
+	// on an item carrying it while no citation of the item names that
+	// scheme. It is a field of the item in its own right, so a hand-filed
+	// item can carry the same demand, and its write follows the authority
+	// the column key already has.
+	ItemEvidenceField = "evidence"
 )
 
 // The six states a checklist item takes. The set is closed because method
@@ -152,6 +168,53 @@ func AddItem(cardDir, kind, column, owner, ts, text string) (*Item, error) {
 	return &Item{ID: id, Dir: dir, Kind: kind, State: ItemPending}, nil
 }
 
+// AddStandingItem writes one instance of a standing entry under a card, on
+// AddItem's own terms: the caller holds the card's lock. It writes the entry's
+// kind, the pending state, the declaring column, the owner where the entry
+// declares one, the standing key, the evidence scheme where the entry declares
+// one, the stamp and the ordinal, and the entry's text as the body, which is a
+// copy taken at minting so one card's instance can be edited without touching
+// every other card's.
+func AddStandingItem(cardDir, columnID string, entry StandingItem, ts string) (*Item, error) {
+	collection := filepath.Join(cardDir, ChecklistDir)
+	id, err := ClaimID(collection, nil)
+	if err != nil {
+		return nil, err
+	}
+	ordinal, err := nextOrdinal(collection, ItemAnchor)
+	if err != nil {
+		return nil, err
+	}
+	dir := filepath.Join(collection, id)
+	fm := NewFrontmatter()
+	fm.Set(ItemKindField, entry.Kind)
+	fm.Set(ItemStateField, ItemPending)
+	fm.Set(ItemColumnField, columnID)
+	if entry.Owner != "" {
+		fm.Set(ItemOwnerField, entry.Owner)
+	}
+	fm.Set(ItemStandingField, entry.Key)
+	if entry.Evidence != "" {
+		fm.Set(ItemEvidenceField, entry.Evidence)
+	}
+	fm.Set("ts", ts)
+	fm.Set(OrdinalField, strconv.Itoa(ordinal))
+	if err := WriteText(filepath.Join(dir, ItemAnchor), fm.Render(entry.Text)); err != nil {
+		return nil, err
+	}
+	return &Item{
+		ID:       id,
+		Dir:      dir,
+		Kind:     entry.Kind,
+		State:    ItemPending,
+		Column:   columnID,
+		Owner:    entry.Owner,
+		Standing: entry.Key,
+		Evidence: entry.Evidence,
+		Text:     entry.Text,
+	}, nil
+}
+
 // ReadItemAnchor opens an item's anchor for a write, returning its whole
 // header and its body rather than the two fields LoadItem reads. A write has
 // to put back every key it did not touch, which is what reading the header
@@ -225,6 +288,34 @@ func AppendCitation(fm *Frontmatter, citation Citation) {
 		)
 	}
 	fm.SetRaw(CitationsField, lines)
+}
+
+// CitationSchemes answers the scheme each entry of an item's citations
+// sequence names, in stored order, which is what the evidence demand on an
+// item reads: whether at least one citation names the scheme the item has to
+// be settled against. It reads the scheme member alone and nothing about the
+// target, on the posture Cite takes toward a scheme it has never heard of.
+//
+// The entries are read through blockValue, the reader every structured
+// frontmatter value is read by, so an entry carrying a member this build does
+// not know still answers its scheme.
+func CitationSchemes(fm *Frontmatter) []string {
+	if !fm.Has(CitationsField) {
+		return nil
+	}
+	var entries []map[string]json.RawMessage
+	if err := json.Unmarshal(blockValue(fm, CitationsField), &entries); err != nil {
+		return nil
+	}
+	var schemes []string
+	for _, entry := range entries {
+		var scheme string
+		if err := json.Unmarshal(entry[ItemCitationScheme], &scheme); err != nil {
+			continue
+		}
+		schemes = append(schemes, scheme)
+	}
+	return schemes
 }
 
 // The three member names one citation entry carries.

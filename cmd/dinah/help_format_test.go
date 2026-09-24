@@ -105,9 +105,9 @@ WORKBENCH
     [--migrate-vocabulary] [--migrate-container]
     [--migrate-numbers] [--migrate-designations]
     [--rehearse] [--force-claims] [--migrate-branches]
-    [--migrate-newlines] [--renumber] [--remint <dir>]
-    [--migrate-workstreams] [--witness] [--yes]
-    [--root <path>] [--max-depth <n>]
+    [--migrate-newlines] [--file-standing] [--renumber]
+    [--remint <dir>] [--migrate-workstreams] [--witness]
+    [--yes] [--root <path>] [--max-depth <n>]
   whoami                                                 The actor your actions carry, and whether it is
                                                            the operator
   workbench                                              Read this workbench's own fields
@@ -209,8 +209,8 @@ WORKBENCH
   config [get|set] [key] [value]                                                                        List your user settings, or read or write one
   check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-columns] [--migrate-vocabulary]    Look for structural defects in this workbench
     [--migrate-container] [--migrate-numbers] [--migrate-designations] [--rehearse] [--force-claims]
-    [--migrate-branches] [--migrate-newlines] [--renumber] [--remint <dir>] [--migrate-workstreams]
-    [--witness] [--yes] [--root <path>] [--max-depth <n>]
+    [--migrate-branches] [--migrate-newlines] [--file-standing] [--renumber] [--remint <dir>]
+    [--migrate-workstreams] [--witness] [--yes] [--root <path>] [--max-depth <n>]
   whoami                                                                                                The actor your actions carry, and whether it is the operator
   workbench                                                                                             Read this workbench's own fields
   workstream <new> <title> [--slug <slug>]                                                              Create a workstream on this workbench

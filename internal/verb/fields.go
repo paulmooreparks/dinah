@@ -367,7 +367,7 @@ func (l *Library) admitOwnerWrite(req *Request, entity *bench.EntityRef, field b
 // filed, which leaves a complete record where a silent re-pointing leaves
 // none.
 func (l *Library) admitItemColumnWrite(req *Request, entity *bench.EntityRef, field bench.Field) *Response {
-	if entity.Kind != bench.KindItem || field.Name != bench.ItemColumnField {
+	if entity.Kind != bench.KindItem || (field.Name != bench.ItemColumnField && field.Name != bench.ItemEvidenceField) {
 		return nil
 	}
 	if req.Actor == l.Bench.Operator {

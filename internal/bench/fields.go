@@ -219,6 +219,7 @@ var fields = map[string][]Field{
 		{Name: ItemResolutionField, Clearable: true, Guard: GuardResolution},
 		{Name: ItemOwnerField, Clearable: true},
 		{Name: ItemColumnField, Clearable: true, Guard: GuardColumnRef},
+		{Name: ItemEvidenceField, Clearable: true},
 	},
 	KindAttachment: {
 		{Name: FilenameField, Guard: GuardFilename},

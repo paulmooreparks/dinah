@@ -1089,6 +1089,19 @@ func (s *session) eventDetail(ev bench.Event) string {
 		return s.r.T("log.renumbered", "from", ev.From, "to", ev.To)
 	case contract.EventTierOverridden:
 		return s.tierOverriddenDetail(ev)
+	case contract.EventItemFiled:
+		// A filing a column's declaration made names the column and the
+		// entry, which is the locator a reader of the journal otherwise has
+		// no way to recover. A hand filing carries no standing key and
+		// draws the empty detail it has always drawn.
+		if ev.Standing == "" {
+			return ""
+		}
+		column := ev.ColumnTitle
+		if column == "" {
+			column = ev.Column
+		}
+		return s.r.T("log.item-filed.standing", "column", column, "key", ev.Standing)
 	case contract.EventCommented:
 		// A column comment names its column, which is the locator the verb
 		// writes and which a reader of the workbench journal otherwise has
@@ -1237,6 +1250,9 @@ func (s *session) renderCheck(report *verb.CheckReport) int {
 	}
 	if report.MigratedDesignations != nil {
 		s.renderDesignationMigration(report.MigratedDesignations)
+	}
+	if report.FiledStanding != nil {
+		s.renderStandingRepair(report.FiledStanding)
 	}
 	if report.MigratedNumbers {
 		s.line(s.r.TN("check.card-numbers-written", *report.RegistryLines))
@@ -1436,6 +1452,24 @@ func (s *session) renderBranchMigration(report *bench.BranchMigration) {
 	}
 	if report.Stamped {
 		s.line(s.r.T("check.branches-stamped", "format", strconv.Itoa(bench.FieldsFormat)))
+	}
+}
+
+// renderStandingRepair prints the standing-item repair's own account: the
+// preview marker where the run wrote nothing, a count, and one sentence per
+// instance, on the shape renderBranchMigration draws for the same two-phase
+// run. The sentence is spelled apart for the preview, because a preview writes
+// nothing and the same sentence under both would tell an operator a write had
+// happened.
+func (s *session) renderStandingRepair(report *verb.StandingRepair) {
+	filed, line := "check.standing-filed", "check.standing-filing"
+	if report.Preview {
+		s.line(s.r.T("check.standing-preview"))
+		filed, line = "check.standing-would-file", "check.standing-would-filing"
+	}
+	s.line(s.r.TN(filed, len(report.Filed)))
+	for _, filing := range report.Filed {
+		s.line(s.r.T(line, "card", filing.Card, "column", filing.Column, "key", filing.Key))
 	}
 }
 

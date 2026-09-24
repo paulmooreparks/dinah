@@ -23,6 +23,27 @@ func (b *Bench) EvidenceDeclared() bool {
 	return b.FM.Has(EvidenceKey)
 }
 
+// EvidenceSchemes answers the set of scheme names the workbench's evidence
+// block declares, and an empty set where it declares none, which is what the
+// two evidence-scheme-undeclared sweeps in check.go test membership of. The
+// block is read through blockValue on EvidenceObservedRequired's own terms,
+// so a scheme declared as a bare hint string and one declared as a mapping
+// are members alike.
+func (b *Bench) EvidenceSchemes() map[string]bool {
+	declared := map[string]bool{}
+	if !b.EvidenceDeclared() {
+		return declared
+	}
+	var schemes map[string]json.RawMessage
+	if err := json.Unmarshal(blockValue(b.FM, EvidenceKey), &schemes); err != nil {
+		return declared
+	}
+	for scheme := range schemes {
+		declared[scheme] = true
+	}
+	return declared
+}
+
 // EvidenceObservedRequired reports whether the named scheme's declaration
 // carries observed: required.
 //

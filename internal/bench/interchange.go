@@ -38,7 +38,8 @@ var knownBenchKeys = map[string]bool{
 var knownColumnKeys = map[string]bool{
 	"title": true, "kind": true, "operator_owned": true, "wip_limit": true,
 	"slug": true, "awaiting_outside": true, "gate_items": true,
-	FieldValuesKey: true, RequireFieldsKey: true, AttachmentsMember: true,
+	FieldValuesKey: true, RequireFieldsKey: true, StandingItemsKey: true,
+	AttachmentsMember: true,
 }
 
 // AttachmentsMember is the column element member carrying the column's live
@@ -178,6 +179,14 @@ func (b *Bench) exportColumn(column *Column) (map[string]json.RawMessage, error)
 	}
 	if len(column.RequireFields) > 0 {
 		element[RequireFieldsKey] = mustMarshal(column.RequireFields)
+	}
+	// CORE-JSON-14 blesses this member. It travels as the nested value the
+	// anchor already carries, read by the one reader every structured
+	// frontmatter value is read by, so the declaration order the file
+	// carries survives the trip and a second export of the import is
+	// byte-identical to the first.
+	if column.FM.Has(StandingItemsKey) {
+		element[StandingItemsKey] = blockValue(column.FM, StandingItemsKey)
 	}
 	attachments, err := exportAttachments(b.ColumnDir(column.ID))
 	if err != nil {
@@ -600,6 +609,9 @@ func writeColumnFromMember(root, id, slug string, element map[string]json.RawMes
 		if err := json.Unmarshal(raw, &required); err == nil {
 			fm.SetSeq(RequireFieldsKey, required)
 		}
+	}
+	if raw, ok := element[StandingItemsKey]; ok {
+		writeMember(fm, StandingItemsKey, raw)
 	}
 	for _, member := range sortedMembers(element) {
 		if knownColumnKeys[member] || member == "id" || member == "capacity" || member == "instructions" {
