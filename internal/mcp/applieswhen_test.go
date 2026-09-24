@@ -129,3 +129,90 @@ func TestTheQueryToolFindsTheUnansweredCateringBooking(t *testing.T) {
 		t.Errorf("the florist's view carries %v", entry)
 	}
 }
+
+// TestTheCheckToolCarriesTheNoticesTheCliCarries is the MCP half of
+// dinah-590/criteria/14 and specification section 7.4: the check tool returns
+// the report the library composed, so a workbench whose column requires a
+// conditioned key answers over this head with the same notice the terminal's
+// machine form carries, under outcome ok and empty findings.
+//
+// The tool's answer is compared against the library's own report as JSON,
+// member for member, on the terms TestTheShowToolCarriesTheChecklistTheCliCarries
+// sets, because a projection naming members one by one is exactly what
+// dropped notices before this test existed, and a member added to the report
+// later is caught the same way. The notice is then read off the tool's side
+// on its own, so the comparison cannot pass over two answers that both carry
+// nothing.
+//
+// Arming: rebuilding the answer from outcome and findings alone, as readCheck
+// did before dinah-590, leaves the answer without a notices member and the
+// first assertion fails.
+func TestTheCheckToolCarriesTheNoticesTheCliCarries(t *testing.T) {
+	library := newLibrary(t)
+	anchor := filepath.Join(library.Bench.Root, bench.WorkbenchAnchor)
+	text, err := bench.ReadText(anchor)
+	if err != nil {
+		t.Fatalf("read the workbench anchor: %v", err)
+	}
+	fm, body := bench.ParseAnchor(text)
+	fm.SetRaw(bench.FieldsKey, bench.SplitLines(strings.TrimSuffix(weddingFields, "\n")))
+	if err := bench.WriteText(anchor, fm.Render(body)); err != nil {
+		t.Fatalf("write the workbench anchor: %v", err)
+	}
+	// The doing column requires the conditioned field, which is the
+	// configuration the operator ruled legitimate and the one report with no
+	// repair (dinah-590/questions/3).
+	doing := library.Bench.ColumnByRef("doing")
+	if doing == nil {
+		t.Fatalf("the fixture declares no doing column")
+	}
+	columnAnchor := library.Bench.ColumnAnchorPath(doing.ID)
+	text, err = bench.ReadText(columnAnchor)
+	if err != nil {
+		t.Fatalf("read the column anchor: %v", err)
+	}
+	fm, body = bench.ParseAnchor(text)
+	fm.SetSeq(bench.RequireFieldsKey, []string{"vendor.deposit-required"})
+	if err := bench.WriteText(columnAnchor, fm.Render(body)); err != nil {
+		t.Fatalf("write the column anchor: %v", err)
+	}
+	opened, err := bench.Open(library.Bench.Root)
+	if err != nil {
+		t.Fatalf("reopen: %v", err)
+	}
+	library.Bench = opened
+
+	answer := payload(t, ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"check","arguments":{}}}`))
+	notices, ok := answer["notices"].([]any)
+	if !ok || len(notices) != 1 {
+		t.Fatalf("the check tool's answer carries notices %v, wanted the one required-field notice: %v", answer["notices"], answer)
+	}
+	if notice, _ := notices[0].(map[string]any); notice["Key"] != bench.NoticeRequiredFieldConditioned {
+		t.Errorf("the notice is %v, wanted %s", notices[0], bench.NoticeRequiredFieldConditioned)
+	}
+	if answer["outcome"] != contract.ReadOK {
+		t.Errorf("a workbench whose only report is a notice answers outcome %v, wanted %q", answer["outcome"], contract.ReadOK)
+	}
+	if found, _ := answer["findings"].([]any); len(found) != 0 {
+		t.Errorf("the notice is counted among the findings: %v", answer["findings"])
+	}
+
+	// Every member the terminal's machine form carries reaches the tool, and
+	// the tool adds nothing but its affordances.
+	delete(answer, "affordances")
+	throughTool, err := json.Marshal(answer)
+	if err != nil {
+		t.Fatalf("marshal the tool's answer: %v", err)
+	}
+	direct, err := library.Check(&verb.Request{Verb: "check", Actor: "alka"})
+	if err != nil {
+		t.Fatalf("check: %v", err)
+	}
+	encoded, err := json.Marshal(direct)
+	if err != nil {
+		t.Fatalf("marshal the report: %v", err)
+	}
+	if !sameJSON(t, throughTool, encoded) {
+		t.Errorf("the two heads disagree:\n tool %s\n  cli %s", throughTool, encoded)
+	}
+}
