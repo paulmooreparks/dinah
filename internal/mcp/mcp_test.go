@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"dinah/internal/answer"
 	"dinah/internal/bench"
 	"dinah/internal/contract"
 	"dinah/internal/guide"
@@ -440,8 +441,8 @@ func TestTheInstructionsListAgreesWithWhereTheCardIsStanding(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			library := newLibrary(t)
-			answer := payload(t, ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"instructions","arguments":`+c.arguments+`}}`))
-			offered := stringsOf(t, answer["affordances"])
+			decoded := payload(t, ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"instructions","arguments":`+c.arguments+`}}`))
+			offered := stringsOf(t, decoded["affordances"])
 			if got := slices.Contains(offered, verb.Claim); got != c.wantClaim {
 				t.Errorf("the list %v offers claim: %t, wanted %t", offered, got, c.wantClaim)
 			}
@@ -449,7 +450,7 @@ func TestTheInstructionsListAgreesWithWhereTheCardIsStanding(t *testing.T) {
 				t.Errorf("the list %v offers pull: %t, wanted %t", offered, got, c.wantPull)
 			}
 			for _, name := range offered {
-				if _, served := commandTool[name]; served {
+				if _, served := answer.Translation()[name]; served {
 					t.Errorf("the list %v names %s, which is a command here and not a tool", offered, name)
 				}
 			}

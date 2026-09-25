@@ -39,9 +39,9 @@ func TestTheShowToolDefaultsToTheNarrowShape(t *testing.T) {
 // the show tool, called through the JSON-RPC surface with all: true, answers
 // a detail whose comments carry non-empty bodies and leaves nothing
 // withheld. It is what proves the "all" marker really reaches
-// verb.Request.All through request2Args and assignMarker, rather than being
-// dropped the way an unrecognised marker is (mcp.go:1000-1043's own doc
-// comment). The accepting case beside it, the same tool and the same card
+// verb.Request.All through request2Args and answer.Build, rather than being
+// dropped the way an unrecognised marker is (see assignMarker's doc comment
+// in internal/answer/build.go). The accepting case beside it, the same tool and the same card
 // with neither fields nor all, is the bare call criterion 8 above already
 // covers; it is cited here rather than repeated.
 func TestTheShowToolAllCarriesEveryMember(t *testing.T) {
