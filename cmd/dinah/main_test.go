@@ -5225,12 +5225,21 @@ var refusalResidue = regexp.MustCompile(`\{[A-Za-z][A-Za-z0-9_-]*\}`)
 // empty fill leaves in the middle of a sentence.
 var refusalDoubleSpace = regexp.MustCompile(`  +`)
 
-// refusalQuoted matches a double-quoted JSON string, escapes included. A
-// refusal quoting what it read carries the reader's own text there, spaces
-// and all, and an empty fill inside the quotes leaves two quotes touching
-// rather than two spaces, so the double-space test reads the line with every
-// quoted span emptied. dinah.malformed-urgency is the refusal that quotes a
-// value its reader wrote with two spaces in it.
+// refusalQuoted matches a double-quoted JSON string, escapes included.
+//
+// dinah.malformed-urgency quotes back the value it read out of the workbench's
+// dinah.urgency block, rendered as JSON, and a value such as
+// "[0, 2, 4, 6]  # note" carries the reader's own two spaces. So on that one
+// refusal, and on no other, the double-space test reads the line with every
+// quoted JSON string emptied. Every other refusal is read as written.
+//
+// The exemption still has a gap on the refusal it covers. An empty fill inside
+// a quoted span of its own sentence, and a stray quote in the read value that
+// pairs with a later quote and hides an empty fill between them, both pass.
+// Neither can happen with the catalog as it ships, whose malformed-urgency
+// sentences carry no quote of their own. The lasting repair reads the
+// template for a fill bordered by spaces rather than scanning the rendered
+// line, and it belongs to dinah-580.
 var refusalQuoted = regexp.MustCompile(`"(?:[^"\\]|\\.)*"`)
 
 // checkRefusalShape reads the error stream of every invocation the package
@@ -5283,7 +5292,11 @@ func refusalShapeFindings(lines []string) []string {
 	if strings.TrimSpace(sentence) == "{refusal."+name+"}" {
 		found = append(found, "carries the unrendered catalog key rather than the sentence")
 	}
-	if refusalDoubleSpace.MatchString(refusalQuoted.ReplaceAllString(lines[0], `""`)) {
+	first := lines[0]
+	if name == contract.MalformedUrgency {
+		first = refusalQuoted.ReplaceAllString(first, `""`)
+	}
+	if refusalDoubleSpace.MatchString(first) {
 		found = append(found, "carries a run of two or more spaces on its first line, which is what an empty fill leaves behind")
 	}
 	for _, line := range lines {
@@ -5313,6 +5326,16 @@ func TestCheckRefusalShapeReportsABrokenBlock(t *testing.T) {
 		{
 			name:  "an empty fill beside a quoted value",
 			lines: []string{contract.MalformedUrgency + " the block reads \"[0, 2]  # note\";  write it bare"},
+			want:  "run of two or more spaces",
+		},
+		{
+			name:  "an empty fill inside a quoted span of another refusal's sentence",
+			lines: []string{contract.NoReason + " a block needs a reason; run `dinah block t-1 \"the  question the operator has to answer\"`"},
+			want:  "run of two or more spaces",
+		},
+		{
+			name:  "a stray quote pairing with a later one on another refusal",
+			lines: []string{contract.UnknownCard + " no card a\"b stands here;  run `dinah block  \"the question\"`"},
 			want:  "run of two or more spaces",
 		},
 		{

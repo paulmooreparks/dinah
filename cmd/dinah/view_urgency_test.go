@@ -437,6 +437,37 @@ func TestTheWhyCellNamesExactlyTheNonZeroTerms(t *testing.T) {
 	}
 }
 
+// TestExplainSaysWhyAFinishedCardDoesNotWait is the explanation half of
+// dinah-602/criteria/27: on a workbench whose done column the operator owns, a
+// finished card carrying his question scores nothing for waiting on him, and
+// --explain gives the reason that is true, which is that the work is finished,
+// rather than saying the column is not his. A card at his own unfinished
+// station is still told the column is his, and one at a station he does not
+// own is told it is not.
+func TestExplainSaysWhyAFinishedCardDoesNotWait(t *testing.T) {
+	root := newBenchFromDefinition(t, strings.Replace(rankedDefinition,
+		`"title": "Done", "kind": "done" }`, `"title": "Done", "kind": "done", "operator_owned": true }`, 1))
+	for i := 1; i <= 3; i++ {
+		mustRunHere(t, root, "add", "Card number "+strconv.Itoa(i))
+	}
+	mustRunHere(t, root, "move", "fx-1", "done")
+	mustRunHere(t, root, "file", "fx-1", "open_question", "Was it right?", "--owner", "operator")
+	mustRunHere(t, root, "move", "fx-2", "review")
+	mustRunHere(t, root, "move", "fx-3", "doing")
+	declareViewsIn(t, root, everythingView)
+	wants := map[string]string{
+		"fx-1": `(?m)^  waits on you +Done holds finished work +\+0\.0$`,
+		"fx-2": `(?m)^  waits on you +Review is yours +\+10\.0$`,
+		"fx-3": `(?m)^  waits on you +Doing is not yours +\+0\.0$`,
+	}
+	for ref, want := range wants {
+		drawn := mustView(t, root, "everything", "--explain", ref)
+		if !regexp.MustCompile(want).MatchString(drawn) {
+			t.Errorf("%s is explained as:\n%s", ref, drawn)
+		}
+	}
+}
+
 // TestTheCardPositionalDrawsOneRow is dinah-602/criteria/19 at the terminal.
 func TestTheCardPositionalDrawsOneRow(t *testing.T) {
 	root, _ := rankedFixture(t)

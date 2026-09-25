@@ -41,6 +41,33 @@ const agendaDefinition = `{
   ]
 }`
 
+// agendaOutside is the column offersDefinition adds, where the workbench
+// waits on somebody outside it.
+const agendaOutside = "d00000000007"
+
+// offersDefinition is agendaDefinition with one more column and one more
+// route, so that every rule next applies has a card to act on. Outside waits
+// on somebody outside the workbench, so it offers nothing and a pull carries
+// nothing through it, and a card standing in the buffer on the stuck route has
+// Outside as the first column beyond the buffer and so has no landing at all.
+const offersDefinition = `{
+  "profile": "dinah-core/0.7",
+  "title": "Agenda",
+  "routes": {
+    "short": ["d00000000001", "d00000000002", "d00000000004", "d00000000005", "d00000000006"],
+    "stuck": ["d00000000001", "d00000000002", "d00000000007", "d00000000005", "d00000000006"]
+  },
+  "columns": [
+    { "id": "d00000000001", "title": "Intake", "kind": "intake" },
+    { "id": "d00000000002", "title": "Queue", "kind": "dinah.buffer" },
+    { "id": "d00000000003", "title": "Skipped", "kind": "work" },
+    { "id": "d00000000004", "title": "Station", "kind": "work" },
+    { "id": "d00000000007", "title": "Outside", "kind": "work", "awaiting_outside": true },
+    { "id": "d00000000005", "title": "Review", "kind": "work", "operator_owned": true },
+    { "id": "d00000000006", "title": "Finished", "kind": "done" }
+  ]
+}`
+
 // The agents the tests draw as. The operator is alka, whom every harness
 // instantiates as the operator.
 const (
@@ -52,7 +79,13 @@ const (
 // all three level sets declared.
 func agendaHarness(t *testing.T) *harness {
 	t.Helper()
-	h := harnessFromDefinition(t, "ag", agendaDefinition)
+	return agendaHarnessFrom(t, agendaDefinition)
+}
+
+// agendaHarnessFrom is agendaHarness over a definition the caller names.
+func agendaHarnessFrom(t *testing.T, definition string) *harness {
+	t.Helper()
+	h := harnessFromDefinition(t, "ag", definition)
 	h.writeAnchorBlock("levels", "levels:\n  tier: [workhorse, frontier]\n  priority: [later, soon, next, now]\n  severity: [minor, major, critical, blocker]\n")
 	h.writeAnchorBlock("tiers", "tiers:\n  workhorse:\n    meaning: scoped implementation\n    models:\n      - {provider: acme, model: workhorse}\n"+
 		"  frontier:\n    meaning: novel design\n    models:\n      - {provider: acme, model: frontier}\n")
@@ -222,21 +255,50 @@ func (h *harness) primeRefs(who caller) []string {
 
 // TestTheAgendaHoldsWhatNextAndPrimeOffer is dinah-602/criteria/2, the
 // behavioural half of the protection criteria/28's source guard cannot give.
-// The fixture offers a head by pull out of intake, withholds a station's
-// only card above the caller's tier, carries a card on the short route
-// through the buffer to a landing the full flow would not give it, and
-// stands a second ready card behind a station's head. The agenda, next and
-// prime must name one set for the one caller.
+//
+// The fixture holds a card for every rule next applies, so that an agenda
+// departing from next on any one of them draws a different set. Next offers
+// a column's first ready card, in arrival order, whose landing exists and
+// admits the caller's tier. So the fixture carries a head offered by pull out
+// of intake; a card on the stuck route standing first in the buffer with no
+// landing, ahead of a card on the short route whose landing differs from the
+// full flow's; a card above the caller's tier standing first in a station,
+// ahead of one the caller is admitted for; a blocked card first in a station,
+// then its head, a card behind the head, and a card with a lower number that
+// arrived later; a claimed card first at review, ahead of the head there; a
+// card in a column waiting on somebody outside; and a finished card.
+//
+// Next reads no checklist item, so two heads carry items an agenda keyed on
+// items might wrongly act on: the station's head carries a pending decision
+// naming the station it stands in, which a hold on the way out would read,
+// and the review head carries a pending question owned by holder.
+//
+// The agenda, next and prime must name one set for the one caller, and the
+// set is named here as well, so the three agreeing on the wrong set fails.
 func TestTheAgendaHoldsWhatNextAndPrimeOffer(t *testing.T) {
-	h := agendaHarness(t)
+	h := agendaHarnessFrom(t, offersDefinition)
+	late := h.add("the lowest number at the station, arriving there last")
 	pulled := h.placeAt("offered by pull out of intake", agendaIntake)
 	withheld := h.placeAt("above the workhorse tier", agendaSkipped)
 	h.setTier(withheld, "frontier")
+	pastWithheld := h.placeAt("behind the tier-withheld card, and admitted", agendaSkipped)
+	stuck := h.placeAt("in the buffer on a road with no landing", agendaQueue)
+	h.onRoute(stuck, "stuck")
 	routed := h.placeAt("walking the short road", agendaQueue)
 	h.onRoute(routed, "short")
+	blocked := h.placeAt("blocked, first at the station", agendaStation)
+	h.mustDo(&Request{Verb: Block, Card: blocked, Actor: "alka", Reason: "waiting on a supplier"})
 	head := h.placeAt("the station's head", agendaStation)
+	h.item(head, "e00000000001", "kind: decision\nstate: pending\nowner: holder\ncolumn: "+agendaStation+"\nordinal: 1\n", "a decision the station settles")
 	behind := h.placeAt("behind the station's head", agendaStation)
+	claimed := h.placeAt("claimed, first at review", agendaReview)
+	h.mustDo(&Request{Verb: Claim, Actor: "alka", Card: claimed})
 	reviewed := h.placeAt("standing at review", agendaReview)
+	h.plantItem(reviewed, "e00000000002", "open_question", "pending", "holder", 1)
+	outside := h.placeAt("waiting on somebody outside", agendaOutside)
+	finished := h.placeAt("finished", agendaFinished)
+	h.advance(time.Hour)
+	h.at(late, agendaStation)
 
 	agenda := ranked(h.explained("agenda", asWorkhorse), 0)
 	next := h.nextRefs(asWorkhorse)
@@ -244,11 +306,11 @@ func TestTheAgendaHoldsWhatNextAndPrimeOffer(t *testing.T) {
 	if refSet(agenda) != refSet(next) || refSet(agenda) != refSet(prime) {
 		t.Fatalf("the agenda holds [%s], next offers [%s] and prime offers [%s]", refSet(agenda), refSet(next), refSet(prime))
 	}
-	want := refSet([]string{pulled, routed, head, reviewed})
+	want := refSet([]string{pulled, routed, pastWithheld, head, reviewed})
 	if refSet(agenda) != want {
 		t.Errorf("the three agree on [%s], want [%s]", refSet(agenda), want)
 	}
-	for _, absent := range []string{withheld, behind} {
+	for _, absent := range []string{withheld, stuck, blocked, behind, late, claimed, outside, finished} {
 		if strings.Contains(" "+refSet(agenda)+" ", " "+absent+" ") {
 			t.Errorf("the agenda holds %s, which next does not offer", absent)
 		}

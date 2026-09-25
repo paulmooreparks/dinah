@@ -7252,8 +7252,13 @@
     },
     "view.urgency.explain.waits-on-you.unowned": {
       "text": "{column} आपका नहीं है",
-      "context": "The phrase --explain prints for the waits-on-you term when the reader is the operator and does not own the column the card stands in, or the column is a done column. {column} is that column's title.",
+      "context": "The phrase --explain prints for the waits-on-you term when the reader is the operator and does not own the column the card stands in. {column} is that column's title.",
       "source": "4339bba5483f5e00"
+    },
+    "view.urgency.explain.waits-on-you.finished": {
+      "text": "{column} में पूरा हुआ काम है",
+      "context": "The phrase --explain prints for the waits-on-you term when the reader is the operator and the card stands in a done column he owns. The term scores nothing there because the work is finished, and the phrase gives that reason rather than saying the column is not his. {column} is that column's title.",
+      "source": "af933b9bfa9033ea"
     },
     "view.urgency.explain.waits-on-you.agent": {
       "text": "केवल ऑपरेटर किसी कॉलम का स्वामी होता है",

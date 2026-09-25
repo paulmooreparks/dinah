@@ -281,10 +281,10 @@ level by the level itself.
 
 `--explain` prints every term behind a rank. With a card, Dinah prints all
 eight terms of that card, one per line, the ones worth nothing included, then
-a rule and the total. Without a card, Dinah prints the same for every card in rank order,
-under each section's heading. `--explain` on a view ordered any other way
-refuses with `dinah.view-not-ranked`, because such a view has no arithmetic to
-show.
+a rule and the total. Without a card, Dinah prints the same for every card in
+rank order, under each section's heading. `--explain` on a view ordered any
+other way refuses with `dinah.view-not-ranked`, because such a view has no
+arithmetic to show.
 
     $ dinah view agenda --explain dinah-572
     dinah-572: dinah setup connects a named harness to a workbench

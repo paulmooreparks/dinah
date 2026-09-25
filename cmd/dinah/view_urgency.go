@@ -102,8 +102,7 @@ func basisCount(term verb.UrgencyTerm, key string) int {
 // then every term behind its rank. A card appearing in several sections is
 // explained once, from the first section that holds it, since its score does
 // not depend on the section.
-func (s *session) renderExplainedCard(body verb.ViewBody, operator string) {
-	isOperator := body.Actor != "" && body.Actor == operator
+func (s *session) renderExplainedCard(body verb.ViewBody, reader explainReader) {
 	for _, section := range body.Sections {
 		for _, card := range section.Cards {
 			answer, ranked := section.Urgency[card.Ref]
@@ -111,7 +110,7 @@ func (s *session) renderExplainedCard(body verb.ViewBody, operator string) {
 				continue
 			}
 			s.line(s.wrappedLine(0, s.r.T("view.urgency.explain.card", "card", card.Ref, "title", card.Title)))
-			s.explainTerms(card, answer, 2, isOperator)
+			s.explainTerms(card, answer, 2, reader)
 			return
 		}
 	}
@@ -120,8 +119,7 @@ func (s *session) renderExplainedCard(body verb.ViewBody, operator string) {
 // renderExplainedSection replaces a section's table with one block per card
 // in rank order: the rank, the reference and the title on one line, then the
 // card's terms indented beneath it, with a blank line between blocks.
-func (s *session) renderExplainedSection(section verb.ViewSectionAnswer, actor, operator string) {
-	isOperator := actor != "" && actor == operator
+func (s *session) renderExplainedSection(section verb.ViewSectionAnswer, reader explainReader) {
 	for i, card := range section.Cards {
 		if i > 0 {
 			s.line("")
@@ -129,7 +127,7 @@ func (s *session) renderExplainedSection(section verb.ViewSectionAnswer, actor, 
 		answer := section.Urgency[card.Ref]
 		heading := s.r.T("view.urgency.explain.ranked", "rank", strconv.Itoa(answer.Rank), "card", card.Ref, "title", card.Title)
 		s.line(s.wrappedLine(2, heading))
-		s.explainTerms(card, answer, 4, isOperator)
+		s.explainTerms(card, answer, 4, reader)
 	}
 }
 
@@ -140,7 +138,7 @@ func (s *session) renderExplainedSection(section verb.ViewSectionAnswer, actor, 
 // table draws no heading row, since the labels in its first column already
 // say what each row is, and its columns keep their headings for the stacked
 // form a narrow window draws.
-func (s *session) explainTerms(card verb.CardView, answer verb.UrgencyAnswer, indent int, isOperator bool) {
+func (s *session) explainTerms(card verb.CardView, answer verb.UrgencyAnswer, indent int, reader explainReader) {
 	terms := table{
 		indent:  indent,
 		columns: s.columns("explain", "term", "reading", "points"),
@@ -149,7 +147,7 @@ func (s *session) explainTerms(card verb.CardView, answer verb.UrgencyAnswer, in
 	for _, term := range answer.Terms {
 		fields := []string{
 			s.r.T("view.urgency.term." + term.Term),
-			s.explainPhrase(card, term, isOperator),
+			s.explainPhrase(card, term, reader),
 			signed(term.Points.String()),
 		}
 		terms.rows = append(terms.rows, tableRow{fields: fields})
@@ -173,11 +171,11 @@ func signed(figure string) string {
 
 // explainPhrase is what one term read, in the reader's language, composed
 // from the term's basis and the card's column title.
-func (s *session) explainPhrase(card verb.CardView, term verb.UrgencyTerm, isOperator bool) string {
+func (s *session) explainPhrase(card verb.CardView, term verb.UrgencyTerm, reader explainReader) string {
 	basis := term.Basis
 	switch term.Term {
 	case bench.UrgencyWaitsOnYou:
-		return s.waitsOnYouPhrase(card, basis, isOperator)
+		return s.waitsOnYouPhrase(card, basis, reader)
 	case bench.UrgencyYourQuestion:
 		owned := basisCount(term, "owned")
 		if owned == 0 {
@@ -204,17 +202,44 @@ func (s *session) explainPhrase(card verb.CardView, term verb.UrgencyTerm, isOpe
 	return ""
 }
 
-// waitsOnYouPhrase says whether the card stands where the caller acts. The
+// waitsOnYouPhrase says why the waits-on-you term scored what it scored. The
 // term never applies to anybody but the operator, so every other caller is
-// told that rather than told a column is not theirs.
-func (s *session) waitsOnYouPhrase(card verb.CardView, basis map[string]string, isOperator bool) string {
+// told that rather than told a column is not theirs. For the operator, a card
+// in a done column he owns scores nothing because the work there is finished,
+// and the phrase says so rather than saying the column is not his.
+func (s *session) waitsOnYouPhrase(card verb.CardView, basis map[string]string, reader explainReader) string {
 	switch {
-	case !isOperator:
+	case !reader.operator:
 		return s.r.T("view.urgency.explain.waits-on-you.agent")
 	case basis["owned"] == "true":
 		return s.r.T("view.urgency.explain.waits-on-you.owned", "column", card.ColumnTitle)
+	case reader.finished[card.Column]:
+		return s.r.T("view.urgency.explain.waits-on-you.finished", "column", card.ColumnTitle)
 	}
 	return s.r.T("view.urgency.explain.waits-on-you.unowned", "column", card.ColumnTitle)
+}
+
+// explainReader is what the explained phrases need beyond a card's terms:
+// whether the view was drawn for the operator, and which columns are done
+// columns the operator owns, where a card earns nothing for waiting on him.
+type explainReader struct {
+	operator bool
+	finished map[string]bool
+}
+
+// explainReaderFor reads who a view was drawn for and the workbench's done
+// columns the operator owns.
+func explainReaderFor(body verb.ViewBody, b *bench.Bench) explainReader {
+	reader := explainReader{
+		operator: body.Actor != "" && body.Actor == b.Operator,
+		finished: map[string]bool{},
+	}
+	for _, column := range b.Columns {
+		if column.OperatorOwned && column.Terminal() {
+			reader.finished[column.ID] = true
+		}
+	}
+	return reader
 }
 
 // levelPhrase says which level a priority or severity term read, or that it

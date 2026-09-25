@@ -41,10 +41,10 @@ func runView(s *session, parsed *arguments) int {
 			return s.emitMachine(answer)
 		}
 		if answer.View.Explained && req.Card != "" {
-			s.renderExplainedCard(answer.View, l.Bench.Operator)
+			s.renderExplainedCard(answer.View, explainReaderFor(answer.View, l.Bench))
 			return 0
 		}
-		s.renderView(answer, l.Bench.Operator)
+		s.renderView(answer, l.Bench)
 		return 0
 	})
 }
@@ -95,7 +95,8 @@ func (s *session) emitViewList(listing *verb.ViewListing) int {
 // renderView draws a view in the list layout: a heading naming the view and
 // who it was asked as, then each section's heading and its cards, one table
 // per section because two sections can carry different columns.
-func (s *session) renderView(answer *verb.ViewAnswer, operator string) {
+func (s *session) renderView(answer *verb.ViewAnswer, b *bench.Bench) {
+	operator := b.Operator
 	body := answer.View
 	heading := body.Title
 	if body.Actor != "" {
@@ -118,7 +119,7 @@ func (s *session) renderView(answer *verb.ViewAnswer, operator string) {
 		case section.Count == 0:
 			s.line(s.wrappedLine(2, s.r.T("view.section.empty")))
 		case body.Order == bench.ViewOrderUrgency && body.Explained:
-			s.renderExplainedSection(section, body.Actor, operator)
+			s.renderExplainedSection(section, explainReaderFor(body, b))
 		case body.Order == bench.ViewOrderUrgency:
 			s.renderRankedSection(section, body.Actor)
 		default:
