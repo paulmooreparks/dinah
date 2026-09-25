@@ -468,6 +468,22 @@ needs. If you shrink the window below 40 by 6 while a watch is running, Dinah
 says so on the first row and draws the view again once the window is big
 enough.
 
+A watch reads the window's size from `COLUMNS` and `LINES` when they are set,
+and from the terminal otherwise. If you exported either one and have since
+resized the window, the watch draws for the old size, and rows wider than the
+window wrap and overwrite each other. Unset them, or set them to the window's
+size, before you start a watch.
+
+On Linux and macOS, Dinah reads the terminal's description, named by `TERM`,
+from the places ncurses searches: the directory `TERMINFO` names, then
+`~/.terminfo`, then each directory `TERMINFO_DIRS` lists, then
+`/etc/terminfo`, `/lib/terminfo` and `/usr/share/terminfo`. That last list is
+the one Ubuntu 24.04 documents; a system built with another one may keep its
+database elsewhere. If Dinah finds no description, a watch is refused with
+`no-terminal-description` and the board is drawn without colour. `infocmp -D`
+prints where your system keeps its database, and setting `TERMINFO_DIRS` to
+that directory fixes both.
+
 A watch reads your workbench exactly as `dinah view` does. Like any read, it
 records a claim that has expired, under the name of whoever held it.
 

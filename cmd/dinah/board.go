@@ -89,7 +89,7 @@ func (s *session) columnsView(answer *verb.ViewAnswer, b *bench.Bench, glyphs bo
 		}
 	}
 	title := withoutControls(body.Title)
-	lines := []drawnLine{{text: boardHeadingLine(title, acting, draw, glyphs.ellipsis)}}
+	lines := []drawnLine{{text: boardHeadingLine(title, withoutControls(acting), draw, glyphs.ellipsis)}}
 	if counted := s.collapsedLine(body, collapsed, b); counted != "" {
 		lines = append(lines, plainLines(boardProse(counted, 0, draw, glyphs.ellipsis))...)
 	}
@@ -105,7 +105,7 @@ func (s *session) columnsView(answer *verb.ViewAnswer, b *bench.Bench, glyphs bo
 		switch {
 		case section.Refused != "":
 			for _, refused := range s.refusedSectionLines(section) {
-				lines = append(lines, plainLines(boardProse(refused.text, refused.indent, draw, glyphs.ellipsis))...)
+				lines = append(lines, plainLines(boardProse(withoutControls(refused.text), refused.indent, draw, glyphs.ellipsis))...)
 			}
 		case section.Count == 0:
 			lines = append(lines, plainLines(boardProse(s.r.T("view.section.empty"), 2, draw, glyphs.ellipsis))...)
@@ -254,7 +254,9 @@ func cardNumber(ref string) string {
 // withoutControls replaces every control character, general category Cc,
 // with a space. The measure counts a control character as drawing nothing,
 // so one left in would misalign the grid, and under --watch an escape in a
-// title would reach a terminal the tool is driving.
+// title would reach a terminal the tool is driving. strings.Map also turns
+// every byte sequence that is not valid UTF-8 into U+FFFD, so a title stored
+// with a cut-off sequence reaches the console whole.
 func withoutControls(text string) string {
 	return strings.Map(func(r rune) rune {
 		if unicode.Is(unicode.Cc, r) {

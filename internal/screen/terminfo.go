@@ -189,16 +189,20 @@ func (r *reader) long() int {
 // the TERMINFO variable, which names one database or carries a description
 // itself after "hex:" or "b64:", then $HOME/.terminfo, then each directory
 // TERMINFO_DIRS lists, an empty member meaning the system location, and
-// finally the system locations. getenv reads the environment, so a test
+// finally the compiled-in locations. getenv reads the environment, so a test
 // states every variable it depends on.
 //
-// terminfo(5) leaves the system locations to the build, as "a compiled-in
-// list". The list here is the one Debian's ncurses build compiles in,
-// /etc/terminfo:/usr/share/terminfo:/lib/terminfo in its debian/rules, whose
-// middle member is also where macOS keeps its database. A system whose
-// ncurses was built with some other list, and which sets none of the three
-// variables, finds nothing here, and the terminal is then treated as having
-// no description: no colour and no watch, which is safe.
+// terminfo(5) says the last two are fixed when ncurses is built, as "a
+// compiled-in list", and they differ from one build to another. The ones
+// here are Ubuntu 24.04's, as its own terminfo(5) page (ncurses 6.4) names
+// them: the list /etc/terminfo:/lib/terminfo:/usr/share/terminfo, and the
+// system location /etc/terminfo, which is what an empty member of
+// TERMINFO_DIRS stands for. /usr/share/terminfo is also where macOS keeps
+// its database. On a system whose ncurses was built with another list, and
+// where none of the three variables is set, the search can miss the entry,
+// and the terminal is then treated as having no description: no colour and
+// no watch, which is safe. Setting TERMINFO or TERMINFO_DIRS to the system's
+// own database fixes it, and the views guide says so.
 //
 // A database may be a directory tree or a hashed database, and only the
 // tree is read. Each tree is tried both ways term(5) documents for the
@@ -221,7 +225,7 @@ func LoadTerminfo(name string, getenv func(string) string) (*Terminfo, error) {
 	if dirs, set := lookupDirs(getenv); set {
 		for _, dir := range strings.Split(dirs, ":") {
 			if dir == "" {
-				databases = append(databases, systemTerminfo...)
+				databases = append(databases, systemLocation)
 				continue
 			}
 			databases = append(databases, dir)
@@ -244,9 +248,14 @@ func LoadTerminfo(name string, getenv func(string) string) (*Terminfo, error) {
 	return nil, ErrNoTerminfo
 }
 
-// systemTerminfo is the system locations searched last, in the order
-// Debian's build lists them.
-var systemTerminfo = []string{"/etc/terminfo", "/usr/share/terminfo", "/lib/terminfo"}
+// systemTerminfo is the compiled-in list searched last, in the order Ubuntu
+// 24.04's terminfo(5) gives it, and systemLocation is the system location an
+// empty member of TERMINFO_DIRS stands for on that build. Both are variables
+// so the search-order test can point them at directories of its own.
+var (
+	systemTerminfo = []string{"/etc/terminfo", "/lib/terminfo", "/usr/share/terminfo"}
+	systemLocation = "/etc/terminfo"
+)
 
 // lookupDirs reads TERMINFO_DIRS, reporting whether it is set to anything.
 func lookupDirs(getenv func(string) string) (string, bool) {

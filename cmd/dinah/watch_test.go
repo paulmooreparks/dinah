@@ -10,7 +10,9 @@ import (
 	"sync"
 	"testing"
 	"time"
+	"unicode"
 	"unicode/utf16"
+	"unicode/utf8"
 
 	"dinah/internal/bench"
 	"dinah/internal/contract"
@@ -1008,4 +1010,129 @@ func (s *interruptingScreen) Line(segments []screen.Segment) error {
 		s.rig.interrupt()
 	}
 	return err
+}
+
+// hostileTitle is a card title carrying what a terminal would act on: a
+// clear-screen sequence, and an OSC sequence that sets the window's title
+// and ends in BEL.
+const hostileTitle = "Hostile \x1b[2Jcleared \x1b]0;pwned\x07title"
+
+// truncatedTitle ends in the first two bytes of a three-byte UTF-8
+// sequence, which consolewriter holds back until a later write completes it.
+const truncatedTitle = "Truncated title \xe2\x80"
+
+// hostileBench is a workbench whose cards carry hostileTitle and
+// truncatedTitle in their anchors, whose Design Queue column's title carries
+// an escape, with a list view and a columns view whose own titles carry one,
+// and a view ordered by urgency for --explain. The titles are written
+// into the anchors by hand, which is how a title reaches a workbench from an
+// editor or from a clone written by another tool.
+func hostileBench(t *testing.T) (root, hostile string) {
+	t.Helper()
+	root = newBenchFromDefinition(t, fourteenColumns)
+	declareViewsIn(t, root, allColumnsView+
+		"  hostile-board:\n    title: Board \x1b[31mtitle\n    layout: columns\n    collapsed: []\n    sections:\n      - query: \"state:ready,active,blocked\"\n"+
+		"  listed:\n    title: Listed \x1b[31mview\n    order: column\n    sections:\n      - query: \"state:ready,active,blocked\"\n"+
+		"  ranked:\n    title: Ranked\n    order: urgency\n    sections:\n      - query: \"state:ready,active,blocked\"\n")
+	hostile = addTo(t, root, 3, "Placeholder hostile", "--priority", "now")
+	truncated := addTo(t, root, 3, "Placeholder truncated", "--priority", "later")
+	rewriteAnchor(t, root, hostile, "title: Placeholder hostile", "title: "+hostileTitle)
+	rewriteAnchor(t, root, truncated, "title: Placeholder truncated", "title: "+truncatedTitle)
+	column := filepath.Join(soleBenchDir(t, root), "columns", columnID(3), "column.md")
+	stored, err := os.ReadFile(column)
+	if err != nil {
+		t.Fatalf("read the column anchor: %v", err)
+	}
+	edited := strings.Replace(string(stored), "title: Design Queue", "title: Design \x1b[5mQueue", 1)
+	if edited == string(stored) {
+		t.Fatalf("the column anchor carries no title to rewrite:\n%s", stored)
+	}
+	if err := os.WriteFile(column, []byte(edited), 0o644); err != nil {
+		t.Fatalf("write the column anchor: %v", err)
+	}
+	return root, hostile
+}
+
+// TestAWatchNeverWritesAStoredEscape is the review's blocker on
+// dinah-288/criteria/19 and dinah-288/criteria/6, reached from the position
+// that breaks the code. The workbench stores card titles carrying escape
+// sequences, BEL and a cut-off UTF-8 sequence. A watch of a list view, of
+// --explain on a whole view and on one card, and of a board, each through the
+// console layer and through the terminfo layer, must put none of them on the
+// terminal. On the console, every text the layer writes is valid UTF-8 and
+// carries no control character but the restore's line feed. On POSIX, every
+// escape the layer writes begins one of the xterm-256color entry's own
+// sequences and no write carries BEL. The test first checks that the
+// hostile title's words were drawn, so it cannot pass by drawing nothing.
+func TestAWatchNeverWritesAStoredEscape(t *testing.T) {
+	root, hostile := hostileBench(t)
+	entry := terminfoFixture(t, "78", "xterm-256color")
+	cases := [][]string{
+		{"view", "listed", "--watch"},
+		{"view", "ranked", "--explain", "--watch"},
+		{"view", "ranked", hostile, "--explain", "--watch"},
+		{"view", "hostile-board", "--watch"},
+	}
+	for _, argv := range cases {
+		rig := newWatchRig(t, 100, 40)
+		console := &recordingConsole{
+			log:           rig.log,
+			info:          screen.BufferInfo{Attributes: 0x0007, Left: 0, Top: 0, Right: 99, Bottom: 39},
+			cursorSize:    25,
+			cursorVisible: true,
+		}
+		rig.install(func(io.Writer) screen.Screen { return screen.NewConsole(console, console) })
+		watching := runAside(t, root, argv...)
+		waitFor(t, 5*time.Second, "a status row on the console", func() bool {
+			console.mu.Lock()
+			defer console.mu.Unlock()
+			return strings.Contains(strings.Join(console.text, ""), "Ctrl+C stops")
+		})
+		rig.interrupt()
+		watching.finish(t)
+		console.mu.Lock()
+		written := strings.Join(console.text, "")
+		texts := append([]string(nil), console.text...)
+		console.mu.Unlock()
+		if !strings.Contains(written, "cleared") && !strings.Contains(written, "Hostile") {
+			t.Errorf("%v drew neither word of the hostile title, so the position was not reached:\n%s", argv, written)
+		}
+		for _, text := range texts {
+			if !utf8.ValidString(text) {
+				t.Errorf("%v wrote text that is not valid UTF-8 to the console: %q", argv, text)
+			}
+			for _, r := range text {
+				if r != '\n' && unicode.Is(unicode.Cc, r) {
+					t.Errorf("%v wrote the control character %U to the console in %q", argv, r, text)
+				}
+			}
+		}
+
+		posix := newWatchRig(t, 100, 40)
+		recorder := &sequenceRecorder{}
+		posix.install(func(io.Writer) screen.Screen { return screen.NewTerminfo(entry, recorder) })
+		watching = runAside(t, root, argv...)
+		waitFor(t, 5*time.Second, "a status row on the terminal", func() bool {
+			recorder.mu.Lock()
+			defer recorder.mu.Unlock()
+			return strings.Contains(strings.Join(recorder.writes, ""), "Ctrl+C stops")
+		})
+		posix.interrupt()
+		watching.finish(t)
+		recorder.mu.Lock()
+		writes := append([]string(nil), recorder.writes...)
+		recorder.mu.Unlock()
+		for _, write := range writes {
+			whole := len(terminfoSequence.FindAllString(write, -1))
+			if escapes := strings.Count(write, "\x1b"); escapes != whole {
+				t.Errorf("%v wrote %d escapes of which %d begin the entry's own sequences: %q", argv, escapes, whole, write)
+			}
+			if strings.ContainsRune(write, 0x07) {
+				t.Errorf("%v wrote BEL to the terminal: %q", argv, write)
+			}
+			if !utf8.ValidString(write) {
+				t.Errorf("%v wrote bytes that are not valid UTF-8 to the terminal: %q", argv, write)
+			}
+		}
+	}
 }

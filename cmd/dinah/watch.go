@@ -352,16 +352,21 @@ func (w *watcher) frame() (bool, error) {
 }
 
 // lines lays the view out for a frame width columns wide. A board is drawn
-// at that window. Everything else is what the same command line without
-// --watch prints, laid out at one column fewer and cut to fit wherever a
-// table's line would still reach past it.
+// at that window, and cleans every text it draws. Everything else is what
+// the same command line without --watch prints, laid out at one column fewer.
+// That drawing writes card titles, holders, column titles and every other
+// text the workbench stores as they are, so each of its lines is cleaned by
+// withoutControls before it is cut to fit: a control character becomes a
+// space, so no escape stored in a title reaches the terminal, and a byte
+// sequence that is not valid UTF-8 becomes U+FFFD, so consolewriter is never
+// left holding an incomplete sequence across the console calls that follow.
 func (w *watcher) lines(answer *verb.ViewAnswer, width int) []drawnLine {
 	var lines []drawnLine
 	if answer.View.Layout == bench.ViewLayoutColumns && !answer.View.Explained {
 		lines = w.s.columnsView(answer, w.l.Bench, w.glyphs, width, w.req.All, w.req.Card != "")
 	} else {
 		for _, line := range w.s.drawnText(answer, w.l.Bench, w.req, width-1) {
-			lines = append(lines, drawnLine{text: cutText(line, width-1, w.glyphs.ellipsis)})
+			lines = append(lines, drawnLine{text: cutText(withoutControls(line), width-1, w.glyphs.ellipsis)})
 		}
 	}
 	if !w.colour {

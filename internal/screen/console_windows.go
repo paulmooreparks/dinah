@@ -51,11 +51,16 @@ type cursorInfo struct {
 	visible int32
 }
 
-// packCoord is a COORD passed by value. Microsoft's "x64 calling convention"
-// page documents that a structure of 32 bits is passed as if it were an
-// integer of that size, and COORD is two 16-bit members with X first, so the
-// word carries X in its low half and Y in its high half. x/sys/windows passes
-// the COORD of SetConsoleCursorPosition the same way.
+// packCoord is a COORD passed by value, for the two architectures Dinah
+// ships on Windows, amd64 and arm64. Microsoft's "x64 calling convention"
+// page documents that a structure of 32 bits is passed "as if" it were an
+// integer of that size. Its "Overview of ARM64 ABI conventions" page
+// documents that a composite of 16 bytes or less is copied into general
+// registers as though loaded from memory, so on that little-endian
+// architecture the register's low 32 bits hold the structure's bytes in
+// order. COORD is two 16-bit members with X first, so on both the word
+// carries X in its low half and Y in its high half. x/sys/windows passes the
+// COORD of SetConsoleCursorPosition the same way.
 func packCoord(x, y int) uintptr {
 	coord := windows.Coord{X: int16(x), Y: int16(y)}
 	return uintptr(*(*uint32)(unsafe.Pointer(&coord)))

@@ -200,11 +200,12 @@ func TestTheEvaluatorFollowsTheDocumentedLanguage(t *testing.T) {
 	}
 }
 
-// TestTheSearchFollowsTheDocumentedOrder asserts LoadTerminfo's search:
-// TERMINFO first, $HOME/.terminfo next, TERMINFO_DIRS after, with both
-// spellings of the intermediate directory, and a description carried in
-// TERMINFO itself.
-func TestTheSearchFollowsTheDocumentedOrder(t *testing.T) {
+// TestEverySearchPlaceIsRead asserts that LoadTerminfo reads each place
+// terminfo(5) names, on its own: TERMINFO, TERMINFO_DIRS and $HOME/.terminfo,
+// with both spellings of the intermediate directory, and a description
+// carried in TERMINFO itself. TestEachSearchPlaceComesBeforeTheNext holds
+// their order.
+func TestEverySearchPlaceIsRead(t *testing.T) {
 	env := func(vars map[string]string) func(string) string {
 		return func(name string) string { return vars[name] }
 	}
@@ -313,4 +314,94 @@ type writeRecorder struct {
 func (w *writeRecorder) Write(p []byte) (int, error) {
 	w.writes = append(w.writes, string(p))
 	return len(p), nil
+}
+
+// TestEachSearchPlaceComesBeforeTheNext asserts the order of LoadTerminfo's
+// search, one adjacent pair at a time: TERMINFO, then $HOME/.terminfo, then
+// each member of TERMINFO_DIRS in turn, then the compiled-in list in its own
+// order, with an empty TERMINFO_DIRS member standing for the system location
+// alone. The shipped list and system location are held to the values Ubuntu
+// 24.04's terminfo(5) gives before the test points both at its own
+// directories. For each pair an entry of 256 colours under the name xterm sits in
+// the earlier place and one of 8 colours in the later, so the colours read
+// say which place won; the later place alone must then read as 8, so a pair
+// the search never reaches cannot pass. Every directory is relative to the
+// package's own, because TERMINFO_DIRS is split at colons and a Windows path
+// carries one after its drive letter.
+func TestEachSearchPlaceComesBeforeTheNext(t *testing.T) {
+	wide, err := os.ReadFile(filepath.Join(testdataTerminfo, "78", "xterm-256color"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	narrow, err := os.ReadFile(filepath.Join(testdataTerminfo, "78", "xterm"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	base, err := os.MkdirTemp(".", "terminfo-order-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.RemoveAll(base) })
+	database := func(name string) string { return filepath.Join(base, name) }
+	place := func(dir string, data []byte) {
+		t.Helper()
+		if err := os.MkdirAll(filepath.Join(dir, "x"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "x", "xterm"), data, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	clear := func() {
+		t.Helper()
+		if err := os.RemoveAll(base); err != nil {
+			t.Fatal(err)
+		}
+	}
+	savedList, savedLocation := systemTerminfo, systemLocation
+	t.Cleanup(func() { systemTerminfo, systemLocation = savedList, savedLocation })
+	if strings.Join(savedList, ":") != "/etc/terminfo:/lib/terminfo:/usr/share/terminfo" || savedLocation != "/etc/terminfo" {
+		t.Errorf("the compiled-in list is %v and the system location %s, not the ones Ubuntu 24.04's terminfo(5) names", savedList, savedLocation)
+	}
+	systemTerminfo = []string{database("sys-1"), database("sys-2"), database("sys-3")}
+	systemLocation = database("sys-location")
+	vars := map[string]string{
+		"TERMINFO":      database("terminfo"),
+		"HOME":          database("home"),
+		"TERMINFO_DIRS": database("dirs-1") + ":" + database("dirs-2") + "::" + database("dirs-3"),
+	}
+	getenv := func(name string) string { return vars[name] }
+	colours := func() int {
+		t.Helper()
+		entry, err := LoadTerminfo("xterm", getenv)
+		if err != nil {
+			return 0
+		}
+		n, _ := entry.Numeric(numColors)
+		return n
+	}
+	home := filepath.Join(database("home"), ".terminfo")
+	pairs := []struct{ earlier, later string }{
+		{database("terminfo"), home},
+		{home, database("dirs-1")},
+		{database("dirs-1"), database("dirs-2")},
+		{database("dirs-2"), database("sys-location")},
+		{database("sys-location"), database("dirs-3")},
+		{database("dirs-3"), database("sys-1")},
+		{database("sys-1"), database("sys-2")},
+		{database("sys-2"), database("sys-3")},
+	}
+	for _, pair := range pairs {
+		clear()
+		place(pair.earlier, wide)
+		place(pair.later, narrow)
+		if got := colours(); got != 256 {
+			t.Errorf("with entries in %s and %s the search read %d colours, want the earlier's 256", pair.earlier, pair.later, got)
+		}
+		clear()
+		place(pair.later, narrow)
+		if got := colours(); got != 8 {
+			t.Errorf("with an entry in %s alone the search read %d colours, want 8, so it never reaches that place", pair.later, got)
+		}
+	}
 }
