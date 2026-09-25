@@ -1005,6 +1005,30 @@ var Shapes = []Shape{
 		NextStep: []string{"refusal.dinah.watch-unavailable.next-small", "refusal.dinah.watch-unavailable.next"},
 	},
 	{
+		// term and read are empty on a block that is not a mapping, so the
+		// sentence naming them is a fragment of its own that renders only
+		// where a term was named.
+		Name:   MalformedUrgency,
+		Values: []string{"defect", "term", "read"},
+		Fragments: []Fragment{
+			{Key: "refusal.dinah.malformed-urgency.term", When: "term"},
+			{Key: "refusal.dinah.malformed-urgency.next"},
+		},
+		NextStep: []string{"refusal.dinah.malformed-urgency.next"},
+	},
+	{
+		Name:      CardNotInView,
+		Values:    []string{"view"},
+		Fragments: []Fragment{{Key: "refusal.dinah.card-not-in-view.next"}},
+		NextStep:  []string{"refusal.dinah.card-not-in-view.next"},
+	},
+	{
+		Name:      ViewNotRanked,
+		Values:    []string{"view", "order"},
+		Fragments: []Fragment{{Key: "refusal.dinah.view-not-ranked.next"}},
+		NextStep:  []string{"refusal.dinah.view-not-ranked.next"},
+	},
+	{
 		// The axis list rides as a value read off the disposition table
 		// itself rather than written into the catalog, so an axis added to
 		// the vocabulary reaches this sentence without a translator being

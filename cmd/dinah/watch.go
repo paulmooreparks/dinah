@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"io"
 	"os"
 	"os/signal"
 	"runtime"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -349,20 +351,18 @@ func (w *watcher) frame() (bool, error) {
 	return w.write(lines, &status, height)
 }
 
-// lines lays the view out for a frame width columns wide: the columns
-// layout at that window, and the list layout at one column fewer, cut to fit
-// wherever a table's line would still reach past it.
+// lines lays the view out for a frame width columns wide. A board is drawn
+// at that window. Everything else is what the same command line without
+// --watch prints, laid out at one column fewer and cut to fit wherever a
+// table's line would still reach past it.
 func (w *watcher) lines(answer *verb.ViewAnswer, width int) []drawnLine {
 	var lines []drawnLine
-	if answer.View.Layout == bench.ViewLayoutColumns {
-		lines = w.s.columnsView(answer, w.l.Bench, w.glyphs, width, w.req.All)
+	if answer.View.Layout == bench.ViewLayoutColumns && !answer.View.Explained {
+		lines = w.s.columnsView(answer, w.l.Bench, w.glyphs, width, w.req.All, w.req.Card != "")
 	} else {
-		saved := w.s.width
-		w.s.width = width - 1
-		for _, line := range w.s.viewLines(answer, w.l.Bench.Operator) {
+		for _, line := range w.s.drawnText(answer, w.l.Bench, w.req, width-1) {
 			lines = append(lines, drawnLine{text: cutText(line, width-1, w.glyphs.ellipsis)})
 		}
-		w.s.width = saved
 	}
 	if !w.colour {
 		for i := range lines {
@@ -407,6 +407,20 @@ func (w *watcher) write(rows []drawnLine, status *drawnLine, height int) (bool, 
 	}
 	w.lastRow = height
 	return false, nil
+}
+
+// drawnText is what drawView prints for a view that is not drawn as a board,
+// laid out at the given width, as lines. It runs drawView on a copy of the
+// session whose stdout is a buffer, so a watch places exactly the lines the
+// same command line without --watch prints, --explain and a card argument
+// included, and a later change to either drawing reaches both.
+func (s *session) drawnText(answer *verb.ViewAnswer, b *bench.Bench, req *verb.Request, width int) []string {
+	var buffer bytes.Buffer
+	frame := *s
+	frame.out = &buffer
+	frame.width = width
+	frame.drawView(answer, b, req)
+	return splitLines(strings.TrimSuffix(buffer.String(), "\n"))
 }
 
 // leave restores the terminal and gives the interrupt signals back, in that

@@ -68,9 +68,19 @@ func boardWindow(stated int) int {
 // the view and who it was asked as, the collapsed columns and their counts,
 // and each section's board. A view of one section draws its board with no
 // section heading.
-func (s *session) columnsView(answer *verb.ViewAnswer, b *bench.Bench, glyphs boardGlyphs, window int, all bool) []drawnLine {
+//
+// A view narrowed to one card collapses nothing, so the card's own column is
+// drawn even where the view collapses it; otherwise the one card asked for
+// would appear only as a count. Each section holding the card then draws one
+// column headed with a count of one, and every other section draws that
+// nothing matches.
+func (s *session) columnsView(answer *verb.ViewAnswer, b *bench.Bench, glyphs boardGlyphs, window int, all, narrowed bool) []drawnLine {
 	draw := window - 1
 	body := answer.View
+	collapsed := body.Collapsed
+	if narrowed {
+		collapsed = nil
+	}
 	acting := ""
 	if body.Actor != "" {
 		acting = s.r.T("view.acting", "actor", body.Actor)
@@ -80,8 +90,8 @@ func (s *session) columnsView(answer *verb.ViewAnswer, b *bench.Bench, glyphs bo
 	}
 	title := withoutControls(body.Title)
 	lines := []drawnLine{{text: boardHeadingLine(title, acting, draw, glyphs.ellipsis)}}
-	if collapsed := s.collapsedLine(body, b); collapsed != "" {
-		lines = append(lines, plainLines(boardProse(collapsed, 0, draw, glyphs.ellipsis))...)
+	if counted := s.collapsedLine(body, collapsed, b); counted != "" {
+		lines = append(lines, plainLines(boardProse(counted, 0, draw, glyphs.ellipsis))...)
 	}
 	lines = append(lines, drawnLine{})
 	for i, section := range body.Sections {
@@ -100,7 +110,7 @@ func (s *session) columnsView(answer *verb.ViewAnswer, b *bench.Bench, glyphs bo
 		case section.Count == 0:
 			lines = append(lines, plainLines(boardProse(s.r.T("view.section.empty"), 2, draw, glyphs.ellipsis))...)
 		default:
-			columns := s.sectionColumns(section, body, b, glyphs, all)
+			columns := s.sectionColumns(section, collapsed, b, glyphs, all)
 			lines = append(lines, boardLines(columns, draw, glyphs)...)
 		}
 	}
@@ -119,7 +129,7 @@ func plainLines(lines []string) []drawnLine {
 // collapsedLine names each collapsed column that holds at least one card of
 // the view, in flow order, with its count summed across the sections, or
 // answers the empty string where none holds any.
-func (s *session) collapsedLine(body verb.ViewBody, b *bench.Bench) string {
+func (s *session) collapsedLine(body verb.ViewBody, collapsed []string, b *bench.Bench) string {
 	counts := map[string]int{}
 	for _, section := range body.Sections {
 		for _, card := range section.Cards {
@@ -127,7 +137,7 @@ func (s *session) collapsedLine(body verb.ViewBody, b *bench.Bench) string {
 		}
 	}
 	var entries []string
-	for _, id := range body.Collapsed {
+	for _, id := range collapsed {
 		if counts[id] == 0 {
 			continue
 		}
@@ -149,9 +159,9 @@ func (s *session) collapsedLine(body verb.ViewBody, b *bench.Bench) string {
 // card stands in that the flow does not list, in byte order of the
 // identifier, titled by the stored title of its first card. Inside a column
 // the cards keep the section's order, which is the view's order.
-func (s *session) sectionColumns(section verb.ViewSectionAnswer, body verb.ViewBody, b *bench.Bench, glyphs boardGlyphs, all bool) []boardColumn {
+func (s *session) sectionColumns(section verb.ViewSectionAnswer, collapsedIDs []string, b *bench.Bench, glyphs boardGlyphs, all bool) []boardColumn {
 	collapsed := map[string]bool{}
-	for _, id := range body.Collapsed {
+	for _, id := range collapsedIDs {
 		collapsed[id] = true
 	}
 	byColumn := map[string][]verb.CardView{}

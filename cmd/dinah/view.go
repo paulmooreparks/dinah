@@ -24,6 +24,8 @@ import (
 func runView(s *session, parsed *arguments) int {
 	req := s.request("view", parsed)
 	req.View = at(parsed.rest(), 0)
+	req.Card = at(parsed.rest(), 1)
+	req.Explain = parsed.has("explain")
 	req.Lang = s.r.Tag
 	req.All = parsed.has("all")
 	req.ViewPlain = parsed.has("plain")
@@ -54,13 +56,28 @@ func runView(s *session, parsed *arguments) int {
 		if req.ViewWatch {
 			return s.watch(l, req)
 		}
-		if answer.View.Layout == bench.ViewLayoutColumns {
-			glyphs := s.boardGlyphSet(req.ViewPlain)
-			return s.drawOnce(s.columnsView(answer, l.Bench, glyphs, boardWindow(s.rawWidth), req.All))
-		}
-		s.renderView(answer, l.Bench.Operator)
-		return 0
+		return s.drawView(answer, l.Bench, req)
 	})
+}
+
+// drawView draws a view once. The layout decides the drawing: a columns view
+// is drawn as a board, and every other view in the list layout. --explain is
+// the exception, since its blocks lay out no columns of their own, so a
+// view asked to explain its ranks draws them whatever its layout, and
+// --explain on one card draws that card's blocks alone.
+func (s *session) drawView(answer *verb.ViewAnswer, b *bench.Bench, req *verb.Request) int {
+	body := answer.View
+	switch {
+	case body.Explained && req.Card != "":
+		s.renderExplainedCard(body, explainReaderFor(body, b))
+		return 0
+	case body.Layout == bench.ViewLayoutColumns && !body.Explained:
+		glyphs := s.boardGlyphSet(req.ViewPlain)
+		lines := s.columnsView(answer, b, glyphs, boardWindow(s.rawWidth), req.All, req.Card != "")
+		return s.drawOnce(lines)
+	}
+	s.renderView(answer, b)
+	return 0
 }
 
 // reportSectionRefused writes the line that says which view and which section
@@ -106,19 +123,11 @@ func (s *session) emitViewList(listing *verb.ViewListing) int {
 	return 0
 }
 
-// renderView draws a view in the list layout and writes it to stdout.
-func (s *session) renderView(answer *verb.ViewAnswer, operator string) {
-	for _, line := range s.viewLines(answer, operator) {
-		s.line(line)
-	}
-}
-
-// viewLines lays a view out in the list layout: a heading naming the view
-// and who it was asked as, then each section's heading and its cards, one
-// table per section because two sections can carry different columns. It
-// answers the lines rather than writing them, so the watch can place them
-// one row at a time.
-func (s *session) viewLines(answer *verb.ViewAnswer, operator string) []string {
+// renderView draws a view in the list layout: a heading naming the view and
+// who it was asked as, then each section's heading and its cards, one table
+// per section because two sections can carry different columns.
+func (s *session) renderView(answer *verb.ViewAnswer, b *bench.Bench) {
+	operator := b.Operator
 	body := answer.View
 	heading := body.Title
 	if body.Actor != "" {
@@ -128,19 +137,22 @@ func (s *session) viewLines(answer *verb.ViewAnswer, operator string) []string {
 		}
 		heading = s.rightAligned(body.Title, acting)
 	}
-	lines := []string{heading, ""}
+	s.line(heading)
+	s.line("")
 	for i, section := range body.Sections {
 		if i > 0 {
-			lines = append(lines, "")
+			s.line("")
 		}
-		lines = append(lines, s.r.T("view.section.heading", "title", section.Title, "count", strconv.Itoa(section.Count)))
+		s.line(s.r.T("view.section.heading", "title", section.Title, "count", strconv.Itoa(section.Count)))
 		switch {
 		case section.Refused != "":
-			for _, refused := range s.refusedSectionLines(section) {
-				lines = append(lines, splitLines(s.wrappedLine(refused.indent, refused.text))...)
-			}
+			s.renderRefusedSection(section)
 		case section.Count == 0:
-			lines = append(lines, splitLines(s.wrappedLine(2, s.r.T("view.section.empty")))...)
+			s.line(s.wrappedLine(2, s.r.T("view.section.empty")))
+		case body.Order == bench.ViewOrderUrgency && body.Explained:
+			s.renderExplainedSection(section, explainReaderFor(body, b))
+		case body.Order == bench.ViewOrderUrgency:
+			s.renderRankedSection(section, body.Actor)
 		default:
 			cards := table{
 				indent:          2,
@@ -149,10 +161,17 @@ func (s *session) viewLines(answer *verb.ViewAnswer, operator string) []string {
 				cutTail:         true,
 			}
 			viewSectionRows(&cards, section, body.Actor)
-			lines = append(lines, s.tableLines(cards)...)
+			s.table(cards)
 		}
 	}
-	return lines
+}
+
+// renderRefusedSection writes the lines a section this workbench could not
+// ask is drawn with, each laid out at its indent.
+func (s *session) renderRefusedSection(section verb.ViewSectionAnswer) {
+	for _, refused := range s.refusedSectionLines(section) {
+		s.line(s.wrappedLine(refused.indent, refused.text))
+	}
 }
 
 // indentedText is a line of prose and the indent it is laid out at, before

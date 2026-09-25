@@ -710,14 +710,15 @@ var params = map[string][]Param{
 		{Name: "root", Flag: true, Value: "path", Shared: "root", Field: "Root", Complete: CompleteDirs},
 		{Name: "max-depth", Flag: true, Value: "n", Shared: "max-depth", Field: "MaxDepth", Complete: CompleteNone},
 	},
-	// view takes one optional positional, the name of the view to draw;
-	// leaving the name out lists every view the caller can see. The name
-	// declares no Vocabulary, because the views a caller can see depend on
-	// the user base and the workbench rather than on anything this table can
-	// enumerate.
+	// view takes two optional positionals, the name of the view to draw and
+	// a card to narrow it to; leaving the name out lists every view the
+	// caller can see. The name declares no Vocabulary, because the views a
+	// caller can see depend on the user base and the workbench rather than
+	// on anything this table can enumerate. --explain carries every term
+	// behind every rank of a view ordered by urgency.
 	//
-	// Its three markers change nothing the library answers: all lifts the
-	// per-column cap of the columns layout, plain draws that layout with
+	// Its other three markers change nothing the library answers: all lifts
+	// the per-column cap of the columns layout, plain draws that layout with
 	// ASCII marks, and watch redraws the view in place until interrupted. The
 	// cli head reads each off the Request. Each still names a field, because
 	// a command whose parameters are split between bound and unbound derives
@@ -725,6 +726,8 @@ var params = map[string][]Param{
 	// since show's --all means something else.
 	"view": {
 		{Name: "view", Field: "View", Complete: CompleteView},
+		{Name: "card", Display: "ref", Field: "Card", Complete: CompleteCard},
+		{Name: "explain", Flag: true, Marker: true, Field: "Explain"},
 		{Name: "all", Flag: true, Marker: true, Field: "All"},
 		{Name: "plain", Flag: true, Marker: true, Field: "ViewPlain"},
 		{Name: "watch", Flag: true, Marker: true, Field: "ViewWatch"},

@@ -55,6 +55,10 @@ var addressExemptions = []addressExemption{
 		ground: groundNoEntity, reason: "the rows are views, which are declarations in a settings file or a workbench definition rather than entities of a workbench",
 	},
 	{
+		site:   renderSite{File: "view_urgency.go", Function: "explainTerms", Label: "terms", Ordinal: 1},
+		ground: groundNoEntity, reason: "the rows are the eight terms of one card's urgency and their total, which are arithmetic about a card the line above the table already names rather than entities of a workbench",
+	},
+	{
 		site:   renderSite{File: "setup.go", Function: "renderSetupReport", Label: "changes", Ordinal: 1},
 		ground: groundNoEntity, reason: "the rows are locations in a harness's configuration files, which live in a project directory or a home directory rather than in a workbench",
 	},
@@ -803,7 +807,7 @@ func addressCases() []addressCase {
 			// The built-in view draws one table per section, and the first
 			// is the cards the fixture's owner holds, which is the block this
 			// case reads.
-			site:  renderSite{File: "view.go", Function: "viewLines", Label: "cards", Ordinal: 1},
+			site:  renderSite{File: "view.go", Function: "renderView", Label: "cards", Ordinal: 1},
 			label: "view",
 			argv:  []string{"view", "mine"}, at: 0,
 			want: func(t *testing.T, w *addressWorkbench) []addressExpectation {
@@ -811,6 +815,22 @@ func addressCases() []addressCase {
 				sections, _ := view["sections"].([]any)
 				if len(sections) == 0 {
 					t.Fatalf("the drawn view carries no section: %v", view)
+				}
+				first, _ := sections[0].(map[string]any)
+				return refsOf(t, first, "cards", "ref")
+			},
+		},
+		{
+			// The agenda draws one ranked table, and its second column, after
+			// the rank, is the card.
+			site:  renderSite{File: "view_urgency.go", Function: "renderRankedSection", Label: "ranked", Ordinal: 1},
+			label: "view agenda",
+			argv:  []string{"view", "agenda"}, at: 1,
+			want: func(t *testing.T, w *addressWorkbench) []addressExpectation {
+				view, _ := w.payload(t, "view", "agenda")["view"].(map[string]any)
+				sections, _ := view["sections"].([]any)
+				if len(sections) == 0 {
+					t.Fatalf("the drawn agenda carries no section: %v", view)
 				}
 				first, _ := sections[0].(map[string]any)
 				return refsOf(t, first, "cards", "ref")

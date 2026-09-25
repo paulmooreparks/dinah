@@ -6,11 +6,13 @@ them again and draws each answer as a section of its own.
 
     dinah view
     dinah view mine
+    dinah view agenda
     dinah view board
     dinah view waiting-on-me
 
-`dinah view` with no name lists every view you can see. Dinah ships two views.
-`dinah view mine` shows the cards you hold and the cards you blocked, and
+`dinah view` with no name lists every view you can see. Dinah ships three
+views. `dinah view mine` shows the cards you hold and the cards you blocked,
+`dinah view agenda` ranks the cards you can act on by how urgent they are, and
 `dinah view board` draws every live card of the workbench as columns side by
 side. Every other view is one you or your workbench declared.
 
@@ -41,7 +43,8 @@ A view carries these members, and only `sections` is required:
   board, which the section on the board below describes.
 - `order` is how the cards inside each section are ordered. `arrival` is the
   order `dinah query` returns and the default. `column` orders them by where
-  their column stands in the flow, and by arrival within one column.
+  their column stands in the flow, and by arrival within one column. `urgency`
+  ranks them, most urgent first, as the agenda below explains.
 - `collapsed` lists the columns a `columns` view draws as a count on one line
   rather than as a column, each named by reference. A `columns` view without
   it collapses the intake and done columns, and `collapsed: []` collapses
@@ -49,8 +52,10 @@ A view carries these members, and only `sections` is required:
   naming a column this workbench does not have.
 - `sections` lists the view's questions in the order they are drawn. Each
   section carries a `query`, written in the language the guide on queries
-  teaches, and may carry a `title`. A section without a title is headed by its
-  query, exactly as you wrote it.
+  teaches, or a `scope`, or both, and may carry a `title`. A section without a
+  title is headed by its query, exactly as you wrote it, and a section written
+  with a scope alone is headed by that scope. The one scope this build knows is
+  `actionable`, the cards you can act on.
 
 A view's name is lowercase letters and digits, joined by single hyphens and
 beginning with a letter, and it runs to at most sixty-four characters.
@@ -72,7 +77,7 @@ that declares it:
 1. your own settings, the `config.md` file in your user base, which only you
    see;
 2. the workbench's `workbench.md`, which everybody working the workbench sees;
-3. the views Dinah ships, which today are `mine` and `board`.
+3. the views Dinah ships, which today are `agenda`, `board`, and `mine`.
 
 Both files take the same block, so a view copies from one to the other without
 an edit. No command writes the block for you. Open `workbench.md` with
@@ -148,6 +153,172 @@ A card that matches two sections appears in both, and each section counts it.
 `dinah view --json` prints the same answer as one object, and the MCP tool
 `view` answers with the identical object.
 
+## The agenda: what needs you first
+
+`dinah view agenda` ranks the cards you can act on, most urgent first, and
+shows the arithmetic behind every rank.
+
+    dinah view agenda
+    dinah view agenda --explain
+    dinah view agenda --explain dinah-572
+
+Which cards you can act on depends on who you are. If you are the
+workbench's operator, your agenda holds these cards, each once:
+
+- every card standing in a column you own, unless that column is a done
+  column;
+- every card carrying a pending open question or decision that is yours to
+  answer, meaning one owned by the operator or owned by nobody, in any column;
+- every blocked card;
+- every card `dinah next` would offer you.
+
+If you are anybody else, your agenda holds exactly the cards `dinah next` would
+offer you, which is at most one card per column. A card above your tier, a card
+behind the head of its queue and a card somebody else holds are not in it.
+
+A card's urgency is the sum of eight terms, each worth a number of points:
+
+| Term | Default | What earns it |
+|---|---|---|
+| waits on you | 10 | the card stands in a column you own that is not a done column; only the operator owns columns |
+| your question | 4 per item, at most 3 items | a pending open question or decision on the card is yours to answer |
+| priority | 0, 2, 4, 6 | the card's priority, lowest level first |
+| severity | 0, 1, 2, 4 | the card's severity, lowest level first |
+| blocked | 3 | the card is blocked |
+| blocks others | 2 per card | nothing yet, because Dinah does not read `blocks` links yet |
+| age | 0.5 per whole day, at most 5 days | the whole days the card has stood in its current column |
+| stale claim | 3 | the card is ready and its last claim lapsed rather than being released |
+
+An item is yours when you are the operator and it waits on the operator, when
+its owner is `holder` and you hold the card or would hold it by taking the card
+`dinah next` offers you, or when its owner is your own name. Acceptance
+criteria never count, and neither does an item that is not pending.
+
+A card with no priority scores nothing on priority, rather than scoring as the
+lowest level, and so does a card whose priority your workbench does not
+declare. The weights line up with the top of the levels your workbench
+declares, so the highest level always takes the last weight. With the default
+weights, a workbench declaring three priorities scores them 2, 4 and 6, and one
+declaring five scores them 0, 0, 2, 4 and 6.
+
+A lapsed claim reaches people unevenly. An agent meets the stale claim term only
+on a card `dinah next` already offers it, where the term moves that card up
+among the column heads. The operator meets it on any card his agenda holds. So
+a lapsed card missing from somebody's agenda is not evidence that nothing is
+stale.
+
+Cards with equal urgency are ranked in the order the queue itself uses: by
+when they arrived in their current column, earliest first, and then by card
+number, lowest first.
+
+### Changing the weights
+
+Your workbench declares its own weights in `workbench.md`, under the key
+`dinah.urgency`. Every term you leave out keeps its default, and so does every
+member of `your-question` and `age` you leave out:
+
+    dinah.urgency:
+      waits-on-you: 10
+      # priority weights, lowest first: later, soon, next, now
+      priority: [0, 2, 4, 6]
+      age:
+        per-day: 0.5
+        cap: 5
+
+The keys are `waits-on-you`, `your-question` with `per-item` and `cap`,
+`priority`, `severity`, `blocked`, `blocks-others`, `age` with `per-day` and
+`cap`, and `stale-claim`. A weight is a number from -1000 to 1000 written with
+at most one digit after the decimal point, so `0.5` works and `0.25` and `1e1`
+do not. A negative weight pushes a card down. A cap is a whole number from 0 to
+1000. Dinah reads what you write by these rules:
+
+- Write a weight bare, as `blocked: 3`. Dinah reads `blocked: "3"` as text and
+  refuses it.
+- Write a list on one line, as `priority: [0, 2, 4, 6]`. Dinah reads a list
+  written one entry per line as text and refuses it.
+- Write `your-question` and `age` with one member per line beneath them. Dinah
+  refuses `age: {per-day: 0.5, cap: 5}`.
+- Put a comment on a line of its own. A comment after a value becomes part of
+  the value, and Dinah refuses it.
+
+If you write `dinah.urgency:` with nothing beneath it, or only comments, Dinah
+uses every default. Only the workbench's weights count, and a `dinah.urgency`
+block in your own `config.md` has no effect.
+
+If Dinah cannot read the block, every view ordered by urgency refuses with
+`dinah.malformed-urgency`, naming the term and the value it read, rather than
+ranking on weights nobody declared. Every other view still draws. `dinah
+check` reports the block, reports a member it does not know such as a misspelt
+`age.perday`, and reports a priority or severity list whose length differs from
+the levels your workbench declares.
+
+### Ranking any view
+
+`order: urgency` works on any view, including one with several sections. Dinah
+ranks each section on its own and numbers it from 1, and a card in two sections
+carries the same urgency in both. A view ordered by urgency needs to know who
+you are, and so does a view with a section scoped to `actionable`.
+
+`scope: actionable` on a section selects the cards you can act on, the same
+set the agenda holds. A section carrying both a scope and a query holds the
+cards that match the query and are in the scope, so this agenda splits your
+work in two:
+
+    dinah.views:
+      agenda:
+        title: What needs me first
+        order: urgency
+        sections:
+          - title: Terminal work I can take
+            scope: actionable
+            query: "workstream:terminal"
+          - title: Everything else I can take
+            scope: actionable
+            query: "workstream!=terminal"
+
+### Reading a rank
+
+In a view ordered by urgency, each section draws the columns Rank, Card,
+Column, Item, Holder, Urgency, Why and Title, and leaves out Item and Holder as
+it does in any view. The Urgency figure always carries one digit after the
+decimal point. The Why column names every term that moved the card, in the
+order of the table above, including one whose weight is negative. It names a
+level by the level itself.
+
+`--explain` prints every term behind a rank. With a card, Dinah prints all
+eight terms of that card, one per line, the ones worth nothing included, then
+a rule and the total. Without a card, Dinah prints the same for every card in
+rank order, under each section's heading. `--explain` on a view ordered any
+other way refuses with `dinah.view-not-ranked`, because such a view has no
+arithmetic to show.
+
+    $ dinah view agenda --explain dinah-572
+    dinah-572: dinah setup connects a named harness to a workbench
+      waits on you   Acceptance is yours               +10.0
+      your question  none of its items is yours        +0.0
+      priority       now, rank 4 of 4                  +6.0
+      severity       major, rank 3 of 4                +2.0
+      blocked        not blocked                       +0.0
+      blocks others  blocks links are not read yet     +0.0
+      age            1 day in Acceptance, 0.5 per day  +0.5
+      stale claim    no lapsed claim                   +0.0
+      -------------  --------------------------------  ------
+      urgency        the sum of the terms above        18.5
+
+A card after the view's name narrows the view to that card. Every section
+holding it draws its row alone, with the rank the card holds in the whole
+section, and every other section draws empty. A card no section selects
+refuses with `dinah.card-not-in-view`.
+
+The ranked table belongs to the list layout. A `columns` view ordered by
+urgency draws a board instead, with each column's cards in urgency order, and
+`--explain` and a card after the view's name work on it as the section on the
+board below describes.
+
+`dinah view agenda --json` carries each ranked card's rank and score under
+`urgency`, and with `--explain` every term with the values it was computed
+from. The MCP tool `view` answers with the identical object.
+
 ## A section this workbench cannot ask
 
 A view in your own settings is read on every workbench you open, and a column
@@ -167,6 +338,10 @@ its owner meets a stale column name without drawing the view.
 
 ## The views Dinah ships
 
+`agenda` is titled What needs me first, ranks by urgency, and has one section,
+Cards you can act on, scoped to `actionable`. The agenda section above
+describes it.
+
 `mine` is titled My cards, orders its cards by column, and asks two things.
 Claimed by me is `holder:@me`, the cards you hold. Blocked by me is
 `state:blocked actor:@me event:blocked`, the blocked cards on which you
@@ -184,9 +359,10 @@ column, and asks one question, `state:ready,active,blocked`, which matches
 every live card on any workbench. It declares no `collapsed` member, so it
 counts the cards in the intake and done columns rather than drawing them.
 
-To change either view, declare your own view of the same name, in your
-settings or on the workbench, and yours is drawn in its place. To draw the
-board with a shorter command, give yourself an alias named board:
+To change `mine`, `agenda`, or `board`, declare your own view of the same name,
+in your settings or on the workbench, and yours is drawn in its place. A
+replacement agenda keeps the agenda's selection by writing `scope: actionable`.
+To draw the board with a shorter command, give yourself an alias named board:
 
     dinah config set alias.board "view board"
 
@@ -222,6 +398,15 @@ own at the end, titled by its identifier.
 Each column shows at most five cards and then a line such as `+4 more`.
 `dinah view board --all` shows every card. The drawing uses one column fewer
 than your window, so no line ever reaches its right edge.
+
+The layout decides how a view is drawn, and the order only decides where each
+card stands. So a `columns` view ordered by urgency lists each column's cards
+most urgent first and draws no rank, score, or Why text. `--explain` prints
+the agenda's blocks in place of the board, as it does for any view ordered by
+urgency. A card after the view's name narrows the board to that card. Each
+section holding it draws one column, the card's own, with a count of 1, even
+when the view collapses that column, and every other section draws that
+nothing matches.
 
 ### Marks, colour, and plain characters
 

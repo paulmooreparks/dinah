@@ -68,7 +68,8 @@ func TestAViewsBlockReadsEveryMemberAndItsDefaults(t *testing.T) {
 }
 
 // TestEachDefectIsProducedByItsOwnFixture asserts dinah-600/criteria/3 at the
-// reader and at check: each of the seven tokens is recorded on a view built
+// reader and at check, with dinah-602/criteria/18's unknown-scope among them:
+// each of the eight tokens is recorded on a view built
 // for it, and check reports each one under check.view-malformed with the
 // view's name and the token. A well-formed sibling in the same block reads
 // clean, so a reader that marked every view malformed fails here.
@@ -80,7 +81,8 @@ func TestEachDefectIsProducedByItsOwnFixture(t *testing.T) {
 		"  empty-sections:\n    sections: []\n" +
 		"  no-query:\n    sections:\n      - title: only a title\n" +
 		"  grid-layout:\n    layout: grid\n    sections:\n      - query: \"state:ready\"\n" +
-		"  urgency-order:\n    order: urgency\n    sections:\n      - query: \"state:ready\"\n" +
+		"  priority-order:\n    order: priority\n    sections:\n      - query: \"state:ready\"\n" +
+		"  bogus-scope:\n    sections:\n      - scope: bogus\n" +
 		"  sibling:\n    sections:\n      - query: \"state:ready\"\n"
 	opened := benchDeclaring(t, block)
 	views, _ := opened.Views()
@@ -91,7 +93,8 @@ func TestEachDefectIsProducedByItsOwnFixture(t *testing.T) {
 		"empty-sections": ViewNoSections,
 		"no-query":       ViewSectionWithoutQuery,
 		"grid-layout":    ViewUnknownLayout,
-		"urgency-order":  ViewUnknownOrder,
+		"priority-order": ViewUnknownOrder,
+		"bogus-scope":    ViewUnknownScope,
 		"sibling":        "",
 	}
 	if len(views) != len(want) {

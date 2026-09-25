@@ -7,9 +7,11 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"dinah/internal/bench"
 	"dinah/internal/contract"
@@ -27,12 +29,59 @@ func expectViewList(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
 	yes := catalog.T("word.yes")
 	return sweptExpectation{
 		rows: [][]sweptCell{
+			sweptTexts("agenda", catalog.T("view.agenda.title"), bench.ViewLayoutList, bench.ViewSourceBuiltIn, yes),
 			sweptTexts(sweptViewName, sweptViewTitle, bench.ViewLayoutList, bench.ViewSourceWorkbench, yes),
 			sweptTexts("board", catalog.T("view.board.title"), bench.ViewLayoutColumns, bench.ViewSourceBuiltIn, yes),
 			sweptTexts("mine", catalog.T("view.mine.title"), bench.ViewLayoutList, bench.ViewSourceBuiltIn, yes),
 		},
 		source: "the view the fixture declares and the two views Dinah ships",
 	}
+}
+
+// sweptDefaultWeights are the shipped priority and severity weights in
+// tenths, lowest level first, which is what the healthy tree's backlog view
+// ranks its intake cards by: the tree declares four levels on each axis and
+// no dinah.urgency block.
+var sweptDefaultWeights = map[string]map[string]int{
+	"priority": {"later": 0, "soon": 20, "next": 40, "now": 60},
+	"severity": {"trivial": 0, "minor": 10, "major": 20, "critical": 40},
+}
+
+// expectRankedBacklog is the healthy tree's backlog view, which is ordered by
+// urgency and selects the intake column, drawn as the fixture's own owner.
+// Neither intake card is held, blocked, claimed or carries an item, and none
+// stands where the operator owns the column or has stood there a whole day,
+// so each score is its two level weights and each Why cell names the levels
+// that weigh anything. Ties break on arrival, which for a card never moved is
+// the order it was filed in.
+func expectRankedBacklog(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
+	type scored struct {
+		card  sweptCardRecord
+		score int
+		why   []string
+	}
+	var cards []scored
+	for _, card := range r.cards {
+		if card.column != 0 {
+			continue
+		}
+		entry := scored{card: card}
+		for _, axis := range []struct{ name, level string }{{"priority", card.priority}, {"severity", card.severity}} {
+			weight := sweptDefaultWeights[axis.name][axis.level]
+			entry.score += weight
+			if weight != 0 {
+				entry.why = append(entry.why, axis.level)
+			}
+		}
+		cards = append(cards, entry)
+	}
+	sort.SliceStable(cards, func(i, j int) bool { return cards[i].score > cards[j].score })
+	var rows [][]sweptCell
+	for i, entry := range cards {
+		rows = append(rows, sweptTexts(strconv.Itoa(i+1), entry.card.ref, r.columns[0].title,
+			bench.FormatTenths(int64(entry.score)), strings.Join(entry.why, ", "), entry.card.title))
+	}
+	return sweptExpectation{rows: rows, source: "the record's intake cards, scored on the shipped level weights"}
 }
 
 // expectMineClaimed is the first section of the built-in mine drawn as the
@@ -49,6 +98,51 @@ func expectMineClaimed(t *testing.T, r *sweptRecord, tag string) sweptExpectatio
 		rows = append(rows, sweptTexts(card.ref, r.columns[card.column].title, card.priority, card.severity, card.title))
 	}
 	return sweptExpectation{rows: rows, source: "the record's cards still held by the acting owner"}
+}
+
+// sweptExplainedCard is the intake card the sweep explains, which carries both
+// level axes, so two of its terms score and the rest read as nothing.
+const sweptExplainedCard = "fx-3"
+
+// expectExplainedTerms is one card's terms under dinah view backlog --explain,
+// drawn as the fixture's own owner, who is the operator: a line per term in
+// term order, then the total. The rule between them is cut out of the harvest
+// by the entry's own render. The card stands at intake, which
+// nobody owns; it carries no item, no block and no claim, and it was filed
+// during the run, so it has stood in its column no whole day. Its two levels
+// are the only terms that score.
+func expectExplainedTerms(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
+	catalog := msg.For(tag)
+	card := r.cards[sweptCardAt(r, sweptExplainedCard)]
+	column := r.columns[card.column].title
+	rank := func(axis, level string) string {
+		for i, name := range map[string][]string{
+			"priority": {"later", "soon", "next", "now"},
+			"severity": {"trivial", "minor", "major", "critical"},
+		}[axis] {
+			if name == level {
+				return strconv.Itoa(i + 1)
+			}
+		}
+		return ""
+	}
+	priority := sweptDefaultWeights["priority"][card.priority]
+	severity := sweptDefaultWeights["severity"][card.severity]
+	term := func(name, reading string, points int) []sweptCell {
+		return sweptTexts(catalog.T("view.urgency.term."+name), reading, "+"+bench.FormatTenths(int64(points)))
+	}
+	rows := [][]sweptCell{
+		term(bench.UrgencyWaitsOnYou, catalog.T("view.urgency.explain.waits-on-you.unowned", "column", column), 0),
+		term(bench.UrgencyYourQuestion, catalog.T("view.urgency.explain.your-question.none"), 0),
+		term(bench.UrgencyPriority, catalog.T("view.urgency.explain.level", "level", card.priority, "rank", rank("priority", card.priority), "of", "4"), priority),
+		term(bench.UrgencySeverity, catalog.T("view.urgency.explain.level", "level", card.severity, "rank", rank("severity", card.severity), "of", "4"), severity),
+		term(bench.UrgencyBlocked, catalog.T("view.urgency.explain.blocked.not"), 0),
+		term(bench.UrgencyBlocksOthers, catalog.T("view.urgency.explain.blocks-others"), 0),
+		term(bench.UrgencyAge, catalog.TN("view.urgency.explain.age", 0, "column", column, "per-day", "0.5"), 0),
+		term(bench.UrgencyStaleClaim, catalog.T("view.urgency.explain.stale-claim.none"), 0),
+		sweptTexts(catalog.T("view.urgency.total"), catalog.T("view.urgency.explain.total"), bench.FormatTenths(int64(priority+severity))),
+	}
+	return sweptExpectation{rows: rows, source: "the eight terms of the record's explained intake card and the total"}
 }
 
 // declareViewsIn writes a dinah.views block into a workbench's definition.
@@ -159,8 +253,13 @@ func stampedExport(text string) string {
 func TestADefaultedViewDrawsUnderItsNameAndItsQueries(t *testing.T) {
 	root := newBench(t)
 	declareViewsIn(t, root, bench.ViewsKey+":\n  plain:\n    sections:\n      - query: \"state:ready\"\n")
-	if listing := mustView(t, root); !strings.Contains(listing, "plain  plain") {
-		t.Errorf("the listing does not title the view by its name:\n%s", listing)
+	titled := false
+	for _, line := range strings.Split(mustView(t, root), "\n") {
+		fields := strings.Fields(line)
+		titled = titled || (len(fields) > 1 && fields[0] == "plain" && fields[1] == "plain")
+	}
+	if !titled {
+		t.Errorf("the listing does not title the view by its name:\n%s", mustView(t, root))
 	}
 	drawn := mustView(t, root, "plain")
 	if !strings.HasPrefix(drawn, "plain") || !strings.Contains(drawn, "\nstate:ready (0)\n") {
@@ -199,12 +298,14 @@ func TestAMalformedViewIsListedRefusedAndChecked(t *testing.T) {
 		"  empty-sections:\n    sections: []\n"+
 		"  no-query:\n    sections:\n      - title: only a title\n"+
 		"  grid-layout:\n    layout: grid\n    sections:\n      - query: \"state:ready\"\n"+
-		"  urgency-order:\n    order: urgency\n    sections:\n      - query: \"state:ready\"\n"+
+		"  priority-order:\n    order: priority\n    sections:\n      - query: \"state:ready\"\n"+
+		"  bogus-scope:\n    sections:\n      - scope: bogus\n"+
 		"  sibling:\n    sections:\n      - query: \"state:ready\"\n")
 	defects := map[string]string{
 		"Bad_Name": bench.ViewInvalidName, "flat": bench.ViewNotAMapping, "nested-title": bench.ViewMalformedMember,
 		"empty-sections": bench.ViewNoSections, "no-query": bench.ViewSectionWithoutQuery,
-		"grid-layout": bench.ViewUnknownLayout, "urgency-order": bench.ViewUnknownOrder,
+		"grid-layout": bench.ViewUnknownLayout, "priority-order": bench.ViewUnknownOrder,
+		"bogus-scope": bench.ViewUnknownScope,
 	}
 	if len(defects) != len(bench.ViewDefects) {
 		t.Fatalf("the fixture builds %d defects and the build declares %d", len(defects), len(bench.ViewDefects))
@@ -449,7 +550,7 @@ func TestAWholeViewRefusalNamesItsSectionOnStandardError(t *testing.T) {
 func TestTheViewCommandIsDocumented(t *testing.T) {
 	root := newBench(t)
 	help := runCLI(t, root, "help", "view")
-	if help.code != 0 || !strings.HasPrefix(help.out, "view [view] [--all] [--plain] [--watch]\n") || !strings.Contains(help.out, "dinah guide views") {
+	if help.code != 0 || !strings.HasPrefix(help.out, "view [view] [ref] [--explain] [--all] [--plain] [--watch]\n") || !strings.Contains(help.out, "dinah guide views") {
 		t.Errorf("help view reads:\n%s", help.out)
 	}
 	guide := runCLI(t, root, "guide", "views")
@@ -1197,5 +1298,76 @@ func TestTheLayoutsEdgesHold(t *testing.T) {
 	line := statusLine("updated 09:41:07", "看板 moved Spec to Merge by claude", "Ctrl+C stops", " · ", 20, tailEllipsis)
 	if line != "看… · Ctrl+C stops" {
 		t.Errorf("a change starting with a wide character was cut to %q", line)
+	}
+}
+
+// TestAColumnsViewHonoursTheAgenda is dinah-288/criteria/30, against what
+// dinah-602 shipped. A columns view ordered by urgency draws the board with
+// each column's cards in urgency order and no Rank, Urgency or Why text.
+// --explain on it draws the agenda's explanation blocks in place of the
+// board, and on a columns view ordered by column it refuses with
+// dinah.view-not-ranked. A card after the view's name narrows the board to
+// that card's column, drawn even where the view collapses it, and every
+// other section draws that nothing matches. A watch of the explained view
+// draws the same blocks.
+func TestAColumnsViewHonoursTheAgenda(t *testing.T) {
+	root := newBenchFromDefinition(t, fourteenColumns)
+	declareViewsIn(t, root, allColumnsView+
+		"  ranked-board:\n    title: Sorted board\n    layout: columns\n    order: urgency\n    collapsed: []\n    sections:\n      - query: \"state:ready,active,blocked\"\n"+
+		"  two-sections:\n    title: Two sections\n    layout: columns\n    sections:\n      - title: Queued\n        query: \"column:"+columnID(3)+"\"\n      - title: Building\n        query: \"column:"+columnID(8)+"\"\n")
+	low := addTo(t, root, 3, "Low priority work", "--priority", "later")
+	high := addTo(t, root, 3, "High priority work", "--priority", "now")
+	mid := addTo(t, root, 3, "Middle priority work", "--priority", "soon")
+	intake := addTo(t, root, 1, "Waiting in intake")
+
+	ranked := drawAt(t, root, 80, "ranked-board")
+	assertBoardBounds(t, ranked, 79)
+	h, m, l := strings.Index(ranked, "High priority"), strings.Index(ranked, "Middle priority"), strings.Index(ranked, "Low priority")
+	if h < 0 || m < 0 || l < 0 || !(h < m && m < l) {
+		t.Errorf("the ranked board does not list its column in urgency order:\n%s", ranked)
+	}
+	for _, heading := range []string{"Rank", "Urgency", "Why"} {
+		if strings.Contains(ranked, heading) {
+			t.Errorf("the ranked board draws the ranked table's %s:\n%s", heading, ranked)
+		}
+	}
+	if bands := bandsOf(boardLinesOf(ranked), '─'); len(bands) != 1 || len(bands[0].runs) != 2 {
+		t.Errorf("the ranked board is not a board of the two occupied columns:\n%s", ranked)
+	}
+
+	explained := drawAt(t, root, 80, "ranked-board", "--explain")
+	if !strings.Contains(explained, "the sum of the terms above") || strings.Contains(explained, "─────") {
+		t.Errorf("--explain on a columns view did not draw the explanation blocks alone:\n%s", explained)
+	}
+	for _, ref := range []string{high, mid, low} {
+		if !strings.Contains(explained, ref+": ") {
+			t.Errorf("--explain names no block for %s:\n%s", ref, explained)
+		}
+	}
+	notRanked := runCLI(t, root, "view", "every", "--explain")
+	if notRanked.code == 0 || !strings.HasPrefix(notRanked.errw, contract.ViewNotRanked+" ") {
+		t.Errorf("--explain on a columns view ordered by column answered %d %q", notRanked.code, notRanked.errw)
+	}
+
+	narrowed := drawAt(t, root, 80, "board", intake)
+	if !strings.Contains(narrowed, "Intake (1)") || strings.Contains(narrowed, "Collapsed") || strings.Contains(narrowed, "Design Queue") {
+		t.Errorf("the board narrowed to a card in a collapsed column drew:\n%s", narrowed)
+	}
+	if bands := bandsOf(boardLinesOf(narrowed), '─'); len(bands) != 1 || len(bands[0].runs) != 1 {
+		t.Errorf("the narrowed board is not one band of one column:\n%s", narrowed)
+	}
+	sections := drawAt(t, root, 80, "two-sections", high)
+	queued, building := strings.Index(sections, "Queued (1)"), strings.Index(sections, "Building (0)")
+	if queued < 0 || building < 0 || !strings.Contains(sections[building:], "Nothing matches.") || strings.Contains(sections, "Low priority") {
+		t.Errorf("a two-section board narrowed to one card drew:\n%s", sections)
+	}
+
+	rig := newWatchRig(t, 80, 40)
+	watching := runAside(t, root, "view", "ranked-board", "--explain", "--watch")
+	waitFor(t, 5*time.Second, "the first frame", func() bool { return len(rig.scr.allFrames()) >= 1 })
+	rig.interrupt()
+	watching.finish(t)
+	if frame := rig.scr.allFrames()[0].text(); !strings.Contains(frame, "the sum of the terms above") {
+		t.Errorf("a watch of the explained view did not draw the blocks:\n%s", frame)
 	}
 }

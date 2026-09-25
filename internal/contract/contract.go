@@ -349,6 +349,18 @@ const (
 	// too-small window adds its size while a missing capability adds the
 	// terminfo name of the capability.
 	WatchUnavailable = LayerPrefix + "watch-unavailable"
+	// MalformedUrgency is a view ordered by urgency drawn on a workbench
+	// whose dinah.urgency block cannot be read. It refuses rather than
+	// falling back to the shipped weights, because a ranking computed on
+	// weights nobody declared is the thing --explain exists to prevent. A
+	// view ordered any other way draws as usual.
+	MalformedUrgency = LayerPrefix + "malformed-urgency"
+	// CardNotInView is dinah view naming a live card that no section of the
+	// view selects, so there is no row to narrow the view to.
+	CardNotInView = LayerPrefix + "card-not-in-view"
+	// ViewNotRanked is dinah view asked to explain a view whose order is not
+	// urgency. Such a view ranks nothing, so it has no arithmetic to show.
+	ViewNotRanked = LayerPrefix + "view-not-ranked"
 	// ChainTooLong is a group-by chain naming more axes than a tree nests
 	// along. It carries a name of its own because it has no offending word
 	// to name: every axis in the chain may be legal, and the length is the
@@ -846,7 +858,8 @@ var Introduced = []string{
 	UnknownRecipe, MalformedRecipe, UnknownScope, SetupNoTarget, SetupAgentIsOperator,
 	SetupUnreadableTarget, SetupConflict, UntrustedRecipe, SetupRelocatedHome,
 	SetupOtherWorkbench, SetupRunNotAllowed, SetupStepFailed,
-	UnknownView, MalformedView, ViewsUnreadable, WatchUnavailable,
+	UnknownView, MalformedView, ViewsUnreadable,
+	MalformedUrgency, CardNotInView, ViewNotRanked, WatchUnavailable,
 }
 
 // The reasons dinah.watch-unavailable carries in its reason value, which are
@@ -914,11 +927,16 @@ var MintedKinds = []string{KindBuffer}
 // key the profile declares.
 const ViewsKey = LayerPrefix + "views"
 
+// UrgencyKey is the frontmatter key a workbench declares the weights of the
+// urgency order under. It is read from the workbench's own workbench.md
+// alone, because the weights are declared per workbench.
+const UrgencyKey = LayerPrefix + "urgency"
+
 // MintedKeys lists every frontmatter key Dinah introduces under the layer
 // prefix. It sits beside Introduced and MintedKinds for the reason MintedKinds
 // gives: the prefix carries all three, and a reader meeting a dotted token in
 // a document needs one place to ask what it is.
-var MintedKeys = []string{ViewsKey}
+var MintedKeys = []string{ViewsKey, UrgencyKey}
 
 // Kinds lists every column kind this build admits by name: the three the
 // profile declares and the one Dinah mints. A surface offering a caller the

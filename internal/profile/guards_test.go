@@ -2016,7 +2016,9 @@ const theOneTable = "cmd/dinah/table.go"
 // than rows the head lays out. terminal hands stdout's writer to the terminal
 // layer in internal/screen, which a coloured drawing and the watch write
 // their rows through, so that text still reaches a Windows console through
-// consolewriter. editCmd holds the naming runEdit used to do itself, so
+// consolewriter. drawnText hands drawView a buffer in place of stdout, so
+// the watch places, one row at a time, the lines a one-shot draw of the same
+// command line prints. editCmd holds the naming runEdit used to do itself, so
 // runEdit is off this list: it builds no command of its own since dinah-199
 // and names no stream.
 //
@@ -2040,6 +2042,7 @@ var streamWriters = []string{
 	"runLSP",
 	"runSetup",
 	"terminal",
+	"drawnText",
 }
 
 // processStreamHolders are the three functions that may name the process's

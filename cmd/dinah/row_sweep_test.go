@@ -1469,7 +1469,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: renderSite{File: "view.go", Function: "viewLines", Label: "cards", Ordinal: 1}, label: "dinah view mine, the cards the actor holds",
+			site: renderSite{File: "view.go", Function: "renderView", Label: "cards", Ordinal: 1}, label: "dinah view mine, the cards the actor holds",
 			keys: []string{"column.view.card", "column.view.column", "column.view.priority", "column.view.severity", "column.view.title"},
 			opensWith: func(tag string, w *sweptWorkbenches) string {
 				return msg.For(tag).T("view.section.heading", "title", msg.For(tag).T("view.mine.claimed"), "count", strconv.Itoa(len(expectMineClaimed(nil, w.record, tag).rows)))
@@ -1477,6 +1477,44 @@ func sweptBlocks() []sweptBlock {
 			expect: expectMineClaimed,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
 				return sweptRun(t, w.healthy, tag, "view", "mine")
+			},
+		},
+		{
+			site: renderSite{File: "view_urgency.go", Function: "renderRankedSection", Label: "ranked", Ordinal: 1}, label: "dinah view backlog, ranked by urgency",
+			keys: []string{"column.view.rank", "column.view.card", "column.view.column", "column.view.urgency", "column.view.why", "column.view.title"}, varies: lastCell,
+			opensWith: func(tag string, w *sweptWorkbenches) string {
+				return msg.For(tag).T("view.section.heading", "title", "column:intake", "count", strconv.Itoa(len(expectRankedBacklog(nil, w.record, tag).rows)))
+			},
+			expect: expectRankedBacklog,
+			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
+				return sweptRun(t, w.healthy, tag, "view", sweptViewName)
+			},
+		},
+		{
+			site: renderSite{File: "view_urgency.go", Function: "explainTerms", Label: "terms", Ordinal: 1}, label: "dinah view backlog --explain, one card's terms",
+			keys:         []string{"column.explain.term", "column.explain.reading", "column.explain.points"},
+			varies:       lastCell,
+			noHeadingRow: true,
+			opensWith: func(tag string, w *sweptWorkbenches) string {
+				card := w.record.cards[sweptCardAt(w.record, sweptExplainedCard)]
+				return msg.For(tag).T("view.urgency.explain.card", "card", card.ref, "title", card.title)
+			},
+			expect: expectExplainedTerms,
+			// The rule above the total is drawn in the table form and not in
+			// the stacked one, so it is cut out of the harvest here and the
+			// two forms are read against one expectation. checkColumnsLineUp
+			// still reads it on every run, and it holds the rule's fields to
+			// the columns of the rows around it.
+			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
+				drawn := sweptRun(t, w.healthy, tag, "view", sweptViewName, "--explain", sweptExplainedCard)
+				var kept []string
+				for _, line := range strings.Split(drawn, "\n") {
+					if strings.TrimSpace(line) != "" && strings.Trim(line, " -") == "" {
+						continue
+					}
+					kept = append(kept, line)
+				}
+				return strings.Join(kept, "\n")
 			},
 		},
 		{
@@ -2512,9 +2550,9 @@ func sweptAddColumn(t *testing.T, dir, id, title, kind, extra string) {
 }
 
 // sweptView is the one view the healthy tree's workbench declares, which is
-// what gives the listing dinah view draws a second row beside the view Dinah
-// ships, standing in another layer and so drawing a From cell of another
-// width.
+// what gives the listing dinah view draws a row beside the views Dinah ships,
+// standing in another layer and so drawing a From cell of another width. It is
+// ordered by urgency, so drawing it reaches the ranked table.
 const (
 	sweptViewName  = "backlog"
 	sweptViewTitle = "Backlog review"
@@ -2526,7 +2564,7 @@ func sweptDeclareView(t *testing.T, dir string) {
 	t.Helper()
 	sweptRewrite(t, filepath.Join(sweptRoot(t, dir), bench.WorkbenchAnchor), func(source string) string {
 		block := bench.ViewsKey + ":\n  " + sweptViewName + ":\n    title: " + sweptViewTitle +
-			"\n    sections:\n      - query: \"column:intake\"\n"
+			"\n    order: urgency\n    sections:\n      - query: \"column:intake\"\n"
 		at := strings.Index(source[len("---\n"):], "\n---\n")
 		if at < 0 {
 			return source
