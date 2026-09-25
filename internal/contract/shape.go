@@ -1005,6 +1005,21 @@ var Shapes = []Shape{
 		NextStep: []string{"refusal.dinah.watch-unavailable.next-small", "refusal.dinah.watch-unavailable.next"},
 	},
 	{
+		// Built as WatchUnavailable's is. A window too small for the terminal
+		// head adds its size and the size it needs, a terminal description
+		// lacking a key capability adds the capability's name, and the next
+		// step asks for a bigger window only where the window was the reason.
+		Name:   TUIUnavailable,
+		Values: []string{"reason", "size", "minimum", "capability"},
+		Fragments: []Fragment{
+			{Key: "refusal.dinah.tui-unavailable.size", When: "size"},
+			{Key: "refusal.dinah.tui-unavailable.capability", When: "capability"},
+			{Key: "refusal.dinah.tui-unavailable.next-small", When: "size"},
+			{Key: "refusal.dinah.tui-unavailable.next"},
+		},
+		NextStep: []string{"refusal.dinah.tui-unavailable.next-small", "refusal.dinah.tui-unavailable.next"},
+	},
+	{
 		// term and read are empty on a block that is not a mapping, so the
 		// sentence naming them is a fragment of its own that renders only
 		// where a term was named.

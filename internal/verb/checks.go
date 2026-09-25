@@ -318,6 +318,14 @@ var beyondChecks = map[string][]Check{
 	"completion": {
 		{Refusal: contract.UnknownShell, Key: "check.completion.1"},
 	},
+	// tui is refused in the order runTUI evaluates the three: a machine format
+	// before the workbench is opened, a view nobody declares on the first
+	// read, and a terminal that cannot carry the interface after it.
+	"tui": {
+		{Refusal: contract.Malformed, Key: "check.tui.1"},
+		{Refusal: contract.UnknownView, Key: "check.tui.2"},
+		{Refusal: contract.TUIUnavailable, Key: "check.tui.3"},
+	},
 	"config": {
 		{Refusal: contract.UnknownKey, Key: "check.config.1"},
 	},

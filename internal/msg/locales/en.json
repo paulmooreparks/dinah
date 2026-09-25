@@ -6328,6 +6328,286 @@
     "param.check.migrate-schedule.summary": {
       "text": "stamps the workbench with the format from which a card carries scheduling dates, from any number from 7 up, so that an older Dinah refuses the store instead of handing a dated card out early; a workbench below format 7 is refused and runs --migrate-designations first; without --yes it writes nothing",
       "context": "The written meaning of the --migrate-schedule flag of check. It writes the one format line on the workbench anchor and reads no card, and without the confirmation flag it writes nothing at all."
+    },
+    "cmd.tui.summary": {
+      "text": "Work a view from the keyboard",
+      "context": "The one-line summary of the tui command in dinah help. The command starts an interactive screen over one view, where a person moves between cards and acts on them with keys."
+    },
+    "param.tui.view.summary": {
+      "text": "the view to work in, by name; the board when you leave it out",
+      "context": "The meaning of the one positional argument of `dinah tui`, printed in that command's arguments table. A view is a named drawing of the workbench, and board is the name of the view drawn as columns."
+    },
+    "param.tui.plain.summary": {
+      "text": "draw with plain ASCII marks instead of Unicode ones",
+      "context": "The meaning of the --plain flag of `dinah tui`, printed in that command's arguments table. ASCII and Unicode are the names of the two character sets and stay as they are."
+    },
+    "check.tui.1": {
+      "text": "a machine format was not asked for",
+      "context": "A row of the checks table `dinah help tui` prints: the condition the command checks first, that --json or another machine format was not given, because the command draws on a screen rather than answering a script."
+    },
+    "check.tui.2": {
+      "text": "the view is one you can see",
+      "context": "A row of the checks table `dinah help tui` prints: the view named, or the board when none is, is declared by the user, the workbench or Dinah itself."
+    },
+    "check.tui.3": {
+      "text": "standard input and output are a terminal big enough to draw in",
+      "context": "A row of the checks table `dinah help tui` prints: both standard streams are an interactive terminal, and its window is at least the smallest size the screen is drawn in."
+    },
+    "refusal.dinah.tui-unavailable": {
+      "text": "view {detail} cannot be worked from the keyboard here ({reason})",
+      "context": "The sentence printed after the refusal name dinah.tui-unavailable, which `dinah tui` carries when the terminal cannot carry the interactive screen, before anything is drawn. {detail} is the view's name and {reason} is a machine token naming why, one of not-a-terminal, no-size, too-small, dumb-terminal and no-key-description, which is never translated. The fragments refusal.dinah.tui-unavailable.size, refusal.dinah.tui-unavailable.capability and a next step are spliced on after it."
+    },
+    "refusal.dinah.tui-unavailable.size": {
+      "text": "; the window is {size}, and dinah tui needs at least {minimum}",
+      "context": "Spliced after refusal.dinah.tui-unavailable when the window is too small for the interactive screen. {size} is the window's width and height written as 50x10, and {minimum} is the smallest size the screen is drawn in, written the same way. dinah tui is the command and stays as it is."
+    },
+    "refusal.dinah.tui-unavailable.capability": {
+      "text": "; the terminal's description has no {capability}",
+      "context": "Spliced after refusal.dinah.tui-unavailable when the terminal's terminfo description lacks a key the screen reads. {capability} is the capability's terminfo name, such as kcuu1, which is never translated."
+    },
+    "refusal.dinah.tui-unavailable.next-small": {
+      "text": "; widen or heighten the window, or draw the view once with dinah view",
+      "context": "The next step of refusal.dinah.tui-unavailable when the window was too small. dinah view is the command that draws a view once and stays as it is."
+    },
+    "refusal.dinah.tui-unavailable.next": {
+      "text": "; draw the view once with dinah view",
+      "context": "The next step of refusal.dinah.tui-unavailable for every reason other than a window that is too small. dinah view is the command that draws a view once and stays as it is."
+    },
+    "interactive.heading": {
+      "text": "{workbench} · {view}",
+      "context": "The left part of the first row of dinah tui's screen. {workbench} is the workbench's title and {view} is the view's title. The mark between them may be spaced however the language wants."
+    },
+    "interactive.heading.filtered": {
+      "text": "{workbench} · {view} · {query}",
+      "context": "The left part of the first row of dinah tui's screen while a filter is set. {workbench} is the workbench's title, {view} is the view's title and {query} is the filter the person typed."
+    },
+    "interactive.heading.acting": {
+      "text": "acting as {actor} on {model}",
+      "context": "The right part of the first row of dinah tui's screen, naming who acts and which model they declared. {actor} is the owner's name and {model} is the provider and model, such as anthropic/claude-opus-5-5, which are never translated."
+    },
+    "interactive.heading.acting.operator": {
+      "text": "acting as {actor}, operator, on {model}",
+      "context": "interactive.heading.acting for the workbench's operator, saying so. {actor} is the owner's name and {model} is the provider and model, which are never translated."
+    },
+    "interactive.heading.no-actor": {
+      "text": "no actor resolved: reading only",
+      "context": "The right part of the first row of dinah tui's screen when no owner could be resolved, so the screen can be read but no act can be taken."
+    },
+    "interactive.lane.section": {
+      "text": "{section} · {column}",
+      "context": "The title of one lane in the lane bar of dinah tui, on a view with several sections. {section} is the section's title and {column} is the column's title."
+    },
+    "interactive.too-small": {
+      "text": "window too small: needs {size}",
+      "context": "The only row dinah tui draws while its window is smaller than it needs. {size} is the smallest size written as 60x12."
+    },
+    "interactive.acted.claim": {
+      "text": "claimed {ref}",
+      "context": "Shown in dinah tui's message row after a claim succeeded. {ref} is the card's reference, such as dinah-12."
+    },
+    "interactive.acted.release": {
+      "text": "released {ref}",
+      "context": "Shown in dinah tui's message row after a release succeeded. {ref} is the card's reference."
+    },
+    "interactive.acted.move": {
+      "text": "moved {ref} to {column}",
+      "context": "Shown in dinah tui's message row after a move succeeded. {ref} is the card's reference and {column} is the destination column's title."
+    },
+    "interactive.acted.comment": {
+      "text": "commented on {ref}",
+      "context": "Shown in dinah tui's message row after a comment was posted. {ref} is the card's reference."
+    },
+    "interactive.jump.nothing": {
+      "text": "nothing called {text} is a view, a card or a column here",
+      "context": "Shown in dinah tui's message row when the text typed after : names no view, card or column. {text} is what the person typed."
+    },
+    "interactive.jump.no-lane": {
+      "text": "no card of this view stands in {column}",
+      "context": "Shown in dinah tui's message row when the column typed after : holds none of the view's cards. {column} is the column's title."
+    },
+    "interactive.prompt.comment": {
+      "text": "comment on {ref}:",
+      "context": "The label above the text a person types to comment on a card in dinah tui. {ref} is the card's reference."
+    },
+    "interactive.menu.title": {
+      "text": "move {ref} to:",
+      "context": "The title of dinah tui's move menu, above the list of columns the card may be moved to. {ref} is the card's reference."
+    },
+    "interactive.menu.row": {
+      "text": "{number}. {title}",
+      "context": "One row of dinah tui's move menu. {number} is the digit that chooses it and {title} is the column's title."
+    },
+    "interactive.menu.row.route": {
+      "text": "{number}. {title} (next)",
+      "context": "The row of dinah tui's move menu that is the next column on the card's route. {number} is the digit that chooses it and {title} is the column's title."
+    },
+    "interactive.menu.row.reject": {
+      "text": "{number}. {title} (send back)",
+      "context": "The row of dinah tui's move menu that sends the card back to the column its column rejects to. {number} is the digit that chooses it and {title} is the column's title."
+    },
+    "interactive.crashed": {
+      "text": "the interactive view stopped on an internal error, and the terminal has been restored; the error follows",
+      "context": "Written to standard error when dinah tui stopped because of a fault in Dinah itself, after the terminal has been given back. The error's own text and where it happened follow on the next lines."
+    },
+    "interactive.help.show": {
+      "text": "show",
+      "context": "A footer label of dinah tui: what the Enter key does, which opens the selected card. Keep it short."
+    },
+    "interactive.help.back": {
+      "text": "back",
+      "context": "A footer label of dinah tui: what Enter and Backspace do while a card is open, which returns to the lanes. Keep it short."
+    },
+    "interactive.help.claim": {
+      "text": "claim",
+      "context": "A footer label of dinah tui: what the t key does, which takes up the selected card. Keep it short."
+    },
+    "interactive.help.accept": {
+      "text": "accept {arrow} {column}",
+      "context": "A footer label of dinah tui: what the a key does when it moves the card into a done column. {arrow} is an arrow mark and {column} is the destination column's title. Keep it short."
+    },
+    "interactive.help.advance": {
+      "text": "advance {arrow} {column}",
+      "context": "A footer label of dinah tui: what the a key does when it moves the card on along its route. {arrow} is an arrow mark and {column} is the destination column's title. Keep it short."
+    },
+    "interactive.help.send-back": {
+      "text": "send back {arrow} {column}",
+      "context": "A footer label of dinah tui: what the b key does, which sends the card back to the column its column rejects to. {arrow} is an arrow mark and {column} is the destination column's title. Keep it short."
+    },
+    "interactive.help.move": {
+      "text": "move",
+      "context": "A footer label of dinah tui: what the m key does, which opens the menu of columns the card may be moved to. Keep it short."
+    },
+    "interactive.help.release": {
+      "text": "release",
+      "context": "A footer label of dinah tui: what the r key does, which gives the card back. Keep it short."
+    },
+    "interactive.help.comment": {
+      "text": "comment",
+      "context": "A footer label of dinah tui: what the c key does, which opens a prompt for a comment on the card. Keep it short."
+    },
+    "interactive.help.filter": {
+      "text": "filter",
+      "context": "A footer label of dinah tui: what the / key does, which narrows the cards shown with a query. Keep it short."
+    },
+    "interactive.help.jump": {
+      "text": "jump",
+      "context": "A footer label of dinah tui: what the : key does, which goes to a view, a card or a column by name. Keep it short."
+    },
+    "interactive.help.keys": {
+      "text": "keys",
+      "context": "A footer label of dinah tui: what the ? key does, which shows every key. Keep it short."
+    },
+    "interactive.help.fewer": {
+      "text": "fewer keys",
+      "context": "A footer label of dinah tui: what the ? key does while every key is shown, which goes back to the short list. Keep it short."
+    },
+    "interactive.help.quit": {
+      "text": "quit",
+      "context": "A footer label of dinah tui: what the q key and Ctrl+C do, which end the screen. Keep it short."
+    },
+    "interactive.help.cancel": {
+      "text": "cancel",
+      "context": "A footer label of dinah tui: what a key does that closes a menu or a prompt and does nothing else. Keep it short."
+    },
+    "interactive.help.choose": {
+      "text": "choose",
+      "context": "A footer label of dinah tui's move menu: what Enter and the digit keys do, which move the card to a row. Keep it short."
+    },
+    "interactive.help.post": {
+      "text": "post",
+      "context": "A footer label of dinah tui's comment prompt: what Ctrl+D does, which records the comment. Keep it short."
+    },
+    "interactive.help.newline": {
+      "text": "new line",
+      "context": "A footer label of dinah tui's comment prompt: what Enter does there, which starts a new line of the comment. Keep it short."
+    },
+    "interactive.help.go": {
+      "text": "go",
+      "context": "A footer label of dinah tui's jump and filter prompts: what Enter does there, which carries out what was typed. Keep it short."
+    },
+    "interactive.help.up": {
+      "text": "previous card",
+      "context": "A footer label of dinah tui: what the up arrow and k do, which select the card above. Keep it short."
+    },
+    "interactive.help.down": {
+      "text": "next card",
+      "context": "A footer label of dinah tui: what the down arrow and j do, which select the card below. Keep it short."
+    },
+    "interactive.help.left": {
+      "text": "previous column",
+      "context": "A footer label of dinah tui: what the left arrow and h do, which move to the lane to the left. Keep it short."
+    },
+    "interactive.help.right": {
+      "text": "next column",
+      "context": "A footer label of dinah tui: what the right arrow and l do, which move to the lane to the right. Keep it short."
+    },
+    "interactive.help.page": {
+      "text": "page",
+      "context": "A footer label of dinah tui: what Page Up and Page Down do, which move a screenful at a time. Keep it short."
+    },
+    "interactive.help.ends": {
+      "text": "first or last",
+      "context": "A footer label of dinah tui: what Home and End do, which go to the first or the last row. Keep it short."
+    },
+    "interactive.help.scroll": {
+      "text": "scroll",
+      "context": "A footer label of dinah tui while a card is open: what the arrows do there, which scroll the card's text. Keep it short."
+    },
+    "interactive.help.highlight": {
+      "text": "previous or next row",
+      "context": "A footer label of dinah tui's move menu: what the up and down arrows do there, which move the highlight between rows. Keep it short."
+    },
+    "interactive.key.enter": {
+      "text": "enter",
+      "context": "The label of the Enter key as the footer of dinah tui shows it. Write it the way keyboards in the language label that key, and keep it short."
+    },
+    "interactive.key.backspace": {
+      "text": "backspace",
+      "context": "The label of the Backspace key as the footer of dinah tui shows it. Write it the way keyboards in the language label that key, and keep it short."
+    },
+    "interactive.key.ctrl-c": {
+      "text": "ctrl+c",
+      "context": "The label of the key combination Ctrl+C as the footer of dinah tui shows it. Write it the way keyboards in the language label that key, and keep it short."
+    },
+    "interactive.key.ctrl-d": {
+      "text": "ctrl+d",
+      "context": "The label of the key combination Ctrl+D as the footer of dinah tui shows it. Write it the way keyboards in the language label that key, and keep it short."
+    },
+    "interactive.key.ctrl-g": {
+      "text": "ctrl+g",
+      "context": "The label of the key combination Ctrl+G as the footer of dinah tui shows it. Write it the way keyboards in the language label that key, and keep it short."
+    },
+    "interactive.key.up": {
+      "text": "up",
+      "context": "The label of the up arrow key as the footer of dinah tui shows it. Write it the way keyboards in the language label that key, and keep it short."
+    },
+    "interactive.key.down": {
+      "text": "down",
+      "context": "The label of the down arrow key as the footer of dinah tui shows it. Write it the way keyboards in the language label that key, and keep it short."
+    },
+    "interactive.key.left": {
+      "text": "left",
+      "context": "The label of the left arrow key as the footer of dinah tui shows it. Write it the way keyboards in the language label that key, and keep it short."
+    },
+    "interactive.key.right": {
+      "text": "right",
+      "context": "The label of the right arrow key as the footer of dinah tui shows it. Write it the way keyboards in the language label that key, and keep it short."
+    },
+    "interactive.key.pgup": {
+      "text": "pgup",
+      "context": "The label of the Page Up key as the footer of dinah tui shows it. Write it the way keyboards in the language label that key, and keep it short."
+    },
+    "interactive.key.pgdown": {
+      "text": "pgdown",
+      "context": "The label of the Page Down key as the footer of dinah tui shows it. Write it the way keyboards in the language label that key, and keep it short."
+    },
+    "interactive.key.home": {
+      "text": "home",
+      "context": "The label of the Home key as the footer of dinah tui shows it. Write it the way keyboards in the language label that key, and keep it short."
+    },
+    "interactive.key.end": {
+      "text": "end",
+      "context": "The label of the End key as the footer of dinah tui shows it. Write it the way keyboards in the language label that key, and keep it short."
     }
   }
 }

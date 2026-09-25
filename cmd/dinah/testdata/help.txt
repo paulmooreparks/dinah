@@ -147,6 +147,7 @@ SERVE
     [--dry-run] [--remove]
   completion <shell>                        Print the script that lets your
                                               shell complete dinah commands
+  tui [view] [--plain]                      Work a view from the keyboard
 
 Global flags:
   Option             What it does

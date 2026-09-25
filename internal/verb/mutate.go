@@ -736,13 +736,11 @@ func (l *Library) atCapacity(req *Request, column *bench.Column) (bool, error) {
 	return count >= column.Capacity, nil
 }
 
-// release gives a card back. The list is CORE-RELEASE's.
+// release gives a card back. The list is CORE-RELEASE's, and it lives in
+// canRelease so that OfferActs asks the same rows the act runs.
 func (l *Library) release(req *Request, card *bench.Card) *Response {
-	if req.Actor == "" {
-		return l.refuse(req, card, contract.NoOwner, "")
-	}
-	if card.Holder != req.Actor {
-		return l.refuse(req, card, contract.NotHolder, card.Holder)
+	if refusal := l.canRelease(req, card); refusal != nil {
+		return refusal
 	}
 	card.State = contract.StateReady
 	card.Holder = ""
@@ -758,6 +756,21 @@ func (l *Library) release(req *Request, card *bench.Card) *Response {
 		return l.FromError(req, err)
 	}
 	return response
+}
+
+// canRelease runs CORE-RELEASE's two rows, in its order: the request names an
+// owner, and the owner asking holds the card. It answers the refusal of the
+// first row that fails and nil when the card may be released. release and
+// OfferActs both call it, so a row added here reaches the act and the offer
+// together.
+func (l *Library) canRelease(req *Request, card *bench.Card) *Response {
+	if req.Actor == "" {
+		return l.refuse(req, card, contract.NoOwner, "")
+	}
+	if card.Holder != req.Actor {
+		return l.refuse(req, card, contract.NotHolder, card.Holder)
+	}
+	return nil
 }
 
 // block raises an obstacle and frees the card. The list is CORE-BLOCK's.

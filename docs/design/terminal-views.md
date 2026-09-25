@@ -336,9 +336,9 @@ Shell completion is built at the same time as views, as section 10 allows.
 | 2 | the agenda: urgency terms, `--explain`, the `urgency` block | one block | phase 1; `blocks others` waits for dinah-596 |
 | 3 | shell completion | one verb | nothing, and it can run beside phase 1 |
 | 4 | the `columns` layout and `--watch` | three flags on `view`, the `glyphs` setting and the `dinah.watch-unavailable` refusal | phase 1 |
-| 5 | a terminal UI | a head | phase 4 |
+| 5 | a terminal UI | one verb, `dinah tui`, and the `dinah.tui-unavailable` refusal | phase 4 |
 
-Phases 1 and 3 are independent and can run at the same time. The phases together add two verbs. Every new verb and message still costs eight catalogs, a help entry and quick start transcripts, which are the shared generated files the critical analysis found taxing every merge. The design keeps the number of verbs down partly for that reason.
+Phases 1 and 3 are independent and can run at the same time. The phases together add three verbs. Every new verb and message still costs eight catalogs, a help entry and quick start transcripts, which are the shared generated files the critical analysis found taxing every merge. The design keeps the number of verbs down partly for that reason.
 
 ## 11. What this design deliberately leaves out
 

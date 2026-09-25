@@ -143,6 +143,9 @@ func init() {
 		// completion sits beside setup because both wire Dinah into a
 		// program somebody else ships, here the person's own shell.
 		{name: "completion", group: groupServe, run: runCompletion, bounded: 1},
+		// tui sits in the serve group because, like mcp and lsp, it starts a
+		// head: the terminal one, over one view.
+		{name: "tui", group: groupServe, run: runTUI, bounded: 1},
 
 		{name: "help", run: runHelp, bounded: 1},
 	}

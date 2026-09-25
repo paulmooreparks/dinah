@@ -499,3 +499,112 @@ Some things a watch does not do:
 
 When you press Ctrl+C, Dinah puts the colour and the cursor back, leaves the
 last drawing on the screen, and returns you to your prompt below it.
+
+## Working a view from the keyboard
+
+`dinah tui` draws a view and lets you work it with keys: you move between
+cards, read one in full, and claim, move, release or comment on it without
+leaving the screen. With no view named it works the board, so you need no
+alias for that; name any view `dinah view` lists to work that one instead:
+
+    dinah tui
+    dinah tui agenda
+
+Dinah runs the interface only when both your input and your output are a
+terminal. If either is a file, a pipe or a program such as an MCP host, or
+the window is smaller than 60 by 12, Dinah refuses with
+`dinah.tui-unavailable` before it draws anything. `dinah view <name>` draws
+the same view once and works anywhere.
+
+### What the screen shows
+
+The first row names the workbench, the view and any filter you set, and on
+the right who you are acting as. The second row lists the view's lanes, one
+per column that holds a card, with the lane you are in between brackets; the
+screen shows one lane at a time. Below the rule, the cards of that lane fill
+the left of the window, and in a window at least 100 columns wide the
+selected card's detail fills the right, exactly as `dinah show <card>
+--fields card,body` prints it. The row above the last says when Dinah last
+read the workbench and what changed, and shows the answer to anything you
+just did. The last row lists the keys you can press, and only those.
+
+### The keys
+
+While you are looking at a lane:
+
+- Up and Down, or `k` and `j`, select the previous or the next card.
+- Left and Right, or `h` and `l`, move to the previous or the next lane.
+- Page Up and Page Down move a screenful; Home and End go to the first or
+  the last card.
+- Enter opens the selected card in full, and Enter or Backspace closes it.
+- `t` claims the card, `r` releases it, and `c` opens a prompt for a comment.
+- `a` moves the card to the next column on its route, which the footer names
+  accept when that column is a done column and advance otherwise. `b` sends
+  it back to the column its column rejects to. `m` opens a menu of every
+  column you may move it to, where the arrows or `j` and `k` pick a row, a
+  digit chooses that row, Enter chooses the highlighted one, and Ctrl+G or
+  `q` closes the menu.
+- `/` filters the view with a query, and `:` jumps to a view, a card or a
+  column by name.
+- `?` shows every key, and `q` or Ctrl+C quits.
+
+In the jump and filter prompts, Enter carries out what you typed and Ctrl+G
+closes the prompt without doing anything. The comment prompt holds several
+lines: Enter starts a new line, Ctrl+D posts the comment, and Ctrl+G closes
+the prompt without posting. Ctrl+C quits from anywhere, without doing the
+thing a menu or a prompt was open for.
+
+Esc does nothing in the interface. On Linux and macOS it also swallows the
+printable key you type after it, and Esc followed by `[` or `O` swallows the
+next few keys, up to and including the first letter or `~`, because the
+keys your terminal sends for the arrows begin that way. Esc followed by
+Ctrl+C still quits.
+
+### What you are offered
+
+The footer offers only the acts the workbench would accept from you on the
+selected card, so an agent sees no move out of a column the operator owns,
+and nobody sees a claim the card's tier refuses. Each act is checked again
+when you press its key: if the card changed after Dinah drew it, the act is
+answered stale and changes nothing, and Dinah reads the view again. Dinah
+records each act in the card's journal exactly as the same act typed on the
+command line records it, with your name and whatever your environment
+declares about the model you run on.
+
+For example, to walk the cards waiting in Acceptance as the operator, press
+`l` until the Acceptance lane is between brackets, press Enter to read the
+selected card, and press `a` to accept it. Dinah moves it to Done and selects
+the next card in the lane.
+
+### Pasting
+
+If your terminal marks pastes, which most terminals do when a program asks,
+a pasted line break never carries out the jump or filter prompt: the pasted
+lines are joined into one, and Dinah waits for your own Enter. A paste into
+the comment prompt keeps its line breaks. A paste made anywhere else is
+ignored.
+
+If your terminal does not mark pastes, Dinah cannot tell a paste from typing.
+After Enter in the jump or filter prompt it discards the keys that were
+already waiting, but a long paste can arrive in several pieces, and a piece
+that arrives after that is read as keys. A paste of more than one line into
+the jump or filter prompt can then act on the selected card, because `a`,
+`b`, `t`, `r`, `m`, `c` and `q` all act on a card or quit, and so can any
+paste made while you are looking at a lane. Keys you type ahead after Enter
+in those prompts are also discarded. On such a terminal, paste only into the
+comment prompt, or paste one line at a time.
+
+### How the interface ends
+
+When you quit with `q` or Ctrl+C, Dinah leaves the alternate screen, shows
+the cursor, switches off the paste marking it asked for, and puts your
+terminal's settings back as it found them, and exits 0. Ctrl+Break on
+Windows, or `kill -INT` on Linux and macOS, ends it the same way with exit
+130. A closed console window or `kill` ends it the same way with exit 0.
+Nothing can restore the terminal after `kill -KILL`, `taskkill /F` or a
+hang-up.
+
+If the interface stops on an error in Dinah itself, Dinah restores the
+terminal first and then writes the error and where it happened. If you set
+`TEA_DEBUG`, an error inside the library the interface is built on also
+writes a log file into the current directory.

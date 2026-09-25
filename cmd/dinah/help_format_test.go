@@ -134,6 +134,7 @@ SERVE
     [--allow-run] [--dry-run] [--remove]
   completion <shell>                                     Print the script that lets your shell complete
                                                            dinah commands
+  tui [view] [--plain]                                   Work a view from the keyboard
 
 Global flags:
   Option             What it does
@@ -236,6 +237,7 @@ SERVE
     [--target <dir>] [--provider <name>] [--model <name>] [--server <address>] [--trust-project-recipe]
     [--allow-run] [--dry-run] [--remove]
   completion <shell>                                                                                    Print the script that lets your shell complete dinah commands
+  tui [view] [--plain]                                                                                  Work a view from the keyboard
 
 Global flags:
   Option             What it does

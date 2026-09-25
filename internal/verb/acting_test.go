@@ -499,6 +499,7 @@ func actorElement(literal *ast.CompositeLit) (ast.Expr, bool) {
 // twenty, the shape Agent Code Review found in round one.
 var harnessCheckedElsewhere = map[string]string{
 	"removalRecord":         "composes the deletion's own record for Delete, which runs the refusal before it resolves anything",
+	"Comment":               "runs canComment before it takes the lock, and canComment runs the refusal as its second row, which is how OfferActs asks the same rows",
 	"fieldEvent":            "composes the write's own record for writeField, which runs the refusal at its head",
 	"lapse":                 "composes from the lapsed holder's name through the composer that declares nothing, so no declared harness reaches the line and a read that lapses a claim is never refused",
 	"claim":                 "one of the seven verb bodies Library.Do dispatches to under the card's lock, and Do runs the refusal at its head",

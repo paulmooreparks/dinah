@@ -62,21 +62,29 @@ func (s *session) emit(response *verb.Response) int {
 // that table are refused by a verb rather than by the open, so leaving this
 // path out would have left their scoped advice declared and never rendered.
 func (s *session) reportOutcome(response *verb.Response) {
+	for _, line := range s.outcomeLines(response) {
+		io.WriteString(s.errw, line+"\n")
+	}
+}
+
+// outcomeLines composes the lines reportOutcome writes to standard error for
+// a response that did not succeed: a refusal composed the one way every
+// refusal is, or the stale or unreachable outcome's name and sentence. The
+// terminal head draws the same lines in its message area, so the two cannot
+// say different things about one answer.
+func (s *session) outcomeLines(response *verb.Response) []string {
 	switch response.Outcome {
 	case contract.OutcomeRefused:
 		refused := contract.RefuseWith(response.Refusal, response.Detail, s.outcomeValues(response))
-		for _, line := range s.composeRefusal(s.nameTheWorkbench(refused)) {
-			io.WriteString(s.errw, line+"\n")
-		}
+		return s.composeRefusal(s.nameTheWorkbench(refused))
 	case contract.OutcomeStale:
 		revision := ""
 		if response.Card != nil {
 			revision = response.Card.Revision
 		}
-		io.WriteString(s.errw, contract.OutcomeStale+" "+s.r.T("outcome.stale", "revision", revision)+"\n")
-	default:
-		io.WriteString(s.errw, response.Outcome+" "+s.r.T("outcome.unreachable", "detail", response.Detail)+"\n")
+		return []string{contract.OutcomeStale + " " + s.r.T("outcome.stale", "revision", revision)}
 	}
+	return []string{response.Outcome + " " + s.r.T("outcome.unreachable", "detail", response.Detail)}
 }
 
 // emitCanonical writes a value as the canonical machine form. The form carries

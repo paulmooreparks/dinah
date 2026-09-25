@@ -40,6 +40,25 @@ const (
 	strSetaf    = 359
 )
 
+// The positions of the key and keypad capabilities the key reader reads, in
+// the same term.h order: what the Backspace, Delete, arrow, Page Up, Page
+// Down, Home and End keys send, and the strings that switch the keypad into
+// and out of the transmit mode those key strings are defined for.
+const (
+	strKbs   = 55
+	strKdch1 = 59
+	strKcud1 = 61
+	strKhome = 76
+	strKcub1 = 79
+	strKnp   = 81
+	strKpp   = 82
+	strKcuf1 = 83
+	strKcuu1 = 87
+	strRmkx  = 88
+	strSmkx  = 89
+	strKend  = 164
+)
+
 // ErrNoTerminfo is a terminal type for which no compiled description could
 // be found or read.
 var ErrNoTerminfo = errors.New("screen: no terminfo description")

@@ -980,6 +980,15 @@ var params = map[string][]Param{
 	"completion": {
 		{Name: "shell", Required: true, Vocabulary: "shell"},
 	},
+	// tui starts the terminal head over one view. The view is its one
+	// positional, and the board when it is left out. Neither parameter names
+	// a Request field, because the request the head builds carries the verb
+	// view, which is every read the head makes, and no Request ever carries
+	// the verb tui for DeriveCommand to read.
+	"tui": {
+		{Name: "view", Complete: CompleteView},
+		{Name: "plain", Flag: true, Marker: true},
+	},
 }
 
 // crossHeadIdentical names every command whose reader is required to answer
@@ -1469,6 +1478,7 @@ var derivationExemptions = map[string]string{
 	"version":    "runVersion reads catalogs straight off the parsed arguments; no Request carries it",
 	"export":     "Library.Export takes no arguments at all; there is no request to read a value from",
 	"setup":      "writes harness configuration; the terminal never builds a Request for it",
+	"tui":        "starts a terminal head; every act it performs is journaled under that act's own command",
 	"completion": "prints a shell script embedded in the binary; the terminal never builds a Request for it",
 }
 
