@@ -162,8 +162,46 @@ func (h *head) readBody(x *exchange) (*body, bool) {
 			h.refuse(x, contract.Usage, "body")
 			return nil, false
 		}
+		// Decoding into a map keeps a repeated member's last value, so the
+		// repetition is looked for separately and refused as the form path
+		// refuses it.
+		if name, repeated := repeatedMember(data); repeated {
+			h.refuse(x, contract.Usage, name)
+			return nil, false
+		}
 	}
 	return sent, true
+}
+
+// repeatedMember names the first member a JSON object carries more than
+// once. It reads only the object's own members, so a name repeated inside a
+// nested value is not a repetition here, and it reports false for text that
+// is not an object, which the caller has already refused.
+func repeatedMember(data []byte) (string, bool) {
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	if token, err := decoder.Token(); err != nil || token != json.Token(json.Delim('{')) {
+		return "", false
+	}
+	seen := map[string]bool{}
+	for decoder.More() {
+		key, err := decoder.Token()
+		if err != nil {
+			return "", false
+		}
+		name, isName := key.(string)
+		if !isName {
+			return "", false
+		}
+		if seen[name] {
+			return name, true
+		}
+		seen[name] = true
+		var value json.RawMessage
+		if err := decoder.Decode(&value); err != nil {
+			return "", false
+		}
+	}
+	return "", false
 }
 
 // bodyFailed answers a body that could not be read: 413 at the size limit,

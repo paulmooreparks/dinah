@@ -406,6 +406,13 @@ func TestTheFormTunnelReachesEveryAct(t *testing.T) {
 	if got := f.form("/cards/"+card, move("review", "&column=build&_basis=*")); got.status != http.StatusBadRequest || got.detail(t) != "column" {
 		t.Errorf("column given twice: wanted 400 with detail column, got %d %s", got.status, got.body)
 	}
+	before := f.card(card).Column
+	if got := f.json(http.MethodPatch, "/cards/"+card, typeMove, `{"column": "review", "column": "build"}`, "If-Match", "*"); got.status != http.StatusBadRequest || got.detail(t) != "column" || f.card(card).Column != before {
+		t.Errorf("column given twice in a JSON body: wanted 400 with detail column and the card left in %s, got %d %s and the card in %s", before, got.status, got.body, f.card(card).Column)
+	}
+	if got := f.json(http.MethodPatch, "/cards/"+card, typeMove, `{"column": "`+before+`", "note": {"a": 1, "a": 2}}`, "If-Match", "*"); got.status != http.StatusBadRequest || got.detail(t) == "a" {
+		t.Errorf("a name repeated inside a nested value: wanted the refusal to name the member's type rather than a repetition, got %d %s", got.status, got.body)
+	}
 
 	queued := f.add("A queued card", "intake")
 	if got := f.form("/claims", "column=build&no-claim=on"); got.status != http.StatusOK || f.card(queued).State != contract.StateReady {

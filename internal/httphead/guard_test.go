@@ -37,16 +37,15 @@ const (
 //  4. any selector verb.Response whose parent is not a star, so a signature,
 //     a field or a variable may hold *verb.Response and nothing may build or
 //     hold a verb.Response itself;
-//  5. any assignment, increment, append or copy whose target is a selector
-//     named Affordances, or an index over one.
+//  5. any assignment, increment, append or copy whose target, and any
+//     address-of whose operand, reduces to a selector named Affordances once
+//     writeRoot has stripped its index, slice, parenthesis and dereference
+//     layers.
 //
-// The guard reads one directory and no types, so four shapes pass it. Each
-// publishes what the library publishes, untranslated, and the one name the
-// translation changes is next, which the library puts only on an answer
-// naming no card. TestEveryPublishedAffordanceHasARow drives every act route
-// into a refusal before a card is found, so a route answering through any of
-// the four publishes next there and fails that test whichever shape its code
-// took. The four, with a reproduction of each:
+// The guard reads one directory, no types, and no value's path from one
+// name to another, so code can still rewrite or compose an answer past it.
+// The shapes below are the ones known to pass, and a parse cannot close the
+// list, each with a reproduction:
 //
 //   - A library act called directly in place of answer.Run:
 //     payload := x.library.Do(req)
@@ -57,6 +56,20 @@ const (
 //     func alloc[T any](_ *T) *T { return new(T) }; payload := alloc(existing)
 //   - json.Unmarshal into a *verb.Response:
 //     var payload *verb.Response; json.Unmarshal(bytes, &payload)
+//   - The affordance list handed to a function that rewrites it in place:
+//     sort.Strings(response.Affordances)
+//     slices.Reverse(response.Affordances)
+//   - The affordance list copied into a variable and written through it:
+//     list := response.Affordances; list[0] = "status"
+//
+// TestEveryPublishedAffordanceHasARow catches part of this and no more. It
+// fails when an answer publishes a name the affordance table has no row for,
+// and when one of the head's own refusals it pins lacks next_card. It drives
+// every act route into a refusal before a card is found, where the library
+// puts its untranslated next, so a route answering through any of the first
+// four shapes publishes next there and fails it. The last two fail it only when they introduce a name without a row
+// or push next_card off a pinned refusal. A rewrite that drops, reorders or
+// repeats names the table already carries passes this guard and that test.
 func checkComposition(dir string) []string {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
@@ -108,10 +121,7 @@ func checkFile(fset *token.FileSet, name string, file *ast.File) []string {
 	}
 	verbName, answerName := bound[verbPath], bound[answerPath]
 	affordances := func(target ast.Expr) bool {
-		if index, ok := target.(*ast.IndexExpr); ok {
-			target = index.X
-		}
-		selector, ok := target.(*ast.SelectorExpr)
+		selector, ok := writeRoot(target).(*ast.SelectorExpr)
 		return ok && selector.Sel.Name == "Affordances"
 	}
 	var parents []ast.Node
@@ -154,10 +164,36 @@ func checkFile(fset *token.FileSet, name string, file *ast.File) []string {
 			if callee, ok := node.Fun.(*ast.Ident); ok && (callee.Name == "append" || callee.Name == "copy") && len(node.Args) > 0 && affordances(node.Args[0]) {
 				report(node.Pos(), 5, callee.Name+" into Affordances")
 			}
+		case *ast.UnaryExpr:
+			if node.Op == token.AND && affordances(node.X) {
+				report(node.Pos(), 5, "takes the address of Affordances")
+			}
 		}
 		return true
 	})
 	return violations
+}
+
+// writeRoot reduces an expression written to, or whose address is taken, to
+// the expression that owns the storage: it strips index, slice, parenthesis
+// and pointer-dereference layers until none is left, so
+// (*x).Affordances[i], x.Affordances[:1] and (x.Affordances)[0] all reduce to
+// a selector named Affordances.
+func writeRoot(target ast.Expr) ast.Expr {
+	for {
+		switch layer := target.(type) {
+		case *ast.IndexExpr:
+			target = layer.X
+		case *ast.SliceExpr:
+			target = layer.X
+		case *ast.ParenExpr:
+			target = layer.X
+		case *ast.StarExpr:
+			target = layer.X
+		default:
+			return target
+		}
+	}
 }
 
 // plantedRule reads the rule a planted file was written for off its name,
